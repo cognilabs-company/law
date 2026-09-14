@@ -3,7 +3,7 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import { useAuth, hasAdminAccess } from "@/lib/auth";
+import { useAuth, hasAdminAccess, sessionRoles, type AdminPermission } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
 import LanguageSwitcher from "../LanguageSwitcher";
 import {
@@ -33,7 +33,7 @@ import {
 } from "../icons";
 
 type SvgC = ComponentType<{ className?: string }>;
-type NavItem = { href: string; key: string; Icon: SvgC; perm?: string };
+type NavItem = { href: string; key: string; Icon: SvgC; perm?: AdminPermission };
 // CRM modules grouped per the platform plan. `perm` = the backend permission a
 // page needs; items without a perm (overview, ceo, bootstrap…) are full-admin
 // only. Superadmin/admin see everything.
@@ -117,7 +117,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // Superadmin sees everything. Admin sees the overview/bootstrap plus every
   // page it actually has the permission for (e.g. it lacks roles.manage, so no
   // Roles page). Other staff see only pages their permissions grant.
-  const roles = (session?.roles ?? []).map((r) => r.toLowerCase());
+  // Assigned roles plus the primary role (a primary "admin" needs no role row).
+  const roles = sessionRoles(session);
   const isSuper = roles.includes("superadmin");
   const isFullAdmin = isSuper || roles.includes("admin");
   const perms = session?.permissions ?? [];

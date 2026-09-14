@@ -1,7 +1,8 @@
 {
   "common": {
     "demoOff": "This action isn't available yet. Real payment/verification is coming soon.",
-    "rateLimited": "Too many attempts. Please try again shortly."
+    "rateLimited": "Too many attempts. Please try again shortly.",
+    "offline": "Couldn't reach the server. Check your internet connection and try again."
   },
   "a11y": {
     "showPassword": "Show password",
@@ -1672,7 +1673,6 @@
     "login": {
       "title": "Log in to LexGo",
       "subtitle": "Sign in with your phone number",
-      "roleClient": "Client",
       "roleLawyer": "Lawyer",
       "roleClientHint": "Find lawyers, order services, track your cases",
       "roleLawyerHint": "Case marketplace, your cases, calendar and clients",
@@ -1695,18 +1695,20 @@
         "forgot": "Forgot password?",
         "twoFaTitle": "Two-factor verification",
         "twoFaSubtitle": "Enter the code sent to {phone}",
+        "twoFaTotpSubtitle": "Enter the 6-digit code from your authenticator app",
         "twoFaCode": "Verification code",
         "twoFaCodePh": "6-digit code",
         "twoFaVerify": "Verify and sign in",
         "twoFaBack": "Back",
-        "demoHint": "Demo code: {code}",
+        "twoFaStartError": "Couldn't start verification. Please sign in again.",
+        "sessionExpired": "Your session ended after a period of inactivity. Please sign in again for security.",
         "resetTitle": "Reset password",
         "resetSubtitle": "Enter your phone number — we'll send a verification code.",
         "resetPhone": "Phone number",
         "resetSendCode": "Get code",
         "resetSending": "Sending…",
         "resetCodeTitle": "Set a new password",
-        "resetCodeSubtitle": "Enter the code sent to {phone} and choose a new password.",
+        "resetCodeSubtitle": "If an account is linked to {phone}, a verification code has been sent to it. Enter the code and choose a new password.",
         "resetCode": "Verification code",
         "resetCodePh": "6-digit code",
         "resetNewPassword": "New password",
@@ -1799,20 +1801,27 @@
         "codePh": "6-digit code",
         "verify": "Confirm",
         "verifying": "Verifying…",
-        "demoHint": "Demo code: {code}",
         "enabled": "2FA enabled.",
         "enabledBadge": "Enabled",
         "disable": "Disable",
         "disabling": "Disabling…",
         "disabledMsg": "2FA disabled.",
         "errStart": "Couldn't complete. Please try again.",
-        "errVerify": "Wrong code. Please try again.",
+        "errVerify": "The code is wrong or has expired. Please try again.",
           "chooseSms": "Via SMS",
           "chooseTotp": "Authenticator app",
           "totpSetupTitle": "Connect authenticator",
           "scanHint": "Scan the QR in Google Authenticator, Authy, etc., then enter the 6-digit code.",
           "secretLabel": "Or enter the key manually",
-          "back": "Back"
+          "back": "Back",
+          "mandatory": "Two-factor authentication is required for your role and can't be turned off.",
+          "totpCodeLabel": "6-digit code from the app",
+          "openInApp": "Open in authenticator app",
+          "qrUnavailable": "The QR code couldn't be shown — enter the key manually or open it in the app.",
+          "switchToTotp": "Switch to authenticator app",
+          "currentMethod": "Current method: {method}",
+          "methodSms": "SMS",
+          "methodTotp": "Authenticator app"
       }
     },
     "tasks": {
@@ -2846,14 +2855,18 @@
     "otp": {
       "title": "Enter the verification code",
       "subtitle": "We sent a 6-digit code to {phone}",
-      "demoHint": "Demo code: {code}",
       "verifying": "Verifying…",
       "verified": "Verified successfully!",
       "incorrect": "Incorrect code. Please try again.",
       "expired": "The code has expired. Request a new one.",
       "locked": "Too many attempts. Request a new code.",
       "resend": "Resend code",
-      "resendIn": "Resend in {sec}s",
+      "resendIn": "Resend in {time}",
+      "expiresIn": "Code expires in {time}",
+      "blockedFor": "You can enter a code again in {time}.",
+      "resending": "Sending…",
+      "resent": "A new code has been sent. The previous code no longer works.",
+      "resendError": "Couldn't resend the code. Please try again shortly.",
       "change": "Change number"
     },
     "type": {
@@ -3044,7 +3057,6 @@
       "title": "Verify your phone",
       "telegramBtn": "Get code in Telegram",
       "subtitle": "Enter the 6-digit code sent to {phone}",
-      "demoHint": "Demo code: {code}",
       "verifying": "Verifying…",
       "submit": "Verify & finish",
       "change": "Back",
@@ -3052,6 +3064,7 @@
       "startError": "Couldn't start registration. Try again.",
       "phoneExists": "This phone number is already registered. Please log in.",
       "goLogin": "Log in",
+      "loginRequired": "Your account has been created. For security, sign in with two-factor verification.",
       "sending": "Sending code…",
       "getCode": "Get code"
     },

@@ -1177,12 +1177,14 @@ body:has(.rf) .fab{display:none}
 .rf__match svg{width:18px;height:18px;flex:none;margin-top:2px;stroke:var(--b600)}
 .rf__previewnote{margin:0 0 14px;font-size:.85rem;color:var(--gray);display:flex;gap:8px;align-items:center}
 .rf__foot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
-.rf__demo{font-size:.78rem;color:var(--b600);background:var(--b50);border-radius:8px;padding:6px 10px;margin:14px 0 0;align-self:flex-start;font-weight:600}
 .rf__otpactions{display:flex;justify-content:space-between;gap:12px;margin-top:16px}
 .rf__otpmsg{margin:14px 0 0;font-size:.9rem;font-weight:600}
 .rf__otpmsg--ok{color:var(--ok)}
 .rf__otpmsg--err{color:#C0392B}
 .rf__otpmsg--muted{color:var(--gray)}
+/* OTP status lines inside grid forms (login 2FA, reset, 2FA card): the grid gap spaces them */
+.cform .rf__otpmsg{margin:0}
+.cform .rf__otpactions{margin-top:0}
 .rf__creating{position:fixed;inset:0;background:rgba(3,16,43,.6);backdrop-filter:blur(6px);display:grid;place-items:center;z-index:60}
 .rf__creating-c{background:#fff;border-radius:var(--rl);padding:32px 44px;display:flex;flex-direction:column;align-items:center;gap:16px;box-shadow:var(--s3)}
 .rf__creating-c b{font-family:var(--fd);font-size:1.05rem}

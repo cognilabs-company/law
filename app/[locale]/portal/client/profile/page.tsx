@@ -39,7 +39,7 @@ function fmtDateTime(s: string) {
 
 export default function ClientProfile() {
   const t = useTranslations("portal.client.profile");
-  const { session, update } = useAuth();
+  const { session, update, logout } = useAuth();
   const [key, setKey] = useState(0);
   const reload = () => setKey((k) => k + 1);
   const prof = useResourceOne(getClientProfile, [key]);
@@ -63,8 +63,15 @@ export default function ClientProfile() {
     }
   }
   async function revoke(id: string) {
+    const current = sessions.data.find((x) => x.id === id)?.current;
     try {
       await revokeSession(id);
+      // This device's own session is gone → sign out cleanly instead of
+      // failing the next refresh with a misleading "inactivity" notice.
+      if (current) {
+        logout();
+        return;
+      }
       reload();
     } catch {
       /* ignore */

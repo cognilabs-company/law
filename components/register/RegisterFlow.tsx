@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import { ApiError, isRateLimited } from "@/lib/http";
+import { ApiError, errDetail, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
+import type { RegisterStartResult } from "@/lib/services/backend";
+import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
+import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import {
   emptyDraft,
   type AccountType,
@@ -46,6 +49,7 @@ export default function RegisterFlow() {
   const t = useTranslations("register");
   const te = useTranslations("enums");
   const tc = useTranslations("common");
+  const tOtp = useTranslations("register.otp");
   const router = useRouter();
   const { startRegistration, register, session, ready } = useAuth();
 
@@ -61,16 +65,22 @@ export default function RegisterFlow() {
 
   // OTP verification state
   const [verificationId, setVerificationId] = useState("");
-  const [demoOtp, setDemoOtp] = useState("");
   const [telegramLink, setTelegramLink] = useState("");
   const [otpMessage, setOtpMessage] = useState("");
   const [code, setCode] = useState("");
   const [starting, setStarting] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifyErr, setVerifyErr] = useState<string | null>(null);
+  // Expiry / resend cooldown / wrong-code lock of the current code.
+  const otp = useOtpTimer();
+  const [resending, setResending] = useState(false);
+  const [otpNote, setOtpNote] = useState<string | null>(null);
+  // Registration details the pending code was issued for (see otpKey).
+  const [issuedKey, setIssuedKey] = useState("");
   // Error from requesting the OTP (step 1). Shown in the footer on the profile
   // step, since verifyErr is only rendered on the later verify step.
-  const [startErr, setStartErr] = useState<{ msg: string; login?: boolean } | null>(null);
+  // wait = the server refused a new code for now (cooldown / daily quota).
+  const [startErr, setStartErr] = useState<{ msg: string; login?: boolean; wait?: boolean } | null>(null);
   const [pendingMsg, setPendingMsg] = useState<string | null>(null);
 
   const steps = useMemo(
@@ -81,6 +91,8 @@ export default function RegisterFlow() {
   const total = draft.accountType ? steps.length : steps.length + 3; // hint more to come
 
   const p = draft.profile;
+  // The details a code is issued for; any change needs a new code.
+  const otpKey = JSON.stringify([draft.accountType, draft.phone, p.firstName, p.lastName, p.middleName, draft.password]);
   function setProfile(patch: Partial<ProfessionalProfile>) {
     setDraft((d) => ({ ...d, profile: { ...d.profile, ...patch } }));
   }
@@ -144,26 +156,46 @@ export default function RegisterFlow() {
     setIdx(2);
   }
 
+  // Keep only the newest verification: a new code supersedes the old one, so
+  // id, typed code, Telegram link and timer are replaced together.
+  function applyIssue(r: RegisterStartResult) {
+    setVerificationId(r.verificationId);
+    setCode("");
+    setTelegramLink(r.telegramBotLink);
+    setOtpMessage(r.message);
+    setIssuedKey(otpKey);
+    otp.issue(r.expiresAt);
+  }
+
   // Last profile step → request the OTP, then advance to the verify step.
   async function startReg() {
     if (!draft.accountType || starting) return;
+    // A still-valid code for the same details → reuse it instead of burning
+    // the resend cooldown and the daily OTP quota.
+    if (verificationId && issuedKey === otpKey && otp.issued && !otp.expired) {
+      next();
+      return;
+    }
+    if (startErr?.wait && otp.resendIn > 0) return;
     setStarting(true);
     setVerifyErr(null);
     setStartErr(null);
     try {
-      const { verificationId: vid, demoOtp: otp, telegramBotLink, message } = await startRegistration(draft);
-      setVerificationId(vid);
-      setDemoOtp(otp);
-      setCode(otp || "");
-      setTelegramLink(telegramBotLink || "");
-      setOtpMessage(message || "");
+      const r = await startRegistration(draft);
       setStarting(false);
+      if (!r.verificationId) {
+        setStartErr({ msg: t("verify.startError") });
+        return;
+      }
+      applyIssue(r);
+      setOtpNote(null);
       next();
     } catch (e) {
       setStarting(false);
       // 409 = this phone already has an account → point the user to login.
       if (isRateLimited(e)) {
-        setStartErr({ msg: tc("rateLimited") });
+        otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
+        setStartErr({ msg: errDetail(e) || tc("rateLimited"), wait: true });
       } else if (e instanceof ApiError && e.status === 409) {
         setStartErr({ msg: t("verify.phoneExists"), login: true });
       } else {
@@ -172,29 +204,70 @@ export default function RegisterFlow() {
     }
   }
 
+  // Verify step → "Resend code": issue a new code for the same details.
+  async function resend() {
+    if (!draft.accountType || resending || verifying || otp.resendIn > 0) return;
+    setResending(true);
+    setVerifyErr(null);
+    setOtpNote(null);
+    try {
+      const r = await startRegistration(draft);
+      if (r.verificationId) {
+        applyIssue(r);
+        setOtpNote(tOtp("resent"));
+      } else {
+        setVerifyErr(tOtp("resendError"));
+      }
+    } catch (e) {
+      if (isRateLimited(e)) {
+        otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
+        setVerifyErr(errDetail(e) || tc("rateLimited"));
+      } else if (e instanceof ApiError && e.status === 409) {
+        setVerifyErr(t("verify.phoneExists"));
+      } else {
+        setVerifyErr(tOtp("resendError"));
+      }
+    } finally {
+      setResending(false);
+    }
+  }
+
   // Verify step → confirm the code, create the session, go to the portal.
   async function doVerify() {
-    if (verifying) return;
-    if (code.trim().length < 4) {
-      setVerifyErr(t("verify.incorrect"));
-      return;
-    }
+    if (verifying || resending) return;
+    // Locked, or expired (the countdown already asks for a new code).
+    if (otp.blockedIn > 0 || otp.expired || code.length !== 6) return;
     setVerifying(true);
     setVerifyErr(null);
+    setOtpNote(null);
     setCreating(true);
     try {
-      const s = await register(draft, verificationId, code.trim());
+      const s = await register(draft, verificationId, code);
       // Seller roles come back pending admin approval — show a review screen
       // instead of entering a portal (no account exists yet).
       if ("pending" in s) {
         setPendingMsg(s.message);
         return;
       }
+      // Account created, but its role needs 2FA at sign-in → sign in at /login
+      // (the login form says why).
+      if ("loginRequired" in s) {
+        router.replace("/login");
+        return;
+      }
       router.replace(`/portal/${s.role}`);
     } catch (e) {
       setVerifying(false);
       setCreating(false);
-      setVerifyErr(isRateLimited(e) ? tc("rateLimited") : t("verify.incorrect"));
+      if (isRateLimited(e)) {
+        // Too many wrong codes → locked; count down the server's wait.
+        otp.block(retryAfterSec(e, OTP_RESEND_SEC));
+        setVerifyErr(errDetail(e) || tc("rateLimited"));
+      } else if (isOtpExpired(e)) {
+        otp.expire();
+      } else {
+        setVerifyErr(t("verify.incorrect"));
+      }
     }
   }
 
@@ -325,7 +398,7 @@ export default function RegisterFlow() {
               </span>
               <h1 className="rf__title">{t("verify.title")}</h1>
               <p className="rf__sub">{otpMessage || t("verify.subtitle", { phone: draft.phone })}</p>
-              {telegramLink ? (
+              {telegramLink && !otp.expired ? (
                 <a className="btn btn--line btn--full rf__tg" href={telegramLink} target="_blank" rel="noopener noreferrer">
                   {t("verify.telegramBtn")}
                 </a>
@@ -337,6 +410,7 @@ export default function RegisterFlow() {
                     className="otp__box"
                     inputMode="numeric"
                     maxLength={i === 0 ? 6 : 1}
+                    autoComplete={i === 0 ? "one-time-code" : "off"}
                     value={code[i] ?? ""}
                     onChange={(e) => {
                       const v = e.target.value.replace(/\D/g, "");
@@ -352,16 +426,26 @@ export default function RegisterFlow() {
                   />
                 ))}
               </div>
+              <OtpCountdown timer={otp} />
               {verifyErr ? <p className="rf__otpmsg rf__otpmsg--err">{verifyErr}</p> : null}
-              {demoOtp ? <p className="rf__demo">{t("verify.demoHint", { code: demoOtp })}</p> : null}
-              <button className="btn btn--grad btn--full btn--lg" type="button" onClick={doVerify} disabled={verifying} style={{ marginTop: 18 }}>
+              {otpNote ? <p className="rf__otpmsg rf__otpmsg--ok">{otpNote}</p> : null}
+              <button
+                className="btn btn--grad btn--full btn--lg"
+                type="button"
+                onClick={doVerify}
+                disabled={verifying || resending || code.length !== 6 || otp.expired || otp.blockedIn > 0}
+                style={{ marginTop: 18 }}
+              >
                 {verifying ? t("verify.verifying") : t("verify.submit")}
                 {verifying ? null : <IconCheck />}
               </button>
-              <button type="button" className="rf__link rf__link--muted" onClick={back} style={{ marginTop: 14 }}>
-                <IconChevronLeft />
-                {t("verify.change")}
-              </button>
+              <div className="rf__otpactions">
+                <button type="button" className="rf__link rf__link--muted" onClick={back}>
+                  <IconChevronLeft />
+                  {t("verify.change")}
+                </button>
+                <OtpResendButton timer={otp} busy={resending} onResend={resend} />
+              </div>
             </div>
           ) : null}
 
@@ -580,7 +664,11 @@ export default function RegisterFlow() {
                   aria-disabled={!canContinue()}
                   onClick={() => (starting ? null : tryAdvance(startReg))}
                 >
-                  {starting ? t("verify.sending") : t("verify.getCode")}
+                  {starting
+                    ? t("verify.sending")
+                    : startErr?.wait && otp.resendIn > 0
+                      ? tOtp("resendIn", { time: fmtClock(otp.resendIn) })
+                      : t("verify.getCode")}
                   {starting ? null : <IconArrowRight />}
                 </button>
               ) : (

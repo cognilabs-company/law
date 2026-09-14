@@ -1,7 +1,8 @@
 {
   "common": {
     "demoOff": "Bu amal hozircha mavjud emas. Tez orada real to'lov/tasdiqlash ulanadi.",
-    "rateLimited": "Juda ko'p urinish. Bir ozdan so'ng qayta urining."
+    "rateLimited": "Juda ko'p urinish. Bir ozdan so'ng qayta urining.",
+    "offline": "Server bilan bog'lanib bo'lmadi. Internet aloqasini tekshirib, qayta urining."
   },
   "a11y": {
     "showPassword": "Parolni ko'rsatish",
@@ -1678,7 +1679,6 @@
     "login": {
       "title": "LexGo ga kirish",
       "subtitle": "Telefon raqamingiz bilan tizimga kiring",
-      "roleClient": "Mijoz",
       "roleLawyer": "Yurist",
       "roleClientHint": "Advokatlarni toping, xizmatlarga buyurtma bering, ishlaringizni kuzating",
       "roleLawyerHint": "Ishlar bozori, mijozlar va professional profil",
@@ -1701,18 +1701,20 @@
         "forgot": "Parolni unutdingizmi?",
         "twoFaTitle": "Ikki bosqichli tasdiqlash",
         "twoFaSubtitle": "{phone} raqamiga yuborilgan kodni kiriting",
+        "twoFaTotpSubtitle": "Authenticator ilovangizdagi 6 xonali kodni kiriting",
         "twoFaCode": "Tasdiqlash kodi",
         "twoFaCodePh": "6 xonali kod",
         "twoFaVerify": "Tasdiqlash va kirish",
         "twoFaBack": "Orqaga",
-        "demoHint": "Demo kod: {code}",
+        "twoFaStartError": "Tasdiqlash bosqichini boshlab bo'lmadi. Qaytadan kirib ko'ring.",
+        "sessionExpired": "Uzoq vaqt faollik bo'lmagani sababli sessiyangiz yakunlandi. Xavfsizlik uchun qaytadan kiring.",
         "resetTitle": "Parolni tiklash",
         "resetSubtitle": "Telefon raqamingizni kiriting — tasdiqlash kodi yuboramiz.",
         "resetPhone": "Telefon raqam",
         "resetSendCode": "Kod olish",
         "resetSending": "Yuborilmoqda…",
         "resetCodeTitle": "Yangi parol o'rnatish",
-        "resetCodeSubtitle": "{phone} raqamiga yuborilgan kodni kiriting va yangi parol o'ylab toping.",
+        "resetCodeSubtitle": "Agar {phone} raqamiga hisob bog'langan bo'lsa, unga tasdiqlash kodi yuborildi. Kodni kiriting va yangi parol o'rnating.",
         "resetCode": "Tasdiqlash kodi",
         "resetCodePh": "6 xonali kod",
         "resetNewPassword": "Yangi parol",
@@ -1805,20 +1807,27 @@
         "codePh": "6 xonali kod",
         "verify": "Tasdiqlash",
         "verifying": "Tekshirilmoqda…",
-        "demoHint": "Demo kod: {code}",
         "enabled": "2FA yoqildi.",
         "enabledBadge": "Yoqilgan",
         "disable": "O'chirish",
         "disabling": "O'chirilmoqda…",
         "disabledMsg": "2FA o'chirildi.",
         "errStart": "Amalni bajarib bo'lmadi. Qayta urining.",
-        "errVerify": "Kod noto'g'ri. Qayta urining.",
+        "errVerify": "Kod noto'g'ri yoki muddati o'tgan. Qayta urining.",
           "chooseSms": "SMS orqali",
           "chooseTotp": "Authenticator ilova",
           "totpSetupTitle": "Authenticator ilovasini ulash",
           "scanHint": "QR kodni Google Authenticator, Authy yoki shunga o'xshash ilovada skanerlang, so'ng 6 xonali kodni kiriting.",
           "secretLabel": "Yoki kalitni qo'lda kiriting",
-          "back": "Orqaga"
+          "back": "Orqaga",
+          "mandatory": "Sizning rolingiz uchun ikki bosqichli himoya majburiy — uni o'chirib bo'lmaydi.",
+          "totpCodeLabel": "Ilovadagi 6 xonali kod",
+          "openInApp": "Authenticator ilovasida ochish",
+          "qrUnavailable": "QR kodni ko'rsatib bo'lmadi — kalitni qo'lda kiriting yoki ilovada oching.",
+          "switchToTotp": "Authenticator ilovaga o'tish",
+          "currentMethod": "Joriy usul: {method}",
+          "methodSms": "SMS",
+          "methodTotp": "Authenticator ilova"
       }
     },
     "tasks": {
@@ -2852,14 +2861,18 @@
     "otp": {
       "title": "Tasdiqlash kodini kiriting",
       "subtitle": "{phone} raqamiga 6 xonali kod yubordik",
-      "demoHint": "Demo kod: {code}",
       "verifying": "Tekshirilmoqda…",
       "verified": "Muvaffaqiyatli tasdiqlandi!",
       "incorrect": "Kod noto'g'ri. Qayta urinib ko'ring.",
       "expired": "Kod muddati tugadi. Yangisini so'rang.",
       "locked": "Urinishlar juda ko'p. Yangi kod so'rang.",
       "resend": "Kodni qayta yuborish",
-      "resendIn": "{sec}s dan keyin qayta yuborish",
+      "resendIn": "Qayta yuborish: {time}",
+      "expiresIn": "Kod yana {time} amal qiladi",
+      "blockedFor": "Kodni {time} dan keyin qayta kiritish mumkin.",
+      "resending": "Yuborilmoqda…",
+      "resent": "Yangi kod yuborildi. Oldingi kod endi amal qilmaydi.",
+      "resendError": "Kodni qayta yuborib bo'lmadi. Birozdan so'ng urinib ko'ring.",
       "change": "Raqamni o'zgartirish"
     },
     "type": {
@@ -3050,7 +3063,6 @@
       "title": "Telefonni tasdiqlang",
       "telegramBtn": "Telegramda kod olish",
       "subtitle": "{phone} raqamiga yuborilgan 6 xonali kodni kiriting",
-      "demoHint": "Demo kod: {code}",
       "verifying": "Tekshirilmoqda…",
       "submit": "Tasdiqlash va yakunlash",
       "change": "Orqaga",
@@ -3058,6 +3070,7 @@
       "startError": "Ro‘yxatdan o‘tishni boshlab bo‘lmadi. Qayta urining.",
       "phoneExists": "Bu telefon raqami allaqachon ro'yxatdan o'tgan. Hisobingizga kiring.",
       "goLogin": "Kirish",
+      "loginRequired": "Hisobingiz yaratildi. Xavfsizlik uchun tizimga ikki bosqichli tasdiqlash bilan kiring.",
       "sending": "Kod yuborilmoqda…",
       "getCode": "Kod olish"
     },

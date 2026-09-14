@@ -2,7 +2,7 @@
 // Every function talks to the same-origin proxy with the bearer token attached.
 // UI callers wrap reads in `withFallback(...)` so the app keeps working on local
 // mock data until the backend is reachable.
-import { http, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, backendOrigin, backendUrl, type Dict } from "@/lib/http";
+import { http, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
 import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
 
@@ -28,27 +28,50 @@ export type AuthUser = {
   permissions: string[];
   twoFactorEnabled: boolean;
   twoFactorMethod: string; // "" | "sms" | "totp"
+  // Raw primary role as the backend sent it ('' when absent). `role` above
+  // falls back to "client" for unknown values; RBAC needs the real one.
+  primaryRole: string;
+  // Backend flag: 2FA is mandatory for this account (staff/seller roles).
+  twoFactorRequired: boolean;
+  telegramLinked?: boolean; // undefined = /auth/me doesn't expose it
 };
 export type AuthResult = { token: string; refreshToken: string; user: AuthUser };
 
 const ROLE_SET: BackendRole[] = [
   "client", "yurist", "advokat", "advokat_tashkiloti", "admin", "manager", "call_center", "sales",
 ];
+// Telegram link state (T0-15). /auth/me may expose telegram_chat_id or a
+// boolean flag; undefined when it exposes neither, so the UI can tell
+// "not linked" from "unknown".
+function telegramLinkedOf(d: Dict): boolean | undefined {
+  for (const k of ["telegram_linked", "is_telegram_linked", "telegram_connected"]) {
+    if (typeof d[k] === "boolean") return d[k] as boolean;
+  }
+  if ("telegram_chat_id" in d) return asStr(d.telegram_chat_id).trim() !== "";
+  const tg = asDict(d.telegram);
+  if (typeof tg.linked === "boolean") return tg.linked;
+  if ("chat_id" in tg) return asStr(tg.chat_id).trim() !== "";
+  return undefined;
+}
 function normUser(v: unknown): AuthUser {
   const d = asDict(v);
-  const rawRole = asStr(d.role) as BackendRole;
+  const rawRole = asStr(d.role).toLowerCase();
+  const tf = asDict(d.two_factor);
   return {
     id: asStr(d.id ?? d.user_id),
     lexgoId: asStr(d.lexgo_id ?? d.lexgoId),
     accountStatus: asStr(d.account_status ?? d.status, "active"),
-    role: ROLE_SET.includes(rawRole) ? rawRole : "client",
+    role: ROLE_SET.includes(rawRole as BackendRole) ? (rawRole as BackendRole) : "client",
     name: asStr(d.name),
     middleName: asStr(d.middle_name),
     phone: asStr(d.phone),
     roles: asArr(d.roles).map((r) => asStr(r)),
     permissions: asArr(d.permissions).map((p) => asStr(p)),
-    twoFactorEnabled: Boolean(d.two_factor_enabled),
-    twoFactorMethod: asStr(d.two_factor_method),
+    twoFactorEnabled: Boolean(d.two_factor_enabled ?? d.twofa_enabled ?? tf.enabled),
+    twoFactorMethod: asStr(d.two_factor_method ?? tf.method).toLowerCase(),
+    primaryRole: rawRole,
+    twoFactorRequired: Boolean(d.two_factor_required ?? d.two_factor_mandatory ?? tf.required ?? tf.mandatory),
+    telegramLinked: telegramLinkedOf(d),
   };
 }
 
@@ -66,8 +89,13 @@ export async function apiRefresh(refreshToken: string): Promise<{ token: string;
   const d = asDict(await http("/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: refreshToken }) }));
   return { token: asStr(d.access_token ?? d.token), refreshToken: asStr(d.refresh_token ?? refreshToken) };
 }
-export async function apiLogout(): Promise<void> {
-  await http("/auth/logout", { method: "POST", body: JSON.stringify({}) }).catch(() => {});
+// Sending the refresh token revokes that refresh session server-side (the
+// sessions list stays accurate), not just the access token.
+export async function apiLogout(refreshToken?: string): Promise<void> {
+  await http("/auth/logout", {
+    method: "POST",
+    body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
+  }).catch(() => {});
 }
 export type UserSession = { id: string; deviceLabel: string; ip: string; status: string; lastUsedAt: string; expiresAt: string; current?: boolean };
 export async function listSessions(): Promise<UserSession[]> {
@@ -88,16 +116,54 @@ export async function revokeSession(id: string): Promise<void> {
   await http(`/auth/sessions/${id}`, { method: "DELETE" });
 }
 
-// Two-step OTP registration. /auth/register now behaves like /auth/register/start
-// (returns a verification + demo_otp); we use the explicit /start endpoint.
-export type RegisterStartResult = {
-  verificationId: string;
-  phone: string;
-  demoOtp: string;
-  expiresAt: string;
-  message: string;
-  telegramBotLink: string;
-};
+// ── OTP challenges ────────────────────────────────────────────────
+// Every OTP issue (register/start, password/forgot, 2fa/start, login 428)
+// returns a verification id plus an expiry — never the code itself. SMS codes
+// live 2 minutes, and a new issue supersedes the previous code, so callers
+// always switch to the newest verification id.
+export const OTP_TTL_MS = 2 * 60 * 1000;
+const OTP_MAX_MS = 10 * 60 * 1000;
+// expiresAt is epoch ms on the client clock; 0 = no expiry known.
+export type OtpChallenge = { verificationId: string; phone: string; expiresAt: number; message: string };
+
+// Server expiry → client deadline. Only a sane remaining time (0-60 min) is
+// trusted, capped at `maxMs` so a skewed clock or naive-UTC timestamp can't
+// show a longer timer than the documented TTL; otherwise `fallbackMs` (0 = none).
+function otpExpiresAt(d: Dict, fallbackMs: number, maxMs: number): number {
+  const now = Date.now();
+  let at = parseServerTime(d.expires_at ?? d.expiresAt);
+  if (Number.isNaN(at)) {
+    const s = asNum(d.expires_in ?? d.expires_in_seconds ?? d.ttl_seconds, 0);
+    if (s > 0) at = now + s * 1000;
+  }
+  const left = at - now;
+  if (left > 0 && left <= 60 * 60 * 1000) return now + Math.min(left, maxMs);
+  return fallbackMs ? now + fallbackMs : 0;
+}
+
+// `sms` = a code that was sent (2-minute timer fallback); false for TOTP.
+function normOtp(v: unknown, sms = true): OtpChallenge {
+  const src = asDict(v);
+  const idOf = (x: Dict) => x.verification_id ?? x.verificationId ?? x.challenge_id;
+  const d =
+    [src, asDict(src.verification), asDict(src.data), asDict(src.detail)].find((x) => idOf(x) != null) ?? src;
+  return {
+    verificationId: asStr(idOf(d)),
+    phone: asStr(d.phone ?? src.phone),
+    expiresAt: otpExpiresAt(d, sms ? OTP_TTL_MS : 0, sms ? OTP_TTL_MS : OTP_MAX_MS),
+    message: asStr(d.message ?? src.message),
+  };
+}
+
+// Telegram bot OTP-delivery link; only https:// or tg:// ever reaches an href.
+function tgLink(d: Dict): string {
+  const s = asStr(d.telegram_bot_link ?? d.telegram_link ?? d.telegram_url ?? d.bot_link).trim();
+  return /^(https:|tg:)\/\//i.test(s) ? s : "";
+}
+
+// Two-step OTP registration. The code arrives by SMS or the Telegram bot and
+// is never in the response; we use the explicit /start endpoint.
+export type RegisterStartResult = OtpChallenge & { telegramBotLink: string };
 export async function registerStart(input: {
   role: BackendRole;
   name: string;
@@ -114,32 +180,37 @@ export async function registerStart(input: {
     ...(lastName ? { last_name: lastName } : {}),
     ...(middleName ? { middle_name: middleName } : {}),
   };
-  const d = asDict(await http("/auth/register/start", { method: "POST", body: JSON.stringify(body) }));
-  return {
-    verificationId: asStr(d.verification_id),
-    phone: asStr(d.phone),
-    demoOtp: asStr(d.demo_otp),
-    expiresAt: asStr(d.expires_at),
-    message: asStr(d.message),
-    telegramBotLink: asStr(d.telegram_bot_link),
-  };
+  const d = await http("/auth/register/start", { method: "POST", body: JSON.stringify(body) });
+  return { ...normOtp(d), telegramBotLink: tgLink(asDict(d)) };
 }
 // Seller verify now creates the account immediately and returns auth tokens;
 // the user comes back with account_status "pending" until an admin approves.
 // The pending branch is only used when the backend returns no token at all
 // (legacy queue-a-request behavior / offline).
+// loginRequired: the account was created but its role needs 2FA at sign-in
+// (428, or a two_factor_required flag without tokens) — the user signs in
+// through /login, where the 2FA step runs.
 export type RegisterVerifyResult =
   | { pending: false; token: string; refreshToken: string; user: AuthUser }
-  | { pending: true; requestId: string; status: string; role: string; message: string };
+  | { pending: true; requestId: string; status: string; role: string; message: string }
+  | { loginRequired: true; message: string };
 
 export async function registerVerify(verificationId: string, code: string): Promise<RegisterVerifyResult> {
-  const d = asDict(
-    await http("/auth/register/verify", {
+  let raw: unknown;
+  try {
+    raw = await http("/auth/register/verify", {
       method: "POST",
       body: JSON.stringify({ verification_id: verificationId, code }),
-    }),
-  );
+    });
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 428) return { loginRequired: true, message: e.detail || "" };
+    throw e;
+  }
+  const d = asDict(raw);
   const token = asStr(d.access_token ?? d.token);
+  if (!token && (d.two_factor_required === true || asDict(d.detail).two_factor_required === true)) {
+    return { loginRequired: true, message: asStr(d.message) };
+  }
   if (!token) {
     return {
       pending: true,
@@ -157,10 +228,27 @@ export async function registerVerify(verificationId: string, code: string): Prom
   };
 }
 
-// A 2FA-enabled account returns HTTP 428 with the challenge in `detail` instead
-// of tokens. http() would drop the (object) detail, so hit the endpoint raw.
-export type TwoFactorChallenge = { twoFactorRequired: true; method: string; verificationId: string; phone: string; demoOtp: string; message: string };
+// A 2FA-enabled account — and every staff/seller role, where 2FA is mandatory —
+// returns HTTP 428 with the challenge (in `detail` or top level) instead of
+// tokens. http() would turn that into an error, so hit the endpoint raw.
+// A challenge without verificationId can't be verified; the caller shows its
+// message instead of a dead code step.
+export type TwoFactorChallenge = OtpChallenge & { twoFactorRequired: true; method: "sms" | "totp" | "" };
 export type LoginResult = AuthResult | TwoFactorChallenge;
+
+function normChallenge(v: unknown): TwoFactorChallenge {
+  const j = asDict(v);
+  const dd = j.detail && typeof j.detail === "object" && !Array.isArray(j.detail) ? asDict(j.detail) : {};
+  const raw = asStr(dd.method ?? dd.two_factor_method ?? dd.type ?? j.method ?? j.two_factor_method).toLowerCase();
+  const method = /totp|authenticator|app/.test(raw) ? "totp" : raw ? "sms" : "";
+  const o = normOtp(j, method !== "totp");
+  return {
+    ...o,
+    twoFactorRequired: true,
+    method,
+    message: o.message || (typeof j.detail === "string" ? j.detail : ""),
+  };
+}
 
 export async function apiLogin(phone: string, password: string): Promise<LoginResult> {
   let res: Response;
@@ -173,32 +261,11 @@ export async function apiLogin(phone: string, password: string): Promise<LoginRe
   } catch {
     throw new ApiError(0, "network_error");
   }
-  if (res.status === 428) {
-    const j = asDict(await res.json().catch(() => ({})));
-    const d = asDict(j.detail);
-    return {
-      twoFactorRequired: true,
-      method: asStr(d.method),
-      verificationId: asStr(d.verification_id),
-      phone: asStr(d.phone),
-      demoOtp: asStr(d.demo_otp),
-      message: asStr(d.message),
-    };
-  }
-  if (!res.ok) {
-    let detail: string | undefined;
-    try {
-      const t = await res.text();
-      if (t) {
-        const parsed = JSON.parse(t);
-        if (typeof parsed?.detail === "string") detail = parsed.detail;
-      }
-    } catch {
-      /* non-JSON error body */
-    }
-    throw new ApiError(res.status, detail);
-  }
-  return normAuth(await res.json());
+  if (res.status === 428) return normChallenge(await res.json().catch(() => ({})));
+  if (!res.ok) throw await toApiError(res);
+  const body = asDict(await res.json());
+  if (!asStr(body.access_token ?? body.token) && body.two_factor_required === true) return normChallenge(body);
+  return normAuth(body);
 }
 
 // Second step of a 2FA login: exchange the challenge code for tokens.
@@ -208,10 +275,11 @@ export async function loginVerify2fa(verificationId: string, code: string): Prom
   );
 }
 
-// Password reset: forgot → verification (+ demo_otp in demo mode); reset → set new password.
-export async function forgotPassword(phone: string): Promise<{ verificationId: string; phone: string; demoOtp: string; message: string }> {
-  const d = asDict(await http("/auth/password/forgot", { method: "POST", body: JSON.stringify({ phone }) }));
-  return { verificationId: asStr(d.verification_id), phone: asStr(d.phone), demoOtp: asStr(d.demo_otp), message: asStr(d.message) };
+// Password reset: forgot → verification; reset → set new password. Known and
+// unknown phones get the same generic response, so callers must not branch
+// on its content (no account enumeration).
+export async function forgotPassword(phone: string): Promise<OtpChallenge> {
+  return normOtp(await http("/auth/password/forgot", { method: "POST", body: JSON.stringify({ phone }) }));
 }
 export async function resetPassword(verificationId: string, code: string, password: string): Promise<void> {
   await http("/auth/password/reset", { method: "POST", body: JSON.stringify({ verification_id: verificationId, code, password }) });
@@ -2505,10 +2573,9 @@ export async function listSecurityEvents(): Promise<ActivityEntry[]> {
   return listFrom(await http("/auth/security-events"), "items", "data", "events").map(normActivity);
 }
 // SMS/OTP-based 2FA. start → OTP to phone; verify → enable. DELETE → disable.
-export type TwoFactorStart = { verificationId: string; demoOtp: string; phone: string };
+export type TwoFactorStart = OtpChallenge;
 export async function start2fa(): Promise<TwoFactorStart> {
-  const d = asDict(await http("/auth/2fa/start", { method: "POST", body: "{}" }));
-  return { verificationId: asStr(d.verification_id), demoOtp: asStr(d.demo_otp), phone: asStr(d.phone) };
+  return normOtp(await http("/auth/2fa/start", { method: "POST", body: "{}" }));
 }
 export async function verify2fa(verificationId: string, code: string): Promise<void> {
   await http("/auth/2fa/verify", { method: "POST", body: JSON.stringify({ verification_id: verificationId, code }) });
@@ -2521,13 +2588,36 @@ export async function disable2fa(): Promise<void> {
 export type TotpSetup = { setupId: string; secret: string; otpauthUrl: string; qrCode: string; expiresAt: string };
 export async function setupTotp(): Promise<TotpSetup> {
   const d = asDict(await http("/auth/2fa/totp/setup", { method: "POST", body: "{}" }));
+  const uri = asStr(d.otpauth_url ?? d.otpauth_uri ?? d.provisioning_uri ?? d.authenticator_uri ?? d.uri).trim();
+  const otpauthUrl = /^otpauth:\/\//i.test(uri) ? uri : ""; // never another scheme in an href
+  let secret = asStr(d.secret).trim();
+  if (!secret && otpauthUrl) {
+    const m = /[?&]secret=([^&#]+)/i.exec(otpauthUrl);
+    try {
+      secret = m ? decodeURIComponent(m[1]) : "";
+    } catch {
+      secret = m ? m[1] : "";
+    }
+  }
   return {
-    setupId: asStr(d.setup_id),
-    secret: asStr(d.secret),
-    otpauthUrl: asStr(d.otpauth_url),
-    qrCode: asStr(d.qr_code),
+    setupId: asStr(d.setup_id ?? d.id ?? d.verification_id),
+    secret,
+    otpauthUrl,
+    qrCode: qrSrc(d.qr_code ?? d.qr_code_url ?? d.qr ?? d.qr_image ?? d.qr_code_base64),
     expiresAt: asStr(d.expires_at),
   };
+}
+// QR value → something an <img src> can show: data:image URIs and https URLs
+// pass through, SVG markup and bare base64 PNG become data URIs, a
+// backend-relative path is resolved. Anything else → "" (no image).
+function qrSrc(v: unknown): string {
+  const s = asStr(v).trim();
+  if (!s) return "";
+  if (/^data:image\//i.test(s) || /^https:\/\//i.test(s)) return s;
+  if (/^(<svg|<\?xml)/i.test(s)) return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s)}`;
+  if (s.length > 64 && /^[A-Za-z0-9+/=\s]+$/.test(s)) return `data:image/png;base64,${s.replace(/\s+/g, "")}`;
+  if (s.startsWith("/")) return absUrl(s);
+  return "";
 }
 export async function enableTotp(setupId: string, code: string): Promise<void> {
   await http("/auth/2fa/totp/enable", { method: "POST", body: JSON.stringify({ setup_id: setupId, code }) });

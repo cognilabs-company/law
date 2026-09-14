@@ -12,6 +12,7 @@ import { routing } from "@/i18n/routing";
 import "../globals.css";
 
 import { AuthProvider } from "@/lib/auth";
+import SessionExpiryWatcher from "@/components/auth/SessionExpiryWatcher";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import MobileTabBar from "@/components/MobileTabBar";
@@ -70,6 +71,7 @@ export default async function LocaleLayout({ children, params }: Props) {
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <AuthProvider>
+            <SessionExpiryWatcher />
             <ScrollProgress />
             <Navbar />
             <main>{children}</main>

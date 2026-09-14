@@ -22,6 +22,15 @@ async function proxy(
   if (ct) headers["content-type"] = ct;
   const auth = req.headers.get("authorization");
   if (auth) headers["authorization"] = auth;
+  // Client identity for per-user rate limits and the session device label /
+  // IP (/auth/sessions, user_consents). Without these every web user looks
+  // like this Next host. The backend must trust them only from the Next host.
+  const ua = req.headers.get("user-agent");
+  if (ua) headers["user-agent"] = ua;
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) headers["x-forwarded-for"] = xff;
+  const realIp = req.headers.get("x-real-ip") || (xff ? xff.split(",")[0].trim() : "");
+  if (realIp) headers["x-real-ip"] = realIp;
 
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
   const body = hasBody ? await req.arrayBuffer() : undefined;
@@ -47,6 +56,9 @@ async function proxy(
   if (passType) out.set("content-type", passType);
   const disp = res.headers.get("content-disposition");
   if (disp) out.set("content-disposition", disp);
+  // 429 cooldown / OTP lock hint for the UI countdown.
+  const retry = res.headers.get("retry-after");
+  if (retry) out.set("retry-after", retry);
   return new Response(buf, { status: res.status, headers: out });
 }
 
