@@ -64,17 +64,32 @@ export type Session = {
 export type AuthNotice = "sessionExpired" | "loginRequired" | null;
 
 const KEY = "lexgo_session";
-// Epoch ms of the last real user interaction in ANY tab, and of the last time
-// tokens were issued (login, 2FA, register, refresh). A refresh is only spent
-// when someone interacted since the last one, so an idle tab's background
-// polls can't keep renewing the session past the backend's inactivity window.
+// Epoch ms of the last real user interaction in ANY tab. A token refresh is
+// only spent while that is inside the role's inactivity window (2h for admin,
+// superadmin and manager, 8h otherwise), so a forgotten tab's background polls
+// can't keep renewing the session forever, while a present-but-passive user
+// (an operator waiting for incoming calls, a long call, an open chat) keeps
+// working. Past the window the refresh fails quietly and the backend's own
+// inactivity rule decides on the user's next action.
 const LAST_ACTIVITY_KEY = "lexgo_last_activity";
-const LAST_REFRESH_KEY = "lexgo_last_refresh";
 const ACTIVITY_THROTTLE_MS = 15_000;
+const STAFF_IDLE_WINDOW_MS = 2 * 60 * 60 * 1000;
+const IDLE_WINDOW_MS = 8 * 60 * 60 * 1000;
+const STAFF_IDLE_ROLES = ["admin", "superadmin", "manager"];
 // Set by expireSession just before the session is removed, so other tabs can
 // tell "expired" from a deliberate logout and show the same notice.
 const EXPIRED_AT_KEY = "lexgo_session_expired_at";
 const EXPIRED_NOTICE_MS = 10_000;
+// TelegramLinkCard's per-tab pending link (sessionStorage). Dropped whenever
+// this tab's session ends or switches to another account.
+const TG_LINK_KEY = "lexgo_tg_link";
+function clearTelegramLink(): void {
+  try {
+    sessionStorage.removeItem(TG_LINK_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 function readStoredMs(key: string): number {
   try {
@@ -92,16 +107,25 @@ function storeNowMs(key: string): void {
   }
 }
 
-// Throttled per tab, but the first interaction after a refresh (from any tab)
-// is always recorded.
+// Throttled per tab (a few seconds of lag is nothing next to the window).
 let lastActivityMark = 0;
 function markActivity(): void {
   const now = Date.now();
-  if (now - lastActivityMark < ACTIVITY_THROTTLE_MS && lastActivityMark > readStoredMs(LAST_REFRESH_KEY)) return;
+  if (now - lastActivityMark < ACTIVITY_THROTTLE_MS) return;
   lastActivityMark = now;
   storeNowMs(LAST_ACTIVITY_KEY);
 }
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "touchstart", "wheel"] as const;
+
+// Page load and navigation count as activity. A separate component, so route
+// changes don't re-render AuthProvider and every useAuth consumer.
+function NavigationActivity() {
+  const pathname = usePathname();
+  useEffect(() => {
+    markActivity();
+  }, [pathname]);
+  return null;
+}
 
 // Which account a session belongs to: its id, or the phone when the backend
 // gave no id. '' = unknown, which never matches anything.
@@ -178,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       localStorage.removeItem(KEY);
       setToken(null);
+      clearTelegramLink();
     }
     setSession(s);
   }, []);
@@ -211,11 +236,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           expireSession();
           return null;
         }
-        // Nobody has interacted (in any tab) since the last refresh: this 401
-        // came from a background request. Don't renew — it fails quietly, the
-        // session stays, and the user's next action refreshes, where the
-        // backend's inactivity rule decides.
-        if (readStoredMs(LAST_ACTIVITY_KEY) <= readStoredMs(LAST_REFRESH_KEY)) return null;
+        // Nobody has interacted (in any tab) within the role's inactivity
+        // window: don't renew. The request fails quietly, the session stays,
+        // and the user's next action (which records activity) refreshes,
+        // where the backend's own inactivity rule decides.
+        const idleWindow = sessionRoles(cur).some((r) => STAFF_IDLE_ROLES.includes(r))
+          ? STAFF_IDLE_WINDOW_MS
+          : IDLE_WINDOW_MS;
+        if (Date.now() - readStoredMs(LAST_ACTIVITY_KEY) >= idleWindow) return null;
         try {
           const r = await apiRefresh(cur.refreshToken);
           const now = readStoredSession();
@@ -223,7 +251,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // only hand back a token of the same account.
           if (!now || now.refreshToken !== cur.refreshToken) return sameOwner(now, cur) ? now?.token ?? null : null;
           if (!r.token) return null;
-          storeNowMs(LAST_REFRESH_KEY);
           persist({ ...now, token: r.token, refreshToken: r.refreshToken || now.refreshToken });
           return r.token;
         } catch (e) {
@@ -239,17 +266,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Declared before the mount effect so the /auth/me call below can refresh.
   useEffect(() => {
-    setRefreshHandler(refreshSession, () => ownerOf(readStoredSession()));
+    setRefreshHandler(refreshSession);
     return () => setRefreshHandler(null);
   }, [refreshSession]);
 
-  // Real user activity (any tab) is what allows a token refresh. Page load and
-  // navigation count; so do pointer/key/touch/wheel input and returning to the
-  // tab. Declared before the mount effect so the /auth/me refresh on load works.
-  const pathname = usePathname();
-  useEffect(() => {
-    markActivity();
-  }, [pathname]);
+  // Real user activity (any tab) is what keeps token refresh allowed: pointer,
+  // key, touch and wheel input and returning to the tab, plus page load and
+  // navigation (NavigationActivity, whose effect runs before these).
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === "visible") markActivity();
@@ -268,6 +291,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== KEY && e.key !== null) return;
       const s = readStoredSession();
+      // Signed out, or now another account: this tab's pending Telegram link
+      // belongs to the previous one.
+      let prevOwner = "";
+      try {
+        prevOwner = e.key === KEY && e.oldValue ? ownerOf(JSON.parse(e.oldValue) as Session) : "";
+      } catch {
+        /* unparsable old value */
+      }
+      if (!s || ownerOf(s) !== prevOwner) clearTelegramLink();
       setSession(s);
       if (s) {
         // A live session arrived: any "session expired" notice is stale.
@@ -341,7 +373,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         telegramLinked: user.telegramLinked,
         acceptedConsents: user.acceptedConsents,
       };
-      storeNowMs(LAST_REFRESH_KEY);
       persist(s);
       setAuthNotice(null);
       return s;
@@ -390,7 +421,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const role = (draft.accountType ?? "client") as Role;
       const completeness = scoreCompleteness(role, draft.profile);
       const finish = (s: Session) => {
-        storeNowMs(LAST_REFRESH_KEY);
         persist(s);
         setAuthNotice(null);
         return s;
@@ -468,9 +498,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider
       value={{ session, ready, login, completeLogin2fa, startRegistration, register, update, logout, authNotice, clearAuthNotice }}
     >
+      <NavigationActivity />
       {children}
     </Ctx.Provider>
   );
+}
+
+// True while a session is still stored in this browser. After a failed request
+// it tells "the refresh definitively failed and the session was expired" (gone)
+// from a transient refresh failure (still stored).
+export function hasStoredSession(): boolean {
+  return readStoredSession() !== null;
 }
 
 export function useAuth(): AuthCtx {

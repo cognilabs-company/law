@@ -148,7 +148,16 @@ export default function TwoFactorCard() {
       await enableTotp(totp.setupId, code);
       await finishEnable("totp");
     } catch (e) {
-      setNote({ ok: false, msg: isRateLimited(e) ? rateMsg(e) : t("errVerify") });
+      // As verifySms: unreachable (network / proxy 502) or a server failure is
+      // not a wrong code.
+      const msg = isRateLimited(e)
+        ? rateMsg(e)
+        : isOffline(e)
+          ? tc("offline")
+          : e instanceof ApiError && e.status >= 500
+            ? t("errStart")
+            : t("errVerify");
+      setNote({ ok: false, msg });
     } finally {
       setBusy(false);
     }

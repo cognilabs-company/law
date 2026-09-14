@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -19,9 +19,21 @@ import { IconAlert, IconShieldCheck } from "../icons";
 // Routes that stay usable without (re-)accepting: the documents themselves,
 // the auth screens, SOS and the secure chat / call room.
 const SKIP = ["/legal", "/login", "/register", "/reset-password", "/portal/client/sos", "/portal/chat"];
-// Call overlays sit above the gate and must stay keyboard-usable.
+// Call overlays (CallRoom, IncomingCallWatcher's incoming-call card): while one
+// is on screen the gate is not rendered at all, so it can never cover them,
+// take their focus or trap Tab away from them. It comes back when they close.
 const CALL_UI = ".callroom, .incall";
 const FLUSH_TICK_MS = 60_000;
+
+const hasCallUi = () => document.querySelector(CALL_UI) !== null;
+const noCallUi = () => false;
+function watchCallUi(onChange: () => void): () => void {
+  // The store re-reads hasCallUi() from this callback and re-renders on change.
+  const mo = new MutationObserver(onChange);
+  mo.observe(document.body, { childList: true, subtree: true });
+  return () => mo.disconnect();
+}
+const watchNothing = () => () => {};
 
 // Global re-consent gate for signed-in users: when a current legal document
 // (new user on this device, or a new version) has no local acceptance record,
@@ -91,9 +103,12 @@ export default function ConsentGate() {
     };
   }, [ready, token, id, phone, serverAccepted]);
 
+  // Only observe the DOM while a gate is pending.
+  const callUi = useSyncExternalStore(gate ? watchCallUi : watchNothing, gate ? hasCallUi : noCallUi, noCallUi);
+
   const skip = SKIP.some((p) => pathname === p || pathname.startsWith(p + "/"));
   // The key check stops a previous user's gate from flashing after an account switch.
-  if (!ready || !token || !gate || gate.key !== (id || phone) || skip) return null;
+  if (!ready || !token || !gate || gate.key !== (id || phone) || skip || callUi) return null;
 
   return (
     <ConsentGateDialog
@@ -137,16 +152,19 @@ function ConsentGateDialog({
     const root = document.documentElement;
     root.classList.add("cgate-open");
     const prevFocus = document.activeElement;
+    const inCallUi = (el: unknown) => el instanceof Element && el.closest(CALL_UI) !== null;
     const focusables = () =>
       Array.from(
         box.querySelectorAll<HTMLElement>(
           'input:not([disabled]), button:not([disabled]), a[href], summary, [tabindex]:not([tabindex="-1"])',
         ),
       );
-    (focusables()[0] ?? box).focus();
+    // Never pull focus out of a call overlay (the gate normally unmounts while
+    // one exists; this covers the frames before the observer reports it).
+    if (!hasCallUi()) (focusables()[0] ?? box).focus();
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof Element && e.target.closest(CALL_UI)) return;
+      if (inCallUi(e.target) || hasCallUi()) return;
       // Esc must not reach modals underneath (they would close behind the gate).
       if (e.key === "Escape") {
         e.stopPropagation();
@@ -175,7 +193,10 @@ function ConsentGateDialog({
     return () => {
       window.removeEventListener("keydown", onKey, true);
       root.classList.remove("cgate-open");
-      if (prevFocus instanceof HTMLElement && prevFocus.isConnected) prevFocus.focus();
+      // Give focus back, unless it has moved into a call overlay meanwhile.
+      if (prevFocus instanceof HTMLElement && prevFocus.isConnected && !inCallUi(document.activeElement)) {
+        prevFocus.focus();
+      }
     };
   }, []);
 

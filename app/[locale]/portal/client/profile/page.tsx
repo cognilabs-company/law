@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/lib/auth";
+import { useAuth, hasStoredSession } from "@/lib/auth";
 import {
   getClientProfile,
   updateClientProfile,
@@ -77,12 +77,14 @@ export default function ClientProfile() {
         return;
       }
       if (!flagged) {
-        // Unknown → probe: a 401 (even after a refresh attempt) means the
-        // revoked row was this device.
+        // Unknown → probe. A 401 whose refresh definitively failed has already
+        // removed the stored session: the revoked row was this device. If the
+        // session is still stored, the refresh only failed for now (429, 5xx,
+        // network), so stay signed in and just reload the list.
         try {
           await apiMe();
         } catch (e) {
-          if (e instanceof ApiError && e.status === 401) {
+          if (e instanceof ApiError && e.status === 401 && !hasStoredSession()) {
             logout();
             return;
           }

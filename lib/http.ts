@@ -66,7 +66,8 @@ export function isOtpExpired(e: unknown): boolean {
   if (!(e instanceof ApiError)) return false;
   if (e.status === 410) return true;
   const d = e.detail || "";
-  if (/noto.?g.?ri|xato|wrong|invalid|incorrect|неверн|неправил/i.test(d)) return false;
+  // "xato" (wrong) but not "xatolik" (a generic "error").
+  if (/noto.?g.?ri|xato(?!lik)|wrong|invalid|incorrect|неверн|неправил/i.test(d)) return false;
   return /expir|supersed|muddat|eskir|истек|истёк|устарел/i.test(d);
 }
 
@@ -170,15 +171,23 @@ export async function toApiError(res: Response): Promise<ApiError> {
 // replays with — another account's token.
 type RefreshHandler = (failedToken: string, owner: string) => Promise<string | null>;
 let refreshHandler: RefreshHandler | null = null;
-let ownerReader: () => string = () => "";
 const refreshing = new Map<string, Promise<string | null>>();
-export function setRefreshHandler(fn: RefreshHandler | null, owner?: () => string): void {
+export function setRefreshHandler(fn: RefreshHandler | null): void {
   refreshHandler = fn;
-  ownerReader = fn && owner ? owner : () => "";
 }
+// The account the stored session belongs to: its id, else its phone ('' when
+// there is none). Read straight from lib/auth.tsx's "lexgo_session" entry at
+// send time, so it is right from the very first request, before
+// AuthProvider's effects have run.
+const SESSION_KEY = "lexgo_session";
 export function currentTokenOwner(): string {
+  if (typeof window === "undefined") return "";
   try {
-    return ownerReader();
+    const raw = localStorage.getItem(SESSION_KEY);
+    const s: unknown = raw ? JSON.parse(raw) : null;
+    if (!s || typeof s !== "object") return "";
+    const { id, phone } = s as { id?: unknown; phone?: unknown };
+    return (typeof id === "string" && id) || (typeof phone === "string" && phone) || "";
   } catch {
     return "";
   }

@@ -3022,7 +3022,7 @@ function firstText(...v: unknown[]): string {
 }
 // Delivery records from any of the shapes the cascade may use: a list of
 // per-channel records, a deliveries/channels list, a channel→status map or a
-// single record (also inside metadata, possibly JSON-encoded), plus the row's
+// single record (also inside metadata, possibly JSON-encoded), else the row's
 // own channel + status. Sources that are empty or carry no status (a plain
 // channel list, an enabled-channels flag map) are skipped; only entries with a
 // status are returned.
@@ -3066,10 +3066,13 @@ export function normDeliveries(v: unknown, fallbackChannel = ""): NotificationDe
         break;
       }
     }
-    // The row's own record (a per-channel row) unless the source already has it.
-    const own = normChannel(firstText(d.channel, d.channel_type, meta.channel, fallbackChannel));
-    const ownStatus = firstText(d.status, d.delivery_status, meta.status).toLowerCase();
-    if (own && ownStatus && !found.some((x) => x.channel === own)) found.unshift({ channel: own, status: ownStatus });
+    // The row's own record (a per-channel row) only when no source had any: next
+    // to a real delivery list, the row's `status` may be a record/read status.
+    if (!found.length) {
+      const own = normChannel(firstText(d.channel, d.channel_type, meta.channel, fallbackChannel));
+      const ownStatus = firstText(d.status, d.delivery_status, meta.status).toLowerCase();
+      if (own && ownStatus) found.push({ channel: own, status: ownStatus });
+    }
   }
   const byChannel = new Map<string, NotificationDelivery>();
   for (const x of found) {

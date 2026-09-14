@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   getIdentity,
@@ -34,6 +34,24 @@ export default function IdentityVerify() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const redirectedRef = useRef(false);
+
+  // Back from the provider page may restore this page from the bfcache with the
+  // buttons still busy (they stay busy while the browser navigates away) and the
+  // redirect message still up; the status is re-read in case it changed there.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (!e.persisted || !redirectedRef.current) return;
+      redirectedRef.current = false;
+      setBusy(false);
+      setProv(null);
+      setNote(null);
+      setId(null);
+      setKey((k) => k + 1);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   const errMsg = (e: unknown) =>
     isProviderUnavailable(e) || isDemoUnavailable(e)
@@ -59,6 +77,7 @@ export default function IdentityVerify() {
       if (r.mode === "redirect") {
         // The provider page returns to the app; /identity/me shows the result.
         leaving = true;
+        redirectedRef.current = true;
         setNote({ ok: true, msg: t("redirecting", { provider: provName(p) }) });
         window.location.assign(r.authUrl);
         return;

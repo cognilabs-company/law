@@ -21,7 +21,6 @@ export default function LoginForm() {
   const tc = useTranslations("common");
   const tOtp = useTranslations("register.otp");
   const tr = useTranslations("register");
-  const tTfa = useTranslations("portal.common.twofa");
   const { login, completeLogin2fa, session, ready, authNotice, clearAuthNotice } = useAuth();
   const router = useRouter();
 
@@ -40,6 +39,9 @@ export default function LoginForm() {
   const [resending, setResending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const otp = useOtpTimer();
+  // The server said an authenticator (TOTP) challenge expired. Its app codes
+  // can never succeed again, so the only way on is a new sign-in.
+  const [totpExpired, setTotpExpired] = useState(false);
   // SMS challenge left via Back while still valid, with its resend/lock
   // deadlines (epoch ms). Signing in again with the same phone reopens it: a
   // new login would hit the 60s resend cooldown or supersede the code the
@@ -55,6 +57,7 @@ export default function LoginForm() {
   // could never verify, so stay on the credentials form with the server's words.
   function applyChallenge(c: TwoFactorChallenge): boolean {
     setParked(null);
+    setTotpExpired(false);
     if (!c.verificationId) {
       setTwoFa(null);
       otp.clear();
@@ -85,6 +88,7 @@ export default function LoginForm() {
       if (parked.phone === phone && parked.c.expiresAt > now) {
         // Same verification id, remaining expiry, cooldown and lock.
         setTwoFa(parked.c);
+        setTotpExpired(false);
         setCode("");
         setNote(null);
         otp.issue(parked.c.expiresAt);
@@ -126,10 +130,10 @@ export default function LoginForm() {
         otp.block(retryAfterSec(e, OTP_RESEND_SEC));
         setErr(errDetail(e) || tc("rateLimited"));
       } else if (isOtpExpired(e) && twoFa.method === "totp") {
-        // Authenticator codes are never sent, so there is nothing to expire or
-        // resend: let the user try a fresh app code (the server decides).
+        // The challenge itself is dead (410 / expiry-only wording) and there is
+        // no code to resend: offer "Sign in again" instead of a retry.
         setCode("");
-        setErr(tTfa("errVerify"));
+        setTotpExpired(true);
       } else if (isOtpExpired(e)) {
         otp.expire();
       } else {
@@ -172,6 +176,26 @@ export default function LoginForm() {
         : twoFa.method === "sms"
           ? t("twoFaSubtitle", { phone: twoFa.phone || phone })
           : twoFa.message || t("twoFaSubtitle", { phone: twoFa.phone || phone });
+    // An authenticator challenge the server expired, or whose own countdown
+    // ran out: no code can pass any more.
+    const totpTimedOut = twoFa.method === "totp" && (totpExpired || otp.expired);
+    // Back to the credentials form with phone and password kept, so one press
+    // of Continue starts a new challenge. `park` keeps a still-valid SMS
+    // challenge to reopen — never one the server already expired/superseded.
+    const leave2fa = (park: boolean) => {
+      const now = Date.now();
+      setParked(
+        park && twoFa.method !== "totp" && !otp.expired && twoFa.expiresAt > now
+          ? { c: twoFa, phone, resendAt: now + otp.resendIn * 1000, blockedUntil: now + otp.blockedIn * 1000 }
+          : null,
+      );
+      setTwoFa(null);
+      setTotpExpired(false);
+      setCode("");
+      setErr(null);
+      setNote(null);
+      otp.clear();
+    };
     return (
       <div className="plogin">
         <form className="plogin__c" onSubmit={submit2fa}>
@@ -182,52 +206,49 @@ export default function LoginForm() {
           <h1 style={{ marginTop: 18 }}>{t("twoFaTitle")}</h1>
           <p className="sub">{subtitle}</p>
           <div className="cform" style={{ maxWidth: "none", marginTop: 20 }}>
-            <div>
-              <label htmlFor="l-2fa">{t("twoFaCode")}</label>
-              <input
-                id="l-2fa"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder={t("twoFaCodePh")}
-                autoFocus
-              />
-            </div>
-            <OtpCountdown timer={otp} />
-            {err ? <p style={{ color: "#C0392B", fontSize: ".85rem", margin: 0 }}>{err}</p> : null}
-            {note ? <p className="rf__otpmsg rf__otpmsg--ok">{note}</p> : null}
-            <button
-              className="btn btn--pri btn--full"
-              type="submit"
-              disabled={busy || resending || code.length !== 6 || otp.expired || otp.blockedIn > 0}
-            >
-              {busy ? t("busy") : t("twoFaVerify")}
-            </button>
-            {twoFa.method !== "totp" ? (
-              <div className="rf__otpactions" style={{ justifyContent: "center" }}>
-                <OtpResendButton timer={otp} busy={resending} onResend={resend2fa} />
-              </div>
-            ) : null}
-            <button
-              className="btn btn--ghost btn--full"
-              type="button"
-              onClick={() => {
-                const now = Date.now();
-                setParked(
-                  twoFa.method !== "totp" && twoFa.expiresAt > now
-                    ? { c: twoFa, phone, resendAt: now + otp.resendIn * 1000, blockedUntil: now + otp.blockedIn * 1000 }
-                    : null,
-                );
-                setTwoFa(null);
-                setCode("");
-                setErr(null);
-                setNote(null);
-                otp.clear();
-              }}
-            >
-              {t("twoFaBack")}
-            </button>
+            {totpTimedOut ? (
+              <>
+                <p className="rf__otpmsg rf__otpmsg--err" role="alert">
+                  {t("twoFaTimedOut")}
+                </p>
+                <button className="btn btn--pri btn--full" type="button" onClick={() => leave2fa(false)} autoFocus>
+                  {t("twoFaSignInAgain")}
+                </button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label htmlFor="l-2fa">{t("twoFaCode")}</label>
+                  <input
+                    id="l-2fa"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder={t("twoFaCodePh")}
+                    autoFocus
+                  />
+                </div>
+                <OtpCountdown timer={otp} />
+                {err ? <p style={{ color: "#C0392B", fontSize: ".85rem", margin: 0 }}>{err}</p> : null}
+                {note ? <p className="rf__otpmsg rf__otpmsg--ok">{note}</p> : null}
+                <button
+                  className="btn btn--pri btn--full"
+                  type="submit"
+                  disabled={busy || resending || code.length !== 6 || otp.expired || otp.blockedIn > 0}
+                >
+                  {busy ? t("busy") : t("twoFaVerify")}
+                </button>
+                {twoFa.method !== "totp" ? (
+                  <div className="rf__otpactions" style={{ justifyContent: "center" }}>
+                    <OtpResendButton timer={otp} busy={resending} onResend={resend2fa} />
+                  </div>
+                ) : null}
+                <button className="btn btn--ghost btn--full" type="button" onClick={() => leave2fa(true)}>
+                  {t("twoFaBack")}
+                </button>
+              </>
+            )}
           </div>
         </form>
       </div>

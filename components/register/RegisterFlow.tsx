@@ -289,10 +289,14 @@ export default function RegisterFlow() {
         setVerifyErr(errDetail(e) || tc("rateLimited"));
       } else if (isOtpExpired(e)) {
         otp.expire();
+      } else if (!(e instanceof ApiError)) {
+        // Not an HTTP error (a bug, or a non-JSON 2xx): the server may have
+        // been reached, so never claim it was unreachable.
+        setVerifyErr(t("verify.error"));
       } else if (isOffline(e)) {
-        // Network / proxy 502: the code was never checked, keep it for a retry.
+        // Network (status 0) / proxy 502: the code was never checked, keep it for a retry.
         setVerifyErr(tc("offline"));
-      } else if (e instanceof ApiError && e.status >= 500) {
+      } else if (e.status >= 500) {
         setVerifyErr(t("verify.serverError"));
       } else {
         setVerifyErr(t("verify.incorrect"));

@@ -52,14 +52,20 @@ export function groupByEvent(list: Notification[]): Notification[] {
   for (const n of list) {
     if (n.groupId) {
       const nt = Date.parse(n.createdAt);
-      const g = n.channel
-        ? byId.get(n.groupId)?.find((x) => {
-            const seen = rowChannels.get(x);
-            if (x.kind !== n.kind || !seen?.size || seen.has(n.channel)) return false;
-            const xt = Date.parse(x.createdAt);
-            return Number.isFinite(nt) && Number.isFinite(xt) && Math.abs(nt - xt) <= GROUP_ID_WINDOW_MS;
-          })
-        : undefined;
+      // Of the groups this row may join, the nearest in time (the id may repeat).
+      let g: Notification | undefined;
+      let best = Infinity;
+      if (n.channel && Number.isFinite(nt)) {
+        for (const x of byId.get(n.groupId) ?? []) {
+          const seen = rowChannels.get(x);
+          if (x.kind !== n.kind || !seen?.size || seen.has(n.channel)) continue;
+          const gap = Math.abs(nt - Date.parse(x.createdAt));
+          if (gap <= GROUP_ID_WINDOW_MS && gap < best) {
+            best = gap;
+            g = x;
+          }
+        }
+      }
       if (g) {
         merge(g, n);
         continue;

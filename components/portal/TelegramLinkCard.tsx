@@ -198,8 +198,10 @@ export default function TelegramLinkCard() {
     }, Math.max(0, watchExp - Date.now()));
     const onReturn = () => {
       if (document.visibilityState !== "visible") return;
+      // A link that expired unopened stays expired: no Open/Copy again. The
+      // check still runs in case it was used on another device.
       setStored((p) => {
-        if (!p || p.opened || p.url !== watchUrl) return p;
+        if (!p || p.opened || p.url !== watchUrl || Date.now() >= p.expiresMs) return p;
         const n = { ...p, opened: true };
         storeLink(n);
         return n;

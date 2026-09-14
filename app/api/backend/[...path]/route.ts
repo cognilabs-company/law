@@ -22,26 +22,34 @@ async function proxy(
   if (ct) headers["content-type"] = ct;
   const auth = req.headers.get("authorization");
   if (auth) headers["authorization"] = auth;
-  // Client identity for per-user rate limits and the session device label /
-  // IP (/auth/sessions, user_consents). Without these every web user looks
-  // like this Next host. The backend must trust them only from the Next host.
-  //
-  // Assumes exactly ONE trusted hop in front of Next (the hosting edge) that
-  // appends the connecting peer's address to X-Forwarded-For. Everything to
-  // the left of that last entry is whatever the browser sent, so only the
-  // RIGHTMOST entry is used, and the client's own chain / X-Real-IP are never
-  // relayed. With no XFF at all, an incoming X-Real-IP (set by such an edge)
-  // is the fallback. A deployment with more hops, or none, must change this.
+  // Client identity for the session device label (/auth/sessions).
   const ua = req.headers.get("user-agent");
   if (ua) headers["user-agent"] = ua;
-  const hops = (req.headers.get("x-forwarded-for") || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const clientIp = hops.length ? hops[hops.length - 1] : req.headers.get("x-real-ip")?.trim() || "";
-  if (clientIp) {
-    headers["x-forwarded-for"] = clientIp;
-    headers["x-real-ip"] = clientIp;
+  // Client IP for per-user rate limits and the session / user_consents IP.
+  // Controlled by the server env BACKEND_FORWARD_CLIENT_IP. Off by default
+  // (unset or anything but "1"): no x-forwarded-for / x-real-ip is sent and
+  // the backend sees this Next host as the client.
+  //
+  // Set BACKEND_FORWARD_CLIENT_IP=1 ONLY when exactly one trusted hop in front
+  // of Next (the hosting edge, e.g. Vercel or one reverse proxy) overwrites or
+  // appends the connecting peer's address to X-Forwarded-For. Everything to
+  // the left of that last entry is whatever the browser sent, so only the
+  // RIGHTMOST entry is used and the client's own chain is never relayed; with
+  // no XFF at all, an incoming X-Real-IP (set by such an edge) is the
+  // fallback. Leave it unset for a bare `next start`, a load balancer that
+  // passes the header through untouched, or more than one hop: there the
+  // client could choose the forwarded IP. The backend must trust these
+  // headers only from the Next host.
+  if (process.env.BACKEND_FORWARD_CLIENT_IP === "1") {
+    const hops = (req.headers.get("x-forwarded-for") || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const clientIp = hops.length ? hops[hops.length - 1] : req.headers.get("x-real-ip")?.trim() || "";
+    if (clientIp) {
+      headers["x-forwarded-for"] = clientIp;
+      headers["x-real-ip"] = clientIp;
+    }
   }
 
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
