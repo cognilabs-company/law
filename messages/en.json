@@ -1853,6 +1853,8 @@
         "linkedText": "Notifications are also sent to Telegram.",
         "linkedMsg": "Your Telegram account is now linked.",
         "relink": "Link a different Telegram account",
+        "relinkHint": "Tap Start in the bot from the other Telegram account, then press Done.",
+        "done": "Done",
         "errStart": "Couldn't get a link. Please try again.",
         "errUnavailable": "The Telegram bot isn't available yet. Please try again later."
       }
@@ -1923,7 +1925,7 @@
         "services": "My services",
         "documents": "Documents",
         "chat": "Secure Chat",
-        "ai": "AI Assistant",
+        "ai": "AI chat",
         "assistant": "AI assistant",
         "promotion": "Promotion",
         "subscription": "Subscription",
@@ -3105,6 +3107,7 @@
       "change": "Back",
       "incorrect": "Incorrect code. Please try again.",
       "startError": "Couldn't start registration. Try again.",
+      "serverError": "Something went wrong on the server. Please try again shortly.",
       "phoneExists": "This phone number is already registered. Please log in.",
       "goLogin": "Log in",
       "loginRequired": "Your account has been created. For security, sign in with two-factor verification.",
@@ -3126,7 +3129,7 @@
     "downgrade": "Switch to Free",
     "processing": "Processing…",
     "activated": "{plan} plan activated!",
-    "payRedirect": "Checkout opened in a new tab — finish payment and the plan activates.",
+    "payRedirect": "Opening the payment page — the plan activates after payment.",
     "purchaseError": "Couldn't complete the payment. Please try again.",
     "mostPopular": "Most popular",
     "free": {
@@ -3908,7 +3911,8 @@
       "titleUpdated": "Our legal documents have been updated",
       "text": "To keep using LexGo, please read and accept the current versions of the documents below.",
       "accept": "Accept and continue",
-      "logout": "Log out"
+      "logout": "Log out",
+      "sos": "Need urgent help? SOS"
     }
   },
   "call": {

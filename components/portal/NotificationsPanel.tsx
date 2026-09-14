@@ -28,12 +28,15 @@ function fmt(s: string) {
 
 // The cascade may store one row per channel (in-app, push, Telegram, email,
 // SMS) for one event; fold them so the inbox shows the event once. Rows that
-// carry an explicit event/correlation id are grouped by it. Otherwise rows with
-// a channel fold by kind + title + body within 60s (never two rows on the same
-// channel). Rows with neither stay as they are.
+// carry an explicit event/correlation id fold by it, but only per-channel copies:
+// same kind, within 10 minutes, and never two rows on the same channel (the id
+// may not be unique per event). Otherwise rows with a channel fold by kind +
+// title + body within 60s (again never two rows on one channel). Rows with
+// neither stay as they are.
+const GROUP_ID_WINDOW_MS = 10 * 60_000;
 export function groupByEvent(list: Notification[]): Notification[] {
   const out: Notification[] = [];
-  const byId = new Map<string, Notification>();
+  const byId = new Map<string, Notification[]>();
   const rowChannels = new Map<Notification, Set<string>>();
   const merge = (g: Notification, n: Notification) => {
     g.ids = [...g.ids, ...n.ids.filter((id) => !g.ids.includes(id))];
@@ -48,7 +51,15 @@ export function groupByEvent(list: Notification[]): Notification[] {
   };
   for (const n of list) {
     if (n.groupId) {
-      const g = byId.get(n.groupId);
+      const nt = Date.parse(n.createdAt);
+      const g = n.channel
+        ? byId.get(n.groupId)?.find((x) => {
+            const seen = rowChannels.get(x);
+            if (x.kind !== n.kind || !seen?.size || seen.has(n.channel)) return false;
+            const xt = Date.parse(x.createdAt);
+            return Number.isFinite(nt) && Number.isFinite(xt) && Math.abs(nt - xt) <= GROUP_ID_WINDOW_MS;
+          })
+        : undefined;
       if (g) {
         merge(g, n);
         continue;
@@ -70,7 +81,7 @@ export function groupByEvent(list: Notification[]): Notification[] {
     const copy: Notification = { ...n, ids: [...n.ids], deliveries: [...n.deliveries] };
     out.push(copy);
     rowChannels.set(copy, new Set(n.channel ? [n.channel] : []));
-    if (n.groupId) byId.set(n.groupId, copy);
+    if (n.groupId) byId.set(n.groupId, [...(byId.get(n.groupId) ?? []), copy]);
   }
   return out;
 }

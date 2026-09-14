@@ -47,15 +47,27 @@ export default function OrderPayment({
     };
   }, [orderId]);
 
+  // Back from the checkout page may restore this page from the bfcache with the
+  // button still busy (it stays busy while the browser navigates away).
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setPaying(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   async function pay() {
     if (paying) return;
     setPaying(true);
     setErr(null);
+    let leaving = false; // stay busy while the browser opens the checkout
     try {
       const r = await demoPayOrder(orderId);
       if (r.paymentUrl) {
         // A real provider checkout: same-tab navigation (a popup opened after
         // an await is blocked).
+        leaving = true;
         window.location.assign(r.paymentUrl);
         return;
       }
@@ -67,7 +79,7 @@ export default function OrderPayment({
       // demo checkout is closed in production. Both: provider not connected.
       setErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("error"));
     } finally {
-      setPaying(false);
+      if (!leaving) setPaying(false);
     }
   }
 

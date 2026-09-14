@@ -4,23 +4,25 @@
 // Public URL segments of the documents LexGo always publishes.
 export const LEGAL_PATHS = ["terms", "privacy", "disclaimer"] as const;
 
-const PATH_TO_SLUG: Record<string, string> = {
-  terms: "terms",
-  privacy: "privacy",
-  disclaimer: "legal_disclaimer",
-};
+// A Map, not an object literal: URL segments such as "constructor" or
+// "toString" must never resolve to Object.prototype members.
+const PATH_TO_SLUG = new Map<string, string>([
+  ["terms", "terms"],
+  ["privacy", "privacy"],
+  ["disclaimer", "legal_disclaimer"],
+]);
 
 // /legal/disclaimer → "legal_disclaimer"; unknown segments map 1:1
 // ("public-offer" → "public_offer").
 export function legalSlugFromPath(p: string): string {
-  return PATH_TO_SLUG[p] ?? p.replace(/-/g, "_");
+  return PATH_TO_SLUG.get(p) ?? p.replace(/-/g, "_");
 }
 
 // "legal_disclaimer" → "disclaimer"; a future API slug such as "public_offer"
 // gets /legal/public-offer with no code change.
 export function legalPathFromSlug(s: string): string {
-  const known = Object.keys(PATH_TO_SLUG).find((k) => PATH_TO_SLUG[k] === s);
-  return known ?? s.replace(/_/g, "-");
+  for (const [path, slug] of PATH_TO_SLUG) if (slug === s) return path;
+  return s.replace(/_/g, "-");
 }
 
 // Message key (namespace "legal") of a known document, else null → callers

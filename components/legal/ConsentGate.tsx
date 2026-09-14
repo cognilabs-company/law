@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { usePathname } from "@/i18n/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { currentConsents, listLegalConsents, type AcceptedConsentRef, type ConsentDoc } from "@/lib/services/backend";
 import {
@@ -14,11 +14,14 @@ import {
   shouldRecheck,
 } from "@/lib/consents";
 import ConsentChecklist from "./ConsentChecklist";
-import { IconShieldCheck } from "../icons";
+import { IconAlert, IconShieldCheck } from "../icons";
 
 // Routes that stay usable without (re-)accepting: the documents themselves,
 // the auth screens, SOS and the secure chat / call room.
 const SKIP = ["/legal", "/login", "/register", "/reset-password", "/portal/client/sos", "/portal/chat"];
+// Call overlays sit above the gate and must stay keyboard-usable.
+const CALL_UI = ".callroom, .incall";
+const FLUSH_TICK_MS = 60_000;
 
 // Global re-consent gate for signed-in users: when a current legal document
 // (new user on this device, or a new version) has no local acceptance record,
@@ -61,6 +64,11 @@ export default function ConsentGate() {
     const onWake = () => {
       if (document.visibilityState === "visible") void run(false);
     };
+    // Retries back off (up to an hour), so a tab that stays visible still
+    // needs a periodic flush; it is a local read unless something is due.
+    const tick = window.setInterval(() => {
+      if (document.visibilityState === "visible") void flushConsents(id, phone);
+    }, FLUSH_TICK_MS);
     // Accepted in another tab → drop what is now covered.
     const onStorage = (e: StorageEvent) => {
       if (e.key !== CONSENTS_KEY && e.key !== null) return;
@@ -76,6 +84,7 @@ export default function ConsentGate() {
     window.addEventListener("storage", onStorage);
     return () => {
       alive = false;
+      window.clearInterval(tick);
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("online", onWake);
       window.removeEventListener("storage", onStorage);
@@ -91,6 +100,8 @@ export default function ConsentGate() {
       key={gate.docs.map((d) => d.id).join()}
       docs={gate.docs}
       updated={gate.updated}
+      // Clients can still reach SOS; the gate returns when they leave it.
+      sos={session?.role === "client"}
       onAccept={() => {
         recordAccepted(id, phone, gate.docs);
         setGate(null);
@@ -105,29 +116,73 @@ export default function ConsentGate() {
 function ConsentGateDialog({
   docs,
   updated,
+  sos,
   onAccept,
   onLogout,
 }: {
   docs: ConsentDoc[];
   updated: boolean;
+  sos: boolean;
   onAccept: () => void;
   onLogout: () => void;
 }) {
   const t = useTranslations("legal");
   const [agreed, setAgreed] = useState<Record<string, boolean>>({});
+  const boxRef = useRef<HTMLDivElement>(null);
 
+  // Scroll lock, focus and keyboard containment while the gate is open.
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const box = boxRef.current;
+    if (!box) return;
+    const root = document.documentElement;
+    root.classList.add("cgate-open");
+    const prevFocus = document.activeElement;
+    const focusables = () =>
+      Array.from(
+        box.querySelectorAll<HTMLElement>(
+          'input:not([disabled]), button:not([disabled]), a[href], summary, [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+    (focusables()[0] ?? box).focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof Element && e.target.closest(CALL_UI)) return;
+      // Esc must not reach modals underneath (they would close behind the gate).
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const items = focusables();
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (!first || !last) {
+        e.preventDefault();
+        box.focus();
+      } else if (!box.contains(active)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && (active === first || active === box)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
     return () => {
-      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey, true);
+      root.classList.remove("cgate-open");
+      if (prevFocus instanceof HTMLElement && prevFocus.isConnected) prevFocus.focus();
     };
   }, []);
 
-  // No Esc, scrim click or close button: accept or log out.
+  // No Esc, scrim click or close button: accept or log out (clients: or SOS).
   return (
     <div className="cgate" role="dialog" aria-modal="true" aria-labelledby="cgate-t">
-      <div className="cgate__c">
+      <div className="cgate__c" ref={boxRef} tabIndex={-1}>
         <span className="rf__ico rf__ico--brand">
           <IconShieldCheck />
         </span>
@@ -150,6 +205,12 @@ function ConsentGateDialog({
           <button className="btn btn--ghost btn--full" type="button" onClick={onLogout}>
             {t("gate.logout")}
           </button>
+          {sos ? (
+            <Link href="/portal/client/sos" className="btn btn--full cgate__sos">
+              <IconAlert />
+              {t("gate.sos")}
+            </Link>
+          ) : null}
         </div>
       </div>
     </div>

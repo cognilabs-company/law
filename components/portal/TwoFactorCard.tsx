@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth, requiresTwoFactor } from "@/lib/auth";
 import { start2fa, verify2fa, disable2fa, setupTotp, enableTotp, type TotpSetup } from "@/lib/services/backend";
-import { ApiError, errDetail, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
+import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
 import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { Notice } from "@/components/admin/AdminBits";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
@@ -128,7 +128,13 @@ export default function TwoFactorCard() {
       } else if (isOtpExpired(e)) {
         otp.expire();
       } else {
-        setNote({ ok: false, msg: t("errVerify") });
+        // Unreachable (network / proxy 502) or a server failure is not a wrong code.
+        const msg = isOffline(e)
+          ? tc("offline")
+          : e instanceof ApiError && e.status >= 500
+            ? t("errStart")
+            : t("errVerify");
+        setNote({ ok: false, msg });
       }
     } finally {
       setBusy(false);

@@ -1859,6 +1859,8 @@
         "linkedText": "Bildirishnomalar Telegram orqali ham yuboriladi.",
         "linkedMsg": "Telegram hisobingiz ulandi.",
         "relink": "Boshqa Telegram hisobini ulash",
+        "relinkHint": "Boshqa Telegram hisobidan botda Start tugmasini bosing, so'ng \"Tayyor\" tugmasini bosing.",
+        "done": "Tayyor",
         "errStart": "Havolani olib bo'lmadi. Qayta urining.",
         "errUnavailable": "Telegram bot hozircha ulanmagan. Keyinroq urinib ko'ring."
       }
@@ -1929,7 +1931,7 @@
         "services": "Xizmatlarim",
         "documents": "Hujjatlar",
         "chat": "Xavfsiz chat",
-        "ai": "Sun'iy intellekt yordamchi",
+        "ai": "Sun'iy Intellekt chat",
         "assistant": "Sun'iy intellekt yordamchi",
         "promotion": "Targ'ibot",
         "subscription": "Obuna",
@@ -3111,6 +3113,7 @@
       "change": "Orqaga",
       "incorrect": "Kod noto‘g‘ri. Qayta urinib ko‘ring.",
       "startError": "Ro‘yxatdan o‘tishni boshlab bo‘lmadi. Qayta urining.",
+      "serverError": "Serverda xatolik yuz berdi. Birozdan so'ng qayta urining.",
       "phoneExists": "Bu telefon raqami allaqachon ro'yxatdan o'tgan. Hisobingizga kiring.",
       "goLogin": "Kirish",
       "loginRequired": "Hisobingiz yaratildi. Xavfsizlik uchun tizimga ikki bosqichli tasdiqlash bilan kiring.",
@@ -3132,7 +3135,7 @@
     "downgrade": "Bepulga o'tish",
     "processing": "Amalga oshirilmoqda…",
     "activated": "{plan} rejasi faollashtirildi!",
-    "payRedirect": "To'lov yangi oynada ochildi — to'lovni yakunlang, so'ng reja faollashadi.",
+    "payRedirect": "To'lov sahifasi ochilmoqda — reja to'lovdan so'ng faollashadi.",
     "purchaseError": "To'lovni amalga oshirib bo'lmadi. Qayta urining.",
     "mostPopular": "Eng ommabop",
     "free": {
@@ -3914,7 +3917,8 @@
       "titleUpdated": "Huquqiy hujjatlar yangilandi",
       "text": "LexGo'dan foydalanishni davom ettirish uchun quyidagi hujjatlarning amaldagi versiyalari bilan tanishing va ularni qabul qiling.",
       "accept": "Qabul qilish va davom etish",
-      "logout": "Chiqish"
+      "logout": "Chiqish",
+      "sos": "Shoshilinch yordam kerakmi? SOS"
     }
   },
   "call": {

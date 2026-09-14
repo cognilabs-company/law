@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   listAds,
@@ -32,14 +32,26 @@ export default function PromotionPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // Back from the checkout page may restore this page from the bfcache with the
+  // button still busy (it stays busy while the browser navigates away).
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setBusy(null);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   async function buy(pkg: ModuleRecord, days: number) {
     if (busy) return;
     setBusy(pkg.id);
     setErr(null);
+    let leaving = false; // stay busy while the browser opens the checkout
     try {
       const r = await checkoutPromotion(pkg.id, days);
       if (r.paymentUrl) {
         // Real checkout: same-tab navigation (a popup after an await is blocked).
+        leaving = true;
         window.location.assign(r.paymentUrl);
         return;
       }
@@ -47,7 +59,7 @@ export default function PromotionPanel() {
     } catch (e) {
       setErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("checkoutError"));
     } finally {
-      setBusy(null);
+      if (!leaving) setBusy(null);
     }
   }
 

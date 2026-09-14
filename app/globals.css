@@ -2968,6 +2968,11 @@ body:has(.schat) .fab{display:none}
 .cgate__c h2{font-family:var(--fd);font-size:1.2rem;margin:12px 0 6px}
 .cgate__c > p{font-size:.9rem;color:var(--gray);margin:0}
 .cgate__actions{display:grid;gap:8px;margin-top:18px}
+.cgate__c:focus{outline:none}
+.cgate__sos{background:#fff1f2;color:#be123c;border:1px solid #fecdd3}
+.cgate__sos svg{width:18px;height:18px}
+/* Scroll lock while the gate is open (a class, so other overlays writing body.style never fight it). */
+html.cgate-open,html.cgate-open body{overflow:hidden}
 
 /* ── Admin audit trail: append-only note, hash chain ── */
 .audit__append{display:flex;align-items:center;gap:6px}

@@ -66,6 +66,16 @@ export default function LawyerProfileModal({
     };
   }, [open, userId]);
 
+  // Back from the checkout page may restore this page from the bfcache with the
+  // button still busy (it stays busy while the browser navigates away).
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setBusy(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   // Same "choose" flow as the directory: reuse an existing private chat or pay
   // for one, then jump into the chat room.
   async function choose() {
@@ -76,6 +86,7 @@ export default function LawyerProfileModal({
     }
     setBusy(true);
     setChooseErr(null);
+    let leaving = false; // stay busy while the browser opens the checkout
     try {
       const existing = await getLawyerPrivateChat(data.userId);
       if (existing) {
@@ -85,11 +96,14 @@ export default function LawyerProfileModal({
       const r = await demoPrivateChat({ lawyer_user_id: data.userId });
       if (r.chatRoomId) router.push(`/portal/chat/${r.chatRoomId}`);
       // Real checkout: same-tab navigation (a popup after an await is blocked).
-      else if (r.paymentUrl) window.location.assign(r.paymentUrl);
+      else if (r.paymentUrl) {
+        leaving = true;
+        window.location.assign(r.paymentUrl);
+      }
     } catch (e) {
       setChooseErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("notFound"));
     } finally {
-      setBusy(false);
+      if (!leaving) setBusy(false);
     }
   }
 

@@ -21,6 +21,7 @@ export default function LoginForm() {
   const tc = useTranslations("common");
   const tOtp = useTranslations("register.otp");
   const tr = useTranslations("register");
+  const tTfa = useTranslations("portal.common.twofa");
   const { login, completeLogin2fa, session, ready, authNotice, clearAuthNotice } = useAuth();
   const router = useRouter();
 
@@ -39,10 +40,21 @@ export default function LoginForm() {
   const [resending, setResending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const otp = useOtpTimer();
+  // SMS challenge left via Back while still valid, with its resend/lock
+  // deadlines (epoch ms). Signing in again with the same phone reopens it: a
+  // new login would hit the 60s resend cooldown or supersede the code the
+  // user already has.
+  const [parked, setParked] = useState<{
+    c: TwoFactorChallenge;
+    phone: string;
+    resendAt: number;
+    blockedUntil: number;
+  } | null>(null);
 
   // Switch to the (newest) challenge. Without a verification id the code step
   // could never verify, so stay on the credentials form with the server's words.
   function applyChallenge(c: TwoFactorChallenge): boolean {
+    setParked(null);
     if (!c.verificationId) {
       setTwoFa(null);
       otp.clear();
@@ -68,6 +80,21 @@ export default function LoginForm() {
     }
     clearAuthNotice();
     setErr(null);
+    if (parked) {
+      const now = Date.now();
+      if (parked.phone === phone && parked.c.expiresAt > now) {
+        // Same verification id, remaining expiry, cooldown and lock.
+        setTwoFa(parked.c);
+        setCode("");
+        setNote(null);
+        otp.issue(parked.c.expiresAt);
+        otp.cooldown((parked.resendAt - now) / 1000);
+        if (parked.blockedUntil > now) otp.block((parked.blockedUntil - now) / 1000);
+        setParked(null);
+        return;
+      }
+      setParked(null);
+    }
     setBusy(true);
     try {
       const s = await login(p, password);
@@ -98,6 +125,11 @@ export default function LoginForm() {
         // Too many wrong codes → locked; count down the server's wait.
         otp.block(retryAfterSec(e, OTP_RESEND_SEC));
         setErr(errDetail(e) || tc("rateLimited"));
+      } else if (isOtpExpired(e) && twoFa.method === "totp") {
+        // Authenticator codes are never sent, so there is nothing to expire or
+        // resend: let the user try a fresh app code (the server decides).
+        setCode("");
+        setErr(tTfa("errVerify"));
       } else if (isOtpExpired(e)) {
         otp.expire();
       } else {
@@ -181,6 +213,12 @@ export default function LoginForm() {
               className="btn btn--ghost btn--full"
               type="button"
               onClick={() => {
+                const now = Date.now();
+                setParked(
+                  twoFa.method !== "totp" && twoFa.expiresAt > now
+                    ? { c: twoFa, phone, resendAt: now + otp.resendIn * 1000, blockedUntil: now + otp.blockedIn * 1000 }
+                    : null,
+                );
                 setTwoFa(null);
                 setCode("");
                 setErr(null);
@@ -228,7 +266,9 @@ export default function LoginForm() {
                 value={formatUzSubscriber(phone)}
                 onChange={(e) => {
                   const d = uzSubscriber(e.target.value);
-                  setPhone(d ? "+998" + d : "");
+                  const next = d ? "+998" + d : "";
+                  if (next !== phone) setParked(null);
+                  setPhone(next);
                 }}
                 placeholder="90 123 45 67"
                 autoComplete="tel"
@@ -240,7 +280,10 @@ export default function LoginForm() {
             <PasswordInput
               id="l-pw"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setParked(null);
+                setPassword(e.target.value);
+              }}
               placeholder={t("passwordPh")}
               autoComplete="current-password"
             />

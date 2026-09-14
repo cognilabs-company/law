@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import { ApiError, errDetail, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
+import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
 import { currentConsents, listLegalConsents, type RegisterStartResult } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
-import { savePendingRegistration } from "@/lib/consents";
+import { clearPendingRegistration, savePendingRegistration } from "@/lib/consents";
 import { LEGAL_FALLBACK_ITEMS } from "@/lib/legal";
 import { normUzPhone } from "@/lib/phone";
 import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
@@ -181,9 +181,9 @@ export default function RegisterFlow() {
   }
 
   // Remember what was accepted (real ids/versions only, so nothing while the
-  // list is unavailable — the gate then asks after the first login).
-  // ConsentGate posts it once a token exists: right after verify, or at the
-  // first login for approval-based / 2FA roles.
+  // list is unavailable — the gate then asks after the first login). Saved only
+  // once the phone is verified; ConsentGate posts it once a token exists: right
+  // after verify, or at the first login for approval-based / 2FA roles.
   function savePendingConsents() {
     if (legalDocs.status !== "ready") return;
     savePendingRegistration(normUzPhone(draft.phone), legalDocs.data.filter((d) => agreed[d.slug]));
@@ -195,7 +195,6 @@ export default function RegisterFlow() {
     // A still-valid code for the same details → reuse it instead of burning
     // the resend cooldown and the daily OTP quota.
     if (verificationId && issuedKey === otpKey && otp.issued && !otp.expired) {
-      savePendingConsents();
       next();
       return;
     }
@@ -211,7 +210,6 @@ export default function RegisterFlow() {
         return;
       }
       applyIssue(r);
-      savePendingConsents();
       setOtpNote(null);
       next();
     } catch (e) {
@@ -267,6 +265,8 @@ export default function RegisterFlow() {
     setCreating(true);
     try {
       const s = await register(draft, verificationId, code);
+      // Verified: runs before React renders the new session, so the gate finds it.
+      savePendingConsents();
       // Seller roles come back pending admin approval — show a review screen
       // instead of entering a portal (no account exists yet).
       if ("pending" in s) {
@@ -289,6 +289,11 @@ export default function RegisterFlow() {
         setVerifyErr(errDetail(e) || tc("rateLimited"));
       } else if (isOtpExpired(e)) {
         otp.expire();
+      } else if (isOffline(e)) {
+        // Network / proxy 502: the code was never checked, keep it for a retry.
+        setVerifyErr(tc("offline"));
+      } else if (e instanceof ApiError && e.status >= 500) {
+        setVerifyErr(t("verify.serverError"));
       } else {
         setVerifyErr(t("verify.incorrect"));
       }
@@ -663,7 +668,11 @@ export default function RegisterFlow() {
             <ConsentChecklist
               items={consentItems}
               checked={agreed}
-              onToggle={(slug, on) => setAgreed((a) => ({ ...a, [slug]: on }))}
+              onToggle={(slug, on) => {
+                setAgreed((a) => ({ ...a, [slug]: on }));
+                // Unticked again: no earlier acceptance for this phone may linger.
+                if (!on) clearPendingRegistration(normUzPhone(draft.phone));
+              }}
               hint
             />
           ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   listGifts,
@@ -52,6 +52,16 @@ export default function ClientGifts() {
   const serviceOpts = services.data.filter((s) => s.isActive).map((s) => ({ value: s.id, label: s.name }));
   const termOpts = ["3", "6", "12"].map((n) => ({ value: n, label: `${n} ${t("months")}` }));
 
+  // Back from the checkout page may restore this page from the bfcache with the
+  // button still busy (it stays busy while the browser navigates away).
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setBusy(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   function reset() {
     setCreated(null);
     setCopied(false);
@@ -70,6 +80,7 @@ export default function ClientGifts() {
     }
     setBusy(true);
     setNote(null);
+    let leaving = false; // stay busy while the browser opens the checkout
     try {
       const r = await createGift(
         isService
@@ -80,14 +91,17 @@ export default function ClientGifts() {
       setReloadKey((k) => k + 1);
       // Real checkout: same-tab navigation (a popup after an await is blocked).
       // The gift and its share link stay listed here after payment.
-      if (r.paymentUrl) window.location.assign(r.paymentUrl);
+      if (r.paymentUrl) {
+        leaving = true;
+        window.location.assign(r.paymentUrl);
+      }
     } catch (e) {
       setNote({
         ok: false,
         msg: isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("error"),
       });
     } finally {
-      setBusy(false);
+      if (!leaving) setBusy(false);
     }
   }
 

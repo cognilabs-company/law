@@ -18,6 +18,7 @@ import {
   updateNotificationPreferences,
   listSessions,
   revokeSession,
+  apiMe,
   NOTIF_KEYS,
   type NotifPrefs,
 } from "@/lib/services/backend";
@@ -65,6 +66,8 @@ export default function ClientProfile() {
   }
   async function revoke(id: string) {
     const current = sessions.data.find((x) => x.id === id)?.current;
+    // The list may not say which row is this device at all.
+    const flagged = sessions.data.some((x) => x.current !== undefined);
     try {
       await revokeSession(id);
       // This device's own session is gone → sign out cleanly instead of
@@ -72,6 +75,18 @@ export default function ClientProfile() {
       if (current) {
         logout();
         return;
+      }
+      if (!flagged) {
+        // Unknown → probe: a 401 (even after a refresh attempt) means the
+        // revoked row was this device.
+        try {
+          await apiMe();
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 401) {
+            logout();
+            return;
+          }
+        }
       }
       reload();
     } catch {

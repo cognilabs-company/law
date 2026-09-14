@@ -68,6 +68,16 @@ export default function LawyersSection({
   const [chatBusy, setChatBusy] = useState<string | null>(null);
   const [chatErr, setChatErr] = useState<string | null>(null);
 
+  // Back from the checkout page may restore this page from the bfcache with the
+  // button still busy (it stays busy while the browser navigates away).
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setChatBusy(null);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   // "Choose" → start a paid private chat with this seller (demo purchase).
   async function choose(l: Lawyer) {
     if (!session) {
@@ -77,6 +87,7 @@ export default function LawyersSection({
     if (!l.userId || chatBusy) return;
     setChatBusy(l.userId);
     setChatErr(null);
+    let leaving = false; // stay busy while the browser opens the checkout
     try {
       // Reuse an existing private-chat room if one already exists; else pay for one.
       const existing = await getLawyerPrivateChat(l.userId);
@@ -87,11 +98,14 @@ export default function LawyersSection({
       const r = await demoPrivateChat({ lawyer_user_id: l.userId });
       if (r.chatRoomId) router.push(`/portal/chat/${r.chatRoomId}`);
       // Real checkout: same-tab navigation (a popup after an await is blocked).
-      else if (r.paymentUrl) window.location.assign(r.paymentUrl);
+      else if (r.paymentUrl) {
+        leaving = true;
+        window.location.assign(r.paymentUrl);
+      }
     } catch (e) {
       setChatErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : null);
     } finally {
-      setChatBusy(null);
+      if (!leaving) setChatBusy(null);
     }
   }
   const scroller = useRef<HTMLDivElement>(null);

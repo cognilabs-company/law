@@ -158,15 +158,27 @@ export default function DocumentFlow() {
     }
   }
 
+  // Back from the checkout page may restore this page from the bfcache with the
+  // button still busy (it stays busy while the browser navigates away).
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setBusy(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   async function pay() {
     if (!req || busy) return;
     setBusy(true);
     setNote(null);
+    let leaving = false; // stay busy while the browser opens the checkout
     try {
       let r = await payDocumentRequest(req.id, "payme", req.price);
       if (r.paymentUrl) {
         // Real provider checkout: same-tab navigation (a popup after an await
         // is blocked). The card shows the request as pending on return.
+        leaving = true;
         window.location.assign(r.paymentUrl);
         return;
       }
@@ -178,7 +190,7 @@ export default function DocumentFlow() {
       // 503 = Payme/Click not configured on the backend yet.
       setNote({ ok: false, msg: isProviderUnavailable(e) ? tcommon("paymentUnavailable") : t("error") });
     } finally {
-      setBusy(false);
+      if (!leaving) setBusy(false);
     }
   }
 

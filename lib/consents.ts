@@ -3,7 +3,7 @@
 // user's own acceptances back, so the browser remembers which consent id and
 // version each user accepted, and whether the accept POST went through.
 // Only call the writers from handlers or effects, never during render.
-import { acceptLegalConsent, type ConsentDoc } from "@/lib/services/backend";
+import { acceptLegalConsent, cmpVersion, type ConsentDoc } from "@/lib/services/backend";
 
 export type AcceptedConsent = {
   id: string;
@@ -11,9 +11,9 @@ export type AcceptedConsent = {
   version: string;
   acceptedAt: string; // when the user ticked/accepted (ISO)
   synced: boolean; // the server has it
-  attempts: number;
+  attempts: number; // counted failures in the current retry round
   lastTry: number; // epoch ms of the last POST attempt
-  gaveUp: boolean; // stop retrying (refused, or too many attempts)
+  gaveUp: boolean; // paused: refused, or too many attempts (next round after 24h)
 };
 type Store = Record<string, AcceptedConsent[]>;
 type Pending = { phone: string; savedAt: string; items: AcceptedConsent[] };
@@ -22,9 +22,13 @@ type DocRef = { id: string; slug: string; version: string; acceptedAt?: string }
 export const CONSENTS_KEY = "lexgo_consents";
 const KEY = CONSENTS_KEY;
 const PENDING_KEY = "lexgo_consents_pending";
+// Same key as lib/auth.tsx.
+const SESSION_KEY = "lexgo_session";
 const PENDING_TTL_MS = 30 * 24 * 3600 * 1000;
-const RETRY_GAP_MS = 60_000;
+const RETRY_GAP_MS = 60_000; // doubles per counted failure…
+const MAX_RETRY_GAP_MS = 3600_000; // …up to an hour
 const MAX_ATTEMPTS = 10;
+const GIVE_UP_PAUSE_MS = 24 * 3600 * 1000;
 const RECHECK_GAP_MS = 5 * 60_000;
 
 // localStorage, falling back to an in-memory copy when storage is blocked
@@ -101,17 +105,33 @@ export function recordAccepted(id: string, phone: string, docs: DocRef[], opts?:
     if (!d.id) continue;
     const i = list.findIndex((r) => r.id === d.id);
     const prev = i >= 0 ? list[i] : undefined;
-    const rec: AcceptedConsent = {
-      id: d.id,
-      slug: d.slug || prev?.slug || "",
-      version: d.version || prev?.version || "",
-      acceptedAt: d.acceptedAt || prev?.acceptedAt || now,
-      // Never re-post something the server already has.
-      synced: Boolean(opts?.synced || prev?.synced),
-      attempts: prev?.attempts ?? 0,
-      lastTry: prev?.lastTry ?? 0,
-      gaveUp: opts?.synced ? false : (prev?.gaveUp ?? false),
-    };
+    // Same row, new version (bumped in place): a new acceptance to post.
+    const bumped = !!(prev && d.version && prev.version && d.version !== prev.version);
+    // A stale server ref never downgrades a newer local acceptance.
+    if (prev && bumped && opts?.synced && cmpVersion(d.version, prev.version) < 0) continue;
+    const rec: AcceptedConsent =
+      prev && !bumped
+        ? {
+            id: d.id,
+            slug: d.slug || prev.slug || "",
+            version: d.version || prev.version || "",
+            acceptedAt: d.acceptedAt || prev.acceptedAt || now,
+            // Never re-post something the server already has.
+            synced: Boolean(opts?.synced || prev.synced),
+            attempts: prev.attempts ?? 0,
+            lastTry: prev.lastTry ?? 0,
+            gaveUp: opts?.synced ? false : (prev.gaveUp ?? false),
+          }
+        : {
+            id: d.id,
+            slug: d.slug || prev?.slug || "",
+            version: d.version || "",
+            acceptedAt: d.acceptedAt || now,
+            synced: Boolean(opts?.synced),
+            attempts: 0,
+            lastTry: 0,
+            gaveUp: false,
+          };
     if (i >= 0) list[i] = rec;
     else list.push(rec);
   }
@@ -119,8 +139,9 @@ export function recordAccepted(id: string, phone: string, docs: DocRef[], opts?:
   writeStore(store);
 }
 
-// Registration: the user accepted before any account/token exists. Kept until
-// the first tokened session for that phone claims it.
+// Registration: the user accepted before any account/token exists. Saved once
+// the phone is verified, kept until the first tokened session for that phone
+// claims it.
 export function savePendingRegistration(phone: string, docs: ConsentDoc[]): void {
   const pk = phoneKey(phone);
   if (!pk || !docs.length) return;
@@ -142,6 +163,14 @@ export function savePendingRegistration(phone: string, docs: ConsentDoc[]): void
   writeRaw(PENDING_KEY, JSON.stringify(pending));
 }
 
+// Drop an unclaimed registration acceptance for this phone (a document was
+// unticked again); another phone's record is left alone.
+export function clearPendingRegistration(phone: string): void {
+  const p = readJson<Pending>(PENDING_KEY);
+  const pk = phoneKey(phone);
+  if (p && pk && p.phone === pk) writeRaw(PENDING_KEY, null);
+}
+
 export function claimPendingRegistration(id: string, phone: string): void {
   const p = readJson<Pending>(PENDING_KEY);
   if (!p) return;
@@ -157,9 +186,10 @@ export function claimPendingRegistration(id: string, phone: string): void {
 }
 
 // Which current documents still need acceptance. A document counts as accepted
-// when its id matches, or its slug and (non-empty) version match — covering
-// both "new row per version" and "version bumped in place". updated = an older
-// version of a missing document was accepted before.
+// when a record has its id and the same version (either version unknown also
+// matches), or its slug and the same non-empty version ("new row per
+// version"). A version bumped in place on the same id is therefore missing.
+// updated = an older version of a missing document was accepted before.
 export function consentStatus(
   current: ConsentDoc[],
   id: string,
@@ -167,18 +197,26 @@ export function consentStatus(
 ): { missing: ConsentDoc[]; updated: boolean } {
   const recs = readAccepted(id, phone);
   const missing = current.filter(
-    (d) => !recs.some((r) => r.id === d.id || (r.slug === d.slug && r.version !== "" && r.version === d.version)),
+    (d) =>
+      !recs.some(
+        (r) =>
+          (r.id === d.id && (!r.version || !d.version || r.version === d.version)) ||
+          (r.slug !== "" && r.slug === d.slug && r.version !== "" && r.version === d.version),
+      ),
   );
-  const updated = missing.some((d) => recs.some((r) => r.slug === d.slug));
+  const updated = missing.some((d) => recs.some((r) => r.slug === d.slug || r.id === d.id));
   return { missing, updated };
 }
 
-function patchRecord(id: string, phone: string, docId: string, patch: Partial<AcceptedConsent>): void {
+// Patch the record for docId at `version` (a record re-accepted at another
+// version meanwhile is left alone).
+function patchRecord(id: string, phone: string, docId: string, version: string, patch: Partial<AcceptedConsent>): void {
   const store = readStore();
   for (const k of userKeys(id, phone)) {
     const list = Array.isArray(store[k]) ? store[k] : [];
     const i = list.findIndex((r) => r.id === docId);
     if (i >= 0) {
+      if ((list[i].version || "") !== version) return;
       list[i] = { ...list[i], ...patch };
       store[k] = list;
       writeStore(store);
@@ -187,34 +225,96 @@ function patchRecord(id: string, phone: string, docId: string, patch: Partial<Ac
   }
 }
 
-// POST every unsynced acceptance, one at a time. Every outcome keeps the local
-// acceptance, so a sync failure never re-prompts the user.
-let flushing = false;
-export async function flushConsents(id: string, phone: string): Promise<void> {
-  if (flushing) return;
-  flushing = true;
+// Due for a POST: unsynced, past its backoff (60s doubling per counted failure,
+// capped at 1h), or paused (gaveUp) for more than 24h.
+function isDue(r: AcceptedConsent, now: number): boolean {
+  if (r.synced || !r.id) return false;
+  const since = now - (r.lastTry || 0);
+  if (r.gaveUp) return since >= GIVE_UP_PAUSE_MS;
+  return since >= Math.min(RETRY_GAP_MS * 2 ** Math.max((r.attempts || 0) - 1, 0), MAX_RETRY_GAP_MS);
+}
+
+// Is the stored session (read like lib/auth.tsx readStoredSession) still this
+// user? http() picks up the current token per request, so after a logout and
+// another login mid-flush the next POST would carry the other account's bearer.
+function sessionIsUser(id: string, phone: string): boolean {
   try {
-    const due = readAccepted(id, phone).filter(
-      (r) => !r.synced && !r.gaveUp && r.id && Date.now() - (r.lastTry || 0) >= RETRY_GAP_MS,
-    );
-    for (const r of due) {
-      const res = await acceptLegalConsent(r.id, r.version);
-      if (res.outcome === "synced") {
-        patchRecord(id, phone, r.id, { synced: true, lastTry: Date.now() });
-      } else if (res.outcome === "retry") {
-        const attempts = (r.attempts || 0) + 1;
-        const gaveUp = attempts >= MAX_ATTEMPTS;
-        patchRecord(id, phone, r.id, { attempts, lastTry: Date.now(), gaveUp });
-        if (gaveUp) console.warn(`[consents] accept ${r.slug || r.id} gave up after ${attempts} attempts (last HTTP ${res.status})`);
-      } else {
-        // 400/403/404/422: the server refused it; keep the acceptance, stop
-        // retrying, and leave a trace in the logs.
-        patchRecord(id, phone, r.id, { attempts: (r.attempts || 0) + 1, lastTry: Date.now(), gaveUp: true });
-        console.warn(`[consents] accept ${r.slug || r.id} v${r.version} refused with HTTP ${res.status}; kept locally`);
-      }
+    const raw = localStorage.getItem(SESSION_KEY);
+    const s = raw ? (JSON.parse(raw) as { token?: string; id?: string; phone?: string }) : null;
+    if (!s?.token) return false;
+    if (id) return s.id === id;
+    const pk = phoneKey(phone);
+    return !!pk && phoneKey(s.phone ?? "") === pk;
+  } catch {
+    return false;
+  }
+}
+
+async function flushPass(id: string, phone: string): Promise<void> {
+  for (const d of readAccepted(id, phone).filter((r) => isDue(r, Date.now()))) {
+    if (!sessionIsUser(id, phone)) return;
+    // Re-read: another tab may have synced or stamped it meanwhile.
+    const r = readAccepted(id, phone).find((x) => x.id === d.id);
+    if (!r || r.version !== d.version || !isDue(r, Date.now())) continue;
+    // A paused record starts a fresh round.
+    const attempts = r.gaveUp ? 0 : r.attempts || 0;
+    // Stamp before the request so other tabs skip it while it is in flight.
+    patchRecord(id, phone, r.id, r.version, { lastTry: Date.now(), attempts, gaveUp: false });
+    const res = await acceptLegalConsent(r.id, r.version);
+    // Account switched mid-request: leave it unsynced for this user's next flush.
+    if (!sessionIsUser(id, phone)) return;
+    if (res.outcome === "synced") {
+      patchRecord(id, phone, r.id, r.version, { synced: true });
+    } else if (res.outcome === "retry") {
+      // Never reached the backend (offline, proxy 502): not counted; the rest
+      // would fail the same way, so wait for the next wake-up.
+      if (res.status === 0 || res.status === 502) return;
+      const n = attempts + 1;
+      const gaveUp = n >= MAX_ATTEMPTS;
+      patchRecord(id, phone, r.id, r.version, { attempts: n, gaveUp });
+      if (gaveUp) console.warn(`[consents] accept ${r.slug || r.id} paused after ${n} attempts (last HTTP ${res.status})`);
+    } else {
+      // 400/403/404/422: the server refused it; keep the acceptance, pause
+      // retrying for a day, and leave a trace in the logs.
+      patchRecord(id, phone, r.id, r.version, { attempts: attempts + 1, gaveUp: true });
+      console.warn(`[consents] accept ${r.slug || r.id} v${r.version} refused with HTTP ${res.status}; kept locally`);
     }
+  }
+}
+
+// Across tabs, one pass at a time (Web Locks); a tab that waited then reads the
+// records the other one already stamped or synced.
+function withFlushLock(fn: () => Promise<void>): Promise<void> {
+  if (typeof navigator !== "undefined" && "locks" in navigator && navigator.locks) {
+    return navigator.locks.request("lexgo-consents-flush", fn).then(() => undefined);
+  }
+  return fn();
+}
+
+// POST every due acceptance of this user, one at a time. Every outcome keeps
+// the local acceptance, so a sync failure never re-prompts the user. A call
+// while this user's flush is running queues one more pass instead of being
+// dropped.
+const flushing = new Map<string, { rerun: boolean }>();
+export async function flushConsents(id: string, phone: string): Promise<void> {
+  const owner = userKeys(id, phone)[0];
+  if (!owner || typeof window === "undefined") return;
+  const running = flushing.get(owner);
+  if (running) {
+    running.rerun = true;
+    return;
+  }
+  const state = { rerun: false };
+  flushing.set(owner, state);
+  try {
+    do {
+      state.rerun = false;
+      await withFlushLock(() => flushPass(id, phone));
+    } while (state.rerun && sessionIsUser(id, phone));
+  } catch {
+    /* storage/lock failure: retried at the next wake-up */
   } finally {
-    flushing = false;
+    flushing.delete(owner);
   }
 }
 

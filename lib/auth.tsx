@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import { setToken } from "./client";
 import { ApiError, setRefreshHandler } from "./http";
 import { normUzPhone } from "./phone";
@@ -63,6 +64,52 @@ export type Session = {
 export type AuthNotice = "sessionExpired" | "loginRequired" | null;
 
 const KEY = "lexgo_session";
+// Epoch ms of the last real user interaction in ANY tab, and of the last time
+// tokens were issued (login, 2FA, register, refresh). A refresh is only spent
+// when someone interacted since the last one, so an idle tab's background
+// polls can't keep renewing the session past the backend's inactivity window.
+const LAST_ACTIVITY_KEY = "lexgo_last_activity";
+const LAST_REFRESH_KEY = "lexgo_last_refresh";
+const ACTIVITY_THROTTLE_MS = 15_000;
+// Set by expireSession just before the session is removed, so other tabs can
+// tell "expired" from a deliberate logout and show the same notice.
+const EXPIRED_AT_KEY = "lexgo_session_expired_at";
+const EXPIRED_NOTICE_MS = 10_000;
+
+function readStoredMs(key: string): number {
+  try {
+    const n = Number(localStorage.getItem(key));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+function storeNowMs(key: string): void {
+  try {
+    localStorage.setItem(key, String(Date.now()));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+// Throttled per tab, but the first interaction after a refresh (from any tab)
+// is always recorded.
+let lastActivityMark = 0;
+function markActivity(): void {
+  const now = Date.now();
+  if (now - lastActivityMark < ACTIVITY_THROTTLE_MS && lastActivityMark > readStoredMs(LAST_REFRESH_KEY)) return;
+  lastActivityMark = now;
+  storeNowMs(LAST_ACTIVITY_KEY);
+}
+const ACTIVITY_EVENTS = ["pointerdown", "keydown", "touchstart", "wheel"] as const;
+
+// Which account a session belongs to: its id, or the phone when the backend
+// gave no id. '' = unknown, which never matches anything.
+const ownerOf = (s: Session | null | undefined): string => (s ? s.id || s.phone || "" : "");
+const sameOwner = (a: Session | null | undefined, b: Session | null | undefined): boolean => {
+  const k = ownerOf(a);
+  return !!k && k === ownerOf(b);
+};
 
 // Our UI has client|lawyer|advocate; the backend has client|yurist|advokat
 // (+ advokat_tashkiloti and internal staff roles). Map lawyer↔yurist,
@@ -126,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const persist = useCallback((s: Session | null) => {
     if (s) {
       localStorage.setItem(KEY, JSON.stringify(s));
+      localStorage.removeItem(EXPIRED_AT_KEY);
       setToken(s.token ?? null);
     } else {
       localStorage.removeItem(KEY);
@@ -135,20 +183,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const expireSession = useCallback(() => {
+    // Before the removal, so other tabs' storage listener already sees it.
+    storeNowMs(EXPIRED_AT_KEY);
     persist(null);
     setAuthNotice("sessionExpired");
   }, [persist]);
 
-  // Called by http() on a 401 with `failedToken`. Returns a working access
-  // token, or null. The session is dropped ONLY when /auth/refresh itself
-  // answers 401/403 (inactive or revoked); 429, 5xx and network errors keep it.
+  // Called by http() on a 401 with `failedToken`, sent for account `owner`.
+  // Returns a working access token of THAT account, or null. The session is
+  // dropped ONLY when /auth/refresh itself answers 401/403 (inactive or
+  // revoked); 429, 5xx and network errors keep it.
   const refreshSession = useCallback(
-    (failedToken: string): Promise<string | null> =>
+    (failedToken: string, owner: string): Promise<string | null> =>
       withRefreshLock(async () => {
         // Re-read inside the lock: another tab may have rotated the tokens
         // (or logged out) while we waited.
         const cur = readStoredSession();
         if (!cur?.token) return null;
+        // Another account is stored now (logout + login meanwhile): never
+        // replay the request under it, and leave that session alone.
+        if (!owner || ownerOf(cur) !== owner) return null;
         if (failedToken && cur.token !== failedToken) {
           setToken(cur.token);
           return cur.token;
@@ -157,18 +211,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           expireSession();
           return null;
         }
+        // Nobody has interacted (in any tab) since the last refresh: this 401
+        // came from a background request. Don't renew — it fails quietly, the
+        // session stays, and the user's next action refreshes, where the
+        // backend's inactivity rule decides.
+        if (readStoredMs(LAST_ACTIVITY_KEY) <= readStoredMs(LAST_REFRESH_KEY)) return null;
         try {
           const r = await apiRefresh(cur.refreshToken);
           const now = readStoredSession();
-          // Logged out or re-logged meanwhile → leave that session alone.
-          if (!now || now.refreshToken !== cur.refreshToken) return now?.token ?? null;
+          // Logged out or re-logged meanwhile → leave that session alone, and
+          // only hand back a token of the same account.
+          if (!now || now.refreshToken !== cur.refreshToken) return sameOwner(now, cur) ? now?.token ?? null : null;
           if (!r.token) return null;
+          storeNowMs(LAST_REFRESH_KEY);
           persist({ ...now, token: r.token, refreshToken: r.refreshToken || now.refreshToken });
           return r.token;
         } catch (e) {
           if (!(e instanceof ApiError) || (e.status !== 401 && e.status !== 403)) return null;
           const now = readStoredSession();
-          if (now && now.refreshToken !== cur.refreshToken) return now.token ?? null;
+          if (now && now.refreshToken !== cur.refreshToken) return sameOwner(now, cur) ? now.token ?? null : null;
           expireSession();
           return null;
         }
@@ -178,14 +239,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Declared before the mount effect so the /auth/me call below can refresh.
   useEffect(() => {
-    setRefreshHandler(refreshSession);
+    setRefreshHandler(refreshSession, () => ownerOf(readStoredSession()));
     return () => setRefreshHandler(null);
   }, [refreshSession]);
 
-  // Another tab logged out, logged in or rotated tokens → follow it.
+  // Real user activity (any tab) is what allows a token refresh. Page load and
+  // navigation count; so do pointer/key/touch/wheel input and returning to the
+  // tab. Declared before the mount effect so the /auth/me refresh on load works.
+  const pathname = usePathname();
+  useEffect(() => {
+    markActivity();
+  }, [pathname]);
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") markActivity();
+    };
+    const opts = { capture: true, passive: true } as const;
+    for (const ev of ACTIVITY_EVENTS) window.addEventListener(ev, markActivity, opts);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      for (const ev of ACTIVITY_EVENTS) window.removeEventListener(ev, markActivity, opts);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
+  // Another tab logged out, logged in, expired or rotated tokens → follow it.
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === KEY || e.key === null) setSession(readStoredSession());
+      if (e.key !== KEY && e.key !== null) return;
+      const s = readStoredSession();
+      setSession(s);
+      if (s) {
+        // A live session arrived: any "session expired" notice is stale.
+        setAuthNotice(null);
+      } else {
+        const at = readStoredMs(EXPIRED_AT_KEY);
+        if (at && Date.now() - at < EXPIRED_NOTICE_MS) setAuthNotice("sessionExpired");
+      }
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
@@ -199,10 +289,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // An expired access token is refreshed inside http().
       if (stored.token) {
         // Merge into the LATEST stored session: a refresh during apiMe() has
-        // already persisted new tokens that must not be overwritten.
+        // already persisted new tokens that must not be overwritten. Skip it
+        // when the account changed (logout/login) while /auth/me was in flight.
         const applyMe = (u: Awaited<ReturnType<typeof apiMe>>) => {
           const cur = readStoredSession();
-          if (!cur) return;
+          if (!cur || !sameOwner(cur, stored)) return;
+          if (u.id && cur.id && u.id !== cur.id) return;
           persist({
             ...cur,
             name: u.name || cur.name,
@@ -249,6 +341,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         telegramLinked: user.telegramLinked,
         acceptedConsents: user.acceptedConsents,
       };
+      storeNowMs(LAST_REFRESH_KEY);
       persist(s);
       setAuthNotice(null);
       return s;
@@ -297,6 +390,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const role = (draft.accountType ?? "client") as Role;
       const completeness = scoreCompleteness(role, draft.profile);
       const finish = (s: Session) => {
+        storeNowMs(LAST_REFRESH_KEY);
         persist(s);
         setAuthNotice(null);
         return s;
@@ -343,25 +437,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
-  const update = useCallback((patch: Partial<Session>) => {
-    setSession((prev) => {
-      if (!prev) return prev;
-      // Tokens may have been rotated by a refresh (possibly in another tab):
-      // keep the stored ones instead of this render's copy.
+  // `update` is bound to the account shown when the caller rendered, so a
+  // patch that lands after an await (another tab logged out or signed in as
+  // someone else) is dropped. It merges into the LATEST stored session: tokens
+  // and /auth/me fields another tab wrote are kept.
+  const sessionOwner = ownerOf(storedSession);
+  const update = useCallback(
+    (patch: Partial<Session>) => {
       const latest = readStoredSession();
-      const next = { ...prev, token: latest?.token ?? prev.token, refreshToken: latest?.refreshToken ?? prev.refreshToken, ...patch };
-      localStorage.setItem(KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
+      if (!sessionOwner || !latest || ownerOf(latest) !== sessionOwner) return;
+      persist({ ...latest, ...patch });
+    },
+    [sessionOwner, persist],
+  );
 
   const logout = useCallback(() => {
-    // Best-effort server-side revocation of this refresh session, then clear
-    // locally. http() reads the bearer token before its first await, so it is
-    // still attached; /auth/logout never triggers a refresh.
-    apiLogout(readStoredSession()?.refreshToken);
+    // Clear locally right away, then revoke this refresh session server-side
+    // in the background with the captured tokens (apiLogout refreshes once
+    // itself when the access token has already expired; it never throws).
+    const cur = readStoredSession();
     setAuthNotice(null);
+    localStorage.removeItem(EXPIRED_AT_KEY);
     persist(null);
+    void apiLogout(cur?.refreshToken, cur?.token);
   }, [persist]);
 
   const clearAuthNotice = useCallback(() => setAuthNotice(null), []);
@@ -425,10 +523,14 @@ export function hasAdminAccess(s: Session | null): boolean {
 
 // Roles that must use 2FA at login and cannot turn it off (DELETE /auth/2fa → 403).
 const MANDATORY_2FA_ROLES = ["yurist", "advokat", "advokat_tashkiloti", "admin", "superadmin", "manager", "call_center", "sales"];
+// Decided from roles only (primary backend role, assigned roles, UI role):
+// the meaning of an /auth/me two_factor_required flag is unverified and could
+// mean "this account uses 2FA", which would hide Disable from clients. A
+// mismatch still surfaces as the 403 message in TwoFactorCard.disable().
 export function requiresTwoFactor(s: Session | null): boolean {
   if (!s) return false;
   // role !== "client" also covers lawyer/advocate sessions stored before
   // backendRole existed.
-  if (s.twoFactorRequired || s.role !== "client") return true;
+  if (s.role !== "client") return true;
   return sessionRoles(s).some((r) => MANDATORY_2FA_ROLES.includes(r) || r.startsWith("call_center") || r.startsWith("sales"));
 }

@@ -111,17 +111,40 @@ export async function apiRefresh(refreshToken: string): Promise<{ token: string;
   return { token: asStr(d.access_token ?? d.token), refreshToken: asStr(d.refresh_token ?? refreshToken) };
 }
 // Sending the refresh token revokes that refresh session server-side (the
-// sessions list stays accurate), not just the access token.
-export async function apiLogout(refreshToken?: string): Promise<void> {
-  await http("/auth/logout", {
-    method: "POST",
-    body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
-  }).catch(() => {});
+// sessions list stays accurate), not just the access token. Best-effort: never
+// throws and never touches storage. Only the tokens captured at logout are
+// sent (raw fetch, so a newer login's stored bearer is never attached). The
+// backend rejects an expired bearer with 401 before it reads refresh_token, so
+// on 401 refresh once with the captured refresh token and retry once.
+export async function apiLogout(refreshToken?: string, accessToken?: string): Promise<void> {
+  if (!refreshToken && !accessToken) return;
+  const post = (bearer: string | undefined, rt: string | undefined) =>
+    fetch(`${API_BASE}/auth/logout`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+      },
+      body: JSON.stringify(rt ? { refresh_token: rt } : {}),
+    });
+  try {
+    const res = await post(accessToken, refreshToken);
+    if (res.status !== 401 || !refreshToken) return;
+    const fresh = await apiRefresh(refreshToken).catch(() => null);
+    // No fresh bearer (session already inactive, or offline) → the backend
+    // also accepts a bearer-less logout keyed by refresh_token.
+    await post(fresh?.token || undefined, fresh?.refreshToken || refreshToken);
+  } catch {
+    /* offline — nothing more to do */
+  }
 }
+// current: undefined when the row carries no "this device" flag at all.
 export type UserSession = { id: string; deviceLabel: string; ip: string; status: string; lastUsedAt: string; expiresAt: string; current?: boolean };
 export async function listSessions(): Promise<UserSession[]> {
   return listFrom(await http("/auth/sessions"), "items", "data", "sessions").map((x) => {
     const d = asDict(x);
+    const cur = d.current ?? d.is_current ?? d.this_device ?? d.is_this_device;
     return {
       id: asStr(d.id),
       deviceLabel: asStr(d.device_label ?? d.device) || "",
@@ -129,7 +152,7 @@ export async function listSessions(): Promise<UserSession[]> {
       status: asStr(d.status, "active"),
       lastUsedAt: asStr(d.last_used_at ?? d.last_active),
       expiresAt: asStr(d.expires_at),
-      current: Boolean(d.current ?? d.is_current),
+      current: cur == null ? undefined : Boolean(cur),
     };
   });
 }
@@ -172,7 +195,7 @@ function normOtp(v: unknown, sms = true): OtpChallenge {
     verificationId: asStr(idOf(d)),
     phone: asStr(d.phone ?? src.phone),
     expiresAt: otpExpiresAt(d, sms ? OTP_TTL_MS : 0, sms ? OTP_TTL_MS : OTP_MAX_MS),
-    message: asStr(d.message ?? src.message),
+    message: [d.message, src.message].find((m): m is string => typeof m === "string") ?? "",
   };
 }
 
@@ -263,11 +286,14 @@ function normChallenge(v: unknown): TwoFactorChallenge {
   const raw = asStr(dd.method ?? dd.two_factor_method ?? dd.type ?? j.method ?? j.two_factor_method).toLowerCase();
   const method = /totp|authenticator|app/.test(raw) ? "totp" : raw ? "sms" : "";
   const o = normOtp(j, method !== "totp");
+  // Keep the server's words when there is no usable challenge: non-empty
+  // strings only (an object must never render as "[object Object]").
+  const text = (x: unknown) => (typeof x === "string" && x.trim() ? x : "");
   return {
     ...o,
     twoFactorRequired: true,
     method,
-    message: o.message || (typeof j.detail === "string" ? j.detail : ""),
+    message: o.message || text(dd.message) || text(j.detail) || text(j.message) || text(j.error),
   };
 }
 
@@ -2485,8 +2511,25 @@ export async function getNotificationPreferences(): Promise<NotifPrefs> {
   const ch = asDict(d.channels);
   const ev = asDict(d.events ?? d.categories);
   const out = {} as NotifPrefs;
-  for (const k of NOTIF_KEYS) out[k] = Boolean(d[k] ?? ch[k] ?? ev[k]);
+  for (const k of NOTIF_KEYS) out[k] = prefOn(d[k]) ?? prefOn(ch[k]) ?? prefOn(ev[k]) ?? false;
   return out;
+}
+// A preference value may be a flag, a "true"/"on" string or an object carrying
+// one ({ enabled: true }); anything else (e.g. a per-event matrix) is no answer.
+function prefOn(v: unknown): boolean | undefined {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (/^(true|1|on|yes|enabled)$/.test(s)) return true;
+    if (/^(false|0|off|no|disabled)$/.test(s)) return false;
+    return undefined;
+  }
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    const o = v as Dict;
+    return prefOn(o.enabled ?? o.on ?? o.value ?? o.active);
+  }
+  return undefined;
 }
 export async function updateNotificationPreferences(p: Partial<NotifPrefs>): Promise<void> {
   await http("/notifications/preferences", { method: "PUT", body: JSON.stringify(p) });
@@ -2972,40 +3015,64 @@ function parseJsonDict(v: unknown): Dict {
     return {};
   }
 }
+// First non-blank string among the values (objects, flags and numbers skipped).
+function firstText(...v: unknown[]): string {
+  for (const x of v) if (typeof x === "string" && x.trim()) return x.trim();
+  return "";
+}
 // Delivery records from any of the shapes the cascade may use: a list of
-// per-channel records, a deliveries/channels list or channel→status map (also
-// inside metadata, possibly JSON-encoded), or a single row's channel + status.
+// per-channel records, a deliveries/channels list, a channel→status map or a
+// single record (also inside metadata, possibly JSON-encoded), plus the row's
+// own channel + status. Sources that are empty or carry no status (a plain
+// channel list, an enabled-channels flag map) are skipped; only entries with a
+// status are returned.
 export function normDeliveries(v: unknown, fallbackChannel = ""): NotificationDelivery[] {
   const found: { channel: string; status: string }[] = [];
-  const add = (channel: unknown, status: unknown) =>
-    found.push({ channel: normChannel(channel), status: asStr(status).trim().toLowerCase() });
-  const fromRecord = (x: unknown) => {
-    if (typeof x === "string") return add(x, "");
-    const r = asDict(x);
-    add(r.channel ?? r.channel_type ?? r.name ?? r.type ?? r.provider, r.status ?? r.state ?? r.delivery_status);
-  };
   if (Array.isArray(v)) {
     for (const x of v) for (const y of normDeliveries(x, fallbackChannel)) found.push(y);
   } else {
     const d = asDict(v);
     const meta = parseJsonDict(d.metadata ?? d.meta);
     const payload = parseJsonDict(d.payload);
-    const src = [d.deliveries, d.delivery, d.channels, d.cascade, meta.deliveries, meta.channels, meta.cascade, payload.deliveries, payload.channels].find(
-      (x) => x != null && typeof x === "object",
-    );
-    if (Array.isArray(src)) src.forEach(fromRecord);
-    else if (src) {
-      for (const [channel, st] of Object.entries(src as Dict)) {
-        add(channel, st && typeof st === "object" ? (asDict(st).status ?? asDict(st).state) : st);
+    const isRecord = (r: Dict) => ["channel", "channel_type", "status", "state", "delivery_status"].some((k) => k in r);
+    const fromSource = (src: unknown) => {
+      const out: { channel: string; status: string }[] = [];
+      const add = (channel: unknown, status: unknown) => {
+        const c = normChannel(firstText(channel));
+        const s = firstText(status).toLowerCase();
+        if (c && s) out.push({ channel: c, status: s });
+      };
+      const fromRecord = (x: unknown) => {
+        const r = asDict(x);
+        add(firstText(r.channel, r.channel_type, r.name, r.type, r.provider), firstText(r.status, r.state, r.delivery_status));
+      };
+      if (Array.isArray(src)) src.forEach(fromRecord);
+      else if (src && typeof src === "object") {
+        const r = src as Dict;
+        if (isRecord(r)) fromRecord(r);
+        else
+          for (const [channel, st] of Object.entries(r)) {
+            // Booleans/numbers are enabled flags, not statuses: add() drops them.
+            add(channel, st && typeof st === "object" ? firstText(asDict(st).status, asDict(st).state) : st);
+          }
       }
-    } else {
-      const channel = d.channel ?? d.channel_type ?? meta.channel ?? fallbackChannel;
-      if (asStr(channel).trim()) add(channel, d.status ?? d.delivery_status ?? meta.status);
+      return out;
+    };
+    const sources = [d.deliveries, d.delivery, d.channels, d.cascade, meta.deliveries, meta.channels, meta.cascade, payload.deliveries, payload.channels];
+    for (const src of sources) {
+      const got = fromSource(src);
+      if (got.length) {
+        found.push(...got);
+        break;
+      }
     }
+    // The row's own record (a per-channel row) unless the source already has it.
+    const own = normChannel(firstText(d.channel, d.channel_type, meta.channel, fallbackChannel));
+    const ownStatus = firstText(d.status, d.delivery_status, meta.status).toLowerCase();
+    if (own && ownStatus && !found.some((x) => x.channel === own)) found.unshift({ channel: own, status: ownStatus });
   }
   const byChannel = new Map<string, NotificationDelivery>();
   for (const x of found) {
-    if (!x.channel) continue;
     byChannel.delete(x.channel); // the last record for a channel wins
     byChannel.set(x.channel, { ...x, tone: deliveryTone(x.status) });
   }
@@ -3041,8 +3108,9 @@ export async function listNotifications(): Promise<Notification[]> {
       kind: asStr(d.kind ?? d.event ?? d.type),
       read: Boolean(d.read ?? d.is_read),
       createdAt: asStr(d.created_at ?? d.createdAt),
-      channel: normChannel(d.channel ?? d.channel_type),
-      status: asStr(d.status ?? d.delivery_status).trim().toLowerCase(),
+      // Same sources as normDeliveries' own record, so metadata-only rows fold too.
+      channel: normChannel(firstText(d.channel, d.channel_type, meta.channel)),
+      status: firstText(d.status, d.delivery_status, meta.status).toLowerCase(),
       deliveries: normDeliveries(d),
     };
   });
@@ -3529,7 +3597,7 @@ export function normConsentDocs(data: unknown): ConsentDoc[] {
     .filter((d) => d.id && d.slug);
 }
 // "1.10" > "1.9": compare the numeric segments.
-function cmpVersion(a: string, b: string): number {
+export function cmpVersion(a: string, b: string): number {
   const pa = a.split(/[^0-9]+/).filter(Boolean).map(Number);
   const pb = b.split(/[^0-9]+/).filter(Boolean).map(Number);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {

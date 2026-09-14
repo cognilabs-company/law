@@ -59,10 +59,15 @@ export function retryAfterSec(e: unknown, fallback: number): number {
 }
 
 // True when an OTP was rejected because it expired or a newer code replaced
-// it (410, or wording to that effect) rather than because it was wrong.
+// it (410, or wording that only says that) rather than because it was wrong.
+// A combined "wrong or expired" message counts as a wrong code, so the form
+// stays usable and the server decides on the next attempt.
 export function isOtpExpired(e: unknown): boolean {
   if (!(e instanceof ApiError)) return false;
-  return e.status === 410 || /expir|supersed|muddat|eskir|истек|истёк|устарел/i.test(e.detail || "");
+  if (e.status === 410) return true;
+  const d = e.detail || "";
+  if (/noto.?g.?ri|xato|wrong|invalid|incorrect|неверн|неправил/i.test(d)) return false;
+  return /expir|supersed|muddat|eskir|истек|истёк|устарел/i.test(d);
 }
 
 // True when a demo-only endpoint is missing because DEMO_MODE is off in
@@ -159,21 +164,38 @@ export async function toApiError(res: Response): Promise<ApiError> {
 }
 
 // Access-token refresh. lib/auth.tsx registers the handler (kept out of this
-// module to avoid an import cycle); concurrent 401s share one refresh.
-type RefreshHandler = (failedToken: string) => Promise<string | null>;
+// module to avoid an import cycle); concurrent 401s of the same account share
+// one refresh. `owner` identifies the signed-in account a request was sent for
+// (read next to the token), so a refresh never hands back — and http() never
+// replays with — another account's token.
+type RefreshHandler = (failedToken: string, owner: string) => Promise<string | null>;
 let refreshHandler: RefreshHandler | null = null;
-let refreshing: Promise<string | null> | null = null;
-export function setRefreshHandler(fn: RefreshHandler | null): void {
+let ownerReader: () => string = () => "";
+const refreshing = new Map<string, Promise<string | null>>();
+export function setRefreshHandler(fn: RefreshHandler | null, owner?: () => string): void {
   refreshHandler = fn;
+  ownerReader = fn && owner ? owner : () => "";
 }
-export function refreshAccessToken(failedToken = getToken() ?? ""): Promise<string | null> {
-  if (!refreshHandler) return Promise.resolve(null);
-  if (!refreshing) {
-    refreshing = refreshHandler(failedToken).finally(() => {
-      refreshing = null;
-    });
+export function currentTokenOwner(): string {
+  try {
+    return ownerReader();
+  } catch {
+    return "";
   }
-  return refreshing;
+}
+export function refreshAccessToken(
+  failedToken = getToken() ?? "",
+  owner = currentTokenOwner(),
+): Promise<string | null> {
+  if (!refreshHandler) return Promise.resolve(null);
+  let p = refreshing.get(owner);
+  if (!p) {
+    p = refreshHandler(failedToken, owner).finally(() => {
+      refreshing.delete(owner);
+    });
+    refreshing.set(owner, p);
+  }
+  return p;
 }
 // Never replay these on a 401: auth endpoints, and anything that submits a
 // code — a wrong-code 401 sent twice would burn two of the three attempts.
@@ -199,11 +221,12 @@ export async function http<T = unknown>(
     }
   };
   const token = getToken();
+  const owner = token ? currentTokenOwner() : "";
   let res = await send(token);
   // Expired access token → refresh once and replay. Tokenless 401s (guest AI
   // limit) never refresh.
   if (res.status === 401 && token && !NO_REFRESH.test(path)) {
-    const fresh = await refreshAccessToken(token);
+    const fresh = await refreshAccessToken(token, owner);
     if (fresh && fresh !== token) res = await send(fresh);
   }
   if (!res.ok) throw await toApiError(res);

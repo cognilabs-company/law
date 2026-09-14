@@ -25,12 +25,24 @@ async function proxy(
   // Client identity for per-user rate limits and the session device label /
   // IP (/auth/sessions, user_consents). Without these every web user looks
   // like this Next host. The backend must trust them only from the Next host.
+  //
+  // Assumes exactly ONE trusted hop in front of Next (the hosting edge) that
+  // appends the connecting peer's address to X-Forwarded-For. Everything to
+  // the left of that last entry is whatever the browser sent, so only the
+  // RIGHTMOST entry is used, and the client's own chain / X-Real-IP are never
+  // relayed. With no XFF at all, an incoming X-Real-IP (set by such an edge)
+  // is the fallback. A deployment with more hops, or none, must change this.
   const ua = req.headers.get("user-agent");
   if (ua) headers["user-agent"] = ua;
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) headers["x-forwarded-for"] = xff;
-  const realIp = req.headers.get("x-real-ip") || (xff ? xff.split(",")[0].trim() : "");
-  if (realIp) headers["x-real-ip"] = realIp;
+  const hops = (req.headers.get("x-forwarded-for") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const clientIp = hops.length ? hops[hops.length - 1] : req.headers.get("x-real-ip")?.trim() || "";
+  if (clientIp) {
+    headers["x-forwarded-for"] = clientIp;
+    headers["x-real-ip"] = clientIp;
+  }
 
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
   const body = hasBody ? await req.arrayBuffer() : undefined;

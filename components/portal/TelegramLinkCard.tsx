@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
 import { apiMe, startTelegramLink } from "@/lib/services/backend";
@@ -12,7 +12,9 @@ import { IconSend, IconExternal, IconCheck, IconRefresh } from "@/components/ico
 // Telegram account link (T0-15): POST /telegram/link/start gives a one-time
 // t.me deep link valid 10 minutes; pressing Start in the bot links the account.
 // The linked state comes from /auth/me when it exposes telegram_chat_id.
-type ActiveLink = { uid: string; url: string; expiresMs: number; opened?: boolean };
+// `relink` = issued while already linked: /auth/me says "linked" before and
+// after, so such a link can't be confirmed and ends with Done or at expiry.
+type ActiveLink = { uid: string; url: string; expiresMs: number; opened?: boolean; relink?: boolean };
 const STORE = "lexgo_tg_link";
 const POLL_MS = 5000;
 
@@ -41,20 +43,38 @@ function storeLink(l: ActiveLink | null) {
 export default function TelegramLinkCard() {
   const t = useTranslations("portal.common.telegram");
   const tc = useTranslations("common");
-  const { session, update } = useAuth();
+  const { session, ready, update } = useAuth();
   const [stored, setStored] = useState<ActiveLink | null>(readStoredLink);
+  const linked = session?.telegramLinked === true;
   // Session is null on the server and during hydration, so a restored link
   // never causes a mismatch; the uid check hides another user's link.
-  const link = stored && session && stored.uid === session.id ? stored : null;
-  const left = useDeadline(link?.expiresMs ?? 0);
+  const mine = stored && session && stored.uid === session.id ? stored : null;
+  const left = useDeadline(mine?.expiresMs ?? 0);
+  // A normal link is done once the account shows as linked (e.g. AuthProvider's
+  // /auth/me after the tab reloaded); a relink link is done at expiry.
+  const finished = !!mine && (mine.relink ? left === 0 : linked);
+  const link = finished ? null : mine;
   const expired = !!link && left === 0;
   const [waitUntil, setWaitUntil] = useState(0); // 429 cooldown, epoch ms
   const waitLeft = useDeadline(waitUntil);
   const [canPoll, setCanPoll] = useState(true);
+  const [finalFor, setFinalFor] = useState(""); // url of the link whose post-expiry check is back
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
-  const linked = session?.telegramLinked === true;
+  const reqRef = useRef(0); // bumped by cancel() so a late start response is ignored
+  const openedRef = useRef(false);
+
+  // Drop a stored token that must not outlive its use: finished, or left
+  // behind by a signed-out or different user (only once auth has hydrated).
+  const stale = finished || (ready && !!stored && (!session || stored.uid !== session.id));
+  useEffect(() => {
+    if (stale) storeLink(null);
+  }, [stale]);
+
+  useEffect(() => {
+    openedRef.current = !!link?.opened;
+  });
 
   function setActive(l: ActiveLink | null) {
     storeLink(l);
@@ -72,25 +92,29 @@ export default function TelegramLinkCard() {
 
   async function generate() {
     if (busy || !session || waitLeft > 0) return;
+    const req = ++reqRef.current;
     setBusy(true);
     setNote(null);
     setCanPoll(true);
     try {
       const r = await startTelegramLink();
-      if (r.linked) {
+      if (req !== reqRef.current) return; // cancelled while pending
+      if (r.url) {
+        // A usable link wins over a linked/already_linked flag: that's a relink.
+        if (r.linked) update({ telegramLinked: true });
+        setActive({ uid: session.id, url: r.url, expiresMs: r.expiresAt, relink: linked || r.linked });
+      } else if (r.linked) {
         update({ telegramLinked: true });
         setActive(null);
         setNote({ ok: true, msg: t("linkedMsg") });
-      } else if (!r.url) {
-        setNote({ ok: false, msg: t("errStart") });
       } else {
-        setActive({ uid: session.id, url: r.url, expiresMs: r.expiresAt });
+        setNote({ ok: false, msg: t("errStart") });
       }
     } catch (e) {
       // Wait only as long as the server says; no hint → no local lock.
       const sec = isRateLimited(e) ? retryAfterSec(e, 0) : 0;
       if (sec > 0) setWaitUntil(Date.now() + sec * 1000);
-      setNote({ ok: false, msg: startError(e) });
+      if (req === reqRef.current) setNote({ ok: false, msg: startError(e) });
     } finally {
       setBusy(false);
     }
@@ -114,25 +138,32 @@ export default function TelegramLinkCard() {
   }
 
   function cancel() {
+    reqRef.current++;
     setActive(null);
     setNote(null);
   }
 
-  // After the link is opened/copied, poll /auth/me until the webhook has stored
-  // telegram_chat_id: every 5s while visible, plus on focus/return to the tab.
-  // Stops on linked, expiry, unmount, 401, or when /auth/me has no telegram field.
-  // Depends on `expired` (not the ticking seconds) so the interval isn't reset.
+  // While a (non-relink) link is shown, poll /auth/me until the webhook has
+  // stored telegram_chat_id: every 5s while visible once the link was opened or
+  // copied, and on every return to the tab (which also marks it opened, however
+  // it was opened). Regular polling ends at expiry with one last check, so a
+  // link used in its final seconds is detected before "expired" shows.
+  // Stops on linked, cancel, unmount, 401, or when /auth/me has no telegram field.
+  const watchUrl = link && !link.relink && !linked && canPoll ? link.url : "";
+  const watchExp = link && watchUrl ? link.expiresMs : 0;
   useEffect(() => {
-    if (!link?.opened || linked || !canPoll || expired) return;
+    if (!watchUrl) return;
     let alive = true;
     let inFlight = false; // focus + visibilitychange fire together on return
-    const check = () => {
-      if (inFlight || document.visibilityState !== "visible") return;
+    let again = false; // the expiry check came while another check was in flight
+    const check = (force = false) => {
+      if (inFlight) {
+        if (force) again = true;
+        return;
+      }
+      if (!force && document.visibilityState !== "visible") return;
       inFlight = true;
       apiMe()
-        .finally(() => {
-          inFlight = false;
-        })
         .then((u) => {
           if (!alive) return;
           if (u.telegramLinked === undefined) {
@@ -146,19 +177,49 @@ export default function TelegramLinkCard() {
         })
         .catch((e) => {
           if (alive && e instanceof ApiError && e.status === 401) setCanPoll(false);
+        })
+        .finally(() => {
+          inFlight = false;
+          if (!alive) return;
+          if (again) {
+            again = false;
+            check(true);
+          } else if (Date.now() >= watchExp) {
+            setFinalFor(watchUrl);
+          }
         });
     };
-    const iv = setInterval(check, POLL_MS);
-    window.addEventListener("focus", check);
-    document.addEventListener("visibilitychange", check);
+    const iv = setInterval(() => {
+      if (Date.now() >= watchExp) clearInterval(iv);
+      else if (openedRef.current) check();
+    }, POLL_MS);
+    const last = setTimeout(() => {
+      if (openedRef.current) check(true);
+    }, Math.max(0, watchExp - Date.now()));
+    const onReturn = () => {
+      if (document.visibilityState !== "visible") return;
+      setStored((p) => {
+        if (!p || p.opened || p.url !== watchUrl) return p;
+        const n = { ...p, opened: true };
+        storeLink(n);
+        return n;
+      });
+      check();
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
     return () => {
       alive = false;
       clearInterval(iv);
-      window.removeEventListener("focus", check);
-      document.removeEventListener("visibilitychange", check);
+      clearTimeout(last);
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
     };
-  }, [link?.opened, linked, canPoll, expired, update, t]);
+  }, [watchUrl, watchExp, update, t]);
 
+  // An opened link says "expired" only once the last /auth/me check is back.
+  const showExpired = !!link && expired && (!link.opened || !canPoll || finalFor === link.url);
+  const shownNote = note ?? (mine && finished && !mine.relink ? { ok: true, msg: t("linkedMsg") } : null);
   const busyOrWaiting = busy || waitLeft > 0;
 
   return (
@@ -171,13 +232,21 @@ export default function TelegramLinkCard() {
 
       {link ? (
         <div className="cform" style={{ maxWidth: "none" }}>
-          {expired ? (
+          {showExpired ? (
             <Notice ok={false} msg={t("expired")} />
           ) : (
             <>
               <p className="advmuted">{t("hint")}</p>
               <div className="tglink__acts">
-                <a className="btn btn--pri btn--sm" href={link.url} target="_blank" rel="noopener noreferrer" onClick={markOpened}>
+                <a
+                  className="btn btn--pri btn--sm"
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={markOpened}
+                  onAuxClick={markOpened}
+                  onContextMenu={markOpened}
+                >
                   <IconSend />
                   {t("open")}
                   <IconExternal />
@@ -186,7 +255,7 @@ export default function TelegramLinkCard() {
               <div>
                 <label htmlFor="tglink-url">{t("linkLabel")}</label>
                 <div className="tglink__row">
-                  <input id="tglink-url" value={link.url} readOnly onFocus={(e) => e.currentTarget.select()} />
+                  <input id="tglink-url" value={link.url} readOnly onFocus={(e) => e.currentTarget.select()} onCopy={markOpened} />
                   <button className="btn btn--line btn--sm" type="button" onClick={copy}>
                     {copied ? <IconCheck /> : null}
                     {copied ? t("copied") : t("copy")}
@@ -197,19 +266,20 @@ export default function TelegramLinkCard() {
               <p className="advmuted">
                 {t("timeLeft")} <b className="tglink__timer">{fmtClock(left)}</b>
               </p>
-              {link.opened && !linked && canPoll ? <p className="advmuted">{t("waiting")}</p> : null}
+              {link.relink ? <p className="advmuted">{t("relinkHint")}</p> : null}
+              {link.opened && !link.relink && canPoll ? <p className="advmuted">{t("waiting")}</p> : null}
             </>
           )}
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <div className="tglink__acts">
-            {expired ? (
+            {showExpired ? (
               <button className="btn btn--pri btn--sm" type="button" onClick={generate} disabled={busyOrWaiting}>
                 <IconRefresh />
                 {busy ? t("generating") : t("regenerate")}
               </button>
             ) : null}
             <button className="btn btn--line btn--sm" type="button" onClick={cancel}>
-              {t("cancel")}
+              {link.relink ? t("done") : t("cancel")}
             </button>
           </div>
         </div>
@@ -222,7 +292,7 @@ export default function TelegramLinkCard() {
               <span>{t("linkedText")}</span>
             </div>
           </div>
-          {note ? <div style={{ marginTop: 12 }}><Notice ok={note.ok} msg={note.msg} /></div> : null}
+          {shownNote ? <div style={{ marginTop: 12 }}><Notice ok={shownNote.ok} msg={shownNote.msg} /></div> : null}
           <button className="btn btn--line btn--sm" type="button" style={{ marginTop: 12 }} onClick={generate} disabled={busyOrWaiting}>
             {busy ? t("generating") : t("relink")}
           </button>

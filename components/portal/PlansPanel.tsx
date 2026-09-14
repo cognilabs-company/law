@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
@@ -66,15 +66,30 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const planName = (plan: BackendPlan) => plan.name;
   const planFeatures = (plan: BackendPlan): string[] => plan.features ?? [];
 
+  // Back from the checkout page may restore this page from the bfcache with the
+  // button still busy (it stays busy while the browser navigates away) and the
+  // redirect message still up.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      setBusy(null);
+      setMsg(null);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   async function choose(plan: BackendPlan) {
     if (busy) return;
     setBusy(plan.id);
     setMsg(null);
+    let leaving = false; // stay busy while the browser opens the checkout
     try {
       const r = await demoPlanPurchase(plan.id);
       if (r.paymentUrl) {
         // Checkout opens in this tab (a popup after an await is blocked) —
         // the plan is NOT active until paid.
+        leaving = true;
         setMsg({ ok: true, text: t("payRedirect") });
         window.location.assign(r.paymentUrl);
       } else {
@@ -83,7 +98,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
     } catch (e) {
       setMsg({ ok: false, text: isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("purchaseError") });
     } finally {
-      setBusy(null);
+      if (!leaving) setBusy(null);
     }
   }
 
