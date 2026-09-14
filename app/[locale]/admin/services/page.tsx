@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { getServiceCategories, getServices } from "@/lib/services/backend";
 import { createServiceCategory, createService } from "@/lib/services/admin";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { AdminForm, AdminItem, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -14,7 +15,7 @@ function num(v: string | boolean): number {
   const n = parseInt(String(v || "0"), 10);
   return Number.isFinite(n) ? n : 0;
 }
-const som = (n?: number) => (n ? n.toLocaleString("ru-RU").replace(/,/g, " ") : "—");
+const som = (n?: number) => (n ? fmtUzs(n) : "—");
 
 export default function AdminServices() {
   const t = useTranslations("admin");

@@ -77,6 +77,8 @@ export default function AiAssistant() {
           {busy ? t("thinking") : t("run")}
         </button>
         <p className="intake__hint" style={{ marginTop: 8 }}>{t("disclaimer")}</p>
+        {/* The backend masks these before any external AI call (T0-17). */}
+        <p className="intake__hint" style={{ marginTop: 4 }}>{t("piiNote")}</p>
       </div>
 
       {answer ? (

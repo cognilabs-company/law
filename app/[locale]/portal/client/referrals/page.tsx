@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { getMyReferral } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton } from "@/components/portal/DataState";
 import { IconGift, IconUsers, IconCheck, IconArrowRight } from "@/components/icons";
 
@@ -12,7 +13,7 @@ const FALLBACK = {
   discountUnlocked: false, discountPercent: 5, eligibleAfter: 5, remainingToUnlock: 5, appliesTo: "subscription",
   items: [],
 };
-const som = (n: number) => n.toLocaleString("ru-RU").replace(/,/g, " ");
+const som = (n: number) => fmtUzs(n);
 
 export default function ClientReferrals() {
   const t = useTranslations("portal.client.referrals");

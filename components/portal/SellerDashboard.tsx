@@ -8,6 +8,7 @@ import { Skeleton, EmptyState } from "./DataState";
 import OrderActions from "./OrderActions";
 import { useSellerCabinet } from "./SellerCabinet";
 import { useAuth, type Role } from "@/lib/auth";
+import { uzs, fmtUzs } from "@/lib/money";
 import {
   IconBriefcase,
   IconScale,
@@ -48,7 +49,7 @@ const num = (o: Record<string, unknown> | undefined, k: string): number => {
   const n = typeof x === "number" ? x : parseFloat(String(x));
   return Number.isFinite(n) ? n : 0;
 };
-const som = (n: number) => n.toLocaleString("ru-RU").replace(/,/g, " ");
+const som = (n: number) => fmtUzs(n);
 
 export default function SellerDashboard({ role }: { role: Role }) {
   const t = useTranslations("portal.sellerDash");
@@ -71,7 +72,7 @@ export default function SellerDashboard({ role }: { role: Role }) {
     return (
       <div className="amet">
         {list.map((m) => {
-          const n = num(s[m.from] as Record<string, unknown>, m.key);
+          const n = m.money ? uzs(s[m.from], m.key) : num(s[m.from] as Record<string, unknown>, m.key);
           return (
             <div className="amet__c" key={m.key}>
               <span className="amet__i"><m.Icon /></span>

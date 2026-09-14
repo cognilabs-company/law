@@ -11,6 +11,7 @@ import {
   type BackendService,
   type GiftResult,
 } from "@/lib/services/backend";
+import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
@@ -26,6 +27,7 @@ function fmtDate(s: string) {
 
 export default function ClientGifts() {
   const t = useTranslations("portal.client.gifts");
+  const tcommon = useTranslations("common");
   const locale = useLocale();
   const [reloadKey, setReloadKey] = useState(0);
   const gifts = useResource(() => listGifts(), [reloadKey]);
@@ -74,11 +76,16 @@ export default function ClientGifts() {
           ? { service_id: chosenService, recipient_hint: hint.trim() || undefined }
           : { plan_slug: chosenPlan!.slug, duration_months: parseInt(term, 10), recipient_hint: hint.trim() || undefined },
       );
-      if (r.paymentUrl) window.open(r.paymentUrl, "_blank");
       setCreated(r);
       setReloadKey((k) => k + 1);
-    } catch {
-      setNote({ ok: false, msg: t("error") });
+      // Real checkout: same-tab navigation (a popup after an await is blocked).
+      // The gift and its share link stay listed here after payment.
+      if (r.paymentUrl) window.location.assign(r.paymentUrl);
+    } catch (e) {
+      setNote({
+        ok: false,
+        msg: isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("error"),
+      });
     } finally {
       setBusy(false);
     }

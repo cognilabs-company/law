@@ -5,6 +5,7 @@
 import { http, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
 import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
+import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
 
 // ── Auth ──────────────────────────────────────────────────────────
 export type BackendRole =
@@ -353,7 +354,7 @@ function normLawyer(v: unknown): BackendLawyer {
     experienceYears: asNum(d.experience_years),
     rating: asNum(d.rating, 5),
     reviews: asNum(d.reviews_count ?? d.reviews),
-    basePrice: asNum(d.base_hourly_price),
+    basePrice: uzs(d, "base_hourly_price"),
     bio: asStr(d.bio) || undefined,
     verified: Boolean(d.verified ?? d.is_verified),
     verificationStatus: asStr(d.verification_status),
@@ -402,7 +403,7 @@ export async function getMyServices(): Promise<string[]> {
 
 export async function putMyServices(
   serviceIds: string[],
-  selectedPrices: Record<string, number> = {},
+  selectedPrices: Record<string, number> = {}, // service id -> whole so'm (legacy UZS), not tiyin
 ): Promise<void> {
   await http("/lawyers/me/services", {
     method: "PUT",
@@ -436,7 +437,9 @@ export async function upsertMyLawyer(
       total_cases: p.stats?.totalCases ?? 0,
       wins_count: p.stats?.fullyWonCases ?? 0,
       partial_wins_count: p.stats?.partiallyWonCases ?? 0,
-      base_hourly_price: 0,
+      // Echo the price read by getMyLawyer so a profile save no longer wipes it
+      // (whole so'm, legacy UZS, not tiyin).
+      base_hourly_price: Math.round(p.hourlyPrice ?? 0),
     }),
   });
 }
@@ -459,6 +462,7 @@ export async function getMyLawyer(): Promise<ProfessionalProfile> {
     barAssociation: asStr(d.bar_association),
     advocateStructure: asStr(d.advocate_structure),
     orgName: asStr(d.organization_name),
+    hourlyPrice: uzs(d, "base_hourly_price"),
     advocateYears: asNum(d.experience_years),
     lawyerYears: asNum(d.lawyer_experience_years),
     experienceYears: asNum(d.experience_years) || asNum(d.lawyer_experience_years),
@@ -510,7 +514,7 @@ function normService(v: unknown, locale = "uz"): BackendService {
     slug: asStr(d.slug),
     categoryId: asStr(d.category_id ?? d.categoryId) || undefined,
     categoryTitle: asStr(d.category_title) || undefined,
-    price: d.standard_price != null ? asNum(d.standard_price) : d.base_price != null ? asNum(d.base_price) : undefined,
+    price: uzsOpt(d, "standard_price", "base_price"),
     description: asStr(d.description) || undefined,
     isActive: d.is_active !== false,
     catalogCode: asStr(d.catalog_code) || undefined,
@@ -567,7 +571,7 @@ export async function getServicePackages(params?: { package_code?: string; tarif
       code: asStr(d.package_code ?? d.code),
       title: asStr(d.title ?? d.name),
       tariff: asStr(d.tariff),
-      price: asNum(d.price ?? d.standard_price),
+      price: uzs(d, "price", "standard_price"),
     };
   });
 }
@@ -616,16 +620,16 @@ export async function getSubscriptionPlans(locale = "uz"): Promise<BackendPlan[]
   const data = await http("/subscription-plans");
   return listFrom(data, "plans", "items", "data").map((v) => {
     const d = asDict(v);
-    const monthly = asNum(d.monthly_price ?? d.price);
+    const monthly = uzs(d, "monthly_price", "price");
     return {
       id: asStr(d.id),
       name: pickLoc(d.name, locale, asStr(d.title)),
       slug: asStr(d.slug),
       price: monthly,
       monthlyPrice: monthly,
-      sixMonthPrice: asNum(d.six_month_price),
-      yearlyPrice: asNum(d.yearly_price),
-      prepaidYearlyPrice: asNum(d.prepaid_yearly_price),
+      sixMonthPrice: uzs(d, "six_month_price"),
+      yearlyPrice: uzs(d, "yearly_price"),
+      prepaidYearlyPrice: uzs(d, "prepaid_yearly_price"),
       audience: asStr(d.audience),
       billingType: asStr(d.billing_type),
       sortOrder: asNum(d.sort_order),
@@ -690,6 +694,7 @@ function normOrder(v: unknown): BackendOrder {
   const d = asDict(v);
   const details = asDict(d.details);
   const service = asDict(d.service);
+  const amount = uzsOpt(d, "price", "amount");
   return {
     id: asStr(d.id),
     title: asStr(details.question ?? d.title ?? service.name),
@@ -699,7 +704,7 @@ function normOrder(v: unknown): BackendOrder {
     contactUnlocked: Boolean(d.contact_unlocked),
     areaKey: asStr(d.area ?? service.category ?? details.area),
     region: asStr(d.region ?? details.region),
-    budget: asStr(d.price ?? d.amount ?? details.budget),
+    budget: amount != null ? fmtUzs(amount) : asStr(details.budget),
     createdAt: asStr(d.created_at ?? d.createdAt),
     lawyerName: asStr(d.lawyer_name ?? asDict(d.lawyer).name) || undefined,
   };
@@ -768,8 +773,8 @@ export async function getPricingQuote(params: {
   const d = asDict(await http(`/pricing/quote?${q.toString()}`));
   const rd = asDict(d.referral_discount);
   return {
-    baseAmount: asNum(d.base_amount ?? d.subtotal ?? d.base),
-    totalAmount: asNum(d.total_amount ?? d.total ?? d.price),
+    baseAmount: uzs(d, "base_amount", "subtotal", "base"),
+    totalAmount: uzs(d, "total_amount", "total", "price"),
     currency: asStr(d.currency, "UZS"),
     referralDiscountPercent: (asNum(d.discount_percent) || asNum(rd.discount_percent)) || undefined,
     modifiers: asArr(d.modifiers).map((x) => {
@@ -778,7 +783,7 @@ export async function getPricingQuote(params: {
         key: asStr(m.key ?? m.type),
         label: asStr(m.label ?? m.name),
         percent: asNum(m.percent) || undefined,
-        amount: asNum(m.amount) || undefined,
+        amount: uzs(m, "amount") || undefined,
       };
     }),
   };
@@ -798,15 +803,12 @@ export type PaymentPolicy = {
 };
 export async function getPaymentPolicy(orderId: string): Promise<PaymentPolicy> {
   const d = asDict(await http(`/orders/${orderId}/payment-policy`));
-  const advanceAmount = asNum(d.advance_amount ?? d.upfront_amount);
-  const paidAmount = asNum(d.paid_amount ?? d.paid);
+  const advanceAmount = uzs(d, "advance_amount", "upfront_amount");
+  const paidAmount = uzs(d, "paid_amount", "paid");
   // Backend doesn't return remaining_to_unlock — derive it from the advance.
-  const remaining =
-    d.remaining_to_unlock != null || d.remaining != null
-      ? asNum(d.remaining_to_unlock ?? d.remaining)
-      : Math.max(0, advanceAmount - paidAmount);
+  const remaining = uzsOpt(d, "remaining_to_unlock", "remaining") ?? Math.max(0, advanceAmount - paidAmount);
   return {
-    totalAmount: asNum(d.total_amount ?? d.total ?? d.price),
+    totalAmount: uzs(d, "total_amount", "total", "price"),
     advancePercent: asNum(d.advance_percent ?? d.upfront_percent, 10),
     advanceAmount,
     paidAmount,
@@ -833,16 +835,29 @@ export type PurchaseResult = {
   chatRoomId?: string;
   subscriptionId?: string;
 };
+// A provider checkout link the browser may navigate to: absolute https only,
+// never another scheme ('' otherwise).
+export function safePaymentUrl(v: unknown): string {
+  const s = typeof v === "string" ? v.trim() : "";
+  return /^https:\/\/[^\s]+$/i.test(s) ? s : "";
+}
 function normPurchase(v: unknown): PurchaseResult {
   const d = asDict(v);
   const payment = asDict(d.payment);
+  const invoice = asDict(d.invoice ?? payment.invoice);
   // Backend returns both `chat_room` and `room` for compatibility.
   const room = asDict(d.chat_room ?? d.room);
   const order = asDict(d.order);
+  // A real provider (Payme/Click) returns a checkout link; it may sit on the
+  // payment, on its invoice, at the top level, or be the `payment` string itself.
+  const url =
+    typeof d.payment === "string"
+      ? d.payment
+      : (payment.payment_url ?? payment.checkout_url ?? invoice.payment_url ?? invoice.url ?? d.payment_url ?? d.checkout_url);
   return {
-    paymentId: asStr(payment.id),
-    paymentStatus: asStr(payment.status),
-    paymentUrl: asStr(payment.payment_url) || undefined,
+    paymentId: asStr(payment.id ?? d.payment_id ?? invoice.payment_id),
+    paymentStatus: asStr(payment.status ?? d.payment_status ?? invoice.status),
+    paymentUrl: safePaymentUrl(url) || undefined,
     orderId: asStr(order.id) || undefined,
     chatRoomId: asStr(room.id) || undefined,
     subscriptionId: asStr(d.subscription_id) || undefined,
@@ -864,9 +879,11 @@ export async function demoPayOrder(orderId: string, provider = "demo_payme"): Pr
     await http(`/orders/${orderId}/demo-pay?provider=${encodeURIComponent(provider)}`, { method: "POST" }),
   );
 }
+// One-time private chat fee in whole so'm (legacy UZS), not tiyin (T0-16).
+const PRIVATE_CHAT_PRICE_UZS = 10000;
 export async function demoPrivateChat(input: {
   lawyer_user_id: string;
-  amount?: number;
+  amount?: number; // whole so'm (legacy UZS), not tiyin
   provider?: string;
   title?: string;
 }): Promise<PurchaseResult> {
@@ -874,7 +891,7 @@ export async function demoPrivateChat(input: {
     await http("/payments/demo-private-chat", {
       method: "POST",
       body: JSON.stringify({
-        amount: 10000,
+        amount: PRIVATE_CHAT_PRICE_UZS,
         provider: "demo_payme",
         title: "Private chat",
         // send both keys — backend accepts either
@@ -900,20 +917,29 @@ export async function demoConfirmPayment(paymentId: string): Promise<PurchaseRes
 }
 
 // ── Payments ──────────────────────────────────────────────────────
+// Provider sent to the real checkout endpoints (/gifts, /promotions/checkout).
+// Production has the demo provider disabled and Payme/Click answer 503 until
+// they are configured. A staging build sets NEXT_PUBLIC_PAYMENT_PROVIDER=demo_payme
+// in its deployment env to keep the demo checkout; inlined at build time.
+const CHECKOUT_PROVIDER = process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || "payme";
 export type PaymentProvider = "payme" | "click" | "rahmat";
 export async function createPayment(input: {
   provider: PaymentProvider;
-  amount: number;
+  amount: number; // whole so'm (legacy UZS), never tiyin
   currency?: string;
   provider_payload?: Record<string, unknown>;
-}): Promise<{ id: string }> {
+}): Promise<{ id: string; status: string; paymentUrl?: string }> {
   const d = asDict(
     await http("/payments", {
       method: "POST",
       body: JSON.stringify({ currency: "UZS", provider_payload: {}, ...input }),
     }),
   );
-  return { id: asStr(d.id) };
+  return {
+    id: asStr(d.id ?? asDict(d.payment).id),
+    status: asStr(d.status),
+    paymentUrl: safePaymentUrl(d.payment_url ?? asDict(d.invoice).payment_url) || undefined,
+  };
 }
 
 // ── Document templates ────────────────────────────────────────────
@@ -940,7 +966,7 @@ function normTemplate(v: unknown): BackendTemplate {
     category: asStr(d.category),
     language: asStr(d.language),
     description: asStr(d.description),
-    price: asNum(d.price),
+    price: uzs(d, "price"),
     visibility: asStr(d.visibility, "client"),
     isActive: d.is_active !== false,
     templateText: asStr(d.template_text ?? d.body ?? d.content),
@@ -981,18 +1007,20 @@ export type DocumentRequest = {
   questionnaire: { name: string; label: string; required?: boolean }[];
   answers: Record<string, unknown>;
   contractFile?: ContractFile;
+  paymentUrl?: string; // provider checkout link returned by the pay call
 };
 
 function normDocRequest(v: unknown): DocumentRequest {
   const d = asDict(v);
   const cf = d.contract_file ? asDict(d.contract_file) : null;
+  const pay = asDict(d.payment);
   return {
     id: asStr(d.id),
     templateId: asStr(d.template_id ?? d.templateId),
     title: asStr(d.title),
     documentType: asStr(d.document_type ?? d.documentType),
     status: asStr(d.status),
-    price: asNum(d.price),
+    price: uzs(d, "price"),
     currency: asStr(d.currency, "UZS"),
     questionnaire: asArr(d.questionnaire).map((q) => {
       const x = asDict(q);
@@ -1009,6 +1037,10 @@ function normDocRequest(v: unknown): DocumentRequest {
           downloadUrl: asStr(cf.download_url),
         }
       : undefined,
+    paymentUrl:
+      safePaymentUrl(
+        typeof d.payment === "string" ? d.payment : (d.payment_url ?? pay.payment_url ?? asDict(d.invoice ?? pay.invoice).payment_url),
+      ) || undefined,
   };
 }
 
@@ -1025,7 +1057,7 @@ export async function createDocumentRequest(input: {
   title: string;
   questionnaire?: { name: string; label: string; required?: boolean }[];
   answers?: Record<string, unknown>;
-  price?: number;
+  price?: number; // whole so'm (legacy UZS)
   currency?: string;
 }): Promise<DocumentRequest> {
   return normDocRequest(
@@ -1043,12 +1075,12 @@ export async function updateDocumentAnswers(
 export async function payDocumentRequest(
   requestId: string,
   provider: "payme" | "click",
-  amount: number,
+  amount: number, // whole so'm, as read by normDocRequest (legacy UZS, not tiyin)
 ): Promise<DocumentRequest> {
   return normDocRequest(
     await http(`/document-requests/${requestId}/payments`, {
       method: "POST",
-      body: JSON.stringify({ provider, amount }),
+      body: JSON.stringify({ provider, amount: Math.round(amount) }),
     }),
   );
 }
@@ -1385,7 +1417,8 @@ export type AdminDashboard = {
 function toStats(obj: unknown): DashboardStat[] {
   const d = asDict(obj);
   return Object.entries(d)
-    .filter(([, v]) => typeof v === "number" || typeof v === "string")
+    // Canonical tiyin twins (T0-16) are not display stats; the legacy so'm key is.
+    .filter(([label, v]) => !label.endsWith("_tiyin") && (typeof v === "number" || typeof v === "string"))
     .map(([label, v]) => ({ label, value: asNum(v) }));
 }
 export async function getAdminDashboard(): Promise<AdminDashboard> {
@@ -1450,7 +1483,7 @@ function normModule(v: unknown): ModuleRecord {
     recordType: asStr(d.record_type),
     title: asStr(d.title),
     status: asStr(d.status),
-    price: asNum(d.price),
+    price: uzs(d, "price"),
     currency: asStr(d.currency, "UZS"),
     payload: (d.payload as Record<string, unknown>) ?? {},
     createdAt: asStr(d.created_at ?? d.createdAt),
@@ -1460,7 +1493,7 @@ export type ModuleInput = {
   title: string;
   record_type?: string;
   status?: string;
-  price?: number;
+  price?: number; // whole so'm (legacy UZS)
   currency?: string;
   payload?: Record<string, unknown>;
 };
@@ -1663,6 +1696,95 @@ export async function deleteCalendarEvent(id: string): Promise<void> {
   await http(`/calendar-events/${id}`, { method: "DELETE" });
 }
 
+// ── Business hours (Asia/Tashkent) ────────────────────────────────
+// GET /calendar/business-hours (auth): Monday-Saturday 09:00-19:00 plus the
+// server's current working-day / working-time flags. Holidays are not stored
+// by the backend yet — nothing here is holiday-aware.
+export type BusinessHours = {
+  timezone: string;
+  days: number[]; // ISO weekdays, 1=Mon..7=Sun
+  start: string; // HH:MM
+  end: string; // HH:MM
+  isWorkingDay: boolean | null;
+  isWorkingTime: boolean | null;
+  serverNow: number | null; // epoch ms, only from an offset-aware timestamp
+  fetchedAt: number; // client epoch ms
+};
+export const DEFAULT_BUSINESS_HOURS: BusinessHours = {
+  timezone: "Asia/Tashkent",
+  days: [1, 2, 3, 4, 5, 6],
+  start: "09:00",
+  end: "19:00",
+  isWorkingDay: null,
+  isWorkingTime: null,
+  serverNow: null,
+  fetchedAt: 0,
+};
+function asBoolOrNull(v: unknown): boolean | null {
+  if (v === true || v === 1 || v === "true" || v === "1") return true;
+  if (v === false || v === 0 || v === "false" || v === "0") return false;
+  return null;
+}
+function asHm(v: unknown, fb: string): string {
+  const m = typeof v === "string" ? /^(\d{1,2}):(\d{2})/.exec(v.trim()) : null;
+  if (!m) return fb;
+  const h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  return (h < 24 && min < 60) || (h === 24 && min === 0) ? `${String(h).padStart(2, "0")}:${m[2]}` : fb;
+}
+// Day names only ("monday", "Mon", {day: "tue"}): numeric arrays are ignored
+// on purpose — 0- vs 1-based and Sunday- vs Monday-first are ambiguous.
+function asIsoDays(v: unknown): number[] | null {
+  const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const out: number[] = [];
+  for (const x of asArr(v)) {
+    const r = asDict(x);
+    if (r.closed === true || r.is_working_day === false || r.working === false || r.open === false) continue;
+    const name = r.day ?? x;
+    const idx = typeof name === "string" ? DAYS.indexOf(name.trim().toLowerCase().slice(0, 3)) : -1;
+    if (idx < 0) return null;
+    out.push(idx + 1);
+  }
+  return out.length ? [...new Set(out)].sort((a, b) => a - b) : null;
+}
+export async function getBusinessHours(): Promise<BusinessHours> {
+  const fetchedAt = Date.now();
+  const d = asDict(await http("/calendar/business-hours"));
+  const cur = asDict(d.current ?? d.now_status ?? (typeof d.status === "object" ? d.status : undefined));
+  const hours = asDict(d.hours ?? d.working_hours ?? d.business_hours);
+  const first = asDict(asArr(d.schedule)[0]);
+  const pick = (...keys: string[]) => {
+    for (const key of keys) {
+      const b = asBoolOrNull(d[key] ?? cur[key]);
+      if (b !== null) return b;
+    }
+    return null;
+  };
+  const nowRaw = d.now ?? d.current_time ?? d.server_time ?? cur.now ?? cur.local_time;
+  // A naive timestamp (no Z / ±hh:mm) is ambiguous between UTC and Tashkent
+  // time, so it is ignored; epoch numbers are unambiguous.
+  const ms =
+    typeof nowRaw === "number"
+      ? parseServerTime(nowRaw)
+      : typeof nowRaw === "string" && /(?:Z|[+-]\d{2}:?\d{2})$/i.test(nowRaw.trim())
+        ? Date.parse(nowRaw.trim())
+        : NaN;
+  const statusStr = typeof d.status === "string" ? d.status.toLowerCase() : "";
+  const tz = d.timezone ?? d.time_zone ?? d.tz;
+  return {
+    timezone: typeof tz === "string" && tz.trim() ? tz.trim() : "Asia/Tashkent",
+    days: asIsoDays(d.working_days ?? d.business_days ?? d.days ?? hours.days ?? d.schedule) ?? DEFAULT_BUSINESS_HOURS.days,
+    start: asHm(d.start ?? d.start_time ?? d.work_start ?? d.opens_at ?? hours.start ?? hours.from ?? first.start, "09:00"),
+    end: asHm(d.end ?? d.end_time ?? d.work_end ?? d.closes_at ?? hours.end ?? hours.to ?? first.end, "19:00"),
+    isWorkingDay: pick("is_working_day", "is_business_day", "working_day", "is_workday"),
+    isWorkingTime:
+      pick("is_working_time", "is_working_hours", "is_business_hours", "is_open", "open_now", "within_business_hours", "working_time") ??
+      (statusStr === "open" ? true : statusStr === "closed" ? false : null),
+    serverNow: Number.isFinite(ms) ? ms : null,
+    fetchedAt,
+  };
+}
+
 // ── Promotions ────────────────────────────────────────────────────
 export type PromotionStatus = { active: boolean; packageId?: string; daysLeft: number; endsAt?: string };
 export async function getPromotionStatus(): Promise<PromotionStatus> {
@@ -1698,7 +1820,7 @@ export async function checkoutPromotion(packageId: string, days: number): Promis
   return normPurchase(
     await http("/promotions/checkout", {
       method: "POST",
-      body: JSON.stringify({ package_id: packageId, days, provider: "demo_payme" }),
+      body: JSON.stringify({ package_id: packageId, days, provider: CHECKOUT_PROVIDER }),
     }),
   );
 }
@@ -1754,14 +1876,15 @@ export async function createGift(input: GiftInput): Promise<GiftResult> {
   const raw = asDict(
     await http("/gifts", {
       method: "POST",
-      body: JSON.stringify({ provider: "demo_payme", duration_months: 6, ...input }),
+      body: JSON.stringify({ provider: CHECKOUT_PROVIDER, duration_months: 6, ...input }),
     }),
   );
   // `payment` may be a bare URL string or an object with payment_url.
-  const payUrl =
+  const payUrl = safePaymentUrl(
     typeof raw.payment === "string"
       ? raw.payment
-      : asStr(asDict(raw.payment).payment_url ?? raw.payment_url);
+      : (asDict(raw.payment).payment_url ?? asDict(raw.payment).checkout_url ?? raw.payment_url ?? asDict(raw.invoice).payment_url),
+  );
   const code = asStr(raw.gift_code ?? raw.code);
   return {
     paymentUrl: payUrl || undefined,
@@ -1875,28 +1998,56 @@ export async function setFamilyMemberAccess(id: string, sharedAccess: boolean): 
   });
 }
 
-// ── Identity verification (OneID / MyID demo provider) ────────────
+// ── Identity verification (OneID / MyID provider interface) ──────
 export type IdentityProvider = "oneid" | "myid";
-export type IdentityStatus = { verified: boolean; provider: string; fullName?: string; pinfl?: string };
+export type IdentityStatus = {
+  verified: boolean;
+  provider: string;
+  status: string; // lowercased server status ("pending", "verified", …; '' when absent)
+  verifiedAt?: string;
+  fullName?: string;
+  pinfl?: string;
+};
+const IDENTITY_PENDING = /^(pending|started|in_progress|processing)$/;
 function normIdentity(v: unknown): IdentityStatus {
   const d = asDict(v);
+  const status = asStr(d.status).trim().toLowerCase();
   return {
-    verified: Boolean(d.verified),
-    provider: asStr(d.provider),
+    verified: Boolean(d.verified ?? d.identity_verified) || /^(verified|approved|success)$/.test(status),
+    provider: asStr(d.provider ?? d.identity_provider),
+    status,
+    verifiedAt: asStr(d.verified_at ?? d.identity_verified_at) || undefined,
     fullName: asStr(d.full_name ?? d.name) || undefined,
     pinfl: asStr(d.pinfl ?? d.pnfl) || undefined,
   };
 }
-export async function identityStart(provider: IdentityProvider): Promise<{ authUrl: string; state: string; demoCode: string }> {
+export function isIdentityPending(s: IdentityStatus | null | undefined): boolean {
+  return Boolean(s && !s.verified && IDENTITY_PENDING.test(s.status));
+}
+// start either hands back a provider page to follow ("redirect") or, on a
+// staging demo provider, a state for code entry ("code"). A code that comes
+// back in the response is NEVER copied here — testers read it from server logs.
+export type IdentityStart = { mode: "redirect" | "code"; authUrl: string; state: string; expiresAt: string; message: string };
+export async function identityStart(provider: IdentityProvider): Promise<IdentityStart> {
   const d = asDict(await http("/identity/start", { method: "POST", body: JSON.stringify({ provider }) }));
-  return { authUrl: asStr(d.auth_url ?? d.authUrl), state: asStr(d.state), demoCode: asStr(d.demo_code ?? d.demoCode) };
+  const rawUrl = asStr(d.auth_url ?? d.authUrl ?? d.redirect_url ?? d.authorization_url ?? d.url).trim();
+  const authUrl = /^https:\/\/[^\s]+$/i.test(rawUrl) ? rawUrl : ""; // never another scheme in location
+  const demoMarker = d.demo_code != null || d.demoCode != null || /demo/i.test(asStr(d.mode ?? d.provider_mode));
+  return {
+    mode: authUrl && !demoMarker ? "redirect" : "code",
+    authUrl,
+    state: asStr(d.state ?? d.verification_id ?? d.id),
+    expiresAt: asStr(d.expires_at),
+    message: asStr(d.message),
+  };
 }
 export async function identityVerifyDemo(state: string, code: string): Promise<IdentityStatus> {
-  // Backend expects `code` (the demo_code value), not `demo_code`.
+  // Backend expects `code` (typed by the user), not `demo_code`.
   return normIdentity(await http("/identity/verify-demo", { method: "POST", body: JSON.stringify({ state, code }) }));
 }
 export async function getIdentity(): Promise<IdentityStatus> {
-  // /identity/me returns a list of verifications; pick a verified one, else the first.
+  // /identity/me returns a list of verifications; pick a verified one, else an
+  // in-progress one, else the first.
   const raw = await http("/identity/me");
   const wrap = asDict(raw);
   const arr = Array.isArray(raw)
@@ -1906,8 +2057,9 @@ export async function getIdentity(): Promise<IdentityStatus> {
       : Array.isArray(wrap.data)
         ? wrap.data
         : null;
-  const chosen = arr ? (arr.find((x) => asDict(x).verified) ?? arr[0]) : raw;
-  return normIdentity(chosen ?? {});
+  if (!arr) return normIdentity(raw ?? {});
+  const all = arr.map(normIdentity);
+  return all.find((x) => x.verified) ?? all.find(isIdentityPending) ?? all[0] ?? normIdentity({});
 }
 
 // ── User activity log ─────────────────────────────────────────────
@@ -1917,15 +2069,27 @@ export type ActivityEntry = {
   detail: string;
   ip?: string;
   createdAt: string;
+  // Append-only audit chain (GET /admin/audit-trail): this record's hash and
+  // the hash of the record before it. Absent on other activity feeds and on
+  // records written before the chain existed.
+  previousHash?: string;
+  eventHash?: string;
 };
 function normActivity(v: unknown): ActivityEntry {
   const d = asDict(v);
+  const chain = asDict(d.chain ?? d.integrity);
+  const hashOf = (...vals: unknown[]) => {
+    for (const x of vals) if (typeof x === "string" && x.trim()) return x.trim();
+    return undefined;
+  };
   return {
     id: asStr(d.id),
     action: asStr(d.action ?? d.type ?? d.event),
-    detail: asStr(d.detail ?? d.description ?? d.message),
+    detail: asStr(d.detail ?? d.description ?? d.message ?? (typeof d.details === "string" ? d.details : undefined)),
     ip: asStr(d.ip ?? d.ip_address) || undefined,
     createdAt: asStr(d.created_at ?? d.createdAt ?? d.timestamp),
+    previousHash: hashOf(d.previous_hash, d.prev_hash, d.previousHash, chain.previous_hash),
+    eventHash: hashOf(d.event_hash, d.hash, d.eventHash, chain.event_hash),
   };
 }
 export async function listMyActivity(): Promise<ActivityEntry[]> {
@@ -1984,7 +2148,7 @@ export async function getMyReferral(): Promise<Referral> {
     link: asStr(d.link ?? d.share_url),
     invited: asNum(d.invited_count ?? d.invited),
     joined: asNum(d.joined_count ?? d.joined),
-    rewardBalance: asNum(d.reward_balance ?? d.balance),
+    rewardBalance: uzs(d, "reward_balance", "balance"),
     discountUnlocked: Boolean(d.discount_unlocked),
     discountPercent: asNum(d.discount_percent),
     eligibleAfter: asNum(d.eligible_after, 5),
@@ -1996,7 +2160,7 @@ export async function getMyReferral(): Promise<Referral> {
         name: asStr(r.name),
         phone: asStr(r.phone),
         status: asStr(r.status, "invited"),
-        reward: asNum(r.reward),
+        reward: uzs(r, "reward"),
         joinedAt: asStr(r.joined_at ?? r.created_at),
       };
     }),
@@ -2196,10 +2360,10 @@ function normGiftKpis(v: unknown): GiftKpis {
     giftActivationRate: asNum(g.gift_activation_rate),
     recipientConversion: asNum(g.recipient_conversion),
     giftToPaidConversion: asNum(g.gift_to_paid_conversion),
-    averageGiftValue: asNum(g.average_gift_value),
+    averageGiftValue: uzs(g, "average_gift_value"),
     referralRate: asNum(g.referral_rate),
-    giftCac: asNum(g.gift_cac),
-    giftLtv: asNum(g.gift_ltv),
+    giftCac: uzs(g, "gift_cac"),
+    giftLtv: uzs(g, "gift_ltv"),
   };
 }
 export async function getCeoDashboard(): Promise<CeoDashboard> {
@@ -2207,15 +2371,17 @@ export async function getCeoDashboard(): Promise<CeoDashboard> {
   const pair = (x: unknown) => { const r = asDict(x); return { label: asStr(r.label ?? r.name ?? r.date), value: asNum(r.value ?? r.count) }; };
   // cac may be a number or an object { total, client, advocate }.
   const cacRaw = d.cac;
-  const cac = typeof cacRaw === "object" && cacRaw ? asNum(asDict(cacRaw).total) : asNum(cacRaw);
+  const cac = typeof cacRaw === "object" && cacRaw ? uzs(asDict(cacRaw), "total") : uzs(d, "cac");
+  // Revenue trend values are so'm amounts, unlike the funnel counts read by pair.
+  const moneyPair = (x: unknown) => { const r = asDict(x); return { label: asStr(r.label ?? r.name ?? r.date), value: uzs(r, "value", "count") }; };
   return {
-    revenue: asNum(d.revenue), revenueDeltaPct: asNum(d.revenue_delta_pct), mrr: asNum(d.mrr),
+    revenue: uzs(d, "revenue"), revenueDeltaPct: asNum(d.revenue_delta_pct), mrr: uzs(d, "mrr"),
     users: asNum(d.users ?? d.total_users), activeUsers: asNum(d.active_users), conversionPct: asNum(d.conversion_pct),
     funnel: asArr(d.funnel).map(pair),
     channels: asArr(d.channels ?? d.attribution).map((x) => { const r = asDict(x); return { name: asStr(r.name ?? r.channel), leads: asNum(r.leads ?? r.count), pct: asNum(r.pct ?? r.share) }; }),
-    revenueTrend: asArr(d.revenue_trend ?? d.trend).map(pair),
-    mau: asNum(d.mau), dau: asNum(d.dau), gmv: asNum(d.gmv), arr: asNum(d.arr), arpu: asNum(d.arpu), takeRate: asNum(d.take_rate),
-    cac, ltv: asNum(d.ltv), ltvCac: asNum(d.ltv_cac), paybackMonths: asNum(d.payback_months),
+    revenueTrend: asArr(d.revenue_trend ?? d.trend).map(moneyPair),
+    mau: asNum(d.mau), dau: asNum(d.dau), gmv: uzs(d, "gmv"), arr: uzs(d, "arr"), arpu: uzs(d, "arpu"), takeRate: asNum(d.take_rate),
+    cac, ltv: uzs(d, "ltv"), ltvCac: asNum(d.ltv_cac), paybackMonths: asNum(d.payback_months),
     npsClient: asNum(d.nps_client), npsAdvocate: asNum(d.nps_advocate),
     newClients: asNum(d.new_clients), newAdvocates: asNum(d.new_advocates), newLawyers: asNum(d.new_lawyers),
     giftKpis: normGiftKpis(d.gift_kpis),
@@ -2253,7 +2419,7 @@ export async function listB2bClients(): Promise<B2bClient[]> {
       industry: asStr(d.industry ?? p.industry),
       contact: asStr(d.contact ?? d.phone ?? p.contact ?? p.phone),
       stage: asStr(d.stage ?? d.status ?? d.record_type, "new"),
-      value: asNum(d.value ?? d.deal_value ?? d.price ?? p.value),
+      value: uzsOpt(d, "value", "deal_value", "price") ?? uzs(p, "value"),
     };
   });
 }
@@ -2314,12 +2480,49 @@ export type NotifPrefs = { push: boolean; sms: boolean; telegram: boolean; email
 export const NOTIF_KEYS: (keyof NotifPrefs)[] = ["push", "sms", "telegram", "email", "orders", "payments", "messages", "marketing"];
 export async function getNotificationPreferences(): Promise<NotifPrefs> {
   const d = asDict(await http("/notifications/preferences"));
+  // Flat keys first; the cascade may nest them under channels / events.
+  // In-app delivery is always on, so there is no in_app toggle.
+  const ch = asDict(d.channels);
+  const ev = asDict(d.events ?? d.categories);
   const out = {} as NotifPrefs;
-  for (const k of NOTIF_KEYS) out[k] = Boolean(d[k]);
+  for (const k of NOTIF_KEYS) out[k] = Boolean(d[k] ?? ch[k] ?? ev[k]);
   return out;
 }
 export async function updateNotificationPreferences(p: Partial<NotifPrefs>): Promise<void> {
   await http("/notifications/preferences", { method: "PUT", body: JSON.stringify(p) });
+}
+
+// ── Telegram account link ─────────────────────────────────────────
+// POST /telegram/link/start → one-time t.me deep link, valid 10 minutes; the
+// bot webhook stores telegram_chat_id when the user presses Start. The shape
+// isn't published (prod /openapi.json is 404), so accept the likely spellings
+// and rebuild the link from bot username + token when needed. There is no
+// status or unlink endpoint; the linked state comes from /auth/me.
+export const TELEGRAM_LINK_TTL_MS = 10 * 60 * 1000;
+// expiresAt is epoch ms on the client clock (never later than the 10-minute TTL).
+export type TelegramLinkStart = { url: string; expiresAt: number; linked: boolean };
+export async function startTelegramLink(): Promise<TelegramLinkStart> {
+  const raw = await http("/telegram/link/start", { method: "POST", body: "{}" });
+  const top = asDict(raw);
+  const d = top.data && typeof top.data === "object" ? asDict(top.data) : top;
+  const strs = (...v: unknown[]) =>
+    v.map((x) => (typeof x === "string" || typeof x === "number" ? String(x).trim() : "")).filter(Boolean);
+  const token = strs(d.token, d.link_token, d.start_token, d.start_param, d.code)[0] ?? "";
+  const bot = (strs(d.bot_username, d.bot, d.username)[0] ?? "").replace(/^(@|https:\/\/t\.me\/)/i, "");
+  // Only ever open a Telegram-capable scheme, never javascript: etc.
+  let url =
+    strs(
+      typeof raw === "string" ? raw : "",
+      typeof top.data === "string" ? top.data : "",
+      d.deep_link, d.deeplink, d.url, d.link, d.link_url, d.telegram_url, d.telegram_link, d.telegram_bot_link, d.bot_link,
+    ).find((s) => /^(https:|tg:)\/\//i.test(s)) ?? "";
+  if (!url && /^\w+$/.test(bot) && token) url = `https://t.me/${bot}?start=${encodeURIComponent(token)}`;
+  return {
+    url,
+    // A naive-UTC or skewed expires_at can't show a longer (or hours-long) timer.
+    expiresAt: otpExpiresAt({ ...top, ...d }, TELEGRAM_LINK_TTL_MS, TELEGRAM_LINK_TTL_MS),
+    linked: d.linked === true || d.already_linked === true,
+  };
 }
 
 // ── Payouts / payment split (sellers) ─────────────────────────────
@@ -2327,13 +2530,13 @@ export type Payout = { id: string; amount: number; currency: string; status: str
 export async function listMyPayouts(): Promise<Payout[]> {
   return listFrom(await http("/payouts/me"), "items", "data").map((x) => {
     const d = asDict(x);
-    return { id: asStr(d.id), amount: asNum(d.amount ?? d.seller_share), currency: asStr(d.currency, "UZS"), status: asStr(d.status, "pending"), period: asStr(d.period ?? d.month), createdAt: asStr(d.created_at) };
+    return { id: asStr(d.id), amount: uzs(d, "amount", "seller_share"), currency: asStr(d.currency, "UZS"), status: asStr(d.status, "pending"), period: asStr(d.period ?? d.month), createdAt: asStr(d.created_at) };
   });
 }
 export type PaymentSplit = { total: number; platformFee: number; providerFee: number; sellerShare: number; currency: string };
 export async function getPaymentSplit(paymentId: string): Promise<PaymentSplit> {
   const d = asDict(await http(`/payments/${paymentId}/split`));
-  return { total: asNum(d.total ?? d.amount), platformFee: asNum(d.platform_fee), providerFee: asNum(d.provider_fee), sellerShare: asNum(d.seller_share), currency: asStr(d.currency, "UZS") };
+  return { total: uzs(d, "total", "amount"), platformFee: uzs(d, "platform_fee"), providerFee: uzs(d, "provider_fee"), sellerShare: uzs(d, "seller_share"), currency: asStr(d.currency, "UZS") };
 }
 
 // ── Orders (status + history) ─────────────────────────────────────
@@ -2355,7 +2558,11 @@ export async function listAuditTrail(range?: { dateFrom?: string; dateTo?: strin
   if (range?.dateFrom) q.set("date_from", range.dateFrom);
   if (range?.dateTo) q.set("date_to", range.dateTo);
   const qs = q.toString();
-  return listFrom(await http(`/admin/audit-trail${qs ? `?${qs}` : ""}`), "items", "data", "logs").map(normActivity);
+  // The export response shape isn't published, so accept the likely list keys.
+  return listFrom(
+    await http(`/admin/audit-trail${qs ? `?${qs}` : ""}`),
+    "items", "data", "logs", "records", "activities", "entries", "events",
+  ).map(normActivity);
 }
 
 // ── Dedicated lead re-engage ──────────────────────────────────────
@@ -2370,7 +2577,7 @@ export async function createTask(input: { title: string; priority?: string; due_
 export async function createB2bClient(input: { name: string; industry?: string; contact?: string }): Promise<B2bClient> {
   const d = asDict(await http("/b2b/clients", { method: "POST", body: JSON.stringify(input) }));
   const p = asDict(d.payload);
-  return { id: asStr(d.id), name: asStr(d.name ?? d.title), industry: asStr(d.industry ?? p.industry), contact: asStr(d.contact ?? p.contact), stage: asStr(d.stage ?? d.status ?? d.record_type, "new"), value: asNum(d.value ?? d.price ?? p.value) };
+  return { id: asStr(d.id), name: asStr(d.name ?? d.title), industry: asStr(d.industry ?? p.industry), contact: asStr(d.contact ?? p.contact), stage: asStr(d.stage ?? d.status ?? d.record_type, "new"), value: uzsOpt(d, "value", "price") ?? uzs(p, "value") };
 }
 export async function deleteTask(id: string): Promise<void> {
   await http(`/tasks/${id}`, { method: "DELETE" });
@@ -2407,10 +2614,10 @@ function normAdminPayout(v: unknown): AdminPayout {
   return {
     id: asStr(d.id),
     paymentId: asStr(d.payment_id),
-    gross: asNum(d.gross_amount ?? d.gross),
-    platformFee: asNum(d.platform_fee),
-    providerFee: asNum(d.provider_fee),
-    sellerShare: asNum(d.seller_share),
+    gross: uzs(d, "gross_amount", "gross"),
+    platformFee: uzs(d, "platform_fee"),
+    providerFee: uzs(d, "provider_fee"),
+    sellerShare: uzs(d, "seller_share"),
     sellerUserId: asStr(d.seller_user_id),
     status: asStr(d.status, "queued"),
     currency: asStr(d.currency, "UZS"),
@@ -2432,9 +2639,9 @@ export async function getReconciliation(): Promise<Reconciliation> {
   const d = asDict(await http("/payments/reconciliation"));
   return {
     paymentsCount: asNum(d.payments_count), paidCount: asNum(d.paid_count),
-    gross: asNum(d.gross_amount), platformFee: asNum(d.platform_fee), providerFee: asNum(d.provider_fee), sellerShare: asNum(d.seller_share),
+    gross: uzs(d, "gross_amount"), platformFee: uzs(d, "platform_fee"), providerFee: uzs(d, "provider_fee"), sellerShare: uzs(d, "seller_share"),
     payoutStatuses: asDict(d.payout_statuses) as Record<string, number>,
-    byProvider: asArr(d.by_provider).map((x) => { const r = asDict(x); return { provider: asStr(r.provider), count: asNum(r.count), amount: asNum(r.amount) }; }),
+    byProvider: asArr(d.by_provider).map((x) => { const r = asDict(x); return { provider: asStr(r.provider), count: asNum(r.count), amount: uzs(r, "amount") }; }),
   };
 }
 
@@ -2462,20 +2669,78 @@ export type Integration = {
   canTest: boolean;
   requiresSuperadmin: boolean;
 };
-export async function getIntegrationsStatus(): Promise<Integration[]> {
-  return listFrom(await http("/integrations/status"), "items", "data", "integrations").map((x) => {
-    const d = asDict(x);
-    return {
-      key: asStr(d.key ?? d.name),
-      label: asStr(d.label),
-      category: asStr(d.category),
-      status: asStr(d.status),
-      healthy: Boolean(d.healthy),
-      configured: Boolean(d.configured),
-      canTest: Boolean(d.can_test),
-      requiresSuperadmin: Boolean(d.requires_superadmin),
-    };
+function normIntegration(x: unknown): Integration {
+  const d = asDict(x);
+  return {
+    key: asStr(d.key ?? d.name),
+    label: asStr(d.label),
+    category: asStr(d.category),
+    status: asStr(d.status),
+    healthy: Boolean(d.healthy),
+    configured: Boolean(d.configured),
+    canTest: Boolean(d.can_test),
+    requiresSuperadmin: Boolean(d.requires_superadmin),
+  };
+}
+// Uzbekistan data residency (T0-19), reported next to the integrations. The
+// infrastructure evidence is still outstanding, so the UI must never claim
+// "confirmed" unless the backend explicitly says so.
+export type DataResidency = {
+  state: "confirmed" | "pending" | "unknown";
+  status: string;
+  region: string;
+  provider: string;
+  checkedAt: string;
+};
+export type IntegrationsOverview = { items: Integration[]; dataResidency: DataResidency | null };
+function normResidency(v: unknown): DataResidency | null {
+  if (v == null || v === "") return null;
+  const d: Dict = typeof v === "object" ? asDict(v) : { status: v };
+  const scalar = (x: unknown) =>
+    typeof x === "string" || typeof x === "number" || typeof x === "boolean" ? String(x).trim() : "";
+  const status = scalar(d.status ?? d.state).toLowerCase();
+  const flag = d.confirmed ?? d.is_confirmed ?? d.verified ?? d.evidence_confirmed;
+  const needsEvidence =
+    d.evidence_required === true ||
+    d.requires_evidence === true ||
+    /pending|evidence|required|planned|unverified|not_confirmed/.test(status);
+  // Only an explicit confirmation counts; configured/connected/healthy only
+  // mean the report exists.
+  const confirmed =
+    !needsEvidence &&
+    flag !== false &&
+    flag !== "false" &&
+    (flag === true || flag === "true" || ["confirmed", "verified", "compliant"].includes(status));
+  const present = Boolean(status) || flag != null || Object.keys(d).length > 0;
+  return {
+    state: confirmed ? "confirmed" : present ? "pending" : "unknown",
+    status,
+    region: scalar(d.region ?? d.country ?? d.location ?? d.data_center_country),
+    provider: scalar(d.provider ?? d.hosting_provider ?? d.data_center),
+    checkedAt: scalar(d.checked_at ?? d.verified_at ?? d.updated_at),
+  };
+}
+export async function getIntegrationsOverview(): Promise<IntegrationsOverview> {
+  const data = await http("/integrations/status");
+  const d = asDict(data);
+  const rows = listFrom(data, "items", "data", "integrations", "providers");
+  // data_residency may also arrive as a row; keep it out of the tiles.
+  const resIdx = rows.findIndex((x) => {
+    const r = asDict(x);
+    return asStr(r.key ?? r.name) === "data_residency" || asStr(r.category) === "data_residency";
   });
+  const items = rows.filter((_, i) => i !== resIdx).map(normIntegration);
+  const raw =
+    d.data_residency ??
+    d.dataResidency ??
+    asDict(d.meta).data_residency ??
+    asDict(d.infrastructure).data_residency ??
+    (resIdx >= 0 ? rows[resIdx] : undefined);
+  return { items, dataResidency: normResidency(raw) };
+}
+// Kept for existing callers that only need the tiles.
+export async function getIntegrationsStatus(): Promise<Integration[]> {
+  return (await getIntegrationsOverview()).items;
 }
 
 // ── Roles & permissions matrix (admin) ────────────────────────────
@@ -2579,8 +2844,8 @@ export async function getB2bPipeline(): Promise<B2bStage[]> {
   return asArr(d.stages).map((x) => {
     const r = asDict(x);
     return {
-      stage: asStr(r.stage), count: asNum(r.count), value: asNum(r.value),
-      items: asArr(r.items).map((y) => { const i = asDict(y); return { id: asStr(i.id), name: asStr(i.name ?? i.title), value: asNum(i.value) }; }),
+      stage: asStr(r.stage), count: asNum(r.count), value: uzs(r, "value"),
+      items: asArr(r.items).map((y) => { const i = asDict(y); return { id: asStr(i.id), name: asStr(i.name ?? i.title), value: uzs(i, "value") }; }),
     };
   });
 }
@@ -2661,7 +2926,7 @@ export async function listPayments(): Promise<PaymentHistory[]> {
     const d = asDict(v);
     return {
       id: asStr(d.id),
-      amount: asNum(d.amount),
+      amount: uzs(d, "amount"),
       currency: asStr(d.currency, "UZS"),
       status: asStr(d.status),
       method: asStr(d.method),
@@ -2678,17 +2943,107 @@ export function paymentReceiptUrl(paymentId: string): string {
 }
 
 // ── Notifications ─────────────────────────────────────────────────
-export type Notification = { id: string; title: string; body: string; kind: string; read: boolean; createdAt: string };
-export async function listNotifications(): Promise<Notification[]> {
-  return listFrom(await http("/notifications"), "items", "data").map((v) => {
+// The cascade delivers one event in-app, by push, Telegram and email (SMS only
+// as a fallback for critical events). An unconfigured provider leaves its
+// record "queued" = waiting for provider delivery, never an error.
+export type DeliveryTone = "delivered" | "pending" | "failed" | "unknown";
+export type NotificationDelivery = { channel: string; status: string; tone: DeliveryTone };
+export function normChannel(v: unknown): string {
+  const c = asStr(v).trim().toLowerCase();
+  if (/^(in_app|inapp|in-app|app|web|site)$/.test(c)) return "in_app";
+  if (/^(push|fcm|apns|firebase)$/.test(c)) return "push";
+  if (/^(telegram|tg|telegram_bot)$/.test(c)) return "telegram";
+  if (/^(email|mail|e-mail)$/.test(c)) return "email";
+  return c; // "sms" and unknown channels pass through
+}
+export function deliveryTone(status: string): DeliveryTone {
+  const s = status.trim().toLowerCase();
+  if (/^(sent|delivered|success|succeeded|ok|done|completed|read|opened)$/.test(s)) return "delivered";
+  if (/^(queued|pending|scheduled|processing|sending|retry|retrying|waiting|created|new|deferred|standby|not_configured|unconfigured|provider_not_configured)$/.test(s))
+    return "pending";
+  if (/^(failed|error|bounced|rejected|undelivered|undeliverable|expired)$/.test(s)) return "failed";
+  return "unknown";
+}
+function parseJsonDict(v: unknown): Dict {
+  if (typeof v !== "string") return asDict(v);
+  try {
+    return asDict(JSON.parse(v));
+  } catch {
+    return {};
+  }
+}
+// Delivery records from any of the shapes the cascade may use: a list of
+// per-channel records, a deliveries/channels list or channel→status map (also
+// inside metadata, possibly JSON-encoded), or a single row's channel + status.
+export function normDeliveries(v: unknown, fallbackChannel = ""): NotificationDelivery[] {
+  const found: { channel: string; status: string }[] = [];
+  const add = (channel: unknown, status: unknown) =>
+    found.push({ channel: normChannel(channel), status: asStr(status).trim().toLowerCase() });
+  const fromRecord = (x: unknown) => {
+    if (typeof x === "string") return add(x, "");
+    const r = asDict(x);
+    add(r.channel ?? r.channel_type ?? r.name ?? r.type ?? r.provider, r.status ?? r.state ?? r.delivery_status);
+  };
+  if (Array.isArray(v)) {
+    for (const x of v) for (const y of normDeliveries(x, fallbackChannel)) found.push(y);
+  } else {
     const d = asDict(v);
+    const meta = parseJsonDict(d.metadata ?? d.meta);
+    const payload = parseJsonDict(d.payload);
+    const src = [d.deliveries, d.delivery, d.channels, d.cascade, meta.deliveries, meta.channels, meta.cascade, payload.deliveries, payload.channels].find(
+      (x) => x != null && typeof x === "object",
+    );
+    if (Array.isArray(src)) src.forEach(fromRecord);
+    else if (src) {
+      for (const [channel, st] of Object.entries(src as Dict)) {
+        add(channel, st && typeof st === "object" ? (asDict(st).status ?? asDict(st).state) : st);
+      }
+    } else {
+      const channel = d.channel ?? d.channel_type ?? meta.channel ?? fallbackChannel;
+      if (asStr(channel).trim()) add(channel, d.status ?? d.delivery_status ?? meta.status);
+    }
+  }
+  const byChannel = new Map<string, NotificationDelivery>();
+  for (const x of found) {
+    if (!x.channel) continue;
+    byChannel.delete(x.channel); // the last record for a channel wins
+    byChannel.set(x.channel, { ...x, tone: deliveryTone(x.status) });
+  }
+  return [...byChannel.values()];
+}
+export type Notification = {
+  id: string;
+  ids: string[]; // every backend row folded into this item (per-channel rows)
+  groupId: string; // explicit event/correlation id when the row carries one
+  title: string;
+  body: string;
+  kind: string;
+  read: boolean;
+  createdAt: string;
+  channel: string;
+  status: string;
+  deliveries: NotificationDelivery[];
+};
+export async function listNotifications(): Promise<Notification[]> {
+  return listFrom(await http("/notifications"), "items", "data", "notifications").map((v) => {
+    const d = asDict(v);
+    const meta = parseJsonDict(d.metadata ?? d.meta);
+    const id = asStr(d.id);
     return {
-      id: asStr(d.id),
+      id,
+      ids: id ? [id] : [],
+      groupId: asStr(
+        d.event_id ?? d.correlation_id ?? d.group_id ?? d.event_key ?? d.dedupe_key ??
+          meta.event_id ?? meta.correlation_id ?? meta.group_id ?? meta.event_key ?? meta.dedupe_key,
+      ).trim(),
       title: asStr(d.title),
-      body: asStr(d.body),
-      kind: asStr(d.kind),
-      read: Boolean(d.read),
-      createdAt: asStr(d.created_at),
+      body: asStr(d.body ?? d.message),
+      kind: asStr(d.kind ?? d.event ?? d.type),
+      read: Boolean(d.read ?? d.is_read),
+      createdAt: asStr(d.created_at ?? d.createdAt),
+      channel: normChannel(d.channel ?? d.channel_type),
+      status: asStr(d.status ?? d.delivery_status).trim().toLowerCase(),
+      deliveries: normDeliveries(d),
     };
   });
 }
@@ -2700,7 +3055,7 @@ export async function markAllNotificationsRead(): Promise<void> {
 }
 export async function getUnreadCount(): Promise<number> {
   const d = asDict(await http("/notifications/unread-count"));
-  return asNum(d.count);
+  return asNum(d.count ?? d.unread ?? d.unread_count);
 }
 
 // ── Cases: detail, update, status, seller's cases (CIMS) ──────────
@@ -3088,10 +3443,25 @@ export async function fulfillDocRequest(id: string, file: File): Promise<Workspa
 }
 
 // ── Admin: seed demo data ─────────────────────────────────────────
-export type DemoSeedResult = { templates: number; adsProducts: number; message: string };
+// Idempotent showcase seed; it also deletes stray "Approval Test" / "Runtime"
+// records. Production answers 404 "Demo endpoint yopiq" (isDemoUnavailable).
+// `removed` is 0 unless the response carries a count, list or per-type map.
+export type DemoSeedResult = { templates: number; adsProducts: number; removed: number; message: string };
 export async function seedDemoData(): Promise<DemoSeedResult> {
   const d = asDict(await http("/admin/demo-data/seed", { method: "POST" }));
-  return { templates: asNum(d.templates), adsProducts: asNum(d.ads_products), message: asStr(d.message) };
+  const box = asDict(d.counts ?? d.summary ?? d.seeded);
+  const rm = d.removed ?? d.deleted ?? d.cleaned ?? d.removed_records ?? box.removed;
+  const removed = Array.isArray(rm)
+    ? rm.length
+    : rm && typeof rm === "object"
+      ? Object.values(rm).reduce<number>((s, x) => s + (Array.isArray(x) ? x.length : asNum(x)), 0)
+      : asNum(rm);
+  return {
+    templates: asNum(d.templates ?? box.templates),
+    adsProducts: asNum(d.ads_products ?? box.ads_products),
+    removed: Math.max(0, Math.round(removed)),
+    message: asStr(d.message),
+  };
 }
 
 // ── Admin: seller registration requests (approval flow) ──────────

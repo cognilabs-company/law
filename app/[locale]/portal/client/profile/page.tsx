@@ -30,6 +30,7 @@ import Select from "@/components/Select";
 import { IconEdit, IconPlus, IconClose, IconCard, IconCheck, IconClock } from "@/components/icons";
 import IdentityVerify from "@/components/portal/IdentityVerify";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
+import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 
 function fmtDateTime(s: string) {
   if (!s) return "";
@@ -126,6 +127,8 @@ export default function ClientProfile() {
       <IdentityVerify />
 
       <TwoFactorCard />
+
+      <TelegramLinkCard />
 
       <div className="pgrid2">
         <div className="ppanel">
@@ -231,12 +234,19 @@ export default function ClientProfile() {
             <div className="prefs">
               {NOTIF_KEYS.map((k) => (
                 <button key={k} type="button" className={`prefs__row${pf[k] ? " on" : ""}`} onClick={() => togglePref(k)} aria-pressed={pf[k]}>
-                  <span>{t.has(`notif.${k}`) ? t(`notif.${k}`) : k}</span>
+                  <span>
+                    {t.has(`notif.${k}`) ? t(`notif.${k}`) : k}
+                    {/* Only when the link state is known to be off, never when unknown. */}
+                    {k === "telegram" && session?.telegramLinked === false ? (
+                      <small className="prefs__hint">{t("notifTelegramHint")}</small>
+                    ) : null}
+                  </span>
                   <span className="prefs__sw" />
                 </button>
               ))}
             </div>
           )}
+          {pf ? <p className="ppanel__note" style={{ marginTop: 10 }}>{t("notifSmsHint")}</p> : null}
         </div>
         <div className="ppanel">
           <div className="ppanel__h"><b>{t("sessions")}</b></div>

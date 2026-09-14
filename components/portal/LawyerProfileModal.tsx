@@ -8,14 +8,15 @@ import {
   demoPrivateChat,
   type BackendLawyer,
 } from "@/lib/services/backend";
-import { isDemoUnavailable } from "@/lib/http";
+import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { initials, humanizeSlug } from "@/lib/lawyers";
+import { fmtUzs } from "@/lib/money";
 import Modal from "@/components/admin/Modal";
 import { Skeleton } from "./DataState";
 
-const som = (n: number) => (n ? n.toLocaleString("ru-RU").replace(/,/g, " ") : "—");
+const som = (n: number) => (n ? fmtUzs(n) : "—");
 
 // Read-only advocate/lawyer profile shown from the matches list (and reusable
 // elsewhere). No single-lawyer GET on the backend, so getLawyerById resolves
@@ -83,9 +84,10 @@ export default function LawyerProfileModal({
       }
       const r = await demoPrivateChat({ lawyer_user_id: data.userId });
       if (r.chatRoomId) router.push(`/portal/chat/${r.chatRoomId}`);
-      else if (r.paymentUrl) window.open(r.paymentUrl, "_blank");
+      // Real checkout: same-tab navigation (a popup after an await is blocked).
+      else if (r.paymentUrl) window.location.assign(r.paymentUrl);
     } catch (e) {
-      setChooseErr(isDemoUnavailable(e) ? tcommon("demoOff") : t("notFound"));
+      setChooseErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("notFound"));
     } finally {
       setBusy(false);
     }

@@ -6,6 +6,7 @@ import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { initials, humanizeSlug, AREA_KEYS, REGION_KEYS } from "@/lib/lawyers";
 import { listLawyers, type BackendLawyer } from "@/lib/services/backend";
+import { fmtUzs } from "@/lib/money";
 import Select, { type Option } from "@/components/Select";
 import {
   IconUser,
@@ -111,7 +112,7 @@ export default function Finder() {
           </div>
         </div>
         <div className="resrow__r">
-          <b>{b.basePrice ? b.basePrice.toLocaleString("ru-RU").replace(/,/g, " ") : "—"}</b>
+          <b>{b.basePrice ? fmtUzs(b.basePrice) : "—"}</b>
           <span>
             {tf("result.fromSom")} {cur} · {tf("result.ratingSuffix")}{" "}
             {b.rating.toFixed(1)}

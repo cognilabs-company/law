@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { classifyProblem, getMyMatches, type AiClassification, type LawyerMatch } from "@/lib/services/backend";
 import { initials } from "@/lib/lawyers";
+import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
 import { IconSparkle, IconArrowRight, IconAlert, IconStar, IconMapPin } from "@/components/icons";
 
 export default function ClientIntake() {
@@ -54,6 +55,7 @@ export default function ClientIntake() {
           {busy ? t("analyzing") : t("analyze")}
         </button>
         <p className="intake__hint">{t("hint")}</p>
+        <div className="intake__bh"><BusinessHoursBadge note={t("operatorHours")} /></div>
       </div>
 
       {result ? (

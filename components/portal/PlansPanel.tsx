@@ -9,8 +9,9 @@ import {
   listPayments,
   type BackendPlan,
 } from "@/lib/services/backend";
-import { isDemoUnavailable } from "@/lib/http";
+import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "./DataState";
 import { IconCheck, IconCard, IconGift } from "@/components/icons";
 
@@ -18,7 +19,7 @@ type Term = 1 | 6 | 12;
 type Variant = "personal" | "all";
 
 function som(n: number): string {
-  return n.toLocaleString("ru-RU").replace(/,/g, " ");
+  return fmtUzs(n);
 }
 function fmtDate(s: string) {
   if (!s) return "";
@@ -72,14 +73,15 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
     try {
       const r = await demoPlanPurchase(plan.id);
       if (r.paymentUrl) {
-        // Checkout opens in a new tab — the plan is NOT active until paid.
-        window.open(r.paymentUrl, "_blank");
+        // Checkout opens in this tab (a popup after an await is blocked) —
+        // the plan is NOT active until paid.
         setMsg({ ok: true, text: t("payRedirect") });
+        window.location.assign(r.paymentUrl);
       } else {
         setMsg({ ok: true, text: t("activated", { plan: planName(plan) }) });
       }
     } catch (e) {
-      setMsg({ ok: false, text: isDemoUnavailable(e) ? tcommon("demoOff") : t("purchaseError") });
+      setMsg({ ok: false, text: isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("purchaseError") });
     } finally {
       setBusy(null);
     }

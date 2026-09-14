@@ -1832,6 +1832,12 @@ body:has(.schat) .fab{display:none}
 .ntitem__m b{font-weight:700;font-size:.92rem}
 .ntitem__m span{font-size:.85rem;color:var(--gray);line-height:1.45}
 .ntitem__m em{font-style:normal;font-size:.74rem;color:var(--gray2)}
+/* Notification delivery chips (cascade: queued = waiting, never red) */
+.ntchs{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.ntchs .ntch{font-size:.7rem;font-weight:700;line-height:1.5;padding:2px 8px;border-radius:var(--pill);background:#f3f4f6;color:var(--gray)}
+.ntchs .ntch--delivered{background:#E1F6EE;color:var(--ok)}
+.ntchs .ntch--pending{background:#eff6ff;color:#2563eb}
+.ntchs .ntch--failed{background:#fef2f2;color:#dc2626}
 .ptop__bell{position:relative;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--gray);display:grid;place-items:center;cursor:pointer;transition:.15s;text-decoration:none}
 .ptop__bell:hover{border-color:var(--b300);color:var(--b600)}
 .ptop__bell svg{width:19px;height:19px}
@@ -2899,6 +2905,17 @@ body:has(.schat) .fab{display:none}
 .tfa__qr{width:180px;height:180px;align-self:center;border-radius:12px;border:1px solid var(--line);background:#fff;padding:6px}
 .tfa__secret{font-family:var(--fd);letter-spacing:1px;font-size:.9rem;background:var(--b50)}
 
+/* Telegram account link card */
+.tglink__row{display:flex;gap:8px;align-items:center}
+.tglink__row input{flex:1;min-width:0;font-size:.85rem;background:var(--b50)}
+.tglink__acts{display:flex;gap:10px;flex-wrap:wrap}
+.tglink__timer{font-variant-numeric:tabular-nums;font-weight:700;color:var(--b600)}
+.prefs__hint{display:block;font-size:.76rem;font-weight:500;color:var(--gray);margin-top:2px}
+/* Advocate profile panels (editor, services, 2FA, Telegram, preview) were stacked flush */
+.advprofile{display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
+.advprofile > .ppv{margin-top:0}
+@media (max-width:560px){.advprofile{gap:16px}}
+
 /* Permission matrix table + service-selector note */
 .svsel__note{margin:8px 0 0;font-size:.8rem;color:var(--gray2)}
 .pmx__wrap{overflow-x:auto;margin-top:6px}
@@ -2951,3 +2968,42 @@ body:has(.schat) .fab{display:none}
 .cgate__c h2{font-family:var(--fd);font-size:1.2rem;margin:12px 0 6px}
 .cgate__c > p{font-size:.9rem;color:var(--gray);margin:0}
 .cgate__actions{display:grid;gap:8px;margin-top:18px}
+
+/* ── Admin audit trail: append-only note, hash chain ── */
+.audit__append{display:flex;align-items:center;gap:6px}
+.audit__append svg{width:14px;height:14px;flex:none}
+/* two classes to beat .creq__m>span */
+.creq__m>.audit__hash{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin-top:4px;font-size:.74rem;color:var(--gray2)}
+.audit__hash code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.audit__copy{border:0;background:none;padding:2px;border-radius:6px;cursor:pointer;color:var(--b600);display:inline-grid;place-items:center}
+.audit__copy:hover{background:var(--b50)}
+.audit__copy svg{width:14px;height:14px}
+.audit__chain--linked,.audit__chain--linkedFar{color:var(--ok);background:#E1F6EE}
+.audit__chain--genesis{color:var(--b700);background:var(--b100)}
+.audit__chain--outside,.audit__chain--none{color:var(--gray);background:#F2F6FC}
+@media (max-width:560px){
+  .audit__row{flex-wrap:wrap}
+  .audit__row .creq__side{flex-basis:100%;align-items:flex-start;padding-left:23px}
+}
+
+/* ── Admin integrations: data residency card (no .intg__st: its capitalize
+   would Title-Case the multi-word state) ── */
+.intg__c.intg__res{align-items:flex-start}
+.intg__res .intg__dot{margin-top:6px}
+.intg__resm{flex:1;min-width:0;display:grid;gap:4px}
+.intg__resm b{font-size:.95rem}
+.intg__resm span{font-size:.8rem;color:var(--gray);line-height:1.4}
+.intg__resm .intg__resst{font-weight:700;color:var(--ink)}
+
+/* ── Business-hours badge (call-center, client intake) ── */
+.bhours{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:.8rem;line-height:1.35;color:var(--gray)}
+.bhours__dot{width:8px;height:8px;border-radius:50%;background:#9ca3af;flex:none}
+.bhours--open .bhours__dot{background:#10b981}
+.bhours--closed .bhours__dot,.bhours--dayOff .bhours__dot{background:#f59e0b}
+.bhours__st{font-weight:700;color:var(--ink)}
+.bhours__note{flex-basis:100%;font-size:.76rem}
+.intake__bh{display:flex;justify-content:center;margin-top:8px;text-align:center}
+.intake__bh .bhours{justify-content:center}
+
+/* ── AI privacy note under the chat composer ── */
+.aichat__disc.aichat__pii{margin-top:2px}

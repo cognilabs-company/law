@@ -10,8 +10,9 @@ import {
   type Lawyer,
 } from "@/lib/lawyers";
 import { listLawyers, demoPrivateChat, getLawyerPrivateChat, type BackendLawyer } from "@/lib/services/backend";
-import { isDemoUnavailable } from "@/lib/http";
+import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "@/i18n/navigation";
 import { Skeleton, EmptyState } from "../portal/DataState";
@@ -35,7 +36,7 @@ function toLawyer(b: BackendLawyer): Lawyer {
     rev: b.reviews,
     full: b.winsCount,
     part: b.partialWins,
-    price: b.basePrice ? b.basePrice.toLocaleString("ru-RU").replace(/,/g, " ") : "—",
+    price: b.basePrice ? fmtUzs(b.basePrice) : "—",
     super: b.verified,
     kind: st.includes("advokat") ? "advocate" : "lawyer",
   };
@@ -85,9 +86,10 @@ export default function LawyersSection({
       }
       const r = await demoPrivateChat({ lawyer_user_id: l.userId });
       if (r.chatRoomId) router.push(`/portal/chat/${r.chatRoomId}`);
-      else if (r.paymentUrl) window.open(r.paymentUrl, "_blank");
+      // Real checkout: same-tab navigation (a popup after an await is blocked).
+      else if (r.paymentUrl) window.location.assign(r.paymentUrl);
     } catch (e) {
-      setChatErr(isDemoUnavailable(e) ? tcommon("demoOff") : null);
+      setChatErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : null);
     } finally {
       setChatBusy(null);
     }

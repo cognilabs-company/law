@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { listAdminPayouts, updatePayout, getReconciliation } from "@/lib/services/backend";
 import { useResource, useResourceOne } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { useReload, Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { ApiError } from "@/lib/http";
 import { IconCard, IconCheck } from "@/components/icons";
 
-const som = (n: number) => n.toLocaleString("ru-RU").replace(/,/g, " ");
+const som = (n: number) => fmtUzs(n);
 const REC0 = { paymentsCount: 0, paidCount: 0, gross: 0, platformFee: 0, providerFee: 0, sellerShare: 0, payoutStatuses: {}, byProvider: [] };
 
 export default function AdminPayouts() {

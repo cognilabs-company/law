@@ -15,6 +15,7 @@ import {
 } from "@/lib/services/backend";
 import OrderPayment from "@/components/portal/OrderPayment";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { initials } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
@@ -37,7 +38,7 @@ import {
   IconCheck,
 } from "@/components/icons";
 
-const som = (n?: number) => (n ? n.toLocaleString("ru-RU").replace(/,/g, " ") : "");
+const som = (n?: number) => (n ? fmtUzs(n) : "");
 
 // Cycle a small set of legal icons across the service families.
 const FAM_ICONS: ComponentType<{ className?: string }>[] = [

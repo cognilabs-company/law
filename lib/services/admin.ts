@@ -2,6 +2,7 @@
 // authenticated user with the right permissions; the bearer token is attached
 // automatically by the shared http() layer.
 import { http, asDict, asStr, asArr } from "@/lib/http";
+import { normDeliveries, type NotificationDelivery } from "@/lib/services/backend";
 
 export type Permission = { code: string; title: string };
 export type AdminRole = {
@@ -74,7 +75,7 @@ export async function createService(input: {
   slug: string;
   title: string;
   description?: string;
-  base_price?: number;
+  base_price?: number; // whole so'm (legacy UZS), not tiyin (T0-16)
   currency?: string;
   delivery_minutes?: number;
   is_active?: boolean;
@@ -87,7 +88,7 @@ export async function createSubscriptionPlan(input: {
   slug: string;
   title: string;
   description?: string;
-  monthly_price?: number;
+  monthly_price?: number; // whole so'm (legacy UZS), not tiyin (T0-16)
   benefits?: string[];
   is_giftable?: boolean;
   is_active?: boolean;
@@ -106,7 +107,7 @@ export async function createDocumentTemplate(input: {
   language?: string;
   description?: string;
   template_text: string;
-  price?: number;
+  price?: number; // whole so'm (legacy UZS), not tiyin (T0-16)
   is_active?: boolean;
 }): Promise<unknown> {
   return http("/admin/document-templates", {
@@ -124,7 +125,7 @@ export async function updateDocumentTemplate(
     language: string;
     description: string;
     template_text: string;
-    price: number;
+    price: number; // whole so'm (legacy UZS), not tiyin (T0-16)
     is_active: boolean;
   }>,
 ): Promise<unknown> {
@@ -139,16 +140,25 @@ export async function deleteDocumentTemplate(id: string): Promise<unknown> {
 }
 
 // ── Notifications ──
+// The backend creates the record and runs the delivery cascade; channels whose
+// provider isn't configured come back "queued" (waiting for delivery).
+export type NotificationSendResult = { id: string; deliveries: NotificationDelivery[] };
 export async function createNotification(input: {
   user_id: string;
   channel?: string;
   title: string;
   body: string;
-}): Promise<unknown> {
-  return http("/admin/notifications", {
+}): Promise<NotificationSendResult> {
+  const raw = await http("/admin/notifications", {
     method: "POST",
     body: JSON.stringify(input),
   });
+  const d = asDict(raw);
+  const top = normDeliveries(raw);
+  return {
+    id: asStr(d.id ?? asDict(d.notification).id),
+    deliveries: top.length ? top : normDeliveries(d.notification ?? d, input.channel ?? ""),
+  };
 }
 
 // ── Bootstrap ──

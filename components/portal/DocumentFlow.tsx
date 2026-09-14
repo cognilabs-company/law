@@ -15,13 +15,15 @@ import {
   type DocumentRequest,
   type WorkspaceDocRequest,
 } from "@/lib/services/backend";
+import { isProviderUnavailable } from "@/lib/http";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import { IconDocLines, IconDownload, IconExternal, IconCheck, IconClock } from "@/components/icons";
 
-const som = (n?: number) => (n ? n.toLocaleString("ru-RU").replace(/,/g, " ") : "");
+const som = (n?: number) => (n ? fmtUzs(n) : "");
 
 type Stage = "answers" | "pay" | "pending" | "done";
 
@@ -60,6 +62,7 @@ function openPdf(f: DocumentRequest["contractFile"], download = false) {
 
 export default function DocumentFlow() {
   const t = useTranslations("portal.client.documents");
+  const tcommon = useTranslations("common");
   const tpls = useResource(getDocumentTemplates, []);
   const clientTpls = tpls.data.filter((x) => x.visibility === "client");
 
@@ -161,12 +164,19 @@ export default function DocumentFlow() {
     setNote(null);
     try {
       let r = await payDocumentRequest(req.id, "payme", req.price);
+      if (r.paymentUrl) {
+        // Real provider checkout: same-tab navigation (a popup after an await
+        // is blocked). The card shows the request as pending on return.
+        window.location.assign(r.paymentUrl);
+        return;
+      }
       if (r.status !== "file_ready") r = await getDocumentRequest(req.id);
       setReq(r);
       setStage(r.status === "file_ready" ? "done" : "pending");
       bump();
-    } catch {
-      setNote({ ok: false, msg: t("error") });
+    } catch (e) {
+      // 503 = Payme/Click not configured on the backend yet.
+      setNote({ ok: false, msg: isProviderUnavailable(e) ? tcommon("paymentUnavailable") : t("error") });
     } finally {
       setBusy(false);
     }

@@ -6,6 +6,7 @@ import { ccSearchClients, listCcCalls, logCcCall, type CcClient } from "@/lib/se
 import { useResource } from "@/lib/useResource";
 import { useReload } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
+import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
 import { IconSearch, IconPhone, IconUser } from "@/components/icons";
 
 function fmt(s: string) {
@@ -49,7 +50,7 @@ export default function AdminCallCenter() {
   return (
     <div className="pgrid2">
       <div className="ppanel">
-        <div className="ppanel__h"><b>{t("search")}</b></div>
+        <div className="ppanel__h"><b>{t("search")}</b><BusinessHoursBadge showHolidayNote /></div>
         <form className="lsp__search" onSubmit={search} style={{ marginBottom: 12 }}>
           <IconSearch />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("search")} />

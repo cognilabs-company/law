@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { listAds, createAd } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { AdminForm, AdminItem, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import { IconRocket, IconPlus } from "@/components/icons";
 
-const som = (n?: number) => (n ? n.toLocaleString("ru-RU").replace(/,/g, " ") : "—");
+const som = (n?: number) => (n ? fmtUzs(n) : "—");
 const num = (v: string | boolean) => parseInt(String(v || "0"), 10) || 0;
 
 export default function AdminAds() {

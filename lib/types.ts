@@ -55,6 +55,7 @@ export type ProfessionalProfile = {
   experienceYears?: number;
   bio?: string;
   services: string[]; // lawyer service offering (backend service ids)
+  hourlyPrice?: number; // base_hourly_price, whole so'm (legacy UZS)
   // advocate-only
   email?: string;
   advocateStructure?: string; // byuro | firma | hayat

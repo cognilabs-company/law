@@ -3,11 +3,12 @@
 import { useTranslations } from "next-intl";
 import { listPayments } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconCard, IconDownload } from "@/components/icons";
 
 const som = (n: number, cur: string) =>
-  n ? `${n.toLocaleString("ru-RU").replace(/,/g, " ")} ${cur}` : "—";
+  n ? `${fmtUzs(n)} ${cur}` : "—";
 const fmtDate = (s: string) => {
   if (!s) return "—";
   const d = new Date(s);

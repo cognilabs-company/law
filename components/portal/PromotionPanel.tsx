@@ -10,11 +10,13 @@ import {
   type ModuleRecord,
   type PromotionAnalytics,
 } from "@/lib/services/backend";
+import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { useResource, useResourceOne } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "./DataState";
 import { IconRocket, IconTrendingUp, IconEye, IconSearch, IconTarget, IconChat } from "@/components/icons";
 
-const som = (n: number) => (n ? n.toLocaleString("ru-RU").replace(/,/g, " ") : "0");
+const som = (n: number) => (n ? fmtUzs(n) : "0");
 const numOf = (v: unknown, fallback: number) => {
   const n = typeof v === "number" ? v : parseInt(String(v ?? ""), 10);
   return Number.isFinite(n) && n > 0 ? n : fallback;
@@ -22,23 +24,28 @@ const numOf = (v: unknown, fallback: number) => {
 
 export default function PromotionPanel() {
   const t = useTranslations("promotion");
+  const tcommon = useTranslations("common");
   const [reloadKey, setReloadKey] = useState(0);
   const packages = useResource(() => listAds(), [reloadKey]);
   const status = useResourceOne(getPromotionStatus, [reloadKey]);
   const analytics = useResourceOne<PromotionAnalytics>(getPromotionAnalytics, [reloadKey]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   async function buy(pkg: ModuleRecord, days: number) {
     if (busy) return;
     setBusy(pkg.id);
-    setErr(false);
+    setErr(null);
     try {
       const r = await checkoutPromotion(pkg.id, days);
-      if (r.paymentUrl) window.open(r.paymentUrl, "_blank");
+      if (r.paymentUrl) {
+        // Real checkout: same-tab navigation (a popup after an await is blocked).
+        window.location.assign(r.paymentUrl);
+        return;
+      }
       setReloadKey((k) => k + 1);
-    } catch {
-      setErr(true);
+    } catch (e) {
+      setErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("checkoutError"));
     } finally {
       setBusy(null);
     }
@@ -139,7 +146,7 @@ export default function PromotionPanel() {
                 );
               })}
             </div>
-            {err ? <p className="disc" style={{ color: "#C0392B" }}>{t("checkoutError")}</p> : null}
+            {err ? <p className="disc" style={{ color: "#C0392B" }}>{err}</p> : null}
             <p className="promo__note">{t("boostNote")}</p>
           </>
         )}

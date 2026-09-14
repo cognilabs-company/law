@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Skeleton, EmptyState } from "./DataState";
 import { useSellerCabinet } from "./SellerCabinet";
+import { uzs, fmtUzs } from "@/lib/money";
 import {
   IconBriefcase,
   IconFileText,
@@ -25,7 +26,7 @@ const num = (o: Record<string, unknown>, k: string): number => {
   const n = typeof x === "number" ? x : parseFloat(String(x));
   return Number.isFinite(n) ? n : 0;
 };
-const som = (n: number) => n.toLocaleString("ru-RU").replace(/,/g, " ");
+const som = (n: number) => fmtUzs(n);
 
 const WORKLOAD: Metric[] = [
   { key: "active_cases", from: "workload", label: "activeCases", Icon: IconBriefcase, fmt: "int" },
@@ -67,7 +68,7 @@ export default function StatGrid({
     const n = num(s[m.from], m.key);
     if (m.fmt === "som") {
       const cur = String((s.finance.currency as string) || "UZS");
-      return `${som(n)} ${cur}`;
+      return `${som(uzs(s[m.from], m.key))} ${cur}`;
     }
     if (m.fmt === "rating") return n ? n.toFixed(1) : "—";
     if (m.fmt === "percent") return `${Math.round(n <= 1 ? n * 100 : n)}%`;

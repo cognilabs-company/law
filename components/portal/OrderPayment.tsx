@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getPaymentPolicy, demoPayOrder, type PaymentPolicy } from "@/lib/services/backend";
-import { isDemoUnavailable } from "@/lib/http";
+import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconLock, IconCheck } from "@/components/icons";
 
-const som = (n: number) => (n ? n.toLocaleString("ru-RU").replace(/,/g, " ") : "0");
+const som = (n: number) => (n ? fmtUzs(n) : "0");
 
 // Staged order payment: shows the 10% advance that unlocks the private chat.
 // Partial payments are cumulative on the backend; we re-read the policy after
@@ -52,11 +53,19 @@ export default function OrderPayment({
     setErr(null);
     try {
       const r = await demoPayOrder(orderId);
+      if (r.paymentUrl) {
+        // A real provider checkout: same-tab navigation (a popup opened after
+        // an await is blocked).
+        window.location.assign(r.paymentUrl);
+        return;
+      }
       const next = await getPaymentPolicy(orderId).catch(() => null);
       if (next) setPol(next);
       if (r.chatRoomId || next?.contactUnlocked) onChat(r.chatRoomId);
     } catch (e) {
-      setErr(isDemoUnavailable(e) ? tcommon("demoOff") : t("error"));
+      // 503 = Payme/Click not configured yet; 404 "Demo endpoint yopiq" = the
+      // demo checkout is closed in production. Both: provider not connected.
+      setErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("error"));
     } finally {
       setPaying(false);
     }

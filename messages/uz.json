@@ -1,8 +1,16 @@
 {
   "common": {
-    "demoOff": "Bu amal hozircha mavjud emas. Tez orada real to'lov/tasdiqlash ulanadi.",
+    "paymentUnavailable": "To'lov tizimi hali ulanmagan. Tez orada Payme va Click orqali to'lash mumkin bo'ladi.",
+    "identityUnavailable": "OneID/MyID orqali tasdiqlash hali ulanmagan. Keyinroq qayta urinib ko'ring.",
     "rateLimited": "Juda ko'p urinish. Bir ozdan so'ng qayta urining.",
-    "offline": "Server bilan bog'lanib bo'lmadi. Internet aloqasini tekshirib, qayta urining."
+    "offline": "Server bilan bog'lanib bo'lmadi. Internet aloqasini tekshirib, qayta urining.",
+    "businessHours": {
+      "open": "Hozir ish vaqti",
+      "closed": "Hozir ish vaqti emas",
+      "dayOff": "Bugun dam olish kuni",
+      "schedule": "{days}, {start}–{end} (Toshkent vaqti)",
+      "holidayNote": "Bayram kunlari hozircha hisobga olinmaydi."
+    }
   },
   "a11y": {
     "showPassword": "Parolni ko'rsatish",
@@ -1630,6 +1638,7 @@
     "assistant": "Sun'iy Intellekt",
     "offline": "Serverga ulanib bo'lmadi — bu oflayn javob.",
     "disclaimer": "Sun'iy Intellekt xato qilishi mumkin. Yakuniy huquqiy qaror advokatda qoladi.",
+    "piiNote": "Maxfiylik: telefon raqamlari, email manzillar, JShShIR (PINFL) va pasport raqamlari Sun'iy Intellektga yuborilishidan oldin yashiriladi.",
     "downloadPdf": "PDF yuklab olish",
     "open": "Ochish",
     "limitReached": "Mehmonlar uchun bepul limit tugadi. Sun'iy Intellekt bilan davom etish uchun tizimga kiring.",
@@ -1828,6 +1837,30 @@
           "currentMethod": "Joriy usul: {method}",
           "methodSms": "SMS",
           "methodTotp": "Authenticator ilova"
+      },
+      "telegram": {
+        "title": "Telegram hisobi",
+        "desc": "Hisobingizni LexGo Telegram botiga ulang — bildirishnomalar Telegramga ham keladi.",
+        "connect": "Telegramni ulash",
+        "generating": "Havola tayyorlanmoqda…",
+        "hint": "Havolani oching va botda «Start» tugmasini bosing — hisobingiz avtomatik ulanadi.",
+        "open": "Telegramda ochish",
+        "linkLabel": "Bir martalik havola",
+        "copy": "Nusxa olish",
+        "copied": "Nusxa olindi",
+        "otherDevice": "Telegram boshqa qurilmada bo'lsa, havoladan nusxa olib, o'sha yerda oching.",
+        "timeLeft": "Havola amal qiladi:",
+        "waiting": "Telegramdan tasdiq kutilmoqda…",
+        "expired": "Havolaning muddati tugadi. Yangi havola oling.",
+        "regenerate": "Yangi havola olish",
+        "cancel": "Bekor qilish",
+        "linked": "Telegram ulangan",
+        "linkedBadge": "Ulangan",
+        "linkedText": "Bildirishnomalar Telegram orqali ham yuboriladi.",
+        "linkedMsg": "Telegram hisobingiz ulandi.",
+        "relink": "Boshqa Telegram hisobini ulash",
+        "errStart": "Havolani olib bo'lmadi. Qayta urining.",
+        "errUnavailable": "Telegram bot hozircha ulanmagan. Keyinroq urinib ko'ring."
       }
     },
     "tasks": {
@@ -1862,6 +1895,7 @@
       "casePh": "Ish holatini, faktlarni yoki hujjat matnini shu yerga joylang…",
       "run": "So'rash",
       "disclaimer": "AI advokat o'rnini bosmaydi — yakuniy huquqiy qaror advokatda qoladi.",
+      "piiNote": "Maxfiylik: telefon raqamlari, email manzillar, JShShIR (PINFL) va pasport raqamlari AI'ga yuborilishidan oldin yashiriladi.",
       "tools": {
         "summarize": "Ishni qisqacha bayon qil",
         "chronology": "Voqealar xronologiyasi",
@@ -2129,6 +2163,7 @@
         "analyze": "Tahlil qilish",
         "analyzing": "Tahlil qilinmoqda…",
         "hint": "Sun'iy intellekt tahlili keyin call-center operatoriga lead sifatida uzatiladi.",
+        "operatorHours": "Operator ish vaqtida siz bilan bog'lanadi.",
         "resultTitle": "Tahlil natijasi",
         "category": "Yo'nalish",
         "recommended": "Tavsiya etilgan xizmat",
@@ -2370,7 +2405,10 @@
         "verified": "Shaxs tasdiqlangan",
         "oneidSub": "Davlat xizmatlari ID",
         "myidSub": "Biometrik ID",
-        "demoHint": "{provider} demo rejimi: quyidagi kodni tasdiqlang.",
+        "codeHint": "{provider} tasdiqlash kodini kiriting.",
+        "redirecting": "{provider} sahifasiga o'tilmoqda…",
+        "pending": "Tasdiqlash jarayonda. Yakunlangach holat shu yerda yangilanadi.",
+        "refresh": "Holatni yangilash",
         "codeLabel": "Tasdiqlash kodi",
         "verify": "Tasdiqlash",
         "verifying": "Tasdiqlanmoqda…",
@@ -2397,6 +2435,8 @@
         "myId": "Mening ID",
         "notifPrefs": "Xabarnoma sozlamalari",
         "notif": { "push": "Push", "sms": "SMS", "telegram": "Telegram", "email": "Email", "orders": "Buyurtmalar", "payments": "To'lovlar", "messages": "Xabarlar", "marketing": "Marketing" },
+        "notifTelegramHint": "Telegram ulanmagan — yuqorida ulang",
+        "notifSmsHint": "SMS faqat muhim hodisalar uchun zaxira kanal sifatida ishlatiladi.",
         "sessions": "Aktiv sessiyalar",
         "noSessions": "Aktiv sessiya yo'q.",
         "device": "Qurilma",
@@ -2711,7 +2751,10 @@
       "title": "Bildirishnomalar",
       "markAll": "Barchasini o‘qilgan",
       "empty": "Bildirishnomalar yo‘q",
-      "emptyText": "Ishlaringiz va to‘lovlaringiz haqidagi yangiliklar shu yerda ko‘rinadi."
+      "emptyText": "Ishlaringiz va to‘lovlaringiz haqidagi yangiliklar shu yerda ko‘rinadi.",
+      "deliveryLabel": "Yetkazish holati",
+      "channel": { "in_app": "Ilova ichida", "push": "Push", "telegram": "Telegram", "email": "Email", "sms": "SMS" },
+      "delivery": { "delivered": "Yetkazildi", "pending": "Yetkazilishi kutilmoqda", "failed": "Yetkazilmadi", "unknown": "Holati noma'lum" }
     },
     "caseManage": {
       "title": "Ishni boshqarish",
@@ -3287,7 +3330,12 @@
       },
       "seed": "Demo ma'lumot",
       "seeding": "Yuklanmoqda…",
-      "seedDone": "{templates} ta namuna, {ads} ta reklama qo‘shildi.",
+      "seedReady": "Demo ma'lumotlar tayyor. Qayta ishga tushirish dublikat yaratmaydi.",
+      "seedRemoved": "{n} ta tasodifiy test yozuvi o'chirildi.",
+      "seedConfirmTitle": "Demo ma'lumotlarni yuklash",
+      "seedConfirmText": "Xizmat toifalari, xizmatlar, advokatlar, yuristlar, mijozlar, call-center xodimlari, shablonlar, lidlar, to'lov, vazifa, B2B, sharh va audit namunalari yetishmasa qo'shiladi, mavjudlari takrorlanmaydi. «Approval Test» va «Runtime» nomli tasodifiy yozuvlar o'chiriladi.",
+      "seedConfirm": "Yuklash",
+      "seedUnavailable": "Bu serverda demo ma'lumot yuklash o'chirilgan.",
       "seedError": "Xatolik yuz berdi."
     },
     "form": {
@@ -3366,15 +3414,18 @@
     },
     "notifications": {
       "title": "Bildirishnoma yuborish",
-      "lead": "Foydalanuvchiga push yoki SMS bildirishnoma yuboring.",
+      "lead": "Foydalanuvchiga bildirishnoma yuboring. U ilova ichida, push, Telegram va email orqali yetkaziladi; SMS faqat muhim hodisalarda zaxira kanal.",
       "userId": "Foydalanuvchi id",
       "channel": "Kanal",
       "push": "Push",
+      "telegram": "Telegram",
+      "email": "Email",
       "sms": "SMS",
       "body": "Xabar",
       "send": "Yuborish",
       "sending": "Yuborilmoqda…",
-      "sent": "Bildirishnoma yuborildi.",
+      "sent": "Bildirishnoma yaratildi.",
+      "queuedNote": "Provayderi hali ulanmagan kanallar navbatda turadi va ulangach yetkaziladi.",
       "user": "Foydalanuvchi",
       "selectUser": "Foydalanuvchini tanlang"
     },
@@ -3587,17 +3638,56 @@
       "title": "Audit jurnali",
       "lead": "Tizimdagi barcha muhim harakatlar jurnali.",
       "empty": "Yozuv yo'q",
-      "emptyText": "Audit yozuvlari shu yerda ko'rinadi."
+      "emptyText": "Audit yozuvlari shu yerda ko'rinadi.",
+      "appendOnly": "Jurnal faqat to'ldiriladi: yozuvlarni tahrirlash va o'chirish serverda bloklangan.",
+      "hash": "Xesh",
+      "prevHash": "Oldingi xesh",
+      "copyHash": "To'liq xeshdan nusxa olish",
+      "copied": "Nusxa olindi",
+      "chainSummary": "Zanjir bog'lanishi shu ro'yxatdagi {linked} / {total} ta yozuv uchun tasdiqlandi.",
+      "chainNote": "Tekshiruv faqat ko'rsatilgan yozuvlar orasida: brauzer xeshlarni qayta hisoblamaydi, filtr va sahifalash esa chegaradagi oldingi yozuvlarni yashirishi mumkin.",
+      "noHashes": "Bu javobda xesh maydonlari yo'q — zanjirni tekshirib bo'lmaydi.",
+      "chain": {
+        "linked": "Bog'langan",
+        "linkedFar": "Bog'langan (qo'shni emas)",
+        "outside": "Tekshirilmadi",
+        "genesis": "Zanjir boshi",
+        "none": "Xesh yo'q"
+      },
+      "chainHint": {
+        "linked": "Oldingi xesh ro'yxatdagi qo'shni yozuv xeshiga teng.",
+        "linkedFar": "Oldingi xesh shu ro'yxatdagi boshqa (qo'shni bo'lmagan) yozuv xeshiga teng.",
+        "outside": "Oldingi yozuv bu ro'yxatda yo'q (filtr yoki sahifalash sababli) — bog'lanishni tekshirib bo'lmaydi.",
+        "genesis": "Oldingi xesh bo'sh — zanjirning birinchi yozuvi.",
+        "none": "Backend bu yozuv uchun xesh qaytarmadi."
+      }
     },
     "integrations": {
       "title": "Integratsiyalar",
       "lead": "Tashqi servislar ulanish holati.",
       "empty": "Integratsiya yo'q",
       "superadminOnly": "Faqat superadmin boshqaradi",
-      "keys": { "website_api": "Veb-sayt API", "mobile_api": "Mobil API", "lexgo_ai": "Sun'iy Intellekt", "telegram": "Telegram", "sms": "SMS", "email": "Email" },
+      "keys": { "website_api": "Veb-sayt API", "mobile_api": "Mobil API", "lexgo_ai": "Sun'iy Intellekt", "telegram": "Telegram", "sms": "SMS", "email": "Email", "push": "Push", "payme": "Payme", "click": "Click", "oneid": "OneID", "myid": "MyID" },
       "status": { "connected": "Ulangan", "planned": "Rejalashtirilgan", "error": "Xato", "disconnected": "Uzilgan",
         "degraded": "Qisman ishlayapti",
-        "not_configured": "Sozlanmagan" }
+        "not_configured": "Sozlanmagan",
+        "queued": "Navbatda",
+        "pending": "Kutilmoqda",
+        "disabled": "O'chirilgan",
+        "configured": "Sozlangan",
+        "not_connected": "Ulanmagan",
+        "demo": "Demo rejim" },
+      "residency": {
+        "category": "Infratuzilma",
+        "title": "Ma'lumotlar rezidentligi (O'zbekiston)",
+        "state": { "confirmed": "Tasdiqlangan", "pending": "Infratuzilma dalili kutilmoqda", "unknown": "Holat noma'lum" },
+        "confirmedNote": "Backend rezidentlikni tasdiqlangan deb ko'rsatmoqda.",
+        "pendingNote": "Production ma'lumotlarining O'zbekistondagi data-markazda joylashgani hali hosting provayderi dalili bilan tasdiqlanmagan.",
+        "unknownNote": "Backend bu holatni qaytarmadi.",
+        "region": "Hudud",
+        "provider": "Provayder",
+        "checkedAt": "Tekshirilgan"
+      }
     },
     "workflow": {
       "rules": "Avtomatlashtirish qoidalari",

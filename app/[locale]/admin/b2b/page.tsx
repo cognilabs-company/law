@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { listB2bClients, createB2bClient } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { useReload, AdminForm } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconBuilding, IconPlus } from "@/components/icons";
 
-const som = (n: number) => n.toLocaleString("ru-RU").replace(/,/g, " ");
+const som = (n: number) => fmtUzs(n);
 
 export default function AdminB2b() {
   const t = useTranslations("admin.b2b");

@@ -13,8 +13,10 @@ import {
 } from "@/lib/services/backend";
 import { isDemoUnavailable } from "@/lib/http";
 import { useResourceOne } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton } from "@/components/portal/DataState";
 import LineChart from "@/components/admin/LineChart";
+import Modal from "@/components/admin/Modal";
 import {
   IconBolt,
   IconUsers,
@@ -59,7 +61,6 @@ export default function AdminOverview() {
   const t = useTranslations("admin.overview");
   const tc = useTranslations("admin.overview.crm");
   const tn = useTranslations("admin");
-  const tcm = useTranslations("common");
   const locale = useLocale();
   const { session } = useAuth();
   const ceo = useResourceOne(getCeoDashboard, []);
@@ -67,16 +68,20 @@ export default function AdminOverview() {
   const qual = useResourceOne(getQualityOverview, []);
   const [seedBusy, setSeedBusy] = useState(false);
   const [seedMsg, setSeedMsg] = useState<string | null>(null);
+  const [seedAsk, setSeedAsk] = useState(false);
 
+  // Idempotent showcase seed. Production closes the endpoint (404 "Demo
+  // endpoint yopiq"). The backend's message isn't localized and its counts
+  // understate the seed, so show our own copy (never amounts).
   async function seed() {
     if (seedBusy) return;
     setSeedBusy(true);
     setSeedMsg(null);
     try {
       const r = await seedDemoData();
-      setSeedMsg(r.message || t("seedDone", { templates: r.templates, ads: r.adsProducts }));
+      setSeedMsg([t("seedReady"), r.removed > 0 ? t("seedRemoved", { n: r.removed }) : ""].filter(Boolean).join(" "));
     } catch (e) {
-      setSeedMsg(isDemoUnavailable(e) ? tcm("demoOff") : t("seedError"));
+      setSeedMsg(isDemoUnavailable(e) ? t("seedUnavailable") : t("seedError"));
     } finally {
       setSeedBusy(false);
     }
@@ -85,7 +90,7 @@ export default function AdminOverview() {
   const c = ceo.data;
   const r = ret.data;
   const q = qual.data;
-  const money = (n?: number) => (n ? `${fmt(n)} ${tc("som")}` : DASH);
+  const money = (n?: number) => (n ? `${fmtUzs(n)} ${tc("som")}` : DASH);
   const pct = (n?: number) => (n || n === 0 ? `${Math.round(n)}%` : DASH);
   const funnel = c?.funnel ?? [];
   const fMax = Math.max(...funnel.map((f2) => f2.value), 1);
@@ -103,13 +108,35 @@ export default function AdminOverview() {
           <p>{tc("sub")}</p>
         </div>
         <div className="advhero__done" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
-          <button className="btn btn--glass btn--sm" type="button" onClick={seed} disabled={seedBusy}>
+          <button className="btn btn--glass btn--sm" type="button" onClick={() => setSeedAsk(true)} disabled={seedBusy}>
             <IconBolt />
             {seedBusy ? t("seeding") : t("seed")}
           </button>
           {seedMsg ? <span style={{ fontSize: ".8rem", color: "#B7CDEC" }}>{seedMsg}</span> : null}
         </div>
       </div>
+
+      <Modal open={seedAsk} onClose={() => setSeedAsk(false)} title={t("seedConfirmTitle")}>
+        <div className="cform" style={{ maxWidth: "none" }}>
+          <p className="advmuted" style={{ margin: 0 }}>{t("seedConfirmText")}</p>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button className="btn btn--ghost" type="button" onClick={() => setSeedAsk(false)}>
+              {tn("form.cancel")}
+            </button>
+            <button
+              className="btn btn--pri"
+              type="button"
+              disabled={seedBusy}
+              onClick={() => {
+                setSeedAsk(false);
+                seed();
+              }}
+            >
+              {t("seedConfirm")}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {loading ? <Skeleton rows={3} /> : null}
 
@@ -134,7 +161,7 @@ export default function AdminOverview() {
             <b>{tc("revenueTrend")}</b>
             {lastPoint ? <span className="advmuted">{lastDate} · {money(lastPoint.value)}</span> : null}
           </div>
-          {trend.length ? <LineChart points={trend} format={(v) => `${fmt(v)} ${tc("som")}`} /> : <p className="advmuted">{t("empty")}</p>}
+          {trend.length ? <LineChart points={trend} format={(v) => `${fmtUzs(v)} ${tc("som")}`} /> : <p className="advmuted">{t("empty")}</p>}
         </div>
 
         {/* Sales funnel — bar chart */}

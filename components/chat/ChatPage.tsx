@@ -335,6 +335,8 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
             </button>
           </div>
           <p className="aichat__disc">{t("disclaimer")}</p>
+          {/* The backend masks these before any external AI call (T0-17). */}
+          <p className="aichat__disc aichat__pii">{t("piiNote")}</p>
         </div>
       </div>
     </div>

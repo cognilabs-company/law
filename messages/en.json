@@ -1,8 +1,16 @@
 {
   "common": {
-    "demoOff": "This action isn't available yet. Real payment/verification is coming soon.",
+    "paymentUnavailable": "The payment provider isn't connected yet. Payme and Click payments are coming soon.",
+    "identityUnavailable": "OneID/MyID verification isn't connected yet. Please try again later.",
     "rateLimited": "Too many attempts. Please try again shortly.",
-    "offline": "Couldn't reach the server. Check your internet connection and try again."
+    "offline": "Couldn't reach the server. Check your internet connection and try again.",
+    "businessHours": {
+      "open": "Open now",
+      "closed": "Closed now",
+      "dayOff": "Closed today",
+      "schedule": "{days}, {start}–{end} (Tashkent time)",
+      "holidayNote": "Public holidays are not taken into account yet."
+    }
   },
   "a11y": {
     "showPassword": "Show password",
@@ -1624,6 +1632,7 @@
     "assistant": "LexGo.AI",
     "offline": "Couldn't reach the server — this is an offline answer.",
     "disclaimer": "LexGo.AI can make mistakes. The final legal decision stays with a lawyer.",
+    "piiNote": "Privacy: phone numbers, email addresses, PINFL (JShShIR) and passport numbers are masked before they are sent to the AI.",
     "downloadPdf": "Download PDF",
     "open": "Open",
     "limitReached": "You have used the free limit for guest questions. Log in to keep chatting with LexGo.AI.",
@@ -1822,6 +1831,30 @@
           "currentMethod": "Current method: {method}",
           "methodSms": "SMS",
           "methodTotp": "Authenticator app"
+      },
+      "telegram": {
+        "title": "Telegram account",
+        "desc": "Link your account to the LexGo Telegram bot to also receive notifications in Telegram.",
+        "connect": "Connect Telegram",
+        "generating": "Preparing link…",
+        "hint": "Open the link and tap Start in the bot — your account will be linked automatically.",
+        "open": "Open in Telegram",
+        "linkLabel": "One-time link",
+        "copy": "Copy",
+        "copied": "Copied",
+        "otherDevice": "If Telegram is on another device, copy the link and open it there.",
+        "timeLeft": "Link valid for:",
+        "waiting": "Waiting for confirmation from Telegram…",
+        "expired": "This link has expired. Get a new one.",
+        "regenerate": "Get a new link",
+        "cancel": "Cancel",
+        "linked": "Telegram connected",
+        "linkedBadge": "Connected",
+        "linkedText": "Notifications are also sent to Telegram.",
+        "linkedMsg": "Your Telegram account is now linked.",
+        "relink": "Link a different Telegram account",
+        "errStart": "Couldn't get a link. Please try again.",
+        "errUnavailable": "The Telegram bot isn't available yet. Please try again later."
       }
     },
     "tasks": {
@@ -1856,6 +1889,7 @@
       "casePh": "Paste the case facts or a document's text here…",
       "run": "Ask",
       "disclaimer": "AI doesn't replace an advocate — the final legal decision stays with the advocate.",
+      "piiNote": "Privacy: phone numbers, email addresses, PINFL (JShShIR) and passport numbers are masked before they are sent to the AI.",
       "tools": {
         "summarize": "Summarize the case",
         "chronology": "Event chronology",
@@ -2123,6 +2157,7 @@
         "analyze": "Analyze",
         "analyzing": "Analyzing…",
         "hint": "The AI analysis is then routed to a call-center operator as a lead.",
+        "operatorHours": "An operator will contact you during working hours.",
         "resultTitle": "Analysis result",
         "category": "Direction",
         "recommended": "Recommended service",
@@ -2364,7 +2399,10 @@
         "verified": "Identity verified",
         "oneidSub": "Government services ID",
         "myidSub": "Biometric ID",
-        "demoHint": "{provider} demo mode: confirm the code below.",
+        "codeHint": "Enter the {provider} verification code.",
+        "redirecting": "Redirecting to {provider}…",
+        "pending": "Verification is in progress. The status will update here when it's done.",
+        "refresh": "Refresh status",
         "codeLabel": "Verification code",
         "verify": "Verify",
         "verifying": "Verifying…",
@@ -2391,6 +2429,8 @@
         "myId": "My ID",
         "notifPrefs": "Notification preferences",
         "notif": { "push": "Push", "sms": "SMS", "telegram": "Telegram", "email": "Email", "orders": "Orders", "payments": "Payments", "messages": "Messages", "marketing": "Marketing" },
+        "notifTelegramHint": "Telegram isn't connected — connect it above",
+        "notifSmsHint": "SMS is used only as a fallback for critical events.",
         "sessions": "Active sessions",
         "noSessions": "No active sessions.",
         "device": "Device",
@@ -2705,7 +2745,10 @@
       "title": "Notifications",
       "markAll": "Mark all read",
       "empty": "No notifications",
-      "emptyText": "Updates about your cases and payments will appear here."
+      "emptyText": "Updates about your cases and payments will appear here.",
+      "deliveryLabel": "Delivery status",
+      "channel": { "in_app": "In-app", "push": "Push", "telegram": "Telegram", "email": "Email", "sms": "SMS" },
+      "delivery": { "delivered": "Delivered", "pending": "Waiting for delivery", "failed": "Not delivered", "unknown": "Status unknown" }
     },
     "caseManage": {
       "title": "Manage case",
@@ -3281,7 +3324,12 @@
       },
       "seed": "Seed demo data",
       "seeding": "Seeding…",
-      "seedDone": "Seeded {templates} templates, {ads} ad products.",
+      "seedReady": "Demo data is ready. Running it again won't create duplicates.",
+      "seedRemoved": "Removed {n} stray test records.",
+      "seedConfirmTitle": "Seed demo data",
+      "seedConfirmText": "Service categories, services, advocates, lawyers, clients, call-center staff, templates, leads, payments, tasks, B2B records, reviews and audit samples are added where missing; existing ones are not duplicated. Stray records named “Approval Test” and “Runtime” are removed.",
+      "seedConfirm": "Seed",
+      "seedUnavailable": "Demo data seeding is disabled on this server.",
       "seedError": "Seed failed."
     },
     "form": {
@@ -3360,15 +3408,18 @@
     },
     "notifications": {
       "title": "Send notification",
-      "lead": "Send a push or SMS notification to a user.",
+      "lead": "Send a user a notification. It is delivered in-app, by push, Telegram and email; SMS is only a fallback for critical events.",
       "userId": "User id",
       "channel": "Channel",
       "push": "Push",
+      "telegram": "Telegram",
+      "email": "Email",
       "sms": "SMS",
       "body": "Message",
       "send": "Send",
       "sending": "Sending…",
-      "sent": "Notification sent.",
+      "sent": "Notification created.",
+      "queuedNote": "Channels whose provider isn't connected yet are queued and will be delivered once it is.",
       "user": "User",
       "selectUser": "Select a user"
     },
@@ -3581,17 +3632,56 @@
       "title": "Audit trail",
       "lead": "Log of all important actions in the system.",
       "empty": "No records",
-      "emptyText": "Audit records will appear here."
+      "emptyText": "Audit records will appear here.",
+      "appendOnly": "Append-only log: editing or deleting records is blocked on the server.",
+      "hash": "Hash",
+      "prevHash": "Previous hash",
+      "copyHash": "Copy full hash",
+      "copied": "Copied",
+      "chainSummary": "Chain link confirmed for {linked} of {total} records in this list.",
+      "chainNote": "Checked only among the records shown: the browser does not recompute hashes, and filters or paging can hide previous records at the edges.",
+      "noHashes": "This response has no hash fields, so the chain cannot be checked.",
+      "chain": {
+        "linked": "Linked",
+        "linkedFar": "Linked (non-adjacent)",
+        "outside": "Not verified",
+        "genesis": "Chain start",
+        "none": "No hash"
+      },
+      "chainHint": {
+        "linked": "Previous hash matches the event hash of the neighbouring record in this list.",
+        "linkedFar": "Previous hash matches the event hash of another, non-adjacent record in this list.",
+        "outside": "The previous record is not in this list (filter or paging), so the link cannot be checked.",
+        "genesis": "Previous hash is empty — this is the first record of the chain.",
+        "none": "The backend returned no hash for this record."
+      }
     },
     "integrations": {
       "title": "Integrations",
       "lead": "Connection status of external services.",
       "empty": "No integrations",
       "superadminOnly": "Managed by superadmin only",
-      "keys": { "website_api": "Website API", "mobile_api": "Mobile API", "lexgo_ai": "LexGo.AI", "telegram": "Telegram", "sms": "SMS", "email": "Email" },
+      "keys": { "website_api": "Website API", "mobile_api": "Mobile API", "lexgo_ai": "LexGo.AI", "telegram": "Telegram", "sms": "SMS", "email": "Email", "push": "Push", "payme": "Payme", "click": "Click", "oneid": "OneID", "myid": "MyID" },
       "status": { "connected": "Connected", "planned": "Planned", "error": "Error", "disconnected": "Disconnected",
         "degraded": "Degraded",
-        "not_configured": "Not configured" }
+        "not_configured": "Not configured",
+        "queued": "Queued",
+        "pending": "Pending",
+        "disabled": "Disabled",
+        "configured": "Configured",
+        "not_connected": "Not connected",
+        "demo": "Demo mode" },
+      "residency": {
+        "category": "Infrastructure",
+        "title": "Data residency (Uzbekistan)",
+        "state": { "confirmed": "Confirmed", "pending": "Pending infrastructure evidence", "unknown": "Status unknown" },
+        "confirmedNote": "The backend reports residency as confirmed.",
+        "pendingNote": "Hosting of production data in an Uzbekistan data center is not yet backed by hosting-provider evidence.",
+        "unknownNote": "The backend did not return this status.",
+        "region": "Region",
+        "provider": "Provider",
+        "checkedAt": "Checked"
+      }
     },
     "workflow": {
       "rules": "Automation rules",

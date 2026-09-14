@@ -3,10 +3,11 @@
 import { useTranslations } from "next-intl";
 import { listB2bProducts } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconBuilding } from "@/components/icons";
 
-const som = (n?: number) => (n ? n.toLocaleString("ru-RU").replace(/,/g, " ") : "");
+const som = (n?: number) => (n ? fmtUzs(n) : "");
 
 export default function B2bSection() {
   const t = useTranslations("b2b");

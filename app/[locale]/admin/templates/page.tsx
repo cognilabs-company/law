@@ -9,12 +9,13 @@ import {
   deleteDocumentTemplate,
 } from "@/lib/services/admin";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { AdminForm, AdminItem, Notice, useReload, type Field } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import { IconDocLines, IconPlus, IconSearch, IconEdit, IconTrash } from "@/components/icons";
 
-const som = (n?: number) => (n ? n.toLocaleString("ru-RU").replace(/,/g, " ") : "—");
+const som = (n?: number) => (n ? fmtUzs(n) : "—");
 const num = (v: string | boolean) => parseInt(String(v || "0"), 10) || 0;
 
 export default function AdminTemplates() {
@@ -181,7 +182,7 @@ export default function AdminTemplates() {
               language: editFull.language,
               description: editFull.description,
               template_text: editFull.templateText,
-              price: editFull.price ? String(editFull.price) : "",
+              price: editFull.price ? String(Math.round(editFull.price)) : "",
               is_active: editFull.isActive,
             }}
             resetOnDone={false}

@@ -5,12 +5,13 @@ import { useTranslations } from "next-intl";
 import { getSubscriptionPlans } from "@/lib/services/backend";
 import { createSubscriptionPlan } from "@/lib/services/admin";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { AdminForm, AdminItem, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import { IconStar, IconPlus } from "@/components/icons";
 
-const som = (n?: number) => (n ? n.toLocaleString("ru-RU").replace(/,/g, " ") : "—");
+const som = (n?: number) => (n ? fmtUzs(n) : "—");
 const toList = (v: string | boolean) =>
   String(v || "")
     .split(/[\n,]/)

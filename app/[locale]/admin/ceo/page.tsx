@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { getCeoDashboard } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton } from "@/components/portal/DataState";
 import LineChart from "@/components/admin/LineChart";
 import DonutChart from "@/components/admin/DonutChart";
@@ -14,7 +15,7 @@ const EMPTY = {
   mau: 0, dau: 0, gmv: 0, arr: 0, arpu: 0, takeRate: 0, cac: 0, ltv: 0, ltvCac: 0, paybackMonths: 0,
   npsClient: 0, npsAdvocate: 0, newClients: 0, newAdvocates: 0, newLawyers: 0, giftKpis: GIFT0,
 };
-const som = (n: number) => n.toLocaleString("ru-RU").replace(/,/g, " ");
+const som = (n: number) => fmtUzs(n);
 
 export default function AdminCeo() {
   const t = useTranslations("admin.ceo");

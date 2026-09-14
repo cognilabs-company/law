@@ -6,21 +6,27 @@ import {
   getIdentity,
   identityStart,
   identityVerifyDemo,
+  isIdentityPending,
   type IdentityProvider,
   type IdentityStatus,
 } from "@/lib/services/backend";
-import { isDemoUnavailable } from "@/lib/http";
+import { errDetail, isDemoUnavailable, isProviderUnavailable, isRateLimited } from "@/lib/http";
 import { useResourceOne } from "@/lib/useResource";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconShieldCheck } from "@/components/icons";
 
-// OneID / MyID identity verification (demo provider). Start → get a demo code
-// → verify. Real credentials can be wired later without changing this flow.
+const provName = (p: IdentityProvider | null) => (p === "myid" ? "MyID" : "OneID");
+
+// OneID / MyID identity verification through the backend provider interface.
+// Start either returns a provider URL (followed in the same tab) or, on a
+// staging demo provider, a state for code entry. Codes are never read from the
+// response. 503 = provider not connected.
 export default function IdentityVerify() {
   const t = useTranslations("portal.client.identity");
   const tcommon = useTranslations("common");
-  const res = useResourceOne(getIdentity, []);
+  const [key, setKey] = useState(0);
+  const res = useResourceOne(getIdentity, [key]);
   const [id, setId] = useState<IdentityStatus | null>(null);
   const cur = id ?? res.data;
   const [prov, setProv] = useState<IdentityProvider | null>(null);
@@ -29,24 +35,50 @@ export default function IdentityVerify() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  const errMsg = (e: unknown) =>
+    isProviderUnavailable(e) || isDemoUnavailable(e)
+      ? tcommon("identityUnavailable")
+      : isRateLimited(e)
+        ? errDetail(e) || tcommon("rateLimited")
+        : t("error");
+
+  function refresh() {
+    setId(null);
+    setNote(null);
+    setKey((k) => k + 1);
+  }
+
   async function start(p: IdentityProvider) {
     if (busy) return;
     setBusy(true);
     setNote(null);
     setProv(p);
+    let leaving = false;
     try {
       const r = await identityStart(p);
+      if (r.mode === "redirect") {
+        // The provider page returns to the app; /identity/me shows the result.
+        leaving = true;
+        setNote({ ok: true, msg: t("redirecting", { provider: provName(p) }) });
+        window.location.assign(r.authUrl);
+        return;
+      }
+      if (!r.state) {
+        setNote({ ok: false, msg: t("error") });
+        setProv(null);
+        return;
+      }
       setFlow({ state: r.state });
-      setCode(r.demoCode);
-    } catch {
-      setNote({ ok: false, msg: t("error") });
+      setCode("");
+    } catch (e) {
+      setNote({ ok: false, msg: errMsg(e) });
       setProv(null);
     } finally {
-      setBusy(false);
+      if (!leaving) setBusy(false);
     }
   }
   async function verify() {
-    if (!flow || busy) return;
+    if (!flow || busy || !code.trim()) return;
     setBusy(true);
     setNote(null);
     try {
@@ -59,11 +91,25 @@ export default function IdentityVerify() {
         setNote({ ok: false, msg: t("failed") });
       }
     } catch (e) {
-      setNote({ ok: false, msg: isDemoUnavailable(e) ? tcommon("demoOff") : t("error") });
+      setNote({ ok: false, msg: errMsg(e) });
     } finally {
       setBusy(false);
     }
   }
+
+  const providers = (
+    <div className="idv__providers">
+      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+      <button className="idv__prov" type="button" disabled={busy} onClick={() => start("oneid")}>
+        <b>OneID</b>
+        <span>{t("oneidSub")}</span>
+      </button>
+      <button className="idv__prov" type="button" disabled={busy} onClick={() => start("myid")}>
+        <b>MyID</b>
+        <span>{t("myidSub")}</span>
+      </button>
+    </div>
+  );
 
   return (
     <div className="ppanel">
@@ -82,31 +128,34 @@ export default function IdentityVerify() {
         </div>
       ) : flow ? (
         <div className="idv__flow">
-          <p className="advmuted">{t("demoHint", { provider: prov === "myid" ? "MyID" : "OneID" })}</p>
+          <p className="advmuted">{t("codeHint", { provider: provName(prov) })}</p>
           <div>
             <label>{t("codeLabel")}</label>
-            <input value={code} onChange={(e) => setCode(e.target.value)} />
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+            />
           </div>
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-          <button className="btn btn--pri btn--full" type="button" disabled={busy} onClick={verify}>
+          <button className="btn btn--pri btn--full" type="button" disabled={busy || !code.trim()} onClick={verify}>
             {busy ? t("verifying") : t("verify")}
           </button>
           <button className="rf__link rf__link--muted" type="button" onClick={() => { setFlow(null); setProv(null); setNote(null); }}>
             {t("cancel")}
           </button>
         </div>
-      ) : (
-        <div className="idv__providers">
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-          <button className="idv__prov" type="button" disabled={busy} onClick={() => start("oneid")}>
-            <b>OneID</b>
-            <span>{t("oneidSub")}</span>
+      ) : isIdentityPending(cur) ? (
+        <div className="idv__flow">
+          <p className="advmuted">{t("pending")}</p>
+          <button className="btn btn--line btn--sm" type="button" disabled={busy} onClick={refresh}>
+            {t("refresh")}
           </button>
-          <button className="idv__prov" type="button" disabled={busy} onClick={() => start("myid")}>
-            <b>MyID</b>
-            <span>{t("myidSub")}</span>
-          </button>
+          {providers}
         </div>
+      ) : (
+        providers
       )}
     </div>
   );
