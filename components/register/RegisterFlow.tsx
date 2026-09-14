@@ -5,7 +5,11 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError, errDetail, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
-import type { RegisterStartResult } from "@/lib/services/backend";
+import { currentConsents, listLegalConsents, type RegisterStartResult } from "@/lib/services/backend";
+import { useResource } from "@/lib/useResource";
+import { savePendingRegistration } from "@/lib/consents";
+import { LEGAL_FALLBACK_ITEMS } from "@/lib/legal";
+import { normUzPhone } from "@/lib/phone";
 import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import {
@@ -24,6 +28,7 @@ import PhotoUpload from "./PhotoUpload";
 import WorkHistoryEditor from "./WorkHistoryEditor";
 import ProfilePreview from "./ProfilePreview";
 import PasswordInput from "../PasswordInput";
+import ConsentChecklist from "../legal/ConsentChecklist";
 
 const ZERO_STATS: AdvocateStats = {
   totalCases: 0,
@@ -82,6 +87,14 @@ export default function RegisterFlow() {
   // wait = the server refused a new code for now (cooldown / daily quota).
   const [startErr, setStartErr] = useState<{ msg: string; login?: boolean; wait?: boolean } | null>(null);
   const [pendingMsg, setPendingMsg] = useState<string | null>(null);
+
+  // Explicit acceptance of each current legal document on the last profile
+  // step. Placeholders (terms, privacy, disclaimer) while the list loads/fails.
+  const tl = useTranslations("legal");
+  const legalDocs = useResource(() => listLegalConsents().then(currentConsents), []);
+  const [agreed, setAgreed] = useState<Record<string, boolean>>({});
+  const consentItems = legalDocs.status === "ready" && legalDocs.data.length ? legalDocs.data : LEGAL_FALLBACK_ITEMS;
+  const consentsOk = consentItems.every((c) => agreed[c.slug]);
 
   const steps = useMemo(
     () => ["phone", "type", ...(draft.accountType ? [...STEPS_BY_TYPE[draft.accountType], "verify"] : [])],
@@ -167,12 +180,22 @@ export default function RegisterFlow() {
     otp.issue(r.expiresAt);
   }
 
+  // Remember what was accepted (real ids/versions only, so nothing while the
+  // list is unavailable — the gate then asks after the first login).
+  // ConsentGate posts it once a token exists: right after verify, or at the
+  // first login for approval-based / 2FA roles.
+  function savePendingConsents() {
+    if (legalDocs.status !== "ready") return;
+    savePendingRegistration(normUzPhone(draft.phone), legalDocs.data.filter((d) => agreed[d.slug]));
+  }
+
   // Last profile step → request the OTP, then advance to the verify step.
   async function startReg() {
     if (!draft.accountType || starting) return;
     // A still-valid code for the same details → reuse it instead of burning
     // the resend cooldown and the daily OTP quota.
     if (verificationId && issuedKey === otpKey && otp.issued && !otp.expired) {
+      savePendingConsents();
       next();
       return;
     }
@@ -188,6 +211,7 @@ export default function RegisterFlow() {
         return;
       }
       applyIssue(r);
+      savePendingConsents();
       setOtpNote(null);
       next();
     } catch (e) {
@@ -311,6 +335,8 @@ export default function RegisterFlow() {
         if (!p.specialization?.trim()) m.push(t("advocate.specialization"));
         break;
     }
+    // Last profile step (lastProfileStep is declared below).
+    if (draft.accountType && idx === steps.length - 2 && !consentsOk) m.push(tl("consent.missing"));
     return m;
   }
   const canContinue = () => missingFields().length === 0;
@@ -631,6 +657,15 @@ export default function RegisterFlow() {
               <div className="rf__previewnote">{t("advocate.review.previewNote")}</div>
               <ProfilePreview p={p} />
             </div>
+          ) : null}
+
+          {lastProfileStep ? (
+            <ConsentChecklist
+              items={consentItems}
+              checked={agreed}
+              onToggle={(slug, on) => setAgreed((a) => ({ ...a, [slug]: on }))}
+              hint
+            />
           ) : null}
         </div>
 

@@ -24,6 +24,7 @@ import {
   registerVerify,
   type BackendRole,
   type AuthResult,
+  type AcceptedConsentRef,
   type RegisterStartResult,
   type TwoFactorChallenge,
 } from "./services/backend";
@@ -52,6 +53,9 @@ export type Session = {
   twoFactorRequired?: boolean;
   // undefined = unknown (/auth/me doesn't expose the link state).
   telegramLinked?: boolean;
+  // Legal consents the server reports as accepted (lib/consents.ts seeds them
+  // as synced). Empty until /auth/me exposes them.
+  acceptedConsents?: AcceptedConsentRef[];
 };
 
 // Shown on the login form: the refresh session ended (401/403 on refresh), or
@@ -212,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             twoFactorMethod: u.twoFactorMethod,
             twoFactorRequired: u.twoFactorRequired,
             telegramLinked: u.telegramLinked ?? cur.telegramLinked,
+            acceptedConsents: u.acceptedConsents?.length ? u.acceptedConsents : cur.acceptedConsents,
           });
         };
         apiMe().then(applyMe).catch(() => {});
@@ -242,6 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         backendRole: user.primaryRole,
         twoFactorRequired: user.twoFactorRequired,
         telegramLinked: user.telegramLinked,
+        acceptedConsents: user.acceptedConsents,
       };
       persist(s);
       setAuthNotice(null);
@@ -331,6 +337,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         twoFactorMethod: user.twoFactorMethod,
         twoFactorRequired: user.twoFactorRequired,
         telegramLinked: user.telegramLinked,
+        acceptedConsents: user.acceptedConsents,
       });
     },
     [persist],

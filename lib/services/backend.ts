@@ -34,7 +34,11 @@ export type AuthUser = {
   // Backend flag: 2FA is mandatory for this account (staff/seller roles).
   twoFactorRequired: boolean;
   telegramLinked?: boolean; // undefined = /auth/me doesn't expose it
+  // Legal consents the server reports as accepted ([] today: /auth/me has no
+  // such field yet). Seeds lib/consents.ts as already-synced records.
+  acceptedConsents?: AcceptedConsentRef[];
 };
+export type AcceptedConsentRef = { id: string; slug: string; version: string };
 export type AuthResult = { token: string; refreshToken: string; user: AuthUser };
 
 const ROLE_SET: BackendRole[] = [
@@ -72,7 +76,23 @@ function normUser(v: unknown): AuthUser {
     primaryRole: rawRole,
     twoFactorRequired: Boolean(d.two_factor_required ?? d.two_factor_mandatory ?? tf.required ?? tf.mandatory),
     telegramLinked: telegramLinkedOf(d),
+    acceptedConsents: acceptedConsentsOf(d),
   };
+}
+// Forward-compatible: accepted_consents / user_consents / consents as an array
+// of ids or {consent_id|document_id|id, slug, version}. Anything else → [].
+function acceptedConsentsOf(d: Dict): AcceptedConsentRef[] {
+  return asArr(d.accepted_consents ?? d.user_consents ?? d.consents)
+    .map((v) => {
+      if (typeof v === "string" || typeof v === "number") return { id: String(v), slug: "", version: "" };
+      const c = asDict(v);
+      return {
+        id: asStr(c.consent_id ?? c.consent_document_id ?? c.document_id ?? c.id),
+        slug: asStr(c.slug).trim().toLowerCase(),
+        version: asStr(c.version),
+      };
+    })
+    .filter((c) => c.id);
 }
 
 function normAuth(v: unknown): AuthResult {
@@ -3105,6 +3125,91 @@ export async function acceptRegisterRequest(id: string): Promise<unknown> {
 }
 export async function rejectRegisterRequest(id: string): Promise<unknown> {
   return http(`/admin/register-requests/${id}/reject`, { method: "POST" });
+}
+
+// ── Legal consents (versioned terms / privacy / disclaimer) ───────
+// GET /legal/consents is public and returns the active documents (title and
+// body are Uzbek-only; Accept-Language / ?lang are ignored). POST
+// /legal/consents/{id}/accept needs a token. There is no read-back of a user's
+// own acceptances — see lib/consents.ts.
+export type ConsentDoc = {
+  id: string;
+  slug: string; // terms | privacy | legal_disclaimer | future slugs
+  version: string;
+  title: string;
+  body: string;
+  active: boolean;
+  createdAt: string;
+};
+export function normConsentDoc(v: unknown): ConsentDoc {
+  const d = asDict(v);
+  return {
+    id: asStr(d.id ?? d.consent_id ?? d.document_id),
+    slug: asStr(d.slug ?? d.type ?? d.code).trim().toLowerCase(),
+    version: asStr(d.version ?? d.version_label),
+    title: asStr(d.title ?? d.name),
+    body: asStr(d.body ?? d.content ?? d.text),
+    active: !(d.is_active === false || d.is_active === "false" || d.is_active === 0 || d.active === false),
+    createdAt: asStr(d.created_at ?? d.published_at ?? d.updated_at),
+  };
+}
+export function normConsentDocs(data: unknown): ConsentDoc[] {
+  return listFrom(data, "items", "data", "consents", "documents", "results")
+    .map(normConsentDoc)
+    .filter((d) => d.id && d.slug);
+}
+// "1.10" > "1.9": compare the numeric segments.
+function cmpVersion(a: string, b: string): number {
+  const pa = a.split(/[^0-9]+/).filter(Boolean).map(Number);
+  const pb = b.split(/[^0-9]+/).filter(Boolean).map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] ?? 0;
+    const y = pb[i] ?? 0;
+    if (x !== y) return x - y;
+  }
+  return 0;
+}
+const CONSENT_ORDER = ["terms", "privacy", "legal_disclaimer"];
+// The documents a user must accept now: active only, the newest version per
+// slug (tie → later created_at), in reading order (terms, privacy, disclaimer,
+// then any other slug alphabetically).
+export function currentConsents(docs: ConsentDoc[]): ConsentDoc[] {
+  const best = new Map<string, ConsentDoc>();
+  for (const d of docs) {
+    if (!d.active) continue;
+    const cur = best.get(d.slug);
+    const c = cur ? cmpVersion(d.version, cur.version) : 1;
+    if (!cur || c > 0 || (c === 0 && d.createdAt > cur.createdAt)) best.set(d.slug, d);
+  }
+  const rank = (s: string) => {
+    const i = CONSENT_ORDER.indexOf(s);
+    return i < 0 ? CONSENT_ORDER.length : i;
+  };
+  return [...best.values()].sort((a, b) => rank(a.slug) - rank(b.slug) || a.slug.localeCompare(b.slug));
+}
+export async function listLegalConsents(): Promise<ConsentDoc[]> {
+  return normConsentDocs(await http("/legal/consents"));
+}
+// synced = the server has it (2xx, 409 or "already accepted"); retry = try
+// again later (offline, token, rate limit, 5xx); failed = refused for good
+// (other 4xx). `status` is the HTTP status (200 on success). Never throws.
+export type ConsentAcceptOutcome = { outcome: "synced" | "retry" | "failed"; status: number };
+export async function acceptLegalConsent(id: string, version: string): Promise<ConsentAcceptOutcome> {
+  try {
+    // {version} is harmless if the endpoint takes no body.
+    await http(`/legal/consents/${encodeURIComponent(id)}/accept`, {
+      method: "POST",
+      body: JSON.stringify(version ? { version } : {}),
+    });
+    return { outcome: "synced", status: 200 };
+  } catch (e) {
+    // http() only throws a non-ApiError after a 2xx with a non-JSON body.
+    if (!(e instanceof ApiError)) return { outcome: "synced", status: 200 };
+    const s = e.status;
+    if (s === 409 || /already|allaqachon|уже/i.test(e.detail || "")) return { outcome: "synced", status: s };
+    if (s === 0 || s === 401 || s === 408 || s === 425 || s === 429 || s >= 500) return { outcome: "retry", status: s };
+    return { outcome: "failed", status: s };
+  }
 }
 
 // ── helpers ───────────────────────────────────────────────────────

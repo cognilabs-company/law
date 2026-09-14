@@ -97,9 +97,9 @@ export default function Footer() {
         <div className="ftr__b">
           <span>{t("rights")}</span>
           <nav>
-            <a href="#">{t("terms")}</a>
-            <a href="#">{t("privacy")}</a>
-            <a href="#">{t("offer")}</a>
+            <Link href="/legal/terms">{t("terms")}</Link>
+            <Link href="/legal/privacy">{t("privacy")}</Link>
+            <Link href="/legal/disclaimer">{t("disclaimer")}</Link>
           </nav>
         </div>
       </div>

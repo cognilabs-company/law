@@ -140,7 +140,7 @@
     "rights": "© 2026 LexGo.uz — all rights reserved",
     "terms": "Terms of use",
     "privacy": "Privacy policy",
-    "offer": "Public offer"
+    "disclaimer": "Legal disclaimer"
   },
   "home": {
     "metaTitle": "Legal help in a few taps",
@@ -2847,7 +2847,7 @@
       "invalid": "Enter a valid phone number.",
       "send": "Send code",
       "sending": "Sending code…",
-      "terms": "By continuing you agree to LexGo's Terms and Privacy Policy.",
+      "terms": "On the last step you'll separately confirm the Terms of use, Privacy policy and Legal disclaimer.",
       "haveAccount": "Already have an account?",
       "login": "Log in",
       "continue": "Continue"
@@ -3785,6 +3785,41 @@
     "success": "Request sent. We will contact you soon.",
     "sending": "Sending…",
     "submit": "Send request"
+  },
+  "legal": {
+    "indexTitle": "Legal documents",
+    "indexSubtitle": "The current documents that govern your use of the LexGo platform.",
+    "docs": {
+      "terms": "Terms of use",
+      "privacy": "Privacy policy",
+      "disclaimer": "Legal disclaimer"
+    },
+    "version": "Version {version}",
+    "published": "Published: {date}",
+    "uzOnlyNote": "This document is published in Uzbek only. The Uzbek text is the legally binding version.",
+    "originalTitle": "Original title: {title}",
+    "read": "Read",
+    "allDocs": "All documents",
+    "empty": "No documents have been published yet.",
+    "unavailableTitle": "Couldn't load the document",
+    "unavailableText": "We can't reach the server. Please refresh the page in a little while.",
+    "notFoundTitle": "Document not found",
+    "notFoundText": "This document is no longer in effect or has moved.",
+    "consent": {
+      "title": "Agreement to documents",
+      "hint": "To create an account, accept each document.",
+      "accept": "I have read and accept: {doc}",
+      "showText": "Show text",
+      "openPage": "Open in a new tab",
+      "missing": "Agreement to the documents"
+    },
+    "gate": {
+      "title": "Please accept our legal documents",
+      "titleUpdated": "Our legal documents have been updated",
+      "text": "To keep using LexGo, please read and accept the current versions of the documents below.",
+      "accept": "Accept and continue",
+      "logout": "Log out"
+    }
   },
   "call": {
     "connecting": "Connecting…",

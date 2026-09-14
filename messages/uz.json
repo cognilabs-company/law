@@ -140,7 +140,7 @@
     "rights": "© 2026 LexGo.uz — barcha huquqlar himoyalangan",
     "terms": "Foydalanish shartlari",
     "privacy": "Maxfiylik siyosati",
-    "offer": "Ommaviy oferta"
+    "disclaimer": "Huquqiy ogohlantirish"
   },
   "home": {
     "metaTitle": "Yuridik yordam, bir necha tegishda",
@@ -2853,7 +2853,7 @@
       "invalid": "To'g'ri telefon raqamini kiriting.",
       "send": "Kod yuborish",
       "sending": "Kod yuborilmoqda…",
-      "terms": "Davom etish orqali LexGo shartlari va Maxfiylik siyosatiga rozilik bildirasiz.",
+      "terms": "Oxirgi qadamda foydalanish shartlari, maxfiylik siyosati va huquqiy ogohlantirishni alohida tasdiqlaysiz.",
       "haveAccount": "Hisobingiz bormi?",
       "login": "Kirish",
       "continue": "Davom etish"
@@ -3791,6 +3791,41 @@
     "success": "So‘rov yuborildi. Tez orada bog‘lanamiz.",
     "sending": "Yuborilmoqda…",
     "submit": "So‘rov yuborish"
+  },
+  "legal": {
+    "indexTitle": "Huquqiy hujjatlar",
+    "indexSubtitle": "LexGo platformasidan foydalanishni tartibga soluvchi amaldagi hujjatlar.",
+    "docs": {
+      "terms": "Foydalanish shartlari",
+      "privacy": "Maxfiylik siyosati",
+      "disclaimer": "Huquqiy ogohlantirish"
+    },
+    "version": "Versiya {version}",
+    "published": "E'lon qilingan: {date}",
+    "uzOnlyNote": "Hujjat faqat o'zbek tilida e'lon qilingan. Yuridik kuchga o'zbek tilidagi matn ega.",
+    "originalTitle": "Asl nomi: {title}",
+    "read": "O'qish",
+    "allDocs": "Barcha hujjatlar",
+    "empty": "Hozircha e'lon qilingan hujjatlar yo'q.",
+    "unavailableTitle": "Hujjatni yuklab bo'lmadi",
+    "unavailableText": "Server bilan aloqa yo'q. Birozdan so'ng sahifani yangilang.",
+    "notFoundTitle": "Hujjat topilmadi",
+    "notFoundText": "Bu hujjat hozir amalda emas yoki boshqa manzilga ko'chirilgan.",
+    "consent": {
+      "title": "Hujjatlarga rozilik",
+      "hint": "Hisob yaratish uchun har bir hujjatni qabul qilishingiz kerak.",
+      "accept": "{doc} bilan tanishdim va roziman",
+      "showText": "Matnni ko'rsatish",
+      "openPage": "Alohida oynada ochish",
+      "missing": "Hujjatlarga rozilik"
+    },
+    "gate": {
+      "title": "Huquqiy hujjatlarni qabul qiling",
+      "titleUpdated": "Huquqiy hujjatlar yangilandi",
+      "text": "LexGo'dan foydalanishni davom ettirish uchun quyidagi hujjatlarning amaldagi versiyalari bilan tanishing va ularni qabul qiling.",
+      "accept": "Qabul qilish va davom etish",
+      "logout": "Chiqish"
+    }
   },
   "call": {
     "connecting": "Ulanmoqda…",
