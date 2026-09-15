@@ -359,7 +359,7 @@ export default function LawyersSection({
         )}
 
         {chatErr ? (
-          <div className="info" style={{ color: "#dc2626", borderColor: "#fecaca", background: "#fef2f2" }}>
+          <div className="info" style={{ color: "var(--dk-txt-err, #dc2626)", borderColor: "var(--dk-bd-err, #fecaca)", background: "var(--dk-tint-err, #fef2f2)" }}>
             <IconInfo />
             <span>{chatErr}</span>
           </div>

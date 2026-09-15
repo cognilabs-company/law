@@ -85,7 +85,7 @@ export default function ContactSection() {
               />
             </div>
             {state === "error" ? (
-              <p className="disc" style={{ color: "#C0392B", borderTop: 0, padding: 0 }}>
+              <p className="disc" style={{ color: "var(--dk-txt-err, #C0392B)", borderTop: 0, padding: 0 }}>
                 {t("form.required")}
               </p>
             ) : null}

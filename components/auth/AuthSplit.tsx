@@ -4,6 +4,7 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { IconLogo, IconCheck } from "../icons";
+import ThemeToggle from "../ThemeToggle";
 
 const COUNT_MS = 1400;
 
@@ -99,6 +100,9 @@ export default function AuthSplit({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main className="auth__main">
+        <div className="auth__tools">
+          <ThemeToggle variant="square" />
+        </div>
         <div className="auth__main-in">{children}</div>
       </main>
     </div>

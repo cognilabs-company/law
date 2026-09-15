@@ -158,7 +158,7 @@ export default function PromotionPanel() {
                 );
               })}
             </div>
-            {err ? <p className="disc" style={{ color: "#C0392B" }}>{err}</p> : null}
+            {err ? <p className="disc" style={{ color: "var(--dk-txt-err, #C0392B)" }}>{err}</p> : null}
             <p className="promo__note">{t("boostNote")}</p>
           </>
         )}

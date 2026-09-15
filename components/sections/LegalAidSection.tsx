@@ -59,7 +59,7 @@ export default function LegalAidSection() {
             <textarea id="la-details" value={details} onChange={(e) => setDetails(e.target.value)} placeholder={t("detailsPh")} />
           </div>
           {state === "error" ? (
-            <p className="disc" style={{ color: "#C0392B", borderTop: 0, padding: 0 }}>{t("required")}</p>
+            <p className="disc" style={{ color: "var(--dk-txt-err, #C0392B)", borderTop: 0, padding: 0 }}>{t("required")}</p>
           ) : null}
           {state === "ok" ? <div className="cform__ok">{t("success")}</div> : null}
           <button className="btn btn--pri" type="submit" disabled={state === "sending"}>

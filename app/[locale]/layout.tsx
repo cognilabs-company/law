@@ -20,6 +20,8 @@ import MobileTabBar from "@/components/MobileTabBar";
 import AIChatDock from "@/components/AIChatDock";
 import ScrollProgress from "@/components/ScrollProgress";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import ThemeSync from "@/components/ThemeSync";
+import { THEME_SCRIPT } from "@/lib/themeScript";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -68,9 +70,15 @@ export default async function LocaleLayout({ children, params }: Props) {
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`${inter.variable} ${onest.variable}`}>
+    // The theme script sets data-theme / color-scheme on <html> before React
+    // hydrates, so the attribute difference is expected.
+    <html lang={locale} className={`${inter.variable} ${onest.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
+          <ThemeSync />
           <AuthProvider>
             <SessionExpiryWatcher />
             <ConsentGate />

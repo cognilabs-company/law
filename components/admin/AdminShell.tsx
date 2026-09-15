@@ -6,6 +6,7 @@ import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess, sessionRoles, type AdminPermission } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
 import LanguageSwitcher from "../LanguageSwitcher";
+import ThemeToggle from "../ThemeToggle";
 import {
   IconLogo,
   IconGrid,
@@ -208,6 +209,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </button>
           <h1>{title}</h1>
           <div className="ptop__sp">
+            <ThemeToggle variant="square" />
             <LanguageSwitcher />
             <Link className="ptop__user" href={profileHref} title={session?.name || t("badge")}>
               <span className="ptop__av">{initials(session?.name || "A")}</span>

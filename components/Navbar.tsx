@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
+import ThemeToggle from "./ThemeToggle";
 import { IconLogo } from "./icons";
 
 const MAIN = [
@@ -74,6 +75,7 @@ export default function Navbar() {
               ))}
             </nav>
             <div className="bar__act">
+              <ThemeToggle />
               <LanguageSwitcher />
               <Link href="/login" className="btn btn--glass btn--sm">
                 {t("login")}
@@ -115,6 +117,7 @@ export default function Navbar() {
             <Link href="/chat" className="btn btn--grad btn--full">
               {t("register")}
             </Link>
+            <ThemeToggle variant="segmented" />
             <div style={{ marginTop: 6 }}>
               <LanguageSwitcher />
             </div>

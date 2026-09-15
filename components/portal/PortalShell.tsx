@@ -6,6 +6,7 @@ import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess, type Role } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
 import LanguageSwitcher from "../LanguageSwitcher";
+import ThemeToggle from "../ThemeToggle";
 import NotificationBell from "./NotificationBell";
 import IncomingCallWatcher from "./IncomingCallWatcher";
 import GrowthBanner from "./GrowthBanner";
@@ -259,6 +260,7 @@ export default function PortalShell({
           <h1>{title}</h1>
           <div className="ptop__sp">
             <NotificationBell role={role} />
+            <ThemeToggle variant="square" />
             <LanguageSwitcher />
             <Link className="ptop__user" href={profileHref} title={session.name}>
               <span className="ptop__av">{initials(session.name || "U")}</span>

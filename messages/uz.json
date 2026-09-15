@@ -3965,5 +3965,11 @@
       "cancel": "Bekor qilish",
       "participants": "{count} ishtirokchi",
       "remaining": "Qolgan vaqt"
+  },
+  "theme": {
+    "label": "Mavzu",
+    "light": "Yorug'",
+    "dark": "Qorong'i",
+    "system": "Qurilma bo'yicha"
   }
 }

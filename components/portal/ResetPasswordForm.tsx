@@ -169,7 +169,7 @@ export default function ResetPasswordForm() {
               />
               <p className="rf__hint">{t("resetPasswordHint")}</p>
             </div>
-            {err ? <p style={{ color: "#C0392B", fontSize: ".85rem", margin: 0 }}>{err}</p> : null}
+            {err ? <p style={{ color: "var(--dk-txt-err, #C0392B)", fontSize: ".85rem", margin: 0 }}>{err}</p> : null}
             {note ? <p className="rf__otpmsg rf__otpmsg--ok">{note}</p> : null}
             <button
               className="btn btn--pri btn--full"
@@ -218,7 +218,7 @@ export default function ResetPasswordForm() {
               />
             </div>
           </div>
-          {err ? <p style={{ color: "#C0392B", fontSize: ".85rem", margin: 0 }}>{err}</p> : null}
+          {err ? <p style={{ color: "var(--dk-txt-err, #C0392B)", fontSize: ".85rem", margin: 0 }}>{err}</p> : null}
           <button className="btn btn--pri btn--full" type="submit" disabled={busy || otp.resendIn > 0}>
             {busy ? t("resetSending") : otp.resendIn > 0 ? tOtp("resendIn", { time: fmtClock(otp.resendIn) }) : t("resetSendCode")}
           </button>

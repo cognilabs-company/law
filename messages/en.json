@@ -3959,5 +3959,11 @@
       "cancel": "Cancel",
       "participants": "{count} participants",
       "remaining": "Time left"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "Device"
   }
 }
