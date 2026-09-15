@@ -1545,7 +1545,7 @@ body:has(.auth) .fab{display:none}
 
 .auth{height:100dvh;overflow:hidden;display:grid;grid-template-columns:minmax(0,44%) minmax(0,1fr);background:#fff}
 .auth:has(.plogin){grid-template-columns:minmax(0,52%) minmax(0,1fr)}
-.auth__brand{position:relative;overflow:hidden;background:url(/law-login.jpg) right center/cover no-repeat,var(--grad-dark);color:#fff;padding:clamp(30px,3.4vw,56px) clamp(30px,calc(10vw - 88px),150px);display:flex;container-type:inline-size}
+.auth__brand{position:relative;overflow:hidden;background:var(--grad-dark);color:#fff;padding:clamp(30px,3.4vw,56px) clamp(30px,calc(10vw - 88px),150px);display:flex;container-type:inline-size}
 .auth__mesh{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(5,18,44,.6),rgba(5,18,44,.25) 55%,transparent 80%)}
 /* narrow panel: the scales slide under the copy, so dim them more */
 @container (max-width:700px){.auth__mesh{background:linear-gradient(90deg,rgba(5,18,44,.84),rgba(5,18,44,.6) 60%,rgba(5,18,44,.25))}}
@@ -1558,7 +1558,9 @@ body:has(.auth) .fab{display:none}
 .auth__feats{list-style:none;padding:0;margin:0;display:grid;gap:14px}
 .auth__feats li{display:flex;gap:11px;align-items:flex-start;font-size:.98rem;color:#E6F0FF}
 .auth__feats svg{width:20px;height:20px;flex:none;margin-top:2px;stroke:var(--cy);stroke-width:2.6}
-.auth__stats{display:flex;gap:clamp(18px,2.5vw,34px);padding-top:26px;border-top:1px solid rgba(255,255,255,.14)}
+.auth__stats{position:relative;display:flex;gap:clamp(18px,2.5vw,34px);padding-top:26px}
+/* The divider is a layer rather than a border so it can draw in from the left. */
+.auth__stats::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:rgba(255,255,255,.14);transform-origin:left}
 .auth__stats b{display:block;font-family:var(--fd);font-size:clamp(1.3rem,1.8vw,1.6rem);letter-spacing:-.02em}
 .auth__stats span{font-size:.8rem;color:#9FB4D4}
 
@@ -1576,9 +1578,69 @@ body:has(.auth) .fab{display:none}
 .auth__main .rf__card{box-shadow:none;background:transparent;width:100%!important;max-width:none;margin:0;padding:0}
 
 @media (max-width:980px){
-  .auth{grid-template-columns:1fr;height:auto;min-height:100dvh;overflow:visible}
+  /* :has(.plogin) is listed too: its two-column template out-ranks a bare
+     .auth here, and on a phone it squeezed the login form into 52% of the
+     screen next to the hidden brand panel. */
+  .auth,.auth:has(.plogin){grid-template-columns:1fr;height:auto;min-height:100dvh;overflow:visible}
   .auth__brand{display:none}
   .auth__main{min-height:100dvh}
+}
+
+
+/* ── auth entrance: brand panel settles in, copy and stats follow, the form
+   fills in field by field. Every element starts from its keyframe `from` state
+   (fill-mode both), so nothing flashes before its turn. ── */
+.auth{--auth-ease:cubic-bezier(.22,1,.36,1)}
+.auth__bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;animation:authBg 1.6s var(--auth-ease) both}
+.auth__bg::before{content:"";position:absolute;inset:0;background:url(/law-login.jpg) right center/cover no-repeat;
+  animation:authDrift 22s ease-in-out 1.6s infinite alternate}
+.auth__logo{animation:authDown .8s var(--auth-ease) .15s both}
+.auth__h{animation:authBlurIn 1s var(--auth-ease) .28s both}
+.auth__p{animation:authRise .9s var(--auth-ease) .45s both}
+.auth__feats li{animation:authSlide .7s var(--auth-ease) both;animation-delay:calc(.62s + var(--i,0) * .1s)}
+/* the tick draws itself left to right just after its line arrives */
+.auth__feats li svg{stroke-dasharray:24;animation:authDraw .55s ease-out both;animation-delay:calc(.82s + var(--i,0) * .1s)}
+.auth__stats::before{animation:authLine 1s var(--auth-ease) 1s both}
+.auth__stat{animation:authRise .8s var(--auth-ease) both;animation-delay:calc(1.1s + var(--i,0) * .1s)}
+
+/* form: --fx scales every delay/duration; a view switch (2FA and back) replays
+   the same sequence at a third of the pace */
+.auth__main .plogin__c--anim{--fx:1}
+.auth__main .plogin__c--anim.plogin__c--swap{--fx:.35}
+.auth__main .plogin__c--anim>:not(.cform),.auth__main .plogin__c--anim .cform>*{
+  animation:authRise calc(.75s * max(var(--fx),.6)) var(--auth-ease) both}
+.auth__main .plogin__c--anim .cform>.btn{animation-name:authBtn}
+.auth__main .plogin__c--anim>.logo{animation-delay:calc(.25s * var(--fx))}
+.auth__main .plogin__c--anim>h1{animation-delay:calc(.33s * var(--fx))}
+.auth__main .plogin__c--anim>.sub{animation-delay:calc(.41s * var(--fx))}
+.auth__main .plogin__c--anim .cform>:nth-child(1){animation-delay:calc(.5s * var(--fx))}
+.auth__main .plogin__c--anim .cform>:nth-child(2){animation-delay:calc(.58s * var(--fx))}
+.auth__main .plogin__c--anim .cform>:nth-child(3){animation-delay:calc(.66s * var(--fx))}
+.auth__main .plogin__c--anim .cform>:nth-child(4){animation-delay:calc(.74s * var(--fx))}
+.auth__main .plogin__c--anim .cform>:nth-child(5){animation-delay:calc(.82s * var(--fx))}
+.auth__main .plogin__c--anim .cform>:nth-child(6){animation-delay:calc(.9s * var(--fx))}
+.auth__main .plogin__c--anim .cform>:nth-child(n+7){animation-delay:calc(.98s * var(--fx))}
+.auth__main .plogin__c--anim>.plogin__alt{animation-delay:calc(1s * var(--fx))}
+.auth__main .plogin__c--anim>.plogin__note{animation-delay:calc(1.08s * var(--fx))}
+/* messages that appear later answer at once: errors nudge, notes fade */
+.auth__main .plogin__c--anim .cform>.plogin__err,
+.auth__main .plogin__c--anim .cform>.rf__otpmsg--err{animation:authErr .45s ease-out 0s both}
+.auth__main .plogin__c--anim .cform>.rf__otpmsg:not(.rf__otpmsg--err){animation:fade .3s ease-out 0s both}
+.plogin__err{color:#C0392B;font-size:.85rem;margin:0}
+
+@keyframes authBg{from{opacity:0;transform:scale(1.1)}to{opacity:1;transform:none}}
+@keyframes authDrift{from{transform:none}to{transform:scale(1.05) translate3d(-1%,0,0)}}
+@keyframes authDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+@keyframes authRise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes authBlurIn{from{opacity:0;transform:translateY(22px);filter:blur(10px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes authSlide{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:none}}
+@keyframes authDraw{from{stroke-dashoffset:-24}to{stroke-dashoffset:0}}
+@keyframes authLine{from{transform:scaleX(0)}to{transform:none}}
+@keyframes authBtn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes authErr{0%{opacity:0;transform:none}20%{opacity:1;transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .auth__bg,.auth__bg::before,.auth__logo,.auth__h,.auth__p,.auth__feats li,.auth__feats li svg,
+  .auth__stats::before,.auth__stat,.auth__main .plogin__c--anim>*,.auth__main .plogin__c--anim .cform>*{animation:none!important}
 }
 
 
