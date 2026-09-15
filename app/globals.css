@@ -1544,11 +1544,12 @@ body:has(.auth) .tabbar,
 body:has(.auth) .fab{display:none}
 
 .auth{height:100dvh;overflow:hidden;display:grid;grid-template-columns:minmax(0,44%) minmax(0,1fr);background:#fff}
-.auth__brand{position:relative;overflow:hidden;background:var(--grad-dark);color:#fff;padding:clamp(30px,3.4vw,56px);display:flex}
-.auth__mesh{position:absolute;inset:0;pointer-events:none;background:
-  radial-gradient(48% 40% at 12% 8%,rgba(0,207,232,.24),transparent 60%),
-  radial-gradient(46% 46% at 100% 100%,rgba(22,104,240,.42),transparent 60%)}
-.auth__brand-in{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:space-between;gap:24px;width:100%;max-width:520px;margin:auto}
+.auth:has(.plogin){grid-template-columns:minmax(0,52%) minmax(0,1fr)}
+.auth__brand{position:relative;overflow:hidden;background:url(/law-login.jpg) right center/cover no-repeat,var(--grad-dark);color:#fff;padding:clamp(30px,3.4vw,56px) clamp(30px,calc(10vw - 88px),150px);display:flex;container-type:inline-size}
+.auth__mesh{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(5,18,44,.6),rgba(5,18,44,.25) 55%,transparent 80%)}
+/* narrow panel: the scales slide under the copy, so dim them more */
+@container (max-width:700px){.auth__mesh{background:linear-gradient(90deg,rgba(5,18,44,.84),rgba(5,18,44,.6) 60%,rgba(5,18,44,.25))}}
+.auth__brand-in{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:space-between;gap:24px;width:100%;max-width:460px;margin:auto 0}
 .auth__logo{display:inline-flex;align-items:center;gap:10px;font-family:var(--fd);font-weight:800;font-size:1.3rem;color:#fff}
 .auth__logo .logo__m{width:34px;height:34px;border-radius:10px;flex:none}
 .auth__copy{margin:clamp(24px,4vh,52px) 0}
