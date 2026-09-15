@@ -3202,6 +3202,16 @@ function normParticipant(v: unknown): CallParticipant {
     screenEnabled: Boolean(d.screen_enabled),
   };
 }
+// LiveKit signalling URL. The backend normally returns it; when it doesn't, use
+// the documented production endpoint (override with NEXT_PUBLIC_LIVEKIT_URL).
+// An http(s) URL is turned into its ws(s) form, since the SDK connects over
+// WebSocket.
+const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || "wss://lexgo.api.cognilabs.org/livekit";
+function livekitUrl(v: unknown): string {
+  const u = asStr(v).trim() || LIVEKIT_URL;
+  return u.replace(/^http(s?):\/\//i, "ws$1://");
+}
+
 function normCall(v: unknown): CallSession {
   const d = asDict(v);
   return {
@@ -3215,7 +3225,7 @@ function normCall(v: unknown): CallSession {
     startedAt: asStr(d.started_at),
     endedAt: asStr(d.ended_at) || undefined,
     provider: asStr(d.provider),
-    livekitUrl: asStr(d.livekit_url),
+    livekitUrl: livekitUrl(d.livekit_url),
     livekitRoom: asStr(d.livekit_room),
     livekitToken: asStr(d.livekit_token),
     turnDomain: asStr(d.turn_domain),
@@ -3234,7 +3244,7 @@ export type LiveKitJoin = { url: string; room: string; token: string };
 export async function getCallJoinToken(roomId: string, callId: string): Promise<LiveKitJoin> {
   const d = asDict(await http(`/secure-chats/${roomId}/calls/${callId}/join-token`));
   return {
-    url: asStr(d.livekit_url ?? d.url),
+    url: livekitUrl(d.livekit_url ?? d.url),
     room: asStr(d.livekit_room ?? d.room),
     token: asStr(d.livekit_token ?? d.token),
   };
@@ -3275,7 +3285,7 @@ export async function inviteCallParticipant(roomId: string, callId: string, user
 export async function joinCall(roomId: string, callId: string): Promise<LiveKitJoin> {
   const d = asDict(await http(`/secure-chats/${roomId}/calls/${callId}/join`, { method: "POST", body: "{}" }));
   return {
-    url: asStr(d.livekit_url ?? d.url),
+    url: livekitUrl(d.livekit_url ?? d.url),
     room: asStr(d.livekit_room ?? d.room),
     token: asStr(d.livekit_token ?? d.token),
   };

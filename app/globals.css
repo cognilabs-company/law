@@ -697,6 +697,8 @@ main > .sec:first-child{padding-top:calc(70px + clamp(40px,5vw,64px))}
 /* ═══════════════ DESIGNED SELECT (dropdown) ═══════════════ */
 .fld:has(.dsel)::after{display:none}
 .dsel{position:relative;width:100%}
+/* taller hit area inside filter fields, same layout (padding offset by margin) */
+.fld .dsel__btn{padding-block:8px;margin-block:-8px}
 .dsel__btn{width:100%;border:0;background:transparent;text-align:left;font-weight:600;font-size:.94rem;
   padding:0;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--ink);line-height:1.3}
 .dsel__val{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -983,7 +985,7 @@ body:has(.plogin) .fab{display:none}
    past the right edge of a phone with nothing to scroll them back into view. */
 .ppanel__h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
 .ppanel__h b{font-family:var(--fd);font-size:1.05rem;letter-spacing:-.02em}
-.ppanel__h a:not(.btn){font-size:.82rem;font-weight:600;color:var(--dk-acc, var(--b600))}
+.ppanel__h a:not(.btn){font-size:.82rem;font-weight:600;color:var(--dk-acc, var(--b600));padding-block:8px;margin-block:-8px}
 
 /* table */
 .ptable__wrap{overflow-x:auto}
@@ -1042,7 +1044,15 @@ body:has(.plogin) .fab{display:none}
 @media (max-width:560px){
   .ptop{padding-inline:14px;gap:10px}
   .ptop h1{font-size:1rem}
-  .ptop__user span{display:none}
+  /* hide the name, keep the avatar: it is the tap target for the profile link */
+  .ptop__user span:not(.ptop__av){display:none}
+  .ptop__user{padding:0}
+  /* bell, theme, language and avatar must fit a 360px phone: slimmer controls,
+     the language pill shows only its flag, and the title may take two lines */
+  .ptop__sp{gap:6px}
+  .ptop h1{flex:1 1 auto;min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.15}
+  .ptop .ptop__bell,.ptop .thm__sq{width:36px;height:36px}
+  .ptop .lang .btn--glass{font-size:0;padding-inline:9px;gap:0}
   .pbody__in{gap:16px}
 }
 
@@ -1222,7 +1232,7 @@ body:has(.rf) .fab{display:none}
 .rf__err{color:var(--dk-txt-err, #C0392B);font-size:.85rem;margin:0}
 .rf__terms{font-size:.76rem;color:var(--gray2);margin:16px 0 0}
 .rf__alt{font-size:.88rem;color:var(--gray);margin:16px 0 0}
-.rf__link{display:inline-flex;align-items:center;gap:6px;color:var(--dk-acc, var(--b600));font-weight:700;background:none;border:0;cursor:pointer;font-size:.9rem;padding:0}
+.rf__link{display:inline-flex;align-items:center;gap:6px;color:var(--dk-acc, var(--b600));font-weight:700;background:none;border:0;cursor:pointer;font-size:.9rem;padding:6px 0;margin-block:-6px}
 .rf__link svg{width:15px;height:15px}
 .rf__link:disabled{color:var(--gray2);cursor:default}
 .rf__link--muted{color:var(--gray)}
@@ -1505,7 +1515,7 @@ body:has(.rf) .fab{display:none}
 .cdhero__ask{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
   border-radius:var(--pill);padding:6px 6px 6px 18px;margin-top:22px;max-width:640px;backdrop-filter:blur(6px)}
 .cdhero__ask svg{width:20px;height:20px;stroke:var(--cy);flex:none}
-.cdhero__ask input{flex:1;background:none;border:0;color:#fff;padding:12px 0;outline:none;font-size:1rem}
+.cdhero__ask input{flex:1;min-width:0;background:none;border:0;color:#fff;padding:12px 0;outline:none;font-size:1rem}
 .cdhero__ask input::placeholder{color:#9FB4D4}
 .cdhero__ask button{width:46px;height:46px;border-radius:50%;border:0;background:var(--grad);color:#fff;cursor:pointer;display:grid;place-items:center;flex:none;box-shadow:var(--sblue)}
 .cdhero__ask button svg{width:19px;height:19px;stroke:#fff}
@@ -2764,6 +2774,8 @@ body:has(.schat) .fab{display:none}
 .grow__perks span{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;font-weight:600;color:var(--dk-acc-strong, var(--b700))}
 .grow__perks svg{width:13px;height:13px;color:var(--ok)}
 .grow__cta{flex:none;white-space:nowrap;position:relative}
+/* touch: the ::after below widens the tap area to ~42px without changing the look */
+.grow__x::after,.giftn__x::after{content:"";position:absolute;inset:-8px}
 .grow__x{position:absolute;top:10px;right:10px;width:26px;height:26px;border:none;background:transparent;color:var(--gray2);cursor:pointer;display:grid;place-items:center;border-radius:8px;transition:background .15s,transform .15s;z-index:2}
 .grow__x:hover{background:var(--dk-surface, #fff);color:var(--ink);transform:rotate(90deg)}
 .grow__x svg{width:15px;height:15px}

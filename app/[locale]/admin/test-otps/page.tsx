@@ -8,7 +8,7 @@ import { AdminItem } from "@/components/admin/AdminBits";
 import { IconShieldCheck } from "@/components/icons";
 
 // Staging-only viewer for OTP codes (no longer returned in auth responses).
-// In production the endpoint 404s → the list is simply empty.
+// In production the endpoint 404s → say it is staging-only rather than "empty".
 export default function AdminTestOtps() {
   const t = useTranslations("admin.testOtps");
   const res = useResource(getTestOtps, []);
@@ -22,6 +22,8 @@ export default function AdminTestOtps() {
       <p className="ppanel__note">{t("lead")}</p>
       {res.status === "loading" ? (
         <Skeleton rows={3} />
+      ) : res.status === "error" ? (
+        <EmptyState icon={<IconShieldCheck />} title={t("stagingOnly")} text={t("stagingOnlyText")} />
       ) : !res.data.length ? (
         <EmptyState icon={<IconShieldCheck />} title={t("empty")} text={t("lead")} />
       ) : (

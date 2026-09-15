@@ -40,6 +40,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const t = useTranslations("plans");
   const ts = useTranslations("subscription");
   const tcommon = useTranslations("common");
+  const tp = useTranslations("portal.common");
   const locale = useLocale();
   const personal = variant === "personal";
   const res = useResource<BackendPlan>(() => getSubscriptionPlans(locale), [locale]);
@@ -129,6 +130,8 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
 
       {res.status === "loading" ? (
         <Skeleton rows={3} />
+      ) : res.status === "error" ? (
+        <EmptyState icon={<IconCard />} title={tp("loadError")} text={tp("loadErrorText")} />
       ) : !plans.length ? (
         <EmptyState icon={<IconCard />} title={t("empty")} text={t("emptyText")} />
       ) : (

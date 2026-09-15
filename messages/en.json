@@ -3481,7 +3481,9 @@
     "testOtps": {
       "title": "Test OTP codes",
       "lead": "Staging/demo only. OTP codes are no longer returned in responses — view them here.",
-      "empty": "No test OTPs yet"
+      "empty": "No test OTPs yet",
+      "stagingOnly": "Staging only",
+      "stagingOnlyText": "Test OTP codes are kept only on the staging/demo server. Production has no such list — codes are sent by SMS or Telegram."
     },
     "pipeline": {
       "title": "Sales pipeline",

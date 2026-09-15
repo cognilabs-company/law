@@ -22,6 +22,7 @@ const num = (v: string | boolean) => parseInt(String(v || "0"), 10) || 0;
 export default function AdminPlans() {
   const t = useTranslations("admin");
   const [key, reload] = useReload();
+  const tp = useTranslations("portal.common");
   const plans = useResource(getSubscriptionPlans, [key]);
   const [open, setOpen] = useState(false);
 
@@ -39,6 +40,8 @@ export default function AdminPlans() {
       </div>
       {plans.status === "loading" ? (
         <Skeleton rows={3} />
+      ) : plans.status === "error" ? (
+        <EmptyState icon={<IconStar />} title={tp("loadError")} text={tp("loadErrorText")} />
       ) : !plans.data.length ? (
         <EmptyState icon={<IconStar />} title={t("plans.empty")} />
       ) : (

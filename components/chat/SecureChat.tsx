@@ -306,12 +306,29 @@ export default function SecureChat({ roomId }: { roomId: string }) {
       };
     }
 
+    // Don't sit out the backoff when the device comes back online (mobile
+    // network switch, laptop wake): reconnect at once. Going offline shows the
+    // state immediately instead of waiting for the socket to time out.
+    const onOnline = () => {
+      if (!alive || ws?.readyState === WebSocket.OPEN) return;
+      retry = 0;
+      clearTimeout(reconnectTimer);
+      connect();
+    };
+    const onOffline = () => {
+      if (alive) setConn("offline");
+    };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+
     loadHistory();
     connect();
 
     return () => {
       alive = false;
       clearTimeout(reconnectTimer);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
       if (ws) {
         ws.onclose = null;
         try {

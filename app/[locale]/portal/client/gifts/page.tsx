@@ -28,6 +28,7 @@ function fmtDate(s: string) {
 export default function ClientGifts() {
   const t = useTranslations("portal.client.gifts");
   const tcommon = useTranslations("common");
+  const tp = useTranslations("portal.common");
   const locale = useLocale();
   const [reloadKey, setReloadKey] = useState(0);
   const gifts = useResource(() => listGifts(), [reloadKey]);
@@ -201,6 +202,7 @@ export default function ClientGifts() {
                   options={planOpts.length ? planOpts : [{ value: "", label: "—" }]}
                   ariaLabel={t("plan")}
                 />
+                {plans.status === "error" ? <p className="rf__hint">{tp("loadError")}. {tp("loadErrorText")}</p> : null}
               </div>
             ) : (
               <div>

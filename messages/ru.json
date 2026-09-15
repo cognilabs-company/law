@@ -3481,7 +3481,9 @@
     "testOtps": {
       "title": "Тестовые OTP-коды",
       "lead": "Только для staging/demo. OTP-коды больше не возвращаются в ответах — смотрите здесь.",
-      "empty": "Пока нет тестовых OTP"
+      "empty": "Пока нет тестовых OTP",
+      "stagingOnly": "Только в staging-среде",
+      "stagingOnlyText": "Тестовые OTP-коды хранятся только на staging/demo-сервере. На production этого списка нет — коды приходят по SMS или в Telegram."
     },
     "pipeline": {
       "title": "Воронка продаж",
