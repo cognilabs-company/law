@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { listCases } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import HeroCarousel from "@/components/portal/HeroCarousel";
 import {
   Icon,
   IconSparkle,
@@ -45,29 +46,32 @@ export default function ClientDashboard() {
       {/* Hero — the WOW first screen */}
       <div className="cdhero">
         <div className="cdhero__glow" />
-        <span className="cdhero__hi">{t("hi", { name: session?.name ?? "" })}</span>
-        <h2 className="cdhero__title">{t("heroTitle")}</h2>
-        <p className="cdhero__sub">{t("heroSub")}</p>
-        <div className="cdhero__ask">
-          <IconSparkle />
-          <input
-            value={ask}
-            onChange={(e) => setAsk(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") describe();
-            }}
-            placeholder={t("askPh")}
-            aria-label={t("askPh")}
-          />
-          <button type="button" onClick={describe} aria-label={t("askBtn")}>
-            <IconSend />
-          </button>
+        <div className="cdhero__main">
+          <span className="cdhero__hi">{t("hi", { name: session?.name ?? "" })}</span>
+          <h2 className="cdhero__title">{t("heroTitle")}</h2>
+          <p className="cdhero__sub">{t("heroSub")}</p>
+          <div className="cdhero__ask">
+            <IconSparkle />
+            <input
+              value={ask}
+              onChange={(e) => setAsk(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") describe();
+              }}
+              placeholder={t("askPh")}
+              aria-label={t("askPh")}
+            />
+            <button type="button" onClick={describe} aria-label={t("askBtn")}>
+              <IconSend />
+            </button>
+          </div>
+          <div className="cdhero__trust">
+            <span><IconShieldCheck />{t("trust1")}</span>
+            <span><IconClock />{t("trust2")}</span>
+            <span><IconCheck />{t("trust3")}</span>
+          </div>
         </div>
-        <div className="cdhero__trust">
-          <span><IconShieldCheck />{t("trust1")}</span>
-          <span><IconClock />{t("trust2")}</span>
-          <span><IconCheck />{t("trust3")}</span>
-        </div>
+        <HeroCarousel />
       </div>
 
       {/* Quick actions */}

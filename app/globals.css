@@ -1454,6 +1454,28 @@ body:has(.rf) .fab{display:none}
 .cdhero__trust{display:flex;flex-wrap:wrap;gap:18px;margin-top:18px}
 .cdhero__trust span{display:inline-flex;align-items:center;gap:7px;font-size:.82rem;color:#C4DEFF}
 .cdhero__trust svg{width:15px;height:15px;stroke:var(--cy)}
+/* Pictures on the right of the hero. The glow is re-pinned: `.cdhero>*` above
+   made it a zero-height relative box, and in the grid it would take a cell. */
+.cdhero{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;container-type:inline-size}
+.cdhero>.cdhero__glow{position:absolute}
+.cdhero__main{min-width:0}
+.cdart{width:clamp(260px,38cqi,460px);aspect-ratio:3/2;margin-left:clamp(16px,3cqi,40px);pointer-events:none;user-select:none}
+.cdart__img{object-fit:contain;opacity:0;visibility:hidden;filter:drop-shadow(0 22px 34px rgba(3,10,30,.5))}
+.cdart__img--solid{filter:none;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent),linear-gradient(180deg,transparent,#000 14%,#000 86%,transparent);
+  -webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent),linear-gradient(180deg,transparent,#000 14%,#000 86%,transparent);mask-composite:intersect}
+/* first picture fades in; each next one slides in from the right while the
+   one before simply fades away where it stands (HeroCarousel.tsx timings) */
+.cdart__img--first,.cdart__img--in{visibility:visible;opacity:1}
+.cdart__img--out{visibility:visible;opacity:0}
+.cdart__img--first{animation:cdartFade .6s ease-out both}
+.cdart__img--in{animation:cdartIn .9s cubic-bezier(.22,1,.36,1) .12s both}
+.cdart__img--out{animation:cdartOut .7s ease both}
+@keyframes cdartFade{from{opacity:0}to{opacity:1}}
+@keyframes cdartIn{from{opacity:0;transform:translateX(56px)}to{opacity:1;transform:none}}
+@keyframes cdartOut{from{opacity:1}to{opacity:0}}
+@container (max-width:760px){.cdart{display:none}}
+@media (prefers-reduced-motion:reduce){.cdart__img--first,.cdart__img--in,.cdart__img--out{animation:none}}
 
 .cdact{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
 .cdact__i{display:flex;flex-direction:column;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-radius:var(--rl);
