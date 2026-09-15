@@ -9,7 +9,7 @@ const IMAGES = (process.env.HERO_IMAGES ?? "").split(",").filter(Boolean);
 // Keep in step with the .cdart__img animations in globals.css.
 const FIRST_MS = 600; // first picture fades in on page entry
 const IN_MS = 1020; // next picture slides in from the right (.12s delay + .9s)
-const HOLD_MS = 2000; // each picture rests this long once it has arrived
+const HOLD_MS = 2800; // each picture rests this long once it has arrived
 
 // Pictures with a solid background get their edges feathered into the hero;
 // cut-outs keep their outline and float with a shadow. Decided from the
