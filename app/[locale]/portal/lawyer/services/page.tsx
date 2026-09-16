@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getMyServices, putMyServices } from "@/lib/services/backend";
 import ServiceSelector from "@/components/register/ServiceSelector";
+import { firstFieldError, priceRangeOf } from "@/lib/formErrors";
+import { fmtUzs } from "@/lib/money";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconCheck } from "@/components/icons";
 
@@ -28,8 +30,18 @@ export default function LawyerServices() {
     try {
       await putMyServices(sel);
       setNote({ ok: true, msg: t("saved") });
-    } catch {
-      setNote({ ok: false, msg: t("error") });
+    } catch (e) {
+      // 422: the backend says which price is out of range, or which field is invalid.
+      const range = priceRangeOf(e);
+      const field = firstFieldError(e);
+      setNote({
+        ok: false,
+        msg: range
+          ? t("priceOutOfRange", { min: fmtUzs(range.min), max: fmtUzs(range.max) })
+          : field
+            ? t("invalidField", { detail: field })
+            : t("error"),
+      });
     } finally {
       setBusy(false);
     }

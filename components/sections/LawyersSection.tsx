@@ -11,6 +11,9 @@ import {
 } from "@/lib/lawyers";
 import { listLawyers, demoPrivateChat, getLawyerPrivateChat, type BackendLawyer } from "@/lib/services/backend";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
+import { CheckoutIntent } from "../portal/OrderMilestones";
+import Modal from "../admin/Modal";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { useAuth } from "@/lib/auth";
@@ -37,7 +40,7 @@ function toLawyer(b: BackendLawyer): Lawyer {
     full: b.winsCount,
     part: b.partialWins,
     price: b.basePrice ? fmtUzs(b.basePrice) : "—",
-    super: b.verified,
+    verified: b.verified,
     kind: st.includes("advokat") ? "advocate" : "lawyer",
   };
 }
@@ -67,6 +70,8 @@ export default function LawyersSection({
   const router = useRouter();
   const [chatBusy, setChatBusy] = useState<string | null>(null);
   const [chatErr, setChatErr] = useState<string | null>(null);
+  const tpay = useTranslations("portal.payment");
+  const [intent, setIntent] = useState<PaymentIntent | null>(null);
 
   // Back from the checkout page may restore this page from the bfcache with the
   // button still busy (it stays busy while the browser navigates away).
@@ -93,6 +98,11 @@ export default function LawyersSection({
       const existing = await getLawyerPrivateChat(l.userId);
       if (existing) {
         router.push(`/portal/chat/${existing.id}`);
+        return;
+      }
+      if (!isDemoCheckout()) {
+        // Real checkout: invoice for the private chat; the room opens once paid.
+        setIntent(await createCheckout({ kind: "private_chat", sellerUserId: l.userId }));
         return;
       }
       const r = await demoPrivateChat({ lawyer_user_id: l.userId });
@@ -185,7 +195,7 @@ export default function LawyersSection({
                 <span className={`advcard__kind advcard__kind--${l.kind ?? "lawyer"}`}>
                   {t(l.kind === "advocate" ? "card.kindAdvocate" : "card.kindLawyer")}
                 </span>
-                {l.super ? <span className="advcard__badge">{t("card.super")}</span> : null}
+                {l.verified ? <span className="advcard__badge">{t("card.verified")}</span> : null}
               </div>
             </div>
           </div>
@@ -358,6 +368,9 @@ export default function LawyersSection({
           </div>
         )}
 
+        <Modal open={!!intent} onClose={() => setIntent(null)} title={tpay("intentTitle")}>
+          {intent ? <CheckoutIntent intent={intent} onCancel={() => setIntent(null)} untitled /> : null}
+        </Modal>
         {chatErr ? (
           <div className="info" style={{ color: "var(--dk-txt-err, #dc2626)", borderColor: "var(--dk-bd-err, #fecaca)", background: "var(--dk-tint-err, #fef2f2)" }}>
             <IconInfo />

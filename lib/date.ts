@@ -40,6 +40,17 @@ export function shortDate(iso: string, locale: string): string {
   return locale === "en" ? `${months[m - 1]} ${d}` : `${d} ${months[m - 1]}`;
 }
 
+// Day, short month and local time, e.g. uz "15 Sen, 14:39", en "Sep 15, 14:39".
+export function shortDateTime(value: string, locale: string): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  const months = MONTHS_SHORT[locale] || MONTHS_SHORT.uz;
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const day = locale === "en" ? `${months[d.getMonth()]} ${d.getDate()}` : `${d.getDate()} ${months[d.getMonth()]}`;
+  return `${day}, ${time}`;
+}
+
 // Nominative month names (for headers like "Avgust 2026").
 const MONTHS_NOM: Record<string, string[]> = {
   uz: MONTHS.uz,

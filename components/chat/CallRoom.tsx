@@ -18,6 +18,7 @@ import {
   type CallPermissions,
 } from "@/lib/services/backend";
 import { getToken } from "@/lib/client";
+import { backoffMs, refreshAccessToken } from "@/lib/http";
 import { useAuth } from "@/lib/auth";
 import SearchSelect from "@/components/SearchSelect";
 import { playRingback, playEndTone } from "@/lib/callSounds";
@@ -238,21 +239,59 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
   // Realtime call signaling: refresh the roster on participant/media events and
   // close the room when the backend auto-ends the meeting.
   useEffect(() => {
+    // Reconnects with exponential backoff + jitter until the call ends or the
+    // view unmounts (the roster poll covers the gaps); the token goes only in
+    // the WS URL query.
     let alive = true;
     let ws: WebSocket | null = null;
-    try {
-      ws = new WebSocket(callSocketUrl(roomId, callId, getToken()));
-      ws.onmessage = (ev) => {
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const retry = () => {
+      if (!alive) return;
+      clearTimeout(timer);
+      timer = setTimeout(connect, backoffMs(attempt));
+      attempt = Math.min(attempt + 1, 10);
+    };
+    function connect() {
+      if (!alive) return;
+      let sock: WebSocket;
+      try {
+        sock = new WebSocket(callSocketUrl(roomId, callId, getToken()));
+      } catch {
+        retry(); // WS unavailable → polling still refreshes meanwhile
+        return;
+      }
+      ws = sock;
+      sock.onopen = () => { attempt = 0; };
+      sock.onmessage = (ev) => {
         if (!alive) return;
-        let type = "";
-        try { type = String((JSON.parse(ev.data) as { type?: string; event?: string }).type ?? (JSON.parse(ev.data) as { event?: string }).event ?? ""); } catch { type = ""; }
+        let msg: { type?: string; event?: string; status_code?: number } = {};
+        try { msg = JSON.parse(ev.data) as typeof msg; } catch { msg = {}; }
+        const type = String(msg.type ?? msg.event ?? "");
+        // Expired token: refresh, then reopen the socket with the new one.
+        if (type === "error" && Number(msg.status_code) === 401) {
+          sock.onclose = null;
+          try { sock.close(); } catch { /* ignore */ }
+          void refreshAccessToken().catch(() => null).then((fresh) => { if (alive && fresh) connect(); });
+          return;
+        }
         if (type.includes("auto_ended") || type === "call.end") { finish(); return; }
         if (/^(participant|media)\./.test(type) || type === "call.join" || type === "call.leave") {
           setMetaTick((n) => n + 1);
         }
       };
-    } catch { /* WS unavailable → polling still refreshes */ }
-    return () => { alive = false; ws?.close(); };
+      sock.onclose = () => { if (alive && ws === sock) retry(); };
+      sock.onerror = () => { try { sock.close(); } catch { /* onclose retries */ } };
+    }
+    connect();
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+      if (ws) {
+        ws.onclose = null;
+        try { ws.close(); } catch { /* ignore */ }
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, callId]);
 

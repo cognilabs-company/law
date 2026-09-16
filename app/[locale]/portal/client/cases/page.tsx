@@ -1,26 +1,52 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   listCases,
+  listOrders,
   createRefundRequest,
   createReplacementRequest,
+  getReplacementHistory,
+  listMyReplacementRequests,
   listCaseDocuments,
   createCaseDocument,
   type BackendCase,
+  type BackendOrder,
   type ModuleRecord,
+  type ReplacementEvent,
 } from "@/lib/services/backend";
-import { useResource } from "@/lib/useResource";
+import { useResource, useResourceOne } from "@/lib/useResource";
+import { CLIENT_STAGES, clientStageOf, useOrderStatusLabel } from "@/lib/orderStatus";
+import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import OrderMilestones from "@/components/portal/OrderMilestones";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconFileText, IconArrowRight, IconDocLines } from "@/components/icons";
 
+// A replacement request can't be listed back by the client (the list needs
+// replacements.manage), so its id is kept per case to read its history.
+const REPLACEMENT_KEY = (caseId: string) => `lexgo_replacement_${caseId}`;
+function storedReplacement(caseId: string): string {
+  try {
+    return localStorage.getItem(REPLACEMENT_KEY(caseId)) || "";
+  } catch {
+    return "";
+  }
+}
+
+// One row of "My cases": a legal case (with its order, when linked) or an
+// order that has no case yet.
+type Item = { key: string; case?: BackendCase; order?: BackendOrder };
+
 export default function ClientCases() {
   const t = useTranslations("portal.client.cases");
+  const tcs = useTranslations("portal.common.status");
+  const orderLabel = useOrderStatusLabel();
   const res = useResource(listCases, []);
+  const orders = useResource(listOrders, []);
 
   // Refund / replacement request modal
   const [target, setTarget] = useState<BackendCase | null>(null);
@@ -28,9 +54,24 @@ export default function ClientCases() {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  // Bumped after a replacement request so its status line re-reads the stored id.
+  const [replVersion, setReplVersion] = useState(0);
+  const [openMilestones, setOpenMilestones] = useState("");
 
   // Case-documents modal
   const [docCase, setDocCase] = useState<BackendCase | null>(null);
+
+  const items = useMemo<Item[]>(() => {
+    const byId = new Map(orders.data.map((o) => [o.id, o]));
+    const linked = new Set<string>();
+    const rows: Item[] = res.data.map((c) => {
+      const order = c.orderId ? byId.get(c.orderId) : undefined;
+      if (c.orderId) linked.add(c.orderId);
+      return { key: `c:${c.id}`, case: c, order };
+    });
+    for (const o of orders.data) if (!linked.has(o.id)) rows.push({ key: `o:${o.id}`, order: o });
+    return rows;
+  }, [res.data, orders.data]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,10 +79,21 @@ export default function ClientCases() {
     setBusy(true);
     setNote(null);
     try {
-      const payload = { case_id: target.id, reason: reason.trim() };
+      const payload = { case_id: target.id, order_id: target.orderId, reason: reason.trim() };
       const title = `${target.caseType || target.caseNumber} — ${kind}`;
-      if (kind === "refund") await createRefundRequest({ title, payload });
-      else await createReplacementRequest({ title, payload });
+      if (kind === "refund") {
+        await createRefundRequest({ title, payload });
+      } else {
+        const rec = await createReplacementRequest({ title, record_type: "replacement", status: "pending", payload });
+        if (rec.id) {
+          try {
+            localStorage.setItem(REPLACEMENT_KEY(target.id), rec.id);
+          } catch {
+            /* storage blocked: the request is still sent */
+          }
+          setReplVersion((v) => v + 1);
+        }
+      }
       setNote({ ok: true, msg: t("requestSent") });
       setReason("");
       setTimeout(() => setTarget(null), 1200);
@@ -58,50 +110,74 @@ export default function ClientCases() {
     { value: "replacement", label: t("replacement") },
   ];
 
+  const caseStatus = (s: string) => (s && tcs.has(s) ? tcs(s) : humanizeSlug(s));
+  const loading = res.status === "loading" || orders.status === "loading";
+
   return (
     <div className="ppanel">
       <div className="ppanel__h">
         <b>{t("title")}</b>
-        <span className="advmuted">{t("count", { n: res.data.length })}</span>
+        <span className="advmuted">{t("count", { n: items.length })}</span>
       </div>
-      {res.status === "loading" ? (
+      {loading ? (
         <Skeleton rows={3} />
-      ) : !res.data.length ? (
+      ) : !items.length ? (
         <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        res.data.map((c) => (
-          <div className="creq" key={c.id}>
-            <span className="creq__st" />
-            <div className="creq__m">
-              <b>{c.caseType || c.title || t("title")}</b>
-              <span>{[c.stage, c.status].filter(Boolean).join(" · ")}</span>
-              {c.nextAction ? (
-                <em className="creq__next">
-                  <IconArrowRight />
-                  {c.nextAction}
-                </em>
-              ) : null}
+        items.map(({ key, case: c, order: o }) => {
+          const orderId = c?.orderId || o?.id || "";
+          const status = o?.status || "";
+          const stage = status ? clientStageOf(status) : null;
+          return (
+            <div className="creq ocase" key={key}>
+              <span className="creq__st" />
+              <div className="creq__m">
+                <b>{c ? c.caseType || c.title || t("title") : o?.serviceName || o?.title || t("orderItem")}</b>
+                <span>{[c?.stage ? humanizeSlug(c.stage) : "", c?.status ? caseStatus(c.status) : ""].filter(Boolean).join(" · ") || (o?.title && o.title !== o.serviceName ? o.title : "")}</span>
+                {stage ? <StageTrack stage={stage} /> : null}
+                {c?.nextAction ? (
+                  <em className="creq__next">
+                    <IconArrowRight />
+                    {c.nextAction}
+                  </em>
+                ) : null}
+                {c ? <ReplacementStatus key={`${c.id}:${replVersion}`} caseId={c.id} /> : null}
+                {orderId && openMilestones === key ? <OrderMilestones orderId={orderId} /> : null}
+              </div>
+              <div className="creq__side">
+                {status ? (
+                  <span className={`creq__badge${stage === "done" ? " creq__badge--ok" : ""}`} title={t("orderStatus")}>{orderLabel(status)}</span>
+                ) : c?.status ? (
+                  <span className="creq__badge">{caseStatus(c.status)}</span>
+                ) : null}
+                {orderId ? (
+                  <button className="btn btn--line btn--sm" type="button" aria-expanded={openMilestones === key} onClick={() => setOpenMilestones((k) => (k === key ? "" : key))}>
+                    {openMilestones === key ? t("hideMilestones") : t("milestonesCta")}
+                  </button>
+                ) : null}
+                {c ? (
+                  <>
+                    <button className="btn btn--line btn--sm" type="button" onClick={() => setDocCase(c)}>
+                      {t("docsCta")}
+                    </button>
+                    <button
+                      className="btn btn--line btn--sm"
+                      type="button"
+                      onClick={() => {
+                        setTarget(c);
+                        setKind("refund");
+                        setReason("");
+                        setNote(null);
+                      }}
+                    >
+                      {t("requestCta")}
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </div>
-            <div className="creq__side">
-              <span className="creq__badge">{c.status}</span>
-              <button className="btn btn--line btn--sm" type="button" onClick={() => setDocCase(c)}>
-                {t("docsCta")}
-              </button>
-              <button
-                className="btn btn--line btn--sm"
-                type="button"
-                onClick={() => {
-                  setTarget(c);
-                  setKind("refund");
-                  setReason("");
-                  setNote(null);
-                }}
-              >
-                {t("requestCta")}
-              </button>
-            </div>
-          </div>
-        ))
+          );
+        })
       )}
 
       <Modal open={!!target} onClose={() => setTarget(null)} title={t("requestTitle")}>
@@ -126,6 +202,54 @@ export default function ClientCases() {
       <CaseDocsModal target={docCase} onClose={() => setDocCase(null)} />
     </div>
   );
+}
+
+// The 5 simplified client steps; a closed order shows its own label instead.
+function StageTrack({ stage }: { stage: string }) {
+  const t = useTranslations("portal.common.orderStage");
+  const tc = useTranslations("portal.client.cases");
+  if (stage === "closed") return <small className="ostage__lbl">{t("closed")}</small>;
+  const idx = CLIENT_STAGES.indexOf(stage as (typeof CLIENT_STAGES)[number]);
+  return (
+    <span className="ostage" aria-label={t(stage)}>
+      <span className="ostage__bar">
+        {CLIENT_STAGES.map((s, i) => (
+          <i key={s} className={i <= idx ? "on" : ""} />
+        ))}
+      </span>
+      <small className="ostage__lbl">{tc("stageOf", { n: idx + 1, total: CLIENT_STAGES.length })} · {t(stage)}</small>
+    </span>
+  );
+}
+
+// Latest event of this case's replacement request (id kept in localStorage).
+function ReplacementStatus({ caseId }: { caseId: string }) {
+  const t = useTranslations("portal.client.cases");
+  const [stored] = useState(() => storedReplacement(caseId));
+  // The server list (GET /replacement-requests/me) is the source; the id kept
+  // in localStorage is only a fallback for older backends.
+  const load = useCallback(async (): Promise<ReplacementEvent[]> => {
+    let rid = stored;
+    try {
+      const mine = await listMyReplacementRequests();
+      const hit = mine.find((r) => String(r.payload.case_id ?? "") === caseId);
+      if (hit) rid = hit.id;
+    } catch {
+      /* fall back to the stored id */
+    }
+    return rid ? getReplacementHistory(rid) : [];
+  }, [stored, caseId]);
+  const res = useResourceOne(load, [stored, caseId]);
+  const id = stored || "server";
+  const events = res.data ?? [];
+  if (!id || !events.length) return null;
+  const last = events[events.length - 1];
+  const st = (last.status || "").toLowerCase();
+  const label = t.has(`replacementStates.${st}`) ? t(`replacementStates.${st}`) : humanizeSlug(st);
+  let when = "";
+  const at = new Date(last.createdAt);
+  if (!Number.isNaN(at.getTime())) when = at.toLocaleDateString();
+  return <small className="ocase__repl">{t("replacementStatus", { status: label })}{when ? ` · ${when}` : ""}</small>;
 }
 
 function CaseDocsModal({ target, onClose }: { target: BackendCase | null; onClose: () => void }) {

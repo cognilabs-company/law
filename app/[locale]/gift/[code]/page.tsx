@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { claimGift } from "@/lib/services/backend";
+import { ApiError, isConflict } from "@/lib/http";
 import { IconGift, IconCheck } from "@/components/icons";
 
 // Recipient landing for a gift share link (https://.../gift/LX-XXXX). Public;
@@ -17,6 +18,7 @@ export default function GiftClaim() {
   const { session, ready } = useAuth();
   const [busy, setBusy] = useState(false);
   const [state, setState] = useState<"idle" | "done" | "error">("idle");
+  const [errKey, setErrKey] = useState<"error" | "alreadyClaimed" | "notReady" | "notFound">("error");
 
   async function claim() {
     if (busy) return;
@@ -24,7 +26,11 @@ export default function GiftClaim() {
     try {
       await claimGift(code);
       setState("done");
-    } catch {
+    } catch (e) {
+      // 409: already claimed, or not claimable yet (unpaid / cancelled / expired).
+      if (isConflict(e)) setErrKey(/allaqachon|already|уже/i.test((e as ApiError).detail || "") ? "alreadyClaimed" : "notReady");
+      else if (e instanceof ApiError && e.status === 404) setErrKey("notFound");
+      else setErrKey("error");
       setState("error");
     } finally {
       setBusy(false);
@@ -47,7 +53,7 @@ export default function GiftClaim() {
           <>
             <h1>{t("title")}</h1>
             <p>{t("sub")}</p>
-            {state === "error" ? <p className="giftclaim__err">{t("error")}</p> : null}
+            {state === "error" ? <p className="giftclaim__err">{t(errKey)}</p> : null}
             {!ready ? null : session ? (
               <button className="btn btn--grad btn--full btn--lg" type="button" onClick={claim} disabled={busy} style={{ marginTop: 8 }}>
                 <IconCheck />

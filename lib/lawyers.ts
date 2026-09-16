@@ -9,7 +9,7 @@ export type Lawyer = {
   full: number;
   part: number;
   price: string; // formatted number, currency word comes from translations
-  super: boolean;
+  verified: boolean; // identity/licence verified by LexGo (not the "super lawyer" status)
   kind?: "advocate" | "lawyer"; // advokat vs yurist, for client-facing labels
 };
 

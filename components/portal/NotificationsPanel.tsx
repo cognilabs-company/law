@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { shortDateTime } from "@/lib/date";
 import {
   listNotifications,
   markNotificationRead,
@@ -20,11 +21,6 @@ function announceRead() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(NOTIF_READ_EVENT));
 }
 
-function fmt(s: string) {
-  if (!s) return "";
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-}
 
 // The cascade may store one row per channel (in-app, push, Telegram, email,
 // SMS) for one event; fold them so the inbox shows the event once. Rows that
@@ -120,6 +116,8 @@ export function DeliveryChips({ items, channels }: { items: NotificationDelivery
 
 export default function NotificationsPanel() {
   const t = useTranslations("portal.notifications");
+  const locale = useLocale();
+  const fmt = (s: string) => shortDateTime(s, locale);
   const [items, setItems] = useState<Notification[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 

@@ -2,7 +2,7 @@
 // Every function talks to the same-origin proxy with the bearer token attached.
 // UI callers wrap reads in `withFallback(...)` so the app keeps working on local
 // mock data until the backend is reachable.
-import { http, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
+import { http, httpBlob, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
 import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
@@ -28,7 +28,7 @@ export type AuthUser = {
   roles: string[];
   permissions: string[];
   twoFactorEnabled: boolean;
-  twoFactorMethod: string; // "" | "sms" | "totp"
+  twoFactorMethod: string; // "" | "telegram" | "sms" | "totp"
   // Raw primary role as the backend sent it ('' when absent). `role` above
   // falls back to "client" for unknown values; RBAC needs the real one.
   primaryRole: string;
@@ -214,12 +214,16 @@ export async function registerStart(input: {
   firstName?: string;
   lastName?: string;
   middleName?: string;
+  region?: string;
+  referralCode?: string;
   phone: string;
   password: string;
 }): Promise<RegisterStartResult> {
-  const { firstName, lastName, middleName, ...rest } = input;
+  const { firstName, lastName, middleName, region, referralCode, ...rest } = input;
   const body = {
     ...rest,
+    ...(region ? { region } : {}),
+    ...(referralCode ? { referral_code: referralCode } : {}),
     ...(firstName ? { first_name: firstName } : {}),
     ...(lastName ? { last_name: lastName } : {}),
     ...(middleName ? { middle_name: middleName } : {}),
@@ -277,14 +281,16 @@ export async function registerVerify(verificationId: string, code: string): Prom
 // tokens. http() would turn that into an error, so hit the endpoint raw.
 // A challenge without verificationId can't be verified; the caller shows its
 // message instead of a dead code step.
-export type TwoFactorChallenge = OtpChallenge & { twoFactorRequired: true; method: "sms" | "totp" | "" };
+// method: "telegram" = code sent by the Telegram bot (the backend no longer
+// sends login codes by SMS), "totp" = authenticator app, "sms" = legacy value.
+export type TwoFactorChallenge = OtpChallenge & { twoFactorRequired: true; method: "telegram" | "sms" | "totp" | "" };
 export type LoginResult = AuthResult | TwoFactorChallenge;
 
 function normChallenge(v: unknown): TwoFactorChallenge {
   const j = asDict(v);
   const dd = j.detail && typeof j.detail === "object" && !Array.isArray(j.detail) ? asDict(j.detail) : {};
   const raw = asStr(dd.method ?? dd.two_factor_method ?? dd.type ?? j.method ?? j.two_factor_method).toLowerCase();
-  const method = /totp|authenticator|app/.test(raw) ? "totp" : raw ? "sms" : "";
+  const method = /totp|authenticator|app/.test(raw) ? "totp" : /telegram/.test(raw) ? "telegram" : raw ? "sms" : "";
   const o = normOtp(j, method !== "totp");
   // Keep the server's words when there is no usable challenge: non-empty
   // strings only (an object must never render as "[object Object]").
@@ -576,6 +582,79 @@ export async function getServices(filters?: ServiceFilters, locale = "uz"): Prom
   return listFrom(data, "services", "items", "data").map((v) => normService(v, locale));
 }
 
+// Catalog search (GET /services/search): the backend normalizes Latin/Cyrillic
+// Uzbek and Russian spellings and matches name, slug, category, subcategory and
+// AI category. q must be non-empty; limit is clamped to 1–50 server-side.
+export type ServiceSearchHit = { service: BackendService; score: number };
+export async function searchServices(
+  q: string,
+  opts?: { limit?: number; executorType?: string },
+  locale = "uz",
+): Promise<ServiceSearchHit[]> {
+  const qs = new URLSearchParams({ q: q.trim() });
+  qs.set("limit", String(Math.max(1, Math.min(opts?.limit ?? 50, 50))));
+  if (opts?.executorType) qs.set("executor_type", opts.executorType);
+  return asArr(await http(`/services/search?${qs}`)).map((v) => {
+    const d = asDict(v);
+    return { service: normService(d.service, locale), score: asNum(d.score) };
+  });
+}
+
+// Service passport (GET /services/{id}/passport). Durations are in days.
+// seller_income / platform_fee are internal (the commission stays hidden from
+// the client, S-27), so they are not mapped.
+export type ServicePassport = {
+  catalogCode: string;
+  family: string;
+  group: string;
+  subcategory: string;
+  executorType: string;
+  advokatRequired: boolean;
+  format: string;
+  // Durations in days as the catalog stores them: "10", or a range like "3-5".
+  standardDuration: string;
+  urgentDuration: string;
+  standardDays: number;
+  urgentDays: number;
+  requiredDocuments: string[];
+  pricingTier: string;
+  standardPrice?: number;
+  refundCode: string;
+  slaCode: string;
+  aiCategory: string;
+  version: string;
+};
+function normPassport(v: unknown): ServicePassport {
+  const d = asDict(v);
+  return {
+    catalogCode: asStr(d.catalog_code),
+    family: asStr(d.family),
+    group: asStr(d.group),
+    subcategory: asStr(d.subcategory),
+    executorType: asStr(d.executor_type),
+    advokatRequired: Boolean(d.advokat_required),
+    format: asStr(d.format),
+    standardDuration: asStr(d.standard_duration).trim(),
+    urgentDuration: asStr(d.urgent_duration).trim(),
+    standardDays: asNum(d.standard_duration),
+    urgentDays: asNum(d.urgent_duration),
+    requiredDocuments: asArr(d.required_documents).map((x) => asStr(x)).filter(Boolean),
+    pricingTier: asStr(d.pricing_tier),
+    standardPrice: uzsOpt(d, "standard_price"),
+    refundCode: asStr(d.refund_code),
+    slaCode: asStr(d.sla_code),
+    aiCategory: asStr(d.ai_category),
+    version: asStr(d.version),
+  };
+}
+export async function getServicePassport(
+  serviceId: string,
+  locale = "uz",
+): Promise<{ service: BackendService; passport: ServicePassport }> {
+  const d = asDict(await http(`/services/${encodeURIComponent(serviceId)}/passport`));
+  return { service: normService(d.service, locale), passport: normPassport(d.passport) };
+}
+
 // Package tariffs (GET /service-packages).
 export type BackendPackage = {
   id: string;
@@ -723,8 +802,8 @@ function normOrder(v: unknown): BackendOrder {
   const amount = uzsOpt(d, "price", "amount");
   return {
     id: asStr(d.id),
-    title: asStr(details.question ?? d.title ?? service.name),
-    serviceName: asStr(service.name ?? d.service_name),
+    title: asStr(details.question ?? d.title ?? details.title ?? service.name),
+    serviceName: asStr(service.name ?? service.title ?? d.service_name ?? d.service_title ?? details.service_title ?? details.service_name),
     status: asStr(d.status),
     paymentStatus: asStr(d.payment_status),
     contactUnlocked: Boolean(d.contact_unlocked),
@@ -746,8 +825,16 @@ const TAKEN_ORDER_STATUSES = new Set([
   "accepted",
   "declined",
   "rejected",
+  "paid",
+  "started",
   "in_progress",
+  "result_ready",
+  "quality_check",
+  "delivered",
+  "client_confirmation",
   "completed",
+  "rated",
+  "lost",
   "cancelled",
   "canceled",
   "closed",
@@ -776,9 +863,12 @@ export async function createOrder(input: {
 // Backend applies automatic modifiers (region, seller experience,
 // super-advokat, 5% referral discount) and returns the final total. Always
 // call this before checkout and pay `totalAmount`.
-export type PriceModifier = { key: string; label: string; percent?: number; amount?: number };
+// code: region | experience | seller_premium (label is usually absent).
+export type PriceModifier = { key: string; label: string; percent?: number; amount?: number; multiplier?: number };
 export type PriceQuote = {
   baseAmount: number;
+  subtotal?: number;
+  discountAmount?: number;
   totalAmount: number;
   currency: string;
   modifiers: PriceModifier[];
@@ -800,16 +890,19 @@ export async function getPricingQuote(params: {
   const rd = asDict(d.referral_discount);
   return {
     baseAmount: uzs(d, "base_amount", "subtotal", "base"),
+    subtotal: uzsOpt(d, "subtotal"),
+    discountAmount: uzsOpt(d, "discount_amount"),
     totalAmount: uzs(d, "total_amount", "total", "price"),
     currency: asStr(d.currency, "UZS"),
     referralDiscountPercent: (asNum(d.discount_percent) || asNum(rd.discount_percent)) || undefined,
     modifiers: asArr(d.modifiers).map((x) => {
       const m = asDict(x);
       return {
-        key: asStr(m.key ?? m.type),
+        key: asStr(m.code ?? m.key ?? m.type),
         label: asStr(m.label ?? m.name),
         percent: asNum(m.percent) || undefined,
         amount: uzs(m, "amount") || undefined,
+        multiplier: asNum(m.multiplier) || undefined,
       };
     }),
   };
@@ -949,12 +1042,20 @@ export async function demoConfirmPayment(paymentId: string): Promise<PurchaseRes
 // in its deployment env to keep the demo checkout; inlined at build time.
 const CHECKOUT_PROVIDER = process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || "payme";
 export type PaymentProvider = "payme" | "click" | "rahmat";
+// True when this build checks out through the staging demo provider, whose
+// demo-purchase / demo-pay endpoints settle instantly (404 in production).
+export const isDemoCheckout = () => CHECKOUT_PROVIDER.startsWith("demo");
+export const checkoutProvider = () => CHECKOUT_PROVIDER;
+export type PaymentIntent = { id: string; status: string; amount: number; currency: string; paymentUrl?: string };
 export async function createPayment(input: {
-  provider: PaymentProvider;
+  provider: PaymentProvider | string;
   amount: number; // whole so'm (legacy UZS), never tiyin
   currency?: string;
+  order_id?: string;
+  target_type?: "order" | "subscription_plan" | "private_chat" | "document_request" | "gift" | string;
+  target_id?: string;
   provider_payload?: Record<string, unknown>;
-}): Promise<{ id: string; status: string; paymentUrl?: string }> {
+}): Promise<PaymentIntent> {
   const d = asDict(
     await http("/payments", {
       method: "POST",
@@ -964,6 +1065,8 @@ export async function createPayment(input: {
   return {
     id: asStr(d.id ?? asDict(d.payment).id),
     status: asStr(d.status),
+    amount: uzs(d, "amount"),
+    currency: asStr(d.currency, "UZS"),
     paymentUrl: safePaymentUrl(d.payment_url ?? asDict(d.invoice).payment_url) || undefined,
   };
 }
@@ -1024,6 +1127,9 @@ export type ContractFile = {
 };
 export type DocumentRequest = {
   id: string;
+  contractId?: string;
+  orderId?: string;
+  paymentId?: string;
   templateId: string;
   title: string;
   documentType: string;
@@ -1042,6 +1148,9 @@ function normDocRequest(v: unknown): DocumentRequest {
   const pay = asDict(d.payment);
   return {
     id: asStr(d.id),
+    contractId: asStr(d.contract_id) || undefined,
+    orderId: asStr(d.order_id) || undefined,
+    paymentId: asStr(d.payment_id) || undefined,
     templateId: asStr(d.template_id ?? d.templateId),
     title: asStr(d.title),
     documentType: asStr(d.document_type ?? d.documentType),
@@ -1112,6 +1221,38 @@ export async function payDocumentRequest(
 }
 export async function getDocumentRequest(requestId: string): Promise<DocumentRequest> {
   return normDocRequest(await http(`/document-requests/${requestId}`));
+}
+
+// PDF unlock rules for a document request (GET …/unlock-policy). A client can
+// generate and download only after the payment is confirmed; staff always can.
+export type DocUnlockPolicy = {
+  status: string;
+  paid: boolean;
+  requiresPayment: boolean;
+  amount: number;
+  currency: string;
+  paymentId?: string;
+  canGenerate: boolean;
+};
+export async function getDocumentUnlockPolicy(requestId: string): Promise<DocUnlockPolicy> {
+  const d = asDict(await http(`/document-requests/${requestId}/unlock-policy`));
+  return {
+    status: asStr(d.status),
+    paid: Boolean(d.paid),
+    requiresPayment: d.requires_payment == null ? !d.paid : Boolean(d.requires_payment),
+    amount: uzs(d, "amount"),
+    currency: asStr(d.currency, "UZS"),
+    paymentId: asStr(d.payment_id) || undefined,
+    canGenerate: Boolean(d.can_generate),
+  };
+}
+// Fill the template with the saved answers and build the PDF (402 = not paid yet).
+export async function generateDocumentRequest(requestId: string): Promise<DocumentRequest> {
+  return normDocRequest(await http(`/document-requests/${requestId}/generate`, { method: "POST" }));
+}
+// The generated PDF itself (an attachment, not a link). 402 = not paid, 409 = not generated yet.
+export async function getDocumentRequestFile(requestId: string): Promise<Blob> {
+  return httpBlob(`/document-requests/${requestId}/file`, { headers: { Accept: "application/pdf" } });
 }
 
 // ── Organizations (advocate orgs) ─────────────────────────────────
@@ -1381,7 +1522,10 @@ export async function adminUpdateLead(leadId: string, patch: Record<string, unkn
 export type KanbanCard = { lead: Lead; position: number };
 export type KanbanColumn = { key: string; title: string; color: string; order: number; isFinal: boolean; count: number; cards: KanbanCard[] };
 export async function getLeadKanban(): Promise<KanbanColumn[]> {
-  const cols = listFrom(await http("/admin/leads/kanban"), "columns", "items", "data");
+  return normKanban(await http("/admin/leads/kanban"));
+}
+function normKanban(data: unknown): KanbanColumn[] {
+  const cols = listFrom(data, "columns", "items", "data");
   return cols
     .map((c) => {
       const d = asDict(c);
@@ -1486,6 +1630,231 @@ export async function adminVerifyLawyer(lawyerUserId: string): Promise<unknown> 
 }
 export async function adminMarkPaid(paymentId: string): Promise<unknown> {
   return http(`/admin/payments/${paymentId}/mark-paid`, { method: "POST" });
+}
+
+// ── Order milestones (T1A-01) ─────────────────────────────────────
+// GET /orders/{id}/milestones — client, the order's seller, or orders/payments staff.
+export type OrderMilestone = {
+  id: string;
+  orderId: string;
+  index: number;
+  title: string;
+  percent: number;
+  amount: number; // whole so'm
+  currency: string;
+  status: string; // pending | payment_pending | paid | held | released | …
+  paymentId?: string;
+  releasedAt?: string;
+};
+function normMilestone(v: unknown): OrderMilestone {
+  const d = asDict(v);
+  return {
+    id: asStr(d.id),
+    orderId: asStr(d.order_id),
+    index: asNum(d.index),
+    title: asStr(d.title),
+    percent: asNum(d.percent),
+    amount: uzs(d, "amount"),
+    currency: asStr(d.currency, "UZS"),
+    status: asStr(d.status, "pending"),
+    paymentId: asStr(d.payment_id) || undefined,
+    releasedAt: asStr(d.released_at) || undefined,
+  };
+}
+export async function listOrderMilestones(orderId: string): Promise<OrderMilestone[]> {
+  return listFrom(await http(`/orders/${orderId}/milestones`), "items", "data", "milestones")
+    .map(normMilestone)
+    .sort((a, b) => a.index - b.index);
+}
+// Pay one milestone: returns the checkout link (provider as a query param).
+export async function payOrderMilestone(
+  orderId: string,
+  milestoneId: string,
+  provider: string = CHECKOUT_PROVIDER,
+): Promise<{ milestone: OrderMilestone; paymentId?: string; paymentUrl?: string; status: string }> {
+  const d = asDict(
+    await http(`/orders/${orderId}/milestones/${milestoneId}/pay?provider=${encodeURIComponent(provider)}`, { method: "POST" }),
+  );
+  const pay = asDict(d.payment);
+  return {
+    milestone: normMilestone(d.milestone),
+    paymentId: asStr(pay.id) || undefined,
+    paymentUrl: safePaymentUrl(pay.payment_url) || undefined,
+    status: asStr(pay.status),
+  };
+}
+// Release a paid/held milestone to the seller (the client confirms the work). 409 = not paid yet.
+export async function releaseOrderMilestone(orderId: string, milestoneId: string): Promise<OrderMilestone> {
+  const d = asDict(await http(`/orders/${orderId}/milestones/${milestoneId}/release`, { method: "POST" }));
+  return normMilestone(d.milestone ?? d);
+}
+
+// ── Contracts: file and OTP signature (T1-13) ─────────────────────
+export type ContractInfo = { id: string; type: string; status: string; fileName: string; signed: boolean; signedAt?: string; verifyUrl?: string };
+export async function getContract(contractId: string): Promise<ContractInfo> {
+  const d = asDict(await http(`/contracts/${contractId}`));
+  const data = asDict(d.data);
+  const sig = asDict(data.signature);
+  const signedAt = asStr(data.signed_at ?? sig.signed_at);
+  return {
+    id: asStr(d.id),
+    type: asStr(d.contract_type),
+    status: asStr(d.status),
+    fileName: asStr(d.file_name),
+    signed: asStr(d.status) === "signed" || Boolean(signedAt),
+    signedAt: signedAt || undefined,
+    verifyUrl: asStr(data.verify_url ?? sig.verify_url) || undefined,
+  };
+}
+export type ContractRow = { id: string; type: string; status: string; fileName: string; hasFile: boolean; createdAt: string };
+export async function listContracts(): Promise<ContractRow[]> {
+  return listFrom(await http("/contracts"), "items", "data", "contracts").map((x) => {
+    const d = asDict(x);
+    return {
+      id: asStr(d.id),
+      type: asStr(d.contract_type),
+      status: asStr(d.status),
+      fileName: asStr(d.file_name),
+      hasFile: Boolean(d.inline_url || d.download_url),
+      createdAt: asStr(d.created_at),
+    };
+  });
+}
+// The contract PDF itself (GET /contracts/{id}/file), fetched with the bearer token.
+export async function getContractFile(contractId: string): Promise<Blob> {
+  return httpBlob(`/contracts/${contractId}/file`, { headers: { Accept: "application/pdf" } });
+}
+export async function startContractSignature(contractId: string): Promise<OtpChallenge> {
+  return normOtp(await http(`/contracts/${contractId}/signature/start`, { method: "POST" }));
+}
+export type ContractSignature = { status: string; signatureHash: string; verifyUrl: string; signedAt: string };
+export async function verifyContractSignature(contractId: string, verificationId: string, code: string): Promise<ContractSignature> {
+  const d = asDict(
+    await http(`/contracts/${contractId}/signature/verify`, { method: "POST", body: JSON.stringify({ verification_id: verificationId, code }) }),
+  );
+  return {
+    status: asStr(d.status),
+    signatureHash: asStr(d.signature_hash),
+    // Backend-relative public check (GET /contracts/{id}/verify?hash=…), served through the proxy.
+    verifyUrl: asStr(d.verify_url) ? absUrl(asStr(d.verify_url)) : "",
+    signedAt: asStr(d.signed_at),
+  };
+}
+
+// ── Matching candidates (T1-09) ───────────────────────────────────
+// Verified sellers ranked by score for a service (GET /matching/candidates).
+export type MatchCandidate = {
+  lawyerUserId: string;
+  publicId: string;
+  name: string;
+  sellerType: string;
+  region: string;
+  rating: number;
+  reviewsCount: number;
+  experienceYears: number;
+  totalCases: number;
+  successRate: number;
+  workload: number;
+  score: number;
+  reasons: string[];
+};
+export async function getMatchingCandidates(params: { serviceId?: string; region?: string; urgency?: "normal" | "urgent" }): Promise<MatchCandidate[]> {
+  const q = new URLSearchParams();
+  if (params.serviceId) q.set("service_id", params.serviceId);
+  if (params.region) q.set("region", params.region);
+  q.set("urgency", params.urgency ?? "normal");
+  return listFrom(await http(`/matching/candidates?${q}`), "items", "data", "candidates").map((x) => {
+    const d = asDict(x);
+    return {
+      lawyerUserId: asStr(d.lawyer_user_id),
+      publicId: asStr(d.public_id),
+      name: asStr(d.name),
+      sellerType: asStr(d.seller_type),
+      region: asStr(d.region),
+      rating: asNum(d.rating),
+      reviewsCount: asNum(d.reviews_count),
+      experienceYears: asNum(d.total_experience_years ?? d.experience_years),
+      totalCases: asNum(d.total_cases),
+      successRate: asNum(d.success_rate),
+      workload: asNum(d.workload),
+      score: asNum(d.score),
+      reasons: asArr(d.reasons).map((r) => asStr(r)).filter(Boolean),
+    };
+  });
+}
+
+// ── Call-center queue and lead board (T1-12, T1A-05) ──────────────
+// GET /call-center/queue (callcenter.access): leads and unassigned orders,
+// SLA-breached first, then hot, then oldest.
+export type QueueItem = {
+  id: string;
+  type: "lead" | "order" | string;
+  title: string;
+  status: string;
+  score: string;
+  urgency: string;
+  region: string;
+  clientUserId?: string;
+  slaMinutes: number;
+  ageMinutes: number;
+  slaBreached: boolean;
+  recommendedSellerUserId?: string;
+  recommendedSellerLoad?: number;
+  createdAt: string;
+};
+export async function getCallCenterQueue(status?: string): Promise<QueueItem[]> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+  return listFrom(await http(`/call-center/queue${qs}`), "items", "data", "queue").map((x) => {
+    const d = asDict(x);
+    return {
+      id: asStr(d.id),
+      type: asStr(d.type),
+      title: asStr(d.title),
+      status: asStr(d.status),
+      score: asStr(d.score),
+      urgency: asStr(d.urgency),
+      region: asStr(d.region),
+      clientUserId: asStr(d.client_user_id) || undefined,
+      slaMinutes: asNum(d.sla_minutes, 60),
+      ageMinutes: asNum(d.age_minutes),
+      slaBreached: Boolean(d.sla_breached),
+      recommendedSellerUserId: asStr(d.recommended_seller_user_id) || undefined,
+      recommendedSellerLoad: d.recommended_seller_load == null ? undefined : asNum(d.recommended_seller_load),
+      createdAt: asStr(d.created_at),
+    };
+  });
+}
+// Hand an unassigned order to the next ranked seller (orders.manage).
+export async function assignNextSeller(orderId: string): Promise<void> {
+  await http(`/matching/orders/${orderId}/assign-next`, { method: "POST" });
+}
+// Call-center variant of the lead kanban (same shape as the admin board).
+export async function getCallCenterKanban(): Promise<KanbanColumn[]> {
+  return normKanban(await http("/call-center/leads/kanban"));
+}
+export async function moveCallCenterLead(leadId: string, columnKey: string, position = 0): Promise<void> {
+  await http(`/call-center/leads/${leadId}/move`, { method: "PATCH", body: JSON.stringify({ column_key: columnKey, position }) });
+}
+
+// ── Lawyer replacement history (T1A-04) ───────────────────────────
+// Clients can't list replacement requests (replacements.manage), but the owner
+// can read one request's history.
+export type ReplacementEvent = { id: string; status: string; title: string; note: string; createdAt: string };
+export async function listMyReplacementRequests(): Promise<ModuleRecord[]> {
+  return listModule("/replacement-requests/me");
+}
+export async function getReplacementHistory(replacementId: string): Promise<ReplacementEvent[]> {
+  return listFrom(await http(`/replacement-requests/${replacementId}/history`), "items", "data").map((x) => {
+    const d = asDict(x);
+    const pl = asDict(d.payload);
+    return {
+      id: asStr(d.id),
+      status: asStr(d.status ?? pl.status),
+      title: asStr(d.title),
+      note: asStr(pl.note ?? pl.reason ?? pl.comment),
+      createdAt: asStr(d.created_at),
+    };
+  });
 }
 
 // ── Generic module records (academy, b2b, ads, case-documents, legal-aid,
@@ -1593,7 +1962,7 @@ export async function downloadTemplateFile(templateId: string, filename: string)
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 // ── Seller stats & clients ────────────────────────────────────────
@@ -1642,6 +2011,36 @@ export async function getSellerCabinet(): Promise<SellerCabinet> {
     },
     stats: normStats(d.stats),
     newOrders: listFrom(d.new_orders, "orders", "items", "data").map(normOrder),
+  };
+}
+
+// Seller onboarding checklist (GET /seller-onboarding/progress), the same shape
+// for advocates and lawyers: profile, identity, documents, services, pricing.
+export type OnboardingStep = { key: string; title: string; required: boolean; completed: boolean };
+export type OnboardingProgress = { status: string; completedCount: number; totalCount: number; steps: OnboardingStep[] };
+// PDF/JPG/PNG up to 15 MB (POST /seller-onboarding/documents, multipart).
+export async function uploadOnboardingDocument(file: File, documentType = "qualification"): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("document_type", documentType);
+  await http("/seller-onboarding/documents", { method: "POST", body: form });
+}
+// Sends a complete onboarding to moderation (422 while steps are missing; repeat calls return the open submission).
+export async function submitOnboarding(): Promise<{ status: string }> {
+  const d = asDict(await http("/seller-onboarding/submit", { method: "POST" }));
+  return { status: asStr(d.status, "submitted") };
+}
+export async function getSellerOnboardingProgress(): Promise<OnboardingProgress> {
+  const d = asDict(await http("/seller-onboarding/progress"));
+  const steps = asArr(d.steps).map((x) => {
+    const r = asDict(x);
+    return { key: asStr(r.key), title: asStr(r.title), required: r.required !== false, completed: Boolean(r.completed) };
+  });
+  return {
+    status: asStr(d.status),
+    completedCount: d.completed_count == null ? steps.filter((x) => x.completed).length : asNum(d.completed_count),
+    totalCount: d.total_count == null ? steps.length : asNum(d.total_count),
+    steps,
   };
 }
 
@@ -2054,8 +2453,10 @@ export function isIdentityPending(s: IdentityStatus | null | undefined): boolean
 // staging demo provider, a state for code entry ("code"). A code that comes
 // back in the response is NEVER copied here — testers read it from server logs.
 export type IdentityStart = { mode: "redirect" | "code"; authUrl: string; state: string; expiresAt: string; message: string };
-export async function identityStart(provider: IdentityProvider): Promise<IdentityStart> {
-  const d = asDict(await http("/identity/start", { method: "POST", body: JSON.stringify({ provider }) }));
+export async function identityStart(provider: IdentityProvider, purpose = "profile_verification"): Promise<IdentityStart> {
+  // redirect_uri brings the user back to the page that started the check.
+  const redirect_uri = typeof window === "undefined" ? "" : window.location.href.split("#")[0];
+  const d = asDict(await http("/identity/start", { method: "POST", body: JSON.stringify({ provider, redirect_uri, purpose }) }));
   const rawUrl = asStr(d.auth_url ?? d.authUrl ?? d.redirect_url ?? d.authorization_url ?? d.url).trim();
   const authUrl = /^https:\/\/[^\s]+$/i.test(rawUrl) ? rawUrl : ""; // never another scheme in location
   const demoMarker = d.demo_code != null || d.demoCode != null || /demo/i.test(asStr(d.mode ?? d.provider_mode));
@@ -2067,9 +2468,10 @@ export async function identityStart(provider: IdentityProvider): Promise<Identit
     message: asStr(d.message),
   };
 }
-export async function identityVerifyDemo(state: string, code: string): Promise<IdentityStatus> {
-  // Backend expects `code` (typed by the user), not `demo_code`.
-  return normIdentity(await http("/identity/verify-demo", { method: "POST", body: JSON.stringify({ state, code }) }));
+export async function identityVerifyDemo(provider: IdentityProvider, state: string, code: string): Promise<IdentityStatus> {
+  // Backend expects `code` (typed by the user), not `demo_code`, and looks the
+  // session up by provider (it defaults to oneid, so MyID must be sent).
+  return normIdentity(await http("/identity/verify-demo", { method: "POST", body: JSON.stringify({ provider, state, code }) }));
 }
 export async function getIdentity(): Promise<IdentityStatus> {
   // /identity/me returns a list of verifications; pick a verified one, else an
@@ -2100,6 +2502,11 @@ export type ActivityEntry = {
   // records written before the chain existed.
   previousHash?: string;
   eventHash?: string;
+  userId?: string;
+  targetType?: string;
+  targetId?: string;
+  outcome?: string;
+  meta?: Record<string, unknown>;
 };
 function normActivity(v: unknown): ActivityEntry {
   const d = asDict(v);
@@ -2116,6 +2523,11 @@ function normActivity(v: unknown): ActivityEntry {
     createdAt: asStr(d.created_at ?? d.createdAt ?? d.timestamp),
     previousHash: hashOf(d.previous_hash, d.prev_hash, d.previousHash, chain.previous_hash),
     eventHash: hashOf(d.event_hash, d.hash, d.eventHash, chain.event_hash),
+    userId: asStr(d.user_id) || undefined,
+    targetType: asStr(d.target_type) || undefined,
+    targetId: asStr(d.target_id) || undefined,
+    outcome: asStr(d.outcome) || undefined,
+    meta: d.meta && typeof d.meta === "object" && !Array.isArray(d.meta) ? (d.meta as Record<string, unknown>) : undefined,
   };
 }
 export async function listMyActivity(): Promise<ActivityEntry[]> {
@@ -2167,11 +2579,12 @@ export type Referral = {
   appliesTo: string; // e.g. "subscription" / "commission"
   items: ReferralInvite[];
 };
-export async function getMyReferral(): Promise<Referral> {
+export async function getMyReferral(): Promise<Referral & { qrUrl: string }> {
   const d = asDict(await http("/referrals/me"));
   return {
     code: asStr(d.code),
     link: asStr(d.link ?? d.share_url),
+    qrUrl: asStr(d.qr_url),
     invited: asNum(d.invited_count ?? d.invited),
     joined: asNum(d.joined_count ?? d.joined),
     rewardBalance: uzs(d, "reward_balance", "balance"),
@@ -2182,12 +2595,13 @@ export async function getMyReferral(): Promise<Referral> {
     appliesTo: asStr(d.applies_to),
     items: asArr(d.items ?? d.referrals).map((x) => {
       const r = asDict(x);
+      const pl = asDict(r.payload);
       return {
-        name: asStr(r.name),
-        phone: asStr(r.phone),
+        name: asStr(r.name ?? pl.name ?? pl.invitee_name ?? pl.referred_name ?? r.title),
+        phone: asStr(r.phone ?? pl.phone ?? pl.invitee_phone),
         status: asStr(r.status, "invited"),
-        reward: uzs(r, "reward"),
-        joinedAt: asStr(r.joined_at ?? r.created_at),
+        reward: uzs(r, "reward") || uzs(pl, "reward", "reward_amount") || uzs(r, "price"),
+        joinedAt: asStr(r.joined_at ?? pl.joined_at ?? r.created_at),
       };
     }),
   };
@@ -2370,7 +2784,8 @@ export type CeoDashboard = {
   revenue: number; revenueDeltaPct: number; mrr: number;
   users: number; activeUsers: number; conversionPct: number;
   funnel: { label: string; value: number }[];
-  channels: { name: string; leads: number; pct: number }[];
+  channels: { name: string; leads: number; pct: number; payments: number; revenue: number }[];
+  cacClient: number; cacAdvocate: number; paidPayments: number;
   revenueTrend: { label: string; value: number }[];
   // Chapter V KPI system
   mau: number; dau: number; gmv: number; arr: number; arpu: number; takeRate: number;
@@ -2394,17 +2809,22 @@ function normGiftKpis(v: unknown): GiftKpis {
 }
 export async function getCeoDashboard(): Promise<CeoDashboard> {
   const d = asDict(await http("/analytics/ceo"));
-  const pair = (x: unknown) => { const r = asDict(x); return { label: asStr(r.label ?? r.name ?? r.date), value: asNum(r.value ?? r.count) }; };
+  const pair = (x: unknown) => { const r = asDict(x); return { label: asStr(r.stage ?? r.label ?? r.name ?? r.date), value: asNum(r.value ?? r.count) }; };
   // cac may be a number or an object { total, client, advocate }.
   const cacRaw = d.cac;
   const cac = typeof cacRaw === "object" && cacRaw ? uzs(asDict(cacRaw), "total") : uzs(d, "cac");
   // Revenue trend values are so'm amounts, unlike the funnel counts read by pair.
-  const moneyPair = (x: unknown) => { const r = asDict(x); return { label: asStr(r.label ?? r.name ?? r.date), value: uzs(r, "value", "count") }; };
+  const moneyPair = (x: unknown) => { const r = asDict(x); return { label: asStr(r.date ?? r.label ?? r.name), value: uzs(r, "revenue", "value", "count") }; };
+  const cacObj = typeof cacRaw === "object" && cacRaw ? asDict(cacRaw) : {};
   return {
     revenue: uzs(d, "revenue"), revenueDeltaPct: asNum(d.revenue_delta_pct), mrr: uzs(d, "mrr"),
     users: asNum(d.users ?? d.total_users), activeUsers: asNum(d.active_users), conversionPct: asNum(d.conversion_pct),
     funnel: asArr(d.funnel).map(pair),
-    channels: asArr(d.channels ?? d.attribution).map((x) => { const r = asDict(x); return { name: asStr(r.name ?? r.channel), leads: asNum(r.leads ?? r.count), pct: asNum(r.pct ?? r.share) }; }),
+    channels: asArr(d.channels ?? d.attribution).map((x) => {
+      const r = asDict(x);
+      return { name: asStr(r.source ?? r.name ?? r.channel), leads: asNum(r.leads ?? r.count), pct: asNum(r.conversion_pct ?? r.pct ?? r.share), payments: asNum(r.payments), revenue: uzs(r, "revenue") };
+    }),
+    cacClient: uzs(cacObj, "client"), cacAdvocate: uzs(cacObj, "advocate"), paidPayments: asNum(d.paid_payments),
     revenueTrend: asArr(d.revenue_trend ?? d.trend).map(moneyPair),
     mau: asNum(d.mau), dau: asNum(d.dau), gmv: uzs(d, "gmv"), arr: uzs(d, "arr"), arpu: uzs(d, "arpu"), takeRate: asNum(d.take_rate),
     cac, ltv: uzs(d, "ltv"), ltvCac: asNum(d.ltv_cac), paybackMonths: asNum(d.payback_months),
@@ -2457,31 +2877,147 @@ export type RetentionOverview = {
   upsell: { name: string; suggestion: string }[];
 };
 // ── AI: problem classification (intake → lead) ────────────────────
-export type AiClassification = { category: string; urgency: string; summary: string; recommendedService: string; confidence: number; leadId?: string; routedTo?: string };
+// Official legal sources the AI answers from (GET /ai/legal-corpus; /ai/classify inlines them too).
+export type LegalSource = { key: string; title: string; url: string; trustLevel: string };
+function normLegalSource(v: unknown): LegalSource {
+  const d = asDict(v);
+  return { key: asStr(d.key), title: asStr(d.title ?? d.name), url: asStr(d.url), trustLevel: asStr(d.trust_level) };
+}
+export async function getLegalCorpus(): Promise<LegalSource[]> {
+  return listFrom(await http("/ai/legal-corpus"), "items", "data", "sources").map(normLegalSource).filter((x) => x.title);
+}
+
+// One of up to three matched services (basic / standard / premium) with its passport.
+export type AiOffer = { level: string; serviceId: string; title: string; basePrice?: number; passport: ServicePassport };
+export type AiClassification = {
+  category: string; // criminal | administrative | family | contract | court | general
+  executorType: string;
+  urgency: string; // normal | urgent
+  summary: string;
+  recommendedService: string;
+  confidence: number;
+  leadId?: string;
+  routedTo?: string;
+  offers: AiOffer[];
+  sources: LegalSource[];
+  disclaimer: string;
+  // "reliable_source_required" when no source carries an article and a date:
+  // the answer must not be presented as confident.
+  answerStatus: string;
+};
 export async function classifyProblem(text: string): Promise<AiClassification> {
   const d = asDict(await http("/ai/classify", { method: "POST", body: JSON.stringify({ text }) }));
   return {
     category: asStr(d.category),
+    executorType: asStr(d.executor_type),
     urgency: asStr(d.urgency, "normal"),
-    summary: asStr(d.summary),
+    // Older builds echoed the user's text here; newer ones send an object
+    // ({family, urgency, executor_type}) that is already shown field by field.
+    summary: typeof d.summary === "string" ? d.summary : "",
     recommendedService: asStr(d.recommended_service ?? d.service),
     confidence: asNum(d.confidence),
     leadId: asStr(d.lead_id) || undefined,
     routedTo: asStr(d.routed_to ?? d.assigned_to) || undefined,
+    offers: asArr(d.offer_levels)
+      .map((x) => {
+        const o = asDict(x);
+        return {
+          level: asStr(o.level),
+          serviceId: asStr(o.service_id),
+          title: asStr(o.title),
+          basePrice: uzsOpt(o, "base_price"),
+          passport: normPassport(o.passport),
+        };
+      })
+      .filter((o) => o.serviceId),
+    sources: asArr(d.sources).map(normLegalSource).filter((x) => x.title),
+    disclaimer: asStr(d.disclaimer),
+    answerStatus: asStr(d.answer_status),
   };
 }
 
 // ── AI: document analysis ─────────────────────────────────────────
-export type DocAnalysis = { summary: string; risks: { level: string; text: string }[]; recommendations: string[]; pointsCount: number };
-export async function analyzeDocument(text: string): Promise<DocAnalysis> {
-  const d = asDict(await http("/ai/document-analysis", { method: "POST", body: JSON.stringify({ text }) }));
+// Price of an analysis (POST /ai/document-analysis/quote); the analysis result embeds one too.
+export type DocAnalysisQuote = {
+  pageCount: number;
+  currency: string;
+  baseAmount: number;
+  ocrAmount: number;
+  lawyerReviewAmount: number;
+  urgencyAmount: number;
+  totalAmount: number;
+  paymentRequired: boolean;
+  writtenOpinionAmount: number;
+  aiIncluded: boolean; // the AI analysis itself is part of the subscription
+  pricingRule: string;
+};
+function normDocQuote(v: unknown): DocAnalysisQuote {
+  const d = asDict(v);
+  return {
+    pageCount: asNum(d.page_count),
+    currency: asStr(d.currency, "UZS"),
+    baseAmount: uzs(d, "base_amount"),
+    ocrAmount: uzs(d, "ocr_amount"),
+    lawyerReviewAmount: uzs(d, "lawyer_review_amount"),
+    urgencyAmount: uzs(d, "urgency_amount"),
+    totalAmount: uzs(d, "total_amount"),
+    paymentRequired: Boolean(d.payment_required),
+    writtenOpinionAmount: uzs(d, "written_opinion_amount"),
+    aiIncluded: Boolean(d.ai_included_in_subscription),
+    pricingRule: asStr(d.pricing_rule),
+  };
+}
+export type DocQuoteInput = { pageCount: number; ocr: boolean; lawyerReview: boolean; urgent: boolean; writtenOpinion?: boolean };
+export async function quoteDocumentAnalysis(input: DocQuoteInput): Promise<DocAnalysisQuote> {
+  const body = {
+    page_count: Math.round(input.pageCount),
+    ocr: input.ocr,
+    lawyer_review: input.lawyerReview,
+    urgency: input.urgent ? "urgent" : "normal",
+    written_opinion: Boolean(input.writtenOpinion),
+  };
+  return normDocQuote(await http("/ai/document-analysis/quote", { method: "POST", body: JSON.stringify(body) }));
+}
+
+export type DocAnalysis = {
+  summary: string;
+  risks: { level: string; text: string }[];
+  recommendations: string[];
+  pointsCount: number;
+  analysisText: string; // optional AI write-up, plain text with markdown marks
+  pageCount: number;
+  pricing?: DocAnalysisQuote;
+  upsell?: { title: string; reason: string };
+  fileName?: string;
+};
+function normDocAnalysis(v: unknown): DocAnalysis {
+  const d = asDict(v);
   const risks = asArr(d.risks).map((x) => { const r = asDict(x); return { level: asStr(r.level, "low"), text: asStr(r.text ?? r.risk) }; });
+  const up = asDict(d.upsell_offer);
   return {
     summary: asStr(d.summary),
     risks,
     recommendations: asArr(d.recommendations).map((x) => asStr(x)),
     pointsCount: asNum(d.points_count) || risks.length + asArr(d.recommendations).length,
+    analysisText: asStr(d.analysis_text),
+    pageCount: asNum(d.page_count),
+    pricing: d.pricing && typeof d.pricing === "object" ? normDocQuote(d.pricing) : undefined,
+    upsell: !Object.keys(up).length || up.available === false ? undefined : { title: asStr(up.title), reason: asStr(up.reason) },
+    fileName: asStr(d.file_name) || undefined,
   };
+}
+export async function analyzeDocument(text: string): Promise<DocAnalysis> {
+  return normDocAnalysis(await http("/ai/document-analysis", { method: "POST", body: JSON.stringify({ text }) }));
+}
+// PDF, DOCX or TXT up to 20 MB (POST /ai/document-analysis/file, multipart).
+export async function analyzeDocumentFile(file: File): Promise<DocAnalysis> {
+  const form = new FormData();
+  form.append("file", file);
+  return normDocAnalysis(await http("/ai/document-analysis/file", { method: "POST", body: form }));
+}
+// "Useful / not useful" on an AI answer; not useful goes to the lawyer-moderator queue (T1-04).
+export async function sendAiFeedback(useful: boolean, comment = "", requestId = ""): Promise<void> {
+  await http("/ai/feedback", { method: "POST", body: JSON.stringify({ useful, comment, request_id: requestId }) });
 }
 
 // ── AI: operator / case assistant ─────────────────────────────────
@@ -2595,12 +3131,27 @@ export async function getOrderStatusHistory(orderId: string): Promise<OrderStatu
 }
 
 // ── Admin audit trail ─────────────────────────────────────────────
-// Optional date range, inclusive, as YYYY-MM-DD.
-export async function listAuditTrail(range?: { dateFrom?: string; dateTo?: string }): Promise<ActivityEntry[]> {
+// Filters: date range (inclusive, YYYY-MM-DD), user id, action, target type/id.
+export type AuditFilters = { dateFrom?: string; dateTo?: string; userId?: string; action?: string; targetType?: string; targetId?: string };
+function auditQuery(f?: AuditFilters): URLSearchParams {
   const q = new URLSearchParams();
-  if (range?.dateFrom) q.set("date_from", range.dateFrom);
-  if (range?.dateTo) q.set("date_to", range.dateTo);
-  const qs = q.toString();
+  if (f?.dateFrom) q.set("date_from", f.dateFrom);
+  if (f?.dateTo) q.set("date_to", f.dateTo);
+  if (f?.userId?.trim()) q.set("user_id", f.userId.trim());
+  if (f?.action?.trim()) q.set("action", f.action.trim());
+  if (f?.targetType?.trim()) q.set("target_type", f.targetType.trim());
+  if (f?.targetId?.trim()) q.set("target_id", f.targetId.trim());
+  return q;
+}
+// CSV of the same filtered rows (GET /admin/audit-trail?export=csv, users.manage);
+// the backend logs every export.
+export async function exportAuditTrailCsv(filters?: AuditFilters): Promise<Blob> {
+  const q = auditQuery(filters);
+  q.set("export", "csv");
+  return httpBlob(`/admin/audit-trail?${q}`, { headers: { Accept: "text/csv" } });
+}
+export async function listAuditTrail(range?: AuditFilters): Promise<ActivityEntry[]> {
+  const qs = auditQuery(range).toString();
   // The export response shape isn't published, so accept the likely list keys.
   return listFrom(
     await http(`/admin/audit-trail${qs ? `?${qs}` : ""}`),
@@ -2786,6 +3337,32 @@ export async function getIntegrationsStatus(): Promise<Integration[]> {
   return (await getIntegrationsOverview()).items;
 }
 
+// ── End-to-end readiness (admin, GET /admin/e2e/readiness) ────────
+export type E2eScenario = { key: string; status: string; routes: string[]; checks: { key: string; value: string | number | boolean }[] };
+export type E2eReadiness = {
+  status: string;
+  checkedAt: string;
+  fixtures: { key: string; count: number }[];
+  scenarios: E2eScenario[];
+};
+export async function getE2eReadiness(): Promise<E2eReadiness> {
+  const d = asDict(await http("/admin/e2e/readiness"));
+  const fx = asDict(d.fixtures);
+  return {
+    status: asStr(d.status),
+    checkedAt: asStr(d.checked_at),
+    fixtures: Object.keys(fx).map((k) => ({ key: k, count: asNum(fx[k]) })),
+    scenarios: asArr(d.scenarios).map((x) => {
+      const r = asDict(x);
+      const c = asDict(r.checks);
+      const checks = Object.keys(c)
+        .filter((k) => ["string", "number", "boolean"].includes(typeof c[k]))
+        .map((k) => ({ key: k, value: c[k] as string | number | boolean }));
+      return { key: asStr(r.key), status: asStr(r.status), routes: asArr(r.routes).map((y) => asStr(y)).filter(Boolean), checks };
+    }),
+  };
+}
+
 // ── Roles & permissions matrix (admin) ────────────────────────────
 export type PermMatrixRole = { id: string; name: string; title: string; permissions: string[] };
 export type PermSellerRule = { sellerType: string; blockedPrefixes: string[]; rule: string };
@@ -2801,7 +3378,11 @@ export async function getPermissionMatrix(): Promise<PermissionMatrix> {
     const v = asDict(sr[k]);
     return { sellerType: asStr(v.seller_type ?? k), blockedPrefixes: asArr(v.blocked_service_prefixes).map((p) => asStr(p)), rule: asStr(v.rule) };
   });
-  return { roles, permissions: asArr(d.permissions).map((p) => asStr(p)), sellerRules };
+  // Permissions arrive as {code, title} objects (older builds sent plain codes).
+  const permissions = asArr(d.permissions)
+    .map((p) => (typeof p === "string" ? p : asStr(asDict(p).code)))
+    .filter(Boolean);
+  return { roles, permissions, sellerRules };
 }
 
 // ── Test OTPs (staging only; DEMO_MODE=true & APP_ENV!=production) ──
@@ -2980,6 +3561,9 @@ export async function listPayments(): Promise<PaymentHistory[]> {
       receiptUrl: asStr(d.receipt_url) || undefined,
     };
   });
+}
+export async function getPaymentReceipt(paymentId: string): Promise<Blob> {
+  return httpBlob(`/payments/${paymentId}/receipt`, { headers: { Accept: "application/pdf" } });
 }
 export function paymentReceiptUrl(paymentId: string): string {
   return absUrl(`/payments/${paymentId}/receipt`);
@@ -3637,6 +4221,33 @@ export function currentConsents(docs: ConsentDoc[]): ConsentDoc[] {
     return i < 0 ? CONSENT_ORDER.length : i;
   };
   return [...best.values()].sort((a, b) => rank(a.slug) - rank(b.slug) || a.slug.localeCompare(b.slug));
+}
+// Who a consent document is for. The backend has no audience field yet, so
+// role-specific documents are recognised by slug; any other slug applies to
+// everyone. client_provider_contract is signed per order (T1A-04), not at
+// sign-up, so it is never part of the sign-up/re-consent set.
+export type ConsentAudience = "client" | "lawyer" | "advocate" | "staff";
+const CONSENT_AUDIENCE: Record<string, ConsentAudience[]> = {
+  advocate_partnership: ["lawyer", "advocate"],
+  organization_agreement: ["advocate"],
+  client_provider_contract: [],
+  payment_refund_warranty: ["client", "lawyer", "advocate"],
+  age_18: ["client", "lawyer", "advocate"],
+};
+export function consentsFor(docs: ConsentDoc[], audience: ConsentAudience): ConsentDoc[] {
+  return docs.filter((d) => {
+    const who = CONSENT_AUDIENCE[d.slug];
+    return !who || who.includes(audience);
+  });
+}
+export async function listMyConsents(): Promise<AcceptedConsentRef[]> {
+  return asArr(await http("/legal/consents/me"))
+    .map((x) => {
+      const d = asDict(x);
+      return { id: asStr(d.consent_id ?? d.id), slug: asStr(d.slug), version: asStr(d.version), accepted: d.accepted !== false };
+    })
+    .filter((r) => r.id && r.accepted)
+    .map(({ id, slug, version }) => ({ id, slug, version }));
 }
 export async function listLegalConsents(): Promise<ConsentDoc[]> {
   return normConsentDocs(await http("/legal/consents"));

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { createSosRequest, type SosRequest } from "@/lib/services/backend";
+import { HOTLINE, HOTLINE_TEL } from "@/lib/contact";
 import {
   IconAlert,
   IconChat,
@@ -24,8 +25,6 @@ const CATS = [
   { key: "contract", Icon: IconFileText },
   { key: "other", Icon: IconChat },
 ] as const;
-
-const HOTLINE = "+998 78 777 00 00";
 
 export default function ClientSos() {
   const t = useTranslations("portal.client.sos");
@@ -65,7 +64,7 @@ export default function ClientSos() {
             <p className="sos2__sub">{t("subtitle")}</p>
           </div>
         </div>
-        <a className="sos2__herocall" href={`tel:${HOTLINE.replace(/[^+\d]/g, "")}`}>
+        <a className="sos2__herocall" href={HOTLINE_TEL}>
           <span className="sos2__calli"><IconPhone /></span>
           <span className="sos2__callt">
             <span className="sos2__calll">{t("callNow")}</span>
@@ -163,7 +162,7 @@ export default function ClientSos() {
           <span className="sos2__ok"><IconShieldCheck /></span>
           <b>{t("sentTitle")}</b>
           <span className="sos2__psub">{t("sentSub")}</span>
-          <a className="sos2__call sos2__call--sm" href={`tel:${HOTLINE.replace(/[^+\d]/g, "")}`}>
+          <a className="sos2__call sos2__call--sm" href={HOTLINE_TEL}>
             <span className="sos2__calli"><IconPhone /></span>
             <span className="sos2__callt">
               <span className="sos2__calll">{t("callNow")}</span>

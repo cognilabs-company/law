@@ -10,7 +10,8 @@
       "dayOff": "Bugun dam olish kuni",
       "schedule": "{days}, {start}–{end} (Toshkent vaqti)",
       "holidayNote": "Bayram kunlari hozircha hisobga olinmaydi."
-    }
+    },
+    "otpChannelUnavailable": "Tasdiqlash kodini Telegram orqali yuborib bo'lmadi. Telegram botni ulang yoki birozdan so'ng qayta urinib ko'ring."
   },
   "a11y": {
     "showPassword": "Parolni ko'rsatish",
@@ -685,7 +686,7 @@
       "responseLabel": "Javob",
       "reviews": "{count} ta baho · {years} yil tajriba",
       "priceNote": "so'mdan · paket",
-      "super": "Super advokat",
+      "verified": "Tasdiqlangan",
       "choose": "Tanlash",
       "opening": "Ochilmoqda…"
     },
@@ -1612,7 +1613,10 @@
     },
     "analysisSuffix": "Aniqlangan yo'nalish: {dir} · {stage}.\nTaxminiy narx: {price}.",
     "limitReached": "Bepul savollar limiti tugadi. Davom etish uchun kiring.",
-    "limitLogin": "Davom etish uchun kirish"
+    "limitLogin": "Davom etish uchun kirish",
+    "aiQuotaReached": "Oylik Sun'iy intellekt limitingiz tugadi ({used} / {limit}). Davom etish uchun tarifni yangilang.",
+    "aiQuotaReachedShort": "Oylik Sun'iy intellekt limitingiz tugadi. Davom etish uchun tarifni yangilang.",
+    "upgradePlan": "Tarifni yangilash"
   },
   "chatPage": {
     "metaTitle": "Sun'iy Intellekt chat",
@@ -1642,7 +1646,11 @@
     "downloadPdf": "PDF yuklab olish",
     "open": "Ochish",
     "limitReached": "Mehmonlar uchun bepul limit tugadi. Sun'iy Intellekt bilan davom etish uchun tizimga kiring.",
-    "limitLogin": "Davom etish uchun kirish"
+    "limitLogin": "Davom etish uchun kirish",
+    "aiQuotaReached": "Oylik Sun'iy intellekt limitingiz tugadi ({used} / {limit}). Davom etish uchun tarifni yangilang.",
+    "aiQuotaReachedShort": "Oylik Sun'iy intellekt limitingiz tugadi. Davom etish uchun tarifni yangilang.",
+    "upgradePlan": "Tarifni yangilash",
+    "fileError": "Faylni ochib bo'lmadi"
   },
   "portal": {
     "metaTitle": "Portal",
@@ -1683,7 +1691,44 @@
       "payAdvance": "{pct}% oldindan to'lash",
       "paying": "To'lov amalga oshirilmoqda…",
       "openChat": "Maxfiy chatni ochish",
-      "error": "To'lovni amalga oshirib bo'lmadi. Qayta urining."
+      "error": "To'lovni amalga oshirib bo'lmadi. Qayta urining.",
+      "intentTitle": "To'lov yaratildi",
+      "intentAmount": "To'lov summasi",
+      "intentStatus": "Holati",
+      "intentStates": {
+        "pending": "To'lov kutilmoqda",
+        "created": "Yaratildi",
+        "payment_pending": "To'lov kutilmoqda",
+        "paid": "To'langan",
+        "failed": "Muvaffaqiyatsiz",
+        "cancelled": "Bekor qilingan"
+      },
+      "proceed": "To'lov sahifasiga o'tish",
+      "noLink": "To'lov havolasi olinmadi. Birozdan so'ng qayta urinib ko'ring.",
+      "cancel": "Bekor qilish",
+      "milestones": {
+        "title": "To'lov bosqichlari",
+        "stage": "{n}-bosqich",
+        "pay": "To'lash",
+        "paying": "Yaratilmoqda…",
+        "release": "Ishni tasdiqlash",
+        "releaseYes": "Ha, tasdiqlayman",
+        "releasing": "Tasdiqlanmoqda…",
+        "releaseConfirm": "Tasdiqlasangiz, shu bosqich uchun to'lov ijrochiga o'tkaziladi. Buni ish bajarilgach qiling.",
+        "releasedMsg": "Bosqich tasdiqlandi, to'lov ijrochiga o'tkazildi.",
+        "paidDemo": "Test to'lovi qabul qilindi.",
+        "error": "Amalni bajarib bo'lmadi. Qayta urining.",
+        "forbidden": "Bu amal uchun ruxsatingiz yo'q.",
+        "conflict": "Bosqich holati o'zgargan — ro'yxat yangilandi.",
+        "status": {
+          "waiting_payment": "To'lov kutilmoqda",
+          "payment_pending": "To'lov jarayonda",
+          "pending": "Kutilmoqda",
+          "paid": "To'langan",
+          "held": "Ushlab turilgan",
+          "released": "Ijrochiga o'tkazildi"
+        }
+      }
     },
     "login": {
       "title": "LexGo ga kirish",
@@ -1725,7 +1770,7 @@
         "resetSendCode": "Kod olish",
         "resetSending": "Yuborilmoqda…",
         "resetCodeTitle": "Yangi parol o'rnatish",
-        "resetCodeSubtitle": "Agar {phone} raqamiga hisob bog'langan bo'lsa, unga tasdiqlash kodi yuborildi. Kodni kiriting va yangi parol o'rnating.",
+        "resetCodeSubtitle": "Agar {phone} raqami ro'yxatdan o'tgan bo'lsa, tasdiqlash kodi hisobga ulangan Telegram botga yuborildi. Kodni kiriting va yangi parol o'rnating.",
         "resetCode": "Tasdiqlash kodi",
         "resetCodePh": "6 xonali kod",
         "resetNewPassword": "Yangi parol",
@@ -1738,7 +1783,8 @@
         "resetBackToLogin": "Kirishga qaytish",
         "resetError": "Amalni bajarib bo'lmadi. Qayta urining.",
         "resetPhoneRequired": "Telefon raqamni kiriting.",
-        "resetWeak": "Parol kamida 8 ta belgidan iborat bo'lsin."
+        "resetWeak": "Parol kamida 8 ta belgidan iborat bo'lsin.",
+      "twoFaTelegramSubtitle": "Telegram botga yuborilgan 6 xonali kodni kiriting"
     },
     "common": {
       "logout": "Chiqish",
@@ -1811,10 +1857,10 @@
       },
       "twofa": {
         "title": "Ikki bosqichli himoya (2FA)",
-        "desc": "Har kirishda telefoningizga tasdiq kodi yuboriladi — hisobingiz xavfsizroq bo'ladi.",
+        "desc": "Har kirishda Telegram botga yoki Authenticator ilovaga tasdiq kodi keladi — hisobingiz xavfsizroq bo'ladi.",
         "enable": "Yoqish",
         "enableSending": "Yuborilmoqda…",
-        "codeLabel": "Telefonga yuborilgan kod",
+        "codeLabel": "Telegram botga yuborilgan kod",
         "codePh": "6 xonali kod",
         "verify": "Tasdiqlash",
         "verifying": "Tekshirilmoqda…",
@@ -1825,7 +1871,7 @@
         "disabledMsg": "2FA o'chirildi.",
         "errStart": "Amalni bajarib bo'lmadi. Qayta urining.",
         "errVerify": "Kod noto'g'ri yoki muddati o'tgan. Qayta urining.",
-          "chooseSms": "SMS orqali",
+          "chooseSms": "Telegram orqali kod",
           "chooseTotp": "Authenticator ilova",
           "totpSetupTitle": "Authenticator ilovasini ulash",
           "scanHint": "QR kodni Google Authenticator, Authy yoki shunga o'xshash ilovada skanerlang, so'ng 6 xonali kodni kiriting.",
@@ -1838,7 +1884,9 @@
           "switchToTotp": "Authenticator ilovaga o'tish",
           "currentMethod": "Joriy usul: {method}",
           "methodSms": "SMS",
-          "methodTotp": "Authenticator ilova"
+          "methodTotp": "Authenticator ilova",
+        "methodTelegram": "Telegram kodi",
+        "mandatoryEnable": "Sizning rolingiz uchun ikki bosqichli himoya majburiy — uni hozir yoqing: Authenticator ilova yoki Telegram kodi."
       },
       "telegram": {
         "title": "Telegram hisobi",
@@ -1865,7 +1913,39 @@
         "done": "Tayyor",
         "errStart": "Havolani olib bo'lmadi. Qayta urining.",
         "errUnavailable": "Telegram bot hozircha ulanmagan. Keyinroq urinib ko'ring."
-      }
+      },
+      "orderStatus": {
+        "new": "Yangi",
+        "waiting_info": "Ma'lumot kutilmoqda",
+        "waiting_docs": "Hujjatlar kutilmoqda",
+        "waiting_payment": "To'lov kutilmoqda",
+        "seller_selection": "Ijrochi tanlanmoqda",
+        "sent_to_seller": "Ijrochiga yuborildi",
+        "paid": "To'langan",
+        "accepted": "Qabul qilindi",
+        "started": "Ish boshlandi",
+        "in_progress": "Jarayonda",
+        "result_ready": "Natija tayyor",
+        "quality_check": "Sifat tekshiruvida",
+        "delivered": "Topshirildi",
+        "client_confirmation": "Tasdiqlashingiz kutilmoqda",
+        "completed": "Yakunlandi",
+        "rated": "Baholandi",
+        "lost": "Bekor bo'ldi",
+        "cancelled": "Bekor qilindi",
+        "declined": "Rad etildi"
+      },
+      "orderStage": {
+        "request": "So'rov",
+        "matching": "Ijrochi tanlash",
+        "payment": "To'lov",
+        "work": "Ish jarayoni",
+        "done": "Yakun",
+        "closed": "Yopilgan"
+      },
+      "orderTaken": "Bu buyurtmani boshqa ijrochi oldi",
+      "orderForbidden": "Bu buyurtma bilan ishlashga ruxsatingiz yo'q",
+      "orderActionFailed": "Amalni bajarib bo'lmadi. Qayta urining."
     },
     "tasks": {
       "title": "Vazifalar",
@@ -2054,7 +2134,9 @@
         "save": "Saqlash",
         "saving": "Saqlanmoqda…",
         "saved": "Xizmatlar saqlandi",
-        "error": "Xatolik. Qayta urining."
+        "error": "Xatolik. Qayta urining.",
+        "priceOutOfRange": "Narx ruxsat etilgan oraliqda bo'lishi kerak: {min} – {max} so'm.",
+        "invalidField": "Ma'lumot noto'g'ri: {detail}"
       },
       "documents": {
         "title": "Hujjatlar",
@@ -2145,7 +2227,21 @@
         "docsEmptyText": "Bu ish uchun birinchi hujjatni qo‘shing.",
         "docsAdd": "Hujjat qo‘shish",
         "docsAddPh": "Hujjat nomi",
-        "docsAdded": "Hujjat qo‘shildi."
+        "docsAdded": "Hujjat qo‘shildi.",
+        "orderItem": "Buyurtma",
+        "orderStatus": "Buyurtma holati",
+        "stageOf": "{n}/{total}-bosqich",
+        "milestonesCta": "To'lov bosqichlari",
+        "hideMilestones": "Bosqichlarni yopish",
+        "replacementStatus": "Advokatni almashtirish: {status}",
+        "replacementStates": {
+          "active": "Ko'rib chiqilmoqda",
+          "pending": "Ko'rib chiqilmoqda",
+          "in_review": "Ko'rib chiqilmoqda",
+          "approved": "Tasdiqlandi",
+          "rejected": "Rad etildi",
+          "completed": "Almashtirildi"
+        }
       },
       "payments": {
         "title": "To'lovlar",
@@ -2157,7 +2253,32 @@
         "amount": "Summa",
         "empty": "Hozircha to'lov yo'q",
         "emptyText": "To'lovlar va cheklar shu yerda ko'rinadi.",
-        "receipt": "Chek"
+        "receipt": "Chek",
+        "receiptError": "Chekni yuklab bo'lmadi",
+        "statusCol": "Holat",
+        "statuses": {
+          "paid": "To'langan",
+          "pending": "Kutilmoqda",
+          "payment_pending": "Kutilmoqda",
+          "failed": "Muvaffaqiyatsiz",
+          "cancelled": "Bekor qilingan",
+          "refunded": "Qaytarilgan",
+          "partially_refunded": "Qisman qaytarilgan",
+          "expired": "Muddati o'tgan",
+          "held": "Ushlab turilgan"
+        },
+        "kinds": {
+          "order": "Xizmat buyurtmasi",
+          "order_milestone": "Buyurtma bosqichi",
+          "document_request": "Hujjat namunasi",
+          "gift": "Obuna sovg'asi",
+          "private_chat": "Maxfiy chat",
+          "subscription_plan": "Obuna",
+          "promotion": "Targ'ibot",
+          "upsell_offer": "Qo'shimcha xizmat",
+          "organization": "Tashkilot",
+          "pending_registration": "Ro'yxatdan o'tish"
+        }
       },
       "intake": {
         "title": "Sun'iy intellekt muammo tahlili",
@@ -2177,9 +2298,52 @@
         "orderRecommended": "Bu xizmatni buyurtma qilish",
         "viewAllMatches": "Barchasini ko'rish",
         "orSos": "Shoshilinch bo'lsa — SOS",
-        "urgency": { "low": "Past", "normal": "O'rtacha", "high": "Yuqori", "critical": "Juda shoshilinch" },
+        "urgency": { "low": "Past", "normal": "O'rtacha", "high": "Yuqori", "critical": "Juda shoshilinch", "urgent": "Shoshilinch" },
         "failedTitle": "Tahlil qilinmadi",
-        "failedText": "Iltimos, keyinroq urining yoki to'g'ridan-to'g'ri mutaxassisga murojaat qiling."
+        "failedText": "Iltimos, keyinroq urining yoki to'g'ridan-to'g'ri mutaxassisga murojaat qiling.",
+        "executor": "Ijrochi",
+        "categories": {
+          "criminal": "Jinoyat ishlari",
+          "administrative": "Ma'muriy ishlar",
+          "family": "Oila huquqi",
+          "contract": "Shartnomalar",
+          "court": "Sud ishlari",
+          "general": "Umumiy yuridik masala"
+        },
+        "executors": {
+          "advokat": "Advokat",
+          "yurist": "Yurist",
+          "yurist_advokat": "Yurist yoki advokat"
+        },
+        "urgentTitle": "Bu masala shoshilinch",
+        "urgentText": "Kutmang — hozir advokat bilan bog'laning yoki call-markazga qo'ng'iroq qiling.",
+        "urgentCta": "Hozir advokat bilan bog'lanish",
+        "offersTitle": "Mos xizmatlar",
+        "offersSub": "3 darajada",
+        "levels": {
+          "basic": "Asosiy",
+          "standard": "Standart",
+          "premium": "Premium"
+        },
+        "som": "so'm",
+        "byRequest": "Kelishilgan narx",
+        "termDays": "{n} kun",
+        "docsN": "{n} ta hujjat",
+        "advokatOnly": "Faqat advokat",
+        "showPassport": "Xizmat pasporti",
+        "hidePassport": "Pasportni yopish",
+        "orderOffer": "Buyurtma berish",
+        "sourcesTitle": "Manbalar",
+        "disclaimer": "Bu javob yuridik axborot va dastlabki yo'nalishdir. Yakuniy qaror uchun yurist yoki advokat bilan maslahatlashing.",
+        "corpusTitle": "Rasmiy huquqiy manbalar",
+        "corpusLead": "Sun'iy intellekt javoblari shu rasmiy manbalarga tayanadi.",
+        "official": "Rasmiy",
+        "feedbackAsk": "Javob foydali bo'ldimi?",
+        "feedbackYes": "Foydali",
+        "feedbackNo": "Foydasiz",
+        "feedbackThanks": "Rahmat! Fikringiz qabul qilindi.",
+        "feedbackQueued": "Rahmat! Javob yurist-moderatorga tekshiruvga yuborildi.",
+        "sourceUnverified": "Bu savol bo'yicha modda va sanasi aniq ko'rsatilgan manba topilmadi. Javob faqat dastlabki yo'nalish — qaror qabul qilishdan oldin yurist yoki advokat bilan maslahatlashing."
       },
       "docAnalysis": {
         "title": "Hujjat tahlili",
@@ -2196,7 +2360,39 @@
         "recommendations": "Tavsiyalar",
         "level": { "low": "Past", "medium": "O'rta", "high": "Yuqori" },
         "failedTitle": "Tahlil qilinmadi",
-        "failedText": "Iltimos, keyinroq urining."
+        "failedText": "Iltimos, keyinroq urining.",
+        "pages": "Sahifalar soni",
+        "ocr": "Skanerlangan hujjat (OCR)",
+        "urgent": "Shoshilinch",
+        "lawyerReview": "Advokat tekshiruvi",
+        "pagesRange": "Sahifalar soni 1 dan {max} gacha bo'lishi kerak.",
+        "getQuote": "Narxni hisoblash",
+        "quoting": "Hisoblanmoqda…",
+        "quoteError": "Narxni hisoblab bo'lmadi. Qayta urining.",
+        "quoteBase": "Tahlil ({n} sahifa)",
+        "quoteOcr": "Skanerni o'qish (OCR)",
+        "quoteLawyer": "Advokat tekshiruvi",
+        "quoteUrgent": "Shoshilinchlik",
+        "quoteTotal": "Jami",
+        "som": "so'm",
+        "pagesN": "{n} sahifa",
+        "aiText": "Sun'iy intellekt xulosasi",
+        "upsellTitle": "Advokat tomonidan tekshiruv",
+        "upsellText": "Sun'iy intellekt tahlilidan keyin hujjatni mutaxassis ko'rib chiqishi mumkin.",
+        "upsellPrice": "Advokat tekshiruvi: {price}",
+        "upsellAdd": "Advokat tekshiruvini qo'shish",
+        "upsellLawyers": "Advokat tanlash",
+        "fileUpload": "Fayl yuklash (PDF, DOCX, TXT)",
+        "fileChange": "Boshqa fayl",
+        "fileRemove": "Faylni olib tashlash",
+        "fileHint": "{mb} MB gacha — yoki matnni yuqoriga joylang",
+        "fileTooBig": "Fayl {mb} MB dan katta.",
+        "fileType": "Faqat PDF, DOCX yoki TXT fayl.",
+        "fileUnreadable": "Fayldan matnni o'qib bo'lmadi.",
+        "writtenOpinion": "Yozma xulosa",
+        "quoteAiIncluded": "Sun'iy intellekt tahlili ({n} sahifa)",
+        "quoteIncluded": "Obunaga kiradi",
+        "quoteWritten": "Yozma xulosa"
       },
       "matches": {
         "title": "Siz uchun mos advokat va yuristlar",
@@ -2280,7 +2476,17 @@
         "start": "Boshlash",
         "continue": "Davom etish",
         "soon": "Tez orada",
-        "level": { "beginner": "Boshlang'ich", "intermediate": "O'rta", "advanced": "Yuqori" }
+        "level": { "beginner": "Boshlang'ich", "intermediate": "O'rta", "advanced": "Yuqori" },
+        "categories": {
+          "collection": "Qarz undirish",
+          "business": "Biznes",
+          "family": "Oila",
+          "labor": "Mehnat",
+          "tax": "Soliq",
+          "contract": "Shartnomalar",
+          "court": "Sud",
+          "real_estate": "Ko'chmas mulk"
+        }
       },
       "sos": {
         "title": "Shoshilinch yuridik yordam",
@@ -2337,7 +2543,9 @@
         "step3": "Ikkalangiz ham bonus olasiz.",
         "invitesTitle": "Takliflaringiz",
         "empty": "Hali hech kim taklif qilinmagan.",
-        "status": { "invited": "Taklif qilingan", "joined": "Qo'shilgan", "rewarded": "Bonus berilgan" }
+        "status": { "invited": "Taklif qilingan", "joined": "Qo'shilgan", "rewarded": "Bonus berilgan" },
+        "qrAlt": "Taklif havolasi QR kodi",
+        "qrHint": "Skanerlang yoki do'stingizga ko'rsating"
       },
       "reviews": {
         "pendingTitle": "Baholanmagan ishlar",
@@ -2400,8 +2608,12 @@
           "claimedTitle": "Tabriklaymiz!",
           "claimedSub": "Obunangiz faollashtirildi.",
           "error": "Sovg'ani olib bo'lmadi. Havola noto'g'ri yoki muddati o'tgan bo'lishi mumkin.",
-          "goPortal": "Kabinetga o'tish"
-        }
+          "goPortal": "Kabinetga o'tish",
+          "alreadyClaimed": "Bu sovg'a allaqachon faollashtirilgan.",
+          "notReady": "Bu sovg'ani hozir faollashtirib bo'lmaydi: to'lov yakunlanmagan, bekor qilingan yoki muddati tugagan.",
+          "notFound": "Sovg'a topilmadi. Havolani tekshiring."
+        },
+        "untitledGift": "Obuna sovg'asi"
       },
       "identity": {
         "title": "Shaxsni tasdiqlash",
@@ -2419,7 +2631,8 @@
         "cancel": "Bekor qilish",
         "done": "Shaxs muvaffaqiyatli tasdiqlandi.",
         "failed": "Tasdiqlanmadi. Qayta urining.",
-        "error": "Xatolik. Qayta urining."
+        "error": "Xatolik. Qayta urining.",
+        "retryIn": "Qayta urinish mumkin: {time}"
       },
       "profile": {
         "title": "Profil",
@@ -2549,7 +2762,22 @@
       "sortPrice": "Narx",
       "expYears": "{n} yil",
       "successRate": "{n}% yutuq",
-      "verified": "Tasdiqlangan"
+      "verified": "Tasdiqlangan",
+        "sortMatch": "Mosligi",
+        "matchScore": "{n} ball moslik",
+        "priceSubtotal": "Oraliq summa",
+        "modifiers": {
+          "region": "Hudud koeffitsienti",
+          "experience": "Tajriba koeffitsienti",
+          "seller_premium": "Super advokat ustamasi"
+        },
+        "matchReasons": {
+          "verified": "Tasdiqlangan",
+          "region_match": "Hududingizda",
+          "service_permission": "Shu xizmatni ko'rsatadi",
+          "urgent_ready": "Shoshilinch ishga tayyor",
+          "high_workload": "Band"
+        }
       },
       "documents": {
         "title": "Hujjat namunalari",
@@ -2583,7 +2811,46 @@
         "reqUploading": "Yuklanmoqda…",
         "reqRequested": "Kutilmoqda",
         "reqFulfilled": "Yuborilgan",
-        "reqOpen": "Ochish"
+        "reqOpen": "Ochish",
+        "stillPending": "To'lov hali tasdiqlanmadi. Birozdan so'ng qayta tekshiring.",
+        "payFirst": "PDF olish uchun avval to'lovni yakunlang.",
+        "fileError": "PDF faylni olib bo'lmadi. Qayta urining.",
+        "fileLoading": "Yuklanmoqda…",
+        "sign": {
+          "title": "Shartnomani imzolash",
+          "lead": "Hujjat platforma ichida imzolanadi: tasdiqlash kodi Telegram bot orqali yuboriladi.",
+          "start": "Imzolash uchun kod olish",
+          "sending": "Yuborilmoqda…",
+          "codeTitle": "Imzoni tasdiqlang",
+          "codeHint": "Telegram botga yuborilgan 6 xonali kodni kiriting.",
+          "codeLabel": "Tasdiqlash kodi",
+          "back": "Orqaga",
+          "confirm": "Imzolash",
+          "verifying": "Tekshirilmoqda…",
+          "signed": "Shartnoma imzolandi",
+          "signedAt": "Imzolangan vaqt: {time}",
+          "verifyLink": "Tekshirish havolasi",
+          "startError": "Imzolash kodini yuborib bo'lmadi. Qayta urinib ko'ring.",
+          "verifyError": "Imzolashda xatolik yuz berdi. Qayta urinib ko'ring.",
+          "forbidden": "Bu shartnomani imzolash huquqingiz yo'q."
+        },
+        "categories": {
+          "court": "Sud",
+          "contract": "Shartnoma",
+          "document": "Hujjat",
+          "corporate": "Korporativ",
+          "employment": "Mehnat",
+          "family": "Oila",
+          "application": "Ariza",
+          "ariza": "Ariza",
+          "claim": "Da'vo",
+          "property": "Mulk",
+          "tax": "Soliq",
+          "business": "Biznes",
+          "power_of_attorney": "Ishonchnoma",
+          "administrative": "Ma'muriy",
+          "criminal": "Jinoiy"
+        }
       }
     },
     "advocate": {
@@ -2729,7 +2996,15 @@
       "profileClicks": "Profil bosishlari",
       "contactRequests": "Aloqa so‘rovlari",
       "rating": "Reyting",
-      "responseRate": "Javob darajasi"
+      "responseRate": "Javob darajasi",
+      "viaLexgo": "LexGo orqali daromad",
+      "avgResponse": "O'rtacha javob vaqti",
+      "minutes": "{n} daq",
+      "periods": {
+        "all_time": "butun davr",
+        "month": "shu oy",
+        "today": "bugun"
+      }
     },
     "sellerDash": {
       "today": "Bugun",
@@ -2823,6 +3098,78 @@
       "reqSend": "So‘rov yuborish",
       "reqSent": "So‘rov mijozga yuborildi.",
       "reqNoClients": "Hozircha mijoz yo‘q"
+    },
+    "passport": {
+      "title": "Xizmat pasporti",
+      "loadError": "Pasportni yuklab bo'lmadi.",
+      "days": "{n} kun",
+      "advokatYes": "Ha, faqat advokat",
+      "som": "so'm",
+      "code": "Kod",
+      "family": "Yo'nalish",
+      "subcategory": "Bo'lim",
+      "executor": "Ijrochi",
+      "advokat": "Advokat talab qilinadi",
+      "format": "Format",
+      "standardTerm": "Bajarish muddati",
+      "urgentTerm": "Shoshilinch muddat",
+      "price": "Standart narx",
+      "sla": "SLA",
+      "refund": "Qaytarish qoidasi",
+      "version": "Versiya",
+      "documents": "Kerakli hujjatlar",
+      "noDocuments": "Qo'shimcha hujjat talab qilinmaydi.",
+      "blockIdentity": "Xizmat",
+      "blockDuration": "Muddat",
+      "blockPricing": "Narx",
+      "blockSla": "SLA va qaytarish",
+      "daysText": "{value} kun",
+      "pricingTier": "Narx toifasi",
+      "versionShort": "Pasport versiyasi {v}",
+      "executorValues": {
+        "lawyer": "Yurist",
+        "advocate": "Advokat",
+        "any": "Yurist yoki advokat"
+      },
+      "formatValues": {
+        "online": "Onlayn",
+        "offline": "Oflayn (yuzma-yuz)",
+        "hybrid": "Onlayn yoki oflayn"
+      },
+      "tierValues": {
+        "basic": "Asosiy",
+        "standard": "Standart",
+        "premium": "Premium"
+      }
+    },
+    "onboarding": {
+      "title": "Ro'yxatdan o'tishni yakunlang",
+      "count": "{done}/{total} qadam",
+      "lead": "Barcha majburiy qadamlarni to'ldiring — shundan keyin profilingiz tekshiruvga tushadi.",
+      "doneLead": "Barcha qadamlar to'ldirildi. Profilingiz tekshiruvda.",
+      "steps": {
+        "profile": "Profil",
+        "identity": "Identifikatsiya",
+        "documents": "Hujjatlar",
+        "services": "Xizmatlar",
+        "pricing": "Narxlar"
+      },
+      "stepDone": "Bajarildi",
+      "stepRequired": "Majburiy",
+      "stepOptional": "Ixtiyoriy",
+      "verify": "Tasdiqlash",
+      "fill": "To'ldirish",
+      "docUpload": "Hujjat yuklash",
+      "docUploading": "Yuklanmoqda…",
+      "docUploaded": "Hujjat yuklandi.",
+      "docTooBig": "Fayl 15 MB dan katta.",
+      "docType": "Faqat PDF, JPG yoki PNG, 15 MB gacha.",
+      "docError": "Hujjatni yuklab bo'lmadi. Qayta urining.",
+      "submit": "Tekshiruvga yuborish",
+      "submitting": "Yuborilmoqda…",
+      "submitted": "Ariza moderatorga yuborildi. 24 soat ichida ko'rib chiqiladi.",
+      "submitIncomplete": "Avval barcha majburiy qadamlarni yakunlang.",
+      "submitError": "Yuborib bo'lmadi. Qayta urining."
     }
   },
   "notFound": {
@@ -2907,7 +3254,7 @@
     },
     "otp": {
       "title": "Tasdiqlash kodini kiriting",
-      "subtitle": "{phone} raqamiga 6 xonali kod yubordik",
+      "subtitle": "6 xonali kod Telegram bot orqali yuboriladi",
       "verifying": "Tekshirilmoqda…",
       "verified": "Muvaffaqiyatli tasdiqlandi!",
       "incorrect": "Kod noto'g'ri. Qayta urinib ko'ring.",
@@ -3109,7 +3456,7 @@
     "verify": {
       "title": "Telefonni tasdiqlang",
       "telegramBtn": "Telegramda kod olish",
-      "subtitle": "{phone} raqamiga yuborilgan 6 xonali kodni kiriting",
+      "subtitle": "Telegram botda Start bosing va kelgan 6 xonali kodni kiriting",
       "verifying": "Tekshirilmoqda…",
       "submit": "Tasdiqlash va yakunlash",
       "change": "Orqaga",
@@ -3196,7 +3543,8 @@
     "term6": "6 oy",
     "term12": "1 yil",
     "upfront": "Yillikni to‘liq to‘lang — yana −10%",
-    "totalNote": "{term} oy — jami {total} so‘m"
+    "totalNote": "{term} oy — jami {total} so‘m",
+    "subtitlePersonal": "Shaxsiy advokat obunasi — doimiy yuridik yordam, konsultatsiyalar va chegirmalar."
   },
   "promotion": {
     "kicker": "Ko'rinuvchanlik vositasi",
@@ -3284,7 +3632,8 @@
       "ads": "Reklama",
       "verifications": "Advokatlarni tasdiqlash",
       "legalAid": "Yuridik yordam",
-      "registerRequests": "Ro‘yxatdan o‘tish so‘rovlari"
+      "registerRequests": "Ro‘yxatdan o‘tish so‘rovlari",
+      "e2e": "E2E tayyorlik"
     },
     "overview": {
       "kicker": "Admin konsoli",
@@ -3313,7 +3662,45 @@
         "resolved": "Hal qilingan",
         "funnel": "Sotuv voronkasi",
         "revenueTrend": "Daromad dinamikasi",
-        "modules": "CRM modullari"
+        "modules": "CRM modullari",
+        "payments": "To'lovlar",
+        "paidAmount": "To'langan summa",
+        "pendingAmount": "Kutilayotgan summa",
+        "paidCount": "To'langan",
+        "pendingCount": "Kutilmoqda",
+        "leadsByScore": "Lidlar bahosi",
+        "ordersByStatus": "Buyurtmalar holati",
+        "stage": {
+          "leads": "Lidlar",
+          "orders": "Buyurtmalar",
+          "paid": "To'langan"
+        },
+        "score": {
+          "hot": "Issiq",
+          "warm": "Iliq",
+          "cold": "Sovuq"
+        },
+        "status": {
+          "new": "Yangi",
+          "waiting_info": "Ma'lumot kutilmoqda",
+          "waiting_docs": "Hujjat kutilmoqda",
+          "waiting_payment": "To'lov kutilmoqda",
+          "seller_selection": "Advokat tanlanmoqda",
+          "sent_to_seller": "Advokatga yuborildi",
+          "paid": "To'langan",
+          "accepted": "Qabul qilindi",
+          "started": "Boshlandi",
+          "in_progress": "Jarayonda",
+          "result_ready": "Natija tayyor",
+          "quality_check": "Sifat tekshiruvi",
+          "delivered": "Topshirildi",
+          "client_confirmation": "Mijoz tasdig'i kutilmoqda",
+          "completed": "Yakunlandi",
+          "rated": "Baholandi",
+          "lost": "Yo'qotildi",
+          "cancelled": "Bekor qilindi",
+          "declined": "Rad etildi"
+        }
       },
       "services": "Xizmatlar",
       "categories": "Kategoriyalar",
@@ -3545,13 +3932,31 @@
         "done": "Bajarildi",
         "err": "Xatolik. Qayta urining."
       },
-      "source": { "web": "Veb-sayt", "website": "Veb-sayt", "referral": "Tavsiya", "ad": "Reklama", "ads": "Reklama", "organic": "Organik", "manual": "Qo'lda", "phone": "Telefon", "call": "Qo'ng'iroq", "chat": "Chat", "ai": "Sun'iy intellekt", "social": "Ijtimoiy tarmoq", "seo": "SEO" },
+      "source": { "web": "Veb-sayt", "website": "Veb-sayt", "referral": "Tavsiya", "ad": "Reklama", "ads": "Reklama", "organic": "Organik", "manual": "Qo'lda", "phone": "Telefon", "call": "Qo'ng'iroq", "chat": "Chat", "ai": "Sun'iy intellekt", "social": "Ijtimoiy tarmoq", "seo": "SEO", "ai_classify": "AI tahlil", "telegram": "Telegram", "call_center": "Call-markaz", "callcenter": "Call-markaz", "login": "Tizimga kirish", "registration": "Ro'yxatdan o'tish", "register_start": "Ro'yxatdan o'tish", "gift": "Sovg'a", "sos": "SOS", "notify_me": "Xabardor qiling", "template": "Shablon", "onboarding": "Onboarding" },
       "stages": {
         "new": "Yangi",
         "contacted": "Aloqa qilingan",
         "qualified": "Malakali",
         "won": "Yutildi",
         "lost": "Yo‘qotildi"
+      },
+      "untitledLead": "Nomsiz lid",
+      "categories": {
+        "family": "Oila",
+        "contract": "Shartnoma",
+        "court": "Sud",
+        "criminal": "Jinoyat",
+        "administrative": "Ma'muriy",
+        "housing": "Uy-joy",
+        "tax": "Soliq",
+        "labor": "Mehnat",
+        "business": "Biznes",
+        "debt": "Qarz",
+        "documents": "Hujjatlar",
+        "general": "Umumiy",
+        "login": "Tizimga kirish",
+        "registration": "Ro'yxatdan o'tish",
+        "kanban": "Kanban"
       }
     },
     "callAnalytics": {
@@ -3595,7 +4000,37 @@
         "giftPurchases": "Sovg'a xaridlari",
         "giftActivation": "Faollashtirish",
         "giftToPaid": "Sovg'a → to'lovli",
-        "avgGift": "O'rtacha sovg'a"
+        "avgGift": "O'rtacha sovg'a",
+        "cacSplit": "Mijoz: {client} · Advokat: {advocate}",
+        "paidPayments": "To'langan to'lovlar",
+        "recipientConversion": "Oluvchi konversiyasi",
+        "giftReferralRate": "Referal ulushi",
+        "giftCac": "Sovg'a CAC",
+        "giftLtv": "Sovg'a LTV"
+      },
+      "stage": {
+        "leads": "Lidlar",
+        "orders": "Buyurtmalar",
+        "paid": "To'langan"
+      },
+      "source": {
+        "web": "Veb-sayt",
+        "telegram": "Telegram",
+        "unknown": "Noma'lum",
+        "ai_classify": "Sun'iy intellekt tahlili",
+        "referral": "Referal",
+        "organic": "Organik",
+        "ads": "Reklama",
+        "payme": "Payme",
+        "click": "Click"
+      },
+      "channelTable": {
+        "title": "Kanallar bo'yicha",
+        "source": "Manba",
+        "leads": "Lidlar",
+        "payments": "To'lovlar",
+        "revenue": "Daromad",
+        "conversion": "Konversiya"
       }
     },
     "quality": {
@@ -3611,7 +4046,8 @@
       "noComplaintsText": "Yangi shikoyatlar shu yerda.",
       "severity": { "high": "Yuqori", "medium": "O'rta", "low": "Past" },
       "status": { "open": "Ochiq", "in_progress": "Ko'rilmoqda", "resolved": "Hal qilindi", "closed": "Yopilgan", "pending": "Kutilmoqda", "rejected": "Rad etildi" },
-      "category": { "service": "Xizmat", "payment": "To'lov", "quality": "Sifat", "fraud": "Firibgarlik", "other": "Boshqa" }
+      "category": { "service": "Xizmat", "payment": "To'lov", "quality": "Sifat", "fraud": "Firibgarlik", "other": "Boshqa" },
+      "complaintCount": "Shikoyatlar soni"
     },
     "b2b": {
       "title": "B2B mijozlar",
@@ -3668,6 +4104,29 @@
         "outside": "Oldingi yozuv bu ro'yxatda yo'q (filtr yoki sahifalash sababli) — bog'lanishni tekshirib bo'lmaydi.",
         "genesis": "Oldingi xesh bo'sh — zanjirning birinchi yozuvi.",
         "none": "Backend bu yozuv uchun xesh qaytarmadi."
+      },
+      "export": "CSV eksport",
+      "exporting": "Tayyorlanmoqda…",
+      "exportError": "Eksport qilib bo'lmadi. Qayta urinib ko'ring.",
+      "forbidden": "Ruxsat yetarli emas",
+      "forbiddenText": "Audit jurnalini ko'rish va eksport qilish uchun users.manage ruxsati kerak.",
+      "apply": "Qo'llash",
+      "reset": "Tozalash",
+      "user": "Foydalanuvchi",
+      "target": "Obyekt",
+      "f": {
+        "userId": "Foydalanuvchi ID",
+        "action": "Harakat (masalan, login)",
+        "targetType": "Obyekt turi",
+        "targetId": "Obyekt ID"
+      },
+      "outcome": {
+        "failure": "Muvaffaqiyatsiz",
+        "failed": "Muvaffaqiyatsiz",
+        "denied": "Rad etilgan",
+        "blocked": "Bloklangan",
+        "error": "Xato",
+        "rejected": "Rad etilgan"
       }
     },
     "integrations": {
@@ -3718,7 +4177,55 @@
       "recent": "So'nggi qo'ng'iroqlar",
       "noCalls": "Qo'ng'iroq yo'q.",
       "dir": { "incoming": "Kiruvchi", "outgoing": "Chiquvchi" },
-      "status": { "active": "Faol", "inactive": "Nofaol", "lead": "Lid", "completed": "Yakunlandi", "missed": "O'tkazib yuborilgan", "no_answer": "Javob yo'q", "busy": "Band", "failed": "Amalga oshmadi", "answered": "Javob berilgan" }
+      "status": { "active": "Faol", "inactive": "Nofaol", "lead": "Lid", "completed": "Yakunlandi", "missed": "O'tkazib yuborilgan", "no_answer": "Javob yo'q", "busy": "Band", "failed": "Amalga oshmadi", "answered": "Javob berilgan" },
+      "queue": {
+        "title": "Navbat",
+        "lead": "Lidlar va advokat biriktirilmagan buyurtmalar: SLA buzilganlari birinchi, keyin shoshilinchlari. Har daqiqada yangilanadi.",
+        "refresh": "Yangilash",
+        "loadError": "Navbatni yuklab bo'lmadi.",
+        "empty": "Navbat bo'sh.",
+        "breachedN": "SLA buzilgan: {n}",
+        "hot": "Shoshilinch",
+        "type": {
+          "lead": "Lid",
+          "order": "Buyurtma"
+        },
+        "slaBreached": "SLA buzilgan · {age}",
+        "slaLeft": "{n} daqiqa qoldi · {age}",
+        "ageMin": "{n} daqiqa",
+        "ageHours": "{h} soat {m} daqiqa",
+        "sellerLoad": "Tavsiya etilgan advokat yuklamasi: {n}",
+        "assignNext": "Keyingi advokatga yuborish",
+        "working": "Bajarilmoqda…",
+        "assigned": "Buyurtma keyingi mos advokatga yuborildi.",
+        "moved": "Lid «{stage}» bosqichiga o'tkazildi.",
+        "noPermission": "Bu amal uchun ruxsat yo'q.",
+        "actionError": "Amalni bajarib bo'lmadi. Qayta urinib ko'ring.",
+        "moveTo": "Bosqichga o'tkazish",
+        "stages": {
+          "new": "Yangi",
+          "contacted": "Bog'lanildi",
+          "qualified": "Malakali",
+          "proposal": "Taklif",
+          "won": "Yutildi",
+          "lost": "Yo'qotildi",
+          "duplicate": "Dublikat"
+        },
+        "status": {
+          "new": "Yangi",
+          "contacted": "Bog'lanildi",
+          "qualified": "Malakali",
+          "proposal": "Taklif",
+          "waiting_info": "Ma'lumot kutilmoqda",
+          "seller_selection": "Advokat tanlanmoqda",
+          "sent_to_seller": "Advokatga yuborildi"
+        }
+      },
+      "board": {
+        "title": "Lidlar doskasi",
+        "empty": "Doskada ustun yo'q.",
+        "noneHere": "Bo'sh"
+      }
     },
     "reviews": {
       "title": "Sharh moderatsiyasi",
@@ -3803,6 +4310,73 @@
       "rejected": "Rad etildi",
       "role": { "yurist": "Yurist", "advokat": "Advokat", "lawyer": "Yurist", "advocate": "Advokat", "client": "Mijoz", "organization": "Tashkilot", "law_firm": "Yuridik firma" },
       "status": { "pending": "Kutilmoqda", "approved": "Tasdiqlangan", "accepted": "Qabul qilindi", "rejected": "Rad etildi", "new": "Yangi" }
+    },
+    "e2e": {
+      "title": "Uchidan-uchiga tayyorlik",
+      "lead": "Asosiy oqimlarning holati va test (fixture) ma'lumotlari soni.",
+      "refresh": "Yangilash",
+      "loadError": "Ma'lumotni yuklab bo'lmadi",
+      "loadErrorText": "Tekshiruv uchun users.manage ruxsati kerak yoki server javob bermadi.",
+      "allReady": "Barcha oqimlar tayyor",
+      "notReady": "Ba'zi oqimlar tayyor emas",
+      "checkedAt": "Tekshirildi: {time}",
+      "fixtures": "Test ma'lumotlari",
+      "fixtureKeys": {
+        "services": "Xizmatlar",
+        "active_templates": "Faol shablonlar",
+        "seller_profiles": "Advokat va yurist profillari",
+        "active_plans": "Faol obuna rejalari"
+      },
+      "scenarios": "Ssenariylar",
+      "scenarioKeys": {
+        "registration_and_approval": "Ro'yxatdan o'tish va tasdiqlash",
+        "catalog_search_and_passport": "Katalog qidiruvi va xizmat pasporti",
+        "ai_classification_and_offers": "AI tasnif va takliflar",
+        "document_questionnaire_payment_pdf": "Hujjat: so'rovnoma → to'lov → PDF",
+        "private_chat_and_realtime": "Maxfiy chat va real vaqt",
+        "order_payment_and_milestones": "Buyurtma, to'lov va bosqichlar"
+      },
+      "status": {
+        "ready": "Tayyor",
+        "pending": "Kutilmoqda",
+        "failed": "Xato",
+        "blocked": "Bloklangan",
+        "verified": "Sinalgan",
+        "needs_verification": "Sinash kerak"
+      },
+      "noScenarios": "Ssenariylar ro'yxati bo'sh.",
+      "needsVerification": "Ba'zi oqimlar hali haqiqiy ma'lumot bilan sinalmagan",
+      "checkKeys": {
+        "approval_route": "Tasdiqlash route'i",
+        "manual_admin_review_required": "Admin qo'lda tasdiqlaydi",
+        "active_services": "Faol xizmatlar bor",
+        "service_count": "Xizmatlar",
+        "catalog_available": "Katalog mavjud",
+        "source_feedback_route": "Manba bahosi route'i",
+        "active_templates": "Faol shablonlar bor",
+        "generated_contracts": "Yaratilgan shartnomalar",
+        "paid_payments": "To'langan to'lovlar",
+        "websocket_route": "WebSocket route'i",
+        "secure_rooms": "Maxfiy chat xonalari",
+        "payment_routes": "To'lov route'lari"
+      }
+    },
+    "roleBadges": {
+      "superadmin": "Superadmin",
+      "admin": "Admin",
+      "ceo_viewer": "CEO",
+      "manager": "Menejer",
+      "finance": "Moliya",
+      "quality_control": "Sifat nazorati",
+      "moderator": "Moderator",
+      "sales_head": "Sotuv rahbari",
+      "sales_operator": "Sotuv operatori",
+      "sales": "Sotuv",
+      "call_center_lawyer": "Call-markaz yuristi",
+      "call_center": "Call-markaz",
+      "b2b_manager": "B2B menejer",
+      "marketing": "Marketing",
+      "content_manager": "Kontent menejer"
     }
   },
   "secureChat": {
@@ -3854,7 +4428,10 @@
     "callJoin": "Qo‘shilish",
     "callEnd": "Tugatish",
     "incomingCall": "Kiruvchi qo‘ng‘iroq",
-    "callDismiss": "Rad etish"
+    "callDismiss": "Rad etish",
+    "wsSessionExpired": "Sessiya muddati tugadi. Xabar yuborilmadi — qaytadan kiring.",
+    "wsForbidden": "Bu chatga xabar yuborishga ruxsatingiz yo'q.",
+    "wsSendFailed": "Xabar yuborilmadi. Qayta urining."
   },
   "academy": {
     "kicker": "LexGo Akademiya",

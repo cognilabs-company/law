@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import type { BackendOrder, SellerActions, SellerCabinet } from "@/lib/services/backend";
 import { Skeleton, EmptyState } from "./DataState";
 import OrderActions from "./OrderActions";
+import OnboardingProgress from "./OnboardingProgress";
 import { useSellerCabinet } from "./SellerCabinet";
 import { useAuth, type Role } from "@/lib/auth";
 import { uzs, fmtUzs } from "@/lib/money";
@@ -60,7 +61,14 @@ export default function SellerDashboard({ role }: { role: Role }) {
 
   // Pending/unverified seller: profile + verification state instead of empty
   // stats and orders they can't act on.
-  if (cabinet.data?.limitedAccess) return <CabinetStatus cabinet={cabinet.data} role={role} />;
+  if (cabinet.data?.limitedAccess) {
+    return (
+      <>
+        <OnboardingProgress role={role} limited />
+        <CabinetStatus cabinet={cabinet.data} role={role} />
+      </>
+    );
+  }
 
   function tiles(list: Tile[]) {
     if (cabinet.status === "loading") return <Skeleton rows={2} />;
@@ -89,6 +97,7 @@ export default function SellerDashboard({ role }: { role: Role }) {
 
   return (
     <>
+      {cabinet.status === "loading" ? null : <OnboardingProgress role={role} limited={false} />}
       <div className="ppanel">
         <div className="ppanel__h">
           <b>{t("today")}</b>

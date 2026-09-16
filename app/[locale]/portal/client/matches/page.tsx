@@ -7,10 +7,15 @@ import { useResource } from "@/lib/useResource";
 import { useRouter } from "@/i18n/navigation";
 import { Skeleton } from "@/components/portal/DataState";
 import LawyerProfileModal from "@/components/portal/LawyerProfileModal";
+import { humanizeSlug } from "@/lib/lawyers";
 import { IconSparkle, IconStar, IconMapPin, IconArrowRight } from "@/components/icons";
 
 export default function ClientMatches() {
   const t = useTranslations("portal.client.matches");
+  const te = useTranslations("enums");
+  const regionLabel = (r: string) => (te.has(`regions.${r}`) ? te(`regions.${r}`) : humanizeSlug(r));
+  const areaLabel = (a: string) =>
+    a.split(",").map((x) => x.trim()).filter(Boolean).map((x) => (te.has(`areas.${x}`) ? te(`areas.${x}`) : humanizeSlug(x))).join(", ");
   const router = useRouter();
   const res = useResource(() => getMyMatches(), []);
   const [viewId, setViewId] = useState<string | null>(null);
@@ -51,8 +56,8 @@ export default function ClientMatches() {
                 </div>
                 <div className="mtchcard__meta">
                   <span><IconStar />{m.rating.toFixed(1)}</span>
-                  {m.region ? <span><IconMapPin />{m.region}</span> : null}
-                  {m.area ? <span>{m.area}</span> : null}
+                  {m.region ? <span><IconMapPin />{regionLabel(m.region)}</span> : null}
+                  {m.area ? <span>{areaLabel(m.area)}</span> : null}
                 </div>
                 {m.reason ? <p className="mtchcard__reason">{m.reason}</p> : null}
                 <button

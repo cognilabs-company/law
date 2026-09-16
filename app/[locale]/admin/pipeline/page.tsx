@@ -4,6 +4,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { getLeadKanban, moveLeadKanban, adminCreateLead, adminDeleteLead, saveLeadKanbanColumns, deleteLeadKanbanColumn, type KanbanColumn, type Lead } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
+import { kanbanColumnTitle, leadCategoryLabel, leadSourceLabel } from "@/lib/leadLabels";
 import { useResource } from "@/lib/useResource";
 import { AdminForm, Notice, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -16,6 +17,8 @@ const STATUS_COLORS = ["#2563eb", "#7c3aed", "#0891b2", "#059669", "#d97706", "#
 
 export default function AdminPipeline() {
   const t = useTranslations("admin.pipeline");
+  const tStages = useTranslations("admin.callCenter.queue");
+  const colName = (c: { key: string; title: string }) => kanbanColumnTitle(tStages, c);
   const ta = useTranslations("admin");
   const [key, reload] = useReload();
   const res = useResource<KanbanColumn>(getLeadKanban, [key]);
@@ -46,7 +49,10 @@ export default function AdminPipeline() {
     [cols],
   );
   const selected = allCards.find((x) => x.lead.id === selId) || null;
-  const colTitle = (k: string) => cols.find((c) => c.key === k)?.title || k;
+  const colTitle = (k: string) => {
+    const c = cols.find((x) => x.key === k);
+    return c ? colName(c) : k;
+  };
   const colColor = (k: string) => cols.find((c) => c.key === k)?.color || "";
   const orderOf = (k: string) => cols.findIndex((c) => c.key === k);
 
@@ -194,7 +200,7 @@ export default function AdminPipeline() {
             <Select value={fSource} onChange={setFSource} ariaLabel={t("d.source")} options={[{ value: "", label: t("f.allSource") }, ...sources.map((s) => ({ value: s, label: t.has(`source.${s}`) ? t(`source.${s}`) : s }))]} />
             <Select value={fRegion} onChange={setFRegion} ariaLabel={t("d.region")} options={[{ value: "", label: t("f.allRegion") }, ...regions.map((r) => ({ value: r, label: r }))]} />
             {view === "table" ? (
-              <Select value={fStage} onChange={setFStage} ariaLabel={t("d.stage")} options={[{ value: "", label: t("f.allStage") }, ...cols.map((c) => ({ value: c.key, label: c.title }))]} />
+              <Select value={fStage} onChange={setFStage} ariaLabel={t("d.stage")} options={[{ value: "", label: t("f.allStage") }, ...cols.map((c) => ({ value: c.key, label: colName(c) }))]} />
             ) : null}
           </div>
         </>
@@ -217,7 +223,7 @@ export default function AdminPipeline() {
             >
               <div className="pipe__head">
                 <span className="pipe__dot" style={col.color ? { background: col.color } : undefined} />
-                <b>{col.title}</b>
+                <b>{colName(col)}</b>
                 <span className="pipe__count">{query || fSource || fRegion ? col.cards.length : col.count}</span>
                 <button type="button" className="pipe__edit" aria-label={t("editStatus")} title={t("renameStatus")} onClick={() => openRenameStatus(col)}>
                   <IconEdit />
@@ -243,14 +249,14 @@ export default function AdminPipeline() {
                       onDragEnd={() => { setDragId(null); setOverCol(null); }}
                     >
                       <div className="pipe__ctop">
-                        <b>{l.name || l.phone || l.category || "—"}</b>
+                        <b>{l.name || l.phone || leadCategoryLabel(t, l.category) || t("untitledLead")}</b>
                         {l.score ? <span className="pipe__score">{l.score}</span> : null}
                       </div>
-                      <span className="pipe__meta">{[l.phone, l.category, l.region].filter(Boolean).join(" · ") || t("noInfo")}</span>
+                      <span className="pipe__meta">{[l.phone, leadCategoryLabel(t, l.category), l.region].filter(Boolean).join(" · ") || t("noInfo")}</span>
                       {l.note ? <span className="pipe__note">{l.note}</span> : null}
                       <div className="pipe__actions" onClick={(e) => e.stopPropagation()}>
                         <button type="button" className="pipe__mv" disabled={ci === 0 || busy === l.id} onClick={() => shift(l.id, col.key, -1)} aria-label={t("moveBack")}><IconChevronLeft /></button>
-                        <span className="pipe__src">{l.source ? (t.has(`source.${l.source}`) ? t(`source.${l.source}`) : l.source) : <IconUsers />}</span>
+                        <span className="pipe__src">{l.source ? leadSourceLabel(t, l.source) : <IconUsers />}</span>
                         <button type="button" className="pipe__mv" disabled={ci === cols.length - 1 || busy === l.id} onClick={() => shift(l.id, col.key, 1)} aria-label={t("moveFwd")}><IconChevronRight /></button>
                       </div>
                     </div>
@@ -269,8 +275,8 @@ export default function AdminPipeline() {
               <button type="button" className="aitem aitem--link" key={l.id} onClick={() => setSelId(l.id)}>
                 <span className="aitem__n">{i + 1}</span>
                 <div className="aitem__m">
-                  <b>{l.name || l.phone || "—"}</b>
-                  <span className="aitem__meta">{[l.phone, l.category, l.region].filter(Boolean).join(" · ")}</span>
+                  <b>{l.name || l.phone || leadCategoryLabel(t, l.category) || t("untitledLead")}</b>
+                  <span className="aitem__meta">{[l.phone, leadCategoryLabel(t, l.category), l.region].filter(Boolean).join(" · ")}</span>
                 </div>
                 <span className="lstage" style={colColor(colKey) ? ({ "--c": colColor(colKey) } as CSSProperties) : undefined}>{colTitle(colKey)}</span>
               </button>
@@ -345,7 +351,7 @@ export default function AdminPipeline() {
                   value={delReassign}
                   onChange={setDelReassign}
                   ariaLabel={t("reassignLeads", { count: delCol.count })}
-                  options={cols.filter((c) => c.key !== delCol.key).map((c) => ({ value: c.key, label: c.title }))}
+                  options={cols.filter((c) => c.key !== delCol.key).map((c) => ({ value: c.key, label: colName(c) }))}
                 />
               </div>
             ) : (

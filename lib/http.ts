@@ -5,19 +5,53 @@ import { getToken } from "./client";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "/api/backend";
 
+export type ApiErrorExtra = {
+  // Parsed JSON error body ({} when absent or not an object).
+  data?: Record<string, unknown>;
+  // Machine code from `detail.code` (e.g. "ai_subscription_required").
+  code?: string;
+  // Field → message: FastAPI 422 `detail[]` (last `loc` segment) or the
+  // scalar fields of an object detail that has no message
+  // (e.g. {service_id, selected_price, min_allowed, max_allowed}).
+  fieldErrors?: Record<string, string>;
+};
 export class ApiError extends Error {
   status: number;
   detail?: string;
   // Seconds until the action may be retried (429 cooldown / OTP lock), when
   // the server said so via Retry-After or a retry field in the body.
   retryAfter?: number;
-  constructor(status: number, detail?: string, retryAfter?: number) {
+  data: Record<string, unknown>;
+  code?: string;
+  fieldErrors: Record<string, string>;
+  constructor(status: number, detail?: string, retryAfter?: number, extra?: ApiErrorExtra) {
     super(detail || `HTTP ${status}`);
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
     this.retryAfter = retryAfter;
+    this.data = extra?.data ?? {};
+    this.code = extra?.code;
+    this.fieldErrors = extra?.fieldErrors ?? {};
   }
+}
+
+const hasStatus = (e: unknown, status: number) => e instanceof ApiError && e.status === status;
+// 403: the role/permission can't do this — hide or disable the action.
+export const isForbidden = (e: unknown) => hasStatus(e, 403);
+// 402: payment (or a subscription) is required — open checkout.
+export const isPaymentRequired = (e: unknown) => hasStatus(e, 402);
+// 409: status conflict or duplicate — reload the resource.
+export const isConflict = (e: unknown) => hasStatus(e, 409);
+// 422: field validation — show `fieldErrors` next to the inputs.
+export const isValidation = (e: unknown) => hasStatus(e, 422);
+
+// Reconnect delay for WebSockets: exponential (1s, 2s, 4s … capped at 30s)
+// with "equal jitter" (half fixed, half random) so many clients that dropped
+// together don't reconnect in lockstep.
+export function backoffMs(attempt: number, baseMs = 1000, capMs = 30000): number {
+  const exp = Math.min(capMs, baseMs * 2 ** Math.max(0, Math.min(attempt, 16)));
+  return Math.round(exp / 2 + Math.random() * (exp / 2));
 }
 
 // True when the backend refused an AI reply because the guest IP limit is spent
@@ -26,6 +60,16 @@ export function isLimitError(e: unknown): boolean {
   if (!(e instanceof ApiError)) return false;
   if (e.detail && /limit|лимит/i.test(e.detail)) return true;
   return e.status === 401 || e.status === 402 || e.status === 429;
+}
+
+// A signed-in user's monthly AI quota is spent: 402 with
+// detail {code:"ai_subscription_required", plan, monthly_limit, used}. Any 402
+// from the AI endpoints is treated the same (numbers are 0 when absent).
+export function aiQuotaOf(e: unknown): { plan: string; monthlyLimit: number; used: number } | null {
+  if (!(e instanceof ApiError) || e.status !== 402) return null;
+  const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  return { plan: typeof d.plan === "string" ? d.plan : "", monthlyLimit: n(d.monthly_limit), used: n(d.used) };
 }
 
 // True when an auth endpoint hit its IP rate limit (HTTP 429). Auth flows show
@@ -142,9 +186,34 @@ function retryHint(header: string | null, sources: Dict[]): number | undefined {
   return undefined;
 }
 
+// Field errors from a FastAPI body: 422 `detail[]` items ({loc, msg}) keyed by
+// the last loc segment, or — for an object detail without a message — its
+// scalar fields as strings.
+function fieldErrorsOf(j: Dict): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (Array.isArray(j.detail)) {
+    for (const item of j.detail) {
+      if (!item || typeof item !== "object") continue;
+      const it = item as Dict;
+      const loc = Array.isArray(it.loc) ? it.loc : [];
+      const key = loc.length ? String(loc[loc.length - 1]) : "";
+      const msg = typeof it.msg === "string" ? it.msg : "";
+      if (key && msg && !out[key]) out[key] = msg;
+    }
+  } else if (j.detail && typeof j.detail === "object") {
+    const dd = j.detail as Dict;
+    if (typeof dd.message !== "string") {
+      for (const [k, v] of Object.entries(dd)) {
+        if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") out[k] = String(v);
+      }
+    }
+  }
+  return out;
+}
+
 // Build an ApiError from a failed response. detail = a string `detail`, else
-// `detail.message`, else a top-level `message`/`error` (FastAPI 422 arrays are
-// ignored; the proxy's own "backend_unreachable" is not a message).
+// `detail.message`, else a top-level `message`/`error` (FastAPI 422 arrays give
+// fieldErrors instead; the proxy's own "backend_unreachable" is not a message).
 export async function toApiError(res: Response): Promise<ApiError> {
   let j: Dict = {};
   try {
@@ -161,7 +230,12 @@ export async function toApiError(res: Response): Promise<ApiError> {
   const err = text(j.error);
   const detail =
     text(j.detail) ?? text(dd.message) ?? text(j.message) ?? (err && err !== "backend_unreachable" ? err : undefined);
-  return new ApiError(res.status, detail, retryHint(res.headers.get("retry-after"), [dd, j]));
+  const code = text(dd.code);
+  return new ApiError(res.status, detail, retryHint(res.headers.get("retry-after"), [dd, j]), {
+    data: j,
+    code,
+    fieldErrors: fieldErrorsOf(j),
+  });
 }
 
 // Access-token refresh. lib/auth.tsx registers the handler (kept out of this
@@ -214,13 +288,28 @@ export async function http<T = unknown>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
+  const res = await authedFetch(path, init, "application/json");
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
+}
+
+// Binary download (PDF etc.) with the same bearer token and one-time refresh.
+export async function httpBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const res = await authedFetch(path, init, "*/*");
+  return res.blob();
+}
+
+async function authedFetch(path: string, init: RequestInit | undefined, accept: string): Promise<Response> {
   const send = async (token: string | null): Promise<Response> => {
     try {
       return await fetch(`${API_BASE}${path}`, {
         ...init,
         headers: {
-          Accept: "application/json",
-          ...(init?.body ? { "Content-Type": "application/json" } : {}),
+          Accept: accept,
+          // Multipart / binary bodies set their own Content-Type (with boundary).
+          ...(init?.body && !(typeof FormData !== "undefined" && init.body instanceof FormData) && !(typeof Blob !== "undefined" && init.body instanceof Blob)
+            ? { "Content-Type": "application/json" }
+            : {}),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(init?.headers || {}),
         },
@@ -239,8 +328,7 @@ export async function http<T = unknown>(
     if (fresh && fresh !== token) res = await send(fresh);
   }
   if (!res.ok) throw await toApiError(res);
-  const text = await res.text();
-  return (text ? JSON.parse(text) : null) as T;
+  return res;
 }
 
 export function absUrl(path: string): string {

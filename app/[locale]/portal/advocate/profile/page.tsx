@@ -18,6 +18,7 @@ import StatsEditor from "@/components/register/StatsEditor";
 import ProfilePreview from "@/components/register/ProfilePreview";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
+import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
 import { EmptyState, Skeleton } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import {
@@ -201,6 +202,7 @@ function ProfileEditor({ initial }: { initial: ProfessionalProfile }) {
       <MyServices userId={session?.id ?? ""} />
       <TwoFactorCard />
       <TelegramLinkCard />
+      <NotificationPrefsCard />
       <ProfilePreview p={merged} />
     </div>
   );

@@ -14,13 +14,9 @@ import {
   listPaymentMethods,
   addPaymentMethod,
   deletePaymentMethod,
-  getNotificationPreferences,
-  updateNotificationPreferences,
   listSessions,
   revokeSession,
   apiMe,
-  NOTIF_KEYS,
-  type NotifPrefs,
 } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import { useResource, useResourceOne } from "@/lib/useResource";
@@ -32,6 +28,7 @@ import { IconEdit, IconPlus, IconClose, IconCard, IconCheck, IconClock } from "@
 import IdentityVerify from "@/components/portal/IdentityVerify";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
+import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
 
 function fmtDateTime(s: string) {
   if (!s) return "";
@@ -48,22 +45,8 @@ export default function ClientProfile() {
   const family = useResource(() => listFamilyMembers(), [key]);
   const methods = useResource(() => listPaymentMethods(), [key]);
   const activity = useResource(() => listMyActivity(), [key]);
-  const prefs = useResourceOne(getNotificationPreferences, [key]);
   const sessions = useResource(() => listSessions(), [key]);
   const [famErr, setFamErr] = useState<string | null>(null);
-  const [prefsLocal, setPrefsLocal] = useState<NotifPrefs | null>(null);
-  const pf = prefsLocal ?? prefs.data ?? null;
-
-  async function togglePref(k: keyof NotifPrefs) {
-    if (!pf) return;
-    const next = { ...pf, [k]: !pf[k] };
-    setPrefsLocal(next);
-    try {
-      await updateNotificationPreferences({ [k]: next[k] });
-    } catch {
-      setPrefsLocal(pf); // revert on failure
-    }
-  }
   async function revoke(id: string) {
     const current = sessions.data.find((x) => x.id === id)?.current;
     // The list may not say which row is this device at all.
@@ -243,28 +226,7 @@ export default function ClientProfile() {
       </div>
 
       <div className="pgrid2">
-        <div className="ppanel">
-          <div className="ppanel__h"><b>{t("notifPrefs")}</b></div>
-          {prefs.status === "loading" || !pf ? (
-            <Skeleton rows={2} />
-          ) : (
-            <div className="prefs">
-              {NOTIF_KEYS.map((k) => (
-                <button key={k} type="button" className={`prefs__row${pf[k] ? " on" : ""}`} onClick={() => togglePref(k)} aria-pressed={pf[k]}>
-                  <span>
-                    {t.has(`notif.${k}`) ? t(`notif.${k}`) : k}
-                    {/* Only when the link state is known to be off, never when unknown. */}
-                    {k === "telegram" && session?.telegramLinked === false ? (
-                      <small className="prefs__hint">{t("notifTelegramHint")}</small>
-                    ) : null}
-                  </span>
-                  <span className="prefs__sw" />
-                </button>
-              ))}
-            </div>
-          )}
-          {pf ? <p className="ppanel__note" style={{ marginTop: 10 }}>{t("notifSmsHint")}</p> : null}
-        </div>
+        <NotificationPrefsCard />
         <div className="ppanel">
           <div className="ppanel__h"><b>{t("sessions")}</b></div>
           {sessions.status === "loading" ? (

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getClientId } from "@/lib/client";
+import { aiQuotaOf } from "@/lib/http";
 import {
   listChats,
   createChat,
@@ -33,6 +34,7 @@ type Msg = {
   contracts?: Contract[];
   offline?: boolean;
   limit?: boolean;
+  upgrade?: boolean; // signed-in user's AI quota is spent → subscription CTA
 };
 
 export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
@@ -138,7 +140,13 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
         cs.map((c) => (c.id === id ? { ...c, lastMessage: assistant.content } : c)),
       );
     } catch (e) {
-      if (isLimitError(e) && !session) {
+      const quota = session ? aiQuotaOf(e) : null;
+      if (quota) {
+        const content = quota.monthlyLimit
+          ? t("aiQuotaReached", { used: quota.used, limit: quota.monthlyLimit })
+          : t("aiQuotaReachedShort");
+        setMessages((m) => [...m, { role: "assistant", content, upgrade: true }]);
+      } else if (isLimitError(e) && !session) {
         setMessages((m) => [
           ...m,
           { role: "assistant", content: t("limitReached"), limit: true },
@@ -281,6 +289,11 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                     {m.limit ? (
                       <Link href="/login" className="btn btn--pri btn--sm" style={{ marginTop: 10 }}>
                         {t("limitLogin")}
+                      </Link>
+                    ) : null}
+                    {m.upgrade && session ? (
+                      <Link href={`/portal/${session.role}/subscription`} className="btn btn--pri btn--sm" style={{ marginTop: 10 }}>
+                        {t("upgradePlan")}
                       </Link>
                     ) : null}
                   </div>

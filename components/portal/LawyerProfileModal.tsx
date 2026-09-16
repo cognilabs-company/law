@@ -9,6 +9,8 @@ import {
   type BackendLawyer,
 } from "@/lib/services/backend";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
+import { CheckoutIntent } from "./OrderMilestones";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { initials, humanizeSlug } from "@/lib/lawyers";
@@ -39,6 +41,7 @@ export default function LawyerProfileModal({
   const [status, setStatus] = useState<"loading" | "error" | "done">("loading");
   const [busy, setBusy] = useState(false);
   const [chooseErr, setChooseErr] = useState<string | null>(null);
+  const [intent, setIntent] = useState<PaymentIntent | null>(null);
 
   // Back to loading whenever a profile is (re)opened (during render, not in the effect).
   const reqKey = open && userId ? userId : null;
@@ -48,6 +51,7 @@ export default function LawyerProfileModal({
     if (reqKey) {
       setStatus("loading");
       setData(null);
+      setIntent(null);
     }
   }
 
@@ -91,6 +95,11 @@ export default function LawyerProfileModal({
       const existing = await getLawyerPrivateChat(data.userId);
       if (existing) {
         router.push(`/portal/chat/${existing.id}`);
+        return;
+      }
+      if (!isDemoCheckout()) {
+        // Real checkout: invoice for the private chat; the room opens once paid.
+        setIntent(await createCheckout({ kind: "private_chat", sellerUserId: data.userId }));
         return;
       }
       const r = await demoPrivateChat({ lawyer_user_id: data.userId });
@@ -234,6 +243,7 @@ export default function LawyerProfileModal({
             </button>
           </div>
           {chooseErr ? <p className="lprof__err">{chooseErr}</p> : null}
+          {intent ? <div style={{ marginTop: 14 }}><CheckoutIntent intent={intent} onCancel={() => setIntent(null)} /></div> : null}
         </div>
       )}
     </Modal>

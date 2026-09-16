@@ -3167,3 +3167,228 @@ html.cgate-open,html.cgate-open body{overflow:hidden}
 
 /* ── AI privacy note under the chat composer ── */
 .aichat__disc.aichat__pii{margin-top:2px}
+
+/* ── Service passport (T1-07): collapsible block in the order modal, inline in AI offers ── */
+.spass__wrap{border:1px solid var(--line);border-radius:14px;padding:4px 14px}
+.spass__wrap.on{padding-bottom:14px}
+.spass__tg{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;background:none;border:0;font:inherit;font-weight:700;font-size:.9rem;color:var(--ink);cursor:pointer}
+.spass__tg svg{width:16px;height:16px;transition:transform .2s}
+.spass__wrap.on .spass__tg svg{transform:rotate(90deg)}
+.spass{display:grid;gap:14px}
+.spass .pkv{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px 14px}
+.spass .pkv__i b{font-size:.88rem;overflow-wrap:anywhere}
+.spass__docs>label{display:block;font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gray2);margin-bottom:6px}
+.spass__docs ul{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.spass__docs li{display:flex;align-items:flex-start;gap:8px;font-size:.88rem;line-height:1.4}
+.spass__docs li svg{width:15px;height:15px;flex:none;margin-top:2px;stroke:var(--dk-acc, var(--b600))}
+
+/* ── AI intake (T1-04/T1-05): urgent block, 3-level offers, sources, disclaimer ── */
+.urgblk{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-radius:18px;padding:18px 20px;color:#fff;background:linear-gradient(135deg,#ef4444,#be123c);box-shadow:0 14px 34px rgba(225,29,72,.28)}
+.urgblk__i{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.18);display:grid;place-items:center;flex:none}
+.urgblk__i svg{width:22px;height:22px}
+.urgblk__t{flex:1;min-width:200px;display:grid;gap:3px}
+.urgblk__t b{font-family:var(--fd);font-size:1.08rem}
+.urgblk__t span{font-size:.88rem;opacity:.92;line-height:1.4}
+.urgblk__act{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.urgblk__sos{background:#fff;color:#be123c;font-weight:800}
+.urgblk__call{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--pill);border:1px solid rgba(255,255,255,.4);color:#fff;text-decoration:none;font-weight:700;white-space:nowrap}
+.urgblk__call svg{width:16px;height:16px}
+.aioff{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.aioff__c{display:flex;flex-direction:column;gap:8px;min-width:0;padding:14px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--dk-surface, #fff)}
+.aioff__c--standard{border-color:var(--dk-bd-blue, var(--b200))}
+.aioff__c--premium{border-color:var(--dk-bd-violet, #c4b5fd)}
+.aioff__lv{align-self:flex-start;font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:var(--pill);background:var(--dk-surface-2, #f1f5f9);color:var(--gray)}
+.aioff__c--standard .aioff__lv{background:var(--dk-tint-blue, #eff6ff);color:var(--dk-acc, #2563eb)}
+.aioff__c--premium .aioff__lv{background:var(--dk-tint-violet, #f5f3ff);color:var(--dk-txt-violet, #6d28d9)}
+.aioff__t{font-size:.95rem;line-height:1.35;overflow-wrap:anywhere}
+.aioff__price{font-family:var(--fd);font-weight:800;font-size:1.05rem}
+.aioff__meta{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.78rem;color:var(--gray)}
+.aioff__meta i{display:inline-flex;align-items:center;gap:4px;font-style:normal}
+.aioff__meta svg{width:13px;height:13px}
+.aioff__act{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+.aioff__act .btn{flex:1;justify-content:center}
+.aioff .spass{padding:10px 0 2px;border-top:1px dashed var(--line)}
+.lsrc{margin-top:16px}
+.ppanel>.lsrc:first-child{margin-top:0}
+.lsrc__h{display:block;font-size:.95rem;margin-bottom:8px}
+.lsrc__list{display:flex;flex-wrap:wrap;gap:8px}
+.lsrc__i{display:inline-flex;align-items:center;gap:7px;min-width:0;padding:8px 12px;border:1px solid var(--line);border-radius:12px;font-size:.84rem;color:var(--ink);text-decoration:none;background:var(--dk-surface, #fff)}
+.lsrc__i>span{overflow-wrap:anywhere}
+a.lsrc__i:hover{border-color:var(--b300)}
+.lsrc__i em{font-style:normal;font-size:.68rem;font-weight:800;padding:2px 7px;border-radius:var(--pill);color:var(--ok);background:var(--dk-tint-ok, #E1F6EE)}
+.lsrc__i svg{width:13px;height:13px;flex:none;color:var(--gray)}
+.aidisc{display:flex;align-items:flex-start;gap:8px;margin:16px 0 0;padding:10px 12px;border-radius:12px;background:var(--dk-surface-2, #f8fafc);font-size:.8rem;line-height:1.45;color:var(--gray)}
+.aidisc svg{width:15px;height:15px;flex:none;margin-top:1px}
+
+/* ── Document analysis quote + upsell (T1-15) ── */
+.docq{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:12px}
+.docq__pages{display:inline-flex;align-items:center;gap:8px;font-size:.85rem;font-weight:600}
+.docq__pages input{width:84px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;font:inherit;background:var(--dk-surface, #fff);color:var(--ink)}
+.docq__pages input[aria-invalid="true"]{border-color:var(--dk-bd-err, #fecaca)}
+.docq__opt{display:inline-flex;align-items:center;gap:7px;font-size:.85rem;cursor:pointer;padding-block:6px}
+.docq__opt input{width:17px;height:17px;accent-color:var(--b600)}
+.docq__err{margin:-4px 0 10px;font-size:.8rem;color:var(--dk-txt-err, #C0392B)}
+.doca__long{white-space:pre-wrap}
+.docup{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1.5px solid var(--dk-bd-blue, var(--b200))}
+.docup__i{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--dk-tint-blue, #eff6ff);color:var(--dk-acc, #2563eb)}
+.docup__i svg{width:22px;height:22px}
+.docup__t{flex:1;min-width:200px;display:grid;gap:3px}
+.docup__t span{font-size:.86rem;color:var(--gray);line-height:1.4}
+.docup__t .docup__price{color:var(--ink);font-weight:700}
+.docup__act{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── Seller onboarding checklist (T1A-02) ── */
+.onbp__bar{height:8px;border-radius:99px;background:var(--dk-surface-2, #eef2f7);overflow:hidden;margin-bottom:14px}
+.onbp__bar span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--b600),#10b981);transition:width .4s}
+.onbp__steps{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.onbp__s{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+.onbp__n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;flex:none;font-size:.8rem;font-weight:800;background:var(--dk-surface-2, #f1f5f9);color:var(--gray)}
+.onbp__s.on .onbp__n{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
+.onbp__n svg{width:15px;height:15px;stroke-width:3}
+.onbp__t{flex:1;min-width:0;display:grid;gap:1px}
+.onbp__t b{font-size:.92rem}
+.onbp__t small{font-size:.76rem;color:var(--gray)}
+.onbp__s.on .onbp__t b{color:var(--gray)}
+.onbp .ppanel{margin:14px 0 0;box-shadow:none}
+
+/* ── Admin E2E readiness (T1-18) ── */
+.e2e__sum{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;background:var(--dk-tint-warn, #fff7ed);margin-bottom:6px}
+.e2e__sum.on{background:var(--dk-tint-ok, #E1F6EE)}
+.e2e__sum>div{display:grid;gap:2px}
+.e2e__sum span{font-size:.8rem;color:var(--gray)}
+.e2e__si{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--dk-surface, #fff);color:var(--dk-txt-warn, #ea580c)}
+.e2e__sum.on .e2e__si{color:var(--ok)}
+.e2e__si svg{width:18px;height:18px;stroke-width:3}
+.e2e__h{margin:18px 0 10px;font-size:.95rem}
+.e2e__list{display:grid;gap:8px}
+.e2e__row{padding:12px 14px;border:1px solid var(--line);border-radius:12px;display:grid;gap:8px}
+.e2e__rt{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.e2e__rt b{font-size:.92rem;min-width:0}
+.e2e__routes{display:flex;flex-wrap:wrap;gap:6px}
+.e2e__routes code{font-size:.74rem;padding:3px 8px;border-radius:8px;background:var(--dk-surface-2, #f1f5f9);color:var(--ink);overflow-wrap:anywhere}
+
+/* ── wp-a ── */
+/* ── Checkout intent (T0-09): invoice amount + status before the provider page ── */
+.ckint{gap:12px}
+.ckint__h{display:flex;align-items:center;gap:8px;font-size:.95rem}
+.ckint__h svg{width:17px;height:17px;color:var(--dk-acc, var(--b600))}
+
+/* ── Order milestones (T1A-01) ── */
+.omile{display:grid;gap:10px;margin-top:6px;padding-top:12px;border-top:1px dashed var(--line)}
+.omile__h{font-size:.92rem}
+.omile__list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.omile__i{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--dk-surface, #fff)}
+.omile__n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;flex:none;font-size:.8rem;font-weight:800;background:var(--dk-surface-2, #f1f5f9);color:var(--gray)}
+.omile__n svg{width:15px;height:15px;stroke-width:3}
+.omile__i--paid .omile__n,.omile__i--held .omile__n{background:var(--dk-tint-blue, #eff6ff);color:var(--dk-acc, #2563eb)}
+.omile__i--released .omile__n{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
+.omile__m{flex:1;min-width:160px;display:grid;gap:2px}
+.omile__m b{font-size:.9rem}
+.omile__m small{font-size:.78rem;color:var(--gray)}
+.omile__confirm{display:inline-flex;gap:6px;flex-wrap:wrap}
+.omile__hint{margin:0;font-size:.8rem;color:var(--gray);line-height:1.4}
+
+/* ── Client cases: 5-step order track, replacement status ── */
+.ostage{display:grid;gap:4px;margin-top:6px;max-width:260px}
+.ostage__bar{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.ostage__bar i{height:5px;border-radius:99px;background:var(--dk-surface-2, #e5eaf2)}
+.ostage__bar i.on{background:var(--b600)}
+.ostage__lbl{font-size:.76rem;color:var(--gray)}
+.ocase__repl{display:block;margin-top:4px;font-size:.78rem;font-weight:600;color:var(--dk-txt-warn, #b45309)}
+.ocase .omile{margin-top:10px}
+
+/* ── wp-c ── */
+/* ── Order actions: taken by another seller (409) / not allowed (403) / failed ── */
+.pcase__done--taken{color:var(--gray);background:var(--dk-surface-2, #F2F6FC)}
+.pcase__done--blocked{color:var(--dk-txt-warn, #B45309);background:var(--dk-tint-warn, #FFF7ED);white-space:normal}
+.pcase__err{flex-basis:100%;font-size:.78rem;color:var(--dk-txt-err, #C0392B)}
+
+/* ── wp-b ── */
+/* ── WP-B: admin audit filters, call-center queue and board, CEO channel table ── */
+.audit__hact{display:inline-flex;align-items:center;gap:10px}
+.audit__filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr)) auto auto;gap:8px;align-items:center;margin-bottom:14px}
+.audit__filters input{min-width:0;border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;font:inherit;font-size:.86rem;background:var(--dk-surface, #fff);color:var(--ink)}
+.audit__filters input:focus{outline:none;border-color:var(--b400)}
+.creq__m>.audit__who{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:3px;font-size:.76rem;color:var(--gray2)}
+.audit__who code{font-size:.74rem;overflow-wrap:anywhere}
+.audit__outcome--ok{color:var(--ok);background:var(--dk-tint-ok, #E1F6EE)}
+.audit__outcome--bad{color:var(--dk-txt-err, #C0392B);background:var(--dk-tint-err, #FDECEC)}
+@media (max-width:560px){.audit__filters{grid-template-columns:1fr 1fr}.audit__filters .btn{justify-content:center}}
+
+.ccq__breach{font-size:.72rem;font-weight:800;padding:3px 9px;border-radius:var(--pill);color:var(--dk-txt-err, #C0392B);background:var(--dk-tint-err, #FDECEC)}
+.ccq{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--dk-surface, #fff)}
+.ccq--breach{border-color:var(--dk-bd-err, #fecaca);box-shadow:inset 3px 0 0 var(--dk-txt-err, #dc2626)}
+.ccq__top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.ccq__t{font-size:.94rem;min-width:0;overflow-wrap:anywhere}
+.ccq__meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.8rem;color:var(--gray)}
+.ccq__sla{display:inline-flex;align-items:center;gap:5px;font-weight:600}
+.ccq__sla svg{width:14px;height:14px}
+.ccq__sla.on{color:var(--dk-txt-err, #C0392B)}
+.ccq__act{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ccq__act .dsel{min-width:200px}
+
+.ccb{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:10px;overflow-x:auto;padding-bottom:6px}
+.ccb__col{display:flex;flex-direction:column;gap:8px;min-width:0;padding:10px;border-radius:12px;background:var(--dk-surface-2, #F2F6FC)}
+.ccb__h{display:flex;align-items:center;gap:7px;font-size:.86rem}
+.ccb__h b{flex:1;min-width:0}
+.ccb__dot{width:9px;height:9px;border-radius:50%;flex:none}
+.ccb__card{display:grid;gap:5px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--dk-surface, #fff);min-width:0}
+.ccb__card>b{font-size:.88rem;overflow-wrap:anywhere}
+.ccb__meta{font-size:.76rem;color:var(--gray)}
+.ccb__tel{display:inline-flex;align-items:center;gap:5px;font-size:.8rem;color:var(--dk-acc, var(--b600));text-decoration:none;padding-block:4px}
+.ccb__tel svg{width:13px;height:13px}
+.ccb__none{margin:0;font-size:.78rem;color:var(--gray2)}
+
+.ceoch{display:grid;gap:2px;overflow-x:auto}
+.ceoch__row{display:grid;grid-template-columns:minmax(120px,1.4fr) repeat(4,minmax(80px,1fr));gap:10px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line);font-size:.86rem;min-width:520px}
+.ceoch__row--h{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gray2)}
+.ceoch__row>span{text-align:right}
+.ceoch__row>b{overflow-wrap:anywhere}
+
+.kpanel.kpanel--2{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+/* ── wp-d ── */
+/* ── WP-D: contract signing, passport blocks, match chips, referral QR ── */
+button.aifile__btn{border:0;padding:0;font:inherit}
+button.aifile__btn:disabled{opacity:.6;cursor:default}
+.csign{display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%;margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:14px;text-align:left;background:var(--dk-surface, #fff)}
+.csign__t{flex:1;min-width:200px;display:grid;gap:3px}
+.csign__t b{font-size:.95rem}
+.csign__t span{font-size:.84rem;color:var(--gray);line-height:1.4}
+.csign--ok{border-color:var(--dk-bd-ok, #bfe8d6);background:var(--dk-tint-ok, #E1F6EE)}
+.csign__i{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--dk-surface, #fff);color:var(--ok)}
+.csign__i svg{width:19px;height:19px}
+.spass__blk{display:grid;gap:8px}
+.spass__blk+.spass__blk{padding-top:12px;border-top:1px dashed var(--line)}
+.spass__bh{margin:0;font-size:.72rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--dk-acc, var(--b600))}
+.spass__ver{font-size:.72rem;color:var(--gray2)}
+.advpick__match{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:4px}
+.advpick__match em{font-style:normal;font-size:.7rem;font-weight:800;padding:2px 8px;border-radius:var(--pill);color:var(--dk-acc, #2563eb);background:var(--dk-tint-blue, #eff6ff)}
+.advpick__match small{font-size:.7rem;color:var(--gray);padding:2px 7px;border-radius:var(--pill);background:var(--dk-surface-2, #f1f5f9)}
+.ref__qr{margin:16px auto 0;display:inline-flex;flex-direction:column;align-items:center;gap:6px}
+.ref__qr img{width:148px;height:148px;border-radius:14px;padding:8px;background:#fff}
+.ref__qr span{font-size:.78rem;opacity:.9}
+
+/* ── wp-e ── */
+/* Live-test fixes: gift share link on its own line; gift plan note no longer pulled under the title. */
+.creq__m .gift__list-link{display:block;width:fit-content;margin-top:4px}
+.splan--gift .splan__total{margin:4px 0 8px}
+
+/* ── wp-h ── */
+/* Document analysis file picker (T1-15) and AI answer feedback (T1-04). */
+.docf{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 12px}
+.docf__name{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--dk-surface-2, #f8fafc);font-size:.86rem;max-width:100%;overflow-wrap:anywhere}
+.docf__name svg{width:16px;height:16px;flex:none;color:var(--dk-acc, var(--b600))}
+.docf__pick{cursor:pointer}
+.aifb{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:10px;font-size:.84rem;color:var(--gray)}
+.aifb--done{color:var(--ok)}
+
+/* ── wp-i ── */
+/* AI answer without a dated, article-level source (T1-04). */
+.aidisc--warn{background:var(--dk-tint-warn, #fff7ed);color:var(--dk-txt-warn, #9a3412)}
+/* E2E readiness per-scenario checks (T1-18). */
+.e2e__checks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.e2e__checks span{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:var(--dk-surface-2, #f1f5f9);font-size:.76rem;color:var(--gray)}
+.e2e__checks span.on{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
+.e2e__checks span.off{background:var(--dk-tint-warn, #fff7ed);color:var(--dk-txt-warn, #ea580c)}
+.e2e__checks b{color:var(--ink)}

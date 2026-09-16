@@ -1,13 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { listAuditTrail, type ActivityEntry } from "@/lib/services/backend";
-import { parseServerTime } from "@/lib/http";
-import { useResource } from "@/lib/useResource";
+import { listAuditTrail, exportAuditTrailCsv, type ActivityEntry, type AuditFilters } from "@/lib/services/backend";
+import { ApiError, parseServerTime } from "@/lib/http";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import { Notice } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
-import { IconShieldCheck, IconLock, IconCheck, IconClipboardCheck } from "@/components/icons";
+import { IconShieldCheck, IconLock, IconCheck, IconClipboardCheck, IconDownload, IconSearch } from "@/components/icons";
+
+type TextFilters = Required<Pick<AuditFilters, "userId" | "action" | "targetType" | "targetId">>;
+const NO_TEXT: TextFilters = { userId: "", action: "", targetType: "", targetId: "" };
+const TEXT_KEYS = ["userId", "action", "targetType", "targetId"] as const;
+const isForbidden = (e: unknown) => e instanceof ApiError && e.status === 403;
 
 function fmt(s: string) {
   const d = new Date(s);
@@ -62,11 +67,62 @@ export default function AdminAuditTrail() {
   const t = useTranslations("admin.audit");
   const tc = useTranslations("chart");
   const tp = useTranslations("portal.common");
-  // Date range filter (YYYY-MM-DD) → GET /admin/audit-trail?date_from=&date_to=
+  // Date range (YYYY-MM-DD) applies at once; the text filters (user, action,
+  // target type/id) apply on submit → GET /admin/audit-trail?…
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const res = useResource(() => listAuditTrail({ dateFrom: from, dateTo: to }), [from, to]);
-  const chain = useMemo(() => chainStates(res.data), [res.data]);
+  const [draft, setDraft] = useState<TextFilters>(NO_TEXT);
+  const [applied, setApplied] = useState<TextFilters>(NO_TEXT);
+  const filters: AuditFilters = { dateFrom: from, dateTo: to, ...applied };
+  const filterKey = JSON.stringify(filters);
+  const [res, setRes] = useState<{ key: string; status: "ready" | "error" | "forbidden"; data: ActivityEntry[] } | null>(null);
+  const current = res && res.key === filterKey ? res : null;
+  useEffect(() => {
+    let alive = true;
+    const f = JSON.parse(filterKey) as AuditFilters;
+    listAuditTrail(f)
+      .then((data) => alive && setRes({ key: filterKey, status: "ready", data }))
+      .catch((e) => alive && setRes({ key: filterKey, status: isForbidden(e) ? "forbidden" : "error", data: [] }));
+    return () => {
+      alive = false;
+    };
+  }, [filterKey]);
+  const rows = useMemo(() => current?.data ?? [], [current]);
+  const chain = useMemo(() => chainStates(rows), [rows]);
+  const [exporting, setExporting] = useState(false);
+  const [exportNote, setExportNote] = useState<string | null>(null);
+  const hasText = TEXT_KEYS.some((k) => applied[k] || draft[k]);
+
+  function apply(e: FormEvent) {
+    e.preventDefault();
+    setApplied({ userId: draft.userId.trim(), action: draft.action.trim(), targetType: draft.targetType.trim(), targetId: draft.targetId.trim() });
+  }
+  function resetText() {
+    setDraft(NO_TEXT);
+    setApplied(NO_TEXT);
+  }
+
+  // CSV of the filtered rows (GET …?export=csv, users.manage; the export itself is logged).
+  async function exportCsv() {
+    if (exporting) return;
+    setExporting(true);
+    setExportNote(null);
+    try {
+      const blob = await exportAuditTrailCsv(filters);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "lexgo-audit-trail.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) {
+      setExportNote(isForbidden(e) ? t("forbiddenText") : t("exportError"));
+    } finally {
+      setExporting(false);
+    }
+  }
   const [copied, setCopied] = useState<string | null>(null);
 
   function copy(key: string, hash: string) {
@@ -78,18 +134,43 @@ export default function AdminAuditTrail() {
 
   return (
     <div className="ppanel">
-      <div className="ppanel__h"><b>{t("title")}</b><span className="advmuted">{res.data.length}</span></div>
+      <div className="ppanel__h">
+        <b>{t("title")}</b>
+        <span className="audit__hact">
+          <span className="advmuted">{rows.length}</span>
+          <button type="button" className="btn btn--line btn--sm" onClick={exportCsv} disabled={exporting || current?.status === "forbidden"}>
+            <IconDownload />
+            {exporting ? t("exporting") : t("export")}
+          </button>
+        </span>
+      </div>
       <p className="ppanel__note">{t("lead")}</p>
       <p className="ppanel__note audit__append"><IconLock />{t("appendOnly")}</p>
       <div className="lfilters audit__dates">
         <DatePicker value={from} onChange={setFrom} max={to || undefined} placeholder={tc("from")} ariaLabel={tc("from")} clearLabel={tc("clear")} />
         <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={tc("to")} ariaLabel={tc("to")} clearLabel={tc("clear")} />
       </div>
-      {res.status === "loading" ? (
+      <form className="audit__filters" onSubmit={apply}>
+        {TEXT_KEYS.map((k) => (
+          <input
+            key={k}
+            value={draft[k]}
+            onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
+            placeholder={t(`f.${k}`)}
+            aria-label={t(`f.${k}`)}
+          />
+        ))}
+        <button type="submit" className="btn btn--pri btn--sm"><IconSearch />{t("apply")}</button>
+        {hasText ? <button type="button" className="btn btn--ghost btn--sm" onClick={resetText}>{t("reset")}</button> : null}
+      </form>
+      {exportNote ? <Notice ok={false} msg={exportNote} /> : null}
+      {!current ? (
         <Skeleton rows={5} />
-      ) : res.status === "error" ? (
+      ) : current.status === "forbidden" ? (
+        <EmptyState icon={<IconLock />} title={t("forbidden")} text={t("forbiddenText")} />
+      ) : current.status === "error" ? (
         <EmptyState icon={<IconShieldCheck />} title={tp("loadError")} text={tp("loadErrorText")} />
-      ) : !res.data.length ? (
+      ) : !rows.length ? (
         <EmptyState icon={<IconShieldCheck />} title={t("empty")} text={t("emptyText")} />
       ) : (
         <>
@@ -101,7 +182,7 @@ export default function AdminAuditTrail() {
                 : t("chainNote")}
           </p>
           <div className="alist">
-            {res.data.map((a, i) => {
+            {rows.map((a, i) => {
               const rowKey = a.id || a.eventHash || String(i);
               const state = chain.states[i];
               const hash = a.eventHash;
@@ -111,6 +192,14 @@ export default function AdminAuditTrail() {
                   <div className="creq__m">
                     <b>{a.action || "—"}</b>
                     <span>{[a.detail, a.ip, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span>
+                    {a.userId || a.targetType || a.targetId ? (
+                      <span className="audit__who">
+                        {a.userId ? <span>{t("user")}: <code>{a.userId}</code></span> : null}
+                        {a.targetType || a.targetId ? (
+                          <span>{t("target")}: <code>{[a.targetType, a.targetId].filter(Boolean).join(" · ")}</code></span>
+                        ) : null}
+                      </span>
+                    ) : null}
                     {hash ? (
                       <span className="audit__hash">
                         <code title={`${t("hash")}: ${hash}`}>#{shortHash(hash)}</code>
@@ -127,11 +216,18 @@ export default function AdminAuditTrail() {
                       </span>
                     ) : null}
                   </div>
-                  {chain.hashed && state ? (
+                  {(chain.hashed && state) || (a.outcome && a.outcome !== "success") ? (
                     <div className="creq__side">
-                      <span className={`creq__badge audit__chain audit__chain--${state}`} title={t(`chainHint.${state}`)}>
-                        {t(`chain.${state}`)}
-                      </span>
+                      {a.outcome && a.outcome !== "success" ? (
+                        <span className={`creq__badge audit__outcome audit__outcome--${/fail|deni|error|block|reject/i.test(a.outcome) ? "bad" : "ok"}`}>
+                          {t.has(`outcome.${a.outcome}`) ? t(`outcome.${a.outcome}`) : a.outcome}
+                        </span>
+                      ) : null}
+                      {chain.hashed && state ? (
+                        <span className={`creq__badge audit__chain audit__chain--${state}`} title={t(`chainHint.${state}`)}>
+                          {t(`chain.${state}`)}
+                        </span>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

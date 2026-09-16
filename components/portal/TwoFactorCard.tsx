@@ -10,10 +10,11 @@ import { Notice } from "@/components/admin/AdminBits";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import { IconShield, IconShieldCheck, IconChevronLeft } from "@/components/icons";
 
-// Two-factor management: SMS OTP or an authenticator app (TOTP). Status comes
-// from the session's two_factor_enabled/method (backend now returns it), with a
-// local flag as an offline fallback. For staff/seller roles 2FA is mandatory:
-// no Disable, and they may switch from SMS to the authenticator app.
+// Two-factor management: a code sent by the Telegram bot (method "telegram";
+// "sms" is the legacy name) or an authenticator app (TOTP). Status comes from
+// the session's two_factor_enabled/method, with a local flag as an offline
+// fallback. For staff/seller roles 2FA is mandatory: no Disable, and they may
+// switch from the Telegram code to the authenticator app.
 export default function TwoFactorCard() {
   const t = useTranslations("portal.common.twofa");
   const tc = useTranslations("common");
@@ -35,6 +36,8 @@ export default function TwoFactorCard() {
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const otp = useOtpTimer();
   const rateMsg = (e: unknown) => errDetail(e) || tc("rateLimited");
+  // 503 = the Telegram (or SMS) code channel is not connected.
+  const channelDown = (e: unknown) => e instanceof ApiError && e.status === 503;
 
   function reset() {
     setStage("idle");
@@ -61,7 +64,7 @@ export default function TwoFactorCard() {
       setStage("sms");
     } catch (e) {
       if (isRateLimited(e)) otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
-      setNote({ ok: false, msg: isRateLimited(e) ? rateMsg(e) : t("errStart") });
+      setNote({ ok: false, msg: isRateLimited(e) ? rateMsg(e) : channelDown(e) ? tc("otpChannelUnavailable") : t("errStart") });
     } finally {
       setBusy(false);
     }
@@ -83,7 +86,7 @@ export default function TwoFactorCard() {
       setNote({ ok: true, msg: tOtp("resent") });
     } catch (e) {
       if (isRateLimited(e)) otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
-      setNote({ ok: false, msg: isRateLimited(e) ? rateMsg(e) : tOtp("resendError") });
+      setNote({ ok: false, msg: isRateLimited(e) ? rateMsg(e) : channelDown(e) ? tc("otpChannelUnavailable") : tOtp("resendError") });
     } finally {
       setResending(false);
     }
@@ -108,7 +111,7 @@ export default function TwoFactorCard() {
       setBusy(false);
     }
   }
-  async function finishEnable(method: "sms" | "totp") {
+  async function finishEnable(method: "telegram" | "sms" | "totp") {
     localStorage.setItem(storeKey, "1");
     update({ twoFactorEnabled: true, twoFactorMethod: method });
     reset();
@@ -120,7 +123,8 @@ export default function TwoFactorCard() {
     setNote(null);
     try {
       await verify2fa(vid, code);
-      await finishEnable("sms");
+      // The backend records "telegram" when the account has a linked bot chat.
+      await finishEnable(session?.telegramLinked === false ? "sms" : "telegram");
     } catch (e) {
       if (isRateLimited(e)) {
         otp.block(retryAfterSec(e, OTP_RESEND_SEC));
@@ -262,10 +266,17 @@ export default function TwoFactorCard() {
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           {on ? (
             <p className="advmuted" style={{ margin: "0 0 10px" }}>
-              {t("currentMethod", { method: session?.twoFactorMethod === "totp" ? t("methodTotp") : t("methodSms") })}
+              {t("currentMethod", {
+                method:
+                  session?.twoFactorMethod === "totp"
+                    ? t("methodTotp")
+                    : session?.twoFactorMethod === "sms"
+                      ? t("methodSms")
+                      : t("methodTelegram"),
+              })}
             </p>
           ) : null}
-          {mandatory ? <p className="advmuted" style={{ margin: "0 0 12px" }}>{t("mandatory")}</p> : null}
+          {mandatory ? <p className="advmuted" style={{ margin: "0 0 12px" }}>{t(on ? "mandatory" : "mandatoryEnable")}</p> : null}
           {on ? (
             !mandatory ? (
               <button className="btn btn--line btn--sm" type="button" onClick={disable} disabled={busy}>

@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { listPayments } from "@/lib/services/backend";
+import { getPaymentReceipt, listPayments } from "@/lib/services/backend";
+import { saveBlob } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
+import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconCard, IconDownload } from "@/components/icons";
 
@@ -17,7 +20,30 @@ const fmtDate = (s: string) => {
 
 export default function ClientPayments() {
   const t = useTranslations("portal.client.payments");
+  // The backend falls back to the raw target type ("document_request", "gift") as the description.
+  const whatOf = (desc: string, kind: string) => {
+    // A real title ("Private chat", a plan period) is shown as is; a bare key gets a label.
+    const key = !desc || /^[a-z]+(_[a-z]+)*$/.test(desc) ? desc || kind : "";
+    if (!key) return desc;
+    return t.has(`kinds.${key}`) ? t(`kinds.${key}`) : humanizeSlug(key) || "—";
+  };
   const res = useResource(listPayments, []);
+  const [busyId, setBusyId] = useState("");
+  const [failedId, setFailedId] = useState("");
+
+  // GET /payments/{id}/receipt is an authed PDF: fetch it with the token.
+  async function downloadReceipt(id: string) {
+    if (busyId) return;
+    setBusyId(id);
+    setFailedId("");
+    try {
+      saveBlob(await getPaymentReceipt(id), `lexgo-receipt-${id}.pdf`);
+    } catch {
+      setFailedId(id);
+    } finally {
+      setBusyId("");
+    }
+  }
 
   return (
     <div className="ppanel">
@@ -37,28 +63,30 @@ export default function ClientPayments() {
               <span>{t("what")}</span>
               <span>{t("date")}</span>
               <span>{t("amount")}</span>
-              <span>{t("id")}</span>
+              <span>{t("statusCol")}</span>
             </div>
             {res.data.map((p) => (
               <div className="ptable__row" key={p.id}>
                 <span data-l={t("what")}>
-                  <b>{p.description || p.kind || "—"}</b>
+                  <b>{whatOf(p.description, p.kind)}</b>
                 </span>
                 <span data-l={t("date")}>{fmtDate(p.createdAt)}</span>
                 <span data-l={t("amount")}>{som(p.amount, p.currency)}</span>
-                <span data-l={t("id")} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className={`creq__badge${p.status === "paid" ? " creq__badge--ok" : ""}`}>{p.status || "—"}</span>
+                <span data-l={t("statusCol")} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className={`creq__badge${p.status === "paid" ? " creq__badge--ok" : ""}`}>{p.status ? (t.has(`statuses.${p.status}`) ? t(`statuses.${p.status}`) : humanizeSlug(p.status)) : "—"}</span>
                   {p.receiptUrl ? (
-                    <a
+                    <button
+                      type="button"
                       className="btn btn--line btn--sm"
-                      href={p.receiptUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      onClick={() => downloadReceipt(p.id)}
+                      disabled={busyId === p.id}
                       aria-label={t("receipt")}
+                      title={failedId === p.id ? t("receiptError") : t("receipt")}
                     >
                       <IconDownload style={{ width: 14, height: 14 }} />
-                    </a>
+                    </button>
                   ) : null}
+                  {failedId === p.id ? <span className="rf__err" style={{ fontSize: ".75rem" }}>{t("receiptError")}</span> : null}
                 </span>
               </div>
             ))}

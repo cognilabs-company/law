@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/lib/auth";
+import { useAuth, hasAdminAccess, type Session } from "@/lib/auth";
 import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
 import type { TwoFactorChallenge } from "@/lib/services/backend";
 import { OTP_RESEND_SEC, useOtpTimer } from "@/lib/useOtpTimer";
@@ -15,6 +15,10 @@ import PasswordInput from "../PasswordInput";
 
 // Backend unreachable (network / proxy 502) or a server-side failure.
 const unreachable = (e: unknown) => isOffline(e) || (e instanceof ApiError && e.status >= 500);
+// 503 from login/resend = the Telegram (or SMS) code channel is not connected.
+const channelDown = (e: unknown) => e instanceof ApiError && e.status === 503;
+// Staff (admin, sales, call-center…) land in the admin panel, everyone else in their portal.
+const homeFor = (s: Session) => (hasAdminAccess(s) ? "/admin" : `/portal/${s.role}`);
 
 export default function LoginForm() {
   const t = useTranslations("portal.login");
@@ -26,7 +30,7 @@ export default function LoginForm() {
 
   // Already signed in → the login page is off-limits until logout.
   useEffect(() => {
-    if (ready && session) router.replace(`/portal/${session.role}`);
+    if (ready && session) router.replace(homeFor(session));
   }, [ready, session, router]);
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -124,9 +128,17 @@ export default function LoginForm() {
         setBusy(false);
         return;
       }
-      router.replace(`/portal/${s.role}`);
+      router.replace(homeFor(s));
     } catch (e) {
-      fail(isRateLimited(e) ? errDetail(e) || tc("rateLimited") : unreachable(e) ? tc("offline") : t("failed"));
+      fail(
+        isRateLimited(e)
+          ? errDetail(e) || tc("rateLimited")
+          : channelDown(e)
+            ? tc("otpChannelUnavailable")
+            : unreachable(e)
+              ? tc("offline")
+              : t("failed"),
+      );
       setBusy(false);
     }
   }
@@ -140,7 +152,7 @@ export default function LoginForm() {
     setBusy(true);
     try {
       const s = await completeLogin2fa(twoFa.verificationId, code, phone);
-      router.replace(`/portal/${s.role}`);
+      router.replace(homeFor(s));
     } catch (e) {
       if (isRateLimited(e)) {
         // Too many wrong codes → locked; count down the server's wait.
@@ -172,14 +184,14 @@ export default function LoginForm() {
       if ("twoFactor" in s) {
         if (applyChallenge(s.twoFactor)) setNote(tOtp("resent"));
       } else {
-        router.replace(`/portal/${s.role}`);
+        router.replace(homeFor(s));
       }
     } catch (e) {
       if (isRateLimited(e)) {
         otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
         fail(errDetail(e) || tc("rateLimited"));
       } else {
-        fail(unreachable(e) ? tc("offline") : tOtp("resendError"));
+        fail(channelDown(e) ? tc("otpChannelUnavailable") : unreachable(e) ? tc("offline") : tOtp("resendError"));
       }
     } finally {
       setResending(false);
@@ -190,9 +202,11 @@ export default function LoginForm() {
     const subtitle =
       twoFa.method === "totp"
         ? t("twoFaTotpSubtitle")
-        : twoFa.method === "sms"
-          ? t("twoFaSubtitle", { phone: twoFa.phone || phone })
-          : twoFa.message || t("twoFaSubtitle", { phone: twoFa.phone || phone });
+        : twoFa.method === "telegram"
+          ? t("twoFaTelegramSubtitle")
+          : twoFa.method === "sms"
+            ? t("twoFaSubtitle", { phone: twoFa.phone || phone })
+            : twoFa.message || t("twoFaSubtitle", { phone: twoFa.phone || phone });
     // An authenticator challenge the server expired, or whose own countdown
     // ran out: no code can pass any more.
     const totpTimedOut = twoFa.method === "totp" && (totpExpired || otp.expired);

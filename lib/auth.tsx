@@ -15,6 +15,7 @@ import { ApiError, setRefreshHandler } from "./http";
 import { normUzPhone } from "./phone";
 import type { PlanTier, ProfessionalProfile, RegistrationDraft } from "./types";
 import { scoreCompleteness } from "./services/registration";
+import { readReferral } from "./referral";
 import {
   apiLogin,
   loginVerify2fa,
@@ -410,6 +411,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       firstName: draft.profile.firstName,
       lastName: draft.profile.lastName,
       middleName: draft.profile.middleName,
+      region: draft.profile.region,
+      referralCode: readReferral(),
       phone: normUzPhone(draft.phone),
       password: draft.password,
     });
@@ -526,6 +529,14 @@ export function sessionRoles(s: Session | null): string[] {
   return [...new Set(all)];
 }
 
+// Call-center rights as the backend checks them (is_call_center_user): the
+// call_center primary role, a call_center / call_center_lawyer role, or the
+// callcenter.access permission. Queue, call log and logging a call need it.
+export function isCallCenterUser(s: Session | null): boolean {
+  if (!s) return false;
+  return (s.permissions ?? []).includes("callcenter.access") || sessionRoles(s).some((r) => r === "call_center" || r === "call_center_lawyer");
+}
+
 // Permission codes that unlock an /admin page — mirrors the `perm`s in
 // AdminShell's NAV. Primary roles now get default NON-admin permissions too
 // (lawyer/advocate: orders, cases, documents), so "has any permission" is no
@@ -542,13 +553,20 @@ export const ADMIN_PERMISSIONS = [
   "legal_aid.manage",
   "notifications.manage",
   "roles.manage",
+  // Payouts page. orders/meetings/organizations.manage are NOT here: sellers
+  // hold them by default and must not get admin access.
+  "payments.manage",
+  // Call-center staff (queue, call log); sellers never hold it.
+  "callcenter.access",
 ] as const;
 export type AdminPermission = (typeof ADMIN_PERMISSIONS)[number];
 
-// Only advocates working in the call center may INITIATE audio/video calls.
-// Everyone else (clients, regular lawyers/advocates) can still receive/join.
+// Starting audio/video calls follows the backend's meetings.manage permission
+// (call-center, admin, manager, organization owners); call-center roles keep it
+// even on sessions stored before permissions were saved. Everyone else can
+// still receive/join.
 export function canMakeCalls(s: Session | null): boolean {
-  return sessionRoles(s).some((r) => r.includes("call_center"));
+  return (s?.permissions ?? []).includes("meetings.manage") || sessionRoles(s).some((r) => r.includes("call_center"));
 }
 
 // Admin access = an admin/superadmin role, or a permission that unlocks at

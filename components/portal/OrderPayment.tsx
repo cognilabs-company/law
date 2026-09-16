@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getPaymentPolicy, demoPayOrder, type PaymentPolicy } from "@/lib/services/backend";
+import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
+import OrderMilestones, { CheckoutIntent } from "./OrderMilestones";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton } from "./DataState";
@@ -14,7 +16,9 @@ const som = (n: number) => (n ? fmtUzs(n) : "0");
 // Staged order payment: shows the 10% advance that unlocks the private chat.
 // Partial payments are cumulative on the backend; we re-read the policy after
 // each payment and open the chat once `contactUnlocked` (or a chat room comes
-// back from the payment).
+// back from the payment). Outside the staging demo provider the advance is an
+// invoice from POST /payments (amount + status shown, then the provider page).
+// The order's milestones are listed underneath.
 export default function OrderPayment({
   orderId,
   onChat,
@@ -28,6 +32,7 @@ export default function OrderPayment({
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [intent, setIntent] = useState<PaymentIntent | null>(null);
 
   // Back to loading when the order changes (during render, not in the effect).
   const [prevOrderId, setPrevOrderId] = useState(orderId);
@@ -61,8 +66,19 @@ export default function OrderPayment({
     if (paying) return;
     setPaying(true);
     setErr(null);
+    setIntent(null);
     let leaving = false; // stay busy while the browser opens the checkout
     try {
+      if (!isDemoCheckout()) {
+        // What is still due for the advance, else the rest of the order.
+        const due = pol ? (pol.contactUnlocked ? pol.totalAmount - pol.paidAmount : pol.remainingToUnlock || pol.advanceAmount) : 0;
+        if (due <= 0) {
+          setErr(t("error"));
+          return;
+        }
+        setIntent(await createCheckout({ kind: "order", orderId, amount: due, payload: { purpose: "order_advance" } }));
+        return;
+      }
       const r = await demoPayOrder(orderId);
       if (r.paymentUrl) {
         // A real provider checkout: same-tab navigation (a popup opened after
@@ -103,13 +119,16 @@ export default function OrderPayment({
         <p className="opay__note"><IconLock />{t("locked", { amount: `${som(pol.remainingToUnlock)} ${t("som")}` })}</p>
       )}
       {err ? <Notice ok={false} msg={err} /> : null}
-      {pol.contactUnlocked ? (
+      {intent ? (
+        <CheckoutIntent intent={intent} onCancel={() => setIntent(null)} />
+      ) : pol.contactUnlocked ? (
         <button className="btn btn--grad btn--full btn--lg" type="button" onClick={() => onChat()}>{t("openChat")}</button>
       ) : (
         <button className="btn btn--grad btn--full btn--lg" type="button" disabled={paying} onClick={pay}>
           {paying ? t("paying") : t("payAdvance", { pct: advPct })}
         </button>
       )}
+      <OrderMilestones orderId={orderId} />
     </div>
   );
 }

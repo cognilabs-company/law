@@ -6,13 +6,16 @@ import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { fmtDate } from "@/lib/date";
 import {
+  getAdminDashboard,
   getCeoDashboard,
   getRetentionOverview,
   getQualityOverview,
   seedDemoData,
 } from "@/lib/services/backend";
+import { humanizeSlug } from "@/lib/lawyers";
 import { isDemoUnavailable } from "@/lib/http";
 import { useResourceOne } from "@/lib/useResource";
+import { useDemoTools } from "@/lib/demoTools";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton } from "@/components/portal/DataState";
 import LineChart from "@/components/admin/LineChart";
@@ -33,7 +36,6 @@ const fmt = (n: number) => (Math.abs(n) >= 1000 ? n.toLocaleString("ru-RU").repl
 const DASH = "—";
 
 const MODULES = [
-  { href: "/admin/leads", key: "leads", Icon: IconUsers },
   { href: "/admin/pipeline", key: "pipeline", Icon: IconTrendingUp },
   { href: "/admin/verifications", key: "verifications", Icon: IconAward },
   { href: "/admin/payouts", key: "payouts", Icon: IconCard },
@@ -66,9 +68,13 @@ export default function AdminOverview() {
   const ceo = useResourceOne(getCeoDashboard, []);
   const ret = useResourceOne(getRetentionOverview, []);
   const qual = useResourceOne(getQualityOverview, []);
+  // GET /admin/dashboard: payment sums/counts and orders/leads grouped by status.
+  const dash = useResourceOne(getAdminDashboard, []);
   const [seedBusy, setSeedBusy] = useState(false);
   const [seedMsg, setSeedMsg] = useState<string | null>(null);
   const [seedAsk, setSeedAsk] = useState(false);
+  // The showcase seed is a staging tool: hidden where the demo routes are off (T0-01).
+  const demoTools = useDemoTools();
 
   // Idempotent showcase seed. Production closes the endpoint (404 "Demo
   // endpoint yopiq"). The backend's message isn't localized and its counts
@@ -98,6 +104,12 @@ export default function AdminOverview() {
   const lastPoint = trend[trend.length - 1];
   const lastDate = lastPoint ? fmtDate(lastPoint.label, locale) : "";
   const loading = ceo.status === "loading" && ret.status === "loading" && qual.status === "loading";
+  const stat = (k: string) => dash.data?.totals.find((x) => x.label === k)?.value;
+  const chart = (k: string) => (dash.data?.charts.find((x) => x.key === k)?.points ?? []).filter((x) => x.label);
+  const byStatus = chart("orders_by_status").sort((a, b) => b.value - a.value);
+  const byScore = chart("leads_by_score").sort((a, b) => b.value - a.value);
+  const sMax = Math.max(...byStatus.map((x) => x.value), 1);
+  const label = (group: string, k: string) => (tc.has(`${group}.${k}`) ? tc(`${group}.${k}`) : humanizeSlug(k));
 
   return (
     <>
@@ -108,10 +120,12 @@ export default function AdminOverview() {
           <p>{tc("sub")}</p>
         </div>
         <div className="advhero__done" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
-          <button className="btn btn--glass btn--sm" type="button" onClick={() => setSeedAsk(true)} disabled={seedBusy}>
-            <IconBolt />
-            {seedBusy ? t("seeding") : t("seed")}
-          </button>
+          {demoTools ? (
+            <button className="btn btn--glass btn--sm" type="button" onClick={() => setSeedAsk(true)} disabled={seedBusy}>
+              <IconBolt />
+              {seedBusy ? t("seeding") : t("seed")}
+            </button>
+          ) : null}
           {seedMsg ? <span style={{ fontSize: ".8rem", color: "#B7CDEC" }}>{seedMsg}</span> : null}
         </div>
       </div>
@@ -171,7 +185,7 @@ export default function AdminOverview() {
             <div className="kfunnel">
               {funnel.map((fn, i) => (
                 <div className="kfunnel__row" key={i}>
-                  <span className="kfunnel__lbl">{fn.label}</span>
+                  <span className="kfunnel__lbl">{label("stage", fn.label)}</span>
                   <span className="kfunnel__bar"><span style={{ width: `${Math.max(4, (fn.value / fMax) * 100)}%` }} /></span>
                   <b className="kfunnel__v">{fmt(fn.value)}</b>
                 </div>
@@ -182,6 +196,47 @@ export default function AdminOverview() {
           )}
         </div>
       </div>
+
+      {/* Payments and order/lead status (GET /admin/dashboard) */}
+      {dash.data ? (
+        <div className="pgrid2">
+          <div className="ppanel">
+            <div className="ppanel__h"><b>{tc("payments")}</b></div>
+            <div className="kpanel kpanel--2">
+              <Tile label={tc("paidAmount")} value={money(stat("paid_amount"))} />
+              <Tile label={tc("pendingAmount")} value={money(stat("pending_amount"))} />
+              <Tile label={tc("paidCount")} value={fmt(stat("paid_count") ?? 0)} />
+              <Tile label={tc("pendingCount")} value={fmt(stat("pending_count") ?? 0)} />
+            </div>
+            {byScore.length ? (
+              <>
+                <div className="ppanel__h" style={{ marginTop: 16 }}><b>{tc("leadsByScore")}</b></div>
+                <div className="aitem__tags">
+                  {byScore.map((x) => (
+                    <span className="creq__badge" key={x.label}>{label("score", x.label)} · {fmt(x.value)}</span>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </div>
+          <div className="ppanel">
+            <div className="ppanel__h"><b>{tc("ordersByStatus")}</b></div>
+            {byStatus.length ? (
+              <div className="kfunnel">
+                {byStatus.map((x) => (
+                  <div className="kfunnel__row" key={x.label}>
+                    <span className="kfunnel__lbl">{label("status", x.label)}</span>
+                    <span className="kfunnel__bar"><span style={{ width: `${Math.max(4, (x.value / sMax) * 100)}%` }} /></span>
+                    <b className="kfunnel__v">{fmt(x.value)}</b>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="advmuted">{t("empty")}</p>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {/* CRM module shortcuts */}
       <div className="ppanel">

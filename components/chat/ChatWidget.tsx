@@ -6,6 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { useLexAi } from "./useLexAi";
 import { useAuth } from "@/lib/auth";
 import { getClientId } from "@/lib/client";
+import { aiQuotaOf } from "@/lib/http";
 import {
   createChat,
   postMessage,
@@ -24,6 +25,7 @@ type Msg = {
   sources?: Source[];
   contracts?: Contract[];
   limit?: boolean;
+  upgrade?: boolean; // signed-in user's AI quota is spent → subscription CTA
 };
 
 export default function ChatWidget({
@@ -84,7 +86,13 @@ export default function ChatWidget({
       ]);
     } catch (e) {
       setTyping(false);
-      if (isLimitError(e) && !session) {
+      const quota = session ? aiQuotaOf(e) : null;
+      if (quota) {
+        const text = quota.monthlyLimit
+          ? t("aiQuotaReached", { used: quota.used, limit: quota.monthlyLimit })
+          : t("aiQuotaReachedShort");
+        setMsgs((m) => [...m, { role: "a", content: text, upgrade: true }]);
+      } else if (isLimitError(e) && !session) {
         setMsgs((m) => [...m, { role: "a", content: t("limitReached"), limit: true }]);
       } else {
         const r = reply(content);
@@ -168,6 +176,11 @@ export default function ChatWidget({
             {m.limit ? (
               <Link href="/login" className="cact" onClick={onClose}>
                 {t("limitLogin")}
+              </Link>
+            ) : null}
+            {m.upgrade && session ? (
+              <Link href={`/portal/${session.role}/subscription`} className="cact" onClick={onClose}>
+                {t("upgradePlan")}
               </Link>
             ) : null}
           </div>

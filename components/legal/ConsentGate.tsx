@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
-import { useAuth } from "@/lib/auth";
-import { currentConsents, listLegalConsents, type AcceptedConsentRef, type ConsentDoc } from "@/lib/services/backend";
+import { useAuth, hasAdminAccess } from "@/lib/auth";
+import { consentsFor, currentConsents, listLegalConsents, listMyConsents, type AcceptedConsentRef, type ConsentDoc } from "@/lib/services/backend";
 import {
   CONSENTS_KEY,
   claimPendingRegistration,
@@ -47,6 +47,8 @@ export default function ConsentGate() {
   const id = session?.id ?? "";
   const phone = session?.phone ?? "";
   const serverAccepted = JSON.stringify(session?.acceptedConsents ?? []);
+  // Staff (admin, sales, call-center…) sign in with the client primary role.
+  const audience = session?.role === "lawyer" || session?.role === "advocate" ? session.role : hasAdminAccess(session) ? "staff" : "client";
   const [gate, setGate] = useState<{ key: string; docs: ConsentDoc[]; updated: boolean } | null>(null);
 
   useEffect(() => {
@@ -64,7 +66,11 @@ export default function ConsentGate() {
       void flushConsents(id, phone);
       if (!shouldRecheck(force)) return;
       try {
-        const docs = currentConsents(await listLegalConsents());
+        // What this account already accepted on the server (any device).
+        const mine = await listMyConsents().catch(() => [] as AcceptedConsentRef[]);
+        if (!alive) return;
+        if (mine.length) recordAccepted(id, phone, mine, { synced: true });
+        const docs = consentsFor(currentConsents(await listLegalConsents()), audience);
         if (!alive) return;
         const s = consentStatus(docs, id, phone);
         setGate(s.missing.length ? { key: id || phone, docs: s.missing, updated: s.updated } : null);
@@ -101,7 +107,7 @@ export default function ConsentGate() {
       window.removeEventListener("online", onWake);
       window.removeEventListener("storage", onStorage);
     };
-  }, [ready, token, id, phone, serverAccepted]);
+  }, [ready, token, id, phone, serverAccepted, audience]);
 
   // Only observe the DOM while a gate is pending.
   const callUi = useSyncExternalStore(gate ? watchCallUi : watchNothing, gate ? hasCallUi : noCallUi, noCallUi);

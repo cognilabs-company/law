@@ -137,7 +137,7 @@ export default function ClientGifts() {
             <div className="creq" key={g.id}>
               <span className="creq__st" />
               <div className="creq__m">
-                <b>{g.planName || "—"}</b>
+                <b>{g.planName || t("untitledGift")}</b>
                 <span>
                   {[g.recipientPhone, g.termMonths ? `${g.termMonths} ${t("months")}` : "", fmtDate(g.createdAt)]
                     .filter(Boolean)

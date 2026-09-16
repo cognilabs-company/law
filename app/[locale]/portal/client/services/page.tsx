@@ -6,17 +6,24 @@ import { Link, useRouter } from "@/i18n/navigation";
 import {
   getServiceCategories,
   getServices,
+  searchServices,
+  getServicePassport,
   listLawyers,
   createOrder,
   getPricingQuote,
+  getMatchingCandidates,
   type BackendService,
   type BackendLawyer,
+  type MatchCandidate,
+  type PriceModifier,
   type PriceQuote,
 } from "@/lib/services/backend";
+import { http, asDict, asStr } from "@/lib/http";
 import OrderPayment from "@/components/portal/OrderPayment";
+import ServicePassport from "@/components/portal/ServicePassport";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
-import { initials } from "@/lib/lawyers";
+import { initials, humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
@@ -45,10 +52,11 @@ const FAM_ICONS: ComponentType<{ className?: string }>[] = [
   IconScale, IconGavel, IconShield, IconFileText, IconUsers, IconBriefcase,
 ];
 
-type Sort = "rating" | "exp" | "price";
+type Sort = "match" | "rating" | "exp" | "price";
 
 export default function ClientServices() {
   const t = useTranslations("portal.client.services");
+  const te = useTranslations("enums");
   const locale = useLocale();
   const router = useRouter();
   const cats = useResource(getServiceCategories, []);
@@ -66,7 +74,20 @@ export default function ClientServices() {
   const [sellers, setSellers] = useState<BackendLawyer[]>([]);
   const [sellersLoading, setSellersLoading] = useState(false);
   const [sellerId, setSellerId] = useState("");
-  const [sort, setSort] = useState<Sort>("rating");
+  // "match" = the backend matching score (GET /matching/candidates, T1-09).
+  const [sort, setSort] = useState<Sort>("match");
+  const [cands, setCands] = useState<Map<string, MatchCandidate>>(new Map());
+  // The client's own region drives the regional price coefficient (T1-08).
+  const [myRegion, setMyRegion] = useState("");
+  useEffect(() => {
+    let alive = true;
+    http("/auth/me")
+      .then((d) => alive && setMyRegion(asStr(asDict(d).region)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [buying, setBuying] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [quote, setQuote] = useState<PriceQuote | null>(null);
@@ -76,15 +97,65 @@ export default function ClientServices() {
   const query = q.trim().toLowerCase();
   const countFor = (id: string) => services.data.filter((s) => s.categoryId === id).length;
 
+  // T1-06 server search (GET /services/search): Latin/Cyrillic/Russian
+  // spellings, category and AI category, ranked by score. Debounced; until it
+  // answers (or if it fails) the local name/code filter below is shown.
+  const [remote, setRemote] = useState<{ q: string; list: BackendService[] | null } | null>(null);
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) return;
+    let alive = true;
+    const timer = setTimeout(() => {
+      searchServices(term, { limit: 50 }, locale)
+        .then((hits) => alive && setRemote({ q: term, list: hits.map((h) => h.service) }))
+        .catch(() => alive && setRemote({ q: term, list: null }));
+    }, 300);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [q, locale]);
+
   // Search mode → flat results across everything; else drill by family.
   const list = useMemo(() => {
     if (query) {
+      const hits = remote && remote.q.toLowerCase() === query ? remote.list : null;
+      if (hits) {
+        // Keep the catalog view (catalog_only) when it loaded: drop non-catalog hits.
+        const byId = new Map(services.data.map((s) => [s.id, s]));
+        return byId.size ? hits.flatMap((h) => byId.get(h.id) ?? []) : hits;
+      }
       return services.data.filter(
         (s) => s.name.toLowerCase().includes(query) || (s.catalogCode || "").toLowerCase().includes(query),
       );
     }
     return cat ? services.data.filter((s) => s.categoryId === cat) : [];
-  }, [services.data, cat, query]);
+  }, [services.data, cat, query, remote]);
+
+  // Deep link from the AI offer cards (?service=<id>) opens that service's order
+  // modal once the catalog is loaded; a service outside the catalog list is
+  // fetched through its passport.
+  const [deepId, setDeepId] = useState(() =>
+    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("service") ?? "",
+  );
+  const [deepFetch, setDeepFetch] = useState("");
+  if (deepId && services.status !== "loading") {
+    const found = services.data.find((s) => s.id === deepId);
+    setDeepId("");
+    if (found) setOrder(found);
+    else setDeepFetch(deepId);
+  }
+  useEffect(() => {
+    if (!deepFetch) return;
+    let alive = true;
+    getServicePassport(deepFetch, locale)
+      .then((r) => alive && r.service.id && setOrder(r.service))
+      .catch(() => {})
+      .finally(() => alive && setDeepFetch(""));
+    return () => {
+      alive = false;
+    };
+  }, [deepFetch, locale]);
 
   const catName = cats.data.find((c) => c.id === cat)?.name || "";
 
@@ -94,6 +165,7 @@ export default function ClientServices() {
     setPrevOrder(order);
     if (order) {
       setSellersLoading(true);
+      setCands(new Map());
       setSellerId("");
       setNote(null);
       setQuote(null);
@@ -109,15 +181,42 @@ export default function ClientServices() {
       .finally(() => setSellersLoading(false));
   }, [order]);
 
+  // Ranked, verified candidates for this service; used to order the sellers
+  // above and to explain the match. A failure just leaves the rating order.
+  useEffect(() => {
+    if (!order) return;
+    let alive = true;
+    getMatchingCandidates({ serviceId: order.id, region: myRegion || undefined })
+      .then((rows) => alive && setCands(new Map(rows.map((c) => [c.lawyerUserId, c]))))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [order, myRegion]);
+
   const sortedSellers = useMemo(() => {
     const rows = [...sellers];
+    const score = (l: BackendLawyer) => cands.get(l.userId)?.score ?? -1;
     rows.sort((a, b) => {
       if (sort === "price") return (a.basePrice || Infinity) - (b.basePrice || Infinity);
       if (sort === "exp") return b.experienceYears - a.experienceYears;
+      if (sort === "match" && score(a) !== score(b)) return score(b) - score(a);
       return b.rating - a.rating;
     });
     return rows;
-  }, [sellers, sort]);
+  }, [sellers, sort, cands]);
+
+  // Price rows are labelled by the backend modifier code.
+  const modLabel = (m: PriceModifier) =>
+    m.key && t.has(`modifiers.${m.key}`) ? t(`modifiers.${m.key}`) : m.label || humanizeSlug(m.key) || "—";
+  const modValue = (m: PriceModifier) => {
+    if (m.percent) return `${m.percent > 0 ? "+" : ""}${m.percent}%`;
+    if (m.multiplier && m.multiplier !== 1) return `×${Number(m.multiplier.toFixed(2))}`;
+    if (m.amount) return `${som(m.amount)} ${t("som")}`;
+    // A neutral factor (e.g. the Tashkent city region, ×1) still explains the price.
+    return "×1";
+  };
+  const reasonLabel = (r: string) => (t.has(`matchReasons.${r}`) ? t(`matchReasons.${r}`) : humanizeSlug(r));
 
   // Final price depends on the chosen seller + any referral discount. Loading /
   // clearing happens during render when the seller or service changes.
@@ -132,14 +231,14 @@ export default function ClientServices() {
   useEffect(() => {
     if (!order || !sellerId) return;
     let alive = true;
-    getPricingQuote({ service_id: order.id, lawyer_user_id: sellerId })
+    getPricingQuote({ service_id: order.id, lawyer_user_id: sellerId, region: myRegion || undefined })
       .then((qr) => alive && setQuote(qr))
       .catch(() => alive && setQuote(null))
       .finally(() => alive && setQuoteLoading(false));
     return () => {
       alive = false;
     };
-  }, [order, sellerId]);
+  }, [order, sellerId, myRegion]);
 
   async function buy() {
     if (!order || !sellerId || buying) return;
@@ -256,13 +355,20 @@ export default function ClientServices() {
                 ) : null}
                 {quote.modifiers.map((m, i) => (
                   <div className="oquote__row oquote__row--mod" key={i}>
-                    <span>{m.label || m.key}</span>
-                    <span>{m.percent ? `${m.percent > 0 ? "+" : ""}${m.percent}%` : m.amount ? `${som(m.amount)} ${t("som")}` : ""}</span>
+                    <span>{modLabel(m)}</span>
+                    <span>{modValue(m)}</span>
                   </div>
                 ))}
-                {quote.referralDiscountPercent ? (
+                {quote.subtotal && quote.subtotal !== quote.totalAmount && quote.subtotal !== quote.baseAmount ? (
+                  <div className="oquote__row"><span>{t("priceSubtotal")}</span><span>{som(quote.subtotal)} {t("som")}</span></div>
+                ) : null}
+                {quote.referralDiscountPercent || quote.discountAmount ? (
                   <div className="oquote__row oquote__row--disc">
-                    <span>{t("referralDiscount")}</span><span>−{quote.referralDiscountPercent}%</span>
+                    <span>
+                      {t("referralDiscount")}
+                      {quote.referralDiscountPercent && quote.discountAmount ? ` (−${quote.referralDiscountPercent}%)` : ""}
+                    </span>
+                    <span>{quote.discountAmount ? `−${som(quote.discountAmount)} ${t("som")}` : `−${quote.referralDiscountPercent}%`}</span>
                   </div>
                 ) : null}
                 <div className="oquote__row oquote__row--total">
@@ -277,6 +383,8 @@ export default function ClientServices() {
               </div>
             )}
 
+            {order ? <ServicePassport serviceId={order.id} /> : null}
+
             <div>
               <label>{t("chooseAdvocate")}</label>
               {sellersLoading ? (
@@ -286,15 +394,17 @@ export default function ClientServices() {
               ) : (
                 <>
                   <div className="chiprow" style={{ margin: "6px 0 10px" }}>
-                    {(["rating", "exp", "price"] as Sort[]).map((s) => (
+                    {(["match", "rating", "exp", "price"] as Sort[]).map((s) => (
                       <button key={s} type="button" className="fchip" aria-pressed={sort === s} onClick={() => setSort(s)}>
-                        {t(s === "rating" ? "sortRating" : s === "exp" ? "sortExp" : "sortPrice")}
+                        {t(s === "match" ? "sortMatch" : s === "rating" ? "sortRating" : s === "exp" ? "sortExp" : "sortPrice")}
                       </button>
                     ))}
                   </div>
                   <div className="advpick">
                     {sortedSellers.filter((l) => l.userId).map((l) => {
                       const on = sellerId === l.userId;
+                      const c = cands.get(l.userId);
+                      const reasons = (c?.reasons ?? []).filter((r) => r !== "verified").slice(0, 2);
                       return (
                         <button
                           key={l.userId}
@@ -306,14 +416,22 @@ export default function ClientServices() {
                           <span className="advpick__m">
                             <b>
                               {l.name || "—"}
-                              {l.verified ? <IconShieldCheck className="advpick__vf" /> : null}
+                              {l.verified || c ? <IconShieldCheck className="advpick__vf" aria-label={t("verified")} /> : null}
                             </b>
                             <span className="advpick__stats">
                               <i><IconStar />{l.rating ? l.rating.toFixed(1) : "—"}</i>
                               {l.experienceYears ? <i>{t("expYears", { n: l.experienceYears })}</i> : null}
                               {l.successRate ? <i>{t("successRate", { n: l.successRate })}</i> : null}
-                              {l.region ? <i><IconMapPin />{l.region}</i> : null}
+                              {l.region ? <i><IconMapPin />{te.has(`regions.${l.region}`) ? te(`regions.${l.region}`) : l.region}</i> : null}
                             </span>
+                            {c ? (
+                              <span className="advpick__match">
+                                <em>{t("matchScore", { n: Math.round(c.score) })}</em>
+                                {reasons.map((r) => (
+                                  <small key={r}>{reasonLabel(r)}</small>
+                                ))}
+                              </span>
+                            ) : null}
                           </span>
                           <span className="advpick__price">
                             {l.basePrice ? `${som(l.basePrice)} ${t("som")}` : t("byRequest")}

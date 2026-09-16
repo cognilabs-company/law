@@ -10,7 +10,8 @@ import {
   type IdentityProvider,
   type IdentityStatus,
 } from "@/lib/services/backend";
-import { errDetail, isDemoUnavailable, isProviderUnavailable, isRateLimited } from "@/lib/http";
+import { errDetail, isDemoUnavailable, isProviderUnavailable, isRateLimited, retryAfterSec } from "@/lib/http";
+import { fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { useResourceOne } from "@/lib/useResource";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
@@ -30,11 +31,14 @@ export default function IdentityVerify() {
   const [id, setId] = useState<IdentityStatus | null>(null);
   const cur = id ?? res.data;
   const [prov, setProv] = useState<IdentityProvider | null>(null);
-  const [flow, setFlow] = useState<{ state: string } | null>(null);
+  const [flow, setFlow] = useState<{ state: string; provider: IdentityProvider } | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const redirectedRef = useRef(false);
+  // 429 → count down the server's wait; the provider buttons stay disabled.
+  const wait = useOtpTimer();
+  const waiting = wait.resendIn > 0;
 
   // Back from the provider page may restore this page from the bfcache with the
   // buttons still busy (they stay busy while the browser navigates away) and the
@@ -87,9 +91,10 @@ export default function IdentityVerify() {
         setProv(null);
         return;
       }
-      setFlow({ state: r.state });
+      setFlow({ state: r.state, provider: p });
       setCode("");
     } catch (e) {
+      if (isRateLimited(e)) wait.cooldown(retryAfterSec(e, 60));
       setNote({ ok: false, msg: errMsg(e) });
       setProv(null);
     } finally {
@@ -101,7 +106,7 @@ export default function IdentityVerify() {
     setBusy(true);
     setNote(null);
     try {
-      const r = await identityVerifyDemo(flow.state, code.trim());
+      const r = await identityVerifyDemo(flow.provider, flow.state, code.trim());
       setId(r);
       if (r.verified) {
         setFlow(null);
@@ -110,6 +115,7 @@ export default function IdentityVerify() {
         setNote({ ok: false, msg: t("failed") });
       }
     } catch (e) {
+      if (isRateLimited(e)) wait.cooldown(retryAfterSec(e, 60));
       setNote({ ok: false, msg: errMsg(e) });
     } finally {
       setBusy(false);
@@ -119,11 +125,12 @@ export default function IdentityVerify() {
   const providers = (
     <div className="idv__providers">
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-      <button className="idv__prov" type="button" disabled={busy} onClick={() => start("oneid")}>
+      {waiting ? <p className="advmuted" role="status">{t("retryIn", { time: fmtClock(wait.resendIn) })}</p> : null}
+      <button className="idv__prov" type="button" disabled={busy || waiting} onClick={() => start("oneid")}>
         <b>OneID</b>
         <span>{t("oneidSub")}</span>
       </button>
-      <button className="idv__prov" type="button" disabled={busy} onClick={() => start("myid")}>
+      <button className="idv__prov" type="button" disabled={busy || waiting} onClick={() => start("myid")}>
         <b>MyID</b>
         <span>{t("myidSub")}</span>
       </button>
@@ -158,7 +165,8 @@ export default function IdentityVerify() {
             />
           </div>
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-          <button className="btn btn--pri btn--full" type="button" disabled={busy || !code.trim()} onClick={verify}>
+          {waiting ? <p className="advmuted" role="status">{t("retryIn", { time: fmtClock(wait.resendIn) })}</p> : null}
+          <button className="btn btn--pri btn--full" type="button" disabled={busy || waiting || !code.trim()} onClick={verify}>
             {busy ? t("verifying") : t("verify")}
           </button>
           <button className="rf__link rf__link--muted" type="button" onClick={() => { setFlow(null); setProv(null); setNote(null); }}>

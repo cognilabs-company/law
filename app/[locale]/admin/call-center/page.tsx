@@ -4,9 +4,12 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ccSearchClients, listCcCalls, logCcCall, type CcClient } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
+import { useAuth, isCallCenterUser } from "@/lib/auth";
 import { useReload } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
 import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
+import CallCenterQueue from "@/components/admin/CallCenterQueue";
+import CallCenterBoard from "@/components/admin/CallCenterBoard";
 import { IconSearch, IconPhone, IconUser } from "@/components/icons";
 
 function fmt(s: string) {
@@ -17,7 +20,13 @@ function fmt(s: string) {
 export default function AdminCallCenter() {
   const t = useTranslations("admin.callCenter");
   const [key, reload] = useReload();
-  const calls = useResource(() => listCcCalls(), [key]);
+  const { session } = useAuth();
+  // The backend limits the queue, call log and call logging to call-center
+  // staff, and client search to call-center staff or users.manage; other
+  // roles (e.g. sales operators) only get the lead board.
+  const cc = isCallCenterUser(session);
+  const canSearch = cc || (session?.permissions ?? []).includes("users.manage");
+  const calls = useResource(() => (cc ? listCcCalls() : Promise.resolve([])), [key, cc]);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<CcClient[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -48,6 +57,10 @@ export default function AdminCallCenter() {
   }
 
   return (
+    <>
+    {cc ? <CallCenterQueue /> : null}
+    <CallCenterBoard />
+    {canSearch ? (
     <div className="pgrid2">
       <div className="ppanel">
         <div className="ppanel__h"><b>{t("search")}</b><BusinessHoursBadge showHolidayNote /></div>
@@ -70,13 +83,14 @@ export default function AdminCallCenter() {
                   <b>{c.name || c.phone}</b>
                   <span className="aitem__meta">{[c.lexgoId, c.phone, c.status ? (t.has(`status.${c.status}`) ? t(`status.${c.status}`) : c.status) : ""].filter(Boolean).join(" · ")}</span>
                 </div>
-                <button className="btn btn--pri btn--sm" type="button" disabled={busy === c.id} onClick={() => logCall(c)}><IconPhone />{t("logCall")}</button>
+                {cc ? <button className="btn btn--pri btn--sm" type="button" disabled={busy === c.id} onClick={() => logCall(c)}><IconPhone />{t("logCall")}</button> : null}
               </div>
             ))}
           </div>
         )}
       </div>
 
+      {!cc || calls.status === "error" ? null : (
       <div className="ppanel">
         <div className="ppanel__h"><b>{t("recent")}</b><span className="advmuted">{calls.data.length}</span></div>
         {calls.status === "loading" ? (
@@ -95,6 +109,9 @@ export default function AdminCallCenter() {
           </div>
         )}
       </div>
+      )}
     </div>
+    ) : null}
+    </>
   );
 }

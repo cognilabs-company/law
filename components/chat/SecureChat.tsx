@@ -7,6 +7,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth, canMakeCalls } from "@/lib/auth";
 import { maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
+import { backoffMs, refreshAccessToken } from "@/lib/http";
 import { playRingtone } from "@/lib/callSounds";
 import {
   getSecureMessages,
@@ -91,6 +92,11 @@ export default function SecureChat({ roomId }: { roomId: string }) {
   const seen = useRef<Set<string>>(new Set());
   const dismissedCalls = useRef<Set<string>>(new Set());
   const wsRef = useRef<WebSocket | null>(null);
+  // Latest messages for async socket handlers (kept in sync after each render).
+  const msgsRef = useRef<LocalMsg[]>([]);
+  useEffect(() => {
+    msgsRef.current = msgs;
+  }, [msgs]);
 
   // Start a call, or join the one already active in this room.
   async function beginCall(kind: "audio" | "video") {
@@ -175,7 +181,6 @@ export default function SecureChat({ roomId }: { roomId: string }) {
       alive = false;
       clearInterval(iv);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, session, activeCall]);
 
   // Auto-join a call when arriving from an incoming-call notification (?join=id).
@@ -234,11 +239,59 @@ export default function SecureChat({ roomId }: { roomId: string }) {
       }
     }
 
-    function scheduleReconnect() {
+    // Exponential backoff with jitter (1s → 30s cap), reset on a successful open.
+    function scheduleReconnect(delay = backoffMs(retry)) {
       if (!alive) return;
-      retry = Math.min(retry + 1, 6);
+      retry = Math.min(retry + 1, 10);
       clearTimeout(reconnectTimer);
-      reconnectTimer = setTimeout(connect, Math.min(1000 * 2 ** retry, 15000));
+      reconnectTimer = setTimeout(connect, delay);
+    }
+
+    // Optimistic bubbles still waiting for their echo.
+    function failPending(reason?: string) {
+      setSending(false);
+      setMsgs((prev) => prev.map((x) => (x.pending ? { ...x, pending: false, failed: true } : x)));
+      if (reason) setCallErr(reason);
+    }
+
+    // The socket answers auth problems with {event:"error", status_code} frames
+    // instead of closing. 401: refresh the token, reopen the socket with it and
+    // store the unsent messages over HTTP. 403: those messages can't be sent.
+    let refreshingAuth = false;
+    async function onAuthExpired() {
+      if (refreshingAuth) return;
+      refreshingAuth = true;
+      const fresh = await refreshAccessToken().catch(() => null);
+      refreshingAuth = false;
+      if (!alive) return;
+      if (!fresh) {
+        failPending(t("wsSessionExpired"));
+        return;
+      }
+      // Reopen with the new token (the old socket's URL carries the stale one).
+      if (ws) {
+        ws.onclose = null;
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+      }
+      retry = 0;
+      clearTimeout(reconnectTimer);
+      connect();
+      // Messages the socket rejected: store them over HTTP.
+      const pendingNow = msgsRef.current.filter((x) => x.pending);
+      for (const p of pendingNow) {
+        try {
+          const m = await sendSecureMessage(roomId, p.filteredContent);
+          if (m.id) seen.current.add(m.id);
+          if (alive) setMsgs((prev) => prev.map((x) => (x.id === p.id ? { ...m } : x)));
+        } catch {
+          if (alive) setMsgs((prev) => prev.map((x) => (x.id === p.id ? { ...x, pending: false, failed: true } : x)));
+        }
+      }
+      if (alive) setSending(false);
     }
 
     function connect() {
@@ -261,6 +314,13 @@ export default function SecureChat({ roomId }: { roomId: string }) {
       ws.onmessage = (e) => {
         try {
           const o = JSON.parse(e.data);
+          if (o && o.event === "error") {
+            const code = Number(o.status_code) || 0;
+            const detail = typeof o.detail === "string" ? o.detail : "";
+            if (code === 401) void onAuthExpired();
+            else failPending(code === 403 ? detail || t("wsForbidden") : detail || t("wsSendFailed"));
+            return;
+          }
           const raw = o.message ?? o;
           const m: LocalMsg = {
             id: String(raw.id ?? ""),
@@ -292,8 +352,10 @@ export default function SecureChat({ roomId }: { roomId: string }) {
           /* ignore non-JSON frames */
         }
       };
+      const sock = ws;
       ws.onclose = () => {
-        if (!alive) return;
+        // A socket replaced after a token refresh must not schedule another reconnect.
+        if (!alive || wsRef.current !== sock) return;
         setConn("offline");
         scheduleReconnect();
       };

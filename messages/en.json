@@ -10,7 +10,8 @@
       "dayOff": "Closed today",
       "schedule": "{days}, {start}–{end} (Tashkent time)",
       "holidayNote": "Public holidays are not taken into account yet."
-    }
+    },
+    "otpChannelUnavailable": "Couldn't send the code through Telegram. Link the Telegram bot or try again shortly."
   },
   "a11y": {
     "showPassword": "Show password",
@@ -679,7 +680,7 @@
       "responseLabel": "Response",
       "reviews": "{count} reviews · {years} yrs experience",
       "priceNote": "from · package",
-      "super": "Super lawyer",
+      "verified": "Verified",
       "choose": "Choose",
       "opening": "Opening…"
     },
@@ -1606,7 +1607,10 @@
     },
     "analysisSuffix": "Identified direction: {dir} · {stage}.\nEstimated price: {price}.",
     "limitReached": "Free question limit reached. Log in to continue.",
-    "limitLogin": "Log in to continue"
+    "limitLogin": "Log in to continue",
+    "aiQuotaReached": "Your monthly AI limit is used up ({used} / {limit}). Upgrade your plan to continue.",
+    "aiQuotaReachedShort": "Your monthly AI limit is used up. Upgrade your plan to continue.",
+    "upgradePlan": "Upgrade plan"
   },
   "chatPage": {
     "metaTitle": "LexGo.AI chat",
@@ -1636,7 +1640,11 @@
     "downloadPdf": "Download PDF",
     "open": "Open",
     "limitReached": "You have used the free limit for guest questions. Log in to keep chatting with LexGo.AI.",
-    "limitLogin": "Log in to continue"
+    "limitLogin": "Log in to continue",
+    "aiQuotaReached": "Your monthly AI limit is used up ({used} / {limit}). Upgrade your plan to continue.",
+    "aiQuotaReachedShort": "Your monthly AI limit is used up. Upgrade your plan to continue.",
+    "upgradePlan": "Upgrade plan",
+    "fileError": "Couldn't open the file"
   },
   "portal": {
     "metaTitle": "Portal",
@@ -1677,7 +1685,44 @@
       "payAdvance": "Pay {pct}% advance",
       "paying": "Processing payment…",
       "openChat": "Open private chat",
-      "error": "Could not complete the payment. Please try again."
+      "error": "Could not complete the payment. Please try again.",
+      "intentTitle": "Payment created",
+      "intentAmount": "Amount",
+      "intentStatus": "Status",
+      "intentStates": {
+        "pending": "Awaiting payment",
+        "created": "Created",
+        "payment_pending": "Awaiting payment",
+        "paid": "Paid",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "proceed": "Go to payment page",
+      "noLink": "Couldn't get the payment link. Try again shortly.",
+      "cancel": "Cancel",
+      "milestones": {
+        "title": "Payment stages",
+        "stage": "Stage {n}",
+        "pay": "Pay",
+        "paying": "Creating…",
+        "release": "Confirm the work",
+        "releaseYes": "Yes, confirm",
+        "releasing": "Confirming…",
+        "releaseConfirm": "Once you confirm, the payment for this stage goes to the performer. Confirm after the work is done.",
+        "releasedMsg": "Stage confirmed, the payment went to the performer.",
+        "paidDemo": "Test payment accepted.",
+        "error": "Couldn't complete the action. Try again.",
+        "forbidden": "You don't have permission for this action.",
+        "conflict": "The stage status changed — the list was refreshed.",
+        "status": {
+          "waiting_payment": "Awaiting payment",
+          "payment_pending": "Payment in progress",
+          "pending": "Pending",
+          "paid": "Paid",
+          "held": "On hold",
+          "released": "Paid out to the performer"
+        }
+      }
     },
     "login": {
       "title": "Log in to LexGo",
@@ -1719,7 +1764,7 @@
         "resetSendCode": "Get code",
         "resetSending": "Sending…",
         "resetCodeTitle": "Set a new password",
-        "resetCodeSubtitle": "If an account is linked to {phone}, a verification code has been sent to it. Enter the code and choose a new password.",
+        "resetCodeSubtitle": "If {phone} is registered, a verification code was sent to the Telegram bot linked to the account. Enter the code and choose a new password.",
         "resetCode": "Verification code",
         "resetCodePh": "6-digit code",
         "resetNewPassword": "New password",
@@ -1732,7 +1777,8 @@
         "resetBackToLogin": "Back to sign in",
         "resetError": "Couldn't complete. Try again.",
         "resetPhoneRequired": "Enter your phone number.",
-        "resetWeak": "Password must be at least 8 characters."
+        "resetWeak": "Password must be at least 8 characters.",
+      "twoFaTelegramSubtitle": "Enter the 6-digit code sent to the Telegram bot"
     },
     "common": {
       "logout": "Log out",
@@ -1805,10 +1851,10 @@
       },
       "twofa": {
         "title": "Two-factor authentication (2FA)",
-        "desc": "A code is sent to your phone on each sign-in — your account stays safer.",
+        "desc": "On each sign-in a code comes to the Telegram bot or your authenticator app — your account stays safer.",
         "enable": "Enable",
         "enableSending": "Sending…",
-        "codeLabel": "Code sent to your phone",
+        "codeLabel": "Code from the Telegram bot",
         "codePh": "6-digit code",
         "verify": "Confirm",
         "verifying": "Verifying…",
@@ -1819,7 +1865,7 @@
         "disabledMsg": "2FA disabled.",
         "errStart": "Couldn't complete. Please try again.",
         "errVerify": "The code is wrong or has expired. Please try again.",
-          "chooseSms": "Via SMS",
+          "chooseSms": "Code via Telegram",
           "chooseTotp": "Authenticator app",
           "totpSetupTitle": "Connect authenticator",
           "scanHint": "Scan the QR in Google Authenticator, Authy, etc., then enter the 6-digit code.",
@@ -1832,7 +1878,9 @@
           "switchToTotp": "Switch to authenticator app",
           "currentMethod": "Current method: {method}",
           "methodSms": "SMS",
-          "methodTotp": "Authenticator app"
+          "methodTotp": "Authenticator app",
+        "methodTelegram": "Telegram code",
+        "mandatoryEnable": "Two-factor protection is mandatory for your role — turn it on now: an authenticator app or a Telegram code."
       },
       "telegram": {
         "title": "Telegram account",
@@ -1859,7 +1907,39 @@
         "done": "Done",
         "errStart": "Couldn't get a link. Please try again.",
         "errUnavailable": "The Telegram bot isn't available yet. Please try again later."
-      }
+      },
+      "orderStatus": {
+        "new": "New",
+        "waiting_info": "Waiting for details",
+        "waiting_docs": "Waiting for documents",
+        "waiting_payment": "Awaiting payment",
+        "seller_selection": "Choosing a performer",
+        "sent_to_seller": "Sent to the performer",
+        "paid": "Paid",
+        "accepted": "Accepted",
+        "started": "Work started",
+        "in_progress": "In progress",
+        "result_ready": "Result ready",
+        "quality_check": "Quality check",
+        "delivered": "Delivered",
+        "client_confirmation": "Waiting for your confirmation",
+        "completed": "Completed",
+        "rated": "Rated",
+        "lost": "Did not go ahead",
+        "cancelled": "Cancelled",
+        "declined": "Declined"
+      },
+      "orderStage": {
+        "request": "Request",
+        "matching": "Performer",
+        "payment": "Payment",
+        "work": "Work",
+        "done": "Done",
+        "closed": "Closed"
+      },
+      "orderTaken": "Another provider already took this order",
+      "orderForbidden": "You aren't allowed to work on this order",
+      "orderActionFailed": "Couldn't complete the action. Try again."
     },
     "tasks": {
       "title": "Tasks",
@@ -2048,7 +2128,9 @@
         "save": "Save",
         "saving": "Saving…",
         "saved": "Services saved",
-        "error": "Error. Please try again."
+        "error": "Error. Please try again.",
+        "priceOutOfRange": "The price must be within the allowed range: {min} – {max} UZS.",
+        "invalidField": "Invalid data: {detail}"
       },
       "documents": {
         "title": "Documents",
@@ -2139,7 +2221,21 @@
         "docsEmptyText": "Add the first document for this case.",
         "docsAdd": "Add document",
         "docsAddPh": "Document title",
-        "docsAdded": "Document added."
+        "docsAdded": "Document added.",
+        "orderItem": "Order",
+        "orderStatus": "Order status",
+        "stageOf": "Step {n} of {total}",
+        "milestonesCta": "Payment stages",
+        "hideMilestones": "Hide stages",
+        "replacementStatus": "Advocate replacement: {status}",
+        "replacementStates": {
+          "active": "Under review",
+          "pending": "Under review",
+          "in_review": "Under review",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "completed": "Advocate replaced"
+        }
       },
       "payments": {
         "title": "Payments",
@@ -2151,7 +2247,32 @@
         "amount": "Amount",
         "empty": "No payments yet",
         "emptyText": "Your payments and receipts will appear here.",
-        "receipt": "Receipt"
+        "receipt": "Receipt",
+        "receiptError": "Couldn't download the receipt",
+        "statusCol": "Status",
+        "statuses": {
+          "paid": "Paid",
+          "pending": "Pending",
+          "payment_pending": "Pending",
+          "failed": "Failed",
+          "cancelled": "Cancelled",
+          "refunded": "Refunded",
+          "partially_refunded": "Partially refunded",
+          "expired": "Expired",
+          "held": "On hold"
+        },
+        "kinds": {
+          "order": "Service order",
+          "order_milestone": "Order stage",
+          "document_request": "Document template",
+          "gift": "Gift subscription",
+          "private_chat": "Private chat",
+          "subscription_plan": "Subscription",
+          "promotion": "Promotion",
+          "upsell_offer": "Add-on service",
+          "organization": "Organization",
+          "pending_registration": "Registration"
+        }
       },
       "intake": {
         "title": "AI problem analysis",
@@ -2171,9 +2292,52 @@
         "orderRecommended": "Order this service",
         "viewAllMatches": "See all",
         "orSos": "Urgent — SOS",
-        "urgency": { "low": "Low", "normal": "Normal", "high": "High", "critical": "Critical" },
+        "urgency": { "low": "Low", "normal": "Normal", "high": "High", "critical": "Critical", "urgent": "Urgent" },
         "failedTitle": "Couldn't analyze",
-        "failedText": "Please try again later or contact a specialist directly."
+        "failedText": "Please try again later or contact a specialist directly.",
+        "executor": "Performer",
+        "categories": {
+          "criminal": "Criminal cases",
+          "administrative": "Administrative cases",
+          "family": "Family law",
+          "contract": "Contracts",
+          "court": "Court cases",
+          "general": "General legal matter"
+        },
+        "executors": {
+          "advokat": "Advocate",
+          "yurist": "Lawyer",
+          "yurist_advokat": "Lawyer or advocate"
+        },
+        "urgentTitle": "This matter is urgent",
+        "urgentText": "Don't wait — contact an advocate now or call the call center.",
+        "urgentCta": "Contact an advocate now",
+        "offersTitle": "Matching services",
+        "offersSub": "3 levels",
+        "levels": {
+          "basic": "Basic",
+          "standard": "Standard",
+          "premium": "Premium"
+        },
+        "som": "UZS",
+        "byRequest": "Price on request",
+        "termDays": "{n} days",
+        "docsN": "{n} documents",
+        "advokatOnly": "Advocate only",
+        "showPassport": "Service passport",
+        "hidePassport": "Hide passport",
+        "orderOffer": "Order",
+        "sourcesTitle": "Sources",
+        "disclaimer": "This answer is legal information and initial guidance. Consult a lawyer or advocate before making a final decision.",
+        "corpusTitle": "Official legal sources",
+        "corpusLead": "AI answers rely on these official sources.",
+        "official": "Official",
+        "feedbackAsk": "Was this answer useful?",
+        "feedbackYes": "Useful",
+        "feedbackNo": "Not useful",
+        "feedbackThanks": "Thanks! Your feedback was saved.",
+        "feedbackQueued": "Thanks! The answer was sent to a lawyer-moderator for review.",
+        "sourceUnverified": "No source with a specific article and date was found for this question. Treat the answer as initial guidance only and consult a lawyer or advocate before acting."
       },
       "docAnalysis": {
         "title": "Document analysis",
@@ -2190,7 +2354,39 @@
         "recommendations": "Recommendations",
         "level": { "low": "Low", "medium": "Medium", "high": "High" },
         "failedTitle": "Couldn't analyze",
-        "failedText": "Please try again later."
+        "failedText": "Please try again later.",
+        "pages": "Number of pages",
+        "ocr": "Scanned document (OCR)",
+        "urgent": "Urgent",
+        "lawyerReview": "Advocate review",
+        "pagesRange": "The number of pages must be between 1 and {max}.",
+        "getQuote": "Calculate price",
+        "quoting": "Calculating…",
+        "quoteError": "Couldn't calculate the price. Try again.",
+        "quoteBase": "Analysis ({n} pages)",
+        "quoteOcr": "Scan recognition (OCR)",
+        "quoteLawyer": "Advocate review",
+        "quoteUrgent": "Urgency",
+        "quoteTotal": "Total",
+        "som": "UZS",
+        "pagesN": "{n} pages",
+        "aiText": "AI write-up",
+        "upsellTitle": "Review by an advocate",
+        "upsellText": "After the AI analysis, a specialist can review the document.",
+        "upsellPrice": "Advocate review: {price}",
+        "upsellAdd": "Add advocate review",
+        "upsellLawyers": "Choose an advocate",
+        "fileUpload": "Upload a file (PDF, DOCX, TXT)",
+        "fileChange": "Another file",
+        "fileRemove": "Remove file",
+        "fileHint": "up to {mb} MB — or paste the text above",
+        "fileTooBig": "The file is larger than {mb} MB.",
+        "fileType": "PDF, DOCX or TXT only.",
+        "fileUnreadable": "Couldn't read text from the file.",
+        "writtenOpinion": "Written opinion",
+        "quoteAiIncluded": "AI analysis ({n} pages)",
+        "quoteIncluded": "Included in subscription",
+        "quoteWritten": "Written opinion"
       },
       "matches": {
         "title": "Best matches for you",
@@ -2274,7 +2470,17 @@
         "start": "Start",
         "continue": "Continue",
         "soon": "Coming soon",
-        "level": { "beginner": "Beginner", "intermediate": "Intermediate", "advanced": "Advanced" }
+        "level": { "beginner": "Beginner", "intermediate": "Intermediate", "advanced": "Advanced" },
+        "categories": {
+          "collection": "Debt collection",
+          "business": "Business",
+          "family": "Family",
+          "labor": "Employment",
+          "tax": "Tax",
+          "contract": "Contracts",
+          "court": "Court",
+          "real_estate": "Real estate"
+        }
       },
       "sos": {
         "title": "Emergency legal help",
@@ -2331,7 +2537,9 @@
         "step3": "You both get a bonus.",
         "invitesTitle": "Your invites",
         "empty": "No one invited yet.",
-        "status": { "invited": "Invited", "joined": "Joined", "rewarded": "Rewarded" }
+        "status": { "invited": "Invited", "joined": "Joined", "rewarded": "Rewarded" },
+        "qrAlt": "Referral link QR code",
+        "qrHint": "Scan it or show it to a friend"
       },
       "reviews": {
         "pendingTitle": "Cases to review",
@@ -2394,8 +2602,12 @@
           "claimedTitle": "Congratulations!",
           "claimedSub": "Your subscription is now active.",
           "error": "Couldn't claim the gift. The link may be invalid or expired.",
-          "goPortal": "Go to my account"
-        }
+          "goPortal": "Go to my account",
+          "alreadyClaimed": "This gift has already been activated.",
+          "notReady": "This gift can't be activated right now: the payment isn't complete, or it was cancelled or expired.",
+          "notFound": "Gift not found. Check the link."
+        },
+        "untitledGift": "Gift subscription"
       },
       "identity": {
         "title": "Identity verification",
@@ -2413,7 +2625,8 @@
         "cancel": "Cancel",
         "done": "Identity verified successfully.",
         "failed": "Not verified. Please try again.",
-        "error": "Something went wrong. Please try again."
+        "error": "Something went wrong. Please try again.",
+        "retryIn": "You can try again in {time}"
       },
       "profile": {
         "title": "Profile",
@@ -2543,7 +2756,22 @@
       "sortPrice": "Price",
       "expYears": "{n} yrs",
       "successRate": "{n}% won",
-      "verified": "Verified"
+      "verified": "Verified",
+        "sortMatch": "Best match",
+        "matchScore": "Match score {n}",
+        "priceSubtotal": "Subtotal",
+        "modifiers": {
+          "region": "Region coefficient",
+          "experience": "Experience coefficient",
+          "seller_premium": "Super advocate premium"
+        },
+        "matchReasons": {
+          "verified": "Verified",
+          "region_match": "In your region",
+          "service_permission": "Offers this service",
+          "urgent_ready": "Ready for urgent cases",
+          "high_workload": "Busy"
+        }
       },
       "documents": {
         "title": "Document templates",
@@ -2577,7 +2805,46 @@
         "reqUploading": "Uploading…",
         "reqRequested": "Pending",
         "reqFulfilled": "Sent",
-        "reqOpen": "Open"
+        "reqOpen": "Open",
+        "stillPending": "The payment isn't confirmed yet. Check again shortly.",
+        "payFirst": "Complete the payment first to get the PDF.",
+        "fileError": "Couldn't get the PDF. Try again.",
+        "fileLoading": "Loading…",
+        "sign": {
+          "title": "Sign the contract",
+          "lead": "The document is signed on the platform: the confirmation code comes through the Telegram bot.",
+          "start": "Get a signing code",
+          "sending": "Sending…",
+          "codeTitle": "Confirm your signature",
+          "codeHint": "Enter the 6-digit code sent to the Telegram bot.",
+          "codeLabel": "Confirmation code",
+          "back": "Back",
+          "confirm": "Sign",
+          "verifying": "Checking…",
+          "signed": "Contract signed",
+          "signedAt": "Signed at: {time}",
+          "verifyLink": "Verification link",
+          "startError": "Couldn't send the signing code. Try again.",
+          "verifyError": "Couldn't sign. Try again.",
+          "forbidden": "You aren't allowed to sign this contract."
+        },
+        "categories": {
+          "court": "Court",
+          "contract": "Contract",
+          "document": "Document",
+          "corporate": "Corporate",
+          "employment": "Employment",
+          "family": "Family",
+          "application": "Application",
+          "ariza": "Application",
+          "claim": "Claim",
+          "property": "Property",
+          "tax": "Tax",
+          "business": "Business",
+          "power_of_attorney": "Power of attorney",
+          "administrative": "Administrative",
+          "criminal": "Criminal"
+        }
       }
     },
     "advocate": {
@@ -2723,7 +2990,15 @@
       "profileClicks": "Profile clicks",
       "contactRequests": "Contact requests",
       "rating": "Rating",
-      "responseRate": "Response rate"
+      "responseRate": "Response rate",
+      "viaLexgo": "Earned via LexGo",
+      "avgResponse": "Average response time",
+      "minutes": "{n} min",
+      "periods": {
+        "all_time": "all time",
+        "month": "this month",
+        "today": "today"
+      }
     },
     "sellerDash": {
       "today": "Today",
@@ -2817,6 +3092,78 @@
       "reqSend": "Send request",
       "reqSent": "Request sent to the client.",
       "reqNoClients": "No clients yet"
+    },
+    "passport": {
+      "title": "Service passport",
+      "loadError": "Couldn't load the passport.",
+      "days": "{n} days",
+      "advokatYes": "Yes, advocate only",
+      "som": "UZS",
+      "code": "Code",
+      "family": "Area",
+      "subcategory": "Section",
+      "executor": "Performer",
+      "advokat": "Advocate required",
+      "format": "Format",
+      "standardTerm": "Delivery time",
+      "urgentTerm": "Urgent delivery",
+      "price": "Standard price",
+      "sla": "SLA",
+      "refund": "Refund rule",
+      "version": "Version",
+      "documents": "Required documents",
+      "noDocuments": "No extra documents required.",
+      "blockIdentity": "Service",
+      "blockDuration": "Timing",
+      "blockPricing": "Price",
+      "blockSla": "SLA and refunds",
+      "daysText": "{value} days",
+      "pricingTier": "Price tier",
+      "versionShort": "Passport version {v}",
+      "executorValues": {
+        "lawyer": "Lawyer",
+        "advocate": "Advocate",
+        "any": "Lawyer or advocate"
+      },
+      "formatValues": {
+        "online": "Online",
+        "offline": "Offline (in person)",
+        "hybrid": "Online or offline"
+      },
+      "tierValues": {
+        "basic": "Basic",
+        "standard": "Standard",
+        "premium": "Premium"
+      }
+    },
+    "onboarding": {
+      "title": "Finish your registration",
+      "count": "{done}/{total} steps",
+      "lead": "Complete all required steps — then your profile goes to review.",
+      "doneLead": "All steps are complete. Your profile is under review.",
+      "steps": {
+        "profile": "Profile",
+        "identity": "Identity",
+        "documents": "Documents",
+        "services": "Services",
+        "pricing": "Prices"
+      },
+      "stepDone": "Done",
+      "stepRequired": "Required",
+      "stepOptional": "Optional",
+      "verify": "Verify",
+      "fill": "Fill in",
+      "docUpload": "Upload document",
+      "docUploading": "Uploading…",
+      "docUploaded": "Document uploaded.",
+      "docTooBig": "The file is larger than 15 MB.",
+      "docType": "PDF, JPG or PNG only, up to 15 MB.",
+      "docError": "Couldn't upload the document. Try again.",
+      "submit": "Submit for review",
+      "submitting": "Submitting…",
+      "submitted": "Sent to a moderator. Review within 24 hours.",
+      "submitIncomplete": "Complete all required steps first.",
+      "submitError": "Couldn't submit. Try again."
     }
   },
   "notFound": {
@@ -2901,7 +3248,7 @@
     },
     "otp": {
       "title": "Enter the verification code",
-      "subtitle": "We sent a 6-digit code to {phone}",
+      "subtitle": "The 6-digit code is sent through the Telegram bot",
       "verifying": "Verifying…",
       "verified": "Verified successfully!",
       "incorrect": "Incorrect code. Please try again.",
@@ -3103,7 +3450,7 @@
     "verify": {
       "title": "Verify your phone",
       "telegramBtn": "Get code in Telegram",
-      "subtitle": "Enter the 6-digit code sent to {phone}",
+      "subtitle": "Press Start in the Telegram bot and enter the 6-digit code it sends",
       "verifying": "Verifying…",
       "submit": "Verify & finish",
       "change": "Back",
@@ -3190,7 +3537,8 @@
     "term6": "6 mo",
     "term12": "1 yr",
     "upfront": "Pay the year in full — extra −10%",
-    "totalNote": "{term} mo — {total} UZS total"
+    "totalNote": "{term} mo — {total} UZS total",
+    "subtitlePersonal": "Personal advocate subscription — ongoing legal help, consultations and discounts."
   },
   "promotion": {
     "kicker": "Visibility tool",
@@ -3278,7 +3626,8 @@
       "ads": "Ads",
       "verifications": "Verify lawyers",
       "legalAid": "Legal aid",
-      "registerRequests": "Register requests"
+      "registerRequests": "Register requests",
+      "e2e": "E2E readiness"
     },
     "overview": {
       "kicker": "Admin console",
@@ -3307,7 +3656,45 @@
         "resolved": "Resolved",
         "funnel": "Sales funnel",
         "revenueTrend": "Revenue trend",
-        "modules": "CRM modules"
+        "modules": "CRM modules",
+        "payments": "Payments",
+        "paidAmount": "Paid amount",
+        "pendingAmount": "Pending amount",
+        "paidCount": "Paid",
+        "pendingCount": "Pending",
+        "leadsByScore": "Lead score",
+        "ordersByStatus": "Order status",
+        "stage": {
+          "leads": "Leads",
+          "orders": "Orders",
+          "paid": "Paid"
+        },
+        "score": {
+          "hot": "Hot",
+          "warm": "Warm",
+          "cold": "Cold"
+        },
+        "status": {
+          "new": "New",
+          "waiting_info": "Waiting for info",
+          "waiting_docs": "Waiting for documents",
+          "waiting_payment": "Waiting for payment",
+          "seller_selection": "Choosing advocate",
+          "sent_to_seller": "Sent to advocate",
+          "paid": "Paid",
+          "accepted": "Accepted",
+          "started": "Started",
+          "in_progress": "In progress",
+          "result_ready": "Result ready",
+          "quality_check": "Quality check",
+          "delivered": "Delivered",
+          "client_confirmation": "Awaiting client confirmation",
+          "completed": "Completed",
+          "rated": "Rated",
+          "lost": "Lost",
+          "cancelled": "Cancelled",
+          "declined": "Declined"
+        }
       },
       "services": "Services",
       "categories": "Categories",
@@ -3539,13 +3926,31 @@
         "done": "Done",
         "err": "Something went wrong. Try again."
       },
-      "source": { "web": "Website", "website": "Website", "referral": "Referral", "ad": "Ad", "ads": "Ads", "organic": "Organic", "manual": "Manual", "phone": "Phone", "call": "Call", "chat": "Chat", "ai": "AI", "social": "Social", "seo": "SEO" },
+      "source": { "web": "Website", "website": "Website", "referral": "Referral", "ad": "Ad", "ads": "Ads", "organic": "Organic", "manual": "Manual", "phone": "Phone", "call": "Call", "chat": "Chat", "ai": "AI", "social": "Social", "seo": "SEO", "ai_classify": "AI analysis", "telegram": "Telegram", "call_center": "Call center", "callcenter": "Call center", "login": "Sign-in", "registration": "Registration", "register_start": "Registration", "gift": "Gift", "sos": "SOS", "notify_me": "Notify me", "template": "Template", "onboarding": "Onboarding" },
       "stages": {
         "new": "New",
         "contacted": "Contacted",
         "qualified": "Qualified",
         "won": "Won",
         "lost": "Lost"
+      },
+      "untitledLead": "Unnamed lead",
+      "categories": {
+        "family": "Family",
+        "contract": "Contract",
+        "court": "Court",
+        "criminal": "Criminal",
+        "administrative": "Administrative",
+        "housing": "Housing",
+        "tax": "Tax",
+        "labor": "Labor",
+        "business": "Business",
+        "debt": "Debt",
+        "documents": "Documents",
+        "general": "General",
+        "login": "Sign-in",
+        "registration": "Registration",
+        "kanban": "Kanban"
       }
     },
     "callAnalytics": {
@@ -3589,7 +3994,37 @@
         "giftPurchases": "Gift purchases",
         "giftActivation": "Activation",
         "giftToPaid": "Gift → paid",
-        "avgGift": "Avg gift"
+        "avgGift": "Avg gift",
+        "cacSplit": "Client: {client} · Advocate: {advocate}",
+        "paidPayments": "Paid payments",
+        "recipientConversion": "Recipient conversion",
+        "giftReferralRate": "Referral rate",
+        "giftCac": "Gift CAC",
+        "giftLtv": "Gift LTV"
+      },
+      "stage": {
+        "leads": "Leads",
+        "orders": "Orders",
+        "paid": "Paid"
+      },
+      "source": {
+        "web": "Website",
+        "telegram": "Telegram",
+        "unknown": "Unknown",
+        "ai_classify": "AI analysis",
+        "referral": "Referral",
+        "organic": "Organic",
+        "ads": "Ads",
+        "payme": "Payme",
+        "click": "Click"
+      },
+      "channelTable": {
+        "title": "By channel",
+        "source": "Source",
+        "leads": "Leads",
+        "payments": "Payments",
+        "revenue": "Revenue",
+        "conversion": "Conversion"
       }
     },
     "quality": {
@@ -3605,7 +4040,8 @@
       "noComplaintsText": "New complaints will appear here.",
       "severity": { "high": "High", "medium": "Medium", "low": "Low" },
       "status": { "open": "Open", "in_progress": "In progress", "resolved": "Resolved", "closed": "Closed", "pending": "Pending", "rejected": "Rejected" },
-      "category": { "service": "Service", "payment": "Payment", "quality": "Quality", "fraud": "Fraud", "other": "Other" }
+      "category": { "service": "Service", "payment": "Payment", "quality": "Quality", "fraud": "Fraud", "other": "Other" },
+      "complaintCount": "Complaints"
     },
     "b2b": {
       "title": "B2B clients",
@@ -3662,6 +4098,29 @@
         "outside": "The previous record is not in this list (filter or paging), so the link cannot be checked.",
         "genesis": "Previous hash is empty — this is the first record of the chain.",
         "none": "The backend returned no hash for this record."
+      },
+      "export": "Export CSV",
+      "exporting": "Preparing…",
+      "exportError": "Couldn't export. Try again.",
+      "forbidden": "Not enough permissions",
+      "forbiddenText": "Viewing and exporting the audit trail requires the users.manage permission.",
+      "apply": "Apply",
+      "reset": "Reset",
+      "user": "User",
+      "target": "Target",
+      "f": {
+        "userId": "User ID",
+        "action": "Action (e.g. login)",
+        "targetType": "Target type",
+        "targetId": "Target ID"
+      },
+      "outcome": {
+        "failure": "Failed",
+        "failed": "Failed",
+        "denied": "Denied",
+        "blocked": "Blocked",
+        "error": "Error",
+        "rejected": "Rejected"
       }
     },
     "integrations": {
@@ -3712,7 +4171,55 @@
       "recent": "Recent calls",
       "noCalls": "No calls.",
       "dir": { "incoming": "Incoming", "outgoing": "Outgoing" },
-      "status": { "active": "Active", "inactive": "Inactive", "lead": "Lead", "completed": "Completed", "missed": "Missed", "no_answer": "No answer", "busy": "Busy", "failed": "Failed", "answered": "Answered" }
+      "status": { "active": "Active", "inactive": "Inactive", "lead": "Lead", "completed": "Completed", "missed": "Missed", "no_answer": "No answer", "busy": "Busy", "failed": "Failed", "answered": "Answered" },
+      "queue": {
+        "title": "Queue",
+        "lead": "Leads and orders without a performer: SLA breaches first, then urgent ones. Refreshes every minute.",
+        "refresh": "Refresh",
+        "loadError": "Couldn't load the queue.",
+        "empty": "The queue is empty.",
+        "breachedN": "SLA breached: {n}",
+        "hot": "Urgent",
+        "type": {
+          "lead": "Lead",
+          "order": "Order"
+        },
+        "slaBreached": "SLA breached · {age}",
+        "slaLeft": "{n} min left · {age}",
+        "ageMin": "{n} min",
+        "ageHours": "{h} h {m} min",
+        "sellerLoad": "Recommended advocate load: {n}",
+        "assignNext": "Send to next advocate",
+        "working": "Working…",
+        "assigned": "The order was sent to the next matching advocate.",
+        "moved": "Lead moved to “{stage}”.",
+        "noPermission": "You don't have permission for this action.",
+        "actionError": "Couldn't complete the action. Try again.",
+        "moveTo": "Move to stage",
+        "stages": {
+          "new": "New",
+          "contacted": "Contacted",
+          "qualified": "Qualified",
+          "proposal": "Proposal",
+          "won": "Won",
+          "lost": "Lost",
+          "duplicate": "Duplicate"
+        },
+        "status": {
+          "new": "New",
+          "contacted": "Contacted",
+          "qualified": "Qualified",
+          "proposal": "Proposal",
+          "waiting_info": "Waiting for info",
+          "seller_selection": "Choosing advocate",
+          "sent_to_seller": "Sent to advocate"
+        }
+      },
+      "board": {
+        "title": "Lead board",
+        "empty": "The board has no columns.",
+        "noneHere": "Empty"
+      }
     },
     "reviews": {
       "title": "Review moderation",
@@ -3797,6 +4304,73 @@
       "rejected": "Rejected",
       "role": { "yurist": "Lawyer", "advokat": "Advocate", "lawyer": "Lawyer", "advocate": "Advocate", "client": "Client", "organization": "Organization", "law_firm": "Law firm" },
       "status": { "pending": "Pending", "approved": "Approved", "accepted": "Accepted", "rejected": "Rejected", "new": "New" }
+    },
+    "e2e": {
+      "title": "End-to-end readiness",
+      "lead": "State of the core flows and the number of fixture records.",
+      "refresh": "Refresh",
+      "loadError": "Couldn't load the data",
+      "loadErrorText": "The users.manage permission is required, or the server didn't respond.",
+      "allReady": "All flows are ready",
+      "notReady": "Some flows aren't ready",
+      "checkedAt": "Checked: {time}",
+      "fixtures": "Fixture data",
+      "fixtureKeys": {
+        "services": "Services",
+        "active_templates": "Active templates",
+        "seller_profiles": "Advocate and lawyer profiles",
+        "active_plans": "Active plans"
+      },
+      "scenarios": "Scenarios",
+      "scenarioKeys": {
+        "registration_and_approval": "Registration and approval",
+        "catalog_search_and_passport": "Catalog search and service passport",
+        "ai_classification_and_offers": "AI classification and offers",
+        "document_questionnaire_payment_pdf": "Document: questionnaire → payment → PDF",
+        "private_chat_and_realtime": "Private chat and realtime",
+        "order_payment_and_milestones": "Order, payment and milestones"
+      },
+      "status": {
+        "ready": "Ready",
+        "pending": "Pending",
+        "failed": "Failed",
+        "blocked": "Blocked",
+        "verified": "Verified",
+        "needs_verification": "Needs verification"
+      },
+      "noScenarios": "No scenarios listed.",
+      "needsVerification": "Some flows haven't been verified with real data yet",
+      "checkKeys": {
+        "approval_route": "Approval route",
+        "manual_admin_review_required": "Manual admin review",
+        "active_services": "Active services exist",
+        "service_count": "Services",
+        "catalog_available": "Catalog available",
+        "source_feedback_route": "Source feedback route",
+        "active_templates": "Active templates exist",
+        "generated_contracts": "Generated contracts",
+        "paid_payments": "Paid payments",
+        "websocket_route": "WebSocket route",
+        "secure_rooms": "Secure chat rooms",
+        "payment_routes": "Payment routes"
+      }
+    },
+    "roleBadges": {
+      "superadmin": "Superadmin",
+      "admin": "Admin",
+      "ceo_viewer": "CEO",
+      "manager": "Manager",
+      "finance": "Finance",
+      "quality_control": "Quality control",
+      "moderator": "Moderator",
+      "sales_head": "Sales head",
+      "sales_operator": "Sales operator",
+      "sales": "Sales",
+      "call_center_lawyer": "Call-center lawyer",
+      "call_center": "Call center",
+      "b2b_manager": "B2B manager",
+      "marketing": "Marketing",
+      "content_manager": "Content manager"
     }
   },
   "secureChat": {
@@ -3848,7 +4422,10 @@
     "callJoin": "Join",
     "callEnd": "End",
     "incomingCall": "Incoming call",
-    "callDismiss": "Dismiss"
+    "callDismiss": "Dismiss",
+    "wsSessionExpired": "Your session expired. The message wasn't sent — sign in again.",
+    "wsForbidden": "You aren't allowed to send messages in this chat.",
+    "wsSendFailed": "The message wasn't sent. Try again."
   },
   "academy": {
     "kicker": "LexGo Academy",

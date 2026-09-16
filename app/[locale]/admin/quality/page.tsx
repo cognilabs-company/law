@@ -25,7 +25,7 @@ export default function AdminQuality() {
             <div className="castat">
               <div className="castat__c"><span className="castat__i"><IconStar /></span><b>{q.avgRating.toFixed(1)}</b><span>{t("avgRating")}</span></div>
               <div className="castat__c"><span className="castat__i castat__i--ok"><IconClock /></span><b>{q.responseSlaPct}%</b><span>{t("sla")}</span></div>
-              <div className="castat__c"><span className="castat__i castat__i--bad"><IconAlert /></span><b>{q.complaintRate}%</b><span>{t("complaintRate")}</span></div>
+              <div className="castat__c"><span className="castat__i castat__i--bad"><IconAlert /></span><b>{q.complaintRate}</b><span>{t("complaintCount")}</span></div>
               <div className="castat__c"><span className="castat__i castat__i--ok"><IconCheck /></span><b>{q.resolvedPct}%</b><span>{t("resolved")}</span></div>
             </div>
             <div className="cablock">

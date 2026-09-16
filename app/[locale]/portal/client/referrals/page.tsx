@@ -1,19 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getMyReferral } from "@/lib/services/backend";
+import { httpBlob } from "@/lib/http";
 import { useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton } from "@/components/portal/DataState";
 import { IconGift, IconUsers, IconCheck, IconArrowRight } from "@/components/icons";
 
 const FALLBACK = {
-  code: "LEXGO", link: "", invited: 0, joined: 0, rewardBalance: 0,
+  code: "LEXGO", link: "", qrUrl: "", invited: 0, joined: 0, rewardBalance: 0,
   discountUnlocked: false, discountPercent: 5, eligibleAfter: 5, remainingToUnlock: 5, appliesTo: "subscription",
   items: [],
 };
 const som = (n: number) => fmtUzs(n);
+
+// Referral QR image: a data:/https URL is used as is; a backend-relative path
+// is an authed route, fetched with the token as a blob. null = nothing to show.
+function useQrSrc(qrUrl: string): string | null {
+  const [src, setSrc] = useState<{ key: string; url: string | null } | null>(null);
+  const direct = /^(data:image\/|https:\/\/)/i.test(qrUrl);
+  useEffect(() => {
+    if (!qrUrl || direct) return;
+    let alive = true;
+    let objectUrl = "";
+    httpBlob(qrUrl.startsWith("/") ? qrUrl : `/${qrUrl}`, { headers: { Accept: "image/*" } })
+      .then((b) => {
+        if (!alive) return;
+        if (!b.type.startsWith("image/")) {
+          setSrc({ key: qrUrl, url: null });
+          return;
+        }
+        objectUrl = URL.createObjectURL(b);
+        setSrc({ key: qrUrl, url: objectUrl });
+      })
+      .catch(() => alive && setSrc({ key: qrUrl, url: null }));
+    return () => {
+      alive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [qrUrl, direct]);
+  if (!qrUrl) return null;
+  if (direct) return qrUrl;
+  return src?.key === qrUrl ? src.url : null;
+}
+
+const fmtDate = (s: string) => {
+  if (!s) return "";
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ru-RU");
+};
 
 export default function ClientReferrals() {
   const t = useTranslations("portal.client.referrals");
@@ -22,6 +59,8 @@ export default function ClientReferrals() {
   const code = r.code || FALLBACK.code;
   const link = r.link || (typeof window !== "undefined" ? `${window.location.origin}/register?ref=${code}` : "");
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
+  const qrSrc = useQrSrc(r.qrUrl);
+  const [qrBroken, setQrBroken] = useState(false);
 
   function copy(what: "code" | "link", text: string) {
     navigator.clipboard?.writeText(text).then(() => {
@@ -53,6 +92,13 @@ export default function ClientReferrals() {
           <input readOnly value={link} className="ref__link" aria-label={t("link")} />
           <button type="button" className="btn btn--pri btn--sm" onClick={share}>{t("share")}</button>
         </div>
+        {qrSrc && !qrBroken ? (
+          <div className="ref__qr">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qrSrc} alt={t("qrAlt")} width={148} height={148} onError={() => setQrBroken(true)} />
+            <span>{t("qrHint")}</span>
+          </div>
+        ) : null}
       </div>
 
       {res.status === "loading" ? (
@@ -104,7 +150,11 @@ export default function ClientReferrals() {
                 <span className="creq__st" />
                 <div className="creq__m">
                   <b>{it.name || it.phone || "—"}</b>
-                  <span>{[it.phone, t.has(`status.${it.status}`) ? t(`status.${it.status}`) : it.status].filter(Boolean).join(" · ")}</span>
+                  <span>
+                    {[it.name ? it.phone : "", t.has(`status.${it.status}`) ? t(`status.${it.status}`) : it.status, fmtDate(it.joinedAt)]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
                 </div>
                 {it.reward ? <span className="ref__badge">+{som(it.reward)}</span> : null}
               </div>

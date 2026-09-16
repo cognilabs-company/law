@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
-import { currentConsents, listLegalConsents, type RegisterStartResult } from "@/lib/services/backend";
+import { consentsFor, currentConsents, listLegalConsents, type RegisterStartResult } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { clearPendingRegistration, savePendingRegistration } from "@/lib/consents";
 import { LEGAL_FALLBACK_ITEMS } from "@/lib/legal";
@@ -93,7 +93,8 @@ export default function RegisterFlow() {
   const tl = useTranslations("legal");
   const legalDocs = useResource(() => listLegalConsents().then(currentConsents), []);
   const [agreed, setAgreed] = useState<Record<string, boolean>>({});
-  const consentItems = legalDocs.status === "ready" && legalDocs.data.length ? legalDocs.data : LEGAL_FALLBACK_ITEMS;
+  const roleDocs = consentsFor(legalDocs.data, draft.accountType ?? "client");
+  const consentItems = legalDocs.status === "ready" && roleDocs.length ? roleDocs : LEGAL_FALLBACK_ITEMS;
   const consentsOk = consentItems.every((c) => agreed[c.slug]);
 
   const steps = useMemo(
@@ -105,7 +106,7 @@ export default function RegisterFlow() {
 
   const p = draft.profile;
   // The details a code is issued for; any change needs a new code.
-  const otpKey = JSON.stringify([draft.accountType, draft.phone, p.firstName, p.lastName, p.middleName, draft.password]);
+  const otpKey = JSON.stringify([draft.accountType, draft.phone, p.firstName, p.lastName, p.middleName, p.region, draft.password]);
   function setProfile(patch: Partial<ProfessionalProfile>) {
     setDraft((d) => ({ ...d, profile: { ...d.profile, ...patch } }));
   }
@@ -331,6 +332,7 @@ export default function RegisterFlow() {
     switch (step) {
       case "clientInfo":
         needName();
+        if (!p.region) m.push(t("fields.region"));
         needPw();
         break;
       case "lawyerBasic":
@@ -514,6 +516,10 @@ export default function RegisterFlow() {
                     <label>{t("fields.middleName")} <span className="rf__opt">{t("optional")}</span></label>
                     <input value={p.middleName ?? ""} onChange={(e) => setName({ middleName: e.target.value })} placeholder={t("fields.middleNamePh")} />
                   </div>
+                </div>
+                <div>
+                  <label>{t("fields.region")}</label>
+                  <Select value={p.region ?? ""} onChange={(v) => setProfile({ region: v })} options={regionOpts} ariaLabel={t("fields.region")} placeholder={t("fields.regionPh")} />
                 </div>
                 <div>
                   <label>

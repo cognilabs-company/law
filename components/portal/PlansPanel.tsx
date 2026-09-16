@@ -10,6 +10,8 @@ import {
   type BackendPlan,
 } from "@/lib/services/backend";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
+import { CheckoutIntent } from "./OrderMilestones";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "./DataState";
@@ -25,6 +27,11 @@ function fmtDate(s: string) {
   if (!s) return "";
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString("ru-RU");
+}
+// Backend billing_period for the chosen term (demo-purchase prices each period
+// from the plan: monthly / six_month / yearly / prepaid_yearly).
+function billingPeriod(term: Term, upfront: boolean): string {
+  return term === 1 ? "monthly" : term === 6 ? "six_month" : upfront ? "prepaid_yearly" : "yearly";
 }
 // TZ pricing: monthly base, 6-month, yearly (−10%/mo), prepaid-yearly (−10% more).
 function pricing(plan: BackendPlan, term: Term, upfront: boolean) {
@@ -50,18 +57,20 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const [upfront, setUpfront] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [intent, setIntent] = useState<PaymentIntent | null>(null);
 
   const bills = payments.data.filter((p) => !p.kind || p.kind === "subscription");
 
   const active = res.data.filter((p) => p.isActive !== false);
   // Client view: only personal-advocate tariffs (audience), gift shown as its
-  // own card. Seller view: all non-gift plans. Backend ships localized name +
-  // features, so no client-side copy needed.
+  // own card. Seller view: the non-gift plans that aren't the clients'
+  // personal-advocate tariffs. Backend ships localized name + features, so no
+  // client-side copy needed.
   const plans = personal
     ? active
         .filter((p) => p.audience === "personal" && p.billingType !== "gift")
         .sort((a, b) => a.sortOrder - b.sortOrder)
-    : active.filter((p) => p.billingType !== "gift");
+    : active.filter((p) => p.billingType !== "gift" && p.audience !== "personal").sort((a, b) => a.sortOrder - b.sortOrder);
   const giftPlan = personal ? active.find((p) => p.billingType === "gift") : undefined;
 
   const planName = (plan: BackendPlan) => plan.name;
@@ -84,9 +93,21 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
     if (busy) return;
     setBusy(plan.id);
     setMsg(null);
+    setIntent(null);
+    const period = billingPeriod(term, upfront);
     let leaving = false; // stay busy while the browser opens the checkout
     try {
-      const r = await demoPlanPurchase(plan.id);
+      if (!isDemoCheckout()) {
+        // Real checkout: an invoice for the chosen period; the plan activates once paid.
+        const { total } = pricing(plan, term, upfront);
+        if (!total) {
+          setMsg({ ok: false, text: t("purchaseError") });
+          return;
+        }
+        setIntent(await createCheckout({ kind: "subscription_plan", planId: plan.id, amount: total, payload: { billing_period: period, title: planName(plan) } }));
+        return;
+      }
+      const r = await demoPlanPurchase(plan.id, { billing_period: period });
       if (r.paymentUrl) {
         // Checkout opens in this tab (a popup after an await is blocked) —
         // the plan is NOT active until paid.
@@ -108,7 +129,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       <div className="plans__head">
         <div>
           <h2 className="psec-h">{t("title")}</h2>
-          <p className="plans__sub">{t("subtitle")}</p>
+          <p className="plans__sub">{t(personal ? "subtitlePersonal" : "subtitle")}</p>
         </div>
         <div className="switch switch--sm" role="group">
           {personal ? null : (
@@ -127,6 +148,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       ) : null}
 
       {msg ? <div className={`plans__toast${msg.ok ? "" : " plans__toast--err"}`}>{msg.text}</div> : null}
+      {intent ? <div className="ppanel" style={{ marginBottom: 16 }}><CheckoutIntent intent={intent} onCancel={() => setIntent(null)} /></div> : null}
 
       {res.status === "loading" ? (
         <Skeleton rows={3} />

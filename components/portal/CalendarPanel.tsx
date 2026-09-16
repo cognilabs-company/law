@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { shortDateTime } from "@/lib/date";
 import {
   listCalendarEvents,
   createCalendarEvent,
@@ -20,16 +21,12 @@ const TYPES = ["hearing", "investigative", "meeting", "deadline"] as const;
 // Reminder presets in minutes before the event ("" = no reminder).
 const REMINDERS = ["", "15", "30", "60", "1440"] as const;
 
-function fmt(iso: string) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-}
 
 // Court calendar + deadlines, shared by the advocate and lawyer portals.
 export default function CalendarPanel({ ns }: { ns: string }) {
   const t = useTranslations(ns);
+  const locale = useLocale();
+  const fmt = (iso: string) => shortDateTime(iso, locale);
   const tr = useTranslations("portal.common.reminder");
   const [reloadKey, setReloadKey] = useState(0);
   const res = useResource<CalendarEvent>(() => listCalendarEvents(), [reloadKey]);
