@@ -43,14 +43,29 @@ export default function CallCenterBoard() {
 
   const colTitle = (c: KanbanColumn) => (tq.has(`stages.${c.key}`) ? tq(`stages.${c.key}`) : c.title || c.key);
 
+  // Optimistic: the card moves at once; the board is refetched in the
+  // background (the fetch takes seconds) and a rejected move is reverted.
   async function move(leadId: string, key: string) {
     if (busyId || !key) return;
+    const before = state.columns;
+    const from = before.find((c) => c.cards.some((x) => x.lead.id === leadId));
+    const card = from?.cards.find((x) => x.lead.id === leadId);
+    if (!from || !card || from.key === key) return;
     setBusyId(leadId);
     setNote(null);
+    setState((s) => ({
+      ...s,
+      columns: s.columns.map((c) => {
+        if (c.key === from.key) return { ...c, count: Math.max(0, c.count - 1), cards: c.cards.filter((x) => x.lead.id !== leadId) };
+        if (c.key === key) return { ...c, count: c.count + 1, cards: [card, ...c.cards] };
+        return c;
+      }),
+    }));
     try {
       await moveCallCenterLead(leadId, key, 0);
-      await load();
+      void load();
     } catch (e) {
+      setState((s) => ({ ...s, columns: before }));
       setNote({ ok: false, msg: e instanceof ApiError && e.status === 403 ? tq("noPermission") : tq("actionError") });
     } finally {
       setBusyId("");

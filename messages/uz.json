@@ -3898,6 +3898,7 @@
       "noInfo": "Ma'lumot yo‘q",
       "moveBack": "Orqaga",
       "moveFwd": "Oldinga",
+      "moveError": "Lidni ko'chirib bo'lmadi. Qayta urinib ko'ring.",
       "reengage": "Qayta jalb qilish",
       "viewKanban": "Kanban",
       "viewTable": "Jadval",

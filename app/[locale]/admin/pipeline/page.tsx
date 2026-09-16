@@ -6,7 +6,7 @@ import { getLeadKanban, moveLeadKanban, adminCreateLead, adminDeleteLead, saveLe
 import { ApiError } from "@/lib/http";
 import { kanbanColumnTitle, leadCategoryLabel, leadSourceLabel } from "@/lib/leadLabels";
 import { useResource } from "@/lib/useResource";
-import { AdminForm, Notice, useReload } from "@/components/admin/AdminBits";
+import { AdminForm, Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import LeadDrawer from "@/components/admin/LeadDrawer";
@@ -20,9 +20,13 @@ export default function AdminPipeline() {
   const tStages = useTranslations("admin.callCenter.queue");
   const colName = (c: { key: string; title: string }) => kanbanColumnTitle(tStages, c);
   const ta = useTranslations("admin");
-  const [key, reload] = useReload();
-  const res = useResource<KanbanColumn>(getLeadKanban, [key]);
+  // The board is big (hundreds of leads, several seconds per fetch), so every
+  // action updates it in place and refreshes in the background — never back
+  // to a skeleton, which read as a page reload.
+  const res = useResource<KanbanColumn>(getLeadKanban, []);
   const cols = res.data;
+  const refresh = res.refresh;
+  const [moveErr, setMoveErr] = useState(false);
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [busy, setBusy] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -77,13 +81,34 @@ export default function AdminPipeline() {
   const active = total - finalTotal;
   const conv = total ? Math.round((wonCount / total) * 100) : 0;
 
+  // Optimistic: the card jumps at once, the server call follows, then the
+  // board is refetched silently. A rejected move puts the card back.
   async function moveTo(leadId: string, columnKey: string, position: number) {
+    if (busy) return;
+    const before = cols;
+    const from = cols.find((c) => c.cards.some((x) => x.lead.id === leadId));
+    const card = from?.cards.find((x) => x.lead.id === leadId);
+    if (!card || !from) return;
+    if (from.key === columnKey) return;
     setBusy(leadId);
+    setMoveErr(false);
+    res.setData((cur) =>
+      cur.map((c) => {
+        if (c.key === from.key) return { ...c, count: Math.max(0, c.count - 1), cards: c.cards.filter((x) => x.lead.id !== leadId) };
+        if (c.key === columnKey) {
+          const cards = c.cards.slice();
+          cards.splice(Math.min(position, cards.length), 0, card);
+          return { ...c, count: c.count + 1, cards };
+        }
+        return c;
+      }),
+    );
     try {
       await moveLeadKanban(leadId, columnKey, position);
-      reload();
+      void refresh();
     } catch {
-      /* ignore */
+      res.setData(before);
+      setMoveErr(true);
     } finally {
       setBusy(null);
     }
@@ -129,7 +154,7 @@ export default function AdminPipeline() {
         await saveLeadKanbanColumns([{ key: c.key, title: name, color: sColor, order: c.order, isFinal: c.isFinal }]);
       }
       setStatusModal(null);
-      reload();
+      void refresh();
     } catch {
       setSErr(true);
     } finally {
@@ -149,7 +174,7 @@ export default function AdminPipeline() {
     try {
       await deleteLeadKanbanColumn(delCol.key, delCol.count > 0 ? delReassign || undefined : undefined);
       setDelCol(null);
-      reload();
+      void refresh();
     } catch (e) {
       const detail = e instanceof ApiError ? e.detail : "";
       setDelColErr(detail || ta("form.deleteError"));
@@ -163,7 +188,8 @@ export default function AdminPipeline() {
     try {
       await adminDeleteLead(leadId);
       setSelId(null);
-      reload();
+      res.setData((cur) => cur.map((c) => (c.cards.some((x) => x.lead.id === leadId) ? { ...c, count: Math.max(0, c.count - 1), cards: c.cards.filter((x) => x.lead.id !== leadId) } : c)));
+      void refresh();
     } catch {
       /* ignore */
     } finally {
@@ -206,6 +232,7 @@ export default function AdminPipeline() {
         </>
       ) : null}
 
+      {moveErr ? <Notice ok={false} msg={t("moveError")} /> : null}
       {res.status === "loading" ? (
         <Skeleton rows={4} />
       ) : !cols.length ? (
@@ -311,7 +338,7 @@ export default function AdminPipeline() {
           busyLabel={ta("form.saving")}
           okMsg={ta("form.created")}
           errMsg={ta("form.error")}
-          onDone={() => { reload(); setAddOpen(false); }}
+          onDone={() => { void refresh(); setAddOpen(false); }}
         />
       </Modal>
 

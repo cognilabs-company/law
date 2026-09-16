@@ -3892,6 +3892,7 @@
       "noInfo": "No info",
       "moveBack": "Back",
       "moveFwd": "Forward",
+      "moveError": "Couldn't move the lead. Try again.",
       "reengage": "Re-engage",
       "viewKanban": "Kanban",
       "viewTable": "Table",
