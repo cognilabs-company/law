@@ -3392,3 +3392,22 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .e2e__checks span.on{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
 .e2e__checks span.off{background:var(--dk-tint-warn, #fff7ed);color:var(--dk-txt-warn, #ea580c)}
 .e2e__checks b{color:var(--ink)}
+
+/* ── wp-k ── */
+/* Call-center client card (T4-02) and call form. */
+.ccc{display:grid;gap:14px}
+.ccc__head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:10px 16px}
+.ccc__id{display:grid;gap:3px;min-width:0}
+.ccc__id b{font-size:1.05rem}
+.ccc__id span{font-size:.82rem;color:var(--gray)}
+.ccc__acts{display:flex;flex-wrap:wrap;gap:8px}
+.ccc__form{padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--dk-surface-2, #f8fafc)}
+.ccc__sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+.ccc__tile{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--dk-surface-2, #f8fafc)}
+.ccc__tile b{font-family:var(--fd);font-size:1.15rem;letter-spacing:-.01em}
+.ccc__tile span{font-size:.72rem;color:var(--gray);text-transform:uppercase;letter-spacing:.04em}
+.cform__row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){.cform__row2{grid-template-columns:1fr}}
+.lsp__search .btn{flex:none}
+.aitem--link{width:100%;text-align:left;font:inherit;color:inherit}
+.aitem--link>svg:last-child{width:16px;height:16px;color:var(--gray2);flex:none}

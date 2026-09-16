@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { leadCategoryLabel } from "@/lib/leadLabels";
 import { getCallCenterQueue, assignNextSeller, moveCallCenterLead, type QueueItem } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import Select from "@/components/Select";
@@ -21,6 +22,7 @@ type State = { status: "loading" | "ready" | "error" | "forbidden"; items: Queue
 export default function CallCenterQueue() {
   const t = useTranslations("admin.callCenter.queue");
   const te = useTranslations("enums");
+  const tp = useTranslations("admin.pipeline");
   const [state, setState] = useState<State>({ status: "loading", items: [] });
   const [busyId, setBusyId] = useState("");
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -123,7 +125,7 @@ export default function CallCenterQueue() {
                 <div className="ccq__top">
                   <span className={`tprio tprio--${item.type === "order" ? "medium" : "low"}`}>{t.has(`type.${item.type}`) ? t(`type.${item.type}`) : item.type}</span>
                   {hot ? <span className="tprio tprio--high">{t("hot")}</span> : null}
-                  <b className="ccq__t">{item.title || "—"}</b>
+                  <b className="ccq__t">{(item.type === "lead" ? leadCategoryLabel(tp, item.title) : item.title) || "—"}</b>
                 </div>
                 <div className="ccq__meta">
                   <span className={`ccq__sla${item.slaBreached ? " on" : ""}`}>

@@ -3431,15 +3431,85 @@ export async function ccSearchClients(q: string): Promise<CcClient[]> {
     return { id: asStr(d.id), lexgoId: asStr(d.lexgo_id), name: asStr(d.name), phone: asStr(d.phone), status: asStr(d.account_status, "active") };
   });
 }
-export type CcCall = { id: string; direction: string; phone: string; status: string; createdAt: string };
-export async function listCcCalls(): Promise<CcCall[]> {
-  return listFrom(await http("/call-center/calls"), "items", "data", "calls").map((x) => {
+// A logged call (MarketplaceRecord module "call_center_call"): the direction is
+// the record type, the phone the title, the rest lives in the payload.
+export type CcCall = {
+  id: string;
+  direction: string;
+  phone: string;
+  status: string;
+  createdAt: string;
+  clientUserId: string;
+  operatorUserId: string;
+  topic: string;
+  result: string;
+  nextAction: string;
+  durationSec: number;
+};
+export async function listCcCalls(clientUserId?: string): Promise<CcCall[]> {
+  const qs = clientUserId ? `?client_user_id=${encodeURIComponent(clientUserId)}` : "";
+  return listFrom(await http(`/call-center/calls${qs}`), "items", "data", "calls").map((x) => {
     const d = asDict(x); const p = asDict(d.payload);
-    return { id: asStr(d.id), direction: asStr(d.record_type ?? p.direction, "incoming"), phone: asStr(d.title ?? p.phone), status: asStr(d.status, "completed"), createdAt: asStr(d.created_at) };
+    return {
+      id: asStr(d.id),
+      direction: asStr(d.record_type ?? p.direction, "incoming"),
+      phone: asStr(p.phone) || asStr(d.title),
+      status: asStr(d.status, "completed"),
+      createdAt: asStr(d.created_at),
+      clientUserId: asStr(p.client_user_id),
+      operatorUserId: asStr(d.owner_user_id),
+      topic: asStr(p.topic),
+      result: asStr(p.result),
+      nextAction: asStr(p.next_action),
+      durationSec: asNum(p.duration_sec),
+    };
   });
 }
-export async function logCcCall(input: { phone: string; direction?: string; note?: string; client_user_id?: string }): Promise<void> {
+export type CcCallInput = {
+  phone: string;
+  direction?: string; // incoming | outgoing
+  status?: string; // completed | missed | no_answer | busy
+  client_user_id?: string;
+  topic?: string;
+  result?: string;
+  next_action?: string;
+  duration_sec?: number;
+  note?: string;
+};
+export async function logCcCall(input: CcCallInput): Promise<void> {
   await http("/call-center/calls", { method: "POST", body: JSON.stringify({ direction: "outgoing", ...input }) });
+}
+
+// Client card / 360 (GET /call-center/clients/{id}): profile, totals and the
+// client's orders, payments, leads and activity. Call-center staff and
+// users.manage; the backend currently answers 403 for call-center staff
+// without users.manage (reported).
+export type CcClientCard = {
+  client: CcClient & { referralCode: string; createdAt: string };
+  summary: { orders: number; cases: number; payments: number; totalSpent: number; leads: number; rooms: number; complaints: number; reviews: number };
+  orders: BackendOrder[];
+  payments: PaymentHistory[];
+  leads: Lead[];
+  activities: { id: string; action: string; detail: string; createdAt: string }[];
+  complaints: { id: string; title: string; status: string; createdAt: string }[];
+  subscriptions: { id: string; planId: string; status: string; startsAt: string; endsAt: string }[];
+  familyMembers: { id: string; name: string; phone: string; relation: string }[];
+};
+export async function getCcClientCard(clientUserId: string): Promise<CcClientCard> {
+  const d = asDict(await http(`/call-center/clients/${encodeURIComponent(clientUserId)}`));
+  const c = asDict(d.client);
+  const s = asDict(d.summary);
+  return {
+    client: { id: asStr(c.id), lexgoId: asStr(c.lexgo_id), name: asStr(c.name), phone: asStr(c.phone), status: asStr(c.account_status, "active"), referralCode: asStr(c.referral_code), createdAt: asStr(c.created_at) },
+    summary: { orders: asNum(s.orders_count), cases: asNum(s.cases_count), payments: asNum(s.payments_count), totalSpent: uzs(s, "total_spent"), leads: asNum(s.leads_count), rooms: asNum(s.rooms_count), complaints: asNum(s.complaints_count), reviews: asNum(s.reviews_count) },
+    orders: asArr(d.orders).map(normOrder),
+    payments: asArr(d.payments).map(normPaymentHistory),
+    leads: asArr(d.leads).map(normLead),
+    activities: asArr(d.activities).map((x) => { const a = asDict(x); return { id: asStr(a.id), action: asStr(a.action), detail: asStr(a.detail), createdAt: asStr(a.created_at) }; }),
+    complaints: asArr(d.complaints).map((x) => { const a = asDict(x); return { id: asStr(a.id), title: asStr(a.title), status: asStr(a.status), createdAt: asStr(a.created_at) }; }),
+    subscriptions: asArr(d.subscriptions).map((x) => { const a = asDict(x); return { id: asStr(a.id), planId: asStr(a.plan_id), status: asStr(a.status), startsAt: asStr(a.starts_at), endsAt: asStr(a.ends_at) }; }),
+    familyMembers: asArr(d.family_members).map((x) => { const a = asDict(x); const p = asDict(a.payload); return { id: asStr(a.id), name: asStr(a.title), phone: asStr(p.phone), relation: asStr(p.relation) }; }),
+  };
 }
 
 // ── Retention queue + upsell offers ───────────────────────────────
@@ -3545,22 +3615,23 @@ export type PaymentHistory = {
   createdAt: string;
   receiptUrl?: string;
 };
+function normPaymentHistory(v: unknown): PaymentHistory {
+  const d = asDict(v);
+  return {
+    id: asStr(d.id),
+    amount: uzs(d, "amount"),
+    currency: asStr(d.currency, "UZS"),
+    status: asStr(d.status),
+    method: asStr(d.method),
+    kind: asStr(d.kind),
+    description: asStr(d.description),
+    orderId: asStr(d.order_id) || undefined,
+    createdAt: asStr(d.created_at),
+    receiptUrl: asStr(d.receipt_url) || undefined,
+  };
+}
 export async function listPayments(): Promise<PaymentHistory[]> {
-  return listFrom(await http("/payments"), "items", "data").map((v) => {
-    const d = asDict(v);
-    return {
-      id: asStr(d.id),
-      amount: uzs(d, "amount"),
-      currency: asStr(d.currency, "UZS"),
-      status: asStr(d.status),
-      method: asStr(d.method),
-      kind: asStr(d.kind),
-      description: asStr(d.description),
-      orderId: asStr(d.order_id) || undefined,
-      createdAt: asStr(d.created_at),
-      receiptUrl: asStr(d.receipt_url) || undefined,
-    };
-  });
+  return listFrom(await http("/payments"), "items", "data").map(normPaymentHistory);
 }
 export async function getPaymentReceipt(paymentId: string): Promise<Blob> {
   return httpBlob(`/payments/${paymentId}/receipt`, { headers: { Accept: "application/pdf" } });
