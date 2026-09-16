@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Room, RoomEvent, Track, VideoPresets, type RemoteTrack } from "livekit-client";
+import {
+  Room,
+  RoomEvent,
+  Track,
+  VideoPresets,
+  type LocalParticipant,
+  type Participant,
+  type RemoteParticipant,
+  type RemoteTrack,
+  type TrackPublication,
+} from "livekit-client";
 import {
   getCallJoinToken,
   getCall,
@@ -20,29 +30,41 @@ import {
 import { getToken } from "@/lib/client";
 import { backoffMs, refreshAccessToken } from "@/lib/http";
 import { useAuth } from "@/lib/auth";
+import { initials } from "@/lib/lawyers";
 import SearchSelect from "@/components/SearchSelect";
-import { playRingback, playEndTone } from "@/lib/callSounds";
-import { IconClose, IconMic, IconMicOff, IconVideo, IconUser, IconUsers, IconUserPlus } from "../icons";
+import { playRingback, playEndTone, playJoinTone, playLeaveTone } from "@/lib/callSounds";
+import { IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser } from "../icons";
 
 type Props = {
   roomId: string;
   callId: string;
   callType: "audio" | "video";
   isCaller: boolean;
+  title?: string;
   // Caller already has LiveKit creds from the create-call response; a joiner
   // fetches its own token via /join-token.
   lk?: LiveKitJoin | null;
   onEnd: () => void;
 };
 
-// In-app audio/video call over LiveKit (managed SFU + coturn on the backend).
-// No external Zoom/Meet — everything stays inside LexGo.
-export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd }: Props) {
+type ChatMsg = { id: string; from: string; name: string; text: string; at: number; system?: boolean };
+type Toast = { id: number; text: string; kind: "join" | "leave" | "info" };
+
+const MOBILE = () => typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
+const PORTRAIT_HINT = () => typeof window !== "undefined" && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+
+// In-app audio/video meeting over LiveKit (managed SFU + coturn on the
+// backend). Everything stays inside LexGo: a tile per participant with name,
+// mic state and speaking ring, screen share on a stage, in-call chat over the
+// LiveKit data channel, and host controls from the backend roster.
+export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, onEnd }: Props) {
   const t = useTranslations("call");
   const { session } = useAuth();
-  const localRef = useRef<HTMLVideoElement>(null);
-  const remoteRef = useRef<HTMLDivElement>(null);
   const roomRef = useRef<Room | null>(null);
+  // The Room object is also kept in state so participants can be read during
+  // render; a new one is created per call (see the connect effect).
+  const [room, setRoom] = useState<Room | null>(null);
+  const audioRef = useRef<HTMLDivElement>(null);
   // Connect/publish guards — the backend flags repeated connect/publish/
   // unpublish as a negotiation loop, so each must happen exactly once.
   const connectedRef = useRef(false);
@@ -50,31 +72,55 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
   const [status, setStatus] = useState<"connecting" | "ringing" | "live" | "ended" | "error">("connecting");
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(callType === "video");
-  const [remoteOn, setRemoteOn] = useState(false);
-  const [count, setCount] = useState(1); // participants incl. self
+  const [sharing, setSharing] = useState(false);
+  const [mirror, setMirror] = useState(true); // front camera preview is mirrored
+  const [tick, setTick] = useState(0); // bump to re-read LiveKit participant state
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [hostMuted, setHostMuted] = useState(false); // muted by host → can't self-unmute
   const [roster, setRoster] = useState<CallParticipant[]>([]);
   const [perms, setPerms] = useState<CallPermissions | null>(null);
-  const [rosterOpen, setRosterOpen] = useState(false);
+  const [panel, setPanel] = useState<"" | "chat" | "people">("");
+  const [view, setView] = useState<"grid" | "speaker">("grid");
+  const [pinned, setPinned] = useState<string | null>(null); // participant identity on the stage
   const [metaTick, setMetaTick] = useState(0); // bump to force a roster refresh
   const [invitePicks, setInvitePicks] = useState<string[]>([]);
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [draft, setDraft] = useState("");
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [canSwitchCam, setCanSwitchCam] = useState(false);
   const prevMicRef = useRef<boolean | null>(null); // last roster mic value (detect host action)
   const leftRef = useRef(false); // guard against double-leave
+  const toastSeq = useRef(0);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef(panel);
+  useEffect(() => { panelRef.current = panel; }, [panel]);
 
-  // Remember the active meeting so a page reload can rejoin it instead of
-  // dropping the user out.
   const clearActive = () => { try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ } };
   const finish = () => { clearActive(); onEnd(); };
+  const bump = useCallback(() => setTick((n) => n + 1), []);
+  const toast = useCallback((text: string, kind: Toast["kind"]) => {
+    const id = ++toastSeq.current;
+    setToasts((ts) => [...ts, { id, text, kind }]);
+    setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), 3200);
+  }, []);
+  // Display name: backend roster (identity = user id) → LiveKit name → id.
+  // The LiveKit handlers are registered once, so they read the latest via a ref.
+  const nameOf = useCallback((p: Participant) => roster.find((r) => r.userId === p.identity)?.name || p.name || t("someone"), [roster, t]);
+  const nameOfRef = useRef(nameOf);
+  useEffect(() => { nameOfRef.current = nameOf; }, [nameOf]);
 
   useEffect(() => {
     let alive = true;
     // adaptiveStream (subscriber only pulls the resolution its tile needs) +
     // dynacast + simulcast keep bandwidth down so audio doesn't lag on weak
-    // connections. The video tiles are sized by the grid, so adaptiveStream can
-    // measure them and won't pause ("freeze") the picture.
+    // connections. Phones capture with the front camera at 360p — a portrait
+    // stream; tiles follow the stream's orientation (see Tile).
+    const phone = PORTRAIT_HINT();
     const room = new Room({
       adaptiveStream: true,
       dynacast: true,
@@ -82,49 +128,64 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
         simulcast: true,
         videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
       },
-      videoCaptureDefaults: { resolution: VideoPresets.h540.resolution },
+      videoCaptureDefaults: { facingMode: "user", resolution: phone ? VideoPresets.h360.resolution : VideoPresets.h540.resolution },
     });
     roomRef.current = room;
+    // Publish the Room to render after this effect settles (not synchronously).
+    const publish = setTimeout(() => { if (alive) setRoom(room); }, 0);
 
-    const attach = (track: RemoteTrack) => {
-      const c = remoteRef.current;
-      if (!c) return;
-      const el = track.attach();
-      if (track.kind === Track.Kind.Video) {
-        el.classList.add("callroom__rvid");
-        (el as HTMLVideoElement).autoplay = true;
-        (el as HTMLVideoElement).playsInline = true;
-        el.setAttribute("playsinline", "");
-      } else {
-        el.style.display = "none";
-        (el as HTMLAudioElement).autoplay = true;
-      }
+    const attachAudio = (track: RemoteTrack) => {
+      const c = audioRef.current;
+      if (!c || track.kind !== Track.Kind.Audio) return;
+      const el = track.attach() as HTMLAudioElement;
+      el.autoplay = true;
       c.appendChild(el);
-      setRemoteOn(true);
+    };
+    const onJoin = (p: RemoteParticipant) => {
+      if (!alive) return;
+      bump();
       setStatus("live");
+      playJoinTone();
+      const name = nameOfRef.current(p);
+      toast(t("joinedToast", { name }), "join");
+      setMessages((m) => [...m, { id: `sys-${Date.now()}`, from: p.identity, name, text: t("joinedToast", { name }), at: Date.now(), system: true }]);
+    };
+    const onLeave = (p: RemoteParticipant) => {
+      if (!alive) return;
+      bump();
+      playLeaveTone();
+      const name = nameOfRef.current(p);
+      toast(t("leftToast", { name }), "leave");
+      setMessages((m) => [...m, { id: `sys-${Date.now()}`, from: p.identity, name, text: t("leftToast", { name }), at: Date.now(), system: true }]);
+      setPinned((cur) => (cur === p.identity ? null : cur));
     };
 
-    const attachLocalCam = () => {
-      const pub = room.localParticipant.getTrackPublication(Track.Source.Camera);
-      const vt = pub?.videoTrack;
-      if (vt && localRef.current) vt.attach(localRef.current);
-    };
-
-    const syncCount = () => { if (alive) setCount(1 + room.remoteParticipants.size); };
     room
-      .on(RoomEvent.TrackSubscribed, (track) => attach(track))
-      .on(RoomEvent.TrackUnsubscribed, (track) => track.detach().forEach((e) => e.remove()))
-      .on(RoomEvent.ParticipantConnected, syncCount)
-      .on(RoomEvent.ParticipantDisconnected, syncCount)
+      .on(RoomEvent.TrackSubscribed, (track) => { if (track.kind === Track.Kind.Audio) attachAudio(track); if (alive) { bump(); setStatus("live"); } })
+      .on(RoomEvent.TrackUnsubscribed, (track) => { track.detach().forEach((e) => e.remove()); if (alive) bump(); })
+      .on(RoomEvent.ParticipantConnected, onJoin)
+      .on(RoomEvent.ParticipantDisconnected, onLeave)
+      .on(RoomEvent.ActiveSpeakersChanged, () => { if (alive) bump(); })
+      .on(RoomEvent.TrackStreamStateChanged, () => { if (alive) bump(); })
+      .on(RoomEvent.ParticipantNameChanged, () => { if (alive) bump(); })
+      .on(RoomEvent.LocalTrackPublished, (pub) => { if (alive) { bump(); if (pub.source === Track.Source.ScreenShare) setSharing(true); } })
+      .on(RoomEvent.LocalTrackUnpublished, (pub) => { if (alive) { bump(); if (pub.source === Track.Source.ScreenShare) setSharing(false); } })
       // Browser autoplay policy can block remote audio until a user gesture.
       .on(RoomEvent.AudioPlaybackStatusChanged, () => { if (alive) setAudioBlocked(!room.canPlaybackAudio); })
       // Reflect a host/server mute of my own mic instantly in the UI.
-      .on(RoomEvent.TrackMuted, (pub, p) => { if (alive && p.isLocal && pub.source === Track.Source.Microphone) setMicOn(false); })
-      .on(RoomEvent.TrackUnmuted, (pub, p) => { if (alive && p.isLocal && pub.source === Track.Source.Microphone) setMicOn(true); })
-      .on(RoomEvent.LocalTrackPublished, (pub) => {
-        if (pub.source === Track.Source.Camera && pub.videoTrack && localRef.current) {
-          pub.videoTrack.attach(localRef.current);
-        }
+      .on(RoomEvent.TrackMuted, (pub, p) => { if (!alive) return; bump(); if (p.isLocal && pub.source === Track.Source.Microphone) setMicOn(false); })
+      .on(RoomEvent.TrackUnmuted, (pub, p) => { if (!alive) return; bump(); if (p.isLocal && pub.source === Track.Source.Microphone) setMicOn(true); })
+      // In-call chat rides the LiveKit data channel — nothing to store.
+      .on(RoomEvent.DataReceived, (payload, p) => {
+        if (!alive) return;
+        try {
+          const msg = JSON.parse(new TextDecoder().decode(payload)) as { t?: string; text?: string; at?: number };
+          if (msg.t === "chat" && msg.text) {
+            const name = p ? nameOfRef.current(p) : t("someone");
+            setMessages((m) => [...m, { id: `${p?.identity ?? "x"}-${msg.at ?? Date.now()}`, from: p?.identity ?? "", name, text: msg.text!, at: msg.at ?? Date.now() }]);
+            if (panelRef.current !== "chat") setUnread((n) => n + 1);
+          }
+        } catch { /* not ours */ }
       })
       .on(RoomEvent.Disconnected, () => { if (alive) { setStatus("ended"); finish(); } });
 
@@ -146,22 +207,23 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
           publishedRef.current = true;
           try { await room.localParticipant.setMicrophoneEnabled(true); } catch { /* mic denied */ }
           if (callType === "video") {
-            try {
-              const camPub = await room.localParticipant.setCameraEnabled(true);
-              const vt = camPub?.videoTrack;
-              if (vt && localRef.current) vt.attach(localRef.current);
-              else setTimeout(() => { if (alive) attachLocalCam(); }, 400);
-            } catch {
-              if (alive) setCamOn(false);
-            }
+            try { await room.localParticipant.setCameraEnabled(true); } catch { if (alive) setCamOn(false); }
           }
         }
         // Kick off audio playback; if the browser blocks it, show a prompt.
         try { await room.startAudio(); } catch { /* needs a user gesture */ }
         if (alive) setAudioBlocked(!room.canPlaybackAudio);
         try { sessionStorage.setItem("lexgo_active_call", JSON.stringify({ roomId, callId, callType })); } catch { /* ignore */ }
-        syncCount();
-        setStatus(room.remoteParticipants.size ? "live" : "ringing");
+        // More than one camera (phones) → offer a front/back switch.
+        try {
+          const cams = await Room.getLocalDevices("videoinput");
+          if (alive) setCanSwitchCam(cams.length > 1);
+        } catch { /* no device access */ }
+        if (alive) {
+          setStartedAt(Date.now());
+          bump();
+          setStatus(room.remoteParticipants.size ? "live" : "ringing");
+        }
       } catch {
         if (alive) setStatus("error");
       }
@@ -169,6 +231,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
 
     return () => {
       alive = false;
+      clearTimeout(publish);
       publishedRef.current = false;
       connectedRef.current = false;
       room.disconnect();
@@ -177,14 +240,21 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, callId, callType]);
 
+  // Elapsed meeting time.
+  useEffect(() => {
+    if (startedAt == null) return;
+    const iv = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => clearInterval(iv);
+  }, [startedAt]);
+
   // Caller hears a ringback until the other side connects.
   useEffect(() => {
-    if (!isCaller || status === "live" || remoteOn) return;
+    if (!isCaller || status !== "ringing") return;
     return playRingback();
-  }, [isCaller, status, remoteOn]);
+  }, [isCaller, status]);
 
   // Meeting meta: participants roster, host permissions, remaining time.
-  // Polls every 6s and refreshes immediately when a realtime event bumps
+  // Polls every 3s and refreshes immediately when a realtime event bumps
   // metaTick.
   useEffect(() => {
     let alive = true;
@@ -198,8 +268,6 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
         })
         .catch(() => {});
     load();
-    // Poll fairly often so a kicked/muted participant reacts quickly even
-    // without a realtime event.
     const iv = setInterval(load, 3000);
     return () => { alive = false; clearInterval(iv); };
   }, [roomId, callId, metaTick]);
@@ -216,7 +284,6 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
   useEffect(() => {
     const me = roster.find((p) => p.userId === session?.id);
     if (!me) return;
-    // Kicked → leave the meeting.
     if ((me.status === "removed" || me.status === "left") && !leftRef.current) {
       leftRef.current = true;
       playEndTone();
@@ -224,12 +291,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
       finish();
       return;
     }
-    // Host muted/unmuted me → mirror it to my real mic (only on change, so a
-    // self-toggle isn't overridden by a stale poll).
     if (prevMicRef.current !== null && me.micEnabled !== prevMicRef.current && me.micEnabled !== micOn) {
       roomRef.current?.localParticipant.setMicrophoneEnabled(me.micEnabled).catch(() => {});
       setMicOn(me.micEnabled);
-      // Host silenced me → lock self-unmute until the host unmutes.
       setHostMuted(!me.micEnabled);
     }
     prevMicRef.current = me.micEnabled;
@@ -239,9 +303,6 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
   // Realtime call signaling: refresh the roster on participant/media events and
   // close the room when the backend auto-ends the meeting.
   useEffect(() => {
-    // Reconnects with exponential backoff + jitter until the call ends or the
-    // view unmounts (the roster poll covers the gaps); the token goes only in
-    // the WS URL query.
     let alive = true;
     let ws: WebSocket | null = null;
     let attempt = 0;
@@ -258,7 +319,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
       try {
         sock = new WebSocket(callSocketUrl(roomId, callId, getToken()));
       } catch {
-        retry(); // WS unavailable → polling still refreshes meanwhile
+        retry();
         return;
       }
       ws = sock;
@@ -268,7 +329,6 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
         let msg: { type?: string; event?: string; status_code?: number } = {};
         try { msg = JSON.parse(ev.data) as typeof msg; } catch { msg = {}; }
         const type = String(msg.type ?? msg.event ?? "");
-        // Expired token: refresh, then reopen the socket with the new one.
         if (type === "error" && Number(msg.status_code) === 401) {
           sock.onclose = null;
           try { sock.close(); } catch { /* ignore */ }
@@ -295,7 +355,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, callId]);
 
-  // Unblock remote audio (needs a user gesture on most browsers).
+  // Chat panel: scroll to the newest message, clear the unread badge.
+  useEffect(() => {
+    if (panel === "chat") chatEndRef.current?.scrollIntoView({ block: "end" });
+  }, [panel, messages.length]);
+  const openPanel = (p: "" | "chat" | "people") => { if (p === "chat") setUnread(0); setPanel(p); };
+
   async function enableSound() {
     const r = roomRef.current;
     if (!r) return;
@@ -303,18 +368,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
     setAudioBlocked(!r.canPlaybackAudio);
   }
   // Keep the backend roster in sync with my real mic/cam so others see it.
-  function syncSelf(patch: { mic_enabled?: boolean; camera_enabled?: boolean }) {
+  function syncSelf(patch: { mic_enabled?: boolean; camera_enabled?: boolean; screen_enabled?: boolean }) {
     if (session?.id) { prevMicRef.current = patch.mic_enabled ?? prevMicRef.current; updateCallParticipant(roomId, callId, session.id, patch).catch(() => {}); }
   }
   async function toggleMic() {
     const r = roomRef.current;
     if (!r) return;
-    // Host-muted participants can't turn their own mic back on.
     if (hostMuted && !micOn) return;
     void enableSound();
     const on = !micOn;
     await r.localParticipant.setMicrophoneEnabled(on);
     setMicOn(on);
+    bump();
     syncSelf({ mic_enabled: on });
   }
   async function toggleCam() {
@@ -323,16 +388,45 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
     void enableSound();
     const on = !camOn;
     try {
-      const pub = await r.localParticipant.setCameraEnabled(on);
+      await r.localParticipant.setCameraEnabled(on);
       setCamOn(on);
-      if (on) {
-        const vt = pub?.videoTrack ?? r.localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
-        if (vt && localRef.current) vt.attach(localRef.current);
-      }
+      bump();
       syncSelf({ camera_enabled: on });
-    } catch {
-      /* camera unavailable/denied */
-    }
+    } catch { /* camera unavailable/denied */ }
+  }
+  // Phones: swap front/back camera without republishing (device switch).
+  async function switchCam() {
+    const r = roomRef.current;
+    if (!r) return;
+    try {
+      const cams = await Room.getLocalDevices("videoinput");
+      if (cams.length < 2) return;
+      const cur = r.getActiveDevice("videoinput");
+      const i = Math.max(0, cams.findIndex((c) => c.deviceId === cur));
+      const next = cams[(i + 1) % cams.length];
+      await r.switchActiveDevice("videoinput", next.deviceId, true);
+      setMirror(!/back|rear|environment|orqa/i.test(next.label));
+      bump();
+    } catch { /* ignore */ }
+  }
+  async function toggleShare() {
+    const r = roomRef.current;
+    if (!r) return;
+    try {
+      await r.localParticipant.setScreenShareEnabled(!sharing, { audio: false });
+      setSharing(!sharing);
+      syncSelf({ screen_enabled: !sharing });
+      bump();
+    } catch { /* cancelled or unsupported */ }
+  }
+  function sendChat() {
+    const r = roomRef.current;
+    const text = draft.trim();
+    if (!r || !text) return;
+    const at = Date.now();
+    r.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ t: "chat", text, at })), { reliable: true }).catch(() => {});
+    setMessages((m) => [...m, { id: `me-${at}`, from: r.localParticipant.identity, name: t("you"), text, at }]);
+    setDraft("");
   }
   // Host controls (gated by backend permissions).
   async function muteParticipant(userId: string, mute: boolean) {
@@ -342,8 +436,6 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
     } catch { /* ignore */ }
   }
   async function kickParticipant(userId: string) {
-    // Optimistic: drop them from the roster immediately so the host doesn't
-    // wait for the next poll.
     setRoster((rs) => rs.filter((p) => p.userId !== userId));
     try {
       await updateCallParticipant(roomId, callId, userId, { status: "removed" });
@@ -357,6 +449,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
       for (const uid of invitePicks) await inviteCallParticipant(roomId, callId, uid).catch(() => {});
       setInvitePicks([]);
       setMetaTick((n) => n + 1);
+      toast(t("invited"), "info");
     } finally {
       setInviteBusy(false);
     }
@@ -371,126 +464,221 @@ export default function CallRoom({ roomId, callId, callType, isCaller, lk, onEnd
   async function hangUp() {
     playEndTone();
     try {
-      // Host ends the whole meeting; a participant just leaves it.
       if (isCaller) await endMeeting(roomId, callId).catch(() => endCall(callId));
       else await leaveCall(roomId, callId);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     roomRef.current?.disconnect();
     finish();
   }
 
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-
-  const statusLabel =
-    status === "live" ? t("live") : status === "ringing" ? t("ringing") : status === "error" ? t("error") : t("connecting");
+  const participants: Participant[] = room ? [room.localParticipant, ...room.remoteParticipants.values()] : [];
+  const count = participants.length;
+  // Screen share on the stage wins over a pinned participant.
+  const sharer = participants.find((p) => p.isScreenShareEnabled);
+  const stageP = sharer ?? (view === "speaker" ? participants.find((p) => p.identity === pinned) ?? participants.find((p) => !p.isLocal) ?? participants[0] : null);
+  const stageIsShare = !!sharer;
+  const strip = stageP ? participants.filter((p) => p !== stageP || stageIsShare) : participants;
+  const statusLabel = status === "live" ? t("live") : status === "ringing" ? t("ringing") : status === "error" ? t("error") : t("connecting");
+  const canShare = typeof navigator !== "undefined" && !!navigator.mediaDevices && "getDisplayMedia" in navigator.mediaDevices && !MOBILE();
+  const activeRoster = roster.filter((p) => p.status !== "removed" && p.status !== "left" && p.status !== "declined");
+  const gridN = strip.length;
 
   return (
-    <div className="callroom">
-      <div className="callroom__meta">
-        <span className="callroom__pcount"><IconUser />{t("participants", { count })}</span>
-        {remaining != null ? <span className="callroom__timer">{t("remaining")}: {mmss(remaining)}</span> : null}
-      </div>
-      {audioBlocked ? (
-        <button type="button" className="callroom__sound" onClick={enableSound}>
-          {t("enableSound")}
-        </button>
-      ) : null}
-      <div className="callroom__stage">
-        {callType === "video" ? (
-          <div ref={remoteRef} className="callroom__remote" />
-        ) : (
-          <div className="callroom__audio">
-            <span className="callroom__avatar"><IconUser /></span>
-            <div ref={remoteRef} style={{ display: "none" }} />
-          </div>
-        )}
-        {!remoteOn ? (
-          <div className="callroom__waiting">
-            <span className="callroom__pulse" />
-            <p>{statusLabel}</p>
-          </div>
-        ) : null}
-        {callType === "video" ? (
-          <video ref={localRef} className={`callroom__local${camOn ? "" : " off"}`} autoPlay playsInline muted />
-        ) : null}
-      </div>
-
-      <div className="callroom__bar">
-        <button
-          className={`callroom__btn${micOn ? "" : " off"}`}
-          type="button"
-          onClick={toggleMic}
-          aria-label={t("mic")}
-          disabled={hostMuted && !micOn}
-          title={hostMuted && !micOn ? t("mutedByHost") : t("mic")}
-        >
-          {micOn ? <IconMic /> : <IconMicOff />}
-        </button>
-        {callType === "video" ? (
-          <button className={`callroom__btn${camOn ? "" : " off"}`} type="button" onClick={toggleCam} aria-label={t("cam")}>
-            <IconVideo />
-          </button>
-        ) : null}
-        <button className={`callroom__btn${rosterOpen ? " on" : ""}`} type="button" onClick={() => setRosterOpen((o) => !o)} aria-label={t("rosterTitle")}>
-          <IconUsers />
-        </button>
-        <button className="callroom__btn callroom__btn--end" type="button" onClick={hangUp} aria-label={t("end")}>
-          <IconClose />
-        </button>
-      </div>
-
-      {rosterOpen ? (
-        <div className="callroom__roster">
-          <div className="callroom__rhead">
-            <b>{t("rosterTitle")}</b>
-            <button type="button" className="callroom__ix" onClick={() => setRosterOpen(false)} aria-label={t("close")}><IconClose /></button>
-          </div>
-          {perms?.canInvite ? (
-            <div className="callroom__invrow">
-              <SearchSelect
-                value={invitePicks}
-                onChange={setInvitePicks}
-                onSearch={inviteSearch}
-                placeholder={t("invitePick")}
-                searchPlaceholder={t("invitePick")}
-                emptyText={t("inviteEmpty")}
-                ariaLabel={t("invite")}
-              />
-              <button type="button" className="callroom__invbtn" onClick={sendInvites} disabled={inviteBusy || !invitePicks.length}>
-                <IconUserPlus />
-                {inviteBusy ? t("inviteSending") : t("inviteSend")}
-              </button>
-            </div>
-          ) : null}
-          <div className="callroom__rlist">
-            {roster.filter((p) => p.status !== "removed" && p.status !== "left" && p.status !== "declined").map((p) => {
-              const self = p.userId === session?.id;
-              const canHostAct = !self && p.role !== "host";
-              return (
-                <div className="callroom__row" key={p.userId}>
-                  <span className="callroom__ravatar">{p.micEnabled ? <IconMic /> : <IconMicOff />}</span>
-                  <div className="callroom__rm">
-                    <b>{p.name || "—"}{self ? ` (${t("you")})` : ""}</b>
-                    <span>{p.role === "host" ? t("hostLabel") : t.has(`pstatus.${p.status}`) ? t(`pstatus.${p.status}`) : p.status}</span>
-                  </div>
-                  {canHostAct && perms?.canMute ? (
-                    p.micEnabled ? (
-                      <button type="button" className="callroom__ract" onClick={() => muteParticipant(p.userId, true)}>{t("mute")}</button>
-                    ) : (
-                      <button type="button" className="callroom__ract" onClick={() => muteParticipant(p.userId, false)}>{t("unmute")}</button>
-                    )
-                  ) : null}
-                  {canHostAct && perms?.canKick ? (
-                    <button type="button" className="callroom__ract callroom__ract--danger" onClick={() => kickParticipant(p.userId)}>{t("removeParticipant")}</button>
-                  ) : null}
-                </div>
-              );
-            })}
+    <div className={`mtg${panel ? " mtg--panel" : ""}`} data-tick={tick}>
+      <div ref={audioRef} hidden />
+      <header className="mtg__top">
+        <div className="mtg__title">
+          <span className="mtg__logo">L</span>
+          <div>
+            <b>{title || t("meetingTitle")}</b>
+            <span className={`mtg__badge mtg__badge--${status}`}><i />{statusLabel}</span>
           </div>
         </div>
+        <div className="mtg__timer">
+          <span className="mtg__rec"><i />{mmss(elapsed)}</span>
+          {remaining != null ? <span className="mtg__left">{t("remaining")}: {mmss(remaining)}</span> : null}
+        </div>
+        <div className="mtg__tools">
+          <button type="button" className={`mtg__tool${view === "grid" ? " on" : ""}`} onClick={() => setView("grid")} aria-label={t("layoutGrid")} title={t("layoutGrid")}><IconGrid /></button>
+          <button type="button" className={`mtg__tool${view === "speaker" ? " on" : ""}`} onClick={() => setView("speaker")} aria-label={t("layoutSpeaker")} title={t("layoutSpeaker")}><IconUser /></button>
+          {perms?.canInvite ? (
+            <button type="button" className="mtg__add" onClick={() => openPanel("people")}><IconUserPlus />{t("addPeople")}</button>
+          ) : null}
+          <button type="button" className={`mtg__tool${panel === "people" ? " on" : ""}`} onClick={() => openPanel(panel === "people" ? "" : "people")} aria-label={t("rosterTitle")}>
+            <IconUsers /><span className="mtg__n">{count}</span>
+          </button>
+        </div>
+      </header>
+
+      <div className="mtg__toasts" aria-live="polite">
+        {toasts.map((x) => <div key={x.id} className={`mtg__toast mtg__toast--${x.kind}`}>{x.text}</div>)}
+      </div>
+      {audioBlocked ? (
+        <button type="button" className="mtg__sound" onClick={enableSound}>{t("enableSound")}</button>
       ) : null}
+
+      <div className="mtg__body">
+        <main className="mtg__stage">
+          {stageP ? (
+            <div className="mtg__speaker">
+              <Tile key={`stage-${stageP.identity}-${stageIsShare ? "s" : "c"}`} p={stageP} tick={tick} name={nameOf(stageP)} you={t("you")} camOff={t("camOff")} share={stageIsShare} mirror={stageP.isLocal && !stageIsShare && mirror} big />
+              {stageIsShare ? <span className="mtg__sharing"><IconMonitor />{stageP.isLocal ? t("youShare") : t("sharing", { name: nameOf(stageP) })}</span> : null}
+              <div className="mtg__strip">
+                {strip.map((p) => (
+                  <Tile key={p.identity} p={p} tick={tick} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} small onClick={() => { setPinned(p.identity); setView("speaker"); }} />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className={`mtg__grid mtg__grid--${Math.min(gridN, 9)}`}>
+              {strip.map((p) => (
+                <Tile key={p.identity} p={p} tick={tick} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} pip={gridN === 2 && p.isLocal && MOBILE()} onClick={() => { setPinned(p.identity); setView("speaker"); }} />
+              ))}
+              {count <= 1 ? (
+                <div className="mtg__waiting">
+                  <span className="mtg__ripple" />
+                  <p>{status === "error" ? t("error") : status === "connecting" ? t("connecting") : t("waitingOthers")}</p>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </main>
+
+        {panel ? (
+          <aside className="mtg__side">
+            <div className="mtg__tabs">
+              <button type="button" className={panel === "chat" ? "on" : ""} onClick={() => openPanel("chat")}>{t("chatTab")}</button>
+              <button type="button" className={panel === "people" ? "on" : ""} onClick={() => openPanel("people")}>{t("rosterTitle")} · {count}</button>
+              <button type="button" className="mtg__sx" onClick={() => setPanel("")} aria-label={t("close")}><IconClose /></button>
+            </div>
+            {panel === "chat" ? (
+              <>
+                <div className="mtg__chat">
+                  {messages.length === 0 ? <p className="mtg__empty">{t("noMessages")}</p> : null}
+                  {messages.map((m) => (
+                    m.system ? (
+                      <div key={m.id} className="mtg__sysmsg">{m.text}</div>
+                    ) : (
+                      <div key={m.id} className={`mtg__msg${m.from === room?.localParticipant.identity ? " mine" : ""}`}>
+                        <span className="mtg__mav">{initials(m.name || "?")}</span>
+                        <div className="mtg__mb">
+                          <span className="mtg__mn">{m.name} <em>{new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</em></span>
+                          <p>{m.text}</p>
+                        </div>
+                      </div>
+                    )
+                  ))}
+                  <div ref={chatEndRef} />
+                </div>
+                <form className="mtg__compose" onSubmit={(e) => { e.preventDefault(); sendChat(); }}>
+                  <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("chatPh")} aria-label={t("chatPh")} />
+                  <button type="submit" disabled={!draft.trim()} aria-label={t("send")}><IconSend /></button>
+                </form>
+              </>
+            ) : (
+              <div className="mtg__people">
+                {perms?.canInvite ? (
+                  <div className="mtg__invite">
+                    <SearchSelect
+                      value={invitePicks}
+                      onChange={setInvitePicks}
+                      onSearch={inviteSearch}
+                      placeholder={t("invitePick")}
+                      searchPlaceholder={t("invitePick")}
+                      emptyText={t("inviteEmpty")}
+                      ariaLabel={t("invite")}
+                    />
+                    <button type="button" className="btn btn--pri btn--sm" onClick={sendInvites} disabled={inviteBusy || !invitePicks.length}>
+                      <IconUserPlus />{inviteBusy ? t("inviteSending") : t("inviteSend")}
+                    </button>
+                  </div>
+                ) : null}
+                {activeRoster.map((p) => {
+                  const self = p.userId === session?.id;
+                  const live = participants.find((x) => x.identity === p.userId);
+                  const canHostAct = !self && p.role !== "host";
+                  return (
+                    <div className={`mtg__prow${live?.isSpeaking ? " speaking" : ""}`} key={p.userId}>
+                      <span className="mtg__pav">{initials(p.name || "?")}</span>
+                      <div className="mtg__pm">
+                        <b>{p.name || "—"}{self ? ` (${t("you")})` : ""}</b>
+                        <span>{p.role === "host" ? t("hostLabel") : live ? t("live") : t.has(`pstatus.${p.status}`) ? t(`pstatus.${p.status}`) : p.status}</span>
+                      </div>
+                      <span className={`mtg__pmic${(live ? live.isMicrophoneEnabled : p.micEnabled) ? "" : " off"}`}>{(live ? live.isMicrophoneEnabled : p.micEnabled) ? <IconMic /> : <IconMicOff />}</span>
+                      {canHostAct && perms?.canMute ? (
+                        <button type="button" className="mtg__pact" onClick={() => muteParticipant(p.userId, p.micEnabled)}>{p.micEnabled ? t("mute") : t("unmute")}</button>
+                      ) : null}
+                      {canHostAct && perms?.canKick ? (
+                        <button type="button" className="mtg__pact mtg__pact--danger" onClick={() => kickParticipant(p.userId)}>{t("removeParticipant")}</button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </aside>
+        ) : null}
+      </div>
+
+      <footer className="mtg__bar">
+        <Ctl on={micOn} off={!micOn} label={t("mic")} onClick={toggleMic} disabled={hostMuted && !micOn} title={hostMuted && !micOn ? t("mutedByHost") : undefined}>{micOn ? <IconMic /> : <IconMicOff />}</Ctl>
+        {callType === "video" ? <Ctl on={camOn} off={!camOn} label={t("cam")} onClick={toggleCam}><IconVideo /></Ctl> : null}
+        {callType === "video" && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam}><IconRefresh /></Ctl> : null}
+        {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing}><IconMonitor /></Ctl> : null}
+        <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")}><IconUsers /></Ctl>
+        <Ctl on={panel === "chat"} label={t("chatTab")} onClick={() => openPanel(panel === "chat" ? "" : "chat")} badge={unread}><IconChat /></Ctl>
+        <Ctl end label={isCaller ? t("endAll") : t("end")} onClick={hangUp}><IconClose /></Ctl>
+      </footer>
+    </div>
+  );
+}
+
+function Ctl({ children, label, onClick, on, off, end, accent, disabled, title, badge }: { children: ReactNode; label: string; onClick: () => void; on?: boolean; off?: boolean; end?: boolean; accent?: boolean; disabled?: boolean; title?: string; badge?: number }) {
+  return (
+    <button type="button" className={`mtg__ctl${on ? " on" : ""}${off ? " off" : ""}${end ? " end" : ""}${accent ? " accent" : ""}`} onClick={onClick} disabled={disabled} title={title} aria-label={label}>
+      <span className="mtg__ci">{children}{badge ? <i className="mtg__cb">{badge > 9 ? "9+" : badge}</i> : null}</span>
+      <span className="mtg__cl">{label}</span>
+    </button>
+  );
+}
+
+// One participant: camera (or screen share) video, or initials when the
+// camera is off; name chip with mic state; green ring while speaking. The
+// tile learns the stream's orientation from the video element so a phone's
+// portrait camera isn't squeezed into a landscape box.
+function Tile({ p, tick, name, you, camOff, share, mirror, big, small, pip, onClick }: { p: Participant; tick: number; name: string; you: string; camOff: string; share?: boolean; mirror?: boolean; big?: boolean; small?: boolean; pip?: boolean; onClick?: () => void }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [portrait, setPortrait] = useState(false);
+  const source = share ? Track.Source.ScreenShare : Track.Source.Camera;
+  const pub: TrackPublication | undefined = p.getTrackPublication(source);
+  const track = pub && !pub.isMuted ? (p.isLocal ? (p as LocalParticipant).getTrackPublication(source)?.track : pub.track) : undefined;
+  const hasVideo = !!track;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !track) return;
+    track.attach(el);
+    const onMeta = () => setPortrait(el.videoHeight > el.videoWidth);
+    el.addEventListener("loadedmetadata", onMeta);
+    el.addEventListener("resize", onMeta);
+    return () => {
+      el.removeEventListener("loadedmetadata", onMeta);
+      el.removeEventListener("resize", onMeta);
+      track.detach(el);
+    };
+  }, [track, tick]);
+  const cls = ["mtg__tile", p.isSpeaking ? "speaking" : "", big ? "mtg__tile--big" : "", small ? "mtg__tile--small" : "", pip ? "mtg__tile--pip" : "", share ? "mtg__tile--share" : "", portrait ? "portrait" : "", hasVideo ? "" : "novideo"].filter(Boolean).join(" ");
+  return (
+    <div className={cls} onClick={onClick} role={onClick ? "button" : undefined}>
+      {hasVideo ? (
+        <video ref={ref} autoPlay playsInline muted={p.isLocal} style={mirror ? { transform: "scaleX(-1)" } : undefined} />
+      ) : (
+        <div className="mtg__avatar"><span>{initials(name || "?")}</span>{!share ? <small>{camOff}</small> : null}</div>
+      )}
+      <span className="mtg__name">
+        {p.isMicrophoneEnabled ? null : <IconMicOff />}
+        {name}{p.isLocal ? ` (${you})` : ""}
+      </span>
     </div>
   );
 }

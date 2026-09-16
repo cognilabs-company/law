@@ -79,3 +79,18 @@ export function playEndTone() {
   o.start();
   o.stop(c.currentTime + 0.42);
 }
+
+// Soft two-note chime when someone joins the meeting.
+export function playJoinTone() {
+  const c = ac();
+  if (!c) return;
+  tone(c, 660, 0, 0.12, 0.12);
+  tone(c, 880, 0.12, 0.18, 0.12);
+}
+// Falling note when someone leaves.
+export function playLeaveTone() {
+  const c = ac();
+  if (!c) return;
+  tone(c, 660, 0, 0.12, 0.1);
+  tone(c, 440, 0.12, 0.2, 0.1);
+}

@@ -92,6 +92,7 @@ export default function AdminMeetings() {
         callId={active.callId}
         callType="video"
         isCaller
+        title={title.trim() || undefined}
         lk={active.lk}
         onEnd={() => {
           setActive(null);

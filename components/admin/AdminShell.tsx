@@ -8,6 +8,7 @@ import { initials } from "@/lib/lawyers";
 import { useDemoTools } from "@/lib/demoTools";
 import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
+import IncomingCallWatcher from "../portal/IncomingCallWatcher";
 import {
   IconLogo,
   IconGrid,
@@ -193,6 +194,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="portal">
+      {/* Meeting invites reach staff on admin pages too (T4-01). */}
+      <IncomingCallWatcher />
       <div className={`psb__scrim${open ? " on" : ""}`} onClick={() => setOpenPath(null)} />
       <aside className={`psb${open ? " on" : ""}`}>
         <div className="psb__logo">
