@@ -8,7 +8,7 @@ import {
   demoPrivateChat,
   type BackendLawyer,
 } from "@/lib/services/backend";
-import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { ApiError, errDetail, isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { CheckoutIntent } from "./OrderMilestones";
 import { useRouter } from "@/i18n/navigation";
@@ -110,7 +110,8 @@ export default function LawyerProfileModal({
         window.location.assign(r.paymentUrl);
       }
     } catch (e) {
-      setChooseErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("notFound"));
+      const demoClosed = e instanceof ApiError && e.status === 400 && /demo/i.test(e.detail || "");
+      setChooseErr(isProviderUnavailable(e) || isDemoUnavailable(e) || demoClosed ? tcommon("paymentUnavailable") : errDetail(e) || t("notFound"));
     } finally {
       if (!leaving) setBusy(false);
     }

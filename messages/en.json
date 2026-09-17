@@ -692,7 +692,9 @@
       "opening": "Opening…",
       "new": "New",
       "newHint": "Under 5 reviews — rating is being collected",
-      "unverified": "Unverified"
+      "unverified": "Unverified",
+      "orderInstead": "Order a service →",
+      "chooseError": "Could not choose this advocate. Try again."
     },
     "empty": "There are no lawyers in this area yet. Leave a request — we will find a suitable lawyer for you.",
     "priceInfo": "The price is formed by open criteria: region (higher in big cities), experience (3–5 yrs +10%, 6–10 yrs +15%, 10+ yrs +20%), rating and super-lawyer status (regional TOP-3 — up to 30%, 10+ yrs in a narrow area — up to 20%). If the price is higher, the reason is shown in the order window.",

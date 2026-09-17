@@ -10,14 +10,14 @@ import {
   type Lawyer,
 } from "@/lib/lawyers";
 import { listLawyers, demoPrivateChat, getLawyerPrivateChat, type BackendLawyer } from "@/lib/services/backend";
-import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { ApiError, errDetail, isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { CheckoutIntent } from "../portal/OrderMilestones";
 import Modal from "../admin/Modal";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { useAuth } from "@/lib/auth";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Skeleton, EmptyState } from "../portal/DataState";
 import Select, { type Option } from "../Select";
 import { IconChevronLeft, IconChevronRight, IconInfo, IconSearch } from "../icons";
@@ -78,6 +78,7 @@ export default function LawyersSection({
   const router = useRouter();
   const [chatBusy, setChatBusy] = useState<string | null>(null);
   const [chatErr, setChatErr] = useState<string | null>(null);
+  const [chatErrFor, setChatErrFor] = useState<string | null>(null); // the card the error belongs to
   const tpay = useTranslations("portal.payment");
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
 
@@ -100,6 +101,7 @@ export default function LawyersSection({
     if (!l.userId || chatBusy) return;
     setChatBusy(l.userId);
     setChatErr(null);
+    setChatErrFor(l.userId);
     let leaving = false; // stay busy while the browser opens the checkout
     try {
       // Reuse an existing private-chat room if one already exists; else pay for one.
@@ -121,7 +123,10 @@ export default function LawyersSection({
         window.location.assign(r.paymentUrl);
       }
     } catch (e) {
-      setChatErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : null);
+      // 503 (provider not configured) / demo closed in production → "payments
+      // not connected yet"; anything else shows the server's own words.
+      const demoClosed = e instanceof ApiError && e.status === 400 && /demo/i.test(e.detail || "");
+      setChatErr(isProviderUnavailable(e) || isDemoUnavailable(e) || demoClosed ? tcommon("paymentUnavailable") : errDetail(e) || t("card.chooseError"));
     } finally {
       if (!leaving) setChatBusy(null);
     }
@@ -255,6 +260,12 @@ export default function LawyersSection({
               {chatBusy === l.userId ? t("card.opening") : t("card.choose")}
             </button>
           </div>
+          {chatErr && chatErrFor === l.userId ? (
+            <div className="advcard__err" role="alert">
+              <IconInfo />
+              <span>{chatErr} <Link href="/portal/client/services">{t("card.orderInstead")}</Link></span>
+            </div>
+          ) : null}
         </div>
       </article>
     );
