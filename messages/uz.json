@@ -637,7 +637,8 @@
           "oliy sud"
         ]
       }
-    }
+    },
+    "unverified": "Tasdiqlanmagan"
   },
   "lawyers": {
     "metaTitle": "Advokat va yuristlar",
@@ -696,7 +697,8 @@
       "choose": "Tanlash",
       "opening": "Ochilmoqda…",
       "new": "Yangi",
-      "newHint": "5 tadan kam baho — reyting to'planmoqda"
+      "newHint": "5 tadan kam baho — reyting to'planmoqda",
+      "unverified": "Tasdiqlanmagan"
     },
     "empty": "Bu yo'nalishda hozircha advokat yo'q. Arizangizni qoldiring — mos advokatni biz topamiz.",
     "priceInfo": "Narx ochiq mezonlar bo'yicha shakllanadi: hudud (yirik shaharlarda qimmatroq), staj (3–5 yil +10%, 6–10 yil +15%, 10+ yil +20%), reyting va super advokat maqomi (viloyat TOP-3 — 30% gacha, tor yo'nalishda 10+ yil tajriba — 20% gacha). Narx oshgan bo'lsa, sababi buyurtma oynasida yozib ko'rsatiladi.",
@@ -2541,7 +2543,8 @@
         "priceNote": "soatiga",
         "choose": "Tanlash",
         "opening": "Ochilmoqda…",
-        "notFound": "Profil topilmadi"
+        "notFound": "Profil topilmadi",
+        "unverified": "Tasdiqlanmagan"
       },
       "complaints": {
         "title": "Shikoyatlar",
@@ -2897,7 +2900,8 @@
           "service_permission": "Shu xizmatni ko'rsatadi",
           "urgent_ready": "Shoshilinch ishga tayyor",
           "high_workload": "Band"
-        }
+        },
+        "unverified": "Tasdiqlanmagan"
       },
       "documents": {
         "title": "Hujjat namunalari",
@@ -5210,7 +5214,15 @@
       "save": "Saqlash",
       "saveHint": "Saqlash yangi versiya yaratadi; eski qiymatlar «Tarix»da qoladi.",
       "historyTitle": "{section} — versiyalar tarixi",
-      "historyEmpty": "Hali o'zgarishlar yo'q."
+      "historyEmpty": "Hali o'zgarishlar yo'q.",
+      "unverified": {
+        "title": "Tasdiqlanmagan advokat va yuristlar",
+        "lead": "Shaxsi (MyID) va hujjatlari tasdiqlanmagan ijrochilar katalogda qanday ko'rinsin (GM T0-10 §5). O'zgarish darhol kuchga kiradi.",
+        "badge": "Katalogda «Tasdiqlanmagan» belgisi bilan ko'rinsin",
+        "badgeText": "Mijoz ularni ko'radi, lekin belgi ogohlantiradi; tasdiqlanganlar «Tasdiqlangan» bejji bilan ajralib turadi.",
+        "hidden": "Katalogda umuman ko'rinmasin",
+        "hiddenText": "Faqat tasdiqlangan ijrochilar ro'yxatga, qidiruvga va tanlovga chiqadi."
+      }
     }
   },
   "secureChat": {

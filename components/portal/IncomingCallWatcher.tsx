@@ -16,7 +16,7 @@ let nameCache: Map<string, string> | null = null;
 async function nameOf(userId: string): Promise<string> {
   if (!nameCache) {
     try {
-      const ls = await listLawyers();
+      const ls = await listLawyers({ includeUnverified: true });
       nameCache = new Map(ls.map((l) => [l.userId, l.name]));
     } catch {
       nameCache = new Map();

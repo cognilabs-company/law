@@ -417,6 +417,8 @@ export async function listLawyers(filters?: {
   region?: string;
   specialization?: string;
   service_id?: string;
+  // true → include unverified sellers regardless of the catalogue setting (admin views).
+  includeUnverified?: boolean;
 }): Promise<BackendLawyer[]> {
   const qs = new URLSearchParams();
   if (filters?.region) qs.set("region", filters.region);
@@ -424,7 +426,10 @@ export async function listLawyers(filters?: {
   if (filters?.service_id) qs.set("service_id", filters.service_id);
   const q = qs.toString();
   const data = await http(`/lawyers${q ? `?${q}` : ""}`);
-  return listFrom(data, "lawyers", "items", "data").map(normLawyer);
+  const all = listFrom(data, "lawyers", "items", "data").map(normLawyer);
+  if (filters?.includeUnverified) return all;
+  // T0-10 §5: the admin can hide unverified sellers from the catalogue entirely.
+  return (await getUnverifiedSellersMode()) === "hidden" ? all.filter((l) => l.verified) : all;
 }
 
 // My offered services (GET/PUT /lawyers/me/services). Stored as service ids.
@@ -4312,6 +4317,25 @@ export async function getPlatformPolicies(): Promise<PlatformPolicies> {
   const p = normPolicies(await http("/platform/policies"));
   policiesCache = { at: Date.now(), p };
   return p;
+}
+// T0-10 §5: how unverified advocates/lawyers appear in the catalogue —
+// "badge" (listed with an "unverified" mark) or "hidden" (not listed). The
+// backend has no dedicated section yet, so the value lives under the public
+// `order` policy (`order.catalog.unverified_sellers`) — readable by guests.
+export type UnverifiedSellersMode = "badge" | "hidden";
+export async function getUnverifiedSellersMode(): Promise<UnverifiedSellersMode> {
+  try {
+    const p = await getPlatformPolicies();
+    const cat = asDict(asDict(p.raw.order).catalog);
+    return asStr(cat.unverified_sellers) === "hidden" ? "hidden" : "badge";
+  } catch {
+    return "badge";
+  }
+}
+export async function setUnverifiedSellersMode(mode: UnverifiedSellersMode): Promise<void> {
+  const items = await getAdminPolicies();
+  const order = items.order ?? {};
+  await putAdminPolicy("order", { ...order, catalog: { ...asDict(order.catalog), unverified_sellers: mode } });
 }
 // Admin: every section (raw dicts) + PUT one section + its history.
 export const POLICY_SECTIONS = ["order", "payment", "document_analysis", "workspace", "security", "notifications"] as const;

@@ -132,7 +132,7 @@ export default function LawyerProfileModal({
             <div className="lprof__id">
               <div className="lprof__n">
                 {data.name || "—"}
-                {data.verified ? <span className="lprof__vf">{t("verified")}</span> : null}
+                {data.verified ? <span className="lprof__vf">{t("verified")}</span> : <span className="lprof__vf lprof__vf--un">{t("unverified")}</span>}
               </div>
               <div className="lprof__tags">
                 <span className={`advcard__kind advcard__kind--${kind}`}>{t(`kind.${kind}`)}</span>

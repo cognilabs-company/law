@@ -213,7 +213,7 @@ export default function LawyersSection({
                 <span className={`advcard__kind advcard__kind--${l.kind ?? "lawyer"}`}>
                   {t(l.kind === "advocate" ? "card.kindAdvocate" : "card.kindLawyer")}
                 </span>
-                {l.verified ? <span className="advcard__badge">{t("card.verified")}</span> : null}
+                {l.verified ? <span className="advcard__badge">{t("card.verified")}</span> : <span className="advcard__badge advcard__badge--un">{t("card.unverified")}</span>}
                 {l.isNew ? <span className="advcard__badge advcard__badge--new">{t("card.new")}</span> : null}
               </div>
             </div>

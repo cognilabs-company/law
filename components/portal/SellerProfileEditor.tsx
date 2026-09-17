@@ -26,6 +26,7 @@ import WorkHistoryEditor from "@/components/register/WorkHistoryEditor";
 import Select, { type Option } from "@/components/Select";
 import TimePicker from "@/components/TimePicker";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
+import IdentityVerify from "@/components/portal/IdentityVerify";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
 import AccountAudit from "@/components/portal/AccountAudit";
@@ -400,6 +401,8 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       )}
 
       <MyServices userId={uid} />
+      {/* T0-10 §4: identity verification is mandatory for advocates/lawyers once MyID is live. */}
+      <IdentityVerify />
       <div className="pgrid2">
         <TwoFactorCard />
         <TelegramLinkCard />

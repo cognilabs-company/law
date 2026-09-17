@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   getAdminPolicies,
@@ -10,6 +10,9 @@ import {
   POLICY_SECTIONS,
   type PolicySection,
   type PolicyHistoryEntry,
+  getUnverifiedSellersMode,
+  setUnverifiedSellersMode,
+  type UnverifiedSellersMode,
 } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
 import { ApiError } from "@/lib/http";
@@ -38,6 +41,29 @@ export default function AdminPolicies() {
   const ready = useResourceOne(getComplianceReadiness, [key]);
   const [edit, setEdit] = useState<PolicySection | null>(null);
   const [history, setHistory] = useState<PolicySection | null>(null);
+  // T0-10 §5: unverified sellers in the catalogue — badge or hidden.
+  const [unvMode, setUnvMode] = useState<UnverifiedSellersMode | null>(null);
+  const [unvBusy, setUnvBusy] = useState(false);
+  const [unvNote, setUnvNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getUnverifiedSellersMode().then((m) => { if (alive) setUnvMode(m); });
+    return () => { alive = false; };
+  }, [key]);
+  async function saveUnv(mode: UnverifiedSellersMode) {
+    if (unvBusy || mode === unvMode) return;
+    setUnvBusy(true);
+    setUnvNote(null);
+    try {
+      await setUnverifiedSellersMode(mode);
+      setUnvMode(mode);
+      setUnvNote({ ok: true, msg: t("saved") });
+    } catch {
+      setUnvNote({ ok: false, msg: t("saveError") });
+    } finally {
+      setUnvBusy(false);
+    }
+  }
   const forbidden = res.status === "error";
 
   return (
@@ -106,6 +132,23 @@ export default function AdminPolicies() {
             })}
           </div>
         )}
+      </div>
+
+      <div className="ppanel">
+        <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconShieldCheck /></span>{t("unverified.title")}</b></div>
+        <p className="ppanel__note">{t("unverified.lead")}</p>
+        {unvMode === null ? <Skeleton rows={2} /> : (
+          <div className="unvmode" role="radiogroup" aria-label={t("unverified.title")}>
+            {(["badge", "hidden"] as UnverifiedSellersMode[]).map((m) => (
+              <label key={m} className={`unvmode__opt${unvMode === m ? " on" : ""}`}>
+                <input type="radio" name="unvmode" value={m} checked={unvMode === m} disabled={unvBusy} onChange={() => void saveUnv(m)} />
+                <span className="unvmode__dot" />
+                <span className="unvmode__m"><b>{t(`unverified.${m}`)}</b><small>{t(`unverified.${m}Text`)}</small></span>
+              </label>
+            ))}
+          </div>
+        )}
+        {unvNote ? <Notice ok={unvNote.ok} msg={unvNote.msg} /> : null}
       </div>
 
       <EditModal section={edit} data={edit ? res.data?.[edit] ?? {} : {}} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); setKey((k) => k + 1); }} />

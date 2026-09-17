@@ -631,7 +631,8 @@
           "supreme court"
         ]
       }
-    }
+    },
+    "unverified": "Unverified"
   },
   "lawyers": {
     "metaTitle": "Advocates & lawyers",
@@ -690,7 +691,8 @@
       "choose": "Choose",
       "opening": "Opening…",
       "new": "New",
-      "newHint": "Under 5 reviews — rating is being collected"
+      "newHint": "Under 5 reviews — rating is being collected",
+      "unverified": "Unverified"
     },
     "empty": "There are no lawyers in this area yet. Leave a request — we will find a suitable lawyer for you.",
     "priceInfo": "The price is formed by open criteria: region (higher in big cities), experience (3–5 yrs +10%, 6–10 yrs +15%, 10+ yrs +20%), rating and super-lawyer status (regional TOP-3 — up to 30%, 10+ yrs in a narrow area — up to 20%). If the price is higher, the reason is shown in the order window.",
@@ -2535,7 +2537,8 @@
         "priceNote": "per hour",
         "choose": "Choose",
         "opening": "Opening…",
-        "notFound": "Profile not found"
+        "notFound": "Profile not found",
+        "unverified": "Unverified"
       },
       "complaints": {
         "title": "Complaints",
@@ -2891,7 +2894,8 @@
           "service_permission": "Offers this service",
           "urgent_ready": "Ready for urgent cases",
           "high_workload": "Busy"
-        }
+        },
+        "unverified": "Unverified"
       },
       "documents": {
         "title": "Document templates",
@@ -5204,7 +5208,15 @@
       "save": "Save",
       "saveHint": "Saving creates a new version; old values stay in “History”.",
       "historyTitle": "{section} — version history",
-      "historyEmpty": "No changes yet."
+      "historyEmpty": "No changes yet.",
+      "unverified": {
+        "title": "Unverified advocates and lawyers",
+        "lead": "How providers without identity (MyID) and document verification appear in the catalogue (GM T0-10 §5). Takes effect immediately.",
+        "badge": "List them with an \"Unverified\" mark",
+        "badgeText": "Clients can see them, but the mark warns; verified providers stand out with the \"Verified\" badge.",
+        "hidden": "Do not list them at all",
+        "hiddenText": "Only verified providers appear in the list, search and matching."
+      }
     }
   },
   "secureChat": {

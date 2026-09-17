@@ -584,7 +584,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       if (!dirRef.current) {
         dirRef.current = (async () => {
           const [lawyers, clients] = await Promise.all([
-            listLawyers().catch(() => []),
+            listLawyers({ includeUnverified: true }).catch(() => []),
             getLawyerClients().catch(() => []),
           ]);
           const seen = new Set<string>();

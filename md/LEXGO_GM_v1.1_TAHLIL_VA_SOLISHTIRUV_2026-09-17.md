@@ -73,7 +73,7 @@ Har qatorda: talablar soni → holat → nima bor / nima yo'q → mas'ul (**FE**
 | T0-07 Seed | 12 | ❌ 1/12 | Bitta seed buyrug'i bor | 38 kategoriya (17 emas), guruh darajasi yo'q, «Tez kunda» yo'q, 38/57 advokatda narx «—», Demo/Test nomlar, 3 paket/3 tuzilma/10 shablon/5 mijoz/3 cc xodim to'plami yo'q, har rol akkaunti yo'q | BE |
 | T0-08 Bildirishnoma | 7 | 🟡 2/7 | Yagona `notify_user`, kanallar (in_app/push/telegram) | Admin'da hodisa×kanal×ustuvorlik sozlamasi, 3 tilli matn tahriri, SMS faqat kritik, navbat ko'rinishi, SMS sarfi hisoboti | BE + FE (admin ekranlari) |
 | T0-09 To'lov abstraksiyasi | 8 | 🟡 3/8 | PaymentProvider + DemoProvider, `payment_mode`, commission_payer | 8 funksiya to'liq emas (tokenize/chargeToken/split?), idempotentlik, vebhuk imzo/takror, getStatus qayta tasdiqi, tashlab ketilgan to'lov hisoboti + issiq lid | BE |
-| T0-10 Identifikatsiya | 5 | 🟡 2/5 | IdentityProvider + demo, `identity_verified*` maydonlar, «Tasdiqlangan» bejji (FE) | Tasdiqlanmagan advokat uchun ikki rejim sozlamasi; biometrik saqlanmasligi ko'rsatilmagan | BE (+FE sozlama) |
+| T0-10 Identifikatsiya | 5 | 🟢 4/5 (+1 qisman) | IdentityProvider + demo/MyID/OneID adapterlar; biometrik saqlanmaydi; MyID asosiy, mijozda «Tasdiqlangan profil» bejji; admin «Siyosatlar» → tasdiqlanmagan ijrochilar: belgi bilan / yashirish (FE, `order.catalog.unverified_sellers`) | `identity_verified_at` va `/auth/me` maydonlari; majburiylik sharti (MyID ulangach) | BE #69–71 |
 | T0-11 Audit | 5 | 🟡 2/5 | Audit sahifasi, hash zanjiri, CSV eksport (FE) | Fayl harakatlari, status o'zgarishida eski/yangi/sabab/IP/qurilma, eksport ruxsati va jurnalga yozish, shubhali kirish ogohlantirishi (faqat IP o'zgarishi bor) | BE |
 | T0-12 Console audit | 3 | 🟡 | Asosiy sahifalarda qizil xato yo'q (bizning testlar) | Dasturchi ko'rsatadi; ba'zi 403/404 (cc client 360, /admin/test-otps) | Dev |
 | T0-13 Mobil | 3 | 🟡 2/3 | 360–414 px asosiy sahifalar, meeting room (bugun) | Onboarding 5 qadam telefonda + kamera skaner (bugun `capture` qo'shildi — test kerak) | FE (test) |
@@ -397,3 +397,11 @@ Backend'ga (0E jadvali #67–68): `/users/search` uchrashuv hostiga (o'z aloqala
 | 6 | `/auth/me` → `two_factor_enabled`, `two_factor_method` | Avvaldan `TwoFactorCard` shu maydonlardan holat/usulni ko'rsatadi (telegram/sms/totp) |
 | 7 | Audit `title_uz`, `description_uz` | Profil «Audit jurnali»da uz tilida `title_uz`/`description_uz` ko'rsatiladi (qidiruv ham ular bo'yicha); admin audit-trail'da `action · title_uz` |
 | 8 | `/referrals/me` → `link`/`register_url`/`landing_url` | `link` (register) ishlatiladi; `?ref=` kod 90 kun saqlanadi va login→«Hisob yaratish» / register→«Kirish» havolalarida saqlanib qoladi (jonli: `/uz/register?ref=TESTCODE1`) |
+
+## 19. 17.09 — T0-10 to'liq: MyID asosiy, bejj, tasdiqlanmagan ijrochilar rejimi
+
+- **Ulanish nuqtasi**: backend  — , / adapterlar, demo rejimda ; MyID kelganda faqat adapter to'ldiriladi (§1 ✅).
+- **Biometrik saqlanmaydi**: tasdiq yozuvida faqat holat, sana, provayder (+ matn F.I.O./PINFL) (§2 ✅); mijoz va ijrochi kartasida shu izoh.
+- **Frontend**: «Shaxsni tasdiqlash» kartasi — MyID «Asosiy» birinchi, OneID ikkinchi; mijoz profilida «Tasdiqlangan profil» bejji (); advokat/yurist profiliga ham karta qo'shildi (§4).
+- **Admin → Siyosatlar → «Tasdiqlanmagan advokat va yuristlar»**: ikki rejim — «belgi bilan ko'rinsin» / «umuman ko'rinmasin». Backend'da alohida bo'lim yo'q, qiymat ommaviy  siyosatida saqlanadi (, ), mehmon ham  dan o'qiydi. Frontend  «hidden» rejimda tasdiqlanmaganlarni chiqarmaydi (katalog, qidiruv, xizmat uchun tanlov, mos advokatlar); «badge» rejimida karta, qidiruv qatori, tanlov ro'yxati va profil oynasida «Tasdiqlanmagan» belgisi (jonli: /lawyers da 3 ta belgi) (§5 ✅ FE). Ideal holda backend  ham rejimga bo'ysunishi kerak (#70).
+- Qolgan: / maydonlari (#69), ijrochi uchun majburiylik sharti MyID ulangach (#71). GM tekshiruv kuni  yoqilgan bo'lishi kerak ( aks holda 404).

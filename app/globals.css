@@ -3931,3 +3931,19 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .idv__tag{font-style:normal;font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:var(--grad);color:#fff}
 .idv__privacy{grid-column:1 / -1;margin:0;font-size:.78rem}
 .ppanel__t .tfa__on{margin-left:4px}
+
+/* ── wp-ah ── */
+/* T0-10: unverified marks + admin two-mode setting */
+.advcard__badge--un{background:var(--dk-surface-2, #f1f4f9);color:var(--gray);border:1px dashed var(--line)}
+.advpick__un{font-style:normal;font-size:.68rem;font-weight:700;color:var(--gray2);padding:2px 7px;border-radius:999px;border:1px dashed var(--line);white-space:nowrap}
+.lprof__vf--un{background:var(--dk-surface-2, #f1f4f9);color:var(--gray);border:1px dashed var(--line)}
+.unvmode{display:grid;gap:10px}
+.unvmode__opt{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1.5px solid var(--line);border-radius:14px;cursor:pointer;transition:.15s;background:var(--dk-surface, #fff)}
+.unvmode__opt:hover{border-color:var(--b300)}
+.unvmode__opt.on{border-color:var(--b600);background:var(--b50)}
+.unvmode__opt input{position:absolute;opacity:0;width:0;height:0}
+.unvmode__dot{width:20px;height:20px;flex:none;border-radius:50%;border:2px solid var(--b300);margin-top:1px;display:grid;place-items:center;transition:.15s}
+.unvmode__opt.on .unvmode__dot{border-color:var(--b600);background:var(--b600);box-shadow:inset 0 0 0 4px var(--dk-surface, #fff)}
+.unvmode__m{display:grid;gap:3px}
+.unvmode__m b{font-size:.92rem}
+.unvmode__m small{font-size:.8rem;color:var(--gray);line-height:1.4}

@@ -105,7 +105,11 @@ export default function Finder() {
               <span className="pill" style={{ fontSize: ".66rem" }}>
                 Super
               </span>
-            ) : null}
+            ) : (
+              <span className="pill pill--gray" style={{ fontSize: ".66rem" }}>
+                {tf("unverified")}
+              </span>
+            )}
           </div>
           <div className="resrow__m">
             {areaLabel(b)} · {b.region} · {b.experienceYears}

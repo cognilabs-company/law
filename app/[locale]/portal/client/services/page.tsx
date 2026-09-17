@@ -417,7 +417,7 @@ export default function ClientServices() {
                           <span className="advpick__m">
                             <b>
                               {l.name || "—"}
-                              {l.verified || c ? <IconShieldCheck className="advpick__vf" aria-label={t("verified")} /> : null}
+                              {l.verified || c ? <IconShieldCheck className="advpick__vf" aria-label={t("verified")} /> : <em className="advpick__un">{t("unverified")}</em>}
                             </b>
                             <span className="advpick__stats">
                               <i><IconStar />{l.rating ? l.rating.toFixed(1) : "—"}</i>
