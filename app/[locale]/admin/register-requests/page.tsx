@@ -11,7 +11,8 @@ import {
 import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { AdminItem, useReload } from "@/components/admin/AdminBits";
-import { IconUser, IconCheck, IconClose } from "@/components/icons";
+import { IconUser, IconCheck, IconClose, IconEye } from "@/components/icons";
+import RegisterRequestDetail from "@/components/admin/RegisterRequestDetail";
 
 const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const fmtDate = (v: string) => {
@@ -61,6 +62,7 @@ export default function AdminRegisterRequests() {
   const t = useTranslations("admin.registerRequests");
   const [key, reload] = useReload();
   const res = useResource(() => listRegisterRequests("pending"), [key]);
+  const [detail, setDetail] = useState<string | null>(null);
 
   return (
     <div className="ppanel">
@@ -88,10 +90,12 @@ export default function AdminRegisterRequests() {
               ].filter(Boolean).join(" · ")}
               tags={[{ label: r.status ? (t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status) : t("status.pending"), tone: "muted" }]}
               right={<Actions id={r.id} onDone={reload} />}
+              actions={<button type="button" className="aitem__act" aria-label={t("detailTitle")} title={t("detailTitle")} onClick={() => setDetail(r.id)}><IconEye /></button>}
             />
           ))}
         </div>
       )}
+      <RegisterRequestDetail id={detail} onClose={() => setDetail(null)} />
     </div>
   );
 }

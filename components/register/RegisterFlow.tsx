@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { readReferral } from "@/lib/referral";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
@@ -110,6 +111,10 @@ export default function RegisterFlow() {
   // step, since verifyErr is only rendered on the later verify step.
   // wait = the server refused a new code for now (cooldown / daily quota).
   const [startErr, setStartErr] = useState<{ msg: string; login?: boolean; wait?: boolean } | null>(null);
+  // Three wrong codes → the server blocks the phone for 15 min and the old
+  // code is dead: the inputs are hidden until the block ends and a new code
+  // is requested (register/start again — no separate resend endpoint).
+  const [locked, setLocked] = useState(false);
   const [pendingMsg, setPendingMsg] = useState<string | null>(null);
 
   // Explicit acceptance of each current legal document on the last profile
@@ -215,6 +220,7 @@ export default function RegisterFlow() {
   // Keep only the newest verification: a new code supersedes the old one, so
   // id, typed code, Telegram link and timer are replaced together.
   function applyIssue(r: RegisterStartResult) {
+    setLocked(false);
     setVerificationId(r.verificationId);
     setCode("");
     setTelegramLink(r.telegramBotLink);
@@ -285,7 +291,8 @@ export default function RegisterFlow() {
       }
     } catch (e) {
       if (isRateLimited(e)) {
-        otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
+        const wait = retryAfterSec(e, OTP_RESEND_SEC);
+        if (wait > OTP_RESEND_SEC * 2) { setLocked(true); otp.block(wait); } else otp.cooldown(wait);
         setVerifyErr(errDetail(e) || tc("rateLimited"));
       } else if (e instanceof ApiError && e.status === 409) {
         setVerifyErr(t("verify.phoneExists"));
@@ -330,6 +337,8 @@ export default function RegisterFlow() {
       if (isRateLimited(e)) {
         // Too many wrong codes → locked; count down the server's wait.
         otp.block(retryAfterSec(e, OTP_RESEND_SEC));
+        setLocked(true);
+        setCode("");
         setVerifyErr(errDetail(e) || tc("rateLimited"));
       } else if (isOtpExpired(e)) {
         otp.expire();
@@ -487,11 +496,28 @@ export default function RegisterFlow() {
               </span>
               <h1 className="rf__title">{t("verify.title")}</h1>
               <p className="rf__sub">{otpMessage || t("verify.subtitle", { phone: draft.phone })}</p>
-              {telegramLink && !otp.expired ? (
+              {telegramLink && !otp.expired && !locked ? (
                 <a className="btn btn--line btn--full rf__tg" href={telegramLink} target="_blank" rel="noopener noreferrer">
                   {t("verify.telegramBtn")}
                 </a>
               ) : null}
+              {locked ? (
+                <div className="rf__locked" role="status">
+                  <b>{otp.blockedIn > 0 ? tOtp("blockedTitle") : tOtp("blockedOver")}</b>
+                  <span>{otp.blockedIn > 0 ? tOtp("blockedFor", { time: fmtClock(otp.blockedIn) }) : tOtp("blockedOverText")}</span>
+                  {verifyErr && otp.blockedIn > 0 ? <p className="rf__otpmsg rf__otpmsg--err">{verifyErr}</p> : null}
+                  {otp.blockedIn <= 0 ? (
+                    <button className="btn btn--grad btn--full" type="button" onClick={resend} disabled={resending}>
+                      {resending ? tOtp("resending") : tOtp("newCode")}
+                    </button>
+                  ) : null}
+                  <button type="button" className="rf__link rf__link--muted" onClick={back}>
+                    <IconChevronLeft />
+                    {t("verify.change")}
+                  </button>
+                </div>
+              ) : (
+              <>
               <div className="otp">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <input
@@ -535,6 +561,8 @@ export default function RegisterFlow() {
                 </button>
                 <OtpResendButton timer={otp} busy={resending} onResend={resend} />
               </div>
+              </>
+              )}
             </div>
           ) : null}
 
@@ -811,7 +839,7 @@ export default function RegisterFlow() {
               <div className="rf__missing" role="alert">
                 <b>{startErr.msg}</b>
                 {startErr.login ? (
-                  <button type="button" className="rf__inlinelink" onClick={() => router.push("/login")}>
+                  <button type="button" className="rf__inlinelink" onClick={() => router.push(readReferral() ? `/login?ref=${encodeURIComponent(readReferral())}` : "/login")}>
                     {t("verify.goLogin")}
                   </button>
                 ) : null}

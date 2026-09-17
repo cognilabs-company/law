@@ -239,8 +239,8 @@ export default function AdminAuditTrail() {
                 <div className="creq audit__row" key={rowKey}>
                   <span className="creq__st" />
                   <div className="creq__m">
-                    <b>{a.action || "—"}</b>
-                    <span>{[a.detail, a.ip, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span>
+                    <b>{a.action || "—"}{a.titleUz ? <small className="advmuted"> · {a.titleUz}</small> : null}</b>
+                    <span>{[a.descriptionUz || a.detail, a.ip, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span>
                     {a.userId || a.targetType || a.targetId ? (
                       <span className="audit__who">
                         {a.userId ? <span>{t("user")}: <code>{a.userId}</code></span> : null}

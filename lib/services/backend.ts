@@ -2142,6 +2142,33 @@ export async function runCaseAiTool(caseId: string, tool: CaseAiTool, fileVersio
   const d = asDict(await http(`/ai/cases/${encodeURIComponent(caseId)}/tools`, { method: "POST", body: JSON.stringify({ tool, file_version_ids: fileVersionIds }) }));
   return { id: asStr(d.id), result: asStr(d.result) };
 }
+// GET /lawyers/me/clients/{id} — everything this seller shares with one
+// client (own orders/cases/chats + their payments/documents); 404 when the
+// client never worked with this seller.
+export type LawyerClientDetail = {
+  type: "user" | "manual";
+  client: { id: string; name: string; phone: string; region: string; company: string; notes: string; createdAt: string };
+  cases: BackendCase[];
+  orders: BackendOrder[];
+  chats: { id: string; status: string; orderId?: string; caseId?: string; createdAt: string }[];
+  payments: PaymentHistory[];
+  documents: DocumentRequest[];
+  timeline: { type: string; id: string; title: string; status: string; createdAt: string; updatedAt: string }[];
+};
+export async function getLawyerClientDetail(id: string): Promise<LawyerClientDetail> {
+  const d = asDict(await http(`/lawyers/me/clients/${encodeURIComponent(id)}`));
+  const c = asDict(d.client);
+  return {
+    type: asStr(d.type) === "manual" ? "manual" : "user",
+    client: { id: asStr(c.id), name: asStr(c.name), phone: asStr(c.phone), region: asStr(c.region), company: asStr(c.company), notes: asStr(c.notes), createdAt: asStr(c.created_at) },
+    cases: asArr(d.cases).map(normCase),
+    orders: asArr(d.orders).map(normOrder),
+    chats: asArr(d.chats).map((x) => { const r = asDict(x); return { id: asStr(r.id), status: asStr(r.status), orderId: asStr(r.order_id) || undefined, caseId: asStr(r.case_id) || undefined, createdAt: asStr(r.created_at) }; }),
+    payments: asArr(d.payments).map(normPaymentHistory),
+    documents: asArr(d.documents).map(normDocRequest),
+    timeline: asArr(d.timeline).map((x) => { const r = asDict(x); return { type: asStr(r.type), id: asStr(r.id), title: asStr(r.title), status: asStr(r.status), createdAt: asStr(r.created_at), updatedAt: asStr(r.updated_at) }; }),
+  };
+}
 export async function getLawyerClients(): Promise<LawyerClient[]> {
   return listFrom(await http("/lawyers/me/clients"), "items", "data").map((v) => {
     const d = asDict(v);
@@ -2599,6 +2626,9 @@ export type ActivityEntry = {
   id: string;
   action: string;
   detail: string;
+  // Human wording from the backend (LEXGO_FRONTEND_BUGFIX_UPDATE_2026_09_17 §7).
+  titleUz?: string;
+  descriptionUz?: string;
   ip?: string;
   createdAt: string;
   // Append-only audit chain (GET /admin/audit-trail): this record's hash and
@@ -2623,6 +2653,8 @@ function normActivity(v: unknown): ActivityEntry {
     id: asStr(d.id),
     action: asStr(d.action ?? d.type ?? d.event),
     detail: asStr(d.detail ?? d.description ?? d.message ?? (typeof d.details === "string" ? d.details : undefined)),
+    titleUz: asStr(d.title_uz) || undefined,
+    descriptionUz: asStr(d.description_uz) || undefined,
     ip: asStr(d.ip ?? d.ip_address) || undefined,
     createdAt: asStr(d.created_at ?? d.createdAt ?? d.timestamp),
     previousHash: hashOf(d.previous_hash, d.prev_hash, d.previousHash, chain.previous_hash),
@@ -2672,6 +2704,8 @@ export type ReferralInvite = { name: string; phone: string; status: string; rewa
 export type Referral = {
   code: string;
   link: string;
+  registerUrl: string; // …/register?ref=CODE
+  landingUrl: string; // /?ref=CODE
   invited: number;
   joined: number;
   rewardBalance: number;
@@ -2687,7 +2721,9 @@ export async function getMyReferral(): Promise<Referral & { qrUrl: string }> {
   const d = asDict(await http("/referrals/me"));
   return {
     code: asStr(d.code),
-    link: asStr(d.link ?? d.share_url),
+    link: asStr(d.link ?? d.register_url ?? d.share_url),
+    registerUrl: asStr(d.register_url ?? d.link),
+    landingUrl: asStr(d.landing_url),
     qrUrl: asStr(d.qr_url),
     invited: asNum(d.invited_count ?? d.invited),
     joined: asNum(d.joined_count ?? d.joined),
@@ -4182,6 +4218,7 @@ export type WorkspaceFile = {
   caseId?: string;
   fileName: string;
   fileUrl: string;
+  downloadUrl: string; // absolute backend URL (needs auth or a signed token)
   mimeType: string;
   size: number;
   createdAt: string;
@@ -4198,10 +4235,18 @@ function normFile(v: unknown): WorkspaceFile {
     caseId: asStr(d.case_id) || undefined,
     fileName: asStr(d.file_name),
     fileUrl: asStr(d.file_url),
+    downloadUrl: asStr(d.download_url),
     mimeType: asStr(d.mime_type),
     size: asNum(d.size),
     createdAt: asStr(d.created_at),
   };
+}
+// POST /workspace/files/{id}/signed-url — 15-minute absolute link that works
+// without the Authorization header (open in a new tab / share to a device).
+export type SignedFileUrl = { url: string; relativeUrl: string; expiresAt: string; expiresInSeconds: number };
+export async function getWorkspaceFileSignedUrl(fileId: string): Promise<SignedFileUrl> {
+  const d = asDict(await http(`/workspace/files/${encodeURIComponent(fileId)}/signed-url`, { method: "POST" }));
+  return { url: asStr(d.url ?? d.download_url), relativeUrl: asStr(d.relative_url), expiresAt: asStr(d.expires_at), expiresInSeconds: asNum(d.expires_in_seconds) || 900 };
 }
 export async function listFiles(): Promise<WorkspaceFile[]> {
   return listFrom(await http("/workspace/files"), "files", "items", "data").map(normFile);
@@ -4319,7 +4364,7 @@ export async function approveContentReveal(roomId: string): Promise<RevealStatus
 
 // ── Workspace: file versions + comments + document requests ────────
 export type FileVersion = {
-  id: string; version: number; fileName: string; fileUrl: string; note: string; createdAt: string;
+  id: string; version: number; fileName: string; fileUrl: string; downloadUrl: string; note: string; createdAt: string;
 };
 function normVersion(v: unknown): FileVersion {
   const d = asDict(v);
@@ -4328,6 +4373,7 @@ function normVersion(v: unknown): FileVersion {
     version: asNum(d.version),
     fileName: asStr(d.file_name),
     fileUrl: asStr(d.file_url),
+    downloadUrl: asStr(d.download_url),
     note: asStr(d.note),
     createdAt: asStr(d.created_at),
   };
@@ -4454,6 +4500,27 @@ function normRegReq(v: unknown): RegisterRequest {
 export async function listRegisterRequests(status = "pending"): Promise<RegisterRequest[]> {
   const q = status ? `?status=${encodeURIComponent(status)}` : "";
   return listFrom(await http(`/admin/register-requests${q}`), "requests", "items", "data").map(normRegReq);
+}
+// GET /admin/register-requests/{id} — the sign-up form data (pending), the
+// linked user / lawyer profile (after approval) and recent activity.
+export type RegisterRequestDetail = {
+  request: RegisterRequest;
+  pending: { id: string; role: string; name: string; firstName: string; lastName: string; middleName: string; region: string; phone: string; status: string; attempts: number; blockedUntil?: string; expiresAt?: string; createdAt: string } | null;
+  user: { id: string; name: string; phone: string; role: string; accountStatus: string; lexgoId: string; createdAt: string } | null;
+  lawyerProfile: BackendLawyer | null;
+  activity: ActivityEntry[];
+};
+export async function getRegisterRequestDetail(id: string): Promise<RegisterRequestDetail> {
+  const d = asDict(await http(`/admin/register-requests/${encodeURIComponent(id)}`));
+  const p = asDict(d.pending);
+  const u = asDict(d.user);
+  return {
+    request: normRegReq(d.request ?? {}),
+    pending: d.pending ? { id: asStr(p.id), role: asStr(p.role), name: asStr(p.name), firstName: asStr(p.first_name), lastName: asStr(p.last_name), middleName: asStr(p.middle_name), region: asStr(p.region), phone: asStr(p.phone), status: asStr(p.status), attempts: asNum(p.attempts), blockedUntil: asStr(p.blocked_until) || undefined, expiresAt: asStr(p.expires_at) || undefined, createdAt: asStr(p.created_at) } : null,
+    user: d.user ? { id: asStr(u.id), name: asStr(u.name), phone: asStr(u.phone), role: asStr(u.role), accountStatus: asStr(u.account_status), lexgoId: asStr(u.lexgo_id), createdAt: asStr(u.created_at) } : null,
+    lawyerProfile: d.lawyer_profile ? normLawyer(d.lawyer_profile) : null,
+    activity: asArr(d.activity).map(normActivity),
+  };
 }
 export async function acceptRegisterRequest(id: string): Promise<unknown> {
   return http(`/admin/register-requests/${id}/accept`, { method: "POST" });

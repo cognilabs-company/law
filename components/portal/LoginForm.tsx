@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
+import { readReferral } from "@/lib/referral";
 import { useAuth, hasAdminAccess, type Session } from "@/lib/auth";
 import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
 import type { TwoFactorChallenge } from "@/lib/services/backend";
@@ -35,6 +36,11 @@ export default function LoginForm() {
   useEffect(() => {
     if (ready && session) router.replace(homeFor(session));
   }, [ready, session, router]);
+  // Referral code from the URL / storage stays on the sign-up link (T1A-08);
+  // read after mount (storage is not available during SSR).
+  const [refCode, setRefCode] = useState("");
+  useEffect(() => { const h = setTimeout(() => setRefCode(readReferral()), 0); return () => clearTimeout(h); }, []);
+  const withRef = (path: string) => (refCode ? `${path}?ref=${encodeURIComponent(refCode)}` : path);
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -398,7 +404,7 @@ export default function LoginForm() {
         </div>
         <p className="plogin__alt">
           {t("noAccount")}{" "}
-          <Link href="/register" className="plogin__link">
+          <Link href={withRef("/register")} className="plogin__link">
             {t("createAccount")}
           </Link>
         </p>

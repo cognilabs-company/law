@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { listMyActivity, listSecurityEvents, listSessions, revokeSession, type ActivityEntry } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { useAuth } from "@/lib/auth";
@@ -32,6 +32,7 @@ function groupOf(a: string): string {
 export default function AccountAudit({ withSessions = true }: { withSessions?: boolean }) {
   const t = useTranslations("portal.accountAudit");
   const tl = useTranslations("portal.client.profile.log");
+  const locale = useLocale();
   const { logout } = useAuth();
   const [key, setKey] = useState(0);
   const activity = useResource(() => listMyActivity(), [key]);
@@ -42,7 +43,7 @@ export default function AccountAudit({ withSessions = true }: { withSessions?: b
   const opts = ["all", "auth", "orders", "documents", "profile", "other"].map((g) => ({ value: g, label: t(`groups.${g}`) }));
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return activity.data.filter((a) => (group === "all" || groupOf(a.action) === group) && (!needle || `${a.action} ${a.detail} ${a.ip ?? ""}`.toLowerCase().includes(needle)));
+    return activity.data.filter((a) => (group === "all" || groupOf(a.action) === group) && (!needle || `${a.action} ${a.detail} ${a.titleUz ?? ""} ${a.descriptionUz ?? ""} ${a.ip ?? ""}`.toLowerCase().includes(needle)));
   }, [activity.data, group, q]);
   const label = (a: string) => (tl.has(a) ? tl(a) : a.replace(/[_.]/g, " ") || "—");
 
@@ -107,8 +108,8 @@ export default function AccountAudit({ withSessions = true }: { withSessions?: b
               <div className="creq" key={a.id}>
                 <span className="creq__st" />
                 <div className="creq__m">
-                  <b>{label(a.action)}</b>
-                  <span>{[a.detail, a.ip, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span>
+                  <b>{(locale === "uz" && a.titleUz) || label(a.action)}</b>
+                  <span>{[(locale === "uz" && a.descriptionUz) || a.detail, a.ip, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span>
                 </div>
                 <em className="atag atag--muted">{t(`groups.${groupOf(a.action)}`)}</em>
               </div>

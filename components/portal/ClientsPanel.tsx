@@ -7,6 +7,7 @@ import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
+import ClientDetailModal from "@/components/portal/ClientDetailModal";
 import { initials } from "@/lib/lawyers";
 import { IconUsers, IconAlert, IconPlus, IconShieldCheck, IconCheck } from "@/components/icons";
 
@@ -19,6 +20,7 @@ export default function ClientsPanel({ ns }: { ns: string }) {
   const res = useResource(getLawyerClients, [key]);
   const [open, setOpen] = useState(false);
   const [checkOpen, setCheckOpen] = useState(false);
+  const [detail, setDetail] = useState<string | null>(null);
 
   return (
     <>
@@ -39,7 +41,7 @@ export default function ClientsPanel({ ns }: { ns: string }) {
         ) : (
           <div className="pclients">
             {res.data.map((c) => (
-              <div className="pclient" key={c.id}>
+              <div className="pclient pclient--btn" key={c.id} role="button" tabIndex={0} onClick={() => setDetail(c.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(c.id); } }}>
                 <span className="pclient__av">{initials(c.name || "?")}</span>
                 <div className="pclient__m">
                   <b>{c.name || "—"}</b>
@@ -67,6 +69,7 @@ export default function ClientsPanel({ ns }: { ns: string }) {
 
       <NewClientModal open={open} onClose={() => setOpen(false)} onSaved={() => { setOpen(false); setKey((k) => k + 1); }} />
       <ConflictModal open={checkOpen} onClose={() => setCheckOpen(false)} />
+      <ClientDetailModal id={detail} onClose={() => setDetail(null)} />
     </>
   );
 }

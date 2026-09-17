@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
 import {
@@ -23,6 +23,28 @@ import {
   getPlatformPolicies,
 } from "@/lib/services/backend";
 import { useResource, useResourceOne } from "@/lib/useResource";
+import { getWorkspaceFileSignedUrl } from "@/lib/services/backend";
+import { httpBlob } from "@/lib/http";
+
+// Open a workspace file on this device: a 15-minute signed backend URL in a
+// new tab (works on phones and without the auth header); if that fails, the
+// bytes are fetched with the session and handed to the browser as a download.
+async function openWorkspaceFile(fileId: string, fallback: { url: string; name: string }) {
+  const w = window.open("", "_blank");
+  try {
+    const s = await getWorkspaceFileSignedUrl(fileId);
+    if (!s.url) throw new Error("no url");
+    if (w) w.location.href = s.url; else window.location.href = s.url;
+  } catch {
+    if (w) w.close();
+    if (!fallback.url) throw new Error("no url");
+    const blob = await httpBlob(fallback.url);
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = u; a.download = fallback.name || "file"; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 60_000);
+  }
+}
 import { Skeleton, EmptyState } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -60,6 +82,7 @@ export default function WorkspacePanel() {
   const [folderBusy, setFolderBusy] = useState(false);
   const [fileOpen, setFileOpen] = useState(false);
   const [detail, setDetail] = useState<WorkspaceFile | null>(null);
+  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [reqOpen, setReqOpen] = useState(false);
 
   const isMedia = (m: string) => /^(audio|video)\//i.test(m || "");
@@ -105,6 +128,7 @@ export default function WorkspacePanel() {
           </button>
         </div>
       </div>
+      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       <p className="advmuted" style={{ marginBottom: 14 }}>{t("lead")}</p>
 
       {aiOpen ? <Analyzer /> : null}
@@ -160,10 +184,10 @@ export default function WorkspacePanel() {
                 </span>
               </button>
               <div style={{ display: "flex", gap: 8, flex: "none" }}>
-                {f.fileUrl ? (
-                  <a className="btn btn--line btn--sm" href={f.fileUrl} target="_blank" rel="noopener noreferrer" aria-label={t("open")}>
+                {f.fileUrl || f.downloadUrl ? (
+                  <button className="btn btn--line btn--sm" type="button" aria-label={t("open")} title={t("open")} onClick={() => openWorkspaceFile(f.id, { url: f.fileUrl, name: f.fileName }).catch(() => setNote({ ok: false, msg: t("openError") }))}>
                     <IconExternal style={{ width: 15, height: 15 }} />
-                  </a>
+                  </button>
                 ) : null}
                 <button className="btn btn--line btn--sm" type="button" aria-label={t("remove")} onClick={() => deleteFile(f.id).then(reload).catch(() => {})}>
                   <IconClose style={{ width: 15, height: 15 }} />

@@ -3380,7 +3380,8 @@
         "skipped": "Not scanned"
       },
       "uploadRules": "File up to {max} MB (video {video} MB). Allowed: {ext}.",
-      "tooBig": "The file is larger than the allowed limit."
+      "tooBig": "The file is larger than the allowed limit.",
+      "openError": "Could not open the file. Try again."
     },
     "passport": {
       "title": "Service passport",
@@ -3568,6 +3569,33 @@
       "approve": "Approve",
       "saved": "Summary saved.",
       "error": "Could not get the AI result."
+    },
+    "clientDetail": {
+      "title": "Client",
+      "error": "Could not load the client.",
+      "notFound": "No work with this client was found.",
+      "manual": "From your own base",
+      "since": "Client since {date}",
+      "cases": "{n} cases",
+      "orders": "{n} orders",
+      "chats": "{n} chats",
+      "payments": "{n} payments",
+      "openChat": "Open private chat",
+      "empty": "Nothing yet",
+      "deadline": "Deadline",
+      "tabs": {
+        "timeline": "History",
+        "cases": "Cases",
+        "orders": "Orders",
+        "payments": "Payments",
+        "documents": "Documents"
+      },
+      "types": {
+        "order": "Order",
+        "case": "Case",
+        "secure_chat": "Private chat",
+        "manual_client": "Client added"
+      }
     }
   },
   "notFound": {
@@ -3665,7 +3693,11 @@
       "resending": "Sending…",
       "resent": "A new code has been sent. The previous code no longer works.",
       "resendError": "Couldn't resend the code. Please try again shortly.",
-      "change": "Change number"
+      "change": "Change number",
+      "blockedTitle": "Code entry is temporarily blocked",
+      "blockedOver": "The block has ended",
+      "blockedOverText": "Request a new code — the old one no longer works.",
+      "newCode": "Get a new code"
     },
     "type": {
       "title": "How will you use LexGo?",
@@ -4940,7 +4972,30 @@
       "accepted": "Accepted",
       "rejected": "Rejected",
       "role": { "yurist": "Lawyer", "advokat": "Advocate", "lawyer": "Lawyer", "advocate": "Advocate", "client": "Client", "organization": "Organization", "law_firm": "Law firm" },
-      "status": { "pending": "Pending", "approved": "Approved", "accepted": "Accepted", "rejected": "Rejected", "new": "New" }
+      "status": { "pending": "Pending", "approved": "Approved", "accepted": "Accepted", "rejected": "Rejected", "new": "New" },
+      "detailTitle": "Request details",
+      "detailError": "Could not load the details.",
+      "detail": {
+        "request": "Request",
+        "pending": "Data entered at sign-up",
+        "user": "User",
+        "profile": "Provider profile",
+        "activity": "Recent activity",
+        "noActivity": "No activity",
+        "status": "Status",
+        "role": "Role",
+        "phone": "Phone",
+        "created": "Created",
+        "fio": "Full name",
+        "region": "Region",
+        "attempts": "OTP attempts",
+        "blocked": "Blocked (until)",
+        "expires": "Valid until",
+        "account": "Account status",
+        "specializations": "Practice areas",
+        "experience": "Experience (years)",
+        "verified": "Verified"
+      }
     },
     "e2e": {
       "title": "End-to-end readiness",

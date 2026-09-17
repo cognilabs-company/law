@@ -384,3 +384,16 @@ Backend'ga: AI rejalar `audience` = client bo'lishi, 3 oylik `billing_period` va
 | Taklif qidiruvida ism yozsam hech kim chiqmaydi | `/users/search` faqat staff yoki `leads.manage` uchun (mijoz/advokat host → 403), xato yutilardi | 403 bo'lsa lokal katalog: **tasdiqlangan advokat/yuristlar** (`/lawyers`) + ijrochi uchun **o'z mijozlari** (`/lawyers/me/clients`); ism/telefon (≥4 raqam) bo'yicha filtrlanadi, o'zim va xonadagilar chiqmaydi. Backend'ga #67 |
 
 Backend'ga (0E jadvali #67–68): `/users/search` uchrashuv hostiga (o'z aloqalari doirasida) ochilishi; REST `end`/`leave` da call socket va user socket orqali `call.ended`/`call.participant_left` yuborilishi.
+
+## 18. 17.09 — `LEXGO_FRONTEND_BUGFIX_UPDATE_2026_09_17.md` bo'yicha frontend
+
+| § | Backend | Frontend holati |
+|---|---|---|
+| 1 | Login 2FA: TOTP bo'lsa `method=totp`, `POST /auth/login/2fa` | Avvaldan shunday (`completeLogin2fa` → `/auth/login/2fa`; TOTP'da Telegram tugmasi/qayta yuborish yo'q) — o'zgarish shart emas |
+| 2 | Register OTP 3 xato → 15 min blok, `register/start` 429 `{blocked_until, retry_after: 900}` | Tasdiqlash bosqichida blok bo'lganda **kod kiritish maydonlari yopiladi**, «Kod kiritish vaqtincha bloklandi» paneli + teskari sanoq; sanoq tugagach **«Yangi kod olish»** tugmasi (yana `register/start`, alohida resend endpoint yo'q); ko'rib chiqish bosqichida 429 kelsa tugma «Qayta yuborish: 15:00» sanog'i bilan kutadi |
+| 3 | `GET /admin/register-requests/{id}` | Admin «Ro'yxatdan o'tish so'rovlari» sahifasida har arizada «ko'z» tugmasi → tafsilot oynasi: ariza, ro'yxatdan o'tishda kiritilgan F.I.O./hudud/telefon/holat/OTP urinishlari/blok, bog'langan foydalanuvchi, ijrochi profili, so'nggi faollik (`title_uz`) |
+| 4 | `GET /lawyers/me/clients/{id}` | Advokat/yurist «Mijozlar» sahifasida mijoz kartasi bosiladi → oyna: mijoz kartasi (qo'lda qo'shilgan bo'lsa izohlar), statistika, maxfiy chatga o'tish, «Tarix / Ishlar / Buyurtmalar / To'lovlar / Hujjatlar» tablari; 404 → «Bu mijoz bilan ish topilmadi» |
+| 5 | Workspace `download_url`, signed URL absolute | Fayl «ochish» endi `POST /workspace/files/{id}/signed-url` → `url` yangi oynada (Vercel domeniga qo'shilmaydi); xato bo'lsa sessiya bilan yuklab olish (blob) zaxirasi; `downloadUrl` tip maydonlari qo'shildi |
+| 6 | `/auth/me` → `two_factor_enabled`, `two_factor_method` | Avvaldan `TwoFactorCard` shu maydonlardan holat/usulni ko'rsatadi (telegram/sms/totp) |
+| 7 | Audit `title_uz`, `description_uz` | Profil «Audit jurnali»da uz tilida `title_uz`/`description_uz` ko'rsatiladi (qidiruv ham ular bo'yicha); admin audit-trail'da `action · title_uz` |
+| 8 | `/referrals/me` → `link`/`register_url`/`landing_url` | `link` (register) ishlatiladi; `?ref=` kod 90 kun saqlanadi va login→«Hisob yaratish» / register→«Kirish» havolalarida saqlanib qoladi (jonli: `/uz/register?ref=TESTCODE1`) |

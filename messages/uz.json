@@ -3386,7 +3386,8 @@
         "skipped": "Tekshirilmagan"
       },
       "uploadRules": "Fayl {max} MB gacha (video {video} MB). Ruxsat: {ext}.",
-      "tooBig": "Fayl hajmi ruxsat etilgan chegaradan katta."
+      "tooBig": "Fayl hajmi ruxsat etilgan chegaradan katta.",
+      "openError": "Faylni ochib bo'lmadi. Qayta urining."
     },
     "passport": {
       "title": "Xizmat pasporti",
@@ -3574,6 +3575,33 @@
       "approve": "Tasdiqlash",
       "saved": "Xulosa saqlandi.",
       "error": "AI natijasini olib bo'lmadi."
+    },
+    "clientDetail": {
+      "title": "Mijoz",
+      "error": "Mijoz ma'lumotini yuklab bo'lmadi.",
+      "notFound": "Bu mijoz bilan ish topilmadi.",
+      "manual": "O'z bazangizdan",
+      "since": "Mijoz: {date} dan",
+      "cases": "{n} ta ish",
+      "orders": "{n} ta buyurtma",
+      "chats": "{n} ta chat",
+      "payments": "{n} ta to'lov",
+      "openChat": "Maxfiy chatni ochish",
+      "empty": "Hozircha yo'q",
+      "deadline": "Muddat",
+      "tabs": {
+        "timeline": "Tarix",
+        "cases": "Ishlar",
+        "orders": "Buyurtmalar",
+        "payments": "To'lovlar",
+        "documents": "Hujjatlar"
+      },
+      "types": {
+        "order": "Buyurtma",
+        "case": "Ish",
+        "secure_chat": "Maxfiy chat",
+        "manual_client": "Mijoz qo'shildi"
+      }
     }
   },
   "notFound": {
@@ -3671,7 +3699,11 @@
       "resending": "Yuborilmoqda…",
       "resent": "Yangi kod yuborildi. Oldingi kod endi amal qilmaydi.",
       "resendError": "Kodni qayta yuborib bo'lmadi. Birozdan so'ng urinib ko'ring.",
-      "change": "Raqamni o'zgartirish"
+      "change": "Raqamni o'zgartirish",
+      "blockedTitle": "Kod kiritish vaqtincha bloklandi",
+      "blockedOver": "Blok muddati tugadi",
+      "blockedOverText": "Yangi kod so'rang — eski kod endi amal qilmaydi.",
+      "newCode": "Yangi kod olish"
     },
     "type": {
       "title": "LexGo'dan qanday foydalanasiz?",
@@ -4946,7 +4978,30 @@
       "accepted": "Qabul qilindi",
       "rejected": "Rad etildi",
       "role": { "yurist": "Yurist", "advokat": "Advokat", "lawyer": "Yurist", "advocate": "Advokat", "client": "Mijoz", "organization": "Tashkilot", "law_firm": "Yuridik firma" },
-      "status": { "pending": "Kutilmoqda", "approved": "Tasdiqlangan", "accepted": "Qabul qilindi", "rejected": "Rad etildi", "new": "Yangi" }
+      "status": { "pending": "Kutilmoqda", "approved": "Tasdiqlangan", "accepted": "Qabul qilindi", "rejected": "Rad etildi", "new": "Yangi" },
+      "detailTitle": "Ariza tafsilotlari",
+      "detailError": "Tafsilotlarni yuklab bo'lmadi.",
+      "detail": {
+        "request": "Ariza",
+        "pending": "Ro'yxatdan o'tishda kiritilgan ma'lumotlar",
+        "user": "Foydalanuvchi",
+        "profile": "Ijrochi profili",
+        "activity": "So'nggi faollik",
+        "noActivity": "Faollik yo'q",
+        "status": "Holat",
+        "role": "Rol",
+        "phone": "Telefon",
+        "created": "Yaratilgan",
+        "fio": "F.I.O.",
+        "region": "Hudud",
+        "attempts": "OTP urinishlari",
+        "blocked": "Bloklangan (gacha)",
+        "expires": "Amal qilish muddati",
+        "account": "Hisob holati",
+        "specializations": "Yo'nalishlar",
+        "experience": "Tajriba (yil)",
+        "verified": "Tasdiqlangan"
+      }
     },
     "e2e": {
       "title": "Uchidan-uchiga tayyorlik",
