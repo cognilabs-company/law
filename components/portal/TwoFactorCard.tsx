@@ -8,7 +8,7 @@ import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfter
 import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { Notice } from "@/components/admin/AdminBits";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
-import { IconShield, IconShieldCheck, IconChevronLeft } from "@/components/icons";
+import { IconShield, IconShieldCheck, IconChevronLeft, IconLock } from "@/components/icons";
 
 // Two-factor management: a code sent by the Telegram bot (method "telegram";
 // "sms" is the legacy name) or an authenticator app (TOTP). Status comes from
@@ -188,7 +188,7 @@ export default function TwoFactorCard() {
   return (
     <div className="ppanel">
       <div className="ppanel__h">
-        <b>{t("title")}</b>
+        <b className="ppanel__t"><span className="pico"><IconLock /></span>{t("title")}</b>
         {on ? <span className="tfa__on"><IconShieldCheck />{t("enabledBadge")}</span> : null}
       </div>
       <p className="advmuted" style={{ marginBottom: 12 }}>{t("desc")}</p>

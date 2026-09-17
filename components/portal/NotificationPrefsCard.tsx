@@ -11,6 +11,7 @@ import {
 } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
 import { Skeleton } from "./DataState";
+import { IconBell } from "@/components/icons";
 
 // Notification channel and topic toggles (GET/PUT /notifications/preferences).
 // PUT merges a partial update, so each toggle sends only its own key and
@@ -36,7 +37,7 @@ export default function NotificationPrefsCard() {
 
   return (
     <div className="ppanel">
-      <div className="ppanel__h"><b>{t("notifPrefs")}</b></div>
+      <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconBell /></span>{t("notifPrefs")}</b></div>
       {prefs.status === "loading" ? (
         <Skeleton rows={2} />
       ) : !pf ? (

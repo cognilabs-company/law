@@ -7,7 +7,7 @@ import { useResource } from "@/lib/useResource";
 import { useAuth } from "@/lib/auth";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Select from "@/components/Select";
-import { IconClock, IconShieldCheck, IconSearch } from "@/components/icons";
+import { IconClock, IconShieldCheck, IconSearch, IconMonitor, IconClipboardCheck } from "@/components/icons";
 
 function fmt(s: string) {
   if (!s) return "";
@@ -60,7 +60,7 @@ export default function AccountAudit({ withSessions = true }: { withSessions?: b
     <>
       {withSessions ? (
         <div className="ppanel">
-          <div className="ppanel__h"><b>{t("sessions")}</b><span className="advmuted">{sessions.status === "ready" ? sessions.data.length : ""}</span></div>
+          <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconMonitor /></span>{t("sessions")}</b><span className="advmuted">{sessions.status === "ready" ? sessions.data.length : ""}</span></div>
           {sessions.status === "loading" ? <Skeleton rows={2} /> : !sessions.data.length ? (
             <p className="advmuted">{t("noSessions")}</p>
           ) : (
@@ -78,7 +78,7 @@ export default function AccountAudit({ withSessions = true }: { withSessions?: b
       ) : null}
 
       <div className="ppanel">
-        <div className="ppanel__h"><b>{t("security")}</b><span className="advmuted">{security.status === "ready" ? security.data.length : ""}</span></div>
+        <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconShieldCheck /></span>{t("security")}</b><span className="advmuted">{security.status === "ready" ? security.data.length : ""}</span></div>
         <p className="ppanel__note">{t("securityLead")}</p>
         {security.status === "loading" ? <Skeleton rows={2} /> : !security.data.length ? (
           <p className="advmuted">{t("noSecurity")}</p>
@@ -95,7 +95,7 @@ export default function AccountAudit({ withSessions = true }: { withSessions?: b
       </div>
 
       <div className="ppanel">
-        <div className="ppanel__h"><b>{t("activity")}</b><span className="advmuted">{activity.status === "ready" ? t("rows", { n: rows.length }) : ""}</span></div>
+        <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconClipboardCheck /></span>{t("activity")}</b><span className="advmuted">{activity.status === "ready" ? t("rows", { n: rows.length }) : ""}</span></div>
         <div className="audit__filters" style={{ gridTemplateColumns: "minmax(140px, 200px) 1fr" }}>
           <Select value={group} onChange={setGroup} options={opts} ariaLabel={t("filter")} />
           <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>

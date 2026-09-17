@@ -139,7 +139,7 @@ export default function IdentityVerify() {
 
   return (
     <div className="ppanel">
-      <div className="ppanel__h"><b>{t("title")}</b></div>
+      <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconShieldCheck /></span>{t("title")}</b></div>
       <p className="ppanel__note">{t("lead")}</p>
 
       {res.status === "loading" && !id ? (

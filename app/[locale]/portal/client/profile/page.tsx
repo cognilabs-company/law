@@ -23,7 +23,7 @@ import { Skeleton } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
-import { IconEdit, IconPlus, IconClose, IconCard, IconCheck } from "@/components/icons";
+import { IconEdit, IconPlus, IconClose, IconCard, IconCheck, IconUser, IconUsers, IconSparkle, IconMonitor } from "@/components/icons";
 import IdentityVerify from "@/components/portal/IdentityVerify";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
@@ -96,7 +96,7 @@ export default function ClientProfile() {
     <>
       <div className="ppanel">
         <div className="ppanel__h">
-          <b>{t("personal")}</b>
+          <b className="ppanel__t"><span className="pico"><IconUser /></span>{t("personal")}</b>
           <button className="btn btn--soft btn--sm" type="button" onClick={() => setEditOpen(true)}>
             <IconEdit />
             {t("edit")}
@@ -126,7 +126,7 @@ export default function ClientProfile() {
       <div className="pgrid2">
         <div className="ppanel">
           <div className="ppanel__h">
-            <b>{t("family")}</b>
+            <b className="ppanel__t"><span className="pico"><IconUsers /></span>{t("family")}</b>
             <button className="btn btn--soft btn--sm" type="button" onClick={() => setFamOpen(true)}>
               <IconPlus />
               {t("addFamily")}
@@ -172,7 +172,7 @@ export default function ClientProfile() {
 
         <div className="ppanel">
           <div className="ppanel__h">
-            <b>{t("cards")}</b>
+            <b className="ppanel__t"><span className="pico"><IconCard /></span>{t("cards")}</b>
             <button className="btn btn--soft btn--sm" type="button" onClick={() => setCardOpen(true)}>
               <IconPlus />
               {t("addCard")}
@@ -208,7 +208,7 @@ export default function ClientProfile() {
 
       <div className="ppanel">
         <div className="ppanel__h">
-          <b>{t("subscription")}</b>
+          <b className="ppanel__t"><span className="pico"><IconSparkle /></span>{t("subscription")}</b>
         </div>
         <p style={{ margin: 0, color: "var(--gray)", fontSize: ".9rem", display: "flex", alignItems: "center", gap: 8 }}>
           <IconCard style={{ width: 16, height: 16 }} />
@@ -221,7 +221,7 @@ export default function ClientProfile() {
       <div className="pgrid2">
         <NotificationPrefsCard />
         <div className="ppanel">
-          <div className="ppanel__h"><b>{t("sessions")}</b></div>
+          <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconMonitor /></span>{t("sessions")}</b></div>
           {sessions.status === "loading" ? (
             <Skeleton rows={2} />
           ) : !sessions.data.length ? (

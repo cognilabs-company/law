@@ -227,7 +227,7 @@ export default function TelegramLinkCard() {
   return (
     <div className="ppanel">
       <div className="ppanel__h">
-        <b>{t("title")}</b>
+        <b className="ppanel__t"><span className="pico"><IconSend /></span>{t("title")}</b>
         {linked ? <span className="tfa__on"><IconCheck />{t("linkedBadge")}</span> : null}
       </div>
       <p className="advmuted" style={{ marginBottom: 12 }}>{t("desc")}</p>

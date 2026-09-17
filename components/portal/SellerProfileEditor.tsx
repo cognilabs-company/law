@@ -32,7 +32,7 @@ import AccountAudit from "@/components/portal/AccountAudit";
 import { readVacation, writeVacation } from "@/components/portal/SellerMetrics";
 import { EmptyState, Skeleton } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconInfo, IconUser, IconShieldCheck, IconBriefcase, IconClock, IconSun, IconCard, IconEdit } from "@/components/icons";
+import { IconInfo, IconUser, IconShieldCheck, IconBriefcase, IconClock, IconSun, IconCard, IconEdit, IconAward, IconScale, IconGavel, IconMapPin, IconPhone, IconMail, IconLanguage, IconCheck } from "@/components/icons";
 
 const ZERO_STATS: AdvocateStats = { totalCases: 0, fullyWonCases: 0, partiallyWonCases: 0, successRate: 0 };
 const LANG_KEYS = ["uz", "ru", "en", "kaa", "tr", "ar"] as const;
@@ -96,6 +96,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
   const te = useTranslations("enums");
   const ts = useTranslations("register.advocate.stats");
   const tv = useTranslations("register.advocate.review");
+  const tcm = useTranslations("portal.common");
   const locale = useLocale() as CatalogLocale;
   const { session, update } = useAuth();
   const uid = session?.id ?? "";
@@ -194,7 +195,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
     return (
       <div className="ppanel">
         <div className="ppanel__h">
-          <b style={{ display: "flex", alignItems: "center", gap: 8 }}>{icon}{title}</b>
+          <b className="ppanel__t">{icon}{title}</b>
           {on ? (
             <button className="btn btn--soft btn--sm" type="button" onClick={cancel}>{t("cancel")}</button>
           ) : (
@@ -213,12 +214,13 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       </div>
     );
   };
-  const kv = (items: [string, ReactNode][]) => (
-    <div className="pkv">
-      {items.map(([k, v]) => <div className="pkv__i" key={k}><label>{k}</label><b>{v || "—"}</b></div>)}
+  const kv = (items: [string, ReactNode, boolean?][]) => (
+    <div className="pkv pkv--cols">
+      {items.map(([k, v, wide]) => <div className={`pkv__i${wide ? " pkv__i--wide" : ""}${v ? "" : " pkv__i--empty"}`} key={k}><label>{k}</label><b>{v || "—"}</b></div>)}
     </div>
   );
-  const ico = (I: typeof IconUser) => <I style={{ width: 18, height: 18 }} />;
+  // Section icon in a soft gradient badge.
+  const ico = (I: typeof IconUser) => <span className="pico"><I /></span>;
 
   const missing = [
     !d.photo && tp("f.photo"), !d.email && tp("f.email"), !d.region && tp("f.region"), !d.languages.length && tp("f.languages"),
@@ -244,26 +246,37 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       </div>
 
       {panel("personal", ico(IconUser), tp("personal"),
-        <div className="pprof">
-          <PhotoUpload value={d.photo} name={d.name} onChange={() => {}} label="" hint="" readOnly />
+        <div className="pident">
+          <div className="pident__card">
+            <PhotoUpload value={d.photo} name={d.name} onChange={() => {}} label="" hint="" readOnly />
+            <div className="pident__m">
+              <b>{[d.lastName, d.firstName, d.middleName].filter(Boolean).join(" ") || d.name || "—"}</b>
+              <span className="pident__role">{isAdvocate ? tcm("roleAdvocate") : tcm("roleLawyer")}{d.gender ? ` · ${tp(`gender.${d.gender}`)}` : ""}</span>
+              <div className="pident__chips">
+                {session?.phone ? <span><IconPhone />{session.phone}</span> : null}
+                {d.email ? <span><IconMail />{d.email}</span> : <span className="miss"><IconMail />{tr("fields.email")}: —</span>}
+                {d.region ? <span><IconMapPin />{[te(`regions.${d.region}`), d.district].filter(Boolean).join(", ")}</span> : <span className="miss"><IconMapPin />{tr("fields.region")}: —</span>}
+                {d.languages.length ? <span><IconLanguage />{d.languages.map(langLabel).join(", ")}</span> : null}
+              </div>
+            </div>
+          </div>
           {kv([
-            [tr("fields.firstName"), d.firstName], [tr("fields.lastName"), d.lastName], [tr("fields.middleName"), d.middleName],
-            [tr("fields.email"), d.email], [tr("fields.phone"), session?.phone], [tr("fields.region"), d.region ? te(`regions.${d.region}`) : ""],
-            [tp("district"), d.district], [tp("genderLabel"), d.gender ? tp(`gender.${d.gender}`) : ""], [tr("fields.languages"), d.languages.map(langLabel).join(", ")],
+            [tr("fields.lastName"), d.lastName], [tr("fields.firstName"), d.firstName], [tr("fields.middleName"), d.middleName],
+            [tr("fields.region"), d.region ? te(`regions.${d.region}`) : ""], [tp("district"), d.district], [tp("genderLabel"), d.gender ? tp(`gender.${d.gender}`) : ""],
           ])}
         </div>,
         <div className="cform" style={{ maxWidth: "none" }}>
           <PhotoUpload value={d.photo} name={d.name} onChange={(u) => set({ photo: u })} label={tr("fields.photo")} hint={tr("fields.photoHint")} />
-          <div className="cform__row2">
-            <div><label>{tr("fields.firstName")}</label><input value={d.firstName ?? ""} onChange={(e) => setName({ firstName: e.target.value })} /></div>
+          <div className="cform__row3">
             <div><label>{tr("fields.lastName")}</label><input value={d.lastName ?? ""} onChange={(e) => setName({ lastName: e.target.value })} /></div>
+            <div><label>{tr("fields.firstName")}</label><input value={d.firstName ?? ""} onChange={(e) => setName({ firstName: e.target.value })} /></div>
             <div><label>{tr("fields.middleName")}</label><input value={d.middleName ?? ""} onChange={(e) => setName({ middleName: e.target.value })} /></div>
           </div>
           <div className="cform__row2">
             <div><label>{tr("fields.email")}</label><input type="email" value={d.email ?? ""} onChange={(e) => set({ email: e.target.value })} placeholder={tr("fields.emailPh")} /></div>
             <div><label>{tr("fields.phone")}</label><input value={session?.phone ?? ""} readOnly className="rf__ro" /></div>
           </div>
-          <div className="cform__row2">
+          <div className="cform__row3">
             <div><label>{tr("fields.region")}</label><Select value={d.region ?? ""} onChange={(v) => set({ region: v })} options={regionOpts} ariaLabel={tr("fields.region")} placeholder={tr("fields.regionPh")} /></div>
             <div><label>{tp("district")}</label><input value={d.district ?? ""} onChange={(e) => set({ district: e.target.value })} placeholder={tp("districtPh")} /></div>
             <div><label>{tp("genderLabel")}</label><Select value={d.gender ?? ""} onChange={(v) => set({ gender: v })} options={genderOpts} ariaLabel={tp("genderLabel")} placeholder={tp("genderPh")} /></div>
@@ -275,7 +288,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         </div>,
       )}
 
-      {panel("professional", ico(IconBriefcase), tp("professional"),
+      {panel("professional", ico(IconAward), tp("professional"),
         kv([
           ...(isAdvocate ? ([
             [tr("advocate.license"), d.licenseNumber],
@@ -285,7 +298,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
             [tr("advocate.advExp"), years(d.advocateYears)],
           ] as [string, ReactNode][]) : []),
           [isAdvocate ? tr("advocate.lawExp") : tr("lawyer.expLabel"), years(d.lawyerYears ?? d.experienceYears)],
-          [tr("fields.education"), d.education], [tr("fields.bio"), d.bio],
+          [tr("fields.education"), d.education, true], [tr("fields.bio"), d.bio, true],
         ]),
         <div className="cform" style={{ maxWidth: "none" }}>
           {isAdvocate ? (
@@ -310,7 +323,6 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
           ) : (
             <div className="cform__row2">
               <div><label>{tr("lawyer.expLabel")}</label><input type="number" min={0} value={d.lawyerYears ?? d.experienceYears ?? ""} onChange={(e) => { const n = parseInt(e.target.value || "0", 10) || 0; set({ lawyerYears: n, experienceYears: n }); }} /></div>
-              <div />
             </div>
           )}
           <div><label>{tr("fields.education")}</label><input value={d.education ?? ""} onChange={(e) => set({ education: e.target.value })} placeholder={tr("fields.educationPh")} /></div>
@@ -318,13 +330,13 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         </div>,
       )}
 
-      {panel("areas", ico(IconBriefcase), t("detailsTitle"),
+      {panel("areas", ico(IconScale), t("detailsTitle"),
         <>
-          <label className="advmuted" style={{ display: "block", marginBottom: 6 }}>{t("directionsTitle")}</label>
+          <label className="pkv__lbl">{t("directionsTitle")}</label>
           {d.practiceAreas.length ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>{d.practiceAreas.map((a) => <span className="chip" key={a}>{legalServiceLabel(a, locale)}</span>)}</div>
           ) : <p className="advmuted" style={{ marginBottom: 16 }}>{t("emptyInfo")}</p>}
-          <label className="advmuted" style={{ display: "block", marginBottom: 6 }}>{t("statsTitle")}</label>
+          <label className="pkv__lbl">{t("statsTitle")}</label>
           {(d.stats?.totalCases ?? 0) < 5 ? <p className="advmuted" style={{ fontSize: ".82rem", marginBottom: 8 }}>{tp("statsCollecting", { n: d.stats?.totalCases ?? 0 })}</p> : null}
           <div className="amet">
             <div className="amet__c"><b>{d.stats?.totalCases ?? 0}</b><span className="amet__l">{ts("totalCases")}</span></div>
@@ -347,14 +359,16 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
           <div className="rf__benefit"><b>{tr("advocate.pricing.recommended")}</b><p>{tp("recommended", { min: fmtUzs(quote.min), max: fmtUzs(quote.max) })}</p></div>
           <div className="cform__row2">
             <div><label>{tp("f.price")}</label><input inputMode="numeric" value={d.hourlyPrice ? String(d.hourlyPrice) : ""} onChange={(e) => set({ hourlyPrice: parseInt(e.target.value.replace(/\D/g, "") || "0", 10) || 0 })} placeholder="500000" /><p className="rf__hint">{tp("priceHint")}</p></div>
-            <div />
           </div>
         </div>,
       )}
 
       {panel("hours", ico(IconClock), tp("hours"),
         <>
-          {kv([[tr("advocate.expertise.hours"), `${d.workDays.map(dayLabel).join(", ")} · ${d.workFrom}–${d.workTo}`], [tp("vacation"), vacation ? tp("vacationOn") : tp("vacationOff")]])}
+          {kv([
+            [tr("advocate.expertise.hours"), <span className="pdays" key="days">{WEEK_DAYS.map((k) => <i key={k} className={d.workDays.includes(k) ? "on" : ""}>{dayLabel(k)}</i>)}<em>{d.workFrom}–{d.workTo}</em></span>],
+            [tp("vacation"), <span key="vac" className={`pstate ${vacation ? "pstate--off" : "pstate--on"}`}>{vacation ? <IconSun /> : <IconCheck />}{vacation ? tp("vacationOn") : tp("vacationOff")}</span>],
+          ])}
           {vacation ? <p className="anote anote--err" style={{ marginTop: 10 }}>{tp("vacationNote")}</p> : null}
         </>,
         <div className="cform" style={{ maxWidth: "none" }}>
@@ -403,7 +417,7 @@ function MyServices({ userId }: { userId: string }) {
   const svc = useResource(load, [userId]);
   return (
     <div className="ppanel">
-      <div className="ppanel__h"><b>{t("servicesTitle")}</b><span className="advmuted">{svc.data.length}</span></div>
+      <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconGavel /></span>{t("servicesTitle")}</b><span className="advmuted">{svc.data.length}</span></div>
       {svc.status === "loading" ? <Skeleton rows={2} /> : !svc.data.length ? (
         <EmptyState icon={<IconBriefcase />} title={t("servicesEmpty")} text={t("servicesEmptyText")} />
       ) : (
