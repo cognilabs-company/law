@@ -5337,7 +5337,11 @@
     "recStopShort": "Stop",
     "recOpen": "Open",
     "recOpened": "The recording opened in a new tab — save it from the browser menu.",
-    "recSaveError": "Could not save."
+    "recSaveError": "Could not save.",
+    "camOn": "Turn camera on",
+    "camOff2": "Turn camera off",
+    "camError": "Could not turn the camera on.",
+    "camDenied": "Allow camera access in the browser (lock icon in the address bar → Camera)."
   },
   "theme": {
     "label": "Theme",

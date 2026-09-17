@@ -5343,7 +5343,11 @@
     "recStopShort": "To'xtatish",
     "recOpen": "Ochish",
     "recOpened": "Yozuv yangi oynada ochildi — brauzer menyusidan saqlang.",
-    "recSaveError": "Saqlab bo'lmadi."
+    "recSaveError": "Saqlab bo'lmadi.",
+    "camOn": "Kamerani yoqish",
+    "camOff2": "Kamerani o'chirish",
+    "camError": "Kamerani yoqib bo'lmadi.",
+    "camDenied": "Brauzerda kameraga ruxsat bering (manzil qatoridagi qulf belgisi → Kamera)."
   },
   "theme": {
     "label": "Mavzu",

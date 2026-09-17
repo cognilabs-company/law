@@ -78,6 +78,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [status, setStatus] = useState<"connecting" | "ringing" | "live" | "ended" | "error">("connecting");
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(callType === "video");
+  const [camBusy, setCamBusy] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [mirror, setMirror] = useState(true); // front camera preview is mirrored
   const facingRef = useRef<"user" | "environment">("user");
@@ -437,21 +438,30 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   }
   async function toggleCam() {
     const r = roomRef.current;
-    if (!r) return;
+    if (!r || camBusy) return;
     void enableSound();
     const on = !camOn;
+    setCamBusy(true);
     try {
-      await r.localParticipant.setCameraEnabled(on);
+      // First enable in an audio call publishes the camera track (front camera, 4:3 on phones).
+      await r.localParticipant.setCameraEnabled(on, on ? { facingMode: facingRef.current, resolution: PORTRAIT_HINT() ? VideoPresets43.h540.resolution : VideoPresets.h720.resolution } : undefined);
       setCamOn(on);
       bump();
       syncSelf({ camera_enabled: on });
-    } catch { /* camera unavailable/denied */ }
+      if (on) {
+        try { const cams = await Room.getLocalDevices("videoinput"); setCanSwitchCam(cams.length > 1); } catch { /* ignore */ }
+      }
+    } catch (e) {
+      toast(`${t("camError")} ${e instanceof Error && e.name === "NotAllowedError" ? t("camDenied") : ""}`.trim(), "leave");
+      setCamOn(false);
+    } finally {
+      setCamBusy(false);
+    }
   }
   // Phones: front ↔ back. The track is restarted with facingMode so the
   // browser picks the default lens of that side (cycling every "videoinput"
   // walks through tele/ultra-wide lenses — that was the "zoomed" camera and
   // the 4–5 taps to get back to the front). Falls back to a device switch.
-  const [camBusy, setCamBusy] = useState(false);
   async function switchCam() {
     const r = roomRef.current;
     if (!r || camBusy) return;
@@ -778,8 +788,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
 
       <footer className="mtg__bar">
         <Ctl on={micOn} off={!micOn} label={t("mic")} onClick={toggleMic} disabled={hostMuted && !micOn} title={hostMuted && !micOn ? t("mutedByHost") : undefined}>{micOn ? <IconMic /> : <IconMicOff />}</Ctl>
-        {callType === "video" ? <Ctl on={camOn} off={!camOn} label={t("cam")} onClick={toggleCam}><IconVideo /></Ctl> : null}
-        {callType === "video" && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
+        {/* Camera is always offered — an audio call becomes a video call once it is turned on. */}
+        <Ctl on={camOn} off={!camOn} label={camOn ? t("camOff2") : t("camOn")} onClick={toggleCam} disabled={camBusy}><IconVideo /></Ctl>
+        {camOn && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
         {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing} desktop><IconMonitor /></Ctl> : null}
         {canRecord() ? <Ctl on={recOn} label={recOn ? t("recStopShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} desktop><IconMic /></Ctl> : null}
         <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")} desktop><IconUsers /></Ctl>
