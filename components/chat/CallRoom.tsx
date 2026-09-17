@@ -7,7 +7,9 @@ import {
   RoomEvent,
   Track,
   VideoPresets,
+  VideoPresets43,
   type LocalParticipant,
+  type LocalVideoTrack,
   type Participant,
   type RemoteParticipant,
   type RemoteTrack,
@@ -75,6 +77,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [camOn, setCamOn] = useState(callType === "video");
   const [sharing, setSharing] = useState(false);
   const [mirror, setMirror] = useState(true); // front camera preview is mirrored
+  const facingRef = useRef<"user" | "environment">("user");
   const [tick, setTick] = useState(0); // bump to re-read LiveKit participant state
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -132,7 +135,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         simulcast: true,
         videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
       },
-      videoCaptureDefaults: { facingMode: "user", resolution: phone ? VideoPresets.h360.resolution : VideoPresets.h540.resolution },
+      // Phones: 4:3 capture (a 16:9 crop of a 4:3 sensor looks zoomed, especially on the back camera).
+      videoCaptureDefaults: { facingMode: "user", resolution: phone ? VideoPresets43.h360.resolution : VideoPresets.h540.resolution },
     });
     roomRef.current = room;
     // Publish the Room to render after this effect settles (not synchronously).
@@ -166,7 +170,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
 
     room
       .on(RoomEvent.TrackSubscribed, (track) => { if (track.kind === Track.Kind.Audio) attachAudio(track); if (alive) { bump(); setStatus("live"); } })
-      .on(RoomEvent.TrackUnsubscribed, (track) => { track.detach().forEach((e) => e.remove()); if (alive) bump(); })
+      .on(RoomEvent.TrackUnsubscribed, (track) => { // Video elements belong to React tiles — only the hidden audio elements are removed.
+        track.detach().forEach((e) => { if (e.tagName === "AUDIO") e.remove(); }); if (alive) bump(); })
       .on(RoomEvent.ParticipantConnected, onJoin)
       .on(RoomEvent.ParticipantDisconnected, onLeave)
       .on(RoomEvent.ActiveSpeakersChanged, () => { if (alive) bump(); })
@@ -406,20 +411,41 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       syncSelf({ camera_enabled: on });
     } catch { /* camera unavailable/denied */ }
   }
-  // Phones: swap front/back camera without republishing (device switch).
+  // Phones: front ↔ back. The track is restarted with facingMode so the
+  // browser picks the default lens of that side (cycling every "videoinput"
+  // walks through tele/ultra-wide lenses — that was the "zoomed" camera and
+  // the 4–5 taps to get back to the front). Falls back to a device switch.
+  const [camBusy, setCamBusy] = useState(false);
   async function switchCam() {
     const r = roomRef.current;
-    if (!r) return;
+    if (!r || camBusy) return;
+    setCamBusy(true);
+    const next: "user" | "environment" = facingRef.current === "user" ? "environment" : "user";
+    const isBack = (label: string) => /back|rear|environment|orqa|задн/i.test(label);
     try {
-      const cams = await Room.getLocalDevices("videoinput");
-      if (cams.length < 2) return;
-      const cur = r.getActiveDevice("videoinput");
-      const i = Math.max(0, cams.findIndex((c) => c.deviceId === cur));
-      const next = cams[(i + 1) % cams.length];
-      await r.switchActiveDevice("videoinput", next.deviceId, true);
-      setMirror(!/back|rear|environment|orqa/i.test(next.label));
+      const pub = r.localParticipant.getTrackPublication(Track.Source.Camera);
+      const track = pub?.track as LocalVideoTrack | undefined;
+      const res = PORTRAIT_HINT() ? VideoPresets43.h360.resolution : VideoPresets.h540.resolution;
+      let done = false;
+      if (track) {
+        try {
+          await track.restartTrack({ facingMode: next, resolution: res });
+          done = true;
+        } catch { /* exact facing not available → device fallback */ }
+      }
+      if (!done) {
+        const cams = await Room.getLocalDevices("videoinput");
+        const wanted = cams.filter((c) => (next === "environment") === isBack(c.label));
+        const target = wanted[0] ?? cams.find((c) => c.deviceId !== r.getActiveDevice("videoinput"));
+        if (!target) return;
+        await r.switchActiveDevice("videoinput", target.deviceId, true);
+      }
+      facingRef.current = next;
+      setMirror(next === "user");
       bump();
-    } catch { /* ignore */ }
+    } catch { /* ignore */ } finally {
+      setCamBusy(false);
+    }
   }
   async function toggleShare() {
     const r = roomRef.current;
@@ -636,7 +662,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       <footer className="mtg__bar">
         <Ctl on={micOn} off={!micOn} label={t("mic")} onClick={toggleMic} disabled={hostMuted && !micOn} title={hostMuted && !micOn ? t("mutedByHost") : undefined}>{micOn ? <IconMic /> : <IconMicOff />}</Ctl>
         {callType === "video" ? <Ctl on={camOn} off={!camOn} label={t("cam")} onClick={toggleCam}><IconVideo /></Ctl> : null}
-        {callType === "video" && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam}><IconRefresh /></Ctl> : null}
+        {callType === "video" && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
         {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing}><IconMonitor /></Ctl> : null}
         <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")}><IconUsers /></Ctl>
         <Ctl on={panel === "chat"} label={t("chatTab")} onClick={() => openPanel(panel === "chat" ? "" : "chat")} badge={unread}><IconChat /></Ctl>
@@ -659,7 +685,7 @@ function Ctl({ children, label, onClick, on, off, end, accent, disabled, title, 
 // camera is off; name chip with mic state; green ring while speaking. The
 // tile learns the stream's orientation from the video element so a phone's
 // portrait camera isn't squeezed into a landscape box.
-function Tile({ p, tick, name, you, camOff, share, mirror, big, small, pip, onClick }: { p: Participant; tick: number; name: string; you: string; camOff: string; share?: boolean; mirror?: boolean; big?: boolean; small?: boolean; pip?: boolean; onClick?: () => void }) {
+function Tile({ p, name, you, camOff, share, mirror, big, small, pip, onClick }: { p: Participant; tick: number; name: string; you: string; camOff: string; share?: boolean; mirror?: boolean; big?: boolean; small?: boolean; pip?: boolean; onClick?: () => void }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [portrait, setPortrait] = useState(false);
   const source = share ? Track.Source.ScreenShare : Track.Source.Camera;
@@ -678,7 +704,7 @@ function Tile({ p, tick, name, you, camOff, share, mirror, big, small, pip, onCl
       el.removeEventListener("resize", onMeta);
       track.detach(el);
     };
-  }, [track, tick]);
+  }, [track]);
   const cls = ["mtg__tile", p.isSpeaking ? "speaking" : "", big ? "mtg__tile--big" : "", small ? "mtg__tile--small" : "", pip ? "mtg__tile--pip" : "", share ? "mtg__tile--share" : "", portrait ? "portrait" : "", hasVideo ? "" : "novideo"].filter(Boolean).join(" ");
   return (
     <div className={cls} onClick={onClick} role={onClick ? "button" : undefined}>

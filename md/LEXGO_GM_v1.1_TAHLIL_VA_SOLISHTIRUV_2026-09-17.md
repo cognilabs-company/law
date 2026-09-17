@@ -328,3 +328,14 @@ Kutib turilganlar (backend yo'q / hujjatda aniq emas): T1B-07 mijoz tomonida yur
 | CallRoom | Ishtirokchilar ro'yxati eventlarda yangilanadi; `call.ended` → xona yopiladi; 3 s polling → 15 s fallback (uchrashuv mehmoni room socketsiz) |
 
 Jonli tekshiruv: `/ws/users/me` ochildi va ochiq qoldi; 15 s davomida `/calls` so'rovlari — 0 (oldin har 6 s ≥ 13 so'rov).
+
+## 13. 17.09 — Telegram bog'lash xatosi va Uchrashuvlar tuzatishlari
+
+| Muammo | Sabab | Tuzatish |
+|---|---|---|
+| Mijoz → Telegram bog'lash: backend `{share_url, expires_at, status}` qaytaradi, frontend xato | Parser `share_url` maydonini o'qimasdi (faqat `deep_link/url/link/…`) | `startTelegramLink` endi `share_url` ni ham qabul qiladi |
+| Ekran ulashishda qora bo'lib qotib, keyin qaytadi | Har `tick` (gapiryapti/ro'yxat/chat) da video element trekka qayta ulanardi (detach/attach); unsubscribe'da React'ga tegishli `<video>` DOM'dan olib tashlanardi | Tile faqat trek o'zgarganda ulanadi; unsubscribe'da faqat yashirin audio elementlar olib tashlanadi |
+| Kamera almashtirishda «yaqinlashib qoladi», old kameraga 4–5 marta bosganda qaytadi | Barcha `videoinput` qurilmalar (tele/ultra-keng linzalar ham) ketma-ket aylantirilardi; telefonda 16:9 kesim 4:3 sensorni «zoom» qilib ko'rsatardi | `restartTrack({facingMode: user/environment})` — brauzer shu tomonning standart linzasini tanlaydi; fallback: label bo'yicha old/orqa qurilma; telefonda 4:3 (480×360) capture; almashtirish paytida tugma bloklanadi; ko'zgu faqat old kamerada |
+| Dizayn sayt uslubiga mos emas | Referens rasmdagi to'q-kulrang/to'q sariq palitra | Sayt palitrasi: navy `--b900/850/800`, brend ko'k `--b600`/`--grad`, `--ok` yashil, tugash — qizil; radiuslar `--rl`, shriftlar `--fb/--fd` |
+
+Jonli tekshirish: ikki akkaunt (host + mehmon) kerak — fake-media Chrome bilan `meet-test.mjs` (HOST_PHONE/HOST_PASS, GUEST_PHONE/GUEST_PASS env) qayta o'tkaziladi.

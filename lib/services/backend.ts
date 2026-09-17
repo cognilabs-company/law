@@ -3195,7 +3195,7 @@ export async function startTelegramLink(): Promise<TelegramLinkStart> {
     strs(
       typeof raw === "string" ? raw : "",
       typeof top.data === "string" ? top.data : "",
-      d.deep_link, d.deeplink, d.url, d.link, d.link_url, d.telegram_url, d.telegram_link, d.telegram_bot_link, d.bot_link,
+      d.share_url, d.deep_link, d.deeplink, d.url, d.link, d.link_url, d.telegram_url, d.telegram_link, d.telegram_bot_link, d.bot_link,
     ).find((s) => /^(https:|tg:)\/\//i.test(s)) ?? "";
   if (!url && /^\w+$/.test(bot) && token) url = `https://t.me/${bot}?start=${encodeURIComponent(token)}`;
   return {
