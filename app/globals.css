@@ -4019,3 +4019,11 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .presel__av{width:40px;height:40px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--grad);color:#fff;font-weight:800;font-size:.9rem}
 .presel>div{display:grid;gap:2px;flex:1;min-width:0}
 .presel b{font-size:.95rem}.presel span{font-size:.82rem;color:var(--gray);line-height:1.4}
+
+/* ── wp-aq ── */
+/* card / profile: working-hours notice shown on "Choose" */
+.advcard__note{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border-radius:10px;font-size:.78rem;line-height:1.45;background:var(--dk-tint-warn, #fff7ed);color:var(--dk-txt-warn, #9a3412);border:1px solid var(--dk-bd-warn, #fed7aa)}
+.advcard__note svg{width:14px;height:14px;flex:none;margin-top:2px}
+.advcard__note span{flex:1 1 180px}
+.advcard__note .btn{margin-left:auto}
+.lprof__note{margin:10px 0 0;padding:10px 12px;border-radius:10px;font-size:.82rem;line-height:1.45;background:var(--dk-tint-warn, #fff7ed);color:var(--dk-txt-warn, #9a3412);border:1px solid var(--dk-bd-warn, #fed7aa)}

@@ -9,6 +9,8 @@ import {
   type BackendLawyer,
 } from "@/lib/services/backend";
 import { ApiError, errDetail, isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { evalBusinessHours, responseDeadline, deadlineLabel } from "@/lib/businessHours";
+import { DEFAULT_BUSINESS_HOURS, getBusinessHours, type BusinessHours } from "@/lib/services/backend";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { CheckoutIntent } from "./OrderMilestones";
 import { useRouter } from "@/i18n/navigation";
@@ -41,6 +43,27 @@ export default function LawyerProfileModal({
   const [status, setStatus] = useState<"loading" | "error" | "done">("loading");
   const [busy, setBusy] = useState(false);
   const [chooseErr, setChooseErr] = useState<string | null>(null);
+  const [hours, setHours] = useState<BusinessHours>(DEFAULT_BUSINESS_HOURS);
+  useEffect(() => {
+    if (!session) return;
+    let alive = true;
+    getBusinessHours().then((h) => { if (alive) setHours(h); }).catch(() => {});
+    return () => { alive = false; };
+  }, [session]);
+  const [hoursNote, setHoursNote] = useState<string | null>(null);
+  const orderHref = () => `/portal/client/services?lawyer=${encodeURIComponent(data?.userId ?? "")}&name=${encodeURIComponent(data?.name ?? "")}`;
+  function chooseOrder() {
+    if (!data?.userId) return;
+    if (!session) { router.push("/login"); return; }
+    const now = Date.now();
+    if (!evalBusinessHours(hours, now).workingTime && !hoursNote) {
+      const when = deadlineLabel(responseDeadline(hours, now, 30), now, { today: t("today"), tomorrow: t("tomorrow") });
+      setHoursNote(t("afterHours", { when }));
+      return;
+    }
+    onClose();
+    router.push(orderHref());
+  }
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
 
   // Back to loading whenever a profile is (re)opened (during render, not in the effect).
@@ -239,13 +262,14 @@ export default function LawyerProfileModal({
               <b>{som(data.basePrice)}</b>
               <span>{t("priceNote")}</span>
             </div>
-            <button className="btn btn--pri" type="button" onClick={() => { if (!data?.userId) return; if (!session) { router.push("/login"); return; } onClose(); router.push(`/portal/client/services?lawyer=${encodeURIComponent(data.userId)}&name=${encodeURIComponent(data.name)}`); }}>
-              {t("choose")}
+            <button className="btn btn--pri" type="button" onClick={chooseOrder}>
+              {hoursNote ? t("continue") : t("choose")}
             </button>
             <button className="btn btn--line" type="button" onClick={choose} disabled={busy} title={t("privateChatHint")}>
               {busy ? t("opening") : t("privateChat")}
             </button>
           </div>
+          {hoursNote ? <p className="lprof__note" role="status">{hoursNote}</p> : null}
           {chooseErr ? <p className="lprof__err">{chooseErr}</p> : null}
           {intent ? <div style={{ marginTop: 14 }}><CheckoutIntent intent={intent} onCancel={() => setIntent(null)} /></div> : null}
         </div>

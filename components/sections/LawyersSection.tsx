@@ -11,6 +11,8 @@ import {
 } from "@/lib/lawyers";
 import { listLawyers, demoPrivateChat, getLawyerPrivateChat, type BackendLawyer } from "@/lib/services/backend";
 import { ApiError, errDetail, isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { evalBusinessHours, responseDeadline, deadlineLabel } from "@/lib/businessHours";
+import { DEFAULT_BUSINESS_HOURS, getBusinessHours, type BusinessHours } from "@/lib/services/backend";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { CheckoutIntent } from "../portal/OrderMilestones";
 import Modal from "../admin/Modal";
@@ -79,6 +81,15 @@ export default function LawyersSection({
   const [chatBusy, setChatBusy] = useState<string | null>(null);
   const [chatErr, setChatErr] = useState<string | null>(null);
   const [chatErrFor, setChatErrFor] = useState<string | null>(null); // the card the error belongs to
+  // T0-20 §4: working hours (server schedule + holidays when signed in).
+  const [hours, setHours] = useState<BusinessHours>(DEFAULT_BUSINESS_HOURS);
+  useEffect(() => {
+    if (!session) return;
+    let alive = true;
+    getBusinessHours().then((h) => { if (alive) setHours(h); }).catch(() => {});
+    return () => { alive = false; };
+  }, [session]);
+  const [hoursNote, setHoursNote] = useState<{ id: string; text: string } | null>(null);
   const tpay = useTranslations("portal.payment");
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
 
@@ -95,13 +106,21 @@ export default function LawyersSection({
   // "Choose" → order a service with this advocate preselected (T1-10 flow:
   // service → advocate → order → payment; the T0-20 working-hours notice shows
   // in the order modal). Guests sign in first.
+  const orderHref = (l: Lawyer) => `/portal/client/services?lawyer=${encodeURIComponent(l.userId ?? "")}&name=${encodeURIComponent(l.name)}`;
   function choose(l: Lawyer) {
     if (!session) {
       router.push("/login");
       return;
     }
     if (!l.userId) return;
-    router.push(`/portal/client/services?lawyer=${encodeURIComponent(l.userId)}&name=${encodeURIComponent(l.name)}`);
+    const now = Date.now();
+    if (!evalBusinessHours(hours, now).workingTime && hoursNote?.id !== l.userId) {
+      // Outside working hours: say so on the card first; Continue goes on.
+      const when = deadlineLabel(responseDeadline(hours, now, 30), now, { today: t("card.today"), tomorrow: t("card.tomorrow") });
+      setHoursNote({ id: l.userId, text: t("card.afterHours", { when }) });
+      return;
+    }
+    router.push(orderHref(l));
   }
   // Paid private chat with this seller (kept for the profile modal / deep links).
   async function openPrivateChat(l: Lawyer) {
@@ -271,6 +290,13 @@ export default function LawyersSection({
               </button>
             </span>
           </div>
+          {hoursNote && hoursNote.id === l.userId ? (
+            <div className="advcard__note" role="status">
+              <IconInfo />
+              <span>{hoursNote.text}</span>
+              <button type="button" className="btn btn--pri btn--sm" onClick={() => router.push(orderHref(l))}>{t("card.continue")}</button>
+            </div>
+          ) : null}
           {chatErr && chatErrFor === l.userId ? (
             <div className="advcard__err" role="alert">
               <IconInfo />

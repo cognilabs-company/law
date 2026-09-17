@@ -696,7 +696,11 @@
       "orderInstead": "Order a service →",
       "chooseError": "Could not choose this advocate. Try again.",
       "privateChat": "Private chat",
-      "privateChatHint": "Paid private chat with the advocate (no order)"
+      "privateChatHint": "Paid private chat with the advocate (no order)",
+      "afterHours": "It is outside working hours now (Mon–Sat 09:00–19:00). The advocate replies by {when} — the 30-minute timer starts at 09:00. You can still place the order now.",
+      "continue": "Continue",
+      "today": "today",
+      "tomorrow": "tomorrow"
     },
     "empty": "There are no lawyers in this area yet. Leave a request — we will find a suitable lawyer for you.",
     "priceInfo": "The price is formed by open criteria: region (higher in big cities), experience (3–5 yrs +10%, 6–10 yrs +15%, 10+ yrs +20%), rating and super-lawyer status (regional TOP-3 — up to 30%, 10+ yrs in a narrow area — up to 20%). If the price is higher, the reason is shown in the order window.",
@@ -2552,7 +2556,11 @@
         "notFound": "Profile not found",
         "unverified": "Unverified",
         "privateChat": "Private chat",
-        "privateChatHint": "Paid private chat (no order)"
+        "privateChatHint": "Paid private chat (no order)",
+        "afterHours": "It is outside working hours now (Mon–Sat 09:00–19:00). The advocate replies by {when} — the timer starts at 09:00. You can still place the order now.",
+        "continue": "Continue",
+        "today": "today",
+        "tomorrow": "tomorrow"
       },
       "complaints": {
         "title": "Complaints",
