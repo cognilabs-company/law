@@ -46,6 +46,25 @@ export default function LoginForm() {
     setErrN((n) => n + 1);
   };
   const [busy, setBusy] = useState(false);
+  // Sign-in lock: the server answered 429 (OTP resend cooldown `retry_after`,
+  // or the per-IP attempt limit via Retry-After) — count down from that value
+  // and keep the button disabled, so the form stops hitting the server. A run
+  // of wrong passwords also earns a short local pause (5 → 60 s).
+  const [lockUntil, setLockUntil] = useState(0);
+  const [lockLeft, setLockLeft] = useState(0);
+  const [wrongRun, setWrongRun] = useState(0);
+  useEffect(() => {
+    if (!lockUntil) return;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((lockUntil - Date.now()) / 1000));
+      setLockLeft(left);
+      if (left <= 0) { setLockUntil(0); setErr(null); }
+    };
+    tick();
+    const iv = setInterval(tick, 500);
+    return () => clearInterval(iv);
+  }, [lockUntil]);
+  const lock = (sec: number) => { if (sec > 0) setLockUntil(Date.now() + sec * 1000); };
   // Set once the form has switched views (2FA and back): later views replay the
   // entrance quickly instead of the full first-visit sequence.
   const [swapped, setSwapped] = useState(false);
@@ -93,7 +112,7 @@ export default function LoginForm() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || lockUntil) return;
     const p = phone.trim();
     if (!p || !password) {
       fail(t("required"));
@@ -126,6 +145,7 @@ export default function LoginForm() {
     setBusy(true);
     try {
       const s = await login(p, password);
+      setWrongRun(0);
       if ("twoFactor" in s) {
         applyChallenge(s.twoFactor);
         setBusy(false);
@@ -133,17 +153,24 @@ export default function LoginForm() {
       }
       router.replace(homeFor(s));
     } catch (e) {
-      fail(
-        isRateLimited(e)
-          ? errDetail(e) || tc("rateLimited")
-          : channelDown(e)
-            ? tc("otpChannelUnavailable")
-            : unreachable(e)
-              ? tc("offline")
-              : serverFailed(e)
-                ? tv("serverError")
-                : t("failed"),
-      );
+      if (isRateLimited(e)) {
+        // "Qayta yuborish uchun kuting" + retry_after, or the attempt limit.
+        lock(retryAfterSec(e, 60));
+        fail(errDetail(e) || tc("rateLimited"));
+      } else if (channelDown(e)) {
+        fail(tc("otpChannelUnavailable"));
+      } else if (unreachable(e)) {
+        fail(tc("offline"));
+      } else if (serverFailed(e)) {
+        fail(tv("serverError"));
+      } else {
+        // Wrong phone / password: from the 3rd miss in a row pause locally
+        // (5, 10, 20, 40, 60 s) instead of letting the server's limit trip.
+        const run = e instanceof ApiError && (e.status === 401 || e.status === 400 || e.status === 404) ? wrongRun + 1 : wrongRun;
+        setWrongRun(run);
+        if (run >= 3) lock(Math.min(60, 5 * 2 ** (run - 3)));
+        fail(t("failed"));
+      }
       setBusy(false);
     }
   }
@@ -362,10 +389,11 @@ export default function LoginForm() {
           {err ? (
             <p key={errN} className="plogin__err" role="alert">
               {err}
+              {lockLeft > 0 ? <b className="plogin__wait">{t("waitLeft", { s: lockLeft })}</b> : null}
             </p>
           ) : null}
-          <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
-            {busy ? t("busy") : t("submit")}
+          <button className="btn btn--pri btn--full" type="submit" disabled={busy || lockLeft > 0}>
+            {busy ? t("busy") : lockLeft > 0 ? t("retryIn", { s: lockLeft }) : t("submit")}
           </button>
         </div>
         <p className="plogin__alt">

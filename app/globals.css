@@ -3711,3 +3711,97 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .mtg__recpick-btns .btn svg{width:15px;height:15px}
 .mtg__recdone{flex-wrap:wrap}
 @media (max-width:760px){.mtg__recpick{bottom:12px}}
+
+/* ── wp-ab ── */
+/* tasks board: 4 stages, edit/delete tools, overdue + blocked markers */
+.pipe--tasks .pipe__col{flex:0 0 250px;max-height:none}
+.pipe__col--proposal .pipe__dot{background:#f59e0b}
+.task__desc{margin:0;font-size:.8rem;color:var(--gray);line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+.task__meta{display:flex;flex-wrap:wrap;gap:4px 10px}
+.task__meta .pipe__meta{display:inline-flex;align-items:center;gap:4px}
+.task__meta svg{width:13px;height:13px}
+.task__due--over{color:var(--dk-txt-err, #dc2626);font-weight:700}
+.task__blocked{color:var(--dk-txt-warn, #b45309);font-weight:700}
+.task--overdue{border-color:var(--dk-bd-err, #fecaca)}
+.task--blocked{background:var(--dk-tint-warn, #fffbeb)}
+.task__tools{flex:1;display:flex;justify-content:center;gap:6px}
+.task__tools .aitem__act{width:28px;height:28px;border-radius:8px}
+.task__tools .aitem__act.on{border-color:var(--dk-bd-warn, #fcd34d);color:var(--dk-txt-warn, #b45309);background:var(--dk-tint-warn, #fffbeb)}
+.plogin__wait{display:block;margin-top:4px;font-size:.8rem;color:var(--ink);font-variant-numeric:tabular-nums}
+@media (max-width:760px){
+  .pipe--tasks{scroll-snap-type:x mandatory;gap:10px}
+  .pipe--tasks .pipe__col{flex:0 0 min(84vw,300px);scroll-snap-align:start}
+}
+
+/* time picker */
+.tpick__pop{padding:12px}
+.tpick__cols{display:grid;grid-template-columns:1fr auto;gap:12px}
+.tpick__col{display:grid;gap:6px;align-content:start}
+.tpick__lbl{font-size:.68rem;font-weight:800;letter-spacing:.08em;color:var(--gray2)}
+.tpick__grid{display:grid;gap:4px}
+.tpick__grid--h{grid-template-columns:repeat(6,1fr)}
+.tpick__grid--m{grid-template-columns:repeat(2,1fr)}
+.tpick__c{border:0;background:transparent;border-radius:9px;padding:8px 0;min-width:36px;font-weight:600;font-size:.84rem;color:var(--gray);cursor:pointer;transition:.14s;font-variant-numeric:tabular-nums}
+.tpick__c:hover{background:var(--b50);color:var(--dk-acc, var(--b600))}
+.tpick__c.on{background:var(--grad);color:#fff;box-shadow:var(--sblue)}
+.cal__dt .tpick{flex:0 0 132px}
+@media (max-width:480px){.cal__dt{flex-wrap:wrap}.cal__dt .tpick{flex:1 1 100%}.tpick__grid--h{grid-template-columns:repeat(4,1fr)}}
+
+/* calendar: month grid + day agenda */
+.segs--sm{padding:4px;border-radius:14px}
+.segs--sm .seg{padding:8px 14px;border-radius:10px;font-size:.84rem}
+.calwrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+.calgrid{border:1px solid var(--line);border-radius:var(--rl);background:var(--dk-surface, #fff);overflow:hidden}
+.calgrid__nav{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.calgrid__nav b{flex:1;text-align:center;font-family:var(--fd);font-size:1.05rem;letter-spacing:-.02em}
+.calgrid__nav>button{width:34px;height:34px;border-radius:10px;border:0;background:var(--b50);color:var(--dk-acc, var(--b600));cursor:pointer;display:grid;place-items:center;transition:.14s}
+.calgrid__nav>button:hover{background:var(--b100)}
+.calgrid__nav>button svg{width:16px;height:16px}
+.calgrid__nav .calgrid__today{width:auto;padding:0 12px;font-weight:700;font-size:.8rem}
+.calgrid__wd{display:grid;grid-template-columns:repeat(7,1fr);padding:8px 8px 0;font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--gray2);text-align:center}
+.calgrid__wd .we{color:var(--dk-txt-err, #c0392b);opacity:.75}
+.calgrid__cells{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:8px}
+.calgrid__d{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:4px;min-height:86px;padding:6px;border:1px solid transparent;border-radius:12px;background:var(--dk-surface-2, #f7fafe);text-align:left;cursor:pointer;transition:.14s;font:inherit;color:var(--ink)}
+.calgrid__d:hover{border-color:var(--b300);background:var(--dk-surface, #fff)}
+.calgrid__d.other{opacity:.45}
+.calgrid__d.we .calgrid__n{color:var(--dk-txt-err, #c0392b)}
+.calgrid__d.sel{border-color:var(--b600);background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1px var(--b600)}
+.calgrid__n{width:26px;height:26px;display:grid;place-items:center;border-radius:8px;font-weight:700;font-size:.84rem}
+.calgrid__d.today .calgrid__n{background:var(--grad);color:#fff;box-shadow:var(--sblue)}
+.calgrid__evs{display:flex;flex-direction:column;gap:3px;min-width:0}
+.calgrid__ev{display:block;font-style:normal;font-size:.7rem;font-weight:600;line-height:1.25;padding:3px 6px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
+.calgrid__ev em{font-style:normal;font-weight:800;margin-right:4px;opacity:.8}
+.calgrid__ev--hearing{background:var(--dk-tint-warn, #FCEFD6);color:var(--dk-txt-warn, #8A5A00)}
+.calgrid__ev--investigative{background:var(--dk-tint-blue, #E3EEFF);color:var(--dk-acc, var(--b700))}
+.calgrid__ev--meeting{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
+.calgrid__ev--filing_deadline,.calgrid__ev--appeal_deadline,.calgrid__ev--deadline{background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #C0392B)}
+.calgrid__more{display:block;font-style:normal;font-size:.68rem;font-weight:800;color:var(--gray)}
+.calgrid__dots{display:none;gap:3px;justify-content:center}
+.calgrid__dots b,.calup b[class^="calgrid__dot--"]{width:7px;height:7px;border-radius:50%;background:var(--b500);flex:none;display:inline-block}
+.calgrid__dot--hearing{background:#d97706!important}
+.calgrid__dot--meeting{background:var(--ok)!important}
+.calgrid__dot--investigative{background:var(--b500)!important}
+.calgrid__dot--filing_deadline,.calgrid__dot--appeal_deadline,.calgrid__dot--deadline{background:#e5484d!important}
+.calside{border:1px solid var(--line);border-radius:var(--rl);background:var(--dk-surface, #fff);padding:14px;display:grid;gap:10px;align-content:start;position:sticky;top:84px}
+.calside__h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.calside__h b{font-family:var(--fd);font-size:1rem;letter-spacing:-.01em}
+.calside__h--up{margin-top:8px;padding-top:12px;border-top:1px solid var(--line)}
+.calside__empty{margin:0;font-size:.82rem;color:var(--gray);line-height:1.45}
+.calside .calev{padding:10px 12px;gap:10px;flex-wrap:wrap}
+.calside .calev__type{font-size:.66rem;padding:4px 9px}
+.calev__type--investigative{color:var(--dk-acc, var(--b700));background:var(--dk-tint-blue, #E3EEFF)}
+.calev__type--filing_deadline,.calev__type--appeal_deadline{color:var(--dk-txt-err, #C0392B);background:var(--dk-tint-err, #FDECEC)}
+.calup{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.calup button{width:100%;display:flex;align-items:center;gap:10px;padding:8px 10px;border:0;border-radius:10px;background:transparent;text-align:left;cursor:pointer;font:inherit;color:var(--ink);transition:.14s}
+.calup button:hover{background:var(--b50)}
+.calup__m{display:grid;min-width:0}
+.calup__m b{font-size:.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calup__m small{font-size:.74rem;color:var(--gray)}
+@media (max-width:980px){.calwrap{grid-template-columns:1fr}.calside{position:static}}
+@media (max-width:640px){
+  .calgrid__cells{gap:3px;padding:6px}
+  .calgrid__d{min-height:52px;padding:4px;align-items:center;gap:3px}
+  .calgrid__n{width:24px;height:24px;font-size:.8rem}
+  .calgrid__evs{display:none}
+  .calgrid__dots{display:flex}
+}

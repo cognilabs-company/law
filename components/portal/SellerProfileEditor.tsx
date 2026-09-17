@@ -24,6 +24,7 @@ import PhotoUpload from "@/components/register/PhotoUpload";
 import ChipMulti from "@/components/register/ChipMulti";
 import WorkHistoryEditor from "@/components/register/WorkHistoryEditor";
 import Select, { type Option } from "@/components/Select";
+import TimePicker from "@/components/TimePicker";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
@@ -362,8 +363,8 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
             <ChipMulti options={WEEK_DAYS.map((k) => ({ value: k, label: dayLabel(k) }))} value={d.workDays} onChange={(v) => set({ workDays: v })} />
           </div>
           <div className="cform__row2">
-            <div><label>{tr("advocate.expertise.from")}</label><input type="time" value={d.workFrom} onChange={(e) => set({ workFrom: e.target.value })} /></div>
-            <div><label>{tr("advocate.expertise.to")}</label><input type="time" value={d.workTo} onChange={(e) => set({ workTo: e.target.value })} /></div>
+            <div><label>{tr("advocate.expertise.from")}</label><TimePicker value={d.workFrom} onChange={(v) => set({ workFrom: v })} placeholder="09:00" ariaLabel={tr("advocate.expertise.from")} step={15} /></div>
+            <div><label>{tr("advocate.expertise.to")}</label><TimePicker value={d.workTo} onChange={(v) => set({ workTo: v })} placeholder="18:00" ariaLabel={tr("advocate.expertise.to")} step={15} /></div>
           </div>
           <label className={`vac${vacation ? " on" : ""}`} style={{ justifySelf: "start" }}>
             <input type="checkbox" checked={vacation} onChange={(e) => setVacation(e.target.checked)} />

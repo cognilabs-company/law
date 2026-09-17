@@ -14,6 +14,7 @@ import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import {
   emptyDraft,
+  emptyProfile,
   type AccountType,
   type AdvocateStats,
   type ProfessionalProfile,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/types";
 import { REGION_KEYS } from "@/lib/mock/catalog";
 import Select, { type Option } from "@/components/Select";
+import TimePicker from "@/components/TimePicker";
 import { IconLogo, IconChevronLeft, IconArrowRight, IconCheck } from "../icons";
 import PhoneStep from "./PhoneStep";
 import AccountTypeCards from "./AccountTypeCards";
@@ -123,7 +125,7 @@ export default function RegisterFlow() {
     const s = readSavedDraft();
     if (!s) return;
     const h = setTimeout(() => {
-      setDraft((d) => ({ ...d, ...s.draft, password: "" }));
+      setDraft((d) => ({ ...d, ...s.draft, profile: { ...emptyProfile(), ...(s.draft.profile || {}) }, password: "" }));
       setAgreed(s.agreed || {});
       setIdx(Math.max(2, Math.min(s.idx, 2 + (STEPS_BY_TYPE[s.draft.accountType!] || []).length - 1)));
       setResumed(true);
@@ -739,11 +741,11 @@ export default function RegisterFlow() {
                   <div className="cform__row2" style={{ marginTop: 10 }}>
                     <div>
                       <label>{t("advocate.expertise.from")}</label>
-                      <input type="time" value={p.workFrom ?? "09:00"} onChange={(e) => setProfile({ workFrom: e.target.value })} />
+                      <TimePicker value={p.workFrom ?? "09:00"} onChange={(v) => setProfile({ workFrom: v })} placeholder="09:00" ariaLabel={t("advocate.expertise.from")} step={15} />
                     </div>
                     <div>
                       <label>{t("advocate.expertise.to")}</label>
-                      <input type="time" value={p.workTo ?? "18:00"} onChange={(e) => setProfile({ workTo: e.target.value })} />
+                      <TimePicker value={p.workTo ?? "18:00"} onChange={(v) => setProfile({ workTo: v })} placeholder="18:00" ariaLabel={t("advocate.expertise.to")} step={15} />
                     </div>
                   </div>
                 </div>

@@ -1788,7 +1788,9 @@
         "resetError": "Couldn't complete. Try again.",
         "resetPhoneRequired": "Enter your phone number.",
         "resetWeak": "Password must be at least 8 characters.",
-      "twoFaTelegramSubtitle": "Enter the 6-digit code sent to the Telegram bot"
+      "twoFaTelegramSubtitle": "Enter the 6-digit code sent to the Telegram bot",
+      "waitLeft": "Wait {s} s",
+      "retryIn": "Retry in {s} s"
     },
     "common": {
       "logout": "Log out",
@@ -1998,6 +2000,18 @@
         "prior_dispute": "Prior dispute with this client",
         "sick_or_vacation": "Sick / vacation",
         "other": "Other"
+      },
+      "calendar": {
+        "view": "View",
+        "month": "Month",
+        "list": "List",
+        "prev": "Previous month",
+        "next": "Next month",
+        "noneDay": "No events on this day. Press \"+\" to add one.",
+        "upcoming": "Upcoming",
+        "time": "Time",
+        "removeText": "\"{title}\" will be removed from the calendar. Continue?",
+        "cancel": "Cancel"
       }
     },
     "tasks": {
@@ -2017,8 +2031,28 @@
       "saving": "Saving…",
       "created": "Created",
       "errorCreate": "Error. Please try again.",
-      "stages": { "todo": "To do", "doing": "In progress", "done": "Done" },
-      "priority": { "low": "Low", "medium": "Medium", "high": "High" }
+      "stages": { "todo": "To do", "doing": "In progress", "done": "Done", "review": "In review" },
+      "priority": { "low": "Low", "medium": "Medium", "high": "High" },
+      "count": "{n} tasks · {open} open",
+      "searchPh": "Search by task, case or description",
+      "hideDone": "Hide done",
+      "loadError": "Could not load tasks. Refresh the page.",
+      "forbidden": "You are not allowed to change this task.",
+      "checklistCount": "Checklist {done}/{total}",
+      "blocked": "Blocked",
+      "edit": "Edit",
+      "editTitle": "Edit task",
+      "toggleBlocked": "Blocked / in progress",
+      "delete": "Delete",
+      "deleteTitle": "Delete task",
+      "deleteText": "The task \"{title}\" will be deleted. Continue?",
+      "cancel": "Cancel",
+      "caseTitle": "Case (optional)",
+      "caseTitlePh": "Which case it belongs to",
+      "description": "Description",
+      "checklist": "Checklist",
+      "checklistPh": "One item per line\n[x] a done item",
+      "checklistHint": "Each line is an item. Mark done items with \"[x]\"."
     },
     "assistant": {
       "title": "AI assistant",
@@ -5341,7 +5375,10 @@
     "camOn": "Turn camera on",
     "camOff2": "Turn camera off",
     "camError": "Could not turn the camera on.",
-    "camDenied": "Allow camera access in the browser (lock icon in the address bar → Camera)."
+    "camDenied": "Allow camera access in the browser (lock icon in the address bar → Camera).",
+    "emptyEnding": "The other side left — the meeting ends in {s} s",
+    "endingIn": "Ending in {s} s",
+    "inviteClient": "Your client"
   },
   "theme": {
     "label": "Theme",

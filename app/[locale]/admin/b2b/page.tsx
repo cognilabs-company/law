@@ -19,6 +19,7 @@ import { fmtUzs } from "@/lib/money";
 import { useReload, AdminForm, Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
+import MonthPicker from "@/components/MonthPicker";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconBuilding, IconPlus, IconDownload, IconFileText, IconCard } from "@/components/icons";
 
@@ -160,7 +161,7 @@ function DocModal({ target, onClose }: { target: { kind: "invoice" | "contract" 
             </div>
           </>
         ) : target?.kind === "report" ? (
-          <div><label>{t("month")}</label><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></div>
+          <div><label>{t("month")}</label><MonthPicker value={month} onChange={setMonth} placeholder={t("month")} ariaLabel={t("month")} /></div>
         ) : (
           <p className="advmuted">{t("contractLead")}</p>
         )}

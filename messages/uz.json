@@ -1794,7 +1794,9 @@
         "resetError": "Amalni bajarib bo'lmadi. Qayta urining.",
         "resetPhoneRequired": "Telefon raqamni kiriting.",
         "resetWeak": "Parol kamida 8 ta belgidan iborat bo'lsin.",
-      "twoFaTelegramSubtitle": "Telegram botga yuborilgan 6 xonali kodni kiriting"
+      "twoFaTelegramSubtitle": "Telegram botga yuborilgan 6 xonali kodni kiriting",
+      "waitLeft": "{s} soniya kuting",
+      "retryIn": "Qayta urinish: {s} s"
     },
     "common": {
       "logout": "Chiqish",
@@ -2004,6 +2006,18 @@
         "prior_dispute": "Bu mijoz bilan avval nizo bo'lgan",
         "sick_or_vacation": "Kasallik / ta'til",
         "other": "Boshqa"
+      },
+      "calendar": {
+        "view": "Ko'rinish",
+        "month": "Oy",
+        "list": "Ro'yxat",
+        "prev": "Oldingi oy",
+        "next": "Keyingi oy",
+        "noneDay": "Bu kunga voqea yo'q. Qo'shish uchun \"+\" ni bosing.",
+        "upcoming": "Yaqinlashayotgan",
+        "time": "Vaqt",
+        "removeText": "\"{title}\" kalendardan o'chiriladi. Davom etasizmi?",
+        "cancel": "Bekor qilish"
       }
     },
     "tasks": {
@@ -2023,8 +2037,28 @@
       "saving": "Saqlanmoqda…",
       "created": "Qo'shildi",
       "errorCreate": "Xatolik. Qayta urining.",
-      "stages": { "todo": "Bajarilishi kerak", "doing": "Jarayonda", "done": "Bajarildi" },
-      "priority": { "low": "Past", "medium": "O'rta", "high": "Yuqori" }
+      "stages": { "todo": "Bajarilishi kerak", "doing": "Jarayonda", "done": "Bajarildi", "review": "Tekshiruvda" },
+      "priority": { "low": "Past", "medium": "O'rta", "high": "Yuqori" },
+      "count": "{n} ta vazifa · {open} ta ochiq",
+      "searchPh": "Vazifa, ish yoki tavsif bo'yicha qidirish",
+      "hideDone": "Bajarilganlarni yashirish",
+      "loadError": "Vazifalarni yuklab bo'lmadi. Sahifani yangilang.",
+      "forbidden": "Bu vazifani o'zgartirishga ruxsat yo'q.",
+      "checklistCount": "Ro'yxat {done}/{total}",
+      "blocked": "Bloklangan",
+      "edit": "Tahrirlash",
+      "editTitle": "Vazifani tahrirlash",
+      "toggleBlocked": "Bloklangan / davom etadi",
+      "delete": "O'chirish",
+      "deleteTitle": "Vazifani o'chirish",
+      "deleteText": "\"{title}\" vazifasi o'chiriladi. Davom etasizmi?",
+      "cancel": "Bekor qilish",
+      "caseTitle": "Ish (ixtiyoriy)",
+      "caseTitlePh": "Qaysi ishga tegishli",
+      "description": "Tavsif",
+      "checklist": "Nazorat ro'yxati",
+      "checklistPh": "Har bir qatorga bitta band\n[x] bajarilgan band",
+      "checklistHint": "Har bir qator — alohida band. Bajarilganini \"[x]\" bilan belgilang."
     },
     "assistant": {
       "title": "Sun'iy intellekt yordamchi",
@@ -5347,7 +5381,10 @@
     "camOn": "Kamerani yoqish",
     "camOff2": "Kamerani o'chirish",
     "camError": "Kamerani yoqib bo'lmadi.",
-    "camDenied": "Brauzerda kameraga ruxsat bering (manzil qatoridagi qulf belgisi → Kamera)."
+    "camDenied": "Brauzerda kameraga ruxsat bering (manzil qatoridagi qulf belgisi → Kamera).",
+    "emptyEnding": "Suhbatdosh chiqib ketdi — uchrashuv {s} soniyadan keyin tugaydi",
+    "endingIn": "Tugaydi: {s} s",
+    "inviteClient": "Mijozingiz"
   },
   "theme": {
     "label": "Mavzu",

@@ -25,6 +25,8 @@ import {
   updateCallParticipant,
   inviteCallParticipant,
   searchUsers,
+  listLawyers,
+  getLawyerClients,
   callSocketUrl,
   type LiveKitJoin,
   type CallParticipant,
@@ -32,7 +34,7 @@ import {
 } from "@/lib/services/backend";
 import { getToken } from "@/lib/client";
 import { subscribeRoomCallEvents } from "@/lib/callEvents";
-import { backoffMs, refreshAccessToken } from "@/lib/http";
+import { ApiError, backoffMs, refreshAccessToken } from "@/lib/http";
 import { useAuth } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
 import SearchSelect from "@/components/SearchSelect";
@@ -57,6 +59,7 @@ type ChatMsg = { id: string; from: string; name: string; text: string; at: numbe
 type Toast = { id: number; text: string; kind: "join" | "leave" | "info" };
 
 const MOBILE = () => typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
+const EMPTY_GRACE_SEC = 10;
 const PORTRAIT_HINT = () => typeof window !== "undefined" && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 
 // In-app audio/video meeting over LiveKit (managed SFU + coturn on the
@@ -113,6 +116,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const stageRef = useRef<HTMLElement>(null);
   const [recUrl, setRecUrl] = useState("");
   const firstJoinRef = useRef(true);
+  // Everyone else left (host closed the tab, network drop…): a short countdown,
+  // then this side ends too — unless I host a titled meeting and may invite more.
+  const hadRemoteRef = useRef(false);
+  const [emptyLeft, setEmptyLeft] = useState<number | null>(null);
+  const keepAlone = isCaller && !!title;
+  // Call signalling socket (join/leave/end relayed to the other participants).
+  const callWsRef = useRef<WebSocket | null>(null);
+  const dirRef = useRef<Promise<{ id: string; name: string; phone: string; lexgoId?: string; sub?: string }[]> | null>(null);
+  const signal = (event: "call.join" | "call.leave" | "call.end") => {
+    const ws = callWsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) { try { ws.send(JSON.stringify({ event, payload: {} })); } catch { /* ignore */ } }
+  };
   const prevMicRef = useRef<boolean | null>(null); // last roster mic value (detect host action)
   const leftRef = useRef(false); // guard against double-leave
   const toastSeq = useRef(0);
@@ -131,6 +146,13 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // Remote end (call.ended on the room socket): tone, disconnect, close — no API call.
   const onEndRef = useRef<() => void>(() => {});
   useEffect(() => { onEndRef.current = () => { playEndTone(); roomRef.current?.disconnect(); clearActive(); onEnd(); }; });
+  // Countdown once everyone else has left; a rejoin cancels it (see onJoin).
+  useEffect(() => {
+    if (emptyLeft == null) return;
+    if (emptyLeft <= 0) { onEndRef.current?.(); return; }
+    const tm = setTimeout(() => setEmptyLeft((s) => (s == null ? s : s - 1)), 1000);
+    return () => clearTimeout(tm);
+  }, [emptyLeft]);
   const bump = useCallback(() => setTick((n) => n + 1), []);
   const toast = useCallback((text: string, kind: Toast["kind"]) => {
     const id = ++toastSeq.current;
@@ -183,6 +205,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       if (!alive) return;
       bump();
       setStatus("live");
+      hadRemoteRef.current = true;
+      setEmptyLeft(null);
       playJoinTone(firstJoinRef.current);
       firstJoinRef.current = false;
       const name = nameOfRef.current(p);
@@ -197,6 +221,10 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       toast(t("leftToast", { name }), "leave");
       setMessages((m) => [...m, { id: `sys-${Date.now()}`, from: p.identity, name, text: t("leftToast", { name }), at: Date.now(), system: true }]);
       setPinned((cur) => (cur === p.identity ? null : cur));
+      if (room.remoteParticipants.size === 0 && hadRemoteRef.current && !keepAlone) {
+        toast(t("emptyEnding", { s: EMPTY_GRACE_SEC }), "leave");
+        setEmptyLeft(EMPTY_GRACE_SEC);
+      }
     };
 
     room
@@ -268,7 +296,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         if (alive) {
           setStartedAt(Date.now());
           bump();
+          if (room.remoteParticipants.size) hadRemoteRef.current = true;
           setStatus(room.remoteParticipants.size ? "live" : "ringing");
+          signal("call.join");
         }
       } catch {
         if (alive) setStatus("error");
@@ -308,6 +338,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       getCall(roomId, callId)
         .then((c) => {
           if (!alive) return;
+          if (c.status && ["ended", "cancelled", "expired"].includes(c.status)) { onEndRef.current?.(); return; }
           setRoster(c.participants);
           setPerms(c.permissions);
           if (c.remainingSeconds > 0) setRemaining(c.remainingSeconds);
@@ -377,7 +408,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         return;
       }
       ws = sock;
-      sock.onopen = () => { attempt = 0; };
+      callWsRef.current = sock;
+      sock.onopen = () => { attempt = 0; if (connectedRef.current) signal("call.join"); };
       sock.onmessage = (ev) => {
         if (!alive) return;
         let msg: { type?: string; event?: string; status_code?: number } = {};
@@ -389,7 +421,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           void refreshAccessToken().catch(() => null).then((fresh) => { if (alive && fresh) connect(); });
           return;
         }
-        if (type.includes("auto_ended") || type === "call.end") { finish(); return; }
+        if (type.includes("auto_ended") || type === "call.end") { onEndRef.current?.(); return; }
         if (/^(participant|media)\./.test(type) || type === "call.join" || type === "call.leave") {
           setMetaTick((n) => n + 1);
         }
@@ -401,12 +433,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     return () => {
       alive = false;
       clearTimeout(timer);
+      callWsRef.current = null;
       if (ws) {
         ws.onclose = null;
         try { ws.close(); } catch { /* ignore */ }
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, callId]);
 
   // Chat panel: scroll to the newest message, clear the unread badge.
@@ -538,12 +570,39 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       setInviteBusy(false);
     }
   }
+  // /users/search is staff-only; a client or advocate host searches the people
+  // they can actually reach: verified lawyers and (for sellers) their own clients.
   async function inviteSearch(q: string) {
-    const users = await searchUsers(q);
     const inCall = new Set(roster.map((p) => p.userId));
+    const needle = q.trim().toLowerCase();
+    const digits = needle.replace(/\D/g, "");
+    let users: { id: string; name: string; phone: string; lexgoId?: string; sub?: string }[] = [];
+    try {
+      users = await searchUsers(q);
+    } catch (e) {
+      if (!(e instanceof ApiError && (e.status === 403 || e.status === 401 || e.status === 404))) throw e;
+      if (!dirRef.current) {
+        dirRef.current = (async () => {
+          const [lawyers, clients] = await Promise.all([
+            listLawyers().catch(() => []),
+            getLawyerClients().catch(() => []),
+          ]);
+          const seen = new Set<string>();
+          const out: typeof users = [];
+          for (const l of lawyers) if (l.userId && !seen.has(l.userId)) { seen.add(l.userId); out.push({ id: l.userId, name: l.name, phone: l.phone, sub: l.region }); }
+          for (const c of clients) if (c.id && !seen.has(c.id)) { seen.add(c.id); out.push({ id: c.id, name: c.name, phone: c.phone, sub: t("inviteClient") }); }
+          return out;
+        })();
+      }
+      const dir = await dirRef.current;
+      users = dir.filter((u) => {
+        const hay = `${u.name} ${u.phone} ${u.lexgoId ?? ""}`.toLowerCase();
+        return hay.includes(needle) || (digits.length >= 4 && u.phone.replace(/\D/g, "").includes(digits));
+      }).slice(0, 12);
+    }
     return users
-      .filter((u) => u.id && !inCall.has(u.id))
-      .map((u) => ({ value: u.id, label: u.name || u.phone || "—", sub: [u.phone, u.lexgoId].filter(Boolean).join(" · ") || undefined }));
+      .filter((u) => u.id && !inCall.has(u.id) && u.id !== session?.id)
+      .map((u) => ({ value: u.id, label: u.name || u.phone || "—", sub: [u.phone, u.lexgoId, u.sub].filter(Boolean).join(" · ") || undefined }));
   }
   // Local recording of the whole conversation (never uploaded). Everyone in
   // the room is told through the data channel and sees a badge.
@@ -592,6 +651,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   }
   async function hangUp() {
     playEndTone();
+    // Tell the others first over the call socket (relayed instantly), then the API.
+    signal(isCaller ? "call.end" : "call.leave");
     try {
       if (isCaller) await endMeeting(roomId, callId).catch(() => endCall(callId));
       else await leaveCall(roomId, callId);
@@ -608,7 +669,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const stageP = sharer ?? (view === "speaker" ? participants.find((p) => p.identity === pinned) ?? participants.find((p) => !p.isLocal) ?? participants[0] : null);
   const stageIsShare = !!sharer;
   const strip = stageP ? participants.filter((p) => p !== stageP || stageIsShare) : participants;
-  const statusLabel = status === "live" ? t("live") : status === "ringing" ? t("ringing") : status === "error" ? t("error") : t("connecting");
+  const statusLabel = emptyLeft != null ? t("endingIn", { s: emptyLeft }) : status === "live" ? t("live") : status === "ringing" ? t("ringing") : status === "error" ? t("error") : t("connecting");
   const canShare = typeof navigator !== "undefined" && !!navigator.mediaDevices && "getDisplayMedia" in navigator.mediaDevices && !MOBILE();
   const activeRoster = roster.filter((p) => p.status !== "removed" && p.status !== "left" && p.status !== "declined");
   const gridN = strip.length;

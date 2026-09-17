@@ -2811,24 +2811,43 @@ export async function listAcademyCourses(): Promise<AcademyCourse[]> {
 }
 
 // ── Personal task board (lawyer / advocate) ───────────────────────
-export type WorkTask = { id: string; title: string; status: string; priority: string; dueDate?: string; caseTitle?: string };
+// Backend statuses: todo · doing · review · blocked · done (deleted = hidden).
+export type TaskCheckItem = { text: string; done: boolean };
+export type WorkTask = { id: string; title: string; status: string; priority: string; dueDate?: string; caseId?: string; caseTitle?: string; description?: string; checklist?: TaskCheckItem[]; createdAt?: string; updatedAt?: string };
 function normTask(v: unknown): WorkTask {
   const d = asDict(v);
   const p = asDict(d.payload);
+  const checklist = (Array.isArray(d.checklist) ? d.checklist : Array.isArray(p.checklist) ? p.checklist : [])
+    .map((c: unknown) => {
+      if (typeof c === "string") return { text: c, done: false };
+      const x = asDict(c);
+      return { text: asStr(x.text ?? x.title ?? x.label), done: !!(x.done ?? x.checked ?? x.completed) };
+    })
+    .filter((c: TaskCheckItem) => c.text);
   return {
     id: asStr(d.id),
     title: asStr(d.title ?? d.name),
     status: asStr(d.status, "todo"),
     priority: asStr(d.priority ?? p.priority, "medium"),
     dueDate: asStr(d.due_date ?? d.deadline ?? p.due_date) || undefined,
+    caseId: asStr(d.case_id ?? p.case_id) || undefined,
     caseTitle: asStr(d.case_title ?? d.case ?? p.case_title) || undefined,
+    description: asStr(d.description ?? p.description) || undefined,
+    checklist,
+    createdAt: asStr(d.created_at) || undefined,
+    updatedAt: asStr(d.updated_at) || undefined,
   };
+}
+export type TaskInput = { title?: string; status?: string; priority?: string; due_date?: string; case_id?: string; case_title?: string; checklist?: TaskCheckItem[]; description?: string };
+// PATCH /tasks/{id} — partial update (title, status, priority, due_date, case, checklist, description).
+export async function updateTask(id: string, input: TaskInput): Promise<WorkTask> {
+  return normTask(await http(`/tasks/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) }));
 }
 export async function listMyTasks(): Promise<WorkTask[]> {
   return listFrom(await http("/tasks/me"), "items", "data", "tasks").map(normTask);
 }
-export async function updateTaskStatus(id: string, status: string): Promise<void> {
-  await http(`/tasks/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
+export async function updateTaskStatus(id: string, status: string): Promise<WorkTask> {
+  return normTask(await http(`/tasks/${encodeURIComponent(id)}/status`, { method: "PATCH", body: JSON.stringify({ status }) }));
 }
 
 // ── Call-center analytics ─────────────────────────────────────────
@@ -3269,7 +3288,7 @@ export async function reengageLead(leadId: string, note?: string): Promise<void>
 }
 
 // ── Create task / B2B client ──────────────────────────────────────
-export async function createTask(input: { title: string; priority?: string; due_date?: string; case_title?: string }): Promise<WorkTask> {
+export async function createTask(input: TaskInput & { title: string }): Promise<WorkTask> {
   return normTask(await http("/tasks", { method: "POST", body: JSON.stringify(input) }));
 }
 // T1B-07: company record fields (inn/director/monthly_payment/sla live in the payload; director etc. via PATCH).
@@ -3298,7 +3317,7 @@ export async function createB2bClient(input: { name: string; industry?: string; 
   return { id: asStr(d.id), name: asStr(d.name ?? d.title), industry: asStr(d.industry ?? p.industry), contact: asStr(d.contact ?? p.contact), stage: asStr(d.stage ?? d.status ?? d.record_type, "new"), value: uzsOpt(d, "value", "price") ?? uzs(p, "value") };
 }
 export async function deleteTask(id: string): Promise<void> {
-  await http(`/tasks/${id}`, { method: "DELETE" });
+  await http(`/tasks/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 export async function getLeadTimeline(leadId: string): Promise<ActivityEntry[]> {
   return listFrom(await http(`/admin/leads/${leadId}/timeline`), "items", "data", "timeline").map(normActivity);

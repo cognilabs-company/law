@@ -662,3 +662,5 @@ Hujjat yangilansin yoki route'lar qo'shilsin.
 - **Xatolar va real vaqt:**
   - 402/403/409/422/429 xatolari ishlanadi.
   - WebSocket qayta ulanishi exponential backoff bilan.
+| 67 | T2-09 uchrashuv taklifi | `GET /users/search` mijoz/advokat host uchun ham ishlashi (masalan, faqat o'z chat/buyurtma aloqalari yoki tasdiqlangan ijrochilar ichida) — hozir 403, frontend `/lawyers` + `/lawyers/me/clients` bilan o'rnini bosadi | Faqat staff / `leads.manage` |
+| 68 | T2-09 uchrashuv tugashi | `POST …/calls/{id}/end` va `/leave` (REST) ham call socket (`/ws/…/calls/{id}`) va user socket (`/ws/users/me`) ga `call.ended` / `call.participant_left` yuborishi — taklif qilingan ishtirokchi chat xonasi socketiga ulanmagan; frontend hozir `call.end`/`call.leave` signalini o'zi yuboradi va bo'sh xonada 10 s dan keyin o'zi tugatadi | REST end/leave hech narsa yubormaydi |
