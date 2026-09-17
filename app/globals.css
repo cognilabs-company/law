@@ -3947,3 +3947,12 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .unvmode__m{display:grid;gap:3px}
 .unvmode__m b{font-size:.92rem}
 .unvmode__m small{font-size:.8rem;color:var(--gray);line-height:1.4}
+
+/* ── wp-ai ── */
+/* dashboard hero: the completeness ring is a div inside .advhero__done — keep it a centred ring, not a flex column */
+.advhero__done>.ring{display:grid;place-items:center;flex-direction:row;gap:0}
+.ring{isolation:isolate}
+.ring::before{background:var(--b900);z-index:0}
+.ring b{z-index:1;color:#fff;line-height:1}
+/* locked seller routes render chrome only */
+.portal--gated{display:flex;align-items:center;justify-content:center;min-height:40vh;color:var(--gray)}

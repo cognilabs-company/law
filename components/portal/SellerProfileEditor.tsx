@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Component, useCallback, useEffect, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth, type Role } from "@/lib/auth";
 import { legalServiceLabel, type CatalogLocale } from "@/lib/legalServices";
@@ -200,12 +200,12 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
           {on ? (
             <button className="btn btn--soft btn--sm" type="button" onClick={cancel}>{t("cancel")}</button>
           ) : (
-            <button className="btn btn--line btn--sm" type="button" disabled={!!section} onClick={() => { setNote(null); setSection(id); }}><IconEdit />{t("edit")}</button>
+            <button className="btn btn--line btn--sm" type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (section && section !== id) setD(saved); setNote(null); setSection(id); }}><IconEdit />{t("edit")}</button>
           )}
         </div>
         {on ? (
           <>
-            {edit}
+            <PanelBoundary onReset={cancel} label={t("saveError")}>{edit}</PanelBoundary>
             <div className="pverify" style={{ marginTop: 16 }}>
               {note ? <Notice ok={note.ok} msg={note.msg} /> : <span />}
               <button className="btn btn--grad btn--sm" type="button" onClick={save} disabled={busy}><IconShieldCheck />{busy ? t("saving") : t("save")}</button>
@@ -412,6 +412,23 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       <ProfilePreview p={d} />
     </div>
   );
+}
+
+// Catches a render error inside an edit form and shows a message + Cancel
+// instead of unmounting the whole profile page.
+class PanelBoundary extends Component<{ children: ReactNode; onReset: () => void; label: string }, { err: boolean }> {
+  state = { err: false };
+  static getDerivedStateFromError() { return { err: true }; }
+  componentDidCatch(e: unknown) { console.error("profile panel render failed", e); }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return (
+      <div className="anote anote--err" role="alert" style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+        <span>{this.props.label}</span>
+        <button type="button" className="btn btn--line btn--sm" onClick={() => { this.setState({ err: false }); this.props.onReset(); }}>✕</button>
+      </div>
+    );
+  }
 }
 
 function MyServices({ userId }: { userId: string }) {

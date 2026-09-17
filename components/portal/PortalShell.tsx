@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess, type Role } from "@/lib/auth";
@@ -154,6 +154,22 @@ export default function PortalShell({
   const limited =
     role !== "client" && (cabinet.data ? cabinet.data.limitedAccess : session?.accountStatus === "pending");
   const actions = cabinet.data?.actions ?? null;
+  // The nav entry for the current route (sellers only) and whether it is gated.
+  // Until the cabinet answers, a route outside the always-allowed set is
+  // treated as "unknown" and nothing is rendered — so a typed URL of a locked
+  // page never flashes its content before the redirect.
+  const navList = role === "advocate" ? ADVOCATE_NAV : role === "lawyer" ? LAWYER_NAV : null;
+  const curNav = navList
+    ? navList.slice().sort((a, b) => b.href.length - a.href.length).find((n) => pathname === n.href || pathname.startsWith(n.href + "/"))
+    : undefined;
+  const routeLocked = !!curNav && isLocked(role, curNav.key, limited, actions);
+  const routeUnknown = !!curNav && role !== "client" && cabinet.status === "loading" && !cabinet.data && !PENDING_ALLOWED[role].has(curNav.key);
+  // Last page this user was allowed to see — a locked route bounces back there.
+  const lastOkRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ready || !session || session.role !== role) return;
+    if (!routeLocked && !routeUnknown) lastOkRef.current = pathname;
+  }, [ready, session, role, pathname, routeLocked, routeUnknown]);
 
   // Guard: require a session; keep role and route in sync. Limited sellers are
   // bounced off gated (operational) routes back to their dashboard.
@@ -167,21 +183,17 @@ export default function PortalShell({
       router.replace(`/portal/${session.role}`);
       return;
     }
-    if (role !== "client") {
-      const navList = role === "advocate" ? ADVOCATE_NAV : LAWYER_NAV;
-      const cur = navList
-        .slice()
-        .sort((a, b) => b.href.length - a.href.length)
-        .find((n) => pathname === n.href || pathname.startsWith(n.href + "/"));
-      if (cur && isLocked(role, cur.key, limited, actions)) {
-        router.replace(`/portal/${role}`);
-      }
+    if (routeLocked) {
+      const back = lastOkRef.current && lastOkRef.current !== pathname ? lastOkRef.current : `/portal/${role}`;
+      router.replace(back);
     }
-  }, [ready, session, role, router, pathname, limited, actions]);
+  }, [ready, session, role, router, pathname, routeLocked]);
 
   // While the session loads or the guard redirects, keep the portal chrome
   // (the public navbar/footer are hidden by body:has(.portal)).
   if (!ready || !session || session.role !== role) return <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div>;
+  // Locked (or not yet known) seller route: chrome only, never the page itself.
+  const hideBody = routeLocked || routeUnknown;
 
   const nav =
     role === "advocate" ? ADVOCATE_NAV : role === "lawyer" ? LAWYER_NAV : CLIENT_NAV;
@@ -288,7 +300,7 @@ export default function PortalShell({
             ) : (
               <GiftNudge />
             )}
-            <CabinetProvider value={cabinet}>{children}</CabinetProvider>
+            <CabinetProvider value={cabinet}>{hideBody ? <div className="portal--gated" aria-busy="true"><span className="rf__spinner" /></div> : children}</CabinetProvider>
           </div>
         </div>
       </div>
