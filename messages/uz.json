@@ -5305,7 +5305,19 @@
     "switchCam": "Kamerani almashtirish",
     "screen": "Ekran",
     "screenStop": "Ekranni to'xtatish",
-    "endAll": "Tugatish"
+    "endAll": "Tugatish",
+    "more": "Yana",
+    "recording": "Yozilmoqda {time}",
+    "recordingBy": "{name} yozib olmoqda",
+    "recStart": "Yozib olish",
+    "recStop": "Yozuvni to'xtatish",
+    "recStarted": "Yozib olish boshlandi — barcha ishtirokchilarga xabar berildi.",
+    "recStartedBy": "{name} uchrashuvni yozib olishni boshladi",
+    "recStoppedBy": "{name} yozib olishni to'xtatdi",
+    "recReady": "Yozuv tayyor",
+    "recSave": "Qurilmaga saqlash",
+    "recSaved": "Yozuv saqlandi.",
+    "recError": "Yozib olib bo'lmadi (brauzer qo'llab-quvvatlamaydi yoki mikrofon yo'q)."
   },
   "theme": {
     "label": "Mavzu",

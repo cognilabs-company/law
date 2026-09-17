@@ -5299,7 +5299,19 @@
     "switchCam": "Switch camera",
     "screen": "Share",
     "screenStop": "Stop sharing",
-    "endAll": "End meeting"
+    "endAll": "End meeting",
+    "more": "More",
+    "recording": "Recording {time}",
+    "recordingBy": "{name} is recording",
+    "recStart": "Record",
+    "recStop": "Stop recording",
+    "recStarted": "Recording started — everyone in the meeting has been notified.",
+    "recStartedBy": "{name} started recording the meeting",
+    "recStoppedBy": "{name} stopped recording",
+    "recReady": "Recording ready",
+    "recSave": "Save to device",
+    "recSaved": "Recording saved.",
+    "recError": "Could not record (unsupported browser or no microphone)."
   },
   "theme": {
     "label": "Theme",

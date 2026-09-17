@@ -8,6 +8,7 @@ import {
   Track,
   VideoPresets,
   VideoPresets43,
+  ScreenSharePresets,
   type LocalParticipant,
   type LocalVideoTrack,
   type Participant,
@@ -35,8 +36,10 @@ import { backoffMs, refreshAccessToken } from "@/lib/http";
 import { useAuth } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
 import SearchSelect from "@/components/SearchSelect";
-import { playRingback, playEndTone, playJoinTone, playLeaveTone } from "@/lib/callSounds";
-import { IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser } from "../icons";
+import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone } from "@/lib/callSounds";
+import { MeetingRecorder, canRecord, saveRecording, type RecordingFile } from "@/lib/meetingRecorder";
+import { useFlip } from "@/lib/useFlip";
+import { IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload } from "../icons";
 
 type Props = {
   roomId: string;
@@ -97,6 +100,14 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [draft, setDraft] = useState("");
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [canSwitchCam, setCanSwitchCam] = useState(false);
+  // Local recording (audio of everyone) + who else is recording (data channel).
+  const recorderRef = useRef<MeetingRecorder | null>(null);
+  const [recOn, setRecOn] = useState(false);
+  const [recSec, setRecSec] = useState(0);
+  const [recFile, setRecFile] = useState<RecordingFile | null>(null);
+  const [recBy, setRecBy] = useState<Set<string>>(new Set());
+  const [more, setMore] = useState(false); // phone "more" sheet
+  const firstJoinRef = useRef(true);
   const prevMicRef = useRef<boolean | null>(null); // last roster mic value (detect host action)
   const leftRef = useRef(false); // guard against double-leave
   const toastSeq = useRef(0);
@@ -104,7 +115,13 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const panelRef = useRef(panel);
   useEffect(() => { panelRef.current = panel; }, [panel]);
 
-  const clearActive = () => { try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ } };
+  const clearActive = () => { try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ } recorderRef.current?.dispose(); recorderRef.current = null; };
+  useEffect(() => {
+    if (!recOn) return;
+    const t0 = Date.now();
+    const iv = setInterval(() => setRecSec(Math.floor((Date.now() - t0) / 1000)), 1000);
+    return () => clearInterval(iv);
+  }, [recOn]);
   const finish = () => { clearActive(); onEnd(); };
   // Remote end (call.ended on the room socket): tone, disconnect, close — no API call.
   const onEndRef = useRef<() => void>(() => {});
@@ -133,10 +150,15 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       dynacast: true,
       publishDefaults: {
         simulcast: true,
-        videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
+        // Top layer = the capture resolution (720p desktop / 540p 4:3 phone);
+        // weaker viewers fall back to 360p / 180p instead of a blurry single stream.
+        videoSimulcastLayers: phone ? [VideoPresets43.h180, VideoPresets43.h360] : [VideoPresets.h216, VideoPresets.h360],
+        screenShareEncoding: ScreenSharePresets.h1080fps15.encoding,
+        screenShareSimulcastLayers: [ScreenSharePresets.h720fps15],
+        videoEncoding: VideoPresets.h720.encoding,
       },
       // Phones: 4:3 capture (a 16:9 crop of a 4:3 sensor looks zoomed, especially on the back camera).
-      videoCaptureDefaults: { facingMode: "user", resolution: phone ? VideoPresets43.h360.resolution : VideoPresets.h540.resolution },
+      videoCaptureDefaults: { facingMode: "user", resolution: phone ? VideoPresets43.h540.resolution : VideoPresets.h720.resolution },
     });
     roomRef.current = room;
     // Publish the Room to render after this effect settles (not synchronously).
@@ -153,7 +175,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       if (!alive) return;
       bump();
       setStatus("live");
-      playJoinTone();
+      playJoinTone(firstJoinRef.current);
+      firstJoinRef.current = false;
       const name = nameOfRef.current(p);
       toast(t("joinedToast", { name }), "join");
       setMessages((m) => [...m, { id: `sys-${Date.now()}`, from: p.identity, name, text: t("joinedToast", { name }), at: Date.now(), system: true }]);
@@ -189,6 +212,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         if (!alive) return;
         try {
           const msg = JSON.parse(new TextDecoder().decode(payload)) as { t?: string; text?: string; at?: number };
+          if (msg.t === "rec" && p) {
+            const on = (msg as { on?: boolean }).on === true;
+            setRecBy((cur) => { const n = new Set(cur); if (on) n.add(p.identity); else n.delete(p.identity); return n; });
+            toast(on ? t("recStartedBy", { name: nameOfRef.current(p) }) : t("recStoppedBy", { name: nameOfRef.current(p) }), on ? "leave" : "join");
+            return;
+          }
           if (msg.t === "chat" && msg.text) {
             const name = p ? nameOfRef.current(p) : t("someone");
             setMessages((m) => [...m, { id: `${p?.identity ?? "x"}-${msg.at ?? Date.now()}`, from: p?.identity ?? "", name, text: msg.text!, at: msg.at ?? Date.now() }]);
@@ -425,7 +454,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     try {
       const pub = r.localParticipant.getTrackPublication(Track.Source.Camera);
       const track = pub?.track as LocalVideoTrack | undefined;
-      const res = PORTRAIT_HINT() ? VideoPresets43.h360.resolution : VideoPresets.h540.resolution;
+      const res = PORTRAIT_HINT() ? VideoPresets43.h540.resolution : VideoPresets.h720.resolution;
       let done = false;
       if (track) {
         try {
@@ -451,7 +480,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     const r = roomRef.current;
     if (!r) return;
     try {
-      await r.localParticipant.setScreenShareEnabled(!sharing, { audio: false });
+      await r.localParticipant.setScreenShareEnabled(!sharing, { audio: false, contentHint: "detail", resolution: ScreenSharePresets.h1080fps15.resolution });
       setSharing(!sharing);
       syncSelf({ screen_enabled: !sharing });
       bump();
@@ -499,6 +528,45 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       .filter((u) => u.id && !inCall.has(u.id))
       .map((u) => ({ value: u.id, label: u.name || u.phone || "—", sub: [u.phone, u.lexgoId].filter(Boolean).join(" · ") || undefined }));
   }
+  // Local recording of the whole conversation (never uploaded). Everyone in
+  // the room is told through the data channel and sees a badge.
+  async function toggleRec() {
+    const r = roomRef.current;
+    if (!r) return;
+    if (!recOn) {
+      try {
+        const rec = new MeetingRecorder();
+        rec.start(r);
+        recorderRef.current = rec;
+        setRecSec(0);
+        setRecOn(true);
+        setRecFile(null);
+        playRecTone(true);
+        r.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ t: "rec", on: true, at: Date.now() })), { reliable: true }).catch(() => {});
+        toast(t("recStarted"), "join");
+      } catch {
+        toast(t("recError"), "leave");
+      }
+      return;
+    }
+    const rec = recorderRef.current;
+    recorderRef.current = null;
+    setRecOn(false);
+    playRecTone(false);
+    r.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ t: "rec", on: false, at: Date.now() })), { reliable: true }).catch(() => {});
+    const file = rec ? await rec.stop() : null;
+    if (file) setRecFile(file); else toast(t("recError"), "leave");
+  }
+  async function saveRec() {
+    if (!recFile) return;
+    try {
+      await saveRecording(recFile, title || t("meetingTitle"));
+      toast(t("recSaved"), "join");
+      setRecFile(null);
+    } catch {
+      toast(t("recError"), "leave");
+    }
+  }
   async function hangUp() {
     playEndTone();
     try {
@@ -521,17 +589,21 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const canShare = typeof navigator !== "undefined" && !!navigator.mediaDevices && "getDisplayMedia" in navigator.mediaDevices && !MOBILE();
   const activeRoster = roster.filter((p) => p.status !== "removed" && p.status !== "left" && p.status !== "declined");
   const gridN = strip.length;
+  const flipKey = `${strip.map((p) => p.identity).join("|")}:${view}:${stageIsShare ? 1 : 0}:${panel}`;
+  const gridRef = useFlip<HTMLDivElement>(flipKey);
+  const stripRef = useFlip<HTMLDivElement>(flipKey);
+  const recByNames = [...recBy].map((id) => { const p = participants.find((x) => x.identity === id); return p ? nameOf(p) : t("someone"); });
 
   return (
     <div className={`mtg${panel ? " mtg--panel" : ""}`} data-tick={tick}>
       <div ref={audioRef} hidden />
       <header className="mtg__top">
         <div className="mtg__title">
-          <span className="mtg__logo">L</span>
-          <div>
-            <b>{title || t("meetingTitle")}</b>
-            <span className={`mtg__badge mtg__badge--${status}`}><i />{statusLabel}</span>
-          </div>
+          <b>{title || t("meetingTitle")}</b>
+          <span className={`mtg__badge mtg__badge--${status}`}><i />{statusLabel}</span>
+          {recOn || recBy.size ? (
+            <span className="mtg__badge mtg__badge--rec" title={recByNames.join(", ")}><i />{recOn ? t("recording", { time: mmss(recSec) }) : t("recordingBy", { name: recByNames[0] || t("someone") })}</span>
+          ) : null}
         </div>
         <div className="mtg__timer">
           <span className="mtg__rec"><i />{mmss(elapsed)}</span>
@@ -540,10 +612,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         <div className="mtg__tools">
           <button type="button" className={`mtg__tool${view === "grid" ? " on" : ""}`} onClick={() => setView("grid")} aria-label={t("layoutGrid")} title={t("layoutGrid")}><IconGrid /></button>
           <button type="button" className={`mtg__tool${view === "speaker" ? " on" : ""}`} onClick={() => setView("speaker")} aria-label={t("layoutSpeaker")} title={t("layoutSpeaker")}><IconUser /></button>
-          {perms?.canInvite ? (
-            <button type="button" className="mtg__add" onClick={() => openPanel("people")}><IconUserPlus />{t("addPeople")}</button>
-          ) : null}
-          <button type="button" className={`mtg__tool${panel === "people" ? " on" : ""}`} onClick={() => openPanel(panel === "people" ? "" : "people")} aria-label={t("rosterTitle")}>
+          <button type="button" className={`mtg__tool${panel === "people" ? " on" : ""}`} onClick={() => openPanel(panel === "people" ? "" : "people")} aria-label={t("rosterTitle")} title={t("rosterTitle")}>
             <IconUsers /><span className="mtg__n">{count}</span>
           </button>
         </div>
@@ -560,18 +629,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         <main className="mtg__stage">
           {stageP ? (
             <div className="mtg__speaker">
-              <Tile key={`stage-${stageP.identity}-${stageIsShare ? "s" : "c"}`} p={stageP} tick={tick} name={nameOf(stageP)} you={t("you")} camOff={t("camOff")} share={stageIsShare} mirror={stageP.isLocal && !stageIsShare && mirror} big />
+              <Tile key={`stage-${stageP.identity}-${stageIsShare ? "s" : "c"}`} p={stageP} name={nameOf(stageP)} you={t("you")} camOff={t("camOff")} share={stageIsShare} mirror={stageP.isLocal && !stageIsShare && mirror} big />
               {stageIsShare ? <span className="mtg__sharing"><IconMonitor />{stageP.isLocal ? t("youShare") : t("sharing", { name: nameOf(stageP) })}</span> : null}
-              <div className="mtg__strip">
+              <div className="mtg__strip" ref={stripRef}>
                 {strip.map((p) => (
-                  <Tile key={p.identity} p={p} tick={tick} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} small onClick={() => { setPinned(p.identity); setView("speaker"); }} />
+                  <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} small onClick={() => { setPinned(p.identity); setView("speaker"); }} />
                 ))}
               </div>
             </div>
           ) : (
-            <div className={`mtg__grid mtg__grid--${Math.min(gridN, 9)}`}>
+            <div className={`mtg__grid mtg__grid--${Math.min(gridN, 9)}`} ref={gridRef}>
               {strip.map((p) => (
-                <Tile key={p.identity} p={p} tick={tick} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} pip={gridN === 2 && p.isLocal && MOBILE()} onClick={() => { setPinned(p.identity); setView("speaker"); }} />
+                <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} pip={gridN === 2 && p.isLocal && MOBILE()} onClick={() => { setPinned(p.identity); setView("speaker"); }} />
               ))}
               {count <= 1 ? (
                 <div className="mtg__waiting">
@@ -581,6 +650,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               ) : null}
             </div>
           )}
+          {recFile ? (
+            <div className="mtg__recdone" role="status">
+              <div>
+                <b>{t("recReady")}</b>
+                <span>{mmss(Math.round(recFile.durationMs / 1000))} · {(recFile.blob.size / 1024 / 1024).toFixed(1)} MB</span>
+              </div>
+              <button type="button" className="btn btn--pri btn--sm" onClick={saveRec}><IconDownload />{t("recSave")}</button>
+              <button type="button" className="mtg__sx" onClick={() => setRecFile(null)} aria-label={t("close")}><IconClose /></button>
+            </div>
+          ) : null}
         </main>
 
         {panel ? (
@@ -659,22 +738,37 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         ) : null}
       </div>
 
+      {/* Phone "more" sheet: the secondary controls that don't fit a thumb-sized bar. */}
+      {more ? (
+        <div className="mtg__more" onClick={() => setMore(false)}>
+          <div className="mtg__moresheet" onClick={(e) => e.stopPropagation()}>
+            <span className="mtg__grip" />
+            <button type="button" onClick={() => { setMore(false); openPanel("chat"); }}><IconChat />{t("chatTab")}{unread ? <i className="mtg__cb">{unread > 9 ? "9+" : unread}</i> : null}</button>
+            <button type="button" onClick={() => { setMore(false); openPanel("people"); }}><IconUsers />{t("rosterTitle")} · {count}</button>
+            {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }}><IconMic />{recOn ? t("recStop") : t("recStart")}</button> : null}
+            <button type="button" onClick={() => { setMore(false); setView(view === "grid" ? "speaker" : "grid"); }}>{view === "grid" ? <IconUser /> : <IconGrid />}{view === "grid" ? t("layoutSpeaker") : t("layoutGrid")}</button>
+          </div>
+        </div>
+      ) : null}
+
       <footer className="mtg__bar">
         <Ctl on={micOn} off={!micOn} label={t("mic")} onClick={toggleMic} disabled={hostMuted && !micOn} title={hostMuted && !micOn ? t("mutedByHost") : undefined}>{micOn ? <IconMic /> : <IconMicOff />}</Ctl>
         {callType === "video" ? <Ctl on={camOn} off={!camOn} label={t("cam")} onClick={toggleCam}><IconVideo /></Ctl> : null}
         {callType === "video" && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
-        {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing}><IconMonitor /></Ctl> : null}
-        <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")}><IconUsers /></Ctl>
-        <Ctl on={panel === "chat"} label={t("chatTab")} onClick={() => openPanel(panel === "chat" ? "" : "chat")} badge={unread}><IconChat /></Ctl>
+        {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing} desktop><IconMonitor /></Ctl> : null}
+        {canRecord() ? <Ctl on={recOn} label={recOn ? t("recStop") : t("recStart")} onClick={toggleRec} rec={recOn} desktop><IconMic /></Ctl> : null}
+        <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")} desktop><IconUsers /></Ctl>
+        <Ctl on={panel === "chat"} label={t("chatTab")} onClick={() => openPanel(panel === "chat" ? "" : "chat")} badge={unread} desktop><IconChat /></Ctl>
+        <Ctl label={t("more")} onClick={() => setMore((m) => !m)} badge={unread} phone><IconGrid /></Ctl>
         <Ctl end label={isCaller ? t("endAll") : t("end")} onClick={hangUp}><IconClose /></Ctl>
       </footer>
     </div>
   );
 }
 
-function Ctl({ children, label, onClick, on, off, end, accent, disabled, title, badge }: { children: ReactNode; label: string; onClick: () => void; on?: boolean; off?: boolean; end?: boolean; accent?: boolean; disabled?: boolean; title?: string; badge?: number }) {
+function Ctl({ children, label, onClick, on, off, end, accent, rec, disabled, title, badge, desktop, phone }: { children: ReactNode; label: string; onClick: () => void; on?: boolean; off?: boolean; end?: boolean; accent?: boolean; rec?: boolean; disabled?: boolean; title?: string; badge?: number; desktop?: boolean; phone?: boolean }) {
   return (
-    <button type="button" className={`mtg__ctl${on ? " on" : ""}${off ? " off" : ""}${end ? " end" : ""}${accent ? " accent" : ""}`} onClick={onClick} disabled={disabled} title={title} aria-label={label}>
+    <button type="button" className={`mtg__ctl${on ? " on" : ""}${off ? " off" : ""}${end ? " end" : ""}${accent ? " accent" : ""}${rec ? " rec" : ""}${desktop ? " mtg__ctl--desktop" : ""}${phone ? " mtg__ctl--phone" : ""}`} onClick={onClick} disabled={disabled} title={title} aria-label={label}>
       <span className="mtg__ci">{children}{badge ? <i className="mtg__cb">{badge > 9 ? "9+" : badge}</i> : null}</span>
       <span className="mtg__cl">{label}</span>
     </button>
@@ -685,7 +779,7 @@ function Ctl({ children, label, onClick, on, off, end, accent, disabled, title, 
 // camera is off; name chip with mic state; green ring while speaking. The
 // tile learns the stream's orientation from the video element so a phone's
 // portrait camera isn't squeezed into a landscape box.
-function Tile({ p, name, you, camOff, share, mirror, big, small, pip, onClick }: { p: Participant; tick: number; name: string; you: string; camOff: string; share?: boolean; mirror?: boolean; big?: boolean; small?: boolean; pip?: boolean; onClick?: () => void }) {
+function Tile({ p, name, you, camOff, share, mirror, big, small, pip, onClick }: { p: Participant; name: string; you: string; camOff: string; share?: boolean; mirror?: boolean; big?: boolean; small?: boolean; pip?: boolean; onClick?: () => void }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [portrait, setPortrait] = useState(false);
   const source = share ? Track.Source.ScreenShare : Track.Source.Camera;
@@ -707,7 +801,7 @@ function Tile({ p, name, you, camOff, share, mirror, big, small, pip, onClick }:
   }, [track]);
   const cls = ["mtg__tile", p.isSpeaking ? "speaking" : "", big ? "mtg__tile--big" : "", small ? "mtg__tile--small" : "", pip ? "mtg__tile--pip" : "", share ? "mtg__tile--share" : "", portrait ? "portrait" : "", hasVideo ? "" : "novideo"].filter(Boolean).join(" ");
   return (
-    <div className={cls} onClick={onClick} role={onClick ? "button" : undefined}>
+    <div className={cls} onClick={onClick} role={onClick ? "button" : undefined} data-flip={`${p.identity}${share ? ":s" : ""}`}>
       {hasVideo ? (
         <video ref={ref} autoPlay playsInline muted={p.isLocal} style={mirror ? { transform: "scaleX(-1)" } : undefined} />
       ) : (

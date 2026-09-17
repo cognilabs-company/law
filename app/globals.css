@@ -3651,3 +3651,47 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .wsp__scan{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;font-size:.7rem;font-weight:700;font-style:normal;background:var(--dk-surface-2, #eef2f7);color:var(--gray)}
 .wsp__scan--clean{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
 .wsp__scan--infected,.wsp__scan--blocked{background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #C0392B)}
+
+/* ── wp-x ── */
+/* Meeting room: recording, phone controls, layout polish */
+.mtg__top{backdrop-filter:blur(10px);background:rgba(11,31,69,.9)}
+.mtg__title{flex-wrap:wrap;row-gap:4px}
+.mtg__title b{font-family:var(--fd);font-weight:800;letter-spacing:-.01em}
+.mtg__badge--rec{background:rgba(229,72,77,.18);color:#fecaca}
+.mtg__badge--rec i{background:#E5484D;animation:mtgBlink 1.2s infinite}
+.mtg__ctl.rec .mtg__ci{background:#E5484D;color:#fff;animation:mtgPulse 1.6s infinite}
+@keyframes mtgPulse{0%,100%{box-shadow:0 0 0 0 rgba(229,72,77,.5)}60%{box-shadow:0 0 0 10px rgba(229,72,77,0)}}
+.mtg__recdone{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;border-radius:16px;background:var(--dk-surface, #fff);color:var(--ink);box-shadow:var(--s3);animation:mtgToast .4s ease both;animation-fill-mode:forwards;max-width:calc(100% - 24px)}
+.mtg__recdone>div{display:grid;gap:2px;min-width:0}
+.mtg__recdone b{font-size:.9rem}.mtg__recdone span{font-size:.76rem;color:var(--gray)}
+.mtg__recdone .mtg__sx{margin-left:0;color:var(--gray)}
+.mtg__recdone .btn svg{width:15px;height:15px}
+.mtg__ctl--phone{display:none}
+.mtg__tile{will-change:transform}
+.mtg__tile video{transition:opacity .25s ease}
+.mtg__avatar span{box-shadow:0 12px 30px rgba(0,0,0,.35)}
+.mtg__more{position:absolute;inset:0;z-index:40;background:rgba(3,16,43,.45);backdrop-filter:blur(2px);display:flex;align-items:flex-end;animation:mtgIn .2s ease}
+.mtg__moresheet{width:100%;background:var(--b850);border-radius:20px 20px 0 0;padding:8px 12px calc(12px + env(safe-area-inset-bottom));display:grid;gap:4px;animation:mtgSheet .25s ease}
+.mtg__grip{width:38px;height:4px;border-radius:999px;background:rgba(255,255,255,.25);margin:4px auto 8px}
+.mtg__moresheet>button{position:relative;display:flex;align-items:center;gap:12px;width:100%;border:0;background:transparent;color:#fff;font:inherit;font-weight:600;font-size:.95rem;padding:13px 10px;border-radius:12px;text-align:left}
+.mtg__moresheet>button:active{background:rgba(255,255,255,.08)}
+.mtg__moresheet>button svg{width:20px;height:20px;color:#cbd5e1}
+.mtg__moresheet .mtg__cb{position:static;margin-left:auto}
+@media (max-width:760px){
+  .mtg{--mtg-safe:env(safe-area-inset-bottom)}
+  .mtg__top{padding:calc(8px + env(safe-area-inset-top)) 12px 8px}
+  .mtg__tools .mtg__tool:not(:last-child){display:none}
+  .mtg__title b{max-width:44vw}
+  .mtg__bar{justify-content:space-around;gap:0;padding:8px 8px calc(10px + env(safe-area-inset-bottom));overflow:visible}
+  .mtg__ctl--desktop{display:none}
+  .mtg__ctl--phone{display:flex}
+  .mtg__ctl{min-width:0;flex:1;padding:4px 0}
+  .mtg__ci{width:50px;height:50px}.mtg__ci svg{width:22px;height:22px}
+  .mtg__ctl.end .mtg__ci{width:58px;border-radius:18px}
+  .mtg__cl{font-size:.64rem}
+  .mtg__recdone{bottom:12px;padding:8px 10px 8px 12px;border-radius:14px}
+  .mtg__toasts{top:calc(56px + env(safe-area-inset-top))}
+  .mtg__sound{top:calc(56px + env(safe-area-inset-top))}
+  .mtg__side{height:72%;padding-bottom:env(safe-area-inset-bottom)}
+}
+@media (prefers-reduced-motion:reduce){.mtg,.mtg__tile,.mtg__side,.mtg__toast,.mtg__msg,.mtg__more,.mtg__moresheet{animation:none!important}}

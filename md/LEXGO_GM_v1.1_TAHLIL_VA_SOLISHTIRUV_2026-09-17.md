@@ -339,3 +339,16 @@ Jonli tekshiruv: `/ws/users/me` ochildi va ochiq qoldi; 15 s davomida `/calls` s
 | Dizayn sayt uslubiga mos emas | Referens rasmdagi to'q-kulrang/to'q sariq palitra | Sayt palitrasi: navy `--b900/850/800`, brend ko'k `--b600`/`--grad`, `--ok` yashil, tugash — qizil; radiuslar `--rl`, shriftlar `--fb/--fd` |
 
 Jonli tekshirish: ikki akkaunt (host + mehmon) kerak — fake-media Chrome bilan `meet-test.mjs` (HOST_PHONE/HOST_PASS, GUEST_PHONE/GUEST_PASS env) qayta o'tkaziladi.
+
+## 14. 17.09 — Uchrashuvlar: sifat, animatsiya, ovoz, yozib olish, mobil
+
+| Nima | Qanday |
+|---|---|
+| Video sifati «xira» | Capture 720p (desktop) / 540p 4:3 (telefon); simulcast qatlamlari 216/360 + to'liq; ekran ulashish 1080p15, `contentHint: detail` (matn aniq), 720p fallback qatlam |
+| Yangi odam qo'shilganda silliq o'tish | FLIP (First–Last–Invert–Play): kartalar eski joyidan yangi joyiga faqat `transform` bilan siljiydi (Web Animations API, 380 ms, `cubic-bezier(.2,.8,.2,1)`); yangi karta scale/opacity bilan kiradi; `prefers-reduced-motion` hurmat qilinadi |
+| Kirish ovozi | WebAudio «qo'ng'iroqcha» tembri (asosiy + oktava + 3-garmonika, past-chastota filtri): birinchi odam kirganda C5–E5–G5 uch notali salom, keyingilarda ikki notali; chiqishda tushuvchi nota; yozib olishda ikki «tik» |
+| Yozib olish (barcha ovozlar) | Brauzerda mikser: mening mikrofonim + barcha uzoq audio treklar → AudioContext → MediaRecorder (webm/opus, Safari'da mp4); serverga yuborilmaydi. Boshlanganda hamma ishtirokchiga data-channel orqali xabar + qizil «Yozilmoqda» belgisi; to'xtatilgach «Yozuv tayyor → Qurilmaga saqlash»: iOS/Android — share sheet (fayl), desktop — yuklab olish |
+| Mobil | Pastki panel 4 ta katta tugma (mikrofon, kamera, almashtirish, tugatish) + «Yana» varag'i (chat, ishtirokchilar, yozib olish, tartib); safe-area inset'lar; tepada ortiqcha tugmalar yashirin; yon panel — pastki varaq |
+| Dizayn | Sayt navy/ko'k palitrasi, `--fd` sarlavha shrifti, ortiqcha «L» logotip va tepadagi «Odam qo'shish» tugmasi olib tashlandi (ishtirokchilar panelida qoldi), blur'li header |
+
+Eslatma (GM T2-09 §3): advokat↔mijoz qo'ng'irog'i **serverda** yozilmaydi — bu funksiya faqat foydalanuvchining o'z qurilmasida lokal yozuv; boshqalar ogohlantiriladi.
