@@ -3887,3 +3887,30 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
   .pident__chips span{font-size:.76rem}
 }
 .pident__card .phup__av{cursor:default}
+
+/* ── wp-ae ── */
+/* selects: a real, boxed control everywhere (was bare text outside .fld) */
+.dsel__btn{background:var(--dk-surface-2, #F7FAFE);border-radius:14px;padding:12px 13px 12px 15px;min-height:48px;box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .18s,background .18s}
+.dsel__btn:hover{box-shadow:inset 0 0 0 1.5px var(--b300);background:var(--dk-surface, #fff)}
+.dsel[data-open="true"] .dsel__btn,.dsel__btn:focus-visible{outline:none;box-shadow:inset 0 0 0 1.5px var(--b400);background:var(--dk-surface, #fff)}
+/* chevron in a soft round badge so the control reads as a dropdown */
+.dsel__cv{box-sizing:border-box;width:24px;height:24px;border:0;border-radius:50%;background:var(--b100);position:relative;transform:none;margin:0;transition:background .18s}
+.dsel__cv::after{content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;border-right:2px solid var(--dk-acc, var(--b600));border-bottom:2px solid var(--dk-acc, var(--b600));transform:translate(-50%,-65%) rotate(45deg);transition:transform .22s}
+.dsel[data-open="true"] .dsel__cv{background:var(--b200);transform:none;margin:0}
+.dsel[data-open="true"] .dsel__cv::after{transform:translate(-50%,-30%) rotate(-135deg)}
+.dsel__val--ph{color:var(--gray2);font-weight:500}
+.dsel__menu{left:0;right:0;top:calc(100% + 6px);box-shadow:var(--s3),0 0 0 1px var(--line)}
+/* inside a filter field (.fld) the field itself is the box */
+.fld .dsel__btn{background:transparent;border-radius:0;padding:8px 0;margin-block:-8px;min-height:0;box-shadow:none}
+.fld .dsel__btn:hover,.fld .dsel[data-open="true"] .dsel__btn{background:transparent;box-shadow:none}
+.fld .dsel__cv{width:20px;height:20px}
+.fld .dsel__menu{left:-8px;right:-8px;top:calc(100% + 12px)}
+/* compact in toolbars and list rows */
+.lfilters .dsel__btn,.audit__filters .dsel__btn,.audit__hact .dsel__btn,.aitem__r .dsel__btn,.ccq__act .dsel__btn,.ppanel__h .dsel__btn{padding:8px 10px 8px 13px;min-height:40px;border-radius:12px;font-size:.88rem}
+.lfilters .dsel{flex:0 1 220px;width:auto}
+.aitem__r .dsel,.audit__hact .dsel,.ppanel__h .dsel{width:auto;min-width:170px}
+.lfilters .dsel__cv,.audit__filters .dsel__cv,.audit__hact .dsel__cv,.aitem__r .dsel__cv,.ppanel__h .dsel__cv{width:20px;height:20px}
+/* the other pickers get the same visible frame */
+.mpick__btn{box-shadow:inset 0 0 0 1.5px var(--line)}
+.ssel__ctrl{background:var(--dk-surface-2, #F7FAFE);border-color:transparent;box-shadow:inset 0 0 0 1.5px var(--line);border-radius:14px}
+.ssel__ctrl:hover{border-color:transparent;box-shadow:inset 0 0 0 1.5px var(--b300);background:var(--dk-surface, #fff)}
