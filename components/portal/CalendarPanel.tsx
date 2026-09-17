@@ -21,7 +21,8 @@ import Select from "@/components/Select";
 import DatePicker from "@/components/DatePicker";
 import { IconCalendar, IconPlus, IconClock, IconMapPin, IconClose, IconBell, IconDownload } from "@/components/icons";
 
-const TYPES = ["hearing", "investigative", "meeting", "deadline"] as const;
+// GM T1B-04: court hearing, investigative action, meeting, filing deadline, appeal deadline.
+const TYPES = ["hearing", "investigative", "meeting", "filing_deadline", "appeal_deadline"] as const;
 // Reminder presets in minutes before the event ("" = no reminder).
 const REMINDERS = ["", "15", "30", "60", "1440"] as const;
 

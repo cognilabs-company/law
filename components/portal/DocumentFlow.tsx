@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
+  getPlatformPolicies,
   getDocumentTemplates,
   listDocumentRequests,
   createDocumentRequest,
@@ -22,7 +23,7 @@ import { ApiError, httpBlob, isProviderUnavailable } from "@/lib/http";
 import { base64Blob, closeTab, fetchAndDeliver, preopenTab, saveBlob, showBlob } from "@/lib/download";
 import ContractSign from "./ContractSign";
 import DocWizard, { loadDraft, clearDraft } from "./DocWizard";
-import { useResource } from "@/lib/useResource";
+import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "./DataState";
@@ -84,6 +85,8 @@ export default function DocumentFlow() {
   // the template supports it) — read from the unlock policy.
   const [formats, setFormats] = useState<string[]>(["pdf"]);
   // Generated documents this month (S-35: 3 free a month, then a fee or a plan).
+  // Lawyer review fee comes from the backend policy store (nothing hard-coded).
+  const policies = useResourceOne(getPlatformPolicies, []).data;
   const monthDownloads = useMemo(() => {
     const now = new Date();
     return reqs.data.filter((r) => r.status === "file_ready" && r.createdAt && new Date(r.createdAt).getMonth() === now.getMonth() && new Date(r.createdAt).getFullYear() === now.getFullYear()).length;
@@ -434,7 +437,7 @@ export default function DocumentFlow() {
                   <b>{t("offerTitle")}</b>
                   <span>{t("offerLead")}</span>
                   <div className="docoffer__btns">
-                    <Link href={`/portal/client/doc-analysis?request=${encodeURIComponent(req.id)}`} className="btn btn--pri btn--sm">{t("offerReview", { price: fmtUzs(149000) })}</Link>
+                    <Link href={`/portal/client/doc-analysis?request=${encodeURIComponent(req.id)}`} className="btn btn--pri btn--sm">{t("offerReview", { price: fmtUzs(policies?.documentAnalysis.ranges[0]?.amount || 149000) })}</Link>
                     <Link href="/portal/client/services?q=shablon" className="btn btn--line btn--sm">{t("offerHelp", { price: fmtUzs(399000) })}</Link>
                   </div>
                 </div>

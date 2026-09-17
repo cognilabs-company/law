@@ -8,7 +8,8 @@ import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { IconCard, IconDownload } from "@/components/icons";
+import { IconCard, IconDownload, IconSearch } from "@/components/icons";
+import DatePicker from "@/components/DatePicker";
 
 const som = (n: number, cur: string) =>
   n ? `${fmtUzs(n)} ${cur}` : "—";
@@ -29,6 +30,17 @@ export default function ClientPayments() {
   };
   const res = useResource(listPayments, []);
   const [busyId, setBusyId] = useState("");
+  // T1-13 §6: search by description/status and filter by date range.
+  const [q, setQ] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const rows = res.data.filter((p) => {
+    const day = (p.createdAt || "").slice(0, 10);
+    if (from && day && day < from) return false;
+    if (to && day && day > to) return false;
+    const needle = q.trim().toLowerCase();
+    return !needle || `${p.description} ${p.kind} ${p.status} ${p.amount}`.toLowerCase().includes(needle);
+  });
   const [failedId, setFailedId] = useState("");
 
   // GET /payments/{id}/receipt is an authed PDF: fetch it with the token.
@@ -52,10 +64,17 @@ export default function ClientPayments() {
         <span className="advmuted">{t("history")}</span>
       </div>
 
+      <div className="lfilters">
+        <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>
+        <DatePicker value={from} onChange={setFrom} max={to || undefined} placeholder={t("from")} ariaLabel={t("from")} />
+        <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={t("to")} ariaLabel={t("to")} />
+      </div>
       {res.status === "loading" ? (
         <Skeleton rows={4} />
       ) : !res.data.length ? (
         <EmptyState icon={<IconCard />} title={t("empty")} text={t("emptyText")} />
+      ) : !rows.length ? (
+        <EmptyState icon={<IconSearch />} title={t("noResults")} text={t("noResultsText")} />
       ) : (
         <div className="ptable__wrap">
           <div className="ptable">
@@ -65,7 +84,7 @@ export default function ClientPayments() {
               <span>{t("amount")}</span>
               <span>{t("statusCol")}</span>
             </div>
-            {res.data.map((p) => (
+            {rows.map((p) => (
               <div className="ptable__row" key={p.id}>
                 <span data-l={t("what")}>
                   <b>{whatOf(p.description, p.kind)}</b>

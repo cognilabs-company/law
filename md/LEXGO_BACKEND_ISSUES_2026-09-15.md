@@ -319,6 +319,8 @@ Frontend bugun UI ni qurdi; quyidagilar backend tomonidan bo'lmasa GM talabi yop
 | 60 | T0-07 / GM 1.6 | Test-akkaunt to'plami: mijoz ×3 (+TG bog'langan, yuridik shaxs, Lite/Pro/Standart/Premium), advokat ×3 (tuzilmali/tuzilmasiz/tasdiqlanmagan), yurist, super_admin ×2, executive, ceo_viewer, moderator, finance, quality_control, content_manager, sales_head, b2b_manager, marketing | 7 akkaunt |
 | 61 | T2-02 §3 | `GET /lawyers/me/services` javobida har xizmat uchun `selected_price` (va tavsiya `min_allowed/max_allowed`) | Faqat xizmatlar ro'yxati; narx frontend'da saqlanadi |
 | 62 | T4-02 §7 | `PATCH /call-center/leads/{id}` (details merge) yoki move payload'ida `lost_reason` — operator lids'ni sabab bilan yopishi uchun | Faqat admin PATCH (leads.manage), details to'liq almashadi |
+| 63 | T1B-07 §1,4 | `PATCH /b2b/clients/{id}` da `address`, `bank` maydonlari (shartnoma PDF ularni bo'sh chiqaradi); mijoz tomonida yuridik shaxs ro'yxati (`/auth/register` da `company` maydonlari) | Faqat director/inn/monthly_payment/sla |
+| 64 | T3-07 §1,2 | Rol matritsasini yozish shakli (`PUT /admin/roles/{id}/permissions` yoki `POST /admin/roles` body) hujjatda yo'q — UI qurish uchun shakl kerak | `POST /admin/roles` bor, body noma'lum |
 
 ## 1. Tezlik
 

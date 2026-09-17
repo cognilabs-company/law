@@ -70,7 +70,7 @@ export default function OnboardingProgress({ role, limited }: { role: Role; limi
   return (
     <div className="ppanel onbp">
       <div className="ppanel__h">
-        <b>{t("title")}</b>
+        <b>{t("strength", { pct })}</b>
         <span className={`creq__badge${done ? " creq__badge--ok" : ""}`}>{t("count", { done: p.completedCount, total: p.totalCount })}</span>
       </div>
       <p className="ppanel__note">{done ? t("doneLead") : t("lead")}</p>

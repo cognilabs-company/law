@@ -20,8 +20,9 @@ import {
   getLawyerClients,
   type WorkspaceFile,
   type DocAnalysis,
+  getPlatformPolicies,
 } from "@/lib/services/backend";
-import { useResource } from "@/lib/useResource";
+import { useResource, useResourceOne } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -153,7 +154,10 @@ export default function WorkspacePanel() {
               </span>
               <button type="button" className="prow__m wsp__filebtn" onClick={() => setDetail(f)}>
                 <b>{f.fileName}</b>
-                <span>{[f.mimeType, fmtSize(f.size)].filter(Boolean).join(" · ")}</span>
+                <span>
+                  {[f.mimeType, fmtSize(f.size)].filter(Boolean).join(" · ")}
+                  {f.scan ? <em className={`wsp__scan wsp__scan--${f.scan.status || "pending"}`} title={f.scan.engine}>{t.has(`scan.${f.scan.status}`) ? t(`scan.${f.scan.status}`) : f.scan.status || t("scan.pending")}</em> : null}
+                </span>
               </button>
               <div style={{ display: "flex", gap: 8, flex: "none" }}>
                 {f.fileUrl ? (
@@ -411,6 +415,9 @@ function AddFileModal({
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [sizeErr, setSizeErr] = useState(false);
+  // Allowed types and size limits come from the backend policy store.
+  const policy = useResourceOne(getPlatformPolicies, []).data;
   const [folder, setFolder] = useState(defaultFolder);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -450,7 +457,9 @@ function AddFileModal({
       <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
         <div>
           <label>{t("uploadFile")}</label>
-          <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <input type="file" accept={policy?.workspace.allowedExtensions.join(",") || undefined} onChange={(e) => { const f = e.target.files?.[0] ?? null; setFile(f); setSizeErr(f && policy ? f.size > (/\.(mp4|mov)$/i.test(f.name) ? policy.workspace.videoMaxMb : policy.workspace.fileMaxMb) * 1024 * 1024 : false); }} />
+          {policy ? <p className="rf__hint">{t("uploadRules", { max: policy.workspace.fileMaxMb, video: policy.workspace.videoMaxMb, ext: policy.workspace.allowedExtensions.map((x) => x.replace(/^\./, "")).join(", ") })}</p> : null}
+          {sizeErr ? <Notice ok={false} msg={t("tooBig")} /> : null}
         </div>
         <div className="wsp__or">{t("orUrl")}</div>
         <div>
@@ -466,7 +475,7 @@ function AddFileModal({
           <Select value={folder} onChange={setFolder} options={opts} ariaLabel={t("folder")} />
         </div>
         {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-        <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
+        <button className="btn btn--pri btn--full" type="submit" disabled={busy || sizeErr}>
           {busy ? t("saving") : t("save")}
         </button>
       </form>

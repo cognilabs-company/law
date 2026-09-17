@@ -292,3 +292,28 @@ Backend'ga qo'shimcha (0E ga): `GET /lawyers/me/services` tanlangan narxlarni qa
 | 5 | `/admin/dashboard`, `/portal/admin` 404; `/admin` seller'ga yo'naltiradi | `/admin` admin ruxsati yo'q sessiyani o'z portaliga qaytaradi (to'g'ri); admin (+998900000002) paroli 16.09 dan ishlamaydi (backend) | Alias'lar: `/admin/dashboard`, `/portal/admin` → `/admin`; `/portal/advokat`, `/portal/yurist` → mos portal |
 
 Eslatma: tester ko'rgan 2–5 belgilar **eski deploy** (Vercel `law-two-tau`) bilan mos keladi — main'dagi so'nggi commitlar deploy qilinmagan bo'lsa, avval push/redeploy qilish kerak.
+
+## 11. 17.09 — `LEXGO_BACKEND_PRODUCTION_POLICY_UPDATE.md` bo'yicha va qolgan frontend ishlar
+
+Backend policy yangilanishi (frontend qismi qilindi):
+
+| Backend | Frontend | Qayerda |
+|---|---|---|
+| `GET /platform/policies` | `getPlatformPolicies()` (5 daq kesh); ish maydoni yuklashda ruxsat etilgan kengaytmalar + hajm chegarasi; hujjat namunasida «Advokat tekshirsinmi» narxi policy'dan | Advokat/Yurist → Ish maydoni → Fayl qo'shish (qoidalar matni, `accept`); Mijoz → Hujjat namunalari |
+| `GET/PUT /admin/platform/policies(/{section})`, `/history` | Admin → **Platforma qoidalari**: 6 bo'lim kartochkasi, tahrirlash (raqam/boolean/ro'yxat/JSON), versiyalar tarixi | Admin menyu → Tizim |
+| `GET /admin/compliance/readiness` | O'sha sahifada tepada «Production tayyorgarligi» checklist (holat belgilari) | Admin → Platforma qoidalari |
+| `content-reveal request/approve/status` | Xodim secure chatni ochganda **«Chat mazmuni yashirin»** paneli: sabab + «Ochishni so'rash», ikkinchi xodim «Tasdiqlash»; `[metadata_only]` xabarlar 🔒 bilan | Admin/xodim → /portal/chat/{room} |
+| workspace `scan` metadata | Fayl kartasida antivirus holati belgisi (toza / tekshirilmoqda / xavfli) | Ish maydoni |
+| Document analysis `pricing_rule` | Sahifa allaqachon backend quote'dan narx oladi — hardcode yo'q | Mijoz → Hujjat tahlili |
+
+GM 6-bo'limdan qo'shimcha yopilganlar:
+
+| Task | Qilindi |
+|---|---|
+| T1B-07 §1,2,3,4,6 (admin/b2b_manager tomoni) | Admin → B2B: kompaniya (STIR, direktor, oylik to'lov, SLA), bosqich tanlash, **Hisob-faktura** (QQS'siz / QQS 12% / jami, PDF), **Shartnoma** PDF, **Oylik hisobot** PDF (oy tanlash) — fayllar token bilan yuklab olinadi |
+| T1-13 §6 | Mijoz → To'lovlar: qidiruv + sana oralig'i filtri |
+| T1B-04 §1 | Kalendar hodisa turlari 5 ta: sud majlisi, tergov, uchrashuv, hujjat topshirish muddati, apellyatsiya muddati |
+| T1A-08 §1 · T2-08 §8 | Advokat/Yurist → **Referal** sahifasi (kod, havola, QR, statistika); dashboard progress kartasi shu sahifaga olib boradi |
+| T1A-02 §9 | Kabinetda «Profil kuchi: N%» indikatori |
+
+Kutib turilganlar (backend yo'q / hujjatda aniq emas): T1B-07 mijoz tomonida yuridik shaxs ro'yxati va QQS'li narx (backend'da yuridik shaxs mijoz modeli yo'q; PATCH'da `address`/`bank` maydonlari yo'q — #63), T2-04 reyting tarixi/Super mezonlari, T1-05 shoshilinch blok + SOS (`urgency` backend'dan kelmaydi), T5-06 avtoto'lov tiklash, T3-07 rol yaratish UI (backend `POST /admin/roles` bor, lekin matritsa PUT shakli hujjatda yo'q), T1B-04 eslatma to'plami (bitta eslatma), T1-01 §5 Telegram taklifi (pending ro'yxatdan keyin token yo'q).

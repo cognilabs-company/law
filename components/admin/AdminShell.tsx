@@ -108,6 +108,7 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/roles", key: "roles", Icon: IconShield, perm: "roles.manage" },
       { href: "/admin/audit-trail", key: "audit", Icon: IconShieldCheck, perm: "users.manage" },
       { href: "/admin/legal", key: "legal", Icon: IconFileText, perm: "users.manage" },
+      { href: "/admin/policies", key: "policies", Icon: IconShield },
       { href: "/admin/bootstrap", key: "bootstrap", Icon: IconBolt },
     ],
   },

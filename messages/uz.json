@@ -2078,7 +2078,8 @@
         "subscription": "Obuna",
         "notifications": "Bildirishnomalar",
         "workspace": "Ish maydoni",
-        "profile": "Profil"
+        "profile": "Profil",
+        "referrals": "Referal"
       },
       "client": {
         "dashboard": "Boshqaruv paneli",
@@ -2118,7 +2119,8 @@
         "organization": "Tashkilot",
         "notifications": "Bildirishnomalar",
         "workspace": "Ish maydoni",
-        "assistant": "Sun'iy intellekt yordamchi"
+        "assistant": "Sun'iy intellekt yordamchi",
+        "referrals": "Referal"
       }
     },
     "lawyer": {
@@ -2177,7 +2179,9 @@
         "titlePh": "Voqea nomi",
         "dateLabel": "Sana va vaqt",
         "locationLabel": "Manzil",
-        "locationPh": "Sud, ofis…"
+        "locationPh": "Sud, ofis…",
+        "filing_deadline": "Hujjat topshirish muddati",
+        "appeal_deadline": "Apellyatsiya muddati"
       },
       "clients": {
         "title": "Mijozlar",
@@ -2352,7 +2356,12 @@
           "upsell_offer": "Qo'shimcha xizmat",
           "organization": "Tashkilot",
           "pending_registration": "Ro'yxatdan o'tish"
-        }
+        },
+        "searchPh": "Qidirish (xizmat, holat, summa)…",
+        "from": "Dan",
+        "to": "Gacha",
+        "noResults": "Mos to'lov topilmadi",
+        "noResultsText": "Filtrni o'zgartiring."
       },
       "intake": {
         "title": "Sun'iy intellekt muammo tahlili",
@@ -3080,7 +3089,9 @@
         "titlePh": "Voqea nomi",
         "dateLabel": "Sana va vaqt",
         "locationLabel": "Manzil",
-        "locationPh": "Sud, ofis…"
+        "locationPh": "Sud, ofis…",
+        "filing_deadline": "Hujjat topshirish muddati",
+        "appeal_deadline": "Apellyatsiya muddati"
       },
       "clients": {
         "title": "Mijozlar",
@@ -3330,7 +3341,18 @@
       "reqTitlePh": "Masalan: pasport nusxasi",
       "reqSend": "So‘rov yuborish",
       "reqSent": "So‘rov mijozga yuborildi.",
-      "reqNoClients": "Hozircha mijoz yo‘q"
+      "reqNoClients": "Hozircha mijoz yo‘q",
+      "scan": {
+        "clean": "Antivirus: toza",
+        "pending": "Antivirus: tekshirilmoqda",
+        "queued": "Antivirus: navbatda",
+        "infected": "Antivirus: xavfli!",
+        "blocked": "Bloklangan",
+        "failed": "Tekshiruv xatosi",
+        "skipped": "Tekshirilmagan"
+      },
+      "uploadRules": "Fayl {max} MB gacha (video {video} MB). Ruxsat: {ext}.",
+      "tooBig": "Fayl hajmi ruxsat etilgan chegaradan katta."
     },
     "passport": {
       "title": "Xizmat pasporti",
@@ -3402,7 +3424,8 @@
       "submitting": "Yuborilmoqda…",
       "submitted": "Ariza moderatorga yuborildi. 24 soat ichida ko'rib chiqiladi.",
       "submitIncomplete": "Avval barcha majburiy qadamlarni yakunlang.",
-      "submitError": "Yuborib bo'lmadi. Qayta urining."
+      "submitError": "Yuborib bo'lmadi. Qayta urining.",
+      "strength": "Profil kuchi: {pct}%"
     },
     "orderFlow": {
       "title": "Buyurtma tarixi",
@@ -4012,7 +4035,8 @@
       "legalAid": "Yuridik yordam",
       "registerRequests": "Ro‘yxatdan o‘tish so‘rovlari",
       "e2e": "E2E tayyorlik",
-      "legal": "Huquqiy hujjatlar"
+      "legal": "Huquqiy hujjatlar",
+      "policies": "Platforma qoidalari"
     },
     "overview": {
       "kicker": "Admin konsoli",
@@ -4514,7 +4538,29 @@
       "saving": "Saqlanmoqda…",
       "created": "Qo'shildi",
       "error": "Xatolik",
-      "stage": { "new": "Yangi", "negotiation": "Muzokara", "won": "Yutildi", "lost": "Yo'qotildi", "active": "Faol" }
+      "stage": { "new": "Yangi", "negotiation": "Muzokara", "won": "Yutildi", "lost": "Yo'qotildi", "active": "Faol", "discovered": "Topildi", "contacted": "Bog'lanildi", "meeting": "Uchrashuv", "diagnostics": "Diagnostika", "proposal": "Taklif", "contract": "Shartnoma", "renewal": "Uzaytirish" },
+      "cInn": "STIR",
+      "cDirector": "Direktor",
+      "cMonthly": "Oylik to'lov (so'm)",
+      "cSla": "SLA",
+      "stageLabel": "Bosqich",
+      "invoice": "Hisob-faktura",
+      "contract": "Shartnoma",
+      "report": "Oylik hisobot",
+      "amountNoVat": "Summa (QQS'siz)",
+      "vat": "QQS {pct}%",
+      "total": "Jami (QQS bilan)",
+      "description": "Tavsif",
+      "descriptionPh": "B2B yuridik xizmatlar",
+      "month": "Oy",
+      "contractLead": "Kompaniya rekvizitlari, oylik to'lov va SLA asosida B2B shartnoma PDF yaratiladi.",
+      "docReady": "Hujjat tayyor",
+      "reportTasks": "Oy davomida {n} ta vazifa",
+      "download": "PDF yuklab olish",
+      "downloadError": "Faylni yuklab bo'lmadi.",
+      "generate": "Yaratish",
+      "generating": "Yaratilmoqda…",
+      "forbidden": "Ruxsat yo'q (b2b.manage kerak)."
     },
     "retention": {
       "title": "Ushlab qolish va upsell",
@@ -4983,6 +5029,79 @@
       "journalEmptyText": "Hali hech kim rozilik bermagan yoki filtr bo'yicha topilmadi.",
       "when": "Vaqt",
       "user": "Foydalanuvchi"
+    },
+    "policies": {
+      "readyTitle": "Production tayyorgarligi",
+      "readyLead": "Backend compliance checklist: qaysi shartlar bajarilgan, qaysi tashqi integratsiyalar kutilmoqda.",
+      "readyStatus": {
+        "production_ready": "Production'ga tayyor",
+        "needs_external_integrations": "Tashqi integratsiyalar kerak",
+        "needs_review": "Ko'rib chiqish kerak",
+        "ok": "Bajarilgan",
+        "ready": "Tayyor",
+        "missing": "Yo'q",
+        "pending": "Kutilmoqda",
+        "warning": "Ogohlantirish",
+        "configured": "Sozlangan",
+        "not_configured": "Sozlanmagan",
+        "failed": "Xato"
+      },
+      "loadError": "Yuklab bo'lmadi.",
+      "title": "Platforma qoidalari",
+      "versioned": "har o'zgarish versiyalanadi",
+      "lead": "Buyurtma, to'lov, hujjat tahlili, ish maydoni, xavfsizlik va bildirishnoma qoidalari backend'da saqlanadi — kodda emas. O'zgartirish darhol saytda ishlaydi.",
+      "forbidden": "Ruxsat yo'q",
+      "forbiddenText": "Qoidalarni faqat admin token bilan ko'rish va o'zgartirish mumkin.",
+      "sections": {
+        "order": "Buyurtma",
+        "payment": "To'lov",
+        "document_analysis": "Hujjat tahlili",
+        "workspace": "Ish maydoni (fayllar)",
+        "security": "Xavfsizlik",
+        "notifications": "Bildirishnomalar"
+      },
+      "keys": {
+        "advance_percent": "Avans ulushi, %",
+        "final_percent": "Yakuniy ulush, %",
+        "confirmation_window_minutes": "Tasdiqlash oynasi, daqiqa",
+        "seller_response_business_minutes": "Ijrochi javob muddati (ish daqiqasi)",
+        "status_transitions": "Status o'tishlari",
+        "platform_commission_percent": "LexGo komissiyasi, %",
+        "provider_fee_percent": "Provayder komissiyasi, %",
+        "mode": "To'lov rejimi",
+        "currency": "Valyuta",
+        "refund_review_business_days": "Qaytarish ko'rib chiqish, ish kuni",
+        "duplicate_webhook_idempotency": "Takroriy vebhuk himoyasi",
+        "review_fee_ranges": "Advokat tekshiruvi narxlari (sahifa bo'yicha)",
+        "extra_page_amount": "Qo'shimcha sahifa, so'm",
+        "urgent_percent": "Shoshilinch ustama, %",
+        "written_opinion_amount": "Yozma xulosa, so'm",
+        "file_max_mb": "Fayl chegarasi, MB",
+        "video_max_mb": "Video chegarasi, MB",
+        "case_quota_mb": "Keys kvotasi, MB",
+        "signed_url_minutes": "Havola amal qilishi, daqiqa",
+        "scan_required": "Antivirus tekshiruvi majburiy",
+        "allowed_extensions": "Ruxsat etilgan kengaytmalar",
+        "blocked_extensions": "Taqiqlangan kengaytmalar",
+        "cascade": "Kanal tartibi",
+        "provider_missing_status": "Provayder yo'q bo'lsa holat"
+      },
+      "objectValue": "{n} ta maydon",
+      "listValue": "{n} ta yozuv",
+      "emptySection": "Bo'sh",
+      "history": "Tarix",
+      "edit": "O'zgartirish",
+      "editTitle": "{section} — qoidalarni o'zgartirish",
+      "editLead": "Raqam, matn va ro'yxat maydonlari to'g'ridan-to'g'ri, murakkab tuzilmalar JSON ko'rinishida tahrirlanadi.",
+      "listHint": "vergul bilan",
+      "badJson": "JSON maydoni noto'g'ri yozilgan.",
+      "saved": "Qoidalar saqlandi (yangi versiya).",
+      "saveError": "Saqlab bo'lmadi.",
+      "saving": "Saqlanmoqda…",
+      "save": "Saqlash",
+      "saveHint": "Saqlash yangi versiya yaratadi; eski qiymatlar «Tarix»da qoladi.",
+      "historyTitle": "{section} — versiyalar tarixi",
+      "historyEmpty": "Hali o'zgarishlar yo'q."
     }
   },
   "secureChat": {
@@ -5037,7 +5156,26 @@
     "callDismiss": "Rad etish",
     "wsSessionExpired": "Sessiya muddati tugadi. Xabar yuborilmadi — qaytadan kiring.",
     "wsForbidden": "Bu chatga xabar yuborishga ruxsatingiz yo'q.",
-    "wsSendFailed": "Xabar yuborilmadi. Qayta urining."
+    "wsSendFailed": "Xabar yuborilmadi. Qayta urining.",
+    "reveal": {
+      "lockedTitle": "Chat mazmuni yashirin",
+      "lockedText": "Xodimlar odatda xabar matnini ko'rmaydi — faqat meta-ma'lumot. Nizo bo'lsa ochishni so'rang; ikkinchi xodim tasdiqlagach vaqtincha ochiladi va har ko'rish jurnalga yoziladi.",
+      "pendingTitle": "Ochish so'rovi tasdiq kutmoqda",
+      "pendingText": "Boshqa xodim «Tasdiqlash»ni bosgach mazmun ochiladi.",
+      "activeTitle": "Mazmun vaqtincha ochiq",
+      "activeText": "Nizo tekshiruvi uchun ochilgan; muddat tugagach yana yopiladi.",
+      "until": "{time} gacha",
+      "reasonPh": "Sabab (nizo / shikoyat raqami)…",
+      "reasonRequired": "Sababni yozing (kamida 5 belgi).",
+      "request": "Ochishni so'rash",
+      "approve": "Tasdiqlash",
+      "working": "Yuborilmoqda…",
+      "requested": "So'rov yuborildi.",
+      "approved": "Tasdiqlandi — mazmun ochildi.",
+      "forbidden": "Bu amalga ruxsatingiz yo'q.",
+      "conflict": "So'rovni o'zingiz tasdiqlay olmaysiz yoki holat allaqachon o'zgargan.",
+      "error": "Bajarib bo'lmadi."
+    }
   },
   "academy": {
     "kicker": "LexGo Akademiya",

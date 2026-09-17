@@ -119,7 +119,7 @@ export default function SellerDashboard({ role }: { role: Role }) {
 
       {cabinet.data ? <SellerMetrics stats={cabinet.data.stats} userId={session?.id || ""} /> : null}
       {cabinet.data ? <SellerPayouts /> : null}
-      <ReferralProgress side="seller" href={role === "advocate" ? "/portal/advocate/promotion" : "/portal/lawyer/promotion"} />
+      <ReferralProgress side="seller" href={role === "advocate" ? "/portal/advocate/referrals" : "/portal/lawyer/referrals"} />
 
       <div className="ppanel">
         <div className="ppanel__h">

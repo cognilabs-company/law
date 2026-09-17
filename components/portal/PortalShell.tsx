@@ -85,6 +85,7 @@ const LAWYER_NAV: NavItem[] = [
   { href: "/portal/lawyer/ai", key: "ai", Icon: IconSparkle },
   { href: "/portal/lawyer/assistant", key: "assistant", Icon: IconClipboardCheck },
   { href: "/portal/lawyer/profile", key: "profile", Icon: IconUser },
+  { href: "/portal/lawyer/referrals", key: "referrals", Icon: IconGift },
   { href: "/portal/lawyer/promotion", key: "promotion", Icon: IconBolt },
   { href: "/portal/lawyer/subscription", key: "subscription", Icon: IconStar },
 ];
@@ -102,6 +103,7 @@ const ADVOCATE_NAV: NavItem[] = [
   { href: "/portal/advocate/workspace", key: "workspace", Icon: IconFolder },
   { href: "/portal/advocate/assistant", key: "assistant", Icon: IconSparkle },
   { href: "/portal/advocate/profile", key: "profile", Icon: IconUser },
+  { href: "/portal/advocate/referrals", key: "referrals", Icon: IconGift },
   { href: "/portal/advocate/promotion", key: "promotion", Icon: IconBolt },
   { href: "/portal/advocate/subscription", key: "subscription", Icon: IconStar },
 ];

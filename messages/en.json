@@ -2072,7 +2072,8 @@
         "subscription": "Subscription",
         "notifications": "Notifications",
         "workspace": "Workspace",
-        "profile": "Profile"
+        "profile": "Profile",
+        "referrals": "Referral"
       },
       "client": {
         "dashboard": "Dashboard",
@@ -2112,7 +2113,8 @@
         "organization": "Organization",
         "notifications": "Notifications",
         "workspace": "Workspace",
-        "assistant": "AI assistant"
+        "assistant": "AI assistant",
+        "referrals": "Referral"
       }
     },
     "lawyer": {
@@ -2171,7 +2173,9 @@
         "titlePh": "Event title",
         "dateLabel": "Date & time",
         "locationLabel": "Location",
-        "locationPh": "Court, office…"
+        "locationPh": "Court, office…",
+        "filing_deadline": "Filing deadline",
+        "appeal_deadline": "Appeal deadline"
       },
       "clients": {
         "title": "Clients",
@@ -2346,7 +2350,12 @@
           "upsell_offer": "Add-on service",
           "organization": "Organization",
           "pending_registration": "Registration"
-        }
+        },
+        "searchPh": "Search (service, status, amount)…",
+        "from": "From",
+        "to": "To",
+        "noResults": "No matching payments",
+        "noResultsText": "Change the filter."
       },
       "intake": {
         "title": "AI problem analysis",
@@ -3074,7 +3083,9 @@
         "titlePh": "Event title",
         "dateLabel": "Date & time",
         "locationLabel": "Location",
-        "locationPh": "Court, office…"
+        "locationPh": "Court, office…",
+        "filing_deadline": "Filing deadline",
+        "appeal_deadline": "Appeal deadline"
       },
       "clients": {
         "title": "Clients",
@@ -3324,7 +3335,18 @@
       "reqTitlePh": "e.g. passport copy",
       "reqSend": "Send request",
       "reqSent": "Request sent to the client.",
-      "reqNoClients": "No clients yet"
+      "reqNoClients": "No clients yet",
+      "scan": {
+        "clean": "Antivirus: clean",
+        "pending": "Antivirus: scanning",
+        "queued": "Antivirus: queued",
+        "infected": "Antivirus: threat!",
+        "blocked": "Blocked",
+        "failed": "Scan failed",
+        "skipped": "Not scanned"
+      },
+      "uploadRules": "File up to {max} MB (video {video} MB). Allowed: {ext}.",
+      "tooBig": "The file is larger than the allowed limit."
     },
     "passport": {
       "title": "Service passport",
@@ -3396,7 +3418,8 @@
       "submitting": "Submitting…",
       "submitted": "Sent to a moderator. Review within 24 hours.",
       "submitIncomplete": "Complete all required steps first.",
-      "submitError": "Couldn't submit. Try again."
+      "submitError": "Couldn't submit. Try again.",
+      "strength": "Profile strength: {pct}%"
     },
     "orderFlow": {
       "title": "Order history",
@@ -4006,7 +4029,8 @@
       "legalAid": "Legal aid",
       "registerRequests": "Register requests",
       "e2e": "E2E readiness",
-      "legal": "Legal documents"
+      "legal": "Legal documents",
+      "policies": "Platform policies"
     },
     "overview": {
       "kicker": "Admin console",
@@ -4508,7 +4532,29 @@
       "saving": "Saving…",
       "created": "Created",
       "error": "Error",
-      "stage": { "new": "New", "negotiation": "Negotiation", "won": "Won", "lost": "Lost", "active": "Active" }
+      "stage": { "new": "New", "negotiation": "Negotiation", "won": "Won", "lost": "Lost", "active": "Active", "discovered": "Discovered", "contacted": "Contacted", "meeting": "Meeting", "diagnostics": "Diagnostics", "proposal": "Proposal", "contract": "Contract", "renewal": "Renewal" },
+      "cInn": "Tax ID",
+      "cDirector": "Director",
+      "cMonthly": "Monthly payment (so'm)",
+      "cSla": "SLA",
+      "stageLabel": "Stage",
+      "invoice": "Invoice",
+      "contract": "Contract",
+      "report": "Monthly report",
+      "amountNoVat": "Amount (excl. VAT)",
+      "vat": "VAT {pct}%",
+      "total": "Total (incl. VAT)",
+      "description": "Description",
+      "descriptionPh": "B2B legal services",
+      "month": "Month",
+      "contractLead": "The B2B contract PDF is built from the company details, monthly payment and SLA.",
+      "docReady": "Document ready",
+      "reportTasks": "{n} tasks this month",
+      "download": "Download PDF",
+      "downloadError": "Could not download the file.",
+      "generate": "Generate",
+      "generating": "Generating…",
+      "forbidden": "No access (b2b.manage required)."
     },
     "retention": {
       "title": "Retention & upsell",
@@ -4977,6 +5023,79 @@
       "journalEmptyText": "Nobody has consented yet, or nothing matches the filter.",
       "when": "Time",
       "user": "User"
+    },
+    "policies": {
+      "readyTitle": "Production readiness",
+      "readyLead": "Backend compliance checklist: what is done and which external integrations are still pending.",
+      "readyStatus": {
+        "production_ready": "Production ready",
+        "needs_external_integrations": "Needs external integrations",
+        "needs_review": "Needs review",
+        "ok": "Done",
+        "ready": "Ready",
+        "missing": "Missing",
+        "pending": "Pending",
+        "warning": "Warning",
+        "configured": "Configured",
+        "not_configured": "Not configured",
+        "failed": "Failed"
+      },
+      "loadError": "Could not load.",
+      "title": "Platform policies",
+      "versioned": "every change is versioned",
+      "lead": "Order, payment, document analysis, workspace, security and notification rules live in the backend — not in code. A change applies immediately.",
+      "forbidden": "No access",
+      "forbiddenText": "Policies are visible and editable with an admin token only.",
+      "sections": {
+        "order": "Order",
+        "payment": "Payment",
+        "document_analysis": "Document analysis",
+        "workspace": "Workspace (files)",
+        "security": "Security",
+        "notifications": "Notifications"
+      },
+      "keys": {
+        "advance_percent": "Advance, %",
+        "final_percent": "Final share, %",
+        "confirmation_window_minutes": "Confirmation window, min",
+        "seller_response_business_minutes": "Seller response (business min)",
+        "status_transitions": "Status transitions",
+        "platform_commission_percent": "LexGo commission, %",
+        "provider_fee_percent": "Provider fee, %",
+        "mode": "Payment mode",
+        "currency": "Currency",
+        "refund_review_business_days": "Refund review, business days",
+        "duplicate_webhook_idempotency": "Duplicate webhook protection",
+        "review_fee_ranges": "Lawyer review fees (by pages)",
+        "extra_page_amount": "Extra page, so'm",
+        "urgent_percent": "Urgent surcharge, %",
+        "written_opinion_amount": "Written opinion, so'm",
+        "file_max_mb": "File limit, MB",
+        "video_max_mb": "Video limit, MB",
+        "case_quota_mb": "Case quota, MB",
+        "signed_url_minutes": "Link validity, min",
+        "scan_required": "Antivirus scan required",
+        "allowed_extensions": "Allowed extensions",
+        "blocked_extensions": "Blocked extensions",
+        "cascade": "Channel order",
+        "provider_missing_status": "Status without a provider"
+      },
+      "objectValue": "{n} fields",
+      "listValue": "{n} rows",
+      "emptySection": "Empty",
+      "history": "History",
+      "edit": "Edit",
+      "editTitle": "{section} — edit policies",
+      "editLead": "Numbers, text and lists are edited directly; nested structures as JSON.",
+      "listHint": "comma-separated",
+      "badJson": "The JSON field is malformed.",
+      "saved": "Policies saved (new version).",
+      "saveError": "Could not save.",
+      "saving": "Saving…",
+      "save": "Save",
+      "saveHint": "Saving creates a new version; old values stay in “History”.",
+      "historyTitle": "{section} — version history",
+      "historyEmpty": "No changes yet."
     }
   },
   "secureChat": {
@@ -5031,7 +5150,26 @@
     "callDismiss": "Dismiss",
     "wsSessionExpired": "Your session expired. The message wasn't sent — sign in again.",
     "wsForbidden": "You aren't allowed to send messages in this chat.",
-    "wsSendFailed": "The message wasn't sent. Try again."
+    "wsSendFailed": "The message wasn't sent. Try again.",
+    "reveal": {
+      "lockedTitle": "Chat content is hidden",
+      "lockedText": "Staff normally never see message text — metadata only. In a dispute, request a reveal; once a second staff member approves, the content opens temporarily and every view is logged.",
+      "pendingTitle": "Reveal request awaiting approval",
+      "pendingText": "The content opens when another staff member clicks “Approve”.",
+      "activeTitle": "Content temporarily revealed",
+      "activeText": "Opened for the dispute review; it locks again when the window ends.",
+      "until": "until {time}",
+      "reasonPh": "Reason (dispute / complaint number)…",
+      "reasonRequired": "Give a reason (at least 5 characters).",
+      "request": "Request reveal",
+      "approve": "Approve",
+      "working": "Sending…",
+      "requested": "Request sent.",
+      "approved": "Approved — content revealed.",
+      "forbidden": "You may not do this.",
+      "conflict": "You cannot approve your own request, or the state has changed.",
+      "error": "Could not complete."
+    }
   },
   "academy": {
     "kicker": "LexGo Academy",

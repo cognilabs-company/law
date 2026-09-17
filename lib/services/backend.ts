@@ -3270,7 +3270,27 @@ export async function reengageLead(leadId: string, note?: string): Promise<void>
 export async function createTask(input: { title: string; priority?: string; due_date?: string; case_title?: string }): Promise<WorkTask> {
   return normTask(await http("/tasks", { method: "POST", body: JSON.stringify(input) }));
 }
-export async function createB2bClient(input: { name: string; industry?: string; contact?: string }): Promise<B2bClient> {
+// T1B-07: company record fields (inn/director/monthly_payment/sla live in the payload; director etc. via PATCH).
+export async function updateB2bClient(id: string, patch: Record<string, unknown>): Promise<void> {
+  await http(`/b2b/clients/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+}
+export type B2bDocument = { id: string; fileUrl: string; total: number; vatAmount: number; vatPercent: number; taskCount?: number; period?: string };
+function normB2bDoc(v: unknown): B2bDocument {
+  const d = asDict(v);
+  const p = asDict(d.payload);
+  return { id: asStr(d.id), fileUrl: asStr(d.file_url), total: asNum(p.total ?? d.price ?? p.invoice_total), vatAmount: asNum(p.vat_amount), vatPercent: asNum(p.vat_percent), taskCount: p.task_count != null ? asNum(p.task_count) : undefined, period: asStr(p.period) || undefined };
+}
+// Invoice PDF with VAT shown separately (amount_without_vat + vat_percent).
+export async function createB2bInvoice(id: string, input: { amountWithoutVat: number; vatPercent?: number; description?: string }): Promise<B2bDocument> {
+  return normB2bDoc(await http(`/b2b/clients/${encodeURIComponent(id)}/invoice`, { method: "POST", body: JSON.stringify({ amount_without_vat: input.amountWithoutVat, vat_percent: input.vatPercent ?? 12, description: input.description }) }));
+}
+export async function createB2bContract(id: string, input: { monthlyPayment?: number; sla?: string }): Promise<B2bDocument> {
+  return normB2bDoc(await http(`/b2b/clients/${encodeURIComponent(id)}/contract`, { method: "POST", body: JSON.stringify({ monthly_payment: input.monthlyPayment, sla: input.sla }) }));
+}
+export async function getB2bMonthlyReport(id: string, month?: string): Promise<B2bDocument> {
+  return normB2bDoc(await http(`/b2b/clients/${encodeURIComponent(id)}/monthly-report${month ? `?month=${encodeURIComponent(month)}` : ""}`));
+}
+export async function createB2bClient(input: { name: string; industry?: string; contact?: string; inn?: string }): Promise<B2bClient> {
   const d = asDict(await http("/b2b/clients", { method: "POST", body: JSON.stringify(input) }));
   const p = asDict(d.payload);
   return { id: asStr(d.id), name: asStr(d.name ?? d.title), industry: asStr(d.industry ?? p.industry), contact: asStr(d.contact ?? p.contact), stage: asStr(d.stage ?? d.status ?? d.record_type, "new"), value: uzsOpt(d, "value", "price") ?? uzs(p, "value") };
@@ -4144,10 +4164,14 @@ export type WorkspaceFile = {
   mimeType: string;
   size: number;
   createdAt: string;
+  // Antivirus scan (LEXGO_BACKEND_PRODUCTION_POLICY_UPDATE): required / status / engine / issues.
+  scan?: { required: boolean; status: string; engine: string; issues: string[]; scannedAt: string };
 };
 function normFile(v: unknown): WorkspaceFile {
   const d = asDict(v);
+  const sc = asDict(d.scan);
   return {
+    scan: Object.keys(sc).length ? { required: sc.scan_required !== false && sc.required !== false, status: asStr(sc.scan_status ?? sc.status).toLowerCase(), engine: asStr(sc.scan_engine ?? sc.engine), issues: asArr(sc.issues).map((x) => asStr(x)), scannedAt: asStr(sc.scanned_at) } : undefined,
     id: asStr(d.id),
     folderId: asStr(d.folder_id) || undefined,
     caseId: asStr(d.case_id) || undefined,
@@ -4188,6 +4212,88 @@ export async function uploadWorkspaceFile(file: File, opts?: { folderId?: string
   });
   if (!res.ok) throw new ApiError(res.status, `upload_${res.status}`);
   return normFile(await res.json());
+}
+
+// ── Platform policies (GET /platform/policies, public) ────────────
+// Order/payment/document/workspace/notification rules come from the backend;
+// nothing here is hard-coded in the UI any more.
+export type PlatformPolicies = {
+  order: { advancePercent: number; finalPercent: number; confirmationWindowMinutes: number; sellerResponseMinutes: number; statusTransitions: Record<string, string[]> };
+  payment: { commissionPercent: number; providerFeePercent: number; mode: string; currency: string; refundReviewDays: number };
+  documentAnalysis: { ranges: { minPages: number; maxPages: number; amount: number }[]; extraPageAmount: number; urgentPercent: number; writtenOpinionAmount: number };
+  workspace: { fileMaxMb: number; videoMaxMb: number; caseQuotaMb: number; signedUrlMinutes: number; scanRequired: boolean; allowedExtensions: string[]; blockedExtensions: string[] };
+  notifications: { cascade: string[]; providerMissingStatus: string };
+  raw: Record<string, Record<string, unknown>>;
+};
+function normPolicies(v: unknown): PlatformPolicies {
+  const d = asDict(v);
+  const items = asDict(d.items ?? d.sections ?? d);
+  const o = asDict(items.order), p = asDict(items.payment), da = asDict(items.document_analysis), w = asDict(items.workspace), n = asDict(items.notifications);
+  const tr: Record<string, string[]> = {};
+  for (const [k, val] of Object.entries(asDict(o.status_transitions))) tr[k] = asArr(val).map((x) => asStr(x));
+  return {
+    order: { advancePercent: asNum(o.advance_percent), finalPercent: asNum(o.final_percent), confirmationWindowMinutes: asNum(o.confirmation_window_minutes), sellerResponseMinutes: asNum(o.seller_response_business_minutes) || 30, statusTransitions: tr },
+    payment: { commissionPercent: asNum(p.platform_commission_percent), providerFeePercent: asNum(p.provider_fee_percent), mode: asStr(p.mode), currency: asStr(p.currency, "UZS"), refundReviewDays: asNum(p.refund_review_business_days) },
+    documentAnalysis: { ranges: asArr(da.review_fee_ranges).map((r) => { const x = asDict(r); return { minPages: asNum(x.min_pages), maxPages: asNum(x.max_pages), amount: asNum(x.amount) }; }), extraPageAmount: asNum(da.extra_page_amount), urgentPercent: asNum(da.urgent_percent), writtenOpinionAmount: asNum(da.written_opinion_amount) },
+    workspace: { fileMaxMb: asNum(w.file_max_mb) || 50, videoMaxMb: asNum(w.video_max_mb) || 200, caseQuotaMb: asNum(w.case_quota_mb), signedUrlMinutes: asNum(w.signed_url_minutes), scanRequired: w.scan_required !== false, allowedExtensions: asArr(w.allowed_extensions).map((x) => asStr(x)), blockedExtensions: asArr(w.blocked_extensions).map((x) => asStr(x)) },
+    notifications: { cascade: asArr(n.cascade).map((x) => asStr(x)), providerMissingStatus: asStr(n.provider_missing_status) },
+    raw: Object.fromEntries(Object.entries(items).map(([k, val]) => [k, asDict(val)])),
+  };
+}
+let policiesCache: { at: number; p: PlatformPolicies } | null = null;
+export async function getPlatformPolicies(): Promise<PlatformPolicies> {
+  if (policiesCache && Date.now() - policiesCache.at < 5 * 60_000) return policiesCache.p;
+  const p = normPolicies(await http("/platform/policies"));
+  policiesCache = { at: Date.now(), p };
+  return p;
+}
+// Admin: every section (raw dicts) + PUT one section + its history.
+export const POLICY_SECTIONS = ["order", "payment", "document_analysis", "workspace", "security", "notifications"] as const;
+export type PolicySection = (typeof POLICY_SECTIONS)[number];
+export async function getAdminPolicies(): Promise<Record<string, Record<string, unknown>>> {
+  const d = asDict(await http("/admin/platform/policies"));
+  const items = asDict(d.items ?? d.sections ?? d);
+  return Object.fromEntries(Object.entries(items).filter(([k]) => (POLICY_SECTIONS as readonly string[]).includes(k)).map(([k, v]) => [k, asDict(v)]));
+}
+export async function putAdminPolicy(section: PolicySection, data: Record<string, unknown>): Promise<void> {
+  policiesCache = null;
+  await http(`/admin/platform/policies/${section}`, { method: "PUT", body: JSON.stringify(data) });
+}
+export type PolicyHistoryEntry = { version: string; changedBy: string; at: string; data: Record<string, unknown> };
+export async function getPolicyHistory(section: PolicySection): Promise<PolicyHistoryEntry[]> {
+  return listFrom(await http(`/admin/platform/policies/${section}/history`), "items", "history", "data", "versions").map((x) => {
+    const d = asDict(x);
+    return { version: asStr(d.version ?? d.id), changedBy: asStr(d.changed_by ?? d.updated_by ?? d.user_id ?? d.actor), at: asStr(d.created_at ?? d.updated_at ?? d.at), data: asDict(d.data ?? d.payload ?? d.value ?? d.policy) };
+  });
+}
+// Admin: production readiness checklist (GET /admin/compliance/readiness).
+export type ReadinessItem = { key: string; title: string; status: string; note: string };
+export type Readiness = { status: string; items: ReadinessItem[]; raw: Record<string, unknown> };
+export async function getComplianceReadiness(): Promise<Readiness> {
+  const d = asDict(await http("/admin/compliance/readiness"));
+  const list = listFrom(d, "items", "checks", "checklist", "results");
+  const items: ReadinessItem[] = list.length
+    ? list.map((x) => { const r = asDict(x); return { key: asStr(r.key ?? r.id ?? r.code ?? r.name), title: asStr(r.title ?? r.label ?? r.name ?? r.key), status: asStr(r.status ?? (r.ok === true ? "ok" : r.ok === false ? "missing" : "")).toLowerCase(), note: asStr(r.note ?? r.detail ?? r.message ?? r.hint) }; })
+    : Object.entries(asDict(d.checks ?? d.items)).map(([k, v]) => { const r = asDict(v); return { key: k, title: asStr(r.title ?? r.label, k), status: asStr(r.status ?? (typeof v === "boolean" ? (v ? "ok" : "missing") : v)).toLowerCase(), note: asStr(r.note ?? r.detail ?? r.message) }; });
+  return { status: asStr(d.status ?? d.overall_status), items, raw: d };
+}
+// Secure chat content reveal (dispute): staff see "[metadata_only]" until a
+// reveal is requested and approved by a second person.
+export type RevealStatus = { status: string; active: boolean; requestedBy: string; approvedBy: string; reason: string; expiresAt: string; raw: Record<string, unknown> };
+function normReveal(v: unknown): RevealStatus {
+  const d = asDict(v);
+  const r = asDict(d.reveal ?? d.request ?? d);
+  const status = asStr(r.status ?? d.status).toLowerCase();
+  return { status, active: r.active === true || d.active === true || status === "approved" || status === "active", requestedBy: asStr(r.requested_by ?? r.requested_by_user_id), approvedBy: asStr(r.approved_by ?? r.approved_by_user_id), reason: asStr(r.reason), expiresAt: asStr(r.expires_at), raw: d };
+}
+export async function getContentRevealStatus(roomId: string): Promise<RevealStatus> {
+  return normReveal(await http(`/secure-chats/${encodeURIComponent(roomId)}/content-reveal/status`));
+}
+export async function requestContentReveal(roomId: string, reason: string): Promise<RevealStatus> {
+  return normReveal(await http(`/secure-chats/${encodeURIComponent(roomId)}/content-reveal/request`, { method: "POST", body: JSON.stringify({ reason }) }));
+}
+export async function approveContentReveal(roomId: string): Promise<RevealStatus> {
+  return normReveal(await http(`/secure-chats/${encodeURIComponent(roomId)}/content-reveal/approve`, { method: "POST", body: JSON.stringify({}) }));
 }
 
 // ── Workspace: file versions + comments + document requests ────────

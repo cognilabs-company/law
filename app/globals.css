@@ -3627,3 +3627,27 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 /* ── wp-u ── */
 /* route alias / shell redirect placeholder */
 .portal--redirect{display:flex;align-items:center;justify-content:center;gap:12px;min-height:60vh;color:var(--gray)}
+
+/* ── wp-v ── */
+/* platform policies admin */
+.polgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:12px}
+.polcard{border:1.5px solid var(--line);border-radius:16px;padding:14px;background:var(--dk-surface, #fff)}
+.polcard__h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.polcard__h span{display:flex;gap:6px}
+.polcard__kv{margin:0;display:grid;gap:6px}
+.polcard__kv div{display:flex;justify-content:space-between;gap:10px;font-size:.82rem}
+.polcard__kv dt{color:var(--gray)}
+.polcard__kv dd{margin:0;font-weight:600;text-align:right;overflow:hidden;text-overflow:ellipsis;max-width:60%}
+/* secure chat content reveal */
+.reveal{margin:10px 12px 0;padding:10px 12px;border-radius:12px;background:var(--dk-tint-warn, #fff7ed);display:grid;gap:6px}
+.reveal--on{background:var(--dk-tint-ok, #E1F6EE)}
+.reveal__h{display:flex;align-items:center;gap:8px;font-size:.88rem}
+.reveal__h svg{width:16px;height:16px}
+.reveal p{margin:0;font-size:.78rem}
+.reveal__acts{display:flex;flex-wrap:wrap;gap:8px}
+.reveal__acts input{flex:1 1 200px;border:1.5px solid var(--line);border-radius:10px;padding:7px 10px;font:inherit;font-size:.84rem;background:var(--dk-surface, #fff);color:var(--ink)}
+.sbub__hidden{opacity:.7}
+/* workspace scan badge */
+.wsp__scan{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;font-size:.7rem;font-weight:700;font-style:normal;background:var(--dk-surface-2, #eef2f7);color:var(--gray)}
+.wsp__scan--clean{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
+.wsp__scan--infected,.wsp__scan--blocked{background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #C0392B)}

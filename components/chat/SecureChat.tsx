@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { useAuth, canMakeCalls } from "@/lib/auth";
+import { useAuth, canMakeCalls, hasAdminAccess } from "@/lib/auth";
+import ContentRevealBar from "./ContentRevealBar";
 import { maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
 import { backoffMs, refreshAccessToken } from "@/lib/http";
@@ -54,7 +55,9 @@ function dayKey(iso: string): string {
 // incoming-call banner (LiveKit), and the posted zoom.us links are demo/invalid,
 // so show a plain "call" note instead of a broken external link.
 const CALL_LINK_RE = /(https?:\/\/(?:[a-z0-9-]+\.)?zoom\.(?:us|com)\/\S+|\/secure-chats\/\S+\/join)/i;
+const METADATA_ONLY = "[metadata_only]";
 function MsgBody({ text, label }: { text: string; label: string }) {
+  if (text === METADATA_ONLY) return <em className="sbub__hidden">🔒</em>;
   const m = text.match(CALL_LINK_RE);
   if (!m) return <>{text}</>;
   const i = m.index ?? 0;
@@ -88,6 +91,8 @@ export default function SecureChat({ roomId }: { roomId: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [ttl, setTtl] = useState(0); // auto-delete window in hours (0 = off)
   const [callErr, setCallErr] = useState<string | null>(null);
+  // Bumped after a content reveal so the history is fetched again unmasked.
+  const [reloadKey, setReloadKey] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
   const seen = useRef<Set<string>>(new Set());
   const dismissedCalls = useRef<Set<string>>(new Set());
@@ -401,7 +406,7 @@ export default function SecureChat({ roomId }: { roomId: string }) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]);
+  }, [roomId, reloadKey]);
 
   useEffect(() => {
     const el = bodyRef.current;
@@ -584,6 +589,9 @@ export default function SecureChat({ roomId }: { roomId: string }) {
         />
       ) : null}
 
+      {hasAdminAccess(session) ? (
+        <ContentRevealBar roomId={roomId} onChanged={() => { seen.current.clear(); setMsgs([]); setReloadKey((k) => k + 1); }} />
+      ) : null}
       <div className="schat__body" ref={bodyRef}>
         <div className="schat__sys">
           <IconLock />
