@@ -10,7 +10,7 @@ import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/c
 import { maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
 import { backoffMs, refreshAccessToken } from "@/lib/http";
-import { playRingtone } from "@/lib/callSounds";
+import { playRingtone, primeCallAudio } from "@/lib/callSounds";
 import {
   getSecureMessages,
   sendSecureMessage,
@@ -108,6 +108,7 @@ export default function SecureChat({ roomId }: { roomId: string }) {
 
   // Start a call, or join the one already active in this room.
   async function beginCall(kind: "audio" | "video") {
+    primeCallAudio(); // user gesture → tones allowed in the room
     if (callBusy || activeCall) return;
     setCallBusy(true);
     setCallErr(null);
@@ -134,6 +135,7 @@ export default function SecureChat({ roomId }: { roomId: string }) {
     }
   }
   function joinIncoming() {
+    primeCallAudio();
     if (!incoming) return;
     setActiveCall({ callId: incoming.callId, callType: incoming.callType, isCaller: false });
     setIncoming(null);

@@ -6,7 +6,7 @@ import { useRouter, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { listInvitedCalls, listLawyers } from "@/lib/services/backend";
 import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, userSocketState, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
-import { playRingtone } from "@/lib/callSounds";
+import { playRingtone, primeCallAudio } from "@/lib/callSounds";
 import CallRoom from "@/components/chat/CallRoom";
 import { IconPhone, IconVideo, IconClose } from "@/components/icons";
 
@@ -156,6 +156,7 @@ export default function IncomingCallWatcher() {
 
   function accept() {
     if (!inc) return;
+    primeCallAudio(); // user gesture → tones allowed in the room
     dismissed.current.add(inc.callId);
     const target = inc;
     setInc(null);

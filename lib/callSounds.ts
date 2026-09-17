@@ -26,6 +26,13 @@ function tone(c: AudioContext, freq: number, start: number, dur: number, vol = 0
   o.stop(c.currentTime + start + dur + 0.05);
 }
 
+// Create / resume the audio context inside a user gesture (accept / join
+// click) so the browser's autoplay policy lets the tones play later.
+export function primeCallAudio(): void {
+  const c = ac();
+  if (c && c.state === "suspended") c.resume().catch(() => {});
+}
+
 // Caller's "gudok" — a single 425 Hz burst repeated every ~3.5s.
 export function playRingback(): () => void {
   const c = ac();

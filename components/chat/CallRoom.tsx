@@ -38,7 +38,7 @@ import { ApiError, backoffMs, refreshAccessToken } from "@/lib/http";
 import { useAuth } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
 import SearchSelect from "@/components/SearchSelect";
-import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone } from "@/lib/callSounds";
+import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, primeCallAudio } from "@/lib/callSounds";
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
 import { IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload } from "../icons";
@@ -299,6 +299,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           if (room.remoteParticipants.size) hadRemoteRef.current = true;
           setStatus(room.remoteParticipants.size ? "live" : "ringing");
           signal("call.join");
+          // Welcome chime once I'm in (the room may already have people).
+          playJoinTone(true);
+          firstJoinRef.current = false;
         }
       } catch {
         if (alive) setStatus("error");
@@ -315,6 +318,15 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, callId, callType]);
+
+  // The tone context must be created/resumed inside a user gesture: the first
+  // tap / key inside the room does it (accepting the call already did).
+  useEffect(() => {
+    const prime = () => primeCallAudio();
+    window.addEventListener("pointerdown", prime, { once: true, capture: true });
+    window.addEventListener("keydown", prime, { once: true, capture: true });
+    return () => { window.removeEventListener("pointerdown", prime, { capture: true }); window.removeEventListener("keydown", prime, { capture: true }); };
+  }, []);
 
   // Elapsed meeting time.
   useEffect(() => {
