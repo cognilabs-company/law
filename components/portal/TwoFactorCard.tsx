@@ -206,7 +206,7 @@ export default function TwoFactorCard() {
               autoFocus
             />
           </div>
-          <OtpCountdown timer={otp} />
+          <OtpCountdown timer={otp} showExpiry={false} />
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button className="btn btn--line btn--sm" type="button" onClick={reset}><IconChevronLeft />{t("back")}</button>

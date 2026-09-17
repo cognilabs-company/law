@@ -299,7 +299,7 @@ export default function LoginForm() {
                     autoFocus
                   />
                 </div>
-                <OtpCountdown timer={otp} />
+                <OtpCountdown timer={otp} showExpiry={false} />
                 {err ? (
                   <p key={errN} className="plogin__err" role="alert">
                     {err}

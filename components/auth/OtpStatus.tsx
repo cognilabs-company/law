@@ -5,7 +5,9 @@ import { fmtClock, type OtpTimer } from "@/lib/useOtpTimer";
 
 // Shared OTP step status for registration, password reset, login 2FA and 2FA
 // enable: lock countdown, expired prompt or "code expires in m:ss".
-export function OtpCountdown({ timer }: { timer: OtpTimer }) {
+// showExpiry=false hides the running "code expires in m:ss" line (lock and
+// expired messages still show).
+export function OtpCountdown({ timer, showExpiry = true }: { timer: OtpTimer; showExpiry?: boolean }) {
   const t = useTranslations("register.otp");
   // No live-region role on the ticking lines, so screen readers aren't
   // interrupted every second; the expired state is announced once.
@@ -19,7 +21,7 @@ export function OtpCountdown({ timer }: { timer: OtpTimer }) {
       </p>
     );
   }
-  if (timer.expiresIn > 0) {
+  if (showExpiry && timer.expiresIn > 0) {
     return <p className="rf__otpmsg rf__otpmsg--muted">{t("expiresIn", { time: fmtClock(timer.expiresIn) })}</p>;
   }
   return null;
