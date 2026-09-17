@@ -721,6 +721,7 @@ export type BackendPlan = {
   features: string[];
   isGiftable: boolean;
   isActive: boolean;
+  entitlements: Record<string, unknown>; // ai_requests, doc_analysis, history_days, export, case_law_search…
 };
 
 // Backend ships localized `name`/`features` as { uz, ru, en } objects; pick the
@@ -750,6 +751,7 @@ export async function getSubscriptionPlans(locale = "uz"): Promise<BackendPlan[]
       id: asStr(d.id),
       name: pickLoc(d.name, locale, asStr(d.title)),
       slug: asStr(d.slug),
+      entitlements: asDict(d.entitlements ?? d.limits),
       price: monthly,
       monthlyPrice: monthly,
       sixMonthPrice: uzs(d, "six_month_price"),

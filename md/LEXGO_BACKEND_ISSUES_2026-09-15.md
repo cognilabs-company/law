@@ -321,6 +321,8 @@ Frontend bugun UI ni qurdi; quyidagilar backend tomonidan bo'lmasa GM talabi yop
 | 62 | T4-02 §7 | `PATCH /call-center/leads/{id}` (details merge) yoki move payload'ida `lost_reason` — operator lids'ni sabab bilan yopishi uchun | Faqat admin PATCH (leads.manage), details to'liq almashadi |
 | 63 | T1B-07 §1,4 | `PATCH /b2b/clients/{id}` da `address`, `bank` maydonlari (shartnoma PDF ularni bo'sh chiqaradi); mijoz tomonida yuridik shaxs ro'yxati (`/auth/register` da `company` maydonlari) | Faqat director/inn/monthly_payment/sla |
 | 64 | T3-07 §1,2 | Rol matritsasini yozish shakli (`PUT /admin/roles/{id}/permissions` yoki `POST /admin/roles` body) hujjatda yo'q — UI qurish uchun shakl kerak | `POST /admin/roles` bor, body noma'lum |
+| 65 | T1-03 §1,5,6 | AI rejalar `audience`=client (hozir seller); `billing_period` uchun 3 oylik davr; GM chegirma jadvali: 3 oy −5 %, 6 oy −10 %, 12 oy −15 %, bir yo'la +5 %, jami ≤ 20 % (hozir yearly −10 %, prepaid −19 %); tasdiqlangan advokat/yuristga −50 % server tomonda | Frontend summani o'zi hisoblab yuboradi |
+| 66 | T1B-08 §2 / T5-01 | «Shaxsiy advokat Standard» narxi seed'da 149 000, GM'da SOS taklifi «Obuna bo'ling — 249 000 so'm/oy» — PM bilan aniqlash; ortiqcha rejalar (`lexgo-ai-yurist-advokat-seller`, `lexgo-ai-jismoniy-shaxs`) seed'dan olib tashlash | — |
 
 ## 1. Tezlik
 

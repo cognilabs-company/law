@@ -3695,3 +3695,10 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
   .mtg__side{height:72%;padding-bottom:env(safe-area-inset-bottom)}
 }
 @media (prefers-reduced-motion:reduce){.mtg,.mtg__tile,.mtg__side,.mtg__toast,.mtg__msg,.mtg__more,.mtg__moresheet{animation:none!important}}
+
+/* ── wp-y ── */
+/* plans: GM T1-03 sections */
+.switch small{font-size:.66rem;font-weight:700;color:var(--ok);margin-left:2px}
+.splan__was{display:block;font-size:.8rem;color:var(--gray2);text-decoration:line-through;margin-top:2px}
+.splan__usage{margin:6px 0 0;font-size:.78rem;color:var(--gray);padding:6px 10px;border-radius:10px;background:var(--dk-surface-2, #f4f7fb)}
+.splan .btn[aria-disabled]{opacity:.6;pointer-events:none}

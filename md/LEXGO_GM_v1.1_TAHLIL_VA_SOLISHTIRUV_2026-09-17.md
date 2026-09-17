@@ -352,3 +352,14 @@ Jonli tekshirish: ikki akkaunt (host + mehmon) kerak — fake-media Chrome bilan
 | Dizayn | Sayt navy/ko'k palitrasi, `--fd` sarlavha shrifti, ortiqcha «L» logotip va tepadagi «Odam qo'shish» tugmasi olib tashlandi (ishtirokchilar panelida qoldi), blur'li header |
 
 Eslatma (GM T2-09 §3): advokat↔mijoz qo'ng'irog'i **serverda** yozilmaydi — bu funksiya faqat foydalanuvchining o'z qurilmasida lokal yozuv; boshqalar ogohlantiriladi.
+
+## 15. 17.09 — Mijoz «Obuna rejalari» sahifasi (T1-03 / T5-01)
+
+Muammo: sahifada faqat backend `audience=personal` rejalari (Shaxsiy advokat Standard/Premium) chiqardi, LexGo.AI Free/Lite/Pro ko'rinmasdi (backend ularni `audience=seller` deb belgilagan); ijrochi sahifasida esa «Бизнес абонент», «Lexgo.AI — жисмоний шахс» kabi ortiqcha rejalar chiqardi.
+
+Endi (GM T0-07 §9, T1-03 §1–8):
+- **LexGo.AI rejalari**: Free / Lite 49 000 / Pro 99 000 — slug bo'yicha (`lexgo-ai-free|lite|pro`), backend `features` bilan; muddat 1/3/6/12 oy, chegirma −5/−10/−15 %, «bir yo'la» +5 %, jami ≤ 20 % (jonli: Lite 12 oy bir yo'la = **470 400**, Pro = 950 400 — GM misoliga to'g'ri); Free kartasida «Bu oy: 5 tadan N tasi» hisoblagichi; ijrochi (tasdiqlangan) ko'rinishida −50 % avtomatik (Lite 24 500, Pro 49 500).
+- **Shaxsiy advokatim**: Standard / Premium (6 / 12 oy, backend narxlari) + sovg'a kartasi — faqat mijozda.
+- Biznes va ortiqcha rejalar hech qayerda ko'rsatilmaydi (B2B — T4-08 admin).
+
+Backend'ga: AI rejalar `audience` = client bo'lishi, 3 oylik `billing_period` va GM chegirma jadvali (−15 % / −20 %) — hozir backend yearly −10 % hisoblaydi (frontend to'g'ri summani checkout'ga o'zi yuboradi); ijrochi −50 % server tomonda tasdiqlanishi; Standart narxi seed'da 149 000, GM T1B-08 §2 da 249 000 — PM aniqlashi kerak (#65–66).

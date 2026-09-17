@@ -3939,7 +3939,24 @@
     "term12": "1 yr",
     "upfront": "Pay the year in full — extra −10%",
     "totalNote": "{term} mo — {total} UZS total",
-    "subtitlePersonal": "Personal advocate subscription — ongoing legal help, consultations and discounts."
+    "subtitlePersonal": "Personal advocate subscription — ongoing legal help, consultations and discounts.",
+    "ai": {
+      "title": "LexGo.AI plans",
+      "subtitle": "Free — 5 questions a month; Lite — 100 questions, 5 document analyses; Pro — unlimited (fair use 1000), 20 analyses, case law, export.",
+      "subtitleSeller": "Verified advocates and lawyers get LexGo.AI −{pct}% automatically.",
+      "term": "Term",
+      "term1": "1 mo",
+      "term3": "3 mo",
+      "term6": "6 mo",
+      "term12": "12 mo",
+      "upfront": "Pay up front — another −{pct}% (total discount capped at {max}%)",
+      "usage": "This month: {used} of {limit} used",
+      "included": "Current plan",
+      "rules": "Upgrades apply immediately (pro-rated difference); downgrades at the end of the period. Limits reset on the 1st."
+    },
+    "personal": {
+      "title": "My personal lawyer"
+    }
   },
   "promotion": {
     "kicker": "Visibility tool",

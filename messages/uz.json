@@ -3945,7 +3945,24 @@
     "term12": "1 yil",
     "upfront": "Yillikni to‘liq to‘lang — yana −10%",
     "totalNote": "{term} oy — jami {total} so‘m",
-    "subtitlePersonal": "Shaxsiy advokat obunasi — doimiy yuridik yordam, konsultatsiyalar va chegirmalar."
+    "subtitlePersonal": "Shaxsiy advokat obunasi — doimiy yuridik yordam, konsultatsiyalar va chegirmalar.",
+    "ai": {
+      "title": "LexGo.AI rejalari",
+      "subtitle": "Free — oyiga 5 savol; Lite — 100 savol, 5 hujjat tahlili; Pro — cheksiz (fair-use 1000), 20 tahlil, sud amaliyoti, eksport.",
+      "subtitleSeller": "Tasdiqlangan advokat va yuristlarga LexGo.AI −{pct}% avtomatik qo'llanadi.",
+      "term": "Muddat",
+      "term1": "1 oy",
+      "term3": "3 oy",
+      "term6": "6 oy",
+      "term12": "12 oy",
+      "upfront": "Bir yo'la to'lash — qo'shimcha −{pct}% (umumiy chegirma {max}% dan oshmaydi)",
+      "usage": "Bu oy: {limit} tadan {used} tasi ishlatildi",
+      "included": "Hozirgi reja",
+      "rules": "Rejani oshirish darhol — farq qolgan kunlarga proporsional; tushirish — joriy davr oxirida. Har oyning 1-sanasida limit yangilanadi."
+    },
+    "personal": {
+      "title": "Shaxsiy advokatim"
+    }
   },
   "promotion": {
     "kicker": "Ko'rinuvchanlik vositasi",
