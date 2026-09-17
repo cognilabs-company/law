@@ -2248,7 +2248,9 @@
         "deadlineText": "Advocate's reply: by {when}",
         "deadlineToday": "today",
         "deadlineTomorrow": "tomorrow",
-        "deadlineOverdue": "The advocate didn't reply — another advocate will be offered"
+        "deadlineOverdue": "The advocate didn't reply — another advocate will be offered",
+        "historyCta": "History",
+        "hideHistory": "Hide history"
       },
       "payments": {
         "title": "Payments",
@@ -3250,6 +3252,28 @@
       "submitted": "Sent to a moderator. Review within 24 hours.",
       "submitIncomplete": "Complete all required steps first.",
       "submitError": "Couldn't submit. Try again."
+    },
+    "orderFlow": {
+      "title": "Order history",
+      "loadError": "Could not load the history.",
+      "empty": "No status changes yet.",
+      "nextStep": "Next step",
+      "notePh": "Note (optional)",
+      "moving": "Sending…",
+      "moved": "Status updated: {status}",
+      "conflict": "This transition is not possible now — the status has already changed.",
+      "forbidden": "You may not change this order's status.",
+      "error": "Could not change the status.",
+      "actions": {
+        "started": "Start work",
+        "in_progress": "In progress",
+        "result_ready": "Result ready",
+        "delivered": "Deliver to client",
+        "waiting_info": "Request information",
+        "waiting_docs": "Request documents",
+        "completed": "Accept & complete",
+        "cancelled": "Cancel"
+      }
     }
   },
   "notFound": {
@@ -3444,7 +3468,8 @@
         "experience": "Experience",
         "expertise": "Expertise",
         "stats": "Statistics",
-        "review": "Review"
+        "review": "Review",
+        "pricing": "Pricing"
       },
       "personalTitle": "Personal information",
       "personalSubtitle": "Basic details for your advocate profile.",
@@ -3520,6 +3545,35 @@
         "yrs": "yrs",
         "areas": "Practice areas",
         "langs": "Languages"
+      },
+      "selfie": "Selfie (verification)",
+      "selfieHint": "Take a photo of your face with the phone camera — a moderator compares it with your document.",
+      "selfieDone": "Selfie received",
+      "expertise": {
+        "title": "Expertise and working hours",
+        "subtitle": "Practice areas, regions, languages and hours — matching orders are routed by these.",
+        "areas": "Practice areas",
+        "regions": "Service regions",
+        "hours": "Working days and hours",
+        "from": "From",
+        "to": "To",
+        "days": {
+          "mon": "Mon",
+          "tue": "Tue",
+          "wed": "Wed",
+          "thu": "Thu",
+          "fri": "Fri",
+          "sat": "Sat",
+          "sun": "Sun"
+        }
+      },
+      "pricing": {
+        "title": "Pricing",
+        "subtitle": "Your hourly consultation price. You will set a price per service later.",
+        "recommended": "Recommended range",
+        "range": "{min} – {max} so'm / hour (by specialization).",
+        "price": "Hourly price (so'm)",
+        "hint": "Digits only. You can change it in your profile at any time."
       }
     },
     "languages": {
@@ -3554,7 +3608,8 @@
       "title": "Request submitted",
       "hint": "You can sign in once an administrator approves your registration.",
       "toLogin": "Go to sign in"
-    }
+    },
+    "resumed": "Your earlier answers were restored — carry on."
   },
   "plans": {
     "title": "Subscription plans",
@@ -3713,7 +3768,8 @@
       "verifications": "Verify lawyers",
       "legalAid": "Legal aid",
       "registerRequests": "Register requests",
-      "e2e": "E2E readiness"
+      "e2e": "E2E readiness",
+      "legal": "Legal documents"
     },
     "overview": {
       "kicker": "Admin console",
@@ -4527,6 +4583,72 @@
       "b2b_manager": "B2B manager",
       "marketing": "Marketing",
       "content_manager": "Content manager"
+    },
+    "legal": {
+      "title": "Legal documents & consents",
+      "readiness": "Ready: {n} / {total}",
+      "lead": "The 10 required documents (S-53). Texts are entered here, never in code. Every document is versioned; users accept each one separately.",
+      "tabDocs": "Documents",
+      "tabJournal": "Consents journal",
+      "docsTitle": "Documents and versions",
+      "newDoc": "New document",
+      "loadError": "Could not load the list.",
+      "versions": "{n} versions",
+      "view": "View",
+      "newVersion": "New version",
+      "publish": "Publish",
+      "active": "active",
+      "inactive": "inactive",
+      "state": {
+        "ready": "Text entered",
+        "placeholder": "Placeholder — waiting for PM text",
+        "missing": "Not published"
+      },
+      "slugs": {
+        "terms": "Public offer (client)",
+        "privacy": "Privacy policy",
+        "legal_disclaimer": "Legal disclaimer",
+        "cookie": "Cookie policy",
+        "advocate_offer": "Advocate partnership offer",
+        "structure_agreement": "Structure agreement",
+        "client_advocate_contract": "Client–advocate contract template",
+        "payment_refund_policy": "Payment, refund & guarantee rules",
+        "platform_rules": "Platform rules",
+        "personal_data_consent": "Personal data consent",
+        "age_18": "18+ confirmation"
+      },
+      "newVersionTitle": "Publish a new version",
+      "newDocTitle": "New document",
+      "slug": "Code (slug)",
+      "version": "Version",
+      "docTitle": "Title",
+      "body": "Text",
+      "bodyPh": "Full text of the document…",
+      "bodyHint": "{n} characters. Under 120 characters counts as a placeholder.",
+      "level": "Update level",
+      "levelMajor": "Major — re-accept",
+      "levelMinor": "Minor — notice only",
+      "levelMajorHint": "Users re-accept the new version at their next sign-in.",
+      "levelMinorHint": "Users are notified; no re-acceptance is asked.",
+      "activeNow": "Activate immediately",
+      "saving": "Saving…",
+      "saved": "Document published.",
+      "saveError": "Could not save.",
+      "forbidden": "No access (users.manage required).",
+      "noWriteApi": "The backend has no document write API yet (POST /admin/legal/consents). The text was not saved — reported to the backend team.",
+      "publishHint": "Once published, the new version is shown at sign-up and sign-in.",
+      "journalTitle": "Consents journal",
+      "journalLead": "Who accepted which document and version, when, and from which IP.",
+      "rows": "{n} rows",
+      "userId": "User ID",
+      "userIdPh": "UUID…",
+      "doc": "Document",
+      "allDocs": "All documents",
+      "apply": "Search",
+      "journalEmpty": "No rows",
+      "journalEmptyText": "Nobody has consented yet, or nothing matches the filter.",
+      "when": "Time",
+      "user": "User"
     }
   },
   "secureChat": {

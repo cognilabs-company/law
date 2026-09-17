@@ -4333,6 +4333,26 @@ export async function listMyConsents(): Promise<AcceptedConsentRef[]> {
 export async function listLegalConsents(): Promise<ConsentDoc[]> {
   return normConsentDocs(await http("/legal/consents"));
 }
+// T0-18 admin: every document version (active or not) — needs users.manage.
+export async function listAdminConsentDocs(): Promise<ConsentDoc[]> {
+  return normConsentDocs(await http("/admin/legal/consents"));
+}
+// Consents journal: who accepted which document/version, when, from which IP.
+export type UserConsentRow = { id: string; userId: string; consentId: string; slug: string; version: string; acceptedAt: string; ip: string };
+export async function listUserConsents(userId?: string): Promise<UserConsentRow[]> {
+  const q = userId?.trim() ? `?user_id=${encodeURIComponent(userId.trim())}` : "";
+  return listFrom(await http(`/admin/legal/user-consents${q}`), "items", "data").map((x) => {
+    const d = asDict(x);
+    return { id: asStr(d.id), userId: asStr(d.user_id), consentId: asStr(d.consent_id), slug: asStr(d.slug), version: asStr(d.version), acceptedAt: asStr(d.accepted_at), ip: asStr(d.ip_address ?? d.ip) };
+  });
+}
+// Publish a new document version from the admin editor. The backend has no
+// write endpoint yet (reported); a 404/405 surfaces as "backend kerak".
+export type ConsentDocInput = { slug: string; version: string; title: string; body: string; active: boolean; major: boolean };
+export async function saveConsentDoc(input: ConsentDocInput): Promise<ConsentDoc> {
+  const body = JSON.stringify({ slug: input.slug, version: input.version, title: input.title, body: input.body, is_active: input.active, requires_reaccept: input.major });
+  return normConsentDoc(await http("/admin/legal/consents", { method: "POST", body }));
+}
 // synced = the server has it (2xx, 409 or "already accepted"); retry = try
 // again later (offline, token, rate limit, 5xx); failed = refused for good
 // (other 4xx). `status` is the HTTP status (200 on success). Never throws.

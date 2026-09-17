@@ -10,12 +10,14 @@ export default function PhotoUpload({
   onChange,
   label,
   hint,
+  capture,
 }: {
   value?: string;
   name: string;
   onChange: (dataUrl: string) => void;
   label: string;
   hint: string;
+  capture?: "user" | "environment"; // phone camera mode (selfie / document scan)
 }) {
   const ref = useRef<HTMLInputElement>(null);
 
@@ -53,6 +55,7 @@ export default function PhotoUpload({
         ref={ref}
         type="file"
         accept="image/*"
+        capture={capture}
         hidden
         onChange={pick}
       />

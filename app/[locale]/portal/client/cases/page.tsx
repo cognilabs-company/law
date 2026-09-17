@@ -24,6 +24,7 @@ import { getBusinessHours, DEFAULT_BUSINESS_HOURS } from "@/lib/services/backend
 import { IconClock } from "@/components/icons";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import OrderMilestones from "@/components/portal/OrderMilestones";
+import OrderStatusPanel from "@/components/portal/OrderStatusPanel";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
@@ -77,6 +78,7 @@ export default function ClientCases() {
   // Bumped after a replacement request so its status line re-reads the stored id.
   const [replVersion, setReplVersion] = useState(0);
   const [openMilestones, setOpenMilestones] = useState("");
+  const [openHistory, setOpenHistory] = useState("");
 
   // Case-documents modal
   const [docCase, setDocCase] = useState<BackendCase | null>(null);
@@ -169,6 +171,7 @@ export default function ClientCases() {
                 ) : null}
                 {c ? <ReplacementStatus key={`${c.id}:${replVersion}`} caseId={c.id} /> : null}
                 {orderId && openMilestones === key ? <OrderMilestones orderId={orderId} /> : null}
+                {orderId && openHistory === key ? <OrderStatusPanel orderId={orderId} side="client" status={status} onChanged={() => orders.refresh()} /> : null}
               </div>
               <div className="creq__side">
                 {status ? (
@@ -179,6 +182,11 @@ export default function ClientCases() {
                 {orderId ? (
                   <button className="btn btn--line btn--sm" type="button" aria-expanded={openMilestones === key} onClick={() => setOpenMilestones((k) => (k === key ? "" : key))}>
                     {openMilestones === key ? t("hideMilestones") : t("milestonesCta")}
+                  </button>
+                ) : null}
+                {orderId ? (
+                  <button className="btn btn--line btn--sm" type="button" aria-expanded={openHistory === key} onClick={() => setOpenHistory((k) => (k === key ? "" : key))}>
+                    {openHistory === key ? t("hideHistory") : t("historyCta")}
                   </button>
                 ) : null}
                 {c ? (

@@ -27,6 +27,7 @@ import AccountTypeCards from "./AccountTypeCards";
 import PhotoUpload from "./PhotoUpload";
 import WorkHistoryEditor from "./WorkHistoryEditor";
 import ProfilePreview from "./ProfilePreview";
+import ChipMulti from "./ChipMulti";
 import PasswordInput from "../PasswordInput";
 import ConsentChecklist from "../legal/ConsentChecklist";
 
@@ -45,8 +46,28 @@ const STEPS_BY_TYPE: Record<AccountType, string[]> = {
   // NOTE: work history, practice-area (expertise) selection and case stats are
   // intentionally NOT collected at registration — they belong in the seller's
   // profile editor so sign-up stays short. See ADVOCATE_PROFILE_TODO.md.
-  advocate: ["personal", "professional", "review"],
+  // T1A-02: 5 steps — personal (+ selfie), professional (licence + scan),
+  // expertise (areas / regions / languages / work hours), pricing, review
+  // with one checkbox per legal document.
+  advocate: ["personal", "professional", "expertise", "pricing", "review"],
 };
+// T1A-02 / S-38: every step is saved so a half-finished sign-up resumes where
+// it stopped (24 h). The password is never stored.
+const DRAFT_KEY = "lexgo_reg_draft";
+type SavedDraft = { at: number; idx: number; draft: Omit<RegistrationDraft, "password">; agreed: Record<string, boolean> };
+function readSavedDraft(): SavedDraft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    const s = raw ? (JSON.parse(raw) as SavedDraft) : null;
+    return s && s.draft?.accountType && Date.now() - s.at < 24 * 3600 * 1000 ? s : null;
+  } catch { return null; }
+}
+export function clearRegDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }
+const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+const LANG_KEYS = ["uz", "ru", "en", "kaa", "tr", "ar"] as const;
+const AREA_KEYS = ["criminal", "economic", "civil", "family", "labor", "administrative", "tax", "ip", "migration", "realEstate"] as const;
+// Recommended hourly range (so'm) per specialization until the catalogue provides one (T1-08).
+const PRICE_HINT: Record<string, [number, number]> = { criminalAdmin: [300000, 800000], economicCivil: [250000, 700000], both: [300000, 800000] };
 
 const ADV_STEPS = STEPS_BY_TYPE.advocate;
 
@@ -67,6 +88,7 @@ export default function RegisterFlow() {
   const [idx, setIdx] = useState(0);
   const [creating, setCreating] = useState(false);
   const [missing, setMissing] = useState<string[]>([]); // shown in red when a gated button is tapped
+  const [resumed, setResumed] = useState(false);
 
   // OTP verification state
   const [verificationId, setVerificationId] = useState("");
@@ -96,6 +118,24 @@ export default function RegisterFlow() {
   const roleDocs = consentsFor(legalDocs.data, draft.accountType ?? "client");
   const consentItems = legalDocs.status === "ready" && roleDocs.length ? roleDocs : LEGAL_FALLBACK_ITEMS;
   const consentsOk = consentItems.every((c) => agreed[c.slug]);
+  // Resume a saved sign-up (deferred: not a sync setState in the effect).
+  useEffect(() => {
+    const s = readSavedDraft();
+    if (!s) return;
+    const h = setTimeout(() => {
+      setDraft((d) => ({ ...d, ...s.draft, password: "" }));
+      setAgreed(s.agreed || {});
+      setIdx(Math.max(2, Math.min(s.idx, 2 + (STEPS_BY_TYPE[s.draft.accountType!] || []).length - 1)));
+      setResumed(true);
+    }, 0);
+    return () => clearTimeout(h);
+  }, []);
+  useEffect(() => {
+    if (!draft.accountType || draft.phoneVerified) return;
+    const { password: _pw, ...rest } = draft;
+    void _pw;
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ at: Date.now(), idx, draft: rest, agreed } satisfies SavedDraft)); } catch { /* ignore */ }
+  }, [draft, idx, agreed]);
 
   const steps = useMemo(
     () => ["phone", "type", ...(draft.accountType ? [...STEPS_BY_TYPE[draft.accountType], "verify"] : [])],
@@ -268,6 +308,7 @@ export default function RegisterFlow() {
       const s = await register(draft, verificationId, code);
       // Verified: runs before React renders the new session, so the gate finds it.
       savePendingConsents();
+      clearRegDraft();
       // Seller roles come back pending admin approval — show a review screen
       // instead of entering a portal (no account exists yet).
       if ("pending" in s) {
@@ -345,6 +386,14 @@ export default function RegisterFlow() {
         if (!p.licenseNumber?.trim()) m.push(t("advocate.license"));
         if (!p.specialization?.trim()) m.push(t("advocate.specialization"));
         break;
+      case "expertise":
+        if (!p.practiceAreas.length) m.push(t("advocate.expertise.areas"));
+        if (!(p.serviceRegions ?? []).length) m.push(t("advocate.expertise.regions"));
+        if (!p.languages.length) m.push(t("fields.languages"));
+        break;
+      case "pricing":
+        if (!(p.hourlyPrice && p.hourlyPrice > 0)) m.push(t("advocate.pricing.price"));
+        break;
     }
     // Last profile step (lastProfileStep is declared below).
     if (draft.accountType && idx === steps.length - 2 && !consentsOk) m.push(tl("consent.missing"));
@@ -405,6 +454,7 @@ export default function RegisterFlow() {
           <span style={{ width: `${((idx + 1) / total) * 100}%` }} />
         </div>
 
+        {resumed && showFooter ? <div className="rf__previewnote" style={{ margin: "10px 0 0" }}>{t("resumed")}</div> : null}
         {draft.accountType === "advocate" && advPos >= 0 ? (
           <div className="rf__stepper">
             {ADV_STEPS.map((s, i) => (
@@ -576,6 +626,7 @@ export default function RegisterFlow() {
               <h1 className="rf__title">{t("advocate.personalTitle")}</h1>
               <p className="rf__sub">{t("advocate.personalSubtitle")}</p>
               <PhotoUpload value={p.photo} name={p.name} onChange={(u) => setProfile({ photo: u })} label={t("fields.photo")} hint={t("fields.photoHint")} />
+              <PhotoUpload value={p.selfie} name="" capture="user" onChange={(u) => setProfile({ selfie: u })} label={t("advocate.selfie")} hint={p.selfie ? t("advocate.selfieDone") : t("advocate.selfieHint")} />
               <div className="cform" style={{ maxWidth: "none" }}>
                 <div className="cform__row2">
                   <div>
@@ -640,7 +691,7 @@ export default function RegisterFlow() {
                 </div>
                 <div>
                   <label>{t("advocate.licenseDoc")}</label>
-                  <PhotoUpload value={undefined} name="" onChange={() => setProfile({ licenseDoc: "license.pdf" })} label={t("advocate.upload")} hint={p.licenseDoc ? t("advocate.uploaded") : t("advocate.licenseHint")} />
+                  <PhotoUpload value={p.licenseDoc?.startsWith("data:") ? p.licenseDoc : undefined} name="" capture="environment" onChange={(u) => setProfile({ licenseDoc: u })} label={t("advocate.upload")} hint={p.licenseDoc ? t("advocate.uploaded") : t("advocate.licenseHint")} />
                 </div>
                 <div className="cform__row2">
                   <div>
@@ -660,6 +711,64 @@ export default function RegisterFlow() {
                   <label>{t("advocate.work.title")}</label>
                   <p className="rf__hint">{t("advocate.work.subtitle")}</p>
                   <WorkHistoryEditor value={p.workHistory} onChange={(v) => setProfile({ workHistory: v })} />
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {step === "expertise" ? (
+            <div className="rf__step rf__step--wide">
+              <h1 className="rf__title">{t("advocate.expertise.title")}</h1>
+              <p className="rf__sub">{t("advocate.expertise.subtitle")}</p>
+              <div className="cform" style={{ maxWidth: "none" }}>
+                <div>
+                  <label>{t("advocate.expertise.areas")}</label>
+                  <ChipMulti options={AREA_KEYS.map((k) => ({ value: k, label: te(`areas.${k}`) }))} value={p.practiceAreas} onChange={(v) => setProfile({ practiceAreas: v })} />
+                </div>
+                <div>
+                  <label>{t("advocate.expertise.regions")}</label>
+                  <ChipMulti options={regionOpts} value={p.serviceRegions ?? []} onChange={(v) => setProfile({ serviceRegions: v })} />
+                </div>
+                <div>
+                  <label>{t("fields.languages")}</label>
+                  <ChipMulti options={LANG_KEYS.map((k) => ({ value: k, label: t(`languages.${k}`) }))} value={p.languages} onChange={(v) => setProfile({ languages: v })} />
+                </div>
+                <div>
+                  <label>{t("advocate.expertise.hours")}</label>
+                  <ChipMulti options={WEEK_DAYS.map((k) => ({ value: k, label: t(`advocate.expertise.days.${k}`) }))} value={p.workDays ?? ["mon", "tue", "wed", "thu", "fri"]} onChange={(v) => setProfile({ workDays: v })} />
+                  <div className="cform__row2" style={{ marginTop: 10 }}>
+                    <div>
+                      <label>{t("advocate.expertise.from")}</label>
+                      <input type="time" value={p.workFrom ?? "09:00"} onChange={(e) => setProfile({ workFrom: e.target.value })} />
+                    </div>
+                    <div>
+                      <label>{t("advocate.expertise.to")}</label>
+                      <input type="time" value={p.workTo ?? "18:00"} onChange={(e) => setProfile({ workTo: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {step === "pricing" ? (
+            <div className="rf__step rf__step--wide">
+              <h1 className="rf__title">{t("advocate.pricing.title")}</h1>
+              <p className="rf__sub">{t("advocate.pricing.subtitle")}</p>
+              <div className="cform" style={{ maxWidth: "none" }}>
+                {(() => { const r = PRICE_HINT[p.specialization ?? ""] ?? PRICE_HINT.both; return (
+                  <div className="rf__benefit">
+                    <b>{t("advocate.pricing.recommended")}</b>
+                    <p>{t("advocate.pricing.range", { min: r[0].toLocaleString("ru-RU"), max: r[1].toLocaleString("ru-RU") })}</p>
+                  </div>
+                ); })()}
+                <div className="cform__row2">
+                  <div>
+                    <label>{t("advocate.pricing.price")}</label>
+                    <input inputMode="numeric" value={p.hourlyPrice ? String(p.hourlyPrice) : ""} onChange={(e) => setProfile({ hourlyPrice: parseInt(e.target.value.replace(/\D/g, "") || "0", 10) || 0 })} placeholder="500000" />
+                    <p className="rf__hint">{t("advocate.pricing.hint")}</p>
+                  </div>
+                  <div />
                 </div>
               </div>
             </div>

@@ -49,6 +49,7 @@ export type ProfessionalProfile = {
   lastName?: string;
   middleName?: string;
   photo?: string; // data URL (mock upload)
+  selfie?: string; // T1A-02 selfie verification shot (data URL)
   region?: string; // enums.regions
   languages: string[]; // language keys
   education?: string;
@@ -67,6 +68,10 @@ export type ProfessionalProfile = {
   barAssociation?: string;
   specialization?: string;
   practiceAreas: string[]; // enums.areas
+  serviceRegions?: string[]; // enums.regions the advocate serves (T1A-02 step 3)
+  workDays?: string[]; // mon…sun
+  workFrom?: string; // HH:MM
+  workTo?: string; // HH:MM
   workHistory: WorkEntry[];
   stats?: AdvocateStats;
 };

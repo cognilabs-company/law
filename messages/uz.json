@@ -2254,7 +2254,9 @@
         "deadlineText": "Advokat javobi: {when} gacha",
         "deadlineToday": "bugun",
         "deadlineTomorrow": "ertaga",
-        "deadlineOverdue": "Advokat javob bermadi — boshqa advokat taklif qilinadi"
+        "deadlineOverdue": "Advokat javob bermadi — boshqa advokat taklif qilinadi",
+        "historyCta": "Tarix",
+        "hideHistory": "Tarixni yopish"
       },
       "payments": {
         "title": "To'lovlar",
@@ -3256,6 +3258,28 @@
       "submitted": "Ariza moderatorga yuborildi. 24 soat ichida ko'rib chiqiladi.",
       "submitIncomplete": "Avval barcha majburiy qadamlarni yakunlang.",
       "submitError": "Yuborib bo'lmadi. Qayta urining."
+    },
+    "orderFlow": {
+      "title": "Buyurtma tarixi",
+      "loadError": "Tarixni yuklab bo'lmadi.",
+      "empty": "Hali status o'zgarishlari yo'q.",
+      "nextStep": "Keyingi qadam",
+      "notePh": "Izoh (ixtiyoriy)",
+      "moving": "Yuborilmoqda…",
+      "moved": "Holat yangilandi: {status}",
+      "conflict": "Bu o'tish hozir mumkin emas — holat allaqachon o'zgargan.",
+      "forbidden": "Bu buyurtma holatini o'zgartirishga ruxsatingiz yo'q.",
+      "error": "Holatni o'zgartirib bo'lmadi.",
+      "actions": {
+        "started": "Ishni boshlash",
+        "in_progress": "Jarayonda",
+        "result_ready": "Natija tayyor",
+        "delivered": "Mijozga topshirish",
+        "waiting_info": "Ma'lumot so'rash",
+        "waiting_docs": "Hujjat so'rash",
+        "completed": "Qabul qilish va yakunlash",
+        "cancelled": "Bekor qilish"
+      }
     }
   },
   "notFound": {
@@ -3450,7 +3474,8 @@
         "experience": "Tajriba",
         "expertise": "Yo'nalishlar",
         "stats": "Statistika",
-        "review": "Ko'rib chiqish"
+        "review": "Ko'rib chiqish",
+        "pricing": "Narx"
       },
       "personalTitle": "Shaxsiy ma'lumotlar",
       "personalSubtitle": "Advokat profilingiz uchun asosiy ma'lumotlar.",
@@ -3526,6 +3551,35 @@
         "yrs": "yil",
         "areas": "Yo'nalishlar",
         "langs": "Tillar"
+      },
+      "selfie": "Selfi (verifikatsiya)",
+      "selfieHint": "Telefon kamerasidan yuzingizni oling — moderator hujjat bilan solishtiradi.",
+      "selfieDone": "Selfi qabul qilindi",
+      "expertise": {
+        "title": "Ixtisoslik va ish vaqti",
+        "subtitle": "Yo'nalishlar, hududlar, tillar va ish vaqtingiz — mos buyurtmalar shunga qarab keladi.",
+        "areas": "Yo'nalishlar",
+        "regions": "Xizmat hududlari",
+        "hours": "Ish kunlari va vaqti",
+        "from": "Boshlanishi",
+        "to": "Tugashi",
+        "days": {
+          "mon": "Du",
+          "tue": "Se",
+          "wed": "Cho",
+          "thu": "Pa",
+          "fri": "Ju",
+          "sat": "Sha",
+          "sun": "Ya"
+        }
+      },
+      "pricing": {
+        "title": "Narx",
+        "subtitle": "Bir soatlik maslahat narxingiz. Keyin har xizmat uchun alohida narx belgilaysiz.",
+        "recommended": "Tavsiya etilgan oraliq",
+        "range": "{min} – {max} so'm / soat (ixtisoslik bo'yicha).",
+        "price": "Soatlik narx (so'm)",
+        "hint": "Faqat raqam. Profilda istalgan vaqt o'zgartirish mumkin."
       }
     },
     "languages": {
@@ -3560,7 +3614,8 @@
       "title": "So‘rovingiz yuborildi",
       "hint": "Admin tasdiqlagach tizimga kira olasiz.",
       "toLogin": "Kirishga o‘tish"
-    }
+    },
+    "resumed": "Oldingi to'ldirilgan ma'lumotlar tiklandi — davom eting."
   },
   "plans": {
     "title": "Obuna rejalari",
@@ -3719,7 +3774,8 @@
       "verifications": "Advokatlarni tasdiqlash",
       "legalAid": "Yuridik yordam",
       "registerRequests": "Ro‘yxatdan o‘tish so‘rovlari",
-      "e2e": "E2E tayyorlik"
+      "e2e": "E2E tayyorlik",
+      "legal": "Huquqiy hujjatlar"
     },
     "overview": {
       "kicker": "Admin konsoli",
@@ -4533,6 +4589,72 @@
       "b2b_manager": "B2B menejer",
       "marketing": "Marketing",
       "content_manager": "Kontent menejer"
+    },
+    "legal": {
+      "title": "Huquqiy hujjatlar va roziliklar",
+      "readiness": "Tayyor: {n} / {total}",
+      "lead": "10 ta majburiy hujjat (S-53). Matnlar shu yerdan kiritiladi — kodda emas. Har hujjat versiyalanadi; foydalanuvchi har biriga alohida rozilik beradi.",
+      "tabDocs": "Hujjatlar",
+      "tabJournal": "Roziliklar jurnali",
+      "docsTitle": "Hujjatlar va versiyalar",
+      "newDoc": "Yangi hujjat",
+      "loadError": "Ro'yxatni yuklab bo'lmadi.",
+      "versions": "{n} versiya",
+      "view": "Ko'rish",
+      "newVersion": "Yangi versiya",
+      "publish": "Nashr qilish",
+      "active": "faol",
+      "inactive": "faol emas",
+      "state": {
+        "ready": "Matn kiritilgan",
+        "placeholder": "Placeholder — PM matni kutilmoqda",
+        "missing": "Nashr qilinmagan"
+      },
+      "slugs": {
+        "terms": "Ommaviy oferta (mijoz)",
+        "privacy": "Maxfiylik siyosati",
+        "legal_disclaimer": "Huquqiy ogohlantirish",
+        "cookie": "Cookie siyosati",
+        "advocate_offer": "Advokat hamkorlik ofertasi",
+        "structure_agreement": "Tuzilma shartnomasi",
+        "client_advocate_contract": "Mijoz–advokat shartnoma shabloni",
+        "payment_refund_policy": "To'lov, qaytarish va kafolat qoidalari",
+        "platform_rules": "Platforma qoidalari",
+        "personal_data_consent": "Shaxsiy ma'lumotlarga rozilik",
+        "age_18": "18+ tasdiqlash"
+      },
+      "newVersionTitle": "Yangi versiyani nashr qilish",
+      "newDocTitle": "Yangi hujjat",
+      "slug": "Kod (slug)",
+      "version": "Versiya",
+      "docTitle": "Sarlavha",
+      "body": "Matn",
+      "bodyPh": "Hujjatning to'liq matni…",
+      "bodyHint": "{n} belgi. 120 belgidan kam matn placeholder hisoblanadi.",
+      "level": "Yangilanish darajasi",
+      "levelMajor": "Muhim — qayta rozilik",
+      "levelMinor": "Kichik — faqat xabar",
+      "levelMajorHint": "Foydalanuvchilar keyingi kirishda yangi versiyani qayta qabul qiladi.",
+      "levelMinorHint": "Foydalanuvchilarga xabar yuboriladi, qayta rozilik so'ralmaydi.",
+      "activeNow": "Darhol faollashtirish",
+      "saving": "Saqlanmoqda…",
+      "saved": "Hujjat nashr qilindi.",
+      "saveError": "Saqlab bo'lmadi.",
+      "forbidden": "Ruxsat yo'q (users.manage kerak).",
+      "noWriteApi": "Backend hali hujjat yozish API'sini bermagan (POST /admin/legal/consents). Matn saqlanmadi — backend hisobotiga kiritilgan.",
+      "publishHint": "Nashrdan so'ng yangi versiya ro'yxatdan o'tish va kirishda ko'rsatiladi.",
+      "journalTitle": "Roziliklar jurnali",
+      "journalLead": "Kim, qaysi hujjat, qaysi versiya, qachon va qaysi IP'dan qabul qilgan.",
+      "rows": "{n} yozuv",
+      "userId": "Foydalanuvchi ID",
+      "userIdPh": "UUID…",
+      "doc": "Hujjat",
+      "allDocs": "Barcha hujjatlar",
+      "apply": "Qidirish",
+      "journalEmpty": "Yozuvlar yo'q",
+      "journalEmptyText": "Hali hech kim rozilik bermagan yoki filtr bo'yicha topilmadi.",
+      "when": "Vaqt",
+      "user": "Foydalanuvchi"
     }
   },
   "secureChat": {

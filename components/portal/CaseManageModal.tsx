@@ -7,6 +7,7 @@ import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconUser } from "@/components/icons";
+import OrderStatusPanel from "@/components/portal/OrderStatusPanel";
 
 const STATUSES = ["new", "active", "investigation", "court", "appeal", "completed", "archived"];
 
@@ -87,6 +88,7 @@ export default function CaseManageModal({
           <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
             {busy ? t("saving") : t("save")}
           </button>
+          {target.orderId ? <OrderStatusPanel orderId={target.orderId} side="seller" onChanged={onSaved} /> : null}
         </form>
       ) : null}
     </Modal>
