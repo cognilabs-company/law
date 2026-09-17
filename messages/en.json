@@ -2017,6 +2017,11 @@
         "time": "Time",
         "removeText": "\"{title}\" will be removed from the calendar. Continue?",
         "cancel": "Cancel"
+      },
+      "respond": {
+        "left": "{time} to respond",
+        "over": "Response time is over",
+        "hint": "Respond within 30 business minutes — otherwise the client is offered other advocates and your rating drops."
       }
     },
     "tasks": {

@@ -6,6 +6,7 @@ import { listOpenOrders } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import OrderActions from "@/components/portal/OrderActions";
+import RespondTimer from "@/components/portal/RespondTimer";
 import { useOrderStatusLabel } from "@/lib/orderStatus";
 import { IconBriefcase, IconMapPin, IconClock } from "@/components/icons";
 
@@ -33,6 +34,7 @@ export default function LawyerMarketplace() {
             <div className="oppc oppc--full" key={o.id}>
               <div className="oppc__h">
                 <span className="oppc__match">{statusLabel(o.status)}</span>
+                <RespondTimer deadline={o.confirmationDeadlineAt} />
                 <span className="oppc__ago"><IconClock />{o.createdAt}</span>
               </div>
               <b>{o.title}</b>

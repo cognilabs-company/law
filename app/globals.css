@@ -3969,3 +3969,11 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .tfa__method>div>span{font-size:.8rem;color:var(--gray);line-height:1.4}
 .tfa__method>.tfa__on{flex:none}
 @media (max-width:480px){.tfa__method>.tfa__on{order:-1;margin-left:auto}}
+
+/* ── wp-ak ── */
+/* seller response countdown on new-order cards (T1-10 §6) */
+.rtimer{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:.76rem;font-weight:800;font-variant-numeric:tabular-nums;background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
+.rtimer svg{width:13px;height:13px}
+.rtimer--warn{background:var(--dk-tint-warn, #fff4e5);color:var(--dk-txt-warn, #b45309);animation:rtPulse 1s ease-in-out infinite}
+.rtimer--over{background:var(--dk-tint-err, #fdecec);color:var(--dk-txt-err, #c0392b)}
+@keyframes rtPulse{50%{opacity:.6}}

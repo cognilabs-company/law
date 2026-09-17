@@ -2023,6 +2023,11 @@
         "time": "Vaqt",
         "removeText": "\"{title}\" kalendardan o'chiriladi. Davom etasizmi?",
         "cancel": "Bekor qilish"
+      },
+      "respond": {
+        "left": "Javob uchun {time}",
+        "over": "Javob muddati tugadi",
+        "hint": "Ish vaqtida 30 daqiqa ichida javob bering — kechiksangiz mijozga boshqa advokatlar taklif qilinadi va ko'rsatkichingiz pasayadi."
       }
     },
     "tasks": {

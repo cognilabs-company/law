@@ -820,6 +820,8 @@ export type BackendOrder = {
   budget: string;
   createdAt: string;
   lawyerName?: string;
+  // Seller response window (T1-10 §6): details.confirmation_deadline_at.
+  confirmationDeadlineAt?: string;
 };
 
 function normOrder(v: unknown): BackendOrder {
@@ -839,6 +841,7 @@ function normOrder(v: unknown): BackendOrder {
     budget: amount != null ? fmtUzs(amount) : asStr(details.budget),
     createdAt: asStr(d.created_at ?? d.createdAt),
     lawyerName: asStr(d.lawyer_name ?? asDict(d.lawyer).name) || undefined,
+    confirmationDeadlineAt: asStr(d.confirmation_deadline_at ?? details.confirmation_deadline_at) || undefined,
   };
 }
 

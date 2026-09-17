@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import type { BackendOrder, SellerActions, SellerCabinet } from "@/lib/services/backend";
 import { Skeleton, EmptyState } from "./DataState";
 import OrderActions from "./OrderActions";
+import RespondTimer from "./RespondTimer";
 import OnboardingProgress from "./OnboardingProgress";
 import SellerMetrics from "./SellerMetrics";
 import SellerPayouts from "./SellerPayouts";
@@ -197,6 +198,7 @@ function NewCase({ order: o, role, onDone }: { order: BackendOrder; role: Role; 
     <div className="pcase">
       <div className="pcase__h">
         <span className="pcase__id">{o.serviceName || t("newCases")}</span>
+        {o.status === "new" || o.status === "offered" || !o.status ? <RespondTimer deadline={o.confirmationDeadlineAt} /> : null}
         {o.createdAt ? <span className="advmuted"><IconClock style={{ width: 13, height: 13 }} /> {o.createdAt}</span> : null}
       </div>
       {o.title ? <p className={`pcase__q${open ? " on" : ""}`}>{o.title}</p> : null}
