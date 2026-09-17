@@ -126,14 +126,15 @@ export default function IdentityVerify() {
     <div className="idv__providers">
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {waiting ? <p className="advmuted" role="status">{t("retryIn", { time: fmtClock(wait.resendIn) })}</p> : null}
+      <button className="idv__prov idv__prov--main" type="button" disabled={busy || waiting} onClick={() => start("myid")}>
+        <b>MyID <em className="idv__tag">{t("primary")}</em></b>
+        <span>{t("myidSub")}</span>
+      </button>
       <button className="idv__prov" type="button" disabled={busy || waiting} onClick={() => start("oneid")}>
         <b>OneID</b>
         <span>{t("oneidSub")}</span>
       </button>
-      <button className="idv__prov" type="button" disabled={busy || waiting} onClick={() => start("myid")}>
-        <b>MyID</b>
-        <span>{t("myidSub")}</span>
-      </button>
+      <p className="idv__privacy advmuted">{t("noBiometrics")}</p>
     </div>
   );
 

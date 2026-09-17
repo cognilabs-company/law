@@ -2734,7 +2734,7 @@
       },
       "identity": {
         "title": "Shaxsni tasdiqlash",
-        "lead": "OneID yoki MyID orqali shaxsingizni tasdiqlang — ishonch va xavfsizlik uchun.",
+        "lead": "MyID (asosiy) yoki OneID orqali shaxsingizni tasdiqlang — ishonch va xavfsizlik uchun. Advokat va yuristlar uchun majburiy, mijoz uchun ixtiyoriy.",
         "verified": "Shaxs tasdiqlangan",
         "oneidSub": "Davlat xizmatlari ID",
         "myidSub": "Biometrik ID",
@@ -2749,7 +2749,9 @@
         "done": "Shaxs muvaffaqiyatli tasdiqlandi.",
         "failed": "Tasdiqlanmadi. Qayta urining.",
         "error": "Xatolik. Qayta urining.",
-        "retryIn": "Qayta urinish mumkin: {time}"
+        "retryIn": "Qayta urinish mumkin: {time}",
+        "primary": "Asosiy",
+        "noBiometrics": "Biometrik ma'lumotlar (rasm, video) saqlanmaydi — faqat tasdiq fakti, sanasi va provayder nomi."
       },
       "profile": {
         "title": "Profil",
@@ -2810,7 +2812,8 @@
         "cardBrand": "Karta turi",
         "cardLast4": "Oxirgi 4 raqam",
         "cardExpires": "Amal muddati",
-        "remove": "O‘chirish"
+        "remove": "O‘chirish",
+        "verifiedProfile": "Tasdiqlangan profil"
       },
       "journey": {
         "title": "Sizning yuridik yo'lingiz",

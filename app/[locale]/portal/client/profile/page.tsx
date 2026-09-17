@@ -16,6 +16,7 @@ import {
   listSessions,
   revokeSession,
   apiMe,
+  getIdentity,
 } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import { useResource, useResourceOne } from "@/lib/useResource";
@@ -23,7 +24,7 @@ import { Skeleton } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
-import { IconEdit, IconPlus, IconClose, IconCard, IconCheck, IconUser, IconUsers, IconSparkle, IconMonitor } from "@/components/icons";
+import { IconEdit, IconPlus, IconClose, IconCard, IconCheck, IconUser, IconUsers, IconSparkle, IconMonitor, IconShieldCheck } from "@/components/icons";
 import IdentityVerify from "@/components/portal/IdentityVerify";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
@@ -36,6 +37,8 @@ export default function ClientProfile() {
   const [key, setKey] = useState(0);
   const reload = () => setKey((k) => k + 1);
   const prof = useResourceOne(getClientProfile, [key]);
+  // T0-10 §4: an identity-verified client gets a "verified profile" badge.
+  const ident = useResourceOne(() => getIdentity().catch(() => null), [key]);
   const family = useResource(() => listFamilyMembers(), [key]);
   const methods = useResource(() => listPaymentMethods(), [key]);
   const sessions = useResource(() => listSessions(), [key]);
@@ -96,7 +99,7 @@ export default function ClientProfile() {
     <>
       <div className="ppanel">
         <div className="ppanel__h">
-          <b className="ppanel__t"><span className="pico"><IconUser /></span>{t("personal")}</b>
+          <b className="ppanel__t"><span className="pico"><IconUser /></span>{t("personal")}{ident.data?.verified ? <span className="tfa__on" title={ident.data.provider.toUpperCase()}><IconShieldCheck />{t("verifiedProfile")}</span> : null}</b>
           <button className="btn btn--soft btn--sm" type="button" onClick={() => setEditOpen(true)}>
             <IconEdit />
             {t("edit")}

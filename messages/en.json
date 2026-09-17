@@ -2728,7 +2728,7 @@
       },
       "identity": {
         "title": "Identity verification",
-        "lead": "Verify your identity with OneID or MyID — for trust and security.",
+        "lead": "Verify your identity with MyID (primary) or OneID — for trust and safety. Required for advocates and lawyers, optional for clients.",
         "verified": "Identity verified",
         "oneidSub": "Government services ID",
         "myidSub": "Biometric ID",
@@ -2743,7 +2743,9 @@
         "done": "Identity verified successfully.",
         "failed": "Not verified. Please try again.",
         "error": "Something went wrong. Please try again.",
-        "retryIn": "You can try again in {time}"
+        "retryIn": "You can try again in {time}",
+        "primary": "Primary",
+        "noBiometrics": "No biometric data (photo, video) is stored — only the fact of verification, its date and the provider."
       },
       "profile": {
         "title": "Profile",
@@ -2804,7 +2806,8 @@
         "cardBrand": "Card type",
         "cardLast4": "Last 4 digits",
         "cardExpires": "Expiry",
-        "remove": "Remove"
+        "remove": "Remove",
+        "verifiedProfile": "Verified profile"
       },
       "journey": {
         "title": "Your legal journey",

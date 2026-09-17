@@ -3923,3 +3923,11 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .mtg__recdone{z-index:8}
 .mtg__recdone .btn,.mtg__recpick .btn{white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.mtg__recpick,.mtg__recdone{animation:none}}
+
+/* ── wp-ag ── */
+/* identity: MyID primary card, privacy note */
+.idv__prov--main{border-color:var(--b300);background:linear-gradient(135deg,var(--b50),var(--dk-surface, #fff))}
+.idv__prov b{display:flex;align-items:center;gap:8px}
+.idv__tag{font-style:normal;font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:var(--grad);color:#fff}
+.idv__privacy{grid-column:1 / -1;margin:0;font-size:.78rem}
+.ppanel__t .tfa__on{margin-left:4px}
