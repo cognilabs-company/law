@@ -73,6 +73,17 @@ export default function ClientServices() {
   useEffect(() => { const tick = () => setNowMs(Date.now()); const h = setTimeout(tick, 0); const iv = setInterval(tick, 60_000); return () => { clearTimeout(h); clearInterval(iv); }; }, []);
   const afterHours = nowMs ? !evalBusinessHours(hours, nowMs).workingTime : false;
   const respondBy = nowMs ? deadlineLabel(responseDeadline(hours, nowMs, 30), nowMs, { today: t("deadlineToday"), tomorrow: t("deadlineTomorrow") }) : "";
+  // Advocate preselected from the directory (?lawyer=<userId>&name=…).
+  // Read after mount: during a client-side transition window.location still
+  // shows the previous URL while the new page first renders.
+  const [preSeller, setPreSeller] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const id = sp.get("lawyer") ?? "";
+    const name = sp.get("name") ?? "";
+    const h = setTimeout(() => setPreSeller(id ? { id, name } : null), 0);
+    return () => clearTimeout(h);
+  }, []);
   const [cat, setCat] = useState(""); // "" = families overview
   // Deep link from the AI intake ("order this service") pre-fills the search.
   // Rendered only client-side (inside the portal shell, after auth is ready).
@@ -187,10 +198,16 @@ export default function ClientServices() {
   useEffect(() => {
     if (!order) return;
     listLawyers({ service_id: order.id })
-      .then((rows) => setSellers(rows))
+      .then((rows) => {
+        setSellers(rows);
+        // The advocate chosen in the directory is picked automatically when they offer this service.
+        if (preSeller && rows.some((r) => r.userId === preSeller.id)) setSellerId(preSeller.id);
+      })
       .catch(() => setSellers([]))
       .finally(() => setSellersLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order]);
+  const preSellerOffers = !order || sellersLoading ? null : sellers.some((r) => r.userId === preSeller?.id);
 
   // Ranked, verified candidates for this service; used to order the sellers
   // above and to explain the match. A failure just leaves the rating order.
@@ -297,6 +314,16 @@ export default function ClientServices() {
         </Link>
       </div>
 
+      {preSeller ? (
+        <div className="presel" role="status">
+          <span className="presel__av">{(preSeller.name || "A").split(/\s+/).map((x) => x[0]).join("").slice(0, 2).toUpperCase()}</span>
+          <div>
+            <b>{t("preSellerTitle", { name: preSeller.name || t("preSellerAnon") })}</b>
+            <span>{afterHours ? t("afterHours", { when: respondBy }) : t("preSellerLead")}</span>
+          </div>
+          <button type="button" className="btn btn--line btn--sm" onClick={() => { setPreSeller(null); if (typeof window !== "undefined") window.history.replaceState(null, "", window.location.pathname); }}>{t("preSellerClear")}</button>
+        </div>
+      ) : null}
       <div className="ppanel">
         <div className="ppanel__h">
           <b>{showFamilies ? t("chooseFamily") : query ? t("title") : catName}</b>
@@ -399,6 +426,7 @@ export default function ClientServices() {
 
             <div>
               <label>{t("chooseAdvocate")}</label>
+              {preSeller && preSellerOffers === false ? <p className="bhnote" role="status"><IconAlert />{t("preSellerNotOffering", { name: preSeller.name || t("preSellerAnon") })}</p> : null}
               {sellersLoading ? (
                 <Skeleton rows={2} />
               ) : !sortedSellers.length ? (

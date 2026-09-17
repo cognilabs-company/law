@@ -694,7 +694,9 @@
       "newHint": "Under 5 reviews — rating is being collected",
       "unverified": "Unverified",
       "orderInstead": "Order a service →",
-      "chooseError": "Could not choose this advocate. Try again."
+      "chooseError": "Could not choose this advocate. Try again.",
+      "privateChat": "Private chat",
+      "privateChatHint": "Paid private chat with the advocate (no order)"
     },
     "empty": "There are no lawyers in this area yet. Leave a request — we will find a suitable lawyer for you.",
     "priceInfo": "The price is formed by open criteria: region (higher in big cities), experience (3–5 yrs +10%, 6–10 yrs +15%, 10+ yrs +20%), rating and super-lawyer status (regional TOP-3 — up to 30%, 10+ yrs in a narrow area — up to 20%). If the price is higher, the reason is shown in the order window.",
@@ -2548,7 +2550,9 @@
         "choose": "Choose",
         "opening": "Opening…",
         "notFound": "Profile not found",
-        "unverified": "Unverified"
+        "unverified": "Unverified",
+        "privateChat": "Private chat",
+        "privateChatHint": "Paid private chat (no order)"
       },
       "complaints": {
         "title": "Complaints",
@@ -2909,7 +2913,12 @@
         "afterHours": "It is outside working hours now (Mon–Sat 09:00–19:00). The advocate replies by {when} — the timer starts at 09:00.",
         "respondBy": "The advocate replies within 30 minutes: by {when}",
         "deadlineToday": "today",
-        "deadlineTomorrow": "tomorrow"
+        "deadlineTomorrow": "tomorrow",
+        "preSellerTitle": "Chosen advocate: {name}",
+        "preSellerAnon": "advocate",
+        "preSellerLead": "Now pick a service — the order goes to this advocate.",
+        "preSellerClear": "Another advocate",
+        "preSellerNotOffering": "{name} does not offer this service — pick another advocate from the list or open another service."
       },
       "documents": {
         "title": "Document templates",

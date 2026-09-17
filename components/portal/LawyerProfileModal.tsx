@@ -239,8 +239,11 @@ export default function LawyerProfileModal({
               <b>{som(data.basePrice)}</b>
               <span>{t("priceNote")}</span>
             </div>
-            <button className="btn btn--pri" type="button" onClick={choose} disabled={busy}>
-              {busy ? t("opening") : t("choose")}
+            <button className="btn btn--pri" type="button" onClick={() => { if (!data?.userId) return; if (!session) { router.push("/login"); return; } onClose(); router.push(`/portal/client/services?lawyer=${encodeURIComponent(data.userId)}&name=${encodeURIComponent(data.name)}`); }}>
+              {t("choose")}
+            </button>
+            <button className="btn btn--line" type="button" onClick={choose} disabled={busy} title={t("privateChatHint")}>
+              {busy ? t("opening") : t("privateChat")}
             </button>
           </div>
           {chooseErr ? <p className="lprof__err">{chooseErr}</p> : null}

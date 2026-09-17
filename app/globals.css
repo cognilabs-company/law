@@ -4011,3 +4011,11 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .advcard__err{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:9px 11px;border-radius:10px;font-size:.78rem;line-height:1.4;background:var(--dk-tint-err, #fef2f2);color:var(--dk-txt-err, #b91c1c);border:1px solid var(--dk-bd-err, #fecaca)}
 .advcard__err svg{width:14px;height:14px;flex:none;margin-top:2px}
 .advcard__err a{color:inherit;font-weight:700;text-decoration:underline}
+
+/* ── wp-ap ── */
+/* directory card CTAs + preselected advocate banner on the services page */
+.advcard__ctas{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.presel{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;border:1.5px solid var(--b300);background:linear-gradient(135deg,var(--b50),var(--dk-surface, #fff));margin-bottom:14px;flex-wrap:wrap}
+.presel__av{width:40px;height:40px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--grad);color:#fff;font-weight:800;font-size:.9rem}
+.presel>div{display:grid;gap:2px;flex:1;min-width:0}
+.presel b{font-size:.95rem}.presel span{font-size:.82rem;color:var(--gray);line-height:1.4}

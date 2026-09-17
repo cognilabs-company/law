@@ -92,8 +92,19 @@ export default function LawyersSection({
     return () => window.removeEventListener("pageshow", onShow);
   }, []);
 
-  // "Choose" → start a paid private chat with this seller (demo purchase).
-  async function choose(l: Lawyer) {
+  // "Choose" → order a service with this advocate preselected (T1-10 flow:
+  // service → advocate → order → payment; the T0-20 working-hours notice shows
+  // in the order modal). Guests sign in first.
+  function choose(l: Lawyer) {
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+    if (!l.userId) return;
+    router.push(`/portal/client/services?lawyer=${encodeURIComponent(l.userId)}&name=${encodeURIComponent(l.name)}`);
+  }
+  // Paid private chat with this seller (kept for the profile modal / deep links).
+  async function openPrivateChat(l: Lawyer) {
     if (!session) {
       router.push("/login");
       return;
@@ -251,14 +262,14 @@ export default function LawyersSection({
               <b>{l.price}</b>
               <span>{t("card.priceNote")}</span>
             </div>
-            <button
-              className="btn btn--pri btn--sm"
-              type="button"
-              onClick={() => choose(l)}
-              disabled={chatBusy === l.userId}
-            >
-              {chatBusy === l.userId ? t("card.opening") : t("card.choose")}
-            </button>
+            <span className="advcard__ctas">
+              <button className="btn btn--ghost btn--sm" type="button" onClick={() => openPrivateChat(l)} disabled={chatBusy === l.userId} title={t("card.privateChatHint")}>
+                {chatBusy === l.userId ? t("card.opening") : t("card.privateChat")}
+              </button>
+              <button className="btn btn--pri btn--sm" type="button" onClick={() => choose(l)}>
+                {t("card.choose")}
+              </button>
+            </span>
           </div>
           {chatErr && chatErrFor === l.userId ? (
             <div className="advcard__err" role="alert">
