@@ -1948,7 +1948,56 @@
       },
       "orderTaken": "Another provider already took this order",
       "orderForbidden": "You aren't allowed to work on this order",
-      "orderActionFailed": "Couldn't complete the action. Try again."
+      "orderActionFailed": "Couldn't complete the action. Try again.",
+      "deadlineCalc": {
+        "open": "Deadline calculator",
+        "title": "Procedural deadline calculator",
+        "lead": "Enter the base date — the deadline is calculated and, if you like, added to the calendar with a reminder one day before.",
+        "kind": "Deadline type",
+        "kinds": {
+          "appeal": "Appeal",
+          "document": "Document filing",
+          "complaint": "Complaint",
+          "general": "General"
+        },
+        "rules": {
+          "appeal": "1 month",
+          "document": "10 days",
+          "complaint": "30 days",
+          "general": "7 days"
+        },
+        "baseDate": "Base date (decision/document date)",
+        "eventTitle": "Calendar entry title",
+        "eventTitlePh": "e.g. Ivanov case — appeal",
+        "addToCalendar": "Add to calendar (reminder 1 day before)",
+        "result": "Deadline: {date}",
+        "eventAdded": "Added to the calendar, reminder scheduled.",
+        "notAdded": "Not added to the calendar.",
+        "calculate": "Calculate",
+        "calculating": "Calculating…",
+        "error": "Could not calculate. Check the date.",
+        "ical": "Download to calendar (.ics)",
+        "icalError": "Could not download the .ics file."
+      },
+      "declineReasons": {
+        "title": "Decline the order",
+        "lead": "Pick a reason — the client never sees it; it is for analytics only.",
+        "reason": "Reason",
+        "note": "Note (optional)",
+        "noteRequired": "Note (required)",
+        "notePh": "Explain briefly…",
+        "confirm": "Decline",
+        "declining": "Declining…",
+        "conflict_of_interest": "Conflict of interest",
+        "not_my_specialization": "Not my specialization",
+        "busy": "Busy",
+        "region_far": "Region too far",
+        "price_mismatch": "Price does not fit",
+        "documents_insufficient": "Documents insufficient",
+        "prior_dispute": "Prior dispute with this client",
+        "sick_or_vacation": "Sick / vacation",
+        "other": "Other"
+      }
     },
     "tasks": {
       "title": "Tasks",
@@ -2044,7 +2093,8 @@
         "services": "Services",
         "documents": "Document templates",
         "messages": "Messages",
-        "notifications": "Notifications"
+        "notifications": "Notifications",
+        "packages": "Packages"
       },
       "advocate": {
         "dashboard": "Dashboard",
@@ -2919,6 +2969,31 @@
           "inn": "TIN",
           "passport": "Passport"
         }
+      },
+      "packages": {
+        "title": "Service packages",
+        "count": "{n} packages",
+        "lead": "A package is several services at one price, with what is and isn't included and the timeline spelled out.",
+        "searchPh": "Package or category name…",
+        "empty": "No packages found",
+        "emptyText": "Change your search.",
+        "tiers": {
+          "BASIC": "Basic",
+          "STANDARD": "Standard",
+          "PREMIUM": "Premium"
+        },
+        "som": "so'm",
+        "compare": "Separately: {sep} · In package: {pkg}",
+        "saves": "You save: {n}",
+        "details": "Details",
+        "order": "Order",
+        "price": "Price",
+        "duration": "Timeline",
+        "category": "Category",
+        "services": "Service codes",
+        "result": "Result",
+        "included": "Included",
+        "excluded": "Not included"
       }
     },
     "advocate": {
@@ -3106,6 +3181,29 @@
         "tipSpeed": "To raise your rating, answer faster: now {now} min, recommended {target} min.",
         "tipRate": "Response rate below 90% — 3 unanswered orders in 30 days lower your ranking.",
         "tipGood": "Your metrics look good — keep it up."
+      },
+      "payouts": {
+        "title": "Payouts",
+        "nextPayout": "Next payout: {date} (Thursday)",
+        "pending": "Pending",
+        "paid": "Paid",
+        "count": "Rows",
+        "rule": "Weekly on Thursdays. Minimum {min} so'm; smaller balances roll to next week and are paid in full at month end.",
+        "belowMin": "Balance is under {min} so'm — rolls over to next week.",
+        "empty": "No payouts yet",
+        "emptyText": "Your share of completed orders appears here.",
+        "date": "Date",
+        "period": "Period",
+        "amount": "Amount",
+        "statusCol": "Status",
+        "status": {
+          "pending": "Pending",
+          "scheduled": "Scheduled",
+          "paid": "Paid",
+          "released": "Paid",
+          "held": "Held",
+          "failed": "Failed"
+        }
       }
     },
     "notifications": {
@@ -3274,6 +3372,16 @@
         "completed": "Accept & complete",
         "cancelled": "Cancel"
       }
+    },
+    "referralProgress": {
+      "title": "Invite friends",
+      "progress": "{joined} joined ({invited} invited) — {remaining} more for {reward}",
+      "done": "Goal reached: {reward}",
+      "discount": "{pct}% discount",
+      "unlocked": "{pct}% discount active",
+      "commission": "{pct}% commission",
+      "commissionNow": "now {pct}%",
+      "maxTier": "lowest commission"
     }
   },
   "notFound": {
@@ -4264,6 +4372,25 @@
         "blocked": "Blocked",
         "error": "Error",
         "rejected": "Rejected"
+      },
+      "anomalies": {
+        "title": "Anomaly alerts",
+        "lead": "Suspicious sign-ins and other security events (IP change, too many attempts).",
+        "filter": "Status",
+        "status": {
+          "all": "All",
+          "new": "New",
+          "reviewed": "Reviewed",
+          "resolved": "Resolved"
+        },
+        "types": {
+          "suspicious_login": "Suspicious sign-in (IP changed)",
+          "otp_bruteforce": "Too many OTP attempts",
+          "password_bruteforce": "Too many password attempts"
+        },
+        "empty": "No anomalies",
+        "emptyText": "No security events detected.",
+        "error": "Could not load the list."
       }
     },
     "integrations": {

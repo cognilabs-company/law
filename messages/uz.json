@@ -1954,7 +1954,56 @@
       },
       "orderTaken": "Bu buyurtmani boshqa ijrochi oldi",
       "orderForbidden": "Bu buyurtma bilan ishlashga ruxsatingiz yo'q",
-      "orderActionFailed": "Amalni bajarib bo'lmadi. Qayta urining."
+      "orderActionFailed": "Amalni bajarib bo'lmadi. Qayta urining.",
+      "deadlineCalc": {
+        "open": "Muddat kalkulyatori",
+        "title": "Protsessual muddat kalkulyatori",
+        "lead": "Asos sanani kiriting — tizim muddatni hisoblab, xohlasangiz kalendarga 1 kun oldin eslatma bilan qo'shadi.",
+        "kind": "Muddat turi",
+        "kinds": {
+          "appeal": "Apellyatsiya",
+          "document": "Hujjat topshirish",
+          "complaint": "Shikoyat",
+          "general": "Umumiy"
+        },
+        "rules": {
+          "appeal": "1 oy",
+          "document": "10 kun",
+          "complaint": "30 kun",
+          "general": "7 kun"
+        },
+        "baseDate": "Asos sana (qaror/hujjat sanasi)",
+        "eventTitle": "Kalendar yozuvi nomi",
+        "eventTitlePh": "masalan, Ivanov ishi — apellyatsiya",
+        "addToCalendar": "Kalendarga qo'shish (eslatma 1 kun oldin)",
+        "result": "Oxirgi muddat: {date}",
+        "eventAdded": "Kalendarga qo'shildi, eslatma rejalashtirildi.",
+        "notAdded": "Kalendarga qo'shilmadi.",
+        "calculate": "Hisoblash",
+        "calculating": "Hisoblanmoqda…",
+        "error": "Hisoblab bo'lmadi. Sanani tekshiring.",
+        "ical": "Kalendarga yuklab olish (.ics)",
+        "icalError": ".ics faylni yuklab bo'lmadi."
+      },
+      "declineReasons": {
+        "title": "Buyurtmani rad etish",
+        "lead": "Sababni tanlang — bu mijozga ko'rsatilmaydi, faqat tahlil uchun.",
+        "reason": "Sabab",
+        "note": "Izoh (ixtiyoriy)",
+        "noteRequired": "Izoh (majburiy)",
+        "notePh": "Qisqacha tushuntiring…",
+        "confirm": "Rad etish",
+        "declining": "Rad etilmoqda…",
+        "conflict_of_interest": "Manfaatlar to'qnashuvi",
+        "not_my_specialization": "Ixtisosligim emas",
+        "busy": "Bandman",
+        "region_far": "Hudud uzoq",
+        "price_mismatch": "Narx mos emas",
+        "documents_insufficient": "Hujjatlar yetarli emas",
+        "prior_dispute": "Bu mijoz bilan avval nizo bo'lgan",
+        "sick_or_vacation": "Kasallik / ta'til",
+        "other": "Boshqa"
+      }
     },
     "tasks": {
       "title": "Vazifalar",
@@ -2050,7 +2099,8 @@
         "services": "Xizmatlar",
         "documents": "Hujjat namunalari",
         "messages": "Xabarlar",
-        "notifications": "Bildirishnomalar"
+        "notifications": "Bildirishnomalar",
+        "packages": "Paketlar"
       },
       "advocate": {
         "dashboard": "Boshqaruv paneli",
@@ -2925,6 +2975,31 @@
           "inn": "STIR",
           "passport": "Pasport"
         }
+      },
+      "packages": {
+        "title": "Xizmat paketlari",
+        "count": "{n} ta paket",
+        "lead": "Paket — bir necha xizmat bitta narxda. Nima kiradi, nima kirmaydi va muddat aniq yozilgan.",
+        "searchPh": "Paket yoki toifa nomi…",
+        "empty": "Paketlar topilmadi",
+        "emptyText": "Qidiruvni o'zgartiring.",
+        "tiers": {
+          "BASIC": "Basic",
+          "STANDARD": "Standard",
+          "PREMIUM": "Premium"
+        },
+        "som": "so'm",
+        "compare": "Alohida: {sep} · Paketda: {pkg}",
+        "saves": "Tejaysiz: {n}",
+        "details": "Batafsil",
+        "order": "Buyurtma berish",
+        "price": "Narx",
+        "duration": "Muddat",
+        "category": "Toifa",
+        "services": "Xizmat kodlari",
+        "result": "Natija",
+        "included": "Paketga kiradi",
+        "excluded": "Kirmaydi"
       }
     },
     "advocate": {
@@ -3112,6 +3187,29 @@
         "tipSpeed": "Reytingni oshirish uchun javob tezligini yaxshilang: hozir {now} daqiqa, tavsiya {target} daqiqa.",
         "tipRate": "Javob foizi 90% dan past — 30 kunda 3 ta javobsiz buyurtma saralashda pasaytiradi.",
         "tipGood": "Ko'rsatkichlaringiz yaxshi — shu tarzda davom eting."
+      },
+      "payouts": {
+        "title": "Hisob-kitob (payout)",
+        "nextPayout": "Keyingi to'lov: {date} (payshanba)",
+        "pending": "Kutilmoqda",
+        "paid": "To'langan",
+        "count": "Yozuvlar",
+        "rule": "Haftada bir — payshanba. Minimal summa {min} so'm; kam bo'lsa keyingi haftaga o'tadi, oy oxirida qoldiq to'liq to'lanadi.",
+        "belowMin": "Balans {min} so'mdan kam — keyingi haftaga o'tadi.",
+        "empty": "Hali to'lovlar yo'q",
+        "emptyText": "Yakunlangan buyurtmalar bo'yicha ulushingiz shu yerda ko'rinadi.",
+        "date": "Sana",
+        "period": "Davr",
+        "amount": "Summa",
+        "statusCol": "Holat",
+        "status": {
+          "pending": "Kutilmoqda",
+          "scheduled": "Rejalashtirilgan",
+          "paid": "To'langan",
+          "released": "To'langan",
+          "held": "Ushlab turilgan",
+          "failed": "Xato"
+        }
       }
     },
     "notifications": {
@@ -3280,6 +3378,16 @@
         "completed": "Qabul qilish va yakunlash",
         "cancelled": "Bekor qilish"
       }
+    },
+    "referralProgress": {
+      "title": "Do'stlarni taklif qiling",
+      "progress": "{joined} ta qo'shildi ({invited} taklif) — yana {remaining} tadan keyin {reward}",
+      "done": "Maqsadga erishdingiz: {reward}",
+      "discount": "{pct}% chegirma",
+      "unlocked": "{pct}% chegirma faol",
+      "commission": "komissiya {pct}%",
+      "commissionNow": "hozir {pct}%",
+      "maxTier": "eng past komissiya"
     }
   },
   "notFound": {
@@ -4270,6 +4378,25 @@
         "blocked": "Bloklangan",
         "error": "Xato",
         "rejected": "Rad etilgan"
+      },
+      "anomalies": {
+        "title": "Anomaliya ogohlantirishlari",
+        "lead": "Shubhali kirishlar va boshqa xavfsizlik hodisalari (IP o'zgarishi, ko'p urinish).",
+        "filter": "Holat",
+        "status": {
+          "all": "Barchasi",
+          "new": "Yangi",
+          "reviewed": "Ko'rildi",
+          "resolved": "Hal qilindi"
+        },
+        "types": {
+          "suspicious_login": "Shubhali kirish (IP o'zgardi)",
+          "otp_bruteforce": "OTP ko'p urinish",
+          "password_bruteforce": "Parol ko'p urinish"
+        },
+        "empty": "Anomaliyalar yo'q",
+        "emptyText": "Xavfsizlik hodisalari aniqlanmagan.",
+        "error": "Ro'yxatni yuklab bo'lmadi."
       }
     },
     "integrations": {

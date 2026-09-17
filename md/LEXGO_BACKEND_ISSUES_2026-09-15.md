@@ -1,7 +1,7 @@
 # LexGo backend — frontend integratsiya va jonli testda topilgan muammolar
 
 **Sana:** 2026-09-15
-**Backend commit:** `7b7a89c` (birinchi tekshiruv) → `4aa7137` (qayta tekshiruv, 0A bo'lim) → `06f40e0` (barcha rollar bilan test, 0B bo'lim; 16.09 kanban va call-markaz, 0C bo'lim)
+**Backend commit:** `7b7a89c` (birinchi tekshiruv) → `4aa7137` (qayta tekshiruv, 0A bo'lim) → `06f40e0` (barcha rollar bilan test, 0B bo'lim; 16.09 kanban va call-markaz, 0C bo'lim) → `bb5945d` (17.09 qayta tekshiruv, 0D bo'lim)
 **Qanday tekshirildi:**
 - Frontend'ning yangi build'i production backend (`https://lexgo.api.cognilabs.org`) bilan Chrome'da real akkauntlarda sinaldi.
 - Sinov faqat ko'rish rejimida bo'ldi: to'lov, buyurtma, imzo, lid ko'chirish kabi amallar bajarilmadi.
@@ -154,6 +154,39 @@ Frontend'da topilib tuzatilgani: "Bootstrap" sahifasi sales operator va call-cen
   - moderator, moliya, sifat nazorati.
 - Hozirgi advokat va yurist `pending`, kabinet bo'limlarining 10 tasi qulflangan.
 
+## 0D. 17.09 qayta tekshiruv — backend `bb5945d` (Implement T1B backend workflows)
+
+Production API superadmin bilan to'g'ridan-to'g'ri so'raldi. Kod `bb5945d` gacha o'qildi.
+
+### Yangi qo'shilgan (T1B backend, 16.09 18:58)
+`/admin/service-packages` (CRUD, submit/approve/publish/stop/clone/preview, price-simulator), `/service-packages/proposals`, `/admin/document-templates/import-docx`, `/preview`, `/import-zip`, `POST /lawyers/me/clients`, `/calendar-events/{id}/reminders/cascade`, `/calendar-events/{id}/ical`, `/calendar/deadline-calculator`, `/workspace/files/{id}/signed-url`, `PATCH /sos/{id}`, `/b2b/clients/{id}/invoice|contract|monthly-report`, `/ai/cases/{id}/tools`. Hammasi production'da ochiq (401/405 — ro'yxatda). Frontend hali ulanmagan — T1B-01/02/04/05/06/07/09 uchun endi backend bor.
+
+### Oldingi muammolar holati
+
+| # | Muammo | 17.09 |
+|---|---|---|
+| 1 / 30 | Ichki rollar 2FA'siz | ❌ `mandatory_two_factor` o'zgarmagan (`user.role != client`); superadmin login javobida `access_token` keladi, kod so'ralmaydi |
+| 32 | OTP kodlari umumiy Telegram chatga | ❌ Kodda o'zgarish yo'q (`telegram_otp_test_mode` production sozlamasi tekshirilmadi) |
+| 10 | AI manbalarida modda/sana | ❌ `article: None, date: None` qattiq yozilgan (`legal_corpus_sources`) |
+| 9 / 31 | AI takliflari | ❌ Endi 3 ta taklif keladi, lekin oddiy savol ("Aliment qanday hisoblanadi?") va aniq muammo ("Erim aliment to'lamayapti… Samarqand") uchun **bir xil** 3 ta xizmat (Nikoh shartnomasi / Vasiylik / Aliment). GM T1-05: "hamma savolga bir xil taklif — bajarilmagan" |
+| 23 / T0-18 | Huquqiy hujjat matnlari | ❌ 11 ta hujjat hali 43–76 belgili placeholder. Haqiqiy matnlar PM'dan kelgan (`Ҳуқуқий ҳужжатлар.rar`, 10 hujjat × 3 til) — bazaga kiritilishi va tahrir API (`PUT /admin/legal/consents/{id}`) kerak |
+| 14 | Rejalar `audience` | ❌ Free/Lite/Pro hali `seller` |
+| 3 / 4 | Katalog va test ma'lumot | ❌ Yomonlashdi: kategoriyalar 35 → **38** (yangi `T1BTEST-140959 Cat`, `T1BTEST-20260916140652 Category`, `test`), `FX-*` 20 ta xizmat, "guruh" darajasi yo'q |
+| 3 | Test yozuvlar | ❌ Ko'paydi: rollar 22 → **23** (`TEST`), so'rovlar `Smoke Yurist`, `Test Yurist`, `Runtime Yurist`, `yurist2/3`; paketlar `T1BTEST-140959 Package` (holati `on_sale` — **mijozga ko'rinadi**); shablonlar "Document request list test", "Frontend download test template"; shikoyatlar `sssss`, `e2e`. T1B testlari production bazasida o'tkazilgan |
+| 38 | Call-markaz yuristi mijoz kartasi 403 | ❌ `call_center_client_card` hali `admin_client_360` → `users.manage` |
+| 37 | Kanban tezligi | ⚠️ Hozir 233 ms, lekin faqat lidlar 435 → 47 ga tushgani uchun; kod o'zgarmagan, lid ko'paysa yana sekinlashadi |
+| 12 | E2E readiness | ⚠️ 12 ssenariy `verified`, `report: null` — holat bazada yozuv borligidan hisoblanadi, sinov hisoboti emas |
+| 17 | Integratsiyalar | ❌ `database`, `payment_mode`, `website_api`, `mobile_api` hali `connected` |
+| 18 | Matnli hujjat tahlili | ❌ 38 soniya |
+| 28 | Fayl tahlili AI'dan o'tmaydi, 6 bo'lim yo'q | ❌ O'zgarmagan |
+| 6 | Login lidlari | ✅ Yangi login lidi yaratilmayapti |
+| — | Kanbanda ustunlar o'zgarib turibdi | ℹ️ 16.09 kechqurun "Yangi" 10 ta qoldirilgan edi; 17.09 da `new:11, contacted:10, qualified:8, proposal:5, lost:4, duplicate:2` — kimdir lidlarni ko'chirgan/qo'shgan |
+
+### Yangi topilgan
+- **`/calendar/deadline-calculator`** `base_date` maydonini kutadi (`from_date` emas) — hujjatlashtirilmagan; frontend ulaganda `{kind, base_date}` yuboradi.
+- **Test paketi `on_sale`** — `/service-packages` ochiq ro'yxatida chiqadi, mijoz sotib olishga urinishi mumkin. To'xtatilsin.
+- `TEST` roli `/admin/roles` da — o'chirilsin.
+
 ## 0C. 16.09 kechki topilmalar — kanban tezligi va call-markaz
 
 ### 🔴 37. Lidlar kanbani juda sekin: `GET /admin/leads/kanban` ~10 soniya (T4-02)
@@ -258,6 +291,32 @@ Belgilar: ✅ tuzatildi · ⚠️ qisman · ❌ tuzatilmagan · ⏸ qayta sinalm
 `/leads/kanban` da `nmkj_b` ("NMKJ, B") nomli yangi ustun bor. Test paytida qo'shilgan bo'lsa o'chirilsin. Kerakli ustun bo'lsa, `title` to'g'ri nomlansin.
 
 ---
+
+## 0E. 17.09 — GM v1.1 talablari uchun frontend kutayotgan backend ishlari
+
+Frontend bugun UI ni qurdi; quyidagilar backend tomonidan bo'lmasa GM talabi yopilmaydi (talab raqamlari GM v1.1 bo'yicha).
+
+| # | Task / talab | Nima kerak | Hozir |
+|---|---|---|---|
+| 42 | T0-18 §2,3,6 | `POST /admin/legal/consents` {slug, version, title, body, is_active, requires_reaccept} — yangi versiya nashr qilish; `requires_reaccept=true` bo'lsa keyingi kirishda qayta rozilik, `false` — faqat xabar | Faqat GET; matn kodda (seed) |
+| 43 | T0-18 §1 | 10 slug seed: terms, privacy, cookie, advocate_offer, structure_agreement, client_advocate_contract, payment_refund_policy, platform_rules, personal_data_consent, age_18 | 3 slug, ~50 belgi placeholder |
+| 44 | T0-18 §4 | `/admin/legal/user-consents` javobida `device` (user-agent) | Faqat ip_address |
+| 45 | T1-10 §4 | `/orders/{id}/status-history` yozuvida `old_status`, `changed_by_user_id`, `ip`, `device`, `reason` | status, note, created_at |
+| 46 | T1-10 §11, T2-10 §1–2 | `POST /orders/{id}/decline` body `{reason, note}` ni saqlash (reason: conflict_of_interest, not_my_specialization, busy, region_far, price_mismatch, documents_insufficient, prior_dispute, sick_or_vacation, other) + `GET /admin/orders/decline-reasons/stats` | Body e'tiborsiz qoldiriladi |
+| 47 | T2-06 §1,2,9 | `/payouts/me` da `period`, `scheduled_for` (payshanba), `dispute_hold_amount`; payout yaratish qoidasi (3 kun nizo oynasi, 100 000 min, oy oxiri) | payment_split ro'yxati |
+| 48 | T2-08 §1,8 | `/referrals/me` da ijrochi uchun `active_count`, `commission_rate`, `next_tier`; mijoz uchun `paid_count`, `share_text` | Frontend tier'ni o'zi hisoblaydi (5→16%, 10→15%, 20→13%) |
+| 49 | T5-01 §2 | `/clients/me/entitlements` da har imtiyoz uchun `{limit, used, reset_at}` | Faqat has_active_subscription, ai_limit matni |
+| 50 | T1-02 §5,6 | AI usage (`used/limit/reset_at`) `/auth/me` yoki `GET /ai/usage` — 200 javobda ham | Faqat 402 detail'da |
+| 51 | T1B-01 §5 | `/service-packages` javobida `related_service_ids` yoki har komponentda `service_id, unit_price` — «Alohida: X» hisoblash uchun | Faqat `related_service_codes: "G01-G03"` matni; frontend xizmatlardagi `catalog_code` bilan moslashtiradi |
+| 52 | T1B-04 §1,2 | Hodisa turlari: hearing, investigative, meeting, filing_deadline, appeal_deadline; eslatma to'plami [10080, 4320, 1440, 120] daqiqa | 4 tur, bitta eslatma |
+| 53 | T1B-04 §4 | Google Calendar OAuth (`/calendar/google/connect`) | Yo'q |
+| 54 | T3-10 §3 | `/admin/security-events` — turlar: suspicious_login, otp_bruteforce, password_bruteforce, mass_read; `PATCH .../{id}` status | Faqat suspicious_login (IP) |
+| 55 | T1-09 §5 | lawyers API: `gender`, `is_online`, `is_super` | Yo'q |
+| 56 | T1-11 §8,9 | `PATCH /lawyers/me` — `work_days`, `work_from`, `work_to`, `vacation_mode`; ta'tilda buyurtma yuborilmaydi va ko'rsatkichlarga kirmaydi | Frontend localStorage |
+| 57 | T1A-02 §1,3,8 | Onboarding draft server'da (`/register/draft`), selfie/litsenziya fayl yuklash, tugallanmagan → «advokat lidi» | Frontend localStorage (24 soat) |
+| 58 | T7-03 §5 | lawyers/ads API'da `is_promoted` / slot turi — «Reklama» belgisi uchun | Yo'q |
+| 59 | T1A-07 | Chat xabarida telefon/@username/«telegramda yozing» maskalash (to'lovgacha) + urinishlar hisoboti | Yo'q |
+| 60 | T0-07 / GM 1.6 | Test-akkaunt to'plami: mijoz ×3 (+TG bog'langan, yuridik shaxs, Lite/Pro/Standart/Premium), advokat ×3 (tuzilmali/tuzilmasiz/tasdiqlanmagan), yurist, super_admin ×2, executive, ceo_viewer, moderator, finance, quality_control, content_manager, sales_head, b2b_manager, marketing | 7 akkaunt |
 
 ## 1. Tezlik
 

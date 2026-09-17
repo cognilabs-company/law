@@ -8,6 +8,8 @@ import { Skeleton, EmptyState } from "./DataState";
 import OrderActions from "./OrderActions";
 import OnboardingProgress from "./OnboardingProgress";
 import SellerMetrics from "./SellerMetrics";
+import SellerPayouts from "./SellerPayouts";
+import ReferralProgress from "./ReferralProgress";
 import { useSellerCabinet } from "./SellerCabinet";
 import { useAuth, type Role } from "@/lib/auth";
 import { uzs, fmtUzs } from "@/lib/money";
@@ -116,6 +118,8 @@ export default function SellerDashboard({ role }: { role: Role }) {
       </div>
 
       {cabinet.data ? <SellerMetrics stats={cabinet.data.stats} userId={session?.id || ""} /> : null}
+      {cabinet.data ? <SellerPayouts /> : null}
+      <ReferralProgress side="seller" href={role === "advocate" ? "/portal/advocate/promotion" : "/portal/lawyer/promotion"} />
 
       <div className="ppanel">
         <div className="ppanel__h">

@@ -245,7 +245,8 @@ export default function ClientServices() {
     setBuying(true);
     setNote(null);
     try {
-      const o = await createOrder({ service_id: order.id, lawyer_user_id: sellerId });
+      const packageId = typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("package") ?? "";
+      const o = await createOrder({ service_id: order.id, lawyer_user_id: sellerId, ...(packageId ? { package_id: packageId } : {}) });
       setBuying(false);
       if (o.id) setPayOrderId(o.id);
       else router.push("/portal/client/cases");

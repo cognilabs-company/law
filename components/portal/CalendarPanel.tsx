@@ -5,6 +5,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { shortDateTime } from "@/lib/date";
 import {
   listCalendarEvents,
+  calculateDeadline,
+  downloadEventIcal,
+  type DeadlineKind,
+  type DeadlineResult,
   createCalendarEvent,
   deleteCalendarEvent,
   type CalendarEvent,
@@ -15,7 +19,7 @@ import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import DatePicker from "@/components/DatePicker";
-import { IconCalendar, IconPlus, IconClock, IconMapPin, IconClose, IconBell } from "@/components/icons";
+import { IconCalendar, IconPlus, IconClock, IconMapPin, IconClose, IconBell, IconDownload } from "@/components/icons";
 
 const TYPES = ["hearing", "investigative", "meeting", "deadline"] as const;
 // Reminder presets in minutes before the event ("" = no reminder).
@@ -23,6 +27,19 @@ const REMINDERS = ["", "15", "30", "60", "1440"] as const;
 
 
 // Court calendar + deadlines, shared by the advocate and lawyer portals.
+const DEADLINE_KINDS = ["appeal", "document", "complaint", "general"] as const;
+// Blob → browser download (the .ics comes from the API with a token, so an <a href> can't fetch it).
+function saveBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export default function CalendarPanel({ ns }: { ns: string }) {
   const t = useTranslations(ns);
   const locale = useLocale();
@@ -41,6 +58,43 @@ export default function CalendarPanel({ ns }: { ns: string }) {
   const [reminder, setReminder] = useState<string>("30");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  // T1B-04 deadline calculator
+  const td = useTranslations("portal.common.deadlineCalc");
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [kind, setKind] = useState<DeadlineKind>("appeal");
+  const [baseDate, setBaseDate] = useState("");
+  const [calcTitle, setCalcTitle] = useState("");
+  const [addEvent, setAddEvent] = useState(true);
+  const [calcBusy, setCalcBusy] = useState(false);
+  const [calcRes, setCalcRes] = useState<DeadlineResult | null>(null);
+  const [calcErr, setCalcErr] = useState<string | null>(null);
+  const [icalBusy, setIcalBusy] = useState<string | null>(null);
+  async function calc(e: React.FormEvent) {
+    e.preventDefault();
+    if (calcBusy || !baseDate) return;
+    setCalcBusy(true);
+    setCalcErr(null);
+    try {
+      const r = await calculateDeadline({ kind, baseDate, createEvent: addEvent, title: calcTitle.trim() || td(`kinds.${kind}`) });
+      setCalcRes(r);
+      if (r.event) reload();
+    } catch {
+      setCalcErr(td("error"));
+    } finally {
+      setCalcBusy(false);
+    }
+  }
+  async function ical(ev: CalendarEvent) {
+    if (icalBusy) return;
+    setIcalBusy(ev.id);
+    try {
+      saveBlob(await downloadEventIcal(ev.id), `${ev.title.replace(/[^\w\d-]+/g, "_").slice(0, 40) || "event"}.ics`);
+    } catch {
+      setNote({ ok: false, msg: td("icalError") });
+    } finally {
+      setIcalBusy(null);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -92,11 +146,18 @@ export default function CalendarPanel({ ns }: { ns: string }) {
     <div className="ppanel">
       <div className="ppanel__h">
         <b>{t("title")}</b>
-        <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)}>
-          <IconPlus />
-          {t("add")}
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="btn btn--soft btn--sm" type="button" onClick={() => { setCalcRes(null); setCalcErr(null); setCalcOpen(true); }}>
+            <IconClock />
+            {td("open")}
+          </button>
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)}>
+            <IconPlus />
+            {t("add")}
+          </button>
+        </div>
       </div>
+      {note && !open ? <Notice ok={note.ok} msg={note.msg} /> : null}
 
       {res.status === "loading" ? (
         <Skeleton rows={3} />
@@ -128,6 +189,9 @@ export default function CalendarPanel({ ns }: { ns: string }) {
                   ) : null}
                 </span>
               </div>
+              <button className="calev__ical" type="button" title={td("ical")} aria-label={td("ical")} disabled={icalBusy === ev.id} onClick={() => ical(ev)}>
+                <IconDownload />
+              </button>
               <button className="calev__x" type="button" aria-label={t("remove")} onClick={() => remove(ev.id)}>
                 <IconClose />
               </button>
@@ -135,6 +199,38 @@ export default function CalendarPanel({ ns }: { ns: string }) {
           ))}
         </div>
       )}
+
+      <Modal open={calcOpen} onClose={() => setCalcOpen(false)} title={td("title")}>
+        <form className="cform" style={{ maxWidth: "none" }} onSubmit={calc}>
+          <p className="advmuted">{td("lead")}</p>
+          <div>
+            <label>{td("kind")}</label>
+            <Select value={kind} onChange={(v) => setKind(v as DeadlineKind)} options={DEADLINE_KINDS.map((k) => ({ value: k, label: `${td(`kinds.${k}`)} — ${td(`rules.${k}`)}` }))} ariaLabel={td("kind")} />
+          </div>
+          <div>
+            <label>{td("baseDate")}</label>
+            <DatePicker value={baseDate} onChange={setBaseDate} placeholder={td("baseDate")} ariaLabel={td("baseDate")} />
+          </div>
+          <div>
+            <label>{td("eventTitle")}</label>
+            <input value={calcTitle} onChange={(e) => setCalcTitle(e.target.value)} placeholder={td("eventTitlePh")} />
+          </div>
+          <label className="vac" style={{ justifySelf: "start" }}>
+            <input type="checkbox" checked={addEvent} onChange={(e) => setAddEvent(e.target.checked)} />
+            {td("addToCalendar")}
+          </label>
+          {calcRes ? (
+            <div className="rf__benefit">
+              <b>{td("result", { date: shortDateTime(`${calcRes.deadline}T09:00:00`, locale).replace(/,?\s*\d{1,2}:\d{2}$/, "") })}</b>
+              <p>{calcRes.event ? td("eventAdded") : td("notAdded")}</p>
+            </div>
+          ) : null}
+          {calcErr ? <Notice ok={false} msg={calcErr} /> : null}
+          <button className="btn btn--pri btn--full" type="submit" disabled={calcBusy || !baseDate}>
+            {calcBusy ? td("calculating") : td("calculate")}
+          </button>
+        </form>
+      </Modal>
 
       <Modal open={open} onClose={() => setOpen(false)} title={t("addTitle")}>
         <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>

@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { listAuditTrail, exportAuditTrailCsv, type ActivityEntry, type AuditFilters } from "@/lib/services/backend";
+import { listAuditTrail, exportAuditTrailCsv, listAdminSecurityEvents, type ActivityEntry, type AuditFilters, type ModuleRecord } from "@/lib/services/backend";
+import { useResource } from "@/lib/useResource";
+import Select from "@/components/Select";
 import { ApiError, parseServerTime } from "@/lib/http";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
@@ -61,6 +63,51 @@ function chainStates(rows: ActivityEntry[]) {
   const count = (...s: ChainState[]) => states.filter((x) => s.includes(x)).length;
   const hashed = rows.length - count("none");
   return { states, hashed, linked: count("linked", "linkedFar"), total: hashed - count("genesis") };
+}
+
+// T3-10: anomaly alerts (suspicious logins etc.) from /admin/security-events.
+function Anomalies() {
+  const t = useTranslations("admin.audit.anomalies");
+  const [status, setStatus] = useState("all");
+  const res = useResource(() => listAdminSecurityEvents(status === "all" ? undefined : status), [status]);
+  const opts = ["all", "new", "reviewed", "resolved"].map((s) => ({ value: s, label: t(`status.${s}`) }));
+  const rows: ModuleRecord[] = res.data;
+  const label = (r: ModuleRecord) => (t.has(`types.${r.recordType}`) ? t(`types.${r.recordType}`) : r.title || r.recordType);
+  return (
+    <div className="ppanel">
+      <div className="ppanel__h">
+        <b>{t("title")}</b>
+        <span className="audit__hact">
+          <span className="advmuted">{res.status === "ready" ? rows.length : ""}</span>
+          <Select value={status} onChange={setStatus} options={opts} ariaLabel={t("filter")} />
+        </span>
+      </div>
+      <p className="ppanel__note">{t("lead")}</p>
+      {res.status === "loading" ? (
+        <Skeleton rows={2} />
+      ) : res.status === "error" ? (
+        <Notice ok={false} msg={t("error")} />
+      ) : !rows.length ? (
+        <EmptyState icon={<IconShieldCheck />} title={t("empty")} text={t("emptyText")} />
+      ) : (
+        <div className="alist">
+          {rows.slice(0, 50).map((r) => {
+            const p = r.payload as Record<string, unknown>;
+            const meta = [p.previous_ip && p.current_ip ? `${String(p.previous_ip)} → ${String(p.current_ip)}` : "", r.ownerUserId ? `user ${r.ownerUserId.slice(0, 8)}…` : "", fmt(r.createdAt)].filter(Boolean).join(" · ");
+            return (
+              <div className="aitem" key={r.id}>
+                <div className="aitem__m">
+                  <b>{label(r)}</b>
+                  <span className="aitem__meta">{meta}</span>
+                </div>
+                <div className="aitem__r"><em className={`atag${r.status === "new" ? "" : " atag--muted"}`}>{t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status}</em></div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AdminAuditTrail() {
@@ -133,6 +180,8 @@ export default function AdminAuditTrail() {
   }
 
   return (
+    <>
+    <Anomalies />
     <div className="ppanel">
       <div className="ppanel__h">
         <b>{t("title")}</b>
@@ -237,5 +286,6 @@ export default function AdminAuditTrail() {
         </>
       )}
     </div>
+    </>
   );
 }

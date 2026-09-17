@@ -665,6 +665,14 @@ export type BackendPackage = {
   title: string;
   tariff: string;
   price: number;
+  slug: string;
+  categoryTitle: string;
+  relatedServiceCodes: string; // "G01-G03"
+  duration: string;
+  result: string;
+  included: string[];
+  excluded: string[];
+  active: boolean;
 };
 export async function getServicePackages(params?: { package_code?: string; tariff?: string }): Promise<BackendPackage[]> {
   const qs = new URLSearchParams();
@@ -678,8 +686,16 @@ export async function getServicePackages(params?: { package_code?: string; tarif
       id: asStr(d.id),
       code: asStr(d.package_code ?? d.code),
       title: asStr(d.title ?? d.name),
-      tariff: asStr(d.tariff),
+      tariff: asStr(d.tariff).toUpperCase(),
       price: uzs(d, "price", "standard_price"),
+      slug: asStr(d.slug),
+      categoryTitle: asStr(d.category_title),
+      relatedServiceCodes: asStr(d.related_service_codes),
+      duration: asStr(d.duration),
+      result: asStr(d.result),
+      included: asArr(d.included).map((x) => asStr(x)),
+      excluded: asArr(d.excluded).map((x) => asStr(x)),
+      active: d.is_active !== false,
     };
   });
 }
@@ -1876,10 +1892,12 @@ export type ModuleRecord = {
   currency: string;
   payload: Record<string, unknown>;
   createdAt: string;
+  ownerUserId: string;
 };
 function normModule(v: unknown): ModuleRecord {
   const d = asDict(v);
   return {
+    ownerUserId: asStr(d.owner_user_id),
     id: asStr(d.id),
     module: asStr(d.module),
     recordType: asStr(d.record_type),
@@ -1899,6 +1917,10 @@ export type ModuleInput = {
   currency?: string;
   payload?: Record<string, unknown>;
 };
+// T3-10: anomaly alerts (module security_event) — needs users.manage.
+export function listAdminSecurityEvents(status?: string): Promise<ModuleRecord[]> {
+  return listModule(`/admin/security-events${status ? `?status=${encodeURIComponent(status)}` : ""}`);
+}
 function listModule(path: string): Promise<ModuleRecord[]> {
   return http(path).then((d) => listFrom(d, "items", "data").map(normModule));
 }
@@ -1949,8 +1971,11 @@ export async function getLawyerPrivateChat(lawyerUserId: string): Promise<Secure
 export async function acceptOrder(orderId: string): Promise<BackendOrder> {
   return normOrder(await http(`/orders/${orderId}/accept`, { method: "POST" }));
 }
-export async function declineOrder(orderId: string): Promise<{ id: string; status: string }> {
-  const d = asDict(await http(`/orders/${orderId}/decline`, { method: "POST" }));
+export const DECLINE_REASONS = ["conflict_of_interest", "not_my_specialization", "busy", "region_far", "price_mismatch", "documents_insufficient", "prior_dispute", "sick_or_vacation", "other"] as const;
+export type DeclineReason = (typeof DECLINE_REASONS)[number];
+// T2-10: the reason list (S-20) goes in the body; "other" carries a note.
+export async function declineOrder(orderId: string, reason?: DeclineReason, note?: string): Promise<{ id: string; status: string }> {
+  const d = asDict(await http(`/orders/${orderId}/decline`, { method: "POST", body: JSON.stringify(reason ? { reason, note: note || undefined } : {}) }));
   return { id: asStr(d.id), status: asStr(d.status) };
 }
 
@@ -2090,6 +2115,19 @@ export type CalendarEvent = {
   reminderMinutesBefore?: number;
   reminderScheduled: boolean;
 };
+// T1B-04: procedural deadline from a base date (appeal = 1 month, document =
+// 10 days, complaint = 30 days, general = 7 days on the backend); optionally
+// creates the calendar event with a 1-day reminder.
+export type DeadlineKind = "appeal" | "document" | "complaint" | "general";
+export type DeadlineResult = { kind: string; baseDate: string; deadline: string; event: CalendarEvent | null };
+export async function calculateDeadline(input: { kind: DeadlineKind; baseDate: string; createEvent?: boolean; title?: string; caseId?: string }): Promise<DeadlineResult> {
+  const d = asDict(await http("/calendar/deadline-calculator", { method: "POST", body: JSON.stringify({ kind: input.kind, base_date: input.baseDate, create_event: !!input.createEvent, title: input.title || undefined, case_id: input.caseId || undefined }) }));
+  return { kind: asStr(d.kind), baseDate: asStr(d.base_date), deadline: asStr(d.deadline), event: d.event ? normEvent(d.event) : null };
+}
+// GET /calendar-events/{id}/ical → .ics file for the user's own calendar app.
+export async function downloadEventIcal(eventId: string): Promise<Blob> {
+  return httpBlob(`/calendar-events/${encodeURIComponent(eventId)}/ical`);
+}
 function normEvent(v: unknown): CalendarEvent {
   const d = asDict(v);
   return {

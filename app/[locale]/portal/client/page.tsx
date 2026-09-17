@@ -8,6 +8,7 @@ import { listCases } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import HeroCarousel from "@/components/portal/HeroCarousel";
+import ReferralProgress from "@/components/portal/ReferralProgress";
 import {
   Icon,
   IconSparkle,
@@ -87,6 +88,8 @@ export default function ClientDashboard() {
           </Link>
         ))}
       </div>
+
+      <ReferralProgress side="client" href="/portal/client/referrals" />
 
       {/* Active requests (backend) */}
       <div className="ppanel">
