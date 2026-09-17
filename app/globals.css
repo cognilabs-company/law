@@ -3702,3 +3702,12 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .splan__was{display:block;font-size:.8rem;color:var(--gray2);text-decoration:line-through;margin-top:2px}
 .splan__usage{margin:6px 0 0;font-size:.78rem;color:var(--gray);padding:6px 10px;border-radius:10px;background:var(--dk-surface-2, #f4f7fb)}
 .splan .btn[aria-disabled]{opacity:.6;pointer-events:none}
+
+/* ── wp-z ── */
+/* meeting: recording mode picker */
+.mtg__recpick{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:7;display:grid;gap:6px;padding:14px 16px;border-radius:16px;background:var(--dk-surface, #fff);color:var(--ink);box-shadow:var(--s3);max-width:min(440px,calc(100% - 24px));animation:mtgToast .35s ease both;animation-fill-mode:forwards}
+.mtg__recpick b{font-size:.92rem}.mtg__recpick>span{font-size:.78rem;color:var(--gray)}
+.mtg__recpick-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.mtg__recpick-btns .btn svg{width:15px;height:15px}
+.mtg__recdone{flex-wrap:wrap}
+@media (max-width:760px){.mtg__recpick{bottom:12px}}

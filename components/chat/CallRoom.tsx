@@ -37,7 +37,7 @@ import { useAuth } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
 import SearchSelect from "@/components/SearchSelect";
 import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone } from "@/lib/callSounds";
-import { MeetingRecorder, canRecord, saveRecording, type RecordingFile } from "@/lib/meetingRecorder";
+import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
 import { IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload } from "../icons";
 
@@ -107,6 +107,10 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [recFile, setRecFile] = useState<RecordingFile | null>(null);
   const [recBy, setRecBy] = useState<Set<string>>(new Set());
   const [more, setMore] = useState(false); // phone "more" sheet
+  const [recPick, setRecPick] = useState(false); // choose audio / screen before recording
+  const [recMode, setRecMode] = useState<RecordingMode>("audio");
+  const stageRef = useRef<HTMLElement>(null);
+  const [recUrl, setRecUrl] = useState("");
   const firstJoinRef = useRef(true);
   const prevMicRef = useRef<boolean | null>(null); // last roster mic value (detect host action)
   const leftRef = useRef(false); // guard against double-leave
@@ -146,13 +150,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     // stream; tiles follow the stream's orientation (see Tile).
     const phone = PORTRAIT_HINT();
     const room = new Room({
-      adaptiveStream: true,
+      // Subscribers pick the layer their tile really needs (screen pixels, not
+      // CSS pixels) — a tile that looks small on a retina screen still gets a
+      // sharp layer; video keeps flowing while the tab is briefly hidden.
+      adaptiveStream: { pixelDensity: "screen", pauseVideoInBackground: false },
       dynacast: true,
       publishDefaults: {
         simulcast: true,
         // Top layer = the capture resolution (720p desktop / 540p 4:3 phone);
         // weaker viewers fall back to 360p / 180p instead of a blurry single stream.
-        videoSimulcastLayers: phone ? [VideoPresets43.h180, VideoPresets43.h360] : [VideoPresets.h216, VideoPresets.h360],
+        videoSimulcastLayers: phone ? [VideoPresets43.h240, VideoPresets43.h360] : [VideoPresets.h360, VideoPresets.h540],
         screenShareEncoding: ScreenSharePresets.h1080fps15.encoding,
         screenShareSimulcastLayers: [ScreenSharePresets.h720fps15],
         videoEncoding: VideoPresets.h720.encoding,
@@ -530,13 +537,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   }
   // Local recording of the whole conversation (never uploaded). Everyone in
   // the room is told through the data channel and sees a badge.
-  async function toggleRec() {
+  async function toggleRec(mode?: RecordingMode) {
     const r = roomRef.current;
     if (!r) return;
     if (!recOn) {
+      if (!mode) { setRecPick(true); return; }
+      setRecPick(false);
       try {
-        const rec = new MeetingRecorder();
-        rec.start(r);
+        const rec = new MeetingRecorder(mode);
+        rec.start(r, stageRef.current);
+        setRecMode(mode);
         recorderRef.current = rec;
         setRecSec(0);
         setRecOn(true);
@@ -544,8 +554,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         playRecTone(true);
         r.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ t: "rec", on: true, at: Date.now() })), { reliable: true }).catch(() => {});
         toast(t("recStarted"), "join");
-      } catch {
-        toast(t("recError"), "leave");
+      } catch (e) {
+        toast(`${t("recError")} ${e instanceof Error ? `(${e.message})` : ""}`.trim(), "leave");
       }
       return;
     }
@@ -555,16 +565,19 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     playRecTone(false);
     r.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ t: "rec", on: false, at: Date.now() })), { reliable: true }).catch(() => {});
     const file = rec ? await rec.stop() : null;
-    if (file) setRecFile(file); else toast(t("recError"), "leave");
+    if (file) {
+      setRecFile(file);
+      try { setRecUrl(URL.createObjectURL(file.blob)); } catch { setRecUrl(""); }
+    } else toast(t("recError"), "leave");
   }
   async function saveRec() {
     if (!recFile) return;
     try {
-      await saveRecording(recFile, title || t("meetingTitle"));
-      toast(t("recSaved"), "join");
-      setRecFile(null);
-    } catch {
-      toast(t("recError"), "leave");
+      const how = await saveRecording(recFile, title || t("meetingTitle"));
+      toast(how === "opened" ? t("recOpened") : t("recSaved"), "join");
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return; // share sheet closed
+      toast(`${t("recSaveError")} ${e instanceof Error ? `(${e.message})` : ""}`.trim(), "leave");
     }
   }
   async function hangUp() {
@@ -626,7 +639,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       ) : null}
 
       <div className="mtg__body">
-        <main className="mtg__stage">
+        <main className="mtg__stage" ref={stageRef}>
           {stageP ? (
             <div className="mtg__speaker">
               <Tile key={`stage-${stageP.identity}-${stageIsShare ? "s" : "c"}`} p={stageP} name={nameOf(stageP)} you={t("you")} camOff={t("camOff")} share={stageIsShare} mirror={stageP.isLocal && !stageIsShare && mirror} big />
@@ -653,11 +666,23 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           {recFile ? (
             <div className="mtg__recdone" role="status">
               <div>
-                <b>{t("recReady")}</b>
-                <span>{mmss(Math.round(recFile.durationMs / 1000))} · {(recFile.blob.size / 1024 / 1024).toFixed(1)} MB</span>
+                <b>{t("recReady")} · {t(recFile.mode === "screen" ? "recModeScreen" : "recModeAudio")}</b>
+                <span>{mmss(Math.round(recFile.durationMs / 1000))} · {(recFile.blob.size / 1024 / 1024).toFixed(1)} MB · .{recFile.ext}</span>
               </div>
               <button type="button" className="btn btn--pri btn--sm" onClick={saveRec}><IconDownload />{t("recSave")}</button>
-              <button type="button" className="mtg__sx" onClick={() => setRecFile(null)} aria-label={t("close")}><IconClose /></button>
+              {recUrl ? <a className="btn btn--line btn--sm" href={recUrl} target="_blank" rel="noopener noreferrer" download>{t("recOpen")}</a> : null}
+              <button type="button" className="mtg__sx" onClick={() => { setRecFile(null); if (recUrl) { URL.revokeObjectURL(recUrl); setRecUrl(""); } }} aria-label={t("close")}><IconClose /></button>
+            </div>
+          ) : null}
+          {recPick ? (
+            <div className="mtg__recpick" role="dialog" aria-label={t("recStart")}>
+              <b>{t("recPickTitle")}</b>
+              <span>{t("recPickLead")}</span>
+              <div className="mtg__recpick-btns">
+                <button type="button" className="btn btn--pri btn--sm" onClick={() => void toggleRec("audio")}><IconMic />{t("recModeAudio")}</button>
+                {canRecordScreen() ? <button type="button" className="btn btn--soft btn--sm" onClick={() => void toggleRec("screen")}><IconMonitor />{t("recModeScreen")}</button> : null}
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setRecPick(false)}>{t("close")}</button>
+              </div>
             </div>
           ) : null}
         </main>
@@ -745,7 +770,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             <span className="mtg__grip" />
             <button type="button" onClick={() => { setMore(false); openPanel("chat"); }}><IconChat />{t("chatTab")}{unread ? <i className="mtg__cb">{unread > 9 ? "9+" : unread}</i> : null}</button>
             <button type="button" onClick={() => { setMore(false); openPanel("people"); }}><IconUsers />{t("rosterTitle")} · {count}</button>
-            {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }}><IconMic />{recOn ? t("recStop") : t("recStart")}</button> : null}
+            {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }}><IconMic />{recOn ? t("recStop", { mode: t(recMode === "screen" ? "recModeScreen" : "recModeAudio") }) : t("recStart")}</button> : null}
             <button type="button" onClick={() => { setMore(false); setView(view === "grid" ? "speaker" : "grid"); }}>{view === "grid" ? <IconUser /> : <IconGrid />}{view === "grid" ? t("layoutSpeaker") : t("layoutGrid")}</button>
           </div>
         </div>
@@ -756,7 +781,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         {callType === "video" ? <Ctl on={camOn} off={!camOn} label={t("cam")} onClick={toggleCam}><IconVideo /></Ctl> : null}
         {callType === "video" && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
         {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing} desktop><IconMonitor /></Ctl> : null}
-        {canRecord() ? <Ctl on={recOn} label={recOn ? t("recStop") : t("recStart")} onClick={toggleRec} rec={recOn} desktop><IconMic /></Ctl> : null}
+        {canRecord() ? <Ctl on={recOn} label={recOn ? t("recStopShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} desktop><IconMic /></Ctl> : null}
         <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")} desktop><IconUsers /></Ctl>
         <Ctl on={panel === "chat"} label={t("chatTab")} onClick={() => openPanel(panel === "chat" ? "" : "chat")} badge={unread} desktop><IconChat /></Ctl>
         <Ctl label={t("more")} onClick={() => setMore((m) => !m)} badge={unread} phone><IconGrid /></Ctl>

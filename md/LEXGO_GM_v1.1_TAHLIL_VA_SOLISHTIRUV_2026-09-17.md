@@ -363,3 +363,11 @@ Endi (GM T0-07 §9, T1-03 §1–8):
 - Biznes va ortiqcha rejalar hech qayerda ko'rsatilmaydi (B2B — T4-08 admin).
 
 Backend'ga: AI rejalar `audience` = client bo'lishi, 3 oylik `billing_period` va GM chegirma jadvali (−15 % / −20 %) — hozir backend yearly −10 % hisoblaydi (frontend to'g'ri summani checkout'ga o'zi yuboradi); ijrochi −50 % server tomonda tasdiqlanishi; Standart narxi seed'da 149 000, GM T1B-08 §2 da 249 000 — PM aniqlashi kerak (#65–66).
+
+## 16. 17.09 — Uchrashuv: o'z-o'zidan ochilish, xiralashish, ikki rejimli yozib olish
+
+| Muammo | Sabab | Tuzatish |
+|---|---|---|
+| Uchrashuv o'zidan ochilib qoladi | (1) Sahifa yangilanganda `lexgo_active_call` bo'yicha xona avtomatik ochilardi; (2) chat sahifasida `?join=` deep-link reload'da qayta qo'shardi; (3) qo'ng'iroq qiluvchining o'zi uchun `call.created`/`call.incoming` (caller id bo'sh kelsa) karta chiqarishi mumkin edi | (1) endi «Uchrashuv hali davom etmoqda — qaytasizmi?» kartasi (qabul/rad), avtomatik ochilmaydi; (2) qo'shilgach `?join=` URL'dan olib tashlanadi, faqat faol qo'ng'iroqqa qo'shiladi; (3) o'z qo'ng'irog'i (host/joined) hech qachon jiringlamaydi |
+| Xiralashish | adaptiveStream CSS piksel bo'yicha past qatlam tanlardi; qatlamlar 216/360 | `pixelDensity: "screen"` (retina'da yuqori qatlam), fon tabda video to'xtamaydi; qatlamlar 360/540 (+720 to'liq), telefonda 240/360 (+540) |
+| Yozib olish ishlamaydi | — | Qayta yozildi: **ikki rejim** — «Faqat ovoz (hammasi)» va **«Ekran + ovoz»** (uchrashuv sahnasi canvas'ga 15 fps chiziladi, telefonda ham ishlaydi, ekran tanlash oynasi yo'q); to'xtatishda `onstop`/`onerror`/2.5 s himoya; xato matni ko'rsatiladi; «Yozuv tayyor» panelida rejim, davomiylik, hajm, **Qurilmaga saqlash** (iOS/Android share sheet → yuklab olish) va **Ochish** (yangi oyna) zaxira tugmasi. Chrome'da sintetik tekshiruv: audio webm/opus 46 KB, ekran webm/vp9 55 KB (2.5 s) — ikkala rejim ishlaydi |

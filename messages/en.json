@@ -5328,7 +5328,16 @@
     "recReady": "Recording ready",
     "recSave": "Save to device",
     "recSaved": "Recording saved.",
-    "recError": "Could not record (unsupported browser or no microphone)."
+    "recError": "Could not record (unsupported browser or no microphone).",
+    "resumeMeet": "The meeting is still going — rejoin?",
+    "recPickTitle": "What to record?",
+    "recPickLead": "The recording stays on your device only; everyone in the meeting is notified.",
+    "recModeAudio": "Audio only (everyone)",
+    "recModeScreen": "Screen + audio",
+    "recStopShort": "Stop",
+    "recOpen": "Open",
+    "recOpened": "The recording opened in a new tab — save it from the browser menu.",
+    "recSaveError": "Could not save."
   },
   "theme": {
     "label": "Theme",

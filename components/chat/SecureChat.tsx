@@ -92,6 +92,8 @@ export default function SecureChat({ roomId }: { roomId: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [ttl, setTtl] = useState(0); // auto-delete window in hours (0 = off)
   const [callErr, setCallErr] = useState<string | null>(null);
+  const activeCallRef = useRef(activeCall);
+  useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
   // Bumped after a content reveal so the history is fetched again unmasked.
   const [reloadKey, setReloadKey] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -190,7 +192,11 @@ export default function SecureChat({ roomId }: { roomId: string }) {
       if (e.event === "call.created") {
         const caller = String(e.caller_user_id ?? call.caller_user_id ?? "");
         if (!callId || caller === session.id || dismissedCalls.current.has(callId) || activeCall) return;
-        setIncoming({ callId, callType: String(call.call_type) === "audio" ? "audio" : "video" });
+        // The caller's own `call.created` can arrive before setActiveCall — re-check shortly after.
+        setTimeout(() => {
+          if (activeCallRef.current || dismissedCalls.current.has(callId)) return;
+          setIncoming({ callId, callType: String(call.call_type) === "audio" ? "audio" : "video" });
+        }, caller ? 0 : 800);
       } else if (e.event === "call.ended") {
         setIncoming((cur) => (cur && cur.callId === callId ? null : cur));
       }
@@ -209,7 +215,9 @@ export default function SecureChat({ roomId }: { roomId: string }) {
     listCalls(roomId)
       .then((calls) => {
         const c = calls.find((x) => x.id === joinId);
-        if (alive && c) setActiveCall({ callId: c.id, callType: c.callType === "video" ? "video" : "audio", isCaller: false });
+        if (alive && c && (c.status === "active" || c.status === "ringing")) setActiveCall({ callId: c.id, callType: c.callType === "video" ? "video" : "audio", isCaller: false });
+        // Drop the deep link so a reload / back navigation doesn't re-open the call.
+        if (alive && typeof window !== "undefined") window.history.replaceState(null, "", window.location.pathname);
       })
       .catch(() => {});
     return () => {

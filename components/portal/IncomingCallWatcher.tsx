@@ -10,7 +10,7 @@ import { playRingtone } from "@/lib/callSounds";
 import CallRoom from "@/components/chat/CallRoom";
 import { IconPhone, IconVideo, IconClose } from "@/components/icons";
 
-type Incoming = { kind: "chat" | "meet"; roomId: string; callId: string; callType: "audio" | "video"; callerName: string };
+type Incoming = { kind: "chat" | "meet"; roomId: string; callId: string; callType: "audio" | "video"; callerName: string; resume?: boolean };
 
 let nameCache: Map<string, string> | null = null;
 async function nameOf(userId: string): Promise<string> {
@@ -69,6 +69,8 @@ export default function IncomingCallWatcher() {
       if (String(call.status || "active") !== "active") return;
       // A meeting (title / invited participant) opens inline; a room call opens the chat.
       const parts = Array.isArray(call.participants) ? (call.participants as Record<string, unknown>[]) : [];
+      // My own call (host / already joined) must never ring me, even if the event has no caller id.
+      if (parts.some((p) => String(p.user_id ?? p.id) === me && ["host", "joined", "left", "declined", "removed"].includes(String(p.status)))) return;
       const isMeet = !!call.title || parts.some((p) => String(p.user_id ?? p.id) === me && String(p.status) === "invited");
       // Inside that very chat the chat's own card handles it.
       if (!isMeet && onChatPageRef.current) return;
@@ -124,14 +126,15 @@ export default function IncomingCallWatcher() {
         if (!alive) return;
         const c = list.find((x) => x.callId === stored!.callId);
         if (c && c.callStatus === "active" && c.status !== "removed" && c.status !== "left" && c.status !== "declined") {
-          setMeet({ kind: "meet", roomId: stored!.roomId!, callId: stored!.callId!, callType: stored!.callType === "audio" ? "audio" : "video", callerName: c.callerName || "" });
+          // Offer to rejoin (ring card) — never open a meeting by itself.
+          setInc({ kind: "meet", roomId: stored!.roomId!, callId: stored!.callId!, callType: stored!.callType === "audio" ? "audio" : "video", callerName: c.callerName || t("someone"), resume: true });
         } else {
           try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ }
         }
       })
       .catch(() => {});
     return () => { alive = false; };
-  }, [session, meet]);
+  }, [session, meet, t]);
 
   // An accepted meeting is rendered inline (invitee isn't a chat-room member).
   if (meet) {
@@ -165,6 +168,7 @@ export default function IncomingCallWatcher() {
   function decline() {
     if (!inc) return;
     dismissed.current.add(inc.callId);
+    if (inc.resume) { try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ } }
     setInc(null);
   }
 
@@ -176,7 +180,7 @@ export default function IncomingCallWatcher() {
         </span>
         <div className="incall__m">
           <b>{inc.callerName}</b>
-          <span>{inc.kind === "meet" ? t("incomingMeet") : inc.callType === "video" ? t("incomingVideo") : t("incomingAudio")}</span>
+          <span>{inc.resume ? t("resumeMeet") : inc.kind === "meet" ? t("incomingMeet") : inc.callType === "video" ? t("incomingVideo") : t("incomingAudio")}</span>
         </div>
         <div className="incall__act">
           <button className="incall__btn incall__btn--decline" type="button" onClick={decline} aria-label={t("decline")}>

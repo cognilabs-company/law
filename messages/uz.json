@@ -5334,7 +5334,16 @@
     "recReady": "Yozuv tayyor",
     "recSave": "Qurilmaga saqlash",
     "recSaved": "Yozuv saqlandi.",
-    "recError": "Yozib olib bo'lmadi (brauzer qo'llab-quvvatlamaydi yoki mikrofon yo'q)."
+    "recError": "Yozib olib bo'lmadi (brauzer qo'llab-quvvatlamaydi yoki mikrofon yo'q).",
+    "resumeMeet": "Uchrashuv hali davom etmoqda — qaytasizmi?",
+    "recPickTitle": "Nimani yozib olamiz?",
+    "recPickLead": "Yozuv faqat sizning qurilmangizda saqlanadi; barcha ishtirokchilarga xabar beriladi.",
+    "recModeAudio": "Faqat ovoz (hammasi)",
+    "recModeScreen": "Ekran + ovoz",
+    "recStopShort": "To'xtatish",
+    "recOpen": "Ochish",
+    "recOpened": "Yozuv yangi oynada ochildi — brauzer menyusidan saqlang.",
+    "recSaveError": "Saqlab bo'lmadi."
   },
   "theme": {
     "label": "Mavzu",
