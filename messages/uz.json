@@ -11,7 +11,9 @@
       "schedule": "{days}, {start}–{end} (Toshkent vaqti)",
       "holidayNote": "Bayram kunlari hozircha hisobga olinmaydi."
     },
-    "otpChannelUnavailable": "Tasdiqlash kodini Telegram orqali yuborib bo'lmadi. Telegram botni ulang yoki birozdan so'ng qayta urinib ko'ring."
+    "otpChannelUnavailable": "Tasdiqlash kodini Telegram orqali yuborib bo'lmadi. Telegram botni ulang yoki birozdan so'ng qayta urinib ko'ring.",
+    "newVersion": "Saytning yangi versiyasi chiqdi.",
+    "reload": "Yangilash"
   },
   "a11y": {
     "showPassword": "Parolni ko'rsatish",

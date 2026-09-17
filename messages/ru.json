@@ -11,7 +11,9 @@
       "schedule": "{days}, {start}–{end} (время Ташкента)",
       "holidayNote": "Праздничные дни пока не учитываются."
     },
-    "otpChannelUnavailable": "Не удалось отправить код через Telegram. Подключите Telegram-бот или повторите попытку чуть позже."
+    "otpChannelUnavailable": "Не удалось отправить код через Telegram. Подключите Telegram-бот или повторите попытку чуть позже.",
+    "newVersion": "Вышла новая версия сайта.",
+    "reload": "Обновить"
   },
   "a11y": {
     "showPassword": "Показать пароль",

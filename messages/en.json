@@ -11,7 +11,9 @@
       "schedule": "{days}, {start}–{end} (Tashkent time)",
       "holidayNote": "Public holidays are not taken into account yet."
     },
-    "otpChannelUnavailable": "Couldn't send the code through Telegram. Link the Telegram bot or try again shortly."
+    "otpChannelUnavailable": "Couldn't send the code through Telegram. Link the Telegram bot or try again shortly.",
+    "newVersion": "A new version of the site is available.",
+    "reload": "Reload"
   },
   "a11y": {
     "showPassword": "Show password",

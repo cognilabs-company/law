@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Inter, Onest } from "next/font/google";
 import { hasLocale } from "next-intl";
 import IntlProvider from "@/components/IntlProvider";
+import VersionWatch from "@/components/VersionWatch";
 import {
   getMessages,
   getTranslations,
@@ -81,6 +82,7 @@ export default async function LocaleLayout({ children, params }: Props) {
       <body>
         <IntlProvider locale={locale} messages={messages}>
           <ThemeSync />
+          <VersionWatch />
           <ReferralCapture />
           <AuthProvider>
             <SessionExpiryWatcher />
