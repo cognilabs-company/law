@@ -3418,6 +3418,7 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .mtg__tile--big{flex:1;aspect-ratio:auto;min-height:0}
 .mtg__strip{display:flex;gap:10px;overflow-x:auto;flex:none;padding-bottom:2px;scrollbar-width:thin}
 .mtg__tile--small{flex:none;width:180px;aspect-ratio:16/10}
+.mtg__tile--small .mtg__name{font-size:.7rem;padding:4px 8px;left:8px;bottom:8px;max-width:calc(100% - 16px)}
 .mtg__sharing{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;background:rgba(0,0,0,.6);font-size:.8rem;font-weight:600;z-index:2}
 .mtg__sharing svg{width:15px;height:15px;color:var(--mtg-ok)}
 
