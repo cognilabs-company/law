@@ -652,7 +652,13 @@
       "sortPriceAsc": "Narx: arzondan qimmatga",
       "sortPriceDesc": "Narx: qimmatdan arzonga",
       "searchPh": "Ism sharifi bo'yicha qidirish…",
-      "searchLabel": "Advokat yoki yuristni ismi bo'yicha qidirish"
+      "searchLabel": "Advokat yoki yuristni ismi bo'yicha qidirish",
+      "rating": "Reyting",
+      "experience": "Tajriba",
+      "language": "Til",
+      "maxPrice": "Narx (gacha)",
+      "any": "Farqi yo'q",
+      "yearsPlus": "{n}+ yil"
     },
     "stats": [
       {
@@ -688,7 +694,8 @@
       "priceNote": "so'mdan · paket",
       "verified": "Tasdiqlangan",
       "choose": "Tanlash",
-      "opening": "Ochilmoqda…"
+      "opening": "Ochilmoqda…",
+      "new": "Yangi"
     },
     "empty": "Bu yo'nalishda hozircha advokat yo'q. Arizangizni qoldiring — mos advokatni biz topamiz.",
     "priceInfo": "Narx ochiq mezonlar bo'yicha shakllanadi: hudud (yirik shaharlarda qimmatroq), staj (3–5 yil +10%, 6–10 yil +15%, 10+ yil +20%), reyting va super advokat maqomi (viloyat TOP-3 — 30% gacha, tor yo'nalishda 10+ yil tajriba — 20% gacha). Narx oshgan bo'lsa, sababi buyurtma oynasida yozib ko'rsatiladi.",
@@ -1650,7 +1657,9 @@
     "aiQuotaReached": "Oylik Sun'iy intellekt limitingiz tugadi ({used} / {limit}). Davom etish uchun tarifni yangilang.",
     "aiQuotaReachedShort": "Oylik Sun'iy intellekt limitingiz tugadi. Davom etish uchun tarifni yangilang.",
     "upgradePlan": "Tarifni yangilash",
-    "fileError": "Faylni ochib bo'lmadi"
+    "fileError": "Faylni ochib bo'lmadi",
+    "lastFreeTitle": "Bu oxirgi bepul savolingiz edi",
+    "lastFreeText": "Oyiga {limit} ta bepul savol. Davom etish uchun LexGo.AI Lite yoki Pro rejasini tanlang — limit har oyning 1-sanasida yangilanadi."
   },
   "portal": {
     "metaTitle": "Portal",
@@ -2241,7 +2250,11 @@
           "approved": "Tasdiqlandi",
           "rejected": "Rad etildi",
           "completed": "Almashtirildi"
-        }
+        },
+        "deadlineText": "Advokat javobi: {when} gacha",
+        "deadlineToday": "bugun",
+        "deadlineTomorrow": "ertaga",
+        "deadlineOverdue": "Advokat javob bermadi — boshqa advokat taklif qilinadi"
       },
       "payments": {
         "title": "To'lovlar",
@@ -2850,6 +2863,65 @@
           "power_of_attorney": "Ishonchnoma",
           "administrative": "Ma'muriy",
           "criminal": "Jinoiy"
+        },
+        "wizStep": "{n}-qadam / {total}",
+        "wizFilled": "{pct}% to'ldirildi",
+        "wizRequired": "Bu maydon majburiy",
+        "wizBack": "Orqaga",
+        "wizNext": "Keyingi qadam",
+        "wizAutosave": "Javoblar avtomatik saqlanadi — keyinroq shu joydan davom etishingiz mumkin.",
+        "downloadPolicy": "Bu oy {n} / {limit} bepul hujjat ishlatildi. Limitdan keyin har hujjat 19 000 so'm yoki obuna.",
+        "keptInCabinet": "Hujjat kabinetingizda saqlanadi — qayta yuklab olish limitga kirmaydi.",
+        "fields": {
+          "claimant": "Da'vogar (F.I.Sh.)",
+          "defendant": "Javobgar (F.I.Sh.)",
+          "claim": "Da'vo talabi",
+          "evidence": "Dalillar va ilovalar",
+          "court": "Sud nomi",
+          "court_name": "Sud nomi",
+          "plaintiff": "Da'vogar",
+          "respondent": "Javobgar",
+          "amount": "Summa (so'm)",
+          "sum": "Summa (so'm)",
+          "date": "Sana",
+          "address": "Manzil",
+          "phone": "Telefon",
+          "full_name": "F.I.Sh.",
+          "name": "F.I.Sh.",
+          "landlord": "Ijaraga beruvchi",
+          "tenant": "Ijarachi",
+          "property": "Mulk (manzil, tavsif)",
+          "term": "Muddat",
+          "price": "Narx (so'm)",
+          "employer": "Ish beruvchi",
+          "employee": "Xodim",
+          "position": "Lavozim",
+          "salary": "Ish haqi (so'm)",
+          "start_date": "Boshlanish sanasi",
+          "end_date": "Tugash sanasi",
+          "principal": "Ishonch beruvchi",
+          "agent": "Ishonchli vakil",
+          "powers": "Vakolatlar",
+          "lender": "Qarz beruvchi",
+          "borrower": "Qarz oluvchi",
+          "due_date": "Qaytarish sanasi",
+          "company": "Kompaniya",
+          "director": "Direktor",
+          "agenda": "Kun tartibi",
+          "decision": "Qaror",
+          "testator": "Vasiyat qiluvchi",
+          "heir": "Merosxo'r",
+          "subject": "Mavzu",
+          "description": "Tavsif",
+          "demand": "Talab",
+          "deadline": "Muddat",
+          "party_a": "1-tomon",
+          "party_b": "2-tomon",
+          "service": "Xizmat",
+          "region": "Hudud",
+          "pinfl": "JShShIR",
+          "inn": "STIR",
+          "passport": "Pasport"
         }
       }
     },
@@ -3024,7 +3096,21 @@
       "payable": "To'lanishi kerak",
       "review": "Ko'rib chiqish",
       "casesEmpty": "Yangi so'rov yo'q",
-      "casesEmptyText": "Yangi mijoz so'rovlari shu yerda ko'rinadi."
+      "casesEmptyText": "Yangi mijoz so'rovlari shu yerda ko'rinadi.",
+      "metrics": {
+        "title": "Ko'rsatkichlarim",
+        "responseRate": "Javob foizi",
+        "acceptanceRate": "Qabul foizi",
+        "avgResponse": "O'rtacha javob vaqti",
+        "rating": "Reyting",
+        "minutes": "{n} daq",
+        "vacationOn": "Ta'tildaman",
+        "vacationOff": "Ta'til rejimi",
+        "vacationNote": "Ta'til rejimi yoqilgan: yangi buyurtmalar sizga taklif qilinmaydi, javob muddati hisoblanmaydi.",
+        "tipSpeed": "Reytingni oshirish uchun javob tezligini yaxshilang: hozir {now} daqiqa, tavsiya {target} daqiqa.",
+        "tipRate": "Javob foizi 90% dan past — 30 kunda 3 ta javobsiz buyurtma saralashda pasaytiradi.",
+        "tipGood": "Ko'rsatkichlaringiz yaxshi — shu tarzda davom eting."
+      }
     },
     "notifications": {
       "title": "Bildirishnomalar",

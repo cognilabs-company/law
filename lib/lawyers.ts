@@ -11,6 +11,8 @@ export type Lawyer = {
   price: string; // formatted number, currency word comes from translations
   verified: boolean; // identity/licence verified by LexGo (not the "super lawyer" status)
   kind?: "advocate" | "lawyer"; // advokat vs yurist, for client-facing labels
+  languages?: string[];
+  isNew?: boolean; // T1-09: recently verified with few reviews → "Yangi" badge + first-page quota
 };
 
 // Practice areas and regions used across the site (keys resolved via messages).

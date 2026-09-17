@@ -646,7 +646,13 @@
       "sortPriceAsc": "Price: low to high",
       "sortPriceDesc": "Price: high to low",
       "searchPh": "Search by name…",
-      "searchLabel": "Search advocates or lawyers by name"
+      "searchLabel": "Search advocates or lawyers by name",
+      "rating": "Rating",
+      "experience": "Experience",
+      "language": "Language",
+      "maxPrice": "Price (up to)",
+      "any": "Any",
+      "yearsPlus": "{n}+ years"
     },
     "stats": [
       {
@@ -682,7 +688,8 @@
       "priceNote": "from · package",
       "verified": "Verified",
       "choose": "Choose",
-      "opening": "Opening…"
+      "opening": "Opening…",
+      "new": "New"
     },
     "empty": "There are no lawyers in this area yet. Leave a request — we will find a suitable lawyer for you.",
     "priceInfo": "The price is formed by open criteria: region (higher in big cities), experience (3–5 yrs +10%, 6–10 yrs +15%, 10+ yrs +20%), rating and super-lawyer status (regional TOP-3 — up to 30%, 10+ yrs in a narrow area — up to 20%). If the price is higher, the reason is shown in the order window.",
@@ -1644,7 +1651,9 @@
     "aiQuotaReached": "Your monthly AI limit is used up ({used} / {limit}). Upgrade your plan to continue.",
     "aiQuotaReachedShort": "Your monthly AI limit is used up. Upgrade your plan to continue.",
     "upgradePlan": "Upgrade plan",
-    "fileError": "Couldn't open the file"
+    "fileError": "Couldn't open the file",
+    "lastFreeTitle": "That was your last free question",
+    "lastFreeText": "{limit} free questions a month. To continue, pick the LexGo.AI Lite or Pro plan — the limit resets on the 1st."
   },
   "portal": {
     "metaTitle": "Portal",
@@ -2235,7 +2244,11 @@
           "approved": "Approved",
           "rejected": "Rejected",
           "completed": "Advocate replaced"
-        }
+        },
+        "deadlineText": "Advocate's reply: by {when}",
+        "deadlineToday": "today",
+        "deadlineTomorrow": "tomorrow",
+        "deadlineOverdue": "The advocate didn't reply — another advocate will be offered"
       },
       "payments": {
         "title": "Payments",
@@ -2844,6 +2857,65 @@
           "power_of_attorney": "Power of attorney",
           "administrative": "Administrative",
           "criminal": "Criminal"
+        },
+        "wizStep": "Step {n} of {total}",
+        "wizFilled": "{pct}% filled",
+        "wizRequired": "This field is required",
+        "wizBack": "Back",
+        "wizNext": "Next step",
+        "wizAutosave": "Answers are saved automatically — you can continue later from here.",
+        "downloadPolicy": "{n} / {limit} free documents used this month. After the limit: 19,000 UZS per document or a plan.",
+        "keptInCabinet": "The document stays in your cabinet — downloading it again doesn't count against the limit.",
+        "fields": {
+          "claimant": "Claimant (full name)",
+          "defendant": "Defendant (full name)",
+          "claim": "Claim",
+          "evidence": "Evidence and attachments",
+          "court": "Court",
+          "court_name": "Court",
+          "plaintiff": "Plaintiff",
+          "respondent": "Respondent",
+          "amount": "Amount (UZS)",
+          "sum": "Amount (UZS)",
+          "date": "Date",
+          "address": "Address",
+          "phone": "Phone",
+          "full_name": "Full name",
+          "name": "Full name",
+          "landlord": "Landlord",
+          "tenant": "Tenant",
+          "property": "Property (address, description)",
+          "term": "Term",
+          "price": "Price (UZS)",
+          "employer": "Employer",
+          "employee": "Employee",
+          "position": "Position",
+          "salary": "Salary (UZS)",
+          "start_date": "Start date",
+          "end_date": "End date",
+          "principal": "Principal",
+          "agent": "Representative",
+          "powers": "Powers",
+          "lender": "Lender",
+          "borrower": "Borrower",
+          "due_date": "Due date",
+          "company": "Company",
+          "director": "Director",
+          "agenda": "Agenda",
+          "decision": "Decision",
+          "testator": "Testator",
+          "heir": "Heir",
+          "subject": "Subject",
+          "description": "Description",
+          "demand": "Demand",
+          "deadline": "Deadline",
+          "party_a": "Party 1",
+          "party_b": "Party 2",
+          "service": "Service",
+          "region": "Region",
+          "pinfl": "PINFL",
+          "inn": "TIN",
+          "passport": "Passport"
         }
       }
     },
@@ -3018,7 +3090,21 @@
       "payable": "Payable",
       "review": "Review",
       "casesEmpty": "No new requests",
-      "casesEmptyText": "New client requests will appear here."
+      "casesEmptyText": "New client requests will appear here.",
+      "metrics": {
+        "title": "My metrics",
+        "responseRate": "Response rate",
+        "acceptanceRate": "Acceptance rate",
+        "avgResponse": "Average response time",
+        "rating": "Rating",
+        "minutes": "{n} min",
+        "vacationOn": "On vacation",
+        "vacationOff": "Vacation mode",
+        "vacationNote": "Vacation mode is on: new orders are not offered to you and the response timer is paused.",
+        "tipSpeed": "To raise your rating, answer faster: now {now} min, recommended {target} min.",
+        "tipRate": "Response rate below 90% — 3 unanswered orders in 30 days lower your ranking.",
+        "tipGood": "Your metrics look good — keep it up."
+      }
     },
     "notifications": {
       "title": "Notifications",

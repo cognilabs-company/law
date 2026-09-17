@@ -7,6 +7,7 @@ import type { BackendOrder, SellerActions, SellerCabinet } from "@/lib/services/
 import { Skeleton, EmptyState } from "./DataState";
 import OrderActions from "./OrderActions";
 import OnboardingProgress from "./OnboardingProgress";
+import SellerMetrics from "./SellerMetrics";
 import { useSellerCabinet } from "./SellerCabinet";
 import { useAuth, type Role } from "@/lib/auth";
 import { uzs, fmtUzs } from "@/lib/money";
@@ -55,6 +56,7 @@ const som = (n: number) => fmtUzs(n);
 export default function SellerDashboard({ role }: { role: Role }) {
   const t = useTranslations("portal.sellerDash");
   const tc = useTranslations("portal.common");
+  const { session } = useAuth();
   // Stats + new orders come from the cabinet bootstrap loaded by the shell.
   const cabinet = useSellerCabinet();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -112,6 +114,8 @@ export default function SellerDashboard({ role }: { role: Role }) {
         </div>
         {tiles(FINANCE)}
       </div>
+
+      {cabinet.data ? <SellerMetrics stats={cabinet.data.stats} userId={session?.id || ""} /> : null}
 
       <div className="ppanel">
         <div className="ppanel__h">

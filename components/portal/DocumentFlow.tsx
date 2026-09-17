@@ -21,6 +21,7 @@ import {
 import { ApiError, httpBlob, isProviderUnavailable } from "@/lib/http";
 import { base64Blob, closeTab, fetchAndDeliver, preopenTab, saveBlob, showBlob } from "@/lib/download";
 import ContractSign from "./ContractSign";
+import DocWizard, { loadDraft, clearDraft } from "./DocWizard";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -78,6 +79,21 @@ export default function DocumentFlow() {
   // resumes instead of starting a new (re-payable) request.
   const [reqKey, setReqKey] = useState(0);
   const reqs = useResource(() => listDocumentRequests(), [reqKey]);
+  // Output formats the backend offers for this request (PDF always; DOCX when
+  // the template supports it) — read from the unlock policy.
+  const [formats, setFormats] = useState<string[]>(["pdf"]);
+  // Generated documents this month (S-35: 3 free a month, then a fee or a plan).
+  const monthDownloads = useMemo(() => {
+    const now = new Date();
+    return reqs.data.filter((r) => r.status === "file_ready" && r.createdAt && new Date(r.createdAt).getMonth() === now.getMonth() && new Date(r.createdAt).getFullYear() === now.getFullYear()).length;
+  }, [reqs.data]);
+  async function getDocx() {
+    if (!req) return;
+    setPdfBusy(true);
+    try { saveBlob(await httpBlob(`/document-requests/${req.id}/file?format=docx`, { headers: { Accept: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" } }), `lexgo-${req.id}.docx`); }
+    catch { setNote({ ok: false, msg: t("fileError") }); }
+    finally { setPdfBusy(false); }
+  }
   const bump = () => setReqKey((k) => k + 1);
   const byTpl = useMemo(() => {
     const m: Record<string, { id: string; status: string }> = {};
@@ -108,7 +124,10 @@ export default function DocumentFlow() {
     try {
       const r = await getDocumentRequest(existing.id);
       setReq(r);
-      setAnswers({});
+      // Saved answers from the server, then the local draft on top (T1-14 resume).
+      const saved: Record<string, string> = {};
+      for (const [k, v] of Object.entries(r.answers || {})) if (v != null && v !== "") saved[k] = String(v);
+      setAnswers({ ...saved, ...(loadDraft(r.id) || {}) });
       setStage(stageFor(r));
       bump();
     } catch {
@@ -132,7 +151,7 @@ export default function DocumentFlow() {
         price: tpl.price,
       });
       setReq(r);
-      setAnswers({});
+      setAnswers(loadDraft(r.id) || {});
       setStage(stageFor(r));
       bump();
     } catch {
@@ -147,6 +166,7 @@ export default function DocumentFlow() {
     setBusy(true);
     try {
       const r = await updateDocumentAnswers(req.id, answers);
+      clearDraft(req.id);
       setReq(r);
       // After answers the backend moves to awaiting_payment → pay step.
       setStage(stageFor(r) === "answers" ? "pay" : stageFor(r));
@@ -173,6 +193,7 @@ export default function DocumentFlow() {
   async function unlock(r: DocumentRequest): Promise<DocumentRequest | null> {
     if (r.status === "file_ready") return r;
     const policy = await getDocumentUnlockPolicy(r.id);
+    if (policy.formats.length) setFormats(policy.formats);
     if (!policy.canGenerate) return null;
     try {
       return await generateDocumentRequest(r.id);
@@ -347,24 +368,8 @@ export default function DocumentFlow() {
           <div className="cform" style={{ maxWidth: "none" }}>
             {stage === "answers" ? (
               <>
-                <p className="advmuted">{t("answersLead")}</p>
-                {req.questionnaire.length ? (
-                  req.questionnaire.map((f) => (
-                    <div key={f.name}>
-                      <label>{f.label}{f.required ? " *" : ""}</label>
-                      <input
-                        value={answers[f.name] ?? ""}
-                        onChange={(e) => setAnswers((a) => ({ ...a, [f.name]: e.target.value }))}
-                      />
-                    </div>
-                  ))
-                ) : (
-                  <p className="advmuted">{t("noFields")}</p>
-                )}
+                <DocWizard req={req} answers={answers} onChange={setAnswers} onSubmit={saveAnswers} busy={busy} submitLabel={t("continue")} />
                 {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-                <button className="btn btn--pri btn--full" type="button" onClick={saveAnswers} disabled={busy}>
-                  {busy ? t("saving") : t("continue")}
-                </button>
               </>
             ) : null}
 
@@ -375,6 +380,7 @@ export default function DocumentFlow() {
                   <b>{req.price ? `${som(req.price)} ${t("som")}` : t("free")}</b>
                 </div>
                 <p className="advmuted">{t("payLead")}</p>
+                <p className="dwiz__policy">{t("downloadPolicy", { n: monthDownloads, limit: 3 })}</p>
                 {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
                 <button className="btn btn--grad btn--full btn--lg" type="button" onClick={pay} disabled={busy}>
                   {busy ? t("processingShort") : t("pay")}
@@ -415,7 +421,14 @@ export default function DocumentFlow() {
                     <IconDownload />
                     {pdfBusy ? t("fileLoading") : t("download")}
                   </button>
+                  {formats.includes("docx") ? (
+                    <button className="btn btn--line" type="button" onClick={() => getDocx()} disabled={pdfBusy}>
+                      <IconDownload />
+                      DOCX
+                    </button>
+                  ) : null}
                 </div>
+                <small className="advmuted">{t("keptInCabinet")}</small>
                 {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
                 {/* T1-13: the generated document is a contract to sign with a Telegram code. */}
                 {req.contractId ? <ContractSign contractId={req.contractId} /> : null}

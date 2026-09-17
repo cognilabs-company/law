@@ -3502,3 +3502,39 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
   .mtg__ctl.end .mtg__ci{width:56px}
   .mtg__toasts{top:56px}.mtg__sound{top:56px;right:10px}
 }
+
+/* ── wp-m ── */
+/* T1-14 document wizard */
+.dwiz{display:grid;gap:12px}
+.dwiz__top{display:flex;justify-content:space-between;font-size:.8rem;color:var(--gray);font-weight:600}
+.dwiz__bar{height:6px;border-radius:999px;background:var(--dk-surface-2, #eef2f7);overflow:hidden}
+.dwiz__bar span{display:block;height:100%;background:var(--grad);border-radius:999px;transition:width .3s}
+.dwiz__dots{display:flex;gap:8px;list-style:none;margin:0;padding:0}
+.dwiz__dots li{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:.76rem;font-weight:700;background:var(--dk-surface-2, #eef2f7);color:var(--gray)}
+.dwiz__dots li.on{background:var(--b600);color:#fff}
+.dwiz__dots li.done{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok);cursor:pointer}
+.dwiz__dots li svg{width:14px;height:14px}
+.dwiz__f.err input,.dwiz__f.err textarea{box-shadow:inset 0 0 0 1.5px #e5484d}
+.dwiz__hint{display:block;margin-top:5px;font-size:.76rem;color:var(--gray)}
+.dwiz__err{display:block;margin-top:5px;font-size:.76rem;color:#e5484d;font-weight:600}
+.dwiz__nav{display:flex;justify-content:space-between;gap:10px;margin-top:4px}
+.dwiz__nav .btn svg{width:16px;height:16px}
+.dwiz__auto{font-size:.74rem;color:var(--gray2);text-align:center}
+.dwiz__policy{margin:0;padding:10px 12px;border-radius:12px;background:var(--dk-tint-blue, #eef4ff);font-size:.82rem;color:var(--dk-acc-strong, var(--b700))}
+/* T0-20 response deadline */
+.ocase__dl{color:var(--dk-txt-warn, #b45309)}
+.ocase__dl.overdue{color:var(--dk-txt-err, #b91c1c)}
+/* T1-02 last free question */
+.aichat__lastfree{margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--dk-tint-warn, #fff7ed);display:grid;gap:6px;justify-items:start}
+.aichat__lastfree b{font-size:.9rem;color:var(--dk-txt-warn, #9a3412)}
+.aichat__lastfree span{font-size:.82rem;color:var(--gray)}
+
+/* ── wp-n ── */
+/* T1-09 "new" badge, T1-11 vacation switch */
+.advcard__badge--new{background:var(--dk-tint-warn, #fff7ed);color:var(--dk-txt-warn, #c2410c)}
+.vac{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);font-size:.8rem;font-weight:700;color:var(--gray);cursor:pointer;user-select:none}
+.vac input{position:absolute;opacity:0;width:0;height:0}
+.vac svg{width:15px;height:15px}
+.vac.on{background:var(--dk-tint-warn, #fff7ed);border-color:transparent;color:var(--dk-txt-warn, #c2410c)}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.filters .fld{min-width:0}

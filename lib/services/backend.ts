@@ -6,6 +6,7 @@ import { http, httpBlob, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl
 import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
+import { attributionDetails } from "@/lib/attribution";
 
 // ── Auth ──────────────────────────────────────────────────────────
 export type BackendRole =
@@ -369,6 +370,7 @@ export type BackendLawyer = {
   licenseNumber?: string;
   barAssociation?: string;
   organizationName?: string;
+  createdAt: string;
 };
 
 function normLawyer(v: unknown): BackendLawyer {
@@ -391,6 +393,7 @@ function normLawyer(v: unknown): BackendLawyer {
     verified: Boolean(d.verified ?? d.is_verified),
     verificationStatus: asStr(d.verification_status),
     sellerType: asStr(d.seller_type),
+    createdAt: asStr(d.created_at),
     totalCases: asNum(d.total_cases),
     winsCount: asNum(d.wins_count),
     partialWins: asNum(d.partial_wins_count),
@@ -1136,10 +1139,11 @@ export type DocumentRequest = {
   status: string; // questionnaire | awaiting_payment | payment_pending | file_ready
   price: number;
   currency: string;
-  questionnaire: { name: string; label: string; required?: boolean }[];
+  questionnaire: { name: string; label: string; required?: boolean; type?: string; step?: number; placeholder?: string; hint?: string }[];
   answers: Record<string, unknown>;
   contractFile?: ContractFile;
   paymentUrl?: string; // provider checkout link returned by the pay call
+  createdAt: string;
 };
 
 function normDocRequest(v: unknown): DocumentRequest {
@@ -1159,9 +1163,10 @@ function normDocRequest(v: unknown): DocumentRequest {
     currency: asStr(d.currency, "UZS"),
     questionnaire: asArr(d.questionnaire).map((q) => {
       const x = asDict(q);
-      return { name: asStr(x.name), label: asStr(x.label), required: Boolean(x.required) };
+      return { name: asStr(x.name), label: asStr(x.label), required: Boolean(x.required), type: asStr(x.type ?? x.field_type) || undefined, step: typeof x.step === "number" ? x.step : undefined, placeholder: asStr(x.placeholder ?? x.example) || undefined, hint: asStr(x.hint ?? x.tooltip) || undefined };
     }),
     answers: (d.answers as Record<string, unknown>) ?? {},
+    createdAt: asStr(d.created_at),
     contractFile: cf
       ? {
           id: asStr(cf.id),
@@ -1233,6 +1238,7 @@ export type DocUnlockPolicy = {
   currency: string;
   paymentId?: string;
   canGenerate: boolean;
+  formats: string[]; // "pdf" always; "docx" when the backend can render it
 };
 export async function getDocumentUnlockPolicy(requestId: string): Promise<DocUnlockPolicy> {
   const d = asDict(await http(`/document-requests/${requestId}/unlock-policy`));
@@ -1244,6 +1250,7 @@ export async function getDocumentUnlockPolicy(requestId: string): Promise<DocUnl
     currency: asStr(d.currency, "UZS"),
     paymentId: asStr(d.payment_id) || undefined,
     canGenerate: Boolean(d.can_generate),
+    formats: asArr(d.formats).map((f) => asStr(f).toLowerCase()).filter(Boolean),
   };
 }
 // Fill the template with the saved answers and build the PDF (402 = not paid yet).
@@ -1485,7 +1492,7 @@ export async function createLead(input: {
       category: input.category,
       region: input.region,
       urgency: input.urgency,
-      details: { name: input.name, phone: input.phone, note: input.note ?? "" },
+      details: { name: input.name, phone: input.phone, note: input.note ?? "", ...attributionDetails() },
     }),
   });
 }
@@ -2134,6 +2141,7 @@ export type BusinessHours = {
   isWorkingTime: boolean | null;
   serverNow: number | null; // epoch ms, only from an offset-aware timestamp
   fetchedAt: number; // client epoch ms
+  holidays: string[]; // YYYY-MM-DD public holidays (T0-20)
 };
 export const DEFAULT_BUSINESS_HOURS: BusinessHours = {
   timezone: "Asia/Tashkent",
@@ -2144,6 +2152,7 @@ export const DEFAULT_BUSINESS_HOURS: BusinessHours = {
   isWorkingTime: null,
   serverNow: null,
   fetchedAt: 0,
+  holidays: [],
 };
 function asBoolOrNull(v: unknown): boolean | null {
   if (v === true || v === 1 || v === "true" || v === "1") return true;
@@ -2207,6 +2216,7 @@ export async function getBusinessHours(): Promise<BusinessHours> {
       (statusStr === "open" ? true : statusStr === "closed" ? false : null),
     serverNow: Number.isFinite(ms) ? ms : null,
     fetchedAt,
+    holidays: asArr(d.holidays).map((h) => { const x = asDict(h); return asStr(typeof h === "string" ? h : x.date ?? x.day); }).filter((x) => /^d{4}-d{2}-d{2}/.test(x)).map((x) => x.slice(0, 10)),
   };
 }
 

@@ -42,6 +42,9 @@ function toLawyer(b: BackendLawyer): Lawyer {
     price: b.basePrice ? fmtUzs(b.basePrice) : "—",
     verified: b.verified,
     kind: st.includes("advokat") ? "advocate" : "lawyer",
+    languages: b.languages,
+    // "New": on the platform under 30 days and fewer than 5 reviews (S-19/S-42).
+    isNew: b.reviews < 5 && b.totalCases < 5 && !!b.createdAt && Date.now() - new Date(b.createdAt).getTime() < 30 * 86400000,
   };
 }
 
@@ -63,6 +66,11 @@ export default function LawyersSection({
   const [region, setRegion] = useState("");
   const [sort, setSort] = useState("rating");
   const [kind, setKind] = useState<"" | "advocate" | "lawyer">("");
+  // T1-09 filters: rating, experience, language, max price.
+  const [minRate, setMinRate] = useState("");
+  const [minExp, setMinExp] = useState("");
+  const [lang, setLang] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const res = useResource<BackendLawyer>(() => listLawyers(), []);
   const source = useMemo(() => res.data.map(toLawyer), [res.data]);
   const { session } = useAuth();
@@ -133,6 +141,10 @@ export default function LawyersSection({
         (!area || l.areaKey === area) &&
         (!region || l.regionKey === region) &&
         (!kind || l.kind === kind) &&
+        (!minRate || l.rate >= Number(minRate)) &&
+        (!minExp || l.exp >= Number(minExp)) &&
+        (!lang || (l.languages ?? []).includes(lang)) &&
+        (!maxPrice || (priceNum(l.price) > 0 && priceNum(l.price) <= Number(maxPrice))) &&
         (!terms.length || terms.every((w) => name.includes(w)))
       );
     });
@@ -143,8 +155,14 @@ export default function LawyersSection({
       if (sort === "priceDesc") return priceNum(b.price) - priceNum(a.price);
       return b.rate - a.rate;
     });
+    // New-seller quota (S-19): at least one "new" verified seller within the
+    // first 8 cards when the default ranking would push them all down.
+    if (sort === "rating") {
+      const firstNew = sorted.findIndex((l) => l.isNew && l.verified);
+      if (firstNew >= 8) { const [n] = sorted.splice(firstNew, 1); sorted.splice(7, 0, n); }
+    }
     return sorted;
-  }, [area, region, sort, kind, query, source]);
+  }, [area, region, sort, kind, query, source, minRate, minExp, lang, maxPrice]);
 
   const syncNav = useCallback(() => {
     const el = scroller.current;
@@ -196,6 +214,7 @@ export default function LawyersSection({
                   {t(l.kind === "advocate" ? "card.kindAdvocate" : "card.kindLawyer")}
                 </span>
                 {l.verified ? <span className="advcard__badge">{t("card.verified")}</span> : null}
+                {l.isNew ? <span className="advcard__badge advcard__badge--new">{t("card.new")}</span> : null}
               </div>
             </div>
           </div>
@@ -352,6 +371,22 @@ export default function LawyersSection({
                 options={sortOpts}
                 ariaLabel={t("filters.sort")}
               />
+            </div>
+            <div className="fld">
+              <label>{t("filters.rating")}</label>
+              <Select value={minRate} onChange={setMinRate} ariaLabel={t("filters.rating")} options={[{ value: "", label: t("filters.any") }, { value: "4", label: "4.0+" }, { value: "4.5", label: "4.5+" }, { value: "4.8", label: "4.8+" }]} />
+            </div>
+            <div className="fld">
+              <label>{t("filters.experience")}</label>
+              <Select value={minExp} onChange={setMinExp} ariaLabel={t("filters.experience")} options={[{ value: "", label: t("filters.any") }, { value: "3", label: t("filters.yearsPlus", { n: 3 }) }, { value: "5", label: t("filters.yearsPlus", { n: 5 }) }, { value: "10", label: t("filters.yearsPlus", { n: 10 }) }]} />
+            </div>
+            <div className="fld">
+              <label>{t("filters.language")}</label>
+              <Select value={lang} onChange={setLang} ariaLabel={t("filters.language")} options={[{ value: "", label: t("filters.any") }, { value: "uz-latn", label: "O'zbek (lotin)" }, { value: "uz-cyrl", label: "Ўзбек (кирилл)" }, { value: "ru", label: "Русский" }, { value: "en", label: "English" }]} />
+            </div>
+            <div className="fld">
+              <label>{t("filters.maxPrice")}</label>
+              <Select value={maxPrice} onChange={setMaxPrice} ariaLabel={t("filters.maxPrice")} options={[{ value: "", label: t("filters.any") }, { value: "200000", label: "≤ 200 000" }, { value: "300000", label: "≤ 300 000" }, { value: "500000", label: "≤ 500 000" }, { value: "1000000", label: "≤ 1 000 000" }]} />
             </div>
           </div>
         ) : null}

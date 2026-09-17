@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   listCases,
@@ -19,6 +19,9 @@ import {
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { CLIENT_STAGES, clientStageOf, useOrderStatusLabel } from "@/lib/orderStatus";
 import { humanizeSlug } from "@/lib/lawyers";
+import { deadlineLabel, responseDeadline } from "@/lib/businessHours";
+import { getBusinessHours, DEFAULT_BUSINESS_HOURS } from "@/lib/services/backend";
+import { IconClock } from "@/components/icons";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import OrderMilestones from "@/components/portal/OrderMilestones";
 import { Notice } from "@/components/admin/AdminBits";
@@ -47,6 +50,23 @@ export default function ClientCases() {
   const orderLabel = useOrderStatusLabel();
   const res = useResource(listCases, []);
   const orders = useResource(listOrders, []);
+  // T0-20: the seller's 30-minute answer window counts working time only, so a
+  // night/Sunday order shows "tomorrow 09:30" instead of a dead timer.
+  const bh = useResourceOne(getBusinessHours, []);
+  const hours = bh.data ?? DEFAULT_BUSINESS_HOURS;
+  // "Now" is sampled once per render pass (not in render) — a ticking clock is not needed here.
+  const [nowMs, setNowMs] = useState(0);
+  useEffect(() => { const tick = () => setNowMs(Date.now()); const t0 = setTimeout(tick, 0); const iv = setInterval(tick, 60000); return () => { clearTimeout(t0); clearInterval(iv); }; }, []);
+  const WAITING = new Set(["new", "seller_selection", "sent_to_seller", "waiting_info"]);
+  const deadlineOf = (o: { status: string; createdAt: string } | undefined) => {
+    if (!o || !WAITING.has(o.status) || !o.createdAt) return null;
+    const from = new Date(o.createdAt).getTime();
+    if (Number.isNaN(from)) return null;
+    if (!nowMs) return null;
+    const at = responseDeadline(hours, from, 30);
+    const now = nowMs;
+    return { at, overdue: at < now, text: deadlineLabel(at, now, { today: t("deadlineToday"), tomorrow: t("deadlineTomorrow") }) };
+  };
 
   // Refund / replacement request modal
   const [target, setTarget] = useState<BackendCase | null>(null);
@@ -135,6 +155,12 @@ export default function ClientCases() {
                 <b>{c ? c.caseType || c.title || t("title") : o?.serviceName || o?.title || t("orderItem")}</b>
                 <span>{[c?.stage ? humanizeSlug(c.stage) : "", c?.status ? caseStatus(c.status) : ""].filter(Boolean).join(" · ") || (o?.title && o.title !== o.serviceName ? o.title : "")}</span>
                 {stage ? <StageTrack stage={stage} /> : null}
+                {(() => { const dl = deadlineOf(o); return dl ? (
+                  <em className={`creq__next ocase__dl${dl.overdue ? " overdue" : ""}`}>
+                    <IconClock />
+                    {dl.overdue ? t("deadlineOverdue") : t("deadlineText", { when: dl.text })}
+                  </em>
+                ) : null; })()}
                 {c?.nextAction ? (
                   <em className="creq__next">
                     <IconArrowRight />

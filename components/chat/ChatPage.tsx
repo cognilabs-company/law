@@ -35,6 +35,7 @@ type Msg = {
   offline?: boolean;
   limit?: boolean;
   upgrade?: boolean; // signed-in user's AI quota is spent → subscription CTA
+  lastFree?: boolean; // this answer used the last free question of the month (T1-02)
 };
 
 export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
@@ -52,6 +53,10 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
   const [sideOpen, setSideOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const FREE_LIMIT = 5; // S-6: registered users get 5 free questions a month
+  const usageKey = () => { const d = new Date(); return `lexgo_ai_used_${session?.id || "anon"}_${d.getFullYear()}-${d.getMonth() + 1}`; };
+  const readUsed = () => { try { return Number(localStorage.getItem(usageKey()) || 0) || 0; } catch { return 0; } };
+  const writeUsed = (n: number) => { try { localStorage.setItem(usageKey(), String(n)); } catch { /* ignore */ } };
   const taRef = useRef<HTMLTextAreaElement>(null);
   const seeded = useRef(false);
   const suggestions = t.raw("suggestions") as string[];
@@ -127,6 +132,14 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
         ]);
       }
       const { assistant, contracts } = await postMessage(cid, id, content);
+      // Free-plan users: mark the 5th answer of the month as the last free one
+      // (the offer comes after the answer, never instead of it — S-6).
+      let lastFree = false;
+      if (session && !session.permissions?.length) {
+        const used = readUsed() + 1;
+        writeUsed(used);
+        lastFree = used === FREE_LIMIT;
+      }
       setMessages((m) => [
         ...m,
         {
@@ -134,6 +147,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
           content: assistant.content,
           sources: assistant.sources,
           contracts,
+          lastFree,
         },
       ]);
       setChats((cs) =>
@@ -142,6 +156,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
     } catch (e) {
       const quota = session ? aiQuotaOf(e) : null;
       if (quota) {
+        if (quota.monthlyLimit) writeUsed(Math.max(readUsed(), quota.used));
         const content = quota.monthlyLimit
           ? t("aiQuotaReached", { used: quota.used, limit: quota.monthlyLimit })
           : t("aiQuotaReachedShort");
@@ -285,6 +300,13 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                     ) : null}
                     {m.offline ? (
                       <div className="aichat__offline">{t("offline")}</div>
+                    ) : null}
+                    {m.lastFree && session ? (
+                      <div className="aichat__lastfree">
+                        <b>{t("lastFreeTitle")}</b>
+                        <span>{t("lastFreeText", { limit: FREE_LIMIT })}</span>
+                        <Link href={`/portal/${session.role}/subscription`} className="btn btn--pri btn--sm">{t("upgradePlan")}</Link>
+                      </div>
                     ) : null}
                     {m.limit ? (
                       <Link href="/login" className="btn btn--pri btn--sm" style={{ marginTop: 10 }}>
