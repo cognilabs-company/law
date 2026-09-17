@@ -3914,3 +3914,12 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .mpick__btn{box-shadow:inset 0 0 0 1.5px var(--line)}
 .ssel__ctrl{background:var(--dk-surface-2, #F7FAFE);border-color:transparent;box-shadow:inset 0 0 0 1.5px var(--line);border-radius:14px}
 .ssel__ctrl:hover{border-color:transparent;box-shadow:inset 0 0 0 1.5px var(--b300);background:var(--dk-surface, #fff)}
+
+/* ── wp-af ── */
+/* meeting: the recording picker / "recording ready" panels must stay on
+   screen — mtgToast fades OUT at the end (it is for toasts). */
+@keyframes mtgRise{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+.mtg__recpick,.mtg__recdone{animation:mtgRise .3s ease both;animation-fill-mode:both;transform:translate(-50%,0);opacity:1}
+.mtg__recdone{z-index:8}
+.mtg__recdone .btn,.mtg__recpick .btn{white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.mtg__recpick,.mtg__recdone{animation:none}}
