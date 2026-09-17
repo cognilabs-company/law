@@ -3977,3 +3977,9 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .rtimer--warn{background:var(--dk-tint-warn, #fff4e5);color:var(--dk-txt-warn, #b45309);animation:rtPulse 1s ease-in-out infinite}
 .rtimer--over{background:var(--dk-tint-err, #fdecec);color:var(--dk-txt-err, #c0392b)}
 @keyframes rtPulse{50%{opacity:.6}}
+
+/* ── wp-al ── */
+/* T0-20 §4: working-hours notice in the order modal */
+.bhnote{display:flex;align-items:flex-start;gap:8px;margin:0;padding:10px 12px;border-radius:12px;font-size:.82rem;line-height:1.45;background:var(--dk-tint-warn, #fff7ed);color:var(--dk-txt-warn, #9a3412);border:1px solid var(--dk-bd-warn, #fed7aa)}
+.bhnote svg{width:15px;height:15px;flex:none;margin-top:2px}
+.bhnote--ok{background:var(--b50);color:var(--dk-acc-strong, var(--b700));border-color:var(--b200)}

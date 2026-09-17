@@ -2903,7 +2903,11 @@
           "urgent_ready": "Ready for urgent cases",
           "high_workload": "Busy"
         },
-        "unverified": "Unverified"
+        "unverified": "Unverified",
+        "afterHours": "It is outside working hours now (Mon–Sat 09:00–19:00). The advocate replies by {when} — the timer starts at 09:00.",
+        "respondBy": "The advocate replies within 30 minutes: by {when}",
+        "deadlineToday": "today",
+        "deadlineTomorrow": "tomorrow"
       },
       "documents": {
         "title": "Document templates",

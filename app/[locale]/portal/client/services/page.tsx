@@ -21,12 +21,14 @@ import {
 import { http, asDict, asStr } from "@/lib/http";
 import OrderPayment from "@/components/portal/OrderPayment";
 import ServicePassport from "@/components/portal/ServicePassport";
-import { useResource } from "@/lib/useResource";
+import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { initials, humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
+import { evalBusinessHours, responseDeadline, deadlineLabel } from "@/lib/businessHours";
+import { getBusinessHours, DEFAULT_BUSINESS_HOURS } from "@/lib/services/backend";
 import {
   IconBriefcase,
   IconSearch,
@@ -43,6 +45,7 @@ import {
   IconUsers,
   IconGavel,
   IconCheck,
+  IconClock,
 } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
@@ -62,6 +65,14 @@ export default function ClientServices() {
   const cats = useResource(getServiceCategories, []);
   const services = useResource<BackendService>(() => getServices({ catalog_only: true }, locale), [locale]);
 
+  // T0-20 §4: outside working hours the client is told right away when the
+  // advocate's 30-minute response window starts (next working day 09:00).
+  const bh = useResourceOne(getBusinessHours, []);
+  const hours = bh.data ?? DEFAULT_BUSINESS_HOURS;
+  const [nowMs, setNowMs] = useState(0);
+  useEffect(() => { const tick = () => setNowMs(Date.now()); const h = setTimeout(tick, 0); const iv = setInterval(tick, 60_000); return () => { clearTimeout(h); clearInterval(iv); }; }, []);
+  const afterHours = nowMs ? !evalBusinessHours(hours, nowMs).workingTime : false;
+  const respondBy = nowMs ? deadlineLabel(responseDeadline(hours, nowMs, 30), nowMs, { today: t("deadlineToday"), tomorrow: t("deadlineTomorrow") }) : "";
   const [cat, setCat] = useState(""); // "" = families overview
   // Deep link from the AI intake ("order this service") pre-fills the search.
   // Rendered only client-side (inside the portal shell, after auth is ready).
@@ -446,6 +457,11 @@ export default function ClientServices() {
               )}
             </div>
 
+            {afterHours ? (
+              <p className="bhnote" role="status"><IconClock />{t("afterHours", { when: respondBy })}</p>
+            ) : sellerId ? (
+              <p className="bhnote bhnote--ok" role="status"><IconClock />{t("respondBy", { when: respondBy })}</p>
+            ) : null}
             {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
             <button className="btn btn--grad btn--full btn--lg" type="button" disabled={!sellerId || buying} onClick={buy}>
               {buying ? t("buying") : t("buy")}

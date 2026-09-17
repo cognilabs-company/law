@@ -2909,7 +2909,11 @@
           "urgent_ready": "Shoshilinch ishga tayyor",
           "high_workload": "Band"
         },
-        "unverified": "Tasdiqlanmagan"
+        "unverified": "Tasdiqlanmagan",
+        "afterHours": "Hozir ish vaqti emas (Du–Sha 09:00–19:00). Advokat javobi: {when} gacha — taymer ertalab 09:00 dan boshlanadi.",
+        "respondBy": "Advokat 30 daqiqa ichida javob beradi: {when} gacha",
+        "deadlineToday": "bugun",
+        "deadlineTomorrow": "ertaga"
       },
       "documents": {
         "title": "Hujjat namunalari",
