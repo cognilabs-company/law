@@ -3956,3 +3956,16 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .ring b{z-index:1;color:#fff;line-height:1}
 /* locked seller routes render chrome only */
 .portal--gated{display:flex;align-items:center;justify-content:center;min-height:40vh;color:var(--gray)}
+
+/* ── wp-aj ── */
+/* 2FA: the active method as a highlighted card */
+.tfa__method{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;margin:0 0 12px;border:1.5px solid var(--b300);background:linear-gradient(135deg,var(--b50),var(--dk-surface, #fff));flex-wrap:wrap}
+.tfa__method-ic{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:12px;background:var(--grad);color:#fff;box-shadow:0 6px 14px -6px rgba(37,99,235,.55)}
+.tfa__method-ic svg{width:20px;height:20px}
+.tfa__method--tg .tfa__method-ic{background:linear-gradient(135deg,#2AABEE,#229ED9)}
+.tfa__method>div{display:grid;gap:2px;min-width:0;flex:1}
+.tfa__method small{font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--gray2)}
+.tfa__method b{font-size:1rem;font-family:var(--fd)}
+.tfa__method>div>span{font-size:.8rem;color:var(--gray);line-height:1.4}
+.tfa__method>.tfa__on{flex:none}
+@media (max-width:480px){.tfa__method>.tfa__on{order:-1;margin-left:auto}}

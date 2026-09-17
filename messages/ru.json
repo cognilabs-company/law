@@ -1894,7 +1894,10 @@
           "methodSms": "SMS",
           "methodTotp": "Приложение-аутентификатор",
         "methodTelegram": "Код в Telegram",
-        "mandatoryEnable": "Для вашей роли двухфакторная защита обязательна — включите её сейчас: приложение-аутентификатор или код в Telegram."
+        "mandatoryEnable": "Для вашей роли двухфакторная защита обязательна — включите её сейчас: приложение-аутентификатор или код в Telegram.",
+        "currentMethodLabel": "Текущий способ",
+        "methodTotpText": "Код обновляется каждые 30 секунд в приложении Authenticator (Google/Microsoft Authenticator).",
+        "methodTelegramText": "При каждом входе 6-значный код приходит в Telegram-бот LexGo."
       },
       "telegram": {
         "title": "Аккаунт Telegram",

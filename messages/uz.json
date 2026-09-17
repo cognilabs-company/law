@@ -1900,7 +1900,10 @@
           "methodSms": "SMS",
           "methodTotp": "Authenticator ilova",
         "methodTelegram": "Telegram kodi",
-        "mandatoryEnable": "Sizning rolingiz uchun ikki bosqichli himoya majburiy — uni hozir yoqing: Authenticator ilova yoki Telegram kodi."
+        "mandatoryEnable": "Sizning rolingiz uchun ikki bosqichli himoya majburiy — uni hozir yoqing: Authenticator ilova yoki Telegram kodi.",
+        "currentMethodLabel": "Joriy usul",
+        "methodTotpText": "Kod Authenticator ilovasida (Google/Microsoft Authenticator) har 30 soniyada yangilanadi.",
+        "methodTelegramText": "Har kirishda 6 xonali kod LexGo Telegram botiga yuboriladi."
       },
       "telegram": {
         "title": "Telegram hisobi",

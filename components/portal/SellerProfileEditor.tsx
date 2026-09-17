@@ -182,6 +182,17 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
   }
 
   const regionOpts: Option[] = REGION_KEYS.filter((r) => r !== "all").map((r) => ({ value: r, label: te(`regions.${r}`) }));
+  // Backend region may be a key ("tashkent") or plain text ("Toshkent",
+  // "Toshkent shahri"): resolve to a key by label prefix, else keep the text.
+  const regionKeyOf = (v?: string): string => {
+    const s = (v ?? "").trim();
+    if (!s) return "";
+    if ((REGION_KEYS as readonly string[]).includes(s)) return s;
+    const low = s.toLowerCase();
+    const hit = REGION_KEYS.filter((r) => r !== "all").find((r) => { const l = te(`regions.${r}`).toLowerCase(); return l === low || l.startsWith(low) || low.startsWith(l) || low.includes(r); });
+    return hit ?? s;
+  };
+  const regionLabel = (v?: string): string => { const k = regionKeyOf(v); return k && te.has(`regions.${k}`) ? te(`regions.${k}`) : (v ?? ""); };
   const specOpts: Option[] = (["criminalAdmin", "economicCivil", "both"] as const).map((k) => ({ value: k, label: tr(`advocate.specOptions.${k}`) }));
   const structureOpts: Option[] = (["byuro", "firma", "hayat"] as const).map((k) => ({ value: k, label: tr(`advocate.structureOptions.${k}`) }));
   const genderOpts: Option[] = (["female", "male"] as const).map((k) => ({ value: k, label: tp(`gender.${k}`) }));
@@ -256,14 +267,14 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
               <div className="pident__chips">
                 {session?.phone ? <span><IconPhone />{session.phone}</span> : null}
                 {d.email ? <span><IconMail />{d.email}</span> : <span className="miss"><IconMail />{tr("fields.email")}: —</span>}
-                {d.region ? <span><IconMapPin />{[te(`regions.${d.region}`), d.district].filter(Boolean).join(", ")}</span> : <span className="miss"><IconMapPin />{tr("fields.region")}: —</span>}
+                {d.region ? <span><IconMapPin />{[regionLabel(d.region), d.district].filter(Boolean).join(", ")}</span> : <span className="miss"><IconMapPin />{tr("fields.region")}: —</span>}
                 {d.languages.length ? <span><IconLanguage />{d.languages.map(langLabel).join(", ")}</span> : null}
               </div>
             </div>
           </div>
           {kv([
             [tr("fields.lastName"), d.lastName], [tr("fields.firstName"), d.firstName], [tr("fields.middleName"), d.middleName],
-            [tr("fields.region"), d.region ? te(`regions.${d.region}`) : ""], [tp("district"), d.district], [tp("genderLabel"), d.gender ? tp(`gender.${d.gender}`) : ""],
+            [tr("fields.region"), regionLabel(d.region)], [tp("district"), d.district], [tp("genderLabel"), d.gender ? tp(`gender.${d.gender}`) : ""],
           ])}
         </div>,
         <div className="cform" style={{ maxWidth: "none" }}>
@@ -278,7 +289,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
             <div><label>{tr("fields.phone")}</label><input value={session?.phone ?? ""} readOnly className="rf__ro" /></div>
           </div>
           <div className="cform__row3">
-            <div><label>{tr("fields.region")}</label><Select value={d.region ?? ""} onChange={(v) => set({ region: v })} options={regionOpts} ariaLabel={tr("fields.region")} placeholder={tr("fields.regionPh")} /></div>
+            <div><label>{tr("fields.region")}</label><Select value={regionKeyOf(d.region)} onChange={(v) => set({ region: v })} options={regionOpts} ariaLabel={tr("fields.region")} placeholder={tr("fields.regionPh")} /></div>
             <div><label>{tp("district")}</label><input value={d.district ?? ""} onChange={(e) => set({ district: e.target.value })} placeholder={tp("districtPh")} /></div>
             <div><label>{tp("genderLabel")}</label><Select value={d.gender ?? ""} onChange={(v) => set({ gender: v })} options={genderOpts} ariaLabel={tp("genderLabel")} placeholder={tp("genderPh")} /></div>
           </div>

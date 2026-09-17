@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Inter, Onest } from "next/font/google";
-import { NextIntlClientProvider, hasLocale } from "next-intl";
+import { hasLocale } from "next-intl";
+import IntlProvider from "@/components/IntlProvider";
 import {
   getMessages,
   getTranslations,
@@ -78,7 +79,7 @@ export default async function LocaleLayout({ children, params }: Props) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
-        <NextIntlClientProvider locale={locale} messages={messages}>
+        <IntlProvider locale={locale} messages={messages}>
           <ThemeSync />
           <ReferralCapture />
           <AuthProvider>
@@ -92,7 +93,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <AIChatDock />
             <RevealOnScroll />
           </AuthProvider>
-        </NextIntlClientProvider>
+        </IntlProvider>
       </body>
     </html>
   );

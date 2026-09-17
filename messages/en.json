@@ -1894,7 +1894,10 @@
           "methodSms": "SMS",
           "methodTotp": "Authenticator app",
         "methodTelegram": "Telegram code",
-        "mandatoryEnable": "Two-factor protection is mandatory for your role — turn it on now: an authenticator app or a Telegram code."
+        "mandatoryEnable": "Two-factor protection is mandatory for your role — turn it on now: an authenticator app or a Telegram code.",
+        "currentMethodLabel": "Current method",
+        "methodTotpText": "The code refreshes every 30 seconds in your Authenticator app (Google/Microsoft Authenticator).",
+        "methodTelegramText": "A 6-digit code is sent to the LexGo Telegram bot at every sign-in."
       },
       "telegram": {
         "title": "Telegram account",

@@ -8,7 +8,7 @@ import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfter
 import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { Notice } from "@/components/admin/AdminBits";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
-import { IconShield, IconShieldCheck, IconChevronLeft, IconLock } from "@/components/icons";
+import { IconShield, IconShieldCheck, IconChevronLeft, IconLock, IconSend } from "@/components/icons";
 
 // Two-factor management: a code sent by the Telegram bot (method "telegram";
 // "sms" is the legacy name) or an authenticator app (TOTP). Status comes from
@@ -265,16 +265,15 @@ export default function TwoFactorCard() {
         <>
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           {on ? (
-            <p className="advmuted" style={{ margin: "0 0 10px" }}>
-              {t("currentMethod", {
-                method:
-                  session?.twoFactorMethod === "totp"
-                    ? t("methodTotp")
-                    : session?.twoFactorMethod === "sms"
-                      ? t("methodSms")
-                      : t("methodTelegram"),
-              })}
-            </p>
+            <div className={`tfa__method tfa__method--${session?.twoFactorMethod === "totp" ? "totp" : "tg"}`}>
+              <span className="tfa__method-ic">{session?.twoFactorMethod === "totp" ? <IconShield /> : <IconSend />}</span>
+              <div>
+                <small>{t("currentMethodLabel")}</small>
+                <b>{session?.twoFactorMethod === "totp" ? t("methodTotp") : session?.twoFactorMethod === "sms" ? t("methodSms") : t("methodTelegram")}</b>
+                <span>{session?.twoFactorMethod === "totp" ? t("methodTotpText") : t("methodTelegramText")}</span>
+              </div>
+              <em className="tfa__on"><IconShieldCheck />{t("enabledBadge")}</em>
+            </div>
           ) : null}
           {mandatory ? <p className="advmuted" style={{ margin: "0 0 12px" }}>{t(on ? "mandatory" : "mandatoryEnable")}</p> : null}
           {on ? (
