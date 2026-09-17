@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { leadCategoryLabel } from "@/lib/leadLabels";
-import { getCallCenterKanban, moveCallCenterLead, type KanbanColumn } from "@/lib/services/backend";
+import { getCallCenterKanban, moveCallCenterLead, adminUpdateLead, type KanbanColumn } from "@/lib/services/backend";
+import Modal from "@/components/admin/Modal";
+
+const LOST_REASONS = ["price", "solved_self", "competitor", "no_answer", "no_service", "spam"] as const;
+const isLostKey = (k: string) => /lost|rejected|yoqotil|rad/i.test(k);
 import { ApiError } from "@/lib/http";
 import Select from "@/components/Select";
 import { Skeleton } from "@/components/portal/DataState";
@@ -35,6 +39,10 @@ export default function CallCenterBoard() {
     [],
   );
 
+  // Lost reason is asked before the card lands in a "lost" column (T4-02 §7).
+  const [lostAsk, setLostAsk] = useState<{ leadId: string; key: string } | null>(null);
+  const [lostReason, setLostReason] = useState<string>("price");
+  const [lostNote, setLostNote] = useState("");
   useEffect(() => {
     void load();
   }, [load]);
@@ -45,8 +53,9 @@ export default function CallCenterBoard() {
 
   // Optimistic: the card moves at once; the board is refetched in the
   // background (the fetch takes seconds) and a rejected move is reverted.
-  async function move(leadId: string, key: string) {
+  async function move(leadId: string, key: string, lost?: { reason: string; note: string }) {
     if (busyId || !key) return;
+    if (isLostKey(key) && !lost) { setLostAsk({ leadId, key }); return; }
     const before = state.columns;
     const from = before.find((c) => c.cards.some((x) => x.lead.id === leadId));
     const card = from?.cards.find((x) => x.lead.id === leadId);
@@ -62,6 +71,9 @@ export default function CallCenterBoard() {
       }),
     }));
     try {
+      // Details are replaced by the PATCH, so the existing ones are merged in. Best effort: a
+      // call-center account without leads.manage still moves the card.
+      if (lost) await adminUpdateLead(leadId, { details: { ...(card.lead.details ?? {}), lost_reason: lost.reason, lost_note: lost.note, lost_at: new Date().toISOString() } }).catch(() => {});
       await moveCallCenterLead(leadId, key, 0);
       void load();
     } catch (e) {
@@ -74,6 +86,20 @@ export default function CallCenterBoard() {
 
   return (
     <div className="ppanel">
+      <Modal open={!!lostAsk} onClose={() => setLostAsk(null)} title={tp("lost.title")}>
+        <div className="cform" style={{ maxWidth: "none" }}>
+          <p className="advmuted">{tp("lost.lead")}</p>
+          <div>
+            <label>{tp("lost.reason")}</label>
+            <Select value={lostReason} onChange={setLostReason} options={LOST_REASONS.map((r) => ({ value: r, label: tp(`lost.reasons.${r}`) }))} ariaLabel={tp("lost.reason")} />
+          </div>
+          <div>
+            <label>{tp("lost.note")}</label>
+            <textarea rows={2} value={lostNote} onChange={(e) => setLostNote(e.target.value)} />
+          </div>
+          <button className="btn btn--pri btn--full" type="button" onClick={() => { const a = lostAsk; setLostAsk(null); if (a) void move(a.leadId, a.key, { reason: lostReason, note: lostNote.trim() }); setLostNote(""); }}>{tp("lost.confirm")}</button>
+        </div>
+      </Modal>
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <button type="button" className="btn btn--line btn--sm" onClick={() => void load()} aria-label={tq("refresh")}>

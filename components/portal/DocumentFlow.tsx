@@ -28,6 +28,7 @@ import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
+import { Link } from "@/i18n/navigation";
 import { IconDocLines, IconDownload, IconExternal, IconCheck, IconClock } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
@@ -429,6 +430,14 @@ export default function DocumentFlow() {
                   ) : null}
                 </div>
                 <small className="advmuted">{t("keptInCabinet")}</small>
+                <div className="docoffer">
+                  <b>{t("offerTitle")}</b>
+                  <span>{t("offerLead")}</span>
+                  <div className="docoffer__btns">
+                    <Link href={`/portal/client/doc-analysis?request=${encodeURIComponent(req.id)}`} className="btn btn--pri btn--sm">{t("offerReview", { price: fmtUzs(149000) })}</Link>
+                    <Link href="/portal/client/services?q=shablon" className="btn btn--line btn--sm">{t("offerHelp", { price: fmtUzs(399000) })}</Link>
+                  </div>
+                </div>
                 {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
                 {/* T1-13: the generated document is a contract to sign with a Telegram code. */}
                 {req.contractId ? <ContractSign contractId={req.contractId} /> : null}

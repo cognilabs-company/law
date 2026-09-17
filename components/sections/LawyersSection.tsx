@@ -221,8 +221,8 @@ export default function LawyersSection({
         </div>
         <div className="advcard__b">
           <div className="rating">
-            <b>{l.rate.toFixed(1)}</b>
-            <span>{t("card.reviews", { count: l.rev, years: l.exp })}</span>
+            <b>{l.rev < 5 ? t("card.new") : l.rate.toFixed(1)}</b>
+            <span>{l.rev < 5 ? t("card.newHint") : t("card.reviews", { count: l.rev, years: l.exp })}</span>
           </div>
           <div className="wins">
             <div className="win">

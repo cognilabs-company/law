@@ -695,7 +695,8 @@
       "verified": "Tasdiqlangan",
       "choose": "Tanlash",
       "opening": "Ochilmoqda…",
-      "new": "Yangi"
+      "new": "Yangi",
+      "newHint": "5 tadan kam baho — reyting to'planmoqda"
     },
     "empty": "Bu yo'nalishda hozircha advokat yo'q. Arizangizni qoldiring — mos advokatni biz topamiz.",
     "priceInfo": "Narx ochiq mezonlar bo'yicha shakllanadi: hudud (yirik shaharlarda qimmatroq), staj (3–5 yil +10%, 6–10 yil +15%, 10+ yil +20%), reyting va super advokat maqomi (viloyat TOP-3 — 30% gacha, tor yo'nalishda 10+ yil tajriba — 20% gacha). Narx oshgan bo'lsa, sababi buyurtma oynasida yozib ko'rsatiladi.",
@@ -2076,7 +2077,8 @@
         "promotion": "Targ'ibot",
         "subscription": "Obuna",
         "notifications": "Bildirishnomalar",
-        "workspace": "Ish maydoni"
+        "workspace": "Ish maydoni",
+        "profile": "Profil"
       },
       "client": {
         "dashboard": "Boshqaruv paneli",
@@ -2195,7 +2197,14 @@
         "saved": "Xizmatlar saqlandi",
         "error": "Xatolik. Qayta urining.",
         "priceOutOfRange": "Narx ruxsat etilgan oraliqda bo'lishi kerak: {min} – {max} so'm.",
-        "invalidField": "Ma'lumot noto'g'ri: {detail}"
+        "invalidField": "Ma'lumot noto'g'ri: {detail}",
+        "pricesTitle": "Narxlar",
+        "pricesBand": "tavsiyaning 70–100 % oralig'ida",
+        "recommended": "Ruxsat etilgan: {min} – {max} so'm",
+        "noRecommended": "Katalogda bazaviy narx yo'q — narx tekshiruvsiz saqlanadi",
+        "policyAgree": "Shartlar va narx siyosatiga roziman",
+        "policyHint": "Narx o'zgarishi faqat yangi buyurtmalarga ta'sir qiladi; komissiya narx ichida.",
+        "policyRequired": "Saqlash uchun shartlar va narx siyosatiga rozilik bering."
       },
       "documents": {
         "title": "Hujjatlar",
@@ -2974,7 +2983,11 @@
           "pinfl": "JShShIR",
           "inn": "STIR",
           "passport": "Pasport"
-        }
+        },
+        "offerTitle": "Hujjat tayyor — keyingi qadam?",
+        "offerLead": "Navbatchi yurist hujjatni tekshiradi yoki to'ldirishda yordam beradi (ish vaqtida 60 daqiqa ichida).",
+        "offerReview": "Advokat tekshirsinmi — {price} so'm",
+        "offerHelp": "To'ldirishda yordam — {price} so'm"
       },
       "packages": {
         "title": "Xizmat paketlari",
@@ -3106,7 +3119,41 @@
       "emptyInfo": "Hali to'ldirilmagan — o'zgartirish uchun bosing.",
       "servicesTitle": "Mening xizmatlarim",
         "servicesEmpty": "Hozircha xizmatlar yo‘q",
-        "servicesEmptyText": "Xizmatlarni ro‘yxatdan o‘tishda yoki profil sozlamalarida qo‘shing."
+        "servicesEmptyText": "Xizmatlarni ro‘yxatdan o‘tishda yoki profil sozlamalarida qo‘shing.",
+        "form": {
+          "personal": "Shaxsiy ma'lumotlar",
+          "professional": "Kasbiy ma'lumotlar",
+          "pricing": "Narx",
+          "hours": "Ish vaqtim va ta'til",
+          "missing": "To'ldirilmagan",
+          "f": {
+            "photo": "rasm",
+            "email": "email",
+            "region": "viloyat",
+            "languages": "tillar",
+            "price": "Soatlik narx (so'm)"
+          },
+          "district": "Tuman / shahar",
+          "districtPh": "masalan, Yunusobod",
+          "genderLabel": "Jins",
+          "genderPh": "Tanlang",
+          "gender": {
+            "female": "Ayol",
+            "male": "Erkak"
+          },
+          "som": "so'm",
+          "recommended": "{min} – {max} so'm / soat (tavsiyaning 70–100 %)",
+          "recommendedNone": "Tavsiya oraliq hisoblanmadi.",
+          "priceHint": "Faqat raqam. Tavsiya oralig'idan tashqari qiymat saqlanmaydi (T1-08).",
+          "priceRange": "Ruxsat etilgan oraliq: {min} – {max} so'm.",
+          "statsCollecting": "Statistika to'planmoqda — foiz 5 ta tasdiqlangan ishdan keyin ko'rsatiladi (hozir {n}).",
+          "vacation": "Ta'til rejimi",
+          "vacationOn": "Ta'tildaman",
+          "vacationOff": "Ishlayapman",
+          "vacationNote": "Ta'til rejimi yoqilgan — yangi buyurtmalar sizga yuborilmaydi, ko'rsatkichlarga ta'sir qilmaydi.",
+          "vacationHint": "Ta'tilda yangi buyurtma kelmaydi va javob ko'rsatkichlari hisoblanmaydi.",
+          "now": "hozir"
+        }
       }
     },
     "org": {
@@ -3388,6 +3435,88 @@
       "commission": "komissiya {pct}%",
       "commissionNow": "hozir {pct}%",
       "maxTier": "eng past komissiya"
+    },
+    "accountAudit": {
+      "sessions": "Faol sessiyalar",
+      "noSessions": "Faol sessiyalar yo'q.",
+      "device": "Qurilma",
+      "thisDevice": "shu qurilma",
+      "revoke": "Chiqarish",
+      "security": "Xavfsizlik hodisalari",
+      "securityLead": "Yangi qurilma yoki IP'dan kirish, kod urinishlari — shu yerda ko'rinadi.",
+      "noSecurity": "Shubhali hodisalar yo'q.",
+      "types": {
+        "suspicious_login": "Shubhali kirish (IP o'zgardi)",
+        "login": "Kirish",
+        "logout": "Chiqish",
+        "password_changed": "Parol o'zgartirildi",
+        "two_factor_enabled": "2FA yoqildi",
+        "two_factor_disabled": "2FA o'chirildi"
+      },
+      "activity": "Harakatlar jurnali",
+      "rows": "{n} yozuv",
+      "filter": "Turi",
+      "searchPh": "Qidirish…",
+      "groups": {
+        "all": "Barchasi",
+        "auth": "Kirish va xavfsizlik",
+        "orders": "Buyurtma va to'lov",
+        "documents": "Hujjatlar",
+        "profile": "Profil va sozlamalar",
+        "other": "Boshqa"
+      },
+      "noActivity": "Hali harakatlar yo'q",
+      "noActivityText": "Kirish, buyurtma, hujjat va profil o'zgarishlari shu yerda yoziladi."
+    },
+    "clientsTools": {
+      "lead": "LexGo buyurtmalari va o'zingiz kiritgan mijozlar bir bazada — yangi buyurtmada manfaatlar to'qnashuvi shu baza bo'yicha tekshiriladi.",
+      "addCta": "Yangi mijoz",
+      "checkCta": "Conflict tekshiruvi",
+      "manual": "qo'lda kiritilgan",
+      "addTitle": "LexGo'dan tashqari mijoz",
+      "addLead": "Ism majburiy. Telefon, JShShIR va qarshi tomon ma'lumotlari keyingi conflict tekshiruvlarida ishlatiladi.",
+      "name": "F.I.Sh.",
+      "phone": "Telefon",
+      "pinfl": "JShShIR",
+      "company": "Kompaniya",
+      "opponents": "Qarshi tomon(lar)",
+      "representatives": "Vakillar",
+      "listPh": "Vergul bilan ajrating",
+      "notes": "Izoh",
+      "save": "Saqlash",
+      "saving": "Saqlanmoqda…",
+      "saved": "Mijoz qo'shildi.",
+      "saveError": "Saqlab bo'lmadi.",
+      "checkTitle": "Manfaatlar to'qnashuvi tekshiruvi",
+      "checkLead": "Yangi buyurtma oldidan mijoz yoki qarshi tomon ma'lumotini kiriting — boshqa ishlaringiz bilan solishtiriladi.",
+      "opponent": "Qarshi tomon",
+      "checking": "Tekshirilmoqda…",
+      "checkError": "Tekshirib bo'lmadi.",
+      "clear": "To'qnashuv topilmadi.",
+      "potential": "Manfaatlar to'qnashuvi ehtimoli — qabul qilishdan oldin tekshiring:",
+      "reasons": {
+        "counterparty_text_match": "qarshi tomon boshqa ishda uchraydi",
+        "representative_text_match": "vakil boshqa ishda uchraydi",
+        "phone_match": "telefon mijozlar bazasida",
+        "pinfl_match": "JShShIR mijozlar bazasida",
+        "opponent_match": "qarshi tomon mijozlar bazasida"
+      }
+    },
+    "caseAi": {
+      "title": "AI vositalari",
+      "lead": "Faqat shu ishning materiallari asosida; shaxsiy ma'lumotlar tashqi AI'ga yuborilishidan oldin niqoblanadi.",
+      "tools": {
+        "summary": "Ish xulosasi",
+        "chronology": "Xronologiya",
+        "missing_docs": "Yetishmayotgan hujjatlar",
+        "questions": "Mijozga savollar",
+        "compare_versions": "Versiyalarni solishtirish"
+      },
+      "running": "Tayyorlanmoqda…",
+      "editHint": "Matnni tahrirlab, tasdiqlang — tasdiqlangan variant saqlanadi.",
+      "approve": "Tasdiqlash",
+      "saved": "Xulosa saqlandi.",
+      "error": "AI natijasini olib bo'lmadi."
     }
   },
   "notFound": {
@@ -4034,7 +4163,64 @@
       "search": "Qidirish",
       "searchPh": "Nomi, kategoriya yoki slug…",
       "editTitle": "Shablonni tahrirlash",
-      "noResults": "Hech narsa topilmadi"
+      "noResults": "Hech narsa topilmadi",
+      "import": {
+        "cta": "DOCX / ZIP import",
+        "title": "Shablon konstruktori — import",
+        "lead": "DOCX ichidagi {{maydon}} belgilarini tizim o'zi topadi; shablon qoralama (nofaol) holatda yaratiladi — tekshirib, keyin faollashtirasiz.",
+        "modeDocx": "Bitta DOCX",
+        "modeZip": "ZIP (ko'p shablon)",
+        "docxFile": "DOCX fayl",
+        "docxHint": "20 MB gacha. Maydonlar: {{fio}}, {{sana}}, {{#if avans}}…{{/if}}",
+        "zipFile": "ZIP fayl",
+        "zipHint": "Ichida DOCX fayllar (200 tagacha). Slug fayl nomidan olinadi.",
+        "titleLabel": "Sarlavha",
+        "slug": "Slug",
+        "category": "Bo'lim",
+        "language": "Til",
+        "visibility": "Kimga ko'rinadi",
+        "price": "Narx (so'm, 0 = bepul)",
+        "cats": {
+          "contract": "Shartnoma",
+          "claim": "Da'vo / shikoyat",
+          "application": "Ariza",
+          "power_of_attorney": "Ishonchnoma",
+          "corporate": "Korporativ",
+          "other": "Boshqa"
+        },
+        "langs": {
+          "uz-latn": "O'zbek (lotin)",
+          "uz-cyrl": "O'zbek (kirill)",
+          "ru": "Rus"
+        },
+        "vis": {
+          "staff": "Faqat xodimlar",
+          "clients": "Mijozlar",
+          "public": "Hamma"
+        },
+        "types": {
+          "text": "matn",
+          "date": "sana",
+          "money": "pul",
+          "number": "son",
+          "phone": "telefon",
+          "pinfl": "JShShIR",
+          "checkbox": "belgi",
+          "multiline": "ko'p qatorli"
+        },
+        "fieldsFound": "{n} ta maydon topildi",
+        "noFields": "{{…}} belgilar topilmadi — faylni tekshiring.",
+        "draftNote": "Shablon qoralama holatda; ro'yxatda «Tahrirlash» orqali turlarni tekshirib, faollashtiring.",
+        "upload": "Yuklash",
+        "uploading": "Yuklanmoqda…",
+        "docxDone": "Shablon yaratildi: {n} ta maydon.",
+        "zipDone": "{n} ta shablon import qilindi (qoralama).",
+        "slugTaken": "Bu slug band — boshqasini yozing.",
+        "onlyDocx": "Faqat DOCX qabul qilinadi.",
+        "tooBig": "Fayl 20 MB dan katta.",
+        "forbidden": "Ruxsat yo'q (templates.manage kerak).",
+        "error": "Import bo'lmadi."
+      }
     },
     "roles": {
       "listTitle": "Rollar",
@@ -4208,6 +4394,21 @@
         "login": "Tizimga kirish",
         "registration": "Ro'yxatdan o'tish",
         "kanban": "Kanban"
+      },
+      "lost": {
+        "title": "Lidni yo'qotilgan deb yopish",
+        "lead": "Sabab majburiy — statistika narx yoki katalogdagi muammoni ko'rsatadi.",
+        "reason": "Sabab",
+        "note": "Izoh (ixtiyoriy)",
+        "confirm": "Yopish",
+        "reasons": {
+          "price": "Narx",
+          "solved_self": "O'zi hal qildi",
+          "competitor": "Boshqa joydan oldi",
+          "no_answer": "Javob bermadi",
+          "no_service": "Bunday xizmat yo'q",
+          "spam": "Spam / dublikat"
+        }
       }
     },
     "callAnalytics": {

@@ -51,6 +51,8 @@ export type ProfessionalProfile = {
   photo?: string; // data URL (mock upload)
   selfie?: string; // T1A-02 selfie verification shot (data URL)
   region?: string; // enums.regions
+  district?: string; // free text (backend column)
+  gender?: string; // female | male (T1-09 filter; browser-kept until the API has it)
   languages: string[]; // language keys
   education?: string;
   experienceYears?: number;

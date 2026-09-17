@@ -260,3 +260,23 @@ Kecha (16.09) qilinganlar: T1-14 wizard, T0-20 muddat, T1-02 «oxirgi bepul savo
 - 0- va 1A-bosqichlar (46 vazifa, 315 talab) — birinchi navbat; ularda eng ko'p bloklovchi kamchiliklar **backend'da** (2FA, OTP test-chat, seed/katalog, AI manba, limitlar, milestone qoidalari, audit tafsilotlari).
 - Frontend tomonidan bugungi 3 batch bilan T0-18, T1-10, T1A-02, T1B-01, T1B-04, T2-06, T2-08, T2-10, T3-10, T5-05 ning UI qismi tayyor; **6-bo'limdagi 15 ta ish** hali frontend'da qilinadi.
 - Production ro'yxati (5-bo'lim, 12 shart) — hozircha hech biri to'liq emas; eng oddiylari: `/docs` yopish, OTP test-chat o'chirish, marketing raqamlarini real qilish.
+
+---
+
+## 9. 17.09 (kechki) — qo'shimcha frontend ishlar
+
+| Task | Talab | Qayerda ko'rish |
+|---|---|---|
+| T1-11 §6,8,9 · T2-03 §1 · T1A-02 §9 | Ijrochi profili to'liq tahrirlanadi | Advokat / Yurist → **Profil**: Shaxsiy (rasm, F.I.Sh., email, viloyat, tuman, jins, tillar), Kasbiy (litsenziya + skan, ixtisoslik, tuzilma, staj, ma'lumot, bio), Yo'nalish va statistika («Statistika to'planmoqda» <5 ish), Narx (tavsiya 70–100 %), **Ish vaqtim va ta'til**, Ish tajribasi, xizmatlar, 2FA/Telegram/xabarnoma, «To'ldirilmagan: …» ro'yxati. Yurist uchun yangi *Profil* menyusi |
+| T0-11 §5 · T3-10 §3 (foydalanuvchi tomoni) | Profil audit jurnali | Mijoz / Advokat / Yurist → Profil → **Faol sessiyalar** (chiqarish), **Xavfsizlik hodisalari** (IP o'zgarishi), **Harakatlar jurnali** (tur filtri + qidiruv) |
+| T1B-05 §1,3 | Conflict check + mijozlar bazasi | Advokat/Yurist → Mijozlar → **Yangi mijoz** (telefon, JShShIR, qarshi tomon, vakillar), **Conflict tekshiruvi** (qizil ogohlantirish + qaysi ish bilan mosligi) |
+| T1B-06 §1,2,5 | AI vositalari | Advokat/Yurist → Ishlarim → ish → **AI vositalari**: xulosa / xronologiya / yetishmayotgan hujjatlar / savollar / versiyalarni solishtirish → tahrir → tasdiqlash |
+| T1B-09 §1,3,4,6 | Shablon konstruktori | Admin → Shablonlar → **DOCX / ZIP import**: fayl → maydonlar ro'yxati (tur bilan) → preview → qoralama |
+| T2-02 §1,2,3 | Xizmat narxlari | Yurist → Xizmatlarim: har xizmatga narx (70–100 % oralig'i, 422 tekshiruvi), «Shartlar va narx siyosatiga roziman» majburiy |
+| T2-04 §4 | «Yangi» advokat | Advokatlar ro'yxati: 5 tadan kam baho → raqam o'rniga «Yangi» |
+| T4-02 §7 | Yo'qotilgan lid sababi | Admin → Lidlar doskasi / Call-markaz doskasi: «Yo'qotilgan» ustuniga o'tkazishda 6 sababdan biri majburiy (lid details'ga yoziladi) |
+| T1-14 §11 | Yuklab olishdan keyingi taklif | Mijoz → Hujjat namunalari → tayyor hujjat: «Advokat tekshirsinmi — 149 000» va «To'ldirishda yordam — 399 000» |
+
+Jonli tekshirildi (tasdiqlanmagan Advokat bilan): profil tahriri saqlanadi (`PUT /lawyers/me`), sessiyalar/xavfsizlik/harakatlar jurnali to'ladi, conflict tekshiruvi ishlaydi.
+
+Backend'ga qo'shimcha (0E ga): `GET /lawyers/me/services` tanlangan narxlarni qaytarmaydi (#61); `PUT /lawyers/me` da `gender`, `work_days/from/to`, `avatar_url` yo'q (#56 kengaytirildi); `/call-center/leads/{id}` PATCH yo'q — operator lost_reason'ni `admin` PATCH orqali yozadi (leads.manage kerak) (#62).

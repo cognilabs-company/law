@@ -456,7 +456,7 @@ export async function upsertMyLawyer(
     body: JSON.stringify({
       seller_type: sellerType,
       region: p.region ?? "",
-      district: "",
+      district: p.district ?? "",
       license_number: p.licenseNumber ?? "",
       bar_association: p.barAssociation ?? "",
       advocate_structure: p.advocateStructure ?? "",
@@ -491,6 +491,7 @@ export async function getMyLawyer(): Promise<ProfessionalProfile> {
     practiceAreas: asArr(d.specializations).map((v) => asStr(v)),
     workHistory: [],
     region: asStr(d.region),
+    district: asStr(d.district),
     bio: asStr(d.bio),
     education: asStr(d.education),
     licenseNumber: asStr(d.license_number),
@@ -1474,6 +1475,7 @@ export type Lead = {
   status: string;
   score: number;
   createdAt: string;
+  details: Record<string, unknown>; // raw details (PATCH replaces them, so callers merge)
 };
 function normLead(v: unknown): Lead {
   const d = asDict(v);
@@ -1490,6 +1492,7 @@ function normLead(v: unknown): Lead {
     status: asStr(d.status),
     score: asNum(d.score),
     createdAt: asStr(d.created_at ?? d.createdAt),
+    details: det as Record<string, unknown>,
   };
 }
 // Contact info is carried in `details` (the schema has no top-level name/phone).
@@ -2051,6 +2054,36 @@ export async function getSellerCabinet(): Promise<SellerCabinet> {
 export type OnboardingStep = { key: string; title: string; required: boolean; completed: boolean };
 export type OnboardingProgress = { status: string; completedCount: number; totalCount: number; steps: OnboardingStep[] };
 // PDF/JPG/PNG up to 15 MB (POST /seller-onboarding/documents, multipart).
+// T1B-09 template constructor: DOCX → fields; ZIP → many templates (draft, inactive); preview.
+export type TemplateField = { key: string; label: string; type: string; required: boolean };
+export async function importTemplateDocx(input: { file: File; slug: string; title: string; category: string; language: string; visibility: string; price: number }): Promise<BackendTemplate> {
+  const form = new FormData();
+  form.append("file", input.file);
+  form.append("slug", input.slug);
+  form.append("title", input.title);
+  form.append("category", input.category);
+  form.append("language", input.language);
+  form.append("visibility", input.visibility);
+  form.append("price", String(input.price || 0));
+  return normTemplate(await http("/admin/document-templates/import-docx", { method: "POST", body: form }));
+}
+export async function importTemplatesZip(input: { file: File; category: string; language: string; visibility: string }): Promise<{ created: number; titles: string[] }> {
+  const form = new FormData();
+  form.append("file", input.file);
+  form.append("category", input.category);
+  form.append("language", input.language);
+  form.append("visibility", input.visibility);
+  const d = asDict(await http("/admin/document-templates/import-zip", { method: "POST", body: form }));
+  const created = asArr(d.created ?? d.items ?? d.templates);
+  return { created: asNum(d.count) || created.length, titles: created.map((x) => asStr(asDict(x).title ?? asDict(x).slug ?? x)) };
+}
+export async function previewTemplate(input: { templateId?: string; templateText?: string; answers?: Record<string, string> }): Promise<{ fields: TemplateField[]; previewText: string }> {
+  const d = asDict(await http("/admin/document-templates/preview", { method: "POST", body: JSON.stringify({ template_id: input.templateId, template_text: input.templateText, answers: input.answers }) }));
+  return {
+    fields: asArr(d.fields).map((f) => { const r = asDict(f); return { key: asStr(r.key ?? r.name), label: asStr(r.label ?? r.key), type: asStr(r.type, "text"), required: r.required !== false }; }),
+    previewText: asStr(d.preview_text ?? d.preview),
+  };
+}
 export async function uploadOnboardingDocument(file: File, documentType = "qualification"): Promise<void> {
   const form = new FormData();
   form.append("file", file);
@@ -2086,6 +2119,27 @@ export type LawyerClient = {
   hasConflict: boolean;
   lastActiveAt?: string;
 };
+// T1B-05: a client outside LexGo, kept in the seller's own base (used by the
+// conflict check together with real orders/cases).
+export type LawyerClientInput = { name: string; phone?: string; pinfl?: string; company?: string; opponents?: string[]; representatives?: string[]; notes?: string };
+export async function createLawyerClient(input: LawyerClientInput): Promise<void> {
+  await http("/lawyers/me/clients", { method: "POST", body: JSON.stringify(input) });
+}
+export type ConflictMatch = { caseId?: string; caseNumber?: string; clientRecordId?: string; title: string; reason: string };
+export type ConflictResult = { status: "clear" | "potential_conflict"; matches: ConflictMatch[] };
+export async function checkConflict(input: { phone?: string; pinfl?: string; opponent?: string; representatives?: string[]; clientUserId?: string }): Promise<ConflictResult> {
+  const d = asDict(await http("/conflicts/check", { method: "POST", body: JSON.stringify({ phone: input.phone || undefined, pinfl: input.pinfl || undefined, opponent: input.opponent || undefined, representatives: input.representatives ?? [], client_user_id: input.clientUserId || undefined }) }));
+  return {
+    status: asStr(d.status) === "potential_conflict" ? "potential_conflict" : "clear",
+    matches: asArr(d.matches).map((m) => { const r = asDict(m); return { caseId: asStr(r.case_id) || undefined, caseNumber: asStr(r.case_number) || undefined, clientRecordId: asStr(r.client_record_id) || undefined, title: asStr(r.title), reason: asStr(r.reason) }; }),
+  };
+}
+// T1B-06: AI tools over one case's own materials (PII masked on the backend).
+export type CaseAiTool = "summary" | "chronology" | "missing_docs" | "questions" | "compare_versions";
+export async function runCaseAiTool(caseId: string, tool: CaseAiTool, fileVersionIds: string[] = []): Promise<{ id: string; result: string }> {
+  const d = asDict(await http(`/ai/cases/${encodeURIComponent(caseId)}/tools`, { method: "POST", body: JSON.stringify({ tool, file_version_ids: fileVersionIds }) }));
+  return { id: asStr(d.id), result: asStr(d.result) };
+}
 export async function getLawyerClients(): Promise<LawyerClient[]> {
   return listFrom(await http("/lawyers/me/clients"), "items", "data").map((v) => {
     const d = asDict(v);

@@ -2,7 +2,10 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
-import { getLeadKanban, moveLeadKanban, adminCreateLead, adminDeleteLead, saveLeadKanbanColumns, deleteLeadKanbanColumn, type KanbanColumn, type Lead } from "@/lib/services/backend";
+import { getLeadKanban, moveLeadKanban, adminCreateLead, adminDeleteLead, adminUpdateLead, saveLeadKanbanColumns, deleteLeadKanbanColumn, type KanbanColumn, type Lead } from "@/lib/services/backend";
+
+const LOST_REASONS = ["price", "solved_self", "competitor", "no_answer", "no_service", "spam"] as const;
+const isLostKey = (k: string) => /lost|rejected|yoqotil|rad/i.test(k);
 import { ApiError } from "@/lib/http";
 import { kanbanColumnTitle, leadCategoryLabel, leadSourceLabel } from "@/lib/leadLabels";
 import { useResource } from "@/lib/useResource";
@@ -27,6 +30,10 @@ export default function AdminPipeline() {
   const cols = res.data;
   const refresh = res.refresh;
   const [moveErr, setMoveErr] = useState(false);
+  // Lost reason is asked before the card lands in a "lost" column (T4-02 §7).
+  const [lostAsk, setLostAsk] = useState<{ leadId: string; columnKey: string; position: number } | null>(null);
+  const [lostReason, setLostReason] = useState<string>("price");
+  const [lostNote, setLostNote] = useState("");
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [busy, setBusy] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -83,8 +90,9 @@ export default function AdminPipeline() {
 
   // Optimistic: the card jumps at once, the server call follows, then the
   // board is refetched silently. A rejected move puts the card back.
-  async function moveTo(leadId: string, columnKey: string, position: number) {
+  async function moveTo(leadId: string, columnKey: string, position: number, lost?: { reason: string; note: string }) {
     if (busy) return;
+    if (isLostKey(columnKey) && !lost) { setLostAsk({ leadId, columnKey, position }); return; }
     const before = cols;
     const from = cols.find((c) => c.cards.some((x) => x.lead.id === leadId));
     const card = from?.cards.find((x) => x.lead.id === leadId);
@@ -104,6 +112,7 @@ export default function AdminPipeline() {
       }),
     );
     try {
+      if (lost) await adminUpdateLead(leadId, { details: { ...(card.lead.details ?? {}), lost_reason: lost.reason, lost_note: lost.note, lost_at: new Date().toISOString() } }).catch(() => {});
       await moveLeadKanban(leadId, columnKey, position);
       void refresh();
     } catch {
@@ -343,6 +352,21 @@ export default function AdminPipeline() {
       </Modal>
 
       {/* Add / rename a status (kanban column) */}
+      <Modal open={!!lostAsk} onClose={() => setLostAsk(null)} title={t("lost.title")}>
+        <div className="cform" style={{ maxWidth: "none" }}>
+          <p className="advmuted">{t("lost.lead")}</p>
+          <div>
+            <label>{t("lost.reason")}</label>
+            <Select value={lostReason} onChange={setLostReason} options={LOST_REASONS.map((r) => ({ value: r, label: t(`lost.reasons.${r}`) }))} ariaLabel={t("lost.reason")} />
+          </div>
+          <div>
+            <label>{t("lost.note")}</label>
+            <textarea rows={2} value={lostNote} onChange={(e) => setLostNote(e.target.value)} />
+          </div>
+          <button className="btn btn--pri btn--full" type="button" onClick={() => { const a = lostAsk; setLostAsk(null); if (a) void moveTo(a.leadId, a.columnKey, a.position, { reason: lostReason, note: lostNote.trim() }); setLostNote(""); }}>{t("lost.confirm")}</button>
+        </div>
+      </Modal>
+
       <Modal open={statusModal !== null} onClose={() => setStatusModal(null)} title={statusModal?.mode === "rename" ? t("renameStatus") : t("addStatus")}>
         <div className="cform" style={{ maxWidth: "none" }}>
           <div>

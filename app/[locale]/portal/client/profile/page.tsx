@@ -10,7 +10,6 @@ import {
   addFamilyMember,
   deleteFamilyMember,
   setFamilyMemberAccess,
-  listMyActivity,
   listPaymentMethods,
   addPaymentMethod,
   deletePaymentMethod,
@@ -20,21 +19,16 @@ import {
 } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import { useResource, useResourceOne } from "@/lib/useResource";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import { Skeleton } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
-import { IconEdit, IconPlus, IconClose, IconCard, IconCheck, IconClock } from "@/components/icons";
+import { IconEdit, IconPlus, IconClose, IconCard, IconCheck } from "@/components/icons";
 import IdentityVerify from "@/components/portal/IdentityVerify";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
-
-function fmtDateTime(s: string) {
-  if (!s) return "";
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleString("ru-RU");
-}
+import AccountAudit from "@/components/portal/AccountAudit";
 
 export default function ClientProfile() {
   const t = useTranslations("portal.client.profile");
@@ -44,7 +38,6 @@ export default function ClientProfile() {
   const prof = useResourceOne(getClientProfile, [key]);
   const family = useResource(() => listFamilyMembers(), [key]);
   const methods = useResource(() => listPaymentMethods(), [key]);
-  const activity = useResource(() => listMyActivity(), [key]);
   const sessions = useResource(() => listSessions(), [key]);
   const [famErr, setFamErr] = useState<string | null>(null);
   async function revoke(id: string) {
@@ -247,28 +240,7 @@ export default function ClientProfile() {
         </div>
       </div>
 
-      <div className="ppanel">
-        <div className="ppanel__h">
-          <b>{t("activity")}</b>
-        </div>
-        {activity.status === "loading" ? (
-          <Skeleton rows={3} />
-        ) : !activity.data.length ? (
-          <EmptyState icon={<IconClock />} title={t("noActivity")} text={t("noActivityText")} />
-        ) : (
-          <div className="alist">
-            {activity.data.map((a) => (
-              <div className="creq" key={a.id}>
-                <span className="creq__st" />
-                <div className="creq__m">
-                  <b>{t.has(`log.${a.action}`) ? t(`log.${a.action}`) : a.action || "—"}</b>
-                  <span>{[a.detail, a.ip, fmtDateTime(a.createdAt)].filter(Boolean).join(" · ")}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <AccountAudit withSessions={false} />
 
       <EditModal
         open={editOpen}

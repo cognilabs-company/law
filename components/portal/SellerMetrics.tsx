@@ -11,6 +11,7 @@ import { IconTrendingUp, IconClock, IconStar, IconEye, IconSun } from "@/compone
 // backend stores availability (reported); while on, the seller sees a banner.
 const VAC_KEY = (uid: string) => `lexgo_vacation_${uid}`;
 export function readVacation(uid: string): boolean { try { return localStorage.getItem(VAC_KEY(uid)) === "1"; } catch { return false; } }
+export function writeVacation(uid: string, on: boolean) { try { localStorage.setItem(VAC_KEY(uid), on ? "1" : "0"); } catch { /* ignore */ } }
 
 export default function SellerMetrics({ stats, userId }: { stats: SellerStats; userId: string }) {
   const t = useTranslations("portal.sellerDash.metrics");

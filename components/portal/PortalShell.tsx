@@ -52,7 +52,7 @@ type NavItem = { href: string; key: string; Icon: SvgC };
 // (the backend also returns 403 on those endpoints until approval).
 const PENDING_ALLOWED: Record<Role, Set<string>> = {
   client: new Set(),
-  lawyer: new Set(["dashboard", "services", "subscription", "notifications"]),
+  lawyer: new Set(["dashboard", "profile", "services", "subscription", "notifications"]),
   advocate: new Set(["dashboard", "profile", "subscription", "notifications"]),
 };
 
@@ -84,6 +84,7 @@ const LAWYER_NAV: NavItem[] = [
   { href: "/portal/lawyer/notifications", key: "notifications", Icon: IconBell },
   { href: "/portal/lawyer/ai", key: "ai", Icon: IconSparkle },
   { href: "/portal/lawyer/assistant", key: "assistant", Icon: IconClipboardCheck },
+  { href: "/portal/lawyer/profile", key: "profile", Icon: IconUser },
   { href: "/portal/lawyer/promotion", key: "promotion", Icon: IconBolt },
   { href: "/portal/lawyer/subscription", key: "subscription", Icon: IconStar },
 ];
@@ -186,7 +187,6 @@ export default function PortalShell({
     .find((n) => pathname === n.href || pathname.startsWith(n.href + "/"));
   const title = active ? t(`sidebar.${role}.${active.key}`) : t("metaTitle");
   // The name in the header is where people click to reach their own profile.
-  // Lawyers have no profile route yet, so they land on their dashboard.
   const profileHref = nav.find((n) => n.key === "profile")?.href ?? `/portal/${role}`;
 
   return (

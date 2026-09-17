@@ -317,6 +317,8 @@ Frontend bugun UI ni qurdi; quyidagilar backend tomonidan bo'lmasa GM talabi yop
 | 58 | T7-03 §5 | lawyers/ads API'da `is_promoted` / slot turi — «Reklama» belgisi uchun | Yo'q |
 | 59 | T1A-07 | Chat xabarida telefon/@username/«telegramda yozing» maskalash (to'lovgacha) + urinishlar hisoboti | Yo'q |
 | 60 | T0-07 / GM 1.6 | Test-akkaunt to'plami: mijoz ×3 (+TG bog'langan, yuridik shaxs, Lite/Pro/Standart/Premium), advokat ×3 (tuzilmali/tuzilmasiz/tasdiqlanmagan), yurist, super_admin ×2, executive, ceo_viewer, moderator, finance, quality_control, content_manager, sales_head, b2b_manager, marketing | 7 akkaunt |
+| 61 | T2-02 §3 | `GET /lawyers/me/services` javobida har xizmat uchun `selected_price` (va tavsiya `min_allowed/max_allowed`) | Faqat xizmatlar ro'yxati; narx frontend'da saqlanadi |
+| 62 | T4-02 §7 | `PATCH /call-center/leads/{id}` (details merge) yoki move payload'ida `lost_reason` — operator lids'ni sabab bilan yopishi uchun | Faqat admin PATCH (leads.manage), details to'liq almashadi |
 
 ## 1. Tezlik
 

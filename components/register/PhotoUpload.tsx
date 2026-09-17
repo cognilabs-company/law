@@ -11,6 +11,7 @@ export default function PhotoUpload({
   label,
   hint,
   capture,
+  readOnly,
 }: {
   value?: string;
   name: string;
@@ -18,6 +19,7 @@ export default function PhotoUpload({
   label: string;
   hint: string;
   capture?: "user" | "environment"; // phone camera mode (selfie / document scan)
+  readOnly?: boolean; // avatar only, no buttons
 }) {
   const ref = useRef<HTMLInputElement>(null);
 
@@ -25,10 +27,40 @@ export default function PhotoUpload({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => onChange(String(reader.result));
+    reader.onload = () => {
+      const src = String(reader.result);
+      // Downscale to 512 px (JPEG) — the image is stored as a data URL.
+      const img = new Image();
+      img.onload = () => {
+        const max = 512;
+        const k = Math.min(1, max / Math.max(img.width, img.height));
+        if (k === 1 && src.length < 200000) { onChange(src); return; }
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * k);
+        c.height = Math.round(img.height * k);
+        c.getContext("2d")?.drawImage(img, 0, 0, c.width, c.height);
+        onChange(c.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => onChange(src);
+      img.src = src;
+    };
     reader.readAsDataURL(file);
   }
 
+  if (readOnly) {
+    return (
+      <div className="phup">
+        <span className="phup__av">
+          {value ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={value} alt="" />
+          ) : (
+            <span>{name ? initials(name) : <IconUpload />}</span>
+          )}
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="phup">
       <button

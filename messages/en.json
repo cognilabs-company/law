@@ -689,7 +689,8 @@
       "verified": "Verified",
       "choose": "Choose",
       "opening": "Opening…",
-      "new": "New"
+      "new": "New",
+      "newHint": "Under 5 reviews — rating is being collected"
     },
     "empty": "There are no lawyers in this area yet. Leave a request — we will find a suitable lawyer for you.",
     "priceInfo": "The price is formed by open criteria: region (higher in big cities), experience (3–5 yrs +10%, 6–10 yrs +15%, 10+ yrs +20%), rating and super-lawyer status (regional TOP-3 — up to 30%, 10+ yrs in a narrow area — up to 20%). If the price is higher, the reason is shown in the order window.",
@@ -2070,7 +2071,8 @@
         "promotion": "Promotion",
         "subscription": "Subscription",
         "notifications": "Notifications",
-        "workspace": "Workspace"
+        "workspace": "Workspace",
+        "profile": "Profile"
       },
       "client": {
         "dashboard": "Dashboard",
@@ -2189,7 +2191,14 @@
         "saved": "Services saved",
         "error": "Error. Please try again.",
         "priceOutOfRange": "The price must be within the allowed range: {min} – {max} UZS.",
-        "invalidField": "Invalid data: {detail}"
+        "invalidField": "Invalid data: {detail}",
+        "pricesTitle": "Prices",
+        "pricesBand": "within 70–100 % of the recommendation",
+        "recommended": "Allowed: {min} – {max} so'm",
+        "noRecommended": "No base price in the catalogue — the price is saved unchecked",
+        "policyAgree": "I accept the terms and the pricing policy",
+        "policyHint": "A price change affects new orders only; the commission is inside the price.",
+        "policyRequired": "Accept the terms and pricing policy to save."
       },
       "documents": {
         "title": "Documents",
@@ -2968,7 +2977,11 @@
           "pinfl": "PINFL",
           "inn": "TIN",
           "passport": "Passport"
-        }
+        },
+        "offerTitle": "Document ready — next step?",
+        "offerLead": "A duty lawyer reviews the document or helps fill it in (within 60 minutes in working hours).",
+        "offerReview": "Lawyer review — {price} so'm",
+        "offerHelp": "Help filling in — {price} so'm"
       },
       "packages": {
         "title": "Service packages",
@@ -3100,7 +3113,41 @@
       "emptyInfo": "Not filled yet — tap Edit to add.",
       "servicesTitle": "My services",
         "servicesEmpty": "No services yet",
-        "servicesEmptyText": "Add services from registration or profile setup."
+        "servicesEmptyText": "Add services from registration or profile setup.",
+        "form": {
+          "personal": "Personal details",
+          "professional": "Professional details",
+          "pricing": "Pricing",
+          "hours": "Working hours & vacation",
+          "missing": "Missing",
+          "f": {
+            "photo": "photo",
+            "email": "email",
+            "region": "region",
+            "languages": "languages",
+            "price": "Hourly price (so'm)"
+          },
+          "district": "District / city",
+          "districtPh": "e.g. Yunusabad",
+          "genderLabel": "Gender",
+          "genderPh": "Select",
+          "gender": {
+            "female": "Female",
+            "male": "Male"
+          },
+          "som": "so'm",
+          "recommended": "{min} – {max} so'm / hour (70–100 % of the recommendation)",
+          "recommendedNone": "No recommended range yet.",
+          "priceHint": "Digits only. A value outside the recommended band is not saved (T1-08).",
+          "priceRange": "Allowed range: {min} – {max} so'm.",
+          "statsCollecting": "Statistics are being collected — the rate shows after 5 verified cases (now {n}).",
+          "vacation": "Vacation mode",
+          "vacationOn": "On vacation",
+          "vacationOff": "Working",
+          "vacationNote": "Vacation mode is on — new orders are not routed to you and your metrics are unaffected.",
+          "vacationHint": "On vacation no new orders arrive and response metrics are not counted.",
+          "now": "present"
+        }
       }
     },
     "org": {
@@ -3382,6 +3429,88 @@
       "commission": "{pct}% commission",
       "commissionNow": "now {pct}%",
       "maxTier": "lowest commission"
+    },
+    "accountAudit": {
+      "sessions": "Active sessions",
+      "noSessions": "No active sessions.",
+      "device": "Device",
+      "thisDevice": "this device",
+      "revoke": "Sign out",
+      "security": "Security events",
+      "securityLead": "Sign-ins from a new device or IP and code attempts appear here.",
+      "noSecurity": "No suspicious events.",
+      "types": {
+        "suspicious_login": "Suspicious sign-in (IP changed)",
+        "login": "Sign-in",
+        "logout": "Sign-out",
+        "password_changed": "Password changed",
+        "two_factor_enabled": "2FA enabled",
+        "two_factor_disabled": "2FA disabled"
+      },
+      "activity": "Activity log",
+      "rows": "{n} rows",
+      "filter": "Type",
+      "searchPh": "Search…",
+      "groups": {
+        "all": "All",
+        "auth": "Sign-in & security",
+        "orders": "Orders & payments",
+        "documents": "Documents",
+        "profile": "Profile & settings",
+        "other": "Other"
+      },
+      "noActivity": "No activity yet",
+      "noActivityText": "Sign-ins, orders, documents and profile changes are recorded here."
+    },
+    "clientsTools": {
+      "lead": "LexGo orders and clients you enter yourself share one base — a new order's conflict check runs against it.",
+      "addCta": "New client",
+      "checkCta": "Conflict check",
+      "manual": "entered manually",
+      "addTitle": "Client outside LexGo",
+      "addLead": "Name is required. Phone, PINFL and counterparty details feed later conflict checks.",
+      "name": "Full name",
+      "phone": "Phone",
+      "pinfl": "PINFL",
+      "company": "Company",
+      "opponents": "Counterparty(ies)",
+      "representatives": "Representatives",
+      "listPh": "Comma-separated",
+      "notes": "Note",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Client added.",
+      "saveError": "Could not save.",
+      "checkTitle": "Conflict of interest check",
+      "checkLead": "Before a new order, enter the client's or counterparty's details — they are compared with your other cases.",
+      "opponent": "Counterparty",
+      "checking": "Checking…",
+      "checkError": "Could not check.",
+      "clear": "No conflict found.",
+      "potential": "Possible conflict of interest — check before accepting:",
+      "reasons": {
+        "counterparty_text_match": "counterparty appears in another case",
+        "representative_text_match": "representative appears in another case",
+        "phone_match": "phone is in your client base",
+        "pinfl_match": "PINFL is in your client base",
+        "opponent_match": "counterparty is in your client base"
+      }
+    },
+    "caseAi": {
+      "title": "AI tools",
+      "lead": "Based only on this case's materials; personal data is masked before it reaches the external AI.",
+      "tools": {
+        "summary": "Case summary",
+        "chronology": "Chronology",
+        "missing_docs": "Missing documents",
+        "questions": "Questions for the client",
+        "compare_versions": "Compare versions"
+      },
+      "running": "Working…",
+      "editHint": "Edit the text and approve — the approved version is kept.",
+      "approve": "Approve",
+      "saved": "Summary saved.",
+      "error": "Could not get the AI result."
     }
   },
   "notFound": {
@@ -4028,7 +4157,64 @@
       "search": "Search",
       "searchPh": "Name, category or slug…",
       "editTitle": "Edit template",
-      "noResults": "Nothing found"
+      "noResults": "Nothing found",
+      "import": {
+        "cta": "Import DOCX / ZIP",
+        "title": "Template constructor — import",
+        "lead": "The {{field}} markers inside the DOCX are detected automatically; the template is created as an inactive draft — review it, then activate.",
+        "modeDocx": "Single DOCX",
+        "modeZip": "ZIP (many templates)",
+        "docxFile": "DOCX file",
+        "docxHint": "Up to 20 MB. Fields: {{fio}}, {{sana}}, {{#if avans}}…{{/if}}",
+        "zipFile": "ZIP file",
+        "zipHint": "DOCX files inside (up to 200). The slug comes from the file name.",
+        "titleLabel": "Title",
+        "slug": "Slug",
+        "category": "Section",
+        "language": "Language",
+        "visibility": "Visible to",
+        "price": "Price (so'm, 0 = free)",
+        "cats": {
+          "contract": "Contract",
+          "claim": "Claim / complaint",
+          "application": "Application",
+          "power_of_attorney": "Power of attorney",
+          "corporate": "Corporate",
+          "other": "Other"
+        },
+        "langs": {
+          "uz-latn": "Uzbek (Latin)",
+          "uz-cyrl": "Uzbek (Cyrillic)",
+          "ru": "Russian"
+        },
+        "vis": {
+          "staff": "Staff only",
+          "clients": "Clients",
+          "public": "Everyone"
+        },
+        "types": {
+          "text": "text",
+          "date": "date",
+          "money": "money",
+          "number": "number",
+          "phone": "phone",
+          "pinfl": "PINFL",
+          "checkbox": "checkbox",
+          "multiline": "multiline"
+        },
+        "fieldsFound": "{n} fields found",
+        "noFields": "No {{…}} markers found — check the file.",
+        "draftNote": "The template is a draft; open “Edit” in the list to check field types and activate it.",
+        "upload": "Upload",
+        "uploading": "Uploading…",
+        "docxDone": "Template created: {n} fields.",
+        "zipDone": "{n} templates imported (drafts).",
+        "slugTaken": "This slug is taken — use another.",
+        "onlyDocx": "Only DOCX is accepted.",
+        "tooBig": "File is over 20 MB.",
+        "forbidden": "No access (templates.manage required).",
+        "error": "Import failed."
+      }
     },
     "roles": {
       "listTitle": "Roles",
@@ -4202,6 +4388,21 @@
         "login": "Sign-in",
         "registration": "Registration",
         "kanban": "Kanban"
+      },
+      "lost": {
+        "title": "Close the lead as lost",
+        "lead": "A reason is required — the statistics reveal pricing or catalogue problems.",
+        "reason": "Reason",
+        "note": "Note (optional)",
+        "confirm": "Close",
+        "reasons": {
+          "price": "Price",
+          "solved_self": "Solved it themselves",
+          "competitor": "Went elsewhere",
+          "no_answer": "No answer",
+          "no_service": "No such service",
+          "spam": "Spam / duplicate"
+        }
       }
     },
     "callAnalytics": {

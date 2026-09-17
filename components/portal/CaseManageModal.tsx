@@ -8,6 +8,7 @@ import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconUser } from "@/components/icons";
 import OrderStatusPanel from "@/components/portal/OrderStatusPanel";
+import CaseAiTools from "@/components/portal/CaseAiTools";
 
 const STATUSES = ["new", "active", "investigation", "court", "appeal", "completed", "archived"];
 
@@ -89,6 +90,7 @@ export default function CaseManageModal({
             {busy ? t("saving") : t("save")}
           </button>
           {target.orderId ? <OrderStatusPanel orderId={target.orderId} side="seller" onChanged={onSaved} /> : null}
+          <CaseAiTools caseId={target.id} />
         </form>
       ) : null}
     </Modal>

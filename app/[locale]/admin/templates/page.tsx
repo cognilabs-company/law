@@ -13,7 +13,8 @@ import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { AdminForm, AdminItem, Notice, useReload, type Field } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
-import { IconDocLines, IconPlus, IconSearch, IconEdit, IconTrash } from "@/components/icons";
+import TemplateImport from "@/components/admin/TemplateImport";
+import { IconDocLines, IconPlus, IconSearch, IconEdit, IconTrash, IconUpload } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "—");
 const num = (v: string | boolean) => parseInt(String(v || "0"), 10) || 0;
@@ -23,6 +24,7 @@ export default function AdminTemplates() {
   const [key, reload] = useReload();
   const tpls = useResource(getDocumentTemplates, [key]);
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [edit, setEdit] = useState<BackendTemplate | null>(null);
   const [editFull, setEditFull] = useState<BackendTemplate | null>(null);
   const [del, setDel] = useState<BackendTemplate | null>(null);
@@ -97,6 +99,10 @@ export default function AdminTemplates() {
         <b>{t("templates.listTitle")}</b>
         <span className="ahdr">
           <span className="advmuted">{tpls.data.length}</span>
+          <button className="btn btn--soft btn--sm" type="button" onClick={() => setImportOpen(true)}>
+            <IconUpload />
+            {t("templates.import.cta")}
+          </button>
           <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)}>
             <IconPlus />
             {t("form.add")}
@@ -139,6 +145,8 @@ export default function AdminTemplates() {
           ))}
         </div>
       )}
+
+      <TemplateImport open={importOpen} onClose={() => setImportOpen(false)} onDone={reload} />
 
       {/* Create */}
       <Modal open={open} onClose={() => setOpen(false)} title={t("templates.create")}>
