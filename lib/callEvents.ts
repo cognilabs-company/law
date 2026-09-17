@@ -1,0 +1,37 @@
+// In-page bus for `call.*` events received on a secure-chat room socket, so
+// the call room (roster, timer) and the chat's incoming-call card update on
+// events instead of polling. Emitted by SecureChat's socket handler.
+export type CallEvent = { event: string; room_id?: string; call_id?: string } & Record<string, unknown>;
+type Handler = (e: CallEvent) => void;
+
+const subs = new Map<string, Set<Handler>>();
+
+export const CALL_EVENTS = new Set([
+  "call.created",
+  "call.participant_invited",
+  "call.participant_joined",
+  "call.participant_left",
+  "call.participant_removed",
+  "call.participant_updated",
+  "call.updated",
+  "call.ended",
+]);
+
+export function isCallEvent(name: unknown): name is string {
+  return typeof name === "string" && CALL_EVENTS.has(name);
+}
+
+export function emitRoomCallEvent(roomId: string, e: CallEvent): void {
+  const set = subs.get(roomId);
+  if (!set) return;
+  for (const h of set) {
+    try { h(e); } catch { /* keep the others */ }
+  }
+}
+
+export function subscribeRoomCallEvents(roomId: string, h: Handler): () => void {
+  let set = subs.get(roomId);
+  if (!set) { set = new Set(); subs.set(roomId, set); }
+  set.add(h);
+  return () => { set!.delete(h); if (!set!.size) subs.delete(roomId); };
+}

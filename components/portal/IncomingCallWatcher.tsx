@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import { listSecureChats, listCalls, listInvitedCalls, listLawyers } from "@/lib/services/backend";
+import { listInvitedCalls, listLawyers } from "@/lib/services/backend";
+import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, userSocketState, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
 import { playRingtone } from "@/lib/callSounds";
 import CallRoom from "@/components/chat/CallRoom";
 import { IconPhone, IconVideo, IconClose } from "@/components/icons";
@@ -12,11 +13,25 @@ import { IconPhone, IconVideo, IconClose } from "@/components/icons";
 type Incoming = { kind: "chat" | "meet"; roomId: string; callId: string; callType: "audio" | "video"; callerName: string };
 
 let nameCache: Map<string, string> | null = null;
+async function nameOf(userId: string): Promise<string> {
+  if (!nameCache) {
+    try {
+      const ls = await listLawyers();
+      nameCache = new Map(ls.map((l) => [l.userId, l.name]));
+    } catch {
+      nameCache = new Map();
+    }
+  }
+  return nameCache.get(userId) || "";
+}
+// Fallback poll of /calls/invited only while the user socket is down (and on
+// mount / tab focus) — the socket's `call.incoming` is the primary signal.
+const FALLBACK_MS = 45_000;
 
-// Watches for incoming calls anywhere in the portal and rings:
-//  • 1:1 calls in the user's secure-chat rooms (accept → open the chat), and
-//  • meeting invites from /calls/invited, where the user isn't a room member
-//    (accept → join the LiveKit room directly, no chat access needed).
+// Rings for incoming calls anywhere in the portal:
+//  • `call.incoming` on the global user socket (/ws/users/me) — 1:1 calls in
+//    the user's secure-chat rooms (accept → open the chat) and meeting invites
+//    (accept → join the LiveKit room inline; the token is fetched on join).
 export default function IncomingCallWatcher() {
   const t = useTranslations("call");
   const { session } = useAuth();
@@ -27,74 +42,65 @@ export default function IncomingCallWatcher() {
   const [meet, setMeet] = useState<Incoming | null>(null); // an accepted meeting rendered inline
   const dismissed = useRef<Set<string>>(new Set());
   const onChatPage = pathname.includes("/portal/chat/");
+  const onChatPageRef = useRef(onChatPage);
+  useEffect(() => { onChatPageRef.current = onChatPage; }, [onChatPage]);
+  const inMeetRef = useRef(!!meet);
+  useEffect(() => { inMeetRef.current = !!meet; }, [meet]);
+
+  // Global user socket: opened once per session token, closed on logout.
+  const token = session?.token ?? "";
+  useEffect(() => {
+    if (!token) { disconnectUserSocket(); return; }
+    connectUserSocket(token);
+    return () => { /* kept open across navigation; closed when the token goes */ };
+  }, [token]);
 
   useEffect(() => {
-    if (!session || meet) return;
+    if (!session) return;
     let alive = true;
-    async function names() {
-      if (!nameCache) {
-        try {
-          const ls = await listLawyers();
-          nameCache = new Map(ls.map((l) => [l.userId, l.name]));
-        } catch {
-          nameCache = new Map();
-        }
-      }
-      return nameCache;
+    const me = session.id;
+    async function onEvent(e: UserEvent) {
+      if (e.event !== "call.incoming" || inMeetRef.current) return;
+      const call = (e.call && typeof e.call === "object" ? e.call : {}) as Record<string, unknown>;
+      const roomId = String(e.room_id ?? call.room_id ?? "");
+      const callId = String(e.call_id ?? call.id ?? "");
+      const caller = String(e.caller_user_id ?? "");
+      if (!roomId || !callId || caller === me || dismissed.current.has(callId)) return;
+      if (String(call.status || "active") !== "active") return;
+      // A meeting (title / invited participant) opens inline; a room call opens the chat.
+      const parts = Array.isArray(call.participants) ? (call.participants as Record<string, unknown>[]) : [];
+      const isMeet = !!call.title || parts.some((p) => String(p.user_id ?? p.id) === me && String(p.status) === "invited");
+      // Inside that very chat the chat's own card handles it.
+      if (!isMeet && onChatPageRef.current) return;
+      const name = String(e.caller_name ?? call.caller_name ?? "") || (await nameOf(caller)) || t("someone");
+      if (!alive) return;
+      setInc({ kind: isMeet ? "meet" : "chat", roomId, callId, callType: String(call.call_type) === "audio" ? "audio" : "video", callerName: name });
     }
-    async function poll() {
-      // Don't poll while the tab is in the background — no point ringing there,
-      // and it avoids a needless request storm (listSecureChats + per-room calls).
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    const unsub = subscribeUserEvents((e) => { void onEvent(e); });
+
+    // Fallback: pending meeting invites via REST on mount, on focus, and while the socket is down.
+    async function pollInvites() {
+      if (document.visibilityState === "hidden" || inMeetRef.current) return;
       try {
-        // 1) Meeting invites (cross-room) — highest priority.
-        const invited = await listInvitedCalls().catch(() => []);
-        // Only ring for a still-pending invite — never for someone who already
-        // joined, left, declined, or was removed/kicked from the meeting.
-        const meetInv = invited.find(
-          (c) => c.callStatus === "active" && c.status === "invited" && !dismissed.current.has(c.callId),
-        );
-        if (meetInv) {
-          if (alive) setInc({ kind: "meet", roomId: meetInv.roomId, callId: meetInv.callId, callType: meetInv.callType, callerName: meetInv.callerName || t("someone") });
-          return;
-        }
-        // 2) 1:1 calls in the user's rooms — only when not already inside a chat.
-        if (onChatPage) { if (alive) setInc(null); return; }
-        const rooms = (await listSecureChats()).slice(0, 12);
-        const nm = await names();
-        for (const r of rooms) {
-          const calls = await listCalls(r.id).catch(() => []);
-          const fresh = calls.find(
-            (c) =>
-              (c.status === "active" || c.status === "ringing") &&
-              c.callerUserId &&
-              c.callerUserId !== session!.id &&
-              !dismissed.current.has(c.id) &&
-              c.startedAt &&
-              Date.now() - new Date(c.startedAt).getTime() < 60000,
-          );
-          if (fresh) {
-            const name = nm.get(fresh.callerUserId) || t("someone");
-            if (alive) setInc({ kind: "chat", roomId: r.id, callId: fresh.id, callType: fresh.callType === "video" ? "video" : "audio", callerName: name });
-            return;
-          }
-        }
-        if (alive) setInc(null);
-      } catch {
-        /* ignore */
-      }
+        const invited = await listInvitedCalls();
+        const inv = invited.find((c) => c.callStatus === "active" && c.status === "invited" && !dismissed.current.has(c.callId));
+        if (!alive) return;
+        if (inv) setInc({ kind: "meet", roomId: inv.roomId, callId: inv.callId, callType: inv.callType, callerName: inv.callerName || t("someone") });
+      } catch { /* ignore */ }
     }
-    poll();
-    const iv = setInterval(poll, 6000);
-    // Poll immediately when the tab comes back to the foreground.
-    const onVis = () => { if (document.visibilityState === "visible") poll(); };
+    void pollInvites();
+    const iv = setInterval(() => { if (userSocketState() !== "online") void pollInvites(); }, FALLBACK_MS);
+    const onVis = () => { if (document.visibilityState === "visible") void pollInvites(); };
     document.addEventListener("visibilitychange", onVis);
+    const unsubState = subscribeUserSocketState((s) => { if (s === "online") void pollInvites(); });
     return () => {
       alive = false;
+      unsub();
+      unsubState();
       clearInterval(iv);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [session, onChatPage, meet, t]);
+  }, [session, t]);
 
   // Ring while an incoming call is pending.
   useEffect(() => {
@@ -151,7 +157,7 @@ export default function IncomingCallWatcher() {
     const target = inc;
     setInc(null);
     if (target.kind === "meet") {
-      setMeet(target); // render CallRoom inline
+      setMeet(target); // render CallRoom inline; it fetches the join token itself
     } else {
       router.push(`/portal/chat/${target.roomId}?join=${target.callId}`);
     }

@@ -28,6 +28,7 @@ import {
   type CallPermissions,
 } from "@/lib/services/backend";
 import { getToken } from "@/lib/client";
+import { subscribeRoomCallEvents } from "@/lib/callEvents";
 import { backoffMs, refreshAccessToken } from "@/lib/http";
 import { useAuth } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
@@ -102,6 +103,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
 
   const clearActive = () => { try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ } };
   const finish = () => { clearActive(); onEnd(); };
+  // Remote end (call.ended on the room socket): tone, disconnect, close — no API call.
+  const onEndRef = useRef<() => void>(() => {});
+  useEffect(() => { onEndRef.current = () => { playEndTone(); roomRef.current?.disconnect(); clearActive(); onEnd(); }; });
   const bump = useCallback(() => setTick((n) => n + 1), []);
   const toast = useCallback((text: string, kind: Toast["kind"]) => {
     const id = ++toastSeq.current;
@@ -268,8 +272,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         })
         .catch(() => {});
     load();
-    const iv = setInterval(load, 3000);
-    return () => { alive = false; clearInterval(iv); };
+    // Roster/permissions refresh on room-socket call events; the slow poll is
+    // only a fallback (the invitee of a meeting has no room socket).
+    const unsub = subscribeRoomCallEvents(roomId, (e) => {
+      const id = String(e.call_id ?? (e.call && typeof e.call === "object" ? (e.call as Record<string, unknown>).id : "") ?? "");
+      if (id && id !== callId) return;
+      if (e.event === "call.ended") { onEndRef.current?.(); return; }
+      load();
+    });
+    const iv = setInterval(load, 15000);
+    return () => { alive = false; clearInterval(iv); unsub(); };
   }, [roomId, callId, metaTick]);
   useEffect(() => {
     if (remaining == null) return;

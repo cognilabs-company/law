@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth, canMakeCalls, hasAdminAccess } from "@/lib/auth";
 import ContentRevealBar from "./ContentRevealBar";
+import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
 import { maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
 import { backoffMs, refreshAccessToken } from "@/lib/http";
@@ -165,11 +166,13 @@ export default function SecureChat({ roomId }: { roomId: string }) {
     { h: 720, key: "ttl30d" },
   ];
 
-  // Poll for a call another participant started, so we can offer to join.
+  // A call another participant started: `call.created` on the room socket
+  // (LEXGO_CALL_WEBSOCKET_FRONTEND_UPDATE); GET /calls only on open and when
+  // the socket reconnects (`conn` flips back to online) — no periodic polling.
   useEffect(() => {
     if (!session) return;
     let alive = true;
-    const poll = async () => {
+    const check = async () => {
       try {
         const calls = await listCalls(roomId);
         const live = calls.find(
@@ -180,13 +183,23 @@ export default function SecureChat({ roomId }: { roomId: string }) {
         /* ignore */
       }
     };
-    poll();
-    const iv = setInterval(poll, 5000);
+    if (conn === "online") void check();
+    const unsub = subscribeRoomCallEvents(roomId, (e) => {
+      const call = (e.call && typeof e.call === "object" ? e.call : {}) as Record<string, unknown>;
+      const callId = String(e.call_id ?? call.id ?? "");
+      if (e.event === "call.created") {
+        const caller = String(e.caller_user_id ?? call.caller_user_id ?? "");
+        if (!callId || caller === session.id || dismissedCalls.current.has(callId) || activeCall) return;
+        setIncoming({ callId, callType: String(call.call_type) === "audio" ? "audio" : "video" });
+      } else if (e.event === "call.ended") {
+        setIncoming((cur) => (cur && cur.callId === callId ? null : cur));
+      }
+    });
     return () => {
       alive = false;
-      clearInterval(iv);
+      unsub();
     };
-  }, [roomId, session, activeCall]);
+  }, [roomId, session, activeCall, conn]);
 
   // Auto-join a call when arriving from an incoming-call notification (?join=id).
   useEffect(() => {
@@ -319,6 +332,10 @@ export default function SecureChat({ roomId }: { roomId: string }) {
       ws.onmessage = (e) => {
         try {
           const o = JSON.parse(e.data);
+          if (o && isCallEvent(o.event)) {
+            emitRoomCallEvent(roomId, o);
+            return;
+          }
           if (o && o.event === "error") {
             const code = Number(o.status_code) || 0;
             const detail = typeof o.detail === "string" ? o.detail : "";

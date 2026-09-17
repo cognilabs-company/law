@@ -317,3 +317,14 @@ GM 6-bo'limdan qo'shimcha yopilganlar:
 | T1A-02 §9 | Kabinetda «Profil kuchi: N%» indikatori |
 
 Kutib turilganlar (backend yo'q / hujjatda aniq emas): T1B-07 mijoz tomonida yuridik shaxs ro'yxati va QQS'li narx (backend'da yuridik shaxs mijoz modeli yo'q; PATCH'da `address`/`bank` maydonlari yo'q — #63), T2-04 reyting tarixi/Super mezonlari, T1-05 shoshilinch blok + SOS (`urgency` backend'dan kelmaydi), T5-06 avtoto'lov tiklash, T3-07 rol yaratish UI (backend `POST /admin/roles` bor, lekin matritsa PUT shakli hujjatda yo'q), T1B-04 eslatma to'plami (bitta eslatma), T1-01 §5 Telegram taklifi (pending ro'yxatdan keyin token yo'q).
+
+## 12. 17.09 — `LEXGO_CALL_WEBSOCKET_FRONTEND_UPDATE.md` bo'yicha
+
+| Backend | Frontend |
+|---|---|
+| `wss://…/ws/users/me?token=` global socket, `call.incoming` | `lib/userSocket.ts` — sessiya bo'lgach bitta ulanish (eksponensial reconnect, tab qaytganda/online bo'lganda qayta), logout'da yopiladi. `IncomingCallWatcher` shu socketdan `call.incoming` oladi → qo'ng'iroq kartasi; uchrashuv → inline CallRoom (token `join-token` dan), 1:1 → chat sahifasi |
+| Polling olib tashlash | Har 6 s `listSecureChats + listCalls` polling **o'chirildi**; `/calls/invited` faqat sahifa ochilganda, tab fokusga qaytganda va socket uzilganda (45 s fallback) |
+| Room socket `call.*` eventlari | `lib/callEvents.ts` bus: SecureChat socketi `call.created / participant_* / updated / ended` ni tarqatadi; chat ichidagi «qo'shilish» kartasi `call.created`dan, `call.ended`da yo'qoladi; 5 s `listCalls` polling o'chirildi (faqat ochilganda va reconnect'da) |
+| CallRoom | Ishtirokchilar ro'yxati eventlarda yangilanadi; `call.ended` → xona yopiladi; 3 s polling → 15 s fallback (uchrashuv mehmoni room socketsiz) |
+
+Jonli tekshiruv: `/ws/users/me` ochildi va ochiq qoldi; 15 s davomida `/calls` so'rovlari — 0 (oldin har 6 s ≥ 13 so'rov).
