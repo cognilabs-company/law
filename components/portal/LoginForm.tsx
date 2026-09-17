@@ -14,7 +14,9 @@ import { IconLogo } from "../icons";
 import PasswordInput from "../PasswordInput";
 
 // Backend unreachable (network / proxy 502) or a server-side failure.
-const unreachable = (e: unknown) => isOffline(e) || (e instanceof ApiError && e.status >= 500);
+const unreachable = (e: unknown) => isOffline(e) || (e instanceof ApiError && (e.status === 502 || e.status === 503 || e.status === 504));
+// Any other 5xx: the backend answered but failed (e.g. the code could not be issued).
+const serverFailed = (e: unknown) => e instanceof ApiError && e.status >= 500 && !unreachable(e);
 // 503 from login/resend = the Telegram (or SMS) code channel is not connected.
 const channelDown = (e: unknown) => e instanceof ApiError && e.status === 503;
 // Staff (admin, sales, call-center…) land in the admin panel, everyone else in their portal.
@@ -24,6 +26,7 @@ export default function LoginForm() {
   const t = useTranslations("portal.login");
   const tc = useTranslations("common");
   const tOtp = useTranslations("register.otp");
+  const tv = useTranslations("register.verify");
   const tr = useTranslations("register");
   const { login, completeLogin2fa, session, ready, authNotice, clearAuthNotice } = useAuth();
   const router = useRouter();
@@ -137,7 +140,9 @@ export default function LoginForm() {
             ? tc("otpChannelUnavailable")
             : unreachable(e)
               ? tc("offline")
-              : t("failed"),
+              : serverFailed(e)
+                ? tv("serverError")
+                : t("failed"),
       );
       setBusy(false);
     }

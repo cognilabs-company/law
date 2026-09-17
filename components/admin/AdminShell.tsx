@@ -176,11 +176,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, session, router, isBootstrap, bootstrapOk, pathname]);
 
-  if (!ready) return null;
-  if (!allowed) return null;
+  const placeholder = <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div>;
+  if (!ready) return placeholder;
+  if (!allowed) return placeholder;
   // A page this account's permissions don't cover must not mount (its data
   // calls would only answer 403) while the effect above redirects away.
-  if (session && !isSuper && !bootstrapOk && !visibleNav.some((n) => onItem(pathname, n))) return null;
+  if (session && !isSuper && !bootstrapOk && !visibleNav.some((n) => onItem(pathname, n))) return placeholder;
 
   const active = NAV.slice()
     .sort((a, b) => b.href.length - a.href.length)

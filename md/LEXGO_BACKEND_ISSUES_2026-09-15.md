@@ -299,7 +299,7 @@ Frontend bugun UI ni qurdi; quyidagilar backend tomonidan bo'lmasa GM talabi yop
 | # | Task / talab | Nima kerak | Hozir |
 |---|---|---|---|
 | 42 | T0-18 §2,3,6 | `POST /admin/legal/consents` {slug, version, title, body, is_active, requires_reaccept} — yangi versiya nashr qilish; `requires_reaccept=true` bo'lsa keyingi kirishda qayta rozilik, `false` — faqat xabar | Faqat GET; matn kodda (seed) |
-| 43 | T0-18 §1 | 10 slug seed: terms, privacy, cookie, advocate_offer, structure_agreement, client_advocate_contract, payment_refund_policy, platform_rules, personal_data_consent, age_18 | 3 slug, ~50 belgi placeholder |
+| 43 | T0-18 §1 | ~~10 slug seed~~ — **bajarilgan** (17.09 tekshiruv: 11 slug bor: terms, privacy, cookie, advocate_partnership, organization_agreement, client_provider_contract, payment_refund_warranty, platform_rules, personal_data, age_18, legal_disclaimer). Qolgani: matnlar 43–76 belgili placeholder — PM matni admin orqali kiritilishi uchun #42 kerak | 11 slug, placeholder |
 | 44 | T0-18 §4 | `/admin/legal/user-consents` javobida `device` (user-agent) | Faqat ip_address |
 | 45 | T1-10 §4 | `/orders/{id}/status-history` yozuvida `old_status`, `changed_by_user_id`, `ip`, `device`, `reason` | status, note, created_at |
 | 46 | T1-10 §11, T2-10 §1–2 | `POST /orders/{id}/decline` body `{reason, note}` ni saqlash (reason: conflict_of_interest, not_my_specialization, busy, region_far, price_mismatch, documents_insufficient, prior_dispute, sick_or_vacation, other) + `GET /admin/orders/decline-reasons/stats` | Body e'tiborsiz qoldiriladi |

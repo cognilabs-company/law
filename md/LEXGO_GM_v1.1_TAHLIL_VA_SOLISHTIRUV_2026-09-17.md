@@ -81,7 +81,7 @@ Har qatorda: talablar soni → holat → nima bor / nima yo'q → mas'ul (**FE**
 | T0-15 Telegram bot | 6 | 🟡 4/6 | Bot, deep link, OTP botga, bildirishnoma, botdan lid | Bog'lash taklifi onboarding oxirida (FE); sovg'a havolasi (T5-04) | FE + BE |
 | T0-16 Tiyin | 5 | 🟡 2/5 | `price_tiyin` maydonlari; FE `uzs()` yaxlitlash | Migratsiya ko'rsatilmagan; 1000 so'mga pastga yaxlitlash; paket taqsimoti farqi; moliya yoyilmasi/eksport | BE |
 | T0-17 PII | 5 | 🔒/❌ 0/5 | — | Niqoblash qatlami ko'rsatilmagan, avtomatik test yo'q, Sentry filtri | BE |
-| T0-18 Huquqiy hujjatlar | 6 | 🟡 3/6 🧪 | **Bugun:** Admin → «Huquqiy hujjatlar» (10 slug, versiyalar, ko'rish, yangi versiya formasi, «Roziliklar jurnali» user_id/hujjat filtri); ro'yxatda alohida checkbox'lar | Backend'da faqat 3 slug (placeholder ~50 belgi); **yozish API yo'q** (POST/PUT `/admin/legal/consents`); jurnalda qurilma maydoni yo'q; «muhim/kichik» yangilanish mantiqi (`requires_reaccept`) yo'q | BE |
+| T0-18 Huquqiy hujjatlar | 6 | 🟡 3/6 🧪 | **Bugun:** Admin → «Huquqiy hujjatlar» (10 slug, versiyalar, ko'rish, yangi versiya formasi, «Roziliklar jurnali» user_id/hujjat filtri); ro'yxatda alohida checkbox'lar | Backend'da 11 slug bor (17.09), lekin matnlar ~50 belgili placeholder; **yozish API yo'q** (POST/PUT `/admin/legal/consents`); jurnalda qurilma maydoni yo'q; «muhim/kichik» yangilanish mantiqi (`requires_reaccept`) yo'q | BE |
 | T0-19 Hosting rejasi | 7 | 🔒 | — | Reja hujjati yo'q | Dev/PM |
 | T0-20 Ish vaqti | 4 | 🟡 3/4 🧪 | `/business-hours` (Du–Sha 09–19, bayramlar), FE `responseDeadline` (T0-20 muddat qatori — kecha qurildi) | SLA va avtotasdiq ham shu servisdan ekani ko'rsatilmagan; mijozga «ertalab 09:00 dan keyin» xabari — FE'da muddat ko'rinadi, matn shakli tekshiriladi | BE |
 
@@ -280,3 +280,15 @@ Kecha (16.09) qilinganlar: T1-14 wizard, T0-20 muddat, T1-02 «oxirgi bepul savo
 Jonli tekshirildi (tasdiqlanmagan Advokat bilan): profil tahriri saqlanadi (`PUT /lawyers/me`), sessiyalar/xavfsizlik/harakatlar jurnali to'ladi, conflict tekshiruvi ishlaydi.
 
 Backend'ga qo'shimcha (0E ga): `GET /lawyers/me/services` tanlangan narxlarni qaytarmaydi (#61); `PUT /lawyers/me` da `gender`, `work_days/from/to`, `avatar_url` yo'q (#56 kengaytirildi); `/call-center/leads/{id}` PATCH yo'q — operator lost_reason'ni `admin` PATCH orqali yozadi (leads.manage kerak) (#62).
+
+## 10. 17.09 — tashqi tester hisoboti bo'yicha tuzatishlar
+
+| # | Hisobotdagi muammo | Tekshiruv natijasi | Qilingan |
+|---|---|---|---|
+| 1 | Mijoz login → consent gate'dan keyin sahifalarda «Huquqiy hujjatlarni qabul qiling» qoladi | Lokal build'da qayta sinaldi (advokat sessiyasi, `lexgo_consents` tozalab): server'dagi 11 rozilik topildi, gate chiqmadi; navigatsiya va reload'da ham chiqmadi. Mijoz akkaunt bilan takrorlash uchun login kerak | Admin «Huquqiy hujjatlar» sahifasi backend slug'lariga moslandi (advocate_partnership, organization_agreement, client_provider_contract, payment_refund_warranty, personal_data) |
+| 2 | Advokat/yurist login: 2FA oynasi o'rniga «Server bilan bog'lanib bo'lmadi» | Frontend 428 → 2FA oynasini ochadi (bu sessiyada yurist/advokat/cc/sales bilan bir necha marta o'tilgan). «Server bilan bog'lanib bo'lmadi» faqat fetch xatosi / 502–504 da chiqadi → tester muhitida proxy (`/api/backend`) backend'ga yetmagan yoki eski deploy | 5xx (kod yuborilmadi) endi «Serverda xatolik» deb alohida ko'rsatiladi; «internet» matni faqat 0/502/503/504 da |
+| 3 | `/portal/advocate` → `/portal/lawyer`, sidebar yo'q, public footer | Bu sessiya roli boshqa bo'lganda (yurist advokat manzilini ochsa) redirect; redirect paytida shell `null` qaytarib public footer ko'rinardi | PortalShell/AdminShell redirect va yuklanish paytida portal chrome (spinner) ko'rsatadi — public navbar/footer chiqmaydi. Anonim: `/portal/advocate` → `/login` tekshirildi |
+| 4 | `/portal/call-center`, `/portal/callcenter(/leads)` 404 | Call-markaz `/admin/call-center` da | Alias'lar qo'shildi: `/portal/call-center`, `/portal/callcenter`, `…/leads` → `/admin/call-center` |
+| 5 | `/admin/dashboard`, `/portal/admin` 404; `/admin` seller'ga yo'naltiradi | `/admin` admin ruxsati yo'q sessiyani o'z portaliga qaytaradi (to'g'ri); admin (+998900000002) paroli 16.09 dan ishlamaydi (backend) | Alias'lar: `/admin/dashboard`, `/portal/admin` → `/admin`; `/portal/advokat`, `/portal/yurist` → mos portal |
+
+Eslatma: tester ko'rgan 2–5 belgilar **eski deploy** (Vercel `law-two-tau`) bilan mos keladi — main'dagi so'nggi commitlar deploy qilinmagan bo'lsa, avval push/redeploy qilish kerak.

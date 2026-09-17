@@ -26,12 +26,12 @@ const REQUIRED_SLUGS = [
   "terms",
   "privacy",
   "cookie",
-  "advocate_offer",
-  "structure_agreement",
-  "client_advocate_contract",
-  "payment_refund_policy",
+  "advocate_partnership",
+  "organization_agreement",
+  "client_provider_contract",
+  "payment_refund_warranty",
   "platform_rules",
-  "personal_data_consent",
+  "personal_data",
   "age_18",
 ] as const;
 const PLACEHOLDER_MAX = 120; // shorter body = still a placeholder

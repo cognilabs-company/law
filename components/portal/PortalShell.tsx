@@ -177,7 +177,9 @@ export default function PortalShell({
     }
   }, [ready, session, role, router, pathname, limited, actions]);
 
-  if (!ready || !session || session.role !== role) return null;
+  // While the session loads or the guard redirects, keep the portal chrome
+  // (the public navbar/footer are hidden by body:has(.portal)).
+  if (!ready || !session || session.role !== role) return <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div>;
 
   const nav =
     role === "advocate" ? ADVOCATE_NAV : role === "lawyer" ? LAWYER_NAV : CLIENT_NAV;
