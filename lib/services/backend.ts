@@ -2272,6 +2272,29 @@ export type BusinessHours = {
   fetchedAt: number; // client epoch ms
   holidays: string[]; // YYYY-MM-DD public holidays (T0-20)
 };
+// T0-20 admin: holidays (POST/DELETE /admin/calendar/holidays, cases.manage) and
+// a time simulation — GET /calendar/business-hours?at=<iso> answers for that
+// moment, so the tester can check evening / Sunday / holiday deadlines without
+// touching the server clock.
+export type BusinessSim = { at: string; isWorkingDay: boolean; isWorkingTime: boolean; nextWorkStart: string; deadline30: string; holidays: string[] };
+export async function simulateBusinessHours(atIso: string): Promise<BusinessSim> {
+  const d = asDict(await http(`/calendar/business-hours?at=${encodeURIComponent(atIso)}`));
+  const cur = asDict(d.current);
+  return {
+    at: atIso,
+    isWorkingDay: cur.is_working_day === true,
+    isWorkingTime: cur.is_business_hours === true || (cur.is_working_day === true && cur.is_working_time === true),
+    nextWorkStart: asStr(cur.next_work_start),
+    deadline30: asStr(d.confirmation_deadline_30m),
+    holidays: asArr(d.holidays).map((x) => asStr(x)),
+  };
+}
+export async function addBusinessHoliday(day: string, title: string): Promise<void> {
+  await http("/admin/calendar/holidays", { method: "POST", body: JSON.stringify({ day, title }) });
+}
+export async function removeBusinessHoliday(day: string): Promise<void> {
+  await http(`/admin/calendar/holidays/${encodeURIComponent(day)}`, { method: "DELETE" });
+}
 export const DEFAULT_BUSINESS_HOURS: BusinessHours = {
   timezone: "Asia/Tashkent",
   days: [1, 2, 3, 4, 5, 6],
@@ -2341,11 +2364,11 @@ export async function getBusinessHours(): Promise<BusinessHours> {
     end: asHm(d.end ?? d.end_time ?? d.work_end ?? d.closes_at ?? hours.end ?? hours.to ?? first.end, "19:00"),
     isWorkingDay: pick("is_working_day", "is_business_day", "working_day", "is_workday"),
     isWorkingTime:
-      pick("is_working_time", "is_working_hours", "is_business_hours", "is_open", "open_now", "within_business_hours", "working_time") ??
+      pick("is_business_hours", "is_working_hours", "is_open", "open_now", "within_business_hours", "is_working_time", "working_time") ??
       (statusStr === "open" ? true : statusStr === "closed" ? false : null),
     serverNow: Number.isFinite(ms) ? ms : null,
     fetchedAt,
-    holidays: asArr(d.holidays).map((h) => { const x = asDict(h); return asStr(typeof h === "string" ? h : x.date ?? x.day); }).filter((x) => /^d{4}-d{2}-d{2}/.test(x)).map((x) => x.slice(0, 10)),
+    holidays: asArr(d.holidays).map((h) => { const x = asDict(h); return asStr(typeof h === "string" ? h : x.date ?? x.day); }).filter((x) => /^\d{4}-\d{2}-\d{2}/.test(x)).map((x) => x.slice(0, 10)),
   };
 }
 

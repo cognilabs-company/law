@@ -19,6 +19,7 @@ import { ApiError } from "@/lib/http";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
+import BusinessCalendarCard from "@/components/admin/BusinessCalendarCard";
 import { IconShieldCheck, IconCheck, IconAlert, IconClock, IconEdit } from "@/components/icons";
 
 type Val = unknown;
@@ -150,6 +151,8 @@ export default function AdminPolicies() {
         )}
         {unvNote ? <Notice ok={unvNote.ok} msg={unvNote.msg} /> : null}
       </div>
+
+      <BusinessCalendarCard />
 
       <EditModal section={edit} data={edit ? res.data?.[edit] ?? {} : {}} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); setKey((k) => k + 1); }} />
       <HistoryModal section={history} onClose={() => setHistory(null)} />

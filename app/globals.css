@@ -3983,3 +3983,25 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .bhnote{display:flex;align-items:flex-start;gap:8px;margin:0;padding:10px 12px;border-radius:12px;font-size:.82rem;line-height:1.45;background:var(--dk-tint-warn, #fff7ed);color:var(--dk-txt-warn, #9a3412);border:1px solid var(--dk-bd-warn, #fed7aa)}
 .bhnote svg{width:15px;height:15px;flex:none;margin-top:2px}
 .bhnote--ok{background:var(--b50);color:var(--dk-acc-strong, var(--b700));border-color:var(--b200)}
+
+/* ── wp-am ── */
+/* admin: working-hours calendar card (T0-20) */
+.bcal{display:grid;gap:16px}
+.bcal__sched{display:grid;gap:2px;padding:12px 14px;border-radius:12px;background:var(--b50)}
+.bcal__k{font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--gray2)}
+.bcal__sched b{font-size:.95rem}.bcal__sched small{font-size:.78rem;color:var(--gray)}
+.bcal__sect{display:grid;gap:8px}
+.bcal__chips{display:flex;flex-wrap:wrap;gap:6px}
+.bcal__chip{display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 11px;border-radius:999px;background:var(--dk-tint-warn, #fff4e5);color:var(--dk-txt-warn, #9a3412);font-size:.8rem;font-weight:700}
+.bcal__chip button{width:20px;height:20px;border:0;border-radius:50%;background:rgba(0,0,0,.06);color:inherit;display:grid;place-items:center;cursor:pointer}
+.bcal__chip button svg{width:11px;height:11px}
+.bcal__add{display:grid;grid-template-columns:minmax(150px,200px) minmax(0,1fr) auto;gap:8px;align-items:center}
+.bcal__add input{width:100%;border:0;background:var(--dk-surface-2, #F7FAFE);border-radius:14px;padding:12px 15px;font:inherit;font-size:.92rem;box-shadow:inset 0 0 0 1.5px var(--line)}
+.bcal__add input:focus{outline:none;box-shadow:inset 0 0 0 1.5px var(--b400);background:var(--dk-surface, #fff)}
+.bcal__res{display:grid;gap:6px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--dk-surface-2, #f7fafe)}
+.bcal__res>div{display:flex;justify-content:space-between;gap:12px;font-size:.86rem}
+.bcal__res span{color:var(--gray)}
+.bcal__res b.ok{color:var(--ok)}.bcal__res b.off{color:var(--dk-txt-warn, #b45309)}
+.bcal__res-main{padding-top:8px;margin-top:2px;border-top:1px dashed var(--line)}
+.bcal__res-main b{font-size:1rem;color:var(--dk-acc-strong, var(--b700))}
+@media (max-width:640px){.bcal__add{grid-template-columns:1fr}}

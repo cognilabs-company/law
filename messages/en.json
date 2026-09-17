@@ -5229,6 +5229,37 @@
         "hidden": "Do not list them at all",
         "hiddenText": "Only verified providers appear in the list, search and matching."
       }
+    },
+    "businessCalendar": {
+      "title": "Working-hours calendar (T0-20)",
+      "lead": "The advocate response window (30 min), duty-lawyer SLA and client auto-confirmation count working time only. Manage public holidays here and check the deadline for any moment.",
+      "schedule": "Schedule",
+      "nowOpen": "open now",
+      "nowClosed": "closed now",
+      "holidays": "Public holidays",
+      "noHolidays": "No holidays set — Sunday is the only day off.",
+      "dayPh": "Date",
+      "titlePh": "Name (e.g. Independence Day)",
+      "holidayDefault": "Holiday",
+      "add": "Add",
+      "saving": "Saving…",
+      "added": "Holiday added.",
+      "remove": "Remove",
+      "simTitle": "Time simulation",
+      "simLead": "E.g. Tuesday 20:00, Saturday 20:00, Tuesday 18:45 or the eve of a holiday — the server computes the advocate deadline for that moment (no system-clock change needed).",
+      "simDayPh": "Date",
+      "simTimePh": "Time",
+      "simRun": "Compute",
+      "simRunning": "Computing…",
+      "simAt": "Order time",
+      "simStatus": "Status",
+      "simOpen": "Working time",
+      "simAfterHours": "After hours",
+      "simDayOff": "Day off / holiday",
+      "simNext": "Next work start",
+      "simDeadline": "Advocate response deadline (30 min)",
+      "forbidden": "Not allowed for this account (cases.manage).",
+      "error": "Error. Try again."
     }
   },
   "secureChat": {

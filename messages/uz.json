@@ -5235,6 +5235,37 @@
         "hidden": "Katalogda umuman ko'rinmasin",
         "hiddenText": "Faqat tasdiqlangan ijrochilar ro'yxatga, qidiruvga va tanlovga chiqadi."
       }
+    },
+    "businessCalendar": {
+      "title": "Ish vaqti kalendari (T0-20)",
+      "lead": "Advokat javob muddati (30 daqiqa), navbatchi yurist SLA'si va mijoz avtotasdig'i faqat ish vaqtida hisoblanadi. Bayramlarni shu yerda boshqaring va istalgan vaqt uchun muddatni tekshiring.",
+      "schedule": "Ish jadvali",
+      "nowOpen": "hozir ish vaqti",
+      "nowClosed": "hozir ish vaqti emas",
+      "holidays": "Bayram kunlari",
+      "noHolidays": "Bayram kiritilmagan — faqat yakshanba dam olish kuni.",
+      "dayPh": "Sana",
+      "titlePh": "Nomi (masalan, Mustaqillik kuni)",
+      "holidayDefault": "Bayram",
+      "add": "Qo'shish",
+      "saving": "Saqlanmoqda…",
+      "added": "Bayram qo'shildi.",
+      "remove": "O'chirish",
+      "simTitle": "Vaqt simulyatsiyasi",
+      "simLead": "Masalan: seshanba 20:00, shanba 20:00, seshanba 18:45 yoki bayram arafasi — server shu vaqt uchun advokat muddatini hisoblab beradi (tizim vaqtini o'zgartirish shart emas).",
+      "simDayPh": "Sana",
+      "simTimePh": "Vaqt",
+      "simRun": "Hisoblash",
+      "simRunning": "Hisoblanmoqda…",
+      "simAt": "Buyurtma vaqti",
+      "simStatus": "Holat",
+      "simOpen": "Ish vaqtida",
+      "simAfterHours": "Ish vaqtidan tashqari",
+      "simDayOff": "Dam olish / bayram kuni",
+      "simNext": "Keyingi ish boshlanishi",
+      "simDeadline": "Advokat javob muddati (30 daqiqa)",
+      "forbidden": "Bu amal uchun ruxsat yo'q (cases.manage).",
+      "error": "Xatolik. Qayta urining."
     }
   },
   "secureChat": {
