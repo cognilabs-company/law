@@ -405,3 +405,26 @@ Backend'ga (0E jadvali #67–68): `/users/search` uchrashuv hostiga (o'z aloqala
 - **Frontend**: «Shaxsni tasdiqlash» kartasi — MyID «Asosiy» birinchi, OneID ikkinchi; mijoz profilida «Tasdiqlangan profil» bejji (`/identity/me`); advokat/yurist profiliga ham karta qo'shildi (§4).
 - **Admin → Siyosatlar → «Tasdiqlanmagan advokat va yuristlar»**: ikki rejim — «belgi bilan ko'rinsin» / «umuman ko'rinmasin». Backend'da alohida bo'lim yo'q, qiymat ommaviy `order` siyosatida saqlanadi (`order.catalog.unverified_sellers = badge|hidden`, `PUT /admin/platform/policies/order`), mehmon ham `GET /platform/policies` dan o'qiydi. Frontend `listLawyers()` «hidden» rejimda tasdiqlanmaganlarni chiqarmaydi (katalog, qidiruv, xizmat uchun tanlov, mos advokatlar); «badge» rejimida karta, qidiruv qatori, tanlov ro'yxati va profil oynasida «Tasdiqlanmagan» belgisi (jonli: /lawyers da 3 ta belgi) (§5 ✅ FE). Ideal holda backend `GET /lawyers` ham rejimga bo'ysunishi kerak (#70).
 - Qolgan: `identity_verified_at`/`/auth/me` maydonlari (#69), ijrochi uchun majburiylik sharti MyID ulangach (#71). GM tekshiruv kuni `DEMO_MODE` yoqilgan bo'lishi kerak (`verify-demo` aks holda 404).
+
+## 20. 18.09 — `LEXGO_BACKEND_FRONTEND_MOBILE_PROVIDER_STATUS_2026-09-18.md` bo'yicha frontend
+
+| Backend bo'limi | Frontend holati |
+|---|---|
+| Auth / Register / 2FA (first/last/middle name, region, referral_code; `register/start` → bot link → `register/verify`; 428 `method` totp/telegram → `/auth/login/2fa`; profil 2FA start/verify, totp setup/enable; TOTP faol bo'lsa Telegram kutilmaydi) | ✅ avvaldan; pending ijrochi cheklangan kabinet bilan kiradi |
+| Admin register requests (ro'yxat, `GET /{id}` tafsilot, accept/reject) | ✅ (17.09 tafsilot oynasi) |
+| **Seller availability** (`GET/PUT /lawyers/me/availability`: timezone, weekly days, start/end, enabled, manual/auto/SOS deadlines) | ✅ **bugun**: advokat/yurist profili → «Ish vaqtim va ta'til» serverdan yuklanadi va `PUT` bilan saqlanadi; javob muddatlari (oddiy 30 / avto 15 / SOS 5 daq) tahrirlanadi; `source` (standart/serverda/qurilmada) ko'rsatiladi; eski backend'da brauzer nusxasi qoladi |
+| Seller profile (`GET/PUT /lawyers/me`, statistika maydonlari, yurist tajribasi `experience_years` + `lawyer_experience_years`, status pending/approved/rejected) | ✅ |
+| Katalog (list/search/passport, admin CRUD, kategoriya create) | ✅ (18.09 admin tahrir/o'chirish/qidiruv) |
+| Buyurtmalar (create/list/accept/decline/status/history/payment-policy/milestones) | ✅ |
+| Maxfiy chat (`filtered_content`, `is_blocked`, `block_reason`, reveal request/approve/status, room WS) | ✅ |
+| Qo'ng'iroqlar (create/list/join-token/invited/participants, call WS, `/ws/users/me`, `livekit_url`, polling yo'q) | ✅ |
+| Workspace (upload/list, signed-url → backend absolute URL, path yasalmaydi) | ✅ (17.09) |
+| Hujjat shablonlari/so'rovlar (answers, `/payments` amount bilan, generate, file) | ✅ |
+| Lidlar/kanban (columns GET/PUT/DELETE, board, move, call-center kanban) | ✅ (+18.09 operatorga taqsimlash) |
+| Dashboard/analitika endpointlari | ✅ (+18.09 drill-down, filtrlar, demo) |
+| Referral (`ref` landing→register saqlanadi, QR) | ✅ |
+| Sharhlar (pending/create/me, admin moderatsiya) | ✅ |
+| Bildirishnomalar (list/read/read-all/unread-count/preferences, WS) | ✅ (+18.09 toifalar) |
+| Rollar UI — permission checkbox/grid | ✅ (yaratishda checkbox, matritsa ko'rinishi) |
+
+Backend'dan kutilayotganlar (0E #73–81) o'zgarmadi; tashqi provayderlar (SMS/Email/Push/Payme/Click/OneID/MyID/IP-telefoniya) hujjatdagi ro'yxat bo'yicha.
