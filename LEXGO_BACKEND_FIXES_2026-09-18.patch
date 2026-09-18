@@ -1,0 +1,798 @@
+diff --git a/ai_service.py b/ai_service.py
+index 2501209..bcbcc94 100644
+--- a/ai_service.py
++++ b/ai_service.py
+@@ -32,19 +32,113 @@ Hech qachon yakuniy yuridik maslahat advokat tekshiruvini almashtiradi deb ko'rs
+ """
+ 
+ 
++# FIX (T0-17, 2026-09-18): this table only ever covered phone / PINFL /
++# passport / email. GM v1.1 requirement #1 also lists F.I.Sh. (name), manzil
++# (address) and bank rekvizitlari (card number) — none of those were masked,
++# so a message like "Mening ismim Aziz Karimov ... kartam 8600 1234 5678
++# 9012 ..." went to the external AI with the name and card number in plain
++# text. Bank card + a best-effort address heuristic added below; the name is
++# handled separately via `known_terms` (see PiiVault) since a name has no
++# fixed pattern — we mask the exact string(s) we already know from the
++# caller's own account (name / first / last / middle name).
++#
++# Each entry is (pattern, kind) — `kind` becomes part of a *reversible*
++# token (see PiiVault below), not a fixed "[X_REDACTED]" string, so the
++# original value can be restored in the AI's reply (requirement #2, which
++# had no implementation at all before this fix: a reply that echoed back a
++# masked span showed the literal "[PHONE_REDACTED]" placeholder to the user).
+ PII_PATTERNS = (
+-    (re.compile(r"(?<!\d)\+?998[\s().-]?\d{2}[\s().-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}(?!\d)"), "[PHONE_REDACTED]"),
+-    (re.compile(r"\b\d{14}\b"), "[PINFL_REDACTED]"),
+-    (re.compile(r"\b[A-Z]{2}\s?\d{7}\b", re.IGNORECASE), "[PASSPORT_REDACTED]"),
+-    (re.compile(r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b"), "[EMAIL_REDACTED]"),
++    (re.compile(r"(?<!\d)\+?998[\s().-]?\d{2}[\s().-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}(?!\d)"), "PHONE"),
++    (re.compile(r"\b\d{14}\b"), "PINFL"),
++    (re.compile(r"\b[A-Z]{2}\s?\d{7}\b", re.IGNORECASE), "PASSPORT"),
++    (re.compile(r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b"), "EMAIL"),
++    # Uzcard / Humo / Visa / Mastercard — 16 digits, optionally grouped in 4s
++    # with spaces or dashes (matches "8600 1234 5678 9012").
++    (re.compile(r"\b\d{4}[\s.-]?\d{4}[\s.-]?\d{4}[\s.-]?\d{4}\b"), "BANK"),
++    # Best-effort address heuristic: up to 2 words right before an address
++    # keyword (shahar/tuman/ko'cha/mahalla/kvartal/uy/mavze), the keyword
++    # itself, and the rest of that clause. Not exhaustive — a proper NER pass
++    # would also catch addresses with no keyword — but it is a large
++    # improvement over masking nothing at all. (No trailing \b after the
++    # keyword group: "sh\." ends on a literal ".", and "." next to the space
++    # that usually follows it is never a \b, so a trailing \b would silently
++    # stop this alternative from ever matching "Toshkent sh." — verified.)
++    (
++        re.compile(
++            r"(?:\S+\s+){0,2}\b(?:shahar|sh\.|tuman|ko'cha|kocha|mahalla|mavze|kvartal|uy)[^,.\n]{0,60}",
++            re.IGNORECASE,
++        ),
++        "ADDRESS",
++    ),
+ )
+ 
+ 
+-def mask_pii(value: str) -> str:
+-    masked = value
+-    for pattern, replacement in PII_PATTERNS:
+-        masked = pattern.sub(replacement, masked)
+-    return masked
++class PiiVault:
++    """Collects the PII spans found while masking outbound text for one AI
++    turn, each behind a unique, reversible token — so `unmask()` can restore
++    the real values in the AI's reply afterwards. Create one per request/turn
++    (`run_ai`, `run_seller_ai`, …); never share or persist it, the tokens are
++    only meaningful within that single round trip."""
++
++    def __init__(self) -> None:
++        self._by_token: dict[str, str] = {}
++        self._by_value: dict[str, str] = {}
++        self._next = 1
++
++    def _token_for(self, original: str, kind: str) -> str:
++        existing = self._by_value.get(original.lower())
++        if existing:
++            return existing
++        token = f"[{kind}_{self._next}]"
++        self._next += 1
++        self._by_token[token] = original
++        self._by_value[original.lower()] = token
++        return token
++
++    def mask(self, value: str, known_terms: list[str] | None = None) -> str:
++        if not value:
++            return value
++        masked = value
++        # Longest known term first, so "Aziz Karimov" is masked whole before
++        # a bare "Aziz" inside it could match on its own.
++        for term in sorted({t.strip() for t in (known_terms or []) if t and len(t.strip()) >= 3}, key=len, reverse=True):
++            masked = re.sub(re.escape(term), lambda m, t=term: self._token_for(t, "NAME"), masked, flags=re.IGNORECASE)
++        for pattern, kind in PII_PATTERNS:
++            masked = pattern.sub(lambda m, k=kind: self._token_for(m.group(0), k), masked)
++        return masked
++
++    def unmask(self, value: str) -> str:
++        if not value:
++            return value
++        restored = value
++        for token, original in self._by_token.items():
++            restored = restored.replace(token, original)
++        return restored
++
++
++def name_terms_for(user) -> list[str]:
++    """The known-name strings for an authenticated user (None for a guest),
++    longest first — exactly what PiiVault.mask needs for the NAME pass."""
++    if not user:
++        return []
++    full = " ".join(filter(None, [getattr(user, "first_name", None), getattr(user, "last_name", None), getattr(user, "middle_name", None)])).strip()
++    candidates = [getattr(user, "name", None), full, getattr(user, "first_name", None), getattr(user, "last_name", None), getattr(user, "middle_name", None)]
++    seen: set[str] = set()
++    terms: list[str] = []
++    for c in candidates:
++        c = (c or "").strip()
++        if len(c) >= 3 and c.lower() not in seen:
++            seen.add(c.lower())
++            terms.append(c)
++    return terms
++
++
++# Back-compat: a one-off mask with no restore (fine for a fire-and-forget
++# audit-log line, e.g. add_activity(...); never use this where the masked
++# text is sent to the AI and the reply is shown to the user — use a
++# PiiVault there so the reply can be unmasked).
++def mask_pii(value: str, known_terms: list[str] | None = None) -> str:
++    return PiiVault().mask(value, known_terms)
+ 
+ 
+ TOOLS = [
+@@ -78,12 +172,12 @@ TOOLS = [
+ ]
+ 
+ 
+-def build_input(chat: Chat, client_message: str) -> list[dict[str, str]]:
++def build_input(chat: Chat, client_message: str, vault: "PiiVault", known_terms: list[str] | None = None) -> list[dict[str, str]]:
+     items = []
+     for message in chat.messages[-30:]:
+         if message.role.value in {"user", "assistant"}:
+-            items.append({"role": message.role.value, "content": mask_pii(message.content)})
+-    items.append({"role": "user", "content": mask_pii(client_message)})
++            items.append({"role": message.role.value, "content": vault.mask(message.content, known_terms)})
++    items.append({"role": "user", "content": vault.mask(client_message, known_terms)})
+     return items
+ 
+ 
+@@ -168,39 +262,45 @@ def call_tool(db: Session, chat_id: str, name: str, arguments: dict[str, Any]) -
+         return {"error": str(error), "tool": name}
+ 
+ 
+-def build_final_prompt(client_message: str, tool_results: list[dict[str, Any]], contracts: list[dict[str, str]]) -> str:
++def build_final_prompt(client_message: str, tool_results: list[dict[str, Any]], contracts: list[dict[str, str]], vault: "PiiVault", known_terms: list[str] | None = None) -> str:
+     return (
+         "Tool chaqirishni to'xtating va hozir final javob yozing. "
+         "Yangi function call chaqirmang. "
+         "Mijoz savoliga mavjud rasmiy manba natijalari asosida aniq, amaliy va qisqa javob bering. "
+         "Agar manbalarda yetarli ma'lumot bo'lmasa, buni ayting va umumiy yo'l-yo'riq bering. "
+         "Agar PDF contract yaratilgan bo'lsa, link yozmang, faqat PDF fayl tayyorligini ayting. "
+-        f"Mijoz xabari: {mask_pii(client_message)}\n"
+-        f"Tool natijalari: {mask_pii(json.dumps(tool_results, ensure_ascii=False))[:16000]}\n"
++        f"Mijoz xabari: {vault.mask(client_message, known_terms)}\n"
++        f"Tool natijalari: {vault.mask(json.dumps(tool_results, ensure_ascii=False), known_terms)[:16000]}\n"
+         f"Yaratilgan PDF fayllar: {json.dumps(contracts, ensure_ascii=False)[:4000]}"
+     )
+ 
+ 
+-def generate_final_answer(client: OpenAI, model: str, client_message: str, tool_results: list[dict[str, Any]], contracts: list[dict[str, str]]) -> str:
++def generate_final_answer(client: OpenAI, model: str, client_message: str, tool_results: list[dict[str, Any]], contracts: list[dict[str, str]], vault: "PiiVault", known_terms: list[str] | None = None) -> str:
+     response = client.responses.create(
+         model=model,
+         instructions=SYSTEM_PROMPT,
+-        input=[{"role": "user", "content": build_final_prompt(client_message, tool_results, contracts)}],
++        input=[{"role": "user", "content": build_final_prompt(client_message, tool_results, contracts, vault, known_terms)}],
+     )
+-    return get_output_text(response)
++    # Restored here (not by the caller) so every path that can produce the
++    # final answer text goes through the same unmask step.
++    return vault.unmask(get_output_text(response))
+ 
+ 
+-def run_ai(db: Session, chat: Chat, client_message: str) -> tuple[str, list[dict[str, str]], list[dict[str, str]]]:
++def run_ai(db: Session, chat: Chat, client_message: str, known_terms: list[str] | None = None) -> tuple[str, list[dict[str, str]], list[dict[str, str]]]:
+     settings = get_settings()
+     if not settings.openai_api_key:
+         return "OPENAI_API_KEY sozlanmagan. `.env` faylga API key qo'shing.", [], []
+     client = OpenAI(api_key=settings.openai_api_key)
+     tool_results = []
++    # One vault per turn: every mask() call below (this message, the chat
++    # history, the tool arguments, the final-answer fallback prompt) shares
++    # it, so a single unmask() at the end restores everything consistently.
++    vault = PiiVault()
+     try:
+         response = client.responses.create(
+             model=settings.openai_model,
+             instructions=SYSTEM_PROMPT,
+-            input=build_input(chat, client_message),
++            input=build_input(chat, client_message, vault, known_terms),
+             tools=TOOLS,
+         )
+         answer = get_output_text(response)
+@@ -218,7 +318,7 @@ def run_ai(db: Session, chat: Chat, client_message: str) -> tuple[str, list[dict
+                         result = {"error": "Search limit reached. Use existing source results and write final answer."}
+                     else:
+                         arguments = json.loads(getattr(call, "arguments", "{}") or "{}")
+-                        arguments["query"] = mask_pii(arguments.get("query", ""))
++                        arguments["query"] = vault.mask(arguments.get("query", ""), known_terms)
+                         result = call_tool(db, chat.id, call.name, arguments)
+                 elif call.name == "fetch_legal_source":
+                     fetch_calls += 1
+@@ -250,7 +350,12 @@ def run_ai(db: Session, chat: Chat, client_message: str) -> tuple[str, list[dict
+                 break
+         contracts = extract_contracts_from_tools(tool_results)
+         if not answer:
+-            answer = generate_final_answer(client, settings.openai_model, client_message, tool_results, contracts)
++            answer = generate_final_answer(client, settings.openai_model, client_message, tool_results, contracts, vault, known_terms)
++        else:
++            # generate_final_answer restores its own output; the two other
++            # sources of `answer` above (the direct reply, the post-tool-call
++            # reply) are still in raw masked-token form until here.
++            answer = vault.unmask(answer)
+     except OpenAIError as error:
+         return f"AI servis bilan aloqa vaqtida xatolik bo'ldi: {error}", extract_sources_from_tools(tool_results), extract_contracts_from_tools(tool_results)
+     except Exception as error:
+diff --git a/database.py b/database.py
+index 3c840bb..992dddc 100644
+--- a/database.py
++++ b/database.py
+@@ -168,6 +168,7 @@ def ensure_runtime_columns() -> None:
+         add_column_if_missing("secure_chat_rooms", "auto_delete_hours", "INTEGER DEFAULT 0")
+         add_column_if_missing("secure_chat_rooms", "archived_until", "TIMESTAMP WITH TIME ZONE" if settings.database_url.startswith("postgresql") else "DATETIME")
+     if "user_activities" in tables:
++        add_column_if_missing("user_activities", "device", "VARCHAR(255) DEFAULT ''")
+         add_column_if_missing("user_activities", "target_type", "VARCHAR(80) DEFAULT ''")
+         add_column_if_missing("user_activities", "target_id", "VARCHAR(120) DEFAULT ''")
+         add_column_if_missing("user_activities", "outcome", "VARCHAR(40) DEFAULT 'success'")
+@@ -178,6 +179,8 @@ def ensure_runtime_columns() -> None:
+                 connection.execute(text("CREATE OR REPLACE FUNCTION prevent_user_activity_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'user_activities is append-only'; END; $$"))
+                 connection.execute(text("DROP TRIGGER IF EXISTS user_activities_append_only ON user_activities"))
+                 connection.execute(text("CREATE TRIGGER user_activities_append_only BEFORE UPDATE OR DELETE ON user_activities FOR EACH ROW EXECUTE FUNCTION prevent_user_activity_mutation()"))
++    if "consent_documents" in tables:
++        add_column_if_missing("consent_documents", "requires_reaccept", "INTEGER DEFAULT 1")
+     if "contracts" in tables and settings.database_url.startswith("postgresql"):
+         with engine.begin() as connection:
+             connection.execute(text("ALTER TABLE contracts ALTER COLUMN chat_id DROP NOT NULL"))
+diff --git a/main.py b/main.py
+index ad77e95..367d607 100644
+--- a/main.py
++++ b/main.py
+@@ -21,7 +21,7 @@ from sqlalchemy import desc, func, select
+ from sqlalchemy.exc import IntegrityError
+ from sqlalchemy.orm import Session
+ 
+-from ai_service import mask_pii, run_ai
++from ai_service import mask_pii, name_terms_for, run_ai
+ from auth_service import consume_guest_ai_limit, create_access_token, create_refresh_session, demo_otp_code, get_current_user, get_optional_current_user, get_optional_websocket_user, get_refresh_session, get_request_ip, get_user_by_phone, get_websocket_ip, hash_otp, hash_password, lexgo_id_for, normalize_phone, seed_permissions_and_roles, user_permission_codes, verify_otp, verify_password
+ from catalog_seed import seed_catalog
+ from config import get_settings
+@@ -332,13 +332,24 @@ def json_payload(raw: str) -> dict:
+         return {}
+ 
+ 
+-def add_activity(db: Session, user_id: str | None, action: str, detail: str, ip: str = "", meta: dict | None = None, target_type: str = "", target_id: str = "", outcome: str = "success") -> None:
++def add_activity(db: Session, user_id: str | None, action: str, detail: str, ip: str = "", meta: dict | None = None, target_type: str = "", target_id: str = "", outcome: str = "success", device: str = "") -> None:
+     if user_id:
+         previous = db.scalar(select(UserActivity).order_by(UserActivity.created_at.desc(), UserActivity.id.desc()))
+         previous_hash = previous.event_hash if previous else ""
+-        payload = json.dumps({"user_id": user_id, "action": action, "detail": detail, "ip": ip, "target_type": target_type, "target_id": target_id, "outcome": outcome, "meta": meta or {}}, ensure_ascii=False, sort_keys=True)
++        payload = json.dumps({"user_id": user_id, "action": action, "detail": detail, "ip": ip, "device": device, "target_type": target_type, "target_id": target_id, "outcome": outcome, "meta": meta or {}}, ensure_ascii=False, sort_keys=True)
+         event_hash = hashlib.sha256(f"{previous_hash}:{payload}".encode("utf-8")).hexdigest()
+-        db.add(UserActivity(user_id=user_id, action=action, detail=detail, ip=ip, target_type=target_type, target_id=target_id, outcome=outcome, meta_json=json.dumps(meta or {}, ensure_ascii=False), previous_hash=previous_hash, event_hash=event_hash))
++        db.add(UserActivity(user_id=user_id, action=action, detail=detail, ip=ip, device=device, target_type=target_type, target_id=target_id, outcome=outcome, meta_json=json.dumps(meta or {}, ensure_ascii=False), previous_hash=previous_hash, event_hash=event_hash))
++
++
++# T0-11 #4: best-effort suspicious-login signal beyond IP change (mirrors marketplace_routes.flag_unusual_login_time).
++def flag_unusual_login_time(db: Session, user: User, ip: str, device: str) -> None:
++    hour = utc_now().hour
++    if not (1 <= hour <= 4):
++        return
++    recent = db.scalars(select(UserActivity).where(UserActivity.user_id == user.id, UserActivity.action == "login").order_by(UserActivity.created_at.desc()).limit(20)).all()
++    if any(1 <= row.created_at.hour <= 4 for row in recent):
++        return
++    db.add(MarketplaceRecord(module="security_event", record_type="suspicious_login", title="Suspicious login at unusual time", status="new", owner_user_id=user.id, payload_json=json.dumps({"hour_utc": hour, "ip": ip, "device": device}, ensure_ascii=False)))
+ 
+ 
+ def response_otp(code: str) -> str | None:
+@@ -680,15 +691,33 @@ def seed_consent_documents(db: Session) -> None:
+ @app.get("/legal/consents", response_model=list[dict])
+ def legal_consents(db: Session = Depends(get_db)) -> list[dict]:
+     rows = db.scalars(select(ConsentDocument).where(ConsentDocument.is_active == 1).order_by(ConsentDocument.slug, ConsentDocument.version.desc())).all()
+-    return [{"id": row.id, "slug": row.slug, "version": row.version, "title": row.title, "body": row.body, "is_active": bool(row.is_active), "created_at": row.created_at} for row in rows]
++    return [{"id": row.id, "slug": row.slug, "version": row.version, "title": row.title, "body": row.body, "is_active": bool(row.is_active), "requires_reaccept": bool(row.requires_reaccept), "created_at": row.created_at} for row in rows]
+ 
+ 
+ @app.get("/legal/consents/me", response_model=list[dict])
+ def my_legal_consents(authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> list[dict]:
+     user = get_current_user(db, authorization)
+-    documents = {row.id: row for row in db.scalars(select(ConsentDocument).where(ConsentDocument.is_active == 1)).all()}
+-    accepted = db.scalars(select(UserConsent).where(UserConsent.user_id == user.id).order_by(UserConsent.accepted_at.desc())).all()
+-    return [{"id": row.id, "consent_id": row.consent_id, "slug": documents[row.consent_id].slug if row.consent_id in documents else "", "version": row.version, "accepted": row.consent_id in documents and documents[row.consent_id].version == row.version, "accepted_at": row.accepted_at} for row in accepted]
++    all_documents = {row.id: row for row in db.scalars(select(ConsentDocument)).all()}
++    active_latest_by_slug: dict[str, ConsentDocument] = {}
++    for row in all_documents.values():
++        if not row.is_active:
++            continue
++        current = active_latest_by_slug.get(row.slug)
++        if not current or row.version > current.version:
++            active_latest_by_slug[row.slug] = row
++    accepted_rows = db.scalars(select(UserConsent).where(UserConsent.user_id == user.id).order_by(UserConsent.accepted_at.desc())).all()
++    latest_own_accept_by_slug: dict[str, UserConsent] = {}
++    for row in accepted_rows:
++        doc = all_documents.get(row.consent_id)
++        if doc and doc.slug not in latest_own_accept_by_slug:
++            latest_own_accept_by_slug[doc.slug] = row
++    result = []
++    for slug, doc in active_latest_by_slug.items():
++        own = latest_own_accept_by_slug.get(slug)
++        # T0-18 #6: exact version match always counts; a minor (requires_reaccept=0) bump keeps the prior acceptance valid.
++        accepted = bool(own) and (own.version == doc.version or not doc.requires_reaccept)
++        result.append({"id": doc.id, "consent_id": doc.id, "slug": slug, "version": doc.version, "requires_reaccept": bool(doc.requires_reaccept), "accepted": accepted, "accepted_at": own.accepted_at if own else None})
++    return result
+ 
+ 
+ @app.get("/admin/legal/consents", response_model=list[dict])
+@@ -697,7 +726,51 @@ def admin_legal_consents(authorization: str | None = Header(default=None), db: S
+     if "users.manage" not in user_permission_codes(user):
+         raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+     rows = db.scalars(select(ConsentDocument).order_by(ConsentDocument.slug, ConsentDocument.version.desc())).all()
+-    return [{"id": row.id, "slug": row.slug, "version": row.version, "title": row.title, "body": row.body, "is_active": bool(row.is_active), "created_at": row.created_at} for row in rows]
++    return [{"id": row.id, "slug": row.slug, "version": row.version, "title": row.title, "body": row.body, "is_active": bool(row.is_active), "requires_reaccept": bool(row.requires_reaccept), "created_at": row.created_at} for row in rows]
++
++
++@app.post("/admin/legal/consents", response_model=dict, status_code=201)
++def create_admin_legal_consent(payload: dict, authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> dict:
++    user = get_current_user(db, authorization)
++    if "users.manage" not in user_permission_codes(user):
++        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
++    slug = str(payload.get("slug", "")).strip()
++    version = str(payload.get("version", "")).strip()
++    title = str(payload.get("title", "")).strip()
++    body = str(payload.get("body", "")).strip()
++    if not slug or not version or not title or not body:
++        raise HTTPException(status_code=400, detail="slug, version, title, body talab qilinadi")
++    if db.scalar(select(ConsentDocument).where(ConsentDocument.slug == slug, ConsentDocument.version == version)):
++        raise HTTPException(status_code=409, detail="Bu slug/version allaqachon mavjud")
++    requires_reaccept = bool(payload.get("requires_reaccept", True))
++    item = ConsentDocument(slug=slug, version=version, title=title, body=body, is_active=1, requires_reaccept=int(requires_reaccept))
++    db.add(item)
++    add_activity(db, user.id, "consent_document_create", slug, meta={"consent_id": item.id, "version": version, "requires_reaccept": requires_reaccept})
++    db.commit()
++    db.refresh(item)
++    return {"id": item.id, "slug": item.slug, "version": item.version, "title": item.title, "body": item.body, "is_active": bool(item.is_active), "requires_reaccept": bool(item.requires_reaccept), "created_at": item.created_at}
++
++
++@app.patch("/admin/legal/consents/{consent_id}", response_model=dict)
++def update_admin_legal_consent(consent_id: str, payload: dict, authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> dict:
++    user = get_current_user(db, authorization)
++    if "users.manage" not in user_permission_codes(user):
++        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
++    item = db.get(ConsentDocument, consent_id)
++    if not item:
++        raise HTTPException(status_code=404, detail="Consent document topilmadi")
++    # Editing an existing version is a minor correction (typo fix etc.) — it never forces re-acceptance.
++    # A wording/legal change that SHOULD force re-acceptance must be published as a new version via POST instead.
++    if "title" in payload and payload["title"] is not None:
++        item.title = str(payload["title"]).strip()
++    if "body" in payload and payload["body"] is not None:
++        item.body = str(payload["body"]).strip()
++    if "is_active" in payload:
++        item.is_active = int(bool(payload["is_active"]))
++    add_activity(db, user.id, "consent_document_update", item.slug, meta={"consent_id": item.id, "version": item.version})
++    db.commit()
++    db.refresh(item)
++    return {"id": item.id, "slug": item.slug, "version": item.version, "title": item.title, "body": item.body, "is_active": bool(item.is_active), "requires_reaccept": bool(item.requires_reaccept), "created_at": item.created_at}
+ 
+ 
+ @app.get("/admin/legal/user-consents", response_model=list[dict])
+@@ -995,6 +1068,7 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
+     current_ip = get_request_ip(request)
+     if last_session and last_session.ip and current_ip and last_session.ip != current_ip:
+         db.add(MarketplaceRecord(module="security_event", record_type="suspicious_login", title="Suspicious login IP change", status="new", owner_user_id=user.id, payload_json=json.dumps({"previous_ip": last_session.ip, "current_ip": current_ip, "user_agent": request.headers.get("user-agent", "")}, ensure_ascii=False)))
++    flag_unusual_login_time(db, user, current_ip, request.headers.get("user-agent", ""))
+     refresh_token, _ = create_refresh_session(db, user, get_request_ip(request), request.headers.get("user-agent", ""), request.headers.get("x-device-label", ""))
+     add_activity(db, user.id, "login", "User logged in", get_request_ip(request))
+     db.commit()
+@@ -1317,7 +1391,7 @@ async def send_message(client_id: str, chat_id: str, payload: MessageCreate, req
+     db.commit()
+     db.refresh(user_message)
+     await manager.broadcast(chat.id, {"event": "message.created", "message": message_to_out(user_message).model_dump(mode="json")})
+-    answer, sources, contracts = run_ai(db, chat, payload.content)
++    answer, sources, contracts = run_ai(db, chat, payload.content, name_terms_for(user))
+     assistant_message = Message(
+         chat_id=chat.id,
+         role=MessageRole.assistant,
+@@ -1414,7 +1488,7 @@ async def chat_websocket(websocket: WebSocket, client_id: str, chat_id: str) ->
+                 db.commit()
+                 db.refresh(user_message)
+                 await manager.broadcast(chat.id, {"event": "message.created", "message": message_to_out(user_message).model_dump(mode="json")})
+-                answer, sources, contracts = run_ai(db, chat, content)
++                answer, sources, contracts = run_ai(db, chat, content, name_terms_for(user))
+                 assistant_message = Message(
+                     chat_id=chat.id,
+                     role=MessageRole.assistant,
+diff --git a/marketplace_routes.py b/marketplace_routes.py
+index 90f0347..a5df1ec 100644
+--- a/marketplace_routes.py
++++ b/marketplace_routes.py
+@@ -19,12 +19,12 @@ from fastapi.responses import FileResponse, StreamingResponse
+ from fastapi.routing import APIRoute
+ from openai import OpenAI, OpenAIError
+ from pydantic import BaseModel, Field
+-from ai_service import mask_pii
++from ai_service import PiiVault, mask_pii, name_terms_for
+ from business_calendar import add_business_minutes, business_hours_status as calendar_status
+ from sqlalchemy import delete, func, select
+ from sqlalchemy.orm import Session, selectinload
+ 
+-from auth_service import assign_role_to_user, demo_otp_code, get_current_user, get_user_by_phone, hash_otp, hash_password, lexgo_id_for, require_permission, user_permission_codes, verify_otp
++from auth_service import assign_role_to_user, demo_otp_code, get_current_user, get_request_ip, get_user_by_phone, hash_otp, hash_password, lexgo_id_for, require_permission, user_permission_codes, verify_otp
+ from config import get_settings
+ from database import get_db
+ from identity_provider import get_identity_provider
+@@ -230,14 +230,40 @@ def request_ip(request: Request | None) -> str:
+     return request.client.host if request.client else ""
+ 
+ 
+-def add_activity(db: Session, user_id: str | None, action: str, detail: str = "", ip: str = "", meta: dict | None = None, target_type: str = "", target_id: str = "", outcome: str = "success") -> None:
++def add_activity(db: Session, user_id: str | None, action: str, detail: str = "", ip: str = "", meta: dict | None = None, target_type: str = "", target_id: str = "", outcome: str = "success", device: str = "") -> None:
+     if not user_id:
+         return
+     previous = db.scalar(select(UserActivity).order_by(UserActivity.created_at.desc(), UserActivity.id.desc()))
+     previous_hash = previous.event_hash if previous else ""
+-    payload = dump_json({"user_id": user_id, "action": action, "detail": detail, "ip": ip, "target_type": target_type, "target_id": target_id, "outcome": outcome, "meta": meta or {}})
++    payload = dump_json({"user_id": user_id, "action": action, "detail": detail, "ip": ip, "device": device, "target_type": target_type, "target_id": target_id, "outcome": outcome, "meta": meta or {}})
+     event_hash = hashlib.sha256(f"{previous_hash}:{payload}".encode("utf-8")).hexdigest()
+-    db.add(UserActivity(user_id=user_id, action=action, detail=detail, ip=ip, target_type=target_type, target_id=target_id, outcome=outcome, meta_json=dump_json(meta or {}), previous_hash=previous_hash, event_hash=event_hash))
++    db.add(UserActivity(user_id=user_id, action=action, detail=detail, ip=ip, device=device, target_type=target_type, target_id=target_id, outcome=outcome, meta_json=dump_json(meta or {}), previous_hash=previous_hash, event_hash=event_hash))
++
++
++# T0-11 #4: best-effort suspicious-access signals beyond IP change.
++BULK_ACCESS_WINDOW_MINUTES = 5
++BULK_ACCESS_THRESHOLD = 30
++
++
++def flag_bulk_access(db: Session, user_id: str | None, action: str, target_type: str) -> None:
++    if not user_id:
++        return
++    window_start = utc_now() - timedelta(minutes=BULK_ACCESS_WINDOW_MINUTES)
++    recent_count = db.scalar(select(func.count(UserActivity.id)).where(UserActivity.user_id == user_id, UserActivity.action == action, UserActivity.created_at >= window_start))
++    if recent_count and recent_count >= BULK_ACCESS_THRESHOLD:
++        already_flagged = db.scalar(select(MarketplaceRecord).where(MarketplaceRecord.module == "security_event", MarketplaceRecord.record_type == "bulk_access", MarketplaceRecord.owner_user_id == user_id, MarketplaceRecord.created_at >= window_start))
++        if not already_flagged:
++            db.add(MarketplaceRecord(module="security_event", record_type="bulk_access", title="Suspicious bulk data access", status="new", owner_user_id=user_id, payload_json=dump_json({"action": action, "target_type": target_type, "count": recent_count, "window_minutes": BULK_ACCESS_WINDOW_MINUTES})))
++
++
++def flag_unusual_login_time(db: Session, user: User, ip: str, device: str) -> None:
++    hour = utc_now().hour
++    if not (1 <= hour <= 4):
++        return
++    recent = db.scalars(select(UserActivity).where(UserActivity.user_id == user.id, UserActivity.action == "login").order_by(UserActivity.created_at.desc()).limit(20)).all()
++    if any(1 <= row.created_at.hour <= 4 for row in recent):
++        return
++    db.add(MarketplaceRecord(module="security_event", record_type="suspicious_login", title="Suspicious login at unusual time", status="new", owner_user_id=user.id, payload_json=dump_json({"hour_utc": hour, "ip": ip, "device": device})))
+ 
+ 
+ AUDIT_UZ_TITLES = {
+@@ -289,7 +315,21 @@ def audit_uz(row: UserActivity) -> tuple[str, str]:
+ 
+ def activity_to_out(row: UserActivity) -> dict:
+     title_uz, description_uz = audit_uz(row)
+-    return ActivityOut(id=row.id, action=row.action, title_uz=title_uz, detail=row.detail, description_uz=description_uz, ip=row.ip, target_type=row.target_type, target_id=row.target_id, outcome=row.outcome, created_at=row.created_at).model_dump(mode="json")
++    return ActivityOut(id=row.id, action=row.action, title_uz=title_uz, detail=row.detail, description_uz=description_uz, ip=row.ip, device=row.device, target_type=row.target_type, target_id=row.target_id, outcome=row.outcome, created_at=row.created_at).model_dump(mode="json")
++
++
++# T0-11 #2: a short, readable device label from the raw user-agent (the full
++# string is noisy) — same idea as UserSession's device label, kept local here
++# since audit rows only need the short form.
++def device_label(user_agent: str) -> str:
++    ua = (user_agent or "").strip()
++    if not ua:
++        return ""
++    browser = next((b for b in ("Edg/", "OPR/", "Chrome/", "Firefox/", "Safari/") if b in ua), "")
++    browser_name = {"Edg/": "Edge", "OPR/": "Opera", "Chrome/": "Chrome", "Firefox/": "Firefox", "Safari/": "Safari"}.get(browser, "")
++    os_name = next((o for o in ("Windows", "Android", "iPhone", "iPad", "Mac OS X", "Linux") if o in ua), "")
++    label = " · ".join(part for part in (browser_name, os_name) if part)
++    return label or ua[:120]
+ 
+ 
+ def deep_merge_policy(defaults: dict, override: dict) -> dict:
+@@ -655,18 +695,23 @@ def ai_fallback_answer(prompt: str, context_text: str) -> str:
+     return f"Qisqa xulosa: {short or 'Tahlil uchun matn yetarli emas.'}\n\nAsosiy holatlar, tomonlar, muddatlar va talab qilinayotgan natijani alohida tekshirish tavsiya etiladi."
+ 
+ 
+-def run_seller_ai(prompt: str, context_text: str, task: str) -> str:
++def run_seller_ai(prompt: str, context_text: str, task: str, known_terms: list[str] | None = None) -> str:
+     settings = get_settings()
+     if not settings.openai_api_key:
+         return ai_fallback_answer(prompt, context_text)
++    # One vault for this call: mask() below, unmask() on the way out, so a
++    # reply that echoes a masked span (e.g. the caller's own name) shows the
++    # real value again instead of the literal "[NAME_1]" placeholder.
++    vault = PiiVault()
+     try:
+         client = OpenAI(api_key=settings.openai_api_key)
+         response = client.responses.create(
+             model=settings.openai_model,
+             instructions="Siz LexGo seller assistant modulida ishlaysiz. O'zbek tilida, amaliy, aniq va markdown formatda javob bering. Ichki model/provayder haqida gapirmang. Huquqiy yakuniy xulosa o'rnini advokat tekshiruvi bosmasligini kerak bo'lsa qisqa eslating.",
+-            input=[{"role": "user", "content": f"Vazifa: {task}\nPrompt: {mask_pii(prompt)}\nCase/document context:\n{mask_pii(context_text)[:18000]}"}],
++            input=[{"role": "user", "content": f"Vazifa: {task}\nPrompt: {vault.mask(prompt, known_terms)}\nCase/document context:\n{vault.mask(context_text, known_terms)[:18000]}"}],
+         )
+-        return ai_output_text(response) or ai_fallback_answer(prompt, context_text)
++        answer = ai_output_text(response)
++        return vault.unmask(answer) if answer else ai_fallback_answer(prompt, context_text)
+     except OpenAIError:
+         return ai_fallback_answer(prompt, context_text)
+ 
+@@ -813,8 +858,9 @@ def settle_upsell_payment(db: Session, payment: Payment, user_id: str | None) ->
+     notify_user(db, offer.owner_user_id, "upsell_redeemed", "Taklif xarid qilindi", offer.title, {"offer_id": offer.id, "payment_id": payment.id})
+ 
+ 
+-def create_order_status_history(db: Session, order: ServiceOrder, status_value: str, user_id: str | None, note: str = "") -> MarketplaceRecord:
+-    record = MarketplaceRecord(module="order_status_history", record_type=status_value, title=f"Order {order.id} -> {status_value}", status="active", owner_user_id=user_id, payload_json=dump_json({"order_id": order.id, "status": status_value, "note": note, "changed_by_user_id": user_id}))
++def create_order_status_history(db: Session, order: ServiceOrder, status_value: str, user_id: str | None, note: str = "", old_status: str = "", ip: str = "", device: str = "") -> MarketplaceRecord:
++    # T0-11 #2: who, when (created_at below), old + new status, reason, IP, device.
++    record = MarketplaceRecord(module="order_status_history", record_type=status_value, title=f"Order {order.id} -> {status_value}", status="active", owner_user_id=user_id, payload_json=dump_json({"order_id": order.id, "old_status": old_status, "status": status_value, "note": note, "reason": note, "changed_by_user_id": user_id, "ip": ip, "device": device}))
+     db.add(record)
+     return record
+ 
+@@ -2429,7 +2475,7 @@ def search_users(q: str = Query(min_length=1, max_length=120), role: str | None
+ 
+ 
+ @router.get("/admin/users/{user_id}", response_model=dict)
+-def get_admin_user(user_id: str, authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> dict:
++def get_admin_user(user_id: str, request: Request, authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> dict:
+     user = current_user(authorization, db)
+     require_permission(user, "users.manage")
+     target = db.get(User, user_id)
+@@ -2437,7 +2483,10 @@ def get_admin_user(user_id: str, authorization: str | None = Header(default=None
+         raise HTTPException(status_code=404, detail="User topilmadi")
+     if not target.lexgo_id:
+         target.lexgo_id = lexgo_id_for(target.role)
+-        db.commit()
++    # T0-11 #4: track admin profile views and flag unusually fast bulk browsing.
++    add_activity(db, user.id, "profile_view", "", get_request_ip(request), {}, target_type="user", target_id=target.id, device=device_label(request.headers.get("user-agent", "")))
++    flag_bulk_access(db, user.id, "profile_view", "user")
++    db.commit()
+     return user_admin_out(target)
+ 
+ 
+@@ -3284,7 +3333,7 @@ def decline_order(order_id: str, authorization: str | None = Header(default=None
+ 
+ 
+ @router.patch("/orders/{order_id}/status", response_model=ServiceOrderOut)
+-def update_order_status(order_id: str, payload: OrderStatusUpdate, authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> ServiceOrderOut:
++def update_order_status(order_id: str, payload: OrderStatusUpdate, request: Request, authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> ServiceOrderOut:
+     user = current_user(authorization, db)
+     order = db.get(ServiceOrder, order_id)
+     if not order:
+@@ -3297,15 +3346,18 @@ def update_order_status(order_id: str, payload: OrderStatusUpdate, authorization
+     can_override = "orders.manage" in user_permission_codes(user)
+     if payload.status != order.status and payload.status not in ORDER_TRANSITIONS.get(order.status, set()) and not can_override:
+         raise HTTPException(status_code=409, detail={"current_status": order.status, "requested_status": payload.status, "allowed_next_statuses": sorted(ORDER_TRANSITIONS.get(order.status, set()))})
++    old_status = order.status
++    ip = get_request_ip(request)
++    device = device_label(request.headers.get("user-agent", ""))
+     order.status = payload.status
+     order.updated_at = utc_now()
+-    create_order_status_history(db, order, payload.status, user.id, payload.note)
++    create_order_status_history(db, order, payload.status, user.id, payload.note, old_status=old_status, ip=ip, device=device)
+     recipients = {order.client_user_id, order.lawyer_user_id}
+     recipients.discard(None)
+     recipients.discard(user.id)
+     for recipient_id in recipients:
+         notify_user(db, recipient_id, "order_status_changed", "Buyurtma holati yangilandi", payload.status, {"order_id": order.id, "status": payload.status, "changed_by_user_id": user.id}, ["in_app", "push"])
+-    add_activity(db, user.id, "order_status", f"Order {order.id} -> {payload.status}", "", {"order_id": order.id})
++    add_activity(db, user.id, "order_status", f"Order {order.id} -> {payload.status}", ip, {"order_id": order.id, "old_status": old_status, "new_status": payload.status, "reason": payload.note}, device=device)
+     db.commit()
+     db.refresh(order)
+     return order_to_out(order)
+@@ -5369,7 +5421,7 @@ def list_payment_methods(authorization: str | None = Header(default=None), db: S
+ 
+ 
+ @router.post("/clients/me/payment-methods", response_model=PaymentMethodOut, status_code=201)
+-def create_payment_method(payload: PaymentMethodCreate, authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> PaymentMethodOut:
++def create_payment_method(payload: PaymentMethodCreate, request: Request, authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> PaymentMethodOut:
+     user = current_user(authorization, db)
+     if payload.is_default:
+         rows = db.scalars(select(MarketplaceRecord).where(MarketplaceRecord.module == "payment_method", MarketplaceRecord.owner_user_id == user.id)).all()
+@@ -5380,17 +5432,21 @@ def create_payment_method(payload: PaymentMethodCreate, authorization: str | Non
+             row.updated_at = utc_now()
+     record = MarketplaceRecord(module="payment_method", record_type="card", title=f"{payload.brand} ****{payload.last4}", status="active", owner_user_id=user.id, payload_json=dump_json(payload.model_dump()))
+     db.add(record)
++    # T0-11 #1: log bank/card changes in the audit trail (last4/brand only, never the full number).
++    add_activity(db, user.id, "payment_method_added", f"{payload.brand} ****{payload.last4}", get_request_ip(request), {"brand": payload.brand, "last4": payload.last4}, target_type="payment_method", device=device_label(request.headers.get("user-agent", "")))
+     db.commit()
+     db.refresh(record)
+     return payment_method_to_out(record)
+ 
+ 
+ @router.delete("/clients/me/payment-methods/{method_id}", response_model=dict)
+-def delete_payment_method(method_id: str, authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> dict:
++def delete_payment_method(method_id: str, request: Request, authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> dict:
+     user = current_user(authorization, db)
+     record = db.get(MarketplaceRecord, method_id)
+     if not record or record.module != "payment_method" or record.owner_user_id != user.id:
+         raise HTTPException(status_code=404, detail="Payment method topilmadi")
++    data = record_payload(record)
++    add_activity(db, user.id, "payment_method_removed", f"{data.get('brand', '')} ****{data.get('last4', '')}", get_request_ip(request), {"brand": data.get("brand", ""), "last4": data.get("last4", "")}, target_type="payment_method", target_id=method_id, device=device_label(request.headers.get("user-agent", "")))
+     db.delete(record)
+     db.commit()
+     return {"deleted": True, "id": method_id}
+@@ -5699,15 +5755,21 @@ def admin_audit_trail(user_id: str | None = None, action: str | None = None, tar
+         title_uz, description_uz = audit_uz(row)
+         result.append({"id": row.id, "user_id": row.user_id, "action": row.action, "title_uz": title_uz, "detail": row.detail, "description_uz": description_uz, "ip": row.ip, "target_type": row.target_type, "target_id": row.target_id, "outcome": row.outcome, "meta": json.loads(row.meta_json or "{}"), "created_at": row.created_at})
+     export_format = export if export in {"json", "csv"} else None
++    if export_format:
++        # T0-11 #3: exporting the audit trail is a separate, higher privilege than merely viewing it.
++        require_permission(user, "audit.export")
+     if export_format == "csv":
+         output = io.StringIO()
+         writer = csv.writer(output)
+         writer.writerow(["id", "user_id", "action", "title_uz", "detail", "description_uz", "ip", "target_type", "target_id", "outcome", "created_at", "meta"])
+         for item in result:
+             writer.writerow([item["id"], item["user_id"], item["action"], item["title_uz"], item["detail"], item["description_uz"], item["ip"], item["target_type"], item["target_id"], item["outcome"], item["created_at"].isoformat(), json.dumps(item["meta"], ensure_ascii=False)])
+-        add_activity(db, user.id, "audit_export", "Audit trail CSV exported", meta={"rows": len(result)})
++        add_activity(db, user.id, "audit_export", "Audit trail CSV exported", meta={"rows": len(result), "format": "csv"})
+         db.commit()
+         return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=lexgo-audit-trail.csv"})
++    if export_format == "json":
++        add_activity(db, user.id, "audit_export", "Audit trail JSON exported", meta={"rows": len(result), "format": "json"})
++        db.commit()
+     export_requested = bool(export_format)
+     return {"items": result, "total_count": len(result), "filters": {"user_id": user_id, "action": action, "target_type": target_type, "target_id": target_id, "date_from": date_from, "date_to": date_to}, "export": {"requested": export_requested, "format": export_format or "json", "ready": export_requested, "status": "generated" if export_requested else "not_requested"}}
+ 
+@@ -7650,7 +7712,7 @@ def ai_document_analysis(payload: AiDocumentAnalysisRequest, authorization: str
+     result = heuristic_document_analysis(payload.text)
+     settings = get_settings()
+     if settings.openai_api_key:
+-        answer = run_seller_ai("Hujjatni tahlil qiling va JSON emas, markdown shaklda summary, risks va recommendations bering", payload.text, "document-analysis")
++        answer = run_seller_ai("Hujjatni tahlil qiling va JSON emas, markdown shaklda summary, risks va recommendations bering", payload.text, "document-analysis", name_terms_for(user))
+         if answer:
+             result["analysis_text"] = answer
+     page_count = max(1, (len(payload.text.strip()) + 2499) // 2500)
+@@ -7814,7 +7876,7 @@ def admin_e2e_readiness(authorization: str | None = Header(default=None), db: Se
+ def ai_assistant(payload: AiAssistantRequest, authorization: str | None = Header(default=None), db: Session = Depends(get_db)) -> dict:
+     user = current_user(authorization, db)
+     context_text = str(payload.context.get("text") or payload.context.get("case_text") or payload.context.get("document_text") or "")
+-    answer = run_seller_ai(payload.prompt, context_text, "seller-assistant")
++    answer = run_seller_ai(payload.prompt, context_text, "seller-assistant", name_terms_for(user))
+     add_activity(db, user.id, "ai_assistant", mask_pii(payload.prompt)[:120])
+     db.commit()
+     return {"answer": answer}
+@@ -7832,7 +7894,9 @@ def ai_case_tools(case_id: str, payload: dict, authorization: str | None = Heade
+     files = db.scalars(select(MarketplaceRecord).where(MarketplaceRecord.module.in_(["workspace_file", "workspace_file_version"]))).all()
+     case_files = [row for row in files if record_payload(row).get("case_id") == case.id or record_payload(row).get("file_id") in set(payload.get("file_version_ids", []) or [])]
+     case_text = "\n".join([case.title, case.description, case.next_action, "\n".join(f"{row.title}: {record_payload(row).get('note', '')}" for row in case_files)])
+-    masked = mask_pii(case_text)
++    known_terms = name_terms_for(user)
++    pii_vault = PiiVault()
++    masked = pii_vault.mask(case_text, known_terms)
+     if tool == "chronology":
+         result = heuristic_case_tool("chronology", masked)
+     elif tool == "missing_docs":
+@@ -7847,9 +7911,12 @@ def ai_case_tools(case_id: str, payload: dict, authorization: str | None = Heade
+     else:
+         result = heuristic_case_tool("summary", masked)
+     if get_settings().openai_api_key and tool != "compare_versions":
+-        ai_answer = run_seller_ai(f"Keys bo'yicha {tool} tayyorlang. PII maskalangan. Natijani advokat tahrirlashi mumkin bo'lgan markdown shaklda bering.", masked, f"case-{tool}")
++        ai_answer = run_seller_ai(f"Keys bo'yicha {tool} tayyorlang. PII maskalangan. Natijani advokat tahrirlashi mumkin bo'lgan markdown shaklda bering.", masked, f"case-{tool}", known_terms)
+         if ai_answer:
+-            result = ai_answer
++            # run_seller_ai only restores the tokens *it* created; the ones
++            # already in `masked` (this handler's own pii_vault, above) are
++            # restored here.
++            result = pii_vault.unmask(ai_answer)
+     record = MarketplaceRecord(module="ai_case_tool", record_type=tool, title=f"{tool} {case.case_number}", status="draft", owner_user_id=user.id, payload_json=dump_json({"case_id": case.id, "tool": tool, "result": result, "source_file_ids": [row.id for row in case_files], "editable": True}))
+     db.add(record)
+     add_activity(db, user.id, "ai_case_tool", tool, "", {"case_id": case.id, "result_id": record.id}, "legal_case", case.id)
+diff --git a/marketplace_schemas.py b/marketplace_schemas.py
+index 1b2be18..c4019cb 100644
+--- a/marketplace_schemas.py
++++ b/marketplace_schemas.py
+@@ -826,6 +826,7 @@ class ActivityOut(BaseModel):
+     detail: str
+     description_uz: str = ""
+     ip: str = ""
++    device: str = ""
+     target_type: str = ""
+     target_id: str = ""
+     outcome: str = "success"
+diff --git a/models.py b/models.py
+index 540a53c..981733e 100644
+--- a/models.py
++++ b/models.py
+@@ -638,6 +638,7 @@ class UserActivity(Base):
+     action: Mapped[str] = mapped_column(String(80), index=True)
+     detail: Mapped[str] = mapped_column(Text, default="")
+     ip: Mapped[str] = mapped_column(String(128), default="")
++    device: Mapped[str] = mapped_column(String(255), default="")  # T0-11 #2: browser/OS user-agent
+     target_type: Mapped[str] = mapped_column(String(80), default="", index=True)
+     target_id: Mapped[str] = mapped_column(String(120), default="", index=True)
+     outcome: Mapped[str] = mapped_column(String(40), default="success", index=True)
+@@ -656,6 +657,8 @@ class ConsentDocument(Base):
+     title: Mapped[str] = mapped_column(String(255))
+     body: Mapped[str] = mapped_column(Text)
+     is_active: Mapped[int] = mapped_column(Integer, default=1, index=True)
++    # T0-18 #6: major change (1) forces every user to re-accept; minor change (0) keeps prior acceptance valid.
++    requires_reaccept: Mapped[int] = mapped_column(Integer, default=1)
+     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+ 
+ 
+diff --git a/tests/test_pii_masking.py b/tests/test_pii_masking.py
+new file mode 100644
+index 0000000..e02c2d7
+--- /dev/null
++++ b/tests/test_pii_masking.py
+@@ -0,0 +1,85 @@
++import unittest
++
++from ai_service import PiiVault, mask_pii, name_terms_for
++
++
++# GM v1.1 acceptance test text (T0-17): a client message carrying every
++# category requirement #1 lists — name, PINFL, passport, phone, address,
++# bank card.
++SAMPLE = (
++    "Mening ismim Aziz Karimov, JShShIRim 31234567890123, pasportim AB1234567, "
++    "telefonim +998 90 123 45 67, manzilim Toshkent sh., Chilonzor 5-kvartal "
++    "12-uy, kartam 8600 1234 5678 9012. Qarzdorim pulni qaytarmayapti, nima qilay?"
++)
++
++
++class FakeUser:
++    def __init__(self, name, first_name="", last_name="", middle_name=""):
++        self.name = name
++        self.first_name = first_name
++        self.last_name = last_name
++        self.middle_name = middle_name
++
++
++class MaskPiiTests(unittest.TestCase):
++    def test_phone_pinfl_passport_bank_card_are_masked(self):
++        masked = mask_pii(SAMPLE)
++        self.assertNotIn("31234567890123", masked)
++        self.assertNotIn("AB1234567", masked)
++        self.assertNotIn("+998 90 123 45 67", masked)
++        self.assertNotIn("8600 1234 5678 9012", masked)
++
++    def test_address_keyword_is_masked(self):
++        masked = mask_pii(SAMPLE)
++        # The literal address fragments should not survive verbatim.
++        self.assertNotIn("Chilonzor 5-kvartal 12-uy", masked)
++
++    def test_no_known_name_leaves_the_name_unmasked(self):
++        # mask_pii with no known_terms has no way to find a free-text name —
++        # this documents the limitation rather than a false expectation.
++        masked = mask_pii(SAMPLE)
++        self.assertIn("Aziz Karimov", masked)
++
++    def test_known_name_is_masked(self):
++        vault = PiiVault()
++        masked = vault.mask(SAMPLE, ["Aziz Karimov"])
++        self.assertNotIn("Aziz Karimov", masked)
++
++    def test_name_terms_for_user(self):
++        user = FakeUser(name="Aziz Karimov", first_name="Aziz", last_name="Karimov")
++        terms = name_terms_for(user)
++        self.assertIn("Aziz Karimov", terms)
++        self.assertIn("Aziz", terms)
++        self.assertIn("Karimov", terms)
++
++    def test_name_terms_for_guest_is_empty(self):
++        self.assertEqual(name_terms_for(None), [])
++
++    def test_round_trip_restores_the_original_value_in_a_reply(self):
++        # Requirement #2: once the (masked) request comes back from the
++        # external AI, the original values must be restored for the user —
++        # this was entirely unimplemented before this fix (fixed placeholder
++        # strings had no way back to the real value).
++        vault = PiiVault()
++        masked = vault.mask(SAMPLE, ["Aziz Karimov"])
++        name_token = next(tok for tok in masked.split() if tok.startswith("[NAME_"))
++        # Strip any trailing punctuation the split() may have caught.
++        name_token = name_token[: name_token.index("]") + 1]
++        simulated_ai_reply = f"Salom {name_token}! Sizning holatingizda ..."
++        restored = vault.unmask(simulated_ai_reply)
++        self.assertIn("Aziz Karimov", restored)
++        self.assertNotIn("[NAME_", restored)
++
++    def test_repeated_value_reuses_the_same_token(self):
++        # The same PII value appearing twice must map to one token, not two —
++        # otherwise the reply could restore the second occurrence with the
++        # wrong original value.
++        vault = PiiVault()
++        text = "Tel: +998 90 123 45 67. Yana bir bor: +998 90 123 45 67."
++        masked = vault.mask(text)
++        tokens = [w for w in masked.replace(".", " ").split() if w.startswith("[PHONE_")]
++        self.assertEqual(len(set(tokens)), 1)
++
++
++if __name__ == "__main__":
++    unittest.main()
