@@ -19,6 +19,7 @@ import { initials, humanizeSlug } from "@/lib/lawyers";
 import { fmtUzs } from "@/lib/money";
 import Modal from "@/components/admin/Modal";
 import { Skeleton } from "./DataState";
+import { regionLabel } from "@/lib/labels";
 
 const som = (n: number) => (n ? fmtUzs(n) : "—");
 
@@ -228,7 +229,7 @@ export default function LawyerProfileModal({
           {data.region ? (
             <div className="lprof__row">
               <span className="lprof__lbl">{t("region")}</span>
-              <span>{[data.region, data.district].filter(Boolean).join(" · ")}</span>
+              <span>{[regionLabel(te, data.region), data.district].filter(Boolean).join(" · ")}</span>
             </div>
           ) : null}
           {data.barAssociation ? (

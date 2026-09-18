@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { listAuditTrail, exportAuditTrailCsv, listAdminSecurityEvents, type ActivityEntry, type AuditFilters, type ModuleRecord } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import Select from "@/components/Select";
@@ -112,6 +112,7 @@ function Anomalies() {
 
 export default function AdminAuditTrail() {
   const t = useTranslations("admin.audit");
+  const locale = useLocale();
   const tc = useTranslations("chart");
   const tp = useTranslations("portal.common");
   // Date range (YYYY-MM-DD) applies at once; the text filters (user, action,
@@ -239,8 +240,8 @@ export default function AdminAuditTrail() {
                 <div className="creq audit__row" key={rowKey}>
                   <span className="creq__st" />
                   <div className="creq__m">
-                    <b>{a.action || "—"}{a.titleUz ? <small className="advmuted"> · {a.titleUz}</small> : null}</b>
-                    <span>{[a.descriptionUz || a.detail, a.ip, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span>
+                    <b>{a.action || "—"}{locale === "uz" && a.titleUz ? <small className="advmuted"> · {a.titleUz}</small> : null}</b>
+                    <span>{[(locale === "uz" && a.descriptionUz) || a.detail, a.ip, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span>
                     {a.userId || a.targetType || a.targetId ? (
                       <span className="audit__who">
                         {a.userId ? <span>{t("user")}: <code>{a.userId}</code></span> : null}

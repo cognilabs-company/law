@@ -1,17 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { getMyCases, getLawyerClients, type BackendCase } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import CaseManageModal from "@/components/portal/CaseManageModal";
 import { IconFileText, IconMapPin, IconUser } from "@/components/icons";
+import { statusLabel } from "@/lib/labels";
+import { shortDateTime } from "@/lib/date";
 
 // Seller-side cases (lawyer / advocate). Shows the client's name as the
 // primary label — never a raw case id/number.
 export default function SellerCases({ ns }: { ns: string }) {
   const t = useTranslations(ns);
+  const tcm = useTranslations("portal.common");
+  const locale = useLocale();
   const [reloadKey, setReloadKey] = useState(0);
   const cases = useResource<BackendCase>(getMyCases, [reloadKey]);
   const clients = useResource(getLawyerClients, []);
@@ -41,7 +45,7 @@ export default function SellerCases({ ns }: { ns: string }) {
           {cases.data.map((c) => {
             const name = clientName(c);
             const primary = name || c.caseType || c.title || t("title");
-            const meta = [name ? c.caseType : "", c.stage, c.nextAction, c.deadlineAt].filter(Boolean).join(" · ");
+            const meta = [name ? c.caseType : "", statusLabel(tcm, c.stage), c.nextAction, c.deadlineAt ? shortDateTime(c.deadlineAt, locale) : ""].filter(Boolean).join(" · ");
             return (
               <button className="pcase pcase--btn" key={c.id} type="button" onClick={() => setTarget({ ...c, clientName: name })}>
                 <div className="pcase__h">
@@ -49,7 +53,7 @@ export default function SellerCases({ ns }: { ns: string }) {
                     <IconUser />
                     {primary}
                   </span>
-                  <span className="advmuted">{c.status}</span>
+                  <span className="advmuted">{statusLabel(tcm, c.status)}</span>
                 </div>
                 {meta ? (
                   <small>

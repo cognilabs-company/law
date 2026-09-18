@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { getServicePackages, getServices, type BackendPackage } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
@@ -19,9 +19,10 @@ const isTest = (p: BackendPackage) => /test|t1b/i.test(p.code) || /test/i.test(p
 // is shown when the catalogue services in the package have their own prices.
 export default function ClientPackages() {
   const t = useTranslations("portal.client.packages");
+  const locale = useLocale();
   const router = useRouter();
   const pk = useResource(() => getServicePackages(), []);
-  const services = useResource(() => getServices(), []);
+  const services = useResource(() => getServices(undefined, locale), [locale]);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<BackendPackage | null>(null);
 

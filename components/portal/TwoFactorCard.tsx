@@ -227,7 +227,7 @@ export default function TwoFactorCard() {
           <p className="advmuted" style={{ margin: 0 }}>{t("scanHint")}</p>
           {totp.qrCode ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={totp.qrCode} alt="2FA QR" className="tfa__qr" />
+            <img src={totp.qrCode} alt={t("qrAlt")} className="tfa__qr" />
           ) : (
             <p className="advmuted" style={{ margin: 0 }}>{t("qrUnavailable")}</p>
           )}

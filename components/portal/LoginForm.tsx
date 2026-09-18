@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { readReferral } from "@/lib/referral";
 import { useAuth, hasAdminAccess, type Session } from "@/lib/auth";
 import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
@@ -32,6 +32,7 @@ export default function LoginForm() {
   const tOtp = useTranslations("register.otp");
   const tv = useTranslations("register.verify");
   const tr = useTranslations("register");
+  const locale = useLocale();
   const { login, completeLogin2fa, session, ready, authNotice, clearAuthNotice } = useAuth();
   const router = useRouter();
 
@@ -119,7 +120,7 @@ export default function LoginForm() {
     if (!c.verificationId) {
       setTwoFa(null);
       otp.clear();
-      fail(c.message || t("twoFaStartError"));
+      fail((locale === "uz" && c.message) || t("twoFaStartError"));
       return false;
     }
     setSwapped(true);

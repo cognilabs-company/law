@@ -127,7 +127,8 @@
     "services": "Xizmatlar",
     "ai": "Sun'iy intellekt",
     "lawyers": "Advokat",
-    "subscription": "Obuna"
+    "subscription": "Obuna",
+    "aria": "Tez navigatsiya"
   },
   "footer": {
     "about": "O'zbekistonning yuridik xizmatlar ekotizimi: Sun'iy intellekt, onlayn xizmatlar, advokatlar marketplace va shaxsiy advokat obunasi.",
@@ -1914,7 +1915,8 @@
         "mandatoryEnable": "Sizning rolingiz uchun ikki bosqichli himoya majburiy — uni hozir yoqing: Authenticator ilova yoki Telegram kodi.",
         "currentMethodLabel": "Joriy usul",
         "methodTotpText": "Kod Authenticator ilovasida (Google/Microsoft Authenticator) har 30 soniyada yangilanadi.",
-        "methodTelegramText": "Har kirishda 6 xonali kod LexGo Telegram botiga yuboriladi."
+        "methodTelegramText": "Har kirishda 6 xonali kod LexGo Telegram botiga yuboriladi.",
+        "qrAlt": "Authenticator uchun QR-kod"
       },
       "telegram": {
         "title": "Telegram hisobi",
@@ -3344,7 +3346,8 @@
           "released": "To'langan",
           "held": "Ushlab turilgan",
           "failed": "Xato"
-        }
+        },
+        "som": "so'm"
       },
       "drill": {
         "activeCases": "Faol ishlar",
@@ -3509,7 +3512,8 @@
           "title": "Ariza rad etildi",
           "body": "Arizangiz rad etildi. Sabab: {reason}"
         }
-      }
+      },
+      "aria": "Bildirishnomalar"
     },
     "caseManage": {
       "title": "Ishni boshqarish",
@@ -3756,7 +3760,8 @@
         "phone_match": "telefon mijozlar bazasida",
         "pinfl_match": "JShShIR mijozlar bazasida",
         "opponent_match": "qarshi tomon mijozlar bazasida"
-      }
+      },
+      "pinflPh": "14 ta raqam"
     },
     "caseAi": {
       "title": "AI vositalari",
@@ -3799,8 +3804,10 @@
         "case": "Ish",
         "secure_chat": "Maxfiy chat",
         "manual_client": "Mijoz qo'shildi"
-      }
-    }
+      },
+      "som": "so'm"
+    },
+    "menu": "Menyu"
   },
   "notFound": {
     "title": "Sahifa topilmadi",
@@ -5039,7 +5046,9 @@
       "downloadError": "Faylni yuklab bo'lmadi.",
       "generate": "Yaratish",
       "generating": "Yaratilmoqda…",
-      "forbidden": "Ruxsat yo'q (b2b.manage kerak)."
+      "forbidden": "Ruxsat yo'q (b2b.manage kerak).",
+      "cSlaPh": "standart",
+      "som": "so'm"
     },
     "retention": {
       "title": "Ushlab qolish va upsell",

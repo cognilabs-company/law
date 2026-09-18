@@ -11,7 +11,7 @@ export default function MobileTabBar() {
   const is = (p: string) => (pathname === p ? " on" : "");
 
   return (
-    <nav className="tabbar" aria-label="Quick navigation">
+    <nav className="tabbar" aria-label={t("aria")}>
       <div className="tabbar__in">
         <Link className={`tb${is("/")}`} href="/">
           <IconHome />

@@ -33,7 +33,7 @@ export default function ClientGifts() {
   const [reloadKey, setReloadKey] = useState(0);
   const gifts = useResource(() => listGifts(), [reloadKey]);
   const plans = useResource<BackendPlan>(() => getSubscriptionPlans(locale), [locale]);
-  const services = useResource<BackendService>(() => getServices(), []);
+  const services = useResource<BackendService>(() => getServices(undefined, locale), [locale]);
   // A dedicated gift plan (billing_type "gift") is the wrapper, not something to
   // gift — only offer the real giftable tariffs.
   const giftable = plans.data.filter((p) => p.isGiftable && p.billingType !== "gift");

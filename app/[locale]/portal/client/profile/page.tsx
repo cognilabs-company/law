@@ -30,9 +30,11 @@ import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
 import AccountAudit from "@/components/portal/AccountAudit";
+import { statusLabel } from "@/lib/labels";
 
 export default function ClientProfile() {
   const t = useTranslations("portal.client.profile");
+  const tcm = useTranslations("portal.common");
   const { session, update, logout } = useAuth();
   const [key, setKey] = useState(0);
   const reload = () => setKey((k) => k + 1);
@@ -216,7 +218,7 @@ export default function ClientProfile() {
         <p style={{ margin: 0, color: "var(--gray)", fontSize: ".9rem", display: "flex", alignItems: "center", gap: 8 }}>
           <IconCard style={{ width: 16, height: 16 }} />
           {p?.subscription
-            ? `${p.subscription.planName} · ${p.subscription.status}`
+            ? `${p.subscription.planName} · ${statusLabel(tcm, p.subscription.status)}`
             : t("subActive")}
         </p>
       </div>

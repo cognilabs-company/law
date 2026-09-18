@@ -1,3 +1,4 @@
+import { localizeApiDetail } from "./apiMessage";
 // Shared HTTP core for the LexGo backend (see FRONTEND_API.md / MOBILE_API.md).
 // Same-origin proxy path (app/api/backend) avoids browser CORS; the deployment
 // sets BACKEND_ORIGIN. Every request carries the bearer token when present.
@@ -83,7 +84,8 @@ export function isRateLimited(e: unknown): boolean {
 // `errDetail(e) || tc("rateLimited")`.
 export function errDetail(e: unknown): string {
   if (!(e instanceof ApiError) || !e.detail || e.detail === "network_error") return "";
-  return e.detail;
+  // Uzbek-only server wording → the UI locale (lib/apiMessage).
+  return localizeApiDetail(e.detail);
 }
 
 // Seconds to wait before retrying: the server's Retry-After / retry field,

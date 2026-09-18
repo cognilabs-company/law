@@ -1,5 +1,7 @@
 "use client";
 
+import { regionLabel } from "@/lib/labels";
+
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
@@ -112,7 +114,7 @@ export default function Finder() {
             )}
           </div>
           <div className="resrow__m">
-            {areaLabel(b)} · {b.region} · {b.experienceYears}
+            {areaLabel(b)} · {regionLabel(te, b.region)} · {b.experienceYears}
           </div>
         </div>
         <div className="resrow__r">

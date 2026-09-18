@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { getUnreadCount } from "@/lib/services/backend";
 import { NOTIF_READ_EVENT } from "./NotificationsPanel";
 import { IconBell } from "../icons";
 
 export default function NotificationBell({ role }: { role: string }) {
+  const t = useTranslations("portal.notifications");
   const [count, setCount] = useState(0);
   useEffect(() => {
     let alive = true;
@@ -30,7 +32,7 @@ export default function NotificationBell({ role }: { role: string }) {
   }, []);
 
   return (
-    <Link href={`/portal/${role}/notifications`} className="ptop__bell" aria-label="Notifications">
+    <Link href={`/portal/${role}/notifications`} className="ptop__bell" aria-label={t("aria")}>
       <IconBell />
       {count > 0 ? <span className="ptop__badge">{count > 9 ? "9+" : count}</span> : null}
     </Link>

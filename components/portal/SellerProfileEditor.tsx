@@ -304,8 +304,8 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         kv([
           ...(isAdvocate ? ([
             [tr("advocate.license"), d.licenseNumber],
-            [tr("advocate.specialization"), d.specialization ? tr(`advocate.specOptions.${d.specialization}`) : ""],
-            [tr("advocate.structure"), d.advocateStructure ? tr(`advocate.structureOptions.${d.advocateStructure}`) : ""],
+            [tr("advocate.specialization"), d.specialization ? (tr.has(`advocate.specOptions.${d.specialization}`) ? tr(`advocate.specOptions.${d.specialization}`) : d.specialization) : ""],
+            [tr("advocate.structure"), d.advocateStructure ? (tr.has(`advocate.structureOptions.${d.advocateStructure}`) ? tr(`advocate.structureOptions.${d.advocateStructure}`) : d.advocateStructure) : ""],
             [tr("advocate.orgName"), d.orgName],
             [tr("advocate.advExp"), years(d.advocateYears)],
           ] as [string, ReactNode][]) : []),

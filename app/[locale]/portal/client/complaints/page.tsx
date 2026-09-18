@@ -73,7 +73,7 @@ export default function ClientComplaints() {
             <div className="creq" key={c.id}>
               <span className="creq__st" />
               <div className="creq__m">
-                <b>{c.subject || t(`cat.${c.category}`)}</b>
+                <b>{c.subject || (t.has(`cat.${c.category}`) ? t(`cat.${c.category}`) : c.category)}</b>
                 <span>{[t.has(`cat.${c.category}`) ? t(`cat.${c.category}`) : c.category, fmt(c.createdAt)].filter(Boolean).join(" · ")}</span>
               </div>
               <span className="creq__badge">{t.has(`status.${c.status}`) ? t(`status.${c.status}`) : c.status}</span>

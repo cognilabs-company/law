@@ -40,8 +40,8 @@ export default function SellerPayouts() {
       ) : (
         <>
           <div className="amet">
-            <div className="amet__c"><span className="amet__i"><IconClock /></span><b>{fmtUzs(pending)} UZS</b><span className="amet__l">{t("pending")}</span></div>
-            <div className="amet__c"><span className="amet__i"><IconCheck /></span><b>{fmtUzs(paid)} UZS</b><span className="amet__l">{t("paid")}</span></div>
+            <div className="amet__c"><span className="amet__i"><IconClock /></span><b>{fmtUzs(pending)} {t("som")}</b><span className="amet__l">{t("pending")}</span></div>
+            <div className="amet__c"><span className="amet__i"><IconCheck /></span><b>{fmtUzs(paid)} {t("som")}</b><span className="amet__l">{t("paid")}</span></div>
             <div className="amet__c"><span className="amet__i"><IconCard /></span><b>{rows.length}</b><span className="amet__l">{t("count")}</span></div>
           </div>
           <p className="advmuted" style={{ marginTop: 10, fontSize: ".82rem" }}>

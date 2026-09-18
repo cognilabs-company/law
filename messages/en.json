@@ -127,7 +127,8 @@
     "services": "Services",
     "ai": "AI",
     "lawyers": "Lawyer",
-    "subscription": "Plan"
+    "subscription": "Plan",
+    "aria": "Quick navigation"
   },
   "footer": {
     "about": "Uzbekistan's legal services ecosystem: AI, online services, a lawyer marketplace and a personal-lawyer subscription.",
@@ -1908,7 +1909,8 @@
         "mandatoryEnable": "Two-factor protection is mandatory for your role — turn it on now: an authenticator app or a Telegram code.",
         "currentMethodLabel": "Current method",
         "methodTotpText": "The code refreshes every 30 seconds in your Authenticator app (Google/Microsoft Authenticator).",
-        "methodTelegramText": "A 6-digit code is sent to the LexGo Telegram bot at every sign-in."
+        "methodTelegramText": "A 6-digit code is sent to the LexGo Telegram bot at every sign-in.",
+        "qrAlt": "QR code for the Authenticator app"
       },
       "telegram": {
         "title": "Telegram account",
@@ -3338,7 +3340,8 @@
           "released": "Paid",
           "held": "Held",
           "failed": "Failed"
-        }
+        },
+        "som": "UZS"
       },
       "drill": {
         "activeCases": "Active cases",
@@ -3503,7 +3506,8 @@
           "title": "Application rejected",
           "body": "Your application was rejected. Reason: {reason}"
         }
-      }
+      },
+      "aria": "Notifications"
     },
     "caseManage": {
       "title": "Manage case",
@@ -3750,7 +3754,8 @@
         "phone_match": "phone is in your client base",
         "pinfl_match": "PINFL is in your client base",
         "opponent_match": "counterparty is in your client base"
-      }
+      },
+      "pinflPh": "14 digits"
     },
     "caseAi": {
       "title": "AI tools",
@@ -3793,8 +3798,10 @@
         "case": "Case",
         "secure_chat": "Private chat",
         "manual_client": "Client added"
-      }
-    }
+      },
+      "som": "UZS"
+    },
+    "menu": "Menu"
   },
   "notFound": {
     "title": "Page not found",
@@ -5033,7 +5040,9 @@
       "downloadError": "Could not download the file.",
       "generate": "Generate",
       "generating": "Generating…",
-      "forbidden": "No access (b2b.manage required)."
+      "forbidden": "No access (b2b.manage required).",
+      "cSlaPh": "standard",
+      "som": "UZS"
     },
     "retention": {
       "title": "Retention & upsell",

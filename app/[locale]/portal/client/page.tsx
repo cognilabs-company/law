@@ -1,5 +1,7 @@
 "use client";
 
+import { statusLabel } from "@/lib/labels";
+
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -107,7 +109,7 @@ export default function ClientDashboard() {
               <span className="creq__st" />
               <div className="creq__m">
                 <b>{c.caseType || c.caseNumber}</b>
-                <span>{[c.stage, c.caseNumber].filter(Boolean).join(" · ")}</span>
+                <span>{[statusLabel(tc, c.stage), c.caseNumber].filter(Boolean).join(" · ")}</span>
                 {c.nextAction ? (
                   <em className="creq__next">
                     <IconArrowRight />
@@ -116,7 +118,7 @@ export default function ClientDashboard() {
                 ) : null}
               </div>
               <div className="creq__side">
-                <span className="creq__badge">{c.status}</span>
+                <span className="creq__badge">{statusLabel(tc, c.status)}</span>
               </div>
             </div>
           ))

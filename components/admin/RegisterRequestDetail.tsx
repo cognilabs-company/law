@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { getRegisterRequestDetail, type RegisterRequestDetail as Detail } from "@/lib/services/backend";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
@@ -18,6 +18,7 @@ const fmt = (v?: string) => {
 // lawyer profile once approved, and the last activity entries.
 export default function RegisterRequestDetail({ id, onClose }: { id: string | null; onClose: () => void }) {
   const t = useTranslations("admin.registerRequests");
+  const locale = useLocale();
   const [d, setD] = useState<Detail | null>(null);
   const [err, setErr] = useState(false);
   const [now, setNow] = useState(0);
@@ -83,7 +84,7 @@ export default function RegisterRequestDetail({ id, onClose }: { id: string | nu
             {d.activity.length ? (
               <ul className="dkv__list">
                 {d.activity.slice(0, 12).map((a) => (
-                  <li key={a.id}><b>{a.titleUz || a.action}</b><span>{[a.descriptionUz || a.detail, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span></li>
+                  <li key={a.id}><b>{(locale === "uz" && a.titleUz) || a.action}</b><span>{[(locale === "uz" && a.descriptionUz) || a.detail, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span></li>
                 ))}
               </ul>
             ) : <p className="advmuted">{t("detail.noActivity")}</p>}

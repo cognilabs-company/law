@@ -61,7 +61,7 @@ export default function AdminB2b() {
             { name: "industry", label: t("cIndustry") },
             { name: "contact", label: t("cContact"), placeholder: "+998 __ ___ __ __" },
             { name: "monthly_payment", label: t("cMonthly"), type: "number", placeholder: "0" },
-            { name: "sla", label: t("cSla"), placeholder: "standart" },
+            { name: "sla", label: t("cSla"), placeholder: t("cSlaPh") },
           ]}
           onSubmit={async (v) => {
             const c = await createB2bClient({ name: String(v.name), industry: String(v.industry), contact: String(v.contact), inn: String(v.inn) });
@@ -155,9 +155,9 @@ function DocModal({ target, onClose }: { target: { kind: "invoice" | "contract" 
             <div><label>{t("amountNoVat")}</label><input inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} placeholder="1000000" required /></div>
             <div><label>{t("description")}</label><input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={t("descriptionPh")} /></div>
             <div className="opay__rows">
-              <div className="opay__row"><span>{t("amountNoVat")}</span><b>{som(base)} UZS</b></div>
-              <div className="opay__row"><span>{t("vat", { pct: VAT })}</span><b>{som(vat)} UZS</b></div>
-              <div className="opay__row"><span>{t("total")}</span><b>{som(base + vat)} UZS</b></div>
+              <div className="opay__row"><span>{t("amountNoVat")}</span><b>{som(base)} {t("som")}</b></div>
+              <div className="opay__row"><span>{t("vat", { pct: VAT })}</span><b>{som(vat)} {t("som")}</b></div>
+              <div className="opay__row"><span>{t("total")}</span><b>{som(base + vat)} {t("som")}</b></div>
             </div>
           </>
         ) : target?.kind === "report" ? (
@@ -168,7 +168,7 @@ function DocModal({ target, onClose }: { target: { kind: "invoice" | "contract" 
         {out ? (
           <div className="rf__benefit">
             <b>{t("docReady")}</b>
-            {out.total ? <p>{t("total")}: {som(out.total)} UZS{out.vatAmount ? ` (${t("vat", { pct: out.vatPercent || VAT })}: ${som(out.vatAmount)})` : ""}</p> : null}
+            {out.total ? <p>{t("total")}: {som(out.total)} {t("som")}{out.vatAmount ? ` (${t("vat", { pct: out.vatPercent || VAT })}: ${som(out.vatAmount)})` : ""}</p> : null}
             {out.taskCount != null ? <p>{t("reportTasks", { n: out.taskCount })}</p> : null}
             <button type="button" className="btn btn--pri btn--sm" onClick={download} style={{ marginTop: 6 }}><IconDownload />{t("download")}</button>
           </div>

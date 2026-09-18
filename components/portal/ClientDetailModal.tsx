@@ -11,7 +11,7 @@ import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
 import { IconBriefcase, IconFileText, IconChat, IconCard, IconClock } from "@/components/icons";
 
-const fmtUzs = (n: number) => `${new Intl.NumberFormat("ru-RU").format(n)} so'm`;
+const fmtNum = (n: number) => new Intl.NumberFormat("ru-RU").format(n);
 
 // GET /lawyers/me/clients/{id}: one client's shared work with this seller —
 // cases, orders, private chats, payments, documents and a timeline. A manual
@@ -112,7 +112,7 @@ export default function ClientDetailModal({ id, onClose }: { id: string | null; 
               <ul className="dkv__list">
                 {d.payments.map((p) => (
                   <li key={p.id}>
-                    <b>{fmtUzs(p.amount)}</b>
+                    <b>{fmtNum(p.amount)} {t("som")}</b>
                     <span>{[p.status, p.method, p.description, fmt(p.createdAt)].filter(Boolean).join(" · ")}</span>
                   </li>
                 ))}

@@ -113,7 +113,7 @@ function NewClientModal({ open, onClose, onSaved }: { open: boolean; onClose: ()
           <div><label>{tc("phone")}</label><input value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+998 __ ___ __ __" inputMode="tel" /></div>
         </div>
         <div className="cform__row2">
-          <div><label>{tc("pinfl")}</label><input value={f.pinfl} onChange={(e) => set("pinfl", e.target.value.replace(/\D/g, "").slice(0, 14))} inputMode="numeric" placeholder="14 raqam" /></div>
+          <div><label>{tc("pinfl")}</label><input value={f.pinfl} onChange={(e) => set("pinfl", e.target.value.replace(/\D/g, "").slice(0, 14))} inputMode="numeric" placeholder={tc("pinflPh")} /></div>
           <div><label>{tc("company")}</label><input value={f.company} onChange={(e) => set("company", e.target.value)} /></div>
         </div>
         <div><label>{tc("opponents")}</label><input value={f.opponents} onChange={(e) => set("opponents", e.target.value)} placeholder={tc("listPh")} /></div>

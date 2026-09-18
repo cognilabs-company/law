@@ -29,6 +29,7 @@ import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconFileText, IconArrowRight, IconDocLines } from "@/components/icons";
+import { statusLabel } from "@/lib/labels";
 
 // A replacement request can't be listed back by the client (the list needs
 // replacements.manage), so its id is kept per case to read its history.
@@ -288,6 +289,7 @@ function ReplacementStatus({ caseId }: { caseId: string }) {
 
 function CaseDocsModal({ target, onClose }: { target: BackendCase | null; onClose: () => void }) {
   const t = useTranslations("portal.client.cases");
+  const tcm = useTranslations("portal.common");
   const [reloadKey, setReloadKey] = useState(0);
   const caseId = target?.id ?? "";
   const load = useCallback(async () => {
@@ -332,7 +334,7 @@ function CaseDocsModal({ target, onClose }: { target: BackendCase | null; onClos
                 <span className="creq__st" />
                 <div className="creq__m">
                   <b>{d.title}</b>
-                  {d.status ? <span>{d.status}</span> : null}
+                  {d.status ? <span>{statusLabel(tcm, d.status)}</span> : null}
                 </div>
               </div>
             ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { readReferral } from "@/lib/referral";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -76,6 +76,7 @@ const ADV_STEPS = STEPS_BY_TYPE.advocate;
 
 export default function RegisterFlow() {
   const t = useTranslations("register");
+  const locale = useLocale();
   const te = useTranslations("enums");
   const tc = useTranslations("common");
   const tOtp = useTranslations("register.otp");
@@ -430,7 +431,7 @@ export default function RegisterFlow() {
               <IconCheck />
             </span>
             <h1 className="rf__title">{t("pending.title")}</h1>
-            <p className="rf__sub">{pendingMsg}</p>
+            <p className="rf__sub">{locale === "uz" && pendingMsg ? pendingMsg : t("pending.hint")}</p>
             <p className="rf__sub">{t("pending.hint")}</p>
             <button
               className="btn btn--grad btn--full btn--lg"
@@ -495,7 +496,7 @@ export default function RegisterFlow() {
                 <span className="rf__otpnum">6</span>
               </span>
               <h1 className="rf__title">{t("verify.title")}</h1>
-              <p className="rf__sub">{otpMessage || t("verify.subtitle", { phone: draft.phone })}</p>
+              <p className="rf__sub">{(locale === "uz" && otpMessage) || t("verify.subtitle", { phone: draft.phone })}</p>
               {telegramLink && !otp.expired && !locked ? (
                 <a className="btn btn--line btn--full rf__tg" href={telegramLink} target="_blank" rel="noopener noreferrer">
                   {t("verify.telegramBtn")}

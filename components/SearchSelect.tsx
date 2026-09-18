@@ -18,6 +18,7 @@ export default function SearchSelect({
   searchPlaceholder,
   emptyText,
   ariaLabel,
+  removeLabel,
 }: {
   value: string[];
   onChange: (v: string[]) => void;
@@ -27,6 +28,7 @@ export default function SearchSelect({
   searchPlaceholder: string;
   emptyText: string;
   ariaLabel: string;
+  removeLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -109,7 +111,7 @@ export default function SearchSelect({
                 <span
                   role="button"
                   tabIndex={0}
-                  aria-label="remove"
+                  aria-label={removeLabel ?? "×"}
                   onClick={(e) => { e.stopPropagation(); toggle(v); }}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); toggle(v); } }}
                 >

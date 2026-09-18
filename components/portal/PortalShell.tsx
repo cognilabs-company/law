@@ -272,7 +272,7 @@ export default function PortalShell({
           <button
             className="ptop__burger"
             type="button"
-            aria-label="Menu"
+            aria-label={t("menu")}
             onClick={() => setOpenPath(open ? null : pathname)}
           >
             {open ? <IconClose /> : <IconMenu />}
