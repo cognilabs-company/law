@@ -1633,8 +1633,8 @@
       }
     },
     "analysisSuffix": "Aniqlangan yo'nalish: {dir} · {stage}.\nTaxminiy narx: {price}.",
-    "limitReached": "Bepul savollar limiti tugadi. Davom etish uchun kiring.",
-    "limitLogin": "Davom etish uchun kirish",
+    "limitReached": "Bepul savollar limiti tugadi. Davom etish uchun telefon raqamingizni tasdiqlang.",
+    "limitLogin": "Telefonni tasdiqlab davom etish",
     "aiQuotaReached": "Oylik Sun'iy intellekt limitingiz tugadi ({used} / {limit}). Davom etish uchun tarifni yangilang.",
     "aiQuotaReachedShort": "Oylik Sun'iy intellekt limitingiz tugadi. Davom etish uchun tarifni yangilang.",
     "upgradePlan": "Tarifni yangilash"
@@ -1666,8 +1666,8 @@
     "piiNote": "Maxfiylik: telefon raqamlari, email manzillar, JShShIR (PINFL) va pasport raqamlari Sun'iy Intellektga yuborilishidan oldin yashiriladi.",
     "downloadPdf": "PDF yuklab olish",
     "open": "Ochish",
-    "limitReached": "Mehmonlar uchun bepul limit tugadi. Sun'iy Intellekt bilan davom etish uchun tizimga kiring.",
-    "limitLogin": "Davom etish uchun kirish",
+    "limitReached": "Mehmonlar uchun bepul limit tugadi. Davom etish uchun telefon raqamingizni tasdiqlang.",
+    "limitLogin": "Telefonni tasdiqlab davom etish",
     "aiQuotaReached": "Oylik Sun'iy intellekt limitingiz tugadi ({used} / {limit}). Davom etish uchun tarifni yangilang.",
     "aiQuotaReachedShort": "Oylik Sun'iy intellekt limitingiz tugadi. Davom etish uchun tarifni yangilang.",
     "upgradePlan": "Tarifni yangilash",
@@ -4145,7 +4145,10 @@
       "ar": "Arabcha"
     },
     "done": {
-      "creating": "Hisobingiz yaratilmoqda…"
+      "creating": "Hisobingiz yaratilmoqda…",
+      "title": "Hisobingiz tayyor!",
+      "telegramLead": "Bildirishnomalarni o'tkazib yubormaslik uchun Telegram botni ulang — istasangiz keyinroq ham ulash mumkin.",
+      "toPortal": "Boshqaruv paneliga o'tish"
     },
     "verify": {
       "title": "Telefonni tasdiqlang",

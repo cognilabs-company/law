@@ -309,7 +309,11 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                       </div>
                     ) : null}
                     {m.limit ? (
-                      <Link href="/login" className="btn btn--pri btn--sm" style={{ marginTop: 10 }}>
+                      // A first-time guest has no account yet — /login sent them
+                      // somewhere they can't use; register is the actual next step
+                      // (T1-01 §3: this is meant to feel like "verify your phone
+                      // to continue", which registration's OTP step already is).
+                      <Link href="/register" className="btn btn--pri btn--sm" style={{ marginTop: 10 }}>
                         {t("limitLogin")}
                       </Link>
                     ) : null}

@@ -33,6 +33,7 @@ import ProfilePreview from "./ProfilePreview";
 import ChipMulti from "./ChipMulti";
 import PasswordInput from "../PasswordInput";
 import ConsentChecklist from "../legal/ConsentChecklist";
+import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 
 const ZERO_STATS: AdvocateStats = {
   totalCases: 0,
@@ -117,6 +118,11 @@ export default function RegisterFlow() {
   // is requested (register/start again — no separate resend endpoint).
   const [locked, setLocked] = useState(false);
   const [pendingMsg, setPendingMsg] = useState<string | null>(null);
+  // T0-15 / T1-01 §5: the last onboarding step, right after the account
+  // exists and before entering the portal — offers linking the Telegram bot.
+  // Skippable; TelegramLinkCard needs a live session, which register() has
+  // just created by the time this shows.
+  const [tgOfferRole, setTgOfferRole] = useState<string | null>(null);
 
   // Explicit acceptance of each current legal document on the last profile
   // step. Placeholders (terms, privacy, disclaimer) while the list loads/fails.
@@ -331,7 +337,10 @@ export default function RegisterFlow() {
         router.replace("/login");
         return;
       }
-      router.replace(`/portal/${s.role}`);
+      // One more onboarding screen (Telegram) before the portal — the account
+      // now has a live session, so stop the "creating" overlay and show it.
+      setCreating(false);
+      setTgOfferRole(s.role);
     } catch (e) {
       setVerifying(false);
       setCreating(false);
@@ -419,6 +428,37 @@ export default function RegisterFlow() {
 
   // Advocate mini-stepper index
   const advPos = ADV_STEPS.indexOf(step);
+
+  // Account created and signed in → last onboarding screen (Telegram bot),
+  // then the portal. Skippable.
+  if (tgOfferRole) {
+    return (
+      <div className="rf">
+        <div className="rf__bg" />
+        <div className="rf__card">
+          <div className="rf__step" style={{ textAlign: "center", alignItems: "center" }}>
+            <span className="rf__ico rf__ico--brand">
+              <IconCheck />
+            </span>
+            <h1 className="rf__title">{t("done.title")}</h1>
+            <p className="rf__sub">{t("done.telegramLead")}</p>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <TelegramLinkCard />
+          </div>
+          <button
+            className="btn btn--grad btn--full btn--lg"
+            type="button"
+            onClick={() => router.replace(`/portal/${tgOfferRole}`)}
+            style={{ marginTop: 18 }}
+          >
+            {t("done.toPortal")}
+            <IconArrowRight />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Seller registration submitted → awaiting admin approval.
   if (pendingMsg) {

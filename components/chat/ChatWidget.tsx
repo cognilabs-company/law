@@ -174,7 +174,9 @@ export default function ChatWidget({
               </button>
             ) : null}
             {m.limit ? (
-              <Link href="/login" className="cact" onClick={onClose}>
+              // A first-time guest has no account yet — /login sent them
+              // somewhere they can't use; register is the actual next step.
+              <Link href="/register" className="cact" onClick={onClose}>
                 {t("limitLogin")}
               </Link>
             ) : null}

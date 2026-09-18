@@ -1627,8 +1627,8 @@
       }
     },
     "analysisSuffix": "Identified direction: {dir} · {stage}.\nEstimated price: {price}.",
-    "limitReached": "Free question limit reached. Log in to continue.",
-    "limitLogin": "Log in to continue",
+    "limitReached": "Free question limit reached. Verify your phone number to continue.",
+    "limitLogin": "Verify phone to continue",
     "aiQuotaReached": "Your monthly AI limit is used up ({used} / {limit}). Upgrade your plan to continue.",
     "aiQuotaReachedShort": "Your monthly AI limit is used up. Upgrade your plan to continue.",
     "upgradePlan": "Upgrade plan"
@@ -1660,8 +1660,8 @@
     "piiNote": "Privacy: phone numbers, email addresses, PINFL (JShShIR) and passport numbers are masked before they are sent to the AI.",
     "downloadPdf": "Download PDF",
     "open": "Open",
-    "limitReached": "You have used the free limit for guest questions. Log in to keep chatting with LexGo.AI.",
-    "limitLogin": "Log in to continue",
+    "limitReached": "You have used the free limit for guest questions. Verify your phone number to continue.",
+    "limitLogin": "Verify phone to continue",
     "aiQuotaReached": "Your monthly AI limit is used up ({used} / {limit}). Upgrade your plan to continue.",
     "aiQuotaReachedShort": "Your monthly AI limit is used up. Upgrade your plan to continue.",
     "upgradePlan": "Upgrade plan",
@@ -4139,7 +4139,10 @@
       "ar": "Arabic"
     },
     "done": {
-      "creating": "Creating your account…"
+      "creating": "Creating your account…",
+      "title": "Your account is ready!",
+      "telegramLead": "Connect the Telegram bot so you never miss a notification — you can also do this later.",
+      "toPortal": "Go to the dashboard"
     },
     "verify": {
       "title": "Verify your phone",
