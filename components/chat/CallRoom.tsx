@@ -24,9 +24,6 @@ import {
   leaveCall,
   updateCallParticipant,
   inviteCallParticipant,
-  searchUsers,
-  listLawyers,
-  getLawyerClients,
   callSocketUrl,
   type LiveKitJoin,
   type CallParticipant,
@@ -34,9 +31,10 @@ import {
 } from "@/lib/services/backend";
 import { getToken } from "@/lib/client";
 import { subscribeRoomCallEvents } from "@/lib/callEvents";
-import { ApiError, backoffMs, refreshAccessToken } from "@/lib/http";
-import { useAuth } from "@/lib/auth";
+import { backoffMs, refreshAccessToken } from "@/lib/http";
+import { useAuth, canMakeCalls } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
+import { makeInviteSearch, type InviteSearch } from "@/lib/inviteSearch";
 import SearchSelect from "@/components/SearchSelect";
 import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, primeCallAudio } from "@/lib/callSounds";
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
@@ -57,10 +55,29 @@ type Props = {
 
 type ChatMsg = { id: string; from: string; name: string; text: string; at: number; system?: boolean };
 type Toast = { id: number; text: string; kind: "join" | "leave" | "info" };
+// A client's pending "may I record?" (approver side) / my own request (requester side).
+type RecAsk = { id: string; name: string; mode: RecordingMode; at: number };
+type RecReq = { mode: RecordingMode; left: number };
 
 const MOBILE = () => typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
 const EMPTY_GRACE_SEC = 10;
+// Timestamp for data-channel messages (kept out of the component so the
+// compiler lint does not treat the event handlers as impure render code).
+const stamp = () => Date.now();
+const REC_ASK_SEC = 30; // a recording request without an answer expires
 const PORTRAIT_HINT = () => typeof window !== "undefined" && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+const enc = (v: unknown) => new TextEncoder().encode(JSON.stringify(v));
+// The LiveKit token carries {"role": <backend role>} as participant metadata.
+const roleOf = (p: Participant): string => {
+  try { return String((JSON.parse(p.metadata || "{}") as { role?: unknown }).role ?? ""); } catch { return ""; }
+};
+
+// Whether a CallRoom is on screen (any page). IncomingCallWatcher uses it so a
+// meeting resumed by a launcher isn't offered a second time by its own card;
+// mounting also fires a "lexgo:callroom" window event.
+let mountedRooms = 0;
+export function isCallRoomMounted(): boolean { return mountedRooms > 0; }
+export const CALLROOM_EVENT = "lexgo:callroom";
 
 // In-app audio/video meeting over LiveKit (managed SFU + coturn on the
 // backend). Everything stays inside LexGo: a tile per participant with name,
@@ -116,6 +133,21 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const stageRef = useRef<HTMLElement>(null);
   const [recUrl, setRecUrl] = useState("");
   const firstJoinRef = useRef(true);
+  // Recording consent: a client may only record with a staff/seller's OK.
+  // Approvers = call-center/staff (meetings.manage) and advocates/lawyers.
+  // Their approval is asked over the data channel: rec_req → rec_ok | rec_no.
+  const iApprove = canMakeCalls(session) || session?.role === "advocate" || session?.role === "lawyer";
+  const approverRef = useRef(iApprove);
+  useEffect(() => { approverRef.current = iApprove; }, [iApprove]);
+  const [recAsks, setRecAsks] = useState<RecAsk[]>([]); // approver: open requests
+  const [recReq, setRecReq] = useState<RecReq | null>(null); // requester: my pending request
+  const recReqRef = useRef<RecReq | null>(null);
+  useEffect(() => { recReqRef.current = recReq; }, [recReq]);
+  // Non-host approvers announce themselves ({t:"role"}); hosts are always
+  // approvers (starting a meeting needs meetings.manage) and the token
+  // metadata carries the backend role, so most cases need no announcement.
+  const [announced, setAnnounced] = useState<Set<string>>(new Set());
+  const startRecRef = useRef<(mode: RecordingMode) => void>(() => {});
   // Everyone else left (host closed the tab, network drop…): a short countdown,
   // then this side ends too — unless I host a titled meeting and may invite more.
   const hadRemoteRef = useRef(false);
@@ -123,7 +155,15 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const keepAlone = isCaller && !!title;
   // Call signalling socket (join/leave/end relayed to the other participants).
   const callWsRef = useRef<WebSocket | null>(null);
-  const dirRef = useRef<Promise<{ id: string; name: string; phone: string; lexgoId?: string; sub?: string }[]> | null>(null);
+  const inviteSearchRef = useRef<InviteSearch | null>(null);
+  const rosterRef = useRef<CallParticipant[]>([]);
+  useEffect(() => { rosterRef.current = roster; }, [roster]);
+  // Mount bookkeeping for isCallRoomMounted() + the window event.
+  useEffect(() => {
+    mountedRooms += 1;
+    try { window.dispatchEvent(new CustomEvent(CALLROOM_EVENT)); } catch { /* ignore */ }
+    return () => { mountedRooms -= 1; };
+  }, []);
   const signal = (event: "call.join" | "call.leave" | "call.end") => {
     const ws = callWsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) { try { ws.send(JSON.stringify({ event, payload: {} })); } catch { /* ignore */ } }
@@ -201,6 +241,11 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       el.autoplay = true;
       c.appendChild(el);
     };
+    // Approvers tell the room they can grant recording (newcomers too).
+    const announceRole = () => {
+      if (!approverRef.current || !connectedRef.current) return;
+      room.localParticipant.publishData(enc({ t: "role", approver: true, at: Date.now() }), { reliable: true }).catch(() => {});
+    };
     const onJoin = (p: RemoteParticipant) => {
       if (!alive) return;
       bump();
@@ -212,6 +257,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       const name = nameOfRef.current(p);
       toast(t("joinedToast", { name }), "join");
       setMessages((m) => [...m, { id: `sys-${Date.now()}`, from: p.identity, name, text: t("joinedToast", { name }), at: Date.now(), system: true }]);
+      announceRole();
     };
     const onLeave = (p: RemoteParticipant) => {
       if (!alive) return;
@@ -221,6 +267,10 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       toast(t("leftToast", { name }), "leave");
       setMessages((m) => [...m, { id: `sys-${Date.now()}`, from: p.identity, name, text: t("leftToast", { name }), at: Date.now(), system: true }]);
       setPinned((cur) => (cur === p.identity ? null : cur));
+      // Whoever left is no longer recording, asking or able to approve.
+      setRecBy((cur) => { if (!cur.has(p.identity)) return cur; const n = new Set(cur); n.delete(p.identity); return n; });
+      setRecAsks((a) => a.filter((x) => x.id !== p.identity));
+      setAnnounced((cur) => { if (!cur.has(p.identity)) return cur; const n = new Set(cur); n.delete(p.identity); return n; });
       if (room.remoteParticipants.size === 0 && hadRemoteRef.current && !keepAlone) {
         toast(t("emptyEnding", { s: EMPTY_GRACE_SEC }), "leave");
         setEmptyLeft(EMPTY_GRACE_SEC);
@@ -247,11 +297,43 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       .on(RoomEvent.DataReceived, (payload, p) => {
         if (!alive) return;
         try {
-          const msg = JSON.parse(new TextDecoder().decode(payload)) as { t?: string; text?: string; at?: number };
+          const msg = JSON.parse(new TextDecoder().decode(payload)) as { t?: string; text?: string; at?: number; on?: boolean; mode?: string; name?: string; to?: string; approver?: boolean };
           if (msg.t === "rec" && p) {
-            const on = (msg as { on?: boolean }).on === true;
+            const on = msg.on === true;
             setRecBy((cur) => { const n = new Set(cur); if (on) n.add(p.identity); else n.delete(p.identity); return n; });
+            if (on) setRecAsks((a) => a.filter((x) => x.id !== p.identity)); // request answered elsewhere
             toast(on ? t("recStartedBy", { name: nameOfRef.current(p) }) : t("recStoppedBy", { name: nameOfRef.current(p) }), on ? "leave" : "join");
+            return;
+          }
+          // Recording consent (see toggleRec): a client asks, approvers answer.
+          if (msg.t === "role" && p) {
+            if (msg.approver) setAnnounced((cur) => (cur.has(p.identity) ? cur : new Set(cur).add(p.identity)));
+            return;
+          }
+          if (msg.t === "rec_req" && p) {
+            if (!approverRef.current) return;
+            const name = String(msg.name ?? "").trim() || nameOfRef.current(p);
+            const mode: RecordingMode = msg.mode === "screen" ? "screen" : "audio";
+            setRecAsks((a) => [...a.filter((x) => x.id !== p.identity), { id: p.identity, name, mode, at: Date.now() }]);
+            playJoinTone(false);
+            toast(t("recAskToast", { name }), "info");
+            return;
+          }
+          if ((msg.t === "rec_ok" || msg.t === "rec_no") && p) {
+            const to = String(msg.to ?? "");
+            // Every approver drops the card once one of them has answered.
+            setRecAsks((a) => a.filter((x) => x.id !== to));
+            if (to !== room.localParticipant.identity) return;
+            const req = recReqRef.current;
+            if (!req) return;
+            setRecReq(null);
+            const name = nameOfRef.current(p);
+            if (msg.t === "rec_ok") {
+              toast(t("recAllowedBy", { name }), "join");
+              startRecRef.current(req.mode);
+            } else {
+              toast(t("recDeniedBy", { name }), "leave");
+            }
             return;
           }
           if (msg.t === "chat" && msg.text) {
@@ -299,6 +381,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           if (room.remoteParticipants.size) hadRemoteRef.current = true;
           setStatus(room.remoteParticipants.size ? "live" : "ringing");
           signal("call.join");
+          announceRole();
           // Welcome chime once I'm in (the room may already have people).
           playJoinTone(true);
           firstJoinRef.current = false;
@@ -340,6 +423,23 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     if (!isCaller || status !== "ringing") return;
     return playRingback();
   }, [isCaller, status]);
+
+  // Requester: count my recording request down; no answer in time → give up.
+  useEffect(() => {
+    if (!recReq) return;
+    if (recReq.left <= 0) {
+      const tm = setTimeout(() => { setRecReq(null); toast(t("recNoAnswer"), "leave"); }, 0);
+      return () => clearTimeout(tm);
+    }
+    const tm = setTimeout(() => setRecReq((r) => (r ? { ...r, left: r.left - 1 } : r)), 1000);
+    return () => clearTimeout(tm);
+  }, [recReq, toast, t]);
+  // Approver: a request nobody answered expires with the requester's timer.
+  useEffect(() => {
+    if (!recAsks.length) return;
+    const iv = setInterval(() => setRecAsks((a) => a.filter((x) => Date.now() - x.at < (REC_ASK_SEC + 5) * 1000)), 1000);
+    return () => clearInterval(iv);
+  }, [recAsks.length]);
 
   // Meeting meta: participants roster, host permissions, remaining time.
   // Polls every 3s and refreshes immediately when a realtime event bumps
@@ -556,6 +656,20 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     setMessages((m) => [...m, { id: `me-${at}`, from: r.localParticipant.identity, name: t("you"), text, at }]);
     setDraft("");
   }
+  // Approver answers a client's recording request; broadcast so the other
+  // approvers drop their card too.
+  function answerRecAsk(id: string, ok: boolean) {
+    const r = roomRef.current;
+    setRecAsks((a) => a.filter((x) => x.id !== id));
+    if (!r) return;
+    r.localParticipant.publishData(enc({ t: ok ? "rec_ok" : "rec_no", to: id, at: Date.now() }), { reliable: true }).catch(() => {});
+  }
+  function cancelRecReq() {
+    setRecReq(null);
+    // Tell approvers the request is withdrawn (same message as a self-deny).
+    const r = roomRef.current;
+    r?.localParticipant.publishData(enc({ t: "rec_no", to: r.localParticipant.identity, at: Date.now() }), { reliable: true }).catch(() => {});
+  }
   // Host controls (gated by backend permissions).
   async function muteParticipant(userId: string, mute: boolean) {
     try {
@@ -583,68 +697,64 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     }
   }
   // /users/search is staff-only; a client or advocate host searches the people
-  // they can actually reach: verified lawyers and (for sellers) their own clients.
-  async function inviteSearch(q: string) {
-    const inCall = new Set(roster.map((p) => p.userId));
-    const needle = q.trim().toLowerCase();
-    const digits = needle.replace(/\D/g, "");
-    let users: { id: string; name: string; phone: string; lexgoId?: string; sub?: string }[] = [];
-    try {
-      users = await searchUsers(q);
-    } catch (e) {
-      if (!(e instanceof ApiError && (e.status === 403 || e.status === 401 || e.status === 404))) throw e;
-      if (!dirRef.current) {
-        dirRef.current = (async () => {
-          const [lawyers, clients] = await Promise.all([
-            listLawyers({ includeUnverified: true }).catch(() => []),
-            getLawyerClients().catch(() => []),
-          ]);
-          const seen = new Set<string>();
-          const out: typeof users = [];
-          for (const l of lawyers) if (l.userId && !seen.has(l.userId)) { seen.add(l.userId); out.push({ id: l.userId, name: l.name, phone: l.phone, sub: l.region }); }
-          for (const c of clients) if (c.id && !seen.has(c.id)) { seen.add(c.id); out.push({ id: c.id, name: c.name, phone: c.phone, sub: t("inviteClient") }); }
-          return out;
-        })();
-      }
-      const dir = await dirRef.current;
-      users = dir.filter((u) => {
-        const hay = `${u.name} ${u.phone} ${u.lexgoId ?? ""}`.toLowerCase();
-        return hay.includes(needle) || (digits.length >= 4 && u.phone.replace(/\D/g, "").includes(digits));
-      }).slice(0, 12);
+  // they can actually reach: lawyers and (for sellers) their own clients —
+  // lib/inviteSearch, shared with MeetingLauncher. People already in the call
+  // (backend roster) and I are left out.
+  function inviteSearch(q: string) {
+    if (!inviteSearchRef.current) {
+      inviteSearchRef.current = makeInviteSearch({
+        clientLabel: t("inviteClient"),
+        exclude: () => [...rosterRef.current.map((p) => p.userId), ...(session?.id ? [session.id] : [])],
+      });
     }
-    return users
-      .filter((u) => u.id && !inCall.has(u.id) && u.id !== session?.id)
-      .map((u) => ({ value: u.id, label: u.name || u.phone || "—", sub: [u.phone, u.lexgoId, u.sub].filter(Boolean).join(" · ") || undefined }));
+    return inviteSearchRef.current(q);
   }
   // Local recording of the whole conversation (never uploaded). Everyone in
   // the room is told through the data channel and sees a badge.
+  const startRecording = useCallback((mode: RecordingMode) => {
+    const r = roomRef.current;
+    if (!r || recorderRef.current) return;
+    try {
+      const rec = new MeetingRecorder(mode);
+      rec.start(r, stageRef.current);
+      setRecMode(mode);
+      recorderRef.current = rec;
+      setRecSec(0);
+      setRecOn(true);
+      setRecFile(null);
+      playRecTone(true);
+      r.localParticipant.publishData(enc({ t: "rec", on: true, at: Date.now() }), { reliable: true }).catch(() => {});
+      toast(t("recStarted"), "join");
+    } catch (e) {
+      toast(`${t("recError")} ${e instanceof Error ? `(${e.message})` : ""}`.trim(), "leave");
+    }
+  }, [toast, t]);
+  useEffect(() => { startRecRef.current = startRecording; }, [startRecording]);
+  // Approver present in the LiveKit room: announced itself, is the backend
+  // host, or the token metadata says staff/seller (anything but "client").
+  const hostId = roster.find((p) => p.role === "host")?.userId;
+  const isApprover = (p: Participant) => announced.has(p.identity) || p.identity === hostId || (roleOf(p) !== "" && roleOf(p) !== "client");
+  // Staff and sellers record right away (they are the approvers); a client
+  // first asks the approvers in the room and records only on rec_ok.
   async function toggleRec(mode?: RecordingMode) {
     const r = roomRef.current;
     if (!r) return;
     if (!recOn) {
+      if (recReq) return; // still waiting for an answer
       if (!mode) { setRecPick(true); return; }
       setRecPick(false);
-      try {
-        const rec = new MeetingRecorder(mode);
-        rec.start(r, stageRef.current);
-        setRecMode(mode);
-        recorderRef.current = rec;
-        setRecSec(0);
-        setRecOn(true);
-        setRecFile(null);
-        playRecTone(true);
-        r.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ t: "rec", on: true, at: Date.now() })), { reliable: true }).catch(() => {});
-        toast(t("recStarted"), "join");
-      } catch (e) {
-        toast(`${t("recError")} ${e instanceof Error ? `(${e.message})` : ""}`.trim(), "leave");
-      }
+      if (iApprove) { startRecording(mode); return; }
+      if (!participants.some((p) => !p.isLocal && isApprover(p))) { toast(t("recNeedApprover"), "leave"); return; }
+      r.localParticipant.publishData(enc({ t: "rec_req", mode, name: session?.name || "", at: stamp() }), { reliable: true }).catch(() => {});
+      setRecReq({ mode, left: REC_ASK_SEC });
+      toast(t("recAsking"), "info");
       return;
     }
     const rec = recorderRef.current;
     recorderRef.current = null;
     setRecOn(false);
     playRecTone(false);
-    r.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ t: "rec", on: false, at: Date.now() })), { reliable: true }).catch(() => {});
+    r.localParticipant.publishData(enc({ t: "rec", on: false, at: stamp() }), { reliable: true }).catch(() => {});
     const file = rec ? await rec.stop() : null;
     if (file) {
       setRecFile(file);
@@ -688,7 +798,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const flipKey = `${strip.map((p) => p.identity).join("|")}:${view}:${stageIsShare ? 1 : 0}:${panel}`;
   const gridRef = useFlip<HTMLDivElement>(flipKey);
   const stripRef = useFlip<HTMLDivElement>(flipKey);
+  // Everyone recording right now, by name (others from the data channel, me from recOn).
   const recByNames = [...recBy].map((id) => { const p = participants.find((x) => x.identity === id); return p ? nameOf(p) : t("someone"); });
+  const recLabel = recOn
+    ? `${t("recording", { time: mmss(recSec) })}${recByNames.length ? ` · ${recByNames.join(", ")}` : ""}`
+    : t("recordingBy", { name: recByNames.join(", ") || t("someone") });
+  const isRecording = (p: Participant) => (p.isLocal ? recOn : recBy.has(p.identity));
 
   return (
     <div className={`mtg${panel ? " mtg--panel" : ""}`} data-tick={tick}>
@@ -698,7 +813,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           <b>{title || t("meetingTitle")}</b>
           <span className={`mtg__badge mtg__badge--${status}`}><i />{statusLabel}</span>
           {recOn || recBy.size ? (
-            <span className="mtg__badge mtg__badge--rec" title={recByNames.join(", ")}><i />{recOn ? t("recording", { time: mmss(recSec) }) : t("recordingBy", { name: recByNames[0] || t("someone") })}</span>
+            <span className="mtg__badge mtg__badge--rec" title={[recOn ? t("you") : "", ...recByNames].filter(Boolean).join(", ")}><i />{recLabel}</span>
           ) : null}
         </div>
         <div className="mtg__timer">
@@ -725,18 +840,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         <main className="mtg__stage" ref={stageRef}>
           {stageP ? (
             <div className="mtg__speaker">
-              <Tile key={`stage-${stageP.identity}-${stageIsShare ? "s" : "c"}`} p={stageP} name={nameOf(stageP)} you={t("you")} camOff={t("camOff")} share={stageIsShare} mirror={stageP.isLocal && !stageIsShare && mirror} big />
+              <Tile key={`stage-${stageP.identity}-${stageIsShare ? "s" : "c"}`} p={stageP} name={nameOf(stageP)} you={t("you")} camOff={t("camOff")} share={stageIsShare} mirror={stageP.isLocal && !stageIsShare && mirror} rec={!stageIsShare && isRecording(stageP)} big />
               {stageIsShare ? <span className="mtg__sharing"><IconMonitor />{stageP.isLocal ? t("youShare") : t("sharing", { name: nameOf(stageP) })}</span> : null}
               <div className="mtg__strip" ref={stripRef}>
                 {strip.map((p) => (
-                  <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} small onClick={() => { setPinned(p.identity); setView("speaker"); }} />
+                  <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} rec={isRecording(p)} small onClick={() => { setPinned(p.identity); setView("speaker"); }} />
                 ))}
               </div>
             </div>
           ) : (
             <div className={`mtg__grid mtg__grid--${Math.min(gridN, 9)}`} ref={gridRef}>
               {strip.map((p) => (
-                <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} pip={gridN === 2 && p.isLocal && MOBILE()} onClick={() => { setPinned(p.identity); setView("speaker"); }} />
+                <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} rec={isRecording(p)} pip={gridN === 2 && p.isLocal && MOBILE()} onClick={() => { setPinned(p.identity); setView("speaker"); }} />
               ))}
               {count <= 1 ? (
                 <div className="mtg__waiting">
@@ -765,6 +880,27 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
                 <button type="button" className="btn btn--pri btn--sm" onClick={() => void toggleRec("audio")}><IconMic />{t("recModeAudio")}</button>
                 {canRecordScreen() ? <button type="button" className="btn btn--soft btn--sm" onClick={() => void toggleRec("screen")}><IconMonitor />{t("recModeScreen")}</button> : null}
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => setRecPick(false)}>{t("close")}</button>
+              </div>
+            </div>
+          ) : null}
+          {/* Requester: waiting for an approver's answer. */}
+          {recReq ? (
+            <div className="mtg__recask" role="status">
+              <b><i />{t("recWaiting", { s: recReq.left })}</b>
+              <span>{t("recWaitingLead", { mode: t(recReq.mode === "screen" ? "recModeScreen" : "recModeAudio") })}</span>
+              <div className="mtg__recask-btns">
+                <button type="button" className="btn btn--ghost btn--sm" onClick={cancelRecReq}>{t("cancel")}</button>
+              </div>
+            </div>
+          ) : null}
+          {/* Approver: a client asks to record — allow or deny. */}
+          {recAsks.length ? (
+            <div className="mtg__recask" role="dialog" aria-label={t("recAskTitle", { name: recAsks[0].name })}>
+              <b><i />{t("recAskTitle", { name: recAsks[0].name })}</b>
+              <span>{t("recAskLead", { mode: t(recAsks[0].mode === "screen" ? "recModeScreen" : "recModeAudio") })}{recAsks.length > 1 ? ` · +${recAsks.length - 1}` : ""}</span>
+              <div className="mtg__recask-btns">
+                <button type="button" className="btn btn--pri btn--sm" onClick={() => answerRecAsk(recAsks[0].id, true)}><IconMic />{t("recAllow")}</button>
+                <button type="button" className="btn btn--line btn--sm" onClick={() => answerRecAsk(recAsks[0].id, false)}><IconClose />{t("recDeny")}</button>
               </div>
             </div>
           ) : null}
@@ -823,6 +959,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
                   const self = p.userId === session?.id;
                   const live = participants.find((x) => x.identity === p.userId);
                   const canHostAct = !self && p.role !== "host";
+                  const recording = self ? recOn : recBy.has(p.userId);
                   return (
                     <div className={`mtg__prow${live?.isSpeaking ? " speaking" : ""}`} key={p.userId}>
                       <span className="mtg__pav">{initials(p.name || "?")}</span>
@@ -830,6 +967,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
                         <b>{p.name || "—"}{self ? ` (${t("you")})` : ""}</b>
                         <span>{p.role === "host" ? t("hostLabel") : live ? t("live") : t.has(`pstatus.${p.status}`) ? t(`pstatus.${p.status}`) : p.status}</span>
                       </div>
+                      {recording ? <span className="mtg__precchip"><i />{t("recChip")}</span> : null}
                       <span className={`mtg__pmic${(live ? live.isMicrophoneEnabled : p.micEnabled) ? "" : " off"}`}>{(live ? live.isMicrophoneEnabled : p.micEnabled) ? <IconMic /> : <IconMicOff />}</span>
                       {canHostAct && perms?.canMute ? (
                         <button type="button" className="mtg__pact" onClick={() => muteParticipant(p.userId, p.micEnabled)}>{p.micEnabled ? t("mute") : t("unmute")}</button>
@@ -853,7 +991,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             <span className="mtg__grip" />
             <button type="button" onClick={() => { setMore(false); openPanel("chat"); }}><IconChat />{t("chatTab")}{unread ? <i className="mtg__cb">{unread > 9 ? "9+" : unread}</i> : null}</button>
             <button type="button" onClick={() => { setMore(false); openPanel("people"); }}><IconUsers />{t("rosterTitle")} · {count}</button>
-            {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }}><IconMic />{recOn ? t("recStop", { mode: t(recMode === "screen" ? "recModeScreen" : "recModeAudio") }) : t("recStart")}</button> : null}
+            {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }}><IconMic />{recOn ? t("recStop", { mode: t(recMode === "screen" ? "recModeScreen" : "recModeAudio") }) : recReq ? t("recWaitingShort") : t("recStart")}</button> : null}
             <button type="button" onClick={() => { setMore(false); setView(view === "grid" ? "speaker" : "grid"); }}>{view === "grid" ? <IconUser /> : <IconGrid />}{view === "grid" ? t("layoutSpeaker") : t("layoutGrid")}</button>
           </div>
         </div>
@@ -865,7 +1003,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         <Ctl on={camOn} off={!camOn} label={camOn ? t("camOff2") : t("camOn")} onClick={toggleCam} disabled={camBusy}><IconVideo /></Ctl>
         {camOn && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
         {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing} desktop><IconMonitor /></Ctl> : null}
-        {canRecord() ? <Ctl on={recOn} label={recOn ? t("recStopShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} desktop><IconMic /></Ctl> : null}
+        {canRecord() ? <Ctl on={recOn || !!recReq} label={recOn ? t("recStopShort") : recReq ? t("recWaitingShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} disabled={!!recReq} desktop><IconMic /></Ctl> : null}
         <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")} desktop><IconUsers /></Ctl>
         <Ctl on={panel === "chat"} label={t("chatTab")} onClick={() => openPanel(panel === "chat" ? "" : "chat")} badge={unread} desktop><IconChat /></Ctl>
         <Ctl label={t("more")} onClick={() => setMore((m) => !m)} badge={unread} phone><IconGrid /></Ctl>
@@ -888,7 +1026,7 @@ function Ctl({ children, label, onClick, on, off, end, accent, rec, disabled, ti
 // camera is off; name chip with mic state; green ring while speaking. The
 // tile learns the stream's orientation from the video element so a phone's
 // portrait camera isn't squeezed into a landscape box.
-function Tile({ p, name, you, camOff, share, mirror, big, small, pip, onClick }: { p: Participant; name: string; you: string; camOff: string; share?: boolean; mirror?: boolean; big?: boolean; small?: boolean; pip?: boolean; onClick?: () => void }) {
+function Tile({ p, name, you, camOff, share, mirror, rec, big, small, pip, onClick }: { p: Participant; name: string; you: string; camOff: string; share?: boolean; mirror?: boolean; rec?: boolean; big?: boolean; small?: boolean; pip?: boolean; onClick?: () => void }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [portrait, setPortrait] = useState(false);
   const source = share ? Track.Source.ScreenShare : Track.Source.Camera;
@@ -916,6 +1054,7 @@ function Tile({ p, name, you, camOff, share, mirror, big, small, pip, onClick }:
       ) : (
         <div className="mtg__avatar"><span>{initials(name || "?")}</span>{!share ? <small>{camOff}</small> : null}</div>
       )}
+      {rec ? <span className="mtg__recpill" aria-label="REC"><i />REC</span> : null}
       <span className="mtg__name">
         {p.isMicrophoneEnabled ? null : <IconMicOff />}
         {name}{p.isLocal ? ` (${you})` : ""}

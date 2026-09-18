@@ -727,7 +727,40 @@ export type BackendPlan = {
   isGiftable: boolean;
   isActive: boolean;
   entitlements: Record<string, unknown>; // ai_requests, doc_analysis, history_days, export, case_law_search…
+  // Raw admin-editable fields (the localized `name` / `features` above are
+  // what the UI shows; these are what POST/PATCH /admin/subscription-plans take).
+  title: string;
+  benefits: string[];
 };
+
+// Who a tariff is sold to (GM: Paket tariflar are per role). The backend keeps
+// a single `audience` string and normalizes it in plan_public_meta /
+// sync_canonical_subscription_plans: canonical values are personal / seller /
+// business, so an admin-chosen client / yurist / advokat may come back
+// rewritten by slug ("shaxsiy" → personal, "lexgo-ai" / "seller" → seller,
+// "b2b" / "business" → business). This helper maps whatever the backend sent
+// to the roles the tariff applies to.
+export type PlanAudience = "client" | "yurist" | "advokat" | "business";
+export const PLAN_AUDIENCES: PlanAudience[] = ["client", "yurist", "advokat", "business"];
+export function planAudience(plan: Pick<BackendPlan, "audience" | "slug">): PlanAudience[] {
+  const a = (plan.audience || "").trim().toLowerCase();
+  if (a === "personal" || a === "client") return ["client"];
+  if (a === "seller") return ["yurist", "advokat"];
+  if (a === "business" || a === "b2b") return ["business"];
+  if (a === "yurist" || a === "lawyer") return ["yurist"];
+  if (a === "advokat" || a === "advocate") return ["advokat"];
+  // Unknown / empty audience: fall back to the same slug rule the backend uses.
+  const s = (plan.slug || "").toLowerCase();
+  if (s.includes("b2b") || s.includes("business")) return ["business"];
+  if (s.includes("shaxsiy")) return ["client"];
+  return ["yurist", "advokat"];
+}
+// True when the tariff is sold to this backend role (a business tariff never
+// matches a person; anyone else sees what planAudience() lists).
+export function planForRole(plan: Pick<BackendPlan, "audience" | "slug">, role: string): boolean {
+  const r = role === "lawyer" ? "yurist" : role === "advocate" ? "advokat" : role;
+  return planAudience(plan).includes(r as PlanAudience);
+}
 
 // Backend ships localized `name`/`features` as { uz, ru, en } objects; pick the
 // current UI locale (fallback uz, then the legacy flat string/array).
@@ -747,31 +780,55 @@ function pickLocArr(v: unknown, locale: string, fallback: unknown): string[] {
   return asArr(fallback).map((x) => asStr(x));
 }
 
+function normPlan(v: unknown, locale: string): BackendPlan {
+  const d = asDict(v);
+  const monthly = uzs(d, "monthly_price", "price");
+  return {
+    id: asStr(d.id),
+    name: pickLoc(d.name, locale, asStr(d.title)),
+    slug: asStr(d.slug),
+    entitlements: asDict(d.entitlements ?? d.limits),
+    price: monthly,
+    monthlyPrice: monthly,
+    sixMonthPrice: uzs(d, "six_month_price"),
+    yearlyPrice: uzs(d, "yearly_price"),
+    prepaidYearlyPrice: uzs(d, "prepaid_yearly_price"),
+    audience: asStr(d.audience),
+    billingType: asStr(d.billing_type),
+    sortOrder: asNum(d.sort_order),
+    allowedGiftDurations: asArr(d.allowed_gift_durations).map((x) => asNum(x)),
+    description: asStr(d.description),
+    features: pickLocArr(d.features, locale, d.benefits),
+    isGiftable: Boolean(d.is_giftable),
+    isActive: d.is_active !== false,
+    title: asStr(d.title) || pickLoc(d.name, "uz", ""),
+    benefits: Array.isArray(d.benefits) ? d.benefits.map((x) => asStr(x)) : pickLocArr(d.features, "uz", []),
+  };
+}
+
 export async function getSubscriptionPlans(locale = "uz"): Promise<BackendPlan[]> {
   const data = await http("/subscription-plans");
-  return listFrom(data, "plans", "items", "data").map((v) => {
-    const d = asDict(v);
-    const monthly = uzs(d, "monthly_price", "price");
-    return {
-      id: asStr(d.id),
-      name: pickLoc(d.name, locale, asStr(d.title)),
-      slug: asStr(d.slug),
-      entitlements: asDict(d.entitlements ?? d.limits),
-      price: monthly,
-      monthlyPrice: monthly,
-      sixMonthPrice: uzs(d, "six_month_price"),
-      yearlyPrice: uzs(d, "yearly_price"),
-      prepaidYearlyPrice: uzs(d, "prepaid_yearly_price"),
-      audience: asStr(d.audience),
-      billingType: asStr(d.billing_type),
-      sortOrder: asNum(d.sort_order),
-      allowedGiftDurations: asArr(d.allowed_gift_durations).map((x) => asNum(x)),
-      description: asStr(d.description),
-      features: pickLocArr(d.features, locale, d.benefits),
-      isGiftable: Boolean(d.is_giftable),
-      isActive: d.is_active !== false,
-    };
-  });
+  return listFrom(data, "plans", "items", "data").map((v) => normPlan(v, locale));
+}
+
+// A route the backend has not shipped yet answers 404 (unknown path), 405
+// (path known, method not) or 501. Callers feature-detect with this and keep
+// the UI usable instead of failing.
+export function isMissingRoute(e: unknown): boolean {
+  return e instanceof ApiError && (e.status === 404 || e.status === 405 || e.status === 501);
+}
+
+// Admin list of tariffs. Backend HEAD f6c94f8 only has POST
+// /admin/subscription-plans (no GET), so this probes GET and falls back to the
+// public list, which carries active plans only — `activeOnly` tells the UI.
+export async function listSubscriptionPlansAdmin(locale = "uz"): Promise<{ plans: BackendPlan[]; activeOnly: boolean }> {
+  try {
+    const data = await http("/admin/subscription-plans");
+    return { plans: listFrom(data, "plans", "items", "data").map((v) => normPlan(v, locale)), activeOnly: false };
+  } catch (e) {
+    if (!isMissingRoute(e)) throw e;
+  }
+  return { plans: await getSubscriptionPlans(locale), activeOnly: true };
 }
 
 // ── Orders & cases ────────────────────────────────────────────────
@@ -1070,12 +1127,25 @@ export async function demoConfirmPayment(paymentId: string): Promise<PurchaseRes
 // Production has the demo provider disabled and Payme/Click answer 503 until
 // they are configured. A staging build sets NEXT_PUBLIC_PAYMENT_PROVIDER=demo_payme
 // in its deployment env to keep the demo checkout; inlined at build time.
-const CHECKOUT_PROVIDER = process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || "payme";
-export type PaymentProvider = "payme" | "click" | "rahmat";
+const CHECKOUT_PROVIDER = (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || "payme").trim().toLowerCase();
+// "atmos" is the GM-required monthly auto-pay provider. Backend HEAD f6c94f8
+// (payment_provider.py) knows payme / click / demo only and answers 400
+// "Payment provider qo'llab-quvvatlanmaydi" for anything else, so a build with
+// NEXT_PUBLIC_PAYMENT_PROVIDER=atmos works the moment the backend ships it —
+// until then isProviderUnsupported() turns that 400 into the "payment
+// unavailable" notice instead of a generic error.
+export type PaymentProvider = "payme" | "click" | "rahmat" | "atmos";
+export const PAYMENT_PROVIDERS: PaymentProvider[] = ["payme", "click", "rahmat", "atmos"];
 // True when this build checks out through the staging demo provider, whose
 // demo-purchase / demo-pay endpoints settle instantly (404 in production).
 export const isDemoCheckout = () => CHECKOUT_PROVIDER.startsWith("demo");
+export const isAtmosCheckout = () => CHECKOUT_PROVIDER === "atmos";
 export const checkoutProvider = () => CHECKOUT_PROVIDER;
+// The backend rejected the configured provider itself (400 from
+// get_payment_provider), not the payment — e.g. ATMOS before it ships.
+export function isProviderUnsupported(e: unknown): boolean {
+  return e instanceof ApiError && e.status === 400 && /provider/i.test(e.detail || "");
+}
 export type PaymentIntent = { id: string; status: string; amount: number; currency: string; paymentUrl?: string };
 export async function createPayment(input: {
   provider: PaymentProvider | string;
@@ -2515,6 +2585,64 @@ function normClientProfile(v: unknown): ClientProfile {
 }
 export async function getClientProfile(): Promise<ClientProfile> {
   return normClientProfile(await http("/clients/me"));
+}
+
+// ── My subscription / auto-renew ──────────────────────────────────
+// Backend HEAD f6c94f8 has no subscription endpoint of its own: the active
+// plan is only exposed on /clients/me (plan_name / status / renews_at =
+// UserSubscription.ends_at), UserSubscription has no auto_renew column and
+// payment_provider.py has no ATMOS. These wrappers probe the future
+// GET/PATCH /clients/me/subscription and fall back honestly, so the UI keeps
+// working today and picks the real thing up the day it ships.
+export type MySubscription = {
+  planName: string;
+  planId: string;
+  status: string;
+  renewsAt?: string;
+  // undefined = the backend exposes no auto-renew flag (client-side state).
+  autoRenew?: boolean;
+  provider: string; // "" when the backend does not say
+  // true when GET /clients/me/subscription answered (auto-renew is server-side).
+  native: boolean;
+};
+function normMySubscription(v: unknown, native: boolean): MySubscription | null {
+  const raw = asDict(v);
+  const d = Object.keys(asDict(raw.subscription)).length ? asDict(raw.subscription) : raw;
+  const planName = asStr(d.plan_name ?? d.plan_title ?? asDict(d.plan).title ?? asDict(d.plan).name);
+  const planId = asStr(d.plan_id ?? asDict(d.plan).id);
+  if (!planName && !planId) return null;
+  const ar = d.auto_renew ?? d.autopay ?? d.auto_pay;
+  return {
+    planName,
+    planId,
+    status: asStr(d.status, "active"),
+    renewsAt: asStr(d.renews_at ?? d.ends_at ?? d.next_charge_at) || undefined,
+    autoRenew: typeof ar === "boolean" ? ar : undefined,
+    provider: asStr(d.provider ?? d.payment_provider),
+    native,
+  };
+}
+export async function getMySubscription(): Promise<MySubscription | null> {
+  try {
+    return normMySubscription(await http("/clients/me/subscription"), true);
+  } catch (e) {
+    if (!isMissingRoute(e)) throw e;
+  }
+  const p = await getClientProfile();
+  return p.subscription
+    ? { planName: p.subscription.planName, planId: "", status: p.subscription.status, renewsAt: p.subscription.renewsAt, provider: "", native: false }
+    : null;
+}
+// supported=false → the backend has no PATCH /clients/me/subscription yet; the
+// caller keeps the setting client-side and says so.
+export async function updateMySubscription(patch: { auto_renew?: boolean; provider?: string }): Promise<{ supported: boolean; subscription: MySubscription | null }> {
+  try {
+    const d = await http("/clients/me/subscription", { method: "PATCH", body: JSON.stringify(patch) });
+    return { supported: true, subscription: normMySubscription(d, true) };
+  } catch (e) {
+    if (isMissingRoute(e)) return { supported: false, subscription: null };
+    throw e;
+  }
 }
 export async function updateClientProfile(patch: {
   name?: string;

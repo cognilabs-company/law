@@ -23,3 +23,32 @@ export function kanbanColumnTitle(tStages: T, col: { key: string; title: string 
   if (isDefault && tStages.has(`stages.${col.key}`)) return tStages(`stages.${col.key}`);
   return col.title || humanizeSlug(col.key);
 }
+
+// Region value ("tashkent") → enums.regions name; free-text regions stay as typed.
+export function leadRegionLabel(te: T, region: string): string {
+  if (!region) return "";
+  const k = region.trim().toLowerCase();
+  return te.has(`regions.${k}`) ? te(`regions.${k}`) : region;
+}
+
+// Backend score ("hot" | "warm" | "cold") → admin.pipeline.score.* label.
+export function leadScoreLabel(t: T, score: string): string {
+  if (!score) return "";
+  return t.has(`score.${score}`) ? t(`score.${score}`) : humanizeSlug(score);
+}
+
+// Urgency ("urgent", "normal", …) → admin.pipeline.urgency.* label.
+export function leadUrgencyLabel(t: T, urgency: string): string {
+  if (!urgency) return "";
+  const k = urgency.trim().toLowerCase();
+  return t.has(`urgency.${k}`) ? t(`urgency.${k}`) : humanizeSlug(urgency);
+}
+
+// Assignee chip text: "you" for the signed-in user, the operator's name from
+// the directory, or a plain "operator" when the directory isn't readable.
+export function assigneeLabel(t: T, ops: { id: string; name: string; phone: string }[], userId: string, meId: string): string {
+  if (!userId) return t("assign.none");
+  if (meId && userId === meId) return t("assign.me");
+  const op = ops.find((o) => o.id === userId);
+  return op ? op.name || op.phone || t("assign.unknown") : t("assign.unknown");
+}

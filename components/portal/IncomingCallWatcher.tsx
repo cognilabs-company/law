@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import { listInvitedCalls, listLawyers } from "@/lib/services/backend";
+import { listInvitedCalls, listLawyers, getCall } from "@/lib/services/backend";
 import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, userSocketState, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
-import CallRoom from "@/components/chat/CallRoom";
+import CallRoom, { isCallRoomMounted, CALLROOM_EVENT } from "@/components/chat/CallRoom";
 import { IconPhone, IconVideo, IconClose } from "@/components/icons";
 
 type Incoming = { kind: "chat" | "meet"; roomId: string; callId: string; callType: "audio" | "video"; callerName: string; resume?: boolean };
@@ -23,6 +23,24 @@ async function nameOf(userId: string): Promise<string> {
     }
   }
   return nameCache.get(userId) || "";
+}
+// Caller name for a meeting invite when the socket event carries none (staff-
+// initiated invites): the host in the event's participants → /calls/invited
+// caller_name → the call's host participant → the lawyers directory.
+async function callerNameOf(parts: Record<string, unknown>[], caller: string, roomId: string, callId: string): Promise<string> {
+  const host = parts.find((p) => String(p.role) === "host") ?? parts.find((p) => String(p.user_id ?? p.id) === caller);
+  const fromEvent = String(host?.name ?? "").trim();
+  if (fromEvent) return fromEvent;
+  try {
+    const inv = (await listInvitedCalls()).find((c) => c.callId === callId);
+    if (inv?.callerName) return inv.callerName;
+  } catch { /* fall through */ }
+  try {
+    const c = await getCall(roomId, callId);
+    const h = c.participants.find((p) => p.role === "host") ?? c.participants.find((p) => p.userId === c.callerUserId);
+    if (h?.name) return h.name;
+  } catch { /* fall through */ }
+  return caller ? nameOf(caller) : "";
 }
 // Fallback poll of /calls/invited only while the user socket is down (and on
 // mount / tab focus) — the socket's `call.incoming` is the primary signal.
@@ -74,7 +92,7 @@ export default function IncomingCallWatcher() {
       const isMeet = !!call.title || parts.some((p) => String(p.user_id ?? p.id) === me && String(p.status) === "invited");
       // Inside that very chat the chat's own card handles it.
       if (!isMeet && onChatPageRef.current) return;
-      const name = String(e.caller_name ?? call.caller_name ?? "") || (await nameOf(caller)) || t("someone");
+      const name = String(e.caller_name ?? call.caller_name ?? "").trim() || (await callerNameOf(parts, caller, roomId, callId)) || t("someone");
       if (!alive) return;
       setInc({ kind: isMeet ? "meet" : "chat", roomId, callId, callType: String(call.call_type) === "audio" ? "audio" : "video", callerName: name });
     }
@@ -126,7 +144,10 @@ export default function IncomingCallWatcher() {
         if (!alive) return;
         const c = list.find((x) => x.callId === stored!.callId);
         if (c && c.callStatus === "active" && c.status !== "removed" && c.status !== "left" && c.status !== "declined") {
-          // Offer to rejoin (ring card) — never open a meeting by itself.
+          // Offer to rejoin (ring card) — never open a meeting by itself. A
+          // launcher (admin/seller meetings page) that already resumed it as
+          // host has a CallRoom on screen: nothing to offer then.
+          if (isCallRoomMounted()) return;
           setInc({ kind: "meet", roomId: stored!.roomId!, callId: stored!.callId!, callType: stored!.callType === "audio" ? "audio" : "video", callerName: c.callerName || t("someone"), resume: true });
         } else {
           try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ }
@@ -135,6 +156,13 @@ export default function IncomingCallWatcher() {
       .catch(() => {});
     return () => { alive = false; };
   }, [session, meet, t]);
+  // A CallRoom mounted elsewhere (launcher resume, chat call) makes a pending
+  // resume card redundant — drop it.
+  useEffect(() => {
+    const onRoom = () => setInc((cur) => (cur?.resume ? null : cur));
+    window.addEventListener(CALLROOM_EVENT, onRoom);
+    return () => window.removeEventListener(CALLROOM_EVENT, onRoom);
+  }, []);
 
   // An accepted meeting is rendered inline (invitee isn't a chat-room member).
   if (meet) {

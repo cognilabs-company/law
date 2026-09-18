@@ -1,8 +1,9 @@
 // Admin API client (see /admin/* in the OpenAPI spec). All calls require an
 // authenticated user with the right permissions; the bearer token is attached
 // automatically by the shared http() layer.
-import { http, asDict, asStr, asArr } from "@/lib/http";
-import { normDeliveries, type NotificationDelivery } from "@/lib/services/backend";
+import { http, asDict, asStr, asArr, asNum, type Dict } from "@/lib/http";
+import { normDeliveries, type NotificationDelivery, type BackendService } from "@/lib/services/backend";
+import { uzsOpt } from "@/lib/money";
 
 export type Permission = { code: string; title: string };
 export type AdminRole = {
@@ -81,6 +82,130 @@ export async function createService(input: {
   is_active?: boolean;
 }): Promise<unknown> {
   return http("/admin/services", { method: "POST", body: JSON.stringify(input) });
+}
+
+// Admin view of a service: the public BackendService shape plus the raw
+// LegalServiceOut fields the admin UI edits and searches on (the three catalog
+// titles, currency, delivery time, SLA/refund/AI codes). `hasMetadata` tells
+// whether a legal_service_metadata row exists: PATCH /admin/services/{id}
+// applies the `metadata` block only then (admin-created services have none).
+export type AdminService = BackendService & {
+  title: string; // raw backend title (what the admin typed), not the localized one
+  titleUzCyrl: string;
+  titleUzLatn: string;
+  titleRu: string;
+  basePrice?: number; // whole so'm (legacy UZS), not tiyin (T0-16)
+  standardPrice?: number; // catalog metadata price, whole so'm
+  currency: string;
+  deliveryMinutes?: number;
+  slaCode: string;
+  refundCode: string;
+  aiCategory: string;
+  hasMetadata: boolean;
+  createdAt: string;
+};
+
+// Same localized-title preference as the public catalog normalizer.
+function adminServiceName(d: Dict, locale: string): string {
+  const byLocale = locale === "ru" ? d.title_ru : d.title_uz_latn;
+  return asStr(byLocale ?? d.title ?? d.name);
+}
+
+export function normAdminService(v: unknown, locale = "uz"): AdminService {
+  const d = asDict(v);
+  const titleUzCyrl = asStr(d.title_uz_cyrl);
+  const titleUzLatn = asStr(d.title_uz_latn);
+  const titleRu = asStr(d.title_ru);
+  const catalogCode = asStr(d.catalog_code);
+  // service_to_out sets standard_price to the metadata value (an int, never
+  // None) only when a metadata row exists; the codes are a fallback signal.
+  const hasMetadata =
+    (d.standard_price != null && d.standard_price !== "") ||
+    Boolean(catalogCode || titleUzCyrl || titleUzLatn || titleRu || asStr(d.executor_type));
+  return {
+    id: asStr(d.id),
+    name: adminServiceName(d, locale),
+    slug: asStr(d.slug),
+    categoryId: asStr(d.category_id ?? d.categoryId) || undefined,
+    categoryTitle: asStr(d.category_title) || undefined,
+    price: uzsOpt(d, "standard_price", "base_price"),
+    description: asStr(d.description) || undefined,
+    isActive: d.is_active !== false && d.is_active !== 0,
+    catalogCode: catalogCode || undefined,
+    executorType: asStr(d.executor_type) || undefined,
+    advokatRequired: Boolean(d.advokat_required),
+    pricingTier: asStr(d.pricing_tier) || undefined,
+    title: asStr(d.title),
+    titleUzCyrl,
+    titleUzLatn,
+    titleRu,
+    basePrice: uzsOpt(d, "base_price"),
+    standardPrice: hasMetadata ? uzsOpt(d, "standard_price") : undefined,
+    currency: asStr(d.currency) || "UZS",
+    deliveryMinutes: d.delivery_minutes == null ? undefined : asNum(d.delivery_minutes),
+    slaCode: asStr(d.sla_code),
+    refundCode: asStr(d.refund_code),
+    aiCategory: asStr(d.ai_category),
+    hasMetadata,
+    createdAt: asStr(d.created_at),
+  };
+}
+
+// Every service the backend lists (catalog_only=false so admin-created rows
+// without catalog metadata appear too). GET /services only returns active
+// rows: a deactivated service disappears from this list until the backend
+// offers an admin listing (see the inactive filter on the admin page).
+export async function listAdminServices(locale = "uz"): Promise<AdminService[]> {
+  const data = await http("/services?catalog_only=false");
+  const d = asDict(data);
+  const list = Array.isArray(data) ? data : asArr(d.services ?? d.items ?? d.data);
+  return list.map((v) => normAdminService(v, locale));
+}
+
+// PATCH /admin/services/{id}. Every key is optional; the backend ignores keys
+// that are absent or null. Numbers go as whole so'm (legacy UZS, T0-16).
+// The metadata block is applied only when the service has a metadata row.
+export type ServiceMetadataInput = Partial<{
+  title_uz_cyrl: string;
+  title_uz_latn: string;
+  title_ru: string;
+  executor_type: string;
+  advokat_required: boolean;
+  pricing_tier: string;
+  standard_price: number;
+  sla_code: string;
+  refund_code: string;
+  ai_category: string;
+}>;
+export type ServiceUpdateInput = Partial<{
+  category_id: string;
+  slug: string;
+  title: string;
+  description: string;
+  base_price: number;
+  currency: string;
+  delivery_minutes: number;
+  is_active: boolean;
+  metadata: ServiceMetadataInput;
+}>;
+
+export async function updateService(
+  id: string,
+  input: ServiceUpdateInput,
+  locale = "uz",
+): Promise<AdminService> {
+  const raw = await http(`/admin/services/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return normAdminService(raw, locale);
+}
+
+// DELETE /admin/services/{id} is a soft delete: the backend sets is_active=0
+// and answers {deleted: true, id}. The row stays in the database.
+export async function deleteService(id: string): Promise<{ deleted: boolean; id: string }> {
+  const d = asDict(await http(`/admin/services/${encodeURIComponent(id)}`, { method: "DELETE" }));
+  return { deleted: d.deleted !== false, id: asStr(d.id) || id };
 }
 
 // ── Subscription plans ──

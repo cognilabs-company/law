@@ -3,7 +3,7 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import { useAuth, hasAdminAccess, sessionRoles, type AdminPermission } from "@/lib/auth";
+import { useAuth, hasAdminAccess, sessionRoles, canMakeCalls, type AdminPermission } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
 import { useDemoTools } from "@/lib/demoTools";
 import LanguageSwitcher from "../LanguageSwitcher";
@@ -143,12 +143,17 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const perms = session?.permissions ?? [];
   // Test OTP is a staging tool: hidden where the backend's demo routes are off (T0-01).
   const demoTools = useDemoTools(isFullAdmin);
+  // Meetings: anyone who may start calls (meetings.manage, or a call-center
+  // role on a session stored before permissions were saved) — call-center
+  // operators run video meetings from here.
   const canSee = (n: NavItem) =>
     n.key === "testOtps" && demoTools !== true
       ? false
-      : n.perm
-        ? isSuper || (Array.isArray(n.perm) ? n.perm : [n.perm]).some((p) => perms.includes(p))
-        : isFullAdmin;
+      : n.key === "meetings" && canMakeCalls(session)
+        ? true
+        : n.perm
+          ? isSuper || (Array.isArray(n.perm) ? n.perm : [n.perm]).some((p) => perms.includes(p))
+          : isFullAdmin;
   const visibleNav = NAV.filter(canSee);
   // The bootstrap page (needs the bootstrap key) serves first-time setup:
   // signed-out users, non-staff and full admins. Limited staff (sales,

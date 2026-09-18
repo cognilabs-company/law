@@ -1,12 +1,20 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { preload } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { IconLogo, IconCheck } from "../icons";
 import ThemeToggle from "../ThemeToggle";
 
 const COUNT_MS = 1400;
+
+// The brand panel paints this photo behind everything (globals.css
+// .auth__bg::before). Asked for up front so the reveal never runs over a
+// blank pane; scoped to the widths where the panel is shown at all — below
+// 981px the aside is display:none and the bytes would be wasted.
+const BRAND_IMG = "/law-login.jpg";
+const BRAND_MQ = "(min-width: 981px)";
 
 // Counts a stat such as "12k+" or "4.9" up from zero while its card rises in.
 // The server renders the final value, so without JS (or with reduced motion)
@@ -56,9 +64,20 @@ function CountUp({ value }: { value: string }) {
 // Stagger position for the entrance choreography in globals.css.
 const at = (i: number) => ({ "--i": i }) as CSSProperties;
 
+// The headline's last word carries the gradient accent (.auth__h-acc):
+// "Legal help, reimagined." → ["Legal help, ", "reimagined."]. The messages
+// keep one plain string per locale, so the split happens here rather than
+// through t.rich. A one-word headline is accented whole.
+function splitAccent(s: string): [string, string] {
+  const m = /^([\s\S]*\s)(\S+)\s*$/.exec(s);
+  return m ? [m[1], m[2]] : ["", s];
+}
+
 export default function AuthSplit({ children }: { children: ReactNode }) {
   const t = useTranslations("auth");
+  preload(BRAND_IMG, { as: "image", fetchPriority: "high", media: BRAND_MQ });
   const feats = t.raw("features") as string[];
+  const [headline, accent] = splitAccent(t("headline"));
   const stats = [
     { n: t("stat1n"), l: t("stat1l") },
     { n: t("stat2n"), l: t("stat2l") },
@@ -69,6 +88,13 @@ export default function AuthSplit({ children }: { children: ReactNode }) {
     <div className="auth">
       <aside className="auth__brand">
         <span className="auth__bg" aria-hidden />
+        {/* Glow orbs drift over the photo on their own layers (the photo layer
+            already animates transform, so nothing is added to it). */}
+        <span className="auth__orbs" aria-hidden>
+          <span className="auth__orb auth__orb--1" />
+          <span className="auth__orb auth__orb--2" />
+          <span className="auth__orb auth__orb--3" />
+        </span>
         <span className="auth__mesh" />
         <div className="auth__brand-in">
           <Link href="/" className="auth__logo">
@@ -78,7 +104,10 @@ export default function AuthSplit({ children }: { children: ReactNode }) {
             LexGo
           </Link>
           <div className="auth__copy">
-            <h2 className="auth__h">{t("headline")}</h2>
+            <h2 className="auth__h">
+              {headline}
+              <span className="auth__h-acc">{accent}</span>
+            </h2>
             <p className="auth__p">{t("sub")}</p>
             <ul className="auth__feats">
               {feats.map((f, i) => (
@@ -100,6 +129,12 @@ export default function AuthSplit({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main className="auth__main">
+        {/* Ambient glow for phones/tablets, where the brand panel is hidden
+            (shown only ≤980px, see .auth__amb). */}
+        <span className="auth__amb" aria-hidden>
+          <span className="auth__amb-orb auth__amb-orb--1" />
+          <span className="auth__amb-orb auth__amb-orb--2" />
+        </span>
         <div className="auth__tools">
           <ThemeToggle variant="square" />
         </div>

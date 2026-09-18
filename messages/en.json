@@ -1666,7 +1666,7 @@
     "upgradePlan": "Upgrade plan",
     "fileError": "Couldn't open the file",
     "lastFreeTitle": "That was your last free question",
-    "lastFreeText": "{limit} free questions a month. To continue, pick the LexGo.AI Lite or Pro plan — the limit resets on the 1st."
+    "lastFreeText": "{limit} free questions a month. To continue, pick the LexGo.AI Lite or Pro tariff — the limit resets on the 1st."
   },
   "portal": {
     "metaTitle": "Portal",
@@ -1802,7 +1802,8 @@
         "resetWeak": "Password must be at least 8 characters.",
       "twoFaTelegramSubtitle": "Enter the 6-digit code sent to the Telegram bot",
       "waitLeft": "Wait {s} s",
-      "retryIn": "Retry in {s} s"
+      "retryIn": "Retry in {s} s",
+      "success": "Signing you in…"
     },
     "common": {
       "logout": "Log out",
@@ -2123,11 +2124,12 @@
         "ai": "AI chat",
         "assistant": "AI assistant",
         "promotion": "Promotion",
-        "subscription": "Subscription",
+        "subscription": "Package tariffs",
         "notifications": "Notifications",
         "workspace": "Workspace",
         "profile": "Profile",
-        "referrals": "Referral"
+        "referrals": "Referral",
+        "meetings": "Meetings"
       },
       "client": {
         "dashboard": "Dashboard",
@@ -2136,7 +2138,7 @@
         "payments": "Payments",
         "lawyers": "Advocates & lawyers",
         "matches": "Best matches",
-        "subscription": "Subscription",
+        "subscription": "Package tariffs",
         "gifts": "Gifts",
         "referrals": "Refer a friend",
         "reviews": "Ratings & reviews",
@@ -2162,13 +2164,14 @@
         "tasks": "Tasks",
         "profile": "Profile",
         "promotion": "Promotion",
-        "subscription": "Subscription",
+        "subscription": "Package tariffs",
         "messages": "Messages",
         "organization": "Organization",
         "notifications": "Notifications",
         "workspace": "Workspace",
         "assistant": "AI assistant",
-        "referrals": "Referral"
+        "referrals": "Referral",
+        "meetings": "Meetings"
       }
     },
     "lawyer": {
@@ -3114,7 +3117,7 @@
         "currentRank": "Current search rank",
         "responseRate": "Response rate {pct}%",
         "boostCta": "Boost my visibility",
-        "upgradeCta": "Upgrade plan",
+        "upgradeCta": "Upgrade tariff",
         "performance": "Profile performance",
         "performanceEmpty": "No performance data yet",
         "performanceEmptyText": "Your views, contacts and ranking will appear here.",
@@ -3336,6 +3339,41 @@
           "held": "Held",
           "failed": "Failed"
         }
+      },
+      "drill": {
+        "activeCases": "Active cases",
+        "noActiveCases": "No active cases",
+        "deadlines": "Today's deadlines",
+        "upcoming": "Next 7 days",
+        "noDeadline": "No deadline set",
+        "courts": "Court hearings today",
+        "courtsNote": "Hearings are shown in the calendar; the backend returns only the count.",
+        "messages": "New messages",
+        "chats": "Active secure chats",
+        "noChats": "No active chats",
+        "notifications": "Notifications",
+        "unread": "unread",
+        "docs": "Documents to review",
+        "docsNote": "The document list lives in \"Documents\"; the backend returns only the count.",
+        "earnings": "Earnings split",
+        "today": "Today",
+        "month": "This month",
+        "viaLexgo": "Via LexGo (all time)",
+        "pending": "Pending payout",
+        "payable": "Payable to platform",
+        "orders": "New orders",
+        "noOrders": "No new orders",
+        "perf": "Profile performance",
+        "openCases": "Open cases",
+        "openChats": "Open messages",
+        "openDocs": "Open documents",
+        "openOrders": "Open orders",
+        "openCalendar": "Open calendar",
+        "openNotifications": "Open notifications",
+        "demoOrdersNote": "Demo orders — accept/decline buttons appear on real orders.",
+        "case": "Case",
+        "chat": "Chat",
+        "tip": "Tip"
       }
     },
     "notifications": {
@@ -3344,8 +3382,128 @@
       "empty": "No notifications",
       "emptyText": "Updates about your cases and payments will appear here.",
       "deliveryLabel": "Delivery status",
-      "channel": { "in_app": "In-app", "push": "Push", "telegram": "Telegram", "email": "Email", "sms": "SMS" },
-      "delivery": { "delivered": "Delivered", "pending": "Waiting for delivery", "failed": "Not delivered", "unknown": "Status unknown" }
+      "channel": { "in_app": "In-app", "push": "Push", "telegram": "Telegram", "email": "Email", "sms": "SMS", "secure_chat": "Secure chat", "meeting_invite": "Meeting invite" },
+      "delivery": { "delivered": "Delivered", "pending": "Waiting for delivery", "failed": "Not delivered", "unknown": "Status unknown" },
+      "tabs": {
+        "all": "All",
+        "orders": "Orders",
+        "payments": "Payments",
+        "chat": "Chat & calls",
+        "documents": "Documents",
+        "system": "System",
+        "marketing": "Marketing"
+      },
+      "filter": {
+        "all": "All",
+        "unread": "Unread",
+        "read": "Read"
+      },
+      "filterLabel": "Read filter",
+      "searchPh": "Search by title or text",
+      "refresh": "Refresh",
+      "open": "Open",
+      "markShown": "Mark shown as read",
+      "noMatch": "No matching notifications",
+      "noMatchText": "Pick another tab or clear the search.",
+      "loadError": "Could not load notifications. Refresh the page.",
+      "unreadN": "{n} unread",
+      "viaChannels": "via {list}",
+      "paymentStatus": {
+        "paid": "Paid",
+        "advance_paid": "Advance paid",
+        "partial_paid": "Partially paid",
+        "pending": "Pending",
+        "unpaid": "Unpaid",
+        "refunded": "Refunded",
+        "failed": "Failed"
+      },
+      "events": {
+        "order_created": {
+          "title": "Order created",
+          "body": "Order #{order} for “{service}” was created. Status: {status}."
+        },
+        "order_assigned": {
+          "title": "New order",
+          "body": "You have a new order: “{service}” (#{order})."
+        },
+        "order_accepted": {
+          "title": "Order accepted",
+          "body": "The professional accepted your order #{order}."
+        },
+        "order_declined": {
+          "title": "Order declined",
+          "body": "The professional declined your order #{order}. You can pick another specialist."
+        },
+        "order_status_changed": {
+          "title": "Order status updated",
+          "body": "Order #{order} status: {status}."
+        },
+        "milestone_paid": {
+          "title": "Milestone paid",
+          "body": "Payment received for milestone “{milestone}” (#{order})."
+        },
+        "milestone_released": {
+          "title": "Milestone payment released",
+          "body": "The payment for milestone “{milestone}” was released to you (#{order})."
+        },
+        "payment_paid": {
+          "title": "Payment received",
+          "body": "Your payment of UZS {amount} was accepted."
+        },
+        "order_payment_updated": {
+          "title": "Order payment updated",
+          "body": "Order #{order} payment status: {paymentStatus}."
+        },
+        "document_payment_created": {
+          "title": "Document payment created",
+          "body": "A payment of UZS {amount} is pending for “{doc}”."
+        },
+        "document_request_created": {
+          "title": "Document request created",
+          "body": "Request “{doc}” was received. Status: {status}."
+        },
+        "document_request_file_ready": {
+          "title": "Document ready",
+          "body": "Document “{doc}” is ready — you can download it."
+        },
+        "contract_signature_otp": {
+          "title": "Signing code",
+          "body": "A confirmation code for signing the contract was sent."
+        },
+        "secure_chat_message": {
+          "title": "New message",
+          "body": "{body}",
+          "blocked": "The message was sent for moderation."
+        },
+        "meeting_invite": {
+          "title": "Video meeting invite",
+          "body": "{caller} invited you to a meeting."
+        },
+        "calendar_event_created": {
+          "title": "Calendar event added",
+          "body": "“{eventTitle}” was added to your calendar."
+        },
+        "calendar_event_updated": {
+          "title": "Calendar event updated",
+          "body": "“{eventTitle}” was updated. Status: {status}."
+        },
+        "sos_request": {
+          "title": "SOS request",
+          "body": "New SOS request: {sos}."
+        },
+        "upsell_redeemed": {
+          "title": "Offer purchased",
+          "body": "A client purchased your offer “{offer}”."
+        },
+        "seller_register_approved": {
+          "title": "Application approved",
+          "body": "Your profile was approved by an admin. The full cabinet is now available."
+        },
+        "seller_register_rejected": {
+          "title": "Application rejected",
+          "body": "Your application was rejected. Reason: {reason}"
+        }
+      }
     },
     "caseManage": {
       "title": "Manage case",
@@ -3978,15 +4136,34 @@
     "resumed": "Your earlier answers were restored — carry on."
   },
   "plans": {
-    "title": "Subscription plans",
+    "autopay": {
+      "title": "Auto-pay (ATMOS)",
+      "sub": "The tariff fee is charged to the linked card every month — your tariff never lapses.",
+      "currentTariff": "Current tariff",
+      "none": "No active tariff",
+      "nextCharge": "Next charge date",
+      "toggle": "Auto-pay",
+      "on": "On",
+      "off": "Off",
+      "card": "Linked card",
+      "noCard": "No card linked",
+      "bindCard": "Link a card (ATMOS)",
+      "bindTitle": "Link a card",
+      "bindNote": "For now the card details are stored in your profile; real ATMOS linking goes live once the backend is connected.",
+      "pendingNote": "The ATMOS integration is being connected on the backend — your setting is saved and takes effect once it ships.",
+      "localNote": "Setting stored on this device",
+      "saved": "Setting saved.",
+      "saveError": "Couldn't save the setting."
+    },
+    "title": "Package tariffs",
     "subtitle": "Grow your visibility and win more clients.",
-    "currentPlan": "Current plan: {plan}",
-    "current": "Current plan",
+    "currentPlan": "Current tariff: {plan}",
+    "current": "Current tariff",
     "upgrade": "Upgrade",
     "downgrade": "Switch to Free",
     "processing": "Processing…",
-    "activated": "{plan} plan activated!",
-    "payRedirect": "Opening the payment page — the plan activates after payment.",
+    "activated": "{plan} tariff activated!",
+    "payRedirect": "Opening the payment page — the tariff activates after payment.",
     "purchaseError": "Couldn't complete the payment. Please try again.",
     "mostPopular": "Most popular",
     "free": {
@@ -4037,9 +4214,9 @@
       ]
     },
     "freeLabel": "Free",
-    "choose": "Choose plan",
-    "empty": "No plans available",
-    "emptyText": "Subscription plans will load from the backend.",
+    "choose": "Choose tariff",
+    "empty": "No tariffs available",
+    "emptyText": "Package tariffs will load from the backend.",
     "term1": "1 mo",
     "term6": "6 mo",
     "term12": "1 yr",
@@ -4047,7 +4224,7 @@
     "totalNote": "{term} mo — {total} UZS total",
     "subtitlePersonal": "Personal advocate subscription — ongoing legal help, consultations and discounts.",
     "ai": {
-      "title": "LexGo.AI plans",
+      "title": "LexGo.AI tariffs",
       "subtitle": "Free — 5 questions a month; Lite — 100 questions, 5 document analyses; Pro — unlimited (fair use 1000), 20 analyses, case law, export.",
       "subtitleSeller": "Verified advocates and lawyers get LexGo.AI −{pct}% automatically.",
       "term": "Term",
@@ -4057,8 +4234,8 @@
       "term12": "12 mo",
       "upfront": "Pay up front — another −{pct}% (total discount capped at {max}%)",
       "usage": "This month: {used} of {limit} used",
-      "included": "Current plan",
-      "rules": "Upgrades apply immediately (pro-rated difference); downgrades at the end of the period. Limits reset on the 1st."
+      "included": "Current tariff",
+      "rules": "Tariff upgrades apply immediately (pro-rated difference); downgrades at the end of the period. Limits reset on the 1st."
     },
     "personal": {
       "title": "My personal lawyer"
@@ -4126,7 +4303,7 @@
     "nav": {
       "overview": "Overview",
       "services": "Services",
-      "plans": "Plans",
+      "plans": "Package tariffs",
       "templates": "Templates",
       "roles": "Roles & access",
       "notifications": "Notifications",
@@ -4158,7 +4335,7 @@
     "overview": {
       "kicker": "Admin console",
       "hi": "Welcome, {name}",
-      "sub": "Manage the LexGo catalog, plans, access and more.",
+      "sub": "Manage the LexGo catalog, package tariffs, access and more.",
       "crm": {
         "kicker": "CRM command center",
         "sub": "The platform's key metrics — growth, monetization, retention and quality in one place.",
@@ -4224,7 +4401,7 @@
       },
       "services": "Services",
       "categories": "Categories",
-      "plans": "Plans",
+      "plans": "Package tariffs",
       "templates": "Templates",
       "lawyers": "Lawyers",
       "orders": "Orders",
@@ -4285,12 +4462,97 @@
       "catEmpty": "No categories yet",
       "svcTitle": "Services",
       "svcCreate": "New service",
-      "svcEmpty": "No services yet"
+      "svcEmpty": "No services yet",
+      "searchLabel": "Search services",
+      "searchPh": "By name, code or slug (Latin/Cyrillic)",
+      "catFilter": "Category",
+      "allCats": "All categories",
+      "shown": "{n} / {total} services",
+      "noResults": "No matching services.",
+      "serverSearchOff": "Server search did not answer — local results only.",
+      "inactiveNote": "Inactive services are hidden from the catalogue; press “Reactivate” to bring one back.",
+      "localOnly": "This device only",
+      "forget": "Remove from list",
+      "reactivate": "Reactivate",
+      "reactivated": "Service reactivated.",
+      "reactivateError": "Could not reactivate.",
+      "tagCatalog": "Catalogue",
+      "tagCustom": "Added manually",
+      "catLimitNote": "Editing/deleting categories is not available in the backend yet (create only).",
+      "del": {
+        "title": "Delete service",
+        "text": "The service is hidden from the catalogue (deactivated); order history is kept.",
+        "cta": "Delete",
+        "busy": "Deleting…",
+        "done": "Service deleted (inactive).",
+        "localHint": "The inactive service is remembered in this list on this device — the backend has no inactive list yet."
+      },
+      "edit": {
+        "title": "Edit service",
+        "titleRequired": "Title is required.",
+        "badNumber": "A numeric field is invalid.",
+        "noChanges": "No changes.",
+        "saved": "Service saved.",
+        "errValidation": "Validation failed — check the fields.",
+        "errNotFound": "Service not found (it may be deleted).",
+        "errForbidden": "Not allowed for this account (services.manage).",
+        "errServer": "Server error. Try again.",
+        "passport": "Service passport",
+        "passportOff": "Passport data did not load.",
+        "code": "Code",
+        "family": "Family",
+        "subcategory": "Subcategory",
+        "duration": "Standard duration",
+        "urgent": "Urgent duration",
+        "version": "Version",
+        "days": "{value} days",
+        "base": "Base price (UZS)",
+        "standardPrice": "Standard price (UZS)",
+        "currency": "Currency",
+        "meta": "Catalogue data",
+        "noMeta": "This service has no catalogue record — the backend saves metadata only for existing records.",
+        "titleUzLatn": "Title (Uzbek, Latin)",
+        "titleUzCyrl": "Title (Uzbek, Cyrillic)",
+        "titleRu": "Title (Russian)",
+        "executorType": "Provider type",
+        "executorHint": "Lawyer / Advocate / Both",
+        "pricingTier": "Pricing tier",
+        "pricingHint": "e.g. standard, premium",
+        "slaCode": "SLA code",
+        "refundCode": "Refund code",
+        "aiCategory": "AI category",
+        "advokatRequired": "Advocate only"
+      }
     },
     "plans": {
-      "listTitle": "Subscription plans",
-      "create": "New plan",
-      "empty": "No plans yet",
+      "searchPh": "Name or slug…",
+      "noResults": "Nothing found",
+      "editTitle": "Edit tariff",
+      "audience": "Audience",
+      "audienceHint": "The backend still derives the audience from the slug as well: “shaxsiy” → Client, “lexgo-ai” / “seller” → Lawyer and Advocate, “b2b” / “business” → Business.",
+      "audiences": {
+        "all": "All",
+        "client": "Client",
+        "yurist": "Lawyer",
+        "advokat": "Advocate",
+        "business": "Business"
+      },
+      "billingPeriod": "Billing period",
+      "periods": {
+        "monthly": "Monthly",
+        "six_month": "6 months",
+        "yearly": "Yearly",
+        "prepaid_yearly": "Yearly (prepaid)"
+      },
+      "price": "Price (UZS)",
+      "writePending": "Editing isn't on the backend yet — the request has been filed.",
+      "deletePending": "Deleting isn't on the backend yet — the request has been filed.",
+      "activeOnly": "The backend currently returns active tariffs only — inactive ones don't appear in the list.",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "listTitle": "Package tariffs",
+      "create": "New tariff",
+      "empty": "No tariffs yet",
       "benefits": "Benefits",
       "benefitsPh": "One per line",
       "giftable": "Giftable"
@@ -4397,7 +4659,41 @@
       "sent": "Notification created.",
       "queuedNote": "Channels whose provider isn't connected yet are queued and will be delivered once it is.",
       "user": "User",
-      "selectUser": "Select a user"
+      "selectUser": "Select a user",
+      "roles": {
+        "all": "All",
+        "client": "Clients",
+        "yurist": "Lawyers",
+        "advokat": "Advocates",
+        "advokat_tashkiloti": "Advocate organizations",
+        "call_center": "Call center",
+        "sales": "Sales"
+      },
+      "roleTabs": "By role",
+      "recipients": "Recipients",
+      "recipientsHint": "Pick a role, search and tick the users you need. With several recipients each one gets their own send.",
+      "searchPh": "Name, phone or LexGo ID",
+      "selectAllRole": "Select everyone in role",
+      "selectShown": "Select shown",
+      "clearSel": "Clear selection",
+      "selectedN": "{n} selected",
+      "shownN": "{n} users",
+      "noUsers": "No users with this role",
+      "loadingUsers": "Loading users…",
+      "usersError": "Could not load the user list (users.manage permission required). You can send by ID below.",
+      "manualId": "User ID (manual)",
+      "manualIdPh": "UUID or LexGo ID",
+      "category": "Category",
+      "categoryNote": "The category is sent with the request (data.category), but the backend does not store it yet — the recipient sees the notification filed by its title.",
+      "categoryStored": "The category was stored by the backend.",
+      "noRecipients": "Select at least one recipient.",
+      "progress": "Sending… {done}/{total}",
+      "resultOk": "Sent to {n} users.",
+      "resultPartial": "Sent: {ok}, failed: {fail}.",
+      "failedList": "Failed: {names}",
+      "stop": "Stop",
+      "stopped": "Sending stopped: {done}/{total} sent.",
+      "deliveryLast": "Delivery status of the last send"
     },
     "bootstrap": {
       "title": "Bootstrap superadmin",
@@ -4446,7 +4742,33 @@
       "starting": "Opening…",
       "needParticipants": "Select at least 1 participant.",
       "error": "Couldn't start the meeting. Try again.",
-      "hint": "You'll be the host. The selected users will be invited."
+      "hint": "You'll be the host. The selected users will be invited.",
+      "sellerHint": "You will be the host. Search your clients and advocates/lawyers by name or phone.",
+      "noPermission": "You are not allowed to start meetings. Contact an administrator.",
+      "backendMissing": "This feature is waiting for the backend.",
+      "history": "Meeting history",
+      "refresh": "Refresh",
+      "activeGroup": "Active",
+      "endedGroup": "Ended",
+      "historyEmpty": "No meetings yet",
+      "historyEmptyText": "Meetings you start or get invited to will show up here.",
+      "historyError": "Could not load the history. Try again.",
+      "untitled": "Untitled meeting",
+      "hostedByYou": "You are the host",
+      "hostedBy": "Host: {name}",
+      "rejoin": "Rejoin",
+      "join": "Join",
+      "callStatus": {
+        "active": "Active",
+        "scheduled": "Scheduled",
+        "ended": "Ended",
+        "cancelled": "Cancelled",
+        "expired": "Expired"
+      },
+      "ccStart": "Video meeting",
+      "ccStartWith": "Video meeting with {name}",
+      "ccTitle": "Video meeting · {name}",
+      "ccError": "Could not start the meeting. Try again."
     },
     "testOtps": {
       "title": "Test OTP codes",
@@ -4480,7 +4802,7 @@
       "viewKanban": "Kanban",
       "viewTable": "Table",
       "kpi": { "total": "Total leads", "active": "Active", "won": "Won", "conv": "Conversion" },
-      "f": { "search": "Name or phone…", "allSource": "All sources", "allRegion": "All regions", "allStage": "All stages" },
+      "f": { "search": "Name or phone…", "allSource": "All sources", "allRegion": "All regions", "allStage": "All stages", "assignee": "Operator", "allAssignee": "All operators", "unassigned": "Unassigned", "mine": "My leads", "from": "From date", "to": "To date", "clear": "Clear", "reset": "Reset filters", "shown": "{n} / {total} leads", "noMatch": "No leads match the filters." },
       "d": {
         "close": "Close",
         "stage": "Stage",
@@ -4550,6 +4872,36 @@
           "no_service": "No such service",
           "spam": "Spam / duplicate"
         }
+      },
+      "assign": {
+        "title": "Operator",
+        "select": "Choose an operator",
+        "none": "Unassigned",
+        "me": "Me",
+        "at": "Assigned at",
+        "done": "Lead assigned to the operator.",
+        "removed": "Assignment removed.",
+        "err": "Could not assign. Try again.",
+        "noPermission": "Assignment is for managers/admins only (leads.manage).",
+        "opsForbidden": "Not allowed to view the operator list (users.manage).",
+        "noOps": "No active call-center operators found.",
+        "localNote": "The assignment is stored in the lead details (no dedicated backend field yet)."
+      },
+      "auto": {
+        "btn": "Auto-assign",
+        "title": "Automatic lead distribution",
+        "text": "{n} unassigned leads will be split among {m} operators. Region match first, then round-robin.",
+        "strategy": "Strategy",
+        "roundRobin": "Round-robin",
+        "leastLoaded": "Least loaded operator",
+        "preview": "Planned distribution",
+        "confirm": "Start distribution",
+        "running": "Assigning: {done}/{total}",
+        "done": "{n} leads assigned.",
+        "partial": "{n} leads assigned, {failed} failed.",
+        "nothing": "No unassigned leads.",
+        "noOps": "No active operators — add a call-center member first.",
+        "backendPending": "The backend has no auto-assign endpoint yet — the distribution is written into lead details and shown here."
       }
     },
     "callAnalytics": {
@@ -4560,7 +4912,10 @@
       "avg": "Avg duration",
       "byDay": "By day",
       "topAgents": "Top agents",
-      "noData": "No data"
+      "noData": "No data",
+      "answerRate": "Answer rate",
+      "inRange": "in the selected range",
+      "noAgents": "The per-agent breakdown is not on the backend yet."
     },
     "ceo": {
       "title": "CEO dashboard",
@@ -4640,7 +4995,8 @@
       "severity": { "high": "High", "medium": "Medium", "low": "Low" },
       "status": { "open": "Open", "in_progress": "In progress", "resolved": "Resolved", "closed": "Closed", "pending": "Pending", "rejected": "Rejected" },
       "category": { "service": "Service", "payment": "Payment", "quality": "Quality", "fraud": "Fraud", "other": "Other" },
-      "complaintCount": "Complaints"
+      "complaintCount": "Complaints",
+      "byStatus": "Complaint statuses"
     },
     "b2b": {
       "title": "B2B clients",
@@ -4691,7 +5047,17 @@
       "adding": "Adding…",
       "error": "Error. Please try again.",
       "upsellTitle": "Upsell suggestions",
-      "noUpsell": "No suggestions"
+      "noUpsell": "No suggestions",
+      "reason": {
+        "subscription_expiring": "Subscription expiring",
+        "no_paid_activity_30_days": "No payment in 30 days",
+        "no_paid_history": "Never paid"
+      },
+      "lastPaid": "Last payment: {date}",
+      "neverPaid": "No payment history",
+      "noClientId": "This client cannot be queued (no id)",
+      "demoAction": "Demo row — no action taken",
+      "price": "Price"
     },
     "audit": {
       "title": "Audit trail",
@@ -5051,7 +5417,7 @@
         "services": "Services",
         "active_templates": "Active templates",
         "seller_profiles": "Advocate and lawyer profiles",
-        "active_plans": "Active plans"
+        "active_plans": "Active package tariffs"
       },
       "scenarios": "Scenarios",
       "scenarioKeys": {
@@ -5281,6 +5647,122 @@
       "simDeadline": "Advocate response deadline (30 min)",
       "forbidden": "Not allowed for this account (cases.manage).",
       "error": "Error. Try again."
+    },
+    "dash": {
+      "filter": {
+        "aria": "Dashboard filters",
+        "region": "Region",
+        "from": "From date",
+        "to": "To date",
+        "clear": "Clear",
+        "presets": "Quick range",
+        "d7": "7 days",
+        "d30": "30 days",
+        "d90": "90 days",
+        "reset": "Reset filter",
+        "demo": "Show demo",
+        "demoOn": "Demo on",
+        "demoTitle": "Preview demo figures even when real data exists",
+        "regionNote": "Region and dates are sent to the backend, but the server does not apply them yet — the filter only affects lists and trends (in the browser).",
+        "sellerNote": "The filter applies to the new orders list; counters cover the whole cabinet."
+      },
+      "demo": {
+        "badge": "Demo data",
+        "banner": "No real activity yet — demo figures are shown. Real data appears automatically once the first lead, order or payment exists.",
+        "forced": "Demo mode is on: demo figures are shown instead of real data. Click \"Demo on\" to turn it off."
+      },
+      "hint": {
+        "regionNa": "the region filter does not apply to this metric",
+        "dateNa": "the date filter does not apply to this metric",
+        "inRange": "in the selected range",
+        "regionOnly": "{region} only"
+      },
+      "drill": {
+        "open": "View details",
+        "details": "Details",
+        "empty": "No details",
+        "total": "Total",
+        "byStatus": "By status",
+        "byScore": "By score",
+        "byRegion": "By region",
+        "byRole": "By role",
+        "byDay": "By day",
+        "trend": "Trend",
+        "payments": "Payments",
+        "paid": "Paid",
+        "pending": "Pending",
+        "paidCount": "Paid (count)",
+        "pendingCount": "Pending (count)",
+        "funnel": "Funnel",
+        "channels": "Channels",
+        "users": "Users",
+        "clients": "Clients",
+        "organizations": "Organizations",
+        "sellers": "Advocates and lawyers",
+        "newUsers": "New this month",
+        "newClients": "New clients",
+        "newAdvocates": "New advocates",
+        "newLawyers": "New lawyers",
+        "retention": "Retention",
+        "prevActive": "Active in previous period",
+        "curActive": "Active in current period",
+        "retainedClients": "Retained clients",
+        "churned": "Churned clients",
+        "atRisk": "At risk",
+        "atRiskLeads": "Lost leads",
+        "flagged": "Flagged issues",
+        "complaints": "Complaints",
+        "resolved": "Resolved",
+        "sla": "Response SLA",
+        "rating": "Average rating",
+        "activeUsers": "Active users",
+        "conversion": "Conversion",
+        "revenue": "Revenue",
+        "mrr": "MRR",
+        "arr": "ARR",
+        "arpu": "ARPU",
+        "gmv": "GMV",
+        "takeRate": "Take rate",
+        "cac": "CAC",
+        "cacClient": "CAC — client",
+        "cacAdvocate": "CAC — advocate",
+        "ltv": "LTV",
+        "ltvCac": "LTV : CAC",
+        "payback": "Payback (months)",
+        "nps": "NPS",
+        "gifts": "Gifts",
+        "tasks": "Tasks",
+        "b2b": "B2B clients",
+        "reviews": "Reviews",
+        "answered": "Answered",
+        "missed": "Missed",
+        "answerRate": "Answer rate",
+        "missRate": "Miss rate",
+        "avgDuration": "Average duration",
+        "agents": "Most active agents",
+        "leads": "Leads",
+        "orders": "Orders",
+        "cases": "Cases",
+        "services": "Services",
+        "leadsLoadFailed": "The leads list for the region breakdown could not be loaded (permission or backend).",
+        "sellersLoadFailed": "The sellers list for the region breakdown could not be loaded.",
+        "regionUnknown": "Region not set",
+        "goRetention": "Open retention",
+        "goQuality": "Open quality control",
+        "goPipeline": "Open sales pipeline",
+        "goLeads": "Open leads",
+        "goCallCenter": "Open call center",
+        "goCeo": "Open CEO dashboard",
+        "mrrNote": "The backend currently returns the total paid amount as MRR.",
+        "constNote": "Rating and SLA are backend constants for now — real calculation pending.",
+        "backendWait": "This breakdown is waiting for the backend."
+      },
+      "role": {
+        "yurist": "Lawyers",
+        "advokat": "Advocates",
+        "advokat_tashkiloti": "Advocate organizations",
+        "client": "Clients"
+      }
     }
   },
   "secureChat": {
@@ -5512,7 +5994,21 @@
     "camDenied": "Allow camera access in the browser (lock icon in the address bar → Camera).",
     "emptyEnding": "The other side left — the meeting ends in {s} s",
     "endingIn": "Ending in {s} s",
-    "inviteClient": "Your client"
+    "inviteClient": "Your client",
+    "recAskToast": "{name} is asking for permission to record",
+    "recAskTitle": "{name} is asking for permission to record",
+    "recAskLead": "Mode: {mode}. The recording stays on their device only; everyone in the meeting is notified.",
+    "recAllow": "Allow",
+    "recDeny": "Deny",
+    "recAsking": "Request sent — waiting for an advocate/operator to answer.",
+    "recWaiting": "Waiting for permission… {s}s",
+    "recWaitingShort": "Waiting",
+    "recWaitingLead": "Mode: {mode}. Recording starts once an advocate or operator allows it.",
+    "recAllowedBy": "{name} allowed the recording",
+    "recDeniedBy": "{name} denied the recording",
+    "recNoAnswer": "No answer — recording did not start.",
+    "recNeedApprover": "Recording needs an advocate/operator's permission — none is in the meeting right now.",
+    "recChip": "recording"
   },
   "theme": {
     "label": "Theme",

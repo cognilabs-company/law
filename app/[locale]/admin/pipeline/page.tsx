@@ -2,31 +2,56 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
-import { getLeadKanban, moveLeadKanban, adminCreateLead, adminDeleteLead, adminUpdateLead, saveLeadKanbanColumns, deleteLeadKanbanColumn, type KanbanColumn, type Lead } from "@/lib/services/backend";
+import { moveLeadKanban, adminCreateLead, adminDeleteLead, adminUpdateLead, saveLeadKanbanColumns, deleteLeadKanbanColumn } from "@/lib/services/backend";
+import {
+  getLeadKanbanX,
+  leadsOf,
+  leadFilterable,
+  leadMatches,
+  patchLeadInColumns,
+  withAssignment,
+  assignLead,
+  autoAssign,
+  applyAssignments,
+  useOperators,
+  EMPTY_LEAD_FILTER,
+  filterActive,
+  type AssignStrategy,
+  type KanbanColumnX,
+  type LeadFilter,
+  type LeadX,
+} from "@/lib/services/leads";
 
 const LOST_REASONS = ["price", "solved_self", "competitor", "no_answer", "no_service", "spam"] as const;
 const isLostKey = (k: string) => /lost|rejected|yoqotil|rad/i.test(k);
 import { ApiError } from "@/lib/http";
-import { kanbanColumnTitle, leadCategoryLabel, leadSourceLabel } from "@/lib/leadLabels";
+import { useAuth } from "@/lib/auth";
+import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadSourceLabel } from "@/lib/leadLabels";
 import { useResource } from "@/lib/useResource";
 import { AdminForm, Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import LeadDrawer from "@/components/admin/LeadDrawer";
+import LeadFilterBar from "@/components/admin/LeadFilterBar";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { IconTrendingUp, IconChevronLeft, IconChevronRight, IconUsers, IconGrid, IconDocLines, IconPlus, IconSearch, IconEdit, IconTrash } from "@/components/icons";
+import { IconTrendingUp, IconChevronLeft, IconChevronRight, IconUsers, IconGrid, IconDocLines, IconPlus, IconEdit, IconTrash, IconUser, IconBolt } from "@/components/icons";
 
 const STATUS_COLORS = ["#2563eb", "#7c3aed", "#0891b2", "#059669", "#d97706", "#dc2626", "#db2777", "#6b7280"];
 
 export default function AdminPipeline() {
   const t = useTranslations("admin.pipeline");
   const tStages = useTranslations("admin.callCenter.queue");
+  const te = useTranslations("enums");
   const colName = (c: { key: string; title: string }) => kanbanColumnTitle(tStages, c);
   const ta = useTranslations("admin");
+  const { session } = useAuth();
+  const meId = session?.id ?? "";
+  // Call-center operators for assignment (GET /admin/users — users.manage).
+  const ops = useOperators();
   // The board is big (hundreds of leads, several seconds per fetch), so every
   // action updates it in place and refreshes in the background — never back
   // to a skeleton, which read as a page reload.
-  const res = useResource<KanbanColumn>(getLeadKanban, []);
+  const res = useResource<KanbanColumnX>(getLeadKanbanX, []);
   const cols = res.data;
   const refresh = res.refresh;
   const [moveErr, setMoveErr] = useState(false);
@@ -42,23 +67,31 @@ export default function AdminPipeline() {
   const [addOpen, setAddOpen] = useState(false);
 
   // Add / rename a kanban status (column).
-  const [statusModal, setStatusModal] = useState<{ mode: "add" | "rename"; col?: KanbanColumn } | null>(null);
+  const [statusModal, setStatusModal] = useState<{ mode: "add" | "rename"; col?: KanbanColumnX } | null>(null);
   const [sName, setSName] = useState("");
   const [sColor, setSColor] = useState("#2563eb");
   const [sBusy, setSBusy] = useState(false);
   const [sErr, setSErr] = useState(false);
 
   // Delete a status (column), reassigning its leads if any.
-  const [delCol, setDelCol] = useState<KanbanColumn | null>(null);
+  const [delCol, setDelCol] = useState<KanbanColumnX | null>(null);
   const [delReassign, setDelReassign] = useState("");
   const [delColBusy, setDelColBusy] = useState(false);
   const [delColErr, setDelColErr] = useState<string | null>(null);
+
+  // Auto-assignment of unassigned leads (client-side plan, saved lead by lead).
+  const [autoOpen, setAutoOpen] = useState(false);
+  const [autoStrategy, setAutoStrategy] = useState<AssignStrategy>("round_robin");
+  const [autoRun, setAutoRun] = useState<{ done: number; total: number } | null>(null);
+  const [autoMsg, setAutoMsg] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const total = useMemo(() => cols.reduce((n, c) => n + c.count, 0), [cols]);
   const allCards = useMemo(
     () => cols.flatMap((c) => c.cards.map((x) => ({ lead: x.lead, colKey: c.key }))),
     [cols],
   );
+  const allLeads = useMemo(() => leadsOf(cols), [cols]);
+  const unassigned = useMemo(() => allLeads.filter((l) => !l.assignedTo), [allLeads]);
   const selected = allCards.find((x) => x.lead.id === selId) || null;
   const colTitle = (k: string) => {
     const c = cols.find((x) => x.key === k);
@@ -68,19 +101,14 @@ export default function AdminPipeline() {
   const orderOf = (k: string) => cols.findIndex((c) => c.key === k);
 
   // Filters (client-side over the loaded board).
-  const [q, setQ] = useState("");
-  const [fSource, setFSource] = useState("");
-  const [fRegion, setFRegion] = useState("");
-  const [fStage, setFStage] = useState("");
-  const query = q.trim().toLowerCase();
-  const matchLead = (l: Lead) =>
-    (!query || `${l.name} ${l.phone} ${l.category}`.toLowerCase().includes(query)) &&
-    (!fSource || l.source === fSource) &&
-    (!fRegion || l.region === fRegion);
-  const sources = useMemo(() => [...new Set(allCards.map((x) => x.lead.source).filter(Boolean))], [allCards]);
-  const regions = useMemo(() => [...new Set(allCards.map((x) => x.lead.region).filter(Boolean))], [allCards]);
-  const viewCols = useMemo(() => cols.map((c) => ({ ...c, cards: c.cards.filter((x) => matchLead(x.lead)) })), [cols, query, fSource, fRegion]);
-  const rows = allCards.filter((x) => matchLead(x.lead) && (!fStage || x.colKey === fStage));
+  const [f, setF] = useState<LeadFilter>(EMPTY_LEAD_FILTER);
+  const sources = useMemo(() => [...new Set(allLeads.map((l) => l.source).filter(Boolean))], [allLeads]);
+  const regions = useMemo(() => [...new Set(allLeads.map((l) => l.region).filter(Boolean))], [allLeads]);
+  const urgencies = useMemo(() => [...new Set(allLeads.map((l) => l.urgency.trim().toLowerCase()).filter(Boolean))], [allLeads]);
+  const viewCols = useMemo(() => cols.map((c) => ({ ...c, cards: c.cards.filter((x) => leadMatches(leadFilterable(x.lead), f, meId)) })), [cols, f, meId]);
+  const filtered = filterActive(f);
+  const shown = viewCols.reduce((n, c) => n + c.cards.length, 0);
+  const rows = allCards.filter((x) => leadMatches(leadFilterable(x.lead), f, meId) && (!f.stage || x.colKey === f.stage));
 
   // KPI (from the full board, not the filtered view).
   const finalTotal = cols.filter((c) => c.isFinal).reduce((n, c) => n + c.count, 0);
@@ -127,13 +155,49 @@ export default function AdminPipeline() {
     const next = cols[i + dir];
     if (next) moveTo(leadId, next.key, next.cards.length);
   }
+  // (Re)assign one lead to an operator ("" = unassign). The card updates at
+  // once; a rejected write (403 without leads.manage) puts it back and the
+  // drawer shows the reason.
+  async function assign(lead: LeadX, userId: string) {
+    const before = cols;
+    const at = new Date().toISOString();
+    res.setData((cur) => patchLeadInColumns(cur, lead.id, (l) => withAssignment(l, userId, meId, at)));
+    try {
+      await assignLead(lead, userId, meId);
+    } catch (e) {
+      res.setData(before);
+      throw e;
+    }
+  }
+  function openAuto() {
+    setAutoMsg(null);
+    setAutoRun(null);
+    setAutoOpen(true);
+  }
+  async function runAuto() {
+    if (autoRun) return;
+    const plan = autoAssign(allLeads, ops.ops, autoStrategy);
+    if (!plan.length) { setAutoOpen(false); return; }
+    setAutoMsg(null);
+    setAutoRun({ done: 0, total: plan.length });
+    const r = await applyAssignments(plan, meId, (a, at) => {
+      res.setData((cur) => patchLeadInColumns(cur, a.lead.id, (l) => withAssignment(l, a.operator.id, meId, at)));
+      setAutoRun((cur) => (cur ? { ...cur, done: cur.done + 1 } : cur));
+    });
+    setAutoRun(null);
+    setAutoOpen(false);
+    if (r.forbidden && !r.done) setAutoMsg({ ok: false, msg: t("assign.noPermission") });
+    else if (r.failed || r.forbidden) setAutoMsg({ ok: r.done > 0, msg: t("auto.partial", { n: r.done, failed: r.failed + (r.forbidden ? plan.length - r.done - r.failed : 0) }) });
+    else setAutoMsg({ ok: true, msg: t("auto.done", { n: r.done }) });
+    void refresh();
+  }
   function openAddStatus() {
     setSName("");
     setSColor(STATUS_COLORS[0]);
     setSErr(false);
     setStatusModal({ mode: "add" });
   }
-  function openRenameStatus(col: KanbanColumn) {
+  function openRenameStatus(col: KanbanColumnX) {
     setSName(col.title);
     setSColor(col.color || "#6b7280");
     setSErr(false);
@@ -170,7 +234,7 @@ export default function AdminPipeline() {
       setSBusy(false);
     }
   }
-  function openDeleteStatus(col: KanbanColumn) {
+  function openDeleteStatus(col: KanbanColumnX) {
     setDelCol(col);
     setDelColErr(null);
     // Default reassignment target: the first other column.
@@ -206,6 +270,18 @@ export default function AdminPipeline() {
     }
   }
 
+  // Assignee chip shown on every card / row.
+  const assigneeChip = (lead: LeadX) => (
+    <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`} title={t("assign.title")}>
+      <IconUser />
+      <span>{assigneeLabel(t, ops.ops, lead.assignedTo, meId)}</span>
+    </span>
+  );
+
+  // Auto-assign preview (only while the modal is open — the plan is pure).
+  const autoPlan = autoOpen ? autoAssign(allLeads, ops.ops, autoStrategy) : [];
+  const autoPerOp = autoPlan.reduce<Map<string, number>>((m, a) => m.set(a.operator.id, (m.get(a.operator.id) ?? 0) + 1), new Map());
+
   return (
     <div className="ppanel">
       <div className="ppanel__h">
@@ -216,6 +292,7 @@ export default function AdminPipeline() {
             <button type="button" className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")} aria-label={t("viewKanban")}><IconGrid />{t("viewKanban")}</button>
             <button type="button" className={view === "table" ? "on" : ""} onClick={() => setView("table")} aria-label={t("viewTable")}><IconDocLines />{t("viewTable")}</button>
           </span>
+          <button className="btn btn--soft btn--sm" type="button" onClick={openAuto} disabled={!cols.length}><IconBolt />{t("auto.btn")}{unassigned.length ? ` · ${unassigned.length}` : ""}</button>
           <button className="btn btn--line btn--sm" type="button" onClick={openAddStatus}><IconPlus />{t("addStatus")}</button>
           <button className="btn btn--pri btn--sm" type="button" onClick={() => setAddOpen(true)}><IconPlus />{ta("form.add")}</button>
         </span>
@@ -230,18 +307,23 @@ export default function AdminPipeline() {
             <div className="lkpi__c"><b>{wonCount}</b><span>{t("kpi.won")}</span></div>
             <div className="lkpi__c"><b>{conv}%</b><span>{t("kpi.conv")}</span></div>
           </div>
-          <div className="lfilters">
-            <span className="svsel__search"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("f.search")} aria-label={t("f.search")} /></span>
-            <Select value={fSource} onChange={setFSource} ariaLabel={t("d.source")} options={[{ value: "", label: t("f.allSource") }, ...sources.map((s) => ({ value: s, label: t.has(`source.${s}`) ? t(`source.${s}`) : s }))]} />
-            <Select value={fRegion} onChange={setFRegion} ariaLabel={t("d.region")} options={[{ value: "", label: t("f.allRegion") }, ...regions.map((r) => ({ value: r, label: r }))]} />
-            {view === "table" ? (
-              <Select value={fStage} onChange={setFStage} ariaLabel={t("d.stage")} options={[{ value: "", label: t("f.allStage") }, ...cols.map((c) => ({ value: c.key, label: colName(c) }))]} />
-            ) : null}
-          </div>
+          <LeadFilterBar
+            value={f}
+            onChange={setF}
+            regions={regions}
+            sources={sources}
+            stages={view === "table" ? cols.map((c) => ({ value: c.key, label: colName(c) })) : undefined}
+            operators={ops.status === "ready" ? ops.ops : []}
+            scores
+            urgencies={urgencies}
+            summary={filtered ? { shown: view === "table" ? rows.length : shown, total: allCards.length } : undefined}
+          />
+          {ops.status === "forbidden" ? <p className="advmuted" style={{ marginTop: -8, marginBottom: 12 }}>{t("assign.opsForbidden")}</p> : null}
         </>
       ) : null}
 
       {moveErr ? <Notice ok={false} msg={t("moveError")} /> : null}
+      {autoMsg ? <Notice ok={autoMsg.ok} msg={autoMsg.msg} /> : null}
       {res.status === "loading" ? (
         <Skeleton rows={4} />
       ) : !cols.length ? (
@@ -260,7 +342,7 @@ export default function AdminPipeline() {
               <div className="pipe__head">
                 <span className="pipe__dot" style={col.color ? { background: col.color } : undefined} />
                 <b>{colName(col)}</b>
-                <span className="pipe__count">{query || fSource || fRegion ? col.cards.length : col.count}</span>
+                <span className="pipe__count">{filtered ? col.cards.length : col.count}</span>
                 <button type="button" className="pipe__edit" aria-label={t("editStatus")} title={t("renameStatus")} onClick={() => openRenameStatus(col)}>
                   <IconEdit />
                 </button>
@@ -273,7 +355,7 @@ export default function AdminPipeline() {
               <div className="pipe__cards">
                 <div className={`pipe__slot${overCol === col.key && dragId ? " on" : ""}`} aria-hidden />
                 {col.cards.length === 0 ? (
-                  <div className="pipe__empty">{t("noneHere")}</div>
+                  <div className="pipe__empty">{filtered ? t("f.noMatch") : t("noneHere")}</div>
                 ) : (
                   col.cards.map(({ lead: l }) => (
                     <div
@@ -286,10 +368,11 @@ export default function AdminPipeline() {
                     >
                       <div className="pipe__ctop">
                         <b>{l.name || l.phone || leadCategoryLabel(t, l.category) || t("untitledLead")}</b>
-                        {l.score ? <span className="pipe__score">{l.score}</span> : null}
+                        {l.scoreKey ? <span className={`lscore lscore--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : null}
                       </div>
-                      <span className="pipe__meta">{[l.phone, leadCategoryLabel(t, l.category), l.region].filter(Boolean).join(" · ") || t("noInfo")}</span>
+                      <span className="pipe__meta">{[l.phone, leadCategoryLabel(t, l.category), leadRegionLabel(te, l.region)].filter(Boolean).join(" · ") || t("noInfo")}</span>
                       {l.note ? <span className="pipe__note">{l.note}</span> : null}
+                      {assigneeChip(l)}
                       <div className="pipe__actions" onClick={(e) => e.stopPropagation()}>
                         <button type="button" className="pipe__mv" disabled={ci === 0 || busy === l.id} onClick={() => shift(l.id, col.key, -1)} aria-label={t("moveBack")}><IconChevronLeft /></button>
                         <span className="pipe__src">{l.source ? leadSourceLabel(t, l.source) : <IconUsers />}</span>
@@ -305,14 +388,18 @@ export default function AdminPipeline() {
       ) : (
         <div className="alist">
           {rows.length === 0 ? (
-            <EmptyState icon={<IconUsers />} title={t("empty")} text={t("emptyText")} />
+            <EmptyState icon={<IconUsers />} title={filtered ? t("f.noMatch") : t("empty")} text={filtered ? "" : t("emptyText")} />
           ) : (
             rows.map(({ lead: l, colKey }, i) => (
               <button type="button" className="aitem aitem--link" key={l.id} onClick={() => setSelId(l.id)}>
                 <span className="aitem__n">{i + 1}</span>
                 <div className="aitem__m">
                   <b>{l.name || l.phone || leadCategoryLabel(t, l.category) || t("untitledLead")}</b>
-                  <span className="aitem__meta">{[l.phone, leadCategoryLabel(t, l.category), l.region].filter(Boolean).join(" · ")}</span>
+                  <span className="aitem__meta">{[l.phone, leadCategoryLabel(t, l.category), leadRegionLabel(te, l.region)].filter(Boolean).join(" · ")}</span>
+                  <span className="pipe__tags">
+                    {l.scoreKey ? <span className={`lscore lscore--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : null}
+                    {assigneeChip(l)}
+                  </span>
                 </div>
                 <span className="lstage" style={colColor(colKey) ? ({ "--c": colColor(colKey) } as CSSProperties) : undefined}>{colTitle(colKey)}</span>
               </button>
@@ -327,6 +414,10 @@ export default function AdminPipeline() {
           colKey={selected.colKey}
           columns={cols}
           busy={busy === selected.lead.id}
+          operators={ops.ops}
+          opsStatus={ops.status}
+          meId={meId}
+          onAssign={(userId) => assign(selected.lead, userId)}
           onMove={(ck) => moveTo(selected.lead.id, ck, 0)}
           onDelete={() => remove(selected.lead.id)}
           onClose={() => setSelId(null)}
@@ -351,7 +442,68 @@ export default function AdminPipeline() {
         />
       </Modal>
 
-      {/* Add / rename a status (kanban column) */}
+      {/* Auto-assign unassigned leads to call-center operators */}
+      <Modal open={autoOpen} onClose={() => { if (!autoRun) setAutoOpen(false); }} title={t("auto.title")}>
+        <div className="lauto">
+          <div className="lauto__stats">
+            <div className="lauto__stat"><b>{unassigned.length}</b><span>{t("f.unassigned")}</span></div>
+            <div className="lauto__stat"><b>{ops.ops.length}</b><span>{t("assign.title")}</span></div>
+          </div>
+          {ops.status === "loading" ? (
+            <Skeleton rows={2} />
+          ) : ops.status === "forbidden" ? (
+            <Notice ok={false} msg={t("assign.opsForbidden")} />
+          ) : !ops.ops.length ? (
+            <Notice ok={false} msg={t("auto.noOps")} />
+          ) : !unassigned.length ? (
+            <Notice ok msg={t("auto.nothing")} />
+          ) : (
+            <>
+              <p className="advmuted" style={{ margin: 0 }}>{t("auto.text", { n: unassigned.length, m: ops.ops.length })}</p>
+              <div className="cform" style={{ maxWidth: "none" }}>
+                <div>
+                  <label>{t("auto.strategy")}</label>
+                  <Select
+                    value={autoStrategy}
+                    onChange={(v) => setAutoStrategy(v === "least_loaded" ? "least_loaded" : "round_robin")}
+                    ariaLabel={t("auto.strategy")}
+                    options={[
+                      { value: "round_robin", label: t("auto.roundRobin") },
+                      { value: "least_loaded", label: t("auto.leastLoaded") },
+                    ]}
+                  />
+                </div>
+              </div>
+              <div>
+                <span className="ldrw__lbl">{t("auto.preview")}</span>
+                <ul className="lauto__list" style={{ marginTop: 8 }}>
+                  {ops.ops.filter((o) => autoPerOp.has(o.id)).map((o) => (
+                    <li key={o.id}>
+                      <span>{o.name || o.phone || o.lexgoId}{o.region ? ` · ${leadRegionLabel(te, o.region)}` : ""}</span>
+                      <b>+{autoPerOp.get(o.id) ?? 0}</b>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {autoRun ? (
+                <div>
+                  <p className="advmuted" style={{ marginBottom: 6 }}>{t("auto.running", { done: autoRun.done, total: autoRun.total })}</p>
+                  <div className="lauto__bar"><i style={{ width: `${Math.round((autoRun.done / Math.max(1, autoRun.total)) * 100)}%` }} /></div>
+                </div>
+              ) : null}
+            </>
+          )}
+          <p className="lauto__note">{t("auto.backendPending")}</p>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button className="btn btn--ghost" type="button" onClick={() => setAutoOpen(false)} disabled={!!autoRun}>{ta("form.cancel")}</button>
+            <button className="btn btn--pri" type="button" onClick={runAuto} disabled={!!autoRun || ops.status !== "ready" || !ops.ops.length || !unassigned.length}>
+              {autoRun ? t("auto.running", { done: autoRun.done, total: autoRun.total }) : t("auto.confirm")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Lost reason before a card lands in a "lost" column */}
       <Modal open={!!lostAsk} onClose={() => setLostAsk(null)} title={t("lost.title")}>
         <div className="cform" style={{ maxWidth: "none" }}>
           <p className="advmuted">{t("lost.lead")}</p>
@@ -367,6 +519,7 @@ export default function AdminPipeline() {
         </div>
       </Modal>
 
+      {/* Add / rename a status (kanban column) */}
       <Modal open={statusModal !== null} onClose={() => setStatusModal(null)} title={statusModal?.mode === "rename" ? t("renameStatus") : t("addStatus")}>
         <div className="cform" style={{ maxWidth: "none" }}>
           <div>

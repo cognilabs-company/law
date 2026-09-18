@@ -42,6 +42,7 @@ import {
   IconTarget,
   IconLock,
   IconClock,
+  IconVideo,
 } from "../icons";
 
 type SvgC = ComponentType<{ className?: string }>;
@@ -81,6 +82,7 @@ const LAWYER_NAV: NavItem[] = [
   { href: "/portal/lawyer/documents", key: "documents", Icon: IconDocLines },
   { href: "/portal/lawyer/workspace", key: "workspace", Icon: IconFolder },
   { href: "/portal/lawyer/chat", key: "chat", Icon: IconChat },
+  { href: "/portal/lawyer/meetings", key: "meetings", Icon: IconVideo },
   { href: "/portal/lawyer/notifications", key: "notifications", Icon: IconBell },
   { href: "/portal/lawyer/ai", key: "ai", Icon: IconSparkle },
   { href: "/portal/lawyer/assistant", key: "assistant", Icon: IconClipboardCheck },
@@ -98,6 +100,7 @@ const ADVOCATE_NAV: NavItem[] = [
   { href: "/portal/advocate/clients", key: "clients", Icon: IconUsers },
   { href: "/portal/advocate/tasks", key: "tasks", Icon: IconClipboardCheck },
   { href: "/portal/advocate/messages", key: "messages", Icon: IconChat },
+  { href: "/portal/advocate/meetings", key: "meetings", Icon: IconVideo },
   { href: "/portal/advocate/notifications", key: "notifications", Icon: IconBell },
   { href: "/portal/advocate/organization", key: "organization", Icon: IconBuilding },
   { href: "/portal/advocate/workspace", key: "workspace", Icon: IconFolder },

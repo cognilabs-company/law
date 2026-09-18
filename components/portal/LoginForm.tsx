@@ -11,9 +11,12 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { formatUzSubscriber, isValidUzPhone, uzSubscriber } from "@/lib/phone";
 import { Notice } from "@/components/admin/AdminBits";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
-import { IconLogo } from "../icons";
+import { IconCheck, IconLogo } from "../icons";
 import PasswordInput from "../PasswordInput";
 
+// Success exit: the form fades and lifts (.plogin__c--leave in globals.css)
+// for this long before the router moves on.
+const EXIT_MS = 420;
 // Backend unreachable (network / proxy 502) or a server-side failure.
 const unreachable = (e: unknown) => isOffline(e) || (e instanceof ApiError && (e.status === 502 || e.status === 503 || e.status === 504));
 // Any other 5xx: the backend answered but failed (e.g. the code could not be issued).
@@ -32,10 +35,25 @@ export default function LoginForm() {
   const { login, completeLogin2fa, session, ready, authNotice, clearAuthNotice } = useAuth();
   const router = useRouter();
 
-  // Already signed in → the login page is off-limits until logout.
+  const [busy, setBusy] = useState(false);
+  const [resending, setResending] = useState(false);
+  // Where a successful sign-in goes. Set instead of navigating at once so the
+  // form can play its exit first; the effect below does the actual replace.
+  const [exitTo, setExitTo] = useState<string | null>(null);
+  const leave = (s: Session) => setExitTo(homeFor(s));
   useEffect(() => {
-    if (ready && session) router.replace(homeFor(session));
-  }, [ready, session, router]);
+    if (!exitTo) return;
+    const ms = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : EXIT_MS;
+    const h = setTimeout(() => router.replace(exitTo), ms);
+    return () => clearTimeout(h);
+  }, [exitTo, router]);
+
+  // Already signed in → the login page is off-limits until logout. Not while
+  // a sign-in from this form is in flight: the session lands in the auth
+  // context before `login` resolves, and the exit above owns that redirect.
+  useEffect(() => {
+    if (ready && session && !busy && !resending && !exitTo) router.replace(homeFor(session));
+  }, [ready, session, busy, resending, exitTo, router]);
   // Referral code from the URL / storage stays on the sign-up link (T1A-08);
   // read after mount (storage is not available during SSR).
   const [refCode, setRefCode] = useState("");
@@ -51,7 +69,6 @@ export default function LoginForm() {
     setErr(msg);
     setErrN((n) => n + 1);
   };
-  const [busy, setBusy] = useState(false);
   // Sign-in lock: the server answered 429 (OTP resend cooldown `retry_after`,
   // or the per-IP attempt limit via Retry-After) — count down from that value
   // and keep the button disabled, so the form stops hitting the server. A run
@@ -78,7 +95,6 @@ export default function LoginForm() {
   // 2FA challenge (2FA enabled, or mandatory for the account's role).
   const [twoFa, setTwoFa] = useState<TwoFactorChallenge | null>(null);
   const [code, setCode] = useState("");
-  const [resending, setResending] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const otp = useOtpTimer();
   // The server said an authenticator (TOTP) challenge expired. Its app codes
@@ -157,7 +173,7 @@ export default function LoginForm() {
         setBusy(false);
         return;
       }
-      router.replace(homeFor(s));
+      leave(s);
     } catch (e) {
       if (isRateLimited(e)) {
         // "Qayta yuborish uchun kuting" + retry_after, or the attempt limit.
@@ -190,7 +206,7 @@ export default function LoginForm() {
     setBusy(true);
     try {
       const s = await completeLogin2fa(twoFa.verificationId, code, phone);
-      router.replace(homeFor(s));
+      leave(s);
     } catch (e) {
       if (isRateLimited(e)) {
         // Too many wrong codes → locked; count down the server's wait.
@@ -222,7 +238,8 @@ export default function LoginForm() {
       if ("twoFactor" in s) {
         if (applyChallenge(s.twoFactor)) setNote(tOtp("resent"));
       } else {
-        router.replace(homeFor(s));
+        // 2FA was switched off meanwhile: signed in outright.
+        leave(s);
       }
     } catch (e) {
       if (isRateLimited(e)) {
@@ -235,6 +252,32 @@ export default function LoginForm() {
       setResending(false);
     }
   }
+
+  // Success exit: the form lifts away and a slim status line takes its place
+  // for however long the next route needs (fast on a warm cache, longer on a
+  // cold one — never a blank pane).
+  const leaving = exitTo ? " plogin__c--leave" : "";
+  const exitNote = exitTo ? (
+    <div className="plogin__exit" role="status">
+      <span className="spin" aria-hidden />
+      {t("success")}
+    </div>
+  ) : null;
+  // Submit button face: a check once signed in, a spinner while the server works.
+  const face = (label: string) =>
+    exitTo ? (
+      <>
+        <IconCheck />
+        {t("success")}
+      </>
+    ) : busy ? (
+      <>
+        <span className="spin" aria-hidden />
+        {t("busy")}
+      </>
+    ) : (
+      label
+    );
 
   if (twoFa) {
     const subtitle =
@@ -268,7 +311,7 @@ export default function LoginForm() {
     };
     return (
       <div className="plogin">
-        <form key="2fa" className="plogin__c plogin__c--anim plogin__c--swap" onSubmit={submit2fa}>
+        <form key="2fa" className={`plogin__c plogin__c--anim plogin__c--swap${leaving}`} onSubmit={submit2fa}>
           <span className="logo" style={{ color: "var(--ink)", display: "inline-flex", gap: 9, alignItems: "center" }}>
             <span className="logo__m"><IconLogo /></span>
             LexGo
@@ -310,8 +353,9 @@ export default function LoginForm() {
                   className="btn btn--pri btn--full"
                   type="submit"
                   disabled={busy || resending || code.length !== 6 || otp.expired || otp.blockedIn > 0}
+                  aria-busy={busy || undefined}
                 >
-                  {busy ? t("busy") : t("twoFaVerify")}
+                  {face(t("twoFaVerify"))}
                 </button>
                 {twoFa.method !== "totp" ? (
                   <div className="rf__otpactions" style={{ justifyContent: "center" }}>
@@ -325,6 +369,7 @@ export default function LoginForm() {
             )}
           </div>
         </form>
+        {exitNote}
       </div>
     );
   }
@@ -333,7 +378,7 @@ export default function LoginForm() {
     <div className="plogin">
       <form
         key="cred"
-        className={`plogin__c plogin__c--anim${swapped ? " plogin__c--swap" : ""}`}
+        className={`plogin__c plogin__c--anim${swapped ? " plogin__c--swap" : ""}${leaving}`}
         onSubmit={submit}
       >
         <span
@@ -398,8 +443,8 @@ export default function LoginForm() {
               {lockLeft > 0 ? <b className="plogin__wait">{t("waitLeft", { s: lockLeft })}</b> : null}
             </p>
           ) : null}
-          <button className="btn btn--pri btn--full" type="submit" disabled={busy || lockLeft > 0}>
-            {busy ? t("busy") : lockLeft > 0 ? t("retryIn", { s: lockLeft }) : t("submit")}
+          <button className="btn btn--pri btn--full" type="submit" disabled={busy || lockLeft > 0} aria-busy={busy || undefined}>
+            {face(lockLeft > 0 ? t("retryIn", { s: lockLeft }) : t("submit"))}
           </button>
         </div>
         <p className="plogin__alt">
@@ -410,6 +455,7 @@ export default function LoginForm() {
         </p>
         <p className="plogin__note">{t("note")}</p>
       </form>
+      {exitNote}
     </div>
   );
 }

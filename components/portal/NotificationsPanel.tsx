@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import { useAuth } from "@/lib/auth";
 import { shortDateTime } from "@/lib/date";
-import {
-  listNotifications,
-  markNotificationRead,
-  markAllNotificationsRead,
-  type Notification,
-  type NotificationDelivery,
-} from "@/lib/services/backend";
+import { markNotificationRead, markAllNotificationsRead, type NotificationDelivery } from "@/lib/services/backend";
+import { listNotificationsRich, type RichNotification } from "@/lib/services/notify";
+import { NOTIF_CATEGORIES, templateVars, notifLink, type NotifTab, type NotifCategory } from "@/lib/notifications";
+import { useOrderStatusLabel } from "@/lib/orderStatus";
 import { humanizeSlug } from "@/lib/lawyers";
+import Select from "@/components/Select";
+import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "./DataState";
-import { IconChat, IconCheckDouble } from "@/components/icons";
+import { IconBell, IconChat, IconCheckDouble, IconRefresh, IconSearch } from "@/components/icons";
 
 // Fired whenever notifications are read so the header bell can refresh its
 // unread count without a full reload.
@@ -21,77 +22,14 @@ function announceRead() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(NOTIF_READ_EVENT));
 }
 
-
-// The cascade may store one row per channel (in-app, push, Telegram, email,
-// SMS) for one event; fold them so the inbox shows the event once. Rows that
-// carry an explicit event/correlation id fold by it, but only per-channel copies:
-// same kind, within 10 minutes, and never two rows on the same channel (the id
-// may not be unique per event). Otherwise rows with a channel fold by kind +
-// title + body within 60s (again never two rows on one channel). Rows with
-// neither stay as they are.
-const GROUP_ID_WINDOW_MS = 10 * 60_000;
-export function groupByEvent(list: Notification[]): Notification[] {
-  const out: Notification[] = [];
-  const byId = new Map<string, Notification[]>();
-  const rowChannels = new Map<Notification, Set<string>>();
-  const merge = (g: Notification, n: Notification) => {
-    g.ids = [...g.ids, ...n.ids.filter((id) => !g.ids.includes(id))];
-    const del = new Map(g.deliveries.map((x) => [x.channel, x] as const));
-    for (const x of n.deliveries) if (x.status || !del.has(x.channel)) del.set(x.channel, x);
-    g.deliveries = [...del.values()];
-    g.read = g.read && n.read;
-    const gt = Date.parse(g.createdAt);
-    const nt = Date.parse(n.createdAt);
-    if (Number.isFinite(nt) && (!Number.isFinite(gt) || nt < gt)) g.createdAt = n.createdAt;
-    if (n.channel) rowChannels.get(g)?.add(n.channel);
-  };
-  for (const n of list) {
-    if (n.groupId) {
-      const nt = Date.parse(n.createdAt);
-      // Of the groups this row may join, the nearest in time (the id may repeat).
-      let g: Notification | undefined;
-      let best = Infinity;
-      if (n.channel && Number.isFinite(nt)) {
-        for (const x of byId.get(n.groupId) ?? []) {
-          const seen = rowChannels.get(x);
-          if (x.kind !== n.kind || !seen?.size || seen.has(n.channel)) continue;
-          const gap = Math.abs(nt - Date.parse(x.createdAt));
-          if (gap <= GROUP_ID_WINDOW_MS && gap < best) {
-            best = gap;
-            g = x;
-          }
-        }
-      }
-      if (g) {
-        merge(g, n);
-        continue;
-      }
-    } else if (n.channel) {
-      const nt = Date.parse(n.createdAt);
-      const g = out.find((x) => {
-        if (x.groupId || x.kind !== n.kind || x.title !== n.title || x.body !== n.body) return false;
-        const seen = rowChannels.get(x);
-        if (seen?.has(n.channel)) return false;
-        const xt = Date.parse(x.createdAt);
-        return Number.isFinite(nt) && Number.isFinite(xt) && Math.abs(nt - xt) <= 60_000;
-      });
-      if (g) {
-        merge(g, n);
-        continue;
-      }
-    }
-    const copy: Notification = { ...n, ids: [...n.ids], deliveries: [...n.deliveries] };
-    out.push(copy);
-    rowChannels.set(copy, new Set(n.channel ? [n.channel] : []));
-    if (n.groupId) byId.set(n.groupId, [...(byId.get(n.groupId) ?? []), copy]);
-  }
-  return out;
-}
-
 // End users only see delivery on external channels they can check. SMS is a
 // critical-event fallback that may never be sent, and in-app is what they are
 // reading, so neither is shown.
 const INBOX_CHANNELS = ["push", "telegram", "email"];
+// Channels listed under a folded event ("via Push, Telegram").
+const VIA_CHANNELS = ["push", "telegram", "email", "sms", "secure_chat", "meeting_invite"];
+
+type ReadFilter = "all" | "unread" | "read";
 
 // Delivery chips ("Telegram · Waiting for delivery"); queued/not configured
 // read as waiting, unknown statuses stay neutral. `channels` limits which
@@ -114,26 +52,87 @@ export function DeliveryChips({ items, channels }: { items: NotificationDelivery
   );
 }
 
+// Title/body shown for a row: the client-side template for the event when
+// one exists (portal.notifications.events.<event>), else the backend text.
+function useNotifText() {
+  const t = useTranslations("portal.notifications");
+  const statusLabel = useOrderStatusLabel();
+  return useCallback(
+    (n: RichNotification): { title: string; body: string } => {
+      const ev = n.event;
+      if (!ev || !(t.has(`events.${ev}.title`) || t.has(`events.${ev}.body`))) return { title: n.title, body: n.body };
+      const vars = templateVars(n.data, n.title, n.body);
+      vars.status = vars.status ? statusLabel(vars.status) : "—";
+      vars.paymentStatus = vars.paymentStatus
+        ? t.has(`paymentStatus.${vars.paymentStatus}`) ? t(`paymentStatus.${vars.paymentStatus}`) : humanizeSlug(vars.paymentStatus)
+        : "—";
+      if (ev === "secure_chat_message" && n.data.is_blocked === true) vars.body = t("events.secure_chat_message.blocked");
+      return {
+        title: t.has(`events.${ev}.title`) ? t(`events.${ev}.title`, vars) : n.title,
+        body: t.has(`events.${ev}.body`) ? t(`events.${ev}.body`, vars) : n.body,
+      };
+    },
+    [t, statusLabel],
+  );
+}
+
 export default function NotificationsPanel() {
   const t = useTranslations("portal.notifications");
   const locale = useLocale();
+  const { session } = useAuth();
+  const role = session?.role ?? "";
+  const textOf = useNotifText();
   const fmt = (s: string) => shortDateTime(s, locale);
-  const [items, setItems] = useState<Notification[]>([]);
+  const [items, setItems] = useState<RichNotification[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab] = useState<NotifTab>("all");
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<ReadFilter>("all");
 
   useEffect(() => {
     let alive = true;
-    listNotifications()
-      .then((d) => alive && (setItems(groupByEvent(d)), setStatus("ready")))
+    listNotificationsRich()
+      .then((d) => alive && (setItems(d), setStatus("ready")))
       .catch(() => alive && setStatus("error"));
     return () => { alive = false; };
   }, []);
 
-  const hasUnread = items.some((n) => !n.read);
+  async function refresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      const d = await listNotificationsRich();
+      setItems(d);
+      setStatus("ready");
+    } catch {
+      if (!items.length) setStatus("error");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  // Rows with their display text, so search and rendering agree.
+  const rows = useMemo(() => items.map((n) => ({ n, ...textOf(n) })), [items, textOf]);
+  const unreadBy = useMemo(() => {
+    const c: Record<NotifTab, number> = { all: 0, orders: 0, payments: 0, chat: 0, documents: 0, system: 0, marketing: 0 };
+    for (const n of items) if (!n.read) { c.all += 1; c[n.category] += 1; }
+    return c;
+  }, [items]);
+  const needle = q.trim().toLowerCase();
+  const shown = rows.filter(({ n, title, body }) => {
+    if (tab !== "all" && n.category !== tab) return false;
+    if (filter === "unread" && n.read) return false;
+    if (filter === "read" && !n.read) return false;
+    if (!needle) return true;
+    return [title, body, n.title, n.body, n.event].some((s) => s.toLowerCase().includes(needle));
+  });
+  const shownUnread = shown.filter(({ n }) => !n.read);
+  const narrowed = tab !== "all" || !!needle || filter !== "all";
 
   // Read actions update the list in place — no refetch, so the page doesn't
   // flash/scroll — and notify the bell to refresh its badge.
-  async function readOne(n: Notification) {
+  async function readOne(n: RichNotification) {
     if (n.read) return;
     setItems((list) => list.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
     announceRead();
@@ -145,50 +144,97 @@ export default function NotificationsPanel() {
     }
   }
   async function readAll() {
-    if (!hasUnread) return;
-    setItems((list) => list.map((x) => ({ ...x, read: true })));
+    if (!shownUnread.length) return;
+    const ids = new Set(shownUnread.map(({ n }) => n.id));
+    setItems((list) => list.map((x) => (ids.has(x.id) ? { ...x, read: true } : x)));
     announceRead();
     try {
-      await markAllNotificationsRead();
+      // Only "every notification" maps to the read-all endpoint; a narrowed
+      // view marks just the rows it shows.
+      if (!narrowed || (tab === "all" && !needle && filter === "unread")) await markAllNotificationsRead();
+      else await Promise.all(shownUnread.flatMap(({ n }) => (n.ids.length ? n.ids : [n.id])).map((id) => markNotificationRead(id)));
     } catch {
       /* ignore — optimistic */
     }
   }
 
+  const chLabel = (c: string) => (t.has(`channel.${c}`) ? t(`channel.${c}`) : humanizeSlug(c));
+  const catLabel = (c: NotifCategory) => t(`tabs.${c}`);
+  const filterOpts = (["all", "unread", "read"] as ReadFilter[]).map((v) => ({ value: v, label: t(`filter.${v}`) }));
+
   return (
     <div className="ppanel">
       <div className="ppanel__h">
-        <b>{t("title")}</b>
-        {hasUnread ? (
-          <button className="btn btn--soft btn--sm" type="button" onClick={readAll}>
-            <IconCheckDouble />
-            {t("markAll")}
+        <b className="ppanel__t"><span className="pico"><IconBell /></span>{t("title")}</b>
+        <span className="ahdr">
+          {unreadBy.all ? <span className="advmuted">{t("unreadN", { n: unreadBy.all })}</span> : null}
+          <button className="btn btn--line btn--sm" type="button" onClick={refresh} disabled={refreshing} aria-label={t("refresh")} title={t("refresh")}>
+            <IconRefresh />
           </button>
-        ) : null}
+          {shownUnread.length ? (
+            <button className="btn btn--soft btn--sm" type="button" onClick={readAll}>
+              <IconCheckDouble />
+              {narrowed ? t("markShown") : t("markAll")}
+            </button>
+          ) : null}
+        </span>
+      </div>
+
+      <div className="segs segs--sm ntabs" role="tablist" aria-label={t("title")}>
+        {NOTIF_CATEGORIES.map((c) => (
+          <button key={c} type="button" role="tab" className="seg" aria-selected={tab === c} onClick={() => setTab(c)}>
+            {t(`tabs.${c}`)}
+            {unreadBy[c] ? <span className="ntab__n">{unreadBy[c] > 99 ? "99+" : unreadBy[c]}</span> : null}
+          </button>
+        ))}
+      </div>
+      <div className="lfilters ntfilters">
+        <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>
+        <Select value={filter} onChange={(v) => setFilter(v as ReadFilter)} options={filterOpts} ariaLabel={t("filterLabel")} />
       </div>
 
       {status === "loading" ? (
         <Skeleton rows={4} />
+      ) : status === "error" ? (
+        <Notice ok={false} msg={t("loadError")} />
       ) : !items.length ? (
         <EmptyState icon={<IconChat />} title={t("empty")} text={t("emptyText")} />
+      ) : !shown.length ? (
+        <EmptyState icon={<IconSearch />} title={t("noMatch")} text={t("noMatchText")} />
       ) : (
         <div className="ntlist">
-          {items.map((n) => (
-            <button
-              key={n.id}
-              type="button"
-              className={`ntitem${n.read ? "" : " ntitem--unread"}`}
-              onClick={() => readOne(n)}
-            >
-              <span className="ntitem__dot" aria-hidden />
-              <div className="ntitem__m">
-                <b>{n.title}</b>
-                {n.body ? <span>{n.body}</span> : null}
-                <DeliveryChips items={n.deliveries} channels={INBOX_CHANNELS} />
-                <em>{fmt(n.createdAt)}</em>
+          {shown.map(({ n, title, body }) => {
+            const link = notifLink(n.event, n.category, n.data, role);
+            const via = n.channels.filter((c) => VIA_CHANNELS.includes(c)).map(chLabel);
+            return (
+              <div key={n.id} className="ntrow">
+                <button
+                  type="button"
+                  className={`ntitem${n.read ? "" : " ntitem--unread"}`}
+                  onClick={() => readOne(n)}
+                >
+                  <span className="ntitem__dot" aria-hidden />
+                  <div className="ntitem__m">
+                    <div className="ntitem__top">
+                      <b>{title}</b>
+                      <i className={`atag ntitem__cat ntitem__cat--${n.category}`}>{catLabel(n.category)}</i>
+                    </div>
+                    {body ? <span>{body}</span> : null}
+                    <DeliveryChips items={n.deliveries} channels={INBOX_CHANNELS} />
+                    <em>
+                      {fmt(n.createdAt)}
+                      {via.length ? ` · ${t("viaChannels", { list: via.join(", ") })}` : ""}
+                    </em>
+                  </div>
+                </button>
+                {link ? (
+                  <Link href={link} className="btn btn--line btn--sm ntitem__go" onClick={() => readOne(n)}>
+                    {t("open")}
+                  </Link>
+                ) : null}
               </div>
-            </button>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -1672,7 +1672,7 @@
     "upgradePlan": "Tarifni yangilash",
     "fileError": "Faylni ochib bo'lmadi",
     "lastFreeTitle": "Bu oxirgi bepul savolingiz edi",
-    "lastFreeText": "Oyiga {limit} ta bepul savol. Davom etish uchun LexGo.AI Lite yoki Pro rejasini tanlang — limit har oyning 1-sanasida yangilanadi."
+    "lastFreeText": "Oyiga {limit} ta bepul savol. Davom etish uchun LexGo.AI Lite yoki Pro tarifini tanlang — limit har oyning 1-sanasida yangilanadi."
   },
   "portal": {
     "metaTitle": "Portal",
@@ -1808,7 +1808,8 @@
         "resetWeak": "Parol kamida 8 ta belgidan iborat bo'lsin.",
       "twoFaTelegramSubtitle": "Telegram botga yuborilgan 6 xonali kodni kiriting",
       "waitLeft": "{s} soniya kuting",
-      "retryIn": "Qayta urinish: {s} s"
+      "retryIn": "Qayta urinish: {s} s",
+      "success": "Kirilmoqda…"
     },
     "common": {
       "logout": "Chiqish",
@@ -2129,11 +2130,12 @@
         "ai": "Sun'iy Intellekt chat",
         "assistant": "Sun'iy intellekt yordamchi",
         "promotion": "Targ'ibot",
-        "subscription": "Obuna",
+        "subscription": "Paket tariflar",
         "notifications": "Bildirishnomalar",
         "workspace": "Ish maydoni",
         "profile": "Profil",
-        "referrals": "Referal"
+        "referrals": "Referal",
+        "meetings": "Uchrashuvlar"
       },
       "client": {
         "dashboard": "Boshqaruv paneli",
@@ -2142,7 +2144,7 @@
         "payments": "To'lovlar",
         "lawyers": "Advokat va yuristlar",
         "matches": "Mos advokatlar",
-        "subscription": "Obuna",
+        "subscription": "Paket tariflar",
         "gifts": "Sovg'alar",
         "referrals": "Do'stni taklif qilish",
         "reviews": "Baholash va sharhlar",
@@ -2168,13 +2170,14 @@
         "tasks": "Vazifalar",
         "profile": "Profil",
         "promotion": "Targ'ibot",
-        "subscription": "Obuna",
+        "subscription": "Paket tariflar",
         "messages": "Xabarlar",
         "organization": "Tashkilot",
         "notifications": "Bildirishnomalar",
         "workspace": "Ish maydoni",
         "assistant": "Sun'iy intellekt yordamchi",
-        "referrals": "Referal"
+        "referrals": "Referal",
+        "meetings": "Uchrashuvlar"
       }
     },
     "lawyer": {
@@ -3120,7 +3123,7 @@
         "currentRank": "Joriy qidiruv o'rni",
         "responseRate": "Javob darajasi {pct}%",
         "boostCta": "Ko'rinuvchanlikni oshirish",
-        "upgradeCta": "Rejani yangilash",
+        "upgradeCta": "Tarifni yangilash",
         "performance": "Profil samaradorligi",
         "performanceEmpty": "Hozircha ma'lumot yo'q",
         "performanceEmptyText": "Ko'rishlar, bog'lanishlar va reyting shu yerda ko'rinadi.",
@@ -3342,6 +3345,41 @@
           "held": "Ushlab turilgan",
           "failed": "Xato"
         }
+      },
+      "drill": {
+        "activeCases": "Faol ishlar",
+        "noActiveCases": "Faol ish yo'q",
+        "deadlines": "Bugungi muddatlar",
+        "upcoming": "Yaqin 7 kun",
+        "noDeadline": "Muddat belgilanmagan",
+        "courts": "Bugungi sud majlislari",
+        "courtsNote": "Sud majlislari kalendarda ko'rinadi; backend faqat sonini qaytaradi.",
+        "messages": "Yangi xabarlar",
+        "chats": "Faol maxfiy chatlar",
+        "noChats": "Faol chat yo'q",
+        "notifications": "Bildirishnomalar",
+        "unread": "o'qilmagan",
+        "docs": "Ko'rib chiqish uchun hujjatlar",
+        "docsNote": "Hujjatlar ro'yxati «Hujjatlar» bo'limida; backend faqat sonini qaytaradi.",
+        "earnings": "Daromad taqsimoti",
+        "today": "Bugun",
+        "month": "Shu oy",
+        "viaLexgo": "LexGo orqali (jami)",
+        "pending": "Kutilayotgan to'lov",
+        "payable": "Platformaga to'lanadigan",
+        "orders": "Yangi buyurtmalar",
+        "noOrders": "Yangi buyurtma yo'q",
+        "perf": "Profil samaradorligi",
+        "openCases": "Ishlarga o'tish",
+        "openChats": "Xabarlarga o'tish",
+        "openDocs": "Hujjatlarga o'tish",
+        "openOrders": "Buyurtmalarga o'tish",
+        "openCalendar": "Kalendarga o'tish",
+        "openNotifications": "Bildirishnomalarga o'tish",
+        "demoOrdersNote": "Namunaviy buyurtmalar — qabul qilish/rad etish tugmalari real buyurtmalarda chiqadi.",
+        "case": "Ish",
+        "chat": "Chat",
+        "tip": "Maslahat"
       }
     },
     "notifications": {
@@ -3350,8 +3388,128 @@
       "empty": "Bildirishnomalar yo‘q",
       "emptyText": "Ishlaringiz va to‘lovlaringiz haqidagi yangiliklar shu yerda ko‘rinadi.",
       "deliveryLabel": "Yetkazish holati",
-      "channel": { "in_app": "Ilova ichida", "push": "Push", "telegram": "Telegram", "email": "Email", "sms": "SMS" },
-      "delivery": { "delivered": "Yetkazildi", "pending": "Yetkazilishi kutilmoqda", "failed": "Yetkazilmadi", "unknown": "Holati noma'lum" }
+      "channel": { "in_app": "Ilova ichida", "push": "Push", "telegram": "Telegram", "email": "Email", "sms": "SMS", "secure_chat": "Maxfiy chat", "meeting_invite": "Uchrashuv taklifi" },
+      "delivery": { "delivered": "Yetkazildi", "pending": "Yetkazilishi kutilmoqda", "failed": "Yetkazilmadi", "unknown": "Holati noma'lum" },
+      "tabs": {
+        "all": "Barchasi",
+        "orders": "Buyurtmalar",
+        "payments": "To'lovlar",
+        "chat": "Chat va qo'ng'iroqlar",
+        "documents": "Hujjatlar",
+        "system": "Tizim",
+        "marketing": "Marketing"
+      },
+      "filter": {
+        "all": "Hammasi",
+        "unread": "O'qilmagan",
+        "read": "O'qilgan"
+      },
+      "filterLabel": "O'qilganlik bo'yicha filtr",
+      "searchPh": "Sarlavha yoki matn bo'yicha qidirish",
+      "refresh": "Yangilash",
+      "open": "Ochish",
+      "markShown": "Ko'rsatilganlarni o'qilgan",
+      "noMatch": "Mos bildirishnoma topilmadi",
+      "noMatchText": "Boshqa bo'limni tanlang yoki qidiruvni tozalang.",
+      "loadError": "Bildirishnomalarni yuklab bo'lmadi. Sahifani yangilang.",
+      "unreadN": "{n} ta o'qilmagan",
+      "viaChannels": "{list} orqali",
+      "paymentStatus": {
+        "paid": "To'langan",
+        "advance_paid": "Oldindan to'lov qilingan",
+        "partial_paid": "Qisman to'langan",
+        "pending": "Kutilmoqda",
+        "unpaid": "To'lanmagan",
+        "refunded": "Qaytarilgan",
+        "failed": "Muvaffaqiyatsiz"
+      },
+      "events": {
+        "order_created": {
+          "title": "Buyurtma yaratildi",
+          "body": "«{service}» bo'yicha #{order} buyurtma yaratildi. Holati: {status}."
+        },
+        "order_assigned": {
+          "title": "Yangi buyurtma",
+          "body": "Sizga yangi buyurtma keldi: «{service}» (#{order})."
+        },
+        "order_accepted": {
+          "title": "Buyurtma qabul qilindi",
+          "body": "Ijrochi #{order} buyurtmangizni qabul qildi."
+        },
+        "order_declined": {
+          "title": "Buyurtma rad etildi",
+          "body": "Ijrochi #{order} buyurtmangizni rad etdi. Boshqa mutaxassis tanlashingiz mumkin."
+        },
+        "order_status_changed": {
+          "title": "Buyurtma holati yangilandi",
+          "body": "#{order} buyurtma holati: {status}."
+        },
+        "milestone_paid": {
+          "title": "Bosqich to'landi",
+          "body": "«{milestone}» bosqichi uchun to'lov qabul qilindi (#{order})."
+        },
+        "milestone_released": {
+          "title": "Bosqich to'lovi chiqarildi",
+          "body": "«{milestone}» bosqichi to'lovi sizga o'tkazildi (#{order})."
+        },
+        "payment_paid": {
+          "title": "To'lov qabul qilindi",
+          "body": "{amount} so'm to'lovingiz muvaffaqiyatli qabul qilindi."
+        },
+        "order_payment_updated": {
+          "title": "Buyurtma to'lovi yangilandi",
+          "body": "#{order} buyurtma to'lov holati: {paymentStatus}."
+        },
+        "document_payment_created": {
+          "title": "Hujjat to'lovi yaratildi",
+          "body": "«{doc}» uchun {amount} so'm to'lov kutilmoqda."
+        },
+        "document_request_created": {
+          "title": "Hujjat so'rovi yaratildi",
+          "body": "«{doc}» so'rovi qabul qilindi. Holati: {status}."
+        },
+        "document_request_file_ready": {
+          "title": "Hujjat tayyor",
+          "body": "«{doc}» hujjati tayyor — uni yuklab olishingiz mumkin."
+        },
+        "contract_signature_otp": {
+          "title": "Imzolash kodi",
+          "body": "Shartnomani imzolash uchun tasdiqlash kodi yuborildi."
+        },
+        "secure_chat_message": {
+          "title": "Yangi xabar",
+          "body": "{body}",
+          "blocked": "Xabar moderatsiya tekshiruviga yuborildi."
+        },
+        "meeting_invite": {
+          "title": "Video uchrashuvga taklif",
+          "body": "{caller} sizni uchrashuvga taklif qildi."
+        },
+        "calendar_event_created": {
+          "title": "Kalendar voqeasi qo'shildi",
+          "body": "«{eventTitle}» kalendaringizga qo'shildi."
+        },
+        "calendar_event_updated": {
+          "title": "Kalendar voqeasi yangilandi",
+          "body": "«{eventTitle}» yangilandi. Holati: {status}."
+        },
+        "sos_request": {
+          "title": "SOS so'rovi",
+          "body": "Yangi SOS so'rovi: {sos}."
+        },
+        "upsell_redeemed": {
+          "title": "Taklif xarid qilindi",
+          "body": "«{offer}» taklifingiz mijoz tomonidan xarid qilindi."
+        },
+        "seller_register_approved": {
+          "title": "Ariza tasdiqlandi",
+          "body": "Profilingiz admin tomonidan tasdiqlandi. Endi kabinetning barcha imkoniyatlari ochiq."
+        },
+        "seller_register_rejected": {
+          "title": "Ariza rad etildi",
+          "body": "Arizangiz rad etildi. Sabab: {reason}"
+        }
+      }
     },
     "caseManage": {
       "title": "Ishni boshqarish",
@@ -3984,15 +4142,34 @@
     "resumed": "Oldingi to'ldirilgan ma'lumotlar tiklandi — davom eting."
   },
   "plans": {
-    "title": "Obuna rejalari",
+    "autopay": {
+      "title": "Avtomatik to'lov (ATMOS)",
+      "sub": "Har oy tarif to'lovi ulangan kartadan avtomatik yechiladi — tarif uzilmaydi.",
+      "currentTariff": "Joriy tarif",
+      "none": "Faol tarif yo'q",
+      "nextCharge": "Keyingi to'lov sanasi",
+      "toggle": "Avtomatik to'lov",
+      "on": "Yoqilgan",
+      "off": "O'chirilgan",
+      "card": "Ulangan karta",
+      "noCard": "Karta ulanmagan",
+      "bindCard": "Kartani ulash (ATMOS)",
+      "bindTitle": "Kartani ulash",
+      "bindNote": "Hozircha karta ma'lumoti profilingizda saqlanadi; ATMOS orqali haqiqiy ulash backend ulangach ishga tushadi.",
+      "pendingNote": "ATMOS integratsiyasi backend'da ulanmoqda — sozlama saqlanadi va ulanganda ishga tushadi.",
+      "localNote": "Sozlama shu qurilmada saqlangan",
+      "saved": "Sozlama saqlandi.",
+      "saveError": "Sozlamani saqlab bo'lmadi."
+    },
+    "title": "Paket tariflar",
     "subtitle": "Ko'rinuvchanligingizni oshiring va ko'proq mijoz yutib oling.",
-    "currentPlan": "Joriy reja: {plan}",
-    "current": "Joriy reja",
+    "currentPlan": "Joriy tarif: {plan}",
+    "current": "Joriy tarif",
     "upgrade": "Yangilash",
     "downgrade": "Bepulga o'tish",
     "processing": "Amalga oshirilmoqda…",
-    "activated": "{plan} rejasi faollashtirildi!",
-    "payRedirect": "To'lov sahifasi ochilmoqda — reja to'lovdan so'ng faollashadi.",
+    "activated": "{plan} tarifi faollashtirildi!",
+    "payRedirect": "To'lov sahifasi ochilmoqda — tarif to'lovdan so'ng faollashadi.",
     "purchaseError": "To'lovni amalga oshirib bo'lmadi. Qayta urining.",
     "mostPopular": "Eng ommabop",
     "free": {
@@ -4043,9 +4220,9 @@
       ]
     },
     "freeLabel": "Bepul",
-    "choose": "Rejani tanlash",
-    "empty": "Rejalar mavjud emas",
-    "emptyText": "Obuna rejalari backenddan yuklanadi.",
+    "choose": "Tarifni tanlash",
+    "empty": "Tariflar mavjud emas",
+    "emptyText": "Paket tariflar backenddan yuklanadi.",
     "term1": "1 oy",
     "term6": "6 oy",
     "term12": "1 yil",
@@ -4053,7 +4230,7 @@
     "totalNote": "{term} oy — jami {total} so‘m",
     "subtitlePersonal": "Shaxsiy advokat obunasi — doimiy yuridik yordam, konsultatsiyalar va chegirmalar.",
     "ai": {
-      "title": "LexGo.AI rejalari",
+      "title": "LexGo.AI tariflari",
       "subtitle": "Free — oyiga 5 savol; Lite — 100 savol, 5 hujjat tahlili; Pro — cheksiz (fair-use 1000), 20 tahlil, sud amaliyoti, eksport.",
       "subtitleSeller": "Tasdiqlangan advokat va yuristlarga LexGo.AI −{pct}% avtomatik qo'llanadi.",
       "term": "Muddat",
@@ -4063,8 +4240,8 @@
       "term12": "12 oy",
       "upfront": "Bir yo'la to'lash — qo'shimcha −{pct}% (umumiy chegirma {max}% dan oshmaydi)",
       "usage": "Bu oy: {limit} tadan {used} tasi ishlatildi",
-      "included": "Hozirgi reja",
-      "rules": "Rejani oshirish darhol — farq qolgan kunlarga proporsional; tushirish — joriy davr oxirida. Har oyning 1-sanasida limit yangilanadi."
+      "included": "Hozirgi tarif",
+      "rules": "Tarifni oshirish darhol — farq qolgan kunlarga proporsional; tushirish — joriy davr oxirida. Har oyning 1-sanasida limit yangilanadi."
     },
     "personal": {
       "title": "Shaxsiy advokatim"
@@ -4132,7 +4309,7 @@
     "nav": {
       "overview": "Umumiy",
       "services": "Xizmatlar",
-      "plans": "Rejalar",
+      "plans": "Paket tariflar",
       "templates": "Namunalar",
       "roles": "Rollar va ruxsatlar",
       "notifications": "Bildirishnomalar",
@@ -4164,7 +4341,7 @@
     "overview": {
       "kicker": "Admin konsoli",
       "hi": "Xush kelibsiz, {name}",
-      "sub": "LexGo katalogi, rejalar, ruxsatlar va boshqalarni boshqaring.",
+      "sub": "LexGo katalogi, paket tariflar, ruxsatlar va boshqalarni boshqaring.",
       "crm": {
         "kicker": "CRM boshqaruv paneli",
         "sub": "Platformaning asosiy ko'rsatkichlari — o'sish, monetizatsiya, ushlab qolish va sifat bir joyda.",
@@ -4230,7 +4407,7 @@
       },
       "services": "Xizmatlar",
       "categories": "Kategoriyalar",
-      "plans": "Rejalar",
+      "plans": "Paket tariflar",
       "templates": "Namunalar",
       "lawyers": "Yuristlar",
       "orders": "Buyurtmalar",
@@ -4291,12 +4468,97 @@
       "catEmpty": "Kategoriyalar yo'q",
       "svcTitle": "Xizmatlar",
       "svcCreate": "Yangi xizmat",
-      "svcEmpty": "Xizmatlar yo'q"
+      "svcEmpty": "Xizmatlar yo'q",
+      "searchLabel": "Xizmat qidirish",
+      "searchPh": "Nomi, kodi yoki slug bo'yicha (lotin/kirill)",
+      "catFilter": "Yo'nalish",
+      "allCats": "Barcha yo'nalishlar",
+      "shown": "{n} / {total} ta xizmat",
+      "noResults": "Mos xizmat topilmadi.",
+      "serverSearchOff": "Server qidiruvi javob bermadi — faqat mahalliy qidiruv natijalari.",
+      "inactiveNote": "Nofaol xizmatlar katalogda ko'rinmaydi; qayta yoqish uchun «Qayta faollashtirish» ni bosing.",
+      "localOnly": "Faqat shu qurilmada",
+      "forget": "Ro'yxatdan olib tashlash",
+      "reactivate": "Qayta faollashtirish",
+      "reactivated": "Xizmat qayta faollashtirildi.",
+      "reactivateError": "Qayta faollashtirib bo'lmadi.",
+      "tagCatalog": "Katalog",
+      "tagCustom": "Qo'lda qo'shilgan",
+      "catLimitNote": "Yo'nalishlarni tahrirlash/o'chirish backend'da hali yo'q (faqat qo'shish).",
+      "del": {
+        "title": "Xizmatni o'chirish",
+        "text": "Xizmat katalogdan yashiriladi (nofaol bo'ladi); buyurtmalar tarixi saqlanib qoladi.",
+        "cta": "O'chirish",
+        "busy": "O'chirilmoqda…",
+        "done": "Xizmat o'chirildi (nofaol).",
+        "localHint": "Nofaol xizmat ro'yxatda shu qurilmada eslab qolinadi — backend'da nofaollar ro'yxati hali yo'q."
+      },
+      "edit": {
+        "title": "Xizmatni tahrirlash",
+        "titleRequired": "Nomi majburiy.",
+        "badNumber": "Raqamli maydon noto'g'ri.",
+        "noChanges": "O'zgarish yo'q.",
+        "saved": "Xizmat saqlandi.",
+        "errValidation": "Ma'lumotlar tekshiruvdan o'tmadi — maydonlarni tekshiring.",
+        "errNotFound": "Xizmat topilmadi (o'chirilgan bo'lishi mumkin).",
+        "errForbidden": "Bu amal uchun ruxsat yo'q (services.manage).",
+        "errServer": "Server xatosi. Qayta urining.",
+        "passport": "Xizmat pasporti",
+        "passportOff": "Pasport ma'lumotlari yuklanmadi.",
+        "code": "Kod",
+        "family": "Oila",
+        "subcategory": "Kichik yo'nalish",
+        "duration": "Standart muddat",
+        "urgent": "Shoshilinch muddat",
+        "version": "Versiya",
+        "days": "{value} kun",
+        "base": "Asosiy narx (so'm)",
+        "standardPrice": "Standart narx (so'm)",
+        "currency": "Valyuta",
+        "meta": "Katalog ma'lumotlari",
+        "noMeta": "Bu xizmatda katalog yozuvi yo'q — metama'lumotlar backend'da faqat mavjud yozuvga saqlanadi.",
+        "titleUzLatn": "Nomi (o'zbek, lotin)",
+        "titleUzCyrl": "Nomi (o'zbek, kirill)",
+        "titleRu": "Nomi (rus)",
+        "executorType": "Ijrochi turi",
+        "executorHint": "Yurist / Advokat / Ikkalasi",
+        "pricingTier": "Narx darajasi",
+        "pricingHint": "Masalan: standard, premium",
+        "slaCode": "SLA kodi",
+        "refundCode": "Qaytarish kodi",
+        "aiCategory": "AI toifasi",
+        "advokatRequired": "Faqat advokat bajaradi"
+      }
     },
     "plans": {
-      "listTitle": "Obuna rejalari",
-      "create": "Yangi reja",
-      "empty": "Rejalar yo'q",
+      "searchPh": "Nomi yoki slug…",
+      "noResults": "Hech narsa topilmadi",
+      "editTitle": "Tarifni tahrirlash",
+      "audience": "Auditoriya",
+      "audienceHint": "Backend auditoriyani hozircha slug bo'yicha ham aniqlaydi: «shaxsiy» → Mijoz, «lexgo-ai» / «seller» → Yurist va Advokat, «b2b» / «business» → Biznes.",
+      "audiences": {
+        "all": "Barchasi",
+        "client": "Mijoz",
+        "yurist": "Yurist",
+        "advokat": "Advokat",
+        "business": "Biznes"
+      },
+      "billingPeriod": "To'lov davri",
+      "periods": {
+        "monthly": "Oylik",
+        "six_month": "6 oylik",
+        "yearly": "Yillik",
+        "prepaid_yearly": "Yillik (oldindan)"
+      },
+      "price": "Narx (so'm)",
+      "writePending": "Tahrirlash backend'da hali yo'q — so'rov yuborilgan.",
+      "deletePending": "O'chirish backend'da hali yo'q — so'rov yuborilgan.",
+      "activeOnly": "Backend hozircha faqat faol tariflarni qaytaradi — nofaol tariflar ro'yxatda ko'rinmaydi.",
+      "deactivate": "Nofaol qilish",
+      "activate": "Faollashtirish",
+      "listTitle": "Paket tariflar",
+      "create": "Yangi tarif",
+      "empty": "Tariflar yo'q",
       "benefits": "Imkoniyatlar",
       "benefitsPh": "Har birini yangi qatorda",
       "giftable": "Sovg'a qilsa bo'ladi"
@@ -4403,7 +4665,41 @@
       "sent": "Bildirishnoma yaratildi.",
       "queuedNote": "Provayderi hali ulanmagan kanallar navbatda turadi va ulangach yetkaziladi.",
       "user": "Foydalanuvchi",
-      "selectUser": "Foydalanuvchini tanlang"
+      "selectUser": "Foydalanuvchini tanlang",
+      "roles": {
+        "all": "Barchasi",
+        "client": "Mijozlar",
+        "yurist": "Yuristlar",
+        "advokat": "Advokatlar",
+        "advokat_tashkiloti": "Advokat tashkilotlari",
+        "call_center": "Call-markaz",
+        "sales": "Sotuv"
+      },
+      "roleTabs": "Rol bo'yicha",
+      "recipients": "Qabul qiluvchilar",
+      "recipientsHint": "Rolni tanlang, qidiring va kerakli foydalanuvchilarni belgilang. Bir nechta foydalanuvchiga har biriga alohida yuboriladi.",
+      "searchPh": "Ism, telefon yoki LexGo ID",
+      "selectAllRole": "Roldagi barchasini belgilash",
+      "selectShown": "Ko'rsatilganlarni belgilash",
+      "clearSel": "Tanlovni tozalash",
+      "selectedN": "{n} ta tanlandi",
+      "shownN": "{n} ta foydalanuvchi",
+      "noUsers": "Bu rolda foydalanuvchi topilmadi",
+      "loadingUsers": "Foydalanuvchilar yuklanmoqda…",
+      "usersError": "Foydalanuvchilar ro'yxatini yuklab bo'lmadi (users.manage ruxsati kerak). Quyida ID orqali yuborishingiz mumkin.",
+      "manualId": "Foydalanuvchi ID (qo'lda)",
+      "manualIdPh": "UUID yoki LexGo ID",
+      "category": "Kategoriya",
+      "categoryNote": "Kategoriya so'rov bilan (data.category) yuboriladi, lekin backend hozircha uni saqlamaydi — bildirishnoma qabul qiluvchida sarlavha bo'yicha bo'limga tushadi.",
+      "categoryStored": "Kategoriya backendda saqlandi.",
+      "noRecipients": "Kamida bitta qabul qiluvchini tanlang.",
+      "progress": "Yuborilmoqda… {done}/{total}",
+      "resultOk": "{n} ta foydalanuvchiga yuborildi.",
+      "resultPartial": "{ok} ta yuborildi, {fail} ta yuborilmadi.",
+      "failedList": "Yuborilmadi: {names}",
+      "stop": "To'xtatish",
+      "stopped": "Yuborish to'xtatildi: {done}/{total} ta yuborildi.",
+      "deliveryLast": "Oxirgi yuborishning yetkazish holati"
     },
     "bootstrap": {
       "title": "Superadmin bootstrap",
@@ -4452,7 +4748,33 @@
       "starting": "Ochilmoqda…",
       "needParticipants": "Kamida 1 ta ishtirokchi tanlang.",
       "error": "Uchrashuvni ochib bo'lmadi. Qayta urining.",
-      "hint": "Siz tashkilotchi (host) bo'lasiz. Tanlangan foydalanuvchilar taklif qilinadi."
+      "hint": "Siz tashkilotchi (host) bo'lasiz. Tanlangan foydalanuvchilar taklif qilinadi.",
+      "sellerHint": "Siz tashkilotchi (host) bo'lasiz. Mijozlaringiz va advokatlar/yuristlar orasidan ism yoki telefon bo'yicha qidiring.",
+      "noPermission": "Uchrashuv ochish uchun ruxsat yo'q. Administratorga murojaat qiling.",
+      "backendMissing": "Bu funksiya uchun backend kutilmoqda.",
+      "history": "Uchrashuvlar tarixi",
+      "refresh": "Yangilash",
+      "activeGroup": "Faol",
+      "endedGroup": "Tugagan",
+      "historyEmpty": "Hali uchrashuvlar yo'q",
+      "historyEmptyText": "Boshlagan yoki taklif qilingan uchrashuvlaringiz shu yerda ko'rinadi.",
+      "historyError": "Tarixni yuklab bo'lmadi. Qayta urining.",
+      "untitled": "Nomsiz uchrashuv",
+      "hostedByYou": "Siz tashkilotchisiz",
+      "hostedBy": "Tashkilotchi: {name}",
+      "rejoin": "Qayta kirish",
+      "join": "Kirish",
+      "callStatus": {
+        "active": "Faol",
+        "scheduled": "Rejalashtirilgan",
+        "ended": "Tugagan",
+        "cancelled": "Bekor qilingan",
+        "expired": "Muddati o'tgan"
+      },
+      "ccStart": "Video uchrashuv",
+      "ccStartWith": "{name} bilan video uchrashuv",
+      "ccTitle": "Video uchrashuv · {name}",
+      "ccError": "Uchrashuvni ochib bo'lmadi. Qayta urining."
     },
     "testOtps": {
       "title": "Test OTP kodlari",
@@ -4486,7 +4808,7 @@
       "viewKanban": "Kanban",
       "viewTable": "Jadval",
       "kpi": { "total": "Jami lid", "active": "Faol", "won": "Yutildi", "conv": "Konversiya" },
-      "f": { "search": "Ism yoki telefon…", "allSource": "Barcha manba", "allRegion": "Barcha hudud", "allStage": "Barcha bosqich" },
+      "f": { "search": "Ism yoki telefon…", "allSource": "Barcha manba", "allRegion": "Barcha hudud", "allStage": "Barcha bosqich", "assignee": "Operator", "allAssignee": "Barcha operatorlar", "unassigned": "Taqsimlanmagan", "mine": "Mening lidlarim", "from": "Sanadan", "to": "Sanagacha", "clear": "Tozalash", "reset": "Filtrlarni tiklash", "shown": "{n} / {total} ta lid", "noMatch": "Filtrga mos lid topilmadi." },
       "d": {
         "close": "Yopish",
         "stage": "Bosqich",
@@ -4556,6 +4878,36 @@
           "no_service": "Bunday xizmat yo'q",
           "spam": "Spam / dublikat"
         }
+      },
+      "assign": {
+        "title": "Operator",
+        "select": "Operatorni tanlang",
+        "none": "Taqsimlanmagan",
+        "me": "Menga",
+        "at": "Taqsimlangan vaqt",
+        "done": "Lid operatorga biriktirildi.",
+        "removed": "Biriktirish olib tashlandi.",
+        "err": "Biriktirib bo'lmadi. Qayta urining.",
+        "noPermission": "Taqsimlash faqat menejer/admin uchun (leads.manage).",
+        "opsForbidden": "Operatorlar ro'yxatini ko'rish uchun ruxsat yo'q (users.manage).",
+        "noOps": "Faol call-markaz operatori topilmadi.",
+        "localNote": "Biriktirish lid tafsilotlarida saqlanadi (backend'da alohida maydon hali yo'q)."
+      },
+      "auto": {
+        "btn": "Avto-taqsimlash",
+        "title": "Lidlarni avtomatik taqsimlash",
+        "text": "{n} ta taqsimlanmagan lid {m} ta operator o'rtasida bo'linadi. Hudud mos kelsa — o'sha hudud operatoriga, aks holda navbat bilan.",
+        "strategy": "Usul",
+        "roundRobin": "Navbat bilan (round-robin)",
+        "leastLoaded": "Eng kam yuklangan operatorga",
+        "preview": "Rejalashtirilgan taqsimot",
+        "confirm": "Taqsimlashni boshlash",
+        "running": "Taqsimlanmoqda: {done}/{total}",
+        "done": "{n} ta lid taqsimlandi.",
+        "partial": "{n} ta lid taqsimlandi, {failed} tasi o'tmadi.",
+        "nothing": "Taqsimlanmagan lid yo'q.",
+        "noOps": "Faol operator yo'q — avval call-markaz xodimini qo'shing.",
+        "backendPending": "Backend'da avto-taqsimlash endpoint'i hali yo'q — taqsimot lid tafsilotlariga yoziladi va shu yerda ko'rinadi."
       }
     },
     "callAnalytics": {
@@ -4566,7 +4918,10 @@
       "avg": "O'rtacha davomiylik",
       "byDay": "Kunlar bo'yicha",
       "topAgents": "Faol operatorlar",
-      "noData": "Ma'lumot yo'q"
+      "noData": "Ma'lumot yo'q",
+      "answerRate": "Javob ulushi",
+      "inRange": "tanlangan davrda",
+      "noAgents": "Operatorlar bo'yicha kesim hali backendda yo'q."
     },
     "ceo": {
       "title": "CEO paneli",
@@ -4646,7 +5001,8 @@
       "severity": { "high": "Yuqori", "medium": "O'rta", "low": "Past" },
       "status": { "open": "Ochiq", "in_progress": "Ko'rilmoqda", "resolved": "Hal qilindi", "closed": "Yopilgan", "pending": "Kutilmoqda", "rejected": "Rad etildi" },
       "category": { "service": "Xizmat", "payment": "To'lov", "quality": "Sifat", "fraud": "Firibgarlik", "other": "Boshqa" },
-      "complaintCount": "Shikoyatlar soni"
+      "complaintCount": "Shikoyatlar soni",
+      "byStatus": "Shikoyatlar holati"
     },
     "b2b": {
       "title": "B2B mijozlar",
@@ -4697,7 +5053,17 @@
       "adding": "Qo'shilmoqda…",
       "error": "Xatolik. Qayta urining.",
       "upsellTitle": "Upsell tavsiyalari",
-      "noUpsell": "Tavsiya yo'q"
+      "noUpsell": "Tavsiya yo'q",
+      "reason": {
+        "subscription_expiring": "Obuna muddati tugayapti",
+        "no_paid_activity_30_days": "30 kun to'lov yo'q",
+        "no_paid_history": "Hech qachon to'lamagan"
+      },
+      "lastPaid": "Oxirgi to'lov: {date}",
+      "neverPaid": "To'lov tarixi yo'q",
+      "noClientId": "Bu mijozni navbatga qo'shib bo'lmaydi (id yo'q)",
+      "demoAction": "Demo yozuv — amal bajarilmaydi",
+      "price": "Narx"
     },
     "audit": {
       "title": "Audit jurnali",
@@ -5057,7 +5423,7 @@
         "services": "Xizmatlar",
         "active_templates": "Faol shablonlar",
         "seller_profiles": "Advokat va yurist profillari",
-        "active_plans": "Faol obuna rejalari"
+        "active_plans": "Faol paket tariflar"
       },
       "scenarios": "Ssenariylar",
       "scenarioKeys": {
@@ -5287,6 +5653,122 @@
       "simDeadline": "Advokat javob muddati (30 daqiqa)",
       "forbidden": "Bu amal uchun ruxsat yo'q (cases.manage).",
       "error": "Xatolik. Qayta urining."
+    },
+    "dash": {
+      "filter": {
+        "aria": "Panel filtrlari",
+        "region": "Hudud",
+        "from": "Sanadan",
+        "to": "Sanagacha",
+        "clear": "Tozalash",
+        "presets": "Tez davr",
+        "d7": "7 kun",
+        "d30": "30 kun",
+        "d90": "90 kun",
+        "reset": "Filtrni tozalash",
+        "demo": "Demo ko'rsatish",
+        "demoOn": "Demo yoqilgan",
+        "demoTitle": "Real ma'lumot bo'lsa ham namunaviy ko'rsatkichlarni ko'rish",
+        "regionNote": "Hudud va sana filtri backendga yuboriladi, lekin server hali ularni qo'llamaydi — filtr faqat ro'yxat va dinamikaga (brauzerda) qo'llanadi.",
+        "sellerNote": "Filtr yangi buyurtmalar ro'yxatiga qo'llanadi; hisoblagichlar butun kabinet bo'yicha."
+      },
+      "demo": {
+        "badge": "Demo ma'lumot",
+        "banner": "Hozircha real faoliyat yo'q — namunaviy ko'rsatkichlar ko'rsatilmoqda. Birinchi lid, buyurtma yoki to'lov paydo bo'lishi bilan real ma'lumotlar avtomatik chiqadi.",
+        "forced": "Demo rejim yoqilgan: real ma'lumotlar o'rniga namunaviy ko'rsatkichlar ko'rsatilmoqda. O'chirish uchun «Demo yoqilgan» tugmasini bosing."
+      },
+      "hint": {
+        "regionNa": "hudud filtri bu ko'rsatkichga qo'llanmaydi",
+        "dateNa": "sana filtri bu ko'rsatkichga qo'llanmaydi",
+        "inRange": "tanlangan davrda",
+        "regionOnly": "faqat {region}"
+      },
+      "drill": {
+        "open": "Batafsil ko'rish",
+        "details": "Batafsil",
+        "empty": "Tafsilot yo'q",
+        "total": "Jami",
+        "byStatus": "Holat bo'yicha",
+        "byScore": "Baho bo'yicha",
+        "byRegion": "Hudud bo'yicha",
+        "byRole": "Rol bo'yicha",
+        "byDay": "Kunlar bo'yicha",
+        "trend": "Dinamika",
+        "payments": "To'lovlar",
+        "paid": "To'langan",
+        "pending": "Kutilmoqda",
+        "paidCount": "To'langan (soni)",
+        "pendingCount": "Kutilayotgan (soni)",
+        "funnel": "Voronka",
+        "channels": "Kanallar",
+        "users": "Foydalanuvchilar",
+        "clients": "Mijozlar",
+        "organizations": "Tashkilotlar",
+        "sellers": "Advokat va yuristlar",
+        "newUsers": "Bu oy yangi",
+        "newClients": "Yangi mijozlar",
+        "newAdvocates": "Yangi advokatlar",
+        "newLawyers": "Yangi yuristlar",
+        "retention": "Ushlab qolish",
+        "prevActive": "Oldingi davrda faol",
+        "curActive": "Joriy davrda faol",
+        "retainedClients": "Saqlangan mijozlar",
+        "churned": "Ketgan mijozlar",
+        "atRisk": "Xavf ostida",
+        "atRiskLeads": "Yo'qotilgan lidlar",
+        "flagged": "Belgilangan muammolar",
+        "complaints": "Shikoyatlar",
+        "resolved": "Hal qilingan",
+        "sla": "Javob SLA",
+        "rating": "O'rtacha reyting",
+        "activeUsers": "Faol foydalanuvchilar",
+        "conversion": "Konversiya",
+        "revenue": "Daromad",
+        "mrr": "MRR",
+        "arr": "ARR",
+        "arpu": "ARPU",
+        "gmv": "GMV",
+        "takeRate": "Take rate",
+        "cac": "CAC",
+        "cacClient": "CAC — mijoz",
+        "cacAdvocate": "CAC — advokat",
+        "ltv": "LTV",
+        "ltvCac": "LTV : CAC",
+        "payback": "Payback (oy)",
+        "nps": "NPS",
+        "gifts": "Sovg'alar",
+        "tasks": "Vazifalar",
+        "b2b": "B2B mijozlar",
+        "reviews": "Sharhlar",
+        "answered": "Javob berilgan",
+        "missed": "O'tkazib yuborilgan",
+        "answerRate": "Javob ulushi",
+        "missRate": "O'tkazib yuborish ulushi",
+        "avgDuration": "O'rtacha davomiylik",
+        "agents": "Eng faol operatorlar",
+        "leads": "Lidlar",
+        "orders": "Buyurtmalar",
+        "cases": "Ishlar",
+        "services": "Xizmatlar",
+        "leadsLoadFailed": "Hudud kesimi uchun lidlar ro'yxati yuklanmadi (ruxsat yoki backend).",
+        "sellersLoadFailed": "Hudud kesimi uchun advokatlar ro'yxati yuklanmadi.",
+        "regionUnknown": "Hudud ko'rsatilmagan",
+        "goRetention": "Ushlab qolish paneliga o'tish",
+        "goQuality": "Sifat nazoratiga o'tish",
+        "goPipeline": "Sotuv voronkasiga o'tish",
+        "goLeads": "Lidlarga o'tish",
+        "goCallCenter": "Call-markazga o'tish",
+        "goCeo": "CEO paneliga o'tish",
+        "mrrNote": "Backend MRR sifatida hozircha umumiy to'langan summani qaytaradi.",
+        "constNote": "Reyting va SLA hozircha backendda doimiy qiymat — real hisob-kitob kutilmoqda.",
+        "backendWait": "Bu tafsilot uchun backend kutilmoqda."
+      },
+      "role": {
+        "yurist": "Yuristlar",
+        "advokat": "Advokatlar",
+        "advokat_tashkiloti": "Advokatlik tashkilotlari",
+        "client": "Mijozlar"
+      }
     }
   },
   "secureChat": {
@@ -5518,7 +6000,21 @@
     "camDenied": "Brauzerda kameraga ruxsat bering (manzil qatoridagi qulf belgisi → Kamera).",
     "emptyEnding": "Suhbatdosh chiqib ketdi — uchrashuv {s} soniyadan keyin tugaydi",
     "endingIn": "Tugaydi: {s} s",
-    "inviteClient": "Mijozingiz"
+    "inviteClient": "Mijozingiz",
+    "recAskToast": "{name} yozib olishga ruxsat so'rayapti",
+    "recAskTitle": "{name} yozib olishga ruxsat so'rayapti",
+    "recAskLead": "Rejim: {mode}. Yozuv faqat uning qurilmasida saqlanadi; barcha ishtirokchilar xabardor qilinadi.",
+    "recAllow": "Ruxsat berish",
+    "recDeny": "Rad etish",
+    "recAsking": "Ruxsat so'rovi yuborildi — advokat/operator javobi kutilmoqda.",
+    "recWaiting": "Ruxsat kutilmoqda… {s} s",
+    "recWaitingShort": "Kutilmoqda",
+    "recWaitingLead": "Rejim: {mode}. Advokat yoki operator ruxsat bergach yozib olish boshlanadi.",
+    "recAllowedBy": "{name} yozib olishga ruxsat berdi",
+    "recDeniedBy": "{name} yozib olishni rad etdi",
+    "recNoAnswer": "Javob yo'q — yozib olish boshlanmadi.",
+    "recNeedApprover": "Yozib olish uchun advokat/operator ruxsati kerak — hozir uchrashuvda ular yo'q.",
+    "recChip": "yozib olmoqda"
   },
   "theme": {
     "label": "Mavzu",
