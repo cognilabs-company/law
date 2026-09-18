@@ -3,7 +3,7 @@
 import { useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getLeadTimeline, reengageLead, logCcCall, createTask, type KanbanColumn } from "@/lib/services/backend";
-import { isForbiddenErr, type LeadX, type OpsStatus } from "@/lib/services/leads";
+import { isForbiddenErr, leadUserId, type LeadX, type OpsStatus } from "@/lib/services/leads";
 import type { AdminUser } from "@/lib/services/users";
 import { useResource } from "@/lib/useResource";
 import { Notice, useReload } from "@/components/admin/AdminBits";
@@ -13,6 +13,7 @@ import { fmtDate, shortDateTime } from "@/lib/date";
 import { assigneeLabel, leadRegionLabel, leadScoreLabel, leadUrgencyLabel } from "@/lib/leadLabels";
 import { Skeleton } from "@/components/portal/DataState";
 import { IconClose, IconClock, IconPhone, IconSend, IconUser } from "@/components/icons";
+import CcMeetingButton from "./CcMeetingButton";
 
 // Lead detail drawer for the sales workspace: client info, stage switch,
 // operator assignment and a timeline of everything that happened to the lead.
@@ -169,6 +170,7 @@ export default function LeadDrawer({
             <span className="ldrw__lbl">{t("d.actions")}</span>
             <div className="ldrw__acts">
               <a className="btn btn--soft btn--sm" href={`tel:${(lead.phone || "").replace(/[^+\d]/g, "")}`}><IconPhone />{t("d.call")}</a>
+              {lead.phone ? <CcMeetingButton clientUserId={leadUserId(lead)} phone={lead.phone} clientName={lead.name} /> : null}
               <button className="btn btn--soft btn--sm" type="button" disabled={act === "call" || !lead.phone} onClick={logCall}>{act === "call" ? t("d.saving") : t("d.logCall")}</button>
             </div>
             <div className="ldrw__noteadd">

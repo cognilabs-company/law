@@ -1,7 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
+import StatTile from "@/components/admin/StatTile";
+import StatDrillModal, { type Drill } from "@/components/admin/StatDrillModal";
 import { Skeleton, EmptyState } from "./DataState";
 import { useSellerCabinet } from "./SellerCabinet";
 import { uzs, fmtUzs } from "@/lib/money";
@@ -57,8 +60,10 @@ export default function StatGrid({
 }) {
   const t = useTranslations("portal.stats");
   // Stats come from the cabinet bootstrap loaded by the portal shell.
+  const td = useTranslations("admin.dash");
   const cabinet = useSellerCabinet();
   const metrics = variant === "workload" ? WORKLOAD : PERFORMANCE;
+  const [drill, setDrill] = useState<Drill | null>(null);
 
   if (cabinet.status === "loading") return <Skeleton rows={2} />;
   if (cabinet.status === "error" || !cabinet.data) {
@@ -85,15 +90,22 @@ export default function StatGrid({
       ? `${t(m.label)} · ${t.has(`periods.${period}`) ? t(`periods.${period}`) : period.replace(/_/g, " ")}`
       : t(m.label);
 
+  const open = (m: Metric) =>
+    setDrill({
+      title: caption(m),
+      value: value(m),
+      demo: cabinet.demo,
+      sections: [{ kind: "kv", title: td(variant === "workload" ? "drill.workload" : "drill.performance"), rows: metrics.map((x) => ({ label: caption(x), value: value(x) })) }],
+    });
+
   return (
-    <div className="amet">
-      {metrics.map((m) => (
-        <div className="amet__c" key={m.key}>
-          <span className="amet__i"><m.Icon /></span>
-          <b>{value(m)}</b>
-          <span className="amet__l">{caption(m)}</span>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="amet">
+        {metrics.map((m) => (
+          <StatTile key={m.key} variant="amet" icon={<m.Icon />} value={value(m)} label={caption(m)} demo={cabinet.demo} onClick={() => open(m)} />
+        ))}
+      </div>
+      <StatDrillModal drill={drill} onClose={() => setDrill(null)} />
+    </>
   );
 }

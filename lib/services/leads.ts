@@ -37,6 +37,8 @@ const normScore = (v: unknown): LeadScore | "" => {
 
 // Assignee id carried in the details (works for a plain Lead too).
 export const assigneeOf = (lead: Lead): string => asStr(asDict(lead.details).assigned_to_user_id);
+// Platform user behind the lead, when the backend recorded one.
+export const leadUserId = (lead: Lead): string => { const d = asDict(lead.details); return asStr(d.user_id ?? d.client_user_id ?? d.created_by_user_id); };
 
 export function normLeadX(v: unknown): LeadX {
   const d = asDict(v);

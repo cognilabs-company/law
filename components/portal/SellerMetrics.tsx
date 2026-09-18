@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { SellerStats } from "@/lib/services/backend";
 import { IconTrendingUp, IconClock, IconStar, IconEye, IconSun } from "@/components/icons";
+import StatTile from "@/components/admin/StatTile";
 
 // T1-11: "Ko'rsatkichlarim" — response rate, acceptance rate, average answer
 // time and rating are always visible to the seller (S-20), plus the
@@ -13,7 +14,7 @@ const VAC_KEY = (uid: string) => `lexgo_vacation_${uid}`;
 export function readVacation(uid: string): boolean { try { return localStorage.getItem(VAC_KEY(uid)) === "1"; } catch { return false; } }
 export function writeVacation(uid: string, on: boolean) { try { localStorage.setItem(VAC_KEY(uid), on ? "1" : "0"); } catch { /* ignore */ } }
 
-export default function SellerMetrics({ stats, userId }: { stats: SellerStats; userId: string }) {
+export default function SellerMetrics({ stats, userId, demo }: { stats: SellerStats; userId: string; demo?: boolean }) {
   const t = useTranslations("portal.sellerDash.metrics");
   const p = stats.performance as Record<string, unknown>;
   const num = (k: string) => (typeof p[k] === "number" ? (p[k] as number) : Number(p[k]) || 0);
@@ -38,10 +39,10 @@ export default function SellerMetrics({ stats, userId }: { stats: SellerStats; u
       </div>
       {vacation ? <p className="anote anote--err" style={{ marginBottom: 12 }}>{t("vacationNote")}</p> : null}
       <div className="amet">
-        <div className="amet__c"><span className="amet__i"><IconTrendingUp /></span><b>{pct(responseRate)}</b><span className="amet__l">{t("responseRate")}</span></div>
-        <div className="amet__c"><span className="amet__i"><IconStar /></span><b>{acceptance == null ? "—" : pct(acceptance)}</b><span className="amet__l">{t("acceptanceRate")}</span></div>
-        <div className="amet__c"><span className="amet__i"><IconClock /></span><b>{avgMin ? t("minutes", { n: avgMin }) : "—"}</b><span className="amet__l">{t("avgResponse")}</span></div>
-        <div className="amet__c"><span className="amet__i"><IconEye /></span><b>{rating ? rating.toFixed(1) : "—"}</b><span className="amet__l">{t("rating")}</span></div>
+        <StatTile variant="amet" icon={<IconTrendingUp />} value={pct(responseRate)} label={t("responseRate")} demo={demo} />
+        <StatTile variant="amet" icon={<IconStar />} value={acceptance == null ? "—" : pct(acceptance)} label={t("acceptanceRate")} demo={demo} />
+        <StatTile variant="amet" icon={<IconClock />} value={avgMin ? t("minutes", { n: avgMin }) : "—"} label={t("avgResponse")} demo={demo} />
+        <StatTile variant="amet" icon={<IconEye />} value={rating ? rating.toFixed(1) : "—"} label={t("rating")} demo={demo} />
       </div>
       <p className="advmuted" style={{ marginTop: 10, fontSize: ".82rem" }}>{tip}</p>
     </div>

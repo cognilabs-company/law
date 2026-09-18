@@ -4792,7 +4792,9 @@
       "ccStart": "Video uchrashuv",
       "ccStartWith": "{name} bilan video uchrashuv",
       "ccTitle": "Video uchrashuv · {name}",
-      "ccError": "Uchrashuvni ochib bo'lmadi. Qayta urining."
+      "ccError": "Uchrashuvni ochib bo'lmadi. Qayta urining.",
+      "ccNoUser": "Bu telefon raqami bilan platformada foydalanuvchi topilmadi — mijoz avval ro'yxatdan o'tishi kerak.",
+      "ccSelf": "O'zingiz bilan uchrashuv ochib bo'lmaydi."
     },
     "testOtps": {
       "title": "Test OTP kodlari",
@@ -5695,7 +5697,9 @@
       "demo": {
         "badge": "Demo ma'lumot",
         "banner": "Hozircha real faoliyat yo'q — namunaviy ko'rsatkichlar ko'rsatilmoqda. Birinchi lid, buyurtma yoki to'lov paydo bo'lishi bilan real ma'lumotlar avtomatik chiqadi.",
-        "forced": "Demo rejim yoqilgan: real ma'lumotlar o'rniga namunaviy ko'rsatkichlar ko'rsatilmoqda. O'chirish uchun «Demo yoqilgan» tugmasini bosing."
+        "forced": "Demo rejim yoqilgan: real ma'lumotlar o'rniga namunaviy ko'rsatkichlar ko'rsatilmoqda. O'chirish uchun «Demo yoqilgan» tugmasini bosing.",
+        "noAction": "Demo yozuv — amallar bajarilmaydi",
+        "sellerBanner": "Kabinetda hali real faoliyat yo'q — namunaviy ko'rsatkichlar ko'rsatilmoqda. Birinchi buyurtma yoki to'lov bilan real raqamlar avtomatik chiqadi."
       },
       "hint": {
         "regionNa": "hudud filtri bu ko'rsatkichga qo'llanmaydi",
@@ -5781,7 +5785,16 @@
         "goCeo": "CEO paneliga o'tish",
         "mrrNote": "Backend MRR sifatida hozircha umumiy to'langan summani qaytaradi.",
         "constNote": "Reyting va SLA hozircha backendda doimiy qiymat — real hisob-kitob kutilmoqda.",
-        "backendWait": "Bu tafsilot uchun backend kutilmoqda."
+        "backendWait": "Bu tafsilot uchun backend kutilmoqda.",
+        "workload": "Ish yuki",
+        "finance": "Moliya",
+        "performance": "Samaradorlik",
+        "newOrders": "Yangi so'rovlar",
+        "activeCasesList": "Faol ishlar",
+        "chats": "Xavfsiz chatlar",
+        "goOrders": "So'rovlarga o'tish",
+        "goCases": "Ishlarga o'tish",
+        "goPayouts": "To'lovlarga o'tish"
       },
       "role": {
         "yurist": "Yuristlar",

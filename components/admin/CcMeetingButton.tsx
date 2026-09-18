@@ -3,14 +3,17 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth, canMakeCalls } from "@/lib/auth";
-import { createSecureChat, startCall } from "@/lib/services/backend";
+import { createSecureChat, startCall, searchUsers } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import CallRoom from "@/components/chat/CallRoom";
 import { IconVideo } from "@/components/icons";
 
 export type CcMeetingButtonProps = {
   // The client (platform user id) to meet; they are invited and ring at once.
-  clientUserId: string;
+  // Leads often carry only a phone: pass it as `phone` and the user is looked
+  // up (staff /users/search) on the first click.
+  clientUserId?: string;
+  phone?: string;
   // Shown in the button tooltip and used as the meeting title.
   clientName?: string;
   // Optional explicit meeting title (defaults to "Video meeting · <name>").
@@ -38,13 +41,25 @@ export async function startClientMeeting(clientUserId: string, title: string): P
 // Small camera button for call-center boards: one click starts a video
 // meeting with this client and opens the room inline (fixed overlay).
 // Hidden for accounts that cannot start calls (meetings.manage / call-center).
-export default function CcMeetingButton({ clientUserId, clientName, title, className, onStarted }: CcMeetingButtonProps) {
+const digitsOf = (s: string) => s.replace(/\D/g, "");
+// Resolve a lead's phone to a platform user id (exact digit match; last 9
+// digits as a fallback for numbers stored without the country code).
+export async function findUserByPhone(phone: string): Promise<string> {
+  const d = digitsOf(phone);
+  if (d.length < 7) return "";
+  const users = await searchUsers(d.length > 9 ? "+" + d : d);
+  const exact = users.find((u) => digitsOf(u.phone) === d);
+  const tail = exact ?? users.find((u) => digitsOf(u.phone).endsWith(d.slice(-9)));
+  return tail?.id ?? "";
+}
+
+export default function CcMeetingButton({ clientUserId, phone, clientName, title, className, onStarted }: CcMeetingButtonProps) {
   const t = useTranslations("admin.meetings");
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [active, setActive] = useState<Active | null>(null);
-  if (!session || !canMakeCalls(session) || !clientUserId || clientUserId === session.id) return null;
+  if (!session || !canMakeCalls(session) || (!clientUserId && !phone) || clientUserId === session.id) return null;
 
   const name = clientName?.trim() || "";
   const meetTitle = title?.trim() || (name ? t("ccTitle", { name }) : t("ccStart"));
@@ -54,7 +69,10 @@ export default function CcMeetingButton({ clientUserId, clientName, title, class
     setBusy(true);
     setErr(null);
     try {
-      const ids = await startClientMeeting(clientUserId, meetTitle);
+      const uid = clientUserId || (await findUserByPhone(phone || ""));
+      if (!uid) { setErr(t("ccNoUser")); return; }
+      if (uid === session?.id) { setErr(t("ccSelf")); return; }
+      const ids = await startClientMeeting(uid, meetTitle);
       onStarted?.({ roomId: ids.roomId, callId: ids.callId });
       setActive(ids);
     } catch (e) {

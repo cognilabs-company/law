@@ -4346,3 +4346,8 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
   .dfbar__segs{margin-left:0}
   .dfbar__f--region,.dfbar__f--date{flex:1 1 100%;max-width:none}
 }
+
+/* ── wp-ccmeet ── */
+.ccb__contact{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ccmeet--sm{width:28px;height:28px;border-radius:8px}
+.ccmeet--sm svg{width:15px;height:15px}

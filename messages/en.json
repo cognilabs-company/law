@@ -4786,7 +4786,9 @@
       "ccStart": "Video meeting",
       "ccStartWith": "Video meeting with {name}",
       "ccTitle": "Video meeting · {name}",
-      "ccError": "Could not start the meeting. Try again."
+      "ccError": "Could not start the meeting. Try again.",
+      "ccNoUser": "No platform user with this phone number — the client needs to sign up first.",
+      "ccSelf": "You cannot start a meeting with yourself."
     },
     "testOtps": {
       "title": "Test OTP codes",
@@ -5689,7 +5691,9 @@
       "demo": {
         "badge": "Demo data",
         "banner": "No real activity yet — demo figures are shown. Real data appears automatically once the first lead, order or payment exists.",
-        "forced": "Demo mode is on: demo figures are shown instead of real data. Click \"Demo on\" to turn it off."
+        "forced": "Demo mode is on: demo figures are shown instead of real data. Click \"Demo on\" to turn it off.",
+        "noAction": "Demo record — actions are disabled",
+        "sellerBanner": "No real activity in the cabinet yet — sample metrics are shown. Real numbers appear automatically with the first order or payment."
       },
       "hint": {
         "regionNa": "the region filter does not apply to this metric",
@@ -5775,7 +5779,16 @@
         "goCeo": "Open CEO dashboard",
         "mrrNote": "The backend currently returns the total paid amount as MRR.",
         "constNote": "Rating and SLA are backend constants for now — real calculation pending.",
-        "backendWait": "This breakdown is waiting for the backend."
+        "backendWait": "This breakdown is waiting for the backend.",
+        "workload": "Workload",
+        "finance": "Finance",
+        "performance": "Performance",
+        "newOrders": "New requests",
+        "activeCasesList": "Active cases",
+        "chats": "Secure chats",
+        "goOrders": "Go to requests",
+        "goCases": "Go to cases",
+        "goPayouts": "Go to payouts"
       },
       "role": {
         "yurist": "Lawyers",

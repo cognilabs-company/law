@@ -18,6 +18,7 @@ import {
   filterActive,
   type KanbanColumnX,
   type LeadFilter,
+  leadUserId,
   type LeadX,
 } from "@/lib/services/leads";
 import { useAuth } from "@/lib/auth";
@@ -31,6 +32,7 @@ import Select from "@/components/Select";
 import { Skeleton } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconRefresh, IconPhone, IconUser } from "@/components/icons";
+import CcMeetingButton from "./CcMeetingButton";
 
 type State = { status: "loading" | "ready" | "error" | "forbidden"; columns: KanbanColumnX[] };
 
@@ -208,10 +210,13 @@ export default function CallCenterBoard() {
                       </span>
                     </span>
                     {lead.phone ? (
-                      <a className="ccb__tel" href={`tel:${lead.phone.replace(/[^+\d]/g, "")}`}>
-                        <IconPhone />
-                        {lead.phone}
-                      </a>
+                      <span className="ccb__contact">
+                        <a className="ccb__tel" href={`tel:${lead.phone.replace(/[^+\d]/g, "")}`}>
+                          <IconPhone />
+                          {lead.phone}
+                        </a>
+                        <CcMeetingButton clientUserId={leadUserId(lead)} phone={lead.phone} clientName={lead.name} className="ccmeet--sm" />
+                      </span>
                     ) : null}
                     {canAssign ? (
                       <div className="lasgn__row">

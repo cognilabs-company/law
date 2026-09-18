@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { BackendOrder, SellerActions, SellerCabinet } from "@/lib/services/backend";
 import { Skeleton, EmptyState } from "./DataState";
@@ -11,7 +11,12 @@ import OnboardingProgress from "./OnboardingProgress";
 import SellerMetrics from "./SellerMetrics";
 import SellerPayouts from "./SellerPayouts";
 import ReferralProgress from "./ReferralProgress";
-import { useSellerCabinet } from "./SellerCabinet";
+import { useSellerCabinet, isDemoId } from "./SellerCabinet";
+import StatTile from "@/components/admin/StatTile";
+import StatDrillModal, { type Drill, type DrillRow } from "@/components/admin/StatDrillModal";
+import DashFilterBar, { useDashFilter } from "@/components/admin/DashFilterBar";
+import { inRange, isFiltered, type SellerCabinetFull } from "@/lib/services/dash";
+import { fmtDate } from "@/lib/date";
 import { useAuth, type Role } from "@/lib/auth";
 import { uzs, fmtUzs } from "@/lib/money";
 import {
@@ -25,6 +30,7 @@ import {
   IconEye,
   IconMapPin,
   IconLock,
+  IconInfo,
 } from "@/components/icons";
 
 type SvgC = (p: { className?: string }) => ReactNode;
@@ -59,10 +65,15 @@ const som = (n: number) => fmtUzs(n);
 export default function SellerDashboard({ role }: { role: Role }) {
   const t = useTranslations("portal.sellerDash");
   const tc = useTranslations("portal.common");
+  const locale = useLocale();
   const { session } = useAuth();
   // Stats + new orders come from the cabinet bootstrap loaded by the shell.
   const cabinet = useSellerCabinet();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const td = useTranslations("admin.dash");
+  const { filter, setFilter, demoForced, setDemoForced } = useDashFilter();
+  const [drill, setDrill] = useState<Drill | null>(null);
+  const demo = cabinet.demo;
 
   // Pending/unverified seller: profile + verification state instead of empty
   // stats and orders they can't act on.
@@ -82,27 +93,50 @@ export default function SellerDashboard({ role }: { role: Role }) {
     }
     const s = cabinet.data.stats;
     const cur = String((s.finance?.currency as string) || "UZS");
+    const fmtTile = (m: Tile) => {
+      const n = m.money ? uzs(s[m.from], m.key) : num(s[m.from] as Record<string, unknown>, m.key);
+      return m.money ? `${som(n)} ${cur}` : String(n);
+    };
     return (
       <div className="amet">
-        {list.map((m) => {
-          const n = m.money ? uzs(s[m.from], m.key) : num(s[m.from] as Record<string, unknown>, m.key);
-          return (
-            <div className="amet__c" key={m.key}>
-              <span className="amet__i"><m.Icon /></span>
-              <b>{m.money ? `${som(n)} ${cur}` : String(n)}</b>
-              <span className="amet__l">{t(m.label)}</span>
-            </div>
-          );
-        })}
+        {list.map((m) => (
+          <StatTile key={m.key} variant="amet" icon={<m.Icon />} value={fmtTile(m)} label={t(m.label)} demo={demo} onClick={() => openDrill(cabinet.data as SellerCabinetFull, m, list, fmtTile)} />
+        ))}
       </div>
     );
   }
 
-  const openCases = (cabinet.data?.newOrders ?? []).filter((o) => !dismissed.has(o.id));
+  // Drill-down for a seller tile: the whole group's numbers plus the list the
+  // number is made of (new orders / active cases / secure chats).
+  function openDrill(c: SellerCabinetFull, m: Tile, list: Tile[], fmtTile: (x: Tile) => string) {
+    const group: DrillRow[] = list.map((x) => ({ label: t(x.label), value: fmtTile(x) }));
+    const sections: Drill["sections"] = [{ kind: "kv", title: td(m.from === "finance" ? "drill.finance" : "drill.workload"), rows: group }];
+    let link: Drill["link"];
+    const base = role === "advocate" ? "/portal/advocate" : "/portal/lawyer";
+    if (m.key === "active_cases" || m.key === "courts_today" || m.key === "deadlines_today") {
+      sections.push({ kind: "list", title: td("drill.activeCasesList"), rows: c.activeCases.map((k) => ({ label: `${k.caseNumber ? k.caseNumber + " · " : ""}${k.title}`, value: k.deadlineAt ? fmtDate(k.deadlineAt, locale) : "", sub: [k.stage, k.nextAction].filter(Boolean).join(" · ") })) });
+      link = { href: `${base}/cases`, label: td("drill.goCases") };
+    } else if (m.key === "unread_messages") {
+      sections.push({ kind: "list", title: td("drill.chats"), rows: c.secureChats.map((r) => ({ label: r.caseId || r.orderId || r.id, value: r.updatedAt ? fmtDate(r.updatedAt, locale) : "", sub: r.status })) });
+    } else if (m.from === "finance") {
+      link = { href: `${base}/payouts`, label: td("drill.goPayouts") };
+    } else {
+      sections.push({ kind: "list", title: td("drill.newOrders"), rows: c.newOrders.map((o) => ({ label: o.serviceName || o.title, value: o.budget || "", sub: o.region || "" })) });
+      link = { href: role === "advocate" ? "/portal/advocate/opportunities" : "/portal/lawyer/marketplace", label: td("drill.goOrders") };
+    }
+    setDrill({ title: t(m.label), value: fmtTile(m), demo, sections, link });
+  }
+
+  // Region / date filter reaches the new-orders list (the counters are cabinet-wide).
+  const openCases = (cabinet.data?.newOrders ?? []).filter((o) => !dismissed.has(o.id))
+    .filter((o) => !filter.region || (o.region || "").toLowerCase() === filter.region.toLowerCase())
+    .filter((o) => !(filter.from || filter.to) || !o.createdAt || inRange(o.createdAt.slice(0, 10), filter));
 
   return (
     <>
       {cabinet.status === "loading" ? null : <OnboardingProgress role={role} limited={false} />}
+      <DashFilterBar value={filter} onChange={setFilter} demoForced={demoForced} onDemoForced={setDemoForced} note={isFiltered(filter) ? td("filter.sellerNote") : undefined} compact />
+      {demo ? <p className="bhnote" role="status"><IconInfo />{demoForced ? td("demo.forced") : td("demo.sellerBanner")}</p> : null}
       <div className="ppanel">
         <div className="ppanel__h">
           <b>{t("today")}</b>
@@ -118,7 +152,7 @@ export default function SellerDashboard({ role }: { role: Role }) {
         {tiles(FINANCE)}
       </div>
 
-      {cabinet.data ? <SellerMetrics stats={cabinet.data.stats} userId={session?.id || ""} /> : null}
+      {cabinet.data ? <SellerMetrics stats={cabinet.data.stats} userId={session?.id || ""} demo={demo} /> : null}
       {cabinet.data ? <SellerPayouts /> : null}
       <ReferralProgress side="seller" href={role === "advocate" ? "/portal/advocate/referrals" : "/portal/lawyer/referrals"} />
 
@@ -139,6 +173,7 @@ export default function SellerDashboard({ role }: { role: Role }) {
           </div>
         )}
       </div>
+      <StatDrillModal drill={drill} onClose={() => setDrill(null)} />
     </>
   );
 }
@@ -191,7 +226,9 @@ function CabinetStatus({ cabinet: c, role }: { cabinet: SellerCabinet; role: Rol
 
 function NewCase({ order: o, role, onDone }: { order: BackendOrder; role: Role; onDone: () => void }) {
   const t = useTranslations("portal.sellerDash");
+  const td = useTranslations("admin.dash");
   const [open, setOpen] = useState(false);
+  const isDemo = isDemoId(o.id);
   const listHref = role === "advocate" ? "/portal/advocate/opportunities" : "/portal/lawyer/marketplace";
   const meta = [o.region, o.budget].filter(Boolean).join(" · ");
   return (
@@ -215,7 +252,7 @@ function NewCase({ order: o, role, onDone }: { order: BackendOrder; role: Role; 
             {t("review")}
           </Link>
         )}
-        <OrderActions orderId={o.id} onDone={onDone} />
+        {isDemo ? <span className="chip" title={td("demo.noAction")}><IconLock />{td("demo.badge")}</span> : <OrderActions orderId={o.id} onDone={onDone} />}
       </div>
     </div>
   );
