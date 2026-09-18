@@ -196,11 +196,15 @@ export default function CallCenterBoard() {
                 <span className="advmuted">{filtered ? c.cards.length : c.count || c.cards.length}</span>
               </div>
               {c.cards.length ? (
-                c.cards.map(({ lead }) => (
+                c.cards.map(({ lead }) => {
+                  // The category label is already the card title when the lead
+                  // has neither a name nor a phone — don't repeat it in the meta line.
+                  const titledByCategory = !lead.name && !lead.phone;
+                  return (
                   <div className="ccb__card" key={lead.id}>
                     <b>{lead.name || lead.phone || leadCategoryLabel(tp, lead.category) || tp("untitledLead")}</b>
                     <span className="ccb__meta">
-                      {[leadCategoryLabel(tp, lead.category), leadRegionLabel(te, lead.region)].filter(Boolean).join(" · ")}
+                      {[titledByCategory ? "" : leadCategoryLabel(tp, lead.category), leadRegionLabel(te, lead.region)].filter(Boolean).join(" · ")}
                     </span>
                     <span className="pipe__tags">
                       {lead.scoreKey ? <span className={`lscore lscore--${lead.scoreKey}`}>{leadScoreLabel(tp, lead.scoreKey)}</span> : null}
@@ -217,20 +221,21 @@ export default function CallCenterBoard() {
                         <CcMeetingButton clientUserId={leadUserId(lead)} phone={lead.phone} clientName={lead.name} className="ccmeet--sm" />
                       </span>
                     ) : null}
-                    {canAssign ? (
-                      <div className="lasgn__row">
+                    <div className="ccb__sels">
+                      {canAssign ? (
                         <Select value={lead.assignedTo} onChange={(v) => void assign(lead, v)} options={assigneeOpts} ariaLabel={tp("assign.select")} placeholder={busyId === lead.id ? tq("working") : tp("assign.select")} />
-                      </div>
-                    ) : null}
-                    <Select
-                      value=""
-                      onChange={(v) => move(lead.id, v)}
-                      options={state.columns.filter((o) => o.key !== c.key).map((o) => ({ value: o.key, label: colTitle(o) }))}
-                      ariaLabel={tq("moveTo")}
-                      placeholder={busyId === lead.id ? tq("working") : tq("moveTo")}
-                    />
+                      ) : null}
+                      <Select
+                        value=""
+                        onChange={(v) => move(lead.id, v)}
+                        options={state.columns.filter((o) => o.key !== c.key).map((o) => ({ value: o.key, label: colTitle(o) }))}
+                        ariaLabel={tq("moveTo")}
+                        placeholder={busyId === lead.id ? tq("working") : tq("moveTo")}
+                      />
+                    </div>
                   </div>
-                ))
+                  );
+                })
               ) : (
                 <p className="ccb__none">{filtered ? tp("f.noMatch") : t("noneHere")}</p>
               )}

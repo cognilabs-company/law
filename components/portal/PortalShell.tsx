@@ -216,11 +216,13 @@ export default function PortalShell({
         onClick={() => setOpenPath(null)}
       />
       <aside className={`psb${open ? " on" : ""}`}>
-        <div className="psb__logo">
-          <span className="logo__m">
-            <IconLogo />
-          </span>
-          LexGo
+        <div className="psb__brand">
+          <div className="psb__logo">
+            <span className="logo__m">
+              <IconLogo />
+            </span>
+            LexGo
+          </div>
           <span className="psb__role">
             {t(
               `common.role${role === "advocate" ? "Advocate" : role === "lawyer" ? "Lawyer" : "Client"}`,

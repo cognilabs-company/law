@@ -4375,3 +4375,63 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .castat--2{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:0}
 .castat__c.stile--btn{gap:6px}
 .castat__c .stile__hint{margin-top:0}
+
+/* ── wp-uxfix ── */
+/* ── LeadFilterBar: Select/DatePicker default to width:100%, which inside a
+   flex row makes every filter take its own full line. Scoped to .lfilters so
+   other .dsel/.mpick usages (forms etc.) keep their own width. ── */
+.lfilters>.dsel,.lfilters>.mpick{flex:1 1 170px;width:auto;max-width:230px}
+.lfilters>.svsel__search{flex:1 1 220px}
+
+/* ── Sidebar brand: the role badge ("Call-markaz yuristi" etc.) sits on its
+   own line under the logo instead of squeezing into one row. ── */
+.psb__brand{padding:16px 18px;display:flex;flex-direction:column;align-items:flex-start;gap:7px}
+.psb__brand .psb__logo{padding:0}
+.psb__role{margin-left:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Kanban columns: bound height to whatever the viewport actually has left
+   (was a flat 70vh that could run off-screen below the fold on shorter
+   screens, forcing a page scroll before the column's own scrollbar ever
+   showed); thin, unobtrusive scrollbar instead of the fat OS default. ── */
+.pipe__col{max-height:min(70vh,calc(100vh - 320px))}
+.pipe__cards,.ccb__col{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.pipe__cards::-webkit-scrollbar,.ccb__col::-webkit-scrollbar{width:6px}
+.pipe__cards::-webkit-scrollbar-thumb,.ccb__col::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
+.pipe__cards::-webkit-scrollbar-thumb:hover,.ccb__col::-webkit-scrollbar-thumb:hover{background:var(--gray2)}
+
+/* ── Call-center lead board: cards were dominated by two full-width native
+   selects stacked one above the other; put them side by side and tighten
+   the card. ── */
+.ccb__col{max-height:min(74vh,calc(100vh - 260px));overflow-y:auto}
+.ccb__card{gap:6px}
+.ccb__sels{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px}
+.ccb__sels .dsel__btn{padding:8px 10px;min-height:38px;font-size:.8rem}
+.ccb__sels .dsel__cv{right:9px}
+
+/* ── Notifications → recipient checklist: 300px showed ~5 of a couple
+   hundred users; give it real room to scroll through. ── */
+.nrcp__list{max-height:420px}
+
+/* ── Single-value SearchSelect (UserSelect): a plain label + sub text + a
+   clear button, instead of a multi-select chip. ── */
+.ssel__single{display:flex;align-items:baseline;gap:8px;flex:1;min-width:0;overflow:hidden}
+.ssel__single b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ssel__single small{color:var(--gray2);font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ssel__single span[role=button]{flex:none;display:grid;place-items:center;cursor:pointer;color:var(--gray2);opacity:.7}
+.ssel__single span[role=button]:hover{opacity:1;color:var(--dk-txt-err, #c0392b)}
+.ssel__single span[role=button] svg{width:14px;height:14px}
+
+/* ── Client profile: avatar next to the identity card + estimate box on the
+   gift modal. ── */
+.pkv__av{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.pgift__est{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:12px;background:var(--b50);margin:-2px 0 2px}
+.pgift__est b{font-family:var(--fd);font-size:1.15rem;color:var(--dk-acc, var(--b600))}
+.pgift__est span{font-size:.78rem;color:var(--gray)}
+
+/* ── Warranty/replacement: centered result alert instead of an inline note
+   easy to miss at the bottom of a long form. ── */
+.wres{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px}
+.wres__ic{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--dk-tint-ok, #ecfdf5);color:var(--dk-txt-ok, #059669)}
+.wres--err .wres__ic{background:var(--dk-surface-2, #fef2f2);color:var(--dk-txt-err, #dc2626)}
+.wres__ic svg{width:26px;height:26px}
+.wres__status{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:var(--b100);color:var(--dk-acc-strong, var(--b700));font-size:.8rem;font-weight:700}

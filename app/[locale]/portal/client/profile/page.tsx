@@ -26,6 +26,7 @@ import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconEdit, IconPlus, IconClose, IconCard, IconCheck, IconUser, IconUsers, IconSparkle, IconMonitor, IconShieldCheck } from "@/components/icons";
 import IdentityVerify from "@/components/portal/IdentityVerify";
+import PhotoUpload from "@/components/register/PhotoUpload";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
@@ -96,6 +97,7 @@ export default function ClientProfile() {
   const name = p?.name || session?.name || "—";
   const phone = p?.phone || session?.phone || "—";
   const email = p?.email || "";
+  const avatarUrl = p?.avatarUrl || "";
 
   return (
     <>
@@ -110,6 +112,10 @@ export default function ClientProfile() {
         {prof.status === "loading" ? (
           <Skeleton rows={2} />
         ) : (
+          <>
+          <div className="pkv__av">
+            <PhotoUpload value={avatarUrl} name={name} onChange={() => {}} label="" hint="" readOnly />
+          </div>
           <div className="pkv">
             {session?.lexgoId ? (
               <div className="pkv__i"><label>{t("myId")}</label><b className="pkv__id">{session.lexgoId}</b></div>
@@ -119,6 +125,7 @@ export default function ClientProfile() {
             <div className="pkv__i"><label>{t("email")}</label><b>{email || t("notSet")}</b></div>
             <div className="pkv__i"><label>{t("card")}</label><b>{methods.data[0] ? `•••• ${methods.data[0].last4}` : t("notSet")}</b></div>
           </div>
+          </>
         )}
       </div>
 
@@ -250,7 +257,7 @@ export default function ClientProfile() {
       <EditModal
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        initial={{ name: p?.name || session?.name || "", email }}
+        initial={{ name: p?.name || session?.name || "", email, photo: avatarUrl }}
         onSaved={(np) => {
           if (np.name && session) update({ name: np.name });
           reload();
@@ -270,14 +277,24 @@ function EditModal({
 }: {
   open: boolean;
   onClose: () => void;
-  initial: { name: string; email: string };
+  initial: { name: string; email: string; photo: string };
   onSaved: (p: { name: string; email: string }) => void;
 }) {
   const t = useTranslations("portal.client.profile");
   const [name, setName] = useState(initial.name);
   const [email, setEmail] = useState(initial.email);
+  const [photo, setPhoto] = useState(initial.photo);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  // Re-seed every field when a fresh `initial` arrives (the modal re-opening
+  // with newer profile data) — otherwise stale local edits would linger.
+  const [prevInitial, setPrevInitial] = useState(initial);
+  if (initial !== prevInitial) {
+    setPrevInitial(initial);
+    setName(initial.name);
+    setEmail(initial.email);
+    setPhoto(initial.photo);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -285,7 +302,7 @@ function EditModal({
     setBusy(true);
     setNote(null);
     try {
-      await updateClientProfile({ name: name.trim(), email: email.trim() });
+      await updateClientProfile({ name: name.trim(), email: email.trim(), ...(photo !== initial.photo ? { avatar_url: photo } : {}) });
       setNote({ ok: true, msg: t("saved") });
       onSaved({ name: name.trim(), email: email.trim() });
       setTimeout(onClose, 800);
@@ -299,6 +316,7 @@ function EditModal({
   return (
     <Modal open={open} onClose={onClose} title={t("editTitle")}>
       <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
+        <PhotoUpload value={photo} name={name} onChange={setPhoto} label={t("photo")} hint={t("photoHint")} />
         <div>
           <label>{t("name")}</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("namePh")} />

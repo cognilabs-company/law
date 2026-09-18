@@ -2606,7 +2606,12 @@
         "claimsTitle": "My requests",
         "noClaims": "No requests yet.",
         "claim": "Replacement request",
-        "status": { "new": "New", "reviewing": "Reviewing", "approved": "Approved", "rejected": "Rejected" }
+        "status": { "new": "New", "reviewing": "Reviewing", "approved": "Approved", "rejected": "Rejected" },
+        "resultTitle": "Request status",
+        "resultSentTitle": "Your request was accepted",
+        "resultStatus": "Status: {status}",
+        "resultNote": "A manager will reach out within 24 hours. Track the status in the list below.",
+        "resultClose": "Got it"
       },
       "academy": {
         "title": "LexGo Academy",
@@ -2756,7 +2761,10 @@
           "notReady": "This gift can't be activated right now: the payment isn't complete, or it was cancelled or expired.",
           "notFound": "Gift not found. Check the link."
         },
-        "untitledGift": "Gift subscription"
+        "untitledGift": "Gift subscription",
+        "estTotal": "Estimated price",
+        "estHint": "The final price is shown at checkout.",
+        "som": "so'm"
       },
       "identity": {
         "title": "Identity verification",
@@ -2839,7 +2847,9 @@
         "cardLast4": "Last 4 digits",
         "cardExpires": "Expiry",
         "remove": "Remove",
-        "verifiedProfile": "Verified profile"
+        "verifiedProfile": "Verified profile",
+        "photo": "Photo",
+        "photoHint": "JPG or PNG, up to 512×512"
       },
       "journey": {
         "title": "Your legal journey",
@@ -5829,6 +5839,11 @@
         "mln": "M",
         "mlrd": "B"
       }
+    },
+    "userSelect": {
+      "searchPh": "Search by name, phone or LexGo ID…",
+      "empty": "No one found",
+      "clear": "Clear selection"
     }
   },
   "secureChat": {

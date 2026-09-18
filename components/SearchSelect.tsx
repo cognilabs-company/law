@@ -19,6 +19,7 @@ export default function SearchSelect({
   emptyText,
   ariaLabel,
   removeLabel,
+  single,
 }: {
   value: string[];
   onChange: (v: string[]) => void;
@@ -29,6 +30,9 @@ export default function SearchSelect({
   emptyText: string;
   ariaLabel: string;
   removeLabel?: string;
+  // One value at a time: picking an option replaces it and closes the menu
+  // (a plain label + clear button instead of removable chips).
+  single?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -97,13 +101,33 @@ export default function SearchSelect({
   }, [onSearch, remote, q, options]);
 
   const labelOf = (v: string) => options.find((o) => o.value === v)?.label ?? remoteLabels.get(v) ?? v;
-  const toggle = (v: string) =>
+  const subOf = (v: string) => options.find((o) => o.value === v)?.sub;
+  const toggle = (v: string) => {
+    if (single) {
+      onChange([v]);
+      setOpen(false);
+      setQ("");
+      return;
+    }
     onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
+  };
+  const clear = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+    onChange([]);
+  };
 
   return (
     <div className="ssel" ref={wrapRef}>
       <button type="button" className="ssel__ctrl" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel}>
-        {value.length ? (
+        {single && value.length ? (
+          <span className="ssel__single">
+            <b>{labelOf(value[0])}</b>
+            {subOf(value[0]) ? <small>{subOf(value[0])}</small> : null}
+            <span role="button" tabIndex={0} aria-label={removeLabel ?? "×"} onClick={clear} onKeyDown={(e) => { if (e.key === "Enter") clear(e); }}>
+              <IconClose />
+            </span>
+          </span>
+        ) : value.length ? (
           <span className="ssel__chips">
             {value.map((v) => (
               <span className="ssel__chip" key={v}>

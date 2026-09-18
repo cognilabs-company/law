@@ -13,11 +13,21 @@ import {
 } from "@/lib/services/backend";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { useResource } from "@/lib/useResource";
+import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconGift, IconPlus, IconCheck, IconArrowRight } from "@/components/icons";
+
+// The gift's exact price is fixed at checkout by the backend; this is only a
+// preview so the sender isn't guessing before they submit. Uses the plan's
+// own 6/12-month total when the term matches it, else the monthly rate × months.
+function estimateGiftTotal(plan: BackendPlan, months: number): number {
+  if (months === 12 && plan.yearlyPrice) return plan.yearlyPrice;
+  if (months === 6 && plan.sixMonthPrice) return plan.sixMonthPrice;
+  return plan.monthlyPrice * months;
+}
 
 function fmtDate(s: string) {
   if (!s) return "";
@@ -225,6 +235,16 @@ export default function ClientGifts() {
               <label>{t("recipient")}</label>
               <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder={t("recipientHintPh")} />
             </div>
+            {kind === "plan" && (planId || planOpts[0]?.value) ? (() => {
+              const chosen = giftable.find((p) => p.id === (planId || planOpts[0]?.value));
+              return chosen && chosen.monthlyPrice > 0 ? (
+                <div className="pgift__est">
+                  <span>{t("estTotal")} · {term} {t("months")}</span>
+                  <b>{fmtUzs(estimateGiftTotal(chosen, parseInt(term, 10)))} {t("som")}</b>
+                </div>
+              ) : null;
+            })() : null}
+            {kind === "plan" && (planId || planOpts[0]?.value) ? <p className="rf__hint" style={{ marginTop: -6 }}>{t("estHint")}</p> : null}
             {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
             <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
               {busy ? t("sending") : t("send")}

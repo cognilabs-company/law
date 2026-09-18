@@ -305,6 +305,12 @@ async function authedFetch(path: string, init: RequestInit | undefined, accept: 
   const send = async (token: string | null): Promise<Response> => {
     try {
       return await fetch(`${API_BASE}${path}`, {
+        // The backend proxy never forwards Cache-Control (see
+        // app/api/backend/[...path]/route.ts), so the browser's default fetch
+        // cache can otherwise serve a stale GET right after a write (e.g. an
+        // admin edit re-opened shows the pre-edit value). Every call here is
+        // live application data — never cache it.
+        cache: "no-store",
         ...init,
         headers: {
           Accept: accept,

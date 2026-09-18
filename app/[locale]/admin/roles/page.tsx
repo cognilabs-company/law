@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { getRoles, getPermissions, createRole, assignRole } from "@/lib/services/admin";
 import { getPermissionMatrix } from "@/lib/services/backend";
+import { listAdminUsers } from "@/lib/services/users";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice, useReload, AdminItem, UserSelect } from "@/components/admin/AdminBits";
@@ -121,7 +122,13 @@ export default function AdminRoles() {
         <div className="ppanel__h"><b>{t("roles.assignTitle")}</b></div>
         <p className="advmuted" style={{ marginBottom: 16 }}>{t("roles.assignLead")}</p>
         <form className="cform" style={{ maxWidth: "none" }} onSubmit={submitAssign}>
-          <UserSelect value={userId} onChange={setUserId} label={t("roles.user")} placeholder={t("roles.selectUser")} />
+          <UserSelect
+            value={userId}
+            onChange={setUserId}
+            label={t("roles.user")}
+            placeholder={t("roles.selectUser")}
+            search={(q) => listAdminUsers({ q }).then((users) => users.map((u) => ({ value: u.id, label: u.name || u.phone || u.lexgoId, sub: [u.phone, u.lexgoId].filter(Boolean).join(" · ") })))}
+          />
           <div>
             <label>{t("roles.role")}</label>
             <Select

@@ -2612,7 +2612,12 @@
         "claimsTitle": "So'rovlarim",
         "noClaims": "Hali so'rov yo'q.",
         "claim": "Almashtirish so'rovi",
-        "status": { "new": "Yangi", "reviewing": "Ko'rib chiqilmoqda", "approved": "Tasdiqlandi", "rejected": "Rad etildi" }
+        "status": { "new": "Yangi", "reviewing": "Ko'rib chiqilmoqda", "approved": "Tasdiqlandi", "rejected": "Rad etildi" },
+        "resultTitle": "So'rov holati",
+        "resultSentTitle": "So'rovingiz qabul qilindi",
+        "resultStatus": "Holat: {status}",
+        "resultNote": "Menejer 24 soat ichida bog'lanadi. Holatni pastdagi ro'yxatdan kuzatib borishingiz mumkin.",
+        "resultClose": "Tushunarli"
       },
       "academy": {
         "title": "LexGo Akademiya",
@@ -2762,7 +2767,10 @@
           "notReady": "Bu sovg'ani hozir faollashtirib bo'lmaydi: to'lov yakunlanmagan, bekor qilingan yoki muddati tugagan.",
           "notFound": "Sovg'a topilmadi. Havolani tekshiring."
         },
-        "untitledGift": "Obuna sovg'asi"
+        "untitledGift": "Obuna sovg'asi",
+        "estTotal": "Taxminiy narx",
+        "estHint": "Yakuniy narx to'lov sahifasida ko'rsatiladi.",
+        "som": "so'm"
       },
       "identity": {
         "title": "Shaxsni tasdiqlash",
@@ -2845,7 +2853,9 @@
         "cardLast4": "Oxirgi 4 raqam",
         "cardExpires": "Amal muddati",
         "remove": "O‘chirish",
-        "verifiedProfile": "Tasdiqlangan profil"
+        "verifiedProfile": "Tasdiqlangan profil",
+        "photo": "Rasm",
+        "photoHint": "JPG yoki PNG, 512×512 gacha"
       },
       "journey": {
         "title": "Sizning yuridik yo'lingiz",
@@ -5835,6 +5845,11 @@
         "mln": "mln",
         "mlrd": "mlrd"
       }
+    },
+    "userSelect": {
+      "searchPh": "Ism, telefon yoki LexGo ID bo'yicha qidiring…",
+      "empty": "Hech kim topilmadi",
+      "clear": "Tanlovni bekor qilish"
     }
   },
   "secureChat": {

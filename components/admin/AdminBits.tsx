@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import Select from "@/components/Select";
+import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
 import { listLawyers } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 
@@ -51,28 +53,47 @@ export function AdminItem({
 }
 
 // Pick a professional by name + phone; the value is the user id, never shown.
+// Searchable single-user picker. Default source is the public lawyer/advocate
+// directory (works for a seller managing their own organization); pass
+// `search` to look further — e.g. admin/roles assigns roles to any user, so it
+// passes a debounced GET /admin/users?q= search instead.
 export function UserSelect({
   value,
   onChange,
   label,
   placeholder,
+  search,
 }: {
   value: string;
   onChange: (v: string) => void;
   label: string;
   placeholder: string;
+  search?: (q: string) => Promise<SearchOption[]>;
 }) {
-  const res = useResource(listLawyers, []);
-  const opts = res.data
-    .filter((l) => l.userId)
-    .map((l) => ({
-      value: l.userId,
-      label: `${l.name || "—"}${l.phone ? ` · ${l.phone}` : ""}`,
-    }));
+  const t = useTranslations("admin.userSelect");
+  const res = useResource(search ? async () => [] : listLawyers, [!!search]);
+  const opts = useMemo(
+    () =>
+      search
+        ? []
+        : res.data.filter((l) => l.userId).map((l) => ({ value: l.userId, label: l.name || "—", sub: l.phone })),
+    [res.data, search],
+  );
   return (
     <div>
       <label>{label}</label>
-      <Select value={value} onChange={onChange} options={opts} ariaLabel={label} placeholder={placeholder} />
+      <SearchSelect
+        single
+        value={value ? [value] : []}
+        onChange={(v) => onChange(v[0] ?? "")}
+        options={opts}
+        onSearch={search}
+        placeholder={placeholder}
+        searchPlaceholder={t("searchPh")}
+        emptyText={t("empty")}
+        ariaLabel={label}
+        removeLabel={t("clear")}
+      />
     </div>
   );
 }

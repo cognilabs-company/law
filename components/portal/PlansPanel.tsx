@@ -15,6 +15,7 @@ import {
 } from "@/lib/services/backend";
 import { loadAutopay, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
 import { useAuth } from "@/lib/auth";
+import { useSellerCabinet } from "./SellerCabinet";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { CheckoutIntent } from "./OrderMilestones";
@@ -93,7 +94,15 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const { session } = useAuth();
   const personal = variant === "personal";
   const isSeller = session?.role === "lawyer" || session?.role === "advocate";
-  const sellerPct = isSeller && session?.accountStatus !== "pending" ? SELLER_DISCOUNT : 0;
+  // T1-03 §6: only a truly VERIFIED seller gets the discount — session.accountStatus
+  // only says the registration was approved (still "active" while profile
+  // verification is pending or was rejected), so the seller cabinet's own
+  // verification.verified is what actually decides it (mirrors backend
+  // limited_access: account_status=="active" AND verification_status in
+  // {approved,verified} AND is_verified).
+  const cabinet = useSellerCabinet();
+  const verified = isSeller && cabinet.data?.verification.verified === true;
+  const sellerPct = verified ? SELLER_DISCOUNT : 0;
   const res = useResource<BackendPlan>(() => getSubscriptionPlans(locale), [locale]);
   const payments = useResource(listPayments, []);
   const [aiTerm, setAiTerm] = useState<Term>(1);

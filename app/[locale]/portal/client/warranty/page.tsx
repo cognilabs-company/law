@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { listWarrantyClaims, createWarrantyClaim } from "@/lib/services/backend";
+import { listWarrantyClaims, createWarrantyClaim, type WarrantyClaim } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { useReload, Notice } from "@/components/admin/AdminBits";
+import Modal from "@/components/admin/Modal";
 import { Skeleton } from "@/components/portal/DataState";
-import { IconShieldCheck, IconCheck } from "@/components/icons";
+import { IconShieldCheck, IconCheck, IconAlert } from "@/components/icons";
 
 function fmt(s: string) {
   const d = new Date(s);
@@ -21,8 +22,12 @@ export default function ClientWarranty() {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  // A centered result alert on submit (with the claim's real status) — an
+  // inline note at the bottom of a long form went unnoticed.
+  const [result, setResult] = useState<WarrantyClaim | "error" | null>(null);
 
   const points = ["p1", "p2", "p3"] as const;
+  const statusLabel = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,13 +38,13 @@ export default function ClientWarranty() {
     setBusy(true);
     setNote(null);
     try {
-      await createWarrantyClaim({ reason: `${caseTitle ? caseTitle + ": " : ""}${reason.trim()}` });
-      setNote({ ok: true, msg: t("sent") });
+      const claim = await createWarrantyClaim({ reason: `${caseTitle ? caseTitle + ": " : ""}${reason.trim()}` });
+      setResult(claim);
       setReason("");
       setCaseTitle("");
       reload();
     } catch {
-      setNote({ ok: false, msg: t("error") });
+      setResult("error");
     } finally {
       setBusy(false);
     }
@@ -106,6 +111,24 @@ export default function ClientWarranty() {
           )}
         </div>
       </div>
+
+      <Modal open={result !== null} onClose={() => setResult(null)} title={result === "error" ? t("error") : t("resultTitle")}>
+        {result === "error" ? (
+          <div className="wres wres--err">
+            <span className="wres__ic"><IconAlert /></span>
+            <p style={{ margin: 0 }}>{t("error")}</p>
+            <button className="btn btn--pri" type="button" onClick={() => setResult(null)}>{t("resultClose")}</button>
+          </div>
+        ) : result ? (
+          <div className="wres">
+            <span className="wres__ic"><IconCheck /></span>
+            <b>{t("resultSentTitle")}</b>
+            <span className="wres__status">{t("resultStatus", { status: statusLabel(result.status) })}</span>
+            <p className="advmuted" style={{ margin: 0 }}>{t("resultNote")}</p>
+            <button className="btn btn--pri" type="button" onClick={() => setResult(null)}>{t("resultClose")}</button>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

@@ -207,11 +207,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       <IncomingCallWatcher />
       <div className={`psb__scrim${open ? " on" : ""}`} onClick={() => setOpenPath(null)} />
       <aside className={`psb${open ? " on" : ""}`}>
-        <div className="psb__logo">
-          <span className="logo__m">
-            <IconLogo />
-          </span>
-          LexGo
+        <div className="psb__brand">
+          <div className="psb__logo">
+            <span className="logo__m">
+              <IconLogo />
+            </span>
+            LexGo
+          </div>
           <span className="psb__role">{roleBadge}</span>
         </div>
         <nav className="psb__nav">
