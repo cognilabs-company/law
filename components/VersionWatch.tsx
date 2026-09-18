@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
 import { IconRefresh } from "@/components/icons";
 
 // The build this bundle was compiled from (Vercel exposes the commit SHA).
@@ -12,8 +11,9 @@ const CHECK_MS = 5 * 60_000;
 // styles/behaviour) until a hard reload. Poll the server's build id on an
 // interval and when the tab becomes visible; offer a reload — never force it
 // (the user may be in a meeting or typing).
-export default function VersionWatch() {
-  const t = useTranslations("common");
+// Labels come from the server layout (getTranslations) so this stays usable
+// during static prerender, outside any intl client context.
+export default function VersionWatch({ labels }: { labels: { newVersion: string; reload: string } }) {
   const [stale, setStale] = useState(false);
   useEffect(() => {
     if (!CURRENT) return;
@@ -34,8 +34,8 @@ export default function VersionWatch() {
   if (!stale) return null;
   return (
     <div className="verwatch" role="status">
-      <span>{t("newVersion")}</span>
-      <button type="button" className="btn btn--pri btn--sm" onClick={() => window.location.reload()}><IconRefresh />{t("reload")}</button>
+      <span>{labels.newVersion}</span>
+      <button type="button" className="btn btn--pri btn--sm" onClick={() => window.location.reload()}><IconRefresh />{labels.reload}</button>
     </div>
   );
 }

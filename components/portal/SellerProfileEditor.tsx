@@ -25,6 +25,8 @@ import ChipMulti from "@/components/register/ChipMulti";
 import WorkHistoryEditor from "@/components/register/WorkHistoryEditor";
 import Select, { type Option } from "@/components/Select";
 import TimePicker from "@/components/TimePicker";
+import { ApiError } from "@/lib/http";
+import { getMyAvailability, putMyAvailability, enabledDays, weeklyFrom, DEFAULT_DEADLINES, type ResponseDeadlines } from "@/lib/services/availability";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import IdentityVerify from "@/components/portal/IdentityVerify";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
@@ -114,14 +116,30 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
   const [saved, setSaved] = useState<Draft>(base);
   const [vacation, setVacation] = useState(false);
   // Browser-kept extras load after mount (no localStorage during render).
+  // Working hours + response deadlines live on the backend
+  // (GET/PUT /lawyers/me/availability); the browser copy is only a fallback.
+  const [deadlines, setDeadlines] = useState<ResponseDeadlines>(DEFAULT_DEADLINES);
+  const [availSource, setAvailSource] = useState<"default" | "custom" | "local">("local");
   useEffect(() => {
+    let alive = true;
     const h = setTimeout(() => {
       const e = readExtras(uid);
       setD((x) => ({ ...x, ...e }));
       setSaved((x) => ({ ...x, ...e }));
       setVacation(readVacation(uid));
     }, 0);
-    return () => clearTimeout(h);
+    getMyAvailability()
+      .then((a) => {
+        if (!alive) return;
+        const first = a.weekly.find((w) => w.enabled) ?? a.weekly[0];
+        const hours = { workDays: enabledDays(a), workFrom: first?.start ?? "09:00", workTo: first?.end ?? "19:00" };
+        setD((x) => ({ ...x, ...hours }));
+        setSaved((x) => ({ ...x, ...hours }));
+        setDeadlines(a.deadlines);
+        setAvailSource(a.source);
+      })
+      .catch(() => { /* older backend: keep the browser copy */ });
+    return () => { alive = false; clearTimeout(h); };
   }, [uid]);
   const [section, setSection] = useState<string | null>(null); // the panel in edit mode
   const [busy, setBusy] = useState(false);
@@ -160,6 +178,14 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       }
       writeExtras(uid, { gender: d.gender, workDays: d.workDays, workFrom: d.workFrom, workTo: d.workTo, workHistory: d.workHistory });
       writeVacation(uid, vacation);
+      if (section === "hours") {
+        try {
+          const a = await putMyAvailability({ weekly: weeklyFrom(d.workDays, d.workFrom, d.workTo), deadlines });
+          setAvailSource(a.source);
+        } catch (e) {
+          if (!(e instanceof ApiError && (e.status === 403 || e.status === 404 || e.status === 405))) throw e;
+        }
+      }
       setSaved(d);
       update({ completeness: livePct, profile: d, ...(d.name ? { name: d.name } : {}) });
       setNote({ ok: true, msg: t("saved") });
@@ -380,7 +406,9 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
           {kv([
             [tr("advocate.expertise.hours"), <span className="pdays" key="days">{WEEK_DAYS.map((k) => <i key={k} className={d.workDays.includes(k) ? "on" : ""}>{dayLabel(k)}</i>)}<em>{d.workFrom}–{d.workTo}</em></span>],
             [tp("vacation"), <span key="vac" className={`pstate ${vacation ? "pstate--off" : "pstate--on"}`}>{vacation ? <IconSun /> : <IconCheck />}{vacation ? tp("vacationOn") : tp("vacationOff")}</span>],
+            [tp("deadlines"), <span key="dl" className="pdays"><i className="on">{tp("dlManual", { n: deadlines.manual })}</i><i className="on">{tp("dlAuto", { n: deadlines.auto })}</i><i className="on">{tp("dlSos", { n: deadlines.sos })}</i></span>],
           ])}
+          <p className="rf__hint" style={{ marginTop: 8 }}>{availSource === "custom" ? tp("availCustom") : availSource === "default" ? tp("availDefault") : tp("availLocal")}</p>
           {vacation ? <p className="anote anote--err" style={{ marginTop: 10 }}>{tp("vacationNote")}</p> : null}
         </>,
         <div className="cform" style={{ maxWidth: "none" }}>
@@ -391,6 +419,15 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
           <div className="cform__row2">
             <div><label>{tr("advocate.expertise.from")}</label><TimePicker value={d.workFrom} onChange={(v) => set({ workFrom: v })} placeholder="09:00" ariaLabel={tr("advocate.expertise.from")} step={15} /></div>
             <div><label>{tr("advocate.expertise.to")}</label><TimePicker value={d.workTo} onChange={(v) => set({ workTo: v })} placeholder="18:00" ariaLabel={tr("advocate.expertise.to")} step={15} /></div>
+          </div>
+          <div>
+            <label>{tp("deadlines")}</label>
+            <div className="cform__row3">
+              <div><label>{tp("dlManualLabel")}</label><input type="number" min={1} max={1440} value={deadlines.manual} onChange={(e) => setDeadlines((x) => ({ ...x, manual: Math.max(1, Math.min(1440, parseInt(e.target.value || "30", 10) || 30)) }))} /></div>
+              <div><label>{tp("dlAutoLabel")}</label><input type="number" min={1} max={1440} value={deadlines.auto} onChange={(e) => setDeadlines((x) => ({ ...x, auto: Math.max(1, Math.min(1440, parseInt(e.target.value || "15", 10) || 15)) }))} /></div>
+              <div><label>{tp("dlSosLabel")}</label><input type="number" min={1} max={1440} value={deadlines.sos} onChange={(e) => setDeadlines((x) => ({ ...x, sos: Math.max(1, Math.min(1440, parseInt(e.target.value || "5", 10) || 5)) }))} /></div>
+            </div>
+            <p className="rf__hint">{tp("deadlinesHint")}</p>
           </div>
           <label className={`vac${vacation ? " on" : ""}`} style={{ justifySelf: "start" }}>
             <input type="checkbox" checked={vacation} onChange={(e) => setVacation(e.target.checked)} />

@@ -3242,7 +3242,18 @@
           "vacationOff": "Ishlayapman",
           "vacationNote": "Ta'til rejimi yoqilgan — yangi buyurtmalar sizga yuborilmaydi, ko'rsatkichlarga ta'sir qilmaydi.",
           "vacationHint": "Ta'tilda yangi buyurtma kelmaydi va javob ko'rsatkichlari hisoblanmaydi.",
-          "now": "hozir"
+          "now": "hozir",
+          "deadlines": "Javob muddatlari",
+          "dlManual": "Oddiy: {n} daq",
+          "dlAuto": "Avto: {n} daq",
+          "dlSos": "SOS: {n} daq",
+          "dlManualLabel": "Oddiy buyurtma (daqiqa)",
+          "dlAutoLabel": "Avto-taqsimot (daqiqa)",
+          "dlSosLabel": "SOS (daqiqa)",
+          "deadlinesHint": "Ish vaqtida hisoblanadi (Du–Sha 09:00–19:00, bayramlar hisobga olinadi). Standart: 30 / 15 / 5 daqiqa.",
+          "availCustom": "Ish vaqti serverda saqlangan — mijozlarga va taymerga shu jadval qo'llanadi.",
+          "availDefault": "Hozircha standart jadval (Du–Sha 09:00–19:00). O'zgartirsangiz serverda saqlanadi.",
+          "availLocal": "Ish vaqti shu qurilmada saqlangan (server javob bermadi)."
         }
       }
     },

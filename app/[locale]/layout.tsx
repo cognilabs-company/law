@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Inter, Onest } from "next/font/google";
-import { hasLocale } from "next-intl";
+import { NextIntlClientProvider, hasLocale } from "next-intl";
 import IntlProvider from "@/components/IntlProvider";
 import VersionWatch from "@/components/VersionWatch";
 import {
@@ -71,6 +71,7 @@ export default async function LocaleLayout({ children, params }: Props) {
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
   const messages = await getMessages();
+  const tCommon = await getTranslations({ locale, namespace: "common" });
 
   return (
     // The theme script sets data-theme / color-scheme on <html> before React
@@ -80,9 +81,10 @@ export default async function LocaleLayout({ children, params }: Props) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
-        <IntlProvider locale={locale} messages={messages}>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+        <IntlProvider>
           <ThemeSync />
-          <VersionWatch />
+          <VersionWatch labels={{ newVersion: tCommon("newVersion"), reload: tCommon("reload") }} />
           <ReferralCapture />
           <AuthProvider>
             <SessionExpiryWatcher />
@@ -96,6 +98,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <RevealOnScroll />
           </AuthProvider>
         </IntlProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

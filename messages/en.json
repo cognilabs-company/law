@@ -3236,7 +3236,18 @@
           "vacationOff": "Working",
           "vacationNote": "Vacation mode is on — new orders are not routed to you and your metrics are unaffected.",
           "vacationHint": "On vacation no new orders arrive and response metrics are not counted.",
-          "now": "present"
+          "now": "present",
+          "deadlines": "Response deadlines",
+          "dlManual": "Manual: {n} min",
+          "dlAuto": "Auto: {n} min",
+          "dlSos": "SOS: {n} min",
+          "dlManualLabel": "Regular order (minutes)",
+          "dlAutoLabel": "Auto-assignment (minutes)",
+          "dlSosLabel": "SOS (minutes)",
+          "deadlinesHint": "Counted in working time (Mon–Sat 09:00–19:00, holidays excluded). Defaults: 30 / 15 / 5 minutes.",
+          "availCustom": "Schedule saved on the server — it drives what clients see and the timer.",
+          "availDefault": "Default schedule for now (Mon–Sat 09:00–19:00). Changes are saved on the server.",
+          "availLocal": "Schedule kept on this device (the server did not answer)."
         }
       }
     },
