@@ -17,9 +17,12 @@ const RANGES = [
 export default function LineChart({
   points,
   format,
+  controls = true,
 }: {
   points: { label: string; value: number }[];
   format?: (n: number) => string;
+  // false when the page's own filter bar drives the range (no duplicate controls).
+  controls?: boolean;
 }) {
   const locale = useLocale();
   const t = useTranslations("chart");
@@ -55,6 +58,7 @@ export default function LineChart({
 
   return (
     <div className="lchart">
+      {controls ? (
       <div className="lchart__ranges">
         <div className="lchart__dates">
           <DatePicker value={from} max={to || undefined} placeholder={t("from")} ariaLabel={t("from")} onChange={(v) => { setFrom(v); setHover(null); }} />
@@ -77,6 +81,7 @@ export default function LineChart({
           ))}
         </div>
       </div>
+      ) : null}
 
       {pts.length < 2 ? (
         <div className="lchart__empty">{pts.length ? `${shortDate(pts[0].label, locale)} · ${fmtV(pts[0].value)}` : "—"}</div>

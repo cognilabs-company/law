@@ -28,7 +28,7 @@ import { humanizeSlug } from "@/lib/lawyers";
 import { isDemoUnavailable } from "@/lib/http";
 import { useResourceOne } from "@/lib/useResource";
 import { useDemoTools } from "@/lib/demoTools";
-import { fmtUzs } from "@/lib/money";
+import { fmtUzs, fmtUzsShort } from "@/lib/money";
 import { Skeleton } from "@/components/portal/DataState";
 import LineChart from "@/components/admin/LineChart";
 import Modal from "@/components/admin/Modal";
@@ -69,6 +69,7 @@ export default function AdminOverview() {
   const tc = useTranslations("admin.overview.crm");
   const tn = useTranslations("admin");
   const td = useTranslations("admin.dash");
+  const tceo = useTranslations("admin.ceo");
   const tr = useTranslations("admin.retention");
   const te = useTranslations("enums.regions");
   const locale = useLocale();
@@ -111,6 +112,8 @@ export default function AdminOverview() {
   const { d, c, r, q } = view;
 
   const money = (n?: number) => (n ? `${fmtUzs(n)} ${tc("som")}` : DASH);
+  const units = { mln: td("units.mln"), mlrd: td("units.mlrd") };
+  const moneyShort = (n?: number) => (n ? `${fmtUzsShort(n, units)} ${tc("som")}` : DASH);
   const pct = (n?: number) => (n || n === 0 ? `${Math.round(n)}%` : DASH);
   const funnel = c?.funnel ?? [];
   const fMax = Math.max(...funnel.map((f2) => f2.value), 1);
@@ -252,17 +255,15 @@ export default function AdminOverview() {
       {!loaded ? <Skeleton rows={3} /> : null}
 
       {/* Headline KPIs — each tile opens its breakdown */}
-      <div className="ppanel">
-        <div className="kpanel">
-          <StatTile variant="ktile" label={tc("revenue")} value={money(c?.revenue)} delta={c?.revenueDeltaPct} demo={demo} hint={regionHint} onClick={drillRevenue} />
-          <StatTile variant="ktile" label={tc("mrr")} value={money(c?.mrr)} demo={demo} hint={regionHint ?? dateHint} onClick={drillMrr} />
-          <StatTile variant="ktile" label={tc("users")} value={c ? fmt(c.users) : DASH} demo={demo} hint={dateHint} onClick={drillUsers} />
-          <StatTile variant="ktile" label={tc("conversion")} value={pct(c?.conversionPct)} demo={demo} hint={regionHint} onClick={drillConversion} />
-          <StatTile variant="ktile" label={tc("retained")} value={pct(r?.retainedPct)} demo={demo} hint={regionHint ?? dateHint} onClick={drillRetained} />
-          <StatTile variant="ktile" label={tc("rating")} value={q?.avgRating ? q.avgRating.toFixed(1) : DASH} demo={demo} hint={regionHint ?? dateHint} onClick={drillRating} />
-          <StatTile variant="ktile" label={tc("sla")} value={pct(q?.responseSlaPct)} demo={demo} hint={regionHint ?? dateHint} onClick={drillSla} />
-          <StatTile variant="ktile" label={tc("atRisk")} value={r ? fmt(r.atRisk) : DASH} demo={demo} hint={regionHint} onClick={drillAtRisk} />
-        </div>
+      <div className="castat castat--4">
+        <StatTile icon={<IconCard />} label={tc("revenue")} value={moneyShort(c?.revenue)} sub={c?.revenueDeltaPct ? `${c.revenueDeltaPct > 0 ? "▲" : "▼"} ${Math.abs(c.revenueDeltaPct)}%` : undefined} demo={demo} hint={regionHint} onClick={drillRevenue} />
+        <StatTile icon={<IconTrendingUp />} tone="ok" label={tc("mrr")} value={moneyShort(c?.mrr)} demo={demo} hint={regionHint ?? dateHint} onClick={drillMrr} />
+        <StatTile icon={<IconUsers />} label={tc("users")} value={c ? fmt(c.users) : DASH} sub={c ? `${fmt(c.activeUsers)} ${tceo("active")}` : undefined} demo={demo} hint={dateHint} onClick={drillUsers} />
+        <StatTile icon={<IconTrendingUp />} label={tc("conversion")} value={pct(c?.conversionPct)} demo={demo} hint={regionHint} onClick={drillConversion} />
+        <StatTile icon={<IconUsers />} tone="ok" label={tc("retained")} value={pct(r?.retainedPct)} demo={demo} hint={regionHint ?? dateHint} onClick={drillRetained} />
+        <StatTile icon={<IconAward />} label={tc("rating")} value={q?.avgRating ? q.avgRating.toFixed(1) : DASH} demo={demo} hint={regionHint ?? dateHint} onClick={drillRating} />
+        <StatTile icon={<IconShieldCheck />} tone="ok" label={tc("sla")} value={pct(q?.responseSlaPct)} demo={demo} hint={regionHint ?? dateHint} onClick={drillSla} />
+        <StatTile icon={<IconPhone />} tone="bad" label={tc("atRisk")} value={r ? fmt(r.atRisk) : DASH} demo={demo} hint={regionHint} onClick={drillAtRisk} />
       </div>
 
       <div className="pgrid2">
@@ -271,7 +272,7 @@ export default function AdminOverview() {
             <b>{tc("revenueTrend")}</b>
             {lastPoint ? <span className="advmuted">{lastDate} · {money(lastPoint.value)}</span> : null}
           </div>
-          {trend.length ? <LineChart points={trend} format={(v) => `${fmtUzs(v)} ${tc("som")}`} /> : <p className="advmuted">{t("empty")}</p>}
+          {trend.length ? <LineChart points={trend} format={(v) => `${fmtUzs(v)} ${tc("som")}`} controls={false} /> : <p className="advmuted">{t("empty")}</p>}
         </div>
         <div className="ppanel">
           <div className="ppanel__h"><b>{tc("funnel")}</b><button type="button" className="btn btn--line btn--sm" onClick={drillConversion}>{td("drill.details")}</button></div>
@@ -293,11 +294,9 @@ export default function AdminOverview() {
         <div className="pgrid2">
           <div className="ppanel">
             <div className="ppanel__h"><b>{tc("payments")}</b></div>
-            <div className="kpanel kpanel--2">
-              <StatTile variant="ktile" label={tc("paidAmount")} value={money(stat("paid_amount"))} demo={demo} onClick={() => drillPayments("paid")} />
-              <StatTile variant="ktile" label={tc("pendingAmount")} value={money(stat("pending_amount"))} demo={demo} onClick={() => drillPayments("pending")} />
-              <StatTile variant="ktile" label={tc("paidCount")} value={fmt(stat("paid_count") ?? 0)} demo={demo} onClick={() => drillPayments("paid")} />
-              <StatTile variant="ktile" label={tc("pendingCount")} value={fmt(stat("pending_count") ?? 0)} demo={demo} onClick={() => drillPayments("pending")} />
+            <div className="castat castat--2">
+              <StatTile icon={<IconCard />} tone="ok" label={tc("paidAmount")} value={moneyShort(stat("paid_amount"))} sub={`${fmt(stat("paid_count") ?? 0)} ${tc("paidCount").toLowerCase()}`} demo={demo} onClick={() => drillPayments("paid")} />
+              <StatTile icon={<IconCard />} label={tc("pendingAmount")} value={moneyShort(stat("pending_amount"))} sub={`${fmt(stat("pending_count") ?? 0)} ${tc("pendingCount").toLowerCase()}`} demo={demo} onClick={() => drillPayments("pending")} />
             </div>
             {byScore.length ? (
               <>

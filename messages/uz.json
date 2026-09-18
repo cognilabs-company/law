@@ -2939,7 +2939,9 @@
         "preSellerAnon": "advokat",
         "preSellerLead": "Endi xizmatni tanlang — buyurtma shu advokatga yuboriladi.",
         "preSellerClear": "Boshqa advokat",
-        "preSellerNotOffering": "{name} bu xizmatni ko'rsatmaydi — ro'yxatdan boshqa advokatni tanlang yoki boshqa xizmatni oching."
+        "preSellerNotOffering": "{name} bu xizmatni ko'rsatmaydi — ro'yxatdan boshqa advokatni tanlang yoki boshqa xizmatni oching.",
+        "preSellerOnly": "Faqat shu advokat ko'rsatadigan xizmatlar ({n} ta) ko'rsatilmoqda — buyurtma shu advokatga yuboriladi.",
+        "preSellerNoList": "Bu advokat hali xizmatlar ro'yxatini belgilamagan — butun katalog ko'rsatilmoqda."
       },
       "documents": {
         "title": "Hujjat namunalari",
@@ -4546,6 +4548,19 @@
         "refundCode": "Qaytarish kodi",
         "aiCategory": "AI toifasi",
         "advokatRequired": "Faqat advokat bajaradi"
+      },
+      "cat": {
+        "editTitle": "Kategoriyani tahrirlash",
+        "overlayNote": "Backend hali kategoriya tahririni qo'llab-quvvatlamaydi — o'zgarish platforma sozlamasida saqlandi va katalogda qo'llanadi.",
+        "deleteText": "Kategoriya katalogdan yashiriladi (mijoz va admin ro'yxatlari). Undagi xizmatlar o'chmaydi; keyin qaytarish mumkin.",
+        "deleted": "Kategoriya yashirildi.",
+        "hiddenChip": "Yashirilgan ({n})",
+        "hiddenTag": "Yashirilgan",
+        "overridden": "O'zgartirilgan",
+        "restore": "Ro'yxatga qaytarish",
+        "restored": "Kategoriya ro'yxatga qaytarildi.",
+        "reset": "Backend nomiga qaytarish",
+        "resetDone": "Admin o'zgarishi olib tashlandi."
       }
     },
     "plans": {
@@ -4579,7 +4594,20 @@
       "empty": "Tariflar yo'q",
       "benefits": "Imkoniyatlar",
       "benefitsPh": "Har birini yangi qatorda",
-      "giftable": "Sovg'a qilsa bo'ladi"
+      "giftable": "Sovg'a qilsa bo'ladi",
+      "savedOverlay": "Backend hali tarif tahririni qo'llab-quvvatlamaydi — o'zgarish platforma sozlamasida saqlandi va barcha sahifalarda (mijoz, ijrochi, admin) qo'llanadi.",
+      "deletedOverlay": "Tarif yashirildi — mijoz va ijrochi sahifalarida ko'rinmaydi. «Yashirilgan» ro'yxatidan qaytarish mumkin.",
+      "deleteText": "Tarif ro'yxatdan olib tashlanadi va mijoz/ijrochi sahifalarida ko'rinmaydi. Mavjud obunalarga ta'sir qilmaydi; keyin qaytarish mumkin.",
+      "hiddenChip": "Yashirilgan ({n})",
+      "hiddenNote": "Yashirilgan tariflar: hujjatda ko'rsatilmagan yoki admin olib tashlagan. Qaytarish uchun ko'z belgisini bosing.",
+      "hiddenTag": "Yashirilgan",
+      "overridden": "O'zgartirilgan",
+      "overriddenHint": "Admin o'zgartirgan qiymatlar backend qiymatlari ustidan qo'llanadi",
+      "restore": "Ro'yxatga qaytarish",
+      "restored": "Tarif ro'yxatga qaytarildi.",
+      "reset": "Backend qiymatlariga qaytarish",
+      "resetDone": "Admin o'zgarishlari olib tashlandi — backend qiymatlari ko'rsatilmoqda.",
+      "audienceSeller": "Yurist va advokat"
     },
     "templates": {
       "listTitle": "Hujjat namunalari",
@@ -5794,13 +5822,18 @@
         "chats": "Xavfsiz chatlar",
         "goOrders": "So'rovlarga o'tish",
         "goCases": "Ishlarga o'tish",
-        "goPayouts": "To'lovlarga o'tish"
+        "goPayouts": "To'lovlarga o'tish",
+        "other": "Boshqa"
       },
       "role": {
         "yurist": "Yuristlar",
         "advokat": "Advokatlar",
         "advokat_tashkiloti": "Advokatlik tashkilotlari",
         "client": "Mijozlar"
+      },
+      "units": {
+        "mln": "mln",
+        "mlrd": "mlrd"
       }
     }
   },

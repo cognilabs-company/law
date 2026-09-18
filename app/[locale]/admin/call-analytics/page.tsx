@@ -60,7 +60,7 @@ export default function AdminCallAnalytics() {
           <div className="cachart">
             <h3>{t("byDay")}</h3>
             {byDay.length ? (
-              <LineChart points={byDay} />
+              <LineChart points={byDay} controls={false} />
             ) : (
               <p className="advmuted">{t("noData")}</p>
             )}

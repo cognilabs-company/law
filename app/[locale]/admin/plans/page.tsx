@@ -12,21 +12,20 @@ import {
 import {
   BILLING_PERIODS,
   createPlanAdmin,
-  deletePlanAdmin,
   planPrice,
   pricesFor,
   primaryPeriod,
-  updatePlanAdmin,
   type BillingPeriod,
-  type WriteResult,
 } from "@/lib/services/plans";
+import { savePlan, removePlan, restorePlan, resetPlan, type OverlaidPlan } from "@/lib/services/catalogOverrides";
+import { errDetail } from "@/lib/http";
 import { useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
-import { IconStar, IconPlus, IconSearch, IconEdit, IconTrash, IconEyeOff, IconEye } from "@/components/icons";
+import { IconStar, IconPlus, IconSearch, IconEdit, IconTrash, IconEyeOff, IconEye, IconRefresh } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "—");
 const toList = (v: string) =>
@@ -39,7 +38,9 @@ const num = (v: string) => parseInt(String(v || "0"), 10) || 0;
 // The admin form's audience choices (GM: Mijoz / Yurist / Advokat); the
 // backend keeps whatever string we send, but may normalize it by slug — see
 // planAudience() and the hint under the field.
-const FORM_AUDIENCES: PlanAudience[] = ["client", "yurist", "advokat"];
+// "seller" = both yurist and advokat (what the backend stores for the LexGo.AI plans).
+type FormAudience = PlanAudience | "seller";
+const FORM_AUDIENCES: FormAudience[] = ["client", "yurist", "advokat", "seller"];
 type AudienceFilter = "all" | PlanAudience;
 
 type Note = { ok: boolean; msg: string; tone?: "warn" };
@@ -47,7 +48,7 @@ type Note = { ok: boolean; msg: string; tone?: "warn" };
 type FormVals = {
   title: string;
   slug: string;
-  audience: PlanAudience;
+  audience: FormAudience;
   period: BillingPeriod;
   price: string;
   description: string;
@@ -63,7 +64,7 @@ function seedVals(p?: BackendPlan): FormVals {
   return {
     title: p.title || p.name,
     slug: p.slug,
-    audience: planAudience(p)[0] ?? "client",
+    audience: ((): FormAudience => { const a = planAudience(p); return a.includes("yurist") && a.includes("advokat") ? "seller" : a[0] ?? "client"; })(),
     period,
     price: price ? String(Math.round(price)) : "",
     description: p.description,
@@ -78,11 +79,9 @@ function seedVals(p?: BackendPlan): FormVals {
 function PlanForm({
   plan,
   onDone,
-  onPending,
 }: {
   plan?: BackendPlan;
-  onDone: () => void;
-  onPending: (msg: string) => void;
+  onDone: (via?: "backend" | "overlay") => void;
 }) {
   const t = useTranslations("admin");
   const [v, setV] = useState<FormVals>(() => seedVals(plan));
@@ -90,7 +89,7 @@ function PlanForm({
   const [note, setNote] = useState<Note | null>(null);
   const set = <K extends keyof FormVals>(k: K, val: FormVals[K]) => setV((s) => ({ ...s, [k]: val }));
 
-  const audienceOpts = FORM_AUDIENCES.map((a) => ({ value: a, label: t(`plans.audiences.${a}`) }));
+  const audienceOpts = FORM_AUDIENCES.map((a) => ({ value: a, label: a === "seller" ? t("plans.audienceSeller") : t(`plans.audiences.${a}`) }));
   const periodOpts = BILLING_PERIODS.map((p) => ({ value: p, label: t(`plans.periods.${p}`) }));
 
   async function submit(e: FormEvent) {
@@ -119,18 +118,11 @@ function PlanForm({
         onDone();
         return;
       }
-      const r: WriteResult = await updatePlanAdmin(plan.id, body);
-      if (r.ok) {
-        setNote({ ok: true, msg: t("form.updated") });
-        onDone();
-      } else if (r.pending) {
-        onPending(t("plans.writePending"));
-      } else {
-        setNote({ ok: false, msg: r.detail || t("form.updateError") });
-      }
+      const r = await savePlan(plan, body);
+      setNote({ ok: true, msg: t("form.updated") });
+      onDone(r.via);
     } catch (e) {
-      const detail = e && typeof e === "object" && "detail" in e ? String((e as { detail?: string }).detail || "") : "";
-      setNote({ ok: false, msg: detail || t("form.error") });
+      setNote({ ok: false, msg: errDetail(e) || t("form.error") });
     } finally {
       setBusy(false);
     }
@@ -148,7 +140,7 @@ function PlanForm({
       </div>
       <div>
         <label>{t("plans.audience")}</label>
-        <Select value={v.audience} onChange={(x) => set("audience", x as PlanAudience)} options={audienceOpts} ariaLabel={t("plans.audience")} />
+        <Select value={v.audience} onChange={(x) => set("audience", x as FormAudience)} options={audienceOpts} ariaLabel={t("plans.audience")} />
         <small className="aplan__hint">{t("plans.audienceHint")}</small>
       </div>
       <div className="cform__row2">
@@ -197,10 +189,12 @@ export default function AdminPlans() {
   const res = useResourceOne(() => listSubscriptionPlansAdmin(locale), [key, locale]);
   const plans = useMemo(() => res.data?.plans ?? [], [res.data]);
   const [open, setOpen] = useState(false);
-  const [edit, setEdit] = useState<BackendPlan | null>(null);
-  const [del, setDel] = useState<BackendPlan | null>(null);
+  const [edit, setEdit] = useState<OverlaidPlan | null>(null);
+  const [del, setDel] = useState<OverlaidPlan | null>(null);
   const [q, setQ] = useState("");
   const [aud, setAud] = useState<AudienceFilter>("all");
+  const [showHidden, setShowHidden] = useState(false);
+  const hiddenCount = plans.filter((p) => p.hidden).length;
   const [pageNote, setPageNote] = useState<Note | null>(null);
   const [delBusy, setDelBusy] = useState(false);
   const [delNote, setDelNote] = useState<Note | null>(null);
@@ -209,47 +203,54 @@ export default function AdminPlans() {
   const list = useMemo(() => {
     const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return plans.filter((p) => {
+      if (p.hidden !== showHidden) return false;
       if (aud !== "all" && !planAudience(p).includes(aud)) return false;
       if (!terms.length) return true;
       const hay = [p.name, p.title, p.slug].join(" ").toLowerCase();
       return terms.every((w) => hay.includes(w));
     });
-  }, [plans, q, aud]);
+  }, [plans, q, aud, showHidden]);
 
   // Audience chips: the three GM roles always, business only when a plan has it.
   const chips: AudienceFilter[] = ["all", ...PLAN_AUDIENCES.filter((a) => a !== "business" || plans.some((p) => planAudience(p).includes("business")))];
 
-  function pending(msg: string) {
-    setPageNote({ ok: false, msg, tone: "warn" });
-    setEdit(null);
-    setDel(null);
+  // Where the write landed: the overlay note tells the admin the change is
+  // stored in the platform settings until the backend has plan editing.
+  function saved(via: "backend" | "overlay" | undefined, msg: string) {
+    setPageNote(via === "overlay" ? { ok: true, msg: `${msg} ${t("plans.savedOverlay")}` } : { ok: true, msg });
+    reload();
   }
 
-  async function toggleActive(p: BackendPlan) {
+  async function run(p: OverlaidPlan, op: () => Promise<{ via: "backend" | "overlay" } | void>, msg: string, quiet = false) {
     if (toggling) return;
     setToggling(p.id);
     setPageNote(null);
-    const r = await updatePlanAdmin(p.id, { is_active: !p.isActive });
-    setToggling(null);
-    if (r.ok) {
-      setPageNote({ ok: true, msg: t("form.updated") });
-      reload();
-    } else if (r.pending) pending(t("plans.writePending"));
-    else setPageNote({ ok: false, msg: r.detail || t("form.updateError") });
+    try {
+      const r = await op();
+      saved(quiet ? "backend" : r ? r.via : "overlay", msg);
+    } catch (e) {
+      setPageNote({ ok: false, msg: errDetail(e) || t("form.updateError") });
+    } finally {
+      setToggling(null);
+    }
   }
+  const toggleActive = (p: OverlaidPlan) => run(p, () => savePlan(p, { is_active: !p.isActive }), t("form.updated"));
+  const restore = (p: OverlaidPlan) => run(p, () => restorePlan(p.slug), t("plans.restored"), true);
+  const reset = (p: OverlaidPlan) => run(p, () => resetPlan(p.slug), t("plans.resetDone"), true);
 
   async function confirmDelete() {
     if (!del || delBusy) return;
     setDelBusy(true);
     setDelNote(null);
-    const r = await deletePlanAdmin(del.id);
-    setDelBusy(false);
-    if (r.ok) {
+    try {
+      const r = await removePlan(del);
       setDel(null);
-      setPageNote({ ok: true, msg: t("form.deleted") });
-      reload();
-    } else if (r.pending) pending(t("plans.deletePending"));
-    else setDelNote({ ok: false, msg: r.detail || t("form.deleteError") });
+      saved(r.via, r.via === "overlay" ? t("plans.deletedOverlay") : t("form.deleted"));
+    } catch (e) {
+      setDelNote({ ok: false, msg: errDetail(e) || t("form.deleteError") });
+    } finally {
+      setDelBusy(false);
+    }
   }
 
   const priceLabel = (p: BackendPlan) => {
@@ -263,7 +264,7 @@ export default function AdminPlans() {
       <div className="ppanel__h">
         <b>{t("plans.listTitle")}</b>
         <span className="ahdr">
-          <span className="advmuted">{plans.length}</span>
+          <span className="advmuted">{plans.length - hiddenCount}</span>
           <button className="btn btn--pri btn--sm" type="button" onClick={() => { setPageNote(null); setOpen(true); }}>
             <IconPlus />
             {t("form.add")}
@@ -282,11 +283,18 @@ export default function AdminPlans() {
               {t(`plans.audiences.${a}`)}
             </button>
           ))}
+          {hiddenCount ? (
+            <button type="button" className={`chip chip--muted${showHidden ? " on" : ""}`} aria-pressed={showHidden} onClick={() => setShowHidden((v) => !v)}>
+              <IconEyeOff />
+              {t("plans.hiddenChip", { n: hiddenCount })}
+            </button>
+          ) : null}
         </div>
       </div>
 
       {pageNote ? <div className={`anote anote--${pageNote.tone === "warn" ? "warn" : pageNote.ok ? "ok" : "err"}`} style={{ marginBottom: 12 }}>{pageNote.msg}</div> : null}
       {res.data?.activeOnly ? <p className="advmuted aplan__only">{t("plans.activeOnly")}</p> : null}
+      {showHidden ? <p className="advmuted aplan__only">{t("plans.hiddenNote")}</p> : null}
 
       {res.status === "loading" ? (
         <Skeleton rows={3} />
@@ -310,10 +318,22 @@ export default function AdminPlans() {
                   ))}
                   {p.isGiftable ? <em className="atag">{t("plans.giftable")}</em> : null}
                   <em className={`atag atag--${p.isActive ? "ok" : "muted"}`}>{p.isActive ? t("form.active") : t("form.inactive")}</em>
+                  {p.overridden ? <em className="atag atag--warn" title={t("plans.overriddenHint")}>{t("plans.overridden")}</em> : null}
+                  {p.hidden ? <em className="atag atag--muted">{t("plans.hiddenTag")}</em> : null}
                 </div>
               </div>
               <div className="aitem__r">{priceLabel(p)}</div>
               <div className="aitem__acts">
+                {p.hidden ? (
+                  <button className="aitem__act" type="button" aria-label={t("plans.restore")} title={t("plans.restore")} disabled={toggling === p.id} onClick={() => restore(p)}>
+                    <IconEye />
+                  </button>
+                ) : null}
+                {p.overridden ? (
+                  <button className="aitem__act" type="button" aria-label={t("plans.reset")} title={t("plans.reset")} disabled={toggling === p.id} onClick={() => reset(p)}>
+                    <IconRefresh />
+                  </button>
+                ) : null}
                 <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => { setPageNote(null); setEdit(p); }}>
                   <IconEdit />
                 </button>
@@ -327,9 +347,11 @@ export default function AdminPlans() {
                 >
                   {p.isActive ? <IconEyeOff /> : <IconEye />}
                 </button>
-                <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => { setPageNote(null); setDelNote(null); setDel(p); }}>
-                  <IconTrash />
-                </button>
+                {!p.hidden ? (
+                  <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => { setPageNote(null); setDelNote(null); setDel(p); }}>
+                    <IconTrash />
+                  </button>
+                ) : null}
               </div>
             </div>
           ))}
@@ -344,7 +366,6 @@ export default function AdminPlans() {
             reload();
             setOpen(false);
           }}
-          onPending={pending}
         />
       </Modal>
 
@@ -354,11 +375,10 @@ export default function AdminPlans() {
           <PlanForm
             key={edit.id}
             plan={edit}
-            onDone={() => {
-              reload();
+            onDone={(via) => {
               setEdit(null);
+              saved(via, t("form.updated"));
             }}
-            onPending={pending}
           />
         ) : null}
       </Modal>
@@ -370,7 +390,7 @@ export default function AdminPlans() {
             <p style={{ margin: 0 }}>
               <b>{del.name}</b> <span className="advmuted">{del.slug}</span>
             </p>
-            <p className="advmuted" style={{ margin: 0 }}>{t("form.deleteConfirmText")}</p>
+            <p className="advmuted" style={{ margin: 0 }}>{t("plans.deleteText")}</p>
             {delNote ? <Notice ok={delNote.ok} msg={delNote.msg} /> : null}
             <div style={{ display: "flex", gap: 10 }}>
               <button className="btn btn--ghost" type="button" onClick={() => setDel(null)}>

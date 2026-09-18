@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getServiceCategories, searchServices } from "@/lib/services/backend";
+import { getServiceCategories, searchServices, type BackendCategory } from "@/lib/services/backend";
+import { saveCategory, removeCategory, restoreCategory, resetCategory, type OverlaidCategory } from "@/lib/services/catalogOverrides";
 import {
   createServiceCategory,
   createService,
@@ -21,7 +22,7 @@ import { AdminForm, AdminItem, Notice, useReload } from "@/components/admin/Admi
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import ServiceEditModal from "@/components/admin/ServiceEditModal";
-import { IconBriefcase, IconPlus, IconSearch, IconEdit, IconTrash, IconRefresh, IconClose, IconInfo } from "@/components/icons";
+import { IconBriefcase, IconPlus, IconSearch, IconEdit, IconTrash, IconRefresh, IconClose, IconInfo, IconEye, IconEyeOff } from "@/components/icons";
 
 function num(v: string | boolean): number {
   const n = parseInt(String(v || "0"), 10);
@@ -67,7 +68,31 @@ export default function AdminServices() {
   const uid = session?.id ?? "";
   const [catKey, reloadCats] = useReload();
   const [svcKey, reloadSvcs] = useReload();
-  const cats = useResource(getServiceCategories, [catKey]);
+  // Admin sees hidden ("deleted") categories too, behind a toggle.
+  const cats = useResource(() => getServiceCategories({ includeHidden: true }) as Promise<OverlaidCategory[]>, [catKey]);
+  const [showHiddenCats, setShowHiddenCats] = useState(false);
+  const visibleCats = useMemo(() => cats.data.filter((c) => !c.hidden), [cats.data]);
+  const hiddenCats = useMemo(() => cats.data.filter((c) => c.hidden), [cats.data]);
+  const [catEdit, setCatEdit] = useState<OverlaidCategory | null>(null);
+  const [catDel, setCatDel] = useState<OverlaidCategory | null>(null);
+  const [catBusy, setCatBusy] = useState("");
+  const [catNote, setCatNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  async function catOp(c: BackendCategory, op: () => Promise<{ via: "backend" | "overlay" } | void>, msg: string) {
+    if (catBusy) return;
+    setCatBusy(c.id);
+    setCatNote(null);
+    try {
+      const r = await op();
+      setCatNote({ ok: true, msg: r && r.via === "overlay" ? `${msg} ${ts("cat.overlayNote")}` : msg });
+      setCatEdit(null);
+      setCatDel(null);
+      reloadCats();
+    } catch (e) {
+      setCatNote({ ok: false, msg: errDetail(e) || t("form.error") });
+    } finally {
+      setCatBusy("");
+    }
+  }
   const svcs = useResource(() => listAdminServices(locale), [svcKey, locale]);
   const [catOpen, setCatOpen] = useState(false);
   const [svcOpen, setSvcOpen] = useState(false);
@@ -215,21 +240,56 @@ export default function AdminServices() {
         <div className="ppanel__h">
           <b>{t("services.catTitle")}</b>
           <span className="ahdr">
-            <span className="advmuted">{cats.data.length}</span>
+            <span className="advmuted">{visibleCats.length}</span>
+            {hiddenCats.length ? (
+              <button type="button" className={`chip chip--muted${showHiddenCats ? " on" : ""}`} aria-pressed={showHiddenCats} onClick={() => setShowHiddenCats((v) => !v)}>
+                <IconEyeOff />
+                {ts("cat.hiddenChip", { n: hiddenCats.length })}
+              </button>
+            ) : null}
             <button className="btn btn--pri btn--sm" type="button" onClick={() => setCatOpen(true)}>
               <IconPlus />
               {t("form.add")}
             </button>
           </span>
         </div>
+        {catNote ? <Notice ok={catNote.ok} msg={catNote.msg} /> : null}
         {cats.status === "loading" ? (
           <Skeleton rows={3} />
         ) : !cats.data.length ? (
           <EmptyState icon={<IconBriefcase />} title={t("services.catEmpty")} />
         ) : (
           <div className="alist">
-            {cats.data.map((c, i) => (
-              <AdminItem key={c.id} index={i + 1} title={c.name} meta={c.slug} />
+            {(showHiddenCats ? hiddenCats : visibleCats).map((c, i) => (
+              <AdminItem
+                key={c.id}
+                index={i + 1}
+                title={c.name}
+                meta={c.slug}
+                tags={[...(c.overridden ? [{ label: ts("cat.overridden"), tone: "muted" as const }] : []), ...(c.hidden ? [{ label: ts("cat.hiddenTag"), tone: "muted" as const }] : [])]}
+                actions={
+                  <>
+                    {c.hidden ? (
+                      <button className="aitem__act" type="button" aria-label={ts("cat.restore")} title={ts("cat.restore")} disabled={catBusy === c.id} onClick={() => void catOp(c, () => restoreCategory(c.id), ts("cat.restored"))}>
+                        <IconEye />
+                      </button>
+                    ) : null}
+                    {c.overridden ? (
+                      <button className="aitem__act" type="button" aria-label={ts("cat.reset")} title={ts("cat.reset")} disabled={catBusy === c.id} onClick={() => void catOp(c, () => resetCategory(c.id), ts("cat.resetDone"))}>
+                        <IconRefresh />
+                      </button>
+                    ) : null}
+                    <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => { setCatNote(null); setCatEdit(c); }}>
+                      <IconEdit />
+                    </button>
+                    {!c.hidden ? (
+                      <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => { setCatNote(null); setCatDel(c); }}>
+                        <IconTrash />
+                      </button>
+                    ) : null}
+                  </>
+                }
+              />
             ))}
           </div>
         )}
@@ -388,7 +448,7 @@ export default function AdminServices() {
               type: "select",
               required: true,
               placeholder: t("form.selectCategory"),
-              options: cats.data.map((c) => ({ value: c.id, label: c.name })),
+              options: visibleCats.map((c) => ({ value: c.id, label: c.name })),
             },
             { name: "title", label: t("form.title"), required: true },
             { name: "slug", label: t("form.slug"), required: true },
@@ -420,7 +480,45 @@ export default function AdminServices() {
         />
       </Modal>
 
-      <ServiceEditModal service={edit} categories={cats.data} onClose={() => setEdit(null)} onSaved={onSaved} />
+      <ServiceEditModal service={edit} categories={visibleCats} onClose={() => setEdit(null)} onSaved={onSaved} />
+
+      {/* Category edit */}
+      <Modal open={catEdit !== null} onClose={() => setCatEdit(null)} title={ts("cat.editTitle")}>
+        {catEdit ? (
+          <AdminForm
+            key={catEdit.id}
+            fields={[{ name: "title", label: t("form.title"), required: true, placeholder: catEdit.slug }]}
+            initialValues={{ title: catEdit.name }}
+            resetOnDone={false}
+            onSubmit={async (v) => void (await catOp(catEdit, () => saveCategory(catEdit.id, { title: String(v.title).trim() }), t("form.updated")))}
+            submitLabel={t("form.update")}
+            busyLabel={t("form.saving")}
+            okMsg={t("form.updated")}
+            errMsg={t("form.error")}
+            onDone={() => setCatEdit(null)}
+          />
+        ) : null}
+      </Modal>
+
+      {/* Category delete (hide) confirm */}
+      <Modal open={catDel !== null} onClose={() => setCatDel(null)} title={t("form.deleteConfirm")}>
+        {catDel ? (
+          <div className="cform" style={{ maxWidth: "none" }}>
+            <p style={{ margin: 0 }}>
+              <b>{catDel.name}</b> <span className="advmuted">{catDel.slug}</span>
+            </p>
+            <p className="advmuted" style={{ margin: 0 }}>{ts("cat.deleteText")}</p>
+            <div className="svced__acts">
+              <button className="btn btn--ghost" type="button" onClick={() => setCatDel(null)} disabled={catBusy === catDel.id}>
+                {t("form.cancel")}
+              </button>
+              <button className="btn btn--danger" type="button" disabled={catBusy === catDel.id} onClick={() => void catOp(catDel, () => removeCategory(catDel.id), ts("cat.deleted"))}>
+                {catBusy === catDel.id ? t("form.saving") : t("form.delete")}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
       {/* Delete (soft) confirm */}
       <Modal open={del !== null} onClose={() => setDel(null)} title={ts("del.title")}>

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { getCeoDashboardFull, isCeoEmpty, trimSeries, isFiltered, todayIso, type CeoDashboardFull } from "@/lib/services/dash";
 import { demoCeo } from "@/lib/demoStats";
 import { useResourceOne } from "@/lib/useResource";
-import { fmtUzs } from "@/lib/money";
+import { fmtUzs, fmtUzsShort } from "@/lib/money";
 import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton } from "@/components/portal/DataState";
 import LineChart from "@/components/admin/LineChart";
@@ -32,6 +32,7 @@ const pct = (n: number) => `${n}%`;
 export default function AdminCeo() {
   const t = useTranslations("admin.ceo");
   const td = useTranslations("admin.dash");
+  const tc = useTranslations("admin.overview.crm");
   const { filter, setFilter, demoForced, setDemoForced } = useDashFilter();
   const fkey = `${filter.region}|${filter.from}|${filter.to}`;
   const res = useResourceOne(() => getCeoDashboardFull(filter), [fkey]);
@@ -44,6 +45,8 @@ export default function AdminCeo() {
   // Funnel stages (leads / orders / paid) and channel sources arrive as slugs.
   const stage = (k: string) => (t.has(`stage.${k}`) ? t(`stage.${k}`) : humanizeSlug(k));
   const source = (k: string) => (k ? (t.has(`source.${k}`) ? t(`source.${k}`) : humanizeSlug(k)) : "—");
+  const units = { mln: td("units.mln"), mlrd: td("units.mlrd") };
+  const short = (n: number) => `${fmtUzsShort(n, units)} ${tc("som")}`;
   const regionHint = filter.region ? td("hint.regionNa") : undefined;
   const dateHint = filter.from || filter.to ? td("hint.dateNa") : undefined;
 
@@ -80,8 +83,8 @@ export default function AdminCeo() {
       ) : (
         <>
           <div className="castat">
-            <StatTile icon={<IconCard />} value={som(d.revenue)} label={t("revenue")} sub={`${d.revenueDeltaPct >= 0 ? "+" : ""}${d.revenueDeltaPct}%`} demo={demo} hint={regionHint} onClick={drillRevenue} />
-            <StatTile icon={<IconTrendingUp />} tone="ok" value={som(d.mrr)} label={t("mrr")} demo={demo} hint={regionHint ?? dateHint} onClick={drillMrr} />
+            <StatTile icon={<IconCard />} value={short(d.revenue)} label={t("revenue")} sub={`${d.revenueDeltaPct >= 0 ? "+" : ""}${d.revenueDeltaPct}%`} demo={demo} hint={regionHint} onClick={drillRevenue} />
+            <StatTile icon={<IconTrendingUp />} tone="ok" value={short(d.mrr)} label={t("mrr")} demo={demo} hint={regionHint ?? dateHint} onClick={drillMrr} />
             <StatTile icon={<IconUsers />} value={String(d.users)} label={t("users")} sub={`${d.activeUsers} ${t("active")}`} demo={demo} hint={dateHint} onClick={drillUsers} />
             <StatTile icon={<IconTarget />} value={pct(d.conversionPct)} label={t("conversion")} demo={demo} hint={regionHint} onClick={drillConversion} />
           </div>
@@ -89,7 +92,7 @@ export default function AdminCeo() {
           <div className="cachart">
             <h3>{t("revenueTrend")}</h3>
             {trend.length ? (
-              <LineChart points={trend} format={(v) => som(v)} />
+              <LineChart points={trend} format={(v) => som(v)} controls={false} />
             ) : <p className="advmuted">{t("noData")}</p>}
           </div>
 
@@ -112,8 +115,10 @@ export default function AdminCeo() {
               {d.channels.length ? (
                 <DonutChart
                   data={d.channels.map((c) => ({ label: source(c.name), value: c.leads || c.payments || c.pct }))}
-                  centerLabel={t("channels")}
+                  centerLabel={td("drill.channels")}
                   format={(v) => String(v)}
+                  max={8}
+                  otherLabel={td("drill.other")}
                 />
               ) : <p className="advmuted">{t("noData")}</p>}
             </div>
@@ -147,8 +152,8 @@ export default function AdminCeo() {
           <div className="cachart" style={{ paddingBottom: 0 }}><h3>{t("kpi.title")}</h3></div>
           <div className="castat">
             <StatTile icon={<IconUsers />} value={String(d.mau)} label={t("kpi.mau")} sub={`${d.dau} ${t("kpi.dau")}`} demo={demo} hint={regionHint} onClick={drillUsers} />
-            <StatTile icon={<IconTrendingUp />} tone="ok" value={som(d.gmv)} label={t("kpi.gmv")} demo={demo} hint={regionHint} onClick={simple(t("kpi.gmv"), som(d.gmv))} />
-            <StatTile icon={<IconCard />} tone="ok" value={som(d.arr)} label={t("kpi.arr")} demo={demo} hint={regionHint ?? dateHint} onClick={drillMrr} />
+            <StatTile icon={<IconTrendingUp />} tone="ok" value={short(d.gmv)} label={t("kpi.gmv")} demo={demo} hint={regionHint} onClick={simple(t("kpi.gmv"), som(d.gmv))} />
+            <StatTile icon={<IconCard />} tone="ok" value={short(d.arr)} label={t("kpi.arr")} demo={demo} hint={regionHint ?? dateHint} onClick={drillMrr} />
             <StatTile icon={<IconCard />} value={som(d.arpu)} label={t("kpi.arpu")} demo={demo} hint={regionHint} onClick={simple(t("kpi.arpu"), som(d.arpu))} />
           </div>
           <div className="castat">

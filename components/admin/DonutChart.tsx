@@ -7,16 +7,23 @@ import { useState } from "react";
 const COLORS = ["#1668f0", "#00b4d8", "#7c3aed", "#f59e0b", "#10b981", "#ef4444", "#64748b", "#ec4899"];
 
 export default function DonutChart({
-  data,
+  data: rawData,
+  max = 8,
+  otherLabel = "…",
   centerLabel,
   format,
 }: {
   data: { label: string; value: number }[];
+  max?: number;
+  otherLabel?: string;
   centerLabel: string;
   format?: (n: number) => string;
 }) {
   const [hi, setHi] = useState<number | null>(null);
   const fmtV = format ?? ((n: number) => String(n));
+  // Largest slices first; anything past `max` becomes one "other" slice.
+  const sorted = [...rawData].sort((a, b) => b.value - a.value);
+  const data = sorted.length > max ? [...sorted.slice(0, max - 1), { label: otherLabel, value: sorted.slice(max - 1).reduce((s, d) => s + d.value, 0) }] : sorted;
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
   const R = 80, r = 50, C = 100;
   const arcs = data.map((d, i) => {

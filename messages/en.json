@@ -2933,7 +2933,9 @@
         "preSellerAnon": "advocate",
         "preSellerLead": "Now pick a service — the order goes to this advocate.",
         "preSellerClear": "Another advocate",
-        "preSellerNotOffering": "{name} does not offer this service — pick another advocate from the list or open another service."
+        "preSellerNotOffering": "{name} does not offer this service — pick another advocate from the list or open another service.",
+        "preSellerOnly": "Only the services this advocate offers ({n}) are shown — the order goes to them.",
+        "preSellerNoList": "This advocate has not listed services yet — the full catalogue is shown."
       },
       "documents": {
         "title": "Document templates",
@@ -4540,6 +4542,19 @@
         "refundCode": "Refund code",
         "aiCategory": "AI category",
         "advokatRequired": "Advocate only"
+      },
+      "cat": {
+        "editTitle": "Edit category",
+        "overlayNote": "The backend cannot edit categories yet — the change is stored in the platform settings and applied in the catalogue.",
+        "deleteText": "The category is hidden from the catalogue (client and admin lists). Its services are kept; it can be restored.",
+        "deleted": "Category hidden.",
+        "hiddenChip": "Hidden ({n})",
+        "hiddenTag": "Hidden",
+        "overridden": "Edited",
+        "restore": "Restore to list",
+        "restored": "Category restored to the list.",
+        "reset": "Reset to backend name",
+        "resetDone": "Admin change removed."
       }
     },
     "plans": {
@@ -4573,7 +4588,20 @@
       "empty": "No tariffs yet",
       "benefits": "Benefits",
       "benefitsPh": "One per line",
-      "giftable": "Giftable"
+      "giftable": "Giftable",
+      "savedOverlay": "The backend cannot edit plans yet — the change is stored in the platform settings and applied on every page (client, provider, admin).",
+      "deletedOverlay": "Plan hidden — clients and providers no longer see it. Restore it from the “Hidden” list.",
+      "deleteText": "The plan is removed from the list and hidden from clients/providers. Existing subscriptions are not affected; it can be restored.",
+      "hiddenChip": "Hidden ({n})",
+      "hiddenNote": "Hidden plans: not in the spec or removed by an admin. Click the eye icon to restore.",
+      "hiddenTag": "Hidden",
+      "overridden": "Edited",
+      "overriddenHint": "Admin-edited values apply on top of the backend values",
+      "restore": "Restore to list",
+      "restored": "Plan restored to the list.",
+      "reset": "Reset to backend values",
+      "resetDone": "Admin changes removed — backend values are shown.",
+      "audienceSeller": "Lawyer and advocate"
     },
     "templates": {
       "listTitle": "Document templates",
@@ -5788,13 +5816,18 @@
         "chats": "Secure chats",
         "goOrders": "Go to requests",
         "goCases": "Go to cases",
-        "goPayouts": "Go to payouts"
+        "goPayouts": "Go to payouts",
+        "other": "Other"
       },
       "role": {
         "yurist": "Lawyers",
         "advokat": "Advocates",
         "advokat_tashkiloti": "Advocate organizations",
         "client": "Clients"
+      },
+      "units": {
+        "mln": "M",
+        "mlrd": "B"
       }
     }
   },

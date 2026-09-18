@@ -4364,3 +4364,14 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .ktile.stile--btn{background:none;border:0;padding:6px 8px;margin:-6px -8px;width:calc(100% + 16px);border-radius:12px}
 .ktile.stile--btn:hover{background:var(--b50);box-shadow:none;transform:none}
 .castat__c.stile--btn,.amet__c.stile--btn{text-align:left}
+
+/* ── wp-catov ── */
+.atag--warn{background:var(--dk-tint-warn, #fff4e5);color:var(--dk-txt-warn, #b45309)}
+.chip--muted{color:var(--gray);font-size:.78rem;padding:6px 12px}
+.chip--muted.on{background:var(--dk-surface-2, #EEF2F7);border-color:transparent;color:var(--ink)}
+
+/* ── wp-dashd ── */
+.castat--4{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.castat--2{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:0}
+.castat__c.stile--btn{gap:6px}
+.castat__c .stile__hint{margin-top:0}

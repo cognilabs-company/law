@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useState, type ComponentType, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
@@ -17,6 +17,7 @@ import {
   type MatchCandidate,
   type PriceModifier,
   type PriceQuote,
+  getLawyerServices,
 } from "@/lib/services/backend";
 import { http, asDict, asStr } from "@/lib/http";
 import OrderPayment from "@/components/portal/OrderPayment";
@@ -84,6 +85,21 @@ export default function ClientServices() {
     const h = setTimeout(() => setPreSeller(id ? { id, name } : null), 0);
     return () => clearTimeout(h);
   }, []);
+  // With an advocate preselected the catalogue is narrowed to the services
+  // they actually offer (GET /lawyers/{id}/services), so a service they do
+  // not provide can never be opened. null = not loaded yet; an empty set =
+  // the advocate has not listed services (the full catalogue stays).
+  const [preServices, setPreServices] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (!preSeller) { const h = setTimeout(() => setPreServices(null), 0); return () => clearTimeout(h); }
+    let alive = true;
+    getLawyerServices(preSeller.id)
+      .then((rows) => alive && setPreServices(new Set(rows.map((r) => r.id).filter(Boolean))))
+      .catch(() => alive && setPreServices(new Set()));
+    return () => { alive = false; };
+  }, [preSeller]);
+  const narrowed = Boolean(preSeller && preServices && preServices.size);
+  const offeredBy = useCallback((s: BackendService) => !narrowed || (preServices as Set<string>).has(s.id), [narrowed, preServices]);
   const [cat, setCat] = useState(""); // "" = families overview
   // Deep link from the AI intake ("order this service") pre-fills the search.
   // Rendered only client-side (inside the portal shell, after auth is ready).
@@ -117,7 +133,10 @@ export default function ClientServices() {
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
 
   const query = q.trim().toLowerCase();
-  const countFor = (id: string) => services.data.filter((s) => s.categoryId === id).length;
+  const catalog = useMemo(() => (narrowed ? services.data.filter(offeredBy) : services.data), [services.data, narrowed, offeredBy]);
+  const countFor = (id: string) => catalog.filter((s) => s.categoryId === id).length;
+  // Families with at least one offered service (all of them when not narrowed).
+  const famList = narrowed ? cats.data.filter((c) => countFor(c.id) > 0) : cats.data;
 
   // T1-06 server search (GET /services/search): Latin/Cyrillic/Russian
   // spellings, category and AI category, ranked by score. Debounced; until it
@@ -144,15 +163,15 @@ export default function ClientServices() {
       const hits = remote && remote.q.toLowerCase() === query ? remote.list : null;
       if (hits) {
         // Keep the catalog view (catalog_only) when it loaded: drop non-catalog hits.
-        const byId = new Map(services.data.map((s) => [s.id, s]));
-        return byId.size ? hits.flatMap((h) => byId.get(h.id) ?? []) : hits;
+        const byId = new Map(catalog.map((s) => [s.id, s]));
+        return byId.size ? hits.flatMap((h) => byId.get(h.id) ?? []) : narrowed ? hits.filter(offeredBy) : hits;
       }
-      return services.data.filter(
+      return catalog.filter(
         (s) => s.name.toLowerCase().includes(query) || (s.catalogCode || "").toLowerCase().includes(query),
       );
     }
-    return cat ? services.data.filter((s) => s.categoryId === cat) : [];
-  }, [services.data, cat, query, remote]);
+    return cat ? catalog.filter((s) => s.categoryId === cat) : [];
+  }, [catalog, cat, query, remote, narrowed, offeredBy]);
 
   // Deep link from the AI offer cards (?service=<id>) opens that service's order
   // modal once the catalog is loaded; a service outside the catalog list is
@@ -319,7 +338,10 @@ export default function ClientServices() {
           <span className="presel__av">{(preSeller.name || "A").split(/\s+/).map((x) => x[0]).join("").slice(0, 2).toUpperCase()}</span>
           <div>
             <b>{t("preSellerTitle", { name: preSeller.name || t("preSellerAnon") })}</b>
-            <span>{afterHours ? t("afterHours", { when: respondBy }) : t("preSellerLead")}</span>
+            <span>
+              {narrowed ? t("preSellerOnly", { n: catalog.length }) : preServices && !preServices.size ? t("preSellerNoList") : t("preSellerLead")}
+              {afterHours ? ` ${t("afterHours", { when: respondBy })}` : ""}
+            </span>
           </div>
           <button type="button" className="btn btn--line btn--sm" onClick={() => { setPreSeller(null); if (typeof window !== "undefined") window.history.replaceState(null, "", window.location.pathname); }}>{t("preSellerClear")}</button>
         </div>
@@ -327,7 +349,7 @@ export default function ClientServices() {
       <div className="ppanel">
         <div className="ppanel__h">
           <b>{showFamilies ? t("chooseFamily") : query ? t("title") : catName}</b>
-          <span className="advmuted">{showFamilies ? cats.data.length : list.length}</span>
+          <span className="advmuted">{showFamilies ? famList.length : list.length}</span>
         </div>
 
         <div className="svsel__bar" style={{ marginBottom: 14 }}>
@@ -348,7 +370,7 @@ export default function ClientServices() {
           <Skeleton rows={4} />
         ) : showFamilies ? (
           <div className="svsel__grid">
-            {cats.data.map((c, i) => {
+            {famList.map((c, i) => {
               const Icon = FAM_ICONS[i % FAM_ICONS.length];
               return (
                 <button key={c.id} type="button" className="svcard" onClick={() => setCat(c.id)}>

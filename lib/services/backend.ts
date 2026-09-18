@@ -7,6 +7,7 @@ import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
 import { attributionDetails } from "@/lib/attribution";
+import { applyCategoryOverrides, applyPlanOverride, applyPlanOverrides, categoryOverridesFrom, planOverridesFrom, type OverlaidPlan } from "@/lib/catalogOverlay";
 
 // ── Auth ──────────────────────────────────────────────────────────
 export type BackendRole =
@@ -572,12 +573,13 @@ export type ServiceFilters = {
   catalog_only?: boolean;
 };
 
-export async function getServiceCategories(): Promise<BackendCategory[]> {
-  const data = await http("/service-categories");
-  return listFrom(data, "categories", "items", "data").map((v) => {
+export async function getServiceCategories(opts?: { includeHidden?: boolean }): Promise<BackendCategory[]> {
+  const [data, ov] = await Promise.all([http("/service-categories"), getPlatformPolicies().then((p) => categoryOverridesFrom(p.raw)).catch(() => ({}))]);
+  const cats = listFrom(data, "categories", "items", "data").map((v) => {
     const d = asDict(v);
     return { id: asStr(d.id), name: asStr(d.title ?? d.name), slug: asStr(d.slug) };
   });
+  return applyCategoryOverrides(cats, ov, opts?.includeHidden);
 }
 
 export async function getServices(filters?: ServiceFilters, locale = "uz"): Promise<BackendService[]> {
@@ -807,8 +809,8 @@ function normPlan(v: unknown, locale: string): BackendPlan {
 }
 
 export async function getSubscriptionPlans(locale = "uz"): Promise<BackendPlan[]> {
-  const data = await http("/subscription-plans");
-  return listFrom(data, "plans", "items", "data").map((v) => normPlan(v, locale));
+  const [data, ov] = await Promise.all([http("/subscription-plans"), getPlatformPolicies().then((p) => planOverridesFrom(p.raw)).catch(() => ({}))]);
+  return applyPlanOverrides(listFrom(data, "plans", "items", "data").map((v) => normPlan(v, locale)), ov);
 }
 
 // A route the backend has not shipped yet answers 404 (unknown path), 405
@@ -821,14 +823,16 @@ export function isMissingRoute(e: unknown): boolean {
 // Admin list of tariffs. Backend HEAD f6c94f8 only has POST
 // /admin/subscription-plans (no GET), so this probes GET and falls back to the
 // public list, which carries active plans only — `activeOnly` tells the UI.
-export async function listSubscriptionPlansAdmin(locale = "uz"): Promise<{ plans: BackendPlan[]; activeOnly: boolean }> {
+export async function listSubscriptionPlansAdmin(locale = "uz"): Promise<{ plans: OverlaidPlan[]; activeOnly: boolean }> {
+  const ov = await getPlatformPolicies().then((p) => planOverridesFrom(p.raw)).catch(() => ({}));
   try {
     const data = await http("/admin/subscription-plans");
-    return { plans: listFrom(data, "plans", "items", "data").map((v) => normPlan(v, locale)), activeOnly: false };
+    return { plans: listFrom(data, "plans", "items", "data").map((v) => applyPlanOverride(normPlan(v, locale), ov)), activeOnly: false };
   } catch (e) {
     if (!isMissingRoute(e)) throw e;
   }
-  return { plans: await getSubscriptionPlans(locale), activeOnly: true };
+  const data = await http("/subscription-plans");
+  return { plans: listFrom(data, "plans", "items", "data").map((v) => applyPlanOverride(normPlan(v, locale), ov)), activeOnly: true };
 }
 
 // ── Orders & cases ────────────────────────────────────────────────
