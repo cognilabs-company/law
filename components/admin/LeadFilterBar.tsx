@@ -6,7 +6,7 @@ import DatePicker from "@/components/DatePicker";
 import { leadRegionLabel, leadScoreLabel, leadSourceLabel, leadUrgencyLabel } from "@/lib/leadLabels";
 import { EMPTY_LEAD_FILTER, LEAD_SCORES, filterActive, type LeadFilter } from "@/lib/services/leads";
 import type { AdminUser } from "@/lib/services/users";
-import { IconClose, IconSearch, IconUser } from "@/components/icons";
+import { IconClose, IconSearch } from "@/components/icons";
 
 // Shared CRM filter bar (sales pipeline, call-center board and queue):
 // search, source / region / stage selects, assignee select, date range over
@@ -83,7 +83,6 @@ export default function LeadFilterBar({
         <div className="lchips">
           {mine ? (
             <button type="button" className="lchip lchip--me" aria-pressed={isMine} onClick={() => set({ assignee: isMine ? "" : "mine" })}>
-              <IconUser />
               {t("f.mine")}
             </button>
           ) : null}

@@ -12,7 +12,7 @@ import Select from "@/components/Select";
 import { fmtDate, shortDateTime } from "@/lib/date";
 import { assigneeLabel, leadRegionLabel, leadScoreLabel, leadUrgencyLabel } from "@/lib/leadLabels";
 import { Skeleton } from "@/components/portal/DataState";
-import { IconClose, IconClock, IconPhone, IconSend, IconUser } from "@/components/icons";
+import { IconClose, IconClock, IconPhone, IconSend } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
 
 // Lead detail drawer for the sales workspace: client info, stage switch,
@@ -141,7 +141,6 @@ export default function LeadDrawer({
             <span className="ldrw__lbl">{t("assign.title")}</span>
             <div className="lasgn__row">
               <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`}>
-                <IconUser />
                 <span>{assigneeLabel(t, operators, lead.assignedTo, meId)}</span>
               </span>
               {canPick ? (

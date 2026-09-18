@@ -31,7 +31,7 @@ import { ApiError } from "@/lib/http";
 import Select from "@/components/Select";
 import { Skeleton } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconRefresh, IconPhone, IconUser } from "@/components/icons";
+import { IconRefresh, IconPhone } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
 
 type State = { status: "loading" | "ready" | "error" | "forbidden"; columns: KanbanColumnX[] };
@@ -205,7 +205,6 @@ export default function CallCenterBoard() {
                     <span className="pipe__tags">
                       {lead.scoreKey ? <span className={`lscore lscore--${lead.scoreKey}`}>{leadScoreLabel(tp, lead.scoreKey)}</span> : null}
                       <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`} title={tp("assign.title")}>
-                        <IconUser />
                         <span>{assigneeLabel(tp, ops.ops, lead.assignedTo, meId)}</span>
                       </span>
                     </span>

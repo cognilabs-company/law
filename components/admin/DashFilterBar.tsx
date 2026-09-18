@@ -8,7 +8,7 @@ import { REGION_KEYS } from "@/lib/lawyers";
 import { EMPTY_FILTER, isFiltered, type DashFilter } from "@/lib/services/dash";
 import { dayBefore } from "@/lib/demoStats";
 import { useDemoForced } from "@/lib/demoStats";
-import { IconMapPin, IconRefresh, IconBolt, IconInfo } from "@/components/icons";
+import { IconRefresh, IconBolt } from "@/components/icons";
 
 const PRESETS: { key: "d7" | "d30" | "d90"; days: number }[] = [
   { key: "d7", days: 7 },
@@ -64,7 +64,6 @@ export default function DashFilterBar({
     <div className={`dfbar${compact ? " dfbar--compact" : ""}`} role="group" aria-label={t("aria")}>
       <div className="dfbar__row">
         <span className="dfbar__f dfbar__f--region">
-          <IconMapPin />
           <Select value={value.region} onChange={(region) => onChange({ ...value, region })} options={regions} ariaLabel={t("region")} />
         </span>
         <span className="dfbar__f dfbar__f--date">
@@ -101,7 +100,6 @@ export default function DashFilterBar({
       </div>
       {note ? (
         <p className="dfbar__note">
-          <IconInfo />
           {note}
         </p>
       ) : null}
