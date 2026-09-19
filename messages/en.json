@@ -2308,6 +2308,9 @@
         "quickHelp": "Describe your problem — we'll pick the best service and lawyer",
         "quickHelpCta": "Get help",
         "activeOrders": "Active orders",
+        "kpiTotal": "Total requests",
+        "kpiCompleted": "Completed",
+        "kpiPending": "Needs your action",
         "subscription": "Subscription",
         "subActive": "Standard · active",
         "subNone": "No active subscription",
@@ -3829,7 +3832,9 @@
       },
       "som": "UZS"
     },
-    "menu": "Menu"
+    "menu": "Menu",
+    "collapse": "Collapse",
+    "expand": "Expand"
   },
   "notFound": {
     "title": "Page not found",

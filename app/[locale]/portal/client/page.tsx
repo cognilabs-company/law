@@ -2,7 +2,7 @@
 
 import { statusLabel } from "@/lib/labels";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -19,7 +19,11 @@ import {
   IconShieldCheck,
   IconClock,
   IconCheck,
+  IconFileText,
+  IconAlert,
 } from "@/components/icons";
+
+const DONE_STATUSES = new Set(["completed", "archived"]);
 
 // Static quick-action shortcuts (navigation, not backend data).
 const QUICK_ACTIONS = [
@@ -38,6 +42,16 @@ export default function ClientDashboard() {
   const router = useRouter();
   const [ask, setAsk] = useState("");
   const res = useResource(listCases, []);
+  const kpi = useMemo(() => {
+    const rows = res.data;
+    const done = rows.filter((c) => DONE_STATUSES.has(c.status)).length;
+    return {
+      total: rows.length,
+      active: rows.length - done,
+      done,
+      pending: rows.filter((c) => c.nextAction).length,
+    };
+  }, [res.data]);
 
   function describe() {
     const q = ask.trim();
@@ -90,6 +104,34 @@ export default function ClientDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* At-a-glance analytics: real counts from the same case list rendered
+          below, not separate/fake numbers — total, still-open, done, and how
+          many need the client's own next step. */}
+      {res.status !== "loading" ? (
+        <div className="pk">
+          <div className="pk__i pk__i--ic pk__i--neutral">
+            <span className="pk__ico"><IconFileText /></span>
+            <b>{kpi.total}</b>
+            <span>{t("kpiTotal")}</span>
+          </div>
+          <div className="pk__i pk__i--ic pk__i--active">
+            <span className="pk__ico"><IconClock /></span>
+            <b>{kpi.active}</b>
+            <span>{t("activeOrders")}</span>
+          </div>
+          <div className="pk__i pk__i--ic pk__i--ok">
+            <span className="pk__ico"><IconCheck /></span>
+            <b>{kpi.done}</b>
+            <span>{t("kpiCompleted")}</span>
+          </div>
+          <div className="pk__i pk__i--ic pk__i--warn">
+            <span className="pk__ico"><IconAlert /></span>
+            <b>{kpi.pending}</b>
+            <span>{t("kpiPending")}</span>
+          </div>
+        </div>
+      ) : null}
 
       <ReferralProgress side="client" href="/portal/client/referrals" />
 

@@ -43,6 +43,11 @@ import {
   IconLock,
   IconClock,
   IconVideo,
+  IconChevronLeft,
+  IconEye,
+  IconSearch,
+  IconAward,
+  IconUserPlus,
 } from "../icons";
 
 type SvgC = ComponentType<{ className?: string }>;
@@ -78,14 +83,14 @@ const LAWYER_NAV: NavItem[] = [
   { href: "/portal/lawyer/tasks", key: "tasks", Icon: IconClipboardCheck },
   { href: "/portal/lawyer/calendar", key: "calendar", Icon: IconCalendar },
   { href: "/portal/lawyer/clients", key: "clients", Icon: IconUsers },
-  { href: "/portal/lawyer/services", key: "services", Icon: IconBriefcase },
+  { href: "/portal/lawyer/services", key: "services", Icon: IconTarget },
   { href: "/portal/lawyer/documents", key: "documents", Icon: IconDocLines },
   { href: "/portal/lawyer/workspace", key: "workspace", Icon: IconFolder },
   { href: "/portal/lawyer/chat", key: "chat", Icon: IconChat },
   { href: "/portal/lawyer/meetings", key: "meetings", Icon: IconVideo },
   { href: "/portal/lawyer/notifications", key: "notifications", Icon: IconBell },
   { href: "/portal/lawyer/ai", key: "ai", Icon: IconSparkle },
-  { href: "/portal/lawyer/assistant", key: "assistant", Icon: IconClipboardCheck },
+  { href: "/portal/lawyer/assistant", key: "assistant", Icon: IconEye },
   { href: "/portal/lawyer/profile", key: "profile", Icon: IconUser },
   { href: "/portal/lawyer/referrals", key: "referrals", Icon: IconGift },
   { href: "/portal/lawyer/promotion", key: "promotion", Icon: IconBolt },
@@ -115,21 +120,21 @@ const CLIENT_NAV: NavItem[] = [
   { href: "/portal/client", key: "dashboard", Icon: IconGrid },
   { href: "/portal/client/sos", key: "sos", Icon: IconAlert },
   { href: "/portal/client/services", key: "services", Icon: IconBriefcase },
-  { href: "/portal/client/packages", key: "packages", Icon: IconGift },
+  { href: "/portal/client/packages", key: "packages", Icon: IconFolder },
   { href: "/portal/client/documents", key: "documents", Icon: IconDocLines },
   { href: "/portal/client/cases", key: "cases", Icon: IconFileText },
   { href: "/portal/client/messages", key: "messages", Icon: IconChat },
   { href: "/portal/client/notifications", key: "notifications", Icon: IconBell },
   { href: "/portal/client/ai", key: "ai", Icon: IconSparkle },
-  { href: "/portal/client/intake", key: "intake", Icon: IconSparkle },
-  { href: "/portal/client/doc-analysis", key: "docAnalysis", Icon: IconFileText },
+  { href: "/portal/client/intake", key: "intake", Icon: IconSearch },
+  { href: "/portal/client/doc-analysis", key: "docAnalysis", Icon: IconEye },
   { href: "/portal/client/academy", key: "academy", Icon: IconGraduation },
-  { href: "/portal/client/lawyers", key: "lawyers", Icon: IconUser },
+  { href: "/portal/client/lawyers", key: "lawyers", Icon: IconUsers },
   { href: "/portal/client/matches", key: "matches", Icon: IconTarget },
-  { href: "/portal/client/subscription", key: "subscription", Icon: IconShield },
+  { href: "/portal/client/subscription", key: "subscription", Icon: IconAward },
   { href: "/portal/client/payments", key: "payments", Icon: IconCard },
   { href: "/portal/client/gifts", key: "gifts", Icon: IconGift },
-  { href: "/portal/client/referrals", key: "referrals", Icon: IconUsers },
+  { href: "/portal/client/referrals", key: "referrals", Icon: IconUserPlus },
   { href: "/portal/client/reviews", key: "reviews", Icon: IconStar },
   { href: "/portal/client/warranty", key: "warranty", Icon: IconShieldCheck },
   { href: "/portal/client/complaints", key: "complaints", Icon: IconClipboardCheck },
@@ -150,6 +155,25 @@ export default function PortalShell({
   // The mobile sidebar is open only on the path it was opened on, so navigating closes it.
   const [openPath, setOpenPath] = useState<string | null>(null);
   const open = openPath === pathname;
+
+  // Desktop collapse (icon-only rail) — a per-device convenience, remembered
+  // across visits but never blocking the page if storage is unavailable.
+  // Starts expanded (matches the server-rendered shell) and reads the saved
+  // value right after mount, so there is no hydration mismatch.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    const h = setTimeout(() => {
+      try { if (localStorage.getItem("lexgo_sidebar_collapsed") === "1") setCollapsed(true); } catch { /* ignore */ }
+    }, 0);
+    return () => clearTimeout(h);
+  }, []);
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      const next = !c;
+      try { localStorage.setItem("lexgo_sidebar_collapsed", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }
 
   // Lawyer/advocate cabinet bootstrap (reloaded on navigation). Until it loads,
   // the session's account status decides whether access is limited.
@@ -209,19 +233,19 @@ export default function PortalShell({
   const profileHref = nav.find((n) => n.key === "profile")?.href ?? `/portal/${role}`;
 
   return (
-    <div className="portal">
+    <div className={`portal${collapsed ? " psb-collapsed" : ""}`}>
       <IncomingCallWatcher />
       <div
         className={`psb__scrim${open ? " on" : ""}`}
         onClick={() => setOpenPath(null)}
       />
-      <aside className={`psb${open ? " on" : ""}`}>
+      <aside className={`psb${open ? " on" : ""}${collapsed ? " collapsed" : ""}`}>
         <div className="psb__brand">
           <div className="psb__logo">
             <span className="logo__m">
               <IconLogo />
             </span>
-            LexGo
+            <span className="psb__label">LexGo</span>
           </div>
           <span className="psb__role">
             {t(
@@ -233,6 +257,7 @@ export default function PortalShell({
           {nav.map(({ href, key, Icon }) => {
             const on = active?.href === href;
             const locked = isLocked(role, key, limited, actions);
+            const label = t(`sidebar.${role}.${key}`);
             if (locked) {
               return (
                 <span
@@ -242,29 +267,38 @@ export default function PortalShell({
                   title={t("pending.locked")}
                 >
                   <Icon />
-                  {t(`sidebar.${role}.${key}`)}
+                  <span className="psb__label">{label}</span>
                   <IconLock />
                 </span>
               );
             }
             return (
-              <Link key={href} href={href} className={`psb__link${on ? " on" : ""}`}>
+              <Link key={href} href={href} className={`psb__link${on ? " on" : ""}`} title={collapsed ? label : undefined}>
                 <Icon />
-                {t(`sidebar.${role}.${key}`)}
+                <span className="psb__label">{label}</span>
               </Link>
             );
           })}
         </nav>
         <div className="psb__foot">
           {hasAdminAccess(session) ? (
-            <Link href="/admin" className="psb__link">
+            <Link href="/admin" className="psb__link" title={collapsed ? t("common.admin") : undefined}>
               <IconShield />
-              {t("common.admin")}
+              <span className="psb__label">{t("common.admin")}</span>
             </Link>
           ) : null}
-          <button className="psb__link" type="button" onClick={logout}>
+          <button className="psb__link" type="button" onClick={logout} title={collapsed ? t("common.logout") : undefined}>
             <IconLogout />
-            {t("common.logout")}
+            <span className="psb__label">{t("common.logout")}</span>
+          </button>
+          <button
+            className="psb__link psb__collapse"
+            type="button"
+            onClick={toggleCollapsed}
+            title={t(collapsed ? "expand" : "collapse")}
+          >
+            <IconChevronLeft />
+            <span className="psb__label">{t("collapse")}</span>
           </button>
         </div>
       </aside>

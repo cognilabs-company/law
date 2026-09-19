@@ -2314,6 +2314,9 @@
         "quickHelp": "Muammoingizni tasvirlang — biz eng yaxshi xizmat va advokatni tanlaymiz",
         "quickHelpCta": "Yordam olish",
         "activeOrders": "Faol buyurtmalar",
+        "kpiTotal": "Jami so'rovlar",
+        "kpiCompleted": "Yakunlangan",
+        "kpiPending": "Harakat kutilmoqda",
         "subscription": "Obuna",
         "subActive": "Standard · faol",
         "subNone": "Faol obuna yo'q",
@@ -3835,7 +3838,9 @@
       },
       "som": "so'm"
     },
-    "menu": "Menyu"
+    "menu": "Menyu",
+    "collapse": "Yig'ish",
+    "expand": "Kengaytirish"
   },
   "notFound": {
     "title": "Sahifa topilmadi",

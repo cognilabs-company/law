@@ -939,7 +939,8 @@ body:has(.plogin) .fab{display:none}
 .plogin__note{font-size:.78rem;color:var(--gray2);margin:16px 0 0;text-align:center}
 
 /* portal shell */
-.portal{display:grid;grid-template-columns:252px minmax(0,1fr);height:100dvh;background:var(--b50);position:relative}
+.portal{display:grid;grid-template-columns:252px minmax(0,1fr);height:100dvh;background:var(--b50);position:relative;transition:grid-template-columns .18s ease}
+@media (min-width:901px){.portal.psb-collapsed{grid-template-columns:76px minmax(0,1fr)}}
 .psb{background:var(--dk-surface, #fff);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .psb__logo{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:800;font-size:1.2rem;letter-spacing:-.03em;padding:16px 18px;color:var(--ink)}
 .psb__logo .logo__m{width:30px;height:30px;border-radius:9px;flex:none}
@@ -954,6 +955,25 @@ body:has(.plogin) .fab{display:none}
 .psb__link.on{background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
 .psb__link svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;flex:none}
 .psb__foot{padding:10px;border-top:1px solid var(--line);display:grid;gap:4px}
+.psb__collapse svg{transition:transform .18s ease}
+@media (min-width:901px){
+  /* Icon-only rail: labels hide, links/logo center, the lock badge on a
+     disabled item and the collapse button's own chevron flip to still read
+     correctly at 76px. Scoped to desktop — the mobile drawer (<900px) is
+     always full width when open, collapse is a desktop-only convenience. */
+  .psb.collapsed{width:76px}
+  .psb.collapsed .psb__label{display:none}
+  /* .psb__brand is a column flex box (align-items:flex-start, set further
+     down for the always-expanded "role badge under the logo" layout) — its
+     cross axis is horizontal, so centering its children takes align-items,
+     not justify-content (that's the vertical/main axis on a column). */
+  .psb.collapsed .psb__brand{padding-inline:0;align-items:center}
+  .psb.collapsed .psb__logo{padding:16px 0;justify-content:center}
+  .psb.collapsed .psb__role{display:none}
+  .psb.collapsed .psb__link{justify-content:center;padding-inline:0}
+  .psb.collapsed .psb__link--locked svg:last-child{display:none}
+  .psb.collapsed .psb__collapse svg{transform:rotate(180deg)}
+}
 
 .pmain{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .ptop{display:flex;align-items:center;gap:14px;padding:13px 22px;background:var(--dk-surface, #fff);border-bottom:1px solid var(--line);flex:none}
@@ -975,10 +995,30 @@ body:has(.plogin) .fab{display:none}
 
 /* KPI */
 .pk{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px}
-.pk__i{background:var(--dk-surface, #fff);border-radius:var(--rl);padding:17px 18px;box-shadow:inset 0 0 0 1.5px var(--line)}
+.pk__i{background:var(--dk-surface, #fff);border-radius:var(--rl);padding:17px 18px;box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .15s,transform .15s}
 .pk__i b{display:block;font-family:var(--fd);font-size:1.55rem;font-weight:800;letter-spacing:-.03em;line-height:1}
 .pk__i b.cy{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .pk__i span{display:block;font-size:.79rem;color:var(--gray);margin-top:7px;font-weight:500}
+/* Icon-led variant (dashboard analytics/KPI row): a tinted icon badge above
+   the number, so each card reads at a glance instead of needing the label
+   text first. Tint colors are semantic (active/ok/warn/neutral), not just
+   decorative, and repeat the same four across every dashboard for consistency. */
+.pk__i--ic{padding:16px 17px}
+.pk__i--ic:hover{box-shadow:inset 0 0 0 1.5px var(--line),var(--s2);transform:translateY(-1px)}
+/* .pk__i span{display:block;...} above also matches .pk__ico (it's a span
+   too) and outranks a bare .pk__ico by specificity, so the icon badge was
+   losing its flex centering to that rule (icon rendered top-left instead of
+   centered) — .pk__i .pk__ico here is more specific and resets what leaked
+   in (margin-top, font-size, color, weight meant for the text label). */
+.pk__i .pk__ico{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;margin:0 0 12px;font-size:0;font-weight:400;color:inherit}
+.pk__ico svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2}
+.pk__i--neutral .pk__ico{background:var(--b100);color:var(--dk-acc, var(--b600))}
+.pk__i--active .pk__ico{background:var(--dk-tint-blue, #E5F0FF);color:#2563EB}
+.pk__i--ok .pk__ico{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
+.pk__i--warn .pk__ico{background:var(--dk-tint-warn, #FFF1DE);color:var(--dk-txt-warn, #B26A00)}
+.pk__i--ic .pk__row{display:flex;align-items:baseline;gap:6px}
+.pk__i--ic .pk__delta{font-size:.76rem;font-weight:700;color:var(--gray2)}
+.pk__i--ic .pk__delta.up{color:var(--ok)}
 
 /* panel */
 .ppanel{background:var(--dk-surface, #fff);border-radius:var(--rl);box-shadow:inset 0 0 0 1.5px var(--line);padding:20px}
