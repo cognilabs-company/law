@@ -35,6 +35,20 @@ function kindOf(f: Field): "text" | "multiline" | "number" | "money" | "date" | 
   if (/(claim|evidence|description|details|text|body|reason|facts|demand|note|address|manzil|content|subject)/.test(n)) return "multiline";
   return "text";
 }
+// LegalZoom-style preview: an unfilled field comes back from the backend as
+// a bracketed label — "[Client full name]" — render that as a highlighted
+// blank box (like the picture) rather than plain bracket text; everything
+// else is just the document's own wording, already filled in for real.
+function renderPreview(text: string) {
+  return text.split(/(\[[^\]]+\])/g).map((part, i) =>
+    part.startsWith("[") && part.endsWith("]") ? (
+      <span key={i} className="dwprev__blank">{part.slice(1, -1)}</span>
+    ) : (
+      part
+    ),
+  );
+}
+
 const DRAFT_KEY = (id: string) => `lexgo_doc_draft_${id}`;
 export function loadDraft(id: string): Record<string, string> | null {
   try { const raw = localStorage.getItem(DRAFT_KEY(id)); return raw ? (JSON.parse(raw) as Record<string, string>) : null; } catch { return null; }
@@ -174,7 +188,7 @@ export default function DocWizard({ req, answers, onChange, onSubmit, busy, subm
       <aside className="dwprevpane">
         <div className="dwprev">
           <b>{t("previewTitle")}</b>
-          <p>{preview.previewText}</p>
+          <p>{renderPreview(preview.previewText)}</p>
         </div>
       </aside>
     ) : null}

@@ -3532,7 +3532,8 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .dwprevpane{position:sticky;top:0}
 .dwprev{display:grid;gap:6px;padding:14px 16px;border-radius:14px;background:var(--dk-surface-2, #F7FAFE);border:1px dashed var(--dk-line, #dbe4f0)}
 .dwprev b{font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;color:var(--gray2)}
-.dwprev p{margin:0;font-size:.86rem;line-height:1.6;color:var(--dk-fg, #14213d);white-space:pre-wrap;max-height:60vh;overflow-y:auto}
+.dwprev p{margin:0;font-size:.86rem;line-height:2.1;color:var(--dk-fg, #14213d);white-space:pre-wrap;max-height:60vh;overflow-y:auto}
+.dwprev__blank{display:inline-block;padding:1px 8px;margin:0 2px;border-radius:6px;background:var(--dk-tint-blue, #e3ecfb);color:var(--dk-acc-strong, var(--b700));font-size:.78rem;font-weight:600;white-space:nowrap;vertical-align:1px}
 @media (min-width:760px){.dwprev p{max-height:calc(90vh - 140px)}}
 /* T0-20 response deadline */
 .ocase__dl{color:var(--dk-txt-warn, #b45309)}
