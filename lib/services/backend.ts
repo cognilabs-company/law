@@ -1234,7 +1234,7 @@ export async function getServiceDocumentTemplate(serviceId: string): Promise<Bac
 }
 export async function createServiceDocumentRequest(
   serviceId: string,
-  input?: { answers?: Record<string, unknown>; title?: string },
+  input?: { answers?: Record<string, unknown>; title?: string; document_type?: string },
 ): Promise<DocumentRequest> {
   return normDocRequest(
     await http(`/services/${serviceId}/document-requests`, {
@@ -1345,7 +1345,7 @@ export async function payDocumentRequest(
   return normDocRequest(
     await http(`/document-requests/${requestId}/payments`, {
       method: "POST",
-      body: JSON.stringify({ provider, amount: Math.round(amount) }),
+      body: JSON.stringify({ provider, amount: Math.round(amount), currency: "UZS", provider_payload: {} }),
     }),
   );
 }

@@ -3030,10 +3030,6 @@
         "wizNext": "Next step",
         "wizAutosave": "Answers are saved automatically — you can continue later from here.",
         "previewTitle": "Document preview",
-        "clientFillNote": "The backend hasn't defined fields for this document yet — as a stopgap, fill in the blanks here, then copy the text or print it.",
-        "copyText": "Copy text",
-        "copied": "Copied",
-        "printOrSave": "Print / save as PDF",
         "downloadPolicy": "{n} / {limit} free documents used this month. After the limit: 19,000 UZS per document or a plan.",
         "keptInCabinet": "The document stays in your cabinet — downloading it again doesn't count against the limit.",
         "fields": {

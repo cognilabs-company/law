@@ -3036,10 +3036,6 @@
         "wizNext": "Keyingi qadam",
         "wizAutosave": "Javoblar avtomatik saqlanadi — keyinroq shu joydan davom etishingiz mumkin.",
         "previewTitle": "Hujjat ko'rinishi",
-        "clientFillNote": "Bu hujjat uchun backend maydonlarni hali belgilamagan — vaqtinchalik yechim: matndagi bo'sh joylarni shu yerda to'ldiring, keyin nusxa oling yoki chop eting.",
-        "copyText": "Nusxa olish",
-        "copied": "Nusxa olindi",
-        "printOrSave": "Chop etish / PDF saqlash",
         "downloadPolicy": "Bu oy {n} / {limit} bepul hujjat ishlatildi. Limitdan keyin har hujjat 19 000 so'm yoki obuna.",
         "keptInCabinet": "Hujjat kabinetingizda saqlanadi — qayta yuklab olish limitga kirmaydi.",
         "fields": {
