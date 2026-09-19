@@ -121,6 +121,7 @@ export default function DocWizard({ req, answers, onChange, onSubmit, busy, subm
   const setVal = (name: string, v: string) => onChange({ ...answers, [name]: v });
 
   return (
+    <div className="dwiz2col">
     <div className="dwiz">
       <div className="dwiz__top">
         <span className="dwiz__step">{t("wizStep", { n: idx + 1, total: steps.length })}</span>
@@ -161,12 +162,6 @@ export default function DocWizard({ req, answers, onChange, onSubmit, busy, subm
           </div>
         );
       })}
-      {preview?.previewText ? (
-        <div className="dwprev">
-          <b>{t("previewTitle")}</b>
-          <p>{preview.previewText}</p>
-        </div>
-      ) : null}
       <div className="dwiz__nav">
         <button type="button" className="btn btn--ghost" onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0 || busy}><IconChevronLeft />{t("wizBack")}</button>
         <button type="button" className="btn btn--pri" onClick={next} disabled={busy || (last && preview ? !preview.canGenerate : false)}>
@@ -174,6 +169,15 @@ export default function DocWizard({ req, answers, onChange, onSubmit, busy, subm
         </button>
       </div>
       <small className="dwiz__auto">{t("wizAutosave")}</small>
+    </div>
+    {preview?.previewText ? (
+      <aside className="dwprevpane">
+        <div className="dwprev">
+          <b>{t("previewTitle")}</b>
+          <p>{preview.previewText}</p>
+        </div>
+      </aside>
+    ) : null}
     </div>
   );
 }

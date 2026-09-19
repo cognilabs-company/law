@@ -147,7 +147,7 @@ export default function DocumentFlow() {
         </div>
       )}
 
-      <Modal open={!!req} onClose={close} title={req?.title || t("title")}>
+      <Modal open={!!req} onClose={close} title={req?.title || t("title")} wide>
         {req ? <DocumentRequestPanel initialReq={req} onBump={bump} /> : null}
       </Modal>
     </div>

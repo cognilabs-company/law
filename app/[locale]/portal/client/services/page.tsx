@@ -408,7 +408,7 @@ export default function ClientServices() {
         )}
       </div>
 
-      <Modal open={!!order} onClose={() => { setOrder(null); setPayOrderId(null); }} title={order?.name || t("orderTitle")}>
+      <Modal open={!!order} onClose={() => { setOrder(null); setPayOrderId(null); }} title={order?.name || t("orderTitle")} wide={!!order?.documentTemplateId}>
         {payOrderId ? (
           <OrderPayment orderId={payOrderId} onChat={afterPay} />
         ) : order?.documentTemplateId ? (

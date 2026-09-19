@@ -8,11 +8,15 @@ export default function Modal({
   onClose,
   title,
   children,
+  wide,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  // A form-and-live-preview flow (document generation) needs real room for
+  // the two side by side; every other modal keeps the normal narrow width.
+  wide?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -28,7 +32,7 @@ export default function Modal({
   if (!open) return null;
   return (
     <div className="amodal" onClick={onClose}>
-      <div className="amodal__c" onClick={(e) => e.stopPropagation()}>
+      <div className={`amodal__c${wide ? " amodal__c--wide" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="amodal__h">
           <b>{title}</b>
           <button className="amodal__x" type="button" onClick={onClose} aria-label="close">

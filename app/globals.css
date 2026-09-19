@@ -1813,6 +1813,7 @@ body:has(.auth) .fab{display:none}
 .ahdr{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
 .amodal{position:fixed;inset:0;z-index:200;background:rgba(3,16,43,.55);backdrop-filter:blur(4px);display:grid;place-items:center;padding:20px;animation:fade .2s ease both}
 .amodal__c{width:min(560px,100%);max-height:90vh;overflow-y:auto;background:var(--dk-surface, #fff);border-radius:var(--rl);box-shadow:var(--s3);animation:pop .22s cubic-bezier(.2,.8,.3,1) both}
+.amodal__c--wide{width:min(980px,100%)}
 .amodal__h{position:sticky;top:0;background:var(--dk-surface, #fff);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line);z-index:1}
 .amodal__h b{font-family:var(--fd);font-size:1.1rem}
 .amodal__x{width:32px;height:32px;border-radius:9px;border:0;background:var(--b50);color:var(--gray);cursor:pointer;display:grid;place-items:center}
@@ -3523,10 +3524,16 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .dwiz__nav .btn svg{width:16px;height:16px}
 .dwiz__auto{font-size:.74rem;color:var(--gray2);text-align:center}
 .dwiz__policy{margin:0;padding:10px 12px;border-radius:12px;background:var(--dk-tint-blue, #eef4ff);font-size:.82rem;color:var(--dk-acc-strong, var(--b700))}
-/* Real-time document preview (FRONTEND_DOCUMENT_GENERATION.md) */
-.dwprev{display:grid;gap:6px;padding:12px 14px;border-radius:14px;background:var(--dk-surface-2, #F7FAFE);border:1px dashed var(--dk-line, #dbe4f0)}
+/* Real-time document preview (FRONTEND_DOCUMENT_GENERATION.md) — form on the
+   left, live document preview on the right, like LegalZoom/Gavel's document
+   builder; stacked (preview below the form) under ~760px. */
+.dwiz2col{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
+@media (min-width:760px){.dwiz2col{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.dwprevpane{position:sticky;top:0}
+.dwprev{display:grid;gap:6px;padding:14px 16px;border-radius:14px;background:var(--dk-surface-2, #F7FAFE);border:1px dashed var(--dk-line, #dbe4f0)}
 .dwprev b{font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;color:var(--gray2)}
-.dwprev p{margin:0;font-size:.86rem;line-height:1.6;color:var(--dk-fg, #14213d);white-space:pre-wrap;max-height:220px;overflow-y:auto}
+.dwprev p{margin:0;font-size:.86rem;line-height:1.6;color:var(--dk-fg, #14213d);white-space:pre-wrap;max-height:60vh;overflow-y:auto}
+@media (min-width:760px){.dwprev p{max-height:calc(90vh - 140px)}}
 /* T0-20 response deadline */
 .ocase__dl{color:var(--dk-txt-warn, #b45309)}
 .ocase__dl.overdue{color:var(--dk-txt-err, #b91c1c)}
