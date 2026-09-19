@@ -1943,6 +1943,7 @@ body:has(.schat) .fab{display:none}
 .docdone__i svg{width:26px;height:26px;stroke:var(--ok);stroke-width:3}
 .docdone b{font-family:var(--fd);font-size:1.1rem}
 .docdone__f{font-size:.85rem;color:var(--gray)}
+.docdone__frame{width:100%;height:min(70vh,640px);border:1px solid var(--dk-line, #e3e8f0);border-radius:14px;background:#fff}
 .docdone__act{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;justify-content:center}
 .pverify{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--b50);border-radius:14px;padding:14px 16px;margin-top:14px;flex-wrap:wrap}
 .pverify b{display:block;font-size:.95rem}

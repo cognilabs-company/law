@@ -81,7 +81,17 @@ export default function ServiceDocumentRequest({ serviceId }: { serviceId: strin
     }
   }
 
-  if (loading) return <Skeleton rows={3} />;
+  // A template with nothing to fill in has no "questionnaire" step to show —
+  // skip the extra "Davom etish" tap and go straight to the document instead
+  // of stopping at a screen whose only job was to lead to this same click.
+  useEffect(() => {
+    if (!(tpl && tpl.questionnaire.length === 0 && !req && !busy && !err)) return;
+    const h = setTimeout(() => void start(), 0);
+    return () => clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tpl, req]);
+
+  if (loading || (tpl && tpl.questionnaire.length === 0 && !req && !err)) return <Skeleton rows={3} />;
   if (!tpl) return <Notice ok={false} msg={t("error")} />;
   if (req) return <DocumentRequestPanel initialReq={req} />;
 

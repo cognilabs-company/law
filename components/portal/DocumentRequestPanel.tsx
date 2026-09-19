@@ -237,6 +237,26 @@ export default function DocumentRequestPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingId]);
 
+  // The document itself should be visible the moment it's ready, not only
+  // after an extra "Ochish" click — fetch it once and show it inline.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (stage !== "done") return;
+    let alive = true;
+    let url = "";
+    getDocumentRequestFile(req.id)
+      .then((blob) => {
+        if (!alive) return;
+        url = URL.createObjectURL(blob);
+        setPreviewUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [stage, req.id]);
+
   // GET …/file returns the PDF itself. 409 = not generated yet → generate once
   // and retry; 402 = unpaid → back to the pay step.
   async function getPdf(download: boolean) {
@@ -321,6 +341,7 @@ export default function DocumentRequestPanel({
           <span className="docdone__i"><IconCheck /></span>
           <b>{t("ready")}</b>
           <span className="docdone__f">{req.contractFile?.fileName || `lexgo-${req.id}.pdf`}</span>
+          {previewUrl ? <iframe className="docdone__frame" src={previewUrl} title={req.title} /> : null}
           <div className="docdone__act">
             <button className="btn btn--pri" type="button" onClick={() => getPdf(false)} disabled={pdfBusy}>
               <IconExternal />
