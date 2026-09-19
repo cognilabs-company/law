@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { IconSearch, IconClose, IconCheck } from "./icons";
 
 export type SearchOption = { value: string; label: string; sub?: string };
@@ -41,6 +42,9 @@ export default function SearchSelect({
   // Labels of server results, so selected chips keep them after the results change.
   const [remoteLabels, setRemoteLabels] = useState<Map<string, string>>(new Map());
   const wrapRef = useRef<HTMLDivElement>(null);
+  const ctrlRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Keep the latest onSearch without making it an effect dependency — parents
   // often pass a fresh inline function each render, which would otherwise
@@ -53,10 +57,51 @@ export default function SearchSelect({
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      // The menu is portaled to document.body, so it's not a DOM descendant
+      // of wrapRef — check it separately or every click inside it would
+      // incorrectly count as "outside" and close the menu.
+      if (wrapRef.current?.contains(t)) return;
+      if (menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  // Menu is fixed-positioned via a portal (see render below) so it can never
+  // be clipped by an ancestor Modal's overflow-y:auto/max-height:90vh. Its
+  // coordinates come from the trigger's live rect, recomputed on open and
+  // whenever the page (or a scrollable ancestor, e.g. the modal body) moves.
+  const updatePos = () => {
+    const el = ctrlRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const gap = 6;
+    const spaceBelow = window.innerHeight - r.bottom - gap;
+    const spaceAbove = r.top - gap;
+    const openUp = spaceBelow < 200 && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(160, Math.min(360, openUp ? spaceAbove : spaceBelow));
+    setMenuPos({
+      left: r.left,
+      width: r.width,
+      top: openUp ? r.top - gap - maxHeight : r.bottom + gap,
+      maxHeight,
+    });
+  };
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePos();
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const onMove = () => updatePos();
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
   }, [open]);
 
   // Debounced server search when onSearch is provided. Depends only on the
@@ -118,7 +163,7 @@ export default function SearchSelect({
 
   return (
     <div className="ssel" ref={wrapRef}>
-      <button type="button" className="ssel__ctrl" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel}>
+      <button ref={ctrlRef} type="button" className="ssel__ctrl" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel}>
         {single && value.length ? (
           <span className="ssel__single">
             <b>{labelOf(value[0])}</b>
@@ -150,34 +195,43 @@ export default function SearchSelect({
         <span className="ssel__cv" />
       </button>
 
-      {open ? (
-        <div className="ssel__menu" role="listbox" aria-label={ariaLabel}>
-          <div className="ssel__search">
-            <IconSearch />
-            <input value={q} onChange={(e) => changeQuery(e.target.value)} placeholder={searchPlaceholder} autoFocus />
-          </div>
-          <div className="ssel__list">
-            {loading ? (
-              <p className="ssel__empty">…</p>
-            ) : shown.length === 0 ? (
-              <p className="ssel__empty">{emptyText}</p>
-            ) : (
-              shown.map((o) => {
-                const on = value.includes(o.value);
-                return (
-                  <button type="button" key={o.value} className={`ssel__opt${on ? " on" : ""}`} role="option" aria-selected={on} onClick={() => toggle(o.value)}>
-                    <span className="ssel__check">{on ? <IconCheck /> : null}</span>
-                    <span className="ssel__ol">
-                      <b>{o.label}</b>
-                      {o.sub ? <span>{o.sub}</span> : null}
-                    </span>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-      ) : null}
+      {open && menuPos
+        ? createPortal(
+            <div
+              className="ssel__menu"
+              role="listbox"
+              aria-label={ariaLabel}
+              ref={menuRef}
+              style={{ position: "fixed", top: menuPos.top, left: menuPos.left, width: menuPos.width, maxHeight: menuPos.maxHeight }}
+            >
+              <div className="ssel__search">
+                <IconSearch />
+                <input value={q} onChange={(e) => changeQuery(e.target.value)} placeholder={searchPlaceholder} autoFocus />
+              </div>
+              <div className="ssel__list">
+                {loading ? (
+                  <p className="ssel__empty">…</p>
+                ) : shown.length === 0 ? (
+                  <p className="ssel__empty">{emptyText}</p>
+                ) : (
+                  shown.map((o) => {
+                    const on = value.includes(o.value);
+                    return (
+                      <button type="button" key={o.value} className={`ssel__opt${on ? " on" : ""}`} role="option" aria-selected={on} onClick={() => toggle(o.value)}>
+                        <span className="ssel__check">{on ? <IconCheck /> : null}</span>
+                        <span className="ssel__ol">
+                          <b>{o.label}</b>
+                          {o.sub ? <span>{o.sub}</span> : null}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

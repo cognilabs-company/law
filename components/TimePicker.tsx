@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { IconClock, IconClose } from "./icons";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -37,15 +38,49 @@ export default function TimePicker({
   const parsed = parse(value);
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
   const minutes = MINUTES.filter((m) => m % step === 0);
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e: MouseEvent) => { if (root.current && !root.current.contains(e.target as Node)) setOpen(false); };
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (root.current?.contains(t)) return;
+      if (popRef.current?.contains(t)) return;
+      setOpen(false);
+    };
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onEsc);
     return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onEsc); };
+  }, [open]);
+
+  // Same portal-positioning fix as DatePicker.tsx / MonthPicker.tsx — keeps
+  // the popup out of any ancestor Modal's overflow-y:auto clipping.
+  const updatePos = () => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const gap = 6;
+    const spaceBelow = window.innerHeight - r.bottom - gap;
+    const spaceAbove = r.top - gap;
+    const openUp = spaceBelow < 300 && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(240, openUp ? spaceAbove : spaceBelow);
+    const left = Math.min(r.left, window.innerWidth - 280 - 8);
+    setPos({ left: Math.max(8, left), top: openUp ? r.top - gap - maxHeight : r.bottom + gap, maxHeight });
+  };
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePos();
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const onMove = () => updatePos();
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => { window.removeEventListener("scroll", onMove, true); window.removeEventListener("resize", onMove); };
   }, [open]);
 
   const pickH = (h: number) => onChange(`${pad(h)}:${pad(parsed ? parsed.m : 0)}`);
@@ -54,6 +89,7 @@ export default function TimePicker({
   return (
     <div className="mpick tpick" ref={root} data-open={open}>
       <button
+        ref={btnRef}
         type="button"
         className={`mpick__btn${parsed ? "" : " mpick__btn--ph"}`}
         aria-haspopup="dialog"
@@ -66,8 +102,14 @@ export default function TimePicker({
         <span className="mpick__val">{parsed ? `${pad(parsed.h)}:${pad(parsed.m)}` : placeholder}</span>
         <span className="mpick__cv" />
       </button>
-      {open ? (
-        <div className="mpick__pop tpick__pop" role="dialog" aria-label={ariaLabel}>
+      {open && pos ? createPortal(
+        <div
+          className="mpick__pop tpick__pop"
+          role="dialog"
+          aria-label={ariaLabel}
+          ref={popRef}
+          style={{ position: "fixed", top: pos.top, left: pos.left, maxHeight: pos.maxHeight }}
+        >
           <div className="tpick__cols">
             <div className="tpick__col">
               <span className="tpick__lbl">HH</span>
@@ -92,7 +134,8 @@ export default function TimePicker({
               {clearLabel}
             </button>
           ) : null}
-        </div>
+        </div>,
+        document.body
       ) : null}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocale } from "next-intl";
 import { monthNames, monthTitle } from "@/lib/date";
 import { IconCalendar, IconChevronLeft, IconChevronRight, IconClose } from "./icons";
@@ -38,6 +39,9 @@ export default function MonthPicker({
     parsed ? parsed.y : new Date().getFullYear(),
   );
   const root = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
 
   // Jump the year view to a new value (during render, not in an effect).
   const [prevValue, setPrevValue] = useState(value);
@@ -49,7 +53,10 @@ export default function MonthPicker({
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (root.current?.contains(t)) return;
+      if (popRef.current?.contains(t)) return;
+      setOpen(false);
     };
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDoc);
@@ -58,6 +65,32 @@ export default function MonthPicker({
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onEsc);
     };
+  }, [open]);
+
+  // Same portal-positioning fix as DatePicker.tsx — keeps the popup out of
+  // any ancestor Modal's overflow-y:auto clipping.
+  const updatePos = () => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const gap = 6;
+    const spaceBelow = window.innerHeight - r.bottom - gap;
+    const spaceAbove = r.top - gap;
+    const openUp = spaceBelow < 260 && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(220, openUp ? spaceAbove : spaceBelow);
+    const left = Math.min(r.left, window.innerWidth - 280 - 8);
+    setPos({ left: Math.max(8, left), top: openUp ? r.top - gap - maxHeight : r.bottom + gap, maxHeight });
+  };
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePos();
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const onMove = () => updatePos();
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => { window.removeEventListener("scroll", onMove, true); window.removeEventListener("resize", onMove); };
   }, [open]);
 
   function pick(m: number) {
@@ -70,6 +103,7 @@ export default function MonthPicker({
   return (
     <div className="mpick" ref={root} data-open={open}>
       <button
+        ref={btnRef}
         type="button"
         className={`mpick__btn${parsed ? "" : " mpick__btn--ph"}`}
         aria-haspopup="dialog"
@@ -82,8 +116,14 @@ export default function MonthPicker({
         <span className="mpick__val">{label}</span>
         <span className="mpick__cv" />
       </button>
-      {open ? (
-        <div className="mpick__pop" role="dialog" aria-label={ariaLabel}>
+      {open && pos ? createPortal(
+        <div
+          className="mpick__pop"
+          role="dialog"
+          aria-label={ariaLabel}
+          ref={popRef}
+          style={{ position: "fixed", top: pos.top, left: pos.left, maxHeight: pos.maxHeight }}
+        >
           <div className="mpick__nav">
             <button type="button" aria-label="prev" onClick={() => setViewYear((y) => y - 1)}>
               <IconChevronLeft />
@@ -121,7 +161,8 @@ export default function MonthPicker({
               {clearLabel}
             </button>
           ) : null}
-        </div>
+        </div>,
+        document.body
       ) : null}
     </div>
   );

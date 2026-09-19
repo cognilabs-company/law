@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type Option = { value: string; label: string };
 
@@ -20,18 +21,60 @@ export default function Select({
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const btn = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLUListElement>(null);
   const optRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
 
   const selected = options.find((o) => o.value === value) ?? (placeholder ? undefined : options[0]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
-      if (root.current && !root.current.contains(e.target as Node))
-        setOpen(false);
+      const t = e.target as Node;
+      // Menu is portaled to document.body (see render), so it's not a DOM
+      // descendant of root — check it separately or a click on any option
+      // would look "outside" and close the menu before onClick runs.
+      if (root.current?.contains(t)) return;
+      if (menu.current?.contains(t)) return;
+      setOpen(false);
     };
     document.addEventListener("click", onDoc);
     return () => document.removeEventListener("click", onDoc);
   }, []);
+
+  // Rendered via a portal with inline position:fixed coordinates computed
+  // from the trigger's live rect, so the menu can never be clipped by an
+  // ancestor Modal's overflow-y:auto/max-height:90vh (or any other
+  // scrollable ancestor) — see the identical fix in SearchSelect.tsx.
+  const updatePos = () => {
+    const el = btn.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const gap = 6;
+    const spaceBelow = window.innerHeight - r.bottom - gap;
+    const spaceAbove = r.top - gap;
+    const openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(140, Math.min(260, openUp ? spaceAbove : spaceBelow));
+    setMenuPos({
+      left: r.left,
+      width: r.width,
+      top: openUp ? r.top - gap - maxHeight : r.bottom + gap,
+      maxHeight,
+    });
+  };
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePos();
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const onMove = () => updatePos();
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
+  }, [open]);
 
   const selectedIdx = Math.max(
     0,
@@ -87,25 +130,34 @@ export default function Select({
         </span>
         <span className="dsel__cv" />
       </button>
-      {open ? (
-        <ul className="dsel__menu" role="listbox" aria-label={ariaLabel}>
-          {options.map((o, i) => (
-            <li key={o.value} role="option" aria-selected={o.value === value}>
-              <button
-                ref={(el) => {
-                  optRefs.current[i] = el;
-                }}
-                type="button"
-                className="dsel__opt"
-                aria-selected={o.value === value}
-                onClick={() => pick(o.value)}
-              >
-                {o.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {open && menuPos
+        ? createPortal(
+            <ul
+              className="dsel__menu"
+              role="listbox"
+              aria-label={ariaLabel}
+              ref={menu}
+              style={{ position: "fixed", top: menuPos.top, left: menuPos.left, width: menuPos.width, maxHeight: menuPos.maxHeight }}
+            >
+              {options.map((o, i) => (
+                <li key={o.value} role="option" aria-selected={o.value === value}>
+                  <button
+                    ref={(el) => {
+                      optRefs.current[i] = el;
+                    }}
+                    type="button"
+                    className="dsel__opt"
+                    aria-selected={o.value === value}
+                    onClick={() => pick(o.value)}
+                  >
+                    {o.label}
+                  </button>
+                </li>
+              ))}
+            </ul>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
