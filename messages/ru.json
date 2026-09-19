@@ -3017,7 +3017,11 @@
           "business": "Бизнес",
           "power_of_attorney": "Доверенность",
           "administrative": "Административный",
-          "criminal": "Уголовный"
+          "criminal": "Уголовный",
+          "civil-court-family": "Семейные и наследственные споры",
+          "civil-court-housing": "Жилищные споры",
+          "civil-court-labor": "Трудовые споры",
+          "civil-court-other": "Прочие гражданские споры"
         },
         "wizStep": "Шаг {n} из {total}",
         "wizFilled": "Заполнено {pct}%",

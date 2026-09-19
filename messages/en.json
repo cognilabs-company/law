@@ -3017,7 +3017,11 @@
           "business": "Business",
           "power_of_attorney": "Power of attorney",
           "administrative": "Administrative",
-          "criminal": "Criminal"
+          "criminal": "Criminal",
+          "civil-court-family": "Family & inheritance disputes",
+          "civil-court-housing": "Housing disputes",
+          "civil-court-labor": "Labor disputes",
+          "civil-court-other": "Other civil disputes"
         },
         "wizStep": "Step {n} of {total}",
         "wizFilled": "{pct}% filled",

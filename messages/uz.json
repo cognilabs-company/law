@@ -3023,7 +3023,11 @@
           "business": "Biznes",
           "power_of_attorney": "Ishonchnoma",
           "administrative": "Ma'muriy",
-          "criminal": "Jinoiy"
+          "criminal": "Jinoiy",
+          "civil-court-family": "Oilaviy va meros nizolari",
+          "civil-court-housing": "Uy-joy nizolari",
+          "civil-court-labor": "Mehnat nizolari",
+          "civil-court-other": "Boshqa fuqarolik nizolari"
         },
         "wizStep": "{n}-qadam / {total}",
         "wizFilled": "{pct}% to'ldirildi",

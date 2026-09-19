@@ -66,21 +66,7 @@ export default function ClientServices() {
   const locale = useLocale();
   const router = useRouter();
   const cats = useResource(getServiceCategories, []);
-  // The ordinary paid catalog (catalog_only=true) plus document-generation
-  // services (LEXGO_CIVIL_COURT_DOCS_FRONTEND.md: these carry no catalog
-  // metadata, so catalog_only=true alone leaves their whole category empty —
-  // "0 ta xizmat" even though the category and its 36 documents are real).
-  // Only document_template_id services are merged in from the wider fetch,
-  // not arbitrary non-catalog rows, so unrelated test/draft data stays out.
-  const services = useResource<BackendService>(
-    () =>
-      Promise.all([getServices({ catalog_only: true }, locale), getServices({ catalog_only: false }, locale)]).then(([catalog, all]) => {
-        const byId = new Map(catalog.map((s) => [s.id, s]));
-        for (const s of all) if (s.documentTemplateId && !byId.has(s.id)) byId.set(s.id, s);
-        return [...byId.values()];
-      }),
-    [locale],
-  );
+  const services = useResource<BackendService>(() => getServices({ catalog_only: true }, locale), [locale]);
 
   // T0-20 §4: outside working hours the client is told right away when the
   // advocate's 30-minute response window starts (next working day 09:00).
