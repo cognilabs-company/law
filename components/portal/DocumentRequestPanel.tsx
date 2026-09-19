@@ -91,6 +91,20 @@ export default function DocumentRequestPanel({
     setNote(null);
   }
 
+  // Reopening an already-finished request skips the pay/poll path entirely
+  // (unlock() only runs from there), so the DOCX button would silently never
+  // appear without fetching the format list here too.
+  useEffect(() => {
+    if (req.status !== "file_ready") return;
+    let alive = true;
+    getDocumentUnlockPolicy(req.id)
+      .then((p) => alive && p.formats.length && setFormats(p.formats))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [req.id, req.status]);
+
   // 3 free downloads a month (S-35), for the pay-step reminder text.
   const reqs = useResource(listDocumentRequests, [req.status]);
   const policies = useResourceOne(getPlatformPolicies, []).data;

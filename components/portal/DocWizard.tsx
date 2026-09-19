@@ -19,6 +19,13 @@ function kindOf(f: Field): "text" | "multiline" | "number" | "money" | "date" | 
   if (["phone", "tel"].includes(t)) return "phone";
   if (["pinfl", "jshshir"].includes(t)) return "pinfl";
   if (["inn", "stir"].includes(t)) return "inn";
+  // An explicit "text" (or an unstyled "select"/"checkbox", not yet its own
+  // widget) means exactly that — don't let the name heuristics below
+  // second-guess it into a native <input type=date> etc. A backend-declared
+  // "contract_date" of type text is a free-text string, not an ISO date the
+  // browser's date picker would silently blank out on any other format.
+  if (t === "text" || t === "select" || t === "checkbox") return "text";
+  // No explicit type at all — guess from the field's own name/code.
   const n = f.name.toLowerCase();
   if (/(_at|date|sana|_dob|birth)/.test(n)) return "date";
   if (/(phone|tel)/.test(n)) return "phone";
@@ -131,7 +138,11 @@ export default function DocWizard({ req, answers, onChange, onSubmit, busy, subm
         const k = kindOf(f);
         const v = answers[f.name] ?? "";
         const err = touched && f.required && !v.trim();
-        const common = { id: `dw-${f.name}`, value: v, "aria-invalid": err || undefined, placeholder: f.placeholder || (k === "date" ? "" : k === "phone" ? "+998 __ ___ __ __" : k === "pinfl" ? "14 raqam" : k === "inn" ? "9 raqam" : "") };
+        // A template's placeholder is sometimes just its own {{mustache}} token
+        // (authoring leftover) — showing that literally in the field would
+        // read as a broken hint rather than an example value.
+        const rawHint = f.placeholder && !/^\{\{.*\}\}$/.test(f.placeholder) ? f.placeholder : "";
+        const common = { id: `dw-${f.name}`, value: v, "aria-invalid": err || undefined, placeholder: rawHint || (k === "date" ? "" : k === "phone" ? "+998 __ ___ __ __" : k === "pinfl" ? "14 raqam" : k === "inn" ? "9 raqam" : "") };
         return (
           <div key={f.name} className={`dwiz__f${err ? " err" : ""}`}>
             <label htmlFor={`dw-${f.name}`}>{label(f)}{f.required ? " *" : ""}</label>

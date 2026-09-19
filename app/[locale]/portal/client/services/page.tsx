@@ -224,7 +224,9 @@ export default function ClientServices() {
   }
 
   useEffect(() => {
-    if (!order) return;
+    // A document-generation service has no advocate to pick — skip the
+    // marketplace lookups entirely instead of firing them for nothing.
+    if (!order || order.documentTemplateId) return;
     listLawyers({ service_id: order.id })
       .then((rows) => {
         setSellers(rows);
@@ -240,7 +242,7 @@ export default function ClientServices() {
   // Ranked, verified candidates for this service; used to order the sellers
   // above and to explain the match. A failure just leaves the rating order.
   useEffect(() => {
-    if (!order) return;
+    if (!order || order.documentTemplateId) return;
     let alive = true;
     getMatchingCandidates({ serviceId: order.id, region: myRegion || undefined })
       .then((rows) => alive && setCands(new Map(rows.map((c) => [c.lawyerUserId, c]))))
