@@ -22,7 +22,7 @@ const som = (n?: number) => (n ? fmtUzs(n) : "");
 // lifecycle as the standalone template list (components/portal/DocumentFlow),
 // but the request is created through the service, not the template picker —
 // GET /services/{id}/document-template, POST /services/{id}/document-requests.
-export default function ServiceDocumentRequest({ serviceId }: { serviceId: string }) {
+export default function ServiceDocumentRequest({ serviceId, onTitle }: { serviceId: string; onTitle?: (title: string) => void }) {
   const t = useTranslations("portal.client.documents");
   const [tpl, setTpl] = useState<BackendTemplate | null>(null);
   const [req, setReq] = useState<DocumentRequest | null>(null);
@@ -44,12 +44,17 @@ export default function ServiceDocumentRequest({ serviceId }: { serviceId: strin
   useEffect(() => {
     let alive = true;
     getServiceDocumentTemplate(serviceId)
-      .then((r) => alive && setTpl(r))
+      .then((r) => {
+        if (!alive) return;
+        setTpl(r);
+        onTitle?.(r.name);
+      })
       .catch(() => alive && setErr(true))
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceId]);
 
   // Resume an existing request for this template rather than creating a new

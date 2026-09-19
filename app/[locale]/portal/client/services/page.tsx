@@ -188,23 +188,33 @@ export default function ClientServices() {
     typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("service") ?? "",
   );
   const [deepFetch, setDeepFetch] = useState("");
+  const [docDeepId, setDocDeepId] = useState("");
   if (deepId && services.status !== "loading") {
     const found = services.data.find((s) => s.id === deepId);
     setDeepId("");
-    if (found) setOrder(found);
+    if (found?.documentTemplateId) setDocDeepId(found.id);
+    else if (found) setOrder(found);
     else setDeepFetch(deepId);
   }
   useEffect(() => {
     if (!deepFetch) return;
     let alive = true;
     getServicePassport(deepFetch, locale)
-      .then((r) => alive && r.service.id && setOrder(r.service))
+      .then((r) => {
+        if (!alive || !r.service.id) return;
+        if (r.service.documentTemplateId) setDocDeepId(r.service.id);
+        else setOrder(r.service);
+      })
       .catch(() => {})
       .finally(() => alive && setDeepFetch(""));
     return () => {
       alive = false;
     };
   }, [deepFetch, locale]);
+  useEffect(() => {
+    if (docDeepId) router.push(`/portal/client/services/document/${docDeepId}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docDeepId]);
 
   const catName = cats.data.find((c) => c.id === cat)?.name || "";
 
@@ -399,7 +409,7 @@ export default function ClientServices() {
         ) : (
           <div className="svsel__grid">
             {list.map((s) => (
-              <button key={s.id} type="button" className="svcard" onClick={() => setOrder(s)}>
+              <button key={s.id} type="button" className="svcard" onClick={() => (s.documentTemplateId ? router.push(`/portal/client/services/document/${s.id}`) : setOrder(s))}>
                 <span className="svcard__i">{s.documentTemplateId ? <IconDocLines /> : <IconBriefcase />}</span>
                 <span className="svcard__t">
                   <b>{s.name}</b>

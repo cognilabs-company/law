@@ -1945,6 +1945,12 @@ body:has(.schat) .fab{display:none}
 .docdone__f{font-size:.85rem;color:var(--gray)}
 .docdone__frame{width:100%;height:min(70vh,640px);border:1px solid var(--dk-line, #e3e8f0);border-radius:14px;background:#fff}
 .docdone__act{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;justify-content:center}
+/* Full-page document builder (Xizmatlar → category → service), LegalZoom-style */
+.docbuild{max-width:1240px;margin:0 auto}
+.docbuild__top{display:flex;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.docbuild__back{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:var(--gray);font-size:.86rem;font-weight:600;cursor:pointer;padding:6px 0}
+.docbuild__back svg{width:16px;height:16px}
+.docbuild__title{font-family:var(--fd);font-size:1.15rem}
 .pverify{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--b50);border-radius:14px;padding:14px 16px;margin-top:14px;flex-wrap:wrap}
 .pverify b{display:block;font-size:.95rem}
 .pverify span{font-size:.82rem;color:var(--gray)}
