@@ -77,7 +77,9 @@ export default function DocWizard({ req, answers, onChange, onSubmit, busy, subm
       for (const f of fields) { const k = f.step ?? 1; if (!m.has(k)) m.set(k, []); m.get(k)!.push(f); }
       return [...m.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
     }
-    const per = fields.length <= 4 ? fields.length || 1 : fields.length <= 8 ? 3 : 4;
+    // One field per step, like the reference builder (Gavel/LegalZoom):
+    // a single conversational question, not a page of several at once.
+    const per = 1;
     const out: Field[][] = [];
     for (let i = 0; i < fields.length; i += per) out.push(fields.slice(i, i + per));
     return out.length ? out : [[]];
