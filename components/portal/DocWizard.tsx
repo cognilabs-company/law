@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import type { DocumentRequest } from "@/lib/services/backend";
+import { previewDocumentRequest, type DocumentPreview, type DocumentRequest } from "@/lib/services/backend";
 import { humanizeSlug } from "@/lib/lawyers";
 import { IconChevronLeft, IconChevronRight, IconCheck } from "@/components/icons";
 
@@ -73,6 +73,22 @@ export default function DocWizard({ req, answers, onChange, onSubmit, busy, subm
     try { localStorage.setItem(DRAFT_KEY(req.id), JSON.stringify(answers)); } catch { /* ignore */ }
   }, [req.id, answers]);
 
+  // Real-time preview (POST …/preview), debounced 400ms after the last
+  // keystroke so it doesn't fire on every character.
+  const [preview, setPreview] = useState<DocumentPreview | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const timer = setTimeout(() => {
+      previewDocumentRequest(req.id, answers)
+        .then((p) => alive && setPreview(p))
+        .catch(() => {});
+    }, 400);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [req.id, answers]);
+
   const cur = steps[idx] ?? [];
   const missing = (s: Field[]) => s.filter((f) => f.required && !(answers[f.name] ?? "").trim());
   // Seed templates label fields with their English code ("Principal"): prefer our
@@ -84,7 +100,9 @@ export default function DocWizard({ req, answers, onChange, onSubmit, busy, subm
     return humanizeSlug(f.label || f.name);
   };
   const filled = fields.filter((f) => (answers[f.name] ?? "").trim()).length;
-  const pct = fields.length ? Math.round((filled / fields.length) * 100) : 0;
+  // Backend-computed once the first preview lands; the local count covers the
+  // instant before that (and if the endpoint is ever unavailable).
+  const pct = preview ? preview.completionPercent : fields.length ? Math.round((filled / fields.length) * 100) : 0;
   const last = idx === steps.length - 1;
 
   function next() {
@@ -132,9 +150,15 @@ export default function DocWizard({ req, answers, onChange, onSubmit, busy, subm
           </div>
         );
       })}
+      {preview?.previewText ? (
+        <div className="dwprev">
+          <b>{t("previewTitle")}</b>
+          <p>{preview.previewText}</p>
+        </div>
+      ) : null}
       <div className="dwiz__nav">
         <button type="button" className="btn btn--ghost" onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0 || busy}><IconChevronLeft />{t("wizBack")}</button>
-        <button type="button" className="btn btn--pri" onClick={next} disabled={busy}>
+        <button type="button" className="btn btn--pri" onClick={next} disabled={busy || (last && preview ? !preview.canGenerate : false)}>
           {busy ? t("saving") : last ? submitLabel : t("wizNext")}{last ? null : <IconChevronRight />}
         </button>
       </div>

@@ -2916,6 +2916,7 @@
       "urgent": "Shoshilinch advokat",
       "urgentSub": "Zudlik bilan yuridik yordam",
       "chooseFamily": "Yo'nalishni tanlang",
+      "docServicesTitle": "Hujjat tayyorlash",
       "servicesN": "{n} ta xizmat",
       "back": "Orqaga",
       "chooseAdvocate": "Advokatni tanlang",
@@ -3031,6 +3032,7 @@
         "wizBack": "Orqaga",
         "wizNext": "Keyingi qadam",
         "wizAutosave": "Javoblar avtomatik saqlanadi — keyinroq shu joydan davom etishingiz mumkin.",
+        "previewTitle": "Hujjat ko'rinishi",
         "downloadPolicy": "Bu oy {n} / {limit} bepul hujjat ishlatildi. Limitdan keyin har hujjat 19 000 so'm yoki obuna.",
         "keptInCabinet": "Hujjat kabinetingizda saqlanadi — qayta yuklab olish limitga kirmaydi.",
         "fields": {

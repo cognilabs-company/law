@@ -26,6 +26,11 @@ function heroImages(): string {
 // there are no cross-origin CORS/private-network problems with the LAN backend.
 const nextConfig: NextConfig = {
   env: { HERO_IMAGES: heroImages() },
+  // Dev server defaults to allowing only "localhost" as the request origin
+  // (Next.js 16 cross-origin dev-asset protection); local CDP-driven testing
+  // hits 127.0.0.1 directly, which otherwise gets a silent 403 on every
+  // _next/static chunk and looks like "nothing on the page works".
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   // Backend/plan docs call the seller cabinets /portal/advokat and
   // /portal/yurist; send those links to the real routes instead of a 404.
   async redirects() {

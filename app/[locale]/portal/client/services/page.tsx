@@ -22,6 +22,7 @@ import {
 import { http, asDict, asStr } from "@/lib/http";
 import OrderPayment from "@/components/portal/OrderPayment";
 import ServicePassport from "@/components/portal/ServicePassport";
+import ServiceDocumentRequest from "@/components/portal/ServiceDocumentRequest";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { initials, humanizeSlug } from "@/lib/lawyers";
@@ -47,6 +48,7 @@ import {
   IconGavel,
   IconCheck,
   IconClock,
+  IconDocLines,
 } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
@@ -65,6 +67,13 @@ export default function ClientServices() {
   const router = useRouter();
   const cats = useResource(getServiceCategories, []);
   const services = useResource<BackendService>(() => getServices({ catalog_only: true }, locale), [locale]);
+  // Document-generation services (FRONTEND_DOCUMENT_GENERATION.md) may have no
+  // catalog metadata, so catalog_only=true can leave them out entirely —
+  // fetched separately, filtered to the ones actually wired to a template.
+  const docServices = useResource<BackendService>(
+    () => getServices({ catalog_only: false }, locale).then((rows) => rows.filter((s) => s.documentTemplateId)),
+    [locale],
+  );
 
   // T0-20 §4: outside working hours the client is told right away when the
   // advocate's 30-minute response window starts (next working day 09:00).
@@ -346,6 +355,26 @@ export default function ClientServices() {
           <button type="button" className="btn btn--line btn--sm" onClick={() => { setPreSeller(null); if (typeof window !== "undefined") window.history.replaceState(null, "", window.location.pathname); }}>{t("preSellerClear")}</button>
         </div>
       ) : null}
+      {showFamilies && docServices.data.length ? (
+        <div className="ppanel">
+          <div className="ppanel__h">
+            <b>{t("docServicesTitle")}</b>
+            <span className="advmuted">{docServices.data.length}</span>
+          </div>
+          <div className="svsel__grid">
+            {docServices.data.map((s) => (
+              <button key={s.id} type="button" className="svcard" onClick={() => setOrder(s)}>
+                <span className="svcard__i"><IconDocLines /></span>
+                <span className="svcard__t">
+                  <b>{s.name}</b>
+                  <small>{s.price ? `${som(s.price)} ${t("som")}` : t("byRequest")}</small>
+                </span>
+                <span className="svcard__c"><IconArrowRight /></span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div className="ppanel">
         <div className="ppanel__h">
           <b>{showFamilies ? t("chooseFamily") : query ? t("title") : catName}</b>
@@ -390,7 +419,7 @@ export default function ClientServices() {
           <div className="svsel__grid">
             {list.map((s) => (
               <button key={s.id} type="button" className="svcard" onClick={() => setOrder(s)}>
-                <span className="svcard__i"><IconBriefcase /></span>
+                <span className="svcard__i">{s.documentTemplateId ? <IconDocLines /> : <IconBriefcase />}</span>
                 <span className="svcard__t">
                   <b>{s.name}</b>
                   <small>
@@ -407,6 +436,8 @@ export default function ClientServices() {
       <Modal open={!!order} onClose={() => { setOrder(null); setPayOrderId(null); }} title={order?.name || t("orderTitle")}>
         {payOrderId ? (
           <OrderPayment orderId={payOrderId} onChat={afterPay} />
+        ) : order?.documentTemplateId ? (
+          <ServiceDocumentRequest serviceId={order.id} />
         ) : (
           <div className="cform" style={{ maxWidth: "none" }}>
             {quote ? (

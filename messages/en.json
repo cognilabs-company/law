@@ -2910,6 +2910,7 @@
       "urgent": "Urgent advocate",
       "urgentSub": "Legal help right now",
       "chooseFamily": "Choose a category",
+      "docServicesTitle": "Document preparation",
       "servicesN": "{n} services",
       "back": "Back",
       "chooseAdvocate": "Choose an advocate",
@@ -3025,6 +3026,7 @@
         "wizBack": "Back",
         "wizNext": "Next step",
         "wizAutosave": "Answers are saved automatically — you can continue later from here.",
+        "previewTitle": "Document preview",
         "downloadPolicy": "{n} / {limit} free documents used this month. After the limit: 19,000 UZS per document or a plan.",
         "keptInCabinet": "The document stays in your cabinet — downloading it again doesn't count against the limit.",
         "fields": {

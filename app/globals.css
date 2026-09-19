@@ -3523,6 +3523,10 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .dwiz__nav .btn svg{width:16px;height:16px}
 .dwiz__auto{font-size:.74rem;color:var(--gray2);text-align:center}
 .dwiz__policy{margin:0;padding:10px 12px;border-radius:12px;background:var(--dk-tint-blue, #eef4ff);font-size:.82rem;color:var(--dk-acc-strong, var(--b700))}
+/* Real-time document preview (FRONTEND_DOCUMENT_GENERATION.md) */
+.dwprev{display:grid;gap:6px;padding:12px 14px;border-radius:14px;background:var(--dk-surface-2, #F7FAFE);border:1px dashed var(--dk-line, #dbe4f0)}
+.dwprev b{font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;color:var(--gray2)}
+.dwprev p{margin:0;font-size:.86rem;line-height:1.6;color:var(--dk-fg, #14213d);white-space:pre-wrap;max-height:220px;overflow-y:auto}
 /* T0-20 response deadline */
 .ocase__dl{color:var(--dk-txt-warn, #b45309)}
 .ocase__dl.overdue{color:var(--dk-txt-err, #b91c1c)}

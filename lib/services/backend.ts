@@ -534,6 +534,10 @@ export type BackendService = {
   executorType?: string;
   advokatRequired: boolean;
   pricingTier?: string;
+  // GM Frontend Document Generation flow: when set, this service is wired to
+  // a document template (contract/application) instead of (or alongside) the
+  // marketplace order flow.
+  documentTemplateId?: string;
 };
 export type BackendCategory = { id: string; name: string; slug: string };
 
@@ -563,6 +567,7 @@ function normService(v: unknown, locale = "uz"): BackendService {
     executorType: asStr(d.executor_type) || undefined,
     advokatRequired: Boolean(d.advokat_required),
     pricingTier: asStr(d.pricing_tier) || undefined,
+    documentTemplateId: asStr(d.document_template_id) || undefined,
   };
 }
 
@@ -1220,6 +1225,25 @@ export async function getDocumentTemplate(id: string): Promise<BackendTemplate> 
   return normTemplate(await http(`/document-templates/${id}`));
 }
 
+// Catalog-driven document flow: a service can carry a document_template_id
+// (FRONTEND_DOCUMENT_GENERATION.md "Asosiy Flow") — the client starts from
+// the service card instead of the standalone template list.
+export async function getServiceDocumentTemplate(serviceId: string): Promise<BackendTemplate> {
+  const d = asDict(await http(`/services/${serviceId}/document-template`));
+  return normTemplate(d.template ?? d);
+}
+export async function createServiceDocumentRequest(
+  serviceId: string,
+  input?: { answers?: Record<string, unknown>; title?: string },
+): Promise<DocumentRequest> {
+  return normDocRequest(
+    await http(`/services/${serviceId}/document-requests`, {
+      method: "POST",
+      body: JSON.stringify({ answers: {}, ...input }),
+    }),
+  );
+}
+
 // ── Document requests (contract/application flow) ─────────────────
 export type ContractFile = {
   id: string;
@@ -1327,6 +1351,31 @@ export async function payDocumentRequest(
 }
 export async function getDocumentRequest(requestId: string): Promise<DocumentRequest> {
   return normDocRequest(await http(`/document-requests/${requestId}`));
+}
+
+// Real-time preview: the backend fills {{placeholder}}s with the given
+// (possibly incomplete) answers so the client sees the document taking shape
+// before generating it. Called debounced (300-500ms) on every answer change.
+export type DocumentPreview = {
+  previewText: string;
+  missingRequiredFields: { name: string; key: string; label: string }[];
+  canGenerate: boolean;
+  completionPercent: number;
+};
+export async function previewDocumentRequest(
+  requestId: string,
+  answers: Record<string, unknown>,
+): Promise<DocumentPreview> {
+  const d = asDict(await http(`/document-requests/${requestId}/preview`, { method: "POST", body: JSON.stringify({ answers }) }));
+  return {
+    previewText: asStr(d.preview_text ?? d.final_text),
+    missingRequiredFields: asArr(d.missing_required_fields).map((x) => {
+      const y = asDict(x);
+      return { name: asStr(y.name), key: asStr(y.key ?? y.name), label: asStr(y.label) };
+    }),
+    canGenerate: Boolean(d.can_generate),
+    completionPercent: typeof d.completion_percent === "number" ? d.completion_percent : 0,
+  };
 }
 
 // PDF unlock rules for a document request (GET …/unlock-policy). A client can
