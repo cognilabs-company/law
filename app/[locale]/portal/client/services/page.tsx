@@ -66,7 +66,13 @@ export default function ClientServices() {
   const locale = useLocale();
   const router = useRouter();
   const cats = useResource(getServiceCategories, []);
-  const services = useResource<BackendService>(() => getServices({ catalog_only: true }, locale), [locale]);
+  // LEXGO_SERVICE_CATEGORIES_FILTER_FRONTEND.md: /service-categories now
+  // returns only the 4 civil-court categories (the old marketplace ones are
+  // gone), and its services require catalog_only=false ("majburiy") — they
+  // carry no catalog metadata. catalog_only=true is not used here any more:
+  // whatever it still returns belongs to categories that no longer exist, so
+  // family/category browsing couldn't show it anyway.
+  const services = useResource<BackendService>(() => getServices({ catalog_only: false }, locale), [locale]);
 
   // T0-20 §4: outside working hours the client is told right away when the
   // advocate's 30-minute response window starts (next working day 09:00).
