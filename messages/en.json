@@ -3054,6 +3054,7 @@
         "downloadPolicy": "{n} / {limit} free documents used this month. After the limit: 19,000 UZS per document or a plan.",
         "keptInCabinet": "The document stays in your cabinet — downloading it again doesn't count against the limit.",
         "startNew": "Fill in a new document with different details",
+        "staleNotice": "This document may have been generated earlier without any details filled in — use the button below to fill it in again.",
         "fields": {
           "claimant": "Claimant (full name)",
           "defendant": "Defendant (full name)",

@@ -3060,6 +3060,7 @@
         "downloadPolicy": "Bu oy {n} / {limit} bepul hujjat ishlatildi. Limitdan keyin har hujjat 19 000 so'm yoki obuna.",
         "keptInCabinet": "Hujjat kabinetingizda saqlanadi — qayta yuklab olish limitga kirmaydi.",
         "startNew": "Boshqa ma'lumotlar bilan yangi hujjat to'ldirish",
+      "staleNotice": "Bu hujjat oldinroq, ma'lumotlarni to'ldirmasdan yaratilgan bo'lishi mumkin — quyidagi tugma orqali qaytadan to'ldiring.",
         "fields": {
           "claimant": "Da'vogar (F.I.Sh.)",
           "defendant": "Javobgar (F.I.Sh.)",

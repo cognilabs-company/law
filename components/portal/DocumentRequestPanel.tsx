@@ -246,6 +246,7 @@ export default function DocumentRequestPanel({
 
   // The document itself should be visible the moment it's ready, not only
   // after an extra "Ochish" click — fetch it once and show it inline.
+  const isStale = stage === "done" && !Object.values(req.answers || {}).some((v) => v != null && String(v).trim() !== "");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   useEffect(() => {
     if (stage !== "done") return;
@@ -345,6 +346,22 @@ export default function DocumentRequestPanel({
 
       {stage === "done" ? (
         <div className="docdone">
+          {/* Reopening a request created before this template had any fields
+              (or simply never filled in) shows the same blank contractFile it
+              generated back then — nothing here re-checks that against the
+              template's current fields. Flag it plainly instead of presenting
+              an unfilled document as a finished result, and lead with "start
+              over" rather than burying it under the download buttons. */}
+          {isStale ? (
+            <>
+              <Notice ok={false} msg={t("staleNotice")} />
+              {onStartNew ? (
+                <button className="btn btn--pri btn--full" type="button" onClick={onStartNew}>
+                  {t("startNew")}
+                </button>
+              ) : null}
+            </>
+          ) : null}
           <span className="docdone__i"><IconCheck /></span>
           <b>{t("ready")}</b>
           <span className="docdone__f">{req.contractFile?.fileName || `lexgo-${req.id}.pdf`}</span>
@@ -366,7 +383,7 @@ export default function DocumentRequestPanel({
             ) : null}
           </div>
           <small className="advmuted">{t("keptInCabinet")}</small>
-          {onStartNew ? (
+          {onStartNew && !isStale ? (
             <button className="rf__link" type="button" onClick={onStartNew}>
               {t("startNew")}
             </button>
