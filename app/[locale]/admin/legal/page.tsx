@@ -7,6 +7,7 @@ import {
   listUserConsents,
   saveConsentDoc,
   cmpVersion,
+  searchUsers,
   type ConsentDoc,
   type UserConsentRow,
 } from "@/lib/services/backend";
@@ -14,9 +15,10 @@ import { useResource } from "@/lib/useResource";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
+import SearchSelect from "@/components/SearchSelect";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { ApiError } from "@/lib/http";
-import { IconFileText, IconSearch, IconShieldCheck, IconPlus, IconEye } from "@/components/icons";
+import { IconFileText, IconShieldCheck, IconPlus, IconEye } from "@/components/icons";
 
 // T0-18: the 10 legal documents (S-53) with their versions and the consents
 // journal (who accepted what, when, from which IP). The seed only ships 3
@@ -215,8 +217,8 @@ function EditModal({ doc, onClose, onSaved }: { doc: Partial<ConsentDoc> | null;
 
 function Journal() {
   const t = useTranslations("admin.legal");
-  const [draft, setDraft] = useState("");
-  const [userId, setUserId] = useState("");
+  const [userSel, setUserSel] = useState<string[]>([]);
+  const userId = userSel[0] ?? "";
   const [slug, setSlug] = useState("all");
   const rows = useResource(() => listUserConsents(userId), [userId]);
   const slugOpts = useMemo(() => {
@@ -232,17 +234,26 @@ function Journal() {
         <span className="advmuted">{rows.status === "ready" ? t("rows", { n: list.length }) : ""}</span>
       </div>
       <p className="ppanel__note">{t("journalLead")}</p>
-      <form className="audit__filters" onSubmit={(e) => { e.preventDefault(); setUserId(draft.trim()); }}>
+      <div className="audit__filters">
         <div>
           <label>{t("userId")}</label>
-          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("userIdPh")} />
+          <SearchSelect
+            value={userSel}
+            onChange={setUserSel}
+            onSearch={(q) => searchUsers(q).then((list) => list.map((u) => ({ value: u.id, label: u.name || u.lexgoId || u.id, sub: u.phone })))}
+            placeholder={t("userIdPh")}
+            searchPlaceholder={t("userIdPh")}
+            emptyText={t("noUsers")}
+            ariaLabel={t("userId")}
+            removeLabel={t("clear")}
+            single
+          />
         </div>
         <div>
           <label>{t("doc")}</label>
           <Select value={slug} onChange={setSlug} options={slugOpts} ariaLabel={t("doc")} />
         </div>
-        <button type="submit" className="btn btn--soft btn--sm"><IconSearch />{t("apply")}</button>
-      </form>
+      </div>
       {rows.status === "loading" ? (
         <Skeleton rows={5} />
       ) : rows.status === "error" ? (

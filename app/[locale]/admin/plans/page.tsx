@@ -60,6 +60,9 @@ type FormVals = {
   audience: FormAudience;
   targetRoles: PlanAudience[];
   autoChargeProvider: string;
+  billingType: string;
+  sortOrder: string;
+  giftDurations: string;
   period: BillingPeriod;
   price: string;
   description: string;
@@ -69,7 +72,13 @@ type FormVals = {
 };
 
 function seedVals(p?: BackendPlan): FormVals {
-  if (!p) return { title: "", slug: "", audience: "client", targetRoles: ["client"], autoChargeProvider: "atmos", period: "monthly", price: "", description: "", benefits: "", is_giftable: false, is_active: true };
+  if (!p) {
+    return {
+      title: "", slug: "", audience: "client", targetRoles: ["client"], autoChargeProvider: "atmos",
+      billingType: "subscription", sortOrder: "", giftDurations: "",
+      period: "monthly", price: "", description: "", benefits: "", is_giftable: false, is_active: true,
+    };
+  }
   const period = primaryPeriod(p);
   const price = planPrice(p, period);
   const audience: FormAudience = (() => { const a = planAudience(p); return a.includes("yurist") && a.includes("advokat") ? "seller" : a[0] ?? "client"; })();
@@ -79,6 +88,9 @@ function seedVals(p?: BackendPlan): FormVals {
     audience,
     targetRoles: p.targetRoles.length ? (p.targetRoles.filter((r) => TARGET_ROLES.includes(r as PlanAudience)) as PlanAudience[]) : defaultTargetRoles(audience),
     autoChargeProvider: p.autoChargeProvider || "atmos",
+    billingType: p.billingType || "subscription",
+    sortOrder: p.sortOrder ? String(p.sortOrder) : "",
+    giftDurations: p.allowedGiftDurations.join(", "),
     period,
     price: price ? String(Math.round(price)) : "",
     description: p.description,
@@ -122,6 +134,9 @@ function PlanForm({
       audience: v.audience,
       target_roles: v.targetRoles,
       auto_charge_provider: v.autoChargeProvider.trim() || undefined,
+      billing_type: v.billingType.trim() || undefined,
+      sort_order: num(v.sortOrder),
+      allowed_gift_durations: toList(v.giftDurations).map((s) => parseInt(s, 10)).filter((n) => Number.isFinite(n)),
       ...pricesFor(v.period, num(v.price), plan),
       benefits: toList(v.benefits),
       is_giftable: v.is_giftable,
@@ -201,6 +216,21 @@ function PlanForm({
           <label>{t("plans.price")}</label>
           <input type="number" min={0} inputMode="numeric" value={v.price} onChange={(e) => set("price", e.target.value)} placeholder="149000" />
         </div>
+      </div>
+      <div className="cform__row2">
+        <div>
+          <label>{t("plans.billingType")}</label>
+          <input value={v.billingType} onChange={(e) => set("billingType", e.target.value)} placeholder="subscription" />
+        </div>
+        <div>
+          <label>{t("plans.sortOrder")}</label>
+          <input type="number" inputMode="numeric" value={v.sortOrder} onChange={(e) => set("sortOrder", e.target.value)} placeholder="0" />
+        </div>
+      </div>
+      <div>
+        <label>{t("plans.giftDurations")}</label>
+        <input value={v.giftDurations} onChange={(e) => set("giftDurations", e.target.value)} placeholder={t("plans.giftDurationsPh")} />
+        <small className="aplan__hint">{t("plans.giftDurationsHint")}</small>
       </div>
       <div>
         <label>{t("form.description")}</label>

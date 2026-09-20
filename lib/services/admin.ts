@@ -151,12 +151,18 @@ export function normAdminService(v: unknown, locale = "uz"): AdminService {
   };
 }
 
-// Every service the backend lists (catalog_only=false so admin-created rows
-// without catalog metadata appear too). GET /services only returns active
-// rows: a deactivated service disappears from this list until the backend
-// offers an admin listing (see the inactive filter on the admin page).
-export async function listAdminServices(locale = "uz"): Promise<AdminService[]> {
-  const data = await http("/services?catalog_only=false");
+// GET /admin/services (2026-09-19 backend): the real admin listing, unlike
+// GET /services it includes inactive rows too — no more client-side
+// "remembered locally" workaround for a deactivated service disappearing.
+export type AdminServiceFilter = { categoryId?: string; q?: string; isActive?: boolean; executorType?: string };
+export async function listAdminServices(locale = "uz", f?: AdminServiceFilter): Promise<AdminService[]> {
+  const qs = new URLSearchParams();
+  if (f?.categoryId) qs.set("category_id", f.categoryId);
+  if (f?.q) qs.set("q", f.q);
+  if (f?.isActive != null) qs.set("is_active", String(f.isActive));
+  if (f?.executorType) qs.set("executor_type", f.executorType);
+  const q = qs.toString();
+  const data = await http(`/admin/services${q ? `?${q}` : ""}`);
   const d = asDict(data);
   const list = Array.isArray(data) ? data : asArr(d.services ?? d.items ?? d.data);
   return list.map((v) => normAdminService(v, locale));

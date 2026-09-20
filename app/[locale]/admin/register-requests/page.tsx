@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  listRegisterRequests,
+  getSellerRequests,
   acceptRegisterRequest,
   rejectRegisterRequest,
   type RegisterRequest,
 } from "@/lib/services/backend";
-import { useResource } from "@/lib/useResource";
+import { useResourceOne } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { AdminItem, useReload } from "@/components/admin/AdminBits";
+import DatePicker from "@/components/DatePicker";
 import { IconUser, IconCheck, IconClose, IconEye } from "@/components/icons";
 import RegisterRequestDetail from "@/components/admin/RegisterRequestDetail";
 
@@ -20,6 +21,9 @@ const fmtDate = (v: string) => {
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString("ru-RU");
 };
+
+type RoleTab = "all" | "advokat" | "yurist" | "advokat_tashkiloti";
+const ROLE_TABS: RoleTab[] = ["all", "advokat", "yurist", "advokat_tashkiloti"];
 
 function Actions({ id, onDone }: { id: string; onDone: () => void }) {
   const t = useTranslations("admin.registerRequests");
@@ -61,24 +65,56 @@ function Actions({ id, onDone }: { id: string; onDone: () => void }) {
 export default function AdminRegisterRequests() {
   const t = useTranslations("admin.registerRequests");
   const [key, reload] = useReload();
-  const res = useResource(() => listRegisterRequests("pending"), [key]);
+  const [roleTab, setRoleTab] = useState<RoleTab>("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const res = useResourceOne(
+    () => getSellerRequests({ status: "pending", role: roleTab === "all" ? undefined : roleTab, from: from || undefined, to: to || undefined }),
+    [key, roleTab, from, to],
+  );
   const [detail, setDetail] = useState<string | null>(null);
+  const stats = res.data?.stats;
+  const items: RegisterRequest[] = res.data?.items ?? [];
 
   return (
     <div className="ppanel">
       <div className="ppanel__h">
         <b>{t("title")}</b>
-        <span className="advmuted">{res.data.length}</span>
+        <span className="advmuted">{items.length}</span>
       </div>
       <p className="advmuted" style={{ marginBottom: 16 }}>{t("lead")}</p>
 
+      {stats ? (
+        <div className="amet" style={{ marginBottom: 16 }}>
+          <div className="amet__c"><b>{stats.total}</b><span className="amet__l">{t("stats.total")}</span></div>
+          <div className="amet__c"><b>{stats.advokat}</b><span className="amet__l">{t("role.advokat")}</span></div>
+          <div className="amet__c"><b>{stats.yurist}</b><span className="amet__l">{t("role.yurist")}</span></div>
+          <div className="amet__c"><b>{stats.advokatTashkiloti}</b><span className="amet__l">{t("role.organization")}</span></div>
+          <div className="amet__c"><b>{stats.pending}</b><span className="amet__l">{t("stats.pending")}</span></div>
+          <div className="amet__c"><b>{stats.approved}</b><span className="amet__l">{t("stats.approved")}</span></div>
+          <div className="amet__c"><b>{stats.rejected}</b><span className="amet__l">{t("stats.rejected")}</span></div>
+        </div>
+      ) : null}
+
+      <div className="segs segs--sm" role="tablist" aria-label={t("stats.roleTabs")} style={{ marginBottom: 12 }}>
+        {ROLE_TABS.map((r) => (
+          <button key={r} type="button" role="tab" className="seg" aria-selected={roleTab === r} onClick={() => setRoleTab(r)}>
+            {r === "all" ? t("stats.allRoles") : t(`role.${r}`)}
+          </button>
+        ))}
+      </div>
+      <div className="lfilters" style={{ marginBottom: 16 }}>
+        <DatePicker value={from} onChange={setFrom} placeholder={t("stats.from")} ariaLabel={t("stats.from")} max={to || undefined} clearLabel={t("stats.clearDates")} />
+        <DatePicker value={to} onChange={setTo} placeholder={t("stats.to")} ariaLabel={t("stats.to")} min={from || undefined} clearLabel={t("stats.clearDates")} />
+      </div>
+
       {res.status === "loading" ? (
         <Skeleton rows={3} />
-      ) : !res.data.length ? (
+      ) : !items.length ? (
         <EmptyState icon={<IconUser />} title={t("empty")} text={t("emptyText")} />
       ) : (
         <div className="alist">
-          {res.data.map((r: RegisterRequest, i) => (
+          {items.map((r: RegisterRequest, i) => (
             <AdminItem
               key={r.id || i}
               index={i + 1}

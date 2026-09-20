@@ -18,13 +18,11 @@ import {
   IconFileText,
   IconShield,
   IconShieldCheck,
-  IconClipboardCheck,
   IconChat,
   IconUsers,
   IconUserPlus,
   IconRocket,
   IconBolt,
-  IconAward,
   IconScale,
   IconTrendingUp,
   IconTarget,
@@ -32,6 +30,7 @@ import {
   IconCard,
   IconPhone,
   IconVideo,
+  IconClock,
   IconLogout,
   IconMenu,
   IconClose,
@@ -61,6 +60,10 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/pipeline", key: "pipeline", Icon: IconTrendingUp, perm: "leads.manage" },
       { href: "/admin/call-center", key: "callCenter", Icon: IconPhone, perm: ["leads.manage", "callcenter.access"] },
       { href: "/admin/meetings", key: "meetings", Icon: IconVideo, perm: ["leads.manage", "callcenter.access"] },
+      // 2026-09-19 backend: GET /admin/calls, a platform-wide meeting history
+      // (who created it, participants, duration) — distinct from the personal
+      // "my meetings" launcher above and from the telephony KPIs below.
+      { href: "/admin/call-history", key: "callHistory", Icon: IconClock, perm: "leads.manage" },
       { href: "/admin/call-analytics", key: "callAnalytics", Icon: IconChat, perm: "leads.manage" },
       { href: "/admin/retention", key: "retention", Icon: IconUsers, perm: "leads.manage" },
       { href: "/admin/b2b", key: "b2b", Icon: IconBuilding, perm: "b2b.manage" },
@@ -78,9 +81,10 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   {
     group: "sellers",
     items: [
+      // 2026-09-19 backend: GET /admin/seller-requests unifies register
+      // requests and advocate/lawyer approval into one page (role tabs +
+      // date filter + stats) — no separate "verifications" nav entry.
       { href: "/admin/register-requests", key: "registerRequests", Icon: IconUserPlus, perm: "users.manage" },
-      { href: "/admin/verifications", key: "verifications", Icon: IconAward, perm: "lawyers.verify" },
-      { href: "/admin/quality", key: "quality", Icon: IconShieldCheck, perm: "approvals.manage" },
       { href: "/admin/reviews", key: "reviews", Icon: IconStar, perm: "lawyers.verify" },
     ],
   },
@@ -104,12 +108,14 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/workflow", key: "workflow", Icon: IconRocket },
       { href: "/admin/integrations", key: "integrations", Icon: IconBolt },
       { href: "/admin/test-otps", key: "testOtps", Icon: IconShieldCheck },
-      { href: "/admin/e2e", key: "e2e", Icon: IconClipboardCheck, perm: "users.manage" },
       { href: "/admin/roles", key: "roles", Icon: IconShield, perm: "roles.manage" },
       { href: "/admin/audit-trail", key: "audit", Icon: IconShieldCheck, perm: "users.manage" },
       { href: "/admin/legal", key: "legal", Icon: IconFileText, perm: "users.manage" },
       { href: "/admin/policies", key: "policies", Icon: IconShield },
-      { href: "/admin/bootstrap", key: "bootstrap", Icon: IconBolt },
+      // Not in the visible nav on purpose: one-time first-superadmin setup
+      // (bootstrap_key), not a page anyone uses day to day. Still reachable
+      // by URL — isBootstrap/bootstrapOk below gate it independently of NAV,
+      // which is exactly what lets it work before any admin session exists.
     ],
   },
 ];

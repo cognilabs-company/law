@@ -120,6 +120,25 @@ export function isAdminDashboardEmpty(d: AdminDashboardFull): boolean {
   return d.totals.every((s) => !s.value) && d.charts.every((c) => c.points.every((p) => !p.value));
 }
 
+// ── Dashboard drill-down (GET /admin/dashboard/drilldown, 2026-09-19
+// backend) ─────────────────────────────────────────────────────────
+// The base /admin/dashboard payload only carries aggregate counts (plus four
+// small embedded lists — tasks, b2b clients, reviews, gifts). This endpoint
+// returns the actual records behind a metric, paginated by `limit`, for a
+// stat tile's "view detail" click.
+export type DrilldownMetric = "users" | "clients" | "yurists" | "advokats" | "orders" | "cases" | "leads" | "payments" | "tasks" | "b2b_clients" | "reviews";
+export async function getDashboardDrilldown(metric: DrilldownMetric, f?: DashFilter, limit = 50): Promise<DashListItem[]> {
+  const qs = new URLSearchParams();
+  qs.set("metric", metric);
+  if (f?.region) qs.set("region", f.region);
+  if (f?.from) qs.set("date_from", f.from);
+  if (f?.to) qs.set("date_to", f.to);
+  qs.set("limit", String(limit));
+  const raw = await http(`/admin/dashboard/drilldown?${qs.toString()}`);
+  const list = Array.isArray(raw) ? raw : asArr(asDict(raw).items ?? asDict(raw).data ?? asDict(raw).results ?? asDict(raw).records);
+  return list.map(listItem);
+}
+
 // ── CEO (GET /analytics/ceo) ──────────────────────────────────────
 export type CeoDashboardFull = CeoDashboard & { fetchedAt: string };
 function normGiftKpis(v: unknown): GiftKpis {

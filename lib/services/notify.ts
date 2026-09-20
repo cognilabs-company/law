@@ -5,7 +5,7 @@
 // data, meta, created_at}. `kind` is the delivery channel (the cascade writes
 // one row per channel), `data`/`meta` are the same payload with `event` and
 // the ids the event is about (order_id, payment_id, room_id …).
-import { http, asDict, asStr, asArr, isValidation, type Dict } from "@/lib/http";
+import { http, asDict, asStr, asNum, asArr, type Dict } from "@/lib/http";
 import { normChannel, normDeliveries, type NotificationDelivery } from "@/lib/services/backend";
 import { categoryOf, isNotifChannel, type NotifCategory } from "@/lib/notifications";
 
@@ -133,41 +133,76 @@ export function foldNotifications(rows: RichNotification[]): RichNotification[] 
   });
 }
 
+// `?category=&role=&unread_only=` — omitted when not set (2026-09-19 backend:
+// GET /notifications now filters server-side on these).
+export type NotifListFilter = { category?: NotifCategory; role?: string; unreadOnly?: boolean };
+function notifQuery(f?: NotifListFilter): string {
+  if (!f) return "";
+  const qs = new URLSearchParams();
+  if (f.category) qs.set("category", f.category);
+  if (f.role) qs.set("role", f.role);
+  if (f.unreadOnly) qs.set("unread_only", "true");
+  const q = qs.toString();
+  return q ? `?${q}` : "";
+}
+
 // Inbox with events kept and per-channel copies folded. Newest first (the
 // backend orders by created_at desc; folds keep the first row's position).
-export async function listNotificationsRich(): Promise<RichNotification[]> {
-  const raw = await http("/notifications");
+export async function listNotificationsRich(filter?: NotifListFilter): Promise<RichNotification[]> {
+  const raw = await http(`/notifications${notifQuery(filter)}`);
   const list = Array.isArray(raw) ? raw : asArr(asDict(raw).items ?? asDict(raw).data ?? asDict(raw).notifications);
   return foldNotifications(list.map(normRow));
 }
 
-// ── Admin send ────────────────────────────────────────────────────
-// POST /admin/notifications (NotificationCreate: user_id, channel, title,
-// body). The schema has no category/data field: pydantic ignores unknown keys,
-// so `data.category` is sent for forward compatibility but is NOT stored today
-// — `categoryStored` tells the UI to say so. Should the backend ever reject
-// unknown keys (422), the send is retried without them.
-export type AdminSendInput = { user_id: string; channel: string; title: string; body: string; category?: NotifCategory };
-export type AdminSendResult = { id: string; deliveries: NotificationDelivery[]; categoryStored: boolean };
-export async function sendAdminNotification(input: AdminSendInput): Promise<AdminSendResult> {
-  const base = { user_id: input.user_id, channel: input.channel, title: input.title, body: input.body };
-  const withCategory = input.category ? { ...base, data: { category: input.category } } : base;
-  let raw: unknown;
-  let sentExtra = withCategory !== base;
-  try {
-    raw = await http("/admin/notifications", { method: "POST", body: JSON.stringify(withCategory) });
-  } catch (e) {
-    if (!sentExtra || !isValidation(e)) throw e;
-    sentExtra = false;
-    raw = await http("/admin/notifications", { method: "POST", body: JSON.stringify(base) });
+// GET /notifications/categories → per-category counts for the inbox tabs
+// (2026-09-19 backend). Shape isn't nailed down 1:1 by the doc, so this reads
+// either a flat {category: count} dict or a {category, count}[] list.
+export type NotifCategoryCounts = Record<NotifCategory, number>;
+export async function getNotificationCategoryCounts(): Promise<NotifCategoryCounts> {
+  const raw = await http("/notifications/categories");
+  const out = { orders: 0, payments: 0, chat: 0, documents: 0, system: 0, marketing: 0 } as NotifCategoryCounts;
+  const rows = Array.isArray(raw) ? raw : asArr(asDict(raw).items ?? asDict(raw).categories ?? asDict(raw).data);
+  if (rows.length) {
+    for (const row of rows) {
+      const d = asDict(row);
+      const cat = asStr(d.category ?? d.name ?? d.key).trim().toLowerCase() as NotifCategory;
+      if (cat in out) out[cat] = asNum(d.count ?? d.unread ?? d.unread_count ?? d.value);
+    }
+  } else {
+    const d = asDict(raw);
+    for (const cat of Object.keys(out) as NotifCategory[]) if (cat in d) out[cat] = asNum(d[cat]);
   }
+  return out;
+}
+
+// ── Admin send ────────────────────────────────────────────────────
+// POST /admin/notifications (NotificationCreate: user_id | audience_role,
+// channel, title, body, category — `category` and `audience_role` are real,
+// stored top-level fields as of the 2026-09-19 backend deploy, confirmed live
+// in production). Exactly one of `userId` / `audienceRole` is sent: a role
+// broadcast fans out server-side, so the frontend makes a single call.
+export type AdminSendInput = {
+  userId?: string;
+  audienceRole?: string;
+  channel: string;
+  title: string;
+  body: string;
+  category?: NotifCategory;
+};
+export type AdminSendResult = { id: string; deliveries: NotificationDelivery[] };
+export async function sendAdminNotification(input: AdminSendInput): Promise<AdminSendResult> {
+  const body: Dict = {
+    channel: input.channel,
+    title: input.title,
+    body: input.body,
+    ...(input.audienceRole ? { audience_role: input.audienceRole } : { user_id: input.userId }),
+    ...(input.category ? { category: input.category } : {}),
+  };
+  const raw = await http("/admin/notifications", { method: "POST", body: JSON.stringify(body) });
   const d = asDict(raw);
-  const echoed = { ...parseJsonDict(d.meta), ...parseJsonDict(d.data) };
   const top = normDeliveries(raw);
   return {
     id: asStr(d.id ?? asDict(d.notification).id),
     deliveries: top.length ? top : normDeliveries(d.notification ?? d, input.channel),
-    // Stored only when the response echoes it back (NotificationOut has no such field today).
-    categoryStored: sentExtra && asStr(echoed.category) === input.category,
   };
 }

@@ -6,7 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { shortDateTime } from "@/lib/date";
 import { markNotificationRead, markAllNotificationsRead, type NotificationDelivery } from "@/lib/services/backend";
-import { listNotificationsRich, type RichNotification } from "@/lib/services/notify";
+import { listNotificationsRich, getNotificationCategoryCounts, type RichNotification, type NotifCategoryCounts } from "@/lib/services/notify";
 import { NOTIF_CATEGORIES, templateVars, notifLink, type NotifTab, type NotifCategory } from "@/lib/notifications";
 import { useOrderStatusLabel } from "@/lib/orderStatus";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -89,22 +89,43 @@ export default function NotificationsPanel() {
   const [tab, setTab] = useState<NotifTab>("all");
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<ReadFilter>("all");
+  // Per-category unread counts for the tab badges (GET /notifications/categories,
+  // 2026-09-19 backend) — kept separate from `items` since it's a global
+  // aggregate, not scoped to the current tab/read filter.
+  const [catCounts, setCatCounts] = useState<NotifCategoryCounts | null>(null);
+  const loadCounts = useCallback(() => {
+    getNotificationCategoryCounts().then(setCatCounts).catch(() => {});
+  }, []);
 
+  // Server-side filtering (2026-09-19 backend): category and unread_only are
+  // real query params now, so the tab/read-filter switch refetches instead of
+  // filtering an already-fetched full list. Back to "loading" as soon as the
+  // filter changes (during render, not in the effect below, so there is no
+  // extra cascading render — same pattern as lib/useResource.ts).
+  const filterKey = `${tab}|${filter}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey);
+    setStatus("loading");
+  }
   useEffect(() => {
     let alive = true;
-    listNotificationsRich()
+    listNotificationsRich({ category: tab === "all" ? undefined : tab, unreadOnly: filter === "unread" })
       .then((d) => alive && (setItems(d), setStatus("ready")))
       .catch(() => alive && setStatus("error"));
     return () => { alive = false; };
-  }, []);
+  }, [tab, filter]);
+
+  useEffect(loadCounts, [loadCounts]);
 
   async function refresh() {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      const d = await listNotificationsRich();
+      const d = await listNotificationsRich({ category: tab === "all" ? undefined : tab, unreadOnly: filter === "unread" });
       setItems(d);
       setStatus("ready");
+      loadCounts();
     } catch {
       if (!items.length) setStatus("error");
     } finally {
@@ -114,15 +135,21 @@ export default function NotificationsPanel() {
 
   // Rows with their display text, so search and rendering agree.
   const rows = useMemo(() => items.map((n) => ({ n, ...textOf(n) })), [items, textOf]);
-  const unreadBy = useMemo(() => {
-    const c: Record<NotifTab, number> = { all: 0, orders: 0, payments: 0, chat: 0, documents: 0, system: 0, marketing: 0 };
-    for (const n of items) if (!n.read) { c.all += 1; c[n.category] += 1; }
-    return c;
-  }, [items]);
+  // Tab badges come from the server aggregate, not the currently-fetched
+  // (already tab/read-filtered) `items` — it always reflects every category.
+  const unreadBy: Record<NotifTab, number> = {
+    all: catCounts ? Object.values(catCounts).reduce((a, b) => a + b, 0) : 0,
+    orders: catCounts?.orders ?? 0,
+    payments: catCounts?.payments ?? 0,
+    chat: catCounts?.chat ?? 0,
+    documents: catCounts?.documents ?? 0,
+    system: catCounts?.system ?? 0,
+    marketing: catCounts?.marketing ?? 0,
+  };
   const needle = q.trim().toLowerCase();
+  // Category and unread_only are already applied server-side; only the free-text
+  // search and the "read only" filter (no server param for that) run here.
   const shown = rows.filter(({ n, title, body }) => {
-    if (tab !== "all" && n.category !== tab) return false;
-    if (filter === "unread" && n.read) return false;
     if (filter === "read" && !n.read) return false;
     if (!needle) return true;
     return [title, body, n.title, n.body, n.event].some((s) => s.toLowerCase().includes(needle));
@@ -141,6 +168,8 @@ export default function NotificationsPanel() {
       await Promise.all((n.ids.length ? n.ids : [n.id]).map((id) => markNotificationRead(id)));
     } catch {
       /* ignore — optimistic */
+    } finally {
+      loadCounts();
     }
   }
   async function readAll() {
@@ -155,6 +184,8 @@ export default function NotificationsPanel() {
       else await Promise.all(shownUnread.flatMap(({ n }) => (n.ids.length ? n.ids : [n.id])).map((id) => markNotificationRead(id)));
     } catch {
       /* ignore — optimistic */
+    } finally {
+      loadCounts();
     }
   }
 

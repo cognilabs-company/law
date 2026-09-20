@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getServiceCategories, searchServices, type BackendCategory } from "@/lib/services/backend";
 import { saveCategory, removeCategory, restoreCategory, resetCategory, type OverlaidCategory } from "@/lib/services/catalogOverrides";
@@ -13,7 +13,6 @@ import {
   type AdminService,
 } from "@/lib/services/admin";
 import { useResource } from "@/lib/useResource";
-import { useAuth } from "@/lib/auth";
 import { fmtUzs } from "@/lib/money";
 import { ApiError, errDetail } from "@/lib/http";
 import { matchesSearch } from "@/lib/searchText";
@@ -32,29 +31,6 @@ const som = (n?: number) => (n ? fmtUzs(n) : "—");
 
 type StateFilter = "all" | "active" | "inactive";
 
-// GET /services lists active rows only, so a service deactivated here would
-// vanish with no way to bring it back. Snapshots of rows deactivated from this
-// browser are kept per admin user in localStorage (honestly labelled in the
-// UI) so they can be reactivated with PATCH is_active=true. Entries drop out
-// as soon as the backend lists the service as active again.
-const LOCAL_KEY = (uid: string) => `lexgo_admin_svc_inactive_${uid || "anon"}`;
-function readLocal(uid: string): AdminService[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_KEY(uid));
-    const arr = raw ? (JSON.parse(raw) as unknown) : [];
-    return Array.isArray(arr) ? (arr as AdminService[]).filter((s) => s && typeof s.id === "string") : [];
-  } catch {
-    return [];
-  }
-}
-function writeLocal(uid: string, list: AdminService[]) {
-  try {
-    localStorage.setItem(LOCAL_KEY(uid), JSON.stringify(list.slice(0, 200)));
-  } catch {
-    /* storage unavailable: the tab keeps its in-memory copy */
-  }
-}
-
 const hayOf = (s: AdminService) =>
   [s.name, s.title, s.titleUzLatn, s.titleUzCyrl, s.titleRu, s.slug, s.catalogCode, s.categoryTitle].filter(Boolean).join(" ");
 
@@ -64,8 +40,6 @@ export default function AdminServices() {
   const t = useTranslations("admin");
   const ts = useTranslations("admin.services");
   const locale = useLocale();
-  const { session } = useAuth();
-  const uid = session?.id ?? "";
   const [catKey, reloadCats] = useReload();
   const [svcKey, reloadSvcs] = useReload();
   // Admin sees hidden ("deleted") categories too, behind a toggle.
@@ -93,7 +67,6 @@ export default function AdminServices() {
       setCatBusy("");
     }
   }
-  const svcs = useResource(() => listAdminServices(locale), [svcKey, locale]);
   const [catOpen, setCatOpen] = useState(false);
   const [svcOpen, setSvcOpen] = useState(false);
   const [edit, setEdit] = useState<AdminService | null>(null);
@@ -107,29 +80,14 @@ export default function AdminServices() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("");
   const [state, setState] = useState<StateFilter>("all");
-
-  // Locally remembered inactive rows (see LOCAL_KEY). Loaded after mount so
-  // the server render and the first client render agree.
-  const [local, setLocal] = useState<AdminService[]>([]);
-  useEffect(() => {
-    const timer = setTimeout(() => setLocal(readLocal(uid)), 0);
-    return () => clearTimeout(timer);
-  }, [uid]);
-  const saveLocal = useCallback(
-    (next: AdminService[]) => {
-      setLocal(next);
-      writeLocal(uid, next);
-    },
-    [uid],
+  // category_id and is_active are real server-side filters (2026-09-19
+  // backend); free-text stays client-side (matchesSearch below, merged with
+  // the debounced /services/search remote hits) — no reason to run three
+  // separate search paths for the same "q".
+  const svcs = useResource(
+    () => listAdminServices(locale, { categoryId: cat || undefined, isActive: state === "all" ? undefined : state === "active" }),
+    [svcKey, locale, cat, state],
   );
-  // Anything the backend lists as active is no longer inactive.
-  useEffect(() => {
-    if (svcs.status !== "ready" || !local.length) return;
-    const active = new Set(svcs.data.map((s) => s.id));
-    if (!local.some((s) => active.has(s.id))) return;
-    const timer = setTimeout(() => saveLocal(local.filter((s) => !active.has(s.id))), 0);
-    return () => clearTimeout(timer);
-  }, [svcs.status, svcs.data, local, saveLocal]);
 
   // Server search (GET /services/search): Latin/Cyrillic/Russian spellings plus
   // category, subcategory and AI category. Debounced; its hits are merged with
@@ -155,10 +113,7 @@ export default function AdminServices() {
   const remoteIds = remote && remote.q === term ? remote.ids : null;
   const serverSearchOff = Boolean(remote?.off);
 
-  const all = useMemo<AdminService[]>(() => {
-    const seen = new Set(svcs.data.map((s) => s.id));
-    return [...svcs.data, ...local.filter((s) => !seen.has(s.id)).map((s) => ({ ...s, isActive: false }))];
-  }, [svcs.data, local]);
+  const all = svcs.data;
 
   const list = useMemo(() => {
     return all.filter((s) => {
@@ -170,7 +125,6 @@ export default function AdminServices() {
     });
   }, [all, state, cat, term, remoteIds]);
 
-  const localIds = useMemo(() => new Set(local.map((s) => s.id)), [local]);
   const catOpts = [{ value: "", label: ts("allCats") }, ...cats.data.map((c) => ({ value: c.id, label: c.name }))];
 
   function noteFor(e: unknown, fallback: string, ns: "edit" | "del"): string {
@@ -182,17 +136,11 @@ export default function AdminServices() {
     return errDetail(e) || fallback;
   }
 
-  // After a PATCH: an active row replaces its list entry; a deactivated one
-  // moves to the local inactive list.
+  // GET /admin/services lists inactive rows too, so a PATCH just replaces the
+  // row in place — no separate "local" bookkeeping needed any more.
   function onSaved(updated: AdminService) {
     setEdit(null);
-    if (updated.isActive) {
-      svcs.setData((cur) => (cur.some((s) => s.id === updated.id) ? cur.map((s) => (s.id === updated.id ? updated : s)) : [...cur, updated]));
-      if (localIds.has(updated.id)) saveLocal(local.filter((s) => s.id !== updated.id));
-    } else {
-      svcs.setData((cur) => cur.filter((s) => s.id !== updated.id));
-      saveLocal([updated, ...local.filter((s) => s.id !== updated.id)]);
-    }
+    svcs.setData((cur) => (cur.some((s) => s.id === updated.id) ? cur.map((s) => (s.id === updated.id ? updated : s)) : [...cur, updated]));
     void svcs.refresh();
   }
 
@@ -202,9 +150,7 @@ export default function AdminServices() {
     setDelNote(null);
     try {
       await deleteService(del.id);
-      const gone = { ...del, isActive: false };
-      svcs.setData((cur) => cur.filter((s) => s.id !== gone.id));
-      saveLocal([gone, ...local.filter((s) => s.id !== gone.id)]);
+      svcs.setData((cur) => cur.map((s) => (s.id === del.id ? { ...s, isActive: false } : s)));
       setDel(null);
       setRowNote({ ok: true, msg: ts("del.done") });
     } catch (e) {
@@ -220,13 +166,9 @@ export default function AdminServices() {
     setRowNote(null);
     try {
       const updated = await updateService(s.id, { is_active: true }, locale);
-      saveLocal(local.filter((x) => x.id !== s.id));
-      svcs.setData((cur) => (cur.some((x) => x.id === updated.id) ? cur : [...cur, updated]));
+      svcs.setData((cur) => (cur.some((x) => x.id === updated.id) ? cur.map((x) => (x.id === updated.id ? updated : x)) : [...cur, updated]));
       setRowNote({ ok: true, msg: ts("reactivated") });
-      void svcs.refresh();
     } catch (e) {
-      // The backend no longer knows this id: the local memory is stale.
-      if (e instanceof ApiError && e.status === 404) saveLocal(local.filter((x) => x.id !== s.id));
       setRowNote({ ok: false, msg: noteFor(e, ts("reactivateError"), "edit") });
     } finally {
       setReactivating("");
@@ -354,66 +296,52 @@ export default function AdminServices() {
           <EmptyState icon={<IconSearch />} title={ts("noResults")} />
         ) : (
           <div className="alist">
-            {list.map((s, i) => {
-              const isLocal = !s.isActive && localIds.has(s.id);
-              return (
-                <AdminItem
-                  key={s.id}
-                  index={i + 1}
-                  title={s.name}
-                  meta={[s.categoryTitle, s.slug, s.catalogCode].filter(Boolean).join(" · ")}
-                  right={som(s.price)}
-                  tags={[
-                    { label: s.isActive ? t("form.active") : t("form.inactive"), tone: s.isActive ? "ok" : "muted" },
-                    { label: s.hasMetadata ? ts("tagCatalog") : ts("tagCustom"), tone: s.hasMetadata ? undefined : "muted" },
-                    ...(isLocal ? [{ label: ts("localOnly"), tone: "muted" as const }] : []),
-                  ]}
-                  actions={
-                    <>
-                      {isLocal ? (
-                        <button
-                          className="aitem__act"
-                          type="button"
-                          aria-label={ts("reactivate")}
-                          title={ts("reactivate")}
-                          disabled={reactivating === s.id}
-                          onClick={() => void reactivate(s)}
-                        >
-                          <IconRefresh />
-                        </button>
-                      ) : null}
-                      <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => setEdit(s)}>
-                        <IconEdit />
+            {list.map((s, i) => (
+              <AdminItem
+                key={s.id}
+                index={i + 1}
+                title={s.name}
+                meta={[s.categoryTitle, s.slug, s.catalogCode].filter(Boolean).join(" · ")}
+                right={som(s.price)}
+                tags={[
+                  { label: s.isActive ? t("form.active") : t("form.inactive"), tone: s.isActive ? "ok" : "muted" },
+                  { label: s.hasMetadata ? ts("tagCatalog") : ts("tagCustom"), tone: s.hasMetadata ? undefined : "muted" },
+                ]}
+                actions={
+                  <>
+                    {!s.isActive ? (
+                      <button
+                        className="aitem__act"
+                        type="button"
+                        aria-label={ts("reactivate")}
+                        title={ts("reactivate")}
+                        disabled={reactivating === s.id}
+                        onClick={() => void reactivate(s)}
+                      >
+                        <IconRefresh />
                       </button>
-                      {isLocal ? (
-                        <button
-                          className="aitem__act aitem__act--danger"
-                          type="button"
-                          aria-label={ts("forget")}
-                          title={ts("forget")}
-                          onClick={() => saveLocal(local.filter((x) => x.id !== s.id))}
-                        >
-                          <IconClose />
-                        </button>
-                      ) : (
-                        <button
-                          className="aitem__act aitem__act--danger"
-                          type="button"
-                          aria-label={t("form.delete")}
-                          title={t("form.delete")}
-                          onClick={() => {
-                            setDelNote(null);
-                            setDel(s);
-                          }}
-                        >
-                          <IconTrash />
-                        </button>
-                      )}
-                    </>
-                  }
-                />
-              );
-            })}
+                    ) : null}
+                    <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => setEdit(s)}>
+                      <IconEdit />
+                    </button>
+                    {s.isActive ? (
+                      <button
+                        className="aitem__act aitem__act--danger"
+                        type="button"
+                        aria-label={t("form.delete")}
+                        title={t("form.delete")}
+                        onClick={() => {
+                          setDelNote(null);
+                          setDel(s);
+                        }}
+                      >
+                        <IconTrash />
+                      </button>
+                    ) : null}
+                  </>
+                }
+              />
+            ))}
           </div>
         )}
       </div>

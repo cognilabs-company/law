@@ -2,16 +2,71 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getRegisterRequestDetail, type RegisterRequestDetail as Detail } from "@/lib/services/backend";
+import { getRegisterRequestDetail, getProofDocumentBlob, type RegisterRequestDetail as Detail, type ProofDocument } from "@/lib/services/backend";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
+import { IconEye, IconClose, IconFileText } from "@/components/icons";
 
 const fmt = (v?: string) => {
   if (!v) return "";
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? v : d.toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
 };
+
+// Inline preview of an uploaded proof document — fetched as a blob (the file
+// needs the admin's bearer token) and shown in this same modal, never a new
+// browser tab. Fetched lazily, only once the admin expands this row.
+function ProofDocPreview({ doc }: { doc: ProofDocument }) {
+  const t = useTranslations("admin.registerRequests");
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState("");
+  const [mime, setMime] = useState("");
+  const [err, setErr] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  function toggle() {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (url || loading) return;
+    setLoading(true);
+    setErr(false);
+    getProofDocumentBlob(doc.id)
+      .then((blob) => {
+        setUrl(URL.createObjectURL(blob));
+        setMime(blob.type);
+      })
+      .catch(() => setErr(true))
+      .finally(() => setLoading(false));
+  }
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+
+  return (
+    <div className="dkv__doc">
+      <button type="button" className="dkv__doc-h" onClick={toggle}>
+        <IconFileText />
+        <span>{doc.kind ? (t.has(`docKind.${doc.kind}`) ? t(`docKind.${doc.kind}`) : doc.kind) : t("detail.document")}</span>
+        {open ? <IconClose /> : <IconEye />}
+      </button>
+      {open ? (
+        loading ? (
+          <Skeleton rows={1} />
+        ) : err ? (
+          <Notice ok={false} msg={t("detail.fileError")} />
+        ) : url ? (
+          mime.startsWith("image/") ? (
+            <img src={url} alt="" className="dkv__doc-img" />
+          ) : (
+            <iframe src={url} title={doc.kind || "proof"} className="dkv__doc-frame" />
+          )
+        ) : null
+      ) : null}
+    </div>
+  );
+}
 
 // GET /admin/register-requests/{id}: what the applicant typed at sign-up
 // (name parts, region, phone, OTP attempts / block), the linked user and
@@ -77,6 +132,24 @@ export default function RegisterRequestDetail({ id, onClose }: { id: string | nu
               {row(t("detail.specializations"), d.lawyerProfile.specializations.join(", "))}
               {row(t("detail.experience"), d.lawyerProfile.experienceYears)}
               {row(t("detail.verified"), d.lawyerProfile.verified ? "✓" : "—")}
+            </div>
+          ) : null}
+          {d.verificationItems.length ? (
+            <div className="dkv__sect">
+              <b>{t("detail.verificationItems")}</b>
+              <ul className="dkv__list">
+                {d.verificationItems.map((v) => (
+                  <li key={v.key}><b>{v.label}</b><span>{[statusLabel(v.status), v.note].filter(Boolean).join(" · ")}</span></li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {d.proofDocuments.length ? (
+            <div className="dkv__sect">
+              <b>{t("detail.documents")}</b>
+              {d.proofDocuments.map((doc) => (
+                <ProofDocPreview key={doc.id} doc={doc} />
+              ))}
             </div>
           ) : null}
           <div className="dkv__sect">

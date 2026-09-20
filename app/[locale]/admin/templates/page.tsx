@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { getDocumentTemplates, getDocumentTemplate, type BackendTemplate } from "@/lib/services/backend";
+import { getAdminDocumentTemplates, getDocumentTemplate, type BackendTemplate } from "@/lib/services/backend";
 import {
   createDocumentTemplate,
   updateDocumentTemplate,
@@ -22,7 +22,9 @@ const num = (v: string | boolean) => parseInt(String(v || "0"), 10) || 0;
 export default function AdminTemplates() {
   const t = useTranslations("admin");
   const [key, reload] = useReload();
-  const tpls = useResource(getDocumentTemplates, [key]);
+  // GET /admin/document-templates (2026-09-19 backend): includes inactive
+  // templates too, unlike the public listing this page used before.
+  const tpls = useResource(() => getAdminDocumentTemplates(), [key]);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [edit, setEdit] = useState<BackendTemplate | null>(null);

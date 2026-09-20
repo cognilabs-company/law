@@ -15,6 +15,12 @@ export const CALL_EVENTS = new Set([
   "call.participant_updated",
   "call.updated",
   "call.ended",
+  // 2026-09-19 backend: server-tracked recording consent (see
+  // requestCallRecording/setCallRecordingPermission/startCallRecordingServer
+  // in lib/services/backend.ts and CallRoom.tsx's recording effect).
+  "call.recording_requested",
+  "call.recording_permission_updated",
+  "call.recording_started",
 ]);
 
 export function isCallEvent(name: unknown): name is string {

@@ -58,6 +58,10 @@ export type PlanInput = {
   target_roles?: string[];
   // Provider that runs this plan's recurring auto-renew charge (e.g. "atmos").
   auto_charge_provider?: string;
+  // Pricing model ("subscription" per the 2026-09-19 doc's example) and the
+  // gift-duration options (months) a giftable plan can be bought for.
+  billing_type?: string;
+  allowed_gift_durations?: number[];
 };
 
 // Build the price fields from one (period, price) pair; other periods keep

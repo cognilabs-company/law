@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -11,6 +11,7 @@ import {
   getCeoDashboardFull,
   getRetentionData,
   getQualityFull,
+  getDashboardDrilldown,
   isAdminDashboardEmpty,
   isCeoEmpty,
   isRetentionEmpty,
@@ -20,6 +21,8 @@ import {
   type AdminDashboardFull,
   type CeoDashboardFull,
   type RetentionData,
+  type DrilldownMetric,
+  type DashListItem,
   todayIso,
   type QualityFull,
 } from "@/lib/services/dash";
@@ -33,7 +36,7 @@ import { Skeleton } from "@/components/portal/DataState";
 import LineChart from "@/components/admin/LineChart";
 import Modal from "@/components/admin/Modal";
 import StatTile from "@/components/admin/StatTile";
-import StatDrillModal, { type Drill } from "@/components/admin/StatDrillModal";
+import StatDrillModal, { type Drill, type DrillSection, type DrillRow } from "@/components/admin/StatDrillModal";
 import DashFilterBar, { useDashFilter } from "@/components/admin/DashFilterBar";
 import {
   IconBolt,
@@ -46,6 +49,9 @@ import {
   IconPhone,
   IconArrowRight,
   IconInfo,
+  IconClipboardCheck,
+  IconStar,
+  IconFileText,
 } from "@/components/icons";
 
 const fmt = (n: number) => (Math.abs(n) >= 1000 ? n.toLocaleString("ru-RU").replace(/,/g, " ") : String(n));
@@ -53,9 +59,7 @@ const DASH = "—";
 
 const MODULES = [
   { href: "/admin/pipeline", key: "pipeline", Icon: IconTrendingUp },
-  { href: "/admin/verifications", key: "verifications", Icon: IconAward },
   { href: "/admin/payouts", key: "payouts", Icon: IconCard },
-  { href: "/admin/quality", key: "quality", Icon: IconShieldCheck },
   { href: "/admin/b2b", key: "b2b", Icon: IconBuilding },
   { href: "/admin/retention", key: "retention", Icon: IconUsers },
   { href: "/admin/call-center", key: "callCenter", Icon: IconPhone },
@@ -133,8 +137,32 @@ export default function AdminOverview() {
   const regionHint = filter.region ? td("hint.regionNa") : undefined;
   const dateHint = isFiltered(filter) && (filter.from || filter.to) ? td("hint.dateNa") : undefined;
 
-  // Drill-down builders — everything comes from the payloads already loaded.
+  // Drill-down builders — everything comes from the payloads already loaded,
+  // except `withDetail`, which appends the real record list from the 2026-09-19
+  // GET /admin/dashboard/drilldown endpoint (metric/region/date_from/date_to/limit).
   const open = (drl: Drill) => setDrill({ ...drl, demo });
+  const drillRow = (x: DashListItem): DrillRow => ({
+    label: x.title || x.meta || x.id,
+    value: x.amount ? money(x.amount) : x.status ? label("status", x.status) : "",
+    sub: [x.title && x.meta ? x.meta : "", x.date ? fmtDate(x.date, locale) : ""].filter(Boolean).join(" · "),
+  });
+  // A token so a slower, earlier fetch (a fast second click, or switching
+  // tiles) never clobbers the modal with stale rows once it resolves.
+  const drillToken = useRef(0);
+  function withDetail(metric: DrilldownMetric, drl: Drill) {
+    const mine = ++drillToken.current;
+    const detail: DrillSection = { kind: "list", title: td("drill.details"), rows: [], empty: td("drill.loading") };
+    open({ ...drl, sections: [...drl.sections, detail] });
+    getDashboardDrilldown(metric, filter)
+      .then((rows) => {
+        if (drillToken.current !== mine) return;
+        setDrill((cur) => (cur ? { ...cur, sections: cur.sections.map((s, i) => (i === cur.sections.length - 1 ? { ...s, rows: rows.map(drillRow) } : s)) } : cur));
+      })
+      .catch(() => {
+        if (drillToken.current !== mine) return;
+        setDrill((cur) => (cur ? { ...cur, sections: cur.sections.map((s, i) => (i === cur.sections.length - 1 ? { ...s, empty: td("drill.backendWait") } : s)) } : cur));
+      });
+  }
   const drillRevenue = () => open({
     title: tc("revenue"), value: money(c?.revenue), sub: c?.revenueDeltaPct ? `${c.revenueDeltaPct > 0 ? "▲" : "▼"} ${Math.abs(c.revenueDeltaPct)}%` : undefined,
     sections: [
@@ -157,7 +185,7 @@ export default function AdminOverview() {
     ] }],
     link: { href: "/admin/ceo", label: td("drill.goCeo") },
   });
-  const drillUsers = () => open({
+  const drillUsers = () => withDetail("users", {
     title: tc("users"), value: c ? fmt(c.users) : DASH, sub: c ? `${td("drill.activeUsers")}: ${fmt(c.activeUsers)}` : undefined,
     sections: [
       { kind: "kv", title: td("drill.newUsers"), rows: [
@@ -189,23 +217,21 @@ export default function AdminOverview() {
       { kind: "kv", rows: [{ label: td("drill.complaints"), value: pct(q?.complaintRate) }, { label: td("drill.resolved"), value: pct(q?.resolvedPct) }, { label: td("drill.sla"), value: pct(q?.responseSlaPct) }] },
       { kind: "list", title: td("drill.flagged"), rows: (q?.flagged ?? []).map((f2) => ({ label: f2.title, value: f2.severity, sub: f2.detail, tone: f2.severity === "high" ? "bad" : "muted" })) },
     ],
-    link: { href: "/admin/quality", label: td("drill.goQuality") },
   });
   const drillSla = () => open({
     title: tc("sla"), value: pct(q?.responseSlaPct), note: td("drill.constNote"),
     sections: [{ kind: "kv", rows: [{ label: td("drill.rating"), value: q?.avgRating ? q.avgRating.toFixed(1) : DASH }, { label: td("drill.complaints"), value: pct(q?.complaintRate) }] }],
-    link: { href: "/admin/quality", label: td("drill.goQuality") },
   });
   const drillAtRisk = () => open({
     title: tc("atRisk"), value: r ? fmt(r.atRisk) : DASH, sub: r ? `${td("drill.atRiskLeads")}: ${fmt(r.atRiskLeads)}` : undefined,
     sections: [{ kind: "list", rows: (r?.atRiskClients ?? []).map((x) => ({ label: x.name || x.phone, value: x.lastPaidAt ? fmtDate(x.lastPaidAt, locale) : "", sub: x.reasons.map((k) => (tr.has(`reason.${k}`) ? tr(`reason.${k}`) : humanizeSlug(k))).join(", "), tone: "bad" })) }],
     link: { href: "/admin/retention", label: td("drill.goRetention") },
   });
-  const drillPayments = (k: "paid" | "pending") => open({
+  const drillPayments = (k: "paid" | "pending") => withDetail("payments", {
     title: k === "paid" ? tc("paidAmount") : tc("pendingAmount"), value: money(stat(`${k}_amount`)), sub: `${fmt(stat(`${k}_count`) ?? 0)} ${td("drill.payments").toLowerCase()}`,
     sections: [{ kind: "series", title: td("drill.trend"), points: trend, format: (v) => `${fmtUzs(v)} ${tc("som")}` }],
   });
-  const drillLeads = () => open({
+  const drillLeads = () => withDetail("leads", {
     title: td("drill.leads"), value: fmt(stat("leads") ?? byScore.reduce((s, x) => s + x.value, 0)),
     sections: [
       { kind: "bars", title: td("drill.byScore"), rows: byScore.map((x) => ({ label: label("score", x.label), value: fmt(x.value), n: x.value })) },
@@ -213,10 +239,26 @@ export default function AdminOverview() {
     ],
     link: { href: "/admin/pipeline", label: td("drill.goLeads") },
   });
-  const drillOrders = () => open({
+  const drillOrders = () => withDetail("orders", {
     title: tc("ordersByStatus"), value: fmt(byStatus.reduce((s, x) => s + x.value, 0)),
     sections: [{ kind: "bars", title: td("drill.byStatus"), rows: byStatus.map((x) => ({ label: label("status", x.label), value: fmt(x.value), n: x.value })) }],
   });
+  const drillTasks = () => open({
+    title: t("metrics.tasks"), value: fmt(d?.lists.tasks.length ?? 0),
+    sections: [{ kind: "list", rows: (d?.lists.tasks ?? []).map(drillRow) }],
+  });
+  const drillB2b = () => open({
+    title: t("metrics.b2b_clients"), value: fmt(d?.lists.b2bClients.length ?? 0),
+    sections: [{ kind: "list", rows: (d?.lists.b2bClients ?? []).map(drillRow) }],
+  });
+  const drillReviews = () => open({
+    title: t("metrics.reviews"), value: fmt(d?.lists.reviews.length ?? 0),
+    sections: [{ kind: "list", rows: (d?.lists.reviews ?? []).map(drillRow) }],
+  });
+  // No platform-wide "cases" total ships on GET /admin/dashboard today, so
+  // this tile has no headline number — it exists purely as the doc's last
+  // uncovered drilldown metric's entry point (record list from the endpoint).
+  const drillCases = () => withDetail("cases", { title: t("metrics.cases"), sections: [] });
 
   return (
     <>
@@ -264,6 +306,10 @@ export default function AdminOverview() {
         <StatTile icon={<IconAward />} label={tc("rating")} value={q?.avgRating ? q.avgRating.toFixed(1) : DASH} demo={demo} hint={regionHint ?? dateHint} onClick={drillRating} />
         <StatTile icon={<IconShieldCheck />} tone="ok" label={tc("sla")} value={pct(q?.responseSlaPct)} demo={demo} hint={regionHint ?? dateHint} onClick={drillSla} />
         <StatTile icon={<IconPhone />} tone="bad" label={tc("atRisk")} value={r ? fmt(r.atRisk) : DASH} demo={demo} hint={regionHint} onClick={drillAtRisk} />
+        <StatTile icon={<IconFileText />} label={t("metrics.cases")} value={DASH} demo={demo} onClick={drillCases} />
+        <StatTile icon={<IconClipboardCheck />} label={t("metrics.tasks")} value={d ? fmt(d.lists.tasks.length) : DASH} demo={demo} onClick={drillTasks} />
+        <StatTile icon={<IconBuilding />} label={t("metrics.b2b_clients")} value={d ? fmt(d.lists.b2bClients.length) : DASH} demo={demo} onClick={drillB2b} />
+        <StatTile icon={<IconStar />} label={t("metrics.reviews")} value={d ? fmt(d.lists.reviews.length) : DASH} demo={demo} onClick={drillReviews} />
       </div>
 
       <div className="pgrid2">

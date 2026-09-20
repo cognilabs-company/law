@@ -91,27 +91,30 @@ function normKanbanX(data: unknown): KanbanColumnX[] {
 }
 
 // Admin sales board (leads.manage).
-export async function getLeadKanbanX(): Promise<KanbanColumnX[]> {
-  const cols = normKanbanX(await http("/admin/leads/kanban"));
+export async function getLeadKanbanX(f?: LeadFilter): Promise<KanbanColumnX[]> {
+  const cols = normKanbanX(await http(`/admin/leads/kanban${leadQuery(f)}`));
   rememberAssignees(cols);
   return cols;
 }
 
 // Call-center board (call-center staff or leads.manage). Concurrent callers
-// on the same page (board + queue) share one request.
-let ccInflight: Promise<KanbanColumnX[]> | null = null;
-export function getCallCenterKanbanX(): Promise<KanbanColumnX[]> {
-  if (ccInflight) return ccInflight;
-  ccInflight = http("/call-center/leads/kanban")
+// on the same page (board + queue) share one request per filter.
+const ccInflight = new Map<string, Promise<KanbanColumnX[]>>();
+export function getCallCenterKanbanX(f?: LeadFilter): Promise<KanbanColumnX[]> {
+  const qs = leadQuery(f);
+  const inflight = ccInflight.get(qs);
+  if (inflight) return inflight;
+  const p = http(`/call-center/leads/kanban${qs}`)
     .then((raw) => {
       const cols = normKanbanX(raw);
       rememberAssignees(cols);
       return cols;
     })
     .finally(() => {
-      ccInflight = null;
+      ccInflight.delete(qs);
     });
-  return ccInflight;
+  ccInflight.set(qs, p);
+  return p;
 }
 
 // Flat list of the board's leads.
@@ -251,6 +254,23 @@ export type LeadFilter = {
 };
 export const EMPTY_LEAD_FILTER: LeadFilter = { q: "", region: "", source: "", stage: "", score: "", urgency: "", assignee: "", from: "", to: "" };
 export const filterActive = (f: LeadFilter): boolean => Object.values(f).some((v) => v !== "");
+
+// `?region=&source=&assigned_operator_user_id=&date_from=&date_to=` (2026-09-19
+// backend: GET /admin/leads, /admin/leads/kanban and /call-center/leads/kanban
+// all take these server-side now). "unassigned"/"mine" have no backend
+// equivalent, so only a real operator id is forwarded — the client-side
+// filter below still runs afterwards as the final pass either way.
+function leadQuery(f?: LeadFilter): string {
+  if (!f) return "";
+  const qs = new URLSearchParams();
+  if (f.region) qs.set("region", f.region);
+  if (f.source) qs.set("source", f.source);
+  if (f.assignee && f.assignee !== "unassigned" && f.assignee !== "mine") qs.set("assigned_operator_user_id", f.assignee);
+  if (f.from) qs.set("date_from", f.from);
+  if (f.to) qs.set("date_to", f.to);
+  const q = qs.toString();
+  return q ? `?${q}` : "";
+}
 
 // Local calendar day of a server timestamp ("" when unusable).
 export function leadDay(createdAt: string): string {

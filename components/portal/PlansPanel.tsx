@@ -122,8 +122,13 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const bills = payments.data.filter((p) => !p.kind || p.kind === "subscription" || p.kind === "subscription_plan");
   const active = res.data.filter((p) => p.isActive !== false);
   const role = session?.role ?? "client";
+  const roleKey = role === "lawyer" ? "yurist" : role === "advocate" ? "advokat" : role;
+  // A plan explicitly tagged target_roles for this role (2026-09-19 backend
+  // field) is shown here too, whatever role is viewing — not just sellers —
+  // as long as it isn't already the "Shaxsiy advokatim" (personal) bucket below.
+  const hasExplicitTargetRole = (p: BackendPlan) => !!p.targetRoles?.length && p.targetRoles.includes(roleKey) && p.audience !== "personal";
   const aiPlans = active
-    .filter((p) => p.billingType !== "gift" && (AI_SLUG.test(p.slug) || (isSeller && planForRole(p, role))))
+    .filter((p) => p.billingType !== "gift" && (AI_SLUG.test(p.slug) || (isSeller && planForRole(p, role)) || hasExplicitTargetRole(p)))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.monthlyPrice - b.monthlyPrice);
   const personalPlans = active.filter((p) => p.audience === "personal" && p.billingType !== "gift").sort((a, b) => a.sortOrder - b.sortOrder || a.monthlyPrice - b.monthlyPrice);
   const giftPlan = active.find((p) => p.billingType === "gift");

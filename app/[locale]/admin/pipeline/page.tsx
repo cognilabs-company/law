@@ -432,8 +432,25 @@ export default function AdminPipeline() {
             { name: "category", label: ta("form.category") },
             { name: "region", label: ta("leads.region") },
             { name: "note", label: ta("leads.note"), type: "textarea" },
+            {
+              name: "assignedOperatorUserId",
+              label: ta("leads.operator"),
+              type: "select",
+              placeholder: ta("leads.operatorAuto"),
+              options: ops.ops.map((o) => ({ value: o.id, label: o.name || o.phone || o.id })),
+            },
           ]}
-          onSubmit={async (v) => void (await adminCreateLead({ name: String(v.name), phone: String(v.phone), category: String(v.category), region: String(v.region), note: String(v.note), source: "manual" }))}
+          onSubmit={async (v) =>
+            void (await adminCreateLead({
+              name: String(v.name),
+              phone: String(v.phone),
+              category: String(v.category),
+              region: String(v.region),
+              note: String(v.note),
+              source: "manual",
+              assignedOperatorUserId: String(v.assignedOperatorUserId || "") || undefined,
+            }))
+          }
           submitLabel={ta("form.save")}
           busyLabel={ta("form.saving")}
           okMsg={ta("form.created")}

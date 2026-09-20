@@ -22,12 +22,16 @@ const CONCURRENCY = 3;
 
 type Recipient = { id: string; name: string };
 type SendSummary = { ok: number; failed: string[]; total: number; stopped: boolean; last: AdminSendResult | null };
+type SendMode = "individual" | "broadcast";
+const BROADCAST_ROLES = ROLE_TABS.filter((r): r is Exclude<RoleTab, "all"> => r !== "all");
 
 export default function AdminNotifications() {
   const t = useTranslations("admin");
   const tn = useTranslations("admin.notifications");
   const tp = useTranslations("portal.notifications");
 
+  const [mode, setMode] = useState<SendMode>("individual");
+  const [broadcastRole, setBroadcastRole] = useState<Exclude<RoleTab, "all">>("client");
   const [roleTab, setRoleTab] = useState<RoleTab>("all");
   const users = useResource(() => listAdminUsers(roleTab === "all" ? {} : { role: roleTab }), [roleTab]);
   const [q, setQ] = useState("");
@@ -73,13 +77,6 @@ export default function AdminNotifications() {
   async function send(e: FormEvent) {
     e.preventDefault();
     if (progress) return;
-    const recipients: Recipient[] = [...selected.values()].map((u) => ({ id: u.id, name: userTitle(u) }));
-    const manual = manualId.trim();
-    if (manual && !recipients.some((r) => r.id === manual)) recipients.push({ id: manual, name: manual });
-    if (!recipients.length) {
-      setNote({ ok: false, msg: tn("noRecipients") });
-      return;
-    }
     if (!title.trim() || !body.trim()) {
       setNote({ ok: false, msg: t("form.error") });
       return;
@@ -87,6 +84,32 @@ export default function AdminNotifications() {
     setNote(null);
     setSummary(null);
     stopRef.current = false;
+
+    // Broadcast: the backend fans out to the whole role, so one request.
+    if (mode === "broadcast") {
+      setProgress({ done: 0, total: 1 });
+      try {
+        const last = await sendAdminNotification({ audienceRole: broadcastRole, channel, title: title.trim(), body: body.trim(), category });
+        setProgress(null);
+        setSummary({ ok: 1, failed: [], total: 1, stopped: false, last });
+        setNote({ ok: true, msg: tn("resultOk", { n: 1 }) });
+        setTitle("");
+        setBody("");
+      } catch {
+        setProgress(null);
+        setSummary({ ok: 0, failed: [tn(`roles.${broadcastRole}`)], total: 1, stopped: false, last: null });
+        setNote({ ok: false, msg: t("form.error") });
+      }
+      return;
+    }
+
+    const recipients: Recipient[] = [...selected.values()].map((u) => ({ id: u.id, name: userTitle(u) }));
+    const manual = manualId.trim();
+    if (manual && !recipients.some((r) => r.id === manual)) recipients.push({ id: manual, name: manual });
+    if (!recipients.length) {
+      setNote({ ok: false, msg: tn("noRecipients") });
+      return;
+    }
     const total = recipients.length;
     setProgress({ done: 0, total });
     let ok = 0;
@@ -101,7 +124,7 @@ export default function AdminNotifications() {
         if (i >= total) return;
         const r = recipients[i];
         try {
-          last = await sendAdminNotification({ user_id: r.id, channel, title: title.trim(), body: body.trim(), category });
+          last = await sendAdminNotification({ userId: r.id, channel, title: title.trim(), body: body.trim(), category });
           ok += 1;
         } catch {
           failed.push(r.name);
@@ -127,6 +150,7 @@ export default function AdminNotifications() {
 
   const catOpts = NOTIF_ROW_CATEGORIES.map((c) => ({ value: c, label: tp(`tabs.${c}`) }));
   const chOpts = CHANNELS.map((c) => ({ value: c, label: t(`notifications.${c}`) }));
+  const broadcastRoleOpts = BROADCAST_ROLES.map((r) => ({ value: r, label: tn(`roles.${r}`) }));
   const pct = progress ? Math.round((progress.done / Math.max(1, progress.total)) * 100) : 0;
 
   return (
@@ -134,7 +158,23 @@ export default function AdminNotifications() {
       <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconBell /></span>{t("notifications.title")}</b></div>
       <p className="ppanel__note">{t("notifications.lead")}</p>
 
-      {/* Recipients: role tabs → searchable checkbox list (GET /admin/users?role=). */}
+      <div className="segs segs--sm" role="tablist" aria-label={tn("mode")} style={{ marginBottom: 14 }}>
+        <button type="button" role="tab" className="seg" aria-selected={mode === "individual"} onClick={() => setMode("individual")}>
+          {tn("modeIndividual")}
+        </button>
+        <button type="button" role="tab" className="seg" aria-selected={mode === "broadcast"} onClick={() => setMode("broadcast")}>
+          {tn("modeBroadcast")}
+        </button>
+      </div>
+
+      {mode === "broadcast" ? (
+        <section className="nrcp" aria-label={tn("broadcastRole")}>
+          <div className="nrcp__lbl">{tn("broadcastRole")}</div>
+          <p className="nrcp__hint">{tn("broadcastHint")}</p>
+          <Select value={broadcastRole} onChange={(v) => setBroadcastRole(v as Exclude<RoleTab, "all">)} options={broadcastRoleOpts} ariaLabel={tn("broadcastRole")} />
+        </section>
+      ) : (
+      /* Recipients: role tabs → searchable checkbox list (GET /admin/users?role=). */
       <section className="nrcp" aria-label={tn("recipients")}>
         <div className="nrcp__lbl">{tn("recipients")}</div>
         <p className="nrcp__hint">{tn("recipientsHint")}</p>
@@ -200,6 +240,7 @@ export default function AdminNotifications() {
           </div>
         ) : null}
       </section>
+      )}
 
       <form className="cform" style={{ maxWidth: "none" }} onSubmit={send}>
         <div className="cform__row2">
@@ -212,7 +253,7 @@ export default function AdminNotifications() {
             <Select value={channel} onChange={setChannel} options={chOpts} ariaLabel={t("notifications.channel")} />
           </div>
         </div>
-        <p className="advmuted nrcp__catnote">{summary?.last?.categoryStored ? tn("categoryStored") : tn("categoryNote")}</p>
+        <p className="advmuted nrcp__catnote">{tn("categoryNote")}</p>
         <div>
           <label>{t("form.title")}</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)} />

@@ -1255,6 +1255,20 @@ export async function getDocumentTemplates(): Promise<BackendTemplate[]> {
   return listFrom(await http("/document-templates"), "templates", "items", "data").map(normTemplate);
 }
 
+// GET /admin/document-templates (2026-09-19 backend): unlike the public
+// /document-templates above, this includes inactive templates too — the
+// admin table should use this one, not the public list.
+export type AdminTemplateFilter = { q?: string; category?: string; visibility?: string; isActive?: boolean };
+export async function getAdminDocumentTemplates(f?: AdminTemplateFilter): Promise<BackendTemplate[]> {
+  const qs = new URLSearchParams();
+  if (f?.q) qs.set("q", f.q);
+  if (f?.category) qs.set("category", f.category);
+  if (f?.visibility) qs.set("visibility", f.visibility);
+  if (f?.isActive != null) qs.set("is_active", String(f.isActive));
+  const q = qs.toString();
+  return listFrom(await http(`/admin/document-templates${q ? `?${q}` : ""}`), "templates", "items", "data").map(normTemplate);
+}
+
 // Single template incl. body (GET /document-templates/{id}). Used to prefill
 // the admin edit form so the template_text can be edited too.
 export async function getDocumentTemplate(id: string): Promise<BackendTemplate> {
@@ -1684,10 +1698,26 @@ export async function createLead(input: {
     }),
   });
 }
-export async function listLeads(): Promise<Lead[]> {
-  return listFrom(await http("/admin/leads"), "leads", "items", "data").map(normLead);
+// `?region=&source=&assigned_operator_user_id=&date_from=&date_to=` (2026-09-19
+// backend server-side filters on GET /admin/leads).
+export type LeadListFilter = { region?: string; source?: string; assignedOperatorUserId?: string; from?: string; to?: string };
+function leadListQuery(f?: LeadListFilter): string {
+  if (!f) return "";
+  const qs = new URLSearchParams();
+  if (f.region) qs.set("region", f.region);
+  if (f.source) qs.set("source", f.source);
+  if (f.assignedOperatorUserId) qs.set("assigned_operator_user_id", f.assignedOperatorUserId);
+  if (f.from) qs.set("date_from", f.from);
+  if (f.to) qs.set("date_to", f.to);
+  const q = qs.toString();
+  return q ? `?${q}` : "";
 }
-// Admin manual lead management.
+export async function listLeads(f?: LeadListFilter): Promise<Lead[]> {
+  return listFrom(await http(`/admin/leads${leadListQuery(f)}`), "leads", "items", "data").map(normLead);
+}
+// Admin manual lead management. `assignedOperatorUserId` omitted → the
+// backend auto-assigns to its least-loaded active call_center/sales operator
+// (2026-09-19 update); passed → that operator, picked by the admin instead.
 export async function adminCreateLead(input: {
   name?: string;
   phone?: string;
@@ -1696,6 +1726,7 @@ export async function adminCreateLead(input: {
   category?: string;
   region?: string;
   urgency?: string;
+  assignedOperatorUserId?: string;
 }): Promise<Lead> {
   return normLead(
     await http("/admin/leads", {
@@ -1706,6 +1737,7 @@ export async function adminCreateLead(input: {
         region: input.region || "",
         urgency: input.urgency || "",
         details: { name: input.name || "", phone: input.phone || "", note: input.note || "" },
+        ...(input.assignedOperatorUserId ? { assigned_operator_user_id: input.assignedOperatorUserId } : {}),
       }),
     }),
   );
@@ -2114,9 +2146,40 @@ export const listCourses = () => listModule("/academy/courses");
 export const listB2bProducts = () => listModule("/b2b/products");
 export const listAds = () => listModule("/ads/products");
 export const createAd = (i: ModuleInput) => createModule("/ads/products", i);
+// PATCH/DELETE /ads/products/{id} (2026-09-19 backend). Delete is a soft
+// delete (status → "deleted"); edit is a plain partial patch.
+export type AdUpdateInput = Partial<{ record_type: string; title: string; status: string; price: number; currency: string; payload: Record<string, unknown> }>;
+export async function updateAd(id: string, input: AdUpdateInput): Promise<ModuleRecord> {
+  return normModule(await http(`/ads/products/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) }));
+}
+export async function deleteAd(id: string): Promise<void> {
+  await http(`/ads/products/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
 export const listCaseDocuments = () => listModule("/case-documents");
 export const createCaseDocument = (i: ModuleInput) => createModule("/case-documents", i);
 export const listLegalAid = () => listModule("/legal-aid/requests");
+// GET /legal-aid/requests/{id} (2026-09-19 backend): the admin list above has
+// no working detail view today — this is what "open" should call.
+export type LegalAidDetail = {
+  request: ModuleRecord;
+  source: string;
+  event: string;
+  createdByUserId: string;
+  createdByName: string;
+  explanation: string;
+};
+export async function getLegalAidRequestDetail(id: string): Promise<LegalAidDetail> {
+  const d = asDict(await http(`/legal-aid/requests/${encodeURIComponent(id)}`));
+  const createdBy = asDict(d.created_by);
+  return {
+    request: normModule(d.request ?? d),
+    source: asStr(d.source),
+    event: asStr(d.event),
+    createdByUserId: asStr(d.created_by_user_id ?? createdBy.id),
+    createdByName: asStr(createdBy.name),
+    explanation: asStr(d.explanation),
+  };
+}
 export const createLegalAidRequest = (i: ModuleInput) => createModule("/legal-aid/requests", i);
 export const createSellerOnboarding = (i: ModuleInput) => createModule("/seller-onboarding", i);
 export const createRefundRequest = (i: ModuleInput) => createModule("/refund-requests", i);
@@ -3592,24 +3655,63 @@ export async function getLeadTimeline(leadId: string): Promise<ActivityEntry[]> 
 }
 
 // ── Admin: review moderation ──────────────────────────────────────
-export type AdminReview = { id: string; status: string; lawyerName: string; rating: number; comment: string; note: string; createdAt: string };
+export type AdminReview = { id: string; status: string; lawyerName: string; lawyerUserId: string; sellerType: string; rating: number; comment: string; note: string; createdAt: string };
 function normAdminReview(v: unknown): AdminReview {
   const d = asDict(v);
   return {
     id: asStr(d.id),
     status: asStr(d.status, "pending"),
     lawyerName: asStr(d.lawyer_name ?? d.lawyer ?? d.name),
+    lawyerUserId: asStr(d.lawyer_user_id ?? d.seller_user_id),
+    sellerType: asStr(d.seller_type),
     rating: asNum(d.rating),
     comment: asStr(d.comment ?? d.text),
     note: asStr(d.moderation_note ?? d.note),
     createdAt: asStr(d.created_at ?? d.createdAt),
   };
 }
-export async function listAdminReviews(): Promise<AdminReview[]> {
-  return listFrom(await http("/admin/reviews"), "items", "data", "reviews").map(normAdminReview);
+// `?status=&lawyer_user_id=&seller_type=&rating=&date_from=&date_to=`
+// (2026-09-19 backend) — lets the page split moderation by advokat/yurist.
+export type AdminReviewFilter = { status?: string; lawyerUserId?: string; sellerType?: string; rating?: number; from?: string; to?: string };
+export async function listAdminReviews(f?: AdminReviewFilter): Promise<AdminReview[]> {
+  const qs = new URLSearchParams();
+  if (f?.status) qs.set("status", f.status);
+  if (f?.lawyerUserId) qs.set("lawyer_user_id", f.lawyerUserId);
+  if (f?.sellerType) qs.set("seller_type", f.sellerType);
+  if (f?.rating) qs.set("rating", String(f.rating));
+  if (f?.from) qs.set("date_from", f.from);
+  if (f?.to) qs.set("date_to", f.to);
+  const q = qs.toString();
+  return listFrom(await http(`/admin/reviews${q ? `?${q}` : ""}`), "items", "data", "reviews").map(normAdminReview);
 }
 export async function moderateReview(id: string, status: string, note?: string): Promise<void> {
   await http(`/admin/reviews/${id}/moderate`, { method: "PATCH", body: JSON.stringify({ status, note: note ?? "" }) });
+}
+
+// GET /admin/reviews/{id} (2026-09-19 backend): the full picture behind one
+// review — who wrote it, about which seller/case/order.
+export type AdminReviewDetail = {
+  review: AdminReview;
+  seller: { id: string; name: string; phone: string } | null;
+  sellerProfile: BackendLawyer | null;
+  client: { id: string; name: string; phone: string } | null;
+  caseTitle: string;
+  orderId: string;
+};
+export async function getAdminReviewDetail(id: string): Promise<AdminReviewDetail> {
+  const d = asDict(await http(`/admin/reviews/${encodeURIComponent(id)}`));
+  const seller = asDict(d.seller);
+  const client = asDict(d.client);
+  const caseD = asDict(d.case);
+  const order = asDict(d.order);
+  return {
+    review: normAdminReview(d.review ?? d),
+    seller: d.seller ? { id: asStr(seller.id), name: asStr(seller.name), phone: asStr(seller.phone) } : null,
+    sellerProfile: d.seller_profile ? normLawyer(d.seller_profile) : null,
+    client: d.client ? { id: asStr(client.id), name: asStr(client.name), phone: asStr(client.phone) } : null,
+    caseTitle: asStr(caseD.title ?? caseD.case_number),
+    orderId: asStr(order.id ?? d.order_id),
+  };
 }
 
 // ── Admin: payouts + reconciliation ───────────────────────────────
@@ -3746,32 +3848,6 @@ export async function getIntegrationsOverview(): Promise<IntegrationsOverview> {
 // Kept for existing callers that only need the tiles.
 export async function getIntegrationsStatus(): Promise<Integration[]> {
   return (await getIntegrationsOverview()).items;
-}
-
-// ── End-to-end readiness (admin, GET /admin/e2e/readiness) ────────
-export type E2eScenario = { key: string; status: string; routes: string[]; checks: { key: string; value: string | number | boolean }[] };
-export type E2eReadiness = {
-  status: string;
-  checkedAt: string;
-  fixtures: { key: string; count: number }[];
-  scenarios: E2eScenario[];
-};
-export async function getE2eReadiness(): Promise<E2eReadiness> {
-  const d = asDict(await http("/admin/e2e/readiness"));
-  const fx = asDict(d.fixtures);
-  return {
-    status: asStr(d.status),
-    checkedAt: asStr(d.checked_at),
-    fixtures: Object.keys(fx).map((k) => ({ key: k, count: asNum(fx[k]) })),
-    scenarios: asArr(d.scenarios).map((x) => {
-      const r = asDict(x);
-      const c = asDict(r.checks);
-      const checks = Object.keys(c)
-        .filter((k) => ["string", "number", "boolean"].includes(typeof c[k]))
-        .map((k) => ({ key: k, value: c[k] as string | number | boolean }));
-      return { key: asStr(r.key), status: asStr(r.status), routes: asArr(r.routes).map((y) => asStr(y)).filter(Boolean), checks };
-    }),
-  };
 }
 
 // ── Roles & permissions matrix (admin) ────────────────────────────
@@ -4375,6 +4451,119 @@ export async function endMeeting(roomId: string, callId: string): Promise<void> 
   await http(`/secure-chats/${roomId}/calls/${callId}/end`, { method: "POST", body: "{}" });
 }
 
+// ── Admin: meeting/call history (2026-09-19 backend) ────────────────
+// GET /admin/calls — every LiveKit meeting platform-wide (unlike GET
+// /calls/invited, which is scoped to the current user), for a "Zoom-style"
+// history page: who created it, how long it ran, how many joined.
+export type AdminCallRow = {
+  id: string;
+  status: string;
+  title: string;
+  callType: string;
+  roomId: string;
+  creatorUserId: string;
+  creatorName: string;
+  participantCount: number;
+  durationSeconds: number;
+  startedAt: string;
+  endedAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+function normAdminCallRow(v: unknown): AdminCallRow {
+  const d = asDict(v);
+  return {
+    id: asStr(d.id ?? d.call_id),
+    status: asStr(d.status),
+    title: asStr(d.title),
+    callType: asStr(d.call_type),
+    roomId: asStr(d.room_id),
+    creatorUserId: asStr(d.creator_user_id ?? d.caller_user_id),
+    creatorName: asStr(d.creator_name ?? d.caller_name),
+    participantCount: asNum(d.participant_count),
+    durationSeconds: asNum(d.duration_seconds),
+    startedAt: asStr(d.started_at),
+    endedAt: asStr(d.ended_at),
+    createdAt: asStr(d.created_at),
+    updatedAt: asStr(d.updated_at),
+  };
+}
+export type AdminCallFilter = { status?: string; userId?: string; roomId?: string; from?: string; to?: string };
+export async function listAdminCalls(f?: AdminCallFilter): Promise<AdminCallRow[]> {
+  const qs = new URLSearchParams();
+  if (f?.status) qs.set("status", f.status);
+  if (f?.userId) qs.set("user_id", f.userId);
+  if (f?.roomId) qs.set("room_id", f.roomId);
+  if (f?.from) qs.set("date_from", f.from);
+  if (f?.to) qs.set("date_to", f.to);
+  const q = qs.toString();
+  return listFrom(await http(`/admin/calls${q ? `?${q}` : ""}`), "items", "calls", "data").map(normAdminCallRow);
+}
+export type AdminCallDetail = {
+  call: AdminCallRow;
+  room: { id: string; title: string } | null;
+  creator: { id: string; name: string; phone: string } | null;
+  durationSeconds: number;
+  durationMinutes: number;
+  participants: CallParticipant[];
+};
+export async function getAdminCallDetail(id: string): Promise<AdminCallDetail> {
+  const d = asDict(await http(`/admin/calls/${encodeURIComponent(id)}`));
+  const room = asDict(d.room);
+  const creator = asDict(d.creator);
+  return {
+    call: normAdminCallRow(d.call ?? d),
+    room: d.room ? { id: asStr(room.id), title: asStr(room.title) } : null,
+    creator: d.creator ? { id: asStr(creator.id), name: asStr(creator.name), phone: asStr(creator.phone) } : null,
+    durationSeconds: asNum(d.duration_seconds),
+    durationMinutes: asNum(d.duration_minutes),
+    participants: asArr(d.participants).map(normParticipant),
+  };
+}
+
+// ── Recording consent (2026-09-19 backend) ──────────────────────────
+// Server-tracked recording state, broadcast to every room participant over
+// the same call WebSocket as the roster (call.recording_requested/
+// _permission_updated/_started) — not the LiveKit data channel, and not
+// polled. Actual capture stays local (lib/meetingRecorder.ts, never
+// uploaded); these calls exist so the room agrees on who asked, who
+// allowed it, and who is recording.
+export type CallRecordingState = {
+  status: string; // recording_status
+  requestedByUserId: string;
+  allowedByUserId: string;
+  startedByUserId: string;
+};
+function normRecordingState(v: unknown): CallRecordingState {
+  const d = asDict(v);
+  return {
+    status: asStr(d.recording_status ?? d.status),
+    requestedByUserId: asStr(d.recording_requested_by_user_id),
+    allowedByUserId: asStr(d.recording_allowed_by_user_id),
+    startedByUserId: asStr(d.recording_started_by_user_id),
+  };
+}
+// `mode` isn't in the documented request body — sent anyway (pydantic drops
+// unknown keys) so an approver's request card can show audio/screen if the
+// backend ever echoes it back on call.recording_requested.
+export async function requestCallRecording(roomId: string, callId: string, mode?: string): Promise<void> {
+  await http(`/secure-chats/${roomId}/calls/${callId}/recording-request`, {
+    method: "POST",
+    body: JSON.stringify(mode ? { mode } : {}),
+  });
+}
+export async function setCallRecordingPermission(roomId: string, callId: string, allowed: boolean, reason = ""): Promise<CallRecordingState> {
+  return normRecordingState(
+    await http(`/secure-chats/${roomId}/calls/${callId}/recording-permission`, {
+      method: "PATCH",
+      body: JSON.stringify({ allowed, reason }),
+    }),
+  );
+}
+export async function startCallRecordingServer(roomId: string, callId: string): Promise<CallRecordingState> {
+  return normRecordingState(await http(`/secure-chats/${roomId}/calls/${callId}/recording/start`, { method: "POST", body: "{}" }));
+}
+
 // Meetings the current user was invited to — lets the invitee discover a call
 // without being a room member (GET /calls/invited).
 export type InvitedCall = {
@@ -4403,12 +4592,16 @@ export async function listInvitedCalls(): Promise<InvitedCall[]> {
   });
 }
 
-// Search any platform user (staff/callcenter) to invite to a meeting.
+// Search any platform user (staff/callcenter) to invite to a meeting, or for
+// any admin "pick a user" field instead of typing an id by hand.
 export type UserSearchResult = { id: string; name: string; phone: string; role: string; lexgoId: string };
-export async function searchUsers(q: string): Promise<UserSearchResult[]> {
+export async function searchUsers(q: string, opts?: { role?: string; limit?: number }): Promise<UserSearchResult[]> {
   const query = q.trim();
   if (!query) return [];
-  return listFrom(await http(`/users/search?q=${encodeURIComponent(query)}`), "items", "data", "users").map((v) => {
+  const qs = new URLSearchParams({ q: query });
+  if (opts?.role) qs.set("role", opts.role);
+  qs.set("limit", String(opts?.limit ?? 20));
+  return listFrom(await http(`/users/search?${qs.toString()}`), "items", "data", "users").map((v) => {
     const d = asDict(v);
     const u = asDict(d.user);
     return {
@@ -4752,13 +4945,63 @@ export async function listRegisterRequests(status = "pending"): Promise<Register
   const q = status ? `?status=${encodeURIComponent(status)}` : "";
   return listFrom(await http(`/admin/register-requests${q}`), "requests", "items", "data").map(normRegReq);
 }
+
+// GET /admin/seller-requests (2026-09-19 backend): the unified register +
+// advocate/lawyer approval feed the doc says should replace a separate
+// approval page — one list (role/date-filterable) plus role/status counts.
+export type SellerRequestFilter = { status?: string; role?: string; from?: string; to?: string };
+export type SellerRequestStats = { total: number; advokat: number; yurist: number; advokatTashkiloti: number; pending: number; approved: number; rejected: number };
+export type SellerRequestsPage = { items: RegisterRequest[]; stats: SellerRequestStats };
+export async function getSellerRequests(f?: SellerRequestFilter): Promise<SellerRequestsPage> {
+  const qs = new URLSearchParams();
+  if (f?.status) qs.set("status", f.status);
+  if (f?.role) qs.set("role", f.role);
+  if (f?.from) qs.set("date_from", f.from);
+  if (f?.to) qs.set("date_to", f.to);
+  const q = qs.toString();
+  const raw = asDict(await http(`/admin/seller-requests${q ? `?${q}` : ""}`));
+  const items = listFrom(raw, "items", "requests", "data").map(normRegReq);
+  const s = asDict(raw.stats);
+  const stats: SellerRequestStats = {
+    total: asNum(s.total),
+    advokat: asNum(s.advokat),
+    yurist: asNum(s.yurist),
+    advokatTashkiloti: asNum(s.advokat_tashkiloti),
+    pending: asNum(s.pending),
+    approved: asNum(s.approved),
+    rejected: asNum(s.rejected),
+  };
+  return { items, stats };
+}
 // GET /admin/register-requests/{id} — the sign-up form data (pending), the
 // linked user / lawyer profile (after approval) and recent activity.
+// A file the applicant uploaded as proof (license, diploma…). `file_url` is
+// direct storage access (may need its own auth/expiry); the admin UI should
+// prefer the proxied inline endpoint below so the same bearer session works.
+export type ProofDocument = { id: string; kind: string; fileUrl: string; inlineUrl: string; downloadUrl: string; createdAt: string };
+function normProofDocument(v: unknown): ProofDocument {
+  const d = asDict(v);
+  return {
+    id: asStr(d.id),
+    kind: asStr(d.kind ?? d.document_type ?? d.type),
+    fileUrl: asStr(d.file_url),
+    inlineUrl: asStr(d.inline_url),
+    downloadUrl: asStr(d.download_url),
+    createdAt: asStr(d.created_at),
+  };
+}
+export type VerificationItem = { key: string; label: string; status: string; note: string };
+function normVerificationItem(v: unknown): VerificationItem {
+  const d = asDict(v);
+  return { key: asStr(d.key ?? d.code), label: asStr(d.label ?? d.title ?? d.key), status: asStr(d.status), note: asStr(d.note ?? d.detail) };
+}
 export type RegisterRequestDetail = {
   request: RegisterRequest;
   pending: { id: string; role: string; name: string; firstName: string; lastName: string; middleName: string; region: string; phone: string; status: string; attempts: number; blockedUntil?: string; expiresAt?: string; createdAt: string } | null;
   user: { id: string; name: string; phone: string; role: string; accountStatus: string; lexgoId: string; createdAt: string } | null;
   lawyerProfile: BackendLawyer | null;
+  proofDocuments: ProofDocument[];
+  verificationItems: VerificationItem[];
   activity: ActivityEntry[];
 };
 export async function getRegisterRequestDetail(id: string): Promise<RegisterRequestDetail> {
@@ -4770,6 +5013,8 @@ export async function getRegisterRequestDetail(id: string): Promise<RegisterRequ
     pending: d.pending ? { id: asStr(p.id), role: asStr(p.role), name: asStr(p.name), firstName: asStr(p.first_name), lastName: asStr(p.last_name), middleName: asStr(p.middle_name), region: asStr(p.region), phone: asStr(p.phone), status: asStr(p.status), attempts: asNum(p.attempts), blockedUntil: asStr(p.blocked_until) || undefined, expiresAt: asStr(p.expires_at) || undefined, createdAt: asStr(p.created_at) } : null,
     user: d.user ? { id: asStr(u.id), name: asStr(u.name), phone: asStr(u.phone), role: asStr(u.role), accountStatus: asStr(u.account_status), lexgoId: asStr(u.lexgo_id), createdAt: asStr(u.created_at) } : null,
     lawyerProfile: d.lawyer_profile ? normLawyer(d.lawyer_profile) : null,
+    proofDocuments: asArr(d.proof_documents).map(normProofDocument),
+    verificationItems: asArr(d.verification_items).map(normVerificationItem),
     activity: asArr(d.activity).map(normActivity),
   };
 }
@@ -4778,6 +5023,14 @@ export async function acceptRegisterRequest(id: string): Promise<unknown> {
 }
 export async function rejectRegisterRequest(id: string): Promise<unknown> {
   return http(`/admin/register-requests/${id}/reject`, { method: "POST" });
+}
+
+// GET /admin/lawyer-proof-documents/{id}/file?disposition=inline (2026-09-19
+// backend): the file needs the admin's bearer token, so it's fetched as a
+// blob (httpBlob) and shown via an object URL — never a plain <a target=
+// "_blank"> to the API host, which would 401 without the header.
+export async function getProofDocumentBlob(documentId: string): Promise<Blob> {
+  return httpBlob(`/admin/lawyer-proof-documents/${encodeURIComponent(documentId)}/file?disposition=inline`);
 }
 
 // ── Legal consents (versioned terms / privacy / disclaimer) ───────

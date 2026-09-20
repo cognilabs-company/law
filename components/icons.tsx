@@ -475,6 +475,34 @@ export const IconLock = (p: P) => (
   </svg>
 );
 
+export const IconFolderPlus = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+    <path d="M12 11v4M10 13h4" />
+  </svg>
+);
+
+export const IconList = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M8 6h13M8 12h13M8 18h13" />
+    <path d="M3 6h.01M3 12h.01M3 18h.01" />
+  </svg>
+);
+
+export const IconMoreHorizontal = (p: P) => (
+  <svg {...base} strokeWidth={2.6} {...p}>
+    <path d="M5 12h.01M12 12h.01M19 12h.01" />
+  </svg>
+);
+
+export const IconImage = (p: P) => (
+  <svg {...base} {...p}>
+    <rect x="3" y="3" width="18" height="18" rx="3" />
+    <circle cx="8.5" cy="8.5" r="1.7" />
+    <path d="M21 15l-5.5-5.5L4 21" />
+  </svg>
+);
+
 export const IconCheckDouble = (p: P) => (
   <svg {...base} strokeWidth={2.4} {...p}>
     <path d="M2 13l4 4 8-9" />

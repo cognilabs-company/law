@@ -25,6 +25,9 @@ import {
   updateCallParticipant,
   inviteCallParticipant,
   callSocketUrl,
+  requestCallRecording,
+  setCallRecordingPermission,
+  startCallRecordingServer,
   type LiveKitJoin,
   type CallParticipant,
   type CallPermissions,
@@ -135,7 +138,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const firstJoinRef = useRef(true);
   // Recording consent: a client may only record with a staff/seller's OK.
   // Approvers = call-center/staff (meetings.manage) and advocates/lawyers.
-  // Their approval is asked over the data channel: rec_req → rec_ok | rec_no.
+  // Their approval is asked through the backend (recording-request →
+  // recording-permission), broadcast to the room over the call WebSocket.
   const iApprove = canMakeCalls(session) || session?.role === "advocate" || session?.role === "lawyer";
   const approverRef = useRef(iApprove);
   useEffect(() => { approverRef.current = iApprove; }, [iApprove]);
@@ -305,35 +309,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             toast(on ? t("recStartedBy", { name: nameOfRef.current(p) }) : t("recStoppedBy", { name: nameOfRef.current(p) }), on ? "leave" : "join");
             return;
           }
-          // Recording consent (see toggleRec): a client asks, approvers answer.
+          // Approver self-announcement (a non-host approver isn't otherwise
+          // knowable from the LiveKit roster). Recording consent itself
+          // (request/allow-deny/start) rides the call WebSocket, not this
+          // data channel — see the recording-events effect below.
           if (msg.t === "role" && p) {
             if (msg.approver) setAnnounced((cur) => (cur.has(p.identity) ? cur : new Set(cur).add(p.identity)));
-            return;
-          }
-          if (msg.t === "rec_req" && p) {
-            if (!approverRef.current) return;
-            const name = String(msg.name ?? "").trim() || nameOfRef.current(p);
-            const mode: RecordingMode = msg.mode === "screen" ? "screen" : "audio";
-            setRecAsks((a) => [...a.filter((x) => x.id !== p.identity), { id: p.identity, name, mode, at: Date.now() }]);
-            playJoinTone(false);
-            toast(t("recAskToast", { name }), "info");
-            return;
-          }
-          if ((msg.t === "rec_ok" || msg.t === "rec_no") && p) {
-            const to = String(msg.to ?? "");
-            // Every approver drops the card once one of them has answered.
-            setRecAsks((a) => a.filter((x) => x.id !== to));
-            if (to !== room.localParticipant.identity) return;
-            const req = recReqRef.current;
-            if (!req) return;
-            setRecReq(null);
-            const name = nameOfRef.current(p);
-            if (msg.t === "rec_ok") {
-              toast(t("recAllowedBy", { name }), "join");
-              startRecRef.current(req.mode);
-            } else {
-              toast(t("recDeniedBy", { name }), "leave");
-            }
             return;
           }
           if (msg.t === "chat" && msg.text) {
@@ -440,6 +421,51 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     const iv = setInterval(() => setRecAsks((a) => a.filter((x) => Date.now() - x.at < (REC_ASK_SEC + 5) * 1000)), 1000);
     return () => clearInterval(iv);
   }, [recAsks.length]);
+
+  // Recording consent (2026-09-19 backend): request/allow-deny/start are now
+  // server state, broadcast to the whole room over the same call WebSocket as
+  // the roster refresh below — not the LiveKit data channel, and the frontend
+  // never polls for it. Field names on the event payload aren't nailed down
+  // 1:1 by the doc, so every lookup tries a couple of plausible keys.
+  useEffect(() => {
+    const unsub = subscribeRoomCallEvents(roomId, (e) => {
+      const id = String(e.call_id ?? "");
+      if (id && id !== callId) return;
+      const d = e as Record<string, unknown>;
+      const nameFor = (uid: string) => rosterRef.current.find((p) => p.userId === uid)?.name || t("someone");
+
+      if (e.event === "call.recording_requested") {
+        const uid = String(d.recording_requested_by_user_id ?? d.requested_by_user_id ?? d.user_id ?? "");
+        if (!approverRef.current || !uid || uid === session?.id) return;
+        const mode: RecordingMode = d.mode === "screen" ? "screen" : "audio";
+        setRecAsks((a) => [...a.filter((x) => x.id !== uid), { id: uid, name: String(d.name ?? "").trim() || nameFor(uid), mode, at: Date.now() }]);
+        playJoinTone(false);
+        toast(t("recAskToast", { name: nameFor(uid) }), "info");
+        return;
+      }
+      if (e.event === "call.recording_permission_updated") {
+        const allowed = d.allowed === true || d.recording_status === "allowed" || d.status === "allowed";
+        const askedId = String(d.recording_requested_by_user_id ?? d.requested_by_user_id ?? "");
+        if (askedId) setRecAsks((a) => a.filter((x) => x.id !== askedId));
+        const req = recReqRef.current;
+        if (!req) return; // not my own pending request (or already given up)
+        setRecReq(null);
+        const byUid = String(d.recording_allowed_by_user_id ?? d.user_id ?? "");
+        if (allowed) { toast(t("recAllowedBy", { name: nameFor(byUid) }), "join"); startRecRef.current(req.mode); }
+        else toast(t("recDeniedBy", { name: nameFor(byUid) }), "leave");
+        return;
+      }
+      if (e.event === "call.recording_started") {
+        // LiveKit participant identity == backend user_id (the token metadata
+        // pattern this room already relies on elsewhere, e.g. roster lookups).
+        const uid = String(d.recording_started_by_user_id ?? d.user_id ?? "");
+        if (!uid) return;
+        setRecBy((cur) => (cur.has(uid) ? cur : new Set(cur).add(uid)));
+        if (uid !== session?.id) toast(t("recStartedBy", { name: nameFor(uid) }), "leave");
+      }
+    });
+    return unsub;
+  }, [roomId, callId, session?.id, toast, t]);
 
   // Meeting meta: participants roster, host permissions, remaining time.
   // Polls every 3s and refreshes immediately when a realtime event bumps
@@ -658,17 +684,21 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   }
   // Approver answers a client's recording request; broadcast so the other
   // approvers drop their card too.
-  function answerRecAsk(id: string, ok: boolean) {
-    const r = roomRef.current;
+  // The backend broadcasts the outcome to the whole room (call.recording_
+  // permission_updated) — the requester's own toast/local-recording-start
+  // happens there, not here.
+  async function answerRecAsk(id: string, ok: boolean) {
     setRecAsks((a) => a.filter((x) => x.id !== id));
-    if (!r) return;
-    r.localParticipant.publishData(enc({ t: ok ? "rec_ok" : "rec_no", to: id, at: Date.now() }), { reliable: true }).catch(() => {});
+    try {
+      await setCallRecordingPermission(roomId, callId, ok);
+    } catch {
+      toast(t("recError"), "leave");
+    }
   }
+  // No cancel endpoint in the 2026-09-19 contract — giving up locally is all
+  // this side can do; the approver's card clears itself once it expires.
   function cancelRecReq() {
     setRecReq(null);
-    // Tell approvers the request is withdrawn (same message as a self-deny).
-    const r = roomRef.current;
-    r?.localParticipant.publishData(enc({ t: "rec_no", to: r.localParticipant.identity, at: Date.now() }), { reliable: true }).catch(() => {});
   }
   // Host controls (gated by backend permissions).
   async function muteParticipant(userId: string, mute: boolean) {
@@ -709,8 +739,10 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     }
     return inviteSearchRef.current(q);
   }
-  // Local recording of the whole conversation (never uploaded). Everyone in
-  // the room is told through the data channel and sees a badge.
+  // Local recording of the whole conversation (never uploaded, unrelated to
+  // the server call below). Everyone in the room is told through the data
+  // channel for the live badge (recBy) — that part has no backend endpoint
+  // in the 2026-09-19 doc, so it stays as it was.
   const startRecording = useCallback((mode: RecordingMode) => {
     const r = roomRef.current;
     if (!r || recorderRef.current) return;
@@ -724,18 +756,23 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       setRecFile(null);
       playRecTone(true);
       r.localParticipant.publishData(enc({ t: "rec", on: true, at: Date.now() }), { reliable: true }).catch(() => {});
+      // Registers who started it server-side (recording_status, the who-
+      // started-it field, and the call.recording_started broadcast to the
+      // rest of the room) — best-effort, local capture doesn't wait on it.
+      startCallRecordingServer(roomId, callId).catch(() => {});
       toast(t("recStarted"), "join");
     } catch (e) {
       toast(`${t("recError")} ${e instanceof Error ? `(${e.message})` : ""}`.trim(), "leave");
     }
-  }, [toast, t]);
+  }, [roomId, callId, toast, t]);
   useEffect(() => { startRecRef.current = startRecording; }, [startRecording]);
   // Approver present in the LiveKit room: announced itself, is the backend
   // host, or the token metadata says staff/seller (anything but "client").
   const hostId = roster.find((p) => p.role === "host")?.userId;
   const isApprover = (p: Participant) => announced.has(p.identity) || p.identity === hostId || (roleOf(p) !== "" && roleOf(p) !== "client");
   // Staff and sellers record right away (they are the approvers); a client
-  // first asks the approvers in the room and records only on rec_ok.
+  // first asks the approvers in the room (POST recording-request) and
+  // records only once call.recording_permission_updated says allowed.
   async function toggleRec(mode?: RecordingMode) {
     const r = roomRef.current;
     if (!r) return;
@@ -745,7 +782,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       setRecPick(false);
       if (iApprove) { startRecording(mode); return; }
       if (!participants.some((p) => !p.isLocal && isApprover(p))) { toast(t("recNeedApprover"), "leave"); return; }
-      r.localParticipant.publishData(enc({ t: "rec_req", mode, name: session?.name || "", at: stamp() }), { reliable: true }).catch(() => {});
+      try {
+        await requestCallRecording(roomId, callId, mode);
+      } catch {
+        toast(t("recError"), "leave");
+        return;
+      }
       setRecReq({ mode, left: REC_ASK_SEC });
       toast(t("recAsking"), "info");
       return;
@@ -899,8 +941,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               <b><i />{t("recAskTitle", { name: recAsks[0].name })}</b>
               <span>{t("recAskLead", { mode: t(recAsks[0].mode === "screen" ? "recModeScreen" : "recModeAudio") })}{recAsks.length > 1 ? ` · +${recAsks.length - 1}` : ""}</span>
               <div className="mtg__recask-btns">
-                <button type="button" className="btn btn--pri btn--sm" onClick={() => answerRecAsk(recAsks[0].id, true)}><IconMic />{t("recAllow")}</button>
-                <button type="button" className="btn btn--line btn--sm" onClick={() => answerRecAsk(recAsks[0].id, false)}><IconClose />{t("recDeny")}</button>
+                <button type="button" className="btn btn--pri btn--sm" onClick={() => void answerRecAsk(recAsks[0].id, true)}><IconMic />{t("recAllow")}</button>
+                <button type="button" className="btn btn--line btn--sm" onClick={() => void answerRecAsk(recAsks[0].id, false)}><IconClose />{t("recDeny")}</button>
               </div>
             </div>
           ) : null}
