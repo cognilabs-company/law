@@ -4202,7 +4202,7 @@
       "bindCard": "Kartani ulash (ATMOS)",
       "bindTitle": "Kartani ulash",
       "bindNote": "Hozircha karta ma'lumoti profilingizda saqlanadi; ATMOS orqali haqiqiy ulash backend ulangach ishga tushadi.",
-      "pendingNote": "ATMOS integratsiyasi backend'da ulanmoqda — sozlama saqlanadi va ulanganda ishga tushadi.",
+      "pendingNote": "Tugmani bossangiz, tanlovingiz saqlanadi. Joriy holat hozircha faqat shu qurilmada ko'rsatiladi.",
       "localNote": "Sozlama shu qurilmada saqlangan",
       "saved": "Sozlama saqlandi.",
       "saveError": "Sozlamani saqlab bo'lmadi."
@@ -4595,6 +4595,10 @@
       "editTitle": "Tarifni tahrirlash",
       "audience": "Auditoriya",
       "audienceHint": "Backend auditoriyani hozircha slug bo'yicha ham aniqlaydi: «shaxsiy» → Mijoz, «lexgo-ai» / «seller» → Yurist va Advokat, «b2b» / «business» → Biznes.",
+      "targetRoles": "Kimlarga ko'rinsin",
+      "targetRolesHint": "Aynan shu rollar tarifni ko'radi — yuqoridagi auditoriyadan aniqroq.",
+      "autoChargeProvider": "Avtomatik to'lov provayderi",
+      "autoChargeNone": "Yo'q",
       "audiences": {
         "all": "Barchasi",
         "client": "Mijoz",

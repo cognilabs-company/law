@@ -1,16 +1,17 @@
 // Paket tariflar (subscription plans): admin CRUD with feature detection and
-// the client-side ATMOS auto-pay setting.
+// the ATMOS auto-pay setting.
 //
-// Backend HEAD f6c94f8 has POST /admin/subscription-plans only — no PATCH,
-// DELETE or admin GET — and no auto-renew / ATMOS at all. Every write here
-// says so through a typed result instead of throwing a generic error, and the
-// auto-pay toggle lives in localStorage (keyed by user id) until the backend
-// exposes it.
+// Admin POST/PATCH/DELETE /admin/subscription-plans and PATCH
+// /subscriptions/{id}/auto-renew are all live in production (2026-09-19
+// backend update). Writes still go through a typed result instead of
+// throwing a generic error, and fall back to keeping the choice in
+// localStorage only when there's no subscription id to act on yet (no active
+// subscription) or the backend genuinely doesn't have the route.
 import { http, ApiError } from "@/lib/http";
 import {
   getMySubscription,
   isMissingRoute,
-  updateMySubscription,
+  updateSubscriptionAutoRenew,
   type BackendPlan,
   type MySubscription,
   type PlanAudience,
@@ -52,6 +53,11 @@ export type PlanInput = {
   is_giftable?: boolean;
   is_active?: boolean;
   sort_order?: number;
+  // client / yurist / advokat only (2026-09-19 backend update) — the precise
+  // list planForRole() prefers over the free-text `audience` guess.
+  target_roles?: string[];
+  // Provider that runs this plan's recurring auto-renew charge (e.g. "atmos").
+  auto_charge_provider?: string;
 };
 
 // Build the price fields from one (period, price) pair; other periods keep
@@ -105,7 +111,9 @@ export async function deletePlanAdmin(id: string): Promise<WriteResult> {
   }
 }
 
-// ── ATMOS auto-pay (client-side until the backend ships it) ───────
+// ── ATMOS auto-pay ──────────────────────────────────────────────
+// Falls back to a per-device localStorage flag only when there's no active
+// subscription (no id to PATCH /subscriptions/{id}/auto-renew with).
 const autopayKey = (uid: string) => `lexgo_autopay_${uid || "anon"}`;
 
 export function readAutopay(uid: string): boolean {
@@ -126,7 +134,8 @@ function writeAutopay(uid: string, on: boolean): void {
 export type AutopayState = {
   subscription: MySubscription | null;
   enabled: boolean;
-  // "backend" once PATCH /clients/me/subscription answers; "local" until then.
+  // "backend" once PATCH /subscriptions/{id}/auto-renew answers; "local" when
+  // there's no active subscription yet to attach the flag to.
   source: "backend" | "local";
 };
 
@@ -140,10 +149,15 @@ export async function loadAutopay(uid: string): Promise<AutopayState> {
   return { subscription, enabled: readAutopay(uid), source: "local" };
 }
 
-// Save the toggle: try the backend (a real error still throws), then keep the
-// device copy either way so the choice survives until the integration is live.
-export async function saveAutopay(uid: string, on: boolean, provider = "atmos"): Promise<AutopayState["source"]> {
-  const r = await updateMySubscription({ auto_renew: on, provider });
+// Save the toggle: PATCH the subscription when there is one (a real error
+// still throws), else keep the device copy so the choice survives until the
+// client has an active subscription to attach it to.
+export async function saveAutopay(uid: string, on: boolean, subscriptionId?: string): Promise<AutopayState["source"]> {
+  if (subscriptionId) {
+    await updateSubscriptionAutoRenew(subscriptionId, { auto_renew: on });
+    writeAutopay(uid, on);
+    return "backend";
+  }
   writeAutopay(uid, on);
-  return r.supported ? "backend" : "local";
+  return "local";
 }

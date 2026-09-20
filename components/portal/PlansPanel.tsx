@@ -6,6 +6,8 @@ import { Link } from "@/i18n/navigation";
 import {
   getSubscriptionPlans,
   demoPlanPurchase,
+  purchasePlan,
+  isAtmosCheckout,
   listPayments,
   listPaymentMethods,
   addPaymentMethod,
@@ -146,6 +148,17 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
     setIntent(null);
     let leaving = false; // stay busy while the browser opens the checkout
     try {
+      if (isAtmosCheckout()) {
+        const r = await purchasePlan(plan.id, { billing_period: period });
+        if (r.paymentUrl) {
+          leaving = true;
+          setMsg({ ok: true, text: t("payRedirect") });
+          window.location.assign(r.paymentUrl);
+        } else {
+          setMsg({ ok: true, text: t("activated", { plan: planName(plan) }) });
+        }
+        return;
+      }
       if (!isDemoCheckout()) {
         if (!total) {
           setMsg({ ok: false, text: t("purchaseError") });
@@ -399,7 +412,7 @@ function AutopayCard({ uid }: { uid: string }) {
     setNote(null);
     setState({ ...state, enabled: next });
     try {
-      const source = await saveAutopay(uid, next);
+      const source = await saveAutopay(uid, next, state.subscription?.id);
       setState((s) => (s ? { ...s, enabled: next, source } : s));
       setNote({ ok: true, text: t("saved") });
     } catch {

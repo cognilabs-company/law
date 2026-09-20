@@ -4196,7 +4196,7 @@
       "bindCard": "Link a card (ATMOS)",
       "bindTitle": "Link a card",
       "bindNote": "For now the card details are stored in your profile; real ATMOS linking goes live once the backend is connected.",
-      "pendingNote": "The ATMOS integration is being connected on the backend — your setting is saved and takes effect once it ships.",
+      "pendingNote": "Flipping this toggle saves your choice. For now, the current state shown here is only remembered on this device.",
       "localNote": "Setting stored on this device",
       "saved": "Setting saved.",
       "saveError": "Couldn't save the setting."
@@ -4589,6 +4589,10 @@
       "editTitle": "Edit tariff",
       "audience": "Audience",
       "audienceHint": "The backend still derives the audience from the slug as well: “shaxsiy” → Client, “lexgo-ai” / “seller” → Lawyer and Advocate, “b2b” / “business” → Business.",
+      "targetRoles": "Visible to",
+      "targetRolesHint": "Exactly these roles see the plan — more precise than the audience above.",
+      "autoChargeProvider": "Auto-charge provider",
+      "autoChargeNone": "None",
       "audiences": {
         "all": "All",
         "client": "Client",

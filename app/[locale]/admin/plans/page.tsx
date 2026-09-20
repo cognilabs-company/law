@@ -45,10 +45,21 @@ type AudienceFilter = "all" | PlanAudience;
 
 type Note = { ok: boolean; msg: string; tone?: "warn" };
 
+// target_roles is the precise 2026-09-19 list (client/yurist/advokat only —
+// no "business"), distinct from the older free-text `audience` field above.
+const TARGET_ROLES: PlanAudience[] = ["client", "yurist", "advokat"];
+// The roles `audience` implies, so a fresh form (or one for a plan with no
+// target_roles yet) starts with a sensible default instead of empty.
+function defaultTargetRoles(a: FormAudience): PlanAudience[] {
+  return a === "seller" ? ["yurist", "advokat"] : [a];
+}
+
 type FormVals = {
   title: string;
   slug: string;
   audience: FormAudience;
+  targetRoles: PlanAudience[];
+  autoChargeProvider: string;
   period: BillingPeriod;
   price: string;
   description: string;
@@ -58,13 +69,16 @@ type FormVals = {
 };
 
 function seedVals(p?: BackendPlan): FormVals {
-  if (!p) return { title: "", slug: "", audience: "client", period: "monthly", price: "", description: "", benefits: "", is_giftable: false, is_active: true };
+  if (!p) return { title: "", slug: "", audience: "client", targetRoles: ["client"], autoChargeProvider: "atmos", period: "monthly", price: "", description: "", benefits: "", is_giftable: false, is_active: true };
   const period = primaryPeriod(p);
   const price = planPrice(p, period);
+  const audience: FormAudience = (() => { const a = planAudience(p); return a.includes("yurist") && a.includes("advokat") ? "seller" : a[0] ?? "client"; })();
   return {
     title: p.title || p.name,
     slug: p.slug,
-    audience: ((): FormAudience => { const a = planAudience(p); return a.includes("yurist") && a.includes("advokat") ? "seller" : a[0] ?? "client"; })(),
+    audience,
+    targetRoles: p.targetRoles.length ? (p.targetRoles.filter((r) => TARGET_ROLES.includes(r as PlanAudience)) as PlanAudience[]) : defaultTargetRoles(audience),
+    autoChargeProvider: p.autoChargeProvider || "atmos",
     period,
     price: price ? String(Math.round(price)) : "",
     description: p.description,
@@ -106,6 +120,8 @@ function PlanForm({
       title: v.title.trim(),
       description: v.description.trim(),
       audience: v.audience,
+      target_roles: v.targetRoles,
+      auto_charge_provider: v.autoChargeProvider.trim() || undefined,
       ...pricesFor(v.period, num(v.price), plan),
       benefits: toList(v.benefits),
       is_giftable: v.is_giftable,
@@ -142,6 +158,39 @@ function PlanForm({
         <label>{t("plans.audience")}</label>
         <Select value={v.audience} onChange={(x) => set("audience", x as FormAudience)} options={audienceOpts} ariaLabel={t("plans.audience")} />
         <small className="aplan__hint">{t("plans.audienceHint")}</small>
+      </div>
+      <div>
+        <label>{t("plans.targetRoles")}</label>
+        <div className="afield--check" style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          {TARGET_ROLES.map((r) => (
+            <label className="wh__check" key={r}>
+              <input
+                type="checkbox"
+                checked={v.targetRoles.includes(r)}
+                onChange={(e) =>
+                  set(
+                    "targetRoles",
+                    e.target.checked ? [...v.targetRoles, r] : v.targetRoles.filter((x) => x !== r),
+                  )
+                }
+              />
+              {t(`plans.audiences.${r}`)}
+            </label>
+          ))}
+        </div>
+        <small className="aplan__hint">{t("plans.targetRolesHint")}</small>
+      </div>
+      <div>
+        <label>{t("plans.autoChargeProvider")}</label>
+        <Select
+          value={v.autoChargeProvider}
+          onChange={(x) => set("autoChargeProvider", x)}
+          options={[
+            { value: "", label: t("plans.autoChargeNone") },
+            { value: "atmos", label: "ATMOS" },
+          ]}
+          ariaLabel={t("plans.autoChargeProvider")}
+        />
       </div>
       <div className="cform__row2">
         <div>

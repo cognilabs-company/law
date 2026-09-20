@@ -726,6 +726,13 @@ export type BackendPlan = {
   yearlyPrice: number;
   prepaidYearlyPrice: number;
   audience: string;
+  // Precise role list (2026-09-19 backend update): when present, the
+  // authoritative answer to "who sees this plan" — planForRole() checks it
+  // before falling back to the audience-string heuristic below.
+  targetRoles: string[];
+  // Which payment provider handles this plan's recurring/auto-renew charge
+  // (e.g. "atmos"); empty when the plan has no auto-charge set up.
+  autoChargeProvider: string;
   billingType: string;
   sortOrder: number;
   allowedGiftDurations: number[];
@@ -763,9 +770,13 @@ export function planAudience(plan: Pick<BackendPlan, "audience" | "slug">): Plan
   return ["yurist", "advokat"];
 }
 // True when the tariff is sold to this backend role (a business tariff never
-// matches a person; anyone else sees what planAudience() lists).
-export function planForRole(plan: Pick<BackendPlan, "audience" | "slug">, role: string): boolean {
+// matches a person; anyone else sees what planAudience() lists). targetRoles
+// (client/yurist/advokat only, no "business") wins when the plan carries it —
+// it's the precise, admin-set list; the audience string is the older, fuzzier
+// signal kept for plans created before targetRoles existed.
+export function planForRole(plan: Pick<BackendPlan, "audience" | "slug" | "targetRoles">, role: string): boolean {
   const r = role === "lawyer" ? "yurist" : role === "advocate" ? "advokat" : role;
+  if (plan.targetRoles?.length) return plan.targetRoles.includes(r);
   return planAudience(plan).includes(r as PlanAudience);
 }
 
@@ -801,6 +812,8 @@ function normPlan(v: unknown, locale: string): BackendPlan {
     yearlyPrice: uzs(d, "yearly_price"),
     prepaidYearlyPrice: uzs(d, "prepaid_yearly_price"),
     audience: asStr(d.audience),
+    targetRoles: asArr(d.target_roles).map((x) => asStr(x)),
+    autoChargeProvider: asStr(d.auto_charge_provider),
     billingType: asStr(d.billing_type),
     sortOrder: asNum(d.sort_order),
     allowedGiftDurations: asArr(d.allowed_gift_durations).map((x) => asNum(x)),
@@ -1129,6 +1142,29 @@ export async function demoPlanPurchase(
 }
 export async function demoConfirmPayment(paymentId: string): Promise<PurchaseResult> {
   return normPurchase(await http(`/payments/${paymentId}/demo-confirm`, { method: "POST" }));
+}
+// Real ATMOS purchase (2026-09-19 backend update): recurring/auto-renew
+// billing, distinct from the one-off demo/generic-invoice paths above.
+// normPurchase() already reads the nested `payment.{id,status,payment_url}`
+// and top-level `subscription_id` this endpoint returns.
+export async function purchasePlan(
+  planId: string,
+  input: {
+    billing_period: string;
+    provider?: string;
+    auto_renew?: boolean;
+    payment_method_id?: string;
+    provider_customer_id?: string;
+    family_members?: unknown[];
+    provider_payload?: Record<string, unknown>;
+  },
+): Promise<PurchaseResult> {
+  return normPurchase(
+    await http(`/subscription-plans/${encodeURIComponent(planId)}/purchase`, {
+      method: "POST",
+      body: JSON.stringify({ provider: "atmos", auto_renew: true, family_members: [], provider_payload: {}, ...input }),
+    }),
+  );
 }
 
 // ── Payments ──────────────────────────────────────────────────────
@@ -2620,20 +2656,16 @@ export type ClientProfile = {
   phone: string;
   email: string;
   avatarUrl: string;
-  subscription?: { planName: string; status: string; renewsAt?: string };
+  subscription?: MySubscription;
 };
 function normClientProfile(v: unknown): ClientProfile {
   const d = asDict(v);
-  const sub = asDict(d.subscription);
-  const hasSub = Object.keys(sub).length > 0;
   return {
     name: asStr(d.name),
     phone: asStr(d.phone),
     email: asStr(d.email),
     avatarUrl: asStr(d.avatar_url),
-    subscription: hasSub
-      ? { planName: asStr(sub.plan_name), status: asStr(sub.status), renewsAt: asStr(sub.renews_at) || undefined }
-      : undefined,
+    subscription: normMySubscription(d.subscription) ?? undefined,
   };
 }
 export async function getClientProfile(): Promise<ClientProfile> {
@@ -2641,61 +2673,49 @@ export async function getClientProfile(): Promise<ClientProfile> {
 }
 
 // ── My subscription / auto-renew ──────────────────────────────────
-// Backend HEAD f6c94f8 has no subscription endpoint of its own: the active
-// plan is only exposed on /clients/me (plan_name / status / renews_at =
-// UserSubscription.ends_at), UserSubscription has no auto_renew column and
-// payment_provider.py has no ATMOS. These wrappers probe the future
-// GET/PATCH /clients/me/subscription and fall back honestly, so the UI keeps
-// working today and picks the real thing up the day it ships.
+// The active subscription is embedded in /clients/me — there is no separate
+// GET for it. Its own `id` (not the plan's id) is what
+// PATCH /subscriptions/{subscription_id}/auto-renew (2026-09-19 backend
+// update) takes; the earlier speculative PATCH /clients/me/subscription this
+// replaced never shipped (confirmed 404 in production).
 export type MySubscription = {
+  id: string;
   planName: string;
   planId: string;
   status: string;
   renewsAt?: string;
-  // undefined = the backend exposes no auto-renew flag (client-side state).
+  // undefined = /clients/me reported no auto-renew flag for this subscription.
   autoRenew?: boolean;
   provider: string; // "" when the backend does not say
-  // true when GET /clients/me/subscription answered (auto-renew is server-side).
-  native: boolean;
 };
-function normMySubscription(v: unknown, native: boolean): MySubscription | null {
-  const raw = asDict(v);
-  const d = Object.keys(asDict(raw.subscription)).length ? asDict(raw.subscription) : raw;
+function normMySubscription(v: unknown): MySubscription | null {
+  const d = asDict(v);
   const planName = asStr(d.plan_name ?? d.plan_title ?? asDict(d.plan).title ?? asDict(d.plan).name);
   const planId = asStr(d.plan_id ?? asDict(d.plan).id);
-  if (!planName && !planId) return null;
+  const id = asStr(d.id ?? d.subscription_id);
+  if (!planName && !planId && !id) return null;
   const ar = d.auto_renew ?? d.autopay ?? d.auto_pay;
   return {
+    id,
     planName,
     planId,
     status: asStr(d.status, "active"),
     renewsAt: asStr(d.renews_at ?? d.ends_at ?? d.next_charge_at) || undefined,
     autoRenew: typeof ar === "boolean" ? ar : undefined,
     provider: asStr(d.provider ?? d.payment_provider),
-    native,
   };
 }
 export async function getMySubscription(): Promise<MySubscription | null> {
-  try {
-    return normMySubscription(await http("/clients/me/subscription"), true);
-  } catch (e) {
-    if (!isMissingRoute(e)) throw e;
-  }
-  const p = await getClientProfile();
-  return p.subscription
-    ? { planName: p.subscription.planName, planId: "", status: p.subscription.status, renewsAt: p.subscription.renewsAt, provider: "", native: false }
-    : null;
+  return (await getClientProfile()).subscription ?? null;
 }
-// supported=false → the backend has no PATCH /clients/me/subscription yet; the
-// caller keeps the setting client-side and says so.
-export async function updateMySubscription(patch: { auto_renew?: boolean; provider?: string }): Promise<{ supported: boolean; subscription: MySubscription | null }> {
-  try {
-    const d = await http("/clients/me/subscription", { method: "PATCH", body: JSON.stringify(patch) });
-    return { supported: true, subscription: normMySubscription(d, true) };
-  } catch (e) {
-    if (isMissingRoute(e)) return { supported: false, subscription: null };
-    throw e;
-  }
+export async function updateSubscriptionAutoRenew(
+  subscriptionId: string,
+  patch: { auto_renew: boolean; payment_method_id?: string | null; provider_customer_id?: string | null },
+): Promise<{ id: string; autoRenew: boolean }> {
+  const d = asDict(
+    await http(`/subscriptions/${encodeURIComponent(subscriptionId)}/auto-renew`, { method: "PATCH", body: JSON.stringify(patch) }),
+  );
+  return { id: asStr(d.id), autoRenew: Boolean(d.auto_renew) };
 }
 export async function updateClientProfile(patch: {
   name?: string;
