@@ -10,7 +10,7 @@ import { Notice, useReload } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
 import Select from "@/components/Select";
 import { fmtDate, shortDateTime } from "@/lib/date";
-import { assigneeLabel, leadRegionLabel, leadScoreLabel, leadUrgencyLabel } from "@/lib/leadLabels";
+import { assigneeLabel, kanbanColumnTitle, leadRegionLabel, leadScoreLabel, leadUrgencyLabel } from "@/lib/leadLabels";
 import { Skeleton } from "@/components/portal/DataState";
 import { IconClose, IconClock, IconPhone, IconSend } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
@@ -47,6 +47,10 @@ export default function LeadDrawer({
 }) {
   const t = useTranslations("admin.pipeline");
   const te = useTranslations("enums");
+  // Same translator AdminPipeline's board uses for column titles — a stage
+  // still carrying the backend's default English name ("New") gets
+  // localized; a stage an admin renamed keeps its custom title either way.
+  const tStages = useTranslations("admin.callCenter.queue");
   const locale = useLocale();
   const [tlKey, bumpTl] = useReload();
   const tl = useResource(() => getLeadTimeline(lead.id), [lead.id, tlKey]);
@@ -130,7 +134,7 @@ export default function LeadDrawer({
                   disabled={busy || c.key === colKey}
                   onClick={() => onMove(c.key)}
                 >
-                  {c.title}
+                  {kanbanColumnTitle(tStages, c)}
                 </button>
               ))}
             </div>
