@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
@@ -27,7 +27,33 @@ import { Skeleton, EmptyState } from "./DataState";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconCheck, IconCard, IconGift, IconSparkle, IconShieldCheck, IconRefresh, IconInfo } from "@/components/icons";
+import {
+  IconCheck,
+  IconCard,
+  IconGift,
+  IconSparkle,
+  IconShieldCheck,
+  IconRefresh,
+  IconInfo,
+  IconCrown,
+  IconGem,
+  IconLeaf,
+  IconHeadset,
+  IconChartBar,
+  IconChatDots,
+  IconChevronRight,
+  IconCalendar,
+  IconStar,
+} from "@/components/icons";
+
+// Tier icon shown above the plan name (purely presentational — matches
+// whichever of the three fixed LexGo.AI slugs the plan is).
+function tierIcon(slug: string) {
+  if (slug === "lexgo-ai-pro") return { Icon: IconCrown, cls: "pro" };
+  if (slug === "lexgo-ai-lite") return { Icon: IconGem, cls: "lite" };
+  if (slug === "lexgo-ai-free") return { Icon: IconLeaf, cls: "free" };
+  return null;
+}
 
 type Term = 1 | 3 | 6 | 12;
 type Variant = "personal" | "all";
@@ -117,6 +143,22 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const [aiUsed, setAiUsed] = useState(0);
   useEffect(() => { const h = setTimeout(() => setAiUsed(aiUsedThisMonth(session?.id ?? "")), 0); return () => clearTimeout(h); }, [session?.id]);
 
+  // Lifted out of AutopayCard so the plan grid can mark the user's own active
+  // plan (not just the autopay summary row) — AutopayCard receives it as a prop.
+  const [autopay, setAutopay] = useState<AutopayState | null>(null);
+  const uid = session?.id ?? "";
+  useEffect(() => {
+    if (!uid) return;
+    let alive = true;
+    loadAutopay(uid)
+      .then((s) => alive && setAutopay(s))
+      .catch(() => alive && setAutopay({ subscription: null, enabled: readAutopay(uid), source: "local" }));
+    return () => {
+      alive = false;
+    };
+  }, [uid]);
+  const currentPlanName = autopay?.subscription?.planName || "";
+
   // /payments reports kind = Payment.target_type, i.e. "subscription_plan";
   // "subscription" is kept for older rows.
   const bills = payments.data.filter((p) => !p.kind || p.kind === "subscription" || p.kind === "subscription_plan");
@@ -196,9 +238,11 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       {intent ? <div className="ppanel" style={{ marginBottom: 16 }}><CheckoutIntent intent={intent} onCancel={() => setIntent(null)} /></div> : null}
 
       {/* ── ATMOS monthly auto-pay (clients and sellers alike) ─────────── */}
-      {session ? <AutopayCard uid={session.id} /> : null}
+      {session ? <AutopayCard uid={session.id} state={autopay} onStateChange={setAutopay} /> : null}
 
       {/* ── LexGo.AI: Free / Lite / Pro ─────────────────────────────── */}
+      <div className="subs__layout">
+      <div>
       <div className="plans__head">
         <div>
           <h2 className="psec-h"><IconSparkle style={{ width: 20, height: 20, verticalAlign: "-3px", marginRight: 8 }} />{t("ai.title")}</h2>
@@ -229,8 +273,20 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
             const limit = Number(plan.entitlements?.ai_requests ?? 0) || AI_LIMIT_BY_SLUG[plan.slug] || 0;
             const hasPro = aiPlans.some((p) => p.slug === FEATURED_SLUG);
             const featured = hasPro ? plan.slug === FEATURED_SLUG : aiPlans.length > 1 && i === aiPlans.length - 1;
+            const tier = tierIcon(plan.slug);
+            const isCurrent = !!currentPlanName && planName(plan) === currentPlanName;
             return (
-              <div key={plan.id} className={`splan${featured ? " splan--feat" : ""}`}>
+              <div key={plan.id} className={`splan${isCurrent ? " splan--current" : featured ? " splan--feat" : ""}`}>
+                {isCurrent ? (
+                  <span className="splan__ribbon splan__ribbon--current"><IconCheck />{t("current")}</span>
+                ) : featured ? (
+                  <span className="splan__ribbon"><IconStar />{t("recommended")}</span>
+                ) : null}
+                {tier ? (
+                  <span className={`splan__icon splan__icon--${tier.cls}`}>
+                    <tier.Icon />
+                  </span>
+                ) : null}
                 <div className="splan__h">
                   <b className="splan__name">{planName(plan)}</b>
                   {pr.savePct > 0 && plan.monthlyPrice > 0 ? <span className="splan__save">−{pr.savePct}%</span> : null}
@@ -256,7 +312,9 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                     <li key={k}><IconCheck />{f}</li>
                   ))}
                 </ul>
-                {plan.monthlyPrice === 0 ? (
+                {isCurrent ? (
+                  <span className="btn btn--soft btn--full" aria-disabled><IconCheck />{t("current")}</span>
+                ) : plan.monthlyPrice === 0 ? (
                   <span className="btn btn--line btn--full" aria-disabled>{t("ai.included")}</span>
                 ) : (
                   <button
@@ -274,6 +332,84 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         </div>
       )}
       <p className="plans__sub" style={{ marginTop: 10 }}>{t("ai.rules")}</p>
+      </div>
+
+      <div className="subs__side">
+        <div className="benefit">
+          <span className="benefit__ico"><IconShieldCheck /></span>
+          <div>
+            <b>{t("sidebar.secureTitle")}</b>
+            <p>{t("sidebar.secureText")}</p>
+          </div>
+        </div>
+        <div className="benefit">
+          <span className="benefit__ico"><IconRefresh /></span>
+          <div>
+            <b>{t("sidebar.cancelTitle")}</b>
+            <p>{t("sidebar.cancelText")}</p>
+          </div>
+        </div>
+        <div className="benefit">
+          <span className="benefit__ico"><IconHeadset /></span>
+          <div>
+            <b>{t("sidebar.supportTitle")}</b>
+            <p>{t("sidebar.supportText")}</p>
+          </div>
+        </div>
+        <Link
+          href={role === "client" ? "/portal/client/ai" : role === "lawyer" ? "/portal/lawyer/ai" : "/portal/advocate/assistant"}
+          className="btn btn--line btn--full"
+        >
+          <IconChatDots />
+          {t("sidebar.ask")}
+        </Link>
+      </div>
+      </div>
+
+      {aiPlans.length ? (
+        <div className="subs__bottom">
+          <div className="ppanel">
+            <div className="ppanel__h">
+              <b className="ppanel__t"><span className="pico"><IconChartBar /></span>{t("compare.title")}</b>
+            </div>
+            <div className="ptable__wrap">
+              <table className="ptable">
+                <thead>
+                  <tr>
+                    <th>{t("compare.rowLabel")}</th>
+                    {aiPlans.map((p) => <th key={p.id}>{planName(p)}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{t("compare.rowPrice")}</td>
+                    {aiPlans.map((p) => <td key={p.id}>{p.monthlyPrice ? `${som(p.monthlyPrice)} ${t("perMonth")}` : t("freeLabel")}</td>)}
+                  </tr>
+                  <tr>
+                    <td>{t("compare.rowRequests")}</td>
+                    {aiPlans.map((p) => <td key={p.id}>{Number(p.entitlements?.ai_requests ?? 0) || AI_LIMIT_BY_SLUG[p.slug] || "—"}</td>)}
+                  </tr>
+                  <tr>
+                    <td>{t("compare.rowFeatures")}</td>
+                    {aiPlans.map((p) => <td key={p.id}>{p.features?.length || "—"}</td>)}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="ppanel">
+            <div className="ppanel__h">
+              <b className="ppanel__t"><span className="pico"><IconGift /></span>{t("faq.title")}</b>
+            </div>
+            {(t.raw("faq.items") as { q: string }[]).map((item, i) => (
+              <div className="faqrow" key={i}>
+                {item.q}
+                <IconChevronRight />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* ── Shaxsiy advokatim: Standart / Premium (clients only) ────── */}
       {personal ? (
@@ -302,8 +438,10 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
             <div className="plans__grid">
               {personalPlans.map((plan, i) => {
                 const pr = personalPricing(plan, term, upfront);
+                const isCurrent = !!currentPlanName && planName(plan) === currentPlanName;
                 return (
-                  <div key={plan.id} className={`splan${i === 1 ? " splan--feat" : ""}`}>
+                  <div key={plan.id} className={`splan${isCurrent ? " splan--current" : i === 1 ? " splan--feat" : ""}`}>
+                    {isCurrent ? <span className="splan__ribbon splan__ribbon--current"><IconCheck />{t("current")}</span> : null}
                     <div className="splan__h">
                       <b className="splan__name">{planName(plan)}</b>
                       {pr.savePct > 0 ? <span className="splan__save">−{pr.savePct}%</span> : null}
@@ -318,6 +456,9 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                         <li key={k}><IconCheck />{f}</li>
                       ))}
                     </ul>
+                    {isCurrent ? (
+                      <span className="btn btn--soft btn--full" aria-disabled><IconCheck />{t("current")}</span>
+                    ) : (
                     <button
                       type="button"
                       className={`btn ${i === 1 ? "btn--grad" : "btn--line"} btn--full`}
@@ -326,6 +467,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                     >
                       {busy === plan.id ? t("processing") : t("choose")}
                     </button>
+                    )}
                   </div>
                 );
               })}
@@ -390,25 +532,22 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
 // (lexgo_autopay_<uid>) and the card row shows the profile's saved payment
 // methods (/clients/me/payment-methods). loadAutopay / saveAutopay probe the
 // future /clients/me/subscription and switch over the day it ships.
-function AutopayCard({ uid }: { uid: string }) {
+function AutopayCard({
+  uid,
+  state,
+  onStateChange,
+}: {
+  uid: string;
+  state: AutopayState | null;
+  onStateChange: Dispatch<SetStateAction<AutopayState | null>>;
+}) {
   const t = useTranslations("plans.autopay");
   const tc = useTranslations("portal.client.profile");
   const cards = useResource(listPaymentMethods, [uid]);
-  const [state, setState] = useState<AutopayState | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [bind, setBind] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    loadAutopay(uid)
-      .then((s) => alive && setState(s))
-      // Profile unreachable → still show the device setting, honestly labelled.
-      .catch(() => alive && setState({ subscription: null, enabled: readAutopay(uid), source: "local" }));
-    return () => {
-      alive = false;
-    };
-  }, [uid]);
+  const setState = onStateChange;
 
   async function toggle() {
     if (!state || busy) return;
@@ -433,34 +572,39 @@ function AutopayCard({ uid }: { uid: string }) {
   const enabled = state?.enabled ?? false;
 
   return (
-    <div className="ppanel apay">
-      <div className="ppanel__h">
-        <div className="ppanel__t">
-          <span className="pico"><IconRefresh /></span>
+    <>
+      <div className="subs__top">
+        <div className="subs__topcard">
+          <span className="subs__topico subs__topico--crown"><IconCrown /></span>
           <div>
-            <b>{t("title")}</b>
-            <p className="plans__sub" style={{ margin: 0 }}>{t("sub")}</p>
+            <span className="subs__topl">{t("currentTariff")}</span>
+            <b>{sub?.planName || t("none")}</b>
+            {!sub ? <span className="subs__tops">{t("noneHint")}</span> : null}
+          </div>
+        </div>
+        <div className="subs__topcard">
+          <span className="subs__topico"><IconCalendar /></span>
+          <div>
+            <span className="subs__topl">{t("nextCharge")}</span>
+            <b>{sub?.renewsAt ? fmtDate(sub.renewsAt) : "—"}</b>
+            {!sub?.renewsAt ? <span className="subs__tops">{t("nextChargeHintEmpty")}</span> : null}
+          </div>
+        </div>
+        <div className="subs__topcard">
+          <span className="subs__topico"><IconCard /></span>
+          <div>
+            <span className="subs__topl">{t("card")}</span>
+            <b>{card ? `${card.brand.toUpperCase()} •••• ${card.last4}` : t("noCard")}</b>
+            {!card ? <span className="subs__tops">{t("cardHintEmpty")}</span> : null}
           </div>
         </div>
       </div>
+
+      <div className="ppanel apay" style={{ marginBottom: 22 }}>
       {!state ? (
         <Skeleton rows={2} />
       ) : (
         <>
-          <div className="apay__grid">
-            <div className="apay__cell">
-              <span>{t("currentTariff")}</span>
-              <b>{sub?.planName || t("none")}</b>
-            </div>
-            <div className="apay__cell">
-              <span>{t("nextCharge")}</span>
-              <b>{sub?.renewsAt ? fmtDate(sub.renewsAt) : "—"}</b>
-            </div>
-            <div className="apay__cell">
-              <span>{t("card")}</span>
-              <b>{card ? `${card.brand.toUpperCase()} •••• ${card.last4}` : t("noCard")}</b>
-            </div>
-          </div>
           <div className="apay__row">
             <button type="button" className="apay__tg" role="switch" aria-checked={enabled} onClick={toggle} disabled={busy}>
               <span className="apay__sw" aria-hidden />
@@ -480,6 +624,7 @@ function AutopayCard({ uid }: { uid: string }) {
           ) : null}
         </>
       )}
+      </div>
       <Modal open={bind} onClose={() => setBind(false)} title={t("bindTitle")}>
         <BindCardForm
           note={t("bindNote")}
@@ -490,7 +635,7 @@ function AutopayCard({ uid }: { uid: string }) {
           }}
         />
       </Modal>
-    </div>
+    </>
   );
 }
 

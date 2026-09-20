@@ -62,7 +62,13 @@ const num = (o: Record<string, unknown> | undefined, k: string): number => {
 };
 const som = (n: number) => fmtUzs(n);
 
-export default function SellerDashboard({ role }: { role: Role }) {
+// `compact`: used on the redesigned advocate/lawyer dashboard, which already
+// has its own hero, stat row and profile-completeness card — this hides the
+// older onboarding banner, region/date filter and "Bugun"/"Moliyaviy holat"
+// tiles (and the demo-data notice that comes with them) and keeps only the
+// pieces that dashboard doesn't already cover: metrics, payouts, referral
+// progress and the new-case-offer list.
+export default function SellerDashboard({ role, compact = false }: { role: Role; compact?: boolean }) {
   const t = useTranslations("portal.sellerDash");
   const tc = useTranslations("portal.common");
   const locale = useLocale();
@@ -134,23 +140,27 @@ export default function SellerDashboard({ role }: { role: Role }) {
 
   return (
     <>
-      {cabinet.status === "loading" ? null : <OnboardingProgress role={role} limited={false} />}
-      <DashFilterBar value={filter} onChange={setFilter} demoForced={demoForced} onDemoForced={setDemoForced} note={isFiltered(filter) ? td("filter.sellerNote") : undefined} compact />
-      {demo ? <p className="bhnote" role="status"><IconInfo />{demoForced ? td("demo.forced") : td("demo.sellerBanner")}</p> : null}
-      <div className="ppanel">
-        <div className="ppanel__h">
-          <b>{t("today")}</b>
-          <span className="advmuted">{t("todaySub")}</span>
-        </div>
-        {tiles(TODAY)}
-      </div>
+      {compact ? null : cabinet.status === "loading" ? null : <OnboardingProgress role={role} limited={false} />}
+      {compact ? null : (
+        <>
+          <DashFilterBar value={filter} onChange={setFilter} demoForced={demoForced} onDemoForced={setDemoForced} note={isFiltered(filter) ? td("filter.sellerNote") : undefined} compact />
+          {demo ? <p className="bhnote" role="status"><IconInfo />{demoForced ? td("demo.forced") : td("demo.sellerBanner")}</p> : null}
+          <div className="ppanel">
+            <div className="ppanel__h">
+              <b>{t("today")}</b>
+              <span className="advmuted">{t("todaySub")}</span>
+            </div>
+            {tiles(TODAY)}
+          </div>
 
-      <div className="ppanel">
-        <div className="ppanel__h">
-          <b>{t("finance")}</b>
-        </div>
-        {tiles(FINANCE)}
-      </div>
+          <div className="ppanel">
+            <div className="ppanel__h">
+              <b>{t("finance")}</b>
+            </div>
+            {tiles(FINANCE)}
+          </div>
+        </>
+      )}
 
       {cabinet.data ? <SellerMetrics stats={cabinet.data.stats} userId={session?.id || ""} demo={demo} /> : null}
       {cabinet.data ? <SellerPayouts /> : null}

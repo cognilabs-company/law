@@ -22,7 +22,7 @@ import { useAuth } from "@/lib/auth";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Skeleton, EmptyState } from "../portal/DataState";
 import Select, { type Option } from "../Select";
-import { IconChevronLeft, IconChevronRight, IconInfo, IconSearch } from "../icons";
+import { IconChevronLeft, IconChevronRight, IconInfo, IconSearch, IconShieldCheck, IconStar } from "../icons";
 
 const priceNum = (p: string) => Number(p.replace(/\s/g, "")) || 0;
 
@@ -233,9 +233,15 @@ export default function LawyersSection({
   ];
   const stats = t.raw("stats") as { value: string; label: string }[];
 
-  function card(l: Lawyer) {
+  function card(l: Lawyer, isTop: boolean) {
     return (
       <article className="advcard" key={l.userId || l.name}>
+        {isTop ? (
+          <span className="advcard__ribbon">
+            <IconStar />
+            {t("recommended")}
+          </span>
+        ) : null}
         <div className="advcard__top">
           <div className="advcard__row">
             <div className="advcard__av">{initials(l.name)}</div>
@@ -311,33 +317,50 @@ export default function LawyersSection({
   return (
     <section className="sec" id="lawyers" style={{ background: "var(--b50)" }}>
       <div className="wrap">
-        <div className="head head--row">
-          <div>
-            <span className="kick">{t("kicker")}</span>
-            <h2 className="h2">{t("title")}</h2>
-            <p className="lead">{t("lead")}</p>
-          </div>
-          {!compact ? (
-            <div className="navbtns">
-              <button
-                className="nbtn"
-                onClick={() => scrollBy(-1)}
-                disabled={atStart}
-                aria-label="prev"
-              >
-                <IconChevronLeft />
-              </button>
-              <button
-                className="nbtn"
-                onClick={() => scrollBy(1)}
-                disabled={atEnd}
-                aria-label="next"
-              >
-                <IconChevronRight />
-              </button>
+        {compact ? (
+          <div className="lawhero">
+            <div>
+              <span className="lawhero__badge">
+                <IconShieldCheck />
+                {t("heroBadge")}
+              </span>
+              <h2 className="h2">{t("kicker")}</h2>
+              <p>{t("lead")}</p>
             </div>
-          ) : null}
-        </div>
+            <div className="lawhero__quote">
+              <p>{t("heroQuote")}</p>
+              <span>— {t("heroQuoteAuthor")}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="head head--row">
+            <div>
+              <span className="kick">{t("kicker")}</span>
+              <h2 className="h2">{t("title")}</h2>
+              <p className="lead">{t("lead")}</p>
+            </div>
+            {!compact ? (
+              <div className="navbtns">
+                <button
+                  className="nbtn"
+                  onClick={() => scrollBy(-1)}
+                  disabled={atStart}
+                  aria-label="prev"
+                >
+                  <IconChevronLeft />
+                </button>
+                <button
+                  className="nbtn"
+                  onClick={() => scrollBy(1)}
+                  disabled={atEnd}
+                  aria-label="next"
+                >
+                  <IconChevronRight />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
 
         {standalone ? (
           <div className="strip">
@@ -439,15 +462,21 @@ export default function LawyersSection({
           </div>
         ) : null}
 
+        {compact && res.status !== "loading" && list.length ? (
+          <div className="lawres">
+            <span>{t("resultsCount", { n: list.length })}</span>
+          </div>
+        ) : null}
+
         {res.status === "loading" ? (
           <Skeleton rows={3} />
         ) : !list.length ? (
           <EmptyState title={t("empty")} />
         ) : compact ? (
-          <div className="advgrid">{list.map(card)}</div>
+          <div className="advgrid">{list.map((l, i) => card(l, compact && sort === "rating" && i === 0))}</div>
         ) : (
           <div className="scroller" ref={scroller} onScroll={syncNav}>
-            {list.map(card)}
+            {list.map((l) => card(l, false))}
           </div>
         )}
 

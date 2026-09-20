@@ -706,6 +706,11 @@
       "tomorrow": "tomorrow"
     },
     "empty": "There are no lawyers in this area yet. Leave a request — we will find a suitable lawyer for you.",
+    "heroBadge": "Trusted legal help",
+    "heroQuote": "“The right lawyer is the guarantee of a peaceful life.”",
+    "heroQuoteAuthor": "LexGo",
+    "resultsCount": "{n} specialists found",
+    "recommended": "Recommended",
     "priceInfo": "The price is formed by open criteria: region (higher in big cities), experience (3–5 yrs +10%, 6–10 yrs +15%, 10+ yrs +20%), rating and super-lawyer status (regional TOP-3 — up to 30%, 10+ yrs in a narrow area — up to 20%). If the price is higher, the reason is shown in the order window.",
     "flow": [
       {
@@ -2331,7 +2336,10 @@
         "matchSub": "Based on your request, these specialists are the best match.",
         "match": "match",
         "emptyTitle": "No active requests",
-        "emptyText": "Describe a problem above to get started."
+        "emptyText": "Describe a problem above to get started.",
+        "sideAiTitle": "Need help?",
+        "sideAiSub": "Chat with the AI assistant for a fast, private answer.",
+        "sideAiCta": "Chat with AI"
       },
       "cases": {
         "title": "My requests",
@@ -2882,11 +2890,16 @@
       },
       "actions": {
         "describe": "Describe my problem",
+        "describeSub": "Find a solution with AI",
         "findSpecialist": "Find a specialist",
+        "findSpecialistSub": "Verified lawyers and advocates",
         "consultation": "Get a consultation",
+        "consultationSub": "Online or in person",
         "track": "Track my request",
         "askAi": "Ask LexGo AI",
-        "upload": "Upload a document"
+        "askAiSub": "Chat with AI",
+        "upload": "Upload a document",
+        "uploadSub": "Analysis and review"
       },
       "services": {
         "title": "Order a service",
@@ -3151,7 +3164,38 @@
         "performanceEmptyText": "Your views, contacts and ranking will appear here.",
         "opportunitiesEmpty": "No opportunities yet",
         "opportunitiesEmptyText": "Matching client requests will appear here.",
-        "boostSub": "Improve your visibility and reach more clients."
+        "boostSub": "Improve your visibility and reach more clients.",
+        "heroTitle": "On the side of justice, every day.",
+        "heroSub": "Your professional platform — clients, cases, documents and opportunities in one place.",
+        "quote": "“Law is the firm foundation of freedom.”",
+        "quoteAuthor": "Cicero",
+        "greetSub": "Today {meetings} meetings and {tasks} tasks are waiting.",
+        "statClients": "Clients",
+        "statCases": "Active cases",
+        "statMeetings": "Today's meetings",
+        "statDocs": "Documents",
+        "quickActions": "Quick actions",
+        "quickClient": "Add new client",
+        "quickCase": "Open new case",
+        "quickDoc": "Upload document",
+        "quickMeeting": "Schedule meeting",
+        "myTasks": "My tasks",
+        "tab_today": "Today ({n})",
+        "tab_upcoming": "Upcoming ({n})",
+        "tab_done": "Done ({n})",
+        "tasksEmpty": "No tasks in this tab.",
+        "calendar": "Calendar",
+        "recentActivity": "Recent activity",
+        "activityEmpty": "No activity yet.",
+        "aiTitle": "LexGo AI",
+        "aiBeta": "Beta",
+        "aiSub": "Analyze documents, get advice, find laws fast.",
+        "aiCta": "Open AI assistant",
+        "checkBasics": "Basic info",
+        "checkId": "Identification",
+        "checkDocs": "Documents",
+        "checkServices": "Services",
+        "checkPricing": "Pricing"
       },
       "opportunities": {
         "title": "New opportunities",
@@ -3322,6 +3366,9 @@
         "month": "this month",
         "today": "today"
       }
+    },
+    "miniCal": {
+      "empty": "No upcoming plans"
     },
     "sellerDash": {
       "today": "Today",
@@ -3628,7 +3675,6 @@
       "navAll": "All Files",
       "navRecent": "Recent",
       "navStarred": "Starred",
-      "navShared": "Shared",
       "storageLabel": "Storage",
       "storageUsed": "{used} / {total} used",
       "searchPh": "Search files…",
@@ -3653,12 +3699,18 @@
       "renameTitle": "Rename",
       "save": "Save",
       "deleteConfirm": "Delete \"{name}\"?",
-      "sharedWith": "Shared with {n}",
       "modified": "Modified",
       "folders": "Folders",
       "recentEmpty": "No recent files",
       "starredEmpty": "No starred items",
-      "sharedEmpty": "No shared items"
+      "forbiddenTitle": "Not available yet",
+      "forbiddenText": "The workspace opens once an administrator approves your account.",
+      "loadError": "Couldn't load files. Please try again.",
+      "actionError": "Couldn't complete the action. Please try again.",
+      "quotaExceeded": "Storage limit reached. Reduce file size or count.",
+      "uploadError": "Couldn't upload {n} file(s).",
+      "uploading": "Uploading…",
+      "saving": "Saving…"
     },
     "passport": {
       "title": "Service passport",
@@ -4240,7 +4292,37 @@
       "pendingNote": "Flipping this toggle saves your choice. For now, the current state shown here is only remembered on this device.",
       "localNote": "Setting stored on this device",
       "saved": "Setting saved.",
-      "saveError": "Couldn't save the setting."
+      "saveError": "Couldn't save the setting.",
+      "noneHint": "No tariff is currently linked.",
+      "nextChargeHintEmpty": "Shown once a tariff is linked.",
+      "cardHintEmpty": "Add a card for payments."
+    },
+    "recommended": "Recommended",
+    "sidebar": {
+      "secureTitle": "Secure payments",
+      "secureText": "Payments are processed via ATMOS. Your card details are never stored on our side.",
+      "cancelTitle": "Cancel anytime",
+      "cancelText": "You can cancel your tariff at any time.",
+      "supportTitle": "Ongoing support",
+      "supportText": "Have questions? We're always ready to help.",
+      "ask": "Ask a question"
+    },
+    "compare": {
+      "title": "Compare tariffs",
+      "rowLabel": "Feature",
+      "rowPrice": "Price",
+      "rowRequests": "AI requests (monthly)",
+      "rowFeatures": "Number of features"
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": [
+        { "q": "How does payment work?" },
+        { "q": "Can I cancel my tariff at any time?" },
+        { "q": "Is my card data safe?" },
+        { "q": "What's included in the Free tariff?" },
+        { "q": "What are the benefits of the Pro tariff?" }
+      ]
     },
     "title": "Package tariffs",
     "subtitle": "Grow your visibility and win more clients.",
@@ -4917,7 +4999,31 @@
       "ccTitle": "Video meeting · {name}",
       "ccError": "Could not start the meeting. Try again.",
       "ccNoUser": "No platform user with this phone number — the client needs to sign up first.",
-      "ccSelf": "You cannot start a meeting with yourself."
+      "ccSelf": "You cannot start a meeting with yourself.",
+      "createTitle": "Create a new meeting",
+      "clear": "Clear",
+      "statLive": "Upcoming meetings",
+      "statToday": "Today",
+      "statEnded": "Completed",
+      "statTotal": "Total meetings",
+      "todayAgenda": "Today's meetings",
+      "todayEmpty": "No meetings today.",
+      "calendar": "Calendar",
+      "col": {
+        "name": "Meeting name",
+        "participants": "Participants",
+        "date": "Date",
+        "duration": "Duration",
+        "format": "Format",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "formatLabel": {
+        "video": "Video",
+        "audio": "Audio"
+      },
+      "durationHour": "{n}h",
+      "durationMin": "{n} min"
     },
     "callHistory": {
       "title": "Meeting history",

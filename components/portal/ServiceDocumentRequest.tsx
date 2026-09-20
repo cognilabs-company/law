@@ -44,21 +44,23 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
 
   useEffect(() => {
     let alive = true;
-    getServiceDocumentTemplate(serviceId)
-      .then(async (r) => {
-        if (!alive) return r;
-        // The dedicated fields endpoint (2026-09-20 backend) is the
-        // authoritative source for a DOCX-uploaded template — prefer it
-        // whenever it actually has fields, so a template whose embedded
-        // `fields` came back empty from document-template still gets a form.
-        if (!r.questionnaire.length) {
-          const f = await getServiceDocumentFields(serviceId).catch(() => null);
-          if (f?.fields.length) r = { ...r, questionnaire: f.fields };
-        }
-        return r;
-      })
-      .then((r) => {
+    // GET .../document-fields is the doc's stated source of truth for
+    // building the form ("frontend shu fields bo'yicha form quradi") — always
+    // fetched, in parallel, and preferred outright whenever it comes back
+    // non-empty; document-template only supplies price/description/name and
+    // is the fallback for a service the fields endpoint doesn't recognize
+    // (a 404 there is expected for a service without one, not an error).
+    Promise.all([
+      getServiceDocumentTemplate(serviceId),
+      getServiceDocumentFields(serviceId).catch((e) => {
+        console.warn(`[document-fields] ${serviceId}:`, e);
+        return null;
+      }),
+    ])
+      .then(([r, f]) => {
         if (!alive) return;
+        console.info(`[document flow] ${serviceId}: template fields=${r.questionnaire.length}, document-fields=${f?.fields.length ?? "n/a"}`);
+        if (f?.fields.length) r = { ...r, questionnaire: f.fields };
         setTpl(r);
         onTitle?.(r.name);
       })

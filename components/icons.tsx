@@ -510,6 +510,43 @@ export const IconCheckDouble = (p: P) => (
   </svg>
 );
 
+export const IconCrown = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M3 8l4 4 5-7 5 7 4-4-2 11H5L3 8z" />
+    <path d="M5 21h14" />
+  </svg>
+);
+
+export const IconGem = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M6 3h12l3 5-9 13L3 8l3-5z" />
+    <path d="M3 8h18M9 3l3 5-3 13M15 3l-3 5 3 13" />
+  </svg>
+);
+
+export const IconLeaf = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M20 4C10 4 4 10 4 18v2h2c8 0 14-6 14-16z" />
+    <path d="M8 20c2-6 5-9 12-14" />
+  </svg>
+);
+
+export const IconHeadset = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M4 14v-2a8 8 0 0116 0v2" />
+    <rect x="2.5" y="13" width="5" height="7" rx="2" />
+    <rect x="16.5" y="13" width="5" height="7" rx="2" />
+    <path d="M20 20v1a3 3 0 01-3 3h-3" />
+  </svg>
+);
+
+export const IconChartBar = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M4 20V10M12 20V4M20 20v-7" />
+    <path d="M2 20h20" />
+  </svg>
+);
+
 // Name → component registry so data files can reference icons by string.
 const ICON_MAP: Record<string, ComponentType<P>> = {
   IconChatDots,

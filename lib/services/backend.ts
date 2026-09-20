@@ -4640,7 +4640,20 @@ export async function searchUsers(q: string, opts?: { role?: string; limit?: num
 }
 
 // ── Seller workspace (folders + file metadata) ────────────────────
-export type WorkspaceFolder = { id: string; name: string; parentId?: string; caseId?: string; status: string; createdAt: string };
+// 2026-09-20 backend: gated to approved advokat/yurist/advokat_tashkiloti
+// only (403 for pending sellers and clients), 1GB quota per seller.
+export type WorkspaceFolder = {
+  id: string;
+  name: string;
+  parentId?: string;
+  caseId?: string;
+  status: string;
+  starred: boolean;
+  size: number;
+  fileCount: number;
+  folderCount: number;
+  createdAt: string;
+};
 function normFolder(v: unknown): WorkspaceFolder {
   const d = asDict(v);
   return {
@@ -4649,17 +4662,36 @@ function normFolder(v: unknown): WorkspaceFolder {
     parentId: asStr(d.parent_id) || undefined,
     caseId: asStr(d.case_id) || undefined,
     status: asStr(d.status),
+    starred: Boolean(d.starred),
+    size: asNum(d.size),
+    fileCount: asNum(d.file_count),
+    folderCount: asNum(d.folder_count),
     createdAt: asStr(d.created_at),
   };
 }
-export async function listFolders(): Promise<WorkspaceFolder[]> {
-  return listFrom(await http("/workspace/folders"), "folders", "items", "data").map(normFolder);
+export type WorkspaceFolderFilter = { parentId?: string; starred?: boolean; caseId?: string };
+function workspaceQuery(f?: Record<string, string | boolean | undefined>): string {
+  if (!f) return "";
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(f)) if (v != null && v !== "") qs.set(k, String(v));
+  const q = qs.toString();
+  return q ? `?${q}` : "";
 }
-export async function createFolder(input: { name: string; parent_id?: string; case_id?: string }): Promise<WorkspaceFolder> {
+export async function listFolders(f?: WorkspaceFolderFilter): Promise<WorkspaceFolder[]> {
+  const q = workspaceQuery({ parent_id: f?.parentId, starred: f?.starred, case_id: f?.caseId });
+  return listFrom(await http(`/workspace/folders${q}`), "folders", "items", "data").map(normFolder);
+}
+export async function createFolder(input: { name: string; parent_id?: string; case_id?: string; starred?: boolean }): Promise<WorkspaceFolder> {
   return normFolder(await http("/workspace/folders", { method: "POST", body: JSON.stringify(input) }));
 }
-export async function deleteFolder(id: string): Promise<void> {
-  await http(`/workspace/folders/${id}`, { method: "DELETE" });
+export type WorkspaceFolderPatch = Partial<{ name: string; parent_id: string | null; case_id: string | null; starred: boolean; status: "active" | "archived" }>;
+export async function updateFolder(id: string, patch: WorkspaceFolderPatch): Promise<WorkspaceFolder> {
+  return normFolder(await http(`/workspace/folders/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(patch) }));
+}
+export type FolderDeleteResult = { deleted: boolean; id: string; deletedFolders: number; deletedFiles: number };
+export async function deleteFolder(id: string): Promise<FolderDeleteResult> {
+  const d = asDict(await http(`/workspace/folders/${id}`, { method: "DELETE" }));
+  return { deleted: d.deleted !== false, id: asStr(d.id, id), deletedFolders: asNum(d.deleted_folders), deletedFiles: asNum(d.deleted_files) };
 }
 
 export type WorkspaceFile = {
@@ -4671,6 +4703,9 @@ export type WorkspaceFile = {
   downloadUrl: string; // absolute backend URL (needs auth or a signed token)
   mimeType: string;
   size: number;
+  extension: string;
+  starred: boolean;
+  status: string;
   createdAt: string;
   // Antivirus scan (LEXGO_BACKEND_PRODUCTION_POLICY_UPDATE): required / status / engine / issues.
   scan?: { required: boolean; status: string; engine: string; issues: string[]; scannedAt: string };
@@ -4688,6 +4723,9 @@ function normFile(v: unknown): WorkspaceFile {
     downloadUrl: asStr(d.download_url),
     mimeType: asStr(d.mime_type),
     size: asNum(d.size),
+    extension: asStr(d.extension),
+    starred: Boolean(d.starred),
+    status: asStr(d.status, "active"),
     createdAt: asStr(d.created_at),
   };
 }
@@ -4698,8 +4736,10 @@ export async function getWorkspaceFileSignedUrl(fileId: string): Promise<SignedF
   const d = asDict(await http(`/workspace/files/${encodeURIComponent(fileId)}/signed-url`, { method: "POST" }));
   return { url: asStr(d.url ?? d.download_url), relativeUrl: asStr(d.relative_url), expiresAt: asStr(d.expires_at), expiresInSeconds: asNum(d.expires_in_seconds) || 900 };
 }
-export async function listFiles(): Promise<WorkspaceFile[]> {
-  return listFrom(await http("/workspace/files"), "files", "items", "data").map(normFile);
+export type WorkspaceFileFilter = { folderId?: string; caseId?: string; starred?: boolean; q?: string };
+export async function listFiles(f?: WorkspaceFileFilter): Promise<WorkspaceFile[]> {
+  const q = workspaceQuery({ folder_id: f?.folderId, case_id: f?.caseId, starred: f?.starred, q: f?.q });
+  return listFrom(await http(`/workspace/files${q}`), "files", "items", "data").map(normFile);
 }
 export async function createFile(input: {
   file_name: string;
@@ -4711,23 +4751,51 @@ export async function createFile(input: {
 }): Promise<WorkspaceFile> {
   return normFile(await http("/workspace/files", { method: "POST", body: JSON.stringify(input) }));
 }
+export type WorkspaceFilePatch = Partial<{ file_name: string; folder_id: string | null; case_id: string | null; starred: boolean; status: "active" | "archived" }>;
+export async function updateFile(id: string, patch: WorkspaceFilePatch): Promise<WorkspaceFile> {
+  return normFile(await http(`/workspace/files/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(patch) }));
+}
 export async function deleteFile(id: string): Promise<void> {
   await http(`/workspace/files/${id}`, { method: "DELETE" });
 }
 
 // Real multipart upload (field "file"). http() forces JSON, so send raw here.
-export async function uploadWorkspaceFile(file: File, opts?: { folderId?: string }): Promise<WorkspaceFile> {
+// POST /workspace/files/upload (2026-09-20 backend) — not /workspace/files.
+export async function uploadWorkspaceFile(file: File, opts?: { folderId?: string; caseId?: string }): Promise<WorkspaceFile> {
   const fd = new FormData();
   fd.append("file", file);
   if (opts?.folderId) fd.append("folder_id", opts.folderId);
+  if (opts?.caseId) fd.append("case_id", opts.caseId);
   const token = getToken();
-  const res = await fetch(`${API_BASE}/workspace/files`, {
+  const res = await fetch(`${API_BASE}/workspace/files/upload`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: fd,
   });
   if (!res.ok) throw new ApiError(res.status, `upload_${res.status}`);
   return normFile(await res.json());
+}
+
+// GET /workspace/quota — 1GB per approved seller.
+export type WorkspaceQuota = { quotaBytes: number; usedBytes: number; remainingBytes: number; limitGb: number };
+function normQuota(v: unknown): WorkspaceQuota {
+  const d = asDict(v);
+  return { quotaBytes: asNum(d.quota_bytes), usedBytes: asNum(d.used_bytes), remainingBytes: asNum(d.remaining_bytes), limitGb: asNum(d.limit_gb, 1) };
+}
+export async function getWorkspaceQuota(): Promise<WorkspaceQuota> {
+  return normQuota(await http("/workspace/quota"));
+}
+// GET /workspace/tree — every folder + file (flat, parent_id-linked) plus
+// quota in one call; the File Manager page navigates/filters this client-side
+// rather than re-fetching per folder.
+export type WorkspaceTree = { folders: WorkspaceFolder[]; files: WorkspaceFile[]; quota: WorkspaceQuota };
+export async function getWorkspaceTree(caseId?: string): Promise<WorkspaceTree> {
+  const d = asDict(await http(`/workspace/tree${workspaceQuery({ case_id: caseId })}`));
+  return {
+    folders: asArr(d.folders).map(normFolder),
+    files: asArr(d.files).map(normFile),
+    quota: normQuota(d.quota),
+  };
 }
 
 // ── Platform policies (GET /platform/policies, public) ────────────

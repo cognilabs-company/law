@@ -11,7 +11,8 @@ import SearchSelect from "@/components/SearchSelect";
 import CallRoom from "@/components/chat/CallRoom";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { IconVideo, IconClock, IconRefresh, IconUsers } from "@/components/icons";
+import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
+import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal } from "@/components/icons";
 
 type Active = { roomId: string; callId: string; isCaller: boolean; title?: string; lk: { url: string; room: string; token: string } | null };
 
@@ -59,7 +60,10 @@ async function loadHistory(): Promise<HistoryItem[]> {
 // seller portals: name the meeting, pick invitees, start → the LiveKit room
 // opens inline. Below it, the meetings this account hosted or was invited to,
 // active ones first with a re-join button.
-export default function MeetingLauncher() {
+// `rich`: the fuller portal layout (hero, stat tiles, today's agenda, mini
+// calendar, history as a table) — opt-in so the shared admin/call-center
+// usage of this same launcher keeps its plain, compact layout unchanged.
+export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const t = useTranslations("admin.meetings");
   const tc = useTranslations("call");
   const locale = useLocale();
@@ -190,6 +194,19 @@ export default function MeetingLauncher() {
   const statusOf = (s: string) => (t.has(`callStatus.${s}`) ? t(`callStatus.${s}`) : s);
   const mineOf = (s: string) => (tc.has(`pstatus.${s}`) ? tc(`pstatus.${s}`) : s);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayItems = (history ?? []).filter((c) => c.startedAt && c.startedAt.slice(0, 10) === todayStr);
+  const calEvents: MiniCalEvent[] = (history ?? [])
+    .filter((c) => c.startedAt)
+    .map((c) => ({ id: c.callId, date: c.startedAt, label: c.title || t("untitled"), sub: c.callerName || undefined }));
+  const durationOf = (c: HistoryItem) => {
+    if (!c.startedAt || !c.autoEndAt) return "";
+    const ms = new Date(c.autoEndAt).getTime() - new Date(c.startedAt).getTime();
+    if (!Number.isFinite(ms) || ms <= 0) return "";
+    const mins = Math.round(ms / 60000);
+    return mins >= 60 ? t("durationHour", { n: (mins / 60).toFixed(1) }) : t("durationMin", { n: mins });
+  };
+
   const row = (c: HistoryItem) => {
     const isLive = LIVE.has(c.callStatus);
     const mine = c.callerUserId === session?.id;
@@ -215,38 +232,200 @@ export default function MeetingLauncher() {
     );
   };
 
-  return (
-    <div className="mlaunch">
-      <div className="ppanel">
-        <div className="ppanel__h">
-          <b className="ppanel__t"><span className="pico"><IconVideo /></span>{t("title")}</b>
-        </div>
-        <p className="advmuted" style={{ marginBottom: 16 }}>{t("subtitle")}</p>
+  const createForm = (
+    <div className="ppanel">
+      <div className="ppanel__h">
+        <b className="ppanel__t"><span className="pico">{rich ? <IconPlus /> : <IconVideo />}</span>{rich ? t("createTitle") : t("title")}</b>
+      </div>
+      <p className="advmuted" style={{ marginBottom: 16 }}>{t("subtitle")}</p>
 
-        {!canHost ? <Notice ok={false} msg={t("noPermission")} /> : null}
-        <div className="cform" style={{ maxWidth: 560 }}>
-          <div>
-            <label>{t("titleLabel")}</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} />
-          </div>
-          <div>
-            <label>{t("participants")}</label>
-            <SearchSelect
-              value={picks}
-              onChange={setPicks}
-              onSearch={searchOptions}
-              placeholder={t("participantsPh")}
-              searchPlaceholder={t("participantsSearch")}
-              emptyText={t("participantsEmpty")}
-              ariaLabel={t("participants")}
-            />
-          </div>
-          <p className="advmuted" style={{ fontSize: ".82rem", margin: 0 }}>{seller ? t("sellerHint") : t("hint")}</p>
-          {err ? <Notice ok={false} msg={err} /> : null}
+      {!canHost ? <Notice ok={false} msg={t("noPermission")} /> : null}
+      <div className="cform" style={{ maxWidth: rich ? "none" : 560 }}>
+        <div>
+          <label>{t("titleLabel")}</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} />
+        </div>
+        <div>
+          <label>{t("participants")}</label>
+          <SearchSelect
+            value={picks}
+            onChange={setPicks}
+            onSearch={searchOptions}
+            placeholder={t("participantsPh")}
+            searchPlaceholder={t("participantsSearch")}
+            emptyText={t("participantsEmpty")}
+            ariaLabel={t("participants")}
+          />
+        </div>
+        <p className="advmuted" style={{ fontSize: ".82rem", margin: 0 }}>{seller ? t("sellerHint") : t("hint")}</p>
+        {err ? <Notice ok={false} msg={err} /> : null}
+        <div style={{ display: "flex", gap: 10 }}>
           <button className="btn btn--pri" type="button" onClick={start} disabled={busy || !canHost}>
             <IconVideo />
             {busy ? t("starting") : t("start")}
           </button>
+          {rich && (title || picks.length) ? (
+            <button className="btn btn--line" type="button" onClick={() => { setTitle(""); setPicks([]); }}>
+              <IconRefresh />
+              {t("clear")}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  const historyBody =
+    history === null ? (
+      <Skeleton rows={3} />
+    ) : histErr === "missing" ? (
+      <Notice ok={false} msg={t("backendMissing")} />
+    ) : histErr === "error" ? (
+      <Notice ok={false} msg={t("historyError")} />
+    ) : history.length === 0 ? (
+      <EmptyState icon={<IconUsers />} title={t("historyEmpty")} text={t("historyEmptyText")} />
+    ) : null;
+
+  if (!rich) {
+    return (
+      <div className="mlaunch">
+        {createForm}
+        <div className="ppanel">
+          <div className="ppanel__h">
+            <b className="ppanel__t"><span className="pico"><IconClock /></span>{t("history")}</b>
+            <button type="button" className="btn btn--line btn--sm" onClick={refreshHistory} disabled={history === null}>
+              <IconRefresh />{t("refresh")}
+            </button>
+          </div>
+          {historyBody ?? (
+            <div className="mlist">
+              {live.length ? (
+                <div className="mlist__grp">
+                  <span className="mlist__gl"><i className="mlist__dot" />{t("activeGroup")} · {live.length}</span>
+                  {live.map(row)}
+                </div>
+              ) : null}
+              {ended.length ? (
+                <div className="mlist__grp">
+                  <span className="mlist__gl">{t("endedGroup")} · {ended.length}</span>
+                  {ended.slice(0, 30).map(row)}
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const tableRow = (c: HistoryItem, i: number) => {
+    const isLive = LIVE.has(c.callStatus);
+    const mine = c.callerUserId === session?.id;
+    const canJoin = isLive && !OUT.has(c.status);
+    return (
+      <tr key={c.callId}>
+        <td>{i + 1}</td>
+        <td>
+          <b>{c.title || t("untitled")}</b>
+          <div className="advmuted" style={{ fontSize: ".78rem" }}>{mine ? t("hostedByYou") : t("hostedBy", { name: c.callerName || tc("someone") })}</div>
+        </td>
+        <td>
+          <span className="tavstack">
+            <span className="tavatar" style={{ background: "var(--grad)" }}>{(c.callerName || "?").slice(0, 2).toUpperCase()}</span>
+          </span>
+        </td>
+        <td>{c.startedAt ? shortDateTime(c.startedAt, locale) : "—"}</td>
+        <td>{durationOf(c) || "—"}</td>
+        <td>
+          <span className="fmticon">
+            <IconVideo />
+            {t(`formatLabel.${c.callType}`)}
+          </span>
+        </td>
+        <td><em className={`atag${isLive ? " atag--ok" : " atag--muted"}`}>{statusOf(c.callStatus)}</em></td>
+        <td>
+          {canJoin ? (
+            <button type="button" className="btn btn--pri btn--sm" onClick={() => rejoin(c)}>
+              <IconVideo />{c.status === "joined" || mine ? t("rejoin") : t("join")}
+            </button>
+          ) : (
+            <span style={{ display: "inline-flex", color: "var(--gray2)" }}><IconMoreHorizontal /></span>
+          )}
+        </td>
+      </tr>
+    );
+  };
+
+  return (
+    <div className="mlaunch">
+      <div className="mhero">
+        <span className="mhero__ico"><IconVideo /></span>
+        <div className="mhero__t">
+          <h2 className="psec-h">{t("title")}</h2>
+          <p>{t("subtitle")}</p>
+        </div>
+        <span className="mhero__art">
+          <span className="mhero__art-cal"><IconCalendar /></span>
+          <span className="mhero__art-vid"><IconVideo /></span>
+        </span>
+      </div>
+
+      {history !== null && !histErr ? (
+        <div className="pk">
+          <div className="pk__i pk__i--ic pk__i--active">
+            <span className="pk__ico"><IconCalendar /></span>
+            <b>{live.length}</b>
+            <span>{t("statLive")}</span>
+          </div>
+          <div className="pk__i pk__i--ic pk__i--neutral">
+            <span className="pk__ico"><IconCalendar /></span>
+            <b>{todayItems.length}</b>
+            <span>{t("statToday")}</span>
+          </div>
+          <div className="pk__i pk__i--ic pk__i--ok">
+            <span className="pk__ico"><IconClock /></span>
+            <b>{ended.length}</b>
+            <span>{t("statEnded")}</span>
+          </div>
+          <div className="pk__i pk__i--ic pk__i--warn">
+            <span className="pk__ico"><IconUsers /></span>
+            <b>{(history ?? []).length}</b>
+            <span>{t("statTotal")}</span>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mgrid3">
+        {createForm}
+
+        <div className="ppanel">
+          <div className="ppanel__h">
+            <b className="ppanel__t"><span className="pico"><IconCalendar /></span>{t("todayAgenda")}</b>
+          </div>
+          {history === null ? (
+            <Skeleton rows={2} />
+          ) : !todayItems.length ? (
+            <p className="advmuted">{t("todayEmpty")}</p>
+          ) : (
+            <div className="magenda">
+              {todayItems.map((c) => (
+                <div className="magenda__row" key={c.callId}>
+                  <span className="magenda__t">{c.startedAt ? new Date(c.startedAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : ""}</span>
+                  <div className="magenda__m">
+                    <b>{c.title || t("untitled")}</b>
+                    <span>{statusOf(c.callStatus)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="ppanel">
+          <div className="ppanel__h">
+            <b className="ppanel__t"><span className="pico"><IconCalendar /></span>{t("calendar")}</b>
+          </div>
+          <MiniCalendar events={calEvents} />
         </div>
       </div>
 
@@ -257,28 +436,25 @@ export default function MeetingLauncher() {
             <IconRefresh />{t("refresh")}
           </button>
         </div>
-        {history === null ? (
-          <Skeleton rows={3} />
-        ) : histErr === "missing" ? (
-          <Notice ok={false} msg={t("backendMissing")} />
-        ) : histErr === "error" ? (
-          <Notice ok={false} msg={t("historyError")} />
-        ) : history.length === 0 ? (
-          <EmptyState icon={<IconUsers />} title={t("historyEmpty")} text={t("historyEmptyText")} />
-        ) : (
-          <div className="mlist">
-            {live.length ? (
-              <div className="mlist__grp">
-                <span className="mlist__gl"><i className="mlist__dot" />{t("activeGroup")} · {live.length}</span>
-                {live.map(row)}
-              </div>
-            ) : null}
-            {ended.length ? (
-              <div className="mlist__grp">
-                <span className="mlist__gl">{t("endedGroup")} · {ended.length}</span>
-                {ended.slice(0, 30).map(row)}
-              </div>
-            ) : null}
+        {historyBody ?? (
+          <div className="ptable__wrap">
+            <table className="ptable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>{t("col.name")}</th>
+                  <th>{t("col.participants")}</th>
+                  <th>{t("col.date")}</th>
+                  <th>{t("col.duration")}</th>
+                  <th>{t("col.format")}</th>
+                  <th>{t("col.status")}</th>
+                  <th>{t("col.actions")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...live, ...ended.slice(0, 30)].map((c, i) => tableRow(c, i))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

@@ -33,6 +33,13 @@ const QUICK_ACTIONS = [
   { key: "askAi", icon: "IconSparkle", href: "/portal/client/ai" },
   { key: "upload", icon: "IconDownload", href: "/portal/client/doc-analysis" },
 ];
+const ACTION_SUB: Record<string, string> = {
+  describe: "describeSub",
+  findSpecialist: "findSpecialistSub",
+  consultation: "consultationSub",
+  askAi: "askAiSub",
+  upload: "uploadSub",
+};
 
 export default function ClientDashboard() {
   const t = useTranslations("portal.client.dashboard");
@@ -100,7 +107,10 @@ export default function ClientDashboard() {
             className={`cdact__i${a.primary ? " cdact__i--pri" : ""}`}
           >
             <span className="cdact__ico"><Icon name={a.icon} /></span>
-            {ta(a.key)}
+            <span>
+              {ta(a.key)}
+              <span className="cdact__sub">{ta(ACTION_SUB[a.key])}</span>
+            </span>
           </Link>
         ))}
       </div>
@@ -133,38 +143,52 @@ export default function ClientDashboard() {
         </div>
       ) : null}
 
-      <ReferralProgress side="client" href="/portal/client/referrals" />
-
-      {/* Active requests (backend) */}
-      <div className="ppanel">
-        <div className="ppanel__h">
-          <b>{t("requests")}</b>
-          <Link href="/portal/client/cases">{tc("viewAll")}</Link>
+      {/* Active requests (backend) + sidebar */}
+      <div className="cdgrid">
+        <div className="ppanel">
+          <div className="ppanel__h">
+            <b>{t("requests")}</b>
+            <Link href="/portal/client/cases">{tc("viewAll")}</Link>
+          </div>
+          {res.status === "loading" ? (
+            <Skeleton rows={3} />
+          ) : !res.data.length ? (
+            <EmptyState icon={<IconSparkle />} title={t("emptyTitle")} text={t("emptyText")} />
+          ) : (
+            res.data.map((c) => (
+              <div className="creq" key={c.id}>
+                <span className="creq__st" />
+                <div className="creq__m">
+                  <b>{c.caseType || c.caseNumber}</b>
+                  <span>{[statusLabel(tc, c.stage), c.caseNumber].filter(Boolean).join(" · ")}</span>
+                  {c.nextAction ? (
+                    <em className="creq__next">
+                      <IconArrowRight />
+                      {c.nextAction}
+                    </em>
+                  ) : null}
+                </div>
+                <div className="creq__side">
+                  <span className="creq__badge">{statusLabel(tc, c.status)}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
-        {res.status === "loading" ? (
-          <Skeleton rows={3} />
-        ) : !res.data.length ? (
-          <EmptyState icon={<IconSparkle />} title={t("emptyTitle")} text={t("emptyText")} />
-        ) : (
-          res.data.map((c) => (
-            <div className="creq" key={c.id}>
-              <span className="creq__st" />
-              <div className="creq__m">
-                <b>{c.caseType || c.caseNumber}</b>
-                <span>{[statusLabel(tc, c.stage), c.caseNumber].filter(Boolean).join(" · ")}</span>
-                {c.nextAction ? (
-                  <em className="creq__next">
-                    <IconArrowRight />
-                    {c.nextAction}
-                  </em>
-                ) : null}
-              </div>
-              <div className="creq__side">
-                <span className="creq__badge">{statusLabel(tc, c.status)}</span>
-              </div>
+        <div className="cdgrid__side">
+          <ReferralProgress side="client" href="/portal/client/referrals" />
+          <div className="aicard">
+            <div className="aicard__h">
+              <IconSparkle />
+              {t("sideAiTitle")}
             </div>
-          ))
-        )}
+            <p>{t("sideAiSub")}</p>
+            <Link href="/portal/client/ai" className="btn btn--glass btn--sm">
+              {t("sideAiCta")}
+              <IconArrowRight />
+            </Link>
+          </div>
+        </div>
       </div>
     </>
   );

@@ -712,6 +712,11 @@
       "tomorrow": "ertaga"
     },
     "empty": "Bu yo'nalishda hozircha advokat yo'q. Arizangizni qoldiring — mos advokatni biz topamiz.",
+    "heroBadge": "Ishonchli huquqiy yordam",
+    "heroQuote": "“To'g'ri huquqshunos — tinch hayot kafolati.”",
+    "heroQuoteAuthor": "LexGo",
+    "resultsCount": "{n} ta mutaxassis topildi",
+    "recommended": "Tavsiya etiladi",
     "priceInfo": "Narx ochiq mezonlar bo'yicha shakllanadi: hudud (yirik shaharlarda qimmatroq), staj (3–5 yil +10%, 6–10 yil +15%, 10+ yil +20%), reyting va super advokat maqomi (viloyat TOP-3 — 30% gacha, tor yo'nalishda 10+ yil tajriba — 20% gacha). Narx oshgan bo'lsa, sababi buyurtma oynasida yozib ko'rsatiladi.",
     "flow": [
       {
@@ -2337,7 +2342,10 @@
         "matchSub": "So'rovingiz asosida ushbu mutaxassislar eng mos keladi.",
         "match": "moslik",
         "emptyTitle": "Faol so'rov yo'q",
-        "emptyText": "Boshlash uchun yuqorida muammoni yozing."
+        "emptyText": "Boshlash uchun yuqorida muammoni yozing.",
+        "sideAiTitle": "Yordam kerakmi?",
+        "sideAiSub": "Savolingiz bo'lsa, AI yordamchisi bilan suhbatlashing — tez va maxfiy.",
+        "sideAiCta": "AI bilan suhbatlashish"
       },
       "cases": {
         "title": "So'rovlarim",
@@ -2888,11 +2896,16 @@
       },
       "actions": {
         "describe": "Muammoni tavsiflash",
+        "describeSub": "AI yordamida yechim toping",
         "findSpecialist": "Mutaxassis topish",
+        "findSpecialistSub": "Tasdiqlangan advokat va yuristlar",
         "consultation": "Konsultatsiya olish",
+        "consultationSub": "Onlayn yoki oflayn",
         "track": "So'rovni kuzatish",
         "askAi": "LexGo Sun'iy intellekt'dan so'rash",
-        "upload": "Hujjat yuklash"
+        "askAiSub": "AI bilan suhbat",
+        "upload": "Hujjat yuklash",
+        "uploadSub": "Tahlil va tekshiruv"
       },
       "services": {
         "title": "Xizmat buyurtma qilish",
@@ -3157,7 +3170,38 @@
         "performanceEmptyText": "Ko'rishlar, bog'lanishlar va reyting shu yerda ko'rinadi.",
         "opportunitiesEmpty": "Hozircha imkoniyat yo'q",
         "opportunitiesEmptyText": "Mos mijoz so'rovlari shu yerda paydo bo'ladi.",
-        "boostSub": "Ko'rinuvchanligingizni oshiring va ko'proq mijozga yeting."
+        "boostSub": "Ko'rinuvchanligingizni oshiring va ko'proq mijozga yeting.",
+        "heroTitle": "Adolat yo'lida, har kuni.",
+        "heroSub": "Sizning professional platformangiz — mijozlar, ishlar, hujjatlar va imkoniyatlar bir joyda.",
+        "quote": "“Qonun — bu erkinlikning mustahkam poydevori.”",
+        "quoteAuthor": "Sitseron",
+        "greetSub": "Bugun {meetings} ta uchrashuv va {tasks} ta vazifa kutmoqda.",
+        "statClients": "Mijozlar",
+        "statCases": "Faol ishlar",
+        "statMeetings": "Bugungi uchrashuvlar",
+        "statDocs": "Hujjatlar",
+        "quickActions": "Tezkor amallar",
+        "quickClient": "Yangi mijoz qo'shish",
+        "quickCase": "Yangi ish ochish",
+        "quickDoc": "Hujjat yuklash",
+        "quickMeeting": "Uchrashuv belgilash",
+        "myTasks": "Mening vazifalarim",
+        "tab_today": "Bugun ({n})",
+        "tab_upcoming": "Kelingusi ({n})",
+        "tab_done": "Bajarilgan ({n})",
+        "tasksEmpty": "Bu bo'limda vazifa yo'q.",
+        "calendar": "Kalendar",
+        "recentActivity": "So'nggi faollik",
+        "activityEmpty": "Hozircha faollik yo'q.",
+        "aiTitle": "LexGo AI",
+        "aiBeta": "Beta",
+        "aiSub": "Hujjatlarni tahlil qiling, maslahat oling, qonunlarni tez toping.",
+        "aiCta": "AI yordamchisini ochish",
+        "checkBasics": "Asosiy ma'lumotlar",
+        "checkId": "Identifikatsiya",
+        "checkDocs": "Hujjatlar",
+        "checkServices": "Xizmatlar",
+        "checkPricing": "Narxlar"
       },
       "opportunities": {
         "title": "Yangi imkoniyatlar",
@@ -3328,6 +3372,9 @@
         "month": "shu oy",
         "today": "bugun"
       }
+    },
+    "miniCal": {
+      "empty": "Yaqin kunlarda reja yo'q"
     },
     "sellerDash": {
       "today": "Bugun",
@@ -3634,7 +3681,6 @@
       "navAll": "Barcha fayllar",
       "navRecent": "So'nggilar",
       "navStarred": "Yulduzchali",
-      "navShared": "Ulashilgan",
       "storageLabel": "Xotira",
       "storageUsed": "{used} / {total} ishlatilgan",
       "searchPh": "Fayl yoki papka qidirish…",
@@ -3659,12 +3705,18 @@
       "renameTitle": "Nomini o'zgartirish",
       "save": "Saqlash",
       "deleteConfirm": "\"{name}\" o'chirilsinmi?",
-      "sharedWith": "{n} kishi bilan ulashilgan",
       "modified": "O'zgartirilgan",
       "folders": "Papkalar",
       "recentEmpty": "So'nggi fayllar yo'q",
       "starredEmpty": "Yulduzchali elementlar yo'q",
-      "sharedEmpty": "Ulashilgan elementlar yo'q"
+      "forbiddenTitle": "Hali ochilmagan",
+      "forbiddenText": "Ish maydoni administrator tasdig'idan keyin ochiladi.",
+      "loadError": "Fayllarni yuklab bo'lmadi. Qayta urinib ko'ring.",
+      "actionError": "Amalni bajarib bo'lmadi. Qayta urinib ko'ring.",
+      "quotaExceeded": "Xotira chegarasi to'ldi. Fayl hajmi yoki miqdorini kamaytiring.",
+      "uploadError": "{n} ta faylni yuklab bo'lmadi.",
+      "uploading": "Yuklanmoqda…",
+      "saving": "Saqlanmoqda…"
     },
     "passport": {
       "title": "Xizmat pasporti",
@@ -4246,7 +4298,37 @@
       "pendingNote": "Tugmani bossangiz, tanlovingiz saqlanadi. Joriy holat hozircha faqat shu qurilmada ko'rsatiladi.",
       "localNote": "Sozlama shu qurilmada saqlangan",
       "saved": "Sozlama saqlandi.",
-      "saveError": "Sozlamani saqlab bo'lmadi."
+      "saveError": "Sozlamani saqlab bo'lmadi.",
+      "noneHint": "Hozirda hech qanday tarif ulanmagan.",
+      "nextChargeHintEmpty": "Tarif ulanganidan so'ng ko'rsatiladi.",
+      "cardHintEmpty": "To'lovlar uchun karta qo'shing."
+    },
+    "recommended": "Tavsiya etiladi",
+    "sidebar": {
+      "secureTitle": "Xavfsiz to'lovlar",
+      "secureText": "To'lovlar ATMOS orqali amalga oshiriladi. Sizning kartangiz ma'lumotlari bizda saqlanmaydi.",
+      "cancelTitle": "Istalgan paytda bekor qilish",
+      "cancelText": "Xohlagan vaqtda tarifni bekor qilishingiz mumkin.",
+      "supportTitle": "Doimiy qo'llab-quvvatlash",
+      "supportText": "Savollaringiz bormi? Biz har doim yordam berishga tayyormiz.",
+      "ask": "Savol berish"
+    },
+    "compare": {
+      "title": "Tariflar taqqoslanishi",
+      "rowLabel": "Imkoniyatlar",
+      "rowPrice": "Narx",
+      "rowRequests": "AI so'rovlar (oyiga)",
+      "rowFeatures": "Imkoniyatlar soni"
+    },
+    "faq": {
+      "title": "Tez-tez beriladigan savollar",
+      "items": [
+        { "q": "To'lov qanday amalga oshiriladi?" },
+        { "q": "Tarifni istalgan vaqtda bekor qila olamanmi?" },
+        { "q": "Karta ma'lumotlarim xavfsizmi?" },
+        { "q": "Free tarifda nimalar mavjud?" },
+        { "q": "Pro tarif qanday afzallik beradi?" }
+      ]
     },
     "title": "Paket tariflar",
     "subtitle": "Ko'rinuvchanligingizni oshiring va ko'proq mijoz yutib oling.",
@@ -4923,7 +5005,31 @@
       "ccTitle": "Video uchrashuv · {name}",
       "ccError": "Uchrashuvni ochib bo'lmadi. Qayta urining.",
       "ccNoUser": "Bu telefon raqami bilan platformada foydalanuvchi topilmadi — mijoz avval ro'yxatdan o'tishi kerak.",
-      "ccSelf": "O'zingiz bilan uchrashuv ochib bo'lmaydi."
+      "ccSelf": "O'zingiz bilan uchrashuv ochib bo'lmaydi.",
+      "createTitle": "Yangi uchrashuv yaratish",
+      "clear": "Tozalash",
+      "statLive": "Yaqin uchrashuvlar",
+      "statToday": "Bugun",
+      "statEnded": "Tugallangan",
+      "statTotal": "Jami uchrashuvlar",
+      "todayAgenda": "Bugungi uchrashuvlar",
+      "todayEmpty": "Bugunga uchrashuv yo'q.",
+      "calendar": "Kalendar",
+      "col": {
+        "name": "Uchrashuv nomi",
+        "participants": "Ishtirokchilar",
+        "date": "Sana",
+        "duration": "Davomiyligi",
+        "format": "Format",
+        "status": "Holat",
+        "actions": "Amallar"
+      },
+      "formatLabel": {
+        "video": "Video",
+        "audio": "Audio"
+      },
+      "durationHour": "{n} soat",
+      "durationMin": "{n} daq"
     },
     "callHistory": {
       "title": "Uchrashuvlar tarixi",

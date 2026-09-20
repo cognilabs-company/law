@@ -1538,6 +1538,8 @@ body:has(.rf) .fab{display:none}
 .splan--current{border-color:var(--ok)}
 .splan__ribbon{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--grad);color:#fff;font-size:.7rem;font-weight:800;
   letter-spacing:.06em;text-transform:uppercase;padding:5px 14px;border-radius:var(--pill);white-space:nowrap}
+.splan__ribbon--current{background:var(--ok)}
+.splan--current{border-color:var(--ok);box-shadow:0 0 0 3px rgba(0,168,112,.14)}
 .splan__name{display:flex;align-items:center;gap:7px;font-family:var(--fd);font-size:1.2rem}
 .splan__name svg{width:18px;height:18px;stroke:var(--dk-txt-warn, #F5A623);fill:var(--dk-txt-warn, #F5A623)}
 .splan__tag{display:block;font-size:.84rem;color:var(--gray);margin-top:4px}
@@ -1548,6 +1550,42 @@ body:has(.rf) .fab{display:none}
 .splan__feats li{display:flex;gap:9px;align-items:flex-start;font-size:.88rem}
 .splan__feats svg{width:16px;height:16px;flex:none;margin-top:2px;stroke:var(--ok);stroke-width:3}
 @media (max-width:860px){.plans__grid{grid-template-columns:1fr}.splan--feat{transform:none}}
+
+/* Subscription page: top summary cards (current plan / next charge / card) */
+.subs__top{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+.subs__topcard{display:flex;align-items:center;gap:14px;background:var(--dk-surface, #fff);border-radius:var(--rl);padding:18px;box-shadow:inset 0 0 0 1.5px var(--line)}
+.subs__topico{width:44px;height:44px;border-radius:12px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center;flex:none}
+.subs__topico svg{width:21px;height:21px}
+.subs__topico--crown{background:linear-gradient(135deg,#FFE9B8,#F5A623);color:#7A4B00}
+.subs__topl{display:block;font-size:.78rem;color:var(--gray);margin-bottom:2px}
+.subs__topcard b{display:block;font-family:var(--fd);font-size:1rem;letter-spacing:-.01em}
+.subs__tops{display:block;font-size:.76rem;color:var(--gray2);margin-top:2px}
+@media (max-width:860px){.subs__top{grid-template-columns:1fr}}
+
+/* Two-column layout: plans grid (left) + benefits sidebar (right) */
+.subs__layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.subs__layout .plans__grid{margin-bottom:0}
+.subs__side{display:flex;flex-direction:column;gap:16px;background:var(--dk-surface, #fff);border-radius:var(--rl);padding:20px;box-shadow:inset 0 0 0 1.5px var(--line)}
+.benefit{display:flex;gap:12px;align-items:flex-start}
+.benefit__ico{width:38px;height:38px;border-radius:11px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center;flex:none}
+.benefit__ico svg{width:18px;height:18px}
+.benefit b{display:block;font-size:.9rem;margin-bottom:2px}
+.benefit p{margin:0;font-size:.8rem;color:var(--gray);line-height:1.4}
+@media (max-width:1100px){.subs__layout{grid-template-columns:1fr}.subs__side{flex-direction:row;flex-wrap:wrap}.benefit{flex:1 1 220px}}
+
+/* Plan-tier icon badge (Free/Lite/Pro), shown above the plan name */
+.splan__icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;margin-bottom:10px}
+.splan__icon svg{width:20px;height:20px}
+.splan__icon--free{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
+.splan__icon--lite{background:var(--b100);color:var(--dk-acc, var(--b600))}
+.splan__icon--pro{background:linear-gradient(135deg,#FFE9B8,#F5A623);color:#7A4B00}
+
+/* Comparison table + FAQ row below the plan grid */
+.subs__bottom{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start;margin-top:26px}
+@media (max-width:980px){.subs__bottom{grid-template-columns:1fr}}
+.faqrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 0;border-bottom:1px solid var(--line);font-size:.88rem;font-weight:600;color:var(--ink)}
+.faqrow:last-child{border-bottom:0;padding-bottom:0}
+.faqrow svg{width:16px;height:16px;stroke:var(--gray2);flex:none}
 
 /* table */
 .ptable{width:100%}
@@ -1642,6 +1680,118 @@ body:has(.rf) .fab{display:none}
 .pempty p{margin:0;font-size:.88rem;max-width:34ch}
 @media (max-width:860px){.amet{grid-template-columns:repeat(2,1fr)}}
 
+/* Advocate dashboard hero: kicker+title | quote | greeting+date, three panels
+   inside the same dark gradient banner. */
+.dhero{background:var(--grad-dark);border-radius:var(--rl);padding:clamp(20px,3vw,28px);color:#fff;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:center}
+.dhero__k{font-size:.74rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--cy)}
+.dhero__main h2{margin:6px 0 0}
+.dhero__main p{margin:8px 0 0;color:#B7CDEC;font-size:.92rem;max-width:40ch}
+.dhero__quote{position:relative;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:var(--r);padding:16px 18px;backdrop-filter:blur(6px)}
+.dhero__quote p{margin:0;font-size:.94rem;line-height:1.5;color:#fff;font-style:italic}
+.dhero__quote span{display:block;margin-top:10px;font-size:.8rem;color:#9FB4D4}
+.dhero__greet{border-left:1px solid rgba(255,255,255,.16);padding-left:22px;display:flex;flex-direction:column;gap:4px}
+.dhero__date{font-size:.78rem;color:#9FB4D4;font-weight:600}
+.dhero__greet b{font-family:var(--fd);font-size:1.1rem;letter-spacing:-.01em}
+.dhero__greet p{margin:2px 0 0;font-size:.86rem;color:#C4DEFF}
+@media (max-width:980px){.dhero{grid-template-columns:1fr}.dhero__greet{border-left:0;border-top:1px solid rgba(255,255,255,.16);padding-left:0;padding-top:16px}}
+
+/* Dashboard grid rows: 2-col (completeness + quick actions), 3-col (tasks + calendar + activity/AI) */
+.dgrid2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:stretch}
+.dgrid3{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:16px;align-items:start}
+.dgrid3__col{display:flex;flex-direction:column;gap:16px}
+@media (max-width:980px){.dgrid2,.dgrid3{grid-template-columns:1fr}}
+
+/* Profile-completeness card: ring | text+cta | checklist */
+.pcompl{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.pcompl__mid{flex:1;min-width:180px;display:flex;flex-direction:column;gap:4px}
+.pcompl__mid b{font-family:var(--fd);font-size:1.02rem}
+.pcompl__mid p{margin:0;font-size:.86rem;color:var(--gray);max-width:40ch}
+.pcompl__mid .btn{align-self:flex-start;margin-top:6px}
+.pcompl__list{display:flex;flex-direction:column;gap:9px;flex:none}
+.pcompl__list span{display:flex;align-items:center;gap:8px;font-size:.86rem;color:var(--gray2);font-weight:600}
+.pcompl__list span svg{width:17px;height:17px;flex:none;stroke:var(--gray2)}
+.pcompl__list span.on{color:var(--ink)}
+.pcompl__list span.on svg{stroke:var(--ok);fill:var(--dk-tint-ok, #E1F6EE)}
+@media (max-width:640px){.pcompl{flex-direction:column;align-items:flex-start}}
+
+/* Quick actions: centered icon tile, used on the advocate/lawyer dashboard */
+.qact{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.qact__i{display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;padding:16px 10px;border-radius:var(--rl);background:var(--b50);color:var(--ink);font-size:.85rem;font-weight:600;transition:.18s}
+.qact__i:hover{background:var(--b100);transform:translateY(-2px)}
+.qact__ico{width:42px;height:42px;border-radius:12px;background:var(--dk-surface, #fff);color:var(--dk-acc, var(--b600));display:grid;place-items:center;box-shadow:var(--s1)}
+.qact__ico svg{width:20px;height:20px}
+@media (max-width:640px){.qact{grid-template-columns:repeat(2,1fr)}}
+
+/* Task list with tabs (Bugun / Kelingusi / Bajarilgan) */
+.dtabs{display:inline-flex;gap:4px;padding:4px;background:var(--b50);border:1px solid var(--line);border-radius:12px;margin-bottom:2px}
+.dtabs button{border:0;background:transparent;padding:8px 14px;border-radius:9px;font-size:.84rem;font-weight:700;color:var(--gray);cursor:pointer;white-space:nowrap}
+.dtabs button[aria-selected=true]{background:var(--dk-surface, #fff);color:var(--dk-acc-strong, var(--b700));box-shadow:var(--s1)}
+.dtask{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line)}
+.dtask:last-child{border-bottom:0;padding-bottom:0}
+.dtask__dot{width:9px;height:9px;border-radius:50%;background:var(--b400);flex:none}
+.dtask__dot--done{background:var(--ok)}
+.dtask__m{flex:1;min-width:0}
+.dtask__m b{display:block;font-size:.9rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dtask__m span{font-size:.78rem;color:var(--gray2)}
+.dtask__t{font-size:.78rem;color:var(--gray2);display:inline-flex;align-items:center;gap:5px;white-space:nowrap;flex:none}
+.dtask__t svg{width:13px;height:13px}
+.dtask__badge{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:var(--pill);white-space:nowrap;flex:none}
+
+/* Mini calendar card (month grid + agenda) */
+.minical__title{font-family:var(--fd);font-weight:800;font-size:.98rem;margin-bottom:10px}
+.minical__wd{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px}
+.minical__wd span{text-align:center;font-size:.66rem;font-weight:700;text-transform:uppercase;color:var(--gray2)}
+.minical__grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:14px}
+.minical__d{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:.78rem;color:var(--gray)}
+.minical__d.on{background:var(--b600);color:#fff;font-weight:700}
+.minical__d.has::after{content:"";position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:var(--dk-acc, var(--b600))}
+.minical__d.on.has::after{background:#fff}
+.minical__agenda{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.minical__ev{display:flex;align-items:flex-start;gap:9px}
+.minical__evt{font-size:.78rem;font-weight:700;color:var(--dk-acc-strong, var(--b700));min-width:42px}
+.minical__dot{width:7px;height:7px;border-radius:50%;background:var(--b500);margin-top:6px;flex:none}
+.minical__evm{flex:1;min-width:0}
+.minical__evm b{display:block;font-size:.85rem;font-weight:600}
+.minical__evm span{font-size:.76rem;color:var(--gray2)}
+.minical__empty{display:flex;align-items:center;gap:8px;font-size:.84rem;color:var(--gray2)}
+.minical__empty svg{width:15px;height:15px}
+
+/* Recent-activity feed */
+.dactivity{display:flex;flex-direction:column;gap:2px}
+.dactivity__row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--line)}
+.dactivity__row:last-child{border-bottom:0;padding-bottom:0}
+.dactivity__ico{width:34px;height:34px;border-radius:10px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center;flex:none}
+.dactivity__ico svg{width:16px;height:16px}
+.dactivity__m{flex:1;min-width:0}
+.dactivity__m b{display:block;font-size:.86rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dactivity__m span{font-size:.76rem;color:var(--gray2)}
+.dactivity__ago{font-size:.76rem;color:var(--gray2);white-space:nowrap;flex:none}
+
+/* Lawyers directory hero (portal "Advokat va yuristlar" page only) */
+.lawhero{background:linear-gradient(135deg,var(--b50) 0%,var(--dk-surface, #fff) 70%);border:1px solid var(--line);border-radius:var(--rx);padding:clamp(20px,3vw,30px);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;margin-bottom:20px}
+.lawhero__badge{display:inline-flex;align-items:center;gap:7px;background:var(--b100);color:var(--dk-acc-strong, var(--b700));font-size:.74rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:6px 13px;border-radius:var(--pill)}
+.lawhero__badge svg{width:14px;height:14px}
+.lawhero h2{margin:10px 0 0}
+.lawhero p{margin:8px 0 0;max-width:56ch}
+.lawhero__quote{background:var(--dk-surface, #fff);border:1px solid var(--line);border-radius:var(--r);padding:16px 20px;max-width:280px;box-shadow:var(--s1)}
+.lawhero__quote p{margin:0;font-style:italic;font-size:.92rem;color:var(--ink);max-width:none}
+.lawhero__quote span{display:block;margin-top:8px;font-size:.8rem;color:var(--gray2);text-align:right}
+@media (max-width:760px){.lawhero{grid-template-columns:1fr}.lawhero__quote{max-width:none}}
+
+/* Results count row above the directory grid */
+.lawres{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 14px;font-size:.9rem;color:var(--gray)}
+.lawres b{color:var(--ink);font-family:var(--fd)}
+.advcard{position:relative}
+.advcard__ribbon{position:absolute;top:10px;left:10px;z-index:3;display:inline-flex;align-items:center;gap:4px;background:#F5A623;color:#3A2400;font-size:.68rem;font-weight:800;letter-spacing:.02em;padding:4px 10px;border-radius:var(--pill);box-shadow:var(--s1)}
+.advcard__ribbon svg{width:11px;height:11px;stroke:#3A2400;fill:#3A2400}
+
+/* AI assistant promo card (dashboard corner widget) */
+.aicard{background:var(--grad-dark);border-radius:var(--rl);padding:20px;color:#fff;display:flex;flex-direction:column;gap:10px}
+.aicard__h{display:flex;align-items:center;gap:8px;font-family:var(--fd);font-weight:800;font-size:.98rem}
+.aicard__h .chip{background:rgba(255,255,255,.16);color:#fff;font-size:.68rem}
+.aicard p{margin:0;font-size:.85rem;color:#C4DEFF;line-height:1.5}
+.aicard .btn{margin-top:4px}
+
 /* ── Client WOW dashboard ── */
 .cdhero{position:relative;overflow:hidden;background:var(--grad-dark);border-radius:var(--rx);padding:clamp(26px,4vw,44px);color:#fff}
 .cdhero__glow{position:absolute;inset:0;background:radial-gradient(50% 80% at 80% 0%,rgba(0,207,232,.28),transparent 60%),radial-gradient(40% 60% at 0% 100%,rgba(22,104,240,.35),transparent 60%);pointer-events:none}
@@ -1690,8 +1840,15 @@ body:has(.rf) .fab{display:none}
 .cdact__ico svg{width:21px;height:21px}
 .cdact__i--pri{background:var(--grad);color:#fff;border:0}
 .cdact__i--pri .cdact__ico{background:rgba(255,255,255,.2);color:#fff}
+.cdact__sub{display:block;font-size:.76rem;font-weight:500;color:var(--gray2);margin-top:-4px}
+.cdact__i--pri .cdact__sub{color:rgba(255,255,255,.8)}
 @media (max-width:1100px){.cdact{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:560px){.cdact{grid-template-columns:repeat(2,1fr)}}
+
+/* Client dashboard body: requests list (wide) + sidebar (referral, AI nudge) */
+.cdgrid{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
+.cdgrid__side{display:flex;flex-direction:column;gap:16px}
+@media (max-width:980px){.cdgrid{grid-template-columns:1fr}}
 
 /* Journey visualization — signature LexGo step path */
 .jcard{background:linear-gradient(180deg,var(--dk-surface, #fff) 0%,var(--b50) 100%);border:1px solid var(--line)}
@@ -4226,6 +4383,39 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .mlist__m span{font-size:.78rem;color:var(--gray)}
 .mlist__row .btn svg{width:15px;height:15px}
 @media (max-width:560px){.mlist__row .btn{width:100%;justify-content:center}}
+
+/* Meetings page — "rich" hero + icon-built illustration (portal only) */
+.mhero{background:linear-gradient(135deg,var(--b50) 0%,var(--dk-surface, #fff) 70%);border:1px solid var(--line);border-radius:var(--rx);padding:clamp(18px,3vw,26px);display:flex;align-items:center;gap:20px;margin-bottom:16px}
+.mhero__ico{width:60px;height:60px;border-radius:16px;background:var(--grad);color:#fff;display:grid;place-items:center;flex:none;box-shadow:var(--sblue)}
+.mhero__ico svg{width:28px;height:28px}
+.mhero__t{flex:1;min-width:0}
+.mhero__t h2{margin:0 0 4px}
+.mhero__t p{margin:0;color:var(--gray);max-width:54ch;font-size:.92rem}
+.mhero__art{width:66px;height:66px;position:relative;flex:none;display:none}
+@media (min-width:860px){.mhero__art{display:block}}
+.mhero__art-cal{width:66px;height:66px;border-radius:18px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center}
+.mhero__art-cal svg{width:30px;height:30px}
+.mhero__art-vid{position:absolute;bottom:-6px;right:-6px;width:30px;height:30px;border-radius:10px;background:var(--grad);color:#fff;display:grid;place-items:center;box-shadow:var(--s2)}
+.mhero__art-vid svg{width:15px;height:15px}
+
+/* Meetings layout: create-form | today's agenda | mini calendar, side by side */
+.mgrid3{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:16px;align-items:start;margin-bottom:16px}
+@media (max-width:1080px){.mgrid3{grid-template-columns:1fr}}
+.magenda{display:flex;flex-direction:column;gap:2px}
+.magenda__row{display:flex;align-items:center;gap:11px;padding:10px 4px;border-left:3px solid var(--b400);border-radius:0 10px 10px 0;background:var(--b50)}
+.magenda__row+.magenda__row{margin-top:8px}
+.magenda__t{font-size:.78rem;font-weight:800;color:var(--dk-acc-strong, var(--b700));min-width:42px}
+.magenda__m{flex:1;min-width:0}
+.magenda__m b{display:block;font-size:.87rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.magenda__m span{font-size:.76rem;color:var(--gray2)}
+
+/* History as a table (portal "rich" mode) */
+.tavatar{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.66rem;font-weight:800;color:#fff;flex:none;box-shadow:0 0 0 2px var(--dk-surface, #fff)}
+.tavatar+.tavatar{margin-left:-8px}
+.tavatar--more{background:var(--dk-surface-2, #EEF2F8);color:var(--gray2)}
+.tavstack{display:inline-flex;align-items:center}
+.ptable .fmticon{display:inline-flex;align-items:center;gap:6px}
+.ptable .fmticon svg{width:15px;height:15px;stroke:var(--gray2)}
 
 /* Call-center board: one-click video meeting with a client (CcMeetingButton). */
 .ccmeet{display:inline-grid;place-items:center;width:34px;height:34px;border:0;border-radius:10px;background:var(--b100);color:var(--dk-acc-strong, var(--b700));cursor:pointer;transition:background .15s,color .15s,transform .15s}
