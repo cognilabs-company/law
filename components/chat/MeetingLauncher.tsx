@@ -12,7 +12,7 @@ import CallRoom from "@/components/chat/CallRoom";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
-import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal } from "@/components/icons";
+import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone } from "@/components/icons";
 
 type Active = { roomId: string; callId: string; isCaller: boolean; title?: string; lk: { url: string; room: string; token: string } | null };
 
@@ -338,7 +338,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         <td>{durationOf(c) || "—"}</td>
         <td>
           <span className="fmticon">
-            <IconVideo />
+            {c.callType === "audio" ? <IconPhone /> : <IconVideo />}
             {t(`formatLabel.${c.callType}`)}
           </span>
         </td>
