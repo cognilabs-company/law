@@ -64,9 +64,16 @@ function answersFrom(r: DocumentRequest): Record<string, string> {
 export default function DocumentRequestPanel({
   initialReq,
   onBump,
+  onStartNew,
 }: {
   initialReq: DocumentRequest;
   onBump?: () => void;
+  // "Resume the existing request" (below) means a template you've already
+  // finished once always reopens that same finished copy — good for not
+  // re-charging a paid document, but it also means there was previously no
+  // way to fill the same template again with different facts (a different
+  // case, a different counterparty). This lets the "done" screen start over.
+  onStartNew?: () => void;
 }) {
   const t = useTranslations("portal.client.documents");
   const tcommon = useTranslations("common");
@@ -359,6 +366,11 @@ export default function DocumentRequestPanel({
             ) : null}
           </div>
           <small className="advmuted">{t("keptInCabinet")}</small>
+          {onStartNew ? (
+            <button className="rf__link" type="button" onClick={onStartNew}>
+              {t("startNew")}
+            </button>
+          ) : null}
           <div className="docoffer">
             <b>{t("offerTitle")}</b>
             <span>{t("offerLead")}</span>

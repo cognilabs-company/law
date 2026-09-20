@@ -2,7 +2,7 @@
 // authenticated user with the right permissions; the bearer token is attached
 // automatically by the shared http() layer.
 import { http, asDict, asStr, asArr, asNum, type Dict } from "@/lib/http";
-import { normDeliveries, type NotificationDelivery, type BackendService } from "@/lib/services/backend";
+import { normDeliveries, type NotificationDelivery, type BackendService, type TemplateField } from "@/lib/services/backend";
 import { uzsOpt } from "@/lib/money";
 
 export type Permission = { code: string; title: string };
@@ -103,6 +103,7 @@ export type AdminService = BackendService & {
   aiCategory: string;
   hasMetadata: boolean;
   createdAt: string;
+  documentTemplateId?: string;
 };
 
 // Same localized-title preference as the public catalog normalizer.
@@ -148,6 +149,7 @@ export function normAdminService(v: unknown, locale = "uz"): AdminService {
     aiCategory: asStr(d.ai_category),
     hasMetadata,
     createdAt: asStr(d.created_at),
+    documentTemplateId: asStr(d.document_template_id) || undefined,
   };
 }
 
@@ -268,6 +270,40 @@ export async function updateDocumentTemplate(
 
 export async function deleteDocumentTemplate(id: string): Promise<unknown> {
   return http(`/admin/document-templates/${id}`, { method: "DELETE" });
+}
+
+// POST /admin/services/{service_id}/document-template (2026-09-20 backend):
+// upload a real DOCX with {{field}} placeholders straight onto a service —
+// unlike POST /admin/document-templates/import-docx above (which creates a
+// free-floating template nothing links to), this one auto-attaches to the
+// service so its "Xizmatlar" card gets a document builder for free.
+export type ServiceDocTemplateUploadInput = {
+  file: File;
+  slug: string;
+  title: string;
+  category?: string;
+  language?: string;
+  visibility?: string;
+  price?: number; // whole so'm (legacy UZS)
+  is_active?: boolean;
+};
+export type ServiceDocTemplateUploadResult = { fields: TemplateField[]; fieldCount: number };
+export async function uploadServiceDocumentTemplate(serviceId: string, input: ServiceDocTemplateUploadInput): Promise<ServiceDocTemplateUploadResult> {
+  const form = new FormData();
+  form.append("file", input.file);
+  form.append("slug", input.slug);
+  form.append("title", input.title);
+  form.append("category", input.category || "service_document");
+  form.append("language", input.language || "uz-latn");
+  form.append("visibility", input.visibility || "client");
+  form.append("price", String(input.price ?? 0));
+  form.append("is_active", String(input.is_active ?? true));
+  const d = asDict(await http(`/admin/services/${encodeURIComponent(serviceId)}/document-template`, { method: "POST", body: form }));
+  const fields = asArr(d.fields).map((f) => {
+    const r = asDict(f);
+    return { key: asStr(r.key ?? r.name), label: asStr(r.label ?? r.key), type: asStr(r.type, "text"), required: r.required !== false };
+  });
+  return { fields, fieldCount: asNum(d.field_count, fields.length) };
 }
 
 // ── Notifications ──

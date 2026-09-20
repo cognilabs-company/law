@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   getServiceDocumentTemplate,
+  getServiceDocumentFields,
   createServiceDocumentRequest,
   listDocumentRequests,
   getDocumentRequest,
@@ -44,6 +45,18 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
   useEffect(() => {
     let alive = true;
     getServiceDocumentTemplate(serviceId)
+      .then(async (r) => {
+        if (!alive) return r;
+        // The dedicated fields endpoint (2026-09-20 backend) is the
+        // authoritative source for a DOCX-uploaded template — prefer it
+        // whenever it actually has fields, so a template whose embedded
+        // `fields` came back empty from document-template still gets a form.
+        if (!r.questionnaire.length) {
+          const f = await getServiceDocumentFields(serviceId).catch(() => null);
+          if (f?.fields.length) r = { ...r, questionnaire: f.fields };
+        }
+        return r;
+      })
       .then((r) => {
         if (!alive) return;
         setTpl(r);
@@ -98,7 +111,9 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
 
   if (loading || (tpl && tpl.questionnaire.length === 0 && !req && !err)) return <Skeleton rows={3} />;
   if (!tpl) return <Notice ok={false} msg={t("error")} />;
-  if (req) return <DocumentRequestPanel initialReq={req} />;
+  // key={req.id} so DocumentRequestPanel's own state (stage, answers) resets
+  // when "start over" swaps in a brand new request id.
+  if (req) return <DocumentRequestPanel key={req.id} initialReq={req} onStartNew={tpl.questionnaire.length ? start : undefined} />;
 
   return (
     <div className="cform" style={{ maxWidth: "none" }}>

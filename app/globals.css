@@ -4484,6 +4484,7 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .svced__hint--warn{padding:9px 12px;border-radius:10px;background:var(--dk-tint-warn, #fff7ed);color:var(--dk-txt-warn, #9a3412)}
 .svced__meta{border:0;padding:0;margin:0;display:grid;gap:12px;min-width:0}
 .svced__meta:disabled{opacity:.55}
+.svced__sec2{border-top:1px solid var(--line);padding-top:12px;margin-top:6px;display:grid;gap:6px}
 .svced__acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px}
 .aplan__hint{display:block;margin-top:4px;font-size:.74rem;color:var(--gray2)}
 .aplan__only{font-size:.8rem}

@@ -1280,7 +1280,32 @@ export async function getDocumentTemplate(id: string): Promise<BackendTemplate> 
 // the service card instead of the standalone template list.
 export async function getServiceDocumentTemplate(serviceId: string): Promise<BackendTemplate> {
   const d = asDict(await http(`/services/${serviceId}/document-template`));
-  return normTemplate(d.template ?? d);
+  const tpl = asDict(d.template ?? d);
+  // 2026-09-20 backend: this endpoint now also returns `fields`/`field_count`
+  // for a DOCX-uploaded template. The doc doesn't pin down whether they sit
+  // on `template` or the envelope, so prefer whichever side actually has them.
+  const fields = asArr(tpl.fields).length ? tpl.fields : d.fields;
+  return normTemplate({ ...tpl, fields });
+}
+// GET /services/{id}/document-fields (2026-09-20 backend): a dedicated,
+// authoritative fields endpoint for a DOCX-backed template — used to fill in
+// any gap left by document-template above (e.g. before it's proxied fields
+// through consistently for every service).
+export type ServiceDocumentFields = { serviceId: string; templateId: string; title: string; fields: BackendTemplate["questionnaire"]; fieldCount: number; requiredCount: number };
+export async function getServiceDocumentFields(serviceId: string): Promise<ServiceDocumentFields> {
+  const d = asDict(await http(`/services/${serviceId}/document-fields`));
+  const fields = asArr(d.fields).map((q) => {
+    const x = asDict(q);
+    return { name: asStr(x.name ?? x.key), label: asStr(x.label ?? x.name), required: Boolean(x.required) };
+  });
+  return {
+    serviceId: asStr(d.service_id, serviceId),
+    templateId: asStr(d.template_id),
+    title: asStr(d.title),
+    fields,
+    fieldCount: asNum(d.field_count, fields.length),
+    requiredCount: asNum(d.required_count),
+  };
 }
 export async function createServiceDocumentRequest(
   serviceId: string,

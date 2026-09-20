@@ -148,7 +148,17 @@ export default function DocumentFlow() {
       )}
 
       <Modal open={!!req} onClose={close} title={req?.title || t("title")} wide>
-        {req ? <DocumentRequestPanel initialReq={req} onBump={bump} /> : null}
+        {req ? (
+          <DocumentRequestPanel
+            key={req.id}
+            initialReq={req}
+            onBump={bump}
+            onStartNew={(() => {
+              const tpl = tpls.data.find((x) => x.id === activeTpl);
+              return tpl && tpl.questionnaire.length ? () => start(tpl) : undefined;
+            })()}
+          />
+        ) : null}
       </Modal>
     </div>
     </>

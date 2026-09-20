@@ -3040,6 +3040,7 @@
         "previewTitle": "Document preview",
         "downloadPolicy": "{n} / {limit} free documents used this month. After the limit: 19,000 UZS per document or a plan.",
         "keptInCabinet": "The document stays in your cabinet — downloading it again doesn't count against the limit.",
+        "startNew": "Fill in a new document with different details",
         "fields": {
           "claimant": "Claimant (full name)",
           "defendant": "Defendant (full name)",
@@ -4609,6 +4610,24 @@
         "refundCode": "Refund code",
         "aiCategory": "AI category",
         "advokatRequired": "Advocate only"
+      },
+      "docTemplate": {
+        "title": "Document template (DOCX)",
+        "lead": "Upload a DOCX with placeholders like {{field_name}} — it auto-attaches to this service, and the client gets a fill-in-the-form document builder on the \"Services\" page.",
+        "attached": "Template attached",
+        "file": "DOCX file",
+        "fileHint": "A .docx file containing placeholders like {{client_name}}.",
+        "slug": "Slug",
+        "titleLabel": "Title",
+        "fieldsFound": "{n} fields found",
+        "upload": "Upload",
+        "replace": "Replace",
+        "uploading": "Uploading…",
+        "done": "Uploaded — {n} fields found.",
+        "error": "Could not upload.",
+        "onlyDocx": "Only .docx files are accepted.",
+        "tooBig": "The file is larger than allowed.",
+        "forbidden": "Not permitted."
       },
       "cat": {
         "editTitle": "Edit category",

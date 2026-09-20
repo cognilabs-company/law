@@ -7,9 +7,10 @@ import Select from "@/components/Select";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
 import { getServicePassport, type BackendCategory, type ServicePassport } from "@/lib/services/backend";
-import { updateService, type AdminService, type ServiceMetadataInput, type ServiceUpdateInput } from "@/lib/services/admin";
+import { updateService, uploadServiceDocumentTemplate, type AdminService, type ServiceMetadataInput, type ServiceUpdateInput } from "@/lib/services/admin";
 import { ApiError, errDetail } from "@/lib/http";
 import { firstFieldError } from "@/lib/formErrors";
+import { IconUpload, IconCheck } from "@/components/icons";
 
 // Edit one service (PATCH /admin/services/{id}). The form is prefilled from
 // the list row (which already carries every LegalServiceOut field) and, when
@@ -106,6 +107,70 @@ function diff(init: FormVals, v: FormVals, hasMetadata: boolean): ServiceUpdateI
     if (Object.keys(meta).length) out.metadata = meta;
   }
   return out;
+}
+
+// POST /admin/services/{service_id}/document-template (2026-09-20 backend):
+// upload a DOCX with {{field}} placeholders and it auto-attaches to this
+// service — the client's "Xizmatlar" card then gets a document builder
+// (form left, live preview right) for free, no separate linking step.
+function DocTemplateSection({ service }: { service: AdminService }) {
+  const t = useTranslations("admin.services.docTemplate");
+  const [file, setFile] = useState<File | null>(null);
+  const [slug, setSlug] = useState(service.slug);
+  const [title, setTitle] = useState(service.title || service.name);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [fieldCount, setFieldCount] = useState<number | null>(null);
+  const [attached, setAttached] = useState(!!service.documentTemplateId);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!file || busy) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const r = await uploadServiceDocumentTemplate(service.id, {
+        file,
+        slug: slug.trim() || service.slug,
+        title: title.trim() || service.title || service.name,
+        price: service.basePrice,
+      });
+      setFieldCount(r.fieldCount);
+      setAttached(true);
+      setFile(null);
+      setNote({ ok: true, msg: t("done", { n: r.fieldCount }) });
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0;
+      setNote({ ok: false, msg: status === 415 ? t("onlyDocx") : status === 413 ? t("tooBig") : status === 403 ? t("forbidden") : errDetail(err) || t("error") });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="svced__sec2">
+      <div className="svced__sec">{t("title")}</div>
+      <p className="svced__hint">{t("lead")}</p>
+      {attached ? <p className="svced__hint" style={{ color: "var(--ok)" }}><IconCheck style={{ width: 13, height: 13 }} /> {t("attached")}</p> : null}
+      <form onSubmit={submit} className="cform" style={{ maxWidth: "none" }}>
+        <div>
+          <label>{t("file")}</label>
+          <input type="file" accept=".docx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <p className="rf__hint">{t("fileHint")}</p>
+        </div>
+        <div className="svced__row">
+          <div><label>{t("slug")}</label><input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} /></div>
+          <div><label>{t("titleLabel")}</label><input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+        </div>
+        {fieldCount != null ? <p className="svced__hint">{t("fieldsFound", { n: fieldCount })}</p> : null}
+        {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+        <button className="btn btn--soft btn--full" type="submit" disabled={busy || !file}>
+          <IconUpload />
+          {busy ? t("uploading") : attached ? t("replace") : t("upload")}
+        </button>
+      </form>
+    </div>
+  );
 }
 
 function PassportContext({ p }: { p: ServicePassport }) {
@@ -273,6 +338,8 @@ function EditForm({
           {t("edit.advokatRequired")}
         </label>
       </fieldset>
+
+      <DocTemplateSection service={service} />
 
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       <div className="svced__acts">
