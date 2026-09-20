@@ -156,6 +156,12 @@ export default function PortalShell({
   // The mobile sidebar is open only on the path it was opened on, so navigating closes it.
   const [openPath, setOpenPath] = useState<string | null>(null);
   const open = openPath === pathname;
+  // The document builder (fill-in wizard + live preview) wants the full
+  // viewport: no sidebar or header competing with it for space. The sidebar
+  // stays reachable as a hover-triggered overlay (a thin hot zone on the far
+  // left) instead of disappearing outright.
+  const fullscreen = /\/services\/document\//.test(pathname);
+  const [peek, setPeek] = useState(false);
 
   // Desktop collapse (icon-only rail) — a per-device convenience, remembered
   // across visits but never blocking the page if storage is unavailable.
@@ -234,13 +240,17 @@ export default function PortalShell({
   const profileHref = nav.find((n) => n.key === "profile")?.href ?? `/portal/${role}`;
 
   return (
-    <div className={`portal${collapsed ? " psb-collapsed" : ""}`}>
+    <div className={`portal${collapsed ? " psb-collapsed" : ""}${fullscreen ? " portal--full" : ""}`}>
       <IncomingCallWatcher />
       <div
         className={`psb__scrim${open ? " on" : ""}`}
         onClick={() => setOpenPath(null)}
       />
-      <aside className={`psb${open ? " on" : ""}${collapsed ? " collapsed" : ""}`}>
+      {fullscreen ? <div className="psb__hotzone" onMouseEnter={() => setPeek(true)} /> : null}
+      <aside
+        className={`psb${open ? " on" : ""}${collapsed ? " collapsed" : ""}${fullscreen && peek ? " peek" : ""}`}
+        onMouseLeave={() => fullscreen && setPeek(false)}
+      >
         <div className="psb__brand">
           <div className="psb__logo">
             <span className="logo__m">
@@ -305,29 +315,31 @@ export default function PortalShell({
       </aside>
 
       <div className="pmain">
-        <header className="ptop">
-          <button
-            className="ptop__burger"
-            type="button"
-            aria-label={t("menu")}
-            onClick={() => setOpenPath(open ? null : pathname)}
-          >
-            {open ? <IconClose /> : <IconMenu />}
-          </button>
-          <h1>{title}</h1>
-          <div className="ptop__sp">
-            <NotificationBell role={role} />
-            <ThemeToggle variant="square" />
-            <LanguageSwitcher />
-            <Link className="ptop__user" href={profileHref} title={session.name}>
-              <span className="ptop__av">{initials(session.name || "U")}</span>
-              <span>{session.name}</span>
-            </Link>
-          </div>
-        </header>
+        {fullscreen ? null : (
+          <header className="ptop">
+            <button
+              className="ptop__burger"
+              type="button"
+              aria-label={t("menu")}
+              onClick={() => setOpenPath(open ? null : pathname)}
+            >
+              {open ? <IconClose /> : <IconMenu />}
+            </button>
+            <h1>{title}</h1>
+            <div className="ptop__sp">
+              <NotificationBell role={role} />
+              <ThemeToggle variant="square" />
+              <LanguageSwitcher />
+              <Link className="ptop__user" href={profileHref} title={session.name}>
+                <span className="ptop__av">{initials(session.name || "U")}</span>
+                <span>{session.name}</span>
+              </Link>
+            </div>
+          </header>
+        )}
         <div className="pbody">
           <div className="pbody__in">
-            {limited ? (
+            {fullscreen ? null : limited ? (
               <div className="pend-banner" role="status">
                 <span className="pend-banner__ic"><IconClock /></span>
                 <div>

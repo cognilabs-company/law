@@ -424,7 +424,7 @@ export default function FileManager() {
                     </button>
                     {menuFor === item.id ? <ItemMenu item={item} t={t} onOpen={openFolder} onRename={startRename} onStar={toggleStar} onDelete={removeItem} onDownload={downloadFile} /> : null}
                   </div>
-                  <button type="button" className="fmgr__card-name" onClick={() => (item.type === "folder" ? openFolder(item.id) : undefined)}>
+                  <button type="button" className="fmgr__card-name" onClick={() => (item.type === "folder" ? openFolder(item.id) : void downloadFile(item))}>
                     {item.name}
                   </button>
                   <div className="fmgr__card-meta">
@@ -445,7 +445,7 @@ export default function FileManager() {
                       </span>
                     ) : null}
                   </span>
-                  <button type="button" className="fmgr__lrow-name" onClick={() => (item.type === "folder" ? openFolder(item.id) : undefined)}>
+                  <button type="button" className="fmgr__lrow-name" onClick={() => (item.type === "folder" ? openFolder(item.id) : void downloadFile(item))}>
                     {item.name}
                   </button>
                   <span className="fmgr__lrow-meta">{item.type === "folder" ? t("items", { n: childCount(item.id) }) : fmtSize(item.size)}</span>

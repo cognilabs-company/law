@@ -24,7 +24,7 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   const [ack, setAck] = useState(false);
 
   return (
-    <div className="docbuild">
+    <div className="docbuild docbuild--full">
       <div className="docbuild__top">
         <button type="button" className="docbuild__back" onClick={() => router.push("/portal/client/services")}>
           <IconChevronLeft />

@@ -955,6 +955,17 @@ body:has(.plogin) .fab{display:none}
 /* portal shell */
 .portal{display:grid;grid-template-columns:252px minmax(0,1fr);height:100dvh;background:var(--b50);position:relative;transition:grid-template-columns .18s ease}
 @media (min-width:901px){.portal.psb-collapsed{grid-template-columns:76px minmax(0,1fr)}}
+
+/* Fullscreen mode (document builder): sidebar becomes a hover-triggered
+   overlay instead of taking a grid column, header is not rendered at all. */
+@media (min-width:901px){
+  .portal.portal--full{grid-template-columns:minmax(0,1fr)}
+  .portal--full .psb{position:fixed;top:0;left:0;bottom:0;width:262px;z-index:40;transform:translateX(-100%);transition:transform .22s cubic-bezier(.3,1,.4,1);box-shadow:var(--s3)}
+  .portal--full .psb.peek{transform:none}
+  .psb__hotzone{position:fixed;top:0;left:0;bottom:0;width:14px;z-index:39}
+}
+.portal--full .pbody{padding:0}
+.portal--full .pbody__in{max-width:none;height:100dvh}
 .psb{background:var(--dk-surface, #fff);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .psb__logo{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:800;font-size:1.2rem;letter-spacing:-.03em;padding:16px 18px;color:var(--ink)}
 .psb__logo .logo__m{width:30px;height:30px;border-radius:9px;flex:none}
@@ -2248,6 +2259,22 @@ body:has(.schat) .fab{display:none}
 .docbuild__back{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:var(--gray);font-size:.86rem;font-weight:600;cursor:pointer;padding:6px 0}
 .docbuild__back svg{width:16px;height:16px}
 .docbuild__title{font-family:var(--fd);font-size:1.15rem}
+
+/* Fullscreen document builder (see .portal--full): the two panes fill the
+   viewport and scroll independently, so the wizard's own nav buttons stay
+   pinned in view instead of ending up below a long document preview. */
+.docbuild--full{max-width:none;height:100%;display:flex;flex-direction:column;padding:18px clamp(16px,3vw,40px)}
+.docbuild--full .docbuild__top{flex:none}
+.docbuild--full .cform{max-width:none;flex:1;min-height:0;display:flex;flex-direction:column}
+.docbuild--full .dwiz2col{flex:1;min-height:0}
+@media (min-width:760px){
+  .docbuild--full .dwiz2col{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}
+  .docbuild--full .dwiz{display:flex;flex-direction:column;height:100%;overflow-y:auto;padding-right:8px}
+  .docbuild--full .dwiz__nav{margin-top:auto;padding-top:16px;position:sticky;bottom:0;background:var(--dk-surface, #fff)}
+  .docbuild--full .dwprevpane{height:100%;position:static}
+  .docbuild--full .dwprev{height:100%}
+  .docbuild--full .dwprev p{flex:1;max-height:none}
+}
 .docnotice{display:grid;justify-items:center;text-align:center;gap:14px;padding:6px 4px 2px}
 .docnotice__ico{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--dk-tint-blue, #E5F0FF);color:#2563EB;flex:none}
 .docnotice__ico svg{width:26px;height:26px}
@@ -3840,11 +3867,12 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
    left, live document preview on the right, like LegalZoom/Gavel's document
    builder; stacked (preview below the form) under ~760px. */
 .dwiz2col{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
-@media (min-width:760px){.dwiz2col{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media (min-width:760px){.dwiz2col{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px}}
 .dwprevpane{position:sticky;top:0}
-.dwprev{display:grid;gap:6px;padding:14px 16px;border-radius:14px;background:var(--dk-surface-2, #F7FAFE);border:1px dashed var(--dk-line, #dbe4f0)}
-.dwprev b{font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;color:var(--gray2)}
-.dwprev p{margin:0;font-family:var(--fdoc);font-size:.86rem;line-height:2.1;color:var(--dk-fg, #14213d);white-space:pre-wrap;max-height:60vh;overflow-y:auto}
+/* A real document, not a notes box: a plain white page with a real shadow. */
+.dwprev{display:flex;flex-direction:column;gap:12px;padding:26px;border-radius:16px;background:var(--dk-surface, #fff);box-shadow:var(--s2)}
+.dwprev b{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--gray2);flex:none}
+.dwprev p{margin:0;font-family:var(--fdoc);font-size:.92rem;line-height:1.9;color:var(--dk-fg, #14213d);white-space:pre-wrap;max-height:60vh;overflow-y:auto}
 .dwprev__blank{display:inline-block;padding:1px 8px;margin:0 2px;border-radius:6px;background:var(--dk-tint-blue, #e3ecfb);color:var(--dk-acc-strong, var(--b700));font-family:var(--fb);font-size:.78rem;font-weight:600;white-space:nowrap;vertical-align:1px}
 @media (min-width:760px){.dwprev p{max-height:calc(90vh - 140px)}}
 /* T0-20 response deadline */
