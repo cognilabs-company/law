@@ -53,6 +53,16 @@ export default function DocPaper({
   useEffect(() => {
     valuesRef.current = values;
   });
+  // Cancels whatever the arrival-highlight effect below is still mid-way
+  // through (its pending rAF/timeouts) — the typing effect further below
+  // calls this the moment a keystroke lands, so an edit that starts before
+  // the slow reveal finishes isn't left waiting behind it.
+  const cancelArrival = useRef<() => void>(() => {});
+  // What the active field's content was the last time either effect ran —
+  // lets the typing effect tell "a keystroke happened" apart from "a
+  // navigation happened", since both can change what's on screen but only
+  // one of them should skip the slow reveal.
+  const knownContent = useRef("");
 
   // Bring the active field's first spot into view inside this pane only —
   // scrollIntoView would also scroll the page and the form column with it.
@@ -67,6 +77,24 @@ export default function DocPaper({
     box.scrollTo({ top: box.scrollTop + (er.top - br.top) - br.height / 2 + er.height / 2, behavior: "smooth" });
   }, [active, navTick]);
 
+  // Every occurrence of a field turning its settled colour — yellow once
+  // filled, blue while still blank, its own [Label] text turning white to
+  // match. Shared by the slow arrival reveal below and by the typing effect
+  // further down, which needs the exact same colours but applied instantly.
+  function settleColors(name: string) {
+    const filled = !!valuesRef.current[name];
+    return {
+      bg: filled ? "#FFF0B8" : "#1668F0",
+      ring: filled ? "0 0 0 2px #FFF0B8" : "0 0 0 3px rgba(22,104,240,.24)",
+      fg: filled ? "" : "#fff", // only the blank button's own [Label] text recolours
+    };
+  }
+  function targetsFor(name: string): HTMLElement[] {
+    const out: HTMLElement[] = [];
+    for (const [k, spotEl] of spots.current) if (k.startsWith(`${name}#`)) out.push(spotEl);
+    return out;
+  }
+
   // Arrival highlight (Telegram's "jump to message" feel, adapted to a line
   // of running text): the whole line the spot sits on lights up pale blue,
   // full width, then narrows in from both sides onto just that spot — while
@@ -76,7 +104,10 @@ export default function DocPaper({
   // would make the whole approach look broken). Only once the band has
   // arrived and held for a beat does the spot itself (every occurrence of
   // the field, not just the one the band pointed at) turn its settled
-  // colour, at the same moment the band fades into it.
+  // colour, at the same moment the band fades into it. But this slow reveal
+  // is only for "I just jumped here to look" — the moment a keystroke
+  // lands (see the typing effect below), it cuts this short and jumps
+  // straight to settled, because at that point the reveal has done its job.
   //
   // Plain DOM style writes + CSS transitions, not React state per frame or
   // a CSS class: the target rect and timing are only known at this point,
@@ -86,6 +117,8 @@ export default function DocPaper({
   useEffect(() => {
     const bandEl = band.current;
     const sheetEl = sheet.current;
+    cancelArrival.current();
+    cancelArrival.current = () => {};
 
     // Whichever spot was previously "active" must not stay yellow/blue once
     // focus has moved elsewhere — and a fresh navigation to the very same
@@ -102,16 +135,12 @@ export default function DocPaper({
       if (bandEl) bandEl.style.opacity = "0";
       return;
     }
+    knownContent.current = valuesRef.current[active] ?? "";
     const el = spots.current.get(`${active}#0`);
     if (!el || !sheetEl || !bandEl) return;
 
-    const filled = !!valuesRef.current[active];
-    const settleBg = filled ? "#FFF0B8" : "#1668F0";
-    const settleRing = filled ? "0 0 0 2px #FFF0B8" : "0 0 0 3px rgba(22,104,240,.24)";
-    const settleFg = filled ? "" : "#fff"; // only the blank button's own [Label] text recolours
-
-    const targets: HTMLElement[] = [];
-    for (const [k, spotEl] of spots.current) if (k.startsWith(`${active}#`)) targets.push(spotEl);
+    const { bg: settleBg, ring: settleRing, fg: settleFg } = settleColors(active);
+    const targets = targetsFor(active);
     const settle = (delayMs: number, durMs: number) => {
       for (const target of targets) {
         target.style.transition = `background ${durMs}ms ease ${delayMs}ms, box-shadow ${durMs}ms ease ${delayMs}ms, color ${durMs}ms ease ${delayMs}ms`;
@@ -141,6 +170,7 @@ export default function DocPaper({
       const hide = setTimeout(() => {
         bandEl.style.opacity = "0";
       }, 400);
+      cancelArrival.current = () => clearTimeout(hide);
       return () => clearTimeout(hide);
     }
 
@@ -180,11 +210,37 @@ export default function DocPaper({
     const hide = setTimeout(() => {
       bandEl.style.opacity = "0";
     }, shrinkMs + pauseMs + colorMs + 200);
-    return () => {
+    const cancel = () => {
       cancelAnimationFrame(raf);
       clearTimeout(hide);
     };
+    cancelArrival.current = cancel;
+    return cancel;
   }, [active, navTick]);
+
+  // A keystroke into the field that's active right now must show its
+  // settled colour immediately — the slow reveal above is for "I just
+  // jumped here to look", not for "I'm already typing". Compares against
+  // `knownContent` (set by the effect above on every navigation) rather
+  // than reacting to `values` on its own, so this never fires just because
+  // some *other* field's answer changed while this one sits idle and active.
+  useEffect(() => {
+    if (!active) return;
+    const current = values[active] ?? "";
+    if (current === knownContent.current) return;
+    knownContent.current = current;
+    cancelArrival.current();
+    cancelArrival.current = () => {};
+    const bandEl = band.current;
+    if (bandEl) bandEl.style.opacity = "0";
+    const { bg, ring, fg } = settleColors(active);
+    for (const target of targetsFor(active)) {
+      target.style.transition = "background .16s ease, box-shadow .16s ease, color .16s ease";
+      target.style.background = bg;
+      target.style.boxShadow = ring;
+      if (fg) target.style.color = fg;
+    }
+  }, [active, values]);
 
   const body = useMemo(() => {
     if (!segs.length && fallbackText) {
