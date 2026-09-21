@@ -3943,10 +3943,8 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docpaper{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
 .docpaper__top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none}
 .docpaper__badge{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray2)}
-.docpaper__note{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:600;color:var(--dk-acc, var(--b600))}
-.docpaper__note::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok);animation:dpPulse 1.6s ease-in-out infinite}
 .docpaper__scroll{flex:1;min-height:200px;overflow-y:auto;overscroll-behavior:contain;border-radius:var(--rl);background:var(--dk-surface-2, #EDF2FA);padding:clamp(10px,1.6vw,18px);box-shadow:inset 0 0 0 1.5px var(--line);scrollbar-width:thin}
-.docpaper__sheet{display:block;min-height:100%;background:#fff;color:#14213d;border-radius:8px;box-shadow:var(--s2);
+.docpaper__sheet{display:block;position:relative;isolation:isolate;min-height:100%;background:#fff;color:#14213d;border-radius:8px;box-shadow:var(--s2);
   padding:clamp(22px,3vw,44px) clamp(18px,3vw,50px);
   font-family:var(--fdoc);font-size:.92rem;line-height:1.95;white-space:pre-wrap;overflow-wrap:anywhere}
 .docpaper__b{display:inline;border:0;cursor:pointer;padding:1px 7px;margin:0 1px;border-radius:6px;
@@ -3954,14 +3952,22 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
   font-family:var(--fb);font-size:.78rem;font-weight:700;line-height:inherit;white-space:normal;text-align:left;
   transition:background .16s,color .16s,box-shadow .16s}
 .docpaper__b:hover{background:#C4DEFF}
-.docpaper__b.on{background:#1668F0;color:#fff;box-shadow:0 0 0 3px rgba(22,104,240,.24)}
 .docpaper__b--flat{cursor:default}
 /* A filled spot stays lightly marked (pale pink) so it's easy to spot what's
    already answered; the one currently being typed/edited turns yellow, the
    same colour whether you're still typing it or clicked back into it. */
 .docpaper__v{border-radius:5px;padding:0 2px;margin:0 -2px;background:#FBE3ED;transition:background .2s,box-shadow .2s}
-.docpaper__v.on{background:#FFF0B8;box-shadow:0 0 0 2px #FFF0B8}
-@media (prefers-reduced-motion:reduce){.docpaper__note::before{animation:none}}
+/* Arrival highlight (Telegram's "jump to message" feel, adapted to a line of
+   running text): a full-width band lights up pale blue across the target's
+   whole line, then narrows in from both sides onto just that spot as it
+   fades into whatever colour the spot's own steady .on state already uses —
+   see DocPaper's effect, which drives this element's inline top/left/width/
+   background directly (the target rect is only known at layout time, so it
+   can't be a fixed-percentage @keyframes). Sits behind the text (negative
+   z-index inside .docpaper__sheet's isolated stacking context) so the words
+   on that line stay fully readable through it, like a highlighter stroke. */
+.docpaper__jump{position:absolute;z-index:-1;left:0;top:0;width:0;height:0;border-radius:5px;opacity:0;
+  transition:opacity .28s ease;pointer-events:none}
 .docpaper__none{margin:0;padding:28px 20px;text-align:center;font-size:.88rem;line-height:1.6;color:var(--gray)}
 .amodal__b .docfill__f{background:var(--dk-surface, #fff)}
 .amodal__b .docfill__list{max-height:50vh}

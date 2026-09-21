@@ -87,6 +87,10 @@ export default function DocFill({
 
   const [touched, setTouched] = useState(false);
   const [active, setActive] = useState("");
+  // Bumped on every navigation to a document spot (a question focused or
+  // jumped to) so DocPaper's arrival flash restarts even when it's a repeat
+  // click on the field that's already active.
+  const [navTick, setNavTick] = useState(0);
   const [tab, setTab] = useState<"form" | "doc">("form");
   const formPane = useRef<HTMLDivElement>(null);
   const inputs = useRef(new Map<string, HTMLElement>());
@@ -302,6 +306,7 @@ export default function DocFill({
                   onVal={(v) => setVal(f, v)}
                   onFocus={() => {
                     setActive(f.name);
+                    setNavTick((n) => n + 1);
                     // Deferred, not immediate: on a phone the virtual keyboard
                     // is still animating open at this point, so a scroll done
                     // now would aim at the pre-keyboard viewport and miss.
@@ -310,6 +315,7 @@ export default function DocFill({
                   onBlur={() => setActive((a) => (a === f.name ? "" : a))}
                   onJump={() => {
                     setActive(f.name);
+                    setNavTick((n) => n + 1);
                     setTab("doc");
                   }}
                   bind={(el) => {
@@ -360,6 +366,7 @@ export default function DocFill({
           values={values}
           labelOf={labelOf}
           active={active}
+          navTick={navTick}
           onPick={focusField}
           fallbackText={preview?.previewText}
         />

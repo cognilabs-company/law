@@ -78,14 +78,24 @@ export default function SearchSelect({
     if (!el) return;
     const r = el.getBoundingClientRect();
     const gap = 6;
+    const margin = 8;
     const spaceBelow = window.innerHeight - r.bottom - gap;
     const spaceAbove = r.top - gap;
-    const openUp = spaceBelow < 200 && spaceAbove > spaceBelow;
-    const maxHeight = Math.max(160, Math.min(360, openUp ? spaceAbove : spaceBelow));
+    // spaceAbove alone being bigger than spaceBelow isn't enough reason to
+    // flip up — see DatePicker.tsx for why.
+    const openUp = spaceBelow < 200 && spaceAbove > spaceBelow && spaceAbove >= 120;
+    // The 160 floor below used to ignore how little room the chosen side
+    // actually had — for a trigger near the very top of the screen that
+    // forced `top` negative and pushed the menu off the top of the
+    // viewport. Cap it at what's really available; the menu scrolls.
+    const room = openUp ? spaceAbove : spaceBelow;
+    const maxHeight = Math.min(Math.max(160, room), 360, window.innerHeight - margin * 2);
+    const top = openUp ? r.top - gap - maxHeight : r.bottom + gap;
     setMenuPos({
       left: r.left,
       width: r.width,
-      top: openUp ? r.top - gap - maxHeight : r.bottom + gap,
+      // Final safety net, independent of the calculation above.
+      top: Math.min(Math.max(margin, top), window.innerHeight - margin),
       maxHeight,
     });
   };

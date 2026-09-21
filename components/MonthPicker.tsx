@@ -74,12 +74,26 @@ export default function MonthPicker({
     if (!el) return;
     const r = el.getBoundingClientRect();
     const gap = 6;
+    const margin = 8;
     const spaceBelow = window.innerHeight - r.bottom - gap;
     const spaceAbove = r.top - gap;
-    const openUp = spaceBelow < 260 && spaceAbove > spaceBelow;
-    const maxHeight = Math.max(220, openUp ? spaceAbove : spaceBelow);
-    const left = Math.min(r.left, window.innerWidth - 280 - 8);
-    setPos({ left: Math.max(8, left), top: openUp ? r.top - gap - maxHeight : r.bottom + gap, maxHeight });
+    // spaceAbove alone being bigger than spaceBelow isn't enough reason to
+    // flip up — see DatePicker.tsx for why.
+    const openUp = spaceBelow < 260 && spaceAbove > spaceBelow && spaceAbove >= 160;
+    // A flat floor here used to ignore how little room the chosen side
+    // actually had — for a trigger near the very top of the screen that
+    // forced `top` negative and pushed the popup off the top of the
+    // viewport. Cap it at what's really available; the popup scrolls.
+    const room = openUp ? spaceAbove : spaceBelow;
+    const maxHeight = Math.min(Math.max(200, room), window.innerHeight - margin * 2);
+    const left = Math.min(r.left, window.innerWidth - 280 - margin);
+    const top = openUp ? r.top - gap - maxHeight : r.bottom + gap;
+    setPos({
+      left: Math.max(margin, left),
+      // Final safety net, independent of the calculation above.
+      top: Math.min(Math.max(margin, top), window.innerHeight - margin),
+      maxHeight,
+    });
   };
   useLayoutEffect(() => {
     if (!open) return;

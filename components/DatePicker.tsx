@@ -113,14 +113,34 @@ export default function DatePicker({
     if (!el) return;
     const r = el.getBoundingClientRect();
     const gap = 6;
+    const margin = 8;
     const spaceBelow = window.innerHeight - r.bottom - gap;
     const spaceAbove = r.top - gap;
-    const openUp = spaceBelow < 320 && spaceAbove > spaceBelow;
-    const maxHeight = Math.max(280, openUp ? spaceAbove : spaceBelow);
+    // spaceAbove alone being bigger than spaceBelow isn't enough reason to
+    // flip up — a trigger near the top of the screen can have "more room
+    // above than below" while both are tiny, which used to flip the popup
+    // upward into a cramped spot that then got clamped to the very top of
+    // the screen, looking like it opened in the wrong place entirely.
+    const openUp = spaceBelow < 320 && spaceAbove > spaceBelow && spaceAbove >= 160;
+    // A floor here used to be a flat 280 regardless of how little room the
+    // chosen side actually had — for a trigger near the very top of the
+    // screen that forced `top` negative and pushed the whole popup off the
+    // top of the viewport. Cap the floor at what's really available; the
+    // popup already scrolls internally (.mpick__pop) so a shorter box beats
+    // one that isn't on screen at all.
+    const room = openUp ? spaceAbove : spaceBelow;
+    const maxHeight = Math.min(Math.max(200, room), window.innerHeight - margin * 2);
     // Popup width comes from its own CSS (min-width, or .dpick's 264px), not
     // the trigger's — but still clamp so it can't render off the right edge.
-    const left = Math.min(r.left, window.innerWidth - 280 - 8);
-    setPos({ left: Math.max(8, left), top: openUp ? r.top - gap - maxHeight : r.bottom + gap, maxHeight });
+    const left = Math.min(r.left, window.innerWidth - 280 - margin);
+    const top = openUp ? r.top - gap - maxHeight : r.bottom + gap;
+    setPos({
+      left: Math.max(margin, left),
+      // Final safety net, independent of the calculation above: whatever it
+      // produced, never let the popup actually render off either edge.
+      top: Math.min(Math.max(margin, top), window.innerHeight - margin),
+      maxHeight,
+    });
   };
   useLayoutEffect(() => {
     if (!open) return;

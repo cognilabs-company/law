@@ -3215,7 +3215,6 @@
         "missingServer": "Some required fields are still empty.",
         "allFilled": "All fields completed",
         "previewUnavailable": "The document text is unavailable right now. Keep filling in the fields — the full document appears once it is generated.",
-        "previewLive": "Updates as you type",
         "tabForm": "Details",
         "tabDoc": "Document",
         "sectionN": "Section {n}",
