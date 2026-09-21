@@ -2255,13 +2255,13 @@ body:has(.schat) .fab{display:none}
 /* secure inbox link rows + doc-done + verify */
 .aitem--link{cursor:pointer;text-decoration:none}
 .aitem--link:hover{border-color:var(--b300)}
-.docdone{text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 0}
-.docdone__i{width:52px;height:52px;border-radius:16px;background:rgba(0,168,112,.14);display:grid;place-items:center}
-.docdone__i svg{width:26px;height:26px;stroke:var(--ok);stroke-width:3}
-.docdone b{font-family:var(--fd);font-size:1.1rem}
-.docdone__f{font-size:.85rem;color:var(--gray)}
-.docdone__frame{width:100%;height:min(70vh,640px);border:1px solid var(--dk-line, #e3e8f0);border-radius:14px;background:#fff}
-.docdone__act{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;justify-content:center}
+.docdone{text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;padding:30px 20px;border-radius:var(--rl);background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1.5px var(--line);animation:pop .45s cubic-bezier(.2,.8,.3,1) both}
+.docdone__i{width:64px;height:64px;border-radius:50%;background:rgba(0,168,112,.14);display:grid;place-items:center;box-shadow:0 0 0 8px rgba(0,168,112,.08);animation:docdoneIcon .5s cubic-bezier(.34,1.56,.64,1) .08s both}
+.docdone__i svg{width:30px;height:30px;stroke:var(--ok);stroke-width:3}
+@keyframes docdoneIcon{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+.docdone b{font-family:var(--fd);font-size:1.25rem}
+.docdone__f{font-size:.85rem;color:var(--gray);padding:5px 13px;border-radius:var(--pill);background:var(--dk-surface-2, #F4F7FB)}
+.docdone__act{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;justify-content:center;animation:fade .4s ease .12s both}
 /* Full-page document builder (Xizmatlar → category → service), LegalZoom-style */
 .docbuild{max-width:1240px;margin:0 auto}
 .docbuild__top{display:flex;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap}
@@ -2282,6 +2282,7 @@ body:has(.schat) .fab{display:none}
 @media (min-width:980px){
   .docbuild--full .docb{grid-template-columns:minmax(360px,.85fr) minmax(0,1.15fr)}
 }
+.docbuild__veil{pointer-events:none;user-select:none}
 .docnotice{display:grid;justify-items:center;text-align:center;gap:14px;padding:6px 4px 2px}
 .docnotice__ico{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--dk-tint-blue, #E5F0FF);color:#2563EB;flex:none}
 .docnotice__ico svg{width:26px;height:26px}
@@ -3020,6 +3021,10 @@ body:has(.schat) .fab{display:none}
 .idv__prov b{font-family:var(--fd);font-size:1.05rem;color:var(--ink)}
 .idv__prov span{font-size:.8rem;color:var(--gray)}
 /* Handmade day date picker (calendar) */
+.dpick .mpick__btn{cursor:text}
+.dpick .mpick__val{border:0;background:transparent;padding:0;margin:0;font:inherit;color:var(--ink);outline:none;width:100%}
+.dpick .mpick__val::placeholder{color:var(--gray2)}
+.dpick .mpick__val:disabled{cursor:not-allowed}
 .dpick .mpick__pop{width:264px;max-width:calc(100vw - 32px)}
 .dpick__wd{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
 .dpick__wd span{text-align:center;font-size:.68rem;font-weight:700;color:var(--gray2);padding:4px 0}
@@ -3884,6 +3889,9 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docfill__bar{height:6px;border-radius:var(--pill);background:var(--dk-surface-2, #eef2f7);overflow:hidden}
 .docfill__bar span{display:block;height:100%;background:var(--grad);border-radius:var(--pill);transition:width .3s}
 .docfill__lead{margin:0;font-size:.85rem;line-height:1.5;color:var(--gray)}
+.docfill__ask{display:inline-flex;align-items:center;gap:7px;align-self:flex-start;padding:8px 14px;border-radius:var(--pill);background:var(--dk-tint-blue, #EAF1FF);color:var(--dk-acc-strong, var(--b700));font-size:.82rem;font-weight:700;transition:filter .15s}
+.docfill__ask:hover{filter:brightness(.96)}
+.docfill__ask svg{width:15px;height:15px;stroke:currentColor;flex:none}
 .docfill__list{flex:1 1 auto;display:grid;gap:12px;align-content:start;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:3px 6px 8px 3px;scrollbar-width:thin}
 .docfill__grp{display:grid;gap:12px}
 .docfill__gt{margin:8px 0 0;font-family:var(--fd);font-size:.95rem;color:var(--gray)}
@@ -3944,7 +3952,10 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docpaper__b:hover{background:#C4DEFF}
 .docpaper__b.on{background:#1668F0;color:#fff;box-shadow:0 0 0 3px rgba(22,104,240,.24)}
 .docpaper__b--flat{cursor:default}
-.docpaper__v{border-radius:5px;padding:0 2px;margin:0 -2px;transition:background .2s,box-shadow .2s}
+/* A filled spot stays lightly marked (pale pink) so it's easy to spot what's
+   already answered; the one currently being typed/edited turns yellow, the
+   same colour whether you're still typing it or clicked back into it. */
+.docpaper__v{border-radius:5px;padding:0 2px;margin:0 -2px;background:#FBE3ED;transition:background .2s,box-shadow .2s}
 .docpaper__v.on{background:#FFF0B8;box-shadow:0 0 0 2px #FFF0B8}
 @media (prefers-reduced-motion:reduce){.docpaper__note::before{animation:none}}
 .docpaper__none{margin:0;padding:28px 20px;text-align:center;font-size:.88rem;line-height:1.6;color:var(--gray)}

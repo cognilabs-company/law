@@ -294,26 +294,6 @@ export default function DocumentRequestPanel({
   // no questions at all is simply a fixed-text document and not stale.
   const isStale =
     stage === "done" && qs.length > 0 && !Object.values(req.answers || {}).some((v) => v != null && String(v).trim() !== "");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (stage !== "done") return;
-    let alive = true;
-    let url = "";
-    getDocumentRequestFile(req.id)
-      .then((blob) => {
-        if (!alive) return;
-        url = URL.createObjectURL(blob);
-        setPreviewUrl(url);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-      // Drop the state alongside the object URL — keeping it would leave the
-      // <iframe> pointed at a revoked blob after a re-run of this effect.
-      setPreviewUrl(null);
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [stage, req.id]);
 
   // GET …/file returns the PDF itself. 409 = not generated yet → generate once
   // and retry; 402 = unpaid → back to the pay step.
@@ -429,7 +409,6 @@ export default function DocumentRequestPanel({
           <span className="docdone__i"><IconCheck /></span>
           <b>{t("ready")}</b>
           <span className="docdone__f">{req.contractFile?.fileName || `lexgo-${req.id}.pdf`}</span>
-          {previewUrl ? <iframe className="docdone__frame" src={previewUrl} title={req.title} /> : null}
           <div className="docdone__act">
             <button className="btn btn--pri" type="button" onClick={() => getPdf(false)} disabled={pdfBusy}>
               <IconExternal />

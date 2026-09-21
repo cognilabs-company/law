@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocale } from "next-intl";
-import { monthTitle, weekdays, fmtDate } from "@/lib/date";
+import { monthTitle, weekdays } from "@/lib/date";
 import { IconCalendar, IconChevronLeft, IconChevronRight, IconClose } from "./icons";
 
 type Parsed = { y: number; m: number; d: number };
@@ -17,9 +17,33 @@ function parse(value: string): Parsed | null {
   return { y, m, d };
 }
 const iso = (y: number, m: number, d: number) => `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+const toTyped = (p: Parsed) => `${String(p.d).padStart(2, "0")}.${String(p.m + 1).padStart(2, "0")}.${p.y}`;
+
+// Digits typed so far, auto-split into dd.mm.yyyy groups — the same masking
+// pattern as the phone input, so a date can be typed as fast as picked
+// instead of only clicked day-by-day in the calendar.
+function maskTyped(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 8);
+  return [d.slice(0, 2), d.slice(2, 4), d.slice(4, 8)].filter(Boolean).join(".");
+}
+
+// A typed dd.mm.yyyy → ISO, only once all three groups are complete and the
+// date is real (no 31.02, no month 13) — an incomplete or invalid typed
+// value must never overwrite what is already saved.
+function parseTyped(text: string): string | null {
+  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(text);
+  if (!m) return null;
+  const d = parseInt(m[1], 10), mo = parseInt(m[2], 10), y = parseInt(m[3], 10);
+  if (mo < 1 || mo > 12 || d < 1) return null;
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return iso(y, mo - 1, d);
+}
 
 // Handmade day-level date picker (no native <input type=date>). Value is
-// "YYYY-MM-DD". min/max (also ISO) disable out-of-range days.
+// "YYYY-MM-DD". min/max (also ISO) disable out-of-range days. The trigger is
+// a real text input so a date can be typed (dd.mm.yyyy) as well as picked
+// from the calendar — the two stay in sync either way.
 export default function DatePicker({
   value,
   onChange,
@@ -46,16 +70,21 @@ export default function DatePicker({
   const [open, setOpen] = useState(false);
   const [vy, setVy] = useState(parsed ? parsed.y : today.getFullYear());
   const [vm, setVm] = useState(parsed ? parsed.m : today.getMonth());
+  const [typed, setTyped] = useState(() => (parsed ? toTyped(parsed) : ""));
   const root = useRef<HTMLDivElement>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
 
-  // Jump the calendar view to a new value (during render, not in an effect).
+  // Jump the calendar view (and the typed text) to a new value — during
+  // render, not in an effect, so an externally loaded draft never flashes
+  // the previous date first. Not run for our own typing, which drives
+  // `value` the other way, through onChange.
   const [prevValue, setPrevValue] = useState(value);
   if (value !== prevValue) {
     setPrevValue(value);
     if (parsed) { setVy(parsed.y); setVm(parsed.m); }
+    setTyped(parsed ? toTyped(parsed) : "");
   }
 
   useEffect(() => {
@@ -80,7 +109,7 @@ export default function DatePicker({
   // ancestor Modal's overflow-y:auto/max-height:90vh (same fix as
   // SearchSelect.tsx / Select.tsx).
   const updatePos = () => {
-    const el = btnRef.current;
+    const el = root.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
     const gap = 6;
@@ -113,30 +142,51 @@ export default function DatePicker({
   }
   function pick(d: number) {
     onChange(iso(vy, vm, d));
+    setTyped(toTyped({ y: vy, m: vm, d }));
     setOpen(false);
   }
 
   const firstDow = (new Date(vy, vm, 1).getDay() + 6) % 7; // Monday-first offset
   const daysIn = new Date(vy, vm + 1, 0).getDate();
   const cells: (number | null)[] = [...Array(firstDow).fill(null), ...Array.from({ length: daysIn }, (_, i) => i + 1)];
-  const label = parsed ? fmtDate(value, locale) : placeholder;
 
   return (
     <div className="mpick dpick" ref={root} data-open={open}>
-      <button
-        ref={btnRef}
-        type="button"
+      <div
         className={`mpick__btn${parsed ? "" : " mpick__btn--ph"}`}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
+        onMouseDown={(e) => {
+          if (disabled || e.target === inputRef.current) return;
+          // An icon/caret click shouldn't steal focus from the text input.
+          e.preventDefault();
+          setOpen((v) => !v);
+        }}
       >
         <IconCalendar />
-        <span className="mpick__val">{label}</span>
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={10}
+          className="mpick__val"
+          placeholder={placeholder}
+          aria-label={ariaLabel}
+          disabled={disabled}
+          value={typed}
+          onFocus={() => setOpen(true)}
+          onChange={(e) => {
+            const t = maskTyped(e.target.value);
+            setTyped(t);
+            if (t === "") { onChange(""); return; }
+            const outIso = parseTyped(t);
+            if (outIso && (!min || outIso >= min) && (!max || outIso <= max)) onChange(outIso);
+          }}
+          onBlur={() => {
+            if (typed && !parseTyped(typed)) setTyped(parsed ? toTyped(parsed) : "");
+          }}
+        />
         <span className="mpick__cv" />
-      </button>
+      </div>
       {open && pos ? createPortal(
         <div
           className="mpick__pop"
@@ -173,7 +223,7 @@ export default function DatePicker({
             })}
           </div>
           {value && clearLabel ? (
-            <button type="button" className="mpick__clear" onClick={() => { onChange(""); setOpen(false); }}>
+            <button type="button" className="mpick__clear" onClick={() => { onChange(""); setTyped(""); setOpen(false); }}>
               <IconClose />
               {clearLabel}
             </button>

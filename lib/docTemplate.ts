@@ -118,6 +118,10 @@ export const MAX_DIGITS: Partial<Record<DocKind, number>> = { pinfl: 14, inn: 9 
 export function sanitizeInput(kind: DocKind, raw: string): string {
   if (kind === "pinfl" || kind === "inn") return raw.replace(/\D/g, "").slice(0, MAX_DIGITS[kind]);
   if (kind === "money" || kind === "number") return raw.replace(/[^\d.,\s-]/g, "");
+  // A court filing reads as a typo with a lower-case first letter ("bekov
+  // sardor" instead of "Bekov Sardor") — capitalize only the very first
+  // character, live as it's typed, never mid-sentence.
+  if ((kind === "text" || kind === "multiline") && raw) return raw.charAt(0).toUpperCase() + raw.slice(1);
   return raw;
 }
 

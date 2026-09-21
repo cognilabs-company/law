@@ -22,7 +22,8 @@ import { formatUzSubscriber, uzSubscriber } from "@/lib/phone";
 import DatePicker from "@/components/DatePicker";
 import Select from "@/components/Select";
 import DocPaper from "./DocPaper";
-import { IconCheck, IconFileText, IconList } from "@/components/icons";
+import { Link } from "@/i18n/navigation";
+import { IconCheck, IconFileText, IconHeadset, IconList } from "@/components/icons";
 
 const DRAFT_KEY = (id: string) => `lexgo_doc_draft_${id}`;
 export function loadDraft(id: string): Record<string, string> | null {
@@ -267,6 +268,10 @@ export default function DocFill({
             <span style={{ width: `${pct}%` }} />
           </div>
           <p className="docfill__lead">{t("fillLead")}</p>
+          <Link href="/portal/client/lawyers" className="docfill__ask">
+            <IconHeadset />
+            {t("askLawyer")}
+          </Link>
         </header>
 
         <div className="docfill__list" ref={formPane}>
@@ -420,7 +425,7 @@ function Row({
           ref={bind as (el: HTMLTextAreaElement | null) => void}
           rows={3}
           value={value}
-          onChange={(e) => onVal(e.target.value)}
+          onChange={(e) => onVal(sanitizeInput(kind, e.target.value))}
         />
       ) : kind === "date" ? (
         // tabIndex so focusField() can actually move focus here when a blank

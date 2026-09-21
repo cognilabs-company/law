@@ -32,6 +32,13 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
         </button>
         {title ? <b className="docbuild__title">{title}</b> : null}
       </div>
+      {/* The builder mounts immediately (not gated behind `ack`) so the notice
+          overlays it rather than replacing it — the document is visible,
+          slightly blurred, right behind the alert (Modal's own scrim already
+          does backdrop-filter:blur), instead of a blank page until acked. */}
+      <div className={ack ? undefined : "docbuild__veil"} aria-hidden={!ack}>
+        <ServiceDocumentRequest serviceId={serviceId} onTitle={setTitle} />
+      </div>
       <Modal open={!ack} onClose={() => setAck(true)} title={td("priceNoticeTitle")}>
         <div className="docnotice">
           <span className="docnotice__ico"><IconInfo /></span>
@@ -41,7 +48,6 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
           </button>
         </div>
       </Modal>
-      {ack ? <ServiceDocumentRequest serviceId={serviceId} onTitle={setTitle} /> : null}
     </div>
   );
 }

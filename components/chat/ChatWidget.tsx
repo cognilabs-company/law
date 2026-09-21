@@ -7,6 +7,7 @@ import { useLexAi } from "./useLexAi";
 import { useAuth } from "@/lib/auth";
 import { getClientId } from "@/lib/client";
 import { aiQuotaOf } from "@/lib/http";
+import { noteGuestQuestion } from "@/lib/guestQuota";
 import {
   createChat,
   postMessage,
@@ -26,6 +27,7 @@ type Msg = {
   contracts?: Contract[];
   limit?: boolean;
   upgrade?: boolean; // signed-in user's AI quota is spent → subscription CTA
+  guestLast?: boolean; // this answer used a guest's last free question
 };
 
 export default function ChatWidget({
@@ -75,6 +77,10 @@ export default function ChatWidget({
       }
       const { assistant, contracts } = await postMessage(cid, id, content);
       setTyping(false);
+      // A guest's answer arrives first, in full, exactly like anyone else's —
+      // the registration card only ever appears under a real answer, never
+      // instead of one.
+      const guestLast = !session && noteGuestQuestion();
       setMsgs((m) => [
         ...m,
         {
@@ -82,6 +88,7 @@ export default function ChatWidget({
           content: assistant.content,
           sources: assistant.sources,
           contracts,
+          guestLast,
         },
       ]);
     } catch (e) {
@@ -179,6 +186,15 @@ export default function ChatWidget({
               <Link href="/register" className="cact" onClick={onClose}>
                 {t("limitLogin")}
               </Link>
+            ) : null}
+            {m.guestLast ? (
+              <div className="aichat__lastfree">
+                <b>{t("guestLastTitle")}</b>
+                <span>{t("guestLastText")}</span>
+                <Link href="/register" className="cact" onClick={onClose}>
+                  {t("limitLogin")}
+                </Link>
+              </div>
             ) : null}
             {m.upgrade && session ? (
               <Link href={`/portal/${session.role}/subscription`} className="cact" onClick={onClose}>

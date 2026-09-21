@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getClientId } from "@/lib/client";
 import { aiQuotaOf } from "@/lib/http";
+import { noteGuestQuestion } from "@/lib/guestQuota";
 import {
   listChats,
   createChat,
@@ -36,6 +37,7 @@ type Msg = {
   limit?: boolean;
   upgrade?: boolean; // signed-in user's AI quota is spent → subscription CTA
   lastFree?: boolean; // this answer used the last free question of the month (T1-02)
+  guestLast?: boolean; // this answer used a guest's last free question
 };
 
 export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
@@ -140,6 +142,10 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
         writeUsed(used);
         lastFree = used === FREE_LIMIT;
       }
+      // A guest's answer arrives first, in full, exactly like anyone else's —
+      // the registration card only ever appears under a real answer, never
+      // instead of one.
+      const guestLast = !session && noteGuestQuestion();
       setMessages((m) => [
         ...m,
         {
@@ -148,6 +154,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
           sources: assistant.sources,
           contracts,
           lastFree,
+          guestLast,
         },
       ]);
       setChats((cs) =>
@@ -306,6 +313,13 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                         <b>{t("lastFreeTitle")}</b>
                         <span>{t("lastFreeText", { limit: FREE_LIMIT })}</span>
                         <Link href={`/portal/${session.role}/subscription`} className="btn btn--pri btn--sm">{t("upgradePlan")}</Link>
+                      </div>
+                    ) : null}
+                    {m.guestLast ? (
+                      <div className="aichat__lastfree">
+                        <b>{t("guestLastTitle")}</b>
+                        <span>{t("guestLastText")}</span>
+                        <Link href="/register" className="btn btn--pri btn--sm">{t("limitLogin")}</Link>
                       </div>
                     ) : null}
                     {m.limit ? (
