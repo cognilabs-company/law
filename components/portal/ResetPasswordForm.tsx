@@ -116,7 +116,7 @@ export default function ResetPasswordForm() {
   }
 
   const logo = (
-    <span className="logo" style={{ color: "var(--ink)", display: "inline-flex", gap: 9, alignItems: "center" }}>
+    <span className="logo auth-formlogo" style={{ color: "var(--ink)", display: "inline-flex", gap: 9, alignItems: "center" }}>
       <span className="logo__m"><IconLogo /></span>
       LexGo
     </span>

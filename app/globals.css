@@ -1989,6 +1989,15 @@ body:has(.auth) .fab{display:none}
   .auth__brand{display:none}
   .auth__main{min-height:100dvh}
 }
+/* The login/register/reset-password forms carry their own "LexGo" wordmark
+   (.auth-formlogo, .rf__logo) so a phone — where .auth__brand above is
+   display:none — still shows the brand once. On a wide screen the brand
+   panel is already showing it, so the form's own copy would be a second
+   "LexGo" stacked right above the heading; hide it exactly where the panel
+   takes over. */
+@media (min-width:981px){
+  .auth-formlogo,.rf__logo{display:none}
+}
 
 
 /* ── auth entrance: brand panel settles in, copy and stats follow, the form
@@ -2282,11 +2291,6 @@ body:has(.schat) .fab{display:none}
 @media (min-width:980px){
   .docbuild--full .docb{grid-template-columns:minmax(360px,.85fr) minmax(0,1.15fr)}
 }
-.docbuild__veil{pointer-events:none;user-select:none}
-.docnotice{display:grid;justify-items:center;text-align:center;gap:14px;padding:6px 4px 2px}
-.docnotice__ico{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--dk-tint-blue, #E5F0FF);color:#2563EB;flex:none}
-.docnotice__ico svg{width:26px;height:26px}
-.docnotice p{margin:0;font-size:.94rem;line-height:1.6;color:var(--gray)}
 .pverify{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--b50);border-radius:14px;padding:14px 16px;margin-top:14px;flex-wrap:wrap}
 .pverify b{display:block;font-size:.95rem}
 .pverify span{font-size:.82rem;color:var(--gray)}

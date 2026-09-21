@@ -183,6 +183,20 @@ export default function DocFill({
     jumpTo.current = name;
     setJumpTick((n) => n + 1);
   }, []);
+  // Shared by the jump-from-document-blank effect below and by a field's own
+  // onFocus (a plain tap into a row, no jump involved) — on a phone the
+  // keyboard can cover the bottom third of the screen, and without this a
+  // field near the end of a long list opens hidden behind it with no way to
+  // scroll the (separately-scrolling) list up to reach it.
+  const scrollIntoPane = useCallback((name: string) => {
+    const el = inputs.current.get(name);
+    const box = formPane.current;
+    if (!el || !box) return;
+    const er = el.getBoundingClientRect();
+    const br = box.getBoundingClientRect();
+    if (er.top >= br.top + 16 && er.bottom <= br.bottom - 16) return;
+    box.scrollTo({ top: box.scrollTop + (er.top - br.top) - br.height / 2 + er.height / 2, behavior: "smooth" });
+  }, []);
   useEffect(() => {
     const name = jumpTo.current;
     jumpTo.current = "";
@@ -190,13 +204,8 @@ export default function DocFill({
     const el = inputs.current.get(name);
     if (!el) return;
     el.focus({ preventScroll: true });
-    const box = formPane.current;
-    if (!box) return;
-    const er = el.getBoundingClientRect();
-    const br = box.getBoundingClientRect();
-    if (er.top >= br.top + 16 && er.bottom <= br.bottom - 16) return;
-    box.scrollTo({ top: box.scrollTop + (er.top - br.top) - br.height / 2 + er.height / 2, behavior: "smooth" });
-  }, [jumpTick]);
+    scrollIntoPane(name);
+  }, [jumpTick, scrollIntoPane]);
 
   function submit() {
     setTouched(true);
@@ -291,7 +300,13 @@ export default function DocFill({
                   active={active === f.name}
                   err={touched && !!f.required && !isFilled(fieldKind(f), answers[f.name])}
                   onVal={(v) => setVal(f, v)}
-                  onFocus={() => setActive(f.name)}
+                  onFocus={() => {
+                    setActive(f.name);
+                    // Deferred, not immediate: on a phone the virtual keyboard
+                    // is still animating open at this point, so a scroll done
+                    // now would aim at the pre-keyboard viewport and miss.
+                    setTimeout(() => scrollIntoPane(f.name), 300);
+                  }}
                   onBlur={() => setActive((a) => (a === f.name ? "" : a))}
                   onJump={() => {
                     setActive(f.name);

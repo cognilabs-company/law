@@ -313,7 +313,7 @@ export default function LoginForm() {
     return (
       <div className="plogin">
         <form key="2fa" className={`plogin__c plogin__c--anim plogin__c--swap${leaving}`} onSubmit={submit2fa}>
-          <span className="logo" style={{ color: "var(--ink)", display: "inline-flex", gap: 9, alignItems: "center" }}>
+          <span className="logo auth-formlogo" style={{ color: "var(--ink)", display: "inline-flex", gap: 9, alignItems: "center" }}>
             <span className="logo__m"><IconLogo /></span>
             LexGo
           </span>
@@ -383,7 +383,7 @@ export default function LoginForm() {
         onSubmit={submit}
       >
         <span
-          className="logo"
+          className="logo auth-formlogo"
           style={{ color: "var(--ink)", display: "inline-flex", gap: 9, alignItems: "center" }}
         >
           <span className="logo__m">
