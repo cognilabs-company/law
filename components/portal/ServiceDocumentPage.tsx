@@ -7,11 +7,11 @@ import ServiceDocumentRequest from "./ServiceDocumentRequest";
 import Modal from "@/components/admin/Modal";
 import { IconChevronLeft, IconInfo } from "@/components/icons";
 
-// A LegalZoom-style dedicated page for the service → document flow (as
-// opposed to the modal used elsewhere): a full-width form-and-live-preview
-// builder, not a dialog box. Same underlying flow/components as the modal
-// version (ServiceDocumentRequest, DocumentRequestPanel, DocWizard) — only
-// the page chrome around them differs.
+// A dedicated full-page builder for the service → document flow (as opposed
+// to the modal used elsewhere): the questions on the left and the document
+// itself on the right, filling in as you type. Same underlying flow and
+// components as the modal version (ServiceDocumentRequest →
+// DocumentRequestPanel → DocFill/DocPaper) — only the chrome differs.
 export default function ServiceDocumentPage({ serviceId }: { serviceId: string }) {
   const t = useTranslations("cta");
   const td = useTranslations("portal.client.documents");

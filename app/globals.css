@@ -2,8 +2,8 @@
 /* DejaVu Sans: self-hosted (public/fonts) to match the font the backend
    actually embeds in generated document PDFs — confirmed by inspecting a
    real generated file's /BaseFont entries. Used only for the live document
-   preview (.dwprev) so what's shown while filling a form matches the final
-   PDF's typography. next/font can't be used here: it only wraps Google
+   pane (.docpaper__sheet) so what is shown while filling a form matches the
+   final PDF's typography. next/font can't be used here: it only wraps Google
    Fonts / local files known at build time via next/font/local, and this
    needed to stay a plain drop-in file under public/. */
 @font-face{font-family:"DejaVu Sans";src:url("/fonts/DejaVuSans.ttf") format("truetype");font-weight:400;font-style:normal;font-display:swap}
@@ -50,6 +50,7 @@ html[data-theme="dark"]{
   --dk-tint-warn:rgba(251,191,36,.14); --dk-tint-violet:rgba(167,139,250,.16);
   --dk-bd-neutral:#2C3D60; --dk-bd-blue:rgba(96,165,250,.38); --dk-bd-ok:rgba(52,211,153,.38);
   --dk-bd-err:rgba(248,113,113,.42); --dk-bd-warn:rgba(251,191,36,.42); --dk-bd-violet:rgba(167,139,250,.42);
+  --dk-fg:#E7EEF8; --dk-line:#2C3D60;
   --dk-txt-err:#FF9494; --dk-txt-ok:#4ADE9F; --dk-txt-warn:#FBC15E; --dk-txt-violet:#BBA9FF;
 }
 /* Switching theme eases colors for a moment instead of flashing
@@ -964,8 +965,16 @@ body:has(.plogin) .fab{display:none}
   .portal--full .psb.peek{transform:none}
   .psb__hotzone{position:fixed;top:0;left:0;bottom:0;width:14px;z-index:39}
 }
+.pfull__menu{display:none}
+@media (max-width:900px){
+  .portal--full .pfull__menu{position:absolute;top:10px;right:12px;z-index:31;display:inline-flex;align-items:center;justify-content:center;
+    width:40px;height:40px;border-radius:12px;border:0;cursor:pointer;background:var(--dk-surface, #fff);color:var(--dk-acc-strong, var(--b700));box-shadow:var(--s2)}
+  .portal--full .pfull__menu svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2}
+  /* keep the builder's own title clear of it */
+  .portal--full .docbuild__top{padding-right:52px}
+}
 .portal--full .pbody{padding:0}
-.portal--full .pbody__in{max-width:none;height:100dvh}
+.portal--full .pbody__in{max-width:none;height:100%;min-height:0}
 .psb{background:var(--dk-surface, #fff);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .psb__logo{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:800;font-size:1.2rem;letter-spacing:-.03em;padding:16px 18px;color:var(--ink)}
 .psb__logo .logo__m{width:30px;height:30px;border-radius:9px;flex:none}
@@ -2263,17 +2272,15 @@ body:has(.schat) .fab{display:none}
 /* Fullscreen document builder (see .portal--full): the two panes fill the
    viewport and scroll independently, so the wizard's own nav buttons stay
    pinned in view instead of ending up below a long document preview. */
-.docbuild--full{max-width:none;height:100%;display:flex;flex-direction:column;padding:18px clamp(16px,3vw,40px)}
+.docbuild--full{max-width:none;height:100%;min-height:0;display:flex;flex-direction:column;overflow-y:auto;padding:18px clamp(16px,3vw,40px)}
+.docbuild--full:has(.cform--doc){overflow:hidden}
 .docbuild--full .docbuild__top{flex:none}
-.docbuild--full .cform{max-width:none;flex:1;min-height:0;display:flex;flex-direction:column}
-.docbuild--full .dwiz2col{flex:1;min-height:0}
-@media (min-width:760px){
-  .docbuild--full .dwiz2col{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}
-  .docbuild--full .dwiz{display:flex;flex-direction:column;height:100%;overflow-y:auto;padding-right:8px}
-  .docbuild--full .dwiz__nav{margin-top:auto;padding-top:16px;position:sticky;bottom:0;background:var(--dk-surface, #fff)}
-  .docbuild--full .dwprevpane{height:100%;position:static}
-  .docbuild--full .dwprev{height:100%}
-  .docbuild--full .dwprev p{flex:1;max-height:none}
+.docbuild--full .cform--doc{max-width:none;flex:1;min-height:0;display:flex;flex-direction:column}
+.docbuild--full .cform:not(.cform--doc){max-width:640px;margin:0 auto;width:100%}
+.docbuild--full .cform--doc{gap:0}
+.docbuild--full .docb{flex:1;min-height:0}
+@media (min-width:980px){
+  .docbuild--full .docb{grid-template-columns:minmax(360px,.85fr) minmax(0,1.15fr)}
 }
 .docnotice{display:grid;justify-items:center;text-align:center;gap:14px;padding:6px 4px 2px}
 .docnotice__ico{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--dk-tint-blue, #E5F0FF);color:#2563EB;flex:none}
@@ -3846,35 +3853,106 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 }
 
 /* ── wp-m ── */
-/* T1-14 document wizard */
-.dwiz{display:grid;gap:12px}
-.dwiz__top{display:flex;justify-content:space-between;font-size:.8rem;color:var(--gray);font-weight:600}
-.dwiz__bar{height:6px;border-radius:999px;background:var(--dk-surface-2, #eef2f7);overflow:hidden}
-.dwiz__bar span{display:block;height:100%;background:var(--grad);border-radius:999px;transition:width .3s}
-.dwiz__dots{display:flex;gap:8px;list-style:none;margin:0;padding:0}
-.dwiz__dots li{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:.76rem;font-weight:700;background:var(--dk-surface-2, #eef2f7);color:var(--gray)}
-.dwiz__dots li.on{background:var(--b600);color:#fff}
-.dwiz__dots li.done{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok);cursor:pointer}
-.dwiz__dots li svg{width:14px;height:14px}
-.dwiz__f.err input,.dwiz__f.err textarea{box-shadow:inset 0 0 0 1.5px #e5484d}
-.dwiz__hint{display:block;margin-top:5px;font-size:.76rem;color:var(--gray)}
-.dwiz__err{display:block;margin-top:5px;font-size:.76rem;color:#e5484d;font-weight:600}
-.dwiz__nav{display:flex;justify-content:space-between;gap:10px;margin-top:4px}
-.dwiz__nav .btn svg{width:16px;height:16px}
-.dwiz__auto{font-size:.74rem;color:var(--gray2);text-align:center}
+/* ── Document builder ────────────────────────────────────────────────────
+   The "Complete your document" page: every question in one column on the
+   left, the document itself on the right, filling in as the client types
+   (components/portal/DocFill.tsx + DocPaper.tsx).
+
+   Two panes side by side from 980px. Below that they are two tabs, not a
+   stack: these templates carry 20-37 questions, and a full court filing
+   pushed below all of them would never be seen while typing. */
+.docb{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:16px;min-height:0}
+.docb__tabs{display:flex;gap:6px;padding:4px;border-radius:var(--pill);background:var(--dk-surface-2, #F1F5FB);box-shadow:inset 0 0 0 1.5px var(--line)}
+.docb__tabs button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;background:none;border-radius:var(--pill);padding:10px 14px;font-family:var(--fb);font-weight:600;font-size:.88rem;color:var(--gray);cursor:pointer;transition:background .18s,color .18s}
+.docb__tabs button svg{width:16px;height:16px}
+.docb__tabs button.on{background:var(--dk-surface, #fff);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--b400),var(--s1)}
+.docb__tabn{padding:1px 8px;border-radius:var(--pill);background:var(--dk-tint-blue, #E6F0FF);color:var(--dk-acc-strong, var(--b700));font-size:.74rem;font-weight:700;font-variant-numeric:tabular-nums}
+.docfill,.docb__pane{display:none;min-width:0;min-height:0}
+.docfill.on,.docb__pane.on{display:flex;flex-direction:column}
+@media (min-width:980px){
+  .docb{grid-template-columns:minmax(340px,.9fr) minmax(0,1.1fr);grid-template-rows:minmax(0,1fr);gap:clamp(20px,2.4vw,40px);align-items:stretch}
+  .docb__tabs{display:none}
+  .docfill,.docb__pane{display:flex;flex-direction:column}
+}
+
+/* Left pane: progress, then one row per question. */
+.docfill{gap:14px}
+.docfill__h{display:grid;gap:9px;flex:none}
+.docfill__ht{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.docfill__ht b{font-family:var(--fd);font-size:clamp(1.05rem,2.2vw,1.3rem);letter-spacing:-.02em}
+.docfill__n{font-weight:700;font-size:.95rem;color:var(--dk-acc, var(--b600));font-variant-numeric:tabular-nums;white-space:nowrap}
+.docfill__bar{height:6px;border-radius:var(--pill);background:var(--dk-surface-2, #eef2f7);overflow:hidden}
+.docfill__bar span{display:block;height:100%;background:var(--grad);border-radius:var(--pill);transition:width .3s}
+.docfill__lead{margin:0;font-size:.85rem;line-height:1.5;color:var(--gray)}
+.docfill__list{flex:1 1 auto;display:grid;gap:12px;align-content:start;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:3px 6px 8px 3px;scrollbar-width:thin}
+.docfill__grp{display:grid;gap:12px}
+.docfill__gt{margin:8px 0 0;font-family:var(--fd);font-size:.95rem;color:var(--gray)}
+.docfill__f{flex:none;display:grid;gap:9px;padding-top:14px;border-top:1px solid var(--line);position:sticky;bottom:0;background:var(--b50)}
+.docfill__st:empty{display:none}
+.docfill__miss{margin:0;font-size:.82rem;font-weight:600;text-align:center;color:var(--dk-txt-err, #C0392B)}
+.docfill__warn{margin:6px 0 0;font-size:.79rem;text-align:center;color:var(--dk-txt-warn, #b7791f)}
+.dfrow__w{display:block}
+.dfrow__w:focus{outline:0}
+.dfrow .mpick__btn,.dfrow .dsel__btn{border-radius:12px;padding:11px 13px;font-size:.93rem;font-weight:400;box-shadow:inset 0 0 0 1.5px transparent}
+.dfrow .mpick[data-open="true"] .mpick__btn,.dfrow .mpick__btn:hover:not(:disabled),
+.dfrow .dsel[data-open="true"] .dsel__btn,.dfrow .dsel__btn:hover{box-shadow:inset 0 0 0 1.5px var(--b400);background:var(--dk-surface, #fff)}
+.docfill__ok{margin:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:.84rem;font-weight:600;color:var(--ok)}
+.docfill__ok svg{width:15px;height:15px;stroke-width:3}
+.docfill__auto{font-size:.74rem;color:var(--gray2);text-align:center}
+
+/* One question. The chip above the label is the placeholder exactly as it
+   reads in the document, and jumps to it; "x2" means one answer fills two
+   places (every civil-court template repeats the claimant's name and the
+   application date). */
+.dfrow{display:grid;gap:7px;padding:13px 15px 15px;border-radius:var(--r);background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .18s}
+.dfrow.on{box-shadow:inset 0 0 0 1.5px var(--b400),0 12px 28px -20px rgba(22,104,240,.75)}
+.dfrow.err{box-shadow:inset 0 0 0 1.5px #e5484d}
+.dfrow__top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dfrow__tok{display:inline-flex;align-items:center;gap:6px;max-width:100%;border:0;cursor:pointer;padding:3px 9px;border-radius:8px;background:var(--dk-tint-blue, #E6F0FF);color:var(--dk-acc-strong, var(--b700));font-family:var(--fb);font-size:.75rem;font-weight:700;line-height:1.6;text-align:left;transition:filter .15s}
+.dfrow__tok span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dfrow__tok svg{width:12px;height:12px;flex:none;stroke-width:3}
+.dfrow__tok:hover{filter:brightness(.95)}
+.dfrow.done .dfrow__tok{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
+.dfrow__x{padding:3px 8px;border-radius:var(--pill);background:var(--dk-surface-2, #F1F5FB);color:var(--gray);font-size:.72rem;font-weight:700;font-variant-numeric:tabular-nums;cursor:help;user-select:none}
+.dfrow .dfrow__l{display:block;margin:0;font-size:.79rem;font-weight:700;letter-spacing:.02em;text-transform:none;color:var(--gray2)}
+.dfrow .dfrow__l i{color:#e5484d;font-style:normal}
+.dfrow input,.dfrow textarea{width:100%;border:0;background:var(--dk-surface-2, #F7FAFE);border-radius:12px;padding:11px 13px;font-size:.93rem;box-shadow:inset 0 0 0 1.5px transparent;transition:box-shadow .18s,background .18s}
+.dfrow input::placeholder,.dfrow textarea::placeholder{color:var(--gray2);opacity:.85}
+.dfrow input:focus,.dfrow textarea:focus{box-shadow:inset 0 0 0 1.5px var(--b400);background:var(--dk-surface, #fff)}
+.dfrow textarea{resize:vertical;min-height:76px;line-height:1.55}
+.dfrow.err input,.dfrow.err textarea{box-shadow:inset 0 0 0 1.5px #e5484d}
+.dfrow .phonf__cc{border-radius:12px;padding:0 13px;font-size:.9rem;box-shadow:none}
+.dfrow__hint{font-size:.76rem;color:var(--gray)}
+.dfrow__e{font-size:.76rem;font-weight:600;color:#e5484d}
+
+/* Right pane: the document. White paper on a tray in both themes, because
+   this is a preview of the generated PDF, which is white — the surrounding
+   tray is what goes dark (Acrobat/Word behave the same way). */
+.docpaper{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
+.docpaper__top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none}
+.docpaper__badge{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray2)}
+.docpaper__note{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:600;color:var(--dk-acc, var(--b600))}
+.docpaper__note::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok);animation:dpPulse 1.6s ease-in-out infinite}
+.docpaper__scroll{flex:1;min-height:200px;overflow-y:auto;overscroll-behavior:contain;border-radius:var(--rl);background:var(--dk-surface-2, #EDF2FA);padding:clamp(10px,1.6vw,18px);box-shadow:inset 0 0 0 1.5px var(--line);scrollbar-width:thin}
+.docpaper__sheet{display:block;min-height:100%;background:#fff;color:#14213d;border-radius:8px;box-shadow:var(--s2);
+  padding:clamp(22px,3vw,44px) clamp(18px,3vw,50px);
+  font-family:var(--fdoc);font-size:.92rem;line-height:1.95;white-space:pre-wrap;overflow-wrap:anywhere}
+.docpaper__b{display:inline;border:0;cursor:pointer;padding:1px 7px;margin:0 1px;border-radius:6px;
+  background:#E6F0FF;color:#154CB0;box-shadow:inset 0 0 0 1px rgba(22,104,240,.3);
+  font-family:var(--fb);font-size:.78rem;font-weight:700;line-height:inherit;white-space:normal;text-align:left;
+  transition:background .16s,color .16s,box-shadow .16s}
+.docpaper__b:hover{background:#C4DEFF}
+.docpaper__b.on{background:#1668F0;color:#fff;box-shadow:0 0 0 3px rgba(22,104,240,.24)}
+.docpaper__b--flat{cursor:default}
+.docpaper__v{border-radius:5px;padding:0 2px;margin:0 -2px;transition:background .2s,box-shadow .2s}
+.docpaper__v.on{background:#FFF0B8;box-shadow:0 0 0 2px #FFF0B8}
+@media (prefers-reduced-motion:reduce){.docpaper__note::before{animation:none}}
+.docpaper__none{margin:0;padding:28px 20px;text-align:center;font-size:.88rem;line-height:1.6;color:var(--gray)}
+.amodal__b .docfill__f{background:var(--dk-surface, #fff)}
+.amodal__b .docfill__list{max-height:50vh}
+.amodal__b .docpaper__scroll{max-height:58vh}
+
 .dwiz__policy{margin:0;padding:10px 12px;border-radius:12px;background:var(--dk-tint-blue, #eef4ff);font-size:.82rem;color:var(--dk-acc-strong, var(--b700))}
-/* Real-time document preview (FRONTEND_DOCUMENT_GENERATION.md) — form on the
-   left, live document preview on the right, like LegalZoom/Gavel's document
-   builder; stacked (preview below the form) under ~760px. */
-.dwiz2col{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
-@media (min-width:760px){.dwiz2col{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px}}
-.dwprevpane{position:sticky;top:0}
-/* A real document, not a notes box: a plain white page with a real shadow. */
-.dwprev{display:flex;flex-direction:column;gap:12px;padding:26px;border-radius:16px;background:var(--dk-surface, #fff);box-shadow:var(--s2)}
-.dwprev b{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--gray2);flex:none}
-.dwprev p{margin:0;font-family:var(--fdoc);font-size:.92rem;line-height:1.9;color:var(--dk-fg, #14213d);white-space:pre-wrap;max-height:60vh;overflow-y:auto}
-.dwprev__blank{display:inline-block;padding:1px 8px;margin:0 2px;border-radius:6px;background:var(--dk-tint-blue, #e3ecfb);color:var(--dk-acc-strong, var(--b700));font-family:var(--fb);font-size:.78rem;font-weight:600;white-space:nowrap;vertical-align:1px}
-@media (min-width:760px){.dwprev p{max-height:calc(90vh - 140px)}}
 /* T0-20 response deadline */
 .ocase__dl{color:var(--dk-txt-warn, #b45309)}
 .ocase__dl.overdue{color:var(--dk-txt-err, #b91c1c)}

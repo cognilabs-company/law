@@ -211,8 +211,13 @@ export default function ClientServices() {
       alive = false;
     };
   }, [deepFetch, locale]);
+  // Hand off to the full-page document builder. `replace`, not `push`: with
+  // push, ?service=<id> is still in the URL behind it, so pressing Back
+  // re-reads it and bounces straight back into the builder — this page could
+  // never be reached again without editing the address bar. Replacing also
+  // drops the query so a later Back lands on a clean services page.
   useEffect(() => {
-    if (docDeepId) router.push(`/portal/client/services/document/${docDeepId}`);
+    if (docDeepId) router.replace(`/portal/client/services/document/${docDeepId}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docDeepId]);
 

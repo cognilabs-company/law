@@ -315,7 +315,21 @@ export default function PortalShell({
       </aside>
 
       <div className="pmain">
-        {fullscreen ? null : (
+        {fullscreen ? (
+          // Fullscreen drops the header, and with it the only way into the
+          // sidebar. On a desktop the hover hot-zone above takes over, but a
+          // phone has no hover — without this button the cabinet is
+          // unreachable from the document builder. Hidden above 900px.
+          <button
+            className="pfull__menu"
+            type="button"
+            aria-label={t("menu")}
+            aria-expanded={open}
+            onClick={() => setOpenPath(open ? null : pathname)}
+          >
+            {open ? <IconClose /> : <IconMenu />}
+          </button>
+        ) : (
           <header className="ptop">
             <button
               className="ptop__burger"
