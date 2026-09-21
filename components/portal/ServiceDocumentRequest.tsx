@@ -10,6 +10,7 @@ import {
   getDocumentRequest,
   type BackendTemplate,
   type DocumentRequest,
+  type ServiceDocumentFields,
 } from "@/lib/services/backend";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import { Skeleton } from "./DataState";
@@ -26,6 +27,7 @@ const som = (n?: number) => (n ? fmtUzs(n) : "");
 export default function ServiceDocumentRequest({ serviceId, onTitle }: { serviceId: string; onTitle?: (title: string) => void }) {
   const t = useTranslations("portal.client.documents");
   const [tpl, setTpl] = useState<BackendTemplate | null>(null);
+  const [sourceFile, setSourceFile] = useState<ServiceDocumentFields | null>(null);
   const [req, setReq] = useState<DocumentRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -42,6 +44,7 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
   if (serviceId !== prevServiceId) {
     setPrevServiceId(serviceId);
     setTpl(null);
+    setSourceFile(null);
     setReq(null);
     setLoading(true);
     setErr(false);
@@ -68,6 +71,7 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
         if (!alive) return;
         if (f?.fields.length) r = { ...r, questionnaire: f.fields };
         setTpl(r);
+        setSourceFile(f?.hasSourceFile ? f : null);
         onTitle?.(r.name);
       })
       .catch(() => alive && setErr(true))
@@ -139,6 +143,7 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
         initialReq={req}
         fields={tpl.questionnaire}
         templateText={tpl.templateText}
+        sourceFile={sourceFile}
         onStartNew={
           tpl.questionnaire.length
             ? () => {

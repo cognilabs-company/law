@@ -13,6 +13,7 @@ import {
   listDocumentRequests,
   type DocumentRequest,
   type TemplateQuestion,
+  type ServiceDocumentFields,
 } from "@/lib/services/backend";
 import { ApiError, isProviderUnavailable } from "@/lib/http";
 import { base64Blob, closeTab, extFromMime, mimeFromName, preopenTab, saveBlob, showBlob } from "@/lib/download";
@@ -69,6 +70,7 @@ export default function DocumentRequestPanel({
   initialReq,
   fields,
   templateText,
+  sourceFile,
   onBump,
   onStartNew,
 }: {
@@ -78,6 +80,10 @@ export default function DocumentRequestPanel({
   // pane renders — without it there is nothing to fill in as you type.
   fields?: TemplateQuestion[];
   templateText?: string;
+  // The template's own source DOCX (service-scoped flow only — the standalone
+  // template list has no equivalent endpoint), so the client can look at the
+  // blank template itself alongside the live filled-in preview.
+  sourceFile?: ServiceDocumentFields | null;
   onBump?: () => void;
   // "Resume the existing request" (below) means a template you've already
   // finished once always reopens that same finished copy — good for not
@@ -320,6 +326,7 @@ export default function DocumentRequestPanel({
             req={req}
             fields={qs}
             templateText={templateText || ""}
+            sourceFile={sourceFile}
             answers={answers}
             onChange={setAnswers}
             onSubmit={saveAnswers}

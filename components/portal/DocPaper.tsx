@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { splitFilledText, type DocSeg } from "@/lib/docTemplate";
+import { IconDownload, IconExternal } from "@/components/icons";
 
 // The document itself, filled in as the client types.
 //
@@ -28,6 +29,15 @@ export default function DocPaper({
   navTick,
   onPick,
   fallbackText,
+  // The template's own blank source file (service-scoped documents only) —
+  // shown as a small "view the original" / "download" pair next to the
+  // preview badge. Fetching happens in the caller; this component only
+  // renders the button and shows sourceBusy while it's in flight.
+  sourceFileName,
+  onViewSource,
+  onDownloadSource,
+  sourceBusy,
+  sourceError,
 }: {
   segs: DocSeg[];
   values: Record<string, string>;
@@ -38,6 +48,11 @@ export default function DocPaper({
   // Used only when the template text isn't available and all we have is text
   // the backend already filled in (POST …/preview).
   fallbackText?: string;
+  sourceFileName?: string;
+  onViewSource?: () => void;
+  onDownloadSource?: () => void;
+  sourceBusy?: boolean;
+  sourceError?: boolean;
 }) {
   const t = useTranslations("portal.client.documents");
   const pane = useRef<HTMLDivElement>(null);
@@ -286,7 +301,21 @@ export default function DocPaper({
     <div className="docpaper">
       <div className="docpaper__top">
         <span className="docpaper__badge">{t("previewTitle")}</span>
+        {onViewSource ? (
+          <span className="docpaper__src">
+            <button type="button" className="docpaper__srcbtn" onClick={onViewSource} disabled={sourceBusy} title={sourceFileName ? t("viewSourceNamed", { name: sourceFileName }) : t("viewSource")}>
+              <IconExternal />
+              {t("viewSource")}
+            </button>
+            {onDownloadSource ? (
+              <button type="button" className="docpaper__srcbtn docpaper__srcbtn--icon" onClick={onDownloadSource} disabled={sourceBusy} aria-label={t("downloadSource")} title={t("downloadSource")}>
+                <IconDownload />
+              </button>
+            ) : null}
+          </span>
+        ) : null}
       </div>
+      {sourceError ? <small className="docpaper__srcerr">{t("sourceError")}</small> : null}
       <div className="docpaper__scroll" ref={pane}>
         {/* Neither the template text nor a server-filled preview came back —
             say so, rather than showing a blank sheet that reads as a broken

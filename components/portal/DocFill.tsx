@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { previewDocumentRequest, type DocumentPreview, type DocumentRequest } from "@/lib/services/backend";
+import { previewDocumentRequest, getServiceTemplateSourceFile, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
+import { preopenTab, showBlob, saveBlob, closeTab } from "@/lib/download";
 import {
   MAX_DIGITS,
   fieldKind,
@@ -62,6 +63,7 @@ export default function DocFill({
   req,
   fields,
   templateText,
+  sourceFile,
   answers,
   onChange,
   onSubmit,
@@ -73,6 +75,8 @@ export default function DocFill({
   // its questionnaire echoed back (the service-scoped create sends none).
   fields: DocField[];
   templateText: string;
+  // The template's own blank source file (service-scoped documents only).
+  sourceFile?: ServiceDocumentFields | null;
   answers: Record<string, string>;
   onChange: (next: Record<string, string>) => void;
   onSubmit: () => void;
@@ -94,6 +98,41 @@ export default function DocFill({
   const [tab, setTab] = useState<"form" | "doc">("form");
   const formPane = useRef<HTMLDivElement>(null);
   const inputs = useRef(new Map<string, HTMLElement>());
+
+  // The template's own blank source file, alongside the live filled-in
+  // preview — fetched through the authed proxy (never a plain link) and
+  // either shown in a new tab or saved, same pattern as every other file
+  // delivery in the app.
+  const [sourceBusy, setSourceBusy] = useState(false);
+  const [sourceErr, setSourceErr] = useState(false);
+  async function viewSource() {
+    if (!sourceFile?.hasSourceFile || sourceBusy) return;
+    setSourceErr(false);
+    const win = preopenTab();
+    setSourceBusy(true);
+    try {
+      const blob = await getServiceTemplateSourceFile(sourceFile.sourceFileInlineUrl || sourceFile.sourceFileUrl);
+      showBlob(blob, sourceFile.sourceFileName || "template", win);
+    } catch {
+      closeTab(win);
+      setSourceErr(true);
+    } finally {
+      setSourceBusy(false);
+    }
+  }
+  async function downloadSource() {
+    if (!sourceFile?.hasSourceFile || sourceBusy) return;
+    setSourceErr(false);
+    setSourceBusy(true);
+    try {
+      const blob = await getServiceTemplateSourceFile(sourceFile.sourceFileUrl || sourceFile.sourceFileInlineUrl);
+      saveBlob(blob, sourceFile.sourceFileName || "template");
+    } catch {
+      setSourceErr(true);
+    } finally {
+      setSourceBusy(false);
+    }
+  }
 
   // Seed templates label a field with its own English code ("Principal"):
   // prefer our translation of the code, then a real label (multi-word or
@@ -369,6 +408,11 @@ export default function DocFill({
           navTick={navTick}
           onPick={focusField}
           fallbackText={preview?.previewText}
+          sourceFileName={sourceFile?.sourceFileName}
+          onViewSource={sourceFile?.hasSourceFile ? viewSource : undefined}
+          onDownloadSource={sourceFile?.hasSourceFile ? downloadSource : undefined}
+          sourceBusy={sourceBusy}
+          sourceError={sourceErr}
         />
       </section>
     </div>

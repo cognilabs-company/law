@@ -1328,7 +1328,26 @@ export async function getServiceDocumentTemplate(serviceId: string): Promise<Bac
 // authoritative fields endpoint for a DOCX-backed template — used to fill in
 // any gap left by document-template above (e.g. before it's proxied fields
 // through consistently for every service).
-export type ServiceDocumentFields = { serviceId: string; templateId: string; title: string; fields: TemplateQuestion[]; fieldCount: number; requiredCount: number };
+//
+// 2026-09-21: the response also carries the template's own source DOCX file
+// (LEXGO_SERVICE_TEMPLATE_SOURCE_FILE_API.md) — a client filling in a
+// service's document can look at (or grab) the blank template itself, not
+// just the live filled-in preview. `sourceFileUrl`/`sourceFileInlineUrl` are
+// relative paths, fetched the same authenticated way as every other file in
+// this app (see getServiceTemplateSourceFile below) — never a plain link.
+export type ServiceDocumentFields = {
+  serviceId: string;
+  templateId: string;
+  title: string;
+  fields: TemplateQuestion[];
+  fieldCount: number;
+  requiredCount: number;
+  hasSourceFile: boolean;
+  sourceFileName: string;
+  sourceMimeType: string;
+  sourceFileUrl: string;
+  sourceFileInlineUrl: string;
+};
 export async function getServiceDocumentFields(serviceId: string): Promise<ServiceDocumentFields> {
   const d = asDict(await http(`/services/${serviceId}/document-fields`));
   const fields = asArr(d.fields).map(normQuestion);
@@ -1339,7 +1358,19 @@ export async function getServiceDocumentFields(serviceId: string): Promise<Servi
     fields,
     fieldCount: asNum(d.field_count, fields.length),
     requiredCount: asNum(d.required_count),
+    hasSourceFile: Boolean(d.has_source_file),
+    sourceFileName: asStr(d.source_file_name),
+    sourceMimeType: asStr(d.source_mime_type),
+    sourceFileUrl: asStr(d.source_file_url),
+    sourceFileInlineUrl: asStr(d.source_file_inline_url),
   };
+}
+// The template's source file bytes (either sourceFileUrl or sourceFileInlineUrl
+// from ServiceDocumentFields above) — fetched through the authed proxy like
+// every other file, not navigated to directly (the route requires a bearer
+// token; there's no signed-URL fallback for it like workspace files have).
+export async function getServiceTemplateSourceFile(relativeUrl: string): Promise<Blob> {
+  return httpBlob(relativeUrl);
 }
 // The backend derives the questionnaire from the service's own template, so
 // `questionnaire` is normally left out; it is accepted here so a caller that
