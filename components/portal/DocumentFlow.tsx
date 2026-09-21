@@ -50,6 +50,14 @@ export default function DocumentFlow() {
     return m;
   }, [reqs.data]);
 
+  // The template behind the open request — the document body and question
+  // list the builder needs. `activeTpl` is set by open()/start() before the
+  // request exists; fall back to the request's own template id on a resume.
+  const openTpl = useMemo(
+    () => tpls.data.find((x) => x.id === activeTpl) || tpls.data.find((x) => x.id === req?.templateId),
+    [tpls.data, activeTpl, req],
+  );
+
   function close() {
     setReq(null);
     setActiveTpl("");
@@ -152,11 +160,13 @@ export default function DocumentFlow() {
           <DocumentRequestPanel
             key={req.id}
             initialReq={req}
+            // The template carries the document body the live pane fills in,
+            // and its questions as a fallback for a request that came back
+            // without them.
+            fields={openTpl?.questionnaire}
+            templateText={openTpl?.templateText}
             onBump={bump}
-            onStartNew={(() => {
-              const tpl = tpls.data.find((x) => x.id === activeTpl);
-              return tpl && tpl.questionnaire.length ? () => start(tpl) : undefined;
-            })()}
+            onStartNew={openTpl && openTpl.questionnaire.length ? () => start(openTpl) : undefined}
           />
         ) : null}
       </Modal>

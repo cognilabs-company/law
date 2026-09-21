@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   getPlatformPolicies,
@@ -12,11 +12,13 @@ import {
   getDocumentRequestFile,
   listDocumentRequests,
   type DocumentRequest,
+  type TemplateQuestion,
 } from "@/lib/services/backend";
 import { ApiError, httpBlob, isProviderUnavailable } from "@/lib/http";
 import { base64Blob, closeTab, preopenTab, saveBlob, showBlob } from "@/lib/download";
+import { normalizeAnswers } from "@/lib/docTemplate";
 import ContractSign from "./ContractSign";
-import DocWizard, { loadDraft, clearDraft } from "./DocWizard";
+import DocFill, { loadDraft, clearDraft } from "./DocFill";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Notice } from "@/components/admin/AdminBits";
@@ -51,7 +53,7 @@ const inlineBlob = (f: DocumentRequest["contractFile"]) => base64Blob(f?.fileBas
 
 const statusOf = (e: unknown) => (e instanceof ApiError ? e.status : 0);
 
-// The full answers → preview/wizard → pay → generate → download lifecycle for
+// The full answers → live document → pay → generate → download lifecycle for
 // one document request, as a self-contained panel. Used both by the
 // standalone template list (DocumentFlow) and by the "Create document"
 // button on a catalog service that has a document_template_id.
@@ -63,10 +65,17 @@ function answersFrom(r: DocumentRequest): Record<string, string> {
 
 export default function DocumentRequestPanel({
   initialReq,
+  fields,
+  templateText,
   onBump,
   onStartNew,
 }: {
   initialReq: DocumentRequest;
+  // The template's own questions and text. The request normally echoes the
+  // questions back, but only the template carries the document body the live
+  // pane renders — without it there is nothing to fill in as you type.
+  fields?: TemplateQuestion[];
+  templateText?: string;
   onBump?: () => void;
   // "Resume the existing request" (below) means a template you've already
   // finished once always reopens that same finished copy — good for not
@@ -85,6 +94,15 @@ export default function DocumentRequestPanel({
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [formats, setFormats] = useState<string[]>(["pdf"]);
   const [pdfBusy, setPdfBusy] = useState(false);
+
+  // Whichever field list is actually populated. The service-scoped create
+  // relies on the backend echoing the questionnaire onto the request; the
+  // template's own list is the fallback so an empty echo can never present
+  // the client with a document that has nothing to fill in.
+  const qs = useMemo(
+    () => (req.questionnaire.length ? req.questionnaire : fields || []),
+    [req.questionnaire, fields],
+  );
 
   // Reset local state whenever a different request is opened — adjusted
   // during render (not an effect) so it lands before the first paint of the
@@ -133,7 +151,11 @@ export default function DocumentRequestPanel({
     if (busy) return;
     setBusy(true);
     try {
-      const r = await updateDocumentAnswers(req.id, answers);
+      // Canonical values, matching character for character what the live
+      // document pane showed — the backend interpolates this straight into
+      // the template, so anything else would generate a file that differs
+      // from the preview the client just approved.
+      const r = await updateDocumentAnswers(req.id, normalizeAnswers(qs, answers));
       clearDraft(req.id);
       setReq(r);
       setStage(stageFor(r) === "answers" ? "pay" : stageFor(r));
@@ -155,17 +177,29 @@ export default function DocumentRequestPanel({
     return () => window.removeEventListener("pageshow", onShow);
   }, []);
 
+  // One generate at a time. The poll below and the manual "check status"
+  // button both run unlock(), and POST …/generate is not idempotent — two
+  // overlapping calls would build the document twice for one payment.
+  const generating = useRef(false);
+
   // Payment confirmed (unlock-policy) → build the PDF (POST …/generate).
   async function unlock(r: DocumentRequest): Promise<DocumentRequest | null> {
     if (r.status === "file_ready") return r;
-    const policy = await getDocumentUnlockPolicy(r.id);
-    if (policy.formats.length) setFormats(policy.formats);
-    if (!policy.canGenerate) return null;
+    // Claimed before the first await, not after it: the poll and the manual
+    // "check status" button can both be inside the unlock-policy request at
+    // the same moment, and both would then pass a check made after it.
+    if (generating.current) return null;
+    generating.current = true;
     try {
+      const policy = await getDocumentUnlockPolicy(r.id);
+      if (policy.formats.length) setFormats(policy.formats);
+      if (!policy.canGenerate) return null;
       return await generateDocumentRequest(r.id);
     } catch (e) {
       if (statusOf(e) === 402) return null; // payment not settled yet
       throw e;
+    } finally {
+      generating.current = false;
     }
   }
 
@@ -211,11 +245,13 @@ export default function DocumentRequestPanel({
 
   // While a payment is processing, poll so the PDF is generated and opens
   // automatically once the provider confirms it (first check right away).
+  // It stops after ~10 minutes rather than polling a stuck payment forever.
   const pendingId = stage === "pending" ? req.id : undefined;
   useEffect(() => {
     if (!pendingId) return;
     let alive = true;
     let running = false;
+    let left = 150; // 150 × 4s ≈ 10 min
     const tick = async () => {
       if (running) return;
       running = true;
@@ -236,7 +272,15 @@ export default function DocumentRequestPanel({
       }
     };
     void tick();
-    const timer = setInterval(tick, 4000);
+    // Give up after the budget rather than polling a stuck payment forever.
+    const timer = setInterval(() => {
+      if (left-- > 0) {
+        void tick();
+        return;
+      }
+      clearInterval(timer);
+      if (alive) setNote({ ok: false, msg: t("stillPending") });
+    }, 4000);
     return () => {
       alive = false;
       clearInterval(timer);
@@ -246,7 +290,10 @@ export default function DocumentRequestPanel({
 
   // The document itself should be visible the moment it's ready, not only
   // after an extra "Ochish" click — fetch it once and show it inline.
-  const isStale = stage === "done" && !Object.values(req.answers || {}).some((v) => v != null && String(v).trim() !== "");
+  // A request that HAS questions but no answers was generated blank; one with
+  // no questions at all is simply a fixed-text document and not stale.
+  const isStale =
+    stage === "done" && qs.length > 0 && !Object.values(req.answers || {}).some((v) => v != null && String(v).trim() !== "");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   useEffect(() => {
     if (stage !== "done") return;
@@ -261,6 +308,9 @@ export default function DocumentRequestPanel({
       .catch(() => {});
     return () => {
       alive = false;
+      // Drop the state alongside the object URL — keeping it would leave the
+      // <iframe> pointed at a revoked blob after a re-run of this effect.
+      setPreviewUrl(null);
       if (url) URL.revokeObjectURL(url);
     };
   }, [stage, req.id]);
@@ -302,10 +352,19 @@ export default function DocumentRequestPanel({
   }
 
   return (
-    <div className="cform" style={{ maxWidth: "none" }}>
+    <div className={`cform${stage === "answers" ? " cform--doc" : ""}`} style={{ maxWidth: "none" }}>
       {stage === "answers" ? (
         <>
-          <DocWizard req={req} answers={answers} onChange={setAnswers} onSubmit={saveAnswers} busy={busy} submitLabel={t("continue")} />
+          <DocFill
+            req={req}
+            fields={qs}
+            templateText={templateText || ""}
+            answers={answers}
+            onChange={setAnswers}
+            onSubmit={saveAnswers}
+            busy={busy}
+            submitLabel={t("generate")}
+          />
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
         </>
       ) : null}
@@ -325,6 +384,11 @@ export default function DocumentRequestPanel({
           <button className="rf__link rf__link--muted" type="button" onClick={refresh} disabled={busy}>
             {t("checkStatus")}
           </button>
+          {qs.length ? (
+            <button className="rf__link" type="button" onClick={() => setStage("answers")} disabled={busy}>
+              {t("backToAnswers")}
+            </button>
+          ) : null}
         </>
       ) : null}
 

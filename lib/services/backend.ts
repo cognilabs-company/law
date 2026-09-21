@@ -1217,6 +1217,45 @@ export async function createPayment(input: {
 }
 
 // ── Document templates ────────────────────────────────────────────
+// One question on a document template. `type` drives which widget the builder
+// renders (production sends text / textarea / date / phone / email / number on
+// every field) and `placeholder` is usually the field's own {{mustache}}
+// token — both must survive normalization or the builder falls back to
+// guessing the widget from the field's name, which mis-types names like
+// `claimant_full_name`. Kept in one shared shape so every endpoint that
+// returns fields (template, service fields, document request) reads the same.
+export type TemplateQuestion = {
+  name: string;
+  label: string;
+  required?: boolean;
+  type?: string;
+  step?: number;
+  placeholder?: string;
+  hint?: string;
+  options?: string[];
+};
+
+// `name` and `key` are the same on every production field, but each endpoint
+// spells at least one of them — take whichever is present.
+function normQuestion(q: unknown): TemplateQuestion {
+  const x = asDict(q);
+  const name = asStr(x.name) || asStr(x.key);
+  const opts = asArr(x.options ?? x.choices).map((o) => {
+    const od = asDict(o);
+    return asStr(od.value ?? od.label) || asStr(o);
+  }).filter(Boolean);
+  return {
+    name,
+    label: asStr(x.label) || name,
+    required: Boolean(x.required),
+    type: asStr(x.type ?? x.field_type) || undefined,
+    step: typeof x.step === "number" ? x.step : undefined,
+    placeholder: asStr(x.placeholder ?? x.example) || undefined,
+    hint: asStr(x.hint ?? x.tooltip) || undefined,
+    options: opts.length ? opts : undefined,
+  };
+}
+
 export type BackendTemplate = {
   id: string;
   name: string;
@@ -1228,7 +1267,7 @@ export type BackendTemplate = {
   visibility: string;
   isActive: boolean;
   templateText: string;
-  questionnaire: { name: string; label: string; required?: boolean }[];
+  questionnaire: TemplateQuestion[];
 };
 
 function normTemplate(v: unknown): BackendTemplate {
@@ -1244,10 +1283,7 @@ function normTemplate(v: unknown): BackendTemplate {
     visibility: asStr(d.visibility, "client"),
     isActive: d.is_active !== false,
     templateText: asStr(d.template_text ?? d.body ?? d.content),
-    questionnaire: asArr(d.fields ?? d.questionnaire).map((q) => {
-      const x = asDict(q);
-      return { name: asStr(x.name), label: asStr(x.label ?? x.name), required: Boolean(x.required) };
-    }),
+    questionnaire: asArr(d.fields ?? d.questionnaire).map(normQuestion),
   };
 }
 
@@ -1291,13 +1327,10 @@ export async function getServiceDocumentTemplate(serviceId: string): Promise<Bac
 // authoritative fields endpoint for a DOCX-backed template — used to fill in
 // any gap left by document-template above (e.g. before it's proxied fields
 // through consistently for every service).
-export type ServiceDocumentFields = { serviceId: string; templateId: string; title: string; fields: BackendTemplate["questionnaire"]; fieldCount: number; requiredCount: number };
+export type ServiceDocumentFields = { serviceId: string; templateId: string; title: string; fields: TemplateQuestion[]; fieldCount: number; requiredCount: number };
 export async function getServiceDocumentFields(serviceId: string): Promise<ServiceDocumentFields> {
   const d = asDict(await http(`/services/${serviceId}/document-fields`));
-  const fields = asArr(d.fields).map((q) => {
-    const x = asDict(q);
-    return { name: asStr(x.name ?? x.key), label: asStr(x.label ?? x.name), required: Boolean(x.required) };
-  });
+  const fields = asArr(d.fields).map(normQuestion);
   return {
     serviceId: asStr(d.service_id, serviceId),
     templateId: asStr(d.template_id),
@@ -1307,9 +1340,12 @@ export async function getServiceDocumentFields(serviceId: string): Promise<Servi
     requiredCount: asNum(d.required_count),
   };
 }
+// The backend derives the questionnaire from the service's own template, so
+// `questionnaire` is normally left out; it is accepted here so a caller that
+// already holds the field list can send it and never depend on the echo.
 export async function createServiceDocumentRequest(
   serviceId: string,
-  input?: { answers?: Record<string, unknown>; title?: string; document_type?: string },
+  input?: { answers?: Record<string, unknown>; title?: string; document_type?: string; questionnaire?: TemplateQuestion[] },
 ): Promise<DocumentRequest> {
   return normDocRequest(
     await http(`/services/${serviceId}/document-requests`, {
@@ -1339,7 +1375,7 @@ export type DocumentRequest = {
   status: string; // questionnaire | awaiting_payment | payment_pending | file_ready
   price: number;
   currency: string;
-  questionnaire: { name: string; label: string; required?: boolean; type?: string; step?: number; placeholder?: string; hint?: string }[];
+  questionnaire: TemplateQuestion[];
   answers: Record<string, unknown>;
   contractFile?: ContractFile;
   paymentUrl?: string; // provider checkout link returned by the pay call
@@ -1361,10 +1397,8 @@ function normDocRequest(v: unknown): DocumentRequest {
     status: asStr(d.status),
     price: uzs(d, "price"),
     currency: asStr(d.currency, "UZS"),
-    questionnaire: asArr(d.questionnaire).map((q) => {
-      const x = asDict(q);
-      return { name: asStr(x.name), label: asStr(x.label), required: Boolean(x.required), type: asStr(x.type ?? x.field_type) || undefined, step: typeof x.step === "number" ? x.step : undefined, placeholder: asStr(x.placeholder ?? x.example) || undefined, hint: asStr(x.hint ?? x.tooltip) || undefined };
-    }),
+    // `fields` is what every other document endpoint calls this array.
+    questionnaire: asArr(asArr(d.questionnaire).length ? d.questionnaire : d.fields).map(normQuestion),
     answers: (d.answers as Record<string, unknown>) ?? {},
     createdAt: asStr(d.created_at),
     contractFile: cf
@@ -1395,7 +1429,7 @@ export async function createDocumentRequest(input: {
   order_id?: string;
   document_type: string;
   title: string;
-  questionnaire?: { name: string; label: string; required?: boolean }[];
+  questionnaire?: TemplateQuestion[];
   answers?: Record<string, unknown>;
   price?: number; // whole so'm (legacy UZS)
   currency?: string;
