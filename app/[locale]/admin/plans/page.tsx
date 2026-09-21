@@ -100,14 +100,14 @@ function seedVals(p?: BackendPlan): FormVals {
   };
 }
 
-// Create / edit form. Own component (not AdminForm) so the "backend does not
-// have this route yet" outcome can show as a warning, not a failure.
+// Create / edit form. Own component (not AdminForm) for the plan-specific
+// field set (audience, billing period, gift durations, benefits list…).
 function PlanForm({
   plan,
   onDone,
 }: {
   plan?: BackendPlan;
-  onDone: (via?: "backend" | "overlay") => void;
+  onDone: () => void;
 }) {
   const t = useTranslations("admin");
   const [v, setV] = useState<FormVals>(() => seedVals(plan));
@@ -149,9 +149,9 @@ function PlanForm({
         onDone();
         return;
       }
-      const r = await savePlan(plan, body);
+      await savePlan(plan, body);
       setNote({ ok: true, msg: t("form.updated") });
-      onDone(r.via);
+      onDone();
     } catch (e) {
       setNote({ ok: false, msg: errDetail(e) || t("form.error") });
     } finally {
@@ -293,20 +293,22 @@ export default function AdminPlans() {
   // Audience chips: the three GM roles always, business only when a plan has it.
   const chips: AudienceFilter[] = ["all", ...PLAN_AUDIENCES.filter((a) => a !== "business" || plans.some((p) => planAudience(p).includes("business")))];
 
-  // Where the write landed: the overlay note tells the admin the change is
-  // stored in the platform settings until the backend has plan editing.
-  function saved(via: "backend" | "overlay" | undefined, msg: string) {
-    setPageNote(via === "overlay" ? { ok: true, msg: `${msg} ${t("plans.savedOverlay")}` } : { ok: true, msg });
+  // Plan edits write straight to the backend now; a write that genuinely
+  // can't reach it falls back to a local overlay (see lib/services/
+  // catalogOverrides.ts) as a resilience net, but that's not something the
+  // admin needs to be told about — it reads the same as a normal save.
+  function saved(msg: string) {
+    setPageNote({ ok: true, msg });
     reload();
   }
 
-  async function run(p: OverlaidPlan, op: () => Promise<{ via: "backend" | "overlay" } | void>, msg: string, quiet = false) {
+  async function run(p: OverlaidPlan, op: () => Promise<{ via: "backend" | "overlay" } | void>, msg: string) {
     if (toggling) return;
     setToggling(p.id);
     setPageNote(null);
     try {
-      const r = await op();
-      saved(quiet ? "backend" : r ? r.via : "overlay", msg);
+      await op();
+      saved(msg);
     } catch (e) {
       setPageNote({ ok: false, msg: errDetail(e) || t("form.updateError") });
     } finally {
@@ -314,17 +316,17 @@ export default function AdminPlans() {
     }
   }
   const toggleActive = (p: OverlaidPlan) => run(p, () => savePlan(p, { is_active: !p.isActive }), t("form.updated"));
-  const restore = (p: OverlaidPlan) => run(p, () => restorePlan(p.slug), t("plans.restored"), true);
-  const reset = (p: OverlaidPlan) => run(p, () => resetPlan(p.slug), t("plans.resetDone"), true);
+  const restore = (p: OverlaidPlan) => run(p, () => restorePlan(p.slug), t("plans.restored"));
+  const reset = (p: OverlaidPlan) => run(p, () => resetPlan(p.slug), t("plans.resetDone"));
 
   async function confirmDelete() {
     if (!del || delBusy) return;
     setDelBusy(true);
     setDelNote(null);
     try {
-      const r = await removePlan(del);
+      await removePlan(del);
       setDel(null);
-      saved(r.via, r.via === "overlay" ? t("plans.deletedOverlay") : t("form.deleted"));
+      saved(t("form.deleted"));
     } catch (e) {
       setDelNote({ ok: false, msg: errDetail(e) || t("form.deleteError") });
     } finally {
@@ -454,9 +456,9 @@ export default function AdminPlans() {
           <PlanForm
             key={edit.id}
             plan={edit}
-            onDone={(via) => {
+            onDone={() => {
               setEdit(null);
-              saved(via, t("form.updated"));
+              saved(t("form.updated"));
             }}
           />
         ) : null}

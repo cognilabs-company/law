@@ -4,25 +4,26 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Contract } from "@/lib/api";
 import { getContractFile } from "@/lib/services/backend";
-import { base64Blob, closeTab, preopenTab, saveBlob, showBlob } from "@/lib/download";
+import { base64Blob, closeTab, extFromMime, mimeFromName, preopenTab, saveBlob, showBlob } from "@/lib/download";
 import { IconFileText, IconDownload, IconExternal } from "./icons";
 
-// Renders a contract PDF as an attachment. Prefers the inlined base64 payload;
-// otherwise fetches GET /contracts/{id}/file with the bearer token as a blob
-// (the authed file route is never used as a plain link).
+// Renders a contract file (PDF or DOCX, per its template) as an attachment.
+// Prefers the inlined base64 payload; otherwise fetches GET /contracts/{id}/file
+// with the bearer token as a blob (the authed file route is never used as a
+// plain link).
 export default function ContractCard({ c }: { c: Contract }) {
   const t = useTranslations("chatPage");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const name =
-    c.fileName || (c.contractType ? `${c.contractType}.pdf` : "contract.pdf");
+  const ext = extFromMime(c.mimeType || "") || "pdf";
+  const name = c.fileName || (c.contractType ? `${c.contractType}.${ext}` : `contract.${ext}`);
   const hasFile = Boolean(c.fileBase64 || c.downloadUrl || c.inlineUrl);
 
   async function deliver(download: boolean) {
     if (busy) return;
     setFailed(false);
-    const inline = base64Blob(c.fileBase64, c.mimeType || "application/pdf");
+    const inline = base64Blob(c.fileBase64, c.mimeType || mimeFromName(name));
     if (inline) {
       if (download) saveBlob(inline, name);
       else showBlob(inline, name, preopenTab());
@@ -50,7 +51,7 @@ export default function ContractCard({ c }: { c: Contract }) {
       </span>
       <div className="aifile__t">
         <b>{c.contractType || name}</b>
-        <span>{failed ? t("fileError") : `PDF${c.status ? ` · ${c.status}` : ""}`}</span>
+        <span>{failed ? t("fileError") : `${ext.toUpperCase()}${c.status ? ` · ${c.status}` : ""}`}</span>
       </div>
       <div className="aifile__act">
         {hasFile ? (

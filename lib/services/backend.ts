@@ -3,6 +3,7 @@
 // UI callers wrap reads in `withFallback(...)` so the app keeps working on local
 // mock data until the backend is reachable.
 import { http, httpBlob, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
+import { mimeFromName } from "@/lib/download";
 import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
@@ -1405,7 +1406,7 @@ function normDocRequest(v: unknown): DocumentRequest {
       ? {
           id: asStr(cf.id),
           fileName: asStr(cf.file_name),
-          mimeType: asStr(cf.mime_type, "application/pdf"),
+          mimeType: asStr(cf.mime_type) || mimeFromName(asStr(cf.file_name)),
           fileBase64: asStr(cf.file_base64),
           inlineUrl: asStr(cf.inline_url),
           downloadUrl: asStr(cf.download_url),
@@ -1487,8 +1488,10 @@ export async function previewDocumentRequest(
   };
 }
 
-// PDF unlock rules for a document request (GET …/unlock-policy). A client can
-// generate and download only after the payment is confirmed; staff always can.
+// Unlock rules for a document request's file (GET …/unlock-policy). A client
+// can generate and download only after the payment is confirmed; staff always
+// can. `formats` is whatever the backend can render for this template — a
+// template's source file decides that, not the frontend.
 export type DocUnlockPolicy = {
   status: string;
   paid: boolean;
@@ -1497,7 +1500,7 @@ export type DocUnlockPolicy = {
   currency: string;
   paymentId?: string;
   canGenerate: boolean;
-  formats: string[]; // "pdf" always; "docx" when the backend can render it
+  formats: string[];
 };
 export async function getDocumentUnlockPolicy(requestId: string): Promise<DocUnlockPolicy> {
   const d = asDict(await http(`/document-requests/${requestId}/unlock-policy`));
@@ -1512,13 +1515,14 @@ export async function getDocumentUnlockPolicy(requestId: string): Promise<DocUnl
     formats: asArr(d.formats).map((f) => asStr(f).toLowerCase()).filter(Boolean),
   };
 }
-// Fill the template with the saved answers and build the PDF (402 = not paid yet).
+// Fill the template with the saved answers and build the file (402 = not paid yet).
 export async function generateDocumentRequest(requestId: string): Promise<DocumentRequest> {
   return normDocRequest(await http(`/document-requests/${requestId}/generate`, { method: "POST" }));
 }
-// The generated PDF itself (an attachment, not a link). 402 = not paid, 409 = not generated yet.
+// The generated file itself (an attachment, not a link) — PDF or DOCX depending
+// on the template; don't restrict Accept to one format. 402 = not paid, 409 = not generated yet.
 export async function getDocumentRequestFile(requestId: string): Promise<Blob> {
-  return httpBlob(`/document-requests/${requestId}/file`, { headers: { Accept: "application/pdf" } });
+  return httpBlob(`/document-requests/${requestId}/file`);
 }
 
 // ── Organizations (advocate orgs) ─────────────────────────────────
@@ -2006,9 +2010,10 @@ export async function listContracts(): Promise<ContractRow[]> {
     };
   });
 }
-// The contract PDF itself (GET /contracts/{id}/file), fetched with the bearer token.
+// The contract file itself (GET /contracts/{id}/file, PDF or DOCX), fetched
+// with the bearer token.
 export async function getContractFile(contractId: string): Promise<Blob> {
-  return httpBlob(`/contracts/${contractId}/file`, { headers: { Accept: "application/pdf" } });
+  return httpBlob(`/contracts/${contractId}/file`);
 }
 export async function startContractSignature(contractId: string): Promise<OtpChallenge> {
   return normOtp(await http(`/contracts/${contractId}/signature/start`, { method: "POST" }));
@@ -4769,6 +4774,16 @@ export type SignedFileUrl = { url: string; relativeUrl: string; expiresAt: strin
 export async function getWorkspaceFileSignedUrl(fileId: string): Promise<SignedFileUrl> {
   const d = asDict(await http(`/workspace/files/${encodeURIComponent(fileId)}/signed-url`, { method: "POST" }));
   return { url: asStr(d.url ?? d.download_url), relativeUrl: asStr(d.relative_url), expiresAt: asStr(d.expires_at), expiresInSeconds: asNum(d.expires_in_seconds) || 900 };
+}
+// The file's actual bytes, fetched the same authenticated way as every other
+// call (not a plain navigation to the signed URL) — the storage route always
+// answers with Content-Disposition: attachment, so navigating to it forces a
+// browser download regardless of intent. Going through the bearer-authed
+// proxy instead ignores that header entirely; it's just a JS fetch, so the
+// caller (open in a tab vs. force-save) decides what happens to the bytes.
+export async function getWorkspaceFileBlob(fileId: string): Promise<Blob> {
+  const signed = await getWorkspaceFileSignedUrl(fileId);
+  return httpBlob(signed.relativeUrl);
 }
 export type WorkspaceFileFilter = { folderId?: string; caseId?: string; starred?: boolean; q?: string };
 export async function listFiles(f?: WorkspaceFileFilter): Promise<WorkspaceFile[]> {

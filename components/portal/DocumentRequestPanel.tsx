@@ -14,8 +14,8 @@ import {
   type DocumentRequest,
   type TemplateQuestion,
 } from "@/lib/services/backend";
-import { ApiError, httpBlob, isProviderUnavailable } from "@/lib/http";
-import { base64Blob, closeTab, preopenTab, saveBlob, showBlob } from "@/lib/download";
+import { ApiError, isProviderUnavailable } from "@/lib/http";
+import { base64Blob, closeTab, extFromMime, mimeFromName, preopenTab, saveBlob, showBlob } from "@/lib/download";
 import { normalizeAnswers } from "@/lib/docTemplate";
 import ContractSign from "./ContractSign";
 import DocFill, { loadDraft, clearDraft } from "./DocFill";
@@ -39,7 +39,9 @@ function stageFor(r: DocumentRequest): Stage {
   return "pending";
 }
 
-function showPdf(blob: Blob, fileName: string, download: boolean, win: Window | null) {
+// The generated file — PDF or DOCX, whichever the template produces — either
+// opened in the pre-opened tab or saved straight to disk.
+function deliverFile(blob: Blob, fileName: string, download: boolean, win: Window | null) {
   if (download) {
     closeTab(win);
     saveBlob(blob, fileName);
@@ -48,8 +50,8 @@ function showPdf(blob: Blob, fileName: string, download: boolean, win: Window | 
   }
 }
 
-// Older requests may still carry the PDF inline as base64.
-const inlineBlob = (f: DocumentRequest["contractFile"]) => base64Blob(f?.fileBase64, f?.mimeType || "application/pdf");
+// Older requests may still carry the file inline as base64.
+const inlineBlob = (f: DocumentRequest["contractFile"]) => base64Blob(f?.fileBase64, f?.mimeType || mimeFromName(f?.fileName || ""));
 
 const statusOf = (e: unknown) => (e instanceof ApiError ? e.status : 0);
 
@@ -92,7 +94,6 @@ export default function DocumentRequestPanel({
   const [stage, setStage] = useState<Stage>(stageFor(initialReq));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [formats, setFormats] = useState<string[]>(["pdf"]);
   const [pdfBusy, setPdfBusy] = useState(false);
 
   // Whichever field list is actually populated. The service-scoped create
@@ -116,20 +117,6 @@ export default function DocumentRequestPanel({
     setNote(null);
   }
 
-  // Reopening an already-finished request skips the pay/poll path entirely
-  // (unlock() only runs from there), so the DOCX button would silently never
-  // appear without fetching the format list here too.
-  useEffect(() => {
-    if (req.status !== "file_ready") return;
-    let alive = true;
-    getDocumentUnlockPolicy(req.id)
-      .then((p) => alive && p.formats.length && setFormats(p.formats))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [req.id, req.status]);
-
   // 3 free downloads a month (S-35), for the pay-step reminder text.
   const reqs = useResource(listDocumentRequests, [req.status]);
   const policies = useResourceOne(getPlatformPolicies, []).data;
@@ -139,13 +126,6 @@ export default function DocumentRequestPanel({
   }, [reqs.data]);
 
   const bump = () => onBump?.();
-
-  async function getDocx() {
-    setPdfBusy(true);
-    try { saveBlob(await httpBlob(`/document-requests/${req.id}/file?format=docx`, { headers: { Accept: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" } }), `lexgo-${req.id}.docx`); }
-    catch { setNote({ ok: false, msg: t("fileError") }); }
-    finally { setPdfBusy(false); }
-  }
 
   async function saveAnswers() {
     if (busy) return;
@@ -192,7 +172,6 @@ export default function DocumentRequestPanel({
     generating.current = true;
     try {
       const policy = await getDocumentUnlockPolicy(r.id);
-      if (policy.formats.length) setFormats(policy.formats);
       if (!policy.canGenerate) return null;
       return await generateDocumentRequest(r.id);
     } catch (e) {
@@ -295,14 +274,14 @@ export default function DocumentRequestPanel({
   const isStale =
     stage === "done" && qs.length > 0 && !Object.values(req.answers || {}).some((v) => v != null && String(v).trim() !== "");
 
-  // GET …/file returns the PDF itself. 409 = not generated yet → generate once
-  // and retry; 402 = unpaid → back to the pay step.
-  async function getPdf(download: boolean) {
+  // GET …/file returns the generated file itself — PDF or DOCX, whichever the
+  // template produces; never assume one. 409 = not generated yet → generate
+  // once and retry; 402 = unpaid → back to the pay step.
+  async function getFile(download: boolean) {
     if (pdfBusy) return;
     const win = download ? null : preopenTab();
     setPdfBusy(true);
     setNote(null);
-    const name = req.contractFile?.fileName || `lexgo-${req.id}.pdf`;
     try {
       let blob: Blob;
       try {
@@ -312,11 +291,13 @@ export default function DocumentRequestPanel({
         setReq(await generateDocumentRequest(req.id));
         blob = await getDocumentRequestFile(req.id);
       }
-      showPdf(blob, name, download, win);
+      const name = req.contractFile?.fileName || `lexgo-${req.id}.${extFromMime(blob.type) || "pdf"}`;
+      deliverFile(blob, name, download, win);
     } catch (e) {
       const inline = inlineBlob(req.contractFile);
       if (inline && statusOf(e) !== 402) {
-        showPdf(inline, name, download, win);
+        const name = req.contractFile?.fileName || `lexgo-${req.id}.${extFromMime(inline.type) || "pdf"}`;
+        deliverFile(inline, name, download, win);
       } else {
         closeTab(win);
         if (statusOf(e) === 402) {
@@ -408,22 +389,16 @@ export default function DocumentRequestPanel({
           ) : null}
           <span className="docdone__i"><IconCheck /></span>
           <b>{t("ready")}</b>
-          <span className="docdone__f">{req.contractFile?.fileName || `lexgo-${req.id}.pdf`}</span>
+          <span className="docdone__f">{req.contractFile?.fileName || t("fileGeneric")}</span>
           <div className="docdone__act">
-            <button className="btn btn--pri" type="button" onClick={() => getPdf(false)} disabled={pdfBusy}>
+            <button className="btn btn--pri" type="button" onClick={() => getFile(false)} disabled={pdfBusy}>
               <IconExternal />
               {t("open")}
             </button>
-            <button className="btn btn--line" type="button" onClick={() => getPdf(true)} disabled={pdfBusy}>
+            <button className="btn btn--line" type="button" onClick={() => getFile(true)} disabled={pdfBusy}>
               <IconDownload />
               {pdfBusy ? t("fileLoading") : t("download")}
             </button>
-            {formats.includes("docx") ? (
-              <button className="btn btn--line" type="button" onClick={() => getDocx()} disabled={pdfBusy}>
-                <IconDownload />
-                DOCX
-              </button>
-            ) : null}
           </div>
           <small className="advmuted">{t("keptInCabinet")}</small>
           {onStartNew && !isStale ? (

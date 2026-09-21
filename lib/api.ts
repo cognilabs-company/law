@@ -8,6 +8,7 @@ import {
   backendOrigin,
   type Dict,
 } from "./http";
+import { mimeFromName } from "./download";
 
 export { API_BASE, ApiError, isLimitError } from "./http";
 
@@ -122,14 +123,17 @@ function normChat(v: unknown): ApiChat {
 
 function normContract(v: unknown): Contract {
   const d = asDict(v);
+  const fileName = asStr(d.file_name ?? d.fileName, "");
   return {
     id: String(d.id ?? ""),
     contractType: asStr(d.contract_type ?? d.contractType, ""),
     status: asStr(d.status, ""),
     downloadUrl: asStr(d.download_url ?? d.downloadUrl, ""),
     inlineUrl: asStr(d.inline_url ?? d.inlineUrl, "") || undefined,
-    fileName: asStr(d.file_name ?? d.fileName, "") || undefined,
-    mimeType: asStr(d.mime_type ?? d.mimeType, "application/pdf"),
+    fileName: fileName || undefined,
+    // The backend sends the real mime type; a name-derived guess only covers
+    // the rare response that omits it (contracts can be PDF or DOCX).
+    mimeType: asStr(d.mime_type ?? d.mimeType) || mimeFromName(fileName),
     fileBase64: asStr(d.file_base64 ?? d.fileBase64, "") || undefined,
   };
 }

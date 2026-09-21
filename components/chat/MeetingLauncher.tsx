@@ -10,7 +10,7 @@ import { makeInviteSearch } from "@/lib/inviteSearch";
 import SearchSelect from "@/components/SearchSelect";
 import CallRoom from "@/components/chat/CallRoom";
 import { Notice } from "@/components/admin/AdminBits";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import { Skeleton } from "@/components/portal/DataState";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
 import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone } from "@/components/icons";
 
@@ -189,14 +189,41 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   }
 
   const canHost = canMakeCalls(session);
-  const live = (history ?? []).filter((c) => LIVE.has(c.callStatus));
-  const ended = (history ?? []).filter((c) => !LIVE.has(c.callStatus));
+  // No real history yet: fall back to a handful of past, already-ended sample
+  // meetings so the stat tiles, agenda, calendar and table agree with each
+  // other instead of showing a populated-looking list next to "0" everywhere
+  // else. Always callStatus "ended" — never joinable, so the (very real)
+  // Join/Rejoin button never appears on a sample row.
+  const sampleHistory: HistoryItem[] =
+    history && history.length === 0
+      ? (t.raw("sample") as { title: string; callerName?: string; mine: boolean; daysAgo: number; minutes: number; callType: "audio" | "video" }[]).map(
+          (s, i) => {
+            const started = new Date(new Date().getTime() - s.daysAgo * 86_400_000);
+            const ended = new Date(started.getTime() + s.minutes * 60_000);
+            return {
+              roomId: `sample-${i}`,
+              callId: `sample-${i}`,
+              callType: s.callType,
+              title: s.title,
+              callerName: s.mine ? session?.name || "" : s.callerName || "",
+              callerUserId: s.mine ? session?.id || `sample-me` : `sample-caller-${i}`,
+              status: "left",
+              callStatus: "ended",
+              startedAt: started.toISOString(),
+              autoEndAt: ended.toISOString(),
+            };
+          },
+        )
+      : [];
+  const effectiveHistory = sampleHistory.length ? sampleHistory : history ?? [];
+  const live = effectiveHistory.filter((c) => LIVE.has(c.callStatus));
+  const ended = effectiveHistory.filter((c) => !LIVE.has(c.callStatus));
   const statusOf = (s: string) => (t.has(`callStatus.${s}`) ? t(`callStatus.${s}`) : s);
   const mineOf = (s: string) => (tc.has(`pstatus.${s}`) ? tc(`pstatus.${s}`) : s);
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const todayItems = (history ?? []).filter((c) => c.startedAt && c.startedAt.slice(0, 10) === todayStr);
-  const calEvents: MiniCalEvent[] = (history ?? [])
+  const todayItems = effectiveHistory.filter((c) => c.startedAt && c.startedAt.slice(0, 10) === todayStr);
+  const calEvents: MiniCalEvent[] = effectiveHistory
     .filter((c) => c.startedAt)
     .map((c) => ({ id: c.callId, date: c.startedAt, label: c.title || t("untitled"), sub: c.callerName || undefined }));
   const durationOf = (c: HistoryItem) => {
@@ -282,8 +309,6 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
       <Notice ok={false} msg={t("backendMissing")} />
     ) : histErr === "error" ? (
       <Notice ok={false} msg={t("historyError")} />
-    ) : history.length === 0 ? (
-      <EmptyState icon={<IconUsers />} title={t("historyEmpty")} text={t("historyEmptyText")} />
     ) : null;
 
   if (!rich) {
@@ -389,7 +414,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           </div>
           <div className="pk__i pk__i--ic pk__i--warn">
             <span className="pk__ico"><IconUsers /></span>
-            <b>{(history ?? []).length}</b>
+            <b>{effectiveHistory.length}</b>
             <span>{t("statTotal")}</span>
           </div>
         </div>

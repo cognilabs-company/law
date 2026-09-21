@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { shortDateTime } from "@/lib/date";
 import { ApiError } from "@/lib/http";
+import { preopenTab, showBlob, saveBlob, closeTab } from "@/lib/download";
 import {
   getWorkspaceTree,
   createFolder,
@@ -20,7 +21,7 @@ import {
   uploadWorkspaceFile,
   updateFile,
   deleteFile,
-  getWorkspaceFileSignedUrl,
+  getWorkspaceFileBlob,
   type WorkspaceFolder,
   type WorkspaceFile,
 } from "@/lib/services/backend";
@@ -43,6 +44,7 @@ import {
   IconEdit,
   IconTrash,
   IconDownload,
+  IconExternal,
   IconFolderPlus,
 } from "@/components/icons";
 
@@ -261,12 +263,28 @@ export default function FileManager() {
     reload();
   }
 
+  // Clicking a file opens/previews it; downloading is its own separate
+  // action (menu). Both fetch the same bytes through the authed proxy — a
+  // plain navigation to the file's URL always forces a download server-side,
+  // regardless of which of these two the frontend meant.
+  async function openFile(item: FMItem) {
+    setMenuFor(null);
+    setNote(null);
+    const win = preopenTab();
+    try {
+      const blob = await getWorkspaceFileBlob(item.id);
+      showBlob(blob, item.name, win);
+    } catch {
+      closeTab(win);
+      setNote({ ok: false, msg: t("actionError") });
+    }
+  }
   async function downloadFile(item: FMItem) {
     setMenuFor(null);
     setNote(null);
     try {
-      const signed = await getWorkspaceFileSignedUrl(item.id);
-      window.open(signed.url, "_blank", "noopener,noreferrer");
+      const blob = await getWorkspaceFileBlob(item.id);
+      saveBlob(blob, item.name);
     } catch {
       setNote({ ok: false, msg: t("actionError") });
     }
@@ -422,9 +440,9 @@ export default function FileManager() {
                     <button type="button" className="fmgr__more" aria-label="menu" onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === item.id ? null : item.id); }}>
                       <IconMoreHorizontal />
                     </button>
-                    {menuFor === item.id ? <ItemMenu item={item} t={t} onOpen={openFolder} onRename={startRename} onStar={toggleStar} onDelete={removeItem} onDownload={downloadFile} /> : null}
+                    {menuFor === item.id ? <ItemMenu item={item} t={t} onOpen={openFolder} onOpenFile={openFile} onRename={startRename} onStar={toggleStar} onDelete={removeItem} onDownload={downloadFile} /> : null}
                   </div>
-                  <button type="button" className="fmgr__card-name" onClick={() => (item.type === "folder" ? openFolder(item.id) : void downloadFile(item))}>
+                  <button type="button" className="fmgr__card-name" onClick={() => (item.type === "folder" ? openFolder(item.id) : void openFile(item))}>
                     {item.name}
                   </button>
                   <div className="fmgr__card-meta">
@@ -445,7 +463,7 @@ export default function FileManager() {
                       </span>
                     ) : null}
                   </span>
-                  <button type="button" className="fmgr__lrow-name" onClick={() => (item.type === "folder" ? openFolder(item.id) : void downloadFile(item))}>
+                  <button type="button" className="fmgr__lrow-name" onClick={() => (item.type === "folder" ? openFolder(item.id) : void openFile(item))}>
                     {item.name}
                   </button>
                   <span className="fmgr__lrow-meta">{item.type === "folder" ? t("items", { n: childCount(item.id) }) : fmtSize(item.size)}</span>
@@ -454,7 +472,7 @@ export default function FileManager() {
                     <button type="button" className="fmgr__more" aria-label="menu" onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === item.id ? null : item.id); }}>
                       <IconMoreHorizontal />
                     </button>
-                    {menuFor === item.id ? <ItemMenu item={item} t={t} onOpen={openFolder} onRename={startRename} onStar={toggleStar} onDelete={removeItem} onDownload={downloadFile} /> : null}
+                    {menuFor === item.id ? <ItemMenu item={item} t={t} onOpen={openFolder} onOpenFile={openFile} onRename={startRename} onStar={toggleStar} onDelete={removeItem} onDownload={downloadFile} /> : null}
                   </span>
                 </div>
               ))}
@@ -494,6 +512,7 @@ function ItemMenu({
   item,
   t,
   onOpen,
+  onOpenFile,
   onRename,
   onStar,
   onDelete,
@@ -502,6 +521,7 @@ function ItemMenu({
   item: FMItem;
   t: ReturnType<typeof useTranslations>;
   onOpen: (id: string) => void;
+  onOpenFile: (item: FMItem) => void;
   onRename: (item: FMItem) => void;
   onStar: (item: FMItem) => void;
   onDelete: (item: FMItem) => void;
@@ -515,10 +535,16 @@ function ItemMenu({
           {t("menuOpen")}
         </button>
       ) : (
-        <button type="button" onClick={() => void onDownload(item)}>
-          <IconDownload />
-          {t("menuDownload")}
-        </button>
+        <>
+          <button type="button" onClick={() => void onOpenFile(item)}>
+            <IconExternal />
+            {t("menuOpen")}
+          </button>
+          <button type="button" onClick={() => void onDownload(item)}>
+            <IconDownload />
+            {t("menuDownload")}
+          </button>
+        </>
       )}
       <button type="button" onClick={() => onRename(item)}>
         <IconEdit />

@@ -1,16 +1,39 @@
-// Client-side handling of files fetched as blobs (PDFs from authed backend
-// routes). A backend file response is never turned into a plain link: it is
-// fetched with the bearer token, then saved or shown from a short-lived
-// object URL.
+// Client-side handling of files fetched as blobs (generated contracts/
+// documents from authed backend routes — PDF or DOCX, the backend decides
+// which per template). A backend file response is never turned into a plain
+// link: it is fetched with the bearer token, then saved or shown from a
+// short-lived object URL.
 
 const REVOKE_MS = 60_000;
 
-const asPdf = (blob: Blob, type = "application/pdf") => (blob.type ? blob : new Blob([blob], { type }));
+const EXT_MIME: Record<string, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  doc: "application/msword",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+};
+// A file's mime type from its name's extension — used only as a fallback
+// when the backend's own metadata omits `mime_type` (rare; it normally sends
+// the right one). Better than assuming one fixed format, now that generated
+// documents can be PDF or DOCX depending on the template.
+export function mimeFromName(name: string, fallback = "application/octet-stream"): string {
+  const ext = (name.split(".").pop() || "").toLowerCase();
+  return EXT_MIME[ext] || fallback;
+}
+
+const MIME_EXT: Record<string, string> = Object.fromEntries(Object.entries(EXT_MIME).map(([ext, mime]) => [mime, ext]));
+// The inverse of mimeFromName — a plain extension ("pdf", "docx"…) from a
+// mime type, for building a file name before any bytes have been fetched.
+export function extFromMime(mime: string): string {
+  return MIME_EXT[mime.toLowerCase()] || "";
+}
+
+const withType = (blob: Blob, type: string) => (blob.type ? blob : new Blob([blob], { type }));
 
 // Save a blob under `fileName`. The object URL is revoked later: revoking
 // right after click() can cancel the download in some browsers.
 export function saveBlob(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(asPdf(blob));
+  const url = URL.createObjectURL(withType(blob, mimeFromName(fileName)));
   const a = document.createElement("a");
   a.href = url;
   a.download = fileName;
@@ -36,7 +59,7 @@ export function showBlob(blob: Blob, fileName: string, win: Window | null): void
     saveBlob(blob, fileName);
     return;
   }
-  const url = URL.createObjectURL(asPdf(blob));
+  const url = URL.createObjectURL(withType(blob, mimeFromName(fileName)));
   win.location.href = url;
   setTimeout(() => URL.revokeObjectURL(url), REVOKE_MS);
 }
@@ -50,7 +73,7 @@ export function closeTab(win: Window | null): void {
 }
 
 // Inline base64 payload (older contract/document responses) → Blob, or null.
-export function base64Blob(b64: string | undefined, type = "application/pdf"): Blob | null {
+export function base64Blob(b64: string | undefined, type = "application/octet-stream"): Blob | null {
   if (!b64) return null;
   try {
     const bin = atob(b64);

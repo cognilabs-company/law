@@ -11,18 +11,7 @@ const base: P = {
   strokeLinejoin: "round",
 };
 
-export const IconLogo = (p: P) => (
-  <svg viewBox="0 0 24 24" {...p}>
-    <path
-      d="M7 5v14h11"
-      stroke="#fff"
-      strokeWidth={3}
-      fill="none"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
+export const IconLogo = () => <img src="/logo.png" alt="" />;
 
 export const IconUser = (p: P) => (
   <svg {...base} {...p}>

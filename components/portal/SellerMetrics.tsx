@@ -35,16 +35,15 @@ export default function SellerMetrics({ stats, userId, profile, demo }: { stats:
   const tip = avgMin > 15 ? t("tipSpeed", { now: avgMin, target: 15 }) : responseRate < 0.9 ? t("tipRate") : t("tipGood");
 
   // T2-04 §3: how close this advocate is to "Super advokat". Only the
-  // criteria this dashboard actually has data for get a real pass/fail —
-  // region-wide case-outcome ranking and complaint history aren't exposed to
-  // the seller cabinet yet, so those stay unscored rather than faked.
+  // criteria this dashboard actually has data for are shown — region-wide
+  // case-outcome ranking and complaint history aren't exposed to the seller
+  // cabinet yet, so they're left out entirely rather than shown stuck at
+  // "unknown" forever.
   const superCriteria: { label: string; ok: boolean | null }[] = [
     { label: t("superRating"), ok: rating > 4.5 },
     { label: t("superResponse"), ok: responseRate > 0.9 },
     { label: t("superExperience", { n: profile?.experienceYears ?? 0 }), ok: profile ? profile.experienceYears >= 3 : null },
     { label: t("superCases", { n: profile?.totalCases ?? 0 }), ok: profile ? profile.totalCases >= 10 : null },
-    { label: t("superTop3"), ok: null },
-    { label: t("superNoComplaints"), ok: null },
   ];
 
   return (

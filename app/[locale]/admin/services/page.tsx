@@ -457,7 +457,6 @@ export default function AdminServices() {
               {del.slug ? <span className="advmuted"> · {del.slug}</span> : null}
             </p>
             <p className="advmuted" style={{ margin: 0 }}>{ts("del.text")}</p>
-            <p className="advmuted" style={{ margin: 0 }}>{ts("del.localHint")}</p>
             {delNote ? <Notice ok={delNote.ok} msg={delNote.msg} /> : null}
             <div className="svced__acts">
               <button className="btn btn--ghost" type="button" onClick={() => setDel(null)} disabled={delBusy}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type CSSProperties } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { Role } from "@/lib/auth";
@@ -106,8 +107,9 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
           <p>{t("heroSub")}</p>
         </div>
         <div className="dhero__quote">
-          <p>{t("quote")}</p>
-          <span>— {t("quoteAuthor")}</span>
+          <div className="dhero__quoteImg">
+            <Image src="/law-banner.png" alt="" fill sizes="(max-width: 980px) 60vw, 280px" style={{ objectFit: "contain" }} />
+          </div>
         </div>
         <div className="dhero__greet">
           <span className="dhero__date">{new Date().toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}</span>
@@ -118,26 +120,26 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
 
       {cabinet.status === "loading" ? null : (
         <div className="amet">
-          <div className="amet__c">
+          <Link href={`${base}/clients`} className="amet__c stile stile--btn">
             <span className="amet__i"><IconUsers /></span>
             <b>{clientsCount}</b>
             <span className="amet__l">{t("statClients")}</span>
-          </div>
-          <div className="amet__c">
+          </Link>
+          <Link href={`${base}/cases`} className="amet__c stile stile--btn">
             <span className="amet__i"><IconBriefcase /></span>
             <b>{cases.length}</b>
             <span className="amet__l">{t("statCases")}</span>
-          </div>
-          <div className="amet__c">
+          </Link>
+          <Link href={`${base}/calendar`} className="amet__c stile stile--btn">
             <span className="amet__i"><IconCalendar /></span>
             <b>{num(workload, "courts_today")}</b>
             <span className="amet__l">{t("statMeetings")}</span>
-          </div>
-          <div className="amet__c">
+          </Link>
+          <Link href={`${base}/files`} className="amet__c stile stile--btn">
             <span className="amet__i"><IconFileText /></span>
             <b>{num(workload, "documents_to_review")}</b>
             <span className="amet__l">{t("statDocs")}</span>
-          </div>
+          </Link>
         </div>
       )}
 
@@ -260,7 +262,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
       </div>
 
       {role === "advocate" ? (
-        <div className="ppanel advboost">
+        <div className="ppanel">
           <div className="ppanel__h">
             <b>{t("boostTitle")}</b>
           </div>

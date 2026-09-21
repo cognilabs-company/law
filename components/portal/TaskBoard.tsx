@@ -38,6 +38,16 @@ export default function TaskBoard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<Stage | null>(null);
+  // The drop-preview slot (below) eases its height in on hover — nice while
+  // dragging over a column. But on an actual drop the task list re-sorts
+  // (overdue/priority/due-date) in the very same render, so the card that
+  // was dropped can land somewhere else in the column while that 200ms ease
+  // is still mid-flight, reading as a stutter: cards already resettled,
+  // placeholder still shrinking. Set right before the drop-triggered
+  // `setOverStage(null)` so that render removes the slot with no transition
+  // at all, instead of racing the reflow; a plain drag-away (no drop) still
+  // gets the smooth retreat.
+  const [dropInstant, setDropInstant] = useState(false);
   const [q, setQ] = useState("");
   const [hideDone, setHideDone] = useState(false);
   const [editing, setEditing] = useState<WorkTask | null | "new">(null);
@@ -143,9 +153,9 @@ export default function TaskBoard() {
               <div
                 className={`pipe__col pipe__col--${s === "todo" ? "new" : s === "doing" ? "contacted" : s === "review" ? "proposal" : "won"}${overStage === s ? " pipe__col--over" : ""}`}
                 key={s}
-                onDragOver={(e) => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setOverStage(s); } }}
+                onDragOver={(e) => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropInstant(false); setOverStage(s); } }}
                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverStage((cur) => (cur === s ? null : cur)); }}
-                onDrop={(e) => { e.preventDefault(); const x = res.data.find((z) => z.id === dragId); if (x) void moveTo(x, s); setDragId(null); setOverStage(null); }}
+                onDrop={(e) => { e.preventDefault(); const x = res.data.find((z) => z.id === dragId); if (x) void moveTo(x, s); setDragId(null); setDropInstant(true); setOverStage(null); }}
               >
                 <div className="pipe__head">
                   <span className="pipe__dot" />
@@ -153,7 +163,7 @@ export default function TaskBoard() {
                   <span className="pipe__count">{cols[s].length}</span>
                 </div>
                 <div className="pipe__cards">
-                  <div className={`pipe__slot${overStage === s && dragId ? " on" : ""}`} aria-hidden />
+                  <div className={`pipe__slot${overStage === s && dragId ? " on" : ""}${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden />
                   {cols[s].length === 0 ? (
                     <div className="pipe__empty">{t("noneHere")}</div>
                   ) : (

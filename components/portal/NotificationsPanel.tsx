@@ -31,6 +31,8 @@ const VIA_CHANNELS = ["push", "telegram", "email", "sms", "secure_chat", "meetin
 
 type ReadFilter = "all" | "unread" | "read";
 
+type SampleNotif = { title: string; body: string; category: NotifCategory; hoursAgo: number };
+
 // Delivery chips ("Telegram · Waiting for delivery"); queued/not configured
 // read as waiting, unknown statuses stay neutral. `channels` limits which
 // channels are shown; entries without a status are skipped.
@@ -228,6 +230,24 @@ export default function NotificationsPanel() {
         <Skeleton rows={4} />
       ) : status === "error" ? (
         <Notice ok={false} msg={t("loadError")} />
+      ) : !items.length && !narrowed ? (
+        <div className="ntlist">
+          {(t.raw("sample") as SampleNotif[]).map((s, i) => (
+            <div key={i} className="ntrow">
+              <div className="ntitem ntitem--static">
+                <span className="ntitem__dot" aria-hidden />
+                <div className="ntitem__m">
+                  <div className="ntitem__top">
+                    <b>{s.title}</b>
+                    <i className={`atag ntitem__cat ntitem__cat--${s.category}`}>{catLabel(s.category)}</i>
+                  </div>
+                  <span>{s.body}</span>
+                  <em>{fmt(new Date(new Date().getTime() - s.hoursAgo * 3600_000).toISOString())}</em>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : !items.length ? (
         <EmptyState icon={<IconChat />} title={t("empty")} text={t("emptyText")} />
       ) : !shown.length ? (
