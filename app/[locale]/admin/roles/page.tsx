@@ -20,6 +20,16 @@ export default function AdminRoles() {
   const perms = useResource(getPermissions, []);
   const matrix = useResourceOne(getPermissionMatrix, []);
   const permLabel = (code: string) => perms.data.find((p) => p.code === code)?.title || code;
+  // Three independent fetches used to mean the page visibly assembled in
+  // steps — whichever resolved first popped its panel in while the others
+  // still showed their own skeleton (the "assign role" panel had no gate at
+  // all, so its role dropdown would silently fill in later). Wait for all
+  // three to settle once, then render the whole page together; a later
+  // `reload()` (e.g. after creating a role) only ever re-triggers `roles`
+  // and doesn't drop back to this full-page gate.
+  const [everReady, setEverReady] = useState(false);
+  const allLoading = roles.status === "loading" || perms.status === "loading" || matrix.status === "loading";
+  if (!everReady && !allLoading) setEverReady(true);
   const [open, setOpen] = useState(false);
 
   // create-role form
@@ -82,6 +92,14 @@ export default function AdminRoles() {
     } finally {
       setABusy(false);
     }
+  }
+
+  if (!everReady) {
+    return (
+      <div className="ppanel">
+        <Skeleton rows={8} />
+      </div>
+    );
   }
 
   return (
@@ -168,7 +186,7 @@ export default function AdminRoles() {
                 <tbody>
                   {matrix.data.permissions.map((code) => (
                     <tr key={code}>
-                      <td>{permLabel(code)}</td>
+                      <td title={permLabel(code)}>{permLabel(code)}</td>
                       {matrix.data!.roles.map((r) => (
                         <td key={r.name} className="pmx__c">
                           {r.permissions.includes(code) ? <IconCheck /> : <span className="pmx__no">·</span>}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { Fragment, useMemo, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { moveLeadKanban, adminCreateLead, adminDeleteLead, adminUpdateLead, saveLeadKanbanColumns, deleteLeadKanbanColumn } from "@/lib/services/backend";
 import {
@@ -63,6 +63,21 @@ export default function AdminPipeline() {
   const [busy, setBusy] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  // Where in overCol the card would land — the placeholder renders exactly
+  // here (between the two cards it'd sit between, or at the end), instead of
+  // always at the top of the column regardless of where the cursor actually
+  // is. Defaults to "append at the end"; each card's own onDragOver narrows
+  // it to before/after itself based on which half of the card the cursor is
+  // over, and stops the column's own handler from then overwriting that with
+  // the append default.
+  const [overIndex, setOverIndex] = useState(0);
+  // The slot above eases its height in on hover, which looks nice — but a
+  // real drop re-sorts/repositions cards in the very same render, so if the
+  // slot eased itself back out over its usual 200ms it would visibly lag
+  // behind cards that have already snapped to their new spot. Collapsing it
+  // instantly on an actual drop (not on a plain drag-away) avoids that race —
+  // same fix already applied to the Vazifalar kanban (TaskBoard.tsx).
+  const [dropInstant, setDropInstant] = useState(false);
   const [selId, setSelId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -102,6 +117,22 @@ export default function AdminPipeline() {
 
   // Filters (client-side over the loaded board).
   const [f, setF] = useState<LeadFilter>(EMPTY_LEAD_FILTER);
+  // Quick date-range presets over the same from/to LeadFilterBar's own date
+  // pickers already filter on — one click instead of opening both pickers.
+  const periodPresets = useMemo(() => {
+    const now = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const today = iso(now);
+    const weekStart = new Date(now);
+    const dow = weekStart.getDay();
+    weekStart.setDate(weekStart.getDate() + (dow === 0 ? -6 : 1 - dow));
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    return [
+      { key: "today", label: t("period.today"), from: today, to: today },
+      { key: "week", label: t("period.week"), from: iso(weekStart), to: today },
+      { key: "month", label: t("period.month"), from: iso(monthStart), to: today },
+    ];
+  }, [t]);
   const sources = useMemo(() => [...new Set(allLeads.map((l) => l.source).filter(Boolean))], [allLeads]);
   const regions = useMemo(() => [...new Set(allLeads.map((l) => l.region).filter(Boolean))], [allLeads]);
   const urgencies = useMemo(() => [...new Set(allLeads.map((l) => l.urgency.trim().toLowerCase()).filter(Boolean))], [allLeads]);
@@ -120,28 +151,44 @@ export default function AdminPipeline() {
   // board is refetched silently. A rejected move puts the card back.
   async function moveTo(leadId: string, columnKey: string, position: number, lost?: { reason: string; note: string }) {
     if (busy) return;
-    if (isLostKey(columnKey) && !lost) { setLostAsk({ leadId, columnKey, position }); return; }
-    const before = cols;
     const from = cols.find((c) => c.cards.some((x) => x.lead.id === leadId));
-    const card = from?.cards.find((x) => x.lead.id === leadId);
-    if (!card || !from) return;
-    if (from.key === columnKey) return;
+    if (!from) return;
+    const sameColumn = from.key === columnKey;
+    // The lost-reason prompt is for a card newly entering a lost column, not
+    // for reordering cards that are already sitting in one.
+    if (!sameColumn && isLostKey(columnKey) && !lost) { setLostAsk({ leadId, columnKey, position }); return; }
+    const card = from.cards.find((x) => x.lead.id === leadId);
+    if (!card) return;
+    const curIdx = from.cards.findIndex((x) => x.lead.id === leadId);
+    // Reordering within one column: lifting the dragged card out shifts every
+    // later index down by one, so a target position after its own current
+    // slot needs that same adjustment — otherwise the card lands one place
+    // further than where it was actually dropped.
+    const finalPosition = sameColumn && position > curIdx ? position - 1 : position;
+    if (sameColumn && finalPosition === curIdx) return; // dropped back where it started
+    const before = cols;
     setBusy(leadId);
     setMoveErr(false);
     res.setData((cur) =>
       cur.map((c) => {
+        if (sameColumn) {
+          if (c.key !== from.key) return c;
+          const cardsArr = c.cards.filter((x) => x.lead.id !== leadId);
+          cardsArr.splice(Math.min(finalPosition, cardsArr.length), 0, card);
+          return { ...c, cards: cardsArr };
+        }
         if (c.key === from.key) return { ...c, count: Math.max(0, c.count - 1), cards: c.cards.filter((x) => x.lead.id !== leadId) };
         if (c.key === columnKey) {
-          const cards = c.cards.slice();
-          cards.splice(Math.min(position, cards.length), 0, card);
-          return { ...c, count: c.count + 1, cards };
+          const cardsArr = c.cards.slice();
+          cardsArr.splice(Math.min(finalPosition, cardsArr.length), 0, card);
+          return { ...c, count: c.count + 1, cards: cardsArr };
         }
         return c;
       }),
     );
     try {
       if (lost) await adminUpdateLead(leadId, { details: { ...(card.lead.details ?? {}), lost_reason: lost.reason, lost_note: lost.note, lost_at: new Date().toISOString() } }).catch(() => {});
-      await moveLeadKanban(leadId, columnKey, position);
+      await moveLeadKanban(leadId, columnKey, finalPosition);
       void refresh();
     } catch {
       res.setData(before);
@@ -307,6 +354,23 @@ export default function AdminPipeline() {
             <div className="lkpi__c"><b>{wonCount}</b><span>{t("kpi.won")}</span></div>
             <div className="lkpi__c"><b>{conv}%</b><span>{t("kpi.conv")}</span></div>
           </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            {periodPresets.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                className={`btn btn--sm ${f.from === p.from && f.to === p.to ? "btn--pri" : "btn--line"}`}
+                onClick={() => setF((cur) => ({ ...cur, from: p.from, to: p.to }))}
+              >
+                {p.label}
+              </button>
+            ))}
+            {f.from || f.to ? (
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setF((cur) => ({ ...cur, from: "", to: "" }))}>
+                {t("f.clear")}
+              </button>
+            ) : null}
+          </div>
           <LeadFilterBar
             value={f}
             onChange={setF}
@@ -335,9 +399,9 @@ export default function AdminPipeline() {
               className={`pipe__col${overCol === col.key ? " pipe__col--over" : ""}`}
               key={col.key}
               style={col.color ? ({ "--pipe-col": col.color } as CSSProperties) : undefined}
-              onDragOver={(e) => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setOverCol(col.key); } }}
+              onDragOver={(e) => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropInstant(false); setOverCol(col.key); setOverIndex(col.cards.length); } }}
               onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverCol((cur) => (cur === col.key ? null : cur)); }}
-              onDrop={(e) => { e.preventDefault(); if (dragId) moveTo(dragId, col.key, col.cards.length); setDragId(null); setOverCol(null); }}
+              onDrop={(e) => { e.preventDefault(); if (dragId) moveTo(dragId, col.key, overIndex); setDragId(null); setDropInstant(true); setOverCol(null); }}
             >
               <div className="pipe__head">
                 <span className="pipe__dot" style={col.color ? { background: col.color } : undefined} />
@@ -353,34 +417,49 @@ export default function AdminPipeline() {
                 ) : null}
               </div>
               <div className="pipe__cards">
-                <div className={`pipe__slot${overCol === col.key && dragId ? " on" : ""}`} aria-hidden />
                 {col.cards.length === 0 ? (
-                  <div className="pipe__empty">{filtered ? t("f.noMatch") : t("noneHere")}</div>
+                  <>
+                    <div className={`pipe__slot${overCol === col.key && dragId ? " on" : ""}${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden />
+                    <div className="pipe__empty">{filtered ? t("f.noMatch") : t("noneHere")}</div>
+                  </>
                 ) : (
-                  col.cards.map(({ lead: l }) => (
-                    <div
-                      className={`pipe__card${dragId === l.id ? " pipe__card--drag" : ""}`}
-                      key={l.id}
-                      draggable
-                      onClick={() => setSelId(l.id)}
-                      onDragStart={(e) => { setDragId(l.id); e.dataTransfer.effectAllowed = "move"; }}
-                      onDragEnd={() => { setDragId(null); setOverCol(null); }}
-                    >
-                      <div className="pipe__ctop">
-                        <b>{l.name || l.phone || leadCategoryLabel(t, l.category) || t("untitledLead")}</b>
-                        {l.scoreKey ? <span className={`lscore lscore--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : null}
+                  col.cards.map(({ lead: l }, ii) => (
+                    <Fragment key={l.id}>
+                      {overCol === col.key && dragId && overIndex === ii ? <div className={`pipe__slot on${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden /> : null}
+                      <div
+                        className={`pipe__card${dragId === l.id ? " pipe__card--drag" : ""}`}
+                        draggable
+                        onClick={() => setSelId(l.id)}
+                        onDragStart={(e) => { setDragId(l.id); e.dataTransfer.effectAllowed = "move"; }}
+                        onDragEnd={() => { setDragId(null); setOverCol(null); }}
+                        onDragOver={(e) => {
+                          if (!dragId) return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          e.dataTransfer.dropEffect = "move";
+                          const r = e.currentTarget.getBoundingClientRect();
+                          setDropInstant(false);
+                          setOverCol(col.key);
+                          setOverIndex(e.clientY < r.top + r.height / 2 ? ii : ii + 1);
+                        }}
+                      >
+                        <div className="pipe__ctop">
+                          <b>{l.name || l.phone || leadCategoryLabel(t, l.category) || t("untitledLead")}</b>
+                          {l.scoreKey ? <span className={`lscore lscore--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : null}
+                        </div>
+                        <span className="pipe__meta">{[l.phone, leadCategoryLabel(t, l.category), leadRegionLabel(te, l.region)].filter(Boolean).join(" · ") || t("noInfo")}</span>
+                        {l.note ? <span className="pipe__note">{l.note}</span> : null}
+                        {assigneeChip(l)}
+                        <div className="pipe__actions" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" className="pipe__mv" disabled={ci === 0 || busy === l.id} onClick={() => shift(l.id, col.key, -1)} aria-label={t("moveBack")}><IconChevronLeft /></button>
+                          <span className="pipe__src">{l.source ? leadSourceLabel(t, l.source) : <IconUsers />}</span>
+                          <button type="button" className="pipe__mv" disabled={ci === cols.length - 1 || busy === l.id} onClick={() => shift(l.id, col.key, 1)} aria-label={t("moveFwd")}><IconChevronRight /></button>
+                        </div>
                       </div>
-                      <span className="pipe__meta">{[l.phone, leadCategoryLabel(t, l.category), leadRegionLabel(te, l.region)].filter(Boolean).join(" · ") || t("noInfo")}</span>
-                      {l.note ? <span className="pipe__note">{l.note}</span> : null}
-                      {assigneeChip(l)}
-                      <div className="pipe__actions" onClick={(e) => e.stopPropagation()}>
-                        <button type="button" className="pipe__mv" disabled={ci === 0 || busy === l.id} onClick={() => shift(l.id, col.key, -1)} aria-label={t("moveBack")}><IconChevronLeft /></button>
-                        <span className="pipe__src">{l.source ? leadSourceLabel(t, l.source) : <IconUsers />}</span>
-                        <button type="button" className="pipe__mv" disabled={ci === cols.length - 1 || busy === l.id} onClick={() => shift(l.id, col.key, 1)} aria-label={t("moveFwd")}><IconChevronRight /></button>
-                      </div>
-                    </div>
+                    </Fragment>
                   ))
                 )}
+                {overCol === col.key && dragId && overIndex === col.cards.length && col.cards.length > 0 ? <div className={`pipe__slot on${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden /> : null}
               </div>
             </div>
           ))}

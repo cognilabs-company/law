@@ -88,6 +88,14 @@ export default function AdminServices() {
     () => listAdminServices(locale, { categoryId: cat || undefined, isActive: state === "all" ? undefined : state === "active" }),
     [svcKey, locale, cat, state],
   );
+  // Categories and services used to pop in separately — whichever request
+  // resolved first showed its panel while the other still sat on its own
+  // skeleton. Wait for both to settle once, then render the page together;
+  // a later reload (edit/delete/filter change) only re-triggers its own
+  // resource and doesn't drop back to this full-page gate.
+  const [everReady, setEverReady] = useState(false);
+  const allLoading = cats.status === "loading" || svcs.status === "loading";
+  if (!everReady && !allLoading) setEverReady(true);
 
   // Server search (GET /services/search): Latin/Cyrillic/Russian spellings plus
   // category, subcategory and AI category. Debounced; its hits are merged with
@@ -173,6 +181,14 @@ export default function AdminServices() {
     } finally {
       setReactivating("");
     }
+  }
+
+  if (!everReady) {
+    return (
+      <div className="ppanel">
+        <Skeleton rows={8} />
+      </div>
+    );
   }
 
   return (

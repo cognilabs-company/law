@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { listAdminUsers, type AdminUser } from "@/lib/services/users";
 import { useResource } from "@/lib/useResource";
-import { sendAdminNotification, type AdminSendResult } from "@/lib/services/notify";
+import { sendAdminNotification } from "@/lib/services/notify";
 import { NOTIF_ROW_CATEGORIES, type NotifCategory } from "@/lib/notifications";
+import { type NotificationDelivery } from "@/lib/services/backend";
 import { humanizeSlug } from "@/lib/lawyers";
 import Select from "@/components/Select";
 import { Notice } from "@/components/admin/AdminBits";
@@ -21,7 +22,8 @@ const CHANNELS = ["push", "telegram", "email", "sms"] as const;
 const CONCURRENCY = 3;
 
 type Recipient = { id: string; name: string };
-type SendSummary = { ok: number; failed: string[]; total: number; stopped: boolean; last: AdminSendResult | null };
+type RecipientResult = { id: string; name: string; ok: boolean; deliveries: NotificationDelivery[] };
+type SendSummary = { results: RecipientResult[]; stopped: boolean };
 type SendMode = "individual" | "broadcast";
 const BROADCAST_ROLES = ROLE_TABS.filter((r): r is Exclude<RoleTab, "all"> => r !== "all");
 
@@ -33,8 +35,17 @@ export default function AdminNotifications() {
   const [mode, setMode] = useState<SendMode>("individual");
   const [broadcastRole, setBroadcastRole] = useState<Exclude<RoleTab, "all">>("client");
   const [roleTab, setRoleTab] = useState<RoleTab>("all");
-  const users = useResource(() => listAdminUsers(roleTab === "all" ? {} : { role: roleTab }), [roleTab]);
   const [q, setQ] = useState("");
+  // Debounced and sent to the backend (GET /admin/users?q=) instead of only
+  // filtering whatever page of users the role tab already happened to fetch
+  // — a name outside that first batch used to read as "no results" even
+  // though the person exists.
+  const [qLive, setQLive] = useState("");
+  useEffect(() => {
+    const h = setTimeout(() => setQLive(q.trim()), 300);
+    return () => clearTimeout(h);
+  }, [q]);
+  const users = useResource(() => listAdminUsers({ role: roleTab === "all" ? undefined : roleTab, q: qLive || undefined }), [roleTab, qLive]);
   // Selection survives role switches so one send can mix roles.
   const [selected, setSelected] = useState<Map<string, AdminUser>>(() => new Map());
   const [manualId, setManualId] = useState("");
@@ -49,11 +60,6 @@ export default function AdminNotifications() {
   const [summary, setSummary] = useState<SendSummary | null>(null);
   const stopRef = useRef(false);
 
-  const needle = q.trim().toLowerCase();
-  const shownUsers = useMemo(
-    () => (needle ? users.data.filter((u) => `${u.name} ${u.phone} ${u.lexgoId}`.toLowerCase().includes(needle)) : users.data),
-    [users.data, needle],
-  );
   const selectedInRole = (r: RoleTab) => [...selected.values()].filter((u) => r === "all" || u.role === r).length;
 
   function toggle(u: AdminUser) {
@@ -81,23 +87,31 @@ export default function AdminNotifications() {
       setNote({ ok: false, msg: t("form.error") });
       return;
     }
+    // A broadcast reaches an entire role in one shot — a much bigger blast
+    // radius than hand-picked recipients, so it gets its own confirmation
+    // instead of firing on the same single click.
+    if (mode === "broadcast") {
+      const roleName = tn(`roles.${broadcastRole}`);
+      if (typeof window !== "undefined" && !window.confirm(tn("broadcastConfirm", { role: roleName }))) return;
+    }
     setNote(null);
     setSummary(null);
     stopRef.current = false;
 
     // Broadcast: the backend fans out to the whole role, so one request.
     if (mode === "broadcast") {
+      const roleName = tn(`roles.${broadcastRole}`);
       setProgress({ done: 0, total: 1 });
       try {
-        const last = await sendAdminNotification({ audienceRole: broadcastRole, channel, title: title.trim(), body: body.trim(), category });
+        const r = await sendAdminNotification({ audienceRole: broadcastRole, channel, title: title.trim(), body: body.trim(), category });
         setProgress(null);
-        setSummary({ ok: 1, failed: [], total: 1, stopped: false, last });
+        setSummary({ results: [{ id: broadcastRole, name: roleName, ok: true, deliveries: r.deliveries }], stopped: false });
         setNote({ ok: true, msg: tn("resultOk", { n: 1 }) });
         setTitle("");
         setBody("");
       } catch {
         setProgress(null);
-        setSummary({ ok: 0, failed: [tn(`roles.${broadcastRole}`)], total: 1, stopped: false, last: null });
+        setSummary({ results: [{ id: broadcastRole, name: roleName, ok: false, deliveries: [] }], stopped: false });
         setNote({ ok: false, msg: t("form.error") });
       }
       return;
@@ -112,22 +126,23 @@ export default function AdminNotifications() {
     }
     const total = recipients.length;
     setProgress({ done: 0, total });
-    let ok = 0;
+    const results: RecipientResult[] = [];
     let done = 0;
-    const failed: string[] = [];
-    let last: AdminSendResult | null = null;
     let idx = 0;
-    // Fan out one POST per recipient (the endpoint takes a single user_id).
+    // Fan out one POST per recipient (the endpoint takes a single user_id),
+    // keeping every recipient's own outcome — not just whichever request
+    // happened to resolve last — so the result list below can show exactly
+    // who it reached and who it didn't.
     const worker = async () => {
       while (!stopRef.current) {
         const i = idx++;
         if (i >= total) return;
         const r = recipients[i];
         try {
-          last = await sendAdminNotification({ userId: r.id, channel, title: title.trim(), body: body.trim(), category });
-          ok += 1;
+          const res = await sendAdminNotification({ userId: r.id, channel, title: title.trim(), body: body.trim(), category });
+          results.push({ id: r.id, name: r.name, ok: true, deliveries: res.deliveries });
         } catch {
-          failed.push(r.name);
+          results.push({ id: r.id, name: r.name, ok: false, deliveries: [] });
         }
         done += 1;
         setProgress({ done, total });
@@ -135,12 +150,14 @@ export default function AdminNotifications() {
     };
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, worker));
     const stopped = stopRef.current && done < total;
+    const okCount = results.filter((r) => r.ok).length;
+    const failCount = results.length - okCount;
     setProgress(null);
-    setSummary({ ok, failed, total, stopped, last });
-    if (stopped) setNote({ ok: failed.length === 0, msg: tn("stopped", { done, total }) });
-    else if (!failed.length) setNote({ ok: true, msg: tn("resultOk", { n: ok }) });
-    else setNote({ ok: false, msg: `${tn("resultPartial", { ok, fail: failed.length })} ${tn("failedList", { names: failed.slice(0, 5).join(", ") })}` });
-    if (ok && !stopped && !failed.length) {
+    setSummary({ results, stopped });
+    if (stopped) setNote({ ok: failCount === 0, msg: tn("stopped", { done, total }) });
+    else if (!failCount) setNote({ ok: true, msg: tn("resultOk", { n: okCount }) });
+    else setNote({ ok: false, msg: tn("resultPartial", { ok: okCount, fail: failCount }) });
+    if (okCount && !stopped && !failCount) {
       setTitle("");
       setBody("");
       setSelected(new Map());
@@ -194,11 +211,6 @@ export default function AdminNotifications() {
           <button className="btn btn--soft btn--sm" type="button" onClick={() => selectMany(users.data)} disabled={!users.data.length}>
             {tn("selectAllRole")}
           </button>
-          {needle ? (
-            <button className="btn btn--line btn--sm" type="button" onClick={() => selectMany(shownUsers)} disabled={!shownUsers.length}>
-              {tn("selectShown")}
-            </button>
-          ) : null}
           <button className="btn btn--line btn--sm" type="button" onClick={() => setSelected(new Map())} disabled={!selected.size}>
             {tn("clearSel")}
           </button>
@@ -207,11 +219,11 @@ export default function AdminNotifications() {
           <Skeleton rows={3} />
         ) : users.status === "error" ? (
           <Notice ok={false} msg={tn("usersError")} />
-        ) : !shownUsers.length ? (
+        ) : !users.data.length ? (
           <p className="advmuted">{tn("noUsers")}</p>
         ) : (
           <div className="nrcp__list" role="group" aria-label={tn("recipients")}>
-            {shownUsers.map((u) => {
+            {users.data.map((u) => {
               const on = selected.has(u.id);
               return (
                 <label key={u.id} className={`nrcp__row${on ? " on" : ""}`}>
@@ -228,17 +240,16 @@ export default function AdminNotifications() {
           </div>
         )}
         <div className="nrcp__sum">
-          <span>{tn("shownN", { n: shownUsers.length })}</span>
+          <span>{tn("shownN", { n: users.data.length })}</span>
           <b>{tn("selectedN", { n: selected.size })}</b>
         </div>
-        {users.status === "error" ? (
-          <div className="cform nrcp__manual">
-            <div>
-              <label>{tn("manualId")}</label>
-              <input value={manualId} onChange={(e) => setManualId(e.target.value)} placeholder={tn("manualIdPh")} />
-            </div>
-          </div>
-        ) : null}
+        {/* Always available, not only once the list above fails to load —
+            the person you need may be outside the roles this list covers,
+            or you may already know their id. */}
+        <details className="nrcp__manual">
+          <summary>{tn("manualId")}</summary>
+          <input value={manualId} onChange={(e) => setManualId(e.target.value)} placeholder={tn("manualIdPh")} aria-label={tn("manualId")} />
+        </details>
       </section>
       )}
 
@@ -278,12 +289,25 @@ export default function AdminNotifications() {
         </div>
       </form>
 
-      {summary?.last?.deliveries.length ? (
-        <div className="nsend__last">
-          <span className="advmuted">{tn("deliveryLast")}</span>
-          <DeliveryChips items={summary.last.deliveries} />
-          {summary.last.deliveries.some((x) => x.tone === "pending") ? (
-            <p className="advmuted">{t("notifications.queuedNote")}</p>
+      {summary?.results.length ? (
+        <div className="nsend__results">
+          <div className="ppanel__h" style={{ marginTop: 18 }}>
+            <b className="ppanel__t">{tn("resultsTitle")}</b>
+            <span className="advmuted">{tn("resultsCount", { ok: summary.results.filter((r) => r.ok).length, total: summary.results.length })}</span>
+          </div>
+          <div className="alist">
+            {summary.results.map((r) => (
+              <div className="aitem" key={r.id}>
+                <div className="aitem__m">
+                  <b>{r.name}</b>
+                  {r.ok && r.deliveries.length ? <DeliveryChips items={r.deliveries} /> : null}
+                </div>
+                <em className={`atag${r.ok ? " atag--ok" : " atag--err"}`}>{r.ok ? tn("sent") : tn("sendFailed")}</em>
+              </div>
+            ))}
+          </div>
+          {summary.results.some((r) => r.ok && r.deliveries.some((x) => x.tone === "pending")) ? (
+            <p className="advmuted" style={{ marginTop: 8 }}>{t("notifications.queuedNote")}</p>
           ) : null}
         </div>
       ) : null}

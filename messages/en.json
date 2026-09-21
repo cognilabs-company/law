@@ -4581,7 +4581,7 @@
       "sellers": "Sellers",
       "finance": "Payments & finance",
       "support": "Support & legal",
-      "system": "Automation & system"
+      "system": "System"
     },
     "nav": {
       "overview": "Overview",
@@ -4603,9 +4603,7 @@
       "payouts": "Payouts",
       "callCenter": "Call center",
       "meetings": "Meetings",
-      "callHistory": "Meeting history",
       "testOtps": "Test OTP",
-      "workflow": "Automation",
       "integrations": "Integrations",
       "approvals": "Approvals",
       "ads": "Ads",
@@ -4988,7 +4986,8 @@
       "body": "Message",
       "send": "Send",
       "sending": "Sending…",
-      "sent": "Notification created.",
+      "sent": "Sent",
+      "sendFailed": "Not sent",
       "queuedNote": "Channels whose provider isn't connected yet are queued and will be delivered once it is.",
       "user": "User",
       "selectUser": "Select a user",
@@ -5007,11 +5006,11 @@
       "modeBroadcast": "Entire role",
       "broadcastRole": "Role",
       "broadcastHint": "Sent to every user in this role with a single request.",
+      "broadcastConfirm": "Send to EVERY user in the \"{role}\" role?",
       "recipients": "Recipients",
       "recipientsHint": "Pick a role, search and tick the users you need. With several recipients each one gets their own send.",
       "searchPh": "Name, phone or LexGo ID",
-      "selectAllRole": "Select everyone in role",
-      "selectShown": "Select shown",
+      "selectAllRole": "Select everyone",
       "clearSel": "Clear selection",
       "selectedN": "{n} selected",
       "shownN": "{n} users",
@@ -5026,10 +5025,10 @@
       "progress": "Sending… {done}/{total}",
       "resultOk": "Sent to {n} users.",
       "resultPartial": "Sent: {ok}, failed: {fail}.",
-      "failedList": "Failed: {names}",
       "stop": "Stop",
       "stopped": "Sending stopped: {done}/{total} sent.",
-      "deliveryLast": "Delivery status of the last send"
+      "resultsTitle": "Results",
+      "resultsCount": "{ok} / {total} sent"
     },
     "bootstrap": {
       "title": "Bootstrap superadmin",
@@ -5084,7 +5083,7 @@
       "sellerHint": "You will be the host. Search your clients and advocates/lawyers by name or phone.",
       "noPermission": "You are not allowed to start meetings. Contact an administrator.",
       "backendMissing": "This feature is waiting for the backend.",
-      "history": "Meeting history",
+      "history": "My meetings",
       "refresh": "Refresh",
       "activeGroup": "Active",
       "endedGroup": "Ended",
@@ -5199,6 +5198,7 @@
       "viewKanban": "Kanban",
       "viewTable": "Table",
       "kpi": { "total": "Total leads", "active": "Active", "won": "Won", "conv": "Conversion" },
+      "period": { "today": "Today", "week": "This week", "month": "This month" },
       "f": { "search": "Name or phone…", "allSource": "All sources", "allRegion": "All regions", "allStage": "All stages", "assignee": "Operator", "allAssignee": "All operators", "unassigned": "Unassigned", "mine": "My leads", "from": "From date", "to": "To date", "clear": "Clear", "reset": "Reset filters", "shown": "{n} / {total} leads", "noMatch": "No leads match the filters." },
       "d": {
         "close": "Close",
@@ -5494,8 +5494,9 @@
       "reset": "Reset",
       "user": "User",
       "target": "Target",
+      "userIdPh": "Search by name, phone or LexGo ID…",
+      "noUsers": "No user found",
       "f": {
-        "userId": "User ID",
         "action": "Action (e.g. login)",
         "targetType": "Target type",
         "targetId": "Target ID"
@@ -5554,18 +5555,6 @@
         "provider": "Provider",
         "checkedAt": "Checked"
       }
-    },
-    "workflow": {
-      "rules": "Automation rules",
-      "lead": "Automatic actions triggered by events.",
-      "noRules": "No rules",
-      "noRulesText": "New rules will appear here.",
-      "run": "Run",
-      "running": "Running…",
-      "runs": "Run history",
-      "noRuns": "Nothing run yet.",
-      "completed": "Completed",
-      "status": { "active": "Active", "paused": "Paused", "pending": "Pending", "running": "Running", "completed": "Completed", "success": "Success", "failed": "Failed", "error": "Error", "queued": "Queued" }
     },
     "callCenter": {
       "search": "Find a client",

@@ -3985,26 +3985,6 @@ export async function getTestOtps(): Promise<TestOtp[]> {
   });
 }
 
-// ── Workflow automation ───────────────────────────────────────────
-export type WorkflowRule = { id: string; title: string; status: string; description: string };
-function normRule(v: unknown): WorkflowRule {
-  const d = asDict(v); const p = asDict(d.payload);
-  return { id: asStr(d.id), title: asStr(d.title ?? d.name), status: asStr(d.status, "active"), description: asStr(d.description ?? p.description) };
-}
-export async function listWorkflowRules(): Promise<WorkflowRule[]> {
-  return listFrom(await http("/workflow/rules"), "items", "data", "rules").map(normRule);
-}
-export async function runWorkflowRule(id: string): Promise<void> {
-  await http(`/workflow/rules/${id}/run`, { method: "POST", body: JSON.stringify({ input: {} }) });
-}
-export type WorkflowRun = { id: string; title: string; status: string; createdAt: string };
-export async function listWorkflowRuns(): Promise<WorkflowRun[]> {
-  return listFrom(await http("/workflow/runs"), "items", "data", "runs").map((x) => {
-    const d = asDict(x);
-    return { id: asStr(d.id), title: asStr(d.title), status: asStr(d.status, "completed"), createdAt: asStr(d.created_at) };
-  });
-}
-
 // ── Call-center CRM console ───────────────────────────────────────
 export type CcClient = { id: string; lexgoId: string; name: string; phone: string; status: string };
 export async function ccSearchClients(q: string): Promise<CcClient[]> {

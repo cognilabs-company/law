@@ -125,7 +125,9 @@ export default function AdminReviews() {
           {res.data.map((r) => (
             <div className="rvw" key={r.id}>
               <div className="rvw__top">
-                <b>{r.lawyerName || "—"}</b>
+                <button type="button" className="rvw__name" onClick={() => setDetail(r.id)} title={t("detailTitle")}>
+                  <b>{r.lawyerName || "—"}</b>
+                </button>
                 {r.sellerType ? <span className="atag atag--muted">{t.has(`sellerType.${r.sellerType}`) ? t(`sellerType.${r.sellerType}`) : r.sellerType}</span> : null}
                 <Stars n={r.rating} />
                 <span className={`creq__badge rvw__st rvw__st--${r.status}`}>{t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status}</span>

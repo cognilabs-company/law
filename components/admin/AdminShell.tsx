@@ -30,7 +30,6 @@ import {
   IconCard,
   IconPhone,
   IconVideo,
-  IconClock,
   IconLogout,
   IconMenu,
   IconClose,
@@ -59,11 +58,11 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/pipeline", key: "pipeline", Icon: IconTrendingUp, perm: "leads.manage" },
       { href: "/admin/call-center", key: "callCenter", Icon: IconPhone, perm: ["leads.manage", "callcenter.access"] },
+      // Platform-wide meeting history (GET /admin/calls — who created it,
+      // participants, duration) is a tab inside this same page now, not a
+      // separate nav entry — MeetingLauncher shows it to superadmin/
+      // leads.manage on top of the personal "my meetings" launcher.
       { href: "/admin/meetings", key: "meetings", Icon: IconVideo, perm: ["leads.manage", "callcenter.access"] },
-      // 2026-09-19 backend: GET /admin/calls, a platform-wide meeting history
-      // (who created it, participants, duration) — distinct from the personal
-      // "my meetings" launcher above and from the telephony KPIs below.
-      { href: "/admin/call-history", key: "callHistory", Icon: IconClock, perm: "leads.manage" },
       { href: "/admin/call-analytics", key: "callAnalytics", Icon: IconChat, perm: "leads.manage" },
       { href: "/admin/retention", key: "retention", Icon: IconUsers, perm: "leads.manage" },
       { href: "/admin/b2b", key: "b2b", Icon: IconBuilding, perm: "b2b.manage" },
@@ -105,7 +104,6 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   {
     group: "system",
     items: [
-      { href: "/admin/workflow", key: "workflow", Icon: IconRocket },
       { href: "/admin/integrations", key: "integrations", Icon: IconBolt },
       { href: "/admin/test-otps", key: "testOtps", Icon: IconShieldCheck },
       { href: "/admin/roles", key: "roles", Icon: IconShield, perm: "roles.manage" },

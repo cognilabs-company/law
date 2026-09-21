@@ -2,17 +2,78 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useAuth, canMakeCalls } from "@/lib/auth";
-import { createSecureChat, startCall } from "@/lib/services/backend";
+import { useAuth, canMakeCalls, sessionRoles } from "@/lib/auth";
+import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type AdminCallDetail } from "@/lib/services/backend";
 import { http, asArr, asDict, asStr, ApiError } from "@/lib/http";
+import { useResource } from "@/lib/useResource";
 import { shortDateTime } from "@/lib/date";
 import { makeInviteSearch } from "@/lib/inviteSearch";
 import SearchSelect from "@/components/SearchSelect";
 import CallRoom from "@/components/chat/CallRoom";
-import { Notice } from "@/components/admin/AdminBits";
-import { Skeleton } from "@/components/portal/DataState";
+import { Notice, AdminItem } from "@/components/admin/AdminBits";
+import Modal from "@/components/admin/Modal";
+import DatePicker from "@/components/DatePicker";
+import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
-import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone } from "@/components/icons";
+import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconEye } from "@/components/icons";
+
+function mmss(total: number): string {
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+// Platform-wide meeting detail (superadmin/leads.manage tab only) — any
+// user's meeting, not just this account's own. GET /admin/calls/:id.
+function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => void }) {
+  const t = useTranslations("admin.callHistory");
+  const locale = useLocale();
+  const [d, setD] = useState<AdminCallDetail | null>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    if (!id) return;
+    let alive = true;
+    const h = setTimeout(() => { setD(null); setErr(false); }, 0);
+    getAdminCallDetail(id).then((x) => alive && setD(x)).catch(() => alive && setErr(true));
+    return () => { alive = false; clearTimeout(h); };
+  }, [id]);
+  const row = (k: string, v?: string | number | null) => (v === undefined || v === null || v === "" ? null : (
+    <div className="dkv__row" key={k}><span>{k}</span><b>{String(v)}</b></div>
+  ));
+
+  return (
+    <Modal open={!!id} onClose={onClose} title={d?.call.title || t("detailTitle")}>
+      {err ? <Notice ok={false} msg={t("detailError")} /> : !d ? <Skeleton rows={3} /> : (
+        <div className="dkv">
+          <div className="dkv__sect">
+            <b>{t("detail.meeting")}</b>
+            {row(t("detail.status"), t.has(`status.${d.call.status}`) ? t(`status.${d.call.status}`) : d.call.status)}
+            {row(t("detail.type"), d.call.callType)}
+            {row(t("detail.room"), d.room?.title || d.call.roomId)}
+            {row(t("detail.started"), shortDateTime(d.call.startedAt, locale))}
+            {row(t("detail.ended"), shortDateTime(d.call.endedAt, locale))}
+            {row(t("detail.duration"), d.durationMinutes ? t("detail.minutes", { n: d.durationMinutes }) : mmss(d.durationSeconds))}
+          </div>
+          <div className="dkv__sect">
+            <b>{t("detail.creator")}</b>
+            {row(t("detail.name"), d.creator?.name || d.call.creatorName)}
+            {row(t("detail.phone"), d.creator?.phone)}
+          </div>
+          <div className="dkv__sect">
+            <b>{t("detail.participants")} ({d.participants.length})</b>
+            {d.participants.length ? (
+              <ul className="dkv__list">
+                {d.participants.map((p) => (
+                  <li key={p.userId}><b>{p.name || p.userId}</b><span>{[p.role, p.status].filter(Boolean).join(" · ")}</span></li>
+                ))}
+              </ul>
+            ) : <p className="advmuted">{t("detail.noParticipants")}</p>}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
 
 type Active = { roomId: string; callId: string; isCaller: boolean; title?: string; lk: { url: string; room: string; token: string } | null };
 
@@ -65,6 +126,7 @@ async function loadHistory(): Promise<HistoryItem[]> {
 // usage of this same launcher keeps its plain, compact layout unchanged.
 export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const t = useTranslations("admin.meetings");
+  const tch = useTranslations("admin.callHistory");
   const tc = useTranslations("call");
   const locale = useLocale();
   const { session } = useAuth();
@@ -77,6 +139,17 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const [history, setHistory] = useState<HistoryItem[] | null>(null);
   const [histErr, setHistErr] = useState<"" | "error" | "missing">("");
   const [histTick, setHistTick] = useState(0);
+
+  // The former standalone /admin/call-history page — every meeting on the
+  // platform, not just this account's own — folded in as a second tab here
+  // instead of a separate nav entry, gated the same way that page's nav link
+  // used to be (superadmin, or the leads.manage permission).
+  const canSeeAllHistory = !rich && (sessionRoles(session).includes("superadmin") || (session?.permissions ?? []).includes("leads.manage"));
+  const [histTab, setHistTab] = useState<"mine" | "all">("mine");
+  const [platFrom, setPlatFrom] = useState("");
+  const [platTo, setPlatTo] = useState("");
+  const platRes = useResource(() => listAdminCalls({ from: platFrom || undefined, to: platTo || undefined }), [platFrom, platTo]);
+  const [platDetail, setPlatDetail] = useState<string | null>(null);
   const searchRef = useRef<ReturnType<typeof makeInviteSearch> | null>(null);
   const clientLabel = tc("inviteClient");
 
@@ -312,31 +385,74 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     ) : null;
 
   if (!rich) {
+    const showMine = !canSeeAllHistory || histTab === "mine";
     return (
       <div className="mlaunch">
         {createForm}
         <div className="ppanel">
           <div className="ppanel__h">
-            <b className="ppanel__t"><span className="pico"><IconClock /></span>{t("history")}</b>
-            <button type="button" className="btn btn--line btn--sm" onClick={refreshHistory} disabled={history === null}>
-              <IconRefresh />{t("refresh")}
-            </button>
+            <b className="ppanel__t"><span className="pico"><IconClock /></span>{canSeeAllHistory ? tch("title") : t("history")}</b>
+            {showMine ? (
+              <button type="button" className="btn btn--line btn--sm" onClick={refreshHistory} disabled={history === null}>
+                <IconRefresh />{t("refresh")}
+              </button>
+            ) : null}
           </div>
-          {historyBody ?? (
-            <div className="mlist">
-              {live.length ? (
-                <div className="mlist__grp">
-                  <span className="mlist__gl"><i className="mlist__dot" />{t("activeGroup")} · {live.length}</span>
-                  {live.map(row)}
-                </div>
-              ) : null}
-              {ended.length ? (
-                <div className="mlist__grp">
-                  <span className="mlist__gl">{t("endedGroup")} · {ended.length}</span>
-                  {ended.slice(0, 30).map(row)}
-                </div>
-              ) : null}
+          {canSeeAllHistory ? (
+            <div className="segs segs--sm" role="tablist" style={{ marginBottom: 14 }}>
+              <button type="button" role="tab" aria-selected={histTab === "mine"} className={`seg${histTab === "mine" ? " on" : ""}`} onClick={() => setHistTab("mine")}>
+                {t("history")}
+              </button>
+              <button type="button" role="tab" aria-selected={histTab === "all"} className={`seg${histTab === "all" ? " on" : ""}`} onClick={() => setHistTab("all")}>
+                {tch("title")}
+              </button>
             </div>
+          ) : null}
+          {showMine ? (
+            historyBody ?? (
+              <div className="mlist">
+                {live.length ? (
+                  <div className="mlist__grp">
+                    <span className="mlist__gl"><i className="mlist__dot" />{t("activeGroup")} · {live.length}</span>
+                    {live.map(row)}
+                  </div>
+                ) : null}
+                {ended.length ? (
+                  <div className="mlist__grp">
+                    <span className="mlist__gl">{t("endedGroup")} · {ended.length}</span>
+                    {ended.slice(0, 30).map(row)}
+                  </div>
+                ) : null}
+              </div>
+            )
+          ) : (
+            <>
+              <p className="advmuted" style={{ marginBottom: 16 }}>{tch("lead")}</p>
+              <div className="lfilters" style={{ marginBottom: 16 }}>
+                <DatePicker value={platFrom} onChange={setPlatFrom} placeholder={tch("from")} ariaLabel={tch("from")} max={platTo || undefined} clearLabel={tch("clearDates")} />
+                <DatePicker value={platTo} onChange={setPlatTo} placeholder={tch("to")} ariaLabel={tch("to")} min={platFrom || undefined} clearLabel={tch("clearDates")} />
+              </div>
+              {platRes.status === "loading" ? (
+                <Skeleton rows={4} />
+              ) : !platRes.data.length ? (
+                <EmptyState icon={<IconVideo />} title={tch("empty")} text={tch("emptyText")} />
+              ) : (
+                <div className="alist">
+                  {platRes.data.map((c, i) => (
+                    <AdminItem
+                      key={c.id || i}
+                      index={i + 1}
+                      title={c.title || tch("untitled")}
+                      meta={[c.creatorName, shortDateTime(c.startedAt, locale), c.durationSeconds ? mmss(c.durationSeconds) : ""].filter(Boolean).join(" · ")}
+                      right={<span className="atag atag--muted"><IconUsers style={{ width: 13, height: 13 }} />{c.participantCount}</span>}
+                      tags={[{ label: tch.has(`status.${c.status}`) ? tch(`status.${c.status}`) : c.status, tone: c.status === "ended" ? undefined : "ok" }]}
+                      actions={<button type="button" className="aitem__act" aria-label={tch("detailTitle")} title={tch("detailTitle")} onClick={() => setPlatDetail(c.id)}><IconEye /></button>}
+                    />
+                  ))}
+                </div>
+              )}
+              <CallDetailModal id={platDetail} onClose={() => setPlatDetail(null)} />
+            </>
           )}
         </div>
       </div>

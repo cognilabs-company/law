@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { listAuditTrail, exportAuditTrailCsv, listAdminSecurityEvents, type ActivityEntry, type AuditFilters, type ModuleRecord } from "@/lib/services/backend";
+import { listAuditTrail, exportAuditTrailCsv, listAdminSecurityEvents, searchUsers, type ActivityEntry, type AuditFilters, type ModuleRecord } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import Select from "@/components/Select";
+import SearchSelect from "@/components/SearchSelect";
 import { ApiError, parseServerTime } from "@/lib/http";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
@@ -13,7 +14,10 @@ import { IconShieldCheck, IconLock, IconCheck, IconClipboardCheck, IconDownload,
 
 type TextFilters = Required<Pick<AuditFilters, "userId" | "action" | "targetType" | "targetId">>;
 const NO_TEXT: TextFilters = { userId: "", action: "", targetType: "", targetId: "" };
-const TEXT_KEYS = ["userId", "action", "targetType", "targetId"] as const;
+// userId is picked via SearchSelect (search by name/phone, not typed as a raw
+// id) — kept out of this generic text-input loop, but still lands in the same
+// `draft.userId`/`applied.userId` string the rest of the filter plumbing uses.
+const TEXT_KEYS = ["action", "targetType", "targetId"] as const;
 const isForbidden = (e: unknown) => e instanceof ApiError && e.status === 403;
 
 function fmt(s: string) {
@@ -66,10 +70,20 @@ function chainStates(rows: ActivityEntry[]) {
 }
 
 // T3-10: anomaly alerts (suspicious logins etc.) from /admin/security-events.
-function Anomalies() {
+// `onReady` fires once, the first time this panel's own fetch settles — the
+// page below uses it (together with the main audit list's own first load)
+// to hold a single skeleton until everything is ready, instead of each
+// panel popping in on its own.
+function Anomalies({ onReady }: { onReady?: () => void }) {
   const t = useTranslations("admin.audit.anomalies");
   const [status, setStatus] = useState("all");
   const res = useResource(() => listAdminSecurityEvents(status === "all" ? undefined : status), [status]);
+  const firedRef = useRef(false);
+  useEffect(() => {
+    if (res.status === "loading" || firedRef.current) return;
+    firedRef.current = true;
+    onReady?.();
+  }, [res.status, onReady]);
   const opts = ["all", "new", "reviewed", "resolved"].map((s) => ({ value: s, label: t(`status.${s}`) }));
   const rows: ModuleRecord[] = res.data;
   const label = (r: ModuleRecord) => (t.has(`types.${r.recordType}`) ? t(`types.${r.recordType}`) : r.title || r.recordType);
@@ -139,7 +153,7 @@ export default function AdminAuditTrail() {
   const chain = useMemo(() => chainStates(rows), [rows]);
   const [exporting, setExporting] = useState(false);
   const [exportNote, setExportNote] = useState<string | null>(null);
-  const hasText = TEXT_KEYS.some((k) => applied[k] || draft[k]);
+  const hasText = applied.userId || draft.userId || TEXT_KEYS.some((k) => applied[k] || draft[k]);
 
   function apply(e: FormEvent) {
     e.preventDefault();
@@ -173,6 +187,17 @@ export default function AdminAuditTrail() {
   }
   const [copied, setCopied] = useState<string | null>(null);
 
+  // Anomalies and the main log are two independently-fetched panels; without
+  // this the page used to visibly assemble in two steps (whichever resolves
+  // first pops in while the other still shows its own skeleton). Both stay
+  // mounted throughout — so their fetches always run — but are hidden behind
+  // one shared skeleton until each has settled at least once; after that,
+  // each panel's own later refetches (e.g. changing a filter) behave exactly
+  // as before.
+  const [anomReady, setAnomReady] = useState(false);
+  const handleAnomReady = useCallback(() => setAnomReady(true), []);
+  const pageReady = anomReady && current !== null;
+
   function copy(key: string, hash: string) {
     navigator.clipboard?.writeText(hash).then(() => {
       setCopied(key);
@@ -182,7 +207,13 @@ export default function AdminAuditTrail() {
 
   return (
     <>
-    <Anomalies />
+    {!pageReady ? (
+      <div className="ppanel">
+        <Skeleton rows={6} />
+      </div>
+    ) : null}
+    <div style={pageReady ? undefined : { display: "none" }}>
+    <Anomalies onReady={handleAnomReady} />
     <div className="ppanel">
       <div className="ppanel__h">
         <b>{t("title")}</b>
@@ -201,6 +232,17 @@ export default function AdminAuditTrail() {
         <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={tc("to")} ariaLabel={tc("to")} clearLabel={tc("clear")} />
       </div>
       <form className="audit__filters" onSubmit={apply}>
+        <SearchSelect
+          value={draft.userId ? [draft.userId] : []}
+          onChange={(v) => setDraft((d) => ({ ...d, userId: v[0] ?? "" }))}
+          onSearch={(q) => searchUsers(q).then((list) => list.map((u) => ({ value: u.id, label: u.name || u.lexgoId || u.id, sub: u.phone })))}
+          placeholder={t("userIdPh")}
+          searchPlaceholder={t("userIdPh")}
+          emptyText={t("noUsers")}
+          ariaLabel={t("user")}
+          removeLabel={t("reset")}
+          single
+        />
         {TEXT_KEYS.map((k) => (
           <input
             key={k}
@@ -286,6 +328,7 @@ export default function AdminAuditTrail() {
           </div>
         </>
       )}
+    </div>
     </div>
     </>
   );

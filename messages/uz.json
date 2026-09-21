@@ -4587,7 +4587,7 @@
       "sellers": "Sotuvchilar",
       "finance": "To'lov va moliya",
       "support": "Yordam va huquq",
-      "system": "Avtomatlashtirish va tizim"
+      "system": "Tizim"
     },
     "nav": {
       "overview": "Umumiy",
@@ -4609,9 +4609,7 @@
       "payouts": "To'lovlar (payout)",
       "callCenter": "Call-markaz",
       "meetings": "Uchrashuvlar",
-      "callHistory": "Uchrashuvlar tarixi",
       "testOtps": "Test OTP",
-      "workflow": "Avtomatlashtirish",
       "integrations": "Integratsiyalar",
       "approvals": "Tasdiqlashlar",
       "ads": "Reklama",
@@ -4994,7 +4992,8 @@
       "body": "Xabar",
       "send": "Yuborish",
       "sending": "Yuborilmoqda…",
-      "sent": "Bildirishnoma yaratildi.",
+      "sent": "Yuborildi",
+      "sendFailed": "Yuborilmadi",
       "queuedNote": "Provayderi hali ulanmagan kanallar navbatda turadi va ulangach yetkaziladi.",
       "user": "Foydalanuvchi",
       "selectUser": "Foydalanuvchini tanlang",
@@ -5013,11 +5012,11 @@
       "modeBroadcast": "Butun rolga",
       "broadcastRole": "Rol",
       "broadcastHint": "Ushbu roldagi barcha foydalanuvchilarga bitta so'rov bilan yuboriladi.",
+      "broadcastConfirm": "«{role}» rolidagi BARCHA foydalanuvchilarga yuborilsinmi?",
       "recipients": "Qabul qiluvchilar",
       "recipientsHint": "Rolni tanlang, qidiring va kerakli foydalanuvchilarni belgilang. Bir nechta foydalanuvchiga har biriga alohida yuboriladi.",
       "searchPh": "Ism, telefon yoki LexGo ID",
-      "selectAllRole": "Roldagi barchasini belgilash",
-      "selectShown": "Ko'rsatilganlarni belgilash",
+      "selectAllRole": "Barchasini belgilash",
       "clearSel": "Tanlovni tozalash",
       "selectedN": "{n} ta tanlandi",
       "shownN": "{n} ta foydalanuvchi",
@@ -5032,10 +5031,10 @@
       "progress": "Yuborilmoqda… {done}/{total}",
       "resultOk": "{n} ta foydalanuvchiga yuborildi.",
       "resultPartial": "{ok} ta yuborildi, {fail} ta yuborilmadi.",
-      "failedList": "Yuborilmadi: {names}",
       "stop": "To'xtatish",
       "stopped": "Yuborish to'xtatildi: {done}/{total} ta yuborildi.",
-      "deliveryLast": "Oxirgi yuborishning yetkazish holati"
+      "resultsTitle": "Natijalar",
+      "resultsCount": "{ok} / {total} yuborildi"
     },
     "bootstrap": {
       "title": "Superadmin bootstrap",
@@ -5090,7 +5089,7 @@
       "sellerHint": "Siz tashkilotchi (host) bo'lasiz. Mijozlaringiz va advokatlar/yuristlar orasidan ism yoki telefon bo'yicha qidiring.",
       "noPermission": "Uchrashuv ochish uchun ruxsat yo'q. Administratorga murojaat qiling.",
       "backendMissing": "Bu funksiya uchun backend kutilmoqda.",
-      "history": "Uchrashuvlar tarixi",
+      "history": "Mening uchrashuvlarim",
       "refresh": "Yangilash",
       "activeGroup": "Faol",
       "endedGroup": "Tugagan",
@@ -5205,6 +5204,7 @@
       "viewKanban": "Kanban",
       "viewTable": "Jadval",
       "kpi": { "total": "Jami lid", "active": "Faol", "won": "Yutildi", "conv": "Konversiya" },
+      "period": { "today": "Bugun", "week": "Bu hafta", "month": "Bu oy" },
       "f": { "search": "Ism yoki telefon…", "allSource": "Barcha manba", "allRegion": "Barcha hudud", "allStage": "Barcha bosqich", "assignee": "Operator", "allAssignee": "Barcha operatorlar", "unassigned": "Taqsimlanmagan", "mine": "Mening lidlarim", "from": "Sanadan", "to": "Sanagacha", "clear": "Tozalash", "reset": "Filtrlarni tiklash", "shown": "{n} / {total} ta lid", "noMatch": "Filtrga mos lid topilmadi." },
       "d": {
         "close": "Yopish",
@@ -5500,8 +5500,9 @@
       "reset": "Tozalash",
       "user": "Foydalanuvchi",
       "target": "Obyekt",
+      "userIdPh": "Ism, telefon yoki LexGo ID bo'yicha qidirish…",
+      "noUsers": "Foydalanuvchi topilmadi",
       "f": {
-        "userId": "Foydalanuvchi ID",
         "action": "Harakat (masalan, login)",
         "targetType": "Obyekt turi",
         "targetId": "Obyekt ID"
@@ -5560,18 +5561,6 @@
         "provider": "Provayder",
         "checkedAt": "Tekshirilgan"
       }
-    },
-    "workflow": {
-      "rules": "Avtomatlashtirish qoidalari",
-      "lead": "Voqealarga qarab avtomatik amallar.",
-      "noRules": "Qoida yo'q",
-      "noRulesText": "Yangi qoidalar shu yerda ko'rinadi.",
-      "run": "Ishga tushirish",
-      "running": "Bajarilmoqda…",
-      "runs": "Ishga tushirishlar tarixi",
-      "noRuns": "Hali ishga tushirilmagan.",
-      "completed": "Bajarildi",
-      "status": { "active": "Faol", "paused": "To'xtatilgan", "pending": "Kutilmoqda", "running": "Bajarilmoqda", "completed": "Bajarildi", "success": "Muvaffaqiyatli", "failed": "Amalga oshmadi", "error": "Xato", "queued": "Navbatda" }
     },
     "callCenter": {
       "search": "Mijoz qidirish",
