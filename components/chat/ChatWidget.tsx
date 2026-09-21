@@ -6,8 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { useLexAi } from "./useLexAi";
 import { useAuth } from "@/lib/auth";
 import { getClientId } from "@/lib/client";
-import { aiQuotaOf } from "@/lib/http";
-import { noteGuestQuestion } from "@/lib/guestQuota";
+import { aiQuotaOf, guestLimitOf } from "@/lib/http";
 import {
   createChat,
   postMessage,
@@ -75,12 +74,13 @@ export default function ChatWidget({
         id = chat.id;
         chatId.current = id;
       }
-      const { assistant, contracts } = await postMessage(cid, id, content);
+      const { assistant, contracts, limitStatus } = await postMessage(cid, id, content);
       setTyping(false);
       // A guest's answer arrives first, in full, exactly like anyone else's —
       // the registration card only ever appears under a real answer, never
-      // instead of one.
-      const guestLast = !session && noteGuestQuestion();
+      // instead of one. registerOffer is the backend's own call, not a local
+      // guess: it already knows the guest's real daily/total counters.
+      const guestLast = !session && !!limitStatus?.registerOffer;
       setMsgs((m) => [
         ...m,
         {
@@ -94,11 +94,17 @@ export default function ChatWidget({
     } catch (e) {
       setTyping(false);
       const quota = session ? aiQuotaOf(e) : null;
+      const guestLimit = !session ? guestLimitOf(e) : null;
       if (quota) {
         const text = quota.monthlyLimit
           ? t("aiQuotaReached", { used: quota.used, limit: quota.monthlyLimit })
           : t("aiQuotaReachedShort");
         setMsgs((m) => [...m, { role: "a", content: text, upgrade: true }]);
+      } else if (guestLimit) {
+        // guest_daily_limit_exceeded (usable again in 24h) and
+        // guest_total_limit_exceeded (spent until registering) both carry
+        // the same ready-to-show message from the backend.
+        setMsgs((m) => [...m, { role: "a", content: guestLimit.message || t("limitReached"), limit: true }]);
       } else if (isLimitError(e) && !session) {
         setMsgs((m) => [...m, { role: "a", content: t("limitReached"), limit: true }]);
       } else {

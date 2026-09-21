@@ -79,6 +79,34 @@ export function isRateLimited(e: unknown): boolean {
   return e instanceof ApiError && e.status === 429;
 }
 
+// A guest's AI question was refused for using up the free quota (2026-09-21
+// update): 429 with detail.code "guest_daily_limit_exceeded" (2/24h — usable
+// again once daily_window_resets_at passes) or "guest_total_limit_exceeded"
+// (5 total, spent until they register). Both carry the same ready-to-show
+// Uzbek message and register_offer — the backend is the single source of
+// that copy, not a local translation, so it stays correct if it ever changes.
+export type GuestLimitExceeded = {
+  code: "guest_daily_limit_exceeded" | "guest_total_limit_exceeded";
+  message: string;
+  registerOffer: boolean;
+  remainingToday: number;
+  remainingTotal: number;
+};
+export function guestLimitOf(e: unknown): GuestLimitExceeded | null {
+  if (!(e instanceof ApiError) || e.status !== 429) return null;
+  const dd = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
+  const code = dd.code;
+  if (code !== "guest_daily_limit_exceeded" && code !== "guest_total_limit_exceeded") return null;
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  return {
+    code,
+    message: typeof dd.message === "string" ? dd.message : "",
+    registerOffer: dd.register_offer === true,
+    remainingToday: n(dd.remaining_today),
+    remainingTotal: n(dd.remaining_total),
+  };
+}
+
 // The server's own error text ('' when there is none or the request never
 // reached the server). 429s carry the cooldown/lock wording, so callers show
 // `errDetail(e) || tc("rateLimited")`.

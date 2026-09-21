@@ -26,6 +26,36 @@ export type ApiMessage = {
   createdAt?: string;
 };
 
+// Guest AI quota, echoed on every successful guest reply (2026-09-21 update).
+// Absent for a signed-in user — their own monthly quota comes back only on a
+// 402 (see aiQuotaOf in lib/http.ts), never alongside a normal reply.
+export type GuestLimitStatus = {
+  guestDailyLimit: number;
+  guestTotalLimit: number;
+  usedToday: number;
+  usedTotal: number;
+  remainingToday: number;
+  remainingTotal: number;
+  // True on the reply that just used the guest's last question today, or
+  // ever — the moment to show the "register for 5 more" card under it.
+  registerOffer: boolean;
+};
+
+function normLimitStatus(v: unknown): GuestLimitStatus | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const d = v as Dict;
+  const n = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : 0);
+  return {
+    guestDailyLimit: n(d.guest_daily_limit),
+    guestTotalLimit: n(d.guest_total_limit),
+    usedToday: n(d.used_today),
+    usedTotal: n(d.used_total),
+    remainingToday: n(d.remaining_today),
+    remainingTotal: n(d.remaining_total),
+    registerOffer: d.register_offer === true,
+  };
+}
+
 export type Contract = {
   id: string;
   contractType: string;
@@ -155,7 +185,7 @@ export async function postMessage(
   clientId: string,
   chatId: string,
   content: string,
-): Promise<{ assistant: ApiMessage; sources: Source[]; contracts: Contract[] }> {
+): Promise<{ assistant: ApiMessage; sources: Source[]; contracts: Contract[]; limitStatus?: GuestLimitStatus }> {
   const data = await req(`/clients/${clientId}/chats/${chatId}/messages`, {
     method: "POST",
     body: JSON.stringify({ content }),
@@ -168,7 +198,7 @@ export async function postMessage(
     ? assistant.sources
     : normSources(d.sources);
   const contracts = normContracts(d.contracts);
-  return { assistant: { ...assistant, sources }, sources, contracts };
+  return { assistant: { ...assistant, sources }, sources, contracts, limitStatus: normLimitStatus(d.limit_status) };
 }
 
 export function chatSocketUrl(

@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getClientId } from "@/lib/client";
-import { aiQuotaOf } from "@/lib/http";
-import { noteGuestQuestion } from "@/lib/guestQuota";
+import { aiQuotaOf, guestLimitOf } from "@/lib/http";
 import {
   listChats,
   createChat,
@@ -133,7 +132,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
           ...cs,
         ]);
       }
-      const { assistant, contracts } = await postMessage(cid, id, content);
+      const { assistant, contracts, limitStatus } = await postMessage(cid, id, content);
       // Free-plan users: mark the 5th answer of the month as the last free one
       // (the offer comes after the answer, never instead of it — S-6).
       let lastFree = false;
@@ -144,8 +143,9 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
       }
       // A guest's answer arrives first, in full, exactly like anyone else's —
       // the registration card only ever appears under a real answer, never
-      // instead of one.
-      const guestLast = !session && noteGuestQuestion();
+      // instead of one. registerOffer is the backend's own call, not a local
+      // guess: it already knows the guest's real daily/total counters.
+      const guestLast = !session && !!limitStatus?.registerOffer;
       setMessages((m) => [
         ...m,
         {
@@ -162,12 +162,21 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
       );
     } catch (e) {
       const quota = session ? aiQuotaOf(e) : null;
+      const guestLimit = !session ? guestLimitOf(e) : null;
       if (quota) {
         if (quota.monthlyLimit) writeUsed(Math.max(readUsed(), quota.used));
         const content = quota.monthlyLimit
           ? t("aiQuotaReached", { used: quota.used, limit: quota.monthlyLimit })
           : t("aiQuotaReachedShort");
         setMessages((m) => [...m, { role: "assistant", content, upgrade: true }]);
+      } else if (guestLimit) {
+        // guest_daily_limit_exceeded (usable again in 24h) and
+        // guest_total_limit_exceeded (spent until registering) both carry
+        // the same ready-to-show message from the backend.
+        setMessages((m) => [
+          ...m,
+          { role: "assistant", content: guestLimit.message || t("limitReached"), limit: true },
+        ]);
       } else if (isLimitError(e) && !session) {
         setMessages((m) => [
           ...m,
