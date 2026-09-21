@@ -3521,7 +3521,19 @@
         "vacationNote": "Ta'til rejimi yoqilgan: yangi buyurtmalar sizga taklif qilinmaydi, javob muddati hisoblanmaydi.",
         "tipSpeed": "Reytingni oshirish uchun javob tezligini yaxshilang: hozir {now} daqiqa, tavsiya {target} daqiqa.",
         "tipRate": "Javob foizi 90% dan past — 30 kunda 3 ta javobsiz buyurtma saralashda pasaytiradi.",
-        "tipGood": "Ko'rsatkichlaringiz yaxshi — shu tarzda davom eting."
+        "tipGood": "Ko'rsatkichlaringiz yaxshi — shu tarzda davom eting.",
+        "newBadge": "Yangi",
+        "newBadgeHint": "5 tadan kam baho — reyting raqami hali ko'rsatilmaydi",
+        "ratingBreakdown": "Reyting hisoblanishi: mijoz bahosi (50%), yutgan ishlar ulushi (15%), javob ko'rsatkichlari (15%), yakunlangan buyurtmalar soni (10%), shikoyatsizlik (10%).",
+        "superTitle": "Super advokat mezonlari",
+        "superLead": "Quyidagi 6 shart bajarilsa, «Super advokat» maqomini olasiz — har oyning 1-sanasida qayta hisoblanadi:",
+        "superRating": "Reyting 4,5 dan yuqori",
+        "superResponse": "Javob foizi 90% dan yuqori",
+        "superExperience": "Kamida 3 yillik ish staji ({n} yil)",
+        "superCases": "Kamida 10 ta yakunlangan buyurtma ({n} ta)",
+        "superTop3": "Hududingizda oila-huquq yo'nalishi bo'yicha g'alabalar TOP-3 ichida",
+        "superNoComplaints": "So'nggi 6 oyda asosli shikoyat yo'q",
+        "superUnknown": "Hozircha kabinetda ko'rsatib bo'lmaydi"
       },
       "payouts": {
         "title": "Hisob-kitob (payout)",

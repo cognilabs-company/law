@@ -162,7 +162,7 @@ export default function SellerDashboard({ role, compact = false }: { role: Role;
         </>
       )}
 
-      {cabinet.data ? <SellerMetrics stats={cabinet.data.stats} userId={session?.id || ""} demo={demo} /> : null}
+      {cabinet.data ? <SellerMetrics stats={cabinet.data.stats} userId={session?.id || ""} profile={cabinet.data.profile} demo={demo} /> : null}
       {cabinet.data ? <SellerPayouts /> : null}
       <ReferralProgress side="seller" href={role === "advocate" ? "/portal/advocate/referrals" : "/portal/lawyer/referrals"} />
 

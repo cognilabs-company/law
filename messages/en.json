@@ -3515,7 +3515,19 @@
         "vacationNote": "Vacation mode is on: new orders are not offered to you and the response timer is paused.",
         "tipSpeed": "To raise your rating, answer faster: now {now} min, recommended {target} min.",
         "tipRate": "Response rate below 90% — 3 unanswered orders in 30 days lower your ranking.",
-        "tipGood": "Your metrics look good — keep it up."
+        "tipGood": "Your metrics look good — keep it up.",
+        "newBadge": "New",
+        "newBadgeHint": "Fewer than 5 ratings — the numeric rating isn't shown yet",
+        "ratingBreakdown": "How your rating is made up: client rating (50%), share of won cases (15%), response metrics (15%), completed orders (10%), complaint-free record (10%).",
+        "superTitle": "Super Advocate criteria",
+        "superLead": "Meet all 6 conditions to earn Super Advocate status — recalculated on the 1st of every month:",
+        "superRating": "Rating above 4.5",
+        "superResponse": "Response rate above 90%",
+        "superExperience": "At least 3 years of experience ({n} years)",
+        "superCases": "At least 10 completed orders ({n})",
+        "superTop3": "Top 3 in your region for won family-law cases",
+        "superNoComplaints": "No substantiated complaints in the last 6 months",
+        "superUnknown": "Not shown in the dashboard yet"
       },
       "payouts": {
         "title": "Payouts",

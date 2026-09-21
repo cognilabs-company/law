@@ -20,6 +20,7 @@ import {
   getLawyerServices,
 } from "@/lib/services/backend";
 import { http, asDict, asStr } from "@/lib/http";
+import { fuzzyContains } from "@/lib/searchMatch";
 import OrderPayment from "@/components/portal/OrderPayment";
 import ServicePassport from "@/components/portal/ServicePassport";
 import ServiceDocumentRequest from "@/components/portal/ServiceDocumentRequest";
@@ -165,21 +166,34 @@ export default function ClientServices() {
     };
   }, [q, locale]);
 
+  // Cyrillic/typo-tolerant match against the catalog already loaded here —
+  // computed unconditionally so it can also backfill an empty or Latin-only
+  // server response (see below), not just stand in when the server call
+  // fails outright.
+  const localHits = useMemo(
+    () => (query ? catalog.filter((s) => fuzzyContains(query, s.name) || (s.catalogCode && fuzzyContains(query, s.catalogCode))) : []),
+    [catalog, query],
+  );
+
   // Search mode → flat results across everything; else drill by family.
   const list = useMemo(() => {
     if (query) {
       const hits = remote && remote.q.toLowerCase() === query ? remote.list : null;
-      if (hits) {
+      const local = narrowed ? localHits.filter(offeredBy) : localHits;
+      // A 200 with zero hits (the server's own search misses Cyrillic and
+      // some spelling variants — T1-06) must still fall through to the local
+      // match, so `hits` alone (truthy even when empty) isn't enough here.
+      if (hits && hits.length) {
         // Keep the catalog view (catalog_only) when it loaded: drop non-catalog hits.
         const byId = new Map(catalog.map((s) => [s.id, s]));
-        return byId.size ? hits.flatMap((h) => byId.get(h.id) ?? []) : narrowed ? hits.filter(offeredBy) : hits;
+        const server = byId.size ? hits.flatMap((h) => byId.get(h.id) ?? []) : narrowed ? hits.filter(offeredBy) : hits;
+        const seen = new Set(server.map((s) => s.id));
+        return [...server, ...local.filter((s) => !seen.has(s.id))];
       }
-      return catalog.filter(
-        (s) => s.name.toLowerCase().includes(query) || (s.catalogCode || "").toLowerCase().includes(query),
-      );
+      return local;
     }
     return cat ? catalog.filter((s) => s.categoryId === cat) : [];
-  }, [catalog, cat, query, remote, narrowed, offeredBy]);
+  }, [catalog, cat, query, remote, narrowed, offeredBy, localHits]);
 
   // Deep link from the AI offer cards (?service=<id>) opens that service's order
   // modal once the catalog is loaded; a service outside the catalog list is

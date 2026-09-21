@@ -324,6 +324,23 @@ Frontend bugun UI ni qurdi; quyidagilar backend tomonidan bo'lmasa GM talabi yop
 | 65 | T1-03 §1,5,6 | AI rejalar `audience`=client (hozir seller); `billing_period` uchun 3 oylik davr; GM chegirma jadvali: 3 oy −5 %, 6 oy −10 %, 12 oy −15 %, bir yo'la +5 %, jami ≤ 20 % (hozir yearly −10 %, prepaid −19 %); tasdiqlangan advokat/yuristga −50 % server tomonda | Frontend summani o'zi hisoblab yuboradi |
 | 66 | T1B-08 §2 / T5-01 | «Shaxsiy advokat Standard» narxi seed'da 149 000, GM'da SOS taklifi «Obuna bo'ling — 249 000 so'm/oy» — PM bilan aniqlash; ortiqcha rejalar (`lexgo-ai-yurist-advokat-seller`, `lexgo-ai-jismoniy-shaxs`) seed'dan olib tashlash | — |
 
+## 0F. 21.09 — GM v1.1 qayta tekshiruvi: yangi topilgan backend ishlari
+
+21.09 qayta tekshiruvda T1-06 (qidiruv) va T2-04 (reyting, qisman) frontend tomonda tuzatildi — pastdagilar shu tekshiruv paytida topilgan, hali hech qayerda qayd qilinmagan qolgan bo'shliqlar.
+
+| # | Task / talab | Nima kerak | Hozir |
+|---|---|---|---|
+| 67 | T1-07 §1,6,7,8,9,10,12 | Xizmat pasporti 13 guruhdan 6 tasi yo'q: sinonimlar + «Natijada nima olasiz», milestone ro'yxati va ulushlari, kafolat/qaytarish TO'LIQ matni (hozir faqat kod), tijorat (upsell/cross-sell/shablon), SEO (slug/meta/5 FAQ), holat (aktiv/qoralama/tez kunda) + versiyalash | `GET /services/{id}/passport`: kod, oila, guruh, ijrochi, format, muddat (kun), narx, tier, `slaCode`/`refundCode` (matn emas), hujjatlar ro'yxati (nomigina, majburiy/ixtiyoriy/namuna yo'q) |
+| 68 | T1-08 §mijoz | `PUT /clients/me` (yoki `/auth/me`) `region` maydonini qabul qilsin — hozir mijoz o'z hududini hech qachon o'rnata olmaydi, shuning uchun hudud narx koeffitsienti doim standart qiymatda qoladi | `updateClientProfile` faqat `name`, `email`, `avatar_url` qabul qiladi |
+| 69 | T2-04 §3 | Reyting/Super-advokat holati uchun ikkita maydon: viloyat bo'yicha oila-huquq g'alabalar TOP-3 o'rni, so'nggi 6 oyda asosli shikoyat bor/yo'qligi (mijozga ko'rinadigan darajada) | Frontend hozir faqat 4/6 shartni (reyting, javob foizi, staj, yakunlangan ishlar soni) mavjud maydonlardan hisoblab ko'rsatmoqda; qolgan 2 tasi ma'lumot yo'qligi sababli ko'rsatib bo'lmayapti |
+| 70 | T3-02 | Katalog/pasport Excel import/eksport: yuklash, xato qatorlarni sababi bilan alohida faylda qaytarish | Yo'q — shuning uchun T1-07 pasport maydonlarini PM ommaviy to'ldira olmaydi |
+| 71 | T3-03 | Narx formulasi koeffitsientlari (hudud/staj/soha-staji/Super-advokat) uchun admin CRUD + versiyalash + A/B test | Yo'q |
+| 72 | T3-13 | Adliya vazirligi reestrining oylik faylini yuklab, barcha advokat litsenziyalarini avtomatik solishtiradigan endpoint (bekor qilinganni to'xtatish + moderator vazifasi) | Yo'q |
+| 73 | T3-14 | Paket/obuna analitikasi: versiya bo'yicha sotuv statistikasi + tasdiqlashdagi yuridik/moliyaviy tekshiruv natijalarining alohida saqlanishi | Yo'q |
+| 74 | T4-03 | Call-center skriptlar/namunaviy-javoblar moduli: CRUD, qaror-daraxti ssenariysi, e'tirozlar kitobi, samaradorlik statistikasi | Yo'q |
+| 75 | T4-05 | Lid skoringi: har lidga avtomatik 0–100 ball, issiq/iliq/sovuq toifalash, qoidalar admin panelda sozlanadi | Yo'q |
+| 76 | T4-07 | Vaqt-tarifli konsultatsiya: server-side taymer (ikkala tomon ulanganda boshlanadi, uzilish mijoz foydasiga hal bo'ladi) + daqiqa-bo'yicha billing | Yo'q |
+
 ## 1. Tezlik
 
 ### 🔴 1.1 `GET /services` va `GET /services/search` ~11,5 soniya
