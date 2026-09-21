@@ -61,6 +61,72 @@ export function tokenCounts(segs: DocSeg[]): Record<string, number> {
   return c;
 }
 
+// The same document, but as the template's own real DOCX renders it (headers
+// centered, labels bold, signature block right-aligned…) instead of a flat
+// run of plain text — built from the HTML a client-side DOCX→HTML conversion
+// (mammoth) produces for the template's source file. Element nodes are kept
+// as a small allowed set so the document pane never has to trust arbitrary
+// markup; anything else is unwrapped to just its text.
+export type DocTree =
+  | { k: "text"; v: string }
+  | { k: "tok"; name: string; n: number }
+  | { k: "el"; tag: string; children: DocTree[] };
+
+const ALLOWED_TAGS = new Set(["p", "strong", "b", "em", "i", "u", "s", "ol", "ul", "li", "br", "table", "thead", "tbody", "tr", "td", "th", "h1", "h2", "h3", "h4"]);
+
+// Same numbering as parseTemplate, but the "text" being split arrives as
+// however many text nodes the HTML happens to have — one running counter
+// shared across all of them keeps a field's occurrences numbered in document
+// order, not per text node.
+function splitTokens(text: string, seen: Record<string, number>): DocTree[] {
+  const out: DocTree[] = [];
+  let last = 0;
+  for (const m of text.matchAll(TOKEN)) {
+    const at = m.index ?? 0;
+    if (at > last) out.push({ k: "text", v: text.slice(last, at) });
+    const name = m[1];
+    const n = seen[name] ?? 0;
+    seen[name] = n + 1;
+    out.push({ k: "tok", name, n });
+    last = at + m[0].length;
+  }
+  if (last < text.length) out.push({ k: "text", v: text.slice(last) });
+  return out;
+}
+
+// DOMParser is browser-only — this is only ever called from a "use client"
+// component, after the DOCX has already been fetched and converted to HTML.
+export function parseTemplateHtml(html: string): DocTree[] {
+  if (typeof window === "undefined" || !html) return [];
+  const seen: Record<string, number> = {};
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const walk = (node: ChildNode): DocTree[] => {
+    if (node.nodeType === Node.TEXT_NODE) return splitTokens(node.textContent || "", seen);
+    if (node.nodeType !== Node.ELEMENT_NODE) return [];
+    const el = node as Element;
+    const tag = el.tagName.toLowerCase();
+    const children = Array.from(el.childNodes).flatMap(walk);
+    if (tag === "br") return [{ k: "el", tag: "br", children: [] }];
+    // An unrecognised tag (mammoth falls back to <p> for most things, but a
+    // table or a style it can't map might still slip through as something
+    // else) keeps its text rather than disappearing outright.
+    return ALLOWED_TAGS.has(tag) ? [{ k: "el", tag, children }] : children;
+  };
+  return Array.from(doc.body.childNodes).flatMap(walk);
+}
+
+export function tokenCountsTree(nodes: DocTree[]): Record<string, number> {
+  const c: Record<string, number> = {};
+  const walk = (list: DocTree[]) => {
+    for (const n of list) {
+      if (n.k === "tok") c[n.name] = (c[n.name] ?? 0) + 1;
+      else if (n.k === "el") walk(n.children);
+    }
+  };
+  walk(nodes);
+  return c;
+}
+
 export type DocKind =
   | "text"
   | "multiline"

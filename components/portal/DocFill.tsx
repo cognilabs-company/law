@@ -13,8 +13,10 @@ import {
   missingRequired,
   normalizeAnswers,
   parseTemplate,
+  parseTemplateHtml,
   sanitizeInput,
   tokenCounts,
+  tokenCountsTree,
   type DocField,
   type DocKind,
 } from "@/lib/docTemplate";
@@ -87,7 +89,42 @@ export default function DocFill({
   const tf = useTranslations("portal.client.documents.fields");
 
   const segs = useMemo(() => parseTemplate(templateText || ""), [templateText]);
-  const counts = useMemo(() => tokenCounts(segs), [segs]);
+
+  // The document pane renders the template's own real DOCX (headers, bold
+  // labels, the signature block laid out the way the actual filing is) when
+  // one is available, converted to HTML client-side (mammoth) — falling back
+  // to the flat template_text rendering below while it loads, on failure, or
+  // when the service has no source file at all (the standalone template-list
+  // flow, which has no equivalent endpoint).
+  const [sourceHtml, setSourceHtml] = useState<string | null>(null);
+  // Cleared during render (not inside the effect below) so a service switch
+  // never shows the previous one's converted HTML for even one paint.
+  const [prevSourceFile, setPrevSourceFile] = useState(sourceFile);
+  if (sourceFile !== prevSourceFile) {
+    setPrevSourceFile(sourceFile);
+    setSourceHtml(null);
+  }
+  useEffect(() => {
+    if (!sourceFile?.hasSourceFile) return;
+    let alive = true;
+    (async () => {
+      try {
+        const blob = await getServiceTemplateSourceFile(sourceFile.sourceFileInlineUrl || sourceFile.sourceFileUrl);
+        const buf = await blob.arrayBuffer();
+        const mammoth = (await import("mammoth")).default;
+        const result = await mammoth.convertToHtml({ arrayBuffer: buf });
+        if (alive && result.value) setSourceHtml(result.value);
+      } catch {
+        /* falls back to the plain-text rendering below */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [sourceFile]);
+  const tree = useMemo(() => parseTemplateHtml(sourceHtml || ""), [sourceHtml]);
+
+  const counts = useMemo(() => (sourceHtml ? tokenCountsTree(tree) : tokenCounts(segs)), [sourceHtml, tree, segs]);
 
   const [touched, setTouched] = useState(false);
   const [active, setActive] = useState("");
@@ -402,6 +439,7 @@ export default function DocFill({
       >
         <DocPaper
           segs={segs}
+          tree={sourceHtml ? tree : undefined}
           values={values}
           labelOf={labelOf}
           active={active}

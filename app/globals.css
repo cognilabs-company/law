@@ -3957,6 +3957,13 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docpaper__sheet{display:block;position:relative;isolation:isolate;min-height:100%;background:#fff;color:#14213d;border-radius:8px;box-shadow:var(--s2);
   padding:clamp(22px,3vw,44px) clamp(18px,3vw,50px);
   font-family:var(--fdoc);font-size:.92rem;line-height:1.95;white-space:pre-wrap;overflow-wrap:anywhere}
+/* The template's own DOCX, rendered as real <p>/<strong>/<ol> instead of flat
+   text (DocPaper's `tree` mode) — a court filing's header block reads as one
+   tight stack of lines, not spaced-out essay paragraphs, so this trims the
+   browser's default <p> margin down rather than leaving it at 1em. */
+.docpaper__sheet p{margin:0 0 .5em}
+.docpaper__sheet p:last-child{margin-bottom:0}
+.docpaper__sheet ol,.docpaper__sheet ul{margin:0 0 .5em;padding-left:1.4em}
 .docpaper__b{display:inline;border:0;cursor:pointer;padding:1px 7px;margin:0 1px;border-radius:6px;
   background:#E6F0FF;color:#154CB0;box-shadow:inset 0 0 0 1px rgba(22,104,240,.3);
   font-family:var(--fb);font-size:.78rem;font-weight:700;line-height:inherit;white-space:normal;text-align:left;

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ElementType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { splitFilledText, type DocSeg } from "@/lib/docTemplate";
+import { splitFilledText, type DocSeg, type DocTree } from "@/lib/docTemplate";
 import { IconDownload, IconExternal } from "@/components/icons";
 
 // The document itself, filled in as the client types.
@@ -17,6 +17,7 @@ import { IconDownload, IconExternal } from "@/components/icons";
 // application_date) lights up in all of them at once.
 export default function DocPaper({
   segs,
+  tree,
   values,
   labelOf,
   active,
@@ -40,6 +41,11 @@ export default function DocPaper({
   sourceError,
 }: {
   segs: DocSeg[];
+  // The template's own real DOCX, converted to HTML (see DocFill) — when
+  // given, this renders instead of `segs`, so the pane looks like the actual
+  // filing (bold labels, centered header, the signature block laid out as
+  // written) instead of a flat run of plain text.
+  tree?: DocTree[];
   values: Record<string, string>;
   labelOf: (name: string) => string;
   active: string;
@@ -257,7 +263,48 @@ export default function DocPaper({
     }
   }, [active, values]);
 
-  const body = useMemo(() => {
+  // A blank field renders the same way in both modes — `[Label]` in a
+  // clickable chip, wired into the same `spots` map the scroll/arrival
+  // effects above read from — so this is shared rather than written twice.
+  const tokenNode = useCallback(
+    (key: string | number, name: string, n: number): ReactNode => {
+      const spotKey = `${name}#${n}`;
+      const v = values[name] ?? "";
+      const ref = (el: HTMLElement | null) => {
+        if (el) spots.current.set(spotKey, el);
+        else spots.current.delete(spotKey);
+      };
+      const label = labelOf(name);
+      return v ? (
+        <span key={key} ref={ref} className="docpaper__v">
+          {v}
+        </span>
+      ) : (
+        // Written the same way as the chip above its question — `[Label]` in
+        // both places — so it is obvious which blank a question fills.
+        <button key={key} ref={ref} type="button" className="docpaper__b" onClick={() => onPick(name)} title={t("jumpToField", { label })}>
+          [{label}]
+        </button>
+      );
+    },
+    [values, labelOf, onPick, t],
+  );
+
+  const treeBody = useMemo(() => {
+    if (!tree?.length) return null;
+    let seq = 0;
+    const render = (n: DocTree): ReactNode => {
+      const key = seq++;
+      if (n.k === "text") return <span key={key}>{n.v}</span>;
+      if (n.k === "tok") return tokenNode(key, n.name, n.n);
+      if (n.tag === "br") return <br key={key} />;
+      const Tag = n.tag as ElementType;
+      return <Tag key={key}>{n.children.map(render)}</Tag>;
+    };
+    return tree.map(render);
+  }, [tree, tokenNode]);
+
+  const flatBody = useMemo(() => {
     if (!segs.length && fallbackText) {
       return splitFilledText(fallbackText).map((p, i) =>
         p.blank ? (
@@ -267,35 +314,10 @@ export default function DocPaper({
         ),
       );
     }
-    return segs.map((s, i) => {
-      if (s.k === "text") return <span key={i}>{s.v}</span>;
-      const key = `${s.name}#${s.n}`;
-      const v = values[s.name] ?? "";
-      const ref = (el: HTMLElement | null) => {
-        if (el) spots.current.set(key, el);
-        else spots.current.delete(key);
-      };
-      const name = labelOf(s.name);
-      return v ? (
-        <span key={i} ref={ref} className="docpaper__v">
-          {v}
-        </span>
-      ) : (
-        // Written the same way as the chip above its question — `[Label]` in
-        // both places — so it is obvious which blank a question fills.
-        <button
-          key={i}
-          ref={ref}
-          type="button"
-          className="docpaper__b"
-          onClick={() => onPick(s.name)}
-          title={t("jumpToField", { label: name })}
-        >
-          [{name}]
-        </button>
-      );
-    });
-  }, [segs, values, fallbackText, labelOf, onPick, t]);
+    return segs.map((s, i) => (s.k === "text" ? <span key={i}>{s.v}</span> : tokenNode(i, s.name, s.n)));
+  }, [segs, fallbackText, tokenNode]);
+
+  const body = treeBody ?? flatBody;
 
   return (
     <div className="docpaper">
