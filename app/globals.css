@@ -3960,10 +3960,15 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 /* The template's own DOCX, rendered as real <p>/<strong>/<ol> instead of flat
    text (DocPaper's `tree` mode) — a court filing's header block reads as one
    tight stack of lines, not spaced-out essay paragraphs, so this trims the
-   browser's default <p> margin down rather than leaving it at 1em. */
+   browser's default <p> margin down rather than leaving it at 1em. Alignment
+   and indent come as inline styles straight from the DOCX itself (see
+   lib/docxParse.ts); font-family is the one thing worth matching here too —
+   these templates are authored in Times New Roman, not the sans-serif the
+   plain-text fallback uses. */
 .docpaper__sheet p{margin:0 0 .5em}
 .docpaper__sheet p:last-child{margin-bottom:0}
 .docpaper__sheet ol,.docpaper__sheet ul{margin:0 0 .5em;padding-left:1.4em}
+.docpaper__sheet--doc{font-family:"Times New Roman","DejaVu Serif",serif}
 .docpaper__b{display:inline;border:0;cursor:pointer;padding:1px 7px;margin:0 1px;border-radius:6px;
   background:#E6F0FF;color:#154CB0;box-shadow:inset 0 0 0 1px rgba(22,104,240,.3);
   font-family:var(--fb);font-size:.78rem;font-weight:700;line-height:inherit;white-space:normal;text-align:left;

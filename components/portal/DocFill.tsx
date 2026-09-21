@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { previewDocumentRequest, getServiceTemplateSourceFile, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
 import { preopenTab, showBlob, saveBlob, closeTab } from "@/lib/download";
+import { docxToTree } from "@/lib/docxParse";
 import {
   MAX_DIGITS,
   fieldKind,
@@ -13,12 +14,12 @@ import {
   missingRequired,
   normalizeAnswers,
   parseTemplate,
-  parseTemplateHtml,
   sanitizeInput,
   tokenCounts,
   tokenCountsTree,
   type DocField,
   type DocKind,
+  type DocTree,
 } from "@/lib/docTemplate";
 import { humanizeSlug } from "@/lib/lawyers";
 import { formatUzSubscriber, uzSubscriber } from "@/lib/phone";
@@ -90,30 +91,30 @@ export default function DocFill({
 
   const segs = useMemo(() => parseTemplate(templateText || ""), [templateText]);
 
-  // The document pane renders the template's own real DOCX (headers, bold
-  // labels, the signature block laid out the way the actual filing is) when
-  // one is available, converted to HTML client-side (mammoth) — falling back
-  // to the flat template_text rendering below while it loads, on failure, or
-  // when the service has no source file at all (the standalone template-list
-  // flow, which has no equivalent endpoint).
-  const [sourceHtml, setSourceHtml] = useState<string | null>(null);
+  // The document pane renders the template's own real DOCX (justified body
+  // text, the centered bold title, the header/signature block indented the
+  // way the actual filing is) when one is available, read client-side
+  // straight from the file's own XML — falling back to the flat template_text
+  // rendering below while it loads, on failure, or when the service has no
+  // source file at all (the standalone template-list flow, which has no
+  // equivalent endpoint).
+  const [tree, setTree] = useState<DocTree[] | null>(null);
   // Cleared during render (not inside the effect below) so a service switch
-  // never shows the previous one's converted HTML for even one paint.
+  // never shows the previous one's document for even one paint.
   const [prevSourceFile, setPrevSourceFile] = useState(sourceFile);
   if (sourceFile !== prevSourceFile) {
     setPrevSourceFile(sourceFile);
-    setSourceHtml(null);
+    setTree(null);
   }
   useEffect(() => {
     if (!sourceFile?.hasSourceFile) return;
     let alive = true;
     (async () => {
       try {
-        const blob = await getServiceTemplateSourceFile(sourceFile.sourceFileInlineUrl || sourceFile.sourceFileUrl);
+        const blob = await getServiceTemplateSourceFile(sourceFile.sourceFileUrl || sourceFile.sourceFileInlineUrl);
         const buf = await blob.arrayBuffer();
-        const mammoth = (await import("mammoth")).default;
-        const result = await mammoth.convertToHtml({ arrayBuffer: buf });
-        if (alive && result.value) setSourceHtml(result.value);
+        const parsed = await docxToTree(buf);
+        if (alive && parsed.length) setTree(parsed);
       } catch {
         /* falls back to the plain-text rendering below */
       }
@@ -122,9 +123,8 @@ export default function DocFill({
       alive = false;
     };
   }, [sourceFile]);
-  const tree = useMemo(() => parseTemplateHtml(sourceHtml || ""), [sourceHtml]);
 
-  const counts = useMemo(() => (sourceHtml ? tokenCountsTree(tree) : tokenCounts(segs)), [sourceHtml, tree, segs]);
+  const counts = useMemo(() => (tree ? tokenCountsTree(tree) : tokenCounts(segs)), [tree, segs]);
 
   const [touched, setTouched] = useState(false);
   const [active, setActive] = useState("");
@@ -439,7 +439,7 @@ export default function DocFill({
       >
         <DocPaper
           segs={segs}
-          tree={sourceHtml ? tree : undefined}
+          tree={tree ?? undefined}
           values={values}
           labelOf={labelOf}
           active={active}

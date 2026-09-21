@@ -299,7 +299,11 @@ export default function DocPaper({
       if (n.k === "tok") return tokenNode(key, n.name, n.n);
       if (n.tag === "br") return <br key={key} />;
       const Tag = n.tag as ElementType;
-      return <Tag key={key}>{n.children.map(render)}</Tag>;
+      return (
+        <Tag key={key} style={n.style}>
+          {n.children.map(render)}
+        </Tag>
+      );
     };
     return tree.map(render);
   }, [tree, tokenNode]);
@@ -343,7 +347,7 @@ export default function DocPaper({
             say so, rather than showing a blank sheet that reads as a broken
             or empty document. */}
         {body.length ? (
-          <article className="docpaper__sheet" ref={sheet}>
+          <article className={`docpaper__sheet${treeBody ? " docpaper__sheet--doc" : ""}`} ref={sheet}>
             <span className="docpaper__jump" ref={band} aria-hidden />
             {body}
           </article>

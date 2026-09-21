@@ -63,22 +63,24 @@ export function tokenCounts(segs: DocSeg[]): Record<string, number> {
 
 // The same document, but as the template's own real DOCX renders it (headers
 // centered, labels bold, signature block right-aligned…) instead of a flat
-// run of plain text — built from the HTML a client-side DOCX→HTML conversion
-// (mammoth) produces for the template's source file. Element nodes are kept
-// as a small allowed set so the document pane never has to trust arbitrary
-// markup; anything else is unwrapped to just its text.
+// run of plain text — built by lib/docxParse.ts, which reads the template's
+// source DOCX XML directly (paragraph alignment/indent and run bold/italic/
+// underline — properties a semantic-HTML conversion like mammoth deliberately
+// drops, but that these Uzbek court templates rely on for their actual look).
+// `style` on an "el" node is a plain inline React style object, not a class:
+// the values come straight from the DOCX (e.g. an exact point-based indent),
+// nothing here maps them onto a fixed set of classes.
 export type DocTree =
   | { k: "text"; v: string }
   | { k: "tok"; name: string; n: number }
-  | { k: "el"; tag: string; children: DocTree[] };
-
-const ALLOWED_TAGS = new Set(["p", "strong", "b", "em", "i", "u", "s", "ol", "ul", "li", "br", "table", "thead", "tbody", "tr", "td", "th", "h1", "h2", "h3", "h4"]);
+  | { k: "el"; tag: string; children: DocTree[]; style?: Record<string, string | number> };
 
 // Same numbering as parseTemplate, but the "text" being split arrives as
-// however many text nodes the HTML happens to have — one running counter
+// however many text runs the source happens to have — one running counter
 // shared across all of them keeps a field's occurrences numbered in document
-// order, not per text node.
-function splitTokens(text: string, seen: Record<string, number>): DocTree[] {
+// order, not per run. Exported for lib/docxParse.ts, which builds a DocTree
+// straight from the DOCX's own XML rather than from a flat string.
+export function splitTokens(text: string, seen: Record<string, number>): DocTree[] {
   const out: DocTree[] = [];
   let last = 0;
   for (const m of text.matchAll(TOKEN)) {
@@ -92,27 +94,6 @@ function splitTokens(text: string, seen: Record<string, number>): DocTree[] {
   }
   if (last < text.length) out.push({ k: "text", v: text.slice(last) });
   return out;
-}
-
-// DOMParser is browser-only — this is only ever called from a "use client"
-// component, after the DOCX has already been fetched and converted to HTML.
-export function parseTemplateHtml(html: string): DocTree[] {
-  if (typeof window === "undefined" || !html) return [];
-  const seen: Record<string, number> = {};
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  const walk = (node: ChildNode): DocTree[] => {
-    if (node.nodeType === Node.TEXT_NODE) return splitTokens(node.textContent || "", seen);
-    if (node.nodeType !== Node.ELEMENT_NODE) return [];
-    const el = node as Element;
-    const tag = el.tagName.toLowerCase();
-    const children = Array.from(el.childNodes).flatMap(walk);
-    if (tag === "br") return [{ k: "el", tag: "br", children: [] }];
-    // An unrecognised tag (mammoth falls back to <p> for most things, but a
-    // table or a style it can't map might still slip through as something
-    // else) keeps its text rather than disappearing outright.
-    return ALLOWED_TAGS.has(tag) ? [{ k: "el", tag, children }] : children;
-  };
-  return Array.from(doc.body.childNodes).flatMap(walk);
 }
 
 export function tokenCountsTree(nodes: DocTree[]): Record<string, number> {
