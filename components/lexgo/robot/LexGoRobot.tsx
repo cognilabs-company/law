@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
 import RobotCanvas from "./RobotCanvas";
 import { RobotEvents } from "./RobotEvents";
 import { BREAKPOINTS, DEBUG_ROBOT, VIEWPORT_SIZE } from "./robot-config";
@@ -20,19 +19,7 @@ type RobotDebugWindow = typeof window & { __lexgoRobotController?: RobotControll
 // background regardless of this cycle) so it's its own visible, inspectable
 // step rather than "whatever the mouse happens to be doing".
 const DEMO_STEPS: Array<(c: RobotController) => void> = [
-  (c) => c.idle(),
-  (c) => c.peek(),
-  (c) => c.lookAt(new THREE.Vector3(0.6, 0.75, 1)),
-  (c) => c.wave(),
   (c) => c.greet(),
-  (c) => c.pointAt(document.querySelector("h1") ?? document.body),
-  (c) => c.think(),
-  (c) => c.hide(),
-  (c) => {
-    c.lookAt(null);
-    c.pointAt(null);
-    c.idle();
-  },
 ];
 
 // The persistent "lives behind the right edge" companion (spec section 5) —

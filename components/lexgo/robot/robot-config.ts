@@ -132,10 +132,15 @@ export const HEAD_AVOID = {
 
 export const WAVE = {
   // Degrees, applied as local-axis deltas on top of each bone's rest quaternion.
-  shoulderOutDeg: 22,
-  armLiftDeg: -52,
-  armOutDeg: -28,
-  elbowBendDeg: -92,
+  shoulderOutDeg: 34,
+  armLiftDeg: -68,
+  armOutDeg: -18,
+  elbowBendDeg: 62,
+  // Base wrist orientation: the exported hand is side-on in the bind pose;
+  // rotate the palm toward the viewer before adding the small wave wiggle.
+  wristXDeg: -35,
+  wristYDeg: 0,
+  wristZDeg: -78,
   wristWiggleDeg: 12,
   // A small friendly head cue makes the edge wave read as an intentional
   // greeting instead of a detached arm animation.
@@ -144,7 +149,6 @@ export const WAVE = {
   // Pull the mascot a little farther into the viewport while waving so the
   // greeting hand is visible beside the head instead of being clipped away.
   edgeRevealX: -0.30,
-  edgeRotationY: 0.42,
   wiggleCount: 3,
   wiggleHz: 2.6,
   // Seconds, per step of the 9-step sequence (section 17).

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ComponentType, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import Image from "next/image";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   getServiceCategories,
@@ -503,7 +504,16 @@ export default function ClientServices() {
               return (
                 <button key={c.id} type="button" className="svfam" onClick={() => setCat(c.id)}>
                   <span className="svfam__i">
-                    {img ? <img src={img} alt="" /> : <Icon />}
+                    {img ? (
+                      // The source PNGs are ~600-800KB full-resolution
+                      // renders — a plain <img> shipped that whole file to
+                      // every visitor; next/image resizes/re-encodes to
+                      // what's actually displayed (this card is never wider
+                      // than a few hundred px) and lazy-loads off-screen ones.
+                      <Image src={img} alt="" fill sizes="(max-width: 640px) 45vw, 260px" style={{ objectFit: "contain" }} />
+                    ) : (
+                      <Icon />
+                    )}
                   </span>
                   <span className="svfam__t">
                     <b>{c.name}</b>

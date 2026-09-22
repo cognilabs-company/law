@@ -297,13 +297,14 @@ export class RobotController implements RobotControllerApi {
       // Look around while the peek is held.
       .call(() => this.lookAt(lookTarget), [], 0.75)
       // Wave before the peek returns, so the hand stays behind the edge.
-      .call(() => this.wave(), [], 1.2)
+      // Let the peek finish first; wave must be the only root writer.
+      .call(() => this.wave(), [], 2.2)
       // Hide after the wave has settled.
-      .call(() => this.hide(), [], 3.85)
+      .call(() => this.hide(), [], 4.25)
       .call(() => {
         this.lookAt(null);
         this.idle();
-      }, [], 5.35);
+      }, [], 5.75);
   }
 
   hide(): void {
@@ -327,6 +328,10 @@ export class RobotController implements RobotControllerApi {
 
   wave(): void {
     if (!this.stateMachine.enterInterrupting("WAVING")) return;
+    // Peek owns the root channel. End any previous root travel before the
+    // greeting takes over, otherwise two timelines fight over x/rotation.
+    this.rootTimeline?.kill();
+    this.rootTimeline = null;
     this.clearRightArmTimelines();
     const shoulder = this.bones.get("rightShoulder");
     const arm = this.bones.get("rightArm");
@@ -355,12 +360,16 @@ export class RobotController implements RobotControllerApi {
     // wiring and axis signs.
     const applyPose = () => {
       this.root.position.x = ROOT_PLACEMENT.restX + WAVE.edgeRevealX * p.edgeReveal;
-      this.root.rotation.y = ROOT_PLACEMENT.restRotationY + WAVE.edgeRotationY * p.edgeReveal;
       const measureHand = (correction: HeadAvoidCorrection) => {
         this.applyDelta(shoulder, 0, 0, deg(WAVE.shoulderOutDeg) * p.shoulder + deg(correction.extraShoulderDeg));
         this.applyDelta(arm, deg(WAVE.armLiftDeg) * p.lift, 0, deg(WAVE.armOutDeg) * p.out);
         this.applyDelta(foreArm, 0, 0, deg(WAVE.elbowBendDeg) * p.elbow);
-        this.applyDelta(hand, 0, 0, Math.sin(p.wristPhase) * deg(WAVE.wristWiggleDeg));
+        this.applyDelta(
+          hand,
+          deg(WAVE.wristXDeg),
+          deg(WAVE.wristYDeg),
+          deg(WAVE.wristZDeg) + Math.sin(p.wristPhase) * deg(WAVE.wristWiggleDeg),
+        );
         hand.updateWorldMatrix(true, false);
         return hand.getWorldPosition(scratchVecA);
       };
@@ -368,7 +377,9 @@ export class RobotController implements RobotControllerApi {
       else measureHand({ extraShoulderDeg: 0, liftMultiplier: 1 });
     };
 
-    this.relaxedHand("right");
+    // The GLB bind pose keeps the fingers slightly curled. A small negative
+    // curl opens them into a readable five-finger greeting silhouette.
+    this.curlFingers("right", ["thumb", "index", "middle", "ring", "pinky"], -0.35);
     this.waveTimeline?.kill();
     const t = WAVE.timing;
     this.waveTimeline = gsap

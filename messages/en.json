@@ -1872,9 +1872,18 @@
         "dismiss": "Dismiss"
       },
       "giftNudge": {
-        "title": "Care for your loved ones",
-        "text": "Gift not a legal service, but legal peace of mind.",
-        "cta": "Gift it",
+        "giftTitle": "Care for your loved ones",
+        "giftText": "Gift not a legal service, but legal peace of mind.",
+        "giftCta": "Gift it",
+        "proTitle": "LexGo Pro, without limits",
+        "proText": "Use the AI assistant with no caps, download templates freely, and get priority support.",
+        "proCta": "Upgrade to Pro",
+        "liteTitle": "LexGo Lite — more for less",
+        "liteText": "More AI requests and the ability to download document templates — on the Lite plan.",
+        "liteCta": "See Lite",
+        "lawyersTitle": "Find top-rated lawyers",
+        "lawyersText": "Connect directly with verified, highly-rated advocates and lawyers.",
+        "lawyersCta": "Browse lawyers",
         "dismiss": "Dismiss"
       },
       "reminder": {

@@ -1878,9 +1878,18 @@
         "dismiss": "Yopish"
       },
       "giftNudge": {
-        "title": "Yaqinlaringizga g'amxo'rlik qiling",
-        "text": "Yuridik xizmatni emas — yuridik xotirjamlikni sovg'a qiling.",
-        "cta": "Sovg'a qilish",
+        "giftTitle": "Yaqinlaringizga g'amxo'rlik qiling",
+        "giftText": "Yuridik xizmatni emas — yuridik xotirjamlikni sovg'a qiling.",
+        "giftCta": "Sovg'a qilish",
+        "proTitle": "LexGo Pro bilan cheksiz imkoniyat",
+        "proText": "AI yordamchidan cheklovsiz foydalaning, shablonlarni erkin yuklab oling va ustuvor yordam oling.",
+        "proCta": "Pro'ga o'tish",
+        "liteTitle": "LexGo Lite — arzonroq, qulayroq",
+        "liteText": "Ko'proq AI so'rovlari va hujjat shablonlarini yuklab olish imkoniyati — Lite tarifda.",
+        "liteCta": "Lite'ni ko'rish",
+        "lawyersTitle": "Eng yaxshi advokatlarni toping",
+        "lawyersText": "Reytingi yuqori, tasdiqlangan advokat va yuristlar bilan bevosita bog'laning.",
+        "lawyersCta": "Advokatlarni ko'rish",
         "dismiss": "Yopish"
       },
       "reminder": {
