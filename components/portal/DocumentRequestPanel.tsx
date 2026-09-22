@@ -11,6 +11,7 @@ import {
   generateDocumentRequest,
   getDocumentRequestFile,
   listDocumentRequests,
+  isDocPaymentSkipped,
   type DocumentRequest,
   type TemplateQuestion,
   type ServiceDocumentFields,
@@ -24,19 +25,30 @@ import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Notice } from "@/components/admin/AdminBits";
 import { Link } from "@/i18n/navigation";
-import { IconDownload, IconExternal, IconCheck, IconClock } from "@/components/icons";
+import { IconDownload, IconExternal, IconCheck, IconClock, IconSparkle, IconHeadset } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
-type Stage = "answers" | "pay" | "pending" | "done";
+type Stage = "answers" | "pay" | "generating" | "lawyerReview" | "pending" | "done";
 
 // Map a request's backend status to the modal stage. Shared by every entry
-// point (standalone template list, service "Create document" button) so the
-// pay/generate/download lifecycle behaves identically everywhere.
+// point (standalone template list, service "Create document" button, and
+// now the AI/lawyer-assist flows) so the pay/generate/download lifecycle
+// behaves identically everywhere.
+//
+// LEXGO_FRONTEND_DOCUMENT_PAYMENT_SKIP_AND_LAWYER_INBOX_2026-09-22.md: the
+// payment provider isn't really connected, so these requests are paid
+// server-side automatically — isDocPaymentSkipped() must be checked BEFORE
+// falling back to a payment screen, and "lawyer_review" (client's request
+// sent to a lawyer, no file yet, nothing to pay) needs its own screen
+// rather than either the generic pay-pending or "processing your payment"
+// copy, which would be actively wrong here (there is no payment).
 function stageFor(r: DocumentRequest): Stage {
   if (r.status === "file_ready") return "done";
   if (!r.status || r.status === "questionnaire" || r.status === "draft") return "answers";
-  if (r.status === "awaiting_payment") return "pay";
+  if (r.status === "lawyer_review") return "lawyerReview";
+  if (r.status === "awaiting_payment" && !isDocPaymentSkipped(r)) return "pay";
+  if (r.status === "ready_to_generate" || isDocPaymentSkipped(r)) return "generating";
   return "pending";
 }
 
@@ -143,7 +155,12 @@ export default function DocumentRequestPanel({
       const r = await updateDocumentAnswers(req.id, normalizeAnswers(qs, answers));
       clearDraft(req.id);
       setReq(r);
-      setStage(stageFor(r) === "answers" ? "pay" : stageFor(r));
+      // A backend echo that still looks like "answers" (e.g. a draft-ish
+      // status) shouldn't bounce the client right back to the form they
+      // just submitted — move forward regardless, to "generating" now that
+      // payment is normally pre-confirmed, "pay" only in the rare case it
+      // genuinely isn't.
+      setStage(stageFor(r) === "answers" ? (isDocPaymentSkipped(r) ? "generating" : "pay") : stageFor(r));
       bump();
     } catch {
       setNote({ ok: false, msg: t("error") });
@@ -219,7 +236,7 @@ export default function DocumentRequestPanel({
       setReq(r);
       bump();
       if (r.status === "file_ready") setStage("done");
-      else if (stage === "pending") setNote({ ok: false, msg: t("stillPending") });
+      else if (stage === "pending" || stage === "generating") setNote({ ok: false, msg: t("stillPending") });
     } catch {
       setNote({ ok: false, msg: t("error") });
     } finally {
@@ -227,10 +244,13 @@ export default function DocumentRequestPanel({
     }
   }
 
-  // While a payment is processing, poll so the PDF is generated and opens
-  // automatically once the provider confirms it (first check right away).
-  // It stops after ~10 minutes rather than polling a stuck payment forever.
-  const pendingId = stage === "pending" ? req.id : undefined;
+  // Poll so the file is generated and opens automatically once it's ready —
+  // "generating" (payment pre-confirmed, just needs the backend to build the
+  // file), "lawyerReview" (waiting on a person, not a payment), and the
+  // generic "pending" fallback all resolve the same way: keep re-fetching
+  // the request until status flips to file_ready. First check right away;
+  // gives up after ~10 minutes rather than polling forever.
+  const pendingId = stage === "pending" || stage === "generating" || stage === "lawyerReview" ? req.id : undefined;
   useEffect(() => {
     if (!pendingId) return;
     let alive = true;
@@ -357,6 +377,38 @@ export default function DocumentRequestPanel({
             </button>
           ) : null}
         </>
+      ) : null}
+
+      {stage === "generating" ? (
+        <div className="docpend">
+          <span className="docpend__ic docpend__ic--ai"><IconSparkle /></span>
+          <b>{t("generatingTitle")}</b>
+          <span className="docpend__sub">{t("generatingSub")}</span>
+          <span className="docpend__badge">
+            <span className="docpend__dot" />
+            {t("generatingStatus")}
+          </span>
+          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+          <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
+            {busy ? t("processingShort") : t("checkStatus")}
+          </button>
+        </div>
+      ) : null}
+
+      {stage === "lawyerReview" ? (
+        <div className="docpend">
+          <span className="docpend__ic docpend__ic--lawyer"><IconHeadset /></span>
+          <b>{t("lawyerReviewTitle")}</b>
+          <span className="docpend__sub">{t("lawyerReviewSub")}</span>
+          <span className="docpend__badge">
+            <span className="docpend__dot" />
+            {t("lawyerReviewStatus")}
+          </span>
+          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+          <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
+            {busy ? t("processingShort") : t("checkStatus")}
+          </button>
+        </div>
       ) : null}
 
       {stage === "pending" ? (

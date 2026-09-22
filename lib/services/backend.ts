@@ -1540,7 +1540,22 @@ export type DocumentRequest = {
   contractFile?: ContractFile;
   paymentUrl?: string; // provider checkout link returned by the pay call
   createdAt: string;
+  // LEXGO_FRONTEND_DOCUMENT_PAYMENT_SKIP_AND_LAWYER_INBOX_2026-09-22.md: the
+  // payment provider isn't really connected yet, so service-document
+  // requests (manual/AI/lawyer flows) are auto-confirmed paid server-side —
+  // any of these being true means "do not show a payment screen", even for
+  // a status string ("awaiting_payment") that used to imply one.
+  paid?: boolean;
+  paymentStatus?: string;
+  requiresPayment?: boolean;
+  autoConfirmPayment?: boolean;
 };
+
+// See DocumentRequest.paid's comment — true means the payment step is
+// already settled (or was never required) regardless of `status`.
+export function isDocPaymentSkipped(r: Pick<DocumentRequest, "paid" | "paymentStatus" | "requiresPayment" | "autoConfirmPayment">): boolean {
+  return r.paid === true || r.paymentStatus === "paid" || r.requiresPayment === false || r.autoConfirmPayment === true;
+}
 
 function normDocRequest(v: unknown): DocumentRequest {
   const d = asDict(v);
@@ -1561,6 +1576,10 @@ function normDocRequest(v: unknown): DocumentRequest {
     questionnaire: asArr(asArr(d.questionnaire).length ? d.questionnaire : d.fields).map(normQuestion),
     answers: (d.answers as Record<string, unknown>) ?? {},
     createdAt: asStr(d.created_at),
+    paid: typeof d.paid === "boolean" ? d.paid : undefined,
+    paymentStatus: asStr(d.payment_status) || undefined,
+    requiresPayment: typeof d.requires_payment === "boolean" ? d.requires_payment : undefined,
+    autoConfirmPayment: typeof d.auto_confirm_payment === "boolean" ? d.auto_confirm_payment : undefined,
     contractFile: cf
       ? {
           id: asStr(cf.id),

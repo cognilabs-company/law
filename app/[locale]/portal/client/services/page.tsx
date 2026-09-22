@@ -61,10 +61,27 @@ import {
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
-// Cycle a small set of legal icons across the service families.
+// Cycle a small set of legal icons across the service families — only the
+// fallback now, for a future category none of the illustrations below match.
 const FAM_ICONS: ComponentType<{ className?: string }>[] = [
   IconScale, IconGavel, IconShield, IconFileText, IconUsers, IconBriefcase,
 ];
+
+// Real illustrations for the 4 civil-court categories (public/img/), matched
+// by keyword against the category's own name rather than a fixed id/slug —
+// the backend has no stable per-category image field, and this reads the
+// same regardless of locale (Uzbek Latin/Cyrillic) since every spelling of
+// e.g. "uy-joy" still contains "joy". Falls back to FAM_ICONS below for any
+// category that matches none of these (a 5th category added later).
+const CATEGORY_IMAGES: { match: RegExp; src: string }[] = [
+  { match: /uy.?joy/i, src: "/img/uyjoy-nizolari.png" },
+  { match: /mehnat/i, src: "/img/mehnat-nizolari.png" },
+  { match: /oila|meros/i, src: "/img/oliaviy-meros.png" },
+  { match: /boshqa/i, src: "/img/boshqa-fuqorolik.png" },
+];
+function categoryImage(name: string): string | null {
+  return CATEGORY_IMAGES.find((c) => c.match.test(name))?.src ?? null;
+}
 
 type Sort = "match" | "rating" | "exp" | "price";
 
@@ -122,6 +139,12 @@ export default function ClientServices() {
   }, [preSeller]);
   const narrowed = Boolean(preSeller && preServices && preServices.size);
   const offeredBy = useCallback((s: BackendService) => !narrowed || (preServices as Set<string>).has(s.id), [narrowed, preServices]);
+  // The backend has no "section" concept — every category it returns today
+  // is one civil-court bo'lim (LEXGO_SERVICE_CATEGORIES_FILTER_FRONTEND.md).
+  // This is a purely presentational wrapper: one section card up front,
+  // opening into exactly the family grid that used to be the top level, in
+  // the same order the backend already returns.
+  const [section, setSection] = useState(false);
   const [cat, setCat] = useState(""); // "" = families overview
   // Deep link from the AI intake ("order this service") pre-fills the search.
   // Rendered only client-side (inside the portal shell, after auth is ready).
@@ -401,7 +424,8 @@ export default function ClientServices() {
     else router.push("/portal/client/cases");
   }
 
-  const showFamilies = !query && !cat;
+  const showSection = !query && !section;
+  const showFamilies = !query && section && !cat;
 
   return (
     <div className="mkt">
@@ -440,8 +464,8 @@ export default function ClientServices() {
       ) : null}
       <div className="ppanel">
         <div className="ppanel__h">
-          <b>{showFamilies ? t("chooseFamily") : query ? t("title") : catName}</b>
-          <span className="advmuted">{showFamilies ? famList.length : list.length}</span>
+          <b>{showSection ? t("sectionTitle") : showFamilies ? t("chooseFamily") : query ? t("title") : catName}</b>
+          {showSection ? null : <span className="advmuted">{showFamilies ? famList.length : list.length}</span>}
         </div>
 
         <div className="svsel__bar" style={{ marginBottom: 14 }}>
@@ -451,8 +475,8 @@ export default function ClientServices() {
           </span>
         </div>
 
-        {!showFamilies && !query ? (
-          <button type="button" className="mkt__back" onClick={() => setCat("")}>
+        {!showSection && !query ? (
+          <button type="button" className="mkt__back" onClick={() => (cat ? setCat("") : setSection(false))}>
             <IconChevronLeft />
             {t("back")}
           </button>
@@ -460,18 +484,31 @@ export default function ClientServices() {
 
         {services.status === "loading" || cats.status === "loading" ? (
           <Skeleton rows={4} />
+        ) : showSection ? (
+          <div className="svsec__grid">
+            <button type="button" className="svsec" onClick={() => setSection(true)}>
+              <span className="svsec__i"><IconScale /></span>
+              <span className="svsec__t">
+                <b>{t("sectionTitle")}</b>
+                <small>{t("servicesN", { n: famList.length })}</small>
+              </span>
+              <span className="svsec__c"><IconArrowRight /></span>
+            </button>
+          </div>
         ) : showFamilies ? (
-          <div className="svsel__grid">
+          <div className="svfam__grid">
             {famList.map((c, i) => {
+              const img = categoryImage(c.name);
               const Icon = FAM_ICONS[i % FAM_ICONS.length];
               return (
-                <button key={c.id} type="button" className="svcard" onClick={() => setCat(c.id)}>
-                  <span className="svcard__i"><Icon /></span>
-                  <span className="svcard__t">
+                <button key={c.id} type="button" className="svfam" onClick={() => setCat(c.id)}>
+                  <span className="svfam__i">
+                    {img ? <img src={img} alt="" /> : <Icon />}
+                  </span>
+                  <span className="svfam__t">
                     <b>{c.name}</b>
                     <small>{t("servicesN", { n: countFor(c.id) })}</small>
                   </span>
-                  <span className="svcard__c"><IconArrowRight /></span>
                 </button>
               );
             })}

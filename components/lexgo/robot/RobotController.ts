@@ -237,6 +237,7 @@ export class RobotController implements RobotControllerApi {
       this.waveTimeline?.kill();
       this.pointTimeline?.kill();
       this.root.position.x = ROOT_PLACEMENT.restX;
+      this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
       // A killed GSAP tween stops exactly where it was, not at rest — wave/
       // think/point all move the right arm and none of them are guaranteed
       // to run their own return-to-rest tail before this fires (idle() can
@@ -354,9 +355,10 @@ export class RobotController implements RobotControllerApi {
     // wiring and axis signs.
     const applyPose = () => {
       this.root.position.x = ROOT_PLACEMENT.restX + WAVE.edgeRevealX * p.edgeReveal;
+      this.root.rotation.y = ROOT_PLACEMENT.restRotationY + WAVE.edgeRotationY * p.edgeReveal;
       const measureHand = (correction: HeadAvoidCorrection) => {
         this.applyDelta(shoulder, 0, 0, deg(WAVE.shoulderOutDeg) * p.shoulder + deg(correction.extraShoulderDeg));
-        this.applyDelta(arm, deg(WAVE.armLiftDeg) * p.lift * correction.liftMultiplier, 0, deg(WAVE.armOutDeg) * p.out);
+        this.applyDelta(arm, deg(WAVE.armLiftDeg) * p.lift, 0, deg(WAVE.armOutDeg) * p.out);
         this.applyDelta(foreArm, 0, 0, deg(WAVE.elbowBendDeg) * p.elbow);
         this.applyDelta(hand, 0, 0, Math.sin(p.wristPhase) * deg(WAVE.wristWiggleDeg));
         hand.updateWorldMatrix(true, false);

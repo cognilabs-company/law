@@ -134,7 +134,7 @@ export const WAVE = {
   // Degrees, applied as local-axis deltas on top of each bone's rest quaternion.
   shoulderOutDeg: 22,
   armLiftDeg: -52,
-  armOutDeg: 28,
+  armOutDeg: -28,
   elbowBendDeg: -92,
   wristWiggleDeg: 12,
   // A small friendly head cue makes the edge wave read as an intentional
@@ -144,6 +144,7 @@ export const WAVE = {
   // Pull the mascot a little farther into the viewport while waving so the
   // greeting hand is visible beside the head instead of being clipped away.
   edgeRevealX: -0.30,
+  edgeRotationY: 0.42,
   wiggleCount: 3,
   wiggleHz: 2.6,
   // Seconds, per step of the 9-step sequence (section 17).
@@ -251,9 +252,9 @@ export const BREAKPOINTS = {
 // than a wall panel: the box's own overflow:hidden edge is now the only
 // horizontal clip, so its width directly controls how much shows.
 export const VIEWPORT_SIZE = {
-  full: { width: 128, height: 220 },
-  compact: { width: 104, height: 176 },
-  mini: { width: 76, height: 120 },
+  full: { width: 190, height: 220 },
+  compact: { width: 150, height: 176 },
+  mini: { width: 104, height: 120 },
 };
 
 // Comfortably above ordinary static page content, well below every real
