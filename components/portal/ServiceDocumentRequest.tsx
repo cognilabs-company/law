@@ -13,17 +13,21 @@ import {
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
 import DocumentRequestPanel from "./DocumentRequestPanel";
+import DocumentAiAssist from "./DocumentAiAssist";
+import DocumentLawyerAssist from "./DocumentLawyerAssist";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import { fmtUzs } from "@/lib/money";
+import { IconList, IconSparkle, IconHeadset, IconChevronLeft } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
+type Mode = "choose" | "manual" | "ai" | "lawyer";
+
 // FRONTEND_DOCUMENT_GENERATION.md "Asosiy Flow": a catalog service with a
-// document_template_id starts the same answers → pay → generate → download
-// lifecycle as the standalone template list (components/portal/DocumentFlow),
-// but the request is created through the service, not the template picker —
-// GET /services/{id}/document-template, POST /services/{id}/document-requests.
+// document_template_id runs the answers → pay → generate → download
+// lifecycle (DocumentRequestPanel), with the request created through the
+// service — GET /services/{id}/document-template, POST /services/{id}/document-requests.
 export default function ServiceDocumentRequest({ serviceId, onTitle }: { serviceId: string; onTitle?: (title: string) => void }) {
   const t = useTranslations("portal.client.documents");
   const [tpl, setTpl] = useState<BackendTemplate | null>(null);
@@ -36,6 +40,11 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
   // template with no questions creates a second, separately-payable request
   // on every visit while the existing one is still being fetched.
   const [resumed, setResumed] = useState(false);
+  // "choose" only ever applies once document-fields answers with an ai_flow
+  // or lawyer_flow — the compat gate (2026-09-22 backend): a service either
+  // flow isn't wired for goes straight to "manual", i.e. today's exact
+  // pre-existing behavior, unchanged.
+  const [mode, setMode] = useState<Mode>("manual");
   const starting = useRef(false);
 
   // Reset when a different service is opened — during render, not an effect
@@ -49,6 +58,7 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
     setLoading(true);
     setErr(false);
     setResumed(false);
+    setMode("manual");
   }
 
   useEffect(() => {
@@ -71,7 +81,11 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
         if (!alive) return;
         if (f?.fields.length) r = { ...r, questionnaire: f.fields };
         setTpl(r);
-        setSourceFile(f?.hasSourceFile ? f : null);
+        // Kept whenever fetched (not just when hasSourceFile) — DocFill/
+        // DocumentRequestPanel already gate their own use of it on
+        // hasSourceFile; the AI/lawyer flow URLs need it regardless.
+        setSourceFile(f);
+        if (f?.aiFlow || f?.lawyerFlow) setMode("choose");
         onTitle?.(r.name);
       })
       .catch(() => alive && setErr(true))
@@ -125,15 +139,52 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
   // A template with nothing to fill in has no "questionnaire" step to show —
   // skip the extra "Davom etish" tap and go straight to the document instead
   // of stopping at a screen whose only job was to lead to this same click.
+  // Gated to mode === "manual" so a service with ai/lawyer flows still stops
+  // at the choice screen first, even when its manual questionnaire is empty.
   useEffect(() => {
-    if (!(tpl && resumed && tpl.questionnaire.length === 0 && !req && !busy && !err)) return;
+    if (!(tpl && resumed && tpl.questionnaire.length === 0 && !req && !busy && !err && mode === "manual")) return;
     const h = setTimeout(() => void start(), 0);
     return () => clearTimeout(h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tpl, resumed, req, busy, err]);
+  }, [tpl, resumed, req, busy, err, mode]);
 
-  if (loading || (tpl && tpl.questionnaire.length === 0 && !req && !err)) return <Skeleton rows={3} />;
+  if (loading || (tpl && mode === "manual" && tpl.questionnaire.length === 0 && !req && !err)) return <Skeleton rows={3} />;
   if (!tpl) return <Notice ok={false} msg={t("error")} />;
+
+  if (mode === "choose")
+    return (
+      <div className="cform" style={{ maxWidth: "none" }}>
+        {tpl.description ? <p className="advmuted">{tpl.description}</p> : null}
+        <div className="oprice">
+          <span>{t("price")}</span>
+          <b>{tpl.price ? `${som(tpl.price)} ${t("som")}` : t("free")}</b>
+        </div>
+        <div className="docchoose">
+          <button type="button" className="docchoose__c" onClick={() => setMode("manual")}>
+            <span className="docchoose__i"><IconList /></span>
+            <b>{t("chooseManual")}</b>
+            <span>{t("chooseManualSub")}</span>
+          </button>
+          <button type="button" className="docchoose__c docchoose__c--ai" onClick={() => setMode("ai")}>
+            <span className="docchoose__i"><IconSparkle /></span>
+            <b>{t("chooseAi")}</b>
+            <span>{t("chooseAiSub")}</span>
+          </button>
+          <button type="button" className="docchoose__c" onClick={() => setMode("lawyer")}>
+            <span className="docchoose__i"><IconHeadset /></span>
+            <b>{t("chooseLawyer")}</b>
+            <span>{t("chooseLawyerSub")}</span>
+          </button>
+        </div>
+      </div>
+    );
+
+  if (mode === "ai" && sourceFile?.aiFlow)
+    return <DocumentAiAssist aiFlow={sourceFile.aiFlow} sourceFile={sourceFile} onBack={() => setMode("choose")} />;
+
+  if (mode === "lawyer" && sourceFile?.lawyerFlow)
+    return <DocumentLawyerAssist lawyerFlow={sourceFile.lawyerFlow} sourceFile={sourceFile} onBack={() => setMode("choose")} />;
+
   // key={req.id} so DocumentRequestPanel's own state (stage, answers) resets
   // when "start over" swaps in a brand new request id.
   if (req)
@@ -157,6 +208,12 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
 
   return (
     <div className="cform" style={{ maxWidth: "none" }}>
+      {mode !== "manual" || !(sourceFile?.aiFlow || sourceFile?.lawyerFlow) ? null : (
+        <button type="button" className="rf__link" onClick={() => setMode("choose")}>
+          <IconChevronLeft />
+          {t("backToChoices")}
+        </button>
+      )}
       {tpl.description ? <p className="advmuted">{tpl.description}</p> : null}
       <div className="oprice">
         <span>{t("price")}</span>

@@ -1335,6 +1335,16 @@ export async function getServiceDocumentTemplate(serviceId: string): Promise<Bac
 // just the live filled-in preview. `sourceFileUrl`/`sourceFileInlineUrl` are
 // relative paths, fetched the same authenticated way as every other file in
 // this app (see getServiceTemplateSourceFile below) — never a plain link.
+// 2026-09-22 backend (LEXGO_SERVICE_DOCUMENT_ASSIST_FLOW.md): document-fields
+// now also carries the template's CLEAN source file (no {{field}} markers —
+// for the AI/lawyer-assisted flows below; the manual flow keeps using
+// sourceFileUrl/sourceFileInlineUrl above, which ARE marked up) plus two
+// optional flow descriptors. Either flow being absent (older backend, or a
+// service it isn't wired for yet) is the compat gate the whole feature hinges
+// on — ServiceDocumentRequest.tsx falls back to exactly the pre-existing
+// manual-only UI when both are null.
+export type DocAiFlow = { questionsUrl: string; generateUrl: string };
+export type DocLawyerFlow = { lawyersUrl: string; requestUrl: string };
 export type ServiceDocumentFields = {
   serviceId: string;
   templateId: string;
@@ -1347,10 +1357,16 @@ export type ServiceDocumentFields = {
   sourceMimeType: string;
   sourceFileUrl: string;
   sourceFileInlineUrl: string;
+  cleanSourceFileUrl: string;
+  cleanSourceFileInlineUrl: string;
+  aiFlow: DocAiFlow | null;
+  lawyerFlow: DocLawyerFlow | null;
 };
 export async function getServiceDocumentFields(serviceId: string): Promise<ServiceDocumentFields> {
   const d = asDict(await http(`/services/${serviceId}/document-fields`));
   const fields = asArr(d.fields).map(normQuestion);
+  const ai = d.ai_flow ? asDict(d.ai_flow) : null;
+  const lawyer = d.lawyer_flow ? asDict(d.lawyer_flow) : null;
   return {
     serviceId: asStr(d.service_id, serviceId),
     templateId: asStr(d.template_id),
@@ -1363,14 +1379,126 @@ export async function getServiceDocumentFields(serviceId: string): Promise<Servi
     sourceMimeType: asStr(d.source_mime_type),
     sourceFileUrl: asStr(d.source_file_url),
     sourceFileInlineUrl: asStr(d.source_file_inline_url),
+    cleanSourceFileUrl: asStr(d.clean_source_file_url),
+    cleanSourceFileInlineUrl: asStr(d.clean_source_file_inline_url),
+    aiFlow: ai && (ai.questions_url || ai.generate_url) ? { questionsUrl: asStr(ai.questions_url), generateUrl: asStr(ai.generate_url) } : null,
+    lawyerFlow: lawyer && (lawyer.lawyers_url || lawyer.request_url) ? { lawyersUrl: asStr(lawyer.lawyers_url), requestUrl: asStr(lawyer.request_url) } : null,
   };
 }
-// The template's source file bytes (either sourceFileUrl or sourceFileInlineUrl
-// from ServiceDocumentFields above) — fetched through the authed proxy like
-// every other file, not navigated to directly (the route requires a bearer
-// token; there's no signed-URL fallback for it like workspace files have).
+// The template's source file bytes (any of sourceFileUrl/sourceFileInlineUrl/
+// cleanSourceFileUrl/cleanSourceFileInlineUrl above) — fetched through the
+// authed proxy like every other file, not navigated to directly (the route
+// requires a bearer token; there's no signed-URL fallback for it like
+// workspace files have).
 export async function getServiceTemplateSourceFile(relativeUrl: string): Promise<Blob> {
   return httpBlob(relativeUrl);
+}
+
+// ── Service document assist flows (AI-drafted / lawyer-drafted) ───
+// Both POST endpoints below return the same DocumentRequestOut shape the
+// manual flow already produces (parsed with the same normDocRequest), so the
+// result — whichever flow made it — plugs straight into the existing
+// DocumentRequestPanel (answers[none]/pay/pending/done/download/contract-sign
+// all just work, including its 402-not-yet-paid fallback to the pay stage).
+export async function getServiceDocumentAiQuestions(
+  questionsUrl: string,
+  need: string,
+  language: string,
+): Promise<{ questions: TemplateQuestion[]; questionCount: number; generateUrl: string; note: string }> {
+  const d = asDict(await http(questionsUrl, { method: "POST", body: JSON.stringify({ need, language }) }));
+  const questions = asArr(d.questions).map(normQuestion);
+  return {
+    questions,
+    questionCount: asNum(d.question_count, questions.length),
+    generateUrl: asStr(d.generate_url),
+    note: asStr(d.note),
+  };
+}
+export async function generateServiceDocumentAi(
+  generateUrl: string,
+  input: { need: string; answers?: Record<string, unknown>; extra_instructions?: string; language?: string },
+): Promise<DocumentRequest> {
+  const d = asDict(await http(generateUrl, { method: "POST", body: JSON.stringify(input) }));
+  return normDocRequest(d.document_request);
+}
+
+// CompactUser (backend's own name for it) — deliberately not BackendLawyer:
+// this listing carries only enough to pick a candidate (name/phone/role), not
+// the marketplace profile (rating, specializations, pricing) listLawyers()
+// returns elsewhere.
+export type DocAssistCandidate = {
+  id: string;
+  role: string;
+  name: string;
+  phone: string;
+};
+function normDocAssistCandidate(v: unknown): DocAssistCandidate {
+  const d = asDict(v);
+  const name = asStr(d.name) || [asStr(d.first_name), asStr(d.last_name)].filter(Boolean).join(" ");
+  return {
+    id: asStr(d.id),
+    role: asStr(d.role),
+    name,
+    phone: asStr(d.phone),
+  };
+}
+export async function getServiceDocumentLawyerCandidates(lawyersUrl: string): Promise<DocAssistCandidate[]> {
+  return listFrom(await http(lawyersUrl), "items").map(normDocAssistCandidate);
+}
+// lawyer_user_id omitted → backend auto-assigns the first valid candidate for
+// this service (not balanced/random — just first). Response is keyed
+// "request", NOT "document_request" like the AI-generate endpoint above —
+// a real inconsistency in the backend's own contract, not a typo here.
+export async function requestServiceDocumentLawyer(
+  requestUrl: string,
+  input: { need: string; lawyer_user_id?: string; answers?: Record<string, unknown>; language?: string },
+): Promise<DocumentRequest> {
+  const d = asDict(await http(requestUrl, { method: "POST", body: JSON.stringify(input) }));
+  return normDocRequest(d.request);
+}
+
+// ── Lawyer-side document-assist inbox (advokat/yurist/call-center) ────
+// Permission model (verified against the backend): NOT role-gated to
+// "lawyer" specifically — any authed user who owns the record, holds
+// documents.manage, or is a call-center user can see/act on it, so this is
+// mounted identically under both /portal/lawyer and /portal/advocate.
+export type LawyerDocumentRequest = {
+  id: string; // the lawyer_request record id — what detail/fulfill URLs key on
+  need: string;
+  status: string;
+  clientName: string;
+  createdAt: string;
+  request: DocumentRequest;
+};
+function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
+  const d = asDict(v);
+  // The list/detail responses aren't pinned down as precisely as the
+  // fulfill response — accept either a nested lawyer_request wrapper or a
+  // flat item, whichever the endpoint actually sends.
+  const lr = d.lawyer_request ? asDict(d.lawyer_request) : d;
+  const reqRaw = d.request ?? d.document_request ?? d;
+  const client = asDict(lr.client);
+  return {
+    id: asStr(lr.id ?? d.id),
+    need: asStr(lr.need ?? d.need),
+    status: asStr(lr.status ?? d.status),
+    clientName: asStr(lr.client_name ?? client.name),
+    createdAt: asStr(lr.created_at ?? d.created_at),
+    request: normDocRequest(reqRaw),
+  };
+}
+export async function listMyLawyerDocumentRequests(): Promise<LawyerDocumentRequest[]> {
+  return listFrom(await http("/lawyers/me/document-requests"), "items", "data", "requests").map(normLawyerDocRequest);
+}
+export async function getMyLawyerDocumentRequest(recordId: string): Promise<LawyerDocumentRequest> {
+  return normLawyerDocRequest(await http(`/lawyers/me/document-requests/${recordId}`));
+}
+export async function fulfillLawyerDocumentRequest(
+  recordId: string,
+  input: { content: string; notes?: string },
+): Promise<DocumentRequest> {
+  const d = asDict(await http(`/lawyers/me/document-requests/${recordId}/fulfill`, { method: "POST", body: JSON.stringify(input) }));
+  return normDocRequest(d.request);
 }
 // The backend derives the questionnaire from the service's own template, so
 // `questionnaire` is normally left out; it is accepted here so a caller that
@@ -5275,6 +5403,12 @@ export async function listMyConsents(): Promise<AcceptedConsentRef[]> {
 }
 export async function listLegalConsents(): Promise<ConsentDoc[]> {
   return normConsentDocs(await http("/legal/consents"));
+}
+// 2026-09-22 backend: the list above dropped body/body_json/content (lighter
+// list/card payload) — this is the "open one document" endpoint that still
+// has them, for LegalDocsFallback's client-side render of a single /legal/[slug].
+export async function getLegalConsent(id: string): Promise<ConsentDoc> {
+  return normConsentDoc(await http(`/legal/consents/${encodeURIComponent(id)}`));
 }
 // T0-18 admin: every document version (active or not) — needs users.manage.
 export async function listAdminConsentDocs(): Promise<ConsentDoc[]> {

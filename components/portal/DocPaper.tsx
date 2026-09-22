@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, type ElementType, type ReactNode } from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef, type ElementType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { splitFilledText, type DocSeg, type DocTree } from "@/lib/docTemplate";
 import { IconDownload, IconExternal } from "@/components/icons";
@@ -298,12 +298,13 @@ export default function DocPaper({
       if (n.k === "text") return <span key={key}>{n.v}</span>;
       if (n.k === "tok") return tokenNode(key, n.name, n.n);
       if (n.tag === "br") return <br key={key} />;
+      // createElement, not JSX, for a dynamic tag: with @react-three/fiber in
+      // the project, its global JSX.IntrinsicElements augmentation (100+
+      // three.js elements) widens the union `<Tag>` resolves against and
+      // collapses its prop type to `never` — createElement's own ElementType
+      // overload isn't affected by that augmentation.
       const Tag = n.tag as ElementType;
-      return (
-        <Tag key={key} style={n.style}>
-          {n.children.map(render)}
-        </Tag>
-      );
+      return createElement(Tag, { key, style: n.style }, n.children.map(render));
     };
     return tree.map(render);
   }, [tree, tokenNode]);

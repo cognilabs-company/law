@@ -12,6 +12,10 @@ import {
   createOrder,
   getPricingQuote,
   getMatchingCandidates,
+  getServiceDocumentFields,
+  getServiceTemplateSourceFile,
+  getMySubscription,
+  getSubscriptionPlans,
   type BackendService,
   type BackendLawyer,
   type MatchCandidate,
@@ -20,6 +24,7 @@ import {
   getLawyerServices,
 } from "@/lib/services/backend";
 import { http, asDict, asStr } from "@/lib/http";
+import { fetchAndDeliver, extFromMime } from "@/lib/download";
 import { fuzzyContains } from "@/lib/searchMatch";
 import OrderPayment from "@/components/portal/OrderPayment";
 import ServicePassport from "@/components/portal/ServicePassport";
@@ -50,6 +55,8 @@ import {
   IconCheck,
   IconClock,
   IconDocLines,
+  IconDownload,
+  IconLock,
 } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
@@ -60,6 +67,12 @@ const FAM_ICONS: ComponentType<{ className?: string }>[] = [
 ];
 
 type Sort = "match" | "rating" | "exp" | "price";
+
+// GM: the client's LexGo.AI tier gates the raw-template download (view is
+// always free, downloading needs Lite/Pro) — mirrors PlansPanel.tsx's own
+// slug rule and name/id matching convention, the only place the app already
+// resolves "which of the three AI plans is this client on".
+const AI_SLUG = /^lexgo-ai-(free|lite|pro)$/;
 
 export default function ClientServices() {
   const t = useTranslations("portal.client.services");
@@ -140,6 +153,42 @@ export default function ClientServices() {
   const [quote, setQuote] = useState<PriceQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
+  // "Advokat yo'llash" reuses the advocate-picker/buy branch below even for a
+  // document-template service (normally that branch is skipped in favor of
+  // the self-fill flow) — set only by that button, reset with the modal.
+  const [forceAdvocate, setForceAdvocate] = useState(false);
+
+  // Plan-gated template download: Free sees the document but must upgrade to
+  // download it, Lite/Pro download freely (GM). No dedicated "my AI plan"
+  // endpoint exists — resolved the same way PlansPanel.tsx does, by matching
+  // the client's subscription against the three lexgo-ai-* plans.
+  const sub = useResourceOne(getMySubscription, []);
+  const aiPlans = useResource(() => getSubscriptionPlans(locale), [locale]);
+  const myAiPlan = useMemo(() => {
+    const s = sub.data;
+    if (!s) return null;
+    return aiPlans.data.filter((p) => AI_SLUG.test(p.slug)).find((p) => (s.planId && p.id === s.planId) || (s.planName && p.name === s.planName)) ?? null;
+  }, [sub.data, aiPlans.data]);
+  const isFreeTier = !myAiPlan || myAiPlan.slug === "lexgo-ai-free";
+  const [dlBusy, setDlBusy] = useState("");
+  const [dlErr, setDlErr] = useState<{ id: string; msg: string } | null>(null);
+  async function handleDownload(s: BackendService) {
+    if (isFreeTier) { router.push("/portal/client/subscription"); return; }
+    if (dlBusy) return;
+    setDlErr(null);
+    setDlBusy(s.id);
+    const fields = await getServiceDocumentFields(s.id).catch(() => null);
+    const src = fields?.sourceFileUrl || fields?.sourceFileInlineUrl;
+    if (!fields?.hasSourceFile || !src) {
+      setDlErr({ id: s.id, msg: t("downloadError") });
+      setDlBusy("");
+      return;
+    }
+    const name = fields.sourceFileName || `${s.name}.${extFromMime(fields.sourceMimeType) || "docx"}`;
+    const ok = await fetchAndDeliver(() => getServiceTemplateSourceFile(src), name, true);
+    if (!ok) setDlErr({ id: s.id, msg: t("downloadError") });
+    setDlBusy("");
+  }
 
   const query = q.trim().toLowerCase();
   const catalog = useMemo(() => (narrowed ? services.data.filter(offeredBy) : services.data), [services.data, narrowed, offeredBy]);
@@ -248,13 +297,17 @@ export default function ClientServices() {
       setNote(null);
       setQuote(null);
       setPayOrderId(null);
+    } else {
+      setForceAdvocate(false);
     }
   }
 
+  // A document-template service normally skips the marketplace entirely
+  // (self-fill only); "Advokat yo'llash" forces it open anyway.
+  const orderAsAdvocate = order && (!order.documentTemplateId || forceAdvocate);
+
   useEffect(() => {
-    // A document-generation service has no advocate to pick — skip the
-    // marketplace lookups entirely instead of firing them for nothing.
-    if (!order || order.documentTemplateId) return;
+    if (!order || (order.documentTemplateId && !forceAdvocate)) return;
     listLawyers({ service_id: order.id })
       .then((rows) => {
         setSellers(rows);
@@ -264,13 +317,13 @@ export default function ClientServices() {
       .catch(() => setSellers([]))
       .finally(() => setSellersLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order]);
+  }, [order, forceAdvocate]);
   const preSellerOffers = !order || sellersLoading ? null : sellers.some((r) => r.userId === preSeller?.id);
 
   // Ranked, verified candidates for this service; used to order the sellers
   // above and to explain the match. A failure just leaves the rating order.
   useEffect(() => {
-    if (!order || order.documentTemplateId) return;
+    if (!order || (order.documentTemplateId && !forceAdvocate)) return;
     let alive = true;
     getMatchingCandidates({ serviceId: order.id, region: myRegion || undefined })
       .then((rows) => alive && setCands(new Map(rows.map((c) => [c.lawyerUserId, c]))))
@@ -278,7 +331,7 @@ export default function ClientServices() {
     return () => {
       alive = false;
     };
-  }, [order, myRegion]);
+  }, [order, myRegion, forceAdvocate]);
 
   const sortedSellers = useMemo(() => {
     const rows = [...sellers];
@@ -426,27 +479,57 @@ export default function ClientServices() {
         ) : !list.length ? (
           <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
         ) : (
-          <div className="svsel__grid">
-            {list.map((s) => (
-              <button key={s.id} type="button" className="svcard" onClick={() => (s.documentTemplateId ? router.push(`/portal/client/services/document/${s.id}`) : setOrder(s))}>
-                <span className="svcard__i">{s.documentTemplateId ? <IconDocLines /> : <IconBriefcase />}</span>
-                <span className="svcard__t">
-                  <b>{s.name}</b>
-                  <small>
-                    {[s.catalogCode, s.price ? `${som(s.price)} ${t("som")}` : t("byRequest")].filter(Boolean).join(" · ")}
-                  </small>
-                </span>
-                <span className="svcard__c"><IconArrowRight /></span>
-              </button>
-            ))}
+          <div className="svsel__grid svsel__grid--svc">
+            {list.map((s, i) => {
+              const hasDoc = !!s.documentTemplateId;
+              return (
+                <div key={s.id} className="svc" style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}>
+                  <div className="svc__top">
+                    <span className="svc__i">{hasDoc ? <IconDocLines /> : <IconBriefcase />}</span>
+                    <span className="svc__t">
+                      <b>{s.name}</b>
+                      <small>{[s.catalogCode, s.price ? `${som(s.price)} ${t("som")}` : t("byRequest")].filter(Boolean).join(" · ")}</small>
+                    </span>
+                  </div>
+                  <div className="svc__acts">
+                    {hasDoc ? (
+                      <button
+                        type="button"
+                        className={`svc__act svc__act--dl${isFreeTier ? " svc__act--locked" : ""}`}
+                        disabled={dlBusy === s.id}
+                        onClick={() => handleDownload(s)}
+                      >
+                        {isFreeTier ? <IconLock /> : <IconDownload />}
+                        {dlBusy === s.id ? t("downloading") : t("download")}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="svc__act svc__act--adv"
+                      onClick={() => { setOrder(s); setForceAdvocate(true); }}
+                    >
+                      <IconUsers />
+                      {t("sendToLawyer")}
+                    </button>
+                    {hasDoc ? (
+                      <button type="button" className="svc__act svc__act--fill" onClick={() => router.push(`/portal/client/services/document/${s.id}`)}>
+                        {t("fillDoc")}
+                        <span className="svc__soon">{t("comingSoon")}</span>
+                      </button>
+                    ) : null}
+                  </div>
+                  {dlErr?.id === s.id ? <p className="svc__err">{dlErr.msg}</p> : null}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      <Modal open={!!order} onClose={() => { setOrder(null); setPayOrderId(null); }} title={order?.name || t("orderTitle")} wide={!!order?.documentTemplateId}>
+      <Modal open={!!order} onClose={() => { setOrder(null); setPayOrderId(null); }} title={order?.name || t("orderTitle")} wide={!orderAsAdvocate}>
         {payOrderId ? (
           <OrderPayment orderId={payOrderId} onChat={afterPay} />
-        ) : order?.documentTemplateId ? (
+        ) : order && !orderAsAdvocate ? (
           <ServiceDocumentRequest serviceId={order.id} />
         ) : (
           <div className="cform" style={{ maxWidth: "none" }}>

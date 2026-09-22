@@ -2131,6 +2131,7 @@
         "clients": "Clients",
         "services": "My services",
         "documents": "Documents",
+        "documentRequests": "Document requests",
         "chat": "Secure Chat",
         "ai": "AI chat",
         "assistant": "AI assistant",
@@ -2171,6 +2172,7 @@
         "dashboard": "Dashboard",
         "opportunities": "Opportunities",
         "cases": "My Cases",
+        "documentRequests": "Document requests",
         "calendar": "Calendar",
         "clients": "Clients",
         "tasks": "Tasks",
@@ -2282,6 +2284,18 @@
         "empty": "No documents yet",
         "aiNote": "AI found 7 points to review in this document.",
         "emptyText": "Available document templates will appear here."
+      },
+      "documentRequests": {
+        "title": "Document requests",
+        "empty": "No requests yet",
+        "emptyText": "Requests will appear here once a client chooses \"Prepare with a lawyer\".",
+        "need": "Client's need",
+        "contentLabel": "Document text",
+        "notesLabel": "Note for the client (optional)",
+        "fulfillSubmit": "Send to client",
+        "fulfilled": "Document sent to the client",
+        "fulfillError": "Couldn't send it. Please try again.",
+        "processingShort": "Sending…"
       },
       "chat": {
         "title": "Secure Chat",
@@ -2903,7 +2917,9 @@
         "askAi": "Ask LexGo AI",
         "askAiSub": "Chat with AI",
         "upload": "Upload a document",
-        "uploadSub": "Analysis and review"
+        "uploadSub": "Analysis and review",
+        "services": "Services catalog",
+        "servicesSub": "Document templates and lawyers"
       },
       "services": {
         "title": "Order a service",
@@ -2914,6 +2930,12 @@
         "emptyText": "Try another category or search.",
         "som": "so'm",
         "byRequest": "By request",
+        "download": "Download",
+        "downloading": "Downloading…",
+        "downloadError": "Couldn't download the file. Please try again shortly.",
+        "sendToLawyer": "Send to a lawyer",
+        "fillDoc": "Fill in the document",
+        "comingSoon": "Coming soon",
         "orderTitle": "Order service",
         "price": "Price",
         "priceBase": "Base price",
@@ -3226,7 +3248,26 @@
         "backToAnswers": "Edit the details",
         "clear": "Clear",
         "filledOf": "{done}/{total} completed",
-        "requiredDone": "Required fields done — {n} optional left"
+        "requiredDone": "Required fields done — {n} optional left",
+        "chooseManual": "Fill it myself",
+        "chooseManualSub": "You fill in the fields yourself — the document is ready right away.",
+        "chooseAi": "Prepare with AI",
+        "chooseAiSub": "Describe what you need — AI will draft the document.",
+        "chooseLawyer": "Prepare with a lawyer",
+        "chooseLawyerSub": "Send your request to a lawyer or advocate — they'll prepare it for you.",
+        "backToChoices": "Back",
+        "aiLead": "Describe what you need — AI will ask a few follow-up questions, then draft the document.",
+        "aiNeedLabel": "What do you need?",
+        "aiNeedPlaceholder": "E.g. I need an application to be exempted from alimony debt payment",
+        "aiGetQuestions": "Get questions",
+        "aiGenerate": "Generate document",
+        "aiNeedRequired": "Describe what you need first.",
+        "lawyerLead": "Describe your request and optionally pick a lawyer or advocate — they'll take it from there.",
+        "lawyerPick": "Who should prepare it?",
+        "lawyerAuto": "Auto-assign",
+        "lawyerAutoSub": "A suitable lawyer or advocate will be assigned automatically",
+        "lawyerSubmit": "Send request",
+        "lawyerNotAvailable": "The selected specialist isn't available for this service."
       },
       "packages": {
         "title": "Service packages",
@@ -3308,6 +3349,18 @@
         "count": "{n} cases",
         "emptyTitle": "No cases yet",
         "emptyText": "Your cases will appear here."
+      },
+      "documentRequests": {
+        "title": "Document requests",
+        "empty": "No requests yet",
+        "emptyText": "Requests will appear here once a client chooses \"Prepare with a lawyer\".",
+        "need": "Client's need",
+        "contentLabel": "Document text",
+        "notesLabel": "Note for the client (optional)",
+        "fulfillSubmit": "Send to client",
+        "fulfilled": "Document sent to the client",
+        "fulfillError": "Couldn't send it. Please try again.",
+        "processingShort": "Sending…"
       },
       "calendar": {
         "title": "Calendar & deadlines",

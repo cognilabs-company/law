@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess, type Role } from "@/lib/auth";
@@ -11,6 +12,10 @@ import NotificationBell from "./NotificationBell";
 import IncomingCallWatcher from "./IncomingCallWatcher";
 import GrowthBanner from "./GrowthBanner";
 import GiftNudge from "./GiftNudge";
+
+// three.js/R3F must never run during SSR; isolated behind ssr:false rather
+// than disabling SSR for the shell itself.
+const LexGoRobot = dynamic(() => import("@/components/lexgo/robot/LexGoRobot"), { ssr: false });
 import { CabinetProvider, useCabinetLoader } from "./SellerCabinet";
 import type { SellerActions } from "@/lib/services/backend";
 import {
@@ -86,6 +91,7 @@ const LAWYER_NAV: NavItem[] = [
   { href: "/portal/lawyer/clients", key: "clients", Icon: IconUsers },
   { href: "/portal/lawyer/services", key: "services", Icon: IconTarget },
   { href: "/portal/lawyer/documents", key: "documents", Icon: IconDocLines },
+  { href: "/portal/lawyer/document-requests", key: "documentRequests", Icon: IconDocLines },
   { href: "/portal/lawyer/files", key: "files", Icon: IconFolderPlus },
   { href: "/portal/lawyer/chat", key: "chat", Icon: IconChat },
   { href: "/portal/lawyer/meetings", key: "meetings", Icon: IconVideo },
@@ -102,6 +108,7 @@ const ADVOCATE_NAV: NavItem[] = [
   { href: "/portal/advocate", key: "dashboard", Icon: IconGrid },
   { href: "/portal/advocate/opportunities", key: "opportunities", Icon: IconBriefcase },
   { href: "/portal/advocate/cases", key: "cases", Icon: IconFileText },
+  { href: "/portal/advocate/document-requests", key: "documentRequests", Icon: IconDocLines },
   { href: "/portal/advocate/calendar", key: "calendar", Icon: IconCalendar },
   { href: "/portal/advocate/clients", key: "clients", Icon: IconUsers },
   { href: "/portal/advocate/tasks", key: "tasks", Icon: IconClipboardCheck },
@@ -122,7 +129,6 @@ const CLIENT_NAV: NavItem[] = [
   { href: "/portal/client/sos", key: "sos", Icon: IconAlert },
   { href: "/portal/client/services", key: "services", Icon: IconBriefcase },
   { href: "/portal/client/packages", key: "packages", Icon: IconFolder },
-  { href: "/portal/client/documents", key: "documents", Icon: IconDocLines },
   { href: "/portal/client/cases", key: "cases", Icon: IconFileText },
   { href: "/portal/client/messages", key: "messages", Icon: IconChat },
   { href: "/portal/client/notifications", key: "notifications", Icon: IconBell },
@@ -242,6 +248,9 @@ export default function PortalShell({
   return (
     <div className={`portal${collapsed ? " psb-collapsed" : ""}${fullscreen ? " portal--full" : ""}`}>
       <IncomingCallWatcher />
+      {fullscreen ? null : (
+        <LexGoRobot onRobotClick={() => router.push(role === "advocate" ? "/portal/advocate/assistant" : `/portal/${role}/ai`)} />
+      )}
       <div
         className={`psb__scrim${open ? " on" : ""}`}
         onClick={() => setOpenPath(null)}

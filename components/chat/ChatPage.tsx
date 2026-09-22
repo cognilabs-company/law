@@ -239,7 +239,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
           >
             {sideOpen ? <IconClose /> : <IconMenu />}
           </button>
-          <span className="logo__m">
+          <span className="aibadge">
             <IconStar />
           </span>
           <div className="aichat__htitle">
@@ -254,7 +254,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
         <div className="aichat__scroll" ref={scrollRef}>
           {empty ? (
             <div className="aichat__empty">
-              <span className="logo__m">
+              <span className="aibadge">
                 <IconStar />
               </span>
               {session ? (

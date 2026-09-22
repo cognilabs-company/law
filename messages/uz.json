@@ -2137,6 +2137,7 @@
         "clients": "Mijozlar",
         "services": "Xizmatlarim",
         "documents": "Hujjatlar",
+        "documentRequests": "Hujjat so'rovlari",
         "chat": "Xavfsiz chat",
         "ai": "Sun'iy Intellekt chat",
         "assistant": "Sun'iy intellekt yordamchi",
@@ -2177,6 +2178,7 @@
         "dashboard": "Boshqaruv paneli",
         "opportunities": "Imkoniyatlar",
         "cases": "Mening ishlarim",
+        "documentRequests": "Hujjat so'rovlari",
         "calendar": "Kalendar",
         "clients": "Mijozlar",
         "tasks": "Vazifalar",
@@ -2288,6 +2290,18 @@
         "empty": "Hozircha hujjat yo'q",
         "aiNote": "Sun'iy intellekt ushbu hujjatda ko'rib chiqish uchun 7 ta nuqta topdi.",
         "emptyText": "Mavjud hujjat namunalari shu yerda ko'rinadi."
+      },
+      "documentRequests": {
+        "title": "Hujjat so'rovlari",
+        "empty": "Hozircha so'rov yo'q",
+        "emptyText": "Mijozlar \"Advokat bilan tayyorlash\"ni tanlaganda so'rovlar shu yerda ko'rinadi.",
+        "need": "Mijoz ehtiyoji",
+        "contentLabel": "Hujjat matni",
+        "notesLabel": "Mijoz uchun izoh (ixtiyoriy)",
+        "fulfillSubmit": "Mijozga yuborish",
+        "fulfilled": "Hujjat mijozga yuborildi",
+        "fulfillError": "Yuborib bo'lmadi. Qayta urinib ko'ring.",
+        "processingShort": "Yuborilmoqda…"
       },
       "chat": {
         "title": "Xavfsiz chat",
@@ -2909,7 +2923,9 @@
         "askAi": "LexGo Sun'iy intellekt'dan so'rash",
         "askAiSub": "AI bilan suhbat",
         "upload": "Hujjat yuklash",
-        "uploadSub": "Tahlil va tekshiruv"
+        "uploadSub": "Tahlil va tekshiruv",
+        "services": "Xizmatlar katalogi",
+        "servicesSub": "Hujjat shabloni va advokatlar"
       },
       "services": {
         "title": "Xizmat buyurtma qilish",
@@ -2920,6 +2936,12 @@
         "emptyText": "Boshqa kategoriya yoki qidiruvni sinang.",
         "som": "so'm",
         "byRequest": "So'rov bo'yicha",
+        "download": "Yuklab olish",
+        "downloading": "Yuklanmoqda…",
+        "downloadError": "Faylni yuklab bo'lmadi. Birozdan so'ng qayta urinib ko'ring.",
+        "sendToLawyer": "Advokatga yo'llash",
+        "fillDoc": "Hujjatni to'ldirish",
+        "comingSoon": "Tez kunda",
         "orderTitle": "Xizmat buyurtmasi",
         "price": "Narx",
         "priceBase": "Asosiy narx",
@@ -3232,7 +3254,26 @@
         "backToAnswers": "Ma'lumotlarni tahrirlash",
         "clear": "Tozalash",
         "filledOf": "{done}/{total} to'ldirildi",
-        "requiredDone": "Majburiy maydonlar to'ldirildi — qolgan {n} ta ixtiyoriy"
+        "requiredDone": "Majburiy maydonlar to'ldirildi — qolgan {n} ta ixtiyoriy",
+        "chooseManual": "O'zim to'ldiraman",
+        "chooseManualSub": "Maydonlarni o'zingiz to'ldirasiz, hujjat shu zahoti tayyor bo'ladi.",
+        "chooseAi": "Sun'iy intellekt bilan tayyorlash",
+        "chooseAiSub": "Nima kerakligini yozing — AI hujjatni loyihalashtiradi.",
+        "chooseLawyer": "Advokat bilan tayyorlash",
+        "chooseLawyerSub": "So'rovingizni advokat yoki yuristga yuboring, ular tayyorlab beradi.",
+        "backToChoices": "Orqaga",
+        "aiLead": "Nimaga muhtojligingizni tavsiflang — sun'iy intellekt savollar berib, so'ng hujjatni tayyorlaydi.",
+        "aiNeedLabel": "Sizga nima kerak?",
+        "aiNeedPlaceholder": "Masalan: Menga aliment qarzdorligini to'lashdan ozod qilish bo'yicha ariza kerak",
+        "aiGetQuestions": "Savollarni olish",
+        "aiGenerate": "Hujjatni yaratish",
+        "aiNeedRequired": "Avval nima kerakligini yozing.",
+        "lawyerLead": "So'rovingizni yozing va xohlasangiz advokat yoki yuristni tanlang — qolganini ular bajaradi.",
+        "lawyerPick": "Kim tayyorlasin?",
+        "lawyerAuto": "Avtomatik tayinlash",
+        "lawyerAutoSub": "Mos advokat yoki yurist avtomatik biriktiriladi",
+        "lawyerSubmit": "So'rovni yuborish",
+        "lawyerNotAvailable": "Tanlangan mutaxassis bu xizmat uchun mavjud emas."
       },
       "packages": {
         "title": "Xizmat paketlari",
@@ -3314,6 +3355,18 @@
         "count": "{n} ta ish",
         "emptyTitle": "Hozircha ish yo'q",
         "emptyText": "Ishlaringiz shu yerda ko'rinadi."
+      },
+      "documentRequests": {
+        "title": "Hujjat so'rovlari",
+        "empty": "Hozircha so'rov yo'q",
+        "emptyText": "Mijozlar \"Advokat bilan tayyorlash\"ni tanlaganda so'rovlar shu yerda ko'rinadi.",
+        "need": "Mijoz ehtiyoji",
+        "contentLabel": "Hujjat matni",
+        "notesLabel": "Mijoz uchun izoh (ixtiyoriy)",
+        "fulfillSubmit": "Mijozga yuborish",
+        "fulfilled": "Hujjat mijozga yuborildi",
+        "fulfillError": "Yuborib bo'lmadi. Qayta urinib ko'ring.",
+        "processingShort": "Yuborilmoqda…"
       },
       "calendar": {
         "title": "Kalendar va muddatlar",

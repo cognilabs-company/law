@@ -57,9 +57,8 @@ const inlineBlob = (f: DocumentRequest["contractFile"]) => base64Blob(f?.fileBas
 const statusOf = (e: unknown) => (e instanceof ApiError ? e.status : 0);
 
 // The full answers → live document → pay → generate → download lifecycle for
-// one document request, as a self-contained panel. Used both by the
-// standalone template list (DocumentFlow) and by the "Create document"
-// button on a catalog service that has a document_template_id.
+// one document request, as a self-contained panel — used by a catalog
+// service that has a document_template_id (ServiceDocumentRequest).
 function answersFrom(r: DocumentRequest): Record<string, string> {
   const saved: Record<string, string> = {};
   for (const [k, v] of Object.entries(r.answers || {})) if (v != null && v !== "") saved[k] = String(v);

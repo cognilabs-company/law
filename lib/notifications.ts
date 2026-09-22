@@ -158,7 +158,7 @@ export function notifLink(event: string, category: NotifCategory, data: Dict, ro
   if (event.startsWith("calendar_event") && role !== "client") return `/portal/${role}/calendar`;
   if (category === "orders") return `/portal/${role}/cases`;
   if (category === "payments") return role === "client" ? "/portal/client/payments" : `/portal/${role}/cases`;
-  if (category === "documents") return role === "client" ? "/portal/client/documents" : `/portal/${role}/workspace`;
+  if (category === "documents") return role === "client" ? "/portal/client/cases" : `/portal/${role}/workspace`;
   if (category === "chat") return role === "client" ? "/portal/client/messages" : role === "lawyer" ? "/portal/lawyer/chat" : "/portal/advocate/messages";
   if (event === "upsell_redeemed" && role !== "client") return `/portal/${role}/promotion`;
   return "";

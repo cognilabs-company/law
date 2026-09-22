@@ -123,9 +123,13 @@ h1,h2,h3,h4{font-family:var(--fd);margin:0;letter-spacing:-.03em;line-height:1.0
 .bar.on{background:var(--dk-glass, rgba(255,255,255,.86));backdrop-filter:blur(18px) saturate(1.6);box-shadow:0 1px 0 rgba(11,31,69,.08)}
 .bar__in{display:flex;align-items:center;gap:18px;height:70px}
 .logo{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:800;font-size:1.3rem;letter-spacing:-.04em;color:#fff;flex:none}
-.logo__m{width:32px;height:32px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:var(--sblue)}
-.logo__m svg{width:17px;height:17px}
-.logo__m img{width:60%;height:60%;object-fit:contain}
+.logo__m{width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex:none}
+.logo__m img{width:100%;height:100%;object-fit:contain}
+/* The LexGo.AI chat's own brand badge (a star mark, not the logo) — keeps
+   the gradient chip look .logo__m used to have everywhere before it was
+   stripped down to a bare mark. */
+.aibadge{width:32px;height:32px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:var(--sblue)}
+.aibadge svg{width:17px;height:17px}
 .bar.on .logo{color:var(--ink)}
 .nav{display:flex;gap:3px;margin-left:auto}
 .nav a{padding:10px 14px;border-radius:var(--pill);font-size:.9rem;font-weight:500;color:rgba(255,255,255,.82);transition:.18s}
@@ -846,7 +850,7 @@ body:has(.aichat--full) .fab{display:none}
 
 .aichat__main{display:flex;flex-direction:column;min-height:0;min-width:0;position:relative}
 .aichat__head{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);flex:none}
-.aichat__head .logo__m{width:32px;height:32px;border-radius:10px;flex:none}
+.aichat__head .aibadge{width:32px;height:32px;border-radius:10px;flex:none}
 .aichat__htitle b{display:block;font-family:var(--fd);font-size:1rem;letter-spacing:-.02em;line-height:1.1}
 .aichat__htitle span{font-size:.75rem;color:var(--gray2);display:flex;align-items:center;gap:6px}
 .aichat__htitle span i{width:6px;height:6px;border-radius:50%;background:#2ec785;flex:none}
@@ -871,7 +875,7 @@ body:has(.aichat--full) .fab{display:none}
 .aichat__offline{font-size:.72rem;color:var(--dk-txt-err, #C0392B);margin-top:8px;font-weight:600}
 
 .aichat__empty{margin:auto;text-align:center;max-width:580px;padding:40px 20px}
-.aichat__empty .logo__m{width:58px;height:58px;margin:0 auto 20px;border-radius:18px}
+.aichat__empty .aibadge{width:58px;height:58px;margin:0 auto 20px;border-radius:18px}
 .aichat__empty h2{font-family:var(--fd);font-size:clamp(1.5rem,3vw,2rem);letter-spacing:-.03em;margin:0 0 8px}
 .aichat__empty p{color:var(--gray);margin:0 auto;max-width:44ch}
 .sugg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:28px;text-align:left}
@@ -978,7 +982,7 @@ body:has(.plogin) .fab{display:none}
 .portal--full .pbody__in{max-width:none;height:100%;min-height:0}
 .psb{background:var(--dk-surface, #fff);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .psb__logo{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:800;font-size:1.2rem;letter-spacing:-.03em;padding:16px 18px;color:var(--ink)}
-.psb__logo .logo__m{width:30px;height:30px;border-radius:9px;flex:none}
+.psb__logo .logo__m{width:30px;height:30px;flex:none}
 .psb__role{font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--dk-acc, var(--b600));background:var(--b100);padding:3px 9px;border-radius:var(--pill);margin-left:2px}
 /* Scrolls, but without the bar: the admin nav is long enough to overflow on
    every screen, and a permanent scrollbar down the middle of the chrome reads
@@ -1027,6 +1031,24 @@ body:has(.plogin) .fab{display:none}
 .pbody{flex:1;overflow-y:auto;padding:clamp(16px,2.6vw,40px)}
 .pbody__in{max-width:1560px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
 .psec-h{font-family:var(--fd);font-size:1.05rem;font-weight:700;letter-spacing:-.02em;margin:0}
+
+/* LexGo 3D AI mascot — a small corner badge, not a wall panel: it simply
+   sits at the dashboard's right edge and its own overflow:hidden edge (plus
+   conservative camera framing) crops whatever spills past it, same as any
+   other clipped card. pointer-events:none on the outer anchor so it can
+   never sit on top of the header or steal a click from real content; only
+   .robot-viewport — sized to the mascot itself — is interactive. z-index 10
+   sits above ordinary static content and well below every real overlay in
+   this file (nav 90, modals 120-270). Anchored from the BOTTOM with a
+   moderate gap — a top anchor read as too close to the header on a real
+   screen; flush against the very bottom corner read as too low — this
+   settles in the lower half without touching either edge. */
+.robot-edge-zone{position:fixed;top:clamp(150px,24vh,260px);right:0;z-index:10;display:flex;pointer-events:none}
+.robot-viewport{position:relative;overflow:hidden;pointer-events:auto;cursor:pointer;outline:none}
+.robot-viewport::after{content:"";position:absolute;top:0;right:0;width:2px;height:100%;background:linear-gradient(to bottom,transparent,rgba(228,235,245,.9) 18%,rgba(228,235,245,.9) 82%,transparent);pointer-events:none;z-index:2}
+html[data-theme="dark"] .robot-viewport::after{background:linear-gradient(to bottom,transparent,rgba(44,61,96,.75) 18%,rgba(44,61,96,.75) 82%,transparent)}
+.robot-viewport:focus-visible{box-shadow:inset 0 0 0 2px var(--b400)}
+@media (max-width:900px){.robot-edge-zone{display:none}}
 
 /* KPI */
 .pk{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px}
@@ -1364,7 +1386,7 @@ body:has(.rf) .fab{display:none}
 .rf:has(.rf__step--wide) .rf__card{width:min(880px,100%)}
 .rf__top{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .rf__logo{display:inline-flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:800;font-size:1.15rem;letter-spacing:-.03em}
-.rf__logo .logo__m{width:30px;height:30px;border-radius:9px;flex:none}
+.rf__logo .logo__m{width:30px;height:30px;flex:none}
 .rf__step-n{font-size:.78rem;font-weight:700;color:var(--gray2)}
 .rf__bar{height:5px;border-radius:var(--pill);background:var(--b100);margin:14px 0 4px;overflow:hidden}
 .rf__bar>span{display:block;height:100%;border-radius:inherit;background:var(--grad);transition:width .4s cubic-bezier(.2,.8,.3,1)}
@@ -1489,6 +1511,42 @@ body:has(.rf) .fab{display:none}
 .svcard__c{margin-left:auto;width:20px;height:20px;border-radius:50%;flex:none;display:grid;place-items:center}
 .svcard.on .svcard__c{background:var(--b600)}
 .svcard__c svg{width:13px;height:13px;stroke:#fff;stroke-width:3}
+
+/* Client "Xizmatlar" catalog: a service card with real actions (download,
+   send to a lawyer, fill in the document) instead of one whole-card click
+   target that silently picked between two unrelated flows depending on
+   whether the service happened to carry a document template. */
+.svsel__grid--svc{grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr))}
+.svc{display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0;border:1.5px solid var(--line);border-radius:var(--rl);
+  background:var(--dk-surface, #fff);transition:border-color .2s,box-shadow .2s,transform .2s cubic-bezier(.4,0,.2,1);
+  animation:svcIn .38s cubic-bezier(.22,1,.36,1) both}
+.svc:hover{border-color:var(--b300);box-shadow:var(--s1);transform:translateY(-3px)}
+@keyframes svcIn{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.svc{animation:none}}
+.svc__top{display:flex;gap:12px;align-items:flex-start}
+.svc__i{width:40px;height:40px;border-radius:12px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center;flex:none}
+.svc__i svg{width:20px;height:20px}
+.svc__t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.svc__t b{font-size:.93rem;font-family:var(--fb);font-weight:700;overflow-wrap:anywhere}
+.svc__t small{font-size:.78rem;color:var(--gray);line-height:1.4;overflow-wrap:anywhere}
+.svc__acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.svc__act{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:1 1 auto;white-space:nowrap;
+  padding:10px 13px;border-radius:12px;border:1.5px solid var(--line);background:var(--dk-surface-2, #F7FAFE);
+  font:inherit;font-size:.82rem;font-weight:700;color:var(--ink);cursor:pointer;
+  transition:transform .15s cubic-bezier(.34,1.56,.64,1),background .15s,border-color .15s,box-shadow .15s,color .15s}
+.svc__act svg{width:15px;height:15px;flex:none}
+.svc__act:hover{border-color:var(--b300);background:var(--b100)}
+.svc__act:active{transform:scale(.95)}
+.svc__act:disabled{opacity:.6;cursor:default;transform:none}
+.svc__act--dl{color:var(--dk-acc-strong, var(--b700));border-color:var(--b200);background:var(--b50)}
+.svc__act--adv{color:#fff;background:var(--grad);border-color:transparent;box-shadow:var(--sblue)}
+.svc__act--adv:hover{filter:brightness(1.06);border-color:transparent}
+.svc__act--locked{color:var(--gray)}
+.svc__act--fill{flex-basis:100%;padding:7px 12px;font-size:.76rem;font-weight:600;color:var(--gray);background:none;border-style:dashed}
+.svc__act--fill:hover{background:var(--b50);color:var(--dk-acc, var(--b600));border-color:var(--b300)}
+.svc__soon{padding:2px 8px;border-radius:999px;background:var(--dk-tint-warn, #FFF3D6);color:var(--dk-txt-warn, #8a5a00);
+  font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
+.svc__err{margin:0;font-size:.78rem;color:var(--dk-txt-err, #C0392B)}
 
 /* Work history */
 .wh{margin-top:8px}
@@ -1953,7 +2011,7 @@ body:has(.auth) .fab{display:none}
 @container (max-width:700px){.auth__mesh{background:linear-gradient(90deg,rgba(5,18,44,.84),rgba(5,18,44,.6) 60%,rgba(5,18,44,.25))}}
 .auth__brand-in{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:space-between;gap:24px;width:100%;max-width:460px;margin:auto 0}
 .auth__logo{display:inline-flex;align-items:center;gap:10px;font-family:var(--fd);font-weight:800;font-size:1.3rem;color:#fff}
-.auth__logo .logo__m{width:34px;height:34px;border-radius:10px;flex:none}
+.auth__logo .logo__m{width:34px;height:34px;flex:none}
 .auth__copy{margin:clamp(24px,4vh,52px) 0}
 .auth__h{font-family:var(--fd);font-size:clamp(1.8rem,2.6vw,2.65rem);letter-spacing:-.03em;line-height:1.08}
 .auth__p{color:#B7CDEC;margin:14px 0 28px;font-size:1.02rem;max-width:44ch;line-height:1.6}
@@ -2259,6 +2317,25 @@ body:has(.schat) .fab{display:none}
 .oprice{display:flex;justify-content:space-between;align-items:center;background:var(--b50);border-radius:14px;padding:14px 16px}
 .oprice b{font-family:var(--fd);font-size:1.2rem;color:var(--dk-acc, var(--b600))}
 .oprice span{color:var(--gray);font-size:.88rem}
+
+/* Service document assist flow: 3-way picker (manual/AI/lawyer) + the two
+   new flow headers. */
+.docchoose{display:grid;gap:10px}
+.docchoose__c{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:16px;border:1.5px solid var(--line);border-radius:16px;
+  background:var(--dk-surface, #fff);text-align:left;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s}
+.docchoose__c:hover{border-color:var(--b300);box-shadow:var(--s1);transform:translateY(-1px)}
+.docchoose__c b{font-size:.95rem;color:var(--ink)}
+.docchoose__c>span:last-child{font-size:.82rem;color:var(--gray)}
+.docchoose__i{width:38px;height:38px;border-radius:12px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center}
+.docchoose__i svg{width:19px;height:19px}
+.docchoose__c--ai{border-color:var(--b200);background:linear-gradient(180deg,var(--dk-surface, #fff),var(--b50))}
+.docchoose__c--ai .docchoose__i{background:var(--grad);color:#fff}
+
+.docassist__head{display:flex;align-items:flex-start;gap:12px}
+.docassist__head b{display:block;font-size:1rem;margin-bottom:2px}
+.docassist__i{width:40px;height:40px;border-radius:12px;background:var(--grad);color:#fff;display:grid;place-items:center;flex:none}
+.docassist__i svg{width:20px;height:20px}
+.docassist__i--lawyer{background:var(--b100);color:var(--dk-acc, var(--b600))}
 
 /* secure inbox link rows + doc-done + verify */
 .aitem--link{cursor:pointer;text-decoration:none}
@@ -3179,7 +3256,8 @@ body:has(.schat) .fab{display:none}
 /* Client gift-recommend nudge (module 10) */
 @keyframes giftWiggle{0%,86%,100%{transform:rotate(0)}90%{transform:rotate(-10deg)}93%{transform:rotate(10deg)}96%{transform:rotate(-6deg)}}
 @keyframes giftTwinkle{0%,100%{opacity:.2;transform:scale(.6)}50%{opacity:1;transform:scale(1)}}
-.giftn{position:relative;display:flex;align-items:center;gap:14px;margin-bottom:18px;padding:16px 20px;border-radius:18px;background:linear-gradient(120deg,var(--dk-tint-warn, #FFF2E6) 0%,var(--dk-tint-err, #FFF0F3) 55%,var(--dk-tint-violet, #FDEDF6) 100%);box-shadow:0 10px 28px rgba(244,63,94,.12),inset 0 0 0 1.5px #FBD9C4;overflow:hidden;animation:bannerIn .55s cubic-bezier(.2,.7,.2,1) both}
+.giftn{position:relative;display:flex;align-items:center;gap:14px;margin-bottom:18px;padding:16px 20px;border-radius:18px;background:linear-gradient(120deg,var(--dk-tint-warn, #FFF2E6) 0%,var(--dk-tint-err, #FFF0F3) 55%,var(--dk-tint-violet, #FDEDF6) 100%);box-shadow:0 10px 28px rgba(244,63,94,.12),inset 0 0 0 1.5px #FBD9C4;overflow:hidden;transition:box-shadow .2s,transform .2s;animation:bannerIn .55s cubic-bezier(.2,.7,.2,1) both}
+.giftn:hover{box-shadow:0 14px 34px rgba(244,63,94,.18),inset 0 0 0 1.5px #FBD9C4;transform:translateY(-2px)}
 .giftn::before{content:"";position:absolute;top:0;left:0;height:100%;width:38%;background:linear-gradient(100deg,transparent,var(--dk-glass, rgba(255,255,255,.6)),transparent);transform:translateX(-160%);animation:bannerShine 4.2s ease-in-out 1.2s infinite;pointer-events:none}
 .giftn__ic{position:relative;flex:none;width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#fb923c,#f43f5e);color:#fff;display:grid;place-items:center;box-shadow:0 8px 20px rgba(244,63,94,.30)}
 .giftn__ic svg{width:22px;height:22px;transform-origin:50% 60%;animation:giftWiggle 3.6s ease-in-out infinite}
@@ -3188,11 +3266,21 @@ body:has(.schat) .fab{display:none}
 .giftn__b b{display:block;font-size:.97rem;font-weight:700;color:var(--ink);margin-bottom:1px}
 .giftn__b p{margin:0;font-size:.83rem;color:var(--gray);line-height:1.4}
 .giftn__cta{flex:none;white-space:nowrap;position:relative}
-.giftn__x{position:absolute;top:8px;right:10px;width:24px;height:24px;border:0;background:none;color:var(--gray2);cursor:pointer;display:grid;place-items:center;border-radius:8px;transition:background .15s,transform .15s;z-index:2}
-.giftn__x:hover{background:var(--dk-surface, #fff);color:var(--ink);transform:rotate(90deg)}
+/* A normal flex child, not absolutely positioned over the CTA button — the
+   old layout let it float at a fixed top-right spot regardless of how wide
+   the CTA got, so the two visually collided ("siqilib qolgan"). */
+.giftn__x{position:relative;flex:none;width:30px;height:30px;border:0;background:var(--dk-surface, rgba(255,255,255,.55));color:var(--gray);cursor:pointer;display:grid;place-items:center;border-radius:9px;transition:background .15s,color .15s,transform .18s cubic-bezier(.34,1.56,.64,1);z-index:2}
+.giftn__x:hover{background:var(--dk-surface, #fff);color:var(--ink);transform:rotate(90deg) scale(1.06)}
+.giftn__x:active{transform:scale(.92)}
 .giftn__x svg{width:14px;height:14px}
-@media (max-width:640px){.giftn{flex-wrap:wrap;padding-right:32px}.giftn__b{flex-basis:100%}.giftn__cta{width:100%;justify-content:center}}
-@media(prefers-reduced-motion:reduce){.giftn,.giftn::before,.giftn__ic svg,.giftn__ic::after{animation:none}}
+@media (max-width:640px){
+  .giftn{flex-wrap:wrap}
+  .giftn__ic{order:1}
+  .giftn__x{order:2;margin-left:auto}
+  .giftn__b{order:3;flex-basis:100%}
+  .giftn__cta{order:4;width:100%;justify-content:center}
+}
+@media(prefers-reduced-motion:reduce){.giftn,.giftn:hover,.giftn::before,.giftn__ic svg,.giftn__ic::after{animation:none;transform:none}}
 /* Workspace AI document analysis */
 .wsp__ai{border:1.5px solid var(--b200);background:var(--b50);border-radius:16px;padding:16px 18px;margin-bottom:16px}
 .wsp__ai-t{display:flex;align-items:center;gap:8px;font-family:var(--fd);font-size:1rem;color:var(--ink)}

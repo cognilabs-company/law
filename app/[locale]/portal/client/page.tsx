@@ -25,13 +25,16 @@ import {
 
 const DONE_STATUSES = new Set(["completed", "archived"]);
 
-// Static quick-action shortcuts (navigation, not backend data).
+// Static quick-action shortcuts (navigation, not backend data). Six of
+// them, not five — .cdact is a fixed 6-column grid (3 on tablet, 2 on
+// phone), so five left an empty trailing cell in every row size.
 const QUICK_ACTIONS = [
   { key: "describe", icon: "IconChatDots", href: "/portal/client/ai", primary: true },
   { key: "findSpecialist", icon: "IconSearch", href: "/portal/client/lawyers" },
   { key: "consultation", icon: "IconVideo", href: "/portal/client/matches" },
   { key: "askAi", icon: "IconSparkle", href: "/portal/client/ai" },
   { key: "upload", icon: "IconDownload", href: "/portal/client/doc-analysis" },
+  { key: "services", icon: "IconBriefcase", href: "/portal/client/services" },
 ];
 const ACTION_SUB: Record<string, string> = {
   describe: "describeSub",
@@ -39,6 +42,7 @@ const ACTION_SUB: Record<string, string> = {
   consultation: "consultationSub",
   askAi: "askAiSub",
   upload: "uploadSub",
+  services: "servicesSub",
 };
 
 export default function ClientDashboard() {
