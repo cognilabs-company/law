@@ -583,6 +583,13 @@ export type ServiceFilters = {
   q?: string;
   executor_type?: string;
   catalog_only?: boolean;
+  // LEXGO_SERVICES_CATALOG_OPTIMIZATION_FRONTEND.md: /services is a paged
+  // list endpoint now (backend default limit 200, max 500) — a category can
+  // hold more than that (Fuqarolik alone is 625), so callers that need more
+  // than one page pass offset themselves (see the services page's "load
+  // more").
+  limit?: number;
+  offset?: number;
 };
 
 export async function getServiceCategories(opts?: { includeHidden?: boolean }): Promise<BackendCategory[]> {
@@ -600,6 +607,8 @@ export async function getServices(filters?: ServiceFilters, locale = "uz"): Prom
   if (filters?.q) qs.set("q", filters.q);
   if (filters?.executor_type) qs.set("executor_type", filters.executor_type);
   if (filters?.catalog_only != null) qs.set("catalog_only", String(filters.catalog_only));
+  if (filters?.limit != null) qs.set("limit", String(filters.limit));
+  if (filters?.offset != null) qs.set("offset", String(filters.offset));
   const q = qs.toString();
   const data = await http(`/services${q ? `?${q}` : ""}`);
   return listFrom(data, "services", "items", "data").map((v) => normService(v, locale));

@@ -99,13 +99,6 @@ export default function ClientServices() {
   const locale = useLocale();
   const router = useRouter();
   const cats = useResource(getServiceCategories, []);
-  // LEXGO_GENERAL_DOCUMENT_CATEGORIES_FRONTEND.md: /service-categories now
-  // returns 4 GENERAL categories (Jinoiy/Ma'muriy/Iqtisodiy/Fuqarolik — every
-  // legal domain, not just civil-court matters), backed by 987 active catalog
-  // services; catalog_only=true is what selects that catalog. The old
-  // civil-court-* services/templates (and the catalog_only=false reasoning
-  // that used to apply to them) were deactivated with this change.
-  const services = useResource<BackendService>(() => getServices({ catalog_only: true }, locale), [locale]);
 
   // T0-20 §4: outside working hours the client is told right away when the
   // advocate's 30-minute response window starts (next working day 09:00).
@@ -155,6 +148,60 @@ export default function ClientServices() {
     setPrevCat(cat);
     setSubcat("");
   }
+  // Only the selected category's own services are ever fetched (MD's
+  // recommended flow: categories first, then GET /services?category_id=…
+  // once a category is picked) — the page used to eagerly load the WHOLE
+  // catalog (987 services across all 4 categories) on first render before
+  // the client had even chosen a category, which was the real cause of the
+  // page feeling slow.
+  //
+  // LEXGO_SERVICES_CATALOG_OPTIMIZATION_FRONTEND.md: /services is itself a
+  // paged endpoint now (backend default/requested limit 200, max 500) — one
+  // category alone can hold more than that (Fuqarolik: 625, verified live),
+  // and the MD is explicit that the frontend must not fetch everything in
+  // one shot ("use infinite scroll, 'Load more', or category/subcategory
+  // tabs"). So: fetch one page per request, accumulate, and only fetch the
+  // next page when the client asks for it (loadMoreServices below) — not a
+  // plain useResource, which has no notion of "append another page".
+  const SERVICES_PAGE_LIMIT = 200;
+  const [svcPages, setSvcPages] = useState<BackendService[]>([]);
+  const [svcStatus, setSvcStatus] = useState<"loading" | "ready" | "error">("ready");
+  const [svcHasMore, setSvcHasMore] = useState(false);
+  const [svcLoadingMore, setSvcLoadingMore] = useState(false);
+  const [prevPageCat, setPrevPageCat] = useState(cat);
+  if (cat !== prevPageCat) {
+    setPrevPageCat(cat);
+    setSvcPages([]);
+    setSvcStatus(cat ? "loading" : "ready");
+    setSvcHasMore(false);
+  }
+  useEffect(() => {
+    if (!cat) return;
+    let alive = true;
+    getServices({ category_id: cat, catalog_only: true, limit: SERVICES_PAGE_LIMIT, offset: 0 }, locale)
+      .then((rows) => {
+        if (!alive) return;
+        setSvcPages(rows);
+        setSvcHasMore(rows.length === SERVICES_PAGE_LIMIT);
+        setSvcStatus("ready");
+      })
+      .catch(() => alive && setSvcStatus("error"));
+    return () => {
+      alive = false;
+    };
+  }, [cat, locale]);
+  function loadMoreServices() {
+    if (!cat || svcLoadingMore || !svcHasMore) return;
+    setSvcLoadingMore(true);
+    getServices({ category_id: cat, catalog_only: true, limit: SERVICES_PAGE_LIMIT, offset: svcPages.length }, locale)
+      .then((rows) => {
+        setSvcPages((cur) => [...cur, ...rows]);
+        setSvcHasMore(rows.length === SERVICES_PAGE_LIMIT);
+      })
+      .catch(() => setSvcHasMore(false))
+      .finally(() => setSvcLoadingMore(false));
+  }
+  const services = { status: svcStatus, data: svcPages };
   // Deep link from the AI intake ("order this service") pre-fills the search.
   // Rendered only client-side (inside the portal shell, after auth is ready).
   const [q, setQ] = useState(() =>
@@ -223,17 +270,18 @@ export default function ClientServices() {
   }
 
   const query = q.trim().toLowerCase();
+  // Already scoped to `cat` by the fetch itself (see `services` above) — no
+  // per-category counts to show at the top level any more (that would mean
+  // loading every category just to display a number nobody asked for yet).
   const catalog = useMemo(() => (narrowed ? services.data.filter(offeredBy) : services.data), [services.data, narrowed, offeredBy]);
-  const countFor = (id: string) => catalog.filter((s) => s.categoryId === id).length;
-  // Families with at least one offered service (all of them when not narrowed).
-  const famList = narrowed ? cats.data.filter((c) => countFor(c.id) > 0) : cats.data;
+  const famList = cats.data;
 
   const NO_SUBCAT = "Boshqa";
   // The selected general category's own services, grouped by the backend's
   // real `subcategory` field (LEXGO_DOCUMENT_SUBCATEGORIES_FRONTEND.md) —
   // every category gets this, not just Fuqarolik. Sorted by count desc (the
   // MD's own recommended order, matching how it lists production counts).
-  const catServices = useMemo(() => (cat ? catalog.filter((s) => s.categoryId === cat) : []), [catalog, cat]);
+  const catServices = catalog;
   const subcatCounts = useMemo(() => {
     const m = new Map<string, number>();
     for (const s of catServices) { const k = s.subcategory || NO_SUBCAT; m.set(k, (m.get(k) ?? 0) + 1); }
@@ -482,7 +530,7 @@ export default function ClientServices() {
           <div>
             <b>{t("preSellerTitle", { name: preSeller.name || t("preSellerAnon") })}</b>
             <span>
-              {narrowed ? t("preSellerOnly", { n: catalog.length }) : preServices && !preServices.size ? t("preSellerNoList") : t("preSellerLead")}
+              {narrowed ? t("preSellerOnly", { n: preServices?.size ?? 0 }) : preServices && !preServices.size ? t("preSellerNoList") : t("preSellerLead")}
               {afterHours ? ` ${t("afterHours", { when: respondBy })}` : ""}
             </span>
           </div>
@@ -509,7 +557,7 @@ export default function ClientServices() {
           </button>
         ) : null}
 
-        {services.status === "loading" || cats.status === "loading" ? (
+        {cats.status === "loading" || (cat && services.status === "loading") ? (
           <Skeleton rows={4} />
         ) : showFamilies ? (
           <div className="svfam__grid">
@@ -522,7 +570,6 @@ export default function ClientServices() {
                   </span>
                   <span className="svfam__t">
                     <b>{c.name}</b>
-                    <small>{t("servicesN", { n: countFor(c.id) })}</small>
                   </span>
                 </button>
               );
@@ -602,6 +649,16 @@ export default function ClientServices() {
             })}
           </div>
         )}
+
+        {/* Only within a category, never during search (that reads from
+            `remote`/`localHits`, not the paged svcPages) — a category can
+            hold more than one page (Fuqarolik: 625 > the 200-item page
+            size), and the MD explicitly says not to fetch it all at once. */}
+        {!query && cat && svcHasMore ? (
+          <button type="button" className="btn btn--line btn--full" style={{ marginTop: 14 }} disabled={svcLoadingMore} onClick={loadMoreServices}>
+            {svcLoadingMore ? t("loadingMore") : t("loadMore")}
+          </button>
+        ) : null}
       </div>
 
       <Modal open={!!order} onClose={() => { setOrder(null); setPayOrderId(null); }} title={order?.name || t("orderTitle")} wide={!orderAsAdvocate}>

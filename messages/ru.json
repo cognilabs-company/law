@@ -2965,6 +2965,8 @@
       "sectionTitle": "Документы для обращения в суды по гражданским делам",
       "chooseFamily": "Выберите направление",
       "servicesN": "{n} услуг",
+      "loadMore": "Загрузить ещё",
+      "loadingMore": "Загрузка…",
       "back": "Назад",
       "chooseAdvocate": "Выберите адвоката",
       "sortRating": "Рейтинг",
