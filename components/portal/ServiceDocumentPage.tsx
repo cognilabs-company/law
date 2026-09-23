@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import ServiceDocumentRequest from "./ServiceDocumentRequest";
+import { useCatalogBackHref } from "@/lib/catalogNav";
 import { IconChevronLeft } from "@/components/icons";
 
 // A dedicated full-page builder for the service → document flow (as opposed
@@ -21,16 +22,12 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   const t = useTranslations("cta");
   const router = useRouter();
   const [title, setTitle] = useState("");
+  const backHref = useCatalogBackHref();
 
   return (
     <div className="docbuild docbuild--full">
       <div className="docbuild__top">
-        {/* Real history back, not a hardcoded push to the bare catalog URL —
-            the catalog page now mirrors its category/subcategory drill-down
-            into its own URL (see ClientServices), so this lands the client
-            back exactly where they were browsing instead of resetting them
-            to the top-level "choose a category" screen every time. */}
-        <button type="button" className="docbuild__back" onClick={() => router.back()}>
+        <button type="button" className="docbuild__back" onClick={() => (backHref ? router.push(backHref) : router.back())}>
           <IconChevronLeft />
           {t("back")}
         </button>

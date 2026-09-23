@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ComponentType, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
@@ -60,6 +61,7 @@ import {
   IconDownload,
   IconLock,
   IconEye,
+  IconEdit,
 } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
@@ -129,6 +131,15 @@ export default function ClientServices() {
   const te = useTranslations("enums");
   const locale = useLocale();
   const router = useRouter();
+  const tc = useTranslations("portal.common");
+  // Next.js's own query-param hook, not a hand-rolled `window.location.search`
+  // read: this page only ever mounts client-side (PortalShell withholds
+  // `children` until auth is ready — see its own `!ready || !session` guard),
+  // so a manual read was never actually unsafe here. It's still the more
+  // correct source: `searchParams` stays in sync with the router itself
+  // (including a change made by another effect in the same tick), where a
+  // one-off `window.location.search` snapshot can drift.
+  const searchParams = useSearchParams();
   const cats = useResource(getServiceCategories, []);
 
   // T0-20 §4: outside working hours the client is told right away when the
@@ -175,12 +186,8 @@ export default function ClientServices() {
   // client back to the top-level "choose a category" screen, no matter how
   // deep they'd drilled in, since a real route change unmounts this whole
   // component and a plain useState has nothing left to restore from.
-  const [cat, setCat] = useState(() =>
-    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("cat") ?? "",
-  );
-  const [subcat, setSubcat] = useState(() =>
-    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("subcat") ?? "",
-  );
+  const [cat, setCat] = useState(() => searchParams.get("cat") ?? "");
+  const [subcat, setSubcat] = useState(() => searchParams.get("subcat") ?? "");
   // Reset during render (not an effect — this file's own established pattern,
   // see prevOrder/prevServiceId/prevQuoteKey below) so a stale subcategory
   // filter never survives a category change.
@@ -246,9 +253,7 @@ export default function ClientServices() {
   const services = { status: svcStatus, data: svcPages };
   // Deep link from the AI intake ("order this service") pre-fills the search.
   // Rendered only client-side (inside the portal shell, after auth is ready).
-  const [q, setQ] = useState(() =>
-    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("q") ?? "",
-  );
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
 
   // order modal
   const [order, setOrder] = useState<BackendService | null>(null);
@@ -403,9 +408,7 @@ export default function ClientServices() {
   // Deep link from the AI offer cards (?service=<id>) opens that service's order
   // modal once the catalog is loaded; a service outside the catalog list is
   // fetched through its passport.
-  const [deepId, setDeepId] = useState(() =>
-    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("service") ?? "",
-  );
+  const [deepId, setDeepId] = useState(() => searchParams.get("service") ?? "");
   const [deepFetch, setDeepFetch] = useState("");
   const [docDeepId, setDocDeepId] = useState("");
   if (deepId && services.status !== "loading") {
@@ -441,6 +444,20 @@ export default function ClientServices() {
   }, [docDeepId]);
 
   const catName = cats.data.find((c) => c.id === cat)?.name || "";
+  // Carried explicitly on the link to the full-page document builder/viewer,
+  // not left to the browser's back-stack: router.replace above updates this
+  // same history entry's URL, but a plain `router.back()` on the far side
+  // still depends on that replace having actually committed before the user
+  // tapped through — usually true, but not guaranteed. Reading cat/subcat
+  // straight back off the URL on arrival removes that race entirely, so
+  // "orqaga" from the document page always lands on the exact subcategory
+  // the client drilled into, never resets to the top-level catalog.
+  const catalogBackQS = useMemo(() => {
+    const sp = new URLSearchParams();
+    if (cat) sp.set("cat", cat);
+    if (subcat) sp.set("subcat", subcat);
+    return sp.toString();
+  }, [cat, subcat]);
 
   // Reset the order modal when a service is opened (during render, not in the effect).
   const [prevOrder, setPrevOrder] = useState(order);
@@ -617,53 +634,71 @@ export default function ClientServices() {
 
         {cats.status === "loading" || (cat && services.status === "loading") ? (
           <Skeleton rows={4} />
+        ) : cats.status === "error" || (cat && services.status === "error") ? (
+          // Previously silent: a failed categories/services fetch fell
+          // through to showFamilies/showSubcats below anyway, mapping over
+          // an empty famList/subcatList — an empty grid with zero wording,
+          // which is what "nothing shows at all" on this page actually was
+          // (a transient network/auth hiccup on a cold load, not a permanent
+          // break — reported specifically after a hard refresh, e.g.
+          // /services?cat=<id>). Now it says so, same as every other
+          // resource load failure in the portal (portal.common.loadError).
+          <EmptyState icon={<IconAlert />} title={tc("loadError")} text={tc("loadErrorText")} />
         ) : showFamilies ? (
-          <div className="svfam__grid">
-            {famList.map((c, i) => {
-              const img = generalCategoryImage(c.name);
-              const Icon = FAM_ICONS[i % FAM_ICONS.length];
-              return (
-                <button key={c.id} type="button" className="svfam" onClick={() => setCat(c.id)}>
-                  <span className="svfam__i">
-                    {img ? (
-                      <Image src={img} alt="" fill sizes="(max-width: 640px) 45vw, 260px" style={{ objectFit: "contain" }} />
-                    ) : (
-                      <Icon />
-                    )}
-                  </span>
-                  <span className="svfam__t">
-                    <b>{c.name}</b>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          !famList.length ? (
+            <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
+          ) : (
+            <div className="svfam__grid">
+              {famList.map((c, i) => {
+                const img = generalCategoryImage(c.name);
+                const Icon = FAM_ICONS[i % FAM_ICONS.length];
+                return (
+                  <button key={c.id} type="button" className="svfam" onClick={() => setCat(c.id)}>
+                    <span className="svfam__i">
+                      {img ? (
+                        <Image src={img} alt="" fill sizes="(max-width: 640px) 45vw, 260px" style={{ objectFit: "contain" }} />
+                      ) : (
+                        <Icon />
+                      )}
+                    </span>
+                    <span className="svfam__t">
+                      <b>{c.name}</b>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )
         ) : showSubcats ? (
-          <div className="svfam__grid">
-            {subcatList.map((name, i) => {
-              const img = subcategoryImage(name);
-              const Icon = FAM_ICONS[i % FAM_ICONS.length];
-              return (
-                <button key={name} type="button" className="svfam" onClick={() => setSubcat(name)}>
-                  <span className="svfam__i">
-                    {img ? (
-                      // The source PNGs are ~600-800KB full-resolution
-                      // renders — next/image resizes/re-encodes to what's
-                      // actually displayed (this card is never wider than a
-                      // few hundred px) and lazy-loads off-screen ones.
-                      <Image src={img} alt="" fill sizes="(max-width: 640px) 45vw, 260px" style={{ objectFit: "contain" }} />
-                    ) : (
-                      <Icon />
-                    )}
-                  </span>
-                  <span className="svfam__t">
-                    <b>{name}</b>
-                    <small>{t("servicesN", { n: subcatCounts.get(name) ?? 0 })}</small>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          !subcatList.length ? (
+            <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
+          ) : (
+            <div className="svfam__grid">
+              {subcatList.map((name, i) => {
+                const img = subcategoryImage(name);
+                const Icon = FAM_ICONS[i % FAM_ICONS.length];
+                return (
+                  <button key={name} type="button" className="svfam" onClick={() => setSubcat(name)}>
+                    <span className="svfam__i">
+                      {img ? (
+                        // The source PNGs are ~600-800KB full-resolution
+                        // renders — next/image resizes/re-encodes to what's
+                        // actually displayed (this card is never wider than a
+                        // few hundred px) and lazy-loads off-screen ones.
+                        <Image src={img} alt="" fill sizes="(max-width: 640px) 45vw, 260px" style={{ objectFit: "contain" }} />
+                      ) : (
+                        <Icon />
+                      )}
+                    </span>
+                    <span className="svfam__t">
+                      <b>{name}</b>
+                      <small>{t("servicesN", { n: subcatCounts.get(name) ?? 0 })}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )
         ) : !list.length ? (
           <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
         ) : (
@@ -700,15 +735,23 @@ export default function ClientServices() {
                       {t("sendToLawyer")}
                     </button>
                     {hasDoc ? (
-                      <button type="button" className="svc__act svc__act--view" onClick={() => router.push(`/portal/client/services/document/${s.id}/view`)}>
+                      <button
+                        type="button"
+                        className="svc__act svc__act--view"
+                        onClick={() => router.push(`/portal/client/services/document/${s.id}/view${catalogBackQS ? `?${catalogBackQS}` : ""}`)}
+                      >
                         <IconEye />
                         {t("viewDoc")}
                       </button>
                     ) : null}
                     {hasDoc ? (
-                      <button type="button" className="svc__act svc__act--fill" onClick={() => router.push(`/portal/client/services/document/${s.id}`)}>
+                      <button
+                        type="button"
+                        className="svc__act svc__act--fill"
+                        onClick={() => router.push(`/portal/client/services/document/${s.id}${catalogBackQS ? `?${catalogBackQS}` : ""}`)}
+                      >
+                        <IconEdit />
                         {t("fillDoc")}
-                        <span className="svc__soon">{t("comingSoon")}</span>
                       </button>
                     ) : null}
                   </div>

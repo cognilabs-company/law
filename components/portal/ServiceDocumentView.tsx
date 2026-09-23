@@ -7,6 +7,7 @@ import { getServiceDocumentFields, getServiceTemplateSourceFile, type ServiceDoc
 import { docxToTree } from "@/lib/docxParse";
 import type { DocTree } from "@/lib/docTemplate";
 import { renderDocTree } from "@/lib/docTreeRender";
+import { useCatalogBackHref } from "@/lib/catalogNav";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
@@ -24,6 +25,7 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
   const t = useTranslations("portal.client.services");
   const td = useTranslations("portal.client.documents");
   const router = useRouter();
+  const backHref = useCatalogBackHref();
   const [fields, setFields] = useState<ServiceDocumentFields | null>(null);
   const [tree, setTree] = useState<DocTree[] | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
@@ -74,7 +76,7 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
   return (
     <div className="docbuild docbuild--full">
       <div className="docbuild__top">
-        <button type="button" className="docbuild__back" onClick={() => router.back()}>
+        <button type="button" className="docbuild__back" onClick={() => (backHref ? router.push(backHref) : router.back())}>
           <IconChevronLeft />
           {t("back")}
         </button>

@@ -1572,52 +1572,25 @@ body:has(.rf) .fab{display:none}
 .svc__act:disabled{opacity:.6;cursor:default;transform:none}
 .svc__act--dl{color:var(--dk-acc-strong, var(--b700));border-color:var(--b200);background:var(--b50)}
 .svc__act--view{color:var(--ink2, var(--ink));border-color:var(--line);background:var(--dk-surface-2, #F7FAFE)}
-/* Back to this app's own real, everywhere-else gradient (--grad — same as
-   .btn--grad, .mkt__act--ai, ...) — tried gold (this project's "Pro" accent)
-   and violet in between, neither was it. border:none, not border-color:
-   transparent — a *transparent* 1.5px border still leaves a real border box
-   for the browser to antialias against the card's own background at the
-   rounded corners, which is what read as a thin stray line down the left/
-   right edges; no border box at all can't produce that seam. */
-.svc__act--adv{color:#fff;background:var(--grad);border:none;box-shadow:var(--sblue)}
-.svc__act--adv:hover{background:var(--grad);filter:brightness(1.06)}
+/* Advokatga yo'llash keeps its own distinct look — a warm gold, this app's
+   existing "premium/human help" tone (.splan__icon--pro, .giftn__ic--pro use
+   the same gradient) — now that Hujjatni to'ldirish below owns the app's
+   main blue gradient CTA style, so the two never read as the same action. */
+.svc__act--adv{color:#7A4B00;background:linear-gradient(135deg,#FFE9B8,#F5A623);border:none;box-shadow:0 6px 16px rgba(245,166,35,.28)}
+.svc__act--adv:hover{filter:brightness(1.04)}
 .svc__act--locked{color:var(--gray)}
-/* Marching-ants dashes hugging the button's real straight edges — the
-   classic 4-layer background-image technique (one linear-gradient dash
-   strip per edge: top/bottom repeat-x, left/right repeat-y), each shifted
-   by exactly one dash-cycle per frame so all 4 edges appear to march around
-   the perimeter together. Two earlier attempts (a rotating conic-gradient
-   ring, then an SVG rect) both mapped the dashes to a CIRCLE's geometry —
-   fine for the corners, wrong everywhere else on a wide rectangle, and read
-   as "some round shape" rather than dashes sitting on the actual border.
-   This one is inherently 4 straight lines, so there's no round shape to
-   accidentally produce; overflow:hidden + border-radius:inherit softens
-   just the corners without needing the dash math itself to curve. */
-.svc__act--fill{position:relative;flex-basis:100%;padding:7px 12px;font-size:.76rem;font-weight:600;color:var(--gray);background:none;border:2px solid transparent;overflow:hidden}
-.svc__act--fill::before{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
-  background-image:
-    linear-gradient(90deg, var(--b300) 50%, transparent 50%),
-    linear-gradient(90deg, var(--b300) 50%, transparent 50%),
-    linear-gradient(0deg, var(--b300) 50%, transparent 50%),
-    linear-gradient(0deg, var(--b300) 50%, transparent 50%);
-  background-repeat:repeat-x,repeat-x,repeat-y,repeat-y;
-  background-size:14px 2px,14px 2px,2px 14px,2px 14px;
-  background-position:left top,right bottom,left top,right bottom;
-  animation:svcFillMarch .4s infinite linear}
-@keyframes svcFillMarch{to{background-position:left 14px top,right 14px bottom,left top 14px,right bottom 14px}}
-@media (prefers-reduced-motion: reduce){.svc__act--fill::before{animation:none}}
-/* border-color repeated here: the generic .svc__act:hover above has higher
-   specificity than the plain .svc__act--fill class and would otherwise
-   paint a real solid border-color back on top of the marching dashes on
-   hover. */
-.svc__act--fill:hover{background:var(--b50);color:var(--dk-acc, var(--b600));border-color:transparent}
-.svc__act--fill:hover::before{background-image:
-    linear-gradient(90deg, var(--b400) 50%, transparent 50%),
-    linear-gradient(90deg, var(--b400) 50%, transparent 50%),
-    linear-gradient(0deg, var(--b400) 50%, transparent 50%),
-    linear-gradient(0deg, var(--b400) 50%, transparent 50%)}
-.svc__soon{padding:1px 7px;border-radius:999px;background:var(--b100);color:var(--gray2);
-  font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
+/* Hujjatni to'ldirish is the real primary action for a service with a
+   document template — a full, working page (services/document/[serviceId]),
+   not a stub — so it now gets the bold gradient treatment Advokatga yo'llash
+   used to own (border:none, not border-color:transparent — a *transparent*
+   1.5px border still leaves a real border box for the browser to antialias
+   against the card's own background at the rounded corners, which read as a
+   thin stray line down the left/right edges; no border box at all can't
+   produce that seam). Dropped the dashed "coming soon" marching-ants
+   animation and badge along with it — the feature isn't a stub any more,
+   so a muted, semi-disabled look was actively misleading. */
+.svc__act--fill{flex-basis:100%;color:#fff;background:var(--grad);border:none;box-shadow:var(--sblue)}
+.svc__act--fill:hover{background:var(--grad);filter:brightness(1.06)}
 .svc__err{margin:0;font-size:.78rem;color:var(--dk-txt-err, #C0392B)}
 
 /* Tablet / smaller-laptop range (MacBook without an external display, iPad
