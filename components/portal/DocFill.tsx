@@ -317,18 +317,43 @@ export default function DocFill({
     onSubmit();
   }
 
-  // Honour an authored `step` as a section break when a template ever sends
-  // one; otherwise it is one flat list, like the reference builder.
+  // LEXGO_DOCUMENT_FIELD_SECTIONS_FRONTEND.md: document-fields now groups a
+  // template's fields into real, titled sections ("Ариза реквизитлари",
+  // "Даъвогар", …), in the backend's own order — the client never infers or
+  // re-sorts this, it only matches each section's field names back onto the
+  // `fields` this component already has (which may carry more/newer answer
+  // state than sourceFile's own copy). Falls back to the old `step`-based
+  // split, then a single flat list, for a service document-fields hasn't
+  // been given sections for yet.
   const groups = useMemo(() => {
-    if (!fields.some((f) => typeof f.step === "number")) return [fields];
+    const sections = sourceFile?.sections;
+    if (sections?.length) {
+      const byName = new Map(fields.map((f) => [f.name, f]));
+      const used = new Set<string>();
+      const out: { title: string; items: DocField[] }[] = [];
+      for (const sec of sections) {
+        const items = sec.fields.map((sf) => byName.get(sf.name)).filter((f): f is DocField => !!f);
+        items.forEach((f) => used.add(f.name));
+        if (items.length) out.push({ title: sec.title || t("sectionN", { n: out.length + 1 }), items });
+      }
+      // A field the section list somehow missed still needs to be fillable —
+      // trailing group rather than a silently dropped question.
+      const leftover = fields.filter((f) => !used.has(f.name));
+      if (leftover.length) out.push({ title: t("sectionN", { n: out.length + 1 }), items: leftover });
+      if (out.length) return out;
+    }
+    if (!fields.some((f) => typeof f.step === "number")) return [{ title: "", items: fields }];
     const m = new Map<number, DocField[]>();
     for (const f of fields) {
       const k = f.step ?? 1;
       if (!m.has(k)) m.set(k, []);
       m.get(k)!.push(f);
     }
-    return [...m.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
-  }, [fields]);
+    const stepped = [...m.entries()].sort((a, b) => a[0] - b[0]).map(([, items]) => items);
+    return stepped.length > 1
+      ? stepped.map((items, i) => ({ title: t("sectionN", { n: i + 1 }), items }))
+      : [{ title: "", items: stepped[0] ?? [] }];
+  }, [fields, sourceFile, t]);
 
   return (
     <div className="docb">
@@ -400,8 +425,8 @@ export default function DocFill({
           {total === 0 ? <p className="advmuted">{t("noFields")}</p> : null}
           {groups.map((g, gi) => (
             <div className="docfill__grp" key={gi}>
-              {groups.length > 1 ? <h3 className="docfill__gt">{t("sectionN", { n: gi + 1 })}</h3> : null}
-              {g.map((f) => (
+              {g.title ? <h3 className="docfill__gt">{g.title}</h3> : null}
+              {g.items.map((f) => (
                 <Row
                   key={f.name}
                   f={f}

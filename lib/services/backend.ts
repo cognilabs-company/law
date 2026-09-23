@@ -1381,6 +1381,47 @@ function sortFields(fields: TemplateQuestion[]): TemplateQuestion[] {
     .map(({ f }) => f);
 }
 
+// LEXGO_DOCUMENT_FIELD_SECTIONS_FRONTEND.md: document-fields groups a
+// template's fields into real, titled sections ("Ариза реквизитлари",
+// "Даъвогар", "Жавобгар", …) — the backend's own authoritative structure for
+// a Yurxizmat-style bo'limma-bo'lim form, not something the frontend should
+// infer from field names/order itself. Only this endpoint's `sections` is
+// used to build the fill form (the doc's own instruction: several other
+// endpoints echo `sections` too, but the client form always uses
+// document-fields regardless).
+export type DocSection = {
+  id: string;
+  title: string;
+  order: number;
+  fieldCount: number;
+  fields: TemplateQuestion[];
+};
+function normSection(v: unknown): DocSection {
+  const x = asDict(v);
+  // A section's own fields spell their position `field_order`, not
+  // `order`/`sort_order` (LEXGO_DOCUMENT_FIELD_SECTIONS_FRONTEND.md) — scoped
+  // to this section alone, so it's overlaid here rather than taught to
+  // normQuestion generally, which would wrongly feed it into the unrelated
+  // flat top-level `fields[]` ordering (a different, whole-template scale).
+  const fields = sortFields(
+    asArr(x.fields).map((sf) => {
+      const q = normQuestion(sf);
+      const fieldOrder = asDict(sf).field_order;
+      return typeof fieldOrder === "number" ? { ...q, order: fieldOrder } : q;
+    }),
+  );
+  return {
+    id: asStr(x.id),
+    title: asStr(x.title),
+    order: asNum(x.order),
+    fieldCount: asNum(x.field_count, fields.length),
+    fields,
+  };
+}
+function sortSections(sections: DocSection[]): DocSection[] {
+  return sections.map((s, i) => ({ s, i })).sort((a, b) => a.s.order - b.s.order || a.i - b.i).map(({ s }) => s);
+}
+
 export type BackendTemplate = {
   id: string;
   name: string;
@@ -1476,6 +1517,10 @@ export type ServiceDocumentFields = {
   fields: TemplateQuestion[];
   fieldCount: number;
   requiredCount: number;
+  // Empty on an older backend response (no `sections` key) or a template it
+  // hasn't been built for yet — callers fall back to their own generic
+  // grouping in that case, never to a client-guessed split of `fields`.
+  sections: DocSection[];
   hasSourceFile: boolean;
   sourceFileName: string;
   sourceMimeType: string;
@@ -1489,6 +1534,7 @@ export type ServiceDocumentFields = {
 export async function getServiceDocumentFields(serviceId: string): Promise<ServiceDocumentFields> {
   const d = asDict(await http(`/services/${serviceId}/document-fields`));
   const fields = sortFields(asArr(d.fields).map(normQuestion));
+  const sections = sortSections(asArr(d.sections).map(normSection));
   const ai = d.ai_flow ? asDict(d.ai_flow) : null;
   const lawyer = d.lawyer_flow ? asDict(d.lawyer_flow) : null;
   return {
@@ -1498,6 +1544,7 @@ export async function getServiceDocumentFields(serviceId: string): Promise<Servi
     fields,
     fieldCount: asNum(d.field_count, fields.length),
     requiredCount: asNum(d.required_count),
+    sections,
     hasSourceFile: Boolean(d.has_source_file),
     sourceFileName: asStr(d.source_file_name),
     sourceMimeType: asStr(d.source_mime_type),
