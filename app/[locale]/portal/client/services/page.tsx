@@ -22,14 +22,15 @@ import {
   type MatchCandidate,
   type PriceModifier,
   type PriceQuote,
+  type ServiceDocumentFields,
   getLawyerServices,
 } from "@/lib/services/backend";
-import { http, asDict, asStr } from "@/lib/http";
+import { http, asDict, asStr, ApiError } from "@/lib/http";
 import { fetchAndDeliver, extFromMime } from "@/lib/download";
-import { fuzzyContains } from "@/lib/searchMatch";
 import OrderPayment from "@/components/portal/OrderPayment";
 import ServicePassport from "@/components/portal/ServicePassport";
 import ServiceDocumentRequest from "@/components/portal/ServiceDocumentRequest";
+import ManualDocPlanGate from "@/components/portal/ManualDocPlanGate";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { initials, humanizeSlug } from "@/lib/lawyers";
@@ -58,6 +59,7 @@ import {
   IconDocLines,
   IconDownload,
   IconLock,
+  IconEye,
 } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
@@ -72,7 +74,7 @@ const FAM_ICONS: ComponentType<{ className?: string }>[] = [
 // each got their own illustration too — matched by name, same convention as
 // SUBCATEGORY_IMAGES below.
 const GENERAL_CATEGORY_IMAGES: { match: RegExp; src: string }[] = [
-  { match: /fuqarolik/i, src: "/img/fuqarolik.png" },
+  { match: /fuqarolik/i, src: "/img/fuqaro.png" },
   { match: /iqtisodiy/i, src: "/img/Iqtisodiy.png" },
   { match: /jinoiy/i, src: "/img/jinoiy.png" },
   { match: /ma.?muriy/i, src: "/img/mamuriy.png" },
@@ -291,19 +293,38 @@ export default function ClientServices() {
   const isFreeTier = !myAiPlan || myAiPlan.slug === "lexgo-ai-free";
   const [dlBusy, setDlBusy] = useState("");
   const [dlErr, setDlErr] = useState<{ id: string; msg: string } | null>(null);
+  // LEXGO_MANUAL_DOCUMENT_PLAN_FRONTEND.md: a real, separate entitlement
+  // (manual_documents.template_download) from `isFreeTier` above — a client
+  // can clear the AI-tier gate and still lack this one. Reacted to as it
+  // happens (the 402 the backend actually sends), not pre-checked on every
+  // card render.
+  const [planGateOpen, setPlanGateOpen] = useState(false);
+  const [planGateMsg, setPlanGateMsg] = useState("");
   async function handleDownload(s: BackendService) {
     if (isFreeTier) { router.push("/portal/client/subscription"); return; }
     if (dlBusy) return;
     setDlErr(null);
     setDlBusy(s.id);
-    const fields = await getServiceDocumentFields(s.id).catch(() => null);
+    let fields: ServiceDocumentFields | null = null;
+    try {
+      fields = await getServiceDocumentFields(s.id);
+    } catch (e) {
+      setDlBusy("");
+      if (e instanceof ApiError && e.status === 402 && e.code === "manual_document_plan_required") {
+        setPlanGateMsg(e.detail || t("planRequired"));
+        setPlanGateOpen(true);
+        return;
+      }
+      setDlErr({ id: s.id, msg: t("downloadError") });
+      return;
+    }
     // LEXGO_CLEAN_TEMPLATE_DOWNLOAD_FRONTEND.md: never the marked-up
     // source-file here — clean-source-file has {{field}}/{field} replaced
     // with ________, which is what a plain "download the template" button
     // must show. Falls back to the marked-up file only for a service the
     // backend hasn't wired the clean file for yet.
-    const src = fields?.cleanSourceFileUrl || fields?.cleanSourceFileInlineUrl || fields?.sourceFileUrl || fields?.sourceFileInlineUrl;
-    if (!fields?.hasSourceFile || !src) {
+    const src = fields.cleanSourceFileUrl || fields.cleanSourceFileInlineUrl || fields.sourceFileUrl || fields.sourceFileInlineUrl;
+    if (!fields.hasSourceFile || !src) {
       setDlErr({ id: s.id, msg: t("downloadError") });
       setDlBusy("");
       return;
@@ -337,18 +358,30 @@ export default function ClientServices() {
     [subcatCounts],
   );
 
-  // T1-06 server search (GET /services/search): Latin/Cyrillic/Russian
-  // spellings, category and AI category, ranked by score. Debounced; until it
-  // answers (or if it fails) the local name/code filter below is shown.
-  const [remote, setRemote] = useState<{ q: string; list: BackendService[] | null } | null>(null);
+  // Global search (GET /services/search) — category-agnostic on purpose (it
+  // searches the whole catalog, not just whatever category happens to be
+  // loaded locally right now) and normalizes Latin/Cyrillic/Russian
+  // spellings server-side (LEXGO_DOCUMENT_SUBCATEGORIES_FRONTEND.md: "still
+  // the recommended global search endpoint"). This used to have a
+  // local-catalog fuzzy-match fallback for whatever the remote call missed,
+  // but that fallback silently broke once the page stopped eagerly loading
+  // the full catalog (`catalog` is now empty until a category is picked) —
+  // real bug, not a hypothetical: at the top level, search returned nothing
+  // no matter what was typed. Trusting the remote endpoint outright, rather
+  // than re-introducing an eager full-catalog fetch just to feed a local
+  // fallback, is what that same MD's "recommended" framing is for.
+  const [remote, setRemote] = useState<{ q: string; list: BackendService[] } | null>(null);
   useEffect(() => {
     const term = q.trim();
+    // Stale `remote` is harmless left as-is: `list` only reads it while
+    // `query` is non-empty, and a short/cleared query takes the other
+    // branch entirely.
     if (term.length < 2) return;
     let alive = true;
     const timer = setTimeout(() => {
       searchServices(term, { limit: 50 }, locale)
         .then((hits) => alive && setRemote({ q: term, list: hits.map((h) => h.service) }))
-        .catch(() => alive && setRemote({ q: term, list: null }));
+        .catch(() => alive && setRemote({ q: term, list: [] }));
     }, 300);
     return () => {
       alive = false;
@@ -356,36 +389,16 @@ export default function ClientServices() {
     };
   }, [q, locale]);
 
-  // Cyrillic/typo-tolerant match against the catalog already loaded here —
-  // computed unconditionally so it can also backfill an empty or Latin-only
-  // server response (see below), not just stand in when the server call
-  // fails outright.
-  const localHits = useMemo(
-    () => (query ? catalog.filter((s) => fuzzyContains(query, s.name) || (s.catalogCode && fuzzyContains(query, s.catalogCode))) : []),
-    [catalog, query],
-  );
-
   // Search mode → flat results across everything; else drill by family.
   const list = useMemo(() => {
     if (query) {
-      const hits = remote && remote.q.toLowerCase() === query ? remote.list : null;
-      const local = narrowed ? localHits.filter(offeredBy) : localHits;
-      // A 200 with zero hits (the server's own search misses Cyrillic and
-      // some spelling variants — T1-06) must still fall through to the local
-      // match, so `hits` alone (truthy even when empty) isn't enough here.
-      if (hits && hits.length) {
-        // Keep the catalog view (catalog_only) when it loaded: drop non-catalog hits.
-        const byId = new Map(catalog.map((s) => [s.id, s]));
-        const server = byId.size ? hits.flatMap((h) => byId.get(h.id) ?? []) : narrowed ? hits.filter(offeredBy) : hits;
-        const seen = new Set(server.map((s) => s.id));
-        return [...server, ...local.filter((s) => !seen.has(s.id))];
-      }
-      return local;
+      if (!remote || remote.q.toLowerCase() !== query) return [];
+      return narrowed ? remote.list.filter(offeredBy) : remote.list;
     }
     if (!cat || !subcat) return [];
     // MD's recommended sort: services inside a subcategory alphabetically by title.
     return catServices.filter((s) => (s.subcategory || NO_SUBCAT) === subcat).sort((a, b) => a.name.localeCompare(b.name, locale));
-  }, [catalog, cat, subcat, query, remote, narrowed, offeredBy, localHits, catServices, locale]);
+  }, [cat, subcat, query, remote, narrowed, offeredBy, catServices, locale]);
 
   // Deep link from the AI offer cards (?service=<id>) opens that service's order
   // modal once the catalog is loaded; a service outside the catalog list is
@@ -687,6 +700,12 @@ export default function ClientServices() {
                       {t("sendToLawyer")}
                     </button>
                     {hasDoc ? (
+                      <button type="button" className="svc__act svc__act--view" onClick={() => router.push(`/portal/client/services/document/${s.id}/view`)}>
+                        <IconEye />
+                        {t("viewDoc")}
+                      </button>
+                    ) : null}
+                    {hasDoc ? (
                       <button type="button" className="svc__act svc__act--fill" onClick={() => router.push(`/portal/client/services/document/${s.id}`)}>
                         {t("fillDoc")}
                         <span className="svc__soon">{t("comingSoon")}</span>
@@ -819,6 +838,8 @@ export default function ClientServices() {
           </div>
         )}
       </Modal>
+
+      <ManualDocPlanGate open={planGateOpen} onClose={() => setPlanGateOpen(false)} message={planGateMsg} />
     </div>
   );
 }

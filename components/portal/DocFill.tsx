@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { previewDocumentRequest, getServiceTemplateSourceFile, requestServiceDocumentLawyer, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
-import { preopenTab, showBlob, saveBlob, closeTab } from "@/lib/download";
+import { preopenTab, showBlob, closeTab } from "@/lib/download";
 import { docxToTree } from "@/lib/docxParse";
 import {
   MAX_DIGITS,
@@ -164,22 +164,6 @@ export default function DocFill({
       setSourceBusy(false);
     }
   }
-  async function downloadSource() {
-    if (!sourceFile?.hasSourceFile || sourceBusy) return;
-    setSourceErr(false);
-    setSourceBusy(true);
-    try {
-      const blob = await getServiceTemplateSourceFile(
-        sourceFile.cleanSourceFileUrl || sourceFile.cleanSourceFileInlineUrl || sourceFile.sourceFileUrl || sourceFile.sourceFileInlineUrl,
-      );
-      saveBlob(blob, sourceFile.sourceFileName || "template");
-    } catch {
-      setSourceErr(true);
-    } finally {
-      setSourceBusy(false);
-    }
-  }
-
   // LEXGO_SERVICE_DOCUMENT_ASSIST_FLOW_2026-09-22.md §4: no lawyer_user_id in
   // the request body means the backend auto-assigns it to a call-center
   // agent — this is the real "become a lead" action, not just a link to the
@@ -497,7 +481,9 @@ export default function DocFill({
           fallbackText={preview?.previewText}
           sourceFileName={sourceFile?.sourceFileName}
           onViewSource={sourceFile?.hasSourceFile ? viewSource : undefined}
-          onDownloadSource={sourceFile?.hasSourceFile ? downloadSource : undefined}
+          onAskLawyer={sourceFile?.lawyerFlow ? askLawyer : undefined}
+          askLawyerBusy={askBusy}
+          askLawyerSent={askSent}
           sourceBusy={sourceBusy}
           sourceError={sourceErr}
         />

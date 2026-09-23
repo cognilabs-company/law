@@ -1202,6 +1202,72 @@ export async function purchasePlan(
   );
 }
 
+// ── Manual document plan gate ──────────────────────────────────────
+// LEXGO_MANUAL_DOCUMENT_PLAN_FRONTEND.md: template download and self/AI-fill
+// now require a plan whose own `entitlements.manual_document_fill` is true
+// (getSubscriptionPlans() already parses `entitlements` on every plan — see
+// BackendPlan). This is a separate purchase path from purchasePlan()/
+// demoPlanPurchase() above: no payment-provider checkout link at all — the
+// request goes to a Telegram approval chat and the plan activates once
+// someone there approves it, so the response is just a pending receipt, not
+// a payment URL to redirect to.
+export type ManualDocEntitlements = {
+  templates: boolean;
+  templateDownload: boolean;
+  manualFill: boolean;
+  source: string;
+};
+export type ClientEntitlements = {
+  manualDocuments: ManualDocEntitlements;
+  pendingManualDocPlanRequests: string[];
+};
+export async function getClientEntitlements(): Promise<ClientEntitlements> {
+  const d = asDict(await http("/clients/me/entitlements"));
+  const md = asDict(d.manual_documents);
+  return {
+    manualDocuments: {
+      templates: Boolean(md.manual_document_templates),
+      templateDownload: Boolean(md.template_download),
+      manualFill: Boolean(md.manual_document_fill),
+      source: asStr(md.source),
+    },
+    pendingManualDocPlanRequests: asArr(d.pending_manual_document_plan_requests).map((x) => asStr(asDict(x).id ?? x)).filter(Boolean),
+  };
+}
+
+export type ManualDocBillingPeriod = "monthly" | "six_month" | "yearly" | "prepaid_yearly";
+export type ManualDocPlanPurchaseRequest = {
+  id: string;
+  status: string;
+  paymentId: string;
+  planId: string;
+  planSlug: string;
+  amount: number;
+  currency: string;
+  telegramSent: boolean;
+};
+export async function requestManualDocumentPlanPurchase(
+  planId: string,
+  billingPeriod: ManualDocBillingPeriod,
+): Promise<ManualDocPlanPurchaseRequest> {
+  const d = asDict(
+    await http(`/subscription-plans/${encodeURIComponent(planId)}/telegram-purchase-request`, {
+      method: "POST",
+      body: JSON.stringify({ billing_period: billingPeriod, currency: "UZS" }),
+    }),
+  );
+  return {
+    id: asStr(d.id),
+    status: asStr(d.status),
+    paymentId: asStr(d.payment_id),
+    planId: asStr(d.plan_id, planId),
+    planSlug: asStr(d.plan_slug),
+    amount: asNum(d.amount),
+    currency: asStr(d.currency, "UZS"),
+    telegramSent: Boolean(d.telegram_sent),
+  };
+}
+
 // ── Payments ──────────────────────────────────────────────────────
 // Provider sent to the real checkout endpoints (/gifts, /promotions/checkout).
 // Production has the demo provider disabled and Payme/Click answer 503 until
@@ -1268,6 +1334,13 @@ export type TemplateQuestion = {
   placeholder?: string;
   hint?: string;
   options?: string[];
+  // LEXGO_MANUAL_DOCUMENT_PLAN_FRONTEND.md: the backend now numbers every
+  // field top-to-bottom (`order`/`sort_order`, either name) — sortFields()
+  // below is the single place that ordering is applied, so every one of
+  // this function's 4 call sites renders fields in the same real order
+  // regardless of whatever order the JSON array itself happened to list
+  // them in.
+  order?: number;
 };
 
 // `name` and `key` are the same on every production field, but each endpoint
@@ -1279,6 +1352,7 @@ function normQuestion(q: unknown): TemplateQuestion {
     const od = asDict(o);
     return asStr(od.value ?? od.label) || asStr(o);
   }).filter(Boolean);
+  const orderRaw = x.order ?? x.sort_order;
   return {
     name,
     label: asStr(x.label) || name,
@@ -1288,7 +1362,23 @@ function normQuestion(q: unknown): TemplateQuestion {
     placeholder: asStr(x.placeholder ?? x.example) || undefined,
     hint: asStr(x.hint ?? x.tooltip) || undefined,
     options: opts.length ? opts : undefined,
+    order: typeof orderRaw === "number" ? orderRaw : undefined,
   };
+}
+// Stable: a field with no `order` at all keeps its original position
+// relative to other order-less fields, just sorted after every field that
+// does have one — never reshuffled by a plain numeric-vs-undefined compare.
+function sortFields(fields: TemplateQuestion[]): TemplateQuestion[] {
+  return fields
+    .map((f, i) => ({ f, i }))
+    .sort((a, b) => {
+      const ao = a.f.order, bo = b.f.order;
+      if (ao != null && bo != null) return ao - bo || a.i - b.i;
+      if (ao != null) return -1;
+      if (bo != null) return 1;
+      return a.i - b.i;
+    })
+    .map(({ f }) => f);
 }
 
 export type BackendTemplate = {
@@ -1318,7 +1408,7 @@ function normTemplate(v: unknown): BackendTemplate {
     visibility: asStr(d.visibility, "client"),
     isActive: d.is_active !== false,
     templateText: asStr(d.template_text ?? d.body ?? d.content),
-    questionnaire: asArr(d.fields ?? d.questionnaire).map(normQuestion),
+    questionnaire: sortFields(asArr(d.fields ?? d.questionnaire).map(normQuestion)),
   };
 }
 
@@ -1398,7 +1488,7 @@ export type ServiceDocumentFields = {
 };
 export async function getServiceDocumentFields(serviceId: string): Promise<ServiceDocumentFields> {
   const d = asDict(await http(`/services/${serviceId}/document-fields`));
-  const fields = asArr(d.fields).map(normQuestion);
+  const fields = sortFields(asArr(d.fields).map(normQuestion));
   const ai = d.ai_flow ? asDict(d.ai_flow) : null;
   const lawyer = d.lawyer_flow ? asDict(d.lawyer_flow) : null;
   return {
@@ -1440,7 +1530,7 @@ export async function getServiceDocumentAiQuestions(
   language: string,
 ): Promise<{ questions: TemplateQuestion[]; questionCount: number; generateUrl: string; note: string }> {
   const d = asDict(await http(questionsUrl, { method: "POST", body: JSON.stringify({ need, language }) }));
-  const questions = asArr(d.questions).map(normQuestion);
+  const questions = sortFields(asArr(d.questions).map(normQuestion));
   return {
     questions,
     questionCount: asNum(d.question_count, questions.length),
@@ -1679,7 +1769,7 @@ function normDocRequest(v: unknown): DocumentRequest {
     price: uzs(d, "price"),
     currency: asStr(d.currency, "UZS"),
     // `fields` is what every other document endpoint calls this array.
-    questionnaire: asArr(asArr(d.questionnaire).length ? d.questionnaire : d.fields).map(normQuestion),
+    questionnaire: sortFields(asArr(asArr(d.questionnaire).length ? d.questionnaire : d.fields).map(normQuestion)),
     answers: (d.answers as Record<string, unknown>) ?? {},
     createdAt: asStr(d.created_at),
     paid: typeof d.paid === "boolean" ? d.paid : undefined,

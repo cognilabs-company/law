@@ -3,7 +3,7 @@
 import { createElement, useCallback, useEffect, useMemo, useRef, type ElementType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { splitFilledText, type DocSeg, type DocTree } from "@/lib/docTemplate";
-import { IconDownload, IconExternal } from "@/components/icons";
+import { IconCheck, IconExternal, IconHeadset } from "@/components/icons";
 
 // The document itself, filled in as the client types.
 //
@@ -31,12 +31,16 @@ export default function DocPaper({
   onPick,
   fallbackText,
   // The template's own blank source file (service-scoped documents only) —
-  // shown as a small "view the original" / "download" pair next to the
-  // preview badge. Fetching happens in the caller; this component only
-  // renders the button and shows sourceBusy while it's in flight.
+  // shown as a small "view the original" button next to the preview badge.
+  // Fetching happens in the caller; this component only renders the button
+  // and shows sourceBusy while it's in flight. There is deliberately no
+  // download button here — filling still costs money, so the toolbar's
+  // second slot sends the draft to a lawyer instead (onAskLawyer).
   sourceFileName,
   onViewSource,
-  onDownloadSource,
+  onAskLawyer,
+  askLawyerBusy,
+  askLawyerSent,
   sourceBusy,
   sourceError,
 }: {
@@ -56,7 +60,9 @@ export default function DocPaper({
   fallbackText?: string;
   sourceFileName?: string;
   onViewSource?: () => void;
-  onDownloadSource?: () => void;
+  onAskLawyer?: () => void;
+  askLawyerBusy?: boolean;
+  askLawyerSent?: boolean;
   sourceBusy?: boolean;
   sourceError?: boolean;
 }) {
@@ -334,9 +340,16 @@ export default function DocPaper({
               <IconExternal />
               {t("viewSource")}
             </button>
-            {onDownloadSource ? (
-              <button type="button" className="docpaper__srcbtn docpaper__srcbtn--icon" onClick={onDownloadSource} disabled={sourceBusy} aria-label={t("downloadSource")} title={t("downloadSource")}>
-                <IconDownload />
+            {onAskLawyer ? (
+              <button
+                type="button"
+                className={`docpaper__srcbtn docpaper__srcbtn--icon${askLawyerSent ? " docpaper__srcbtn--sent" : ""}`}
+                onClick={onAskLawyer}
+                disabled={askLawyerBusy || askLawyerSent}
+                aria-label={askLawyerSent ? t("askLawyerSent") : t("askLawyer")}
+                title={askLawyerSent ? t("askLawyerSent") : t("askLawyer")}
+              >
+                {askLawyerSent ? <IconCheck /> : <IconHeadset />}
               </button>
             ) : null}
           </span>

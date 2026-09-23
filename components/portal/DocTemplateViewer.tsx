@@ -1,11 +1,12 @@
 "use client";
 
-import { createElement, useEffect, useState, type ElementType, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import { Skeleton } from "./DataState";
 import { docxToTree } from "@/lib/docxParse";
 import type { DocTree } from "@/lib/docTemplate";
+import { renderDocTree } from "@/lib/docTreeRender";
 import { saveBlob } from "@/lib/download";
 import { IconDownload } from "@/components/icons";
 
@@ -14,28 +15,9 @@ import { IconDownload } from "@/components/icons";
 // a DOCX just flashes a blank tab and silently forces a download instead of
 // showing anything. This actually renders the document, inline, in a modal —
 // reusing the exact XML→DocTree pipeline DocFill's own live pane already
-// uses (lib/docxParse.ts), just without any interactive token/answer wiring:
-// a clean-source-file has no {{field}}/{field} markers left to bind to (the
-// backend already replaces them with literal "________ (label)" text), so
-// every node here is plain text/paragraph structure. "Download" stays one
-// tap away underneath, for whoever actually wants the file saved.
-function renderTree(tree: DocTree[]): ReactNode {
-  let seq = 0;
-  const render = (n: DocTree): ReactNode => {
-    const key = seq++;
-    if (n.k === "text") return <span key={key}>{n.v}</span>;
-    // A clean file has nothing left to resolve a token against — shown as
-    // its own label rather than silently dropped, so a template this
-    // couldn't fully clean is still legible rather than missing words.
-    if (n.k === "tok") return <span key={key}>{`________ (${n.name})`}</span>;
-    // createElement, not JSX, for a dynamic tag — see DocPaper.tsx's own
-    // identical comment: @react-three/fiber's global JSX.IntrinsicElements
-    // augmentation collapses <Tag> to `never` here too.
-    const Tag = n.tag as ElementType;
-    return createElement(Tag, { key, style: n.style }, n.children.map(render));
-  };
-  return tree.map(render);
-}
+// uses (lib/docxParse.ts). "Download" stays one tap away underneath, for
+// whoever actually wants the file saved (unlike the no-download full-page
+// viewer at services/document/[serviceId]/view, which never offers this).
 
 export default function DocTemplateViewer({
   open,
@@ -97,7 +79,7 @@ export default function DocTemplateViewer({
       ) : (
         <>
           <div className="docpaper__scroll" style={{ maxHeight: "60vh" }}>
-            <article className="docpaper__sheet docpaper__sheet--doc">{tree ? renderTree(tree) : null}</article>
+            <article className="docpaper__sheet docpaper__sheet--doc">{tree ? renderDocTree(tree) : null}</article>
           </div>
           <button
             type="button"

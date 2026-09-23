@@ -14,10 +14,12 @@ import {
 } from "@/lib/services/backend";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocumentLawyerAssist from "./DocumentLawyerAssist";
+import ManualDocPlanGate from "./ManualDocPlanGate";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
+import { ApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
-import { IconList, IconHeadset, IconChevronLeft } from "@/components/icons";
+import { IconList, IconHeadset, IconChevronLeft, IconLock } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
@@ -47,6 +49,11 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
   // backend, it's just never offered here any more.
   const [mode, setMode] = useState<Mode>("manual");
   const starting = useRef(false);
+  // LEXGO_MANUAL_DOCUMENT_PLAN_FRONTEND.md: "" = not gated; a non-empty
+  // string is the backend's own 402 message, and switches the whole screen
+  // to the plan-purchase prompt instead of the normal template/fill flow.
+  const [planRequired, setPlanRequired] = useState("");
+  const [planGateOpen, setPlanGateOpen] = useState(false);
 
   // Reset when a different service is opened — during render, not an effect
   // (see DocumentRequestPanel for why), so the new fetch below starts clean.
@@ -60,6 +67,8 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
     setErr(false);
     setResumed(false);
     setMode("manual");
+    setPlanRequired("");
+    setPlanGateOpen(false);
   }
 
   useEffect(() => {
@@ -89,7 +98,11 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
         if (f?.lawyerFlow) setMode("choose");
         onTitle?.(r.name);
       })
-      .catch(() => alive && setErr(true))
+      .catch((e) => {
+        if (!alive) return;
+        if (e instanceof ApiError && e.status === 402 && e.code === "manual_document_plan_required") setPlanRequired(e.detail || t("planRequired"));
+        else setErr(true);
+      })
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
@@ -150,6 +163,24 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
   }, [tpl, resumed, req, busy, err, mode]);
 
   if (loading || (tpl && mode === "manual" && tpl.questionnaire.length === 0 && !req && !err)) return <Skeleton rows={3} />;
+
+  if (planRequired)
+    return (
+      <div className="cform" style={{ maxWidth: "none" }}>
+        <div className="docassist__head">
+          <span className="docassist__i docassist__i--lawyer"><IconLock /></span>
+          <div>
+            <b>{t("planGateTitle")}</b>
+            <p className="advmuted">{planRequired}</p>
+          </div>
+        </div>
+        <button className="btn btn--grad btn--full btn--lg" type="button" onClick={() => setPlanGateOpen(true)}>
+          {t("choosePlan")}
+        </button>
+        <ManualDocPlanGate open={planGateOpen} onClose={() => setPlanGateOpen(false)} message={planRequired} />
+      </div>
+    );
+
   if (!tpl) return <Notice ok={false} msg={t("error")} />;
 
   if (mode === "choose")

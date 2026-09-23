@@ -1525,18 +1525,18 @@ body:has(.rf) .fab{display:none}
    grid itself grew; now the illustration is the card's dominant element,
    not a small icon with a lot of empty padding around it. position:relative
    is load-bearing — next/image's `fill` sizes itself against this box, not
-   its own intrinsic dimensions. */
-/* Fixed light tile behind every illustration/icon, deliberately the SAME in
-   both themes (not var(--dk-*)) — the PNGs are opaque (no alpha channel,
-   verified against the real files), a flat white/near-white background
-   baked into the image itself. Left to sit directly on the card, that
-   background blends fine on the light card surface but reads as a glaring
-   white rectangle once the card itself goes dark; framing it in its own
-   always-light tile makes the white intentional instead of a clash, and
-   gives icon-fallback categories the same tile treatment for a consistent
-   grid either way. */
-.svfam__i{position:relative;width:100%;aspect-ratio:4/3;max-width:none;display:grid;place-items:center;background:#F2F5FA;border-radius:14px;padding:10px;box-sizing:border-box}
-.svfam__i svg{width:72px;height:72px;color:var(--b600)}
+   its own intrinsic dimensions.
+   No background tile here: an earlier pass added one because the PNGs then
+   in use were opaque (no alpha, a flat white background baked in) and read
+   as a glaring white rectangle once the card itself went dark. Every
+   illustration file has since been replaced with a real alpha-transparent
+   version (verified pixel-by-pixel, not just the PNG color-type byte — a
+   file can claim an RGBA color type while still being 100% opaque; these
+   genuinely sample down to alpha 0 at the corners), so the tile's own flat
+   background was left doing nothing but showing through the new
+   transparency as its own unwanted rectangle — the bug, not the fix. */
+.svfam__i{position:relative;width:100%;aspect-ratio:4/3;max-width:none;display:grid;place-items:center}
+.svfam__i svg{width:72px;height:72px;color:var(--dk-acc, var(--b600))}
 .svfam__t{display:flex;flex-direction:column;gap:3px;min-width:0}
 .svfam__t b{font-size:1.02rem;font-family:var(--fb);font-weight:700}
 .svfam__t small{font-size:.8rem;color:var(--gray)}
@@ -1571,6 +1571,7 @@ body:has(.rf) .fab{display:none}
 .svc__act:active{transform:scale(.95)}
 .svc__act:disabled{opacity:.6;cursor:default;transform:none}
 .svc__act--dl{color:var(--dk-acc-strong, var(--b700));border-color:var(--b200);background:var(--b50)}
+.svc__act--view{color:var(--ink2, var(--ink));border-color:var(--line);background:var(--dk-surface-2, #F7FAFE)}
 /* Back to this app's own real, everywhere-else gradient (--grad — same as
    .btn--grad, .mkt__act--ai, ...) — tried gold (this project's "Pro" accent)
    and violet in between, neither was it. border:none, not border-color:
@@ -4170,7 +4171,10 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docpaper__srcbtn:disabled{opacity:.5;cursor:default}
 .docpaper__srcbtn svg{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:2}
 .docpaper__srcbtn--icon{padding:5px}
+.docpaper__srcbtn--sent{color:var(--dk-txt-ok, #0a7d55)}
 .docpaper__srcerr{color:var(--dk-txt-err, #C0392B);font-size:.76rem;margin-top:-4px}
+.docview__hint{display:flex;align-items:center;gap:6px;color:var(--gray);font-size:.8rem;margin:0 0 10px}
+.docview__hint svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:2}
 .docpaper__scroll{flex:1;min-height:200px;overflow-y:auto;overscroll-behavior:contain;border-radius:var(--rl);background:var(--dk-surface-2, #EDF2FA);padding:clamp(10px,1.6vw,18px);box-shadow:inset 0 0 0 1.5px var(--line);scrollbar-width:thin}
 .docpaper__sheet{display:block;position:relative;isolation:isolate;min-height:100%;background:#fff;color:#14213d;border-radius:8px;box-shadow:var(--s2);
   padding:clamp(22px,3vw,44px) clamp(18px,3vw,50px);
