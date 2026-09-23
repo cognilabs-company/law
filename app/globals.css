@@ -2402,6 +2402,14 @@ body:has(.schat) .fab{display:none}
    "step 1 / step 2" read, matching the rest of the portal's panel language. */
 .docassist__sec{background:var(--dk-surface-2, #F7F9FC);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:10px}
 .docassist__sec textarea{background:var(--dk-surface, #fff)}
+/* Two columns instead of one long stacked column — the claimed-request
+   workspace (ClaimedRequestWorkspace.tsx) has enough sections (need,
+   template, editor, meeting, finalize) that stacking them all in the modal's
+   existing 980px width read as "the modal is too big" — it wasn't too WIDE,
+   it was too TALL. Same width, roughly half the scroll. */
+.docassist--split{display:grid;grid-template-columns:1fr 1fr;align-items:start}
+.docassist--col{display:flex;flex-direction:column;gap:18px;min-width:0}
+@media (max-width:720px){.docassist--split{grid-template-columns:1fr}}
 .docassist__sech{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:-3px}
 .docassist__sech label{margin-bottom:0}
 

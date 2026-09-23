@@ -30,6 +30,7 @@ import OrderPayment from "@/components/portal/OrderPayment";
 import ServicePassport from "@/components/portal/ServicePassport";
 import ServiceDocumentRequest from "@/components/portal/ServiceDocumentRequest";
 import ManualDocPlanGate from "@/components/portal/ManualDocPlanGate";
+import AiPlanUpgradeGate from "@/components/portal/AiPlanUpgradeGate";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { useIsFreeAiTier } from "@/lib/useAiTier";
 import { fmtUzs } from "@/lib/money";
@@ -289,8 +290,13 @@ export default function ClientServices() {
   // card render.
   const [planGateOpen, setPlanGateOpen] = useState(false);
   const [planGateMsg, setPlanGateMsg] = useState("");
+  // Buying the Lite/Pro upgrade this gates on used to send the client away
+  // to /portal/client/subscription to find their way back after — now opens
+  // right here instead (same real purchase PlansPanel.tsx's own "choose"
+  // uses, see AiPlanUpgradeGate.tsx).
+  const [aiPlanGateOpen, setAiPlanGateOpen] = useState(false);
   async function handleDownload(s: BackendService) {
-    if (isFreeTier) { router.push("/portal/client/subscription"); return; }
+    if (isFreeTier) { setAiPlanGateOpen(true); return; }
     if (dlBusy) return;
     setDlErr(null);
     setDlBusy(s.id);
@@ -866,6 +872,7 @@ export default function ClientServices() {
       </Modal>
 
       <ManualDocPlanGate open={planGateOpen} onClose={() => setPlanGateOpen(false)} message={planGateMsg} />
+      <AiPlanUpgradeGate open={aiPlanGateOpen} onClose={() => setAiPlanGateOpen(false)} />
     </div>
   );
 }

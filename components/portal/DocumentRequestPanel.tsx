@@ -21,6 +21,7 @@ import { base64Blob, closeTab, extFromMime, mimeFromName, preopenTab, saveBlob, 
 import { normalizeAnswers } from "@/lib/docTemplate";
 import ContractSign from "./ContractSign";
 import DocFill, { loadDraft, clearDraft } from "./DocFill";
+import DocTemplateViewer from "./DocTemplateViewer";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Notice } from "@/components/admin/AdminBits";
@@ -46,7 +47,10 @@ type Stage = "answers" | "pay" | "generating" | "lawyerReview" | "pending" | "do
 function stageFor(r: DocumentRequest): Stage {
   if (r.status === "file_ready") return "done";
   if (!r.status || r.status === "questionnaire" || r.status === "draft") return "answers";
-  if (r.status === "lawyer_review") return "lawyerReview";
+  // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: the call-center pool
+  // flow's request sits at "open_pool" (unclaimed) then "claimed" — both are
+  // the same "a human is on this" wait screen "lawyer_review" already shows.
+  if (r.status === "lawyer_review" || r.status === "open_pool" || r.status === "claimed") return "lawyerReview";
   if (r.status === "awaiting_payment" && !isDocPaymentSkipped(r)) return "pay";
   if (r.status === "ready_to_generate" || isDocPaymentSkipped(r)) return "generating";
   return "pending";
@@ -61,6 +65,15 @@ function deliverFile(blob: Blob, fileName: string, download: boolean, win: Windo
   } else {
     showBlob(blob, fileName, win);
   }
+}
+
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+// No browser has a native DOCX viewer — pointing a tab's location at a
+// blob: URL of one just forces a save dialog despite the "open" intent,
+// indistinguishable from a download to whoever clicked it. A PDF renders
+// fine the same way, so only DOCX needs the inline-viewer detour.
+function isDocxFile(blob: Blob, fileName: string): boolean {
+  return blob.type === DOCX_MIME || /\.docx$/i.test(fileName);
 }
 
 // Older requests may still carry the file inline as base64.
@@ -112,6 +125,10 @@ export default function DocumentRequestPanel({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  // Set instead of opening a tab whenever the generated file is a DOCX (see
+  // deliver() inside getFile below) — DocTemplateViewer then renders it
+  // inline the same way it already does for template previews.
+  const [viewerFile, setViewerFile] = useState<{ blob: Blob; name: string } | null>(null);
 
   // Whichever field list is actually populated. The service-scoped create
   // relies on the backend echoing the questionnaire onto the request; the
@@ -307,6 +324,14 @@ export default function DocumentRequestPanel({
     const win = download ? null : preopenTab();
     setPdfBusy(true);
     setNote(null);
+    function deliver(blob: Blob, name: string) {
+      if (!download && isDocxFile(blob, name)) {
+        closeTab(win);
+        setViewerFile({ blob, name });
+        return;
+      }
+      deliverFile(blob, name, download, win);
+    }
     try {
       let blob: Blob;
       try {
@@ -317,12 +342,12 @@ export default function DocumentRequestPanel({
         blob = await getDocumentRequestFile(req.id);
       }
       const name = req.contractFile?.fileName || `lexgo-${req.id}.${extFromMime(blob.type) || "pdf"}`;
-      deliverFile(blob, name, download, win);
+      deliver(blob, name);
     } catch (e) {
       const inline = inlineBlob(req.contractFile);
       if (inline && statusOf(e) !== 402) {
         const name = req.contractFile?.fileName || `lexgo-${req.id}.${extFromMime(inline.type) || "pdf"}`;
-        deliverFile(inline, name, download, win);
+        deliver(inline, name);
       } else {
         closeTab(win);
         if (statusOf(e) === 402) {
@@ -477,6 +502,13 @@ export default function DocumentRequestPanel({
           {req.contractId ? <ContractSign contractId={req.contractId} /> : null}
         </div>
       ) : null}
+      <DocTemplateViewer
+        open={!!viewerFile}
+        onClose={() => setViewerFile(null)}
+        title={viewerFile?.name || t("fileGeneric")}
+        fetchBlob={viewerFile ? () => Promise.resolve(viewerFile.blob) : null}
+        fileName={viewerFile?.name || t("fileGeneric")}
+      />
     </div>
   );
 }

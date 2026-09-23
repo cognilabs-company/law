@@ -1,31 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   listMyLawyerDocumentRequests,
   fulfillLawyerDocumentRequestFile,
   getServiceTemplateSourceFile,
+  getDocumentRequestPool,
+  claimDocumentRequest,
   type LawyerDocumentRequest,
+  type DocumentRequestPoolItem,
 } from "@/lib/services/backend";
-import { ApiError } from "@/lib/http";
+import { ApiError, isConflict } from "@/lib/http";
 import { fetchAndDeliver } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
 import { humanizeSlug } from "@/lib/lawyers";
+import { subscribeUserEvents } from "@/lib/userSocket";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
+import ClaimedRequestWorkspace from "./ClaimedRequestWorkspace";
 import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
-import { IconFileText, IconUser, IconPhone, IconCheck, IconEye, IconDownload, IconUpload } from "@/components/icons";
+import { IconFileText, IconUser, IconPhone, IconCheck, IconEye, IconDownload, IconUpload, IconAlert } from "@/components/icons";
 
-// LEXGO_LAWYER_DOCUMENT_FILE_FLOW_FRONTEND.md: the queue of client "prepare
-// with a lawyer" document requests assigned to this account. Not role-gated
-// to "lawyer" on the backend (owner / documents.manage / call-center can all
-// see and fulfill), so this same component is mounted under both
-// /portal/lawyer and /portal/advocate — see SellerCases.tsx for the same
-// ns-prop sharing convention this follows.
+// LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: a client's "Advokat
+// bilan to'ldirish" request no longer names a lawyer — it lands in a shared
+// pool (below) and whichever call-center advocate claims it first works it,
+// through ClaimedRequestWorkspace's editor/meeting/finalize flow. The older,
+// upload-a-finished-file FulfillModal stays as-is for a request that never
+// went through claim (no editorUrl) — LEXGO_LAWYER_DOCUMENT_FILE_FLOW_FRONTEND.md's
+// flow, still real for however many of those are already in flight.
+// Not role-gated to "lawyer" on the backend (owner / documents.manage /
+// call-center can all see and act), so this same component is mounted under
+// both /portal/lawyer and /portal/advocate — see SellerCases.tsx for the
+// same ns-prop sharing convention this follows.
 export default function DocumentRequestsInbox({ ns }: { ns: string }) {
   const t = useTranslations(ns);
   const tcm = useTranslations("portal.common");
@@ -34,10 +44,50 @@ export default function DocumentRequestsInbox({ ns }: { ns: string }) {
   const rows = useResource<LawyerDocumentRequest>(listMyLawyerDocumentRequests, [reloadKey]);
   const [target, setTarget] = useState<LawyerDocumentRequest | null>(null);
 
+  const [poolReloadKey, setPoolReloadKey] = useState(0);
+  const pool = useResource<DocumentRequestPoolItem>(getDocumentRequestPool, [poolReloadKey]);
+  // Claimed (by us or by someone else, via 409) cards are hidden right away
+  // rather than waiting on the next poolReloadKey fetch to land.
+  const [gone, setGone] = useState<Set<string>>(new Set());
+  const poolVisible = pool.data.filter((p) => !gone.has(p.id));
+
+  // Realtime — no polling: another advocate claiming a pooled request, or a
+  // new one landing, refreshes this list the instant it happens.
+  useEffect(() => {
+    return subscribeUserEvents((e) => {
+      if (e.event === "document_request.pool_created" || e.event === "document_request.claimed" || e.event === "document_request.pool_removed") {
+        setPoolReloadKey((k) => k + 1);
+      }
+    });
+  }, []);
+
+  function onClaimed(id: string) {
+    setGone((s) => new Set(s).add(id));
+    setReloadKey((k) => k + 1);
+  }
+
   return (
     <div className="ppanel">
+      {poolVisible.length || pool.status === "loading" ? (
+        <>
+          <div className="ppanel__h">
+            <b>{t("pool")}</b>
+            <span className="advmuted">{poolVisible.length}</span>
+          </div>
+          {pool.status === "loading" ? (
+            <Skeleton rows={2} />
+          ) : (
+            <div className="pcards" style={{ marginBottom: 24 }}>
+              {poolVisible.map((p) => (
+                <PoolCard key={p.id} item={p} ns={ns} onClaimed={() => onClaimed(p.id)} onTaken={() => setGone((s) => new Set(s).add(p.id))} />
+              ))}
+            </div>
+          )}
+        </>
+      ) : null}
+
       <div className="ppanel__h">
-        <b>{t("title")}</b>
+        <b>{t("myWork")}</b>
         <span className="advmuted">{rows.data.length}</span>
       </div>
       {rows.status === "loading" ? (
@@ -64,7 +114,87 @@ export default function DocumentRequestsInbox({ ns }: { ns: string }) {
         </div>
       )}
 
-      <FulfillModal ns={ns} target={target} onClose={() => setTarget(null)} onDone={() => setReloadKey((k) => k + 1)} />
+      {/* A claimed record (has editorUrl) opens the new editor/meeting/
+          finalize workspace; an older one (no editorUrl — never went
+          through claim) still opens the upload-a-file FulfillModal below. */}
+      <ClaimedRequestWorkspace
+        ns={ns}
+        target={target?.editorUrl ? target : null}
+        onClose={() => setTarget(null)}
+        onDone={() => setReloadKey((k) => k + 1)}
+      />
+      <FulfillModal ns={ns} target={target?.editorUrl ? null : target} onClose={() => setTarget(null)} onDone={() => setReloadKey((k) => k + 1)} />
+    </div>
+  );
+}
+
+// One open-pool card: a claim button that turns into a taken/claimed badge,
+// same accept/decline/taken shape as OrderActions.tsx elsewhere in the
+// portal (.pcase__act/.pcase__done/.pcase__err) — not a bespoke look.
+function PoolCard({
+  item,
+  ns,
+  onClaimed,
+  onTaken,
+}: {
+  item: DocumentRequestPoolItem;
+  ns: string;
+  onClaimed: () => void;
+  onTaken: () => void;
+}) {
+  const t = useTranslations(ns);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<"" | "claimed" | "taken">("");
+  const [err, setErr] = useState(false);
+
+  async function claim() {
+    if (busy || done) return;
+    setBusy(true);
+    setErr(false);
+    try {
+      await claimDocumentRequest(item.claimUrl);
+      setDone("claimed");
+      onClaimed();
+    } catch (e) {
+      if (isConflict(e)) {
+        setDone("taken");
+        onTaken();
+      } else {
+        setErr(true);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="pcase">
+      <div className="pcase__h">
+        <span className="pcase__client">
+          <IconUser />
+          {item.clientName || item.title || t("title")}
+        </span>
+      </div>
+      {item.serviceName ? <small>{item.serviceName}</small> : null}
+      {item.need ? <p>{item.need}</p> : null}
+      {done === "claimed" ? (
+        <span className="pcase__done pcase__done--accept">
+          <IconCheck />
+          {t("claimedOk")}
+        </span>
+      ) : done === "taken" ? (
+        <span className="pcase__done pcase__done--taken">
+          <IconAlert />
+          {t("claimedByOther")}
+        </span>
+      ) : (
+        <div className="pcase__act">
+          <button className="btn btn--grad btn--sm" type="button" onClick={claim} disabled={busy}>
+            {busy ? t("claiming") : t("claim")}
+          </button>
+          {err ? <span className="pcase__err" role="alert">{t("claimError")}</span> : null}
+        </div>
+      )}
     </div>
   );
 }

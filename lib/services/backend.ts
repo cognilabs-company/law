@@ -1678,6 +1678,12 @@ export type LawyerDocumentRequest = {
   createdAt: string;
   templateFile: LawyerDocTemplateFile | null;
   fulfillFileUrl: string;
+  // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: present once claimed
+  // (status "claimed") — the editor/meeting workspace URLs for this specific
+  // record. Empty for a still-open pool item (nobody has claimed it yet) or
+  // an older request this whole flow doesn't apply to.
+  editorUrl: string;
+  meetingUrl: string;
   request: DocumentRequest;
 };
 function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
@@ -1699,6 +1705,8 @@ function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
     createdAt: asStr(lr.created_at ?? d.created_at),
     templateFile: normLawyerDocTemplateFile(lr.template_file ?? d.template_file),
     fulfillFileUrl: asStr(lr.fulfill_file_url ?? d.fulfill_file_url) || `/lawyers/me/document-requests/${asStr(lr.id ?? d.id)}/fulfill-file`,
+    editorUrl: asStr(lr.editor_url ?? d.editor_url),
+    meetingUrl: asStr(lr.meeting_url ?? d.meeting_url),
     request: normDocRequest(reqRaw),
   };
 }
@@ -1743,6 +1751,155 @@ export async function fulfillLawyerDocumentRequestFile(
       : null,
   };
 }
+
+// ── Call-center document-request pool ──────────────────────────────
+// LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: a client's "Advokat
+// bilan to'ldirish" request no longer names a lawyer — it lands in this
+// shared pool (assignment_mode "callcenter_pool") and whichever call-center
+// advocate claims it first takes it; a second claim answers 409. Once
+// claimed, the SAME record shows up through listMyLawyerDocumentRequests()
+// above (status "claimed") with editorUrl/meetingUrl now populated.
+export type DocumentRequestPoolItem = {
+  id: string;
+  status: string;
+  title: string;
+  clientName: string;
+  clientPhone: string;
+  serviceName: string;
+  need: string;
+  createdAt: string;
+  claimUrl: string;
+};
+function normPoolItem(v: unknown): DocumentRequestPoolItem {
+  const d = asDict(v);
+  const client = asDict(d.client);
+  const service = asDict(d.service);
+  return {
+    id: asStr(d.id),
+    status: asStr(d.status),
+    title: asStr(d.title) || asStr(service.title) || asStr(service.name),
+    clientName: asStr(client.name),
+    clientPhone: asStr(client.phone),
+    serviceName: asStr(service.title) || asStr(service.name),
+    need: asStr(d.need),
+    createdAt: asStr(d.created_at),
+    claimUrl: asStr(d.claim_url) || `/call-center/document-requests/${asStr(d.id)}/claim`,
+  };
+}
+// The doc's own alias, /callcenter/... (no hyphen), answers identically —
+// this one matches the hyphenated form the doc leads with everywhere else.
+export async function getDocumentRequestPool(): Promise<DocumentRequestPoolItem[]> {
+  return listFrom(await http("/call-center/document-requests/open"), "items", "data").map(normPoolItem);
+}
+export type ClaimDocumentRequestResult = {
+  documentRequestStatus: string;
+  lawyerRequestStatus: string;
+  editorUrl: string;
+  meetingUrl: string;
+};
+// 409 on a request someone else already claimed — ApiError carries that
+// status straight through; the caller drops the card from the pool.
+export async function claimDocumentRequest(claimUrl: string): Promise<ClaimDocumentRequestResult> {
+  const d = asDict(await http(claimUrl, { method: "POST", body: JSON.stringify({}) }));
+  const docReq = asDict(d.document_request);
+  const lr = asDict(d.lawyer_request);
+  return {
+    documentRequestStatus: asStr(docReq.status),
+    lawyerRequestStatus: asStr(lr.status),
+    editorUrl: asStr(lr.editor_url),
+    meetingUrl: asStr(lr.meeting_url),
+  };
+}
+
+// ── Claimed request: editor / draft / meeting / finalize ───────────
+// onlyoffice.configured=false until the backend wires a real document
+// server — until then the advocate edits via editorFileDownloadUrl (open
+// the draft DOCX in Word/LibreOffice) or the plain-text draft below, not an
+// embedded OnlyOffice iframe (kept as an untouched passthrough object for
+// when that ships, rather than typed out field by field here).
+export type DocumentRequestEditorSession = {
+  recordId: string;
+  sessionId: string;
+  provider: string;
+  configured: boolean;
+  onlyoffice: Record<string, unknown> | null;
+  editorFileDownloadUrl: string;
+  draftUrl: string;
+  finalizeUrl: string;
+};
+function normEditorSession(v: unknown): DocumentRequestEditorSession {
+  const d = asDict(v);
+  const oo = d.onlyoffice ? asDict(d.onlyoffice) : null;
+  const file = asDict(d.file);
+  return {
+    recordId: asStr(d.record_id),
+    sessionId: asStr(d.session_id),
+    provider: asStr(d.provider),
+    configured: Boolean(oo?.configured),
+    onlyoffice: oo,
+    editorFileDownloadUrl: asStr(file.download_url),
+    draftUrl: asStr(d.draft_url),
+    finalizeUrl: asStr(d.finalize_url),
+  };
+}
+export async function getDocumentRequestEditor(editorUrl: string): Promise<DocumentRequestEditorSession> {
+  return normEditorSession(await http(editorUrl));
+}
+// The advocate's plain-text/HTML draft — used only on the no-OnlyOffice
+// fallback path; ignored once a real document server autosaves instead.
+export async function saveDocumentRequestDraft(
+  draftUrl: string,
+  input: { content_html?: string; content_text?: string; document_json?: unknown },
+): Promise<void> {
+  await http(draftUrl, { method: "PUT", body: JSON.stringify(input) });
+}
+// Same CallSessionOut shape the existing LiveKit calling already returns
+// elsewhere (see CcMeetingButton.tsx's startClientMeeting) — this reuses
+// the app's one CallRoom component rather than a second meeting UI.
+export type DocumentRequestMeeting = {
+  id: string;
+  roomId: string;
+  livekitUrl: string;
+  livekitRoom: string;
+  livekitToken: string;
+};
+function normDocRequestMeeting(v: unknown): DocumentRequestMeeting {
+  const d = asDict(v);
+  return {
+    id: asStr(d.id),
+    roomId: asStr(d.room_id),
+    livekitUrl: asStr(d.livekit_url),
+    livekitRoom: asStr(d.livekit_room),
+    livekitToken: asStr(d.livekit_token),
+  };
+}
+export async function createDocumentRequestMeeting(
+  meetingUrl: string,
+  input: { call_type?: string; title?: string; max_duration_minutes?: number },
+): Promise<DocumentRequestMeeting> {
+  return normDocRequestMeeting(await http(meetingUrl, { method: "POST", body: JSON.stringify(input) }));
+}
+export type FinalizeDocumentRequestResult = {
+  documentRequestStatus: string;
+  lawyerRequestStatus: string;
+  fileDownloadUrl: string;
+  fileInlineUrl: string;
+  fileFormat: string;
+};
+export async function finalizeDocumentRequest(finalizeUrl: string, notes?: string): Promise<FinalizeDocumentRequestResult> {
+  const d = asDict(await http(finalizeUrl, { method: "POST", body: JSON.stringify({ notes: notes || "" }) }));
+  const docReq = asDict(d.request);
+  const lr = asDict(d.lawyer_request);
+  const file = asDict(d.file);
+  return {
+    documentRequestStatus: asStr(docReq.status),
+    lawyerRequestStatus: asStr(lr.status),
+    fileDownloadUrl: asStr(file.download_url),
+    fileInlineUrl: asStr(file.inline_url),
+    fileFormat: asStr(file.format),
+  };
+}
+
 // The backend derives the questionnaire from the service's own template, so
 // `questionnaire` is normally left out; it is accepted here so a caller that
 // already holds the field list can send it and never depend on the echo.
