@@ -142,13 +142,20 @@ export default function DocFill({
   // delivery in the app.
   const [sourceBusy, setSourceBusy] = useState(false);
   const [sourceErr, setSourceErr] = useState(false);
+  // LEXGO_CLEAN_TEMPLATE_DOWNLOAD_FRONTEND.md: what a user views/downloads
+  // must never show {{field}}/{field} markers — clean-source-file (blanks
+  // rendered as ________) is what these two show, not source-file. Falls
+  // back to the marked-up source only for a service the backend hasn't
+  // wired the clean file for yet, so this never regresses to a dead button.
   async function viewSource() {
     if (!sourceFile?.hasSourceFile || sourceBusy) return;
     setSourceErr(false);
     const win = preopenTab();
     setSourceBusy(true);
     try {
-      const blob = await getServiceTemplateSourceFile(sourceFile.sourceFileInlineUrl || sourceFile.sourceFileUrl);
+      const blob = await getServiceTemplateSourceFile(
+        sourceFile.cleanSourceFileInlineUrl || sourceFile.cleanSourceFileUrl || sourceFile.sourceFileInlineUrl || sourceFile.sourceFileUrl,
+      );
       showBlob(blob, sourceFile.sourceFileName || "template", win);
     } catch {
       closeTab(win);
@@ -162,7 +169,9 @@ export default function DocFill({
     setSourceErr(false);
     setSourceBusy(true);
     try {
-      const blob = await getServiceTemplateSourceFile(sourceFile.sourceFileUrl || sourceFile.sourceFileInlineUrl);
+      const blob = await getServiceTemplateSourceFile(
+        sourceFile.cleanSourceFileUrl || sourceFile.cleanSourceFileInlineUrl || sourceFile.sourceFileUrl || sourceFile.sourceFileInlineUrl,
+      );
       saveBlob(blob, sourceFile.sourceFileName || "template");
     } catch {
       setSourceErr(true);

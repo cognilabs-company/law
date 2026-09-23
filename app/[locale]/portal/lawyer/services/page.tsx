@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { getMyServices, putMyServices, getServices } from "@/lib/services/backend";
+import { getMyServices, putMyServices, getAllServices } from "@/lib/services/backend";
 import { useAuth } from "@/lib/auth";
 import { useResource } from "@/lib/useResource";
 import ServiceSelector from "@/components/register/ServiceSelector";
@@ -23,7 +23,10 @@ export default function LawyerServices() {
   const t = useTranslations("portal.lawyer.services");
   const { session } = useAuth();
   const uid = session?.id ?? "";
-  const catalog = useResource(getServices, []);
+  // getAllServices, not getServices: /services is paged now (LEXGO_SERVICES_
+  // CATALOG_OPTIMIZATION_FRONTEND.md) — a seller must be able to pick ANY
+  // catalogue service here, not just whatever's on the first page.
+  const catalog = useResource(() => getAllServices(), []);
   const [sel, setSel] = useState<string[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [agreed, setAgreed] = useState(false);

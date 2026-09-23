@@ -4,18 +4,22 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   listMyLawyerDocumentRequests,
-  fulfillLawyerDocumentRequest,
+  fulfillLawyerDocumentRequestFile,
+  getServiceTemplateSourceFile,
   type LawyerDocumentRequest,
 } from "@/lib/services/backend";
+import { ApiError } from "@/lib/http";
+import { fetchAndDeliver } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
+import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
-import { IconFileText, IconUser, IconCheck } from "@/components/icons";
+import { IconFileText, IconUser, IconPhone, IconCheck, IconEye, IconDownload } from "@/components/icons";
 
-// LEXGO_SERVICE_DOCUMENT_ASSIST_FLOW.md §5: the queue of client "prepare
+// LEXGO_LAWYER_DOCUMENT_FILE_FLOW_FRONTEND.md: the queue of client "prepare
 // with a lawyer" document requests assigned to this account. Not role-gated
 // to "lawyer" on the backend (owner / documents.manage / call-center can all
 // see and fulfill), so this same component is mounted under both
@@ -46,7 +50,7 @@ export default function DocumentRequestsInbox({ ns }: { ns: string }) {
               <div className="pcase__h">
                 <span className="pcase__client">
                   <IconUser />
-                  {r.clientName || r.request.title || t("title")}
+                  {r.clientName || r.title || t("title")}
                 </span>
                 <span className="advmuted">{statusLabel(tcm, r.status || r.request.status)}</span>
               </div>
@@ -64,6 +68,8 @@ export default function DocumentRequestsInbox({ ns }: { ns: string }) {
   );
 }
 
+type FulfillResult = Awaited<ReturnType<typeof fulfillLawyerDocumentRequestFile>>;
+
 function FulfillModal({
   ns,
   target,
@@ -76,60 +82,138 @@ function FulfillModal({
   onDone: () => void;
 }) {
   const t = useTranslations(ns);
-  const [content, setContent] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<FulfillResult | null>(null);
+  const [tplBusy, setTplBusy] = useState<"view" | "download" | "">("");
 
   const [prevId, setPrevId] = useState(target?.id);
   if (target?.id !== prevId) {
     setPrevId(target?.id);
-    setContent("");
+    setFile(null);
     setNotes("");
     setNote(null);
-    setDone(false);
+    setDone(null);
+    setTplBusy("");
   }
 
-  async function fulfill() {
-    if (!target || busy || !content.trim()) return;
+  function pickFile(f: File | null) {
+    setNote(null);
+    if (f && !/\.docx$/i.test(f.name)) {
+      setFile(null);
+      setNote({ ok: false, msg: t("invalidFileType") });
+      return;
+    }
+    setFile(f);
+  }
+
+  // The template is fetched through the authed proxy like every other file
+  // in this app (never a plain link) — clean-source-file, already blank in
+  // place of {{field}} markers per LEXGO_CLEAN_TEMPLATE_DOWNLOAD_FRONTEND.md,
+  // is what template_file.download_url/inline_url already point at.
+  async function openTemplate(mode: "view" | "download") {
+    const tpl = target?.templateFile;
+    if (!tpl?.hasFile || tplBusy) return;
+    setTplBusy(mode);
+    const url = mode === "view" ? tpl.inlineUrl || tpl.downloadUrl : tpl.downloadUrl || tpl.inlineUrl;
+    const ok = await fetchAndDeliver(() => getServiceTemplateSourceFile(url), tpl.fileName || "shablon.docx", mode === "download");
+    if (!ok) setNote({ ok: false, msg: t("templateError") });
+    setTplBusy("");
+  }
+
+  async function openResult() {
+    if (!done?.file) return;
+    const url = done.file.inlineUrl || done.file.downloadUrl;
+    await fetchAndDeliver(() => getServiceTemplateSourceFile(url), done.file?.fileName || "hujjat.docx", false);
+  }
+
+  async function submit() {
+    if (!target || !file || busy) return;
     setBusy(true);
     setNote(null);
     try {
-      await fulfillLawyerDocumentRequest(target.id, { content: content.trim(), notes: notes.trim() || undefined });
-      setDone(true);
+      const result = await fulfillLawyerDocumentRequestFile(target.fulfillFileUrl, file, notes.trim() || undefined);
+      setDone(result);
       onDone();
-    } catch {
-      setNote({ ok: false, msg: t("fulfillError") });
+    } catch (e) {
+      setNote({ ok: false, msg: e instanceof ApiError && e.detail ? e.detail : t("fulfillError") });
     } finally {
       setBusy(false);
     }
   }
 
+  const answerEntries = target ? Object.entries(target.answers).filter(([, v]) => v != null && v !== "") : [];
+
   return (
-    <Modal open={!!target} onClose={onClose} title={target?.clientName || target?.request.title || t("title")} wide>
+    <Modal open={!!target} onClose={onClose} title={target?.clientName || target?.title || t("title")} wide>
       {target ? (
         <div className="cform" style={{ maxWidth: "none" }}>
+          {target.clientPhone ? (
+            <p className="advmuted" style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
+              <IconPhone style={{ width: 14, height: 14 }} />
+              {target.clientPhone}
+            </p>
+          ) : null}
           <div>
             <label>{t("need")}</label>
             <p className="advmuted" style={{ margin: 0 }}>{target.need || "—"}</p>
           </div>
+
+          {answerEntries.length ? (
+            <div>
+              <label>{t("answersLabel")}</label>
+              <div className="oquote">
+                {answerEntries.map(([k, v]) => (
+                  <div className="oquote__row" key={k}>
+                    <span>{humanizeSlug(k)}</span>
+                    <b>{String(v)}</b>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div>
+            <label>{t("templateLabel")}</label>
+            {target.templateFile?.hasFile ? (
+              <div className="chiprow" style={{ margin: "4px 0 0" }}>
+                <button type="button" className="btn btn--line btn--sm" disabled={!!tplBusy} onClick={() => openTemplate("view")}>
+                  <IconEye /> {tplBusy === "view" ? t("processingShort") : t("viewTemplate")}
+                </button>
+                <button type="button" className="btn btn--line btn--sm" disabled={!!tplBusy} onClick={() => openTemplate("download")}>
+                  <IconDownload /> {tplBusy === "download" ? t("processingShort") : t("downloadTemplate")}
+                </button>
+              </div>
+            ) : (
+              <p className="advmuted">{t("noTemplate")}</p>
+            )}
+          </div>
+
           {done ? (
-            <p className="cform__ok">
-              <IconCheck style={{ width: 16, height: 16 }} /> {t("fulfilled")}
-            </p>
+            <>
+              <p className="cform__ok">
+                <IconCheck style={{ width: 16, height: 16 }} /> {t("fulfilled")}
+              </p>
+              {done.file ? (
+                <button type="button" className="btn btn--line btn--full" onClick={openResult}>
+                  <IconDownload /> {t("viewResult")}
+                </button>
+              ) : null}
+            </>
           ) : (
             <>
               <div>
-                <label htmlFor="fulfill-content">{t("contentLabel")}</label>
-                <textarea id="fulfill-content" rows={10} value={content} onChange={(e) => setContent(e.target.value)} />
+                <label htmlFor="fulfill-file">{t("fileLabel")}</label>
+                <input id="fulfill-file" type="file" accept=".docx" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
               </div>
               <div>
                 <label htmlFor="fulfill-notes">{t("notesLabel")}</label>
                 <textarea id="fulfill-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
               {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-              <button className="btn btn--grad btn--full btn--lg" type="button" onClick={fulfill} disabled={busy || !content.trim()}>
+              <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy || !file}>
                 {busy ? t("processingShort") : t("fulfillSubmit")}
               </button>
             </>

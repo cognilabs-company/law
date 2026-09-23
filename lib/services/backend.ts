@@ -614,6 +614,25 @@ export async function getServices(filters?: ServiceFilters, locale = "uz"): Prom
   return listFrom(data, "services", "items", "data").map((v) => normService(v, locale));
 }
 
+// LEXGO_SERVICES_CATALOG_OPTIMIZATION_FRONTEND.md: /services is paged now
+// (max limit 500) — a caller that genuinely needs the WHOLE result set for
+// `filters` (a price/code lookup table, a "pick any service" selector — not
+// a browsing UI, which should filter by category/subcategory instead, see
+// the client services page) loops pages here instead of silently getting
+// only the first one.
+const SERVICES_MAX_PAGE = 500;
+export async function getAllServices(filters?: ServiceFilters, locale = "uz"): Promise<BackendService[]> {
+  const all: BackendService[] = [];
+  let offset = filters?.offset ?? 0;
+  for (;;) {
+    const page = await getServices({ ...filters, limit: SERVICES_MAX_PAGE, offset }, locale);
+    all.push(...page);
+    if (page.length < SERVICES_MAX_PAGE) break;
+    offset += page.length;
+  }
+  return all;
+}
+
 // Catalog search (GET /services/search): the backend normalizes Latin/Cyrillic
 // Uzbek and Russian spellings and matches name, slug, category, subcategory and
 // AI category. q must be non-empty; limit is clamped to 1–50 server-side.
@@ -1477,28 +1496,72 @@ export async function requestServiceDocumentLawyer(
 // "lawyer" specifically — any authed user who owns the record, holds
 // documents.manage, or is a call-center user can see/act on it, so this is
 // mounted identically under both /portal/lawyer and /portal/advocate.
+//
+// LEXGO_LAWYER_DOCUMENT_FILE_FLOW_FRONTEND.md: the real workflow is DOCX in,
+// DOCX out — the lawyer opens the ORIGINAL clean template (never the earlier
+// assumption of a plain-text "document content" field to type into), reads
+// the client's need + answers, edits the DOCX themselves, and uploads the
+// finished file. `template_file.download_url`/`inline_url` already point at
+// clean-source-file (no {{field}} markers) — never source_file for what's
+// shown to the lawyer by default.
+export type LawyerDocTemplateFile = {
+  hasFile: boolean;
+  fileName: string;
+  mimeType: string;
+  downloadUrl: string;
+  inlineUrl: string;
+  // Internal-only fallback (still has {{field}} markers) — never the default
+  // for what the lawyer sees; exists only if a future admin/internal screen
+  // needs it.
+  sourceDownloadUrl: string;
+  sourceInlineUrl: string;
+};
+function normLawyerDocTemplateFile(v: unknown): LawyerDocTemplateFile | null {
+  if (!v) return null;
+  const d = asDict(v);
+  if (!("has_file" in d) && !d.download_url && !d.inline_url) return null;
+  return {
+    hasFile: Boolean(d.has_file),
+    fileName: asStr(d.file_name),
+    mimeType: asStr(d.mime_type),
+    downloadUrl: asStr(d.download_url),
+    inlineUrl: asStr(d.inline_url),
+    sourceDownloadUrl: asStr(d.source_download_url),
+    sourceInlineUrl: asStr(d.source_inline_url),
+  };
+}
 export type LawyerDocumentRequest = {
   id: string; // the lawyer_request record id — what detail/fulfill URLs key on
   need: string;
   status: string;
+  title: string;
   clientName: string;
+  clientPhone: string;
+  answers: Record<string, unknown>;
   createdAt: string;
+  templateFile: LawyerDocTemplateFile | null;
+  fulfillFileUrl: string;
   request: DocumentRequest;
 };
 function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
   const d = asDict(v);
   // The list/detail responses aren't pinned down as precisely as the
   // fulfill response — accept either a nested lawyer_request wrapper or a
-  // flat item, whichever the endpoint actually sends.
+  // flat item (the documented shape), whichever the endpoint actually sends.
   const lr = d.lawyer_request ? asDict(d.lawyer_request) : d;
   const reqRaw = d.request ?? d.document_request ?? d;
-  const client = asDict(lr.client);
+  const client = asDict(lr.client ?? d.client);
   return {
     id: asStr(lr.id ?? d.id),
     need: asStr(lr.need ?? d.need),
     status: asStr(lr.status ?? d.status),
+    title: asStr(lr.title ?? d.title),
     clientName: asStr(lr.client_name ?? client.name),
+    clientPhone: asStr(lr.client_phone ?? client.phone),
+    answers: asDict(lr.answers ?? d.answers),
     createdAt: asStr(lr.created_at ?? d.created_at),
+    templateFile: normLawyerDocTemplateFile(lr.template_file ?? d.template_file),
+    fulfillFileUrl: asStr(lr.fulfill_file_url ?? d.fulfill_file_url) || `/lawyers/me/document-requests/${asStr(lr.id ?? d.id)}/fulfill-file`,
     request: normDocRequest(reqRaw),
   };
 }
@@ -1508,12 +1571,40 @@ export async function listMyLawyerDocumentRequests(): Promise<LawyerDocumentRequ
 export async function getMyLawyerDocumentRequest(recordId: string): Promise<LawyerDocumentRequest> {
   return normLawyerDocRequest(await http(`/lawyers/me/document-requests/${recordId}`));
 }
-export async function fulfillLawyerDocumentRequest(
-  recordId: string,
-  input: { content: string; notes?: string },
-): Promise<DocumentRequest> {
-  const d = asDict(await http(`/lawyers/me/document-requests/${recordId}/fulfill`, { method: "POST", body: JSON.stringify(input) }));
-  return normDocRequest(d.request);
+export type LawyerDocFulfillResult = {
+  status: string;
+  contractId: string;
+  file: { fileName: string; mimeType: string; downloadUrl: string; inlineUrl: string; format: string } | null;
+};
+// Real multipart upload (field "file"), same pattern as uploadWorkspaceFile:
+// http() forces JSON, so this sends the raw request itself. `fulfillFileUrl`
+// is the record's own URL from the list/detail response — falling back to
+// the documented path is only for a response that omitted it.
+export async function fulfillLawyerDocumentRequestFile(
+  fulfillFileUrl: string,
+  file: File,
+  notes?: string,
+): Promise<LawyerDocFulfillResult> {
+  const fd = new FormData();
+  fd.append("file", file);
+  if (notes) fd.append("notes", notes);
+  const token = getToken();
+  const res = await fetch(`${API_BASE}${fulfillFileUrl}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,
+  });
+  if (!res.ok) throw await toApiError(res);
+  const d = asDict(await res.json());
+  const reqD = asDict(d.request);
+  const fileD = d.file ? asDict(d.file) : null;
+  return {
+    status: asStr(reqD.status),
+    contractId: asStr(reqD.contract_id),
+    file: fileD
+      ? { fileName: asStr(fileD.file_name), mimeType: asStr(fileD.mime_type), downloadUrl: asStr(fileD.download_url), inlineUrl: asStr(fileD.inline_url), format: asStr(fileD.format) }
+      : null,
+  };
 }
 // The backend derives the questionnaire from the service's own template, so
 // `questionnaire` is normally left out; it is accepted here so a caller that

@@ -6,7 +6,7 @@ import {
   listGifts,
   createGift,
   getSubscriptionPlans,
-  getServices,
+  getAllServices,
   type BackendPlan,
   type BackendService,
   type GiftResult,
@@ -43,7 +43,10 @@ export default function ClientGifts() {
   const [reloadKey, setReloadKey] = useState(0);
   const gifts = useResource(() => listGifts(), [reloadKey]);
   const plans = useResource<BackendPlan>(() => getSubscriptionPlans(locale), [locale]);
-  const services = useResource<BackendService>(() => getServices(undefined, locale), [locale]);
+  // getAllServices, not getServices: /services is paged now (LEXGO_SERVICES_
+  // CATALOG_OPTIMIZATION_FRONTEND.md) — this dropdown needs every giftable
+  // service, not just the first page.
+  const services = useResource<BackendService>(() => getAllServices(undefined, locale), [locale]);
   // A dedicated gift plan (billing_type "gift") is the wrapper, not something to
   // gift — only offer the real giftable tariffs.
   const giftable = plans.data.filter((p) => p.isGiftable && p.billingType !== "gift");

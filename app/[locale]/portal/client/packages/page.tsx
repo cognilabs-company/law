@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { getServicePackages, getServices, type BackendPackage } from "@/lib/services/backend";
+import { getServicePackages, getAllServices, type BackendPackage } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
@@ -22,7 +22,11 @@ export default function ClientPackages() {
   const locale = useLocale();
   const router = useRouter();
   const pk = useResource(() => getServicePackages(), []);
-  const services = useResource(() => getServices(undefined, locale), [locale]);
+  // getAllServices, not getServices: /services is paged now (LEXGO_SERVICES_
+  // CATALOG_OPTIMIZATION_FRONTEND.md) — the catalogCode lookup below needs
+  // every service, not just the first page, or a package referencing a
+  // service outside it would silently show no "separately" price.
+  const services = useResource(() => getAllServices(undefined, locale), [locale]);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<BackendPackage | null>(null);
 

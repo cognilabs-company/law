@@ -68,18 +68,47 @@ const FAM_ICONS: ComponentType<{ className?: string }>[] = [
   IconScale, IconGavel, IconShield, IconFileText, IconUsers, IconBriefcase,
 ];
 
+// The 4 top-level general categories (LEXGO_GENERAL_DOCUMENT_CATEGORIES_FRONTEND.md)
+// each got their own illustration too — matched by name, same convention as
+// SUBCATEGORY_IMAGES below.
+const GENERAL_CATEGORY_IMAGES: { match: RegExp; src: string }[] = [
+  { match: /fuqarolik/i, src: "/img/fuqarolik.png" },
+  { match: /iqtisodiy/i, src: "/img/Iqtisodiy.png" },
+  { match: /jinoiy/i, src: "/img/jinoiy.png" },
+  { match: /ma.?muriy/i, src: "/img/mamuriy.png" },
+];
+function generalCategoryImage(name: string): string | null {
+  return GENERAL_CATEGORY_IMAGES.find((c) => c.match.test(name))?.src ?? null;
+}
+
 // LEXGO_DOCUMENT_SUBCATEGORIES_FRONTEND.md: every service now carries a real
 // `subcategory` string from the backend (21 in production, verified live —
 // "Oila va aliment" 133, "Mehnat huquqi" 261, etc., across all 4 general
-// categories, not just Fuqarolik) — this replaces the previous client-side
-// title-keyword guess entirely. Only 4 of the 21 have an illustration
-// (public/img/, carried over from the old civil-court section); every other
-// subcategory falls back to a cycled icon below.
+// categories, not just Fuqarolik, so this matches by name only — the same
+// subcategory gets the same icon no matter which general category it's
+// under) — this replaces the previous client-side title-keyword guess
+// entirely. 20 of the 21 now have an illustration (public/img/); only
+// "Ijara va lizing" (1 service in production) falls back to a cycled icon.
 const SUBCATEGORY_IMAGES: { match: RegExp; src: string }[] = [
   { match: /uy-?joy/i, src: "/img/uyjoy-nizolari.png" },
   { match: /mehnat huquqi/i, src: "/img/mehnat-nizolari.png" },
   { match: /oila va aliment|meros va vasiyat/i, src: "/img/oliaviy-meros.png" },
   { match: /boshqa fuqarolik/i, src: "/img/boshqa-fuqorolik.png" },
+  { match: /notarial|ishonchnoma/i, src: "/img/ishonchnoma.png" },
+  { match: /sud arizalari|iltimosnoma/i, src: "/img/sudarizalari.png" },
+  { match: /ijro va undirish/i, src: "/img/ijro.png" },
+  { match: /bankrotlik/i, src: "/img/Bankrotlik.png" },
+  { match: /ro.?yxatga olish|ruxsatnoma/i, src: "/img/royhatga-olish.png" },
+  { match: /qarzdorlik/i, src: "/img/Qarzdorlik.png" },
+  { match: /ma.?muriy jarima/i, src: "/img/mamuriy-jarima.png" },
+  { match: /yetkazib berish|oldi-?sotdi/i, src: "/img/yetkazib-berish.png" },
+  { match: /davlat organlari/i, src: "/img/davlat-orgnalari.png" },
+  { match: /kredit/i, src: "/img/kredit.png" },
+  { match: /korporativ/i, src: "/img/Korporativ.png" },
+  { match: /prokuror/i, src: "/img/prokuror-jinoyat.png" },
+  { match: /transport/i, src: "/img/Transport-logistika.png" },
+  { match: /tergov/i, src: "/img/tergov-chorasi.png" },
+  { match: /shartnoma/i, src: "/img/shartnomlar.png" },
 ];
 function subcategoryImage(name: string): string | null {
   return SUBCATEGORY_IMAGES.find((s) => s.match.test(name))?.src ?? null;
@@ -156,51 +185,44 @@ export default function ClientServices() {
   // page feeling slow.
   //
   // LEXGO_SERVICES_CATALOG_OPTIMIZATION_FRONTEND.md: /services is itself a
-  // paged endpoint now (backend default/requested limit 200, max 500) — one
-  // category alone can hold more than that (Fuqarolik: 625, verified live),
-  // and the MD is explicit that the frontend must not fetch everything in
-  // one shot ("use infinite scroll, 'Load more', or category/subcategory
-  // tabs"). So: fetch one page per request, accumulate, and only fetch the
-  // next page when the client asks for it (loadMoreServices below) — not a
-  // plain useResource, which has no notion of "append another page".
-  const SERVICES_PAGE_LIMIT = 200;
+  // paged endpoint now (max limit 500) — one category alone can hold more
+  // than that (Fuqarolik: 625, verified live), so this loops pages (500 at a
+  // time — the largest allowed, fewest round trips) until it has all of the
+  // SELECTED category, not the whole catalog. Everything downstream
+  // (catalog/subcatCounts/subcatList/list) is plain useMemo over that one
+  // array once it's loaded — no separate "load more" fetch/state to keep in
+  // sync with it.
+  const SERVICES_PAGE_LIMIT = 500;
   const [svcPages, setSvcPages] = useState<BackendService[]>([]);
   const [svcStatus, setSvcStatus] = useState<"loading" | "ready" | "error">("ready");
-  const [svcHasMore, setSvcHasMore] = useState(false);
-  const [svcLoadingMore, setSvcLoadingMore] = useState(false);
   const [prevPageCat, setPrevPageCat] = useState(cat);
   if (cat !== prevPageCat) {
     setPrevPageCat(cat);
     setSvcPages([]);
     setSvcStatus(cat ? "loading" : "ready");
-    setSvcHasMore(false);
   }
   useEffect(() => {
     if (!cat) return;
     let alive = true;
-    getServices({ category_id: cat, catalog_only: true, limit: SERVICES_PAGE_LIMIT, offset: 0 }, locale)
-      .then((rows) => {
+    (async () => {
+      const all: BackendService[] = [];
+      let offset = 0;
+      for (;;) {
+        const page = await getServices({ category_id: cat, catalog_only: true, limit: SERVICES_PAGE_LIMIT, offset }, locale);
         if (!alive) return;
-        setSvcPages(rows);
-        setSvcHasMore(rows.length === SERVICES_PAGE_LIMIT);
+        all.push(...page);
+        if (page.length < SERVICES_PAGE_LIMIT) break;
+        offset += page.length;
+      }
+      if (alive) {
+        setSvcPages(all);
         setSvcStatus("ready");
-      })
-      .catch(() => alive && setSvcStatus("error"));
+      }
+    })().catch(() => alive && setSvcStatus("error"));
     return () => {
       alive = false;
     };
   }, [cat, locale]);
-  function loadMoreServices() {
-    if (!cat || svcLoadingMore || !svcHasMore) return;
-    setSvcLoadingMore(true);
-    getServices({ category_id: cat, catalog_only: true, limit: SERVICES_PAGE_LIMIT, offset: svcPages.length }, locale)
-      .then((rows) => {
-        setSvcPages((cur) => [...cur, ...rows]);
-        setSvcHasMore(rows.length === SERVICES_PAGE_LIMIT);
-      })
-      .catch(() => setSvcHasMore(false))
-      .finally(() => setSvcLoadingMore(false));
-  }
   const services = { status: svcStatus, data: svcPages };
   // Deep link from the AI intake ("order this service") pre-fills the search.
   // Rendered only client-side (inside the portal shell, after auth is ready).
@@ -257,7 +279,12 @@ export default function ClientServices() {
     setDlErr(null);
     setDlBusy(s.id);
     const fields = await getServiceDocumentFields(s.id).catch(() => null);
-    const src = fields?.sourceFileUrl || fields?.sourceFileInlineUrl;
+    // LEXGO_CLEAN_TEMPLATE_DOWNLOAD_FRONTEND.md: never the marked-up
+    // source-file here — clean-source-file has {{field}}/{field} replaced
+    // with ________, which is what a plain "download the template" button
+    // must show. Falls back to the marked-up file only for a service the
+    // backend hasn't wired the clean file for yet.
+    const src = fields?.cleanSourceFileUrl || fields?.cleanSourceFileInlineUrl || fields?.sourceFileUrl || fields?.sourceFileInlineUrl;
     if (!fields?.hasSourceFile || !src) {
       setDlErr({ id: s.id, msg: t("downloadError") });
       setDlBusy("");
@@ -562,11 +589,16 @@ export default function ClientServices() {
         ) : showFamilies ? (
           <div className="svfam__grid">
             {famList.map((c, i) => {
+              const img = generalCategoryImage(c.name);
               const Icon = FAM_ICONS[i % FAM_ICONS.length];
               return (
                 <button key={c.id} type="button" className="svfam" onClick={() => setCat(c.id)}>
                   <span className="svfam__i">
-                    <Icon />
+                    {img ? (
+                      <Image src={img} alt="" fill sizes="(max-width: 640px) 45vw, 260px" style={{ objectFit: "contain" }} />
+                    ) : (
+                      <Icon />
+                    )}
                   </span>
                   <span className="svfam__t">
                     <b>{c.name}</b>
@@ -649,16 +681,6 @@ export default function ClientServices() {
             })}
           </div>
         )}
-
-        {/* Only within a category, never during search (that reads from
-            `remote`/`localHits`, not the paged svcPages) — a category can
-            hold more than one page (Fuqarolik: 625 > the 200-item page
-            size), and the MD explicitly says not to fetch it all at once. */}
-        {!query && cat && svcHasMore ? (
-          <button type="button" className="btn btn--line btn--full" style={{ marginTop: 14 }} disabled={svcLoadingMore} onClick={loadMoreServices}>
-            {svcLoadingMore ? t("loadingMore") : t("loadMore")}
-          </button>
-        ) : null}
       </div>
 
       <Modal open={!!order} onClose={() => { setOrder(null); setPayOrderId(null); }} title={order?.name || t("orderTitle")} wide={!orderAsAdvocate}>
