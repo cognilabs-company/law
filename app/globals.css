@@ -1572,12 +1572,13 @@ body:has(.rf) .fab{display:none}
 .svc__act:disabled{opacity:.6;cursor:default;transform:none}
 .svc__act--dl{color:var(--dk-acc-strong, var(--b700));border-color:var(--b200);background:var(--b50)}
 .svc__act--view{color:var(--ink2, var(--ink));border-color:var(--line);background:var(--dk-surface-2, #F7FAFE)}
-/* Advokatga yo'llash keeps its own distinct look — a warm gold, this app's
-   existing "premium/human help" tone (.splan__icon--pro, .giftn__ic--pro use
-   the same gradient) — now that Hujjatni to'ldirish below owns the app's
-   main blue gradient CTA style, so the two never read as the same action. */
-.svc__act--adv{color:#7A4B00;background:linear-gradient(135deg,#FFE9B8,#F5A623);border:none;box-shadow:0 6px 16px rgba(245,166,35,.28)}
-.svc__act--adv:hover{filter:brightness(1.04)}
+/* Advokatga yo'llash: this app's own existing "lawyer" tint (the same
+   violet .atype--lawyer/.docpend__ic--lawyer already use elsewhere) — a
+   calm, quiet color on purpose, not meant to compete for attention the way
+   Hujjatni to'ldirish below (the actual primary action) does. An earlier
+   gold gradient here read as too loud/attention-grabbing for a secondary
+   action. */
+.svc__act--adv{color:var(--dk-txt-violet, #6A3DE8);border-color:var(--dk-bd-violet, #E3D9FB);background:var(--dk-tint-violet, #F1EBFF)}
 .svc__act--locked{color:var(--gray)}
 /* Hujjatni to'ldirish is the real primary action for a service with a
    document template — a full, working page (services/document/[serviceId]),
@@ -2444,7 +2445,7 @@ body:has(.schat) .fab{display:none}
 .docbuild--full .cform--doc{gap:0}
 .docbuild--full .docb{flex:1;min-height:0}
 @media (min-width:980px){
-  .docbuild--full .docb{grid-template-columns:minmax(360px,.85fr) minmax(0,1.15fr)}
+  .docbuild--full .docb{grid-template-columns:minmax(320px, var(--docb-split, 45%)) 16px minmax(300px,1fr)}
 }
 .pverify{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--b50);border-radius:14px;padding:14px 16px;margin-top:14px;flex-wrap:wrap}
 .pverify b{display:block;font-size:.95rem}
@@ -4071,10 +4072,18 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docb__tabn{padding:1px 8px;border-radius:var(--pill);background:var(--dk-tint-blue, #E6F0FF);color:var(--dk-acc-strong, var(--b700));font-size:.74rem;font-weight:700;font-variant-numeric:tabular-nums}
 .docfill,.docb__pane{display:none;min-width:0;min-height:0}
 .docfill.on,.docb__pane.on{display:flex;flex-direction:column}
+/* Drag handle between the two panes — a real column of its own (not just a
+   gap) so there's something to grab. Hidden below 980px: the tabbed mobile
+   layout never shows the two panes side by side, so nothing to resize. */
+.docb__resizer{display:none}
 @media (min-width:980px){
-  .docb{grid-template-columns:minmax(340px,.9fr) minmax(0,1.1fr);grid-template-rows:minmax(0,1fr);gap:clamp(20px,2.4vw,40px);align-items:stretch}
+  .docb{grid-template-columns:minmax(300px, var(--docb-split, 45%)) 16px minmax(280px,1fr);grid-template-rows:minmax(0,1fr);gap:clamp(10px,1.6vw,24px);align-items:stretch}
   .docb__tabs{display:none}
   .docfill,.docb__pane{display:flex;flex-direction:column}
+  .docb__resizer{display:flex;align-items:center;justify-content:center;cursor:col-resize;touch-action:none;-webkit-user-select:none;user-select:none;border-radius:var(--pill)}
+  .docb__resizer::before{content:"";width:4px;height:52px;border-radius:var(--pill);background:var(--line);transition:background .15s,height .15s}
+  .docb__resizer:hover::before,.docb__resizer:active::before,.docb__resizer:focus-visible::before{background:var(--b400);height:72px}
+  .docb__resizer:focus-visible{outline:2px solid var(--b400);outline-offset:2px}
 }
 
 /* Left pane: progress, then one row per question. */
@@ -4091,9 +4100,14 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docfill__ask:disabled{cursor:default;opacity:.75}
 .docfill__ask--sent{background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0a7d55)}
 .docfill__ask svg{width:15px;height:15px;stroke:currentColor;flex:none}
-.docfill__list{flex:1 1 auto;display:grid;gap:12px;align-content:start;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:3px 6px 8px 3px;scrollbar-width:thin}
-.docfill__grp{display:grid;gap:12px}
-.docfill__gt{margin:8px 0 0;font-family:var(--fd);font-size:.95rem;color:var(--gray)}
+/* Gap here (between different sections — Ариза реквизитлари, Даъвогар,
+   Жавобгар, …) is deliberately much larger than .docfill__grp's own gap
+   (between fields inside the SAME section): both used to be 12px, so two
+   fields belonging to one section read as no more related to each other
+   than two fields in different sections entirely. */
+.docfill__list{flex:1 1 auto;display:grid;gap:26px;align-content:start;min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:3px 6px 8px 3px;scrollbar-width:thin}
+.docfill__grp{display:grid;gap:8px;min-width:0}
+.docfill__gt{margin:0 0 2px;padding-bottom:7px;border-bottom:1.5px solid var(--line);font-family:var(--fd);font-size:.74rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--dk-acc-strong, var(--b700))}
 .docfill__f{flex:none;display:grid;gap:9px;padding-top:14px;border-top:1px solid var(--line);position:sticky;bottom:0;background:var(--b50)}
 .docfill__st:empty{display:none}
 .docfill__miss{margin:0;font-size:.82rem;font-weight:600;text-align:center;color:var(--dk-txt-err, #C0392B)}
@@ -4111,18 +4125,28 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
    reads in the document, and jumps to it; "x2" means one answer fills two
    places (every civil-court template repeats the claimant's name and the
    application date). */
-.dfrow{display:grid;gap:7px;padding:13px 15px 15px;border-radius:var(--r);background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .18s}
+.dfrow{display:grid;gap:7px;padding:13px 15px 15px;border-radius:var(--r);background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .18s;min-width:0}
 .dfrow.on{box-shadow:inset 0 0 0 1.5px var(--b400),0 12px 28px -20px rgba(22,104,240,.75)}
 .dfrow.err{box-shadow:inset 0 0 0 1.5px #e5484d}
-.dfrow__top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.dfrow__tok{display:inline-flex;align-items:center;gap:6px;max-width:100%;border:0;cursor:pointer;padding:3px 9px;border-radius:8px;background:var(--dk-tint-blue, #E6F0FF);color:var(--dk-acc-strong, var(--b700));font-family:var(--fb);font-size:.75rem;font-weight:700;line-height:1.6;text-align:left;transition:filter .15s}
-.dfrow__tok span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dfrow__tok svg{width:12px;height:12px;flex:none;stroke-width:3}
-.dfrow__tok:hover{filter:brightness(.95)}
-.dfrow.done .dfrow__tok{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
-.dfrow__x{padding:3px 8px;border-radius:var(--pill);background:var(--dk-surface-2, #F1F5FB);color:var(--gray);font-size:.72rem;font-weight:700;font-variant-numeric:tabular-nums;cursor:help;user-select:none}
-.dfrow .dfrow__l{display:block;margin:0;font-size:.79rem;font-weight:700;letter-spacing:.02em;text-transform:none;color:var(--gray2)}
-.dfrow .dfrow__l i{color:#e5484d;font-style:normal}
+/* One label per field — see DocFill's Row comment: this used to be a
+   separate bracket-chip button PLUS a plain <label> underneath it, showing
+   the same text twice. min-width:0 on both this and .dfrow above matters: a
+   flex/grid item defaults to min-width:auto, so a long, unbroken Cyrillic
+   label could force the whole row (and the modal around it) wider than its
+   container instead of wrapping — the real cause of the horizontal scroll
+   this replaces. */
+.dfrow__l{display:flex;align-items:flex-start;gap:8px;width:100%;min-width:0;border:0;background:none;margin:0;padding:0;cursor:pointer;text-align:left;font-family:inherit;transition:color .15s}
+.dfrow__ltext{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;font-size:.79rem;font-weight:700;letter-spacing:.02em;color:var(--gray2);transition:color .18s}
+.dfrow__ltext i{color:#e5484d;font-style:normal}
+.dfrow__l:hover .dfrow__ltext{color:var(--dk-acc, var(--b600))}
+.dfrow.done .dfrow__ltext{color:var(--ok)}
+.dfrow__x{flex:none;padding:3px 8px;border-radius:var(--pill);background:var(--dk-surface-2, #F1F5FB);color:var(--gray);font-size:.72rem;font-weight:700;font-variant-numeric:tabular-nums;cursor:help;user-select:none}
+/* Pops in, doesn't just appear — the "check animatsiyasi" a filled field
+   gets instead of the old chip's flat background-color swap. */
+.dfrow__done-ic{display:inline-flex;flex:none;width:16px;height:16px;margin-top:1px;color:var(--ok);opacity:0;transform:scale(.4);transition:opacity .2s ease,transform .25s cubic-bezier(.34,1.56,.64,1)}
+.dfrow__done-ic svg{width:16px;height:16px;stroke-width:3}
+.dfrow.done .dfrow__done-ic{opacity:1;transform:scale(1)}
+@media (prefers-reduced-motion: reduce){.dfrow__done-ic{transition:opacity .12s linear}}
 .dfrow input,.dfrow textarea{width:100%;border:0;background:var(--dk-surface-2, #F7FAFE);border-radius:12px;padding:11px 13px;font-size:.93rem;box-shadow:inset 0 0 0 1.5px transparent;transition:box-shadow .18s,background .18s}
 .dfrow input::placeholder,.dfrow textarea::placeholder{color:var(--gray2);opacity:.85}
 .dfrow input:focus,.dfrow textarea:focus{box-shadow:inset 0 0 0 1.5px var(--b400);background:var(--dk-surface, #fff)}
@@ -4138,13 +4162,24 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docpaper{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}
 .docpaper__top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none}
 .docpaper__badge{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray2)}
-.docpaper__src{display:flex;align-items:center;gap:4px;flex:none}
+.docpaper__src{display:flex;align-items:center;gap:4px;flex:none;flex-wrap:wrap;justify-content:flex-end}
 .docpaper__srcbtn{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:600;color:var(--dk-acc, var(--b600));background:none;border:0;padding:5px 8px;border-radius:8px;cursor:pointer;white-space:nowrap}
 .docpaper__srcbtn:hover{background:var(--b50)}
 .docpaper__srcbtn:disabled{opacity:.5;cursor:default}
 .docpaper__srcbtn svg{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:2}
 .docpaper__srcbtn--icon{padding:5px}
-.docpaper__srcbtn--sent{color:var(--dk-txt-ok, #0a7d55)}
+/* Advokatdan yordam — deliberately its own, louder red pill (not another
+   quiet .docpaper__srcbtn): it's the one action here that costs nothing and
+   solves a stuck client's problem outright, so it earns the attention the
+   plain toolbar buttons next to it don't need. A soft pulsing ring, not a
+   bright fill, so it reads as "alive/waiting for you" without shouting. */
+.docpaper__ask{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--pill);border:0;background:#E5484D;color:#fff;font:inherit;font-size:.74rem;font-weight:700;cursor:pointer;white-space:nowrap;animation:docpaperAskPulse 2.4s ease-in-out infinite}
+.docpaper__ask svg{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:2}
+.docpaper__ask:hover{filter:brightness(1.05)}
+.docpaper__ask:disabled{opacity:.75;cursor:default;animation:none}
+.docpaper__ask--sent{background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0a7d55)}
+@keyframes docpaperAskPulse{0%,100%{box-shadow:0 0 0 0 rgba(229,72,77,.45)}50%{box-shadow:0 0 0 6px rgba(229,72,77,0)}}
+@media (prefers-reduced-motion: reduce){.docpaper__ask{animation:none}}
 .docpaper__srcerr{color:var(--dk-txt-err, #C0392B);font-size:.76rem;margin-top:-4px}
 .docview__hint{display:flex;align-items:center;gap:6px;color:var(--gray);font-size:.8rem;margin:0 0 10px}
 .docview__hint svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:2}

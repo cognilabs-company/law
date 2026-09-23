@@ -3285,6 +3285,7 @@
         "generate": "Hujjatni yaratish",
         "occursTimes": "Hujjatda {n} joyda ishlatiladi",
         "jumpToSpot": "Hujjatdagi o'rnini ko'rsatish",
+        "resizePanes": "Kenglikni sozlash",
         "jumpToField": "To'ldirish: {label}",
         "missingN": "{n} ta majburiy maydon to'ldirilmagan",
         "missingServer": "Ba'zi majburiy maydonlar to'ldirilmagan.",

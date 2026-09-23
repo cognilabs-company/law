@@ -16,8 +16,6 @@ import {
   getMatchingCandidates,
   getServiceDocumentFields,
   getServiceTemplateSourceFile,
-  getMySubscription,
-  getSubscriptionPlans,
   type BackendService,
   type BackendLawyer,
   type MatchCandidate,
@@ -33,6 +31,7 @@ import ServicePassport from "@/components/portal/ServicePassport";
 import ServiceDocumentRequest from "@/components/portal/ServiceDocumentRequest";
 import ManualDocPlanGate from "@/components/portal/ManualDocPlanGate";
 import { useResource, useResourceOne } from "@/lib/useResource";
+import { useIsFreeAiTier } from "@/lib/useAiTier";
 import { fmtUzs } from "@/lib/money";
 import { initials, humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
@@ -119,12 +118,6 @@ function subcategoryImage(name: string): string | null {
 }
 
 type Sort = "match" | "rating" | "exp" | "price";
-
-// GM: the client's LexGo.AI tier gates the raw-template download (view is
-// always free, downloading needs Lite/Pro) — mirrors PlansPanel.tsx's own
-// slug rule and name/id matching convention, the only place the app already
-// resolves "which of the three AI plans is this client on".
-const AI_SLUG = /^lexgo-ai-(free|lite|pro)$/;
 
 export default function ClientServices() {
   const t = useTranslations("portal.client.services");
@@ -285,17 +278,8 @@ export default function ClientServices() {
   const [forceAdvocate, setForceAdvocate] = useState(false);
 
   // Plan-gated template download: Free sees the document but must upgrade to
-  // download it, Lite/Pro download freely (GM). No dedicated "my AI plan"
-  // endpoint exists — resolved the same way PlansPanel.tsx does, by matching
-  // the client's subscription against the three lexgo-ai-* plans.
-  const sub = useResourceOne(getMySubscription, []);
-  const aiPlans = useResource(() => getSubscriptionPlans(locale), [locale]);
-  const myAiPlan = useMemo(() => {
-    const s = sub.data;
-    if (!s) return null;
-    return aiPlans.data.filter((p) => AI_SLUG.test(p.slug)).find((p) => (s.planId && p.id === s.planId) || (s.planName && p.name === s.planName)) ?? null;
-  }, [sub.data, aiPlans.data]);
-  const isFreeTier = !myAiPlan || myAiPlan.slug === "lexgo-ai-free";
+  // download it, Lite/Pro download freely (GM).
+  const isFreeTier = useIsFreeAiTier();
   const [dlBusy, setDlBusy] = useState("");
   const [dlErr, setDlErr] = useState<{ id: string; msg: string } | null>(null);
   // LEXGO_MANUAL_DOCUMENT_PLAN_FRONTEND.md: a real, separate entitlement

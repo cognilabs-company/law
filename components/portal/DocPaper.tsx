@@ -3,7 +3,7 @@
 import { createElement, useCallback, useEffect, useMemo, useRef, type ElementType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { splitFilledText, type DocSeg, type DocTree } from "@/lib/docTemplate";
-import { IconCheck, IconExternal, IconHeadset } from "@/components/icons";
+import { IconCheck, IconDownload, IconExternal, IconHeadset } from "@/components/icons";
 
 // The document itself, filled in as the client types.
 //
@@ -31,13 +31,16 @@ export default function DocPaper({
   onPick,
   fallbackText,
   // The template's own blank source file (service-scoped documents only) —
-  // shown as a small "view the original" button next to the preview badge.
-  // Fetching happens in the caller; this component only renders the button
-  // and shows sourceBusy while it's in flight. There is deliberately no
-  // download button here — filling still costs money, so the toolbar's
-  // second slot sends the draft to a lawyer instead (onAskLawyer).
+  // shown as a small "view the original" (Shablon) button next to the
+  // preview badge. Fetching happens in the caller; this component only
+  // renders the buttons and shows sourceBusy while a fetch is in flight.
+  // Download sits between it and "Advokatdan yordam": only offered to a
+  // Lite/Pro AI-tier client (onDownloadSource is undefined for Free — the
+  // same plan gate the catalog's own download button uses), since filling
+  // in is free but a raw copy of the template still costs a subscription.
   sourceFileName,
   onViewSource,
+  onDownloadSource,
   onAskLawyer,
   askLawyerBusy,
   askLawyerSent,
@@ -60,6 +63,7 @@ export default function DocPaper({
   fallbackText?: string;
   sourceFileName?: string;
   onViewSource?: () => void;
+  onDownloadSource?: () => void;
   onAskLawyer?: () => void;
   askLawyerBusy?: boolean;
   askLawyerSent?: boolean;
@@ -340,16 +344,21 @@ export default function DocPaper({
               <IconExternal />
               {t("viewSource")}
             </button>
+            {onDownloadSource ? (
+              <button type="button" className="docpaper__srcbtn docpaper__srcbtn--icon" onClick={onDownloadSource} disabled={sourceBusy} aria-label={t("downloadSource")} title={t("downloadSource")}>
+                <IconDownload />
+              </button>
+            ) : null}
             {onAskLawyer ? (
               <button
                 type="button"
-                className={`docpaper__srcbtn docpaper__srcbtn--icon${askLawyerSent ? " docpaper__srcbtn--sent" : ""}`}
+                className={`docpaper__ask${askLawyerSent ? " docpaper__ask--sent" : ""}`}
                 onClick={onAskLawyer}
                 disabled={askLawyerBusy || askLawyerSent}
-                aria-label={askLawyerSent ? t("askLawyerSent") : t("askLawyer")}
                 title={askLawyerSent ? t("askLawyerSent") : t("askLawyer")}
               >
                 {askLawyerSent ? <IconCheck /> : <IconHeadset />}
+                {askLawyerSent ? t("askLawyerSent") : askLawyerBusy ? t("askLawyerSending") : t("askLawyer")}
               </button>
             ) : null}
           </span>

@@ -1,30 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
-  getServiceDocumentLawyerCandidates,
   requestServiceDocumentLawyer,
   getServiceTemplateSourceFile,
-  type DocAssistCandidate,
   type DocLawyerFlow,
   type DocumentRequest,
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
-import { Skeleton } from "./DataState";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocTemplateViewer from "./DocTemplateViewer";
-import { initials } from "@/lib/lawyers";
-import { IconChevronLeft, IconCheck, IconEye, IconHeadset } from "@/components/icons";
+import { IconChevronLeft, IconEye, IconHeadset } from "@/components/icons";
 
-// LEXGO_SERVICE_DOCUMENT_ASSIST_FLOW.md: describe the need, optionally pick
-// a specific advocate/lawyer/call-center candidate (or leave it to the
-// backend's own auto-assign), submit. The resulting request has no file yet
-// (status "lawyer_review") — DocumentRequestPanel's own stageFor() already
-// maps that to its "pending" stage, which already polls for file_ready, so
-// this screen has no "submitted!" state of its own to build.
+// LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: the old per-service
+// advocate picker is gone — the client never chooses who handles this, and
+// the request body never sends lawyer_user_id. It lands in the call-center
+// pool (assignment_mode: "callcenter_pool") and whichever call-center
+// advocate claims it first takes it from there. The resulting request has
+// no file yet (status "lawyer_review"/open_pool) — DocumentRequestPanel's
+// own stageFor() already maps that to its "pending" stage, which already
+// polls for file_ready, so this screen has no "submitted!" state of its own
+// to build.
 export default function DocumentLawyerAssist({
   lawyerFlow,
   sourceFile,
@@ -37,22 +36,10 @@ export default function DocumentLawyerAssist({
   const t = useTranslations("portal.client.documents");
   const locale = useLocale();
   const [need, setNeed] = useState("");
-  const [candidates, setCandidates] = useState<DocAssistCandidate[] | null>(null);
-  const [selected, setSelected] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [result, setResult] = useState<DocumentRequest | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    getServiceDocumentLawyerCandidates(lawyerFlow.lawyersUrl)
-      .then((rows) => alive && setCandidates(rows))
-      .catch(() => alive && setCandidates([]));
-    return () => {
-      alive = false;
-    };
-  }, [lawyerFlow.lawyersUrl]);
 
   async function submit() {
     if (busy || !need.trim()) return;
@@ -61,7 +48,6 @@ export default function DocumentLawyerAssist({
     try {
       const r = await requestServiceDocumentLawyer(lawyerFlow.requestUrl, {
         need: need.trim(),
-        lawyer_user_id: selected || undefined,
         language: locale,
       });
       setResult(r);
@@ -102,34 +88,6 @@ export default function DocumentLawyerAssist({
           ) : null}
         </div>
         <textarea id="lawyer-need" rows={4} value={need} onChange={(e) => setNeed(e.target.value)} placeholder={t("aiNeedPlaceholder")} />
-      </section>
-
-      <section className="docassist__sec">
-        <label>{t("lawyerPick")}</label>
-        {candidates === null ? (
-          <Skeleton rows={2} />
-        ) : (
-          <div className="advpick">
-            <button type="button" className={`advpick__c${selected === "" ? " on" : ""}`} onClick={() => setSelected("")}>
-              <span className="advpick__av"><IconHeadset /></span>
-              <span className="advpick__m">
-                <b>{t("lawyerAuto")}</b>
-                <span className="advpick__stats">{t("lawyerAutoSub")}</span>
-              </span>
-              {selected === "" ? <IconCheck className="advpick__ck" /> : null}
-            </button>
-            {candidates.map((c) => (
-              <button type="button" key={c.id} className={`advpick__c${selected === c.id ? " on" : ""}`} onClick={() => setSelected(c.id)}>
-                <span className="advpick__av">{initials(c.name || "?")}</span>
-                <span className="advpick__m">
-                  <b>{c.name || t("lawyerAuto")}</b>
-                  {c.phone ? <span className="advpick__stats">{c.phone}</span> : null}
-                </span>
-                {selected === c.id ? <IconCheck className="advpick__ck" /> : null}
-              </button>
-            ))}
-          </div>
-        )}
       </section>
 
       {err ? <Notice ok={false} msg={err} /> : null}

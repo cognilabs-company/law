@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { previewDocumentRequest, getServiceTemplateSourceFile, requestServiceDocumentLawyer, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
-import { preopenTab, showBlob, closeTab } from "@/lib/download";
+import { preopenTab, showBlob, saveBlob, closeTab } from "@/lib/download";
+import { useIsFreeAiTier } from "@/lib/useAiTier";
 import { docxToTree } from "@/lib/docxParse";
 import {
   MAX_DIGITS,
@@ -136,6 +137,62 @@ export default function DocFill({
   const formPane = useRef<HTMLDivElement>(null);
   const inputs = useRef(new Map<string, HTMLElement>());
 
+  // Drag-resizable split between the form and the document (desktop only —
+  // below 980px the two are tabs, not side by side, see .docb's own media
+  // query). Persisted per browser so a client who prefers more document than
+  // form (or the reverse) keeps that on their next visit; clamped well short
+  // of 0/100 so neither pane can be dragged away entirely.
+  const SPLIT_KEY = "lexgo_docb_split";
+  const SPLIT_MIN = 26;
+  const SPLIT_MAX = 62;
+  const [splitPct, setSplitPct] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem(SPLIT_KEY));
+      return v >= SPLIT_MIN && v <= SPLIT_MAX ? v : 45;
+    } catch {
+      return 45;
+    }
+  });
+  const docbRef = useRef<HTMLDivElement>(null);
+  const resizing = useRef(false);
+  const onResizerPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    resizing.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
+  const onResizerPointerMove = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    if (!resizing.current || !docbRef.current) return;
+    const rect = docbRef.current.getBoundingClientRect();
+    const pct = ((e.clientX - rect.left) / rect.width) * 100;
+    setSplitPct(Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, Math.round(pct))));
+  }, []);
+  const onResizerPointerUp = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    if (!resizing.current) return;
+    resizing.current = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    setSplitPct((v) => {
+      try {
+        localStorage.setItem(SPLIT_KEY, String(v));
+      } catch {
+        /* ignore */
+      }
+      return v;
+    });
+  }, []);
+  const onResizerKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    setSplitPct((v) => {
+      const next = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, v + (e.key === "ArrowLeft" ? -2 : 2)));
+      try {
+        localStorage.setItem(SPLIT_KEY, String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+
   // The template's own blank source file, alongside the live filled-in
   // preview — fetched through the authed proxy (never a plain link) and
   // either shown in a new tab or saved, same pattern as every other file
@@ -159,6 +216,25 @@ export default function DocFill({
       showBlob(blob, sourceFile.sourceFileName || "template", win);
     } catch {
       closeTab(win);
+      setSourceErr(true);
+    } finally {
+      setSourceBusy(false);
+    }
+  }
+  // Only a Lite/Pro AI-tier client gets this: filling in is free, but a raw
+  // copy of the template still costs a subscription (same rule the services
+  // catalog's own download button uses — see lib/useAiTier.ts).
+  const isFreeTier = useIsFreeAiTier();
+  async function downloadSource() {
+    if (!sourceFile?.hasSourceFile || sourceBusy) return;
+    setSourceErr(false);
+    setSourceBusy(true);
+    try {
+      const blob = await getServiceTemplateSourceFile(
+        sourceFile.cleanSourceFileUrl || sourceFile.cleanSourceFileInlineUrl || sourceFile.sourceFileUrl || sourceFile.sourceFileInlineUrl,
+      );
+      saveBlob(blob, sourceFile.sourceFileName || "template");
+    } catch {
       setSourceErr(true);
     } finally {
       setSourceBusy(false);
@@ -356,7 +432,7 @@ export default function DocFill({
   }, [fields, sourceFile, t]);
 
   return (
-    <div className="docb">
+    <div className="docb" ref={docbRef} style={{ "--docb-split": `${splitPct}%` } as CSSProperties}>
       <div className="docb__tabs" role="tablist">
         <button
           type="button"
@@ -489,6 +565,22 @@ export default function DocFill({
         </footer>
       </section>
 
+      {/* Desktop-only (see .docb's media query) — drag left/right to
+          reallocate space between the form and the document; hidden on the
+          tabbed mobile layout, where there's nothing side by side to split. */}
+      <div
+        className="docb__resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={t("resizePanes")}
+        tabIndex={0}
+        onPointerDown={onResizerPointerDown}
+        onPointerMove={onResizerPointerMove}
+        onPointerUp={onResizerPointerUp}
+        onPointerCancel={onResizerPointerUp}
+        onKeyDown={onResizerKeyDown}
+      />
+
       <section
         id="docb-pane-doc"
         role="tabpanel"
@@ -506,6 +598,7 @@ export default function DocFill({
           fallbackText={preview?.previewText}
           sourceFileName={sourceFile?.sourceFileName}
           onViewSource={sourceFile?.hasSourceFile ? viewSource : undefined}
+          onDownloadSource={sourceFile?.hasSourceFile && !isFreeTier ? downloadSource : undefined}
           onAskLawyer={sourceFile?.lawyerFlow ? askLawyer : undefined}
           askLawyerBusy={askBusy}
           askLawyerSent={askSent}
@@ -552,13 +645,17 @@ function Row({
   const id = `df-${f.name}`;
   const filled = shown !== "";
   const ph = t("enterField", { label });
-  // An authoring leftover — a placeholder that is just the field's own
-  // {{mustache}} token — would read as a broken hint, so it is dropped.
-  const hint = f.hint || (f.placeholder && !/^\{\{.*\}\}$/.test(f.placeholder) ? f.placeholder : "");
+  // A real, backend-authored tooltip — never `f.placeholder`: for the
+  // human-label-style import (docTemplate.ts's file header), a field's own
+  // `placeholder` IS its label text verbatim (`{Label}`), so showing it here
+  // duplicated the label a second time under the input for no reason. Also
+  // guards the rare case `f.hint` itself just repeats the label.
+  const hint = f.hint && f.hint.trim().toLowerCase() !== label.trim().toLowerCase() ? f.hint : "";
 
   const common = {
     id,
     placeholder: ph,
+    "aria-label": label,
     onFocus,
     onBlur,
     "aria-invalid": err || undefined,
@@ -567,21 +664,26 @@ function Row({
 
   return (
     <div className={`dfrow${active ? " on" : ""}${err ? " err" : ""}${filled ? " done" : ""}`}>
-      <div className="dfrow__top">
-        <button type="button" className="dfrow__tok" onClick={onJump} title={t("jumpToSpot")}>
-          {filled ? <IconCheck /> : null}
-          <span>[{label}]</span>
-        </button>
+      {/* One label, doing double duty: click jumps to this field's spot in
+          the document pane (same as the old separate [bracket] chip did),
+          and its own check icon animates in once filled — no `<label
+          htmlFor>` any more (no second, functionally-identical copy of the
+          same text to have one), so the input gets its accessible name from
+          aria-label instead. */}
+      <button type="button" className="dfrow__l" onClick={onJump} title={t("jumpToSpot")}>
+        <span className="dfrow__ltext">
+          {label}
+          {f.required ? <i aria-hidden> *</i> : null}
+        </span>
         {count > 1 ? (
           <span className="dfrow__x" title={t("occursTimes", { n: count })}>
             ×{count}
           </span>
         ) : null}
-      </div>
-      <label className="dfrow__l" htmlFor={id}>
-        {label}
-        {f.required ? <i aria-hidden> *</i> : null}
-      </label>
+        <span className="dfrow__done-ic" aria-hidden>
+          <IconCheck />
+        </span>
+      </button>
 
       {kind === "multiline" ? (
         <textarea

@@ -3279,6 +3279,7 @@
         "generate": "Generate document",
         "occursTimes": "Used in {n} places in the document",
         "jumpToSpot": "Show where this appears",
+        "resizePanes": "Resize panels",
         "jumpToField": "Fill in: {label}",
         "missingN": "{n, plural, one{# required field still empty} other{# required fields still empty}}",
         "missingServer": "Some required fields are still empty.",
