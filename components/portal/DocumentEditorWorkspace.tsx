@@ -219,24 +219,36 @@ export default function DocumentEditorWorkspace({
     const serverUrl = typeof oo.document_server_url === "string" ? oo.document_server_url.replace(/\/$/, "") : "";
     if (!serverUrl) return;
     let cancelled = false;
-    // "Mobile editor uchun OnlyOffice mobile view ishlatiladi" — the backend
-    // always sends type:"desktop", so the phone case is decided here.
     const mobile = typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches;
     const editorConfig = asDict(oo.editorConfig);
-    const cfg = {
-      ...oo,
-      type: mobile ? "mobile" : "desktop",
-      editorConfig: {
-        ...editorConfig,
-        // The save chip needs OnlyOffice to tell us when a change is pending
-        // vs flushed; onError covers a failed save.
-        customization: { ...asDict(editorConfig.customization), autosave: true, forcesave: true },
-      },
-      events: {
-        onDocumentStateChange: (ev: { data?: unknown }) => setSaveState(ev && ev.data ? "saving" : "saved"),
-        onError: () => setSaveState("error"),
-      },
+    // The save chip needs OnlyOffice to tell us when a change is pending vs
+    // flushed; onError covers a failed save. These are browser-side
+    // callbacks — never part of what the document server validates.
+    const events = {
+      onDocumentStateChange: (ev: { data?: unknown }) => setSaveState(ev && ev.data ? "saving" : "saved"),
+      onError: () => setSaveState("error"),
     };
+    // A `token` means the backend signed this config (JWT_ENABLED=true is the
+    // Document Server default since 7.2). The server validates the config the
+    // browser hands to api.js against that signature, so changing ANY field
+    // here — type, customization — makes it reject the document with "The
+    // document security token is not correctly formed". A signed config is
+    // therefore passed through untouched, and the desktop/mobile switch plus
+    // the autosave flags are the backend's to set inside what it signs.
+    const cfg = asStr(oo.token)
+      ? { ...oo, events }
+      : {
+          ...oo,
+          // "Mobile editor uchun OnlyOffice mobile view ishlatiladi" — the
+          // backend always sends type:"desktop", so the phone case is
+          // decided here whenever it is safe to touch the config at all.
+          type: mobile ? "mobile" : "desktop",
+          editorConfig: {
+            ...editorConfig,
+            customization: { ...asDict(editorConfig.customization), autosave: true, forcesave: true },
+          },
+          events,
+        };
     function init() {
       if (cancelled || !window.DocsAPI) return;
       try {
