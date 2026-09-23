@@ -711,7 +711,6 @@ export default function ClientServices() {
                     <span className="svc__i">{hasDoc ? <IconDocLines /> : <IconBriefcase />}</span>
                     <span className="svc__t">
                       <b>{s.name}</b>
-                      <small>{[s.catalogCode, s.price ? `${som(s.price)} ${t("som")}` : t("byRequest")].filter(Boolean).join(" · ")}</small>
                     </span>
                   </div>
                   <div className="svc__acts">
