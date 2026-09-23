@@ -265,14 +265,22 @@ export default function DocumentRequestPanel({
   // "generating" (payment pre-confirmed, just needs the backend to build the
   // file), "lawyerReview" (waiting on a person, not a payment), and the
   // generic "pending" fallback all resolve the same way: keep re-fetching
-  // the request until status flips to file_ready. First check right away;
-  // gives up after ~10 minutes rather than polling forever.
+  // the request until status flips to file_ready. First check right away.
   const pendingId = stage === "pending" || stage === "generating" || stage === "lawyerReview" ? req.id : undefined;
   useEffect(() => {
     if (!pendingId) return;
     let alive = true;
     let running = false;
-    let left = 150; // 150 × 4s ≈ 10 min
+    // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: lawyerReview now
+    // also covers the call-center pool flow (open_pool/claimed) — an
+    // advocate claiming the request, meeting the client and preparing the
+    // document can easily run well past the original ~10-minute budget
+    // (calibrated for the backend just generating a file), so it waits
+    // longer and checks less often instead of showing "stillPending" while
+    // a real consultation is still in progress. generating/pending keep the
+    // original tight budget — those really should resolve in seconds.
+    const intervalMs = stage === "lawyerReview" ? 15000 : 4000;
+    let left = stage === "lawyerReview" ? 240 : 150; // lawyerReview: 240×15s = 1h; others: 150×4s ≈ 10min
     const tick = async () => {
       if (running) return;
       running = true;
@@ -293,7 +301,7 @@ export default function DocumentRequestPanel({
       }
     };
     void tick();
-    // Give up after the budget rather than polling a stuck payment forever.
+    // Give up after the budget rather than polling forever.
     const timer = setInterval(() => {
       if (left-- > 0) {
         void tick();
@@ -301,7 +309,7 @@ export default function DocumentRequestPanel({
       }
       clearInterval(timer);
       if (alive) setNote({ ok: false, msg: t("stillPending") });
-    }, 4000);
+    }, intervalMs);
     return () => {
       alive = false;
       clearInterval(timer);

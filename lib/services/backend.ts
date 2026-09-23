@@ -1674,6 +1674,7 @@ export type LawyerDocumentRequest = {
   title: string;
   clientName: string;
   clientPhone: string;
+  serviceName: string;
   answers: Record<string, unknown>;
   createdAt: string;
   templateFile: LawyerDocTemplateFile | null;
@@ -1684,6 +1685,13 @@ export type LawyerDocumentRequest = {
   // an older request this whole flow doesn't apply to.
   editorUrl: string;
   meetingUrl: string;
+  // LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md: the backend's own say on
+  // whether this account may claim/open the editor for this record right
+  // now — read instead of re-deriving the same thing from status, so a rule
+  // change on the backend (e.g. a new blocking status) never needs a
+  // matching frontend change to stay correct.
+  canClaim: boolean;
+  canOpenEditor: boolean;
   request: DocumentRequest;
 };
 function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
@@ -1694,24 +1702,30 @@ function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
   const lr = d.lawyer_request ? asDict(d.lawyer_request) : d;
   const reqRaw = d.request ?? d.document_request ?? d;
   const client = asDict(lr.client ?? d.client);
+  const service = asDict(lr.service ?? d.service);
+  const status = asStr(lr.status ?? d.status);
   return {
     id: asStr(lr.id ?? d.id),
     need: asStr(lr.need ?? d.need),
-    status: asStr(lr.status ?? d.status),
+    status,
     title: asStr(lr.title ?? d.title),
     clientName: asStr(lr.client_name ?? client.name),
     clientPhone: asStr(lr.client_phone ?? client.phone),
+    serviceName: asStr(service.title ?? service.name),
     answers: asDict(lr.answers ?? d.answers),
     createdAt: asStr(lr.created_at ?? d.created_at),
     templateFile: normLawyerDocTemplateFile(lr.template_file ?? d.template_file),
     fulfillFileUrl: asStr(lr.fulfill_file_url ?? d.fulfill_file_url) || `/lawyers/me/document-requests/${asStr(lr.id ?? d.id)}/fulfill-file`,
     editorUrl: asStr(lr.editor_url ?? d.editor_url),
     meetingUrl: asStr(lr.meeting_url ?? d.meeting_url),
+    canClaim: typeof lr.can_claim === "boolean" ? lr.can_claim : status === "open_pool",
+    canOpenEditor: typeof lr.can_open_editor === "boolean" ? lr.can_open_editor : status === "claimed",
     request: normDocRequest(reqRaw),
   };
 }
-export async function listMyLawyerDocumentRequests(): Promise<LawyerDocumentRequest[]> {
-  return listFrom(await http("/lawyers/me/document-requests"), "items", "data", "requests").map(normLawyerDocRequest);
+export async function listMyLawyerDocumentRequests(status?: "claimed" | "open_pool" | "completed"): Promise<LawyerDocumentRequest[]> {
+  const qs = status ? `?status=${status}` : "";
+  return listFrom(await http(`/lawyers/me/document-requests${qs}`), "items", "data", "requests").map(normLawyerDocRequest);
 }
 export async function getMyLawyerDocumentRequest(recordId: string): Promise<LawyerDocumentRequest> {
   return normLawyerDocRequest(await http(`/lawyers/me/document-requests/${recordId}`));

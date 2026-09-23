@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 import {
   listMyLawyerDocumentRequests,
   fulfillLawyerDocumentRequestFile,
@@ -20,28 +21,35 @@ import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
-import ClaimedRequestWorkspace from "./ClaimedRequestWorkspace";
 import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
 import { IconFileText, IconUser, IconPhone, IconCheck, IconEye, IconDownload, IconUpload, IconAlert } from "@/components/icons";
 
-// LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: a client's "Advokat
-// bilan to'ldirish" request no longer names a lawyer — it lands in a shared
-// pool (below) and whichever call-center advocate claims it first works it,
-// through ClaimedRequestWorkspace's editor/meeting/finalize flow. The older,
-// upload-a-finished-file FulfillModal stays as-is for a request that never
-// went through claim (no editorUrl) — LEXGO_LAWYER_DOCUMENT_FILE_FLOW_FRONTEND.md's
-// flow, still real for however many of those are already in flight.
+// LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md: 4 tabs instead of two stacked
+// sections — "Yangi so'rovlar" is the live pool (unclaimed, realtime);
+// "Menga biriktirilgan"/"Jarayonda"/"Yakunlangan" are the same
+// /lawyers/me/document-requests list, narrowed by the status filter the
+// backend itself documents (?status=claimed|open_pool|completed) rather
+// than re-deriving those buckets client-side. A record that went through
+// the pool flow (status open_pool/claimed/completed) opens the full-page
+// editor workspace (DocumentEditorWorkspace, via basePath); an older
+// pre-pool record (no such status — LEXGO_LAWYER_DOCUMENT_FILE_FLOW_FRONTEND.md's
+// flow) still opens the original upload-a-file FulfillModal below.
 // Not role-gated to "lawyer" on the backend (owner / documents.manage /
 // call-center can all see and act), so this same component is mounted under
 // both /portal/lawyer and /portal/advocate — see SellerCases.tsx for the
 // same ns-prop sharing convention this follows.
-export default function DocumentRequestsInbox({ ns }: { ns: string }) {
+const POOL_FLOW_STATUSES = new Set(["open_pool", "claimed", "completed"]);
+
+type Tab = "pool" | "assigned" | "progress" | "done";
+
+export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; basePath: string }) {
   const t = useTranslations(ns);
   const tcm = useTranslations("portal.common");
   const locale = useLocale();
-  const [reloadKey, setReloadKey] = useState(0);
-  const rows = useResource<LawyerDocumentRequest>(listMyLawyerDocumentRequests, [reloadKey]);
+  const router = useRouter();
+
+  const [tab, setTab] = useState<Tab>("pool");
   const [target, setTarget] = useState<LawyerDocumentRequest | null>(null);
 
   const [poolReloadKey, setPoolReloadKey] = useState(0);
@@ -51,12 +59,26 @@ export default function DocumentRequestsInbox({ ns }: { ns: string }) {
   const [gone, setGone] = useState<Set<string>>(new Set());
   const poolVisible = pool.data.filter((p) => !gone.has(p.id));
 
+  const [reloadKey, setReloadKey] = useState(0);
+  const assigned = useResource<LawyerDocumentRequest>(() => listMyLawyerDocumentRequests(), [reloadKey]);
+  const progress = useResource<LawyerDocumentRequest>(() => listMyLawyerDocumentRequests("claimed"), [reloadKey]);
+  const done = useResource<LawyerDocumentRequest>(() => listMyLawyerDocumentRequests("completed"), [reloadKey]);
+  // "Menga biriktirilgan" is everything ever assigned to this account — the
+  // unfiltered list minus still-open pool items (those belong only in the
+  // dedicated pool tab, with its own working claim button; an unclaimed
+  // item has no editorUrl/fulfillFileUrl for a click here to do anything
+  // with).
+  const assignedList = assigned.data.filter((r) => r.status !== "open_pool");
+
   // Realtime — no polling: another advocate claiming a pooled request, or a
-  // new one landing, refreshes this list the instant it happens.
+  // new one landing, refreshes the pool tab the instant it happens.
   useEffect(() => {
     return subscribeUserEvents((e) => {
       if (e.event === "document_request.pool_created" || e.event === "document_request.claimed" || e.event === "document_request.pool_removed") {
         setPoolReloadKey((k) => k + 1);
+      }
+      if (e.event === "document_request.claimed" || e.event === "document_request.completed") {
+        setReloadKey((k) => k + 1);
       }
     });
   }, []);
@@ -64,40 +86,58 @@ export default function DocumentRequestsInbox({ ns }: { ns: string }) {
   function onClaimed(id: string) {
     setGone((s) => new Set(s).add(id));
     setReloadKey((k) => k + 1);
+    setTab("assigned");
   }
+
+  function openRecord(r: LawyerDocumentRequest) {
+    if (POOL_FLOW_STATUSES.has(r.status)) router.push(`${basePath}/${r.id}/editor`);
+    else setTarget(r);
+  }
+
+  const TABS: { key: Tab; label: string; count: number }[] = [
+    { key: "pool", label: t("tabNewRequests"), count: poolVisible.length },
+    { key: "assigned", label: t("tabAssigned"), count: assignedList.length },
+    { key: "progress", label: t("tabInProgress"), count: progress.data.length },
+    { key: "done", label: t("tabCompleted"), count: done.data.length },
+  ];
+  const activeRows = tab === "assigned" ? assignedList : tab === "progress" ? progress.data : tab === "done" ? done.data : [];
+  const activeStatus = tab === "assigned" ? assigned.status : tab === "progress" ? progress.status : tab === "done" ? done.status : pool.status;
 
   return (
     <div className="ppanel">
-      {poolVisible.length || pool.status === "loading" ? (
-        <>
-          <div className="ppanel__h">
-            <b>{t("pool")}</b>
-            <span className="advmuted">{poolVisible.length}</span>
-          </div>
-          {pool.status === "loading" ? (
-            <Skeleton rows={2} />
-          ) : (
-            <div className="pcards" style={{ marginBottom: 24 }}>
-              {poolVisible.map((p) => (
-                <PoolCard key={p.id} item={p} ns={ns} onClaimed={() => onClaimed(p.id)} onTaken={() => setGone((s) => new Set(s).add(p.id))} />
-              ))}
-            </div>
-          )}
-        </>
-      ) : null}
-
       <div className="ppanel__h">
-        <b>{t("myWork")}</b>
-        <span className="advmuted">{rows.data.length}</span>
+        <b>{t("title")}</b>
       </div>
-      {rows.status === "loading" ? (
+
+      <div className="docb__tabs" role="tablist" style={{ marginBottom: 16 }}>
+        {TABS.map((tb) => (
+          <button key={tb.key} type="button" role="tab" aria-selected={tab === tb.key} className={tab === tb.key ? "on" : ""} onClick={() => setTab(tb.key)}>
+            {tb.label}
+            <span className="docb__tabn">{tb.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {tab === "pool" ? (
+        pool.status === "loading" ? (
+          <Skeleton rows={3} />
+        ) : !poolVisible.length ? (
+          <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
+        ) : (
+          <div className="pcards">
+            {poolVisible.map((p) => (
+              <PoolCard key={p.id} item={p} ns={ns} tcm={tcm} onClaimed={() => onClaimed(p.id)} onTaken={() => setGone((s) => new Set(s).add(p.id))} />
+            ))}
+          </div>
+        )
+      ) : activeStatus === "loading" ? (
         <Skeleton rows={3} />
-      ) : !rows.data.length ? (
+      ) : !activeRows.length ? (
         <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
       ) : (
         <div className="pcards">
-          {rows.data.map((r) => (
-            <button className="pcase pcase--btn" key={r.id} type="button" onClick={() => setTarget(r)}>
+          {activeRows.map((r) => (
+            <button className="pcase pcase--btn" key={r.id} type="button" onClick={() => openRecord(r)}>
               <div className="pcase__h">
                 <span className="pcase__client">
                   <IconUser />
@@ -106,39 +146,32 @@ export default function DocumentRequestsInbox({ ns }: { ns: string }) {
                 <span className="advmuted">{statusLabel(tcm, r.status || r.request.status)}</span>
               </div>
               {r.need ? <p>{r.need}</p> : null}
-              {r.createdAt ? (
-                <small>{shortDateTime(r.createdAt, locale)}</small>
-              ) : null}
+              {r.createdAt ? <small>{shortDateTime(r.createdAt, locale)}</small> : null}
             </button>
           ))}
         </div>
       )}
 
-      {/* A claimed record (has editorUrl) opens the new editor/meeting/
-          finalize workspace; an older one (no editorUrl — never went
-          through claim) still opens the upload-a-file FulfillModal below. */}
-      <ClaimedRequestWorkspace
-        ns={ns}
-        target={target?.editorUrl ? target : null}
-        onClose={() => setTarget(null)}
-        onDone={() => setReloadKey((k) => k + 1)}
-      />
-      <FulfillModal ns={ns} target={target?.editorUrl ? null : target} onClose={() => setTarget(null)} onDone={() => setReloadKey((k) => k + 1)} />
+      <FulfillModal ns={ns} target={target} onClose={() => setTarget(null)} onDone={() => setReloadKey((k) => k + 1)} />
     </div>
   );
 }
 
 // One open-pool card: a claim button that turns into a taken/claimed badge,
 // same accept/decline/taken shape as OrderActions.tsx elsewhere in the
-// portal (.pcase__act/.pcase__done/.pcase__err) — not a bespoke look.
+// portal (.pcase__act/.pcase__done/.pcase__err) — not a bespoke look. The
+// need text starts clamped to ~2 lines ("2-3 qator preview") with a
+// "Batafsil" toggle to read the rest, same pattern .pcase__q already uses.
 function PoolCard({
   item,
   ns,
+  tcm,
   onClaimed,
   onTaken,
 }: {
   item: DocumentRequestPoolItem;
   ns: string;
+  tcm: ReturnType<typeof useTranslations>;
   onClaimed: () => void;
   onTaken: () => void;
 }) {
@@ -146,6 +179,7 @@ function PoolCard({
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"" | "claimed" | "taken">("");
   const [err, setErr] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   async function claim() {
     if (busy || done) return;
@@ -176,7 +210,7 @@ function PoolCard({
         </span>
       </div>
       {item.serviceName ? <small>{item.serviceName}</small> : null}
-      {item.need ? <p>{item.need}</p> : null}
+      {item.need ? <p className={`pcase__q${expanded ? " on" : ""}`}>{item.need}</p> : null}
       {done === "claimed" ? (
         <span className="pcase__done pcase__done--accept">
           <IconCheck />
@@ -189,6 +223,11 @@ function PoolCard({
         </span>
       ) : (
         <div className="pcase__act">
+          {item.need ? (
+            <button type="button" className="btn btn--line btn--sm" onClick={() => setExpanded((v) => !v)}>
+              {tcm("details")}
+            </button>
+          ) : null}
           <button className="btn btn--grad btn--sm" type="button" onClick={claim} disabled={busy}>
             {busy ? t("claiming") : t("claim")}
           </button>

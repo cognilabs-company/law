@@ -4242,6 +4242,77 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .aichat__lastfree b{font-size:.9rem;color:var(--dk-txt-warn, #9a3412)}
 .aichat__lastfree span{font-size:.82rem;color:var(--gray)}
 
+/* ── Word-like document editor workspace (advocate) ──────────────────────
+   LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md: a dedicated full-page
+   workspace (components/portal/DocumentEditorWorkspace.tsx) — sticky top
+   bar, collapsible left/right panels, OnlyOffice filling the center at
+   full height. Left/right are grid columns on desktop (collapsing to 0
+   width, not unmounting, so state survives a toggle) and fixed overlay
+   drawers on mobile — see the two panels' own media-query override below. */
+.deditor{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:var(--dk-surface-2, #f5f6f8)}
+.deditor__top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;flex:none;padding:12px 18px;background:var(--dk-surface, #fff);box-shadow:0 1px 0 var(--line)}
+.deditor__back{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:8px 4px;font:inherit;font-weight:600;font-size:.86rem;color:var(--gray);cursor:pointer;flex:none}
+.deditor__back svg{width:16px;height:16px}
+.deditor__title{font-family:var(--fd);font-size:1rem;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:32ch}
+.deditor__badge{flex:none;padding:3px 10px;border-radius:var(--pill);font-size:.74rem;font-weight:700}
+.deditor__badge--new{background:var(--dk-tint-blue, #E6F0FF);color:var(--dk-acc-strong, var(--b700))}
+.deditor__badge--taken{background:var(--dk-tint-violet, #F1EBFF);color:var(--dk-txt-violet, #6A3DE8)}
+.deditor__badge--progress{background:var(--dk-tint-warn, #FFF7ED);color:var(--dk-txt-warn, #B45309)}
+.deditor__badge--ready{background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0a7d55)}
+.deditor__badge--sent{background:var(--dk-surface-2, #F1F5FB);color:var(--gray)}
+.deditor__spacer{flex:1}
+.deditor__act{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--dk-surface-2, #F7FAFE);border-radius:10px;padding:8px 14px;font:inherit;font-weight:700;font-size:.82rem;color:var(--ink);cursor:pointer;white-space:nowrap}
+.deditor__act svg{width:15px;height:15px;flex:none}
+.deditor__act:disabled{opacity:.55;cursor:default}
+.deditor__act--primary{color:#fff;background:var(--grad);border:none;box-shadow:var(--sblue)}
+.deditor__toggle{display:none;flex:none;border:0;background:none;padding:8px;cursor:pointer;color:var(--gray)}
+.deditor__toggle svg{width:20px;height:20px}
+
+.deditor__body{flex:1;min-height:0;display:grid;grid-template-columns:340px 1fr 360px;transition:grid-template-columns .2s}
+.deditor__body--leftClosed{grid-template-columns:0px 1fr 360px}
+.deditor__body--rightClosed{grid-template-columns:340px 1fr 0px}
+.deditor__body--leftClosed.deditor__body--rightClosed{grid-template-columns:0px 1fr 0px}
+
+.deditor__left,.deditor__right{position:relative;min-height:0;overflow-y:auto;overflow-x:hidden;padding:16px;display:none;flex-direction:column;gap:14px;background:var(--dk-surface, #fff)}
+.deditor__left{border-right:1px solid var(--line)}
+.deditor__right{border-left:1px solid var(--line)}
+.deditor__left.on,.deditor__right.on{display:flex}
+
+.deditor__panelToggle{position:absolute;top:10px;right:10px;border:0;background:var(--dk-surface-2, #F1F5FB);border-radius:8px;width:26px;height:26px;display:grid;place-items:center;cursor:pointer;color:var(--gray)}
+.deditor__panelToggle svg{width:14px;height:14px}
+
+.deditor__row{display:flex;align-items:center;gap:8px;font-size:.88rem;min-width:0}
+.deditor__row svg{width:15px;height:15px;flex:none;color:var(--dk-acc, var(--b600))}
+.deditor__field label{display:block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray2);margin-bottom:4px}
+.deditor__field p{margin:0;font-size:.88rem;color:var(--ink);overflow-wrap:anywhere}
+.deditor__need{max-height:260px;overflow-y:auto;white-space:pre-wrap}
+
+.deditor__main{position:relative;min-height:0;overflow:hidden;background:#f5f6f8}
+.deditor__oo{height:100%;width:100%;border:none}
+.deditor__mainState{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;color:var(--gray)}
+.deditor__mainState svg{width:32px;height:32px}
+.deditor__mainState b{font-size:1rem;color:var(--ink)}
+
+.deditor__tabs{display:flex;flex:none;border-bottom:1px solid var(--line);margin:-16px -16px 12px}
+.deditor__tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:none;padding:10px 4px;font:inherit;font-size:.7rem;font-weight:600;color:var(--gray);cursor:pointer;border-bottom:2px solid transparent}
+.deditor__tabs button svg{width:16px;height:16px}
+.deditor__tabs button.on{color:var(--dk-acc, var(--b600));border-color:var(--dk-acc, var(--b600))}
+.deditor__tabBody{flex:1;min-height:0}
+
+@media (max-width:1100px){
+  .deditor__body,.deditor__body--leftClosed,.deditor__body--rightClosed,.deditor__body--leftClosed.deditor__body--rightClosed{grid-template-columns:1fr}
+  .deditor__left,.deditor__right{position:fixed;top:0;bottom:0;z-index:20;width:min(340px,86vw);box-shadow:var(--s3)}
+  .deditor__left{left:0}
+  .deditor__right{right:0}
+  .deditor__toggle{display:inline-flex;align-items:center;justify-content:center}
+  .deditor__title{max-width:18ch}
+}
+@media (max-width:640px){
+  .deditor__top{padding:10px 12px;gap:8px;flex-wrap:wrap}
+  .deditor__act{font-size:.78rem;padding:7px 10px}
+  .deditor__title{max-width:12ch}
+}
+
 /* ── wp-n ── */
 /* T1-09 "new" badge, T1-11 vacation switch */
 .advcard__badge--new{background:var(--dk-tint-warn, #fff7ed);color:var(--dk-txt-warn, #c2410c)}
