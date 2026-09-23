@@ -3,8 +3,22 @@ import gsap from "gsap";
 import { RobotBones } from "./RobotBones";
 import { RobotStateMachine } from "./RobotStateMachine";
 import { RobotPropManager } from "./RobotPropManager";
-import { fingerBoneName, GRIP_POSE, IDLE, LOOK_CLAMP, PEEK, POINT, ROOT_PLACEMENT, THINK_POSE, WAVE } from "./robot-config";
+import {
+  fingerBoneName,
+  GESTURE_CLIPS,
+  GESTURE_FADE_SECONDS,
+  GESTURE_HOLD_SECONDS,
+  GRIP_POSE,
+  IDLE,
+  LOOK_CLAMP,
+  PEEK,
+  POINT,
+  ROOT_PLACEMENT,
+  THINK_POSE,
+  WAVE,
+} from "./robot-config";
 import { resolveHeadAvoidance, type HeadAvoidCorrection } from "./robotHeadSafety";
+import type { GestureName } from "./robot-gestures";
 import type { Finger, Hand, RobotControllerApi, RobotState } from "./robot-types";
 
 const scratchEuler = new THREE.Euler();
@@ -44,14 +58,30 @@ export class RobotController implements RobotControllerApi {
   private greetingTimeline: gsap.core.Timeline | null = null;
   private waveProgress = { shoulder: 0, out: 0, lift: 0, elbow: 0, wristPhase: 0, headCue: 0, edgeReveal: 0 };
 
+  // Baked full-body gesture playback (section: 14 GLB animation clips),
+  // layered on top of the procedural system rather than replacing it — see
+  // playGesture(). The mixer targets sceneRoot (the actual GLTF scene
+  // graph), not `root` (a plain wrapper THREE.Group RobotModel creates for
+  // procedural position/rotation offsets) — AnimationClip tracks resolve by
+  // node name against whatever object graph the mixer is given, and only
+  // sceneRoot's subtree contains the named bones.
+  private mixer: THREE.AnimationMixer;
+  private clipsByRawName = new Map<string, THREE.AnimationClip>();
+  private activeGestureAction: THREE.AnimationAction | null = null;
+  private gestureEndTimer: gsap.core.Tween | null = null;
+
   constructor(
     private root: THREE.Object3D,
     private bones: RobotBones,
+    sceneRoot: THREE.Object3D,
+    clips: THREE.AnimationClip[],
   ) {
     this.props = new RobotPropManager(bones);
     this.root.position.x = ROOT_PLACEMENT.restX;
     this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
     this.applyLeftGripPose();
+    this.mixer = new THREE.AnimationMixer(sceneRoot);
+    for (const clip of clips) this.clipsByRawName.set(clip.name, clip);
   }
 
   private applyLeftGripPose(): void {
@@ -110,6 +140,9 @@ export class RobotController implements RobotControllerApi {
   // --- per-frame procedural update (called from useFrame) -----------------
   update(dt: number, elapsed: number): void {
     if (this.disposed) return;
+    // Always stepped, not just while GESTURE owns the channels — a clip's
+    // fade-in/out still needs the mixer advancing during those transitions.
+    this.mixer.update(dt);
     this.updateIdleBreathing(elapsed);
     this.updateHead(dt, elapsed);
   }
@@ -232,6 +265,11 @@ export class RobotController implements RobotControllerApi {
     this.pointNDC = null;
     this.explicitLookTarget = null;
     if (current === "IDLE") return;
+    if (current === "GESTURE") {
+      this.gestureEndTimer?.kill();
+      if (this.activeGestureAction) this.endGesture(this.activeGestureAction);
+      return;
+    }
     if (current !== "PEEKING" && current !== "HIDDEN") {
       this.reactionTimeline?.kill();
       this.waveTimeline?.kill();
@@ -400,6 +438,61 @@ export class RobotController implements RobotControllerApi {
       .to(p, { wristPhase: Math.PI * 2 * WAVE.wiggleCount, duration: t.wiggle, ease: "none" })
       .to(p, { shoulder: 0, out: 0, lift: 0, elbow: 0, wristPhase: 0, duration: t.returnArm, ease: "power2.inOut" })
       .to(p, { headCue: 0, edgeReveal: 0, duration: t.settle, ease: "sine.inOut" });
+  }
+
+  // Baked full-body reaction — layered on top of every procedural behavior
+  // above, not one of them: the clip drives the entire skeleton at once (see
+  // GESTURE's channel claim in robot-types.ts), so every other bone-writing
+  // system here is suspended for its duration (enterInterrupting kills
+  // whatever else currently owns any of those channels) and the whole
+  // skeleton is explicitly restored afterward via endGesture() —
+  // RobotBones.resetEvery(), not the narrower ~15-bone resetAll() the rest
+  // of this class uses, since a clip also drives legs/spine/fingers nothing
+  // procedural ever touches.
+  playGesture(name: GestureName): void {
+    const clip = this.clipsByRawName.get(GESTURE_CLIPS[name]);
+    if (!clip) return;
+    if (!this.stateMachine.enterInterrupting("GESTURE")) return;
+    this.greetingTimeline?.kill();
+    this.greetingTimeline = null;
+    this.clearRightArmTimelines();
+    this.reactionTimeline?.kill();
+    this.rootTimeline?.kill();
+    this.gestureEndTimer?.kill();
+    this.peekHeadOverrideYaw = null;
+    this.pointNDC = null;
+    this.explicitLookTarget = null;
+    this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
+    this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
+
+    this.activeGestureAction?.fadeOut(GESTURE_FADE_SECONDS);
+    const action = this.mixer.clipAction(clip);
+    action.reset();
+    action.setLoop(THREE.LoopOnce, 1);
+    action.clampWhenFinished = true;
+    action.fadeIn(0.15);
+    action.play();
+    this.activeGestureAction = action;
+
+    const onFinished = (event: { action: THREE.AnimationAction }) => {
+      if (event.action !== action) return;
+      this.mixer.removeEventListener("finished", onFinished);
+      this.gestureEndTimer = gsap.delayedCall(GESTURE_HOLD_SECONDS, () => this.endGesture(action));
+    };
+    this.mixer.addEventListener("finished", onFinished);
+  }
+
+  private endGesture(action: THREE.AnimationAction): void {
+    action.fadeOut(GESTURE_FADE_SECONDS);
+    gsap.delayedCall(GESTURE_FADE_SECONDS, () => {
+      action.stop();
+      this.bones.resetEvery();
+      this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
+      this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
+      this.applyLeftGripPose();
+      if (this.activeGestureAction === action) this.activeGestureAction = null;
+      this.stateMachine.exit("GESTURE");
+    });
   }
 
   // --- stubs: typed, callable, architecturally wired; not fully realized ---
@@ -615,6 +708,8 @@ export class RobotController implements RobotControllerApi {
     this.pointTimeline?.kill();
     this.rightArmResetTimeline?.kill();
     this.greetingTimeline?.kill();
+    this.gestureEndTimer?.kill();
+    this.mixer.stopAllAction();
     this.props.detachAll();
   }
 }

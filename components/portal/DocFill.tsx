@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
-import { previewDocumentRequest, getServiceTemplateSourceFile, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
+import { useTranslations, useLocale } from "next-intl";
+import { previewDocumentRequest, getServiceTemplateSourceFile, requestServiceDocumentLawyer, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
 import { preopenTab, showBlob, saveBlob, closeTab } from "@/lib/download";
 import { docxToTree } from "@/lib/docxParse";
 import {
@@ -168,6 +168,33 @@ export default function DocFill({
       setSourceErr(true);
     } finally {
       setSourceBusy(false);
+    }
+  }
+
+  // LEXGO_SERVICE_DOCUMENT_ASSIST_FLOW_2026-09-22.md §4: no lawyer_user_id in
+  // the request body means the backend auto-assigns it to a call-center
+  // agent — this is the real "become a lead" action, not just a link to the
+  // lawyer directory (what this button did before). Whatever's already
+  // filled in comes along, so the agent isn't starting from zero.
+  const locale = useLocale();
+  const [askBusy, setAskBusy] = useState(false);
+  const [askSent, setAskSent] = useState(false);
+  const [askErr, setAskErr] = useState(false);
+  async function askLawyer() {
+    if (askBusy || askSent || !sourceFile?.lawyerFlow) return;
+    setAskErr(false);
+    setAskBusy(true);
+    try {
+      await requestServiceDocumentLawyer(sourceFile.lawyerFlow.requestUrl, {
+        need: t("askLawyerNeed", { title: req.title || t("fillTitle") }),
+        answers,
+        language: locale,
+      });
+      setAskSent(true);
+    } catch {
+      setAskErr(true);
+    } finally {
+      setAskBusy(false);
     }
   }
 
@@ -357,10 +384,23 @@ export default function DocFill({
             <span style={{ width: `${pct}%` }} />
           </div>
           <p className="docfill__lead">{t("fillLead")}</p>
-          <Link href="/portal/client/lawyers" className="docfill__ask">
-            <IconHeadset />
-            {t("askLawyer")}
-          </Link>
+          {sourceFile?.lawyerFlow ? (
+            <button
+              type="button"
+              className={`docfill__ask${askSent ? " docfill__ask--sent" : ""}`}
+              onClick={askLawyer}
+              disabled={askBusy || askSent}
+            >
+              {askSent ? <IconCheck /> : <IconHeadset />}
+              {askSent ? t("askLawyerSent") : askBusy ? t("askLawyerSending") : t("askLawyer")}
+            </button>
+          ) : (
+            <Link href="/portal/client/lawyers" className="docfill__ask">
+              <IconHeadset />
+              {t("askLawyer")}
+            </Link>
+          )}
+          {askErr ? <p className="svc__err">{t("askLawyerError")}</p> : null}
         </header>
 
         <div className="docfill__list" ref={formPane}>

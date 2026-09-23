@@ -1,4 +1,5 @@
 import type { CanonicalBone, Finger, FingerSegment, Hand } from "./robot-types";
+import type { GestureName } from "./robot-gestures";
 
 // The ONLY place raw Mixamo joint names appear outside RobotBones.ts itself.
 // Verified against the actual GLB's skin.joints (65 bones, standard Mixamo
@@ -44,16 +45,30 @@ export const MODEL_URL = "/models/lexgo-robot.glb";
 export const MODEL_HEIGHT_M = 0.98;
 
 // Camera. A narrow-ish FOV keeps the oversized head from barrel-distorting
-// at the edges of frame; target sits near the chest/neck so idle head motion
-// stays centered instead of hugging the top of frame. Pulled back from an
-// earlier, too-close 1.35m — at that distance the character read as a
-// life-sized figure filling its box rather than a small corner mascot;
-// combined with MODEL_SCALE below this is what makes it feel small and
-// secondary to dashboard content, not a floating 3D character on top of it.
+// at the edges of frame.
+//
+// Framed for the WORST-CASE pose across every baked gesture clip, not the
+// standing bind pose — a fully-visible widget (see ROOT_PLACEMENT below)
+// has to keep the whole body on-frame through sit/dive/press-up/lift_heavy
+// etc, several of which drop the hips well below standing-feet height or
+// reach well outside the standing silhouette. Verified numerically, not
+// eyeballed: a script built the real node/skin hierarchy + all 14
+// AnimationClips from the GLB's own accessor data (mirroring what
+// GLTFLoader does internally, sanitizeNodeName included — mixamo's
+// "mixamorig:" colon otherwise breaks THREE.PropertyBinding's track-name
+// parser), sampled 50 poses per clip, and swept a world-space bounding box
+// over every bone position (+0.1m flesh padding) — the real per-clip
+// envelope this camera is fit to, at MODEL_SCALE 0.7 + restRotationY
+// -0.54: x [-0.444, 0.406], y [-0.276, 0.675], z [-0.393, 0.548]. An
+// earlier pass here only fit the standing bind pose and cropped the feet
+// (target.y too high) and then, separately, half the body during any
+// actual gesture (box far too narrow) — this is why both target.y and the
+// distance/VIEWPORT_SIZE below now come from the animated envelope, with
+// 15% margin, not the standing pose alone.
 export const CAMERA = {
   fov: 28,
-  position: [0, 0.6, 2.15] as [number, number, number],
-  target: [0, 0.58, 0] as [number, number, number],
+  position: [0, 0.22, 2.807] as [number, number, number],
+  target: [0, 0.2, 0] as [number, number, number],
   near: 0.1,
   far: 10,
 };
@@ -65,38 +80,33 @@ export const CAMERA = {
 export const MODEL_SCALE = 0.7;
 
 // Character root placement inside the scene (meters, local to the root
-// group RobotModel creates). No separate wall/mask panel (that read as
-// over-engineered for what's really just "peek out of the edge") — hiding
-// comes from exactly two things: vertically, CAMERA.target/position/fov
-// frame roughly chest-up so the legs are simply outside the frustum;
-// horizontally, .robot-viewport's own overflow:hidden edge (plus
-// restRotationY turning the character mostly side-on) crops whatever restX
-// pushes past it. Verified numerically (scripted THREE.PerspectiveCamera +
-// Box3, not eyeballed) against VIEWPORT_SIZE.full's actual aspect ratio —
-// tuned for roughly half the body behind the edge, half showing: restX 0.18
-// -> ~51% of the character's width survives the right-edge clip (idle/rest),
-// 0.10 -> ~66% (peek, noticeably more revealed), 0.26 -> ~36% (hide, cropped
-// harder). All three keep the legs cropped regardless (that's vertical
-// framing, independent of restX). Re-verify numerically if CAMERA or
-// VIEWPORT_SIZE ever change — small restX changes swing the visible
-// fraction a lot faster than intuition suggests.
+// group RobotModel creates). Now a fully-visible bottom-right corner widget
+// (no more "peek out of the edge" — that design, and the half-hidden crop
+// it relied on, is gone): restX 0 keeps the character centered in
+// .robot-viewport instead of biased toward a clipped right edge.
+// VIEWPORT_SIZE below is sized (verified numerically — scripted
+// THREE.PerspectiveCamera + Box3 against the real bind-pose bounding box,
+// binary-searched for the exact aspect ratio that fits restRotationY's
+// turned silhouette edge-to-edge, not eyeballed) so the character's full
+// width fits inside the box with ~10% margin at every tier. PEEK/HIDDEN
+// still apply their small offsets on top of restX — now read as a
+// lean-toward-you / lean-back cue rather than a reveal/hide of a clipped
+// edge.
 export const ROOT_PLACEMENT = {
-  restX: 0.07,
+  restX: 0,
   peekOffsetX: -0.055,
   hiddenOffsetX: 0.16,
   restRotationY: -0.54,
   peekRotationYDelta: 0.14,
 };
-// restX 0.18 -> ~51% visible (idle target 45-55%), 0.12 -> ~62% (peek
-// target 60-65%), 0.28 -> ~33% (hide target 25-35%) — re-verified against
-// the same script as before after the target ranges changed.
 
 // The <canvas> itself renders wider than the visible .robot-viewport window
 // (which clips it via overflow:hidden) — a second, independent safeguard on
 // top of the conservative framing above: even if a future animation bug
-// swung the character further right than intended, the extra motion would
-// still land inside this overscanned-but-clipped margin instead of the
-// visible area, rather than depending on the framing math alone.
+// (or an unanticipated baked gesture clip) swung the character further than
+// intended, the extra motion would still land inside this overscanned-but-
+// clipped margin instead of the visible area, rather than depending on the
+// framing math alone.
 export const CANVAS_OVERSCAN_RATIO = 0.4;
 
 // Head safety ellipsoid, in the head bone's local space (meters). Generous
@@ -142,13 +152,13 @@ export const WAVE = {
   wristYDeg: 0,
   wristZDeg: -78,
   wristWiggleDeg: 12,
-  // A small friendly head cue makes the edge wave read as an intentional
+  // A small friendly head cue makes the wave read as an intentional
   // greeting instead of a detached arm animation.
   headTurnDeg: -3.5,
   headTiltDeg: 3.5,
-  // Pull the mascot a little farther into the viewport while waving so the
-  // greeting hand is visible beside the head instead of being clipped away.
-  edgeRevealX: -0.30,
+  // No longer pulling the mascot toward a clipped edge (VIEWPORT_SIZE now
+  // frames the full body with margin, so there's nothing to reveal).
+  edgeRevealX: 0,
   wiggleCount: 3,
   wiggleHz: 2.6,
   // Seconds, per step of the 9-step sequence (section 17).
@@ -252,14 +262,50 @@ export const BREAKPOINTS = {
   hiddenMaxWidth: 900,
 };
 
-// What .robot-viewport measures — small on purpose, a corner badge rather
-// than a wall panel: the box's own overflow:hidden edge is now the only
-// horizontal clip, so its width directly controls how much shows.
+// What .robot-viewport measures — a portrait box, not a landscape one.
+// Sized (same script as CAMERA above, iteratively searched against the real
+// per-corner projection rather than a flat-distance approximation — the
+// swept envelope is 0.94m deep, so near/far corners magnify differently and
+// a naive formula undershoots) so the worst-case pose across all 14 gesture
+// clips stays within the central 85% of frame both horizontally and
+// vertically. Ratio (~0.89) held constant across full/compact/mini.
 export const VIEWPORT_SIZE = {
-  full: { width: 190, height: 220 },
-  compact: { width: 150, height: 176 },
-  mini: { width: 104, height: 120 },
+  full: { width: 196, height: 220 },
+  compact: { width: 156, height: 176 },
+  mini: { width: 107, height: 120 },
 };
+
+// Friendly-id -> raw glTF clip name, for the 14 baked full-body animations
+// shipped in the GLB (see robot-gestures.ts for the id union). Two raw
+// names are corrupted/truncated text rather than real labels — see that
+// file's comment; the clip data itself is still real and playable.
+export const GESTURE_CLIPS: Record<GestureName, string> = {
+  slash: "slash.001",
+  box: "box_02.001",
+  frustrated: "frustrated_01.001",
+  waveGoodbye: "wave_goodbye_01.001",
+  pressUp: "press-up.001",
+  sit: "sit.001",
+  depressed: "depressed.001",
+  liftHeavy: "lift_heavy.001",
+  run: "run.001",
+  swagger: "swagger.001",
+  complain: "complain_02.001",
+  dive: "dive.001",
+  mysteryA: "I need you to rebuild the LexGo robot interaction so it matches",
+  mysteryB: "Создай дружелюбную короткую анима",
+};
+
+// Seconds to hold on the clip's final (clamped) frame before fading back to
+// the procedural rest pose — long enough to read as a deliberate pose, not
+// a hiccup.
+export const GESTURE_HOLD_SECONDS = 0.4;
+export const GESTURE_FADE_SECONDS = 0.25;
+
+// Ambient "still alive" cue: every so often, on its own, the mascot plays a
+// random one of the 14 baked gestures — off in dev (DEBUG_ROBOT below) so it
+// never fires mid-inspection while manually clicking through the demo cycle.
+export const RANDOM_GESTURE_INTERVAL_MS = 60_000;
 
 // Comfortably above ordinary static page content, well below every real
 // overlay in this app (nav 90, modals 120-270 — see app/globals.css).

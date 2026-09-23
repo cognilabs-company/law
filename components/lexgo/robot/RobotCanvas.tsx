@@ -10,8 +10,19 @@ import type { RobotController } from "./RobotController";
 // on purpose — a second, independent safeguard beyond the conservative
 // camera/character framing below: motion that ever overshoots still lands
 // in this overscanned-but-clipped margin rather than depending on the
-// framing math alone. See robot-config.ts's ROOT_PLACEMENT comment.
-const oversizedStyle = { width: `${(1 + CANVAS_OVERSCAN_RATIO) * 100}%`, height: "100%", position: "absolute" as const, left: 0, top: 0, zIndex: 0 };
+// framing math alone. Centered symmetrically (left offset by half the extra
+// width) so the visible clipped region's aspect ratio still matches
+// .robot-viewport's own — the character sits at world x 0 (restX 0, see
+// robot-config.ts's ROOT_PLACEMENT), so an off-center canvas would bias it
+// off-center inside the box instead of just adding equal margin both ways.
+const oversizedStyle = {
+  width: `${(1 + CANVAS_OVERSCAN_RATIO) * 100}%`,
+  height: "100%",
+  position: "absolute" as const,
+  left: `${-(CANVAS_OVERSCAN_RATIO / 2) * 100}%`,
+  top: 0,
+  zIndex: 0,
+};
 
 export default function RobotCanvas({
   onReady,

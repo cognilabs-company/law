@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import RobotCanvas from "./RobotCanvas";
 import { RobotEvents } from "./RobotEvents";
-import { BREAKPOINTS, DEBUG_ROBOT, VIEWPORT_SIZE } from "./robot-config";
+import { BREAKPOINTS, DEBUG_ROBOT, RANDOM_GESTURE_INTERVAL_MS, VIEWPORT_SIZE } from "./robot-config";
+import { GESTURE_NAMES, type GestureName } from "./robot-gestures";
 import type { RobotController } from "./RobotController";
 
 type Tier = "full" | "compact" | "mini";
@@ -20,6 +21,7 @@ type RobotDebugWindow = typeof window & { __lexgoRobotController?: RobotControll
 // step rather than "whatever the mouse happens to be doing".
 const DEMO_STEPS: Array<(c: RobotController) => void> = [
   (c) => c.greet(),
+  ...GESTURE_NAMES.map((name) => (c: RobotController) => c.playGesture(name)),
 ];
 
 // The persistent "lives behind the right edge" companion (spec section 5) —
@@ -30,6 +32,7 @@ const DEMO_STEPS: Array<(c: RobotController) => void> = [
 export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void }) {
   const controllerRef = useRef<RobotController | null>(null);
   const demoStepRef = useRef(0);
+  const lastGestureRef = useRef<GestureName | "">("");
   const [visible, setVisible] = useState(true);
   const [tier, setTier] = useState<Tier>("full");
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -80,6 +83,25 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
     return () => window.removeEventListener("pointermove", handleMove);
   }, [ready, reducedMotion]);
 
+  // Ambient random gesture, once a minute — off for reduced-motion, off
+  // while the tab is backgrounded (no point animating something nobody can
+  // see), and off in dev so it never fires mid-inspection while manually
+  // clicking through DEMO_STEPS. Never repeats the same gesture twice in a
+  // row.
+  useEffect(() => {
+    if (!ready || reducedMotion || DEBUG_ROBOT) return;
+    const iv = setInterval(() => {
+      if (document.hidden) return;
+      const controller = controllerRef.current;
+      if (!controller) return;
+      const pool = GESTURE_NAMES.filter((n) => n !== lastGestureRef.current);
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      lastGestureRef.current = pick;
+      controller.playGesture(pick);
+    }, RANDOM_GESTURE_INTERVAL_MS);
+    return () => clearInterval(iv);
+  }, [ready, reducedMotion]);
+
   function handleReady(controller: RobotController | null) {
     controllerRef.current = controller;
     if (DEBUG_ROBOT && typeof window !== "undefined") {
@@ -100,6 +122,12 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
     if (demo === "greet") controller.greet();
     if (demo === "peek") controller.peek();
     if (demo === "hide") controller.hide();
+    if (demo?.startsWith("gesture:")) {
+      const name = demo.slice("gesture:".length);
+      if ((GESTURE_NAMES as readonly string[]).includes(name)) {
+        controller.playGesture(name as (typeof GESTURE_NAMES)[number]);
+      }
+    }
   }, [ready]);
 
   function handleClick() {

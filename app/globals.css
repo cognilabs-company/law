@@ -1032,21 +1032,17 @@ body:has(.plogin) .fab{display:none}
 .pbody__in{max-width:1560px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
 .psec-h{font-family:var(--fd);font-size:1.05rem;font-weight:700;letter-spacing:-.02em;margin:0}
 
-/* LexGo 3D AI mascot — a small corner badge, not a wall panel: it simply
-   sits at the dashboard's right edge and its own overflow:hidden edge (plus
-   conservative camera framing) crops whatever spills past it, same as any
-   other clipped card. pointer-events:none on the outer anchor so it can
-   never sit on top of the header or steal a click from real content; only
+/* LexGo 3D AI mascot — a fully-visible floating corner widget (no more
+   "peek from behind the edge": VIEWPORT_SIZE in robot-config.ts was widened
+   to frame the whole character instead of clipping half of it). Anchored to
+   the bottom-right corner with a moderate gap on both edges, chat-widget
+   style. pointer-events:none on the outer anchor so it can never sit on top
+   of other bottom-right UI or steal a click from real content; only
    .robot-viewport — sized to the mascot itself — is interactive. z-index 10
    sits above ordinary static content and well below every real overlay in
-   this file (nav 90, modals 120-270). Anchored from the BOTTOM with a
-   moderate gap — a top anchor read as too close to the header on a real
-   screen; flush against the very bottom corner read as too low — this
-   settles in the lower half without touching either edge. */
-.robot-edge-zone{position:fixed;top:clamp(150px,24vh,260px);right:0;z-index:10;display:flex;pointer-events:none}
+   this file (nav 90, modals 120-270). */
+.robot-edge-zone{position:fixed;bottom:clamp(16px,4vh,32px);right:clamp(6px,1.2vw,14px);z-index:10;display:flex;pointer-events:none}
 .robot-viewport{position:relative;overflow:hidden;pointer-events:auto;cursor:pointer;outline:none}
-.robot-viewport::after{content:"";position:absolute;top:0;right:0;width:2px;height:100%;background:linear-gradient(to bottom,transparent,rgba(228,235,245,.9) 18%,rgba(228,235,245,.9) 82%,transparent);pointer-events:none;z-index:2}
-html[data-theme="dark"] .robot-viewport::after{background:linear-gradient(to bottom,transparent,rgba(44,61,96,.75) 18%,rgba(44,61,96,.75) 82%,transparent)}
 .robot-viewport:focus-visible{box-shadow:inset 0 0 0 2px var(--b400)}
 @media (max-width:900px){.robot-edge-zone{display:none}}
 
@@ -1512,22 +1508,7 @@ body:has(.rf) .fab{display:none}
 .svcard.on .svcard__c{background:var(--b600)}
 .svcard__c svg{width:13px;height:13px;stroke:#fff;stroke-width:3}
 
-/* Client "Xizmatlar" catalog, top level: one section card ("bo'lim") wrapping
-   the whole civil-court category set — see the `section` state comment in
-   page.tsx for why this exists with nothing backing it on the API side. */
-.svsec__grid{display:grid;gap:12px}
-.svsec{display:flex;align-items:center;gap:16px;text-align:left;padding:22px 24px;min-width:0;border:1.5px solid var(--line);border-radius:var(--rl);
-  background:var(--dk-surface, #fff);cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .2s;width:100%}
-.svsec:hover{border-color:var(--b300);box-shadow:var(--s1);transform:translateY(-2px)}
-.svsec__i{width:56px;height:56px;border-radius:16px;background:var(--grad);color:#fff;display:grid;place-items:center;flex:none;box-shadow:var(--sblue)}
-.svsec__i svg{width:28px;height:28px}
-.svsec__t{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
-.svsec__t b{font-size:1.05rem;font-family:var(--fb);font-weight:700}
-.svsec__t small{font-size:.85rem;color:var(--gray)}
-.svsec__c{margin-left:auto;width:26px;height:26px;border-radius:50%;background:var(--b100);color:var(--dk-acc, var(--b600));flex:none;display:grid;place-items:center}
-.svsec__c svg{width:14px;height:14px}
-
-/* Middle level: the 4 categories, now with real illustrations (bigger, with
+/* Client "Xizmatlar" catalog, top level: the 4 categories, now with real illustrations (bigger, with
    a clear label below) instead of the generic cycled icon .svcard used. New
    class family rather than reusing .svcard — that class is still shared by
    ServiceSelector.tsx and needed to stay exactly as it was there. */
@@ -4083,8 +4064,10 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docfill__bar{height:6px;border-radius:var(--pill);background:var(--dk-surface-2, #eef2f7);overflow:hidden}
 .docfill__bar span{display:block;height:100%;background:var(--grad);border-radius:var(--pill);transition:width .3s}
 .docfill__lead{margin:0;font-size:.85rem;line-height:1.5;color:var(--gray)}
-.docfill__ask{display:inline-flex;align-items:center;gap:7px;align-self:flex-start;padding:8px 14px;border-radius:var(--pill);background:var(--dk-tint-blue, #EAF1FF);color:var(--dk-acc-strong, var(--b700));font-size:.82rem;font-weight:700;transition:filter .15s}
+.docfill__ask{display:inline-flex;align-items:center;gap:7px;align-self:flex-start;padding:8px 14px;border-radius:var(--pill);border:0;background:var(--dk-tint-blue, #EAF1FF);color:var(--dk-acc-strong, var(--b700));font:inherit;font-size:.82rem;font-weight:700;cursor:pointer;transition:filter .15s}
 .docfill__ask:hover{filter:brightness(.96)}
+.docfill__ask:disabled{cursor:default;opacity:.75}
+.docfill__ask--sent{background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0a7d55)}
 .docfill__ask svg{width:15px;height:15px;stroke:currentColor;flex:none}
 .docfill__list{flex:1 1 auto;display:grid;gap:12px;align-content:start;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:3px 6px 8px 3px;scrollbar-width:thin}
 .docfill__grp{display:grid;gap:12px}

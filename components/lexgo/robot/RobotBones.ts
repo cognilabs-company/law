@@ -67,4 +67,17 @@ export class RobotBones {
       bone.quaternion.copy(snap.quaternion);
     }
   }
+
+  // Reset the WHOLE skeleton (all 65 bones — legs, spine, fingers, every
+  // bone this class saw during traverse(), not just the ~15 canonical ones
+  // resetAll() covers) back to rest. Needed after a baked gesture clip ends:
+  // AnimationMixer writes every bone it has a track for directly and leaves
+  // it wherever the clip's last frame put it once the action's weight drops
+  // to 0 — nothing else restores it.
+  resetEvery(): void {
+    for (const [bone, snap] of this.snapshots) {
+      bone.position.copy(snap.position);
+      bone.quaternion.copy(snap.quaternion);
+    }
+  }
 }

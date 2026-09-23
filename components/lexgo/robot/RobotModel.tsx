@@ -31,7 +31,7 @@ export default function RobotModel({
   onReady: (controller: RobotController | null) => void;
   reducedMotion: boolean;
 }) {
-  const { scene } = useGLTF(MODEL_URL);
+  const { scene, animations } = useGLTF(MODEL_URL);
   const rootRef = useRef<THREE.Group>(null);
   const controllerRef = useRef<RobotController | null>(null);
 
@@ -39,7 +39,7 @@ export default function RobotModel({
     const root = rootRef.current;
     if (!root) return;
     const bones = new RobotBones(scene);
-    const controller = new RobotController(root, bones);
+    const controller = new RobotController(root, bones, scene, animations);
     controller.setReducedMotion(reducedMotion);
     controllerRef.current = controller;
     onReady(controller);

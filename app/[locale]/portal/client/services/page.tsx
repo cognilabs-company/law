@@ -68,20 +68,21 @@ const FAM_ICONS: ComponentType<{ className?: string }>[] = [
   IconScale, IconGavel, IconShield, IconFileText, IconUsers, IconBriefcase,
 ];
 
-// Real illustrations for the 4 civil-court categories (public/img/), matched
-// by keyword against the category's own name rather than a fixed id/slug —
-// the backend has no stable per-category image field, and this reads the
-// same regardless of locale (Uzbek Latin/Cyrillic) since every spelling of
-// e.g. "uy-joy" still contains "joy". Falls back to FAM_ICONS below for any
-// category that matches none of these (a 5th category added later).
-const CATEGORY_IMAGES: { match: RegExp; src: string }[] = [
-  { match: /uy.?joy/i, src: "/img/uyjoy-nizolari.png" },
-  { match: /mehnat/i, src: "/img/mehnat-nizolari.png" },
-  { match: /oila|meros/i, src: "/img/oliaviy-meros.png" },
-  { match: /boshqa/i, src: "/img/boshqa-fuqorolik.png" },
+// LEXGO_DOCUMENT_SUBCATEGORIES_FRONTEND.md: every service now carries a real
+// `subcategory` string from the backend (21 in production, verified live —
+// "Oila va aliment" 133, "Mehnat huquqi" 261, etc., across all 4 general
+// categories, not just Fuqarolik) — this replaces the previous client-side
+// title-keyword guess entirely. Only 4 of the 21 have an illustration
+// (public/img/, carried over from the old civil-court section); every other
+// subcategory falls back to a cycled icon below.
+const SUBCATEGORY_IMAGES: { match: RegExp; src: string }[] = [
+  { match: /uy-?joy/i, src: "/img/uyjoy-nizolari.png" },
+  { match: /mehnat huquqi/i, src: "/img/mehnat-nizolari.png" },
+  { match: /oila va aliment|meros va vasiyat/i, src: "/img/oliaviy-meros.png" },
+  { match: /boshqa fuqarolik/i, src: "/img/boshqa-fuqorolik.png" },
 ];
-function categoryImage(name: string): string | null {
-  return CATEGORY_IMAGES.find((c) => c.match.test(name))?.src ?? null;
+function subcategoryImage(name: string): string | null {
+  return SUBCATEGORY_IMAGES.find((s) => s.match.test(name))?.src ?? null;
 }
 
 type Sort = "match" | "rating" | "exp" | "price";
@@ -98,13 +99,13 @@ export default function ClientServices() {
   const locale = useLocale();
   const router = useRouter();
   const cats = useResource(getServiceCategories, []);
-  // LEXGO_SERVICE_CATEGORIES_FILTER_FRONTEND.md: /service-categories now
-  // returns only the 4 civil-court categories (the old marketplace ones are
-  // gone), and its services require catalog_only=false ("majburiy") — they
-  // carry no catalog metadata. catalog_only=true is not used here any more:
-  // whatever it still returns belongs to categories that no longer exist, so
-  // family/category browsing couldn't show it anyway.
-  const services = useResource<BackendService>(() => getServices({ catalog_only: false }, locale), [locale]);
+  // LEXGO_GENERAL_DOCUMENT_CATEGORIES_FRONTEND.md: /service-categories now
+  // returns 4 GENERAL categories (Jinoiy/Ma'muriy/Iqtisodiy/Fuqarolik — every
+  // legal domain, not just civil-court matters), backed by 987 active catalog
+  // services; catalog_only=true is what selects that catalog. The old
+  // civil-court-* services/templates (and the catalog_only=false reasoning
+  // that used to apply to them) were deactivated with this change.
+  const services = useResource<BackendService>(() => getServices({ catalog_only: true }, locale), [locale]);
 
   // T0-20 §4: outside working hours the client is told right away when the
   // advocate's 30-minute response window starts (next working day 09:00).
@@ -140,13 +141,20 @@ export default function ClientServices() {
   }, [preSeller]);
   const narrowed = Boolean(preSeller && preServices && preServices.size);
   const offeredBy = useCallback((s: BackendService) => !narrowed || (preServices as Set<string>).has(s.id), [narrowed, preServices]);
-  // The backend has no "section" concept — every category it returns today
-  // is one civil-court bo'lim (LEXGO_SERVICE_CATEGORIES_FILTER_FRONTEND.md).
-  // This is a purely presentational wrapper: one section card up front,
-  // opening into exactly the family grid that used to be the top level, in
-  // the same order the backend already returns.
-  const [section, setSection] = useState(false);
-  const [cat, setCat] = useState(""); // "" = families overview
+  // 4 general categories (LEXGO_GENERAL_DOCUMENT_CATEGORIES_FRONTEND.md), a
+  // real backend `subcategory` per service one level under each
+  // (LEXGO_DOCUMENT_SUBCATEGORIES_FRONTEND.md) — every category gets the
+  // same two-step drill-down: general category -> subcategory -> services.
+  const [cat, setCat] = useState(""); // "" = general categories overview
+  const [subcat, setSubcat] = useState(""); // "" = subcategories overview for `cat`
+  // Reset during render (not an effect — this file's own established pattern,
+  // see prevOrder/prevServiceId/prevQuoteKey below) so a stale subcategory
+  // filter never survives a category change.
+  const [prevCat, setPrevCat] = useState(cat);
+  if (cat !== prevCat) {
+    setPrevCat(cat);
+    setSubcat("");
+  }
   // Deep link from the AI intake ("order this service") pre-fills the search.
   // Rendered only client-side (inside the portal shell, after auth is ready).
   const [q, setQ] = useState(() =>
@@ -220,6 +228,22 @@ export default function ClientServices() {
   // Families with at least one offered service (all of them when not narrowed).
   const famList = narrowed ? cats.data.filter((c) => countFor(c.id) > 0) : cats.data;
 
+  const NO_SUBCAT = "Boshqa";
+  // The selected general category's own services, grouped by the backend's
+  // real `subcategory` field (LEXGO_DOCUMENT_SUBCATEGORIES_FRONTEND.md) —
+  // every category gets this, not just Fuqarolik. Sorted by count desc (the
+  // MD's own recommended order, matching how it lists production counts).
+  const catServices = useMemo(() => (cat ? catalog.filter((s) => s.categoryId === cat) : []), [catalog, cat]);
+  const subcatCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const s of catServices) { const k = s.subcategory || NO_SUBCAT; m.set(k, (m.get(k) ?? 0) + 1); }
+    return m;
+  }, [catServices]);
+  const subcatList = useMemo(
+    () => [...subcatCounts.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name),
+    [subcatCounts],
+  );
+
   // T1-06 server search (GET /services/search): Latin/Cyrillic/Russian
   // spellings, category and AI category, ranked by score. Debounced; until it
   // answers (or if it fails) the local name/code filter below is shown.
@@ -265,8 +289,10 @@ export default function ClientServices() {
       }
       return local;
     }
-    return cat ? catalog.filter((s) => s.categoryId === cat) : [];
-  }, [catalog, cat, query, remote, narrowed, offeredBy, localHits]);
+    if (!cat || !subcat) return [];
+    // MD's recommended sort: services inside a subcategory alphabetically by title.
+    return catServices.filter((s) => (s.subcategory || NO_SUBCAT) === subcat).sort((a, b) => a.name.localeCompare(b.name, locale));
+  }, [catalog, cat, subcat, query, remote, narrowed, offeredBy, localHits, catServices, locale]);
 
   // Deep link from the AI offer cards (?service=<id>) opens that service's order
   // modal once the catalog is loaded; a service outside the catalog list is
@@ -425,8 +451,8 @@ export default function ClientServices() {
     else router.push("/portal/client/cases");
   }
 
-  const showSection = !query && !section;
-  const showFamilies = !query && section && !cat;
+  const showFamilies = !query && !cat;
+  const showSubcats = !query && !!cat && !subcat;
 
   return (
     <div className="mkt">
@@ -465,8 +491,8 @@ export default function ClientServices() {
       ) : null}
       <div className="ppanel">
         <div className="ppanel__h">
-          <b>{showSection ? t("sectionTitle") : showFamilies ? t("chooseFamily") : query ? t("title") : catName}</b>
-          {showSection ? null : <span className="advmuted">{showFamilies ? famList.length : list.length}</span>}
+          <b>{showFamilies ? t("chooseFamily") : showSubcats ? catName : query ? t("title") : subcat || catName}</b>
+          <span className="advmuted">{showFamilies ? famList.length : showSubcats ? subcatList.length : list.length}</span>
         </div>
 
         <div className="svsel__bar" style={{ marginBottom: 14 }}>
@@ -476,8 +502,8 @@ export default function ClientServices() {
           </span>
         </div>
 
-        {!showSection && !query ? (
-          <button type="button" className="mkt__back" onClick={() => (cat ? setCat("") : setSection(false))}>
+        {!showFamilies && !query ? (
+          <button type="button" className="mkt__back" onClick={() => (subcat ? setSubcat("") : setCat(""))}>
             <IconChevronLeft />
             {t("back")}
           </button>
@@ -485,39 +511,44 @@ export default function ClientServices() {
 
         {services.status === "loading" || cats.status === "loading" ? (
           <Skeleton rows={4} />
-        ) : showSection ? (
-          <div className="svsec__grid">
-            <button type="button" className="svsec" onClick={() => setSection(true)}>
-              <span className="svsec__i"><IconScale /></span>
-              <span className="svsec__t">
-                <b>{t("sectionTitle")}</b>
-                <small>{t("servicesN", { n: famList.length })}</small>
-              </span>
-              <span className="svsec__c"><IconArrowRight /></span>
-            </button>
-          </div>
         ) : showFamilies ? (
           <div className="svfam__grid">
             {famList.map((c, i) => {
-              const img = categoryImage(c.name);
               const Icon = FAM_ICONS[i % FAM_ICONS.length];
               return (
                 <button key={c.id} type="button" className="svfam" onClick={() => setCat(c.id)}>
                   <span className="svfam__i">
+                    <Icon />
+                  </span>
+                  <span className="svfam__t">
+                    <b>{c.name}</b>
+                    <small>{t("servicesN", { n: countFor(c.id) })}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : showSubcats ? (
+          <div className="svfam__grid">
+            {subcatList.map((name, i) => {
+              const img = subcategoryImage(name);
+              const Icon = FAM_ICONS[i % FAM_ICONS.length];
+              return (
+                <button key={name} type="button" className="svfam" onClick={() => setSubcat(name)}>
+                  <span className="svfam__i">
                     {img ? (
                       // The source PNGs are ~600-800KB full-resolution
-                      // renders — a plain <img> shipped that whole file to
-                      // every visitor; next/image resizes/re-encodes to
-                      // what's actually displayed (this card is never wider
-                      // than a few hundred px) and lazy-loads off-screen ones.
+                      // renders — next/image resizes/re-encodes to what's
+                      // actually displayed (this card is never wider than a
+                      // few hundred px) and lazy-loads off-screen ones.
                       <Image src={img} alt="" fill sizes="(max-width: 640px) 45vw, 260px" style={{ objectFit: "contain" }} />
                     ) : (
                       <Icon />
                     )}
                   </span>
                   <span className="svfam__t">
-                    <b>{c.name}</b>
-                    <small>{t("servicesN", { n: countFor(c.id) })}</small>
+                    <b>{name}</b>
+                    <small>{t("servicesN", { n: subcatCounts.get(name) ?? 0 })}</small>
                   </span>
                 </button>
               );

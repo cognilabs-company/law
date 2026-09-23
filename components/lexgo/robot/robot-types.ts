@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import type { GestureName } from "./robot-gestures";
 
 // Canonical bone names this system knows how to drive. Real Mixamo strings
 // live only in robot-config.ts's BONE_NAMES map + finger-bone builder — every
@@ -52,11 +53,15 @@ export type RobotState =
   | "THINKING"
   | "HOLDING"
   | "SUCCESS"
-  | "ERROR";
+  | "ERROR"
+  | "GESTURE";
 
 // Which channels a state claims exclusively while it runs. A behavior on a
 // channel already claimed by an incompatible state is deferred (queued) or
-// dropped — see RobotStateMachine's compatibility table.
+// dropped — see RobotStateMachine's compatibility table. GESTURE (a baked
+// full-body animation clip) claims every channel that exists: the clip
+// drives the whole skeleton at once, so nothing procedural (breathing,
+// look-at-cursor, wave/point/think) may touch a bone while one plays.
 export const STATE_CHANNELS: Record<RobotState, Channel[]> = {
   IDLE: ["ROOT", "TORSO"],
   PEEKING: ["ROOT"],
@@ -68,6 +73,7 @@ export const STATE_CHANNELS: Record<RobotState, Channel[]> = {
   HOLDING: ["HANDS"],
   SUCCESS: ["HEAD", "TORSO"],
   ERROR: ["HEAD", "TORSO"],
+  GESTURE: ["ROOT", "TORSO", "HEAD", "LEFT_ARM", "RIGHT_ARM", "HANDS"],
 };
 
 export type HandTransformConfig = {
@@ -104,6 +110,7 @@ export interface RobotControllerApi {
   reactSuccess(): void;
   reactError(): void;
   reactNotification(): void;
+  playGesture(name: GestureName): void;
   holdObject(object: THREE.Object3D, hand: Hand): void;
   releaseObject(hand: Hand): void;
   openHand(hand: Hand): void;

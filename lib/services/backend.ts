@@ -527,6 +527,11 @@ export type BackendService = {
   slug: string;
   categoryId?: string;
   categoryTitle?: string;
+  // LEXGO_DOCUMENT_SUBCATEGORIES_FRONTEND.md: real backend grouping within a
+  // general category (e.g. "Oila va aliment" inside Fuqarolik) — 21 in
+  // production, verified live. Catalog browsing groups by this now instead
+  // of guessing from the title.
+  subcategory?: string;
   price?: number;
   description?: string;
   isActive: boolean;
@@ -561,6 +566,7 @@ function normService(v: unknown, locale = "uz"): BackendService {
     slug: asStr(d.slug),
     categoryId: asStr(d.category_id ?? d.categoryId) || undefined,
     categoryTitle: asStr(d.category_title) || undefined,
+    subcategory: asStr(d.subcategory) || undefined,
     price: uzsOpt(d, "standard_price", "base_price"),
     description: asStr(d.description) || undefined,
     isActive: d.is_active !== false,
