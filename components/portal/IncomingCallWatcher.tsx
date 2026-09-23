@@ -96,7 +96,16 @@ export default function IncomingCallWatcher() {
       if (!alive) return;
       setInc({ kind: isMeet ? "meet" : "chat", roomId, callId, callType: String(call.call_type) === "audio" ? "audio" : "video", callerName: name });
     }
-    const unsub = subscribeUserEvents((e) => { void onEvent(e); });
+    const unsub = subscribeUserEvents((e) => {
+      // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md §"Advokat: meeting
+      // yaratish": the client receives BOTH `call.incoming` and
+      // `document_request.meeting_created`. The second is the safety net —
+      // if the call event is dropped (or lands before the invite row
+      // exists), re-checking /calls/invited still surfaces the ring card
+      // instead of the client silently missing their advocate's call.
+      if (e.event === "document_request.meeting_created") { void pollInvites(); return; }
+      void onEvent(e);
+    });
 
     // Fallback: pending meeting invites via REST on mount, on focus, and while the socket is down.
     async function pollInvites() {

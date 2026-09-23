@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { listClientDocumentFlow, getDocumentRequestFile, type ClientDocFlowItem, type ClientDocFlowMode } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
+import { subscribeUserEvents } from "@/lib/userSocket";
 import { fetchAndDeliver } from "@/lib/download";
+import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
-import { IconFileText, IconDownload, IconUser, IconClock } from "@/components/icons";
+import { IconFileText, IconDownload, IconUser, IconClock, IconVideo } from "@/components/icons";
 
 // LEXGO_CLIENT_DOCUMENT_REQUESTS_PAGE_FRONTEND.md: one place for the client
 // to see every document request they've ever started — however it was
@@ -24,11 +26,29 @@ export default function ClientDocumentRequests() {
   const [tab, setTab] = useState<TabKey>("all");
   const list = useResource<ClientDocFlowItem>(() => listClientDocumentFlow(tab === "all" ? undefined : { mode: tab }), [tab]);
   const [dlBusy, setDlBusy] = useState("");
+  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md §"Realtime": this is
+  // the page the client is told to come back to, so it must not need a
+  // manual reload to show that an advocate claimed the work, started a
+  // meeting, or sent the finished file. `refresh()` keeps what is on screen
+  // while it refetches, so an event never flashes the list back to a skeleton.
+  const refresh = list.refresh;
+  useEffect(() => {
+    return subscribeUserEvents((ev) => {
+      if (!ev.event.startsWith("document_request.")) return;
+      // MD §"Client tayyor file ko'rishi" — the exact notice the client gets.
+      if (ev.event === "document_request.ready" || ev.event === "document_request.completed") setNote({ ok: true, msg: t("readyToast") });
+      void refresh();
+    });
+  }, [refresh, t]);
 
   async function download(item: ClientDocFlowItem) {
     if (!item.file.ready || dlBusy) return;
     setDlBusy(item.id);
-    await fetchAndDeliver(() => getDocumentRequestFile(item.id), `${item.title || t("title")}.${item.file.format || "docx"}`, true);
+    setNote(null);
+    const ok = await fetchAndDeliver(() => getDocumentRequestFile(item.id), `${item.title || t("title")}.${item.file.format || "docx"}`, true);
+    if (!ok) setNote({ ok: false, msg: t("downloadError") });
     setDlBusy("");
   }
 
@@ -47,8 +67,14 @@ export default function ClientDocumentRequests() {
         ))}
       </div>
 
+      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+
       {list.status === "loading" ? (
         <Skeleton rows={3} />
+      ) : list.status === "error" ? (
+        // A failed fetch used to render as "you have no documents" — the one
+        // message that must never be guessed at on this page.
+        <Notice ok={false} msg={t("loadError")} />
       ) : !list.data.length ? (
         <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
       ) : (
@@ -68,6 +94,14 @@ export default function ClientDocumentRequests() {
                   <small>
                     <IconUser />
                     {item.assignedLawyer.name}
+                  </small>
+                ) : null}
+                {/* MD §"Client: o'z requestlari va tayyor file" lists the
+                    meeting status alongside status / assigned lawyer. */}
+                {item.meeting ? (
+                  <small className={item.meeting.active ? "pcase__live" : undefined}>
+                    <IconVideo />
+                    {item.meeting.active ? t("meetingActive") : item.meeting.status || t("meetingLabel")}
                   </small>
                 ) : null}
                 {item.createdAt ? (

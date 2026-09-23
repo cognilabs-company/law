@@ -225,6 +225,13 @@ export const IconGrid = (p: P) => (
   </svg>
 );
 
+// Minimise (a floating meeting panel collapses to its title bar).
+export const IconMinus = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M5 12h14" />
+  </svg>
+);
+
 export const IconCard = (p: P) => (
   <svg {...base} {...p}>
     <rect x="2" y="5" width="20" height="14" rx="3" />

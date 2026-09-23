@@ -16,7 +16,8 @@ import {
   type TemplateQuestion,
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
-import { ApiError, isProviderUnavailable } from "@/lib/http";
+import { ApiError, isProviderUnavailable, logApiError } from "@/lib/http";
+import { subscribeUserEvents } from "@/lib/userSocket";
 import { base64Blob, closeTab, extFromMime, mimeFromName, preopenTab, saveBlob, showBlob } from "@/lib/download";
 import { normalizeAnswers } from "@/lib/docTemplate";
 import ContractSign from "./ContractSign";
@@ -30,7 +31,7 @@ import { IconDownload, IconExternal, IconCheck, IconClock, IconSparkle, IconHead
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
-type Stage = "answers" | "pay" | "generating" | "lawyerReview" | "pending" | "done";
+type Stage = "answers" | "pay" | "generating" | "lawyerReview" | "claimed" | "pending" | "done";
 
 // Map a request's backend status to the modal stage. Shared by every entry
 // point (standalone template list, service "Create document" button, and
@@ -48,9 +49,14 @@ function stageFor(r: DocumentRequest): Stage {
   if (r.status === "file_ready") return "done";
   if (!r.status || r.status === "questionnaire" || r.status === "draft") return "answers";
   // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: the call-center pool
-  // flow's request sits at "open_pool" (unclaimed) then "claimed" — both are
-  // the same "a human is on this" wait screen "lawyer_review" already shows.
-  if (r.status === "lawyer_review" || r.status === "open_pool" || r.status === "claimed") return "lawyerReview";
+  // flow splits the wait in two, and the client is told different things at
+  // each point — "open_pool" is nobody-has-it-yet ("Callcenter advokat
+  // kutilyapti", MD's client step 7), while "claimed"/"lawyer_review" means
+  // an advocate took the work and is preparing the document (step 8, the
+  // realtime `document_request.claimed` event). One shared "a human is on
+  // this" screen would hide that transition entirely.
+  if (r.status === "open_pool") return "lawyerReview";
+  if (r.status === "claimed" || r.status === "lawyer_review") return "claimed";
   if (r.status === "awaiting_payment" && !isDocPaymentSkipped(r)) return "pay";
   if (r.status === "ready_to_generate" || isDocPaymentSkipped(r)) return "generating";
   return "pending";
@@ -125,6 +131,11 @@ export default function DocumentRequestPanel({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  // MD §"Error states": 403 ("User bu requestga kira olmaydi") and 404
+  // ("Request topilmadi") are terminal — there is nothing left to wait for,
+  // so polling stops and the client is told, instead of a wait screen that
+  // quietly retries for an hour.
+  const [fatal, setFatal] = useState<"" | "noAccess" | "notFound">("");
   // Set instead of opening a tab whenever the generated file is a DOCX (see
   // deliver() inside getFile below) — DocTemplateViewer then renders it
   // inline the same way it already does for template previews.
@@ -149,6 +160,7 @@ export default function DocumentRequestPanel({
     setAnswers(answersFrom(initialReq));
     setStage(stageFor(initialReq));
     setNote(null);
+    setFatal("");
   }
 
   // 3 free downloads a month (S-35), for the pay-step reminder text.
@@ -252,10 +264,25 @@ export default function DocumentRequestPanel({
       r = (await unlock(r)) ?? r;
       setReq(r);
       bump();
-      if (r.status === "file_ready") setStage("done");
-      else if (stage === "pending" || stage === "generating") setNote({ ok: false, msg: t("stillPending") });
-    } catch {
-      setNote({ ok: false, msg: t("error") });
+      if (r.status === "file_ready") {
+        setStage("done");
+        setNote({ ok: true, msg: t("readyToast") });
+      } else {
+        const next = stageFor(r);
+        if (next !== stage) setStage(next);
+        else if (stage === "pending" || stage === "generating") setNote({ ok: false, msg: t("stillPending") });
+      }
+    } catch (e) {
+      const s = statusOf(e);
+      if (s === 403 || s === 404) {
+        setFatal(s === 403 ? "noAccess" : "notFound");
+        setNote(null);
+      } else {
+        // MD: a 500 is "qisqa toast + console/network log saqlasin", not a
+        // modal — the detail goes to the console for whoever debugs it.
+        if (s >= 500) logApiError("document-request refresh", e);
+        setNote({ ok: false, msg: t("error") });
+      }
     } finally {
       setBusy(false);
     }
@@ -266,23 +293,33 @@ export default function DocumentRequestPanel({
   // file), "lawyerReview" (waiting on a person, not a payment), and the
   // generic "pending" fallback all resolve the same way: keep re-fetching
   // the request until status flips to file_ready. First check right away.
-  const pendingId = stage === "pending" || stage === "generating" || stage === "lawyerReview" ? req.id : undefined;
+  // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: lawyerReview/claimed
+  // cover the call-center pool flow — an advocate claiming the request,
+  // meeting the client and preparing the document can easily run well past
+  // the original ~10-minute budget (calibrated for the backend just
+  // generating a file), so they wait longer and check less often instead of
+  // showing "stillPending" while a real consultation is still in progress.
+  // generating/pending keep the original tight budget — those really should
+  // resolve in seconds. The socket below is the fast path; this poll is the
+  // safety net for a dropped connection.
+  const humanWait = stage === "lawyerReview" || stage === "claimed";
+  const pendingId = !fatal && (stage === "pending" || stage === "generating" || humanWait) ? req.id : undefined;
   useEffect(() => {
     if (!pendingId) return;
     let alive = true;
     let running = false;
-    // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: lawyerReview now
-    // also covers the call-center pool flow (open_pool/claimed) — an
-    // advocate claiming the request, meeting the client and preparing the
-    // document can easily run well past the original ~10-minute budget
-    // (calibrated for the backend just generating a file), so it waits
-    // longer and checks less often instead of showing "stillPending" while
-    // a real consultation is still in progress. generating/pending keep the
-    // original tight budget — those really should resolve in seconds.
-    const intervalMs = stage === "lawyerReview" ? 15000 : 4000;
-    let left = stage === "lawyerReview" ? 240 : 150; // lawyerReview: 240×15s = 1h; others: 150×4s ≈ 10min
+    let stopped = false;
+    // Held in an object so stop() can clear an interval created further down
+    // (a terminal 403/404 can land before the interval is even started).
+    const h: { timer?: ReturnType<typeof setInterval> } = {};
+    const stop = () => {
+      stopped = true;
+      if (h.timer) clearInterval(h.timer);
+    };
+    const intervalMs = humanWait ? 15000 : 4000;
+    let left = humanWait ? 240 : 150; // human wait: 240×15s = 1h; others: 150×4s ≈ 10min
     const tick = async () => {
-      if (running) return;
+      if (running || stopped) return;
       running = true;
       try {
         const cur = await getDocumentRequest(pendingId);
@@ -291,31 +328,59 @@ export default function DocumentRequestPanel({
         setReq(r);
         if (r.status === "file_ready") {
           setStage("done");
-          setNote(null);
+          // MD §"Client tayyor file ko'rishi": "Hujjatingiz tayyor. Yuklab
+          // olishingiz mumkin." — said right where the client was waiting.
+          setNote({ ok: true, msg: t("readyToast") });
           bump();
+        } else {
+          // open_pool → claimed mid-wait moves the screen forward.
+          const next = stageFor(r);
+          if (next === "lawyerReview" || next === "claimed") setStage(next);
         }
-      } catch {
-        /* keep polling */
+      } catch (e) {
+        const s = statusOf(e);
+        if (s === 403 || s === 404) {
+          if (alive) {
+            setFatal(s === 403 ? "noAccess" : "notFound");
+            setNote(null);
+          }
+          stop();
+        } else if (s >= 500) {
+          logApiError("document-request poll", e);
+        }
       } finally {
         running = false;
       }
     };
     void tick();
+    // MD §"Realtime": the client's own socket carries the state changes this
+    // screen is waiting for — react the moment one lands instead of sitting
+    // out the rest of a 15s interval.
+    const unsub = subscribeUserEvents((ev) => {
+      if (!/^document_request\.(ready|claimed|completed|meeting_created|editor_saved)$/.test(ev.event)) return;
+      const nested = ev.request && typeof ev.request === "object" ? (ev.request as Record<string, unknown>) : null;
+      const id = String(ev.request_id ?? ev.document_request_id ?? nested?.id ?? "");
+      if (id && id !== pendingId) return;
+      if (ev.event === "document_request.meeting_created") setNote({ ok: true, msg: t("meetingStarted") });
+      void tick();
+    });
     // Give up after the budget rather than polling forever.
-    const timer = setInterval(() => {
+    h.timer = setInterval(() => {
+      if (stopped) return;
       if (left-- > 0) {
         void tick();
         return;
       }
-      clearInterval(timer);
+      stop();
       if (alive) setNote({ ok: false, msg: t("stillPending") });
     }, intervalMs);
     return () => {
       alive = false;
-      clearInterval(timer);
+      stop();
+      unsub();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingId]);
+  }, [pendingId, humanWait]);
 
   // The document itself should be visible the moment it's ready, not only
   // after an extra "Ochish" click — fetch it once and show it inline.
@@ -370,9 +435,14 @@ export default function DocumentRequestPanel({
     }
   }
 
+  // A terminal 403/404 replaces whatever screen was showing — there is no
+  // stage left to render once the request is gone or off-limits.
+  const shown: Stage | "" = fatal ? "" : stage;
+
   return (
-    <div className={`cform${stage === "answers" ? " cform--doc" : ""}`} style={{ maxWidth: "none" }}>
-      {stage === "answers" ? (
+    <div className={`cform${shown === "answers" ? " cform--doc" : ""}`} style={{ maxWidth: "none" }}>
+      {fatal ? <Notice ok={false} msg={t(fatal)} /> : null}
+      {shown === "answers" ? (
         <>
           <DocFill
             req={req}
@@ -389,7 +459,7 @@ export default function DocumentRequestPanel({
         </>
       ) : null}
 
-      {stage === "pay" ? (
+      {shown === "pay" ? (
         <>
           <div className="oprice">
             <span>{t("price")}</span>
@@ -412,7 +482,7 @@ export default function DocumentRequestPanel({
         </>
       ) : null}
 
-      {stage === "generating" ? (
+      {shown === "generating" ? (
         <div className="docpend">
           <span className="docpend__ic docpend__ic--ai"><IconSparkle /></span>
           <b>{t("generatingTitle")}</b>
@@ -428,7 +498,7 @@ export default function DocumentRequestPanel({
         </div>
       ) : null}
 
-      {stage === "lawyerReview" ? (
+      {shown === "lawyerReview" ? (
         <div className="docpend">
           <span className="docpend__ic docpend__ic--lawyer"><IconHeadset /></span>
           <b>{t("lawyerReviewTitle")}</b>
@@ -444,7 +514,27 @@ export default function DocumentRequestPanel({
         </div>
       ) : null}
 
-      {stage === "pending" ? (
+      {/* MD client step 8-9: an advocate has taken the work. The client may
+          now get a meeting invite from them, so this screen says so rather
+          than repeating "waiting for someone to pick it up". */}
+      {shown === "claimed" ? (
+        <div className="docpend">
+          <span className="docpend__ic docpend__ic--lawyer"><IconHeadset /></span>
+          <b>{t("claimedTitle")}</b>
+          <span className="docpend__sub">{t("claimedSub")}</span>
+          <span className="docpend__badge">
+            <span className="docpend__dot" />
+            {t("claimedStatus")}
+          </span>
+          {req.assignedLawyerName ? <small className="advmuted">{t("assignedLawyer", { name: req.assignedLawyerName })}</small> : null}
+          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+          <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
+            {busy ? t("processingShort") : t("checkStatus")}
+          </button>
+        </div>
+      ) : null}
+
+      {shown === "pending" ? (
         <div className="docpend">
           <span className="docpend__ic"><IconClock /></span>
           <b>{t("pendingTitle")}</b>
@@ -460,7 +550,7 @@ export default function DocumentRequestPanel({
         </div>
       ) : null}
 
-      {stage === "done" ? (
+      {shown === "done" ? (
         <div className="docdone">
           {/* Reopening a request created before this template had any fields
               (or simply never filled in) shows the same blank contractFile it

@@ -167,7 +167,15 @@ export default function PortalShell({
   // viewport: no sidebar or header competing with it for space. The sidebar
   // stays reachable as a hover-triggered overlay (a thin hot zone on the far
   // left) instead of disappearing outright.
-  const fullscreen = /\/services\/document\//.test(pathname);
+  //
+  // LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md asks the same of the advocate's
+  // Word-editor workspace — "Page full-screen bo'lishi kerak", "Editor sahifa
+  // card ichida kichik iframe bo'lmasin". Without this the page renders inside
+  // the padded, max-width content column and, worse, `.deditor{height:100%}`
+  // resolves against an auto-height box, so the OnlyOffice iframe collapses to
+  // nothing. `.portal--full .pbody__in{height:100%}` is what gives it a real
+  // viewport-height chain to fill.
+  const fullscreen = /\/services\/document\//.test(pathname) || /\/document-requests\/[^/]+\/editor$/.test(pathname);
   const [peek, setPeek] = useState(false);
 
   // Desktop collapse (icon-only rail) — a per-device convenience, remembered

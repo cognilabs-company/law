@@ -1593,36 +1593,23 @@ export async function generateServiceDocumentAi(
   return normDocRequest(d.document_request);
 }
 
-// CompactUser (backend's own name for it) — deliberately not BackendLawyer:
-// this listing carries only enough to pick a candidate (name/phone/role), not
-// the marketplace profile (rating, specializations, pricing) listLawyers()
-// returns elsewhere.
-export type DocAssistCandidate = {
-  id: string;
-  role: string;
-  name: string;
-  phone: string;
-};
-function normDocAssistCandidate(v: unknown): DocAssistCandidate {
-  const d = asDict(v);
-  const name = asStr(d.name) || [asStr(d.first_name), asStr(d.last_name)].filter(Boolean).join(" ");
-  return {
-    id: asStr(d.id),
-    role: asStr(d.role),
-    name,
-    phone: asStr(d.phone),
-  };
-}
-export async function getServiceDocumentLawyerCandidates(lawyersUrl: string): Promise<DocAssistCandidate[]> {
-  return listFrom(await http(lawyersUrl), "items").map(normDocAssistCandidate);
-}
-// lawyer_user_id omitted → backend auto-assigns the first valid candidate for
-// this service (not balanced/random — just first). Response is keyed
-// "request", NOT "document_request" like the AI-generate endpoint above —
-// a real inconsistency in the backend's own contract, not a typo here.
+// GET /services/{id}/document-lawyers (DocLawyerFlow.lawyersUrl) is now
+// deprecated server-side — it answers `{items: [], deprecated: true,
+// selection_required: false}` and the MD is explicit: "Frontend bu
+// endpointdan advokat tanlash UI chiqarmasin." Its candidate fetcher and
+// CompactUser type are gone rather than left lying around to be re-wired;
+// lawyersUrl survives on DocLawyerFlow only as the backend's own signal
+// that the lawyer-assist flow exists for a service.
+// LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: "Frontend
+// `lawyer_user_id` yubormaydi" — the client never picks an advocate, the
+// request lands in the call-center pool (assignment_mode "callcenter_pool")
+// and whoever claims it first takes it. The field is gone from this
+// signature so it cannot be sent by accident. Response is keyed "request",
+// NOT "document_request" like the AI-generate endpoint above — a real
+// inconsistency in the backend's own contract, not a typo here.
 export async function requestServiceDocumentLawyer(
   requestUrl: string,
-  input: { need: string; lawyer_user_id?: string; answers?: Record<string, unknown>; language?: string },
+  input: { need: string; answers?: Record<string, unknown>; language?: string },
 ): Promise<DocumentRequest> {
   const d = asDict(await http(requestUrl, { method: "POST", body: JSON.stringify(input) }));
   return normDocRequest(d.request);
@@ -1692,6 +1679,17 @@ export type LawyerDocumentRequest = {
   // matching frontend change to stay correct.
   canClaim: boolean;
   canOpenEditor: boolean;
+  // The workspace's left panel and Info tab are specified against these
+  // (LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md): the template's own name —
+  // not its attachment's file name — the service/template ids, who holds the
+  // record, and the secure-chat room the claim opens for client↔advocate
+  // messaging inside the workspace.
+  serviceId: string;
+  templateId: string;
+  templateName: string;
+  assignedLawyerName: string;
+  assignedLawyerUserId: string;
+  secureChatRoomId: string;
   request: DocumentRequest;
 };
 function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
@@ -1703,6 +1701,9 @@ function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
   const reqRaw = d.request ?? d.document_request ?? d;
   const client = asDict(lr.client ?? d.client);
   const service = asDict(lr.service ?? d.service);
+  const template = asDict(lr.template ?? d.template);
+  const lawyer = asDict(lr.assigned_lawyer ?? d.assigned_lawyer);
+  const room = asDict(lr.secure_chat_room ?? d.secure_chat_room);
   const status = asStr(lr.status ?? d.status);
   return {
     id: asStr(lr.id ?? d.id),
@@ -1720,6 +1721,12 @@ function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
     meetingUrl: asStr(lr.meeting_url ?? d.meeting_url),
     canClaim: typeof lr.can_claim === "boolean" ? lr.can_claim : status === "open_pool",
     canOpenEditor: typeof lr.can_open_editor === "boolean" ? lr.can_open_editor : status === "claimed",
+    serviceId: asStr(service.id ?? lr.service_id ?? d.service_id),
+    templateId: asStr(template.id ?? lr.template_id ?? d.template_id),
+    templateName: asStr(template.title ?? template.name),
+    assignedLawyerName: asStr(lawyer.name) || [asStr(lawyer.first_name), asStr(lawyer.last_name)].filter(Boolean).join(" "),
+    assignedLawyerUserId: asStr(lr.assigned_lawyer_user_id ?? d.assigned_lawyer_user_id ?? lawyer.id),
+    secureChatRoomId: asStr(room.id ?? room.room_id ?? lr.secure_chat_room_id ?? d.secure_chat_room_id),
     request: normDocRequest(reqRaw),
   };
 }
@@ -1783,21 +1790,28 @@ export type DocumentRequestPoolItem = {
   need: string;
   createdAt: string;
   claimUrl: string;
+  // "can_claim=true bo'lsa Ishni olish button active bo'lsin" — the backend's
+  // own say, not re-derived from status.
+  canClaim: boolean;
 };
 function normPoolItem(v: unknown): DocumentRequestPoolItem {
   const d = asDict(v);
   const client = asDict(d.client);
   const service = asDict(d.service);
+  const template = asDict(d.template);
   return {
     id: asStr(d.id),
     status: asStr(d.status),
-    title: asStr(d.title) || asStr(service.title) || asStr(service.name),
+    // The card's own first line is the document name; the service is its own
+    // labelled row below it, so this must not fall back to the service.
+    title: asStr(d.title) || asStr(template.title) || asStr(template.name),
     clientName: asStr(client.name),
     clientPhone: asStr(client.phone),
     serviceName: asStr(service.title) || asStr(service.name),
     need: asStr(d.need),
     createdAt: asStr(d.created_at),
     claimUrl: asStr(d.claim_url) || `/call-center/document-requests/${asStr(d.id)}/claim`,
+    canClaim: typeof d.can_claim === "boolean" ? d.can_claim : asStr(d.status) === "open_pool",
   };
 }
 // The doc's own alias, /callcenter/... (no hyphen), answers identically —
@@ -1806,10 +1820,16 @@ export async function getDocumentRequestPool(): Promise<DocumentRequestPoolItem[
   return listFrom(await http("/call-center/document-requests/open"), "items", "data").map(normPoolItem);
 }
 export type ClaimDocumentRequestResult = {
+  recordId: string;
   documentRequestStatus: string;
   lawyerRequestStatus: string;
   editorUrl: string;
   meetingUrl: string;
+  assignedLawyerUserId: string;
+  // The claim opens a client↔advocate room; the workspace's Chat tab mounts
+  // SecureChat on it, so it must not be thrown away here.
+  secureChatRoomId: string;
+  nextAction: string;
 };
 // 409 on a request someone else already claimed — ApiError carries that
 // status straight through; the caller drops the card from the pool.
@@ -1817,11 +1837,19 @@ export async function claimDocumentRequest(claimUrl: string): Promise<ClaimDocum
   const d = asDict(await http(claimUrl, { method: "POST", body: JSON.stringify({}) }));
   const docReq = asDict(d.document_request);
   const lr = asDict(d.lawyer_request);
+  const room = asDict(d.secure_chat_room);
+  // The pool card knows the record id from its own claim URL; the response
+  // does not have to repeat it for the caller to route to the workspace.
+  const fromUrl = /document-requests\/([^/]+)\/claim/.exec(claimUrl);
   return {
+    recordId: asStr(lr.id ?? d.id) || (fromUrl ? fromUrl[1] : ""),
     documentRequestStatus: asStr(docReq.status),
     lawyerRequestStatus: asStr(lr.status),
     editorUrl: asStr(lr.editor_url),
     meetingUrl: asStr(lr.meeting_url),
+    assignedLawyerUserId: asStr(lr.assigned_lawyer_user_id),
+    secureChatRoomId: asStr(room.id ?? room.room_id),
+    nextAction: asStr(d.next_action),
   };
 }
 
@@ -1841,23 +1869,31 @@ export type DocumentRequestEditorSession = {
   draftUrl: string;
   finalizeUrl: string;
 };
-function normEditorSession(v: unknown): DocumentRequestEditorSession {
+function normEditorSession(v: unknown, fallbackRecordId = ""): DocumentRequestEditorSession {
   const d = asDict(v);
   const oo = d.onlyoffice ? asDict(d.onlyoffice) : null;
   const file = asDict(d.file);
+  const rid = asStr(d.record_id) || fallbackRecordId;
+  // The two specs disagree on this response: the older one lists `file`,
+  // `draft_url` and `finalize_url`, the newer (winning) one shows only
+  // record_id/session_id/provider/onlyoffice. All three URLs are a fixed
+  // shape off the record id, so they are derived rather than trusted —
+  // without this, Finalize would POST to the API root on the newer backend.
+  const base = rid ? `/lawyers/me/document-requests/${rid}/editor` : "";
   return {
-    recordId: asStr(d.record_id),
+    recordId: rid,
     sessionId: asStr(d.session_id),
     provider: asStr(d.provider),
     configured: Boolean(oo?.configured),
     onlyoffice: oo,
-    editorFileDownloadUrl: asStr(file.download_url),
-    draftUrl: asStr(d.draft_url),
-    finalizeUrl: asStr(d.finalize_url),
+    editorFileDownloadUrl: asStr(file.download_url) || (base ? `${base}/file` : ""),
+    draftUrl: asStr(d.draft_url) || (base ? `${base}/draft` : ""),
+    finalizeUrl: asStr(d.finalize_url) || (base ? `${base}/finalize` : ""),
   };
 }
 export async function getDocumentRequestEditor(editorUrl: string): Promise<DocumentRequestEditorSession> {
-  return normEditorSession(await http(editorUrl));
+  const fromUrl = /document-requests\/([^/]+)\/editor/.exec(editorUrl);
+  return normEditorSession(await http(editorUrl), fromUrl ? fromUrl[1] : "");
 }
 // The advocate's plain-text/HTML draft — used only on the no-OnlyOffice
 // fallback path; ignored once a real document server autosaves instead.
@@ -1876,6 +1912,11 @@ export type DocumentRequestMeeting = {
   livekitUrl: string;
   livekitRoom: string;
   livekitToken: string;
+  provider: string;
+  // The workspace's Meeting tab shows a participants count, and a room that
+  // needs a second person before it starts has to say so.
+  participantCount: number;
+  minParticipantsRequired: boolean;
 };
 function normDocRequestMeeting(v: unknown): DocumentRequestMeeting {
   const d = asDict(v);
@@ -1885,6 +1926,9 @@ function normDocRequestMeeting(v: unknown): DocumentRequestMeeting {
     livekitUrl: asStr(d.livekit_url),
     livekitRoom: asStr(d.livekit_room),
     livekitToken: asStr(d.livekit_token),
+    provider: asStr(d.provider),
+    participantCount: asNum(d.participant_count),
+    minParticipantsRequired: Boolean(d.min_participants_required),
   };
 }
 export async function createDocumentRequestMeeting(
@@ -1963,6 +2007,10 @@ export type DocumentRequest = {
   paymentStatus?: string;
   requiresPayment?: boolean;
   autoConfirmPayment?: boolean;
+  // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: once a call-center
+  // advocate claims the request the client's wait screen can name who is
+  // handling it, instead of an anonymous "someone is on it".
+  assignedLawyerName?: string;
 };
 
 // See DocumentRequest.paid's comment — true means the payment step is
@@ -1975,6 +2023,8 @@ function normDocRequest(v: unknown): DocumentRequest {
   const d = asDict(v);
   const cf = d.contract_file ? asDict(d.contract_file) : null;
   const pay = asDict(d.payment);
+  const lr = asDict(d.lawyer_request);
+  const al = asDict(d.assigned_lawyer ?? lr.assigned_lawyer);
   return {
     id: asStr(d.id),
     contractId: asStr(d.contract_id) || undefined,
@@ -1994,6 +2044,7 @@ function normDocRequest(v: unknown): DocumentRequest {
     paymentStatus: asStr(d.payment_status) || undefined,
     requiresPayment: typeof d.requires_payment === "boolean" ? d.requires_payment : undefined,
     autoConfirmPayment: typeof d.auto_confirm_payment === "boolean" ? d.auto_confirm_payment : undefined,
+    assignedLawyerName: asStr(al.name ?? al.full_name ?? d.assigned_lawyer_name) || undefined,
     contractFile: cf
       ? {
           id: asStr(cf.id),
@@ -2133,6 +2184,11 @@ export type ClientDocFlowItem = {
   statusLabel: string;
   nextAction: string;
   assignedLawyer: { id: string; name: string; phone: string; role: string } | null;
+  // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md §"Client: o'z
+  // requestlari va tayyor file" lists "meeting status" among what this page
+  // shows. The backend sends it either as a nested object or as a plain
+  // label, so both shapes are accepted rather than betting on one.
+  meeting: { status: string; active: boolean; roomId: string; callId: string } | null;
   file: { ready: boolean; downloadUrl: string; inlineUrl: string; format: string };
   createdAt: string;
   updatedAt: string;
@@ -2142,6 +2198,9 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
   const lawyer = d.assigned_lawyer ? asDict(d.assigned_lawyer) : null;
   const file = asDict(d.file);
   const actions = asDict(d.actions);
+  const meetRaw = d.meeting ?? d.active_meeting ?? d.meeting_status;
+  const meetD = meetRaw && typeof meetRaw === "object" ? asDict(meetRaw) : null;
+  const meetLabel = typeof meetRaw === "string" ? meetRaw : asStr(meetD?.status_label) || asStr(meetD?.status);
   return {
     id: asStr(d.id),
     mode: asStr(d.mode),
@@ -2150,6 +2209,15 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
     statusLabel: asStr(d.status_label),
     nextAction: asStr(d.next_action),
     assignedLawyer: lawyer && (lawyer.name || lawyer.id) ? { id: asStr(lawyer.id), name: asStr(lawyer.name), phone: asStr(lawyer.phone), role: asStr(lawyer.role) } : null,
+    meeting:
+      meetD || meetLabel
+        ? {
+            status: meetLabel,
+            active: meetD ? Boolean(meetD.active ?? meetD.is_active ?? asStr(meetD.status) === "active") : /active|live|ongoing|davom/i.test(meetLabel),
+            roomId: asStr(meetD?.room_id),
+            callId: asStr(meetD?.id) || asStr(meetD?.call_id),
+          }
+        : null,
     file: {
       ready: Boolean(file.ready),
       downloadUrl: asStr(file.download_url) || asStr(actions.file_download_url),

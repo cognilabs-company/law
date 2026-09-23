@@ -116,6 +116,19 @@ export function errDetail(e: unknown): string {
   return localizeApiDetail(e.detail);
 }
 
+// LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md §"Error states" on a 5xx:
+// "Frontend error modal emas, qisqa toast ko'rsatsin va console/network log
+// saqlasin" — the toast is the caller's job, the durable trace is this. Kept
+// here rather than inline `console.error` calls so every surface logs the
+// same shape (status + server detail + raw body) for support to chase.
+export function logApiError(scope: string, e: unknown): void {
+  if (e instanceof ApiError) {
+    console.error("[lexgo]", scope, { status: e.status, detail: e.detail, code: e.code, data: e.data });
+    return;
+  }
+  console.error("[lexgo]", scope, e);
+}
+
 // Seconds to wait before retrying: the server's Retry-After / retry field,
 // else a number of minutes/seconds stated in the message, else `fallback`.
 // Capped at 24h (the daily OTP quota is the longest wait).

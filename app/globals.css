@@ -2587,6 +2587,10 @@ body:has(.schat) .fab{display:none}
 @keyframes incallPulse{0%{box-shadow:0 0 0 0 rgba(55,211,155,.5)}70%{box-shadow:0 0 0 12px rgba(55,211,155,0)}100%{box-shadow:0 0 0 0 rgba(55,211,155,0)}}
 
 /* ── Seller case card: client name ── */
+/* The document-request card's own first line: the document name. The client
+   sits on its own row underneath it (MD2's card layout), so this is a plain
+   title rather than the client chip below. */
+.pcase__ttl{font-weight:700;font-size:.95rem;color:var(--ink);min-width:0;overflow-wrap:anywhere}
 .pcase__client{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:.95rem;color:var(--ink);min-width:0}
 .pcase__client svg{width:15px;height:15px;stroke:var(--dk-acc, var(--b600));flex:none}
 
@@ -3298,6 +3302,10 @@ body:has(.schat) .fab{display:none}
 .pcase__q{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pcase__q.on{-webkit-line-clamp:unset;overflow:visible}
 .pcase__row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:2px}
+/* A meeting that is actually running right now, on a client's document-request
+   card — the one row on that card worth pulling the eye. */
+.pcase__live{color:var(--ok);font-weight:700}
+.pcase__live svg{color:var(--ok)}
 /* Gift: created share panel (modal) + recipient claim landing */
 .gift__done{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px}
 .gift__done-ic{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--dk-tint-ok, #ecfdf5);color:var(--dk-txt-ok, #059669)}
@@ -3947,6 +3955,40 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .mtg__add{height:36px;padding:0 14px;border:0;border-radius:10px;background:var(--grad);box-shadow:var(--sblue);color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:transform .15s,filter .15s}
 .mtg__add:hover{filter:brightness(1.08);transform:translateY(-1px)}.mtg__add svg{width:16px;height:16px}
 
+/* LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md §"Meeting UI" — the recommended
+   variant on the editor page: a floating, draggable, resizable, minimisable
+   video panel in the bottom-right, so the advocate keeps editing the document
+   while on the call instead of the meeting covering the whole workspace. It
+   is anchored bottom-right, so its resize grip sits at the TOP-LEFT corner —
+   dragging it up/left grows the panel toward the free space. */
+.mtg--float{inset:auto 18px 18px auto;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 60px rgba(4,12,31,.5);animation:none;z-index:221}
+.mtg--float .mtg__top{padding:8px 10px 8px 16px;gap:8px;cursor:move;touch-action:none;user-select:none}
+.mtg--float .mtg__timer{display:none}
+.mtg--float .mtg__tools{display:none}
+.mtg--float .mtg__title b{font-size:.84rem;max-width:150px}
+.mtg--float .mtg__badge{padding:3px 8px;font-size:.66rem}
+.mtg--float .mtg__stage{padding:8px}
+.mtg--float .mtg__bar{padding:6px 8px;gap:4px}
+.mtg--float .mtg__cl{display:none}
+.mtg--float .mtg__ctl--desktop{display:none}
+.mtg--float .mtg__strip{display:none}
+.mtg--fmin .mtg__body,.mtg--fmin .mtg__bar,.mtg--fmin .mtg__toasts,.mtg--fmin .mtg__grip{display:none}
+.mtg__ftools{display:flex;align-items:center;gap:6px;flex:none}
+.mtg__fn{display:inline-flex;align-items:center;gap:4px;font-size:.78rem;font-weight:700;color:#cbd5e1}
+.mtg__fn svg{width:15px;height:15px}
+.mtg__grip{position:absolute;top:0;left:0;width:18px;height:18px;cursor:nwse-resize;touch-action:none;z-index:2;background:linear-gradient(135deg,rgba(255,255,255,.35),rgba(255,255,255,0) 60%)}
+@media (max-width:760px){
+  /* MD §"Mobile responsive": "meeting floating panel pastda". There is no
+     room to drag or resize a box on a phone, so it becomes a fixed strip
+     across the bottom — still floating over the editor, still minimisable
+     to its title bar, but no longer a window to position by hand. */
+  .mtg--float{inset:auto 0 0 0!important;width:auto!important;height:min(40dvh,280px)!important;border-radius:14px 14px 0 0;border-left:0;border-right:0;border-bottom:0}
+  .mtg--float.mtg--fmin{height:auto!important}
+  .mtg--float .mtg__top{cursor:default;touch-action:auto}
+  .mtg--float .mtg__grip{display:none}
+  .mtg--float .mtg__title b{max-width:44vw}
+}
+
 .mtg__body{flex:1;display:flex;min-height:0}
 .mtg__stage{flex:1;min-width:0;position:relative;padding:14px;display:flex}
 .mtg__grid{flex:1;display:grid;gap:12px;align-content:center;justify-content:center;grid-auto-rows:minmax(0,1fr);position:relative}
@@ -4077,6 +4119,15 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docb__tabs button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;background:none;border-radius:var(--pill);padding:10px 14px;font-family:var(--fb);font-weight:600;font-size:.88rem;color:var(--gray);cursor:pointer;transition:background .18s,color .18s}
 .docb__tabs button svg{width:16px;height:16px}
 .docb__tabs button.on{background:var(--dk-surface, #fff);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--b400),var(--s1)}
+/* The advocate inbox's four-tab strip (Yangi so'rovlar / Menga biriktirilgan
+   / Jarayonda / Yakunlangan). Same pill look as the builder's switcher, but
+   it stays visible at every width, and at phone width it scrolls sideways
+   instead of clipping the trailing tabs off-screen. */
+@media (max-width:640px){
+  .dreq__tabs{overflow-x:auto;scrollbar-width:none;border-radius:16px}
+  .dreq__tabs::-webkit-scrollbar{display:none}
+  .dreq__tabs button{flex:0 0 auto;padding:9px 12px;font-size:.8rem;white-space:nowrap}
+}
 .docb__tabn{padding:1px 8px;border-radius:var(--pill);background:var(--dk-tint-blue, #E6F0FF);color:var(--dk-acc-strong, var(--b700));font-size:.74rem;font-weight:700;font-variant-numeric:tabular-nums}
 .docfill,.docb__pane{display:none;min-width:0;min-height:0}
 .docfill.on,.docb__pane.on{display:flex;flex-direction:column}
@@ -4086,7 +4137,11 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docb__resizer{display:none}
 @media (min-width:980px){
   .docb{grid-template-columns:minmax(300px, var(--docb-split, 45%)) 16px minmax(280px,1fr);grid-template-rows:minmax(0,1fr);gap:clamp(10px,1.6vw,24px);align-items:stretch}
-  .docb__tabs{display:none}
+  /* Scoped to the builder: the two panes sit side by side from here up, so
+     its form/document switcher has nothing left to switch. The advocate
+     inbox's own tab strip (.dreq__tabs) borrows the same look and must NOT
+     be swept up by this. */
+  .docb .docb__tabs{display:none}
   .docfill,.docb__pane{display:flex;flex-direction:column}
   .docb__resizer{display:flex;align-items:center;justify-content:center;cursor:col-resize;touch-action:none;-webkit-user-select:none;user-select:none;border-radius:var(--pill)}
   .docb__resizer::before{content:"";width:4px;height:52px;border-radius:var(--pill);background:var(--line);transition:background .15s,height .15s}
@@ -4249,7 +4304,15 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
    full height. Left/right are grid columns on desktop (collapsing to 0
    width, not unmounting, so state survives a toggle) and fixed overlay
    drawers on mobile — see the two panels' own media-query override below. */
-.deditor{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:var(--dk-surface-2, #f5f6f8)}
+/* The page owns the viewport: PortalShell puts this route in `portal--full`
+   (see its `fullscreen` test), which supplies `.pbody__in{height:100%}` —
+   the height chain `.deditor{height:100%}` needs before the OnlyOffice
+   iframe can fill anything. The dvh floor keeps it usable even if this page
+   is ever mounted outside that mode. */
+.deditor{position:relative;height:100%;min-height:min(100dvh,720px);display:flex;flex-direction:column;overflow:hidden;background:var(--dk-surface-2, #f5f6f8)}
+/* Keeps the sticky bar clear of the fullscreen sidebar-menu button that
+   .portal--full parks in the top-right corner. */
+.portal--full .deditor__top{padding-right:56px}
 .deditor__top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;flex:none;padding:12px 18px;background:var(--dk-surface, #fff);box-shadow:0 1px 0 var(--line)}
 .deditor__back{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:8px 4px;font:inherit;font-weight:600;font-size:.86rem;color:var(--gray);cursor:pointer;flex:none}
 .deditor__back svg{width:16px;height:16px}
@@ -4261,12 +4324,26 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .deditor__badge--ready{background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0a7d55)}
 .deditor__badge--sent{background:var(--dk-surface-2, #F1F5FB);color:var(--gray)}
 .deditor__spacer{flex:1}
+/* Save status (MD2 top bar): Saqlanmoqda… / Saqlangan / Saqlashda xatolik —
+   driven by OnlyOffice's own onDocumentStateChange plus the backend's
+   document_request.editor_saved event. */
+.deditor__save{flex:none;font-size:.74rem;font-weight:600;color:var(--gray)}
+.deditor__save--saved{color:var(--dk-txt-ok, #0a7d55)}
+.deditor__save--error{color:var(--dk-txt-err, #C0392B)}
+/* Transient, floating — never a banner wedged between the sticky bar and
+   the editor, which would shrink the document for the rest of the session. */
+.deditor__toasts{position:absolute;top:64px;left:50%;transform:translateX(-50%);z-index:12;display:flex;flex-direction:column;gap:6px;pointer-events:none;max-width:min(520px,92vw)}
+.deditor__toasts:empty{display:none}
 .deditor__act{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--dk-surface-2, #F7FAFE);border-radius:10px;padding:8px 14px;font:inherit;font-weight:700;font-size:.82rem;color:var(--ink);cursor:pointer;white-space:nowrap}
 .deditor__act svg{width:15px;height:15px;flex:none}
 .deditor__act:disabled{opacity:.55;cursor:default}
 .deditor__act--primary{color:#fff;background:var(--grad);border:none;box-shadow:var(--sblue)}
 .deditor__toggle{display:none;flex:none;border:0;background:none;padding:8px;cursor:pointer;color:var(--gray)}
 .deditor__toggle svg{width:20px;height:20px}
+/* On desktop the panels are grid columns, so the top-bar toggles are hidden
+   — except for a panel that is currently collapsed, which would otherwise
+   have no way back: its own in-panel toggle collapsed along with it. */
+.deditor__toggle--show{display:inline-flex;align-items:center;justify-content:center}
 
 .deditor__body{flex:1;min-height:0;display:grid;grid-template-columns:340px 1fr 360px;transition:grid-template-columns .2s}
 .deditor__body--leftClosed{grid-template-columns:0px 1fr 360px}
@@ -4278,8 +4355,15 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .deditor__right{border-left:1px solid var(--line)}
 .deditor__left.on,.deditor__right.on{display:flex}
 
-.deditor__panelToggle{position:absolute;top:10px;right:10px;border:0;background:var(--dk-surface-2, #F1F5FB);border-radius:8px;width:26px;height:26px;display:grid;place-items:center;cursor:pointer;color:var(--gray)}
+.deditor__panelToggle{position:absolute;top:10px;right:10px;z-index:2;border:0;background:var(--dk-surface-2, #F1F5FB);border-radius:8px;width:26px;height:26px;display:grid;place-items:center;cursor:pointer;color:var(--gray)}
 .deditor__panelToggle svg{width:14px;height:14px}
+/* The right panel's own collapse control mirrors the left one (MD2: "Right
+   panel ham collapsible bo'lsin") — parked on the inner edge, and its
+   chevron points the other way. */
+.deditor__panelToggle--right{right:auto;left:10px}
+.deditor__panelToggle--right svg{transform:rotate(180deg)}
+/* Mobile only: tapping outside an open drawer closes it. */
+.deditor__scrim{display:none;position:fixed;inset:0;z-index:15;background:rgba(10,21,38,.38);border:0}
 
 .deditor__row{display:flex;align-items:center;gap:8px;font-size:.88rem;min-width:0}
 .deditor__row svg{width:15px;height:15px;flex:none;color:var(--dk-acc, var(--b600))}
@@ -4297,7 +4381,12 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .deditor__tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:none;padding:10px 4px;font:inherit;font-size:.7rem;font-weight:600;color:var(--gray);cursor:pointer;border-bottom:2px solid transparent}
 .deditor__tabs button svg{width:16px;height:16px}
 .deditor__tabs button.on{color:var(--dk-acc, var(--b600));border-color:var(--dk-acc, var(--b600))}
-.deditor__tabBody{flex:1;min-height:0}
+.deditor__tabBody{flex:1;min-height:0;display:flex;flex-direction:column}
+/* The Chat tab mounts the app's real SecureChat, so it needs a bounded,
+   scrollable box rather than the panel's natural content height. */
+.deditor__chat{flex:1;min-height:0;display:flex;flex-direction:column;margin:0 -16px -16px}
+.deditor__chat > *{flex:1;min-height:0}
+.deditor__meetStatus{margin:0 0 8px;font-size:.84rem;font-weight:600;color:var(--dk-acc, var(--b600))}
 
 @media (max-width:1100px){
   .deditor__body,.deditor__body--leftClosed,.deditor__body--rightClosed,.deditor__body--leftClosed.deditor__body--rightClosed{grid-template-columns:1fr}
@@ -4306,11 +4395,17 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
   .deditor__right{right:0}
   .deditor__toggle{display:inline-flex;align-items:center;justify-content:center}
   .deditor__title{max-width:18ch}
+  .deditor__scrim{display:block}
 }
 @media (max-width:640px){
-  .deditor__top{padding:10px 12px;gap:8px;flex-wrap:wrap}
-  .deditor__act{font-size:.78rem;padding:7px 10px}
-  .deditor__title{max-width:12ch}
+  .deditor__top{padding:10px 12px;gap:8px;flex-wrap:nowrap}
+  .deditor__act{padding:8px;gap:0}
+  /* Icon-only actions at phone width: the bar has eight children and
+     wrapping it to two rows on top of the portal's own header ate the
+     document. The label stays for screen readers. */
+  .deditor__actLabel{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  .deditor__title{max-width:10ch}
+  .deditor__badge{display:none}
 }
 
 /* ── wp-n ── */

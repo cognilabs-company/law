@@ -9,11 +9,16 @@ import {
   type DocumentRequest,
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
-import { ApiError } from "@/lib/http";
+import { ApiError, isPaymentRequired, logApiError } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocTemplateViewer from "./DocTemplateViewer";
-import { IconChevronLeft, IconEye, IconHeadset } from "@/components/icons";
+import ManualDocPlanGate from "./ManualDocPlanGate";
+import Select from "@/components/Select";
+import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock } from "@/components/icons";
+
+const LANGS = ["uz", "ru", "en"] as const;
+type LangCode = (typeof LANGS)[number];
 
 // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: the old per-service
 // advocate picker is gone — the client never chooses who handles this, and
@@ -36,10 +41,22 @@ export default function DocumentLawyerAssist({
   const t = useTranslations("portal.client.documents");
   const locale = useLocale();
   const [need, setNeed] = useState("");
+  // MD2 §"Request form" lists four fields: the request text, an OPTIONAL
+  // extra note, a language select defaulting to uz, and submit. "Optional"
+  // there describes whether the client must fill it, not whether the form
+  // renders it.
+  const [note, setNote] = useState("");
+  const [lang, setLang] = useState<LangCode>(LANGS.includes(locale as LangCode) ? (locale as LangCode) : "uz");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [result, setResult] = useState<DocumentRequest | null>(null);
+  const [sent, setSent] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
+  // The request only opens the form once the client's plan allows it
+  // ("Agar plan/entitlement bo'lmasa, tarif sotib olish flow chiqadi") —
+  // reacted to on the backend's own 402 rather than pre-checked.
+  const [planRequired, setPlanRequired] = useState("");
+  const [planGateOpen, setPlanGateOpen] = useState(false);
 
   async function submit() {
     if (busy || !need.trim()) return;
@@ -47,20 +64,61 @@ export default function DocumentLawyerAssist({
     setErr("");
     try {
       const r = await requestServiceDocumentLawyer(lawyerFlow.requestUrl, {
-        need: need.trim(),
-        language: locale,
+        need: note.trim() ? `${need.trim()}\n\n${t("lawyerNoteLabel")}: ${note.trim()}` : need.trim(),
+        answers: {},
+        language: lang,
       });
+      setSent(true);
       setResult(r);
     } catch (e) {
-      setErr(e instanceof ApiError && e.status === 422 ? t("aiNeedRequired") : e instanceof ApiError && e.status === 404 ? t("lawyerNotAvailable") : t("error"));
+      if (isPaymentRequired(e)) {
+        setPlanRequired(e instanceof ApiError && e.detail ? e.detail : t("planRequired"));
+      } else {
+        logApiError("document-lawyer request", e);
+        setErr(e instanceof ApiError && e.status === 422 ? t("aiNeedRequired") : e instanceof ApiError && e.status === 404 ? t("lawyerNotAvailable") : t("error"));
+      }
     } finally {
       setBusy(false);
     }
   }
 
-  if (result) return <DocumentRequestPanel key={result.id} initialReq={result} fields={[]} sourceFile={sourceFile} />;
+  if (result)
+    return (
+      <>
+        {/* MD2 §"Success holat" — the client is told the request went to the
+            call-center pool, not to a particular advocate. */}
+        {sent ? (
+          <p className="cform__ok" style={{ margin: "0 0 12px" }}>
+            <IconCheck style={{ width: 16, height: 16 }} /> {t("lawyerSubmitted")}
+          </p>
+        ) : null}
+        <DocumentRequestPanel key={result.id} initialReq={result} fields={[]} sourceFile={sourceFile} />
+      </>
+    );
 
   const cleanUrl = sourceFile?.cleanSourceFileInlineUrl || sourceFile?.cleanSourceFileUrl;
+
+  // "Agar plan/entitlement bo'lmasa, tarif sotib olish flow chiqadi."
+  if (planRequired)
+    return (
+      <div className="cform docassist" style={{ maxWidth: "none" }}>
+        <button type="button" className="rf__link" onClick={onBack}>
+          <IconChevronLeft />
+          {t("backToChoices")}
+        </button>
+        <div className="docassist__head">
+          <span className="docassist__i docassist__i--lawyer"><IconLock /></span>
+          <div>
+            <b>{t("planGateTitle")}</b>
+            <p className="advmuted">{planRequired}</p>
+          </div>
+        </div>
+        <button className="btn btn--grad btn--full btn--lg" type="button" onClick={() => setPlanGateOpen(true)}>
+          {t("choosePlan")}
+        </button>
+        <ManualDocPlanGate open={planGateOpen} onClose={() => setPlanGateOpen(false)} message={planRequired} />
+      </div>
+    );
 
   return (
     <div className="cform docassist" style={{ maxWidth: "none" }}>
@@ -79,7 +137,7 @@ export default function DocumentLawyerAssist({
 
       <section className="docassist__sec">
         <div className="docassist__sech">
-          <label htmlFor="lawyer-need">{t("aiNeedLabel")}</label>
+          <label htmlFor="lawyer-need">{t("lawyerNeedLabel")}</label>
           {cleanUrl ? (
             <button type="button" className="btn btn--line btn--sm" onClick={() => setViewOpen(true)}>
               <IconEye />
@@ -87,7 +145,18 @@ export default function DocumentLawyerAssist({
             </button>
           ) : null}
         </div>
-        <textarea id="lawyer-need" rows={4} value={need} onChange={(e) => setNeed(e.target.value)} placeholder={t("aiNeedPlaceholder")} />
+        <textarea id="lawyer-need" rows={4} value={need} onChange={(e) => setNeed(e.target.value)} placeholder={t("lawyerNeedPlaceholder")} />
+
+        <label htmlFor="lawyer-note" style={{ marginTop: 10 }}>{t("lawyerNoteLabel")}</label>
+        <textarea id="lawyer-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("lawyerNotePlaceholder")} />
+
+        <label style={{ marginTop: 10 }}>{t("langLabel")}</label>
+        <Select
+          value={lang}
+          onChange={(v) => setLang((LANGS.includes(v as LangCode) ? v : "uz") as LangCode)}
+          options={LANGS.map((l) => ({ value: l, label: t(`lang_${l}`) }))}
+          ariaLabel={t("langLabel")}
+        />
       </section>
 
       {err ? <Notice ok={false} msg={err} /> : null}

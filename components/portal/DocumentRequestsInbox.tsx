@@ -11,8 +11,9 @@ import {
   claimDocumentRequest,
   type LawyerDocumentRequest,
   type DocumentRequestPoolItem,
+  type ClaimDocumentRequestResult,
 } from "@/lib/services/backend";
-import { ApiError, isConflict } from "@/lib/http";
+import { ApiError, isConflict, logApiError } from "@/lib/http";
 import { fetchAndDeliver } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -23,7 +24,7 @@ import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
 import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
-import { IconFileText, IconUser, IconPhone, IconCheck, IconEye, IconDownload, IconUpload, IconAlert } from "@/components/icons";
+import { IconFileText, IconUser, IconPhone, IconCheck, IconClock, IconEye, IconDownload, IconUpload, IconAlert } from "@/components/icons";
 
 // LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md: 4 tabs instead of two stacked
 // sections — "Yangi so'rovlar" is the live pool (unclaimed, realtime);
@@ -83,15 +84,27 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
     });
   }, []);
 
-  function onClaimed(id: string) {
+  // "Ishni olish" → "Advokat workspace ochiladi": claiming is step 3 of a
+  // four-step flow that ends in the editor, so it goes straight there rather
+  // than dropping the advocate back on a list to find the case again. The
+  // claim response carries the record id (or it is recovered from the claim
+  // URL) so this works even when the pool item's own id is not the record's.
+  function onClaimed(id: string, result: ClaimDocumentRequestResult) {
     setGone((s) => new Set(s).add(id));
     setReloadKey((k) => k + 1);
     setTab("assigned");
+    router.push(`${basePath}/${result.recordId || id}/editor`);
   }
 
   function openRecord(r: LawyerDocumentRequest) {
-    if (POOL_FLOW_STATUSES.has(r.status)) router.push(`${basePath}/${r.id}/editor`);
-    else setTarget(r);
+    if (!POOL_FLOW_STATUSES.has(r.status)) {
+      setTarget(r);
+      return;
+    }
+    // "can_open_editor=false bo'lsa editor button disabled bo'lsin" — the row
+    // is inert rather than walking the advocate into a 409.
+    if (!r.canOpenEditor && r.status !== "completed") return;
+    router.push(`${basePath}/${r.id}/editor`);
   }
 
   const TABS: { key: Tab; label: string; count: number }[] = [
@@ -109,7 +122,11 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         <b>{t("title")}</b>
       </div>
 
-      <div className="docb__tabs" role="tablist" style={{ marginBottom: 16 }}>
+      {/* Its own class, not just .docb__tabs: that one is the document
+          builder's mobile-only form/document switcher and is display:none
+          from 980px up — reusing it hid this whole tab strip on every
+          desktop, which is the call-center advocate's actual device. */}
+      <div className="docb__tabs dreq__tabs" role="tablist" style={{ marginBottom: 16 }}>
         {TABS.map((tb) => (
           <button key={tb.key} type="button" role="tab" aria-selected={tab === tb.key} className={tab === tb.key ? "on" : ""} onClick={() => setTab(tb.key)}>
             {tb.label}
@@ -118,37 +135,58 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         ))}
       </div>
 
+      {/* A failed fetch must never be dressed up as an empty pool — an
+          advocate told "no requests" stops checking, which is the opposite
+          of the truth on a 403/500. */}
       {tab === "pool" ? (
         pool.status === "loading" ? (
           <Skeleton rows={3} />
+        ) : pool.status === "error" ? (
+          <Notice ok={false} msg={t("loadError")} />
         ) : !poolVisible.length ? (
           <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
         ) : (
           <div className="pcards">
             {poolVisible.map((p) => (
-              <PoolCard key={p.id} item={p} ns={ns} tcm={tcm} onClaimed={() => onClaimed(p.id)} onTaken={() => setGone((s) => new Set(s).add(p.id))} />
+              <PoolCard key={p.id} item={p} ns={ns} tcm={tcm} onClaimed={(r) => onClaimed(p.id, r)} onTaken={() => setGone((s) => new Set(s).add(p.id))} />
             ))}
           </div>
         )
       ) : activeStatus === "loading" ? (
         <Skeleton rows={3} />
+      ) : activeStatus === "error" ? (
+        <Notice ok={false} msg={t("loadError")} />
       ) : !activeRows.length ? (
         <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
       ) : (
         <div className="pcards">
-          {activeRows.map((r) => (
-            <button className="pcase pcase--btn" key={r.id} type="button" onClick={() => openRecord(r)}>
-              <div className="pcase__h">
-                <span className="pcase__client">
-                  <IconUser />
-                  {r.clientName || r.title || t("title")}
-                </span>
-                <span className="advmuted">{statusLabel(tcm, r.status || r.request.status)}</span>
-              </div>
-              {r.need ? <p>{r.need}</p> : null}
-              {r.createdAt ? <small>{shortDateTime(r.createdAt, locale)}</small> : null}
-            </button>
-          ))}
+          {activeRows.map((r) => {
+            const locked = POOL_FLOW_STATUSES.has(r.status) && !r.canOpenEditor && r.status !== "completed";
+            return (
+              <button
+                className="pcase pcase--btn"
+                key={r.id}
+                type="button"
+                onClick={() => openRecord(r)}
+                disabled={locked}
+                aria-disabled={locked}
+                title={locked ? t("needClaimLead") : undefined}
+              >
+                <div className="pcase__h">
+                  <b className="pcase__ttl">{r.title || r.clientName || t("title")}</b>
+                  <span className="advmuted">{statusLabel(tcm, r.status || r.request.status)}</span>
+                </div>
+                {r.clientName ? (
+                  <small>
+                    <IconUser />
+                    {r.clientName}
+                  </small>
+                ) : null}
+                {r.need ? <p>{r.need}</p> : null}
+                {r.createdAt ? <small>{shortDateTime(r.createdAt, locale)}</small> : null}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -172,10 +210,11 @@ function PoolCard({
   item: DocumentRequestPoolItem;
   ns: string;
   tcm: ReturnType<typeof useTranslations>;
-  onClaimed: () => void;
+  onClaimed: (result: ClaimDocumentRequestResult) => void;
   onTaken: () => void;
 }) {
   const t = useTranslations(ns);
+  const locale = useLocale();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"" | "claimed" | "taken">("");
   const [err, setErr] = useState(false);
@@ -186,14 +225,15 @@ function PoolCard({
     setBusy(true);
     setErr(false);
     try {
-      await claimDocumentRequest(item.claimUrl);
+      const result = await claimDocumentRequest(item.claimUrl);
       setDone("claimed");
-      onClaimed();
+      onClaimed(result);
     } catch (e) {
       if (isConflict(e)) {
         setDone("taken");
         onTaken();
       } else {
+        logApiError("document-request claim", e);
         setErr(true);
       }
     } finally {
@@ -201,16 +241,32 @@ function PoolCard({
     }
   }
 
+  // The card's documented rows, in the documented order: document name,
+  // client, service, a 2-3 line preview of the request, created time, status.
   return (
     <div className="pcase">
       <div className="pcase__h">
-        <span className="pcase__client">
-          <IconUser />
-          {item.clientName || item.title || t("title")}
-        </span>
+        <b className="pcase__ttl">{item.title || t("title")}</b>
+        <span className="st st--new">{item.status === "open_pool" ? t("statusNew") : statusLabel(tcm, item.status)}</span>
       </div>
-      {item.serviceName ? <small>{item.serviceName}</small> : null}
+      {item.clientName ? (
+        <small>
+          <IconUser />
+          {item.clientName}
+        </small>
+      ) : null}
+      {item.serviceName ? (
+        <small>
+          <span className="advmuted">{t("serviceLabel")}:</span> {item.serviceName}
+        </small>
+      ) : null}
       {item.need ? <p className={`pcase__q${expanded ? " on" : ""}`}>{item.need}</p> : null}
+      {item.createdAt ? (
+        <small>
+          <IconClock />
+          {shortDateTime(item.createdAt, locale)}
+        </small>
+      ) : null}
       {done === "claimed" ? (
         <span className="pcase__done pcase__done--accept">
           <IconCheck />
@@ -228,7 +284,8 @@ function PoolCard({
               {tcm("details")}
             </button>
           ) : null}
-          <button className="btn btn--grad btn--sm" type="button" onClick={claim} disabled={busy}>
+          {/* "can_claim=true bo'lsa Ishni olish button active bo'lsin" */}
+          <button className="btn btn--grad btn--sm" type="button" onClick={claim} disabled={busy || !item.canClaim}>
             {busy ? t("claiming") : t("claim")}
           </button>
           {err ? <span className="pcase__err" role="alert">{t("claimError")}</span> : null}

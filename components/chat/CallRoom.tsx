@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   Room,
@@ -42,7 +42,7 @@ import SearchSelect from "@/components/SearchSelect";
 import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, primeCallAudio } from "@/lib/callSounds";
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
-import { IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload } from "../icons";
+import { IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus } from "../icons";
 
 type Props = {
   roomId: string;
@@ -53,8 +53,18 @@ type Props = {
   // Caller already has LiveKit creds from the create-call response; a joiner
   // fetches its own token via /join-token.
   lk?: LiveKitJoin | null;
+  // LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md §"Meeting UI" — "Tavsiya:
+  // editor sahifada floating video panel": bottom-right, draggable,
+  // resizable and minimizable, so the advocate keeps working on the document
+  // while talking to the client instead of the call covering the workspace.
+  float?: boolean;
   onEnd: () => void;
 };
+
+const FLOAT_MIN_W = 260;
+const FLOAT_MIN_H = 190;
+type FloatBox = { right: number; bottom: number; w: number; h: number };
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 type ChatMsg = { id: string; from: string; name: string; text: string; at: number; system?: boolean };
 type Toast = { id: number; text: string; kind: "join" | "leave" | "info" };
@@ -86,7 +96,7 @@ export const CALLROOM_EVENT = "lexgo:callroom";
 // backend). Everything stays inside LexGo: a tile per participant with name,
 // mic state and speaking ring, screen share on a stage, in-call chat over the
 // LiveKit data channel, and host controls from the backend roster.
-export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, onEnd }: Props) {
+export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, float, onEnd }: Props) {
   const t = useTranslations("call");
   const { session } = useAuth();
   const roomRef = useRef<Room | null>(null);
@@ -131,6 +141,34 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [recFile, setRecFile] = useState<RecordingFile | null>(null);
   const [recBy, setRecBy] = useState<Set<string>>(new Set());
   const [more, setMore] = useState(false); // phone "more" sheet
+  // Floating-panel geometry (float mode only). Anchored bottom-right, so the
+  // resize grip sits at the TOP-LEFT corner: dragging it up/left grows the
+  // panel, which is the direction there is room in.
+  const [fbox, setFbox] = useState<FloatBox>({ right: 18, bottom: 18, w: 380, h: 300 });
+  const [fmin, setFmin] = useState(false);
+  const fdrag = useRef<{ mode: "move" | "size"; x: number; y: number; box: FloatBox } | null>(null);
+  function beginFloat(mode: "move" | "size", e: ReactPointerEvent<HTMLElement>) {
+    if (!float) return;
+    if (mode === "move" && (e.target as HTMLElement).closest("button")) return;
+    fdrag.current = { mode, x: e.clientX, y: e.clientY, box: fbox };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  const dragFloat = (e: ReactPointerEvent<HTMLElement>) => beginFloat("move", e);
+  const sizeFloat = (e: ReactPointerEvent<HTMLElement>) => beginFloat("size", e);
+  const moveFloat = (e: ReactPointerEvent<HTMLElement>) => {
+    const d = fdrag.current;
+    if (!d) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    setFbox(
+      d.mode === "move"
+        ? { ...d.box, right: clamp(d.box.right - dx, 4, Math.max(4, vw - d.box.w - 4)), bottom: clamp(d.box.bottom - dy, 4, Math.max(4, vh - d.box.h - 4)) }
+        : { ...d.box, w: clamp(d.box.w - dx, FLOAT_MIN_W, Math.max(FLOAT_MIN_W, vw - d.box.right - 8)), h: clamp(d.box.h - dy, FLOAT_MIN_H, Math.max(FLOAT_MIN_H, vh - d.box.bottom - 8)) },
+    );
+  };
+  const endFloat = () => { fdrag.current = null; };
   const [recPick, setRecPick] = useState(false); // choose audio / screen before recording
   const [recMode, setRecMode] = useState<RecordingMode>("audio");
   const stageRef = useRef<HTMLElement>(null);
@@ -848,9 +886,30 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const isRecording = (p: Participant) => (p.isLocal ? recOn : recBy.has(p.identity));
 
   return (
-    <div className={`mtg${panel ? " mtg--panel" : ""}`} data-tick={tick}>
+    <div
+      className={`mtg${panel ? " mtg--panel" : ""}${float ? " mtg--float" : ""}${float && fmin ? " mtg--fmin" : ""}`}
+      data-tick={tick}
+      style={float ? { right: fbox.right, bottom: fbox.bottom, width: fbox.w, height: fmin ? undefined : fbox.h } : undefined}
+    >
       <div ref={audioRef} hidden />
-      <header className="mtg__top">
+      {float ? (
+        <span
+          className="mtg__grip"
+          role="separator"
+          aria-label={t("resize")}
+          onPointerDown={sizeFloat}
+          onPointerMove={moveFloat}
+          onPointerUp={endFloat}
+          onPointerCancel={endFloat}
+        />
+      ) : null}
+      <header
+        className="mtg__top"
+        onPointerDown={float ? dragFloat : undefined}
+        onPointerMove={float ? moveFloat : undefined}
+        onPointerUp={float ? endFloat : undefined}
+        onPointerCancel={float ? endFloat : undefined}
+      >
         <div className="mtg__title">
           <b>{title || t("meetingTitle")}</b>
           <span className={`mtg__badge mtg__badge--${status}`}><i />{statusLabel}</span>
@@ -869,6 +928,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             <IconUsers /><span className="mtg__n">{count}</span>
           </button>
         </div>
+        {float ? (
+          <div className="mtg__ftools">
+            {/* Participants count stays visible even minimised — MD lists it
+                among the floating panel's own controls. */}
+            <span className="mtg__fn" title={t("rosterTitle")}><IconUsers />{count}</span>
+            <button type="button" className="mtg__tool" onClick={() => setFmin((m) => !m)} aria-label={fmin ? t("expand") : t("minimize")} title={fmin ? t("expand") : t("minimize")}>
+              {fmin ? <IconGrid /> : <IconMinus />}
+            </button>
+          </div>
+        ) : null}
       </header>
 
       <div className="mtg__toasts" aria-live="polite">
