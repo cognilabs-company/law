@@ -1884,7 +1884,12 @@ function normEditorSession(v: unknown, fallbackRecordId = ""): DocumentRequestEd
     recordId: rid,
     sessionId: asStr(d.session_id),
     provider: asStr(d.provider),
-    configured: Boolean(oo?.configured),
+    // An explicit `configured: false` is honoured — pointing the embed at a
+    // placeholder document-server URL would load nothing and leave a blank
+    // pane instead of the MD's fallback buttons. But a backend that ships
+    // the URL and simply omits the flag is configured, so absence of the
+    // flag falls back to "is there a server URL to load from".
+    configured: typeof oo?.configured === "boolean" ? oo.configured : !!asStr(oo?.document_server_url),
     onlyoffice: oo,
     editorFileDownloadUrl: asStr(file.download_url) || (base ? `${base}/file` : ""),
     draftUrl: asStr(d.draft_url) || (base ? `${base}/draft` : ""),
