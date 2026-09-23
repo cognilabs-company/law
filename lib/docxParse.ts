@@ -12,7 +12,7 @@
 // content rather than crashing.
 
 import JSZip from "jszip";
-import { splitTokens, type DocTree } from "./docTemplate";
+import { splitTokens, buildFieldResolver, type DocField, type DocTree, type FieldResolver } from "./docTemplate";
 
 const W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const TWIPS_PER_PT = 20;
@@ -79,14 +79,14 @@ function runText(rEl: Element): string {
   return text;
 }
 
-function pushRun(rEl: Element, out: DocTree[], seen: Record<string, number>): void {
+function pushRun(rEl: Element, out: DocTree[], seen: Record<string, number>, resolve: FieldResolver): void {
   const text = runText(rEl);
   if (!text) return;
   const rPr = childOf(rEl, "rPr");
   const bold = runFlagOn(rPr, "b");
   const italic = runFlagOn(rPr, "i");
   const underline = runFlagOn(rPr, "u");
-  const nodes = splitTokens(text, seen);
+  const nodes = splitTokens(text, seen, resolve);
   if (!bold && !italic && !underline) {
     out.push(...nodes);
     return;
@@ -102,16 +102,16 @@ function pushRun(rEl: Element, out: DocTree[], seen: Record<string, number>): vo
 // wraps its own runs one level in — flattened by recursing into anything
 // that isn't itself a run (paragraph properties and revision-marker elements
 // simply have no runs under them, so recursing into those is a no-op).
-function walkRunHolder(el: Element, out: DocTree[], seen: Record<string, number>): void {
+function walkRunHolder(el: Element, out: DocTree[], seen: Record<string, number>, resolve: FieldResolver): void {
   for (const c of Array.from(el.children)) {
     const ln = localName(c);
     if (ln === "pPr") continue;
-    if (ln === "r") pushRun(c, out, seen);
-    else walkRunHolder(c, out, seen);
+    if (ln === "r") pushRun(c, out, seen, resolve);
+    else walkRunHolder(c, out, seen, resolve);
   }
 }
 
-function walkParagraph(pEl: Element, seen: Record<string, number>, numSeq: Map<string, number>): DocTree {
+function walkParagraph(pEl: Element, seen: Record<string, number>, numSeq: Map<string, number>, resolve: FieldResolver): DocTree {
   const pPr = childOf(pEl, "pPr");
   const style = paraStyle(pPr);
   const out: DocTree[] = [];
@@ -127,14 +127,18 @@ function walkParagraph(pEl: Element, seen: Record<string, number>, numSeq: Map<s
     numSeq.set(key, n);
     out.push({ k: "text", v: `${n}. ` });
   }
-  walkRunHolder(pEl, out, seen);
+  walkRunHolder(pEl, out, seen, resolve);
   return { k: "el", tag: "p", style, children: out };
 }
 
 // The template's source DOCX (its raw bytes) → the same DocTree shape
 // DocPaper already knows how to render (see docTemplate.ts). Browser-only
 // (JSZip + DOMParser); only ever called from a "use client" component.
-export async function docxToTree(buf: ArrayBuffer): Promise<DocTree[]> {
+// `fields` resolves the 2026-09-23-import marker style (`{Human label}`,
+// no machine name inside the braces — see docTemplate.ts's file header) to
+// the field it belongs to; omit it only for a template still using the
+// original `{{field_name}}` style, where no lookup is needed.
+export async function docxToTree(buf: ArrayBuffer, fields: DocField[] = []): Promise<DocTree[]> {
   if (typeof window === "undefined") return [];
   const zip = await JSZip.loadAsync(buf);
   const entry = zip.file("word/document.xml");
@@ -143,11 +147,12 @@ export async function docxToTree(buf: ArrayBuffer): Promise<DocTree[]> {
   const doc = new DOMParser().parseFromString(xml, "application/xml");
   const body = doc.getElementsByTagNameNS(W_NS, "body")[0];
   if (!body) return [];
+  const resolve = buildFieldResolver(fields);
   const seen: Record<string, number> = {};
   const numSeq = new Map<string, number>();
   const out: DocTree[] = [];
   for (const c of Array.from(body.children)) {
-    if (localName(c) === "p") out.push(walkParagraph(c, seen, numSeq));
+    if (localName(c) === "p") out.push(walkParagraph(c, seen, numSeq, resolve));
     // w:tbl (tables) aren't handled — not used in these templates today; one
     // that had a table would simply lose its rows rather than throw.
   }

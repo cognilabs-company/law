@@ -25,7 +25,12 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   return (
     <div className="docbuild docbuild--full">
       <div className="docbuild__top">
-        <button type="button" className="docbuild__back" onClick={() => router.push("/portal/client/services")}>
+        {/* Real history back, not a hardcoded push to the bare catalog URL —
+            the catalog page now mirrors its category/subcategory drill-down
+            into its own URL (see ClientServices), so this lands the client
+            back exactly where they were browsing instead of resetting them
+            to the top-level "choose a category" screen every time. */}
+        <button type="button" className="docbuild__back" onClick={() => router.back()}>
           <IconChevronLeft />
           {t("back")}
         </button>

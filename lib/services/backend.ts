@@ -1809,6 +1809,57 @@ export async function getDocumentRequestFile(requestId: string): Promise<Blob> {
   return httpBlob(`/document-requests/${requestId}/file`);
 }
 
+// ── Client's own document requests, across all 3 fill methods ─────
+// LEXGO_CLIENT_DOCUMENT_REQUESTS_PAGE_FRONTEND.md: one list — self-filled,
+// AI-drafted, lawyer-assisted — with a real status/next-step per item, so the
+// client has somewhere to come back to and check "is my document ready yet"
+// without re-opening the service it came from. `tabs` in the raw response
+// is a fixed, known set (all/self/ai/lawyer) — not re-derived here, the
+// frontend renders the same 4 every time and just refetches per `mode`.
+export type ClientDocFlowMode = "self" | "ai" | "lawyer";
+export type ClientDocFlowItem = {
+  id: string;
+  mode: string;
+  title: string;
+  status: string;
+  statusLabel: string;
+  nextAction: string;
+  assignedLawyer: { id: string; name: string; phone: string; role: string } | null;
+  file: { ready: boolean; downloadUrl: string; inlineUrl: string; format: string };
+  createdAt: string;
+  updatedAt: string;
+};
+function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
+  const d = asDict(v);
+  const lawyer = d.assigned_lawyer ? asDict(d.assigned_lawyer) : null;
+  const file = asDict(d.file);
+  const actions = asDict(d.actions);
+  return {
+    id: asStr(d.id),
+    mode: asStr(d.mode),
+    title: asStr(d.title),
+    status: asStr(d.status),
+    statusLabel: asStr(d.status_label),
+    nextAction: asStr(d.next_action),
+    assignedLawyer: lawyer && (lawyer.name || lawyer.id) ? { id: asStr(lawyer.id), name: asStr(lawyer.name), phone: asStr(lawyer.phone), role: asStr(lawyer.role) } : null,
+    file: {
+      ready: Boolean(file.ready),
+      downloadUrl: asStr(file.download_url) || asStr(actions.file_download_url),
+      inlineUrl: asStr(file.inline_url),
+      format: asStr(file.format),
+    },
+    createdAt: asStr(d.created_at),
+    updatedAt: asStr(d.updated_at),
+  };
+}
+export async function listClientDocumentFlow(filters?: { mode?: ClientDocFlowMode; status?: string }): Promise<ClientDocFlowItem[]> {
+  const qs = new URLSearchParams();
+  if (filters?.mode) qs.set("mode", filters.mode);
+  if (filters?.status) qs.set("status", filters.status);
+  const q = qs.toString();
+  return listFrom(await http(`/document-requests/service-flow${q ? `?${q}` : ""}`), "items", "data").map(normClientDocFlowItem);
+}
+
 // ── Organizations (advocate orgs) ─────────────────────────────────
 export type Organization = {
   id: string;

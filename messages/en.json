@@ -2179,6 +2179,7 @@
         "profile": "Profile",
         "services": "Services",
         "documents": "Document templates",
+        "documentRequests": "My documents",
         "messages": "Messages",
         "notifications": "Notifications",
         "packages": "Packages"
@@ -2312,6 +2313,8 @@
         "noTemplate": "Template file not found",
         "templateError": "Couldn't open the template. Please try again.",
         "fileLabel": "Finished document (DOCX)",
+        "chooseFile": "Choose file",
+        "filePlaceholder": "No file chosen",
         "invalidFileType": "Please upload a DOCX file only",
         "notesLabel": "Note for the client (optional)",
         "fulfillSubmit": "Send to client",
@@ -3303,6 +3306,16 @@
         "lawyerSubmit": "Send request",
         "lawyerNotAvailable": "The selected specialist isn't available for this service."
       },
+      "documentRequests": {
+        "title": "My documents",
+        "tab_all": "All",
+        "tab_self": "Filled in myself",
+        "tab_ai": "With AI",
+        "tab_lawyer": "With a lawyer",
+        "empty": "No documents yet",
+        "emptyText": "Once you fill in a document or send a request from a service, they'll show up here.",
+        "download": "Download"
+      },
       "packages": {
         "title": "Service packages",
         "count": "{n} packages",
@@ -3396,6 +3409,8 @@
         "noTemplate": "Template file not found",
         "templateError": "Couldn't open the template. Please try again.",
         "fileLabel": "Finished document (DOCX)",
+        "chooseFile": "Choose file",
+        "filePlaceholder": "No file chosen",
         "invalidFileType": "Please upload a DOCX file only",
         "notesLabel": "Note for the client (optional)",
         "fulfillSubmit": "Send to client",

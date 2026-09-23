@@ -15,9 +15,10 @@ import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
+import DocTemplateViewer from "./DocTemplateViewer";
 import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
-import { IconFileText, IconUser, IconPhone, IconCheck, IconEye, IconDownload } from "@/components/icons";
+import { IconFileText, IconUser, IconPhone, IconCheck, IconEye, IconDownload, IconUpload } from "@/components/icons";
 
 // LEXGO_LAWYER_DOCUMENT_FILE_FLOW_FRONTEND.md: the queue of client "prepare
 // with a lawyer" document requests assigned to this account. Not role-gated
@@ -87,7 +88,13 @@ function FulfillModal({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [done, setDone] = useState<FulfillResult | null>(null);
-  const [tplBusy, setTplBusy] = useState<"view" | "download" | "">("");
+  const [dlBusy, setDlBusy] = useState(false);
+  // Which file the inline-preview modal is showing, if any — the template
+  // (client's blank clean-source-file) or the advocate's own just-uploaded
+  // result. Never a browser tab (see DocTemplateViewer's own comment: a
+  // browser can't render DOCX, so opening one in a new tab just flashed a
+  // blank tab and silently forced a download instead of showing anything).
+  const [preview, setPreview] = useState<"template" | "result" | "">("");
 
   const [prevId, setPrevId] = useState(target?.id);
   if (target?.id !== prevId) {
@@ -96,7 +103,7 @@ function FulfillModal({
     setNotes("");
     setNote(null);
     setDone(null);
-    setTplBusy("");
+    setPreview("");
   }
 
   function pickFile(f: File | null) {
@@ -113,20 +120,13 @@ function FulfillModal({
   // in this app (never a plain link) — clean-source-file, already blank in
   // place of {{field}} markers per LEXGO_CLEAN_TEMPLATE_DOWNLOAD_FRONTEND.md,
   // is what template_file.download_url/inline_url already point at.
-  async function openTemplate(mode: "view" | "download") {
+  async function downloadTemplate() {
     const tpl = target?.templateFile;
-    if (!tpl?.hasFile || tplBusy) return;
-    setTplBusy(mode);
-    const url = mode === "view" ? tpl.inlineUrl || tpl.downloadUrl : tpl.downloadUrl || tpl.inlineUrl;
-    const ok = await fetchAndDeliver(() => getServiceTemplateSourceFile(url), tpl.fileName || "shablon.docx", mode === "download");
+    if (!tpl?.hasFile || dlBusy) return;
+    setDlBusy(true);
+    const ok = await fetchAndDeliver(() => getServiceTemplateSourceFile(tpl.downloadUrl || tpl.inlineUrl), tpl.fileName || "shablon.docx", true);
     if (!ok) setNote({ ok: false, msg: t("templateError") });
-    setTplBusy("");
-  }
-
-  async function openResult() {
-    if (!done?.file) return;
-    const url = done.file.inlineUrl || done.file.downloadUrl;
-    await fetchAndDeliver(() => getServiceTemplateSourceFile(url), done.file?.fileName || "hujjat.docx", false);
+    setDlBusy(false);
   }
 
   async function submit() {
@@ -145,26 +145,24 @@ function FulfillModal({
   }
 
   const answerEntries = target ? Object.entries(target.answers).filter(([, v]) => v != null && v !== "") : [];
+  const tpl = target?.templateFile;
 
   return (
     <Modal open={!!target} onClose={onClose} title={target?.clientName || target?.title || t("title")} wide>
       {target ? (
-        <div className="cform" style={{ maxWidth: "none" }}>
+        <div className="cform docassist" style={{ maxWidth: "none" }}>
           {target.clientPhone ? (
             <p className="advmuted" style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
               <IconPhone style={{ width: 14, height: 14 }} />
               {target.clientPhone}
             </p>
           ) : null}
-          <div>
-            <label>{t("need")}</label>
-            <p className="advmuted" style={{ margin: 0 }}>{target.need || "—"}</p>
-          </div>
 
-          {answerEntries.length ? (
-            <div>
-              <label>{t("answersLabel")}</label>
-              <div className="oquote">
+          <section className="docassist__sec">
+            <label>{t("need")}</label>
+            <p style={{ margin: 0, fontSize: ".92rem" }}>{target.need || "—"}</p>
+            {answerEntries.length ? (
+              <div className="oquote" style={{ marginTop: 4 }}>
                 {answerEntries.map(([k, v]) => (
                   <div className="oquote__row" key={k}>
                     <span>{humanizeSlug(k)}</span>
@@ -172,54 +170,95 @@ function FulfillModal({
                   </div>
                 ))}
               </div>
-            </div>
-          ) : null}
+            ) : null}
+          </section>
 
-          <div>
+          <section className="docassist__sec">
             <label>{t("templateLabel")}</label>
-            {target.templateFile?.hasFile ? (
+            {tpl?.hasFile ? (
               <div className="chiprow" style={{ margin: "4px 0 0" }}>
-                <button type="button" className="btn btn--line btn--sm" disabled={!!tplBusy} onClick={() => openTemplate("view")}>
-                  <IconEye /> {tplBusy === "view" ? t("processingShort") : t("viewTemplate")}
+                <button type="button" className="btn btn--line btn--sm" onClick={() => setPreview("template")}>
+                  <IconEye /> {t("viewTemplate")}
                 </button>
-                <button type="button" className="btn btn--line btn--sm" disabled={!!tplBusy} onClick={() => openTemplate("download")}>
-                  <IconDownload /> {tplBusy === "download" ? t("processingShort") : t("downloadTemplate")}
+                <button type="button" className="btn btn--line btn--sm" disabled={dlBusy} onClick={downloadTemplate}>
+                  <IconDownload /> {dlBusy ? t("processingShort") : t("downloadTemplate")}
                 </button>
               </div>
             ) : (
               <p className="advmuted">{t("noTemplate")}</p>
             )}
-          </div>
+          </section>
 
           {done ? (
-            <>
-              <p className="cform__ok">
+            <section className="docassist__sec">
+              <p className="cform__ok" style={{ margin: 0 }}>
                 <IconCheck style={{ width: 16, height: 16 }} /> {t("fulfilled")}
               </p>
               {done.file ? (
-                <button type="button" className="btn btn--line btn--full" onClick={openResult}>
-                  <IconDownload /> {t("viewResult")}
+                <button type="button" className="btn btn--line btn--full" style={{ marginTop: 10 }} onClick={() => setPreview("result")}>
+                  <IconEye /> {t("viewResult")}
                 </button>
               ) : null}
-            </>
+            </section>
           ) : (
-            <>
-              <div>
-                <label htmlFor="fulfill-file">{t("fileLabel")}</label>
-                <input id="fulfill-file" type="file" accept=".docx" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
-              </div>
-              <div>
-                <label htmlFor="fulfill-notes">{t("notesLabel")}</label>
-                <textarea id="fulfill-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-              </div>
+            <section className="docassist__sec">
+              <label>{t("fileLabel")}</label>
+              <FilePicker id="fulfill-file" file={file} onPick={pickFile} placeholder={t("filePlaceholder")} chooseLabel={t("chooseFile")} />
+              <label htmlFor="fulfill-notes" style={{ marginTop: 4 }}>{t("notesLabel")}</label>
+              <textarea id="fulfill-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
               {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
               <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy || !file}>
                 {busy ? t("processingShort") : t("fulfillSubmit")}
               </button>
-            </>
+            </section>
           )}
         </div>
       ) : null}
+
+      <DocTemplateViewer
+        open={preview === "template"}
+        onClose={() => setPreview("")}
+        title={tpl?.fileName || t("templateLabel")}
+        fetchBlob={tpl?.hasFile ? () => getServiceTemplateSourceFile(tpl.downloadUrl || tpl.inlineUrl) : null}
+        fileName={tpl?.fileName || "shablon.docx"}
+      />
+      <DocTemplateViewer
+        open={preview === "result"}
+        onClose={() => setPreview("")}
+        title={done?.file?.fileName || t("viewResult")}
+        fetchBlob={done?.file ? () => getServiceTemplateSourceFile(done.file!.inlineUrl || done.file!.downloadUrl) : null}
+        fileName={done?.file?.fileName || "hujjat.docx"}
+      />
     </Modal>
+  );
+}
+
+// The native <input type=file> renders per the OS/browser's own locale (a
+// Russian-Windows Chrome shows "Обзор…"/"Файл не выбран" — this app has no
+// control over that text at all, and no amount of CSS reaches it) — hidden
+// and driven by a real button + our own filename text instead, the standard
+// way to get a fully themeable file picker.
+function FilePicker({
+  id,
+  file,
+  onPick,
+  placeholder,
+  chooseLabel,
+}: {
+  id: string;
+  file: File | null;
+  onPick: (f: File | null) => void;
+  placeholder: string;
+  chooseLabel: string;
+}) {
+  return (
+    <label htmlFor={id} className="filepick">
+      <input id={id} type="file" accept=".docx" onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
+      <span className="filepick__btn">
+        <IconUpload />
+        {chooseLabel}
+      </span>
+      <span className={`filepick__name${file ? "" : " advmuted"}`}>{file ? file.name : placeholder}</span>
+    </label>
   );
 }

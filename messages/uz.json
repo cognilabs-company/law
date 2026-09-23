@@ -2185,6 +2185,7 @@
         "profile": "Profil",
         "services": "Xizmatlar",
         "documents": "Hujjat namunalari",
+        "documentRequests": "Mening hujjatlarim",
         "messages": "Xabarlar",
         "notifications": "Bildirishnomalar",
         "packages": "Paketlar"
@@ -2318,6 +2319,8 @@
         "noTemplate": "Shablon fayl topilmadi",
         "templateError": "Shablonni ochib bo'lmadi. Qayta urinib ko'ring.",
         "fileLabel": "Tayyor hujjat (DOCX)",
+        "chooseFile": "Fayl tanlash",
+        "filePlaceholder": "Fayl tanlanmagan",
         "invalidFileType": "Faqat DOCX fayl yuklang",
         "notesLabel": "Mijoz uchun izoh (ixtiyoriy)",
         "fulfillSubmit": "Mijozga yuborish",
@@ -3309,6 +3312,16 @@
         "lawyerSubmit": "So'rovni yuborish",
         "lawyerNotAvailable": "Tanlangan mutaxassis bu xizmat uchun mavjud emas."
       },
+      "documentRequests": {
+        "title": "Mening hujjatlarim",
+        "tab_all": "Barchasi",
+        "tab_self": "O'zim to'ldirganlar",
+        "tab_ai": "AI bilan",
+        "tab_lawyer": "Advokat bilan",
+        "empty": "Hozircha hujjat yo'q",
+        "emptyText": "Xizmat tanlab hujjat to'ldirganingizda yoki so'rov yuborganingizda, ular shu yerda ko'rinadi.",
+        "download": "Yuklab olish"
+      },
       "packages": {
         "title": "Xizmat paketlari",
         "count": "{n} ta paket",
@@ -3402,6 +3415,8 @@
         "noTemplate": "Shablon fayl topilmadi",
         "templateError": "Shablonni ochib bo'lmadi. Qayta urinib ko'ring.",
         "fileLabel": "Tayyor hujjat (DOCX)",
+        "chooseFile": "Fayl tanlash",
+        "filePlaceholder": "Fayl tanlanmagan",
         "invalidFileType": "Faqat DOCX fayl yuklang",
         "notesLabel": "Mijoz uchun izoh (ixtiyoriy)",
         "fulfillSubmit": "Mijozga yuborish",

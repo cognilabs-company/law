@@ -1,10 +1,23 @@
 // Client-side rendering of a backend document template.
 //
-// `GET /services/{id}/document-template` (and `/document-templates`) returns
-// the document as plain text with `{{field_name}}` tokens — verified against
-// production on all 36 civil-court templates: every field in `fields` has a
-// matching token, there are no orphan tokens and no leftover `____` blanks.
-// That is enough to fill the document in the browser as the client types,
+// Two marker styles have shipped, and a template can be either:
+// - `{{field_name}}` — the original 36 civil-court templates: braces hold
+//   the machine field name directly, so the token maps to a field with no
+//   lookup needed.
+// - `{Human readable label}` — the 987-template general-category import
+//   (2026-09-23): braces hold the field's own `label`/`placeholder` text
+//   (Cyrillic, spaces and all), NOT a machine name — verified against a real
+//   production template (a Word "complex field", `<w:fldChar>`, whose cached
+//   result text is exactly `{<label>}`). A single-brace-only tokenizer with
+//   no field list to resolve against would treat every one of these as
+//   plain literal text — which is exactly what silently broke live-typing
+//   for every service from that import: the pane had no recognised token to
+//   substitute into at all, so nothing the client typed could ever show up.
+// Both are resolved against `fields` here (by `placeholder` with its braces
+// stripped, or by `label`) so either style ends up as the same `DocSeg`
+// `tok` node either way.
+//
+// This is enough to fill the document in the browser as the client types,
 // with no round-trip: the same substitution the backend does when it renders
 // the PDF, done locally for the live pane (LegalZoom's builder behaves the
 // same way). `POST …/preview` is still called, but only to cross-check
@@ -30,20 +43,46 @@ export type DocSeg =
   | { k: "text"; v: string }
   | { k: "tok"; name: string; n: number };
 
-// Token syntax the backend authors templates in.
-const TOKEN = /\{\{\s*([\w.-]+)\s*\}\}/g;
+// Token syntax the backend authors templates in — three styles at once (see
+// the file header): group 1 is a `{{field_name}}` machine name, group 2 is
+// a `{Human label}` needing a resolver lookup below, group 3 is the one
+// unbracketed style — a phone field's marker is the literal digits
+// `+998900000000` sitting in the document with no braces around it at all
+// (confirmed against a real production template: the field's own
+// `placeholder` is exactly `"+998900000000"`, no braces to strip).
+const TOKEN = /\{\{\s*([\w.-]+)\s*\}\}|\{([^{}\n]+)\}|(\+998\d{9})/g;
+
+// Resolves a raw match to a field's `name`. The {{...}} form's capture
+// already IS the name; the {...} and +998… forms' captures are a label or
+// literal placeholder that has to be looked up — built once (not per match)
+// from `fields`' `placeholder` (braces stripped, so this covers the
+// unbracketed phone form too) and `label`, so a match that isn't a
+// recognised field resolves to undefined and is left as plain text rather
+// than silently swallowed as a token with no answer behind it.
+export type FieldResolver = (raw: string, isDoubleBrace: boolean) => string | undefined;
+export function buildFieldResolver(fields: DocField[]): FieldResolver {
+  const byLabel = new Map<string, string>();
+  for (const f of fields) {
+    const ph = (f.placeholder || "").trim().replace(/^\{+/, "").replace(/\}+$/, "").trim();
+    if (ph) byLabel.set(ph, f.name);
+    if (f.label) byLabel.set(f.label.trim(), f.name);
+  }
+  return (raw, isDoubleBrace) => (isDoubleBrace ? raw : byLabel.get(raw.trim()));
+}
 
 // Split `template_text` into literal runs and field tokens, numbering each
 // field's occurrences so a field used twice (every template does this with
 // claimant_full_name and application_date) can be highlighted independently.
-export function parseTemplate(text: string): DocSeg[] {
+export function parseTemplate(text: string, fields: DocField[] = []): DocSeg[] {
+  const resolve = buildFieldResolver(fields);
   const out: DocSeg[] = [];
   const seen: Record<string, number> = {};
   let last = 0;
   for (const m of text.matchAll(TOKEN)) {
     const at = m.index ?? 0;
+    const name = m[1] ?? resolve(m[2] ?? m[3] ?? "", false);
+    if (!name) continue;
     if (at > last) out.push({ k: "text", v: text.slice(last, at) });
-    const name = m[1];
     const n = seen[name] ?? 0;
     seen[name] = n + 1;
     out.push({ k: "tok", name, n });
@@ -79,14 +118,17 @@ export type DocTree =
 // however many text runs the source happens to have — one running counter
 // shared across all of them keeps a field's occurrences numbered in document
 // order, not per run. Exported for lib/docxParse.ts, which builds a DocTree
-// straight from the DOCX's own XML rather than from a flat string.
-export function splitTokens(text: string, seen: Record<string, number>): DocTree[] {
+// straight from the DOCX's own XML rather than from a flat string — `resolve`
+// is built once per document (buildFieldResolver) and threaded down through
+// every run, not rebuilt per call.
+export function splitTokens(text: string, seen: Record<string, number>, resolve: FieldResolver): DocTree[] {
   const out: DocTree[] = [];
   let last = 0;
   for (const m of text.matchAll(TOKEN)) {
     const at = m.index ?? 0;
+    const name = m[1] ?? resolve(m[2] ?? m[3] ?? "", false);
+    if (!name) continue;
     if (at > last) out.push({ k: "text", v: text.slice(last, at) });
-    const name = m[1];
     const n = seen[name] ?? 0;
     seen[name] = n + 1;
     out.push({ k: "tok", name, n });
@@ -255,16 +297,23 @@ export const filledCount = (fields: DocField[], answers: Record<string, string>)
 // Fallback path only: when the document pane has to render text the backend
 // already filled (no template_text in hand), an unfilled spot comes back as a
 // bracketed label — and a token the renderer didn't recognise as a leftover
-// `{{mustache}}`. Both are shown as blanks rather than as literal punctuation.
+// `{{mustache}}` or `{label}` (both marker styles — see the file header).
+// All three are shown as blanks rather than as literal punctuation. The
+// double-brace alternative is tried first so `{{name}}` matches whole rather
+// than as a `{` + a single-brace span + a stray `}`.
 export function splitFilledText(text: string): { blank: boolean; v: string }[] {
   return text
-    .split(/(\[[^\]\n]+\]|\{\{[^}\n]+\}\})/g)
+    .split(/(\[[^\]\n]+\]|\{\{[^}\n]+\}\}|\{[^{}\n]+\}|\+998\d{9})/g)
     .filter((p) => p !== "")
     .map((p) =>
       p.startsWith("[") && p.endsWith("]")
         ? { blank: true, v: p.slice(1, -1) }
         : p.startsWith("{{") && p.endsWith("}}")
           ? { blank: true, v: p.slice(2, -2).trim() }
-          : { blank: false, v: p },
+          : p.startsWith("{") && p.endsWith("}")
+            ? { blank: true, v: p.slice(1, -1).trim() }
+            : /^\+998\d{9}$/.test(p)
+              ? { blank: true, v: p }
+              : { blank: false, v: p },
     );
 }

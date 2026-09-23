@@ -89,7 +89,7 @@ export default function DocFill({
   const t = useTranslations("portal.client.documents");
   const tf = useTranslations("portal.client.documents.fields");
 
-  const segs = useMemo(() => parseTemplate(templateText || ""), [templateText]);
+  const segs = useMemo(() => parseTemplate(templateText || "", fields), [templateText, fields]);
 
   // The document pane renders the template's own real DOCX (justified body
   // text, the centered bold title, the header/signature block indented the
@@ -113,7 +113,7 @@ export default function DocFill({
       try {
         const blob = await getServiceTemplateSourceFile(sourceFile.sourceFileUrl || sourceFile.sourceFileInlineUrl);
         const buf = await blob.arrayBuffer();
-        const parsed = await docxToTree(buf);
+        const parsed = await docxToTree(buf, fields);
         if (alive && parsed.length) setTree(parsed);
       } catch {
         /* falls back to the plain-text rendering below */
@@ -122,7 +122,7 @@ export default function DocFill({
     return () => {
       alive = false;
     };
-  }, [sourceFile]);
+  }, [sourceFile, fields]);
 
   const counts = useMemo(() => (tree ? tokenCountsTree(tree) : tokenCounts(segs)), [tree, segs]);
 

@@ -13,16 +13,15 @@ import {
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
 import DocumentRequestPanel from "./DocumentRequestPanel";
-import DocumentAiAssist from "./DocumentAiAssist";
 import DocumentLawyerAssist from "./DocumentLawyerAssist";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import { fmtUzs } from "@/lib/money";
-import { IconList, IconSparkle, IconHeadset, IconChevronLeft } from "@/components/icons";
+import { IconList, IconHeadset, IconChevronLeft } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
-type Mode = "choose" | "manual" | "ai" | "lawyer";
+type Mode = "choose" | "manual" | "lawyer";
 
 // FRONTEND_DOCUMENT_GENERATION.md "Asosiy Flow": a catalog service with a
 // document_template_id runs the answers → pay → generate → download
@@ -40,10 +39,12 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
   // template with no questions creates a second, separately-payable request
   // on every visit while the existing one is still being fetched.
   const [resumed, setResumed] = useState(false);
-  // "choose" only ever applies once document-fields answers with an ai_flow
-  // or lawyer_flow — the compat gate (2026-09-22 backend): a service either
-  // flow isn't wired for goes straight to "manual", i.e. today's exact
-  // pre-existing behavior, unchanged.
+  // "choose" only ever applies once document-fields answers with a
+  // lawyer_flow — the compat gate (2026-09-22 backend): a service it isn't
+  // wired for goes straight to "manual", i.e. today's exact pre-existing
+  // behavior, unchanged. The AI-assisted option was removed from this
+  // chooser on request — sourceFile.aiFlow may still come back from the
+  // backend, it's just never offered here any more.
   const [mode, setMode] = useState<Mode>("manual");
   const starting = useRef(false);
 
@@ -85,7 +86,7 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
         // DocumentRequestPanel already gate their own use of it on
         // hasSourceFile; the AI/lawyer flow URLs need it regardless.
         setSourceFile(f);
-        if (f?.aiFlow || f?.lawyerFlow) setMode("choose");
+        if (f?.lawyerFlow) setMode("choose");
         onTitle?.(r.name);
       })
       .catch(() => alive && setErr(true))
@@ -165,11 +166,6 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
             <b>{t("chooseManual")}</b>
             <span>{t("chooseManualSub")}</span>
           </button>
-          <button type="button" className="docchoose__c docchoose__c--ai" onClick={() => setMode("ai")}>
-            <span className="docchoose__i"><IconSparkle /></span>
-            <b>{t("chooseAi")}</b>
-            <span>{t("chooseAiSub")}</span>
-          </button>
           <button type="button" className="docchoose__c" onClick={() => setMode("lawyer")}>
             <span className="docchoose__i"><IconHeadset /></span>
             <b>{t("chooseLawyer")}</b>
@@ -178,9 +174,6 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
         </div>
       </div>
     );
-
-  if (mode === "ai" && sourceFile?.aiFlow)
-    return <DocumentAiAssist aiFlow={sourceFile.aiFlow} sourceFile={sourceFile} onBack={() => setMode("choose")} />;
 
   if (mode === "lawyer" && sourceFile?.lawyerFlow)
     return <DocumentLawyerAssist lawyerFlow={sourceFile.lawyerFlow} sourceFile={sourceFile} onBack={() => setMode("choose")} />;
@@ -208,7 +201,7 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
 
   return (
     <div className="cform" style={{ maxWidth: "none" }}>
-      {mode !== "manual" || !(sourceFile?.aiFlow || sourceFile?.lawyerFlow) ? null : (
+      {mode !== "manual" || !sourceFile?.lawyerFlow ? null : (
         <button type="button" className="rf__link" onClick={() => setMode("choose")}>
           <IconChevronLeft />
           {t("backToChoices")}

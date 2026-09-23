@@ -12,10 +12,10 @@ import {
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
-import { preopenTab, showBlob, closeTab } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "./DataState";
 import DocumentRequestPanel from "./DocumentRequestPanel";
+import DocTemplateViewer from "./DocTemplateViewer";
 import { initials } from "@/lib/lawyers";
 import { IconChevronLeft, IconCheck, IconEye, IconHeadset } from "@/components/icons";
 
@@ -42,7 +42,7 @@ export default function DocumentLawyerAssist({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [result, setResult] = useState<DocumentRequest | null>(null);
-  const [srcBusy, setSrcBusy] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -72,31 +72,17 @@ export default function DocumentLawyerAssist({
     }
   }
 
-  async function viewClean() {
-    const url = sourceFile?.cleanSourceFileInlineUrl || sourceFile?.cleanSourceFileUrl;
-    if (!url || srcBusy) return;
-    const win = preopenTab();
-    setSrcBusy(true);
-    try {
-      const blob = await getServiceTemplateSourceFile(url);
-      showBlob(blob, sourceFile?.sourceFileName || t("fileGeneric"), win);
-    } catch {
-      closeTab(win);
-    } finally {
-      setSrcBusy(false);
-    }
-  }
-
   if (result) return <DocumentRequestPanel key={result.id} initialReq={result} fields={[]} sourceFile={sourceFile} />;
 
   const cleanUrl = sourceFile?.cleanSourceFileInlineUrl || sourceFile?.cleanSourceFileUrl;
 
   return (
-    <div className="cform" style={{ maxWidth: "none" }}>
+    <div className="cform docassist" style={{ maxWidth: "none" }}>
       <button type="button" className="rf__link" onClick={onBack}>
         <IconChevronLeft />
         {t("backToChoices")}
       </button>
+
       <div className="docassist__head">
         <span className="docassist__i docassist__i--lawyer"><IconHeadset /></span>
         <div>
@@ -104,19 +90,21 @@ export default function DocumentLawyerAssist({
           <p className="advmuted">{t("lawyerLead")}</p>
         </div>
       </div>
-      {cleanUrl ? (
-        <button type="button" className="btn btn--line btn--sm" onClick={viewClean} disabled={srcBusy} style={{ justifySelf: "start" }}>
-          <IconEye />
-          {srcBusy ? t("processingShort") : t("viewSource")}
-        </button>
-      ) : null}
 
-      <div>
-        <label>{t("aiNeedLabel")}</label>
-        <textarea rows={4} value={need} onChange={(e) => setNeed(e.target.value)} placeholder={t("aiNeedPlaceholder")} />
-      </div>
+      <section className="docassist__sec">
+        <div className="docassist__sech">
+          <label htmlFor="lawyer-need">{t("aiNeedLabel")}</label>
+          {cleanUrl ? (
+            <button type="button" className="btn btn--line btn--sm" onClick={() => setViewOpen(true)}>
+              <IconEye />
+              {t("viewSource")}
+            </button>
+          ) : null}
+        </div>
+        <textarea id="lawyer-need" rows={4} value={need} onChange={(e) => setNeed(e.target.value)} placeholder={t("aiNeedPlaceholder")} />
+      </section>
 
-      <div>
+      <section className="docassist__sec">
         <label>{t("lawyerPick")}</label>
         {candidates === null ? (
           <Skeleton rows={2} />
@@ -142,13 +130,21 @@ export default function DocumentLawyerAssist({
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {err ? <Notice ok={false} msg={err} /> : null}
 
       <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy || !need.trim()}>
         {busy ? t("processingShort") : t("lawyerSubmit")}
       </button>
+
+      <DocTemplateViewer
+        open={viewOpen}
+        onClose={() => setViewOpen(false)}
+        title={sourceFile?.sourceFileName || t("fileGeneric")}
+        fetchBlob={cleanUrl ? () => getServiceTemplateSourceFile(cleanUrl) : null}
+        fileName={sourceFile?.sourceFileName || t("fileGeneric")}
+      />
     </div>
   );
 }

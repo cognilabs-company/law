@@ -1512,7 +1512,12 @@ body:has(.rf) .fab{display:none}
    a clear label below) instead of the generic cycled icon .svcard used. New
    class family rather than reusing .svcard — that class is still shared by
    ServiceSelector.tsx and needed to stay exactly as it was there. */
-.svfam__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));gap:16px}
+/* max column width capped (was 1fr — grows to fill whatever's left over,
+   which on a MacBook-width screen or a tablet is enough leftover room per
+   column to blow the card up well past its own content, all illustration
+   and empty padding); 240-280px stays a comfortable illustration size
+   without the runaway growth. */
+.svfam__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),280px));gap:16px}
 .svfam{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:20px 16px 22px;min-width:0;border:1.5px solid var(--line);border-radius:var(--rl);
   background:var(--dk-surface, #fff);cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .2s;overflow:hidden}
 .svfam:hover{border-color:var(--b300);box-shadow:var(--s1);transform:translateY(-3px)}
@@ -1521,8 +1526,17 @@ body:has(.rf) .fab{display:none}
    not a small icon with a lot of empty padding around it. position:relative
    is load-bearing — next/image's `fill` sizes itself against this box, not
    its own intrinsic dimensions. */
-.svfam__i{position:relative;width:100%;aspect-ratio:4/3;max-width:none;display:grid;place-items:center}
-.svfam__i svg{width:72px;height:72px;color:var(--dk-acc, var(--b600))}
+/* Fixed light tile behind every illustration/icon, deliberately the SAME in
+   both themes (not var(--dk-*)) — the PNGs are opaque (no alpha channel,
+   verified against the real files), a flat white/near-white background
+   baked into the image itself. Left to sit directly on the card, that
+   background blends fine on the light card surface but reads as a glaring
+   white rectangle once the card itself goes dark; framing it in its own
+   always-light tile makes the white intentional instead of a clash, and
+   gives icon-fallback categories the same tile treatment for a consistent
+   grid either way. */
+.svfam__i{position:relative;width:100%;aspect-ratio:4/3;max-width:none;display:grid;place-items:center;background:#F2F5FA;border-radius:14px;padding:10px;box-sizing:border-box}
+.svfam__i svg{width:72px;height:72px;color:var(--b600)}
 .svfam__t{display:flex;flex-direction:column;gap:3px;min-width:0}
 .svfam__t b{font-size:1.02rem;font-family:var(--fb);font-weight:700}
 .svfam__t small{font-size:.8rem;color:var(--gray)}
@@ -1531,7 +1545,7 @@ body:has(.rf) .fab{display:none}
    (download, send to a lawyer, fill in the document) instead of one whole-
    card click target that silently picked between two unrelated flows
    depending on whether the service happened to carry a document template. */
-.svsel__grid--svc{grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr))}
+.svsel__grid--svc{grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),320px))}
 .svc{display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0;min-height:212px;height:100%;border:1.5px solid var(--line);border-radius:var(--rl);
   background:var(--dk-surface, #fff);transition:border-color .2s,box-shadow .2s,transform .2s cubic-bezier(.4,0,.2,1);
   animation:svcIn .38s cubic-bezier(.22,1,.36,1) both}
@@ -1604,6 +1618,22 @@ body:has(.rf) .fab{display:none}
 .svc__soon{padding:1px 7px;border-radius:999px;background:var(--b100);color:var(--gray2);
   font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
 .svc__err{margin:0;font-size:.78rem;color:var(--dk-txt-err, #C0392B)}
+
+/* Tablet / smaller-laptop range (MacBook without an external display, iPad
+   landscape…) — same 980px this stylesheet already uses elsewhere. The
+   grids above stay responsive at any width via auto-fill, but the cards'
+   own fixed padding/min-height/illustration size were tuned for a full
+   desktop viewport and read as oversized once there's less room around
+   them; this tightens all three without changing the desktop look. */
+@media (max-width:980px){
+  .svfam__grid{grid-template-columns:repeat(auto-fill,minmax(min(180px,100%),220px));gap:12px}
+  .svfam{padding:14px 12px 16px;gap:7px}
+  .svfam__i{padding:7px}
+  .svfam__i svg{width:52px;height:52px}
+  .svfam__t b{font-size:.92rem}
+  .svsel__grid--svc{grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),280px))}
+  .svc{padding:13px;min-height:180px;gap:9px}
+}
 
 /* Work history */
 .wh{margin-top:8px}
@@ -2385,14 +2415,32 @@ body:has(.schat) .fab{display:none}
 .docchoose__c>span:last-child{font-size:.82rem;color:var(--gray)}
 .docchoose__i{width:38px;height:38px;border-radius:12px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center}
 .docchoose__i svg{width:19px;height:19px}
-.docchoose__c--ai{border-color:var(--b200);background:linear-gradient(180deg,var(--dk-surface, #fff),var(--b50))}
-.docchoose__c--ai .docchoose__i{background:var(--grad);color:#fff}
+.docassist{gap:18px}
+.docassist__head{display:flex;align-items:flex-start;gap:14px;padding-bottom:16px;border-bottom:1.5px solid var(--line)}
+.docassist__head b{display:block;font-family:var(--fd);font-size:1.08rem;letter-spacing:-.01em;margin-bottom:3px}
+.docassist__head .advmuted{font-size:.86rem}
+.docassist__i{width:44px;height:44px;border-radius:13px;background:var(--grad);color:#fff;display:grid;place-items:center;flex:none;box-shadow:var(--sblue)}
+.docassist__i svg{width:21px;height:21px}
+.docassist__i--lawyer{background:var(--b100);color:var(--dk-acc, var(--b600));box-shadow:none}
+/* Each step of the flow (describe the need, pick a lawyer) gets its own
+   card instead of sitting in one flat unbroken stack of labels — a clearer
+   "step 1 / step 2" read, matching the rest of the portal's panel language. */
+.docassist__sec{background:var(--dk-surface-2, #F7F9FC);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:10px}
+.docassist__sec textarea{background:var(--dk-surface, #fff)}
+.docassist__sech{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:-3px}
+.docassist__sech label{margin-bottom:0}
 
-.docassist__head{display:flex;align-items:flex-start;gap:12px}
-.docassist__head b{display:block;font-size:1rem;margin-bottom:2px}
-.docassist__i{width:40px;height:40px;border-radius:12px;background:var(--grad);color:#fff;display:grid;place-items:center;flex:none}
-.docassist__i svg{width:20px;height:20px}
-.docassist__i--lawyer{background:var(--b100);color:var(--dk-acc, var(--b600))}
+/* Custom file picker — the native <input type=file> button text is set by
+   the OS/browser locale, not this app, and clashes with everything else
+   here; a visually-hidden real input (still keyboard/screen-reader
+   operable via the wrapping <label>) driven by our own button + filename
+   text gives full control over how it looks. */
+.filepick{display:flex;align-items:center;gap:10px;min-width:0;cursor:pointer}
+.filepick input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.filepick__btn{display:inline-flex;align-items:center;gap:7px;flex:none;padding:9px 15px;border-radius:var(--pill);background:var(--grad);color:#fff;font-size:.83rem;font-weight:700;box-shadow:var(--sblue);transition:filter .15s}
+.filepick__btn svg{width:15px;height:15px}
+.filepick:hover .filepick__btn{filter:brightness(1.05)}
+.filepick__name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.88rem;color:var(--ink)}
 
 /* secure inbox link rows + doc-done + verify */
 .aitem--link{cursor:pointer;text-decoration:none}

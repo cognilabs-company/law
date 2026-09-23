@@ -167,8 +167,18 @@ export default function ClientServices() {
   // real backend `subcategory` per service one level under each
   // (LEXGO_DOCUMENT_SUBCATEGORIES_FRONTEND.md) — every category gets the
   // same two-step drill-down: general category -> subcategory -> services.
-  const [cat, setCat] = useState(""); // "" = general categories overview
-  const [subcat, setSubcat] = useState(""); // "" = subcategories overview for `cat`
+  // Seeded from the URL (same pattern as q/service/package below) and kept
+  // mirrored into it (see the effect further down) — otherwise opening a
+  // service's full-page document builder and coming back always dropped the
+  // client back to the top-level "choose a category" screen, no matter how
+  // deep they'd drilled in, since a real route change unmounts this whole
+  // component and a plain useState has nothing left to restore from.
+  const [cat, setCat] = useState(() =>
+    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("cat") ?? "",
+  );
+  const [subcat, setSubcat] = useState(() =>
+    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("subcat") ?? "",
+  );
   // Reset during render (not an effect — this file's own established pattern,
   // see prevOrder/prevServiceId/prevQuoteKey below) so a stale subcategory
   // filter never survives a category change.
@@ -177,6 +187,14 @@ export default function ClientServices() {
     setPrevCat(cat);
     setSubcat("");
   }
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (cat) sp.set("cat", cat); else sp.delete("cat");
+    if (subcat) sp.set("subcat", subcat); else sp.delete("subcat");
+    const qs = sp.toString();
+    router.replace(`/portal/client/services${qs ? `?${qs}` : ""}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cat, subcat]);
   // Only the selected category's own services are ever fetched (MD's
   // recommended flow: categories first, then GET /services?category_id=…
   // once a category is picked) — the page used to eagerly load the WHOLE

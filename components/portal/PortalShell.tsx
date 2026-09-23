@@ -128,6 +128,7 @@ const CLIENT_NAV: NavItem[] = [
   { href: "/portal/client", key: "dashboard", Icon: IconGrid },
   { href: "/portal/client/sos", key: "sos", Icon: IconAlert },
   { href: "/portal/client/services", key: "services", Icon: IconBriefcase },
+  { href: "/portal/client/documents", key: "documentRequests", Icon: IconDocLines },
   { href: "/portal/client/packages", key: "packages", Icon: IconFolder },
   { href: "/portal/client/cases", key: "cases", Icon: IconFileText },
   { href: "/portal/client/messages", key: "messages", Icon: IconChat },
