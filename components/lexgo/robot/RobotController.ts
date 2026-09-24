@@ -8,7 +8,6 @@ import {
   GESTURE_CLIPS,
   GESTURE_FADE_SECONDS,
   GESTURE_HOLD_SECONDS,
-  GRIP_POSE,
   IDLE,
   LOOK_CLAMP,
   PEEK,
@@ -89,21 +88,17 @@ export class RobotController implements RobotControllerApi {
     this.props = new RobotPropManager(bones);
     this.root.position.x = ROOT_PLACEMENT.restX;
     this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
-    this.applyLeftGripPose();
+    this.resetLeftArmToRest();
     this.mixer = new THREE.AnimationMixer(sceneRoot);
     for (const clip of clips) this.clipsByRawName.set(clip.name, clip);
   }
 
-  private applyLeftGripPose(): void {
-    const shoulder = this.bones.get("leftShoulder");
-    const arm = this.bones.get("leftArm");
-    const foreArm = this.bones.get("leftForeArm");
-    const hand = this.bones.get("leftHand");
-    if (shoulder) this.applyDelta(shoulder, 0, 0, deg(GRIP_POSE.shoulderOutDeg));
-    if (arm) this.applyDelta(arm, deg(GRIP_POSE.armLiftDeg), 0, deg(GRIP_POSE.armOutDeg));
-    if (foreArm) this.applyDelta(foreArm, 0, 0, deg(GRIP_POSE.elbowBendDeg));
-    if (hand) this.applyDelta(hand, deg(GRIP_POSE.wristXDeg), deg(GRIP_POSE.wristYDeg), deg(GRIP_POSE.wristZDeg));
-    this.setFingerCurl("left", GRIP_POSE.fingerCurl);
+  private resetLeftArmToRest(): void {
+    const leftArmBones = [this.bones.get("leftShoulder"), this.bones.get("leftArm"), this.bones.get("leftForeArm"), this.bones.get("leftHand")].filter(
+      Boolean,
+    ) as THREE.Bone[];
+    for (const bone of leftArmBones) bone.quaternion.copy(this.bones.restQuaternion(bone));
+    this.setFingerCurl("left", 0);
   }
 
   private resetRightArmToRest(duration = 0, onComplete?: () => void): void {
@@ -178,7 +173,7 @@ export class RobotController implements RobotControllerApi {
     this.bones.resetEvery();
     this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
     this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
-    this.applyLeftGripPose();
+    this.resetLeftArmToRest();
   }
 
   private stopBehavior(state: RobotState): void {
@@ -569,7 +564,7 @@ export class RobotController implements RobotControllerApi {
     this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
     this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
     this.bones.resetEvery();
-    this.applyLeftGripPose();
+    this.resetLeftArmToRest();
     this.setExpression("default");
     const action = this.mixer.clipAction(clip);
     const version = ++this.gestureVersion;
@@ -606,7 +601,7 @@ export class RobotController implements RobotControllerApi {
       this.bones.resetEvery();
       this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
       this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
-      this.applyLeftGripPose();
+      this.resetLeftArmToRest();
       this.activeGestureAction = null;
       this.gestureResetTween = null;
       this.stateMachine.exit("GESTURE");
@@ -852,7 +847,7 @@ export class RobotController implements RobotControllerApi {
     this.stopActiveGesture(false);
     this.mixer.stopAllAction();
     this.bones.resetEvery();
-    this.applyLeftGripPose();
+    this.resetLeftArmToRest();
     this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
     this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
     this.props.detachAll();

@@ -11,6 +11,116 @@ import RobotFace from "./RobotFace";
 import { MODEL_SCALE, MODEL_URL } from "./robot-config";
 import type { RobotEventName, RobotEventPayload, RobotExpression } from "./robot-types";
 
+function removeRobotSideBalls(scene: THREE.Object3D, head?: THREE.Object3D): void {
+  if (!head) return;
+  scene.updateWorldMatrix(true, true);
+  head.updateWorldMatrix(true, false);
+  const headWorldInverse = head.matrixWorld.clone().invert();
+
+  scene.traverse((object) => {
+    const mesh = object as THREE.SkinnedMesh;
+    const geometry = mesh.geometry;
+    const index = geometry?.index;
+    const position = geometry?.getAttribute("position");
+    if (!mesh.isSkinnedMesh || !geometry || !index || !position || geometry.userData.lexgoRobotSideBallsRemoved) return;
+
+    mesh.updateWorldMatrix(true, false);
+    const bindPositions: THREE.Vector3[] = [];
+    const point = new THREE.Vector3();
+    for (let i = 0; i < position.count; i++) {
+      point.fromBufferAttribute(position, i);
+      mesh.applyBoneTransform(i, point);
+      point.applyMatrix4(mesh.matrixWorld).applyMatrix4(headWorldInverse);
+      bindPositions.push(point.clone());
+    }
+
+    const parents = new Int32Array(position.count);
+    for (let i = 0; i < parents.length; i++) parents[i] = i;
+    const find = (value: number): number => {
+      let root = value;
+      while (parents[root] !== root) root = parents[root];
+      while (parents[value] !== value) {
+        const next = parents[value];
+        parents[value] = root;
+        value = next;
+      }
+      return root;
+    };
+    const union = (a: number, b: number): void => {
+      const rootA = find(a);
+      const rootB = find(b);
+      if (rootA !== rootB) parents[rootB] = rootA;
+    };
+
+    for (let i = 0; i < index.count; i += 3) {
+      const a = index.getX(i);
+      const b = index.getX(i + 1);
+      const c = index.getX(i + 2);
+      union(a, b);
+      union(b, c);
+    }
+
+    const components = new Map<number, { count: number; min: THREE.Vector3; max: THREE.Vector3; sum: THREE.Vector3 }>();
+    for (let i = 0; i < bindPositions.length; i++) {
+      const root = find(i);
+      const current = components.get(root);
+      if (current) {
+        current.count += 1;
+        current.min.min(bindPositions[i]);
+        current.max.max(bindPositions[i]);
+        current.sum.add(bindPositions[i]);
+      } else {
+        components.set(root, {
+          count: 1,
+          min: bindPositions[i].clone(),
+          max: bindPositions[i].clone(),
+          sum: bindPositions[i].clone(),
+        });
+      }
+    }
+
+    const sideBallRoots = new Set<number>();
+    components.forEach((component, root) => {
+      const center = component.sum.clone().multiplyScalar(1 / component.count);
+      const size = component.max.clone().sub(component.min);
+      if (
+        component.count >= 50 &&
+        component.count <= 220 &&
+        Math.abs(center.x) >= 0.16 &&
+        Math.abs(center.x) <= 0.23 &&
+        center.y >= 0.02 &&
+        center.y <= 0.3 &&
+        Math.abs(center.z) <= 0.04 &&
+        size.x <= 0.09 &&
+        size.y >= 0.18 &&
+        size.y <= 0.32
+      ) {
+        sideBallRoots.add(root);
+      }
+    });
+
+    if (!sideBallRoots.size) {
+      geometry.userData.lexgoRobotSideBallsRemoved = true;
+      return;
+    }
+
+    const filtered: number[] = [];
+    for (let i = 0; i < index.count; i += 3) {
+      const a = index.getX(i);
+      const b = index.getX(i + 1);
+      const c = index.getX(i + 2);
+      if (sideBallRoots.has(find(a)) || sideBallRoots.has(find(b)) || sideBallRoots.has(find(c))) continue;
+      filtered.push(a, b, c);
+    }
+
+    const filteredIndex = index.array instanceof Uint32Array ? new Uint32Array(filtered) : new Uint16Array(filtered);
+    geometry.setIndex(new THREE.BufferAttribute(filteredIndex, 1));
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+    geometry.userData.lexgoRobotSideBallsRemoved = true;
+  });
+}
+
 useGLTF.preload(MODEL_URL);
 
 const BEHAVIOR_BY_EVENT: Record<RobotEventName, (controller: RobotController, payload?: RobotEventPayload) => void> = {
@@ -40,7 +150,11 @@ export default function RobotModel({
   const { scene, animations } = useGLTF(MODEL_URL);
   const rootRef = useRef<THREE.Group>(null);
   const controllerRef = useRef<RobotController | null>(null);
-  const bones = useMemo(() => new RobotBones(scene), [scene]);
+  const bones = useMemo(() => {
+    const mappedBones = new RobotBones(scene);
+    removeRobotSideBalls(scene, mappedBones.get("head"));
+    return mappedBones;
+  }, [scene]);
   const [expression, setExpression] = useState<RobotExpression>("default");
 
   useEffect(() => {

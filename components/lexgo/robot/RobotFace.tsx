@@ -234,10 +234,10 @@ export default function RobotFace({
   });
 
   return (
-    <group ref={groupRef} position={[0, 0.064, 0.12]} renderOrder={20}>
+    <group ref={groupRef} position={[0, 0.17, 0.31]} renderOrder={20} frustumCulled={false}>
       <mesh renderOrder={20}>
         <planeGeometry args={[0.2, 0.14]} />
-        <meshBasicMaterial color="#07111e" transparent opacity={0.92} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial color="#07111e" transparent opacity={0.92} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
       </mesh>
       <mesh ref={leftEyeRef} position={[-0.052, 0.028, 0.018]} renderOrder={21}>
         <sphereGeometry args={[0.027, 16, 10]} />
@@ -265,11 +265,11 @@ export default function RobotFace({
       </mesh>
       <mesh ref={leftBrowRef} position={[-0.052, 0.073, 0.02]} scale={[0.86, 1, 1]} renderOrder={21}>
         <planeGeometry args={[0.047, 0.008]} />
-        <meshBasicMaterial color="#b8efff" transparent opacity={0.9} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial color="#b8efff" transparent opacity={0.9} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
       </mesh>
       <mesh ref={rightBrowRef} position={[0.052, 0.073, 0.02]} scale={[0.86, 1, 1]} renderOrder={21}>
         <planeGeometry args={[0.047, 0.008]} />
-        <meshBasicMaterial color="#b8efff" transparent opacity={0.9} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial color="#b8efff" transparent opacity={0.9} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
       </mesh>
       <mesh ref={leftCheekRef} position={[-0.082, -0.032, 0.018]} scale={[0.75, 0.45, 0.18]} renderOrder={21}>
         <sphereGeometry args={[0.018, 12, 8]} />
@@ -281,11 +281,11 @@ export default function RobotFace({
       </mesh>
       <mesh ref={mouthOpenRef} position={[0, -0.054, 0.019]} scale={[0.7, 0.6, 1]} renderOrder={21}>
         <planeGeometry args={[0.037, 0.022]} />
-        <meshBasicMaterial ref={mouthOpenMaterialRef} color="#02060b" transparent opacity={0.04} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial ref={mouthOpenMaterialRef} color="#02060b" transparent opacity={0.04} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
       </mesh>
       <mesh ref={mouthRef} position={[0, -0.051, 0.025]} scale={[1, 1, 1]} renderOrder={22}>
         <planeGeometry args={[0.058, 0.008]} />
-        <meshBasicMaterial ref={mouthMaterialRef} color="#a9efff" transparent opacity={0.94} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial ref={mouthMaterialRef} color="#a9efff" transparent opacity={0.94} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
       </mesh>
     </group>
   );

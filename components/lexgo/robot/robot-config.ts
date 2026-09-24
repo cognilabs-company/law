@@ -220,22 +220,6 @@ export const THINK_POSE = {
   moveSeconds: 0.45,
 };
 
-// Permanent LEFT hand edge grip. This is a local rest-pose delta, applied
-// only to left-side bones, so right-arm wave/point/think can run without
-// fighting it. Values are intentionally moderate: the hand reads as braced
-// against the clipped right edge without forcing the compact rig into a
-// broken elbow or wrist angle.
-export const GRIP_POSE = {
-  shoulderOutDeg: -8,
-  armLiftDeg: 18,
-  armOutDeg: -24,
-  elbowBendDeg: -62,
-  wristXDeg: -8,
-  wristYDeg: 0,
-  wristZDeg: -12,
-  fingerCurl: 0.5,
-};
-
 export const PEEK = {
   travelX: 0.09,
   headTurnDeg: 9,
