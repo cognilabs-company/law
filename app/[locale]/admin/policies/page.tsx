@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   getAdminPolicies,
   putAdminPolicy,
@@ -21,14 +21,15 @@ import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import BusinessCalendarCard from "@/components/admin/BusinessCalendarCard";
 import { IconShieldCheck, IconCheck, IconAlert, IconClock, IconEdit } from "@/components/icons";
+import { dateTimeFull } from "@/lib/date";
 
 type Val = unknown;
 const isPlain = (v: Val) => v !== null && typeof v === "object" && !Array.isArray(v);
 const isStrList = (v: Val) => Array.isArray(v) && v.every((x) => typeof x === "string");
 
-function fmt(s: string) {
+function fmt(s: string, locale: string) {
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleString("ru-RU");
+  return Number.isNaN(d.getTime()) ? s : dateTimeFull(s, locale);
 }
 
 // Platform policies (order / payment / document analysis / workspace /
@@ -221,6 +222,7 @@ function EditModal({ section, data, onClose, onSaved }: { section: PolicySection
 }
 
 function HistoryModal({ section, onClose }: { section: PolicySection | null; onClose: () => void }) {
+  const locale = useLocale();
   const t = useTranslations("admin.policies");
   const res = useResourceOne(() => (section ? getPolicyHistory(section) : Promise.resolve([] as PolicyHistoryEntry[])), [section]);
   return (
@@ -229,7 +231,7 @@ function HistoryModal({ section, onClose }: { section: PolicySection | null; onC
         <div className="alist">
           {res.data.map((h, i) => (
             <details className="consent__body" key={`${h.version}-${i}`}>
-              <summary>{[h.version ? `v${h.version}` : "", fmt(h.at), h.changedBy ? `${h.changedBy.slice(0, 8)}…` : ""].filter(Boolean).join(" · ")}</summary>
+              <summary>{[h.version ? `v${h.version}` : "", fmt(h.at, locale), h.changedBy ? `${h.changedBy.slice(0, 8)}…` : ""].filter(Boolean).join(" · ")}</summary>
               <pre className="legaldoc__body" style={{ maxHeight: 260 }}>{JSON.stringify(h.data, null, 2)}</pre>
             </details>
           ))}

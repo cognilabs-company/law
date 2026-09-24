@@ -34,6 +34,7 @@ import ChipMulti from "./ChipMulti";
 import PasswordInput from "../PasswordInput";
 import ConsentChecklist from "../legal/ConsentChecklist";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
+import { fmtInt } from "@/lib/date";
 
 const ZERO_STATS: AdvocateStats = {
   totalCases: 0,
@@ -830,7 +831,7 @@ export default function RegisterFlow() {
                 {(() => { const r = PRICE_HINT[p.specialization ?? ""] ?? PRICE_HINT.both; return (
                   <div className="rf__benefit">
                     <b>{t("advocate.pricing.recommended")}</b>
-                    <p>{t("advocate.pricing.range", { min: r[0].toLocaleString("ru-RU"), max: r[1].toLocaleString("ru-RU") })}</p>
+                    <p>{t("advocate.pricing.range", { min: fmtInt(r[0], locale), max: fmtInt(r[1], locale) })}</p>
                   </div>
                 ); })()}
                 <div className="cform__row2">

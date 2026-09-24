@@ -1,5 +1,13 @@
 {
   "common": {
+    "a11y": {
+      "close": "Close",
+      "prev": "Previous",
+      "next": "Next",
+      "remove": "Remove",
+      "menu": "Menu",
+      "recording": "Recording"
+    },
     "paymentUnavailable": "The payment provider isn't connected yet. Payme and Click payments are coming soon.",
     "identityUnavailable": "OneID/MyID verification isn't connected yet. Please try again later.",
     "rateLimited": "Too many attempts. Please try again shortly.",
@@ -688,7 +696,7 @@
       "responseValue": "30",
       "responseUnit": "min",
       "responseLabel": "Response",
-      "reviews": "{count} reviews · {years} yrs experience",
+      "reviews": "{count, plural, one {# review} other {# reviews}} · {years, plural, one {# yr} other {# yrs}} experience",
       "priceNote": "from · package",
       "verified": "Verified",
       "choose": "Choose",
@@ -1560,8 +1568,10 @@
     ]
   },
   "chat": {
+    "guestTotalLimit": "You've used all the free guest questions. Sign up to keep going.",
+    "guestDailyLimit": "You've used today's free questions. Try again tomorrow, or sign up.",
     "title": "LexGo.AI",
-    "statusOnline": "Online · {left} free requests",
+    "statusOnline": "Online · {left, plural, one {# free request} other {# free requests}}",
     "greeting": "Hello! I'm LexGo.AI — trained on Uzbek legislation. Describe your problem in two or three sentences and I'll tell you the direction, the case stage and the right service.",
     "greetingNote": "First 5 requests free · the final legal decision stays with the lawyer",
     "inputPlaceholder": "Type your question…",
@@ -1641,6 +1651,8 @@
     "upgradePlan": "Upgrade plan"
   },
   "chatPage": {
+    "guestTotalLimit": "You've used all the free guest questions. Sign up to keep going.",
+    "guestDailyLimit": "You've used today's free questions. Try again tomorrow, or sign up.",
     "metaTitle": "LexGo.AI chat",
     "title": "LexGo.AI",
     "subtitle": "Trained on Uzbek law",
@@ -1816,6 +1828,23 @@
       "success": "Signing you in…"
     },
     "common": {
+      "paymentStatus": {
+        "pending_payment": "Awaiting payment",
+        "payment_pending": "Awaiting payment",
+        "pending": "Pending",
+        "unpaid": "Unpaid",
+        "paid": "Paid",
+        "expired": "Expired",
+        "trial": "Trial",
+        "past_due": "Past due",
+        "grace": "Grace period",
+        "canceled": "Cancelled",
+        "cancelled": "Cancelled",
+        "suspended": "Suspended",
+        "failed": "Failed",
+        "refunded": "Refunded",
+        "processing": "Processing"
+      },
       "logout": "Log out",
       "back": "Back",
       "search": "Search",
@@ -2082,7 +2111,7 @@
       "errorCreate": "Error. Please try again.",
       "stages": { "todo": "To do", "doing": "In progress", "done": "Done", "review": "In review" },
       "priority": { "low": "Low", "medium": "Medium", "high": "High" },
-      "count": "{n} tasks · {open} open",
+      "count": "{n, plural, one {# task} other {# tasks}} · {open} open",
       "searchPh": "Search by task, case or description",
       "hideDone": "Hide done",
       "loadError": "Could not load tasks. Refresh the page.",
@@ -2238,7 +2267,7 @@
       "cases": {
         "title": "My cases",
         "filterAll": "All",
-        "count": "{n} cases",
+        "count": "{n, plural, one {# case} other {# cases}}",
         "empty": "No cases yet",
         "emptyText": "Your cases will appear here."
       },
@@ -2270,8 +2299,8 @@
       "clients": {
         "title": "Clients",
         "conflict": "Conflict",
-        "casesCount": "{n} cases",
-        "ordersCount": "{n} orders",
+        "casesCount": "{n, plural, one {# case} other {# cases}}",
+        "ordersCount": "{n, plural, one {# order} other {# orders}}",
         "activeCases": "{n} active",
         "conflictAlert": "Possible conflict of interest — check before accepting",
         "empty": "No clients yet",
@@ -2652,7 +2681,7 @@
         "quoteUrgent": "Urgency",
         "quoteTotal": "Total",
         "som": "UZS",
-        "pagesN": "{n} pages",
+        "pagesN": "{n, plural, one {# page} other {# pages}}",
         "aiText": "AI write-up",
         "upsellTitle": "Review by an advocate",
         "upsellText": "After the AI analysis, a specialist can review the document.",
@@ -2760,7 +2789,7 @@
         "all": "All",
         "empty": "No courses",
         "emptyText": "Courses are coming soon.",
-        "lessons": "{n} lessons",
+        "lessons": "{n, plural, one {# lesson} other {# lessons}}",
         "mins": "{n} min",
         "start": "Start",
         "continue": "Continue",
@@ -3044,6 +3073,9 @@
         "downloading": "Downloading…",
         "downloadError": "Couldn't download the file. Please try again shortly.",
         "planRequired": "Buy a plan to download and manually fill in the template",
+        "aiPlanGateTitle": "Upgrade your plan",
+        "aiPlanGateLead": "Move to a paid plan to download templates and use every feature.",
+        "noQualifyingAiPlans": "No suitable plan right now. Please try again later.",
         "newDocOrder": "Order a new document",
         "freeToView": "Viewing every document is free!",
         "filterDoc": "Document",
@@ -3082,13 +3114,13 @@
       "urgentSub": "Legal help right now",
       "sectionTitle": "Documents for filing with civil courts",
       "chooseFamily": "Choose a category",
-      "servicesN": "{n} services",
+      "servicesN": "{n, plural, one {# service} other {# services}}",
       "back": "Back",
       "chooseAdvocate": "Choose an advocate",
       "sortRating": "Rating",
       "sortExp": "Experience",
       "sortPrice": "Price",
-      "expYears": "{n} yrs",
+      "expYears": "{n, plural, one {# yr} other {# yrs}}",
       "successRate": "{n}% won",
       "verified": "Verified",
         "sortMatch": "Best match",
@@ -3498,7 +3530,7 @@
       },
       "packages": {
         "title": "Service packages",
-        "count": "{n} packages",
+        "count": "{n, plural, one {# package} other {# packages}}",
         "lead": "A package is several services at one price, with what is and isn't included and the timeline spelled out.",
         "searchPh": "Package or category name…",
         "empty": "No packages found",
@@ -3573,7 +3605,7 @@
       },
       "cases": {
         "title": "My cases",
-        "count": "{n} cases",
+        "count": "{n, plural, one {# case} other {# cases}}",
         "emptyTitle": "No cases yet",
         "emptyText": "Your cases will appear here."
       },
@@ -3709,8 +3741,8 @@
       "clients": {
         "title": "Clients",
         "conflict": "Conflict",
-        "casesCount": "{n} cases",
-        "ordersCount": "{n} orders",
+        "casesCount": "{n, plural, one {# case} other {# cases}}",
+        "ordersCount": "{n, plural, one {# order} other {# orders}}",
         "activeCases": "{n} active",
         "conflictAlert": "Possible conflict of interest — check before accepting",
         "empty": "No clients yet",
@@ -4392,8 +4424,8 @@
       "notFound": "No work with this client was found.",
       "manual": "From your own base",
       "since": "Client since {date}",
-      "cases": "{n} cases",
-      "orders": "{n} orders",
+      "cases": "{n, plural, one {# case} other {# cases}}",
+      "orders": "{n, plural, one {# order} other {# orders}}",
       "chats": "{n} chats",
       "payments": "{n} payments",
       "openChat": "Open private chat",
@@ -5111,6 +5143,11 @@
       "add": "Add"
     },
     "services": {
+      "state": {
+        "all": "All",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
       "catTitle": "Service categories",
       "catCreate": "New category",
       "catEmpty": "No categories yet",
@@ -5134,6 +5171,9 @@
       "tagCustom": "Added manually",
       "catLimitNote": "Editing/deleting categories is not available in the backend yet (create only).",
       "del": {
+        "errServer": "Server error. Please try again.",
+        "errForbidden": "You don't have permission for this (services.manage).",
+        "errNotFound": "Service not found — it may already be deleted.",
         "title": "Delete service",
         "text": "The service is hidden from the catalogue (deactivated); order history is kept.",
         "cta": "Delete",
@@ -5178,10 +5218,10 @@
       },
       "docTemplate": {
         "title": "Document template (DOCX)",
-        "lead": "Upload a DOCX with placeholders like {{field_name}} — it auto-attaches to this service, and the client gets a fill-in-the-form document builder on the \"Services\" page.",
+        "lead": "Upload a DOCX with placeholders like '{{'field_name'}}' — it auto-attaches to this service, and the client gets a fill-in-the-form document builder on the \"Services\" page.",
         "attached": "Template attached",
         "file": "DOCX file",
-        "fileHint": "A .docx file containing placeholders like {{client_name}}.",
+        "fileHint": "A .docx file containing placeholders like '{{'client_name'}}'.",
         "slug": "Slug",
         "titleLabel": "Title",
         "fieldsFound": "{n} fields found",
@@ -5272,11 +5312,11 @@
       "import": {
         "cta": "Import DOCX / ZIP",
         "title": "Template constructor — import",
-        "lead": "The {{field}} markers inside the DOCX are detected automatically; the template is created as an inactive draft — review it, then activate.",
+        "lead": "The '{{'field'}}' markers inside the DOCX are detected automatically; the template is created as an inactive draft — review it, then activate.",
         "modeDocx": "Single DOCX",
         "modeZip": "ZIP (many templates)",
         "docxFile": "DOCX file",
-        "docxHint": "Up to 20 MB. Fields: {{fio}}, {{sana}}, {{#if avans}}…{{/if}}",
+        "docxHint": "Up to 20 MB. Fields: '{{'fio'}}', '{{'sana'}}', '{{'#if avans'}}'…'{{'/if'}}'",
         "zipFile": "ZIP file",
         "zipHint": "DOCX files inside (up to 200). The slug comes from the file name.",
         "titleLabel": "Title",
@@ -5314,7 +5354,7 @@
           "multiline": "multiline"
         },
         "fieldsFound": "{n} fields found",
-        "noFields": "No {{…}} markers found — check the file.",
+        "noFields": "No '{{'…'}}' markers found — check the file.",
         "draftNote": "The template is a draft; open “Edit” in the list to check field types and activate it.",
         "upload": "Upload",
         "uploading": "Uploading…",
@@ -5546,6 +5586,18 @@
       "stagingOnlyText": "Test OTP codes are kept only on the staging/demo server. Production has no such list — codes are sent by SMS or Telegram."
     },
     "pipeline": {
+      "urgency": {
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High",
+        "critical": "Critical",
+        "urgent": "Urgent"
+      },
+      "score": {
+        "hot": "Hot",
+        "warm": "Warm",
+        "cold": "Cold"
+      },
       "title": "Sales pipeline",
       "addStatus": "Add status",
       "renameStatus": "Rename status",
@@ -5902,6 +5954,19 @@
       }
     },
     "integrations": {
+      "categories": {
+        "core": "Core system",
+        "payment": "Payments",
+        "security": "Security",
+        "ai": "Artificial intelligence",
+        "notification": "Notifications",
+        "realtime": "Realtime",
+        "identity": "Identity",
+        "storage": "File storage",
+        "analytics": "Analytics",
+        "communication": "Communication",
+        "other": "Other"
+      },
       "title": "Integrations",
       "lead": "Connection status of external services.",
       "empty": "No integrations",
@@ -6137,7 +6202,7 @@
       "unverified": "Not verified",
       "empty": "No lawyers yet",
       "emptyText": "Registered lawyers will appear here for review.",
-      "years": "{n} yrs",
+      "years": "{n, plural, one {# yr} other {# yrs}}",
       "sellerType": { "yurist": "Lawyer", "advokat": "Advocate", "lawyer": "Lawyer", "advocate": "Advocate", "law_firm": "Law firm", "organization": "Organization" }
     },
     "legalAid": {
@@ -6764,6 +6829,7 @@
     }
   },
   "call": {
+    "a11yRecording": "Recording",
     "connecting": "Connecting…",
     "ringing": "Ringing…",
     "live": "Connected",

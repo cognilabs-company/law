@@ -9,6 +9,7 @@ import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
+import { statusLabel } from "@/lib/labels";
 import { IconFileText, IconDownload, IconUser, IconClock, IconVideo } from "@/components/icons";
 
 // LEXGO_CLIENT_DOCUMENT_REQUESTS_PAGE_FRONTEND.md: one place for the client
@@ -22,6 +23,7 @@ const TABS: TabKey[] = ["all", "self", "ai", "lawyer"];
 export default function ClientDocumentRequests() {
   const t = useTranslations("portal.client.documentRequests");
   const tcommon = useTranslations("portal.client.documents");
+  const tcm = useTranslations("portal.common");
   const locale = useLocale();
   const [tab, setTab] = useState<TabKey>("all");
   const list = useResource<ClientDocFlowItem>(() => listClientDocumentFlow(tab === "all" ? undefined : { mode: tab }), [tab]);
@@ -86,7 +88,9 @@ export default function ClientDocumentRequests() {
                   <IconFileText />
                   {item.title || t("title")}
                 </span>
-                <span className="advmuted">{item.statusLabel}</span>
+                {/* The slug resolves against portal.common.docStatus, which is
+                    translated; item.statusLabel is the server's Uzbek wording. */}
+                <span className="advmuted">{statusLabel(tcm, item.status) || item.statusLabel}</span>
               </div>
               {item.nextAction ? <p>{item.nextAction}</p> : null}
               <div className="pcase__row">

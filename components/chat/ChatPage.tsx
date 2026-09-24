@@ -171,11 +171,16 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
         setMessages((m) => [...m, { role: "assistant", content, upgrade: true }]);
       } else if (guestLimit) {
         // guest_daily_limit_exceeded (usable again in 24h) and
-        // guest_total_limit_exceeded (spent until registering) both carry
-        // the same ready-to-show message from the backend.
+        // guest_total_limit_exceeded (spent until registering) are a closed
+        // set, so the copy is chosen here: the backend's own message is
+        // Uzbek-only and would reach ru/en guests untranslated.
         setMessages((m) => [
           ...m,
-          { role: "assistant", content: guestLimit.message || t("limitReached"), limit: true },
+          {
+            role: "assistant",
+            content: t(guestLimit.code === "guest_daily_limit_exceeded" ? "guestDailyLimit" : "guestTotalLimit"),
+            limit: true,
+          },
         ]);
       } else if (isLimitError(e) && !session) {
         setMessages((m) => [

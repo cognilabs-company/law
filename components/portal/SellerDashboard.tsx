@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { shortDateTime } from "@/lib/date";
 import { Link } from "@/i18n/navigation";
 import type { BackendOrder, SellerActions, SellerCabinet } from "@/lib/services/backend";
 import { Skeleton, EmptyState } from "./DataState";
@@ -235,6 +236,7 @@ function CabinetStatus({ cabinet: c, role }: { cabinet: SellerCabinet; role: Rol
 }
 
 function NewCase({ order: o, role, onDone }: { order: BackendOrder; role: Role; onDone: () => void }) {
+  const locale = useLocale();
   const t = useTranslations("portal.sellerDash");
   const td = useTranslations("admin.dash");
   const [open, setOpen] = useState(false);
@@ -246,7 +248,7 @@ function NewCase({ order: o, role, onDone }: { order: BackendOrder; role: Role; 
       <div className="pcase__h">
         <span className="pcase__id">{o.serviceName || t("newCases")}</span>
         {o.status === "new" || o.status === "offered" || !o.status ? <RespondTimer deadline={o.confirmationDeadlineAt} /> : null}
-        {o.createdAt ? <span className="advmuted"><IconClock style={{ width: 13, height: 13 }} /> {o.createdAt}</span> : null}
+        {o.createdAt ? <span className="advmuted"><IconClock style={{ width: 13, height: 13 }} /> {shortDateTime(o.createdAt, locale)}</span> : null}
       </div>
       {o.title ? <p className={`pcase__q${open ? " on" : ""}`}>{o.title}</p> : null}
       {meta ? <small><IconMapPin />{meta}</small> : null}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   listAdminConsentDocs,
   listUserConsents,
@@ -19,6 +19,7 @@ import SearchSelect from "@/components/SearchSelect";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { ApiError } from "@/lib/http";
 import { IconFileText, IconShieldCheck, IconPlus, IconEye } from "@/components/icons";
+import { dateTimeFull } from "@/lib/date";
 
 // T0-18: the 10 legal documents (S-53) with their versions and the consents
 // journal (who accepted what, when, from which IP). The seed only ships 3
@@ -38,15 +39,16 @@ const REQUIRED_SLUGS = [
 ] as const;
 const PLACEHOLDER_MAX = 120; // shorter body = still a placeholder
 
-function fmt(s: string) {
+function fmt(s: string, locale: string) {
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s || "—" : d.toLocaleString("ru-RU");
+  return Number.isNaN(d.getTime()) ? s || "—" : dateTimeFull(s, locale);
 }
 const isForbidden = (e: unknown) => e instanceof ApiError && e.status === 403;
 const isMissingRoute = (e: unknown) => e instanceof ApiError && (e.status === 404 || e.status === 405 || e.status === 501);
 
 export default function AdminLegal() {
   const t = useTranslations("admin.legal");
+  const locale = useLocale();
   const [tab, setTab] = useState<"docs" | "journal">("docs");
   const [key, setKey] = useState(0);
   const docs = useResource(listAdminConsentDocs, [key]);
@@ -100,7 +102,7 @@ export default function AdminLegal() {
                       <b>{nameOf(slug)}</b>
                       <span className="aitem__meta">
                         <code>{slug}</code>
-                        {cur ? ` · v${cur.version} · ${fmt(cur.createdAt)}` : ""}
+                        {cur ? ` · v${cur.version} · ${fmt(cur.createdAt, locale)}` : ""}
                         {versions.length > 1 ? ` · ${t("versions", { n: versions.length })}` : ""}
                       </span>
                       <div className="aitem__tags">
@@ -126,7 +128,7 @@ export default function AdminLegal() {
       <Modal open={!!view} onClose={() => setView(null)} title={view ? `${view.title} · v${view.version}` : ""}>
         {view ? (
           <div className="legaldoc">
-            <p className="advmuted">{fmt(view.createdAt)} · <code>{view.slug}</code> · {view.active ? t("active") : t("inactive")}</p>
+            <p className="advmuted">{fmt(view.createdAt, locale)} · <code>{view.slug}</code> · {view.active ? t("active") : t("inactive")}</p>
             <pre className="legaldoc__body">{view.body}</pre>
           </div>
         ) : null}
@@ -216,6 +218,7 @@ function EditModal({ doc, onClose, onSaved }: { doc: Partial<ConsentDoc> | null;
 }
 
 function Journal() {
+  const locale = useLocale();
   const t = useTranslations("admin.legal");
   const [userSel, setUserSel] = useState<string[]>([]);
   const userId = userSel[0] ?? "";
@@ -269,7 +272,7 @@ function Journal() {
             <tbody>
               {list.map((r) => (
                 <tr key={r.id}>
-                  <td>{fmt(r.acceptedAt)}</td>
+                  <td>{fmt(r.acceptedAt, locale)}</td>
                   <td><code>{r.userId.slice(0, 8)}…</code></td>
                   <td>{t.has(`slugs.${r.slug}`) ? t(`slugs.${r.slug}`) : r.slug || "—"}</td>
                   <td>v{r.version}</td>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth, canMakeCalls, hasAdminAccess } from "@/lib/auth";
 import ContentRevealBar from "./ContentRevealBar";
@@ -47,6 +47,7 @@ import {
   IconFileText,
   IconDownload,
 } from "../icons";
+import { timeOnly, dateOnly } from "@/lib/date";
 
 type LocalMsg = SecureMessage & { pending?: boolean; failed?: boolean };
 type Conn = "connecting" | "online" | "offline";
@@ -55,7 +56,7 @@ function fmtTime(iso: string): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  return timeOnly(iso, "uz");
 }
 function dayKey(iso: string): string {
   const d = new Date(iso);
@@ -168,6 +169,7 @@ export default function SecureChat({
   compact?: boolean;
 }) {
   const t = useTranslations("secureChat");
+  const locale = useLocale();
   const { session, ready } = useAuth();
   const router = useRouter();
   // Standalone this chat IS the page, so closing it means going back. Mounted
@@ -843,7 +845,7 @@ export default function SecureChat({
               const yday = new Date();
               yday.setDate(yday.getDate() - 1);
               const yd = yday.toDateString();
-              const label = dk === today ? t("today") : dk === yd ? t("yesterday") : new Date(m.createdAt).toLocaleDateString("ru-RU");
+              const label = dk === today ? t("today") : dk === yd ? t("yesterday") : dateOnly(m.createdAt, locale);
               sep = <div className="schat__day" key={`d-${dk}`}><span>{label}</span></div>;
             }
             return (

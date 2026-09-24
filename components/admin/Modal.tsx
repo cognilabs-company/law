@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { isCallRoomMounted } from "@/components/chat/CallRoom";
 import { IconClose } from "../icons";
 
@@ -27,6 +28,7 @@ export default function Modal({
   // inside the panel and ends on the backdrop — ordinary text selection, and
   // easy to do in a long document form — fires click on the backdrop, which
   // used to throw away everything typed so far.
+  const ta = useTranslations("common.a11y");
   const downOnScrim = useRef(false);
 
   useEffect(() => {
@@ -112,7 +114,7 @@ export default function Modal({
       >
         <div className="amodal__h">
           <b>{title}</b>
-          <button className="amodal__x" type="button" onClick={onClose} aria-label="close">
+          <button className="amodal__x" type="button" onClick={onClose} aria-label={ta("close")}>
             <IconClose />
           </button>
         </div>

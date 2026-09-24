@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { monthNames, monthTitle } from "@/lib/date";
 import { IconCalendar, IconChevronLeft, IconChevronRight, IconClose } from "./icons";
 
@@ -32,6 +32,7 @@ export default function MonthPicker({
   clearLabel?: string;
 }) {
   const locale = useLocale();
+  const ta = useTranslations("common.a11y");
   const months = monthNames(locale);
   const parsed = parse(value);
   const [open, setOpen] = useState(false);
@@ -139,11 +140,11 @@ export default function MonthPicker({
           style={{ position: "fixed", top: pos.top, left: pos.left, maxHeight: pos.maxHeight }}
         >
           <div className="mpick__nav">
-            <button type="button" aria-label="prev" onClick={() => setViewYear((y) => y - 1)}>
+            <button type="button" aria-label={ta("prev")} onClick={() => setViewYear((y) => y - 1)}>
               <IconChevronLeft />
             </button>
             <b>{viewYear}</b>
-            <button type="button" aria-label="next" onClick={() => setViewYear((y) => y + 1)}>
+            <button type="button" aria-label={ta("next")} onClick={() => setViewYear((y) => y + 1)}>
               <IconChevronRight />
             </button>
           </div>

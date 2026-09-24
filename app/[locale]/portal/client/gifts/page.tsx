@@ -19,6 +19,7 @@ import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconGift, IconPlus, IconCheck, IconArrowRight } from "@/components/icons";
+import { dateOnly } from "@/lib/date";
 
 // The gift's exact price is fixed at checkout by the backend; this is only a
 // preview so the sender isn't guessing before they submit. Uses the plan's
@@ -29,10 +30,10 @@ function estimateGiftTotal(plan: BackendPlan, months: number): number {
   return plan.monthlyPrice * months;
 }
 
-function fmtDate(s: string) {
+function fmtDate(s: string, locale: string) {
   if (!s) return "";
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString("ru-RU");
+  return Number.isNaN(d.getTime()) ? s : dateOnly(s, locale);
 }
 
 export default function ClientGifts() {
@@ -152,7 +153,7 @@ export default function ClientGifts() {
               <div className="creq__m">
                 <b>{g.planName || t("untitledGift")}</b>
                 <span>
-                  {[g.recipientPhone, g.termMonths ? `${g.termMonths} ${t("months")}` : "", fmtDate(g.createdAt)]
+                  {[g.recipientPhone, g.termMonths ? `${g.termMonths} ${t("months")}` : "", fmtDate(g.createdAt, locale)]
                     .filter(Boolean)
                     .join(" · ")}
                 </span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   getSellerRequests,
   acceptRegisterRequest,
@@ -14,12 +14,13 @@ import { AdminItem, useReload } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
 import { IconUser, IconCheck, IconClose, IconEye } from "@/components/icons";
 import RegisterRequestDetail from "@/components/admin/RegisterRequestDetail";
+import { dateOnly } from "@/lib/date";
 
 const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
-const fmtDate = (v: string) => {
+const fmtDate = (v: string, locale: string) => {
   if (!v) return "";
   const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString("ru-RU");
+  return Number.isNaN(d.getTime()) ? v : dateOnly(v, locale);
 };
 
 type RoleTab = "all" | "advokat" | "yurist" | "advokat_tashkiloti";
@@ -63,6 +64,7 @@ function Actions({ id, onDone }: { id: string; onDone: () => void }) {
 }
 
 export default function AdminRegisterRequests() {
+  const locale = useLocale();
   const t = useTranslations("admin.registerRequests");
   const [key, reload] = useReload();
   const [roleTab, setRoleTab] = useState<RoleTab>("all");
@@ -122,7 +124,7 @@ export default function AdminRegisterRequests() {
               meta={[
                 r.role ? (t.has(`role.${r.role}`) ? t(`role.${r.role}`) : cap(r.role.replace(/_/g, " "))) : "",
                 r.phone,
-                fmtDate(r.createdAt),
+                fmtDate(r.createdAt, locale),
               ].filter(Boolean).join(" · ")}
               tags={[{ label: r.status ? (t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status) : t("status.pending"), tone: "muted" }]}
               right={<Actions id={r.id} onDone={reload} />}

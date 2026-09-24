@@ -8,11 +8,12 @@ import { useAuth } from "@/lib/auth";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Select from "@/components/Select";
 import { IconClock, IconShieldCheck, IconSearch, IconMonitor, IconClipboardCheck } from "@/components/icons";
+import { dateTimeFull } from "@/lib/date";
 
-function fmt(s: string) {
+function fmt(s: string, locale: string) {
   if (!s) return "";
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleString("ru-RU");
+  return Number.isNaN(d.getTime()) ? s : dateTimeFull(s, locale);
 }
 // Rough grouping of activity actions for the filter.
 const GROUPS: Record<string, RegExp> = {
@@ -68,7 +69,7 @@ export default function AccountAudit({ withSessions = true }: { withSessions?: b
               {sessions.data.map((s) => (
                 <div className="creq" key={s.id}>
                   <span className="creq__st" />
-                  <div className="creq__m"><b>{s.deviceLabel || s.ip || t("device")}{s.current ? ` · ${t("thisDevice")}` : ""}</b><span>{[s.ip, fmt(s.lastUsedAt)].filter(Boolean).join(" · ")}</span></div>
+                  <div className="creq__m"><b>{s.deviceLabel || s.ip || t("device")}{s.current ? ` · ${t("thisDevice")}` : ""}</b><span>{[s.ip, fmt(s.lastUsedAt, locale)].filter(Boolean).join(" · ")}</span></div>
                   <button className="btn btn--line btn--sm" type="button" onClick={() => revoke(s.id)}>{t("revoke")}</button>
                 </div>
               ))}
@@ -87,7 +88,7 @@ export default function AccountAudit({ withSessions = true }: { withSessions?: b
             {security.data.slice(0, 20).map((e) => (
               <div className="creq" key={e.id}>
                 <span className="creq__st" />
-                <div className="creq__m"><b><IconShieldCheck style={{ width: 14, height: 14 }} /> {t.has(`types.${e.action}`) ? t(`types.${e.action}`) : label(e.action)}</b><span>{[e.detail, e.ip, fmt(e.createdAt)].filter(Boolean).join(" · ")}</span></div>
+                <div className="creq__m"><b><IconShieldCheck style={{ width: 14, height: 14 }} /> {t.has(`types.${e.action}`) ? t(`types.${e.action}`) : label(e.action)}</b><span>{[e.detail, e.ip, fmt(e.createdAt, locale)].filter(Boolean).join(" · ")}</span></div>
               </div>
             ))}
           </div>
@@ -109,7 +110,7 @@ export default function AccountAudit({ withSessions = true }: { withSessions?: b
                 <span className="creq__st" />
                 <div className="creq__m">
                   <b>{(locale === "uz" && a.titleUz) || label(a.action)}</b>
-                  <span>{[(locale === "uz" && a.descriptionUz) || a.detail, a.ip, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span>
+                  <span>{[(locale === "uz" && a.descriptionUz) || a.detail, a.ip, fmt(a.createdAt, locale)].filter(Boolean).join(" · ")}</span>
                 </div>
                 <em className="atag atag--muted">{t(`groups.${groupOf(a.action)}`)}</em>
               </div>

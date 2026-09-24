@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { getOrderStatusHistory, updateOrderStatus, type OrderStatusEntry } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { nextStatusesFor, useOrderStatusLabel, type OrderSide } from "@/lib/orderStatus";
@@ -9,10 +9,11 @@ import { ApiError } from "@/lib/http";
 import { Skeleton } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconCheck, IconClock } from "@/components/icons";
+import { dateTimeFull } from "@/lib/date";
 
-function fmt(s: string) {
+function fmt(s: string, locale: string) {
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return Number.isNaN(d.getTime()) ? s : dateTimeFull(s, locale);
 }
 
 // T1-10: order_status_history as a timeline plus the next steps this side may
@@ -20,6 +21,7 @@ function fmt(s: string) {
 // transitions with 409 — the allowed list is mirrored in lib/orderStatus.ts.
 export default function OrderStatusPanel({ orderId, side, status, onChanged }: { orderId: string; side: OrderSide; status?: string; onChanged?: (status: string) => void }) {
   const t = useTranslations("portal.orderFlow");
+  const locale = useLocale();
   const label = useOrderStatusLabel();
   const [key, setKey] = useState(0);
   const hist = useResource(() => getOrderStatusHistory(orderId), [orderId, key]);
@@ -68,7 +70,7 @@ export default function OrderStatusPanel({ orderId, side, status, onChanged }: {
               <i>{i === 0 ? <IconClock /> : <IconCheck />}</i>
               <div>
                 <b>{label(r.status)}</b>
-                <span>{fmt(r.at)}{r.note ? ` · ${r.note}` : ""}</span>
+                <span>{fmt(r.at, locale)}{r.note ? ` · ${r.note}` : ""}</span>
               </div>
             </li>
           ))}

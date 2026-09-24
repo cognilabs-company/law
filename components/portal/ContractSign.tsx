@@ -1,23 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { getContract, startContractSignature, verifyContractSignature } from "@/lib/services/backend";
 import { ApiError, errDetail, isForbidden, isOffline, isOtpExpired, isProviderUnavailable, isRateLimited, retryAfterSec } from "@/lib/http";
 import { OTP_RESEND_SEC, useOtpTimer } from "@/lib/useOtpTimer";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconCheck, IconChevronLeft, IconExternal, IconShieldCheck } from "@/components/icons";
+import { dateTimeFull } from "@/lib/date";
 
 // 3 wrong codes lock the signature for 15 minutes (backend rule).
 const LOCK_SEC = 15 * 60;
 
 type Signed = { at: string; verifyUrl: string };
 
-function fmtDateTime(s: string) {
+function fmtDateTime(s: string, locale: string) {
   if (!s) return "";
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleString("ru-RU");
+  return Number.isNaN(d.getTime()) ? s : dateTimeFull(s, locale);
 }
 
 // T1-13 contract signing: POST /contracts/{id}/signature/start sends a 6-digit
@@ -25,6 +26,7 @@ function fmtDateTime(s: string) {
 // verification link. Shows the signed state when the contract already is.
 export default function ContractSign({ contractId }: { contractId: string }) {
   const t = useTranslations("portal.client.documents.sign");
+  const locale = useLocale();
   const tOtp = useTranslations("register.otp");
   const tc = useTranslations("common");
   const otp = useOtpTimer();
@@ -117,7 +119,7 @@ export default function ContractSign({ contractId }: { contractId: string }) {
         <span className="csign__i"><IconShieldCheck /></span>
         <div className="csign__t">
           <b>{t("signed")}</b>
-          {current.at ? <span>{t("signedAt", { time: fmtDateTime(current.at) })}</span> : null}
+          {current.at ? <span>{t("signedAt", { time: fmtDateTime(current.at, locale) })}</span> : null}
         </div>
         {current.verifyUrl ? (
           <a className="btn btn--line btn--sm" href={current.verifyUrl} target="_blank" rel="noopener noreferrer">

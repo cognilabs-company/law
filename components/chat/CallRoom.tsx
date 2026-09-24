@@ -1114,14 +1114,14 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               {stageIsShare ? <span className="mtg__sharing"><IconMonitor />{stageP.isLocal ? t("youShare") : t("sharing", { name: nameOf(stageP) })}</span> : null}
               <div className="mtg__strip" ref={stripRef}>
                 {strip.map((p) => (
-                  <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} rec={isRecording(p)} small onClick={() => { setPinned(p.identity); setView("speaker"); }} />
+                  <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} rec={isRecording(p)} recLabel={t("a11yRecording")} small onClick={() => { setPinned(p.identity); setView("speaker"); }} />
                 ))}
               </div>
             </div>
           ) : (
             <div className={`mtg__grid mtg__grid--${Math.min(gridN, 9)}`} ref={gridRef}>
               {strip.map((p) => (
-                <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} rec={isRecording(p)} pip={gridN === 2 && p.isLocal && MOBILE()} onClick={() => { setPinned(p.identity); setView("speaker"); }} />
+                <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} rec={isRecording(p)} recLabel={t("a11yRecording")} pip={gridN === 2 && p.isLocal && MOBILE()} onClick={() => { setPinned(p.identity); setView("speaker"); }} />
               ))}
               {count <= 1 ? (
                 <div className="mtg__waiting">
@@ -1347,7 +1347,7 @@ function Ctl({ children, label, onClick, on, off, end, accent, rec, disabled, ti
 // camera is off; name chip with mic state; green ring while speaking. The
 // tile learns the stream's orientation from the video element so a phone's
 // portrait camera isn't squeezed into a landscape box.
-function Tile({ p, name, you, camOff, share, mirror, rec, big, small, pip, onClick }: { p: Participant; name: string; you: string; camOff: string; share?: boolean; mirror?: boolean; rec?: boolean; big?: boolean; small?: boolean; pip?: boolean; onClick?: () => void }) {
+function Tile({ p, name, you, camOff, share, mirror, rec, recLabel, big, small, pip, onClick }: { p: Participant; name: string; you: string; camOff: string; share?: boolean; mirror?: boolean; rec?: boolean; recLabel?: string; big?: boolean; small?: boolean; pip?: boolean; onClick?: () => void }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [portrait, setPortrait] = useState(false);
   const source = share ? Track.Source.ScreenShare : Track.Source.Camera;
@@ -1375,7 +1375,7 @@ function Tile({ p, name, you, camOff, share, mirror, rec, big, small, pip, onCli
       ) : (
         <div className="mtg__avatar"><span>{initials(name || "?")}</span>{!share ? <small>{camOff}</small> : null}</div>
       )}
-      {rec ? <span className="mtg__recpill" aria-label="REC"><i />REC</span> : null}
+      {rec ? <span className="mtg__recpill" aria-label={recLabel}><i />REC</span> : null}
       <span className="mtg__name">
         {p.isMicrophoneEnabled ? null : <IconMicOff />}
         {name}{p.isLocal ? ` (${you})` : ""}

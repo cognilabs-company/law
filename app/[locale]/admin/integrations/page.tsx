@@ -1,21 +1,23 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { getIntegrationsOverview, type DataResidency, type Integration } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
 import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconBolt, IconLock } from "@/components/icons";
+import { dateTimeFull } from "@/lib/date";
 
-function fmt(s: string) {
+function fmt(s: string, locale: string) {
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleString("ru-RU");
+  return Number.isNaN(d.getTime()) ? s : dateTimeFull(s, locale);
 }
 
 // Uzbekistan data residency (T0-19). "Confirmed" only when the backend says so
 // explicitly; otherwise pending infrastructure evidence, or unknown if absent.
 function ResidencyCard({ r }: { r: DataResidency | null }) {
   const t = useTranslations("admin.integrations.residency");
+  const locale = useLocale();
   const state = r?.state ?? "unknown";
   const tone = state === "confirmed" ? "ok" : state === "pending" ? "warn" : "off";
   const where = [r?.region ? `${t("region")}: ${r.region}` : "", r?.provider ? `${t("provider")}: ${r.provider}` : ""]
@@ -31,7 +33,7 @@ function ResidencyCard({ r }: { r: DataResidency | null }) {
           <span className="intg__resst">{t(`state.${state}`)}</span>
           <span>{t(`${state}Note`)}</span>
           {where ? <span>{where}</span> : null}
-          {r?.checkedAt ? <span>{t("checkedAt")}: {fmt(r.checkedAt)}</span> : null}
+          {r?.checkedAt ? <span>{t("checkedAt")}: {fmt(r.checkedAt, locale)}</span> : null}
         </div>
       </div>
     </div>

@@ -6,9 +6,11 @@ import { listSecureChats } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconShieldCheck, IconArrowRight, IconLock } from "@/components/icons";
+import { statusLabel } from "@/lib/labels";
 
 export default function SecureInbox() {
   const t = useTranslations("secureChat.inbox");
+  const tc = useTranslations("portal.common");
   const res = useResource(listSecureChats, []);
 
   return (
@@ -41,7 +43,7 @@ export default function SecureInbox() {
                   {t("secured")}
                 </span>
               </div>
-              {r.status ? <span className={`sinbox__st sinbox__st--${r.status.toLowerCase()}`}>{r.status}</span> : null}
+              {r.status ? <span className={`sinbox__st sinbox__st--${r.status.toLowerCase()}`}>{statusLabel(tc, r.status)}</span> : null}
               <span className="sinbox__go"><IconArrowRight /></span>
             </Link>
           ))}

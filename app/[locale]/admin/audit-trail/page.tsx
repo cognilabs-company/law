@@ -11,6 +11,7 @@ import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
 import { IconShieldCheck, IconLock, IconCheck, IconClipboardCheck, IconDownload, IconSearch } from "@/components/icons";
+import { dateTimeFull } from "@/lib/date";
 
 type TextFilters = Required<Pick<AuditFilters, "userId" | "action" | "targetType" | "targetId">>;
 const NO_TEXT: TextFilters = { userId: "", action: "", targetType: "", targetId: "" };
@@ -20,9 +21,9 @@ const NO_TEXT: TextFilters = { userId: "", action: "", targetType: "", targetId:
 const TEXT_KEYS = ["action", "targetType", "targetId"] as const;
 const isForbidden = (e: unknown) => e instanceof ApiError && e.status === 403;
 
-function fmt(s: string) {
+function fmt(s: string, locale: string) {
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleString("ru-RU");
+  return Number.isNaN(d.getTime()) ? s : dateTimeFull(s, locale);
 }
 
 type ChainState = "linked" | "linkedFar" | "outside" | "genesis" | "none";
@@ -75,6 +76,7 @@ function chainStates(rows: ActivityEntry[]) {
 // to hold a single skeleton until everything is ready, instead of each
 // panel popping in on its own.
 function Anomalies({ onReady }: { onReady?: () => void }) {
+  const locale = useLocale();
   const t = useTranslations("admin.audit.anomalies");
   const [status, setStatus] = useState("all");
   const res = useResource(() => listAdminSecurityEvents(status === "all" ? undefined : status), [status]);
@@ -107,7 +109,7 @@ function Anomalies({ onReady }: { onReady?: () => void }) {
         <div className="alist">
           {rows.slice(0, 50).map((r) => {
             const p = r.payload as Record<string, unknown>;
-            const meta = [p.previous_ip && p.current_ip ? `${String(p.previous_ip)} → ${String(p.current_ip)}` : "", r.ownerUserId ? `user ${r.ownerUserId.slice(0, 8)}…` : "", fmt(r.createdAt)].filter(Boolean).join(" · ");
+            const meta = [p.previous_ip && p.current_ip ? `${String(p.previous_ip)} → ${String(p.current_ip)}` : "", r.ownerUserId ? `user ${r.ownerUserId.slice(0, 8)}…` : "", fmt(r.createdAt, locale)].filter(Boolean).join(" · ");
             return (
               <div className="aitem" key={r.id}>
                 <div className="aitem__m">
@@ -283,7 +285,7 @@ export default function AdminAuditTrail() {
                   <span className="creq__st" />
                   <div className="creq__m">
                     <b>{a.action || "—"}{locale === "uz" && a.titleUz ? <small className="advmuted"> · {a.titleUz}</small> : null}</b>
-                    <span>{[(locale === "uz" && a.descriptionUz) || a.detail, a.ip, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span>
+                    <span>{[(locale === "uz" && a.descriptionUz) || a.detail, a.ip, fmt(a.createdAt, locale)].filter(Boolean).join(" · ")}</span>
                     {a.userId || a.targetType || a.targetId ? (
                       <span className="audit__who">
                         {a.userId ? <span>{t("user")}: <code>{a.userId}</code></span> : null}

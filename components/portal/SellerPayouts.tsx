@@ -1,39 +1,41 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { listMyPayouts } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "./DataState";
 import { IconCard, IconClock, IconCheck } from "@/components/icons";
+import { dateOnly } from "@/lib/date";
 
 const MIN_PAYOUT = 100000; // so'm (S-30)
 const PAID = new Set(["paid", "released", "completed", "done"]);
 
 // Next Thursday (S-30: weekly payout on Thursdays), as a date string.
-function nextThursday(from = new Date()): string {
+function nextThursday(locale: string, from = new Date()): string {
   const d = new Date(from);
   const diff = (4 - d.getDay() + 7) % 7 || 7;
   d.setDate(d.getDate() + diff);
-  return d.toLocaleDateString("ru-RU");
+  return dateOnly(d.toISOString(), locale);
 }
 
 // T2-06: the seller's payout ledger — balance waiting for the weekly payout,
 // what was paid, and each payout row from /payouts/me (payment_split records).
 export default function SellerPayouts() {
   const t = useTranslations("portal.sellerDash.payouts");
+  const locale = useLocale();
   const res = useResource(listMyPayouts, []);
   const rows = res.data;
   const pending = rows.filter((p) => !PAID.has(p.status.toLowerCase())).reduce((s, p) => s + p.amount, 0);
   const paid = rows.filter((p) => PAID.has(p.status.toLowerCase())).reduce((s, p) => s + p.amount, 0);
   const label = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
-  const fmt = (s: string) => { const d = new Date(s); return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString("ru-RU"); };
+  const fmt = (s: string) => dateOnly(s, locale);
 
   return (
     <div className="ppanel">
       <div className="ppanel__h">
         <b>{t("title")}</b>
-        <span className="advmuted">{t("nextPayout", { date: nextThursday() })}</span>
+        <span className="advmuted">{t("nextPayout", { date: nextThursday(locale) })}</span>
       </div>
       {res.status === "loading" ? (
         <Skeleton rows={2} />

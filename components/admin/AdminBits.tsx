@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { errDetail } from "@/lib/http";
 import Select from "@/components/Select";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
 import { listLawyers } from "@/lib/services/backend";
@@ -164,9 +165,7 @@ export function AdminForm({
       if (resetOnDone) setVals(initial(fields, initialValues));
       onDone?.();
     } catch (e) {
-      const detail =
-        e && typeof e === "object" && "detail" in e ? String((e as { detail?: string }).detail) : "";
-      setNote({ ok: false, msg: detail || errMsg });
+      setNote({ ok: false, msg: errDetail(e) || errMsg });
     } finally {
       setBusy(false);
     }

@@ -1,5 +1,13 @@
 {
   "common": {
+    "a11y": {
+      "close": "Yopish",
+      "prev": "Oldingi",
+      "next": "Keyingi",
+      "remove": "O'chirish",
+      "menu": "Menyu",
+      "recording": "Yozib olinmoqda"
+    },
     "paymentUnavailable": "To'lov tizimi hali ulanmagan. Tez orada Payme va Click orqali to'lash mumkin bo'ladi.",
     "identityUnavailable": "OneID/MyID orqali tasdiqlash hali ulanmagan. Keyinroq qayta urinib ko'ring.",
     "rateLimited": "Juda ko'p urinish. Bir ozdan so'ng qayta urining.",
@@ -1566,6 +1574,8 @@
     ]
   },
   "chat": {
+    "guestTotalLimit": "Mehmon uchun bepul savollar tugadi. Davom etish uchun ro'yxatdan o'ting.",
+    "guestDailyLimit": "Bugungi bepul savollar tugadi. Ertaga yana urinib ko'ring yoki ro'yxatdan o'ting.",
     "title": "Sun'iy Intellekt",
     "statusOnline": "Onlayn · {left} ta bepul so'rov",
     "greeting": "Assalomu alaykum! Men Sun'iy Intellekt — O'zbekiston qonunchiligiga o'qitilganman. Muammoyingizni ikki-uch gapda yozing, men yo'nalishni, ish bosqichini va mos xizmatni aytaman.",
@@ -1647,6 +1657,8 @@
     "upgradePlan": "Tarifni yangilash"
   },
   "chatPage": {
+    "guestTotalLimit": "Mehmon uchun bepul savollar tugadi. Davom etish uchun ro'yxatdan o'ting.",
+    "guestDailyLimit": "Bugungi bepul savollar tugadi. Ertaga yana urinib ko'ring yoki ro'yxatdan o'ting.",
     "metaTitle": "Sun'iy Intellekt chat",
     "title": "Sun'iy Intellekt",
     "subtitle": "O'zbekiston qonunchiligiga o'qitilgan",
@@ -1822,6 +1834,23 @@
       "success": "Kirilmoqda…"
     },
     "common": {
+      "paymentStatus": {
+        "pending_payment": "To'lov kutilmoqda",
+        "payment_pending": "To'lov kutilmoqda",
+        "pending": "Kutilmoqda",
+        "unpaid": "To'lanmagan",
+        "paid": "To'langan",
+        "expired": "Muddati o'tgan",
+        "trial": "Sinov muddati",
+        "past_due": "To'lov muddati o'tib ketgan",
+        "grace": "Imtiyozli muddat",
+        "canceled": "Bekor qilingan",
+        "cancelled": "Bekor qilingan",
+        "suspended": "To'xtatilgan",
+        "failed": "Muvaffaqiyatsiz",
+        "refunded": "Qaytarilgan",
+        "processing": "Amalga oshirilmoqda"
+      },
       "logout": "Chiqish",
       "back": "Orqaga",
       "search": "Qidirish",
@@ -3050,6 +3079,9 @@
         "downloading": "Yuklanmoqda…",
         "downloadError": "Faylni yuklab bo'lmadi. Birozdan so'ng qayta urinib ko'ring.",
         "planRequired": "Shablonni yuklab olish va qo'lda to'ldirish uchun paket sotib oling",
+        "aiPlanGateTitle": "Tarifni yangilash",
+        "aiPlanGateLead": "Shablonlarni yuklab olish va to'liq imkoniyatlar uchun pulli tarifga o'ting.",
+        "noQualifyingAiPlans": "Hozircha mos tarif yo'q. Birozdan so'ng qayta urinib ko'ring.",
         "newDocOrder": "Yangi hujjatga buyurtma",
         "freeToView": "Barcha hujjatlarni ko'rish bepul!",
         "filterDoc": "Hujjat",
@@ -5117,6 +5149,11 @@
       "add": "Qo‘shish"
     },
     "services": {
+      "state": {
+        "all": "Hammasi",
+        "active": "Faol",
+        "inactive": "Nofaol"
+      },
       "catTitle": "Xizmat kategoriyalari",
       "catCreate": "Yangi kategoriya",
       "catEmpty": "Kategoriyalar yo'q",
@@ -5140,6 +5177,9 @@
       "tagCustom": "Qo'lda qo'shilgan",
       "catLimitNote": "Yo'nalishlarni tahrirlash/o'chirish backend'da hali yo'q (faqat qo'shish).",
       "del": {
+        "errServer": "Server xatosi. Qayta urining.",
+        "errForbidden": "Bu amal uchun ruxsat yo'q (services.manage).",
+        "errNotFound": "Xizmat topilmadi — ehtimol allaqachon o'chirilgan.",
         "title": "Xizmatni o'chirish",
         "text": "Xizmat katalogdan yashiriladi (nofaol bo'ladi); buyurtmalar tarixi saqlanib qoladi.",
         "cta": "O'chirish",
@@ -5184,10 +5224,10 @@
       },
       "docTemplate": {
         "title": "Hujjat shabloni (DOCX)",
-        "lead": "{{field_name}} ko'rinishidagi joylar bilan DOCX yuklang — shu xizmatga avtomatik ulanadi va mijoz \"Xizmatlar\" bo'limida forma to'ldirib hujjat oladi.",
+        "lead": "'{{'field_name'}}' ko'rinishidagi joylar bilan DOCX yuklang — shu xizmatga avtomatik ulanadi va mijoz \"Xizmatlar\" bo'limida forma to'ldirib hujjat oladi.",
         "attached": "Shablon ulangan",
         "file": "DOCX fayl",
-        "fileHint": "Ichida {{client_name}} kabi joylar bo'lgan .docx fayl.",
+        "fileHint": "Ichida '{{'client_name'}}' kabi joylar bo'lgan .docx fayl.",
         "slug": "Slug",
         "titleLabel": "Sarlavha",
         "fieldsFound": "{n} ta maydon topildi",
@@ -5278,11 +5318,11 @@
       "import": {
         "cta": "DOCX / ZIP import",
         "title": "Shablon konstruktori — import",
-        "lead": "DOCX ichidagi {{maydon}} belgilarini tizim o'zi topadi; shablon qoralama (nofaol) holatda yaratiladi — tekshirib, keyin faollashtirasiz.",
+        "lead": "DOCX ichidagi '{{'maydon'}}' belgilarini tizim o'zi topadi; shablon qoralama (nofaol) holatda yaratiladi — tekshirib, keyin faollashtirasiz.",
         "modeDocx": "Bitta DOCX",
         "modeZip": "ZIP (ko'p shablon)",
         "docxFile": "DOCX fayl",
-        "docxHint": "20 MB gacha. Maydonlar: {{fio}}, {{sana}}, {{#if avans}}…{{/if}}",
+        "docxHint": "20 MB gacha. Maydonlar: '{{'fio'}}', '{{'sana'}}', '{{'#if avans'}}'…'{{'/if'}}'",
         "zipFile": "ZIP fayl",
         "zipHint": "Ichida DOCX fayllar (200 tagacha). Slug fayl nomidan olinadi.",
         "titleLabel": "Sarlavha",
@@ -5320,7 +5360,7 @@
           "multiline": "ko'p qatorli"
         },
         "fieldsFound": "{n} ta maydon topildi",
-        "noFields": "{{…}} belgilar topilmadi — faylni tekshiring.",
+        "noFields": "'{{'…'}}' belgilar topilmadi — faylni tekshiring.",
         "draftNote": "Shablon qoralama holatda; ro'yxatda «Tahrirlash» orqali turlarni tekshirib, faollashtiring.",
         "upload": "Yuklash",
         "uploading": "Yuklanmoqda…",
@@ -5552,6 +5592,18 @@
       "stagingOnlyText": "Test OTP kodlari faqat staging/demo serverda saqlanadi. Production serverda bu ro'yxat yo'q — kodlar SMS yoki Telegram orqali yuboriladi."
     },
     "pipeline": {
+      "urgency": {
+        "low": "Past",
+        "normal": "O'rtacha",
+        "high": "Yuqori",
+        "critical": "Juda shoshilinch",
+        "urgent": "Shoshilinch"
+      },
+      "score": {
+        "hot": "Issiq",
+        "warm": "Iliq",
+        "cold": "Sovuq"
+      },
       "title": "Sotuv voronkasi",
       "addStatus": "Status qo'shish",
       "renameStatus": "Statusni qayta nomlash",
@@ -5908,6 +5960,19 @@
       }
     },
     "integrations": {
+      "categories": {
+        "core": "Asosiy tizim",
+        "payment": "To'lovlar",
+        "security": "Xavfsizlik",
+        "ai": "Sun'iy intellekt",
+        "notification": "Bildirishnomalar",
+        "realtime": "Real vaqt",
+        "identity": "Identifikatsiya",
+        "storage": "Fayl saqlash",
+        "analytics": "Analitika",
+        "communication": "Aloqa",
+        "other": "Boshqa"
+      },
       "title": "Integratsiyalar",
       "lead": "Tashqi servislar ulanish holati.",
       "empty": "Integratsiya yo'q",
@@ -6770,6 +6835,7 @@
     }
   },
   "call": {
+    "a11yRecording": "Yozib olinmoqda",
     "connecting": "Ulanmoqda…",
     "ringing": "Chaqirilmoqda…",
     "live": "Ulandi",

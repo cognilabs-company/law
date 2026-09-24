@@ -1,21 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { listWarrantyClaims, createWarrantyClaim, type WarrantyClaim } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { useReload, Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import { Skeleton } from "@/components/portal/DataState";
 import { IconShieldCheck, IconCheck, IconAlert } from "@/components/icons";
+import { dateOnly } from "@/lib/date";
 
-function fmt(s: string) {
+function fmt(s: string, locale: string) {
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString("ru-RU");
+  return Number.isNaN(d.getTime()) ? s : dateOnly(s, locale);
 }
 
 export default function ClientWarranty() {
   const t = useTranslations("portal.client.warranty");
+  const locale = useLocale();
   const [key, reload] = useReload();
   const claims = useResource(() => listWarrantyClaims(), [key]);
   const [caseTitle, setCaseTitle] = useState("");
@@ -102,7 +104,7 @@ export default function ClientWarranty() {
                   <span className="creq__st" />
                   <div className="creq__m">
                     <b>{c.caseTitle || t("claim")}</b>
-                    <span>{[c.reason, fmt(c.createdAt)].filter(Boolean).join(" · ")}</span>
+                    <span>{[c.reason, fmt(c.createdAt, locale)].filter(Boolean).join(" · ")}</span>
                   </div>
                   <span className="creq__badge">{t.has(`status.${c.status}`) ? t(`status.${c.status}`) : c.status}</span>
                 </div>

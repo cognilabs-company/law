@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { listMyTasks, updateTaskStatus, createTask, updateTask, deleteTask, type WorkTask } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Notice } from "@/components/admin/AdminBits";
@@ -11,6 +11,7 @@ import DatePicker from "@/components/DatePicker";
 import { ApiError } from "@/lib/http";
 import { Skeleton, EmptyState } from "./DataState";
 import { IconClipboardCheck, IconChevronLeft, IconChevronRight, IconPlus, IconEdit, IconTrash, IconSearch, IconCheck, IconAlert } from "@/components/icons";
+import { dateOnly } from "@/lib/date";
 
 // Backend task statuses: todo · doing · review · done (+ blocked as a flag, deleted).
 const STAGES = ["todo", "doing", "review", "done"] as const;
@@ -24,7 +25,7 @@ const LEGACY: Record<string, Stage> = {
 const stageOf = (s: string): Stage => LEGACY[(s || "").toLowerCase()] ?? "todo";
 const PRIO_RANK: Record<string, number> = { high: 0, medium: 1, low: 2 };
 const today = () => new Date().toISOString().slice(0, 10);
-const fmtDue = (s: string) => { const d = new Date(s); return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString("ru-RU"); };
+const fmtDue = (s: string, locale: string) => dateOnly(s, locale);
 
 type Form = { title: string; priority: string; due: string; description: string; caseTitle: string; checklist: string };
 const EMPTY: Form = { title: "", priority: "medium", due: "", description: "", caseTitle: "", checklist: "" };
@@ -34,6 +35,7 @@ const EMPTY: Form = { title: "", priority: "medium", due: "", description: "", c
 // Moves are optimistic (the list is patched first, then synced).
 export default function TaskBoard() {
   const t = useTranslations("portal.tasks");
+  const locale = useLocale();
   const res = useResource(() => listMyTasks(), []);
   const [busy, setBusy] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -186,7 +188,7 @@ export default function TaskBoard() {
                           {x.description ? <p className="task__desc">{x.description}</p> : null}
                           <div className="task__meta">
                             {x.caseTitle ? <span className="pipe__meta">{x.caseTitle}</span> : null}
-                            {x.dueDate ? <span className={`pipe__meta${overdue ? " task__due--over" : ""}`}>{overdue ? <IconAlert /> : null}{t("due")}: {fmtDue(x.dueDate)}</span> : null}
+                            {x.dueDate ? <span className={`pipe__meta${overdue ? " task__due--over" : ""}`}>{overdue ? <IconAlert /> : null}{t("due")}: {fmtDue(x.dueDate, locale)}</span> : null}
                             {x.checklist?.length ? <span className="pipe__meta">{t("checklistCount", { done, total: x.checklist.length })}</span> : null}
                             {blocked ? <span className="pipe__meta task__blocked">{t("blocked")}</span> : null}
                           </div>

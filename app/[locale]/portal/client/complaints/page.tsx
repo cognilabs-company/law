@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { listComplaints, createComplaint } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { useReload, Notice } from "@/components/admin/AdminBits";
@@ -9,16 +9,18 @@ import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconAlert, IconPlus } from "@/components/icons";
+import { dateOnly } from "@/lib/date";
 
 const CATS = ["service", "lawyer", "payment", "quality", "other"];
 
-function fmt(s: string) {
+function fmt(s: string, locale: string) {
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString("ru-RU");
+  return Number.isNaN(d.getTime()) ? s : dateOnly(s, locale);
 }
 
 export default function ClientComplaints() {
   const t = useTranslations("portal.client.complaints");
+  const locale = useLocale();
   const [key, reload] = useReload();
   const res = useResource(() => listComplaints(), [key]);
   const [open, setOpen] = useState(false);
@@ -74,7 +76,7 @@ export default function ClientComplaints() {
               <span className="creq__st" />
               <div className="creq__m">
                 <b>{c.subject || (t.has(`cat.${c.category}`) ? t(`cat.${c.category}`) : c.category)}</b>
-                <span>{[t.has(`cat.${c.category}`) ? t(`cat.${c.category}`) : c.category, fmt(c.createdAt)].filter(Boolean).join(" · ")}</span>
+                <span>{[t.has(`cat.${c.category}`) ? t(`cat.${c.category}`) : c.category, fmt(c.createdAt, locale)].filter(Boolean).join(" · ")}</span>
               </div>
               <span className="creq__badge">{t.has(`status.${c.status}`) ? t(`status.${c.status}`) : c.status}</span>
             </div>

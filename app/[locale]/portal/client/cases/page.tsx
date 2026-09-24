@@ -49,6 +49,7 @@ type Item = { key: string; case?: BackendCase; order?: BackendOrder };
 export default function ClientCases() {
   const t = useTranslations("portal.client.cases");
   const tcs = useTranslations("portal.common.status");
+  const tcCommon = useTranslations("portal.common");
   const orderLabel = useOrderStatusLabel();
   const res = useResource(listCases, []);
   const orders = useResource(listOrders, []);
@@ -156,7 +157,7 @@ export default function ClientCases() {
               <span className="creq__st" />
               <div className="creq__m">
                 <b>{c ? c.caseType || c.title || t("title") : o?.serviceName || o?.title || t("orderItem")}</b>
-                <span>{[c?.stage ? humanizeSlug(c.stage) : "", c?.status ? caseStatus(c.status) : ""].filter(Boolean).join(" · ") || (o?.title && o.title !== o.serviceName ? o.title : "")}</span>
+                <span>{[c?.stage ? statusLabel(tcCommon, c.stage) : "", c?.status ? caseStatus(c.status) : ""].filter(Boolean).join(" · ") || (o?.title && o.title !== o.serviceName ? o.title : "")}</span>
                 {stage ? <StageTrack stage={stage} /> : null}
                 {(() => { const dl = deadlineOf(o); return dl ? (
                   <em className={`creq__next ocase__dl${dl.overdue ? " overdue" : ""}`}>

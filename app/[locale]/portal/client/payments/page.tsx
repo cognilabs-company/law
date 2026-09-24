@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { getPaymentReceipt, listPayments } from "@/lib/services/backend";
 import { saveBlob } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
@@ -10,17 +10,19 @@ import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconCard, IconDownload, IconSearch } from "@/components/icons";
 import DatePicker from "@/components/DatePicker";
+import { dateOnly } from "@/lib/date";
 
 const som = (n: number, cur: string) =>
   n ? `${fmtUzs(n)} ${cur}` : "—";
-const fmtDate = (s: string) => {
+const fmtDate = (s: string, locale: string) => {
   if (!s) return "—";
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString("ru-RU");
+  return Number.isNaN(d.getTime()) ? s : dateOnly(s, locale);
 };
 
 export default function ClientPayments() {
   const t = useTranslations("portal.client.payments");
+  const locale = useLocale();
   // The backend falls back to the raw target type ("document_request", "gift") as the description.
   const whatOf = (desc: string, kind: string) => {
     // A real title ("Private chat", a plan period) is shown as is; a bare key gets a label.
@@ -89,7 +91,7 @@ export default function ClientPayments() {
                 <span data-l={t("what")}>
                   <b>{whatOf(p.description, p.kind)}</b>
                 </span>
-                <span data-l={t("date")}>{fmtDate(p.createdAt)}</span>
+                <span data-l={t("date")}>{fmtDate(p.createdAt, locale)}</span>
                 <span data-l={t("amount")}>{som(p.amount, p.currency)}</span>
                 <span data-l={t("statusCol")} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span className={`creq__badge${p.status === "paid" ? " creq__badge--ok" : ""}`}>{p.status ? (t.has(`statuses.${p.status}`) ? t(`statuses.${p.status}`) : humanizeSlug(p.status)) : "—"}</span>

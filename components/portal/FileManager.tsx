@@ -98,6 +98,7 @@ const errStatus = (e: unknown) => (e instanceof ApiError ? e.status : 0);
 
 export default function FileManager() {
   const t = useTranslations("portal.files");
+  const ta = useTranslations("common.a11y");
   const locale = useLocale();
   const [status, setStatus] = useState<"loading" | "ready" | "forbidden" | "error">("loading");
   const [folders, setFolders] = useState<WorkspaceFolder[]>([]);
@@ -472,7 +473,7 @@ export default function FileManager() {
                         <IconStar />
                       </span>
                     ) : null}
-                    <button type="button" className="ffcard__more" aria-label="menu" onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === item.id ? null : item.id); }}>
+                    <button type="button" className="ffcard__more" aria-label={ta("menu")} onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === item.id ? null : item.id); }}>
                       <IconMoreHorizontal />
                     </button>
                     {menuFor === item.id ? <ItemMenu item={item} t={t} onOpen={openFolder} onOpenFile={openFile} onRename={startRename} onStar={toggleStar} onDelete={removeItem} onDownload={downloadFile} /> : null}
@@ -503,7 +504,7 @@ export default function FileManager() {
                   <span className="fmgr__lrow-meta">{item.type === "folder" ? t("items", { n: childCount(item.id) }) : fmtSize(item.size)}</span>
                   <span className="fmgr__lrow-meta">{item.updatedAt ? shortDateTime(new Date(item.updatedAt).toISOString(), locale) : ""}</span>
                   <span className="fmgr__lrow-menu">
-                    <button type="button" className="fmgr__more" aria-label="menu" onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === item.id ? null : item.id); }}>
+                    <button type="button" className="fmgr__more" aria-label={ta("menu")} onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === item.id ? null : item.id); }}>
                       <IconMoreHorizontal />
                     </button>
                     {menuFor === item.id ? <ItemMenu item={item} t={t} onOpen={openFolder} onOpenFile={openFile} onRename={startRename} onStar={toggleStar} onDelete={removeItem} onDownload={downloadFile} /> : null}

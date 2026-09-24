@@ -1,17 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { getContentRevealStatus, requestContentReveal, approveContentReveal, type RevealStatus } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
 import { ApiError } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconLock, IconShieldCheck } from "@/components/icons";
+import { dateTimeFull } from "@/lib/date";
 
 // Staff view of a secure chat: message bodies are "[metadata_only]" until a
 // content reveal is requested (dispute) and approved by another staff member.
 export default function ContentRevealBar({ roomId, onChanged }: { roomId: string; onChanged?: () => void }) {
   const t = useTranslations("secureChat.reveal");
+  const locale = useLocale();
   const [key, setKey] = useState(0);
   const res = useResourceOne(() => getContentRevealStatus(roomId), [roomId, key]);
   const [reason, setReason] = useState("");
@@ -45,7 +47,7 @@ export default function ContentRevealBar({ roomId, onChanged }: { roomId: string
       <div className="reveal__h">
         {active ? <IconShieldCheck /> : <IconLock />}
         <b>{active ? t("activeTitle") : pending ? t("pendingTitle") : t("lockedTitle")}</b>
-        {s?.expiresAt && active ? <span className="advmuted">{t("until", { time: new Date(s.expiresAt).toLocaleString("ru-RU") })}</span> : null}
+        {s?.expiresAt && active ? <span className="advmuted">{t("until", { time: dateTimeFull(s.expiresAt, locale) })}</span> : null}
       </div>
       <p className="advmuted">{active ? t("activeText") : pending ? t("pendingText") : t("lockedText")}</p>
       {!active ? (

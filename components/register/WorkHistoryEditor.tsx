@@ -22,6 +22,7 @@ export default function WorkHistoryEditor({
   onChange: (next: WorkEntry[]) => void;
 }) {
   const t = useTranslations("register.advocate.work");
+  const ta = useTranslations("common.a11y");
   const [form, setForm] = useState(emptyForm);
 
   function add() {
@@ -50,7 +51,7 @@ export default function WorkHistoryEditor({
                 <button
                   type="button"
                   className="wh__x"
-                  aria-label="remove"
+                  aria-label={ta("remove")}
                   onClick={() => onChange(value.filter((x) => x.id !== e.id))}
                 >
                   <IconClose />

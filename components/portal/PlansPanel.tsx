@@ -45,6 +45,7 @@ import {
   IconCalendar,
   IconStar,
 } from "@/components/icons";
+import { dateOnly } from "@/lib/date";
 
 // Tier icon shown above the plan name (purely presentational — matches
 // whichever of the three fixed LexGo.AI slugs the plan is).
@@ -78,10 +79,10 @@ const SELLER_DISCOUNT = 50;
 function som(n: number): string {
   return fmtUzs(n);
 }
-function fmtDate(s: string) {
+function fmtDate(s: string, locale: string) {
   if (!s) return "";
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString("ru-RU");
+  return Number.isNaN(d.getTime()) ? s : dateOnly(s, locale);
 }
 // Backend billing_period for the chosen term (the API knows monthly / six_month /
 // yearly / prepaid_yearly; a 3-month term is billed as monthly — reported).
@@ -511,7 +512,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                 <span className="creq__st" />
                 <div className="creq__m">
                   <b>{p.description || p.kind || "—"}</b>
-                  <span>{fmtDate(p.createdAt)}</span>
+                  <span>{fmtDate(p.createdAt, locale)}</span>
                 </div>
                 <span className={`creq__badge${p.status === "paid" ? " creq__badge--ok" : ""}`}>
                   {som(p.amount)} {p.currency}
@@ -542,6 +543,7 @@ function AutopayCard({
   onStateChange: Dispatch<SetStateAction<AutopayState | null>>;
 }) {
   const t = useTranslations("plans.autopay");
+  const locale = useLocale();
   const tc = useTranslations("portal.client.profile");
   const cards = useResource(listPaymentMethods, [uid]);
   const [busy, setBusy] = useState(false);
@@ -586,7 +588,7 @@ function AutopayCard({
           <span className="subs__topico"><IconCalendar /></span>
           <div>
             <span className="subs__topl">{t("nextCharge")}</span>
-            <b>{sub?.renewsAt ? fmtDate(sub.renewsAt) : "—"}</b>
+            <b>{sub?.renewsAt ? fmtDate(sub.renewsAt, locale) : "—"}</b>
             {!sub?.renewsAt ? <span className="subs__tops">{t("nextChargeHintEmpty")}</span> : null}
           </div>
         </div>

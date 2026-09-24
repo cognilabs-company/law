@@ -62,6 +62,7 @@ export default function LawyersSection({
   compact?: boolean;
 }) {
   const t = useTranslations("lawyers");
+  const ta = useTranslations("common.a11y");
   const te = useTranslations("enums");
   const [area, setArea] = useState(initialArea);
   const [query, setQuery] = useState("");
@@ -345,7 +346,7 @@ export default function LawyersSection({
                   className="nbtn"
                   onClick={() => scrollBy(-1)}
                   disabled={atStart}
-                  aria-label="prev"
+                  aria-label={ta("prev")}
                 >
                   <IconChevronLeft />
                 </button>
@@ -353,7 +354,7 @@ export default function LawyersSection({
                   className="nbtn"
                   onClick={() => scrollBy(1)}
                   disabled={atEnd}
-                  aria-label="next"
+                  aria-label={ta("next")}
                 >
                   <IconChevronRight />
                 </button>

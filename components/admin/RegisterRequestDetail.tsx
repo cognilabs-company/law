@@ -7,11 +7,12 @@ import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
 import { IconEye, IconClose, IconFileText } from "@/components/icons";
+import { dateTimeFull } from "@/lib/date";
 
-const fmt = (v?: string) => {
+const fmt = (v: string | undefined, locale: string) => {
   if (!v) return "";
   const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? v : d.toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
+  return Number.isNaN(d.getTime()) ? v : dateTimeFull(v, locale);
 };
 
 // Inline preview of an uploaded proof document — fetched as a blob (the file
@@ -101,7 +102,7 @@ export default function RegisterRequestDetail({ id, onClose }: { id: string | nu
             {row(t("detail.status"), statusLabel(d.request.status))}
             {row(t("detail.role"), roleLabel(d.request.role))}
             {row(t("detail.phone"), d.request.phone)}
-            {row(t("detail.created"), fmt(d.request.createdAt))}
+            {row(t("detail.created"), fmt(d.request.createdAt, locale))}
           </div>
           {p ? (
             <div className="dkv__sect">
@@ -111,8 +112,8 @@ export default function RegisterRequestDetail({ id, onClose }: { id: string | nu
               {row(t("detail.phone"), p.phone)}
               {row(t("detail.status"), statusLabel(p.status))}
               {row(t("detail.attempts"), p.attempts)}
-              {blocked ? <div className="dkv__row"><span>{t("detail.blocked")}</span><b className="tprio tprio--high">{fmt(p.blockedUntil)}</b></div> : null}
-              {row(t("detail.expires"), fmt(p.expiresAt))}
+              {blocked ? <div className="dkv__row"><span>{t("detail.blocked")}</span><b className="tprio tprio--high">{fmt(p.blockedUntil, locale)}</b></div> : null}
+              {row(t("detail.expires"), fmt(p.expiresAt, locale))}
             </div>
           ) : null}
           {d.user ? (
@@ -122,7 +123,7 @@ export default function RegisterRequestDetail({ id, onClose }: { id: string | nu
               {row(t("detail.fio"), d.user.name)}
               {row(t("detail.role"), roleLabel(d.user.role))}
               {row(t("detail.account"), d.user.accountStatus)}
-              {row(t("detail.created"), fmt(d.user.createdAt))}
+              {row(t("detail.created"), fmt(d.user.createdAt, locale))}
             </div>
           ) : null}
           {d.lawyerProfile ? (
@@ -157,7 +158,7 @@ export default function RegisterRequestDetail({ id, onClose }: { id: string | nu
             {d.activity.length ? (
               <ul className="dkv__list">
                 {d.activity.slice(0, 12).map((a) => (
-                  <li key={a.id}><b>{(locale === "uz" && a.titleUz) || a.action}</b><span>{[(locale === "uz" && a.descriptionUz) || a.detail, fmt(a.createdAt)].filter(Boolean).join(" · ")}</span></li>
+                  <li key={a.id}><b>{(locale === "uz" && a.titleUz) || a.action}</b><span>{[(locale === "uz" && a.descriptionUz) || a.detail, fmt(a.createdAt, locale)].filter(Boolean).join(" · ")}</span></li>
                 ))}
               </ul>
             ) : <p className="advmuted">{t("detail.noActivity")}</p>}

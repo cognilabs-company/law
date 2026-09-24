@@ -1,25 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { listLegalAid, getLegalAidRequestDetail, type LegalAidDetail } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconScale, IconPhone, IconEye } from "@/components/icons";
+import { dateOnly } from "@/lib/date";
 
 const s = (v: unknown) => (v == null ? "" : String(v));
-const fmtDate = (v: string) => {
+const fmtDate = (v: string, locale: string) => {
   if (!v) return "";
   const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString("ru-RU");
+  return Number.isNaN(d.getTime()) ? v : dateOnly(v, locale);
 };
 
 // GET /legal-aid/requests/{id} (2026-09-19 backend) — the list had no working
 // "open" before this; source/event/creator tell an admin what triggered it.
 function LegalAidDetailModal({ id, onClose }: { id: string | null; onClose: () => void }) {
   const t = useTranslations("admin.legalAid");
+  const locale = useLocale();
   const [d, setD] = useState<LegalAidDetail | null>(null);
   const [err, setErr] = useState(false);
   useEffect(() => {
@@ -43,7 +45,7 @@ function LegalAidDetailModal({ id, onClose }: { id: string | null; onClose: () =
             {row(t("detail.phone"), s(d.request.payload.phone))}
             {row(t("detail.details"), s(d.request.payload.details) || d.request.title)}
             {row(t("detail.status"), t.has(`status.${d.request.status}`) ? t(`status.${d.request.status}`) : d.request.status)}
-            {row(t("detail.created"), fmtDate(d.request.createdAt))}
+            {row(t("detail.created"), fmtDate(d.request.createdAt, locale))}
           </div>
           <div className="dkv__sect">
             <b>{t("detail.origin")}</b>
@@ -64,6 +66,7 @@ function LegalAidDetailModal({ id, onClose }: { id: string | null; onClose: () =
 }
 
 export default function AdminLegalAid() {
+  const locale = useLocale();
   const t = useTranslations("admin.legalAid");
   const res = useResource(listLegalAid, []);
   const [detail, setDetail] = useState<string | null>(null);
@@ -104,7 +107,7 @@ export default function AdminLegalAid() {
                   </a>
                 ) : null}
                 {details ? <p className="laitem__details">{details}</p> : null}
-                <span className="laitem__date">{fmtDate(r.createdAt)}</span>
+                <span className="laitem__date">{fmtDate(r.createdAt, locale)}</span>
               </div>
             );
           })}

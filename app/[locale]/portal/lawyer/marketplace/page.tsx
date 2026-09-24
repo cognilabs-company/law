@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { shortDateTime } from "@/lib/date";
 import { listOpenOrders } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
@@ -12,6 +13,7 @@ import { IconBriefcase, IconMapPin, IconClock } from "@/components/icons";
 
 export default function LawyerMarketplace() {
   const t = useTranslations("portal.lawyer.marketplace");
+  const locale = useLocale();
   const res = useResource(listOpenOrders, []);
   const statusLabel = useOrderStatusLabel();
   // Orders another seller took meanwhile (409) leave the list.
@@ -35,7 +37,7 @@ export default function LawyerMarketplace() {
               <div className="oppc__h">
                 <span className="oppc__match">{statusLabel(o.status)}</span>
                 <RespondTimer deadline={o.confirmationDeadlineAt} />
-                <span className="oppc__ago"><IconClock />{o.createdAt}</span>
+                <span className="oppc__ago"><IconClock />{shortDateTime(o.createdAt, locale)}</span>
               </div>
               <b>{o.title}</b>
               <small>

@@ -81,3 +81,47 @@ export function weekdays(locale: string): string[] {
 export function monthNames(locale: string): string[] {
   return MONTHS_NOM[locale] || MONTHS_NOM.uz;
 }
+
+// ── Locale-aware replacements for the hardcoded toLocale*("ru-RU") helpers
+// that had been copied into two dozen components. Handmade like everything
+// above, so a Russian month never leaks into the Uzbek or English build and
+// no runtime needs an "uz-UZ" Intl dataset.
+
+// "24 Sen 2026" / "24 сен 2026" / "Sep 24, 2026"
+export function dateOnly(value: string, locale: string): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  const months = MONTHS_SHORT[locale] || MONTHS_SHORT.uz;
+  return locale === "en"
+    ? `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+    : `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// "24 Sen 2026, 17:50" — the year matters in audit and payment logs, which is
+// where the old toLocaleString() calls lived.
+export function dateTimeFull(value: string, locale: string): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${dateOnly(value, locale)}, ${time}`;
+}
+
+// "17:50"
+export function timeOnly(value: string, locale: string): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  void locale; // 24-hour everywhere; the argument keeps the call sites uniform
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// Thousands separated by a space in uz/ru, by a comma in en — the old
+// toLocaleString("ru-RU").replace(/,/g," ") produced a space in English too.
+export function fmtInt(n: number, locale: string): string {
+  if (!Number.isFinite(n)) return "";
+  const s = Math.round(Math.abs(n)).toString();
+  const grouped = s.replace(/\B(?=(\d{3})+(?!\d))/g, locale === "en" ? "," : " ");
+  return (n < 0 ? "-" : "") + grouped;
+}

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { getMyReferral } from "@/lib/services/backend";
 import { httpBlob } from "@/lib/http";
 import { useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton } from "@/components/portal/DataState";
 import { IconGift, IconUsers, IconCheck, IconArrowRight } from "@/components/icons";
+import { dateOnly } from "@/lib/date";
 
 const FALLBACK = {
   code: "LEXGO", link: "", qrUrl: "", invited: 0, joined: 0, rewardBalance: 0,
@@ -46,14 +47,15 @@ function useQrSrc(qrUrl: string): string | null {
   return src?.key === qrUrl ? src.url : null;
 }
 
-const fmtDate = (s: string) => {
+const fmtDate = (s: string, locale: string) => {
   if (!s) return "";
   const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ru-RU");
+  return Number.isNaN(d.getTime()) ? "" : dateOnly(s, locale);
 };
 
 export default function ClientReferrals() {
   const t = useTranslations("portal.client.referrals");
+  const locale = useLocale();
   const res = useResourceOne(getMyReferral, []);
   const r = res.data ?? FALLBACK;
   const code = r.code || FALLBACK.code;
@@ -151,7 +153,7 @@ export default function ClientReferrals() {
                 <div className="creq__m">
                   <b>{it.name || it.phone || "—"}</b>
                   <span>
-                    {[it.name ? it.phone : "", t.has(`status.${it.status}`) ? t(`status.${it.status}`) : it.status, fmtDate(it.joinedAt)]
+                    {[it.name ? it.phone : "", t.has(`status.${it.status}`) ? t(`status.${it.status}`) : it.status, fmtDate(it.joinedAt, locale)]
                       .filter(Boolean)
                       .join(" · ")}
                   </span>

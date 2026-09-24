@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { dateTimeFull } from "@/lib/date";
 import { useAuth, hasStoredSession } from "@/lib/auth";
 import {
   getClientProfile,
@@ -36,6 +37,7 @@ import { statusLabel } from "@/lib/labels";
 export default function ClientProfile() {
   const t = useTranslations("portal.client.profile");
   const tcm = useTranslations("portal.common");
+  const locale = useLocale();
   const { session, update, logout } = useAuth();
   const [key, setKey] = useState(0);
   const reload = () => setKey((k) => k + 1);
@@ -243,7 +245,7 @@ export default function ClientProfile() {
               {sessions.data.map((s) => (
                 <div className="creq" key={s.id}>
                   <span className="creq__st" />
-                  <div className="creq__m"><b>{s.deviceLabel || s.ip || t("device")}</b><span>{[s.ip, s.lastUsedAt].filter(Boolean).join(" · ")}</span></div>
+                  <div className="creq__m"><b>{s.deviceLabel || s.ip || t("device")}</b><span>{[s.ip, s.lastUsedAt ? dateTimeFull(s.lastUsedAt, locale) : ""].filter(Boolean).join(" · ")}</span></div>
                   <button className="btn btn--line btn--sm" type="button" onClick={() => revoke(s.id)}>{t("revoke")}</button>
                 </div>
               ))}

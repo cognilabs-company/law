@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import { fmtDate } from "@/lib/date";
+import { fmtDate, fmtInt } from "@/lib/date";
 import { seedDemoData } from "@/lib/services/backend";
 import {
   getAdminDashboardFull,
@@ -54,7 +54,9 @@ import {
   IconFileText,
 } from "@/components/icons";
 
-const fmt = (n: number) => (Math.abs(n) >= 1000 ? n.toLocaleString("ru-RU").replace(/,/g, " ") : String(n));
+// Grouped by lib/date.ts#fmtInt, which uses a space in uz/ru and a comma
+// in en; the old toLocaleString("ru-RU") gave English a space too.
+const fmt = (n: number, locale = "uz") => (Math.abs(n) >= 1000 ? fmtInt(n, locale) : String(n));
 const DASH = "—";
 
 const MODULES = [

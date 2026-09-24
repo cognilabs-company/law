@@ -15,6 +15,7 @@ import {
 export default function ProfilePreview({ p }: { p: ProfessionalProfile }) {
   const t = useTranslations("register.advocate.review");
   const te = useTranslations("enums");
+  const ta = useTranslations("register.advocate");
   const tl = useTranslations("register.languages");
   const ts = useTranslations("register.advocate.stats");
   const locale = useLocale() as CatalogLocale;
@@ -43,7 +44,9 @@ export default function ProfilePreview({ p }: { p: ProfessionalProfile }) {
               <IconShieldCheck />
             </span>
           </div>
-          <div className="ppv__spec">{p.specialization || "—"}</div>
+          <div className="ppv__spec">
+        {p.specialization ? (ta.has(`specOptions.${p.specialization}`) ? ta(`specOptions.${p.specialization}`) : p.specialization) : "—"}
+      </div>
           <div className="ppv__meta">
             {p.region ? (
               <span>
