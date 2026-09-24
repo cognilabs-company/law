@@ -29,7 +29,19 @@ type Mode = "choose" | "manual" | "lawyer";
 // document_template_id runs the answers → pay → generate → download
 // lifecycle (DocumentRequestPanel), with the request created through the
 // service — GET /services/{id}/document-template, POST /services/{id}/document-requests.
-export default function ServiceDocumentRequest({ serviceId, onTitle }: { serviceId: string; onTitle?: (title: string) => void }) {
+export default function ServiceDocumentRequest({
+  serviceId,
+  onTitle,
+  initialMode,
+}: {
+  serviceId: string;
+  onTitle?: (title: string) => void;
+  // The services card's "Advokatga yo'llash" button lands here already
+  // decided — it is the same journey as picking "Advokat bilan tayyorlash"
+  // on the chooser, so it skips the chooser instead of opening a second,
+  // unrelated advocate-marketplace order.
+  initialMode?: "lawyer";
+}) {
   const t = useTranslations("portal.client.documents");
   const [tpl, setTpl] = useState<BackendTemplate | null>(null);
   const [sourceFile, setSourceFile] = useState<ServiceDocumentFields | null>(null);
@@ -47,7 +59,7 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
   // behavior, unchanged. The AI-assisted option was removed from this
   // chooser on request — sourceFile.aiFlow may still come back from the
   // backend, it's just never offered here any more.
-  const [mode, setMode] = useState<Mode>("manual");
+  const [mode, setMode] = useState<Mode>(initialMode ?? "manual");
   const starting = useRef(false);
   // LEXGO_MANUAL_DOCUMENT_PLAN_FRONTEND.md: "" = not gated; a non-empty
   // string is the backend's own 402 message, and switches the whole screen
@@ -66,7 +78,7 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
     setLoading(true);
     setErr(false);
     setResumed(false);
-    setMode("manual");
+    setMode(initialMode ?? "manual");
     setPlanRequired("");
     setPlanGateOpen(false);
   }
@@ -95,7 +107,9 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
         // DocumentRequestPanel already gate their own use of it on
         // hasSourceFile; the AI/lawyer flow URLs need it regardless.
         setSourceFile(f);
-        if (f?.lawyerFlow) setMode("choose");
+        // A caller that asked for the lawyer flow keeps it; the chooser is
+        // only for someone who arrived without having decided.
+        if (f?.lawyerFlow) setMode(initialMode ?? "choose");
         onTitle?.(r.name);
       })
       .catch((e) => {
@@ -208,6 +222,13 @@ export default function ServiceDocumentRequest({ serviceId, onTitle }: { service
 
   if (mode === "lawyer" && sourceFile?.lawyerFlow)
     return <DocumentLawyerAssist lawyerFlow={sourceFile.lawyerFlow} sourceFile={sourceFile} onBack={() => setMode("choose")} />;
+
+  if (initialMode === "lawyer" && !sourceFile?.lawyerFlow)
+    return (
+      <div className="cform" style={{ maxWidth: "none" }}>
+        <Notice ok={false} msg={t("lawyerNotAvailable")} />
+      </div>
+    );
 
   // key={req.id} so DocumentRequestPanel's own state (stage, answers) resets
   // when "start over" swaps in a brand new request id.

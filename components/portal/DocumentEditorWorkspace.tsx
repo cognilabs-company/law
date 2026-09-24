@@ -313,10 +313,13 @@ export default function DocumentEditorWorkspace({
     setMeetBusy(true);
     setMeetErr(false);
     try {
+      // No max_duration_minutes: LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md
+      // makes the backend default 15 minutes for a document meeting, and
+      // sending 60 here would quietly override the limit the extension and
+      // billing flow is built around.
       const m = await createDocumentRequestMeeting(req.meetingUrl, {
         call_type: "video",
         title: req.clientName ? `${t("meetingTitle")} · ${req.clientName}` : t("meetingTitle"),
-        max_duration_minutes: 60,
       });
       setMeeting({
         roomId: m.roomId,
@@ -660,7 +663,7 @@ export default function DocumentEditorWorkspace({
             {rightTab === "chat" ? (
               chatRoomId ? (
                 <div className="deditor__chat">
-                  <SecureChat roomId={chatRoomId} />
+                  <SecureChat roomId={chatRoomId} onClose={() => setRightOpen(false)} />
                 </div>
               ) : (
                 <p className="advmuted">{t("chatUnavailable")}</p>

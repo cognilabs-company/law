@@ -124,6 +124,12 @@ const ADVOCATE_NAV: NavItem[] = [
   { href: "/portal/advocate/subscription", key: "subscription", Icon: IconStar },
 ];
 
+// Reachable pages that deliberately have no sidebar row of their own.
+// They are consulted for the header title only, never rendered in the nav.
+const CLIENT_TITLE_ONLY: NavItem[] = [
+  { href: "/portal/client/doc-analysis", key: "docAnalysis", Icon: IconEye },
+];
+
 const CLIENT_NAV: NavItem[] = [
   { href: "/portal/client", key: "dashboard", Icon: IconGrid },
   { href: "/portal/client/sos", key: "sos", Icon: IconAlert },
@@ -135,7 +141,12 @@ const CLIENT_NAV: NavItem[] = [
   { href: "/portal/client/notifications", key: "notifications", Icon: IconBell },
   { href: "/portal/client/ai", key: "ai", Icon: IconSparkle },
   { href: "/portal/client/intake", key: "intake", Icon: IconSearch },
-  { href: "/portal/client/doc-analysis", key: "docAnalysis", Icon: IconEye },
+  // /portal/client/doc-analysis is deliberately NOT in this list any more:
+  // it and the services page were both called "Hujjat tahlili", so they are
+  // merged into one entry. The route stays live — the services page and the
+  // finished-document upsell both link into it — it just has no sidebar row
+  // of its own. PortalShell's longest-href match then titles that page from
+  // the services entry, which is the shared name both now carry.
   { href: "/portal/client/academy", key: "academy", Icon: IconGraduation },
   { href: "/portal/client/lawyers", key: "lawyers", Icon: IconUsers },
   { href: "/portal/client/matches", key: "matches", Icon: IconTarget },
@@ -246,8 +257,10 @@ export default function PortalShell({
 
   const nav =
     role === "advocate" ? ADVOCATE_NAV : role === "lawyer" ? LAWYER_NAV : CLIENT_NAV;
+  // Title lookup spans the title-only routes too, so a page that is not in
+  // the sidebar is still named correctly and does not light a wrong row.
   const active = nav
-    .slice()
+    .concat(role === "client" ? CLIENT_TITLE_ONLY : [])
     .sort((a, b) => b.href.length - a.href.length)
     .find((n) => pathname === n.href || pathname.startsWith(n.href + "/"));
   const title = active ? t(`sidebar.${role}.${active.key}`) : t("metaTitle");

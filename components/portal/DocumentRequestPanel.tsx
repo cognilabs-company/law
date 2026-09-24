@@ -10,6 +10,7 @@ import {
   getDocumentUnlockPolicy,
   generateDocumentRequest,
   getDocumentRequestFile,
+  requestDocumentLawyerReview,
   listDocumentRequests,
   isDocPaymentSkipped,
   type DocumentRequest,
@@ -21,6 +22,7 @@ import { subscribeUserEvents } from "@/lib/userSocket";
 import { base64Blob, closeTab, extFromMime, mimeFromName, preopenTab, saveBlob, showBlob } from "@/lib/download";
 import { normalizeAnswers } from "@/lib/docTemplate";
 import ContractSign from "./ContractSign";
+import DocumentRequestChat from "./DocumentRequestChat";
 import DocFill, { loadDraft, clearDraft } from "./DocFill";
 import DocTemplateViewer from "./DocTemplateViewer";
 import { useResource, useResourceOne } from "@/lib/useResource";
@@ -136,6 +138,13 @@ export default function DocumentRequestPanel({
   // so polling stops and the client is told, instead of a wait screen that
   // quietly retries for an hour.
   const [fatal, setFatal] = useState<"" | "noAccess" | "notFound">("");
+  // lexgo_frontend_doc_chat_update.md §7: a document the client built
+  // themselves can be handed to the same call-center pool for a lawyer to
+  // check. Open the box, say what to look at, send.
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewNeed, setReviewNeed] = useState("");
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [reviewSent, setReviewSent] = useState(false);
   // Set instead of opening a tab whenever the generated file is a DOCX (see
   // deliver() inside getFile below) — DocTemplateViewer then renders it
   // inline the same way it already does for template previews.
@@ -435,6 +444,22 @@ export default function DocumentRequestPanel({
     }
   }
 
+  async function sendToLawyerReview() {
+    if (reviewBusy) return;
+    setReviewBusy(true);
+    setNote(null);
+    try {
+      await requestDocumentLawyerReview(req.id, reviewNeed.trim() || t("reviewNeedDefault"));
+      setReviewSent(true);
+      setReviewOpen(false);
+    } catch (e) {
+      if (statusOf(e) >= 500) logApiError("document-request lawyer-review", e);
+      setNote({ ok: false, msg: t("error") });
+    } finally {
+      setReviewBusy(false);
+    }
+  }
+
   // A terminal 403/404 replaces whatever screen was showing — there is no
   // stage left to render once the request is gone or off-limits.
   const shown: Stage | "" = fatal ? "" : stage;
@@ -587,6 +612,29 @@ export default function DocumentRequestPanel({
               {t("startNew")}
             </button>
           ) : null}
+          {/* Hand this finished document to a call-center advocate to check
+              — the same pool the from-scratch flows land in. */}
+          {reviewSent ? (
+            <Notice ok msg={t("reviewSent")} />
+          ) : reviewOpen ? (
+            <div className="docreview">
+              <label htmlFor="doc-review-need">{t("reviewNeedLabel")}</label>
+              <textarea id="doc-review-need" rows={2} value={reviewNeed} onChange={(e) => setReviewNeed(e.target.value)} placeholder={t("reviewNeedDefault")} />
+              <div className="docreview__btns">
+                <button className="btn btn--grad btn--sm" type="button" onClick={sendToLawyerReview} disabled={reviewBusy}>
+                  {reviewBusy ? t("processingShort") : t("reviewSubmit")}
+                </button>
+                <button className="rf__link rf__link--muted" type="button" onClick={() => setReviewOpen(false)} disabled={reviewBusy}>
+                  {t("reviewCancel")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn--line btn--sm" type="button" onClick={() => setReviewOpen(true)}>
+              <IconHeadset />
+              {t("reviewOpen")}
+            </button>
+          )}
           <div className="docoffer">
             <b>{t("offerTitle")}</b>
             <span>{t("offerLead")}</span>
@@ -600,6 +648,10 @@ export default function DocumentRequestPanel({
           {req.contractId ? <ContractSign contractId={req.contractId} /> : null}
         </div>
       ) : null}
+      {/* One stable slot, outside every stage block: a live advocate call
+          must survive the request flipping from "claimed" to "done". */}
+      {shown === "claimed" || shown === "done" ? <DocumentRequestChat requestId={req.id} /> : null}
+
       <DocTemplateViewer
         open={!!viewerFile}
         onClose={() => setViewerFile(null)}

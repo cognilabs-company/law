@@ -1615,6 +1615,77 @@ export async function requestServiceDocumentLawyer(
   return normDocRequest(d.request);
 }
 
+// ── Attachments on a lawyer request, and the two from-scratch flows ──
+// lexgo_frontend_doc_chat_update.md §1 and lexgo_frontend_custom_doc_flows.md.
+// All three are the same multipart shape and all three land in the same
+// call-center pool; only the URL and which file is mandatory differ.
+export type DocRequestAttachments = { files?: File[]; voiceFiles?: Blob[] };
+
+function docFlowForm(
+  input: { need: string; title?: string; language?: string; answers?: Record<string, unknown> } & DocRequestAttachments,
+): FormData {
+  const form = new FormData();
+  form.append("need", input.need);
+  if (input.title) form.append("title", input.title);
+  form.append("language", input.language || "uz");
+  if (input.answers) form.append("answers_json", JSON.stringify(input.answers));
+  for (const f of input.files || []) form.append("files", f, f.name);
+  // A recorded note is a Blob with no name of its own; the backend keys the
+  // format off the extension, so one has to be supplied.
+  for (const [i, v] of (input.voiceFiles || []).entries()) {
+    form.append("voice_files", v, v instanceof File ? v.name : `voice-${i + 1}.${voiceExt(v.type)}`);
+  }
+  return form;
+}
+// audio/webm;codecs=opus → "webm". Kept to the formats the backend lists.
+function voiceExt(mime: string): string {
+  const base = (mime || "").split(";")[0].trim().toLowerCase();
+  const map: Record<string, string> = {
+    "audio/webm": "webm",
+    "audio/ogg": "ogg",
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/mp4": "m4a",
+    "audio/x-m4a": "m4a",
+    "audio/aac": "m4a",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+  };
+  return map[base] || "webm";
+}
+
+// Same destination as requestServiceDocumentLawyer, but carrying the files
+// and voice notes the client recorded up front. Claiming the work turns each
+// of them into a chat message, so nothing has to be re-sent afterwards.
+export async function requestServiceDocumentLawyerWithFiles(
+  serviceId: string,
+  input: { need: string; title?: string; language?: string; answers?: Record<string, unknown> } & DocRequestAttachments,
+): Promise<DocumentRequest> {
+  const d = asDict(
+    await http(`/services/${serviceId}/document-lawyer/request-with-files`, { method: "POST", body: docFlowForm(input) }),
+  );
+  return normDocRequest(d.request ?? d.document_request ?? d);
+}
+// "0 dan hujjat yasash": no template at all — the advocate opens a blank DOCX
+// and writes the document from nothing.
+export async function requestCustomDraft(
+  input: { need: string; title?: string; language?: string } & DocRequestAttachments,
+): Promise<DocumentRequest> {
+  const d = asDict(await http("/document-services/custom-draft/request", { method: "POST", body: docFlowForm(input) }));
+  return normDocRequest(d.request ?? d.document_request ?? d);
+}
+// "Mavjud hujjatni advokatga tekshirtirish": the client's own document is the
+// main file. A DOCX opens directly in the editor; anything else (PDF, scan)
+// rides along as an attachment beside a blank editor.
+export async function requestExistingDocumentReview(
+  input: { need: string; mainFile: File; title?: string; language?: string } & DocRequestAttachments,
+): Promise<DocumentRequest> {
+  const form = docFlowForm(input);
+  form.append("main_file", input.mainFile, input.mainFile.name);
+  const d = asDict(await http("/document-services/review-existing/request", { method: "POST", body: form }));
+  return normDocRequest(d.request ?? d.document_request ?? d);
+}
+
 // ── Lawyer-side document-assist inbox (advokat/yurist/call-center) ────
 // Permission model (verified against the backend): NOT role-gated to
 // "lawyer" specifically — any authed user who owns the record, holds
@@ -1918,6 +1989,22 @@ export type DocumentRequestMeeting = {
   livekitRoom: string;
   livekitToken: string;
   provider: string;
+  // The same limit/extension block CallSession carries — the document
+  // meeting is where the 15-minute cap actually applies.
+  maxDurationMinutes: number;
+  autoEndAt: string;
+  remainingSeconds: number;
+  paused: boolean;
+  pauseExpiresAt: string;
+  pausedRemainingSeconds: number;
+  freeExtensionUsed: boolean;
+  freeExtensionAvailable: boolean;
+  freeExtensionMaxMinutes: number;
+  paidExtensionPricePerMinute: number;
+  pendingExtensionRequest: CallExtensionRequest | null;
+  documentRequestId: string;
+  documentLawyerRecordId: string;
+  clientCallUsage: CallUsage | null;
   // The workspace's Meeting tab shows a participants count, and a room that
   // needs a second person before it starts has to say so.
   participantCount: number;
@@ -1934,6 +2021,10 @@ function normDocRequestMeeting(v: unknown): DocumentRequestMeeting {
     provider: asStr(d.provider),
     participantCount: asNum(d.participant_count),
     minParticipantsRequired: Boolean(d.min_participants_required),
+    maxDurationMinutes: asNum(d.max_duration_minutes),
+    autoEndAt: asStr(d.auto_end_at),
+    remainingSeconds: asNum(d.remaining_seconds),
+    ...normCallLimits(d),
   };
 }
 export async function createDocumentRequestMeeting(
@@ -2173,6 +2264,37 @@ export async function getDocumentRequestFile(requestId: string): Promise<Blob> {
   return httpBlob(`/document-requests/${requestId}/file`);
 }
 
+// ── The client's side of a document request: chat and audio call ──
+// lexgo_frontend_doc_chat_update.md §3 and
+// LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md §"Client audio call".
+
+// Until a call-center advocate claims the work there is nobody to talk to,
+// which the backend reports as available:false rather than a 404.
+export type DocumentRequestChat = { available: boolean; roomId: string; messagesUrl: string; uploadUrl: string; wsUrl: string };
+export async function getDocumentRequestChat(requestId: string): Promise<DocumentRequestChat> {
+  const d = asDict(await http(`/document-requests/${requestId}/chat`));
+  const room = asDict(d.room);
+  return {
+    available: Boolean(d.available),
+    roomId: asStr(room.id ?? room.room_id ?? d.room_id),
+    messagesUrl: asStr(d.messages_url),
+    uploadUrl: asStr(d.upload_url),
+    wsUrl: asStr(d.ws_url),
+  };
+}
+// The client may ring their advocate up to three times per document request
+// ("limit: 3 marta"); the 4th attempt is a 429, which the caller must show
+// rather than retry.
+export async function startDocumentRequestAudioCall(requestId: string): Promise<CallSession> {
+  return normCall(await http(`/document-requests/${requestId}/calls/audio`, { method: "POST", body: "{}" }));
+}
+// "Konstruktor hujjatimni tekshirib bering" — a document the client filled in
+// themselves, handed to the same call-center pool for a lawyer to check.
+export async function requestDocumentLawyerReview(requestId: string, need: string): Promise<DocumentRequest> {
+  const d = asDict(await http(`/document-requests/${requestId}/lawyer-review`, { method: "POST", body: JSON.stringify({ need }) }));
+  return normDocRequest(d.request ?? d.document_request ?? d);
+}
+
 // ── Client's own document requests, across all 3 fill methods ─────
 // LEXGO_CLIENT_DOCUMENT_REQUESTS_PAGE_FRONTEND.md: one list — self-filled,
 // AI-drafted, lawyer-assisted — with a real status/next-step per item, so the
@@ -2301,6 +2423,11 @@ export async function addOrgMember(
 }
 
 // ── Secure chat ───────────────────────────────────────────────────
+// lexgo_frontend_doc_chat_update.md: a message is text, a file, or a voice
+// note. The file lives behind an authed endpoint, so meta.download_url is
+// fetched with the bearer token like every other file in this app — never
+// linked directly.
+export type SecureMessageFile = { fileName: string; mimeType: string; size: number; downloadUrl: string };
 export type SecureMessage = {
   id: string;
   senderId: string;
@@ -2308,9 +2435,17 @@ export type SecureMessage = {
   isBlocked: boolean;
   blockReason?: string;
   createdAt: string;
+  messageType: string; // "text" | "file" | "voice"
+  file: SecureMessageFile | null;
 };
 function normSecureMsg(v: unknown): SecureMessage {
   const d = asDict(v);
+  return { ...normSecureMsgCore(d), ...normSecureMsgFile(d) };
+}
+// Split out so the chat's WebSocket frames — which arrive as a raw payload,
+// not through http() — can be normalized by the very same code instead of a
+// hand-rolled copy that silently drops the attachment.
+export function normSecureMsgCore(d: Dict): Omit<SecureMessage, "messageType" | "file"> {
   return {
     id: asStr(d.id),
     senderId: asStr(d.sender_user_id ?? d.sender_id ?? d.senderId),
@@ -2318,6 +2453,15 @@ function normSecureMsg(v: unknown): SecureMessage {
     isBlocked: Boolean(d.is_blocked),
     blockReason: asStr(d.block_reason) || undefined,
     createdAt: asStr(d.created_at ?? d.createdAt),
+  };
+}
+export function normSecureMsgFile(d: Dict): Pick<SecureMessage, "messageType" | "file"> {
+  const meta = asDict(d.meta);
+  const name = asStr(meta.file_name);
+  const url = asStr(meta.download_url);
+  return {
+    messageType: asStr(d.message_type) || "text",
+    file: name || url ? { fileName: name, mimeType: asStr(meta.mime_type), size: asNum(meta.size), downloadUrl: url } : null,
   };
 }
 export type SecureRoom = {
@@ -2380,6 +2524,25 @@ export async function sendSecureMessage(roomId: string, content: string): Promis
       body: JSON.stringify({ message_type: "text", content, meta: {} }),
     }),
   );
+}
+// Attach a file or a voice note. Multipart goes straight through http() —
+// authedFetch leaves the Content-Type to FormData so the boundary survives —
+// which keeps the 401-refresh-and-replay the raw-fetch uploaders lose.
+export async function uploadSecureMessage(
+  roomId: string,
+  input: { file: File | Blob; messageType: "file" | "voice"; content?: string; fileName?: string },
+): Promise<SecureMessage> {
+  const form = new FormData();
+  const name = input.fileName || (input.file instanceof File ? input.file.name : input.messageType === "voice" ? "voice.webm" : "file");
+  form.append("file", input.file, name);
+  form.append("message_type", input.messageType);
+  if (input.content) form.append("content", input.content);
+  return normSecureMsg(await http(`/secure-chats/${roomId}/messages/upload`, { method: "POST", body: form }));
+}
+// "Shu endpointni faqat room ishtirokchilari ishlata oladi" — so the file is
+// fetched with the session's bearer token, never opened as a bare link.
+export async function getSecureMessageFile(roomId: string, messageId: string): Promise<Blob> {
+  return httpBlob(`/secure-chats/${roomId}/messages/${messageId}/file`);
 }
 export function secureSocketUrl(roomId: string, token?: string | null): string {
   const q = token ? `?token=${encodeURIComponent(token)}` : "";
@@ -5080,7 +5243,29 @@ export type CallSession = {
   autoEndAt: string;
   remainingSeconds: number;
   permissions: CallPermissions;
+  // LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md: a document meeting runs 15
+  // minutes by default. The host may extend it once for free (3 min), after
+  // which extra minutes are billed — and while that payment is being
+  // approved over Telegram the call is PAUSED rather than ended.
+  paused: boolean;
+  pauseExpiresAt: string;
+  pausedRemainingSeconds: number;
+  freeExtensionUsed: boolean;
+  freeExtensionAvailable: boolean;
+  freeExtensionMaxMinutes: number;
+  paidExtensionPricePerMinute: number;
+  pendingExtensionRequest: CallExtensionRequest | null;
+  // Set when the call belongs to a document request, so the room can show
+  // the document context and the client's remaining call allowance.
+  documentRequestId: string;
+  documentLawyerRecordId: string;
+  clientCallUsage: CallUsage | null;
 };
+// A paid extension waiting on the client's Telegram approve/reject.
+export type CallExtensionRequest = { id: string; minutes: number; amount: number; status: string; expiresAt: string };
+// "Client hujjat ishi yakunlanmaguncha advokatga 3 martagacha ... call
+// boshlashi mumkin" — the 4th attempt is a 429.
+export type CallUsage = { used: number; limit: number; remaining: number };
 export type CallPermissions = { canInvite: boolean; canMute: boolean; canKick: boolean; canEnd: boolean };
 export type CallParticipant = {
   userId: string;
@@ -5139,6 +5324,33 @@ function normCall(v: unknown): CallSession {
       const p = asDict(d.permissions);
       return { canInvite: Boolean(p.can_invite), canMute: Boolean(p.can_mute), canKick: Boolean(p.can_kick), canEnd: Boolean(p.can_end) };
     })(),
+    ...normCallLimits(d),
+  };
+}
+// The meeting-limit half of CallSessionOut, shared by normCall and the
+// document meeting below so both surfaces get a working timer.
+function normCallLimits(d: Dict): Pick<
+  CallSession,
+  "paused" | "pauseExpiresAt" | "pausedRemainingSeconds" | "freeExtensionUsed" | "freeExtensionAvailable" | "freeExtensionMaxMinutes" | "paidExtensionPricePerMinute" | "pendingExtensionRequest" | "documentRequestId" | "documentLawyerRecordId" | "clientCallUsage"
+> {
+  const pend = d.pending_extension_request ? asDict(d.pending_extension_request) : null;
+  const usage = d.client_call_usage ? asDict(d.client_call_usage) : null;
+  return {
+    paused: Boolean(d.paused),
+    pauseExpiresAt: asStr(d.pause_expires_at),
+    pausedRemainingSeconds: asNum(d.paused_remaining_seconds),
+    freeExtensionUsed: Boolean(d.free_extension_used),
+    // Absent means "not offered", not "offered" — an optimistic default
+    // would put a free-extend button on every staff call that has none.
+    freeExtensionAvailable: Boolean(d.free_extension_available),
+    freeExtensionMaxMinutes: asNum(d.free_extension_max_minutes),
+    paidExtensionPricePerMinute: asNum(d.paid_extension_price_per_minute),
+    pendingExtensionRequest: pend
+      ? { id: asStr(pend.id), minutes: asNum(pend.minutes), amount: asNum(pend.amount), status: asStr(pend.status), expiresAt: asStr(pend.expires_at) }
+      : null,
+    documentRequestId: asStr(d.document_request_id),
+    documentLawyerRecordId: asStr(d.document_lawyer_record_id),
+    clientCallUsage: usage ? { used: asNum(usage.used), limit: asNum(usage.limit), remaining: asNum(usage.remaining) } : null,
   };
 }
 // Client/seller fetch their own LiveKit token to join an existing call.
@@ -5322,6 +5534,24 @@ export async function setCallRecordingPermission(roomId: string, callId: string,
 }
 export async function startCallRecordingServer(roomId: string, callId: string): Promise<CallRecordingState> {
   return normRecordingState(await http(`/secure-chats/${roomId}/calls/${callId}/recording/start`, { method: "POST", body: "{}" }));
+}
+
+// ── Meeting time limits and extensions ────────────────────────────
+// LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md. A document meeting starts at
+// 15 minutes; the host advocate may extend it once for free, then only by
+// having the client pay per minute over Telegram.
+
+// "Faqat 1 marta ishlaydi. Ikkinchi marta 409 qaytadi."
+export async function freeExtendCall(roomId: string, callId: string, minutes = 3): Promise<CallSession> {
+  return normCall(await http(`/secure-chats/${roomId}/calls/${callId}/free-extend`, { method: "POST", body: JSON.stringify({ minutes }) }));
+}
+// Puts the call into `paused` until the client approves or rejects in
+// Telegram; the pause itself expires after 5 minutes and the call then runs
+// out its remaining time as if nothing had been asked.
+export async function requestCallExtensionPayment(roomId: string, callId: string, minutes: number): Promise<CallSession> {
+  return normCall(
+    await http(`/secure-chats/${roomId}/calls/${callId}/extension-payment-request`, { method: "POST", body: JSON.stringify({ minutes }) }),
+  );
 }
 
 // Meetings the current user was invited to — lets the invitee discover a call

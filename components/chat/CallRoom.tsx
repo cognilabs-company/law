@@ -28,10 +28,15 @@ import {
   requestCallRecording,
   setCallRecordingPermission,
   startCallRecordingServer,
+  freeExtendCall,
+  requestCallExtensionPayment,
   type LiveKitJoin,
+  type CallSession,
   type CallParticipant,
   type CallPermissions,
 } from "@/lib/services/backend";
+import { ApiError } from "@/lib/http";
+import { fmtUzs } from "@/lib/money";
 import { getToken } from "@/lib/client";
 import { subscribeRoomCallEvents } from "@/lib/callEvents";
 import { backoffMs, refreshAccessToken } from "@/lib/http";
@@ -42,7 +47,7 @@ import SearchSelect from "@/components/SearchSelect";
 import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, primeCallAudio } from "@/lib/callSounds";
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
-import { IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus } from "../icons";
+import { IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock } from "../icons";
 
 type Props = {
   roomId: string;
@@ -58,6 +63,12 @@ type Props = {
   // resizable and minimizable, so the advocate keeps working on the document
   // while talking to the client instead of the call covering the workspace.
   float?: boolean;
+  // "Nobody else is here" ends the call after a short grace period —
+  // except for a host who may still invite people into a titled meeting.
+  // That used to be inferred from `title`, which a plain one-to-one call
+  // also passes just to label its header, leaving the caller stuck in an
+  // empty room after the other side hung up.
+  keepAlone?: boolean;
   onEnd: () => void;
 };
 
@@ -85,6 +96,28 @@ const roleOf = (p: Participant): string => {
   try { return String((JSON.parse(p.metadata || "{}") as { role?: unknown }).role ?? ""); } catch { return ""; }
 };
 
+// The meeting-limit slice of a call, kept as its own object so the room can
+// re-read it wholesale on every poll without re-rendering on unrelated
+// roster churn.
+type CallLimits = Pick<
+  CallSession,
+  "paused" | "pauseExpiresAt" | "pausedRemainingSeconds" | "freeExtensionUsed" | "freeExtensionAvailable" | "freeExtensionMaxMinutes" | "paidExtensionPricePerMinute" | "pendingExtensionRequest" | "maxDurationMinutes" | "clientCallUsage"
+>;
+function callLimitsOf(c: CallSession): CallLimits {
+  return {
+    paused: c.paused,
+    pauseExpiresAt: c.pauseExpiresAt,
+    pausedRemainingSeconds: c.pausedRemainingSeconds,
+    freeExtensionUsed: c.freeExtensionUsed,
+    freeExtensionAvailable: c.freeExtensionAvailable,
+    freeExtensionMaxMinutes: c.freeExtensionMaxMinutes,
+    paidExtensionPricePerMinute: c.paidExtensionPricePerMinute,
+    pendingExtensionRequest: c.pendingExtensionRequest,
+    maxDurationMinutes: c.maxDurationMinutes,
+    clientCallUsage: c.clientCallUsage,
+  };
+}
+
 // Whether a CallRoom is on screen (any page). IncomingCallWatcher uses it so a
 // meeting resumed by a launcher isn't offered a second time by its own card;
 // mounting also fires a "lexgo:callroom" window event.
@@ -96,7 +129,7 @@ export const CALLROOM_EVENT = "lexgo:callroom";
 // backend). Everything stays inside LexGo: a tile per participant with name,
 // mic state and speaking ring, screen share on a stage, in-call chat over the
 // LiveKit data channel, and host controls from the backend roster.
-export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, float, onEnd }: Props) {
+export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, float, keepAlone: keepAloneProp, onEnd }: Props) {
   const t = useTranslations("call");
   const { session } = useAuth();
   const roomRef = useRef<Room | null>(null);
@@ -119,6 +152,22 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [remaining, setRemaining] = useState<number | null>(null);
+  // LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md — a document meeting runs 15
+  // minutes. The host extends it once for free, then only by having the
+  // client pay per minute, and the call is PAUSED (not ended) while that
+  // payment is waiting on a Telegram approve/reject.
+  const [limits, setLimits] = useState<CallLimits | null>(null);
+  const [extBusy, setExtBusy] = useState(false);
+  const [extErr, setExtErr] = useState("");
+  const [extOpen, setExtOpen] = useState(false);
+  const [extMinutes, setExtMinutes] = useState(10);
+  const paused = !!limits?.paused;
+  // Read by the connect effect, which runs long before the pause effect and
+  // must not publish into a call that is already paused.
+  const pausedRef = useRef(paused);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [hostMuted, setHostMuted] = useState(false); // muted by host → can't self-unmute
   const [roster, setRoster] = useState<CallParticipant[]>([]);
@@ -194,7 +243,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // then this side ends too — unless I host a titled meeting and may invite more.
   const hadRemoteRef = useRef(false);
   const [emptyLeft, setEmptyLeft] = useState<number | null>(null);
-  const keepAlone = isCaller && !!title;
+  const keepAlone = isCaller && !!keepAloneProp;
   // Call signalling socket (join/leave/end relayed to the other participants).
   const callWsRef = useRef<WebSocket | null>(null);
   const inviteSearchRef = useRef<InviteSearch | null>(null);
@@ -380,9 +429,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         // working audio call instead of erroring out.
         if (!publishedRef.current) {
           publishedRef.current = true;
-          try { await room.localParticipant.setMicrophoneEnabled(true); } catch { /* mic denied */ }
-          if (callType === "video") {
-            try { await room.localParticipant.setCameraEnabled(true); } catch { if (alive) setCamOn(false); }
+          // A call that was already paused when this side connected must not
+          // publish: the pause effect only fires on a CHANGE of `paused`, and
+          // the first getCall can easily land before the LiveKit connect.
+          if (pausedRef.current) {
+            try { await room.localParticipant.setMicrophoneEnabled(false); } catch { /* nothing published yet */ }
+            try { await room.localParticipant.setCameraEnabled(false); } catch { /* nothing published yet */ }
+            if (alive) { setMicOn(false); setCamOn(false); }
+          } else {
+            try { await room.localParticipant.setMicrophoneEnabled(true); } catch { /* mic denied */ }
+            if (callType === "video") {
+              try { await room.localParticipant.setCameraEnabled(true); } catch { if (alive) setCamOn(false); }
+            }
           }
         }
         // Kick off audio playback; if the browser blocks it, show a prompt.
@@ -517,7 +575,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           if (c.status && ["ended", "cancelled", "expired"].includes(c.status)) { onEndRef.current?.(); return; }
           setRoster(c.participants);
           setPerms(c.permissions);
-          if (c.remainingSeconds > 0) setRemaining(c.remainingSeconds);
+          setLimits(callLimitsOf(c));
+          // A paused call freezes at pausedRemainingSeconds; an extension
+          // RAISES the remaining time, so a server value that moved in
+          // either direction has to be taken, not only a bigger one.
+          const left = c.paused && c.pausedRemainingSeconds > 0 ? c.pausedRemainingSeconds : c.remainingSeconds;
+          if (left > 0 || c.maxDurationMinutes > 0) setRemaining(left);
         })
         .catch(() => {});
     load();
@@ -532,12 +595,62 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     const iv = setInterval(load, 15000);
     return () => { alive = false; clearInterval(iv); unsub(); };
   }, [roomId, callId, metaTick]);
+  // Deliberately keyed on the two booleans, not on `remaining` itself: a
+  // dependency on the number would tear down and rebuild the interval every
+  // single second. While paused the clock stops — the backend is not
+  // counting that time against the meeting either.
   useEffect(() => {
-    if (remaining == null) return;
+    if (remaining == null || paused) return;
     const iv = setInterval(() => setRemaining((s) => (s != null && s > 0 ? s - 1 : s)), 1000);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remaining == null]);
+  }, [remaining == null, paused]);
+
+  // The pause itself expires after 5 minutes; when it does the call simply
+  // resumes with whatever time was left, so re-read it rather than waiting
+  // out the 15s poll.
+  useEffect(() => {
+    const until = limits?.pauseExpiresAt ? Date.parse(limits.pauseExpiresAt) : 0;
+    if (!paused || !until) return;
+    // Always through a timer, never straight from the effect body: an
+    // already-expired pause still has to refetch, just on the next tick.
+    const ms = Math.max(0, until - Date.now());
+    const h = setTimeout(() => setMetaTick((n) => n + 1), Math.min(ms + 1000, 5 * 60_000));
+    return () => clearTimeout(h);
+  }, [paused, limits?.pauseExpiresAt]);
+
+  // "paused=true bo'lsa LiveKit join/publishni vaqtincha bloklang" — done by
+  // muting the published tracks, never by disconnecting: the backend treats
+  // repeated connect/publish cycles as a negotiation loop (see the note at
+  // the top of this file).
+  const wasPaused = useRef(false);
+  // What was published when the pause began, read off LiveKit itself so it
+  // survives however the tracks got into that state. Resuming restores THIS,
+  // never a blanket "mic on" — someone who muted themselves before the pause
+  // must not be put back on air by a payment being approved.
+  const prePause = useRef({ mic: false, cam: false });
+  const hostMutedRef = useRef(hostMuted);
+  useEffect(() => {
+    hostMutedRef.current = hostMuted;
+  }, [hostMuted]);
+  useEffect(() => {
+    const lp = roomRef.current?.localParticipant;
+    if (!lp) return;
+    // The state follows the track, not the other way round — LiveKit's
+    // promise resolving is what makes the button reflect reality, and it
+    // keeps these out of the effect body.
+    if (paused) {
+      if (!wasPaused.current) prePause.current = { mic: lp.isMicrophoneEnabled, cam: lp.isCameraEnabled };
+      wasPaused.current = true;
+      void lp.setMicrophoneEnabled(false).then(() => setMicOn(false)).catch(() => {});
+      void lp.setCameraEnabled(false).then(() => setCamOn(false)).catch(() => {});
+    } else if (wasPaused.current) {
+      wasPaused.current = false;
+      const { mic, cam } = prePause.current;
+      if (mic && !hostMutedRef.current) void lp.setMicrophoneEnabled(true).then(() => setMicOn(true)).catch(() => {});
+      if (cam) void lp.setCameraEnabled(true).then(() => setCamOn(true)).catch(() => {});
+    }
+  }, [paused]);
 
   // Self-enforce host actions: the backend only records status/mic on the
   // participant, it doesn't evict/mute at the LiveKit layer — so each client
@@ -598,7 +711,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           return;
         }
         if (type.includes("auto_ended") || type === "call.end") { onEndRef.current?.(); return; }
-        if (/^(participant|media)\./.test(type) || type === "call.join" || type === "call.leave") {
+        if (/^(participant|media)\./.test(type) || /^call[.](join|leave|extended|payment_extension_)/.test(type)) {
           setMetaTick((n) => n + 1);
         }
       };
@@ -725,6 +838,46 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // The backend broadcasts the outcome to the whole room (call.recording_
   // permission_updated) — the requester's own toast/local-recording-start
   // happens there, not here.
+  // ── Meeting extensions ─────────────────────────────────────────
+  // Both are host-only on the backend; the buttons are gated on the same
+  // permission the end-call button uses, so a participant never sees a
+  // control that would 403.
+  async function extendFree() {
+    if (extBusy) return;
+    setExtBusy(true);
+    setExtErr("");
+    try {
+      const c = await freeExtendCall(roomId, callId, limits?.freeExtensionMaxMinutes || 3);
+      setLimits(callLimitsOf(c));
+      if (c.remainingSeconds > 0) setRemaining(c.remainingSeconds);
+      toast(t("extendedFree"), "info");
+    } catch (e) {
+      // Through the toast, not setExtErr: that message only ever renders
+      // inside the paid dialog, which this button never opens. And only a
+      // real 409 ("faqat 1 marta ishlaydi") means the free extension is
+      // spent — a network blip must not take the button away.
+      const used = e instanceof ApiError && e.status === 409;
+      toast(used ? t("extendFreeUsed") : t("extendError"), "leave");
+      if (used) setLimits((l) => (l ? { ...l, freeExtensionAvailable: false, freeExtensionUsed: true } : l));
+    } finally {
+      setExtBusy(false);
+    }
+  }
+  async function extendPaid() {
+    if (extBusy || extMinutes < 1) return;
+    setExtBusy(true);
+    setExtErr("");
+    try {
+      const c = await requestCallExtensionPayment(roomId, callId, extMinutes);
+      setLimits(callLimitsOf(c));
+      setExtOpen(false);
+    } catch {
+      setExtErr(t("extendError"));
+    } finally {
+      setExtBusy(false);
+    }
+  }
+
   async function answerRecAsk(id: string, ok: boolean) {
     setRecAsks((a) => a.filter((x) => x.id !== id));
     try {
@@ -884,6 +1037,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     ? `${t("recording", { time: mmss(recSec) })}${recByNames.length ? ` · ${recByNames.join(", ")}` : ""}`
     : t("recordingBy", { name: recByNames.join(", ") || t("someone") });
   const isRecording = (p: Participant) => (p.isLocal ? recOn : recBy.has(p.identity));
+  // Only the host of a time-limited meeting can extend it.
+  const canExtend = !!perms?.canEnd && !!limits && limits.maxDurationMinutes > 0;
 
   return (
     <div
@@ -919,7 +1074,11 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         </div>
         <div className="mtg__timer">
           <span className="mtg__rec"><i />{mmss(elapsed)}</span>
-          {remaining != null ? <span className="mtg__left">{t("remaining")}: {mmss(remaining)}</span> : null}
+          {remaining != null ? (
+            <span className={`mtg__left${paused ? " mtg__left--paused" : remaining <= 120 ? " mtg__left--low" : ""}`}>
+              {paused ? t("paused") : `${t("remaining")}: ${mmss(remaining)}`}
+            </span>
+          ) : null}
         </div>
         <div className="mtg__tools">
           <button type="button" className={`mtg__tool${view === "grid" ? " on" : ""}`} onClick={() => setView("grid")} aria-label={t("layoutGrid")} title={t("layoutGrid")}><IconGrid /></button>
@@ -1015,6 +1174,45 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               </div>
             </div>
           ) : null}
+          {/* "To'lov javobi kutilmoqda" — the call is frozen, not ended, and
+              it resumes by itself if nobody answers within five minutes. */}
+          {paused ? (
+            <div className="mtg__pause" role="status">
+              <b><IconClock />{t("pausedTitle")}</b>
+              <span>
+                {limits?.pendingExtensionRequest
+                  ? t("pausedLead", { minutes: limits.pendingExtensionRequest.minutes, amount: fmtUzs(limits.pendingExtensionRequest.amount) })
+                  : t("pausedLeadPlain")}
+              </span>
+              <small>{t("pausedExpiry")}</small>
+            </div>
+          ) : null}
+          {/* Host only: buy more minutes for this meeting. Never while
+              paused — the pause IS an extension request awaiting an answer,
+              and the two cards would otherwise sit on top of each other. */}
+          {extOpen && !paused ? (
+            <div className="mtg__ext" role="dialog" aria-label={t("extendPaid")}>
+              <b>{t("extendPaid")}</b>
+              <span>{t("extendPrice", { price: fmtUzs(limits?.paidExtensionPricePerMinute || 2000) })}</span>
+              <div className="mtg__ext-mins">
+                {[5, 10, 15, 30].map((m) => (
+                  <button key={m} type="button" className={extMinutes === m ? "on" : ""} onClick={() => setExtMinutes(m)}>
+                    {t("minutesN", { n: m })}
+                  </button>
+                ))}
+              </div>
+              <b className="mtg__ext-total">{t("extendTotal", { amount: fmtUzs(extMinutes * (limits?.paidExtensionPricePerMinute || 2000)) })}</b>
+              {extErr ? <span className="mtg__ext-err" role="alert">{extErr}</span> : null}
+              <div className="mtg__recask-btns">
+                <button type="button" className="btn btn--pri btn--sm" onClick={() => void extendPaid()} disabled={extBusy}>
+                  {extBusy ? t("extendSending") : t("extendAsk")}
+                </button>
+                <button type="button" className="btn btn--line btn--sm" onClick={() => setExtOpen(false)} disabled={extBusy}>
+                  <IconClose />{t("close")}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </main>
 
         {panel ? (
@@ -1102,6 +1300,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             <span className="mtg__grip" />
             <button type="button" onClick={() => { setMore(false); openPanel("chat"); }}><IconChat />{t("chatTab")}{unread ? <i className="mtg__cb">{unread > 9 ? "9+" : unread}</i> : null}</button>
             <button type="button" onClick={() => { setMore(false); openPanel("people"); }}><IconUsers />{t("rosterTitle")} · {count}</button>
+            {canExtend ? (
+              <button type="button" onClick={() => { setMore(false); setExtErr(""); setExtOpen(true); }} disabled={paused}><IconClock />{t("extendPaidShort")}</button>
+            ) : null}
             {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }}><IconMic />{recOn ? t("recStop", { mode: t(recMode === "screen" ? "recModeScreen" : "recModeAudio") }) : recReq ? t("recWaitingShort") : t("recStart")}</button> : null}
             <button type="button" onClick={() => { setMore(false); setView(view === "grid" ? "speaker" : "grid"); }}>{view === "grid" ? <IconUser /> : <IconGrid />}{view === "grid" ? t("layoutSpeaker") : t("layoutGrid")}</button>
           </div>
@@ -1117,6 +1318,15 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         {canRecord() ? <Ctl on={recOn || !!recReq} label={recOn ? t("recStopShort") : recReq ? t("recWaitingShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} disabled={!!recReq} desktop><IconMic /></Ctl> : null}
         <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")} desktop><IconUsers /></Ctl>
         <Ctl on={panel === "chat"} label={t("chatTab")} onClick={() => openPanel(panel === "chat" ? "" : "chat")} badge={unread} desktop><IconChat /></Ctl>
+        {/* Extensions are host-only server-side, and only offered at all on
+            a call that actually has a time limit — a staff meeting with no
+            max duration gets neither button. */}
+        {canExtend && limits?.freeExtensionAvailable && !limits.freeExtensionUsed ? (
+          <Ctl label={t("extendFree", { n: limits.freeExtensionMaxMinutes || 3 })} onClick={() => void extendFree()} disabled={extBusy || paused}><IconPlus /></Ctl>
+        ) : null}
+        {/* NOT desktop-only while floating: .mtg--float hides .mtg__ctl--desktop,
+            and the floating panel is exactly where the document meeting runs. */}
+        {canExtend ? <Ctl on={extOpen} label={t("extendPaidShort")} onClick={() => { setExtErr(""); setExtOpen((v) => !v); }} disabled={extBusy || paused} desktop={!float}><IconClock /></Ctl> : null}
         <Ctl label={t("more")} onClick={() => setMore((m) => !m)} badge={unread} phone><IconGrid /></Ctl>
         <Ctl end label={isCaller ? t("endAll") : t("end")} onClick={hangUp}><IconClose /></Ctl>
       </footer>

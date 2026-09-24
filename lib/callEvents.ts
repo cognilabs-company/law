@@ -21,6 +21,14 @@ export const CALL_EVENTS = new Set([
   "call.recording_requested",
   "call.recording_permission_updated",
   "call.recording_started",
+  // 2026-09-24 backend (LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md): the
+  // 15-minute document meeting and its extensions. A name missing from this
+  // set is dropped by SecureChat's socket handler before it ever reaches the
+  // room, so the call would silently keep counting down through a pause.
+  "call.payment_extension_requested",
+  "call.payment_extension_approved",
+  "call.payment_extension_rejected",
+  "call.extended",
 ]);
 
 export function isCallEvent(name: unknown): name is string {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   requestServiceDocumentLawyer,
+  requestServiceDocumentLawyerWithFiles,
   getServiceTemplateSourceFile,
   type DocLawyerFlow,
   type DocumentRequest,
@@ -14,11 +15,13 @@ import { Notice } from "@/components/admin/AdminBits";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocTemplateViewer from "./DocTemplateViewer";
 import ManualDocPlanGate from "./ManualDocPlanGate";
+import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
 import Select from "@/components/Select";
 import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock } from "@/components/icons";
 
 const LANGS = ["uz", "ru", "en"] as const;
 type LangCode = (typeof LANGS)[number];
+type LawyerRequestBody = { need: string; answers: Record<string, unknown>; language: string };
 
 // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: the old per-service
 // advocate picker is gone — the client never chooses who handles this, and
@@ -39,7 +42,10 @@ export default function DocumentLawyerAssist({
   onBack: () => void;
 }) {
   const t = useTranslations("portal.client.documents");
+  const tn = useTranslations("portal.client.newDoc");
   const locale = useLocale();
+  // request-with-files is service-scoped, unlike lawyerFlow.requestUrl.
+  const serviceId = sourceFile?.serviceId || "";
   const [need, setNeed] = useState("");
   // MD2 §"Request form" lists four fields: the request text, an OPTIONAL
   // extra note, a language select defaulting to uz, and submit. "Optional"
@@ -47,6 +53,11 @@ export default function DocumentLawyerAssist({
   // renders it.
   const [note, setNote] = useState("");
   const [lang, setLang] = useState<LangCode>(LANGS.includes(locale as LangCode) ? (locale as LangCode) : "uz");
+  // lexgo_frontend_doc_chat_update.md §1: the client can hand over documents
+  // and voice notes with the request itself. They become chat messages the
+  // moment an advocate claims the work, so nothing is re-sent later.
+  const [files, setFiles] = useState<File[]>([]);
+  const [voices, setVoices] = useState<VoiceNoteItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [result, setResult] = useState<DocumentRequest | null>(null);
@@ -63,7 +74,15 @@ export default function DocumentLawyerAssist({
     setBusy(true);
     setErr("");
     try {
-      const r = await requestServiceDocumentLawyer(lawyerFlow.requestUrl, {
+      // The multipart endpoint is used only when there is something to
+      // attach: the plain JSON one is the long-proven path, and keeping it
+      // for the empty case leaves a service whose backend predates
+      // request-with-files working exactly as it did.
+      const send =
+        (files.length || voices.length) && serviceId
+          ? (b: LawyerRequestBody) => requestServiceDocumentLawyerWithFiles(serviceId, { ...b, files, voiceFiles: voices.map((v) => v.blob) })
+          : (b: LawyerRequestBody) => requestServiceDocumentLawyer(lawyerFlow.requestUrl, b);
+      const r = await send({
         need: note.trim() ? `${need.trim()}\n\n${t("lawyerNoteLabel")}: ${note.trim()}` : need.trim(),
         answers: {},
         language: lang,
@@ -145,10 +164,15 @@ export default function DocumentLawyerAssist({
             </button>
           ) : null}
         </div>
-        <textarea id="lawyer-need" rows={4} value={need} onChange={(e) => setNeed(e.target.value)} placeholder={t("lawyerNeedPlaceholder")} />
+        {/* lexgo_frontend_doc_chat_update.md §1 prescribes this placeholder
+            verbatim for the request-with-files form. */}
+        <textarea id="lawyer-need" rows={4} value={need} onChange={(e) => setNeed(e.target.value)} placeholder={tn("needPlaceholder")} />
 
         <label htmlFor="lawyer-note" style={{ marginTop: 10 }}>{t("lawyerNoteLabel")}</label>
         <textarea id="lawyer-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("lawyerNotePlaceholder")} />
+
+        <label style={{ marginTop: 10 }}>{tn("extrasLabel")}</label>
+        <AttachmentPicker files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onError={setErr} />
 
         <label style={{ marginTop: 10 }}>{t("langLabel")}</label>
         <Select

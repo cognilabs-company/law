@@ -29,6 +29,7 @@ import { fetchAndDeliver, extFromMime } from "@/lib/download";
 import OrderPayment from "@/components/portal/OrderPayment";
 import ServicePassport from "@/components/portal/ServicePassport";
 import ServiceDocumentRequest from "@/components/portal/ServiceDocumentRequest";
+import NewDocumentOrder from "@/components/portal/NewDocumentOrder";
 import ManualDocPlanGate from "@/components/portal/ManualDocPlanGate";
 import AiPlanUpgradeGate from "@/components/portal/AiPlanUpgradeGate";
 import { useResource, useResourceOne } from "@/lib/useResource";
@@ -62,6 +63,7 @@ import {
   IconLock,
   IconEye,
   IconEdit,
+  IconPlus,
 } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
@@ -119,6 +121,9 @@ function subcategoryImage(name: string): string | null {
 }
 
 type Sort = "match" | "rating" | "exp" | "price";
+// Catalog filters — see the `shown` memo for what each one selects on.
+type DocFilter = "all" | "template" | "lawyer";
+type PriceFilter = "all" | "free" | "quote" | "paid";
 
 export default function ClientServices() {
   const t = useTranslations("portal.client.services");
@@ -277,6 +282,19 @@ export default function ClientServices() {
   // document-template service (normally that branch is skipped in favor of
   // the self-fill flow) — set only by that button, reset with the modal.
   const [forceAdvocate, setForceAdvocate] = useState(false);
+  // Two filters the catalog can actually answer from what it returns: does
+  // this service come with a ready document, and what does it cost. Anything
+  // richer (region, executor type) is backend metadata the client has no way
+  // to reason about.
+  const [docFilter, setDocFilter] = useState<DocFilter>("all");
+  const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
+  const [newDocOpen, setNewDocOpen] = useState(false);
+  // "Advokatga yo'llash" on a card that HAS a document template is the same
+  // journey as choosing "Advokat bilan tayyorlash" inside the fill screen —
+  // one request into the call-center pool, no advocate picked by the client.
+  // For a service with no template there is nothing to prepare, so that
+  // button keeps meaning "order this service from an advocate".
+  const [docLawyer, setDocLawyer] = useState(false);
 
   // Plan-gated template download: Free sees the document but must upgrade to
   // download it, Lite/Pro download freely (GM).
@@ -394,6 +412,26 @@ export default function ClientServices() {
     // MD's recommended sort: services inside a subcategory alphabetically by title.
     return catServices.filter((s) => (s.subcategory || NO_SUBCAT) === subcat).sort((a, b) => a.name.localeCompare(b.name, locale));
   }, [cat, subcat, query, remote, narrowed, offeredBy, catServices, locale]);
+
+  // Applied after `list` rather than inside it so the filters work the same
+  // in search results and inside a subcategory, and so clearing them never
+  // has to re-run the catalog fetch.
+  const shown = useMemo(() => {
+    const byDoc = (s: BackendService) =>
+      docFilter === "all" ? true : docFilter === "template" ? !!s.documentTemplateId : !s.documentTemplateId;
+    const byPrice = (s: BackendService) =>
+      priceFilter === "all"
+        ? true
+        : priceFilter === "paid"
+          ? !!s.price
+          : priceFilter === "free"
+            ? // An explicit 0, or the backend's own free tier — NOT merely a
+              // price the catalog has not set, which is the quote case below.
+              s.price === 0 || s.pricingTier === "free"
+            : !s.price && s.pricingTier !== "free";
+    return list.filter((s) => byDoc(s) && byPrice(s));
+  }, [list, docFilter, priceFilter]);
+  const filtersOn = docFilter !== "all" || priceFilter !== "all";
 
   // Deep link from the AI offer cards (?service=<id>) opens that service's order
   // modal once the catalog is loaded; a service outside the catalog list is
@@ -605,8 +643,25 @@ export default function ClientServices() {
       <div className="ppanel">
         <div className="ppanel__h">
           <b>{showFamilies ? t("chooseFamily") : showSubcats ? catName : query ? t("title") : subcat || catName}</b>
-          <span className="advmuted">{showFamilies ? famList.length : showSubcats ? subcatList.length : list.length}</span>
+          <span className="ppanel__hact">
+            <span className="advmuted">{showFamilies ? famList.length : showSubcats ? subcatList.length : shown.length}</span>
+            {/* Nothing in the catalog fits every case — this is the way out
+                of it: an advocate writes the document from scratch, or
+                checks one the client already has. */}
+            <button type="button" className="btn btn--grad btn--sm" onClick={() => setNewDocOpen(true)}>
+              <IconPlus />
+              {t("newDocOrder")}
+            </button>
+          </span>
         </div>
+
+        {/* Reading any document in the catalog costs nothing — the charge is
+            for filling one in, and saying so up front is what gets people to
+            open one at all. */}
+        <p className="svfree" role="status">
+          <IconEye />
+          {t("freeToView")}
+        </p>
 
         <div className="svsel__bar" style={{ marginBottom: 14 }}>
           <span className="svsel__search">
@@ -614,6 +669,36 @@ export default function ClientServices() {
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
           </span>
         </div>
+
+        {!showFamilies && !showSubcats ? (
+          <div className="svfilters">
+            <span className="svfilters__g">
+              <small>{t("filterDoc")}</small>
+              <span className="chiprow">
+                {(["all", "template", "lawyer"] as DocFilter[]).map((v) => (
+                  <button key={v} type="button" className="fchip" aria-pressed={docFilter === v} onClick={() => setDocFilter(v)}>
+                    {t(v === "all" ? "filterAll" : v === "template" ? "filterHasDoc" : "filterNoDoc")}
+                  </button>
+                ))}
+              </span>
+            </span>
+            <span className="svfilters__g">
+              <small>{t("filterPrice")}</small>
+              <span className="chiprow">
+                {(["all", "free", "quote", "paid"] as PriceFilter[]).map((v) => (
+                  <button key={v} type="button" className="fchip" aria-pressed={priceFilter === v} onClick={() => setPriceFilter(v)}>
+                    {t(v === "all" ? "filterAll" : v === "free" ? "filterFree" : v === "quote" ? "filterQuote" : "filterPaid")}
+                  </button>
+                ))}
+              </span>
+            </span>
+            {filtersOn ? (
+              <button type="button" className="rf__link rf__link--muted" onClick={() => { setDocFilter("all"); setPriceFilter("all"); }}>
+                {t("filterClear")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         {!showFamilies && !query ? (
           <button type="button" className="mkt__back" onClick={() => (subcat ? setSubcat("") : setCat(""))}>
@@ -689,11 +774,11 @@ export default function ClientServices() {
               })}
             </div>
           )
-        ) : !list.length ? (
+        ) : !shown.length ? (
           <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
         ) : (
           <div className="svsel__grid svsel__grid--svc">
-            {list.map((s, i) => {
+            {shown.map((s, i) => {
               const hasDoc = !!s.documentTemplateId;
               return (
                 <div key={s.id} className="svc" style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}>
@@ -718,7 +803,11 @@ export default function ClientServices() {
                     <button
                       type="button"
                       className="svc__act svc__act--adv"
-                      onClick={() => { setOrder(s); setForceAdvocate(true); }}
+                      onClick={() => {
+                        setOrder(s);
+                        setDocLawyer(hasDoc);
+                        setForceAdvocate(!hasDoc);
+                      }}
                     >
                       <IconUsers />
                       {t("sendToLawyer")}
@@ -752,9 +841,15 @@ export default function ClientServices() {
         )}
       </div>
 
-      <Modal open={!!order} onClose={() => { setOrder(null); setPayOrderId(null); }} title={order?.name || t("orderTitle")} wide={!orderAsAdvocate}>
+      <Modal open={newDocOpen} onClose={() => setNewDocOpen(false)} title={t("newDocOrder")} wide>
+        <NewDocumentOrder onClose={() => setNewDocOpen(false)} />
+      </Modal>
+
+      <Modal open={!!order} onClose={() => { setOrder(null); setPayOrderId(null); setDocLawyer(false); }} title={order?.name || t("orderTitle")} wide={!orderAsAdvocate}>
         {payOrderId ? (
           <OrderPayment orderId={payOrderId} onChat={afterPay} />
+        ) : order && docLawyer ? (
+          <ServiceDocumentRequest serviceId={order.id} initialMode="lawyer" />
         ) : order && !orderAsAdvocate ? (
           <ServiceDocumentRequest serviceId={order.id} />
         ) : (

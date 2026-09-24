@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { isCallRoomMounted } from "@/components/chat/CallRoom";
 import { IconClose } from "../icons";
 
 const FOCUSABLE =
@@ -30,7 +31,12 @@ export default function Modal({
 
   useEffect(() => {
     if (!open) return;
-    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    // A CallRoom mounted inside this modal is a full-screen overlay of its
+    // own — Escape there means "leave the call", which its own end button
+    // owns. Closing the modal underneath would tear the call down instead.
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isCallRoomMounted()) onClose();
+    };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [open, onClose]);
@@ -81,7 +87,7 @@ export default function Modal({
         downOnScrim.current = e.target === e.currentTarget;
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget && downOnScrim.current) onClose();
+        if (e.target === e.currentTarget && downOnScrim.current && !isCallRoomMounted()) onClose();
       }}
     >
       <div

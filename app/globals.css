@@ -2339,7 +2339,7 @@ body:has(.schat) .fab{display:none}
 .schat__bar{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--dk-surface, #fff);border-top:1px solid var(--line);max-width:860px;width:100%;margin:0 auto;position:relative}
 .schat__barlock{position:absolute;left:32px;color:var(--gray2);display:grid;place-items:center;pointer-events:none}
 .schat__barlock svg{width:16px;height:16px}
-.schat__bar input{flex:1;border:1.5px solid var(--line);background:var(--b50);border-radius:var(--pill);padding:13px 18px 13px 42px;outline:none;color:var(--ink);transition:border-color .15s,background .15s}
+.schat__bar input{flex:1;min-width:0;border:1.5px solid var(--line);background:var(--b50);border-radius:var(--pill);padding:13px 18px 13px 42px;outline:none;color:var(--ink);transition:border-color .15s,background .15s}
 .schat__bar input:focus{border-color:var(--b300);background:var(--dk-surface, #fff)}
 .schat__bar button{width:46px;height:46px;border-radius:50%;border:0;background:var(--grad);color:#fff;cursor:pointer;display:grid;place-items:center;flex:none;box-shadow:var(--sblue);transition:transform .15s,opacity .15s}
 .schat__bar button:hover:not(:disabled){transform:scale(1.06)}
@@ -3963,7 +3963,9 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
    dragging it up/left grows the panel toward the free space. */
 .mtg--float{inset:auto 18px 18px auto;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 60px rgba(4,12,31,.5);animation:none;z-index:221}
 .mtg--float .mtg__top{padding:8px 10px 8px 16px;gap:8px;cursor:move;touch-action:none;user-select:none}
-.mtg--float .mtg__timer{display:none}
+.mtg--float .mtg__timer{flex:none;gap:6px}
+.mtg--float .mtg__rec{display:none}
+.mtg--float .mtg__left{font-size:.72rem}
 .mtg--float .mtg__tools{display:none}
 .mtg--float .mtg__title b{font-size:.84rem;max-width:150px}
 .mtg--float .mtg__badge{padding:3px 8px;font-size:.66rem}
@@ -4085,7 +4087,7 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 
 /* Phone: portrait tiles, side panel as a bottom sheet, compact bar */
 @media (max-width:760px){
-  .mtg__top{padding:10px 12px}.mtg__title b{max-width:34vw;font-size:.92rem}.mtg__left{display:none}.mtg__add span,.mtg__add{display:none}
+  .mtg__top{padding:10px 12px}.mtg__title b{max-width:34vw;font-size:.92rem}.mtg__left{font-size:.72rem;white-space:nowrap}.mtg__add span,.mtg__add{display:none}
   .mtg__stage{padding:8px}
   .mtg__grid{align-content:stretch;grid-auto-rows:minmax(0,1fr)}
   .mtg__grid--2{grid-template-columns:1fr;grid-template-rows:1fr}
@@ -5363,3 +5365,123 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .wres--err .wres__ic{background:var(--dk-surface-2, #fef2f2);color:var(--dk-txt-err, #dc2626)}
 .wres__ic svg{width:26px;height:26px}
 .wres__status{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:var(--b100);color:var(--dk-acc-strong, var(--b700));font-size:.8rem;font-weight:700}
+
+/* ── wp-chatfiles ── lexgo_frontend_doc_chat_update.md: the document chat
+   carries files and voice notes, not only text. The attachment endpoint is
+   participants-only, so every bubble here is fetched with the session token
+   and held as an object URL — never a bare link the browser would 401 on. */
+.schat__bar .schat__attach,.schat__bar .schat__mic,.schat__bar .schat__reccancel{width:46px;height:46px;border-radius:50%;flex:none;display:grid;place-items:center;cursor:pointer;transition:transform .15s,background .15s,color .15s}
+.schat__bar .schat__attach,.schat__bar .schat__mic{border:1.5px solid var(--line);background:var(--dk-surface-2, #F7FAFE);color:var(--gray);box-shadow:none}
+.schat__bar .schat__attach svg,.schat__bar .schat__mic svg,.schat__bar .schat__reccancel svg{stroke:currentColor}
+.schat__bar .schat__attach:hover:not(:disabled),.schat__bar .schat__mic:hover:not(:disabled){color:var(--dk-acc, var(--b600));border-color:var(--b300);transform:none}
+.schat__bar .schat__attach svg,.schat__bar .schat__mic svg,.schat__bar .schat__reccancel svg{width:19px;height:19px}
+.schat__bar .schat__reccancel{border:0;background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #C0392B);box-shadow:none}
+/* The lock sits over the text input, which the attach button pushes right. */
+.schat__bar .schat__barlock{left:88px}
+.schat__bar--rec .schat__barlock{display:none}
+.schat__rec{flex:1;display:flex;align-items:center;gap:10px;min-width:0;padding:13px 18px;border-radius:var(--pill);background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #C0392B);font-weight:700;font-variant-numeric:tabular-nums}
+.schat__rec i{width:9px;height:9px;border-radius:50%;background:currentColor;flex:none;animation:mtgBlink 1.2s infinite}
+.schat__rec small{font-weight:600;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.schat__attacherr{max-width:860px;width:100%;margin:0 auto;padding:8px 18px 0;font-size:.84rem;font-weight:600;color:var(--dk-txt-err, #C0392B)}
+
+/* Attachment inside a bubble. A voice note plays inline; a file waits for a
+   click so opening a long history doesn't pull down every document in it. */
+.sattach{display:flex;align-items:center;gap:10px;min-width:0;max-width:100%}
+.sattach--voice{display:block}
+.sattach--voice audio{display:block;width:100%;max-width:260px;height:38px}
+.sattach__wait{font-size:.84rem;color:var(--gray)}
+.sattach--file{width:100%;text-align:left;border:1px solid var(--line);background:var(--dk-surface-2, #F7FAFE);border-radius:12px;padding:9px 11px;cursor:pointer;color:inherit;transition:border-color .15s,background .15s}
+.sattach--file:hover:not(:disabled){border-color:var(--b300)}
+.sattach--file:disabled{opacity:.6;cursor:default}
+.sattach__i{width:34px;height:34px;border-radius:9px;flex:none;display:grid;place-items:center;background:var(--b50);color:var(--dk-acc, var(--b600))}
+.sattach__i svg{width:17px;height:17px}
+.sattach__t{display:flex;flex-direction:column;min-width:0;flex:1}
+.sattach__t b{font-size:.88rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sattach__t small{font-size:.76rem;color:var(--gray)}
+.sattach__dl{flex:none;color:var(--gray)}
+.sattach__dl svg{width:17px;height:17px}
+.sbub--me .sattach--file{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.22)}
+.sbub--me .sattach__i{background:rgba(255,255,255,.2);color:#fff}
+.sbub--me .sattach__t small,.sbub--me .sattach__dl{color:rgba(255,255,255,.78)}
+@media (max-width:520px){
+  .schat__bar .schat__attach,.schat__bar .schat__mic,.schat__bar .schat__reccancel{width:42px;height:42px}
+  .schat__bar .schat__barlock{left:78px}
+  .schat__rec small{display:none}
+}
+
+/* ── wp-meetlimit ── LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md: a document
+   meeting is capped at 15 minutes, extended once for free and then only
+   against a payment the client approves in Telegram — during which the call
+   is paused rather than ended. These sit inside .mtg__stage, which carries
+   its own dark palette in both themes, so they use --mtg-* / the same
+   surface treatment as .mtg__recask rather than the --dk-* tokens. */
+.mtg__left--low{color:#FBC15E;font-weight:700}
+.mtg__left--paused{color:#FBC15E;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+.mtg__left--paused::before{content:"";width:8px;height:8px;border-radius:2px;background:currentColor;animation:mtgBlink 1.4s infinite}
+.mtg__pause,.mtg__ext{position:absolute;left:50%;top:12px;transform:translate(-50%,0);z-index:11;display:grid;gap:6px;padding:14px 16px;border-radius:16px;background:var(--dk-surface, #fff);color:var(--ink);box-shadow:var(--s3);max-width:min(460px,calc(100% - 24px));animation:mtgRise .3s ease both}
+.mtg__pause b,.mtg__ext b{display:flex;align-items:center;gap:8px;font-size:.92rem}
+.mtg__pause b svg{width:17px;height:17px;color:var(--dk-txt-warn, #9a3412)}
+.mtg__pause>span,.mtg__ext>span{font-size:.8rem;color:var(--gray)}
+.mtg__pause small{font-size:.74rem;color:var(--gray2)}
+/* The pause card must stay readable while the stage is being recorded, so it
+   is opaque rather than a translucent scrim over the tiles. */
+.mtg__pause{border-left:3px solid var(--dk-txt-warn, #d97706)}
+.mtg__ext-mins{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.mtg__ext-mins button{border:1.5px solid var(--line);background:var(--dk-surface-2, #F7FAFE);color:var(--ink);border-radius:var(--pill);padding:7px 13px;font-size:.82rem;font-weight:700;cursor:pointer;transition:.15s}
+.mtg__ext-mins button.on{background:var(--grad);border-color:transparent;color:#fff;box-shadow:var(--sblue)}
+.mtg__ext-total{font-size:.95rem!important}
+.mtg__ext-err{font-size:.78rem;font-weight:600;color:var(--dk-txt-err, #C0392B)}
+/* The floating panel hides .mtg__timer wholesale, so the pause card is the
+   only place a floating meeting can say it is waiting on a payment. */
+.mtg--float .mtg__pause,.mtg--float .mtg__ext{bottom:10px;padding:10px 12px;max-width:calc(100% - 16px)}
+.mtg--float .mtg__pause small{display:none}
+.mtg--float .mtg__ext-mins{gap:4px;margin-top:2px}
+.mtg--float .mtg__ext-mins button{padding:5px 9px;font-size:.76rem}
+
+/* ── wp-newdoc ── lexgo_frontend_custom_doc_flows.md: the catalog can't
+   cover every case, so the services page also offers a document written
+   from scratch and a review of one the client already has. */
+.ppanel__hact{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* Reading a document costs nothing — the charge is for filling one in. */
+.svfree{display:flex;align-items:center;gap:8px;margin:0 0 14px;padding:11px 14px;border-radius:12px;font-size:.88rem;font-weight:700;background:var(--dk-tint-ok, #E9F9F1);color:var(--dk-txt-ok, #0B7A52);border:1px solid var(--dk-bd-ok, #BFEAD6)}
+.svfree svg{width:17px;height:17px;flex:none}
+.svfilters{display:flex;align-items:center;gap:8px 18px;flex-wrap:wrap;margin-bottom:14px}
+.svfilters__g{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.svfilters__g>small{font-size:.76rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gray2);flex:none}
+.svfilters .chiprow{margin:0}
+
+/* Upload tiles in the new-document forms. */
+.docpick{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 15px;border:1.5px dashed var(--line);border-radius:14px;background:var(--dk-surface-2, #F7FAFE);cursor:pointer;color:inherit;transition:border-color .15s,background .15s}
+.docpick:hover{border-color:var(--b300)}
+.docpick__i{width:40px;height:40px;border-radius:11px;flex:none;display:grid;place-items:center;background:var(--b50);color:var(--dk-acc, var(--b600))}
+.docpick__i svg{width:19px;height:19px}
+.docpick__t{display:flex;flex-direction:column;min-width:0;gap:2px}
+.docpick__t b{font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.docpick__t small{font-size:.78rem;color:var(--gray)}
+.docpick__row{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.doclist{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.doclist li{display:flex;align-items:center;gap:9px;padding:8px 11px;border:1px solid var(--line);border-radius:11px;background:var(--dk-surface, #fff);font-size:.85rem;min-width:0}
+.doclist li>svg{width:16px;height:16px;flex:none;color:var(--dk-acc, var(--b600))}
+.doclist li>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doclist li>button{border:0;background:none;padding:4px;cursor:pointer;color:var(--gray2);display:grid;place-items:center;border-radius:7px}
+.doclist li>button:hover{color:var(--dk-txt-err, #C0392B);background:var(--dk-tint-err, #FDECEC)}
+.doclist li>button svg{width:15px;height:15px}
+@media (max-width:560px){
+  .ppanel__hact{width:100%;justify-content:space-between}
+  .svfilters__g>small{width:100%}
+}
+
+/* ── wp-docchat ── The client's side of a document request: message the
+   advocate who took the work, or ring them (three calls per document).
+   SecureChat is full-height by default, so the embedded copy gets an
+   explicit box to live in. */
+.docchat{display:flex;flex-direction:column;gap:10px;width:100%;margin-top:6px}
+.docchat__acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.docchat__acts small{margin-left:auto}
+.docchat__box{height:min(460px,60vh);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--dk-surface, #fff)}
+.docchat__box>*{flex:1;min-height:0;height:auto}
+.docchat__wait{display:flex;align-items:center;gap:8px;margin:6px 0 0;font-size:.85rem;color:var(--gray)}
+.docchat__wait svg{width:16px;height:16px;flex:none}
+.docreview{display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--dk-surface-2, #F7FAFE)}
+.docreview label{font-size:.82rem;font-weight:700;color:var(--gray)}
+.docreview__btns{display:flex;align-items:center;gap:10px;flex-wrap:wrap}

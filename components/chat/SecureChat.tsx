@@ -14,6 +14,10 @@ import { playRingtone, primeCallAudio } from "@/lib/callSounds";
 import {
   getSecureMessages,
   sendSecureMessage,
+  uploadSecureMessage,
+  getSecureMessageFile,
+  normSecureMsgCore,
+  normSecureMsgFile,
   secureSocketUrl,
   startCall,
   listCalls,
@@ -22,6 +26,8 @@ import {
   type SecureMessage,
   type LiveKitJoin,
 } from "@/lib/services/backend";
+import { VoiceRecorder, canRecordVoice, voiceDuration } from "@/lib/voiceRecorder";
+import { fetchAndDeliver } from "@/lib/download";
 import CallRoom from "./CallRoom";
 import {
   IconSend,
@@ -35,6 +41,11 @@ import {
   IconUser,
   IconPhone,
   IconVideo,
+  IconUpload,
+  IconMic,
+  IconTrash,
+  IconFileText,
+  IconDownload,
 } from "../icons";
 
 type LocalMsg = SecureMessage & { pending?: boolean; failed?: boolean };
@@ -76,10 +87,83 @@ function MsgBody({ text, label }: { text: string; label: string }) {
   );
 }
 
-export default function SecureChat({ roomId }: { roomId: string }) {
+const KB = 1024;
+function fmtSize(bytes: number): string {
+  if (!bytes) return "";
+  if (bytes < KB) return `${bytes} B`;
+  if (bytes < KB * KB) return `${Math.round(bytes / KB)} KB`;
+  return `${(bytes / (KB * KB)).toFixed(1)} MB`;
+}
+
+// A file or voice message inside a bubble. The attachment endpoint is
+// participants-only, so nothing here can be a plain <a href> or an <audio
+// src> pointing at the backend — both would arrive without the bearer token
+// and 401. The bytes are fetched once and held as an object URL instead.
+function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: ReturnType<typeof useTranslations> }) {
+  const voice = msg.messageType === "voice";
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(false);
+  const name = msg.file?.fileName || (voice ? t("voiceNote") : t("fileGeneric"));
+
+  // Voice notes play inline, so they load themselves; a file waits for a
+  // deliberate click rather than pulling every attachment in the history.
+  useEffect(() => {
+    if (!voice || !msg.id || msg.pending) return;
+    let alive = true;
+    let made = "";
+    getSecureMessageFile(roomId, msg.id)
+      .then((b) => {
+        if (!alive) return;
+        made = URL.createObjectURL(b);
+        setUrl(made);
+      })
+      .catch(() => alive && setErr(true));
+    return () => {
+      alive = false;
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [roomId, msg.id, msg.pending, voice]);
+
+  async function download() {
+    if (busy || !msg.id) return;
+    setBusy(true);
+    const ok = await fetchAndDeliver(() => getSecureMessageFile(roomId, msg.id), name, true);
+    if (!ok) setErr(true);
+    setBusy(false);
+  }
+
+  if (voice)
+    return (
+      <span className="sattach sattach--voice">
+        {url ? (
+          <audio controls preload="metadata" src={url} />
+        ) : (
+          <span className="sattach__wait">{err ? t("attachFailed") : msg.pending ? t("attachSending") : t("attachLoading")}</span>
+        )}
+      </span>
+    );
+
+  return (
+    <button type="button" className="sattach sattach--file" onClick={download} disabled={busy || msg.pending}>
+      <span className="sattach__i"><IconFileText /></span>
+      <span className="sattach__t">
+        <b>{name}</b>
+        <small>{err ? t("attachFailed") : msg.pending ? t("attachSending") : fmtSize(msg.file?.size || 0)}</small>
+      </span>
+      <span className="sattach__dl">{busy ? <IconClock /> : <IconDownload />}</span>
+    </button>
+  );
+}
+
+export default function SecureChat({ roomId, onClose }: { roomId: string; onClose?: () => void }) {
   const t = useTranslations("secureChat");
   const { session, ready } = useAuth();
   const router = useRouter();
+  // Standalone this chat IS the page, so closing it means going back. Mounted
+  // inside a document request it is a panel, and going back would take the
+  // client off the request they were reading.
+  const close = onClose ?? (() => router.back());
   const searchParams = useSearchParams();
   const [msgs, setMsgs] = useState<LocalMsg[]>([]);
   const [text, setText] = useState("");
@@ -92,8 +176,25 @@ export default function SecureChat({ roomId }: { roomId: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [ttl, setTtl] = useState(0); // auto-delete window in hours (0 = off)
   const [callErr, setCallErr] = useState<string | null>(null);
+  // Attachments: a file picked from disk, or a voice note recorded here.
+  // Both travel as multipart over HTTP — the socket carries JSON only — so
+  // neither can use send()'s WebSocket fast path.
+  const [attachBusy, setAttachBusy] = useState(false);
+  const [attachErr, setAttachErr] = useState("");
+  const [recOn, setRecOn] = useState(false);
+  const [recSec, setRecSec] = useState(0);
+  const recRef = useRef<VoiceRecorder | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const activeCallRef = useRef(activeCall);
   useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
+  useEffect(() => {
+    if (!recOn) return;
+    const iv = setInterval(() => setRecSec((s) => s + 1), 1000);
+    return () => clearInterval(iv);
+  }, [recOn]);
+  // Leaving the chat with the mic still open would keep the recording
+  // indicator lit in the browser tab indefinitely.
+  useEffect(() => () => recRef.current?.cancel(), []);
   // Bumped after a content reveal so the history is fetched again unmasked.
   const [reloadKey, setReloadKey] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -158,7 +259,7 @@ export default function SecureChat({ roomId }: { roomId: string }) {
     if (typeof window !== "undefined" && !window.confirm(t("deleteConfirm"))) return;
     try {
       await deleteSecureChat(roomId);
-      router.back();
+      close();
     } catch {
       setCallErr(t("deleteFailed"));
     }
@@ -353,22 +454,15 @@ export default function SecureChat({ roomId }: { roomId: string }) {
             else failPending(code === 403 ? detail || t("wsForbidden") : detail || t("wsSendFailed"));
             return;
           }
-          const raw = o.message ?? o;
-          const m: LocalMsg = {
-            id: String(raw.id ?? ""),
-            senderId: String(raw.sender_user_id ?? raw.senderId ?? ""),
-            filteredContent: String(raw.filtered_content ?? raw.content ?? ""),
-            isBlocked: Boolean(raw.is_blocked),
-            blockReason: raw.block_reason ? String(raw.block_reason) : undefined,
-            createdAt: String(raw.created_at ?? ""),
-          };
+          const raw = (o.message ?? o) as Record<string, unknown>;
+          const m: LocalMsg = { ...normSecureMsgCore(raw), ...normSecureMsgFile(raw) };
           if (!m.id) return;
           // My own message echoed back → replace the optimistic bubble.
           if (session && m.senderId === session.id) {
             setSending(false);
             setMsgs((prev) => {
               if (seen.current.has(m.id)) return prev;
-              const idx = prev.findIndex((x) => x.pending);
+              const idx = prev.findIndex((x) => x.pending && (x.messageType || "text") === (m.messageType || "text"));
               seen.current.add(m.id);
               if (idx >= 0) {
                 const next = [...prev];
@@ -440,6 +534,87 @@ export default function SecureChat({ roomId }: { roomId: string }) {
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [msgs, sending]);
 
+  // One upload path for both kinds. The bubble is optimistic like a text
+  // message, but there is no socket echo to reconcile against on failure —
+  // the HTTP response is the only confirmation, so it replaces the bubble.
+  async function sendAttachment(file: File | Blob, messageType: "file" | "voice", fileName?: string) {
+    if (attachBusy) return;
+    setAttachBusy(true);
+    setAttachErr("");
+    const tempId = `tmp-${Date.now()}`;
+    const name = fileName || (file instanceof File ? file.name : "");
+    setMsgs((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        senderId: session?.id ?? "",
+        filteredContent: "",
+        isBlocked: false,
+        createdAt: new Date().toISOString(),
+        messageType,
+        file: { fileName: name, mimeType: file.type, size: file.size, downloadUrl: "" },
+        pending: true,
+      },
+    ]);
+    try {
+      const m = await uploadSecureMessage(roomId, { file, messageType, fileName: name });
+      if (m.id) seen.current.add(m.id);
+      setMsgs((prev) => prev.map((x) => (x.id === tempId ? m : x)));
+    } catch {
+      setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...x, pending: false, failed: true } : x)));
+      setAttachErr(t("attachFailed"));
+    } finally {
+      setAttachBusy(false);
+    }
+  }
+
+  function pickFile(files: FileList | null) {
+    const f = files?.[0];
+    if (fileRef.current) fileRef.current.value = "";
+    if (!f) return;
+    // 25 MB — past this the upload reliably times out on a phone connection
+    // and the failure arrives long after the user has moved on.
+    if (f.size > 25 * 1024 * 1024) {
+      setAttachErr(t("attachTooBig"));
+      return;
+    }
+    void sendAttachment(f, "file");
+  }
+
+  // Recording has to begin inside the click handler: iOS refuses the
+  // microphone when getUserMedia is reached after an await boundary.
+  async function toggleVoice() {
+    if (attachBusy) return;
+    const rec = recRef.current;
+    if (rec?.active) {
+      setRecOn(false);
+      const note = await rec.stop();
+      recRef.current = null;
+      if (note) void sendAttachment(note.blob, "voice", `voice-${Date.now()}.${note.mime.includes("mp4") || note.mime.includes("aac") ? "m4a" : note.mime.includes("ogg") ? "ogg" : "webm"}`);
+      return;
+    }
+    setAttachErr("");
+    const next = new VoiceRecorder();
+    // Stored before the await — see AttachmentPicker for why.
+    recRef.current = next;
+    try {
+      await next.start();
+    } catch {
+      recRef.current = null;
+      setAttachErr(t("micDenied"));
+      return;
+    }
+    if (!next.active) return;
+    setRecSec(0);
+    setRecOn(true);
+  }
+
+  function cancelVoice() {
+    recRef.current?.cancel();
+    recRef.current = null;
+    setRecOn(false);
+  }
+
   async function send() {
     const content = text.trim();
     if (!content) return;
@@ -452,6 +627,8 @@ export default function SecureChat({ roomId }: { roomId: string }) {
       filteredContent: content,
       isBlocked: false,
       createdAt: new Date().toISOString(),
+      messageType: "text",
+      file: null,
       pending: true,
     };
     setMsgs((prev) => [...prev, optimistic]);
@@ -497,7 +674,7 @@ export default function SecureChat({ roomId }: { roomId: string }) {
   return (
     <div className="schat">
       <div className="schat__head">
-        <button className="schat__x" type="button" aria-label={t("close")} onClick={() => router.back()}>
+        <button className="schat__x" type="button" aria-label={t("close")} onClick={close}>
           <IconClose />
         </button>
         <span className="schat__i">
@@ -661,7 +838,12 @@ export default function SecureChat({ roomId }: { roomId: string }) {
                 <div className={`sbub sbub--${mine ? "me" : "them"}`}>
                   {!mine ? <span className="sbub__av"><IconUser /></span> : null}
                   <div className="sbub__wrap">
-                    <div className={`sbub__c${m.failed ? " sbub__c--failed" : ""}`}><MsgBody text={maskContacts(m.filteredContent)} label={t("joinZoom")} /></div>
+                    <div className={`sbub__c${m.failed ? " sbub__c--failed" : ""}`}>
+                      {m.messageType === "voice" || m.messageType === "file" ? (
+                        <Attachment roomId={roomId} msg={m} t={t} />
+                      ) : null}
+                      {m.filteredContent ? <MsgBody text={maskContacts(m.filteredContent)} label={t("joinZoom")} /> : null}
+                    </div>
                     {m.isBlocked ? (
                       <div className="sbub__blocked">
                         <IconAlert />
@@ -701,23 +883,65 @@ export default function SecureChat({ roomId }: { roomId: string }) {
         {t("safetyNote")}
       </div>
 
-      <div className="schat__bar">
-        <span className="schat__barlock" aria-hidden><IconLock /></span>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              send();
-            }
-          }}
-          placeholder={t("placeholder")}
-          aria-label={t("placeholder")}
-        />
-        <button type="button" onClick={send} disabled={sending || !text.trim()} aria-label={t("send")}>
-          <IconSend />
-        </button>
+      {attachErr ? <div className="schat__attacherr" role="alert">{attachErr}</div> : null}
+
+      <div className={`schat__bar${recOn ? " schat__bar--rec" : ""}`}>
+        {recOn ? (
+          <>
+            <button type="button" className="schat__reccancel" onClick={cancelVoice} aria-label={t("voiceCancel")}>
+              <IconTrash />
+            </button>
+            <span className="schat__rec" role="status">
+              <i />
+              {voiceDuration(recSec * 1000)}
+              <small>{t("voiceHint")}</small>
+            </span>
+            <button type="button" onClick={() => void toggleVoice()} aria-label={t("voiceSend")}>
+              <IconSend />
+            </button>
+          </>
+        ) : (
+          <>
+            <input ref={fileRef} type="file" hidden onChange={(e) => pickFile(e.target.files)} />
+            <button
+              type="button"
+              className="schat__attach"
+              onClick={() => fileRef.current?.click()}
+              disabled={attachBusy}
+              aria-label={t("attachFile")}
+              title={t("attachFile")}
+            >
+              <IconUpload />
+            </button>
+            {/* Positioned over the text input, so it lives beside it rather
+                than pinned to the bar — the attach button now takes the
+                bar's left edge, and while recording there is no input. */}
+            <span className="schat__barlock" aria-hidden><IconLock /></span>
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder={t("placeholder")}
+              aria-label={t("placeholder")}
+            />
+            {/* The mic replaces Send only while there is nothing typed, so a
+                half-written message can never be lost to a stray tap. */}
+            {!text.trim() && canRecordVoice() ? (
+              <button type="button" className="schat__mic" onClick={() => void toggleVoice()} disabled={attachBusy} aria-label={t("voiceRecord")} title={t("voiceRecord")}>
+                <IconMic />
+              </button>
+            ) : (
+              <button type="button" onClick={send} disabled={sending || !text.trim()} aria-label={t("send")}>
+                <IconSend />
+              </button>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
