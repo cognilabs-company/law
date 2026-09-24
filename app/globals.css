@@ -1164,8 +1164,6 @@ body:has(.plogin) .fab{display:none}
 .fmgr__crumb-w{display:inline-flex;align-items:center}
 .fmgr__crumb-w svg{width:13px;height:13px;stroke:var(--gray2);margin:0 1px}
 .fmgr__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-.fmgr__card{position:relative;background:var(--dk-surface, #fff);border-radius:var(--r);box-shadow:inset 0 0 0 1.5px var(--line);padding:14px;display:flex;flex-direction:column;gap:8px;cursor:default}
-.fmgr__card-top{display:flex;align-items:flex-start;justify-content:space-between}
 .fmgr__ic{position:relative;width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none}
 .fmgr__ic svg{width:19px;height:19px}
 .fmgr__ic--sm{width:32px;height:32px;border-radius:9px}
@@ -1177,8 +1175,6 @@ body:has(.plogin) .fab{display:none}
 .fmgr__more{border:none;background:transparent;color:var(--gray2);width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
 .fmgr__more:hover{background:var(--dk-surface-2, #F1F4F9)}
 .fmgr__more svg{width:16px;height:16px}
-.fmgr__card-name{border:none;background:transparent;padding:0;text-align:left;font-size:.87rem;font-weight:700;color:var(--ink);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fmgr__card-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:.76rem;color:var(--gray2)}
 .fmgr__shared{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:var(--pill);background:var(--dk-surface-2, #F1F4F9);color:var(--gray2);font-size:.72rem;font-weight:700;flex:none}
 .fmgr__shared svg{width:11px;height:11px}
 .fmgr__menu{position:absolute;top:34px;right:0;z-index:5;min-width:190px;background:var(--dk-surface, #fff);border-radius:12px;box-shadow:var(--s2),inset 0 0 0 1.5px var(--line);padding:6px;display:flex;flex-direction:column;animation:pop .16s cubic-bezier(.2,.8,.3,1) both}
@@ -5485,3 +5481,77 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .docreview{display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--dk-surface-2, #F7FAFE)}
 .docreview label{font-size:.82rem;font-weight:700;color:var(--gray)}
 .docreview__btns{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* ── wp-ffold ── Files page: the grid item is a 3D folder that opens on
+   hover — the back cover stays put, the sheets inside tilt out, and the
+   front cover swings down. Adapted from a Tailwind original to this file's
+   tokens; every colour is per-card through --ff-* so one folder shape can
+   carry the whole file-type palette, and the name sits under the folder.
+   The global prefers-reduced-motion rule already flattens these. */
+.fmgr__grid{grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:22px 14px;padding-top:14px}
+.ffcard{
+  position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;
+  --ff-back:#D08C2E;--ff-front:#F0A93B;--ff-front-2:#FBBF24;
+  --ff-s1:var(--dk-surface, #fff);--ff-s2:var(--dk-surface-2, #EEF2F7);--ff-s3:var(--dk-tip, #DDE3EC);
+  --ff-glow-a:rgba(251,191,36,.55);--ff-glow-b:rgba(217,119,6,.45);
+}
+.ffcard--pdf{--ff-back:#B33A3E;--ff-front:#E05257;--ff-front-2:#F1777B;--ff-glow-a:rgba(241,119,123,.5);--ff-glow-b:rgba(179,58,62,.45)}
+.ffcard--doc{--ff-back:#1B5FB8;--ff-front:#2F7DE1;--ff-front-2:#5AA0F5;--ff-glow-a:rgba(90,160,245,.5);--ff-glow-b:rgba(27,95,184,.45)}
+.ffcard--sheet{--ff-back:#0B7A52;--ff-front:#13996A;--ff-front-2:#2FBB88;--ff-glow-a:rgba(47,187,136,.5);--ff-glow-b:rgba(11,122,82,.45)}
+.ffcard--image{--ff-back:#6A3DE8;--ff-front:#8460F0;--ff-front-2:#A489F7;--ff-glow-a:rgba(164,137,247,.5);--ff-glow-b:rgba(106,61,232,.45)}
+.ffcard--file{--ff-back:#2A6B78;--ff-front:#37899A;--ff-front-2:#4FAABD;--ff-glow-a:rgba(79,170,189,.5);--ff-glow-b:rgba(42,107,120,.45)}
+
+/* The folder itself is the button, so the whole tile is one target. */
+.ffcard__hit{width:100%;border:0;background:none;padding:0 0 4px;cursor:pointer;display:block;border-radius:18px}
+.ffcard__hit:focus-visible{outline:2px solid var(--dk-acc, var(--b600));outline-offset:3px}
+.ffold{position:relative;display:block;width:100%;aspect-ratio:3/2;perspective:1500px;transform-origin:bottom}
+
+/* Back cover: the tab and its little notch are the two pseudo-elements. */
+.ffold__back{position:absolute;inset:0;background:var(--ff-back);border-radius:16px;border-top-left-radius:0;transform-origin:top;transition:box-shadow .3s ease}
+.ffold__back::after{content:"";position:absolute;bottom:99%;left:0;width:34%;height:13px;background:var(--ff-back);border-radius:13px 13px 0 0}
+.ffold__back::before{content:"";position:absolute;top:-12px;left:calc(34% - 4px);width:13px;height:13px;background:var(--ff-back);clip-path:polygon(0 35%,0 100%,50% 100%)}
+
+/* Paper inside — three sheets that fan out by increasing angles. */
+.ffold__s{position:absolute;inset:4px;border-radius:13px;transform-origin:bottom;transition:transform .3s ease;box-shadow:0 1px 2px rgba(3,16,43,.06)}
+.ffold__s--3{background:var(--ff-s3)}
+.ffold__s--2{background:var(--ff-s2)}
+.ffold__s--1{background:var(--ff-s1)}
+
+/* Front cover: shorter than the box so the sheets peek out at the top. */
+.ffold__front{
+  position:absolute;left:0;right:0;bottom:0;height:calc(100% - 4px);
+  background:linear-gradient(to top,var(--ff-front),var(--ff-front-2));
+  border-radius:16px;border-top-right-radius:0;transform-origin:bottom;
+  transition:transform .3s ease,box-shadow .3s ease;display:flex;align-items:flex-end;
+}
+.ffold__front::after{content:"";position:absolute;bottom:99%;right:0;width:62%;height:13px;background:var(--ff-front-2);border-radius:13px 13px 0 0}
+.ffold__front::before{content:"";position:absolute;top:-9px;right:calc(62% - 4px);width:11px;height:11px;background:var(--ff-front-2);clip-path:polygon(100% 14%,50% 100%,100% 100%)}
+
+/* The type badge rides on the front cover and tilts down with it. */
+.ffold__tag{display:inline-flex;align-items:center;gap:5px;margin:0 0 9px 11px;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.22);color:#fff;font-size:.68rem;font-weight:800;letter-spacing:.04em;backdrop-filter:blur(2px)}
+.ffold__tag svg{width:13px;height:13px;stroke:#fff}
+.ffold__tag i{font-style:normal}
+
+.ffcard:hover .ffold__back,.ffcard__hit:focus-visible .ffold__back{box-shadow:0 20px 40px rgba(3,16,43,.22)}
+.ffcard:hover .ffold__s--3,.ffcard__hit:focus-visible .ffold__s--3{transform:rotateX(-20deg)}
+.ffcard:hover .ffold__s--2,.ffcard__hit:focus-visible .ffold__s--2{transform:rotateX(-30deg)}
+.ffcard:hover .ffold__s--1,.ffcard__hit:focus-visible .ffold__s--1{transform:rotateX(-38deg)}
+.ffcard:hover .ffold__front,.ffcard__hit:focus-visible .ffold__front{
+  transform:rotateX(-46deg) translateY(1px);
+  box-shadow:inset 0 20px 40px var(--ff-glow-a),inset 0 -20px 40px var(--ff-glow-b);
+}
+
+/* Name and size sit under the folder, centred on it. */
+.ffcard__name{max-width:100%;font-size:.85rem;font-weight:700;color:var(--ink);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ffcard__meta{font-size:.74rem;color:var(--gray2)}
+
+/* Star and menu float over the folder rather than taking a row of their own. */
+.ffcard__star{position:absolute;top:6px;left:6px;z-index:3;width:18px;height:18px;border-radius:50%;background:var(--dk-txt-warn, #F5A623);display:grid;place-items:center;box-shadow:0 0 0 2px var(--dk-surface, #fff)}
+.ffcard__star svg{width:10px;height:10px;stroke:#fff;fill:#fff}
+.ffcard__more{position:absolute;top:4px;right:4px;z-index:3;border:0;width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.82);color:var(--gray);display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .2s ease,background .15s ease}
+.ffcard:hover .ffcard__more,.ffcard__more:focus-visible{opacity:1}
+.ffcard__more:hover{background:#fff;color:var(--ink)}
+.ffcard__more svg{width:16px;height:16px}
+/* Touch has no hover, so the menu button is always there. */
+@media (hover:none){.ffcard__more{opacity:1}}
+@media (max-width:520px){.fmgr__grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}.ffold__tag{margin-left:8px;padding:3px 7px;font-size:.63rem}}

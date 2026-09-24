@@ -76,6 +76,20 @@ function fmtSize(n?: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
+// Which folder colour a card wears. The grid draws every item as the same
+// 3D folder (see .ffold in globals.css) — the type only decides the accent
+// and the tag on the front flap, so a page of files still reads as one set.
+type FMKind = "folder" | "pdf" | "doc" | "sheet" | "image" | "file";
+function kindOf(item: FMItem): FMKind {
+  if (item.type === "folder") return "folder";
+  const e = (item.ext || "").toLowerCase();
+  if (e === "pdf") return "pdf";
+  if (/^(docx?|rtf|odt|txt)$/.test(e)) return "doc";
+  if (/^(xlsx?|csv|ods)$/.test(e)) return "sheet";
+  if (isImageExt(e)) return "image";
+  return "file";
+}
+
 function isImageExt(ext?: string): boolean {
   return !!ext && /^(png|jpe?g|gif|webp|heic)$/i.test(ext);
 }
@@ -426,30 +440,50 @@ export default function FileManager() {
             </div>
           ) : view === "grid" ? (
             <div className="fmgr__grid">
-              {visible.map((item) => (
-                <div key={item.id} className="fmgr__card" onDoubleClick={() => item.type === "folder" && openFolder(item.id)}>
-                  <div className="fmgr__card-top">
-                    <span className={`fmgr__ic fmgr__ic--${item.type === "folder" ? "folder" : "file"}`}>
-                      {iconFor(item)}
-                      {item.starred ? (
-                        <span className="fmgr__star">
-                          <IconStar />
+              {visible.map((item) => {
+                const kind = kindOf(item);
+                return (
+                  <div key={item.id} className={`ffcard ffcard--${kind}`}>
+                    {/* One hit area for the whole folder: a single click opens
+                        it, which is what people try first — the old card only
+                        responded to a double click on the tile itself. */}
+                    <button
+                      type="button"
+                      className="ffcard__hit"
+                      onClick={() => (item.type === "folder" ? openFolder(item.id) : void openFile(item))}
+                      aria-label={item.name}
+                    >
+                      <span className="ffold" aria-hidden>
+                        <span className="ffold__back" />
+                        <span className="ffold__s ffold__s--3" />
+                        <span className="ffold__s ffold__s--2" />
+                        <span className="ffold__s ffold__s--1" />
+                        <span className="ffold__front">
+                          <span className="ffold__tag">
+                            {iconFor(item)}
+                            {item.type === "folder" ? null : <i>{(item.ext || "").toUpperCase().slice(0, 4)}</i>}
+                          </span>
                         </span>
-                      ) : null}
-                    </span>
-                    <button type="button" className="fmgr__more" aria-label="menu" onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === item.id ? null : item.id); }}>
+                      </span>
+                    </button>
+
+                    {item.starred ? (
+                      <span className="ffcard__star" aria-label={t("navStarred")}>
+                        <IconStar />
+                      </span>
+                    ) : null}
+                    <button type="button" className="ffcard__more" aria-label="menu" onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === item.id ? null : item.id); }}>
                       <IconMoreHorizontal />
                     </button>
                     {menuFor === item.id ? <ItemMenu item={item} t={t} onOpen={openFolder} onOpenFile={openFile} onRename={startRename} onStar={toggleStar} onDelete={removeItem} onDownload={downloadFile} /> : null}
+
+                    <b className="ffcard__name" title={item.name}>{item.name}</b>
+                    <small className="ffcard__meta">
+                      {item.type === "folder" ? t("items", { n: childCount(item.id) }) : fmtSize(item.size)}
+                    </small>
                   </div>
-                  <button type="button" className="fmgr__card-name" onClick={() => (item.type === "folder" ? openFolder(item.id) : void openFile(item))}>
-                    {item.name}
-                  </button>
-                  <div className="fmgr__card-meta">
-                    <span>{item.type === "folder" ? t("items", { n: childCount(item.id) }) : fmtSize(item.size)}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="fmgr__list">
