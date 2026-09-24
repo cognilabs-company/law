@@ -302,10 +302,7 @@ export const GESTURE_CLIPS: Record<GestureName, string> = {
 export const GESTURE_HOLD_SECONDS = 0.4;
 export const GESTURE_FADE_SECONDS = 0.25;
 
-// Ambient "still alive" cue: every so often, on its own, the mascot plays a
-// random one of the 14 baked gestures — off in dev (DEBUG_ROBOT below) so it
-// never fires mid-inspection while manually clicking through the demo cycle.
-export const RANDOM_GESTURE_INTERVAL_MS = 60_000;
+export const RANDOM_GESTURE_INTERVAL_MS = 30_000;
 
 // Comfortably above ordinary static page content, well below every real
 // overlay in this app (nav 90, modals 120-270 — see app/globals.css).

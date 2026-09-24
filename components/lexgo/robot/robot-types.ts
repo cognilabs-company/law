@@ -27,6 +27,7 @@ export type Finger = "thumb" | "index" | "middle" | "ring" | "pinky";
 // Mixamo hand rigs commonly export 4 segments per finger (3 phalanges + a
 // tip); this model's 65-joint skin does too (verified against the GLB).
 export type FingerSegment = 1 | 2 | 3 | 4;
+export type RobotExpression = "default" | "happy" | "curious" | "thinking" | "surprised" | "blink" | "error" | "success";
 
 export type BoneMap = Partial<Record<CanonicalBone, THREE.Bone>>;
 
@@ -88,10 +89,22 @@ export type RobotEventName =
   | "peek"
   | "hide"
   | "wave"
+  | "look"
+  | "point"
+  | "gesture"
+  | "lookCursor"
+  | "expression"
   | "think"
   | "reactSuccess"
   | "reactError"
   | "reactNotification";
+
+export type RobotEventPayload = {
+  target?: THREE.Vector3 | HTMLElement | null;
+  gesture?: GestureName;
+  expression?: RobotExpression;
+  enabled?: boolean;
+};
 
 // The subset of RobotController fully implemented today — see section 11 of
 // the spec this was built from. Everything else on the controller is a typed
@@ -111,6 +124,7 @@ export interface RobotControllerApi {
   reactError(): void;
   reactNotification(): void;
   playGesture(name: GestureName): void;
+  setExpression(expression: RobotExpression): void;
   holdObject(object: THREE.Object3D, hand: Hand): void;
   releaseObject(hand: Hand): void;
   openHand(hand: Hand): void;

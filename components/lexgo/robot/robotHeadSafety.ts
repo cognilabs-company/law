@@ -11,6 +11,7 @@ const scratchHeadPos = new THREE.Vector3();
 const scratchHeadQuatInv = new THREE.Quaternion();
 
 function toHeadLocal(worldPoint: THREE.Vector3, head: THREE.Object3D): THREE.Vector3 {
+  head.updateWorldMatrix(true, false);
   head.getWorldPosition(scratchHeadPos);
   head.getWorldQuaternion(scratchHeadQuatInv).invert();
   return scratchLocal.copy(worldPoint).sub(scratchHeadPos).applyQuaternion(scratchHeadQuatInv);

@@ -1,6 +1,6 @@
-import type { RobotEventName } from "./robot-types";
+import type { RobotEventName, RobotEventPayload } from "./robot-types";
 
-type Listener = () => void;
+type Listener = (payload?: RobotEventPayload) => void;
 
 // Section 28's decoupled trigger path: any file in the app can do
 // `RobotEvents.emit("wave")` without importing React, the controller, or
@@ -23,8 +23,8 @@ class RobotEventBus {
     return () => set.delete(fn);
   }
 
-  emit(event: RobotEventName): void {
-    this.listeners.get(event)?.forEach((fn) => fn());
+  emit(event: RobotEventName, payload?: RobotEventPayload): void {
+    this.listeners.get(event)?.forEach((fn) => fn(payload));
   }
 }
 

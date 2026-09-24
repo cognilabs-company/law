@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { BONE_NAMES } from "./robot-config";
-import type { BoneMap, BoneSnapshot, CanonicalBone } from "./robot-types";
+import { BONE_NAMES, fingerBoneName } from "./robot-config";
+import type { BoneMap, BoneSnapshot, CanonicalBone, Finger, FingerSegment, Hand } from "./robot-types";
 
 function threeSafeBoneName(rawName: string): string {
   return rawName.replace("mixamorig:", "mixamorig");
@@ -38,6 +38,25 @@ export class RobotBones {
 
   has(canonical: CanonicalBone): boolean {
     return !!this.bones[canonical];
+  }
+
+  missingRequired(): string[] {
+    const missing: string[] = [];
+    for (const [canonical, rawName] of Object.entries(BONE_NAMES) as [CanonicalBone, string][]) {
+      if (!this.has(canonical)) missing.push(rawName);
+    }
+    const hands: Hand[] = ["left", "right"];
+    const fingers: Finger[] = ["thumb", "index", "middle", "ring", "pinky"];
+    const segments: FingerSegment[] = [1, 2, 3, 4];
+    for (const hand of hands) {
+      for (const finger of fingers) {
+        for (const segment of segments) {
+          const rawName = fingerBoneName(hand, finger, segment);
+          if (!this.getByRawName(rawName)) missing.push(rawName);
+        }
+      }
+    }
+    return missing;
   }
 
   // Every bone (including fingers, which have no canonical entry) is

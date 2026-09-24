@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
 import RobotCanvas from "./RobotCanvas";
 import { RobotEvents } from "./RobotEvents";
 import { BREAKPOINTS, DEBUG_ROBOT, RANDOM_GESTURE_INTERVAL_MS, VIEWPORT_SIZE } from "./robot-config";
-import { GESTURE_NAMES, type GestureName } from "./robot-gestures";
+import { GESTURE_NAMES } from "./robot-gestures";
 import type { RobotController } from "./RobotController";
+import type { RobotExpression } from "./robot-types";
 
 type Tier = "full" | "compact" | "mini";
 type RobotDebugWindow = typeof window & { __lexgoRobotController?: RobotController | null };
@@ -19,8 +21,18 @@ type RobotDebugWindow = typeof window & { __lexgoRobotController?: RobotControll
 // (not the ambient lookAtCursor(), which is already always running in the
 // background regardless of this cycle) so it's its own visible, inspectable
 // step rather than "whatever the mouse happens to be doing".
+const FACE_EXPRESSIONS: RobotExpression[] = ["default", "happy", "curious", "thinking", "surprised", "blink", "error", "success"];
+
 const DEMO_STEPS: Array<(c: RobotController) => void> = [
+  (c) => c.idle(),
+  (c) => c.peek(),
   (c) => c.greet(),
+  (c) => c.wave(),
+  (c) => c.lookAt(new THREE.Vector3(0.45, 0.45, 1)),
+  (c) => c.pointAt(new THREE.Vector3(-0.4, 0.5, 1)),
+  (c) => c.think(),
+  (c) => c.hide(),
+  ...FACE_EXPRESSIONS.map((expression) => (c: RobotController) => c.setExpression(expression)),
   ...GESTURE_NAMES.map((name) => (c: RobotController) => c.playGesture(name)),
 ];
 
@@ -32,7 +44,7 @@ const DEMO_STEPS: Array<(c: RobotController) => void> = [
 export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void }) {
   const controllerRef = useRef<RobotController | null>(null);
   const demoStepRef = useRef(0);
-  const lastGestureRef = useRef<GestureName | "">("");
+  const previewStepRef = useRef(0);
   const [visible, setVisible] = useState(true);
   const [tier, setTier] = useState<Tier>("full");
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -83,21 +95,18 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
     return () => window.removeEventListener("pointermove", handleMove);
   }, [ready, reducedMotion]);
 
-  // Ambient random gesture, once a minute — off for reduced-motion, off
-  // while the tab is backgrounded (no point animating something nobody can
-  // see), and off in dev so it never fires mid-inspection while manually
-  // clicking through DEMO_STEPS. Never repeats the same gesture twice in a
-  // row.
   useEffect(() => {
-    if (!ready || reducedMotion || DEBUG_ROBOT) return;
+    if (!ready || reducedMotion) return;
     const iv = setInterval(() => {
       if (document.hidden) return;
       const controller = controllerRef.current;
       if (!controller) return;
-      const pool = GESTURE_NAMES.filter((n) => n !== lastGestureRef.current);
-      const pick = pool[Math.floor(Math.random() * pool.length)];
-      lastGestureRef.current = pick;
-      controller.playGesture(pick);
+      const step = previewStepRef.current;
+      previewStepRef.current = (step + 1) % Math.max(GESTURE_NAMES.length, FACE_EXPRESSIONS.length);
+      const gesture = GESTURE_NAMES[step % GESTURE_NAMES.length];
+      const expression = FACE_EXPRESSIONS[step % FACE_EXPRESSIONS.length];
+      controller.playGesture(gesture);
+      controller.setExpression(expression);
     }, RANDOM_GESTURE_INTERVAL_MS);
     return () => clearInterval(iv);
   }, [ready, reducedMotion]);
@@ -128,6 +137,10 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
         controller.playGesture(name as (typeof GESTURE_NAMES)[number]);
       }
     }
+    if (demo?.startsWith("expression:")) {
+      const expression = demo.slice("expression:".length) as RobotExpression;
+      if (FACE_EXPRESSIONS.includes(expression)) controller.setExpression(expression);
+    }
   }, [ready]);
 
   function handleClick() {
@@ -152,7 +165,7 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
         style={{ width: size.width, height: size.height }}
         role="button"
         tabIndex={0}
-        aria-label={DEBUG_ROBOT ? "LexGo AI (dev: click to cycle idle / peek / look / wave / point / think / hide)" : "LexGo AI"}
+        aria-label={DEBUG_ROBOT ? "LexGo AI (dev: click to cycle behaviors, gestures, and face expressions)" : "LexGo AI"}
         onClick={handleClick}
         onMouseEnter={() => !DEBUG_ROBOT && RobotEvents.emit("peek")}
         onKeyDown={(e) => {

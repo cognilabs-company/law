@@ -55,6 +55,10 @@ export class RobotStateMachine {
     return this.headline;
   }
 
+  activeStates(): RobotState[] {
+    return [...new Set([...this.ownerByChannel.values()].filter((state) => state !== "IDLE"))];
+  }
+
   onChange(fn: (state: RobotState) => void): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);

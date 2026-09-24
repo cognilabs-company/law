@@ -19,10 +19,14 @@ import {
 } from "./robot-config";
 import { resolveHeadAvoidance, type HeadAvoidCorrection } from "./robotHeadSafety";
 import type { GestureName } from "./robot-gestures";
-import type { Finger, Hand, RobotControllerApi, RobotState } from "./robot-types";
+import type { Finger, FingerSegment, Hand, RobotControllerApi, RobotExpression, RobotState } from "./robot-types";
 
 const scratchEuler = new THREE.Euler();
 const scratchQuat = new THREE.Quaternion();
+const scratchBaseHeadQuat = new THREE.Quaternion();
+const scratchSavedHeadQuat = new THREE.Quaternion();
+const scratchSavedNeckQuat = new THREE.Quaternion();
+const scratchSavedSpine2Quat = new THREE.Quaternion();
 const scratchVecA = new THREE.Vector3();
 const scratchVecB = new THREE.Vector3();
 const deg = THREE.MathUtils.degToRad;
@@ -69,12 +73,18 @@ export class RobotController implements RobotControllerApi {
   private clipsByRawName = new Map<string, THREE.AnimationClip>();
   private activeGestureAction: THREE.AnimationAction | null = null;
   private gestureEndTimer: gsap.core.Tween | null = null;
+  private gestureResetTween: gsap.core.Tween | null = null;
+  private gestureVersion = 0;
+  private activeGestureFinishedHandler: ((event: { action: THREE.AnimationAction }) => void) | null = null;
+  private expression: RobotExpression = "default";
+  private greetingStepActive = false;
 
   constructor(
     private root: THREE.Object3D,
     private bones: RobotBones,
     sceneRoot: THREE.Object3D,
     clips: THREE.AnimationClip[],
+    private onExpressionChange?: (expression: RobotExpression) => void,
   ) {
     this.props = new RobotPropManager(bones);
     this.root.position.x = ROOT_PLACEMENT.restX;
@@ -101,6 +111,7 @@ export class RobotController implements RobotControllerApi {
       Boolean,
     ) as THREE.Bone[];
     this.rightArmResetTimeline?.kill();
+    this.rightArmResetTimeline = null;
     if (duration <= 0 || this.reducedMotion) {
       for (const bone of rightArmBones) bone.quaternion.copy(this.bones.restQuaternion(bone));
       this.setFingerCurl("right", 0);
@@ -115,6 +126,7 @@ export class RobotController implements RobotControllerApi {
         rightArmBones.forEach((bone, i) => bone.quaternion.copy(starts[i]).slerp(rests[i], p.t));
       },
       onComplete: () => {
+        this.rightArmResetTimeline = null;
         this.setFingerCurl("right", 0);
         onComplete?.();
       },
@@ -129,8 +141,85 @@ export class RobotController implements RobotControllerApi {
     this.setFingerCurl("right", 0);
   }
 
+  private cancelGreetingSequence(): void {
+    if (this.greetingStepActive) return;
+    this.greetingTimeline?.kill();
+    this.greetingTimeline = null;
+  }
+
+  private runGreetingStep(action: () => void): void {
+    this.greetingStepActive = true;
+    try {
+      action();
+    } finally {
+      this.greetingStepActive = false;
+    }
+  }
+
+  setExpression(expression: RobotExpression): void {
+    if (this.expression === expression) return;
+    this.expression = expression;
+    this.onExpressionChange?.(expression);
+  }
+
+  private stopActiveGesture(restore = true): void {
+    this.gestureVersion += 1;
+    this.gestureEndTimer?.kill();
+    this.gestureEndTimer = null;
+    this.gestureResetTween?.kill();
+    this.gestureResetTween = null;
+    if (this.activeGestureFinishedHandler) {
+      this.mixer.removeEventListener("finished", this.activeGestureFinishedHandler);
+      this.activeGestureFinishedHandler = null;
+    }
+    this.mixer.stopAllAction();
+    this.activeGestureAction = null;
+    if (!restore) return;
+    this.bones.resetEvery();
+    this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
+    this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
+    this.applyLeftGripPose();
+  }
+
+  private stopBehavior(state: RobotState): void {
+    if (state === "GESTURE") {
+      this.stopActiveGesture();
+      return;
+    }
+    if (state === "WAVING") this.waveTimeline?.kill();
+    if (state === "POINTING") this.pointTimeline?.kill();
+    if (state === "PEEKING" || state === "HIDDEN") this.rootTimeline?.kill();
+    if (state === "THINKING" || state === "SUCCESS" || state === "ERROR") this.reactionTimeline?.kill();
+    this.waveTimeline = null;
+    this.pointTimeline = null;
+    this.rootTimeline = null;
+    this.reactionTimeline = null;
+    this.rightArmResetTimeline?.kill();
+    this.rightArmResetTimeline = null;
+  }
+
+  private beginBehavior(state: RobotState): boolean {
+    this.cancelGreetingSequence();
+    for (const active of this.stateMachine.activeStates()) {
+      if (active === state && state !== "GESTURE") continue;
+      this.stopBehavior(active);
+      this.stateMachine.exit(active);
+    }
+    this.rightArmResetTimeline?.kill();
+    this.rightArmResetTimeline = null;
+    this.resetRightArmToRest();
+    if (state !== "PEEKING") this.peekHeadOverrideYaw = null;
+    if (state !== "POINTING") this.pointNDC = null;
+    if (state !== "HIDDEN") {
+      this.root.position.x = ROOT_PLACEMENT.restX;
+      this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
+    }
+    return this.stateMachine.enter(state);
+  }
+
   setReducedMotion(reduced: boolean): void {
     this.reducedMotion = reduced;
+    if (reduced) this.idle();
   }
 
   setPointerNDC(x: number, y: number): void {
@@ -184,15 +273,15 @@ export class RobotController implements RobotControllerApi {
     if (this.explicitLookTarget) {
       const aim = this.aimAtWorldPoint(this.explicitLookTarget, head);
       targetYaw = aim.yaw;
-      targetPitch = aim.pitch;
+      targetPitch = -aim.pitch;
     } else if (this.pointNDC) {
       targetYaw = this.pointNDC.x * deg(LOOK_CLAMP.yawMaxDeg);
-      targetPitch = this.pointNDC.y * deg(LOOK_CLAMP.pitchMaxDeg);
+      targetPitch = -this.pointNDC.y * deg(LOOK_CLAMP.pitchMaxDeg);
     } else if (this.peekHeadOverrideYaw !== null) {
       targetYaw = this.peekHeadOverrideYaw;
     } else if (this.lookAtCursorEnabled && this.cursorNDC && !this.reducedMotion) {
       targetYaw = this.cursorNDC.x * deg(LOOK_CLAMP.yawMaxDeg);
-      targetPitch = this.cursorNDC.y * deg(LOOK_CLAMP.pitchMaxDeg);
+      targetPitch = -this.cursorNDC.y * deg(LOOK_CLAMP.pitchMaxDeg);
     } else if (!this.reducedMotion) {
       if (elapsed > this.nextWanderAt) {
         this.wanderYawDeg = THREE.MathUtils.randFloatSpread(LOOK_CLAMP.yawMaxDeg * 0.7);
@@ -237,8 +326,24 @@ export class RobotController implements RobotControllerApi {
   // lookAt()/pointAt() are used for today; revisit if a future gesture needs
   // to track a target across a wide angular range.
   private aimAtWorldPoint(target: THREE.Vector3, head: THREE.Bone): { yaw: number; pitch: number } {
+    const neck = this.bones.get("neck");
+    const spine2 = this.bones.get("spine2");
+    scratchSavedHeadQuat.copy(head.quaternion);
+    if (neck) scratchSavedNeckQuat.copy(neck.quaternion);
+    if (spine2) scratchSavedSpine2Quat.copy(spine2.quaternion);
+    head.quaternion.copy(this.bones.restQuaternion(head));
+    if (neck) neck.quaternion.copy(this.bones.restQuaternion(neck));
+    if (spine2) spine2.quaternion.copy(this.bones.restQuaternion(spine2));
+    this.root.updateWorldMatrix(true, true);
+    head.updateWorldMatrix(true, false);
     head.getWorldPosition(scratchVecA);
-    scratchVecB.copy(target).sub(scratchVecA);
+    head.getWorldQuaternion(scratchBaseHeadQuat);
+    scratchBaseHeadQuat.invert();
+    scratchVecB.copy(target).sub(scratchVecA).applyQuaternion(scratchBaseHeadQuat);
+    head.quaternion.copy(scratchSavedHeadQuat);
+    if (neck) neck.quaternion.copy(scratchSavedNeckQuat);
+    if (spine2) spine2.quaternion.copy(scratchSavedSpine2Quat);
+    this.root.updateWorldMatrix(true, true);
     const yaw = Math.atan2(scratchVecB.x, scratchVecB.z);
     const horizontal = Math.hypot(scratchVecB.x, scratchVecB.z);
     const pitch = Math.atan2(scratchVecB.y, horizontal);
@@ -258,43 +363,35 @@ export class RobotController implements RobotControllerApi {
   // call from any state, including the architecturally-stubbed ones that
   // have no other natural way back to IDLE (think() in particular).
   idle(): void {
-    this.greetingTimeline?.kill();
-    this.greetingTimeline = null;
-    const current = this.stateMachine.get();
+    this.cancelGreetingSequence();
     this.peekHeadOverrideYaw = null;
     this.pointNDC = null;
     this.explicitLookTarget = null;
-    if (current === "IDLE") return;
-    if (current === "GESTURE") {
-      this.gestureEndTimer?.kill();
-      if (this.activeGestureAction) this.endGesture(this.activeGestureAction);
-      return;
-    }
-    if (current !== "PEEKING" && current !== "HIDDEN") {
-      this.reactionTimeline?.kill();
-      this.waveTimeline?.kill();
-      this.pointTimeline?.kill();
-      this.root.position.x = ROOT_PLACEMENT.restX;
-      this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
-      // A killed GSAP tween stops exactly where it was, not at rest — wave/
-      // think/point all move the right arm and none of them are guaranteed
-      // to run their own return-to-rest tail before this fires (idle() can
-      // interrupt mid-gesture). Head needs no equivalent call: updateHead()
-      // recomputes it every frame the moment the HEAD channel is free again.
-      this.resetRightArmToRest(0.28, () => this.stateMachine.exit(current));
-      return;
+    for (const active of this.stateMachine.activeStates()) {
+      this.stopBehavior(active);
+      this.stateMachine.exit(active);
     }
     this.rootTimeline?.kill();
+    this.resetRightArmToRest(0.28);
+    if (this.reducedMotion) {
+      this.root.position.x = ROOT_PLACEMENT.restX;
+      this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
+      this.setExpression("default");
+      return;
+    }
     this.rootTimeline = gsap
-      .timeline({ onComplete: () => this.stateMachine.exit(current) })
+      .timeline()
       .to(this.root.position, { x: ROOT_PLACEMENT.restX, duration: PEEK.moveSeconds, ease: "power2.inOut" }, 0)
       .to(this.root.rotation, { y: ROOT_PLACEMENT.restRotationY, duration: PEEK.moveSeconds, ease: "power2.inOut" }, 0);
+    this.setExpression("default");
   }
 
   peek(): void {
-    if (!this.stateMachine.enterInterrupting("PEEKING")) return;
+    if (this.reducedMotion) return;
+    if (!this.beginBehavior("PEEKING")) return;
     this.rootTimeline?.kill();
     this.peekHeadOverrideYaw = deg(PEEK.headTurnDeg);
+    this.setExpression("curious");
     this.rootTimeline = gsap
       .timeline()
       .to(this.root.position, { x: ROOT_PLACEMENT.restX + ROOT_PLACEMENT.peekOffsetX, duration: PEEK.moveSeconds, ease: "power2.out" }, 0)
@@ -321,8 +418,8 @@ export class RobotController implements RobotControllerApi {
    * subtle peek → look around → wave from the edge → hide slightly → return.
    */
   greet(target?: THREE.Vector3 | null): void {
-    this.greetingTimeline?.kill();
-    this.greetingTimeline = null;
+    if (this.reducedMotion) return;
+    this.cancelGreetingSequence();
     this.pointNDC = null;
     this.explicitLookTarget = null;
     this.peekHeadOverrideYaw = null;
@@ -330,24 +427,23 @@ export class RobotController implements RobotControllerApi {
 
     const lookTarget = target ?? new THREE.Vector3(0.58, 0.76, 1);
     this.peek();
+    this.setExpression("happy");
     this.greetingTimeline = gsap
       .timeline({ onComplete: () => { this.greetingTimeline = null; } })
-      // Look around while the peek is held.
-      .call(() => this.lookAt(lookTarget), [], 0.75)
-      // Wave before the peek returns, so the hand stays behind the edge.
-      // Let the peek finish first; wave must be the only root writer.
-      .call(() => this.wave(), [], 2.2)
-      // Hide after the wave has settled.
-      .call(() => this.hide(), [], 4.25)
-      .call(() => {
+      .call(() => this.runGreetingStep(() => this.lookAt(lookTarget)), [], 0.75)
+      .call(() => this.runGreetingStep(() => this.wave()), [], 2.2)
+      .call(() => this.runGreetingStep(() => this.hide()), [], 4.25)
+      .call(() => this.runGreetingStep(() => {
         this.lookAt(null);
         this.idle();
-      }, [], 5.75);
+      }), [], 5.75);
   }
 
   hide(): void {
-    if (!this.stateMachine.enter("HIDDEN")) return;
+    if (this.reducedMotion) return;
+    if (!this.beginBehavior("HIDDEN")) return;
     this.rootTimeline?.kill();
+    this.setExpression("default");
     this.rootTimeline = gsap
       .timeline()
       .to(this.root.position, { x: ROOT_PLACEMENT.restX + ROOT_PLACEMENT.hiddenOffsetX, duration: PEEK.moveSeconds * 1.4, ease: "power2.inOut" }, 0)
@@ -360,17 +456,22 @@ export class RobotController implements RobotControllerApi {
   }
 
   lookAt(target: THREE.Vector3 | null): void {
-    this.explicitLookTarget = target;
+    this.cancelGreetingSequence();
+    this.explicitLookTarget = this.reducedMotion ? null : target?.clone() ?? null;
     if (target) this.pointNDC = null;
   }
 
   wave(): void {
-    if (!this.stateMachine.enterInterrupting("WAVING")) return;
+    if (this.reducedMotion) return;
+    if (!this.beginBehavior("WAVING")) return;
     // Peek owns the root channel. End any previous root travel before the
     // greeting takes over, otherwise two timelines fight over x/rotation.
     this.rootTimeline?.kill();
     this.rootTimeline = null;
     this.clearRightArmTimelines();
+    this.reactionTimeline?.kill();
+    this.reactionTimeline = null;
+    this.setExpression("happy");
     const shoulder = this.bones.get("rightShoulder");
     const arm = this.bones.get("rightArm");
     const foreArm = this.bones.get("rightForeArm");
@@ -404,9 +505,9 @@ export class RobotController implements RobotControllerApi {
         this.applyDelta(foreArm, 0, 0, deg(WAVE.elbowBendDeg) * p.elbow);
         this.applyDelta(
           hand,
-          deg(WAVE.wristXDeg),
-          deg(WAVE.wristYDeg),
-          deg(WAVE.wristZDeg) + Math.sin(p.wristPhase) * deg(WAVE.wristWiggleDeg),
+          deg(WAVE.wristXDeg) * p.elbow,
+          deg(WAVE.wristYDeg) * p.elbow,
+          (deg(WAVE.wristZDeg) + Math.sin(p.wristPhase) * deg(WAVE.wristWiggleDeg)) * p.elbow,
         );
         hand.updateWorldMatrix(true, false);
         return hand.getWorldPosition(scratchVecA);
@@ -424,6 +525,8 @@ export class RobotController implements RobotControllerApi {
       .timeline({
         onUpdate: applyPose,
         onComplete: () => {
+          this.waveTimeline = null;
+          this.resetRightArmToRest();
           this.setFingerCurl("right", 0);
           this.stateMachine.exit("WAVING");
         },
@@ -450,48 +553,64 @@ export class RobotController implements RobotControllerApi {
   // of this class uses, since a clip also drives legs/spine/fingers nothing
   // procedural ever touches.
   playGesture(name: GestureName): void {
+    if (this.reducedMotion) return;
     const clip = this.clipsByRawName.get(GESTURE_CLIPS[name]);
     if (!clip) return;
-    if (!this.stateMachine.enterInterrupting("GESTURE")) return;
+    if (!this.beginBehavior("GESTURE")) return;
     this.greetingTimeline?.kill();
     this.greetingTimeline = null;
-    this.clearRightArmTimelines();
-    this.reactionTimeline?.kill();
-    this.rootTimeline?.kill();
     this.gestureEndTimer?.kill();
+    this.gestureEndTimer = null;
+    this.gestureResetTween?.kill();
+    this.gestureResetTween = null;
     this.peekHeadOverrideYaw = null;
     this.pointNDC = null;
     this.explicitLookTarget = null;
     this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
     this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
-
-    this.activeGestureAction?.fadeOut(GESTURE_FADE_SECONDS);
+    this.bones.resetEvery();
+    this.applyLeftGripPose();
+    this.setExpression("default");
     const action = this.mixer.clipAction(clip);
+    const version = ++this.gestureVersion;
     action.reset();
     action.setLoop(THREE.LoopOnce, 1);
     action.clampWhenFinished = true;
+    action.setEffectiveTimeScale(1);
+    action.setEffectiveWeight(1);
     action.fadeIn(0.15);
     action.play();
     this.activeGestureAction = action;
 
     const onFinished = (event: { action: THREE.AnimationAction }) => {
-      if (event.action !== action) return;
+      if (event.action !== action || this.activeGestureAction !== action || version !== this.gestureVersion) return;
       this.mixer.removeEventListener("finished", onFinished);
-      this.gestureEndTimer = gsap.delayedCall(GESTURE_HOLD_SECONDS, () => this.endGesture(action));
+      this.activeGestureFinishedHandler = null;
+      this.gestureEndTimer = gsap.delayedCall(GESTURE_HOLD_SECONDS, () => this.endGesture(action, version));
     };
+    this.activeGestureFinishedHandler = onFinished;
     this.mixer.addEventListener("finished", onFinished);
   }
 
-  private endGesture(action: THREE.AnimationAction): void {
+  private endGesture(action: THREE.AnimationAction, version: number): void {
+    if (this.activeGestureAction !== action || version !== this.gestureVersion) return;
+    this.gestureEndTimer = null;
     action.fadeOut(GESTURE_FADE_SECONDS);
-    gsap.delayedCall(GESTURE_FADE_SECONDS, () => {
+    this.gestureResetTween = gsap.delayedCall(GESTURE_FADE_SECONDS, () => {
+      if (this.activeGestureAction !== action || version !== this.gestureVersion) return;
       action.stop();
+      if (this.activeGestureFinishedHandler) {
+        this.mixer.removeEventListener("finished", this.activeGestureFinishedHandler);
+        this.activeGestureFinishedHandler = null;
+      }
       this.bones.resetEvery();
       this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
       this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
       this.applyLeftGripPose();
-      if (this.activeGestureAction === action) this.activeGestureAction = null;
+      this.activeGestureAction = null;
+      this.gestureResetTween = null;
       this.stateMachine.exit("GESTURE");
+      this.setExpression("default");
     });
   }
 
@@ -505,6 +624,11 @@ export class RobotController implements RobotControllerApi {
   // and scaled by POINT's config — precise enough for "the robot gestures
   // toward this general area", not pixel-accurate aim.
   pointAt(target: THREE.Vector3 | HTMLElement | null): void {
+    this.cancelGreetingSequence();
+    if (this.reducedMotion) {
+      if (!target) this.lookAt(null);
+      return;
+    }
     if (!target) {
       this.pointNDC = null;
       this.lookAt(null);
@@ -518,6 +642,8 @@ export class RobotController implements RobotControllerApi {
       this.explicitLookTarget = null;
       ndcX = ((rect.left + rect.width / 2) / window.innerWidth) * 2 - 1;
       ndcY = -((rect.top + rect.height / 2) / window.innerHeight) * 2 + 1;
+      ndcX = THREE.MathUtils.clamp(ndcX, -1, 1);
+      ndcY = THREE.MathUtils.clamp(ndcY, -1, 1);
       this.pointNDC = { x: ndcX, y: ndcY };
     } else {
       this.lookAt(target);
@@ -542,8 +668,10 @@ export class RobotController implements RobotControllerApi {
   // new target) just re-tweens toward the new direction — canEnter() treats
   // "already owned by this same state" as free, same as everywhere else.
   private animatePointArm(ndcX: number, ndcY: number): void {
-    if (!this.stateMachine.enterInterrupting("POINTING")) return;
+    if (this.reducedMotion) return;
+    if (!this.beginBehavior("POINTING")) return;
     this.clearRightArmTimelines();
+    this.setExpression("curious");
     const shoulder = this.bones.get("rightShoulder");
     const arm = this.bones.get("rightArm");
     const foreArm = this.bones.get("rightForeArm");
@@ -589,7 +717,8 @@ export class RobotController implements RobotControllerApi {
   // with relaxed, not gripping, fingers. Runs until idle()/reactSuccess()/
   // reactError() ends it — no natural end of its own.
   think(): void {
-    if (!this.stateMachine.enterInterrupting("THINKING")) return;
+    if (this.reducedMotion) return;
+    if (!this.beginBehavior("THINKING")) return;
     this.clearRightArmTimelines();
     const head = this.bones.get("head");
     const shoulder = this.bones.get("rightShoulder");
@@ -597,6 +726,7 @@ export class RobotController implements RobotControllerApi {
     const foreArm = this.bones.get("rightForeArm");
     const hand = this.bones.get("rightHand");
     this.reactionTimeline?.kill();
+    this.setExpression("thinking");
     this.setFingerCurl("right", THINK_POSE.fingerCurl);
     const p = { tilt: 0, armIn: 0, sway: 0 };
     const applyPose = () => {
@@ -634,11 +764,12 @@ export class RobotController implements RobotControllerApi {
 
   reactNotification(): void {
     this.peek();
+    this.setExpression("surprised");
   }
 
   private playReactionBlip(sign: 1 | -1): void {
     const state: RobotState = sign === 1 ? "SUCCESS" : "ERROR";
-    if (!this.stateMachine.enter(state)) return;
+    if (!this.beginBehavior(state)) return;
     const head = this.bones.get("head");
     if (!head) {
       this.stateMachine.exit(state);
@@ -649,9 +780,14 @@ export class RobotController implements RobotControllerApi {
     this.reactionTimeline = gsap
       .timeline({
         onUpdate: () => this.applyDelta(head, 0, 0, sign === 1 ? deg(8) * Math.sin(p.v * Math.PI * 2) : deg(10) * Math.sin(p.v * Math.PI * 3)),
-        onComplete: () => this.stateMachine.exit(state),
+        onComplete: () => {
+          this.reactionTimeline = null;
+          this.stateMachine.exit(state);
+          this.setExpression("default");
+        },
       })
       .to(p, { v: 1, duration: 0.55, ease: "power1.inOut" });
+    this.setExpression(sign === 1 ? "success" : "error");
   }
 
   holdObject(object: THREE.Object3D, hand: Hand): void {
@@ -686,12 +822,13 @@ export class RobotController implements RobotControllerApi {
 
   private curlFingers(hand: Hand, fingers: Finger[], amount: number): void {
     const curl = deg(amount * 40) * (hand === "left" ? -1 : 1);
-    const segments = [1, 2, 3] as const;
+    const segments: FingerSegment[] = [1, 2, 3, 4];
+    const weights = [1, 0.88, 0.7, 0.45];
     for (const finger of fingers) {
-      for (const segment of segments) {
+      for (const [index, segment] of segments.entries()) {
         const bone = this.bones.getByRawName(fingerBoneName(hand, finger, segment));
         if (!bone) continue;
-        this.applyDelta(bone, 0, 0, curl);
+        this.applyDelta(bone, 0, 0, curl * weights[index]);
       }
     }
   }
@@ -708,8 +845,16 @@ export class RobotController implements RobotControllerApi {
     this.pointTimeline?.kill();
     this.rightArmResetTimeline?.kill();
     this.greetingTimeline?.kill();
+    this.greetingTimeline = null;
+    this.greetingStepActive = false;
     this.gestureEndTimer?.kill();
+    this.gestureResetTween?.kill();
+    this.stopActiveGesture(false);
     this.mixer.stopAllAction();
+    this.bones.resetEvery();
+    this.applyLeftGripPose();
+    this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
+    this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
     this.props.detachAll();
   }
 }
