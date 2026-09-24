@@ -156,7 +156,17 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
   );
 }
 
-export default function SecureChat({ roomId, onClose }: { roomId: string; onClose?: () => void }) {
+export default function SecureChat({
+  roomId,
+  onClose,
+  compact,
+}: {
+  roomId: string;
+  onClose?: () => void;
+  // Embedded in a side panel: one slim status line instead of the full
+  // page header, and no controls that duplicate the host screen's own.
+  compact?: boolean;
+}) {
   const t = useTranslations("secureChat");
   const { session, ready } = useAuth();
   const router = useRouter();
@@ -672,11 +682,13 @@ export default function SecureChat({ roomId, onClose }: { roomId: string; onClos
   let lastDay = "";
 
   return (
-    <div className="schat">
+    <div className={`schat${compact ? " schat--compact" : ""}`}>
       <div className="schat__head">
-        <button className="schat__x" type="button" aria-label={t("close")} onClick={close}>
-          <IconClose />
-        </button>
+        {compact ? null : (
+          <button className="schat__x" type="button" aria-label={t("close")} onClick={close}>
+            <IconClose />
+          </button>
+        )}
         <span className="schat__i">
           <IconShieldCheck />
           <i className={`schat__pulse schat__pulse--${conn}`} aria-hidden />
@@ -688,7 +700,7 @@ export default function SecureChat({ roomId, onClose }: { roomId: string; onClos
             {connLabel}
           </span>
         </div>
-        {canMakeCalls(session) ? (
+        {!compact && canMakeCalls(session) ? (
           <div className="schat__calls">
             <button
               className="schat__call"
@@ -710,11 +722,13 @@ export default function SecureChat({ roomId, onClose }: { roomId: string; onClos
             </button>
           </div>
         ) : null}
-        <span className="schat__lock" title={t("secured")}>
-          <IconLock />
-          {t("e2e")}
-        </span>
-        <div className="schat__menu">
+        {compact ? null : (
+          <span className="schat__lock" title={t("secured")}>
+            <IconLock />
+            {t("e2e")}
+          </span>
+        )}
+        <div className="schat__menu" hidden={compact}>
           <button
             className="schat__call"
             type="button"

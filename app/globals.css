@@ -5555,3 +5555,143 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 /* Touch has no hover, so the menu button is always there. */
 @media (hover:none){.ffcard__more{opacity:1}}
 @media (max-width:520px){.fmgr__grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}.ffold__tag{margin-left:8px;padding:3px 7px;font-size:.63rem}}
+
+/* ── wp-deditor2 ── Document workspace, second pass. The screenshot showed
+   three problems the first pass left: the three columns were all white, so
+   they read as one surface; the top bar's middle sat empty while the
+   document's identity hid inside the left panel; and SecureChat's full-page
+   header (brand tile + title + two call buttons + an encrypted pill + a
+   settings menu) was crushed into a 340px panel. Everything below is about
+   giving each column its own edge and its own density, and taking away the
+   things that had to fight for horizontal space. */
+
+/* Columns. The editor keeps the document's own grey; the panels are
+   surfaces above it, so they get a real edge rather than a hairline that
+   vanishes against OnlyOffice's white chrome. */
+.deditor__left{border-right:1px solid var(--line);box-shadow:1px 0 0 rgba(3,16,43,.03)}
+.deditor__right{border-left:1px solid var(--line);box-shadow:-1px 0 0 rgba(3,16,43,.03)}
+.deditor__left,.deditor__right{padding:14px;gap:12px}
+.deditor__main{box-shadow:inset 0 1px 0 var(--line)}
+
+/* Top bar: title + who it is for, then status, then actions. */
+.deditor__ident{display:flex;flex-direction:column;min-width:0;line-height:1.25;gap:1px}
+.deditor__title{max-width:34ch}
+.deditor__sub{font-size:.75rem;color:var(--gray2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34ch}
+.deditor__status{display:flex;align-items:center;gap:8px;flex:none}
+.deditor__save{display:inline-flex;align-items:center;gap:5px}
+.deditor__save i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.deditor__save--saving i{animation:mtgBlink 1.1s infinite}
+
+/* ── Left panel ─────────────────────────────────────────────── */
+.dclient{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:14px;background:var(--dk-surface-2, #F5F8FD);border:1px solid var(--line);min-width:0}
+.dclient__av{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;background:var(--grad);color:#fff;font-weight:800;font-size:.82rem;letter-spacing:.02em;box-shadow:var(--sblue)}
+.dclient__t{display:flex;flex-direction:column;min-width:0;gap:2px}
+.dclient__t b{font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dclient__tel{display:inline-flex;align-items:center;gap:5px;font-size:.8rem;font-weight:600;color:var(--dk-acc, var(--b600));text-decoration:none}
+.dclient__tel:hover{text-decoration:underline}
+.dclient__tel svg{width:13px;height:13px;flex:none}
+.dclient__t small{font-size:.78rem}
+
+.dstrip{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.dstrip__at{display:inline-flex;align-items:center;gap:5px;font-size:.76rem;color:var(--gray2)}
+.dstrip__at svg{width:13px;height:13px;flex:none}
+
+.dsec{display:flex;flex-direction:column;gap:8px;min-width:0}
+.dsec__h{display:flex;align-items:center;gap:7px;margin:0;font-size:.74rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--gray2)}
+.dsec__h svg{width:14px;height:14px;flex:none;color:var(--dk-acc, var(--b600))}
+.dsec__n{margin-left:auto;font-size:.74rem;color:var(--gray2);font-weight:700}
+.dsec__acts{display:flex;flex-wrap:wrap;gap:6px}
+
+/* The client's own words get a quote treatment — the one block on this
+   panel that has to be read rather than scanned. */
+.dneed{margin:0;padding:10px 12px 10px 14px;border-left:3px solid var(--dk-acc, var(--b600));border-radius:0 12px 12px 0;background:var(--dk-tint-blue, #F0F6FF);font-size:.87rem;line-height:1.55;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow-y:auto}
+
+/* Filled-in answers: two columns that each keep their own minimum, instead
+   of one row where a long value squeezes the label to nothing. */
+.dfacts{margin:0;display:flex;flex-direction:column;gap:1px;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.dfacts__row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:8px;padding:7px 10px;background:var(--dk-surface, #fff)}
+.dfacts__row:nth-child(odd){background:var(--dk-surface-2, #F8FAFD)}
+.dfacts dt{margin:0;font-size:.76rem;color:var(--gray2);overflow-wrap:anywhere}
+.dfacts dd{margin:0;font-size:.8rem;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+
+/* Label above value, left aligned: a service title here is a full sentence
+   of legal Uzbek, and right-aligning it against a label made a ragged
+   three-line block with the label floating beside its last row. */
+.dmeta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dmeta>span{font-size:.73rem;font-weight:700;letter-spacing:.03em;color:var(--gray2)}
+.dmeta--who>span{display:inline-flex;align-items:center;gap:5px}
+.dmeta--who svg{width:13px;height:13px;color:var(--dk-acc, var(--b600))}
+.dmeta>b{min-width:0;font-size:.85rem;font-weight:700;line-height:1.4;overflow-wrap:anywhere}
+
+.dchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--dk-surface, #fff);border-radius:var(--pill);padding:6px 12px;font:inherit;font-size:.78rem;font-weight:700;color:var(--ink);cursor:pointer;transition:border-color .15s,color .15s}
+.dchip:hover{border-color:var(--b300);color:var(--dk-acc, var(--b600))}
+.dchip svg{width:14px;height:14px;flex:none}
+
+/* ── Right panel ────────────────────────────────────────────── */
+/* Four stacked icon+label columns did not fit beside the collapse chevron.
+   One segmented row does, with the label next to the icon. */
+.deditor__tabs{display:flex;gap:2px;flex:none;margin:0 0 10px;padding:3px;border-radius:var(--pill);background:var(--dk-surface-2, #F1F5FB);border-bottom:0}
+.deditor__tabs button{position:relative;flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:5px;border:0;border-bottom:0;background:none;border-radius:var(--pill);padding:7px 4px;font:inherit;font-size:.74rem;font-weight:700;color:var(--gray);cursor:pointer;transition:background .15s,color .15s}
+.deditor__tabs button svg{width:15px;height:15px;flex:none}
+.deditor__tabs button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.deditor__tabs button.on{background:var(--dk-surface, #fff);color:var(--dk-acc, var(--b600));box-shadow:var(--s1)}
+.deditor__tabdot{position:absolute;top:4px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--ok);animation:mtgBlink 1.4s infinite}
+/* The collapse chevron floated over the first tab; it takes its own row. */
+.deditor__panelToggle{top:50%;right:-1px;transform:translateY(-50%);width:15px;height:52px;border-radius:8px 0 0 8px;background:var(--dk-surface-2, #EDF2FA);border:1px solid var(--line);border-right:0;box-shadow:none}
+.deditor__panelToggle svg{width:12px;height:12px}
+.deditor__panelToggle:hover{background:var(--b100);color:var(--dk-acc, var(--b600))}
+.deditor__panelToggle--right{right:auto;left:-1px;border-radius:0 8px 8px 0;border:1px solid var(--line);border-left:0}
+
+.dpane{display:flex;flex-direction:column;gap:10px;min-width:0}
+/* A status card: icon, what the state is, one line of why it matters. */
+.dstate{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:14px;border:1px solid var(--line);background:var(--dk-surface-2, #F8FAFD);min-width:0}
+.dstate__i{width:34px;height:34px;border-radius:11px;flex:none;display:grid;place-items:center;background:var(--dk-surface, #fff);color:var(--gray2);border:1px solid var(--line)}
+.dstate__i svg{width:16px;height:16px}
+.dstate__t{display:flex;flex-direction:column;min-width:0;gap:1px}
+.dstate__t b{font-size:.86rem}
+.dstate__t small{font-size:.76rem;color:var(--gray2);overflow-wrap:anywhere}
+.dstate--ok .dstate__i{background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0a7d55);border-color:transparent}
+.dstate--idle .dstate__i{background:var(--dk-tint-warn, #FFF7ED);color:var(--dk-txt-warn, #B45309);border-color:transparent}
+.dstate--live{border-color:var(--dk-bd-ok, #BFEAD6);background:var(--dk-tint-ok, #E9F9F1)}
+.dstate--live .dstate__i{background:var(--ok);color:#fff;border-color:transparent}
+
+.dppl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.dppl li{display:flex;align-items:center;gap:8px;font-size:.84rem;min-width:0}
+.dppl li>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dppl__av{width:26px;height:26px;border-radius:9px;flex:none;display:grid;place-items:center;background:var(--b50);color:var(--dk-acc-strong, var(--b700));font-size:.68rem;font-weight:800}
+
+.dids{margin:0;display:flex;flex-direction:column;gap:1px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.dids__row{display:flex;flex-direction:column;gap:2px;padding:8px 10px;background:var(--dk-surface, #fff)}
+.dids__row:nth-child(odd){background:var(--dk-surface-2, #F8FAFD)}
+.dids dt{margin:0;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray2)}
+.dids dd{margin:0;min-width:0}
+.dids code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.76rem;color:var(--ink);overflow-wrap:anywhere;user-select:all}
+
+/* One empty-state treatment for the whole panel. */
+.dempty{display:flex;align-items:center;gap:8px;margin:0;padding:12px;border-radius:12px;background:var(--dk-surface-2, #F8FAFD);font-size:.82rem;color:var(--gray2);line-height:1.45}
+.dempty svg{width:16px;height:16px;flex:none}
+.dempty--lead{background:none;padding:0 0 2px}
+
+/* ── SecureChat, embedded ────────────────────────────────────── */
+/* No brand tile, no call buttons (the top bar starts the meeting), no
+   settings menu, no close button — just a slim line saying the channel is
+   live, then the messages. */
+.schat--compact{height:auto}
+.schat--compact .schat__head{gap:8px;padding:8px 12px;backdrop-filter:none;background:var(--dk-surface-2, #F8FAFD)}
+.schat--compact .schat__i{width:26px;height:26px;border-radius:9px;box-shadow:none}
+.schat--compact .schat__i svg{width:14px;height:14px}
+.schat--compact .schat__t b{font-size:.8rem}
+.schat--compact .schat__conn{font-size:.7rem}
+.schat--compact .schat__body{padding:12px}
+.schat--compact .schat__note{font-size:.7rem;padding:6px 10px;line-height:1.35}
+.schat--compact .schat__bar{padding:10px 12px;gap:8px;max-width:none}
+.schat--compact .schat__bar input{padding:10px 14px 10px 36px;font-size:.86rem}
+.schat--compact .schat__bar .schat__barlock{left:64px}
+.schat--compact .schat__bar .schat__attach,.schat--compact .schat__bar .schat__mic,.schat--compact .schat__bar .schat__reccancel,.schat--compact .schat__bar button{width:38px;height:38px}
+.schat--compact .sbub{max-width:92%}
+.schat--compact .sattach--voice audio{max-width:200px}
+
+@media (max-width:640px){
+  .deditor__sub{display:none}
+  .deditor__status .deditor__save{display:none}
+}

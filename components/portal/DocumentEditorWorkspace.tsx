@@ -19,7 +19,7 @@ import {
 } from "@/lib/services/backend";
 import { ApiError, asDict, asStr, isConflict, logApiError } from "@/lib/http";
 import { fetchAndDeliver, extFromMime } from "@/lib/download";
-import { humanizeSlug } from "@/lib/lawyers";
+import { humanizeSlug, initials } from "@/lib/lawyers";
 import { shortDateTime } from "@/lib/date";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { Skeleton } from "./DataState";
@@ -30,7 +30,6 @@ import CallRoom from "@/components/chat/CallRoom";
 import SecureChat from "@/components/chat/SecureChat";
 import {
   IconChevronLeft,
-  IconUser,
   IconUsers,
   IconPhone,
   IconClock,
@@ -39,11 +38,12 @@ import {
   IconVideo,
   IconChat,
   IconInfo,
-  IconClipboardCheck,
   IconDownload,
   IconEye,
   IconRefresh,
   IconMenu,
+  IconFileText,
+  IconHeadset,
 } from "@/components/icons";
 
 // LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md: a dedicated full-page
@@ -443,6 +443,10 @@ export default function DocumentEditorWorkspace({
   const badge = badgeState(req, finalized, touched);
   const badgeLabel = { new: t("statusNew"), taken: t("statusTaken"), progress: t("statusInProgress"), ready: t("statusReady"), sent: t("statusSent") }[badge];
   const answerEntries = req ? Object.entries(req.answers).filter(([, v]) => v != null && v !== "") : [];
+  // A template-backed request names the same thing twice — show the second
+  // line only when it adds something.
+  const rawTemplate = req?.templateName || req?.templateFile?.fileName || "";
+  const templateLabel = rawTemplate && rawTemplate.trim() !== (req?.serviceName || "").trim() ? rawTemplate : "";
   const chatRoomId = req?.secureChatRoomId || "";
   const editorErrMsg = editorErrStatus === 403 ? t("noAccess") : editorErrStatus === 404 ? t("notFound") : t("templateError");
 
@@ -464,28 +468,25 @@ export default function DocumentEditorWorkspace({
         >
           <IconMenu />
         </button>
-        <b className="deditor__title">{req?.title || req?.clientName || t("title")}</b>
-        <span className={`deditor__badge deditor__badge--${badge}`}>{badgeLabel}</span>
-        {saveState ? (
-          <span className={`deditor__save deditor__save--${saveState}`}>
-            {saveState === "saving" ? t("saveSaving") : saveState === "saved" ? t("saveSaved") : t("saveError")}
-          </span>
-        ) : null}
+        <span className="deditor__ident">
+          <b className="deditor__title">{req?.title || req?.clientName || t("title")}</b>
+          <small className="deditor__sub">
+            {[req?.clientName, req?.serviceName].filter(Boolean).join(" · ") || t("subtitleFallback")}
+          </small>
+        </span>
+        <span className="deditor__status">
+          <span className={`deditor__badge deditor__badge--${badge}`}>{badgeLabel}</span>
+          {saveState ? (
+            <span className={`deditor__save deditor__save--${saveState}`}>
+              <i aria-hidden />
+              {saveState === "saving" ? t("saveSaving") : saveState === "saved" ? t("saveSaved") : t("saveError")}
+            </span>
+          ) : null}
+        </span>
         <span className="deditor__spacer" />
         <button type="button" className="deditor__act" onClick={startMeeting} disabled={meetBusy || !req?.meetingUrl || isSent || !!meeting}>
           <IconVideo />
           <span className="deditor__actLabel">{meetBusy ? t("processingShort") : t("startMeeting")}</span>
-        </button>
-        <button
-          type="button"
-          className="deditor__act"
-          onClick={() => {
-            setRightOpen(true);
-            setRightTab("chat");
-          }}
-        >
-          <IconChat />
-          <span className="deditor__actLabel">{t("tabChat")}</span>
         </button>
         <button
           type="button"
@@ -524,70 +525,81 @@ export default function DocumentEditorWorkspace({
             <Notice ok={false} msg={t("templateError")} />
           ) : (
             <>
-              <div className="deditor__row">
-                <IconUser />
-                <b>{req.clientName || "—"}</b>
+              {/* Who this is for. The phone is a real tel: link — the whole
+                  point of the card-centre advocate having it. */}
+              <div className="dclient">
+                <span className="dclient__av" aria-hidden>{initials(req.clientName || "?")}</span>
+                <span className="dclient__t">
+                  <b>{req.clientName || "—"}</b>
+                  {req.clientPhone ? (
+                    <a className="dclient__tel" href={`tel:${req.clientPhone.replace(/[^\d+]/g, "")}`}>
+                      <IconPhone />
+                      {req.clientPhone}
+                    </a>
+                  ) : (
+                    <small className="advmuted">{t("noPhone")}</small>
+                  )}
+                </span>
               </div>
-              {req.clientPhone ? (
-                <div className="deditor__row">
-                  <IconPhone />
-                  <span>{req.clientPhone}</span>
-                </div>
+
+              {req.createdAt ? (
+                <small className="dstrip__at">
+                  <IconClock />
+                  {t("createdLabel")}: {shortDateTime(req.createdAt, locale)}
+                </small>
               ) : null}
-              <div className="deditor__field">
-                <label>{t("statusLabel")}</label>
-                <p>
-                  <span className={`deditor__badge deditor__badge--${badge}`}>{badgeLabel}</span>
-                </p>
-              </div>
-              {req.serviceName ? (
-                <div className="deditor__field">
-                  <label>{t("serviceLabel")}</label>
-                  <p>{req.serviceName}</p>
-                </div>
-              ) : null}
-              {req.templateName || req.templateFile?.fileName ? (
-                <div className="deditor__field">
-                  <label>{t("templateLabel")}</label>
-                  <p>{req.templateName || req.templateFile?.fileName}</p>
-                </div>
-              ) : null}
-              {req.assignedLawyerName ? (
-                <div className="deditor__field">
-                  <label>{t("assignedLabel")}</label>
-                  <p>{req.assignedLawyerName}</p>
-                </div>
-              ) : null}
-              <div className="deditor__field">
-                <label>{t("need")}</label>
-                <p className="deditor__need">{req.need || "—"}</p>
+
+              {/* The request itself — the one thing the advocate actually
+                  has to read before typing anything. */}
+              <section className="dsec">
+                <h3 className="dsec__h"><IconChat />{t("need")}</h3>
+                <blockquote className="dneed">{req.need || "—"}</blockquote>
                 {answerEntries.length ? (
-                  <div className="oquote" style={{ marginTop: 6 }}>
+                  <dl className="dfacts">
                     {answerEntries.map(([k, v]) => (
-                      <div className="oquote__row" key={k}>
-                        <span>{humanizeSlug(k)}</span>
-                        <b>{String(v)}</b>
+                      <div className="dfacts__row" key={k}>
+                        <dt>{humanizeSlug(k)}</dt>
+                        <dd>{String(v)}</dd>
                       </div>
                     ))}
+                  </dl>
+                ) : null}
+              </section>
+
+              <section className="dsec">
+                <h3 className="dsec__h"><IconFileText />{t("documentLabel")}</h3>
+                {req.serviceName ? (
+                  <div className="dmeta">
+                    <span>{t("serviceLabel")}</span>
+                    <b>{req.serviceName}</b>
                   </div>
                 ) : null}
-              </div>
-              {req.createdAt ? (
-                <div className="deditor__row">
-                  <IconClock />
-                  <span>{shortDateTime(req.createdAt, locale)}</span>
-                </div>
-              ) : null}
-              {req.templateFile?.hasFile ? (
-                <div className="chiprow" style={{ margin: "4px 0 0" }}>
-                  <button type="button" className="btn btn--line btn--sm" onClick={() => setPreview("template")}>
-                    <IconEye /> {t("viewTemplate")}
-                  </button>
-                  <button type="button" className="btn btn--line btn--sm" onClick={downloadTemplate}>
-                    <IconDownload /> {t("downloadTemplate")}
-                  </button>
-                </div>
-              ) : null}
+                {/* Only when it differs: on a template-backed request the
+                    service and the template carry the same title, and
+                    printing it twice was the panel's biggest space waste. */}
+                {templateLabel ? (
+                  <div className="dmeta">
+                    <span>{t("templateLabel")}</span>
+                    <b>{templateLabel}</b>
+                  </div>
+                ) : null}
+                {req.assignedLawyerName ? (
+                  <div className="dmeta dmeta--who">
+                    <span><IconHeadset />{t("assignedLabel")}</span>
+                    <b>{req.assignedLawyerName}</b>
+                  </div>
+                ) : null}
+                {req.templateFile?.hasFile ? (
+                  <div className="dsec__acts">
+                    <button type="button" className="dchip" onClick={() => setPreview("template")}>
+                      <IconEye /> {t("viewTemplate")}
+                    </button>
+                    <button type="button" className="dchip" onClick={downloadTemplate}>
+                      <IconDownload /> {t("downloadTemplate")}
+                    </button>
+                  </div>
+                ) : null}
+              </section>
             </>
           )}
         </aside>
@@ -651,11 +663,20 @@ export default function DocumentEditorWorkspace({
           >
             <IconChevronLeft />
           </button>
-          <div className="deditor__tabs">
+          <div className="deditor__tabs" role="tablist">
             {(["chat", "meeting", "versions", "info"] as RightTab[]).map((tab) => (
-              <button key={tab} type="button" className={rightTab === tab ? "on" : ""} onClick={() => setRightTab(tab)}>
-                {tab === "meeting" ? <IconVideo /> : tab === "chat" ? <IconChat /> : tab === "versions" ? <IconClipboardCheck /> : <IconInfo />}
-                {t(tab === "meeting" ? "tabMeeting" : tab === "chat" ? "tabChat" : tab === "versions" ? "tabVersions" : "tabInfo")}
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={rightTab === tab}
+                className={rightTab === tab ? "on" : ""}
+                onClick={() => setRightTab(tab)}
+                title={t(tab === "meeting" ? "tabMeeting" : tab === "chat" ? "tabChat" : tab === "versions" ? "tabVersions" : "tabInfo")}
+              >
+                {tab === "meeting" ? <IconVideo /> : tab === "chat" ? <IconChat /> : tab === "versions" ? <IconClock /> : <IconInfo />}
+                <span>{t(tab === "meeting" ? "tabMeeting" : tab === "chat" ? "tabChat" : tab === "versions" ? "tabVersions" : "tabInfo")}</span>
+                {tab === "meeting" && meeting ? <i className="deditor__tabdot" aria-hidden /> : null}
               </button>
             ))}
           </div>
@@ -663,15 +684,20 @@ export default function DocumentEditorWorkspace({
             {rightTab === "chat" ? (
               chatRoomId ? (
                 <div className="deditor__chat">
-                  <SecureChat roomId={chatRoomId} onClose={() => setRightOpen(false)} />
+                  <SecureChat roomId={chatRoomId} onClose={() => setRightOpen(false)} compact />
                 </div>
               ) : (
-                <p className="advmuted">{t("chatUnavailable")}</p>
+                <p className="dempty"><IconChat />{t("chatUnavailable")}</p>
               )
             ) : rightTab === "meeting" ? (
-              <div className="deditor__field">
-                <label>{t("tabMeeting")}</label>
-                <p className="deditor__meetStatus">{meeting ? (meeting.open ? t("meetingLive") : t("meetingOpen")) : t("meetingNone")}</p>
+              <div className="dpane">
+                <div className={`dstate${meeting ? (meeting.open ? " dstate--live" : " dstate--idle") : ""}`}>
+                  <span className="dstate__i"><IconVideo /></span>
+                  <span className="dstate__t">
+                    <b>{meeting ? (meeting.open ? t("meetingLive") : t("meetingOpen")) : t("meetingNone")}</b>
+                    <small>{meeting ? t("meetingLimitHint") : t("meetingStartHint")}</small>
+                  </span>
+                </div>
                 {meeting ? (
                   <button type="button" className="btn btn--grad btn--full" onClick={rejoinMeeting} disabled={meetBusy || meeting.open}>
                     <IconVideo /> {meetBusy ? t("processingShort") : t("meetingJoin")}
@@ -682,52 +708,67 @@ export default function DocumentEditorWorkspace({
                   </button>
                 )}
                 {meeting ? (
-                  <>
-                    <label style={{ marginTop: 10 }}>
-                      {t("participants")} ({roster.length})
-                    </label>
+                  <section className="dsec">
+                    <h3 className="dsec__h"><IconUsers />{t("participants")} <b className="dsec__n">{roster.length}</b></h3>
                     {roster.length ? (
-                      roster.map((p) => (
-                        <div className="deditor__row" key={p.userId}>
-                          <IconUsers />
-                          <span>{p.name || humanizeSlug(p.role || "—")}</span>
-                        </div>
-                      ))
+                      <ul className="dppl">
+                        {roster.map((p) => (
+                          <li key={p.userId}>
+                            <span className="dppl__av" aria-hidden>{initials(p.name || p.role || "?")}</span>
+                            <span>{p.name || humanizeSlug(p.role || "—")}</span>
+                          </li>
+                        ))}
+                      </ul>
                     ) : (
-                      <p className="advmuted">{t("participantsNone")}</p>
+                      <p className="dempty"><IconUsers />{t("participantsNone")}</p>
                     )}
-                  </>
+                  </section>
                 ) : null}
                 {meetErr ? <Notice ok={false} msg={t("meetingError")} /> : null}
               </div>
             ) : rightTab === "versions" ? (
-              <div className="deditor__field">
-                <label>{t("draftSavedAt")}</label>
-                <p>{savedAt ? shortDateTime(savedAt, locale) : t("noDraftYet")}</p>
-                <label style={{ marginTop: 10 }}>{t("tabVersions")}</label>
+              <div className="dpane">
+                <div className={`dstate${savedAt ? " dstate--ok" : ""}`}>
+                  <span className="dstate__i"><IconClock /></span>
+                  <span className="dstate__t">
+                    <b>{t("draftSavedAt")}</b>
+                    <small>{savedAt ? shortDateTime(savedAt, locale) : t("noDraftYet")}</small>
+                  </span>
+                </div>
+                <div className={`dstate${finalFile ? " dstate--ok" : ""}`}>
+                  <span className="dstate__i"><IconFileText /></span>
+                  <span className="dstate__t">
+                    <b>{t("tabVersions")}</b>
+                    <small>{finalFile ? `${(finalFile.format || "docx").toUpperCase()}` : t("noFinalYet")}</small>
+                  </span>
+                </div>
                 {finalFile ? (
-                  <div className="chiprow" style={{ margin: "6px 0 0" }}>
-                    <button type="button" className="btn btn--line btn--sm" onClick={() => setPreview("final")}>
+                  <div className="dsec__acts">
+                    <button type="button" className="dchip" onClick={() => setPreview("final")}>
                       <IconEye /> {t("viewFinalFile")}
                     </button>
-                    <button type="button" className="btn btn--line btn--sm" onClick={downloadFinalFile}>
+                    <button type="button" className="dchip" onClick={downloadFinalFile}>
                       <IconDownload /> {t("downloadFinalFile")}
                     </button>
                   </div>
-                ) : (
-                  <p className="advmuted">{t("noFinalYet")}</p>
-                )}
+                ) : null}
               </div>
             ) : (
-              <div className="deditor__field">
-                <label>{t("infoLawyerRequestId")}</label>
-                <p>{req?.id || "—"}</p>
-                <label>{t("infoDocumentRequestId")}</label>
-                <p>{req?.request.id || "—"}</p>
-                <label>{t("infoServiceId")}</label>
-                <p>{req?.serviceId || "—"}</p>
-                <label>{t("infoTemplateId")}</label>
-                <p>{req?.templateId || req?.request.templateId || "—"}</p>
+              <div className="dpane">
+                <p className="dempty dempty--lead"><IconInfo />{t("infoLead")}</p>
+                <dl className="dids">
+                  {[
+                    [t("infoLawyerRequestId"), req?.id],
+                    [t("infoDocumentRequestId"), req?.request.id],
+                    [t("infoServiceId"), req?.serviceId],
+                    [t("infoTemplateId"), req?.templateId || req?.request.templateId],
+                  ].map(([label, value]) => (
+                    <div className="dids__row" key={label as string}>
+                      <dt>{label}</dt>
+                      <dd><code>{(value as string) || "—"}</code></dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
             )}
           </div>
