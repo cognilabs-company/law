@@ -3963,8 +3963,8 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
    dragging it up/left grows the panel toward the free space. */
 .mtg--float{inset:auto 18px 18px auto;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 60px rgba(4,12,31,.5);animation:none;z-index:221}
 .mtg--float .mtg__top{padding:8px 10px 8px 16px;gap:8px;cursor:move;touch-action:none;user-select:none}
-.mtg--float .mtg__timer{flex:none;gap:6px}
-.mtg--float .mtg__rec{display:none}
+.mtg--float .mtg__timer{flex:none;gap:6px}
+.mtg--float .mtg__rec{display:none}
 .mtg--float .mtg__left{font-size:.72rem}
 .mtg--float .mtg__tools{display:none}
 .mtg--float .mtg__title b{font-size:.84rem;max-width:150px}
@@ -5371,7 +5371,7 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
    participants-only, so every bubble here is fetched with the session token
    and held as an object URL — never a bare link the browser would 401 on. */
 .schat__bar .schat__attach,.schat__bar .schat__mic,.schat__bar .schat__reccancel{width:46px;height:46px;border-radius:50%;flex:none;display:grid;place-items:center;cursor:pointer;transition:transform .15s,background .15s,color .15s}
-.schat__bar .schat__attach,.schat__bar .schat__mic{border:1.5px solid var(--line);background:var(--dk-surface-2, #F7FAFE);color:var(--gray);box-shadow:none}
+.schat__bar .schat__attach,.schat__bar .schat__mic{border:1.5px solid var(--line);background:var(--dk-surface-2, #F7FAFE);color:var(--gray);box-shadow:none}
 .schat__bar .schat__attach svg,.schat__bar .schat__mic svg,.schat__bar .schat__reccancel svg{stroke:currentColor}
 .schat__bar .schat__attach:hover:not(:disabled),.schat__bar .schat__mic:hover:not(:disabled){color:var(--dk-acc, var(--b600));border-color:var(--b300);transform:none}
 .schat__bar .schat__attach svg,.schat__bar .schat__mic svg,.schat__bar .schat__reccancel svg{width:19px;height:19px}
@@ -5434,8 +5434,8 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 /* The floating panel hides .mtg__timer wholesale, so the pause card is the
    only place a floating meeting can say it is waiting on a payment. */
 .mtg--float .mtg__pause,.mtg--float .mtg__ext{bottom:10px;padding:10px 12px;max-width:calc(100% - 16px)}
-.mtg--float .mtg__pause small{display:none}
-.mtg--float .mtg__ext-mins{gap:4px;margin-top:2px}
+.mtg--float .mtg__pause small{display:none}
+.mtg--float .mtg__ext-mins{gap:4px;margin-top:2px}
 .mtg--float .mtg__ext-mins button{padding:5px 9px;font-size:.76rem}
 
 /* ── wp-newdoc ── lexgo_frontend_custom_doc_flows.md: the catalog can't
