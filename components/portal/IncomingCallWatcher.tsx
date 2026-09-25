@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { listInvitedCalls, listLawyers, getCall } from "@/lib/services/backend";
-import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, userSocketState, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
+import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
 import CallRoom, { isCallRoomMounted, CALLROOM_EVENT } from "@/components/chat/CallRoom";
 import { IconPhone, IconVideo, IconClose } from "@/components/icons";
@@ -42,9 +42,11 @@ async function callerNameOf(parts: Record<string, unknown>[], caller: string, ro
   } catch { /* fall through */ }
   return caller ? nameOf(caller) : "";
 }
-// Fallback poll of /calls/invited only while the user socket is down (and on
-// mount / tab focus) — the socket's `call.incoming` is the primary signal.
-const FALLBACK_MS = 45_000;
+// /calls/invited is an initial-load and re-sync call only — never an interval.
+// LEXGO_REALTIME_NOTIFICATIONS_CALLS_FRONTEND.md: "Bu endpoint ham interval
+// polling uchun emas… Interval polling qaytadan yoqilmaydi." The socket's
+// `call.incoming` is the signal; this runs on mount, when the tab comes back,
+// and once after the socket reconnects.
 
 // Rings for incoming calls anywhere in the portal:
 //  • `call.incoming` on the global user socket (/ws/users/me) — 1:1 calls in
@@ -118,7 +120,6 @@ export default function IncomingCallWatcher() {
       } catch { /* ignore */ }
     }
     void pollInvites();
-    const iv = setInterval(() => { if (userSocketState() !== "online") void pollInvites(); }, FALLBACK_MS);
     const onVis = () => { if (document.visibilityState === "visible") void pollInvites(); };
     document.addEventListener("visibilitychange", onVis);
     const unsubState = subscribeUserSocketState((s) => { if (s === "online") void pollInvites(); });
@@ -126,7 +127,6 @@ export default function IncomingCallWatcher() {
       alive = false;
       unsub();
       unsubState();
-      clearInterval(iv);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [session, t]);

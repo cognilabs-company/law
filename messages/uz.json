@@ -1838,6 +1838,8 @@
       "success": "Kirilmoqda…"
     },
     "common": {
+      "loadingMore": "Yuklanmoqda…",
+      "loadMore": "Yana yuklash",
       "paymentStatus": {
         "pending_payment": "To'lov kutilmoqda",
         "payment_pending": "To'lov kutilmoqda",
@@ -2195,7 +2197,7 @@
         "ai": "Sun'iy Intellekt chat",
         "assistant": "Sun'iy intellekt yordamchi",
         "promotion": "Targ'ibot",
-        "subscription": "Paket tariflar",
+        "subscription": "Tariflar",
         "notifications": "Bildirishnomalar",
         "workspace": "Ish maydoni",
         "files": "Fayllar",
@@ -2211,7 +2213,7 @@
         "payments": "To'lovlar",
         "lawyers": "Advokat va yuristlar",
         "matches": "Mos advokatlar",
-        "subscription": "Paket tariflar",
+        "subscription": "Tariflar",
         "gifts": "Sovg'alar",
         "referrals": "Do'stni taklif qilish",
         "reviews": "Baholash va sharhlar",
@@ -2239,7 +2241,7 @@
         "tasks": "Vazifalar",
         "profile": "Profil",
         "promotion": "Targ'ibot",
-        "subscription": "Paket tariflar",
+        "subscription": "Tariflar",
         "messages": "Xabarlar",
         "organization": "Tashkilot",
         "notifications": "Bildirishnomalar",
@@ -3143,6 +3145,7 @@
         "servicesSub": "Hujjat shabloni va advokatlar"
       },
       "services": {
+        "filtersTitle": "Filtrlar",
         "title": "Xizmat buyurtma qilish",
         "lead": "LexGo katalogini ko'ring, mutaxassis tanlang va boshlang.",
         "search": "Xizmatlarni qidirish",
@@ -4070,6 +4073,9 @@
       }
     },
     "notifications": {
+      "loadingMore": "Yuklanmoqda…",
+      "loadMore": "Yana yuklash",
+      "ariaN": "Bildirishnomalar — {n} ta oqilmagan",
       "title": "Bildirishnomalar",
       "markAll": "Barchasini o‘qilgan",
       "empty": "Bildirishnomalar yo‘q",
@@ -6878,6 +6884,11 @@
     "loginRequired": "Bu maxfiy chatni ochish uchun tizimga kiring.",
     "login": "Kirish",
     "inbox": {
+      "newMessage": "Yangi xabar",
+      "newN": "{n} ta yangi",
+      "noMatchText": "Boshqa nom yoki raqam bilan qidirib ko'ring.",
+      "noMatch": "Topilmadi",
+      "search": "Suhbat qidirish",
       "title": "Maxfiy chatlar",
       "lead": "Mutaxassislar bilan himoyalangan suhbatlaringiz.",
       "empty": "Hozircha suhbat yo'q",

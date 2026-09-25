@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { listClientDocumentFlow, getDocumentRequestFile, type ClientDocFlowItem, type ClientDocFlowMode } from "@/lib/services/backend";
-import { useResource } from "@/lib/useResource";
+import { listClientDocumentFlowPage, getDocumentRequestFile, DOC_FLOW_PAGE, type ClientDocFlowItem, type ClientDocFlowMode } from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
@@ -26,7 +25,53 @@ export default function ClientDocumentRequests() {
   const tcm = useTranslations("portal.common");
   const locale = useLocale();
   const [tab, setTab] = useState<TabKey>("all");
-  const list = useResource<ClientDocFlowItem>(() => listClientDocumentFlow(tab === "all" ? undefined : { mode: tab }), [tab]);
+  // LEXGO_REALTIME_AND_LIGHT_API_FRONTEND.md: /document-requests/service-flow
+  // is paged now (the unpaged call was ~2MB for an account with a long
+  // history, and it silently capped the list once the backend added a default
+  // limit). Explicit state rather than useResource: a paged list owns both
+  // "which page am I on" and "is there another", which a single-shot resource
+  // hook has nowhere to put.
+  const [rows, setRows] = useState<ClientDocFlowItem[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [more, setMore] = useState(false);
+  const [moreBusy, setMoreBusy] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
+
+  // Back to "loading" the moment the tab changes — during render, not in the
+  // effect, so there is no extra cascading render (same pattern as useResource).
+  const [prevTab, setPrevTab] = useState(tab);
+  if (prevTab !== tab) { setPrevTab(tab); setStatus("loading"); }
+
+  useEffect(() => {
+    let alive = true;
+    listClientDocumentFlowPage({ mode: tab === "all" ? undefined : tab, limit: DOC_FLOW_PAGE, offset: 0 })
+      .then((p) => {
+        if (!alive) return;
+        setRows(p.items);
+        setMore(p.hasMore);
+        setStatus("ready");
+      })
+      .catch(() => alive && setStatus("error"));
+    return () => { alive = false; };
+  }, [tab, reloadKey]);
+
+  async function loadMore() {
+    if (moreBusy || !more) return;
+    setMoreBusy(true);
+    try {
+      const p = await listClientDocumentFlowPage({ mode: tab === "all" ? undefined : tab, limit: DOC_FLOW_PAGE, offset: rows.length });
+      setRows((cur) => {
+        const seen = new Set(cur.map((x) => x.id));
+        return [...cur, ...p.items.filter((x) => !seen.has(x.id))];
+      });
+      setMore(p.hasMore);
+    } catch {
+      setMore(false);
+    } finally {
+      setMoreBusy(false);
+    }
+  }
   const [dlBusy, setDlBusy] = useState("");
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
 
@@ -35,13 +80,12 @@ export default function ClientDocumentRequests() {
   // manual reload to show that an advocate claimed the work, started a
   // meeting, or sent the finished file. `refresh()` keeps what is on screen
   // while it refetches, so an event never flashes the list back to a skeleton.
-  const refresh = list.refresh;
   useEffect(() => {
     return subscribeUserEvents((ev) => {
       if (!ev.event.startsWith("document_request.")) return;
       // MD §"Client tayyor file ko'rishi" — the exact notice the client gets.
       if (ev.event === "document_request.ready" || ev.event === "document_request.completed") setNote({ ok: true, msg: t("readyToast") });
-      void refresh();
+      refresh();
     });
   }, [refresh, t]);
 
@@ -58,7 +102,7 @@ export default function ClientDocumentRequests() {
     <div className="ppanel">
       <div className="ppanel__h">
         <b>{t("title")}</b>
-        <span className="advmuted">{list.data.length}</span>
+        <span className="advmuted">{rows.length}</span>
       </div>
 
       <div className="chiprow" style={{ marginBottom: 14 }}>
@@ -71,17 +115,17 @@ export default function ClientDocumentRequests() {
 
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
 
-      {list.status === "loading" ? (
+      {status === "loading" ? (
         <Skeleton rows={3} />
-      ) : list.status === "error" ? (
+      ) : status === "error" ? (
         // A failed fetch used to render as "you have no documents" — the one
         // message that must never be guessed at on this page.
         <Notice ok={false} msg={t("loadError")} />
-      ) : !list.data.length ? (
+      ) : !rows.length ? (
         <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
       ) : (
         <div className="pcards">
-          {list.data.map((item) => (
+          {rows.map((item) => (
             <div className="pcase" key={item.id}>
               <div className="pcase__h">
                 <span className="pcase__client">
@@ -129,6 +173,11 @@ export default function ClientDocumentRequests() {
               ) : null}
             </div>
           ))}
+          {more ? (
+            <button type="button" className="btn btn--line btn--full ntmore" onClick={() => void loadMore()} disabled={moreBusy}>
+              {moreBusy ? tcm("loadingMore") : tcm("loadMore")}
+            </button>
+          ) : null}
         </div>
       )}
     </div>

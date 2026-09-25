@@ -32,6 +32,7 @@ import {
   IconCard,
   IconShield,
   IconGift,
+  IconGem,
   IconLogout,
   IconMenu,
   IconClose,
@@ -51,7 +52,6 @@ import {
   IconChevronLeft,
   IconEye,
   IconSearch,
-  IconAward,
   IconUserPlus,
   IconFolderPlus,
 } from "../icons";
@@ -101,7 +101,7 @@ const LAWYER_NAV: NavItem[] = [
   { href: "/portal/lawyer/profile", key: "profile", Icon: IconUser },
   { href: "/portal/lawyer/referrals", key: "referrals", Icon: IconGift },
   { href: "/portal/lawyer/promotion", key: "promotion", Icon: IconBolt },
-  { href: "/portal/lawyer/subscription", key: "subscription", Icon: IconStar },
+  { href: "/portal/lawyer/subscription", key: "subscription", Icon: IconGem },
 ];
 
 const ADVOCATE_NAV: NavItem[] = [
@@ -121,7 +121,7 @@ const ADVOCATE_NAV: NavItem[] = [
   { href: "/portal/advocate/profile", key: "profile", Icon: IconUser },
   { href: "/portal/advocate/referrals", key: "referrals", Icon: IconGift },
   { href: "/portal/advocate/promotion", key: "promotion", Icon: IconBolt },
-  { href: "/portal/advocate/subscription", key: "subscription", Icon: IconStar },
+  { href: "/portal/advocate/subscription", key: "subscription", Icon: IconGem },
 ];
 
 // Reachable pages that deliberately have no sidebar row of their own.
@@ -151,7 +151,7 @@ const CLIENT_NAV: NavItem[] = [
   { href: "/portal/client/academy", key: "academy", Icon: IconGraduation },
   { href: "/portal/client/lawyers", key: "lawyers", Icon: IconUsers },
   { href: "/portal/client/matches", key: "matches", Icon: IconTarget },
-  { href: "/portal/client/subscription", key: "subscription", Icon: IconAward },
+  { href: "/portal/client/subscription", key: "subscription", Icon: IconGem },
   { href: "/portal/client/payments", key: "payments", Icon: IconCard },
   { href: "/portal/client/gifts", key: "gifts", Icon: IconGift },
   { href: "/portal/client/referrals", key: "referrals", Icon: IconUserPlus },

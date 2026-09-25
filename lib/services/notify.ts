@@ -135,15 +135,19 @@ export function foldNotifications(rows: RichNotification[]): RichNotification[] 
 
 // `?category=&role=&unread_only=` — omitted when not set (2026-09-19 backend:
 // GET /notifications now filters server-side on these).
-export type NotifListFilter = { category?: NotifCategory; role?: string; unreadOnly?: boolean };
+// LEXGO_REALTIME_AND_LIGHT_API_FRONTEND.md: the list is paged now — the
+// backend default is 20 and the ceiling is 100. The old unbounded call was
+// returning ~500KB for a busy account.
+export const NOTIF_PAGE = 20;
+export type NotifListFilter = { category?: NotifCategory; role?: string; unreadOnly?: boolean; limit?: number; offset?: number };
 function notifQuery(f?: NotifListFilter): string {
-  if (!f) return "";
   const qs = new URLSearchParams();
-  if (f.category) qs.set("category", f.category);
-  if (f.role) qs.set("role", f.role);
-  if (f.unreadOnly) qs.set("unread_only", "true");
-  const q = qs.toString();
-  return q ? `?${q}` : "";
+  if (f?.category) qs.set("category", f.category);
+  if (f?.role) qs.set("role", f.role);
+  if (f?.unreadOnly) qs.set("unread_only", "true");
+  qs.set("limit", String(Math.max(1, Math.min(f?.limit ?? NOTIF_PAGE, 100))));
+  qs.set("offset", String(Math.max(0, f?.offset ?? 0)));
+  return `?${qs}`;
 }
 
 // Inbox with events kept and per-channel copies folded. Newest first (the
@@ -152,6 +156,14 @@ export async function listNotificationsRich(filter?: NotifListFilter): Promise<R
   const raw = await http(`/notifications${notifQuery(filter)}`);
   const list = Array.isArray(raw) ? raw : asArr(asDict(raw).items ?? asDict(raw).data ?? asDict(raw).notifications);
   return foldNotifications(list.map(normRow));
+}
+// One row straight off the user socket (event "notification.created"), put
+// through the very same normalizer the list uses so a pushed item is
+// indistinguishable from a fetched one.
+export function richNotificationOf(v: unknown): RichNotification | null {
+  const row = normRow(v);
+  if (!row.id) return null;
+  return foldNotifications([row])[0] ?? null;
 }
 
 // GET /notifications/categories → per-category counts for the inbox tabs

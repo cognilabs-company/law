@@ -38,7 +38,6 @@ const QUICK_ACTIONS: { key: string; icon: string; href: string; primary?: boolea
   { key: "consultation", icon: "IconVideo", href: "/portal/client/matches" },
   { key: "askAi", icon: "IconSparkle", href: "/portal/client/ai" },
   { key: "upload", icon: "IconDownload", href: "/portal/client/doc-analysis" },
-  { key: "services", icon: "IconBriefcase", href: "/portal/client/services" },
 ];
 const ACTION_SUB: Record<string, string> = {
   describe: "describeSub",
@@ -47,7 +46,6 @@ const ACTION_SUB: Record<string, string> = {
   consultation: "consultationSub",
   askAi: "askAiSub",
   upload: "uploadSub",
-  services: "servicesSub",
 };
 
 export default function ClientDashboard() {

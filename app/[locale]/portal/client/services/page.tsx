@@ -64,6 +64,12 @@ import {
   IconEye,
   IconEdit,
   IconPlus,
+  IconList,
+  IconGrid,
+  IconGift,
+  IconCard,
+  IconChatDots,
+  IconClose,
 } from "@/components/icons";
 import { fmtRating } from "@/lib/date";
 
@@ -451,6 +457,27 @@ export default function ClientServices() {
     return list.filter((s) => byDoc(s) && byPrice(s));
   }, [list, docFilter, priceFilter]);
   const filtersOn = docFilter !== "all" || priceFilter !== "all";
+  // How many services each option would leave, counted against the other
+  // group's current choice — the number a person actually wants to see before
+  // clicking, rather than a total that ignores the filter already applied.
+  const fCounts = useMemo(() => {
+    const byDoc = (s: BackendService, v: DocFilter) =>
+      v === "all" ? true : v === "template" ? !!s.documentTemplateId : !s.documentTemplateId;
+    const byPrice = (s: BackendService, v: PriceFilter) =>
+      v === "all"
+        ? true
+        : v === "paid"
+          ? !!s.price
+          : v === "free"
+            ? s.price === 0 || s.pricingTier === "free"
+            : !s.price && s.pricingTier !== "free";
+    const doc = {} as Record<DocFilter, number>;
+    for (const v of ["all", "template", "lawyer"] as DocFilter[]) doc[v] = list.filter((s) => byDoc(s, v) && byPrice(s, priceFilter)).length;
+    const price = {} as Record<PriceFilter, number>;
+    for (const v of ["all", "free", "quote", "paid"] as PriceFilter[]) price[v] = list.filter((s) => byDoc(s, docFilter) && byPrice(s, v)).length;
+    return { doc, price };
+  }, [list, docFilter, priceFilter]);
+  const activeFilters = (docFilter !== "all" ? 1 : 0) + (priceFilter !== "all" ? 1 : 0);
 
   // Deep link from the AI offer cards (?service=<id>) opens that service's order
   // modal once the catalog is loaded; a service outside the catalog list is
@@ -663,7 +690,7 @@ export default function ClientServices() {
         <div className="ppanel__h">
           <b>{showFamilies ? t("chooseFamily") : showSubcats ? catName : query ? t("title") : subcat || catName}</b>
           <span className="ppanel__hact">
-            <span className="advmuted">{showFamilies ? famList.length : showSubcats ? subcatList.length : shown.length}</span>
+            {!showFamilies && !showSubcats ? <span className="advmuted">{t("servicesN", { n: shown.length })}</span> : null}
             {/* Nothing in the catalog fits every case — this is the way out
                 of it: an advocate writes the document from scratch, or
                 checks one the client already has. */}
@@ -690,32 +717,71 @@ export default function ClientServices() {
         </div>
 
         {!showFamilies && !showSubcats ? (
-          <div className="svfilters">
-            <span className="svfilters__g">
-              <small>{t("filterDoc")}</small>
-              <span className="chiprow">
-                {(["all", "template", "lawyer"] as DocFilter[]).map((v) => (
-                  <button key={v} type="button" className="fchip" aria-pressed={docFilter === v} onClick={() => setDocFilter(v)}>
-                    {t(v === "all" ? "filterAll" : v === "template" ? "filterHasDoc" : "filterNoDoc")}
-                  </button>
-                ))}
+          <div className={`svfb${filtersOn ? " svfb--on" : ""}`}>
+            <div className="svfb__head">
+              <span className="svfb__title">
+                <IconList />
+                {t("filtersTitle")}
+                {activeFilters ? <em className="svfb__n">{activeFilters}</em> : null}
               </span>
-            </span>
-            <span className="svfilters__g">
-              <small>{t("filterPrice")}</small>
-              <span className="chiprow">
-                {(["all", "free", "quote", "paid"] as PriceFilter[]).map((v) => (
-                  <button key={v} type="button" className="fchip" aria-pressed={priceFilter === v} onClick={() => setPriceFilter(v)}>
-                    {t(v === "all" ? "filterAll" : v === "free" ? "filterFree" : v === "quote" ? "filterQuote" : "filterPaid")}
-                  </button>
-                ))}
-              </span>
-            </span>
-            {filtersOn ? (
-              <button type="button" className="rf__link rf__link--muted" onClick={() => { setDocFilter("all"); setPriceFilter("all"); }}>
-                {t("filterClear")}
-              </button>
-            ) : null}
+              {filtersOn ? (
+                <button type="button" className="svfb__clear" onClick={() => { setDocFilter("all"); setPriceFilter("all"); }}>
+                  <IconClose />
+                  {t("filterClear")}
+                </button>
+              ) : null}
+            </div>
+            <div className="svfb__groups">
+              {/* One choice out of several is a radio group, not a row of
+                  independent toggles — aria-pressed announced four unrelated
+                  switches where there is exactly one answer. */}
+              <div className="svfb__g">
+                <span className="svfb__l" id="svfb-doc">{t("filterDoc")}</span>
+                <div className="svfb__opts" role="radiogroup" aria-labelledby="svfb-doc">
+                  {(["all", "template", "lawyer"] as DocFilter[]).map((v) => {
+                    const on = docFilter === v;
+                    const n = fCounts.doc[v];
+                    return (
+                      <button
+                        key={v}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        className={`svfopt${on ? " on" : ""}${!n && !on ? " svfopt--empty" : ""}`}
+                        onClick={() => setDocFilter(v)}
+                      >
+                        <span className="svfopt__i">{v === "all" ? <IconGrid /> : v === "template" ? <IconFileText /> : <IconScale />}</span>
+                        <span className="svfopt__t">{t(v === "all" ? "filterAll" : v === "template" ? "filterHasDoc" : "filterNoDoc")}</span>
+                        <em className="svfopt__n">{n}</em>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="svfb__g">
+                <span className="svfb__l" id="svfb-price">{t("filterPrice")}</span>
+                <div className="svfb__opts" role="radiogroup" aria-labelledby="svfb-price">
+                  {(["all", "free", "quote", "paid"] as PriceFilter[]).map((v) => {
+                    const on = priceFilter === v;
+                    const n = fCounts.price[v];
+                    return (
+                      <button
+                        key={v}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        className={`svfopt${on ? " on" : ""}${!n && !on ? " svfopt--empty" : ""}`}
+                        onClick={() => setPriceFilter(v)}
+                      >
+                        <span className="svfopt__i">{v === "all" ? <IconGrid /> : v === "free" ? <IconGift /> : v === "quote" ? <IconChatDots /> : <IconCard />}</span>
+                        <span className="svfopt__t">{t(v === "all" ? "filterAll" : v === "free" ? "filterFree" : v === "quote" ? "filterQuote" : "filterPaid")}</span>
+                        <em className="svfopt__n">{n}</em>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         ) : null}
 

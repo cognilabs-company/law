@@ -6,7 +6,9 @@ import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { shortDateTime } from "@/lib/date";
 import { markNotificationRead, markAllNotificationsRead, type NotificationDelivery } from "@/lib/services/backend";
-import { listNotificationsRich, getNotificationCategoryCounts, type RichNotification, type NotifCategoryCounts } from "@/lib/services/notify";
+import { listNotificationsRich, getNotificationCategoryCounts, richNotificationOf, NOTIF_PAGE, type RichNotification, type NotifCategoryCounts } from "@/lib/services/notify";
+import { subscribeUserEvents } from "@/lib/userSocket";
+import { setUnreadCount } from "@/lib/unread";
 import { NOTIF_CATEGORIES, templateVars, notifLink, type NotifTab, type NotifCategory } from "@/lib/notifications";
 import { useOrderStatusLabel } from "@/lib/orderStatus";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -106,17 +108,77 @@ export default function NotificationsPanel() {
   // extra cascading render — same pattern as lib/useResource.ts).
   const filterKey = `${tab}|${filter}`;
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  // One page at a time (limit/offset, default 20) — the unbounded call used to
+  // pull ~500KB for a busy account. `more` is false once a short page lands.
+  const [more, setMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   if (prevFilterKey !== filterKey) {
     setPrevFilterKey(filterKey);
     setStatus("loading");
+    setMore(false);
   }
   useEffect(() => {
     let alive = true;
-    listNotificationsRich({ category: tab === "all" ? undefined : tab, unreadOnly: filter === "unread" })
-      .then((d) => alive && (setItems(d), setStatus("ready")))
+    listNotificationsRich({ category: tab === "all" ? undefined : tab, unreadOnly: filter === "unread", limit: NOTIF_PAGE, offset: 0 })
+      .then((d) => alive && (setItems(d), setMore(d.length >= NOTIF_PAGE), setStatus("ready")))
       .catch(() => alive && setStatus("error"));
     return () => { alive = false; };
   }, [tab, filter]);
+
+  // Realtime. A new notification is pushed onto the top of the list instead of
+  // the page re-fetching itself, and read/read-all echoes (which may come from
+  // another tab or device) flip the rows here too.
+  useEffect(() => {
+    return subscribeUserEvents((e) => {
+      const d = e as Record<string, unknown>;
+      if (e.event === "notification.created") {
+        const n = Number(d.unread_count);
+        if (Number.isFinite(n)) setUnreadCount(n);
+        const row = richNotificationOf(d.notification ?? d);
+        if (!row) return;
+        // The open view may be narrowed to one category or to unread only;
+        // an arrival that does not belong in it stays out of the list.
+        if (tab !== "all" && row.category !== tab) return;
+        if (filter === "read") return;
+        setItems((cur) => (cur.some((x) => x.id === row.id) ? cur : [row, ...cur]));
+        setStatus("ready");
+        loadCounts();
+        return;
+      }
+      if (e.event === "notification.read") {
+        const id = String(d.notification_id ?? "");
+        if (id) setItems((cur) => cur.map((x) => (x.id === id || x.ids.includes(id) ? { ...x, read: true } : x)));
+        loadCounts();
+        return;
+      }
+      if (e.event === "notifications.read_all") {
+        setItems((cur) => cur.map((x) => ({ ...x, read: true })));
+        loadCounts();
+      }
+    });
+  }, [tab, filter, loadCounts]);
+
+  async function loadMore() {
+    if (loadingMore || !more) return;
+    setLoadingMore(true);
+    try {
+      const next = await listNotificationsRich({
+        category: tab === "all" ? undefined : tab,
+        unreadOnly: filter === "unread",
+        limit: NOTIF_PAGE,
+        offset: items.length,
+      });
+      setItems((cur) => {
+        const seen = new Set(cur.map((x) => x.id));
+        return [...cur, ...next.filter((x) => !seen.has(x.id))];
+      });
+      setMore(next.length >= NOTIF_PAGE);
+    } catch {
+      setMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(loadCounts, [loadCounts]);
 
@@ -124,8 +186,9 @@ export default function NotificationsPanel() {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      const d = await listNotificationsRich({ category: tab === "all" ? undefined : tab, unreadOnly: filter === "unread" });
+      const d = await listNotificationsRich({ category: tab === "all" ? undefined : tab, unreadOnly: filter === "unread", limit: NOTIF_PAGE, offset: 0 });
       setItems(d);
+      setMore(d.length >= NOTIF_PAGE);
       setStatus("ready");
       loadCounts();
     } catch {
@@ -286,6 +349,11 @@ export default function NotificationsPanel() {
               </div>
             );
           })}
+          {more ? (
+            <button type="button" className="btn btn--line btn--full ntmore" onClick={() => void loadMore()} disabled={loadingMore}>
+              {loadingMore ? t("loadingMore") : t("loadMore")}
+            </button>
+          ) : null}
         </div>
       )}
     </div>

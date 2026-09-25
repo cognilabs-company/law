@@ -1832,6 +1832,8 @@
       "success": "Signing you in…"
     },
     "common": {
+      "loadingMore": "Loading…",
+      "loadMore": "Load more",
       "paymentStatus": {
         "pending_payment": "Awaiting payment",
         "payment_pending": "Awaiting payment",
@@ -2189,7 +2191,7 @@
         "ai": "AI chat",
         "assistant": "AI assistant",
         "promotion": "Promotion",
-        "subscription": "Package tariffs",
+        "subscription": "Plans",
         "notifications": "Notifications",
         "workspace": "Workspace",
         "files": "Files",
@@ -2205,7 +2207,7 @@
         "payments": "Payments",
         "lawyers": "Advocates & lawyers",
         "matches": "Best matches",
-        "subscription": "Package tariffs",
+        "subscription": "Plans",
         "gifts": "Gifts",
         "referrals": "Refer a friend",
         "reviews": "Ratings & reviews",
@@ -2233,7 +2235,7 @@
         "tasks": "Tasks",
         "profile": "Profile",
         "promotion": "Promotion",
-        "subscription": "Package tariffs",
+        "subscription": "Plans",
         "messages": "Messages",
         "organization": "Organization",
         "notifications": "Notifications",
@@ -3137,6 +3139,7 @@
         "servicesSub": "Document templates and lawyers"
       },
       "services": {
+        "filtersTitle": "Filters",
         "title": "Order a service",
         "lead": "Browse the LexGo catalog, pick a specialist and start.",
         "search": "Search services",
@@ -4064,6 +4067,9 @@
       }
     },
     "notifications": {
+      "loadingMore": "Loading…",
+      "loadMore": "Load more",
+      "ariaN": "Notifications — {n} unread",
       "title": "Notifications",
       "markAll": "Mark all read",
       "empty": "No notifications",
@@ -6872,6 +6878,11 @@
     "loginRequired": "Log in to open this private chat.",
     "login": "Log in",
     "inbox": {
+      "newMessage": "New message",
+      "newN": "{n} new",
+      "noMatchText": "Try another name or number.",
+      "noMatch": "Nothing found",
+      "search": "Search chats",
       "title": "Private chats",
       "lead": "Your protected conversations with specialists.",
       "empty": "No conversations yet",

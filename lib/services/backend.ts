@@ -2359,12 +2359,30 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
     updatedAt: asStr(d.updated_at),
   };
 }
-export async function listClientDocumentFlow(filters?: { mode?: ClientDocFlowMode; status?: string }): Promise<ClientDocFlowItem[]> {
+// LEXGO_REALTIME_AND_LIGHT_API_FRONTEND.md: paged (items/count/total/limit/
+// offset/tabs) and every row is a summary now — the unpaged call was ~2MB.
+export const DOC_FLOW_PAGE = 20;
+export type ClientDocFlowPage = { items: ClientDocFlowItem[]; total: number; offset: number; limit: number; hasMore: boolean };
+export async function listClientDocumentFlowPage(
+  filters?: { mode?: ClientDocFlowMode; status?: string; limit?: number; offset?: number },
+): Promise<ClientDocFlowPage> {
   const qs = new URLSearchParams();
   if (filters?.mode) qs.set("mode", filters.mode);
   if (filters?.status) qs.set("status", filters.status);
-  const q = qs.toString();
-  return listFrom(await http(`/document-requests/service-flow${q ? `?${q}` : ""}`), "items", "data").map(normClientDocFlowItem);
+  const limit = Math.max(1, Math.min(filters?.limit ?? DOC_FLOW_PAGE, 100));
+  const offset = Math.max(0, filters?.offset ?? 0);
+  qs.set("limit", String(limit));
+  qs.set("offset", String(offset));
+  const raw = await http(`/document-requests/service-flow?${qs}`);
+  const d = asDict(raw);
+  const items = listFrom(raw, "items", "data").map(normClientDocFlowItem);
+  // `total` is only on the paged shape; an older backend answering with a bare
+  // array is treated as "this is everything".
+  const total = d.total === undefined ? offset + items.length : asNum(d.total);
+  return { items, total, offset, limit, hasMore: offset + items.length < total && items.length >= limit };
+}
+export async function listClientDocumentFlow(filters?: { mode?: ClientDocFlowMode; status?: string }): Promise<ClientDocFlowItem[]> {
+  return (await listClientDocumentFlowPage({ ...filters, limit: DOC_FLOW_PAGE, offset: 0 })).items;
 }
 
 // ── Organizations (advocate orgs) ─────────────────────────────────
@@ -6190,13 +6208,46 @@ export function consentsFor(docs: ConsentDoc[], audience: ConsentAudience): Cons
     return !who || who.includes(audience);
   });
 }
-export async function listMyConsents(): Promise<AcceptedConsentRef[]> {
+// LEXGO_REALTIME_AND_LIGHT_API_FRONTEND.md: /legal/consents/me no longer
+// carries the legal body (it was ~1.45MB); each row is a summary whose fields
+// sit under `consent`, plus accepted / requires_reaccept / accepted_at /
+// detail_url. Both shapes are read so an older backend still works.
+export type MyConsentRow = {
+  id: string;
+  slug: string;
+  version: string;
+  title: string;
+  accepted: boolean;
+  requiresReaccept: boolean;
+  acceptedAt: string;
+  // Where the full text lives — the list must not be expected to hold it.
+  detailUrl: string;
+};
+export async function listMyConsentRows(): Promise<MyConsentRow[]> {
   return asArr(await http("/legal/consents/me"))
     .map((x) => {
       const d = asDict(x);
-      return { id: asStr(d.consent_id ?? d.id), slug: asStr(d.slug), version: asStr(d.version), accepted: d.accepted !== false };
+      const c = asDict(d.consent);
+      const pick = (k: string) => (d[k] === undefined ? c[k] : d[k]);
+      const id = asStr(pick("consent_id") ?? pick("id"));
+      return {
+        id,
+        slug: asStr(pick("slug")),
+        version: asStr(pick("version")),
+        title: asStr(pick("title")),
+        accepted: pick("accepted") !== false,
+        requiresReaccept: Boolean(pick("requires_reaccept")),
+        acceptedAt: asStr(pick("accepted_at")),
+        detailUrl: asStr(pick("detail_url")) || (id ? `/legal/consents/${id}` : ""),
+      };
     })
-    .filter((r) => r.id && r.accepted)
+    .filter((r) => !!r.id);
+}
+export async function listMyConsents(): Promise<AcceptedConsentRef[]> {
+  // Accepted and not awaiting a re-accept: a new version of a document the
+  // user signed once still has to be signed again.
+  return (await listMyConsentRows())
+    .filter((r) => r.accepted && !r.requiresReaccept)
     .map(({ id, slug, version }) => ({ id, slug, version }));
 }
 export async function listLegalConsents(): Promise<ConsentDoc[]> {
