@@ -6,7 +6,7 @@ import { useRouter, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { listInvitedCalls, listLawyers, getCall } from "@/lib/services/backend";
 import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
-import { playRingtone, primeCallAudio } from "@/lib/callSounds";
+import { playRingtone, primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
 import CallRoom, { isCallRoomMounted, CALLROOM_EVENT } from "@/components/chat/CallRoom";
 import { IconPhone, IconVideo, IconClose } from "@/components/icons";
 
@@ -135,7 +135,14 @@ export default function IncomingCallWatcher() {
   useEffect(() => {
     if (!inc) return;
     const stop = playRingtone();
-    return stop;
+    // Also on unmount/navigation, and on a hidden tab: a ring nobody can see
+    // a card for is a ring nobody can stop.
+    const onHide = () => { if (document.visibilityState === "hidden") stopAllCallTones(); };
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onHide);
+    };
   }, [inc]);
 
   // Resume an active meeting after a page reload (the call is in memory only).
@@ -193,6 +200,10 @@ export default function IncomingCallWatcher() {
 
   function accept() {
     if (!inc) return;
+    // Before anything else: the ring must be gone by the time the room opens.
+    // The effect cleanup below also stops it, but it runs a render later —
+    // long enough to hear the tail of a burst over the live call.
+    stopAllCallTones();
     primeCallAudio(); // user gesture → tones allowed in the room
     dismissed.current.add(inc.callId);
     const target = inc;
@@ -205,6 +216,7 @@ export default function IncomingCallWatcher() {
   }
   function decline() {
     if (!inc) return;
+    stopAllCallTones();
     dismissed.current.add(inc.callId);
     if (inc.resume) { try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ } }
     setInc(null);

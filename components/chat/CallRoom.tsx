@@ -198,9 +198,13 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // panel, which is the direction there is room in.
   const [fbox, setFbox] = useState<FloatBox>({ right: 18, bottom: 18, w: 380, h: 300 });
   const [fmin, setFmin] = useState(false);
+  // Seeded from the prop (the document editor opens straight into the panel),
+  // but the user owns it from then on.
+  const [floating, setFloating] = useState(!!float);
+  const canFloat = true;
   const fdrag = useRef<{ mode: "move" | "size"; x: number; y: number; box: FloatBox } | null>(null);
   function beginFloat(mode: "move" | "size", e: ReactPointerEvent<HTMLElement>) {
-    if (!float) return;
+    if (!floating) return;
     if (mode === "move" && (e.target as HTMLElement).closest("button")) return;
     fdrag.current = { mode, x: e.clientX, y: e.clientY, box: fbox };
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -1126,12 +1130,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
 
   return (
     <div
-      className={`mtg${panel ? " mtg--panel" : ""}${float ? " mtg--float" : ""}${float && fmin ? " mtg--fmin" : ""}`}
+      className={`mtg${panel ? " mtg--panel" : ""}${floating ? " mtg--float" : ""}${floating && fmin ? " mtg--fmin" : ""}`}
       data-tick={tick}
-      style={float ? { right: fbox.right, bottom: fbox.bottom, width: fbox.w, height: fmin ? undefined : fbox.h } : undefined}
+      style={floating ? { right: fbox.right, bottom: fbox.bottom, width: fbox.w, height: fmin ? undefined : fbox.h } : undefined}
     >
       <div ref={audioRef} hidden />
-      {float ? (
+      {floating ? (
         <span
           className="mtg__grip"
           role="separator"
@@ -1144,10 +1148,10 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       ) : null}
       <header
         className="mtg__top"
-        onPointerDown={float ? dragFloat : undefined}
-        onPointerMove={float ? moveFloat : undefined}
-        onPointerUp={float ? endFloat : undefined}
-        onPointerCancel={float ? endFloat : undefined}
+        onPointerDown={floating ? dragFloat : undefined}
+        onPointerMove={floating ? moveFloat : undefined}
+        onPointerUp={floating ? endFloat : undefined}
+        onPointerCancel={floating ? endFloat : undefined}
       >
         <div className="mtg__title">
           <b>{title || t("meetingTitle")}</b>
@@ -1170,14 +1174,24 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           <button type="button" className={`mtg__tool${panel === "people" ? " on" : ""}`} onClick={() => openPanel(panel === "people" ? "" : "people")} aria-label={t("rosterTitle")} title={t("rosterTitle")}>
             <IconUsers /><span className="mtg__n">{count}</span>
           </button>
+          {/* Shrink the call into the corner and keep working. The panel's own
+              bar carries the way back up. */}
+          {canFloat ? (
+            <button type="button" className="mtg__tool" onClick={() => { setFloating(true); setPanel(""); }} aria-label={t("minimize")} title={t("minimize")}>
+              <IconMinus />
+            </button>
+          ) : null}
         </div>
-        {float ? (
+        {floating ? (
           <div className="mtg__ftools">
             {/* Participants count stays visible even minimised — MD lists it
                 among the floating panel's own controls. */}
             <span className="mtg__fn" title={t("rosterTitle")}><IconUsers />{count}</span>
-            <button type="button" className="mtg__tool" onClick={() => setFmin((m) => !m)} aria-label={fmin ? t("expand") : t("minimize")} title={fmin ? t("expand") : t("minimize")}>
-              {fmin ? <IconGrid /> : <IconMinus />}
+            <button type="button" className="mtg__tool" onClick={() => setFmin((m) => !m)} aria-label={fmin ? t("expand") : t("collapse")} title={fmin ? t("expand") : t("collapse")}>
+              {fmin ? <IconPlus /> : <IconMinus />}
+            </button>
+            <button type="button" className="mtg__tool" onClick={() => { setFloating(false); setFmin(false); }} aria-label={t("fullScreen")} title={t("fullScreen")}>
+              <IconMonitor />
             </button>
           </div>
         ) : null}
@@ -1220,7 +1234,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               ) : null}
             </div>
           )}
-          <MeetingWatermark label={wmLabel} />
+          <MeetingWatermark label={wmLabel} compact={floating} />
           <CaptureShield
             reason={guard.reason}
             title={guard.captured ? t("guardCaptureTitle") : t("guardTitle")}
@@ -1273,7 +1287,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           {/* "To'lov javobi kutilmoqda" — the call is frozen, not ended, and
               it resumes by itself if nobody answers within five minutes. */}
           {paused ? (
-            <div className="mtg__pause" role="status">
+            <div className={`mtg__pause${floating ? " mtg__pause--over" : ""}`} role="status">
               <b><IconClock />{t("pausedTitle")}</b>
               <span>
                 {limits?.pendingExtensionRequest
@@ -1287,7 +1301,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               paused — the pause IS an extension request awaiting an answer,
               and the two cards would otherwise sit on top of each other. */}
           {extOpen && !paused ? (
-            <div className="mtg__ext" role="dialog" aria-label={t("extendPaid")}>
+            <div className={`mtg__ext${floating ? " mtg__ext--over" : ""}`} role="dialog" aria-label={t("extendPaid")}>
               <b>{t("extendPaid")}</b>
               <span>{t("extendPrice", { price: fmtUzs(limits?.paidExtensionPricePerMinute || 2000) })}</span>
               <div className="mtg__ext-mins">
@@ -1422,7 +1436,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         ) : null}
         {/* NOT desktop-only while floating: .mtg--float hides .mtg__ctl--desktop,
             and the floating panel is exactly where the document meeting runs. */}
-        {canExtend ? <Ctl on={extOpen} label={t("extendPaidShort")} onClick={() => { setExtErr(""); setExtOpen((v) => !v); }} disabled={extBusy || paused} desktop={!float}><IconClock /></Ctl> : null}
+        {canExtend ? <Ctl on={extOpen} label={t("extendPaidShort")} onClick={() => { setExtErr(""); setExtOpen((v) => !v); }} disabled={extBusy || paused} desktop={!floating}><IconClock /></Ctl> : null}
         <Ctl label={t("more")} onClick={() => setMore((m) => !m)} badge={unread} phone><IconGrid /></Ctl>
         <Ctl end label={isCaller ? t("endAll") : t("end")} onClick={hangUp}><IconClose /></Ctl>
       </footer>

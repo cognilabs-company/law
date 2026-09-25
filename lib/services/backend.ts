@@ -2320,6 +2320,10 @@ export type ClientDocFlowItem = {
   // shows. The backend sends it either as a nested object or as a plain
   // label, so both shapes are accepted rather than betting on one.
   meeting: { status: string; active: boolean; roomId: string; callId: string } | null;
+  // The private room opened when an advocate took the request. Without it the
+  // client had no route back to the conversation after closing the order
+  // modal — the one place the advocate asks them anything.
+  secureChatRoomId: string;
   file: { ready: boolean; downloadUrl: string; inlineUrl: string; format: string };
   createdAt: string;
   updatedAt: string;
@@ -2349,6 +2353,15 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
             callId: asStr(meetD?.id) || asStr(meetD?.call_id),
           }
         : null,
+    // The field has lived under several names across the document endpoints;
+    // the meeting room is the same secure-chat room, so it is the last resort.
+    secureChatRoomId:
+      asStr(d.secure_chat_room_id) ||
+      asStr(asDict(d.secure_chat_room).id) ||
+      asStr(asDict(d.lawyer_request).secure_chat_room_id) ||
+      asStr(d.chat_room_id) ||
+      asStr(d.room_id) ||
+      asStr(meetD?.room_id),
     file: {
       ready: Boolean(file.ready),
       downloadUrl: asStr(file.download_url) || asStr(actions.file_download_url),
@@ -2358,6 +2371,14 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
     createdAt: asStr(d.created_at),
     updatedAt: asStr(d.updated_at),
   };
+}
+// Work the client still has to come back to: anything not delivered and not
+// cancelled. Used by the cases page, which is where they look for "what is
+// still open" rather than in the documents list.
+const DOC_FLOW_DONE = new Set(["completed", "done", "closed", "cancelled", "canceled", "rejected", "refunded", "delivered"]);
+export function isDocFlowOpen(it: ClientDocFlowItem): boolean {
+  if (it.file.ready) return false;
+  return !DOC_FLOW_DONE.has((it.status || "").toLowerCase());
 }
 // LEXGO_REALTIME_AND_LIGHT_API_FRONTEND.md: paged (items/count/total/limit/
 // offset/tabs) and every row is a summary now — the unpaged call was ~2MB.

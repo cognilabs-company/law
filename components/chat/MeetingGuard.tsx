@@ -145,37 +145,52 @@ export function useCaptureGuard(enabled: boolean, onTrip?: (why: GuardTrip) => v
 }
 
 /**
- * Per-viewer watermark tiled over the video. `label` identifies the person
- * looking at the screen, so a leaked frame names its source. The tile origin
- * moves every few seconds: a fixed overlay can be cropped away, a moving one
- * cannot without cropping the picture itself.
+ * Per-viewer watermark over the video. `label` identifies the person looking
+ * at the screen, so a leaked frame names its source.
+ *
+ * The first version tiled twelve rotated lines across the picture, which was
+ * legible enough to trace a leak and far too loud to hold a conversation
+ * through — it read as damage, not as a security mark. This is the shape the
+ * enterprise meeting products actually use: a sparse, very faint diagonal
+ * repeat that a camera or a screenshot still picks up, plus one small solid
+ * chip in a corner that stays readable at any size. The repeat drifts on a
+ * timer so it cannot be cropped out of a frame, and the corner chip alternates
+ * corners for the same reason.
+ *
+ * `compact` is the floating panel: there is no room for a pattern in a
+ * 320px-wide window, so only the corner chip is drawn.
  */
-export function MeetingWatermark({ label, clock = true }: { label: string; clock?: boolean }) {
+export function MeetingWatermark({ label, clock = true, compact = false }: { label: string; clock?: boolean; compact?: boolean }) {
   const [shift, setShift] = useState(0);
   const [now, setNow] = useState("");
   useEffect(() => {
-    const iv = setInterval(() => setShift((s) => (s + 1) % 4), 4000);
+    const iv = setInterval(() => setShift((s) => (s + 1) % 4), 7000);
     return () => clearInterval(iv);
   }, []);
   useEffect(() => {
     if (!clock) return;
     const tick = () => {
       const d = new Date();
-      setNow(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`);
+      setNow(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
     };
     tick();
-    const iv = setInterval(tick, 1000);
+    // Minutes, not seconds: a number changing under the speaker's face every
+    // second is exactly the distraction the old version was accused of.
+    const iv = setInterval(tick, 20_000);
     return () => clearInterval(iv);
   }, [clock]);
   if (!label) return null;
   const text = clock && now ? `${label} · ${now}` : label;
-  // 12 tiles is enough to cover a 16:9 stage at any size the meeting uses; the
-  // row offset alternates so the grid reads as diagonal rather than as columns.
   return (
-    <div className="mtg__wm" aria-hidden data-shift={shift}>
-      {Array.from({ length: 12 }, (_, i) => (
-        <span key={i} className="mtg__wm-t" style={{ marginLeft: `${((i % 3) + shift) * 6}%` }}>{text}</span>
-      ))}
+    <div className={`mtg__wm${compact ? " mtg__wm--compact" : ""}`} aria-hidden data-shift={shift}>
+      {compact ? null : (
+        <div className="mtg__wm-p">
+          {Array.from({ length: 5 }, (_, i) => (
+            <span key={i} className="mtg__wm-t">{text}</span>
+          ))}
+        </div>
+      )}
+      <span className="mtg__wm-chip">{text}</span>
     </div>
   );
 }

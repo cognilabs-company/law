@@ -9,7 +9,8 @@ import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
-import { IconFileText, IconDownload, IconUser, IconClock, IconVideo } from "@/components/icons";
+import { Link } from "@/i18n/navigation";
+import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat } from "@/components/icons";
 
 // LEXGO_CLIENT_DOCUMENT_REQUESTS_PAGE_FRONTEND.md: one place for the client
 // to see every document request they've ever started — however it was
@@ -159,18 +160,28 @@ export default function ClientDocumentRequests() {
                   </small>
                 ) : null}
               </div>
-              {item.file.ready ? (
-                <button
-                  type="button"
-                  className="btn btn--grad btn--sm"
-                  style={{ marginTop: 8, alignSelf: "flex-start" }}
-                  disabled={dlBusy === item.id}
-                  onClick={() => download(item)}
-                >
-                  <IconDownload />
-                  {dlBusy === item.id ? tcommon("processingShort") : t("download")}
-                </button>
-              ) : null}
+              {/* Two things the client could not reach once the order modal
+                  was closed: the private chat with the advocate handling the
+                  document, and the finished file. Both live on the row now. */}
+              <div className="pcase__acts">
+                {item.secureChatRoomId ? (
+                  <Link href={`/portal/chat/${item.secureChatRoomId}`} className="btn btn--line btn--sm">
+                    <IconChat />
+                    {t("openChat")}
+                  </Link>
+                ) : null}
+                {item.file.ready ? (
+                  <button
+                    type="button"
+                    className="btn btn--grad btn--sm"
+                    disabled={dlBusy === item.id}
+                    onClick={() => download(item)}
+                  >
+                    <IconDownload />
+                    {dlBusy === item.id ? tcommon("processingShort") : t("download")}
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))}
           {more ? (

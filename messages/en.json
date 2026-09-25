@@ -3231,6 +3231,11 @@
         "preSellerNoList": "This advocate has not listed services yet — the full catalogue is shown."
       },
       "documents": {
+        "exitConfirm": "Yes, leave",
+        "exitStay": "No, keep filling",
+        "exitLead": "What you have filled in will not be kept. Next time this document starts from scratch.",
+        "exitTitle": "Leave the builder?",
+        "exit": "Exit",
         "openSubscriptions": "Open subscriptions",
         "title": "Document templates",
         "lead": "Feel free to use the document templates prepared by our professional advocates.",
@@ -3594,6 +3599,10 @@
         "error": "Something went wrong. Please try again."
       },
       "documentRequests": {
+        "waitingLawyer": "Waiting for an advocate",
+        "openLead": "Document work you have started that has not come back yet.",
+        "openTitle": "Documents in progress",
+        "openChat": "Open chat",
         "title": "My documents",
         "tab_all": "All",
         "tab_self": "Filled in myself",
@@ -7014,6 +7023,8 @@
     }
   },
   "call": {
+    "fullScreen": "Full screen",
+    "collapse": "Collapse",
     "guardPeer": "{name} attempted a screen capture — the meeting was blocked on their side.",
     "guardNote": "This meeting is confidential. The overlay carries your name and number, so the source of any screenshot can be identified.",
     "guardCaptureLead": "This page is being captured by another application. The meeting stays hidden until the capture stops.",

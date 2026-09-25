@@ -32,10 +32,14 @@ type Mode = "choose" | "manual" | "lawyer";
 export default function ServiceDocumentRequest({
   serviceId,
   onTitle,
+  onDraftId,
   initialMode,
 }: {
   serviceId: string;
   onTitle?: (title: string) => void;
+  // The id the builder's localStorage draft is keyed on, reported upwards so
+  // the page chrome can clear it when the client chooses to leave.
+  onDraftId?: (id: string) => void;
   // The services card's "Advokatga yo'llash" button lands here already
   // decided — it is the same journey as picking "Advokat bilan tayyorlash"
   // on the chooser, so it skips the chooser instead of opening a second,
@@ -46,6 +50,11 @@ export default function ServiceDocumentRequest({
   const [tpl, setTpl] = useState<BackendTemplate | null>(null);
   const [sourceFile, setSourceFile] = useState<ServiceDocumentFields | null>(null);
   const [req, setReq] = useState<DocumentRequest | null>(null);
+  // Reported upwards rather than read from a ref during render, so the page
+  // chrome always has the id of the draft currently on screen.
+  const onDraftIdRef = useRef(onDraftId);
+  useEffect(() => { onDraftIdRef.current = onDraftId; }, [onDraftId]);
+  useEffect(() => { onDraftIdRef.current?.(req?.id ?? ""); }, [req?.id]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);

@@ -13,7 +13,25 @@ function ac(): AudioContext | null {
   }
 }
 
-function tone(c: AudioContext, freq: number, start: number, dur: number, vol = 0.15) {
+// Everything a repeating tone has put on the audio clock, so a stop can
+// actually silence it instead of only stopping the next repeat.
+type Live = { nodes: Set<{ o: OscillatorNode; g: GainNode }>; stopped: boolean };
+function silence(c: AudioContext, live: Live) {
+  live.stopped = true;
+  for (const { o, g } of live.nodes) {
+    try {
+      // A short ramp instead of a hard stop: cutting a sine mid-cycle is an
+      // audible click, which is worse than the ring it replaces.
+      g.gain.cancelScheduledValues(c.currentTime);
+      g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.04);
+      o.stop(c.currentTime + 0.05);
+    } catch { /* already stopped */ }
+  }
+  live.nodes.clear();
+}
+function tone(c: AudioContext, freq: number, start: number, dur: number, vol = 0.15, live?: Live) {
+  if (live?.stopped) return;
   const o = c.createOscillator();
   const g = c.createGain();
   o.type = "sine";
@@ -24,10 +42,17 @@ function tone(c: AudioContext, freq: number, start: number, dur: number, vol = 0
   o.connect(g).connect(c.destination);
   o.start(c.currentTime + start);
   o.stop(c.currentTime + start + dur + 0.05);
+  if (!live) return;
+  const entry = { o, g };
+  live.nodes.add(entry);
+  o.onended = () => live.nodes.delete(entry);
 }
 
 // Create / resume the audio context inside a user gesture (accept / join
 // click) so the browser's autoplay policy lets the tones play later.
+// Every repeating tone currently scheduled (see stopAllCallTones).
+const ACTIVE = new Set<Live>();
+
 export function primeCallAudio(): void {
   const c = ac();
   if (c && c.state === "suspended") c.resume().catch(() => {});
@@ -37,18 +62,20 @@ export function primeCallAudio(): void {
 export function playRingback(): () => void {
   const c = ac();
   if (!c) return () => {};
-  let stop = false;
+  const live: Live = { nodes: new Set(), stopped: false };
   let timer: ReturnType<typeof setTimeout>;
   const loop = () => {
-    if (stop) return;
+    if (live.stopped) return;
     // Standard PBX ringback: 425 Hz, ~1s on, repeated.
-    tone(c, 425, 0, 1.1, 0.28);
+    tone(c, 425, 0, 1.1, 0.28, live);
     timer = setTimeout(loop, 3500);
   };
+  ACTIVE.add(live);
   loop();
   return () => {
-    stop = true;
     clearTimeout(timer);
+    silence(c, live);
+    ACTIVE.delete(live);
   };
 }
 
@@ -56,19 +83,31 @@ export function playRingback(): () => void {
 export function playRingtone(): () => void {
   const c = ac();
   if (!c) return () => {};
-  let stop = false;
+  const live: Live = { nodes: new Set(), stopped: false };
   let timer: ReturnType<typeof setTimeout>;
   const loop = () => {
-    if (stop) return;
-    tone(c, 620, 0, 0.4, 0.3);
-    tone(c, 480, 0.45, 0.4, 0.3);
+    if (live.stopped) return;
+    tone(c, 620, 0, 0.4, 0.3, live);
+    tone(c, 480, 0.45, 0.4, 0.3, live);
     timer = setTimeout(loop, 2500);
   };
+  ACTIVE.add(live);
   loop();
   return () => {
-    stop = true;
     clearTimeout(timer);
+    silence(c, live);
+    ACTIVE.delete(live);
   };
+}
+
+// Last resort: whatever is ringing right now, stop it. Answering a call opens
+// a room that owns the audio from then on, and a stray ring over a live
+// conversation is the one failure nobody can work around.
+export function stopAllCallTones(): void {
+  const c = ac();
+  if (!c) return;
+  for (const live of [...ACTIVE]) silence(c, live);
+  ACTIVE.clear();
 }
 
 // Short descending tone when a call ends.

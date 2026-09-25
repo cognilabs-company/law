@@ -30,6 +30,7 @@ import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconFileText, IconArrowRight, IconDocLines } from "@/components/icons";
 import { statusLabel } from "@/lib/labels";
+import OpenDocumentWork from "@/components/portal/OpenDocumentWork";
 
 // A replacement request can't be listed back by the client (the list needs
 // replacements.manage), so its id is kept per case to read its history.
@@ -138,6 +139,11 @@ export default function ClientCases() {
   const loading = res.status === "loading" || orders.status === "loading";
 
   return (
+    <>
+    {/* Document work that has been started and not come back yet. It lives on
+        its own page too, but this is where a client looks for what is still
+        open — and, until now, an unfinished request was invisible here. */}
+    <OpenDocumentWork />
     <div className="ppanel">
       <div className="ppanel__h">
         <b>{t("title")}</b>
@@ -237,6 +243,7 @@ export default function ClientCases() {
 
       <CaseDocsModal target={docCase} onClose={() => setDocCase(null)} />
     </div>
+    </>
   );
 }
 

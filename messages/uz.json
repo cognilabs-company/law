@@ -3237,6 +3237,11 @@
         "preSellerNoList": "Bu advokat hali xizmatlar ro'yxatini belgilamagan — butun katalog ko'rsatilmoqda."
       },
       "documents": {
+        "exitConfirm": "Ha, chiqaman",
+        "exitStay": "Yo’q, davom etaman",
+        "exitLead": "Chiqsangiz to’ldirgan ma’lumotlaringiz saqlanmaydi. Bu hujjatni keyingi safar 0 dan boshlaysiz.",
+        "exitTitle": "Konstruktordan chiqasizmi?",
+        "exit": "Chiqish",
         "openSubscriptions": "Obunalar sahifasiga o'tish",
         "title": "Hujjat namunalari",
         "lead": "Bizning professional advokatlar tomonidan tayyorlangan hujjat namunalaridan bemalol foydalanishingiz mumkin.",
@@ -3600,6 +3605,10 @@
         "error": "Xatolik yuz berdi. Qayta urining."
       },
       "documentRequests": {
+        "waitingLawyer": "Advokat kutilmoqda",
+        "openLead": "Boshlangan va hali yetkazilmagan hujjat ishlari.",
+        "openTitle": "Tugallanmagan hujjatlar",
+        "openChat": "Chatni ochish",
         "title": "Mening hujjatlarim",
         "tab_all": "Barchasi",
         "tab_self": "O'zim to'ldirganlar",
@@ -7020,6 +7029,8 @@
     }
   },
   "call": {
+    "fullScreen": "To’liq ekran",
+    "collapse": "Yig’ish",
     "guardPeer": "{name} ekranni olishga urindi — suhbat u tomonda bloklandi.",
     "guardNote": "Suhbat maxfiy. Ekrandagi yozuv sizning ismingiz va raqamingizni ko'rsatadi — har qanday skrinshot manbasi aniqlanadi.",
     "guardCaptureLead": "Ushbu sahifa boshqa dastur tomonidan yozib olinayotgani aniqlandi. Yozib olish to'xtatilmaguncha suhbat ko'rsatilmaydi.",

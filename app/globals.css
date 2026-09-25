@@ -5702,11 +5702,21 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
    watermark that makes any leaked frame traceable, and a shield that blanks
    the picture during the moments a capture happens (tab hidden, window
    blurred, screenshot key). Both live inside .mtg__stage, above every tile. */
-.mtg__wm{position:absolute;inset:0;z-index:6;pointer-events:none;user-select:none;overflow:hidden;display:flex;flex-direction:column;justify-content:space-around;transition:transform .8s ease}
-.mtg__wm[data-shift="1"]{transform:translate(2%,1.5%)}
-.mtg__wm[data-shift="2"]{transform:translate(-1.5%,3%)}
-.mtg__wm[data-shift="3"]{transform:translate(1%,-2%)}
-.mtg__wm-t{display:block;font-size:.72rem;font-weight:700;letter-spacing:.04em;white-space:nowrap;color:rgba(255,255,255,.14);text-shadow:0 1px 2px rgba(0,0,0,.35);transform:rotate(-18deg);transform-origin:left center}
+/* Sparse and faint enough to talk through, dense enough that a photo of the
+   screen still carries the name. The old version tiled twelve rotated lines
+   across the picture and was unusable. */
+.mtg__wm{position:absolute;inset:0;z-index:6;pointer-events:none;user-select:none;overflow:hidden}
+.mtg__wm-p{position:absolute;inset:-10%;display:flex;flex-direction:column;justify-content:space-around;transition:transform 1.2s ease}
+.mtg__wm[data-shift="1"] .mtg__wm-p{transform:translate(3%,2%)}
+.mtg__wm[data-shift="2"] .mtg__wm-p{transform:translate(-2%,4%)}
+.mtg__wm[data-shift="3"] .mtg__wm-p{transform:translate(2%,-3%)}
+.mtg__wm-t{display:block;text-align:center;font-size:.8rem;font-weight:700;letter-spacing:.12em;white-space:nowrap;
+  color:rgba(255,255,255,.055);transform:rotate(-12deg)}
+/* The part that is always legible: one small chip, out of the way. */
+.mtg__wm-chip{position:absolute;left:14px;bottom:12px;max-width:calc(100% - 28px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:.66rem;font-weight:700;letter-spacing:.03em;color:rgba(255,255,255,.55);background:rgba(3,16,43,.4);
+  border-radius:var(--pill);padding:3px 9px;backdrop-filter:blur(2px)}
+.mtg__wm--compact .mtg__wm-chip{left:8px;bottom:8px;font-size:.6rem;padding:2px 7px}
 /* The stage itself never shows a video frame while the shield is up: blurring
    and scaling the tiles means even a frame grabbed mid-transition is useless. */
 .mtg__stage--guard .mtg__speaker,.mtg__stage--guard .mtg__grid{filter:blur(26px) brightness(.25);transform:scale(1.04)}
@@ -5718,8 +5728,8 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .mtg__shield-m small{font-size:.74rem;line-height:1.5;color:rgba(203,213,225,.66)}
 .mtg__shield[data-reason="capture"]{background:radial-gradient(120% 120% at 50% 40%,rgba(69,11,11,.95),rgba(16,2,2,.99))}
 @keyframes mtgShield{from{opacity:0}to{opacity:1}}
-@media (prefers-reduced-motion:reduce){.mtg__wm{transition:none}.mtg__shield{animation:none}}
-@media (max-width:760px){.mtg__wm-t{font-size:.6rem}}
+@media (prefers-reduced-motion:reduce){.mtg__wm-p{transition:none}.mtg__shield{animation:none}}
+@media (max-width:760px){.mtg__wm-t{font-size:.66rem}.mtg__wm-chip{font-size:.6rem}}
 
 /* ── wp-urgent: Tezkor Advokat ────────────────────────────────────────
    Client module (components/portal/UrgentAdvocatePanel.tsx) and the
@@ -5974,3 +5984,62 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
   .pbody{padding:clamp(20px,2.2vw,32px)}
 }
 
+/* ── wp-fix5: open document work, builder exit, floating meeting ─── */
+
+/* Document work the client has started and not got back yet, shown on the
+   cases page — where they look for "what is still open". */
+.odw__lead{margin:0 0 12px;font-size:.85rem;line-height:1.5}
+.odw__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.odw__row{display:flex;align-items:flex-start;gap:12px;padding:13px;border-radius:var(--rl);background:var(--dk-surface-2, #F7FAFE);
+  box-shadow:inset 0 0 0 1.5px transparent;transition:box-shadow .18s}
+.odw__row:hover{box-shadow:inset 0 0 0 1.5px var(--b200)}
+.odw__i{flex:none;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--b100);color:var(--dk-acc, var(--b600))}
+.odw__i svg{width:18px;height:18px}
+.odw__m{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.odw__m b{font-size:.92rem;font-weight:700;line-height:1.35}
+.odw__sub{font-size:.79rem;color:var(--gray);line-height:1.5;overflow-wrap:anywhere}
+.odw__next{font-size:.81rem;color:var(--ink);line-height:1.5}
+.odw__live{display:inline-flex;align-items:center;gap:5px;font-size:.76rem;font-weight:700;color:var(--ok)}
+.odw__live svg{width:13px;height:13px}
+.odw__acts{flex:none;display:flex;align-items:center;gap:8px}
+.odw__wait{display:inline-flex;align-items:center;gap:5px;font-size:.76rem;font-weight:600;color:var(--gray2);white-space:nowrap}
+.odw__wait svg{width:13px;height:13px}
+/* Row actions on the documents list, so the chat and the download sit side by
+   side instead of each inventing its own margin. */
+.pcase__acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+@media (max-width:640px){
+  .odw__row{flex-wrap:wrap}
+  .odw__acts{width:100%;justify-content:flex-start}
+}
+
+/* ── Builder exit ─────────────────────────────────────────────────── */
+.docbuild__exit{margin-left:auto;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--dk-surface, #fff);
+  color:var(--gray);border-radius:var(--pill);padding:7px 13px;font-size:.84rem;font-weight:700;cursor:pointer;
+  transition:transform .16s cubic-bezier(.2,.8,.2,1),border-color .18s,color .18s,background .18s}
+.docbuild__exit:hover{border-color:#f5b1b1;color:#dc2626;background:#fff5f5}
+.docbuild__exit:active{transform:scale(.97)}
+.docbuild__exit svg{width:14px;height:14px}
+.dexit__lead{display:flex;align-items:flex-start;gap:11px;margin:0;font-size:.9rem;line-height:1.55;color:var(--ink)}
+.dexit__i{flex:none;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+.dexit__i svg{width:17px;height:17px}
+.dexit__btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:480px){.dexit__btns{grid-template-columns:1fr}}
+
+/* ── Floating meeting ─────────────────────────────────────────────── */
+/* Cards that are wider than the floating panel are centred on the viewport
+   instead of being clipped inside it — the extension dialog in particular,
+   which is where the client picks minutes and sees the price. */
+.mtg__ext--over,.mtg__pause--over{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:240;
+  width:min(420px,calc(100vw - 32px));max-width:none;max-height:min(80vh,560px);overflow-y:auto}
+.mtg__ext--over::before,.mtg__pause--over::before{content:"";position:fixed;inset:0;z-index:-1;background:rgba(3,16,43,.5);backdrop-filter:blur(3px)}
+.mtg__ext--over .mtg__ext-mins{gap:8px}
+.mtg__ext--over .mtg__ext-mins button{padding:10px 14px;font-size:.92rem}
+/* Three sizes, so the bar never has to guess which control does what. */
+.mtg__ftools .mtg__tool{width:30px;height:30px}
+.mtg--fmin .mtg__grip{display:none}
+
+@media (prefers-reduced-motion:reduce){
+  .docbuild__exit{transition:none}
+  .docbuild__exit:active{transform:none}
+}
