@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
@@ -11,18 +11,19 @@ import RobotFace from "./RobotFace";
 import { MODEL_SCALE, MODEL_URL } from "./robot-config";
 import type { RobotEventName, RobotEventPayload, RobotExpression } from "./robot-types";
 
-function removeRobotEars(scene: THREE.Object3D, head?: THREE.Object3D): void {
-  if (!head) return;
+function removeRobotEars(scene: THREE.Object3D, head?: THREE.Object3D): boolean {
+  if (!head) return false;
   scene.updateWorldMatrix(true, true);
   head.updateWorldMatrix(true, false);
   const headWorldInverse = head.matrixWorld.clone().invert();
+  let removed = false;
 
   scene.traverse((object) => {
     const mesh = object as THREE.SkinnedMesh;
     const geometry = mesh.geometry;
     const index = geometry?.index;
     const position = geometry?.getAttribute("position");
-    if (!mesh.isSkinnedMesh || !geometry || !index || !position || geometry.userData.lexgoRobotEarsRemoved) return;
+    if (!mesh.isSkinnedMesh || !geometry || !index || !position || geometry.userData.lexgoRobotEarsRemovedV2) return;
 
     mesh.updateWorldMatrix(true, false);
     mesh.skeleton.update();
@@ -80,37 +81,36 @@ function removeRobotEars(scene: THREE.Object3D, head?: THREE.Object3D): void {
       }
     }
 
-    const sideBallRoots = new Set<number>();
+    const earRoots = new Set<number>();
     components.forEach((component, root) => {
       const center = component.sum.clone().multiplyScalar(1 / component.count);
       const size = component.max.clone().sub(component.min);
       if (
-        component.count >= 50 &&
-        component.count <= 220 &&
+        component.count >= 3 &&
+        component.count <= 300 &&
         Math.abs(center.x) >= 0.16 &&
-        Math.abs(center.x) <= 0.23 &&
-        center.y >= 0.02 &&
-        center.y <= 0.3 &&
-        Math.abs(center.z) <= 0.04 &&
-        size.x <= 0.09 &&
-        size.y >= 0.18 &&
-        size.y <= 0.32
+        Math.abs(center.x) <= 0.34 &&
+        center.y >= -0.05 &&
+        center.y <= 0.4 &&
+        size.x <= 0.16 &&
+        size.y <= 0.45 &&
+        size.z <= 0.5
       ) {
-        sideBallRoots.add(root);
+        earRoots.add(root);
       }
     });
 
-    const isSideBallPoint = (point: THREE.Vector3): boolean =>
+    const isEarPoint = (point: THREE.Vector3): boolean =>
       Math.abs(point.x) >= 0.145 &&
-      Math.abs(point.x) <= 0.235 &&
-      point.y >= -0.01 &&
-      point.y <= 0.32 &&
-      Math.abs(point.z) <= 0.2;
+      Math.abs(point.x) <= 0.34 &&
+      point.y >= -0.05 &&
+      point.y <= 0.4 &&
+      Math.abs(point.z) <= 0.38;
 
-    const isSideBallTriangle = (a: number, b: number, c: number): boolean => {
+    const isEarTriangle = (a: number, b: number, c: number): boolean => {
       const points = [bindPositions[a], bindPositions[b], bindPositions[c]];
       const sameSide = points.every((point) => point.x >= 0) || points.every((point) => point.x <= 0);
-      return sameSide && points.every(isSideBallPoint);
+      return sameSide && points.every(isEarPoint);
     };
 
     const filtered: number[] = [];
@@ -118,16 +118,21 @@ function removeRobotEars(scene: THREE.Object3D, head?: THREE.Object3D): void {
       const a = index.getX(i);
       const b = index.getX(i + 1);
       const c = index.getX(i + 2);
-      if (sideBallRoots.has(find(a)) || sideBallRoots.has(find(b)) || sideBallRoots.has(find(c)) || isSideBallTriangle(a, b, c)) continue;
+      if (earRoots.has(find(a)) || earRoots.has(find(b)) || earRoots.has(find(c)) || isEarTriangle(a, b, c)) {
+        removed = true;
+        continue;
+      }
       filtered.push(a, b, c);
     }
 
+    if (!removed) return;
     const filteredIndex = index.array instanceof Uint32Array ? new Uint32Array(filtered) : new Uint16Array(filtered);
     geometry.setIndex(new THREE.BufferAttribute(filteredIndex, 1));
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
-    geometry.userData.lexgoRobotEarsRemoved = true;
+    geometry.userData.lexgoRobotEarsRemovedV2 = true;
   });
+  return removed;
 }
 
 useGLTF.preload(MODEL_URL);
@@ -159,14 +164,11 @@ export default function RobotModel({
   const { scene, animations } = useGLTF(MODEL_URL);
   const rootRef = useRef<THREE.Group>(null);
   const controllerRef = useRef<RobotController | null>(null);
+  const earsRemovedRef = useRef(false);
   const bones = useMemo(() => {
     return new RobotBones(scene);
   }, [scene]);
   const [expression, setExpression] = useState<RobotExpression>("default");
-
-  useLayoutEffect(() => {
-    removeRobotEars(scene, bones.get("head"));
-  }, [bones, scene]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -202,6 +204,7 @@ export default function RobotModel({
 
   useFrame((state, dt) => {
     if (document.hidden) return;
+    if (!earsRemovedRef.current) earsRemovedRef.current = removeRobotEars(scene, bones.get("head"));
     controllerRef.current?.update(dt, state.clock.elapsedTime);
   });
 
