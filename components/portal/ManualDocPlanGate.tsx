@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getSubscriptionPlans, requestManualDocumentPlanPurchase, type BackendPlan, type ManualDocBillingPeriod } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
+import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
@@ -19,6 +20,14 @@ import { IconCheck } from "@/components/icons";
 // plan activates once someone there approves it, so there is no "pay now"
 // step, only a pending receipt.
 const PERIODS: ManualDocBillingPeriod[] = ["monthly", "six_month", "yearly", "prepaid_yearly"];
+// A plan only accepts the periods the backend listed in allowed_billing_periods;
+// offering the other three produced a request the backend could only reject.
+function periodsFor(plan: BackendPlan | undefined): ManualDocBillingPeriod[] {
+  const allowed = plan?.allowedBillingPeriods ?? [];
+  if (!allowed.length) return PERIODS;
+  const only = PERIODS.filter((p) => allowed.includes(p));
+  return only.length ? only : PERIODS;
+}
 
 function priceFor(plan: BackendPlan, period: ManualDocBillingPeriod): number {
   if (period === "six_month") return plan.sixMonthPrice || plan.monthlyPrice * 6;
@@ -42,7 +51,15 @@ export default function ManualDocPlanGate({
   const t = useTranslations("portal.client.documents");
   const locale = useLocale();
   const plans = useResource<BackendPlan>(() => getSubscriptionPlans(locale), [locale]);
-  const qualifying = plans.data.filter((p) => p.isActive && p.entitlements?.manual_document_fill === true);
+  // A giftable tariff is bought FOR someone else and activates on the
+  // recipient, so it can never clear this gate for the person in front of it —
+  // yet "shaxsiy-advokat-gift" is currently the only plan the backend tags
+  // with manual_document_fill, which is why this modal offered a gift SKU as
+  // the thing to buy. Filtered out here; if that leaves nothing, the modal
+  // says so and sends the client to the subscriptions page instead.
+  const qualifying = plans.data.filter((p) => p.isActive && !p.isGiftable && p.billingType !== "gift" && p.entitlements?.manual_document_fill === true);
+  const selected = qualifying.find((p) => p.id === planId);
+  const periods = periodsFor(selected);
   const [planId, setPlanId] = useState("");
   const [period, setPeriod] = useState<ManualDocBillingPeriod>("monthly");
   const [busy, setBusy] = useState(false);
@@ -60,12 +77,17 @@ export default function ManualDocPlanGate({
     }
   }
 
+  // Switching to a plan that does not allow the currently chosen period would
+  // otherwise submit a period the backend rejects.
+  const periodOk = periods.includes(period);
+  const effPeriod = periodOk ? period : periods[0];
+
   async function submit() {
     if (!planId || busy) return;
     setBusy(true);
     setNote(null);
     try {
-      await requestManualDocumentPlanPurchase(planId, period);
+      await requestManualDocumentPlanPurchase(planId, effPeriod);
       setSent(true);
     } catch {
       setNote({ ok: false, msg: t("planRequestError") });
@@ -86,7 +108,12 @@ export default function ManualDocPlanGate({
         ) : plans.status === "loading" ? (
           <Skeleton rows={3} />
         ) : !qualifying.length ? (
-          <p className="advmuted">{t("noQualifyingPlans")}</p>
+          <>
+            <p className="advmuted">{t("noQualifyingPlans")}</p>
+            <Link href="/portal/client/subscription" className="btn btn--line btn--full" onClick={onClose}>
+              {t("openSubscriptions")}
+            </Link>
+          </>
         ) : (
           <>
             <div>
@@ -96,7 +123,7 @@ export default function ManualDocPlanGate({
                   <button type="button" key={p.id} className={`advpick__c${planId === p.id ? " on" : ""}`} onClick={() => setPlanId(p.id)}>
                     <span className="advpick__m">
                       <b>{p.name}</b>
-                      <span className="advpick__stats">{fmtUzs(priceFor(p, period))} {t("som")}</span>
+                      <span className="advpick__stats">{fmtUzs(priceFor(p, effPeriod))} {t("som")}</span>
                     </span>
                     {planId === p.id ? <IconCheck className="advpick__ck" /> : null}
                   </button>
@@ -107,8 +134,8 @@ export default function ManualDocPlanGate({
             <div>
               <label>{t("choosePeriod")}</label>
               <div className="chiprow" style={{ margin: "4px 0 0" }}>
-                {PERIODS.map((pr) => (
-                  <button key={pr} type="button" className="fchip" aria-pressed={period === pr} onClick={() => setPeriod(pr)}>
+                {periods.map((pr) => (
+                  <button key={pr} type="button" className="fchip" aria-pressed={effPeriod === pr} onClick={() => setPeriod(pr)}>
                     {t(`period_${pr}`)}
                   </button>
                 ))}

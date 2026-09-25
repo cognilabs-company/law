@@ -98,6 +98,13 @@ export default function DocumentEditorWorkspace({
   const router = useRouter();
 
   const [reloadKey, setReloadKey] = useState(0);
+  // Refetch of the REQUEST RECORD only. Bumping reloadKey re-runs the editor
+  // effect too, and getDocumentRequestEditor hands back a fresh session id, so
+  // the OnlyOffice embed below tore the iframe down and built a new one — the
+  // "editor refreshed itself" the advocate saw the moment they pressed "send
+  // to the client". Status changes need the record, never a new editor
+  // session, so they bump this instead.
+  const [reqReloadKey, setReqReloadKey] = useState(0);
   const [req, setReq] = useState<LawyerDocumentRequest | null>(null);
   const [reqStatus, setReqStatus] = useState<"loading" | "ready" | "error">("loading");
   useEffect(() => {
@@ -121,7 +128,7 @@ export default function DocumentEditorWorkspace({
     return () => {
       alive = false;
     };
-  }, [recordId, reloadKey]);
+  }, [recordId, reloadKey, reqReloadKey]);
 
   // The editor session — fetched independently of the request-detail call
   // above (see the file header comment) so an unclaimed record's 409 is
@@ -199,8 +206,13 @@ export default function DocumentEditorWorkspace({
         setSavedAt(typeof e.saved_at === "string" ? e.saved_at : new Date().toISOString());
         return;
       }
-      if (e.event === "document_request.claimed" || e.event === "document_request.completed" || e.event === "document_request.meeting_created") {
-        setReloadKey((k) => k + 1);
+      // Claiming is what unlocks the editor (it answers 409 until then), so
+      // that one really does need the editor session refetched. The other two
+      // are status changes — including the echo of this advocate's own
+      // finalize, which would otherwise reload the editor a second time.
+      if (e.event === "document_request.claimed") { setReloadKey((k) => k + 1); return; }
+      if (e.event === "document_request.completed" || e.event === "document_request.meeting_created") {
+        setReqReloadKey((k) => k + 1);
       }
     });
   }, [recordId]);
@@ -399,7 +411,9 @@ export default function DocumentEditorWorkspace({
       setFinalizeResult(r);
       setFinalizeConfirmOpen(false);
       setFinalizeOk(true);
-      setReloadKey((k) => k + 1);
+      // Record only: finalizeResult already carries the final file and the new
+      // status that drive this screen, and the open document must stay open.
+      setReqReloadKey((k) => k + 1);
     } catch (e) {
       logApiError("document-request finalize", e);
       setFinalizeErr(true);

@@ -38,7 +38,8 @@ import {
 import { ApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { getToken } from "@/lib/client";
-import { subscribeRoomCallEvents } from "@/lib/callEvents";
+import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
+import { CaptureShield, MeetingWatermark, useCaptureGuard, type GuardTrip } from "./MeetingGuard";
 import { backoffMs, refreshAccessToken } from "@/lib/http";
 import { useAuth, canMakeCalls } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
@@ -390,7 +391,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       .on(RoomEvent.DataReceived, (payload, p) => {
         if (!alive) return;
         try {
-          const msg = JSON.parse(new TextDecoder().decode(payload)) as { t?: string; text?: string; at?: number; on?: boolean; mode?: string; name?: string; to?: string; approver?: boolean };
+          const msg = JSON.parse(new TextDecoder().decode(payload)) as { t?: string; text?: string; at?: number; on?: boolean; mode?: string; name?: string; to?: string; approver?: boolean; allowed?: boolean; why?: string };
           if (msg.t === "rec" && p) {
             const on = msg.on === true;
             setRecBy((cur) => { const n = new Set(cur); if (on) n.add(p.identity); else n.delete(p.identity); return n; });
@@ -404,6 +405,31 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           // data channel — see the recording-events effect below.
           if (msg.t === "role" && p) {
             if (msg.approver) setAnnounced((cur) => (cur.has(p.identity) ? cur : new Set(cur).add(p.identity)));
+            return;
+          }
+          // Recording consent over the data channel. The backend broadcast is
+          // the primary path (it is the one that writes server-side state);
+          // this is the fallback that keeps the prompt working when the
+          // broadcast never arrives, and it is deduped by user id on both ends.
+          if (msg.t === "recask" && p && approverRef.current && p.identity !== session?.id) {
+            const mode: RecordingMode = msg.mode === "screen" ? "screen" : "audio";
+            setRecAsks((a) => (a.some((x) => x.id === p.identity) ? a : [...a, { id: p.identity, name: nameOfRef.current(p), mode, at: Date.now() }]));
+            playJoinTone(false);
+            toast(t("recAskToast", { name: nameOfRef.current(p) }), "info");
+            return;
+          }
+          if (msg.t === "guard" && p) {
+            toast(t("guardPeer", { name: nameOfRef.current(p) }), "leave");
+            return;
+          }
+          if (msg.t === "recans" && p) {
+            if (msg.to && msg.to !== session?.id) { setRecAsks((a) => a.filter((x) => x.id !== msg.to)); return; }
+            const req = recReqRef.current;
+            if (!req) return;
+            setRecReq(null);
+            const who = nameOfRef.current(p);
+            if (msg.allowed) { toast(t("recAllowedBy", { name: who }), "join"); startRecRef.current(req.mode); }
+            else toast(t("recDeniedBy", { name: who }), "leave");
             return;
           }
           if (msg.t === "chat" && msg.text) {
@@ -526,6 +552,14 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // never polls for it. Field names on the event payload aren't nailed down
   // 1:1 by the doc, so every lookup tries a couple of plausible keys.
   useEffect(() => {
+    const seen = new Map<string, number>();
+    const fresh = (key: string) => {
+      const now = Date.now();
+      for (const [k, at] of seen) if (now - at > 10000) seen.delete(k);
+      if (seen.has(key)) return false;
+      seen.set(key, now);
+      return true;
+    };
     const unsub = subscribeRoomCallEvents(roomId, (e) => {
       const id = String(e.call_id ?? "");
       if (id && id !== callId) return;
@@ -535,6 +569,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       if (e.event === "call.recording_requested") {
         const uid = String(d.recording_requested_by_user_id ?? d.requested_by_user_id ?? d.user_id ?? "");
         if (!approverRef.current || !uid || uid === session?.id) return;
+        if (!fresh(`req:${uid}`)) return;
         const mode: RecordingMode = d.mode === "screen" ? "screen" : "audio";
         setRecAsks((a) => [...a.filter((x) => x.id !== uid), { id: uid, name: String(d.name ?? "").trim() || nameFor(uid), mode, at: Date.now() }]);
         playJoinTone(false);
@@ -557,7 +592,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         // LiveKit participant identity == backend user_id (the token metadata
         // pattern this room already relies on elsewhere, e.g. roster lookups).
         const uid = String(d.recording_started_by_user_id ?? d.user_id ?? "");
-        if (!uid) return;
+        if (!uid || !fresh(`started:${uid}`)) return;
         setRecBy((cur) => (cur.has(uid) ? cur : new Set(cur).add(uid)));
         if (uid !== session?.id) toast(t("recStartedBy", { name: nameFor(uid) }), "leave");
       }
@@ -713,6 +748,14 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           return;
         }
         if (type.includes("auto_ended") || type === "call.end") { onEndRef.current?.(); return; }
+        // Recording consent, extensions and the rest of the call.* family are
+        // delivered on THIS socket. They used to stop here: the handlers below
+        // subscribe to the in-page bus, and the only thing feeding that bus was
+        // SecureChat's room socket — which is closed whenever the chat panel is
+        // not mounted (the document editor shows chat and meeting in the same
+        // slot). That is why a client's recording request never reached the
+        // advocate. Forwarded now, deduped against SecureChat's copy.
+        if (isCallEvent(type)) emitRoomCallEvent(roomId, { ...(msg as Record<string, unknown>), event: type, call_id: callId });
         if (/^(participant|media)\./.test(type) || /^call[.](join|leave|extended|payment_extension_)/.test(type)) {
           setMetaTick((n) => n + 1);
         }
@@ -882,10 +925,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
 
   async function answerRecAsk(id: string, ok: boolean) {
     setRecAsks((a) => a.filter((x) => x.id !== id));
+    // Data channel first: it reaches the requester in one hop and does not
+    // depend on the backend re-broadcasting the decision.
+    roomRef.current?.localParticipant
+      .publishData(enc({ t: "recans", to: id, allowed: ok, at: stamp() }), { reliable: true })
+      .catch(() => {});
     try {
       await setCallRecordingPermission(roomId, callId, ok);
     } catch {
-      toast(t("recError"), "leave");
+      // The decision already reached the room over the data channel; only the
+      // server-side record of it failed, which is not the approver's problem.
     }
   }
   // No cancel endpoint in the 2026-09-19 contract — giving up locally is all
@@ -976,12 +1025,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       setRecPick(false);
       if (iApprove) { startRecording(mode); return; }
       if (!participants.some((p) => !p.isLocal && isApprover(p))) { toast(t("recNeedApprover"), "leave"); return; }
-      try {
-        await requestCallRecording(roomId, callId, mode);
-      } catch {
-        toast(t("recError"), "leave");
-        return;
-      }
+      const asked = await requestCallRecording(roomId, callId, mode).then(() => true).catch(() => false);
+      const relayed = await r.localParticipant
+        .publishData(enc({ t: "recask", mode, at: stamp() }), { reliable: true })
+        .then(() => true)
+        .catch(() => false);
+      if (!asked && !relayed) { toast(t("recError"), "leave"); return; }
       setRecReq({ mode, left: REC_ASK_SEC });
       toast(t("recAsking"), "info");
       return;
@@ -1034,6 +1083,38 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const flipKey = `${strip.map((p) => p.identity).join("|")}:${view}:${stageIsShare ? 1 : 0}:${panel}`;
   const gridRef = useFlip<HTMLDivElement>(flipKey);
   const stripRef = useFlip<HTMLDivElement>(flipKey);
+  // ── Meeting confidentiality ────────────────────────────────────
+  // The watermark names the person in front of THIS screen — not the speaker —
+  // so a leaked frame points at whoever leaked it. The phone is masked to its
+  // last four digits: enough to identify the account internally, not enough to
+  // be a contact detail someone can harvest off a screenshot.
+  const wmLabel = [
+    session?.name || t("you"),
+    session?.phone ? "••" + session.phone.replace(/\D/g, "").slice(-4) : session?.id?.slice(0, 8) || "",
+    callId.slice(0, 8),
+  ].filter(Boolean).join(" · ");
+  const announceGuard = useCallback((why: GuardTrip) => {
+    // Only the deliberate signals are reported. Tab switches and window blurs
+    // still blank the picture on this side, but telling the room about every
+    // alt-tab would turn a security notice into noise nobody reads.
+    if (why !== "key" && why !== "capture") return;
+    roomRef.current?.localParticipant
+      .publishData(enc({ t: "guard", why, at: Date.now() }), { reliable: true })
+      .catch(() => {});
+  }, []);
+  // Armed for the whole time the room can show a picture — "ringing" is the
+  // one-participant state, which still renders the local camera.
+  const guard = useCaptureGuard(status !== "ended" && status !== "error", announceGuard);
+  // A recorder grabbing system audio must get silence for as long as the
+  // picture is black, or the shield would only be half a shield.
+  useEffect(() => {
+    const c = audioRef.current;
+    if (!c) return;
+    const els = Array.from(c.querySelectorAll("audio"));
+    for (const el of els) el.muted = guard.shielded;
+    return () => { for (const el of els) el.muted = false; };
+  }, [guard.shielded, count]);
+
   // Everyone recording right now, by name (others from the data channel, me from recOn).
   const recByNames = [...recBy].map((id) => { const p = participants.find((x) => x.identity === id); return p ? nameOf(p) : t("someone"); });
   const recLabel = recOn
@@ -1110,7 +1191,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       ) : null}
 
       <div className="mtg__body">
-        <main className="mtg__stage" ref={stageRef}>
+        <main
+          className={`mtg__stage${guard.shielded ? " mtg__stage--guard" : ""}`}
+          ref={stageRef}
+          onContextMenu={(e) => e.preventDefault()}
+          onDragStart={(e) => e.preventDefault()}
+        >
           {stageP ? (
             <div className="mtg__speaker">
               <Tile key={`stage-${stageP.identity}-${stageIsShare ? "s" : "c"}`} p={stageP} name={nameOf(stageP)} you={t("you")} camOff={t("camOff")} share={stageIsShare} mirror={stageP.isLocal && !stageIsShare && mirror} rec={!stageIsShare && isRecording(stageP)} big />
@@ -1134,6 +1220,13 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               ) : null}
             </div>
           )}
+          <MeetingWatermark label={wmLabel} />
+          <CaptureShield
+            reason={guard.reason}
+            title={guard.captured ? t("guardCaptureTitle") : t("guardTitle")}
+            lead={guard.captured ? t("guardCaptureLead") : t("guardLead")}
+            note={t("guardNote")}
+          />
           {recFile ? (
             <div className="mtg__recdone" role="status">
               <div>

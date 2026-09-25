@@ -771,6 +771,9 @@ export type BackendPlan = {
   billingType: string;
   sortOrder: number;
   allowedGiftDurations: number[];
+  // Which billing periods this plan may actually be bought for; empty when the
+  // backend didn't say, and the caller then falls back to offering all four.
+  allowedBillingPeriods: string[];
   description: string;
   features: string[];
   isGiftable: boolean;
@@ -852,6 +855,7 @@ function normPlan(v: unknown, locale: string): BackendPlan {
     billingType: asStr(d.billing_type),
     sortOrder: asNum(d.sort_order),
     allowedGiftDurations: asArr(d.allowed_gift_durations).map((x) => asNum(x)),
+    allowedBillingPeriods: asArr(d.allowed_billing_periods).map((x) => asStr(x)),
     description: asStr(d.description),
     features: pickLocArr(d.features, locale, d.benefits),
     isGiftable: Boolean(d.is_giftable),

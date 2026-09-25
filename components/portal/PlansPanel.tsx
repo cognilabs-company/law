@@ -166,15 +166,27 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const active = res.data.filter((p) => p.isActive !== false);
   const role = session?.role ?? "client";
   const roleKey = role === "lawyer" ? "yurist" : role === "advocate" ? "advokat" : role;
-  // A plan explicitly tagged target_roles for this role (2026-09-19 backend
-  // field) is shown here too, whatever role is viewing — not just sellers —
-  // as long as it isn't already the "Shaxsiy advokatim" (personal) bucket below.
-  const hasExplicitTargetRole = (p: BackendPlan) => !!p.targetRoles?.length && p.targetRoles.includes(roleKey) && p.audience !== "personal";
-  const aiPlans = active
-    .filter((p) => p.billingType !== "gift" && (AI_SLUG.test(p.slug) || (isSeller && planForRole(p, role)) || hasExplicitTargetRole(p)))
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.monthlyPrice - b.monthlyPrice);
-  const personalPlans = active.filter((p) => p.audience === "personal" && p.billingType !== "gift").sort((a, b) => a.sortOrder - b.sortOrder || a.monthlyPrice - b.monthlyPrice);
-  const giftPlan = active.find((p) => p.billingType === "gift");
+  // target_roles (2026-09-19 backend field) no longer decides whether a plan
+  // is VISIBLE — everything non-gift is — but it still decides the order: a
+  // tariff the backend says is meant for this role is listed first.
+  const mine = (p: BackendPlan) => (p.targetRoles?.length ? p.targetRoles.includes(roleKey) : planForRole(p, role)) ? 0 : 1;
+  // A gift tariff is bought FOR someone else on the Gifts page — it can never
+  // be a self-subscription, so it is the one thing this page leaves out. The
+  // backend marks those with is_giftable; billing_type "gift" is the older
+  // signal and today no plan carries it, which is why "shaxsiy-advokat-gift"
+  // used to render here as an ordinary buyable tariff.
+  const isGift = (p: BackendPlan) => p.isGiftable || p.billingType === "gift";
+  const byOrder = (a: BackendPlan, b: BackendPlan) => mine(a) - mine(b) || a.sortOrder - b.sortOrder || a.monthlyPrice - b.monthlyPrice;
+  const sellable = active.filter((p) => !isGift(p)).sort(byOrder);
+  // Everything else is shown. The old rule kept a plan out of the page unless
+  // its slug matched /lexgo-ai-(free|lite|pro)/ or its audience string covered
+  // the viewer's role — and the backend canonicalizes audience by slug, so
+  // "lexgo-ai-jismoniy-shaxs" (an individual's tariff) and the three
+  // "biznes-abonent-*" tariffs came back as audience "seller" and were visible
+  // to nobody at all.
+  const aiPlans = sellable.filter((p) => AI_SLUG.test(p.slug));
+  const otherPlans = sellable.filter((p) => !AI_SLUG.test(p.slug));
+  const giftPlan = active.find(isGift);
   const planName = (plan: BackendPlan) => plan.name;
 
   // Back from the checkout page may restore this page from the bfcache with the
@@ -412,13 +424,13 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         </div>
       ) : null}
 
-      {/* ── Shaxsiy advokatim: Standart / Premium (clients only) ────── */}
-      {personal ? (
+      {/* ── Every tariff that is not LexGo.AI, for every role ───────── */}
+      {personal || otherPlans.length ? (
         <>
           <div className="plans__head" style={{ marginTop: 34 }}>
             <div>
-              <h2 className="psec-h"><IconShieldCheck style={{ width: 20, height: 20, verticalAlign: "-3px", marginRight: 8 }} />{t("personal.title")}</h2>
-              <p className="plans__sub">{t("subtitlePersonal")}</p>
+              <h2 className="psec-h"><IconShieldCheck style={{ width: 20, height: 20, verticalAlign: "-3px", marginRight: 8 }} />{t("otherTitle")}</h2>
+              <p className="plans__sub">{personal ? t("subtitlePersonal") : t("otherSubtitle")}</p>
             </div>
             <div className="switch switch--sm" role="group">
               <button type="button" aria-pressed={term === 6} onClick={() => setTerm(6)}>{t("term6")}</button>
@@ -433,11 +445,11 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
           ) : null}
           {loading ? (
             <Skeleton rows={3} />
-          ) : failed ? null : !personalPlans.length ? (
+          ) : failed ? null : !otherPlans.length && !personal ? (
             <EmptyState icon={<IconCard />} title={t("empty")} text={t("emptyText")} />
           ) : (
             <div className="plans__grid">
-              {personalPlans.map((plan, i) => {
+              {otherPlans.map((plan, i) => {
                 const pr = personalPricing(plan, term, upfront);
                 const isCurrent = !!currentPlanName && planName(plan) === currentPlanName;
                 return (

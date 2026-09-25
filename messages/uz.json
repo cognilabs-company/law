@@ -3175,6 +3175,7 @@
         "preSellerNoList": "Bu advokat hali xizmatlar ro'yxatini belgilamagan — butun katalog ko'rsatilmoqda."
       },
       "documents": {
+        "openSubscriptions": "Obunalar sahifasiga o'tish",
         "title": "Hujjat namunalari",
         "lead": "Bizning professional advokatlar tomonidan tayyorlangan hujjat namunalaridan bemalol foydalanishingiz mumkin.",
         "empty": "Namunalar yo'q",
@@ -4827,6 +4828,8 @@
     "resumed": "Oldingi to'ldirilgan ma'lumotlar tiklandi — davom eting."
   },
   "plans": {
+    "otherSubtitle": "Platformadagi qolgan barcha obunalar. Sovg'a tariflari faqat «Sovg'alar» bo'limida sotiladi.",
+    "otherTitle": "Boshqa tariflar",
     "autopay": {
       "title": "Avtomatik to'lov (ATMOS)",
       "sub": "Har oy tarif to'lovi ulangan kartadan avtomatik yechiladi — tarif uzilmaydi.",
@@ -6904,6 +6907,12 @@
     }
   },
   "call": {
+    "guardPeer": "{name} ekranni olishga urindi — suhbat u tomonda bloklandi.",
+    "guardNote": "Suhbat maxfiy. Ekrandagi yozuv sizning ismingiz va raqamingizni ko'rsatadi — har qanday skrinshot manbasi aniqlanadi.",
+    "guardCaptureLead": "Ushbu sahifa boshqa dastur tomonidan yozib olinayotgani aniqlandi. Yozib olish to'xtatilmaguncha suhbat ko'rsatilmaydi.",
+    "guardCaptureTitle": "Ekran yozib olinmoqda",
+    "guardLead": "Oyna fokusdan chiqdi yoki skrinshot tugmasi bosildi — video va ovoz vaqtincha to'xtatildi.",
+    "guardTitle": "Ekran himoyasi ishga tushdi",
     "a11yRecording": "Yozib olinmoqda",
     "connecting": "Ulanmoqda…",
     "ringing": "Chaqirilmoqda…",

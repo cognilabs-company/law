@@ -3169,6 +3169,7 @@
         "preSellerNoList": "This advocate has not listed services yet — the full catalogue is shown."
       },
       "documents": {
+        "openSubscriptions": "Open subscriptions",
         "title": "Document templates",
         "lead": "Feel free to use the document templates prepared by our professional advocates.",
         "empty": "No templates yet",
@@ -4821,6 +4822,8 @@
     "resumed": "Your earlier answers were restored — carry on."
   },
   "plans": {
+    "otherSubtitle": "Every other subscription on the platform. Gift plans are sold only in the Gifts section.",
+    "otherTitle": "Other plans",
     "autopay": {
       "title": "Auto-pay (ATMOS)",
       "sub": "The tariff fee is charged to the linked card every month — your tariff never lapses.",
@@ -6898,6 +6901,12 @@
     }
   },
   "call": {
+    "guardPeer": "{name} attempted a screen capture — the meeting was blocked on their side.",
+    "guardNote": "This meeting is confidential. The overlay carries your name and number, so the source of any screenshot can be identified.",
+    "guardCaptureLead": "This page is being captured by another application. The meeting stays hidden until the capture stops.",
+    "guardCaptureTitle": "Screen recording detected",
+    "guardLead": "The window lost focus or a screenshot key was pressed — video and audio are paused.",
+    "guardTitle": "Screen protection engaged",
     "a11yRecording": "Recording",
     "connecting": "Connecting…",
     "ringing": "Ringing…",

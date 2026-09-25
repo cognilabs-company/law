@@ -5695,3 +5695,28 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
   .deditor__sub{display:none}
   .deditor__status .deditor__save{display:none}
 }
+
+/* ── wp-mtgguard: meeting confidentiality ─────────────────────────────
+   A browser cannot stop the operating system taking a screenshot, so this is
+   the two-layer defence the enterprise meeting products use: a per-viewer
+   watermark that makes any leaked frame traceable, and a shield that blanks
+   the picture during the moments a capture happens (tab hidden, window
+   blurred, screenshot key). Both live inside .mtg__stage, above every tile. */
+.mtg__wm{position:absolute;inset:0;z-index:6;pointer-events:none;user-select:none;overflow:hidden;display:flex;flex-direction:column;justify-content:space-around;transition:transform .8s ease}
+.mtg__wm[data-shift="1"]{transform:translate(2%,1.5%)}
+.mtg__wm[data-shift="2"]{transform:translate(-1.5%,3%)}
+.mtg__wm[data-shift="3"]{transform:translate(1%,-2%)}
+.mtg__wm-t{display:block;font-size:.72rem;font-weight:700;letter-spacing:.04em;white-space:nowrap;color:rgba(255,255,255,.14);text-shadow:0 1px 2px rgba(0,0,0,.35);transform:rotate(-18deg);transform-origin:left center}
+/* The stage itself never shows a video frame while the shield is up: blurring
+   and scaling the tiles means even a frame grabbed mid-transition is useless. */
+.mtg__stage--guard .mtg__speaker,.mtg__stage--guard .mtg__grid{filter:blur(26px) brightness(.25);transform:scale(1.04)}
+.mtg__stage--guard .mtg__wm{opacity:.45}
+.mtg__shield{position:absolute;inset:0;z-index:30;display:grid;place-items:center;padding:18px;background:radial-gradient(120% 120% at 50% 40%,rgba(11,31,69,.94),rgba(2,6,16,.985));backdrop-filter:blur(8px);animation:mtgShield .12s ease both}
+.mtg__shield-m{max-width:420px;text-align:center;display:flex;flex-direction:column;gap:8px}
+.mtg__shield-m b{font-size:1.02rem;font-weight:800;color:#fff}
+.mtg__shield-m span{font-size:.86rem;line-height:1.5;color:#cbd5e1}
+.mtg__shield-m small{font-size:.74rem;line-height:1.5;color:rgba(203,213,225,.66)}
+.mtg__shield[data-reason="capture"]{background:radial-gradient(120% 120% at 50% 40%,rgba(69,11,11,.95),rgba(16,2,2,.99))}
+@keyframes mtgShield{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.mtg__wm{transition:none}.mtg__shield{animation:none}}
+@media (max-width:760px){.mtg__wm-t{font-size:.6rem}}
