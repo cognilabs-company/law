@@ -18,6 +18,9 @@ import { IconFileText, IconAlert, IconCheck, IconSparkle, IconShieldCheck, IconA
 const MAX_PAGES = 500;
 // The backend counts one page per 2 500 characters of text.
 const pagesFor = (text: string) => Math.min(MAX_PAGES, Math.max(1, Math.ceil(text.trim().length / 2500)));
+// Backend default (quote.included_pages confirms it per request); used only
+// for the hint shown before the first quote comes back.
+const INCLUDED_PAGES = 10;
 const keyOf = (o: DocQuoteInput) => `${o.pageCount}|${o.ocr}|${o.lawyerReview}|${o.urgent}|${Boolean(o.writtenOpinion)}`;
 const MAX_FILE_MB = 20;
 const FILE_TYPES = ".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain";
@@ -142,6 +145,9 @@ export default function ClientDocAnalysis() {
           <label className="docq__opt"><input type="checkbox" checked={writtenOpinion} onChange={(e) => setWrittenOpinion(e.target.checked)} />{t("writtenOpinion")}</label>
         </div>
         {!pagesOk ? <p className="docq__err">{t("pagesRange", { max: MAX_PAGES })}</p> : null}
+        {/* Said before the quote is fetched, not after: the page count is the
+            one input the client can still change cheaply. */}
+        {pagesOk && pageCount > INCLUDED_PAGES ? <p className="docq__hint">{t("extraPagesHint", { n: INCLUDED_PAGES })}</p> : null}
 
         {fresh ? (
           <div className="oquote" style={{ marginBottom: 12 }}>
@@ -150,6 +156,12 @@ export default function ClientDocAnalysis() {
             ) : (
               <div className="oquote__row oquote__row--mod"><span>{t("quoteBase", { n: fresh.pageCount || pageCount })}</span><span>{som(fresh.baseAmount)}</span></div>
             )}
+            {fresh.includedPages ? (
+              <div className="oquote__row oquote__row--sub">
+                <span>{t("quoteIncludedPages", { n: fresh.includedPages })}</span>
+                <span>{fresh.extraPages ? t("quoteExtraPages", { n: fresh.extraPages }) : t("quoteNoExtra")}</span>
+              </div>
+            ) : null}
             {fresh.ocrAmount ? <div className="oquote__row oquote__row--mod"><span>{t("quoteOcr")}</span><span>{som(fresh.ocrAmount)}</span></div> : null}
             {fresh.lawyerReviewAmount ? <div className="oquote__row oquote__row--mod"><span>{t("quoteLawyer")}</span><span>{som(fresh.lawyerReviewAmount)}</span></div> : null}
             {fresh.urgencyAmount ? <div className="oquote__row oquote__row--mod"><span>{t("quoteUrgent")}</span><span>{som(fresh.urgencyAmount)}</span></div> : null}

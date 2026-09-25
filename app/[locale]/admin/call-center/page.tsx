@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth, isCallCenterUser } from "@/lib/auth";
 import CallCenterQueue from "@/components/admin/CallCenterQueue";
+import UrgentAdvocateQueue from "@/components/admin/UrgentAdvocateQueue";
 import CallCenterBoard from "@/components/admin/CallCenterBoard";
 import CcClientSearch from "@/components/admin/CcClientSearch";
 import CcCallLog from "@/components/admin/CcCallLog";
@@ -21,6 +22,9 @@ export default function AdminCallCenter() {
   return (
     <>
       {cc ? <CallCenterQueue /> : null}
+      {/* Tezkor Advokat pool: its own board above the lead board, since its
+          rows are claimed and scheduled rather than moved through stages. */}
+      {cc ? <UrgentAdvocateQueue /> : null}
       <CallCenterBoard />
       <div className="pgrid2">
         <CcClientSearch canLog={cc} onLogged={onLogged} />

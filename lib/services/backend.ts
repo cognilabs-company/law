@@ -4351,6 +4351,11 @@ export type DocAnalysisQuote = {
   writtenOpinionAmount: number;
   aiIncluded: boolean; // the AI analysis itself is part of the subscription
   pricingRule: string;
+  // LEXGO_URGENT_ADVOCATE_FRONTEND_UPDATE.md: the first ten pages are part of
+  // the base price and every page past them is billed on top, so the quote now
+  // says which is which instead of only a total.
+  includedPages: number;
+  extraPages: number;
 };
 function normDocQuote(v: unknown): DocAnalysisQuote {
   const d = asDict(v);
@@ -4366,6 +4371,8 @@ function normDocQuote(v: unknown): DocAnalysisQuote {
     writtenOpinionAmount: uzs(d, "written_opinion_amount"),
     aiIncluded: Boolean(d.ai_included_in_subscription),
     pricingRule: asStr(d.pricing_rule),
+    includedPages: asNum(d.included_pages),
+    extraPages: asNum(d.extra_pages),
   };
 }
 export type DocQuoteInput = { pageCount: number; ocr: boolean; lawyerReview: boolean; urgent: boolean; writtenOpinion?: boolean };
@@ -6241,6 +6248,217 @@ export async function acceptLegalConsent(id: string, version: string): Promise<C
     if (s === 0 || s === 401 || s === 408 || s === 425 || s === 429 || s >= 500) return { outcome: "retry", status: s };
     return { outcome: "failed", status: s };
   }
+}
+
+// ── Tezkor Advokat (urgent advocate) ──────────────────────────────
+// LEXGO_URGENT_ADVOCATE_FRONTEND_UPDATE.md. One module holding four services:
+// a video consultation, a chat consultation and the two "second opinion"
+// flows (one advocate, or a scheduled panel of several). All four land in the
+// same call-center pool; the group one additionally needs an operator to pick
+// the advocates and a time.
+export type UrgentServiceVariant = { channel: "video" | "chat" | string; price: number; pricePerLawyer: number; meetingMinutes: number };
+export type UrgentService = {
+  key: string;
+  title: string;
+  delivery: string;
+  price: number;
+  meetingMinutes: number;
+  supportsChat: boolean;
+  supportsFiles: boolean;
+  supportsVoice: boolean;
+  variants: UrgentServiceVariant[];
+  requiresPriorPurchase: boolean;
+  lawyerCountMin: number;
+  lawyerCountMax: number;
+};
+export type UrgentCatalog = {
+  title: string;
+  meetingDefaultMinutes: number;
+  freeExtensionOnceMinutes: number;
+  paidExtensionPricePerMinute: number;
+  services: UrgentService[];
+};
+function normUrgentService(v: unknown): UrgentService {
+  const d = asDict(v);
+  const variants = asArr(d.variants).map((x) => {
+    const w = asDict(x);
+    return {
+      channel: asStr(w.channel),
+      price: uzs(w, "price"),
+      pricePerLawyer: uzs(w, "price_per_lawyer"),
+      meetingMinutes: asNum(w.meeting_minutes),
+    };
+  });
+  return {
+    key: asStr(d.key),
+    title: asStr(d.title),
+    delivery: asStr(d.delivery),
+    price: uzs(d, "price"),
+    meetingMinutes: asNum(d.meeting_minutes),
+    // A service with no explicit flag still carries the module-wide ones: the
+    // catalog only spells them out on the two consultation services.
+    supportsChat: d.supports_chat !== false,
+    supportsFiles: d.supports_files !== false,
+    supportsVoice: d.supports_voice !== false,
+    variants,
+    requiresPriorPurchase: Boolean(d.requires_prior_lexgo_purchase),
+    lawyerCountMin: asNum(d.lawyer_count_min, 2),
+    lawyerCountMax: asNum(d.lawyer_count_max, 7),
+  };
+}
+export async function getUrgentCatalog(): Promise<UrgentCatalog> {
+  const d = asDict(await http("/urgent-advokat/catalog"));
+  return {
+    title: asStr(d.title),
+    meetingDefaultMinutes: asNum(d.meeting_default_minutes, 30),
+    freeExtensionOnceMinutes: asNum(d.free_extension_once_minutes, 3),
+    paidExtensionPricePerMinute: uzs(d, "paid_extension_price_per_minute"),
+    services: listFrom(d, "services", "items", "data").map(normUrgentService),
+  };
+}
+// Price of one configuration: a service either has a flat price or per-channel
+// variants, and the group one is priced per advocate.
+export function urgentPrice(s: UrgentService | undefined, channel: string, lawyerCount = 1): number {
+  if (!s) return 0;
+  const v = s.variants.find((x) => x.channel === channel) ?? s.variants[0];
+  if (!v) return s.price;
+  return v.pricePerLawyer ? v.pricePerLawyer * Math.max(1, lawyerCount) : v.price;
+}
+export function urgentMinutes(s: UrgentService | undefined, channel: string): number {
+  if (!s) return 0;
+  const v = s.variants.find((x) => x.channel === channel);
+  return v ? v.meetingMinutes : s.meetingMinutes;
+}
+// Which channels a service can be ordered on: the variants when it has them,
+// otherwise the single channel its own shape implies.
+export function urgentChannels(s: UrgentService | undefined): string[] {
+  if (!s) return [];
+  if (s.variants.length) return s.variants.map((v) => v.channel).filter(Boolean);
+  return [s.meetingMinutes > 0 ? "video" : "chat"];
+}
+
+export type UrgentRequest = {
+  id: string;
+  serviceKind: string;
+  serviceTitle: string;
+  channel: string;
+  status: string;
+  region: string;
+  need: string;
+  directions: string[];
+  lawyerCount: number;
+  amount: number;
+  clientUserId: string;
+  clientName: string;
+  clientPhone: string;
+  assignedLawyerUserId: string;
+  assignedLawyerName: string;
+  groupLawyerUserIds: string[];
+  scheduledAt: string;
+  secureChatRoomId: string;
+  callId: string;
+  note: string;
+  createdAt: string;
+};
+function normUrgentRequest(v: unknown): UrgentRequest {
+  const d = asDict(v);
+  // The claim response wraps the interesting fields in "payload"; the list
+  // rows carry them flat. Reading both keeps one normalizer for both shapes.
+  const p = asDict(d.payload);
+  const pick = (k: string) => (d[k] === undefined ? p[k] : d[k]);
+  return {
+    id: asStr(pick("id") ?? pick("record_id")),
+    serviceKind: asStr(pick("service_kind")),
+    serviceTitle: asStr(pick("service_title") ?? pick("title")),
+    channel: asStr(pick("channel")),
+    status: asStr(pick("status")),
+    region: asStr(pick("region")),
+    need: asStr(pick("need") ?? pick("description")),
+    directions: asArr(pick("directions")).map((x) => asStr(x)).filter(Boolean),
+    lawyerCount: asNum(pick("lawyer_count")),
+    amount: uzs({ amount: pick("amount") ?? pick("price") }, "amount"),
+    clientUserId: asStr(pick("client_user_id")),
+    clientName: asStr(pick("client_name")),
+    clientPhone: asStr(pick("client_phone")),
+    assignedLawyerUserId: asStr(pick("assigned_lawyer_user_id")),
+    assignedLawyerName: asStr(pick("assigned_lawyer_name")),
+    groupLawyerUserIds: asArr(pick("lawyer_user_ids") ?? pick("group_lawyer_user_ids")).map((x) => asStr(x)).filter(Boolean),
+    scheduledAt: asStr(pick("scheduled_at")),
+    secureChatRoomId: asStr(pick("secure_chat_room_id")),
+    callId: asStr(pick("call_id")),
+    note: asStr(pick("note")),
+    createdAt: asStr(pick("created_at")),
+  };
+}
+
+export type UrgentRequestInput = {
+  serviceKind: string;
+  channel: string;
+  need: string;
+  region?: string;
+  directions?: string[];
+  lawyerCount?: number;
+};
+export async function createUrgentRequest(input: UrgentRequestInput): Promise<UrgentRequest> {
+  const body: Record<string, unknown> = {
+    service_kind: input.serviceKind,
+    channel: input.channel,
+    need: input.need,
+    // The documented payload carries both arrays even when empty; files and
+    // voice notes themselves travel over the secure chat the claim opens.
+    files: [],
+    voice_messages: [],
+  };
+  if (input.region) body.region = input.region;
+  if (input.directions?.length) body.directions = input.directions;
+  if (input.lawyerCount) body.lawyer_count = input.lawyerCount;
+  return normUrgentRequest(await http("/urgent-advokat/requests", { method: "POST", body: JSON.stringify(body) }));
+}
+// Both "second opinion" services are only sold to a client who has bought
+// something from LexGo before; the backend answers 402 with this code.
+export function isPriorPurchaseRequired(e: unknown): boolean {
+  return e instanceof ApiError && e.status === 402 && /previous_lexgo_purchase/i.test(e.code || "");
+}
+export async function listMyUrgentRequests(): Promise<UrgentRequest[]> {
+  return listFrom(await http("/urgent-advokat/requests/me"), "items", "data", "requests").map(normUrgentRequest);
+}
+
+// ── Call-center side ──────────────────────────────────────────────
+export type UrgentFilter = { status?: string; serviceKind?: string; channel?: string };
+export async function listCcUrgentRequests(f?: UrgentFilter): Promise<UrgentRequest[]> {
+  const qs = new URLSearchParams();
+  if (f?.status) qs.set("status", f.status);
+  if (f?.serviceKind) qs.set("service_kind", f.serviceKind);
+  if (f?.channel) qs.set("channel", f.channel);
+  const q = qs.toString();
+  const url = "/call-center/urgent-advokat/requests" + (q ? "?" + q : "");
+  return listFrom(await http(url), "items", "data", "requests").map(normUrgentRequest);
+}
+// Claiming opens the private secure chat and notifies the client; the room id
+// comes back in the response so the operator can jump straight into it.
+export async function claimUrgentRequest(id: string): Promise<UrgentRequest> {
+  const url = "/call-center/urgent-advokat/requests/" + encodeURIComponent(id) + "/claim";
+  return normUrgentRequest(await http(url, { method: "POST", body: "{}" }));
+}
+// second_opinion_group only: at least two advocates plus the agreed time.
+export async function assignUrgentGroup(
+  id: string,
+  input: { lawyerUserIds: string[]; scheduledAt: string; note?: string },
+): Promise<UrgentRequest> {
+  const url = "/call-center/urgent-advokat/requests/" + encodeURIComponent(id) + "/assign-group";
+  return normUrgentRequest(
+    await http(url, {
+      method: "POST",
+      body: JSON.stringify({ lawyer_user_ids: input.lawyerUserIds, scheduled_at: input.scheduledAt, note: input.note || "" }),
+    }),
+  );
+}
+// 30-minute LiveKit meeting with the client invited (and, for a group, every
+// assigned advocate). Same CallSessionOut the secure-chat calls return, so the
+// existing meeting component takes it unchanged.
+export async function createUrgentMeeting(id: string): Promise<CallSession> {
+  const url = "/call-center/urgent-advokat/requests/" + encodeURIComponent(id) + "/meeting";
+  return normCall(await http(url, { method: "POST", body: "{}" }));
 }
 
 // ── helpers ───────────────────────────────────────────────────────

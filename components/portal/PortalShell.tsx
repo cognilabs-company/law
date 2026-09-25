@@ -133,6 +133,7 @@ const CLIENT_TITLE_ONLY: NavItem[] = [
 const CLIENT_NAV: NavItem[] = [
   { href: "/portal/client", key: "dashboard", Icon: IconGrid },
   { href: "/portal/client/sos", key: "sos", Icon: IconAlert },
+  { href: "/portal/client/urgent", key: "urgent", Icon: IconBolt },
   { href: "/portal/client/services", key: "services", Icon: IconBriefcase },
   { href: "/portal/client/documents", key: "documentRequests", Icon: IconDocLines },
   { href: "/portal/client/packages", key: "packages", Icon: IconFolder },

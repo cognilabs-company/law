@@ -393,8 +393,26 @@ export default function ClientServices() {
     if (term.length < 2) return;
     let alive = true;
     const timer = setTimeout(() => {
-      searchServices(term, { limit: 50 }, locale)
-        .then((hits) => alive && setRemote({ q: term, list: hits.map((h) => h.service) }))
+      // Two endpoints, merged. /services/search ranks by relevance but returns
+      // at most 50 rows, so a service that matches the term only weakly drops
+      // off the end — "Ma'muriy huquqbuzarlik haqida ariza" did exactly that
+      // for the term "mamuriy". /services?q= is the plain filter (the backend
+      // fixed it to filter BEFORE the limit, LEXGO_URGENT_ADVOCATE_FRONTEND_
+      // UPDATE.md), so it catches what the ranking misses. Ranked hits keep
+      // their order and come first; the filter only ever adds.
+      Promise.allSettled([
+        searchServices(term, { limit: 50 }, locale),
+        getServices({ q: term, catalog_only: false, limit: 50 }, locale),
+      ])
+        .then(([ranked, filtered]) => {
+          if (!alive) return;
+          const list = ranked.status === "fulfilled" ? ranked.value.map((h) => h.service) : [];
+          const seen = new Set(list.map((s) => s.id));
+          if (filtered.status === "fulfilled") {
+            for (const s of filtered.value) if (s.id && !seen.has(s.id)) { seen.add(s.id); list.push(s); }
+          }
+          setRemote({ q: term, list });
+        })
         .catch(() => alive && setRemote({ q: term, list: [] }));
     }, 300);
     return () => {

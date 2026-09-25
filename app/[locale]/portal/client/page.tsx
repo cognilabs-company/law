@@ -28,8 +28,12 @@ const DONE_STATUSES = new Set(["completed", "archived"]);
 // Static quick-action shortcuts (navigation, not backend data). Six of
 // them, not five — .cdact is a fixed 6-column grid (3 on tablet, 2 on
 // phone), so five left an empty trailing cell in every row size.
-const QUICK_ACTIONS = [
+const QUICK_ACTIONS: { key: string; icon: string; href: string; primary?: boolean; live?: boolean }[] = [
   { key: "describe", icon: "IconChatDots", href: "/portal/client/ai", primary: true },
+  // "Tezkor Advokat xizmati online" — the live-advocate module. Flagged as
+  // live rather than primary so it reads as a service that is on right now,
+  // beside the primary AI action instead of competing with it.
+  { key: "urgent", icon: "IconBolt", href: "/portal/client/urgent", live: true },
   { key: "findSpecialist", icon: "IconSearch", href: "/portal/client/lawyers" },
   { key: "consultation", icon: "IconVideo", href: "/portal/client/matches" },
   { key: "askAi", icon: "IconSparkle", href: "/portal/client/ai" },
@@ -38,6 +42,7 @@ const QUICK_ACTIONS = [
 ];
 const ACTION_SUB: Record<string, string> = {
   describe: "describeSub",
+  urgent: "urgentSub",
   findSpecialist: "findSpecialistSub",
   consultation: "consultationSub",
   askAi: "askAiSub",
@@ -108,9 +113,9 @@ export default function ClientDashboard() {
           <Link
             href={a.href}
             key={a.key}
-            className={`cdact__i${a.primary ? " cdact__i--pri" : ""}`}
+            className={`cdact__i${a.primary ? " cdact__i--pri" : ""}${a.live ? " cdact__i--live" : ""}`}
           >
-            <span className="cdact__ico"><Icon name={a.icon} /></span>
+            <span className="cdact__ico">{a.live ? <i className="cdact__dot" aria-hidden /> : null}<Icon name={a.icon} /></span>
             <span>
               {ta(a.key)}
               <span className="cdact__sub">{ta(ACTION_SUB[a.key])}</span>
