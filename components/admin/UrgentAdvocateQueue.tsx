@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   listCcUrgentRequests,
@@ -11,6 +11,7 @@ import {
   listLawyers,
   type UrgentRequest,
   type CallSession,
+  type BackendLawyer,
 } from "@/lib/services/backend";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
 import { dateTimeFull } from "@/lib/date";
@@ -282,11 +283,15 @@ function AssignGroupModal({ req, onClose, onDone }: { req: UrgentRequest | null;
     setErr("");
   }
 
-  // The directory of advocates, searched by name/phone/LexGo id.
+  // The directory of advocates, searched by name/phone/LexGo id. Fetched once
+  // and filtered in place: the search is client-side anyway, so refetching it
+  // per keystroke was pure waste.
+  const dirRef = useRef<Promise<BackendLawyer[]> | null>(null);
   const search = useMemo(
     () => async (q: string): Promise<SearchOption[]> => {
       const needle = q.trim().toLowerCase();
-      const list = await listLawyers({ includeUnverified: true }).catch(() => []);
+      if (!dirRef.current) dirRef.current = listLawyers({ includeUnverified: true }).catch(() => []);
+      const list = await dirRef.current;
       return list
         .filter((l) => !needle || [l.name, l.phone, l.publicId].some((v) => (v || "").toLowerCase().includes(needle)))
         .slice(0, 30)

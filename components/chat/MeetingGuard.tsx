@@ -100,7 +100,7 @@ export function useCaptureGuard(enabled: boolean, onTrip?: (why: GuardTrip) => v
       // PrintScreen writes the frame to the clipboard without the page ever
       // seeing a copy event; overwriting it is the only reach we have, and it
       // needs the document focused, which it still is at keydown time.
-      try { void navigator.clipboard?.writeText(" "); } catch { /* denied — the shield still fired */ }
+      try { navigator.clipboard?.writeText(" ").catch(() => {}); } catch { /* denied — the shield still fired */ }
       e.preventDefault();
     };
     document.addEventListener("visibilitychange", onVis);

@@ -442,6 +442,8 @@ export default function ClientServices() {
   // in search results and inside a subcategory, and so clearing them never
   // has to re-run the catalog fetch.
   const shown = useMemo(() => {
+    // Only in search mode — see the filter bar below.
+    if (!query) return list;
     const byDoc = (s: BackendService) =>
       docFilter === "all" ? true : docFilter === "template" ? !!s.documentTemplateId : !s.documentTemplateId;
     const byPrice = (s: BackendService) =>
@@ -455,8 +457,8 @@ export default function ClientServices() {
               s.price === 0 || s.pricingTier === "free"
             : !s.price && s.pricingTier !== "free";
     return list.filter((s) => byDoc(s) && byPrice(s));
-  }, [list, docFilter, priceFilter]);
-  const filtersOn = docFilter !== "all" || priceFilter !== "all";
+  }, [list, docFilter, priceFilter, query]);
+  const filtersOn = !!query && (docFilter !== "all" || priceFilter !== "all");
   // How many services each option would leave, counted against the other
   // group's current choice — the number a person actually wants to see before
   // clicking, rather than a total that ignores the filter already applied.
@@ -716,7 +718,7 @@ export default function ClientServices() {
           </span>
         </div>
 
-        {!showFamilies && !showSubcats ? (
+        {query ? (
           <div className={`svfb${filtersOn ? " svfb--on" : ""}`}>
             <div className="svfb__head">
               <span className="svfb__title">

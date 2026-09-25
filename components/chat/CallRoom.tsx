@@ -225,6 +225,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     );
   };
   const endFloat = () => { fdrag.current = null; };
+  // Shrink the panel to whatever the window can actually hold before showing
+  // it — the default 380x300 hangs off the side of a phone.
+  function fitFloat() {
+    if (typeof window === "undefined") return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    setFbox((b) => {
+      const w = clamp(b.w, FLOAT_MIN_W, Math.max(FLOAT_MIN_W, vw - 16));
+      const h = clamp(b.h, FLOAT_MIN_H, Math.max(FLOAT_MIN_H, vh - 16));
+      return { w, h, right: clamp(b.right, 4, Math.max(4, vw - w - 4)), bottom: clamp(b.bottom, 4, Math.max(4, vh - h - 4)) };
+    });
+  }
   const [recPick, setRecPick] = useState(false); // choose audio / screen before recording
   const [recMode, setRecMode] = useState<RecordingMode>("audio");
   const stageRef = useRef<HTMLElement>(null);
@@ -1177,7 +1189,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           {/* Shrink the call into the corner and keep working. The panel's own
               bar carries the way back up. */}
           {canFloat ? (
-            <button type="button" className="mtg__tool" onClick={() => { setFloating(true); setPanel(""); }} aria-label={t("minimize")} title={t("minimize")}>
+            <button type="button" className="mtg__tool" onClick={() => { fitFloat(); setFloating(true); setPanel(""); }} aria-label={t("minimize")} title={t("minimize")}>
               <IconMinus />
             </button>
           ) : null}

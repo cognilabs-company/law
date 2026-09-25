@@ -10,6 +10,7 @@ import {
   urgentMinutes,
   urgentChannels,
   isPriorPurchaseRequired,
+  isMissingRoute,
   type UrgentCatalog,
   type UrgentService,
   type UrgentRequest,
@@ -105,7 +106,13 @@ export default function UrgentAdvocatePanel() {
       .then((r) => { if (alive) { setMine(r); setMineState("ready"); } })
       // A client who has never ordered one gets an empty list, not an error;
       // anything else is a real failure and says so.
-      .catch((e) => { if (alive) { logApiError("urgent requests", e); setMineState("error"); } });
+      .catch((e) => {
+        if (!alive) return;
+        logApiError("urgent requests", e);
+        // A module the backend has not enabled reads as an empty list, not as
+        // a broken page.
+        setMineState(isMissingRoute(e) ? "ready" : "error");
+      });
     return () => { alive = false; };
   }, [reload]);
 
@@ -188,7 +195,10 @@ export default function UrgentAdvocatePanel() {
           {services.map((s) => {
             const Icon = ICONS[s.key] ?? IconScale;
             const on = pick === s.key;
-            const from = urgentPrice(s, urgentChannels(s)[0] || "video", s.lawyerCountMin || 1);
+            const chans = urgentChannels(s);
+            // Per advocate for the panel, flat for everything else — one
+            // number either way, instead of multiplying then dividing back.
+            const from = urgentPrice(s, chans[0] || "video", 1);
             return (
               <button
                 key={s.key}
@@ -200,12 +210,17 @@ export default function UrgentAdvocatePanel() {
                 <span className="uacard__i"><Icon /></span>
                 <b className="uacard__t">{t.has(`kinds.${s.key}`) ? t(`kinds.${s.key}`) : s.title}</b>
                 <span className="uacard__p">
-                  {s.variants.some((v) => v.pricePerLawyer) ? t("fromPerLawyer", { price: fmtUzs(from / Math.max(1, s.lawyerCountMin || 1)) }) : t("from", { price: fmtUzs(from) })}
+                  {s.variants.some((v) => v.pricePerLawyer) ? t("fromPerLawyer", { price: fmtUzs(from) }) : t("from", { price: fmtUzs(from) })}
                 </span>
                 <span className="uacard__f">
-                  {urgentChannels(s).includes("video") ? <em><IconVideo />{t("chVideo")}</em> : null}
-                  {urgentChannels(s).includes("chat") || s.supportsChat ? <em><IconChat />{t("chChat")}</em> : null}
-                  {urgentMinutes(s, "video") ? <em><IconClock />{t("minutesN", { n: urgentMinutes(s, "video") })}</em> : null}
+                  {/* Only channels the order form can actually send. The
+                      catalog also sets supports_chat on the video service —
+                      that means "messaging inside it", not "orderable as
+                      chat", and advertising it here promised a choice the
+                      form does not offer. */}
+                  {chans.includes("video") ? <em><IconVideo />{t("chVideo")}</em> : null}
+                  {chans.includes("chat") ? <em><IconChat />{t("chChat")}</em> : null}
+                  {urgentMinutes(s, chans[0] || "video") ? <em><IconClock />{t("minutesN", { n: urgentMinutes(s, chans[0] || "video") })}</em> : null}
                 </span>
                 {s.requiresPriorPurchase ? (
                   <span className="uacard__lock"><IconLock />{t("priorPurchaseShort")}</span>

@@ -1541,7 +1541,7 @@ body:has(.rf) .fab{display:none}
    (download, send to a lawyer, fill in the document) instead of one whole-
    card click target that silently picked between two unrelated flows
    depending on whether the service happened to carry a document template. */
-.svsel__grid--svc{grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),320px))}
+.svsel__grid--svc{grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr))}
 .svc{display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0;min-height:212px;height:100%;border:1.5px solid var(--line);border-radius:var(--rl);
   background:var(--dk-surface, #fff);transition:border-color .2s,box-shadow .2s,transform .2s cubic-bezier(.4,0,.2,1);
   animation:svcIn .38s cubic-bezier(.22,1,.36,1) both}
@@ -1602,7 +1602,7 @@ body:has(.rf) .fab{display:none}
   .svfam__i{padding:7px}
   .svfam__i svg{width:52px;height:52px}
   .svfam__t b{font-size:.92rem}
-  .svsel__grid--svc{grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),280px))}
+  .svsel__grid--svc{grid-template-columns:repeat(auto-fill,minmax(min(190px,100%),1fr))}
   .svc{padding:13px;min-height:180px;gap:9px}
 }
 

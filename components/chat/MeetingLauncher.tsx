@@ -16,7 +16,8 @@ import DatePicker from "@/components/DatePicker";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
 import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconEye } from "@/components/icons";
-import { regionLabel } from "@/lib/labels";
+import { regionLabel, humanize } from "@/lib/labels";
+import { subscribeUserEvents } from "@/lib/userSocket";
 
 function mmss(total: number): string {
   const m = Math.floor(total / 60);
@@ -156,6 +157,12 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const clientLabel = tc("inviteClient");
 
   const refreshHistory = useCallback(() => setHistTick((n) => n + 1), []);
+  useEffect(() => {
+    return subscribeUserEvents((e) => {
+      if (!e.event.startsWith("call.")) return;
+      refreshHistory();
+    });
+  }, [refreshHistory]);
 
   // History: reloaded on mount, after every meeting and on demand. A backend
   // without /calls/invited (404/405/501) gets an honest notice, not an error.
@@ -293,11 +300,18 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const effectiveHistory = sampleHistory.length ? sampleHistory : history ?? [];
   const live = effectiveHistory.filter((c) => LIVE.has(c.callStatus));
   const ended = effectiveHistory.filter((c) => !LIVE.has(c.callStatus));
-  const statusOf = (s: string) => (t.has(`callStatus.${s}`) ? t(`callStatus.${s}`) : s);
-  const mineOf = (s: string) => (tc.has(`pstatus.${s}`) ? tc(`pstatus.${s}`) : s);
+  const statusOf = (s: string) => (t.has(`callStatus.${s}`) ? t(`callStatus.${s}`) : humanize(s));
+  const mineOf = (s: string) => (tc.has(`pstatus.${s}`) ? tc(`pstatus.${s}`) : humanize(s));
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const todayItems = effectiveHistory.filter((c) => c.startedAt && c.startedAt.slice(0, 10) === todayStr);
+  // Local calendar day on both sides of the comparison: toISOString() is UTC,
+  // and in UTC+5 that makes everything after 19:00 count as tomorrow.
+  const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const todayStr = dayKey(new Date());
+  const todayItems = effectiveHistory.filter((c) => {
+    if (!c.startedAt) return false;
+    const d = new Date(c.startedAt);
+    return !Number.isNaN(d.getTime()) && dayKey(d) === todayStr;
+  });
   const calEvents: MiniCalEvent[] = effectiveHistory
     .filter((c) => c.startedAt)
     .map((c) => ({ id: c.callId, date: c.startedAt, label: c.title || t("untitled"), sub: c.callerName || undefined }));
