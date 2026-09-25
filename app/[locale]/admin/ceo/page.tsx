@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { getCeoDashboardFull, isCeoEmpty, trimSeries, isFiltered, todayIso, type CeoDashboardFull } from "@/lib/services/dash";
 import { demoCeo } from "@/lib/demoStats";
 import { useResourceOne } from "@/lib/useResource";
@@ -31,6 +31,7 @@ const pct = (n: number) => `${n}%`;
 // are shown (and labelled) while the platform has no real activity.
 export default function AdminCeo() {
   const t = useTranslations("admin.ceo");
+  const locale = useLocale();
   const td = useTranslations("admin.dash");
   const tc = useTranslations("admin.overview.crm");
   const { filter, setFilter, demoForced, setDemoForced } = useDashFilter();
@@ -46,7 +47,7 @@ export default function AdminCeo() {
   const stage = (k: string) => (t.has(`stage.${k}`) ? t(`stage.${k}`) : humanizeSlug(k));
   const source = (k: string) => (k ? (t.has(`source.${k}`) ? t(`source.${k}`) : humanizeSlug(k)) : "—");
   const units = { mln: td("units.mln"), mlrd: td("units.mlrd") };
-  const short = (n: number) => `${fmtUzsShort(n, units)} ${tc("som")}`;
+  const short = (n: number) => `${fmtUzsShort(n, units, locale)} ${tc("som")}`;
   const regionHint = filter.region ? td("hint.regionNa") : undefined;
   const dateHint = filter.from || filter.to ? td("hint.dateNa") : undefined;
 

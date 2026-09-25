@@ -3,7 +3,7 @@
 import { regionLabel } from "@/lib/labels";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { initials, humanizeSlug, AREA_KEYS, REGION_KEYS } from "@/lib/lawyers";
@@ -17,6 +17,7 @@ import {
   IconSearch,
   IconArrowRight,
 } from "@/components/icons";
+import { fmtRating } from "@/lib/date";
 
 type Tab = "lawyer" | "doc" | "ai";
 
@@ -33,6 +34,7 @@ const DOC_TYPES = ["contract", "application", "complaint", "claim", "poa", "corp
 export default function Finder() {
   const tf = useTranslations("finder");
   const te = useTranslations("enums");
+  const locale = useLocale();
   const router = useRouter();
   const { session } = useAuth();
 
@@ -105,7 +107,7 @@ export default function Finder() {
             {b.name}
             {b.verified ? (
               <span className="pill" style={{ fontSize: ".66rem" }}>
-                Super
+                {tf("superBadge")}
               </span>
             ) : (
               <span className="pill pill--gray" style={{ fontSize: ".66rem" }}>
@@ -121,7 +123,7 @@ export default function Finder() {
           <b>{b.basePrice ? fmtUzs(b.basePrice) : "—"}</b>
           <span>
             {tf("result.fromSom")} {cur} · {tf("result.ratingSuffix")}{" "}
-            {b.rating.toFixed(1)}
+            {fmtRating(b.rating, locale)}
           </span>
         </div>
       </button>

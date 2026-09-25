@@ -2,7 +2,8 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 import Image from "next/image";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { dateOnly } from "@/lib/date";
 import { Link } from "@/i18n/navigation";
 import type { Role } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
@@ -48,6 +49,7 @@ const CHECKLIST = [
 // since the lawyer nav has no dedicated place for those) differ.
 export default function SellerRichDashboard({ role }: { role: "advocate" | "lawyer" }) {
   const t = useTranslations("portal.advocate.dashboard");
+  const locale = useLocale();
   const { session } = useAuth();
   const cabinet = useSellerCabinet();
   const completeness = session?.completeness ?? 0;
@@ -112,7 +114,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
           </div>
         </div>
         <div className="dhero__greet">
-          <span className="dhero__date">{new Date().toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}</span>
+          <span className="dhero__date">{new Date().toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}</span>
           <b>{t("hi", { name: session?.name ?? "" })}</b>
           <p>{t("greetSub", { meetings: num(workload, "courts_today"), tasks: taskGroups.today.length })}</p>
         </div>
@@ -207,7 +209,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
                   {c.deadlineAt ? (
                     <span className="dtask__t">
                       <IconClock />
-                      {new Date(c.deadlineAt).toLocaleDateString()}
+                      {dateOnly(c.deadlineAt, locale)}
                     </span>
                   ) : null}
                   {c.stage ? <span className="dtask__badge st st--active">{c.stage}</span> : null}
@@ -239,7 +241,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
                     <div className="dactivity__m">
                       <b>{n.title || n.body}</b>
                     </div>
-                    <span className="dactivity__ago">{n.createdAt ? new Date(n.createdAt).toLocaleDateString() : ""}</span>
+                    <span className="dactivity__ago">{n.createdAt ? dateOnly(n.createdAt, locale) : ""}</span>
                   </div>
                 ))}
               </div>

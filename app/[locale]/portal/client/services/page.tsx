@@ -24,7 +24,7 @@ import {
   type ServiceDocumentFields,
   getLawyerServices,
 } from "@/lib/services/backend";
-import { http, asDict, asStr, ApiError } from "@/lib/http";
+import { http, asDict, asStr, ApiError, errDetail } from "@/lib/http";
 import { fetchAndDeliver, extFromMime } from "@/lib/download";
 import OrderPayment from "@/components/portal/OrderPayment";
 import ServicePassport from "@/components/portal/ServicePassport";
@@ -65,6 +65,7 @@ import {
   IconEdit,
   IconPlus,
 } from "@/components/icons";
+import { fmtRating } from "@/lib/date";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
@@ -324,7 +325,7 @@ export default function ClientServices() {
     } catch (e) {
       setDlBusy("");
       if (e instanceof ApiError && e.status === 402 && e.code === "manual_document_plan_required") {
-        setPlanGateMsg(e.detail || t("planRequired"));
+        setPlanGateMsg(errDetail(e) || t("planRequired"));
         setPlanGateOpen(true);
         return;
       }
@@ -926,7 +927,7 @@ export default function ClientServices() {
                               {l.verified || c ? <IconShieldCheck className="advpick__vf" aria-label={t("verified")} /> : <em className="advpick__un">{t("unverified")}</em>}
                             </b>
                             <span className="advpick__stats">
-                              <i><IconStar />{l.rating ? l.rating.toFixed(1) : "—"}</i>
+                              <i><IconStar />{l.rating ? fmtRating(l.rating, locale) : "—"}</i>
                               {l.experienceYears ? <i>{t("expYears", { n: l.experienceYears })}</i> : null}
                               {l.successRate ? <i>{t("successRate", { n: l.successRate })}</i> : null}
                               {l.region ? <i><IconMapPin />{te.has(`regions.${l.region}`) ? te(`regions.${l.region}`) : l.region}</i> : null}

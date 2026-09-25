@@ -12,7 +12,7 @@ import {
   type DocQuoteInput,
 } from "@/lib/services/backend";
 import { fmtUzs } from "@/lib/money";
-import { ApiError } from "@/lib/http";
+import { ApiError, errDetail } from "@/lib/http";
 import { IconFileText, IconAlert, IconCheck, IconSparkle, IconShieldCheck, IconArrowRight } from "@/components/icons";
 
 const MAX_PAGES = 500;
@@ -24,6 +24,7 @@ const FILE_TYPES = ".pdf,.docx,.txt,application/pdf,application/vnd.openxmlforma
 
 export default function ClientDocAnalysis() {
   const t = useTranslations("portal.client.docAnalysis");
+  const tcommon = useTranslations("common");
   const router = useRouter();
   const [text, setText] = useState("");
   const [pagesInput, setPagesInput] = useState(""); // "" = counted from the text
@@ -82,7 +83,7 @@ export default function ClientDocAnalysis() {
       setRes(file ? await analyzeDocumentFile(file) : await analyzeDocument(text.trim()));
     } catch (e) {
       // 415 = unsupported type, 413 = too large, 422 = no readable text in the file.
-      if (file && e instanceof ApiError && [413, 415, 422].includes(e.status)) setFileErr(e.detail || t("fileUnreadable"));
+      if (file && e instanceof ApiError && [413, 415, 422].includes(e.status)) setFileErr(errDetail(e) || t("fileUnreadable"));
       else setFailed(true);
     } finally {
       setBusy(false);
@@ -112,7 +113,7 @@ export default function ClientDocAnalysis() {
         {file ? null : <textarea className="intake__ta" rows={7} value={text} onChange={(e) => setText(e.target.value)} placeholder={t("placeholder")} />}
         <div className="docf">
           {file ? (
-            <span className="docf__name"><IconFileText />{file.name} · {Math.max(1, Math.round(file.size / 1024))} KB</span>
+            <span className="docf__name"><IconFileText />{file.name} · {Math.max(1, Math.round(file.size / 1024))} {tcommon("kb")}</span>
           ) : null}
           <label className="btn btn--line btn--sm docf__pick">
             {file ? t("fileChange") : t("fileUpload")}

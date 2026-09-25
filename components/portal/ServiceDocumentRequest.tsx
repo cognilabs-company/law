@@ -17,7 +17,7 @@ import DocumentLawyerAssist from "./DocumentLawyerAssist";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
-import { ApiError } from "@/lib/http";
+import { ApiError, errDetail } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { IconList, IconHeadset, IconChevronLeft, IconLock } from "@/components/icons";
 
@@ -114,7 +114,7 @@ export default function ServiceDocumentRequest({
       })
       .catch((e) => {
         if (!alive) return;
-        if (e instanceof ApiError && e.status === 402 && e.code === "manual_document_plan_required") setPlanRequired(e.detail || t("planRequired"));
+        if (e instanceof ApiError && e.status === 402 && e.code === "manual_document_plan_required") setPlanRequired(errDetail(e) || t("planRequired"));
         else setErr(true);
       })
       .finally(() => alive && setLoading(false));

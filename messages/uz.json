@@ -1,5 +1,8 @@
 {
   "common": {
+    "kb": "KB",
+    "minuteShort": "DD",
+    "hourShort": "SS",
     "a11y": {
       "close": "Yopish",
       "prev": "Oldingi",
@@ -327,6 +330,7 @@
     }
   },
   "finder": {
+    "superBadge": "Super",
     "tabs": {
       "lawyer": "Advokat topish",
       "doc": "Hujjat tayyorlash",
@@ -2890,6 +2894,18 @@
         "error": "Xatolik. Qayta urining."
       },
       "gifts": {
+        "statusMap": {
+          "pending": "Kutilmoqda",
+          "sent": "Yuborilgan",
+          "activated": "Faollashtirilgan",
+          "unclaimed": "Faollashtirilmagan",
+          "claimed": "Faollashtirilgan",
+          "paid": "To'langan",
+          "unpaid": "To'lanmagan",
+          "expired": "Muddati o'tgan",
+          "canceled": "Bekor qilingan",
+          "cancelled": "Bekor qilingan"
+        },
         "title": "Sovg'alar",
         "give": "Obuna sovg'a qilish",
         "recipient": "Qabul qiluvchi",
@@ -2964,6 +2980,7 @@
         "noBiometrics": "Biometrik ma'lumotlar (rasm, video) saqlanmaydi — faqat tasdiq fakti, sanasi va provayder nomi."
       },
       "profile": {
+        "cardFallback": "Karta",
         "title": "Profil",
         "personal": "Shaxsiy ma'lumotlar",
         "family": "Oila a'zolari",
@@ -3790,7 +3807,7 @@
           "missing": "To'ldirilmagan",
           "f": {
             "photo": "rasm",
-            "email": "email",
+            "email": "Email",
             "region": "viloyat",
             "languages": "tillar",
             "price": "Soatlik narx (so'm)"
@@ -3830,6 +3847,17 @@
       }
     },
     "org": {
+      "statusMap": {
+        "pending": "Tekshiruvda",
+        "verified": "Tasdiqlangan",
+        "rejected": "Rad etilgan",
+        "active": "Faol",
+        "inactive": "Nofaol",
+        "suspended": "To'xtatilgan",
+        "owner": "Egasi",
+        "member": "A'zo",
+        "admin": "Administrator"
+      },
       "title": "Mening tashkilotim",
       "lead": "Advokatlar tashkilotingiz va a'zolarini boshqaring.",
       "create": "Yangi tashkilot",
@@ -5000,7 +5028,7 @@
       "templates": "Namunalar",
       "roles": "Rollar va ruxsatlar",
       "notifications": "Bildirishnomalar",
-      "bootstrap": "Bootstrap",
+      "bootstrap": "Dastlabki sozlash",
       "leads": "Lidlar",
       "pipeline": "Sotuv voronkasi",
       "callAnalytics": "Qo'ng'iroq tahlili",
@@ -5025,6 +5053,12 @@
       "policies": "Platforma qoidalari"
     },
     "overview": {
+      "severity": {
+        "high": "Yuqori",
+        "medium": "O'rta",
+        "low": "Past",
+        "critical": "Juda yuqori"
+      },
       "kicker": "Admin konsoli",
       "hi": "Xush kelibsiz, {name}",
       "sub": "LexGo katalogi, paket tariflar, ruxsatlar va boshqalarni boshqaring.",
@@ -5374,6 +5408,11 @@
       }
     },
     "roles": {
+      "sellerType": {
+        "advokat": "Advokat",
+        "yurist": "Yurist",
+        "advokat_tashkiloti": "Advokatlar tashkiloti"
+      },
       "listTitle": "Rollar",
       "create": "Yangi rol",
       "empty": "Rollar yo'q",
@@ -5454,7 +5493,7 @@
       "phone": "Telefon",
       "key": "Bootstrap kaliti",
       "keyPh": "Server bootstrap kaliti",
-      "submit": "Bootstrap",
+      "submit": "Sozlashni boshlash",
       "done": "Superadmin berildi. Ruxsatlarni yangilash uchun qayta kiring.",
       "note": "Bu server kaliti bilan himoyalangan bir martalik sozlash amali."
     },
@@ -5940,6 +5979,7 @@
         "rejected": "Rad etilgan"
       },
       "anomalies": {
+        "user": "Foydalanuvchi",
         "title": "Anomaliya ogohlantirishlari",
         "lead": "Shubhali kirishlar va boshqa xavfsizlik hodisalari (IP o'zgarishi, ko'p urinish).",
         "filter": "Holat",
@@ -6128,6 +6168,11 @@
       }
     },
     "reviews": {
+      "sellerKind": {
+        "advokat": "Advokat",
+        "yurist": "Yurist",
+        "advokat_tashkiloti": "Advokatlar tashkiloti"
+      },
       "title": "Sharh moderatsiyasi",
       "lead": "Yangi sharhlar tasdiqlanishini kutadi.",
       "empty": "Sharh yo'q",
@@ -6212,6 +6257,22 @@
       "sellerType": { "yurist": "Yurist", "advokat": "Advokat", "lawyer": "Yurist", "advocate": "Advokat", "law_firm": "Yuridik firma", "organization": "Tashkilot" }
     },
     "legalAid": {
+      "eventMap": {
+        "created": "Yaratildi",
+        "opened": "Ochildi",
+        "assigned": "Biriktirildi",
+        "closed": "Yopildi",
+        "escalated": "Yuqoriga uzatildi",
+        "resolved": "Hal qilindi"
+      },
+      "sourceMap": {
+        "manual": "Qo'lda",
+        "auto": "Avtomatik",
+        "system": "Tizim",
+        "intake": "Murojaat",
+        "chat": "Chat",
+        "call": "Qo'ng'iroq"
+      },
       "title": "Yuridik yordam so‘rovlari",
       "lead": "Fuqarolardan bepul yuridik yordam so‘rovlari.",
       "empty": "Hozircha so‘rovlar yo‘q",
@@ -6429,9 +6490,17 @@
       "user": "Foydalanuvchi"
     },
     "policies": {
+      "boolNo": "Yo'q",
+      "boolYes": "Ha",
       "readyTitle": "Production tayyorgarligi",
       "readyLead": "Backend compliance checklist: qaysi shartlar bajarilgan, qaysi tashqi integratsiyalar kutilmoqda.",
       "readyStatus": {
+        "skipped": "O'tkazib yuborilgan",
+        "false": "Bajarilmagan",
+        "true": "Bajarilgan",
+        "pass": "Bajarilgan",
+        "done": "Bajarilgan",
+        "passed": "Bajarilgan",
         "production_ready": "Production'ga tayyor",
         "needs_external_integrations": "Tashqi integratsiyalar kerak",
         "needs_review": "Ko'rib chiqish kerak",
@@ -6616,7 +6685,7 @@
         "arr": "ARR",
         "arpu": "ARPU",
         "gmv": "GMV",
-        "takeRate": "Take rate",
+        "takeRate": "Platforma ulushi",
         "cac": "CAC",
         "cacClient": "CAC — mijoz",
         "cacAdvocate": "CAC — advokat",

@@ -17,7 +17,7 @@ import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import SearchSelect from "@/components/SearchSelect";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { ApiError } from "@/lib/http";
+import { ApiError, errDetail } from "@/lib/http";
 import { IconFileText, IconShieldCheck, IconPlus, IconEye } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
 
@@ -165,7 +165,7 @@ function EditModal({ doc, onClose, onSaved }: { doc: Partial<ConsentDoc> | null;
       setNote({ ok: true, msg: t("saved") });
       onSaved();
     } catch (err) {
-      setNote({ ok: false, msg: isMissingRoute(err) ? t("noWriteApi") : isForbidden(err) ? t("forbidden") : err instanceof ApiError ? err.detail || t("saveError") : t("saveError") });
+      setNote({ ok: false, msg: isMissingRoute(err) ? t("noWriteApi") : isForbidden(err) ? t("forbidden") : errDetail(err) || t("saveError") });
     } finally {
       setBusy(false);
     }

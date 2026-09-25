@@ -53,6 +53,8 @@ import {
   IconStar,
   IconFileText,
 } from "@/components/icons";
+import { fmtRating } from "@/lib/date";
+import { humanize } from "@/lib/labels";
 
 // Grouped by lib/date.ts#fmtInt, which uses a space in uz/ru and a comma
 // in en; the old toLocaleString("ru-RU") gave English a space too.
@@ -119,7 +121,7 @@ export default function AdminOverview() {
 
   const money = (n?: number) => (n ? `${fmtUzs(n)} ${tc("som")}` : DASH);
   const units = { mln: td("units.mln"), mlrd: td("units.mlrd") };
-  const moneyShort = (n?: number) => (n ? `${fmtUzsShort(n, units)} ${tc("som")}` : DASH);
+  const moneyShort = (n?: number) => (n ? `${fmtUzsShort(n, units, locale)} ${tc("som")}` : DASH);
   const pct = (n?: number) => (n || n === 0 ? `${Math.round(n)}%` : DASH);
   const funnel = c?.funnel ?? [];
   const fMax = Math.max(...funnel.map((f2) => f2.value), 1);
@@ -214,15 +216,15 @@ export default function AdminOverview() {
     link: { href: "/admin/retention", label: td("drill.goRetention") },
   });
   const drillRating = () => open({
-    title: tc("rating"), value: q?.avgRating ? q.avgRating.toFixed(1) : DASH, note: td("drill.constNote"),
+    title: tc("rating"), value: q?.avgRating ? fmtRating(q.avgRating, locale) : DASH, note: td("drill.constNote"),
     sections: [
       { kind: "kv", rows: [{ label: td("drill.complaints"), value: pct(q?.complaintRate) }, { label: td("drill.resolved"), value: pct(q?.resolvedPct) }, { label: td("drill.sla"), value: pct(q?.responseSlaPct) }] },
-      { kind: "list", title: td("drill.flagged"), rows: (q?.flagged ?? []).map((f2) => ({ label: f2.title, value: f2.severity, sub: f2.detail, tone: f2.severity === "high" ? "bad" : "muted" })) },
+      { kind: "list", title: td("drill.flagged"), rows: (q?.flagged ?? []).map((f2) => ({ label: f2.title, value: t.has(`severity.${f2.severity}`) ? t(`severity.${f2.severity}`) : humanize(f2.severity), sub: f2.detail, tone: f2.severity === "high" ? "bad" : "muted" })) },
     ],
   });
   const drillSla = () => open({
     title: tc("sla"), value: pct(q?.responseSlaPct), note: td("drill.constNote"),
-    sections: [{ kind: "kv", rows: [{ label: td("drill.rating"), value: q?.avgRating ? q.avgRating.toFixed(1) : DASH }, { label: td("drill.complaints"), value: pct(q?.complaintRate) }] }],
+    sections: [{ kind: "kv", rows: [{ label: td("drill.rating"), value: q?.avgRating ? fmtRating(q.avgRating, locale) : DASH }, { label: td("drill.complaints"), value: pct(q?.complaintRate) }] }],
   });
   const drillAtRisk = () => open({
     title: tc("atRisk"), value: r ? fmt(r.atRisk) : DASH, sub: r ? `${td("drill.atRiskLeads")}: ${fmt(r.atRiskLeads)}` : undefined,
@@ -305,7 +307,7 @@ export default function AdminOverview() {
         <StatTile icon={<IconUsers />} label={tc("users")} value={c ? fmt(c.users) : DASH} sub={c ? `${fmt(c.activeUsers)} ${tceo("active")}` : undefined} demo={demo} hint={dateHint} onClick={drillUsers} />
         <StatTile icon={<IconTrendingUp />} label={tc("conversion")} value={pct(c?.conversionPct)} demo={demo} hint={regionHint} onClick={drillConversion} />
         <StatTile icon={<IconUsers />} tone="ok" label={tc("retained")} value={pct(r?.retainedPct)} demo={demo} hint={regionHint ?? dateHint} onClick={drillRetained} />
-        <StatTile icon={<IconAward />} label={tc("rating")} value={q?.avgRating ? q.avgRating.toFixed(1) : DASH} demo={demo} hint={regionHint ?? dateHint} onClick={drillRating} />
+        <StatTile icon={<IconAward />} label={tc("rating")} value={q?.avgRating ? fmtRating(q.avgRating, locale) : DASH} demo={demo} hint={regionHint ?? dateHint} onClick={drillRating} />
         <StatTile icon={<IconShieldCheck />} tone="ok" label={tc("sla")} value={pct(q?.responseSlaPct)} demo={demo} hint={regionHint ?? dateHint} onClick={drillSla} />
         <StatTile icon={<IconPhone />} tone="bad" label={tc("atRisk")} value={r ? fmt(r.atRisk) : DASH} demo={demo} hint={regionHint} onClick={drillAtRisk} />
         <StatTile icon={<IconFileText />} label={t("metrics.cases")} value={DASH} demo={demo} onClick={drillCases} />

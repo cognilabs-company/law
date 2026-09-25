@@ -125,3 +125,10 @@ export function fmtInt(n: number, locale: string): string {
   const grouped = s.replace(/\B(?=(\d{3})+(?!\d))/g, locale === "en" ? "," : " ");
   return (n < 0 ? "-" : "") + grouped;
 }
+
+// "4,8" in uz/ru, "4.8" in en. toFixed() is locale-blind and always emits a
+// dot, which clashed with the grouped numbers beside it on the same card.
+export function fmtRating(n: number, locale: string, digits = 1): string {
+  if (!Number.isFinite(n)) return "";
+  return n.toFixed(digits).replace(".", locale === "en" ? "." : ",");
+}

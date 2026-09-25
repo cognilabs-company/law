@@ -31,7 +31,7 @@ export default function ConsentChecklist({
       {locale !== "uz" ? <p className="consent__note">{t("uzOnlyNote")}</p> : null}
       {items.map((it) => {
         const key = legalLabelKey(it.slug);
-        const name = key ? t(key) : it.title || it.slug;
+        const name = t.has(key) ? t(key) : it.title || it.slug;
         return (
           <div className="consent__i" key={it.slug}>
             <label className="consent__row">

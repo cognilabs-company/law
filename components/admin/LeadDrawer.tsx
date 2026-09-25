@@ -10,7 +10,7 @@ import { Notice, useReload } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
 import Select from "@/components/Select";
 import { fmtDate, shortDateTime } from "@/lib/date";
-import { assigneeLabel, kanbanColumnTitle, leadRegionLabel, leadScoreLabel, leadUrgencyLabel } from "@/lib/leadLabels";
+import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadUrgencyLabel } from "@/lib/leadLabels";
 import { Skeleton } from "@/components/portal/DataState";
 import { IconClose, IconClock, IconPhone, IconSend } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
@@ -92,7 +92,10 @@ export default function LeadDrawer({
 
   const info: [string, string][] = [
     [t("d.phone"), lead.phone],
-    [t("d.category"), lead.category && (t.has(`d.cat.${lead.category}`) ? t(`d.cat.${lead.category}`) : lead.category)],
+    // The board card beside this drawer resolves the very same slug through
+    // leadCategoryLabel; d.cat.* was never written, so the drawer showed the
+    // raw backend value while the card showed the translated one.
+    [t("d.category"), leadCategoryLabel(t, lead.category)],
     [t("d.region"), leadRegionLabel(te, lead.region)],
     [t("d.source"), lead.source && (t.has(`source.${lead.source}`) ? t(`source.${lead.source}`) : lead.source)],
     [t("d.urgency"), leadUrgencyLabel(t, lead.urgency)],

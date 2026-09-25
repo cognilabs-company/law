@@ -38,6 +38,7 @@ function fmtDate(s: string, locale: string) {
 
 export default function ClientGifts() {
   const t = useTranslations("portal.client.gifts");
+  const tg = useTranslations("portal.client.gifts.statusMap");
   const tcommon = useTranslations("common");
   const tp = useTranslations("portal.common");
   const locale = useLocale();
@@ -163,7 +164,10 @@ export default function ClientGifts() {
                   </a>
                 ) : null}
               </div>
-              <span className="creq__badge">{t.has(g.status) ? t(g.status) : g.status}</span>
+              {/* Scoped to the status map: an unscoped lookup could collide with any
+                  key on the page (a gift whose status is "title" would print the
+                  page heading). */}
+              <span className="creq__badge">{tg.has(g.status) ? tg(g.status) : g.status}</span>
             </div>
           ))}
         </div>

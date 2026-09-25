@@ -10,7 +10,7 @@ import {
   type DocumentRequest,
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
-import { ApiError, isPaymentRequired, logApiError } from "@/lib/http";
+import { ApiError, isPaymentRequired, logApiError, errDetail } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocTemplateViewer from "./DocTemplateViewer";
@@ -91,7 +91,7 @@ export default function DocumentLawyerAssist({
       setResult(r);
     } catch (e) {
       if (isPaymentRequired(e)) {
-        setPlanRequired(e instanceof ApiError && e.detail ? e.detail : t("planRequired"));
+        setPlanRequired(errDetail(e) || t("planRequired"));
       } else {
         logApiError("document-lawyer request", e);
         setErr(e instanceof ApiError && e.status === 422 ? t("aiNeedRequired") : e instanceof ApiError && e.status === 404 ? t("lawyerNotAvailable") : t("error"));

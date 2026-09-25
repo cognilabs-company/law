@@ -11,6 +11,7 @@ import {
   IconClock,
   IconLanguage,
 } from "../icons";
+import { fmtRating } from "@/lib/date";
 
 export default function ProfilePreview({ p }: { p: ProfessionalProfile }) {
   const t = useTranslations("register.advocate.review");
@@ -57,7 +58,7 @@ export default function ProfilePreview({ p }: { p: ProfessionalProfile }) {
             <span>
               <IconStar />
               {stats
-                ? (((stats.fullyWonCases + stats.partiallyWonCases) / Math.max(stats.totalCases, 1)) * 5).toFixed(1)
+                ? fmtRating(((stats.fullyWonCases + stats.partiallyWonCases) / Math.max(stats.totalCases, 1)) * 5, locale)
                 : "5.0"}
             </span>
             <span>

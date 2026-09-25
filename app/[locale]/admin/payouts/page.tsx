@@ -7,7 +7,7 @@ import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { useReload, Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { ApiError } from "@/lib/http";
+import { errDetail } from "@/lib/http";
 import { IconCard, IconCheck } from "@/components/icons";
 
 const som = (n: number) => fmtUzs(n);
@@ -29,7 +29,7 @@ export default function AdminPayouts() {
       await updatePayout(id, status);
       reload();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.detail || t("error") : t("error"));
+      setErr(errDetail(e) || t("error"));
     } finally {
       setBusy(null);
     }

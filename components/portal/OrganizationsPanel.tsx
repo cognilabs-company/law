@@ -18,6 +18,7 @@ import { IconBuilding, IconPlus, IconUsers } from "@/components/icons";
 
 export default function OrganizationsPanel() {
   const t = useTranslations("portal.org");
+  const ts = useTranslations("portal.org.statusMap");
   const [key, reload] = useReload();
   const orgs = useResource(listOrganizations, [key]);
   const [createOpen, setCreateOpen] = useState(false);
@@ -96,7 +97,7 @@ export default function OrganizationsPanel() {
               index={i + 1}
               title={o.name}
               meta={[o.region, o.inn].filter(Boolean).join(" · ")}
-              tags={[{ label: o.verificationStatus || t("pending"), tone: o.verificationStatus === "verified" ? "ok" : "muted" }]}
+              tags={[{ label: ts.has(o.verificationStatus) ? ts(o.verificationStatus) : o.verificationStatus || t("pending"), tone: o.verificationStatus === "verified" ? "ok" : "muted" }]}
               right={
                 <button className="btn btn--soft btn--sm" type="button" onClick={() => setMembersOrg(o)}>
                   <IconUsers />
@@ -146,7 +147,7 @@ export default function OrganizationsPanel() {
             {members.length ? (
               <div className="alist" style={{ marginBottom: 14 }}>
                 {members.map((m, i) => (
-                  <AdminItem key={m.id} index={i + 1} title={m.title || t("member")} meta={m.status} />
+                  <AdminItem key={m.id} index={i + 1} title={m.title || t("member")} meta={m.status && ts.has(m.status) ? ts(m.status) : m.status} />
                 ))}
               </div>
             ) : (

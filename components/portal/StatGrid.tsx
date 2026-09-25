@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import StatTile from "@/components/admin/StatTile";
 import StatDrillModal, { type Drill } from "@/components/admin/StatDrillModal";
 import { Skeleton, EmptyState } from "./DataState";
@@ -20,6 +20,7 @@ import {
   IconStar,
   IconTrendingUp,
 } from "@/components/icons";
+import { fmtRating } from "@/lib/date";
 
 type Fmt = "int" | "som" | "rating" | "percent" | "minutes";
 type Metric = { key: string; from: "workload" | "finance" | "performance"; label: string; Icon: (p: { className?: string }) => ReactNode; fmt: Fmt };
@@ -61,6 +62,7 @@ export default function StatGrid({
   const t = useTranslations("portal.stats");
   // Stats come from the cabinet bootstrap loaded by the portal shell.
   const td = useTranslations("admin.dash");
+  const locale = useLocale();
   const cabinet = useSellerCabinet();
   const metrics = variant === "workload" ? WORKLOAD : PERFORMANCE;
   const [drill, setDrill] = useState<Drill | null>(null);
@@ -77,7 +79,7 @@ export default function StatGrid({
       const cur = String((s.finance.currency as string) || "UZS");
       return `${som(uzs(s[m.from], m.key))} ${cur}`;
     }
-    if (m.fmt === "rating") return n ? n.toFixed(1) : "—";
+    if (m.fmt === "rating") return n ? fmtRating(n, locale) : "—";
     if (m.fmt === "percent") return `${Math.round(n <= 1 ? n * 100 : n)}%`;
     if (m.fmt === "minutes") return n ? t("minutes", { n: Math.round(n) }) : "—";
     return String(n);

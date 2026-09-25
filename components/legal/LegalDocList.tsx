@@ -22,7 +22,7 @@ export default function LegalDocList({ docs }: { docs: ConsentDoc[] }) {
               return (
                 <li key={d.id}>
                   <Link href={`/legal/${legalPathFromSlug(d.slug)}`}>
-                    <b>{key ? t(key) : d.title}</b>
+                    <b>{t.has(key) ? t(key) : d.title}</b>
                     {d.version ? <span>{t("version", { version: d.version })}</span> : null}
                     <span className="legal__read">
                       {t("read")}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getContentRevealStatus, requestContentReveal, approveContentReveal, type RevealStatus } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
-import { ApiError } from "@/lib/http";
+import { ApiError, errDetail } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconLock, IconShieldCheck } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
@@ -33,7 +33,7 @@ export default function ContentRevealBar({ roomId, onChanged }: { roomId: string
       setKey((k) => k + 1);
       onChanged?.();
     } catch (e) {
-      setNote({ ok: false, msg: e instanceof ApiError && e.status === 403 ? t("forbidden") : e instanceof ApiError && e.status === 409 ? t("conflict") : e instanceof ApiError && e.detail ? e.detail : t("error") });
+      setNote({ ok: false, msg: e instanceof ApiError && e.status === 403 ? t("forbidden") : e instanceof ApiError && e.status === 409 ? t("conflict") : errDetail(e) || t("error") });
     } finally {
       setBusy(null);
     }

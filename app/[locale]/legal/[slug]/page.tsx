@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = await getTranslations({ locale, namespace: "legal" });
   const apiSlug = legalSlugFromPath(slug);
   const key = legalLabelKey(apiSlug);
-  if (key) return { title: t(key) };
+  if (t.has(key)) return { title: t(key) };
   const doc = (await fetchCurrentConsents())?.find((d) => d.slug === apiSlug);
   return { title: doc?.title || t("indexTitle") };
 }

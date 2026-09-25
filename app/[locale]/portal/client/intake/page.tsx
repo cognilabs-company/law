@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import {
   classifyProblem,
@@ -32,12 +32,14 @@ import {
   IconClock,
   IconDocLines,
 } from "@/components/icons";
+import { fmtRating } from "@/lib/date";
 
 const URGENT = new Set(["urgent", "high", "critical"]);
 
 export default function ClientIntake() {
   const t = useTranslations("portal.client.intake");
   const te = useTranslations("enums");
+  const locale = useLocale();
   const router = useRouter();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -165,7 +167,7 @@ export default function ClientIntake() {
                       <span className="advpick__m">
                         <b>{m.name || "—"}</b>
                         <span className="advpick__stats">
-                          <i><IconStar />{m.rating ? m.rating.toFixed(1) : "—"}</i>
+                          <i><IconStar />{m.rating ? fmtRating(m.rating, locale) : "—"}</i>
                           {m.region ? <i><IconMapPin />{te.has(`regions.${m.region}`) ? te(`regions.${m.region}`) : humanizeSlug(m.region)}</i> : null}
                           {m.area ? <i>{m.area.split(",").map((a) => humanizeSlug(a.trim())).filter(Boolean).join(", ")}</i> : null}
                         </span>

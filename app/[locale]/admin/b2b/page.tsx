@@ -12,7 +12,7 @@ import {
   type B2bClient,
   type B2bDocument,
 } from "@/lib/services/backend";
-import { httpBlob, ApiError } from "@/lib/http";
+import { httpBlob, ApiError, errDetail } from "@/lib/http";
 import { saveBlob } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
@@ -135,7 +135,7 @@ function DocModal({ target, onClose }: { target: { kind: "invoice" | "contract" 
       setOut(r);
       setNote({ ok: true, msg: t("docReady") });
     } catch (err) {
-      setNote({ ok: false, msg: err instanceof ApiError && err.status === 403 ? t("forbidden") : err instanceof ApiError && err.detail ? err.detail : t("error") });
+      setNote({ ok: false, msg: err instanceof ApiError && err.status === 403 ? t("forbidden") : errDetail(err) || t("error") });
     } finally {
       setBusy(false);
     }

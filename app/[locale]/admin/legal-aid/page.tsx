@@ -9,6 +9,7 @@ import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconScale, IconPhone, IconEye } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
+import { humanize } from "@/lib/labels";
 
 const s = (v: unknown) => (v == null ? "" : String(v));
 const fmtDate = (v: string, locale: string) => {
@@ -49,8 +50,8 @@ function LegalAidDetailModal({ id, onClose }: { id: string | null; onClose: () =
           </div>
           <div className="dkv__sect">
             <b>{t("detail.origin")}</b>
-            {row(t("detail.source"), d.source)}
-            {row(t("detail.event"), d.event)}
+            {row(t("detail.source"), d.source && (t.has(`sourceMap.${d.source}`) ? t(`sourceMap.${d.source}`) : humanize(d.source)))}
+            {row(t("detail.event"), d.event && (t.has(`eventMap.${d.event}`) ? t(`eventMap.${d.event}`) : humanize(d.event)))}
             {row(t("detail.createdBy"), d.createdByName || d.createdByUserId)}
           </div>
           {d.explanation ? (

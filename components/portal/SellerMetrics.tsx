@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import type { BackendLawyer, SellerStats } from "@/lib/services/backend";
 import { IconTrendingUp, IconClock, IconStar, IconEye, IconSun, IconCheck } from "@/components/icons";
 import StatTile from "@/components/admin/StatTile";
+import { fmtRating } from "@/lib/date";
 
 // T1-11: "Ko'rsatkichlarim" — response rate, acceptance rate, average answer
 // time and rating are always visible to the seller (S-20), plus the
@@ -21,6 +22,7 @@ const MIN_REVIEWS_FOR_RATING = 5;
 
 export default function SellerMetrics({ stats, userId, profile, demo }: { stats: SellerStats; userId: string; profile?: BackendLawyer; demo?: boolean }) {
   const t = useTranslations("portal.sellerDash.metrics");
+  const locale = useLocale();
   const p = stats.performance as Record<string, unknown>;
   const num = (k: string) => (typeof p[k] === "number" ? (p[k] as number) : Number(p[k]) || 0);
   const pct = (v: number) => `${Math.round((v <= 1 ? v * 100 : v))}%`;
@@ -60,7 +62,7 @@ export default function SellerMetrics({ stats, userId, profile, demo }: { stats:
         <StatTile variant="amet" icon={<IconTrendingUp />} value={pct(responseRate)} label={t("responseRate")} demo={demo} />
         <StatTile variant="amet" icon={<IconStar />} value={acceptance == null ? "—" : pct(acceptance)} label={t("acceptanceRate")} demo={demo} />
         <StatTile variant="amet" icon={<IconClock />} value={avgMin ? t("minutes", { n: avgMin }) : "—"} label={t("avgResponse")} demo={demo} />
-        <StatTile variant="amet" icon={<IconEye />} value={isNew ? t("newBadge") : rating ? rating.toFixed(1) : "—"} label={t("rating")} demo={demo} />
+        <StatTile variant="amet" icon={<IconEye />} value={isNew ? t("newBadge") : rating ? fmtRating(rating, locale) : "—"} label={t("rating")} demo={demo} />
       </div>
       {isNew ? <p className="advmuted" style={{ marginTop: 8, fontSize: ".8rem" }}>{t("newBadgeHint")}</p> : null}
       <p className="advmuted" style={{ marginTop: 10, fontSize: ".82rem" }}>{tip}</p>

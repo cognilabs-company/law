@@ -48,6 +48,7 @@ import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, pr
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
 import { IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock } from "../icons";
+import { regionLabel } from "@/lib/labels";
 
 type Props = {
   roomId: string;
@@ -131,6 +132,7 @@ export const CALLROOM_EVENT = "lexgo:callroom";
 // LiveKit data channel, and host controls from the backend roster.
 export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, float, keepAlone: keepAloneProp, onEnd }: Props) {
   const t = useTranslations("call");
+  const te = useTranslations("enums");
   const { session } = useAuth();
   const roomRef = useRef<Room | null>(null);
   // The Room object is also kept in state so participants can be read during
@@ -925,6 +927,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     if (!inviteSearchRef.current) {
       inviteSearchRef.current = makeInviteSearch({
         clientLabel: t("inviteClient"),
+        regionLabel: (v) => regionLabel(te, v),
         exclude: () => [...rosterRef.current.map((p) => p.userId), ...(session?.id ? [session.id] : [])],
       });
     }

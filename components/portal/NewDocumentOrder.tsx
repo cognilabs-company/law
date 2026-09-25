@@ -7,7 +7,7 @@ import {
   requestExistingDocumentReview,
   type DocumentRequest,
 } from "@/lib/services/backend";
-import { ApiError, isPaymentRequired, logApiError } from "@/lib/http";
+import { ApiError, isPaymentRequired, logApiError, errDetail } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
 import { Link } from "@/i18n/navigation";
 import Select from "@/components/Select";
@@ -84,7 +84,7 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
       setResult(r);
     } catch (e) {
       if (isPaymentRequired(e)) {
-        setPlanRequired(e instanceof ApiError && e.detail ? e.detail : td("planRequired"));
+        setPlanRequired(errDetail(e) || td("planRequired"));
       } else {
         logApiError(`document-services ${flow}`, e);
         setErr(e instanceof ApiError && e.status === 422 ? t("needRequired") : t("error"));

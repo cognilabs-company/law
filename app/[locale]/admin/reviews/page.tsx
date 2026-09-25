@@ -7,7 +7,7 @@ import { useResource } from "@/lib/useResource";
 import { useReload, Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
-import { ApiError } from "@/lib/http";
+import { errDetail } from "@/lib/http";
 import { IconStar, IconCheck, IconClose, IconEye } from "@/components/icons";
 
 function Stars({ n }: { n: number }) {
@@ -56,7 +56,7 @@ function ReviewDetail({ id, onClose }: { id: string | null; onClose: () => void 
               <b>{t("detail.seller")}</b>
               {row(t("detail.name"), d.seller.name)}
               {row(t("detail.phone"), d.seller.phone)}
-              {row(t("detail.sellerType"), d.review.sellerType)}
+              {row(t("detail.sellerType"), t.has(`sellerKind.${d.review.sellerType}`) ? t(`sellerKind.${d.review.sellerType}`) : d.review.sellerType)}
               {d.sellerProfile ? row(t("detail.region"), d.sellerProfile.region) : null}
             </div>
           ) : null}
@@ -96,7 +96,7 @@ export default function AdminReviews() {
       await moderateReview(id, status);
       reload();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.detail || t("error") : t("error"));
+      setErr(errDetail(e) || t("error"));
     } finally {
       setBusy(null);
     }
@@ -128,7 +128,9 @@ export default function AdminReviews() {
                 <button type="button" className="rvw__name" onClick={() => setDetail(r.id)} title={t("detailTitle")}>
                   <b>{r.lawyerName || "—"}</b>
                 </button>
-                {r.sellerType ? <span className="atag atag--muted">{t.has(`sellerType.${r.sellerType}`) ? t(`sellerType.${r.sellerType}`) : r.sellerType}</span> : null}
+                {/* sellerType.* is the tab wording ("Advokatlar"); a row tag wants
+                    the singular. */}
+                {r.sellerType ? <span className="atag atag--muted">{t.has(`sellerKind.${r.sellerType}`) ? t(`sellerKind.${r.sellerType}`) : r.sellerType}</span> : null}
                 <Stars n={r.rating} />
                 <span className={`creq__badge rvw__st rvw__st--${r.status}`}>{t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status}</span>
                 <button className="aitem__act" type="button" aria-label={t("detailTitle")} title={t("detailTitle")} onClick={() => setDetail(r.id)}><IconEye /></button>

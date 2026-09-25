@@ -15,13 +15,14 @@ import {
   type UnverifiedSellersMode,
 } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
-import { ApiError } from "@/lib/http";
+import { ApiError, errDetail } from "@/lib/http";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import BusinessCalendarCard from "@/components/admin/BusinessCalendarCard";
 import { IconShieldCheck, IconCheck, IconAlert, IconClock, IconEdit } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
+import { humanize } from "@/lib/labels";
 
 type Val = unknown;
 const isPlain = (v: Val) => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -89,7 +90,7 @@ export default function AdminPolicies() {
                 <div className="aitem" key={it.key}>
                   <span className={`aitem__n`} style={{ color: ok ? "var(--ok)" : warn ? "var(--dk-txt-warn, #b45309)" : "#e5484d" }}>{ok ? <IconCheck /> : warn ? <IconClock /> : <IconAlert />}</span>
                   <div className="aitem__m">
-                    <b>{it.title || it.key}</b>
+                    <b>{it.title || humanize(it.key)}</b>
                     {it.note ? <span className="aitem__meta">{it.note}</span> : null}
                   </div>
                   <div className="aitem__r"><em className={`atag${ok ? " atag--ok" : " atag--muted"}`}>{t.has(`readyStatus.${it.status}`) ? t(`readyStatus.${it.status}`) : it.status || "—"}</em></div>
@@ -123,8 +124,8 @@ export default function AdminPolicies() {
                     <dl className="polcard__kv">
                       {entries.map(([k, v]) => (
                         <div key={k}>
-                          <dt>{t.has(`keys.${k}`) ? t(`keys.${k}`) : k}</dt>
-                          <dd>{isPlain(v) ? t("objectValue", { n: Object.keys(v as object).length }) : Array.isArray(v) ? (isStrList(v) ? (v as string[]).join(", ") : t("listValue", { n: v.length })) : String(v)}</dd>
+                          <dt>{t.has(`keys.${k}`) ? t(`keys.${k}`) : humanize(k)}</dt>
+                          <dd>{isPlain(v) ? t("objectValue", { n: Object.keys(v as object).length }) : Array.isArray(v) ? (isStrList(v) ? (v as string[]).join(", ") : t("listValue", { n: v.length })) : typeof v === "boolean" ? t(v ? "boolYes" : "boolNo") : String(v)}</dd>
                         </div>
                       ))}
                     </dl>
@@ -189,7 +190,7 @@ function EditModal({ section, data, onClose, onSaved }: { section: PolicySection
       setNote({ ok: true, msg: t("saved") });
       onSaved();
     } catch (e) {
-      setNote({ ok: false, msg: e instanceof SyntaxError ? t("badJson") : e instanceof ApiError && e.status === 403 ? t("forbidden") : e instanceof ApiError && e.detail ? e.detail : t("saveError") });
+      setNote({ ok: false, msg: e instanceof SyntaxError ? t("badJson") : e instanceof ApiError && e.status === 403 ? t("forbidden") : errDetail(e) || t("saveError") });
     } finally {
       setBusy(false);
     }
@@ -201,7 +202,7 @@ function EditModal({ section, data, onClose, onSaved }: { section: PolicySection
       <div className="cform" style={{ maxWidth: "none" }}>
         <p className="advmuted">{t("editLead")}</p>
         {Object.entries(data).map(([k, v]) => {
-          const label = t.has(`keys.${k}`) ? t(`keys.${k}`) : k;
+          const label = t.has(`keys.${k}`) ? t(`keys.${k}`) : humanize(k);
           const val = form.values[k] ?? "";
           if (typeof v === "boolean") return (
             <label className={`vac${val === "true" ? " on" : ""}`} key={k} style={{ justifySelf: "start" }}>

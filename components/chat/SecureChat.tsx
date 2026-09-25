@@ -48,6 +48,7 @@ import {
   IconDownload,
 } from "../icons";
 import { timeOnly, dateOnly } from "@/lib/date";
+import { localizeApiDetail } from "@/lib/apiMessage";
 
 type LocalMsg = SecureMessage & { pending?: boolean; failed?: boolean };
 type Conn = "connecting" | "online" | "offline";
@@ -863,7 +864,7 @@ export default function SecureChat({
                     {m.isBlocked ? (
                       <div className="sbub__blocked">
                         <IconAlert />
-                        {m.blockReason || t("blocked")}
+                        {m.blockReason ? localizeApiDetail(m.blockReason) : t("blocked")}
                       </div>
                     ) : null}
                     <div className="sbub__meta">

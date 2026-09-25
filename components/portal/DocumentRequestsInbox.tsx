@@ -13,7 +13,7 @@ import {
   type DocumentRequestPoolItem,
   type ClaimDocumentRequestResult,
 } from "@/lib/services/backend";
-import { ApiError, isConflict, logApiError } from "@/lib/http";
+import { isConflict, logApiError, errDetail } from "@/lib/http";
 import { fetchAndDeliver } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -309,6 +309,7 @@ function FulfillModal({
   onDone: () => void;
 }) {
   const t = useTranslations(ns);
+  const tf = useTranslations("portal.client.documents.fields");
   const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -364,7 +365,7 @@ function FulfillModal({
       setDone(result);
       onDone();
     } catch (e) {
-      setNote({ ok: false, msg: e instanceof ApiError && e.detail ? e.detail : t("fulfillError") });
+      setNote({ ok: false, msg: errDetail(e) || t("fulfillError") });
     } finally {
       setBusy(false);
     }
@@ -391,7 +392,7 @@ function FulfillModal({
               <div className="oquote" style={{ marginTop: 4 }}>
                 {answerEntries.map(([k, v]) => (
                   <div className="oquote__row" key={k}>
-                    <span>{humanizeSlug(k)}</span>
+                    <span>{tf.has(k.toLowerCase()) ? tf(k.toLowerCase()) : humanizeSlug(k)}</span>
                     <b>{String(v)}</b>
                   </div>
                 ))}

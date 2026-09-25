@@ -93,6 +93,7 @@ export default function DocumentEditorWorkspace({
 }) {
   const t = useTranslations(ns);
   const tc = useTranslations("cta");
+  const tf = useTranslations("portal.client.documents.fields");
   const locale = useLocale();
   const router = useRouter();
 
@@ -558,7 +559,7 @@ export default function DocumentEditorWorkspace({
                   <dl className="dfacts">
                     {answerEntries.map(([k, v]) => (
                       <div className="dfacts__row" key={k}>
-                        <dt>{humanizeSlug(k)}</dt>
+                        <dt>{tf.has(k.toLowerCase()) ? tf(k.toLowerCase()) : humanizeSlug(k)}</dt>
                         <dd>{String(v)}</dd>
                       </div>
                     ))}

@@ -10,7 +10,7 @@ export type InviteSearch = (q: string) => Promise<SearchOption[]>;
 // this searcher to a cached directory of the people the account can actually
 // reach — lawyers/advocates (incl. unverified) and, for sellers, their own
 // clients — filtered client-side by name, phone or LexGo ID.
-export function makeInviteSearch(opts: { clientLabel: string; exclude?: () => Iterable<string> }): InviteSearch {
+export function makeInviteSearch(opts: { clientLabel: string; regionLabel?: (v: string) => string; exclude?: () => Iterable<string> }): InviteSearch {
   let dir: Promise<InviteUser[]> | null = null;
   let staffSearch = true;
   const directory = () => {
@@ -22,7 +22,7 @@ export function makeInviteSearch(opts: { clientLabel: string; exclude?: () => It
         ]);
         const seen = new Set<string>();
         const out: InviteUser[] = [];
-        for (const l of lawyers) if (l.userId && !seen.has(l.userId)) { seen.add(l.userId); out.push({ id: l.userId, name: l.name, phone: l.phone, lexgoId: l.publicId, sub: l.region }); }
+        for (const l of lawyers) if (l.userId && !seen.has(l.userId)) { seen.add(l.userId); out.push({ id: l.userId, name: l.name, phone: l.phone, lexgoId: l.publicId, sub: opts.regionLabel ? opts.regionLabel(l.region) : l.region }); }
         for (const c of clients) if (c.id && !seen.has(c.id)) { seen.add(c.id); out.push({ id: c.id, name: c.name, phone: c.phone, sub: opts.clientLabel }); }
         return out;
       })();

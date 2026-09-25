@@ -12,8 +12,8 @@ import { IconCard, IconDownload, IconSearch } from "@/components/icons";
 import DatePicker from "@/components/DatePicker";
 import { dateOnly } from "@/lib/date";
 
-const som = (n: number, cur: string) =>
-  n ? `${fmtUzs(n)} ${cur}` : "—";
+const som = (n: number, cur: string, uzs: string) =>
+  n ? `${fmtUzs(n)} ${/^uzs$/i.test(cur) ? uzs : cur}` : "—";
 const fmtDate = (s: string, locale: string) => {
   if (!s) return "—";
   const d = new Date(s);
@@ -22,6 +22,7 @@ const fmtDate = (s: string, locale: string) => {
 
 export default function ClientPayments() {
   const t = useTranslations("portal.client.payments");
+  const te = useTranslations("enums");
   const locale = useLocale();
   // The backend falls back to the raw target type ("document_request", "gift") as the description.
   const whatOf = (desc: string, kind: string) => {
@@ -92,7 +93,7 @@ export default function ClientPayments() {
                   <b>{whatOf(p.description, p.kind)}</b>
                 </span>
                 <span data-l={t("date")}>{fmtDate(p.createdAt, locale)}</span>
-                <span data-l={t("amount")}>{som(p.amount, p.currency)}</span>
+                <span data-l={t("amount")}>{som(p.amount, p.currency, te("currency"))}</span>
                 <span data-l={t("statusCol")} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span className={`creq__badge${p.status === "paid" ? " creq__badge--ok" : ""}`}>{p.status ? (t.has(`statuses.${p.status}`) ? t(`statuses.${p.status}`) : humanizeSlug(p.status)) : "—"}</span>
                   {p.receiptUrl ? (

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { importTemplateDocx, importTemplatesZip, previewTemplate, type TemplateField } from "@/lib/services/backend";
-import { ApiError } from "@/lib/http";
+import { ApiError, errDetail } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
@@ -59,7 +59,7 @@ export default function TemplateImport({ open, onClose, onDone }: { open: boolea
       }
     } catch (err) {
       const status = err instanceof ApiError ? err.status : 0;
-      setNote({ ok: false, msg: status === 409 ? t("slugTaken") : status === 415 ? t("onlyDocx") : status === 413 ? t("tooBig") : status === 403 ? t("forbidden") : err instanceof ApiError && err.detail ? err.detail : t("error") });
+      setNote({ ok: false, msg: status === 409 ? t("slugTaken") : status === 415 ? t("onlyDocx") : status === 413 ? t("tooBig") : status === 403 ? t("forbidden") : errDetail(err) || t("error") });
     } finally {
       setBusy(false);
     }

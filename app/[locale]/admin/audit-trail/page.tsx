@@ -12,6 +12,7 @@ import { Notice } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
 import { IconShieldCheck, IconLock, IconCheck, IconClipboardCheck, IconDownload, IconSearch } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
+import { humanize } from "@/lib/labels";
 
 type TextFilters = Required<Pick<AuditFilters, "userId" | "action" | "targetType" | "targetId">>;
 const NO_TEXT: TextFilters = { userId: "", action: "", targetType: "", targetId: "" };
@@ -109,7 +110,7 @@ function Anomalies({ onReady }: { onReady?: () => void }) {
         <div className="alist">
           {rows.slice(0, 50).map((r) => {
             const p = r.payload as Record<string, unknown>;
-            const meta = [p.previous_ip && p.current_ip ? `${String(p.previous_ip)} → ${String(p.current_ip)}` : "", r.ownerUserId ? `user ${r.ownerUserId.slice(0, 8)}…` : "", fmt(r.createdAt, locale)].filter(Boolean).join(" · ");
+            const meta = [p.previous_ip && p.current_ip ? `${String(p.previous_ip)} → ${String(p.current_ip)}` : "", r.ownerUserId ? `${t("user")} ${r.ownerUserId.slice(0, 8)}…` : "", fmt(r.createdAt, locale)].filter(Boolean).join(" · ");
             return (
               <div className="aitem" key={r.id}>
                 <div className="aitem__m">
@@ -284,7 +285,7 @@ export default function AdminAuditTrail() {
                 <div className="creq audit__row" key={rowKey}>
                   <span className="creq__st" />
                   <div className="creq__m">
-                    <b>{a.action || "—"}{locale === "uz" && a.titleUz ? <small className="advmuted"> · {a.titleUz}</small> : null}</b>
+                    <b>{a.action ? humanize(a.action) : "—"}{locale === "uz" && a.titleUz ? <small className="advmuted"> · {a.titleUz}</small> : null}</b>
                     <span>{[(locale === "uz" && a.descriptionUz) || a.detail, a.ip, fmt(a.createdAt, locale)].filter(Boolean).join(" · ")}</span>
                     {a.userId || a.targetType || a.targetId ? (
                       <span className="audit__who">

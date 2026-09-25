@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { getMyMatches } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { useRouter } from "@/i18n/navigation";
@@ -9,10 +9,12 @@ import { Skeleton } from "@/components/portal/DataState";
 import LawyerProfileModal from "@/components/portal/LawyerProfileModal";
 import { humanizeSlug } from "@/lib/lawyers";
 import { IconSparkle, IconStar, IconMapPin, IconArrowRight } from "@/components/icons";
+import { fmtRating } from "@/lib/date";
 
 export default function ClientMatches() {
   const t = useTranslations("portal.client.matches");
   const te = useTranslations("enums");
+  const locale = useLocale();
   const regionLabel = (r: string) => (te.has(`regions.${r}`) ? te(`regions.${r}`) : humanizeSlug(r));
   const areaLabel = (a: string) =>
     a.split(",").map((x) => x.trim()).filter(Boolean).map((x) => (te.has(`areas.${x}`) ? te(`areas.${x}`) : humanizeSlug(x))).join(", ");
@@ -55,7 +57,7 @@ export default function ClientMatches() {
                   <span className={`advcard__kind advcard__kind--${m.kind}`}>{t(`kind.${m.kind}`)}</span>
                 </div>
                 <div className="mtchcard__meta">
-                  <span><IconStar />{m.rating.toFixed(1)}</span>
+                  <span><IconStar />{fmtRating(m.rating, locale)}</span>
                   {m.region ? <span><IconMapPin />{regionLabel(m.region)}</span> : null}
                   {m.area ? <span>{areaLabel(m.area)}</span> : null}
                 </div>

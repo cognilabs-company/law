@@ -32,10 +32,10 @@ export function fmtUzs(n: number): string {
 
 // Compact so'm for KPI tiles: 16 787 643 → "16,8 mln", 1 250 000 000 → "1,25 mlrd";
 // below a million the full grouped number. `units` are the localized suffixes.
-export function fmtUzsShort(n: number, units: { mln: string; mlrd: string } = { mln: "mln", mlrd: "mlrd" }): string {
+export function fmtUzsShort(n: number, units: { mln: string; mlrd: string } = { mln: "mln", mlrd: "mlrd" }, locale = "uz"): string {
   const v = Math.round(asNum(n));
   const abs = Math.abs(v);
-  const one = (x: number, d: number) => x.toFixed(d).replace(/\.0+$/, "").replace(".", ",");
+  const one = (x: number, d: number) => x.toFixed(d).replace(/\.0+$/, "").replace(".", locale === "en" ? "." : ",");
   if (abs >= 1e9) return `${one(v / 1e9, 2)} ${units.mlrd}`;
   if (abs >= 1e6) return `${one(v / 1e6, 1)} ${units.mln}`;
   return fmtUzs(v);

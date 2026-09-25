@@ -11,7 +11,7 @@ import { useCatalogBackHref } from "@/lib/catalogNav";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
-import { ApiError } from "@/lib/http";
+import { ApiError, errDetail } from "@/lib/http";
 import { IconChevronLeft, IconEye, IconLock } from "@/components/icons";
 
 // A dedicated full page for "Hujjatni ko'rish" on the services catalog — the
@@ -60,7 +60,7 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
       } catch (e) {
         if (!alive) return;
         if (e instanceof ApiError && e.status === 402 && e.code === "manual_document_plan_required") {
-          setPlanRequired(e.detail || td("planRequired"));
+          setPlanRequired(errDetail(e) || td("planRequired"));
           setStatus("error");
         } else {
           setStatus("error");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   initials,
   humanizeSlug,
@@ -23,6 +23,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { Skeleton, EmptyState } from "../portal/DataState";
 import Select, { type Option } from "../Select";
 import { IconChevronLeft, IconChevronRight, IconInfo, IconSearch, IconShieldCheck, IconStar } from "../icons";
+import { fmtRating } from "@/lib/date";
 
 const priceNum = (p: string) => Number(p.replace(/\s/g, "")) || 0;
 
@@ -92,6 +93,7 @@ export default function LawyersSection({
   }, [session]);
   const [hoursNote, setHoursNote] = useState<{ id: string; text: string } | null>(null);
   const tpay = useTranslations("portal.payment");
+  const locale = useLocale();
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
 
   // Back from the checkout page may restore this page from the bfcache with the
@@ -263,7 +265,7 @@ export default function LawyersSection({
         </div>
         <div className="advcard__b">
           <div className="rating">
-            <b>{l.rev < 5 ? t("card.new") : l.rate.toFixed(1)}</b>
+            <b>{l.rev < 5 ? t("card.new") : fmtRating(l.rate, locale)}</b>
             <span>{l.rev < 5 ? t("card.newHint") : t("card.reviews", { count: l.rev, years: l.exp })}</span>
           </div>
           <div className="wins">

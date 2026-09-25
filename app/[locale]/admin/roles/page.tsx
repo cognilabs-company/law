@@ -12,6 +12,7 @@ import Modal from "@/components/admin/Modal";
 import ChipMulti from "@/components/register/ChipMulti";
 import Select from "@/components/Select";
 import { IconShield, IconPlus, IconCheck } from "@/components/icons";
+import { errDetail } from "@/lib/http";
 
 export default function AdminRoles() {
   const t = useTranslations("admin");
@@ -46,8 +47,7 @@ export default function AdminRoles() {
   const [aBusy, setABusy] = useState(false);
   const [aNote, setANote] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  const detailOf = (err: unknown) =>
-    err && typeof err === "object" && "detail" in err ? String((err as { detail?: string }).detail) : "";
+  const detailOf = errDetail;
 
   async function submitRole(e: React.FormEvent) {
     e.preventDefault();
@@ -199,7 +199,7 @@ export default function AdminRoles() {
             </div>
             {matrix.data.sellerRules.map((sr) => (
               <p className="advmuted pmx__rule" key={sr.sellerType}>
-                <b>{sr.sellerType}:</b> {sr.rule}
+                <b>{t.has(`roles.sellerType.${sr.sellerType}`) ? t(`roles.sellerType.${sr.sellerType}`) : sr.sellerType}:</b> {sr.rule}
               </p>
             ))}
           </>

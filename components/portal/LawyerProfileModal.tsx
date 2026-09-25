@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   getLawyerById,
   getLawyerPrivateChat,
@@ -20,6 +20,7 @@ import { fmtUzs } from "@/lib/money";
 import Modal from "@/components/admin/Modal";
 import { Skeleton } from "./DataState";
 import { regionLabel } from "@/lib/labels";
+import { fmtRating } from "@/lib/date";
 
 const som = (n: number) => (n ? fmtUzs(n) : "—");
 
@@ -38,6 +39,7 @@ export default function LawyerProfileModal({
   const t = useTranslations("portal.client.lawyerProfile");
   const te = useTranslations("enums");
   const tcommon = useTranslations("common");
+  const locale = useLocale();
   const router = useRouter();
   const { session } = useAuth();
   const [data, setData] = useState<BackendLawyer | null>(null);
@@ -168,7 +170,7 @@ export default function LawyerProfileModal({
 
           <div className="lprof__stats">
             <div>
-              <b>{data.rating.toFixed(1)}</b>
+              <b>{fmtRating(data.rating, locale)}</b>
               <span>{t("rating")}</span>
             </div>
             <div>
@@ -195,7 +197,7 @@ export default function LawyerProfileModal({
               <span>{t("partialWin")}</span>
             </div>
             <div>
-              <b>{data.successRate ? `${data.successRate.toFixed(0)}%` : "—"}</b>
+              <b>{data.successRate ? `${fmtRating(data.successRate, locale, 0)}%` : "—"}</b>
               <span>{t("successRate")}</span>
             </div>
           </div>

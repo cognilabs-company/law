@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { IconClock, IconClose } from "./icons";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -97,6 +98,7 @@ export default function TimePicker({
     return () => { window.removeEventListener("scroll", onMove, true); window.removeEventListener("resize", onMove); };
   }, [open]);
 
+  const tc = useTranslations("common");
   const pickH = (h: number) => onChange(`${pad(h)}:${pad(parsed ? parsed.m : 0)}`);
   const pickM = (m: number) => { onChange(`${pad(parsed ? parsed.h : 9)}:${pad(m)}`); setOpen(false); };
 
@@ -126,7 +128,7 @@ export default function TimePicker({
         >
           <div className="tpick__cols">
             <div className="tpick__col">
-              <span className="tpick__lbl">HH</span>
+              <span className="tpick__lbl">{tc("hourShort")}</span>
               <div className="tpick__grid tpick__grid--h">
                 {HOURS.map((h) => (
                   <button key={h} type="button" className={`tpick__c${parsed?.h === h ? " on" : ""}`} onClick={() => pickH(h)}>{pad(h)}</button>
@@ -134,7 +136,7 @@ export default function TimePicker({
               </div>
             </div>
             <div className="tpick__col">
-              <span className="tpick__lbl">MM</span>
+              <span className="tpick__lbl">{tc("minuteShort")}</span>
               <div className="tpick__grid tpick__grid--m">
                 {minutes.map((m) => (
                   <button key={m} type="button" className={`tpick__c${parsed?.m === m ? " on" : ""}`} onClick={() => pickM(m)}>{pad(m)}</button>

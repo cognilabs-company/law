@@ -25,13 +25,14 @@ export function legalPathFromSlug(s: string): string {
   return s.replace(/_/g, "-");
 }
 
-// Message key (namespace "legal") of a known document, else null → callers
-// fall back to the API title: `key ? t(key) : doc.title`.
-export function legalLabelKey(slug: string): string | null {
-  if (slug === "terms") return "docs.terms";
-  if (slug === "privacy") return "docs.privacy";
-  if (slug === "legal_disclaimer") return "docs.disclaimer";
-  return null;
+// Message key (namespace "legal") for any document slug: "legal_disclaimer"
+// → "docs.disclaimer", "public_offer" → "docs.publicOffer". Callers guard with
+// t.has() and fall back to the API title, which the backend only writes in
+// Uzbek — so publishing a new document is a messages-only change, where the
+// old hardcoded list silently left every new slug untranslated.
+export function legalLabelKey(slug: string): string {
+  const base = (slug || "").replace(/^legal_/, "");
+  return `docs.${base.replace(/_(w)/g, (_, c: string) => c.toUpperCase())}`;
 }
 
 // Placeholder checklist while /legal/consents is loading or has failed.

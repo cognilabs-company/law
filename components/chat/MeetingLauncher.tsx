@@ -16,6 +16,7 @@ import DatePicker from "@/components/DatePicker";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
 import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconEye } from "@/components/icons";
+import { regionLabel } from "@/lib/labels";
 
 function mmss(total: number): string {
   const m = Math.floor(total / 60);
@@ -48,7 +49,7 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
           <div className="dkv__sect">
             <b>{t("detail.meeting")}</b>
             {row(t("detail.status"), t.has(`status.${d.call.status}`) ? t(`status.${d.call.status}`) : d.call.status)}
-            {row(t("detail.type"), d.call.callType)}
+            {row(t("detail.type"), t(`formatLabel.${d.call.callType}`))}
             {row(t("detail.room"), d.room?.title || d.call.roomId)}
             {row(t("detail.started"), shortDateTime(d.call.startedAt, locale))}
             {row(t("detail.ended"), shortDateTime(d.call.endedAt, locale))}
@@ -128,6 +129,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const t = useTranslations("admin.meetings");
   const tch = useTranslations("admin.callHistory");
   const tc = useTranslations("call");
+  const te = useTranslations("enums");
   const locale = useLocale();
   const { session } = useAuth();
   const seller = session?.role === "advocate" || session?.role === "lawyer";
@@ -196,7 +198,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   // Staff search any platform user; sellers (no /users/search) get lawyers +
   // their own clients — see lib/inviteSearch.
   function searchOptions(q: string) {
-    if (!searchRef.current) searchRef.current = makeInviteSearch({ clientLabel, exclude: () => (session?.id ? [session.id] : []) });
+    if (!searchRef.current) searchRef.current = makeInviteSearch({ clientLabel, regionLabel: (v) => regionLabel(te, v), exclude: () => (session?.id ? [session.id] : []) });
     return searchRef.current(q);
   }
 

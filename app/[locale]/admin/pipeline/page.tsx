@@ -24,7 +24,7 @@ import {
 
 const LOST_REASONS = ["price", "solved_self", "competitor", "no_answer", "no_service", "spam"] as const;
 const isLostKey = (k: string) => /lost|rejected|yoqotil|rad/i.test(k);
-import { ApiError } from "@/lib/http";
+import { errDetail } from "@/lib/http";
 import { useAuth } from "@/lib/auth";
 import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadSourceLabel } from "@/lib/leadLabels";
 import { useResource } from "@/lib/useResource";
@@ -296,8 +296,7 @@ export default function AdminPipeline() {
       setDelCol(null);
       void refresh();
     } catch (e) {
-      const detail = e instanceof ApiError ? e.detail : "";
-      setDelColErr(detail || ta("form.deleteError"));
+      setDelColErr(errDetail(e) || ta("form.deleteError"));
     } finally {
       setDelColBusy(false);
     }

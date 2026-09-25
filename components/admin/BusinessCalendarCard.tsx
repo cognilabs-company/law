@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getBusinessHours, simulateBusinessHours, addBusinessHoliday, removeBusinessHoliday, type BusinessSim } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
-import { ApiError } from "@/lib/http";
+import { ApiError, errDetail } from "@/lib/http";
 import { fmtDate } from "@/lib/date";
 import DatePicker from "@/components/DatePicker";
 import TimePicker from "@/components/TimePicker";
@@ -44,7 +44,7 @@ export default function BusinessCalendarCard() {
   const [simTime, setSimTime] = useState("20:00");
   const [sim, setSim] = useState<BusinessSim | null>(null);
   const [simBusy, setSimBusy] = useState(false);
-  const failMsg = (e: unknown) => (e instanceof ApiError && e.status === 403 ? t("forbidden") : e instanceof ApiError && e.detail ? e.detail : t("error"));
+  const failMsg = (e: unknown) => (e instanceof ApiError && e.status === 403 ? t("forbidden") : errDetail(e) || t("error"));
 
   async function add() {
     if (busy || !day) return;

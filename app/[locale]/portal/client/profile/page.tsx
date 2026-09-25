@@ -202,7 +202,7 @@ export default function ClientProfile() {
                 <div className="creq" key={m.id}>
                   <span className="creq__st" />
                   <div className="creq__m">
-                    <b>{[m.brand || "card", `•••• ${m.last4}`].join(" · ")}</b>
+                    <b>{[m.brand || t("cardFallback"), `•••• ${m.last4}`].join(" · ")}</b>
                     <span>{m.expires}{m.isDefault ? ` · ${t("defaultCard")}` : ""}</span>
                   </div>
                   <button

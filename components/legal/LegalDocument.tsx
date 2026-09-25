@@ -12,7 +12,7 @@ export default function LegalDocument({ doc, all }: { doc: ConsentDoc; all: Cons
   const locale = useLocale();
   const label = (d: ConsentDoc) => {
     const key = legalLabelKey(d.slug);
-    return key ? t(key) : d.title;
+    return t.has(key) ? t(key) : d.title;
   };
   const heading = locale === "uz" ? doc.title || label(doc) : label(doc);
   const paragraphs = doc.body
