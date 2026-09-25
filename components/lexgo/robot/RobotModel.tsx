@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
@@ -25,6 +25,7 @@ function removeRobotSideBalls(scene: THREE.Object3D, head?: THREE.Object3D): voi
     if (!mesh.isSkinnedMesh || !geometry || !index || !position || geometry.userData.lexgoRobotSideBallsRemoved) return;
 
     mesh.updateWorldMatrix(true, false);
+    mesh.skeleton.update();
     const bindPositions: THREE.Vector3[] = [];
     const point = new THREE.Vector3();
     for (let i = 0; i < position.count; i++) {
@@ -99,17 +100,25 @@ function removeRobotSideBalls(scene: THREE.Object3D, head?: THREE.Object3D): voi
       }
     });
 
-    if (!sideBallRoots.size) {
-      geometry.userData.lexgoRobotSideBallsRemoved = true;
-      return;
-    }
+    const isSideBallPoint = (point: THREE.Vector3): boolean =>
+      Math.abs(point.x) >= 0.145 &&
+      Math.abs(point.x) <= 0.235 &&
+      point.y >= -0.01 &&
+      point.y <= 0.32 &&
+      Math.abs(point.z) <= 0.2;
+
+    const isSideBallTriangle = (a: number, b: number, c: number): boolean => {
+      const points = [bindPositions[a], bindPositions[b], bindPositions[c]];
+      const sameSide = points.every((point) => point.x >= 0) || points.every((point) => point.x <= 0);
+      return sameSide && points.every(isSideBallPoint);
+    };
 
     const filtered: number[] = [];
     for (let i = 0; i < index.count; i += 3) {
       const a = index.getX(i);
       const b = index.getX(i + 1);
       const c = index.getX(i + 2);
-      if (sideBallRoots.has(find(a)) || sideBallRoots.has(find(b)) || sideBallRoots.has(find(c))) continue;
+      if (sideBallRoots.has(find(a)) || sideBallRoots.has(find(b)) || sideBallRoots.has(find(c)) || isSideBallTriangle(a, b, c)) continue;
       filtered.push(a, b, c);
     }
 
@@ -151,11 +160,13 @@ export default function RobotModel({
   const rootRef = useRef<THREE.Group>(null);
   const controllerRef = useRef<RobotController | null>(null);
   const bones = useMemo(() => {
-    const mappedBones = new RobotBones(scene);
-    removeRobotSideBalls(scene, mappedBones.get("head"));
-    return mappedBones;
+    return new RobotBones(scene);
   }, [scene]);
   const [expression, setExpression] = useState<RobotExpression>("default");
+
+  useLayoutEffect(() => {
+    removeRobotSideBalls(scene, bones.get("head"));
+  }, [bones, scene]);
 
   useEffect(() => {
     const root = rootRef.current;

@@ -16,7 +16,6 @@ type FaceStyle = {
   mouthOpen: number;
   mouthRotation: number;
   browTilt: number;
-  cheekOpacity: number;
 };
 
 const FACE_STYLES: Record<RobotExpression, FaceStyle> = {
@@ -31,7 +30,6 @@ const FACE_STYLES: Record<RobotExpression, FaceStyle> = {
     mouthOpen: 0.05,
     mouthRotation: 0,
     browTilt: 0,
-    cheekOpacity: 0.18,
   },
   happy: {
     color: "#6fffc1",
@@ -44,7 +42,6 @@ const FACE_STYLES: Record<RobotExpression, FaceStyle> = {
     mouthOpen: 0.36,
     mouthRotation: 0,
     browTilt: -0.12,
-    cheekOpacity: 0.62,
   },
   curious: {
     color: "#ffd86f",
@@ -57,7 +54,6 @@ const FACE_STYLES: Record<RobotExpression, FaceStyle> = {
     mouthOpen: 0.2,
     mouthRotation: -0.08,
     browTilt: 0.28,
-    cheekOpacity: 0.24,
   },
   thinking: {
     color: "#c4a8ff",
@@ -70,7 +66,6 @@ const FACE_STYLES: Record<RobotExpression, FaceStyle> = {
     mouthOpen: 0.08,
     mouthRotation: 0.13,
     browTilt: 0.18,
-    cheekOpacity: 0.12,
   },
   surprised: {
     color: "#8ae8ff",
@@ -83,7 +78,6 @@ const FACE_STYLES: Record<RobotExpression, FaceStyle> = {
     mouthOpen: 0.84,
     mouthRotation: 0,
     browTilt: 0.34,
-    cheekOpacity: 0.3,
   },
   blink: {
     color: "#79ddff",
@@ -96,7 +90,6 @@ const FACE_STYLES: Record<RobotExpression, FaceStyle> = {
     mouthOpen: 0.05,
     mouthRotation: 0,
     browTilt: 0,
-    cheekOpacity: 0.18,
   },
   error: {
     color: "#ff6e91",
@@ -109,7 +102,6 @@ const FACE_STYLES: Record<RobotExpression, FaceStyle> = {
     mouthOpen: 0.02,
     mouthRotation: 0.2,
     browTilt: -0.32,
-    cheekOpacity: 0.36,
   },
   success: {
     color: "#73ff95",
@@ -122,7 +114,6 @@ const FACE_STYLES: Record<RobotExpression, FaceStyle> = {
     mouthOpen: 0.48,
     mouthRotation: 0,
     browTilt: -0.18,
-    cheekOpacity: 0.48,
   },
 };
 
@@ -142,18 +133,16 @@ export default function RobotFace({
   const rightBrowRef = useRef<THREE.Mesh>(null);
   const mouthRef = useRef<THREE.Mesh>(null);
   const mouthOpenRef = useRef<THREE.Mesh>(null);
-  const leftCheekRef = useRef<THREE.Mesh>(null);
-  const rightCheekRef = useRef<THREE.Mesh>(null);
   const leftEyeMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const rightEyeMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const leftPupilMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const rightPupilMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const mouthMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const mouthOpenMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
-  const cheekMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
-  const rightCheekMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const blinkPhaseRef = useRef(0);
   const nextBlinkRef = useRef(3.1);
+  const cameraWorldPositionRef = useRef(new THREE.Vector3());
+  const cameraLocalPositionRef = useRef(new THREE.Vector3());
 
   useLayoutEffect(() => {
     const group = groupRef.current;
@@ -166,9 +155,23 @@ export default function RobotFace({
     };
   }, [head]);
 
-  useFrame((_, delta) => {
+  useFrame(({ camera }, delta) => {
     const style = FACE_STYLES[expression] ?? FACE_STYLES.default;
     const explicitBlink = expression === "blink";
+
+    const group = groupRef.current;
+    if (group && head) {
+      head.updateWorldMatrix(true, false);
+      camera.getWorldPosition(cameraWorldPositionRef.current);
+      cameraLocalPositionRef.current.copy(cameraWorldPositionRef.current);
+      head.worldToLocal(cameraLocalPositionRef.current);
+      const faceSide = cameraLocalPositionRef.current.z >= 0 ? 1 : -1;
+      const targetZ = faceSide * 0.34;
+      const targetRotationY = faceSide > 0 ? 0 : Math.PI;
+      const anchorSmooth = Math.min(1, delta * 18);
+      group.position.z = THREE.MathUtils.lerp(group.position.z, targetZ, anchorSmooth);
+      group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, targetRotationY, anchorSmooth);
+    }
 
     if (!explicitBlink) {
       if (blinkPhaseRef.current > 0) {
@@ -215,26 +218,15 @@ export default function RobotFace({
       mouthOpenRef.current.scale.y = THREE.MathUtils.lerp(mouthOpenRef.current.scale.y, 0.6 + style.mouthOpen * 1.8, smooth);
       if (mouthOpenMaterialRef.current) mouthOpenMaterialRef.current.opacity = THREE.MathUtils.lerp(mouthOpenMaterialRef.current.opacity, style.mouthOpen * 0.78, smooth);
     }
-    if (leftCheekRef.current) leftCheekRef.current.scale.x = THREE.MathUtils.lerp(leftCheekRef.current.scale.x, 0.75 + style.cheekOpacity, smooth);
-    if (rightCheekRef.current) rightCheekRef.current.scale.x = THREE.MathUtils.lerp(rightCheekRef.current.scale.x, 0.75 + style.cheekOpacity, smooth);
-
     leftEyeMaterialRef.current?.color.set(style.color);
     rightEyeMaterialRef.current?.color.set(style.color);
     leftPupilMaterialRef.current?.color.set(style.color);
     rightPupilMaterialRef.current?.color.set(style.color);
     mouthMaterialRef.current?.color.set(style.mouthColor);
-    if (cheekMaterialRef.current) {
-      cheekMaterialRef.current.color.set(style.color);
-      cheekMaterialRef.current.opacity = style.cheekOpacity;
-    }
-    if (rightCheekMaterialRef.current) {
-      rightCheekMaterialRef.current.color.set(style.color);
-      rightCheekMaterialRef.current.opacity = style.cheekOpacity;
-    }
   });
 
   return (
-    <group ref={groupRef} position={[0, 0.17, 0.31]} renderOrder={20} frustumCulled={false}>
+    <group ref={groupRef} position={[0, 0.17, 0.34]} renderOrder={20} frustumCulled={false}>
       <mesh renderOrder={20}>
         <planeGeometry args={[0.2, 0.14]} />
         <meshBasicMaterial color="#07111e" transparent opacity={0.92} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
@@ -255,14 +247,6 @@ export default function RobotFace({
         <sphereGeometry args={[0.027, 16, 10]} />
         <meshBasicMaterial ref={rightPupilMaterialRef} color="#73dcff" transparent opacity={0.88} depthTest={false} depthWrite={false} />
       </mesh>
-      <mesh position={[-0.061, 0.041, 0.03]} scale={[0.28, 0.28, 0.12]} renderOrder={23}>
-        <sphereGeometry args={[0.027, 12, 8]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.86} depthTest={false} depthWrite={false} />
-      </mesh>
-      <mesh position={[0.043, 0.041, 0.03]} scale={[0.28, 0.28, 0.12]} renderOrder={23}>
-        <sphereGeometry args={[0.027, 12, 8]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.86} depthTest={false} depthWrite={false} />
-      </mesh>
       <mesh ref={leftBrowRef} position={[-0.052, 0.073, 0.02]} scale={[0.86, 1, 1]} renderOrder={21}>
         <planeGeometry args={[0.047, 0.008]} />
         <meshBasicMaterial color="#b8efff" transparent opacity={0.9} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
@@ -270,14 +254,6 @@ export default function RobotFace({
       <mesh ref={rightBrowRef} position={[0.052, 0.073, 0.02]} scale={[0.86, 1, 1]} renderOrder={21}>
         <planeGeometry args={[0.047, 0.008]} />
         <meshBasicMaterial color="#b8efff" transparent opacity={0.9} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
-      </mesh>
-      <mesh ref={leftCheekRef} position={[-0.082, -0.032, 0.018]} scale={[0.75, 0.45, 0.18]} renderOrder={21}>
-        <sphereGeometry args={[0.018, 12, 8]} />
-        <meshBasicMaterial ref={cheekMaterialRef} color="#73dcff" transparent opacity={0.18} depthTest={false} depthWrite={false} />
-      </mesh>
-      <mesh ref={rightCheekRef} position={[0.082, -0.032, 0.018]} scale={[0.75, 0.45, 0.18]} renderOrder={21}>
-        <sphereGeometry args={[0.018, 12, 8]} />
-        <meshBasicMaterial ref={rightCheekMaterialRef} color="#73dcff" transparent opacity={0.18} depthTest={false} depthWrite={false} />
       </mesh>
       <mesh ref={mouthOpenRef} position={[0, -0.054, 0.019]} scale={[0.7, 0.6, 1]} renderOrder={21}>
         <planeGeometry args={[0.037, 0.022]} />
