@@ -211,7 +211,9 @@ export default function DocumentEditorWorkspace({
       // are status changes — including the echo of this advocate's own
       // finalize, which would otherwise reload the editor a second time.
       if (e.event === "document_request.claimed") { setReloadKey((k) => k + 1); return; }
-      if (e.event === "document_request.completed" || e.event === "document_request.meeting_created") {
+      // "sent" is the same status change under the name the doc-chat
+      // contract uses for it (§5 user events).
+      if (e.event === "document_request.completed" || e.event === "document_request.sent" || e.event === "document_request.meeting_created") {
         setReqReloadKey((k) => k + 1);
       }
     });

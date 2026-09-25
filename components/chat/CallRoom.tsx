@@ -39,6 +39,7 @@ import { ApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { getToken } from "@/lib/client";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
+import { subscribeUserEvents } from "@/lib/userSocket";
 import { CaptureShield, MeetingWatermark, useCaptureGuard, type GuardTrip } from "./MeetingGuard";
 import { backoffMs, refreshAccessToken } from "@/lib/http";
 import { useAuth, canMakeCalls } from "@/lib/auth";
@@ -576,7 +577,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       seen.set(key, now);
       return true;
     };
-    const unsub = subscribeRoomCallEvents(roomId, (e) => {
+    const onCallEvent = (e: { event: string } & Record<string, unknown>) => {
       const id = String(e.call_id ?? "");
       if (id && id !== callId) return;
       const d = e as Record<string, unknown>;
@@ -611,9 +612,26 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         if (!uid || !fresh(`started:${uid}`)) return;
         setRecBy((cur) => (cur.has(uid) ? cur : new Set(cur).add(uid)));
         if (uid !== session?.id) toast(t("recStartedBy", { name: nameFor(uid) }), "leave");
+        return;
       }
+      // The meeting-extension contract puts these on the USER socket:
+      // "User level eventlar uchun mavjud user WS ishlatilsin. Incoming call,
+      // extension approve/reject eventlari shu realtime oqimlarda keladi."
+      // They only ever reached here from the call socket, so an approval that
+      // came in on the user stream left the room paused until the 15-second
+      // meta poll happened to notice.
+      if (/^call[.](extended|payment_extension_)/.test(e.event)) setMetaTick((n) => n + 1);
+    };
+    const unsub = subscribeRoomCallEvents(roomId, onCallEvent);
+    // Both streams, one handler, one dedupe. The room socket carries them for
+    // a chat that is open; the user socket carries them regardless.
+    const unsubUser = subscribeUserEvents((e) => {
+      if (!e.event.startsWith("call.")) return;
+      const room = String((e as Record<string, unknown>).room_id ?? "");
+      if (room && room !== roomId) return;
+      onCallEvent(e);
     });
-    return unsub;
+    return () => { unsub(); unsubUser(); };
   }, [roomId, callId, session?.id, toast, t]);
 
   // Meeting meta: participants roster, host permissions, remaining time.

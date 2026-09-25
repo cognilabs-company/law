@@ -54,7 +54,11 @@ export default function SecureInbox() {
     return subscribeUserEvents((e) => {
       const d = e as Record<string, unknown>;
       const room = String(d.room_id ?? "");
-      const isChat = e.event === "secure_chat_message" || e.event === "notification.created";
+      // The user-level stream names it "secure_chat.message_created"
+      // (lexgo_frontend_doc_chat_update.md §5); "secure_chat_message" is the
+      // NOTIFICATION event name, which also reaches here through
+      // notification.created. Both are accepted so neither spelling is missed.
+      const isChat = e.event === "secure_chat.message_created" || e.event === "secure_chat_message" || e.event === "notification.created";
       if (!room || !isChat) return;
       setFresh((cur) => (cur.has(room) ? cur : new Set(cur).add(room)));
     });
