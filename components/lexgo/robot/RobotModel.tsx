@@ -11,7 +11,7 @@ import RobotFace from "./RobotFace";
 import { MODEL_SCALE, MODEL_URL } from "./robot-config";
 import type { RobotEventName, RobotEventPayload, RobotExpression } from "./robot-types";
 
-function removeRobotSideBalls(scene: THREE.Object3D, head?: THREE.Object3D): void {
+function removeRobotEars(scene: THREE.Object3D, head?: THREE.Object3D): void {
   if (!head) return;
   scene.updateWorldMatrix(true, true);
   head.updateWorldMatrix(true, false);
@@ -22,7 +22,7 @@ function removeRobotSideBalls(scene: THREE.Object3D, head?: THREE.Object3D): voi
     const geometry = mesh.geometry;
     const index = geometry?.index;
     const position = geometry?.getAttribute("position");
-    if (!mesh.isSkinnedMesh || !geometry || !index || !position || geometry.userData.lexgoRobotSideBallsRemoved) return;
+    if (!mesh.isSkinnedMesh || !geometry || !index || !position || geometry.userData.lexgoRobotEarsRemoved) return;
 
     mesh.updateWorldMatrix(true, false);
     mesh.skeleton.update();
@@ -126,7 +126,7 @@ function removeRobotSideBalls(scene: THREE.Object3D, head?: THREE.Object3D): voi
     geometry.setIndex(new THREE.BufferAttribute(filteredIndex, 1));
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
-    geometry.userData.lexgoRobotSideBallsRemoved = true;
+    geometry.userData.lexgoRobotEarsRemoved = true;
   });
 }
 
@@ -165,7 +165,7 @@ export default function RobotModel({
   const [expression, setExpression] = useState<RobotExpression>("default");
 
   useLayoutEffect(() => {
-    removeRobotSideBalls(scene, bones.get("head"));
+    removeRobotEars(scene, bones.get("head"));
   }, [bones, scene]);
 
   useEffect(() => {
