@@ -164,6 +164,11 @@ export default function UrgentAdvocateQueue() {
     try {
       const out = await claimUrgentRequest(r.id);
       setNote({ ok: true, msg: out.secureChatRoomId ? t("claimedWithChat") : t("claimed") });
+      // Taking the work IS the decision to start on it, so the operator lands
+      // in the same detail drawer that "Batafsil" opens rather than being
+      // left on the board to find the row again — the candidates, the
+      // meeting, the chat and the result are all in there.
+      setOpenId(r.id);
       void load();
     } catch (e) {
       logApiError("urgent claim", e);
