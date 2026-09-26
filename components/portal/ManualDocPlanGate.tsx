@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getSubscriptionPlans, requestManualDocumentPlanPurchase, type BackendPlan, type ManualDocBillingPeriod } from "@/lib/services/backend";
+import { getSubscriptionPlans, requestPlanTelegramPurchase, refusedBillingPeriods, type BackendPlan, type ManualDocBillingPeriod } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
@@ -51,6 +51,14 @@ export default function ManualDocPlanGate({
   const t = useTranslations("portal.client.documents");
   const locale = useLocale();
   const plans = useResource<BackendPlan>(() => getSubscriptionPlans(locale), [locale]);
+  const [planId, setPlanId] = useState("");
+  const [period, setPeriod] = useState<ManualDocBillingPeriod>("monthly");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [sent, setSent] = useState(false);
+  // Narrowed by a 422 that named the periods this plan really sells.
+  const [only, setOnly] = useState<ManualDocBillingPeriod[] | null>(null);
+
   // A giftable tariff is bought FOR someone else and activates on the
   // recipient, so it can never clear this gate for the person in front of it —
   // yet "shaxsiy-advokat-gift" is currently the only plan the backend tags
@@ -59,12 +67,7 @@ export default function ManualDocPlanGate({
   // says so and sends the client to the subscriptions page instead.
   const qualifying = plans.data.filter((p) => p.isActive && !p.isGiftable && p.billingType !== "gift" && p.entitlements?.manual_document_fill === true);
   const selected = qualifying.find((p) => p.id === planId);
-  const periods = periodsFor(selected);
-  const [planId, setPlanId] = useState("");
-  const [period, setPeriod] = useState<ManualDocBillingPeriod>("monthly");
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [sent, setSent] = useState(false);
+  const periods = only ?? periodsFor(selected);
 
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
@@ -74,6 +77,7 @@ export default function ManualDocPlanGate({
       setPeriod("monthly");
       setNote(null);
       setSent(false);
+      setOnly(null);
     }
   }
 
@@ -87,10 +91,20 @@ export default function ManualDocPlanGate({
     setBusy(true);
     setNote(null);
     try {
-      await requestManualDocumentPlanPurchase(planId, effPeriod);
+      await requestPlanTelegramPurchase(planId, effPeriod);
       setSent(true);
-    } catch {
-      setNote({ ok: false, msg: t("planRequestError") });
+    } catch (e) {
+      // The plan refused that billing period and named the ones it takes:
+      // narrow the chips to those instead of showing a flat error the client
+      // can do nothing about.
+      const allowed = refusedBillingPeriods(e);
+      if (allowed.length) {
+        setOnly(allowed);
+        setPeriod(allowed[0]);
+        setNote({ ok: false, msg: t("planPeriodRefused") });
+      } else {
+        setNote({ ok: false, msg: t("planRequestError") });
+      }
     } finally {
       setBusy(false);
     }

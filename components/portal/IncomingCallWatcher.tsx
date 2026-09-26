@@ -106,6 +106,13 @@ export default function IncomingCallWatcher() {
       // exists), re-checking /calls/invited still surfaces the ring card
       // instead of the client silently missing their advocate's call.
       if (e.event === "document_request.meeting_created") { void pollInvites(); return; }
+      // Same safety net for Tezkor Advokat, whose meeting invites every
+      // participant at once — the client, the operator and, for a group
+      // second opinion, each assigned advocate. An external advocate has no
+      // Tezkor page of their own to look at, so this ring card IS how the
+      // invite reaches them (LEXGO_URGENT_ADVOKAT_FRONTEND_UPDATE.md,
+      // "Advokat/yurist: Realtime invite notification / Meeting join").
+      if (e.event === "urgent_advokat.meeting_created") { void pollInvites(); return; }
       void onEvent(e);
     });
 

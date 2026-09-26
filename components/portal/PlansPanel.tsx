@@ -13,12 +13,16 @@ import {
   addPaymentMethod,
   isProviderUnsupported,
   planForRole,
+  requestPlanTelegramPurchase,
+  refusedBillingPeriods,
+  BILLING_PERIODS,
   type BackendPlan,
+  type ManualDocBillingPeriod,
 } from "@/lib/services/backend";
 import { loadAutopay, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
 import { useAuth } from "@/lib/auth";
 import { useSellerCabinet } from "./SellerCabinet";
-import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { errDetail, isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { CheckoutIntent } from "./OrderMilestones";
 import { useResource } from "@/lib/useResource";
@@ -89,6 +93,11 @@ function fmtDate(s: string, locale: string) {
 function billingPeriod(term: Term, upfront: boolean): string {
   return term === 6 ? "six_month" : term === 12 ? (upfront ? "prepaid_yearly" : "yearly") : "monthly";
 }
+// The same four strings, narrowed for the Telegram approval request (which is
+// the one caller that has to name the period back to the backend).
+function asBillingPeriod(v: string): ManualDocBillingPeriod {
+  return BILLING_PERIODS.includes(v as ManualDocBillingPeriod) ? (v as ManualDocBillingPeriod) : "monthly";
+}
 // LexGo.AI pricing from the monthly price and the GM discount table.
 function aiPricing(plan: BackendPlan, term: Term, upfront: boolean, sellerPct: number) {
   const monthly = Math.round(plan.monthlyPrice * (1 - sellerPct / 100));
@@ -117,7 +126,6 @@ function aiUsedThisMonth(uid: string): number {
 export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const t = useTranslations("plans");
   const ts = useTranslations("subscription");
-  const tcommon = useTranslations("common");
   const tp = useTranslations("portal.common");
   const locale = useLocale();
   const { session } = useAuth();
@@ -141,6 +149,8 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
+  // Set when a purchase falls through to the Telegram approval flow.
+  const [tgPlan, setTgPlan] = useState<{ plan: BackendPlan; period: ManualDocBillingPeriod } | null>(null);
   const [aiUsed, setAiUsed] = useState(0);
   useEffect(() => { const h = setTimeout(() => setAiUsed(aiUsedThisMonth(session?.id ?? "")), 0); return () => clearTimeout(h); }, [session?.id]);
 
@@ -236,7 +246,17 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         setMsg({ ok: true, text: t("activated", { plan: planName(plan) }) });
       }
     } catch (e) {
-      setMsg({ ok: false, text: isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("purchaseError") });
+      // No provider to pay through — Payme and Click both answer 503
+      // "integratsiyasi sozlanmagan" until they are configured, and ATMOS is
+      // not shipped. LEXGO_FRONTEND_SECOND_OPINION_PLAN_UPDATE.md says what to
+      // do instead: telegram-purchase-request, which now works for every
+      // active plan. The plan is approved in the admin Telegram chat and
+      // activates itself, so this is a real way to buy rather than a dead end.
+      if (isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e)) {
+        setTgPlan({ plan, period: asBillingPeriod(period) });
+        return;
+      }
+      setMsg({ ok: false, text: t("purchaseError") });
     } finally {
       if (!leaving) setBusy(null);
     }
@@ -249,6 +269,21 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
     <div className="subs">
       {msg ? <div className={`plans__toast${msg.ok ? "" : " plans__toast--err"}`}>{msg.text}</div> : null}
       {intent ? <div className="ppanel" style={{ marginBottom: 16 }}><CheckoutIntent intent={intent} onCancel={() => setIntent(null)} /></div> : null}
+
+      <TelegramPlanRequest
+        target={tgPlan}
+        onClose={() => setTgPlan(null)}
+        // LEXGO_FRONTEND_SECOND_OPINION_PLAN_UPDATE.md step 6 — re-read the
+        // account state after the request. Nothing activates until somebody
+        // approves it in Telegram, but the pending Payment row is real and
+        // belongs in the billing list straight away.
+        onSent={() => {
+          void payments.refresh();
+          void res.refresh();
+          if (uid) loadAutopay(uid).then(setAutopay).catch(() => { /* keep what is on screen */ });
+        }}
+      />
+
 
       {/* ── ATMOS monthly auto-pay (clients and sellers alike) ─────────── */}
       {session ? <AutopayCard uid={session.id} state={autopay} onStateChange={setAutopay} /> : null}
@@ -716,5 +751,125 @@ function BindCardForm({
         {busy ? labels.saving : labels.save}
       </button>
     </form>
+  );
+}
+
+// ── Telegram approval purchase ─────────────────────────────────────
+// LEXGO_FRONTEND_SECOND_OPINION_PLAN_UPDATE.md: POST
+// /subscription-plans/{id}/telegram-purchase-request now works for every
+// active plan, and it is what a purchase falls through to when there is no
+// payment provider to redirect to. The response is a `pending` request — a
+// Payment exists and the admin chats have been told — so this is a receipt,
+// not a checkout: there is nothing here to pay.
+function TelegramPlanRequest({
+  target,
+  onClose,
+  onSent,
+}: {
+  target: { plan: BackendPlan; period: ManualDocBillingPeriod } | null;
+  onClose: () => void;
+  onSent: () => void;
+}) {
+  const ttg = useTranslations("plans.telegram");
+  const tdoc = useTranslations("portal.client.documents");
+  const [period, setPeriod] = useState<ManualDocBillingPeriod>("monthly");
+  const [only, setOnly] = useState<ManualDocBillingPeriod[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState("");
+
+  // The plan the caller was on when the provider failed, and the period they
+  // had already chosen there. Reset during render so a second attempt never
+  // opens showing the previous plan's outcome.
+  const key = target ? `${target.plan.id}|${target.period}` : "";
+  const [prevKey, setPrevKey] = useState(key);
+  if (key !== prevKey) {
+    setPrevKey(key);
+    setPeriod(target?.period ?? "monthly");
+    setOnly(null);
+    setSent(false);
+    setErr("");
+  }
+
+  if (!target) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
+  const { plan } = target;
+
+  // Only the periods this plan sells, narrowed further by a 422 that named
+  // them explicitly.
+  const allowed = plan.allowedBillingPeriods?.length
+    ? BILLING_PERIODS.filter((p) => plan.allowedBillingPeriods.includes(p))
+    : BILLING_PERIODS;
+  const periods = only ?? (allowed.length ? allowed : BILLING_PERIODS);
+  const eff = periods.includes(period) ? period : periods[0];
+
+  const priceFor = (p: ManualDocBillingPeriod): number => {
+    if (p === "six_month") return plan.sixMonthPrice || plan.monthlyPrice * 6;
+    if (p === "yearly") return plan.yearlyPrice || plan.monthlyPrice * 12;
+    if (p === "prepaid_yearly") return plan.prepaidYearlyPrice || plan.yearlyPrice || plan.monthlyPrice * 12;
+    return plan.monthlyPrice;
+  };
+
+  async function submit() {
+    if (busy) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await requestPlanTelegramPurchase(plan.id, eff);
+      // status "pending" is the documented success; anything else still means
+      // the request exists, so the receipt is shown either way.
+      setSent(true);
+      onSent();
+      if (r.telegramSent === false || (r.telegramDelivered === 0 && r.telegramFailed > 0)) {
+        setErr(ttg("notDelivered"));
+      }
+    } catch (e) {
+      const refused = refusedBillingPeriods(e);
+      if (refused.length) {
+        setOnly(refused);
+        setPeriod(refused[0]);
+        setErr(ttg("periodRefused"));
+      } else {
+        setErr(errDetail(e) || ttg("error"));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title={ttg("title")}>
+      <div className="cform" style={{ maxWidth: "none" }}>
+        {sent ? (
+          <>
+            <p className="cform__ok"><IconCheck style={{ width: 16, height: 16 }} /> {ttg("sent")}</p>
+            <p className="advmuted">{ttg("sentLead")}</p>
+            {err ? <Notice ok={false} msg={err} /> : null}
+            <button type="button" className="btn btn--line btn--full" onClick={onClose}>{ttg("close")}</button>
+          </>
+        ) : (
+          <>
+            <p className="advmuted" style={{ margin: 0 }}>{ttg("lead", { plan: plan.name })}</p>
+            <div>
+              <label>{ttg("period")}</label>
+              <div className="chiprow" style={{ margin: "4px 0 0" }}>
+                {periods.map((p) => (
+                  <button key={p} type="button" className="fchip" aria-pressed={eff === p} onClick={() => setPeriod(p)}>
+                    {tdoc.has(`period_${p}`) ? tdoc(`period_${p}`) : p}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="tgbuy__sum">
+              <span>{ttg("amount")}</span>
+              <b>{fmtUzs(priceFor(eff))}</b>
+            </div>
+            {err ? <Notice ok={false} msg={err} /> : null}
+            <button type="button" className="btn btn--grad btn--full btn--lg" disabled={busy} onClick={() => void submit()}>
+              {busy ? ttg("sending") : ttg("submit")}
+            </button>
+          </>
+        )}
+      </div>
+    </Modal>
   );
 }

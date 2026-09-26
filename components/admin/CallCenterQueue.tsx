@@ -23,6 +23,8 @@ export default function CallCenterQueue() {
   const t = useTranslations("admin.callCenter.queue");
   const te = useTranslations("enums");
   const tp = useTranslations("admin.pipeline");
+  // Tezkor Advokat rows name their service in the client's own vocabulary.
+  const tk = useTranslations("portal.client.urgent");
   const [state, setState] = useState<State>({ status: "loading", items: [] });
   const [busyId, setBusyId] = useState("");
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -120,10 +122,15 @@ export default function CallCenterQueue() {
             const left = item.slaMinutes - item.ageMinutes;
             const region = item.region ? (te.has(`regions.${item.region}`) ? te(`regions.${item.region}`) : item.region) : "";
             const hot = item.score === "hot" || item.urgency === "urgent";
+            // A Tezkor Advokat request is a third row type with a 15-minute
+            // SLA and its own board. It is NOT a lead: dropping it into the
+            // else-branch below offered the lead-stage mover, which would have
+            // called /call-center/leads/{id}/move on a record that is not one.
+            const urgent = item.type === "urgent_advokat";
             return (
               <div className={`ccq${item.slaBreached ? " ccq--breach" : ""}`} key={`${item.type}-${item.id}`}>
                 <div className="ccq__top">
-                  <span className={`tprio tprio--${item.type === "order" ? "medium" : "low"}`}>{t.has(`type.${item.type}`) ? t(`type.${item.type}`) : item.type}</span>
+                  <span className={`tprio tprio--${urgent ? "high" : item.type === "order" ? "medium" : "low"}`}>{t.has(`type.${item.type}`) ? t(`type.${item.type}`) : item.type}</span>
                   {hot ? <span className="tprio tprio--high">{t("hot")}</span> : null}
                   <b className="ccq__t">{(item.type === "lead" ? leadCategoryLabel(tp, item.title) : item.title) || "—"}</b>
                 </div>
@@ -134,10 +141,22 @@ export default function CallCenterQueue() {
                   </span>
                   {region ? <span>{region}</span> : null}
                   {item.status ? <span>{t.has(`status.${item.status}`) ? t(`status.${item.status}`) : item.status}</span> : null}
-                  {item.recommendedSellerLoad != null ? <span>{t("sellerLoad", { n: item.recommendedSellerLoad })}</span> : null}
+                  {item.recommendedSellerLoad != null && !urgent ? <span>{t("sellerLoad", { n: item.recommendedSellerLoad })}</span> : null}
+                  {urgent && item.serviceKind ? <span>{tk.has(`kinds.${item.serviceKind}`) ? tk(`kinds.${item.serviceKind}`) : item.serviceKind}</span> : null}
+                  {urgent && item.channel ? <span>{item.channel === "chat" ? tk("chChat") : tk("chVideo")}</span> : null}
+                  {urgent && item.directions?.length ? <span>{item.directions.join(", ")}</span> : null}
+                  {urgent && item.requestedLawyerCount ? <span>{t("lawyersN", { n: item.requestedLawyerCount })}</span> : null}
+                  {urgent && item.claimedByUserId ? <span>{t("urgentClaimed")}</span> : null}
                 </div>
                 <div className="ccq__act">
-                  {item.type === "order" ? (
+                  {urgent ? (
+                    // The claim / candidates / meeting / result actions all
+                    // live on the Tezkor Advokat board further down this page.
+                    <a className="btn btn--line btn--sm" href="#cc-urgent">
+                      {t("openUrgentBoard")}
+                      <IconArrowRight />
+                    </a>
+                  ) : item.type === "order" ? (
                     <button type="button" className="btn btn--pri btn--sm" disabled={busyId === item.id} onClick={() => assignNext(item)}>
                       {busyId === item.id ? t("working") : t("assignNext")}
                       <IconArrowRight />

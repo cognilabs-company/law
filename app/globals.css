@@ -6410,3 +6410,206 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .mtg__declined b svg{width:17px;height:17px;color:#E5484D}
 .mtg__declined span{font-size:.8rem;line-height:1.5;color:var(--gray)}
 @media (prefers-reduced-motion:reduce){.mtg__declined{animation:none}}
+
+/* ── wp-ua2: Tezkor Advokat, professional flow ───────────────────────
+   LEXGO_URGENT_ADVOKAT_FRONTEND_UPDATE.md + LEXGO_FRONTEND_SECOND_OPINION_
+   PLAN_UPDATE.md. Three new surfaces:
+     • the call-center request drawer (.uad) with its candidate panel
+       (.ucand), which is the screen an operator actually works in;
+     • the client's own request opened out (.uamore) and the second-opinion
+       gate (.uagate);
+     • the Telegram approval receipt (.tgbuy).
+   Colours are written as var(--dk-token, lightValue) so the dark theme
+   overrides them in one place, as everywhere else in this file. */
+
+/* The realtime indicator on the board header: a dot that is filled while the
+   user socket is up. It replaces a per-minute poll, so saying so is not
+   decoration — it tells the operator whether the board is still live. */
+.uaq__live{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-size:.72rem;font-weight:700;color:var(--gray2)}
+.uaq__live i{width:7px;height:7px;border-radius:50%;background:var(--gray2)}
+.uaq__live.on{color:var(--ok)}
+.uaq__live.on i{background:var(--ok);animation:uaBlink 1.8s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.uaq__live.on i{animation:none}}
+
+/* A Tezkor Advokat request has a 15-minute SLA; a breached one is the first
+   thing the board should give away. */
+.uaq__row--sla{box-shadow:inset 0 0 0 1.5px var(--dk-bd-err, #FECACA)}
+.uaq__st--scheduled{background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
+.uaq__st--in_progress,.uaq__st--meeting_active{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+.uaq__st--completed{background:var(--dk-ok-bg, #E7F8F0);color:var(--ok)}
+.uaq__st--cancelled,.uaq__st--expired{background:var(--dk-surface-2, #F1F4F8);color:var(--gray)}
+
+/* ── The request drawer ──────────────────────────────────────────── */
+.uad{display:flex;flex-direction:column;gap:14px}
+.uad__top{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.uad__chip{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:700;color:var(--gray);
+  background:var(--dk-surface-2, #F1F4F8);border-radius:var(--pill);padding:5px 11px;white-space:nowrap}
+.uad__chip svg{width:13px;height:13px}
+.uad__chip--warn{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+
+/* Two columns: what the request is on the left, who and when on the right.
+   One column as soon as the dialog is narrower than they both need. */
+.uad__cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;align-items:start}
+.uad__main,.uad__side{display:flex;flex-direction:column;gap:12px;min-width:0}
+
+.uad__sec{display:flex;flex-direction:column;gap:8px;padding:13px;border-radius:var(--rl);
+  background:var(--dk-surface-2, #F7FAFE);box-shadow:inset 0 0 0 1.5px var(--line)}
+.uad__sec h4{display:flex;align-items:center;gap:7px;margin:0;font-size:.82rem;font-weight:800;
+  letter-spacing:.02em;text-transform:uppercase;color:var(--gray)}
+.uad__sec h4 svg{width:14px;height:14px;color:var(--dk-acc, var(--b600))}
+.uad__sec--ok{background:var(--dk-ok-bg, #E7F8F0);box-shadow:inset 0 0 0 1.5px var(--dk-bd-ok, #BFE8D4)}
+.uad__sec--ok h4 svg{color:var(--ok)}
+.uad__sec--warn{background:var(--dk-warn-bg, #FEF3C7);box-shadow:inset 0 0 0 1.5px var(--dk-bd-warn, #F3DEA0)}
+.uad__sec--warn h4{color:var(--dk-txt-warn, #92400E)}
+.uad__sec--warn h4 svg{color:var(--dk-txt-warn, #b45309)}
+
+.uad__who{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0;font-size:.86rem}
+.uad__who b{font-size:.96rem;font-weight:700}
+.uad__who a{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--dk-acc, var(--b600))}
+.uad__who svg{width:13px;height:13px}
+.uad__who span{display:inline-flex;align-items:center;gap:5px;font-size:.8rem}
+.uad__need{margin:0;font-size:.88rem;line-height:1.6;overflow-wrap:anywhere;white-space:pre-wrap}
+.uad__note{margin:0;font-size:.8rem;line-height:1.5}
+
+.uad__files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.uad__files li{display:flex;align-items:center;gap:8px;font-size:.84rem;min-width:0}
+.uad__files svg{width:14px;height:14px;flex:none;color:var(--gray2)}
+.uad__files a{color:var(--dk-acc, var(--b600));font-weight:600;overflow-wrap:anywhere}
+.uad__files audio{max-width:100%;height:34px}
+
+.uad__people{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.uad__people li{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;font-size:.86rem}
+.uad__people b{font-weight:700}
+.uad__when{display:inline-flex;align-items:center;gap:6px;margin:0;font-size:.8rem;font-weight:700;color:var(--dk-acc, var(--b600))}
+.uad__when svg{width:13px;height:13px}
+
+.uad__dl{display:flex;flex-direction:column;gap:7px;margin:0}
+.uad__dl>div{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.uad__dl dt{font-size:.78rem;color:var(--gray)}
+.uad__dl dd{margin:0;font-size:.82rem;font-weight:700;text-align:right;overflow-wrap:anywhere}
+
+.uad__sources{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.uad__sources li{display:flex;flex-direction:column;gap:2px;font-size:.82rem}
+.uad__sources b{font-weight:700;overflow-wrap:anywhere}
+.uad__sources span{font-size:.74rem}
+
+/* The status history reads top-down with a hairline running through it, so a
+   long lifecycle stays scannable. */
+.uad__hist{list-style:none;margin:0;padding:0 0 0 14px;display:flex;flex-direction:column;gap:9px;
+  border-left:2px solid var(--line)}
+.uad__hist li{position:relative;display:flex;flex-direction:column;gap:1px;font-size:.8rem}
+.uad__hist li::before{content:"";position:absolute;left:-19px;top:5px;width:7px;height:7px;border-radius:50%;
+  background:var(--b300)}
+.uad__hist li:last-child::before{background:var(--dk-acc, var(--b600))}
+.uad__hist b{font-weight:700}
+.uad__hist span{font-size:.72rem}
+
+.uad__acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.uad__move{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}
+.uad__move input{min-width:170px;flex:1}
+.uad__form{display:flex;flex-direction:column;gap:10px;padding:13px;border-radius:var(--rl);
+  background:var(--dk-surface-2, #F7FAFE);box-shadow:inset 0 0 0 1.5px var(--line)}
+.uad__form label{display:block;margin-bottom:4px;font-size:.8rem;font-weight:700}
+.uad__formacts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+
+/* ── Candidate advocates ─────────────────────────────────────────── */
+.ucand__wrap{gap:10px}
+.ucand__filters{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+.ucand__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto}
+.ucand__list--off{opacity:.9}
+.ucand{position:relative;width:100%;display:flex;align-items:flex-start;gap:11px;padding:11px 12px;text-align:left;
+  border:0;border-radius:var(--rl);background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1.5px var(--line);
+  cursor:pointer;transition:.16s}
+.ucand:hover{box-shadow:inset 0 0 0 1.5px var(--b300)}
+.ucand.on{box-shadow:inset 0 0 0 2px var(--dk-acc, var(--b600));background:var(--b100)}
+/* The backend's own ranking, shown as the number it is: the operator is
+   choosing between candidates, and hiding the score would hide the ordering's
+   reason. */
+.ucand__score{flex:none;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  font-size:.82rem;font-weight:800;background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
+.ucand.on .ucand__score{background:var(--dk-acc, var(--b600));color:#fff}
+.ucand__m{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ucand__m b{font-size:.9rem;font-weight:700;overflow-wrap:anywhere}
+.ucand__meta{font-size:.76rem;color:var(--gray);line-height:1.5;overflow-wrap:anywhere}
+.ucand__spec{font-size:.74rem;color:var(--gray2);line-height:1.5;overflow-wrap:anywhere}
+.ucand__tags{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:4px;padding-right:20px}
+.ucand__tag{display:inline-flex;align-items:center;gap:4px;font-style:normal;font-size:.66rem;font-weight:800;
+  letter-spacing:.02em;border-radius:var(--pill);padding:3px 8px;white-space:nowrap;
+  background:var(--dk-surface-2, #F1F4F8);color:var(--gray)}
+.ucand__tag svg{width:11px;height:11px}
+.ucand__tag--cc{background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
+.ucand__tag--warn{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+.ucand__ck{position:absolute;top:11px;right:11px;width:16px;height:16px;color:var(--dk-acc, var(--b600))}
+.ucand__warn{display:flex;align-items:flex-start;gap:7px;margin:4px 0 0;font-size:.78rem;line-height:1.5;
+  color:var(--dk-txt-warn, #b45309)}
+.ucand__warn svg{width:14px;height:14px;flex:none;margin-top:2px}
+.ucand__count{margin:0;font-size:.8rem;font-weight:700;color:var(--gray)}
+.ucand__count.ok{color:var(--ok)}
+
+/* ── The client's own request, opened out ────────────────────────── */
+.ua__row{flex-wrap:wrap}
+.ua__row--on{box-shadow:inset 0 0 0 1.5px var(--b300)}
+.uamore{flex-basis:100%;display:flex;flex-direction:column;gap:10px;margin-top:4px;padding-top:11px;
+  border-top:1px solid var(--line);animation:uaIn .2s ease both}
+@media (prefers-reduced-motion:reduce){.uamore{animation:none}}
+.uamore__block{display:flex;flex-direction:column;gap:5px;padding:11px;border-radius:var(--rl);
+  background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1.5px var(--line)}
+.uamore__block b{display:inline-flex;align-items:center;gap:7px;font-size:.84rem;font-weight:700}
+.uamore__block b svg{width:14px;height:14px;color:var(--gray2)}
+.uamore__block p{margin:0;font-size:.85rem;line-height:1.6;overflow-wrap:anywhere;white-space:pre-wrap}
+.uamore__block span{font-size:.78rem}
+.uamore__block--ok{background:var(--dk-ok-bg, #E7F8F0);box-shadow:inset 0 0 0 1.5px var(--dk-bd-ok, #BFE8D4)}
+.uamore__block--ok b svg{color:var(--ok)}
+.uamore__block--warn{background:var(--dk-warn-bg, #FEF3C7);box-shadow:inset 0 0 0 1.5px var(--dk-bd-warn, #F3DEA0)}
+.uamore__block--warn b svg{color:var(--dk-txt-warn, #b45309)}
+.uamore__files{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.82rem}
+.uamore__files audio{max-width:100%;height:34px}
+.uamore__hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.uamore__hist li{display:flex;justify-content:space-between;gap:10px;font-size:.8rem}
+.uamore__hist em{font-style:normal;font-size:.74rem;color:var(--gray2);white-space:nowrap}
+.uamore__cancel{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.uamore__cancel input{flex:1;min-width:180px}
+
+/* ── The second-opinion gate ─────────────────────────────────────── */
+/* A refusal the client can act on: the sentence, then the three services that
+   would qualify them, as buttons rather than as prose. */
+.uagate{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.uagate__i{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;
+  background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+.uagate__i svg{width:24px;height:24px}
+.uagate__lead{margin:0;font-size:.94rem;line-height:1.6}
+.uagate__hint{margin:0;font-size:.82rem;line-height:1.5;color:var(--gray)}
+.uagate__cta{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:4px}
+
+/* ── Telegram approval receipt ───────────────────────────────────── */
+.tgbuy__sum{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;
+  border-radius:var(--rl);background:var(--dk-surface-2, #F7FAFE);box-shadow:inset 0 0 0 1.5px var(--line);
+  font-size:.88rem;font-weight:700}
+.tgbuy__sum b{font-size:1.08rem;white-space:nowrap}
+
+@media (max-width:860px){
+  .uad__cols{grid-template-columns:1fr}
+  .uad__move{margin-left:0;width:100%}
+  .ucand__tags{flex-direction:row;flex-wrap:wrap;align-items:center;padding-right:0}
+  .uaq__live{margin-left:0}
+}
+@media (max-width:560px){
+  .ucand{flex-wrap:wrap}
+  .uad__acts .btn{flex:1 1 auto}
+  .uamore__cancel input{min-width:0;flex-basis:100%}
+}
+
+/* The client's own list uses .ua__st--<status>; only claimed/completed had a
+   colour, so everything else rendered as an unstyled grey pill. Same palette
+   as the call-center board, so one status reads the same on both sides. */
+.ua__st--open_pool{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+.ua__st--scheduled{background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
+.ua__st--in_progress,.ua__st--meeting_active{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+.ua__st--cancelled,.ua__st--expired{background:var(--dk-surface-2, #F1F4F8);color:var(--gray)}
+
+/* "Umumiy qidiruv": the operator widens past the request's own practice area
+   and region when nobody in it is free. */
+.ucand__wide{display:flex;flex-direction:column;gap:9px;padding:11px;border-radius:var(--rl);
+  background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1.5px var(--line)}
+.ucand__widerow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ucand__widerow input{flex:1;min-width:170px}

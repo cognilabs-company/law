@@ -1240,7 +1240,8 @@ export async function getClientEntitlements(): Promise<ClientEntitlements> {
 }
 
 export type ManualDocBillingPeriod = "monthly" | "six_month" | "yearly" | "prepaid_yearly";
-export type ManualDocPlanPurchaseRequest = {
+export const BILLING_PERIODS: ManualDocBillingPeriod[] = ["monthly", "six_month", "yearly", "prepaid_yearly"];
+export type PlanPurchaseRequest = {
   id: string;
   status: string;
   paymentId: string;
@@ -1249,17 +1250,27 @@ export type ManualDocPlanPurchaseRequest = {
   amount: number;
   currency: string;
   telegramSent: boolean;
+  // One entry per admin chat the request was pushed to; an entry with ok:false
+  // means the plan request exists but nobody was told about it.
+  telegramDelivered: number;
+  telegramFailed: number;
 };
-export async function requestManualDocumentPlanPurchase(
+// POST /subscription-plans/{id}/telegram-purchase-request — the approval flow:
+// a Payment is created and the request is pushed to the admin Telegram chats,
+// and the plan activates when someone there approves it. There is no redirect
+// and nothing to pay here, only a pending receipt. /purchase stays the real
+// provider-invoice flow.
+export async function requestPlanTelegramPurchase(
   planId: string,
   billingPeriod: ManualDocBillingPeriod,
-): Promise<ManualDocPlanPurchaseRequest> {
+): Promise<PlanPurchaseRequest> {
   const d = asDict(
     await http(`/subscription-plans/${encodeURIComponent(planId)}/telegram-purchase-request`, {
       method: "POST",
       body: JSON.stringify({ billing_period: billingPeriod, currency: "UZS" }),
     }),
   );
+  const results = asArr(d.telegram_results).map((x) => asDict(x));
   return {
     id: asStr(d.id),
     status: asStr(d.status),
@@ -1269,7 +1280,17 @@ export async function requestManualDocumentPlanPurchase(
     amount: asNum(d.amount),
     currency: asStr(d.currency, "UZS"),
     telegramSent: Boolean(d.telegram_sent),
+    telegramDelivered: results.filter((r) => r.ok !== false).length,
+    telegramFailed: results.filter((r) => r.ok === false).length,
   };
+}
+// A period the plan does not sell answers 422 with the ones it does. Returning
+// them lets the caller correct the choice instead of repeating the refusal.
+export function refusedBillingPeriods(e: unknown): ManualDocBillingPeriod[] {
+  if (!(e instanceof ApiError) || e.status !== 422) return [];
+  const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
+  const allowed = asArr(d.allowed_billing_periods).map((x) => asStr(x));
+  return BILLING_PERIODS.filter((p) => allowed.includes(p));
 }
 
 // ── Payments ──────────────────────────────────────────────────────
@@ -3001,7 +3022,7 @@ export async function getMatchingCandidates(params: { serviceId?: string; region
 // SLA-breached first, then hot, then oldest.
 export type QueueItem = {
   id: string;
-  type: "lead" | "order" | string;
+  type: "lead" | "order" | "urgent_advokat" | string;
   title: string;
   status: string;
   score: string;
@@ -3014,6 +3035,16 @@ export type QueueItem = {
   recommendedSellerUserId?: string;
   recommendedSellerLoad?: number;
   createdAt: string;
+  // Only on type "urgent_advokat" (LEXGO_URGENT_ADVOKAT_FRONTEND_UPDATE.md).
+  // Its SLA is 15 minutes rather than the 60 a lead gets, so these rows breach
+  // first and sort to the top on their own.
+  source?: string;
+  serviceKind?: string;
+  channel?: string;
+  directions?: string[];
+  requestedLawyerCount?: number;
+  operatorUserId?: string;
+  claimedByUserId?: string;
 };
 export async function getCallCenterQueue(status?: string): Promise<QueueItem[]> {
   const qs = status ? `?status=${encodeURIComponent(status)}` : "";
@@ -3034,6 +3065,13 @@ export async function getCallCenterQueue(status?: string): Promise<QueueItem[]> 
       recommendedSellerUserId: asStr(d.recommended_seller_user_id) || undefined,
       recommendedSellerLoad: d.recommended_seller_load == null ? undefined : asNum(d.recommended_seller_load),
       createdAt: asStr(d.created_at),
+      source: asStr(d.source) || undefined,
+      serviceKind: asStr(d.service_kind) || undefined,
+      channel: asStr(d.channel) || undefined,
+      directions: Array.isArray(d.directions) ? asArr(d.directions).map((x) => asStr(x)).filter(Boolean) : undefined,
+      requestedLawyerCount: d.requested_lawyer_count == null ? undefined : asNum(d.requested_lawyer_count),
+      operatorUserId: asStr(d.operator_user_id) || undefined,
+      claimedByUserId: asStr(d.claimed_by_user_id) || undefined,
     };
   });
 }
@@ -6323,11 +6361,20 @@ export async function acceptLegalConsent(id: string, version: string): Promise<C
 }
 
 // ── Tezkor Advokat (urgent advocate) ──────────────────────────────
-// LEXGO_URGENT_ADVOCATE_FRONTEND_UPDATE.md. One module holding four services:
-// a video consultation, a chat consultation and the two "second opinion"
-// flows (one advocate, or a scheduled panel of several). All four land in the
-// same call-center pool; the group one additionally needs an operator to pick
-// the advocates and a time.
+// LEXGO_URGENT_ADVOKAT_FRONTEND_UPDATE.md (2026-09-26), the professional
+// flow. One module holding four services: a video consultation, a chat
+// consultation and the two "second opinion" flows (one advocate, or a
+// scheduled panel of several). All four land in the same call-center pool; an
+// operator claims a request, picks the advocates for a panel, opens the
+// 30-minute LiveKit meeting and writes the result.
+//
+// The shapes below were read off production rather than transcribed from the
+// MD, because every endpoint in the module answers with ONE record shape —
+// create, the client's own list, the call-center list, detail, claim,
+// assign-group, status, complete and cancel alike. The people come back as
+// nested user objects (`client`, `assigned_lawyer`, `claimed_by`, `operator`,
+// `group_lawyers`); everything else lives under `payload`, whose keys grow as
+// the record moves through its lifecycle.
 export type UrgentServiceVariant = { channel: "video" | "chat" | string; price: number; pricePerLawyer: number; meetingMinutes: number };
 export type UrgentService = {
   key: string;
@@ -6409,57 +6456,172 @@ export function urgentChannels(s: UrgentService | undefined): string[] {
   return [s.meetingMinutes > 0 ? "video" : "chat"];
 }
 
+// ── The record ────────────────────────────────────────────────────
+export type UrgentPerson = { id: string; name: string; phone: string; role: string; lexgoId: string };
+function normPerson(v: unknown): UrgentPerson | null {
+  const d = asDict(v);
+  const id = asStr(d.id ?? d.user_id);
+  if (!id) return null;
+  return { id, name: asStr(d.name), phone: asStr(d.phone), role: asStr(d.role), lexgoId: asStr(d.lexgo_id) };
+}
+function normPeople(v: unknown): UrgentPerson[] {
+  return asArr(v).map(normPerson).filter((x): x is UrgentPerson => x !== null);
+}
+// payload.status_history — every move the record has made, oldest first.
+export type UrgentStatusChange = { from: string; to: string; byUserId: string; at: string };
+// payload.files / payload.voice_messages. Production has only ever returned
+// empty arrays here, so the item shape is read defensively: a bare URL string,
+// or an object under any of the names the rest of this API uses for one.
+export type UrgentAttachment = { name: string; url: string; size: number; durationSeconds: number };
+function normUrgentAttachment(v: unknown): UrgentAttachment | null {
+  if (typeof v === "string") return v ? { name: v.split("/").pop() || v, url: absUrl(v), size: 0, durationSeconds: 0 } : null;
+  const d = asDict(v);
+  const url = asStr(d.url ?? d.file_url ?? d.download_url ?? d.path);
+  const name = asStr(d.name ?? d.file_name ?? d.filename ?? d.title) || (url ? url.split("/").pop() || url : "");
+  if (!url && !name) return null;
+  return { name, url: url ? absUrl(url) : "", size: asNum(d.size ?? d.file_size), durationSeconds: asNum(d.duration_seconds ?? d.duration) };
+}
+// payload.second_opinion_eligible_sources — the earlier LexGo services that
+// unlocked a second opinion for this client (LEXGO_FRONTEND_SECOND_OPINION_
+// PLAN_UPDATE.md). Staff-facing: "Frontend clientga bu listni ko'rsatishi
+// shart emas. Admin/callcenter detailda ko'rsatish mumkin."
+export type UrgentEligibleSource = { type: string; id: string; status: string; title: string; serviceKind: string; createdAt: string };
 export type UrgentRequest = {
   id: string;
   serviceKind: string;
   serviceTitle: string;
   channel: string;
   status: string;
+  source: string;
   region: string;
   need: string;
   directions: string[];
   lawyerCount: number;
   amount: number;
+  currency: string;
+  meetingMinutes: number;
+  // People, as the record nests them.
+  client: UrgentPerson | null;
+  assignedLawyer: UrgentPerson | null;
+  claimedBy: UrgentPerson | null;
+  operator: UrgentPerson | null;
+  groupLawyers: UrgentPerson[];
+  // Flat ids, for the places that only have an id to compare against (a queue
+  // row, the current session).
   clientUserId: string;
   clientName: string;
   clientPhone: string;
   assignedLawyerUserId: string;
   assignedLawyerName: string;
+  claimedByUserId: string;
+  operatorUserId: string;
   groupLawyerUserIds: string[];
+  // Where it can go from here, straight from lifecycle.next_statuses — the
+  // authority on which status an operator may set. Empty on a final status,
+  // which is exactly what disables the control.
+  nextStatuses: string[];
+  activeStatuses: string[];
+  finalStatuses: string[];
+  statusHistory: UrgentStatusChange[];
+  files: UrgentAttachment[];
+  voiceMessages: UrgentAttachment[];
+  eligibleSources: UrgentEligibleSource[];
   scheduledAt: string;
+  meetingNote: string;
   secureChatRoomId: string;
   callId: string;
   note: string;
+  // Result, once completed.
+  resultSummary: string;
+  resultFiles: UrgentAttachment[];
+  nextAction: string;
+  completedAt: string;
+  // Reason, once cancelled.
+  cancelReason: string;
+  cancelledAt: string;
+  slaBreached: boolean;
   createdAt: string;
+  updatedAt: string;
 };
 function normUrgentRequest(v: unknown): UrgentRequest {
   const d = asDict(v);
-  // The claim response wraps the interesting fields in "payload"; the list
-  // rows carry them flat. Reading both keeps one normalizer for both shapes.
+  // Everything interesting hangs off `payload`; the few fields the record also
+  // repeats at the top level (id, status, service_kind, title, price) are
+  // preferred there. Reading both keeps one normalizer for every endpoint.
   const p = asDict(d.payload);
-  const pick = (k: string) => (d[k] === undefined ? p[k] : d[k]);
+  const pick = (k: string) => (d[k] === undefined || d[k] === null ? p[k] : d[k]);
+  const lc = asDict(d.lifecycle);
+  const client = normPerson(d.client);
+  const assigned = normPerson(d.assigned_lawyer);
+  const claimed = normPerson(d.claimed_by);
+  const operator = normPerson(d.operator);
+  const group = normPeople(d.group_lawyers);
+  const groupIds = asArr(p.group_lawyer_user_ids ?? p.lawyer_user_ids).map((x) => asStr(x)).filter(Boolean);
+  const strs = (x: unknown) => asArr(x).map((y) => asStr(y)).filter(Boolean);
   return {
     id: asStr(pick("id") ?? pick("record_id")),
     serviceKind: asStr(pick("service_kind")),
-    serviceTitle: asStr(pick("service_title") ?? pick("title")),
+    serviceTitle: asStr(pick("title") ?? pick("service_title")),
     channel: asStr(pick("channel")),
     status: asStr(pick("status")),
+    source: asStr(pick("source")),
     region: asStr(pick("region")),
     need: asStr(pick("need") ?? pick("description")),
-    directions: asArr(pick("directions")).map((x) => asStr(x)).filter(Boolean),
-    lawyerCount: asNum(pick("lawyer_count")),
-    amount: uzs({ amount: pick("amount") ?? pick("price") }, "amount"),
-    clientUserId: asStr(pick("client_user_id")),
-    clientName: asStr(pick("client_name")),
-    clientPhone: asStr(pick("client_phone")),
-    assignedLawyerUserId: asStr(pick("assigned_lawyer_user_id")),
-    assignedLawyerName: asStr(pick("assigned_lawyer_name")),
-    groupLawyerUserIds: asArr(pick("lawyer_user_ids") ?? pick("group_lawyer_user_ids")).map((x) => asStr(x)).filter(Boolean),
+    directions: strs(pick("directions")),
+    // The client's asked-for panel size comes back as `requested_lawyer_count`;
+    // `lawyer_count` is only the request BODY's key and the record never
+    // echoes it, so reading that alone left every panel showing "0 advocates".
+    lawyerCount: asNum(pick("requested_lawyer_count") ?? pick("lawyer_count")),
+    amount: uzs({ amount: pick("price") ?? pick("amount") }, "amount"),
+    currency: asStr(pick("currency"), "UZS"),
+    meetingMinutes: asNum(pick("meeting_minutes")),
+    client,
+    assignedLawyer: assigned,
+    claimedBy: claimed,
+    operator,
+    groupLawyers: group,
+    clientUserId: client?.id || asStr(pick("client_user_id")),
+    clientName: client?.name || asStr(pick("client_name")),
+    clientPhone: client?.phone || asStr(pick("client_phone")),
+    assignedLawyerUserId: assigned?.id || asStr(pick("assigned_lawyer_user_id")),
+    assignedLawyerName: assigned?.name || asStr(pick("assigned_lawyer_name")),
+    claimedByUserId: claimed?.id || asStr(pick("claimed_by_user_id")),
+    operatorUserId: operator?.id || asStr(pick("operator_user_id")),
+    groupLawyerUserIds: groupIds.length ? groupIds : group.map((g) => g.id),
+    nextStatuses: strs(lc.next_statuses),
+    activeStatuses: strs(lc.active_statuses),
+    finalStatuses: strs(lc.final_statuses),
+    statusHistory: asArr(p.status_history).map((x) => {
+      const h = asDict(x);
+      return { from: asStr(h.from), to: asStr(h.to), byUserId: asStr(h.changed_by_user_id), at: asStr(h.changed_at) };
+    }),
+    files: asArr(p.files).map(normUrgentAttachment).filter((x): x is UrgentAttachment => x !== null),
+    voiceMessages: asArr(p.voice_messages).map(normUrgentAttachment).filter((x): x is UrgentAttachment => x !== null),
+    eligibleSources: asArr(p.second_opinion_eligible_sources).map((x) => {
+      const s = asDict(x);
+      return {
+        type: asStr(s.type),
+        id: asStr(s.id),
+        status: asStr(s.status),
+        title: asStr(s.title ?? s.service_title ?? s.document_type),
+        serviceKind: asStr(s.service_kind ?? s.document_type),
+        createdAt: asStr(s.created_at),
+      };
+    }),
     scheduledAt: asStr(pick("scheduled_at")),
-    secureChatRoomId: asStr(pick("secure_chat_room_id")),
-    callId: asStr(pick("call_id")),
-    note: asStr(pick("note")),
+    meetingNote: asStr(p.meeting_note ?? p.note),
+    secureChatRoomId: asStr(pick("secure_chat_room_id") ?? pick("room_id")),
+    callId: asStr(p.meeting_call_id ?? pick("call_id")),
+    note: asStr(p.status_note ?? p.note),
+    resultSummary: asStr(p.result_summary ?? p.summary),
+    resultFiles: asArr(p.result_files).map(normUrgentAttachment).filter((x): x is UrgentAttachment => x !== null),
+    nextAction: asStr(p.next_action),
+    completedAt: asStr(p.completed_at),
+    cancelReason: asStr(p.cancel_reason),
+    cancelledAt: asStr(p.cancelled_at),
+    slaBreached: Boolean(pick("sla_breached")),
     createdAt: asStr(pick("created_at")),
+    updatedAt: asStr(pick("updated_at")),
   };
 }
 
@@ -6486,11 +6648,29 @@ export async function createUrgentRequest(input: UrgentRequestInput): Promise<Ur
   if (input.lawyerCount) body.lawyer_count = input.lawyerCount;
   return normUrgentRequest(await http("/urgent-advokat/requests", { method: "POST", body: JSON.stringify(body) }));
 }
-// Both "second opinion" services are only sold to a client who has bought
-// something from LexGo before; the backend answers 402 with this code.
+// Both "second opinion" services are only sold to a client who has already
+// used a real LexGo advocate/lawyer service. The 2026-09-26 backend tightened
+// that test — a paid payment is no longer enough — and renamed the code from
+// `previous_lexgo_purchase_required` to
+// `previous_lexgo_advokat_service_required`. Both spellings are matched: a
+// frontend that only knew the old one showed a generic error for the new
+// refusal, which is the whole thing the client needs explained.
 export function isPriorPurchaseRequired(e: unknown): boolean {
-  return e instanceof ApiError && e.status === 402 && /previous_lexgo_purchase/i.test(e.code || "");
+  if (!(e instanceof ApiError) || e.status !== 402) return false;
+  return /previous_lexgo_(purchase|advokat_service)_required/i.test(e.code || "");
 }
+// The service kinds the refusal itself names as ways to qualify
+// (detail.eligible_service_examples), so the modal's suggestions track the
+// backend instead of a hardcoded list.
+export function priorServiceExamples(e: unknown): string[] {
+  if (!(e instanceof ApiError)) return [];
+  const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
+  return asArr(d.eligible_service_examples).map((x) => asStr(x)).filter(Boolean);
+}
+// The client's own requests. This list already comes back in the full detail
+// shape, which is what the client screen reads its detail view out of: there
+// is no GET /urgent-advokat/requests/{id} (404), and the call-center detail
+// endpoint answers 403 for a client even on their own record.
 export async function listMyUrgentRequests(): Promise<UrgentRequest[]> {
   return listFrom(await http("/urgent-advokat/requests/me"), "items", "data", "requests").map(normUrgentRequest);
 }
@@ -6506,31 +6686,192 @@ export async function listCcUrgentRequests(f?: UrgentFilter): Promise<UrgentRequ
   const url = "/call-center/urgent-advokat/requests" + (q ? "?" + q : "");
   return listFrom(await http(url), "items", "data", "requests").map(normUrgentRequest);
 }
+const ccUrgent = (id: string, tail = "") => "/call-center/urgent-advokat/requests/" + encodeURIComponent(id) + tail;
+// The full record: the client, whoever claimed it, the panel, the files and
+// voice notes the client attached, and its whole status history.
+export async function getCcUrgentRequest(id: string): Promise<UrgentRequest> {
+  return normUrgentRequest(await http(ccUrgent(id)));
+}
 // Claiming opens the private secure chat and notifies the client; the room id
 // comes back in the response so the operator can jump straight into it.
 export async function claimUrgentRequest(id: string): Promise<UrgentRequest> {
-  const url = "/call-center/urgent-advokat/requests/" + encodeURIComponent(id) + "/claim";
-  return normUrgentRequest(await http(url, { method: "POST", body: "{}" }));
+  return normUrgentRequest(await http(ccUrgent(id, "/claim"), { method: "POST", body: "{}" }));
 }
-// second_opinion_group only: at least two advocates plus the agreed time.
-export async function assignUrgentGroup(
+
+// ── Candidate advocates ───────────────────────────────────────────
+// Ranked by the backend (`score`), with the reasons it used. directionMatch
+// false means the advocate does not cover the request's practice area — those
+// belong last, behind a warning, because assigning one is refused unless the
+// operator deliberately overrides it.
+export type UrgentCandidate = {
+  userId: string;
+  name: string;
+  role: string;
+  sellerType: string;
+  isCallcenterMember: boolean;
+  isExternalSeller: boolean;
+  region: string;
+  district: string;
+  specializations: string[];
+  languages: string[];
+  rating: number;
+  reviewsCount: number;
+  totalCases: number;
+  winsCount: number;
+  successRate: number;
+  experienceYears: number;
+  workload: number;
+  directionMatch: boolean;
+  score: number;
+  reasons: string[];
+};
+function normUrgentCandidate(v: unknown): UrgentCandidate {
+  const d = asDict(v);
+  const u = asDict(d.user);
+  const strs = (x: unknown) => asArr(x).map((y) => asStr(y)).filter(Boolean);
+  return {
+    userId: asStr(d.lawyer_user_id ?? u.id),
+    name: asStr(d.name ?? u.name) || asStr(u.phone),
+    role: asStr(d.role ?? u.role),
+    sellerType: asStr(d.seller_type),
+    isCallcenterMember: Boolean(d.is_callcenter_member),
+    isExternalSeller: Boolean(d.is_external_seller),
+    region: asStr(d.region),
+    district: asStr(d.district),
+    specializations: strs(d.specializations),
+    languages: strs(d.languages),
+    rating: asNum(d.rating),
+    reviewsCount: asNum(d.reviews_count),
+    totalCases: asNum(d.total_cases),
+    winsCount: asNum(d.wins_count),
+    successRate: asNum(d.success_rate),
+    // Three experience fields come back; most specific first.
+    experienceYears: asNum(d.lawyer_experience_years) || asNum(d.experience_years) || asNum(d.total_experience_years),
+    workload: asNum(d.workload),
+    directionMatch: d.direction_match !== false,
+    score: asNum(d.score),
+    reasons: strs(d.reasons),
+  };
+}
+// Best fits for one request, already filtered by its own directions.
+export async function listUrgentCandidates(
   id: string,
-  input: { lawyerUserIds: string[]; scheduledAt: string; note?: string },
+  opts?: { includeExternal?: boolean; includeCallcenter?: boolean; limit?: number },
+): Promise<UrgentCandidate[]> {
+  const qs = new URLSearchParams();
+  if (opts?.includeExternal !== undefined) qs.set("include_external", String(opts.includeExternal));
+  if (opts?.includeCallcenter !== undefined) qs.set("include_callcenter", String(opts.includeCallcenter));
+  qs.set("limit", String(opts?.limit ?? 50));
+  return listFrom(await http(ccUrgent(id, "/candidates?" + qs.toString())), "items", "data").map(normUrgentCandidate);
+}
+// The same ranking without a request behind it, for an operator searching by
+// practice area and region directly.
+export async function searchUrgentCandidates(params: { directions?: string[]; region?: string; limit?: number }): Promise<UrgentCandidate[]> {
+  const qs = new URLSearchParams();
+  if (params.directions?.length) qs.set("directions", params.directions.join(","));
+  if (params.region) qs.set("region", params.region);
+  if (params.limit) qs.set("limit", String(params.limit));
+  const q = qs.toString();
+  return listFrom(await http("/call-center/urgent-advokat/candidates" + (q ? "?" + q : "")), "items", "data").map(normUrgentCandidate);
+}
+
+// ── Group assignment ──────────────────────────────────────────────
+// second_opinion_group only. The backend insists the panel is exactly the size
+// the client asked for and that every advocate covers one of the request's
+// directions; either can be waived, but only deliberately — see
+// urgentAssignRefusal, which is what turns a 422 into a specific offer to
+// override rather than a dead end.
+export type UrgentGroupInput = {
+  lawyerUserIds: string[];
+  scheduledAt?: string;
+  note?: string;
+  allowCountOverride?: boolean;
+  allowDirectionMismatch?: boolean;
+};
+export async function assignUrgentGroup(id: string, input: UrgentGroupInput): Promise<UrgentRequest> {
+  const body: Record<string, unknown> = { lawyer_user_ids: input.lawyerUserIds };
+  // Optional: with a time the record becomes `scheduled`, without it
+  // `in_progress` — verified both ways against production.
+  if (input.scheduledAt) body.scheduled_at = input.scheduledAt;
+  if (input.note) body.note = input.note;
+  if (input.allowCountOverride) body.allow_count_override = true;
+  if (input.allowDirectionMismatch) body.allow_direction_mismatch = true;
+  return normUrgentRequest(await http(ccUrgent(id, "/assign-group"), { method: "POST", body: JSON.stringify(body) }));
+}
+// What the backend refused, and which override would clear it. A count below
+// the service minimum is a plain 422 with no code ("Kamida 2 ta advokat
+// tanlang") and no override — that one is a real mistake, so it returns null
+// and the caller shows the message as-is.
+export type UrgentAssignRefusal =
+  | { kind: "count"; requested: number; selected: number; message: string }
+  | { kind: "direction"; userIds: string[]; message: string }
+  | null;
+export function urgentAssignRefusal(e: unknown): UrgentAssignRefusal {
+  if (!(e instanceof ApiError) || e.status !== 422) return null;
+  const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
+  const message = asStr(d.message) || e.detail || "";
+  if (e.code === "lawyer_count_mismatch") {
+    return { kind: "count", requested: asNum(d.requested_lawyer_count), selected: asNum(d.selected_lawyer_count), message };
+  }
+  if (e.code === "lawyer_direction_mismatch") {
+    return { kind: "direction", userIds: asArr(d.items).map((x) => asStr(asDict(x).lawyer_user_id)).filter(Boolean), message };
+  }
+  return null;
+}
+
+// ── Meeting, status, result, cancel ───────────────────────────────
+// 30-minute LiveKit meeting with the client invited (and, for a group, every
+// assigned advocate). Same CallSessionOut the secure-chat calls return, so the
+// existing meeting component takes it unchanged. Creating it also moves the
+// record to `meeting_active` by itself.
+export async function createUrgentMeeting(id: string): Promise<CallSession> {
+  return normCall(await http(ccUrgent(id, "/meeting"), { method: "POST", body: "{}" }));
+}
+// One endpoint for all four services: the summary and any files reach the
+// client as a notification and as a message in the secure chat.
+export async function completeUrgentRequest(
+  id: string,
+  input: { summary: string; files?: unknown[]; nextAction?: string },
 ): Promise<UrgentRequest> {
-  const url = "/call-center/urgent-advokat/requests/" + encodeURIComponent(id) + "/assign-group";
   return normUrgentRequest(
-    await http(url, {
+    await http(ccUrgent(id, "/complete"), {
       method: "POST",
-      body: JSON.stringify({ lawyer_user_ids: input.lawyerUserIds, scheduled_at: input.scheduledAt, note: input.note || "" }),
+      body: JSON.stringify({ summary: input.summary, files: input.files ?? [], next_action: input.nextAction ?? "" }),
     }),
   );
 }
-// 30-minute LiveKit meeting with the client invited (and, for a group, every
-// assigned advocate). Same CallSessionOut the secure-chat calls return, so the
-// existing meeting component takes it unchanged.
-export async function createUrgentMeeting(id: string): Promise<CallSession> {
-  const url = "/call-center/urgent-advokat/requests/" + encodeURIComponent(id) + "/meeting";
-  return normCall(await http(url, { method: "POST", body: "{}" }));
+// Move the record by hand. Only a status in the record's own
+// lifecycle.next_statuses is accepted — anything else answers 409 naming both
+// states — so the UI offers exactly that list and nothing more.
+export async function setUrgentStatus(id: string, status: string, note?: string): Promise<UrgentRequest> {
+  return normUrgentRequest(
+    await http(ccUrgent(id, "/status"), { method: "PATCH", body: JSON.stringify({ status, note: note ?? "" }) }),
+  );
+}
+// Cancelling lives under the call-center prefix but is open to the client who
+// owns the record too — verified against production, where a client bearer
+// token cancels its own request and is refused (403) on anyone else's. That is
+// why the client screen calls this same function.
+export async function cancelUrgentRequest(id: string, reason: string): Promise<UrgentRequest> {
+  return normUrgentRequest(await http(ccUrgent(id, "/cancel"), { method: "POST", body: JSON.stringify({ reason }) }));
+}
+
+// ── Realtime ──────────────────────────────────────────────────────
+// What /ws/users/me delivers for this module. The MD is explicit that these
+// replace polling: "Callcenter queue va request detailni har sekund polling
+// qilish kerak emas. WS event kelganda list/detailni refetch qilish yetarli."
+export function isUrgentEvent(event: string): boolean {
+  return event.startsWith("urgent_advokat.");
+}
+// record_id / status / the whole record, when the event carries it.
+export type UrgentEventInfo = { recordId: string; status: string; request: UrgentRequest | null };
+export function urgentEventInfo(e: Record<string, unknown>): UrgentEventInfo {
+  const req = e.urgent_request;
+  return {
+    recordId: asStr(e.record_id ?? e.id),
+    status: asStr(e.status),
+    request: req && typeof req === "object" ? normUrgentRequest(req) : null,
+  };
 }
 
 // ── helpers ───────────────────────────────────────────────────────
