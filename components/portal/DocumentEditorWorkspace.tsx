@@ -347,11 +347,15 @@ export default function DocumentEditorWorkspace({
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [meetBusy, setMeetBusy] = useState(false);
   const [meetErr, setMeetErr] = useState(false);
+  // Shown once after a meeting finishes, so the tab explains why it is back to
+  // "start a meeting" instead of silently resetting.
+  const [meetEnded, setMeetEnded] = useState(false);
   const [roster, setRoster] = useState<CallParticipant[]>([]);
   async function startMeeting() {
     if (!req?.meetingUrl || meetBusy || meeting) return;
     setMeetBusy(true);
     setMeetErr(false);
+    setMeetEnded(false);
     try {
       // No max_duration_minutes: LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md
       // makes the backend default 15 minutes for a document meeting, and
@@ -383,6 +387,16 @@ export default function DocumentEditorWorkspace({
       const lk = await joinCall(meeting.roomId, meeting.callId);
       setMeeting((m) => (m ? { ...m, lk, open: true, isCaller: false } : m));
     } catch (e) {
+      // 409 "Meeting status: ended" — someone ended it while this tab still
+      // showed it as joinable (the other side hung up, or the backend closed
+      // it on the time limit). Forget it rather than leaving a button that can
+      // only ever 409 again; the tab then offers a new meeting.
+      if (e instanceof ApiError && e.status === 409) {
+        setMeeting(null);
+        setRoster([]);
+        setMeetEnded(true);
+        return;
+      }
       logApiError("document-request meeting join", e);
       setMeetErr(true);
     } finally {
@@ -840,6 +854,7 @@ export default function DocumentEditorWorkspace({
                     )}
                   </section>
                 ) : null}
+                {meetEnded && !meeting ? <Notice ok msg={t("meetingEndedNote")} /> : null}
                 {meetErr ? <Notice ok={false} msg={t("meetingError")} /> : null}
               </div>
             ) : rightTab === "versions" ? (
@@ -953,7 +968,14 @@ export default function DocumentEditorWorkspace({
           title={req?.clientName ? `${t("meetingTitle")} · ${req.clientName}` : t("meetingTitle")}
           lk={meeting.lk}
           float
-          onEnd={() => setMeeting((m) => (m ? { ...m, open: false } : m))}
+          onEnd={() => {
+            // Ending the meeting ends it — the old code only closed the window
+            // and left the record behind, which is what produced the dead
+            // "rejoin" button and its 409.
+            setMeeting(null);
+            setRoster([]);
+            setMeetEnded(true);
+          }}
         />
       ) : null}
     </div>

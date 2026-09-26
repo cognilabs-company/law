@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import { listInvitedCalls, listLawyers, getCall } from "@/lib/services/backend";
+import { listInvitedCalls, listLawyers, getCall, updateCallParticipant } from "@/lib/services/backend";
 import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
 import { playRingtone, primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
 import CallRoom, { isCallRoomMounted, CALLROOM_EVENT } from "@/components/chat/CallRoom";
@@ -218,8 +218,17 @@ export default function IncomingCallWatcher() {
     if (!inc) return;
     stopAllCallTones();
     dismissed.current.add(inc.callId);
-    if (inc.resume) { try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ } }
+    const target = inc;
+    if (target.resume) { try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ } }
     setInc(null);
+    // A resume card is this tab re-offering a call it was already in; saying
+    // "declined" there would tell the room something that did not happen.
+    if (target.resume || !session?.id) return;
+    // Best effort, and deliberately not awaited: the card is already gone, and
+    // a failed PATCH must not turn "I declined" into an error the person who
+    // declined has to read. The advocate's room also hears it over its own
+    // socket, so a lost write degrades to the old ring-out, not to a wrong state.
+    updateCallParticipant(target.roomId, target.callId, session.id, { status: "declined" }).catch(() => {});
   }
 
   return (

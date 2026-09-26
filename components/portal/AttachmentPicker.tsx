@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { VoiceRecorder, canRecordVoice, voiceDuration } from "@/lib/voiceRecorder";
+import { canRecordVoice, voiceDuration } from "@/lib/voiceRecorder";
 import { IconUpload, IconMic, IconTrash, IconFileText } from "@/components/icons";
+import VoicePill from "@/components/VoicePill";
 
 // Files and voice notes attached to a lawyer request, shared by the
 // service-scoped "Advokat bilan tayyorlash" form and the two from-scratch
@@ -31,23 +32,12 @@ export default function AttachmentPicker({
 }) {
   const t = useTranslations("portal.client.newDoc");
   const inputRef = useRef<HTMLInputElement>(null);
-  const recRef = useRef<VoiceRecorder | null>(null);
   // stop() can take up to 2.5s (the Safari fallback), and the list may have
   // changed in the meantime — append to the current value, not the captured one.
   const voicesRef = useRef(voices);
   useEffect(() => {
     voicesRef.current = voices;
   }, [voices]);
-  const [recOn, setRecOn] = useState(false);
-  const [recSec, setRecSec] = useState(0);
-
-  useEffect(() => {
-    if (!recOn) return;
-    const iv = setInterval(() => setRecSec((s) => s + 1), 1000);
-    return () => clearInterval(iv);
-  }, [recOn]);
-  // Leaving with the mic open would keep the browser's recording indicator on.
-  useEffect(() => () => recRef.current?.cancel(), []);
 
   function add(list: FileList | null) {
     const picked = Array.from(list || []);
@@ -61,46 +51,21 @@ export default function AttachmentPicker({
     onFiles([...files, ...picked].slice(0, maxFiles));
   }
 
-  async function toggleVoice() {
-    const rec = recRef.current;
-    if (rec?.active) {
-      setRecOn(false);
-      const note = await rec.stop();
-      recRef.current = null;
-      if (note) onVoices([...voicesRef.current, { blob: note.blob, ms: note.durationMs }]);
-      return;
-    }
-    onError("");
-    const next = new VoiceRecorder();
-    // Stored before the await: the permission prompt is modal, and an unmount
-    // behind it must be able to cancel a recorder that has not started yet.
-    recRef.current = next;
-    try {
-      // Inside the click: iOS only grants the microphone from a gesture.
-      await next.start();
-    } catch {
-      recRef.current = null;
-      onError(t("micDenied"));
-      return;
-    }
-    if (!next.active) return;
-    setRecSec(0);
-    setRecOn(true);
-  }
-
   return (
     <>
-      <div className="docpick__row">
+      {/* wp-vpill: the row is packed to its right edge so the mic stays put
+          while the pill opens leftward past the "Fayl qo'shish" button. */}
+      <div className="docpick__row docpick__row--vp">
         <input ref={inputRef} type="file" hidden multiple onChange={(e) => add(e.target.files)} />
         <button type="button" className="btn btn--line btn--sm" onClick={() => inputRef.current?.click()} disabled={files.length >= maxFiles}>
           <IconUpload />
           {t("addFiles")}
         </button>
         {canRecordVoice() ? (
-          <button type="button" className={`btn btn--sm ${recOn ? "btn--pri" : "btn--line"}`} onClick={() => void toggleVoice()}>
-            <IconMic />
-            {recOn ? t("voiceStop", { time: voiceDuration(recSec * 1000) }) : t("voiceStart")}
-          </button>
+          <VoicePill
+            onRecorded={(note) => onVoices([...voicesRef.current, { blob: note.blob, ms: note.durationMs }])}
+            onError={onError}
+          />
         ) : null}
       </div>
 

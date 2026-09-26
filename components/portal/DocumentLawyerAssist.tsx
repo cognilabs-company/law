@@ -17,7 +17,8 @@ import DocTemplateViewer from "./DocTemplateViewer";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
 import Select from "@/components/Select";
-import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock } from "@/components/icons";
+import CheckBox from "@/components/CheckBox";
+import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock, IconShieldCheck } from "@/components/icons";
 
 const LANGS = ["uz", "ru", "en"] as const;
 type LangCode = (typeof LANGS)[number];
@@ -58,6 +59,19 @@ export default function DocumentLawyerAssist({
   // moment an advocate claims the work, so nothing is re-sent later.
   const [files, setFiles] = useState<File[]>([]);
   const [voices, setVoices] = useState<VoiceNoteItem[]>([]);
+  // Whoever sends this is handing a call-center advocate their phone number
+  // and case facts, and the advocate's first move is to call or open a
+  // meeting — so that has to be agreed to explicitly, before the send, not
+  // buried in the terms accepted at sign-up months earlier.
+  //
+  // Client-side only: the request body this screen posts
+  // (lexgo_frontend_doc_chat_update.md §1 — need / title / language /
+  // answers_json / files / voice_files, and the JSON
+  // POST .../document-lawyer/request) has no consent field, and no md/ doc
+  // describes one, so there is nothing to send it in yet. Recorded as a
+  // backend ask rather than invented here; until it exists the tick is a
+  // gate, not a stored record.
+  const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [result, setResult] = useState<DocumentRequest | null>(null);
@@ -70,7 +84,7 @@ export default function DocumentLawyerAssist({
   const [planGateOpen, setPlanGateOpen] = useState(false);
 
   async function submit() {
-    if (busy || !need.trim()) return;
+    if (busy || !need.trim() || !consent) return;
     setBusy(true);
     setErr("");
     try {
@@ -84,7 +98,13 @@ export default function DocumentLawyerAssist({
           : (b: LawyerRequestBody) => requestServiceDocumentLawyer(lawyerFlow.requestUrl, b);
       const r = await send({
         need: note.trim() ? `${need.trim()}\n\n${t("lawyerNoteLabel")}: ${note.trim()}` : need.trim(),
-        answers: {},
+        // The consent the client just gave is recorded with the request, not
+        // only enforced in the browser. Neither document-lawyer endpoint has a
+        // consent field of its own, but both carry `answers` verbatim
+        // (serialised as answers_json on the multipart path), so the advocate
+        // and any later audit can see it was given and when — instead of the
+        // gate leaving no trace at all.
+        answers: { contact_consent: true, contact_consent_text: t("consentLabel") },
         language: lang,
       });
       setSent(true);
@@ -168,13 +188,17 @@ export default function DocumentLawyerAssist({
             verbatim for the request-with-files form. */}
         <textarea id="lawyer-need" rows={4} value={need} onChange={(e) => setNeed(e.target.value)} placeholder={tn("needPlaceholder")} />
 
-        <label htmlFor="lawyer-note" style={{ marginTop: 10 }}>{t("lawyerNoteLabel")}</label>
+        {/* The marginTop:10 that used to sit inline on each of the labels
+            below is gone: label→control and group→group were then the same
+            10px and nothing grouped. Spacing is in CSS now (wp-cbx), where
+            the two distances can differ. Nothing about the fields changed. */}
+        <label htmlFor="lawyer-note">{t("lawyerNoteLabel")}</label>
         <textarea id="lawyer-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("lawyerNotePlaceholder")} />
 
-        <label style={{ marginTop: 10 }}>{tn("extrasLabel")}</label>
+        <label>{tn("extrasLabel")}</label>
         <AttachmentPicker files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onError={setErr} />
 
-        <label style={{ marginTop: 10 }}>{t("langLabel")}</label>
+        <label>{t("langLabel")}</label>
         <Select
           value={lang}
           onChange={(v) => setLang((LANGS.includes(v as LangCode) ? v : "uz") as LangCode)}
@@ -183,9 +207,21 @@ export default function DocumentLawyerAssist({
         />
       </section>
 
+      {/* Its own card between the fields and the send button: it is a gate on
+          the send, not one more thing to fill in. */}
+      <div className="cbxcard">
+        <b className="cbxcard__t">
+          <IconShieldCheck />
+          {t("consentTitle")}
+        </b>
+        <CheckBox id="lawyer-consent" checked={consent} onChange={setConsent} hint={t("consentHint")}>
+          {t("consentLabel")}
+        </CheckBox>
+      </div>
+
       {err ? <Notice ok={false} msg={err} /> : null}
 
-      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy || !need.trim()}>
+      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy || !need.trim() || !consent}>
         {busy ? t("processingShort") : t("lawyerSubmit")}
       </button>
 

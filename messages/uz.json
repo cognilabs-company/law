@@ -24,7 +24,11 @@
     },
     "otpChannelUnavailable": "Tasdiqlash kodini Telegram orqali yuborib bo'lmadi. Telegram botni ulang yoki birozdan so'ng qayta urinib ko'ring.",
     "newVersion": "Saytning yangi versiyasi chiqdi.",
-    "reload": "Yangilash"
+    "reload": "Yangilash",
+    "codeSlots": {
+      "entered": "{total} xonali koddan {n} ta raqam kiritildi",
+      "complete": "Kod to'liq kiritildi"
+    }
   },
   "a11y": {
     "showPassword": "Parolni ko'rsatish",
@@ -2349,6 +2353,7 @@
         "emptyText": "Mavjud hujjat namunalari shu yerda ko'rinadi."
       },
       "documentRequests": {
+        "meetingEndedNote": "Uchrashuv yakunlandi. Kerak bo’lsa yangisini boshlashingiz mumkin.",
         "resizePanel": "Panel kengligini o’zgartirish",
         "title": "Hujjat so'rovlari",
         "empty": "Hozircha so'rov yo'q",
@@ -3561,6 +3566,9 @@
         "lawyerAuto": "Avtomatik tayinlash",
         "lawyerAutoSub": "Mos advokat yoki yurist avtomatik biriktiriladi",
         "lawyerSubmit": "So'rovni yuborish",
+        "consentTitle": "Advokat bilan aloqa uchun rozilik",
+        "consentLabel": "Advokat shu hujjat bo'yicha men bilan bog'lanishiga, telefon qo'ng'iroqlari va onlayn uchrashuvlar o'tkazishiga hamda hujjat uchun zarur ma'lumotlarni men bilan muhokama qilishiga roziman.",
+        "consentHint": "Rozilik faqat shu so'rov doirasida amal qiladi va hujjat tayyor bo'lgandan keyin tugaydi.",
         "lawyerNotAvailable": "Bu xizmat uchun advokat so'rovi hozircha qabul qilinmayapti.",
         "planGateTitle": "Qo'lda hujjat to'ldirish uchun paket",
         "planGateLead": "Shablonni yuklab olish va qo'lda to'ldirish faqat mos paket tasdiqlangandan keyin ochiladi.",
@@ -3706,6 +3714,7 @@
         "emptyText": "Ishlaringiz shu yerda ko'rinadi."
       },
       "documentRequests": {
+        "meetingEndedNote": "Uchrashuv yakunlandi. Kerak bo’lsa yangisini boshlashingiz mumkin.",
         "resizePanel": "Panel kengligini o’zgartirish",
         "title": "Hujjat so'rovlari",
         "empty": "Hozircha so'rov yo'q",
@@ -7034,6 +7043,9 @@
     }
   },
   "call": {
+    "noAnswerLead": "{name} qo’ng’iroqni rad etdi. Uchrashuvni yakunlab, keyinroq qayta urinib ko’ring yoki chat orqali yozing.",
+    "noAnswerTitle": "Mijoz javob bermadi",
+    "declinedBy": "{name} qo’ng’iroqni rad etdi",
     "fullScreen": "To’liq ekran",
     "collapse": "Yig’ish",
     "guardPeer": "{name} ekranni olishga urindi — suhbat u tomonda bloklandi.",
@@ -7048,6 +7060,8 @@
     "live": "Ulandi",
     "error": "Ulanish muammosi",
     "mic": "Mikrofon",
+    "micMute": "Mikrofonni o'chirish",
+    "micUnmute": "Mikrofonni yoqish",
     "cam": "Kamera",
     "end": "Tugatish",
     "someone": "Kimdir",
@@ -7168,5 +7182,13 @@
     "light": "Yorug'",
     "dark": "Qorong'i",
     "system": "Qurilma bo'yicha"
+  },
+  "voicePill": {
+    "start": "Ovozli xabar yozish",
+    "stop": "Yozishni to'xtatish",
+    "recording": "Ovoz yozilmoqda",
+    "cancel": "Bekor qilish",
+    "slide": "Bekor qilish uchun chapga suring",
+    "denied": "Mikrofonga ruxsat berilmadi."
   }
 }

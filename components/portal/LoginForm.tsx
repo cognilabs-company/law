@@ -11,6 +11,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { formatUzSubscriber, isValidUzPhone, uzSubscriber } from "@/lib/phone";
 import { Notice } from "@/components/admin/AdminBits";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
+import CodeSlots, { type CodeSlotsStatus } from "../CodeSlots";
 import { IconCheck, IconLogo } from "../icons";
 import PasswordInput from "../PasswordInput";
 
@@ -41,7 +42,12 @@ export default function LoginForm() {
   // Where a successful sign-in goes. Set instead of navigating at once so the
   // form can play its exit first; the effect below does the actual replace.
   const [exitTo, setExitTo] = useState<string | null>(null);
+  // The one-time-code field's own "accepted" animation. Separate from exitTo
+  // so the tick is on screen BEFORE the card starts fading out.
+  const [codeOk, setCodeOk] = useState(false);
   const leave = (s: Session) => setExitTo(homeFor(s));
+  // How long the accepted-code animation needs before the exit may start.
+  const CODE_OK_MS = 620;
   useEffect(() => {
     if (!exitTo) return;
     const ms = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : EXIT_MS;
@@ -97,6 +103,11 @@ export default function LoginForm() {
   const [twoFa, setTwoFa] = useState<TwoFactorChallenge | null>(null);
   const [code, setCode] = useState("");
   const [note, setNote] = useState<string | null>(null);
+  // Bumped for every code the server refused (wrong, expired, or one attempt
+  // too many): <CodeSlots> drains the slots and hands back an empty code, so
+  // the step starts over instead of leaving the rejected digits sitting there.
+  // Not for a network failure — the code is still good, only the trip failed.
+  const [badCode, setBadCode] = useState(0);
   const otp = useOtpTimer();
   // The server said an authenticator (TOTP) challenge expired. Its app codes
   // can never succeed again, so the only way on is a new sign-in.
@@ -126,6 +137,7 @@ export default function LoginForm() {
     setSwapped(true);
     setTwoFa(c);
     setCode("");
+    setBadCode(0);
     setErr(null);
     // TOTP has no sent code: no invented timer, no resend.
     if (c.method === "totp" && !c.expiresAt) otp.clear();
@@ -156,6 +168,7 @@ export default function LoginForm() {
         setTwoFa(parked.c);
         setTotpExpired(false);
         setCode("");
+        setBadCode(0);
         setNote(null);
         otp.issue(parked.c.expiresAt);
         otp.cooldown((parked.resendAt - now) / 1000);
@@ -204,14 +217,20 @@ export default function LoginForm() {
     if (otp.blockedIn > 0 || otp.expired || !/^\d{6}$/.test(code)) return;
     setErr(null);
     setNote(null);
+    setBadCode(0);
     setBusy(true);
     try {
       const s = await completeLogin2fa(twoFa.verificationId, code, phone);
-      leave(s);
+      // Show the code being accepted, then leave. Reduced motion skips the
+      // pause — there is no animation to wait for.
+      setCodeOk(true);
+      if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) leave(s);
+      else setTimeout(() => leave(s), CODE_OK_MS);
     } catch (e) {
       if (isRateLimited(e)) {
         // Too many wrong codes → locked; count down the server's wait.
         otp.block(retryAfterSec(e, OTP_RESEND_SEC));
+        setBadCode((n) => n + 1);
         fail(errDetail(e) || tc("rateLimited"));
       } else if (isOtpExpired(e) && twoFa.method === "totp") {
         // The challenge itself is dead (410 / expiry-only wording) and there is
@@ -220,8 +239,12 @@ export default function LoginForm() {
         setTotpExpired(true);
       } else if (isOtpExpired(e)) {
         otp.expire();
+        setBadCode((n) => n + 1);
+      } else if (unreachable(e)) {
+        fail(tc("offline"));
       } else {
-        fail(unreachable(e) ? tc("offline") : tOtp("incorrect"));
+        setBadCode((n) => n + 1);
+        fail(tOtp("incorrect"));
       }
       setBusy(false);
     }
@@ -234,6 +257,7 @@ export default function LoginForm() {
     setResending(true);
     setErr(null);
     setNote(null);
+    setBadCode(0);
     try {
       const s = await login(phone.trim(), password);
       if ("twoFactor" in s) {
@@ -306,10 +330,14 @@ export default function LoginForm() {
       setTwoFa(null);
       setTotpExpired(false);
       setCode("");
+      setBadCode(0);
       setErr(null);
       setNote(null);
       otp.clear();
     };
+    // The slot row's own feedback: it drains a refused code away, and washes
+    // over once the sign-in has actually gone through.
+    const codeStatus: CodeSlotsStatus = codeOk ? "success" : badCode > 0 ? "error" : "idle";
     return (
       <div className="plogin">
         <form key="2fa" className={`plogin__c plogin__c--anim plogin__c--swap${leaving}`} onSubmit={submit2fa}>
@@ -333,13 +361,23 @@ export default function LoginForm() {
               <>
                 <div>
                   <label htmlFor="l-2fa">{t("twoFaCode")}</label>
-                  <input
+                  <CodeSlots
                     id="l-2fa"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
                     value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder={t("twoFaCodePh")}
+                    onChange={(v) => {
+                      setCode(v);
+                      // Typing after a refusal takes the row (and the message
+                      // under it) out of the error state; the drain's own
+                      // hand-back of "" must not.
+                      if (v) {
+                        setBadCode(0);
+                        setErr(null);
+                        setNote(null);
+                      }
+                    }}
+                    status={codeStatus}
+                    statusKey={badCode}
+                    disabled={busy || resending}
                     autoFocus
                   />
                 </div>

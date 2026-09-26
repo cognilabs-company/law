@@ -49,7 +49,7 @@ import SearchSelect from "@/components/SearchSelect";
 import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, primeCallAudio } from "@/lib/callSounds";
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
-import { IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock } from "../icons";
+import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock } from "../icons";
 import { regionLabel } from "@/lib/labels";
 
 type Props = {
@@ -175,6 +175,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [hostMuted, setHostMuted] = useState(false); // muted by host → can't self-unmute
   const [roster, setRoster] = useState<CallParticipant[]>([]);
+  // Who has declined this call, so the room can say it instead of ringing on.
+  const [declined, setDeclined] = useState<string[]>([]);
+  const declinedRef = useRef<Set<string>>(new Set());
   const [perms, setPerms] = useState<CallPermissions | null>(null);
   const [panel, setPanel] = useState<"" | "chat" | "people">("");
   const [view, setView] = useState<"grid" | "speaker">("grid");
@@ -644,6 +647,15 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         .then((c) => {
           if (!alive) return;
           if (c.status && ["ended", "cancelled", "expired"].includes(c.status)) { onEndRef.current?.(); return; }
+          // Somebody pressed the red button: the record says so, and the
+          // caller has been staring at a ringing room with no idea.
+          const said = new Set(declinedRef.current);
+          for (const p of c.participants) {
+            if (p.status !== "declined" || !p.userId || p.userId === session?.id || said.has(p.userId)) continue;
+            declinedRef.current.add(p.userId);
+            setDeclined((cur) => (cur.includes(p.userId) ? cur : [...cur, p.userId]));
+            toast(t("declinedBy", { name: p.name || t("someone") }), "leave");
+          }
           setRoster(c.participants);
           setPerms(c.permissions);
           setLimits(callLimitsOf(c));
@@ -665,6 +677,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     });
     const iv = setInterval(load, 15000);
     return () => { alive = false; clearInterval(iv); unsub(); };
+    // t/toast/session are stable for the life of the room; listing them would
+    // tear down and rebuild the poll on every locale-context render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, callId, metaTick]);
   // Deliberately keyed on the two booleans, not on `remaining` itself: a
   // dependency on the number would tear down and rebuild the interval every
@@ -1264,6 +1279,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               ) : null}
             </div>
           )}
+          {declined.length && count <= 1 ? (
+            <div className="mtg__declined" role="status">
+              <b><IconPhone />{t("noAnswerTitle")}</b>
+              <span>{t("noAnswerLead", { name: roster.find((p) => p.userId === declined[0])?.name || t("someone") })}</span>
+            </div>
+          ) : null}
           <MeetingWatermark label={wmLabel} compact={floating} />
           <CaptureShield
             reason={guard.reason}
@@ -1450,7 +1471,17 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       ) : null}
 
       <footer className="mtg__bar">
-        <Ctl on={micOn} off={!micOn} label={t("mic")} onClick={toggleMic} disabled={hostMuted && !micOn} title={hostMuted && !micOn ? t("mutedByHost") : undefined}>{micOn ? <IconMic /> : <IconMicOff />}</Ctl>
+        {/* Mic: both glyphs stay mounted and CSS reveals exactly one, so the
+            glyph that appears replays its pop keyframe (a box re-entering the
+            layout restarts its animation). Still a plain button with
+            a plain button whose NAME carries the state ("Mute microphone" /
+            "Unmute microphone") — not aria-pressed as well, which together
+            announced "Mute microphone, pressed" while the mic was live, i.e.
+            the opposite of what was true. The host's force-mute still
+            disables it and the label/title keep working. */}
+        <Ctl mic on={micOn} off={!micOn} label={t("mic")} aria={micOn ? t("micMute") : t("micUnmute")} onClick={toggleMic} disabled={hostMuted && !micOn} title={hostMuted && !micOn ? t("mutedByHost") : micOn ? t("micMute") : t("micUnmute")}>
+          <span className={`mtg__mic${micOn ? "" : " mtg__mic--off"}`} aria-hidden="true"><IconMic className="mtg__micOn" /><IconMicOff className="mtg__micOff" /></span>
+        </Ctl>
         {/* Camera is always offered — an audio call becomes a video call once it is turned on. */}
         <Ctl on={camOn} off={!camOn} label={camOn ? t("camOff2") : t("camOn")} onClick={toggleCam} disabled={camBusy}><IconVideo /></Ctl>
         {camOn && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
@@ -1474,9 +1505,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   );
 }
 
-function Ctl({ children, label, onClick, on, off, end, accent, rec, disabled, title, badge, desktop, phone }: { children: ReactNode; label: string; onClick: () => void; on?: boolean; off?: boolean; end?: boolean; accent?: boolean; rec?: boolean; disabled?: boolean; title?: string; badge?: number; desktop?: boolean; phone?: boolean }) {
+function Ctl({ children, label, aria, onClick, on, off, end, accent, rec, mic, pressed, disabled, title, badge, desktop, phone }: { children: ReactNode; label: string; aria?: string; onClick: () => void; on?: boolean; off?: boolean; end?: boolean; accent?: boolean; rec?: boolean; mic?: boolean; pressed?: boolean; disabled?: boolean; title?: string; badge?: number; desktop?: boolean; phone?: boolean }) {
   return (
-    <button type="button" className={`mtg__ctl${on ? " on" : ""}${off ? " off" : ""}${end ? " end" : ""}${accent ? " accent" : ""}${rec ? " rec" : ""}${desktop ? " mtg__ctl--desktop" : ""}${phone ? " mtg__ctl--phone" : ""}`} onClick={onClick} disabled={disabled} title={title} aria-label={label}>
+    <button type="button" className={`mtg__ctl${on ? " on" : ""}${off ? " off" : ""}${end ? " end" : ""}${accent ? " accent" : ""}${rec ? " rec" : ""}${mic ? " mtg__ctl--mic" : ""}${desktop ? " mtg__ctl--desktop" : ""}${phone ? " mtg__ctl--phone" : ""}`} onClick={onClick} disabled={disabled} title={title} aria-label={aria || label} aria-pressed={pressed}>
       <span className="mtg__ci">{children}{badge ? <i className="mtg__cb">{badge > 9 ? "9+" : badge}</i> : null}</span>
       <span className="mtg__cl">{label}</span>
     </button>

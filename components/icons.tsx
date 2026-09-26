@@ -543,6 +543,14 @@ export const IconChartBar = (p: P) => (
   </svg>
 );
 
+// "Stop" — the filled square a recording turns into, sized to read as solid
+// at 17px rather than as an outlined box.
+export const IconSquare = (p: P) => (
+  <svg {...base} fill="currentColor" strokeWidth={1.5} {...p}>
+    <rect x="6.5" y="6.5" width="11" height="11" rx="3" />
+  </svg>
+);
+
 // Name → component registry so data files can reference icons by string.
 const ICON_MAP: Record<string, ComponentType<P>> = {
   IconChatDots,

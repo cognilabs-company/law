@@ -49,6 +49,13 @@ export class VoiceRecorder {
   // stream that arrives afterwards must then be thrown away immediately,
   // or the browser keeps showing "this tab is using your microphone".
   private dead = false;
+  // components/VoicePill.tsx draws a live waveform while recording. It must
+  // NOT open a second getUserMedia stream for that: two streams mean two
+  // recording indicators, and some Android builds simply fail the second
+  // acquisition. So the analyser hangs off the one stream this recorder
+  // already holds — created on demand, torn down with it in release().
+  private ac: AudioContext | null = null;
+  private meter: AnalyserNode | null = null;
 
   // Must be called from a user gesture — iOS refuses the microphone
   // otherwise, and the permission prompt is the first thing the user sees.
@@ -79,7 +86,50 @@ export class VoiceRecorder {
     return !!this.rec;
   }
 
+  // How long the current recording has been running. stop() measures the
+  // note's durationMs from the same instant, so a timer fed from here cannot
+  // disagree with the duration that ends up on the attachment.
+  get elapsedMs(): number {
+    return this.rec ? Date.now() - this.startedAt : 0;
+  }
+
+  // The live level of the microphone this recorder is already holding, for a
+  // meter or a waveform. null when there is no stream yet (start() has not
+  // resolved, or it was refused) or the browser has no Web Audio — a caller
+  // then draws a flat line rather than failing.
+  analyser(fftSize = 1024): AnalyserNode | null {
+    if (this.meter) return this.meter;
+    const stream = this.stream;
+    if (!stream) return null;
+    const win = window as unknown as {
+      AudioContext?: typeof AudioContext;
+      webkitAudioContext?: typeof AudioContext;
+    };
+    const Ctx = win.AudioContext || win.webkitAudioContext;
+    if (!Ctx) return null;
+    try {
+      const ac = new Ctx();
+      // Safari hands back a suspended context even inside a gesture.
+      if (ac.state === "suspended") void ac.resume().catch(() => {});
+      const meter = ac.createAnalyser();
+      meter.fftSize = fftSize;
+      meter.smoothingTimeConstant = 0.55;
+      // Deliberately never connected to ac.destination: that would play the
+      // microphone straight back out of the speakers.
+      ac.createMediaStreamSource(stream).connect(meter);
+      this.ac = ac;
+      this.meter = meter;
+      return meter;
+    } catch {
+      return null;
+    }
+  }
+
   private release() {
+    this.meter = null;
+    const ac = this.ac;
+    this.ac = null;
+    void ac?.close().catch(() => {});
     for (const t of this.stream?.getTracks() || []) t.stop();
     this.stream = null;
     this.rec = null;

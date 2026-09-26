@@ -24,7 +24,11 @@
     },
     "otpChannelUnavailable": "Couldn't send the code through Telegram. Link the Telegram bot or try again shortly.",
     "newVersion": "A new version of the site is available.",
-    "reload": "Reload"
+    "reload": "Reload",
+    "codeSlots": {
+      "entered": "{n} of {total} digits entered",
+      "complete": "Code entered in full"
+    }
   },
   "a11y": {
     "showPassword": "Show password",
@@ -2343,6 +2347,7 @@
         "emptyText": "Available document templates will appear here."
       },
       "documentRequests": {
+        "meetingEndedNote": "The meeting has ended. Start a new one if you need to.",
         "resizePanel": "Resize the panel",
         "title": "Document requests",
         "empty": "No requests yet",
@@ -3555,6 +3560,9 @@
         "lawyerAuto": "Auto-assign",
         "lawyerAutoSub": "A suitable lawyer or advocate will be assigned automatically",
         "lawyerSubmit": "Send request",
+        "consentTitle": "Consent to contact by the advocate",
+        "consentLabel": "I agree that the advocate may contact me about this document, hold calls and online meetings, and discuss with me the details needed to prepare it.",
+        "consentHint": "This consent applies to this request only and ends once the document is ready.",
         "lawyerNotAvailable": "Lawyer requests aren't being accepted for this service yet.",
         "planGateTitle": "Plan for manual document filling",
         "planGateLead": "Downloading the template and filling it in yourself open up once a matching plan is approved.",
@@ -3700,6 +3708,7 @@
         "emptyText": "Your cases will appear here."
       },
       "documentRequests": {
+        "meetingEndedNote": "The meeting has ended. Start a new one if you need to.",
         "resizePanel": "Resize the panel",
         "title": "Document requests",
         "empty": "No requests yet",
@@ -7028,6 +7037,9 @@
     }
   },
   "call": {
+    "noAnswerLead": "{name} declined the call. End the meeting and try again later, or write in the chat.",
+    "noAnswerTitle": "The client did not answer",
+    "declinedBy": "{name} declined the call",
     "fullScreen": "Full screen",
     "collapse": "Collapse",
     "guardPeer": "{name} attempted a screen capture — the meeting was blocked on their side.",
@@ -7042,6 +7054,8 @@
     "live": "Connected",
     "error": "Connection problem",
     "mic": "Microphone",
+    "micMute": "Mute microphone",
+    "micUnmute": "Unmute microphone",
     "cam": "Camera",
     "end": "End call",
     "someone": "Someone",
@@ -7162,5 +7176,13 @@
     "light": "Light",
     "dark": "Dark",
     "system": "Device"
+  },
+  "voicePill": {
+    "start": "Record a voice note",
+    "stop": "Stop recording",
+    "recording": "Recording",
+    "cancel": "Cancel",
+    "slide": "Slide left to cancel",
+    "denied": "Microphone access was denied."
   }
 }
