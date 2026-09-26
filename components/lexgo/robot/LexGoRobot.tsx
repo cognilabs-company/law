@@ -23,6 +23,23 @@ type RobotDebugWindow = typeof window & { __lexgoRobotController?: RobotControll
 // step rather than "whatever the mouse happens to be doing".
 const FACE_EXPRESSIONS: RobotExpression[] = ["default", "happy", "curious", "thinking", "surprised", "blink", "error", "success"];
 
+// What the companion may do on its own, in production. Everything here is
+// either procedural (written for this robot) or the one baked clip that reads
+// as friendly; the rest of GESTURE_NAMES is exercise and combat animation the
+// generator happened to include, and IDLE_EXPRESSIONS leaves out "error" and
+// "surprised", which say something is wrong when nothing is.
+const IDLE_EXPRESSIONS: RobotExpression[] = ["default", "happy", "curious", "blink"];
+const IDLE_BEATS: Array<(c: RobotController) => void> = [
+  (c) => c.setExpression("default"),
+  (c) => c.wave(),
+  (c) => c.setExpression("happy"),
+  (c) => c.playGesture("waveGoodbye"),
+  (c) => c.setExpression("curious"),
+  (c) => c.peek(),
+  (c) => c.setExpression(IDLE_EXPRESSIONS[Math.floor(Math.random() * IDLE_EXPRESSIONS.length)]),
+  (c) => c.idle(),
+];
+
 const DEMO_STEPS: Array<(c: RobotController) => void> = [
   (c) => c.idle(),
   (c) => c.peek(),
@@ -95,6 +112,14 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
     return () => window.removeEventListener("pointermove", handleMove);
   }, [ready, reducedMotion]);
 
+  // Ambient idle. This used to walk the FULL list of baked clips and face
+  // expressions in production, which meant the companion on a client's
+  // dashboard would, every thirty seconds, play "slash", "frustrated",
+  // "depressed", "complain", "dive" or "sit" and pull an "error" face — the
+  // clip list is whatever the generator baked, not a curated set, and the
+  // exhaustive walk belongs to the dev harness that inspects them. In
+  // production it now shows only the calm expressions and the one presentable
+  // clip, and otherwise uses the procedural behaviours written for this.
   useEffect(() => {
     if (!ready || reducedMotion) return;
     const iv = setInterval(() => {
@@ -102,11 +127,14 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
       const controller = controllerRef.current;
       if (!controller) return;
       const step = previewStepRef.current;
-      previewStepRef.current = (step + 1) % Math.max(GESTURE_NAMES.length, FACE_EXPRESSIONS.length);
-      const gesture = GESTURE_NAMES[step % GESTURE_NAMES.length];
-      const expression = FACE_EXPRESSIONS[step % FACE_EXPRESSIONS.length];
-      controller.playGesture(gesture);
-      controller.setExpression(expression);
+      if (DEBUG_ROBOT) {
+        previewStepRef.current = (step + 1) % Math.max(GESTURE_NAMES.length, FACE_EXPRESSIONS.length);
+        controller.playGesture(GESTURE_NAMES[step % GESTURE_NAMES.length]);
+        controller.setExpression(FACE_EXPRESSIONS[step % FACE_EXPRESSIONS.length]);
+        return;
+      }
+      previewStepRef.current = (step + 1) % IDLE_BEATS.length;
+      IDLE_BEATS[step % IDLE_BEATS.length](controller);
     }, RANDOM_GESTURE_INTERVAL_MS);
     return () => clearInterval(iv);
   }, [ready, reducedMotion]);
