@@ -106,7 +106,10 @@ export default function CodeSlots({
   const code = onlyDigits(value).slice(0, length);
   const done = code.length >= length;
   // Which slot the caret sits on: none while blurred, disabled or verified.
-  const active = disabled || status === "success" || !focused ? -1 : Math.min(at, length - 1);
+  // Clamped to the code that actually exists, not just to the length: after a
+  // refused code drains the slots, the caret must come back to the first box
+  // rather than stay where the last digit used to be.
+  const active = disabled || status === "success" || !focused ? -1 : Math.min(at, code.length, length - 1);
 
   useEffect(() => {
     changeRef.current = onChange;

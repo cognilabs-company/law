@@ -6220,7 +6220,7 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
    and focus. --cbx-bg is the colour behind the box — the long stroke wears
    it as a box-shadow to notch itself where the two strokes cross, so it has
    to match whatever surface the checkbox is placed on. */
-.cbx{--cbx-h:22px;--cbx-bg:var(--dk-surface, #fff);position:relative;display:block}
+.cbx{--cbx-h:22px;position:relative;display:block}
 /* Visually hidden the .filepick way, NOT display:none: the snippet's
    display:none takes the input out of the tab order, and a consent gate that
    only a mouse can tick is not one. Stays the label's previous sibling. */
@@ -6233,7 +6233,7 @@ label.cbx__row{display:flex;align-items:flex-start;gap:11px;cursor:pointer;margi
 .cbx__box::before,.cbx__box::after{content:"";position:absolute;box-sizing:border-box;display:block;height:0;
   width:calc(var(--cbx-h) * .2);border-radius:calc(var(--cbx-h) * .04);background:var(--ok);transform-origin:left top;transition:opacity .5s ease}
 .cbx__box::before{top:calc(var(--cbx-h) * .72);left:calc(var(--cbx-h) * .41);transform:rotate(-135deg);
-  box-shadow:0 0 0 calc(var(--cbx-h) * .05) var(--cbx-bg)}
+  box-shadow:0 0 0 calc(var(--cbx-h) * .05) var(--cbx-bg, var(--dk-surface, #fff))}
 .cbx__box::after{top:calc(var(--cbx-h) * .37);left:calc(var(--cbx-h) * .05);transform:rotate(-45deg)}
 .cbx__tx{font-size:.88rem;line-height:1.55;color:var(--ink)}
 .cbx__hint{margin:7px 0 0 calc(var(--cbx-h) + 11px);font-size:.78rem;line-height:1.5;color:var(--gray2)}
@@ -6365,7 +6365,7 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .vpill--cancel .vpill__track{box-shadow:inset 0 0 0 1.5px var(--gray2)}
 .vpill__body{position:absolute;inset:0;display:flex;align-items:center;gap:9px;padding:0 calc(var(--vp-h) + 8px) 0 13px;
   opacity:calc(1 - var(--vp-fade, 0));transition:opacity .12s linear}
-.vpill__dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--dk-acc, var(--b600))}
+.vpill__dot{flex:none;width:7px;height:7px;border-radius:50%;background:#E5484D}
 .vpill--on .vpill__dot{animation:vpillDot 1.4s ease-in-out infinite}
 .vpill__time{flex:none;font-size:.79rem;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
 /* The canvas paints in its own computed color, so the bars stay on the
@@ -6383,7 +6383,9 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .vpill__btn:hover:not(:disabled){box-shadow:inset 0 0 0 1.5px var(--b400);color:var(--dk-acc, var(--b600))}
 .vpill__btn:disabled{opacity:.5;cursor:default}
 .vpill__btn:focus-visible{outline:3px solid var(--b400);outline-offset:2px;border-radius:50%}
-.vpill--on .vpill__btn,.vpill--on .vpill__btn:hover:not(:disabled){background:var(--b600);color:#fff;box-shadow:var(--sblue)}
+/* Recording is red here, as it is on the meeting badge — not the accent every
+   other button already uses. */
+.vpill--on .vpill__btn,.vpill--on .vpill__btn:hover:not(:disabled){background:#E5484D;color:#fff;box-shadow:0 6px 18px rgba(229,72,77,.32)}
 .vpill--cancel .vpill__btn,.vpill--cancel .vpill__btn:hover:not(:disabled){background:var(--gray);color:#fff;box-shadow:none}
 /* Mic and stop live on top of each other and cross-fade. */
 .vpill__g{position:absolute;inset:0;display:grid;place-items:center;transition:opacity .18s,transform .24s cubic-bezier(.2,.8,.3,1)}

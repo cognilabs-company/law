@@ -114,6 +114,8 @@ export default function VoicePill({
   className?: string;
 }) {
   const t = useTranslations("voicePill");
+  // The elapsed-time wording the control this replaced already had.
+  const tn = useTranslations("portal.client.newDoc");
   const [on, setOn] = useState(false);
   const [ms, setMs] = useState(0);
   const [drag, setDrag] = useState(0);
@@ -376,8 +378,13 @@ export default function VoicePill({
           <IconSquare />
         </span>
       </button>
+      {/* The clock on the pill is aria-hidden decoration; without this a
+          screen-reader user would have no idea how long they had been
+          recording. The control this replaced carried the time in its own
+          label ("To’xtatish · 0:07"), so that string is reused here.
+          aria-live is polite, and the text only changes once a second. */}
       <span className="vpill__sr" role="status" aria-live="polite">
-        {on ? t("recording") : ""}
+        {on ? tn("voiceStop", { time: clock }) : ""}
       </span>
     </div>
   );
