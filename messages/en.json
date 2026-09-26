@@ -1699,6 +1699,35 @@
     "lastFreeText": "{limit} free questions a month. To continue, pick the LexGo.AI Lite or Pro tariff — the limit resets on the 1st."
   },
   "portal": {
+    "seller": {
+      "urgent": {
+        "title": "My urgent cases",
+        "lead": "Tezkor Advokat requests you are a participant in. The meeting invite arrives as a ring card — the work behind it is here.",
+        "fStatus": "Status",
+        "fKind": "Service",
+        "allStatuses": "All statuses",
+        "allKinds": "All services",
+        "empty": "No cases yet",
+        "emptyText": "When the call centre assigns you to a Tezkor Advokat request, it appears here.",
+        "readOnly": "Read-only",
+        "openChat": "Open the chat",
+        "scheduledFor": "Scheduled for {when}",
+        "client": "Client",
+        "clientHidden": "Client name withheld",
+        "need": "What they need",
+        "noNeed": "The client left no description",
+        "attachments": "Attachments",
+        "seconds": "{n}s",
+        "panel": "Advocate panel",
+        "operator": "Operator",
+        "terms": "Terms",
+        "minutesN": "{n} minutes",
+        "result": "Result",
+        "nextAction": "Next step",
+        "cancelled": "Cancelled",
+        "history": "Status history"
+      }
+    },
     "metaTitle": "Portal",
     "cabinet": {
       "title": "Account status",
@@ -2186,6 +2215,7 @@
     },
     "sidebar": {
       "lawyer": {
+        "urgentAssigned": "Urgent cases",
         "dashboard": "Dashboard",
         "marketplace": "Case Marketplace",
         "cases": "My Cases",
@@ -2234,6 +2264,7 @@
         "packages": "Packages"
       },
       "advocate": {
+        "urgentAssigned": "Urgent cases",
         "dashboard": "Dashboard",
         "opportunities": "Opportunities",
         "cases": "My Cases",
@@ -5133,6 +5164,7 @@
   },
   "admin": {
     "urgent": {
+      "belowMinimum": "Choose at least {min} advocates — {got} selected.",
       "regionPh": "Region (e.g. Toshkent)",
       "searchApply": "Search",
       "searchWideLead": "Choose the practice area and region yourself to look beyond this request.",

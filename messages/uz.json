@@ -1705,6 +1705,35 @@
     "lastFreeText": "Oyiga {limit} ta bepul savol. Davom etish uchun LexGo.AI Lite yoki Pro tarifini tanlang — limit har oyning 1-sanasida yangilanadi."
   },
   "portal": {
+    "seller": {
+      "urgent": {
+        "title": "Mening Tezkor ishlarim",
+        "lead": "Siz ishtirokchi bo‘lgan Tezkor Advokat so‘rovlari. Uchrashuvga taklif qo‘ng‘iroq kartasi bilan keladi — bu yerda ishning mazmuni turadi.",
+        "fStatus": "Status",
+        "fKind": "Xizmat",
+        "allStatuses": "Barcha statuslar",
+        "allKinds": "Barcha xizmatlar",
+        "empty": "Hozircha ish yo‘q",
+        "emptyText": "Callcenter sizni Tezkor Advokat so‘roviga biriktirsa, shu yerda ko‘rinadi.",
+        "readOnly": "Faqat ko‘rish",
+        "openChat": "Chatga o‘tish",
+        "scheduledFor": "Belgilangan vaqt: {when}",
+        "client": "Mijoz",
+        "clientHidden": "Mijoz ismi berilmagan",
+        "need": "So‘rov mazmuni",
+        "noNeed": "Mijoz izoh qoldirmagan",
+        "attachments": "Biriktirilgan fayllar",
+        "seconds": "{n} soniya",
+        "panel": "Advokatlar guruhi",
+        "operator": "Operator",
+        "terms": "Shartlar",
+        "minutesN": "{n} daqiqa",
+        "result": "Natija",
+        "nextAction": "Keyingi qadam",
+        "cancelled": "Bekor qilingan",
+        "history": "Status tarixi"
+      }
+    },
     "metaTitle": "Portal",
     "cabinet": {
       "title": "Hisob holati",
@@ -2192,6 +2221,7 @@
     },
     "sidebar": {
       "lawyer": {
+        "urgentAssigned": "Tezkor ishlar",
         "dashboard": "Boshqaruv paneli",
         "marketplace": "Ishlar bozori",
         "cases": "Mening ishlarim",
@@ -2240,6 +2270,7 @@
         "packages": "Paketlar"
       },
       "advocate": {
+        "urgentAssigned": "Tezkor ishlar",
         "dashboard": "Boshqaruv paneli",
         "opportunities": "Imkoniyatlar",
         "cases": "Mening ishlarim",
@@ -5139,6 +5170,7 @@
   },
   "admin": {
     "urgent": {
+      "belowMinimum": "Kamida {min} ta advokat tanlang — hozir {got} ta tanlangan.",
       "regionPh": "Viloyat (masalan: Toshkent)",
       "searchApply": "Qidirish",
       "searchWideLead": "Yo'nalish va viloyatni o'zingiz tanlab, so'rov doirasidan tashqarida ham advokat qidiring.",

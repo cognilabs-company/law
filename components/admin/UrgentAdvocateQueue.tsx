@@ -827,7 +827,12 @@ function CandidatePanel({
       onDone(out, t("groupAssigned", { n: ids.length }));
     } catch (e) {
       const refusal = urgentAssignRefusal(e);
-      if (refusal?.kind === "count") {
+      // A panel below the service minimum is a real validation error, not a
+      // choice: there is no override for it, so none is offered.
+      if (refusal?.kind === "minimum") {
+        setOffer("");
+        setErr(t("belowMinimum", { min: refusal.minimum, got: refusal.selected || ids.length }));
+      } else if (refusal?.kind === "count") {
         setOffer("count");
         setErr(t("countMismatch", { want: refusal.requested || want, got: refusal.selected || ids.length }));
       } else if (refusal?.kind === "direction") {

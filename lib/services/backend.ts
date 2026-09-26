@@ -870,6 +870,11 @@ export async function getSubscriptionPlans(locale = "uz"): Promise<BackendPlan[]
   return applyPlanOverrides(listFrom(data, "plans", "items", "data").map((v) => normPlan(v, locale)), ov);
 }
 
+// GET /subscription-plans/{plan_id_or_slug} — both forms work.
+export async function getSubscriptionPlan(idOrSlug: string, locale = "uz"): Promise<BackendPlan> {
+  return normPlan(await http("/subscription-plans/" + encodeURIComponent(idOrSlug)), locale);
+}
+
 // A route the backend has not shipped yet answers 404 (unknown path), 405
 // (path known, method not) or 501. Callers feature-detect with this and keep
 // the UI usable instead of failing.
@@ -6469,17 +6474,53 @@ function normPeople(v: unknown): UrgentPerson[] {
 }
 // payload.status_history — every move the record has made, oldest first.
 export type UrgentStatusChange = { from: string; to: string; byUserId: string; at: string };
-// payload.files / payload.voice_messages. Production has only ever returned
-// empty arrays here, so the item shape is read defensively: a bare URL string,
-// or an object under any of the names the rest of this API uses for one.
-export type UrgentAttachment = { name: string; url: string; size: number; durationSeconds: number };
+// payload.files / payload.voice_messages. The backend standardised this on
+// 2026-09-26 and now always answers the full shape (id, name, url, size,
+// content_type, uploaded_at, and duration_seconds on a voice note) — verified
+// by round-tripping one of each through POST /urgent-advokat/requests. The
+// older spellings are still read so a record written before that keeps
+// rendering.
+export type UrgentAttachment = {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  contentType: string;
+  uploadedAt: string;
+  durationSeconds: number;
+};
 function normUrgentAttachment(v: unknown): UrgentAttachment | null {
-  if (typeof v === "string") return v ? { name: v.split("/").pop() || v, url: absUrl(v), size: 0, durationSeconds: 0 } : null;
+  if (typeof v === "string") {
+    return v ? { id: "", name: v.split("/").pop() || v, url: absUrl(v), size: 0, contentType: "", uploadedAt: "", durationSeconds: 0 } : null;
+  }
   const d = asDict(v);
   const url = asStr(d.url ?? d.file_url ?? d.download_url ?? d.path);
   const name = asStr(d.name ?? d.file_name ?? d.filename ?? d.title) || (url ? url.split("/").pop() || url : "");
   if (!url && !name) return null;
-  return { name, url: url ? absUrl(url) : "", size: asNum(d.size ?? d.file_size), durationSeconds: asNum(d.duration_seconds ?? d.duration) };
+  return {
+    id: asStr(d.id),
+    name,
+    url: url ? absUrl(url) : "",
+    size: asNum(d.size ?? d.file_size),
+    contentType: asStr(d.content_type ?? d.mime_type),
+    uploadedAt: asStr(d.uploaded_at ?? d.created_at),
+    durationSeconds: asNum(d.duration_seconds ?? d.duration),
+  };
+}
+// What POST /urgent-advokat/requests accepts for each array.
+export type UrgentAttachmentInput = {
+  name: string;
+  url: string;
+  size?: number;
+  contentType?: string;
+  durationSeconds?: number;
+};
+function attachmentBody(a: UrgentAttachmentInput, voice: boolean): Record<string, unknown> {
+  const o: Record<string, unknown> = { name: a.name, url: a.url };
+  if (a.size !== undefined) o.size = a.size;
+  if (a.contentType) o.content_type = a.contentType;
+  if (voice && a.durationSeconds !== undefined) o.duration_seconds = a.durationSeconds;
+  return o;
 }
 // payload.second_opinion_eligible_sources — the earlier LexGo services that
 // unlocked a second opinion for this client (LEXGO_FRONTEND_SECOND_OPINION_
@@ -6540,6 +6581,13 @@ export type UrgentRequest = {
   cancelReason: string;
   cancelledAt: string;
   slaBreached: boolean;
+  // Per-viewer permission the backend computes on the assigned/detail
+  // endpoints: canManage is the staff/operator view (claim, assign, complete),
+  // canView alone is the read-only participant view an assigned external
+  // advocate gets. Absent on the older list endpoints, where they default to
+  // the conservative pair.
+  canManage: boolean;
+  canView: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -6620,6 +6668,10 @@ function normUrgentRequest(v: unknown): UrgentRequest {
     cancelReason: asStr(p.cancel_reason),
     cancelledAt: asStr(p.cancelled_at),
     slaBreached: Boolean(pick("sla_breached")),
+    canManage: d.can_manage === true,
+    // A record that came back at all is one this viewer may see; the flag is
+    // only authoritative where the backend sends it.
+    canView: d.can_view === undefined ? true : d.can_view === true,
     createdAt: asStr(pick("created_at")),
     updatedAt: asStr(pick("updated_at")),
   };
@@ -6632,16 +6684,20 @@ export type UrgentRequestInput = {
   region?: string;
   directions?: string[];
   lawyerCount?: number;
+  files?: UrgentAttachmentInput[];
+  voiceMessages?: UrgentAttachmentInput[];
 };
 export async function createUrgentRequest(input: UrgentRequestInput): Promise<UrgentRequest> {
   const body: Record<string, unknown> = {
     service_kind: input.serviceKind,
     channel: input.channel,
     need: input.need,
-    // The documented payload carries both arrays even when empty; files and
-    // voice notes themselves travel over the secure chat the claim opens.
-    files: [],
-    voice_messages: [],
+    // Both arrays travel even when empty. There is no client-facing upload
+    // route yet (/workspace/files/upload is advocates and lawyers only, 403
+    // for a client), so nothing populates them from this app today — the
+    // shape is wired so it works the moment one ships.
+    files: (input.files ?? []).map((a) => attachmentBody(a, false)),
+    voice_messages: (input.voiceMessages ?? []).map((a) => attachmentBody(a, true)),
   };
   if (input.region) body.region = input.region;
   if (input.directions?.length) body.directions = input.directions;
@@ -6673,6 +6729,27 @@ export function priorServiceExamples(e: unknown): string[] {
 // endpoint answers 403 for a client even on their own record.
 export async function listMyUrgentRequests(): Promise<UrgentRequest[]> {
   return listFrom(await http("/urgent-advokat/requests/me"), "items", "data", "requests").map(normUrgentRequest);
+}
+
+// ── Advocate / lawyer side (backend 273953a, 2026-09-26) ──────────
+// Until this shipped an assigned advocate had no way to read the request they
+// had been invited to — /urgent-advokat/requests/me is the CLIENT's list and
+// answers [] for staff, and the call-center detail is 403 for anyone outside
+// it. These two are what the advocate cabinet's "my Tezkor cases" is built on.
+export type UrgentAssignedFilter = { status?: string; serviceKind?: string };
+export async function listAssignedUrgentRequests(f?: UrgentAssignedFilter): Promise<UrgentRequest[]> {
+  const qs = new URLSearchParams();
+  if (f?.status) qs.set("status", f.status);
+  if (f?.serviceKind) qs.set("service_kind", f.serviceKind);
+  const q = qs.toString();
+  return listFrom(await http("/urgent-advokat/requests/assigned" + (q ? "?" + q : "")), "items", "data", "requests").map(normUrgentRequest);
+}
+// One record, for anyone who is a participant in it — the client who opened
+// it, the operator, and every assigned advocate. An external advocate gets the
+// record with the client's phone withheld, which is why nothing here assumes
+// clientPhone is present.
+export async function getUrgentRequest(id: string): Promise<UrgentRequest> {
+  return normUrgentRequest(await http("/urgent-advokat/requests/" + encodeURIComponent(id)));
 }
 
 // ── Call-center side ──────────────────────────────────────────────
@@ -6798,23 +6875,31 @@ export async function assignUrgentGroup(id: string, input: UrgentGroupInput): Pr
   if (input.allowDirectionMismatch) body.allow_direction_mismatch = true;
   return normUrgentRequest(await http(ccUrgent(id, "/assign-group"), { method: "POST", body: JSON.stringify(body) }));
 }
-// What the backend refused, and which override would clear it. A count below
-// the service minimum is a plain 422 with no code ("Kamida 2 ta advokat
-// tanlang") and no override — that one is a real mistake, so it returns null
-// and the caller shows the message as-is.
+// What the backend refused, and whether an override can clear it.
+//
+// Three different 422s, and only two of them are waivable. A panel smaller
+// than the service allows ("lawyer_count_below_minimum", structured since
+// backend 273953a) is a plain validation error: no override exists and the
+// operator has to pick more advocates. The other two — a panel that is not
+// the size the client asked for, and an advocate who does not cover the
+// request's practice area — are deliberate choices the operator may make.
 export type UrgentAssignRefusal =
-  | { kind: "count"; requested: number; selected: number; message: string }
-  | { kind: "direction"; userIds: string[]; message: string }
+  | { kind: "count"; overridable: true; requested: number; selected: number; message: string }
+  | { kind: "direction"; overridable: true; userIds: string[]; message: string }
+  | { kind: "minimum"; overridable: false; minimum: number; selected: number; message: string }
   | null;
 export function urgentAssignRefusal(e: unknown): UrgentAssignRefusal {
   if (!(e instanceof ApiError) || e.status !== 422) return null;
   const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
   const message = asStr(d.message) || e.detail || "";
+  if (e.code === "lawyer_count_below_minimum") {
+    return { kind: "minimum", overridable: false, minimum: asNum(d.minimum_lawyer_count, 2), selected: asNum(d.selected_lawyer_count), message };
+  }
   if (e.code === "lawyer_count_mismatch") {
-    return { kind: "count", requested: asNum(d.requested_lawyer_count), selected: asNum(d.selected_lawyer_count), message };
+    return { kind: "count", overridable: true, requested: asNum(d.requested_lawyer_count), selected: asNum(d.selected_lawyer_count), message };
   }
   if (e.code === "lawyer_direction_mismatch") {
-    return { kind: "direction", userIds: asArr(d.items).map((x) => asStr(asDict(x).lawyer_user_id)).filter(Boolean), message };
+    return { kind: "direction", overridable: true, userIds: asArr(d.items).map((x) => asStr(asDict(x).lawyer_user_id)).filter(Boolean), message };
   }
   return null;
 }
