@@ -4259,6 +4259,23 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .docpaper__sheet p{margin:0 0 .5em}
 .docpaper__sheet p:last-child{margin-bottom:0}
 .docpaper__sheet ol,.docpaper__sheet ul{margin:0 0 .5em;padding-left:1.4em}
+/* Tables read out of the template's own w:tbl (lib/docxParse.ts). Every
+   border, cell padding, fill and vertical alignment arrives as an inline style
+   from w:tcBorders/w:tcMar/w:shd/w:vAlign, and the column widths as
+   percentages on a <colgroup> from w:tblGrid — so this only sets what has to
+   hold for every one of them: never wider than the sheet (a Word table is
+   sized for an A4 text column, this pane is narrower), and long unbroken cell
+   content wrapping instead of forcing a horizontal scrollbar. */
+.docpaper__sheet table{max-width:100%;margin:0 0 .6em;font-size:inherit;line-height:inherit}
+.docpaper__sheet td{overflow-wrap:anywhere}
+.docpaper__sheet td>p:last-child{margin-bottom:0}
+/* A text box (w:txbxContent, reached through w:pict/w:drawing on a run). In a
+   court filing this is the addressee block — "…туманлараро судига", the
+   parties, the address — floated to one side of the page in Word. Kept as its
+   own block in document order rather than positioned: the pane is narrower
+   than A4, and a block that reads top-to-bottom is right at every width. */
+.docpaper__sheet .doctxbx{margin:0 0 .7em;padding:0}
+.docpaper__sheet .doctxbx>p:last-child{margin-bottom:0}
 .docpaper__sheet--doc{font-family:"Times New Roman","DejaVu Serif",serif}
 .docpaper__b{display:inline;border:0;cursor:pointer;padding:1px 7px;margin:0 1px;border-radius:6px;
   background:#E6F0FF;color:#154CB0;box-shadow:inset 0 0 0 1px rgba(22,104,240,.3);
@@ -4343,10 +4360,14 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
    have no way back: its own in-panel toggle collapsed along with it. */
 .deditor__toggle--show{display:inline-flex;align-items:center;justify-content:center}
 
-.deditor__body{flex:1;min-height:0;display:grid;grid-template-columns:340px 1fr 360px;transition:grid-template-columns .2s}
-.deditor__body--leftClosed{grid-template-columns:0px 1fr 360px}
-.deditor__body--rightClosed{grid-template-columns:340px 1fr 0px}
-.deditor__body--leftClosed.deditor__body--rightClosed{grid-template-columns:0px 1fr 0px}
+.deditor__body{position:relative;flex:1;min-height:0;display:grid;--deditor-lw:340px;--deditor-rw:360px;
+  grid-template-columns:var(--deditor-lw) minmax(0,1fr) var(--deditor-rw);transition:grid-template-columns .2s}
+.deditor__body--leftClosed{--deditor-lw:0px}
+.deditor__body--rightClosed{--deditor-rw:0px}
+/* While the wall is being dragged the track must follow the pointer exactly —
+   a 200ms transition on the way there reads as lag, not smoothness. */
+.deditor__body--sizing{transition:none;cursor:col-resize;user-select:none}
+.deditor__body--sizing iframe{pointer-events:none}
 
 .deditor__left,.deditor__right{position:relative;min-height:0;overflow-y:auto;overflow-x:hidden;padding:16px;display:none;flex-direction:column;gap:14px;background:var(--dk-surface, #fff)}
 .deditor__left{border-right:1px solid var(--line)}
@@ -6042,4 +6063,123 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 @media (prefers-reduced-motion:reduce){
   .docbuild__exit{transition:none}
   .docbuild__exit:active{transform:none}
+}
+
+/* ── wp-chatfit: the chat inside a narrow panel ───────────────────────
+   Measured against the advocate's document workspace, where SecureChat sits
+   in the right column. Four separate defects, all of them only visible once
+   the column is narrow:
+
+   1. The per-message wrapper div stopped .sbub from being the flex child of
+      .schat__body, so align-self never applied and every bubble came out at
+      exactly max-width:78% of the column whatever it held. Fixed in
+      SecureChat.tsx (Fragment); nothing to do here.
+   2. .deditor__chat bleeds to -16px while the panel's padding is 14px
+      (globals.css:5590 overrides the 16px at :4368), so the chat sat 2px
+      outside the panel on each side and .sbub__av — which hangs at the very
+      left — was the part that got clipped.
+   3. A file card's name was `white-space:nowrap` + ellipsis, which turns
+      "Screenshot 2026-09-15 110012.png" into "Screenshot 202…" the moment the
+      column is narrow. A filename is what tells you which file it is.
+   4. <audio> has an intrinsic minimum width (~200px in Chromium) and does not
+      shrink below it, so a voice note forced the bubble wider than the column. */
+.deditor__chat{margin:0 -14px -14px}
+/* The file card wraps its name over two lines rather than cutting it off, and
+   nothing inside it can push the bubble wider than the column. */
+.sattach--file{max-width:100%}
+.sattach__t{min-width:0}
+.sattach__t b{white-space:normal;text-overflow:clip;overflow-wrap:anywhere;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sattach__t small{overflow-wrap:anywhere}
+.sattach__i,.sattach__dl{flex:none}
+/* min-width:0 lets the flex item be narrower than its content's intrinsic
+   size, which is what allows the shrink at all. */
+.schat--compact .sattach--voice audio{max-width:100%;min-width:0}
+.sattach--voice{min-width:0;max-width:100%}
+.sattach--voice audio{min-width:0}
+/* The bubble and everything in it stay inside the column. */
+.sbub__wrap{max-width:100%}
+.sbub__c{max-width:100%;overflow-wrap:anywhere}
+.sbub__blocked,.sbub__meta{max-width:100%}
+/* In a narrow panel the avatar is 38px of the column (30px + the 8px gap)
+   spent on an icon that says nothing the alignment does not. Dropped there,
+   kept at full width. */
+.schat--compact .sbub__av{display:none}
+.schat--compact .sbub{max-width:100%;gap:0}
+.schat--compact .sbub__c{padding:9px 12px;font-size:.88rem}
+.schat--compact .schat__body{padding:12px 12px 14px}
+@media (max-width:420px){
+  .sbub{max-width:92%}
+}
+
+/* ── wp-dresize: the chat panel's draggable wall ──────────────────────
+   The right column was a fixed 360px track, which is what squeezed the
+   conversation. The wall between the editor and the chat is now a real
+   separator: drag it, or use the keyboard on it (arrows move, Shift+arrow
+   moves faster, Home/End snap to the bounds, Enter toggles wide/standard).
+   The grip is there so the affordance is visible rather than something you
+   have to discover by hovering a 1px line. */
+.deditor__sizer{position:absolute;top:0;bottom:0;right:var(--deditor-rw);width:14px;margin-right:-7px;z-index:3;
+  cursor:col-resize;touch-action:none;display:flex;align-items:center;justify-content:center;background:transparent;
+  transition:right .2s,background .15s}
+.deditor__body--sizing .deditor__sizer{transition:background .15s}
+.deditor__sizer::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:1px;margin-left:-.5px;background:var(--line);transition:background .15s,width .15s}
+.deditor__sizer:hover::before,.deditor__sizer:focus-visible::before,.deditor__body--sizing .deditor__sizer::before{background:var(--b400);width:2px}
+.deditor__sizer:focus-visible{outline:none}
+.deditor__sizerGrip{position:relative;width:8px;height:44px;border-radius:var(--pill);background:var(--dk-surface, #fff);
+  box-shadow:0 0 0 1px var(--line),var(--s1);display:flex;align-items:center;justify-content:center;transition:background .15s,box-shadow .15s,width .15s}
+.deditor__sizerGrip::after{content:"";width:2px;height:16px;border-radius:2px;background:var(--gray2);box-shadow:3px 0 0 var(--gray2),-3px 0 0 var(--gray2);opacity:.55;transition:opacity .15s}
+.deditor__sizer:hover .deditor__sizerGrip,.deditor__sizer:focus-visible .deditor__sizerGrip,.deditor__body--sizing .deditor__sizerGrip{background:var(--b600);box-shadow:0 0 0 1px var(--b600),var(--sblue)}
+.deditor__sizer:hover .deditor__sizerGrip::after,.deditor__sizer:focus-visible .deditor__sizerGrip::after,.deditor__body--sizing .deditor__sizerGrip::after{background:#fff;box-shadow:3px 0 0 #fff,-3px 0 0 #fff;opacity:1}
+/* Below the desktop breakpoint the panels are fixed overlays with their own
+   width, so there is no track to drag. */
+@media (max-width:1100px){
+  .deditor__sizer{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .deditor__sizer,.deditor__sizer::before,.deditor__sizerGrip{transition:none}
+}
+
+/* ── wp-chatimg: photos in a secure chat ──────────────────────────────
+   A picture sent into the chat used to render as a file card whose only
+   action was to download it. It shows as itself now, and clicking it opens a
+   full-size viewer over the page rather than saving a file nobody asked for;
+   downloading is still there, as the small button under the thumbnail. */
+.sattach--img{display:flex;flex-direction:column;gap:5px;min-width:0;max-width:100%}
+.sattach__thumb{display:block;position:relative;padding:0;border:0;background:none;cursor:zoom-in;border-radius:12px;overflow:hidden;line-height:0;
+  box-shadow:0 0 0 1px var(--line)}
+.sattach__thumb img{display:block;width:100%;height:auto;max-height:320px;object-fit:cover;border-radius:12px}
+.sattach__zoom{position:absolute;right:8px;bottom:8px;width:26px;height:26px;border-radius:9px;display:grid;place-items:center;
+  background:rgba(3,16,43,.55);color:#fff;opacity:0;transition:opacity .16s}
+.sattach__zoom svg{width:14px;height:14px}
+.sattach__thumb:hover .sattach__zoom,.sattach__thumb:focus-visible .sattach__zoom{opacity:1}
+/* A square while the bytes are still coming, so the list does not jump when
+   the picture lands. */
+.sattach__ph{display:grid;place-items:center;min-height:120px;border-radius:12px;background:var(--dk-surface-2, #F1F5FB);
+  box-shadow:inset 0 0 0 1px var(--line);font-size:.78rem;color:var(--gray);padding:10px;text-align:center}
+.sattach__cap{display:flex;align-items:center;gap:8px;min-width:0}
+.sattach__cap small{flex:1;min-width:0;font-size:.74rem;color:var(--gray);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.sattach__dlbtn{flex:none;width:24px;height:24px;border-radius:8px;border:0;cursor:pointer;display:grid;place-items:center;
+  background:var(--dk-surface-2, #EEF4FD);color:var(--gray);transition:background .15s,color .15s}
+.sattach__dlbtn svg{width:13px;height:13px}
+.sattach__dlbtn:hover:not(:disabled){background:var(--b100);color:var(--dk-acc, var(--b600))}
+.sattach__dlbtn:disabled{opacity:.5;cursor:default}
+.sbub--me .sattach__cap small{color:rgba(255,255,255,.8)}
+.sbub--me .sattach__dlbtn{background:rgba(255,255,255,.18);color:#fff}
+.sbub--me .sattach__dlbtn:hover:not(:disabled){background:rgba(255,255,255,.3)}
+.sbub--me .sattach__ph{background:rgba(255,255,255,.14);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);color:rgba(255,255,255,.85)}
+
+/* The viewer. Portaled to <body>, so the scrolling message list, the 360px
+   panel and the modal above it can none of them clip it. */
+.slight{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:56px 16px 16px;
+  background:rgba(3,10,26,.88);backdrop-filter:blur(6px);animation:fade .18s ease both;cursor:zoom-out}
+.slight__img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:var(--s3);cursor:default;
+  animation:pop .22s cubic-bezier(.2,.8,.3,1) both}
+.slight__bar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;gap:10px;padding:0 14px;color:#fff}
+.slight__name{flex:1;min-width:0;font-size:.86rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.9)}
+.slight__btn{flex:none;width:34px;height:34px;border-radius:11px;border:0;cursor:pointer;display:grid;place-items:center;
+  background:rgba(255,255,255,.14);color:#fff;transition:background .15s}
+.slight__btn:hover{background:rgba(255,255,255,.26)}
+.slight__btn svg{width:16px;height:16px}
+@media (prefers-reduced-motion:reduce){
+  .slight,.slight__img{animation:none}
 }

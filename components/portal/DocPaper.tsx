@@ -2,7 +2,7 @@
 
 import { createElement, useCallback, useEffect, useMemo, useRef, type ElementType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { splitFilledText, type DocSeg, type DocTree } from "@/lib/docTemplate";
+import { splitFilledText, VOID_TAGS, type DocSeg, type DocTree } from "@/lib/docTemplate";
 import { IconCheck, IconDownload, IconExternal, IconHeadset } from "@/components/icons";
 
 // The document itself, filled in as the client types.
@@ -307,14 +307,17 @@ export default function DocPaper({
       const key = seq++;
       if (n.k === "text") return <span key={key}>{n.v}</span>;
       if (n.k === "tok") return tokenNode(key, n.name, n.n);
-      if (n.tag === "br") return <br key={key} />;
       // createElement, not JSX, for a dynamic tag: with @react-three/fiber in
       // the project, its global JSX.IntrinsicElements augmentation (100+
       // three.js elements) widens the union `<Tag>` resolves against and
       // collapses its prop type to `never` — createElement's own ElementType
       // overload isn't affected by that augmentation.
       const Tag = n.tag as ElementType;
-      return createElement(Tag, { key, style: n.style }, n.children.map(render));
+      // A void tag (a <br>, or the <col> that carries a table column's width
+      // from w:tblGrid) must be created with no children argument at all —
+      // React throws for a void element even on an empty children array.
+      if (VOID_TAGS.has(n.tag)) return createElement(Tag, { key, style: n.style, ...n.attrs });
+      return createElement(Tag, { key, style: n.style, ...n.attrs }, n.children.map(render));
     };
     return tree.map(render);
   }, [tree, tokenNode]);

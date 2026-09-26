@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -80,6 +80,31 @@ function badgeState(
   if (req?.request.status === "file_ready") return "ready";
   if (req?.status === "claimed") return touched ? "progress" : "taken";
   return "new";
+}
+
+// The chat column was a hard-coded 360px grid track, which is what squeezed
+// the conversation into the shape in the bug report. It is a dragged, stored
+// width now. The bounds keep the OnlyOffice editor in the middle usable: below
+// ~300px the chat itself breaks down, and past 720px there is not enough left
+// of an A4 page to edit.
+const RIGHT_MIN = 300;
+const RIGHT_MAX = 720;
+const RIGHT_DEF = 360;
+const RIGHT_KEY = "lexgo_deditor_rightw";
+// The largest the panel may be given the window it is in: never more than half
+// the body, so the editor always keeps the larger share.
+function clampRightW(w: number, bodyW: number): number {
+  const max = Math.max(RIGHT_MIN, Math.min(RIGHT_MAX, Math.round((bodyW || 0) * 0.5) || RIGHT_MAX));
+  return Math.round(Math.min(Math.max(Number.isFinite(w) ? w : RIGHT_DEF, RIGHT_MIN), max));
+}
+function storedRightW(): number {
+  if (typeof window === "undefined") return RIGHT_DEF;
+  try {
+    const v = Number(localStorage.getItem(RIGHT_KEY));
+    return clampRightW(v > 0 ? v : RIGHT_DEF, window.innerWidth);
+  } catch {
+    return RIGHT_DEF;
+  }
 }
 
 export default function DocumentEditorWorkspace({
@@ -373,6 +398,56 @@ export default function DocumentEditorWorkspace({
   const [leftOpen, setLeftOpen] = useState(wide);
   const [rightOpen, setRightOpen] = useState(wide);
   const [rightTab, setRightTab] = useState<RightTab>("chat");
+  // Read during the initializer, never in an effect: restoring in an effect is
+  // both a cascading render and a visible jump from 360px to the stored width.
+  const [rightW, setRightW] = useState(storedRightW);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const sizing = useRef(false);
+  const [sizingOn, setSizingOn] = useState(false);
+
+  const applyW = useCallback((w: number) => {
+    const v = clampRightW(w, bodyRef.current?.getBoundingClientRect().width ?? 0);
+    setRightW(v);
+    try { localStorage.setItem(RIGHT_KEY, String(v)); } catch { /* private mode */ }
+  }, []);
+
+  // The window getting narrower must not permanently shrink the panel: the
+  // STORED width is what the user chose, so it is re-clamped against the new
+  // window each time rather than the current (already clamped) value — which
+  // would only ever ratchet down.
+  useEffect(() => {
+    const onResize = () => setRightW(storedRightW());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  function onSizerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    if (e.button !== 0) return;
+    sizing.current = true;
+    setSizingOn(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  function onSizerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!sizing.current) return;
+    const rect = bodyRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    applyW(rect.right - e.clientX);
+  }
+  function onSizerUp() {
+    if (!sizing.current) return;
+    sizing.current = false;
+    setSizingOn(false);
+  }
+  // A resizer nobody can reach from the keyboard is not a resizer.
+  function onSizerKey(e: ReactKeyboardEvent<HTMLDivElement>) {
+    const step = e.shiftKey ? 48 : 16;
+    if (e.key === "ArrowLeft") { applyW(rightW + step); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { applyW(rightW - step); e.preventDefault(); }
+    else if (e.key === "Home") { applyW(RIGHT_MAX); e.preventDefault(); }
+    else if (e.key === "End") { applyW(RIGHT_MIN); e.preventDefault(); }
+    else if (e.key === "Enter" || e.key === " ") { applyW(rightW > RIGHT_DEF ? RIGHT_DEF : RIGHT_MAX); e.preventDefault(); }
+  }
 
   // The participants list only matters while the Meeting tab is on screen;
   // polling it anywhere else would be pure noise against the call API.
@@ -531,7 +606,11 @@ export default function DocumentEditorWorkspace({
         {fileErr ? <Notice ok={false} msg={t("templateError")} /> : null}
       </div>
 
-      <div className={`deditor__body${leftOpen ? "" : " deditor__body--leftClosed"}${rightOpen ? "" : " deditor__body--rightClosed"}`}>
+      <div
+        ref={bodyRef}
+        className={`deditor__body${leftOpen ? "" : " deditor__body--leftClosed"}${rightOpen ? "" : " deditor__body--rightClosed"}${sizingOn ? " deditor__body--sizing" : ""}`}
+        style={{ "--deditor-rw": `${rightW}px` } as CSSProperties}
+      >
         <aside className={`deditor__left${leftOpen ? " on" : ""}`}>
           <button type="button" className="deditor__panelToggle" onClick={() => setLeftOpen((v) => !v)} aria-label={t("togglePanels")}>
             <IconChevronLeft />
@@ -671,6 +750,26 @@ export default function DocumentEditorWorkspace({
           )}
         </main>
 
+        {rightOpen ? (
+          <div
+            className="deditor__sizer"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t("resizePanel")}
+            aria-valuenow={rightW}
+            aria-valuemin={RIGHT_MIN}
+            aria-valuemax={RIGHT_MAX}
+            tabIndex={0}
+            onPointerDown={onSizerDown}
+            onPointerMove={onSizerMove}
+            onPointerUp={onSizerUp}
+            onPointerCancel={onSizerUp}
+            onLostPointerCapture={onSizerUp}
+            onKeyDown={onSizerKey}
+          >
+            <span className="deditor__sizerGrip" aria-hidden />
+          </div>
+        ) : null}
         <aside className={`deditor__right${rightOpen ? " on" : ""}`}>
           <button
             type="button"

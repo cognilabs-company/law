@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -28,6 +28,7 @@ import {
 } from "@/lib/services/backend";
 import { VoiceRecorder, canRecordVoice, voiceDuration } from "@/lib/voiceRecorder";
 import { fetchAndDeliver } from "@/lib/download";
+import ImageLightbox from "./ImageLightbox";
 import CallRoom from "./CallRoom";
 import {
   IconSend,
@@ -46,6 +47,7 @@ import {
   IconTrash,
   IconFileText,
   IconDownload,
+  IconEye,
 } from "../icons";
 import { timeOnly, dateOnly } from "@/lib/date";
 import { localizeApiDetail } from "@/lib/apiMessage";
@@ -97,21 +99,61 @@ function fmtSize(bytes: number): string {
   return `${(bytes / (KB * KB)).toFixed(1)} MB`;
 }
 
-// A file or voice message inside a bubble. The attachment endpoint is
-// participants-only, so nothing here can be a plain <a href> or an <audio
-// src> pointing at the backend — both would arrive without the bearer token
-// and 401. The bytes are fetched once and held as an object URL instead.
+// True for anything the browser can show as a picture. The mime type is what
+// the backend stored (normSecureMsgFile); a file uploaded from a phone camera
+// sometimes arrives with an empty or generic type, so the extension is the
+// fallback rather than the other way round.
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|avif|heic|heif)$/i;
+function isImageAttachment(file: LocalMsg["file"]): boolean {
+  if (!file) return false;
+  const mime = (file.mimeType || "").toLowerCase();
+  if (mime.startsWith("image/")) return true;
+  if (mime && !mime.startsWith("application/octet-stream")) return false;
+  return IMAGE_EXT.test(file.fileName || "");
+}
+
+// A file, photo or voice message inside a bubble. The attachment endpoint is
+// participants-only, so nothing here can be a plain <a href> or an <img src>
+// pointing at the backend — both would arrive without the bearer token and
+// 401. The bytes are fetched once and held as an object URL instead.
 function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: ReturnType<typeof useTranslations> }) {
   const voice = msg.messageType === "voice";
+  const image = !voice && isImageAttachment(msg.file);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
+  const [open, setOpen] = useState(false);
+  // A photo is only worth fetching once it is close to being looked at — a
+  // long history would otherwise pull every image in it on mount.
+  const [want, setWant] = useState(false);
+  const hostRef = useRef<HTMLSpanElement>(null);
   const name = msg.file?.fileName || (voice ? t("voiceNote") : t("fileGeneric"));
 
-  // Voice notes play inline, so they load themselves; a file waits for a
-  // deliberate click rather than pulling every attachment in the history.
+  // Voice notes play inline, so they load themselves; a photo loads when it
+  // scrolls into view; a plain file waits for a deliberate click rather than
+  // pulling every attachment in the history.
   useEffect(() => {
-    if (!voice || !msg.id || msg.pending) return;
+    if (!image || want) return;
+    const el = hostRef.current;
+    if (!el) return;
+    // No observer (old Safari, jsdom): load it straight away, but from a
+    // timer rather than the effect body — a setState there is a cascading
+    // render, and one tick makes no difference to a picture.
+    if (typeof IntersectionObserver === "undefined") {
+      const h = setTimeout(() => setWant(true), 0);
+      return () => clearTimeout(h);
+    }
+    const io = new IntersectionObserver(
+      (entries) => { if (entries.some((e) => e.isIntersecting)) setWant(true); },
+      { rootMargin: "300px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [image, want]);
+
+  const load = voice || (image && want);
+  useEffect(() => {
+    if (!load || !msg.id || msg.pending) return;
     let alive = true;
     let made = "";
     getSecureMessageFile(roomId, msg.id)
@@ -125,7 +167,7 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
       alive = false;
       if (made) URL.revokeObjectURL(made);
     };
-  }, [roomId, msg.id, msg.pending, voice]);
+  }, [roomId, msg.id, msg.pending, load]);
 
   async function download() {
     if (busy || !msg.id) return;
@@ -143,6 +185,42 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
         ) : (
           <span className="sattach__wait">{err ? t("attachFailed") : msg.pending ? t("attachSending") : t("attachLoading")}</span>
         )}
+      </span>
+    );
+
+  // A photo opens in the chat. Downloading it is still possible, but it is the
+  // secondary control — clicking the picture used to save the file, which is
+  // never what someone wants from a photo they were just sent.
+  if (image)
+    return (
+      <span className="sattach sattach--img" ref={hostRef}>
+        {url ? (
+          <button type="button" className="sattach__thumb" onClick={() => setOpen(true)} title={t("imageOpen")}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt={name} />
+            <span className="sattach__zoom" aria-hidden><IconEye /></span>
+          </button>
+        ) : (
+          <span className="sattach__ph">
+            {err ? t("attachFailed") : msg.pending ? t("attachSending") : t("attachLoading")}
+          </span>
+        )}
+        <span className="sattach__cap">
+          <small>{name}</small>
+          <button type="button" className="sattach__dlbtn" onClick={download} disabled={busy || msg.pending} aria-label={t("attachDownload")} title={t("attachDownload")}>
+            {busy ? <IconClock /> : <IconDownload />}
+          </button>
+        </span>
+        {open && url ? (
+          <ImageLightbox
+            url={url}
+            name={name}
+            onClose={() => setOpen(false)}
+            onDownload={() => void download()}
+            closeLabel={t("close")}
+            downloadLabel={t("attachDownload")}
+          />
+        ) : null}
       </span>
     );
 
@@ -850,13 +928,13 @@ export default function SecureChat({
               sep = <div className="schat__day" key={`d-${dk}`}><span>{label}</span></div>;
             }
             return (
-              <div key={`w-${m.id || i}`}>
+              <Fragment key={`w-${m.id || i}`}>
                 {sep}
                 <div className={`sbub sbub--${mine ? "me" : "them"}`}>
                   {!mine ? <span className="sbub__av"><IconUser /></span> : null}
                   <div className="sbub__wrap">
                     <div className={`sbub__c${m.failed ? " sbub__c--failed" : ""}`}>
-                      {m.messageType === "voice" || m.messageType === "file" ? (
+                      {m.messageType === "voice" || m.messageType === "file" || m.file ? (
                         <Attachment roomId={roomId} msg={m} t={t} />
                       ) : null}
                       {m.filteredContent ? <MsgBody text={maskContacts(m.filteredContent)} label={t("joinZoom")} /> : null}
@@ -881,7 +959,7 @@ export default function SecureChat({
                     </div>
                   </div>
                 </div>
-              </div>
+              </Fragment>
             );
           })
         )}

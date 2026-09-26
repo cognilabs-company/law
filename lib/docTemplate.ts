@@ -109,10 +109,19 @@ export function tokenCounts(segs: DocSeg[]): Record<string, number> {
 // `style` on an "el" node is a plain inline React style object, not a class:
 // the values come straight from the DOCX (e.g. an exact point-based indent),
 // nothing here maps them onto a fixed set of classes.
+// `attrs` carries the handful of real HTML attributes a DOCX needs that no
+// inline style can express — `colSpan`/`rowSpan` for a table cell built from
+// w:gridSpan/w:vMerge. React prop spelling (camelCase), because both renderers
+// spread it straight into createElement.
 export type DocTree =
   | { k: "text"; v: string }
   | { k: "tok"; name: string; n: number }
-  | { k: "el"; tag: string; children: DocTree[]; style?: Record<string, string | number> };
+  | { k: "el"; tag: string; children: DocTree[]; style?: Record<string, string | number>; attrs?: Record<string, string | number> };
+
+// Tags that must be rendered with no children at all: React throws outright if
+// a void element is given a `children` prop, and an empty array still counts as
+// one — so both renderers below check this before recursing.
+export const VOID_TAGS = new Set(["br", "col", "hr", "img", "wbr"]);
 
 // Same numbering as parseTemplate, but the "text" being split arrives as
 // however many text runs the source happens to have — one running counter

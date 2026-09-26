@@ -2349,6 +2349,7 @@
         "emptyText": "Mavjud hujjat namunalari shu yerda ko'rinadi."
       },
       "documentRequests": {
+        "resizePanel": "Panel kengligini o’zgartirish",
         "title": "Hujjat so'rovlari",
         "empty": "Hozircha so'rov yo'q",
         "emptyText": "Mijozlar \"Advokat bilan tayyorlash\"ni tanlaganda so'rovlar shu yerda ko'rinadi.",
@@ -3705,6 +3706,7 @@
         "emptyText": "Ishlaringiz shu yerda ko'rinadi."
       },
       "documentRequests": {
+        "resizePanel": "Panel kengligini o’zgartirish",
         "title": "Hujjat so'rovlari",
         "empty": "Hozircha so'rov yo'q",
         "emptyText": "Mijozlar \"Advokat bilan tayyorlash\"ni tanlaganda so'rovlar shu yerda ko'rinadi.",
@@ -6869,6 +6871,9 @@
     }
   },
   "secureChat": {
+    "close": "Yopish",
+    "attachDownload": "Yuklab olish",
+    "imageOpen": "Rasmni ochish",
     "title": "Maxfiy chat",
     "secured": "LexGo himoyasida",
     "close": "Yopish",

@@ -2343,6 +2343,7 @@
         "emptyText": "Available document templates will appear here."
       },
       "documentRequests": {
+        "resizePanel": "Resize the panel",
         "title": "Document requests",
         "empty": "No requests yet",
         "emptyText": "Requests will appear here once a client chooses \"Prepare with a lawyer\".",
@@ -3699,6 +3700,7 @@
         "emptyText": "Your cases will appear here."
       },
       "documentRequests": {
+        "resizePanel": "Resize the panel",
         "title": "Document requests",
         "empty": "No requests yet",
         "emptyText": "Requests will appear here once a client chooses \"Prepare with a lawyer\".",
@@ -6863,6 +6865,9 @@
     }
   },
   "secureChat": {
+    "close": "Close",
+    "attachDownload": "Download",
+    "imageOpen": "Open the image",
     "title": "Private chat",
     "secured": "Secured by LexGo",
     "close": "Close",

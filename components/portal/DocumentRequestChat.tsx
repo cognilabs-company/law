@@ -9,10 +9,10 @@ import {
 } from "@/lib/services/backend";
 import { ApiError, logApiError } from "@/lib/http";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import SecureChat from "@/components/chat/SecureChat";
 import CallRoom from "@/components/chat/CallRoom";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconChat, IconPhone, IconClock } from "@/components/icons";
+import { Link } from "@/i18n/navigation";
+import { IconChat, IconPhone, IconClock, IconArrowRight } from "@/components/icons";
 
 // lexgo_frontend_doc_chat_update.md §3 + §6, and the client half of
 // LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md.
@@ -28,7 +28,6 @@ export default function DocumentRequestChat({ requestId }: { requestId: string }
   const t = useTranslations("portal.client.documents");
   const [chat, setChat] = useState<Chat | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [open, setOpen] = useState(false);
 
   const [call, setCall] = useState<{ roomId: string; callId: string } | null>(null);
   const [callBusy, setCallBusy] = useState(false);
@@ -70,10 +69,6 @@ export default function DocumentRequestChat({ requestId }: { requestId: string }
       const c = await startDocumentRequestAudioCall(requestId);
       setUsage(c.clientCallUsage);
       setCall({ roomId: c.roomId, callId: c.id });
-      // "Meeting sahifasida chat panel ham ko'rinsin" — the call floats over
-      // the chat rather than replacing it, so a file can still be sent while
-      // the advocate is asking for it.
-      setOpen(true);
     } catch (e) {
       // 429 is the documented "you have used all three calls" answer; every
       // other failure is worth retrying, so they read differently.
@@ -101,10 +96,11 @@ export default function DocumentRequestChat({ requestId }: { requestId: string }
     <>
       <div className="docchat">
         <div className="docchat__acts">
-          <button type="button" className="btn btn--line btn--sm" onClick={() => setOpen((v) => !v)}>
+          <Link href={`/portal/chat/${chat.roomId}`} className="btn btn--pri btn--sm">
             <IconChat />
-            {open ? t("chatHide") : t("chatOpen")}
-          </button>
+            {t("chatOpen")}
+            <IconArrowRight />
+          </Link>
           <button type="button" className="btn btn--line btn--sm" onClick={ring} disabled={callBusy || !!call}>
             <IconPhone />
             {callBusy ? t("processingShort") : t("callLawyer")}
@@ -112,11 +108,6 @@ export default function DocumentRequestChat({ requestId }: { requestId: string }
           {usage ? <small className="advmuted">{t("callsLeft", { n: usage.remaining })}</small> : null}
         </div>
         {callErr ? <Notice ok={false} msg={callErr} /> : null}
-        {open ? (
-          <div className="docchat__box">
-            <SecureChat roomId={chat.roomId} onClose={() => setOpen(false)} />
-          </div>
-        ) : null}
       </div>
 
       {/* Outside the panel so closing the chat can never tear down a live

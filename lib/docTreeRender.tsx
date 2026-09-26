@@ -1,5 +1,5 @@
 import { createElement, type ElementType, type ReactNode } from "react";
-import type { DocTree } from "@/lib/docTemplate";
+import { VOID_TAGS, type DocTree } from "@/lib/docTemplate";
 
 // Renders a parsed DOCX (lib/docxParse's docxToTree) as read-only markup —
 // shared by every "show the clean template inline, no download" surface
@@ -18,7 +18,10 @@ export function renderDocTree(tree: DocTree[]): ReactNode {
     // identical comment: @react-three/fiber's global JSX.IntrinsicElements
     // augmentation collapses <Tag> to `never` here too.
     const Tag = n.tag as ElementType;
-    return createElement(Tag, { key, style: n.style }, n.children.map(render));
+    // A void tag (a <col> carrying a table column's width, a <br>) must be
+    // created with no children argument at all — not even an empty array.
+    if (VOID_TAGS.has(n.tag)) return createElement(Tag, { key, style: n.style, ...n.attrs });
+    return createElement(Tag, { key, style: n.style, ...n.attrs }, n.children.map(render));
   };
   return tree.map(render);
 }
