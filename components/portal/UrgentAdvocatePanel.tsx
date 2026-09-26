@@ -101,6 +101,9 @@ export default function UrgentAdvocatePanel() {
   // line — see the gate component below.
   const [gate, setGate] = useState("");
   const [openId, setOpenId] = useState("");
+  // The request this visit created, highlighted in the list below so the
+  // client can see the thing they just made.
+  const [fresh, setFresh] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -159,7 +162,16 @@ export default function UrgentAdvocatePanel() {
     setDirs((cur) => (cur.includes(slug) ? cur.filter((x) => x !== slug) : [...cur, slug]));
   }
 
-  const canSubmit = !!sel && need.trim().length >= 10 && (!isSecond || dirs.length > 0) && !busy;
+  // Why the button is not available yet, in the order the form asks for it.
+  // Without this the control simply sat dead and the page gave no reason.
+  const missing: string = !sel
+    ? t("missPick")
+    : !dirs.length
+      ? t("missDirection")
+      : need.trim().length < 10
+        ? t("missNeed", { n: 10 })
+        : "";
+  const canSubmit = !missing && !busy;
 
   async function submit() {
     if (!sel || !canSubmit) return;
@@ -167,17 +179,21 @@ export default function UrgentAdvocatePanel() {
     setNote(null);
     setGate("");
     try {
-      await createUrgentRequest({
+      const created = await createUrgentRequest({
         serviceKind: sel.key,
         channel,
         need: need.trim(),
-        region: isSecond ? undefined : region,
-        directions: isSecond ? dirs : undefined,
+        region,
+        directions: dirs,
         lawyerCount: isGroup ? lawyers : undefined,
       });
       setNote({ ok: true, msg: t("sent") });
+      // The whole form resets, not just the text: leaving the practice areas
+      // ticked meant the next order silently inherited the last one's.
       setNeed("");
+      setDirs([]);
       setPick("");
+      setFresh(created.id);
       setReload((k) => k + 1);
     } catch (e) {
       if (isPriorPurchaseRequired(e)) { setGate(errDetail(e) || t("priorPurchase")); return; }
@@ -206,6 +222,19 @@ export default function UrgentAdvocatePanel() {
           </dl>
         ) : null}
       </header>
+
+      {note ? (
+        <div className={`uadone${note.ok ? " uadone--ok" : " uadone--err"}`} role="status">
+          <span className="uadone__i" aria-hidden>{note.ok ? <IconCheck /> : <IconAlert />}</span>
+          <div>
+            <b>{note.msg}</b>
+            {note.ok ? <span>{t("sentNext")}</span> : null}
+          </div>
+          <button type="button" className="uadone__x" onClick={() => setNote(null)} aria-label={tcm("close")}>
+            <IconClose />
+          </button>
+        </div>
+      ) : null}
 
       {/* ── The four services ─────────────────────────────────────── */}
       {catState === "loading" ? (
@@ -289,28 +318,33 @@ export default function UrgentAdvocatePanel() {
               </div>
             ) : null}
 
+            {/* Said before the form is filled, not after the backend has
+                refused it — the 402 gate is the fallback, not the warning. */}
             {isSecond ? (
-              <div>
-                <label>{t("directions")}</label>
-                <div className="chiprow" style={{ margin: "4px 0 0" }}>
-                  {DIRECTIONS.map((d) => (
-                    <button key={d.slug} type="button" className="fchip" aria-pressed={dirs.includes(d.slug)} onClick={() => toggleDir(d.slug)}>
-                      {te.has(`areas.${d.area}`) ? te(`areas.${d.area}`) : d.slug}
-                    </button>
-                  ))}
-                </div>
+              <p className="ua__pre"><IconLock />{t("priorPurchaseNote")}</p>
+            ) : null}
+
+            <div>
+              <label>{t("directions")}</label>
+              <div className="chiprow" style={{ margin: "4px 0 0" }}>
+                {DIRECTIONS.map((d) => (
+                  <button key={d.slug} type="button" className="fchip" aria-pressed={dirs.includes(d.slug)} onClick={() => toggleDir(d.slug)}>
+                    {te.has(`areas.${d.area}`) ? te(`areas.${d.area}`) : d.slug}
+                  </button>
+                ))}
               </div>
-            ) : (
-              <div>
-                <label>{t("region")}</label>
-                <Select
-                  value={region}
-                  onChange={setRegion}
-                  ariaLabel={t("region")}
-                  options={REGION_KEYS.map((k) => ({ value: k, label: te.has(`regions.${k}`) ? te(`regions.${k}`) : k }))}
-                />
-              </div>
-            )}
+              <span className="rf__hint">{t("directionsHint")}</span>
+            </div>
+
+            <div>
+              <label>{t("region")}</label>
+              <Select
+                value={region}
+                onChange={setRegion}
+                ariaLabel={t("region")}
+                options={REGION_KEYS.map((k) => ({ value: k, label: te.has(`regions.${k}`) ? te(`regions.${k}`) : k }))}
+              />
+            </div>
 
             <div>
               <label htmlFor="ua-need">{t("need")}</label>
@@ -347,7 +381,7 @@ export default function UrgentAdvocatePanel() {
               {sel.supportsFiles || sel.supportsVoice ? <p className="ua__next ua__next--muted"><IconChat />{t("filesInChat")}</p> : null}
             </div>
 
-            {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+            {missing ? <p className="ua__miss" role="status"><IconAlert />{missing}</p> : null}
 
             <button type="button" className="btn btn--grad btn--full btn--lg" disabled={!canSubmit} onClick={() => void submit()}>
               {busy ? t("sending") : t("submit")}
@@ -373,7 +407,7 @@ export default function UrgentAdvocatePanel() {
               const RowIcon = ICONS[r.serviceKind] ?? IconScale;
               const on = openId === r.id;
               return (
-              <li key={r.id} className={`ua__row${on ? " ua__row--on" : ""}`}>
+              <li key={r.id} className={`ua__row${on ? " ua__row--on" : ""}${fresh === r.id ? " ua__row--fresh" : ""}`}>
                 <span className="ua__rowi"><RowIcon /></span>
                 <div className="ua__rowm">
                   <b>{t.has(`kinds.${r.serviceKind}`) ? t(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind}</b>

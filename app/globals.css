@@ -6754,3 +6754,42 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
    across the whole card rather than a floating line. */
 .sheetres{padding:16px 14px 14px}
 @media (max-width:560px){.sheetres{padding:14px 10px 10px}}
+
+/* ── wp-ua3: the client's Tezkor Advokat form actually answering ─────
+   The request was being sent and the screen said nothing: submit() clears
+   `pick`, which unmounts the form — and the success Notice was inside it. So
+   a 201 looked exactly like a dead button. The outcome now lives above the
+   service grid, where nothing the form does can take it away. */
+.uadone{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:var(--rl);
+  animation:uaIn .28s ease both}
+@media (prefers-reduced-motion:reduce){.uadone{animation:none}}
+.uadone--ok{background:var(--dk-ok-bg, #E7F8F0);box-shadow:inset 0 0 0 1.5px var(--dk-bd-ok, #BFE8D4)}
+.uadone--err{background:var(--dk-warn-bg, #FEF3C7);box-shadow:inset 0 0 0 1.5px var(--dk-bd-warn, #F3DEA0)}
+.uadone__i{flex:none;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  background:var(--dk-surface, #fff)}
+.uadone__i svg{width:18px;height:18px}
+.uadone--ok .uadone__i svg{color:var(--ok)}
+.uadone--err .uadone__i svg{color:var(--dk-txt-warn, #b45309)}
+.uadone>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.uadone b{font-size:.94rem;font-weight:700}
+.uadone span{font-size:.83rem;line-height:1.55;color:var(--gray)}
+.uadone__x{flex:none;border:0;background:none;padding:4px;cursor:pointer;color:var(--gray2);border-radius:8px}
+.uadone__x svg{width:16px;height:16px}
+.uadone__x:hover{color:var(--ink);background:var(--dk-surface, #fff)}
+
+/* Why the send button is not available yet. A disabled control that will not
+   say what it is waiting for reads as a broken one. */
+.ua__miss{display:flex;align-items:center;gap:8px;margin:0;font-size:.84rem;font-weight:600;
+  color:var(--dk-txt-warn, #b45309)}
+.ua__miss svg{width:15px;height:15px;flex:none}
+
+/* The prior-service rule, stated before the form is filled rather than after
+   the backend has refused it. */
+.ua__pre{display:flex;align-items:flex-start;gap:8px;margin:0;padding:11px 13px;border-radius:var(--rl);
+  background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #92400E);font-size:.83rem;line-height:1.55}
+.ua__pre svg{width:15px;height:15px;flex:none;margin-top:2px}
+
+/* The row this visit just created. */
+.ua__row--fresh{box-shadow:inset 0 0 0 2px var(--ok);animation:uaFresh 2.4s ease both}
+@keyframes uaFresh{0%{background:var(--dk-ok-bg, #E7F8F0)}70%{background:var(--dk-ok-bg, #E7F8F0)}100%{background:var(--dk-surface-2, #F7FAFE)}}
+@media (prefers-reduced-motion:reduce){.ua__row--fresh{animation:none}}

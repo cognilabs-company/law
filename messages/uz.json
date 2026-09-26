@@ -2493,6 +2493,12 @@
     },
     "client": {
       "urgent": {
+        "priorPurchaseNote": "Ikkinchi fikr faqat oldin LexGo orqali advokat yoki yurist xizmatidan foydalangan mijozlar uchun ochiladi.",
+        "sentNext": "So‘rovingiz callcenter navbatiga tushdi. Advokat qabul qilishi bilan xabar keladi va xavfsiz chat ochiladi.",
+        "directionsHint": "Bir nechta yo‘nalishni tanlashingiz mumkin. Callcenter shu bo‘yicha mos advokat tanlaydi.",
+        "missNeed": "Muammoni kamida {n} ta harf bilan yozing",
+        "missDirection": "Yo‘nalishni tanlang — advokat shunga qarab tanlanadi",
+        "missPick": "Avval xizmatni tanlang",
         "ctaDocument": "Hujjatni advokat bilan tayyorlash",
         "ctaChat": "Chat konsultatsiya boshlash",
         "ctaConsult": "Advokat bilan online konsultatsiya",

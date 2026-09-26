@@ -2487,6 +2487,12 @@
     },
     "client": {
       "urgent": {
+        "priorPurchaseNote": "A second opinion is only open to clients who have already used an advocate or lawyer through LexGo.",
+        "sentNext": "Your request is in the call-centre queue. You will be notified the moment an advocate takes it, and a secure chat opens.",
+        "directionsHint": "You can choose more than one. The call centre matches an advocate on these.",
+        "missNeed": "Describe the problem in at least {n} characters",
+        "missDirection": "Choose a practice area — the advocate is matched on it",
+        "missPick": "Choose a service first",
         "ctaDocument": "Prepare a document with an advocate",
         "ctaChat": "Start a chat consultation",
         "ctaConsult": "Online consultation with an advocate",
