@@ -110,7 +110,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
         </div>
         <div className="dhero__quote">
           <div className="dhero__quoteImg">
-            <Image src="/law-banner.png" alt="" fill sizes="(max-width: 980px) 60vw, 280px" style={{ objectFit: "contain" }} />
+            <Image src="/img/law-banner.png" alt="" fill sizes="(max-width: 980px) 60vw, 280px" style={{ objectFit: "contain" }} />
           </div>
         </div>
         <div className="dhero__greet">

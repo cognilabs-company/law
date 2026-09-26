@@ -13,7 +13,7 @@ const COUNT_MS = 1400;
 // .auth__bg::before). Asked for up front so the reveal never runs over a
 // blank pane; scoped to the widths where the panel is shown at all — below
 // 981px the aside is display:none and the bytes would be wasted.
-const BRAND_IMG = "/law-login.jpg";
+const BRAND_IMG = "/img/law-login.jpg";
 const BRAND_MQ = "(min-width: 981px)";
 
 // Counts a stat such as "12k+" or "4.9" up from zero while its card rises in.

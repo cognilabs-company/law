@@ -16,10 +16,23 @@ import {
   IconSparkle,
   IconSearch,
   IconArrowRight,
+  IconScale,
+  IconMapPin,
+  IconGavel,
+  IconUsers,
+  IconBolt,
 } from "@/components/icons";
 import { fmtRating } from "@/lib/date";
 
 type Tab = "lawyer" | "doc" | "ai";
+
+// One place for the three tabs, so the row is a map instead of three
+// near-identical hand-written buttons.
+const TABS: { key: Tab; Icon: typeof IconUser }[] = [
+  { key: "lawyer", Icon: IconUser },
+  { key: "doc", Icon: IconFileText },
+  { key: "ai", Icon: IconSparkle },
+];
 
 const STAGES = [
   "unknown",
@@ -135,67 +148,47 @@ export default function Finder() {
   return (
     <div className="finder">
       <div className="finder__c">
-        <div className="segs" role="tablist">
-          <button
-            className="seg"
-            role="tab"
-            aria-selected={tab === "lawyer"}
-            onClick={() => {
-              setTab("lawyer");
-              setRes(null);
-            }}
-          >
-            <IconUser />
-            {tf("tabs.lawyer")}
-          </button>
-          <button
-            className="seg"
-            role="tab"
-            aria-selected={tab === "doc"}
-            onClick={() => {
-              setTab("doc");
-              setRes(null);
-            }}
-          >
-            <IconFileText />
-            {tf("tabs.doc")}
-          </button>
-          <button
-            className="seg"
-            role="tab"
-            aria-selected={tab === "ai"}
-            onClick={() => {
-              setTab("ai");
-              setRes(null);
-            }}
-          >
-            <IconSparkle />
-            {tf("tabs.ai")}
-          </button>
+        <div className="ftabs" role="tablist">
+          {TABS.map(({ key, Icon }) => (
+            <button
+              key={key}
+              className="ftab"
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => {
+                setTab(key);
+                setRes(null);
+              }}
+            >
+              <Icon />
+              {tf(`tabs.${key}`)}
+            </button>
+          ))}
         </div>
 
         {tab === "lawyer" ? (
           <div className="fform on">
-            <div className="frow">
-              <div className="fld">
-                <label>{tf("labels.area")}</label>
+            <div className="fbar">
+              <div className="fbar__f">
+                <label><IconScale />{tf("labels.area")}</label>
                 <Select value={area} onChange={setArea} options={areaOpts} ariaLabel={tf("labels.area")} />
               </div>
-              <div className="fld">
-                <label>{tf("labels.region")}</label>
+              <div className="fbar__f">
+                <label><IconMapPin />{tf("labels.region")}</label>
                 <Select value={region} onChange={setRegion} options={regionOpts} ariaLabel={tf("labels.region")} />
               </div>
-              <div className="fld">
-                <label>{tf("labels.stage")}</label>
+              <div className="fbar__f">
+                <label><IconGavel />{tf("labels.stage")}</label>
                 <Select value={stage} onChange={setStage} options={stageOpts} ariaLabel={tf("labels.stage")} />
               </div>
               <button className="fgo" type="button" onClick={() => searchLawyers(area, region)}>
                 <IconSearch />
-                {tf("buttons.search")}
+                <span>{tf("buttons.search")}</span>
               </button>
             </div>
             <div className="fhint">
-              <b>{tf("hints.popular")}</b>
+              <b><IconBolt />{tf("hints.popular")}</b>
               {(tf.raw("quickLawyer") as { label: string; area: string }[]).map((q, i) => (
                 <button
                   key={i}
@@ -215,26 +208,26 @@ export default function Finder() {
 
         {tab === "doc" ? (
           <div className="fform on">
-            <div className="frow">
-              <div className="fld">
-                <label>{tf("labels.docType")}</label>
+            <div className="fbar">
+              <div className="fbar__f">
+                <label><IconFileText />{tf("labels.docType")}</label>
                 <Select value={doc} onChange={setDoc} options={docOpts} ariaLabel={tf("labels.docType")} />
               </div>
-              <div className="fld">
-                <label>{tf("labels.forWhom")}</label>
+              <div className="fbar__f">
+                <label><IconUsers />{tf("labels.forWhom")}</label>
                 <Select value={who} onChange={setWho} options={whoOpts} ariaLabel={tf("labels.forWhom")} />
               </div>
-              <div className="fld">
-                <label>{tf("labels.preparedBy")}</label>
+              <div className="fbar__f">
+                <label><IconBolt />{tf("labels.preparedBy")}</label>
                 <Select value={by} onChange={setBy} options={byOpts} ariaLabel={tf("labels.preparedBy")} />
               </div>
               <button className="fgo" type="button" onClick={() => prepareDoc(doc)}>
                 <IconArrowRight />
-                {tf("buttons.openTemplate")}
+                <span>{tf("buttons.openTemplate")}</span>
               </button>
             </div>
             <div className="fhint">
-              <b>{tf("hints.templates")}</b>
+              <b><IconBolt />{tf("hints.templates")}</b>
               {(tf.raw("quickDoc") as { label: string; doc: string }[]).map((q, i) => (
                 <button
                   key={i}
@@ -254,9 +247,9 @@ export default function Finder() {
 
         {tab === "ai" ? (
           <div className="fform on">
-            <div className="frow" style={{ gridTemplateColumns: "1fr auto" }}>
-              <div className="fld fld--txt">
-                <label>{tf("labels.yourProblem")}</label>
+            <div className="fbar fbar--ai">
+              <div className="fbar__f fbar__f--txt">
+                <label><IconSparkle />{tf("labels.yourProblem")}</label>
                 <textarea
                   rows={2}
                   value={ask}
@@ -276,11 +269,11 @@ export default function Finder() {
                 onClick={() => goChat(ask)}
               >
                 <IconSparkle />
-                {tf("buttons.analyze")}
+                <span>{tf("buttons.analyze")}</span>
               </button>
             </div>
             <div className="fhint">
-              <b>{tf("hints.examples")}</b>
+              <b><IconBolt />{tf("hints.examples")}</b>
               {(tf.raw("quickAsk") as { label: string; text: string }[]).map((q, i) => (
                 <button key={i} className="qc" type="button" onClick={() => goChat(q.text)}>
                   {q.label}

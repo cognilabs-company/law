@@ -186,7 +186,6 @@ h1,h2,h3,h4{font-family:var(--fd);margin:0;letter-spacing:-.03em;line-height:1.0
 .fform{display:none;padding:14px 8px 8px}
 .fform.on{display:block;animation:fade .3s ease both}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.frow{display:grid;grid-template-columns:repeat(3,1fr) auto;gap:8px;align-items:stretch}
 .fld{position:relative;background:var(--dk-surface-2, #F7FAFE);border-radius:16px;padding:11px 15px;box-shadow:inset 0 0 0 1.5px transparent;transition:.2s;text-align:left}
 .fld:hover,.fld:focus-within{box-shadow:inset 0 0 0 1.5px var(--b300);background:var(--dk-surface, #fff)}
 .fld label{display:block;font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gray2);margin-bottom:2px}
@@ -496,7 +495,7 @@ h1,h2,h3,h4{font-family:var(--fd);margin:0;letter-spacing:-.03em;line-height:1.0
 section[id]{scroll-margin-top:86px}
 
 /* ═══════════ RESPONSIVE ═══════════ */
-@media (max-width:1120px){ .nav a{padding:10px 10px;font-size:.86rem} .frow{grid-template-columns:repeat(3,1fr)} .fgo{grid-column:1/-1;padding:15px} }
+@media (max-width:1120px){ .nav a{padding:10px 10px;font-size:.86rem} }
 @media (max-width:980px){
   .nav,.bar__act .btn--glass{display:none}
   .burg{display:grid}
@@ -514,7 +513,6 @@ section[id]{scroll-margin-top:86px}
      with a home indicator — 78px left the last line of every page under it. */
   body{padding-bottom:calc(90px + env(safe-area-inset-bottom))}
   .tabbar{display:block}
-  .frow{grid-template-columns:1fr 1fr}
   .roles{grid-template-columns:1fr}
   .flow{grid-template-columns:1fr}
   .ftr__g{grid-template-columns:1fr}
@@ -524,8 +522,7 @@ section[id]{scroll-margin-top:86px}
 @media (max-width:560px){
   .hero__in{text-align:left}
   .hero__tags{justify-content:flex-start}
-  .finder__c{padding:8px;border-radius:24px}
-  .frow{grid-template-columns:1fr}
+  .finder__c{border-radius:24px}
   .stats{grid-template-columns:1fr 1fr;gap:10px}
   .stat{padding:16px 14px}
   .kv{grid-template-columns:1fr}
@@ -2119,7 +2116,7 @@ body:has(.auth) .fab{display:none}
    (fill-mode both), so nothing flashes before its turn. ── */
 .auth{--auth-ease:cubic-bezier(.22,1,.36,1)}
 .auth__bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;animation:authBg 1.6s var(--auth-ease) both}
-.auth__bg::before{content:"";position:absolute;inset:0;background:url(/law-login.jpg) right center/cover no-repeat;
+.auth__bg::before{content:"";position:absolute;inset:0;background:url(/img/law-login.jpg) right center/cover no-repeat;
   animation:authDrift 22s ease-in-out 1.6s infinite alternate}
 .auth__logo{animation:authDown .8s var(--auth-ease) .15s both}
 .auth__h{animation:authBlurIn 1s var(--auth-ease) .28s both}
@@ -4324,11 +4321,26 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
    the height chain `.deditor{height:100%}` needs before the OnlyOffice
    iframe can fill anything. The dvh floor keeps it usable even if this page
    is ever mounted outside that mode. */
-.deditor{position:relative;height:100%;min-height:min(100dvh,720px);display:flex;flex-direction:column;overflow:hidden;background:var(--dk-surface-2, #f5f6f8)}
+.deditor{position:relative;height:100%;min-height:min(100dvh,720px);display:flex;flex-direction:column;overflow:hidden;background:var(--dk-surface-2, #f5f6f8);--deditor-rw:360px}
+/* "Uchrashuv boshlash" and "Mijozga yuborish" are one group that sits over the
+   chat column: the same width as the panel below, contents pushed to its right
+   edge, so the toolbar and the chat share one vertical line instead of ending
+   at two different places. It tracks the wall as it is dragged because
+   --deditor-rw is written on .deditor, not on the body. */
+.deditor__actions{flex:none;display:flex;align-items:center;justify-content:flex-end;gap:10px;
+  min-width:var(--deditor-rw);transition:min-width .2s}
+/* Panel collapsed: nothing to line up with, so the pair just ends the bar. */
+.deditor--rightClosed .deditor__actions{min-width:0}
+.deditor__body--sizing .deditor__actions{transition:none}
 /* Keeps the sticky bar clear of the fullscreen sidebar-menu button that
-   .portal--full parks in the top-right corner. */
-.portal--full .deditor__top{padding-right:56px}
-.deditor__top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;flex:none;padding:12px 18px;background:var(--dk-surface, #fff);box-shadow:0 1px 0 var(--line)}
+   .portal--full parks in the top-right corner — which only exists below
+   900px (.pfull__menu is display:none above it). Reserving the space at every
+   width left a dead 56px gap on desktop, and the two toolbar actions ended
+   short of the chat panel that runs to the edge underneath them. */
+@media (max-width:900px){
+  .portal--full .deditor__top{padding-right:56px}
+}
+.deditor__top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;flex:none;padding:12px 14px 12px 18px;background:var(--dk-surface, #fff);box-shadow:0 1px 0 var(--line)}
 .deditor__back{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:8px 4px;font:inherit;font-weight:600;font-size:.86rem;color:var(--gray);cursor:pointer;flex:none}
 .deditor__back svg{width:16px;height:16px}
 .deditor__title{font-family:var(--fd);font-size:1rem;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:32ch}
@@ -4360,7 +4372,7 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
    have no way back: its own in-panel toggle collapsed along with it. */
 .deditor__toggle--show{display:inline-flex;align-items:center;justify-content:center}
 
-.deditor__body{position:relative;flex:1;min-height:0;display:grid;--deditor-lw:340px;--deditor-rw:360px;
+.deditor__body{position:relative;flex:1;min-height:0;display:grid;--deditor-lw:340px;
   grid-template-columns:var(--deditor-lw) minmax(0,1fr) var(--deditor-rw);transition:grid-template-columns .2s}
 .deditor__body--leftClosed{--deditor-lw:0px}
 .deditor__body--rightClosed{--deditor-rw:0px}
@@ -4408,6 +4420,7 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .deditor__meetStatus{margin:0 0 8px;font-size:.84rem;font-weight:600;color:var(--dk-acc, var(--b600))}
 
 @media (max-width:1100px){
+  .deditor__actions{min-width:0}
   .deditor__body,.deditor__body--leftClosed,.deditor__body--rightClosed,.deditor__body--leftClosed.deditor__body--rightClosed{grid-template-columns:1fr}
   .deditor__left,.deditor__right{position:fixed;top:0;bottom:0;z-index:20;width:min(340px,86vw);box-shadow:var(--s3)}
   .deditor__left{left:0}
@@ -6613,3 +6626,131 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
   background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1.5px var(--line)}
 .ucand__widerow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .ucand__widerow input{flex:1;min-width:170px}
+
+/* ── wp-finder: the hero search, rebuilt ─────────────────────────────
+   What was wrong: each field was a grey rounded .fld box that then contained
+   the Select's OWN grey rounded bordered box (.dsel__btn, 48px tall, its own
+   1.5px inset ring). Every field was therefore double-walled, and with the
+   blue block button beside them the widget read as four unrelated tiles
+   floating on a white card — plus a fifth surface for the grey tab tray.
+
+   Now: one continuous bar. Fields sit inside it divided by hairlines, the
+   submit lives inside the bar on the right, and the tabs are a plain row with
+   an accent underline instead of pills in a tray. Two surfaces, not five. */
+
+/* The card. Tighter radius at the corners than the old --rx so the bar inside
+   it can be a true pill without the two curves fighting. */
+.finder__c{padding:0;overflow:visible}
+
+/* ── Tabs ────────────────────────────────────────────────────────── */
+.ftabs{display:flex;gap:2px;padding:6px 10px 0;border-bottom:1px solid var(--line);
+  overflow-x:auto;scrollbar-width:none}
+.ftabs::-webkit-scrollbar{display:none}
+.ftab{position:relative;flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;
+  border:0;background:none;padding:13px 16px 14px;font:inherit;font-weight:700;font-size:.9rem;
+  color:var(--gray);cursor:pointer;white-space:nowrap;transition:color .18s}
+.ftab svg{width:17px;height:17px;flex:none;transition:transform .2s}
+.ftab:hover{color:var(--ink)}
+/* The active marker is a 3px bar that grows from the centre, so switching tabs
+   reads as movement rather than a repaint. */
+.ftab::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:3px;border-radius:3px 3px 0 0;
+  background:var(--grad);transform:scaleX(0);transition:transform .24s cubic-bezier(.3,1,.4,1)}
+.ftab[aria-selected=true]{color:var(--dk-acc-strong, var(--b700))}
+.ftab[aria-selected=true]::after{transform:scaleX(1)}
+.ftab[aria-selected=true] svg{transform:scale(1.06)}
+.ftab:focus-visible{outline:2px solid var(--b400);outline-offset:-4px;border-radius:12px}
+@media (prefers-reduced-motion:reduce){
+  .ftab::after,.ftab svg{transition:none}
+}
+
+/* ── The bar ─────────────────────────────────────────────────────── */
+.fform{display:none;padding:14px}
+.fform.on{display:block;animation:fade .3s ease both}
+.fbar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;align-items:stretch;
+  background:var(--dk-surface-2, #F7FAFE);border-radius:22px;
+  box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .2s}
+.fbar:focus-within{box-shadow:inset 0 0 0 1.5px var(--b400),0 0 0 4px var(--dk-tint-blue, #E6F0FF)}
+.fbar--ai{grid-template-columns:minmax(0,1fr) auto}
+
+/* A field is just a cell now — no box of its own, only the hairline that
+   separates it from the next one. */
+.fbar__f{position:relative;min-width:0;padding:11px 16px 12px;text-align:left;border-radius:22px;transition:background .18s}
+.fbar__f + .fbar__f::before{content:"";position:absolute;left:0;top:11px;bottom:11px;width:1px;background:var(--line)}
+.fbar__f:hover,.fbar__f:focus-within{background:var(--dk-surface, #fff)}
+/* The hairline would cut through the hover surface of the cell to its right. */
+.fbar__f:hover + .fbar__f::before,.fbar__f:focus-within + .fbar__f::before,
+.fbar__f:hover::before,.fbar__f:focus-within::before{opacity:0}
+.fbar__f label{display:flex;align-items:center;gap:6px;margin:0 0 1px;
+  font-size:.68rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--gray2)}
+.fbar__f label svg{width:12px;height:12px;flex:none;color:var(--dk-acc, var(--b600));opacity:.75}
+
+/* The Select draws its own field; inside the bar it must be text only. */
+.fbar .dsel__btn{background:transparent;box-shadow:none;border-radius:8px;min-height:34px;padding:5px 0;font-size:.98rem;font-weight:700}
+.fbar .dsel__btn:hover,.fbar .dsel[data-open="true"] .dsel__btn{background:transparent;box-shadow:none}
+.fbar .dsel__btn:focus-visible{outline:2px solid var(--b400);outline-offset:2px}
+.fbar .dsel__cv{width:20px;height:20px;background:transparent}
+.fbar .dsel[data-open="true"] .dsel__cv{background:transparent}
+.fbar .dsel__cv::after{border-color:var(--gray2)}
+.fbar .dsel[data-open="true"] .dsel__cv::after{border-color:var(--dk-acc, var(--b600))}
+
+/* The AI tab's free-text cell. */
+.fbar__f--txt textarea{width:100%;border:0;background:transparent;outline:0;resize:none;
+  font:inherit;font-size:.98rem;font-weight:500;min-height:46px;line-height:1.5;padding:0;color:var(--ink)}
+.fbar__f--txt textarea::placeholder{color:var(--gray2);font-weight:400}
+.fbar__f--txt textarea:focus-visible{outline:none}
+
+/* Submit: inside the bar, inset by 6px, so it belongs to the bar instead of
+   sitting beside it as a fourth tile. */
+.fgo{margin:6px;border:0;border-radius:17px;background:var(--grad);color:#fff;
+  font:inherit;font-weight:800;font-size:.94rem;padding:0 24px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;white-space:nowrap;
+  box-shadow:var(--sblue);transition:filter .18s,transform .12s,box-shadow .18s}
+.fgo svg{width:18px;height:18px;flex:none}
+.fgo:hover{filter:brightness(1.06);box-shadow:0 10px 26px rgba(46,139,255,.34)}
+.fgo:active{transform:scale(.975)}
+.fgo:focus-visible{outline:2px solid #fff;outline-offset:-4px}
+
+/* ── Suggestion chips ────────────────────────────────────────────── */
+.fhint{display:flex;gap:7px;flex-wrap:wrap;padding:12px 4px 2px;align-items:center}
+.fhint b{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:800;
+  letter-spacing:.04em;text-transform:uppercase;color:var(--gray2);margin-right:3px}
+.fhint b svg{width:12px;height:12px;color:var(--dk-acc, var(--b600))}
+.qc{border:0;background:var(--dk-surface-2, #F2F6FC);color:var(--gray);border-radius:var(--pill);
+  padding:8px 14px;font:inherit;font-size:.83rem;font-weight:600;cursor:pointer;
+  box-shadow:inset 0 0 0 1.5px transparent;transition:.16s}
+.qc:hover{background:var(--dk-surface, #fff);color:var(--dk-acc-strong, var(--b700));
+  box-shadow:inset 0 0 0 1.5px var(--b300);transform:translateY(-1px)}
+.qc:active{transform:none}
+@media (prefers-reduced-motion:reduce){.qc:hover{transform:none}}
+
+/* ── Narrow ──────────────────────────────────────────────────────── */
+/* Below the width where three fields plus a button fit, the bar becomes rows:
+   the vertical hairlines turn horizontal and the button spans the bottom. */
+@media (max-width:900px){
+  .fbar,.fbar--ai{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .fbar__f + .fbar__f::before{top:0;bottom:auto;left:0;right:0;width:auto;height:1px}
+  .fbar__f:nth-child(2)::before{top:11px;bottom:11px;left:0;right:auto;width:1px;height:auto}
+  /* Three fields in two columns leaves the third beside an empty cell, which
+     reads as a missing field. It takes the whole row instead, and its rule
+     then spans the bar. */
+  .fbar__f:nth-child(3){grid-column:1 / -1}
+  .fgo{grid-column:1 / -1;padding:14px 24px}
+}
+@media (max-width:560px){
+  .fform{padding:10px}
+  .fbar,.fbar--ai{grid-template-columns:minmax(0,1fr)}
+  .fbar__f{border-radius:18px}
+  .fbar__f + .fbar__f::before,.fbar__f:nth-child(2)::before{top:0;bottom:auto;left:10px;right:10px;width:auto;height:1px}
+  .ftab{padding:12px 12px 13px;font-size:.84rem}
+  .ftab::after{left:8px;right:8px}
+  .fhint{padding:10px 2px 0}
+  /* Comfortable tap sizes on a phone: the select strip and the chips. */
+  .fbar .dsel__btn{min-height:40px}
+  .qc{padding:10px 15px}
+}
+
+/* The results panel is the card's third row; with the card's own padding gone
+   it supplies its own gutters, and its border-top now reads as a divider
+   across the whole card rather than a floating line. */
+.sheetres{padding:16px 14px 14px}
+@media (max-width:560px){.sheetres{padding:14px 10px 10px}}

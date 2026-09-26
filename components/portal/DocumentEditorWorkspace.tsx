@@ -557,7 +557,13 @@ export default function DocumentEditorWorkspace({
   const editorErrMsg = editorErrStatus === 403 ? t("noAccess") : editorErrStatus === 404 ? t("notFound") : t("templateError");
 
   return (
-    <div className="deditor">
+    // The right panel's width lives on the ROOT, not on the body, so the top
+    // bar can read it too: the two actions line up with the chat column below
+    // them and stay lined up while the wall is dragged.
+    <div
+      className={`deditor${rightOpen ? "" : " deditor--rightClosed"}`}
+      style={{ "--deditor-rw": `${rightW}px` } as CSSProperties}
+    >
       <div className="deditor__top">
         <button type="button" className="deditor__back" onClick={() => router.push(backHref)}>
           <IconChevronLeft />
@@ -590,19 +596,22 @@ export default function DocumentEditorWorkspace({
           ) : null}
         </span>
         <span className="deditor__spacer" />
-        <button type="button" className="deditor__act" onClick={startMeeting} disabled={meetBusy || !req?.meetingUrl || isSent || !!meeting}>
-          <IconVideo />
-          <span className="deditor__actLabel">{meetBusy ? t("processingShort") : t("startMeeting")}</span>
-        </button>
-        <button
-          type="button"
-          className="deditor__act deditor__act--primary"
-          onClick={() => setFinalizeConfirmOpen(true)}
-          disabled={isSent || editorState !== "ready" || finalizeBusy}
-        >
-          <IconCheck />
-          <span className="deditor__actLabel">{isSent ? t("statusSent") : t("finalize")}</span>
-        </button>
+        {/* One group, right-aligned over the chat column — see .deditor__actions. */}
+        <div className="deditor__actions">
+          <button type="button" className="deditor__act" onClick={startMeeting} disabled={meetBusy || !req?.meetingUrl || isSent || !!meeting}>
+            <IconVideo />
+            <span className="deditor__actLabel">{meetBusy ? t("processingShort") : t("startMeeting")}</span>
+          </button>
+          <button
+            type="button"
+            className="deditor__act deditor__act--primary"
+            onClick={() => setFinalizeConfirmOpen(true)}
+            disabled={isSent || editorState !== "ready" || finalizeBusy}
+          >
+            <IconCheck />
+            <span className="deditor__actLabel">{isSent ? t("statusSent") : t("finalize")}</span>
+          </button>
+        </div>
         <button
           type="button"
           className={`deditor__toggle${rightOpen ? "" : " deditor__toggle--show"}`}
@@ -623,7 +632,6 @@ export default function DocumentEditorWorkspace({
       <div
         ref={bodyRef}
         className={`deditor__body${leftOpen ? "" : " deditor__body--leftClosed"}${rightOpen ? "" : " deditor__body--rightClosed"}${sizingOn ? " deditor__body--sizing" : ""}`}
-        style={{ "--deditor-rw": `${rightW}px` } as CSSProperties}
       >
         <aside className={`deditor__left${leftOpen ? " on" : ""}`}>
           <button type="button" className="deditor__panelToggle" onClick={() => setLeftOpen((v) => !v)} aria-label={t("togglePanels")}>
