@@ -48,6 +48,11 @@ html[data-theme="dark"]{
   --dk-acc:#6EA8FF; --dk-acc-strong:#A3C8FF;
   --dk-tint-blue:rgba(96,165,250,.14); --dk-tint-ok:rgba(52,211,153,.14); --dk-tint-err:rgba(248,113,113,.14);
   --dk-tint-warn:rgba(251,191,36,.14); --dk-tint-violet:rgba(167,139,250,.16);
+  /* Solid-fill counterparts of the two tints above. They were USED in 23
+     places and never defined, so every one of them fell through to the light
+     pastel it names as its fallback — a #FEF3C7 pill on a #0A1120 page. Same
+     values as the tints, because on this background a 14% wash IS the fill. */
+  --dk-warn-bg:rgba(251,191,36,.14); --dk-ok-bg:rgba(52,211,153,.14);
   --dk-bd-neutral:#2C3D60; --dk-bd-blue:rgba(96,165,250,.38); --dk-bd-ok:rgba(52,211,153,.38);
   --dk-bd-err:rgba(248,113,113,.42); --dk-bd-warn:rgba(251,191,36,.42); --dk-bd-violet:rgba(167,139,250,.42);
   --dk-fg:#E7EEF8; --dk-line:#2C3D60;
@@ -6822,4 +6827,141 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 
 @media (max-width:760px){
   .uasg__r{flex-direction:row;align-items:center;width:100%;justify-content:space-between;flex-wrap:wrap}
+}
+
+/* ── wp-cc: the call-centre console ──────────────────────────────────
+   Three things were wrong on this page, all of them visible the moment it is
+   opened in the dark theme.
+
+   1. The fields in the Tezkor Advokat drawer were BROWSER DEFAULTS. There is
+      no bare `input` rule in this file — only `.cform input` — and nothing in
+      the drawer is a .cform, so the "Izoh" box rendered at 31px tall with a
+      2px inset border and square corners, next to a 48px rounded Select.
+      Measured, not guessed: background rgb(59,59,59), padding 1px 2px,
+      border-radius 0.
+   2. A queue row put its stage picker on its own full-width line, so every
+      lead read as a giant dropdown with a title above it.
+   3. The board's filters did the same: .dsel is width:100%, so in a flex row
+      each one claimed a line of its own and three filters became three rows.
+
+   Everything below is scoped to this console; no global input rule is added,
+   because the styled wrappers elsewhere (.lsp__search, .mpick, .svsel) rely
+   on their inputs staying transparent. */
+
+/* ── Fields: one shape for every text control in the module ──────── */
+/* Matches .dsel__btn exactly — same height, radius, ring and fill — so a text
+   field and a picker standing side by side are the same object. */
+.uad input[type="text"],
+.uad textarea,
+.ucand__wide input[type="text"] {
+  width: 100%;
+  border: 0;
+  background: var(--dk-surface-2, #F7FAFE);
+  border-radius: 14px;
+  padding: 12px 15px;
+  min-height: 48px;
+  font: inherit;
+  font-size: .94rem;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  transition: box-shadow .18s, background .18s;
+}
+.uad textarea { min-height: 84px; line-height: 1.55; resize: vertical; }
+.uad input[type="text"]::placeholder,
+.uad textarea::placeholder,
+.ucand__wide input[type="text"]::placeholder { color: var(--gray2); font-weight: 400; }
+.uad input[type="text"]:hover,
+.uad textarea:hover,
+.ucand__wide input[type="text"]:hover { box-shadow: inset 0 0 0 1.5px var(--b300); background: var(--dk-surface, #fff); }
+.uad input[type="text"]:focus,
+.uad textarea:focus,
+.ucand__wide input[type="text"]:focus {
+  outline: none;
+  background: var(--dk-surface, #fff);
+  box-shadow: inset 0 0 0 1.5px var(--b400), 0 0 0 4px var(--dk-tint-blue, #E6F0FF);
+}
+
+/* ── The drawer's action row ─────────────────────────────────────── */
+/* Was: two buttons, then a Select, then a bare input, then a button, all
+   wrapping into each other. Now the decisions sit on one line and the status
+   mover is its own labelled group underneath, which is what it is — a
+   different kind of action from "claim" or "cancel". */
+.uad__acts { gap: 10px; }
+.uad__move {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  margin: 2px 0 0;
+  padding: 12px;
+  border-radius: var(--rl);
+  background: var(--dk-surface-2, #F7FAFE);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+}
+.uad__move input { min-width: 0; }
+.uad__move .btn { white-space: nowrap; }
+
+.uad__form label { color: var(--gray2); font-size: .74rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+
+/* ── Candidate search ────────────────────────────────────────────── */
+.ucand__widerow input[type="text"] { flex: 1; min-width: 170px; }
+
+/* ── Queue rows ──────────────────────────────────────────────────── */
+/* Content left, the one action right — instead of a stack whose last line is
+   a full-width control. */
+.ccq {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "top act" "meta act";
+  gap: 6px 14px;
+  align-items: center;
+  padding: 13px 15px;
+}
+.ccq__top { grid-area: top; }
+.ccq__meta { grid-area: meta; }
+.ccq__act { grid-area: act; justify-content: flex-end; }
+/* A picker sized to its longest option, not to the row. */
+.ccq__act .dsel { width: auto; min-width: 190px; max-width: 230px; }
+.ccq__act .btn { white-space: nowrap; }
+/* With 52 of 54 rows breaching, a full red ring around every card is noise
+   that hides the two that do not. The left bar carries the signal; the red
+   wording in the meta line carries the detail. */
+.ccq--breach { border-color: var(--line); box-shadow: inset 3px 0 0 var(--dk-txt-err, #dc2626); }
+
+@media (max-width: 860px) {
+  .ccq { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "meta" "act"; }
+  .ccq__act { justify-content: flex-start; }
+  .ccq__act .dsel { min-width: 0; max-width: none; width: 100%; }
+}
+
+/* ── Filter rows ─────────────────────────────────────────────────── */
+/* .dsel is width:100%, so in a flex row every filter took a line of its own.
+   They share the row now and wrap only when they genuinely cannot fit. */
+.uaq__filters .dsel { width: auto; flex: 0 1 210px; min-width: 150px; }
+.uaq__filters { gap: 8px 10px; align-items: center; }
+
+/* ── The drawer's own furniture, a little calmer ─────────────────── */
+.uad__sec h4 { letter-spacing: .05em; }
+.uad__chip { padding: 6px 12px; }
+.uad__top { gap: 8px 10px; margin-bottom: 2px; }
+
+/* Status badges are rendered on <em> (they are emphasis in the row, not a
+   heading), and this rule never reset the italic the element brings with it —
+   so every status pill on the call-centre board, the client's list and the
+   advocate's list was slanted. */
+.creq__badge{font-style:normal}
+/* The mover's button is part of a row of 48px controls, not a small button
+   parked beside them. */
+.uad__move .btn{min-height:48px;padding-inline:20px}
+
+/* The mover's three-column grid needs 180px + a field + a button; below that
+   it stacks, or the dialog scrolls sideways on a phone. */
+@media (max-width:700px){
+  .uad__move{grid-template-columns:minmax(0,1fr);gap:9px}
+  .uad__move .btn{width:100%}
+  .uad__acts .btn{flex:1 1 auto;justify-content:center}
+}
+@media (max-width:520px){
+  .ucand__widerow input[type="text"]{min-width:0;flex-basis:100%}
+  .uad__form .uaq__when2{grid-template-columns:1fr}
 }
