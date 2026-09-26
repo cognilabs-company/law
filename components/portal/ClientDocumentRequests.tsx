@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { listClientDocumentFlowPage, getDocumentRequestFile, DOC_FLOW_PAGE, type ClientDocFlowItem, type ClientDocFlowMode } from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
+import { useDocChatRooms } from "@/lib/useDocChatRooms";
 import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "./DataState";
@@ -90,6 +91,12 @@ export default function ClientDocumentRequests() {
     });
   }, [refresh, t]);
 
+  // The chat room is not on the list row — see useDocChatRooms. Only rows
+  // that could have one are asked about; a document the client fills in
+  // themselves never does.
+  const chatIds = rows.filter((r) => r.mode === "lawyer" || r.assignedLawyer).map((r) => r.id);
+  const rooms = useDocChatRooms(chatIds, reloadKey);
+
   async function download(item: ClientDocFlowItem) {
     if (!item.file.ready || dlBusy) return;
     setDlBusy(item.id);
@@ -164,8 +171,8 @@ export default function ClientDocumentRequests() {
                   was closed: the private chat with the advocate handling the
                   document, and the finished file. Both live on the row now. */}
               <div className="pcase__acts">
-                {item.secureChatRoomId ? (
-                  <Link href={`/portal/chat/${item.secureChatRoomId}`} className="btn btn--line btn--sm">
+                {item.secureChatRoomId || rooms[item.id] ? (
+                  <Link href={`/portal/chat/${item.secureChatRoomId || rooms[item.id]}`} className="btn btn--line btn--sm">
                     <IconChat />
                     {t("openChat")}
                   </Link>

@@ -10,6 +10,7 @@ import {
   type ClientDocFlowItem,
 } from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
+import { useDocChatRooms } from "@/lib/useDocChatRooms";
 import { shortDateTime } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
 import { IconFileText, IconChat, IconVideo, IconClock, IconArrowRight } from "@/components/icons";
@@ -45,6 +46,11 @@ export default function OpenDocumentWork() {
     });
   }, []);
 
+  // The room is not on the list row — see useDocChatRooms. Only rows that
+  // could have one are asked about; a self-filled document never does.
+  const chatIds = items.filter((it) => it.mode === "lawyer" || it.assignedLawyer).map((it) => it.id);
+  const rooms = useDocChatRooms(chatIds, reload);
+
   if (!ready || !items.length) return null;
 
   return (
@@ -76,16 +82,20 @@ export default function OpenDocumentWork() {
               ) : null}
             </div>
             <div className="odw__acts">
-              {it.secureChatRoomId ? (
-                <Link href={`/portal/chat/${it.secureChatRoomId}`} className="btn btn--pri btn--sm">
-                  <IconChat />
-                  {t("openChat")}
-                </Link>
-              ) : (
-                // No room yet means nobody has taken it — say so rather than
+              {(() => {
+                const room = it.secureChatRoomId || rooms[it.id] || "";
+                if (room) {
+                  return (
+                    <Link href={`/portal/chat/${room}`} className="btn btn--pri btn--sm">
+                      <IconChat />
+                      {t("openChat")}
+                    </Link>
+                  );
+                }
+                // No room means nobody has taken it yet — say so rather than
                 // offering a button that would open an empty conversation.
-                <span className="odw__wait"><IconClock />{t("waitingLawyer")}</span>
-              )}
+                return <span className="odw__wait"><IconClock />{t("waitingLawyer")}</span>;
+              })()}
             </div>
           </li>
         ))}
