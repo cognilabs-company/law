@@ -2520,6 +2520,14 @@
       }
     },
     "client": {
+      "docType": {
+        "customPh": "Write the kind of document",
+        "custom": "Something else — I will write it",
+        "none": "Not chosen",
+        "hint": "So the advocate knows what to prepare.",
+        "hintOptional": "Optional — naming it tells the advocate what you need before they open the request.",
+        "label": "Kind of document"
+      },
       "urgent": {
         "groupKind": {
           "second_opinion": "Kind of second opinion",

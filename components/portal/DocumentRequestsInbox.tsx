@@ -24,7 +24,7 @@ import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
 import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
-import { IconFileText, IconUser, IconPhone, IconCheck, IconClock, IconEye, IconDownload, IconUpload, IconAlert } from "@/components/icons";
+import { IconFileText, IconUser, IconPhone, IconCheck, IconClock, IconEye, IconDownload, IconUpload, IconAlert, IconTag } from "@/components/icons";
 
 // LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md: 4 tabs instead of two stacked
 // sections — "Yangi so'rovlar" is the live pool (unclaimed, realtime);
@@ -182,6 +182,14 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
                     {r.clientName}
                   </small>
                 ) : null}
+                {/* What the client asked for, in their own words when they
+                    wrote their own — the backend says which it was. */}
+                {r.requestedDocumentType ? (
+                  <span className={`dtag${r.requestedDocumentTypeIsCustom ? " dtag--own" : ""}`}>
+                    <IconTag />
+                    {r.requestedDocumentType}
+                  </span>
+                ) : null}
                 {r.need ? <p>{r.need}</p> : null}
                 {r.createdAt ? <small>{shortDateTime(r.createdAt, locale)}</small> : null}
               </button>
@@ -259,6 +267,12 @@ function PoolCard({
         <small>
           <span className="advmuted">{t("serviceLabel")}:</span> {item.serviceName}
         </small>
+      ) : null}
+      {item.requestedDocumentType ? (
+        <span className={`dtag${item.requestedDocumentTypeIsCustom ? " dtag--own" : ""}`}>
+          <IconTag />
+          {item.requestedDocumentType}
+        </span>
       ) : null}
       {item.need ? <p className={`pcase__q${expanded ? " on" : ""}`}>{item.need}</p> : null}
       {item.createdAt ? (

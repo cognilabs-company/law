@@ -25,6 +25,7 @@ import ContractSign from "./ContractSign";
 import DocumentRequestChat from "./DocumentRequestChat";
 import DocFill, { loadDraft, clearDraft } from "./DocFill";
 import DocTemplateViewer from "./DocTemplateViewer";
+import DocTypePicker from "./DocTypePicker";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Notice } from "@/components/admin/AdminBits";
@@ -143,6 +144,7 @@ export default function DocumentRequestPanel({
   // check. Open the box, say what to look at, send.
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewNeed, setReviewNeed] = useState("");
+  const [reviewType, setReviewType] = useState("");
   const [reviewBusy, setReviewBusy] = useState(false);
   const [reviewSent, setReviewSent] = useState(false);
   // Set instead of opening a tab whenever the generated file is a DOCX (see
@@ -449,7 +451,7 @@ export default function DocumentRequestPanel({
     setReviewBusy(true);
     setNote(null);
     try {
-      await requestDocumentLawyerReview(req.id, reviewNeed.trim() || t("reviewNeedDefault"));
+      await requestDocumentLawyerReview(req.id, reviewNeed.trim() || t("reviewNeedDefault"), reviewType || undefined);
       setReviewSent(true);
       setReviewOpen(false);
     } catch (e) {
@@ -620,6 +622,7 @@ export default function DocumentRequestPanel({
             <div className="docreview">
               <label htmlFor="doc-review-need">{t("reviewNeedLabel")}</label>
               <textarea id="doc-review-need" rows={2} value={reviewNeed} onChange={(e) => setReviewNeed(e.target.value)} placeholder={t("reviewNeedDefault")} />
+              <DocTypePicker flow="constructor_review" value={reviewType} onChange={setReviewType} />
               <div className="docreview__btns">
                 <button className="btn btn--grad btn--sm" type="button" onClick={sendToLawyerReview} disabled={reviewBusy}>
                   {reviewBusy ? t("processingShort") : t("reviewSubmit")}

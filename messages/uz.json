@@ -2526,6 +2526,14 @@
       }
     },
     "client": {
+      "docType": {
+        "customPh": "Hujjat turini yozing",
+        "custom": "Boshqa — o‘zim yozaman",
+        "none": "Tanlanmagan",
+        "hint": "Advokat nima tayyorlashini biladi.",
+        "hintOptional": "Ixtiyoriy — tanlasangiz, advokat nima kerakligini oldindan biladi.",
+        "label": "Hujjat turi"
+      },
       "urgent": {
         "groupKind": {
           "second_opinion": "Ikkinchi fikr turi",

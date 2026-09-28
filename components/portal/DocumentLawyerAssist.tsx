@@ -16,6 +16,7 @@ import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocTemplateViewer from "./DocTemplateViewer";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
+import DocTypePicker from "./DocTypePicker";
 import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
 import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock, IconShieldCheck, IconSparkle } from "@/components/icons";
@@ -28,6 +29,7 @@ type LawyerRequestBody = {
   language: string;
   editorMode?: "ai_draft";
   extraInstructions?: string;
+  requestedDocumentType?: string;
 };
 
 // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: the old per-service
@@ -93,6 +95,7 @@ export default function DocumentLawyerAssist({
   // which is the unchanged behaviour.
   const [aiDraft, setAiDraft] = useState(false);
   const [draftHint, setDraftHint] = useState("");
+  const [docType, setDocType] = useState("");
 
   async function submit() {
     if (busy || !need.trim() || !consent) return;
@@ -119,6 +122,7 @@ export default function DocumentLawyerAssist({
         language: lang,
         editorMode: aiDraft ? "ai_draft" : undefined,
         extraInstructions: aiDraft && draftHint.trim() ? draftHint.trim() : undefined,
+        requestedDocumentType: docType || undefined,
       });
       setSent(true);
       setResult(r);
@@ -218,6 +222,13 @@ export default function DocumentLawyerAssist({
           options={LANGS.map((l) => ({ value: l, label: t(`lang_${l}`) }))}
           ariaLabel={t("langLabel")}
         />
+      </section>
+
+      {/* Which kind of document is being asked for — read by the advocate
+          before they open anything. Optional; the picker hides itself on a
+          backend that does not offer the field. */}
+      <section className="docassist__sec">
+        <DocTypePicker flow="template_lawyer_assisted" value={docType} onChange={setDocType} />
       </section>
 
       {/* A head start for the advocate, not a replacement for one: the

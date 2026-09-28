@@ -11,7 +11,7 @@ import { Skeleton, EmptyState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
 import { Link } from "@/i18n/navigation";
-import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight } from "@/components/icons";
+import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight, IconTag } from "@/components/icons";
 
 // Which way this document is being produced — the client filled it in, the
 // AI drafted it, or an advocate is writing it. It changes what the card
@@ -176,6 +176,10 @@ export default function ClientDocumentRequests() {
                   </div>
                   <div className="mydoc__row">
                     <small className="mydoc__mode"><ModeIcon />{t.has(`tab_${item.mode}`) ? t(`tab_${item.mode}`) : item.mode}</small>
+                    {/* The kind of document asked for, when one was given. */}
+                    {item.requestedDocumentType ? (
+                      <small className="mydoc__kind"><IconTag />{item.requestedDocumentType}</small>
+                    ) : null}
                     {item.assignedLawyer?.name ? <small><IconUser />{item.assignedLawyer.name}</small> : null}
                     {/* MD §"Client: o'z requestlari va tayyor file" lists the
                         meeting status alongside status / assigned lawyer. */}

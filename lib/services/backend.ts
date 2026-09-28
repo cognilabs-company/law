@@ -1675,12 +1675,14 @@ export async function requestServiceDocumentLawyer(
   requestUrl: string,
   input: { need: string; answers?: Record<string, unknown>; language?: string } & DocLawyerExtras,
 ): Promise<DocumentRequest> {
-  const { editorMode, extraInstructions, ...rest } = input;
+  const { editorMode, extraInstructions, requestedDocumentType, ...rest } = input;
   const body: Record<string, unknown> = { ...rest };
   // editor_mode "ai_draft" makes the backend write a first draft the advocate
   // then edits; left out, they open the clean template (the default).
   if (editorMode) body.editor_mode = editorMode;
   if (extraInstructions) body.extra_instructions = extraInstructions;
+  // Optional: sent only when the client chose or wrote one.
+  if (requestedDocumentType) body.requested_document_type = requestedDocumentType;
   const d = asDict(await http(requestUrl, { method: "POST", body: JSON.stringify(body) }));
   return normDocRequest(d.request);
 }
@@ -1695,7 +1697,45 @@ export type DocRequestAttachments = { files?: File[]; voiceFiles?: Blob[] };
 // advocate ever opens the editor; they then edit, delete or rewrite it. Left
 // out, the advocate gets the clean template — the unchanged default.
 export type DocEditorMode = "ai_draft";
-export type DocLawyerExtras = { editorMode?: DocEditorMode; extraInstructions?: string };
+// `requestedDocumentType` is free text: either one of the catalog's own
+// options or whatever the client wrote. The backend decides which it was and
+// says so back in `requested_document_type_is_custom`.
+export type DocLawyerExtras = { editorMode?: DocEditorMode; extraInstructions?: string; requestedDocumentType?: string };
+
+// The list the picker offers, and whether it may be written past. Every
+// field of the answer is read rather than assumed: `optional` and
+// `custom_allowed` decide whether the form may be submitted empty and
+// whether a free-text option is shown at all, and `applies_to` is what says
+// which flows get the field — document analysis and the existing-document
+// review explicitly do not.
+export type RequestedDocTypes = {
+  items: string[];
+  optional: boolean;
+  customAllowed: boolean;
+  appliesTo: string[];
+  notAppliesTo: string[];
+};
+// The three flows the MD lists under "Ko'rsatish kerak".
+export type DocTypeFlow = "custom_from_scratch" | "template_lawyer_assisted" | "constructor_review";
+export async function getRequestedDocumentTypes(): Promise<RequestedDocTypes> {
+  const d = asDict(await http("/document-services/request-document-types"));
+  return {
+    items: asArr(d.items).map((x) => asStr(x)).filter(Boolean),
+    // Absent means "no constraint stated": do not invent a required field.
+    optional: d.optional !== false,
+    customAllowed: d.custom_allowed !== false,
+    appliesTo: asArr(d.applies_to).map((x) => asStr(x)).filter(Boolean),
+    notAppliesTo: asArr(d.not_applies_to).map((x) => asStr(x)).filter(Boolean),
+  };
+}
+// Whether this flow should offer the field at all. An older deployment sends
+// no lists, and then the answer is yes for the three flows the MD names —
+// never for the two it excludes, which is the case that matters.
+export function docTypeApplies(opts: RequestedDocTypes | null, flow: DocTypeFlow): boolean {
+  if (!opts) return false;
+  if (opts.notAppliesTo.includes(flow)) return false;
+  return opts.appliesTo.length ? opts.appliesTo.includes(flow) : true;
+}
 function docFlowForm(
   input: { need: string; title?: string; language?: string; answers?: Record<string, unknown> } & DocLawyerExtras & DocRequestAttachments,
 ): FormData {
@@ -1706,6 +1746,7 @@ function docFlowForm(
   if (input.answers) form.append("answers_json", JSON.stringify(input.answers));
   if (input.editorMode) form.append("editor_mode", input.editorMode);
   if (input.extraInstructions) form.append("extra_instructions", input.extraInstructions);
+  if (input.requestedDocumentType) form.append("requested_document_type", input.requestedDocumentType);
   for (const f of input.files || []) form.append("files", f, f.name);
   // A recorded note is a Blob with no name of its own; the backend keys the
   // format off the extension, so one has to be supplied.
@@ -1746,7 +1787,7 @@ export async function requestServiceDocumentLawyerWithFiles(
 // "0 dan hujjat yasash": no template at all — the advocate opens a blank DOCX
 // and writes the document from nothing.
 export async function requestCustomDraft(
-  input: { need: string; title?: string; language?: string } & DocRequestAttachments,
+  input: { need: string; title?: string; language?: string } & DocLawyerExtras & DocRequestAttachments,
 ): Promise<DocumentRequest> {
   const d = asDict(await http("/document-services/custom-draft/request", { method: "POST", body: docFlowForm(input) }));
   return normDocRequest(d.request ?? d.document_request ?? d);
@@ -1807,6 +1848,10 @@ export type LawyerDocumentRequest = {
   need: string;
   status: string;
   title: string;
+  // "Ariza", "Shartnoma", … or whatever the client wrote. Empty when none
+  // was given — the field is optional on every flow that offers it.
+  requestedDocumentType: string;
+  requestedDocumentTypeIsCustom: boolean;
   clientName: string;
   clientPhone: string;
   serviceName: string;
@@ -1858,6 +1903,8 @@ function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
     need: asStr(lr.need ?? d.need),
     status,
     title: asStr(lr.title ?? d.title),
+    requestedDocumentType: asStr(lr.requested_document_type ?? d.requested_document_type),
+    requestedDocumentTypeIsCustom: Boolean(lr.requested_document_type_is_custom ?? d.requested_document_type_is_custom),
     clientName: asStr(lr.client_name ?? client.name),
     clientPhone: asStr(lr.client_phone ?? client.phone),
     serviceName: asStr(service.title ?? service.name),
@@ -1932,6 +1979,10 @@ export type DocumentRequestPoolItem = {
   id: string;
   status: string;
   title: string;
+  // "Ariza", "Shartnoma", … or whatever the client wrote. Empty when none
+  // was given — the field is optional on every flow that offers it.
+  requestedDocumentType: string;
+  requestedDocumentTypeIsCustom: boolean;
   clientName: string;
   clientPhone: string;
   serviceName: string;
@@ -1953,6 +2004,8 @@ function normPoolItem(v: unknown): DocumentRequestPoolItem {
     // The card's own first line is the document name; the service is its own
     // labelled row below it, so this must not fall back to the service.
     title: asStr(d.title) || asStr(template.title) || asStr(template.name),
+    requestedDocumentType: asStr(d.requested_document_type),
+    requestedDocumentTypeIsCustom: Boolean(d.requested_document_type_is_custom),
     clientName: asStr(client.name),
     clientPhone: asStr(client.phone),
     serviceName: asStr(service.title) || asStr(service.name),
@@ -2157,6 +2210,10 @@ export type ContractFile = {
 };
 export type DocumentRequest = {
   id: string;
+  // "Ariza", "Shartnoma", … or whatever the client wrote. Empty when none
+  // was given — the field is optional on every flow that offers it.
+  requestedDocumentType: string;
+  requestedDocumentTypeIsCustom: boolean;
   contractId?: string;
   orderId?: string;
   paymentId?: string;
@@ -2207,6 +2264,8 @@ function normDocRequest(v: unknown): DocumentRequest {
   const al = asDict(d.assigned_lawyer ?? lr.assigned_lawyer);
   return {
     id: asStr(d.id),
+    requestedDocumentType: asStr(d.requested_document_type),
+    requestedDocumentTypeIsCustom: Boolean(d.requested_document_type_is_custom),
     workId: asStr(d.work_id ?? lr.work_id),
     rating: normRating(d.rating, d),
     contractId: asStr(d.contract_id) || undefined,
@@ -2376,8 +2435,14 @@ export async function startDocumentRequestAudioCall(requestId: string): Promise<
 }
 // "Konstruktor hujjatimni tekshirib bering" — a document the client filled in
 // themselves, handed to the same call-center pool for a lawyer to check.
-export async function requestDocumentLawyerReview(requestId: string, need: string): Promise<DocumentRequest> {
-  const d = asDict(await http(`/document-requests/${requestId}/lawyer-review`, { method: "POST", body: JSON.stringify({ need }) }));
+export async function requestDocumentLawyerReview(
+  requestId: string,
+  need: string,
+  requestedDocumentType?: string,
+): Promise<DocumentRequest> {
+  const body: Record<string, unknown> = { need };
+  if (requestedDocumentType) body.requested_document_type = requestedDocumentType;
+  const d = asDict(await http(`/document-requests/${requestId}/lawyer-review`, { method: "POST", body: JSON.stringify(body) }));
   return normDocRequest(d.request ?? d.document_request ?? d);
 }
 
@@ -2393,6 +2458,10 @@ export type ClientDocFlowItem = {
   id: string;
   mode: string;
   title: string;
+  // "Ariza", "Shartnoma", … or whatever the client wrote. Empty when none
+  // was given — the field is optional on every flow that offers it.
+  requestedDocumentType: string;
+  requestedDocumentTypeIsCustom: boolean;
   status: string;
   statusLabel: string;
   nextAction: string;
@@ -2428,6 +2497,8 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
     // "self" was the spelling the first version of this endpoint used.
     mode: asStr(d.mode) === "self" ? "manual" : asStr(d.mode),
     title: asStr(d.title),
+    requestedDocumentType: asStr(d.requested_document_type),
+    requestedDocumentTypeIsCustom: Boolean(d.requested_document_type_is_custom),
     status: asStr(d.status),
     statusLabel: asStr(d.status_label),
     nextAction: asStr(d.next_action),

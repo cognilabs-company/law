@@ -570,6 +570,14 @@ export const IconRecord = (p: P) => (
   </svg>
 );
 
+// A label tied to a thing — the kind of document a request asks for.
+export const IconTag = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M20.6 12.6l-8 8a2 2 0 01-2.8 0l-6.4-6.4A2 2 0 013 12.8V5a2 2 0 012-2h7.8a2 2 0 011.4.6l6.4 6.4a2 2 0 010 2.8z" />
+    <circle cx="8.2" cy="8.2" r="1.4" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 // Two sheets stacked — "this one box holds more than one kind".
 export const IconLayers = (p: P) => (
   <svg {...base} {...p}>

@@ -7239,3 +7239,27 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
   .svfilt__f{min-width:0}
   .svfilt__clear{align-self:flex-start}
 }
+
+/* ── wp-dtype: which kind of document is being asked for ─────────
+   LEXGO_FRONTEND_REQUESTED_DOCUMENT_TYPE_2026-09-28.md. Optional metadata on
+   a request headed for an advocate: a list to pick from, or the client's own
+   words. The picker renders nothing at all on a flow the backend excludes,
+   so these rules only ever apply where the field belongs. */
+.dtype{display:grid;gap:7px}
+.dtype>label{font-size:.82rem;font-weight:700;color:var(--ink)}
+.dtype__hint{margin:-2px 0 2px;font-size:.78rem;line-height:1.5;color:var(--gray)}
+.dtype__own{height:44px;padding:0 14px;border:1.5px solid var(--line);border-radius:12px;font:inherit;font-size:.9rem;
+  background:var(--dk-surface, #fff);color:var(--ink);outline:none;transition:border-color .16s,box-shadow .16s}
+.dtype__own::placeholder{color:var(--gray2)}
+.dtype__own:focus{border-color:var(--b600);box-shadow:0 0 0 3px var(--dk-tint-blue, #E6F0FF)}
+
+/* The chosen kind, read back on the client's card and on both advocate
+   lists. A client who wrote their own words gets a different tint: it is
+   their phrasing, not one of the catalogue's categories. */
+.dtag{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;max-width:100%;
+  font-size:.74rem;font-weight:700;padding:4px 10px;border-radius:var(--pill);
+  background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
+.dtag svg{width:12px;height:12px;flex:none}
+.dtag--own{background:var(--dk-surface-2, #F2F6FC);color:var(--gray)}
+.mydoc__kind{font-weight:700;color:var(--dk-acc-strong, var(--b700))}
+.mydoc__kind svg{opacity:.85}

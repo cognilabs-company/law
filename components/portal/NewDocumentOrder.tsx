@@ -14,6 +14,7 @@ import Select from "@/components/Select";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
+import DocTypePicker from "./DocTypePicker";
 import {
   IconChevronLeft,
   IconEdit,
@@ -45,6 +46,9 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
   const [flow, setFlow] = useState<Flow>("");
   const [need, setNeed] = useState("");
   const [lang, setLang] = useState<LangCode>(LANGS.includes(locale as LangCode) ? (locale as LangCode) : "uz");
+  // Optional metadata: which kind of document the advocate is being asked
+  // for. Empty is a valid answer and nothing is sent then.
+  const [docType, setDocType] = useState("");
   const [mainFile, setMainFile] = useState<File | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [voices, setVoices] = useState<VoiceNoteItem[]>([]);
@@ -80,7 +84,7 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
       const r =
         flow === "review" && mainFile
           ? await requestExistingDocumentReview({ ...payload, mainFile })
-          : await requestCustomDraft(payload);
+          : await requestCustomDraft({ ...payload, requestedDocumentType: docType || undefined });
       setResult(r);
     } catch (e) {
       if (isPaymentRequired(e)) {
@@ -176,6 +180,12 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
               <small>{mainFile ? t("mainFileChange") : t("mainFileHint", { mb: MAX_FILE_MB })}</small>
             </span>
           </button>
+        </section>
+      ) : null}
+
+      {flow === "scratch" ? (
+        <section className="docassist__sec">
+          <DocTypePicker flow="custom_from_scratch" value={docType} onChange={setDocType} />
         </section>
       ) : null}
 
