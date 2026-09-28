@@ -12,7 +12,11 @@ export default function AiSection() {
     <section className="sec dark" id="ai">
       <div className="wrap">
         <div className="split">
-          <div>
+          {/* rvx opts this column into the shared reveal. Without it the phone
+              mock on the right faded in while the whole left column was already
+              sitting there — one half of a two-column section animating and the
+              other not is the most visible break in the page's sequence. */}
+          <div className="rvx">
             <span className="kick">{t("kicker")}</span>
             <h2 className="h2" style={{ color: "#fff" }}>
               {t("title")}

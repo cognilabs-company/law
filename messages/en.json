@@ -147,7 +147,7 @@
   },
   "footer": {
     "about": "Uzbekistan's legal services ecosystem: AI, online services, a lawyer marketplace and a personal-lawyer subscription.",
-    "phoneNote": "Call center · calls are free",
+    "phoneNote": "Advocate on duty · calls are free",
     "servicesTitle": "Services",
     "directionsTitle": "Practice areas",
     "companyTitle": "Company",
@@ -438,7 +438,7 @@
       "ready": "Ready",
       "lawyersFound": "{count} lawyers found",
       "noLawyerTitle": "No matching lawyer found",
-      "noLawyerText": "There are no available lawyers in this region and area yet. Expand the region or leave a request — the call center will find a suitable lawyer within 30 minutes.",
+      "noLawyerText": "There are no available lawyers in this region and area yet. Expand the region or leave a request — the advocate on duty will find a suitable specialist within 30 minutes.",
       "lawyerDisc": "The lawyer confirms the order within 30 minutes. Contacts are unlocked after a 10% upfront payment.",
       "templateReadyTitle": "{doc} — template ready",
       "templateTime": "5 min",
@@ -756,7 +756,7 @@
       "Q&A: with references to the exact article and norm",
       "Document drafting: contracts, applications, complaints, claims, powers of attorney",
       "Document analysis: errors, clauses that contradict the law, risks and suggestions",
-      "An internal assistant for call-center lawyers"
+      "An internal assistant for lawyers on duty"
     ],
     "capabilitiesTitle": "What LexGo.AI can do",
     "capabilities": [
@@ -812,7 +812,7 @@
   "servicesPage": {
     "metaTitle": "Online services",
     "kicker": "Online services",
-    "title": "Through the AI as well as through a live lawyer",
+    "title": "Through the AI as well as through a lawyer",
     "lead": "For every service the choice is yours: the faster and cheaper AI option, or the experienced lawyer option. The price difference is shown openly in the payment window.",
     "tabs": {
       "consultation": "Consultation",
@@ -905,7 +905,7 @@
           "text": "DOCX and PDF. A lawyer review can be added."
         }
       ],
-      "info": "If you choose lawyer review, the application goes to the call-center lawyers and a written result reaches your app within 60 minutes at most."
+      "info": "If you choose lawyer review, the application goes to the lawyers on duty and a written result reaches your app within 60 minutes at most."
     },
     "docReview": {
       "cards": [
@@ -944,7 +944,7 @@
       ]
     },
     "compare": {
-      "title": "LexGo.AI or a live lawyer?",
+      "title": "LexGo.AI or a lawyer?",
       "lead": "Every service offers both options. Pick speed and price, or depth and a human signature.",
       "headers": {
         "feature": "",
@@ -1494,7 +1494,7 @@
       },
       {
         "q": "Which regions does LexGo cover?",
-        "a": "Lawyers are available across 14 regions of Uzbekistan. If there is no free lawyer in your region for a given area, the call center finds a suitable match within 30 minutes."
+        "a": "Lawyers are available across 14 regions of Uzbekistan. If there is no free lawyer in your region for a given area, the advocate on duty finds a suitable match within 30 minutes."
       },
       {
         "q": "Can I pay in installments?",
@@ -1518,10 +1518,10 @@
     "metaTitle": "Contact",
     "kicker": "Contact",
     "title": "Get in touch",
-    "lead": "Leave a request and the call center will get back to you, or select a service through the app.",
+    "lead": "Leave a request and the advocate on duty will get back to you, or select a service through the app.",
     "phone": "Phone",
     "phoneValue": "78 777 00 00",
-    "phoneNote": "Call center · calls are free",
+    "phoneNote": "Advocate on duty · calls are free",
     "email": "Email",
     "emailValue": "support@lexgo.uz",
     "hours": "Working hours",
@@ -1534,7 +1534,7 @@
       "message": "Your question",
       "messagePlaceholder": "Briefly describe your matter…",
       "submit": "Send the request",
-      "success": "Thank you! The call center will contact you shortly.",
+      "success": "Thank you! The advocate on duty will contact you shortly.",
       "required": "Please fill in the required fields.",
       "sending": "Sending…"
     },
@@ -2524,6 +2524,13 @@
       }
     },
     "client": {
+      "rate": {
+        "w5": "Excellent",
+        "w4": "Very good",
+        "w3": "Good",
+        "w2": "Fair",
+        "w1": "Poor"
+      },
       "docType": {
         "customPh": "Write the kind of document",
         "custom": "Something else — I will write it",
@@ -2533,6 +2540,7 @@
         "label": "Kind of document"
       },
       "urgent": {
+        "deliveryVaries": "Depends on the kind you pick: queued or immediate.",
         "groupKind": {
           "second_opinion": "Kind of second opinion",
           "video_consultation_kind": "Kind of consultation"
@@ -2631,7 +2639,7 @@
         "meetingLen": "Meeting length",
         "perLawyerNote": "Per advocate",
         "next": "Once sent, an advocate picks it up and a private chat opens with you.",
-        "nextGroup": "An operator picks the panel and the meeting time, then you are notified.",
+        "nextGroup": "The advocate on duty picks the panel and the meeting time, then you are notified.",
         "filesInChat": "Files and voice notes are sent in the chat once an advocate takes the request.",
         "submit": "Send request",
         "sent": "Request sent. We will tell you when an advocate takes it.",
@@ -2770,7 +2778,7 @@
         "analyze": "Analyze",
         "analyzing": "Analyzing…",
         "hint": "The AI analysis is then routed to the specialist on duty.",
-        "operatorHours": "An operator will contact you during working hours.",
+        "operatorHours": "The advocate on duty will contact you during working hours.",
         "resultTitle": "Analysis result",
         "category": "Direction",
         "recommended": "Recommended service",
@@ -3239,11 +3247,11 @@
         "chooseSpecialist": "Choose a matched specialist"
       },
       "actions": {
-        "whoAiSub": "An answer right away, within the free limit. It hands hard cases to an advocate.",
-        "whoAi": "Ask the AI",
-        "whoAdvocateSub": "A real advocate answers by video or chat — a paid service.",
-        "whoAdvocate": "Ask an advocate",
-        "whoLead": "Send your problem to a real advocate, or to LexGo's AI. Both are here.",
+        "whoAiSub": "Answers right away, within the free limit. It hands hard cases to an advocate.",
+        "whoAi": "An answer from LexGo's AI",
+        "whoAdvocateSub": "The advocate answers by video or chat — a paid service.",
+        "whoAdvocate": "Advice from a professional, experienced advocate",
+        "whoLead": "Choose where your problem goes — to an advocate, or to LexGo's AI.",
         "whoTitle": "Who should answer this?",
         "urgentSub": "An advocate online — video or chat",
         "urgent": "Reach an advocate now",
@@ -3262,6 +3270,12 @@
         "servicesSub": "Document templates and lawyers"
       },
       "services": {
+        "badgeTopHint": "A licensed advocate handles this service in person — this is the only route",
+        "badgeTop": "TOP",
+        "badgeProHint": "Downloading the template opens on a paid plan",
+        "badgePro": "PRO",
+        "advokatOnlyHint": "A licensed advocate handles this service in person — it is not a ready-made template.",
+        "advokatOnly": "With an advocate",
         "samples": "e.g. {list}",
         "allFamiliesHint": "Every direction across all four areas",
         "allFamilies": "All areas",
@@ -3364,6 +3378,14 @@
         "preSellerNoList": "This advocate has not listed services yet — the full catalogue is shown."
       },
       "documents": {
+        "lawyerPendingWork": "Work id: {id}",
+        "lawyerPendingStatus": "Status: {status}",
+        "lawyerPendingLead": "A request for this document has already gone to an advocate on duty. You cannot send another one until that work is finished.",
+        "lawyerPendingTitle": "You already sent a request",
+        "lawyerGateWait": "No, I'll wait for the advocate",
+        "lawyerGateOpen": "Yes, open the builder",
+        "lawyerGateLead": "Your request is with an advocate on duty. Do you still want to fill the document in yourself? If you do, the builder opens and you fill the document in from scratch; the advocate carries on either way.",
+        "lawyerGateTitle": "Your work went to an advocate on duty",
         "lang_uz_cyrl": "Uzbek (Cyrillic)",
         "lang_uz_latn": "Uzbek (Latin)",
         "aiDraftExtraPh": "Extra instruction (optional)",
@@ -3732,6 +3754,7 @@
         "manualDisabled": "Manual filling requires a plan"
       },
       "newDoc": {
+        "previewSeek": "Seek in the voice note",
         "previewNone": "This kind of file cannot be shown here",
         "previewHide": "Hide",
         "previewShow": "Preview",
@@ -5433,7 +5456,7 @@
       "audit": "Audit trail",
       "reviews": "Review moderation",
       "payouts": "Payouts",
-      "callCenter": "Call center",
+      "callCenter": "Duty desk",
       "meetings": "Meetings",
       "testOtps": "Test OTP",
       "integrations": "Integrations",
@@ -5543,7 +5566,7 @@
       "seedReady": "Demo data is ready. Running it again won't create duplicates.",
       "seedRemoved": "Removed {n} stray test records.",
       "seedConfirmTitle": "Seed demo data",
-      "seedConfirmText": "Service categories, services, advocates, lawyers, clients, call-center staff, templates, leads, payments, tasks, B2B records, reviews and audit samples are added where missing; existing ones are not duplicated. Stray records named “Approval Test” and “Runtime” are removed.",
+      "seedConfirmText": "Service categories, services, advocates, lawyers, clients, duty desk staff, templates, leads, payments, tasks, B2B records, reviews and audit samples are added where missing; existing ones are not duplicated. Stray records named “Approval Test” and “Runtime” are removed.",
       "seedConfirm": "Seed",
       "seedUnavailable": "Demo data seeding is disabled on this server.",
       "seedError": "Seed failed."
@@ -5848,7 +5871,7 @@
         "yurist": "Lawyers",
         "advokat": "Advocates",
         "advokat_tashkiloti": "Advocate organizations",
-        "call_center": "Call center",
+        "call_center": "Duty staff",
         "sales": "Sales"
       },
       "roleTabs": "By role",
@@ -6092,7 +6115,7 @@
         "done": "Done",
         "err": "Something went wrong. Try again."
       },
-      "source": { "web": "Website", "website": "Website", "referral": "Referral", "ad": "Ad", "ads": "Ads", "organic": "Organic", "manual": "Manual", "phone": "Phone", "call": "Call", "chat": "Chat", "ai": "AI", "social": "Social", "seo": "SEO", "ai_classify": "AI analysis", "telegram": "Telegram", "call_center": "Call center", "callcenter": "Call center", "login": "Sign-in", "registration": "Registration", "register_start": "Registration", "gift": "Gift", "sos": "SOS", "notify_me": "Notify me", "template": "Template", "onboarding": "Onboarding" },
+      "source": { "web": "Website", "website": "Website", "referral": "Referral", "ad": "Ad", "ads": "Ads", "organic": "Organic", "manual": "Manual", "phone": "Phone", "call": "Call", "chat": "Chat", "ai": "AI", "social": "Social", "seo": "SEO", "ai_classify": "AI analysis", "telegram": "Telegram", "call_center": "Duty desk", "callcenter": "Duty desk", "login": "Sign-in", "registration": "Registration", "register_start": "Registration", "gift": "Gift", "sos": "SOS", "notify_me": "Notify me", "template": "Template", "onboarding": "Onboarding" },
       "stages": {
         "new": "New",
         "contacted": "Contacted",
@@ -6144,7 +6167,7 @@
         "err": "Could not assign. Try again.",
         "noPermission": "Assignment is for managers/admins only (leads.manage).",
         "opsForbidden": "Not allowed to view the operator list (users.manage).",
-        "noOps": "No active call-center operators found.",
+        "noOps": "No active duty operators found.",
         "localNote": "The assignment is stored in the lead details (no dedicated backend field yet)."
       },
       "auto": {
@@ -6160,7 +6183,7 @@
         "done": "{n} leads assigned.",
         "partial": "{n} leads assigned, {failed} failed.",
         "nothing": "No unassigned leads.",
-        "noOps": "No active operators — add a call-center member first.",
+        "noOps": "No active operators — add a duty desk member first.",
         "backendPending": "The backend has no auto-assign endpoint yet — the distribution is written into lead details and shown here."
       }
     },
@@ -6497,7 +6520,7 @@
       },
       "searchBtn": "Search",
       "searching": "Searching…",
-      "searchNoAccess": "Client lookup is open to call-center staff only. Ask a superadmin if you need access.",
+      "searchNoAccess": "Client lookup is open to duty desk staff only. Ask a superadmin if you need access.",
       "card": {
         "title": "Client card",
         "since": "Registered: {date}",
@@ -6533,7 +6556,7 @@
           "sos": "Pressed SOS",
           "complaint": "Filed a complaint",
           "review": "Left a review",
-          "call_center_call": "Call-center call",
+          "call_center_call": "Duty desk call",
           "secure_chat_create": "Opened a chat",
           "identity_start": "Started identity check",
           "identity_verified": "Identity verified",
@@ -6813,8 +6836,8 @@
       "sales_head": "Sales head",
       "sales_operator": "Sales operator",
       "sales": "Sales",
-      "call_center_lawyer": "Call-center lawyer",
-      "call_center": "Call center",
+      "call_center_lawyer": "Duty lawyer",
+      "call_center": "Duty operator",
       "b2b_manager": "B2B manager",
       "marketing": "Marketing",
       "content_manager": "Content manager"
@@ -7112,7 +7135,7 @@
         "goQuality": "Open quality control",
         "goPipeline": "Open sales pipeline",
         "goLeads": "Open leads",
-        "goCallCenter": "Open call center",
+        "goCallCenter": "Open duty desk",
         "goCeo": "Open CEO dashboard",
         "mrrNote": "The backend currently returns the total paid amount as MRR.",
         "constNote": "Rating and SLA are backend constants for now — real calculation pending.",
@@ -7147,6 +7170,10 @@
     }
   },
   "secureChat": {
+    "voiceSeek": "Seek in the voice note",
+    "voicePause": "Pause",
+    "voicePlay": "Play",
+    "roleDuty": "Advocate on duty",
     "chatFinished": "This chat is finished — no new messages can be sent",
     "completeFailed": "Could not complete the chat",
     "completeConfirm": "Complete this chat? No new messages can be sent afterwards.",
@@ -7323,6 +7350,15 @@
     }
   },
   "call": {
+    "resumeError": "Couldn't resume the meeting. Please try again.",
+    "pauseError": "Couldn't hold the meeting. Please try again.",
+    "resumedToast": "The meeting is running again.",
+    "pausedToast": "Meeting held — the clock has stopped.",
+    "resumeHint": "Resume the meeting — the clock starts again.",
+    "pauseHint": "Hold the meeting for {n} min — that time is not counted.",
+    "pauseWorking": "Working…",
+    "resumeAction": "Resume",
+    "pauseAction": "Pause",
     "extendFreeNote": "The meeting can be extended free once, by {n} minutes. After that an extension is paid — {price} so‘m per minute.",
     "noAnswerLead": "{name} declined the call. End the meeting and try again later, or write in the chat.",
     "noAnswerTitle": "The client did not answer",

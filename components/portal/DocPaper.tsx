@@ -55,6 +55,7 @@ export default function DocPaper({
   onAskLawyer,
   askLawyerBusy,
   askLawyerSent,
+  askLawyerNote,
   sourceBusy,
   sourceError,
 }: {
@@ -83,6 +84,13 @@ export default function DocPaper({
   onAskLawyer?: () => void;
   askLawyerBusy?: boolean;
   askLawyerSent?: boolean;
+  // Non-empty when the client already has a request for this document with
+  // an advocate: the ask button above stops being an action, and this line
+  // says why. Shown even in the workspace layout, which passes no
+  // onAskLawyer (its own ask button lives in the top bar, where a sentence
+  // would not fit) — that bar has only the disabled button's tooltip, so
+  // without this line the refusal would have nowhere visible to appear.
+  askLawyerNote?: string;
   sourceBusy?: boolean;
   sourceError?: boolean;
 }) {
@@ -470,8 +478,8 @@ export default function DocPaper({
                 type="button"
                 className={`docpaper__ask${askLawyerSent ? " docpaper__ask--sent" : ""}`}
                 onClick={onAskLawyer}
-                disabled={askLawyerBusy || askLawyerSent}
-                title={askLawyerSent ? t("askLawyerSent") : t("askLawyer")}
+                disabled={askLawyerBusy || askLawyerSent || !!askLawyerNote}
+                title={askLawyerNote || (askLawyerSent ? t("askLawyerSent") : t("askLawyer"))}
               >
                 {askLawyerSent ? <IconCheck /> : <IconHeadset />}
                 {askLawyerSent ? t("askLawyerSent") : askLawyerBusy ? t("askLawyerSending") : t("askLawyer")}
@@ -481,6 +489,7 @@ export default function DocPaper({
         ) : null}
       </div>
       {sourceError ? <small className="docpaper__srcerr">{t("sourceError")}</small> : null}
+      {askLawyerNote ? <small className="dgate__note">{askLawyerNote}</small> : null}
       <div className={`docpaper__scroll${paged ? " docpaper__scroll--page" : ""}`} ref={pane}>
         {/* Neither the template text nor a server-filled preview came back —
             say so, rather than showing a blank sheet that reads as a broken

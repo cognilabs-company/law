@@ -34,6 +34,15 @@ export default function RobotCanvas({
   return (
     <div style={oversizedStyle}>
       <Canvas
+        // r3f writes `pointer-events: auto` inline on its own container, which
+        // re-enables hit-testing below the `none` the edge zone sets and hands
+        // the whole 274x220 rectangle to a character that fills about half of
+        // it. Measured on the catalogue at 1440: the right 138px of a 228px
+        // primary button answered CANVAS instead of the button. The mascot
+        // keeps its click — .robot-viewport::after carries a hit box the size
+        // of the drawn character, and a hit there targets the viewport, which
+        // is where the handlers live.
+        style={{ pointerEvents: "none" }}
         camera={{ fov: CAMERA.fov, position: CAMERA.position, near: CAMERA.near, far: CAMERA.far }}
         gl={{ alpha: true, antialias: true }}
         dpr={[1, 1.5]}

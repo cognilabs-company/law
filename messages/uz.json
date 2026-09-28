@@ -147,7 +147,7 @@
   },
   "footer": {
     "about": "O'zbekistonning yuridik xizmatlar ekotizimi: Sun'iy intellekt, onlayn xizmatlar, advokatlar marketplace va shaxsiy advokat obunasi.",
-    "phoneNote": "Kol-markaz · qo'ng'iroq bepul",
+    "phoneNote": "Navbatchi advokat · qo'ng'iroq bepul",
     "servicesTitle": "Xizmatlar",
     "directionsTitle": "Yo'nalishlar",
     "companyTitle": "Kompaniya",
@@ -438,7 +438,7 @@
       "ready": "Tayyor",
       "lawyersFound": "{count} ta advokat topildi",
       "noLawyerTitle": "Mos advokat topilmadi",
-      "noLawyerText": "Bu hudud va yo'nalish bo'yicha hozircha bo'sh advokat yo'q. Hududni kengaytiring yoki ariza qoldiring — kol-markaz 30 daqiqada mos advokatni tanlab beradi.",
+      "noLawyerText": "Bu hudud va yo'nalish bo'yicha hozircha bo'sh advokat yo'q. Hududni kengaytiring yoki ariza qoldiring — navbatchi advokat 30 daqiqada mos mutaxassisni tanlab beradi.",
       "lawyerDisc": "Advokat buyurtmani 30 daqiqada tasdiqlaydi. Kontaktlar 10% oldindan to'lovdan keyin ochiladi.",
       "templateReadyTitle": "{doc} — namuna tayyor",
       "templateTime": "5 daqiqa",
@@ -762,7 +762,7 @@
       "Savol-javob: aniq modda va normaga havola bilan",
       "Hujjat tayyorlash: shartnoma, ariza, shikoyat, da'vo, ishonchnoma",
       "Hujjat tahlili: xatolar, qonunga zid bandlar, xavflar va takliflar",
-      "Kol-markaz yuristlari uchun ichki yordamchi assistent"
+      "Navbatchi yuristlar uchun ichki yordamchi assistent"
     ],
     "capabilitiesTitle": "Sun'iy Intellekt nima qila oladi",
     "capabilities": [
@@ -818,7 +818,7 @@
   "servicesPage": {
     "metaTitle": "Onlayn xizmatlar",
     "kicker": "Onlayn xizmatlar",
-    "title": "Sun'iy intellekt orqali ham, tirik advokat orqali ham",
+    "title": "Sun'iy intellekt orqali ham, advokat orqali ham",
     "lead": "Har bir xizmatda tanlov sizda: tezroq va arzonroq Sun'iy intellekt varianti yoki tajribali advokat varianti. Narx farqi to'lov oynasida ochiq ko'rinadi.",
     "tabs": {
       "consultation": "Konsultatsiya",
@@ -911,7 +911,7 @@
           "text": "DOCX va PDF. Advokat ko'rigini qo'shish mumkin."
         }
       ],
-      "info": "Advokat ko'rigini tanlasangiz, ariza kol-markazdagi yurist-advokatlarga tushadi va ko'pi bilan 60 daqiqada yozma natija ilovangizga keladi."
+      "info": "Advokat ko'rigini tanlasangiz, ariza navbatchi yurist-advokatlarga tushadi va ko'pi bilan 60 daqiqada yozma natija ilovangizga keladi."
     },
     "docReview": {
       "cards": [
@@ -950,7 +950,7 @@
       ]
     },
     "compare": {
-      "title": "Sun'iy Intellekt yoki tirik advokat?",
+      "title": "Sun'iy Intellekt yoki advokat?",
       "lead": "Har bir xizmat ikkala variantni taklif qiladi. Tezlik va narxni yoki chuqurlik va inson imzosini tanlang.",
       "headers": {
         "feature": "",
@@ -1500,7 +1500,7 @@
       },
       {
         "q": "LexGo qaysi hududlarni qamrab oladi?",
-        "a": "Advokatlar O'zbekistonning 14 hududida mavjud. Agar hududingizda ma'lum yo'nalish bo'yicha bo'sh advokat bo'lmasa, kol-markaz 30 daqiqada mos advokatni topib beradi."
+        "a": "Advokatlar O'zbekistonning 14 hududida mavjud. Agar hududingizda ma'lum yo'nalish bo'yicha bo'sh advokat bo'lmasa, navbatchi advokat 30 daqiqada mos mutaxassisni topib beradi."
       },
       {
         "q": "To'lovni bo'lib-bo'lib qilsam bo'ladimi?",
@@ -1524,10 +1524,10 @@
     "metaTitle": "Aloqa",
     "kicker": "Aloqa",
     "title": "Bog'laning",
-    "lead": "Ariza qoldiring va kol-markaz siz bilan bog'lanadi yoki ilova orqali xizmatni tanlang.",
+    "lead": "Ariza qoldiring va navbatchi advokat siz bilan bog'lanadi yoki ilova orqali xizmatni tanlang.",
     "phone": "Telefon",
     "phoneValue": "78 777 00 00",
-    "phoneNote": "Kol-markaz · qo'ng'iroq bepul",
+    "phoneNote": "Navbatchi advokat · qo'ng'iroq bepul",
     "email": "Email",
     "emailValue": "support@lexgo.uz",
     "hours": "Ish vaqti",
@@ -1540,7 +1540,7 @@
       "message": "Savolingiz",
       "messagePlaceholder": "Masalangizni qisqacha yozing…",
       "submit": "Arizani yuborish",
-      "success": "Rahmat! Kol-markaz tez orada siz bilan bog'lanadi.",
+      "success": "Rahmat! Navbatchi advokat tez orada siz bilan bog'lanadi.",
       "required": "Iltimos, majburiy maydonlarni to'ldiring.",
       "sending": "Yuborilmoqda…"
     },
@@ -2530,6 +2530,13 @@
       }
     },
     "client": {
+      "rate": {
+        "w5": "A'lo",
+        "w4": "Juda yaxshi",
+        "w3": "Yaxshi",
+        "w2": "O'rtacha",
+        "w1": "Yomon"
+      },
       "docType": {
         "customPh": "Hujjat turini yozing",
         "custom": "Boshqa — o‘zim yozaman",
@@ -2539,6 +2546,7 @@
         "label": "Hujjat turi"
       },
       "urgent": {
+        "deliveryVaries": "Qaysi xilni tanlashingizga qarab: navbat yoki darhol.",
         "groupKind": {
           "second_opinion": "Ikkinchi fikr turi",
           "video_consultation_kind": "Konsultatsiya turi"
@@ -2607,7 +2615,7 @@
         "minutesN": "{n} daqiqa",
         "perMinute": "{price} so'm / daqiqa",
         "kinds": {
-          "traffic_accident_consultation": "YTH bo‘yicha konsultatsiya",
+          "traffic_accident_consultation": "YTX bo‘yicha konsultatsiya",
           "express_video_consultation": "Express videokonsultatsiya",
           "video_consultation": "Advokat bilan videokonsultatsiya",
           "chat_consultation": "Chat orqali konsultatsiya",
@@ -2637,7 +2645,7 @@
         "meetingLen": "Uchrashuv davomiyligi",
         "perLawyerNote": "Har bir advokat uchun",
         "next": "So'rov yuborilgach, advokat uni oladi va siz bilan maxfiy chat ochiladi.",
-        "nextGroup": "Operator advokatlar guruhini va uchrashuv vaqtini belgilaydi, so'ng sizga xabar beriladi.",
+        "nextGroup": "Navbatchi advokat advokatlar guruhini va uchrashuv vaqtini belgilaydi, so'ng sizga xabar beriladi.",
         "filesInChat": "Fayl va ovozli xabarlarni advokat so'rovni olgandan keyin chatda yuborasiz.",
         "submit": "So'rov yuborish",
         "sent": "So'rov yuborildi. Advokat uni olgach xabar beramiz.",
@@ -2776,7 +2784,7 @@
         "analyze": "Tahlil qilish",
         "analyzing": "Tahlil qilinmoqda…",
         "hint": "Sun'iy intellekt tahlili keyin navbatchi mutaxassisga uzatiladi.",
-        "operatorHours": "Operator ish vaqtida siz bilan bog'lanadi.",
+        "operatorHours": "Navbatchi advokat ish vaqtida siz bilan bog'lanadi.",
         "resultTitle": "Tahlil natijasi",
         "category": "Yo'nalish",
         "recommended": "Tavsiya etilgan xizmat",
@@ -3245,11 +3253,11 @@
         "chooseSpecialist": "Mos mutaxassisni tanlang"
       },
       "actions": {
-        "whoAiSub": "Darhol javob, bepul limit doirasida. Murakkab holatda advokatga yo‘naltiradi.",
-        "whoAi": "Sun’iy intellektdan",
-        "whoAdvocateSub": "Tirik advokat video yoki chat orqali javob beradi — pullik xizmat.",
-        "whoAdvocate": "Advokatdan maslahat",
-        "whoLead": "Muammoingizni tirik advokatga yoki LexGo sun’iy intellektiga yo‘naltirishingiz mumkin. Ikkalasi ham shu yerda.",
+        "whoAiSub": "Bepul limit doirasida darhol javob beradi. Murakkab holatda advokatga yo‘naltiradi.",
+        "whoAi": "LexGo sun’iy intellekti javobi",
+        "whoAdvocateSub": "Advokat video yoki chat orqali javob beradi — pullik xizmat.",
+        "whoAdvocate": "Professional va tajribali advokat maslahati",
+        "whoLead": "Muammoingiz kimga borishini tanlang — advokatgami yoki LexGo sun’iy intellektigami.",
         "whoTitle": "Kimdan maslahat olasiz?",
         "urgentSub": "Online advokat — video yoki chat",
         "urgent": "Advokatga tezkor bog‘lanish",
@@ -3268,6 +3276,12 @@
         "servicesSub": "Hujjat shabloni va advokatlar"
       },
       "services": {
+        "badgeTopHint": "Bu xizmatni advokat shaxsan bajaradi — yagona yo'l shu",
+        "badgeTop": "TOP",
+        "badgeProHint": "Shablonni yuklab olish pulli tarifda ochiladi",
+        "badgePro": "PRO",
+        "advokatOnlyHint": "Bu xizmatni advokat shaxsan bajaradi, tayyor namuna hujjat emas.",
+        "advokatOnly": "Advokat bilan",
         "samples": "Masalan: {list}",
         "allFamiliesHint": "To‘rtala soha bo‘yicha barcha yo‘nalishlar",
         "allFamilies": "Barcha sohalar",
@@ -3370,6 +3384,14 @@
         "preSellerNoList": "Bu advokat hali xizmatlar ro'yxatini belgilamagan — butun katalog ko'rsatilmoqda."
       },
       "documents": {
+        "lawyerPendingWork": "Ish raqami: {id}",
+        "lawyerPendingStatus": "Holati: {status}",
+        "lawyerPendingLead": "Bu hujjat bo'yicha Navbatchi advokatga so'rov yuborilgan. Ish yakunlanmaguncha yangi so'rov yubora olmaysiz.",
+        "lawyerPendingTitle": "So'rov allaqachon yuborilgan",
+        "lawyerGateWait": "Yo'q, advokatni kutaman",
+        "lawyerGateOpen": "Ha, konstruktorni ochaman",
+        "lawyerGateLead": "So'rovingiz Navbatchi advokatda. Shunga qaramay hujjatni o'zingiz to'ldirmoqchimisiz? Ha desangiz, konstruktor ochiladi va hujjatni 0 dan to'ldirasiz; advokat esa ishini davom ettiraveradi.",
+        "lawyerGateTitle": "Ishingiz Navbatchi advokatga berildi",
         "lang_uz_cyrl": "O'zbekcha (kirill)",
         "lang_uz_latn": "O'zbekcha (lotin)",
         "aiDraftExtraPh": "Qo‘shimcha ko‘rsatma (ixtiyoriy)",
@@ -3738,6 +3760,7 @@
         "manualDisabled": "Qo'lda to'ldirish paket talab qiladi"
       },
       "newDoc": {
+        "previewSeek": "Ovozli xabar bo‘ylab o‘tish",
         "previewNone": "Bu turdagi faylni shu yerda ko‘rib bo‘lmaydi",
         "previewHide": "Yopish",
         "previewShow": "Ko‘rish",
@@ -5439,7 +5462,7 @@
       "audit": "Audit jurnali",
       "reviews": "Sharh moderatsiyasi",
       "payouts": "To'lovlar (payout)",
-      "callCenter": "Call-markaz",
+      "callCenter": "Navbatchi xizmat",
       "meetings": "Uchrashuvlar",
       "testOtps": "Test OTP",
       "integrations": "Integratsiyalar",
@@ -5549,7 +5572,7 @@
       "seedReady": "Demo ma'lumotlar tayyor. Qayta ishga tushirish dublikat yaratmaydi.",
       "seedRemoved": "{n} ta tasodifiy test yozuvi o'chirildi.",
       "seedConfirmTitle": "Demo ma'lumotlarni yuklash",
-      "seedConfirmText": "Xizmat toifalari, xizmatlar, advokatlar, yuristlar, mijozlar, call-center xodimlari, shablonlar, lidlar, to'lov, vazifa, B2B, sharh va audit namunalari yetishmasa qo'shiladi, mavjudlari takrorlanmaydi. «Approval Test» va «Runtime» nomli tasodifiy yozuvlar o'chiriladi.",
+      "seedConfirmText": "Xizmat toifalari, xizmatlar, advokatlar, yuristlar, mijozlar, navbatchi xizmat xodimlari, shablonlar, lidlar, to'lov, vazifa, B2B, sharh va audit namunalari yetishmasa qo'shiladi, mavjudlari takrorlanmaydi. «Approval Test» va «Runtime» nomli tasodifiy yozuvlar o'chiriladi.",
       "seedConfirm": "Yuklash",
       "seedUnavailable": "Bu serverda demo ma'lumot yuklash o'chirilgan.",
       "seedError": "Xatolik yuz berdi."
@@ -5854,7 +5877,7 @@
         "yurist": "Yuristlar",
         "advokat": "Advokatlar",
         "advokat_tashkiloti": "Advokat tashkilotlari",
-        "call_center": "Call-markaz",
+        "call_center": "Navbatchi xodimlar",
         "sales": "Sotuv"
       },
       "roleTabs": "Rol bo'yicha",
@@ -6098,7 +6121,7 @@
         "done": "Bajarildi",
         "err": "Xatolik. Qayta urining."
       },
-      "source": { "web": "Veb-sayt", "website": "Veb-sayt", "referral": "Tavsiya", "ad": "Reklama", "ads": "Reklama", "organic": "Organik", "manual": "Qo'lda", "phone": "Telefon", "call": "Qo'ng'iroq", "chat": "Chat", "ai": "Sun'iy intellekt", "social": "Ijtimoiy tarmoq", "seo": "SEO", "ai_classify": "AI tahlil", "telegram": "Telegram", "call_center": "Call-markaz", "callcenter": "Call-markaz", "login": "Tizimga kirish", "registration": "Ro'yxatdan o'tish", "register_start": "Ro'yxatdan o'tish", "gift": "Sovg'a", "sos": "SOS", "notify_me": "Xabardor qiling", "template": "Shablon", "onboarding": "Onboarding" },
+      "source": { "web": "Veb-sayt", "website": "Veb-sayt", "referral": "Tavsiya", "ad": "Reklama", "ads": "Reklama", "organic": "Organik", "manual": "Qo'lda", "phone": "Telefon", "call": "Qo'ng'iroq", "chat": "Chat", "ai": "Sun'iy intellekt", "social": "Ijtimoiy tarmoq", "seo": "SEO", "ai_classify": "AI tahlil", "telegram": "Telegram", "call_center": "Navbatchi xizmat", "callcenter": "Navbatchi xizmat", "login": "Tizimga kirish", "registration": "Ro'yxatdan o'tish", "register_start": "Ro'yxatdan o'tish", "gift": "Sovg'a", "sos": "SOS", "notify_me": "Xabardor qiling", "template": "Shablon", "onboarding": "Onboarding" },
       "stages": {
         "new": "Yangi",
         "contacted": "Aloqa qilingan",
@@ -6150,7 +6173,7 @@
         "err": "Biriktirib bo'lmadi. Qayta urining.",
         "noPermission": "Taqsimlash faqat menejer/admin uchun (leads.manage).",
         "opsForbidden": "Operatorlar ro'yxatini ko'rish uchun ruxsat yo'q (users.manage).",
-        "noOps": "Faol call-markaz operatori topilmadi.",
+        "noOps": "Faol navbatchi operator topilmadi.",
         "localNote": "Biriktirish lid tafsilotlarida saqlanadi (backend'da alohida maydon hali yo'q)."
       },
       "auto": {
@@ -6166,7 +6189,7 @@
         "done": "{n} ta lid taqsimlandi.",
         "partial": "{n} ta lid taqsimlandi, {failed} tasi o'tmadi.",
         "nothing": "Taqsimlanmagan lid yo'q.",
-        "noOps": "Faol operator yo'q — avval call-markaz xodimini qo'shing.",
+        "noOps": "Faol operator yo'q — avval navbatchi xizmatga xodim qo'shing.",
         "backendPending": "Backend'da avto-taqsimlash endpoint'i hali yo'q — taqsimot lid tafsilotlariga yoziladi va shu yerda ko'rinadi."
       }
     },
@@ -6503,7 +6526,7 @@
       },
       "searchBtn": "Qidirish",
       "searching": "Qidirilmoqda…",
-      "searchNoAccess": "Mijoz qidirish faqat call-markaz xodimlari uchun ochiq. Ruxsat kerak bo'lsa, superadminga murojaat qiling.",
+      "searchNoAccess": "Mijoz qidirish faqat navbatchi xizmat xodimlari uchun ochiq. Ruxsat kerak bo'lsa, superadminga murojaat qiling.",
       "card": {
         "title": "Mijoz kartasi",
         "since": "Ro'yxatdan o'tgan: {date}",
@@ -6539,7 +6562,7 @@
           "sos": "SOS bosdi",
           "complaint": "Shikoyat yubordi",
           "review": "Baho qoldirdi",
-          "call_center_call": "Call-markaz qo'ng'irog'i",
+          "call_center_call": "Navbatchi xizmat qo'ng'irog'i",
           "secure_chat_create": "Chat ochdi",
           "identity_start": "Identifikatsiyani boshladi",
           "identity_verified": "Shaxsi tasdiqlandi",
@@ -6819,8 +6842,8 @@
       "sales_head": "Sotuv rahbari",
       "sales_operator": "Sotuv operatori",
       "sales": "Sotuv",
-      "call_center_lawyer": "Call-markaz yuristi",
-      "call_center": "Call-markaz",
+      "call_center_lawyer": "Navbatchi yurist",
+      "call_center": "Navbatchi operator",
       "b2b_manager": "B2B menejer",
       "marketing": "Marketing",
       "content_manager": "Kontent menejer"
@@ -7118,7 +7141,7 @@
         "goQuality": "Sifat nazoratiga o'tish",
         "goPipeline": "Sotuv voronkasiga o'tish",
         "goLeads": "Lidlarga o'tish",
-        "goCallCenter": "Call-markazga o'tish",
+        "goCallCenter": "Navbatchi xizmatga o'tish",
         "goCeo": "CEO paneliga o'tish",
         "mrrNote": "Backend MRR sifatida hozircha umumiy to'langan summani qaytaradi.",
         "constNote": "Reyting va SLA hozircha backendda doimiy qiymat — real hisob-kitob kutilmoqda.",
@@ -7153,6 +7176,10 @@
     }
   },
   "secureChat": {
+    "voiceSeek": "Ovozli xabar bo‘ylab o‘tish",
+    "voicePause": "To‘xtatish",
+    "voicePlay": "Tinglash",
+    "roleDuty": "Navbatchi advokat",
     "chatFinished": "Chat yakunlandi — yangi xabar yuborib bo‘lmaydi",
     "completeFailed": "Chatni yakunlab bo‘lmadi",
     "completeConfirm": "Chatni yakunlaysizmi? Yakunlangach, bu chatga yangi xabar yuborib bo‘lmaydi.",
@@ -7329,6 +7356,15 @@
     }
   },
   "call": {
+    "resumeError": "Uchrashuvni davom ettirib bo'lmadi. Qayta urining.",
+    "pauseError": "Uchrashuvni to'xtatib bo'lmadi. Qayta urining.",
+    "resumedToast": "Uchrashuv davom etmoqda.",
+    "pausedToast": "Uchrashuv to'xtatildi — vaqt hisoblanmayapti.",
+    "resumeHint": "Uchrashuvni davom ettirish — hisoblagich yana ishlaydi.",
+    "pauseHint": "Uchrashuvni {n} daqiqaga to'xtatib turish — bu vaqt hisoblanmaydi.",
+    "pauseWorking": "Kuting…",
+    "resumeAction": "Davom ettirish",
+    "pauseAction": "Pauza",
     "extendFreeNote": "Uchrashuvni bir marta bepul {n} daqiqaga uzaytirish mumkin. Undan keyingi uzaytirish pullik — daqiqasiga {price} so‘m.",
     "noAnswerLead": "{name} qo’ng’iroqni rad etdi. Uchrashuvni yakunlab, keyinroq qayta urinib ko’ring yoki chat orqali yozing.",
     "noAnswerTitle": "Mijoz javob bermadi",

@@ -32,6 +32,20 @@ import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import CallRoom from "@/components/chat/CallRoom";
 import { Skeleton, EmptyState } from "./DataState";
+// The five-point star the rating rows draw. It is not in components/icons.tsx
+// because it carries pathLength="360" for the dashed idle animation, and that
+// attribute belongs to the rating widgets rather than to every caller of a
+// shared icon; DocRatingBox is where it is defined and both rating windows use
+// the same one so the two cannot drift apart. IconStar, which this row used to
+// draw, is the four-point sparkle icons.tsx itself notes "reads as AI, not as
+// one of five".
+import { RateStar } from "./DocRatingBox";
+// The wait clock the three client order forms share (wp-hourglass). Defined
+// in NewDocumentOrder because that module is already the shared one of the
+// document forms; imported here rather than re-declared so the mark a client
+// sees while an urgent request is out is the same mark they saw while a
+// document request was out.
+import { WaitClock } from "./NewDocumentOrder";
 import { Notice } from "@/components/admin/AdminBits";
 import {
   IconVideo,
@@ -44,11 +58,9 @@ import {
   IconLock,
   IconAlert,
   IconArrowRight,
-  IconMapPin,
   IconFileText,
   IconClose,
   IconChevronRight,
-  IconStar,
   IconLayers,
 } from "@/components/icons";
 
@@ -90,6 +102,16 @@ const GROUP = "second_opinion_group";
 // cards because side by side they read as unrelated services at two prices.
 const VIDEO_GROUP = "video_consultation_kind";
 const VIDEO_ITEMS = ["video_consultation", "express_video_consultation"];
+
+// The running order of the grid, by service key. The catalog sends video,
+// express_video, traffic_accident, chat, and the two second opinions, which
+// put the road-accident card second and the chat fourth; chat belongs second
+// instead, because it is the one route a client can take from a place where
+// they cannot speak, and the road accident is a single situation rather than
+// a general way of reaching an advocate. Only the named keys are ranked: a
+// service the backend adds later has no rank, so it keeps its catalog
+// position and falls in after these.
+const CARD_ORDER = ["video_consultation", "chat_consultation", "traffic_accident_consultation"];
 
 export default function UrgentAdvocatePanel() {
   const t = useTranslations("portal.client.urgent");
@@ -193,7 +215,16 @@ export default function UrgentAdvocatePanel() {
       placed.add(g.key);
       out.push({ key: g.key, group: g, items: services.filter((x) => g.items.includes(x.key)) });
     }
-    return out;
+    // A card ranks as the best-ranked service inside it, so the video box
+    // leads on video_consultation whichever of its two kinds is picked. The
+    // sort is stable, so everything unranked shares CARD_ORDER.length and
+    // stays in the order the catalog sent it.
+    const rank = (items: UrgentService[]) =>
+      items.reduce((best, x) => {
+        const i = CARD_ORDER.indexOf(x.key);
+        return i >= 0 && i < best ? i : best;
+      }, CARD_ORDER.length);
+    return out.sort((a, b) => rank(a.items) - rank(b.items));
   }, [services, cat]);
   const sel = useMemo(() => services.find((s) => s.key === pick), [services, pick]);
   // The record the detail modal is showing, re-read from the live list so a
@@ -330,6 +361,7 @@ export default function UrgentAdvocatePanel() {
             // sayable about a box whose kinds agree on it.
             const now = card.items.every((x) => x.immediateCall);
             const agree = now || card.items.every((x) => !x.immediateCall);
+            const how = agree ? (now ? t("deliveryNow") : t("deliveryPool")) : t("deliveryVaries");
             return (
               <button
                 key={card.key}
@@ -368,14 +400,7 @@ export default function UrgentAdvocatePanel() {
                     order form, once there is something to price. */}
                 <span className="uacard__more">
                   <span className="uacard__morei">
-                    {card.group ? (
-                      <span className="uacard__kindl">
-                        {card.items.map((x) => (
-                          <em key={x.key}>{t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}</em>
-                        ))}
-                      </span>
-                    ) : null}
-                    {agree ? <span className="uacard__how">{now ? t("deliveryNow") : t("deliveryPool")}</span> : null}
+                    <span className="uacard__how">{how}</span>
                   </span>
                 </span>
               </button>
@@ -508,7 +533,12 @@ export default function UrgentAdvocatePanel() {
 
             {missing ? <p className="ua__miss" role="status"><IconAlert />{missing}</p> : null}
 
-            <button type="button" className="btn btn--grad btn--full btn--lg" disabled={!canSubmit} onClick={() => void submit()}>
+            {/* canSubmit is false for two unrelated reasons — the form is
+                still missing something (which .ua__miss above spells out and
+                which is not a wait at all) and the POST is out. Only the
+                second one gets the clock. */}
+            <button type="button" className="btn btn--grad btn--full btn--lg" disabled={!canSubmit} aria-busy={busy || undefined} onClick={() => void submit()}>
+              {busy ? <WaitClock /> : null}
               {busy ? t("sending") : t("submit")}
             </button>
           </div>
@@ -531,13 +561,14 @@ export default function UrgentAdvocatePanel() {
             {mine.map((r) => {
               const RowIcon = ICONS[r.serviceKind] ?? IconScale;
               const on = openId === r.id;
+              const kind = t.has(`kinds.${r.serviceKind}`) ? t(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind;
               return (
               <li
                 key={r.id}
                 className={`ua__row ua__row--tap${on ? " ua__row--on" : ""}${fresh === r.id ? " ua__row--fresh" : ""}`}
                 role="button"
                 tabIndex={0}
-                aria-label={t("detailsOf", { kind: t.has(`kinds.${r.serviceKind}`) ? t(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind })}
+                aria-label={t("detailsOf", { kind })}
                 onClick={() => setOpenId(r.id)}
                 onKeyDown={(e) => {
                   if (e.key !== "Enter" && e.key !== " ") return;
@@ -550,15 +581,21 @@ export default function UrgentAdvocatePanel() {
               >
                 <span className="ua__rowi"><RowIcon /></span>
                 <div className="ua__rowm">
-                  <b>
-                    {t.has(`kinds.${r.serviceKind}`) ? t(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind}
+                  {/* The name and the work id used to be two adjacent text
+                      runs in one <b>, and .ua__wid is nowrap, so the last
+                      word of the name and the 21-character id were a single
+                      unbreakable run: 29 of 40 rows overflowed .ua__rowm by
+                      up to 57px at 400px. As flex items they are two boxes
+                      and the id drops to its own line when the name needs
+                      the width. */}
+                  <b className="ua__rowt">
+                    {kind}
                     {r.workId ? <em className="ua__wid" title={t("workId")}>{r.workId}</em> : null}
                   </b>
                   <span>{[r.need, r.createdAt ? dateTimeFull(r.createdAt, locale) : ""].filter(Boolean).join(" · ")}</span>
                   {r.scheduledAt ? (
                     <span className="ua__when"><IconClock />{t("scheduled", { when: dateTimeFull(r.scheduledAt, locale) })}</span>
                   ) : null}
-                  {r.region ? <span className="ua__when"><IconMapPin />{te.has(`regions.${r.region}`) ? te(`regions.${r.region}`) : r.region}</span> : null}
                   {r.groupLawyers.length ? (
                     <span className="ua__when"><IconUsers />{t("panelOf", { names: r.groupLawyers.map((g) => g.name).join(", ") })}</span>
                   ) : null}
@@ -673,23 +710,42 @@ export default function UrgentAdvocatePanel() {
 function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequest; onCancelled: () => void }) {
   const t = useTranslations("portal.client.urgent");
   const tcm = useTranslations("portal.common");
+  // Shared with the document rating window, which is why the five words for
+  // one..five stars live in their own namespace instead of once per widget.
+  const tr = useTranslations("portal.client.rate");
   const locale = useLocale();
-  const [busy, setBusy] = useState(false);
+  // WHICH request is out, not merely that one is. The rating window and the
+  // cancel confirmation can both be on screen at once (a completed request
+  // inside its 15-minute rating window still offers cancel while the backend
+  // lists it in nextStatuses), and they shared a single boolean: sending a
+  // rating put the cancel button into its "Bekor qilinmoqda…" face, and
+  // confirming a cancel put the rating button into "Yuborilmoqda…". Harmless
+  // while it was only a word; a clock on a control that is doing nothing is
+  // exactly the lie this workpackage is told not to tell. Both still lock
+  // together — two POSTs about one request must not race — but only the one
+  // actually in flight wears the wait.
+  const [busy, setBusy] = useState<"" | "rate" | "cancel">("");
   const [err, setErr] = useState("");
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
   // The 15-minute rating window the backend opens on completion.
   const [stars, setStars] = useState(0);
+  // The star the pointer or the keyboard is on, 0 for none — a preview of what
+  // a click would give. Only `stars` is ever sent.
+  const [rHover, setRHover] = useState(0);
   const [rComment, setRComment] = useState("");
   const [rDone, setRDone] = useState(false);
   const [rErr, setRErr] = useState("");
 
   const canCancel = req.nextStatuses.includes("cancelled");
   const canRate = !rDone && ratingOpen(req.rating);
+  // What the star row should look like right now: the hovered star while the
+  // pointer is on it, otherwise the one that was picked.
+  const rShown = rHover || stars;
 
   async function rate() {
     if (!stars || busy) return;
-    setBusy(true);
+    setBusy("rate");
     setRErr("");
     try {
       await rateUrgentRequest(req.id, stars, rComment.trim());
@@ -701,13 +757,13 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
       logApiError("urgent rating", e);
       setRErr(errDetail(e) || t("rateError"));
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
 
   async function cancel() {
     if (busy) return;
-    setBusy(true);
+    setBusy("cancel");
     setErr("");
     try {
       await cancelUrgentRequest(req.id, reason.trim() || t("cancelDefaultReason"));
@@ -716,7 +772,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
       logApiError("urgent cancel", e);
       setErr(errDetail(e) || t("cancelError"));
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
 
@@ -726,9 +782,25 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
           work is completed, so this block simply stops rendering. */}
       {canRate ? (
         <div className="uamore__block urate">
-          <b><IconStar />{t("rateTitle")}</b>
+          <b><RateStar />{t("rateTitle")}</b>
           <span className="advmuted">{t("rateLead")}</span>
-          <div className="urate__stars" role="radiogroup" aria-label={t("rateTitle")}>
+          {/* Two classes for two questions. `on` means "draw this one gold"
+              and follows the preview, so the row fills and empties as the
+              pointer crosses it; `set` means "this is the rating that will be
+              sent" and only changes on a click, which is what keeps the pop
+              animation to the one moment a rating is actually given.
+
+              The preview is state rather than the CSS-only row-reverse
+              sibling trick it is modelled on: that trick needs the stars in
+              DOM order 5..1, which would hand Tab and a screen reader the row
+              backwards. Real buttons in reading order are worth one useState. */}
+          <div
+            className="urate__stars"
+            role="radiogroup"
+            aria-label={t("rateTitle")}
+            onPointerLeave={() => setRHover(0)}
+            onBlur={() => setRHover(0)}
+          >
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
@@ -736,13 +808,18 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
                 role="radio"
                 aria-checked={stars === n}
                 aria-label={t("rateN", { n })}
-                className={`urate__star${n <= stars ? " on" : ""}`}
+                className={`urate__star${n <= rShown ? " on" : ""}${n <= stars ? " set" : ""}`}
                 onClick={() => setStars(n)}
+                onPointerEnter={() => setRHover(n)}
+                onFocus={() => setRHover(n)}
               >
-                <IconStar />
+                <RateStar />
               </button>
             ))}
           </div>
+          {/* The word for the star under the pointer. aria-hidden: every
+              button already announces "{n} yulduz", so this is for the eye. */}
+          <p className="urate__word" aria-hidden="true">{rShown ? tr(`w${rShown}`) : ""}</p>
           <input
             type="text"
             value={rComment}
@@ -751,13 +828,14 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
             aria-label={t("rateCommentPh")}
           />
           {rErr ? <Notice ok={false} msg={rErr} /> : null}
-          <button type="button" className="btn btn--grad btn--sm" disabled={!stars || busy} onClick={() => void rate()}>
-            {busy ? t("sending") : t("rateSubmit")}
+          <button type="button" className="btn btn--grad btn--sm" disabled={!stars || !!busy} aria-busy={busy === "rate" || undefined} onClick={() => void rate()}>
+            {busy === "rate" ? <WaitClock /> : null}
+            {busy === "rate" ? t("sending") : t("rateSubmit")}
           </button>
         </div>
       ) : rDone || req.rating.submitted ? (
         <div className="uamore__block uamore__block--ok">
-          <b><IconStar />{t("rateThanks")}</b>
+          <b><RateStar />{t("rateThanks")}</b>
           {req.rating.value ? <span className="advmuted">{t("rateGiven", { n: req.rating.value })}</span> : null}
         </div>
       ) : null}
@@ -814,8 +892,9 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
               aria-label={t("cancelReasonPh")}
             />
             <button type="button" className="btn btn--soft btn--sm" onClick={() => setAsking(false)}>{t("keepIt")}</button>
-            <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={() => void cancel()}>
-              {busy ? t("cancelling") : t("cancelConfirm")}
+            <button type="button" className="btn btn--danger btn--sm" disabled={!!busy} aria-busy={busy === "cancel" || undefined} onClick={() => void cancel()}>
+              {busy === "cancel" ? <WaitClock /> : null}
+              {busy === "cancel" ? t("cancelling") : t("cancelConfirm")}
             </button>
           </div>
         ) : (

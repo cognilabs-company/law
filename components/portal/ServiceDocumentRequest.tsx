@@ -8,6 +8,7 @@ import {
   createServiceDocumentRequest,
   listDocumentRequests,
   getDocumentRequest,
+  isLawyerHeld,
   type BackendTemplate,
   type DocumentRequest,
   type ServiceDocumentFields,
@@ -15,9 +16,12 @@ import {
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocumentLawyerAssist from "./DocumentLawyerAssist";
 import ManualDocPlanGate from "./ManualDocPlanGate";
+import { lawyerPendingNote } from "./DocFill";
 import { Skeleton } from "./DataState";
+import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { ApiError, errDetail } from "@/lib/http";
+import { statusLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { IconList, IconHeadset, IconChevronLeft, IconLock } from "@/components/icons";
 
@@ -47,9 +51,17 @@ export default function ServiceDocumentRequest({
   initialMode?: "lawyer";
 }) {
   const t = useTranslations("portal.client.documents");
+  const tc = useTranslations("portal.common");
   const [tpl, setTpl] = useState<BackendTemplate | null>(null);
   const [sourceFile, setSourceFile] = useState<ServiceDocumentFields | null>(null);
   const [req, setReq] = useState<DocumentRequest | null>(null);
+  // The client's separate advocate request for this same template, when one
+  // is still in flight. Deliberately not `req`: it is not the row the
+  // constructor fills in, and treating it as one is what made the
+  // constructor unreachable (see the resume lookup below).
+  const [lawyerHeld, setLawyerHeld] = useState<DocumentRequest | null>(null);
+  // "Ishingiz Navbatchi advokatga berildi — baribir konstruktorni ochamizmi?"
+  const [gateOpen, setGateOpen] = useState(false);
   // Reported upwards rather than read from a ref during render, so the page
   // chrome always has the id of the draft currently on screen.
   const onDraftIdRef = useRef(onDraftId);
@@ -84,6 +96,8 @@ export default function ServiceDocumentRequest({
     setTpl(null);
     setSourceFile(null);
     setReq(null);
+    setLawyerHeld(null);
+    setGateOpen(false);
     setLoading(true);
     setErr(false);
     setResumed(false);
@@ -135,16 +149,36 @@ export default function ServiceDocumentRequest({
 
   // Resume an existing request for this template rather than creating a new
   // (re-payable) one, same as the standalone template list.
+  //
+  // One template can carry two of this client's rows at once: the row the
+  // constructor fills in, and a separate row created by the advocate flow
+  // (document_type "lawyer_assisted_service_document" — it never converts
+  // the constructor's row). The list is newest-first, so a single find()
+  // resumed whichever was created last, and once that was the advocate row
+  // the panel below rendered its "Advokat ishni oldi" wait screen for every
+  // visit — the constructor became unreachable, which is what the GM
+  // reported. The list rows carry no document_type, so the two are told
+  // apart by status (isLawyerHeld) and kept in separate state from here on.
   useEffect(() => {
     if (!tpl) return;
     let alive = true;
     listDocumentRequests()
       .then((rows) => {
-        const existing = rows.find((r) => r.templateId === tpl.id);
-        if (!existing) return null;
-        return getDocumentRequest(existing.id).then((r) => {
+        const mine = rows.filter((r) => r.templateId === tpl.id);
+        const own = mine.find((r) => !isLawyerHeld(r));
+        const held = mine.find((r) => isLawyerHeld(r));
+        return Promise.all([
+          own ? getDocumentRequest(own.id) : null,
+          // Fetched in full because only the detail response carries the
+          // work_id the block quotes back at the client; a detail fetch that
+          // fails falls back to the thin list row rather than silently
+          // lifting the block.
+          held ? getDocumentRequest(held.id).catch(() => held) : null,
+        ]).then(([ownReq, heldReq]) => {
+          if (!alive) return;
+          setLawyerHeld(heldReq);
           // A request created while this lookup was in flight wins.
-          if (alive && !starting.current) setReq((cur) => cur ?? r);
+          if (ownReq && !starting.current) setReq((cur) => cur ?? ownReq);
         });
       })
       .catch(() => {})
@@ -173,6 +207,17 @@ export default function ServiceDocumentRequest({
     }
   }
 
+  // "Ha, konstruktorni ochaman" on the gate below. Their own constructor row
+  // reopens when the resume lookup found one, otherwise this creates it —
+  // which is why the gate's confirm waits for `resumed`, exactly as the
+  // "Davom etish" button further down does. The advocate's row is never
+  // touched: that work carries on whatever the client decides here.
+  function openConstructor() {
+    setGateOpen(false);
+    setMode("manual");
+    if (!req) void start();
+  }
+
   // A template with nothing to fill in has no "questionnaire" step to show —
   // skip the extra "Davom etish" tap and go straight to the document instead
   // of stopping at a screen whose only job was to lead to this same click.
@@ -184,6 +229,11 @@ export default function ServiceDocumentRequest({
     return () => clearTimeout(h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tpl, resumed, req, busy, err, mode]);
+
+  // What the advocate's row is doing right now, in the client's language, and
+  // the one sentence every blocked advocate control shows.
+  const heldStatus = lawyerHeld ? statusLabel(tc, lawyerHeld.status, "docStatus") : "";
+  const heldNote = lawyerHeld ? lawyerPendingNote(t, heldStatus, lawyerHeld.workId) : "";
 
   if (loading || (tpl && mode === "manual" && tpl.questionnaire.length === 0 && !req && !err)) return <Skeleton rows={3} />;
 
@@ -215,18 +265,81 @@ export default function ServiceDocumentRequest({
           <b>{tpl.price ? `${som(tpl.price)} ${t("som")}` : t("free")}</b>
         </div>
         <div className="docchoose">
-          <button type="button" className="docchoose__c" onClick={() => setMode("manual")}>
+          {/* An advocate holding the document does not take the constructor
+              away — it asks first, because filling it in here means starting
+              the document from scratch while that advocate is already
+              working on the same thing. */}
+          <button type="button" className="docchoose__c" onClick={() => (lawyerHeld ? setGateOpen(true) : setMode("manual"))}>
             <span className="docchoose__i"><IconList /></span>
             <b>{t("chooseManual")}</b>
             <span>{t("chooseManualSub")}</span>
           </button>
-          <button type="button" className="docchoose__c" onClick={() => setMode("lawyer")}>
+          {/* Still opens, but on to the wait screen for the request they
+              already sent rather than a form that would send a second one. */}
+          <button type="button" className={`docchoose__c${lawyerHeld ? " docchoose__c--held" : ""}`} onClick={() => setMode("lawyer")}>
             <span className="docchoose__i"><IconHeadset /></span>
             <b>{t("chooseLawyer")}</b>
-            <span>{t("chooseLawyerSub")}</span>
+            <span>{lawyerHeld ? t("lawyerPendingStatus", { status: heldStatus }) : t("chooseLawyerSub")}</span>
           </button>
         </div>
+
+        <Modal open={gateOpen} onClose={() => setGateOpen(false)} title={t("lawyerGateTitle")}>
+          <div className="cform" style={{ maxWidth: "none" }}>
+            <p className="dexit__lead">
+              <span className="dexit__i"><IconHeadset /></span>
+              {t("lawyerGateLead")}
+            </p>
+            <p className="dgate__meta">
+              <span>{t("lawyerPendingStatus", { status: heldStatus })}</span>
+              {lawyerHeld?.workId ? <span>{t("lawyerPendingWork", { id: lawyerHeld.workId })}</span> : null}
+            </p>
+            <div className="dexit__btns">
+              <button type="button" className="btn btn--line btn--full" onClick={() => { setGateOpen(false); setMode("lawyer"); }}>
+                {t("lawyerGateWait")}
+              </button>
+              {/* Same rule as "Davom etish" below: confirming before the
+                  resume lookup has answered would create a second,
+                  separately-payable constructor row. */}
+              <button type="button" className="btn btn--grad btn--full" onClick={openConstructor} disabled={!resumed}>
+                {resumed ? t("lawyerGateOpen") : t("processingShort")}
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
+    );
+
+  // An advocate is already handling a request for this document, so the
+  // request form is replaced by the refusal and by the wait screen for the
+  // request they already have. Nothing on the backend would stop a second
+  // row being created here — two live lawyer_review rows on one template
+  // were found in production on 2026-09-28.
+  if (lawyerHeld && mode === "lawyer")
+    return (
+      <>
+        <div className="cform" style={{ maxWidth: "none" }}>
+          {initialMode ? null : (
+            <button type="button" className="rf__link" onClick={() => setMode("choose")}>
+              <IconChevronLeft />
+              {t("backToChoices")}
+            </button>
+          )}
+          <div className="docassist__head">
+            <span className="docassist__i docassist__i--lawyer"><IconHeadset /></span>
+            <div>
+              <b>{t("lawyerPendingTitle")}</b>
+              <p className="advmuted">{t("lawyerPendingLead")}</p>
+              <p className="dgate__meta">
+                <span>{t("lawyerPendingStatus", { status: heldStatus })}</span>
+                {lawyerHeld.workId ? <span>{t("lawyerPendingWork", { id: lawyerHeld.workId })}</span> : null}
+              </p>
+            </div>
+          </div>
+        </div>
+        {/* The same wait screen the advocate flow itself ends on, so the
+            client keeps the status, the chat and the finished file here. */}
+        <DocumentRequestPanel key={lawyerHeld.id} initialReq={lawyerHeld} fields={[]} sourceFile={sourceFile} />
+      </>
     );
 
   if (mode === "lawyer" && sourceFile?.lawyerFlow)
@@ -249,6 +362,7 @@ export default function ServiceDocumentRequest({
         fields={tpl.questionnaire}
         templateText={tpl.templateText}
         sourceFile={sourceFile}
+        lawyerHeldNote={heldNote}
         onStartNew={
           tpl.questionnaire.length
             ? () => {

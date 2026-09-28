@@ -23,7 +23,12 @@ export default function BenefitsSection() {
           <h2 className="h2">{t("title")}</h2>
           <p className="lead">{t("lead")}</p>
         </div>
-        <div className="grid">
+        {/* grid--six: this grid always holds exactly six cards, and the shared
+            auto-fill track sizing resolved to 4 columns at 1200 and 5 at 1440
+            and 1600, leaving one card alone in the last row. rvseq puts the
+            reveal stagger in child order — see the wp-landingb block in
+            globals.css. */}
+        <div className="grid grid--six rvseq">
           {items.map((it, i) => {
             const I = ICONS[i] ?? IconSparkle;
             return (

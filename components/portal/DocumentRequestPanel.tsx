@@ -30,7 +30,7 @@ import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Notice } from "@/components/admin/AdminBits";
 import { Link } from "@/i18n/navigation";
-import { IconDownload, IconExternal, IconCheck, IconClock, IconSparkle, IconHeadset } from "@/components/icons";
+import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
@@ -106,6 +106,7 @@ export default function DocumentRequestPanel({
   sourceFile,
   onBump,
   onStartNew,
+  lawyerHeldNote,
 }: {
   initialReq: DocumentRequest;
   // The template's own questions and text. The request normally echoes the
@@ -124,6 +125,12 @@ export default function DocumentRequestPanel({
   // way to fill the same template again with different facts (a different
   // case, a different counterparty). This lets the "done" screen start over.
   onStartNew?: () => void;
+  // Non-empty when a request for this same document is already with an
+  // advocate (ServiceDocumentRequest composes it). Both ways out of this
+  // panel towards an advocate — the builder's "Advokatdan yordam" and the
+  // finished document's "Advokat tekshiruviga yuborish" — then carry the
+  // refusal instead, since the backend accepts duplicate rows happily.
+  lawyerHeldNote?: string;
 }) {
   const t = useTranslations("portal.client.documents");
   const tcommon = useTranslations("common");
@@ -447,7 +454,7 @@ export default function DocumentRequestPanel({
   }
 
   async function sendToLawyerReview() {
-    if (reviewBusy) return;
+    if (reviewBusy || lawyerHeldNote) return;
     setReviewBusy(true);
     setNote(null);
     try {
@@ -481,6 +488,7 @@ export default function DocumentRequestPanel({
             onSubmit={saveAnswers}
             busy={busy}
             submitLabel={t("generate")}
+            lawyerHeldNote={lawyerHeldNote}
           />
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
         </>
@@ -509,15 +517,26 @@ export default function DocumentRequestPanel({
         </>
       ) : null}
 
+      {/* The only wait on this panel where a machine is actually producing a
+          file, so it is the only one that gets the sheet-stream loader (wp-
+          fileloader). It takes the place of the static sparkle chip rather
+          than joining it — the chip occupied the same 56px box, so the card
+          keeps its height — and the badge drops its pulsing dot, because two
+          unsynchronised loops in one small card read as a fault rather than as
+          progress. The sheets are decoration around a status the title, the
+          sub-line and the badge already state, hence aria-hidden on them and
+          role="status" on the block that carries the words. */}
       {shown === "generating" ? (
-        <div className="docpend">
-          <span className="docpend__ic docpend__ic--ai"><IconSparkle /></span>
+        <div className="docpend" role="status">
+          <span className="docfly" aria-hidden="true">
+            <i className="docfly__s" />
+            <i className="docfly__s" />
+            <i className="docfly__s" />
+            <i className="docfly__s" />
+          </span>
           <b>{t("generatingTitle")}</b>
           <span className="docpend__sub">{t("generatingSub")}</span>
-          <span className="docpend__badge">
-            <span className="docpend__dot" />
-            {t("generatingStatus")}
-          </span>
+          <span className="docpend__badge docpend__badge--ai">{t("generatingStatus")}</span>
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
             {busy ? t("processingShort") : t("checkStatus")}
@@ -525,8 +544,12 @@ export default function DocumentRequestPanel({
         </div>
       ) : null}
 
+      {/* A person, not a process: nobody has picked the request up yet, and
+          that can take the better part of an hour. A "your document is being
+          produced" stream would be a lie here, so this and the two waits below
+          keep the quiet pulsing dot they already had. */}
       {shown === "lawyerReview" ? (
-        <div className="docpend">
+        <div className="docpend" role="status">
           <span className="docpend__ic docpend__ic--lawyer"><IconHeadset /></span>
           <b>{t("lawyerReviewTitle")}</b>
           <span className="docpend__sub">{t("lawyerReviewSub")}</span>
@@ -545,7 +568,7 @@ export default function DocumentRequestPanel({
           now get a meeting invite from them, so this screen says so rather
           than repeating "waiting for someone to pick it up". */}
       {shown === "claimed" ? (
-        <div className="docpend">
+        <div className="docpend" role="status">
           <span className="docpend__ic docpend__ic--lawyer"><IconHeadset /></span>
           <b>{t("claimedTitle")}</b>
           <span className="docpend__sub">{t("claimedSub")}</span>
@@ -562,7 +585,7 @@ export default function DocumentRequestPanel({
       ) : null}
 
       {shown === "pending" ? (
-        <div className="docpend">
+        <div className="docpend" role="status">
           <span className="docpend__ic"><IconClock /></span>
           <b>{t("pendingTitle")}</b>
           <span className="docpend__sub">{t("pendingSub")}</span>
@@ -633,10 +656,13 @@ export default function DocumentRequestPanel({
               </div>
             </div>
           ) : (
-            <button className="btn btn--line btn--sm" type="button" onClick={() => setReviewOpen(true)}>
-              <IconHeadset />
-              {t("reviewOpen")}
-            </button>
+            <>
+              <button className="btn btn--line btn--sm" type="button" onClick={() => setReviewOpen(true)} disabled={!!lawyerHeldNote} title={lawyerHeldNote || undefined}>
+                <IconHeadset />
+                {t("reviewOpen")}
+              </button>
+              {lawyerHeldNote ? <p className="dgate__note">{lawyerHeldNote}</p> : null}
+            </>
           )}
           <div className="docoffer">
             <b>{t("offerTitle")}</b>

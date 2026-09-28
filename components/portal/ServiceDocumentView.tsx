@@ -106,7 +106,8 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
       ) : (
         <>
           <p className="docview__hint">
-            <IconEye /> {t("docViewHint")}
+            <IconEye />
+            {t("docViewHint")}
           </p>
           <div className="docpaper__scroll" style={{ maxHeight: "none" }}>
             <article className="docpaper__sheet docpaper__sheet--doc">{tree ? renderDocTree(tree) : null}</article>

@@ -8,6 +8,7 @@
 // `last_paid_at`). backend.ts stays untouched.
 import { http, asDict, asStr, asNum, asArr, type Dict } from "@/lib/http";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
+import { cleanDocTitle, cleanDocText } from "@/lib/docTitle";
 import type {
   AdminDashboard,
   DashboardChart,
@@ -298,10 +299,14 @@ function normOrder(v: unknown): BackendOrder {
   const details = asDict(d.details);
   const service = asDict(d.service);
   const amount = uzsOpt(d, "price", "amount");
+  // Same split as backend.ts's normOrder: the client's own question is prose
+  // and keeps its full stop, the catalogue titles behind it get the title
+  // cleaner.
+  const question = cleanDocText(asStr(details.question));
   return {
     id: asStr(d.id),
-    title: asStr(details.question ?? d.title ?? details.title ?? service.name),
-    serviceName: asStr(service.name ?? service.title ?? d.service_name ?? d.service_title ?? details.service_title ?? details.service_name),
+    title: question || cleanDocTitle(asStr(d.title ?? details.title ?? service.name)),
+    serviceName: cleanDocTitle(asStr(service.name ?? service.title ?? d.service_name ?? d.service_title ?? details.service_title ?? details.service_name)),
     status: asStr(d.status),
     paymentStatus: asStr(d.payment_status),
     contactUnlocked: Boolean(d.contact_unlocked),

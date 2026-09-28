@@ -12,7 +12,11 @@ export default function ProblemSection() {
           <h2 className="h2">{t("title")}</h2>
           <p className="lead">{t("lead")}</p>
         </div>
-        <div className="grid">
+        {/* grid--even: four cards, and the stock .grid (auto-fill) measured six
+            255px tracks for them at 1920 and three tracks at 980 — a lone card
+            with a wide hole beside it at both ends. See the wp-landinga block
+            in app/globals.css. */}
+        <div className="grid grid--even">
           {items.map((it, i) => (
             <article className="card card--warn" key={i}>
               <span className="card__i">

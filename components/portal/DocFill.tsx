@@ -55,6 +55,22 @@ export function clearDraft(id: string) {
   }
 }
 
+type DocT = (key: string, values?: Record<string, string | number | Date>) => string;
+// The one sentence every advocate control shows once a request for this same
+// document is already with an advocate, followed by whichever of the two
+// facts the record actually carries (a list row has neither a work_id nor a
+// detail fetch behind it). Composed in one place because four separate
+// controls say it — the builder's three "Advokatdan yordam" buttons, the
+// finished document's "Advokat tekshiruviga yuborish", and the chooser — and
+// a client who meets two of them must not be told two different things.
+export function lawyerPendingNote(t: DocT, statusText: string, workId: string): string {
+  const facts: string[] = [];
+  if (statusText) facts.push(t("lawyerPendingStatus", { status: statusText }));
+  if (workId) facts.push(t("lawyerPendingWork", { id: workId }));
+  const lead = t("lawyerPendingLead");
+  return facts.length ? `${lead} ${facts.join(" · ")}` : lead;
+}
+
 // The page around the builder, when it is the full-page one: given, DocFill
 // lays itself out as the advocate's document editor (DocumentEditorWorkspace)
 // and owns the top bar — back, exit, generate — instead of sitting under the
@@ -104,6 +120,7 @@ export default function DocFill({
   onSubmit,
   busy,
   submitLabel,
+  lawyerHeldNote,
 }: {
   req: DocumentRequest;
   // The template's own field list, used when the request came back without
@@ -117,6 +134,12 @@ export default function DocFill({
   onSubmit: () => void;
   busy: boolean;
   submitLabel: string;
+  // Non-empty when the client already has a request for this same document
+  // with an advocate (lawyerPendingNote above). The "ask a lawyer" buttons
+  // then stop being actions and carry this sentence instead — a second
+  // request would just create a second row, which the backend does not
+  // refuse on its own.
+  lawyerHeldNote?: string;
 }) {
   const t = useTranslations("portal.client.documents");
   const tf = useTranslations("portal.client.documents.fields");
@@ -367,7 +390,11 @@ export default function DocFill({
   const [askSent, setAskSent] = useState(false);
   const [askErr, setAskErr] = useState(false);
   async function askLawyer() {
-    if (askBusy || askSent || !sourceFile?.lawyerFlow) return;
+    // lawyerHeldNote disables every button that reaches here, so this guard
+    // is for the paths a disabled attribute does not cover (a stale click
+    // already in flight, a keyboard activation on the workspace's own
+    // action row). Nothing downstream would stop the duplicate row.
+    if (askBusy || askSent || lawyerHeldNote || !sourceFile?.lawyerFlow) return;
     setAskErr(false);
     setAskBusy(true);
     try {
@@ -588,8 +615,8 @@ export default function DocFill({
       type="button"
       className={chrome ? `deditor__act deditor__act--help${askSent ? " deditor__act--helpSent" : ""}` : `docfill__ask${askSent ? " docfill__ask--sent" : ""}`}
       onClick={askLawyer}
-      disabled={askBusy || askSent}
-      title={askSent ? t("askLawyerSent") : t("askLawyer")}
+      disabled={askBusy || askSent || !!lawyerHeldNote}
+      title={lawyerHeldNote || (askSent ? t("askLawyerSent") : t("askLawyer"))}
     >
       {askSent ? <IconCheck /> : <IconHeadset />}
       <span className={chrome ? "deditor__actLabel" : undefined}>{askSent ? t("askLawyerSent") : askBusy ? t("askLawyerSending") : t("askLawyer")}</span>
@@ -617,6 +644,7 @@ export default function DocFill({
           actions, the way the advocate's "Uchrashuv boshlash" sits there. */}
       {chrome ? null : askButton}
       {askErr ? <p className="svc__err">{t("askLawyerError")}</p> : null}
+      {chrome || !lawyerHeldNote ? null : <p className="dgate__note">{lawyerHeldNote}</p>}
     </header>
   );
 
@@ -714,6 +742,7 @@ export default function DocFill({
       onAskLawyer={!chrome && sourceFile?.lawyerFlow ? askLawyer : undefined}
       askLawyerBusy={askBusy}
       askLawyerSent={askSent}
+      askLawyerNote={lawyerHeldNote}
       sourceBusy={sourceBusy}
       sourceError={sourceErr}
     />
@@ -909,6 +938,7 @@ export default function DocFill({
                   </div>
                   {askButton}
                   {askErr ? <p className="svc__err">{t("askLawyerError")}</p> : null}
+                  {lawyerHeldNote ? <p className="dgate__note">{lawyerHeldNote}</p> : null}
                 </div>
               )}
             </div>

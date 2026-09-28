@@ -27,8 +27,12 @@ function CardGrid({
   cards: Card[];
   icons?: ComponentType<{ className?: string }>[];
 }) {
+  // grid--even pins the column count to a divisor of the card count. The three
+  // tabs hold 4, 6 and 3 cards, and the stock .grid (auto-fill) stranded one of
+  // the six on its own row at 1440/1600 and left two dead tracks beside the
+  // three at 1920. See the wp-landinga block in app/globals.css.
   return (
-    <div className="grid">
+    <div className="grid grid--even">
       {cards.map((c, i) => {
         const I = icons?.[i];
         return (

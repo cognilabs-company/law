@@ -134,20 +134,29 @@ export default function ClientDashboard() {
       {/* Who should answer this — asked once, before anything is typed.
           Sending every described problem to the AI page hid the fact that a
           real advocate is one of the two answers. */}
+      {/* The title and the sub sit in their own column (.cdwho__t) because the
+          two options are laid out as full-width rows rather than as a pair of
+          stretched cells: at the 516px modal width each title then fits on one
+          line, so the longer advocate title no longer wraps while the AI one
+          stays short, and neither row is padded out to match the other. */}
       <Modal open={whoOpen} onClose={() => setWhoOpen(false)} title={ta("whoTitle")}>
         <div className="cdwho">
           <p className="cdwho__lead">{ta("whoLead")}</p>
           <div className="cdwho__grid">
             <Link href="/portal/client/urgent" className="cdwho__c cdwho__c--adv" onClick={() => setWhoOpen(false)}>
               <span className="cdwho__i"><IconScale /></span>
-              <b>{ta("whoAdvocate")}</b>
-              <span>{ta("whoAdvocateSub")}</span>
+              <span className="cdwho__t">
+                <b>{ta("whoAdvocate")}</b>
+                <span>{ta("whoAdvocateSub")}</span>
+              </span>
               <em className="cdwho__go"><IconArrowRight /></em>
             </Link>
             <Link href="/portal/client/ai" className="cdwho__c cdwho__c--ai" onClick={() => setWhoOpen(false)}>
               <span className="cdwho__i"><IconChatDots /></span>
-              <b>{ta("whoAi")}</b>
-              <span>{ta("whoAiSub")}</span>
+              <span className="cdwho__t">
+                <b>{ta("whoAi")}</b>
+                <span>{ta("whoAiSub")}</span>
+              </span>
               <em className="cdwho__go"><IconArrowRight /></em>
             </Link>
           </div>

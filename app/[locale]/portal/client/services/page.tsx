@@ -26,6 +26,7 @@ import {
 } from "@/lib/services/backend";
 import { http, asDict, asStr, ApiError, errDetail } from "@/lib/http";
 import { fetchAndDeliver, extFromMime } from "@/lib/download";
+import { cleanDocTitle } from "@/lib/docTitle";
 import OrderPayment from "@/components/portal/OrderPayment";
 import ServicePassport from "@/components/portal/ServicePassport";
 import ServiceDocumentRequest from "@/components/portal/ServiceDocumentRequest";
@@ -166,6 +167,24 @@ const SUBCATEGORY_IMAGES: ImageRule[] = [
 ];
 function subcategoryImage(name: string): string | null {
   return pickImage(name, SUBCATEGORY_IMAGES);
+}
+
+const FILE_EXT = /\.([A-Za-z0-9]{1,8})$/;
+
+// What the browser writes to disk when a client downloads a template. The
+// catalogue was imported from a file system and its file names carry the
+// same leftovers the titles do — over the 988 templates live today, 165 end
+// in "..docx", 21 have a space before the extension and 12 start with "_",
+// so a client saving one got "_Далилларни номақбул деб топиш тўғрисида
+// илтимоснома..docx". cleanDocTitle is the cleaner those titles already go
+// through in the normalizer, so the base name goes through it too and the
+// extension is put back exactly as it arrived — a file the client cannot
+// open is worse than one with an ugly name. It also blanks a name that is
+// nothing but a UUID, which is how the two templates named after their own
+// GUID fall through to the service and then to a plain "Hujjat namunasi".
+function templateFileName(rawName: string, serviceName: string, mimeType: string, fallback: string): string {
+  const ext = rawName.match(FILE_EXT)?.[1] || extFromMime(mimeType) || "docx";
+  return `${cleanDocTitle(rawName.replace(FILE_EXT, "")) || cleanDocTitle(serviceName) || fallback}.${ext}`;
 }
 
 type Sort = "match" | "rating" | "exp" | "price";
@@ -395,7 +414,7 @@ export default function ClientServices() {
       setDlBusy("");
       return;
     }
-    const name = fields.sourceFileName || `${s.name}.${extFromMime(fields.sourceMimeType) || "docx"}`;
+    const name = templateFileName(fields.sourceFileName || "", s.name, fields.sourceMimeType, t("docViewTitle"));
     const ok = await fetchAndDeliver(() => getServiceTemplateSourceFile(src), name, true);
     if (!ok) setDlErr({ id: s.id, msg: t("downloadError") });
     setDlBusy("");
@@ -803,7 +822,10 @@ export default function ClientServices() {
           <button type="button" className="btn btn--line btn--sm" onClick={() => { setPreSeller(null); if (typeof window !== "undefined") window.history.replaceState(null, "", window.location.pathname); }}>{t("preSellerClear")}</button>
         </div>
       ) : null}
-      <div className="ppanel">
+      {/* svhub marks this panel as the catalogue's own, so the shared blocks
+          stacked above the grid (the search bar most of all) can be given a
+          tighter rhythm here without touching the other places they appear. */}
+      <div className="ppanel svhub">
         <div className="ppanel__h">
           <b>{showFamilies ? (allSubcats.length ? t("chooseSubcat") : t("chooseFamily")) : showSubcats ? catName : query ? t("title") : subcat || catName}</b>
           <span className="ppanel__hact">
@@ -833,7 +855,7 @@ export default function ClientServices() {
           {t("freeToView")}
         </p>
 
-        <div className="svsel__bar" style={{ marginBottom: 14 }}>
+        <div className="svsel__bar">
           <span className="svsel__search">
             <IconSearch />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
@@ -1109,38 +1131,45 @@ export default function ClientServices() {
           <div className="svsel__grid svsel__grid--svc">
             {shown.map((s, i) => {
               const hasDoc = !!s.documentTemplateId;
+              // advokat_required, normalized in lib/services/backend.ts. The
+              // corner ribbon (wp-ribbon in globals.css) marks these and only
+              // these: verified against the live API on 2026-09-29, 24 of the
+              // 1138 catalogue rows carry it, and they are the ones a licensed
+              // advocate handles in person instead of the client filling in a
+              // template. Reachable here mostly through search — of the 24,
+              // exactly one sits under a general category the drill-down can
+              // walk into (Jinoiy > "Advokat bilan ariza"); the other 23 hang
+              // off leaf categories that GET /service-categories does not
+              // return, so only the category-agnostic search surfaces them.
+              const advokatOnly = s.advokatRequired;
               return (
-                <div key={s.id} className="svc" style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}>
+                <div key={s.id} className={`svc${advokatOnly ? " svc--adv" : ""}`} style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}>
                   <div className="svc__top">
                     <span className="svc__i">{hasDoc ? <IconDocLines /> : <IconBriefcase />}</span>
                     <span className="svc__t">
-                      <b>{s.name}</b>
+                      {/* Clamped to six lines in CSS — 18 of the 280 names in
+                          a single direction run longer than that — so the
+                          whole name stays reachable on the card itself. */}
+                      <b title={s.name}>{s.name}</b>
                     </span>
-                  </div>
-                  <div className="svc__acts">
-                    {hasDoc ? (
-                      <button
-                        type="button"
-                        className={`svc__act svc__act--dl${isFreeTier ? " svc__act--locked" : ""}`}
-                        disabled={dlBusy === s.id}
-                        onClick={() => handleDownload(s)}
-                      >
-                        {isFreeTier ? <IconLock /> : <IconDownload />}
-                        {dlBusy === s.id ? t("downloading") : t("download")}
-                      </button>
+                    {/* Real text, not aria-hidden decoration: nothing else on
+                        the card says an advocate is required — "Advokatga
+                        yo'llash" below is on every card, advokat_required or
+                        not — so a screen reader would otherwise never hear the
+                        one fact the ribbon exists to carry. Placed after the
+                        title so it is read as a qualifier of the name; it is
+                        absolutely positioned, so DOM order costs no layout. */}
+                    {advokatOnly ? (
+                      <span className="svcrib">
+                        <b className="svcrib__t" title={t("advokatOnlyHint")}>{t("advokatOnly")}</b>
+                      </span>
                     ) : null}
-                    <button
-                      type="button"
-                      className="svc__act svc__act--adv"
-                      onClick={() => {
-                        setOrder(s);
-                        setDocLawyer(hasDoc);
-                        setForceAdvocate(!hasDoc);
-                      }}
-                    >
-                      <IconUsers />
-                      {t("sendToLawyer")}
-                    </button>
+                  </div>
+                  {/* The two that only show the blank template lead and share
+                      a line; the two that commit the client to something take
+                      a line each, ending on the primary action. DOM order is
+                      the visual order so the keyboard follows the eye. */}
+                  <div className="svc__acts">
                     {hasDoc ? (
                       <button
                         type="button"
@@ -1151,6 +1180,61 @@ export default function ClientServices() {
                         {t("viewDoc")}
                       </button>
                     ) : null}
+                    {hasDoc ? (
+                      <button
+                        type="button"
+                        className={`svc__act svc__act--dl${isFreeTier ? " svc__act--locked svc__act--pro" : ""}`}
+                        disabled={dlBusy === s.id}
+                        // Only on the gated branch: a Lite/Pro client's
+                        // download just downloads, and a tooltip promising a
+                        // paywall that isn't there would be a lie.
+                        title={isFreeTier ? t("badgeProHint") : undefined}
+                        onClick={() => handleDownload(s)}
+                      >
+                        {isFreeTier ? <IconLock /> : <IconDownload />}
+                        {dlBusy === s.id ? t("downloading") : t("download")}
+                        {/* The corner flag (wp-grid5 in globals.css), on the
+                            same condition as the padlock and the upgrade
+                            modal above — never on a card whose download
+                            already works. Real text rather than a CSS
+                            content: string, for the same two reasons
+                            .svcrib gives: a CSS string cannot be translated,
+                            and a screen reader would otherwise never hear
+                            the one fact the corner exists to carry. It is
+                            last in the DOM so the button reads "Yuklab olish
+                            PRO"; it is absolutely positioned and
+                            pointer-events:none, so it costs no layout and
+                            cannot swallow the click. */}
+                        {isFreeTier ? <span className="svc__flag svc__flag--pro">{t("badgePro")}</span> : null}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className={`svc__act svc__act--adv${advokatOnly ? " svc__act--top" : ""}`}
+                      title={advokatOnly ? t("badgeTopHint") : undefined}
+                      onClick={() => {
+                        setOrder(s);
+                        setDocLawyer(hasDoc);
+                        setForceAdvocate(!hasDoc);
+                      }}
+                    >
+                      <IconUsers />
+                      {t("sendToLawyer")}
+                      {/* TOP marks the 24 advokat_required rows out of 1141,
+                          not every card — this button is on all of them, so
+                          a flag on all of them would be wallpaper. Verified
+                          against the live API on 2026-09-29: none of those
+                          24 carries a document template, so on exactly those
+                          cards this is the only button there is, while on
+                          the other 1117 it is the third of four and is
+                          painted deliberately calm so it does not compete
+                          with the gradient "Hujjatni to'ldirish" (see
+                          .svc__act--adv in globals.css). The same quiet
+                          violet button means two different things in those
+                          two places, and only here does it mean "this is the
+                          whole service". */}
+                      {advokatOnly ? <span className="svc__flag svc__flag--top">{t("badgeTop")}</span> : null}
+                    </button>
                     {hasDoc ? (
                       <button
                         type="button"
@@ -1229,7 +1313,7 @@ export default function ClientServices() {
                 <p className="advmuted">{t("noSellers")}</p>
               ) : (
                 <>
-                  <div className="chiprow" style={{ margin: "6px 0 10px" }}>
+                  <div className="chiprow chiprow--tabs">
                     {(["match", "rating", "exp", "price"] as Sort[]).map((s) => (
                       <button key={s} type="button" className="fchip" aria-pressed={sort === s} onClick={() => setSort(s)}>
                         {t(s === "match" ? "sortMatch" : s === "rating" ? "sortRating" : s === "exp" ? "sortExp" : "sortPrice")}

@@ -18,6 +18,7 @@ import {
   type CallParticipant,
 } from "@/lib/services/backend";
 import { ApiError, asDict, asStr, isConflict, logApiError } from "@/lib/http";
+import { cleanDocTitle } from "@/lib/docTitle";
 import { fetchAndDeliver, extFromMime } from "@/lib/download";
 import { humanizeSlug, initials } from "@/lib/lawyers";
 import { shortDateTime } from "@/lib/date";
@@ -550,9 +551,12 @@ export default function DocumentEditorWorkspace({
   const badgeLabel = { new: t("statusNew"), taken: t("statusTaken"), progress: t("statusInProgress"), ready: t("statusReady"), sent: t("statusSent") }[badge];
   const answerEntries = req ? Object.entries(req.answers).filter(([, v]) => v != null && v !== "") : [];
   // A template-backed request names the same thing twice — show the second
-  // line only when it adds something.
-  const rawTemplate = req?.templateName || req?.templateFile?.fileName || "";
-  const templateLabel = rawTemplate && rawTemplate.trim() !== (req?.serviceName || "").trim() ? rawTemplate : "";
+  // line only when it adds something. Both sides have to be compared cleaned:
+  // templateFile.fileName is the source file's own name ("… .docx"), which
+  // never equalled the cleaned service name, so the panel printed the same
+  // title on both rows.
+  const templateName = cleanDocTitle(req?.templateName || req?.templateFile?.fileName || "");
+  const templateLabel = templateName && templateName !== cleanDocTitle(req?.serviceName || "") ? templateName : "";
   const chatRoomId = req?.secureChatRoomId || "";
   const editorErrMsg = editorErrStatus === 403 ? t("noAccess") : editorErrStatus === 404 ? t("notFound") : t("templateError");
 

@@ -1044,7 +1044,8 @@ body:has(.plogin) .fab{display:none}
    sits above ordinary static content and well below every real overlay in
    this file (nav 90, modals 120-270). */
 .robot-edge-zone{position:fixed;bottom:clamp(16px,4vh,32px);right:clamp(6px,1.2vw,14px);z-index:10;display:flex;pointer-events:none}
-.robot-viewport{position:relative;overflow:hidden;pointer-events:auto;cursor:pointer;outline:none}
+.robot-viewport{position:relative;overflow:hidden;pointer-events:none;cursor:pointer;outline:none}
+.robot-viewport::after{content:"";position:absolute;inset:14% 26% 8% 26%;pointer-events:auto}
 .robot-viewport:focus-visible{box-shadow:inset 0 0 0 2px var(--b400)}
 @media (max-width:900px){.robot-edge-zone{display:none}}
 
@@ -5844,11 +5845,6 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .ua__next{display:flex;align-items:flex-start;gap:7px;margin:0;font-size:.82rem;line-height:1.5;color:var(--gray)}
 .ua__next svg{width:14px;height:14px;flex:none;margin-top:2px;color:var(--ok)}
 .ua__next--muted svg{color:var(--gray2)}
-.ua__gate{display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding:14px;border-radius:var(--rl);
-  background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #92400E)}
-.ua__gate b{display:inline-flex;align-items:center;gap:7px;font-size:.92rem}
-.ua__gate svg{width:15px;height:15px}
-.ua__gate span{font-size:.86rem;line-height:1.5}
 
 .ua__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
 .ua__row{display:flex;align-items:flex-start;gap:12px;padding:13px;border-radius:var(--rl);background:var(--dk-surface-2, #F7FAFE)}
@@ -6670,7 +6666,6 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .ucand__count.ok{color:var(--ok)}
 
 /* ── The client's own request, opened out ────────────────────────── */
-.ua__row{flex-wrap:wrap}
 .ua__row--on{box-shadow:inset 0 0 0 1.5px var(--b300)}
 .uamore{flex-basis:100%;display:flex;flex-direction:column;gap:10px;margin-top:4px;padding-top:11px;
   border-top:1px solid var(--line);animation:uaIn .2s ease both}
@@ -7150,7 +7145,6 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 /* Cards keep an even floor at rest and grow one at a time, rather than the
    whole row stretching to the tallest hovered one. */
 .ua__grid{align-items:start}
-.uacard{min-height:186px}
 /* 0fr → 1fr animates the height of a grid row, which is the only way to
    transition "auto" without measuring anything in JS. */
 .uacard__more{display:grid;grid-template-rows:0fr;width:100%;
@@ -7162,9 +7156,6 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .uacard__how{font-size:.76rem;line-height:1.5;color:var(--gray2);
   padding-top:9px;border-top:1px dashed var(--line)}
 /* The kinds a grouped box holds, by name — the chooser gives the rest. */
-.uacard__kindl{display:flex;flex-direction:column;gap:4px}
-.uacard__kindl em{display:flex;align-items:baseline;gap:6px;font-style:normal;font-size:.78rem;font-weight:600;color:var(--ink)}
-.uacard__kindl em::before{content:"";flex:none;width:4px;height:4px;border-radius:50%;background:var(--b400);transform:translateY(-2px)}
 @media (prefers-reduced-motion:reduce){
   .uacard__more{transition:none}
 }
@@ -7641,4 +7632,1526 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
 @media (max-width:560px){
   .dprev__audio{flex-basis:100%}
   .dprev__pdf{height:52vh}
+}
+
+/* ── wp-dgate: the advocate-hold gate on the document constructor ──── */
+/* A lawyer request is a second DocumentRequest row on the same template, and
+   the backend has no duplicate guard of its own (two live lawyer_review rows
+   were found on one template for one client on 2026-09-28). So the client is
+   told, at every control that could send a second one, that one is already
+   in flight — these are the bits of that message that had no class yet.
+   The gate modal and the blocked panel reuse .dexit__lead/.dexit__btns and
+   .docassist__head, which already carry exactly this layout. */
+
+/* The advocate request's own facts under the blocked panel's lead: its
+   status and, when the record carries one, the LGD- work id the client and
+   the advocate quote at each other. Chips rather than a sentence, so they
+   stay readable next to the muted lead above them. */
+.dgate__meta{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0 0;font-size:.78rem}
+.dgate__meta span{display:inline-flex;align-items:center;padding:3px 9px;border-radius:var(--pill);
+  background:var(--dk-tint-blue, #EAF1FF);color:var(--dk-acc-strong, var(--b700));font-weight:700}
+
+/* The same refusal in one line, next to an advocate button that is disabled
+   rather than removed (the button is part of how the client reads the
+   screen; taking it away would leave the refusal unexplained). Amber, not
+   the red of .svc__err — nothing has failed, the request is simply already
+   with an advocate. */
+.dgate__note{margin:0;font-size:.78rem;line-height:1.5;color:var(--dk-txt-warn, #b45309)}
+
+/* The chooser's "Advokat bilan tayyorlash" card still opens — it leads to
+   the wait screen for the request already sent — but it is no longer one of
+   two equal choices, so it steps back and its icon takes the warn colour
+   the rest of the gate uses. */
+.docchoose__c--held{opacity:.78}
+.docchoose__c--held .docchoose__i{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+
+/* ── wp-urgent-fit: Tezkor Advokat, the sizes measured on the page ──
+   Every rule below answers a number taken off /uz/portal/client/urgent at
+   1440, 820 and 400px. It only corrects the .ua / .uacard blocks above; the
+   module's look is unchanged. */
+
+/* The order form is a .cform, and a grid with no explicit track sizes its
+   implicit column to its widest child. The practice-area chip row is 944.6px
+   of max-content, so the track measured 944.6px at EVERY viewport and the
+   panel overflowed by 188px at 820 and 597px at 400 — with nothing able to
+   scroll to the chips pushed out, while an empty `directions` blocks submit.
+   One minmax(0,1fr) track makes every field obey the panel instead of the
+   panel obeying the widest field. Scoped to this form: .cform is shared with
+   every other form in the app and must keep its content-sized behaviour. */
+.ua__form .cform{grid-template-columns:minmax(0,1fr)}
+/* .chiprow's own overflow-x:auto never engaged (scrollWidth 945 ===
+   clientWidth 945) and it hides its scrollbar, so nothing told a client that
+   four of the seven practice areas were off-screen. Here they are a required
+   multi-select, not a filter bar that can be ignored, so they wrap instead of
+   scrolling: all seven stay on screen at 400px and none has to be found by
+   dragging. */
+.ua__form .chiprow{flex-wrap:wrap;overflow:visible}
+
+/* The hero's three figures were flex:none, so the <dl> laid out at its
+   386.5px max-content inside a 332px hero at 400px, its own flex-wrap never
+   fired and .ua__hero{overflow:hidden} cut the third column mid-word — it
+   read "2 000 so'm / daqi". It already wraps; it only needed permission to
+   be narrower than its content. */
+.ua__meta{flex:0 1 auto;min-width:0}
+.ua__meta dd{overflow-wrap:anywhere}
+
+/* The service name and the work-id pill are two flex items now rather than
+   one unbreakable text run, so a long name keeps the row and the id drops
+   under it. */
+.ua__rowt{display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 8px}
+
+/* MyRequestDetail moved into <Modal>, whose body is a plain 22px-padded
+   block, but .uamore still dressed itself as the wrapped flex item of
+   .ua__row it used to be: a second horizontal rule 4px under the modal
+   header's own border, and 38px of lead-in instead of 22px. */
+.amodal__b>.uamore{flex-basis:auto;margin-top:0;padding-top:0;border-top:0}
+
+/* The arrow was pinned to the card's bottom corner with 44px of padding
+   reserved under the content to keep it clear — 53px of empty card at every
+   width, counting the 8px column gap spent in front of a zero-height reveal.
+   It says "this opens" just as well from the top corner, beside the service
+   icon, where the card already has empty space. */
+.uacard{padding-bottom:16px}
+.uacard__go{top:14px;bottom:auto}
+
+/* align-items:start left the cards in a row standing at 237.3 / 246.6 /
+   216.7 / 246.6 at 1440 and spreading 50.4px at 820 — the ragged floor the
+   GM reads as "the boxes are the wrong size". */
+.ua__grid{align-items:stretch}
+
+/* The reveal is laid out rather than animated from 0fr: growing it in normal
+   flow moved the grid row and every section under it by 61.5px at 1440 and
+   90.1px at 820 every time the pointer crossed a card. Reserving the band and
+   fading it in on hover stops the movement but leaves a 96px hole in every
+   card at rest, and on a phone, which never fires :hover, the hole and the
+   text behind it would both be permanent — the same defect the clamped
+   description had. So the band simply holds its two lines: which kinds a
+   grouped box contains and how the work is delivered. It lands on the floor
+   of the card, in the space the arrow used to reserve, and the card is the
+   same height whether the pointer is on it or not. */
+.uacard__more{grid-template-rows:1fr;margin-top:auto}
+/* The 9px lead-in the band carried was on top of the card's own 8px column
+   gap, which only showed once the band stopped collapsing to nothing;
+   .uacard__how's dashed rule is the separation these two lines want. */
+.uacard__morei>*{margin-top:0}
+
+/* The one sentence saying what a service IS was clamped to two lines and
+   unclamped only on :hover / :focus-visible, neither of which a phone fires:
+   measured scrollHeight 58-77 against clientHeight 38 on all four cards at
+   820. A card whose sentence is cut is not doing its job, so it is shown. */
+.uacard__d{display:block;-webkit-line-clamp:unset;line-clamp:unset;overflow:visible}
+
+/* ── wp-docspages: the two hujjatlar screens, measured and re-spaced ─────
+   "Huquqiy hujjatlar" (the services catalogue) and "Mening hujjatlarim".
+   Everything below was written against numbers taken off the running app at
+   1440 / 820 / 400 — the gaps, the tile hierarchy and the row chips were all
+   wrong by measurement, not by taste. Each block says which number it moves.
+   Appended last on purpose: most of it wins only by coming after the rule it
+   replaces, and the eight caption rules have to out-specify two element
+   selectors that had made their own classes unreachable. */
+
+/* ── The service card: it was 80% empty ──────────────────────────────
+   .svc was height:100% inside a stretching grid, so every card in a row grew
+   to the tallest one, and .svc__acts{margin-top:auto} pinned its buttons to
+   that borrowed bottom edge. Measured at 1440: 202px of nothing between the
+   title and the first button, cards running 307→468px in one grid while the
+   titles inside them ran 23→230px. The card sizes to its own content now —
+   the grid stops stretching it, the buttons stop being pushed away, and the
+   212px min-height floor (180px under 980) that was propping up the short
+   cards goes with them. */
+.svsel__grid--svc{align-items:start}
+.svc{height:auto;min-height:0}
+.svc__acts{margin-top:0;gap:8px}
+
+/* The four actions could never share a line: flex:1 1 auto made each one's
+   flex base its own nowrap label (128-172px measured) against a 210-228px
+   column, so flex-wrap stacked all four and --fill's flex-basis:100% forced
+   a fourth row — 191px of buttons at every width, phone included. The two
+   that both mean "look at the blank template" are paired on one line now
+   (their min-content widths are 93px and 98px, which fit side by side in the
+   narrowest real column at 210px); the two that commit the client to
+   something keep a full-width line each. Labels wrap instead of running out
+   of the card, because "Advokatga yo'llash" is 172px wide and the tablet
+   column is 161px inside its padding. */
+.svc__act{flex:1 1 98px;min-width:0;white-space:normal;text-align:center;line-height:1.3;padding:9px 11px}
+.svc__act--adv,.svc__act--fill{flex:1 1 100%}
+/* Titles here are whole sentences off a DOCX filename — 18 of 280 run past
+   six lines and one runs to ten, which is what stretched the grid rows in
+   the first place. Six lines keeps 94% of them complete; the rest carry the
+   full name on the element's title, and every action on the card opens a
+   page that shows it in full. */
+.svc__t b{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ── Catalogue tile: three captions rendering as one ─────────────────
+   .svfam__cat, .svfam__n, .svfam__ex and .svfam__d are all <small> children
+   of .svfam__t, and `.svfam__t small` (globals.css:1540) is specificity
+   (0,1,1) — it beat every one of their own class rules. Measured: all four
+   rendered 12.8px / rgb(92,110,133), so the tile had no hierarchy at all.
+   Re-stating each one qualified by its parent gets (0,2,1), which is the
+   smallest thing that wins without !important. */
+.svfam__t small.svfam__cat{display:block;font-size:.7rem;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--dk-acc, var(--b600))}
+.svfam__t small.svfam__n{display:block;margin-top:3px;font-size:.76rem;font-weight:700;color:var(--gray2)}
+/* "Masalan: …" was one nowrap line: measured scrollWidth up to 2008px inside
+   a 231px tile at 1440 and 133px at 400, i.e. 92-94% of the sample list cut
+   off, with the whole string reachable only through a title tooltip that a
+   touch device cannot open. Three wrapped lines carry 52% of the list at
+   1440 against the 21% one clipped line carried, which is the difference
+   between a real service title and "Masalan: 14 ё…". */
+.svfam__t small.svfam__ex{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+  white-space:normal;overflow-wrap:anywhere;font-size:.72rem;line-height:1.4;color:var(--gray2)}
+.svfam__t small.svfam__d{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:.76rem;line-height:1.45;color:var(--gray)}
+
+/* ── The soha strip: five buttons, four tracks ───────────────────────
+   minmax(210px,1fr) resolved to four tracks at 1440 against five buttons, so
+   the fifth sat alone with 810px of empty row beside it and the strip stood
+   235px tall for 113px of content. A 138px floor is the largest one that
+   still fits all five across the narrowest desktop-ish container measured
+   (737px at 820), and auto-fit collapses the tracks nobody fills. */
+.svcats{grid-template-columns:repeat(auto-fit,minmax(min(138px,100%),1fr));gap:8px;margin-bottom:10px}
+
+/* ── The chrome above the first tile ─────────────────────────────────
+   Five stacked blocks each carrying its own bottom margin measured 513px at
+   1440 and 878px at 400 before a single tile appeared. The soha strip losing
+   its second row is most of it; the rest is this page's own blocks giving
+   back 4px each and the sort row stopping pretending to be two rows. */
+.svfree{margin-bottom:10px;padding:9px 13px}
+.svhub>.svsel__bar{margin-bottom:10px}
+/* One Select behind one word was laid out as a label above a control — a
+   73px band for a 44px control. Side by side it is the control's own height. */
+.svfilt{align-items:center;margin-bottom:10px}
+.svfilt__f{flex-direction:row;align-items:center;gap:10px}
+.svfilt__f>span{flex:none}
+@media (max-width:560px){
+  /* The stacked-label layout came back here; the reason it was wrong at
+     1440 is the same reason it is wrong on a phone, where vertical room is
+     the scarce thing. */
+  .svfilt{flex-direction:row;align-items:center}
+  .svfilt__f{min-width:0;flex:1 1 auto}
+  /* Three rows of soha cards is still a third of a phone screen, so the
+     description gives up its second line to the catalogue below it. */
+  .svcat__d{-webkit-line-clamp:1}
+  .svcat{padding:10px 12px}
+}
+
+/* ── wp-docspages-tabs: the filter strip on both screens ─────────────
+   .chiprow is 8px above and 14px below its chips so a pressed chip's shadow
+   is not clipped by its own overflow; both call sites then added a margin on
+   top of that, which is how a 42px control came to stand in a 78px band. The
+   margin is gone from the markup and the padding is the measured shadow
+   reach (0 14px 34px -12px, so ~10px below the chip), not a round number. */
+.chiprow--tabs{padding-top:5px;padding-bottom:12px}
+@media (max-width:560px){
+  /* At 400 the four tabs need 489px in a 328px scroller whose scrollbar is
+     hidden, so "Advokat bilan" and half of "AI bilan" were off-screen with
+     nothing on the page saying they existed. They wrap now; overflow can go
+     back to visible once nothing scrolls, which is also what gives the
+     pressed chip its shadow room back without padding. */
+  .chiprow--tabs{flex-wrap:wrap;overflow-x:visible;gap:7px;padding-top:2px;padding-bottom:4px}
+  .chiprow--tabs .fchip{padding:8px 13px;font-size:.8rem}
+}
+
+/* ── wp-docspages-mydoc: four chips that all looked the same ─────────
+   `.mydoc__row small` (globals.css:7271) is (0,1,1) and beat .mydoc__wid,
+   .mydoc__kind, .mydoc__mode and .mydoc__live, so the work id, the kind of
+   document, how it is being written and the plain date all rendered at
+   12.48px / rgb(92,110,133). Qualifying each by the row gets (0,2,1). They
+   are four different kinds of fact and now read as four. */
+.mydoc__row small.mydoc__wid{font-size:.7rem;font-weight:700;color:var(--gray2);
+  background:var(--dk-surface-2, #F2F6FC);padding:2px 8px;border-radius:7px}
+.mydoc__row small.mydoc__kind{font-size:.72rem;font-weight:700;color:var(--dk-acc-strong, var(--b700));
+  background:var(--dk-tint-blue, #E6F0FF);padding:3px 9px;border-radius:var(--pill)}
+.mydoc__row small.mydoc__mode{font-size:.74rem;font-weight:600;color:var(--gray2)}
+.mydoc__row small.mydoc__live{font-size:.74rem;font-weight:700;color:var(--ok)}
+
+/* statusTone() returns "working" for a request an advocate has picked up but
+   not finished, and the row writes .mydoc__st--working — a modifier globals
+   never defined, so those rows fell back to the neutral grey that means
+   "closed, nothing more will happen". The violet is this app's own lawyer-at-
+   work tint (.atype--lawyer, .svc__act--adv), which is exactly what the
+   status means. */
+.mydoc__st--working{background:var(--dk-tint-violet, #F1EBFF);color:var(--dk-txt-violet, #6A3DE8)}
+
+/* ── wp-wording: the advocate-or-AI chooser, rebuilt as two rows ──────
+   Replaces the geometry of the wp-who block above. Measured in the dialog at
+   1440 before this: .cdwho__c{padding:18px 16px 44px} reserved a band for the
+   absolutely-positioned arrow, so the advocate card carried 64.7px of empty
+   space under its last line of text against 45px on the AI card — a 19.7px
+   asymmetry on top of a dead band both cards paid for. The lead paragraph was
+   14.08px in --gray, within 1.6px of the 15.68px card titles and exactly the
+   same grey as the card sub-text, so nothing in the dialog ranked above
+   anything else.
+   Two changes fix both. The options are full-width rows instead of a pair of
+   stretched grid cells, so at the 516px modal width each title fits on one
+   line — the longer "Professional va tajribali advokat maslahati" no longer
+   wraps while the AI title stays on one — no row is padded out to match its
+   neighbour's height, and the arrow rides the row rather than hanging in a
+   reserved band. And the three text levels are pulled apart: title 1.02rem in
+   --ink, sub .82rem in --gray, lead .84rem in the lighter --gray2. Every
+   colour here is a theme token that html[data-theme="dark"] already
+   redefines, so no light-only value is introduced. */
+.cdwho{gap:13px}
+.cdwho__lead{font-size:.84rem;color:var(--gray2);line-height:1.5}
+.cdwho__grid{grid-template-columns:1fr;gap:10px}
+.cdwho__c{flex-direction:row;align-items:center;gap:13px;padding:14px;border-radius:16px}
+/* A wide row needs less lift than a small card to read as liftable. */
+.cdwho__c:hover{transform:translateY(-2px)}
+.cdwho__i{flex:none;width:40px;height:40px;border-radius:12px}
+.cdwho__i svg{width:20px;height:20px}
+/* The text column. `min-width:0` is what lets a long title wrap inside the
+   row instead of pushing the arrow off the right edge. */
+.cdwho__t{display:flex;flex-direction:column;gap:3px;min-width:0}
+.cdwho__c b{font-size:1.02rem;line-height:1.32}
+.cdwho__t>span{font-size:.82rem;color:var(--gray);line-height:1.5}
+.cdwho__go{position:static;flex:none;margin-left:auto;align-self:center}
+
+/* On a phone the row keeps its shape — icon, text, arrow — but every fixed
+   part gives width back to the title, which is the only thing that wraps.
+   Three or four lines fit in a row at that width, and an icon centred against
+   a block that tall floats somewhere in the middle of the sub-text; both the
+   icon and the arrow move up to the title's own line instead, so the sub-text
+   hangs off the title the way it does in every other list row in the portal. */
+@media (max-width:560px){
+  .cdwho__c{align-items:flex-start;gap:11px;padding:13px 12px}
+  .cdwho__i{width:36px;height:36px;border-radius:11px}
+  .cdwho__go{align-self:flex-start;width:24px;height:24px}
+  .cdwho__go svg{width:12px;height:12px}
+}
+
+/* ── wp-plans: the featured tariff's CTA — a gradient that slides on hover ──
+   The Tariflar screen shows three buy buttons that look alike, so nothing on
+   it says "take this one". This gives the recommended plan's button, and only
+   that one, a face that moves.
+
+   The mechanism is borrowed from a Uiverse button (Yaya12085): paint the
+   button with a gradient three times wider than the button itself, show its
+   left third at rest, and on hover slide the paint to the right third by
+   moving background-position. Nothing in the layout moves, so nothing
+   reflows — the whole face just changes colour from one side to the other.
+   The original's magenta→orange run, its purple text-shadow and its foreign
+   1.2em/30px geometry are not kept: this button stays a LexGo .btn (--pill
+   radius, 14px/24px padding, .95rem/600 label) so it still lines up pixel for
+   pixel with the .btn--line buttons on the plans either side of it.
+
+   The stop list is a palindrome — b700 b600 b500 cy2 cy cy2 b500 b600 b700 —
+   so both ends of the paint are the same navy and the slide has no seam. It
+   also means the visible third is blue-dominant at BOTH ends and the cyan
+   only sweeps through mid-transition, which is what keeps the white label
+   legible. Sampled off a screenshot of the real button at 1440: the paint
+   behind the label reads #247CF9 (white contrast 3.94:1) at rest and #227EFF
+   (3.82:1) on hover, against #0696E9 (3.21:1) for the same button with plain
+   .btn--grad — so the livelier button is also the more readable one. Across
+   the width it runs #155BD2 (6.07:1) → #1B95F5 (3.15:1) at rest and mirrors
+   to #289AFF (2.93:1) → #1860DF (5.56:1) on hover; the pale end is always the
+   bare edge outside the centred label, never under it.
+
+   btn--unlock is layered ON TOP of btn--grad rather than replacing it, so the
+   button falls back to today's look if this block is ever dropped, and it
+   keeps the house shimmer (.btn--grad::before). Shimmer and slide both travel
+   left→right and are timed alike, so they read as one gesture rather than two
+   competing ones. */
+html[data-theme="dark"]{
+  /* Defined only here, so light mode keeps the fallbacks written into the
+     rules below. On a dark plan card (--dk-surface #121C31) the blue glow
+     that lifts this button off a white card disappears into the background,
+     so dark trades most of the glow for a cyan hairline that draws the edge. */
+  --dk-unlock-shadow:0 14px 30px -14px rgba(0,166,230,.55),0 0 0 1px rgba(0,207,232,.30);
+  --dk-unlock-shadow-h:0 18px 38px -14px rgba(0,207,232,.52),0 0 0 1px rgba(0,207,232,.52);
+}
+.btn--unlock{
+  /* 100deg rather than the house 135deg: the paint box is three times the
+     width of the button, so a steep angle flattens to horizontal anyway —
+     this is the angle that still reads as tilted at the real size. */
+  background-image:linear-gradient(100deg,
+    var(--b700) 0%,var(--b600) 10%,var(--b500) 22%,var(--cy2) 38%,var(--cy) 50%,
+    var(--cy2) 62%,var(--b500) 78%,var(--b600) 90%,var(--b700) 100%);
+  background-repeat:no-repeat;
+  background-size:300% 100%;
+  background-position:0% 50%;
+  color:#fff;
+  /* The original's purple shadow belonged to its own palette. White on this
+     blue ramp needs no help, but a hair of the darkest brand navy keeps the
+     label crisp during the moment the cyan band passes under it. */
+  text-shadow:0 1px 2px rgba(3,16,43,.30);
+  box-shadow:var(--dk-unlock-shadow, var(--sblue));
+  transition:background-position .7s cubic-bezier(.3,.9,.4,1),background-size .7s cubic-bezier(.3,.9,.4,1),
+    box-shadow .22s,transform .18s cubic-bezier(.2,.8,.2,1),color .2s;
+}
+/* A keyboard user should see the button come alive too, not just get a ring,
+   so focus is given the same answer as hover. */
+.btn--unlock:hover,.btn--unlock:focus-visible{
+  background-position:100% 50%;
+  /* The original widens 300% → 320% while it slides; a little more here, so
+     the paint keeps travelling for the whole of the transition instead of
+     arriving early and sitting still. */
+  background-size:345% 100%;
+  transform:translateY(-1px);
+  box-shadow:var(--dk-unlock-shadow-h, 0 18px 40px -12px rgba(22,104,240,.62));
+}
+/* The crown. components/icons.tsx draws stroke-only icons, so the original's
+   "the glyph fills white on hover" becomes: an outline that fills in. The fill
+   is a presentation attribute on the <svg>, which any CSS rule outranks. */
+.btn--unlock svg{fill:rgba(255,255,255,.26);transition:fill .3s ease}
+.btn--unlock:hover svg,.btn--unlock:focus-visible svg{fill:rgba(255,255,255,.92)}
+
+/* The slide is a background-position transition, which the file's global
+   reduced-motion rule already collapses to nothing — the button still changes
+   face on hover, it simply stops travelling to get there. The 1px lift is
+   real movement, so that goes. There is deliberately no keyframe loop in this
+   block: a tariff button that pulses for ever is noise, not attention. */
+@media (prefers-reduced-motion:reduce){
+  .btn--unlock:hover,.btn--unlock:focus-visible{transform:none}
+}
+
+/* ── wp-stars: the star rows in the two client rating windows ─────────────
+   The idea is borrowed from a Uiverse star rating (SelfMadeSystem) and only
+   the idea: an empty star is a dashed outline that crawls slowly round its own
+   edge, and a picked one collapses to nothing and springs back filled. The
+   original's #ffc73a and its bare radio inputs are not used — both widgets stay
+   real radiogroups of <button>s, and the gold below is a LexGo token that
+   flips with the theme. Shared by .drate__s (document rating, 15-minute
+   window) and .urate__star (urgent advocate), because a client who has seen
+   one should recognise the other. */
+
+/* The palette has no gold, so the rating adds one, in the house shape: the
+   --dk-* name exists only inside the dark block, so light falls through to the
+   value spelled at every call site. Light #C98200 measures 3.03:1 against the
+   #F7FAFE panel the stars sit on — a brighter amber such as the #F5A623 this
+   file already uses for the countdown chip only reaches 2.2:1, which is under
+   the 3:1 a graphic that carries state needs. Dark #FFC55A measures 9.7:1 on
+   #18253E, so it can afford to be the bright one. */
+html[data-theme="dark"]{ --dk-rate-gold:#FFC55A }
+
+/* Both rows: five stars at 26px plus 3px of padding, 6px apart — 184px wide,
+   so the row still fits on one line inside a 400px phone card. */
+.drate__stars,.urate__stars{display:flex;gap:6px;align-items:center}
+.drate__s,.urate__star{border:0;background:none;padding:3px;border-radius:9px;line-height:0;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .16s cubic-bezier(.2,.8,.2,1)}
+.drate__s:hover:not(:disabled),.urate__star:hover{transform:translateY(-1px) scale(1.06)}
+.drate__s:disabled{cursor:default;opacity:.6}
+
+/* The empty star. overflow:visible because the pop below grows past the
+   viewBox and the thick picked stroke sits outside the path. stroke-dasharray
+   is in pathLength units (the <path> declares pathLength="360"), so 12 gives
+   the same 30 dashes whatever size the star is drawn at. */
+.drate__s svg,.urate__star svg{width:26px;height:26px;overflow:visible;
+  fill:var(--dk-rate-gold, #C98200);fill-opacity:0;
+  stroke:var(--gray2);stroke-width:1.6;stroke-linejoin:bevel;
+  stroke-dasharray:12;stroke-dashoffset:0;
+  transform-origin:50% 50%;
+  transition:stroke .18s ease,stroke-width .18s ease,fill-opacity .34s ease;
+  animation:rate-crawl 6s linear infinite}
+
+/* "Gold right now" — this follows the hover/focus preview, not the committed
+   rating, so crossing the row fills and empties it as you go. fill is repeated
+   here rather than left to the rule above because the block this replaces
+   already ships `.drate__s.on svg{fill:currentColor}`, which outranks it and
+   would otherwise paint the picked star the old #F5A623. */
+.drate__s.on,.urate__star.on{color:var(--dk-rate-gold, #C98200)}
+.drate__s.on svg,.urate__star.on svg{
+  fill:var(--dk-rate-gold, #C98200);fill-opacity:1;
+  stroke:var(--dk-rate-gold, #C98200);stroke-width:2.6;
+  stroke-dasharray:0;stroke-linejoin:round;
+  animation:none}
+
+/* "Actually chosen" — this changes only on a click, which is what keeps the
+   pop to the one moment a rating is given instead of re-firing every time the
+   pointer wanders back across the row. The small per-position delay makes a
+   five-star pick ripple left to right rather than bang all at once; backwards
+   fill holds the empty first frame through that delay. */
+.drate__s.set svg,.urate__star.set svg{animation:rate-pop .52s linear backwards}
+.drate__s:nth-child(2).set svg,.urate__star:nth-child(2).set svg{animation-delay:25ms}
+.drate__s:nth-child(3).set svg,.urate__star:nth-child(3).set svg{animation-delay:50ms}
+.drate__s:nth-child(4).set svg,.urate__star:nth-child(4).set svg{animation-delay:75ms}
+.drate__s:nth-child(5).set svg,.urate__star:nth-child(5).set svg{animation-delay:100ms}
+
+/* The dashes drift one full pattern (2 × 12) per cycle, so the loop is
+   seamless and slow enough to read as "waiting" rather than as a spinner. */
+@keyframes rate-crawl{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
+
+/* The collapse hides the swap: the star is still a grey dashed outline while
+   it shrinks away, and comes back gold and solid, so the two looks are never
+   seen cross-fading into each other. */
+@keyframes rate-pop{
+  0%{transform:scale(1);fill-opacity:0;stroke:var(--gray2);stroke-width:1.6;stroke-dasharray:12;stroke-linejoin:bevel;
+    animation-timing-function:cubic-bezier(.5,0,.75,.2)}
+  32%{transform:scale(.08);fill-opacity:0;stroke:var(--gray2);stroke-width:1.6;stroke-dasharray:12;stroke-linejoin:bevel}
+  34%{transform:scale(.12);fill-opacity:1;stroke:var(--dk-rate-gold, #C98200);stroke-width:2.6;stroke-dasharray:0;stroke-linejoin:round;
+    animation-timing-function:cubic-bezier(.2,.9,.3,1.1)}
+  66%{transform:scale(1.16);animation-timing-function:ease-out}
+  100%{transform:scale(1)}
+}
+
+/* The word under the row, for the star the pointer is on. min-height keeps the
+   line reserved so the comment box does not jump when the word appears. */
+.drate__word,.urate__word{margin:0;min-height:1.15em;font-size:.78rem;font-weight:700;letter-spacing:.01em;
+  color:var(--dk-rate-gold, #C98200);transition:color .18s ease}
+
+/* The heading star in the document window is the same gold as the row under
+   it; they sit 30px apart and two different golds would read as a mistake.
+   The child combinator matters: .drate__h also contains the countdown chip,
+   and a bare .drate__h svg here would land after the rule that keeps that
+   chip's clock unfilled and in the chip's own colour. */
+.drate__h > b svg{color:var(--dk-rate-gold, #C98200);fill:var(--dk-rate-gold, #C98200)}
+/* The urgent window's heading draws the same five-point star as its row, so it
+   takes the same gold. Its thank-you twin is left alone: that one sits on the
+   green --ok block and reads as "done", not as a rating. */
+.urate > b svg{color:var(--dk-rate-gold, #C98200)}
+
+/* Reduced motion: the crawl is an infinite animation and the pop is a
+   transform, so both go. What is left still answers the only question the row
+   asks — a chosen star is a solid gold one, an empty star is a dashed grey
+   outline, frozen. */
+@media (prefers-reduced-motion:reduce){
+  .drate__s svg,.urate__star svg,
+  .drate__s.on svg,.urate__star.on svg,
+  .drate__s.set svg,.urate__star.set svg{animation:none;stroke-dashoffset:0;transform:none}
+  .drate__s,.urate__star{transition:none}
+  .drate__s:hover:not(:disabled),.urate__star:hover{transform:none}
+}
+
+/* ── wp-ribbon: the "Advokat bilan" corner on a service card ──────────
+   Uiverse's corner-ribbon idea (mrhyddenn), rebuilt on the LexGo palette.
+   What is kept from the original is the shape and the trick: a 45° band
+   pinned across a card's top-left corner, clipped by a square wrapper,
+   with a small darker tail at each end so it reads as folded cloth and
+   not as a sticker. Everything else is replaced — the orange
+   #ff6547→#ffb144 gradient, the `content:'Premium'` string (a CSS string
+   cannot be translated, so the label lives in the markup) and the 150px
+   geometry, which is built for a 200px card, not for this one.
+
+   It marks the services whose `advokat_required` is true — a licensed
+   advocate does the work in person instead of the client filling in a
+   template. Re-measured against the live API on 2026-09-29: 24 of the
+   1138 catalogue rows, i.e. 2.1%, which is rare enough that the corner
+   still means something. Price is deliberately NOT what it marks: 149
+   of those rows carry a non-zero standard_price, so a "Premium" ribbon
+   would be both untrue and commonplace. */
+
+/* The card was position:static and overflow:visible (both measured), and it
+   stays overflow:visible. The obvious way to clip a corner is overflow:hidden
+   on the card itself, and it would cost something here: .svc__act--fill
+   carries --sblue (0 14px 34px -12px), whose glow reaches 19px below the
+   button, while the measured gap from that button to the card's bottom edge
+   is 17px at 1440 and 14px at 400 — so clipping the card would cut 2px of the
+   primary action's glow on desktop and 5px on a phone. (A focused action is
+   safe either way: the 3px ring at 2px offset reaches 5px, well inside that
+   gap.) The ribbon brings its own clip instead, and only the marked cards
+   become a containing block, so the other 1114 rows are untouched. */
+.svc--adv{position:relative}
+
+/* The corner is where .svc__i sits, and the band crosses the icon glyph
+   (glyph box starts 10px in from the tile, the band's inner edge 44.5px
+   from the card corner), so on these cards the mark replaces the icon
+   rather than being drawn on top of it. visibility, not display: the
+   40x40 tile keeps its box, so the title still starts at the same x and
+   the card's height does not move. Nothing is lost — the icon is the
+   generic briefcase/document glyph every card carries, and whether the
+   service has a template is already said by its own buttons. */
+.svc--adv .svc__i{visibility:hidden}
+
+/* The clip square. 72px on a side, chosen against a measurement, not by
+   eye: the first line of the title starts at (69,19) from the card's
+   corner at 1440 and (66,16) at 820/400 — the padding shrinks from 16 to
+   13 under 980 — so the nearest ink is on the diagonal x+y=82. The band's
+   outer edge below lands on x+y=71.3, which keeps 7.6px of perpendicular
+   clearance at the tightest width. The band never reaches the card's own
+   20px corner curve (it stops at x+y=44.5), so the radius here is only
+   insurance against --rl growing. */
+.svcrib{position:absolute;top:0;left:0;width:72px;height:72px;overflow:hidden;pointer-events:none;
+  border-top-left-radius:calc(var(--rl) - 1.5px)}
+
+/* The folded tail: one 9px square at the bottom-left of the square plus
+   its own box-shadow copy at the top-right, exactly the original's trick
+   (it used 10px and a 140px offset inside a 150px box; this is 9px and 63
+   inside 72). The band paints over most of each square — ::before is
+   painted before the element's children, so no z-index is needed and no
+   stacking context is created — and what survives is the small dark wedge
+   past each end of the band that reads as the ribbon folding behind the
+   card. Darker LexGo navy in light; in dark that would vanish into the
+   #121C31 surface, so it borrows the dark theme's neutral border navy. */
+.svcrib::before{content:"";position:absolute;left:0;top:63px;width:9px;height:9px;
+  background:var(--dk-bd-neutral, #143676);box-shadow:63px -63px var(--dk-bd-neutral, #143676)}
+
+/* The band itself. Centred on the square (36,36) and then pulled 10px back
+   along its own rotated Y axis, which moves its centre to (28.9,28.9) —
+   the line x+y=57.9. The visible chord there is 57.9·√2 = 81.9px, which is
+   what the label has to fit into — measured ink is 52.5px in Uzbek, 50.8 in
+   Russian and 64.7 in English, so the longest of the three still clears both
+   ends. 140px of width is what reaches past the card's edges at the band's
+   outer corners (that chord is 100.8px) before the wrapper clips it.
+
+   Blue→cyan along the band, the same three stops as --grad, so the corner
+   belongs to the same family as the card's own primary action. The stops sit
+   at 18/50/82% rather than 0/46/100 because only the middle of this element
+   is ever on screen: the clip leaves 82px of 140 at the centre line, so
+   stops at the extremes spend most of the palette outside the visible chord
+   and the cyan never arrives. */
+.svcrib__t{position:absolute;left:50%;top:50%;width:140px;height:19px;margin:-9.5px 0 0 -70px;
+  display:flex;align-items:center;justify-content:center;pointer-events:auto;
+  transform:rotate(-45deg) translateY(-10px);
+  background-image:linear-gradient(90deg,#154CB0 18%,#1668F0 50%,#00A6E6 82%);
+  box-shadow:0 4px 10px rgba(3,16,43,.3);
+  font-style:normal;font-size:.56rem;font-weight:800;letter-spacing:.015em;line-height:1;
+  color:#fff;white-space:nowrap;
+  transition:filter .2s,transform .2s cubic-bezier(.4,0,.2,1)}
+
+/* The card already lifts 3px on hover; the ribbon lifts with it and eases
+   1.5px further out of the corner, which is the whole of the motion. */
+.svc--adv:hover .svcrib__t{filter:brightness(1.08);transform:rotate(-45deg) translateY(-8.5px)}
+
+@media (prefers-reduced-motion:reduce){
+  .svcrib__t{transition:none}
+  .svc--adv:hover .svcrib__t{transform:rotate(-45deg) translateY(-10px);filter:none}
+}
+
+/* ── wp-pause: the advocate's "hold the meeting" control in the call bar ──
+   Adapted from a Uiverse play/pause toggle (csemszepp). Two ideas are worth
+   keeping and are kept: a ring that SWEEPS while the state is changing, and a
+   triangle that morphs into two bars. Everything else of the original is
+   thrown away — its tomato conic gradient, its 120px pure-black disc, and its
+   bare <input type=checkbox>, which cannot say "the request is still out" and
+   cannot be disabled while it is.
+   So this is a real <button> wearing the exact geometry of every other
+   .mtg__ctl (the .mtg__ci chip, the .mtg__cl label), which is what makes it
+   line up in the bar at desktop, phone and floating-panel widths. The ring is
+   absolutely positioned outside the chip's box, so adding it costs the row no
+   width at all and the bar keeps the rhythm it already had.
+   Three states have to be honest here, because a meeting is running while
+   somebody looks at this: idle (two bars — pressing pauses), in-flight (the
+   ring sweeps while the POST is out and the button is disabled), and paused
+   (the triangle — pressing resumes).
+   On colour: the meeting chrome paints itself --b900 and is dark in BOTH
+   themes, which is why .mtg__bar and .mtg__ctl--mic above carry no
+   var(--dk-*, …) wrappers, and --b600 / --cy / --b850 / --b800 are not among
+   the tokens the dark block flips. This block is therefore deliberately
+   identical in light and dark — verified by screenshotting both — rather than
+   wrapped in fallbacks that would make the one chip in the bar that changes
+   with the site theme. */
+.mtg__ctl--pause{--pr-gap:4px}
+/* The disc is the meeting's own panel surface, not the original's #000: a
+   black hole in a --b900 bar would read as a broken image. */
+.mtg__ctl--pause .mtg__ci{background:var(--mtg-panel);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
+.mtg__ctl--pause:hover .mtg__ci{background:var(--b800)}
+/* Every other label in this bar has a space to break at; the in-flight word
+   does not, and a phone column is only ~61px wide — so it is allowed to break
+   rather than paint over the control standing next to it. */
+.mtg__ctl--pause .mtg__cl{overflow-wrap:anywhere}
+
+/* The ring. A 150° arc of the house gradient's two ends, cut out of a disc by
+   a radial mask so it is a stroke and not a filled circle. Invisible at rest —
+   the control should look like its neighbours until something happens — and
+   only hinted on hover, which is also the affordance that says it is round. */
+.mtg__pring{position:absolute;inset:calc(-1 * var(--pr-gap));border-radius:50%;opacity:0;pointer-events:none;
+  background:conic-gradient(from 0deg,transparent 0deg,transparent 210deg,var(--b600) 300deg,var(--cy) 360deg);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2.5px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2.5px));
+  transition:opacity .2s ease}
+.mtg__ctl--pause:hover .mtg__pring,.mtg__ctl--pause:focus-visible .mtg__pring{opacity:.42}
+
+/* The glyph, drawn in CSS exactly as the original drew it, because the whole
+   point is that the two shapes are the SAME shape moving — an <svg> swap
+   would just be a cut. */
+.mtg__pgl{position:relative;display:block;width:20px;height:20px}
+.mtg__pgl-b{position:absolute;top:0;height:100%;width:27%;border-radius:2px;background:currentColor;
+  transition:width .26s cubic-bezier(.2,.8,.3,1)}
+.mtg__pgl-b--l{left:14%}
+/* The original reveals the bars left-then-right; the delay only applies while
+   they are growing back, so collapsing into the triangle stays a single move. */
+.mtg__pgl-b--r{right:14%;transition-delay:.1s}
+.mtg__pgl-tri{position:absolute;inset:0;background:currentColor;
+  clip-path:polygon(16% 50%,16% 50%,16% 50%);
+  transition:clip-path .3s cubic-bezier(.2,.8,.3,1)}
+
+/* Paused: the triangle is drawn after the bars have gone, and the ring rests
+   COMPLETE — which is the original's own last keyframe, and the clearest way
+   to say the sweep finished rather than stalled. */
+.mtg__ctl--pause.is-paused .mtg__ci{background:var(--grad);color:#fff;box-shadow:var(--sblue)}
+.mtg__ctl--pause.is-paused .mtg__pgl-b{width:0;transition-delay:0s}
+.mtg__ctl--pause.is-paused .mtg__pgl-tri{clip-path:polygon(16% 2%,16% 98%,92% 50%);transition-delay:.14s}
+.mtg__ctl--pause.is-paused .mtg__pring{opacity:1;background:conic-gradient(var(--cy),var(--b600),var(--cy));
+  animation:mtgPSeal .42s cubic-bezier(.2,.8,.3,1) both}
+.mtg__ctl--pause.is-paused .mtg__cl{color:#fff}
+
+/* In-flight, last so it wins over the paused rules while a resume is out.
+   .mtg__ctl:disabled dims the whole button to .5, but "the request is out"
+   has to be the loudest this control ever looks — so the dimming moves to the
+   glyph and the ring keeps full strength. */
+.mtg__ctl--pause.is-busy:disabled{opacity:1;cursor:progress}
+/* The arc is restated here and not only inherited, because a resume leaves
+   .is-paused on: its COMPLETE ring would rotate without appearing to move,
+   and the one moment the sweep has to be legible is this one. */
+.mtg__ctl--pause.is-busy .mtg__pring{opacity:1;animation:mtgPSweep .9s linear infinite;
+  background:conic-gradient(from 0deg,transparent 0deg,transparent 210deg,var(--b600) 300deg,var(--cy) 360deg)}
+.mtg__ctl--pause.is-busy .mtg__pgl{opacity:.4}
+.mtg__ctl--pause.is-busy .mtg__cl{color:var(--b300)}
+@keyframes mtgPSweep{to{transform:rotate(1turn)}}
+@keyframes mtgPSeal{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+
+/* The floating panel packs the bar down to a 4px gap, where a 4px ring would
+   touch the chip next to it; it tightens with the layout instead. */
+.mtg--float .mtg__ctl--pause{--pr-gap:2px}
+/* That panel's bar has always been wider than the panel: .mtg--float hides
+   .mtg__cl but every control still reserves the 72px a LABEL needs, so six of
+   them overflow the default 380px box by 37px and four overflow the 260px
+   minimum by 21px — measured, before this control existed. The bar cannot
+   scroll at desktop widths either (only the ≤1000px breakpoint gives it
+   overflow-x), so the overflow simply cut the red hang-up button off the
+   right-hand end. Letting the row wrap costs the stage one short line and
+   keeps every control reachable at every size the panel can be dragged to. */
+.mtg--float .mtg__bar{flex-wrap:wrap;row-gap:2px}
+@media (max-width:1000px){
+  .mtg__ctl--pause{--pr-gap:3px}
+  .mtg__pgl{width:18px;height:18px}
+}
+/* The phone bar runs gap:0 with flex:1 columns: at the worst case measured
+   (seven controls in 400px) a column is 52px around a 50px chip, so there is
+   no room for a halo at all. The ring becomes the chip's own rim instead of a
+   ring around it — same stroke, same colours, nothing to collide with. */
+@media (max-width:760px){
+  .mtg__ctl--pause{--pr-gap:0px}
+  .mtg__pgl{width:20px;height:20px}
+}
+
+/* Reduced motion: the sweep and the morph both stand still, but the STATE
+   must not disappear with them — an in-flight ring that no longer turns still
+   has to be a visible, complete ring, or the control would look idle while a
+   request is out. */
+@media (prefers-reduced-motion:reduce){
+  .mtg__pring{transition:none;transform:none!important}
+  .mtg__ctl--pause.is-busy .mtg__pring,.mtg__ctl--pause.is-paused .mtg__pring{animation:none!important;
+    background:conic-gradient(var(--cy),var(--b600),var(--cy));opacity:1}
+  .mtg__pgl-b,.mtg__pgl-tri{transition:none;transition-delay:0s}
+}
+
+/* ── wp-fileloader: "hujjat tayyorlanmoqda" sheet stream ─────────────────
+   A row of small LexGo-blue document sheets drifting across a tinted tray,
+   shown on the one wait in the document panel where a machine is genuinely
+   producing a file (.docpend on the `generating` stage). It stands in for the
+   static sparkle chip, in the same 56px box, so nothing below it moves. */
+
+/* The tray. Its height is deliberately the 56px of the .docpend__ic circle it
+   replaces and its margin/gap come from .docpend's own column, so swapping the
+   chip for the loader cannot change the card's height. --b100 is the exact
+   tint .docpend__ic--ai already used, and it is a theme token, so in dark mode
+   this stays a chip on the surface instead of a pale slab.
+   --fly-w / --fly-s are read back inside the keyframes: the travel distance is
+   derived from the tray, so the narrow-screen size below needs one number. */
+.docfly{--fly-w:220px;--fly-s:22px;
+  display:block;position:relative;flex:none;width:var(--fly-w);max-width:100%;height:56px;
+  border-radius:18px;background:var(--b100);overflow:hidden}
+
+/* One sheet. The brand gradient is intentionally the same in both themes —
+   it is the LexGo blue→cyan, not a surface colour — which is also why the
+   ruled lines can simply be white: they sit on that gradient, never on the
+   card, so they are right on a light tray and on a dark one alike.
+   The drop shadow is the one thing that must differ: a navy shadow reads as
+   depth on the light tray and is invisible on the dark one, so dark gets a
+   faint cyan glow instead. */
+.docfly__s{position:absolute;top:14px;left:0;width:var(--fly-s);height:28px;border-radius:4px;
+  background:linear-gradient(155deg,var(--b600) 0%,var(--cy2) 58%,var(--cy) 100%);
+  box-shadow:var(--dk-fly-glow, 0 3px 9px -4px rgba(11,31,69,.45));
+  opacity:0;transform:translateX(0) scale(.55);
+  animation:docflyPass 2.8s linear infinite}
+html[data-theme="dark"]{--dk-fly-glow:0 3px 12px -3px rgba(0,207,232,.38)}
+.docfly__s::before,.docfly__s::after{content:"";position:absolute;left:5px;height:3px;border-radius:2px}
+.docfly__s::before{top:7px;width:12px;background:rgba(255,255,255,.95)}
+.docfly__s::after{top:13px;width:8px;background:rgba(255,255,255,.6)}
+
+/* Linear, not the original's ease-in-out: eased, a sheet dawdles at the two
+   edges where it is already faded out and then hurries through the middle,
+   which is the only place anyone is looking. Constant speed reads as a
+   conveyor. The scale is 0.55 → 1 → 0.55 rather than the original's 0 → 1.2:
+   the sheet comes towards you and goes away again instead of popping.
+   The travel stays strictly INSIDE the tray (0 → tray width minus a sheet),
+   which the original did not: flying in from -10% meant a sheet was already
+   65% opaque while the tray edge was still slicing it in half. Fading in and
+   out within the box costs nothing and removes that cut. Because 50% sits at
+   the exact arithmetic midpoint of the two ends, the speed is still constant
+   across the whole pass. */
+@keyframes docflyPass{
+  0%{opacity:0;transform:translateX(0) scale(.55)}
+  20%{opacity:1}
+  50%{transform:translateX(calc((var(--fly-w) - var(--fly-s)) / 2)) scale(1)}
+  80%{opacity:1}
+  100%{opacity:0;transform:translateX(calc(var(--fly-w) - var(--fly-s))) scale(.55)}
+}
+/* Four sheets over a 2.8s loop, one entering every 0.7s. Four × 0.7s is
+   exactly the loop, so the spacing is even and the stream never clumps; the
+   original's six-over-3s put a sheet on screen every half second, which on a
+   card a waiting client stares at for minutes reads as agitation rather than
+   as work. The delays are negative so the tray is already populated on the
+   first frame — the document is being built, it is not starting now. */
+.docfly__s:nth-child(2){animation-delay:-.7s}
+.docfly__s:nth-child(3){animation-delay:-1.4s}
+.docfly__s:nth-child(4){animation-delay:-2.1s}
+
+/* On a phone the card is narrower; shortening the tray keeps the same four
+   sheets from crowding, and the keyframes follow --fly-w on their own. */
+@media (max-width:420px){.docfly{--fly-w:180px}}
+
+/* The generating badge was still wearing the payment amber. globals.css
+   already says the generating stage "must not look like the payment-amber
+   original — there is no payment involved"; the icon was changed then and the
+   badge was missed, which is twice as visible now that the chip above it is
+   blue. Same blue pair as .btn--soft. */
+.docpend__badge--ai{background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
+
+@media (prefers-reduced-motion:reduce){
+  /* An infinite fly-across is precisely what this query exists to stop, and
+     the global `animation-duration:.001ms` rule alone would not do it: it ends
+     the animation instantly, leaving every sheet at the 100% keyframe, i.e.
+     invisible. So the tray becomes a still, evenly spaced row of the same four
+     sheets — the card keeps its meaning and its 56px height, and the status is
+     carried by the text, which was always the part that said anything. */
+  .docfly{display:flex;align-items:center;justify-content:center;gap:10px}
+  /* relative, not static: the two ruled lines are absolutely positioned
+     against their own sheet, and taking the sheet out of the positioned chain
+     would hand them to .docfly instead — they end up stacked in the corner of
+     the tray with no sheet under them. */
+  .docfly__s{position:relative;top:0;opacity:1;transform:none;animation:none}
+}
+
+/* ── wp-grid5: five service cards per row, and a corner flag on the two card
+   actions that are really gated ──────────────────────────────────────────
+   Two GM asks on "Huquqiy hujjatlar" (app/[locale]/portal/client/services):
+   the catalogue must lay its service cards out five to a row without the card
+   breaking, and the actions that cost something — Yuklab olish on a Free
+   plan, Advokatga yo'llash on a service only an advocate can do — must say so
+   with a corner flag instead of looking like the other two. Everything below
+   is written against numbers taken off the running app at 1920/1600/1440/
+   1200/980/820/600/400 in all three locales; each block says which number
+   moved it. Appended last so it wins at equal specificity over the two older
+   .svsel__grid--svc rules (globals.css:1547 and :1608). */
+
+/* ── The column ladder ───────────────────────────────────────────────────
+   auto-fill with a 230px floor gave whatever the leftover space allowed —
+   measured 6 columns at 1920, 5 at 1600, 4 at 1440, 3 at 1200, so the one
+   width the GM looks at (1440) was the one that showed four. An explicit
+   track count is the only way to say "five" and mean it.
+
+   The breakpoints are the viewport widths, not the grid's: the portal shell
+   sits in front of the grid and its own two breakpoints make the grid width
+   anything but viewport-minus-gutter. Measured grid width per viewport —
+   1920:1520  1600:1228  1440:1085  1400:1046  1360:1008  1280:932  1200:920
+   1100:820  980:700  960:680  900:813  820:737  700:624  600:528  480:408
+   400:328 — note 900 is WIDER than 960 (the shell drops its 280px sidebar
+   between them), which is exactly why a track count picked by eye from one
+   window size does not survive the next one.
+
+   The floor a column may not go under is a measured one too: the widest
+   min-content of the four action labels over uz/ru/en is 127px (Russian
+   "Посмотреть документ", whose longest word is "Посмотреть"), and a card
+   spends 35px on padding and border, so a column narrower than 162px spills
+   a label out of its button. The ladder below keeps every step well clear —
+   the narrowest column it can produce is 188px, at 460px of viewport. */
+.svsel__grid--svc{grid-template-columns:repeat(5,minmax(0,1fr))}
+/* 1400 is the last width where five columns still give a 200px card (165px
+   of content): one step down and the fifth column starts eating the title. */
+@media (max-width:1399px){.svsel__grid--svc{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* Under 1200 the shell has already taken its 280px sidebar out of the grid,
+   so four columns would be 196px and falling; three keeps 221-265px. */
+@media (max-width:1199px){.svsel__grid--svc{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* 700 is where three columns reach 200px, the same card the 1400 five-up
+   gets. Below it, two. */
+@media (max-width:699px){.svsel__grid--svc{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* 460 is where two columns reach 188px. A phone at 400 would get 158px,
+   which is under the 162px floor above, so the phone keeps one column —
+   the same thing auto-fill used to do there, now said out loud. */
+@media (max-width:459px){.svsel__grid--svc{grid-template-columns:minmax(0,1fr)}}
+
+/* ── The pair that shares a line ─────────────────────────────────────────
+   "Hujjatni ko'rish" and "Yuklab olish" share a row when there is room for
+   both, and globals.css:7776 sizes that room with flex:1 1 98px — a number
+   taken from the Uzbek labels alone. Measured min-content of the two over
+   all three locales: uz 95/90, en 110/110, ru 127/101. At a 98px basis the
+   pair claims a line as soon as the card has 204px of content, and then
+   Russian "Посмотреть документ" is handed a 101-111px button and its ink
+   runs 7.8-13.1px past that button's content box on all 69 template cards —
+   measured on the shipped stylesheet, before any of this, at 1920, 1440,
+   1360, 820 and 600. 127px is the real floor, so the pair now only takes a
+   line it fits on: it keeps the phone's three-row card (293px of content at
+   400) and stacks everywhere the column is narrower than 262px, which is
+   what the five-up desktop is. Re-measured after: zero spilled ink in uz, ru
+   and en at every width from 2560 down to 360. No label was shortened for
+   this; truncating a correct Russian action verb to save one row of card
+   height is a worse trade than the row. */
+.svc__act--view,.svc__act--dl{flex:1 1 127px}
+
+/* ── The corner flag ─────────────────────────────────────────────────────
+   Adapted from a Uiverse corner-ribbon button (muhammad_1180). Two ideas
+   are kept: a small uppercase flag rotated 45° into the button's own
+   top-right corner and clipped by the button, and an arrow that nudges on
+   hover. Everything else is dropped — it is Tailwind class soup (this repo
+   has no Tailwind), its violet-on-gray-800 palette is not ours, and its
+   geometry is built for a 48px-tall px-8 button where ours measures 37px.
+
+   The flag is wired to state, never decoration:
+   * PRO rides on the same `isFreeTier` that already turns the download into
+     .svc__act--locked with a padlock and routes the click to the upgrade
+     modal. It is a fact about the viewer, not the card, so on a Free plan it
+     is on every download button and on Lite/Pro it is on none — which is the
+     point: it disappears the moment it stops being true.
+   * TOP rides on `advokat_required`, the same field the card's own .svc--adv
+     corner ribbon uses. Measured against GET /services on 2026-09-29: 24 of
+     1141 rows, 2.1%, and none of those 24 carries a document template.
+     "Advokatga yo'llash" is on every card, so a flag on every one of them
+     would be wallpaper; what the 24 have is that this is the ONLY button on
+     the card, where on the other 1117 it is the third of four and is painted
+     deliberately calm (see .svc__act--adv above: "not meant to compete for
+     attention the way Hujjatni to'ldirish does"). The same quiet violet
+     button therefore means two different things in the two places, and the
+     flag is what separates them. It does repeat what the card's own
+     "Advokat bilan" ribbon says 100px away — but that ribbon labels the
+     service, replacing the card's icon, while this one is on the control the
+     client actually presses. */
+.svc__act--pro,.svc__act--top{
+  /* The clip. Only these two buttons become a containing block and only
+     these two clip, so the other ~200 actions on a result page keep the
+     overflow:visible they have today — .svc__act--fill carries --sblue
+     (0 14px 34px -12px), and an element's own box-shadow is painted outside
+     its border box and is not touched by its own overflow anyway, but there
+     is no reason to change the paint of a button that carries no flag. */
+  position:relative;overflow:hidden;
+  /* 11px of right padding left the top line of a wrapped two-line label
+     0.4px from the flag's inner edge at the narrowest measured button
+     (100px, the paired download at 1360). 20px puts 6.6px of clearance
+     under the tightest corner of the flag and shifts the centred label
+     4.5px left, which is what a corner-flagged button is supposed to look
+     like. Measured after: zero label ink outside its button's content box,
+     in all three locales at every width from 2560 down to 360. */
+  padding-right:20px;
+}
+.svc__flag{
+  /* Geometry, all against the button's PADDING box (34px tall — 37px less
+     the 1.5px borders — so the button's own border survives around the
+     flag, because overflow clips at the padding edge).
+     The band is 64x12 pinned top-right, so its centre starts at
+     (PBw-32, 6). Rotated 45° about that centre and then translated in the
+     parent's axes to sit on the corner's bisector at a perpendicular
+     distance of 15.5px, whose closest point is (PBw-10.96, 10.96): hence
+     translate(21.04px, 4.96px).
+     15.5 is the largest distance the button can carry: the band's outer
+     edge is then 21.5px out, i.e. 30.4px down the right side, 3.6px clear
+     of the padding box's bottom — push it further and the flag runs off the
+     button instead of cutting its corner. The pay-off is the visible chord
+     at the centre line, 2*15.5 = 31px, which is all the room the label has;
+     measured ink along the band is 25.5px for "PRO", 25.3px for "TOP" and
+     26.0px for Russian "ТОП", so the longest of the three still clears both
+     cut edges by 2.5px — at .52rem it was 29.1px and touched them. 64px of
+     width is what overhangs both of those edges (the outer chord is 43px),
+     so the clip, not the element, draws the two ends. */
+  position:absolute;top:0;right:0;width:64px;height:12px;
+  display:flex;align-items:center;justify-content:center;
+  transform:translate(21.04px,4.96px) rotate(45deg);
+  /* The flag is inside the <button>. Without this it would eat the click on
+     the 29px of corner it covers — the one part of a button nobody expects
+     to be dead. */
+  pointer-events:none;
+  font-size:.46rem;font-weight:800;letter-spacing:.05em;line-height:1;
+  text-transform:uppercase;white-space:nowrap;
+  /* On #121C31 a navy drop shadow is invisible, so dark trades it for a
+     hairline that draws the band's edge against the button instead. */
+  box-shadow:var(--dk-g5-flag-sh, 0 3px 8px rgba(3,16,43,.28));
+  transition:transform .2s cubic-bezier(.4,0,.2,1),filter .2s}
+/* PRO reads as paid. The house has no "premium" colour, so this borrows the
+   amber it already uses for "waiting on money/attention" (--dk-txt-warn's
+   own #B45309 light value sits in the middle of this ramp) and runs it
+   dark→bright along the band, the same three-stop shape .svcrib__t uses for
+   blue. Ink is a deep brown rather than white on purpose: white on the mid
+   stop #F59E0B measures 2.2:1, #40210A measures 6.8:1, and at 8.3px that
+   difference is the difference between a word and a smudge. Dark keeps the
+   same gold — a flag's job is to be the brightest thing on the button, and
+   it is already the brightest thing on both a #F5F9FF and a #0D182C one. */
+.svc__flag--pro{background-image:linear-gradient(90deg,#D97706 18%,#F59E0B 50%,#FBBF24 82%);color:#40210A}
+/* TOP is brand: the same #154CB0/#1668F0/#00A6E6 band, at the same 18/50/82
+   stops, that the card's own "Advokat bilan" corner ribbon already carries
+   10px away. Two different blues on one card would read as a mistake; the
+   same blue reads as the same story told twice — the card says the service
+   needs an advocate, the button says which button that is. */
+.svc__flag--top{background-image:linear-gradient(90deg,#154CB0 18%,#1668F0 50%,#00A6E6 82%);color:#fff}
+
+/* The motion kept from the original: the flag eases 1.2px further out of the
+   corner along its own perpendicular (translate 21.04,4.96 -> 20.2,5.81) and
+   the leading icon nudges in the direction its button actually goes — down
+   for a download, right for a hand-off. 1.2px and 1.5px are deliberately
+   small: these are 37px buttons sitting five to a row, and anything a person
+   can measure by eye at that size reads as a wobble, not as feedback. */
+.svc__act--pro:hover .svc__flag,.svc__act--top:hover .svc__flag{transform:translate(20.2px,5.81px) rotate(45deg);filter:brightness(1.06)}
+.svc__act--pro svg,.svc__act--top svg{transition:transform .2s cubic-bezier(.4,0,.2,1)}
+.svc__act--pro:hover:not(:disabled) svg{transform:translateY(1.5px)}
+.svc__act--top:hover svg{transform:translateX(1.5px)}
+
+@media (prefers-reduced-motion:reduce){
+  /* Nothing here loops, so reduce only has to stop the three hover moves and
+     leave the colour change, which carries the same information. */
+  .svc__flag,.svc__act--pro svg,.svc__act--top svg{transition:none}
+  .svc__act--pro:hover .svc__flag,.svc__act--top:hover .svc__flag{transform:translate(21.04px,4.96px) rotate(45deg)}
+  .svc__act--pro:hover:not(:disabled) svg,.svc__act--top:hover svg{transform:none}
+}
+
+html[data-theme="dark"]{
+  /* Defined only here, so light keeps the fallback written into the rule
+     above. rgba(3,16,43,.28) is a navy shadow on a navy surface: measured
+     against #18253E (.svc__act's dark background) it is a 3% luminance
+     change, i.e. nothing. A white hairline plus a black drop does the same
+     job of lifting the band off the button. */
+  --dk-g5-flag-sh:0 0 0 1px rgba(255,255,255,.14),0 2px 6px rgba(0,0,0,.45);
+}
+
+/* ── wp-voice: a voice note you can actually scrub ───────────────────
+   Two places played a voice note by handing the browser a bare
+   <audio controls>: the order form's "listen back before you send" row
+   (.dprev--voice) and the chat bubble (.sattach--voice). Both got a 38px
+   slab of Chrome's own chrome — its own grey, its own type, its own blue,
+   its own corner radius — and in a gradient "my" bubble it sat on blue
+   looking pasted on. Neither could be resized and neither matched anything
+   else on the page.
+   .vnote is the house replacement, one component for both (VoiceNotePlayer
+   in components/portal/AttachmentPreview.tsx): a round brand-blue play
+   button, a 24-bar strip that IS the scrubber, and a tabular counter. The
+   bars are a stylised envelope — there is no peak data for a blob without
+   decoding it, and decoding every note in a chat would mean an AudioContext
+   per bubble — but the played/unplayed boundary is real
+   currentTime/duration and the strip is a real slider you can click, drag
+   and arrow through.
+   Measured (CDP 9920, 1440x1100): the pill is 40px tall in the order form
+   and 36px in a chat bubble, against the 38px the native element used, so
+   neither row changes height noticeably. */
+
+/* The 250px cap is the whole reason this reads as a waveform. Left to grow,
+   the pill took the 713px the order-form modal offered it and 24 bars at
+   flex:1 became 23px-wide blocks — a segmented progress bar, not a voice
+   note (measured, CDP 9920). 250px leaves the strip 152px, which is 3px of
+   bar and ~3.4px of gap: the same 3px bar .vpill draws while recording. */
+.vnote{display:inline-flex;align-items:center;gap:9px;min-width:0;max-width:250px;vertical-align:middle;
+  padding:4px 12px 4px 4px;border-radius:var(--pill);
+  border:1px solid var(--line);background:var(--dk-surface-2, #F2F6FC)}
+/* 30px button + 2x4px padding + 2x1px border = the 40px measured above. */
+.vnote__btn{flex:none;width:30px;height:30px;border:0;border-radius:50%;cursor:pointer;padding:0;
+  display:grid;place-items:center;background:var(--b600);color:#fff;
+  transition:filter .15s,transform .15s}
+.vnote__btn svg{width:13px;height:13px}
+.vnote__btn:hover{filter:brightness(1.08)}
+.vnote__btn:active{transform:scale(.94)}
+.vnote__btn:focus-visible{outline:3px solid var(--b400);outline-offset:2px}
+
+/* touch-action:none, or the first pixel of a scrub on a phone is taken by
+   the chat's own vertical scroll and the seek never starts. */
+.vnote__wave{position:relative;flex:1 1 auto;min-width:96px;height:22px;border-radius:6px;
+  cursor:pointer;touch-action:none;outline-offset:3px}
+.vnote__wave[aria-disabled="true"]{cursor:default}
+.vnote__wave:focus-visible{outline:2px solid var(--b400)}
+/* max-width on the bar and space-between on the row together: the bar is
+   never allowed to become a block however wide the strip gets, and whatever
+   width the cap leaves over is spent on the gaps instead. gap:2px is the
+   floor, for the narrowest phone where the bars are down to 2px. */
+.vnote__row{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;gap:2px}
+.vnote__row i{flex:1 1 0;min-width:2px;max-width:3px;border-radius:2px;height:var(--vn-h,50%)}
+/* --gray2, not --line, for the unplayed bars. Computed against the #F2F6FC
+   pill: --line #E4EBF5 is 1.11:1 — at 3px wide it is simply not there —
+   while --gray2 #8A99AC is 2.68:1, and on the dark pill its dark value
+   #8494AB is 4.96:1. It is also the one grey token that flips on its own,
+   so the strip needs no dark override for it. */
+.vnote__row--rest i{background:var(--gray2)}
+/* The played half is the same bars, painted brand blue→cyan and clipped to
+   the progress fraction. Clipping rather than a per-bar class is what lets
+   the boundary sit between two bars instead of snapping 5px at a time. */
+.vnote__row--done{clip-path:inset(0 calc(100% - var(--vn-p, 0%)) 0 0);transition:clip-path .09s linear}
+/* --b600 at the top of the ramp rather than --b500: computed on the light
+   pill, --b500 is 3.10:1 and --b600 is 4.53:1, and --b600 is also the play
+   button's own blue, so the two halves of the control agree. --cy2 at the
+   bottom is 2.55:1 on its own, but it is the last two or three pixels of a
+   22px bar — the bar reads at its middle, around 3.3:1. */
+.vnote__row--done i{background:linear-gradient(180deg,var(--dk-vn-a, var(--b600)),var(--dk-vn-b, var(--cy2)))}
+/* The playhead. It is what turns "some bars are blue" into "this is where
+   you are", and it is the thing the Uiverse original faked with a single
+   hard-coded highlighted bar. */
+.vnote__cursor{position:absolute;top:0;bottom:0;left:var(--vn-p, 0%);width:2px;margin-left:-1px;
+  border-radius:2px;background:var(--cy);opacity:0;transition:left .09s linear,opacity .18s}
+.vnote--on .vnote__cursor{opacity:1;animation:vnoteBeat 1.15s ease-in-out infinite}
+@keyframes vnoteBeat{0%,100%{box-shadow:0 0 0 0 rgba(0,207,232,0)}50%{box-shadow:0 0 0 3px rgba(0,207,232,.22)}}
+
+/* Tabular figures, so the counter does not shuffle its own width every time
+   a digit changes — the same trick .vpill__time uses while recording. */
+.vnote__time{flex:none;min-width:32px;text-align:right;font-size:.74rem;font-weight:700;
+  font-variant-numeric:tabular-nums;letter-spacing:.01em;color:var(--gray)}
+/* Two class selectors: .sattach--voice audio further up the sheet sets
+   display:block, and (0,1,1) would otherwise beat a bare .vnote__a. */
+.vnote .vnote__a{display:none}
+
+/* ── the order-form row ──────────────────────────────────────────────
+   The name keeps the note's total length ("Ovozli xabar · 0:07") and the
+   pill's counter runs, so both numbers are visible while it plays. */
+.dprev--voice .dprev__name{flex:0 1 auto}
+.dprev--voice .vnote{flex:1 1 210px}
+@media (max-width:560px){
+  /* Same break the old .dprev__audio took: below this the name and the pill
+     each get their own line rather than squeezing the strip to nothing. */
+  .dprev--voice .vnote{flex-basis:100%;max-width:none}
+}
+
+/* ── the chat bubble ─────────────────────────────────────────────────
+   28px button + 2x3px padding + 2x1px border = 36px, against the 38px the
+   native <audio> took, so no bubble in the history changes height. */
+/* A fixed width, not width:100%. .sbub__c is shrink-to-fit, so a percentage
+   resolves against a width the bubble is still deciding and collapses to
+   min-content — measured 162px, which squeezed the strip to its 72px floor
+   and the bars down to 2px. 250px gives the strip 160px and the same 3px
+   bar the order form gets; max-width keeps it inside a narrow phone. */
+.vnote--bub{width:250px;max-width:100%;gap:8px;padding:3px 11px 3px 3px}
+.vnote--bub .vnote__btn{width:28px;height:28px}
+.vnote--bub .vnote__btn svg{width:12px;height:12px}
+.vnote--bub .vnote__wave{height:20px;min-width:72px}
+.vnote--bub .vnote__time{min-width:30px;font-size:.72rem}
+/* No .schat--compact rule is needed: max-width:100% above already shrinks
+   the pill inside the side panel, and it does the same on a phone —
+   measured at 390px the pill is 200.5px with 2.7px bars and the page still
+   does not scroll sideways. */
+
+/* My own bubble is var(--grad) in BOTH themes, so these are not theme
+   overrides — they are what the player looks like on blue. Everything is
+   white or near-white; the played bars keep a hint of the cyan end of the
+   brand ramp so the two halves of the strip still differ at a glance. */
+.sbub--me .vnote--bub{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.3)}
+.sbub--me .vnote--bub .vnote__btn{background:#fff;color:var(--b700)}
+.sbub--me .vnote--bub .vnote__btn:hover{filter:brightness(1)}
+.sbub--me .vnote--bub .vnote__row--rest i{background:rgba(255,255,255,.45)}
+.sbub--me .vnote--bub .vnote__row--done i{background:linear-gradient(180deg,#FFFFFF,#CFF3F9)}
+.sbub--me .vnote--bub .vnote__cursor{background:#fff}
+.sbub--me .vnote--bub .vnote__time{color:rgba(255,255,255,.9)}
+.sbub--me .vnote--bub .vnote__btn:focus-visible,
+.sbub--me .vnote--bub .vnote__wave:focus-visible{outline-color:#fff}
+
+/* ── dark ────────────────────────────────────────────────────────────
+   The pill, its border, the counter and the unplayed bars all flip on their
+   own through --dk-surface-2, --line, --gray and --gray2, so only the
+   played ramp gets a token of its own. Computed on the #18253E pill, the
+   light ramp would already clear 3:1 (--b600 3.11:1, --cy2 5.53:1), but
+   barely at the top, and the sheet's own dark convention is to lift a blue
+   accent rather than reuse the light one — --dk-acc is #6EA8FF where
+   --b600 is #1668F0 — and these two follow it at 7.03:1 and 9.21:1. */
+html[data-theme="dark"]{
+  --dk-vn-a:#6FB4FF;
+  --dk-vn-b:#35DCF0;
+}
+
+/* ── reduced motion ──────────────────────────────────────────────────
+   The playhead's pulse is the only infinite loop here and it goes. The
+   boundary and the playhead still move — they are the state of a media
+   control, not decoration — they just stop easing into place. */
+@media (prefers-reduced-motion:reduce){
+  .vnote__btn{transition:none}
+  .vnote__btn:active{transform:none}
+  .vnote__row--done{transition:none}
+  .vnote__cursor{transition:none}
+  .vnote--on .vnote__cursor{animation:none}
+}
+
+/* ── wp-hourglass: the wait clock on "ariza berish" ───────────────────────
+   GM: "ariza berish va shunga o'xshash kutadigan vaziyatda shuni ishlat."
+   A clock face with two hands sweeping at different rates. The idea kept from
+   the Uiverse original is exactly that pairing: one hand visibly outruns the
+   other, so the mark says "time is passing on YOUR request" instead of the
+   featureless "something is happening" of a one-ring spinner. Everything else
+   of the original is gone — the #ee9b00 amber, the 65px box, the markup.
+
+   WHERE IT SITS, and why it is one answer and not two. The three screens this
+   covers (urgent-advocate order, document-lawyer request, from-scratch /
+   review order) all end in the same control: one .btn.btn--grad.btn--full
+   .btn--lg that today only swapped its own label while the POST was out. So
+   the clock goes INSIDE that button, beside the label the button already
+   changes — the way .spin already rides the login button (globals.css:1368,
+   LoginForm face()). A separate status block would have been the only way to
+   show the original at its full 65px, and it would have pushed everything
+   below it down at the exact moment the client is watching the button; the
+   brief forbids that, and a wait that moves the page is worse than a wait
+   that is merely small.
+
+   AND IT COSTS NOTHING IN HEIGHT. .btn--lg is padding:15px + a line box of
+   1.2 × 1rem = 19.2px, i.e. 49.2px tall (globals.css:1356). The clock is
+   1.15em = 18.4px, which is INSIDE that 19.2px line box, so it is never the
+   tallest flex item and the button measures the same busy as idle. The same
+   sum holds for the two .btn--sm controls in the urgent detail window: .87rem
+   gives a 16.70px line box and a 16.01px clock. Measured on the live page,
+   both themes: 49.2px with the clock and 49.2px without.
+
+   The size is in em rather than px for that reason — it is derived from the
+   button's own type, so it cannot outgrow the line box of whatever button it
+   is dropped into later. */
+
+.wclock{
+  --wc:1.15em;
+  /* Hand thickness and sweep periods, defaulted here so the shorthand on
+     .wclock__hand can never resolve to a guaranteed-invalid value. */
+  --wc-w:calc(var(--wc) * .1);
+  --wc-t:1.1s;
+  /* Ink and bezel as properties rather than literals. Today every instance
+     takes the defaults below; the point of the indirection is that the day
+     this is wanted on a page SURFACE instead of on a button, the call site
+     retints it (--wc-ink:var(--dk-acc, var(--b600)) and a matching ring)
+     without reopening this block — and, crucially, is then the place that has
+     to answer for dark mode, which a button never has to. */
+  --wc-ink:#fff;
+  --wc-ring:rgba(255,255,255,.45);
+  display:inline-block;position:relative;flex:none;box-sizing:border-box;
+  width:var(--wc);height:var(--wc);border-radius:50%;
+  /* 12% of the diameter — the original's own 8/65 ratio, which is the one
+     proportion of it worth copying: at this size anything thinner than 2px
+     stops reading as a clock bezel and becomes a hairline circle, i.e. a
+     spinner ring again. The floor is not decoration. A browser snaps a
+     fractional border down to the device pixel grid, and measured on the
+     .btn--sm controls in the urgent detail window the 12% of a 16px clock is
+     1.92px, which Chrome rendered as 1px — half the ring, on the smallest
+     instance, which is where it could least afford it. max() holds it at 2px
+     there and leaves the 2.21px of the .btn--lg instance alone. */
+  border:max(2px, calc(var(--wc) * .12)) solid var(--wc-ring);
+  /* White, not brand blue, and the same white in both themes. This mark only
+     ever sits on the fill of the button that is working, and both of those
+     fills are theme-independent: .btn--grad paints var(--grad), defined once
+     at :root:19 and NOT re-declared in the dark block at :38, and .btn--danger
+     is a flat #dc2626 with no dark rule at all (globals.css:3502). Both keep
+     color:#fff for their label in dark mode, so the ink that is correct for
+     the label is correct for the clock, and there is no surface underneath it
+     that dark mode can pull out from under the ring. Measured on the live
+     page: the fill under the clock computes to the same
+     linear-gradient(135deg, rgb(22,104,240), rgb(0,166,230) 62%,
+     rgb(0,207,232)) under data-theme="light" and data-theme="dark", and the
+     cancel button to the same rgb(220,38,38) — so no --dk-* token and no
+     dark block is needed here, and adding one would be decoration. */
+  color:var(--wc-ink);
+}
+
+/* Both hands hang off the centre and rotate about it. bottom:50% + a
+   transform-origin at their own bottom edge puts 0deg at twelve o'clock,
+   which matters only once: it makes the still pose under reduced motion a
+   plain rotate() of a hand that starts upright, instead of one that starts
+   at six and has to be corrected. The horizontal centring is a negative
+   margin, not a translateX inside the transform, so the animated transform
+   stays pure rotation and nothing can drift as it turns. */
+.wclock__hand{position:absolute;left:50%;bottom:50%;margin-left:calc(var(--wc-w) / -2);
+  width:var(--wc-w);border-radius:var(--pill);background:currentColor;
+  transform-origin:50% 100%;
+  animation:wclockSweep var(--wc-t) linear infinite}
+
+/* The long hand is the fast one and the short hand is the slow one, which is
+   how a clock behaves and, as drawn, how the original behaved too — its
+   22px hand ran in 1.2s and its 17px hand in 4s. What the original got wrong
+   was only the naming: it called the 22px fast hand .hour. Fixed here, because
+   a class that says "hour" and turns once a second is a trap for the next
+   person editing this.
+
+   The rates are 1.1s and 4.4s — a 4:1 ratio, not a clock's true 12:1. At 12:1
+   the short hand covers 30° while the long one covers a full turn: over the
+   two or three seconds one of these POSTs is actually out, it would look
+   nailed down, and the whole point of choosing a clock over a spinner is that
+   TWO things move at visibly different speeds. 4:1 keeps that and still reads
+   as a clear difference in pace. 4.4 is an exact multiple of 1.1, so the pair
+   returns to the same relative angle every 4.4s and the figure never appears
+   to jump.
+
+   The short hand is also dimmed. At 18.4px the two hands differ by just
+   2.6px of length, and when they cross they would otherwise merge into one
+   bar that seems to twitch; a second cue beyond length keeps them two.
+
+   35% and 21% of the diameter are the largest pair that clears the bezel at
+   BOTH sizes this is used at: the long hand measures 6.44px against a 6.99px
+   inner radius on the .btn--lg submits, and 5.60px against 6.00px on the
+   .btn--sm pair, so it reaches for the rim — which is what a clock hand does
+   — without ever touching it. */
+.wclock__hand--m{height:calc(var(--wc) * .35)}
+.wclock__hand--h{height:calc(var(--wc) * .21);--wc-t:4.4s;opacity:.82}
+
+.wclock__hub{position:absolute;left:50%;top:50%;
+  width:calc(var(--wc) * .15);height:calc(var(--wc) * .15);
+  margin:calc(var(--wc) * -.075) 0 0 calc(var(--wc) * -.075);
+  border-radius:50%;background:currentColor}
+
+@keyframes wclockSweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* The clock's presence IS the busy state — it is rendered only while the
+   request is in flight — so the rest of the busy affordance hangs off :has()
+   and no call site has to remember a second marker class. (:has() is already
+   the house tool here: globals.css:1349 `body:has(.rf)`, :6190
+   `.cform--doc:has(>.deditor--fill)`.) */
+.btn:has(.wclock){cursor:progress}
+
+/* After the press the pointer is normally still resting on the button, so
+   :hover stays true for the whole flight and the control went on wearing
+   brightness(1.07) with its shine parked at left:130% — i.e. it looked
+   pressable while it was disabled and working. Neutralised for the duration
+   only; nothing about the idle button changes. */
+.btn--grad:has(.wclock):hover{filter:none}
+.btn--danger:has(.wclock):hover{background:#dc2626}
+
+@media (prefers-reduced-motion:reduce){
+  /* Both infinite sweeps stop, and the global `*{animation-duration:.001ms}`
+     at globals.css:80 is not enough on its own to leave anything sane behind:
+     it would end the sweep instantly and park both hands at the 100% keyframe,
+     which is 360° — the same place they started, but arrived at by a jump.
+     Setting the name to none is what actually removes the animation.
+
+     What replaces the motion has to still SAY "a wait". The hands park at
+     ten past ten, the pose every watch is photographed in, because it is the
+     one arrangement that reads as a clock face at a glance rather than as two
+     bars that happened to stop: the two hands are 120° apart, neither of them
+     hides the other, and neither points straight down. The live word is not
+     lost with the motion — it was never in the motion. It is in the button's
+     own label, which still says "Yuborilmoqda…" / "Отправляем…" / "Sending…"
+     for exactly as long as the request is out, and which is also the only
+     part a screen reader gets, the clock being aria-hidden decoration. */
+  .wclock__hand{animation:none}
+  .wclock__hand--m{transform:rotate(60deg)}
+  .wclock__hand--h{transform:rotate(-60deg)}
+}
+
+/* ── wp-landinga: landing-page reveal sequence, stage stepper and orphan grids ──
+   Three jobs, all measured on http://localhost:3999/uz with CDP:
+   (1) the stage progress line now rides the shared reveal instead of a second
+       IntersectionObserver that fired 60px of scroll earlier than the cards;
+   (2) .grid--even pins a card grid's column count to a divisor of its card
+       count, so no row ever ends with a lone card beside an empty track;
+   (3) the ticker's loop point is corrected by half a gap, which is the 19px
+       jump it made once every 46 seconds. ─────────────────────────────────── */
+
+/* ── stage stepper: one trigger instead of two ────────────────────────────── */
+/* Default is FILLED, so the lines are right when JavaScript never runs, when
+   IntersectionObserver is missing, and under prefers-reduced-motion — in all
+   three cases RevealOnScroll never adds .rv and the stepper would otherwise sit
+   permanently empty. The empty state is opted into by .rv, which only the
+   reveal controller adds, and released by .in, which is the same class and the
+   same instant the card itself fades in. --rvd carries that card's stagger down
+   into the pseudo-element, replacing the fixed .11s/.22s/.33s/.44s ladder that
+   used to run against a different phase. */
+.step .step__l::before{transform:scaleX(1)}
+.step.rv .step__l::before{transform:scaleX(0)}
+.step.rv.in .step__l::before{transform:scaleX(1);transition-delay:var(--rvd,0ms)}
+
+/* ── orphan cards ─────────────────────────────────────────────────────────── */
+/* The stock .grid is repeat(auto-fill,minmax(min(248px,100%),1fr)). auto-fill
+   keeps tracks it cannot fill, so the four problem cards measured SIX 255px
+   tracks at 1920 — 538px of dead space to the right of the last card — and
+   five tracks at 1600 and 1440. auto-fit collapses those empty tracks, so it is
+   the base here; the quantity queries below then handle the other half of the
+   problem, a last row that is partly full (four cards in three columns at 980,
+   six cards in five columns at 1440). Each ladder holds a column count while
+   the resulting track stays at or above the 248px the card design is built
+   around, then steps down to the next divisor. */
+.grid--even{grid-template-columns:repeat(auto-fit,minmax(min(248px,100%),1fr))}
+
+/* Exactly three cards (services > document review). 3 is prime, so below the
+   3-up band the only orphan-free options are one column or two columns with the
+   last card spanning both; the span keeps tablet density and reads as
+   deliberate. Track at 1920: 524px; at the 843px cut-off: 248px. */
+.grid--even:has(> :nth-child(3):last-child){grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:842px){
+  .grid--even:has(> :nth-child(3):last-child){grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid--even:has(> :nth-child(3):last-child) > :last-child{grid-column:1/-1}
+}
+/* Two columns measured 176px a card at 400px wide, well under the 248px the
+   card is drawn for, so phones take the same single column as every other
+   grid; grid-column:1/-1 is a no-op in a one-track grid and needs no reset. */
+@media (max-width:559px){
+  .grid--even:has(> :nth-child(3):last-child){grid-template-columns:minmax(0,1fr)}
+}
+
+/* Exactly four cards (problem section, services > consultation). Divisors are
+   4, 2 and 1. Track at 1920: 390px; at the 1130px cut-off: 248px. The 559px cut
+   is where the stock grid already dropped to one column, so phones are
+   unchanged. */
+.grid--even:has(> :nth-child(4):last-child){grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:1129px){
+  .grid--even:has(> :nth-child(4):last-child){grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:559px){
+  .grid--even:has(> :nth-child(4):last-child){grid-template-columns:minmax(0,1fr)}
+}
+
+/* Exactly six cards (services > document preparation). Six columns need
+   6*248+5*14 = 1558px of content, which the 1720px wrap only reaches from about
+   a 1680px viewport; below that the stock grid fell to five columns and left
+   the sixth card alone, so step straight to three. */
+.grid--even:has(> :nth-child(6):last-child){grid-template-columns:repeat(6,minmax(0,1fr))}
+@media (max-width:1679px){
+  .grid--even:has(> :nth-child(6):last-child){grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:842px){
+  .grid--even:has(> :nth-child(6):last-child){grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:559px){
+  .grid--even:has(> :nth-child(6):last-child){grid-template-columns:minmax(0,1fr)}
+}
+
+/* ── ticker: an exact loop point ──────────────────────────────────────────── */
+/* The row is the item list printed twice and the animation ends at -50% of the
+   track. With a 38px gap the track is 2S + 15g wide, so -50% lands at S + 7.5g
+   — half a gap short of the start of the second copy. Every 46s cycle therefore
+   snapped back 19px. Shifting the end state by that half gap makes the seam
+   exact. The literal 19px is gap/2; it is written out rather than calc()'d from
+   a custom property because keyframe var() resolution is the one place this
+   file cannot be checked by eye. */
+@keyframes lgTickerSlide{to{transform:translateX(calc(-50% - 19px))}}
+.ticker__t{animation-name:lgTickerSlide}
+
+/* ── reduced motion ───────────────────────────────────────────────────────── */
+/* RevealOnScroll bails out entirely here, so nothing ever gets .rv and the
+   defaults above already show every card and a full progress line. These rules
+   only mop up what the global reduce block at the top of this file misses:
+   it flattens animation-duration and transition-duration but not
+   transition-delay, so a stagger of up to 220ms survived it — and its selector
+   is `*`, which never matches a pseudo-element, so the progress line's own
+   .85s transition survived it too (measured: transition-duration still read
+   0.85s on .step__l::before with the reduce media emulated). */
+@media (prefers-reduced-motion:reduce){
+  .rv,.rv.in,.pane.on{transition-delay:0ms!important;animation-delay:0ms!important}
+  .step .step__l::before{transform:scaleX(1)!important;transition:none!important}
+  .ticker__t{animation:none!important;transform:none!important}
+}
+
+/* ── wp-landingb: landing page below the fold — grids whose item count divides
+   by their column count at every width we ship, and a reveal that runs in
+   document order instead of a rotation, and that hands each card its own hover
+   transition back afterwards. ───────────────────────────────────────────────── */
+
+/* ── Orphan cards ────────────────────────────────────────────────────────────
+   Every grid below was measured on the running page at 1920/1600/1440/1200/
+   980/820/600/400 before being retuned; the comment on each one carries the
+   count it was breaking at. auto-fill/auto-fit picks the column count from the
+   track minimum, which is why a fixed item count keeps landing on a column
+   count that does not divide it. Where the count is known and small, an
+   explicit repeat() that only ever resolves to a divisor is both shorter and
+   exact; where the count comes from the API it cannot be, so that one grid
+   centres its last row instead. */
+
+/* BENEFITS — exactly six cards (home.benefits.items). auto-fill resolved to 4
+   columns at 1200 (4+2), and 5 at 1440 and 1600 (5+1 — one card alone beside a
+   1050px hole). 6 divides by 1, 2, 3 and 6, so those are the only counts this
+   grid is allowed to resolve to. The 6-across band starts at 1560px because
+   that is where .wrap gives the row 1440px of content, i.e. 228px per card —
+   below that a 22px-padded card with a two-word title starts wrapping to three
+   lines. */
+.grid--six{grid-template-columns:repeat(2,1fr)}
+@media (min-width:900px){.grid--six{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:1560px){.grid--six{grid-template-columns:repeat(6,1fr)}}
+@media (max-width:560px){.grid--six{grid-template-columns:1fr}}
+
+/* SOCIAL PROOF — three testimonials (subscription.testimonials), shared with
+   /subscription's SubscriptionExtras, which renders the same three. auto-fill
+   resolved to 4 tracks at 1200 and 1440 and 5 at 1600 and 1920, so three cards
+   sat in the left 60% of the row and the rest of it was empty — at 1920 that
+   was two 309px tracks and their gaps, 646px of nothing. Three columns from 980px up puts them in one full row
+   — a min-width of 980 rather than the usual 981, because auto-fill already
+   resolved to a whole row of three at exactly that width and there was nothing
+   there to fix.
+   Below that, two columns with the odd card out centred at card width, so it
+   reads as the end of the row rather than as a stray. The :nth-child(odd)
+   guard means the rule stops applying by itself if a fourth testimonial is
+   ever added. */
+.quotes{grid-template-columns:repeat(2,1fr)}
+.quotes>*:nth-child(odd):last-child{grid-column:1/-1;max-width:calc((100% - 14px)/2);justify-self:center}
+@media (min-width:980px){
+  .quotes{grid-template-columns:repeat(3,1fr)}
+  .quotes>*:nth-child(odd):last-child{grid-column:auto;max-width:none;justify-self:stretch}
+}
+@media (max-width:560px){
+  .quotes{grid-template-columns:1fr}
+  .quotes>*:nth-child(odd):last-child{grid-column:auto;max-width:none;justify-self:stretch}
+}
+
+/* WARRANTY — four cards, six numbered rules.
+   .wgrid resolved to 3 columns at 820 and 980 (3+1). Four divides by 4, 2 and
+   1; it goes to two columns under 981px, which is the same width where .stats
+   and .flow above it already drop from four to two, so the whole page steps
+   down together.
+   .rules holds six numbered lines and resolved to 4 tracks at 1440 (4+2) and 5
+   at 1600 and 1920 (5+1). Capping it at three keeps 6 divisible and keeps the
+   line length of a rule near the 357px it already had at 1200. */
+.wgrid{grid-template-columns:repeat(2,1fr)}
+@media (min-width:981px){.wgrid{grid-template-columns:repeat(4,1fr)}}
+@media (max-width:560px){.wgrid{grid-template-columns:1fr}}
+
+.rules{grid-template-columns:repeat(2,1fr)}
+@media (min-width:821px){.rules{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:600px){.rules{grid-template-columns:1fr}}
+
+/* ADVOCATE DIRECTORY (.advgrid, /portal/client/lawyers) — the count is whatever
+   the catalogue returns: GET /lawyers answers 76 today, so no track count can
+   be guaranteed to divide it. Measured: 3 columns at 1200 and 1440 (25 rows of
+   3, then ONE card alone) and 5 at 1920 (15 rows, then one).
+   Two things fix it. First, 76 divides by 4 and by 2, so the column count is
+   pinned to 4 / 3 / 2 / 1 — which alone clears 1440, 1600 and 1920. Second,
+   flex-wrap with a centred row means that whenever the count does not divide
+   (1200 today, any count tomorrow) the tail sits centred at card width instead
+   of hugging the left edge. flex-grow is 0 so a lone card cannot stretch to
+   fill the row; each width subtracts one pixel more than the gaps need, so a
+   full row is 2px short of 100% and can never wrap on a sub-pixel rounding. */
+.advgrid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;--advcol:calc(25% - 11px)}
+.advgrid>.advcard{flex:0 1 var(--advcol);width:var(--advcol);max-width:var(--advcol);min-width:0}
+@media (max-width:1279px){.advgrid{--advcol:calc(33.333% - 10px)}}
+@media (max-width:980px){.advgrid{--advcol:calc(50% - 8px)}}
+@media (max-width:620px){.advgrid{--advcol:100%}}
+
+/* ── Reveal order and hand-back ──────────────────────────────────────────────
+   RevealOnScroll.tsx numbers every matched element on the page in document
+   order and writes transitionDelay = (i % 5) * 55ms inline. Because i is a
+   page-wide index, the delays inside one grid are a rotation, not a ramp:
+   measured on /uz the six benefit cards got 110/165/220/0/55/110ms — card 4
+   arrives first and card 3 last — and the four flow steps got 220/0/55/110ms.
+   A container tagged .rvseq takes its stagger from here instead, in child
+   order, and the inline delay is overridden to 0s so it stops also delaying
+   hover.
+   The reveal itself moves from a transition to a one-shot animation for the
+   same reason. .rv.in declares `transition: opacity .65s, transform .65s` and
+   is (0,2,0), so it beat .card's own `transition:.24s` and .advcard's `.26s`:
+   measured, a revealed .card's computed transition was `opacity .65s .11s,
+   transform .65s .11s` — its hover lift had gone from 240ms to 650ms, box-
+   shadow had stopped transitioning at all, and every hover started 110ms late.
+   animation-fill-mode is `backwards`, never `forwards`: forwards would pin
+   transform:none after the reveal and kill the hover lift outright. */
+@keyframes lb-rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+
+.rvseq>.rv.in{
+  animation:lb-rise .62s cubic-bezier(.2,.75,.3,1) backwards;
+  transition:none;
+  transition-delay:0s!important;
+}
+/* Each card type gets back exactly the transition globals.css declares for it,
+   so the hover feel is unchanged by having been revealed. */
+.rvseq>.card.rv.in{transition:.24s cubic-bezier(.2,.8,.3,1)}
+.rvseq>.advcard.rv.in{transition:.26s cubic-bezier(.2,.8,.3,1)}
+.rvseq>.faqi.rv.in{transition:box-shadow .2s,background .2s}
+.rvseq>.plan--card.rv.in{transition:transform .45s cubic-bezier(.2,.8,.3,1)}
+
+/* The ramp. 55ms is RevealOnScroll's own step, kept so a .rvseq grid and an
+   untagged one next to it still feel like one page. Past the fifth child the
+   delay drops to zero: .faq has 12 rows and .scroller has 76 cards, and those
+   enter the viewport one at a time long after the first screenful, where a
+   fixed delay is just lag. */
+.rvseq>.rv.in:nth-child(2){animation-delay:55ms}
+.rvseq>.rv.in:nth-child(3){animation-delay:110ms}
+.rvseq>.rv.in:nth-child(4){animation-delay:165ms}
+.rvseq>.rv.in:nth-child(5){animation-delay:220ms}
+.rvseq>.rv.in:nth-child(n+6){animation-delay:0ms}
+/* …except the benefits grid, whose six cards are one row at 1560px and up and
+   two rows everywhere else: all six are on screen together, so the ramp has to
+   reach the sixth. */
+.grid--six>.card.rv.in:nth-child(6){animation-delay:275ms}
+
+/* The final CTA is a single element, so the page-wide rotation gave it a
+   220ms delay for no sequence at all — measured, and visible as a pause
+   between the FAQ and the closing card. */
+.finalcta.rv.in{transition-delay:0s!important}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────────
+   RevealOnScroll never adds .rv when the query matches at load, and the reveal
+   effects added in LawyersSection / SocialProofSection / FaqSection check the
+   same query, so normally none of the above is ever reachable. This block is
+   for the case the setting is turned on after the page has loaded and the
+   classes are already in the DOM: the cards must be visible, not mid-rise. */
+@media (prefers-reduced-motion:reduce){
+  .rvseq>.rv,.rvseq>.rv.in{opacity:1;transform:none;animation:none;transition:none}
+  .rvseq>.rv.in:nth-child(n){animation-delay:0s}
+  .finalcta.rv{opacity:1;transform:none}
 }

@@ -70,6 +70,12 @@ type Variant = "personal" | "all";
 // admin-created yurist/advokat tariff shows up without a slug rule.
 const AI_SLUG = /^lexgo-ai-(free|lite|pro)$/;
 const FEATURED_SLUG = "lexgo-ai-pro";
+// The recommended plan's buy button is the one thing on this screen that is
+// meant to be noticed, so it gets btn--unlock on top of the house btn--grad:
+// a blue→cyan gradient painted three times wider than the button, which
+// slides on hover, and a crown that fills in with it (globals.css wp-plans).
+// Every other plan keeps btn--line — if all three shouted, none of them would.
+const FEATURED_CTA = "btn--grad btn--unlock";
 // Fallback monthly AI limits when a plan carries no entitlements (T1-03).
 const AI_LIMIT_BY_SLUG: Record<string, number> = { "lexgo-ai-free": 5, "lexgo-ai-lite": 100, "lexgo-ai-pro": 1000 };
 // T1-03 §5: term discounts 3 → −5 %, 6 → −10 %, 12 → −15 %; paying up front
@@ -367,10 +373,11 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                 ) : (
                   <button
                     type="button"
-                    className={`btn ${featured ? "btn--grad" : "btn--line"} btn--full`}
+                    className={`btn ${featured ? FEATURED_CTA : "btn--line"} btn--full`}
                     disabled={busy === plan.id}
                     onClick={() => choose(plan, pr.total, billingPeriod(aiTerm, aiUpfront))}
                   >
+                    {featured ? <IconCrown aria-hidden /> : null}
                     {busy === plan.id ? t("processing") : t("choose")}
                   </button>
                 )}
@@ -487,8 +494,12 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
               {otherPlans.map((plan, i) => {
                 const pr = personalPricing(plan, term, upfront);
                 const isCurrent = !!currentPlanName && planName(plan) === currentPlanName;
+                // These tariffs carry no "recommended" flag of their own, so
+                // the second card has always been the highlighted one here.
+                // Naming it says so, and keeps the card and its button in step.
+                const featured = i === 1;
                 return (
-                  <div key={plan.id} className={`splan${isCurrent ? " splan--current" : i === 1 ? " splan--feat" : ""}`}>
+                  <div key={plan.id} className={`splan${isCurrent ? " splan--current" : featured ? " splan--feat" : ""}`}>
                     {isCurrent ? <span className="splan__ribbon splan__ribbon--current"><IconCheck />{t("current")}</span> : null}
                     <div className="splan__h">
                       <b className="splan__name">{planName(plan)}</b>
@@ -509,10 +520,11 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                     ) : (
                     <button
                       type="button"
-                      className={`btn ${i === 1 ? "btn--grad" : "btn--line"} btn--full`}
+                      className={`btn ${featured ? FEATURED_CTA : "btn--line"} btn--full`}
                       disabled={busy === plan.id}
                       onClick={() => choose(plan, pr.total, billingPeriod(term, upfront))}
                     >
+                      {featured ? <IconCrown aria-hidden /> : null}
                       {busy === plan.id ? t("processing") : t("choose")}
                     </button>
                     )}

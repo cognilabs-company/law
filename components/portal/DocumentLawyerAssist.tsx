@@ -10,7 +10,7 @@ import {
   type DocumentRequest,
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
-import { ApiError, isPaymentRequired, logApiError, errDetail } from "@/lib/http";
+import { ApiError, isConflict, isPaymentRequired, logApiError, errDetail } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocTemplateViewer from "./DocTemplateViewer";
@@ -20,7 +20,9 @@ import DocTypePicker from "./DocTypePicker";
 // Imported, not re-declared: this form and the from-scratch order write the
 // same `language` field of the same record, and each keeping its own list is
 // exactly how they came to offer different values for it.
-import { defaultDocLang, docLangOptions } from "./NewDocumentOrder";
+// WaitClock rides along for the same reason: it is the one mark the three
+// order forms show while a request is out, and it has to be the same mark.
+import { defaultDocLang, docLangOptions, WaitClock } from "./NewDocumentOrder";
 import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
 import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock, IconShieldCheck } from "@/components/icons";
@@ -127,6 +129,14 @@ export default function DocumentLawyerAssist({
     } catch (e) {
       if (isPaymentRequired(e)) {
         setPlanRequired(errDetail(e) || t("planRequired"));
+      } else if (isConflict(e)) {
+        // ServiceDocumentRequest keeps this form off screen entirely while an
+        // advocate holds the document, so today a 409 cannot happen: the
+        // backend has no duplicate guard (two live lawyer_review rows on one
+        // template were found in production on 2026-09-28). If it grows one,
+        // a 409 here means exactly what the gate upstream says, and the
+        // client should read that rather than "something went wrong".
+        setErr(t("lawyerPendingLead"));
       } else {
         logApiError("document-lawyer request", e);
         setErr(e instanceof ApiError && e.status === 422 ? t("aiNeedRequired") : e instanceof ApiError && e.status === 404 ? t("lawyerNotAvailable") : t("error"));
@@ -243,7 +253,14 @@ export default function DocumentLawyerAssist({
 
       {err ? <Notice ok={false} msg={err} /> : null}
 
-      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy || !need.trim() || !consent}>
+      {/* This is literally the "ariza berish" the clock was asked for: the
+          document, the attachments and the voice notes all leave here for the
+          Navbatchi advokat in one multipart POST, which is the longest of the
+          three waits it marks. The other two thirds of `disabled` are an
+          unfilled form and an unticked consent — neither is processing
+          anything, so neither gets the clock. */}
+      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy || !need.trim() || !consent} aria-busy={busy || undefined}>
+        {busy ? <WaitClock /> : null}
         {busy ? t("processingShort") : t("lawyerSubmit")}
       </button>
 

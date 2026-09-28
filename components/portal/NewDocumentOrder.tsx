@@ -81,6 +81,35 @@ export function defaultDocLang(locale: string): DocLang {
   return locale.startsWith("ru") ? "ru" : "uz-latn";
 }
 
+// ── The wait clock (wp-hourglass) ────────────────────────────────────
+// A clock face whose two hands sweep at different rates, shown inside the
+// submit button for as long as a request is actually in flight. Before this
+// the three order forms only swapped the button's own label, so the one
+// moment a client is most likely to press twice had no motion in it at all —
+// while the login button next door has had a spinner since it was written.
+//
+// It lives in this file, and the other two forms import it, for the same
+// reason DOC_LANGS above lives here: DocumentLawyerAssist already reads
+// defaultDocLang/docLangOptions from this module, so this is already the
+// shared module of the three order forms, and a loader copy-pasted into three
+// files is a loader that will be three slightly different loaders by the
+// spring. The house precedent is RateStar, defined in DocRatingBox and
+// imported by UrgentAdvocatePanel so the two rating rows cannot drift apart.
+//
+// Decoration, not information: aria-hidden, because the button's label
+// already says "Yuborilmoqda…" and the button carries aria-busy. All of its
+// geometry, colour and motion is in globals.css (wp-hourglass), including the
+// reduced-motion pose.
+export function WaitClock() {
+  return (
+    <span className="wclock" aria-hidden="true">
+      <span className="wclock__hand wclock__hand--m" />
+      <span className="wclock__hand wclock__hand--h" />
+      <span className="wclock__hub" />
+    </span>
+  );
+}
+
 // backend.ts's docFlowForm has always forwarded a `title` and the call-center
 // inbox lists requests by it, but no call site ever sent one — every
 // from-scratch order reaches an advocate untitled. Nothing extra is asked of
@@ -299,7 +328,13 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
 
       {err ? <Notice ok={false} msg={err} /> : null}
 
-      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={!canSubmit}>
+      {/* `disabled` here covers two different things — a form that is not
+          filled in yet, and a request that is out — and only the second one
+          is a wait, so the clock keys off `busy` alone. It takes the slot the
+          forward arrow vacates, which is why the busy button is exactly as
+          tall as the idle one: measured 49.2px in both states. */}
+      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={!canSubmit} aria-busy={busy || undefined}>
+        {busy ? <WaitClock /> : null}
         {busy ? td("processingShort") : t("submit")}
         {busy ? null : <IconArrowRight />}
       </button>

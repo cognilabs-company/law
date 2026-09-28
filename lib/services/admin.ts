@@ -3,6 +3,7 @@
 // automatically by the shared http() layer.
 import { http, asDict, asStr, asArr, asNum, type Dict } from "@/lib/http";
 import { normDeliveries, type NotificationDelivery, type BackendService, type TemplateField } from "@/lib/services/backend";
+import { cleanDocTitle } from "@/lib/docTitle";
 import { uzsOpt } from "@/lib/money";
 
 export type Permission = { code: string; title: string };
@@ -106,10 +107,18 @@ export type AdminService = BackendService & {
   documentTemplateId?: string;
 };
 
+// cleanDocTitle() blanks a bare-UUID title. Every client surface has a second
+// name to show instead; this console has none, and it is the screen on which
+// such a row gets repaired, so the raw string stays visible here. It also
+// seeds ServiceEditModal's title field — and its diff is taken against the
+// same cleaned value, so opening a service and saving something else never
+// writes the title back on its own.
+const adminTitle = (raw: string) => cleanDocTitle(raw) || raw;
+
 // Same localized-title preference as the public catalog normalizer.
 function adminServiceName(d: Dict, locale: string): string {
   const byLocale = locale === "ru" ? d.title_ru : d.title_uz_latn;
-  return asStr(byLocale ?? d.title ?? d.name);
+  return adminTitle(asStr(byLocale ?? d.title ?? d.name));
 }
 
 export function normAdminService(v: unknown, locale = "uz"): AdminService {
@@ -136,7 +145,7 @@ export function normAdminService(v: unknown, locale = "uz"): AdminService {
     executorType: asStr(d.executor_type) || undefined,
     advokatRequired: Boolean(d.advokat_required),
     pricingTier: asStr(d.pricing_tier) || undefined,
-    title: asStr(d.title),
+    title: adminTitle(asStr(d.title)),
     titleUzCyrl,
     titleUzLatn,
     titleRu,

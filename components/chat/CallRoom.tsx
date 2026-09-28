@@ -34,6 +34,8 @@ import {
   startCallRecordingServer,
   freeExtendCall,
   requestCallExtensionPayment,
+  pauseCall,
+  resumeCall,
   type LiveKitJoin,
   type CallSession,
   type CallConnectionHints,
@@ -98,6 +100,11 @@ const EMPTY_GRACE_SEC = 10;
 // compiler lint does not treat the event handlers as impure render code).
 const stamp = () => Date.now();
 const REC_ASK_SEC = 30; // a recording request without an answer expires
+// How long a hold lasts before the backend resumes the call by itself. The
+// route's own default is 5 minutes, but it is sent explicitly so the hint the
+// host reads ("to'xtatib turish — {n} daqiqa") and what the server does can
+// never drift apart.
+const PAUSE_MINUTES = 5;
 const PORTRAIT_HINT = () => typeof window !== "undefined" && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 const enc = (v: unknown) => new TextEncoder().encode(JSON.stringify(v));
 // The LiveKit token carries {"role": <backend role>} as participant metadata.
@@ -263,6 +270,14 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [extErr, setExtErr] = useState("");
   const [extOpen, setExtOpen] = useState(false);
   const [extMinutes, setExtMinutes] = useState(10);
+  // The pause control's own state is ONLY "is a request in the air". Whether
+  // the meeting is held is `paused` below, which comes off the poll and the
+  // call.paused / call.resumed events — so the other side resuming, or the
+  // hold expiring, moves this button without it being told.
+  const [pauseBusy, setPauseBusy] = useState(false);
+  // Set when the pause route answers 404/405, i.e. this backend does not have
+  // it deployed. A control that can only ever fail is worse than no control.
+  const [pauseGone, setPauseGone] = useState(false);
   const paused = !!limits?.paused;
   // Read by the connect effect, which runs long before the pause effect and
   // must not publish into a call that is already paused.
@@ -1228,6 +1243,38 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     }
   }
 
+  // ── Holding the meeting ────────────────────────────────────────
+  // "advokat yoki yuristdagi meeting vaqtidagi pause qilish tugmasi" — the
+  // host steps away without the client's minutes burning down. POST …/pause
+  // freezes the clock (the effect further up also mutes what both sides are
+  // publishing while `paused` is true) and POST …/resume hands back a fresh
+  // auto_end_at, so the remaining time is re-read from the response exactly
+  // the way the 15-second poll re-reads it.
+  async function togglePause() {
+    if (pauseBusy) return;
+    // Read once: `paused` can flip under us while the request is in the air,
+    // and the error message must still name the thing that was attempted.
+    const resuming = paused;
+    setPauseBusy(true);
+    try {
+      const c = resuming ? await resumeCall(roomId, callId) : await pauseCall(roomId, callId, { minutes: PAUSE_MINUTES });
+      setLimits(callLimitsOf(c));
+      const left = c.paused && c.pausedRemainingSeconds > 0 ? c.pausedRemainingSeconds : c.remainingSeconds;
+      if (left > 0) setRemaining(left);
+      toast(t(resuming ? "resumedToast" : "pausedToast"), "info");
+    } catch (e) {
+      // Not deployed on this backend: take the button away instead of leaving
+      // it in the bar to 404 again on the next press.
+      if (e instanceof ApiError && (e.status === 404 || e.status === 405)) { setPauseGone(true); return; }
+      // Everything else goes through the room's own error affordance, the
+      // same toast the free extension uses — there is no dialog to put an
+      // inline message in, and .mtg__ext-err only renders inside one.
+      toast(t(resuming ? "resumeError" : "pauseError"), "leave");
+    } finally {
+      setPauseBusy(false);
+    }
+  }
+
   async function answerRecAsk(id: string, ok: boolean) {
     setRecAsks((a) => a.filter((x) => x.id !== id));
     // Data channel first: it reaches the requester in one hop and does not
@@ -1433,6 +1480,24 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const isRecording = (p: Participant) => (p.isLocal ? recOn : recBy.has(p.identity));
   // Only the host of a time-limited meeting can extend it.
   const canExtend = !!perms?.canEnd && !!limits && limits.maxDurationMinutes > 0;
+  // Who may hold the meeting. Pause/resume are host actions on the backend —
+  // the same family as the extensions — so the gate is the backend's own host
+  // flag, exactly what canExtend uses, and NOT `iApprove`: that predicate
+  // answers "may approve a recording" and is true for any advocate, lawyer or
+  // call-centre user in the room, including one who merely joined somebody
+  // else's meeting and has no business stopping its clock. perms.canEnd is
+  // also what keeps this off a client's bar, since the backend never gives a
+  // client the end-call permission; the role check is belt-and-braces for a
+  // backend that ever hands one out by accident.
+  // Deliberately NOT gated on maxDurationMinutes the way canExtend is: the
+  // backend extended pause to urgent meetings too (2026-09-28), and a hold is
+  // useful there for the mute it causes even when there is no clock to freeze.
+  const canPause = !pauseGone && !!perms?.canEnd && iApprove && !!limits;
+  // A call paused by a pending extension payment is not this host's hold to
+  // lift — resuming would answer the client's Telegram prompt on their behalf,
+  // and the pause card already explains that wait. So the control stands down
+  // for exactly that case rather than offering a resume it should not offer.
+  const showPause = canPause && !(paused && !!limits?.pendingExtensionRequest);
 
   return (
     <div
@@ -1768,6 +1833,21 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         {/* NOT desktop-only while floating: .mtg--float hides .mtg__ctl--desktop,
             and the floating panel is exactly where the document meeting runs. */}
         {canExtend ? <Ctl on={extOpen} label={t("extendPaidShort")} onClick={() => { setExtErr(""); setExtOpen((v) => !v); }} disabled={extBusy || paused} desktop={!floating}><IconClock /></Ctl> : null}
+        {/* Hold the meeting. It sits with the extension controls because they
+            are the same family — everything here manipulates the clock — and
+            it is offered at EVERY width, including the phone bar and the
+            floating panel: stepping away is exactly what someone working in
+            the minimised panel needs, so it is not marked desktop-only. */}
+        {showPause ? (
+          <PauseCtl
+            paused={paused}
+            busy={pauseBusy}
+            label={pauseBusy ? t("pauseWorking") : paused ? t("resumeAction") : t("pauseAction")}
+            action={paused ? t("resumeAction") : t("pauseAction")}
+            title={paused ? t("resumeHint") : t("pauseHint", { n: PAUSE_MINUTES })}
+            onClick={() => void togglePause()}
+          />
+        ) : null}
         <Ctl label={t("more")} onClick={() => setMore((m) => !m)} badge={unread} phone><IconGrid /></Ctl>
         <Ctl end label={isCaller ? t("endAll") : t("end")} onClick={hangUp}><IconClose /></Ctl>
       </footer>
@@ -1779,6 +1859,41 @@ function Ctl({ children, label, aria, onClick, on, off, end, accent, rec, mic, p
   return (
     <button type="button" className={`mtg__ctl${on ? " on" : ""}${off ? " off" : ""}${end ? " end" : ""}${accent ? " accent" : ""}${rec ? " rec" : ""}${mic ? " mtg__ctl--mic" : ""}${desktop ? " mtg__ctl--desktop" : ""}${phone ? " mtg__ctl--phone" : ""}`} onClick={onClick} disabled={disabled} title={title} aria-label={aria || label} aria-pressed={pressed}>
       <span className="mtg__ci">{children}{badge ? <i className="mtg__cb">{badge > 9 ? "9+" : badge}</i> : null}</span>
+      <span className="mtg__cl">{label}</span>
+    </button>
+  );
+}
+
+// The hold control. Its own element rather than a `Ctl` variant, because it
+// needs two children `Ctl` has no slot for — the sweeping ring, which has to
+// sit inside .mtg__ci to be positioned against it, and a glyph drawn in CSS so
+// the bars and the triangle are one shape morphing rather than two icons being
+// swapped. It wears `Ctl`'s exact class shape (.mtg__ctl > .mtg__ci + .mtg__cl)
+// so it inherits every size, hover, disabled and breakpoint rule the bar
+// already has, and so it needs no layout of its own at any width.
+// Stateless by design: `paused` is the room's, never a copy kept here.
+// Like the mic control it carries its state in its NAME ("Pause" / "Resume")
+// and deliberately not in aria-pressed as well, which together would announce
+// "Resume, pressed" on a meeting that is merely held.
+function PauseCtl({ paused, busy, label, action, title, onClick }: { paused: boolean; busy: boolean; label: string; action: string; title: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={`mtg__ctl mtg__ctl--pause${paused ? " is-paused" : ""}${busy ? " is-busy" : ""}`}
+      onClick={onClick}
+      disabled={busy}
+      title={title}
+      aria-label={action}
+      aria-busy={busy}
+    >
+      <span className="mtg__ci">
+        <span className="mtg__pring" aria-hidden="true" />
+        <span className="mtg__pgl" aria-hidden="true">
+          <i className="mtg__pgl-tri" />
+          <i className="mtg__pgl-b mtg__pgl-b--l" />
+          <i className="mtg__pgl-b mtg__pgl-b--r" />
+        </span>
+      </span>
       <span className="mtg__cl">{label}</span>
     </button>
   );

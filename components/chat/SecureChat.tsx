@@ -29,6 +29,13 @@ import {
   type LiveKitJoin,
 } from "@/lib/services/backend";
 import { VoiceRecorder, canRecordVoice, voiceDuration } from "@/lib/voiceRecorder";
+// The same player the order form's "listen back before you send" row uses.
+// It lives beside that row because the chat file is already thirteen hundred
+// lines of sockets and calls and a media control is presentation — but there
+// is deliberately only one of it: the part that is hard to get right (a
+// MediaRecorder blob whose duration is Infinity until it is probed) is the
+// part you do not want two copies of.
+import { VoiceNotePlayer } from "@/components/portal/AttachmentPreview";
 import { fetchAndDeliver } from "@/lib/download";
 import ImageLightbox from "./ImageLightbox";
 import CallRoom from "./CallRoom";
@@ -104,13 +111,18 @@ function MsgBody({ text, label }: { text: string; label: string }) {
 // "yurist", "call_center_lawyer" and "advokat_tashkiloti" as well. An operator
 // only differs from an advocate by this field, so the chip is what tells the
 // three parties apart.
+// The two call-centre roles carry their own label instead of sharing
+// "roleOperator": the person a client meets in a Tezkor Advokat room is the
+// advocate on duty, and "Operator" both sold them short and used wording the
+// platform no longer uses. The generic "operator" role keeps roleOperator, so
+// repurposing that key would have relabelled it too.
 const ROLE_KEYS: Record<string, string> = {
   client: "roleClient",
   advokat: "roleAdvokat",
   advokat_tashkiloti: "roleAdvokat",
   yurist: "roleYurist",
-  call_center: "roleOperator",
-  call_center_lawyer: "roleOperator",
+  call_center: "roleDuty",
+  call_center_lawyer: "roleDuty",
   operator: "roleOperator",
 };
 // A role we have no wording for is shown as the backend spelled it, tidied —
@@ -224,11 +236,27 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
     setBusy(false);
   }
 
+  // A voice note plays in the bubble. The native <audio controls> that used
+  // to sit here was a 38px grey slab with its own typography and its own
+  // shade of blue; inside a gradient "my" bubble it read as a foreign object
+  // pasted on. .vnote--bub is the house player at bubble size, and the CSS
+  // re-colours it for the gradient side (see wp-voice in globals.css).
   if (voice)
     return (
       <span className="sattach sattach--voice">
         {url ? (
-          <audio controls preload="metadata" src={url} />
+          <VoiceNotePlayer
+            src={url}
+            className="vnote--bub"
+            playLabel={t("voicePlay")}
+            pauseLabel={t("voicePause")}
+            seekLabel={t("voiceSeek")}
+            // The message id, not the object URL: the URL is re-minted every
+            // time the bytes are re-fetched and the waveform would reshuffle
+            // under the listener. A pending bubble has no server id yet, so
+            // the file name stands in until the echo replaces the whole row.
+            seed={msg.id || name}
+          />
         ) : (
           <span className="sattach__wait">{err ? t("attachFailed") : msg.pending ? t("attachSending") : t("attachLoading")}</span>
         )}

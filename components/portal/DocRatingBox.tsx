@@ -23,6 +23,20 @@ function clock(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+// The star the rating row draws is spelled out here instead of coming from
+// components/icons.tsx because the animation needs pathLength: the empty star
+// is a dashed outline that crawls slowly round its own edge, and without a
+// normalised path length the dash pattern changes with every size the icon is
+// rendered at. icons.tsx is shared by the whole app, so that attribute stays
+// with the one widget that depends on it. The presentation attributes are the
+// same defaults the shared icons carry, so the star still reads correctly
+// anywhere the rating CSS does not reach.
+export const RateStar = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" aria-hidden="true">
+    <path pathLength={360} d="M12 3.2l2.7 5.5 6 .9-4.35 4.24 1.03 5.99L12 17l-5.38 2.83 1.03-5.99L3.3 9.6l6-.9L12 3.2z" />
+  </svg>
+);
+
 export default function DocRatingBox({
   id,
   rating,
@@ -33,7 +47,14 @@ export default function DocRatingBox({
   onRated?: () => void;
 }) {
   const t = useTranslations("portal.client.documentRequests");
+  // The five words the row puts under the stars. They are shared with the
+  // urgent-advocate rating, which is why they sit in their own namespace
+  // rather than being duplicated in both.
+  const tr = useTranslations("portal.client.rate");
   const [stars, setStars] = useState(0);
+  // The star the pointer or the keyboard is currently on, 0 for none. It is a
+  // preview only: `stars` alone is what gets sent, and what aria-checked says.
+  const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -46,6 +67,9 @@ export default function DocRatingBox({
   const deadline = rating.deadlineAt ? Date.parse(rating.deadlineAt) : NaN;
   const timed = !Number.isNaN(deadline);
   const left = timed ? deadline - now : Infinity;
+  // What the row should look like right now: the hovered star while the
+  // pointer is on the row, otherwise the one that was picked.
+  const shown = hover || stars;
 
   useEffect(() => {
     if (!timed) return;
@@ -90,7 +114,25 @@ export default function DocRatingBox({
         <b><IconStarRate />{t("rateTitle")}</b>
         {timed ? <span className="drate__left"><IconClock />{t("rateLeft", { time: clock(left) })}</span> : null}
       </div>
-      <div className="drate__stars" role="radiogroup" aria-label={t("rateTitle")}>
+      {/* Two classes, because they answer two different questions. `on` is
+          "draw this star gold" and follows the preview, so moving across the
+          row fills and empties it as you go. `set` is "this star is actually
+          chosen" and only ever changes on a click — which is what makes the
+          pop animation fire once, when a rating is given, and not again every
+          time the pointer wanders back over the row.
+
+          The preview is component state rather than the CSS-only row-reverse
+          sibling trick the idea came from: that trick needs the stars in DOM
+          order 5..1, which would hand a screen reader and the Tab key the row
+          backwards. Keeping real buttons in reading order is worth one
+          useState. */}
+      <div
+        className="drate__stars"
+        role="radiogroup"
+        aria-label={t("rateTitle")}
+        onPointerLeave={() => setHover(0)}
+        onBlur={() => setHover(0)}
+      >
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
@@ -98,14 +140,19 @@ export default function DocRatingBox({
             role="radio"
             aria-checked={stars === n}
             aria-label={t("rateN", { n })}
-            className={`drate__s${n <= stars ? " on" : ""}`}
+            className={`drate__s${n <= shown ? " on" : ""}${n <= stars ? " set" : ""}`}
             onClick={() => setStars(n)}
+            onPointerEnter={() => setHover(n)}
+            onFocus={() => setHover(n)}
             disabled={busy}
           >
-            <IconStarRate />
+            <RateStar />
           </button>
         ))}
       </div>
+      {/* The word for the star under the pointer. aria-hidden because each
+          button already announces "{n} yulduz" — this is for the eye only. */}
+      <p className="drate__word" aria-hidden="true">{shown ? tr(`w${shown}`) : ""}</p>
       <input
         className="drate__c"
         value={comment}

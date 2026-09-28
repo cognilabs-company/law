@@ -97,7 +97,10 @@ export default function SubscriptionSection() {
           </label>
         ) : null}
 
-        <div className="plans">
+        {/* rvseq: the three plans reveal in child order, and the gift card gets
+            its own transform transition back afterwards, so the hover lift
+            stays at .45s — see the wp-landingb block in globals.css. */}
+        <div className="plans rvseq">
           {renderPlan("standard")}
           {renderPlan("premium", true)}
 

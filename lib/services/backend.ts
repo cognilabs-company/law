@@ -569,7 +569,12 @@ function serviceTitle(d: Dict, locale: string): string {
       : locale === "en"
         ? d.title_uz_latn // no EN catalog title; latin is the closest neutral
         : d.title_uz_latn;
-  return cleanDocTitle(asStr(byLocale ?? d.title ?? d.name));
+  const raw = asStr(byLocale ?? d.title ?? d.name);
+  // cleanDocTitle() blanks a bare-UUID title (2 live services). The catalogue
+  // card has no second name to fall back on — it renders `name` and nothing
+  // else — so the raw string stays rather than leaving a nameless card: a
+  // visibly wrong name gets reported and fixed, an invisible one does not.
+  return cleanDocTitle(raw) || raw;
 }
 
 function normService(v: unknown, locale = "uz"): BackendService {
@@ -987,10 +992,14 @@ function normOrder(v: unknown): BackendOrder {
   const details = asDict(d.details);
   const service = asDict(d.service);
   const amount = uzsOpt(d, "price", "amount");
+  // The client's own sentence, when the order carries one. It is prose, so it
+  // keeps its full stop and only loses the filename leftovers; everything
+  // behind it in the chain is a catalogue title and gets the title cleaner.
+  const question = cleanDocText(asStr(details.question));
   return {
     id: asStr(d.id),
-    title: asStr(details.question ?? d.title ?? details.title ?? service.name),
-    serviceName: asStr(service.name ?? service.title ?? d.service_name ?? d.service_title ?? details.service_title ?? details.service_name),
+    title: question || cleanDocTitle(asStr(d.title ?? details.title ?? service.name)),
+    serviceName: cleanDocTitle(asStr(service.name ?? service.title ?? d.service_name ?? d.service_title ?? details.service_title ?? details.service_name)),
     status: asStr(d.status),
     paymentStatus: asStr(d.payment_status),
     contactUnlocked: Boolean(d.contact_unlocked),
@@ -1503,9 +1512,13 @@ export type BackendTemplate = {
 
 function normTemplate(v: unknown): BackendTemplate {
   const d = asDict(v);
+  const rawName = asStr(d.title ?? d.name);
   return {
     id: asStr(d.id),
-    name: cleanDocTitle(asStr(d.title ?? d.name)),
+    // Same reason as serviceTitle(): the admin template list renders `name`
+    // with no fallback of its own, so a UUID-only title keeps its raw form
+    // rather than disappearing from the console that exists to repair it.
+    name: cleanDocTitle(rawName) || rawName,
     slug: asStr(d.slug),
     category: asStr(d.category),
     language: asStr(d.language),
@@ -1908,7 +1921,7 @@ function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
     requestedDocumentTypeIsCustom: Boolean(lr.requested_document_type_is_custom ?? d.requested_document_type_is_custom),
     clientName: asStr(lr.client_name ?? client.name),
     clientPhone: asStr(lr.client_phone ?? client.phone),
-    serviceName: asStr(service.title ?? service.name),
+    serviceName: cleanDocTitle(asStr(service.title ?? service.name)),
     answers: asDict(lr.answers ?? d.answers),
     createdAt: asStr(lr.created_at ?? d.created_at),
     templateFile: normLawyerDocTemplateFile(lr.template_file ?? d.template_file),
@@ -1919,7 +1932,7 @@ function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
     canOpenEditor: typeof lr.can_open_editor === "boolean" ? lr.can_open_editor : status === "claimed",
     serviceId: asStr(service.id ?? lr.service_id ?? d.service_id),
     templateId: asStr(template.id ?? lr.template_id ?? d.template_id),
-    templateName: asStr(template.title ?? template.name),
+    templateName: cleanDocTitle(asStr(template.title ?? template.name)),
     assignedLawyerName: asStr(lawyer.name) || [asStr(lawyer.first_name), asStr(lawyer.last_name)].filter(Boolean).join(" "),
     assignedLawyerUserId: asStr(lr.assigned_lawyer_user_id ?? d.assigned_lawyer_user_id ?? lawyer.id),
     secureChatRoomId: asStr(room.id ?? room.room_id ?? lr.secure_chat_room_id ?? d.secure_chat_room_id),
@@ -2009,7 +2022,9 @@ function normPoolItem(v: unknown): DocumentRequestPoolItem {
     requestedDocumentTypeIsCustom: Boolean(d.requested_document_type_is_custom),
     clientName: asStr(client.name),
     clientPhone: asStr(client.phone),
-    serviceName: asStr(service.title) || asStr(service.name),
+    // Cleaned like the card's own title above it: the pool card prints both,
+    // and one clean line over one raw line reads as two different documents.
+    serviceName: cleanDocTitle(asStr(service.title) || asStr(service.name)),
     need: asStr(d.need),
     createdAt: asStr(d.created_at),
     claimUrl: asStr(d.claim_url) || `/call-center/document-requests/${asStr(d.id)}/claim`,
@@ -2250,6 +2265,26 @@ export type DocumentRequest = {
   // handling it, instead of an anonymous "someone is on it".
   assignedLawyerName?: string;
 };
+
+// Is an advocate holding this document right now?
+//
+// The record carries no flag for it. Verified against production on
+// 2026-09-28: GET /document-requests/{id} has no lawyer_request, no
+// assigned_lawyer and no assignment_mode — the list rows are thinner still
+// (id, template_id, title, status, price, currency, created_at). So status
+// is the only honest signal, and it is a sufficient one: a lawyer-flow row
+// only ever sits in these three before its file is delivered, and the
+// constructor's own lifecycle (questionnaire → ready_to_generate →
+// payment_pending → file_ready) never enters any of them.
+//
+// "claimed" is here for completeness rather than from observation: live
+// document rows stay "lawyer_review" even after an advocate claims the work
+// — "claimed" is the lawyer_request's own status — but stageFor() has always
+// read it, so the two agree.
+const LAWYER_HELD_STATUSES = new Set(["open_pool", "claimed", "lawyer_review"]);
+export function isLawyerHeld(r: { status: string } | null | undefined): boolean {
+  return !!r && LAWYER_HELD_STATUSES.has(r.status);
+}
 
 // See DocumentRequest.paid's comment — true means the payment step is
 // already settled (or was never required) regardless of `status`.
@@ -3397,7 +3432,11 @@ export async function getLawyerServices(lawyerUserId: string): Promise<{ id: str
   const d = asDict(await http(`/lawyers/${lawyerUserId}/services`));
   return asArr(d.services).map((x) => {
     const s = asDict(x);
-    return { id: asStr(s.id ?? s.service_id ?? x), name: asStr(s.title ?? s.name) };
+    // Rendered as a bare chip in the seller profile, with no fallback behind
+    // it — so, as in serviceTitle(), a UUID-only title keeps its raw form
+    // instead of leaving an empty chip.
+    const raw = asStr(s.title ?? s.name);
+    return { id: asStr(s.id ?? s.service_id ?? x), name: cleanDocTitle(raw) || raw };
   });
 }
 export async function getLawyerPrivateChat(lawyerUserId: string): Promise<SecureRoom | null> {
@@ -7002,7 +7041,10 @@ function normUrgentRequest(v: unknown): UrgentRequest {
         type: asStr(s.type),
         id: asStr(s.id),
         status: asStr(s.status),
-        title: asStr(s.title ?? s.service_title ?? s.document_type),
+        // The document or service this second-opinion request may be raised
+        // from — a catalogue title, so it carries the same import leftovers.
+        // The row falls back to serviceKind/type, so a blanked UUID is safe.
+        title: cleanDocTitle(asStr(s.title ?? s.service_title ?? s.document_type)),
         serviceKind: asStr(s.service_kind ?? s.document_type),
         createdAt: asStr(s.created_at),
       };

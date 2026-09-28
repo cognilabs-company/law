@@ -18,7 +18,10 @@ export default function WarrantySection() {
           </h2>
           <p className="lead">{t("lead")}</p>
         </div>
-        <div className="wgrid">
+        {/* rvseq: reveal these four in child order. Without it RevealOnScroll's
+            page-wide index decides the stagger, which is a rotation rather than
+            a ramp — see the wp-landingb block in globals.css. */}
+        <div className="wgrid rvseq">
           {cards.map((c, i) => {
             const I = ICONS[i] ?? IconShieldCheck;
             return (

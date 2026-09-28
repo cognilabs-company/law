@@ -165,6 +165,7 @@ export default function LawyersSection({
     }
   }
   const scroller = useRef<HTMLDivElement>(null);
+  const advbox = useRef<HTMLDivElement>(null);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
 
@@ -214,6 +215,34 @@ export default function LawyersSection({
     if (scroller.current) scroller.current.scrollLeft = 0;
     syncNav();
   }, [area, region, sort, query, syncNav]);
+
+  // RevealOnScroll scans the DOM once per navigation, and these cards are not
+  // in it yet when it runs: the section renders a <Skeleton> until GET /lawyers
+  // answers. Measured on /uz at 1440 — 76 .advcard elements on the page, 0 of
+  // them carrying .rv — so every advocate card snapped in at whatever moment
+  // the request landed, while the heading and the flow steps around them faded
+  // up. Re-run the same reveal over the cards we have just rendered, with
+  // RevealOnScroll's own classes and observer options; `list` in the deps means
+  // it re-runs after a filter too, since that replaces the cards.
+  useEffect(() => {
+    const box = scroller.current ?? advbox.current;
+    if (!box) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!("IntersectionObserver" in window)) return;
+    const cards = Array.from(box.querySelectorAll<HTMLElement>(".advcard:not(.in)"));
+    cards.forEach((c) => c.classList.add("rv"));
+    const io = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        }),
+      { rootMargin: "0px 0px -6% 0px", threshold: 0.06 },
+    );
+    cards.forEach((c) => io.observe(c));
+    return () => io.disconnect();
+  }, [list]);
 
   function scrollBy(dir: number) {
     const el = scroller.current;
@@ -476,9 +505,12 @@ export default function LawyersSection({
         ) : !list.length ? (
           <EmptyState title={t("empty")} />
         ) : compact ? (
-          <div className="advgrid">{list.map((l, i) => card(l, compact && sort === "rating" && i === 0))}</div>
+          // advgrid is a centred flex row rather than a grid: the count comes
+          // from the catalogue (76 today), so no column count divides it at
+          // every width and the tail has to centre itself instead.
+          <div className="advgrid rvseq" ref={advbox}>{list.map((l, i) => card(l, compact && sort === "rating" && i === 0))}</div>
         ) : (
-          <div className="scroller" ref={scroller} onScroll={syncNav}>
+          <div className="scroller rvseq" ref={scroller} onScroll={syncNav}>
             {list.map((l) => card(l, false))}
           </div>
         )}
@@ -498,7 +530,9 @@ export default function LawyersSection({
         </div>
 
         {showFlow ? (
-          <div className="flow">
+          // rvseq: these four steps are a numbered sequence, so they have to
+          // reveal 1-2-3-4. The page-wide index gave them 220/0/55/110ms.
+          <div className="flow rvseq">
             {(t.raw("flow") as { title: string; text: string }[]).map((f, i) => (
               <div className="fstep" key={i}>
                 <b>{i + 1}</b>

@@ -142,7 +142,7 @@ export default function ClientDocumentRequests() {
         <span className="advmuted">{rows.length}</span>
       </div>
 
-      <div className="chiprow" style={{ marginBottom: 14 }}>
+      <div className="chiprow chiprow--tabs">
         {TABS.map((tb) => (
           <button key={tb} type="button" className="fchip" aria-pressed={tab === tb} onClick={() => setTab(tb)}>
             {t(`tab_${tb}`)}
