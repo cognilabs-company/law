@@ -697,6 +697,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remaining == null, paused]);
 
+  // A paused call is a call somebody is waiting on, and whoever paused it may
+  // be on a screen with no room socket at all — the call-centre board mounts
+  // no SecureChat, so the in-page bus that carries call.resumed is silent
+  // there and only the 15-second poll would notice. Verified: a resume took
+  // the full poll to appear on that board. Three seconds, and only while
+  // paused.
+  useEffect(() => {
+    if (!paused) return;
+    const iv = setInterval(() => setMetaTick((n) => n + 1), 3000);
+    return () => clearInterval(iv);
+  }, [paused]);
+
   // The pause itself expires after 5 minutes; when it does the call simply
   // resumes with whatever time was left, so re-read it rather than waiting
   // out the 15s poll.

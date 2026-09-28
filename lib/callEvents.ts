@@ -29,6 +29,13 @@ export const CALL_EVENTS = new Set([
   "call.payment_extension_approved",
   "call.payment_extension_rejected",
   "call.extended",
+  // 2026-09-28 backend: urgent meetings pause and resume too. These two were
+  // the case the warning above describes — the room socket does carry them
+  // (verified against production: they arrive on /ws/secure-chats/{room} and
+  // NOT on /ws/users/me), but this allow-list dropped them, so a paused call
+  // only noticed on the next 15-second poll and a resumed one likewise.
+  "call.paused",
+  "call.resumed",
 ]);
 
 export function isCallEvent(name: unknown): name is string {
