@@ -579,10 +579,14 @@ export default function DocFill({
     </div>
   );
 
+  // In the workspace this is the constructor's one red, pulsing action (the
+  // same #E5484D the two-pane layout's .docpaper__ask uses): the way out for a
+  // client stuck on a form, so it has to be seen next to "Hujjatni yaratish".
+  // Its own --help modifier keeps it off the advocate editor's .deditor__act.
   const askButton = sourceFile?.lawyerFlow ? (
     <button
       type="button"
-      className={chrome ? "deditor__act" : `docfill__ask${askSent ? " docfill__ask--sent" : ""}`}
+      className={chrome ? `deditor__act deditor__act--help${askSent ? " deditor__act--helpSent" : ""}` : `docfill__ask${askSent ? " docfill__ask--sent" : ""}`}
       onClick={askLawyer}
       disabled={askBusy || askSent}
       title={askSent ? t("askLawyerSent") : t("askLawyer")}
@@ -591,7 +595,7 @@ export default function DocFill({
       <span className={chrome ? "deditor__actLabel" : undefined}>{askSent ? t("askLawyerSent") : askBusy ? t("askLawyerSending") : t("askLawyer")}</span>
     </button>
   ) : (
-    <Link href="/portal/client/lawyers" className={chrome ? "deditor__act" : "docfill__ask"} title={t("askLawyer")}>
+    <Link href="/portal/client/lawyers" className={chrome ? "deditor__act deditor__act--help" : "docfill__ask"} title={t("askLawyer")}>
       <IconHeadset />
       <span className={chrome ? "deditor__actLabel" : undefined}>{t("askLawyer")}</span>
     </Link>

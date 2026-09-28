@@ -6201,6 +6201,17 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .deditor--fill .dfws__submit{display:none}
 .deditor--fill .deditor__actions a.deditor__act{text-decoration:none}
 .deditor--fill .dpane>.deditor__act,.deditor--fill .dpane>a.deditor__act{justify-content:center}
+/* "Advokatdan yordam" — the constructor's own loud action, red and softly
+   pulsing (docpaperAskPulse, shared with the two-pane .docpaper__ask), so a
+   client stuck on the form sees the way out. Sent, it settles into the quiet
+   green of a done thing. Scoped to .deditor--fill: the advocate editor's
+   .deditor__act buttons are untouched. */
+.deditor--fill .deditor__act--help{background:#E5484D;border-color:#E5484D;color:#fff;animation:docpaperAskPulse 2.4s ease-in-out infinite}
+.deditor--fill .deditor__act--help:hover:not(:disabled){background:#D63B40;border-color:#D63B40}
+.deditor--fill .deditor__act--help:focus-visible{outline:2px solid #E5484D;outline-offset:2px}
+.deditor--fill .deditor__act--help:disabled{animation:none}
+.deditor--fill .deditor__act--helpSent,.deditor--fill .deditor__act--helpSent:disabled{opacity:1;background:var(--dk-tint-ok, #E1F6EE);border-color:transparent;color:var(--dk-txt-ok, #0a7d55)}
+@media (prefers-reduced-motion:reduce){.deditor--fill .deditor__act--help{animation:none}}
 
 /* The wall on the left panel: the advocate's own grip, mirrored. */
 .deditor__sizer--left{right:auto;left:var(--deditor-lw);margin-right:0;margin-left:-7px;transition:left .2s,background .15s}
