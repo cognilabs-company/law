@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { previewDocumentRequest, getServiceTemplateSourceFile, requestServiceDocumentLawyer, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
 import { preopenTab, showBlob, saveBlob, closeTab } from "@/lib/download";
 import { useIsFreeAiTier } from "@/lib/useAiTier";
-import { docxToTree } from "@/lib/docxParse";
+import { docxToDoc, type DocPage } from "@/lib/docxParse";
 import {
   MAX_DIGITS,
   fieldKind,
@@ -28,7 +28,8 @@ import DatePicker from "@/components/DatePicker";
 import Select from "@/components/Select";
 import DocPaper from "./DocPaper";
 import { Link } from "@/i18n/navigation";
-import { IconCheck, IconFileText, IconHeadset, IconList } from "@/components/icons";
+import { fmtUzs } from "@/lib/money";
+import { IconCheck, IconChevronLeft, IconClock, IconClose, IconFileText, IconHeadset, IconInfo, IconList, IconMenu } from "@/components/icons";
 
 const DRAFT_KEY = (id: string) => `lexgo_doc_draft_${id}`;
 export function loadDraft(id: string): Record<string, string> | null {
@@ -51,6 +52,36 @@ export function clearDraft(id: string) {
     localStorage.removeItem(DRAFT_KEY(id));
   } catch {
     /* ignore */
+  }
+}
+
+// The page around the builder, when it is the full-page one: given, DocFill
+// lays itself out as the advocate's document editor (DocumentEditorWorkspace)
+// and owns the top bar — back, exit, generate — instead of sitting under the
+// page's own. Not given (the catalog's modal), it keeps its two-pane layout.
+export type DocChrome = { onBack: () => void; onExit: () => void };
+export const DocChromeContext = createContext<DocChrome | null>(null);
+
+// The form panel's draggable wall: the stored width is what the client chose,
+// re-clamped against the window it is shown in. Never more than half the body,
+// so the page always keeps the larger share.
+const LEFT_MIN = 320;
+const LEFT_MAX = 640;
+const LEFT_DEF = 420;
+const LEFT_KEY = "lexgo_dfws_leftw";
+// Sections and details need less than the advocate's chat does.
+const RIGHT_W = 300;
+function clampLeftW(w: number, bodyW: number): number {
+  const max = Math.max(LEFT_MIN, Math.min(LEFT_MAX, Math.round((bodyW || 0) * 0.5) || LEFT_MAX));
+  return Math.round(Math.min(Math.max(Number.isFinite(w) ? w : LEFT_DEF, LEFT_MIN), max));
+}
+function storedLeftW(): number {
+  if (typeof window === "undefined") return LEFT_DEF;
+  try {
+    const v = Number(localStorage.getItem(LEFT_KEY));
+    return clampLeftW(v > 0 ? v : LEFT_DEF, window.innerWidth);
+  } catch {
+    return LEFT_DEF;
   }
 }
 
@@ -89,6 +120,7 @@ export default function DocFill({
 }) {
   const t = useTranslations("portal.client.documents");
   const tf = useTranslations("portal.client.documents.fields");
+  const tc = useTranslations("cta");
 
   const segs = useMemo(() => parseTemplate(templateText || "", fields), [templateText, fields]);
 
@@ -100,24 +132,47 @@ export default function DocFill({
   // source file at all (the standalone template-list flow, which has no
   // equivalent endpoint).
   const [tree, setTree] = useState<DocTree[] | null>(null);
+  const [page, setPage] = useState<DocPage | null>(null);
   // Cleared during render (not inside the effect below) so a service switch
   // never shows the previous one's document for even one paint.
   const [prevSourceFile, setPrevSourceFile] = useState(sourceFile);
   if (sourceFile !== prevSourceFile) {
     setPrevSourceFile(sourceFile);
     setTree(null);
+    setPage(null);
   }
+  //
+  // The clean file comes first. The marked-up source-file is internal-only
+  // now — the backend answers it with 403 for every client ("Original markerli
+  // source fayl faqat ichki workflow uchun", every service checked) — and
+  // asking for it first is exactly what sent every document to the flat text
+  // fallback: no table, no right-hand addressee block, no centered title. The
+  // clean file keeps the whole layout, and its `________ (label)` blanks
+  // resolve to fields in docTemplate's TOKEN. The marked-up file stays as a
+  // second try for a template whose clean copy binds no field at all.
   useEffect(() => {
     if (!sourceFile?.hasSourceFile) return;
     let alive = true;
+    const urls = [
+      sourceFile.cleanSourceFileUrl || sourceFile.cleanSourceFileInlineUrl,
+      sourceFile.sourceFileUrl || sourceFile.sourceFileInlineUrl,
+    ].filter(Boolean);
     (async () => {
-      try {
-        const blob = await getServiceTemplateSourceFile(sourceFile.sourceFileUrl || sourceFile.sourceFileInlineUrl);
-        const buf = await blob.arrayBuffer();
-        const parsed = await docxToTree(buf, fields);
-        if (alive && parsed.length) setTree(parsed);
-      } catch {
-        /* falls back to the plain-text rendering below */
+      for (const url of urls) {
+        try {
+          const blob = await getServiceTemplateSourceFile(url);
+          const parsed = await docxToDoc(await blob.arrayBuffer(), fields);
+          if (!alive) return;
+          // A layout nothing can be typed into is worse than the flat text
+          // below, which at least fills in live.
+          if (parsed.tree.length && (!fields.length || Object.keys(tokenCountsTree(parsed.tree)).length)) {
+            setTree(parsed.tree);
+            setPage(parsed.page);
+            return;
+          }
+        } catch {
+          /* next source, then the plain-text rendering below */
+        }
       }
     })();
     return () => {
@@ -192,6 +247,68 @@ export default function DocFill({
       return next;
     });
   }, []);
+
+  // ── Workspace mode (ServiceDocumentPage, see DocChromeContext) ──────────
+  // The advocate editor's own frame: the questions in a left panel the client
+  // can collapse or widen, the page in the middle, sections and details in a
+  // right panel. Same grid, same drag-wall behaviour and bounds logic as
+  // DocumentEditorWorkspace, only with the wall on the left panel — here it is
+  // the form, not the chat, that someone wants more or less of.
+  const chrome = useContext(DocChromeContext);
+  const wide = () => typeof window !== "undefined" && window.matchMedia("(min-width: 1101px)").matches;
+  // Three columns and a readable page need room; below this the right panel
+  // starts closed and is one click away in the top bar.
+  const roomy = () => typeof window !== "undefined" && window.matchMedia("(min-width: 1361px)").matches;
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(roomy);
+  const [rightTab, setRightTab] = useState<"sections" | "info">("sections");
+  const [leftW, setLeftW] = useState(storedLeftW);
+  const wsBody = useRef<HTMLDivElement>(null);
+  const sizing = useRef(false);
+  const [sizingOn, setSizingOn] = useState(false);
+  const applyLeftW = useCallback((w: number) => {
+    const v = clampLeftW(w, wsBody.current?.getBoundingClientRect().width ?? 0);
+    setLeftW(v);
+    try {
+      localStorage.setItem(LEFT_KEY, String(v));
+    } catch {
+      /* private mode */
+    }
+  }, []);
+  // Re-clamped from the STORED width on every resize, never from the current
+  // one — otherwise a narrower window would ratchet the panel down for good.
+  useEffect(() => {
+    if (!chrome) return;
+    const onResize = () => setLeftW(storedLeftW());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [chrome]);
+  function onSizerDown(e: PointerEvent<HTMLDivElement>) {
+    if (e.button !== 0) return;
+    sizing.current = true;
+    setSizingOn(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  function onSizerMove(e: PointerEvent<HTMLDivElement>) {
+    if (!sizing.current) return;
+    const rect = wsBody.current?.getBoundingClientRect();
+    if (rect) applyLeftW(e.clientX - rect.left);
+  }
+  function onSizerUp() {
+    if (!sizing.current) return;
+    sizing.current = false;
+    setSizingOn(false);
+  }
+  function onSizerKey(e: KeyboardEvent<HTMLDivElement>) {
+    const step = e.shiftKey ? 48 : 16;
+    if (e.key === "ArrowRight") applyLeftW(leftW + step);
+    else if (e.key === "ArrowLeft") applyLeftW(leftW - step);
+    else if (e.key === "Home") applyLeftW(LEFT_MIN);
+    else if (e.key === "End") applyLeftW(LEFT_MAX);
+    else return;
+    e.preventDefault();
+  }
 
   // The template's own blank source file, alongside the live filled-in
   // preview — fetched through the authed proxy (never a plain link) and
@@ -431,35 +548,379 @@ export default function DocFill({
       : [{ title: "", items: stepped[0] ?? [] }];
   }, [fields, sourceFile, t]);
 
+  // ── Shared pieces: both layouts show the same form and the same page ──
+  const tabs = (
+    <div className={`docb__tabs${chrome ? " dfws__tabs" : ""}`} role="tablist">
+      <button
+        type="button"
+        role="tab"
+        id="docb-tab-form"
+        aria-controls="docb-pane-form"
+        aria-selected={tab === "form"}
+        className={tab === "form" ? "on" : ""}
+        onClick={() => setTab("form")}
+      >
+        <IconList />
+        {t("tabForm")}
+        {total ? <span className="docb__tabn">{done}/{total}</span> : null}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        id="docb-tab-doc"
+        aria-controls="docb-pane-doc"
+        aria-selected={tab === "doc"}
+        className={tab === "doc" ? "on" : ""}
+        onClick={() => setTab("doc")}
+      >
+        <IconFileText />
+        {t("tabDoc")}
+      </button>
+    </div>
+  );
+
+  const askButton = sourceFile?.lawyerFlow ? (
+    <button
+      type="button"
+      className={chrome ? "deditor__act" : `docfill__ask${askSent ? " docfill__ask--sent" : ""}`}
+      onClick={askLawyer}
+      disabled={askBusy || askSent}
+      title={askSent ? t("askLawyerSent") : t("askLawyer")}
+    >
+      {askSent ? <IconCheck /> : <IconHeadset />}
+      <span className={chrome ? "deditor__actLabel" : undefined}>{askSent ? t("askLawyerSent") : askBusy ? t("askLawyerSending") : t("askLawyer")}</span>
+    </button>
+  ) : (
+    <Link href="/portal/client/lawyers" className={chrome ? "deditor__act" : "docfill__ask"} title={t("askLawyer")}>
+      <IconHeadset />
+      <span className={chrome ? "deditor__actLabel" : undefined}>{t("askLawyer")}</span>
+    </Link>
+  );
+
+  const formHead = (
+    <header className="docfill__h">
+      <div className="docfill__ht">
+        <b>{t("fillTitle")}</b>
+        <span className="docfill__n" aria-live="polite">
+          {t("filledOf", { done, total })}
+        </span>
+      </div>
+      <div className="docfill__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+        <span style={{ width: `${pct}%` }} />
+      </div>
+      <p className="docfill__lead">{t("fillLead")}</p>
+      {/* The workspace carries this in its top bar, next to the other two
+          actions, the way the advocate's "Uchrashuv boshlash" sits there. */}
+      {chrome ? null : askButton}
+      {askErr ? <p className="svc__err">{t("askLawyerError")}</p> : null}
+    </header>
+  );
+
+  const formList = (
+    <div className="docfill__list" ref={formPane}>
+      {total === 0 ? <p className="advmuted">{t("noFields")}</p> : null}
+      {groups.map((g, gi) => (
+        <div className="docfill__grp" key={gi}>
+          {g.title ? <h3 className="docfill__gt">{g.title}</h3> : null}
+          {g.items.map((f) => (
+            <Row
+              key={f.name}
+              f={f}
+              kind={fieldKind(f)}
+              label={label(f)}
+              count={counts[f.name] ?? 0}
+              value={answers[f.name] ?? ""}
+              shown={values[f.name] ?? ""}
+              active={active === f.name}
+              err={touched && !!f.required && !isFilled(fieldKind(f), answers[f.name])}
+              onVal={(v) => setVal(f, v)}
+              onFocus={() => {
+                setActive(f.name);
+                setNavTick((n) => n + 1);
+                // Deferred, not immediate: on a phone the virtual keyboard
+                // is still animating open at this point, so a scroll done
+                // now would aim at the pre-keyboard viewport and miss.
+                setTimeout(() => scrollIntoPane(f.name), 300);
+              }}
+              onBlur={() => setActive((a) => (a === f.name ? "" : a))}
+              onJump={() => {
+                setActive(f.name);
+                setNavTick((n) => n + 1);
+                setTab("doc");
+              }}
+              bind={(el) => {
+                if (el) inputs.current.set(f.name, el);
+                else inputs.current.delete(f.name);
+              }}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+
+  const submitButton = (
+    <button type="button" className={`btn btn--grad btn--full btn--lg${chrome ? " dfws__submit" : ""}`} onClick={submit} disabled={busy} aria-disabled={blocked}>
+      {busy ? t("saving") : submitLabel}
+    </button>
+  );
+
+  const formFoot = (
+    <footer className="docfill__f">
+      <div className="docfill__st" role="status">
+        {touched && blocked ? (
+          <p className="docfill__miss">{t("missingN", { n: missing.length })}</p>
+        ) : total > 0 && done === total ? (
+          <p className="docfill__ok">
+            <IconCheck />
+            {t("allFilled")}
+          </p>
+        ) : total > 0 && !blocked ? (
+          // All required answers are in but some optional fields are
+          // still blank — say so, or an enabled button next to a
+          // part-full progress bar reads as a mistake.
+          <p className="docfill__ok">
+            <IconCheck />
+            {t("requiredDone", { n: total - done })}
+          </p>
+        ) : null}
+        {serverMissing.length ? <p className="docfill__warn">{t("missingServer")}</p> : null}
+      </div>
+      {/* In the workspace this is the phone/tablet copy only (CSS): on a
+          desktop the same action is the top bar's primary button. */}
+      {submitButton}
+      <small className="docfill__auto">{t("wizAutosave")}</small>
+    </footer>
+  );
+
+  const paper = (
+    <DocPaper
+      segs={segs}
+      tree={tree ?? undefined}
+      page={tree ? page ?? undefined : undefined}
+      values={values}
+      labelOf={labelOf}
+      active={active}
+      navTick={navTick}
+      onPick={focusField}
+      fallbackText={preview?.previewText}
+      sourceFileName={sourceFile?.sourceFileName}
+      onViewSource={sourceFile?.hasSourceFile ? viewSource : undefined}
+      onDownloadSource={sourceFile?.hasSourceFile && !isFreeTier ? downloadSource : undefined}
+      onAskLawyer={!chrome && sourceFile?.lawyerFlow ? askLawyer : undefined}
+      askLawyerBusy={askBusy}
+      askLawyerSent={askSent}
+      sourceBusy={sourceBusy}
+      sourceError={sourceErr}
+    />
+  );
+
+  if (chrome) {
+    const docTitle = req.title || sourceFile?.title || t("fillTitle");
+    const requiredN = fields.filter((f) => f.required).length;
+    const hasDraft = Object.values(answers).some((v) => typeof v === "string" && v.trim() !== "");
+    const badge = !blocked ? "ready" : done ? "progress" : "new";
+    // A section's row in the right panel sends the client to the first
+    // question in it still waiting for an answer — or its first, once done.
+    const goSection = (items: DocField[]) => {
+      const target = items.find((f) => !isFilled(fieldKind(f), answers[f.name])) ?? items[0];
+      if (!target) return;
+      setLeftOpen(true);
+      if (!wide()) setRightOpen(false);
+      focusField(target.name);
+    };
+    return (
+      <div
+        className={`deditor deditor--fill${rightOpen ? "" : " deditor--rightClosed"}`}
+        style={{ "--deditor-rw": `${RIGHT_W}px` } as CSSProperties}
+      >
+        <div className="deditor__top">
+          <button type="button" className="deditor__back" onClick={chrome.onBack}>
+            <IconChevronLeft />
+            {tc("back")}
+          </button>
+          <button
+            type="button"
+            className={`deditor__toggle deditor__toggle--left${leftOpen ? "" : " deditor__toggle--show"}`}
+            onClick={() => setLeftOpen((v) => !v)}
+            aria-label={t("wsTogglePanel")}
+            aria-expanded={leftOpen}
+          >
+            <IconMenu />
+          </button>
+          <span className="deditor__ident">
+            <b className="deditor__title" title={docTitle}>{docTitle}</b>
+            <small className="deditor__sub">{t("filledOf", { done, total })}</small>
+          </span>
+          <span className="deditor__status">
+            <span className={`deditor__badge deditor__badge--${badge}`}>{badge === "ready" ? t("wsBadgeReady") : t("wsBadgeDraft")}</span>
+            {hasDraft ? (
+              <span className="deditor__save deditor__save--saved" title={t("wizAutosave")}>
+                <i aria-hidden />
+                {t("wsDraftSaved")}
+              </span>
+            ) : null}
+          </span>
+          <span className="deditor__spacer" />
+          {/* One group, right-aligned over the right panel — the same
+              .deditor__actions the advocate's two actions sit in. */}
+          <div className="deditor__actions">
+            {askButton}
+            <button type="button" className="deditor__act" onClick={chrome.onExit} title={t("exit")}>
+              <IconClose />
+              <span className="deditor__actLabel">{t("exit")}</span>
+            </button>
+            <button type="button" className="deditor__act deditor__act--primary" onClick={submit} disabled={busy} aria-disabled={blocked}>
+              <IconCheck />
+              <span className="deditor__actLabel">{busy ? t("saving") : submitLabel}</span>
+            </button>
+          </div>
+          <button
+            type="button"
+            className={`deditor__toggle${rightOpen ? "" : " deditor__toggle--show"}`}
+            onClick={() => setRightOpen((v) => !v)}
+            aria-label={t("wsTogglePanel")}
+            aria-expanded={rightOpen}
+          >
+            <IconInfo />
+          </button>
+        </div>
+
+        {/* Phone/tablet only (CSS): the form and the page take turns. */}
+        {tabs}
+
+        <div
+          ref={wsBody}
+          className={`deditor__body${leftOpen ? "" : " deditor__body--leftClosed"}${rightOpen ? "" : " deditor__body--rightClosed"}${sizingOn ? " deditor__body--sizing" : ""}`}
+          style={leftOpen ? ({ "--deditor-lw": `${leftW}px` } as CSSProperties) : undefined}
+        >
+          <aside
+            id="docb-pane-form"
+            role="tabpanel"
+            aria-labelledby="docb-tab-form"
+            className={`deditor__left${leftOpen ? " on" : ""}${tab === "form" ? " is-tab" : ""}`}
+          >
+            <button type="button" className="deditor__panelToggle" onClick={() => setLeftOpen(false)} aria-label={t("wsTogglePanel")}>
+              <IconChevronLeft />
+            </button>
+            {formHead}
+            {formList}
+            {formFoot}
+          </aside>
+
+          {leftOpen ? (
+            <div
+              className="deditor__sizer deditor__sizer--left"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t("resizePanes")}
+              aria-valuenow={leftW}
+              aria-valuemin={LEFT_MIN}
+              aria-valuemax={LEFT_MAX}
+              tabIndex={0}
+              onPointerDown={onSizerDown}
+              onPointerMove={onSizerMove}
+              onPointerUp={onSizerUp}
+              onPointerCancel={onSizerUp}
+              onLostPointerCapture={onSizerUp}
+              onKeyDown={onSizerKey}
+            >
+              <span className="deditor__sizerGrip" aria-hidden />
+            </div>
+          ) : null}
+
+          <main id="docb-pane-doc" role="tabpanel" aria-labelledby="docb-tab-doc" className={`deditor__main${tab === "doc" ? " is-tab" : ""}`}>
+            {paper}
+          </main>
+
+          <aside className={`deditor__right${rightOpen ? " on" : ""}`}>
+            <button
+              type="button"
+              className="deditor__panelToggle deditor__panelToggle--right"
+              onClick={() => setRightOpen(false)}
+              aria-label={t("wsTogglePanel")}
+            >
+              <IconChevronLeft />
+            </button>
+            <div className="deditor__tabs" role="tablist">
+              {(["sections", "info"] as const).map((k) => (
+                <button key={k} type="button" role="tab" aria-selected={rightTab === k} className={rightTab === k ? "on" : ""} onClick={() => setRightTab(k)}>
+                  {k === "sections" ? <IconList /> : <IconInfo />}
+                  <span>{k === "sections" ? t("wsTabSections") : t("wsTabInfo")}</span>
+                </button>
+              ))}
+            </div>
+            <div className="deditor__tabBody">
+              {rightTab === "sections" ? (
+                <ul className="dfws__secs">
+                  {groups.map((g, gi) => {
+                    const n = g.items.length;
+                    const d = g.items.filter((f) => isFilled(fieldKind(f), answers[f.name])).length;
+                    const complete = n > 0 && d === n;
+                    return (
+                      <li key={gi}>
+                        <button type="button" className={`dfws__sec${complete ? " done" : ""}`} onClick={() => goSection(g.items)}>
+                          <span className="dfws__secn" aria-hidden>{complete ? <IconCheck /> : gi + 1}</span>
+                          <span className="dfws__sect">
+                            <b>{g.title || t("wsAllFields")}</b>
+                            <small>{t("wsSecCount", { done: d, total: n })}</small>
+                          </span>
+                          <span className="dfws__secbar" aria-hidden>
+                            <i style={{ width: `${n ? Math.round((d / n) * 100) : 0}%` }} />
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="dpane">
+                  <section className="dsec">
+                    <div className="dmeta">
+                      <span>{t("wsDocLabel")}</span>
+                      <b>{docTitle}</b>
+                    </div>
+                    <div className="dmeta">
+                      <span>{t("price")}</span>
+                      <b>{req.price ? `${fmtUzs(req.price)} ${t("som")}` : t("free")}</b>
+                    </div>
+                    <div className="dmeta">
+                      <span>{t("wsFieldsLabel")}</span>
+                      <b>{t("wsFieldsValue", { total, required: requiredN })}</b>
+                    </div>
+                  </section>
+                  <div className={`dstate${hasDraft ? " dstate--ok" : ""}`}>
+                    <span className="dstate__i"><IconClock /></span>
+                    <span className="dstate__t">
+                      <b>{t("wsDraftSaved")}</b>
+                      <small>{t("wizAutosave")}</small>
+                    </span>
+                  </div>
+                  <div className="dstate">
+                    <span className="dstate__i"><IconHeadset /></span>
+                    <span className="dstate__t">
+                      <b>{t("wsHelpTitle")}</b>
+                      <small>{t("wsHelpLead")}</small>
+                    </span>
+                  </div>
+                  {askButton}
+                  {askErr ? <p className="svc__err">{t("askLawyerError")}</p> : null}
+                </div>
+              )}
+            </div>
+          </aside>
+
+          {/* Phone/tablet only (CSS): tapping outside the details drawer
+              closes it. The form is a tab there, never a drawer. */}
+          {rightOpen ? <button type="button" className="deditor__scrim" aria-label={t("wsTogglePanel")} onClick={() => setRightOpen(false)} /> : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="docb" ref={docbRef} style={{ "--docb-split": `${splitPct}%` } as CSSProperties}>
-      <div className="docb__tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          id="docb-tab-form"
-          aria-controls="docb-pane-form"
-          aria-selected={tab === "form"}
-          className={tab === "form" ? "on" : ""}
-          onClick={() => setTab("form")}
-        >
-          <IconList />
-          {t("tabForm")}
-          {total ? <span className="docb__tabn">{done}/{total}</span> : null}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="docb-tab-doc"
-          aria-controls="docb-pane-doc"
-          aria-selected={tab === "doc"}
-          className={tab === "doc" ? "on" : ""}
-          onClick={() => setTab("doc")}
-        >
-          <IconFileText />
-          {t("tabDoc")}
-        </button>
-      </div>
+      {tabs}
 
       <section
         id="docb-pane-form"
@@ -467,102 +928,9 @@ export default function DocFill({
         aria-labelledby="docb-tab-form"
         className={`docfill${tab === "form" ? " on" : ""}`}
       >
-        <header className="docfill__h">
-          <div className="docfill__ht">
-            <b>{t("fillTitle")}</b>
-            <span className="docfill__n" aria-live="polite">
-              {t("filledOf", { done, total })}
-            </span>
-          </div>
-          <div className="docfill__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-            <span style={{ width: `${pct}%` }} />
-          </div>
-          <p className="docfill__lead">{t("fillLead")}</p>
-          {sourceFile?.lawyerFlow ? (
-            <button
-              type="button"
-              className={`docfill__ask${askSent ? " docfill__ask--sent" : ""}`}
-              onClick={askLawyer}
-              disabled={askBusy || askSent}
-            >
-              {askSent ? <IconCheck /> : <IconHeadset />}
-              {askSent ? t("askLawyerSent") : askBusy ? t("askLawyerSending") : t("askLawyer")}
-            </button>
-          ) : (
-            <Link href="/portal/client/lawyers" className="docfill__ask">
-              <IconHeadset />
-              {t("askLawyer")}
-            </Link>
-          )}
-          {askErr ? <p className="svc__err">{t("askLawyerError")}</p> : null}
-        </header>
-
-        <div className="docfill__list" ref={formPane}>
-          {total === 0 ? <p className="advmuted">{t("noFields")}</p> : null}
-          {groups.map((g, gi) => (
-            <div className="docfill__grp" key={gi}>
-              {g.title ? <h3 className="docfill__gt">{g.title}</h3> : null}
-              {g.items.map((f) => (
-                <Row
-                  key={f.name}
-                  f={f}
-                  kind={fieldKind(f)}
-                  label={label(f)}
-                  count={counts[f.name] ?? 0}
-                  value={answers[f.name] ?? ""}
-                  shown={values[f.name] ?? ""}
-                  active={active === f.name}
-                  err={touched && !!f.required && !isFilled(fieldKind(f), answers[f.name])}
-                  onVal={(v) => setVal(f, v)}
-                  onFocus={() => {
-                    setActive(f.name);
-                    setNavTick((n) => n + 1);
-                    // Deferred, not immediate: on a phone the virtual keyboard
-                    // is still animating open at this point, so a scroll done
-                    // now would aim at the pre-keyboard viewport and miss.
-                    setTimeout(() => scrollIntoPane(f.name), 300);
-                  }}
-                  onBlur={() => setActive((a) => (a === f.name ? "" : a))}
-                  onJump={() => {
-                    setActive(f.name);
-                    setNavTick((n) => n + 1);
-                    setTab("doc");
-                  }}
-                  bind={(el) => {
-                    if (el) inputs.current.set(f.name, el);
-                    else inputs.current.delete(f.name);
-                  }}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
-
-        <footer className="docfill__f">
-          <div className="docfill__st" role="status">
-            {touched && blocked ? (
-              <p className="docfill__miss">{t("missingN", { n: missing.length })}</p>
-            ) : total > 0 && done === total ? (
-              <p className="docfill__ok">
-                <IconCheck />
-                {t("allFilled")}
-              </p>
-            ) : total > 0 && !blocked ? (
-              // All required answers are in but some optional fields are
-              // still blank — say so, or an enabled button next to a
-              // part-full progress bar reads as a mistake.
-              <p className="docfill__ok">
-                <IconCheck />
-                {t("requiredDone", { n: total - done })}
-              </p>
-            ) : null}
-            {serverMissing.length ? <p className="docfill__warn">{t("missingServer")}</p> : null}
-          </div>
-          <button type="button" className="btn btn--grad btn--full btn--lg" onClick={submit} disabled={busy} aria-disabled={blocked}>
-            {busy ? t("saving") : submitLabel}
-          </button>
-          <small className="docfill__auto">{t("wizAutosave")}</small>
-        </footer>
+        {formHead}
+        {formList}
+        {formFoot}
       </section>
 
       {/* Desktop-only (see .docb's media query) — drag left/right to
@@ -587,24 +955,7 @@ export default function DocFill({
         aria-labelledby="docb-tab-doc"
         className={`docb__pane${tab === "doc" ? " on" : ""}`}
       >
-        <DocPaper
-          segs={segs}
-          tree={tree ?? undefined}
-          values={values}
-          labelOf={labelOf}
-          active={active}
-          navTick={navTick}
-          onPick={focusField}
-          fallbackText={preview?.previewText}
-          sourceFileName={sourceFile?.sourceFileName}
-          onViewSource={sourceFile?.hasSourceFile ? viewSource : undefined}
-          onDownloadSource={sourceFile?.hasSourceFile && !isFreeTier ? downloadSource : undefined}
-          onAskLawyer={sourceFile?.lawyerFlow ? askLawyer : undefined}
-          askLawyerBusy={askBusy}
-          askLawyerSent={askSent}
-          sourceBusy={sourceBusy}
-          sourceError={sourceErr}
-        />
+        {paper}
       </section>
     </div>
   );

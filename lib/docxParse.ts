@@ -37,6 +37,11 @@ const TWIPS_PER_PT = 20;
 // Border widths are in eighths of a point; w:spacing/@w:line in 240ths of a line.
 const EIGHTHS_PER_PT = 8;
 const LINE_UNITS_PER_LINE = 240;
+// Word's "single" spacing is the font's own line height, not 1em: for Times
+// New Roman — what every one of these templates is set in — that is 1.15em.
+// A w:line multiple is a multiple of THAT, so 276 ("1.15 lines") is 1.32em.
+// The sheet's base line-height (.docpaper__sheet--doc) is this same value.
+const SINGLE_LINE_EM = 1.15;
 // docDefaults' own fallback when the file states no default run size (20
 // half-points = 10pt, Word's own default).
 const DEFAULT_BASE_SZ = 20;
@@ -450,7 +455,7 @@ function applyPPr(pPr: Element | undefined, into: Props): void {
     const rule = (attrOf(spacing, "lineRule") || "auto").trim();
     if (line !== undefined && line > 0) {
       // "auto" is a multiple of a line in 240ths; "exact"/"atLeast" are twips.
-      into.lineHeight = rule === "auto" ? Number((line / LINE_UNITS_PER_LINE).toFixed(3)) : `${(line / TWIPS_PER_PT).toFixed(1)}pt`;
+      into.lineHeight = rule === "auto" ? Number(((line / LINE_UNITS_PER_LINE) * SINGLE_LINE_EM).toFixed(3)) : `${(line / TWIPS_PER_PT).toFixed(1)}pt`;
     }
   }
 
@@ -900,6 +905,51 @@ function walkBlocks(container: Element, out: DocTree[], ctx: Ctx, depth: number)
   }
 }
 
+// ── the page ─────────────────────────────────────────────────────────────────
+
+// The sheet the document is laid out on, in points: w:sectPr's w:pgSz and
+// w:pgMar, plus the body text size every run's em ratio is relative to (see
+// runProps). With these the pane can draw the real page — an A4 sheet with
+// the filing's own 30mm/15mm margins and 14pt text — so lines wrap where they
+// wrap in Word, instead of reflowing the text into whatever width the pane
+// happens to have.
+export type DocPage = {
+  width: number;
+  height: number;
+  margin: { top: number; right: number; bottom: number; left: number };
+  fontPt: number;
+};
+
+// Word's own defaults for a section that states nothing: A4, 1in margins.
+const A4 = { w: 11906, h: 16838 };
+const DEFAULT_MARGIN = 1440;
+
+function readPage(body: Element, baseSz: number): DocPage {
+  // The body-level w:sectPr is the last section's, i.e. the page the text
+  // ends on — the templates here are single-section, so it is the only one.
+  const sect = childOf(body, "sectPr");
+  const size = sect ? childOf(sect, "pgSz") : undefined;
+  const mar = sect ? childOf(sect, "pgMar") : undefined;
+  const twips = (el: Element | undefined, name: string, dflt: number) => {
+    const n = el ? num(attrOf(el, name)) : undefined;
+    return (n !== undefined && n >= 0 ? n : dflt) / TWIPS_PER_PT;
+  };
+  // w:orient="landscape" already swaps w and h in the file itself.
+  return {
+    width: twips(size, "w", A4.w),
+    height: twips(size, "h", A4.h),
+    margin: {
+      top: twips(mar, "top", DEFAULT_MARGIN),
+      right: twips(mar, "right", DEFAULT_MARGIN),
+      bottom: twips(mar, "bottom", DEFAULT_MARGIN),
+      left: twips(mar, "left", DEFAULT_MARGIN),
+    },
+    fontPt: baseSz / 2,
+  };
+}
+
+export type DocxDoc = { tree: DocTree[]; page: DocPage | null };
+
 // The template's source DOCX (its raw bytes) → the same DocTree shape
 // DocPaper already knows how to render (see docTemplate.ts). Browser-only
 // (JSZip + DOMParser); only ever called from a "use client" component.
@@ -908,10 +958,16 @@ function walkBlocks(container: Element, out: DocTree[], ctx: Ctx, depth: number)
 // the field it belongs to; omit it only for a template still using the
 // original `{{field_name}}` style, where no lookup is needed.
 export async function docxToTree(buf: ArrayBuffer, fields: DocField[] = []): Promise<DocTree[]> {
-  if (typeof window === "undefined") return [];
+  return (await docxToDoc(buf, fields)).tree;
+}
+
+// docxToTree plus the page it sits on (see DocPage).
+export async function docxToDoc(buf: ArrayBuffer, fields: DocField[] = []): Promise<DocxDoc> {
+  const none: DocxDoc = { tree: [], page: null };
+  if (typeof window === "undefined") return none;
   const zip = await JSZip.loadAsync(buf);
   const entry = zip.file("word/document.xml");
-  if (!entry) return [];
+  if (!entry) return none;
   // styles.xml and numbering.xml are optional parts — a file without them
   // renders exactly as it did before they were read.
   const optional = (name: string): Promise<string | null> => {
@@ -921,7 +977,7 @@ export async function docxToTree(buf: ArrayBuffer, fields: DocField[] = []): Pro
   const [xml, stylesXml, numberingXml] = await Promise.all([entry.async("text"), optional("word/styles.xml"), optional("word/numbering.xml")]);
   const doc = new DOMParser().parseFromString(xml, "application/xml");
   const body = doc.getElementsByTagNameNS(W_NS, "body")[0];
-  if (!body) return [];
+  if (!body) return none;
   const ctx: Ctx = {
     resolve: buildFieldResolver(fields),
     seen: {},
@@ -932,5 +988,5 @@ export async function docxToTree(buf: ArrayBuffer, fields: DocField[] = []): Pro
   };
   const out: DocTree[] = [];
   walkBlocks(body, out, ctx, 0);
-  return out;
+  return { tree: out, page: readPage(body, ctx.styles.baseSz) };
 }

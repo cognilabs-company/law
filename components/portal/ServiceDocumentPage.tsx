@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import ServiceDocumentRequest from "./ServiceDocumentRequest";
-import { clearDraft } from "./DocFill";
+import { clearDraft, DocChromeContext, type DocChrome } from "./DocFill";
 import { useCatalogBackHref } from "@/lib/catalogNav";
 import Modal from "@/components/admin/Modal";
 import { IconChevronLeft, IconClose, IconAlert } from "@/components/icons";
@@ -29,7 +29,16 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   const [exitOpen, setExitOpen] = useState(false);
   const backHref = useCatalogBackHref();
 
-  const leave = () => (backHref ? router.push(backHref) : router.back());
+  // Once the builder itself is on screen it takes over the whole page in the
+  // advocate editor's frame (DocFill's workspace mode) and puts these two in
+  // its own top bar; this page's bar below then steps aside (CSS, see
+  // .docbuild--full:has(.deditor--fill)). Every other step — the chooser,
+  // the lawyer flow, waiting, done — keeps it.
+  const chrome = useMemo<DocChrome>(
+    () => ({ onBack: () => (backHref ? router.push(backHref) : router.back()), onExit: () => setExitOpen(true) }),
+    [backHref, router],
+  );
+  const leave = chrome.onBack;
 
   // Two different intentions, two different buttons.
   //
@@ -57,7 +66,9 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
           {td("exit")}
         </button>
       </div>
-      <ServiceDocumentRequest serviceId={serviceId} onTitle={setTitle} onDraftId={setDraftId} />
+      <DocChromeContext.Provider value={chrome}>
+        <ServiceDocumentRequest serviceId={serviceId} onTitle={setTitle} onDraftId={setDraftId} />
+      </DocChromeContext.Provider>
 
       <Modal open={exitOpen} onClose={() => setExitOpen(false)} title={td("exitTitle")}>
         <div className="cform" style={{ maxWidth: "none" }}>

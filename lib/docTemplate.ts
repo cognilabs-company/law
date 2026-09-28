@@ -13,8 +13,13 @@
 //   plain literal text — which is exactly what silently broke live-typing
 //   for every service from that import: the pane had no recognised token to
 //   substitute into at all, so nothing the client typed could ever show up.
-// Both are resolved against `fields` here (by `placeholder` with its braces
-// stripped, or by `label`) so either style ends up as the same `DocSeg`
+// - `________ (Human readable label)` — the CLEAN source file
+//   (clean-source-file), the only copy of the template a client may read: the
+//   backend answers the marked-up source-file with 403 ("Original markerli
+//   source fayl faqat ichki workflow uchun"), and in the clean one every
+//   `{label}` has been rewritten as underscores plus the label in brackets.
+// All of them are resolved against `fields` here (by `placeholder` with its
+// braces stripped, or by `label`) so every style ends up as the same `DocSeg`
 // `tok` node either way.
 //
 // This is enough to fill the document in the browser as the client types,
@@ -43,14 +48,19 @@ export type DocSeg =
   | { k: "text"; v: string }
   | { k: "tok"; name: string; n: number };
 
-// Token syntax the backend authors templates in — three styles at once (see
+// Token syntax the backend authors templates in — four styles at once (see
 // the file header): group 1 is a `{{field_name}}` machine name, group 2 is
 // a `{Human label}` needing a resolver lookup below, group 3 is the one
 // unbracketed style — a phone field's marker is the literal digits
 // `+998900000000` sitting in the document with no braces around it at all
 // (confirmed against a real production template: the field's own
-// `placeholder` is exactly `"+998900000000"`, no braces to strip).
-const TOKEN = /\{\{\s*([\w.-]+)\s*\}\}|\{([^{}\n]+)\}|(\+998\d{9})/g;
+// `placeholder` is exactly `"+998900000000"`, no braces to strip) — and
+// group 4 is the clean file's `________ (label)` blank. That label may itself
+// hold one level of brackets ("… тадбиркор (ЯТТ)нинг Ф.И.Оси"), hence the
+// nested alternative. A plain signature line ("______________") has no label
+// after it and never matches; one whose bracketed text is not a field's label
+// fails the lookup and stays literal text.
+const TOKEN = /\{\{\s*([\w.-]+)\s*\}\}|\{([^{}\n]+)\}|(\+998\d{9})|_{3,}[  ]?\(((?:[^()\n]|\([^()\n]*\))+)\)/g;
 
 // Resolves a raw match to a field's `name`. The {{...}} form's capture
 // already IS the name; the {...} and +998… forms' captures are a label or
@@ -80,7 +90,7 @@ export function parseTemplate(text: string, fields: DocField[] = []): DocSeg[] {
   let last = 0;
   for (const m of text.matchAll(TOKEN)) {
     const at = m.index ?? 0;
-    const name = m[1] ?? resolve(m[2] ?? m[3] ?? "", false);
+    const name = m[1] ?? resolve(m[2] ?? m[3] ?? m[4] ?? "", false);
     if (!name) continue;
     if (at > last) out.push({ k: "text", v: text.slice(last, at) });
     const n = seen[name] ?? 0;
@@ -135,7 +145,7 @@ export function splitTokens(text: string, seen: Record<string, number>, resolve:
   let last = 0;
   for (const m of text.matchAll(TOKEN)) {
     const at = m.index ?? 0;
-    const name = m[1] ?? resolve(m[2] ?? m[3] ?? "", false);
+    const name = m[1] ?? resolve(m[2] ?? m[3] ?? m[4] ?? "", false);
     if (!name) continue;
     if (at > last) out.push({ k: "text", v: text.slice(last, at) });
     const n = seen[name] ?? 0;

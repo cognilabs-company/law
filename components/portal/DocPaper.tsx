@@ -1,9 +1,19 @@
 "use client";
 
-import { createElement, useCallback, useEffect, useMemo, useRef, type ElementType, type ReactNode } from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { splitFilledText, VOID_TAGS, type DocSeg, type DocTree } from "@/lib/docTemplate";
-import { IconCheck, IconDownload, IconExternal, IconHeadset } from "@/components/icons";
+import type { DocPage } from "@/lib/docxParse";
+import { IconCheck, IconDownload, IconExternal, IconHeadset, IconMinus, IconPlus } from "@/components/icons";
+
+// CSS pixels per point — the page is measured in points (DocPage), the pane
+// in pixels.
+const PX_PER_PT = 96 / 72;
+// Below this the page is drawn too small to read (14pt text at ~8px on a
+// phone), so the text reflows to the pane's width instead — the way Word's own
+// mobile view does it.
+const MIN_PAGE_FIT = 0.6;
+const ZOOM_STEPS = [0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
 
 // The document itself, filled in as the client types.
 //
@@ -18,6 +28,7 @@ import { IconCheck, IconDownload, IconExternal, IconHeadset } from "@/components
 export default function DocPaper({
   segs,
   tree,
+  page,
   values,
   labelOf,
   active,
@@ -53,6 +64,11 @@ export default function DocPaper({
   // filing (bold labels, centered header, the signature block laid out as
   // written) instead of a flat run of plain text.
   tree?: DocTree[];
+  // The sheet `tree` is laid out on (lib/docxParse's DocPage). Given, and with
+  // room enough to read it, the document is drawn as that real page — its
+  // width, margins and text size — scaled to fit, the way Word and the
+  // advocate's editor show it; otherwise the text reflows to the pane.
+  page?: DocPage;
   values: Record<string, string>;
   labelOf: (name: string) => string;
   active: string;
@@ -181,10 +197,18 @@ export default function DocPaper({
       }
     };
 
-    const top = el.offsetTop;
-    const height = el.offsetHeight;
-    const left = el.offsetLeft;
-    const width = el.offsetWidth;
+    // Measured against the sheet itself, not through offsetTop/offsetLeft:
+    // those are relative to the nearest offsetParent, which for a spot inside
+    // a table (the addressee block of most filings) is its <td>, and put the
+    // band at the cell's origin rather than the spot's. Divided by the page's
+    // scale, since the band lives in the sheet's own, unscaled coordinates.
+    const sr = sheetEl.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    const k = sheetEl.offsetWidth ? sr.width / sheetEl.offsetWidth : 1;
+    const top = (er.top - sr.top) / k;
+    const height = er.height / k;
+    const left = (er.left - sr.left) / k;
+    const width = er.width / k;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (reduced) {
@@ -337,10 +361,99 @@ export default function DocPaper({
 
   const body = treeBody ?? flatBody;
 
+  // ── The page ─────────────────────────────────────────────────────────────
+  // The pane's inner width decides the fit; the sheet's own (unscaled) height
+  // sizes the frame around it, since a CSS transform takes no layout space of
+  // its own and the pane would otherwise scroll the unscaled length.
+  const [boxW, setBoxW] = useState(0);
+  const [sheetH, setSheetH] = useState(0);
+  const [zoom, setZoom] = useState<"fit" | number>("fit");
+  useEffect(() => {
+    const el = pane.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setBoxW(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const pageW = page ? page.width * PX_PER_PT : 0;
+  const fit = pageW && boxW ? Math.min(1, boxW / pageW) : 0;
+  const paged = !!(page && treeBody && fit >= MIN_PAGE_FIT);
+  const scale = paged ? (zoom === "fit" ? fit : zoom) : 1;
+  useEffect(() => {
+    const el = sheet.current;
+    if (!paged || !el) return;
+    const ro = new ResizeObserver(() => setSheetH(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [paged]);
+  // Reflowed instead (a phone), the page's text sizes are still em ratios
+  // against the file's 10pt default, so a filing set in 14pt came out at 1.4×
+  // the pane's size. The size most of the text is set in is brought back to
+  // the pane's own, and every other size keeps its ratio to it.
+  const bodyEm = useMemo(() => {
+    if (!tree?.length) return 1;
+    const chars = new Map<number, number>();
+    const walk = (nodes: DocTree[], em: number) => {
+      for (const n of nodes) {
+        if (n.k === "text") chars.set(em, (chars.get(em) ?? 0) + n.v.trim().length);
+        else if (n.k === "el") {
+          const m = typeof n.style?.fontSize === "string" ? /^([\d.]+)em$/.exec(n.style.fontSize) : null;
+          walk(n.children, m ? em * Number(m[1]) : em);
+        }
+      }
+    };
+    walk(tree, 1);
+    let best = 1;
+    let most = 0;
+    for (const [em, n] of chars) if (n > most) [best, most] = [em, n];
+    return best;
+  }, [tree]);
+  const stepZoom = (dir: 1 | -1) => {
+    const cur = Math.round(scale * 100) / 100;
+    const next = dir > 0 ? ZOOM_STEPS.find((z) => z > cur + 0.001) : [...ZOOM_STEPS].reverse().find((z) => z < cur - 0.001);
+    setZoom(next ?? (dir > 0 ? ZOOM_STEPS[ZOOM_STEPS.length - 1] : ZOOM_STEPS[0]));
+  };
+  const sheetNode = body.length ? (
+    <article
+      className={`docpaper__sheet${treeBody ? " docpaper__sheet--doc" : ""}${paged ? " docpaper__sheet--page" : ""}`}
+      ref={sheet}
+      style={
+        paged && page
+          ? {
+              width: `${page.width}pt`,
+              minHeight: `${page.height}pt`,
+              padding: `${page.margin.top}pt ${page.margin.right}pt ${page.margin.bottom}pt ${page.margin.left}pt`,
+              fontSize: `${page.fontPt}pt`,
+              transform: scale === 1 ? undefined : `scale(${scale})`,
+            }
+          : treeBody && bodyEm !== 1
+            ? { fontSize: `calc(.92rem / ${bodyEm.toFixed(3)})` }
+            : undefined
+      }
+    >
+      <span className="docpaper__jump" ref={band} aria-hidden />
+      {body}
+    </article>
+  ) : null;
+
   return (
     <div className="docpaper">
       <div className="docpaper__top">
         <span className="docpaper__badge">{t("previewTitle")}</span>
+        {paged ? (
+          <span className="docpaper__zoom" role="group" aria-label={t("zoomLabel")}>
+            <button type="button" onClick={() => stepZoom(-1)} disabled={scale <= ZOOM_STEPS[0]} aria-label={t("zoomOut")} title={t("zoomOut")}>
+              <IconMinus />
+            </button>
+            <output aria-live="polite">{Math.round(scale * 100)}%</output>
+            <button type="button" onClick={() => stepZoom(1)} disabled={scale >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} aria-label={t("zoomIn")} title={t("zoomIn")}>
+              <IconPlus />
+            </button>
+            <button type="button" className={`docpaper__zoomfit${zoom === "fit" ? " on" : ""}`} onClick={() => setZoom("fit")} aria-pressed={zoom === "fit"} title={t("zoomFit")}>
+              {t("zoomFitShort")}
+            </button>
+          </span>
+        ) : null}
         {onViewSource ? (
           <span className="docpaper__src">
             <button type="button" className="docpaper__srcbtn" onClick={onViewSource} disabled={sourceBusy} title={sourceFileName ? t("viewSourceNamed", { name: sourceFileName }) : t("viewSource")}>
@@ -368,17 +481,18 @@ export default function DocPaper({
         ) : null}
       </div>
       {sourceError ? <small className="docpaper__srcerr">{t("sourceError")}</small> : null}
-      <div className="docpaper__scroll" ref={pane}>
+      <div className={`docpaper__scroll${paged ? " docpaper__scroll--page" : ""}`} ref={pane}>
         {/* Neither the template text nor a server-filled preview came back —
             say so, rather than showing a blank sheet that reads as a broken
             or empty document. */}
-        {body.length ? (
-          <article className={`docpaper__sheet${treeBody ? " docpaper__sheet--doc" : ""}`} ref={sheet}>
-            <span className="docpaper__jump" ref={band} aria-hidden />
-            {body}
-          </article>
-        ) : (
+        {!sheetNode ? (
           <p className="docpaper__none">{t("previewUnavailable")}</p>
+        ) : paged ? (
+          <div className="docpaper__frame" style={{ width: pageW * scale, height: sheetH ? sheetH * scale : undefined }}>
+            {sheetNode}
+          </div>
+        ) : (
+          sheetNode
         )}
       </div>
     </div>

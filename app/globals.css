@@ -4270,7 +4270,32 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
    than A4, and a block that reads top-to-bottom is right at every width. */
 .docpaper__sheet .doctxbx{margin:0 0 .7em;padding:0}
 .docpaper__sheet .doctxbx>p:last-child{margin-bottom:0}
-.docpaper__sheet--doc{font-family:"Times New Roman","DejaVu Serif",serif}
+.docpaper__sheet--doc{font-family:"Times New Roman","Liberation Serif","DejaVu Serif",serif}
+/* Word's own spacing for a real DOCX. A single line is the font's line height
+   (1.15em for Times New Roman — lib/docxParse's SINGLE_LINE_EM), and a
+   paragraph or table has no gap after it unless the file gives it one;
+   lib/docxParse writes every w:spacing it finds inline. The 1.95 line and
+   .5em gaps above belong to the flat-text fallback, which has no layout of
+   its own to follow — on a real document they pushed a one-page filing onto
+   two. Word's default tab stops are every 1.25cm (36pt), not 8 spaces. */
+.docpaper__sheet--doc{line-height:1.15;tab-size:36pt}
+.docpaper__sheet--doc p,.docpaper__sheet--doc table{margin:0}
+/* The real page (DocPaper's `page`): the file's own sheet size, margins and
+   text size, scaled to the pane by a transform. A transform takes no layout,
+   so the frame around the sheet carries the scaled size — that is what the
+   pane scrolls, and what centres the page on the canvas. */
+.docpaper__scroll--page{overflow:auto}
+.docpaper__frame{position:relative;margin:0 auto}
+.docpaper__sheet--page{transform-origin:0 0;border-radius:2px;color:#000;overflow-wrap:break-word;
+  box-shadow:0 0 0 1px rgba(11,31,69,.07),0 8px 24px -10px rgba(11,31,69,.3)}
+.docpaper__sheet--page .docpaper__b{font-size:.8em}
+.docpaper__zoom{display:inline-flex;align-items:center;gap:2px;padding:2px;border-radius:10px;background:var(--dk-surface-2, #F1F5FB);flex:none}
+.docpaper__zoom button{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border:0;border-radius:8px;background:none;color:var(--gray);font:inherit;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.docpaper__zoom button:hover:not(:disabled){background:var(--dk-surface, #fff);color:var(--dk-acc, var(--b600))}
+.docpaper__zoom button:disabled{opacity:.4;cursor:default}
+.docpaper__zoom button svg{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:2.2}
+.docpaper__zoom output{min-width:42px;text-align:center;font-size:.74rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+.docpaper__zoom .docpaper__zoomfit.on{background:var(--dk-surface, #fff);color:var(--dk-acc, var(--b600));box-shadow:var(--s1)}
 .docpaper__b{display:inline;border:0;cursor:pointer;padding:1px 7px;margin:0 1px;border-radius:6px;
   background:#E6F0FF;color:#154CB0;box-shadow:inset 0 0 0 1px rgba(22,104,240,.3);
   font-family:var(--fb);font-size:.78rem;font-weight:700;line-height:inherit;white-space:normal;text-align:left;
@@ -6146,6 +6171,84 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 }
 @media (prefers-reduced-motion:reduce){
   .deditor__sizer,.deditor__sizer::before,.deditor__sizerGrip{transition:none}
+}
+
+/* ── wp-dfws: the client's document builder, in the advocate editor's frame ─
+   ServiceDocumentPage → DocFill's workspace mode (DocChromeContext). It is the
+   same .deditor the advocate edits in — top bar with the document's name, a
+   status badge and the actions over the right panel; white side panels with
+   their collapse tabs and drag wall; the document on the editor's grey in the
+   middle — so only what differs is written here: the left panel holds the
+   questions (and is the one with the wall), the middle holds the real page
+   (DocPaper's `page` mode) where the advocate has OnlyOffice, and on a phone
+   the form is a tab rather than a drawer, because it is what you fill in. */
+/* width:100% because .docbuild centres itself with auto margins, which in the
+   portal's grid shrink-wraps it to its content — on a phone that let the
+   workspace grow past the screen instead of fitting it. */
+.docbuild--full:has(.deditor--fill){padding:0;overflow:hidden;width:100%;min-width:0}
+.docbuild--full:has(.deditor--fill)>.docbuild__top{display:none}
+.docbuild--full .cform--doc:has(>.deditor--fill){position:relative}
+.cform--doc>.deditor--fill{flex:1;min-height:0;height:auto}
+/* DocumentRequestPanel's own error line, beneath the workspace: a toast,
+   placed where the advocate's .deditor__toasts are. */
+.cform--doc:has(>.deditor--fill)>.anote{position:absolute;top:64px;left:50%;transform:translateX(-50%);z-index:12;max-width:min(520px,92vw);box-shadow:var(--s2)}
+
+.deditor--fill .deditor__left{padding:0;gap:0;overflow:hidden}
+.deditor--fill .docfill__h{flex:none;padding:16px 22px 14px 18px;border-bottom:1px solid var(--line)}
+.deditor--fill .docfill__list{flex:1 1 auto;padding:16px 22px 20px 16px}
+.deditor--fill .docfill__f{position:static;flex:none;padding:12px 18px 14px;background:var(--dk-surface, #fff)}
+.deditor--fill .docfill__f:has(.docfill__st:empty){gap:6px}
+.deditor--fill .dfws__submit{display:none}
+.deditor--fill .deditor__actions a.deditor__act{text-decoration:none}
+.deditor--fill .dpane>.deditor__act,.deditor--fill .dpane>a.deditor__act{justify-content:center}
+
+/* The wall on the left panel: the advocate's own grip, mirrored. */
+.deditor__sizer--left{right:auto;left:var(--deditor-lw);margin-right:0;margin-left:-7px;transition:left .2s,background .15s}
+
+/* The page, on the editor's grey. DocPaper's toolbar becomes the strip
+   OnlyOffice has along its top edge. */
+.deditor--fill .deditor__main{display:flex;flex-direction:column}
+.deditor--fill .docpaper{gap:0}
+.deditor--fill .docpaper__top{flex:none;min-height:46px;padding:7px 14px;background:var(--dk-surface, #fff);border-bottom:1px solid var(--line)}
+.deditor--fill .docpaper__srcerr{margin:6px 14px 0}
+.deditor--fill .docpaper__scroll{border-radius:0;box-shadow:none;background:transparent;padding:clamp(14px,2.2vw,32px)}
+
+/* Right panel: the sections, each with how far along it is. */
+.dfws__secs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.dfws__sec{width:100%;display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:6px 10px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--dk-surface-2, #F8FAFD);font:inherit;text-align:left;color:var(--ink);cursor:pointer;transition:border-color .15s,background .15s}
+.dfws__sec:hover{border-color:var(--b300);background:var(--dk-surface, #fff)}
+.dfws__sec:focus-visible{outline:2px solid var(--b400);outline-offset:2px}
+.dfws__secn{grid-row:span 2;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:var(--dk-surface, #fff);border:1px solid var(--line);font-size:.76rem;font-weight:800;color:var(--gray)}
+.dfws__secn svg{width:14px;height:14px;stroke-width:3}
+.dfws__sec.done .dfws__secn{background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0a7d55);border-color:transparent}
+.dfws__sect{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0}
+.dfws__sect b{min-width:0;font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dfws__sect small{flex:none;font-size:.72rem;font-weight:700;color:var(--gray2);font-variant-numeric:tabular-nums}
+.dfws__secbar{height:4px;border-radius:var(--pill);background:var(--line);overflow:hidden}
+.dfws__secbar i{display:block;height:100%;border-radius:inherit;background:var(--grad);transition:width .3s}
+.dfws__sec.done .dfws__secbar i{background:var(--ok)}
+
+/* The form/page switcher only exists where the two cannot sit side by side. */
+.deditor--fill .dfws__tabs{display:none}
+@media (max-width:1100px){
+  .deditor--fill .dfws__tabs{display:flex;flex:none;margin:10px 12px 0}
+  .deditor--fill .deditor__body{grid-template-columns:minmax(0,1fr)}
+  .deditor--fill .deditor__left,.deditor--fill .deditor__left.on{position:relative;top:auto;bottom:auto;left:auto;z-index:auto;width:auto;box-shadow:none;border-right:0;display:none;margin-top:10px}
+  .deditor--fill .deditor__left.is-tab{display:flex}
+  .deditor--fill .deditor__main{display:none}
+  .deditor--fill .deditor__main.is-tab{display:flex;margin-top:10px}
+  .deditor--fill .deditor__left .deditor__panelToggle,.deditor--fill .deditor__toggle--left,.deditor--fill .deditor__sizer--left{display:none}
+  .deditor--fill .dfws__submit{display:inline-flex}
+  .deditor--fill .deditor__actions .deditor__act--primary{display:none}
+  .deditor--fill .docfill__h,.deditor--fill .docfill__list{padding-right:16px}
+}
+@media (max-width:640px){
+  .deditor--fill .docfill__lead{display:none}
+  .deditor--fill .docfill__h{padding:12px 14px 10px}
+  .deditor--fill .docfill__list{padding:12px 12px 16px}
+}
+@media (prefers-reduced-motion:reduce){
+  .deditor__sizer--left,.dfws__secbar i{transition:none}
 }
 
 /* ── wp-chatimg: photos in a secure chat ──────────────────────────────
