@@ -2388,7 +2388,7 @@ export async function requestDocumentLawyerReview(requestId: string, need: strin
 // without re-opening the service it came from. `tabs` in the raw response
 // is a fixed, known set (all/self/ai/lawyer) — not re-derived here, the
 // frontend renders the same 4 every time and just refetches per `mode`.
-export type ClientDocFlowMode = "self" | "ai" | "lawyer";
+export type ClientDocFlowMode = "manual" | "ai" | "lawyer";
 export type ClientDocFlowItem = {
   id: string;
   mode: string;
@@ -2425,7 +2425,8 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
   const meetLabel = typeof meetRaw === "string" ? meetRaw : asStr(meetD?.status_label) || asStr(meetD?.status);
   return {
     id: asStr(d.id),
-    mode: asStr(d.mode),
+    // "self" was the spelling the first version of this endpoint used.
+    mode: asStr(d.mode) === "self" ? "manual" : asStr(d.mode),
     title: asStr(d.title),
     status: asStr(d.status),
     statusLabel: asStr(d.status_label),
@@ -6472,6 +6473,11 @@ export type UrgentService = {
   requiresPriorPurchase: boolean;
   lawyerCountMin: number;
   lawyerCountMax: number;
+  // "ordinary" | "express" | "traffic_accident" — the catalog's own word for
+  // which kind of consultation this is, and whether it rings an advocate
+  // straight away instead of queueing in the call-center pool.
+  variant: string;
+  immediateCall: boolean;
 };
 // The catalog groups services the client should see as one choice: the two
 // "second opinion" kinds are one box with a single-or-panel switch inside,
@@ -6511,6 +6517,8 @@ function normUrgentService(v: unknown): UrgentService {
     requiresPriorPurchase: Boolean(d.requires_prior_lexgo_purchase),
     lawyerCountMin: asNum(d.lawyer_count_min, 2),
     lawyerCountMax: asNum(d.lawyer_count_max, 7),
+    variant: asStr(d.variant),
+    immediateCall: Boolean(d.immediate_call),
   };
 }
 export async function getUrgentCatalog(): Promise<UrgentCatalog> {

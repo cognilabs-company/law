@@ -8,7 +8,10 @@ import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
-import { IconBriefcase, IconCheck, IconClose, IconClock, IconSearch } from "@/components/icons";
+import { IconBriefcase, IconCheck, IconClose, IconClock, IconSearch, IconPackage, IconStar, IconGem, IconArrowRight } from "@/components/icons";
+
+// One mark per tariff, so the three boxes are told apart before they are read.
+const TIER_ICON = { BASIC: IconPackage, STANDARD: IconStar, PREMIUM: IconGem } as const;
 
 const TIERS = ["BASIC", "STANDARD", "PREMIUM"] as const;
 // Seed/test packages the backend team left in the catalogue (reported).
@@ -86,28 +89,34 @@ export default function ClientPackages() {
         groups.map(([code, items]) => (
           <div className="pkg" key={code}>
             <div className="pkg__h">
+              <span className="pkg__hi" aria-hidden><IconPackage /></span>
               <b>{items[0].title}</b>
               <span className="advmuted">{items[0].categoryTitle} · {code}</span>
             </div>
             <div className="pkg__tiers">
-              {items.map((p) => {
+              {items.map((p, i) => {
                 const sep = separately(p);
                 const saves = sep > p.price ? sep - p.price : 0;
+                const TierIcon = TIER_ICON[p.tariff as keyof typeof TIER_ICON] ?? IconPackage;
+                // The middle of three, or the top of two — the tier most
+                // people take, marked so the row has a default answer.
+                const best = items.length > 1 && i === Math.min(1, items.length - 1);
                 return (
-                  <div className={`pkg__tier pkg__tier--${p.tariff.toLowerCase()}`} key={p.id}>
+                  <div className={`pkg__tier pkg__tier--${p.tariff.toLowerCase()}${best ? " pkg__tier--best" : ""}`} key={p.id}>
+                    {best ? <span className="pkg__best">{t("bestValue")}</span> : null}
+                    <span className={`pkg__ti pkg__ti--${p.tariff.toLowerCase()}`} aria-hidden><TierIcon /></span>
                     <span className="pkg__tariff">{t.has(`tiers.${p.tariff}`) ? t(`tiers.${p.tariff}`) : p.tariff}</span>
                     <b className="pkg__price">{fmtUzs(p.price)} <small>{t("som")}</small></b>
-                    {sep ? (
-                      <small className="pkg__cmp">{t("compare", { sep: fmtUzs(sep), pkg: fmtUzs(p.price) })}{saves ? ` · ${t("saves", { n: fmtUzs(saves) })}` : ""}</small>
-                    ) : null}
+                    {saves ? <span className="pkg__save"><IconCheck />{t("saves", { n: fmtUzs(saves) })}</span> : null}
+                    {sep ? <small className="pkg__cmp">{t("compare", { sep: fmtUzs(sep), pkg: fmtUzs(p.price) })}</small> : null}
                     {p.duration ? <span className="pkg__dur"><IconClock />{p.duration}</span> : null}
                     <ul className="pkg__inc">
-                      {p.included.slice(0, 3).map((x, i) => <li key={i}><IconCheck />{x}</li>)}
-                      {p.excluded.slice(0, 2).map((x, i) => <li key={`x${i}`} className="no"><IconClose />{x}</li>)}
+                      {p.included.slice(0, 3).map((x, k) => <li key={k}><IconCheck />{x}</li>)}
+                      {p.excluded.slice(0, 2).map((x, k) => <li key={`x${k}`} className="no"><IconClose />{x}</li>)}
                     </ul>
                     <div className="pkg__acts">
                       <button type="button" className="btn btn--line btn--sm" onClick={() => setOpen(p)}>{t("details")}</button>
-                      <button type="button" className="btn btn--pri btn--sm" onClick={() => order(p)}>{t("order")}</button>
+                      <button type="button" className={`btn btn--sm ${best ? "btn--grad" : "btn--pri"}`} onClick={() => order(p)}>{t("order")}<IconArrowRight /></button>
                     </div>
                   </div>
                 );

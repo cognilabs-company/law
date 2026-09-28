@@ -7011,3 +7011,157 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 /* Which of the two second-opinion variants still needs a previous LexGo
    service — marked on the switch, where the choice is made. */
 .seg__lock{width:12px;height:12px;margin-left:2px;opacity:.7}
+
+/* ── wp-who: advocate or AI, asked before the journey starts ─────── */
+.cdwho{display:grid;gap:14px}
+.cdwho__lead{margin:0;font-size:.88rem;color:var(--gray);line-height:1.55}
+.cdwho__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:12px}
+.cdwho__c{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:18px 16px 44px;
+  border:1.5px solid var(--line);border-radius:18px;background:var(--dk-surface, #fff);color:inherit;text-decoration:none;
+  cursor:pointer;text-align:left;transition:transform .18s cubic-bezier(.2,.8,.2,1),border-color .18s,box-shadow .18s}
+.cdwho__c:hover{transform:translateY(-3px);box-shadow:var(--s2);border-color:var(--b300)}
+.cdwho__c b{font-size:.98rem;font-weight:700;line-height:1.3}
+.cdwho__c>span:not(.cdwho__i){font-size:.82rem;color:var(--gray);line-height:1.5}
+.cdwho__i{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:var(--b100);color:var(--dk-acc, var(--b600))}
+.cdwho__i svg{width:21px;height:21px}
+.cdwho__c--adv .cdwho__i{background:var(--dk-tint-blue, #E6F0FF);color:var(--dk-acc, var(--b600))}
+.cdwho__c--ai .cdwho__i{background:linear-gradient(135deg,var(--dk-tint-blue, #EAF3FF),var(--dk-tint-ok, #E6F7F1));color:var(--dk-acc, var(--b600))}
+.cdwho__go{position:absolute;right:14px;bottom:14px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
+  background:var(--dk-surface-2, #F2F6FC);color:var(--dk-acc, var(--b600));font-style:normal;transition:background .18s,color .18s,transform .18s}
+.cdwho__go svg{width:14px;height:14px}
+.cdwho__c:hover .cdwho__go{background:var(--b600);color:#fff;transform:translateX(2px)}
+
+/* ── wp-uacard: what the service IS, not only what it costs ──────── */
+.uacard__d{font-size:.8rem;line-height:1.5;color:var(--gray);display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.uacard__f em.uacard__now{color:var(--dk-txt-warn, #b45309);background:var(--dk-warn-bg, #FEF3C7)}
+.uacard__f em.uacard__kinds{color:var(--dk-acc, var(--b600));background:var(--b100)}
+/* The detail panel. Opens on hover and on keyboard focus, never on touch —
+   where there is no hover the card's own description is the whole story. */
+.uacard__info{position:absolute;left:10px;right:10px;bottom:calc(100% - 6px);z-index:8;
+  display:grid;gap:9px;padding:13px 14px;border-radius:16px;text-align:left;
+  background:var(--dk-surface, #fff);border:1px solid var(--line);box-shadow:var(--s3, 0 18px 42px -16px rgba(16,40,80,.34));
+  opacity:0;visibility:hidden;transform:translateY(6px) scale(.985);transform-origin:50% 100%;
+  transition:opacity .16s,transform .2s cubic-bezier(.2,.8,.2,1),visibility .16s;pointer-events:none}
+.uacard:hover .uacard__info,.uacard:focus-visible .uacard__info{opacity:1;visibility:visible;transform:none}
+.uacard__infod{font-size:.82rem;line-height:1.55;color:var(--ink)}
+.uacard__infol{display:grid;gap:8px}
+.uacard__infoi{display:grid;gap:2px;padding-top:8px;border-top:1px dashed var(--line)}
+.uacard__infoi:first-child{padding-top:0;border-top:0}
+.uacard__infoi b{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:.82rem;font-weight:700}
+.uacard__infoi b i{flex:none;font-style:normal;font-size:.76rem;font-weight:800;color:var(--dk-acc, var(--b600))}
+.uacard__infoi>span{font-size:.76rem;line-height:1.5;color:var(--gray)}
+.uacard__infof{display:flex;align-items:center;gap:6px;font-size:.74rem;font-weight:600;color:var(--gray2);
+  padding-top:8px;border-top:1px solid var(--line)}
+@media (max-width:760px){.uacard__info{display:none}}
+/* What the chosen kind changes, under the switch that chose it. */
+.ua__kindnote{margin:8px 0 0;font-size:.8rem;line-height:1.55;color:var(--gray);
+  padding:9px 11px;border-radius:12px;background:var(--dk-surface-2, #F7FAFE)}
+
+/* ── wp-uarow: the whole row opens the detail ────────────────────── */
+.ua__row--tap{cursor:pointer;transition:background .16s,box-shadow .16s,transform .16s}
+.ua__row--tap:hover{background:var(--dk-tint-blue, #EFF5FF);box-shadow:inset 0 0 0 1.5px var(--b200)}
+.ua__row--tap:focus-visible{outline:3px solid var(--b400);outline-offset:2px}
+.ua__row--tap:active{transform:scale(.996)}
+
+/* ── wp-svflat: every direction in one list ──────────────────────── */
+.svfam__filter{padding-bottom:10px}
+.fchip__n{margin-left:7px;font-style:normal;font-size:.74rem;font-weight:800;opacity:.72}
+.svfam__cat{display:block;font-size:.72rem;font-weight:700;letter-spacing:.02em;color:var(--dk-acc, var(--b600))}
+
+/* ── wp-attach: a file or a voice note, two equal buttons ────────── */
+.docpick__row--vp{align-items:center;gap:10px}
+.docpick__row--vp .vpill--wide{margin-left:0}
+.docassist__hint{margin:-2px 0 6px;font-size:.78rem;line-height:1.5;color:var(--gray)}
+/* The labelled resting state of the voice control: the same height, radius
+   and hairline as .btn--line.btn--sm beside it, so the two read as a pair.
+   The moment recording starts, --vp-h takes over again and it is a pill. */
+.vpill--wide{width:auto}
+.vpill--wide .vpill__btn{position:relative;width:auto;height:var(--vp-h);padding:0 15px 0 13px;border-radius:var(--pill);
+  display:inline-flex;align-items:center;gap:7px;background:var(--dk-surface, #fff);
+  box-shadow:inset 0 0 0 1.5px var(--line);font:inherit;font-size:.84rem;font-weight:700;color:var(--ink)}
+.vpill--wide .vpill__btn:hover:not(:disabled){box-shadow:inset 0 0 0 1.5px var(--b400);color:var(--dk-acc, var(--b600))}
+.vpill--wide .vpill__btn:focus-visible{border-radius:var(--pill)}
+.vpill--wide .vpill__g{position:relative;inset:auto;width:17px;height:17px;flex:none}
+.vpill--wide .vpill__g--stop{position:absolute;inset:0;width:auto;height:auto}
+.vpill__lbl{white-space:nowrap}
+/* Recording: the label goes, the round stop button returns to the pill's
+   right edge and the track opens leftward exactly as before. */
+.vpill--wide.vpill--on{width:min(228px,100%)}
+.vpill--wide.vpill--on .vpill__btn{position:absolute;right:0;top:0;width:var(--vp-h);padding:0;border-radius:50%;
+  box-shadow:0 6px 18px rgba(229,72,77,.32)}
+.vpill--wide.vpill--on .vpill__g{position:absolute;inset:0;width:auto;height:auto}
+.vpill--wide.vpill--on .vpill__lbl{display:none}
+
+/* ── wp-dreq: "Mening hujjatlarim" ───────────────────────────────── */
+.dreqs{display:grid;gap:12px}
+.dreq{position:relative;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start;
+  padding:16px;border:1.5px solid var(--line);border-radius:18px;background:var(--dk-surface, #fff);
+  transition:border-color .18s,box-shadow .18s,transform .18s}
+.dreq::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:var(--line)}
+.dreq--lawyer::before{background:var(--b600)}
+.dreq--ai::before{background:linear-gradient(180deg,var(--b400),var(--ok))}
+.dreq--self::before{background:var(--gray2)}
+.dreq--ready{border-color:var(--ok);box-shadow:0 0 0 3px var(--dk-tint-ok, rgba(0,168,112,.12))}
+.dreq:hover{box-shadow:var(--s2);transform:translateY(-2px)}
+.dreq__i{width:42px;height:42px;border-radius:13px;flex:none;display:grid;place-items:center;background:var(--b100);color:var(--dk-acc, var(--b600))}
+.dreq__i svg{width:20px;height:20px}
+.dreq__i--ai{background:linear-gradient(135deg,var(--dk-tint-blue, #EAF3FF),var(--dk-tint-ok, #E6F7F1))}
+.dreq__i--self{background:var(--dk-surface-2, #F2F6FC);color:var(--gray)}
+.dreq__m{min-width:0;display:grid;gap:5px}
+.dreq__top{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.dreq__t{font-size:.96rem;font-weight:700;line-height:1.35;min-width:0;overflow-wrap:anywhere}
+.dreq__st{font-style:normal;flex:none}
+.dreq__mode{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gray2)}
+.dreq__next{display:flex;gap:7px;align-items:flex-start;margin:3px 0 0;font-size:.84rem;line-height:1.5;color:var(--ink);
+  padding:8px 11px;border-radius:12px;background:var(--dk-surface-2, #F7FAFE)}
+.dreq__next svg{width:14px;height:14px;flex:none;margin-top:3px;color:var(--dk-acc, var(--b600))}
+.dreq__row{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:2px}
+.dreq__row small{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;color:var(--gray)}
+.dreq__row svg{width:13px;height:13px;flex:none}
+.dreq__live{color:var(--ok);font-weight:700}
+.dreq__acts{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.dreq__ready{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:800;color:var(--ok);
+  background:var(--dk-tint-ok, #E1F6EE);padding:4px 10px;border-radius:var(--pill)}
+.dreq__ready svg{width:12px;height:12px;stroke-width:3}
+@media (max-width:640px){
+  .dreq{grid-template-columns:auto 1fr;gap:12px}
+  .dreq__acts{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start}
+}
+
+/* ── wp-pkg: three tiers that can be told apart ──────────────────── */
+.pkg__h{align-items:center}
+.pkg__hi{width:34px;height:34px;border-radius:11px;flex:none;display:grid;place-items:center;background:var(--b100);color:var(--dk-acc, var(--b600))}
+.pkg__hi svg{width:17px;height:17px}
+.pkg__h b{flex:1;min-width:0}
+.pkg__tier{position:relative;padding:18px 16px 16px;transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s,border-color .18s}
+.pkg__tier:hover{transform:translateY(-3px);box-shadow:var(--s2)}
+.pkg__tier--best{border-color:var(--b600);box-shadow:var(--sblue)}
+.pkg__best{position:absolute;top:-10px;left:50%;transform:translateX(-50%);white-space:nowrap;
+  background:var(--grad);color:#fff;font-size:.68rem;font-weight:800;letter-spacing:.02em;padding:4px 12px;border-radius:var(--pill)}
+.pkg__ti{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--dk-surface-2, #F2F6FC);color:var(--gray)}
+.pkg__ti svg{width:17px;height:17px}
+.pkg__ti--standard{background:var(--b100);color:var(--dk-acc, var(--b600))}
+.pkg__ti--premium{background:linear-gradient(135deg,#FFE9B8,#F5A623);color:#7A4B00}
+.pkg__price{font-size:1.32rem;letter-spacing:-.02em}
+.pkg__save{display:inline-flex;align-items:center;gap:5px;justify-self:start;font-size:.74rem;font-weight:800;color:var(--ok);
+  background:var(--dk-tint-ok, #E1F6EE);padding:4px 10px;border-radius:var(--pill)}
+.pkg__save svg{width:12px;height:12px;stroke-width:3}
+.pkg__cmp{color:var(--gray);font-weight:500}
+.pkg__acts .btn svg{width:14px;height:14px}
+
+/* ── wp-uainfo-fix: the service cards sit at the top of the page, so a panel
+   that opened upward was clipped by the viewport. It opens downward — there
+   is always the requests list underneath to cover. ─────────────────── */
+.uacard__info{bottom:auto;top:calc(100% - 8px);transform-origin:50% 0;transform:translateY(-6px) scale(.985)}
+.uacard:hover .uacard__info,.uacard:focus-visible .uacard__info{transform:none}
+
+/* ── wp-dreq-fix: the status pill wrapped onto the line the mode chip was
+   already using. Title and pill are two columns now, so a long title wraps
+   inside its own. ────────────────────────────────────────────────────── */
+.dreq__top{flex-wrap:nowrap;align-items:flex-start;justify-content:space-between}
+.dreq__t{flex:1 1 auto}
+.dreq__st{margin-top:1px;white-space:nowrap}
+@media (max-width:520px){
+  .dreq__top{flex-wrap:wrap}
+  .dreq__st{flex:none}
+}

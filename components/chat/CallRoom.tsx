@@ -49,7 +49,7 @@ import SearchSelect from "@/components/SearchSelect";
 import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, primeCallAudio } from "@/lib/callSounds";
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
-import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock } from "../icons";
+import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord } from "../icons";
 import { regionLabel } from "@/lib/labels";
 
 type Props = {
@@ -1347,7 +1347,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               <b><i />{t("recAskTitle", { name: recAsks[0].name })}</b>
               <span>{t("recAskLead", { mode: t(recAsks[0].mode === "screen" ? "recModeScreen" : "recModeAudio") })}{recAsks.length > 1 ? ` · +${recAsks.length - 1}` : ""}</span>
               <div className="mtg__recask-btns">
-                <button type="button" className="btn btn--pri btn--sm" onClick={() => void answerRecAsk(recAsks[0].id, true)}><IconMic />{t("recAllow")}</button>
+                <button type="button" className="btn btn--pri btn--sm" onClick={() => void answerRecAsk(recAsks[0].id, true)}><IconRecord />{t("recAllow")}</button>
                 <button type="button" className="btn btn--line btn--sm" onClick={() => void answerRecAsk(recAsks[0].id, false)}><IconClose />{t("recDeny")}</button>
               </div>
             </div>
@@ -1481,7 +1481,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             {canExtend ? (
               <button type="button" onClick={() => { setMore(false); setExtErr(""); setExtOpen(true); }} disabled={paused}><IconClock />{t("extendPaidShort")}</button>
             ) : null}
-            {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }}><IconMic />{recOn ? t("recStop", { mode: t(recMode === "screen" ? "recModeScreen" : "recModeAudio") }) : recReq ? t("recWaitingShort") : t("recStart")}</button> : null}
+            {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }}><IconRecord />{recOn ? t("recStop", { mode: t(recMode === "screen" ? "recModeScreen" : "recModeAudio") }) : recReq ? t("recWaitingShort") : t("recStart")}</button> : null}
             <button type="button" onClick={() => { setMore(false); setView(view === "grid" ? "speaker" : "grid"); }}>{view === "grid" ? <IconUser /> : <IconGrid />}{view === "grid" ? t("layoutSpeaker") : t("layoutGrid")}</button>
           </div>
         </div>
@@ -1503,14 +1503,20 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         <Ctl on={camOn} off={!camOn} label={camOn ? t("camOff2") : t("camOn")} onClick={toggleCam} disabled={camBusy}><IconVideo /></Ctl>
         {camOn && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
         {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing} desktop><IconMonitor /></Ctl> : null}
-        {canRecord() ? <Ctl on={recOn || !!recReq} label={recOn ? t("recStopShort") : recReq ? t("recWaitingShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} disabled={!!recReq} desktop><IconMic /></Ctl> : null}
+        {canRecord() ? <Ctl on={recOn || !!recReq} label={recOn ? t("recStopShort") : recReq ? t("recWaitingShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} disabled={!!recReq} desktop><IconRecord /></Ctl> : null}
         <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")} desktop><IconUsers /></Ctl>
         <Ctl on={panel === "chat"} label={t("chatTab")} onClick={() => openPanel(panel === "chat" ? "" : "chat")} badge={unread} desktop><IconChat /></Ctl>
         {/* Extensions are host-only server-side, and only offered at all on
             a call that actually has a time limit — a staff meeting with no
             max duration gets neither button. */}
         {canExtend && limits?.freeExtensionAvailable && !limits.freeExtensionUsed ? (
-          <Ctl label={t("extendFree", { n: limits.freeExtensionMaxMinutes || 3 })} onClick={() => void extendFree()} disabled={extBusy || paused}><IconPlus /></Ctl>
+          <Ctl
+            label={t("extendFree", { n: limits.freeExtensionMaxMinutes || 3 })}
+            title={t("extendFreeNote", { n: limits.freeExtensionMaxMinutes || 3, price: fmtUzs(limits.paidExtensionPricePerMinute || 2000) })}
+            aria={`${t("extendFree", { n: limits.freeExtensionMaxMinutes || 3 })} — ${t("extendFreeNote", { n: limits.freeExtensionMaxMinutes || 3, price: fmtUzs(limits.paidExtensionPricePerMinute || 2000) })}`}
+            onClick={() => void extendFree()}
+            disabled={extBusy || paused}
+          ><IconPlus /></Ctl>
         ) : null}
         {/* NOT desktop-only while floating: .mtg--float hides .mtg__ctl--desktop,
             and the floating panel is exactly where the document meeting runs. */}

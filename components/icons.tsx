@@ -551,6 +551,62 @@ export const IconSquare = (p: P) => (
   </svg>
 );
 
+// Telegram's attach control: a paperclip leaning right, not the upright
+// office-clip most icon sets draw. The arc is one open loop whose tail stops
+// short of the head, which is what makes it read as a clip at 16px.
+export const IconPaperclip = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M20.4 11.1l-8.2 8.2a5 5 0 01-7.1-7.1l8.5-8.5a3.3 3.3 0 014.7 4.7l-8.5 8.5a1.7 1.7 0 01-2.4-2.4l7.8-7.8" />
+  </svg>
+);
+
+// iOS's record control (SF Symbol `record.circle`): a thin ring with a solid
+// disc inside it. Drawn as two elements rather than one stroked circle so the
+// disc stays solid at every size — that fill is the whole signal.
+export const IconRecord = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="9" strokeWidth={1.7} />
+    <circle cx="12" cy="12" r="4.6" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+// Two sheets stacked — "this one box holds more than one kind".
+export const IconLayers = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M12 3l9 5-9 5-9-5 9-5z" />
+    <path d="M3.4 13L12 17.7 20.6 13" />
+  </svg>
+);
+
+// A parcel, for the service packages — a folder said "files", which is not
+// what a package is.
+export const IconPackage = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M21 8.2v7.6a2 2 0 01-1 1.73l-7 4a2 2 0 01-2 0l-7-4a2 2 0 01-1-1.73V8.2a2 2 0 011-1.73l7-4a2 2 0 012 0l7 4A2 2 0 0121 8.2z" />
+    <path d="M3.3 7.1L12 12l8.7-4.9M12 12v10" />
+    <path d="M7.5 4.6l8.8 5" />
+  </svg>
+);
+
+// Document analysis: the page, plus the lens that is being run over it.
+export const IconDocSearch = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M14 3v5h5M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h4" />
+    <circle cx="16.5" cy="15.5" r="3.5" />
+    <path d="M19.2 18.2L22 21" />
+  </svg>
+);
+
+// A checklist on a board — the intake questionnaire, which a magnifier did
+// not describe.
+export const IconClipboardList = (p: P) => (
+  <svg {...base} {...p}>
+    <rect x="8" y="2.5" width="8" height="4" rx="1.4" />
+    <path d="M16 4.5h1.5A1.5 1.5 0 0119 6v13.5a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 015 19.5V6a1.5 1.5 0 011.5-1.5H8" />
+    <path d="M8.7 11h6.6M8.7 15h4.4" />
+  </svg>
+);
+
 // Name → component registry so data files can reference icons by string.
 const ICON_MAP: Record<string, ComponentType<P>> = {
   IconChatDots,

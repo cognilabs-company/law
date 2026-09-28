@@ -2524,6 +2524,29 @@
     },
     "client": {
       "urgent": {
+        "groupKind": {
+          "second_opinion": "Ikkinchi fikr turi",
+          "video_consultation_kind": "Konsultatsiya turi"
+        },
+        "groups": {
+          "second_opinion": "Ikkinchi fikr",
+          "video_consultation_kind": "Advokat bilan videokonsultatsiya"
+        },
+        "about": {
+          "second_opinion": "Boshqa advokatning mustaqil fikri — yakka advokatdan yoki advokatlar guruhidan.",
+          "video_consultation_kind": "Advokat bilan video uchrashuv — ikki xil: oddiy (callcenter navbati) va express (navbatchi advokatga darhol).",
+          "second_opinion_group": "2 dan 7 gacha advokat birgalikda fikr bildiradi. Avval LexGo orqali advokat yoki yurist xizmatidan foydalangan bo‘lish kerak.",
+          "second_opinion_single": "Boshqa advokat ishingizga mustaqil baho beradi. Hamma mijozlar uchun ochiq.",
+          "chat_consultation": "Yozma savol-javob: advokat bilan xavfsiz chatda yozishasiz, uchrashuv kerak emas.",
+          "traffic_accident_consultation": "Yo‘l-transport hodisasi bo‘yicha ixtisoslashgan navbatchi advokat bilan darhol bog‘lanish.",
+          "express_video_consultation": "O‘sha zahoti navbatchi advokatga boradi — pool navbatini kutmaysiz. Shoshilinch holatlar uchun.",
+          "video_consultation": "Advokat bilan 30 daqiqalik video uchrashuv. So‘rovingiz callcenter navbatiga tushadi va bo‘sh advokat oladi."
+        },
+        "detailsOf": "{kind} — batafsil ochish",
+        "deliveryPool": "Callcenter navbatiga tushadi, bo‘sh advokat oladi.",
+        "deliveryNow": "Navbatchi advokatga to‘g‘ridan-to‘g‘ri boradi.",
+        "immediate": "Darhol",
+        "kindsN": "{n} xil",
         "rateError": "Bahoni yuborib bo‘lmadi",
         "rateGiven": "Siz {n} yulduz qo‘ydingiz",
         "rateThanks": "Bahoyingiz uchun rahmat",
@@ -3207,23 +3230,30 @@
         "chooseSpecialist": "Mos mutaxassisni tanlang"
       },
       "actions": {
+        "whoAiSub": "Darhol javob, bepul limit doirasida. Murakkab holatda advokatga yo‘naltiradi.",
+        "whoAi": "Sun’iy intellektdan",
+        "whoAdvocateSub": "Tirik advokat video yoki chat orqali javob beradi — pullik xizmat.",
+        "whoAdvocate": "Advokatdan maslahat",
+        "whoLead": "Muammoingizni tirik advokatga yoki LexGo sun’iy intellektiga yo‘naltirishingiz mumkin. Ikkalasi ham shu yerda.",
+        "whoTitle": "Kimdan maslahat olasiz?",
         "urgentSub": "Online advokat — video yoki chat",
-        "urgent": "Tezkor Advokat",
+        "urgent": "Advokatga tezkor bog‘lanish",
         "describe": "Muammoni tavsiflash",
         "describeSub": "AI yordamida yechim toping",
         "findSpecialist": "Mutaxassis topish",
         "findSpecialistSub": "Tasdiqlangan advokat va yuristlar",
-        "consultation": "Konsultatsiya olish",
-        "consultationSub": "Onlayn yoki oflayn",
+        "consultation": "Avtoavariya bo‘yicha huquqiy konsultatsiya olish",
+        "consultationSub": "YTH bo‘yicha advokat bilan onlayn yoki oflayn",
         "track": "So'rovni kuzatish",
         "askAi": "LexGo Sun'iy intellekt'dan so'rash",
         "askAiSub": "AI bilan suhbat",
-        "upload": "Hujjat yuklash",
-        "uploadSub": "Tahlil va tekshiruv",
+        "upload": "Hujjat tahlili",
+        "uploadSub": "Hujjatni yuklang — AI va advokat tekshiradi",
         "services": "Xizmatlar katalogi",
         "servicesSub": "Hujjat shabloni va advokatlar"
       },
       "services": {
+        "chooseSubcat": "Yo‘nalishni tanlang",
         "subcatsN": "{n} ta yo‘nalish",
         "filtersTitle": "Filtrlar",
         "title": "Xizmat buyurtma qilish",
@@ -3665,6 +3695,8 @@
         "manualDisabled": "Qo'lda to'ldirish paket talab qiladi"
       },
       "newDoc": {
+        "langHint": "Hujjat qaysi tilda bo’lishini tanlang.",
+        "addVoice": "Ovozli xabar",
         "lead": "Katalogdagi hujjatlardan mosini topmadingizmi? Advokat siz uchun tayyorlab beradi.",
         "scratchTitle": "0 dan hujjat tayyorlash",
         "scratchSub": "Vaziyatingizni yozing — advokat hujjatni boshidan yozib beradi.",
@@ -3672,7 +3704,6 @@
         "reviewSub": "O'zingizdagi hujjatni yuklang — advokat tekshirib, to'g'irlab beradi.",
         "analysisTitle": "Sun'iy intellekt tahlili",
         "analysisSub": "Hujjat matnini joylang — xatar va tavsiyalarni shu zahoti ko'ring.",
-        "poolLead": "So'rov LexGo callcenter advokatlariga tushadi. Kim birinchi ishni olsa, siz bilan shu yerda bog'lanadi.",
         "mainFileLabel": "Tekshiriladigan hujjat",
         "mainFilePick": "Hujjatni yuklang",
         "mainFileChange": "Boshqa fayl tanlash uchun bosing",
@@ -3693,13 +3724,14 @@
         "error": "Xatolik yuz berdi. Qayta urining."
       },
       "documentRequests": {
+        "tab_manual": "O'zim to'ldirganlar",
+        "readyChip": "Tayyor",
         "waitingLawyer": "Advokat kutilmoqda",
         "openLead": "Boshlangan va hali yetkazilmagan hujjat ishlari.",
         "openTitle": "Tugallanmagan hujjatlar",
         "openChat": "Chatni ochish",
         "title": "Mening hujjatlarim",
         "tab_all": "Barchasi",
-        "tab_self": "O'zim to'ldirganlar",
         "tab_ai": "AI bilan",
         "tab_lawyer": "Advokat bilan",
         "empty": "Hozircha hujjat yo'q",
@@ -3712,6 +3744,7 @@
         "meetingActive": "Uchrashuv faol"
       },
       "packages": {
+        "bestValue": "Eng ko‘p tanlanadi",
         "title": "Xizmat paketlari",
         "count": "{n} ta paket",
         "lead": "Paket — bir necha xizmat bitta narxda. Nima kiradi, nima kirmaydi va muddat aniq yozilgan.",
@@ -7210,6 +7243,7 @@
     }
   },
   "call": {
+    "extendFreeNote": "Uchrashuvni bir marta bepul {n} daqiqaga uzaytirish mumkin. Undan keyingi uzaytirish pullik — daqiqasiga {price} so‘m.",
     "noAnswerLead": "{name} qo’ng’iroqni rad etdi. Uchrashuvni yakunlab, keyinroq qayta urinib ko’ring yoki chat orqali yozing.",
     "noAnswerTitle": "Mijoz javob bermadi",
     "declinedBy": "{name} qo’ng’iroqni rad etdi",

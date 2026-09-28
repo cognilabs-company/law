@@ -48,6 +48,7 @@ import {
   IconClose,
   IconChevronRight,
   IconStar,
+  IconLayers,
 } from "@/components/icons";
 
 // LEXGO_URGENT_ADVOCATE_FRONTEND_UPDATE.md — "Tezkor Advokat xizmati online".
@@ -80,6 +81,14 @@ const DIRECTIONS: { slug: string; area: string }[] = [
 ];
 
 const GROUP = "second_opinion_group";
+// The two video consultations are one decision with two answers — ordinary,
+// which queues in the call-center pool, and express, which rings whoever is
+// on duty right now. The catalog marks them (variant: ordinary | express)
+// but does not group them, so the grouping is made here and merged with
+// whatever the backend does send. Written as a group rather than as two
+// cards because side by side they read as unrelated services at two prices.
+const VIDEO_GROUP = "video_consultation_kind";
+const VIDEO_ITEMS = ["video_consultation", "express_video_consultation"];
 
 export default function UrgentAdvocatePanel() {
   const t = useTranslations("portal.client.urgent");
@@ -153,7 +162,15 @@ export default function UrgentAdvocatePanel() {
   // (groups[].items). Rendered in catalog order: the group takes the slot of
   // its first member and the rest are folded into it.
   const cards = useMemo(() => {
-    const groups = cat?.groups ?? [];
+    const backend = cat?.groups ?? [];
+    // Only when both kinds are actually on offer, and never over a group the
+    // backend has started sending itself.
+    const haveBoth = VIDEO_ITEMS.every((k) => services.some((x) => x.key === k));
+    const claimed = new Set(backend.flatMap((g) => g.items));
+    const groups: UrgentGroup[] =
+      haveBoth && !VIDEO_ITEMS.some((k) => claimed.has(k))
+        ? [...backend, { key: VIDEO_GROUP, title: "", items: VIDEO_ITEMS }]
+        : backend;
     const owner = new Map<string, UrgentGroup>();
     for (const g of groups) for (const k of g.items) owner.set(k, g);
     const out: { key: string; group?: UrgentGroup; items: UrgentService[] }[] = [];
@@ -168,12 +185,22 @@ export default function UrgentAdvocatePanel() {
     return out;
   }, [services, cat]);
   const sel = useMemo(() => services.find((s) => s.key === pick), [services, pick]);
+  // The record the detail modal is showing, re-read from the live list so a
+  // realtime refetch updates what is open instead of freezing a copy.
+  const openReq = useMemo(() => mine.find((r) => r.id === openId), [mine, openId]);
   const channels = urgentChannels(sel);
   const channel = channels.includes(channelPref) ? channelPref : channels[0] || "video";
 
-  // Which catalog group a service belongs to, if any.
+  // Which group a service belongs to, if any — the same list the cards were
+  // built from, so the form's switch and the grid never disagree.
+  const groupsAll = useMemo(() => cards.filter((c) => c.group).map((c) => c.group!), [cards]);
   const groupOf = (x: UrgentService | undefined) =>
-    x ? (cat?.groups ?? []).find((g) => g.items.includes(x.key)) : undefined;
+    x ? groupsAll.find((g) => g.items.includes(x.key)) : undefined;
+  // A group's heading: the backend's own title when it sent one, else ours.
+  const groupTitle = (g: UrgentGroup) => (g.title ? g.title : t.has(`groups.${g.key}`) ? t(`groups.${g.key}`) : g.key);
+  // What a service is, in one sentence. Keyed on the service so a card the
+  // backend adds later simply shows nothing rather than the wrong text.
+  const about = (k: string) => (t.has(`about.${k}`) ? t(`about.${k}`) : "");
 
   const isGroup = sel?.key === GROUP;
   const price = urgentPrice(sel, channel, isGroup ? lawyers : 1);
@@ -276,22 +303,33 @@ export default function UrgentAdvocatePanel() {
             // offers the first one when nothing is.
             const s = card.group ? card.items.find((x) => x.key === pick) ?? card.items[0] : card.items[0];
             if (!s) return null;
-            const Icon = card.group ? IconUsers : ICONS[s.key] ?? IconScale;
+            const Icon = card.group ? ICONS[card.items[0].key] ?? IconScale : ICONS[s.key] ?? IconScale;
             const on = card.group ? card.items.some((x) => x.key === pick) : pick === s.key;
             const chans = urgentChannels(s);
             // Per advocate for the panel, flat for everything else — one
             // number either way, instead of multiplying then dividing back.
             const from = urgentPrice(s, chans[0] || "video", 1);
+            const name = card.group ? groupTitle(card.group) : t.has(`kinds.${s.key}`) ? t(`kinds.${s.key}`) : s.title;
+            const lead = about(card.group ? card.group.key : s.key);
+            // Straight to whoever is on duty, rather than queued for the
+            // call-center — the single fastest fact about a service, and only
+            // sayable about a box whose kinds agree on it.
+            const now = card.items.every((x) => x.immediateCall);
+            const agree = now || card.items.every((x) => !x.immediateCall);
             return (
               <button
                 key={card.key}
                 type="button"
                 className={`uacard${on ? " on" : ""}`}
                 aria-pressed={on}
+                aria-describedby={lead || card.group ? `uaci-${card.key}` : undefined}
                 onClick={() => choose(s)}
               >
                 <span className="uacard__i"><Icon /></span>
-                <b className="uacard__t">{card.group ? card.group.title : t.has(`kinds.${s.key}`) ? t(`kinds.${s.key}`) : s.title}</b>
+                <b className="uacard__t">{name}</b>
+                {/* One line saying what it IS, above the price — the price
+                    alone never answered that. */}
+                {lead ? <span className="uacard__d">{lead}</span> : null}
                 <span className="uacard__p">
                   {s.variants.some((v) => v.pricePerLawyer) ? t("fromPerLawyer", { price: fmtUzs(from) }) : t("from", { price: fmtUzs(from) })}
                 </span>
@@ -304,11 +342,46 @@ export default function UrgentAdvocatePanel() {
                   {chans.includes("video") ? <em><IconVideo />{t("chVideo")}</em> : null}
                   {chans.includes("chat") ? <em><IconChat />{t("chChat")}</em> : null}
                   {urgentMinutes(s, chans[0] || "video") ? <em><IconClock />{t("minutesN", { n: urgentMinutes(s, chans[0] || "video") })}</em> : null}
+                  {card.group ? <em className="uacard__kinds"><IconLayers />{t("kindsN", { n: card.items.length })}</em> : null}
+                  {now ? <em className="uacard__now"><IconBolt />{t("immediate")}</em> : null}
                 </span>
                 {s.requiresPriorPurchase ? (
                   <span className="uacard__lock"><IconLock />{t("priorPurchaseShort")}</span>
                 ) : null}
                 <span className="uacard__go" aria-hidden><IconArrowRight /></span>
+
+                {/* Opens on hover and on keyboard focus (CSS), so the detail
+                    is reachable without a pointer. Not a title attribute:
+                    that cannot hold a list, and it never appears on touch. */}
+                {lead || card.group ? (
+                  <span className="uacard__info" id={`uaci-${card.key}`} role="note">
+                    {lead ? <span className="uacard__infod">{lead}</span> : null}
+                    <span className="uacard__infol">
+                      {card.items.map((x) => {
+                        const xc = urgentChannels(x);
+                        const xa = about(x.key);
+                        return (
+                          <span key={x.key} className="uacard__infoi">
+                            <b>
+                              {t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}
+                              <i>{x.variants.some((v) => v.pricePerLawyer)
+                                ? t("fromPerLawyer", { price: fmtUzs(urgentPrice(x, xc[0] || "video", 1)) })
+                                : t("from", { price: fmtUzs(urgentPrice(x, xc[0] || "video", 1)) })}</i>
+                            </b>
+                            {card.group && xa ? <span>{xa}</span> : null}
+                          </span>
+                        );
+                      })}
+                    </span>
+                    {/* Only when every kind in the box is delivered the same
+                        way; otherwise each kind's own line above says it. */}
+                    {agree ? (
+                      <span className="uacard__infof">
+                        {now ? t("deliveryNow") : t("deliveryPool")}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
               </button>
             );
           })}
@@ -338,18 +411,19 @@ export default function UrgentAdvocatePanel() {
               </div>
             ) : null}
 
-            {/* "Ikkinchi fikr" is one box on the grid; which of the two it
-                means is chosen here. */}
+            {/* A grouped service is one box on the grid; which of its kinds
+                it means is chosen here. */}
             {groupOf(sel) ? (
               <div>
-                <label>{t("opinionKind")}</label>
-                <div className="segs segs--sm" role="tablist" aria-label={t("opinionKind")}>
+                <label>{t.has(`groupKind.${groupOf(sel)!.key}`) ? t(`groupKind.${groupOf(sel)!.key}`) : t("opinionKind")}</label>
+                <div className="segs segs--sm" role="tablist" aria-label={t.has(`groupKind.${groupOf(sel)!.key}`) ? t(`groupKind.${groupOf(sel)!.key}`) : t("opinionKind")}>
                   {groupOf(sel)!.items.map((k) => {
                     const m = services.find((x) => x.key === k);
                     if (!m) return null;
+                    const MIcon = ICONS[k] ?? IconScale;
                     return (
                       <button key={k} type="button" role="tab" className="seg" aria-selected={sel.key === k} onClick={() => choose(m)}>
-                        {k === GROUP ? <IconUsers /> : <IconScale />}
+                        <MIcon />
                         {t.has(`kinds.${k}`) ? t(`kinds.${k}`) : m.title}
                         {/* Only one of the two needs a previous LexGo service;
                             saying which, here, beats a 402 after the form. */}
@@ -358,6 +432,9 @@ export default function UrgentAdvocatePanel() {
                     );
                   })}
                 </div>
+                {/* What the chosen kind actually changes — the price is not
+                    the difference that matters. */}
+                {about(sel.key) ? <p className="ua__kindnote">{about(sel.key)}</p> : null}
               </div>
             ) : null}
 
@@ -469,7 +546,22 @@ export default function UrgentAdvocatePanel() {
               const RowIcon = ICONS[r.serviceKind] ?? IconScale;
               const on = openId === r.id;
               return (
-              <li key={r.id} className={`ua__row${on ? " ua__row--on" : ""}${fresh === r.id ? " ua__row--fresh" : ""}`}>
+              <li
+                key={r.id}
+                className={`ua__row ua__row--tap${on ? " ua__row--on" : ""}${fresh === r.id ? " ua__row--fresh" : ""}`}
+                role="button"
+                tabIndex={0}
+                aria-label={t("detailsOf", { kind: t.has(`kinds.${r.serviceKind}`) ? t(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind })}
+                onClick={() => setOpenId(r.id)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" && e.key !== " ") return;
+                  // Space scrolls the page and Enter re-fires on the row's own
+                  // buttons unless this is the row itself being activated.
+                  if (e.target !== e.currentTarget) return;
+                  e.preventDefault();
+                  setOpenId(r.id);
+                }}
+              >
                 <span className="ua__rowi"><RowIcon /></span>
                 <div className="ua__rowm">
                   <b>
@@ -485,34 +577,40 @@ export default function UrgentAdvocatePanel() {
                     <span className="ua__when"><IconUsers />{t("panelOf", { names: r.groupLawyers.map((g) => g.name).join(", ") })}</span>
                   ) : null}
                 </div>
-                <div className="ua__rowr">
+                {/* The row itself opens the detail, so anything clickable in
+                    here must keep its own click to itself. */}
+                <div className="ua__rowr" onClick={(e) => e.stopPropagation()}>
                   <em className={`creq__badge ua__st ua__st--${r.status || "open"}`}>{statusLabel(tcm, r.status)}</em>
                   {r.secureChatRoomId ? (
                     <Link href="/portal/client/messages" className="btn btn--line btn--sm"><IconChat />{t("openChat")}</Link>
                   ) : null}
-                  <button
-                    type="button"
-                    className="btn btn--soft btn--sm"
-                    aria-expanded={on}
-                    aria-controls={`uad-${r.id}`}
-                    onClick={() => setOpenId(on ? "" : r.id)}
-                  >
+                  <button type="button" className="btn btn--soft btn--sm" onClick={() => setOpenId(r.id)}>
                     {t("details")}<IconChevronRight />
                   </button>
                 </div>
-                {on ? (
-                  <MyRequestDetail
-                    id={`uad-${r.id}`}
-                    req={r}
-                    onCancelled={() => { setOpenId(""); setReload((k) => k + 1); }}
-                  />
-                ) : null}
               </li>
               );
             })}
           </ul>
         )}
       </section>
+
+      {/* The detail, as a modal rather than an accordion inside the list. */}
+      <Modal
+        open={!!openReq}
+        onClose={() => setOpenId("")}
+        title={openReq ? (t.has(`kinds.${openReq.serviceKind}`) ? t(`kinds.${openReq.serviceKind}`) : openReq.serviceTitle || openReq.serviceKind) : ""}
+        wide
+      >
+        {openReq ? (
+          <MyRequestDetail
+            key={openReq.id}
+            id={`uad-${openReq.id}`}
+            req={openReq}
+            onCancelled={() => { setOpenId(""); setReload((k) => k + 1); }}
+          />
+        ) : null}
+      </Modal>
 
       <SecondOpinionGate
         message={gate}

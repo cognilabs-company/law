@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { canRecordVoice, voiceDuration } from "@/lib/voiceRecorder";
-import { IconUpload, IconMic, IconTrash, IconFileText } from "@/components/icons";
+import { IconPaperclip, IconMic, IconTrash, IconFileText } from "@/components/icons";
 import VoicePill from "@/components/VoicePill";
 
 // Files and voice notes attached to a lawyer request, shared by the
@@ -53,16 +53,20 @@ export default function AttachmentPicker({
 
   return (
     <>
-      {/* wp-vpill: the row is packed to its right edge so the mic stays put
-          while the pill opens leftward past the "Fayl qo'shish" button. */}
+      {/* Two ways to add to the request, given equal weight: a file, or a
+          voice note. The mic used to be a bare round button pushed to the far
+          right, which read as a stray control rather than as the other half
+          of the same choice. Both are labelled buttons on one row now, and
+          the voice one still opens leftward into its recording pill. */}
       <div className="docpick__row docpick__row--vp">
         <input ref={inputRef} type="file" hidden multiple onChange={(e) => add(e.target.files)} />
-        <button type="button" className="btn btn--line btn--sm" onClick={() => inputRef.current?.click()} disabled={files.length >= maxFiles}>
-          <IconUpload />
+        <button type="button" className="btn btn--line btn--sm docpick__add" onClick={() => inputRef.current?.click()} disabled={files.length >= maxFiles}>
+          <IconPaperclip />
           {t("addFiles")}
         </button>
         {canRecordVoice() ? (
           <VoicePill
+            label={t("addVoice")}
             onRecorded={(note) => onVoices([...voicesRef.current, { blob: note.blob, ms: note.durationMs }])}
             onError={onError}
           />

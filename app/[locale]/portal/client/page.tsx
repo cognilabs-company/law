@@ -11,6 +11,7 @@ import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import HeroCarousel from "@/components/portal/HeroCarousel";
 import ReferralProgress from "@/components/portal/ReferralProgress";
+import Modal from "@/components/admin/Modal";
 import {
   Icon,
   IconSparkle,
@@ -21,6 +22,8 @@ import {
   IconCheck,
   IconFileText,
   IconAlert,
+  IconScale,
+  IconChatDots,
 } from "@/components/icons";
 
 const DONE_STATUSES = new Set(["completed", "archived"]);
@@ -28,8 +31,9 @@ const DONE_STATUSES = new Set(["completed", "archived"]);
 // Static quick-action shortcuts (navigation, not backend data). Six of
 // them, not five — .cdact is a fixed 6-column grid (3 on tablet, 2 on
 // phone), so five left an empty trailing cell in every row size.
-const QUICK_ACTIONS: { key: string; icon: string; href: string; primary?: boolean; live?: boolean }[] = [
-  { key: "describe", icon: "IconChatDots", href: "/portal/client/ai", primary: true },
+const QUICK_ACTIONS: { key: string; icon: string; href: string; primary?: boolean; live?: boolean; ask?: boolean }[] = [
+  // `ask`: this one opens the advocate-or-AI chooser rather than navigating.
+  { key: "describe", icon: "IconChatDots", href: "/portal/client/ai", primary: true, ask: true },
   // "Tezkor Advokat xizmati online" — the live-advocate module. Flagged as
   // live rather than primary so it reads as a service that is on right now,
   // beside the primary AI action instead of competing with it.
@@ -55,6 +59,7 @@ export default function ClientDashboard() {
   const { session } = useAuth();
   const router = useRouter();
   const [ask, setAsk] = useState("");
+  const [whoOpen, setWhoOpen] = useState(false);
   const res = useResource(listCases, []);
   const kpi = useMemo(() => {
     const rows = res.data;
@@ -107,20 +112,47 @@ export default function ClientDashboard() {
 
       {/* Quick actions */}
       <div className="cdact">
-        {QUICK_ACTIONS.map((a) => (
-          <Link
-            href={a.href}
-            key={a.key}
-            className={`cdact__i${a.primary ? " cdact__i--pri" : ""}${a.live ? " cdact__i--live" : ""}`}
-          >
-            <span className="cdact__ico">{a.live ? <i className="cdact__dot" aria-hidden /> : null}<Icon name={a.icon} /></span>
-            <span>
-              {ta(a.key)}
-              <span className="cdact__sub">{ta(ACTION_SUB[a.key])}</span>
-            </span>
-          </Link>
-        ))}
+        {QUICK_ACTIONS.map((a) => {
+          const cls = `cdact__i${a.primary ? " cdact__i--pri" : ""}${a.live ? " cdact__i--live" : ""}`;
+          const inner = (
+            <>
+              <span className="cdact__ico">{a.live ? <i className="cdact__dot" aria-hidden /> : null}<Icon name={a.icon} /></span>
+              <span>
+                {ta(a.key)}
+                <span className="cdact__sub">{ta(ACTION_SUB[a.key])}</span>
+              </span>
+            </>
+          );
+          return a.ask ? (
+            <button type="button" key={a.key} className={cls} onClick={() => setWhoOpen(true)}>{inner}</button>
+          ) : (
+            <Link href={a.href} key={a.key} className={cls}>{inner}</Link>
+          );
+        })}
       </div>
+
+      {/* Who should answer this — asked once, before anything is typed.
+          Sending every described problem to the AI page hid the fact that a
+          real advocate is one of the two answers. */}
+      <Modal open={whoOpen} onClose={() => setWhoOpen(false)} title={ta("whoTitle")}>
+        <div className="cdwho">
+          <p className="cdwho__lead">{ta("whoLead")}</p>
+          <div className="cdwho__grid">
+            <Link href="/portal/client/urgent" className="cdwho__c cdwho__c--adv" onClick={() => setWhoOpen(false)}>
+              <span className="cdwho__i"><IconScale /></span>
+              <b>{ta("whoAdvocate")}</b>
+              <span>{ta("whoAdvocateSub")}</span>
+              <em className="cdwho__go"><IconArrowRight /></em>
+            </Link>
+            <Link href="/portal/client/ai" className="cdwho__c cdwho__c--ai" onClick={() => setWhoOpen(false)}>
+              <span className="cdwho__i"><IconChatDots /></span>
+              <b>{ta("whoAi")}</b>
+              <span>{ta("whoAiSub")}</span>
+              <em className="cdwho__go"><IconArrowRight /></em>
+            </Link>
+          </div>
+        </div>
+      </Modal>
 
       {/* At-a-glance analytics: real counts from the same case list rendered
           below, not separate/fake numbers — total, still-open, done, and how

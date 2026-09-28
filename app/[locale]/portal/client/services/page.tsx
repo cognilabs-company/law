@@ -242,6 +242,11 @@ export default function ClientServices() {
     setPrevCat(cat);
     setSubcat("");
   }
+  function openSubcat(catId: string, name: string) {
+    setPrevCat(catId);
+    setCat(catId);
+    setSubcat(name);
+  }
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     if (cat) sp.set("cat", cat); else sp.delete("cat");
@@ -401,6 +406,20 @@ export default function ClientServices() {
   // loading every category just to display a number nobody asked for yet).
   const catalog = useMemo(() => (narrowed ? services.data.filter(offeredBy) : services.data), [services.data, narrowed, offeredBy]);
   const famList = cats.data;
+  // Every category's subcategories in one list, largest first, each carrying
+  // the category it belongs to so a click can open it directly. Present only
+  // on a backend that sends `subcategories` (2026-09-28); an older one falls
+  // back to the category-first screen below.
+  const allSubcats = useMemo(() => {
+    const out: { cat: string; catName: string; name: string; n: number }[] = [];
+    for (const c of cats.data) for (const sc of c.subcategories) out.push({ cat: c.id, catName: c.name, name: sc.title, n: sc.servicesCount });
+    return out.sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+  }, [cats.data]);
+  const [famFilter, setFamFilter] = useState("");
+  const flatSubcats = useMemo(
+    () => (famFilter ? allSubcats.filter((x) => x.cat === famFilter) : allSubcats),
+    [allSubcats, famFilter],
+  );
 
   const NO_SUBCAT = "Boshqa";
   // The selected general category's own services, grouped by the backend's
@@ -745,8 +764,9 @@ export default function ClientServices() {
       ) : null}
       <div className="ppanel">
         <div className="ppanel__h">
-          <b>{showFamilies ? t("chooseFamily") : showSubcats ? catName : query ? t("title") : subcat || catName}</b>
+          <b>{showFamilies ? (allSubcats.length ? t("chooseSubcat") : t("chooseFamily")) : showSubcats ? catName : query ? t("title") : subcat || catName}</b>
           <span className="ppanel__hact">
+            {showFamilies && allSubcats.length ? <span className="advmuted">{t("subcatsN", { n: flatSubcats.length })}</span> : null}
             {!showFamilies && !showSubcats ? <span className="advmuted">{t("servicesN", { n: shown.length })}</span> : null}
             {/* Nothing in the catalog fits every case — this is the way out
                 of it: an advocate writes the document from scratch, or
@@ -861,6 +881,51 @@ export default function ClientServices() {
           // /services?cat=<id>). Now it says so, same as every other
           // resource load failure in the portal (portal.common.loadError).
           <EmptyState icon={<IconAlert />} title={tc("loadError")} text={tc("loadErrorText")} />
+        ) : showFamilies && allSubcats.length ? (
+          // One list of every direction, with the four categories as a filter
+          // above it instead of a screen before it.
+          <>
+            <div className="chiprow svfam__filter">
+              <button type="button" className="fchip" aria-pressed={!famFilter} onClick={() => setFamFilter("")}>
+                {t("filterAll")}
+                <em className="fchip__n">{allSubcats.length}</em>
+              </button>
+              {famList.map((c) => (
+                <button key={c.id} type="button" className="fchip" aria-pressed={famFilter === c.id} onClick={() => setFamFilter(famFilter === c.id ? "" : c.id)}>
+                  {c.name}
+                  <em className="fchip__n">{c.subcategoriesCount || allSubcats.filter((x) => x.cat === c.id).length}</em>
+                </button>
+              ))}
+            </div>
+            {!flatSubcats.length ? (
+              <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
+            ) : (
+              <div className="svfam__grid">
+                {flatSubcats.map((sc, i) => {
+                  const img = subcategoryImage(sc.name);
+                  const Icon = FAM_ICONS[i % FAM_ICONS.length];
+                  return (
+                    <button key={`${sc.cat}-${sc.name}`} type="button" className="svfam" onClick={() => openSubcat(sc.cat, sc.name)}>
+                      <span className="svfam__i">
+                        {img ? (
+                          <Image src={img} alt="" fill sizes="(max-width: 640px) 45vw, 260px" style={{ objectFit: "contain" }} />
+                        ) : (
+                          <Icon />
+                        )}
+                      </span>
+                      <span className="svfam__t">
+                        <b>{sc.name}</b>
+                        {/* Which of the four it came from — the list is flat
+                            now, so the card has to say it. */}
+                        <small className="svfam__cat">{sc.catName}</small>
+                        <small className="svfam__n">{t("servicesN", { n: sc.n })}</small>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </>
         ) : showFamilies ? (
           !famList.length ? (
             <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />

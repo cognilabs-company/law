@@ -2518,6 +2518,29 @@
     },
     "client": {
       "urgent": {
+        "groupKind": {
+          "second_opinion": "Kind of second opinion",
+          "video_consultation_kind": "Kind of consultation"
+        },
+        "groups": {
+          "second_opinion": "Second opinion",
+          "video_consultation_kind": "Video consultation with an advocate"
+        },
+        "about": {
+          "second_opinion": "An independent opinion from another advocate — one, or a panel of them.",
+          "video_consultation_kind": "A video meeting with an advocate, in two kinds: ordinary (the call-centre queue) and express (straight to the advocate on duty).",
+          "second_opinion_group": "Two to seven advocates give their opinion together. Needs an earlier advocate or lawyer service through LexGo.",
+          "second_opinion_single": "A different advocate judges your case independently. Open to every client.",
+          "chat_consultation": "In writing: you and the advocate talk in a secure chat, with no meeting to attend.",
+          "traffic_accident_consultation": "An immediate line to the on-duty advocate who handles road accidents.",
+          "express_video_consultation": "Goes straight to the advocate on duty — no pool queue. For situations that cannot wait.",
+          "video_consultation": "A 30-minute video meeting with an advocate. Your request queues in the call centre and a free advocate takes it."
+        },
+        "detailsOf": "{kind} — open the details",
+        "deliveryPool": "Queues in the call centre; a free advocate takes it.",
+        "deliveryNow": "Goes straight to the advocate on duty.",
+        "immediate": "Right away",
+        "kindsN": "{n} kinds",
         "rateError": "The rating could not be sent",
         "rateGiven": "You gave {n}",
         "rateThanks": "Thank you for the rating",
@@ -3201,23 +3224,30 @@
         "chooseSpecialist": "Choose a matched specialist"
       },
       "actions": {
+        "whoAiSub": "An answer right away, within the free limit. It hands hard cases to an advocate.",
+        "whoAi": "Ask the AI",
+        "whoAdvocateSub": "A real advocate answers by video or chat — a paid service.",
+        "whoAdvocate": "Ask an advocate",
+        "whoLead": "Send your problem to a real advocate, or to LexGo's AI. Both are here.",
+        "whoTitle": "Who should answer this?",
         "urgentSub": "An advocate online — video or chat",
-        "urgent": "Urgent advocate",
+        "urgent": "Reach an advocate now",
         "describe": "Describe my problem",
         "describeSub": "Find a solution with AI",
         "findSpecialist": "Find a specialist",
         "findSpecialistSub": "Verified lawyers and advocates",
-        "consultation": "Get a consultation",
-        "consultationSub": "Online or in person",
+        "consultation": "Legal advice after a road accident",
+        "consultationSub": "With an advocate, online or in person",
         "track": "Track my request",
         "askAi": "Ask LexGo AI",
         "askAiSub": "Chat with AI",
-        "upload": "Upload a document",
-        "uploadSub": "Analysis and review",
+        "upload": "Document analysis",
+        "uploadSub": "Upload a document — the AI and an advocate check it",
         "services": "Services catalog",
         "servicesSub": "Document templates and lawyers"
       },
       "services": {
+        "chooseSubcat": "Choose a direction",
         "subcatsN": "{n} subcategories",
         "filtersTitle": "Filters",
         "title": "Order a service",
@@ -3659,6 +3689,8 @@
         "manualDisabled": "Manual filling requires a plan"
       },
       "newDoc": {
+        "langHint": "Choose the language the document will be written in.",
+        "addVoice": "Voice message",
         "lead": "Nothing in the catalog fits? A lawyer will prepare the document for you.",
         "scratchTitle": "A document from scratch",
         "scratchSub": "Describe the situation — a lawyer writes the document from a blank page.",
@@ -3666,7 +3698,6 @@
         "reviewSub": "Upload the document you have — a lawyer reviews and corrects it.",
         "analysisTitle": "AI analysis",
         "analysisSub": "Paste the document text — risks and recommendations right away.",
-        "poolLead": "The request goes to LexGo's call-center lawyers. Whoever takes it on first gets in touch with you here.",
         "mainFileLabel": "Document to check",
         "mainFilePick": "Upload the document",
         "mainFileChange": "Click to choose a different file",
@@ -3687,13 +3718,14 @@
         "error": "Something went wrong. Please try again."
       },
       "documentRequests": {
+        "tab_manual": "Filled in myself",
+        "readyChip": "Ready",
         "waitingLawyer": "Waiting for an advocate",
         "openLead": "Document work you have started that has not come back yet.",
         "openTitle": "Documents in progress",
         "openChat": "Open chat",
         "title": "My documents",
         "tab_all": "All",
-        "tab_self": "Filled in myself",
         "tab_ai": "With AI",
         "tab_lawyer": "With a lawyer",
         "empty": "No documents yet",
@@ -3706,6 +3738,7 @@
         "meetingActive": "Meeting in progress"
       },
       "packages": {
+        "bestValue": "Most chosen",
         "title": "Service packages",
         "count": "{n, plural, one {# package} other {# packages}}",
         "lead": "A package is several services at one price, with what is and isn't included and the timeline spelled out.",
@@ -7204,6 +7237,7 @@
     }
   },
   "call": {
+    "extendFreeNote": "The meeting can be extended free once, by {n} minutes. After that an extension is paid — {price} so‘m per minute.",
     "noAnswerLead": "{name} declined the call. End the meeting and try again later, or write in the chat.",
     "noAnswerTitle": "The client did not answer",
     "declinedBy": "{name} declined the call",

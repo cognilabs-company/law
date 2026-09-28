@@ -104,6 +104,7 @@ export default function VoicePill({
   disabled = false,
   maxMs = CAP_MS,
   className = "",
+  label = "",
 }: {
   // Called once per kept recording — never for a cancelled one.
   onRecorded: (note: VoiceNote) => void;
@@ -112,6 +113,10 @@ export default function VoicePill({
   disabled?: boolean;
   maxMs?: number;
   className?: string;
+  // Given, the resting control is a labelled button rather than a round mic,
+  // so it can stand next to another labelled button as an equal choice. The
+  // label disappears the moment recording starts and the pill takes over.
+  label?: string;
 }) {
   const t = useTranslations("voicePill");
   // The elapsed-time wording the control this replaced already had.
@@ -339,7 +344,7 @@ export default function VoicePill({
 
   const fade = Math.min(1, drag / CANCEL_PX);
   const clock = voiceDuration(ms);
-  const cls = `vpill${on ? " vpill--on" : ""}${cancelling ? " vpill--cancel" : ""}${className ? ` ${className}` : ""}`;
+  const cls = `vpill${label ? " vpill--wide" : ""}${on ? " vpill--on" : ""}${cancelling ? " vpill--cancel" : ""}${className ? ` ${className}` : ""}`;
 
   return (
     <div className={cls} style={{ "--vp-drag": `${-drag}px`, "--vp-fade": fade.toFixed(3) } as CSSProperties}>
@@ -377,6 +382,7 @@ export default function VoicePill({
         <span className="vpill__g vpill__g--stop">
           <IconSquare />
         </span>
+        {label ? <span className="vpill__lbl">{label}</span> : null}
       </button>
       {/* The clock on the pill is aria-hidden decoration; without this a
           screen-reader user would have no idea how long they had been

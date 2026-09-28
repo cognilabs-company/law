@@ -19,7 +19,7 @@ import {
   IconEdit,
   IconClipboardCheck,
   IconEye,
-  IconUpload,
+  IconPaperclip,
   IconArrowRight,
   IconLock,
 } from "@/components/icons";
@@ -159,7 +159,7 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
         <span className="docassist__i docassist__i--lawyer">{flow === "review" ? <IconClipboardCheck /> : <IconEdit />}</span>
         <div>
           <b>{flow === "review" ? t("reviewTitle") : t("scratchTitle")}</b>
-          <p className="advmuted">{t("poolLead")}</p>
+          <p className="advmuted">{flow === "review" ? t("reviewSub") : t("scratchSub")}</p>
         </div>
       </div>
 
@@ -170,7 +170,7 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
           <label htmlFor="newdoc-main">{t("mainFileLabel")}</label>
           <input ref={mainRef} id="newdoc-main" type="file" hidden accept=".doc,.docx,.pdf,.jpg,.jpeg,.png" onChange={(e) => pickMain(e.target.files)} />
           <button type="button" className="docpick" onClick={() => mainRef.current?.click()}>
-            <span className="docpick__i"><IconUpload /></span>
+            <span className="docpick__i"><IconPaperclip /></span>
             <span className="docpick__t">
               <b>{mainFile ? mainFile.name : t("mainFilePick")}</b>
               <small>{mainFile ? t("mainFileChange") : t("mainFileHint", { mb: MAX_FILE_MB })}</small>
@@ -190,12 +190,13 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
       </section>
 
       <section className="docassist__sec">
-        <label>{td("langLabel")}</label>
+        <label htmlFor="newdoc-lang">{td("langLabel")}</label>
+        <p className="docassist__hint" id="newdoc-lang-h">{t("langHint")}</p>
         <Select
           value={lang}
           onChange={(v) => setLang((LANGS.includes(v as LangCode) ? v : "uz") as LangCode)}
           options={LANGS.map((l) => ({ value: l, label: td(`lang_${l}`) }))}
-          ariaLabel={td("langLabel")}
+          ariaLabel={`${td("langLabel")} — ${t("langHint")}`}
         />
       </section>
 

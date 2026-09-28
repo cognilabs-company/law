@@ -40,7 +40,6 @@ import {
   IconStar,
   IconBuilding,
   IconBell,
-  IconFolder,
   IconAlert,
   IconGraduation,
   IconClipboardCheck,
@@ -51,9 +50,11 @@ import {
   IconVideo,
   IconChevronLeft,
   IconEye,
-  IconSearch,
   IconUserPlus,
   IconFolderPlus,
+  IconDocSearch,
+  IconPackage,
+  IconClipboardList,
 } from "../icons";
 
 type SvgC = ComponentType<{ className?: string }>;
@@ -129,21 +130,21 @@ const ADVOCATE_NAV: NavItem[] = [
 // Reachable pages that deliberately have no sidebar row of their own.
 // They are consulted for the header title only, never rendered in the nav.
 const CLIENT_TITLE_ONLY: NavItem[] = [
-  { href: "/portal/client/doc-analysis", key: "docAnalysis", Icon: IconEye },
+  { href: "/portal/client/doc-analysis", key: "docAnalysis", Icon: IconDocSearch },
 ];
 
 const CLIENT_NAV: NavItem[] = [
   { href: "/portal/client", key: "dashboard", Icon: IconGrid },
   { href: "/portal/client/sos", key: "sos", Icon: IconAlert },
   { href: "/portal/client/urgent", key: "urgent", Icon: IconBolt },
-  { href: "/portal/client/services", key: "services", Icon: IconBriefcase },
+  { href: "/portal/client/services", key: "services", Icon: IconDocSearch },
   { href: "/portal/client/documents", key: "documentRequests", Icon: IconDocLines },
-  { href: "/portal/client/packages", key: "packages", Icon: IconFolder },
-  { href: "/portal/client/cases", key: "cases", Icon: IconFileText },
+  { href: "/portal/client/packages", key: "packages", Icon: IconPackage },
+  { href: "/portal/client/cases", key: "cases", Icon: IconBriefcase },
   { href: "/portal/client/messages", key: "messages", Icon: IconChat },
   { href: "/portal/client/notifications", key: "notifications", Icon: IconBell },
   { href: "/portal/client/ai", key: "ai", Icon: IconSparkle },
-  { href: "/portal/client/intake", key: "intake", Icon: IconSearch },
+  { href: "/portal/client/intake", key: "intake", Icon: IconClipboardList },
   // /portal/client/doc-analysis is deliberately NOT in this list any more:
   // it and the services page were both called "Hujjat tahlili", so they are
   // merged into one entry. The route stays live — the services page and the
