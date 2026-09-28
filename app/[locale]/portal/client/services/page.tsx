@@ -38,6 +38,7 @@ import { useIsFreeAiTier } from "@/lib/useAiTier";
 import { fmtUzs } from "@/lib/money";
 import { initials, humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import Select from "@/components/Select";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { evalBusinessHours, responseDeadline, deadlineLabel } from "@/lib/businessHours";
@@ -416,10 +417,11 @@ export default function ClientServices() {
     return out.sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
   }, [cats.data]);
   const [famFilter, setFamFilter] = useState("");
-  const flatSubcats = useMemo(
-    () => (famFilter ? allSubcats.filter((x) => x.cat === famFilter) : allSubcats),
-    [allSubcats, famFilter],
-  );
+  const [subSort, setSubSort] = useState<"count" | "name">("count");
+  const flatSubcats = useMemo(() => {
+    const rows = famFilter ? allSubcats.filter((x) => x.cat === famFilter) : allSubcats;
+    return subSort === "name" ? [...rows].sort((a, b) => a.name.localeCompare(b.name)) : rows;
+  }, [allSubcats, famFilter, subSort]);
 
   const NO_SUBCAT = "Boshqa";
   // The selected general category's own services, grouped by the backend's
@@ -885,17 +887,40 @@ export default function ClientServices() {
           // One list of every direction, with the four categories as a filter
           // above it instead of a screen before it.
           <>
-            <div className="chiprow svfam__filter">
-              <button type="button" className="fchip" aria-pressed={!famFilter} onClick={() => setFamFilter("")}>
-                {t("filterAll")}
-                <em className="fchip__n">{allSubcats.length}</em>
-              </button>
-              {famList.map((c) => (
-                <button key={c.id} type="button" className="fchip" aria-pressed={famFilter === c.id} onClick={() => setFamFilter(famFilter === c.id ? "" : c.id)}>
-                  {c.name}
-                  <em className="fchip__n">{c.subcategoriesCount || allSubcats.filter((x) => x.cat === c.id).length}</em>
+            <div className="svfilt">
+              <label className="svfilt__f">
+                <span>{t("filterCategory")}</span>
+                <Select
+                  value={famFilter}
+                  onChange={setFamFilter}
+                  ariaLabel={t("filterCategory")}
+                  options={[
+                    { value: "", label: t("allCategories", { n: allSubcats.length }) },
+                    ...famList.map((c) => ({
+                      value: c.id,
+                      label: `${c.name} · ${t("subcatsN", { n: c.subcategoriesCount || allSubcats.filter((x) => x.cat === c.id).length })}`,
+                    })),
+                  ]}
+                />
+              </label>
+              <label className="svfilt__f">
+                <span>{t("sortLabel")}</span>
+                <Select
+                  value={subSort}
+                  onChange={(v) => setSubSort(v === "name" ? "name" : "count")}
+                  ariaLabel={t("sortLabel")}
+                  options={[
+                    { value: "count", label: t("sortByCount") },
+                    { value: "name", label: t("sortByName") },
+                  ]}
+                />
+              </label>
+              {famFilter ? (
+                <button type="button" className="svfilt__clear" onClick={() => setFamFilter("")}>
+                  <IconClose />
+                  {t("filterClear")}
                 </button>
-              ))}
+              ) : null}
             </div>
             {!flatSubcats.length ? (
               <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />

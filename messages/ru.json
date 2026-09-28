@@ -1914,6 +1914,9 @@
         "archived": "В архиве"
       },
       "docStatus": {
+        "payment_pending": "Ожидается оплата",
+        "ready_to_generate": "Готов к созданию",
+        "questionnaire": "Заполняются данные",
         "lawyer_review": "Адвокат рассматривает",
         "in_review": "Готовится",
         "file_ready": "Документ готов",
@@ -3237,7 +3240,7 @@
         "findSpecialist": "Найти специалиста",
         "findSpecialistSub": "Проверенные адвокаты и юристы",
         "consultation": "Юридическая консультация по ДТП",
-        "consultationSub": "По ДТП — с адвокатом онлайн или офлайн",
+        "consultationSub": "Сразу видеосвязь с дежурным адвокатом",
         "track": "Отслеживать запрос",
         "askAi": "Спросить LexGo Искусственный интеллект",
         "askAiSub": "Чат с AI",
@@ -3247,6 +3250,11 @@
         "servicesSub": "Шаблоны документов и адвокаты"
       },
       "services": {
+        "sortByName": "По названию (А–Я)",
+        "sortByCount": "Сначала с большим числом услуг",
+        "sortLabel": "Сортировка",
+        "allCategories": "Все сферы · {n} направлений",
+        "filterCategory": "Сфера",
         "chooseSubcat": "Выберите направление",
         "subcatsN": "{n} направлений",
         "filtersTitle": "Фильтры",
@@ -3719,7 +3727,6 @@
       },
       "documentRequests": {
         "tab_manual": "Заполнил сам",
-        "readyChip": "Готово",
         "waitingLawyer": "Ожидает адвоката",
         "openLead": "Начатые документы, которые ещё не готовы.",
         "openTitle": "Незавершённые документы",

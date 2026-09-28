@@ -39,7 +39,7 @@ const QUICK_ACTIONS: { key: string; icon: string; href: string; primary?: boolea
   // beside the primary AI action instead of competing with it.
   { key: "urgent", icon: "IconBolt", href: "/portal/client/urgent", live: true },
   { key: "findSpecialist", icon: "IconSearch", href: "/portal/client/lawyers" },
-  { key: "consultation", icon: "IconVideo", href: "/portal/client/matches" },
+  { key: "consultation", icon: "IconAlert", href: "/portal/client/urgent?service=traffic_accident_consultation" },
   { key: "askAi", icon: "IconSparkle", href: "/portal/client/ai" },
   { key: "upload", icon: "IconDownload", href: "/portal/client/doc-analysis" },
 ];

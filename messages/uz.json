@@ -1920,6 +1920,9 @@
         "archived": "Arxivlangan"
       },
       "docStatus": {
+        "payment_pending": "To'lov kutilmoqda",
+        "ready_to_generate": "Hujjat yaratishga tayyor",
+        "questionnaire": "Ma'lumotlar to'ldirilmoqda",
         "lawyer_review": "Advokat ko'rib chiqmoqda",
         "in_review": "Tayyorlanmoqda",
         "file_ready": "Hujjat tayyor",
@@ -3243,7 +3246,7 @@
         "findSpecialist": "Mutaxassis topish",
         "findSpecialistSub": "Tasdiqlangan advokat va yuristlar",
         "consultation": "Avtoavariya bo‘yicha huquqiy konsultatsiya olish",
-        "consultationSub": "YTH bo‘yicha advokat bilan onlayn yoki oflayn",
+        "consultationSub": "Navbatchi advokat bilan darhol video aloqa",
         "track": "So'rovni kuzatish",
         "askAi": "LexGo Sun'iy intellekt'dan so'rash",
         "askAiSub": "AI bilan suhbat",
@@ -3253,6 +3256,11 @@
         "servicesSub": "Hujjat shabloni va advokatlar"
       },
       "services": {
+        "sortByName": "Nomi bo‘yicha (A–Z)",
+        "sortByCount": "Xizmatlari ko‘pi birinchi",
+        "sortLabel": "Tartib",
+        "allCategories": "Barcha sohalar · {n} ta yo‘nalish",
+        "filterCategory": "Soha",
         "chooseSubcat": "Yo‘nalishni tanlang",
         "subcatsN": "{n} ta yo‘nalish",
         "filtersTitle": "Filtrlar",
@@ -3725,7 +3733,6 @@
       },
       "documentRequests": {
         "tab_manual": "O'zim to'ldirganlar",
-        "readyChip": "Tayyor",
         "waitingLawyer": "Advokat kutilmoqda",
         "openLead": "Boshlangan va hali yetkazilmagan hujjat ishlari.",
         "openTitle": "Tugallanmagan hujjatlar",

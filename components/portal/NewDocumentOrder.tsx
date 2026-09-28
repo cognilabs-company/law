@@ -190,13 +190,12 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
       </section>
 
       <section className="docassist__sec">
-        <label htmlFor="newdoc-lang">{td("langLabel")}</label>
-        <p className="docassist__hint" id="newdoc-lang-h">{t("langHint")}</p>
+        <label htmlFor="newdoc-lang">{t("langHint")}</label>
         <Select
           value={lang}
           onChange={(v) => setLang((LANGS.includes(v as LangCode) ? v : "uz") as LangCode)}
           options={LANGS.map((l) => ({ value: l, label: td(`lang_${l}`) }))}
-          ariaLabel={`${td("langLabel")} — ${t("langHint")}`}
+          ariaLabel={t("langHint")}
         />
       </section>
 

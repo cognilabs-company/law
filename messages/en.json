@@ -1914,6 +1914,9 @@
         "archived": "Archived"
       },
       "docStatus": {
+        "payment_pending": "Waiting for payment",
+        "ready_to_generate": "Ready to generate",
+        "questionnaire": "Filling in the details",
         "lawyer_review": "Lawyer is reviewing",
         "in_review": "Being prepared",
         "file_ready": "Document ready",
@@ -3237,7 +3240,7 @@
         "findSpecialist": "Find a specialist",
         "findSpecialistSub": "Verified lawyers and advocates",
         "consultation": "Legal advice after a road accident",
-        "consultationSub": "With an advocate, online or in person",
+        "consultationSub": "An immediate video line to the advocate on duty",
         "track": "Track my request",
         "askAi": "Ask LexGo AI",
         "askAiSub": "Chat with AI",
@@ -3247,6 +3250,11 @@
         "servicesSub": "Document templates and lawyers"
       },
       "services": {
+        "sortByName": "By name (A–Z)",
+        "sortByCount": "Most services first",
+        "sortLabel": "Order",
+        "allCategories": "Every area · {n} directions",
+        "filterCategory": "Area of law",
         "chooseSubcat": "Choose a direction",
         "subcatsN": "{n} subcategories",
         "filtersTitle": "Filters",
@@ -3719,7 +3727,6 @@
       },
       "documentRequests": {
         "tab_manual": "Filled in myself",
-        "readyChip": "Ready",
         "waitingLawyer": "Waiting for an advocate",
         "openLead": "Document work you have started that has not come back yet.",
         "openTitle": "Documents in progress",

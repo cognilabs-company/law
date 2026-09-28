@@ -11,12 +11,26 @@ import { Skeleton, EmptyState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
 import { Link } from "@/i18n/navigation";
-import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconCheck, IconArrowRight } from "@/components/icons";
+import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight } from "@/components/icons";
 
 // Which way this document is being produced — the client filled it in, the
 // AI drafted it, or an advocate is writing it. It changes what the card
 // means, so it leads the card rather than hiding in a filter chip.
 const MODE_ICON = { manual: IconEdit, ai: IconSparkle, lawyer: IconScale } as const;
+
+// Where a request has got to, as one of four states rather than six slugs.
+// The pill is coloured by this, so the list can be read down its right edge:
+// green is finished, blue is being worked on, amber is waiting on the client.
+// Every status the endpoint sends today is covered (verified against
+// production: questionnaire, lawyer_review, file_ready, ready_to_generate,
+// open_pool, payment_pending); an unknown one lands on "working", which
+// claims nothing.
+function statusTone(status: string): "done" | "waiting" | "you" | "working" {
+  if (status === "file_ready") return "done";
+  if (status === "open_pool" || status === "lawyer_review") return "waiting";
+  if (status === "questionnaire" || status === "ready_to_generate" || status === "payment_pending") return "you";
+  return "working";
+}
 
 // LEXGO_CLIENT_DOCUMENT_REQUESTS_PAGE_FRONTEND.md: one place for the client
 // to see every document request they've ever started — however it was
@@ -137,61 +151,68 @@ export default function ClientDocumentRequests() {
       ) : !rows.length ? (
         <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="dreqs">
+        <div className="mydocs">
           {rows.map((item) => {
             const ModeIcon = MODE_ICON[item.mode as keyof typeof MODE_ICON] ?? IconFileText;
             const room = item.secureChatRoomId || rooms[item.id];
             const ready = item.file.ready;
+            const tone = statusTone(item.status);
+            const acts = !!room || ready;
             return (
-              <article className={`dreq dreq--${item.mode}${ready ? " dreq--ready" : ""}`} key={item.id}>
-                <span className={`dreq__i dreq__i--${item.mode}`} aria-hidden><ModeIcon /></span>
-                <div className="dreq__m">
-                  <div className="dreq__top">
-                    <b className="dreq__t">{item.title || t("title")}</b>
+              <article className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}`} key={item.id}>
+                <span className={`mydoc__i mydoc__i--${item.mode}`} aria-hidden><ModeIcon /></span>
+                {/* One column of content, not two: the status pill used to sit
+                    in a flex row of its own while the buttons occupied a third
+                    grid column, and on a long title the two overlapped. */}
+                <div className="mydoc__m">
+                  <div className="mydoc__top">
+                    <b className="mydoc__t">{item.title || t("title")}</b>
                     {/* The slug resolves against portal.common.docStatus, which
-                        is translated; item.statusLabel is the server's Uzbek
-                        wording. A pill, not grey small print: it is the answer
-                        to the question the page is opened to ask. */}
-                    <em className={`creq__badge dreq__st dreq__st--${item.status || "open"}`}>
+                        is translated; item.statusLabel is the server's own
+                        wording, itself sometimes only the slug. */}
+                    <em className={`mydoc__st mydoc__st--${tone}`}>
                       {statusLabel(tcm, item.status) || item.statusLabel}
                     </em>
                   </div>
-                  <span className="dreq__mode">{t.has(`tab_${item.mode}`) ? t(`tab_${item.mode}`) : item.mode}</span>
-                  {item.nextAction ? <p className="dreq__next"><IconArrowRight />{item.nextAction}</p> : null}
-                  <div className="dreq__row">
+                  <div className="mydoc__row">
+                    <small className="mydoc__mode"><ModeIcon />{t.has(`tab_${item.mode}`) ? t(`tab_${item.mode}`) : item.mode}</small>
                     {item.assignedLawyer?.name ? <small><IconUser />{item.assignedLawyer.name}</small> : null}
                     {/* MD §"Client: o'z requestlari va tayyor file" lists the
                         meeting status alongside status / assigned lawyer. */}
                     {item.meeting ? (
-                      <small className={item.meeting.active ? "dreq__live" : undefined}>
+                      <small className={item.meeting.active ? "mydoc__live" : undefined}>
                         <IconVideo />
                         {item.meeting.active ? t("meetingActive") : item.meeting.status || t("meetingLabel")}
                       </small>
                     ) : null}
                     {item.createdAt ? <small><IconClock />{shortDateTime(item.createdAt, locale)}</small> : null}
                   </div>
-                </div>
-                {/* Two things the client could not reach once the order modal
-                    was closed: the private chat with the advocate handling the
-                    document, and the finished file. Both live on the card. */}
-                <div className="dreq__acts">
-                  {ready ? <span className="dreq__ready"><IconCheck />{t("readyChip")}</span> : null}
-                  {room ? (
-                    <Link href={`/portal/chat/${room}`} className="btn btn--line btn--sm">
-                      <IconChat />
-                      {t("openChat")}
-                    </Link>
-                  ) : null}
-                  {ready ? (
-                    <button
-                      type="button"
-                      className="btn btn--grad btn--sm"
-                      disabled={dlBusy === item.id}
-                      onClick={() => download(item)}
-                    >
-                      <IconDownload />
-                      {dlBusy === item.id ? tcommon("processingShort") : t("download")}
-                    </button>
+                  {/* What to do next, as a sentence — it was a full-width grey
+                      box that read as an empty input. */}
+                  {item.nextAction ? <p className="mydoc__next"><IconArrowRight />{item.nextAction}</p> : null}
+                  {/* Two things the client could not reach once the order modal
+                      was closed: the private chat with the advocate handling
+                      the document, and the finished file. */}
+                  {acts ? (
+                    <div className="mydoc__acts">
+                      {room ? (
+                        <Link href={`/portal/chat/${room}`} className="btn btn--line btn--sm">
+                          <IconChat />
+                          {t("openChat")}
+                        </Link>
+                      ) : null}
+                      {ready ? (
+                        <button
+                          type="button"
+                          className="btn btn--grad btn--sm"
+                          disabled={dlBusy === item.id}
+                          onClick={() => download(item)}
+                        >
+                          <IconDownload />
+                          {dlBusy === item.id ? tcommon("processingShort") : t("download")}
+                        </button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               </article>

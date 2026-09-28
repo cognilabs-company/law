@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
   getUrgentCatalog,
@@ -102,7 +103,12 @@ export default function UrgentAdvocatePanel() {
   const [mineState, setMineState] = useState<"loading" | "ready" | "error">("loading");
   const [reload, setReload] = useState(0);
 
-  const [pick, setPick] = useState("");
+  // ?service=<key> opens the page already on that service — the dashboard's
+  // road-accident card links straight to the one it names.
+  const params = useSearchParams();
+  const [pick, setPick] = useState(() => params.get("service") ?? "");
+  // The grouped card whose "which kind?" dialog is open, by card key.
+  const [kindPick, setKindPick] = useState("");
   // Stored as a PREFERENCE and resolved against what the picked service
   // offers, rather than corrected by an effect after the fact: switching to a
   // chat-only service must not leave one render showing a video price.
@@ -188,6 +194,7 @@ export default function UrgentAdvocatePanel() {
   // The record the detail modal is showing, re-read from the live list so a
   // realtime refetch updates what is open instead of freezing a copy.
   const openReq = useMemo(() => mine.find((r) => r.id === openId), [mine, openId]);
+  const kindCard = useMemo(() => cards.find((c) => c.key === kindPick && c.group), [cards, kindPick]);
   const channels = urgentChannels(sel);
   const channel = channels.includes(channelPref) ? channelPref : channels[0] || "video";
 
@@ -315,15 +322,14 @@ export default function UrgentAdvocatePanel() {
             // call-center — the single fastest fact about a service, and only
             // sayable about a box whose kinds agree on it.
             const now = card.items.every((x) => x.immediateCall);
-            const agree = now || card.items.every((x) => !x.immediateCall);
             return (
               <button
                 key={card.key}
                 type="button"
                 className={`uacard${on ? " on" : ""}`}
                 aria-pressed={on}
-                aria-describedby={lead || card.group ? `uaci-${card.key}` : undefined}
-                onClick={() => choose(s)}
+                aria-haspopup={card.group ? "dialog" : undefined}
+                onClick={() => (card.group ? setKindPick(card.key) : choose(s))}
               >
                 <span className="uacard__i"><Icon /></span>
                 <b className="uacard__t">{name}</b>
@@ -349,39 +355,6 @@ export default function UrgentAdvocatePanel() {
                   <span className="uacard__lock"><IconLock />{t("priorPurchaseShort")}</span>
                 ) : null}
                 <span className="uacard__go" aria-hidden><IconArrowRight /></span>
-
-                {/* Opens on hover and on keyboard focus (CSS), so the detail
-                    is reachable without a pointer. Not a title attribute:
-                    that cannot hold a list, and it never appears on touch. */}
-                {lead || card.group ? (
-                  <span className="uacard__info" id={`uaci-${card.key}`} role="note">
-                    {lead ? <span className="uacard__infod">{lead}</span> : null}
-                    <span className="uacard__infol">
-                      {card.items.map((x) => {
-                        const xc = urgentChannels(x);
-                        const xa = about(x.key);
-                        return (
-                          <span key={x.key} className="uacard__infoi">
-                            <b>
-                              {t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}
-                              <i>{x.variants.some((v) => v.pricePerLawyer)
-                                ? t("fromPerLawyer", { price: fmtUzs(urgentPrice(x, xc[0] || "video", 1)) })
-                                : t("from", { price: fmtUzs(urgentPrice(x, xc[0] || "video", 1)) })}</i>
-                            </b>
-                            {card.group && xa ? <span>{xa}</span> : null}
-                          </span>
-                        );
-                      })}
-                    </span>
-                    {/* Only when every kind in the box is delivered the same
-                        way; otherwise each kind's own line above says it. */}
-                    {agree ? (
-                      <span className="uacard__infof">
-                        {now ? t("deliveryNow") : t("deliveryPool")}
-                      </span>
-                    ) : null}
-                  </span>
-                ) : null}
               </button>
             );
           })}
@@ -594,6 +567,48 @@ export default function UrgentAdvocatePanel() {
           </ul>
         )}
       </section>
+
+      {/* Which kind — asked on the press, not buried in the form. */}
+      <Modal
+        open={!!kindCard}
+        onClose={() => setKindPick("")}
+        title={kindCard ? groupTitle(kindCard.group!) : ""}
+      >
+        {kindCard ? (
+          <div className="uakind">
+            {about(kindCard.group!.key) ? <p className="uakind__lead">{about(kindCard.group!.key)}</p> : null}
+            <div className="uakind__grid">
+              {kindCard.items.map((x) => {
+                const xc = urgentChannels(x);
+                const XIcon = ICONS[x.key] ?? IconScale;
+                const price = urgentPrice(x, xc[0] || "video", 1);
+                return (
+                  <button
+                    key={x.key}
+                    type="button"
+                    className="uakind__c"
+                    onClick={() => { setKindPick(""); choose(x); }}
+                  >
+                    <span className="uakind__i"><XIcon /></span>
+                    <b>
+                      {t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}
+                      <i>{x.variants.some((v) => v.pricePerLawyer)
+                        ? t("fromPerLawyer", { price: fmtUzs(price) })
+                        : t("from", { price: fmtUzs(price) })}</i>
+                    </b>
+                    {about(x.key) ? <span>{about(x.key)}</span> : null}
+                    <span className="uakind__f">
+                      {x.immediateCall ? <em className="uakind__now"><IconBolt />{t("immediate")}</em> : null}
+                      {x.requiresPriorPurchase ? <em className="uakind__lock"><IconLock />{t("priorPurchaseShort")}</em> : null}
+                    </span>
+                    <em className="uakind__go" aria-hidden><IconArrowRight /></em>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
       {/* The detail, as a modal rather than an accordion inside the list. */}
       <Modal

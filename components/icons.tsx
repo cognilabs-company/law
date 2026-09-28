@@ -638,6 +638,9 @@ const ICON_MAP: Record<string, ComponentType<P>> = {
   IconRocket,
   IconTarget,
   IconGraduation,
+  IconAlert,
+  IconClock,
+  IconChat,
 };
 
 export function Icon({ name, ...p }: { name: string } & P) {

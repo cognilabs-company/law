@@ -2055,7 +2055,6 @@ body:has(.rf) .fab{display:none}
 
 .subs{display:flex;flex-direction:column;gap:6px}
 
-
 /* ═══════════════ AUTH SPLIT LAYOUT ═══════════════ */
 body:has(.auth){padding-bottom:0}
 body:has(.auth) .bar,
@@ -2115,7 +2114,6 @@ body:has(.auth) .fab{display:none}
   .auth-formlogo,.rf__logo{display:none}
 }
 
-
 /* ── auth entrance: brand panel settles in, copy and stats follow, the form
    fills in field by field. Every element starts from its keyframe `from` state
    (fill-mode both), so nothing flashes before its turn. ── */
@@ -2172,7 +2170,6 @@ body:has(.auth) .fab{display:none}
   .auth__stats::before,.auth__stat,.auth__main .plogin__c--anim>*,.auth__main .plogin__c--anim .cform>*{animation:none!important}
 }
 
-
 /* ═══════════════ MONTH PICKER ═══════════════ */
 .mpick{position:relative;width:100%}
 .mpick__btn{width:100%;display:flex;align-items:center;gap:10px;background:var(--dk-surface-2, #F7FAFE);border:0;border-radius:14px;padding:13px 15px;
@@ -2214,7 +2211,6 @@ body:has(.auth) .fab{display:none}
 .pskel__row{height:56px;border-radius:14px;background:linear-gradient(90deg,var(--b50) 25%,var(--dk-tint-blue, #EEF4FE) 37%,var(--b50) 63%);background-size:400% 100%;animation:pshim 1.4s ease infinite}
 @keyframes pshim{0%{background-position:100% 0}100%{background-position:0 0}}
 
-
 /* ═══════════════ ADMIN PANEL ═══════════════ */
 .agrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
 @media (max-width:1100px){.agrid{grid-template-columns:minmax(0,1fr)}}
@@ -2228,7 +2224,6 @@ body:has(.auth) .fab{display:none}
 .anote{border-radius:12px;padding:11px 14px;font-size:.88rem;font-weight:600}
 .anote--ok{background:rgba(0,168,112,.12);color:var(--ok)}
 .anote--err{background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #C0392B)}
-
 
 /* admin list items (redesigned, no ids) */
 .alist{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
@@ -2245,12 +2240,10 @@ body:has(.auth) .fab{display:none}
 .atag--err{background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #C0392B)}
 .aitem__r{flex:none;font-family:var(--fd);font-weight:800;font-size:.95rem;color:var(--ink)}
 
-
 /* admin lists scroll inside the panel instead of growing the page */
 .alist{max-height:clamp(240px,46vh,460px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:4px}
 .alist::-webkit-scrollbar{width:8px}
 .alist::-webkit-scrollbar-thumb{background:var(--b200);border-radius:8px}
-
 
 /* admin header action row + modal */
 .ahdr{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
@@ -2264,7 +2257,6 @@ body:has(.auth) .fab{display:none}
 .amodal__x svg{width:16px;height:16px}
 .amodal__b{padding:22px}
 @keyframes pop{from{transform:translateY(12px) scale(.98);opacity:0}to{transform:none;opacity:1}}
-
 
 /* ═══════════════ SECURE CHAT ═══════════════ */
 body:has(.schat){overflow:hidden;padding-bottom:0}
@@ -7035,27 +7027,41 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .uacard__d{font-size:.8rem;line-height:1.5;color:var(--gray);display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .uacard__f em.uacard__now{color:var(--dk-txt-warn, #b45309);background:var(--dk-warn-bg, #FEF3C7)}
 .uacard__f em.uacard__kinds{color:var(--dk-acc, var(--b600));background:var(--b100)}
-/* The detail panel. Opens on hover and on keyboard focus, never on touch —
-   where there is no hover the card's own description is the whole story. */
-.uacard__info{position:absolute;left:10px;right:10px;bottom:calc(100% - 6px);z-index:8;
-  display:grid;gap:9px;padding:13px 14px;border-radius:16px;text-align:left;
-  background:var(--dk-surface, #fff);border:1px solid var(--line);box-shadow:var(--s3, 0 18px 42px -16px rgba(16,40,80,.34));
-  opacity:0;visibility:hidden;transform:translateY(6px) scale(.985);transform-origin:50% 100%;
-  transition:opacity .16s,transform .2s cubic-bezier(.2,.8,.2,1),visibility .16s;pointer-events:none}
-.uacard:hover .uacard__info,.uacard:focus-visible .uacard__info{opacity:1;visibility:visible;transform:none}
-.uacard__infod{font-size:.82rem;line-height:1.55;color:var(--ink)}
-.uacard__infol{display:grid;gap:8px}
-.uacard__infoi{display:grid;gap:2px;padding-top:8px;border-top:1px dashed var(--line)}
-.uacard__infoi:first-child{padding-top:0;border-top:0}
-.uacard__infoi b{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:.82rem;font-weight:700}
-.uacard__infoi b i{flex:none;font-style:normal;font-size:.76rem;font-weight:800;color:var(--dk-acc, var(--b600))}
-.uacard__infoi>span{font-size:.76rem;line-height:1.5;color:var(--gray)}
-.uacard__infof{display:flex;align-items:center;gap:6px;font-size:.74rem;font-weight:600;color:var(--gray2);
-  padding-top:8px;border-top:1px solid var(--line)}
-@media (max-width:760px){.uacard__info{display:none}}
 /* What the chosen kind changes, under the switch that chose it. */
 .ua__kindnote{margin:8px 0 0;font-size:.8rem;line-height:1.55;color:var(--gray);
   padding:9px 11px;border-radius:12px;background:var(--dk-surface-2, #F7FAFE)}
+
+/* ── wp-uakind: which kind of this service — asked on the press ───
+   A card holding more than one kind (the two video consultations, the two
+   second opinions) opens this instead of guessing. The switch inside the
+   form is still there to change your mind with. */
+.uakind{display:grid;gap:14px}
+.uakind__lead{margin:0;font-size:.88rem;line-height:1.55;color:var(--gray)}
+.uakind__grid{display:grid;gap:10px}
+.uakind__c{position:relative;display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:start;
+  width:100%;text-align:left;padding:16px 46px 16px 16px;cursor:pointer;color:inherit;
+  border:1.5px solid var(--line);border-radius:16px;background:var(--dk-surface, #fff);
+  transition:border-color .18s,box-shadow .18s,transform .18s}
+.uakind__c:hover{border-color:var(--b300);box-shadow:var(--s2);transform:translateY(-2px)}
+.uakind__c:focus-visible{outline:3px solid var(--b400);outline-offset:2px}
+.uakind__i{grid-column:1;grid-row:1;width:42px;height:42px;border-radius:13px;display:grid;place-items:center;
+  background:var(--b100);color:var(--dk-acc, var(--b600))}
+.uakind__i svg{width:21px;height:21px}
+.uakind__c>b,.uakind__c>span:not(.uakind__i),.uakind__c>.uakind__f{grid-column:2}
+.uakind__c b{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:.95rem;font-weight:700;line-height:1.35}
+.uakind__c b i{font-style:normal;font-size:.8rem;font-weight:800;color:var(--dk-acc, var(--b600))}
+.uakind__c>span:not(.uakind__i):not(.uakind__f){font-size:.82rem;line-height:1.5;color:var(--gray)}
+.uakind__f{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.uakind__f em{display:inline-flex;align-items:center;gap:4px;font-style:normal;font-size:.72rem;font-weight:700;
+  padding:3px 9px;border-radius:var(--pill)}
+.uakind__f svg{width:12px;height:12px}
+.uakind__now{color:var(--dk-txt-warn, #b45309);background:var(--dk-warn-bg, #FEF3C7)}
+.uakind__lock{color:var(--gray);background:var(--dk-surface-2, #F2F6FC)}
+.uakind__go{position:absolute;right:15px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;
+  display:grid;place-items:center;background:var(--dk-surface-2, #F2F6FC);color:var(--dk-acc, var(--b600));
+  font-style:normal;transition:background .18s,color .18s}
+.uakind__go svg{width:14px;height:14px}
+.uakind__c:hover .uakind__go{background:var(--b600);color:#fff}
 
 /* ── wp-uarow: the whole row opens the detail ────────────────────── */
 .ua__row--tap{cursor:pointer;transition:background .16s,box-shadow .16s,transform .16s}
@@ -7064,14 +7070,11 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .ua__row--tap:active{transform:scale(.996)}
 
 /* ── wp-svflat: every direction in one list ──────────────────────── */
-.svfam__filter{padding-bottom:10px}
-.fchip__n{margin-left:7px;font-style:normal;font-size:.74rem;font-weight:800;opacity:.72}
 .svfam__cat{display:block;font-size:.72rem;font-weight:700;letter-spacing:.02em;color:var(--dk-acc, var(--b600))}
 
 /* ── wp-attach: a file or a voice note, two equal buttons ────────── */
 .docpick__row--vp{align-items:center;gap:10px}
 .docpick__row--vp .vpill--wide{margin-left:0}
-.docassist__hint{margin:-2px 0 6px;font-size:.78rem;line-height:1.5;color:var(--gray)}
 /* The labelled resting state of the voice control: the same height, radius
    and hairline as .btn--line.btn--sm beside it, so the two read as a pair.
    The moment recording starts, --vp-h takes over again and it is a pill. */
@@ -7092,40 +7095,58 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .vpill--wide.vpill--on .vpill__g{position:absolute;inset:0;width:auto;height:auto}
 .vpill--wide.vpill--on .vpill__lbl{display:none}
 
-/* ── wp-dreq: "Mening hujjatlarim" ───────────────────────────────── */
-.dreqs{display:grid;gap:12px}
-.dreq{position:relative;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start;
-  padding:16px;border:1.5px solid var(--line);border-radius:18px;background:var(--dk-surface, #fff);
-  transition:border-color .18s,box-shadow .18s,transform .18s}
-.dreq::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:var(--line)}
-.dreq--lawyer::before{background:var(--b600)}
-.dreq--ai::before{background:linear-gradient(180deg,var(--b400),var(--ok))}
-.dreq--self::before{background:var(--gray2)}
-.dreq--ready{border-color:var(--ok);box-shadow:0 0 0 3px var(--dk-tint-ok, rgba(0,168,112,.12))}
-.dreq:hover{box-shadow:var(--s2);transform:translateY(-2px)}
-.dreq__i{width:42px;height:42px;border-radius:13px;flex:none;display:grid;place-items:center;background:var(--b100);color:var(--dk-acc, var(--b600))}
-.dreq__i svg{width:20px;height:20px}
-.dreq__i--ai{background:linear-gradient(135deg,var(--dk-tint-blue, #EAF3FF),var(--dk-tint-ok, #E6F7F1))}
-.dreq__i--self{background:var(--dk-surface-2, #F2F6FC);color:var(--gray)}
-.dreq__m{min-width:0;display:grid;gap:5px}
-.dreq__top{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.dreq__t{font-size:.96rem;font-weight:700;line-height:1.35;min-width:0;overflow-wrap:anywhere}
-.dreq__st{font-style:normal;flex:none}
-.dreq__mode{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gray2)}
-.dreq__next{display:flex;gap:7px;align-items:flex-start;margin:3px 0 0;font-size:.84rem;line-height:1.5;color:var(--ink);
-  padding:8px 11px;border-radius:12px;background:var(--dk-surface-2, #F7FAFE)}
-.dreq__next svg{width:14px;height:14px;flex:none;margin-top:3px;color:var(--dk-acc, var(--b600))}
-.dreq__row{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:2px}
-.dreq__row small{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;color:var(--gray)}
-.dreq__row svg{width:13px;height:13px;flex:none}
-.dreq__live{color:var(--ok);font-weight:700}
-.dreq__acts{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
-.dreq__ready{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:800;color:var(--ok);
-  background:var(--dk-tint-ok, #E1F6EE);padding:4px 10px;border-radius:var(--pill)}
-.dreq__ready svg{width:12px;height:12px;stroke-width:3}
-@media (max-width:640px){
-  .dreq{grid-template-columns:auto 1fr;gap:12px}
-  .dreq__acts{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start}
+/* ── wp-mydoc: "Mening hujjatlarim" ───────────────────────────────── */
+.mydocs{display:grid;gap:10px}
+/* Two columns only — icon and content. The status pill and the buttons used
+   to live in a flex row and a third grid column respectively, and on a long
+   title they overlapped each other. Everything that is about the request now
+   sits in one column, in reading order. */
+.mydoc{position:relative;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;
+  padding:15px 18px 15px 17px;border:1px solid var(--line);border-radius:16px;background:var(--dk-surface, #fff);
+  box-shadow:var(--s1);transition:border-color .18s,box-shadow .18s,transform .18s}
+.mydoc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:16px 0 0 16px;background:var(--line)}
+.mydoc--lawyer::before{background:var(--b600)}
+.mydoc--ai::before{background:linear-gradient(180deg,var(--b400),var(--ok))}
+.mydoc--manual::before{background:var(--gray2)}
+.mydoc--ready{border-color:var(--ok)}
+.mydoc--ready::before{background:var(--ok)}
+.mydoc:hover{box-shadow:var(--s2);transform:translateY(-1px)}
+.mydoc__i{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;background:var(--b100);color:var(--dk-acc, var(--b600))}
+.mydoc__i svg{width:18px;height:18px}
+.mydoc__i--ai{background:linear-gradient(135deg,var(--dk-tint-blue, #EAF3FF),var(--dk-tint-ok, #E6F7F1))}
+.mydoc__i--manual{background:var(--dk-surface-2, #F2F6FC);color:var(--gray)}
+
+.mydoc__m{min-width:0;display:grid;gap:7px}
+/* The title takes the room it needs and the pill keeps its own column, so a
+   three-line Cyrillic title cannot push the status off the card. */
+.mydoc__top{display:grid;grid-template-columns:1fr auto;gap:8px 14px;align-items:start}
+.mydoc__t{font-size:.94rem;font-weight:700;line-height:1.4;min-width:0;overflow-wrap:anywhere}
+.mydoc__st{flex:none;justify-self:end;font-style:normal;white-space:nowrap;font-size:.72rem;font-weight:700;
+  padding:4px 11px;border-radius:var(--pill);background:var(--dk-surface-2, #F2F6FC);color:var(--gray)}
+/* Read the list down its right edge: green is finished, blue is being worked
+   on, amber is waiting on the client. */
+.mydoc__st--done{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
+.mydoc__st--waiting{background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
+.mydoc__st--you{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+
+.mydoc__row{display:flex;flex-wrap:wrap;align-items:center;gap:5px 13px}
+.mydoc__row small{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;color:var(--gray);min-width:0}
+.mydoc__row svg{width:13px;height:13px;flex:none}
+/* How the document is being made — a quiet chip, not a shouted caption. */
+.mydoc__mode{font-weight:600;color:var(--gray2)}
+.mydoc__mode svg{opacity:.8}
+.mydoc__live{color:var(--ok);font-weight:700}
+
+.mydoc__next{display:flex;gap:7px;align-items:flex-start;margin:0;font-size:.83rem;line-height:1.5;color:var(--gray)}
+.mydoc__next svg{width:14px;height:14px;flex:none;margin-top:3px;color:var(--dk-acc, var(--b600))}
+.mydoc--ready .mydoc__next{color:var(--ink)}
+
+.mydoc__acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:3px}
+@media (max-width:560px){
+  .mydoc{grid-template-columns:1fr;gap:10px;padding:14px 15px 14px 16px}
+  .mydoc__i{display:none}
+  .mydoc__top{grid-template-columns:1fr}
+  .mydoc__st{justify-self:start}
 }
 
 /* ── wp-pkg: three tiers that can be told apart ──────────────────── */
@@ -7149,19 +7170,48 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .pkg__cmp{color:var(--gray);font-weight:500}
 .pkg__acts .btn svg{width:14px;height:14px}
 
-/* ── wp-uainfo-fix: the service cards sit at the top of the page, so a panel
-   that opened upward was clipped by the viewport. It opens downward — there
-   is always the requests list underneath to cover. ─────────────────── */
-.uacard__info{bottom:auto;top:calc(100% - 8px);transform-origin:50% 0;transform:translateY(-6px) scale(.985)}
-.uacard:hover .uacard__info,.uacard:focus-visible .uacard__info{transform:none}
+/* ── wp-cdpri: the primary quick action ──────────────────────────
+   "Muammoni tavsiflash" is the one card on the dashboard that starts a
+   journey rather than opening a list, and it now asks a question when it is
+   pressed. It was the same box as the other five with a gradient poured over
+   it. It carries its own weight: a soft glow behind the icon, a sweep of
+   light on hover, and a chevron that says something opens. */
+button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line);cursor:pointer;width:100%}
+.cdact__i--pri{position:relative;overflow:hidden;box-shadow:0 14px 34px -14px rgba(22,104,240,.55)}
+.cdact__i--pri::before{content:"";position:absolute;right:-42px;top:-52px;width:150px;height:150px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.34),rgba(255,255,255,0) 68%);pointer-events:none}
+/* A slow sweep across the card on hover — one pass, not a loop. */
+.cdact__i--pri::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.22) 50%,transparent 62%);
+  transform:translateX(-120%);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.cdact__i--pri:hover::after{transform:translateX(120%)}
+.cdact__i--pri:hover{box-shadow:0 20px 40px -14px rgba(22,104,240,.62)}
+.cdact__i--pri .cdact__ico{width:46px;height:46px;background:rgba(255,255,255,.22);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.28)}
+.cdact__i--pri .cdact__ico svg{width:23px;height:23px}
+/* The chevron: drawn in CSS so the card keeps its two-child markup. */
+.cdact__i--pri>span:last-child{position:relative;padding-right:22px}
+.cdact__i--pri>span:last-child::after{content:"";position:absolute;right:2px;top:5px;width:7px;height:7px;
+  border-right:2px solid rgba(255,255,255,.85);border-top:2px solid rgba(255,255,255,.85);
+  transform:rotate(45deg);transition:transform .2s,right .2s}
+.cdact__i--pri:hover>span:last-child::after{right:0;transform:rotate(45deg) translate(1px,-1px)}
+@media (prefers-reduced-motion:reduce){
+  .cdact__i--pri::after{display:none}
+}
 
-/* ── wp-dreq-fix: the status pill wrapped onto the line the mode chip was
-   already using. Title and pill are two columns now, so a long title wraps
-   inside its own. ────────────────────────────────────────────────────── */
-.dreq__top{flex-wrap:nowrap;align-items:flex-start;justify-content:space-between}
-.dreq__t{flex:1 1 auto}
-.dreq__st{margin-top:1px;white-space:nowrap}
-@media (max-width:520px){
-  .dreq__top{flex-wrap:wrap}
-  .dreq__st{flex:none}
+/* ── wp-svfilt: the directions filter ────────────────────────────
+   A row of toggle chips could not say what it was filtering, took a line of
+   its own, and grew with the catalog. Two labelled selects instead. */
+.svfilt{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-bottom:16px}
+.svfilt__f{display:flex;flex-direction:column;gap:6px;min-width:min(232px,100%);flex:0 1 auto}
+.svfilt__f>span{font-size:.76rem;font-weight:700;letter-spacing:.02em;color:var(--gray2)}
+.svfilt__clear{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 14px;border:0;cursor:pointer;
+  border-radius:12px;background:var(--dk-surface-2, #F2F6FC);color:var(--gray);font:inherit;font-size:.84rem;font-weight:700;
+  transition:background .18s,color .18s}
+.svfilt__clear:hover{background:var(--b100);color:var(--dk-acc, var(--b600))}
+.svfilt__clear svg{width:14px;height:14px}
+@media (max-width:560px){
+  .svfilt{flex-direction:column;align-items:stretch}
+  .svfilt__f{min-width:0}
+  .svfilt__clear{align-self:flex-start}
 }
