@@ -21,16 +21,16 @@ import {
   type UrgentService,
   type UrgentRequest,
   type UrgentGroup,
+  type UrgentCreated,
 } from "@/lib/services/backend";
 import { subscribeUserEvents, onUserSocketResync } from "@/lib/userSocket";
 import { errDetail, logApiError } from "@/lib/http";
-import { REGION_KEYS } from "@/lib/lawyers";
 import { fmtUzs } from "@/lib/money";
 import { dateTimeFull } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
 import { Link } from "@/i18n/navigation";
-import Select from "@/components/Select";
 import Modal from "@/components/admin/Modal";
+import CallRoom from "@/components/chat/CallRoom";
 import { Skeleton, EmptyState } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import {
@@ -109,13 +109,18 @@ export default function UrgentAdvocatePanel() {
   const [pick, setPick] = useState(() => params.get("service") ?? "");
   // The grouped card whose "which kind?" dialog is open, by card key.
   const [kindPick, setKindPick] = useState("");
+  // LexGo Express Videokonsultatsiya, 2026-09-28: the express and YTX kinds
+  // do not queue. The POST comes back with an on-duty advocate already
+  // assigned and an audio call ringing, so the client goes straight into the
+  // call rather than to a list of requests. Verified live: status
+  // "meeting_active", immediate_call true, call_type "audio".
+  const [live, setLive] = useState<{ call: UrgentCreated["call"]; workId: string } | null>(null);
   // Stored as a PREFERENCE and resolved against what the picked service
   // offers, rather than corrected by an effect after the fact: switching to a
   // chat-only service must not leave one render showing a video price.
   const [channelPref, setChannelPref] = useState("video");
   const [lawyers, setLawyers] = useState(3);
   const [dirs, setDirs] = useState<string[]>([]);
-  const [region, setRegion] = useState("tashkent");
   const [need, setNeed] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -245,18 +250,23 @@ export default function UrgentAdvocatePanel() {
         serviceKind: sel.key,
         channel,
         need: need.trim(),
-        region,
         directions: dirs,
         lawyerCount: isGroup ? lawyers : undefined,
       });
-      setNote({ ok: true, msg: t("sent") });
       // The whole form resets, not just the text: leaving the practice areas
       // ticked meant the next order silently inherited the last one's.
       setNeed("");
       setDirs([]);
       setPick("");
-      setFresh(created.id);
+      setFresh(created.request.id);
       setReload((k) => k + 1);
+      if (created.immediateCall && created.call) {
+        // Straight into the room. No "your request was sent" banner — it was
+        // not sent anywhere, it is ringing.
+        setLive({ call: created.call, workId: created.request.workId });
+        return;
+      }
+      setNote({ ok: true, msg: t("sent") });
     } catch (e) {
       if (isPriorPurchaseRequired(e)) { setGate(errDetail(e) || t("priorPurchase")); return; }
       logApiError("urgent request", e);
@@ -457,16 +467,6 @@ export default function UrgentAdvocatePanel() {
             </div>
 
             <div>
-              <label>{t("region")}</label>
-              <Select
-                value={region}
-                onChange={setRegion}
-                ariaLabel={t("region")}
-                options={REGION_KEYS.map((k) => ({ value: k, label: te.has(`regions.${k}`) ? te(`regions.${k}`) : k }))}
-              />
-            </div>
-
-            <div>
               <label htmlFor="ua-need">{t("need")}</label>
               <textarea
                 id="ua-need"
@@ -580,6 +580,22 @@ export default function UrgentAdvocatePanel() {
           </ul>
         )}
       </section>
+
+      {/* An express or YTX request is a call, not a queue entry: it opens
+          here the moment the backend answers. `callType` comes off the
+          session the backend made, which is audio even for the kind whose
+          name says video. */}
+      {live && live.call ? (
+        <CallRoom
+          roomId={live.call.roomId}
+          callId={live.call.id}
+          callType={live.call.callType === "video" ? "video" : "audio"}
+          isCaller
+          lk={{ url: live.call.livekitUrl, token: live.call.livekitToken, room: live.call.livekitRoom }}
+          title={live.workId ? `${t("kinds.express_video_consultation")} · ${live.workId}` : undefined}
+          onEnd={() => { setLive(null); setReload((k) => k + 1); }}
+        />
+      ) : null}
 
       {/* Which kind — asked on the press, not buried in the form. */}
       <Modal

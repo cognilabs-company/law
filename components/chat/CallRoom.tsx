@@ -9,12 +9,16 @@ import {
   VideoPresets,
   VideoPresets43,
   ScreenSharePresets,
+  isVideoCodec,
+  type ConnectionQuality,
   type LocalParticipant,
   type LocalVideoTrack,
   type Participant,
   type RemoteParticipant,
   type RemoteTrack,
+  type RoomOptions,
   type TrackPublication,
+  type VideoResolution,
 } from "livekit-client";
 import {
   getCallJoinToken,
@@ -32,8 +36,10 @@ import {
   requestCallExtensionPayment,
   type LiveKitJoin,
   type CallSession,
+  type CallConnectionHints,
   type CallParticipant,
   type CallPermissions,
+  type CallQualityPolicy,
 } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
@@ -99,6 +105,75 @@ const roleOf = (p: Participant): string => {
   try { return String((JSON.parse(p.metadata || "{}") as { role?: unknown }).role ?? ""); } catch { return ""; }
 };
 
+// ── Adaptive call quality ────────────────────────────────────────
+// The backend ships a per-call quality policy (LexGo Call Adaptive Quality):
+// the Room options it wants, a video profile ladder, and what this client
+// should do at each LiveKit connection-quality rating. Measured over 148 live
+// calls, every call carries one — but a null policy has to keep behaving
+// exactly like the room did before it existed.
+// The rungs, weakest first, so an action can be told apart as an upgrade or a
+// downgrade without asking the backend which way the ladder runs.
+const PROFILE_RANK = ["audio_only", "low", "medium", "high"];
+// How long the connect path will wait for the policy before giving up on it.
+// Ringing must never be held hostage to an extra read: past this the Room is
+// built exactly the way it was built before policies existed.
+const POLICY_WAIT_MS = 2500;
+const rungOf = (name: string) => PROFILE_RANK.indexOf(name);
+const resOf = (p: { width: number; height: number; fps: number }): VideoResolution => ({ width: p.width, height: p.height, frameRate: p.fps });
+// Room options are frozen at construction, so the policy has to be in hand
+// before `new Room` — hence the fetch on the connect path rather than a
+// later hand-off from the meta poll. Without a policy this returns exactly
+// the values the room has always used.
+function roomOptionsFor(pol: CallQualityPolicy | null, phone: boolean): RoomOptions {
+  const base: RoomOptions = {
+    // Subscribers pick the layer their tile really needs (screen pixels, not
+    // CSS pixels) — a tile that looks small on a retina screen still gets a
+    // sharp layer; video keeps flowing while the tab is briefly hidden.
+    adaptiveStream: { pixelDensity: "screen", pauseVideoInBackground: false },
+    dynacast: true,
+    publishDefaults: {
+      simulcast: true,
+      // Top layer = the capture resolution (720p desktop / 540p 4:3 phone);
+      // weaker viewers fall back to 360p / 180p instead of a blurry single stream.
+      videoSimulcastLayers: phone ? [VideoPresets43.h240, VideoPresets43.h360] : [VideoPresets.h360, VideoPresets.h540],
+      screenShareEncoding: ScreenSharePresets.h1080fps15.encoding,
+      screenShareSimulcastLayers: [ScreenSharePresets.h720fps15],
+      videoEncoding: VideoPresets.h720.encoding,
+    },
+    // Phones: 4:3 capture (a 16:9 crop of a 4:3 sensor looks zoomed, especially on the back camera).
+    videoCaptureDefaults: { facingMode: "user", resolution: phone ? VideoPresets43.h540.resolution : VideoPresets.h720.resolution },
+  };
+  if (!pol) return base;
+  const low = pol.profiles.low;
+  return {
+    ...base,
+    // The policy only says whether adaptiveStream is on at all; the tuning
+    // inside it (pixel density, background behaviour) stays ours.
+    adaptiveStream: pol.room.adaptiveStream ? base.adaptiveStream : false,
+    dynacast: pol.room.dynacast,
+    stopLocalTrackOnUnpublish: pol.room.stopLocalTrackOnUnpublish,
+    audioCaptureDefaults: {
+      echoCancellation: pol.audioCapture.echoCancellation,
+      noiseSuppression: pol.audioCapture.noiseSuppression,
+      autoGainControl: pol.audioCapture.autoGainControl,
+    },
+    publishDefaults: {
+      ...base.publishDefaults,
+      simulcast: pol.publish.simulcast,
+      dtx: pol.publish.dtx,
+      red: pol.publish.red,
+      backupCodec: pol.publish.backupCodec,
+      // The backend sends a free-form string; anything the SDK does not know
+      // would be published as-is and fail, so an unknown name keeps vp8.
+      ...(isVideoCodec(pol.publish.videoCodec) ? { videoCodec: pol.publish.videoCodec } : {}),
+    },
+    // start_profile is "low" on every video call: capture small and let the
+    // connection-quality actions climb, rather than opening at 720p and
+    // dropping once the link is already saturated.
+    videoCaptureDefaults: low ? { facingMode: "user", resolution: resOf(low) } : base.videoCaptureDefaults,
+  };
+}
+
 // The meeting-limit slice of a call, kept as its own object so the room can
 // re-read it wholesale on every poll without re-rendering on unrelated
 // roster churn.
@@ -149,6 +224,29 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(callType === "video");
   const [camBusy, setCamBusy] = useState(false);
+  // The call's adaptive-quality policy. In state because `video_enabled`
+  // decides whether the camera control exists at all; in a ref because the
+  // LiveKit handlers are registered once and would otherwise close over the
+  // null it had at connect time.
+  const [quality, setQuality] = useState<CallQualityPolicy | null>(null);
+  const qualityRef = useRef<CallQualityPolicy | null>(null);
+  // Guarded, so a poll that has not answered yet cannot wipe the policy the
+  // connect path already fetched.
+  useEffect(() => { if (quality) qualityRef.current = quality; }, [quality]);
+  // Transport hints. Nothing here is rendered — only auto_quality is read,
+  // as the switch that says whether this client may walk the ladder at all.
+  const hintsRef = useRef<CallConnectionHints | null>(null);
+  // Which rung the adaptive controller is currently on, so a repeated
+  // "excellent" does not restart the camera over and over.
+  const profileRef = useRef("");
+  // What the USER wants the camera to be. An auto-upgrade may bring back a
+  // camera the controller put away; it must never switch on one the person
+  // deliberately switched off.
+  const camWantedRef = useRef(false);
+  const autoCamOffRef = useRef(false);
+  // Set between Reconnecting and Reconnected: a LiveKit auto-reconnect is not
+  // a hang-up and must not run the "everybody left" countdown.
+  const reconnectingRef = useRef(false);
   const [sharing, setSharing] = useState(false);
   const [mirror, setMirror] = useState(true); // front camera preview is mirrored
   const facingRef = useRef<"user" | "environment">("user");
@@ -326,27 +424,11 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     // connections. Phones capture with the front camera at 360p — a portrait
     // stream; tiles follow the stream's orientation (see Tile).
     const phone = PORTRAIT_HINT();
-    const room = new Room({
-      // Subscribers pick the layer their tile really needs (screen pixels, not
-      // CSS pixels) — a tile that looks small on a retina screen still gets a
-      // sharp layer; video keeps flowing while the tab is briefly hidden.
-      adaptiveStream: { pixelDensity: "screen", pauseVideoInBackground: false },
-      dynacast: true,
-      publishDefaults: {
-        simulcast: true,
-        // Top layer = the capture resolution (720p desktop / 540p 4:3 phone);
-        // weaker viewers fall back to 360p / 180p instead of a blurry single stream.
-        videoSimulcastLayers: phone ? [VideoPresets43.h240, VideoPresets43.h360] : [VideoPresets.h360, VideoPresets.h540],
-        screenShareEncoding: ScreenSharePresets.h1080fps15.encoding,
-        screenShareSimulcastLayers: [ScreenSharePresets.h720fps15],
-        videoEncoding: VideoPresets.h720.encoding,
-      },
-      // Phones: 4:3 capture (a 16:9 crop of a 4:3 sensor looks zoomed, especially on the back camera).
-      videoCaptureDefaults: { facingMode: "user", resolution: phone ? VideoPresets43.h540.resolution : VideoPresets.h720.resolution },
-    });
-    roomRef.current = room;
-    // Publish the Room to render after this effect settles (not synchronously).
-    const publish = setTimeout(() => { if (alive) setRoom(room); }, 0);
+    // Built below rather than here: its options come from the backend's
+    // quality policy and a Room cannot be reconfigured after construction.
+    // Every handler closes over this binding, and none of them can fire
+    // before it is filled.
+    let room: Room | null = null;
 
     const attachAudio = (track: RemoteTrack) => {
       const c = audioRef.current;
@@ -357,7 +439,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     };
     // Approvers tell the room they can grant recording (newcomers too).
     const announceRole = () => {
-      if (!approverRef.current || !connectedRef.current) return;
+      if (!approverRef.current || !connectedRef.current || !room) return;
       room.localParticipant.publishData(enc({ t: "role", approver: true, at: Date.now() }), { reliable: true }).catch(() => {});
     };
     const onJoin = (p: RemoteParticipant) => {
@@ -385,13 +467,74 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       setRecBy((cur) => { if (!cur.has(p.identity)) return cur; const n = new Set(cur); n.delete(p.identity); return n; });
       setRecAsks((a) => a.filter((x) => x.id !== p.identity));
       setAnnounced((cur) => { if (!cur.has(p.identity)) return cur; const n = new Set(cur); n.delete(p.identity); return n; });
-      if (room.remoteParticipants.size === 0 && hadRemoteRef.current && !keepAlone) {
+      // Not while LiveKit is re-establishing the session: a full reconnect
+      // drops and re-adds the remote participants, and that momentary empty
+      // room used to be indistinguishable from everyone hanging up.
+      if (room?.remoteParticipants.size === 0 && hadRemoteRef.current && !keepAlone && !reconnectingRef.current) {
         toast(t("emptyEnding", { s: EMPTY_GRACE_SEC }), "leave");
         setEmptyLeft(EMPTY_GRACE_SEC);
       }
     };
 
-    room
+    // ── The quality ladder ───────────────────────────────────────
+    // Silent by contract: user_visible_quality_prompt is false on every call
+    // in production and connection_hints says "the client switches quality
+    // silently", so nothing below may reach the screen — no toast, no status
+    // line, no wording about the connection.
+    const applyProfile = async (name: string, cameraAllowed: boolean) => {
+      const pol = qualityRef.current;
+      if (!room || !pol || !connectedRef.current) return;
+      const lp = room.localParticipant;
+      // audio_only (and any action that forbids the camera) drops video only:
+      // audio_priority means the mic is the last thing to go, never the first.
+      if (!cameraAllowed || name === "audio_only" || !pol.videoEnabled) {
+        profileRef.current = "audio_only";
+        if (!lp.isCameraEnabled) return;
+        autoCamOffRef.current = true;
+        await lp.setCameraEnabled(false).catch(() => {});
+        if (alive) setCamOn(false);
+        return;
+      }
+      const prof = pol.profiles[name];
+      if (!prof) return;
+      if (!lp.isCameraEnabled) {
+        // Only a camera THIS controller put away comes back, and only into a
+        // call that is not paused (a paused call publishes nothing at all).
+        if (!autoCamOffRef.current || !camWantedRef.current || pausedRef.current) return;
+        autoCamOffRef.current = false;
+        profileRef.current = name;
+        await lp.setCameraEnabled(true, { facingMode: facingRef.current, resolution: resOf(prof) }).catch(() => {});
+        if (alive) { setCamOn(true); bump(); }
+        return;
+      }
+      if (profileRef.current === name) return;
+      profileRef.current = name;
+      const track = lp.getTrackPublication(Track.Source.Camera)?.track as LocalVideoTrack | undefined;
+      // restartTrack swaps the capture track inside the existing publication:
+      // no second publish, so the backend's negotiation-loop guard never sees
+      // a quality change at all.
+      if (track) await track.restartTrack({ facingMode: facingRef.current, resolution: resOf(prof) }).catch(() => {});
+    };
+    const onQuality = (q: ConnectionQuality, p: Participant) => {
+      // Remote participants rate their own uplink; only mine says anything
+      // about what this client should be publishing.
+      if (!alive || !p.isLocal) return;
+      const pol = qualityRef.current;
+      if (!pol || hintsRef.current?.autoQuality === false) return;
+      // Production ships user_visible_quality_prompt=false. Were it ever
+      // true the contract would be "ask before switching", and this room has
+      // no prompt to ask with — so it does nothing rather than switch behind
+      // a flag that says not to.
+      if (pol.userVisibleQualityPrompt) return;
+      const act = pol.actions[q];
+      if (!act) return; // ConnectionQuality.Unknown has no action
+      const up = rungOf(act.profile) > rungOf(profileRef.current);
+      if (up ? !pol.autoUpgrade : !pol.autoDowngrade) return;
+      if (!pol.audioOnlyFallback && act.profile === "audio_only") return;
+      void applyProfile(act.profile, act.cameraAllowed);
+    };
+
+    const wire = (r: Room) => r
       .on(RoomEvent.TrackSubscribed, (track) => { if (track.kind === Track.Kind.Audio) attachAudio(track); if (alive) { bump(); setStatus("live"); } })
       .on(RoomEvent.TrackUnsubscribed, (track) => { // Video elements belong to React tiles — only the hidden audio elements are removed.
         track.detach().forEach((e) => { if (e.tagName === "AUDIO") e.remove(); }); if (alive) bump(); })
@@ -403,7 +546,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       .on(RoomEvent.LocalTrackPublished, (pub) => { if (alive) { bump(); if (pub.source === Track.Source.ScreenShare) setSharing(true); } })
       .on(RoomEvent.LocalTrackUnpublished, (pub) => { if (alive) { bump(); if (pub.source === Track.Source.ScreenShare) setSharing(false); } })
       // Browser autoplay policy can block remote audio until a user gesture.
-      .on(RoomEvent.AudioPlaybackStatusChanged, () => { if (alive) setAudioBlocked(!room.canPlaybackAudio); })
+      .on(RoomEvent.AudioPlaybackStatusChanged, () => { if (alive) setAudioBlocked(!r.canPlaybackAudio); })
       // Reflect a host/server mute of my own mic instantly in the UI.
       .on(RoomEvent.TrackMuted, (pub, p) => { if (!alive) return; bump(); if (p.isLocal && pub.source === Track.Source.Microphone) setMicOn(false); })
       .on(RoomEvent.TrackUnmuted, (pub, p) => { if (!alive) return; bump(); if (p.isLocal && pub.source === Track.Source.Microphone) setMicOn(true); })
@@ -459,19 +602,79 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           }
         } catch { /* not ours */ }
       })
-      .on(RoomEvent.Disconnected, () => { if (alive) { setStatus("ended"); finish(); } });
+      .on(RoomEvent.ConnectionQualityChanged, onQuality)
+      // Three distinct states, where there used to be one. LiveKit drives its
+      // own reconnect: the session is coming back, the tracks and the roster
+      // survive it, and none of that is a hang-up — so it only falls back to
+      // the generic "connecting" line the header already renders.
+      .on(RoomEvent.Reconnecting, () => {
+        if (!alive) return;
+        reconnectingRef.current = true;
+        setStatus("connecting");
+      })
+      .on(RoomEvent.Reconnected, () => {
+        if (!alive) return;
+        reconnectingRef.current = false;
+        setStatus(r.remoteParticipants.size ? "live" : "ringing");
+        bump();
+        // A full reconnect renegotiates the publisher from scratch, so the
+        // camera can come back down even though nobody touched it. Restore it
+        // only where the policy still has video, the user still wants it, and
+        // the last action did not take it away.
+        const pol = qualityRef.current;
+        const lp = r.localParticipant;
+        if (!pol || !pol.videoEnabled || !camWantedRef.current || autoCamOffRef.current || pausedRef.current || lp.isCameraEnabled) return;
+        const prof = pol.profiles[profileRef.current] ?? pol.profiles.low;
+        void lp
+          .setCameraEnabled(true, prof ? { facingMode: facingRef.current, resolution: resOf(prof) } : undefined)
+          .then(() => { if (alive) { setCamOn(true); bump(); } })
+          .catch(() => {});
+      })
+      // Terminal, exactly as before. LiveKit emits this only once its own
+      // reconnect attempts are spent, so reaching here really is the end of
+      // the call and not an attempt in progress.
+      .on(RoomEvent.Disconnected, () => {
+        if (!alive) return;
+        reconnectingRef.current = false;
+        setStatus("ended");
+        finish();
+      });
 
     (async () => {
       try {
-        const creds = lk && lk.token ? lk : await getCallJoinToken(roomId, callId);
-        if (!creds.url || !creds.token) { if (alive) setStatus("error"); return; }
+        // Token and policy in parallel: the policy decides the Room options,
+        // which cannot be changed after construction, so it has to be here
+        // rather than handed over later by the meta poll. A call without one
+        // (older backend, or a failed read) keeps every value this room used
+        // before the policy existed.
+        const [creds, call] = await Promise.all([
+          lk && lk.token ? Promise.resolve(lk) : getCallJoinToken(roomId, callId),
+          Promise.race([
+            getCall(roomId, callId).then((c) => c, () => null),
+            new Promise<null>((res) => setTimeout(() => res(null), POLICY_WAIT_MS)),
+          ]),
+        ]);
+        if (!alive) return;
+        if (call) {
+          qualityRef.current = call.quality;
+          hintsRef.current = call.hints;
+          setQuality((cur) => cur ?? call.quality);
+        }
+        const pol = qualityRef.current;
+        profileRef.current = pol?.startProfile || "low";
+        const r = new Room(roomOptionsFor(pol, phone));
+        room = r;
+        roomRef.current = r;
+        wire(r);
+        setRoom(r);
+        if (!creds.url || !creds.token) { setStatus("error"); return; }
         // Connect exactly once. Pass the backend livekit_url verbatim — no
         // manual /rtc suffix or query params.
         if (!connectedRef.current) {
-          await room.connect(creds.url, creds.token, { autoSubscribe: true });
+          await r.connect(creds.url, creds.token, { autoSubscribe: true });
           connectedRef.current = true;
         }
-        if (!alive) { room.disconnect(); return; }
+        if (!alive) { r.disconnect(); return; }
         // Publish local tracks exactly once, after Connected. Mic and camera are
         // enabled independently so a denied camera (or no webcam) still leaves a
         // working audio call instead of erroring out.
@@ -481,19 +684,26 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           // publish: the pause effect only fires on a CHANGE of `paused`, and
           // the first getCall can easily land before the LiveKit connect.
           if (pausedRef.current) {
-            try { await room.localParticipant.setMicrophoneEnabled(false); } catch { /* nothing published yet */ }
-            try { await room.localParticipant.setCameraEnabled(false); } catch { /* nothing published yet */ }
+            try { await r.localParticipant.setMicrophoneEnabled(false); } catch { /* nothing published yet */ }
+            try { await r.localParticipant.setCameraEnabled(false); } catch { /* nothing published yet */ }
             if (alive) { setMicOn(false); setCamOn(false); }
           } else {
-            try { await room.localParticipant.setMicrophoneEnabled(true); } catch { /* mic denied */ }
-            if (callType === "video") {
-              try { await room.localParticipant.setCameraEnabled(true); } catch { if (alive) setCamOn(false); }
-            }
+            try { await r.localParticipant.setMicrophoneEnabled(true); } catch { /* mic denied */ }
+            // video_enabled is the truth, not the callType prop: an express
+            // request opens an audio session for a service whose name says
+            // "video", and that session must not publish a camera.
+            const low = pol?.profiles.low;
+            if (pol ? pol.videoEnabled : callType === "video") {
+              camWantedRef.current = true;
+              // start_profile is "low": the camera opens at the bottom rung
+              // and the connection-quality actions climb from there.
+              try { await r.localParticipant.setCameraEnabled(true, low ? { facingMode: "user", resolution: resOf(low) } : undefined); } catch { if (alive) setCamOn(false); }
+            } else if (alive) setCamOn(false);
           }
         }
         // Kick off audio playback; if the browser blocks it, show a prompt.
-        try { await room.startAudio(); } catch { /* needs a user gesture */ }
-        if (alive) setAudioBlocked(!room.canPlaybackAudio);
+        try { await r.startAudio(); } catch { /* needs a user gesture */ }
+        if (alive) setAudioBlocked(!r.canPlaybackAudio);
         try { sessionStorage.setItem("lexgo_active_call", JSON.stringify({ roomId, callId, callType })); } catch { /* ignore */ }
         // More than one camera (phones) → offer a front/back switch.
         try {
@@ -503,8 +713,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         if (alive) {
           setStartedAt(Date.now());
           bump();
-          if (room.remoteParticipants.size) hadRemoteRef.current = true;
-          setStatus(room.remoteParticipants.size ? "live" : "ringing");
+          if (r.remoteParticipants.size) hadRemoteRef.current = true;
+          setStatus(r.remoteParticipants.size ? "live" : "ringing");
           signal("call.join");
           announceRole();
           // Welcome chime once I'm in (the room may already have people).
@@ -518,10 +728,13 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
 
     return () => {
       alive = false;
-      clearTimeout(publish);
       publishedRef.current = false;
       connectedRef.current = false;
-      room.disconnect();
+      reconnectingRef.current = false;
+      camWantedRef.current = false;
+      autoCamOffRef.current = false;
+      profileRef.current = "";
+      room?.disconnect();
       roomRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -664,6 +877,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           setRoster(c.participants);
           setPerms(c.permissions);
           setLimits(callLimitsOf(c));
+          // The quality policy and the transport hints are fixed for the life
+          // of a call ("once per call"), so they are taken the first time they
+          // arrive and never replaced — a freshly normalised copy on every
+          // poll would re-render the whole room for an identical object. The
+          // connect path reads them too, because Room options are frozen at
+          // construction; this is the path that covers a room whose connect
+          // read failed.
+          if (!qualityRef.current && c.quality) qualityRef.current = c.quality;
+          if (!hintsRef.current && c.hints) hintsRef.current = c.hints;
+          setQuality((cur) => cur ?? c.quality);
           // A paused call freezes at pausedRemainingSeconds; an extension
           // RAISES the remaining time, so a server value that moved in
           // either direction has to be taken, not only a bigger one.
@@ -868,15 +1091,29 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     bump();
     syncSelf({ mic_enabled: on });
   }
+  // Capture size for any new or restarted camera track: whichever rung of the
+  // backend's ladder the adaptive controller is on, and the old phone/desktop
+  // defaults on a call that carries no policy.
+  function camResolution(): VideoResolution {
+    const pol = qualityRef.current;
+    const prof = pol?.profiles[profileRef.current] ?? pol?.profiles.low;
+    if (prof) return resOf(prof);
+    return PORTRAIT_HINT() ? VideoPresets43.h540.resolution : VideoPresets.h720.resolution;
+  }
   async function toggleCam() {
     const r = roomRef.current;
     if (!r || camBusy) return;
     void enableSound();
     const on = !camOn;
+    // The user's own choice outranks the controller's: a camera switched on
+    // by hand is never "one the controller put away", and one switched off by
+    // hand is never brought back by an auto-upgrade.
+    camWantedRef.current = on;
+    autoCamOffRef.current = false;
     setCamBusy(true);
     try {
       // First enable in an audio call publishes the camera track (front camera, 4:3 on phones).
-      await r.localParticipant.setCameraEnabled(on, on ? { facingMode: facingRef.current, resolution: PORTRAIT_HINT() ? VideoPresets43.h540.resolution : VideoPresets.h720.resolution } : undefined);
+      await r.localParticipant.setCameraEnabled(on, on ? { facingMode: facingRef.current, resolution: camResolution() } : undefined);
       setCamOn(on);
       bump();
       syncSelf({ camera_enabled: on });
@@ -903,7 +1140,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     try {
       const pub = r.localParticipant.getTrackPublication(Track.Source.Camera);
       const track = pub?.track as LocalVideoTrack | undefined;
-      const res = PORTRAIT_HINT() ? VideoPresets43.h540.resolution : VideoPresets.h720.resolution;
+      // Flipping the lens must not silently climb back off the rung the
+      // adaptive controller put this call on.
+      const res = camResolution();
       let done = false;
       if (track) {
         try {
@@ -1144,6 +1383,11 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const strip = stageP ? participants.filter((p) => p !== stageP || stageIsShare) : participants;
   const statusLabel = emptyLeft != null ? t("endingIn", { s: emptyLeft }) : status === "live" ? t("live") : status === "ringing" ? t("ringing") : status === "error" ? t("error") : t("connecting");
   const canShare = typeof navigator !== "undefined" && !!navigator.mediaDevices && "getDisplayMedia" in navigator.mediaDevices && !MOBILE();
+  // Whether this call may carry a picture at all. The policy decides, because
+  // an express request opens an audio session for a service named "video" and
+  // the callType prop then lies. Until a policy arrives — and on a backend
+  // that sends none — the camera stays on offer, as it always was.
+  const videoAllowed = quality ? quality.videoEnabled : true;
   const activeRoster = roster.filter((p) => p.status !== "removed" && p.status !== "left" && p.status !== "declined");
   const gridN = strip.length;
   const flipKey = `${strip.map((p) => p.identity).join("|")}:${view}:${stageIsShare ? 1 : 0}:${panel}`;
@@ -1499,9 +1743,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         <Ctl mic on={micOn} off={!micOn} label={t("mic")} aria={micOn ? t("micMute") : t("micUnmute")} onClick={toggleMic} disabled={hostMuted && !micOn} title={hostMuted && !micOn ? t("mutedByHost") : micOn ? t("micMute") : t("micUnmute")}>
           <span className={`mtg__mic${micOn ? "" : " mtg__mic--off"}`} aria-hidden="true"><IconMic className="mtg__micOn" /><IconMicOff className="mtg__micOff" /></span>
         </Ctl>
-        {/* Camera is always offered — an audio call becomes a video call once it is turned on. */}
-        <Ctl on={camOn} off={!camOn} label={camOn ? t("camOff2") : t("camOn")} onClick={toggleCam} disabled={camBusy}><IconVideo /></Ctl>
-        {camOn && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
+        {/* Camera is offered on any call the policy allows video on — such a
+            call becomes a video call once it is turned on. A session with
+            video_enabled=false has no camera control at all, since turning it
+            on would publish a track the backend never provisioned for. */}
+        {videoAllowed ? <Ctl on={camOn} off={!camOn} label={camOn ? t("camOff2") : t("camOn")} onClick={toggleCam} disabled={camBusy}><IconVideo /></Ctl> : null}
+        {videoAllowed && camOn && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
         {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing} desktop><IconMonitor /></Ctl> : null}
         {canRecord() ? <Ctl on={recOn || !!recReq} label={recOn ? t("recStopShort") : recReq ? t("recWaitingShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} disabled={!!recReq} desktop><IconRecord /></Ctl> : null}
         <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")} desktop><IconUsers /></Ctl>

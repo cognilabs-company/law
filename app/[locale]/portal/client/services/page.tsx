@@ -401,7 +401,18 @@ export default function ClientServices() {
     setDlBusy("");
   }
 
-  const query = q.trim().toLowerCase();
+  // ONE search threshold, for both the "are we searching" predicate here and
+  // the debounced fetch below. While they were separate the page had a real
+  // bug: a single typed character made `query` truthy, which switched every
+  // branch to the search view, but the fetch stayed below its own 2-char
+  // minimum and never ran — so the whole catalogue was replaced by the
+  // "Xizmat topilmadi" empty state on the first keystroke.
+  const SEARCH_MIN = 2;
+  const term = q.trim();
+  const searching = term.length >= SEARCH_MIN;
+  // Empty below the minimum, so everything keyed off `query` keeps rendering
+  // the catalogue while the client is still typing the first character.
+  const query = searching ? term.toLowerCase() : "";
   // Already scoped to `cat` by the fetch itself (see `services` above) — no
   // per-category counts to show at the top level any more (that would mean
   // loading every category just to display a number nobody asked for yet).
@@ -411,11 +422,31 @@ export default function ClientServices() {
   // the category it belongs to so a click can open it directly. Present only
   // on a backend that sends `subcategories` (2026-09-28); an older one falls
   // back to the category-first screen below.
+  // `samples` is the backend's own sample_services (up to 3 titles it already
+  // ships with every subcategory) — free data that turns a tile from a bare
+  // name plus a count into something a client can recognise their case in.
   const allSubcats = useMemo(() => {
-    const out: { cat: string; catName: string; name: string; n: number }[] = [];
-    for (const c of cats.data) for (const sc of c.subcategories) out.push({ cat: c.id, catName: c.name, name: sc.title, n: sc.servicesCount });
+    const out: { cat: string; catName: string; name: string; n: number; samples: string[] }[] = [];
+    for (const c of cats.data)
+      for (const sc of c.subcategories)
+        out.push({
+          cat: c.id,
+          catName: c.name,
+          name: sc.title,
+          n: sc.servicesCount,
+          samples: sc.sampleServices.map((s) => s.title).filter(Boolean).slice(0, 3),
+        });
     return out.sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
   }, [cats.data]);
+  // Counts for the category strip. subcategoriesCount is the backend's own
+  // number; a deployment that omits it still gets a right count from the
+  // subcategories it did send.
+  const subsPerCat = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const x of allSubcats) m.set(x.cat, (m.get(x.cat) ?? 0) + 1);
+    return m;
+  }, [allSubcats]);
+  const totalServices = useMemo(() => cats.data.reduce((n, c) => n + c.servicesCount, 0), [cats.data]);
   const [famFilter, setFamFilter] = useState("");
   const [subSort, setSubSort] = useState<"count" | "name">("count");
   const flatSubcats = useMemo(() => {
@@ -453,6 +484,15 @@ export default function ClientServices() {
     () => [...subcatCounts.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name),
     [subcatCounts],
   );
+  // The same sample_services titles as the flat grid, for the per-category
+  // subcategory screen (reached by a ?cat= deep link, or by backing out of a
+  // subcategory). Empty on a subcategory the backend only knows through the
+  // loaded services, which carry no samples.
+  const subcatSamples = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const s of backendSubcats) m.set(s.title, s.sampleServices.map((x) => x.title).filter(Boolean).slice(0, 3));
+    return m;
+  }, [backendSubcats]);
 
   // Global search (GET /services/search) — category-agnostic on purpose (it
   // searches the whole catalog, not just whatever category happens to be
@@ -468,11 +508,10 @@ export default function ClientServices() {
   // fallback, is what that same MD's "recommended" framing is for.
   const [remote, setRemote] = useState<{ q: string; list: BackendService[] } | null>(null);
   useEffect(() => {
-    const term = q.trim();
     // Stale `remote` is harmless left as-is: `list` only reads it while
     // `query` is non-empty, and a short/cleared query takes the other
     // branch entirely.
-    if (term.length < 2) return;
+    if (!searching) return;
     let alive = true;
     const timer = setTimeout(() => {
       // Two endpoints, merged. /services/search ranks by relevance but returns
@@ -501,7 +540,7 @@ export default function ClientServices() {
       alive = false;
       clearTimeout(timer);
     };
-  }, [q, locale]);
+  }, [term, searching, locale]);
 
   // Search mode → flat results across everything; else drill by family.
   const list = useMemo(() => {
@@ -780,6 +819,12 @@ export default function ClientServices() {
           </span>
         </div>
 
+        {/* What this category actually covers, in the backend's own words
+            (GET /service-categories sends a description for all four). On the
+            category screen the heading is just its name, so this is the only
+            place the client is told what is inside before drilling further. */}
+        {showSubcats && catRow?.description ? <p className="svcat__lead">{catRow.description}</p> : null}
+
         {/* Reading any document in the catalog costs nothing — the charge is
             for filling one in, and saying so up front is what gets people to
             open one at all. */}
@@ -887,22 +932,54 @@ export default function ClientServices() {
           // One list of every direction, with the four categories as a filter
           // above it instead of a screen before it.
           <>
+            {/* The four categories as cards rather than the <Select> that
+                used to sit here. Both drive the same famFilter, so this
+                replaces it instead of doubling it: a Select option can only
+                carry a name and a count, and /service-categories sends a
+                real description for every one of the four that nothing on
+                this page had ever rendered. "Barcha sohalar" is the way back
+                to the full list, which is what the Select's first option and
+                the clear button used to be. */}
+            <div className="svcats" role="radiogroup" aria-label={t("filterCategory")}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!famFilter}
+                className={`svcat${!famFilter ? " on" : ""}`}
+                onClick={() => setFamFilter("")}
+              >
+                <b>{t("allFamilies")}</b>
+                <span className="svcat__d">{t("allFamiliesHint")}</span>
+                <small className="svcat__n">
+                  {[t("subcatsN", { n: allSubcats.length }), totalServices ? t("servicesN", { n: totalServices }) : ""]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </small>
+              </button>
+              {famList.map((c) => {
+                const on = famFilter === c.id;
+                const nSub = c.subcategoriesCount || subsPerCat.get(c.id) || 0;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    className={`svcat${on ? " on" : ""}`}
+                    onClick={() => setFamFilter(c.id)}
+                  >
+                    <b>{c.name}</b>
+                    {c.description ? <span className="svcat__d">{c.description}</span> : null}
+                    <small className="svcat__n">
+                      {[nSub ? t("subcatsN", { n: nSub }) : "", c.servicesCount ? t("servicesN", { n: c.servicesCount }) : ""]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </small>
+                  </button>
+                );
+              })}
+            </div>
             <div className="svfilt">
-              <label className="svfilt__f">
-                <span>{t("filterCategory")}</span>
-                <Select
-                  value={famFilter}
-                  onChange={setFamFilter}
-                  ariaLabel={t("filterCategory")}
-                  options={[
-                    { value: "", label: t("allCategories", { n: allSubcats.length }) },
-                    ...famList.map((c) => ({
-                      value: c.id,
-                      label: `${c.name} · ${t("subcatsN", { n: c.subcategoriesCount || allSubcats.filter((x) => x.cat === c.id).length })}`,
-                    })),
-                  ]}
-                />
-              </label>
               <label className="svfilt__f">
                 <span>{t("sortLabel")}</span>
                 <Select
@@ -915,12 +992,6 @@ export default function ClientServices() {
                   ]}
                 />
               </label>
-              {famFilter ? (
-                <button type="button" className="svfilt__clear" onClick={() => setFamFilter("")}>
-                  <IconClose />
-                  {t("filterClear")}
-                </button>
-              ) : null}
             </div>
             {!flatSubcats.length ? (
               <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
@@ -944,6 +1015,12 @@ export default function ClientServices() {
                             now, so the card has to say it. */}
                         <small className="svfam__cat">{sc.catName}</small>
                         <small className="svfam__n">{t("servicesN", { n: sc.n })}</small>
+                        {/* sample_services, straight off the category call —
+                            a count alone never said what a "yo'nalish" holds.
+                            Title too, because the line is clipped to one. */}
+                        {sc.samples.length ? (
+                          <small className="svfam__ex" title={sc.samples.join(" · ")}>{t("samples", { list: sc.samples.join(" · ") })}</small>
+                        ) : null}
                       </span>
                     </button>
                   );
@@ -970,6 +1047,10 @@ export default function ClientServices() {
                     </span>
                     <span className="svfam__t">
                       <b>{c.name}</b>
+                      {/* Same description the strip above the flat grid
+                          shows — this branch is the older-backend fallback,
+                          but the field comes from the same call. */}
+                      {c.description ? <small className="svfam__d">{c.description}</small> : null}
                       {/* Counted by the backend (subcategories_count /
                           services_count). Before it sent them the card was a
                           picture and a word, with no hint of what was inside. */}
@@ -1011,6 +1092,11 @@ export default function ClientServices() {
                     <span className="svfam__t">
                       <b>{name}</b>
                       <small>{t("servicesN", { n: subcatCounts.get(name) ?? 0 })}</small>
+                      {subcatSamples.get(name)?.length ? (
+                        <small className="svfam__ex" title={subcatSamples.get(name)!.join(" · ")}>
+                          {t("samples", { list: subcatSamples.get(name)!.join(" · ") })}
+                        </small>
+                      ) : null}
                     </span>
                   </button>
                 );

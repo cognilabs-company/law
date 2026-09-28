@@ -17,12 +17,14 @@ import DocTemplateViewer from "./DocTemplateViewer";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
 import DocTypePicker from "./DocTypePicker";
+// Imported, not re-declared: this form and the from-scratch order write the
+// same `language` field of the same record, and each keeping its own list is
+// exactly how they came to offer different values for it.
+import { defaultDocLang, docLangOptions } from "./NewDocumentOrder";
 import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
-import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock, IconShieldCheck, IconSparkle } from "@/components/icons";
+import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock, IconShieldCheck } from "@/components/icons";
 
-const LANGS = ["uz", "ru", "en"] as const;
-type LangCode = (typeof LANGS)[number];
 type LawyerRequestBody = {
   need: string;
   answers: Record<string, unknown>;
@@ -61,7 +63,7 @@ export default function DocumentLawyerAssist({
   // there describes whether the client must fill it, not whether the form
   // renders it.
   const [note, setNote] = useState("");
-  const [lang, setLang] = useState<LangCode>(LANGS.includes(locale as LangCode) ? (locale as LangCode) : "uz");
+  const [lang, setLang] = useState<string>(() => defaultDocLang(locale));
   // lexgo_frontend_doc_chat_update.md §1: the client can hand over documents
   // and voice notes with the request itself. They become chat messages the
   // moment an advocate claims the work, so nothing is re-sent later.
@@ -93,8 +95,6 @@ export default function DocumentLawyerAssist({
   // editor_mode "ai_draft" (backend 2026-09-28): the advocate opens a draft
   // the AI has already written instead of a clean template. Off by default,
   // which is the unchanged behaviour.
-  const [aiDraft, setAiDraft] = useState(false);
-  const [draftHint, setDraftHint] = useState("");
   const [docType, setDocType] = useState("");
 
   async function submit() {
@@ -120,8 +120,6 @@ export default function DocumentLawyerAssist({
         // gate leaving no trace at all.
         answers: { contact_consent: true, contact_consent_text: t("consentLabel") },
         language: lang,
-        editorMode: aiDraft ? "ai_draft" : undefined,
-        extraInstructions: aiDraft && draftHint.trim() ? draftHint.trim() : undefined,
         requestedDocumentType: docType || undefined,
       });
       setSent(true);
@@ -218,8 +216,8 @@ export default function DocumentLawyerAssist({
         <label>{t("langLabel")}</label>
         <Select
           value={lang}
-          onChange={(v) => setLang((LANGS.includes(v as LangCode) ? v : "uz") as LangCode)}
-          options={LANGS.map((l) => ({ value: l, label: t(`lang_${l}`) }))}
+          onChange={setLang}
+          options={docLangOptions(lang).map((o) => ({ value: o.value, label: o.key ? t(o.key) : o.value }))}
           ariaLabel={t("langLabel")}
         />
       </section>
@@ -230,30 +228,6 @@ export default function DocumentLawyerAssist({
       <section className="docassist__sec">
         <DocTypePicker flow="template_lawyer_assisted" value={docType} onChange={setDocType} />
       </section>
-
-      {/* A head start for the advocate, not a replacement for one: the
-          backend writes a first draft and the advocate edits, deletes or
-          rewrites it. Off by default — that is the unchanged flow, where they
-          open a clean template. */}
-      <div className="cbxcard">
-        <b className="cbxcard__t">
-          <IconSparkle />
-          {t("aiDraftTitle")}
-        </b>
-        <CheckBox id="lawyer-aidraft" checked={aiDraft} onChange={setAiDraft} hint={t("aiDraftHint")}>
-          {t("aiDraftLabel")}
-        </CheckBox>
-        {aiDraft ? (
-          <input
-            className="cbxcard__in"
-            type="text"
-            value={draftHint}
-            onChange={(e) => setDraftHint(e.target.value)}
-            placeholder={t("aiDraftExtraPh")}
-            aria-label={t("aiDraftExtraPh")}
-          />
-        ) : null}
-      </div>
 
       {/* Its own card between the fields and the send button: it is a gate on
           the send, not one more thing to fill in. */}

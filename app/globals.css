@@ -7417,3 +7417,228 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
   letter-spacing:.01em;color:var(--gray2);background:var(--dk-surface-2, #F2F6FC);padding:2px 8px;border-radius:7px}
 .mydoc__st--closed{background:var(--dk-surface-2, #F2F6FC);color:var(--gray2)}
 .mydoc--closed{opacity:.86}
+
+/* ── wp-ccqueue: urgent board status tabs, per-tab counts, and the richer row line (name + phone + direction chips) ─── */
+/* The status filter is a tab strip now, not a Select, so it sits tighter to
+   the list than the shared .tabs rhythm (26px) allows. Eight tabs overflow a
+   phone, which the inherited .tabs overflow-x already handles. */
+.uaq__tabs{display:flex;margin:0 0 12px}
+.uaq__tabs .tab{display:inline-flex;align-items:center;gap:7px;padding:9px 15px;font-size:.84rem}
+/* The last count seen for that status. Muted until the tab is the live one,
+   where it flips to the accent so the number on screen reads as current. */
+.uaq__n{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;
+  background:var(--dk-surface, #fff);color:var(--gray2);font-size:.68rem;font-weight:800;font-style:normal;line-height:1;font-family:var(--fd)}
+.uaq__tabs .tab[aria-selected=true] .uaq__n{background:var(--b600);color:#fff}
+
+/* The sub line carries a phone link and chips now, so it lays out as a row
+   instead of one joined string. */
+.uaq__row .uaq__sub{display:flex;flex-wrap:wrap;align-items:center;gap:3px 9px}
+.uaq__row .uaq__sub>b{font-weight:700;color:var(--ink)}
+.uaq__tel{display:inline-flex;align-items:center;gap:4px;font-weight:700;color:var(--dk-acc, var(--b600))}
+.uaq__tel svg{width:12px;height:12px}
+
+/* Practice areas, translated — the raw backend slugs ("fuqarolik") told an
+   operator nothing at a glance. */
+.uaq__dirs{display:flex;flex-wrap:wrap;gap:5px}
+.uaq__dir{font-style:normal;font-size:.7rem;font-weight:700;color:var(--dk-acc-strong, var(--b700));
+  background:var(--dk-tint-blue, #E6F0FF);border-radius:var(--pill);padding:3px 9px;white-space:nowrap}
+
+/* ── wp-svcat: the four sohas, with what each one actually covers ───
+   GET /service-categories sends a non-empty `description` for all four and
+   nothing on the catalogue page rendered it. These cards replace the
+   category <Select> above the flat directions grid — they drive the same
+   famFilter, and a Select option could never have carried the sentence. */
+.svcats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:10px;margin-bottom:14px}
+.svcat{display:flex;flex-direction:column;gap:4px;text-align:left;min-width:0;cursor:pointer;font:inherit;
+  padding:12px 14px;border:1.5px solid var(--line);border-radius:var(--rl);
+  background:var(--dk-surface, #fff);color:var(--ink);transition:border-color .18s,box-shadow .18s,background .18s}
+.svcat:hover{border-color:var(--b300);box-shadow:var(--s1)}
+.svcat.on{border-color:var(--b600);background:var(--dk-tint-blue, #E6F0FF);box-shadow:inset 0 0 0 1px var(--b600)}
+.svcat>b{font-family:var(--fb);font-size:.92rem;font-weight:800;line-height:1.3}
+/* The descriptions run to a sentence or two; a filter strip stays a strip. */
+.svcat__d{font-size:.78rem;line-height:1.45;color:var(--gray);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* Pushed to the bottom edge so the counts line up across cards whose
+   descriptions are one line and two. */
+.svcat__n{margin-top:auto;padding-top:5px;font-size:.74rem;font-weight:700;color:var(--dk-acc, var(--b600))}
+/* Same description under the heading once a category is the whole screen. */
+.svcat__lead{margin:-6px 0 12px;font-size:.88rem;line-height:1.55;color:var(--gray);max-width:72ch}
+
+/* ── wp-svsamp: sample_services on a direction tile ─────────────────
+   Every subcategory arrives with up to three real service titles; a tile
+   that shows only a name and a count says nothing about what is inside.
+   Clipped to one line — the full list is on the tile's title attribute. */
+.svfam__ex{display:block;max-width:100%;font-size:.72rem;line-height:1.4;color:var(--gray2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.svfam__d{font-size:.76rem;line-height:1.45;color:var(--gray);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ── wp-uasg-soon: the advocate's upcoming Tezkor meeting ────────────
+   "Mening Tezkor ishlarim" now sorts live work to the top, so the first rows
+   are the ones with a time attached. A scheduled record is the advocate's
+   ONLY standing view of a panel meeting they were chosen for — the invite
+   itself is a ring card that lasts seconds — so it is lifted out of the plain
+   row treatment: tinted row, and a white block carrying the local time, what
+   the meeting is about and who else is on the panel.
+   Pairs with .uasg__row / .uasg__when in the wp-uasg block above. */
+.uasg__row--soon{background:var(--dk-tint-blue, #E6F0FF);box-shadow:inset 0 0 0 1.5px var(--b100)}
+/* Same specificity as .uasg__row--on but written later, so the open state of
+   an upcoming row needs the pair spelled out or the ring would be lost. */
+.uasg__row--soon.uasg__row--on{box-shadow:inset 0 0 0 1.5px var(--b600)}
+.uasg__up{display:flex;flex-direction:column;gap:5px;margin-top:3px;padding:9px 11px;border-radius:var(--rl);
+  background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1px var(--line)}
+.uasg__up>b{display:inline-flex;align-items:center;gap:6px;font-size:.7rem;font-weight:800;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--dk-acc, var(--b600))}
+.uasg__up>b svg{width:13px;height:13px;flex:none}
+.uasg__up__when{font-size:.95rem;font-weight:700;color:var(--ink);line-height:1.35}
+.uasg__up__peers{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.78rem;color:var(--gray);line-height:1.5;
+  overflow-wrap:anywhere}
+.uasg__up__peers svg{width:13px;height:13px;flex:none}
+/* Direction tags: the row's own chips, not .chiprow/.fchip — those are the
+   filter bar's scroller and drag negative inline margins and a press state in
+   with them. These are read-only labels inside a card. */
+.uasg__tags{display:flex;flex-wrap:wrap;gap:6px}
+.uasg__tag{font-style:normal;font-size:.74rem;font-weight:600;color:var(--gray);
+  background:var(--dk-surface-2, #F2F6FC);border-radius:var(--pill);padding:3px 10px}
+
+/* ── wp-groupchat: SecureChat sender identity, quoted replies, header work info and the completed-room state ─── */
+
+/* Who is speaking. A Tezkor Advokat room holds the client, the operator and
+   several advocates, so an incoming bubble has to be attributed. This line
+   lives in .sbub__wrap, not beside the avatar, because .schat--compact hides
+   .sbub__av entirely — the name has to survive that. */
+.sbub__who{display:flex;align-items:center;gap:6px;min-width:0;padding:0 4px;font-size:.72rem;line-height:1.25}
+.sbub__who b{font-weight:700;color:var(--ink);max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbub__role{flex:none;padding:2px 7px;border-radius:var(--pill);font-size:.62rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--dk-acc-strong, var(--b700));background:var(--dk-tint-blue, #E6F0FF)}
+.schat--compact .sbub__who{font-size:.7rem}
+.schat--compact .sbub__who b{max-width:150px}
+
+/* The quoted message at the top of a bubble. One line only: a quote that
+   wraps pushes the real message out of sight on a phone. */
+.sbub__quote{display:flex;flex-direction:column;gap:1px;width:100%;min-width:0;margin:0 0 7px;padding:5px 9px;border:0;border-left:3px solid var(--b600);border-radius:8px;background:var(--dk-surface-2, #F2F6FC);font-family:inherit;text-align:left;cursor:pointer}
+.sbub__quote b{font-size:.72rem;font-weight:700;color:var(--dk-acc-strong, var(--b700));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbub__quote span{font-size:.78rem;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* My own bubble is --grad, which is not redefined per theme, so a translucent
+   white reads correctly in light and dark alike. */
+.sbub--me .sbub__quote{background:rgba(255,255,255,.18);border-left-color:rgba(255,255,255,.7)}
+.sbub--me .sbub__quote b,.sbub--me .sbub__quote span{color:#fff}
+
+/* Jump target after clicking a quote — the scroll alone is easy to miss in a
+   wall of bubbles. */
+.sbub--flash .sbub__c{animation:sbubFlash 1.6s ease-out}
+@keyframes sbubFlash{
+  0%,65%{outline:2px solid var(--b600);outline-offset:2px}
+  100%{outline:2px solid transparent;outline-offset:2px}
+}
+
+/* Reply affordance. Hover-revealed on a pointer, always visible on touch
+   where there is no hover to reveal it with. */
+.sbub__reply{flex:none;width:26px;height:26px;margin-bottom:16px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--gray2);display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .15s,background .15s,color .15s}
+.sbub:hover .sbub__reply,.sbub__reply:focus-visible{opacity:1}
+.sbub__reply:hover{background:var(--b100);color:var(--dk-acc, var(--b600))}
+.sbub__reply svg{width:14px;height:14px;stroke:currentColor}
+@media (hover:none){.sbub__reply{opacity:.6}}
+
+/* Reply preview above the composer. Shares .schat__bar's 860px measure so it
+   lines up with the input it belongs to. */
+.schat__replybar{display:flex;align-items:center;gap:10px;width:100%;max-width:860px;margin:0 auto;padding:8px 18px 0}
+.schat__replyi{flex:none;display:grid;place-items:center;color:var(--dk-acc, var(--b600))}
+.schat__replyi svg{width:16px;height:16px;stroke:currentColor}
+.schat__replyt{flex:1;min-width:0;display:flex;flex-direction:column;padding-left:9px;border-left:3px solid var(--b600)}
+.schat__replyt b{font-size:.76rem;color:var(--dk-acc-strong, var(--b700));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.schat__replyt small{font-size:.78rem;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.schat__replyx{flex:none;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:var(--b50);color:var(--gray);display:grid;place-items:center;cursor:pointer}
+.schat__replyx:hover{background:var(--b100);color:var(--ink)}
+.schat__replyx svg{width:14px;height:14px;stroke:currentColor}
+.schat--compact .schat__replybar{padding:8px 12px 0}
+
+/* Header: the work this room belongs to, and how many people are in it. */
+.schat__sub{display:flex;align-items:center;gap:6px;min-width:0;font-size:.72rem;color:var(--gray)}
+.schat__svc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.schat__wid{flex:none;font-weight:700;color:var(--dk-acc-strong, var(--b700))}
+.schat__ppl{flex:none;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid var(--line);border-radius:var(--pill);background:var(--b50);font-size:.74rem;font-weight:700;color:var(--gray)}
+.schat__ppl svg{width:14px;height:14px;stroke:var(--gray)}
+.schat--compact .schat__sub,.schat--compact .schat__ppl{font-size:.68rem}
+
+/* "Chatni yakunlash" — never shown to a client (the backend answers 403). */
+.schat__done{flex:none;display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border:1px solid var(--dk-bd-ok, #BFE8D4);border-radius:11px;background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0B7A52);font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;transition:filter .15s,opacity .15s}
+.schat__done:hover:not(:disabled){filter:brightness(.97)}
+.schat__done:disabled{opacity:.5;cursor:default}
+.schat__done svg{width:16px;height:16px;stroke:currentColor}
+/* Compact drops the close button, the call group and the lock chip, and with
+   them every margin-left:auto in the header — so the action needs its own. */
+.schat--compact .schat__done{margin-inline-start:auto;height:30px;padding:0 10px;font-size:.74rem;gap:5px}
+
+.schat__fin{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;max-width:860px;margin:0 auto;padding:10px 18px;background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0B7A52);font-size:.82rem;font-weight:600;text-align:center}
+.schat__fin svg{flex:none;width:16px;height:16px;stroke:currentColor}
+.schat--compact .schat__fin{padding:8px 12px;font-size:.76rem}
+/* The composer stays in place when the room is completed, greyed rather than
+   removed, so the conversation keeps its familiar shape. */
+.schat__bar input:disabled{opacity:.55;cursor:default;background:var(--b50)}
+
+@media (max-width:640px){
+  .schat__replybar{padding:8px 12px 0}
+  .schat__done{height:34px;padding:0 10px;font-size:.76rem}
+  .schat__done span{display:none}
+  .sbub__who b{max-width:130px}
+}
+
+/* ── wp-docchoose-go: marks a choice card that leaves this modal for the catalogue ─── */
+/* Two of the four ways into a document (MD §5) are template-backed and live
+   inside a catalogue service, not in this modal, so their cards are links —
+   the badge says so before the click instead of the client finding out after
+   it. The badge is the card's last child, which the existing
+   `.docchoose__c>span:last-child` rule had reserved for the gray description
+   text, so that description is re-matched here by what it IS rather than by
+   where it sits. */
+.docchoose__c>span:not(.docchoose__i):not(.docchoose__go){font-size:.82rem;color:var(--gray)}
+.docchoose__c>span.docchoose__go{display:inline-flex;align-items:center;gap:5px;margin-top:2px;padding:3px 9px;
+  border-radius:999px;background:var(--dk-tint-blue, #E6F0FF);color:var(--dk-acc, var(--b600));
+  font-size:.73rem;font-weight:600;line-height:1.4}
+.docchoose__c>span.docchoose__go svg{width:12px;height:12px}
+.docchoose__c:hover>span.docchoose__go{background:var(--b100)}
+
+/* ── wp-svsamp-fix: the sample line was sizing its own parent ──────
+   .svfam centres its children, so a flex column sized by content: a
+   white-space:nowrap sample line made .svfam__t wider than the tile and the
+   text ran out past the card edge. Bounding the text column to the tile is
+   what lets the ellipsis do its job. */
+.svfam__t{width:100%}
+
+/* ── wp-dprev: an attachment you can check before you send it ──────
+   A listed file was a name and a bin, so the two mistakes this form exists
+   to avoid — the voice note that caught nothing, the wrong scan — could only
+   be found by the advocate. Both play and open in place; nothing leaves the
+   order screen and nothing is uploaded to do it. */
+.doclist__i{align-items:flex-start}
+.dprev{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;flex:1;min-width:0;
+  white-space:normal;overflow:visible;text-overflow:clip}
+.dprev__i{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:9px;
+  background:var(--b100);color:var(--dk-acc, var(--b600))}
+.dprev__i svg{width:15px;height:15px}
+.dprev__name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem}
+/* Play is the one control on a voice row, so it leads. */
+.dprev__play{flex:none;width:30px;height:30px;border:0;border-radius:50%;cursor:pointer;display:grid;place-items:center;
+  background:var(--b600);color:#fff;transition:filter .15s,transform .15s}
+.dprev__play svg{width:14px;height:14px}
+.dprev__play:hover{filter:brightness(1.08)}
+.dprev__play:active{transform:scale(.94)}
+.dprev__play:focus-visible{outline:3px solid var(--b400);outline-offset:2px}
+.dprev__audio{flex:1 1 200px;min-width:160px;max-width:100%;height:34px}
+.dprev__open{flex:none;display:inline-flex;align-items:center;gap:5px;border:0;cursor:pointer;font:inherit;
+  font-size:.78rem;font-weight:700;padding:4px 10px;border-radius:var(--pill);
+  background:var(--dk-surface-2, #F2F6FC);color:var(--dk-acc, var(--b600));transition:background .15s}
+.dprev__open:hover{background:var(--b100)}
+.dprev__open svg{width:13px;height:13px}
+.dprev__no{flex:none;font-style:normal;font-size:.76rem;color:var(--gray2)}
+/* The preview itself takes the whole row underneath, bounded so a tall scan
+   cannot push the send button off the screen. */
+.dprev__body{flex:0 0 100%;margin-top:4px}
+.dprev__img{display:block;max-width:100%;max-height:340px;border-radius:12px;border:1px solid var(--line);object-fit:contain;
+  background:var(--dk-surface-2, #F7FAFE)}
+.dprev__pdf{display:block;width:100%;height:min(480px,60vh);border:1px solid var(--line);border-radius:12px;
+  background:var(--dk-surface-2, #F7FAFE)}
+@media (max-width:560px){
+  .dprev__audio{flex-basis:100%}
+  .dprev__pdf{height:52vh}
+}

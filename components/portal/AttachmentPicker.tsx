@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { canRecordVoice, voiceDuration } from "@/lib/voiceRecorder";
-import { IconPaperclip, IconMic, IconTrash, IconFileText } from "@/components/icons";
+import { IconPaperclip, IconTrash } from "@/components/icons";
+import { VoicePlayer, FilePreview } from "./AttachmentPreview";
 import VoicePill from "@/components/VoicePill";
 
 // Files and voice notes attached to a lawyer request, shared by the
@@ -76,18 +77,16 @@ export default function AttachmentPicker({
       {files.length || voices.length ? (
         <ul className="doclist">
           {files.map((f, i) => (
-            <li key={`f-${f.name}-${i}`}>
-              <IconFileText />
-              <span>{f.name}</span>
+            <li key={`f-${f.name}-${f.size}-${i}`} className="doclist__i">
+              <FilePreview file={f} />
               <button type="button" onClick={() => onFiles(files.filter((_, j) => j !== i))} aria-label={t("remove")}>
                 <IconTrash />
               </button>
             </li>
           ))}
           {voices.map((v, i) => (
-            <li key={`v-${i}`}>
-              <IconMic />
-              <span>{t("voiceItem", { time: voiceDuration(v.ms) })}</span>
+            <li key={`v-${i}-${v.ms}`} className="doclist__i">
+              <VoicePlayer blob={v.blob} label={t("voiceItem", { time: voiceDuration(v.ms) })} />
               <button type="button" onClick={() => onVoices(voices.filter((_, j) => j !== i))} aria-label={t("remove")}>
                 <IconTrash />
               </button>

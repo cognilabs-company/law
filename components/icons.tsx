@@ -570,6 +570,20 @@ export const IconRecord = (p: P) => (
   </svg>
 );
 
+// Play and pause, filled rather than outlined: at 15px a stroked triangle
+// reads as an arrow, and a stroked pause as two stray lines.
+export const IconPlay = (p: P) => (
+  <svg {...base} fill="currentColor" strokeWidth={1.2} {...p}>
+    <path d="M8 5.6a1 1 0 011.5-.87l9 6.4a1 1 0 010 1.74l-9 6.4A1 1 0 018 18.4V5.6z" />
+  </svg>
+);
+export const IconPause = (p: P) => (
+  <svg {...base} fill="currentColor" strokeWidth={1.2} {...p}>
+    <rect x="6.5" y="5.5" width="4" height="13" rx="1.3" />
+    <rect x="13.5" y="5.5" width="4" height="13" rx="1.3" />
+  </svg>
+);
+
 // A five-point star, for ratings. The IconStar above is a four-point
 // sparkle and reads as "AI", not as "one of five".
 export const IconStarRate = (p: P) => (

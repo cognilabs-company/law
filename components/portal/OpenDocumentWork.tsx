@@ -71,7 +71,7 @@ export default function OpenDocumentWork() {
               <b>{it.title || t("title")}</b>
               <span className="odw__sub">
                 {[
-                  statusLabel(tcm, it.status) || it.statusLabel,
+                  statusLabel(tcm, it.status, "docStatus") || it.statusLabel,
                   it.assignedLawyer?.name,
                   it.createdAt ? shortDateTime(it.createdAt, locale) : "",
                 ].filter(Boolean).join(" · ")}

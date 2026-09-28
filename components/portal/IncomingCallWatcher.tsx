@@ -12,6 +12,14 @@ import { IconPhone, IconVideo, IconClose } from "@/components/icons";
 
 type Incoming = { kind: "chat" | "meet"; roomId: string; callId: string; callType: "audio" | "video"; callerName: string; resume?: boolean };
 
+// The user socket announces the same ring under two names: `call.incoming` is
+// what production emits today, `call.invited` is the name the realtime MD
+// gives the invite frame. The payload is identical (call, room_id, call_id,
+// caller_user_id), so both go through the one handler and its guards — a
+// second path would be a second place for the "don't ring me for my own call"
+// rules to drift out of step.
+const RING_EVENTS = new Set(["call.incoming", "call.invited"]);
+
 let nameCache: Map<string, string> | null = null;
 async function nameOf(userId: string): Promise<string> {
   if (!nameCache) {
@@ -49,7 +57,7 @@ async function callerNameOf(parts: Record<string, unknown>[], caller: string, ro
 // and once after the socket reconnects.
 
 // Rings for incoming calls anywhere in the portal:
-//  • `call.incoming` on the global user socket (/ws/users/me) — 1:1 calls in
+//  • `call.incoming` / `call.invited` on the user socket (/ws/users/me) — 1:1 calls in
 //    the user's secure-chat rooms (accept → open the chat) and meeting invites
 //    (accept → join the LiveKit room inline; the token is fetched on join).
 export default function IncomingCallWatcher() {
@@ -80,7 +88,7 @@ export default function IncomingCallWatcher() {
     let alive = true;
     const me = session.id;
     async function onEvent(e: UserEvent) {
-      if (e.event !== "call.incoming" || inMeetRef.current) return;
+      if (!RING_EVENTS.has(e.event) || inMeetRef.current) return;
       const call = (e.call && typeof e.call === "object" ? e.call : {}) as Record<string, unknown>;
       const roomId = String(e.room_id ?? call.room_id ?? "");
       const callId = String(e.call_id ?? call.id ?? "");
@@ -113,6 +121,14 @@ export default function IncomingCallWatcher() {
       // invite reaches them (LEXGO_URGENT_ADVOKAT_FRONTEND_UPDATE.md,
       // "Advokat/yurist: Realtime invite notification / Meeting join").
       if (e.event === "urgent_advokat.meeting_created") { void pollInvites(); return; }
+      // And for the express/traffic kinds, which never get a scheduled
+      // meeting: the operator rings the advocate on duty straight away and
+      // `urgent_advokat.express_call_started` is the only other frame that
+      // names that ring. Without it here, a dropped `call.incoming` leaves the
+      // on-duty advocate in silence while the client already sits in the room
+      // — the exact failure this net exists to prevent, and the one case it
+      // was still missing.
+      if (e.event === "urgent_advokat.express_call_started") { void pollInvites(); return; }
       void onEvent(e);
     });
 

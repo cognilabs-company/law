@@ -25,8 +25,9 @@ import {
 import { subscribeUserEvents, subscribeUserSocketState, onUserSocketResync } from "@/lib/userSocket";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
 import { dateTimeFull } from "@/lib/date";
-import { statusLabel, regionLabel } from "@/lib/labels";
+import { statusLabel, regionLabel, humanize } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
+import { Link } from "@/i18n/navigation";
 import Select from "@/components/Select";
 import DatePicker from "@/components/DatePicker";
 import TimePicker from "@/components/TimePicker";
@@ -81,13 +82,59 @@ const KINDS = [
   "second_opinion_single",
   "second_opinion_group",
 ] as const;
-// The lifecycle's own vocabulary (lifecycle.active_statuses +
-// final_statuses), so the filter offers exactly the states a record can be in.
-const STATUSES = ["open_pool", "claimed", "scheduled", "in_progress", "meeting_active", "completed", "cancelled", "expired"] as const;
+// The status filter, in the order an operator walks a record through it. The
+// vocabulary is the lifecycle's own (active_statuses + final_statuses) minus
+// `expired`, which no record in the live queue currently holds and which
+// "Barchasi" shows anyway. `""` is Barchasi — the default, because the filter
+// really does run server-side (?status= narrows the list) and defaulting to
+// open_pool hid the operator's own claimed work the moment they claimed it.
+const TABS: { value: string; key: string }[] = [
+  { value: "open_pool", key: "tabOpenPool" },
+  { value: "claimed", key: "tabClaimed" },
+  { value: "scheduled", key: "tabScheduled" },
+  { value: "in_progress", key: "tabInProgress" },
+  { value: "meeting_active", key: "tabMeetingActive" },
+  { value: "completed", key: "tabCompleted" },
+  { value: "cancelled", key: "tabCancelled" },
+  { value: "", key: "tabAll" },
+];
 const GROUP = "second_opinion_group";
 // The practice-area slugs the client form sends (see UrgentAdvocatePanel) —
 // what GET /call-center/urgent-advokat/candidates?directions= expects.
 const DIRECTION_SLUGS = ["jinoiy", "fuqarolik", "oila", "mehnat", "mamuriy", "iqtisodiy", "soliq", "shartnoma"];
+// messages/enums.areas is keyed by the English practice area, but a record's
+// `directions` are the Uzbek slugs above, so te("areas.fuqarolik") never
+// resolved and every chip fell back to the bare slug. The live queue also
+// carries slugs with no area at all ("ytx", "avtoavariya", "yo'l transport
+// hodisasi"), which is why the fallback humanizes rather than blanks.
+const DIRECTION_AREA: Record<string, string> = {
+  jinoiy: "criminal",
+  fuqarolik: "civil",
+  oila: "family",
+  mehnat: "labor",
+  mamuriy: "administrative",
+  iqtisodiy: "economic",
+  soliq: "tax",
+};
+type Te = ((key: string) => string) & { has: (key: string) => boolean };
+// Production writes the same slug two ways ("mamuriy" and "ma'muriy"), so the
+// apostrophe is dropped before the lookup.
+function directionLabel(te: Te, slug: string): string {
+  const key = slug.trim().toLowerCase().replace(/[‘’'`]/g, "");
+  const area = DIRECTION_AREA[key];
+  if (area && te.has(`areas.${area}`)) return te(`areas.${area}`);
+  if (te.has(`areas.${key}`)) return te(`areas.${key}`);
+  return humanize(slug);
+}
+
+// A chat opened from the board carries the record it belongs to, so the
+// chat screen can offer the end-chat action the backend only allows staff.
+function chatHref(r: Pick<UrgentRequest, "secureChatRoomId" | "id" | "workId" | "serviceTitle">): string {
+  const q = new URLSearchParams({ ua: r.id });
+  if (r.workId) q.set("wid", r.workId);
+  if (r.serviceTitle) q.set("svc", r.serviceTitle);
+  return `/portal/chat/${r.secureChatRoomId}?${q.toString()}`;
+}
 
 const KIND_ICON: Record<string, typeof IconVideo> = {
   video_consultation: IconVideo,
@@ -110,18 +157,34 @@ export default function UrgentAdvocateQueue() {
 
   const [kind, setKind] = useState("");
   const [channel, setChannel] = useState("");
-  const [status, setStatus] = useState("open_pool");
+  const [status, setStatus] = useState("");
   const [state, setState] = useState<State>({ status: "loading", items: [] });
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [busyId, setBusyId] = useState("");
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [openId, setOpenId] = useState("");
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [live, setLive] = useState(true);
 
+  // A tab shows the number it had when it was last actually fetched — eight
+  // requests on mount to fill the strip is not worth it. The numbers only hold
+  // for one kind/channel combination, so they are dropped during render when
+  // either changes; an effect would flash the previous combination's numbers
+  // against the new filter first.
+  const comboKey = `${kind}|${channel}`;
+  const [prevCombo, setPrevCombo] = useState(comboKey);
+  if (comboKey !== prevCombo) {
+    setPrevCombo(comboKey);
+    setCounts({});
+  }
+
   const load = useCallback(
     () =>
       listCcUrgentRequests({ status: status || undefined, serviceKind: kind || undefined, channel: channel || undefined })
-        .then((items) => setState({ status: "ready", items }))
+        .then((items) => {
+          setState({ status: "ready", items });
+          setCounts((c) => ({ ...c, [status]: items.length }));
+        })
         .catch((e) => {
           // A module the backend has not enabled yet, and a role without
           // call-center access, are both "nothing to show here" rather than
@@ -168,6 +231,21 @@ export default function UrgentAdvocateQueue() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
+  // Every action here moves the record to another status, and the board is
+  // filtered by status server-side — so a claim used to drop the row out of
+  // "Yangi" and an assign-group out of "Olingan", behind the open drawer, with
+  // no way back to it. Follow the record to the tab it landed on instead.
+  // Switching tabs re-creates `load`, whose effect refetches, so the reload is
+  // never fired twice; an unknown status (or the same tab, or Barchasi, where
+  // the row is visible either way) just reloads in place.
+  const follow = useCallback(
+    (next: string) => {
+      if (next && status && next !== status) setStatus(next);
+      else void load();
+    },
+    [status, load],
+  );
+
   async function claim(r: UrgentRequest) {
     if (busyId) return;
     setBusyId(r.id);
@@ -180,7 +258,7 @@ export default function UrgentAdvocateQueue() {
       // left on the board to find the row again — the candidates, the
       // meeting, the chat and the result are all in there.
       setOpenId(r.id);
-      void load();
+      follow(out.status);
     } catch (e) {
       logApiError("urgent claim", e);
       setNote({ ok: false, msg: errDetail(e) || (e instanceof ApiError && e.status === 409 ? t("alreadyTaken") : t("claimError")) });
@@ -207,7 +285,10 @@ export default function UrgentAdvocateQueue() {
     setNote(null);
     try {
       openMeeting(await createUrgentMeeting(r.id), r);
-      void load();
+      // POST /meeting answers with the call session, not the record, so the
+      // status it moved to is read back rather than assumed; if that read
+      // fails the board just reloads the tab it is on.
+      follow((await getCcUrgentRequest(r.id).catch(() => null))?.status || "");
     } catch (e) {
       logApiError("urgent meeting", e);
       setNote({ ok: false, msg: errDetail(e) || t("meetingError") });
@@ -231,16 +312,30 @@ export default function UrgentAdvocateQueue() {
       </div>
       <p className="advmuted uaq__lead">{t("lead")}</p>
 
+      {/* Status is the operator's working view of the board, not one filter
+          among three: they claim here, schedule here, and have to find that
+          same record again a minute later. Tabs say where it went; a Select
+          hid it. The count is whatever that tab last returned. */}
+      <div className="tabs uaq__tabs" role="tablist" aria-label={t("fStatus")}>
+        {TABS.map((tab) => (
+          <button
+            key={tab.value || "all"}
+            type="button"
+            role="tab"
+            className="tab"
+            aria-selected={status === tab.value}
+            onClick={() => setStatus(tab.value)}
+          >
+            {t(tab.key)}
+            {counts[tab.value] !== undefined ? <em className="uaq__n">{counts[tab.value]}</em> : null}
+          </button>
+        ))}
+      </div>
+
       {/* Source is fixed — this board IS the Tezkor Advokat source — so it is
           shown as a standing chip rather than a filter that can be turned off. */}
       <div className="uaq__filters">
         <span className="uaq__src"><IconBolt />{t("sourceTezkor")}</span>
-        <Select
-          value={status}
-          onChange={setStatus}
-          ariaLabel={t("fStatus")}
-          options={[{ value: "", label: t("allStatuses") }, ...STATUSES.map((s) => ({ value: s, label: statusLabel(tcm, s) }))]}
-        />
         <Select
           value={kind}
           onChange={setKind}
@@ -287,14 +382,27 @@ export default function UrgentAdvocateQueue() {
                   </b>
                   {r.need ? <span className="uaq__need">{r.need}</span> : null}
                   <span className="uaq__sub">
+                    {/* Name AND number: the row used to drop the phone as soon
+                        as a name existed, so ringing the client back meant
+                        opening the drawer for a number the row already had. */}
+                    {r.clientName ? <b>{r.clientName}</b> : null}
+                    {r.clientPhone ? (
+                      <a href={`tel:${r.clientPhone}`} className="uaq__tel"><IconPhone />{r.clientPhone}</a>
+                    ) : null}
                     {[
-                      r.clientName || r.clientPhone,
                       r.region ? regionLabel(te, r.region) : "",
-                      r.directions.length ? r.directions.join(", ") : "",
                       isGroup && r.lawyerCount ? t("lawyersN", { n: r.lawyerCount }) : "",
                       r.createdAt ? dateTimeFull(r.createdAt, locale) : "",
                     ].filter(Boolean).join(" · ")}
                   </span>
+                  {r.directions.length ? (
+                    <span className="uaq__dirs">
+                      {/* Keyed by position: the same area reaches the row
+                          spelled two ways ("mamuriy", "ma'muriy"), and a
+                          record can carry both. */}
+                      {r.directions.map((d, i) => <em key={`${d}-${i}`} className="uaq__dir">{directionLabel(te, d)}</em>)}
+                    </span>
+                  ) : null}
                   {r.scheduledAt ? (
                     <span className="uaq__when"><IconCalendar />{t("scheduledFor", { when: dateTimeFull(r.scheduledAt, locale) })}</span>
                   ) : null}
@@ -310,10 +418,21 @@ export default function UrgentAdvocateQueue() {
                         <IconCheck />{busyId === r.id ? t("claiming") : t("claim")}
                       </button>
                     ) : null}
+                    {/* Reachable from every non-final, non-chat row, so a
+                        record sitting on the Rejalashtirilgan tab can be
+                        started without opening the drawer — `scheduled`
+                        really does list meeting_active in next_statuses. */}
                     {!open && !final && r.channel !== "chat" ? (
                       <button type="button" className="btn btn--line btn--sm" disabled={busyId === r.id} onClick={() => void meet(r)}>
                         <IconVideo />{t("startMeeting")}
                       </button>
+                    ) : null}
+                    {/* The claim opened this room and notified the client, but
+                        until now nothing on the board led into it. */}
+                    {r.secureChatRoomId ? (
+                      <Link href={chatHref(r)} className="btn btn--line btn--sm" title={t("openChatTitle")}>
+                        <IconChat />{t("openChat")}
+                      </Link>
                     ) : null}
                     <button type="button" className="btn btn--soft btn--sm" onClick={() => { setOpenId(r.id); setNote(null); }}>
                       <IconList />{t("openDetail")}<IconChevronRight />
@@ -330,7 +449,7 @@ export default function UrgentAdvocateQueue() {
       <UrgentDetailDrawer
         id={openId}
         onClose={() => setOpenId("")}
-        onChanged={(msg) => { setNote({ ok: true, msg }); void load(); }}
+        onChanged={(msg, moved) => { setNote({ ok: true, msg }); follow(moved || ""); }}
         onMeeting={openMeeting}
       />
 
@@ -361,7 +480,9 @@ function UrgentDetailDrawer({
 }: {
   id: string;
   onClose: () => void;
-  onChanged: (msg: string) => void;
+  // The status the record landed on, so the board can follow it to that tab
+  // rather than losing the row behind this drawer.
+  onChanged: (msg: string, movedTo?: string) => void;
   onMeeting: (call: CallSession, r: UrgentRequest) => void;
 }) {
   const t = useTranslations("admin.urgent");
@@ -376,11 +497,13 @@ function UrgentDetailDrawer({
   const [err, setErr] = useState("");
   const [panel, setPanel] = useState<"" | "candidates" | "complete" | "cancel" | "transfer">("");
 
-  const fetchOne = useCallback(() => {
-    if (!id) return Promise.resolve();
+  // Answers with the record so a caller that has to know where it went (the
+  // meeting, whose own response is only the call session) need not guess.
+  const fetchOne = useCallback((): Promise<UrgentRequest | null> => {
+    if (!id) return Promise.resolve(null);
     return getCcUrgentRequest(id)
-      .then((r) => { setReq(r); setLoad2("ready"); })
-      .catch((e) => { logApiError("urgent detail", e); setLoad2("error"); });
+      .then((r) => { setReq(r); setLoad2("ready"); return r; })
+      .catch((e) => { logApiError("urgent detail", e); setLoad2("error"); return null; });
   }, [id]);
 
   // Opening a different record (or closing the drawer) resets the view during
@@ -422,8 +545,9 @@ function UrgentDetailDrawer({
     setBusy(key);
     setErr("");
     try {
-      setReq(await fn());
-      onChanged(msg);
+      const moved = await fn();
+      setReq(moved);
+      onChanged(msg, moved.status);
       return true;
     } catch (e) {
       logApiError("urgent " + key, e);
@@ -441,8 +565,8 @@ function UrgentDetailDrawer({
     try {
       const call = await createUrgentMeeting(req.id);
       onMeeting(call, req);
-      await fetchOne();
-      onChanged(t("meetingStarted"));
+      const moved = await fetchOne();
+      onChanged(t("meetingStarted"), moved?.status);
     } catch (e) {
       logApiError("urgent meeting", e);
       setErr(errDetail(e) || t("meetingError"));
@@ -496,7 +620,7 @@ function UrgentDetailDrawer({
                 {req.directions.length ? (
                   <div className="chiprow" style={{ margin: "8px 0 0" }}>
                     {req.directions.map((d) => (
-                      <span key={d} className="fchip" aria-hidden={false}>{te.has(`areas.${d}`) ? te(`areas.${d}`) : d}</span>
+                      <span key={d} className="fchip" aria-hidden={false}>{directionLabel(te, d)}</span>
                     ))}
                   </div>
                 ) : null}
@@ -553,7 +677,7 @@ function UrgentDetailDrawer({
                 <CandidatePanel
                   req={req}
                   onClose={() => setPanel("")}
-                  onDone={(r, msg) => { setReq(r); setPanel(""); onChanged(msg); }}
+                  onDone={(r, msg) => { setReq(r); setPanel(""); onChanged(msg, r.status); }}
                 />
               ) : null}
 
@@ -633,6 +757,14 @@ function UrgentDetailDrawer({
               <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => void meet()}>
                 <IconVideo />{busy === "meeting" ? t("starting") : t("startMeeting")}
               </button>
+            ) : null}
+            {/* The private room the claim created. It is where the client is
+                already being answered, so it stays reachable on a finished
+                record too — that is where the conversation lives. */}
+            {req.secureChatRoomId ? (
+              <Link href={chatHref(req)} className="btn btn--line" title={t("openChatTitle")}>
+                <IconChat />{t("openChat")}
+              </Link>
             ) : null}
             {!finished && req.status !== "open_pool" ? (
               <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => setPanel(panel === "complete" ? "" : "complete")}>
@@ -829,7 +961,7 @@ function TransferPanel({
                   <b>{c.name}</b>
                   <span className="ucand__meta">{[c.sellerType || c.role, c.region, t("workloadN", { n: c.workload })].filter(Boolean).join(" · ")}</span>
                   {c.specializations.length ? (
-                    <span className="ucand__spec">{c.specializations.map((x) => (te.has(`areas.${x}`) ? te(`areas.${x}`) : x)).join(", ")}</span>
+                    <span className="ucand__spec">{c.specializations.map((x) => directionLabel(te, x)).join(", ")}</span>
                   ) : null}
                 </span>
                 <span className="ucand__tags">
@@ -875,7 +1007,10 @@ function CandidatePanel({
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [ids, setIds] = useState<string[]>(req.groupLawyerUserIds);
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("16:00");
+  // Empty, not a prefilled 16:00: the copy under these fields says the time is
+  // optional, and a default the operator never chose is what actually decides
+  // whether assign-group returns `scheduled` or `in_progress`.
+  const [time, setTime] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -967,7 +1102,12 @@ function CandidatePanel({
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  // The operator's own today, not UTC's: toISOString() names the previous day
+  // right through the Tashkent small hours (00:00–05:00 local is still
+  // yesterday at +00:00), and the picker was letting a panel be scheduled into
+  // a date that had already passed. Same wall clock the submit above reads.
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const row = (c: UrgentCandidate) => (
     <li key={c.userId}>
       <button type="button" className={`ucand${ids.includes(c.userId) ? " on" : ""}`} aria-pressed={ids.includes(c.userId)} onClick={() => toggle(c.userId)}>
@@ -984,7 +1124,7 @@ function CandidatePanel({
             ].filter(Boolean).join(" · ")}
           </span>
           {c.specializations.length ? (
-            <span className="ucand__spec">{c.specializations.map((s) => (te.has(`areas.${s}`) ? te(`areas.${s}`) : s)).join(", ")}</span>
+            <span className="ucand__spec">{c.specializations.map((s) => directionLabel(te, s)).join(", ")}</span>
           ) : null}
         </span>
         <span className="ucand__tags">
@@ -1022,7 +1162,7 @@ function CandidatePanel({
                 aria-pressed={wideDirs.includes(d)}
                 onClick={() => setWideDirs((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))}
               >
-                {te.has(`areas.${d}`) ? te(`areas.${d}`) : d}
+                {directionLabel(te, d)}
               </button>
             ))}
           </div>

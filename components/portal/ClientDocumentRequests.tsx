@@ -184,7 +184,7 @@ export default function ClientDocumentRequests() {
                         is translated; item.statusLabel is the server's own
                         wording, itself sometimes only the slug. */}
                     <em className={`mydoc__st mydoc__st--${tone}`}>
-                      {statusLabel(tcm, item.status) || item.statusLabel}
+                      {statusLabel(tcm, item.status, "docStatus") || item.statusLabel}
                     </em>
                   </div>
                   <div className="mydoc__row">

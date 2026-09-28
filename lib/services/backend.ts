@@ -3,6 +3,7 @@
 // UI callers wrap reads in `withFallback(...)` so the app keeps working on local
 // mock data until the backend is reachable.
 import { http, httpBlob, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
+import { cleanDocTitle } from "@/lib/docTitle";
 import { mimeFromName } from "@/lib/download";
 import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
@@ -568,7 +569,7 @@ function serviceTitle(d: Dict, locale: string): string {
       : locale === "en"
         ? d.title_uz_latn // no EN catalog title; latin is the closest neutral
         : d.title_uz_latn;
-  return asStr(byLocale ?? d.title ?? d.name);
+  return cleanDocTitle(asStr(byLocale ?? d.title ?? d.name));
 }
 
 function normService(v: unknown, locale = "uz"): BackendService {
@@ -612,11 +613,11 @@ export async function getServiceCategories(opts?: { includeHidden?: boolean }): 
     const subs = asArr(d.subcategories).map((x) => {
       const w = asDict(x);
       return {
-        title: asStr(w.title ?? w.name),
+        title: cleanDocTitle(asStr(w.title ?? w.name)),
         servicesCount: asNum(w.services_count),
         sampleServices: asArr(w.sample_services).map((y) => {
           const z = asDict(y);
-          return { id: asStr(z.id), title: asStr(z.title), slug: asStr(z.slug) };
+          return { id: asStr(z.id), title: cleanDocTitle(asStr(z.title)), slug: asStr(z.slug) };
         }),
       };
     }).filter((x) => x.title);
@@ -1902,7 +1903,7 @@ function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
     id: asStr(lr.id ?? d.id),
     need: asStr(lr.need ?? d.need),
     status,
-    title: asStr(lr.title ?? d.title),
+    title: cleanDocTitle(asStr(lr.title ?? d.title)),
     requestedDocumentType: asStr(lr.requested_document_type ?? d.requested_document_type),
     requestedDocumentTypeIsCustom: Boolean(lr.requested_document_type_is_custom ?? d.requested_document_type_is_custom),
     clientName: asStr(lr.client_name ?? client.name),
@@ -2003,7 +2004,7 @@ function normPoolItem(v: unknown): DocumentRequestPoolItem {
     status: asStr(d.status),
     // The card's own first line is the document name; the service is its own
     // labelled row below it, so this must not fall back to the service.
-    title: asStr(d.title) || asStr(template.title) || asStr(template.name),
+    title: cleanDocTitle(asStr(d.title) || asStr(template.title) || asStr(template.name)),
     requestedDocumentType: asStr(d.requested_document_type),
     requestedDocumentTypeIsCustom: Boolean(d.requested_document_type_is_custom),
     clientName: asStr(client.name),
@@ -2272,7 +2273,7 @@ function normDocRequest(v: unknown): DocumentRequest {
     orderId: asStr(d.order_id) || undefined,
     paymentId: asStr(d.payment_id) || undefined,
     templateId: asStr(d.template_id ?? d.templateId),
-    title: asStr(d.title),
+    title: cleanDocTitle(asStr(d.title)),
     documentType: asStr(d.document_type ?? d.documentType),
     status: asStr(d.status),
     price: uzs(d, "price"),
@@ -2486,6 +2487,8 @@ export type ClientDocFlowItem = {
 };
 function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
   const d = asDict(v);
+  // Same filename leftovers as the catalogue: the request is named after the
+  // template it came from.
   const lawyer = d.assigned_lawyer ? asDict(d.assigned_lawyer) : null;
   const file = asDict(d.file);
   const actions = asDict(d.actions);
@@ -2496,7 +2499,7 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
     id: asStr(d.id),
     // "self" was the spelling the first version of this endpoint used.
     mode: asStr(d.mode) === "self" ? "manual" : asStr(d.mode),
-    title: asStr(d.title),
+    title: cleanDocTitle(asStr(d.title)),
     requestedDocumentType: asStr(d.requested_document_type),
     requestedDocumentTypeIsCustom: Boolean(d.requested_document_type_is_custom),
     status: asStr(d.status),
@@ -2632,6 +2635,12 @@ export async function addOrgMember(
 // fetched with the bearer token like every other file in this app — never
 // linked directly.
 export type SecureMessageFile = { fileName: string; mimeType: string; size: number; downloadUrl: string };
+// Who wrote a message. `role` is the backend's own word — "client",
+// "advokat", "yurist", "call_center_lawyer" — and is what tells an operator
+// apart from an advocate in a three-party room.
+export type SecureSender = { id: string; lexgoId: string; role: string; name: string };
+// One level only: the quoted message never carries its own quote.
+export type SecureReply = { id: string; sender: SecureSender | null; messageType: string; content: string; isBlocked: boolean };
 export type SecureMessage = {
   id: string;
   senderId: string;
@@ -2639,8 +2648,15 @@ export type SecureMessage = {
   isBlocked: boolean;
   blockReason?: string;
   createdAt: string;
-  messageType: string; // "text" | "file" | "voice"
+  messageType: string; // "text" | "file" | "voice" | "system" | "meeting" | "result" | "call"
   file: SecureMessageFile | null;
+  // A panel chat holds the client, the operator and several advocates, so a
+  // bubble has to name who is speaking. Verified present on every live
+  // message; null only if an older deployment omits it.
+  sender: SecureSender | null;
+  // Always emitted by the backend, null when the message is not a reply.
+  replyToId: string;
+  replyTo: SecureReply | null;
 };
 function normSecureMsg(v: unknown): SecureMessage {
   const d = asDict(v);
@@ -2649,7 +2665,17 @@ function normSecureMsg(v: unknown): SecureMessage {
 // Split out so the chat's WebSocket frames — which arrive as a raw payload,
 // not through http() — can be normalized by the very same code instead of a
 // hand-rolled copy that silently drops the attachment.
+export function normSecureSender(v: unknown): SecureSender | null {
+  if (!v || typeof v !== "object") return null;
+  const d = asDict(v);
+  const id = asStr(d.id);
+  const name = asStr(d.name);
+  if (!id && !name) return null;
+  return { id, lexgoId: asStr(d.lexgo_id), role: asStr(d.role), name };
+}
 export function normSecureMsgCore(d: Dict): Omit<SecureMessage, "messageType" | "file"> {
+  const meta = asDict(d.meta);
+  const r = d.reply_to && typeof d.reply_to === "object" ? asDict(d.reply_to) : null;
   return {
     id: asStr(d.id),
     senderId: asStr(d.sender_user_id ?? d.sender_id ?? d.senderId),
@@ -2657,6 +2683,18 @@ export function normSecureMsgCore(d: Dict): Omit<SecureMessage, "messageType" | 
     isBlocked: Boolean(d.is_blocked),
     blockReason: asStr(d.block_reason) || undefined,
     createdAt: asStr(d.created_at ?? d.createdAt),
+    sender: normSecureSender(d.sender),
+    // The id is duplicated into meta by the backend; either spelling works.
+    replyToId: asStr(d.reply_to_message_id ?? meta.reply_to_message_id),
+    replyTo: r
+      ? {
+          id: asStr(r.id),
+          sender: normSecureSender(r.sender),
+          messageType: asStr(r.message_type) || "text",
+          content: asStr(r.filtered_content ?? r.content),
+          isBlocked: Boolean(r.is_blocked),
+        }
+      : null,
   };
 }
 export function normSecureMsgFile(d: Dict): Pick<SecureMessage, "messageType" | "file"> {
@@ -2721,11 +2759,15 @@ export async function createZoomMeeting(roomId: string): Promise<ZoomMeeting> {
 export async function getSecureMessages(roomId: string): Promise<SecureMessage[]> {
   return listFrom(await http(`/secure-chats/${roomId}/messages`), "messages", "items", "data").map(normSecureMsg);
 }
-export async function sendSecureMessage(roomId: string, content: string): Promise<SecureMessage> {
+export async function sendSecureMessage(roomId: string, content: string, replyToId = ""): Promise<SecureMessage> {
+  // The quoted message travels in `meta`, which is where the backend reads
+  // it from and where it echoes it back.
+  const meta: Record<string, unknown> = {};
+  if (replyToId) meta.reply_to_message_id = replyToId;
   return normSecureMsg(
     await http(`/secure-chats/${roomId}/messages`, {
       method: "POST",
-      body: JSON.stringify({ message_type: "text", content, meta: {} }),
+      body: JSON.stringify({ message_type: "text", content, meta }),
     }),
   );
 }
@@ -2734,13 +2776,14 @@ export async function sendSecureMessage(roomId: string, content: string): Promis
 // which keeps the 401-refresh-and-replay the raw-fetch uploaders lose.
 export async function uploadSecureMessage(
   roomId: string,
-  input: { file: File | Blob; messageType: "file" | "voice"; content?: string; fileName?: string },
+  input: { file: File | Blob; messageType: "file" | "voice"; content?: string; fileName?: string; replyToId?: string },
 ): Promise<SecureMessage> {
   const form = new FormData();
   const name = input.fileName || (input.file instanceof File ? input.file.name : input.messageType === "voice" ? "voice.webm" : "file");
   form.append("file", input.file, name);
   form.append("message_type", input.messageType);
   if (input.content) form.append("content", input.content);
+  if (input.replyToId) form.append("reply_to_message_id", input.replyToId);
   return normSecureMsg(await http(`/secure-chats/${roomId}/messages/upload`, { method: "POST", body: form }));
 }
 // "Shu endpointni faqat room ishtirokchilari ishlata oladi" — so the file is
@@ -5449,6 +5492,44 @@ export async function getMyCases(): Promise<BackendCase[]> {
 }
 
 // ── Secure-chat call sessions (audio/video) ───────────────────────
+// What the backend tells the client about the transport, once per call.
+export type CallConnectionHints = {
+  livekitServer: string;
+  livekitPath: string;
+  livekitV1PathSupported: boolean;
+  minimumPeopleToStart: number;
+  publishOncePerJoin: boolean;
+  // "the client switches quality silently" — the whole point: no prompt.
+  autoQuality: boolean;
+  clientSwitchesQualitySilently: boolean;
+};
+export type CallVideoProfile = { width: number; height: number; fps: number; maxBitrate: number };
+export type CallQualityAction = { profile: string; cameraAllowed: boolean };
+// The ladder and the rules for climbing it. `profiles` always ships the full
+// video set even on an audio call; `videoEnabled` and each action's
+// `cameraAllowed` are what gate it.
+export type CallQualityPolicy = {
+  mode: string;
+  // false on every call in production: the client must never ask the user to
+  // pick a quality, it just switches.
+  userVisibleQualityPrompt: boolean;
+  audioPriority: boolean;
+  autoDowngrade: boolean;
+  autoUpgrade: boolean;
+  audioOnlyFallback: boolean;
+  // "low" on a video call, "audio_only" on an audio call.
+  startProfile: string;
+  videoEnabled: boolean;
+  room: { adaptiveStream: boolean; dynacast: boolean; stopLocalTrackOnUnpublish: boolean };
+  audioCapture: { echoCancellation: boolean; noiseSuppression: boolean; autoGainControl: boolean };
+  publish: { simulcast: boolean; videoCodec: string; backupCodec: boolean; dtx: boolean; red: boolean };
+  profiles: Record<string, CallVideoProfile>;
+  audioOnlyBitrate: number;
+  screenShare: { fps: number; maxBitrate: number } | null;
+  actions: Record<string, CallQualityAction>;
+  thresholds: { poorRttMs: number; poorLossPct: number; audioOnlyRttMs: number; audioOnlyLossPct: number };
+  reconnect: { maxAttempts: number; retryBaseMs: number; retryMaxMs: number };
+};
 export type CallSession = {
   id: string;
   roomId: string;
@@ -5465,6 +5546,9 @@ export type CallSession = {
   livekitRoom: string;
   livekitToken: string;
   turnDomain: string;
+  // Present on every call the backend returns, including join-token.
+  hints: CallConnectionHints | null;
+  quality: CallQualityPolicy | null;
   // Multi-participant meeting fields (LexGo Meet).
   participants: CallParticipant[];
   maxDurationMinutes: number;
@@ -5527,6 +5611,87 @@ function livekitUrl(v: unknown): string {
   return u.replace(/^http(s?):\/\//i, "ws$1://");
 }
 
+function normVideoProfile(v: unknown): CallVideoProfile {
+  const d = asDict(v);
+  return { width: asNum(d.width), height: asNum(d.height), fps: asNum(d.fps), maxBitrate: asNum(d.max_bitrate) };
+}
+function normHints(v: unknown): CallConnectionHints | null {
+  if (!v || typeof v !== "object") return null;
+  const d = asDict(v);
+  return {
+    livekitServer: asStr(d.livekit_server),
+    livekitPath: asStr(d.livekit_path) || "/livekit/rtc",
+    livekitV1PathSupported: d.livekit_v1_path_supported === true,
+    minimumPeopleToStart: asNum(d.minimum_people_to_start, 1),
+    publishOncePerJoin: d.publish_once_per_join !== false,
+    autoQuality: d.auto_quality !== false,
+    clientSwitchesQualitySilently: d.client_switches_quality_silently !== false,
+  };
+}
+function normQuality(v: unknown): CallQualityPolicy | null {
+  if (!v || typeof v !== "object") return null;
+  const d = asDict(v);
+  const pr = asDict(d.profiles);
+  const profiles: Record<string, CallVideoProfile> = {};
+  for (const k of ["low", "medium", "high"]) if (pr[k]) profiles[k] = normVideoProfile(pr[k]);
+  const ao = asDict(pr.audio_only);
+  const ss = pr.screen_share ? asDict(pr.screen_share) : null;
+  const acts = asDict(d.connection_quality_actions);
+  const actions: Record<string, CallQualityAction> = {};
+  for (const [k, raw] of Object.entries(acts)) {
+    const a = asDict(raw);
+    actions[k] = { profile: asStr(a.profile), cameraAllowed: a.camera_allowed === true };
+  }
+  const th = asDict(d.network_thresholds);
+  const rc = asDict(d.reconnect);
+  const room = asDict(d.recommended_room_options);
+  const cap = asDict(d.audio_capture_defaults);
+  const pub = asDict(d.publish_defaults);
+  return {
+    mode: asStr(d.mode) || "adaptive",
+    // Defaults chosen so a backend that stops sending the policy still gets
+    // the documented behaviour rather than a prompt nobody asked for.
+    userVisibleQualityPrompt: d.user_visible_quality_prompt === true,
+    audioPriority: d.audio_priority !== false,
+    autoDowngrade: d.auto_downgrade !== false,
+    autoUpgrade: d.auto_upgrade !== false,
+    audioOnlyFallback: d.audio_only_fallback !== false,
+    startProfile: asStr(d.start_profile) || "low",
+    videoEnabled: d.video_enabled !== false,
+    room: {
+      adaptiveStream: room.adaptiveStream !== false,
+      dynacast: room.dynacast !== false,
+      stopLocalTrackOnUnpublish: room.stopLocalTrackOnUnpublish !== false,
+    },
+    audioCapture: {
+      echoCancellation: cap.echoCancellation !== false,
+      noiseSuppression: cap.noiseSuppression !== false,
+      autoGainControl: cap.autoGainControl !== false,
+    },
+    publish: {
+      simulcast: pub.simulcast !== false,
+      videoCodec: asStr(pub.videoCodec) || "vp8",
+      backupCodec: pub.backupCodec !== false,
+      dtx: pub.dtx !== false,
+      red: pub.red !== false,
+    },
+    profiles,
+    audioOnlyBitrate: asNum(ao.audio_bitrate, 24000),
+    screenShare: ss ? { fps: asNum(ss.fps, 5), maxBitrate: asNum(ss.max_bitrate, 500000) } : null,
+    actions,
+    thresholds: {
+      poorRttMs: asNum(th.poor_rtt_ms, 450),
+      poorLossPct: asNum(th.poor_packet_loss_percent, 7),
+      audioOnlyRttMs: asNum(th.audio_only_rtt_ms, 900),
+      audioOnlyLossPct: asNum(th.audio_only_packet_loss_percent, 15),
+    },
+    reconnect: {
+      maxAttempts: asNum(rc.max_attempts, 20),
+      retryBaseMs: asNum(rc.retry_base_ms, 500),
+      retryMaxMs: asNum(rc.retry_max_ms, 8000),
+    },
+  };
+}
 function normCall(v: unknown): CallSession {
   const d = asDict(v);
   return {
@@ -5544,6 +5709,8 @@ function normCall(v: unknown): CallSession {
     livekitRoom: asStr(d.livekit_room),
     livekitToken: asStr(d.livekit_token),
     turnDomain: asStr(d.turn_domain),
+    hints: normHints(d.connection_hints),
+    quality: normQuality(d.quality_policy),
     participants: asArr(d.participants).map(normParticipant),
     maxDurationMinutes: asNum(d.max_duration_minutes),
     autoEndAt: asStr(d.auto_end_at),
@@ -6853,7 +7020,10 @@ function normUrgentRequest(v: unknown): UrgentRequest {
     cancelledAt: asStr(p.cancelled_at),
     slaBreached: Boolean(pick("sla_breached")),
     rating: normRating(d.rating, d),
-    assignmentMode: asStr(p.assignment_mode),
+    // "callcenter_pool" for the queued kinds, "direct_on_duty_call" for
+  // express and YTX — verified live. Never "on_duty_pool", which an earlier
+  // reading of the MD assumed.
+  assignmentMode: asStr(p.assignment_mode),
     immediateCall: Boolean(p.immediate_call),
     canManage: d.can_manage === true,
     // A record that came back at all is one this viewer may see; the flag is
@@ -6907,7 +7077,25 @@ export type UrgentRequestInput = {
   files?: UrgentAttachmentInput[];
   voiceMessages?: UrgentAttachmentInput[];
 };
-export async function createUrgentRequest(input: UrgentRequestInput): Promise<UrgentRequest> {
+// What comes back from POST /urgent-advokat/requests. For the ordinary
+// kinds this is just the record; for express and YTX the backend has already
+// found an on-duty advocate and opened an audio call, and `call` is the
+// session to join right now.
+export type UrgentCreated = {
+  request: UrgentRequest;
+  // true only when the backend opened a call as part of creating the record.
+  immediateCall: boolean;
+  // "audio" on the express and traffic kinds, even though the service is
+  // named "videokonsultatsiya" — the backend opens an audio session.
+  callType: string;
+  // Production sends "direct_on_duty_call" here, NOT the "on_duty_pool" this
+  // file used to assume. Read rather than compared against a guess.
+  assignmentMode: string;
+  call: CallSession | null;
+  // A ready-to-show Uzbek sentence the backend supplies for this case.
+  message: string;
+};
+export async function createUrgentRequest(input: UrgentRequestInput): Promise<UrgentCreated> {
   const body: Record<string, unknown> = {
     service_kind: input.serviceKind,
     channel: input.channel,
@@ -6922,7 +7110,21 @@ export async function createUrgentRequest(input: UrgentRequestInput): Promise<Ur
   if (input.region) body.region = input.region;
   if (input.directions?.length) body.directions = input.directions;
   if (input.lawyerCount) body.lawyer_count = input.lawyerCount;
-  return normUrgentRequest(await http("/urgent-advokat/requests", { method: "POST", body: JSON.stringify(body) }));
+  const d = asDict(await http("/urgent-advokat/requests", { method: "POST", body: JSON.stringify(body) }));
+  // The response carries the record at the top level AND repeats it under
+  // `urgent_request`; either root normalizes, so the top level is used and
+  // the duplicate is the fallback.
+  const request = normUrgentRequest(d.urgent_request && !d.id ? d.urgent_request : d);
+  const call = d.call_session ? normCall(d.call_session) : null;
+  return {
+    request,
+    // Trusted from either root, and from the payload where it is mirrored.
+    immediateCall: d.immediate_call === true || request.immediateCall,
+    callType: asStr(d.call_type) || (call ? call.callType : ""),
+    assignmentMode: asStr(d.assignment_mode) || request.assignmentMode,
+    call,
+    message: asStr(d.message),
+  };
 }
 // The refusal body, wherever the backend chose to put it. `ApiError.code`
 // is read out of `detail.code`, but the 2026-09-28 update documents the
@@ -7157,6 +7359,18 @@ export async function transferUrgentRequest(
 // The client rates the work inside the 15 minutes after it is completed.
 // Answers 409 "Faqat yakunlangan ish baholanadi" before completion and 409
 // "Bu ish baholangan" on a second attempt — both verified.
+// "Group chatni mijoz yakunlay olmaydi. Faqat groupdagi advokat/operator
+// yakunlaydi" — the backend enforces it with a 403, so the button is hidden
+// for a client rather than the refusal being explained after the fact.
+// Completing flips the request to `completed`, marks the room `completed`,
+// makes further sends 409, and opens the client's 15-minute rating window.
+// Probed live: the route exists and is POST-only.
+export async function completeUrgentChat(recordId: string, summary = ""): Promise<void> {
+  await http(`/urgent-advokat/requests/${encodeURIComponent(recordId)}/chat/complete`, {
+    method: "POST",
+    body: JSON.stringify({ summary }),
+  });
+}
 export async function rateUrgentRequest(id: string, rating: number, comment = ""): Promise<void> {
   await http(`/urgent-advokat/requests/${encodeURIComponent(id)}/rating`, {
     method: "POST",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   listAssignedUrgentRequests,
@@ -65,7 +65,36 @@ const KINDS = [
   "second_opinion_single",
   "second_opinion_group",
 ] as const;
-const STATUSES = ["claimed", "scheduled", "in_progress", "meeting_active", "completed", "cancelled"] as const;
+// open_pool and expired were missing: a record can be handed back to the pool
+// and an unanswered one expires on its own, so both are states an advocate
+// finds on their own list and could not filter down to.
+const STATUSES = ["open_pool", "claimed", "scheduled", "in_progress", "meeting_active", "completed", "cancelled", "expired"] as const;
+
+// The endpoint answers in the record's own order, which buries a meeting
+// twenty minutes away under a case that was completed last week. Rank by how
+// much the advocate still has to do about it: a room that is open now, then a
+// time somebody expects them at, then work in hand, then everything finished.
+// An unrecognised status sits between the two — new backend states must not
+// disappear to the bottom of the list before anyone has seen them.
+const ATTENTION_RANK = new Map([
+  ["meeting_active", 0],
+  ["scheduled", 1],
+  ["claimed", 2],
+  ["in_progress", 2],
+  ["open_pool", 3],
+]);
+const RANK_UNKNOWN = 5;
+const RANK_DONE = 9;
+const DONE_STATUSES = new Set(["completed", "cancelled", "expired"]);
+function attentionRank(status: string): number {
+  return ATTENTION_RANK.get(status) ?? (DONE_STATUSES.has(status) ? RANK_DONE : RANK_UNKNOWN);
+}
+// A record the advocate has to turn up to: it carries a time and has not been
+// run yet. This is the only place a panel meeting they were chosen for is
+// visible to them — the invite itself is a ring card that lasts seconds.
+function isUpcoming(r: UrgentRequest): boolean {
+  return !!r.scheduledAt && (r.status === "scheduled" || r.status === "meeting_active");
+}
 
 const KIND_ICON: Record<string, typeof IconVideo> = {
   video_consultation: IconVideo,
@@ -126,7 +155,27 @@ export default function UrgentAssignedPanel() {
     return () => { off(); offSync(); document.removeEventListener("visibilitychange", onVisible); };
   }, []);
 
-  const shown = state.items;
+  // Sorted here rather than asked of the backend: the endpoint takes status
+  // and service_kind filters only, and a copy is made because state.items is
+  // the array the fetch put in state.
+  const shown = useMemo(() => {
+    const when = (r: UrgentRequest) => (r.scheduledAt ? Date.parse(r.scheduledAt) : NaN);
+    const made = (r: UrgentRequest) => Date.parse(r.createdAt) || 0;
+    return [...state.items].sort((a, b) => {
+      const ra = attentionRank(a.status);
+      const rb = attentionRank(b.status);
+      if (ra !== rb) return ra - rb;
+      if (ra < RANK_DONE) {
+        const ta = when(a);
+        const tb = when(b);
+        // Soonest first among the live ones — but an unscheduled record has no
+        // clock of its own and must not sort as if its meeting were in 1970.
+        if (Number.isNaN(ta) !== Number.isNaN(tb)) return Number.isNaN(ta) ? 1 : -1;
+        if (!Number.isNaN(ta) && ta !== tb) return ta - tb;
+      }
+      return made(b) - made(a); // finished work, and ties: newest first
+    });
+  }, [state.items]);
 
   if (state.status === "missing") return null;
 
@@ -166,8 +215,14 @@ export default function UrgentAssignedPanel() {
           {shown.map((r) => {
             const Icon = KIND_ICON[r.serviceKind] ?? IconScale;
             const on = openId === r.id;
+            const up = isUpcoming(r);
+            // The rest of the panel, as the record carries it — minus the
+            // advocate who is reading the row. group_lawyers is the only
+            // place they learn who else was chosen; there is no roster
+            // endpoint a participant may call.
+            const peers = up ? r.groupLawyers.filter((g) => g.name && g.id !== session?.id) : [];
             return (
-              <li key={r.id} className={`uasg__row${on ? " uasg__row--on" : ""}`}>
+              <li key={r.id} className={`uasg__row${on ? " uasg__row--on" : ""}${up ? " uasg__row--soon" : ""}`}>
                 <span className={`uaq__i uaq__i--${r.channel || "video"}`}><Icon /></span>
                 <div className="uasg__m">
                   <b>
@@ -186,13 +241,34 @@ export default function UrgentAssignedPanel() {
                     {[
                       r.clientName,
                       r.region ? regionLabel(te, r.region) : "",
-                      r.directions.length
+                      // On an upcoming record the directions move into the
+                      // block below, where they read as what the meeting is
+                      // about instead of one more grey clause.
+                      !up && r.directions.length
                         ? r.directions.map((d) => (te.has(`areas.${d}`) ? te(`areas.${d}`) : d)).join(", ")
                         : "",
                       r.createdAt ? dateTimeFull(r.createdAt, locale) : "",
                     ].filter(Boolean).join(" · ")}
                   </span>
-                  {r.scheduledAt ? (
+                  {up ? (
+                    <div className="uasg__up">
+                      <b><IconCalendar />{t("upcoming")}</b>
+                      {/* dateTimeFull renders in the viewer's own zone; the
+                          advocate has to be somewhere at a local time, not at
+                          the UTC string the record stores. */}
+                      <span className="uasg__up__when">{dateTimeFull(r.scheduledAt, locale)}</span>
+                      {r.directions.length ? (
+                        <span className="uasg__tags">
+                          {r.directions.map((d) => (
+                            <em key={d} className="uasg__tag">{te.has(`areas.${d}`) ? te(`areas.${d}`) : d}</em>
+                          ))}
+                        </span>
+                      ) : null}
+                      {peers.length ? (
+                        <span className="uasg__up__peers"><IconUsers />{t("panelOthers")}: {peers.map((g) => g.name).join(", ")}</span>
+                      ) : null}
+                    </div>
+                  ) : r.scheduledAt ? (
                     <span className="uasg__when"><IconCalendar />{t("scheduledFor", { when: dateTimeFull(r.scheduledAt, locale) })}</span>
                   ) : null}
                 </div>

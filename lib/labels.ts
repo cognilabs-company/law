@@ -7,11 +7,26 @@ type T = ((key: string, values?: Record<string, string | number | Date>) => stri
 
 export const humanize = (v: string) => (v || "").replace(/[_-]+/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
-// tc = useTranslations("portal.common"): tries status.*, orderStatus.*, orderStage.*.
-export function statusLabel(tc: T, value?: string | null): string {
+const STATUS_NAMESPACES = ["status", "orderStatus", "orderStage", "paymentStatus", "docStatus"] as const;
+export type StatusNamespace = (typeof STATUS_NAMESPACES)[number];
+
+// tc = useTranslations("portal.common"): tries status.*, orderStatus.*,
+// orderStage.*, paymentStatus.*, docStatus.* in that order, first hit wins.
+//
+// `prefer` moves one namespace to the front. First-hit-wins means a value
+// several namespaces define always resolves to whichever is listed earlier,
+// and for the document-request screens that is the wrong sentence: the shared
+// status.claimed is "Olingan" (somebody took the queue row) where
+// docStatus.claimed is "Advokat ish boshladi" (your document is being worked
+// on), and status.open_pool is "Bo'sh navbatda" where docStatus.open_pool is
+// "Advokat kutilmoqda" — the difference between describing a queue and telling
+// the client what is happening to their document. Those screens pass
+// "docStatus"; every other call site keeps the order it has always had.
+export function statusLabel(tc: T, value?: string | null, prefer?: StatusNamespace): string {
   const v = (value || "").trim();
   if (!v) return "";
-  for (const ns of ["status", "orderStatus", "orderStage", "paymentStatus", "docStatus"]) {
+  if (prefer && tc.has(`${prefer}.${v}`)) return tc(`${prefer}.${v}`);
+  for (const ns of STATUS_NAMESPACES) {
     if (tc.has(`${ns}.${v}`)) return tc(`${ns}.${v}`);
   }
   return humanize(v);

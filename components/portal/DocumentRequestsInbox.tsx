@@ -174,7 +174,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
               >
                 <div className="pcase__h">
                   <b className="pcase__ttl">{r.title || r.clientName || t("title")}</b>
-                  <span className="advmuted">{statusLabel(tcm, r.status || r.request.status)}</span>
+                  <span className="advmuted">{statusLabel(tcm, r.status || r.request.status, "docStatus")}</span>
                 </div>
                 {r.clientName ? (
                   <small>
@@ -255,7 +255,7 @@ function PoolCard({
     <div className="pcase">
       <div className="pcase__h">
         <b className="pcase__ttl">{item.title || t("title")}</b>
-        <span className="st st--new">{item.status === "open_pool" ? t("statusNew") : statusLabel(tcm, item.status)}</span>
+        <span className="st st--new">{item.status === "open_pool" ? t("statusNew") : statusLabel(tcm, item.status, "docStatus")}</span>
       </div>
       {item.clientName ? (
         <small>

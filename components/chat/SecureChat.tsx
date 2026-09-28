@@ -4,12 +4,12 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { useAuth, canMakeCalls, hasAdminAccess } from "@/lib/auth";
+import { useAuth, canMakeCalls, hasAdminAccess, sessionRoles, type Session } from "@/lib/auth";
 import ContentRevealBar from "./ContentRevealBar";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
 import { maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
-import { backoffMs, refreshAccessToken } from "@/lib/http";
+import { backoffMs, isConflict, refreshAccessToken } from "@/lib/http";
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
 import {
   getSecureMessages,
@@ -23,7 +23,9 @@ import {
   listCalls,
   setChatAutoDelete,
   deleteSecureChat,
+  completeUrgentChat,
   type SecureMessage,
+  type SecureReply,
   type LiveKitJoin,
 } from "@/lib/services/backend";
 import { VoiceRecorder, canRecordVoice, voiceDuration } from "@/lib/voiceRecorder";
@@ -48,6 +50,9 @@ import {
   IconFileText,
   IconDownload,
   IconEye,
+  IconUsers,
+  IconChevronLeft,
+  IconClipboardCheck,
 } from "../icons";
 import { timeOnly, dateOnly } from "@/lib/date";
 import { localizeApiDetail } from "@/lib/apiMessage";
@@ -72,6 +77,9 @@ function dayKey(iso: string): string {
 // so show a plain "call" note instead of a broken external link.
 const CALL_LINK_RE = /(https?:\/\/(?:[a-z0-9-]+\.)?zoom\.(?:us|com)\/\S+|\/secure-chats\/\S+\/join)/i;
 const METADATA_ONLY = "[metadata_only]";
+// Everything below renders `text` as a JSX text child, so emoji reach the DOM
+// as the characters the sender typed: nothing here escapes or transliterates
+// them, and maskContacts only matches links, @handles and digit runs.
 function MsgBody({ text, label }: { text: string; label: string }) {
   if (text === METADATA_ONLY) return <em className="sbub__hidden">🔒</em>;
   const m = text.match(CALL_LINK_RE);
@@ -89,6 +97,45 @@ function MsgBody({ text, label }: { text: string; label: string }) {
       {after ? ` ${after}` : null}
     </>
   );
+}
+
+// `sender.role` is the backend's own word. Captured live in a Tezkor Advokat
+// room: "client", "advokat", "call_center" — and the auth layer knows about
+// "yurist", "call_center_lawyer" and "advokat_tashkiloti" as well. An operator
+// only differs from an advocate by this field, so the chip is what tells the
+// three parties apart.
+const ROLE_KEYS: Record<string, string> = {
+  client: "roleClient",
+  advokat: "roleAdvokat",
+  advokat_tashkiloti: "roleAdvokat",
+  yurist: "roleYurist",
+  call_center: "roleOperator",
+  call_center_lawyer: "roleOperator",
+  operator: "roleOperator",
+};
+// A role we have no wording for is shown as the backend spelled it, tidied —
+// guessing would label a new staff role as something it is not.
+function roleLabel(role: string, t: ReturnType<typeof useTranslations>): string {
+  const key = ROLE_KEYS[role.trim().toLowerCase()];
+  if (key) return t(key);
+  return role.replace(/[_-]+/g, " ").replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+}
+
+// "Group chatni mijoz yakunlay olmaydi" — the backend answers a client 403, so
+// the action is hidden instead of refused after the fact. Session.role maps
+// every staff role to "client" (see lib/auth.tsx), so the decision is taken on
+// the backend role list, the way canMakeCalls/hasAdminAccess take theirs.
+// There is no ready-made "is staff" predicate: a client's role list holds
+// nothing but "client", so any other entry in it means staff.
+function isStaffSession(s: Session | null): boolean {
+  return sessionRoles(s).some((r) => r !== "client");
+}
+
+// The quote an optimistic bubble shows before the server echoes its own back,
+// so a reply does not lose its context for the second it is in flight.
+function quotePreview(m: LocalMsg | null): SecureReply | null {
+  if (!m) return null;
+  return { id: m.id, sender: m.sender, messageType: m.messageType, content: m.filteredContent, isBlocked: m.isBlocked };
 }
 
 const KB = 1024;
@@ -240,12 +287,27 @@ export default function SecureChat({
   roomId,
   onClose,
   compact,
+  urgentRecordId,
+  workId,
+  serviceTitle,
+  participantCount,
 }: {
   roomId: string;
   onClose?: () => void;
   // Embedded in a side panel: one slim status line instead of the full
   // page header, and no controls that duplicate the host screen's own.
   compact?: boolean;
+  // The Tezkor Advokat request this room belongs to. A room id is not enough:
+  // completion is a request-level action (POST /urgent-advokat/requests/{id}
+  // /chat/complete), and a plain secure chat has no such record — hence
+  // optional, and the action only exists when a host screen supplies it.
+  urgentRecordId?: string;
+  // Header context the room itself does not carry: SecureRoom models only
+  // clientUserId/sellerUserId, so the work number, the service and the size
+  // of a three-party room all have to come from the screen that opened it.
+  workId?: string;
+  serviceTitle?: string;
+  participantCount?: number;
 }) {
   const t = useTranslations("secureChat");
   const locale = useLocale();
@@ -267,6 +329,16 @@ export default function SecureChat({
   const [menuOpen, setMenuOpen] = useState(false);
   const [ttl, setTtl] = useState(0); // auto-delete window in hours (0 = off)
   const [callErr, setCallErr] = useState<string | null>(null);
+  // The message being answered. The whole bubble is kept, not just its id, so
+  // the preview strip can show the same name and excerpt the quote will.
+  const [replyTo, setReplyTo] = useState<LocalMsg | null>(null);
+  // Completed room. Set by our own "yakunlash", and by any 409 from a send —
+  // the backend refuses every message once the request is completed, and a
+  // room can be completed by the other side while this tab sits open.
+  const [finished, setFinished] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  // Bubble to glow after a jump from a quote.
+  const [flashId, setFlashId] = useState("");
   // Attachments: a file picked from disk, or a voice note recorded here.
   // Both travel as multipart over HTTP — the socket carries JSON only — so
   // neither can use send()'s WebSocket fast path.
@@ -297,6 +369,77 @@ export default function SecureChat({
   useEffect(() => {
     msgsRef.current = msgs;
   }, [msgs]);
+
+  // The glow is a one-shot: the timer clears it so a second jump to the same
+  // bubble restarts the animation instead of doing nothing.
+  useEffect(() => {
+    if (!flashId) return;
+    const h = setTimeout(() => setFlashId(""), 1600);
+    return () => clearTimeout(h);
+  }, [flashId]);
+
+  // Scroll to the message a quote points at. The history endpoint has no
+  // pagination, so everything the room holds is already rendered — a miss
+  // means the original was deleted, and silence is the right answer.
+  function jumpTo(id: string) {
+    const host = bodyRef.current;
+    if (!host || !id) return;
+    const key = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id;
+    const el = host.querySelector<HTMLElement>(`[data-mid="${key}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashId(id);
+  }
+
+  const senderName = (s: { name: string } | null) => s?.name.trim() || t("unknownSender");
+
+  // One line standing in for a whole message. Both gates the bubble body goes
+  // through apply: "[metadata_only]" is staff without the content-reveal
+  // permission, and everything else is masked — quoting unmasked text would
+  // hand back the phone number maskContacts hid one bubble above.
+  function msgExcerpt(m: LocalMsg): string {
+    if (m.messageType === "voice") return t("voiceNote");
+    if (m.messageType === "file" || m.file) return m.file?.fileName || t("fileGeneric");
+    if (!m.filteredContent || m.filteredContent === METADATA_ONLY) return t("hiddenQuote");
+    return maskContacts(m.filteredContent);
+  }
+
+  // The quoted payload carries no attachment metadata, so a reply to a file
+  // reads better off the original bubble; the embedded copy is the fallback
+  // for a message that is no longer in the history.
+  function quoteExcerpt(r: SecureReply): string {
+    const original = msgs.find((x) => x.id === r.id);
+    if (original) return msgExcerpt(original);
+    if (r.messageType === "voice") return t("voiceNote");
+    if (r.messageType === "file") return t("fileGeneric");
+    if (!r.content || r.content === METADATA_ONLY) return t("hiddenQuote");
+    return maskContacts(r.content);
+  }
+
+  // A quote needs the server's id, which an optimistic bubble does not have
+  // yet, and a completed room takes no new messages at all.
+  const canReply = (m: LocalMsg) => !finished && !!m.id && !m.pending && !m.failed && !m.id.startsWith("tmp-");
+
+  // Ends the consultation for everyone: the request flips to `completed`, the
+  // room with it, further sends answer 409 and the client's 15-minute rating
+  // window opens. Irreversible, hence the confirm.
+  async function completeChat() {
+    if (!urgentRecordId || completing || finished) return;
+    if (typeof window !== "undefined" && !window.confirm(t("completeConfirm"))) return;
+    setCompleting(true);
+    try {
+      await completeUrgentChat(urgentRecordId);
+      setFinished(true);
+      setReplyTo(null);
+      setCallErr(null);
+    } catch (e) {
+      // Someone else completed it first — the end state is the one we wanted.
+      if (isConflict(e)) setFinished(true);
+      else setCallErr(t("completeFailed"));
+    } finally {
+      setCompleting(false);
+    }
+  }
 
   // Start a call, or join the one already active in this room.
   async function beginCall(kind: "audio" | "video") {
@@ -542,7 +685,12 @@ export default function SecureChat({
             const code = Number(o.status_code) || 0;
             const detail = typeof o.detail === "string" ? o.detail : "";
             if (code === 401) void onAuthExpired();
-            else failPending(code === 403 ? detail || t("wsForbidden") : detail || t("wsSendFailed"));
+            // 409 on a send means the room is completed. It will stay
+            // completed, so this is the end state, not a retryable failure.
+            else if (code === 409) {
+              setFinished(true);
+              failPending(t("chatFinished"));
+            } else failPending(code === 403 ? detail || t("wsForbidden") : detail || t("wsSendFailed"));
             return;
           }
           const raw = (o.message ?? o) as Record<string, unknown>;
@@ -629,9 +777,11 @@ export default function SecureChat({
   // message, but there is no socket echo to reconcile against on failure —
   // the HTTP response is the only confirmation, so it replaces the bubble.
   async function sendAttachment(file: File | Blob, messageType: "file" | "voice", fileName?: string) {
-    if (attachBusy) return;
+    if (attachBusy || finished) return;
     setAttachBusy(true);
     setAttachErr("");
+    const quoted = replyTo;
+    setReplyTo(null);
     const tempId = `tmp-${Date.now()}`;
     const name = fileName || (file instanceof File ? file.name : "");
     setMsgs((prev) => [
@@ -639,6 +789,9 @@ export default function SecureChat({
       {
         id: tempId,
         senderId: session?.id ?? "",
+        sender: null,
+        replyToId: quoted?.id ?? "",
+        replyTo: quotePreview(quoted),
         filteredContent: "",
         isBlocked: false,
         createdAt: new Date().toISOString(),
@@ -648,12 +801,15 @@ export default function SecureChat({
       },
     ]);
     try {
-      const m = await uploadSecureMessage(roomId, { file, messageType, fileName: name });
+      const m = await uploadSecureMessage(roomId, { file, messageType, fileName: name, replyToId: quoted?.id });
       if (m.id) seen.current.add(m.id);
       setMsgs((prev) => prev.map((x) => (x.id === tempId ? m : x)));
-    } catch {
+    } catch (e) {
       setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...x, pending: false, failed: true } : x)));
-      setAttachErr(t("attachFailed"));
+      // The completed-room 409 is not the "try again" the generic notice
+      // promises — the finished banner says so instead.
+      if (isConflict(e)) setFinished(true);
+      else setAttachErr(t("attachFailed"));
     } finally {
       setAttachBusy(false);
     }
@@ -684,6 +840,9 @@ export default function SecureChat({
       if (note) void sendAttachment(note.blob, "voice", `voice-${Date.now()}.${note.mime.includes("mp4") || note.mime.includes("aac") ? "m4a" : note.mime.includes("ogg") ? "ogg" : "webm"}`);
       return;
     }
+    // Only the start is blocked once the room is completed: a recording that
+    // was already running still has to be stoppable, or the mic stays lit.
+    if (finished) return;
     setAttachErr("");
     const next = new VoiceRecorder();
     // Stored before the await — see AttachmentPicker for why.
@@ -708,13 +867,18 @@ export default function SecureChat({
 
   async function send() {
     const content = text.trim();
-    if (!content) return;
+    if (!content || finished) return;
     setText("");
+    const quoted = replyTo;
+    setReplyTo(null);
     // Optimistic bubble; reconciled when the server echoes it back.
     const tempId = `tmp-${Date.now()}`;
     const optimistic: LocalMsg = {
       id: tempId,
       senderId: session?.id ?? "",
+      sender: null,
+      replyToId: quoted?.id ?? "",
+      replyTo: quotePreview(quoted),
       filteredContent: content,
       isBlocked: false,
       createdAt: new Date().toISOString(),
@@ -731,18 +895,25 @@ export default function SecureChat({
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
       try {
-        ws.send(JSON.stringify({ content, message_type: "text", meta: {} }));
+        // The socket frame is the POST body: `meta.reply_to_message_id` is the
+        // field the REST endpoint stores a quote from and the one the backend
+        // echoes back on every message, so the quote rides the same envelope
+        // the socket already carries.
+        ws.send(JSON.stringify({ content, message_type: "text", meta: quoted?.id ? { reply_to_message_id: quoted.id } : {} }));
         return; // echo reconciles the optimistic bubble and clears "sending"
       } catch {
         /* fall through to HTTP */
       }
     }
     try {
-      const m = await sendSecureMessage(roomId, content);
+      const m = await sendSecureMessage(roomId, content, quoted?.id ?? "");
       if (m.id) seen.current.add(m.id);
       setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...m } : x)));
-    } catch {
+    } catch (e) {
       setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...x, pending: false, failed: true } : x)));
+      // A completed room refuses every send with 409, and will keep doing so —
+      // the finished banner explains it instead of a "try again" that can't.
+      if (isConflict(e)) setFinished(true);
     } finally {
       setSending(false);
     }
@@ -776,11 +947,23 @@ export default function SecureChat({
         </span>
         <div className="schat__t">
           <b>{t("title")}</b>
+          {serviceTitle || workId ? (
+            <span className="schat__sub">
+              {serviceTitle ? <span className="schat__svc">{serviceTitle}</span> : null}
+              {workId ? <span className="schat__wid">#{workId}</span> : null}
+            </span>
+          ) : null}
           <span className={`schat__conn schat__conn--${conn}`}>
             <i className="schat__cdot" aria-hidden />
             {connLabel}
           </span>
         </div>
+        {participantCount ? (
+          <span className="schat__ppl" title={t("participants", { count: participantCount })}>
+            <IconUsers />
+            {participantCount}
+          </span>
+        ) : null}
         {!compact && canMakeCalls(session) ? (
           <div className="schat__calls">
             <button
@@ -809,6 +992,20 @@ export default function SecureChat({
             {t("e2e")}
           </span>
         )}
+        {/* Only an advocate or the operator may complete the consultation; a
+            client is answered 403, so the action is not offered to one. */}
+        {urgentRecordId && isStaffSession(session) && !finished ? (
+          <button
+            className="schat__done"
+            type="button"
+            onClick={() => void completeChat()}
+            disabled={completing}
+            title={t("completeChat")}
+          >
+            {completing ? <IconClock /> : <IconClipboardCheck />}
+            <span>{t("completeChat")}</span>
+          </button>
+        ) : null}
         <div className="schat__menu" hidden={compact}>
           <button
             className="schat__call"
@@ -916,6 +1113,7 @@ export default function SecureChat({
         ) : (
           msgs.map((m, i) => {
             const mine = !!session && m.senderId === session.id;
+            const quoted = m.replyTo;
             const dk = dayKey(m.createdAt);
             let sep: React.ReactNode = null;
             if (dk && dk !== lastDay) {
@@ -930,10 +1128,29 @@ export default function SecureChat({
             return (
               <Fragment key={`w-${m.id || i}`}>
                 {sep}
-                <div className={`sbub sbub--${mine ? "me" : "them"}`}>
+                <div className={`sbub sbub--${mine ? "me" : "them"}${flashId && flashId === m.id ? " sbub--flash" : ""}`} data-mid={m.id || undefined}>
                   {!mine ? <span className="sbub__av"><IconUser /></span> : null}
                   <div className="sbub__wrap">
+                    {/* A Tezkor Advokat room has three parties, so "not mine"
+                        does not identify anyone — name every incoming bubble. */}
+                    {!mine && m.sender ? (
+                      <div className="sbub__who">
+                        <b>{senderName(m.sender)}</b>
+                        {m.sender.role ? <span className="sbub__role">{roleLabel(m.sender.role, t)}</span> : null}
+                      </div>
+                    ) : null}
                     <div className={`sbub__c${m.failed ? " sbub__c--failed" : ""}`}>
+                      {quoted ? (
+                        <button
+                          type="button"
+                          className="sbub__quote"
+                          onClick={() => jumpTo(quoted.id)}
+                          title={t("replyJump")}
+                        >
+                          <b>{senderName(quoted.sender)}</b>
+                          <span>{quoteExcerpt(quoted)}</span>
+                        </button>
+                      ) : null}
                       {m.messageType === "voice" || m.messageType === "file" || m.file ? (
                         <Attachment roomId={roomId} msg={m} t={t} />
                       ) : null}
@@ -958,6 +1175,19 @@ export default function SecureChat({
                       ) : null}
                     </div>
                   </div>
+                  {/* Last child, so row-reverse on my own bubbles puts it on
+                      the outer side of both columns without a second rule. */}
+                  {canReply(m) ? (
+                    <button
+                      type="button"
+                      className="sbub__reply"
+                      onClick={() => setReplyTo(m)}
+                      aria-label={t("reply")}
+                      title={t("reply")}
+                    >
+                      <IconChevronLeft />
+                    </button>
+                  ) : null}
                 </div>
               </Fragment>
             );
@@ -979,6 +1209,26 @@ export default function SecureChat({
       </div>
 
       {attachErr ? <div className="schat__attacherr" role="alert">{attachErr}</div> : null}
+
+      {finished ? (
+        <div className="schat__fin" role="status">
+          <IconClipboardCheck />
+          {t("chatFinished")}
+        </div>
+      ) : null}
+
+      {replyTo ? (
+        <div className="schat__replybar">
+          <span className="schat__replyi" aria-hidden><IconChevronLeft /></span>
+          <span className="schat__replyt">
+            <b>{senderName(replyTo.sender)}</b>
+            <small>{msgExcerpt(replyTo)}</small>
+          </span>
+          <button type="button" className="schat__replyx" onClick={() => setReplyTo(null)} aria-label={t("replyCancel")} title={t("replyCancel")}>
+            <IconClose />
+          </button>
+        </div>
+      ) : null}
 
       <div className={`schat__bar${recOn ? " schat__bar--rec" : ""}`}>
         {recOn ? (
@@ -1002,7 +1252,7 @@ export default function SecureChat({
               type="button"
               className="schat__attach"
               onClick={() => fileRef.current?.click()}
-              disabled={attachBusy}
+              disabled={attachBusy || finished}
               aria-label={t("attachFile")}
               title={t("attachFile")}
             >
@@ -1023,15 +1273,16 @@ export default function SecureChat({
               }}
               placeholder={t("placeholder")}
               aria-label={t("placeholder")}
+              disabled={finished}
             />
             {/* The mic replaces Send only while there is nothing typed, so a
                 half-written message can never be lost to a stray tap. */}
             {!text.trim() && canRecordVoice() ? (
-              <button type="button" className="schat__mic" onClick={() => void toggleVoice()} disabled={attachBusy} aria-label={t("voiceRecord")} title={t("voiceRecord")}>
+              <button type="button" className="schat__mic" onClick={() => void toggleVoice()} disabled={attachBusy || finished} aria-label={t("voiceRecord")} title={t("voiceRecord")}>
                 <IconMic />
               </button>
             ) : (
-              <button type="button" onClick={send} disabled={sending || !text.trim()} aria-label={t("send")}>
+              <button type="button" onClick={send} disabled={sending || finished || !text.trim()} aria-label={t("send")}>
                 <IconSend />
               </button>
             )}
