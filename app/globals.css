@@ -7007,3 +7007,7 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .cbxcard__in:focus{outline:none;background:var(--dk-surface, #fff);
   box-shadow:inset 0 0 0 1.5px var(--b400),0 0 0 4px var(--dk-tint-blue, #E6F0FF)}
 .svfam__n{display:block;margin-top:3px;font-size:.72rem;font-weight:600;color:var(--gray2)}
+
+/* Which of the two second-opinion variants still needs a previous LexGo
+   service — marked on the switch, where the choice is made. */
+.seg__lock{width:12px;height:12px;margin-left:2px;opacity:.7}

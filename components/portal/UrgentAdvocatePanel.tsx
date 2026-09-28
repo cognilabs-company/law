@@ -80,7 +80,6 @@ const DIRECTIONS: { slug: string; area: string }[] = [
 ];
 
 const GROUP = "second_opinion_group";
-const SECOND_OPINION = new Set(["second_opinion_single", GROUP]);
 
 export default function UrgentAdvocatePanel() {
   const t = useTranslations("portal.client.urgent");
@@ -177,7 +176,6 @@ export default function UrgentAdvocatePanel() {
     x ? (cat?.groups ?? []).find((g) => g.items.includes(x.key)) : undefined;
 
   const isGroup = sel?.key === GROUP;
-  const isSecond = !!sel && SECOND_OPINION.has(sel.key);
   const price = urgentPrice(sel, channel, isGroup ? lawyers : 1);
   const minutes = urgentMinutes(sel, channel);
 
@@ -353,6 +351,9 @@ export default function UrgentAdvocatePanel() {
                       <button key={k} type="button" role="tab" className="seg" aria-selected={sel.key === k} onClick={() => choose(m)}>
                         {k === GROUP ? <IconUsers /> : <IconScale />}
                         {t.has(`kinds.${k}`) ? t(`kinds.${k}`) : m.title}
+                        {/* Only one of the two needs a previous LexGo service;
+                            saying which, here, beats a 402 after the form. */}
+                        {m.requiresPriorPurchase ? <IconLock className="seg__lock" /> : null}
                       </button>
                     );
                   })}
@@ -373,8 +374,10 @@ export default function UrgentAdvocatePanel() {
             ) : null}
 
             {/* Said before the form is filled, not after the backend has
-                refused it — the 402 gate is the fallback, not the warning. */}
-            {isSecond ? (
+                refused it — the 402 gate is the fallback, not the warning.
+                Straight off the catalog's own flag, so a service the backend
+                opens up stops warning the moment it does. */}
+            {sel.requiresPriorPurchase ? (
               <p className="ua__pre"><IconLock />{t("priorPurchaseNote")}</p>
             ) : null}
 
@@ -519,6 +522,8 @@ export default function UrgentAdvocatePanel() {
           const s = services.find((x) => x.key === key);
           if (s) choose(s);
         }}
+        // Offered only while the backend really does leave it open.
+        hasSingle={services.some((s) => s.key === "second_opinion_single" && !s.requiresPriorPurchase)}
         hasVideo={services.some((s) => s.key === "video_consultation")}
         hasChat={services.some((s) => s.key === "chat_consultation")}
       />
@@ -689,21 +694,23 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
 }
 
 // ── The second-opinion gate ────────────────────────────────────────
-// LEXGO_FRONTEND_SECOND_OPINION_PLAN_UPDATE.md: a second opinion is only sold
-// to a client who has already used a real LexGo advocate or lawyer service,
-// and a random paid payment no longer counts. The backend refuses with 402
-// `previous_lexgo_advokat_service_required`; this is the modal that refusal
-// asks for, with the three ways out it names.
+// The 402 `previous_lexgo_advokat_service_required` refusal, as the modal it
+// asks for. Since 2026-09-28 the rule applies to the advocate PANEL only —
+// a single advocate's second opinion is open to everyone — so the first way
+// out offered here is that same opinion, taken alone. It is the nearest thing
+// to what the client was trying to buy, and it needs nothing of them.
 function SecondOpinionGate({
   message,
   onClose,
   onPick,
+  hasSingle,
   hasVideo,
   hasChat,
 }: {
   message: string;
   onClose: () => void;
   onPick: (serviceKey: string) => void;
+  hasSingle: boolean;
   hasVideo: boolean;
   hasChat: boolean;
 }) {
@@ -717,8 +724,13 @@ function SecondOpinionGate({
         <p className="uagate__lead">{message || t("priorPurchase")}</p>
         <p className="uagate__hint">{t("priorPurchaseHow")}</p>
         <div className="uagate__cta">
+          {hasSingle ? (
+            <button type="button" className="btn btn--grad btn--full" onClick={() => onPick("second_opinion_single")}>
+              <IconScale />{t("ctaSingleOpinion")}
+            </button>
+          ) : null}
           {hasVideo ? (
-            <button type="button" className="btn btn--grad btn--full" onClick={() => onPick("video_consultation")}>
+            <button type="button" className={`btn btn--full ${hasSingle ? "btn--line" : "btn--grad"}`} onClick={() => onPick("video_consultation")}>
               <IconVideo />{t("ctaConsult")}
             </button>
           ) : null}

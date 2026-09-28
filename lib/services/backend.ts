@@ -6845,24 +6845,36 @@ export async function createUrgentRequest(input: UrgentRequestInput): Promise<Ur
   if (input.lawyerCount) body.lawyer_count = input.lawyerCount;
   return normUrgentRequest(await http("/urgent-advokat/requests", { method: "POST", body: JSON.stringify(body) }));
 }
-// Both "second opinion" services are only sold to a client who has already
-// used a real LexGo advocate/lawyer service. The 2026-09-26 backend tightened
-// that test — a paid payment is no longer enough — and renamed the code from
-// `previous_lexgo_purchase_required` to
+// The refusal body, wherever the backend chose to put it. `ApiError.code`
+// is read out of `detail.code`, but the 2026-09-28 update documents the
+// refusal as a FLAT `{"code": "..."}` — so a check on `e.code` alone would
+// miss it and the client would see a bare error instead of the modal that
+// explains what to do. Both are read, plus the human message as a last
+// resort, and the payload is walked once for whichever shape arrived.
+function refusalCode(e: ApiError): string {
+  const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
+  return [e.code, asStr(d.code), asStr(e.data.code), e.detail || ""].filter(Boolean).join(" ");
+}
+// Since 2026-09-28 the rule is per service, not per category:
+// `second_opinion_single` is open to everyone and only
+// `second_opinion_group` — the advocate panel — is gated. The 2026-09-26
+// backend had already tightened the test (a paid payment is no longer enough)
+// and renamed the code from `previous_lexgo_purchase_required` to
 // `previous_lexgo_advokat_service_required`. Both spellings are matched: a
 // frontend that only knew the old one showed a generic error for the new
 // refusal, which is the whole thing the client needs explained.
 export function isPriorPurchaseRequired(e: unknown): boolean {
   if (!(e instanceof ApiError) || e.status !== 402) return false;
-  return /previous_lexgo_(purchase|advokat_service)_required/i.test(e.code || "");
+  return /previous_lexgo_(purchase|advokat_service)_required/i.test(refusalCode(e));
 }
-// The service kinds the refusal itself names as ways to qualify
-// (detail.eligible_service_examples), so the modal's suggestions track the
-// backend instead of a hardcoded list.
+// The service kinds the refusal itself names as ways to qualify, so the
+// modal's suggestions track the backend instead of a hardcoded list. Read
+// from `detail.eligible_service_examples` or the flat spelling, to match.
 export function priorServiceExamples(e: unknown): string[] {
   if (!(e instanceof ApiError)) return [];
   const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
-  return asArr(d.eligible_service_examples).map((x) => asStr(x)).filter(Boolean);
+  const from = asArr(d.eligible_service_examples).length ? d.eligible_service_examples : e.data.eligible_service_examples;
+  return asArr(from).map((x) => asStr(x)).filter(Boolean);
 }
 // The client's own requests. This list already comes back in the full detail
 // shape, which is what the client screen reads its detail view out of: there
