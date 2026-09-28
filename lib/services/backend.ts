@@ -3,7 +3,7 @@
 // UI callers wrap reads in `withFallback(...)` so the app keeps working on local
 // mock data until the backend is reachable.
 import { http, httpBlob, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
-import { cleanDocTitle } from "@/lib/docTitle";
+import { cleanDocTitle, cleanDocText } from "@/lib/docTitle";
 import { mimeFromName } from "@/lib/download";
 import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
@@ -1505,11 +1505,11 @@ function normTemplate(v: unknown): BackendTemplate {
   const d = asDict(v);
   return {
     id: asStr(d.id),
-    name: asStr(d.title ?? d.name),
+    name: cleanDocTitle(asStr(d.title ?? d.name)),
     slug: asStr(d.slug),
     category: asStr(d.category),
     language: asStr(d.language),
-    description: asStr(d.description),
+    description: cleanDocText(asStr(d.description)),
     price: uzs(d, "price"),
     visibility: asStr(d.visibility, "client"),
     isActive: d.is_active !== false,
@@ -1605,7 +1605,7 @@ export async function getServiceDocumentFields(serviceId: string): Promise<Servi
   return {
     serviceId: asStr(d.service_id, serviceId),
     templateId: asStr(d.template_id),
-    title: asStr(d.title),
+    title: cleanDocTitle(asStr(d.title)),
     fields,
     fieldCount: asNum(d.field_count, fields.length),
     requiredCount: asNum(d.required_count),

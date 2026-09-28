@@ -13,6 +13,14 @@
 // catalogue card, sample hint, "Mening hujjatlarim" row, advocate inbox,
 // chat header — shows the same clean name.
 
+// A description is prose, not a title: a full stop at the end of it is
+// legitimate, so only the filename's leading underscore and the double
+// spaces are taken. In this catalogue the description is often the filename
+// verbatim, which is why it showed the underscore at all.
+export function cleanDocText(raw: string): string {
+  return (raw || "").trim().replace(/^[_\s]+/, "").replace(/[\s ]+/g, " ").trim();
+}
+
 export function cleanDocTitle(raw: string): string {
   let s = (raw || "").trim();
   if (!s) return "";
