@@ -13,9 +13,13 @@ import {
   isPriorPurchaseRequired,
   isUrgentEvent,
   isMissingRoute,
+  rateUrgentRequest,
+  ratingOpen,
+  isRatingClosed,
   type UrgentCatalog,
   type UrgentService,
   type UrgentRequest,
+  type UrgentGroup,
 } from "@/lib/services/backend";
 import { subscribeUserEvents, onUserSocketResync } from "@/lib/userSocket";
 import { errDetail, logApiError } from "@/lib/http";
@@ -43,6 +47,7 @@ import {
   IconFileText,
   IconClose,
   IconChevronRight,
+  IconStar,
 } from "@/components/icons";
 
 // LEXGO_URGENT_ADVOCATE_FRONTEND_UPDATE.md — "Tezkor Advokat xizmati online".
@@ -53,6 +58,9 @@ import {
 
 const ICONS: Record<string, typeof IconVideo> = {
   video_consultation: IconVideo,
+  // Straight to whoever is on duty (payload.assignment_mode = on_duty_pool).
+  express_video_consultation: IconBolt,
+  traffic_accident_consultation: IconAlert,
   chat_consultation: IconChat,
   second_opinion_single: IconScale,
   second_opinion_group: IconUsers,
@@ -142,9 +150,31 @@ export default function UrgentAdvocatePanel() {
   }, []);
 
   const services = useMemo(() => cat?.services ?? [], [cat]);
+  // The catalog says which services the client should see as one choice
+  // (groups[].items). Rendered in catalog order: the group takes the slot of
+  // its first member and the rest are folded into it.
+  const cards = useMemo(() => {
+    const groups = cat?.groups ?? [];
+    const owner = new Map<string, UrgentGroup>();
+    for (const g of groups) for (const k of g.items) owner.set(k, g);
+    const out: { key: string; group?: UrgentGroup; items: UrgentService[] }[] = [];
+    const placed = new Set<string>();
+    for (const s of services) {
+      const g = owner.get(s.key);
+      if (!g) { out.push({ key: s.key, items: [s] }); continue; }
+      if (placed.has(g.key)) continue;
+      placed.add(g.key);
+      out.push({ key: g.key, group: g, items: services.filter((x) => g.items.includes(x.key)) });
+    }
+    return out;
+  }, [services, cat]);
   const sel = useMemo(() => services.find((s) => s.key === pick), [services, pick]);
   const channels = urgentChannels(sel);
   const channel = channels.includes(channelPref) ? channelPref : channels[0] || "video";
+
+  // Which catalog group a service belongs to, if any.
+  const groupOf = (x: UrgentService | undefined) =>
+    x ? (cat?.groups ?? []).find((g) => g.items.includes(x.key)) : undefined;
 
   const isGroup = sel?.key === GROUP;
   const isSecond = !!sel && SECOND_OPINION.has(sel.key);
@@ -243,23 +273,27 @@ export default function UrgentAdvocatePanel() {
         <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
       ) : (
         <div className="ua__grid">
-          {services.map((s) => {
-            const Icon = ICONS[s.key] ?? IconScale;
-            const on = pick === s.key;
+          {cards.map((card) => {
+            // A group card stands for whichever of its members is picked, and
+            // offers the first one when nothing is.
+            const s = card.group ? card.items.find((x) => x.key === pick) ?? card.items[0] : card.items[0];
+            if (!s) return null;
+            const Icon = card.group ? IconUsers : ICONS[s.key] ?? IconScale;
+            const on = card.group ? card.items.some((x) => x.key === pick) : pick === s.key;
             const chans = urgentChannels(s);
             // Per advocate for the panel, flat for everything else — one
             // number either way, instead of multiplying then dividing back.
             const from = urgentPrice(s, chans[0] || "video", 1);
             return (
               <button
-                key={s.key}
+                key={card.key}
                 type="button"
                 className={`uacard${on ? " on" : ""}`}
                 aria-pressed={on}
                 onClick={() => choose(s)}
               >
                 <span className="uacard__i"><Icon /></span>
-                <b className="uacard__t">{t.has(`kinds.${s.key}`) ? t(`kinds.${s.key}`) : s.title}</b>
+                <b className="uacard__t">{card.group ? card.group.title : t.has(`kinds.${s.key}`) ? t(`kinds.${s.key}`) : s.title}</b>
                 <span className="uacard__p">
                   {s.variants.some((v) => v.pricePerLawyer) ? t("fromPerLawyer", { price: fmtUzs(from) }) : t("from", { price: fmtUzs(from) })}
                 </span>
@@ -302,6 +336,26 @@ export default function UrgentAdvocatePanel() {
                       {c === "video" ? t("chVideo") : t("chChat")}
                     </button>
                   ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* "Ikkinchi fikr" is one box on the grid; which of the two it
+                means is chosen here. */}
+            {groupOf(sel) ? (
+              <div>
+                <label>{t("opinionKind")}</label>
+                <div className="segs segs--sm" role="tablist" aria-label={t("opinionKind")}>
+                  {groupOf(sel)!.items.map((k) => {
+                    const m = services.find((x) => x.key === k);
+                    if (!m) return null;
+                    return (
+                      <button key={k} type="button" role="tab" className="seg" aria-selected={sel.key === k} onClick={() => choose(m)}>
+                        {k === GROUP ? <IconUsers /> : <IconScale />}
+                        {t.has(`kinds.${k}`) ? t(`kinds.${k}`) : m.title}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
@@ -378,6 +432,11 @@ export default function UrgentAdvocatePanel() {
                 </div>
               ) : null}
               <p className="ua__next"><IconCheck />{isGroup ? t("nextGroup") : t("next")}</p>
+              {/* express / YTX go to the on-duty advocate rather than the
+                  ordinary pool, which is the whole reason to pay more. */}
+              {sel.key === "express_video_consultation" || sel.key === "traffic_accident_consultation" ? (
+                <p className="ua__next"><IconBolt />{t("onDuty")}</p>
+              ) : null}
               {sel.supportsFiles || sel.supportsVoice ? <p className="ua__next ua__next--muted"><IconChat />{t("filesInChat")}</p> : null}
             </div>
 
@@ -410,7 +469,10 @@ export default function UrgentAdvocatePanel() {
               <li key={r.id} className={`ua__row${on ? " ua__row--on" : ""}${fresh === r.id ? " ua__row--fresh" : ""}`}>
                 <span className="ua__rowi"><RowIcon /></span>
                 <div className="ua__rowm">
-                  <b>{t.has(`kinds.${r.serviceKind}`) ? t(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind}</b>
+                  <b>
+                    {t.has(`kinds.${r.serviceKind}`) ? t(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind}
+                    {r.workId ? <em className="ua__wid" title={t("workId")}>{r.workId}</em> : null}
+                  </b>
                   <span>{[r.need, r.createdAt ? dateTimeFull(r.createdAt, locale) : ""].filter(Boolean).join(" · ")}</span>
                   {r.scheduledAt ? (
                     <span className="ua__when"><IconClock />{t("scheduled", { when: dateTimeFull(r.scheduledAt, locale) })}</span>
@@ -476,8 +538,32 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   const [err, setErr] = useState("");
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
+  // The 15-minute rating window the backend opens on completion.
+  const [stars, setStars] = useState(0);
+  const [rComment, setRComment] = useState("");
+  const [rDone, setRDone] = useState(false);
+  const [rErr, setRErr] = useState("");
 
   const canCancel = req.nextStatuses.includes("cancelled");
+  const canRate = !rDone && ratingOpen(req.rating);
+
+  async function rate() {
+    if (!stars || busy) return;
+    setBusy(true);
+    setRErr("");
+    try {
+      await rateUrgentRequest(req.id, stars, rComment.trim());
+      setRDone(true);
+    } catch (e) {
+      // Already rated, or the window has closed — both are 409 and both are
+      // an answer, not a failure.
+      if (isRatingClosed(e)) { setRDone(true); return; }
+      logApiError("urgent rating", e);
+      setRErr(errDetail(e) || t("rateError"));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function cancel() {
     if (busy) return;
@@ -496,6 +582,46 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
 
   return (
     <div className="uamore" id={id}>
+      {/* The rating window, while it is open. It closes 15 minutes after the
+          work is completed, so this block simply stops rendering. */}
+      {canRate ? (
+        <div className="uamore__block urate">
+          <b><IconStar />{t("rateTitle")}</b>
+          <span className="advmuted">{t("rateLead")}</span>
+          <div className="urate__stars" role="radiogroup" aria-label={t("rateTitle")}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                role="radio"
+                aria-checked={stars === n}
+                aria-label={t("rateN", { n })}
+                className={`urate__star${n <= stars ? " on" : ""}`}
+                onClick={() => setStars(n)}
+              >
+                <IconStar />
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={rComment}
+            onChange={(e) => setRComment(e.target.value)}
+            placeholder={t("rateCommentPh")}
+            aria-label={t("rateCommentPh")}
+          />
+          {rErr ? <Notice ok={false} msg={rErr} /> : null}
+          <button type="button" className="btn btn--grad btn--sm" disabled={!stars || busy} onClick={() => void rate()}>
+            {busy ? t("sending") : t("rateSubmit")}
+          </button>
+        </div>
+      ) : rDone || req.rating.submitted ? (
+        <div className="uamore__block uamore__block--ok">
+          <b><IconStar />{t("rateThanks")}</b>
+          {req.rating.value ? <span className="advmuted">{t("rateGiven", { n: req.rating.value })}</span> : null}
+        </div>
+      ) : null}
+
       {req.resultSummary ? (
         <div className="uamore__block uamore__block--ok">
           <b><IconCheck />{t("resultTitle")}</b>

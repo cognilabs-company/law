@@ -623,7 +623,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // They only ever reached here from the call socket, so an approval that
       // came in on the user stream left the room paused until the 15-second
       // meta poll happened to notice.
-      if (/^call[.](extended|payment_extension_)/.test(e.event)) setMetaTick((n) => n + 1);
+      // call.paused / call.resumed join these (backend 2026-09-28, and urgent
+      // meetings pause too now): the clock freezing or restarting is exactly
+      // the kind of thing that must not wait out the 15-second poll. The
+      // timer itself already honours `paused` — this is only about learning
+      // of it at once.
+      if (/^call[.](extended|payment_extension_|paused|resumed)/.test(e.event)) setMetaTick((n) => n + 1);
     };
     const unsub = subscribeRoomCallEvents(roomId, onCallEvent);
     // Both streams, one handler, one dedupe. The room socket carries them for

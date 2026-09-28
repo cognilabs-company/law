@@ -2524,6 +2524,17 @@
     },
     "client": {
       "urgent": {
+        "rateError": "Bahoni yuborib bo‘lmadi",
+        "rateGiven": "Siz {n} yulduz qo‘ydingiz",
+        "rateThanks": "Bahoyingiz uchun rahmat",
+        "rateSubmit": "Bahoni yuborish",
+        "rateCommentPh": "Izoh (ixtiyoriy)",
+        "rateN": "{n} yulduz",
+        "rateLead": "Yakunlangandan keyin 15 daqiqa ichida baho qoldirishingiz mumkin.",
+        "rateTitle": "Ishni baholang",
+        "workId": "Ish raqami",
+        "onDuty": "Navbatchi advokatga to‘g‘ridan-to‘g‘ri boradi — pool navbatini kutmaysiz.",
+        "opinionKind": "Ikkinchi fikr turi",
         "priorPurchaseNote": "Ikkinchi fikr faqat oldin LexGo orqali advokat yoki yurist xizmatidan foydalangan mijozlar uchun ochiladi.",
         "sentNext": "So‘rovingiz callcenter navbatiga tushdi. Advokat qabul qilishi bilan xabar keladi va xavfsiz chat ochiladi.",
         "directionsHint": "Bir nechta yo‘nalishni tanlashingiz mumkin. Callcenter shu bo‘yicha mos advokat tanlaydi.",
@@ -2557,6 +2568,8 @@
         "minutesN": "{n} daqiqa",
         "perMinute": "{price} so'm / daqiqa",
         "kinds": {
+          "traffic_accident_consultation": "YTH bo‘yicha konsultatsiya",
+          "express_video_consultation": "Express videokonsultatsiya",
           "video_consultation": "Advokat bilan videokonsultatsiya",
           "chat_consultation": "Chat orqali konsultatsiya",
           "second_opinion_single": "Ikkinchi fikr — yakka advokat",
@@ -3210,6 +3223,7 @@
         "servicesSub": "Hujjat shabloni va advokatlar"
       },
       "services": {
+        "subcatsN": "{n} ta yo‘nalish",
         "filtersTitle": "Filtrlar",
         "title": "Xizmat buyurtma qilish",
         "lead": "LexGo katalogini ko'ring, mutaxassis tanlang va boshlang.",
@@ -3302,6 +3316,10 @@
         "preSellerNoList": "Bu advokat hali xizmatlar ro'yxatini belgilamagan — butun katalog ko'rsatilmoqda."
       },
       "documents": {
+        "aiDraftExtraPh": "Qo‘shimcha ko‘rsatma (ixtiyoriy)",
+        "aiDraftHint": "Advokat qoralamani tahrirlaydi, o‘chiradi yoki 0 dan qayta yozadi. Belgilanmasa — toza shablon ochiladi.",
+        "aiDraftLabel": "Advokat ishga kirishishidan oldin AI qoralama tayyorlasin",
+        "aiDraftTitle": "AI qoralama",
         "planPeriodRefused": "Bu paket tanlangan muddatni qabul qilmaydi. Mavjud muddatlar qoldirildi.",
         "exitConfirm": "Ha, chiqaman",
         "exitStay": "Yo’q, davom etaman",
@@ -5170,6 +5188,12 @@
   },
   "admin": {
     "urgent": {
+      "onDuty": "Navbatchi",
+      "transferred": "Ish boshqa advokatga o‘tkazildi",
+      "transferSubmit": "O‘tkazish",
+      "transferReasonPh": "Masalan: yo‘nalish mosroq",
+      "transferLead": "Ishni boshqa advokatga o‘tkazing — u mijoz bilan chat va uchrashuvni davom ettiradi.",
+      "transfer": "Boshqa advokatga",
       "belowMinimum": "Kamida {min} ta advokat tanlang — hozir {got} ta tanlangan.",
       "regionPh": "Viloyat (masalan: Toshkent)",
       "searchApply": "Qidirish",

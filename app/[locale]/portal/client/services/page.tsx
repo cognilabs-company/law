@@ -408,11 +408,26 @@ export default function ClientServices() {
   // every category gets this, not just Fuqarolik. Sorted by count desc (the
   // MD's own recommended order, matching how it lists production counts).
   const catServices = catalog;
-  const subcatCounts = useMemo(() => {
+  // What the backend says this category contains. Present since 2026-09-28;
+  // an older deployment sends nothing and the derived counts below take over.
+  const catRow = useMemo(() => cats.data.find((c) => c.id === cat), [cats.data, cat]);
+  // Its own memo so the two below do not see a fresh array each render.
+  const backendSubcats = useMemo(() => catRow?.subcategories ?? [], [catRow]);
+  const derivedCounts = useMemo(() => {
     const m = new Map<string, number>();
     for (const s of catServices) { const k = s.subcategory || NO_SUBCAT; m.set(k, (m.get(k) ?? 0) + 1); }
     return m;
   }, [catServices]);
+  // The backend's counts win while the category's own services are still
+  // loading — that is the whole point of having them — but once every row is
+  // in memory the derived count is the one that matches what a click shows.
+  const subcatCounts = useMemo(() => {
+    if (!backendSubcats.length) return derivedCounts;
+    const m = new Map<string, number>();
+    for (const s of backendSubcats) m.set(s.title, s.servicesCount);
+    for (const [k, v] of derivedCounts) if (v) m.set(k, v);
+    return m;
+  }, [backendSubcats, derivedCounts]);
   const subcatList = useMemo(
     () => [...subcatCounts.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name),
     [subcatCounts],
@@ -865,6 +880,17 @@ export default function ClientServices() {
                     </span>
                     <span className="svfam__t">
                       <b>{c.name}</b>
+                      {/* Counted by the backend (subcategories_count /
+                          services_count). Before it sent them the card was a
+                          picture and a word, with no hint of what was inside. */}
+                      {c.servicesCount || c.subcategoriesCount ? (
+                        <small className="svfam__n">
+                          {[
+                            c.subcategoriesCount ? t("subcatsN", { n: c.subcategoriesCount }) : "",
+                            c.servicesCount ? t("servicesN", { n: c.servicesCount }) : "",
+                          ].filter(Boolean).join(" · ")}
+                        </small>
+                      ) : null}
                     </span>
                   </button>
                 );

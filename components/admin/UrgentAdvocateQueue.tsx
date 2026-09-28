@@ -11,6 +11,7 @@ import {
   completeUrgentRequest,
   setUrgentStatus,
   cancelUrgentRequest,
+  transferUrgentRequest,
   listUrgentCandidates,
   searchUrgentCandidates,
   urgentAssignRefusal,
@@ -71,7 +72,15 @@ import {
 // after a dropped socket reconnects. The slow interval below only runs while
 // the socket is actually offline.
 const OFFLINE_POLL_MS = 45_000;
-const KINDS = ["video_consultation", "chat_consultation", "second_opinion_single", "second_opinion_group"] as const;
+const KINDS = [
+  "video_consultation",
+  // Routed to whoever is on duty (payload.assignment_mode = on_duty_pool).
+  "express_video_consultation",
+  "traffic_accident_consultation",
+  "chat_consultation",
+  "second_opinion_single",
+  "second_opinion_group",
+] as const;
 // The lifecycle's own vocabulary (lifecycle.active_statuses +
 // final_statuses), so the filter offers exactly the states a record can be in.
 const STATUSES = ["open_pool", "claimed", "scheduled", "in_progress", "meeting_active", "completed", "cancelled", "expired"] as const;
@@ -82,6 +91,8 @@ const DIRECTION_SLUGS = ["jinoiy", "fuqarolik", "oila", "mehnat", "mamuriy", "iq
 
 const KIND_ICON: Record<string, typeof IconVideo> = {
   video_consultation: IconVideo,
+  express_video_consultation: IconBolt,
+  traffic_accident_consultation: IconAlert,
   chat_consultation: IconChat,
   second_opinion_single: IconScale,
   second_opinion_group: IconUsers,
@@ -270,6 +281,9 @@ export default function UrgentAdvocateQueue() {
                   <b>
                     {tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind}
                     {r.channel ? <em className="uaq__ch">{r.channel === "chat" ? <IconChat /> : <IconVideo />}{r.channel === "chat" ? tk("chChat") : tk("chVideo")}</em> : null}
+                    {r.workId ? <em className="ua__wid" title={tk("workId")}>{r.workId}</em> : null}
+                    {/* on_duty_pool: nobody has to pick this out of the pool. */}
+                    {r.immediateCall ? <em className="uaq__ch uaq__ch--now"><IconBolt />{t("onDuty")}</em> : null}
                   </b>
                   {r.need ? <span className="uaq__need">{r.need}</span> : null}
                   <span className="uaq__sub">
@@ -360,7 +374,7 @@ function UrgentDetailDrawer({
   const [load2, setLoad2] = useState<"loading" | "ready" | "error">("loading");
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
-  const [panel, setPanel] = useState<"" | "candidates" | "complete" | "cancel">("");
+  const [panel, setPanel] = useState<"" | "candidates" | "complete" | "cancel" | "transfer">("");
 
   const fetchOne = useCallback(() => {
     if (!id) return Promise.resolve();
@@ -453,6 +467,7 @@ function UrgentDetailDrawer({
           {/* ── Header line: status, channel, price, SLA ───────────── */}
           <div className="uad__top">
             <em className={`creq__badge uaq__st uaq__st--${req.status}`}>{statusLabel(tcm, req.status)}</em>
+            {req.workId ? <span className="ua__wid" title={tk("workId")}>{req.workId}</span> : null}
             {req.channel ? (
               <span className="uad__chip">{req.channel === "chat" ? <IconChat /> : <IconVideo />}{req.channel === "chat" ? tk("chChat") : tk("chVideo")}</span>
             ) : null}
@@ -624,6 +639,13 @@ function UrgentDetailDrawer({
                 <IconCheck />{t("complete")}
               </button>
             ) : null}
+            {/* Hand it to someone who fits better. Only once it is claimed:
+                an open_pool record has nobody to transfer FROM. */}
+            {!finished && req.status !== "open_pool" ? (
+              <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => setPanel(panel === "transfer" ? "" : "transfer")}>
+                <IconUsers />{t("transfer")}
+              </button>
+            ) : null}
             {!finished ? (
               <button type="button" className="btn btn--soft" disabled={!!busy} onClick={() => setPanel(panel === "cancel" ? "" : "cancel")}>
                 <IconClose />{t("cancel")}
@@ -638,6 +660,17 @@ function UrgentDetailDrawer({
               onCancel={() => setPanel("")}
               onSubmit={(summary, nextAction) => {
                 void run("complete", () => completeUrgentRequest(req.id, { summary, nextAction }), t("completed")).then((ok) => { if (ok) setPanel(""); });
+              }}
+            />
+          ) : null}
+          {panel === "transfer" ? (
+            <TransferPanel
+              req={req}
+              busy={!!busy}
+              onCancel={() => setPanel("")}
+              onSubmit={(uid, reason) => {
+                void run("transfer", () => transferUrgentRequest(req.id, { targetLawyerUserId: uid, reason }), t("transferred"))
+                  .then((ok) => { if (ok) setPanel(""); });
               }}
             />
           ) : null}
@@ -737,6 +770,88 @@ function CancelForm({ busy, onCancel, onSubmit }: { busy: boolean; onCancel: () 
         </button>
       </div>
     </div>
+  );
+}
+
+// ── Handing the work to another advocate ───────────────────────────
+// Same ranked candidate list the group assignment uses, but one pick: the
+// backend moves assigned_lawyer AND claimed_by to the target and records it
+// in payload.transfer_history (verified against production).
+function TransferPanel({
+  req,
+  busy,
+  onCancel,
+  onSubmit,
+}: {
+  req: UrgentRequest;
+  busy: boolean;
+  onCancel: () => void;
+  onSubmit: (targetUserId: string, reason: string) => void;
+}) {
+  const t = useTranslations("admin.urgent");
+  const te = useTranslations("enums");
+  const [list, setList] = useState<UrgentCandidate[]>([]);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [pick, setPick] = useState("");
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    listUrgentCandidates(req.id, { limit: 50 })
+      .then((c) => { if (alive) { setList(c); setState("ready"); } })
+      .catch((e) => { if (alive) { logApiError("urgent transfer candidates", e); setState("error"); } });
+    return () => { alive = false; };
+  }, [req.id]);
+
+  // Whoever holds it now cannot be the target.
+  const holder = req.assignedLawyerUserId || req.claimedByUserId;
+  const options = useMemo(
+    () => [...list].filter((c) => c.userId !== holder).sort((a, b) => b.score - a.score),
+    [list, holder],
+  );
+
+  return (
+    <section className="uad__form">
+      <p className="advmuted" style={{ margin: 0 }}>{t("transferLead")}</p>
+      {state === "loading" ? (
+        <Skeleton rows={2} />
+      ) : state === "error" ? (
+        <Notice ok={false} msg={t("candidatesError")} />
+      ) : !options.length ? (
+        <p className="advmuted">{t("noAdvocates")}</p>
+      ) : (
+        <ul className="ucand__list">
+          {options.map((c) => (
+            <li key={c.userId}>
+              <button type="button" className={`ucand${pick === c.userId ? " on" : ""}`} aria-pressed={pick === c.userId} onClick={() => setPick(c.userId)}>
+                <span className="ucand__score" aria-hidden>{c.score}</span>
+                <span className="ucand__m">
+                  <b>{c.name}</b>
+                  <span className="ucand__meta">{[c.sellerType || c.role, c.region, t("workloadN", { n: c.workload })].filter(Boolean).join(" · ")}</span>
+                  {c.specializations.length ? (
+                    <span className="ucand__spec">{c.specializations.map((x) => (te.has(`areas.${x}`) ? te(`areas.${x}`) : x)).join(", ")}</span>
+                  ) : null}
+                </span>
+                <span className="ucand__tags">
+                  {!c.directionMatch ? <em className="ucand__tag ucand__tag--warn"><IconAlert />{t("tagOffDirection")}</em> : null}
+                </span>
+                {pick === c.userId ? <IconCheck className="ucand__ck" /> : null}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div>
+        <label htmlFor="uad-treason">{t("reason")}</label>
+        <input id="uad-treason" type="text" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("transferReasonPh")} />
+      </div>
+      <div className="uad__formacts">
+        <button type="button" className="btn btn--soft btn--sm" onClick={onCancel}>{t("back")}</button>
+        <button type="button" className="btn btn--grad btn--sm" disabled={!pick || busy} onClick={() => onSubmit(pick, reason.trim())}>
+          <IconUsers />{t("transferSubmit")}
+        </button>
+      </div>
+    </section>
   );
 }
 

@@ -18,11 +18,17 @@ import ManualDocPlanGate from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
 import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
-import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock, IconShieldCheck } from "@/components/icons";
+import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock, IconShieldCheck, IconSparkle } from "@/components/icons";
 
 const LANGS = ["uz", "ru", "en"] as const;
 type LangCode = (typeof LANGS)[number];
-type LawyerRequestBody = { need: string; answers: Record<string, unknown>; language: string };
+type LawyerRequestBody = {
+  need: string;
+  answers: Record<string, unknown>;
+  language: string;
+  editorMode?: "ai_draft";
+  extraInstructions?: string;
+};
 
 // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: the old per-service
 // advocate picker is gone — the client never chooses who handles this, and
@@ -82,6 +88,11 @@ export default function DocumentLawyerAssist({
   // reacted to on the backend's own 402 rather than pre-checked.
   const [planRequired, setPlanRequired] = useState("");
   const [planGateOpen, setPlanGateOpen] = useState(false);
+  // editor_mode "ai_draft" (backend 2026-09-28): the advocate opens a draft
+  // the AI has already written instead of a clean template. Off by default,
+  // which is the unchanged behaviour.
+  const [aiDraft, setAiDraft] = useState(false);
+  const [draftHint, setDraftHint] = useState("");
 
   async function submit() {
     if (busy || !need.trim() || !consent) return;
@@ -106,6 +117,8 @@ export default function DocumentLawyerAssist({
         // gate leaving no trace at all.
         answers: { contact_consent: true, contact_consent_text: t("consentLabel") },
         language: lang,
+        editorMode: aiDraft ? "ai_draft" : undefined,
+        extraInstructions: aiDraft && draftHint.trim() ? draftHint.trim() : undefined,
       });
       setSent(true);
       setResult(r);
@@ -206,6 +219,30 @@ export default function DocumentLawyerAssist({
           ariaLabel={t("langLabel")}
         />
       </section>
+
+      {/* A head start for the advocate, not a replacement for one: the
+          backend writes a first draft and the advocate edits, deletes or
+          rewrites it. Off by default — that is the unchanged flow, where they
+          open a clean template. */}
+      <div className="cbxcard">
+        <b className="cbxcard__t">
+          <IconSparkle />
+          {t("aiDraftTitle")}
+        </b>
+        <CheckBox id="lawyer-aidraft" checked={aiDraft} onChange={setAiDraft} hint={t("aiDraftHint")}>
+          {t("aiDraftLabel")}
+        </CheckBox>
+        {aiDraft ? (
+          <input
+            className="cbxcard__in"
+            type="text"
+            value={draftHint}
+            onChange={(e) => setDraftHint(e.target.value)}
+            placeholder={t("aiDraftExtraPh")}
+            aria-label={t("aiDraftExtraPh")}
+          />
+        ) : null}
+      </div>
 
       {/* Its own card between the fields and the send button: it is a gate on
           the send, not one more thing to fill in. */}

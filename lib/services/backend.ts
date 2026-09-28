@@ -545,7 +545,20 @@ export type BackendService = {
   // marketplace order flow.
   documentTemplateId?: string;
 };
-export type BackendCategory = { id: string; name: string; slug: string };
+// GET /service-categories (backend 2026-09-28) answers with the counts and
+// the subcategories of each category. Until then the only way to know what a
+// category contained was to fetch every service in it — 625 rows for
+// Fuqarolik — before a single subcategory tile could be drawn.
+export type BackendSubcategory = { title: string; servicesCount: number; sampleServices: { id: string; title: string; slug: string }[] };
+export type BackendCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  subcategoriesCount: number;
+  servicesCount: number;
+  subcategories: BackendSubcategory[];
+};
 
 // Prefer a localized catalog title for the current UI language.
 function serviceTitle(d: Dict, locale: string): string {
@@ -596,7 +609,28 @@ export async function getServiceCategories(opts?: { includeHidden?: boolean }): 
   const [data, ov] = await Promise.all([http("/service-categories"), getPlatformPolicies().then((p) => categoryOverridesFrom(p.raw)).catch(() => ({}))]);
   const cats = listFrom(data, "categories", "items", "data").map((v) => {
     const d = asDict(v);
-    return { id: asStr(d.id), name: asStr(d.title ?? d.name), slug: asStr(d.slug) };
+    const subs = asArr(d.subcategories).map((x) => {
+      const w = asDict(x);
+      return {
+        title: asStr(w.title ?? w.name),
+        servicesCount: asNum(w.services_count),
+        sampleServices: asArr(w.sample_services).map((y) => {
+          const z = asDict(y);
+          return { id: asStr(z.id), title: asStr(z.title), slug: asStr(z.slug) };
+        }),
+      };
+    }).filter((x) => x.title);
+    return {
+      id: asStr(d.id),
+      name: asStr(d.title ?? d.name),
+      slug: asStr(d.slug),
+      description: asStr(d.description),
+      // Counted by the backend now; falls back to what the payload itself
+      // shows, so an older deployment still renders something truthful.
+      subcategoriesCount: asNum(d.subcategories_count, subs.length),
+      servicesCount: asNum(d.services_count),
+      subcategories: subs,
+    };
   });
   return applyCategoryOverrides(cats, ov, opts?.includeHidden);
 }
@@ -1639,9 +1673,15 @@ export async function generateServiceDocumentAi(
 // inconsistency in the backend's own contract, not a typo here.
 export async function requestServiceDocumentLawyer(
   requestUrl: string,
-  input: { need: string; answers?: Record<string, unknown>; language?: string },
+  input: { need: string; answers?: Record<string, unknown>; language?: string } & DocLawyerExtras,
 ): Promise<DocumentRequest> {
-  const d = asDict(await http(requestUrl, { method: "POST", body: JSON.stringify(input) }));
+  const { editorMode, extraInstructions, ...rest } = input;
+  const body: Record<string, unknown> = { ...rest };
+  // editor_mode "ai_draft" makes the backend write a first draft the advocate
+  // then edits; left out, they open the clean template (the default).
+  if (editorMode) body.editor_mode = editorMode;
+  if (extraInstructions) body.extra_instructions = extraInstructions;
+  const d = asDict(await http(requestUrl, { method: "POST", body: JSON.stringify(body) }));
   return normDocRequest(d.request);
 }
 
@@ -1651,14 +1691,21 @@ export async function requestServiceDocumentLawyer(
 // call-center pool; only the URL and which file is mandatory differ.
 export type DocRequestAttachments = { files?: File[]; voiceFiles?: Blob[] };
 
+// editor_mode "ai_draft" asks the backend to write a first draft before the
+// advocate ever opens the editor; they then edit, delete or rewrite it. Left
+// out, the advocate gets the clean template — the unchanged default.
+export type DocEditorMode = "ai_draft";
+export type DocLawyerExtras = { editorMode?: DocEditorMode; extraInstructions?: string };
 function docFlowForm(
-  input: { need: string; title?: string; language?: string; answers?: Record<string, unknown> } & DocRequestAttachments,
+  input: { need: string; title?: string; language?: string; answers?: Record<string, unknown> } & DocLawyerExtras & DocRequestAttachments,
 ): FormData {
   const form = new FormData();
   form.append("need", input.need);
   if (input.title) form.append("title", input.title);
   form.append("language", input.language || "uz");
   if (input.answers) form.append("answers_json", JSON.stringify(input.answers));
+  if (input.editorMode) form.append("editor_mode", input.editorMode);
+  if (input.extraInstructions) form.append("extra_instructions", input.extraInstructions);
   for (const f of input.files || []) form.append("files", f, f.name);
   // A recorded note is a Blob with no name of its own; the backend keys the
   // format off the extension, so one has to be supplied.
@@ -1689,7 +1736,7 @@ function voiceExt(mime: string): string {
 // of them into a chat message, so nothing has to be re-sent afterwards.
 export async function requestServiceDocumentLawyerWithFiles(
   serviceId: string,
-  input: { need: string; title?: string; language?: string; answers?: Record<string, unknown> } & DocRequestAttachments,
+  input: { need: string; title?: string; language?: string; answers?: Record<string, unknown> } & DocLawyerExtras & DocRequestAttachments,
 ): Promise<DocumentRequest> {
   const d = asDict(
     await http(`/services/${serviceId}/document-lawyer/request-with-files`, { method: "POST", body: docFlowForm(input) }),
@@ -2123,6 +2170,13 @@ export type DocumentRequest = {
   answers: Record<string, unknown>;
   contractFile?: ContractFile;
   paymentUrl?: string; // provider checkout link returned by the pay call
+  // "LGD-20260928-F9D03095" (backend 2026-09-28) — what the client and the
+  // advocate quote at each other instead of the UUID.
+  workId: string;
+  // The 15-minute window that opens when the advocate finalises the document.
+  // GET /document-requests/{id} spells it out flat; normRating reads either
+  // that or the nested shape the urgent module uses.
+  rating: UrgentRating;
   createdAt: string;
   // LEXGO_FRONTEND_DOCUMENT_PAYMENT_SKIP_AND_LAWYER_INBOX_2026-09-22.md: the
   // payment provider isn't really connected yet, so service-document
@@ -2153,6 +2207,8 @@ function normDocRequest(v: unknown): DocumentRequest {
   const al = asDict(d.assigned_lawyer ?? lr.assigned_lawyer);
   return {
     id: asStr(d.id),
+    workId: asStr(d.work_id ?? lr.work_id),
+    rating: normRating(d.rating, d),
     contractId: asStr(d.contract_id) || undefined,
     orderId: asStr(d.order_id) || undefined,
     paymentId: asStr(d.payment_id) || undefined,
@@ -2351,6 +2407,11 @@ export type ClientDocFlowItem = {
   // modal — the one place the advocate asks them anything.
   secureChatRoomId: string;
   file: { ready: boolean; downloadUrl: string; inlineUrl: string; format: string };
+  // "LGD-20260928-F9D03095". GET /document-requests/{id} carries it, but the
+  // service-flow rows this list is built from do NOT yet — so it is read
+  // where it appears and the UI falls back to nothing rather than a UUID.
+  workId: string;
+  rating: UrgentRating;
   createdAt: string;
   updatedAt: string;
 };
@@ -2388,6 +2449,8 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
       asStr(d.chat_room_id) ||
       asStr(d.room_id) ||
       asStr(meetD?.room_id),
+    workId: asStr(d.work_id ?? asDict(d.document_request).work_id),
+    rating: normRating(d.rating, d),
     file: {
       ready: Boolean(file.ready),
       downloadUrl: asStr(file.download_url) || asStr(actions.file_download_url),
@@ -5635,6 +5698,21 @@ export async function startCallRecordingServer(roomId: string, callId: string): 
 // having the client pay per minute over Telegram.
 
 // "Faqat 1 marta ishlaydi. Ikkinchi marta 409 qaytadi."
+// Hold the clock (backend 2026-09-28 — urgent meetings too, not just the
+// document ones). While paused the timer must not tick down; the server sends
+// back a fresh auto_end_at on resume and both sides get call.paused /
+// call.resumed on /ws/users/me.
+export async function pauseCall(roomId: string, callId: string, input?: { minutes?: number; reason?: string }): Promise<CallSession> {
+  return normCall(
+    await http(`/secure-chats/${roomId}/calls/${callId}/pause`, {
+      method: "POST",
+      body: JSON.stringify({ minutes: input?.minutes ?? 5, reason: input?.reason || "" }),
+    }),
+  );
+}
+export async function resumeCall(roomId: string, callId: string): Promise<CallSession> {
+  return normCall(await http(`/secure-chats/${roomId}/calls/${callId}/resume`, { method: "POST", body: "{}" }));
+}
 export async function freeExtendCall(roomId: string, callId: string, minutes = 3): Promise<CallSession> {
   return normCall(await http(`/secure-chats/${roomId}/calls/${callId}/free-extend`, { method: "POST", body: JSON.stringify({ minutes }) }));
 }
@@ -6395,12 +6473,17 @@ export type UrgentService = {
   lawyerCountMin: number;
   lawyerCountMax: number;
 };
+// The catalog groups services the client should see as one choice: the two
+// "second opinion" kinds are one box with a single-or-panel switch inside,
+// not two cards side by side (backend 2026-09-28).
+export type UrgentGroup = { key: string; title: string; items: string[] };
 export type UrgentCatalog = {
   title: string;
   meetingDefaultMinutes: number;
   freeExtensionOnceMinutes: number;
   paidExtensionPricePerMinute: number;
   services: UrgentService[];
+  groups: UrgentGroup[];
 };
 function normUrgentService(v: unknown): UrgentService {
   const d = asDict(v);
@@ -6438,6 +6521,14 @@ export async function getUrgentCatalog(): Promise<UrgentCatalog> {
     freeExtensionOnceMinutes: asNum(d.free_extension_once_minutes, 3),
     paidExtensionPricePerMinute: uzs(d, "paid_extension_price_per_minute"),
     services: listFrom(d, "services", "items", "data").map(normUrgentService),
+    groups: asArr(d.groups).map((x) => {
+      const g = asDict(x);
+      return {
+        key: asStr(g.key),
+        title: asStr(g.title),
+        items: asArr(g.items).map((y) => asStr(y)).filter(Boolean),
+      };
+    }).filter((g) => g.key && g.items.length),
   };
 }
 // Price of one configuration: a service either has a flat price or per-channel
@@ -6527,8 +6618,16 @@ function attachmentBody(a: UrgentAttachmentInput, voice: boolean): Record<string
 // PLAN_UPDATE.md). Staff-facing: "Frontend clientga bu listni ko'rsatishi
 // shart emas. Admin/callcenter detailda ko'rsatish mumkin."
 export type UrgentEligibleSource = { type: string; id: string; status: string; title: string; serviceKind: string; createdAt: string };
+// The 15-minute window that opens when the work is completed. Urgent records
+// carry it as a nested object; a document request spells the same three
+// things out flat (rating_deadline_at / rating_available / rating_submitted)
+// — see normDocRating, which reads either.
+export type UrgentRating = { deadlineAt: string; available: boolean; submitted: boolean; value: number };
 export type UrgentRequest = {
   id: string;
+  // Human-readable id the client and the advocate quote at each other
+  // ("LGT-20260928-C3A5DD71"); the UUID stays internal.
+  workId: string;
   serviceKind: string;
   serviceTitle: string;
   channel: string;
@@ -6581,6 +6680,11 @@ export type UrgentRequest = {
   cancelReason: string;
   cancelledAt: string;
   slaBreached: boolean;
+  rating: UrgentRating;
+  // How the request is routed: "on_duty_pool" for the express and traffic
+  // kinds, which go straight to whoever is on duty.
+  assignmentMode: string;
+  immediateCall: boolean;
   // Per-viewer permission the backend computes on the assigned/detail
   // endpoints: canManage is the staff/operator view (claim, assign, complete),
   // canView alone is the read-only participant view an assigned external
@@ -6608,6 +6712,7 @@ function normUrgentRequest(v: unknown): UrgentRequest {
   const strs = (x: unknown) => asArr(x).map((y) => asStr(y)).filter(Boolean);
   return {
     id: asStr(pick("id") ?? pick("record_id")),
+    workId: asStr(pick("work_id")),
     serviceKind: asStr(pick("service_kind")),
     serviceTitle: asStr(pick("title") ?? pick("service_title")),
     channel: asStr(pick("channel")),
@@ -6668,6 +6773,9 @@ function normUrgentRequest(v: unknown): UrgentRequest {
     cancelReason: asStr(p.cancel_reason),
     cancelledAt: asStr(p.cancelled_at),
     slaBreached: Boolean(pick("sla_breached")),
+    rating: normRating(d.rating, d),
+    assignmentMode: asStr(p.assignment_mode),
+    immediateCall: Boolean(p.immediate_call),
     canManage: d.can_manage === true,
     // A record that came back at all is one this viewer may see; the flag is
     // only authoritative where the backend sends it.
@@ -6675,6 +6783,39 @@ function normUrgentRequest(v: unknown): UrgentRequest {
     createdAt: asStr(pick("created_at")),
     updatedAt: asStr(pick("updated_at")),
   };
+}
+
+// Urgent sends { rating: { deadline_at, available, submitted, value } };
+// a document request sends rating_deadline_at / rating_available /
+// rating_submitted / rating alongside each other. Same three facts either way.
+function normRating(nested: unknown, flat: Dict): UrgentRating {
+  const n = asDict(nested);
+  const has = n.deadline_at !== undefined || n.available !== undefined || n.submitted !== undefined;
+  if (has) {
+    const v = n.value;
+    return {
+      deadlineAt: asStr(n.deadline_at),
+      available: Boolean(n.available),
+      submitted: Boolean(n.submitted),
+      // The submitted rating comes back as the whole review record, not a
+      // number, once it exists.
+      value: typeof v === "number" ? v : asNum(asDict(v).rating),
+    };
+  }
+  return {
+    deadlineAt: asStr(flat.rating_deadline_at),
+    available: Boolean(flat.rating_available),
+    submitted: Boolean(flat.rating_submitted),
+    value: typeof flat.rating === "number" ? (flat.rating as number) : asNum(asDict(flat.rating).rating),
+  };
+}
+// True while the client may still leave a rating: the backend says so, and the
+// 15-minute deadline has not passed.
+export function ratingOpen(r: UrgentRating | undefined): boolean {
+  if (!r || !r.available || r.submitted) return false;
+  if (!r.deadlineAt) return true;
+  const t = Date.parse(r.deadlineAt);
+  return Number.isNaN(t) || t > Date.now();
 }
 
 export type UrgentRequestInput = {
@@ -6902,6 +7043,45 @@ export function urgentAssignRefusal(e: unknown): UrgentAssignRefusal {
     return { kind: "direction", overridable: true, userIds: asArr(d.items).map((x) => asStr(asDict(x).lawyer_user_id)).filter(Boolean), message };
   }
   return null;
+}
+
+// Hand a claimed request to a different advocate (backend 2026-09-28).
+// Verified against production: the record keeps its status and both
+// assigned_lawyer and claimed_by become the target, with transfer_history and
+// transferred_at added to the payload. Everyone involved gets
+// urgent_advokat.transferred on /ws/users/me.
+export async function transferUrgentRequest(
+  id: string,
+  input: { targetLawyerUserId: string; reason?: string },
+): Promise<UrgentRequest> {
+  return normUrgentRequest(
+    await http(ccUrgent(id, "/transfer"), {
+      method: "POST",
+      body: JSON.stringify({ target_lawyer_user_id: input.targetLawyerUserId, reason: input.reason || "" }),
+    }),
+  );
+}
+
+// ── 9. Rating ─────────────────────────────────────────────────────
+// The client rates the work inside the 15 minutes after it is completed.
+// Answers 409 "Faqat yakunlangan ish baholanadi" before completion and 409
+// "Bu ish baholangan" on a second attempt — both verified.
+export async function rateUrgentRequest(id: string, rating: number, comment = ""): Promise<void> {
+  await http(`/urgent-advokat/requests/${encodeURIComponent(id)}/rating`, {
+    method: "POST",
+    body: JSON.stringify({ rating, comment }),
+  });
+}
+export async function rateDocumentRequest(id: string, rating: number, comment = ""): Promise<void> {
+  await http(`/document-requests/${encodeURIComponent(id)}/rating`, {
+    method: "POST",
+    body: JSON.stringify({ rating, comment }),
+  });
+}
+// Already rated, or the work is not finished yet — both are 409 and both are
+// states to show rather than errors to log.
+export function isRatingClosed(e: unknown): boolean {
+  return e instanceof ApiError && e.status === 409;
 }
 
 // ── Meeting, status, result, cancel ───────────────────────────────

@@ -2518,6 +2518,17 @@
     },
     "client": {
       "urgent": {
+        "rateError": "The rating could not be sent",
+        "rateGiven": "You gave {n}",
+        "rateThanks": "Thank you for the rating",
+        "rateSubmit": "Send the rating",
+        "rateCommentPh": "Comment (optional)",
+        "rateN": "{n} stars",
+        "rateLead": "You can leave a rating for 15 minutes after it is completed.",
+        "rateTitle": "Rate the work",
+        "workId": "Work ID",
+        "onDuty": "Goes straight to the advocate on duty — no waiting in the pool.",
+        "opinionKind": "Kind of second opinion",
         "priorPurchaseNote": "A second opinion is only open to clients who have already used an advocate or lawyer through LexGo.",
         "sentNext": "Your request is in the call-centre queue. You will be notified the moment an advocate takes it, and a secure chat opens.",
         "directionsHint": "You can choose more than one. The call centre matches an advocate on these.",
@@ -2551,6 +2562,8 @@
         "minutesN": "{n} min",
         "perMinute": "{price} UZS / min",
         "kinds": {
+          "traffic_accident_consultation": "Road-accident consultation",
+          "express_video_consultation": "Express video consultation",
           "video_consultation": "Video consultation with an advocate",
           "chat_consultation": "Consultation over chat",
           "second_opinion_single": "Second opinion — one advocate",
@@ -3204,6 +3217,7 @@
         "servicesSub": "Document templates and lawyers"
       },
       "services": {
+        "subcatsN": "{n} subcategories",
         "filtersTitle": "Filters",
         "title": "Order a service",
         "lead": "Browse the LexGo catalog, pick a specialist and start.",
@@ -3296,6 +3310,10 @@
         "preSellerNoList": "This advocate has not listed services yet — the full catalogue is shown."
       },
       "documents": {
+        "aiDraftExtraPh": "Extra instruction (optional)",
+        "aiDraftHint": "The advocate edits, deletes or rewrites it. Left off, they open a clean template.",
+        "aiDraftLabel": "Have an AI draft ready before the advocate starts",
+        "aiDraftTitle": "AI draft",
         "planPeriodRefused": "This plan does not sell the period you chose. Only the ones it does are left.",
         "exitConfirm": "Yes, leave",
         "exitStay": "No, keep filling",
@@ -5164,6 +5182,12 @@
   },
   "admin": {
     "urgent": {
+      "onDuty": "On duty",
+      "transferred": "Handed to another advocate",
+      "transferSubmit": "Hand over",
+      "transferReasonPh": "For example: a better practice-area fit",
+      "transferLead": "Pass the work to another advocate — they continue the chat and the meeting with the client.",
+      "transfer": "Hand over",
       "belowMinimum": "Choose at least {min} advocates — {got} selected.",
       "regionPh": "Region (e.g. Toshkent)",
       "searchApply": "Search",

@@ -6965,3 +6965,45 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
   .ucand__widerow input[type="text"]{min-width:0;flex-basis:100%}
   .uad__form .uaq__when2{grid-template-columns:1fr}
 }
+
+/* ── wp-ua28: the 2026-09-28 additions ───────────────────────────────
+   Express / road-accident kinds, the second opinion as ONE box with the
+   single-or-panel switch inside it, the human-readable work id, and the
+   15-minute rating window. */
+
+/* "LGT-20260928-C3A5DD71" — what the client and the advocate quote at each
+   other. Monospace digits so a column of them lines up. */
+.ua__wid{font-style:normal;font-size:.68rem;font-weight:700;letter-spacing:.02em;font-variant-numeric:tabular-nums;
+  color:var(--gray2);background:var(--dk-surface, #fff);border-radius:var(--pill);padding:3px 9px;white-space:nowrap}
+
+/* The rating block, while the window is open. */
+.urate{gap:8px}
+.urate input[type="text"]{width:100%;border:0;background:var(--dk-surface-2, #F7FAFE);border-radius:12px;
+  padding:10px 13px;font:inherit;font-size:.9rem;color:var(--ink);
+  box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .18s,background .18s}
+.urate input[type="text"]::placeholder{color:var(--gray2)}
+.urate input[type="text"]:focus{outline:none;background:var(--dk-surface, #fff);
+  box-shadow:inset 0 0 0 1.5px var(--b400),0 0 0 4px var(--dk-tint-blue, #E6F0FF)}
+.urate__stars{display:flex;gap:4px}
+.urate__star{border:0;background:none;padding:3px;cursor:pointer;color:var(--gray2);line-height:0;
+  border-radius:8px;transition:transform .14s,color .14s}
+.urate__star svg{width:26px;height:26px}
+.urate__star:hover{transform:scale(1.12)}
+.urate__star.on{color:#F5A524}
+.urate__star:focus-visible{outline:2px solid var(--b400);outline-offset:1px}
+@media (prefers-reduced-motion:reduce){.urate__star{transition:none}.urate__star:hover{transform:none}}
+
+/* on_duty_pool: the request goes straight to whoever is on duty, so the board
+   marks it rather than leaving it to look like any other queued row. */
+.uaq__ch--now{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+.uaq__ch--now svg{width:11px;height:11px}
+
+/* The extra instruction that appears once an AI draft is asked for, and the
+   count line on a category card. */
+.cbxcard__in{width:100%;margin-top:10px;border:0;background:var(--dk-surface-2, #F7FAFE);border-radius:12px;
+  padding:11px 13px;font:inherit;font-size:.9rem;color:var(--ink);
+  box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .18s,background .18s}
+.cbxcard__in::placeholder{color:var(--gray2)}
+.cbxcard__in:focus{outline:none;background:var(--dk-surface, #fff);
+  box-shadow:inset 0 0 0 1.5px var(--b400),0 0 0 4px var(--dk-tint-blue, #E6F0FF)}
+.svfam__n{display:block;margin-top:3px;font-size:.72rem;font-weight:600;color:var(--gray2)}

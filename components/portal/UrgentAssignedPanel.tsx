@@ -55,11 +55,22 @@ import {
 // nothing here offers an action that a read-only participant cannot take. The
 // backend also withholds the client's phone from an external advocate, so no
 // field assumes it is there.
-const KINDS = ["video_consultation", "chat_consultation", "second_opinion_single", "second_opinion_group"] as const;
+const KINDS = [
+  "video_consultation",
+  // The two on-duty kinds (backend 2026-09-28): routed straight to whoever is
+  // on duty rather than sitting in the pool.
+  "express_video_consultation",
+  "traffic_accident_consultation",
+  "chat_consultation",
+  "second_opinion_single",
+  "second_opinion_group",
+] as const;
 const STATUSES = ["claimed", "scheduled", "in_progress", "meeting_active", "completed", "cancelled"] as const;
 
 const KIND_ICON: Record<string, typeof IconVideo> = {
   video_consultation: IconVideo,
+  express_video_consultation: IconBolt,
+  traffic_accident_consultation: IconAlert,
   chat_consultation: IconChat,
   second_opinion_single: IconScale,
   second_opinion_group: IconUsers,
@@ -164,6 +175,7 @@ export default function UrgentAssignedPanel() {
                     {r.channel ? (
                       <em className="uaq__ch">{r.channel === "chat" ? <IconChat /> : <IconVideo />}{r.channel === "chat" ? tk("chChat") : tk("chVideo")}</em>
                     ) : null}
+                    {r.workId ? <em className="ua__wid" title={tk("workId")}>{r.workId}</em> : null}
                     {/* A participant who is not call-centre staff can read this
                         record but not act on it; saying so beats offering
                         controls that would 403. */}
