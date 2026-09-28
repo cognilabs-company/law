@@ -1914,6 +1914,8 @@
         "archived": "Archived"
       },
       "docStatus": {
+        "rated": "Rated",
+        "closed": "Closed",
         "payment_pending": "Waiting for payment",
         "ready_to_generate": "Ready to generate",
         "questionnaire": "Filling in the details",
@@ -3734,6 +3736,16 @@
         "error": "Something went wrong. Please try again."
       },
       "documentRequests": {
+        "rateError": "The rating could not be sent",
+        "rateGiven": "{n} stars",
+        "rateThanks": "Thank you for the rating",
+        "rateSending": "Sending…",
+        "rateSubmit": "Send the rating",
+        "rateCommentPh": "Comment (optional)",
+        "rateN": "{n} stars",
+        "rateLeft": "{time} left",
+        "rateTitle": "Rate the document",
+        "workId": "Work ID",
         "tab_manual": "Filled in myself",
         "waitingLawyer": "Waiting for an advocate",
         "openLead": "Document work you have started that has not come back yet.",

@@ -570,6 +570,14 @@ export const IconRecord = (p: P) => (
   </svg>
 );
 
+// A five-point star, for ratings. The IconStar above is a four-point
+// sparkle and reads as "AI", not as "one of five".
+export const IconStarRate = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M12 3.2l2.7 5.5 6 .9-4.35 4.24 1.03 5.99L12 17l-5.38 2.83 1.03-5.99L3.3 9.6l6-.9L12 3.2z" />
+  </svg>
+);
+
 // A label tied to a thing — the kind of document a request asks for.
 export const IconTag = (p: P) => (
   <svg {...base} {...p}>

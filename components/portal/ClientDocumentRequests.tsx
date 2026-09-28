@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { listClientDocumentFlowPage, getDocumentRequestFile, DOC_FLOW_PAGE, type ClientDocFlowItem, type ClientDocFlowMode } from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useDocChatRooms } from "@/lib/useDocChatRooms";
+import { useDocRatings } from "@/lib/useDocRatings";
+import DocRatingBox from "./DocRatingBox";
 import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "./DataState";
@@ -25,12 +27,17 @@ const MODE_ICON = { manual: IconEdit, ai: IconSparkle, lawyer: IconScale } as co
 // production: questionnaire, lawyer_review, file_ready, ready_to_generate,
 // open_pool, payment_pending); an unknown one lands on "working", which
 // claims nothing.
-function statusTone(status: string): "done" | "waiting" | "you" | "working" {
-  if (status === "file_ready") return "done";
+function statusTone(status: string): "done" | "waiting" | "you" | "closed" | "working" {
+  if (status === "file_ready" || status === "rated") return "done";
   if (status === "open_pool" || status === "lawyer_review") return "waiting";
   if (status === "questionnaire" || status === "ready_to_generate" || status === "payment_pending") return "you";
+  // The case is over: nothing more will happen on this document.
+  if (status === "closed" || status === "cancelled" || status === "rejected") return "closed";
   return "working";
 }
+// Which rows could carry a rating window, and therefore are worth one detail
+// request each. Anything still being worked on cannot have one.
+const RATEABLE = new Set(["file_ready", "rated", "closed"]);
 
 // LEXGO_CLIENT_DOCUMENT_REQUESTS_PAGE_FRONTEND.md: one place for the client
 // to see every document request they've ever started — however it was
@@ -115,6 +122,9 @@ export default function ClientDocumentRequests() {
   // themselves never does.
   const chatIds = rows.filter((r) => r.mode === "lawyer" || r.assignedLawyer).map((r) => r.id);
   const rooms = useDocChatRooms(chatIds, reloadKey);
+  // The 15-minute rating window, and the work id, per finished row — see
+  // useDocRatings for why they are not simply read off this list.
+  const rated = useDocRatings(rows.filter((r) => RATEABLE.has(r.status)).map((r) => r.id), reloadKey);
 
   async function download(item: ClientDocFlowItem) {
     if (!item.file.ready || dlBusy) return;
@@ -158,8 +168,11 @@ export default function ClientDocumentRequests() {
             const ready = item.file.ready;
             const tone = statusTone(item.status);
             const acts = !!room || ready;
+            const info = rated[item.id];
+            // The work id the client and the advocate quote at each other.
+            const workId = item.workId || info?.workId || "";
             return (
-              <article className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}`} key={item.id}>
+              <article className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}${tone === "closed" ? " mydoc--closed" : ""}`} key={item.id}>
                 <span className={`mydoc__i mydoc__i--${item.mode}`} aria-hidden><ModeIcon /></span>
                 {/* One column of content, not two: the status pill used to sit
                     in a flex row of its own while the buttons occupied a third
@@ -175,6 +188,7 @@ export default function ClientDocumentRequests() {
                     </em>
                   </div>
                   <div className="mydoc__row">
+                    {workId ? <small className="mydoc__wid" title={t("workId")}>{workId}</small> : null}
                     <small className="mydoc__mode"><ModeIcon />{t.has(`tab_${item.mode}`) ? t(`tab_${item.mode}`) : item.mode}</small>
                     {/* The kind of document asked for, when one was given. */}
                     {item.requestedDocumentType ? (
@@ -197,6 +211,10 @@ export default function ClientDocumentRequests() {
                   {/* Two things the client could not reach once the order modal
                       was closed: the private chat with the advocate handling
                       the document, and the finished file. */}
+                  {/* The 15-minute window the backend opens when the advocate
+                      finalises the document. Renders nothing once it has
+                      passed, which is what closes the block. */}
+                  {info ? <DocRatingBox id={item.id} rating={info.rating} onRated={refresh} /> : null}
                   {acts ? (
                     <div className="mydoc__acts">
                       {room ? (

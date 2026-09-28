@@ -1914,6 +1914,8 @@
         "archived": "В архиве"
       },
       "docStatus": {
+        "rated": "Оценено",
+        "closed": "Закрыто",
         "payment_pending": "Ожидается оплата",
         "ready_to_generate": "Готов к созданию",
         "questionnaire": "Заполняются данные",
@@ -3734,6 +3736,16 @@
         "error": "Произошла ошибка. Попробуйте ещё раз."
       },
       "documentRequests": {
+        "rateError": "Не удалось отправить оценку",
+        "rateGiven": "{n} звёзд",
+        "rateThanks": "Спасибо за оценку",
+        "rateSending": "Отправка…",
+        "rateSubmit": "Отправить оценку",
+        "rateCommentPh": "Комментарий (необязательно)",
+        "rateN": "{n} звёзд",
+        "rateLeft": "Осталось {time}",
+        "rateTitle": "Оцените документ",
+        "workId": "Номер дела",
         "tab_manual": "Заполнил сам",
         "waitingLawyer": "Ожидает адвоката",
         "openLead": "Начатые документы, которые ещё не готовы.",

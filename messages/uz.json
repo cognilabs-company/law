@@ -1920,6 +1920,8 @@
         "archived": "Arxivlangan"
       },
       "docStatus": {
+        "rated": "Baholangan",
+        "closed": "Yopilgan",
         "payment_pending": "To'lov kutilmoqda",
         "ready_to_generate": "Hujjat yaratishga tayyor",
         "questionnaire": "Ma'lumotlar to'ldirilmoqda",
@@ -3740,6 +3742,16 @@
         "error": "Xatolik yuz berdi. Qayta urining."
       },
       "documentRequests": {
+        "rateError": "Bahoni yuborib bo‘lmadi",
+        "rateGiven": "{n} yulduz",
+        "rateThanks": "Bahoyingiz uchun rahmat",
+        "rateSending": "Yuborilmoqda…",
+        "rateSubmit": "Bahoni yuborish",
+        "rateCommentPh": "Izoh (ixtiyoriy)",
+        "rateN": "{n} yulduz",
+        "rateLeft": "{time} qoldi",
+        "rateTitle": "Hujjatni baholang",
+        "workId": "Ish raqami",
         "tab_manual": "O'zim to'ldirganlar",
         "waitingLawyer": "Advokat kutilmoqda",
         "openLead": "Boshlangan va hali yetkazilmagan hujjat ishlari.",

@@ -7263,3 +7263,43 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
 .dtag--own{background:var(--dk-surface-2, #F2F6FC);color:var(--gray)}
 .mydoc__kind{font-weight:700;color:var(--dk-acc-strong, var(--b700))}
 .mydoc__kind svg{opacity:.85}
+
+/* ── wp-drate: the 15-minute rating window on a finished document ─
+   LEXGO_FRONTEND_DOCUMENT_RATING_AND_CALENDAR_FIX. It sits inside the card
+   rather than in a dialog: the window is short, and a modal the client has
+   to find and open is a window they will miss. */
+.drate{display:grid;gap:9px;justify-items:start;margin-top:4px;padding:12px 14px;border-radius:14px;
+  background:var(--dk-surface-2, #F7FAFE);box-shadow:inset 0 0 0 1px var(--line)}
+.drate__h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;width:100%}
+.drate__h b{display:inline-flex;align-items:center;gap:7px;font-size:.88rem;font-weight:700}
+.drate__h svg{width:15px;height:15px;color:var(--dk-txt-warn, #F5A623);fill:var(--dk-txt-warn, #F5A623)}
+/* The clock is the reason to act now, so it keeps its own colour. */
+.drate__left{display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:.76rem;font-weight:800;
+  color:var(--dk-txt-warn, #b45309);background:var(--dk-warn-bg, #FEF3C7);padding:3px 9px;border-radius:var(--pill)}
+.drate__left svg{width:12px;height:12px;color:inherit;fill:none}
+.drate__stars{display:flex;gap:4px}
+.drate__s{border:0;background:none;padding:2px;cursor:pointer;line-height:0;color:var(--gray2);
+  transition:transform .14s cubic-bezier(.2,.8,.2,1),color .14s}
+.drate__s svg{width:24px;height:24px;fill:none}
+.drate__s.on{color:var(--dk-txt-warn, #F5A623)}
+.drate__s.on svg{fill:currentColor}
+.drate__s:hover:not(:disabled){transform:scale(1.12)}
+.drate__s:disabled{cursor:default;opacity:.6}
+.drate__s:focus-visible{outline:3px solid var(--b400);outline-offset:2px;border-radius:6px}
+.drate__c{width:100%;height:40px;padding:0 12px;border:1.5px solid var(--line);border-radius:11px;font:inherit;font-size:.85rem;
+  background:var(--dk-surface, #fff);color:var(--ink);outline:none;transition:border-color .16s,box-shadow .16s}
+.drate__c::placeholder{color:var(--gray2)}
+.drate__c:focus{border-color:var(--b600);box-shadow:0 0 0 3px var(--dk-tint-blue, #E6F0FF)}
+.drate__err{margin:0;font-size:.8rem;color:var(--dk-txt-err, #C0392B)}
+/* Once it is given, the block collapses to one line of thanks. */
+.drate__done{display:flex;align-items:center;gap:7px;margin:4px 0 0;padding:9px 13px;border-radius:12px;
+  font-size:.82rem;font-weight:600;color:var(--ok);background:var(--dk-tint-ok, #E1F6EE)}
+.drate__done svg{width:14px;height:14px;stroke-width:3;flex:none}
+.drate__done em{font-style:normal;font-weight:800}
+
+/* The work id the client and the advocate quote at each other, and the
+   over-and-done tone for a case nothing more will happen on. */
+.mydoc__wid{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.72rem;font-weight:700;
+  letter-spacing:.01em;color:var(--gray2);background:var(--dk-surface-2, #F2F6FC);padding:2px 8px;border-radius:7px}
+.mydoc__st--closed{background:var(--dk-surface-2, #F2F6FC);color:var(--gray2)}
+.mydoc--closed{opacity:.86}
