@@ -145,12 +145,11 @@ const CLIENT_NAV: NavItem[] = [
   { href: "/portal/client/notifications", key: "notifications", Icon: IconBell },
   { href: "/portal/client/ai", key: "ai", Icon: IconSparkle },
   { href: "/portal/client/intake", key: "intake", Icon: IconClipboardList },
-  // /portal/client/doc-analysis is deliberately NOT in this list any more:
-  // it and the services page were both called "Hujjat tahlili", so they are
-  // merged into one entry. The route stays live — the services page and the
-  // finished-document upsell both link into it — it just has no sidebar row
-  // of its own. PortalShell's longest-href match then titles that page from
-  // the services entry, which is the shared name both now carry.
+  // /portal/client/doc-analysis has no sidebar row of its own: it is reached
+  // from the dashboard card, from the new-document modal and from the
+  // finished-document upsell. The route stays live, and CLIENT_TITLE_ONLY
+  // above gives it its own header title ("Hujjat tahlili"); the catalogue
+  // page beside it is "Huquqiy hujjatlar", so the two no longer share a name.
   { href: "/portal/client/academy", key: "academy", Icon: IconGraduation },
   { href: "/portal/client/lawyers", key: "lawyers", Icon: IconUsers },
   { href: "/portal/client/matches", key: "matches", Icon: IconTarget },

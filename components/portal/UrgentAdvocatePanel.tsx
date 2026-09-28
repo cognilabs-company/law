@@ -313,15 +313,13 @@ export default function UrgentAdvocatePanel() {
             const Icon = card.group ? ICONS[card.items[0].key] ?? IconScale : ICONS[s.key] ?? IconScale;
             const on = card.group ? card.items.some((x) => x.key === pick) : pick === s.key;
             const chans = urgentChannels(s);
-            // Per advocate for the panel, flat for everything else — one
-            // number either way, instead of multiplying then dividing back.
-            const from = urgentPrice(s, chans[0] || "video", 1);
             const name = card.group ? groupTitle(card.group) : t.has(`kinds.${s.key}`) ? t(`kinds.${s.key}`) : s.title;
             const lead = about(card.group ? card.group.key : s.key);
             // Straight to whoever is on duty, rather than queued for the
             // call-center — the single fastest fact about a service, and only
             // sayable about a box whose kinds agree on it.
             const now = card.items.every((x) => x.immediateCall);
+            const agree = now || card.items.every((x) => !x.immediateCall);
             return (
               <button
                 key={card.key}
@@ -333,12 +331,10 @@ export default function UrgentAdvocatePanel() {
               >
                 <span className="uacard__i"><Icon /></span>
                 <b className="uacard__t">{name}</b>
-                {/* One line saying what it IS, above the price — the price
-                    alone never answered that. */}
+                {/* Two lines at rest; the card grows on hover and on keyboard
+                    focus to show the rest, plus how the work is delivered and
+                    which kinds a grouped box holds. */}
                 {lead ? <span className="uacard__d">{lead}</span> : null}
-                <span className="uacard__p">
-                  {s.variants.some((v) => v.pricePerLawyer) ? t("fromPerLawyer", { price: fmtUzs(from) }) : t("from", { price: fmtUzs(from) })}
-                </span>
                 <span className="uacard__f">
                   {/* Only channels the order form can actually send. The
                       catalog also sets supports_chat on the video service —
@@ -355,6 +351,23 @@ export default function UrgentAdvocatePanel() {
                   <span className="uacard__lock"><IconLock />{t("priorPurchaseShort")}</span>
                 ) : null}
                 <span className="uacard__go" aria-hidden><IconArrowRight /></span>
+
+                {/* The card stretches to fit this; it is not floated over
+                    anything, so it is readable at any width and cannot be
+                    clipped by the viewport. No prices — those belong to the
+                    order form, once there is something to price. */}
+                <span className="uacard__more">
+                  <span className="uacard__morei">
+                    {card.group ? (
+                      <span className="uacard__kindl">
+                        {card.items.map((x) => (
+                          <em key={x.key}>{t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}</em>
+                        ))}
+                      </span>
+                    ) : null}
+                    {agree ? <span className="uacard__how">{now ? t("deliveryNow") : t("deliveryPool")}</span> : null}
+                  </span>
+                </span>
               </button>
             );
           })}
@@ -579,9 +592,7 @@ export default function UrgentAdvocatePanel() {
             {about(kindCard.group!.key) ? <p className="uakind__lead">{about(kindCard.group!.key)}</p> : null}
             <div className="uakind__grid">
               {kindCard.items.map((x) => {
-                const xc = urgentChannels(x);
                 const XIcon = ICONS[x.key] ?? IconScale;
-                const price = urgentPrice(x, xc[0] || "video", 1);
                 return (
                   <button
                     key={x.key}
@@ -590,12 +601,7 @@ export default function UrgentAdvocatePanel() {
                     onClick={() => { setKindPick(""); choose(x); }}
                   >
                     <span className="uakind__i"><XIcon /></span>
-                    <b>
-                      {t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}
-                      <i>{x.variants.some((v) => v.pricePerLawyer)
-                        ? t("fromPerLawyer", { price: fmtUzs(price) })
-                        : t("from", { price: fmtUzs(price) })}</i>
-                    </b>
+                    <b>{t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}</b>
                     {about(x.key) ? <span>{about(x.key)}</span> : null}
                     <span className="uakind__f">
                       {x.immediateCall ? <em className="uakind__now"><IconBolt />{t("immediate")}</em> : null}

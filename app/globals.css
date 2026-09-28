@@ -5793,7 +5793,6 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .uacard__i svg{width:20px;height:20px}
 .uacard.on .uacard__i{background:var(--b600);color:#fff}
 .uacard__t{font-size:.95rem;font-weight:700;line-height:1.35}
-.uacard__p{font-size:.86rem;font-weight:800;color:var(--dk-acc, var(--b600))}
 .uacard__f{display:flex;flex-wrap:wrap;gap:6px}
 .uacard__f em{display:inline-flex;align-items:center;gap:4px;font-style:normal;font-size:.72rem;font-weight:700;color:var(--gray);
   background:var(--dk-surface-2, #F2F6FC);border-radius:var(--pill);padding:3px 9px}
@@ -7023,10 +7022,38 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .cdwho__go svg{width:14px;height:14px}
 .cdwho__c:hover .cdwho__go{background:var(--b600);color:#fff;transform:translateX(2px)}
 
-/* ── wp-uacard: what the service IS, not only what it costs ──────── */
-.uacard__d{font-size:.8rem;line-height:1.5;color:var(--gray);display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* ── wp-uacard: what the service IS, not what it costs ───────────
+   No price on the grid: it belongs to the order, where the channel and the
+   number of advocates are settled. The card carries two lines at rest and
+   stretches on hover (and on keyboard focus) to finish the sentence and say
+   how the work is delivered. Nothing floats over anything, so it reads at
+   any width and cannot be clipped by the viewport. */
+.uacard__d{font-size:.8rem;line-height:1.5;color:var(--gray);
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.uacard:hover .uacard__d,.uacard:focus-visible .uacard__d{-webkit-line-clamp:unset;line-clamp:unset;overflow:visible}
 .uacard__f em.uacard__now{color:var(--dk-txt-warn, #b45309);background:var(--dk-warn-bg, #FEF3C7)}
 .uacard__f em.uacard__kinds{color:var(--dk-acc, var(--b600));background:var(--b100)}
+/* Cards keep an even floor at rest and grow one at a time, rather than the
+   whole row stretching to the tallest hovered one. */
+.ua__grid{align-items:start}
+.uacard{min-height:186px}
+/* 0fr → 1fr animates the height of a grid row, which is the only way to
+   transition "auto" without measuring anything in JS. */
+.uacard__more{display:grid;grid-template-rows:0fr;width:100%;
+  transition:grid-template-rows .26s cubic-bezier(.2,.8,.2,1)}
+.uacard:hover .uacard__more,.uacard:focus-visible .uacard__more{grid-template-rows:1fr}
+.uacard__morei{min-height:0;overflow:hidden;display:grid;gap:7px}
+.uacard__morei>*{margin-top:9px}
+.uacard__morei>*+*{margin-top:0}
+.uacard__how{font-size:.76rem;line-height:1.5;color:var(--gray2);
+  padding-top:9px;border-top:1px dashed var(--line)}
+/* The kinds a grouped box holds, by name — the chooser gives the rest. */
+.uacard__kindl{display:flex;flex-direction:column;gap:4px}
+.uacard__kindl em{display:flex;align-items:baseline;gap:6px;font-style:normal;font-size:.78rem;font-weight:600;color:var(--ink)}
+.uacard__kindl em::before{content:"";flex:none;width:4px;height:4px;border-radius:50%;background:var(--b400);transform:translateY(-2px)}
+@media (prefers-reduced-motion:reduce){
+  .uacard__more{transition:none}
+}
 /* What the chosen kind changes, under the switch that chose it. */
 .ua__kindnote{margin:8px 0 0;font-size:.8rem;line-height:1.55;color:var(--gray);
   padding:9px 11px;border-radius:12px;background:var(--dk-surface-2, #F7FAFE)}
@@ -7048,8 +7075,7 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
   background:var(--b100);color:var(--dk-acc, var(--b600))}
 .uakind__i svg{width:21px;height:21px}
 .uakind__c>b,.uakind__c>span:not(.uakind__i),.uakind__c>.uakind__f{grid-column:2}
-.uakind__c b{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:.95rem;font-weight:700;line-height:1.35}
-.uakind__c b i{font-style:normal;font-size:.8rem;font-weight:800;color:var(--dk-acc, var(--b600))}
+.uakind__c b{font-size:.95rem;font-weight:700;line-height:1.35}
 .uakind__c>span:not(.uakind__i):not(.uakind__f){font-size:.82rem;line-height:1.5;color:var(--gray)}
 .uakind__f{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
 .uakind__f em{display:inline-flex;align-items:center;gap:4px;font-style:normal;font-size:.72rem;font-weight:700;
@@ -7101,15 +7127,13 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
    to live in a flex row and a third grid column respectively, and on a long
    title they overlapped each other. Everything that is about the request now
    sits in one column, in reading order. */
-.mydoc{position:relative;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;
+.mydoc{position:relative;overflow:hidden;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;
   padding:15px 18px 15px 17px;border:1px solid var(--line);border-radius:16px;background:var(--dk-surface, #fff);
   box-shadow:var(--s1);transition:border-color .18s,box-shadow .18s,transform .18s}
-.mydoc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:16px 0 0 16px;background:var(--line)}
+.mydoc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--line)}
 .mydoc--lawyer::before{background:var(--b600)}
 .mydoc--ai::before{background:linear-gradient(180deg,var(--b400),var(--ok))}
 .mydoc--manual::before{background:var(--gray2)}
-.mydoc--ready{border-color:var(--ok)}
-.mydoc--ready::before{background:var(--ok)}
 .mydoc:hover{box-shadow:var(--s2);transform:translateY(-1px)}
 .mydoc__i{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;background:var(--b100);color:var(--dk-acc, var(--b600))}
 .mydoc__i svg{width:18px;height:18px}
