@@ -31,10 +31,11 @@ import DocumentRequestChat from "./DocumentRequestChat";
 import DocFill, { loadDraft, clearDraft } from "./DocFill";
 import DocTemplateViewer from "./DocTemplateViewer";
 import DocTypePicker from "./DocTypePicker";
+import Modal from "@/components/admin/Modal";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Notice } from "@/components/admin/AdminBits";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset, IconCard, IconAlert, IconEdit } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
@@ -222,6 +223,21 @@ type Stage = "answers" | "pay" | "generating" | "lawyerReview" | "claimed" | "pe
 // press somewhere useful. A caller with its own constructor route passes
 // onOpenConstructor; everyone else lands on the documents list with ?doc=<id>,
 // which already answers that parameter with the same two-button prompt.
+// Whether this client has already been asked about THIS request. The backend
+// sends prompt_required for the whole life of the hold, so without
+// remembering the answer a client who chose "Yo'q, advokatni kutaman" would
+// be asked again on every visit. Keyed by request id, in the same browser
+// storage the draft already uses.
+const ASK_KEY = "lexgo_doc_ctor_ask";
+function alreadyAsked(id: string): boolean {
+  if (typeof window === "undefined" || !id) return true;
+  try { return localStorage.getItem(`${ASK_KEY}_${id}`) === "1"; } catch { return true; }
+}
+function markAsked(id: string): void {
+  if (typeof window === "undefined" || !id) return;
+  try { localStorage.setItem(`${ASK_KEY}_${id}`, "1"); } catch { /* private mode */ }
+}
+
 function ConstructorEscape({ req, onOpenConstructor }: { req: DocumentRequest; onOpenConstructor?: () => void }) {
   const t = useTranslations("portal.client.documents");
   const ca = req.constructorAction;
@@ -376,6 +392,12 @@ export default function DocumentRequestPanel({
   const [stage, setStage] = useState<Stage>(stageFor(initialReq));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  // The ask the product owner described: the moment the work reaches an
+  // advocate, say so and offer the constructor anyway. Raised here rather
+  // than in each of the three forms that mount this panel, so every one of
+  // them gets it — and only once per request, see alreadyAsked above.
+  const [askCtor, setAskCtor] = useState(false);
+  const router = useRouter();
   const [pdfBusy, setPdfBusy] = useState(false);
   // MD §"Error states": 403 ("User bu requestga kira olmaydi") and 404
   // ("Request topilmadi") are terminal — there is nothing left to wait for,
@@ -790,6 +812,21 @@ export default function DocumentRequestPanel({
   // stage left to render once the request is gone or off-limits.
   const shown: Stage | "" = fatal ? "" : stage;
 
+  // A one-shot, and it has to be an effect: the decision reads localStorage
+  // and writes it, which is a side effect and must not happen during render —
+  // and the ref-during-render alternative trips react-hooks/refs. The rule is
+  // disabled for this one setState rather than worked around, because the
+  // guard above it means it can fire at most once per request id.
+  useEffect(() => {
+    const ca = req.constructorAction;
+    if (!ca?.promptRequired || !ca.available) return;
+    if (stage !== "lawyerReview" && stage !== "claimed") return;
+    if (alreadyAsked(req.id)) return;
+    markAsked(req.id);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAskCtor(true);
+  }, [req.id, req.constructorAction, stage]);
+
   return (
     <div className={`cform${shown === "answers" ? " cform--doc" : ""}`} style={{ maxWidth: "none" }}>
       {fatal ? <Notice ok={false} msg={t(fatal)} /> : null}
@@ -1120,6 +1157,39 @@ export default function DocumentRequestPanel({
         fetchBlob={viewerFile ? () => Promise.resolve(viewerFile.blob) : null}
         fileName={viewerFile?.name || t("fileGeneric")}
       />
+
+      {/* "Ishingiz Navbatchi advokatga berildi — konstruktordan ham
+          foydalanasizmi?" The backend writes both sentences itself
+          (constructor_action.title / .message), so they are preferred over
+          ours; ours are the fallback for a deployment that sends neither.
+          "Yo'q" is not a refusal to record anywhere — the client simply waits
+          for the advocate, and the wait card keeps the way in if they change
+          their mind. */}
+      <Modal open={askCtor} onClose={() => setAskCtor(false)} title={req.constructorAction?.title || t("ctorAskTitle")}>
+        <div className="cform" style={{ maxWidth: "none" }}>
+          <p className="dexit__lead">
+            <span className="dexit__i"><IconHeadset /></span>
+            {req.constructorAction?.message || t("ctorAskLead")}
+          </p>
+          <div className="dexit__btns">
+            <button type="button" className="btn btn--line btn--full" onClick={() => setAskCtor(false)}>
+              {t("ctorAskWait")}
+            </button>
+            <button
+              type="button"
+              className="btn btn--grad btn--full"
+              onClick={() => {
+                setAskCtor(false);
+                if (onOpenConstructor) onOpenConstructor();
+                else router.push(`/portal/client/documents?doc=${encodeURIComponent(req.id)}`);
+              }}
+            >
+              <IconEdit />
+              {t("ctorAskOpen")}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
