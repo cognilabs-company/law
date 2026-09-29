@@ -16,7 +16,7 @@ import { ApiError, errDetail } from "@/lib/http";
 // its own so there is exactly one implementation of it: both screens render
 // the same sheet from the same DOCX pipeline, and two copies of a security
 // rule is how one of them quietly stops matching the other.
-import { DocGuardNote, DocPrintNotice, DocWatermark, useDocGuard } from "./DocTemplateViewer";
+import { DocCloak, DocGuardNote, DocPrintNotice, DocWatermark, useDocGuard } from "./DocTemplateViewer";
 import { IconChevronLeft, IconEye, IconLock } from "@/components/icons";
 
 // A dedicated full page for "Hujjatni ko'rish" on the services catalog — the
@@ -123,7 +123,8 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
             {t("docViewHint")}
           </p>
           <DocGuardNote blocked={guard.blocked} />
-          <div className="docpaper__scroll docguard__paper" style={{ maxHeight: "none" }} {...guard.surface}>
+          <div className={`docpaper__scroll docguard__paper${guard.cls}`} style={{ maxHeight: "none" }} {...guard.surface}>
+            <DocCloak reason={guard.cloak} />
             <article className="docpaper__sheet docpaper__sheet--doc">
               <DocWatermark style={guard.wm} />
               {tree ? renderDocTree(tree) : null}

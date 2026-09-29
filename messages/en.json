@@ -3527,6 +3527,12 @@
       },
       "documents": {
         "lawyerNeedRequired": "Write the request text — the advocate needs to know where to start.",
+        "cloakHint": "This document is for reading on screen. Copying, printing and saving are closed.",
+        "cloak": {
+          "devtools": "Developer tools are open - the document is hidden",
+          "print": "Printing and saving to PDF are not available",
+          "capture": "Screen capture - the document is hidden"
+        },
         "guardPrint": "This LexGo document is not open for printing. It can only be downloaded from your cabinet.",
         "guardBlocked": "This document cannot be copied.",
         "guardNote": "Protected view — copying and printing are off, and the page is marked with who opened the document.",
@@ -3977,6 +3983,7 @@
         "rateError": "The rating could not be sent",
         "rateGiven": "{n} stars",
         "rateThanks": "Thank you for the rating",
+        "rateClosed": "The rating window has closed",
         "rateSending": "Sending…",
         "rateSubmit": "Send the rating",
         "rateCommentPh": "Comment (optional)",

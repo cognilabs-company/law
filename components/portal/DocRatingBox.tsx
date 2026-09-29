@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { rateDocumentRequest, isRatingClosed, ratingOpen, opensComplaint, type QualityComplaint, type UrgentRating } from "@/lib/services/backend";
 import { errDetail, logApiError } from "@/lib/http";
@@ -10,14 +10,15 @@ import { IconStarRate, IconClock, IconCheck, IconAlert, IconArrowRight } from "@
 // The 15-minute window the backend opens when an advocate finalises a
 // document (LEXGO_FRONTEND_DOCUMENT_RATING_AND_CALENDAR_FIX). Three states
 // and no more: the window is open and the client can rate, they already did,
-// or it has passed and this renders nothing at all.
+// or it has passed and this says so.
 //
-// The countdown is computed from rating_deadline_at rather than counted down
-// from fifteen, so a page left open overnight shows the truth and a clock
-// that is a minute out does not hand out a window that has closed. When it
-// reaches zero the block closes itself, which is what the MD asks for — and
-// the backend answers 409 for a late submit anyway, which is treated as the
-// window having closed rather than as a failure.
+// Whether the window is open is the BACKEND's answer, not a subtraction done
+// here: LEXGO_RATING_COMPLAINT_WINDOW_2026-09-29.md says so in as many words
+// ("Frontend o'zi vaqt hisoblab qaror qilmasin"), and ratingOpen() is now
+// available && !submitted and nothing else. The clock below is drawn from the
+// server's own remaining_seconds and is decoration on top of that answer. A
+// late send is refused with 409 rating_window_closed, which is treated as the
+// window having shut rather than as a failure.
 
 function clock(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -75,9 +76,19 @@ export default function DocRatingBox({
   // effect body.
   const [now, setNow] = useState(() => Date.now());
 
-  const deadline = rating.deadlineAt ? Date.parse(rating.deadlineAt) : NaN;
-  const timed = !Number.isNaN(deadline);
-  const left = timed ? deadline - now : Infinity;
+  // LEXGO_RATING_COMPLAINT_WINDOW_2026-09-29.md gives the window its own
+  // countdown, `remaining_seconds`, and that is what the clock is built on:
+  // it is the server's own number and survives a browser clock that is a few
+  // minutes out, which deadline_at alone did not. The absolute deadline is
+  // the fallback for an endpoint that still only sends that.
+  const [mounted] = useState(() => Date.now());
+  const endsAt = useMemo(() => {
+    if (rating.remainingSeconds > 0) return mounted + rating.remainingSeconds * 1000;
+    const d = rating.deadlineAt ? Date.parse(rating.deadlineAt) : NaN;
+    return Number.isNaN(d) ? 0 : d;
+  }, [rating.remainingSeconds, rating.deadlineAt, mounted]);
+  const timed = endsAt > 0;
+  const left = timed ? endsAt - now : Infinity;
   // What the row should look like right now: the hovered star while the
   // pointer is on the row, otherwise the one that was picked.
   const shown = hover || stars;
@@ -113,7 +124,21 @@ export default function DocRatingBox({
     );
   }
   // Closed by the clock, by a 409, or because the backend says so.
-  if (closed || !ratingOpen(rating) || left <= 0) return null;
+  // Shut. The MD asks for this to be said rather than to vanish — "15
+  // daqiqa tugasa: baholash tugmalari yo'qolsin; shikoyat inputi yo'qolsin;
+  // 'Baholash muddati tugagan' yozuvi chiqsin" — but only where there was a
+  // window to miss: a document that never opened one has nothing to report.
+  const shut = closed || !ratingOpen(rating) || left <= 0;
+  if (shut) {
+    const hadWindow = closed || rating.available || !!rating.deadlineAt || rating.closedReason === "expired";
+    if (!hadWindow) return null;
+    return (
+      <p className="drate drate--shut" role="status">
+        <IconClock />
+        {t("rateClosed")}
+      </p>
+    );
+  }
 
   async function send() {
     if (!stars || busy) return;

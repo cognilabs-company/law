@@ -77,9 +77,26 @@ export function useViewerStamp(): string {
  * `active` must be false while no document is on screen, so the key handler is
  * not installed over the rest of the portal.
  */
+/**
+ * How far the outer window may exceed the inner viewport before docked
+ * devtools is the likeliest explanation. Chrome's docked panel is never
+ * narrower than ~200px; 160 leaves room for a scrollbar and a zoom level
+ * without crying wolf. An undocked window is not caught by this and is not
+ * meant to be — see the header.
+ */
+const DEVTOOLS_GAP = 160;
+
 export function useDocGuard(active: boolean) {
   const [blocked, setBlocked] = useState(false);
+  // The document is taken off screen entirely: devtools appears to be open,
+  // the browser is building a print/PDF rendering, or a capture key was hit.
+  const [cloak, setCloak] = useState<"" | "devtools" | "print" | "capture">("");
+  // Softer: the window lost focus, so a screenshot tool or a second monitor
+  // is looking at it. Blurred rather than hidden, because coming back from
+  // another tab to a blank page reads as a crash.
+  const [dimmed, setDimmed] = useState(false);
   const flash = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const cloakTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const stamp = useViewerStamp();
 
   const deny = useCallback((e?: { preventDefault: () => void }) => {
@@ -89,9 +106,20 @@ export function useDocGuard(active: boolean) {
     flash.current = setTimeout(() => setBlocked(false), FLASH_MS);
   }, []);
 
+  // Both states are reset during render rather than from inside the effect —
+  // one render instead of a cascade, and the rule this repo enforces. When the
+  // guard goes inactive the document is gone anyway, so nothing is on screen
+  // to cloak.
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active) { setCloak(""); setDimmed(false); }
+  }
+
   useEffect(() => {
     if (!active) return;
     const timer = flash;
+    const cTimer = cloakTimer;
     // Bound to the window rather than the container: Ctrl+P and Ctrl+S are
     // never delivered to the element under the pointer, they go wherever focus
     // is, and focus on this screen is usually the modal panel or <body>. The
@@ -99,19 +127,92 @@ export function useDocGuard(active: boolean) {
     // steps aside for anything the client is typing into, so a form field
     // elsewhere on the page keeps its own copy/paste.
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
-      const k = e.key.toLowerCase();
-      // c/x copy, a select-all, s save-page, p print. Deliberately NOT the
-      // zoom keys (+ - 0) — reading a court filing at 150% has to keep working.
-      if (k !== "c" && k !== "x" && k !== "a" && k !== "s" && k !== "p") return;
       const el = e.target as HTMLElement | null;
-      if (el && (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT")) return;
+      const typing = !!el && (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT");
+      const k = e.key.toLowerCase();
+
+      // PrintScreen never reaches the page on Windows as a keypress the page
+      // can cancel — the OS takes the shot first. What CAN be done is blank
+      // the sheet on the way past, so a second press catches nothing and the
+      // client is told why. Honest about the first one: it already happened.
+      if (e.key === "PrintScreen") {
+        setCloak("capture");
+        clearTimeout(cTimer.current);
+        cTimer.current = setTimeout(() => setCloak(""), 1800);
+        deny();
+        return;
+      }
+      // The devtools shortcuts, asked for explicitly. F12 and Ctrl+Shift+I/J/C
+      // open it; Ctrl+U shows the source. Cancelling these is a speed bump and
+      // nothing more — the browser menu opens the same panel and this cannot
+      // see that — but a speed bump is what was asked for and it costs
+      // nothing. The cloak below is the part that actually does something.
+      if (!typing && (e.key === "F12" || ((e.ctrlKey || e.metaKey) && e.shiftKey && (k === "i" || k === "j" || k === "c")))) {
+        deny(e);
+        return;
+      }
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      // c/x copy, a select-all, s save-page, p print, u view-source.
+      // Deliberately NOT the zoom keys (+ - 0) — reading a court filing at
+      // 150% has to keep working.
+      if (k !== "c" && k !== "x" && k !== "a" && k !== "s" && k !== "p" && k !== "u") return;
+      if (typing) return;
       deny(e);
     };
+
+    // Printing and "Save as PDF" are the same event, and it fires however the
+    // print was started — Ctrl+P, the browser menu, or the OS dialogue. The
+    // @media print rules already replace the sheet on paper; this takes it out
+    // of the DOM for the duration as well, so a renderer that ignores the
+    // print stylesheet still has nothing to lay out.
+    const onBeforePrint = () => setCloak("print");
+    const onAfterPrint = () => setCloak((c) => (c === "print" ? "" : c));
+
+    // Same event, from the media-query side: Safari and some embedded
+    // browsers fire the matchMedia change but not beforeprint.
+    const printMq = typeof window.matchMedia === "function" ? window.matchMedia("print") : null;
+    const onPrintMq = (e: MediaQueryListEvent) => (e.matches ? setCloak("print") : onAfterPrint());
+
+    // Focus and visibility: a screenshot utility, a screen recorder or a
+    // second window taking over all read as "this tab is no longer the thing
+    // being looked at".
+    const onBlur = () => setDimmed(true);
+    const onFocus = () => setDimmed(false);
+    const onVis = () => setDimmed(document.visibilityState !== "visible");
+
+    // Docked devtools changes the gap between the outer window and the
+    // viewport. Polled rather than driven by resize alone because opening a
+    // docked panel does not always fire one. 900ms is slow enough to be free
+    // and fast enough that the sheet is gone before anything is read off it.
+    const checkDevtools = () => {
+      const w = window.outerWidth - window.innerWidth;
+      const h = window.outerHeight - window.innerHeight;
+      const open = w > DEVTOOLS_GAP || h > DEVTOOLS_GAP;
+      setCloak((c) => (open ? "devtools" : c === "devtools" ? "" : c));
+    };
+    checkDevtools();
+    const poll = setInterval(checkDevtools, 900);
+
     window.addEventListener("keydown", onKey, true);
+    window.addEventListener("beforeprint", onBeforePrint);
+    window.addEventListener("afterprint", onAfterPrint);
+    window.addEventListener("resize", checkDevtools);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVis);
+    printMq?.addEventListener?.("change", onPrintMq);
     return () => {
       window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("beforeprint", onBeforePrint);
+      window.removeEventListener("afterprint", onAfterPrint);
+      window.removeEventListener("resize", checkDevtools);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVis);
+      printMq?.removeEventListener?.("change", onPrintMq);
+      clearInterval(poll);
       clearTimeout(timer.current);
+      clearTimeout(cTimer.current);
     };
   }, [active, deny]);
 
@@ -137,6 +238,10 @@ export function useDocGuard(active: boolean) {
     blocked,
     wm,
     stamp,
+    cloak,
+    dimmed,
+    // Append to the paper container's own class list.
+    cls: `${cloak ? " docguard__paper--cloak" : ""}${dimmed && !cloak ? " docguard__paper--dim" : ""}`,
     // Spread onto the scrolling container that holds the sheet. The clipboard
     // events bubble, so a selection anywhere inside is caught here.
     surface: {
@@ -146,6 +251,24 @@ export function useDocGuard(active: boolean) {
       onDragStart: deny,
     },
   };
+}
+
+/**
+ * What stands in for the document while it is cloaked. Rendered inside the
+ * paper container, over the sheet, so the layout does not jump when it
+ * appears — and it names the reason, because a sheet that simply goes white
+ * reads as a bug rather than as a rule.
+ */
+export function DocCloak({ reason }: { reason: "" | "devtools" | "print" | "capture" }) {
+  const t = useTranslations("portal.client.documents");
+  if (!reason) return null;
+  return (
+    <div className="docguard__cloak" role="status">
+      <IconShield />
+      <b>{t(`cloak.${reason}`)}</b>
+      <span>{t("cloakHint")}</span>
+    </div>
+  );
 }
 
 /** The watermark layer itself — inside the sheet, above the text, inert. */
@@ -254,10 +377,11 @@ export default function DocTemplateViewer({
         <>
           {protect ? <DocGuardNote blocked={guard.blocked} /> : null}
           <div
-            className={`docpaper__scroll${protect ? " docguard__paper" : ""}`}
+            className={`docpaper__scroll${protect ? ` docguard__paper${guard.cls}` : ""}`}
             style={{ maxHeight: "60vh" }}
             {...(protect ? guard.surface : null)}
           >
+            {protect ? <DocCloak reason={guard.cloak} /> : null}
             <article className="docpaper__sheet docpaper__sheet--doc">
               {protect ? <DocWatermark style={guard.wm} /> : null}
               {tree ? renderDocTree(tree) : null}

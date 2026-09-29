@@ -3533,6 +3533,12 @@
       },
       "documents": {
         "lawyerNeedRequired": "So'rov matnini yozing — advokat nimadan boshlashini bilishi kerak.",
+        "cloakHint": "Hujjat faqat ekranda ko'rish uchun. Nusxa olish, chop etish va saqlash yopiq.",
+        "cloak": {
+          "devtools": "Ishlab chiquvchi paneli ochiq — hujjat yopildi",
+          "print": "Chop etish va PDF saqlash mumkin emas",
+          "capture": "Ekran tasviri olinmoqda — hujjat yopildi"
+        },
         "guardPrint": "LexGo hujjati chop etish uchun ochiq emas. Hujjatni faqat kabinetingizdan yuklab olish mumkin.",
         "guardBlocked": "Bu hujjatdan nusxa olib bo'lmaydi.",
         "guardNote": "Himoyalangan ko'rinish — nusxa olish va chop etish yopilgan, sahifada hujjatni kim ochgani belgilab qo'yilgan.",
@@ -3983,6 +3989,7 @@
         "rateError": "Bahoni yuborib bo‘lmadi",
         "rateGiven": "{n} yulduz",
         "rateThanks": "Bahoyingiz uchun rahmat",
+        "rateClosed": "Baholash muddati tugagan",
         "rateSending": "Yuborilmoqda…",
         "rateSubmit": "Bahoni yuborish",
         "rateCommentPh": "Izoh (ixtiyoriy)",

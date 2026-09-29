@@ -10712,3 +10712,29 @@ html[data-theme="dark"]{
 @media (max-width:560px){
   .cwork__filt{flex-basis:100%}
 }
+
+/* ── wp-docprotect, layer 3: taking the sheet off screen ──────────────
+   The two layers above make casual copying come back empty and make a
+   deliberate capture carry a name. This is the third: when the page has a
+   concrete reason to believe it is being read by something other than a pair
+   of eyes — docked devtools, a print/PDF rendering, a capture key — the sheet
+   is covered outright and told why.
+   None of it is a wall. Devtools opens from the browser menu without touching
+   the shortcuts, an undocked window changes no measurement this can see, and
+   a phone camera cares about none of it. It raises the cost and it names the
+   moment; that is the whole claim. */
+.docguard__paper--cloak .docpaper__sheet{filter:blur(14px);opacity:.25;pointer-events:none;user-select:none}
+/* The window is no longer in front: a screenshot utility, a recorder or a
+   second monitor. Softer than the cloak — coming back from another tab to a
+   blank page reads as a crash. */
+.docguard__paper--dim .docpaper__sheet{filter:blur(9px);opacity:.4;transition:filter .12s linear,opacity .12s linear}
+.docguard__paper{position:relative}
+.docguard__cloak{position:absolute;inset:0;z-index:6;display:grid;align-content:center;justify-items:center;gap:8px;
+  padding:24px;text-align:center;border-radius:inherit;
+  background:var(--dk-surface, rgba(255,255,255,.86));backdrop-filter:blur(3px)}
+.docguard__cloak svg{width:28px;height:28px;stroke:var(--dk-txt-err, #C0392B);fill:none;stroke-width:2}
+.docguard__cloak b{font-size:.95rem;font-weight:800;color:var(--ink)}
+.docguard__cloak span{max-width:42ch;font-size:.84rem;line-height:1.55;color:var(--gray)}
+/* On paper the cloak is the only thing that exists — the sheet is already
+   hidden by the print rules above, and this must not print either. */
+@media print{.docguard__cloak{display:none}}

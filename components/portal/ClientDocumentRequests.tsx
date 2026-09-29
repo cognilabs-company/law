@@ -17,7 +17,6 @@ import { subscribeUserEvents } from "@/lib/userSocket";
 import { useDocChatRooms } from "@/lib/useDocChatRooms";
 import { useDocRatings } from "@/lib/useDocRatings";
 import DocRatingBox from "./DocRatingBox";
-import ComplaintBox from "./ComplaintBox";
 import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -317,7 +316,6 @@ export default function ClientDocumentRequests() {
             // on — the finished ones — but unlike the rating it does not
             // expire with the 15-minute window, so it is gated on the row
             // being finished rather than on the window still being open.
-            const canComplain = !!info;
             const acts = !!room || ready || canContinue || canSend;
             // The work id the client and the advocate quote at each other.
             const workId = item.workId || info?.workId || "";
@@ -411,28 +409,6 @@ export default function ClientDocumentRequests() {
                           {tcommon("reviewOpen")}
                         </button>
                       ) : null}
-                    </div>
-                  ) : null}
-                  {/* Its own line, under the actions rather than fifth in
-                      them. It was competing with "Chatni ochish", "Yuklab
-                      olish", "Konstruktorda davom et" and "Advokat
-                      tekshiruviga yuborish" — four things a client means to
-                      do, and one they hope never to need. It reads as a
-                      quieter offer down here, and it is not inside the rating
-                      block above either: the stars go when the fifteen
-                      minutes lapse, this must not. */}
-                  {canComplain ? (
-                    <div className="mydoc__cmpl">
-                      {/* No onSent: a complaint is its own record and changes
-                          nothing about this row, and refreshing the list on
-                          send was actively destructive — the reload bumps the
-                          key useDocRatings is cached under, `info` goes
-                          undefined for a beat, the whole block unmounts, and
-                          the "Shikoyatingiz qabul qilindi" the client is
-                          owed unmounts with it. Measured: the panel vanished
-                          and nothing at all was shown for a send that had
-                          succeeded. */}
-                      <ComplaintBox subject={item.title || t("title")} workId={workId} />
                     </div>
                   ) : null}
                   {/* Why that button is dead, in the backend's own words

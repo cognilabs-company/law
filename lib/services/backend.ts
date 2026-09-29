@@ -7113,7 +7113,18 @@ export type UrgentEligibleSource = { type: string; id: string; status: string; t
 // carry it as a nested object; a document request spells the same three
 // things out flat (rating_deadline_at / rating_available / rating_submitted)
 // — see normDocRating, which reads either.
-export type UrgentRating = { deadlineAt: string; available: boolean; submitted: boolean; value: number };
+// LEXGO_RATING_COMPLAINT_WINDOW_2026-09-29.md: the window is a hard 15
+// minutes and the backend owns it. `remainingSeconds` is its own count,
+// which is what the timer is seeded from rather than the client clock;
+// `closedReason` is expired | submitted | not_ready.
+export type UrgentRating = {
+  deadlineAt: string;
+  available: boolean;
+  submitted: boolean;
+  value: number;
+  remainingSeconds: number;
+  closedReason: string;
+};
 export type UrgentRequest = {
   id: string;
   // Human-readable id the client and the advocate quote at each other
@@ -7302,6 +7313,8 @@ function normRating(nested: unknown, flat: Dict): UrgentRating {
       deadlineAt: asStr(n.deadline_at),
       available: Boolean(n.available),
       submitted: Boolean(n.submitted),
+      remainingSeconds: asNum(n.remaining_seconds),
+      closedReason: asStr(n.closed_reason),
       // The submitted rating comes back as the whole review record, not a
       // number, once it exists.
       value: typeof v === "number" ? v : asNum(asDict(v).rating),
@@ -7311,16 +7324,23 @@ function normRating(nested: unknown, flat: Dict): UrgentRating {
     deadlineAt: asStr(flat.rating_deadline_at),
     available: Boolean(flat.rating_available),
     submitted: Boolean(flat.rating_submitted),
+    remainingSeconds: asNum(flat.rating_remaining_seconds),
+    closedReason: asStr(flat.rating_closed_reason),
     value: typeof flat.rating === "number" ? (flat.rating as number) : asNum(asDict(flat.rating).rating),
   };
 }
-// True while the client may still leave a rating: the backend says so, and the
-// 15-minute deadline has not passed.
+// True while the client may still rate, and therefore complain.
+//
+// The 2026-09-29 MD is explicit that the frontend must not decide this for
+// itself — "Frontend o'zi vaqt hisoblab qaror qilmasin. Backend qaytargan
+// `rating` obyektiga qaraydi" — and gives the test verbatim:
+//   available === true && submitted === false
+// The old version also compared deadline_at against the browser's clock,
+// which on a device a few minutes fast closed the window early and on a slow
+// one offered a send the backend answers 409 to. The deadline is still read,
+// but only to draw the countdown.
 export function ratingOpen(r: UrgentRating | undefined): boolean {
-  if (!r || !r.available || r.submitted) return false;
-  if (!r.deadlineAt) return true;
-  const t = Date.parse(r.deadlineAt);
-  return Number.isNaN(t) || t > Date.now();
+  return !!r && r.available === true && r.submitted === false;
 }
 
 export type UrgentRequestInput = {
@@ -7692,10 +7712,21 @@ export async function rateDocumentRequest(id: string, rating: number, comment = 
 // the send, when there would be nothing left to attach it to.
 export const COMPLAINT_RATING_MAX = 2;
 export const opensComplaint = (stars: number) => stars > 0 && stars <= COMPLAINT_RATING_MAX;
-// Already rated, or the work is not finished yet — both are 409 and both are
-// states to show rather than errors to log.
+// The window is shut: expired, already used, or never opened. All three are
+// 409 and all three are states to show rather than errors to log. Since the
+// 2026-09-29 MD the refusal also names itself —
+// {"code":"rating_window_closed","reason":"expired","deadline_at":…} — and
+// the code is matched when present so an unrelated 409 on this route is not
+// silently read as a closed window.
 export function isRatingClosed(e: unknown): boolean {
-  return e instanceof ApiError && e.status === 409;
+  if (!(e instanceof ApiError) || e.status !== 409) return false;
+  return !e.code || /rating_window_closed|already|expired/i.test(e.code);
+}
+// Why it shut, when the backend says: expired | submitted | not_ready.
+export function ratingClosedReason(e: unknown): string {
+  if (!(e instanceof ApiError)) return "";
+  const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
+  return asStr(d.reason);
 }
 
 // ── Meeting, status, result, cancel ───────────────────────────────
