@@ -13,6 +13,9 @@ export type Lawyer = {
   kind?: "advocate" | "lawyer"; // advokat vs yurist, for client-facing labels
   languages?: string[];
   isNew?: boolean; // T1-09: recently verified with few reviews → "Yangi" badge + first-page quota
+  // A paid marketplace boost, from /marketplace/lawyers only.
+  promoted?: boolean;
+  boost?: number;
 };
 
 // Practice areas and regions used across the site (keys resolved via messages).

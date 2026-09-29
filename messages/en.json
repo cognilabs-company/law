@@ -697,6 +697,7 @@
     "roleAdvocates": "Advocates",
     "roleLawyers": "Lawyers",
     "card": {
+      "promoted": "Promoted",
       "kindAdvocate": "Advocate",
       "kindLawyer": "Lawyer",
       "fullWin": "Full win",
@@ -5478,6 +5479,10 @@
     "intro": "Increase your visibility and get discovered by more potential clients.",
     "position": "Search position",
     "visibility": "Profile visibility",
+    "pendingTitle": "Waiting for approval",
+    "pendingText": "The payment request went to Telegram. The package stays inactive until an administrator approves it.",
+    "pendingTelegramOk": "Sent to Telegram",
+    "pendingTelegramFail": "Not sent to Telegram - contact support",
     "impressionsTrend": "Impressions (14 days)",
     "analyticsTitle": "Your reach analytics",
     "impressions": "Profile impressions",

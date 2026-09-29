@@ -198,8 +198,16 @@ export function useDocGuard(active: boolean) {
     // A page that dims and never recovers is the bug this whole layer was
     // supposed to avoid, so the rule is: the tab being HIDDEN dims it, and any
     // sign of a person working in the page clears it, whatever focus claims.
-    const wake = () => setDimmed(document.visibilityState !== "visible");
-    const onBlur = () => setDimmed(true);
+    // setDimmed on every pointermove would re-render the sheet continuously.
+    // The ref makes the common case — already awake, pointer moving — free.
+    let asleep = false;
+    const wake = () => {
+      const next = document.visibilityState !== "visible";
+      if (next === asleep) return;
+      asleep = next;
+      setDimmed(next);
+    };
+    const onBlur = () => { asleep = true; setDimmed(true); };
     const onFocus = wake;
     const onVis = wake;
     const recheck = wake;
@@ -209,15 +217,31 @@ export function useDocGuard(active: boolean) {
     // freshly on screen — see DEVTOOLS_GROWTH for why an absolute threshold
     // was wrong. Polled rather than driven by resize alone because opening a
     // docked panel does not always fire one; 900ms is slow enough to be free.
-    const baseW = window.outerWidth - window.innerWidth;
-    const baseH = window.outerHeight - window.innerHeight;
+    let baseW = window.outerWidth - window.innerWidth;
+    let baseH = window.outerHeight - window.innerHeight;
+    let baseDpr = window.devicePixelRatio;
+    // A touch screen is not measured at all. An Android soft keyboard takes
+    // 250-350px off innerHeight the moment a field is focused, which is
+    // indistinguishable from a docked panel by this measurement and would
+    // hide the document every time somebody typed.
+    const coarse = typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
     const checkDevtools = () => {
+      if (coarse) return;
+      // Page zoom moves the gap too. Re-baseline instead of accusing: the
+      // reader changed the zoom, which is not the thing being watched for.
+      if (window.devicePixelRatio !== baseDpr) {
+        baseDpr = window.devicePixelRatio;
+        baseW = window.outerWidth - window.innerWidth;
+        baseH = window.outerHeight - window.innerHeight;
+        setCloak((c) => (c === "devtools" ? "" : c));
+        return;
+      }
       const w = window.outerWidth - window.innerWidth - baseW;
       const h = window.outerHeight - window.innerHeight - baseH;
       const open = w > DEVTOOLS_GROWTH || h > DEVTOOLS_GROWTH;
       setCloak((c) => (open ? "devtools" : c === "devtools" ? "" : c));
     };
-    const poll = setInterval(checkDevtools, 900);
+    const poll = coarse ? undefined : setInterval(checkDevtools, 900);
 
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("beforeprint", onBeforePrint);
@@ -245,7 +269,7 @@ export function useDocGuard(active: boolean) {
       window.removeEventListener("wheel", recheck);
       window.removeEventListener("keydown", recheck, true);
       printMq?.removeEventListener?.("change", onPrintMq);
-      clearInterval(poll);
+      if (poll) clearInterval(poll);
       clearTimeout(timer.current);
       clearTimeout(cTimer.current);
     };

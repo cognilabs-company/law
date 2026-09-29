@@ -9,7 +9,7 @@ import {
   REGION_KEYS,
   type Lawyer,
 } from "@/lib/lawyers";
-import { listLawyers, demoPrivateChat, getLawyerPrivateChat, type BackendLawyer } from "@/lib/services/backend";
+import { listLawyers, listMarketplaceLawyers, demoPrivateChat, getLawyerPrivateChat, type BackendLawyer } from "@/lib/services/backend";
 import { ApiError, errDetail, isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { evalBusinessHours, responseDeadline, deadlineLabel } from "@/lib/businessHours";
 import { DEFAULT_BUSINESS_HOURS, getBusinessHours, type BusinessHours } from "@/lib/services/backend";
@@ -48,6 +48,10 @@ function toLawyer(b: BackendLawyer): Lawyer {
     languages: b.languages,
     // "New": on the platform under 30 days and fewer than 5 reviews (S-19/S-42).
     isNew: b.reviews < 5 && b.totalCases < 5 && !!b.createdAt && Date.now() - new Date(b.createdAt).getTime() < 30 * 86400000,
+    // Only /marketplace/lawyers knows this; from /lawyers it is undefined and
+    // the badge simply never appears.
+    promoted: b.promotion?.active === true,
+    boost: b.promotionBoostScore ?? 0,
   };
 }
 
@@ -56,11 +60,17 @@ export default function LawyersSection({
   showFlow = true,
   standalone = false,
   compact = false,
+  marketplace = false,
 }: {
   initialArea?: string;
   showFlow?: boolean;
   standalone?: boolean;
   compact?: boolean;
+  // Read the directory from /marketplace/lawyers instead of /lawyers, which
+  // is the only list that carries the paid boost and the backend's own
+  // ranking. Off by default: this section is also the public landing page's,
+  // and that one must keep the endpoint it has.
+  marketplace?: boolean;
 }) {
   const t = useTranslations("lawyers");
   const ta = useTranslations("common.a11y");
@@ -75,7 +85,10 @@ export default function LawyersSection({
   const [minExp, setMinExp] = useState("");
   const [lang, setLang] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
-  const res = useResource<BackendLawyer>(() => listLawyers(), []);
+  const res = useResource<BackendLawyer>(
+    () => (marketplace ? listMarketplaceLawyers({ sort: "recommended" }) : listLawyers()),
+    [marketplace],
+  );
   const source = useMemo(() => res.data.map(toLawyer), [res.data]);
   const { session } = useAuth();
   const tcommon = useTranslations("common");
@@ -188,6 +201,11 @@ export default function LawyersSection({
       );
     });
     const sorted = [...filtered];
+    // S2: "Sortingni frontendda qayta buzmaslik kerak, backend tartibini
+    // saqlang." On the marketplace list the backend has already ranked by
+    // boost, so the default order is returned untouched; the explicit sorts
+    // (experience, price) are the client's own choice and still apply.
+    if (marketplace && sort === "rating") return sorted;
     sorted.sort((a, b) => {
       if (sort === "experience") return b.exp - a.exp;
       if (sort === "priceAsc") return priceNum(a.price) - priceNum(b.price);
@@ -201,7 +219,7 @@ export default function LawyersSection({
       if (firstNew >= 8) { const [n] = sorted.splice(firstNew, 1); sorted.splice(7, 0, n); }
     }
     return sorted;
-  }, [area, region, sort, kind, query, source, minRate, minExp, lang, maxPrice]);
+  }, [area, region, sort, kind, query, source, minRate, minExp, lang, maxPrice, marketplace]);
 
   const syncNav = useCallback(() => {
     const el = scroller.current;
@@ -288,6 +306,10 @@ export default function LawyersSection({
                 </span>
                 {l.verified ? <span className="advcard__badge">{t("card.verified")}</span> : <span className="advcard__badge advcard__badge--un">{t("card.unverified")}</span>}
                 {l.isNew ? <span className="advcard__badge advcard__badge--new">{t("card.new")}</span> : null}
+                {/* S2: a paid boost, named. The MD allows the badge and forbids
+                    re-sorting what the backend ranked — see the sort memo, which
+                    returns the server order untouched on "recommended". */}
+                {l.promoted ? <span className="advcard__badge advcard__badge--promo">{t("card.promoted")}</span> : null}
               </div>
             </div>
           </div>

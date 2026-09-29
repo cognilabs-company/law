@@ -374,7 +374,36 @@ export type BackendLawyer = {
   barAssociation?: string;
   organizationName?: string;
   createdAt: string;
+  // LEXGO_PROMOTION_CHECKOUT_NAV_AI_UPDATE_2026-09-29.md S2. Only
+  // /marketplace/lawyers carries this — measured, /lawyers answers 77 rows
+  // with no promotion field at all — so it is optional and absent means
+  // "this list does not know", never "not promoted".
+  promotion?: PromotionInfo | null;
+  promotionBoostScore?: number;
 };
+// The paid boost on a marketplace listing. Live shape, read 2026-09-29:
+// {active, id, package_id, package_title, specialization, days_left,
+//  ends_at, boost_score} — two of four sellers promoted, scores 100 and 60.
+export type PromotionInfo = {
+  active: boolean;
+  packageTitle: string;
+  specialization: string;
+  daysLeft: number;
+  endsAt: string;
+  boostScore: number;
+};
+function normPromotionInfo(v: unknown): PromotionInfo | null {
+  if (v === undefined || v === null) return null;
+  const d = asDict(v);
+  return {
+    active: d.active === true,
+    packageTitle: asStr(d.package_title),
+    specialization: asStr(d.specialization),
+    daysLeft: asNum(d.days_left),
+    endsAt: asStr(d.ends_at),
+    boostScore: asNum(d.boost_score),
+  };
+}
 
 function normLawyer(v: unknown): BackendLawyer {
   const d = asDict(v);
@@ -406,7 +435,26 @@ function normLawyer(v: unknown): BackendLawyer {
     licenseNumber: asStr(d.license_number) || undefined,
     barAssociation: asStr(d.bar_association) || undefined,
     organizationName: asStr(d.organization_name) || undefined,
+    promotion: normPromotionInfo(d.promotion),
+    promotionBoostScore: d.promotion_boost_score === undefined ? undefined : asNum(d.promotion_boost_score),
   };
+}
+
+// The marketplace directory, which is /lawyers PLUS the paid boost and the
+// backend's own ranking. Deliberately a second function rather than a
+// redirect of listLawyers: that one feeds the public landing page, the admin
+// pickers, the secure inbox and the incoming-call watcher, and this endpoint
+// embeds each seller's whole services[] array. Only the client's directory
+// asks for it.
+//
+// `sort` is passed straight through and the ORDER IS NOT TOUCHED after: the
+// MD is explicit — "Sortingni frontendda qayta buzmaslik kerak, backend
+// tartibini saqlang" — and on sort=recommended the boost is what decides it.
+export async function listMarketplaceLawyers(opts?: { limit?: number; sort?: string }): Promise<BackendLawyer[]> {
+  const qs = new URLSearchParams();
+  qs.set("limit", String(Math.min(Math.max(opts?.limit ?? 100, 1), 100)));
+  if (opts?.sort) qs.set("sort", opts.sort);
+  return listFrom(await http(`/marketplace/lawyers?${qs}`), "items", "data", "lawyers").map(normLawyer);
 }
 
 // No single-lawyer GET on the backend yet, so resolve one from the list.
@@ -4073,13 +4121,42 @@ export async function getPromotionAnalytics(): Promise<PromotionAnalytics> {
     }),
   };
 }
-export async function checkoutPromotion(packageId: string, days: number): Promise<PurchaseResult> {
-  return normPurchase(
-    await http("/promotions/checkout", {
-      method: "POST",
-      body: JSON.stringify({ package_id: packageId, days, provider: CHECKOUT_PROVIDER }),
-    }),
-  );
+// LEXGO_PROMOTION_CHECKOUT_NAV_AI_UPDATE_2026-09-29.md S1. The checkout no
+// longer goes through a payment provider at all: the backend raises a
+// `telegram_manual` payment and an admin approves it with an inline button,
+// so there is no URL to send the seller to and the package is NOT active
+// when this returns. The provider is named explicitly rather than left to
+// CHECKOUT_PROVIDER (which is "payme" in this build): the MD only promises
+// to coerce the older `demo_payme`, so sending anything else is a gamble
+// this does not need to take.
+const PROMOTION_PROVIDER = "telegram_manual";
+export type PromotionCheckout = PurchaseResult & {
+  // "pending_telegram_approval" while an admin has not answered yet.
+  promotionStatus: string;
+  checkoutRequestId: string;
+  // Whether the Telegram message was actually dispatched. False means the
+  // seller is waiting on something nobody was asked to approve.
+  telegramSent: boolean;
+  amount: number;
+  currency: string;
+};
+export const PROMOTION_PENDING = "pending_telegram_approval";
+export async function checkoutPromotion(packageId: string, days: number): Promise<PromotionCheckout> {
+  const raw = await http("/promotions/checkout", {
+    method: "POST",
+    body: JSON.stringify({ package_id: packageId, days, provider: PROMOTION_PROVIDER }),
+  });
+  const d = asDict(raw);
+  const gate = asDict(d.payment_gate);
+  const pay = asDict(d.payment);
+  return {
+    ...normPurchase(raw),
+    promotionStatus: asStr(d.promotion_status),
+    checkoutRequestId: asStr(d.checkout_request_id ?? gate.id),
+    telegramSent: gate.telegram_sent === true,
+    amount: asNum(gate.amount ?? pay.amount),
+    currency: asStr(gate.currency ?? pay.currency, "UZS"),
+  };
 }
 
 // ── Gifts ─────────────────────────────────────────────────────────

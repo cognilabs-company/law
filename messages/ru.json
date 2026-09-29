@@ -697,6 +697,7 @@
     "roleAdvocates": "Адвокаты",
     "roleLawyers": "Юристы",
     "card": {
+      "promoted": "Реклама",
       "kindAdvocate": "Адвокат",
       "kindLawyer": "Юрист",
       "fullWin": "Полная победа",
@@ -5478,6 +5479,10 @@
     "intro": "Повысьте видимость, чтобы вас находило больше потенциальных клиентов.",
     "position": "Позиция в поиске",
     "visibility": "Видимость профиля",
+    "pendingTitle": "Ожидает подтверждения",
+    "pendingText": "Запрос на оплату отправлен в Telegram. Пакет не активируется, пока администратор не подтвердит.",
+    "pendingTelegramOk": "Отправлено в Telegram",
+    "pendingTelegramFail": "Не отправлено в Telegram — обратитесь в поддержку",
     "impressionsTrend": "Показы (14 дней)",
     "analyticsTitle": "Аналитика охвата",
     "impressions": "Показы профиля",

@@ -703,6 +703,7 @@
     "roleAdvocates": "Advokatlar",
     "roleLawyers": "Yuristlar",
     "card": {
+      "promoted": "Reklama",
       "kindAdvocate": "Advokat",
       "kindLawyer": "Yurist",
       "fullWin": "To'liq g'alaba",
@@ -5484,6 +5485,10 @@
     "intro": "Ko'rinuvchanligingizni oshiring va ko'proq potensial mijozlar sizni topsin.",
     "position": "Qidiruv o'rni",
     "visibility": "Profil ko'rinuvchanligi",
+    "pendingTitle": "Tasdiqlash kutilmoqda",
+    "pendingText": "To'lov so'rovi Telegramga yuborildi. Administrator tasdiqlaguncha paket faollashmaydi.",
+    "pendingTelegramOk": "Telegramga yuborildi",
+    "pendingTelegramFail": "Telegramga yuborilmadi — qo'llab-quvvatlash bilan bog'laning",
     "impressionsTrend": "Ko'rsatishlar (14 kun)",
     "analyticsTitle": "Qamrov tahlili",
     "impressions": "Profil ko'rsatishlari",
