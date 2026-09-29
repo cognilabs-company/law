@@ -55,6 +55,7 @@ export default function DocPaper({
   onAskLawyer,
   askLawyerBusy,
   askLawyerSent,
+  askLawyerGated,
   askLawyerNote,
   sourceBusy,
   sourceError,
@@ -84,6 +85,8 @@ export default function DocPaper({
   onAskLawyer?: () => void;
   askLawyerBusy?: boolean;
   askLawyerSent?: boolean;
+  // The gate's or the refusal's own sentence, when the press did not send.
+  askLawyerGated?: string;
   // Non-empty when the client already has a request for this document with
   // an advocate: the ask button above stops being an action, and this line
   // says why. Shown even in the workspace layout, which passes no
@@ -490,6 +493,10 @@ export default function DocPaper({
       </div>
       {sourceError ? <small className="docpaper__srcerr">{t("sourceError")}</small> : null}
       {askLawyerNote ? <small className="dgate__note">{askLawyerNote}</small> : null}
+      {/* The press went through but the work did not start — a payment gate is
+          waiting for approval, or this document already has a live request.
+          Either way the button must not read as "sent". */}
+      {askLawyerGated ? <small className="dgate__note">{askLawyerGated}</small> : null}
       <div className={`docpaper__scroll${paged ? " docpaper__scroll--page" : ""}`} ref={pane}>
         {/* Neither the template text nor a server-filled preview came back —
             say so, rather than showing a blank sheet that reads as a broken

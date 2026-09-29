@@ -28,6 +28,7 @@ export default function CheckBox({
   hint,
   disabled,
   className,
+  invalid,
 }: {
   checked: boolean;
   onChange: (on: boolean) => void;
@@ -38,13 +39,18 @@ export default function CheckBox({
   hint?: ReactNode;
   disabled?: boolean;
   className?: string;
+  // A gate the form will not pass without. Turning this on paints the box and
+  // its sentence in the danger colour and marks the input aria-invalid, so the
+  // reason the send did nothing is on the control itself rather than in a
+  // notice somewhere else on the screen.
+  invalid?: boolean;
 }) {
   const auto = useId();
   const inputId = id || `cbx-${auto}`;
   const hintId = `${inputId}-hint`;
 
   return (
-    <div className={`cbx${disabled ? " cbx--off" : ""}${className ? ` ${className}` : ""}`}>
+    <div className={`cbx${disabled ? " cbx--off" : ""}${invalid ? " cbx--bad" : ""}${className ? ` ${className}` : ""}`}>
       {/* Must stay the label's immediate previous sibling: every checked /
           focus rule is written as .cbx__in:… + .cbx__row … */}
       <input
@@ -53,6 +59,7 @@ export default function CheckBox({
         type="checkbox"
         checked={checked}
         disabled={disabled}
+        aria-invalid={invalid || undefined}
         aria-describedby={hint ? hintId : undefined}
         onChange={(e) => onChange(e.target.checked)}
       />

@@ -24,7 +24,7 @@ import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
 import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
-import { IconFileText, IconUser, IconPhone, IconCheck, IconClock, IconEye, IconDownload, IconUpload, IconAlert, IconTag } from "@/components/icons";
+import { IconFileText, IconUser, IconPhone, IconCheck, IconClock, IconEye, IconDownload, IconUpload, IconAlert, IconTag, IconLock } from "@/components/icons";
 
 // LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md: 4 tabs instead of two stacked
 // sections — "Yangi so'rovlar" is the live pool (unclaimed, realtime);
@@ -164,13 +164,12 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
             const locked = POOL_FLOW_STATUSES.has(r.status) && !r.canOpenEditor && r.status !== "completed";
             return (
               <button
-                className="pcase pcase--btn"
+                className={`pcase pcase--btn${locked ? " pcase--locked" : ""}`}
                 key={r.id}
                 type="button"
                 onClick={() => openRecord(r)}
                 disabled={locked}
                 aria-disabled={locked}
-                title={locked ? t("needClaimLead") : undefined}
               >
                 <div className="pcase__h">
                   <b className="pcase__ttl">{r.title || r.clientName || t("title")}</b>
@@ -192,6 +191,24 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
                 ) : null}
                 {r.need ? <p>{r.need}</p> : null}
                 {r.createdAt ? <small>{shortDateTime(r.createdAt, locale)}</small> : null}
+                {/* §15 L600 "can_open_editor=false bo'lsa ... editor_block_reason
+                    ko'rsatsin". The row was already inert, but the only
+                    explanation was a `title` tooltip — invisible on touch,
+                    invisible to anyone who does not hover a button that
+                    looks dead anyway, and gone entirely for a disabled
+                    control in some browsers. The reason is a real line in
+                    the card now. A claimable row says so ("take the case
+                    first"); anything else is a block this account cannot
+                    lift. The backend's own editor_block_reason is not on
+                    the LIST payload that backend.ts normalises, so the
+                    per-record wording is shown in the workspace instead —
+                    see DocumentEditorWorkspace's block panel. */}
+                {locked ? (
+                  <span className="pcase__lock">
+                    <IconLock />
+                    {r.canClaim ? t("needClaimLead") : t("editorBlockedCard")}
+                  </span>
+                ) : null}
               </button>
             );
           })}
@@ -311,7 +328,11 @@ function PoolCard({
 
 type FulfillResult = Awaited<ReturnType<typeof fulfillLawyerDocumentRequestFile>>;
 
-function FulfillModal({
+// Exported for DocumentEditorWorkspace: §14's first start option ("Advokat
+// o'zi file upload qiladi") is this exact dialogue, and the workspace opens
+// the one that already exists rather than growing a second DOCX-upload form
+// that would have to be kept in step with it.
+export function FulfillModal({
   ns,
   target,
   onClose,

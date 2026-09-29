@@ -7,12 +7,13 @@ import {
   analyzeDocument,
   analyzeDocumentFile,
   quoteDocumentAnalysis,
+  requestExistingDocumentReviewGated,
   type DocAnalysis,
   type DocAnalysisQuote,
   type DocQuoteInput,
 } from "@/lib/services/backend";
 import { fmtUzs } from "@/lib/money";
-import { ApiError, errDetail } from "@/lib/http";
+import { ApiError, errDetail, logApiError } from "@/lib/http";
 import { IconFileText, IconAlert, IconCheck, IconSparkle, IconShieldCheck, IconArrowRight } from "@/components/icons";
 
 const MAX_PAGES = 500;
@@ -44,6 +45,15 @@ export default function ClientDocAnalysis() {
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<DocAnalysis | null>(null);
   const [failed, setFailed] = useState(false);
+  // LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md §Flow step 3:
+  // "Mijoz 'Advokat tekshirsin' desa" — after the AI has read the document the
+  // client must be able to hand THAT document to an advocate. The page had two
+  // actions and neither did it: "upsellAdd" only re-quotes the analysis with
+  // the lawyer-review line ticked, and "upsellLawyers" walks off to the
+  // advocate directory, where the document does not follow. This sends the
+  // very file that was analysed, with the page count the analysis measured.
+  const [handOff, setHandOff] = useState<"" | "busy" | "sent" | "failed">("");
+  const [handOffNote, setHandOffNote] = useState("");
 
   const typedPages = Number(pagesInput);
   const pageCount = pagesInput && Number.isInteger(typedPages) ? typedPages : pagesFor(text);
@@ -97,6 +107,35 @@ export default function ClientDocAnalysis() {
     setLawyerReview(true);
     void getQuote({ ...opts, lawyerReview: true });
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Only offered when the analysis ran on a FILE: the review endpoint takes a
+  // document, and pasted text is not one. The page count the analysis reported
+  // is preferred over the typed estimate — the backend measured it.
+  async function sendToLawyer() {
+    if (!file || handOff === "busy" || handOff === "sent") return;
+    setHandOff("busy");
+    setHandOffNote("");
+    try {
+      const r = await requestExistingDocumentReviewGated({
+        need: t("handOffNeed"),
+        mainFile: file,
+        pageCount: res?.pageCount || pageCount,
+      });
+      // A gate means the work has NOT started, so this must not read as sent.
+      if (r.paymentRequired) {
+        setHandOff("");
+        setHandOffNote(r.message || t("handOffGate"));
+      } else if (r.alreadyExists) {
+        setHandOff("");
+        setHandOffNote(r.message || t("handOffAlready"));
+      } else {
+        setHandOff("sent");
+      }
+    } catch (e) {
+      logApiError("doc-analysis hand-off", e);
+      setHandOff("failed");
+    }
   }
 
   const som = (n: number) => `${fmtUzs(n)} ${t("som")}`;
@@ -234,11 +273,27 @@ export default function ClientDocAnalysis() {
                 {lawyerReview ? null : (
                   <button className="btn btn--pri btn--sm" type="button" onClick={addLawyerReview}>{t("upsellAdd")}</button>
                 )}
+                {/* The document itself goes to a Navbatchi advokat. Offered
+                    only for a file, because a pasted paragraph is not a
+                    document the review endpoint can take. */}
+                {file ? (
+                  <button
+                    className="btn btn--grad btn--sm"
+                    type="button"
+                    onClick={() => void sendToLawyer()}
+                    disabled={handOff === "busy" || handOff === "sent"}
+                  >
+                    {handOff === "sent" ? <IconCheck /> : <IconShieldCheck />}
+                    {handOff === "sent" ? t("handOffSent") : handOff === "busy" ? t("handOffSending") : t("handOff")}
+                  </button>
+                ) : null}
                 <button className="btn btn--line btn--sm" type="button" onClick={() => router.push("/portal/client/lawyers")}>
                   {t("upsellLawyers")}
                   <IconArrowRight />
                 </button>
               </div>
+              {handOffNote ? <p className="dgate__note docup__note">{handOffNote}</p> : null}
+              {handOff === "failed" ? <p className="svc__err docup__note">{t("handOffError")}</p> : null}
             </div>
           ) : null}
         </>

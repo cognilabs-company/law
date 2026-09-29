@@ -7760,7 +7760,7 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
    212px min-height floor (180px under 980) that was propping up the short
    cards goes with them. */
 .svsel__grid--svc{align-items:start}
-.svc{height:auto;min-height:0}
+.svc{height:100%;min-height:0}
 .svc__acts{margin-top:0;gap:8px}
 
 /* The four actions could never share a line: flex:1 1 auto made each one's
@@ -9155,3 +9155,748 @@ html[data-theme="dark"]{
   .rvseq>.rv.in:nth-child(n){animation-delay:0s}
   .finalcta.rv{opacity:1;transform:none}
 }
+
+/* ── wp-cbxbad: a gate that says it is a gate ──────────────────────────
+   The consent tick blocks the send, and the send button used to be disabled
+   while it was unticked — so a client who missed it pressed a dead button and
+   got nothing back, not even a reason. The press is allowed now, and what it
+   could not do is marked on the control itself: the box, its sentence and the
+   hint all go to the danger colour, and the required field it points at wears
+   the same border. Cleared the moment the client ticks it. */
+.cbx--bad .cbx__box{border-color:var(--dk-txt-err, #DC2626)}
+.cbx--bad .cbx__tx,.cbx--bad .cbx__hint{color:var(--dk-txt-err, #B91C1C)}
+.cbx--bad .cbx__row:hover .cbx__box{border-color:var(--dk-txt-err, #DC2626)}
+/* One pulse, not a loop: it has to catch the eye at the moment of the press
+   and then stop asking for attention while the client reads the sentence. */
+.cbx--bad .cbx__box{animation:cbxShake .42s ease both}
+@keyframes cbxShake{
+  0%,100%{transform:translateX(0)}
+  22%{transform:translateX(-3px)}
+  48%{transform:translateX(3px)}
+  74%{transform:translateX(-2px)}
+}
+/* The same treatment for whatever other required control the press pointed at,
+   so one press cannot produce two different vocabularies for "fill this in". */
+.cform .is-bad,.is-bad{border-color:var(--dk-txt-err, #DC2626) !important}
+.cform__bad{margin:0;display:flex;align-items:center;gap:7px;font-size:.84rem;line-height:1.5;
+  color:var(--dk-txt-err, #B91C1C)}
+@media (prefers-reduced-motion:reduce){
+  .cbx--bad .cbx__box{animation:none}
+}
+html[data-theme="dark"]{--dk-txt-err:#FF8A8A}
+
+/* ── wp-uafix: the kind dialog's own gap, and hover that costs no layout ──
+   Two things the GM pointed at on Tezkor advokat. */
+
+/* 1. "izohi ancha pastga tushib ketgan, orasida katta joy qolib ketgan" — in
+   both kind dialogs. Measured: 25px of nothing between each card's <b> and
+   its <span>. The cause is the grid, not the spacing: the 42px icon sits in
+   row 1 of column 1, so row 1 is 42px tall, and the ~19px title is pinned to
+   the top of it with 23px of air underneath before the description starts in
+   row 2. Letting the icon span both rows takes it out of the row-height
+   calculation, and the title and its sentence close up to the 4px row gap the
+   block already asks for. */
+.uakind__i{grid-row:1 / span 2;align-self:start}
+
+/* 2. "shu cardlarga hover qilganda ma'lumot chiqsin qulay tarizda" — the card
+   face stays the short, uniform thing it is now, and what the dialog would
+   tell you arrives on hover instead. It is absolutely positioned, so the grid
+   row never grows: the 61.5px page jump that made this a defect the first
+   time cannot come back. Keyboard focus opens it too; a touch device, which
+   never fires hover, still has the dialog one tap away. */
+.uacard{position:relative}
+.uacard__peek{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:6;
+  display:grid;gap:8px;padding:13px 15px;text-align:left;pointer-events:none;
+  border:1.5px solid var(--line);border-radius:16px;background:var(--dk-surface, #fff);
+  box-shadow:var(--s3);opacity:0;transform:translateY(-6px);
+  transition:opacity .18s ease,transform .18s ease}
+.uacard:hover .uacard__peek,.uacard:focus-visible .uacard__peek{opacity:1;transform:translateY(0)}
+.uacard__peek b{font-size:.84rem;font-weight:700;line-height:1.35;color:var(--ink)}
+.uacard__peek span{font-size:.79rem;line-height:1.5;color:var(--gray)}
+.uacard__peek em{display:block;font-style:normal;font-size:.75rem;line-height:1.45;color:var(--gray2)}
+.uacard__peek .uacard__peekk{display:grid;gap:3px;padding-top:9px;border-top:1px dashed var(--line)}
+.uacard__peek .uacard__peekk b::before{content:"";display:inline-block;width:5px;height:5px;margin-right:7px;
+  border-radius:50%;background:var(--dk-acc, var(--b600));transform:translateY(-2px)}
+/* A card in the last column would push its panel off the right edge only if
+   the panel were wider than the card; it is exactly the card's width, so the
+   only real risk is the bottom of the grid — the panel opens downward over the
+   order form, which is why it is pointer-events:none and never eats a click. */
+@media (hover:none){
+  .uacard__peek{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .uacard__peek{transition:none;transform:none}
+}
+
+/* ── wp-paygate: the advocate-review payment gate ──────────────────────
+   LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md. Past the free
+   allowance the client's request does NOT reach the advocates: the backend
+   opens a gate, the fee goes out over Telegram, and the work starts only on
+   an approval (MD steps 3-7). Three screens had to grow a voice for that —
+   the two order forms and the finished-document panel — and these are the
+   bits of it that had no class yet.
+
+   The prefix is pg*, not dgate*: .dgate already belongs to the ADVOCATE-HOLD
+   gate ("a request for this document is already with an advocate"), a
+   different refusal on some of the same screens, and one prefix for two
+   unrelated gates is how they end up sharing a colour by accident.
+
+   Everything below either sits on .docpend (the panel's existing wait card,
+   whose 56px icon circle and centred column are reused unchanged) or inside
+   .cform (the order forms, whose input rule already paints the number box).
+   Measured on /uz/portal/client/documents at 1440 and 400, both themes. */
+
+/* ── Asking for the page count ───────────────────────────────────────
+   Its own bordered block rather than one more bare label in the column:
+   it is the only field on these forms that changes the price, so it reads
+   as a small calculator and not as another line of the address. Same
+   border/radius/surface as .docreview, which is the closest thing to it in
+   the house (a small form nested inside a bigger one). */
+.pgask{display:flex;flex-direction:column;gap:7px;width:100%;text-align:left;margin-top:10px;
+  padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--dk-surface-2, #F7FAFE)}
+.pgask__l{font-size:.82rem;font-weight:700;color:var(--gray)}
+/* A page count is at most four digits, so the box is sized for four rather
+   than stretching the full width of the form and reading as a text field.
+   .cform input already gives it its fill, radius and padding. */
+.pgask__n{max-width:150px;font-variant-numeric:tabular-nums}
+/* Chrome/Safari draw spinners that overlap the 4-digit box and invite a
+   1-page-at-a-time climb to 12; the keyboard arrows still work. */
+.pgask__n::-webkit-outer-spin-button,.pgask__n::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.pgask__n[type="number"]{-moz-appearance:textfield;appearance:textfield}
+.pgask__h{font-size:.76rem;line-height:1.5;color:var(--gray2)}
+/* Under the free allowance there is no fee to quote and no gate to open
+   (MD L182), so the client is told exactly that instead of being shown a
+   price they will not be charged. */
+.pgask__free{margin:0;font-size:.8rem;line-height:1.5;font-weight:600;color:var(--ok)}
+
+/* ── The quote, before the send ──────────────────────────────────────
+   MD L121-127: the fee must never first appear as a Telegram message. Same
+   two-column row as .oquote, which is the house's existing price block;
+   this one is narrower and lives inside a field group, so it keeps its own
+   padding rather than borrowing .oquote's. */
+.pgquote{display:flex;flex-direction:column;gap:5px;margin-top:2px;padding:11px 13px;
+  border-radius:12px;background:var(--b50)}
+.pgquote__r{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  font-size:.86rem;color:var(--ink)}
+.pgquote__r>b{flex:none;white-space:nowrap;font-family:var(--fd);font-size:1.05rem;
+  color:var(--dk-acc, var(--b600))}
+.pgquote__r--sub{font-size:.76rem;color:var(--gray)}
+.pgquote__r--sub>span:last-child{flex:none;white-space:nowrap;font-weight:700;
+  color:var(--dk-txt-warn, #b45309)}
+.pgquote__lead{margin:3px 0 0;font-size:.76rem;line-height:1.5;color:var(--gray)}
+
+/* ── The waiting card ────────────────────────────────────────────────
+   .docpend supplies the column; .pgate only tints it, so the card keeps the
+   exact height and rhythm of the three waits beside it and the client reads
+   "another wait", not "another screen". */
+.pgate{gap:10px}
+.pgate__amt{font-family:var(--fd);font-size:1.5rem;line-height:1.1;
+  color:var(--dk-acc, var(--b600))}
+/* Where the amount came from, as chips rather than a sentence — the three
+   numbers (total / free / charged) are only useful next to each other. */
+.pgate__meta{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;font-size:.78rem}
+.pgate__meta span{display:inline-flex;align-items:center;padding:3px 10px;border-radius:var(--pill);
+  background:var(--dk-surface-2, #F1F4F9);color:var(--gray);font-weight:600}
+/* The pages actually being charged for: the one chip that explains the bill. */
+.pgate__meta span.pgate__meta--x{background:var(--dk-tint-warn, #FEF3C7);color:var(--dk-txt-warn, #b45309);font-weight:700}
+/* Whether the approval request reached Telegram at all. */
+.pgate__tg{margin:0;max-width:360px;font-size:.8rem;line-height:1.5;color:var(--dk-txt-ok, #0A7A55)}
+/* telegram_sent === false: the client is waiting on something that was never
+   sent, so this is the one line on the card that is a fault and not a status,
+   and it is the only thing here that gets a filled red box. */
+.pgate__tg--bad{padding:9px 12px;border-radius:12px;font-weight:600;
+  background:var(--dk-tint-err, #FEF2F2);color:var(--dk-txt-err, #B91C1C);
+  box-shadow:inset 0 0 0 1px var(--dk-bd-err, #FECACA)}
+/* No GET on the backend returns a payment gate (verified on production,
+   2026-09-29), so a reopened panel knows the status and nothing else. */
+.pgate__none{margin:0;max-width:360px;font-size:.8rem;line-height:1.5;color:var(--gray)}
+
+/* The gate's own icon and badge. The default .docpend circle is already the
+   amber of a wait; these two only make it read as money rather than as a
+   queue — a ring that breathes once a cycle, and a badge with an edge. */
+.docpend__ic--pay{background:var(--dk-tint-warn, #FEF3C7);color:var(--dk-txt-warn, #b45309);
+  box-shadow:0 0 0 0 var(--dk-tint-warn, rgba(240,180,41,.35));animation:pgRing 2.4s ease-out infinite}
+@keyframes pgRing{
+  0%{box-shadow:0 0 0 0 var(--dk-tint-warn, rgba(240,180,41,.45))}
+  70%{box-shadow:0 0 0 12px rgba(240,180,41,0)}
+  100%{box-shadow:0 0 0 0 rgba(240,180,41,0)}
+}
+.docpend__badge--pay{box-shadow:inset 0 0 0 1px var(--dk-bd-warn, rgba(240,180,41,.45))}
+
+/* ── After a refusal ─────────────────────────────────────────────────
+   MD L156-167. Nothing is in flight any more, so the card drops every
+   moving part: no pulsing dot, no breathing ring, no poll. */
+.pgate--off .docpend__ic--off{background:var(--dk-tint-err, #FEF2F2);color:var(--dk-txt-err, #B91C1C);
+  animation:none;box-shadow:none}
+.docpend__badge--off{background:var(--dk-surface-2, #F1F4F9);color:var(--gray);font-weight:700}
+
+/* ── The same wait, inline under a finished document ─────────────────
+   The constructor's "Advokat tekshiruviga yuborish" sends from the done
+   screen, and the client's own finished file must stay reachable there — so
+   the gate is rendered beside the document instead of replacing it. .docdone
+   centres its column, which is right for a result and wrong for a paragraph,
+   hence the left alignment back. */
+.pgate--inline{display:flex;flex-direction:column;align-items:flex-start;gap:8px;width:100%;
+  text-align:left;padding:14px;border-radius:14px;background:var(--dk-surface-2, #F7FAFE);
+  box-shadow:inset 0 0 0 1px var(--dk-bd-warn, #F5D9A3)}
+.pgate--inline .pgate__meta{justify-content:flex-start}
+.pgate--inline .pgate__amt{font-size:1.25rem}
+.pgate__t{font-family:var(--fd);font-size:1rem;line-height:1.3}
+.pgate__sub{font-size:.85rem;line-height:1.5;color:var(--gray)}
+
+/* Phones: the card is already a single column, so only the two things that
+   can overflow need saying — the four-digit box stops being capped when the
+   form itself is 300px wide, and the amount steps down so a seven-figure
+   so'm figure cannot push the card sideways. */
+@media (max-width:420px){
+  .pgask__n{max-width:100%}
+  .pgate__amt{font-size:1.3rem}
+  .pgquote__r{font-size:.82rem}
+}
+
+/* Rule 3 of the house: anything that moves calms down on request. The global
+   reduced-motion rule at the top of this file already flattens every
+   animation-duration, but the ring is a shadow that would then be frozen
+   mid-spread, so it is turned off by name rather than sped up. */
+@media (prefers-reduced-motion:reduce){
+  .docpend__ic--pay{animation:none;box-shadow:0 0 0 6px var(--dk-tint-warn, rgba(240,180,41,.18))}
+}
+
+/* Dark mode. Every colour above is already var(--dk-token, lightValue) and
+   the tokens it names all exist in the theme block at the top of this file
+   (--dk-tint-warn/-err, --dk-txt-warn/-err/-ok, --dk-bd-warn/-err,
+   --dk-surface-2, --dk-acc), so nothing needs restating. The single
+   exception is the ring: its keyframes carry a literal rgba, because the
+   14% dark tint spread over 12px is invisible on #0A1120. */
+html[data-theme="dark"] .docpend__ic--pay{animation-name:pgRingDark}
+@keyframes pgRingDark{
+  0%{box-shadow:0 0 0 0 rgba(251,191,36,.30)}
+  70%{box-shadow:0 0 0 12px rgba(251,191,36,0)}
+  100%{box-shadow:0 0 0 0 rgba(251,191,36,0)}
+}
+@media (prefers-reduced-motion:reduce){
+  html[data-theme="dark"] .docpend__ic--pay{animation:none;box-shadow:0 0 0 6px rgba(251,191,36,.16)}
+}
+
+/* ── wp-constructor: LEXGO_DOCUMENT_TITLE_CONSTRUCTOR_PROMPT_UPDATE_2026-09-29 ── */
+
+/* §5 L115: why the advocate button on a document row is dead, in the
+   backend's own sentence ("Bu hujjat bo'yicha Navbatchi advokatga so'rov
+   yuborilgan. Ish yakunlangandan keyin qayta yuborish mumkin."). It is a
+   sentence, not a tooltip, because 19 of this account's 50 live rows carry
+   it and a phone has no hover. Amber like .dgate__note, which says the same
+   thing inside the builder — nothing failed, the work is simply already with
+   an advocate. */
+.mydoc__block{display:flex;gap:7px;align-items:flex-start;margin:0;font-size:.78rem;line-height:1.5;
+  color:var(--dk-txt-warn, #b45309)}
+.mydoc__block::before{content:"";flex:none;width:3px;align-self:stretch;border-radius:2px;
+  background:var(--dk-bd-warn, rgba(180,83,9,.35))}
+
+/* A disabled row action keeps its shape (the client reads the row by its
+   buttons) but stops looking pressable. .btn has no disabled state of its
+   own — every other screen hides the button instead, which is exactly what
+   this one must not do. */
+.mydoc__acts .btn[disabled]{opacity:.55;cursor:default;box-shadow:none}
+.mydoc__acts .btn[disabled]:hover{box-shadow:none;transform:none}
+.mydoc__acts .btn--line[disabled]{box-shadow:inset 0 0 0 1.5px var(--line);color:var(--gray)}
+
+/* §6 L158: the row a `document_constructor_continue_prompt` notification
+   points at (/portal/client/documents?doc=<id>) opens its prompt on top of
+   the list, so the row underneath is marked — otherwise closing the prompt
+   leaves the client in a list of 20 with no idea which one it was about. The
+   glow fades out on its own; the ring stays. */
+.mydoc--flag{box-shadow:0 0 0 1.5px var(--dk-bd-blue, rgba(22,104,240,.45)), var(--s2)}
+.mydoc--flag::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:var(--dk-tint-blue, rgba(22,104,240,.10));animation:mydocflag 2.4s ease-out 1 forwards}
+@keyframes mydocflag{from{opacity:1}to{opacity:0}}
+
+/* Anything that moves, calmed: the flag lands already faded instead of
+   animating, and the ring alone does the pointing. */
+@media (prefers-reduced-motion: reduce){
+  .mydoc--flag::after{animation:none;opacity:0}
+}
+
+/* ── wp-urgentclient: express/YTX call state, the 15-minute urgent rating
+      clock, and the advocate's join button ─────────────────────────────
+   Three MDs, one screen pair: LEXGO_EXPRESS_VIDEOKONSULTATSIYA_AUDIO_CALL_
+   FRONTEND_2026_09_28.md (the immediate audio call), LEXGO_SECOND_OPINION_
+   GROUP_CALLCENTER_FLOW_2026-09-28.md (the panel meeting the chosen advocate
+   must be able to walk into) and FULL_DOCS §39 (the rating window that shuts
+   after fifteen minutes). Every selector below is scoped to the .ua and
+   .urate families, which belong to components/portal/UrgentAdvocatePanel.tsx and
+   components/portal/UrgentAssignedPanel.tsx. */
+
+/* ── The call state on the client's own row ───────────────────────────
+   Express MD L137-141: an immediate request carries payload.call_status and
+   payload.call_channel next to its own status. Two classes are needed here
+   rather than one because .ua__rowm span (0,1,1) already claims the colour and
+   size of every span in the row — .ua__call alone (0,1,0) loses to it, so the
+   chip is addressed through its parent. */
+.ua__rowm .ua__call{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;
+  color:var(--gray);line-height:1.5}
+.ua__call svg{width:13px;height:13px;flex:none}
+/* A phone that is still ringing is not a meeting in progress. The live record
+   LGT-20260928-224E46AF sat at call_status "calling" and read exactly like a
+   running call, which is the row this colour exists to separate. */
+.ua__rowm .ua__call--ring{color:var(--dk-txt-warn, #B26A00)}
+.ua__call--ring svg{animation:uaCallRing 1.5s ease-in-out infinite;transform-origin:50% 60%}
+@keyframes uaCallRing{
+  0%,62%,100%{transform:rotate(0)}
+  68%{transform:rotate(-13deg)}
+  74%{transform:rotate(11deg)}
+  80%{transform:rotate(-8deg)}
+  86%{transform:rotate(6deg)}
+}
+/* audio / video, as the record states it — the honest answer for a service
+   whose name says video. */
+.ua__callch{font-style:normal;font-weight:800;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;
+  padding:1px 7px;border-radius:var(--pill);background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
+
+/* The audio caveat in the order summary is a warning, not one more tick:
+   .ua__next svg paints every icon in that block --ok green, and a green tick
+   beside "the camera stays off" reads as a feature. Same specificity as that
+   rule, later in the sheet. */
+.ua__next--audio svg{color:var(--dk-txt-warn, #B26A00)}
+
+/* ── The urgent rating window's countdown ─────────────────────────────
+   FULL_DOCS §39 + §51. Deliberately the same widget as the document rating
+   window (.drate__h / .drate__left): a client who has rated a finished
+   document has already met this clock, and two different countdowns for one
+   fifteen-minute rule would read as two different rules. */
+.urate__h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;width:100%}
+.urate__h b{display:inline-flex;align-items:center;gap:7px;font-size:.88rem;font-weight:700}
+/* The heading star used to be a direct child of .urate, where globals.css
+   paints it gold (".urate > b svg"). Wrapping it in the title row broke that
+   selector, so the gold is restored here on the new parent — the star in the
+   heading and the stars in the row below it sit 30px apart and must not be
+   two different golds. */
+.urate__h > b svg{color:var(--dk-rate-gold, #C98200)}
+/* .uamore__block span (0,1,1) sets the size of every span in the block, so the
+   chip is addressed through .urate to outrank it. */
+.urate .urate__left{display:inline-flex;align-items:center;gap:5px;margin-left:auto;
+  font-size:.76rem;font-weight:800;font-variant-numeric:tabular-nums;
+  color:var(--dk-txt-warn, #b45309);background:var(--dk-warn-bg, #FEF3C7);
+  padding:3px 9px;border-radius:var(--pill)}
+/* tabular-nums above keeps "9:07" and "10:41" the same width so the chip does
+   not twitch once a second. The clock glyph stays unfilled and in the chip's
+   own colour, against .uamore__block b svg's grey. */
+.urate__left svg{width:12px;height:12px;flex:none;color:inherit;fill:none}
+
+/* The window having shut is its own state: the card stops offering stars and
+   says why, instead of vanishing (which looked like a bug) or thanking the
+   client for a rating they never left. */
+.urate__shut b svg{color:var(--dk-txt-warn, #B26A00)}
+
+/* ── "Meetingga kirish" ───────────────────────────────────────────────
+   SECOND_OPINION MD L342: the button exists from the moment the meeting is
+   scheduled and "meeting yaratilgandan keyin aktiv bo'ladi". globals.css has
+   no .btn:disabled rule at all, so without this the waiting state looked
+   exactly like the ready one — the whole point of the row. Scoped to the
+   advocate panel's action group so no other button in the app changes. */
+.uaq__acts .btn:disabled{opacity:.45;cursor:default;box-shadow:none;filter:grayscale(.55)}
+.uaq__acts .btn:disabled:hover{filter:grayscale(.55);transform:none}
+.uaq__acts .btn:disabled::before{display:none}
+/* And a live meeting should pull the eye to the row it is in. */
+.uasg__row--soon .uaq__acts .btn--grad:not(:disabled){box-shadow:0 10px 24px -12px rgba(22,104,240,.75)}
+@media (prefers-reduced-motion:reduce){
+  .ua__call--ring svg{animation:none}
+}
+
+/* ── wp-groupchat: the Tezkor Advokat group room — header facts, system and
+   result rows, the completion summary form and the client's rating inside the
+   chat (LEXGO_URGENT_GROUP_CHAT_FRONTEND_2026-09-28, L242-267) ── */
+
+/* R31 (MD L257): the header carries the work's status. It goes in the same
+   .schat__sub line as the service and the work id rather than becoming a
+   fourth chip in the header row, because that row is already carrying the
+   participant count, two call buttons, the lock chip and "Chatni yakunlash" —
+   measured at 1280px there is 74px of free space left in it. The status word
+   comes from statusLabel, so it is the same word the call-centre board and
+   the inbox use for the same record. */
+.schat__st{flex:none;padding:2px 8px;border-radius:var(--pill);
+  background:var(--b100);color:var(--dk-acc-strong, var(--b700));
+  font-size:.68rem;font-weight:700;letter-spacing:.01em;white-space:nowrap}
+.schat__st--completed{background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0B7A52)}
+.schat__st--cancelled,.schat__st--expired{background:var(--dk-tint-err, #FDECEA);color:var(--dk-txt-err, #C0392B)}
+.schat__st--open_pool,.schat__st--scheduled{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #B45309)}
+/* The sub line now holds three things, and on a phone the service name is the
+   one that can afford to be cut — the id and the status cannot. */
+.schat__sub{flex-wrap:wrap;row-gap:3px}
+.schat--compact .schat__st{font-size:.64rem;padding:1px 7px}
+
+/* R24 (MD L247): every message shows its type. A `system` row is the backend
+   narrating the work ("Tezkor Advokat so'rovi qabul qilindi" — 20 of the 27
+   messages in the live group room f43fa109) and a `result` row is the closing
+   summary that the completion posts. Neither is somebody speaking, so neither
+   is drawn as a bubble: centred, no avatar, no delivery tick, no reply
+   handle. Same centred measure as .schat__sys, which is the notice this chat
+   already had. */
+.snote{align-self:center;display:flex;align-items:flex-start;gap:9px;
+  width:100%;max-width:min(92%,560px);margin:4px 0;padding:9px 14px;
+  border:1px solid var(--line);border-radius:14px;background:var(--b50);
+  color:var(--gray);font-size:.78rem;line-height:1.45;text-align:left;
+  animation:sbubIn .22s ease both}
+.snote__i{flex:none;display:grid;place-items:center;margin-top:1px;color:var(--gray2)}
+.snote__i svg{width:15px;height:15px;stroke:currentColor}
+.snote__b{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 8px}
+/* The type, said in words — that is the requirement, not a colour. */
+.snote__k{flex:none;font-style:normal;font-size:.66rem;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--gray2)}
+.snote__c{min-width:0;overflow-wrap:anywhere}
+.snote__t{flex:none;font-size:.68rem;color:var(--gray2);font-variant-numeric:tabular-nums}
+/* The consultation's own closing line: the one notice in the history that is
+   a result rather than a step, so it reads as the green end of the thread. */
+.snote--result{border-color:var(--dk-bd-ok, #BFE8D4);background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0B7A52)}
+.snote--result .snote__i,.snote--result .snote__k,.snote--result .snote__t{color:inherit;opacity:.78}
+
+/* R15 (MD L189-199): POST .../chat/complete takes a `summary`, so the
+   irreversible action asks for one. Portaled to <body>; 210 puts it over the
+   admin modal (200) and the lawyer drawer (201) that can host this chat, and
+   under the meeting overlay (220) and the photo lightbox (300). */
+.scomp{position:fixed;inset:0;z-index:210;display:grid;place-items:center;padding:20px;
+  background:rgba(3,16,43,.55);backdrop-filter:blur(4px);animation:fade .2s ease both}
+.scomp__box{width:min(460px,100%);max-height:90vh;overflow-y:auto;display:grid;gap:11px;
+  padding:18px;border:1px solid var(--line);border-radius:18px;
+  background:var(--dk-surface, #fff);box-shadow:var(--s3);animation:pop .22s cubic-bezier(.2,.8,.3,1) both}
+.scomp__h{display:flex;align-items:center;gap:10px}
+.scomp__h b{flex:1;min-width:0;font-family:var(--fd);font-size:1rem}
+.scomp__i{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
+  background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, #0B7A52)}
+.scomp__i svg{width:16px;height:16px;stroke:currentColor}
+.scomp__x{flex:none;width:30px;height:30px;border:0;border-radius:9px;background:var(--b50);color:var(--gray);
+  cursor:pointer;display:grid;place-items:center}
+.scomp__x:hover{background:var(--b100);color:var(--ink)}
+.scomp__x svg{width:15px;height:15px;stroke:currentColor}
+.scomp__lead{margin:0;font-size:.83rem;line-height:1.5;color:var(--gray)}
+.scomp__lbl{font-size:.78rem;font-weight:700;color:var(--ink)}
+.scomp__ta{width:100%;min-height:92px;padding:11px 13px;border:1.5px solid var(--line);border-radius:12px;
+  font:inherit;font-size:.86rem;line-height:1.5;resize:vertical;
+  background:var(--dk-surface-2, #F7FAFE);color:var(--ink);outline:none;
+  transition:border-color .16s,box-shadow .16s,background .16s}
+.scomp__ta::placeholder{color:var(--gray2)}
+.scomp__ta:focus{border-color:var(--b600);background:var(--dk-surface, #fff);box-shadow:0 0 0 3px var(--dk-tint-blue, #E6F0FF)}
+.scomp__acts{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.scomp__acts .btn svg{width:15px;height:15px}
+
+/* R34 (MD L264-267): "mijozga 15 daqiqalik baholash oynasi ochiladi", in the
+   chat the consultation happened in. It sits between the finished banner and
+   the dead composer — above the composer, not inside the scrolling history,
+   because a fifteen-minute window the client has to scroll down to find is a
+   window they will miss. The widget itself is the house .drate row, so only
+   its placement is new here. */
+.schat__rate{width:100%;max-width:860px;margin:10px auto 0;padding:13px 16px}
+.schat__ratelead{margin:0;font-size:.78rem;line-height:1.45;color:var(--gray)}
+.schat--compact .schat__rate{margin-top:8px;padding:11px 12px}
+/* The one-line thank-you keeps the same measure as the block it replaces. */
+.schat__rate.drate__done{margin:10px auto 0}
+
+/* R3 (MD L16): a selected advocate reaches the group room from their inbox,
+   and the row has to say which work it is — without this a group panel and a
+   private conversation with the same advocate were two identical rows. */
+/* The blue gradient avatar means "a person"; a panel is not one, so the group
+   room gets the violet chip and the participants glyph instead. The inset
+   ring is what keeps it from reading as a hole in the row — measured against
+   the gradient avatars beside it, the flat 14% wash alone was too quiet. */
+.sinbox__av--group{background:var(--dk-tint-violet, #EDE9FE);color:var(--dk-txt-violet, #6D28D9);
+  box-shadow:inset 0 0 0 1.5px var(--dk-bd-violet, #C4B5FD)}
+.sinbox__av--group svg{stroke:currentColor}
+.sinbox__ua{display:inline-flex;flex-wrap:wrap;align-items:center;gap:5px 7px;margin-top:2px}
+.sinbox__uak{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:2px 9px;border-radius:var(--pill);
+  background:var(--b50);border:1px solid var(--line);
+  font-style:normal;font-size:.71rem;font-weight:700;color:var(--gray);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sinbox__uak svg{flex:none;width:12px;height:12px;stroke:var(--dk-acc, var(--b600))}
+.sinbox__uaw{font-style:normal;font-size:.71rem;font-weight:800;letter-spacing:.02em;
+  color:var(--dk-acc-strong, var(--b700));font-variant-numeric:tabular-nums}
+
+@media (max-width:640px){
+  /* At 400px the three sub-line facts no longer fit on one row; wrapping is
+     already allowed above, this only keeps the service from eating the row. */
+  .schat__svc{max-width:100%}
+  .snote{max-width:100%}
+  .scomp__box{padding:15px}
+  .scomp__acts .btn{flex:1}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .snote,.scomp,.scomp__box{animation:none}
+  .scomp__ta{transition:none}
+}
+
+/* ── wp-callquality ── LEXGO_FRONTEND_FULL_DOCS_URGENT_INTEGRATION §23
+   (L887-891): a paid extension pauses the meeting, and the two sides of that
+   pause have different jobs — the advocate waits ("Payment kutilyotganda
+   meeting paused ko'rsatilsin"), the client decides ("Mijozda payment
+   confirm/cancel UI"). The one .mtg__pause card grows a second face for the
+   client: the same surface, plus a countdown of the five-minute answer window
+   ("payment javobini 5 minut kutadi") and a confirm/decline row. It sits
+   inside .mtg__stage, whose palette is dark in BOTH themes, so it borrows
+   .mtg__recask's treatment and the --dk-* tokens exactly the way the
+   wp-meetlimit block above it does. */
+
+/* An absolutely positioned box with left:50% and no width can only shrink to
+   fit the half of the stage that remains to its RIGHT — the translate(-50%)
+   that re-centres it happens after layout, not during it. Measured on the
+   harness 2026-09-29: the card came out 200px wide inside a 400px stage and
+   189px inside the 380px floating panel, i.e. always half. It has been that
+   narrow since it was written; a notice survives it, a decision with two
+   buttons in it does not. An explicit width takes shrink-to-fit out of the
+   picture and the existing centring maths keeps working untouched. Scoped to
+   the widths where it actually bites, so the desktop card (407px of an
+   available 640px) is left exactly as it was. */
+@media (max-width:760px){
+  .mtg__pause{width:min(460px,calc(100% - 24px))}
+}
+/* …except the promoted overlay, which is position:fixed against the VIEWPORT
+   and already carries width:min(420px,100vw-32px). Without the :not() this
+   two-class selector would out-specify that and stretch the modal to the full
+   window. */
+.mtg--float .mtg__pause:not(.mtg__pause--over){width:calc(100% - 16px)}
+
+/* The client's face is a decision, not a notice, so it is lifted off the warn
+   border the passive hold wears and given the positive edge — the card is now
+   the thing that lets the meeting continue, not the thing that stopped it. */
+.mtg__pause--ask{border-left-color:var(--dk-txt-ok, #0F9D58)}
+.mtg__pause--ask .mtg__recask-btns{margin-top:2px}
+/* flex:1 1 auto with a floor lets the pair share one row wherever it fits and
+   wrap on its own where it does not — no breakpoint has to guess. */
+.mtg__pause--ask .mtg__recask-btns .btn{flex:1 1 auto;min-width:132px;justify-content:center}
+
+/* The answer window, as a clock rather than a sentence. `.mtg__pause>span`
+   (one class + one type = 0,1,1) already claims every direct span in this card
+   for --gray and beats a lone class selector no matter which file lands last —
+   measured: the countdown rendered #5C6E85 in light and --dk-gray in dark, the
+   colour of ordinary body copy. Two classes (0,2,0) is what it takes to own a
+   span in here. Tabular figures so the seconds do not make the line jitter
+   once a second, which is exactly the movement that pulls the eye off the two
+   buttons underneath. */
+.mtg__pause .mtg__pause-left{display:inline-flex;align-items:center;gap:7px;font-size:.8rem;font-weight:700;
+  color:var(--dk-txt-warn, #9A3412);font-variant-numeric:tabular-nums}
+.mtg__pause .mtg__pause-left i{width:8px;height:8px;border-radius:2px;background:currentColor;flex:none;
+  animation:mtgBlink 1.4s infinite}
+/* Under a minute the deadline IS the message: it goes red and the pulse
+   doubles in rate, so a client who looked away still catches it. */
+.mtg__pause .mtg__pause-left--low{color:var(--dk-txt-err, #C0392B)}
+.mtg__pause .mtg__pause-left--low i{animation-duration:.7s}
+
+/* The floating panel strips the card to its essentials (the wp-meetlimit block
+   hides <small> there); the decision must survive that, because the document
+   editor is precisely where a client sits while the advocate asks for more
+   time. The buttons stay and shrink, the prose note goes. */
+/* In the panel the card is pinned top AND bottom (top:12px from the base rule,
+   bottom:10px from wp-meetlimit), so a grid with auto rows stretches them to
+   fill 276px and the five parts of the client's face drift apart — measured on
+   the harness: a 74px hole between the price and the countdown. Rows keep
+   their own height and the slack collects at the bottom. Scoped to the client
+   face, which is the one with five rows; the notice faces have three and are
+   left exactly as they are. */
+.mtg--float .mtg__pause--ask{align-content:start}
+.mtg--float .mtg__pause--ask .mtg__recask-btns{margin-top:0}
+.mtg--float .mtg__pause--ask .mtg__recask-btns .btn{min-width:0;padding:6px 10px;font-size:.76rem}
+/* …except once the card has been promoted to a centred overlay, which has the
+   room for all of it. That overlay means to be centred at its natural height
+   (top:50% + translate(-50%,-50%)), but wp-meetlimit's two-class
+   `.mtg--float .mtg__pause{bottom:10px}` out-specifies its `top` partner and
+   pins the bottom edge as well — measured: a 420x420 modal holding 170px of
+   content on a 860px window. Releasing the bottom edge for this face restores
+   the centring the overlay was written for. */
+.mtg__pause--over.mtg__pause--ask{bottom:auto}
+.mtg__pause--over.mtg__pause--ask small{display:block}
+
+@media (prefers-reduced-motion:reduce){
+  /* Nothing in a payment prompt may blink at someone who asked for stillness;
+     the colour alone still separates the last minute from the rest. */
+  .mtg__pause .mtg__pause-left i,.mtg__pause .mtg__pause-left--low i{animation:none}
+}
+
+/* ── wp-editor: advocate editor start gate (§14) and blocked editor (§15) ── */
+
+/* LEXGO_FRONTEND_FULL_DOCS_URGENT_INTEGRATION_2026-09-28.md §14 L529 puts
+   three options in front of the advocate BEFORE the editor page opens, and
+   §15 L600 puts a stated reason in front of them when can_open_editor=false.
+   Both live inside .deditor__main, whose only existing state block is
+   .deditor__mainState — a centred column with `text-align:center` and a
+   32px svg rule. Neither new panel wants either of those, so both get their
+   own block and the state wrapper is modified just enough to let a tall
+   panel scroll instead of being clipped by its own centring. */
+/* The pane these two panels live in paints a hard-coded #f5f6f8 (globals.css
+   .deditor__main), so in dark mode both panels were being drawn on a
+   near-white slab: measured rgb(245,246,248) behind rgb(18,28,49) cards.
+   The house convention for a light-only colour is var(--dk-token, original),
+   and the light value is preserved byte-for-byte. */
+.deditor__main { background: var(--dk-surface-2, #f5f6f8); }
+
+.deditor__mainState--start {
+  /* justify-content:center on the parent clips the TOP of an overflowing
+     child in every browser; `margin-block:auto` on the child centres it
+     while it fits and lets it scroll when it does not. Measured at 400x720
+     with all three option cards stacked: 612px of content in a 548px pane. */
+  justify-content: flex-start;
+  overflow-y: auto;
+  text-align: left;
+}
+
+/* ── §14: the three-option start gate ───────────────────────────── */
+.dstart {
+  width: min(760px, 100%);
+  margin-block: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.dstart__h {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dstart .dstart__h b { font-size: 1.02rem; color: var(--ink); }
+.dstart__h p { margin: 0; font-size: .85rem; line-height: 1.5; color: var(--gray2); }
+/* auto-fit rather than a media query: this grid sits between two panels the
+   advocate drags, so its own width changes without the viewport changing.
+   Three cards fit from ~690px of pane (1440px desktop leaves ~760px), two
+   from ~440px, one below that. */
+.dstart__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+.dstart__opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--dk-surface, #fff);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.dstart__opt:hover:not(:disabled) {
+  border-color: var(--b300);
+  box-shadow: var(--s1);
+  transform: translateY(-1px);
+}
+.dstart__opt:focus-visible { outline: 2px solid var(--b400); outline-offset: 2px; }
+/* The option that cannot be taken is still shown — §14 asks for three, and
+   hiding the third would hide the reason with it. Dimmed, not removed. */
+.dstart__opt:disabled {
+  cursor: default;
+  background: var(--dk-surface-2, #F8FAFD);
+  border-style: dashed;
+}
+.dstart__opt:disabled .dstart__i { opacity: .55; }
+.dstart .dstart__opt b { font-size: .89rem; line-height: 1.35; color: var(--ink); }
+.dstart .dstart__opt small { font-size: .78rem; line-height: 1.5; color: var(--gray2); }
+.dstart__i {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--dk-tint-blue, #EDF3FF);
+  color: var(--dk-acc, var(--b600));
+}
+/* .deditor__mainState svg is 32px — that rule matches these icons at the
+   same specificity, so they are re-stated one class deeper. */
+.dstart .dstart__i svg { width: 18px; height: 18px; }
+.dstart__opt--rec { border-color: var(--b300); box-shadow: inset 0 0 0 1px var(--b200); }
+.dstart__tag {
+  margin-top: auto;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: var(--pill);
+  background: var(--dk-tint-blue, #E7F0FF);
+  color: var(--dk-acc-strong, var(--b700));
+}
+.dstart__tag--off {
+  background: var(--dk-tint-warn, #FFF5E6);
+  color: var(--dk-txt-warn, #B45309);
+}
+
+/* ── §15 L600: the editor the backend closed ────────────────────── */
+.dblock {
+  width: min(480px, 100%);
+  margin-block: auto;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+.dblock__i {
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--dk-tint-warn, #FFF5E6);
+  color: var(--dk-txt-warn, #B45309);
+  border: 1px solid var(--dk-bd-warn, #F6DCB4);
+}
+.dblock .dblock__i svg { width: 22px; height: 22px; }
+.dblock b { font-size: 1rem; color: var(--ink); }
+/* The backend's own sentence, quoted rather than paraphrased — it is the
+   only thing on this screen that says WHY, so it is the one element given a
+   surface of its own. --dk-surface, not --dk-surface-2: the pane behind it
+   is surface-2 in dark (see .deditor__main above), and a box the same
+   rgb(24,37,62) as its background is not a box. overflow-wrap because
+   server wording is not ours to keep short. */
+.dblock__why {
+  margin: 0;
+  width: 100%;
+  font-size: .87rem;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--dk-surface, #fff);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 11px 13px;
+  overflow-wrap: anywhere;
+}
+.dblock__note { margin: 0; font-size: .79rem; line-height: 1.5; color: var(--gray2); }
+.dblock .chiprow { padding-bottom: 0; justify-content: center; flex-wrap: wrap; }
+
+/* ── §15 L600 in the inbox list ─────────────────────────────────── */
+/* A row whose editor cannot open was disabled with a `title` tooltip and
+   nothing else: invisible on touch, and browsers do not fire tooltips on
+   disabled controls at all. The reason is a visible line now. */
+.pcase--locked { opacity: .9; cursor: default; }
+.pcase--btn:disabled:hover { box-shadow: inset 0 0 0 1.5px var(--line); }
+.pcase__lock {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: var(--pill);
+  font-size: .76rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+  background: var(--dk-tint-warn, #FFF5E6);
+  color: var(--dk-txt-warn, #B45309);
+}
+.pcase__lock svg { width: 13px; height: 13px; flex: none; }
+
+/* Nothing here may animate for someone who asked it not to: the only motion
+   is the option card's 1px hover lift. */
+@media (prefers-reduced-motion: reduce) {
+  .dstart__opt { transition: none; }
+  .dstart__opt:hover:not(:disabled) { transform: none; }
+}
+
+/* The dark block in app/globals.css is closed to this pass, so the two
+   tokens that have no --dk-* counterpart to borrow are set here. --b200 and
+   --b300 are redefined on the dark root, so the recommended card's ring
+   needs nothing; these two are the light-only values used above. */
+html[data-theme="dark"] .dstart__opt:focus-visible { outline-color: var(--dk-acc, #6EA8FF); }
+html[data-theme="dark"] .dstart__opt--rec { border-color: var(--dk-bd-blue, #2C3D60); }

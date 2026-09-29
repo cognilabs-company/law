@@ -18,6 +18,7 @@ import {
   type RemoteTrack,
   type RoomOptions,
   type TrackPublication,
+  type VideoEncoding,
   type VideoResolution,
 } from "livekit-client";
 import {
@@ -42,6 +43,7 @@ import {
   type CallParticipant,
   type CallPermissions,
   type CallQualityPolicy,
+  type CallVideoProfile,
 } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
@@ -93,6 +95,12 @@ type Toast = { id: number; text: string; kind: "join" | "leave" | "info" };
 // A client's pending "may I record?" (approver side) / my own request (requester side).
 type RecAsk = { id: string; name: string; mode: RecordingMode; at: number };
 type RecReq = { mode: RecordingMode; left: number };
+// FULL_DOCS §23 L887-891 wants a client-side confirm/cancel for a paid
+// extension. Both answers are keyed by the request they belong to, so a second
+// request after a first one lapsed starts with a clean card instead of
+// inheriting the previous decision — `mine` is this side's press, `peer` is
+// what the other side said over the data channel.
+type ExtAnswer = { id: string; mine?: "yes" | "no"; peer?: "yes" | "no" };
 
 const MOBILE = () => typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
 const EMPTY_GRACE_SEC = 10;
@@ -127,6 +135,51 @@ const PROFILE_RANK = ["audio_only", "low", "medium", "high"];
 const POLICY_WAIT_MS = 2500;
 const rungOf = (name: string) => PROFILE_RANK.indexOf(name);
 const resOf = (p: { width: number; height: number; fps: number }): VideoResolution => ({ width: p.width, height: p.height, frameRate: p.fps });
+// §quality_policy L54-57: every video rung carries a `max_bitrate` as well as
+// a size — 160000 / 450000 / 900000 for low / medium / high, read verbatim off
+// eight live calls on 2026-09-29. A capture resolution does not bound the
+// encoder, so a rung that only changed the picture size still published at
+// whatever ceiling the previous rung (or the SDK's 720p default, 2.5 Mbit/s)
+// had left in place. The ladder therefore has to hand LiveKit an encoding too.
+const encOf = (p: CallVideoProfile | undefined): VideoEncoding | undefined =>
+  p && p.maxBitrate > 0 ? { maxBitrate: p.maxBitrate, maxFramerate: p.fps } : undefined;
+// §quality_policy L53: `profiles.audio_only.audio_bitrate` = 24000. Opus at
+// 24 kbit/s mono is the voice budget the backend sizes the call around, and
+// `audio_priority` means it is the stream that must survive — so every mic
+// publish carries it, not just the ones made while the ladder sits on
+// audio_only.
+const micPublishOf = (pol: CallQualityPolicy | null) =>
+  pol && pol.audioOnlyBitrate > 0 ? { audioPreset: { maxBitrate: pol.audioOnlyBitrate } } : undefined;
+// A rung change restarts the CAPTURE track inside the existing publication —
+// never a second publish, because the backend flags repeated publish cycles as
+// a negotiation loop (see the note at the top of this file). That leaves the
+// encoder running at the old ceiling, and RTCRtpSender is the only way to move
+// it without publishing again. The ceiling is the budget for the whole
+// publication, so simulcast layers split it in proportion to pixel count
+// (bitrate goes with area: a layer at scaleResolutionDownBy 2 gets a quarter)
+// and their total lands on the ceiling instead of each layer claiming it.
+async function capSender(track: LocalVideoTrack | undefined, ceiling: number) {
+  const sender = track?.sender;
+  if (!sender || ceiling <= 0) return;
+  try {
+    const params = sender.getParameters();
+    const encs = params.encodings;
+    if (!encs || !encs.length) return;
+    const area = (e: RTCRtpEncodingParameters) => {
+      const s = typeof e.scaleResolutionDownBy === "number" && e.scaleResolutionDownBy > 1 ? e.scaleResolutionDownBy : 1;
+      return 1 / (s * s);
+    };
+    const total = encs.reduce((sum, e) => sum + area(e), 0) || 1;
+    for (const e of encs) e.maxBitrate = Math.max(1, Math.round((ceiling * area(e)) / total));
+    await sender.setParameters(params);
+  } catch {
+    // The browser refuses setParameters mid-negotiation; the next rung change
+    // (or the next publish) applies the ceiling instead. Never fatal: a call
+    // running one rung too wide is still a call.
+  }
+}
+const capCamera = (lp: LocalParticipant, ceiling: number) =>
+  capSender(lp.getTrackPublication(Track.Source.Camera)?.track as LocalVideoTrack | undefined, ceiling);
 // Room options are frozen at construction, so the policy has to be in hand
 // before `new Room` — hence the fetch on the connect path rather than a
 // later hand-off from the meta poll. Without a policy this returns exactly
@@ -152,6 +205,10 @@ function roomOptionsFor(pol: CallQualityPolicy | null, phone: boolean): RoomOpti
   };
   if (!pol) return base;
   const low = pol.profiles.low;
+  // The rung the call opens on ("low" on a video call, "audio_only" on an
+  // audio one), so the FIRST frame already respects §quality_policy L54-57
+  // rather than opening at the SDK's 720p default and being pulled down.
+  const start = pol.profiles[pol.startProfile] ?? low;
   return {
     ...base,
     // The policy only says whether adaptiveStream is on at all; the tuning
@@ -173,6 +230,17 @@ function roomOptionsFor(pol: CallQualityPolicy | null, phone: boolean): RoomOpti
       // The backend sends a free-form string; anything the SDK does not know
       // would be published as-is and fail, so an unknown name keeps vp8.
       ...(isVideoCodec(pol.publish.videoCodec) ? { videoCodec: pol.publish.videoCodec } : {}),
+      // The ceilings, as defaults, so any publish path this room grows later
+      // inherits them even if it forgets to pass publish options of its own.
+      ...(encOf(start) ? { videoEncoding: encOf(start) } : {}),
+      ...(micPublishOf(pol) ?? {}),
+      // §quality_policy L57: `profiles.screen_share` = { fps: 5, max_bitrate:
+      // 500000 }. A shared screen is mostly still text, so the backend gives
+      // it a fifth of a video rung's frame rate and half a megabit — not the
+      // 1080p15 budget the SDK preset carries.
+      ...(pol.screenShare && pol.screenShare.maxBitrate > 0
+        ? { screenShareEncoding: { maxBitrate: pol.screenShare.maxBitrate, maxFramerate: pol.screenShare.fps } }
+        : {}),
     },
     // start_profile is "low" on every video call: capture small and let the
     // connection-quality actions climb, rather than opening at 720p and
@@ -251,6 +319,13 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // deliberately switched off.
   const camWantedRef = useRef(false);
   const autoCamOffRef = useRef(false);
+  // The same question for the microphone, which §Audio-only fallback L162-166
+  // wants switched ON when the link collapses. It must distinguish "the mic is
+  // off because something took it away" from "the mic is off because this
+  // person pressed mute", so exactly three places write it: the connect path
+  // (a mic that published), toggleMic (the person's own press) and the roster
+  // effect (a host force-mute). Nothing else may un-mute.
+  const micWantedRef = useRef(false);
   // Set between Reconnecting and Reconnected: a LiveKit auto-reconnect is not
   // a hang-up and must not run the "everybody left" countdown.
   const reconnectingRef = useRef(false);
@@ -270,6 +345,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [extErr, setExtErr] = useState("");
   const [extOpen, setExtOpen] = useState(false);
   const [extMinutes, setExtMinutes] = useState(10);
+  // FULL_DOCS §23: "Mijozda payment confirm/cancel UI" and "5 minut o'tsa
+  // dostup yopiladi". The answer this room holds and the seconds left to give
+  // it — the client had neither, and the only card on screen was written in
+  // the advocate's voice ("Mijoz Telegramda tasdiqlashi kerak"), i.e. it told
+  // the client about the client.
+  const [extAns, setExtAns] = useState<ExtAnswer>({ id: "" });
+  const [extLeft, setExtLeft] = useState(0);
+  // Read by the LiveKit data handler, which is registered once at connect and
+  // would otherwise close over the empty request id it saw then.
+  const pendExtIdRef = useRef("");
   // The pause control's own state is ONLY "is a request in the air". Whether
   // the meeting is held is `paused` below, which comes off the poll and the
   // call.paused / call.resumed events — so the other side resuming, or the
@@ -504,6 +589,19 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // audio_priority means the mic is the last thing to go, never the first.
       if (!cameraAllowed || name === "audio_only" || !pol.videoEnabled) {
         profileRef.current = "audio_only";
+        // §Audio-only fallback L162-166 is TWO calls, not one:
+        // setCameraEnabled(false) AND setMicrophoneEnabled(true). Only the
+        // first half was ever here, so a client whose link collapsed lost the
+        // picture and — when the mic had been dropped by the reconnect that
+        // preceded the collapse, or had never published at all — was left in a
+        // silent room with no way to tell. Guarded by micWantedRef so this
+        // restores a mic the CALL lost and never un-mutes somebody who pressed
+        // mute themselves or whom the host muted; and skipped while paused,
+        // because a paused call publishes nothing by contract.
+        if (!lp.isMicrophoneEnabled && micWantedRef.current && !pausedRef.current) {
+          await lp.setMicrophoneEnabled(true, undefined, micPublishOf(pol)).catch(() => {});
+          if (alive && lp.isMicrophoneEnabled) setMicOn(true);
+        }
         if (!lp.isCameraEnabled) return;
         autoCamOffRef.current = true;
         await lp.setCameraEnabled(false).catch(() => {});
@@ -518,7 +616,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         if (!autoCamOffRef.current || !camWantedRef.current || pausedRef.current) return;
         autoCamOffRef.current = false;
         profileRef.current = name;
-        await lp.setCameraEnabled(true, { facingMode: facingRef.current, resolution: resOf(prof) }).catch(() => {});
+        await lp.setCameraEnabled(true, { facingMode: facingRef.current, resolution: resOf(prof) }, encOf(prof) ? { videoEncoding: encOf(prof) } : undefined).catch(() => {});
+        await capCamera(lp, prof.maxBitrate);
         if (alive) { setCamOn(true); bump(); }
         return;
       }
@@ -529,6 +628,10 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // no second publish, so the backend's negotiation-loop guard never sees
       // a quality change at all.
       if (track) await track.restartTrack({ facingMode: facingRef.current, resolution: resOf(prof) }).catch(() => {});
+      // …and restartTrack only moves the CAMERA. The rung's `max_bitrate` is a
+      // publish ceiling, so it has to be pushed at the sender separately or a
+      // downgrade to `low` would keep sending 450 kbit/s of a 320x180 picture.
+      await capCamera(lp, prof.maxBitrate);
     };
     const onQuality = (q: ConnectionQuality, p: Participant) => {
       // Remote participants rate their own uplink; only mine says anything
@@ -541,6 +644,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // no prompt to ask with — so it does nothing rather than switch behind
       // a flag that says not to.
       if (pol.userVisibleQualityPrompt) return;
+      // §quality_policy L27, `mode: "adaptive"`. Production has sent exactly
+      // that on every call measured (eight live sessions, 2026-09-29), and it
+      // is the master switch above auto_downgrade / auto_upgrade: those say
+      // which DIRECTION the ladder may move, `mode` says whether there is a
+      // ladder at all. Honoured rather than dropped, because the alternative
+      // reading — ignore it — means a backend that one day ships a fixed-rung
+      // policy would still be overridden by this client. Anything but
+      // "adaptive" leaves the call on start_profile, where the Room options
+      // already put it.
+      if (pol.mode && pol.mode !== "adaptive") return;
       const act = pol.actions[q];
       if (!act) return; // ConnectionQuality.Unknown has no action
       const up = rungOf(act.profile) > rungOf(profileRef.current);
@@ -610,6 +723,17 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             else toast(t("recDeniedBy", { name: who }), "leave");
             return;
           }
+          // FULL_DOCS §23: the client's answer to a paid extension. It has no
+          // HTTP route (see answerExtension below), so the data channel is how
+          // the advocate learns of it — without this the host watches five
+          // minutes of silence and cannot tell a client who is paying from one
+          // who has walked away.
+          if (msg.t === "extans" && p) {
+            const ok = msg.allowed === true;
+            setExtAns((cur) => ({ ...cur, id: pendExtIdRef.current || cur.id, peer: ok ? "yes" : "no" }));
+            toast(ok ? t("extPeerYes") : t("extPeerNo"), ok ? "join" : "leave");
+            return;
+          }
           if (msg.t === "chat" && msg.text) {
             const name = p ? nameOfRef.current(p) : t("someone");
             setMessages((m) => [...m, { id: `${p?.identity ?? "x"}-${msg.at ?? Date.now()}`, from: p?.identity ?? "", name, text: msg.text!, at: msg.at ?? Date.now() }]);
@@ -641,7 +765,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         if (!pol || !pol.videoEnabled || !camWantedRef.current || autoCamOffRef.current || pausedRef.current || lp.isCameraEnabled) return;
         const prof = pol.profiles[profileRef.current] ?? pol.profiles.low;
         void lp
-          .setCameraEnabled(true, prof ? { facingMode: facingRef.current, resolution: resOf(prof) } : undefined)
+          // A renegotiated publisher starts from the SDK's defaults, so the
+          // rung's §quality_policy L54-57 ceiling has to be restated here as
+          // well — otherwise a reconnect silently promotes a `low` call to a
+          // 2.5 Mbit/s one on the very link that just failed.
+          .setCameraEnabled(true, prof ? { facingMode: facingRef.current, resolution: resOf(prof) } : undefined, encOf(prof) ? { videoEncoding: encOf(prof) } : undefined)
+          .then(() => capCamera(lp, prof ? prof.maxBitrate : 0))
           .then(() => { if (alive) { setCamOn(true); bump(); } })
           .catch(() => {});
       })
@@ -703,7 +832,15 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             try { await r.localParticipant.setCameraEnabled(false); } catch { /* nothing published yet */ }
             if (alive) { setMicOn(false); setCamOn(false); }
           } else {
-            try { await r.localParticipant.setMicrophoneEnabled(true); } catch { /* mic denied */ }
+            // The mic carries profiles.audio_only.audio_bitrate (§quality_policy
+            // L53) from its very first publish; `audio_priority` makes this the
+            // stream the whole budget is built around.
+            try {
+              await r.localParticipant.setMicrophoneEnabled(true, undefined, micPublishOf(pol));
+              // It published, so an audio-only fallback later on is allowed to
+              // bring it back — see micWantedRef.
+              micWantedRef.current = true;
+            } catch { /* mic denied */ }
             // video_enabled is the truth, not the callType prop: an express
             // request opens an audio session for a service whose name says
             // "video", and that session must not publish a camera.
@@ -711,8 +848,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             if (pol ? pol.videoEnabled : callType === "video") {
               camWantedRef.current = true;
               // start_profile is "low": the camera opens at the bottom rung
-              // and the connection-quality actions climb from there.
-              try { await r.localParticipant.setCameraEnabled(true, low ? { facingMode: "user", resolution: resOf(low) } : undefined); } catch { if (alive) setCamOn(false); }
+              // and the connection-quality actions climb from there — at that
+              // rung's 160 kbit/s ceiling, not the SDK's 720p default.
+              try {
+                await r.localParticipant.setCameraEnabled(true, low ? { facingMode: "user", resolution: resOf(low) } : undefined, encOf(low) ? { videoEncoding: encOf(low) } : undefined);
+                if (low) await capCamera(r.localParticipant, low.maxBitrate);
+              } catch { if (alive) setCamOn(false); }
             } else if (alive) setCamOn(false);
           }
         }
@@ -960,6 +1101,29 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     return () => clearTimeout(h);
   }, [paused, limits?.pauseExpiresAt]);
 
+  // FULL_DOCS §23: "payment javobini 5 minut kutadi" / "5 minut o'tsa dostup
+  // yopiladi". A sentence saying "five minutes" is not a deadline anybody can
+  // act on, so the card counts it down. The request's own expires_at is the
+  // authority and pause_expires_at is the fallback, because a paused call
+  // always carries the second even where the first is absent — neither could
+  // be observed read-only (a pause needs a POST), so the render below also
+  // copes with both being empty by simply not showing a clock.
+  // Its own interval rather than borrowing the elapsed clock: the deadline has
+  // to tick on a call this side joined late, where startedAt is a different
+  // moment entirely.
+  const extDeadline = limits?.pendingExtensionRequest?.expiresAt || limits?.pauseExpiresAt || "";
+  useEffect(() => {
+    const at = extDeadline ? Date.parse(extDeadline) : 0;
+    if (!paused || !at) return;
+    // Through a timer even for the first value, never straight from the effect
+    // body — the same rule the pause-expiry effect above follows.
+    const read = () => setExtLeft(Math.max(0, Math.round((at - Date.now()) / 1000)));
+    const first = setTimeout(read, 0);
+    const iv = setInterval(read, 1000);
+    return () => { clearTimeout(first); clearInterval(iv); };
+  }, [paused, extDeadline]);
+  useEffect(() => { pendExtIdRef.current = limits?.pendingExtensionRequest?.id ?? ""; }, [limits?.pendingExtensionRequest?.id]);
+
   // "paused=true bo'lsa LiveKit join/publishni vaqtincha bloklang" — done by
   // muting the published tracks, never by disconnecting: the backend treats
   // repeated connect/publish cycles as a negotiation loop (see the note at
@@ -988,8 +1152,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     } else if (wasPaused.current) {
       wasPaused.current = false;
       const { mic, cam } = prePause.current;
-      if (mic && !hostMutedRef.current) void lp.setMicrophoneEnabled(true).then(() => setMicOn(true)).catch(() => {});
-      if (cam) void lp.setCameraEnabled(true).then(() => setCamOn(true)).catch(() => {});
+      // Both re-publish, so both restate the policy's ceilings
+      // (§quality_policy L53 for the mic, L54-57 for the camera's rung) —
+      // a resume must not hand the call back at the SDK's defaults.
+      if (mic && !hostMutedRef.current) void lp.setMicrophoneEnabled(true, undefined, micPublishOf(qualityRef.current)).then(() => setMicOn(true)).catch(() => {});
+      if (cam) {
+        const prof = qualityRef.current?.profiles[profileRef.current] ?? qualityRef.current?.profiles.low;
+        void lp
+          .setCameraEnabled(true, prof ? { facingMode: facingRef.current, resolution: resOf(prof) } : undefined, encOf(prof) ? { videoEncoding: encOf(prof) } : undefined)
+          .then(() => capCamera(lp, prof ? prof.maxBitrate : 0))
+          .then(() => setCamOn(true))
+          .catch(() => {});
+      }
     }
   }, [paused]);
 
@@ -1007,9 +1181,14 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       return;
     }
     if (prevMicRef.current !== null && me.micEnabled !== prevMicRef.current && me.micEnabled !== micOn) {
-      roomRef.current?.localParticipant.setMicrophoneEnabled(me.micEnabled).catch(() => {});
+      roomRef.current?.localParticipant.setMicrophoneEnabled(me.micEnabled, undefined, me.micEnabled ? micPublishOf(qualityRef.current) : undefined).catch(() => {});
       setMicOn(me.micEnabled);
       setHostMuted(!me.micEnabled);
+      // A host force-mute is the third and last writer of micWantedRef: a mic
+      // the host closed is NOT a mic the audio-only fallback may re-open
+      // (§Audio-only fallback L162-166 restores the call's own loss, not a
+      // moderation decision).
+      micWantedRef.current = me.micEnabled;
     }
     prevMicRef.current = me.micEnabled;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1101,7 +1280,14 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     if (hostMuted && !micOn) return;
     void enableSound();
     const on = !micOn;
-    await r.localParticipant.setMicrophoneEnabled(on);
+    // The person's own press is what micWantedRef means, so it is written
+    // here and nowhere else in this function: an audio-only fallback may
+    // restore a mic the call dropped, never one that was muted on purpose.
+    micWantedRef.current = on;
+    // §quality_policy L53 again — a mic re-published after a mute has to carry
+    // the 24 kbit/s ceiling too, or the second half of the call runs on the
+    // SDK's music preset.
+    await r.localParticipant.setMicrophoneEnabled(on, undefined, on ? micPublishOf(qualityRef.current) : undefined);
     setMicOn(on);
     bump();
     syncSelf({ mic_enabled: on });
@@ -1109,9 +1295,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // Capture size for any new or restarted camera track: whichever rung of the
   // backend's ladder the adaptive controller is on, and the old phone/desktop
   // defaults on a call that carries no policy.
-  function camResolution(): VideoResolution {
+  function camProfile(): CallVideoProfile | undefined {
     const pol = qualityRef.current;
-    const prof = pol?.profiles[profileRef.current] ?? pol?.profiles.low;
+    return pol?.profiles[profileRef.current] ?? pol?.profiles.low;
+  }
+  function camResolution(): VideoResolution {
+    const prof = camProfile();
     if (prof) return resOf(prof);
     return PORTRAIT_HINT() ? VideoPresets43.h540.resolution : VideoPresets.h720.resolution;
   }
@@ -1128,7 +1317,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     setCamBusy(true);
     try {
       // First enable in an audio call publishes the camera track (front camera, 4:3 on phones).
-      await r.localParticipant.setCameraEnabled(on, on ? { facingMode: facingRef.current, resolution: camResolution() } : undefined);
+      // A camera the USER switches on is still bound by the rung's
+      // §quality_policy L54-57 ceiling — the policy governs the link, not the
+      // reason the track exists.
+      const prof = camProfile();
+      await r.localParticipant.setCameraEnabled(on, on ? { facingMode: facingRef.current, resolution: camResolution() } : undefined, on && encOf(prof) ? { videoEncoding: encOf(prof) } : undefined);
+      if (on && prof) await capCamera(r.localParticipant, prof.maxBitrate);
       setCamOn(on);
       bump();
       syncSelf({ camera_enabled: on });
@@ -1173,6 +1367,10 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         await r.switchActiveDevice("videoinput", target.deviceId, true);
       }
       facingRef.current = next;
+      // Both paths above leave a fresh encoder behind (restartTrack swaps the
+      // capture track, switchActiveDevice swaps the device), so the rung's
+      // ceiling is restated rather than left to the SDK default.
+      await capCamera(r.localParticipant, camProfile()?.maxBitrate ?? 0);
       setMirror(next === "user");
       bump();
     } catch { /* ignore */ } finally {
@@ -1182,8 +1380,27 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   async function toggleShare() {
     const r = roomRef.current;
     if (!r) return;
+    // §quality_policy L57: `profiles.screen_share` = { fps: 5, max_bitrate:
+    // 500000 }. A shared screen has its own, much smaller budget than a video
+    // rung — a fifth of the frame rate and roughly half of `low`+`medium`
+    // combined — because it is text that must stay sharp, not motion that must
+    // stay smooth. The room used to publish it at the SDK's 1080p15 preset
+    // (~3 Mbit/s), six times the budget, on the same link the camera is being
+    // throttled to 160 kbit/s to protect.
+    const ss = qualityRef.current?.screenShare;
+    const base = ScreenSharePresets.h1080fps15.resolution;
     try {
-      await r.localParticipant.setScreenShareEnabled(!sharing, { audio: false, contentHint: "detail", resolution: ScreenSharePresets.h1080fps15.resolution });
+      await r.localParticipant.setScreenShareEnabled(
+        !sharing,
+        { audio: false, contentHint: "detail", resolution: ss && ss.fps > 0 ? { ...base, frameRate: ss.fps } : base },
+        ss && ss.maxBitrate > 0 ? { screenShareEncoding: { maxBitrate: ss.maxBitrate, maxFramerate: ss.fps } } : undefined,
+      );
+      // The publish options bound the primary layer; this bounds every
+      // simulcast layer the SDK added beside it, so the whole publication
+      // stays inside the 500 kbit/s the backend allotted.
+      if (!sharing && ss && ss.maxBitrate > 0) {
+        await capSender(r.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track as LocalVideoTrack | undefined, ss.maxBitrate);
+      }
       setSharing(!sharing);
       syncSelf({ screen_enabled: !sharing });
       bump();
@@ -1241,6 +1458,39 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     } finally {
       setExtBusy(false);
     }
+  }
+  // ── The client's answer to a paid extension ────────────────────
+  // FULL_DOCS §23 L887-891 asks for "Mijozda payment confirm/cancel UI" — the
+  // client, not only the advocate, has to be able to answer, and today the
+  // only route is the Telegram bot.
+  // There is no HTTP endpoint for that answer, and this deliberately does not
+  // invent one. LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md L79 says the
+  // backend "Telegram inline approve/reject yuboradi", and a read-only sweep
+  // of production on 2026-09-29 (client +998900000005) found every plausible
+  // path 404: …/extension-payment-confirm, -approve, -reject, -accept,
+  // -decline, -answer, -response, -cancel, -pay, …/extension/confirm,
+  // …/extension-confirm, …/extensions, /call-extension-requests/{id},
+  // /me/extension-requests — while …/extension-payment-request answers 405
+  // with Allow: POST, i.e. exists and is the advocate's side only.
+  // (/calls/extension-requests looks like a hit at first glance; it is the
+  // PATCH /calls/{call_id} wildcard — /calls/zzzz-not-a-route answers
+  // identically.) A guessed POST here would move money, so it is not made.
+  // What this does instead is real on both sides: it tells the room over the
+  // LiveKit data channel — the same channel the recording consent already
+  // rides, and still open while paused because a pause only mutes tracks — so
+  // the advocate learns the client's decision at once instead of watching the
+  // five-minute window run out, and it moves this side's card to an
+  // acknowledgement that names where the payment is actually completed.
+  // When the backend exposes the answer route, this function is the one place
+  // that call goes.
+  function answerExtension(ok: boolean) {
+    const id = limits?.pendingExtensionRequest?.id ?? "";
+    if (!id) return;
+    setExtAns((cur) => ({ id, mine: ok ? "yes" : "no", peer: cur.id === id ? cur.peer : undefined }));
+    roomRef.current?.localParticipant
+      .publishData(enc({ t: "extans", allowed: ok, at: stamp() }), { reliable: true })
+      .catch(() => {});
+    toast(ok ? t("extAnsYesToast") : t("extAnsNoToast"), ok ? "info" : "leave");
   }
 
   // ── Holding the meeting ────────────────────────────────────────
@@ -1432,9 +1682,17 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const canShare = typeof navigator !== "undefined" && !!navigator.mediaDevices && "getDisplayMedia" in navigator.mediaDevices && !MOBILE();
   // Whether this call may carry a picture at all. The policy decides, because
   // an express request opens an audio session for a service named "video" and
-  // the callType prop then lies. Until a policy arrives — and on a backend
-  // that sends none — the camera stays on offer, as it always was.
-  const videoAllowed = quality ? quality.videoEnabled : true;
+  // the callType prop then lies.
+  // Express L86 — "Call ekranida video tugmani default ko'rsatmaslik mumkin,
+  // chunki bu flow audio call" — makes the pre-policy answer the callType, not
+  // a blanket yes: a flow that CONNECTED as audio must not flash a camera
+  // button into the bar for the second or two before the policy lands, and a
+  // backend that sends no policy at all must not offer one on an audio call
+  // either. Measured on production 2026-09-29: the audio call in room
+  // 6238b71c carries video_enabled=false and camera_allowed=false on all four
+  // connection-quality actions, so the policy says exactly this once it
+  // arrives — this only stops the room guessing the opposite while it waits.
+  const videoAllowed = quality ? quality.videoEnabled : callType === "video";
   const activeRoster = roster.filter((p) => p.status !== "removed" && p.status !== "left" && p.status !== "declined");
   const gridN = strip.length;
   const flipKey = `${strip.map((p) => p.identity).join("|")}:${view}:${stageIsShare ? 1 : 0}:${panel}`;
@@ -1493,11 +1751,24 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // backend extended pause to urgent meetings too (2026-09-28), and a hold is
   // useful there for the mute it causes even when there is no clock to freeze.
   const canPause = !pauseGone && !!perms?.canEnd && iApprove && !!limits;
+  // FULL_DOCS §23. The extension the client is being asked to pay for, and
+  // whether THIS person is the one being asked. The payer is the participant
+  // who is neither the backend host (perms.canEnd) nor staff — `iApprove`
+  // covers advocates, lawyers and the call centre, so a second advocate
+  // invited into the meeting is never shown a bill.
+  const pendExt = limits?.pendingExtensionRequest ?? null;
+  const isPayer = !perms?.canEnd && !iApprove;
+  // Keyed by request id so a lapsed request's answer never colours the next
+  // one; an id that does not match means "not answered yet".
+  const extFor: ExtAnswer = extAns.id && extAns.id === (pendExt?.id ?? "") ? extAns : { id: pendExt?.id ?? "" };
   // A call paused by a pending extension payment is not this host's hold to
-  // lift — resuming would answer the client's Telegram prompt on their behalf,
-  // and the pause card already explains that wait. So the control stands down
-  // for exactly that case rather than offering a resume it should not offer.
-  const showPause = canPause && !(paused && !!limits?.pendingExtensionRequest);
+  // lift — resuming would answer the client's prompt on their behalf, and the
+  // pause card already explains that wait. So the control stands down for
+  // exactly that case rather than offering a resume it should not offer.
+  // Once the client has said no in-app, though, there is nothing left to wait
+  // for and the host gets the resume back: that is the whole point of carrying
+  // the answer over the data channel.
+  const showPause = canPause && !(paused && !!pendExt && extFor.peer !== "no");
 
   return (
     <div
@@ -1662,16 +1933,48 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             </div>
           ) : null}
           {/* "To'lov javobi kutilmoqda" — the call is frozen, not ended, and
-              it resumes by itself if nobody answers within five minutes. */}
+              it resumes by itself if nobody answers within five minutes.
+              FULL_DOCS §23 gives the two sides different jobs: the advocate
+              waits ("Payment kutilyotganda meeting paused ko'rsatilsin"), the
+              client decides ("Mijozda payment confirm/cancel UI"). One card,
+              two faces — plus the plain hold, which is neither. */}
           {paused ? (
-            <div className={`mtg__pause${floating ? " mtg__pause--over" : ""}`} role="status">
-              <b><IconClock />{t("pausedTitle")}</b>
+            <div
+              className={`mtg__pause${floating ? " mtg__pause--over" : ""}${isPayer && pendExt ? " mtg__pause--ask" : ""}`}
+              role={isPayer && pendExt ? "dialog" : "status"}
+              aria-label={isPayer && pendExt ? t("extAskTitle") : undefined}
+            >
+              <b><IconClock />{isPayer && pendExt ? t("extAskTitle") : t("pausedTitle")}</b>
               <span>
-                {limits?.pendingExtensionRequest
-                  ? t("pausedLead", { minutes: limits.pendingExtensionRequest.minutes, amount: fmtUzs(limits.pendingExtensionRequest.amount) })
+                {pendExt
+                  ? isPayer
+                    ? t("extAskLead", { minutes: pendExt.minutes, amount: fmtUzs(pendExt.amount) })
+                    : t("pausedLead", { minutes: pendExt.minutes, amount: fmtUzs(pendExt.amount) })
                   : t("pausedLeadPlain")}
               </span>
-              <small>{t("pausedExpiry")}</small>
+              {/* The five-minute window, as a clock rather than a sentence.
+                  Hidden when the backend gave neither deadline, which is a
+                  state this side could not reach read-only. */}
+              {pendExt && extDeadline && extLeft > 0 ? (
+                <span className={`mtg__pause-left${extLeft > 0 && extLeft <= 60 ? " mtg__pause-left--low" : ""}`}>
+                  <i aria-hidden="true" />{t("extAnswerLeft", { time: mmss(extLeft) })}
+                </span>
+              ) : null}
+              {isPayer && pendExt ? (
+                extFor.mine ? (
+                  <small>{extFor.mine === "yes" ? t("extAnsYesNote") : t("extAnsNoNote")}</small>
+                ) : (
+                  <>
+                    <div className="mtg__recask-btns">
+                      <button type="button" className="btn btn--pri btn--sm" onClick={() => answerExtension(true)}><IconPlus />{t("extConfirm")}</button>
+                      <button type="button" className="btn btn--line btn--sm" onClick={() => answerExtension(false)}><IconClose />{t("extDecline")}</button>
+                    </div>
+                    <small>{t("extAskNote")}</small>
+                  </>
+                )
+              ) : (
+                <small>{extFor.peer === "yes" ? t("extPeerYes") : extFor.peer === "no" ? t("extPeerNo") : t("pausedExpiry")}</small>
+              )}
             </div>
           ) : null}
           {/* Host only: buy more minutes for this meeting. Never while

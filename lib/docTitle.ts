@@ -4,11 +4,18 @@
 // the filename, and the odd double space.
 //
 // Measured against production (497 catalogue services, 988 document
-// templates, 2026-09-29): 12 titles start with "_", 47 end in ".", 4 hold a
-// double space, 3 still carry the ".docx" extension, 4 are nothing but a
-// UUID and 8 hide a Latin letter inside a Cyrillic word. The rules below are
-// exactly those cases and nothing speculative — a cleaner that guesses would
-// eventually eat a real title.
+// templates): 12 titles start with "_", 47 end in ".", 4 hold a double
+// space, 3 still carry the ".docx" extension and 8 hide a Latin letter
+// inside a Cyrillic word. The rules below are exactly those cases and
+// nothing speculative — a cleaner that guesses would eventually eat a real
+// title.
+//
+// The UUID rule is the exception, and deliberately kept: it was written for 4
+// rows whose title was a bare GUID, and later the same day the backend
+// renamed them (LEXGO_DOCUMENT_TITLE_CONSTRUCTOR_PROMPT_UPDATE_2026-09-29.md
+// §1). Re-measured after that fix: 0 of 497 and 0 of 988. The rule now
+// matches nothing, which is the point — it is the guard that keeps a
+// re-import from putting a GUID back on a card.
 //
 // Two rules were considered and rejected. Stripping a trailing "(1)"/"(2)"
 // would merge 11 sibling services that are genuinely different documents
@@ -38,11 +45,10 @@ export function cleanDocText(raw: string): string {
 const FILE_EXTENSION = /\.(docx?|pdf|rtf|odt|txt)$/i;
 
 // A row whose whole title is a UUID has no title: the importer fell back to
-// the file's GUID name and the document's real name was lost. 2 services and
-// 2 templates, all four of them "<uuid>" verbatim with a "<uuid>.docx" source
-// file behind them. Anchored over the whole string on purpose — a real title
-// that merely contained a UUID would keep it — and verified to match nothing
-// else across all 1485 rows.
+// the file's GUID name and the document's real name was lost. Anchored over
+// the whole string on purpose — a real title that merely contains a UUID
+// keeps it — and verified against all 1485 rows to match nothing else.
+// Production carries none of these today; see the header for why it stays.
 const UUID_ONLY = /^\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}?$/i;
 
 // The Latin letters whose Cyrillic twin is visually identical in this font

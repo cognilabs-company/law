@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth, canMakeCalls, sessionRoles } from "@/lib/auth";
-import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type AdminCallDetail } from "@/lib/services/backend";
+import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type AdminCallDetail, type LiveKitJoin } from "@/lib/services/backend";
 import { http, asArr, asDict, asStr, ApiError } from "@/lib/http";
 import { useResource } from "@/lib/useResource";
 import { shortDateTime } from "@/lib/date";
@@ -77,7 +77,7 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
   );
 }
 
-type Active = { roomId: string; callId: string; isCaller: boolean; title?: string; lk: { url: string; room: string; token: string } | null };
+type Active = { roomId: string; callId: string; isCaller: boolean; title?: string; lk: LiveKitJoin | null };
 
 // One row of GET /calls/invited — every meeting this account hosted or was
 // invited to (the host also has a participant record). Read raw so the list
@@ -237,7 +237,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         callId: call.id,
         isCaller: true,
         title: title.trim() || undefined,
-        lk: call.livekitToken ? { url: call.livekitUrl, room: call.livekitRoom, token: call.livekitToken } : null,
+        lk: call.livekitToken ? { url: call.livekitUrl, room: call.livekitRoom, token: call.livekitToken, hints: call.hints, quality: call.quality } : null,
       });
     } catch (e) {
       const s = e instanceof ApiError ? e.status : 0;

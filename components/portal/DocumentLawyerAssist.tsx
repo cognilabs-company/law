@@ -3,16 +3,16 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
-  requestServiceDocumentLawyer,
-  requestServiceDocumentLawyerWithFiles,
+  requestServiceDocumentLawyerGated,
+  requestServiceDocumentLawyerWithFilesGated,
   getServiceTemplateSourceFile,
   type DocLawyerFlow,
-  type DocumentRequest,
+  type DocLawyerSubmitResult,
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
 import { ApiError, isConflict, isPaymentRequired, logApiError, errDetail } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
-import DocumentRequestPanel from "./DocumentRequestPanel";
+import DocumentRequestPanel, { DocPagesField } from "./DocumentRequestPanel";
 import DocTemplateViewer from "./DocTemplateViewer";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
@@ -34,6 +34,7 @@ type LawyerRequestBody = {
   editorMode?: "ai_draft";
   extraInstructions?: string;
   requestedDocumentType?: string;
+  pageCount?: number;
 };
 
 // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: the old per-service
@@ -84,9 +85,21 @@ export default function DocumentLawyerAssist({
   // backend ask rather than invented here; until it exists the tick is a
   // gate, not a stored record.
   const [consent, setConsent] = useState(false);
+  // Set by a press that could not go through, cleared the moment the client
+  // fixes what it pointed at.
+  const [missing, setMissing] = useState<"" | "need" | "consent">("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [result, setResult] = useState<DocumentRequest | null>(null);
+  // The whole answer, not only the request row: past the free allowance the
+  // backend opens a payment gate and the request has NOT reached the
+  // advocates (LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md L124),
+  // and only `payment_required` in the answer says so.
+  const [result, setResult] = useState<DocLawyerSubmitResult | null>(null);
+  // How many pages the attached document runs to. Asked for only when there
+  // IS an attached document (see the field below), optional, and not sent
+  // when empty — MD L130: an absent page_count is the old behaviour, straight
+  // to the pool.
+  const [pages, setPages] = useState("");
   const [sent, setSent] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   // The request only opens the form once the client's plan allows it
@@ -100,7 +113,18 @@ export default function DocumentLawyerAssist({
   const [docType, setDocType] = useState("");
 
   async function submit() {
-    if (busy || !need.trim() || !consent) return;
+    if (busy) return;
+    if (!need.trim()) {
+      setMissing("need");
+      document.getElementById("lawyer-need")?.focus();
+      return;
+    }
+    if (!consent) {
+      setMissing("consent");
+      document.getElementById("lawyer-consent")?.focus();
+      return;
+    }
+    setMissing("");
     setBusy(true);
     setErr("");
     try {
@@ -110,9 +134,16 @@ export default function DocumentLawyerAssist({
       // request-with-files working exactly as it did.
       const send =
         (files.length || voices.length) && serviceId
-          ? (b: LawyerRequestBody) => requestServiceDocumentLawyerWithFiles(serviceId, { ...b, files, voiceFiles: voices.map((v) => v.blob) })
-          : (b: LawyerRequestBody) => requestServiceDocumentLawyer(lawyerFlow.requestUrl, b);
+          ? (b: LawyerRequestBody) => requestServiceDocumentLawyerWithFilesGated(serviceId, { ...b, files, voiceFiles: voices.map((v) => v.blob) })
+          : (b: LawyerRequestBody) => requestServiceDocumentLawyerGated(lawyerFlow.requestUrl, b);
+      const n = Number(pages);
       const r = await send({
+        // MD §1 and §2: page_count is optional on both of these endpoints.
+        // It goes only when the client answered the field, which only
+        // appears when they attached something for the advocate to read —
+        // this form's own flow is "write me this document", where there is
+        // no document yet and therefore no honest page count to send.
+        pageCount: files.length && pages && Number.isInteger(n) && n > 0 ? n : undefined,
         need: note.trim() ? `${need.trim()}\n\n${t("lawyerNoteLabel")}: ${note.trim()}` : need.trim(),
         // The consent the client just gave is recorded with the request, not
         // only enforced in the browser. Neither document-lawyer endpoint has a
@@ -150,13 +181,31 @@ export default function DocumentLawyerAssist({
     return (
       <>
         {/* MD2 §"Success holat" — the client is told the request went to the
-            call-center pool, not to a particular advocate. */}
-        {sent ? (
+            call-center pool, not to a particular advocate.
+
+            Unless the payment gate opened: LEXGO_FRONTEND_DOC_ANALYSIS_
+            PAYMENT_GATE_2026-09-28.md L124 is explicit that the frontend must
+            NOT say the request went to the advocates while the fee is
+            unapproved. The panel below then renders the wait itself (the
+            request comes back `payment_required`, MD L112-114), carrying the
+            amount and page breakdown from the answer — nothing else on the
+            client can produce them, since no GET returns a gate. */}
+        {sent && !result.paymentRequired ? (
           <p className="cform__ok" style={{ margin: "0 0 12px" }}>
             <IconCheck style={{ width: 16, height: 16 }} /> {t("lawyerSubmitted")}
           </p>
         ) : null}
-        <DocumentRequestPanel key={result.id} initialReq={result} fields={[]} sourceFile={sourceFile} />
+        {result.alreadyExists || !result.canSendLawyerRequest ? (
+          <Notice ok={false} msg={result.message || t("lawyerPendingLead")} />
+        ) : null}
+        <DocumentRequestPanel
+          key={result.request.id}
+          initialReq={result.request}
+          initialGate={result.gate}
+          fields={[]}
+          sourceFile={sourceFile}
+          onRetry={() => { setResult(null); setSent(false); }}
+        />
       </>
     );
 
@@ -211,7 +260,15 @@ export default function DocumentLawyerAssist({
         </div>
         {/* lexgo_frontend_doc_chat_update.md §1 prescribes this placeholder
             verbatim for the request-with-files form. */}
-        <textarea id="lawyer-need" rows={4} value={need} onChange={(e) => setNeed(e.target.value)} placeholder={tn("needPlaceholder")} />
+        <textarea
+          id="lawyer-need"
+          rows={4}
+          value={need}
+          onChange={(e) => { setNeed(e.target.value); if (e.target.value.trim()) setMissing((m) => (m === "need" ? "" : m)); }}
+          placeholder={tn("needPlaceholder")}
+          aria-invalid={missing === "need" || undefined}
+          className={missing === "need" ? "is-bad" : undefined}
+        />
 
         {/* The marginTop:10 that used to sit inline on each of the labels
             below is gone: label→control and group→group were then the same
@@ -222,6 +279,16 @@ export default function DocumentLawyerAssist({
 
         <label>{tn("extrasLabel")}</label>
         <AttachmentPicker files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onError={setErr} />
+
+        {/* Only once a document is actually attached. Asking "how many pages
+            is your document" of a client who has attached nothing — this
+            form's usual case, where the advocate WRITES the document — is a
+            question with no answer, and the fee it quotes would be for a
+            document nobody has. With a file attached the question is real:
+            past the free allowance the advocate's reading of it is charged
+            (MD §"Narx qoidasi"), and MD L121-127 wants that price on screen
+            before the send rather than arriving as a Telegram message. */}
+        {files.length ? <DocPagesField value={pages} onChange={setPages} /> : null}
 
         <label>{t("langLabel")}</label>
         <Select
@@ -246,7 +313,13 @@ export default function DocumentLawyerAssist({
           <IconShieldCheck />
           {t("consentTitle")}
         </b>
-        <CheckBox id="lawyer-consent" checked={consent} onChange={setConsent} hint={t("consentHint")}>
+        <CheckBox
+          id="lawyer-consent"
+          checked={consent}
+          onChange={(v) => { setConsent(v); if (v) setMissing(""); }}
+          invalid={missing === "consent"}
+          hint={t("consentHint")}
+        >
           {t("consentLabel")}
         </CheckBox>
       </div>
@@ -259,7 +332,9 @@ export default function DocumentLawyerAssist({
           three waits it marks. The other two thirds of `disabled` are an
           unfilled form and an unticked consent — neither is processing
           anything, so neither gets the clock. */}
-      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy || !need.trim() || !consent} aria-busy={busy || undefined}>
+      {missing === "consent" ? <p className="cform__bad" role="alert">{t("consentRequired")}</p> : null}
+
+      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy} aria-busy={busy || undefined}>
         {busy ? <WaitClock /> : null}
         {busy ? t("processingShort") : t("lawyerSubmit")}
       </button>

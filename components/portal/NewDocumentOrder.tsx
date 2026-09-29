@@ -4,14 +4,15 @@ import { useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   requestCustomDraft,
-  requestExistingDocumentReview,
+  requestExistingDocumentReviewGated,
+  type DocLawyerSubmitResult,
   type DocumentRequest,
 } from "@/lib/services/backend";
 import { ApiError, isPaymentRequired, logApiError, errDetail } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
 import { Link } from "@/i18n/navigation";
 import Select from "@/components/Select";
-import DocumentRequestPanel from "./DocumentRequestPanel";
+import DocumentRequestPanel, { DocPagesField } from "./DocumentRequestPanel";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
 import DocTypePicker from "./DocTypePicker";
@@ -116,6 +117,13 @@ export function WaitClock() {
 // the client for it: the document type they picked plus the opening line of
 // what they wrote already reads like the MD's own example title ("Menga
 // ijara shartnomasi kerak").
+// A request from an endpoint that has no payment gate, in the shape the
+// gated ones answer in — so the screen below reads one field, `paymentRequired`,
+// whichever flow sent the request.
+function ungated(request: DocumentRequest): DocLawyerSubmitResult {
+  return { request, paymentRequired: false, gate: null, alreadyExists: false, canSendLawyerRequest: true, message: "", constructorAction: null };
+}
+
 function draftTitle(docType: string, need: string): string {
   const firstLine = need.split("\n").find((l) => l.trim()) || "";
   const s = [docType.trim(), firstLine.trim()].filter(Boolean).join(" — ").replace(/\s+/g, " ");
@@ -144,7 +152,19 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
   const [err, setErr] = useState("");
   const [planRequired, setPlanRequired] = useState("");
   const [planGateOpen, setPlanGateOpen] = useState(false);
-  const [result, setResult] = useState<DocumentRequest | null>(null);
+  // The whole answer of the send, not only the request row — past the free
+  // allowance review-existing opens a payment gate and the request has NOT
+  // reached the advocates (LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_
+  // 2026-09-28.md L124). The from-scratch flow is not one of the four gated
+  // endpoints, so its plain request is wrapped into the same shape rather
+  // than given a second state to carry it.
+  const [result, setResult] = useState<DocLawyerSubmitResult | null>(null);
+  // The page count of the document being handed over. Optional: MD L81-84
+  // says this endpoint's backend derives it from the file when it is absent
+  // (PDF: the real count; DOCX/TXT: 2 500 characters per page), which is a
+  // better number than a guess — so this is an override for when the client
+  // knows better, and an empty field keeps exactly today's behaviour.
+  const [pages, setPages] = useState("");
 
   const mainRef = useRef<HTMLInputElement>(null);
 
@@ -178,11 +198,21 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
     setErr("");
     const payload = { need: need.trim(), language: lang, files, voiceFiles: voices.map((v) => v.blob) };
     const title = draftTitle(docType, need);
+    const n = Number(pages);
     try {
       const r =
         flow === "review" && mainFile
-          ? await requestExistingDocumentReview({ ...payload, mainFile })
-          : await requestCustomDraft({ ...payload, title: title || undefined, requestedDocumentType: docType || undefined });
+          ? // MD §4: page_count is an optional form field here, sent only
+            // when the client filled the box in. Left empty it is not
+            // appended at all, and the backend counts the pages of main_file
+            // itself — the behaviour this flow has always had.
+            await requestExistingDocumentReviewGated({ ...payload, mainFile, pageCount: pages && Number.isInteger(n) && n > 0 ? n : undefined })
+          : // "0 dan hujjat yasash" is not one of the four endpoints that can
+            // open a gate (there is no document to charge by the page for),
+            // so its plain answer is lifted into the same shape by hand —
+            // normDocLawyerSubmit reads a RAW backend dict and would mangle
+            // an already-normalised request.
+            ungated(await requestCustomDraft({ ...payload, title: title || undefined, requestedDocumentType: docType || undefined }));
       setResult(r);
     } catch (e) {
       if (isPaymentRequired(e)) {
@@ -201,8 +231,28 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
   if (result)
     return (
       <>
-        <p className="cform__ok" style={{ margin: "0 0 12px" }}>{t("submitted")}</p>
-        <DocumentRequestPanel key={result.id} initialReq={result} fields={[]} />
+        {/* MD L124: while the fee is unapproved the request has NOT reached
+            the advocates, so the green "yuborildi" line is withheld and the
+            panel below shows the wait instead — the request itself comes back
+            `payment_required` (MD L112-114) and carries the amount and page
+            breakdown the answer gave, which no later GET can produce. */}
+        {result.paymentRequired || result.alreadyExists || !result.canSendLawyerRequest ? null : (
+          <p className="cform__ok" style={{ margin: "0 0 12px" }}>{t("submitted")}</p>
+        )}
+        {/* `already_exists` is the constructor endpoint's own refusal, but it
+            travels in the shape all four answers share — and if this one ever
+            starts sending it, "yuborildi" above would be a lie. Shown in the
+            backend's words rather than invented here. */}
+        {result.alreadyExists || !result.canSendLawyerRequest ? (
+          <Notice ok={false} msg={result.message || td("lawyerPendingLead")} />
+        ) : null}
+        <DocumentRequestPanel
+          key={result.request.id}
+          initialReq={result.request}
+          initialGate={result.gate}
+          fields={[]}
+          onRetry={() => setResult(null)}
+        />
       </>
     );
 
@@ -297,6 +347,13 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
               <small>{mainFile ? t("mainFileChange") : t("mainFileHint", { mb: MAX_FILE_MB })}</small>
             </span>
           </button>
+          {/* The one place in the product where the client is holding the
+              document the fee is computed from, so it is the one place the
+              page count can honestly be asked for — and MD L121-127 wants
+              the price of the advocate's review on screen before the send,
+              never first as a Telegram message. Optional: left empty, the
+              backend derives the count from main_file itself. */}
+          <DocPagesField value={pages} onChange={setPages} />
         </section>
       ) : null}
 

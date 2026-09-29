@@ -62,6 +62,7 @@ import {
   IconClose,
   IconChevronRight,
   IconLayers,
+  IconPhone,
 } from "@/components/icons";
 
 // LEXGO_URGENT_ADVOCATE_FRONTEND_UPDATE.md — "Tezkor Advokat xizmati online".
@@ -113,6 +114,31 @@ const VIDEO_ITEMS = ["video_consultation", "express_video_consultation"];
 // position and falls in after these.
 const CARD_ORDER = ["video_consultation", "chat_consultation", "traffic_accident_consultation"];
 
+// The immediate call an express or YTX order opens, as this screen needs it:
+// the session to join plus the three facts its header has to state.
+//
+// `serviceKind` is carried rather than assumed to be express.
+// LEXGO_EXPRESS_VIDEOKONSULTATSIYA_AUDIO_CALL_FRONTEND_2026_09_28.md L36 —
+// "`traffic_accident_consultation` ham shu immediate audio call flow bilan
+// ishlaydi" — and the live catalog agrees: both services answer
+// immediate_call: true (GET /urgent-advokat/catalog, read 2026-09-29), so a
+// hardcoded "Express videokonsultatsiya" title mislabelled every road-accident
+// call. `lawyer` is the on-duty advocate the create response names in
+// `assigned_lawyer` (same MD, L51-56): the client is about to speak to a
+// person and should be told who before the room opens.
+type LiveCall = { call: NonNullable<UrgentCreated["call"]>; workId: string; serviceKind: string; lawyer: string };
+
+// The 15-minute rating window, as mm:ss. Counted down from the backend's own
+// `rating_deadline_at` rather than from fifteen, so a detail left open all
+// night shows the truth — the same reasoning, and the same shape, as
+// DocRatingBox's private `clock()`. It is copied rather than imported because
+// that helper is module-private to DocRatingBox and this workpackage does not
+// own that file; the lead may lift one of the two into a shared module.
+function ratingClock(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
 export default function UrgentAdvocatePanel() {
   const t = useTranslations("portal.client.urgent");
   const te = useTranslations("enums");
@@ -136,7 +162,7 @@ export default function UrgentAdvocatePanel() {
   // assigned and an audio call ringing, so the client goes straight into the
   // call rather than to a list of requests. Verified live: status
   // "meeting_active", immediate_call true, call_type "audio".
-  const [live, setLive] = useState<{ call: UrgentCreated["call"]; workId: string } | null>(null);
+  const [live, setLive] = useState<LiveCall | null>(null);
   // Stored as a PREFERENCE and resolved against what the picked service
   // offers, rather than corrected by an effect after the fact: switching to a
   // chat-only service must not leave one render showing a video price.
@@ -293,10 +319,32 @@ export default function UrgentAdvocatePanel() {
       setReload((k) => k + 1);
       if (created.immediateCall && created.call) {
         // Straight into the room. No "your request was sent" banner — it was
-        // not sent anywhere, it is ringing.
-        setLive({ call: created.call, workId: created.request.workId });
+        // not sent anywhere, it is ringing. The kind and the named on-duty
+        // advocate travel with the session so the call header can say which
+        // service this is and who is on the other end.
+        setLive({
+          call: created.call,
+          workId: created.request.workId,
+          serviceKind: sel.key,
+          lawyer: created.request.assignedLawyerName,
+        });
         return;
       }
+      if (created.immediateCall) {
+        // Same MD, L82: the flow is "immediate_call=true VA call_session
+        // bo'lsa". The code used to read only the first half and would have
+        // dropped the client on a silent screen when the backend found nobody
+        // free — there is then no session to join and the request has simply
+        // been queued instead. The backend supplies a ready Uzbek sentence for
+        // this case in `message`; it is preferred over ours whenever it sent
+        // one. (Reasoned, not observed: reaching it needs a POST with every
+        // on-duty advocate busy, which a read-only probe cannot arrange.)
+        setNote({ ok: true, msg: created.message || t("noDutyLawyer") });
+        return;
+      }
+      // Only the immediate-call branch above prefers the backend's sentence:
+      // the express MD names `message` for that one case, and an ordinary
+      // queued order has a better Uzbek line of its own here.
       setNote({ ok: true, msg: t("sent") });
     } catch (e) {
       if (isPriorPurchaseRequired(e)) { setGate(errDetail(e) || t("priorPurchase")); return; }
@@ -393,6 +441,29 @@ export default function UrgentAdvocatePanel() {
                   <span className="uacard__lock"><IconLock />{t("priorPurchaseShort")}</span>
                 ) : null}
                 <span className="uacard__go" aria-hidden><IconArrowRight /></span>
+
+                {/* What the dialog would tell you, on hover and on keyboard
+                    focus. It is absolutely positioned, so the grid row never
+                    grows and the page underneath cannot jump — the reason the
+                    in-flow version had to go. A touch device never fires
+                    hover and is given nothing here; it taps the card and gets
+                    the dialog, which carries the same sentences. Marked
+                    aria-hidden because every fact in it is already on the card
+                    or one tap away, and a screen reader should not hear the
+                    service described twice. */}
+                <span className="uacard__peek" aria-hidden>
+                  <b>{name}</b>
+                  {lead ? <span>{lead}</span> : null}
+                  <em>{how}</em>
+                  {card.group ? (
+                    <span className="uacard__peekk">
+                      {card.items.map((x) => (
+                        <b key={x.key}>{t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}</b>
+                      ))}
+                    </span>
+                  ) : null}
+                  {s.requiresPriorPurchase ? <em>{t("priorPurchaseShort")}</em> : null}
+                </span>
 
                 {/* The card stretches to fit this; it is not floated over
                     anything, so it is readable at any width and cannot be
@@ -524,9 +595,27 @@ export default function UrgentAdvocatePanel() {
               ) : null}
               <p className="ua__next"><IconCheck />{isGroup ? t("nextGroup") : t("next")}</p>
               {/* express / YTX go to the on-duty advocate rather than the
-                  ordinary pool, which is the whole reason to pay more. */}
-              {sel.key === "express_video_consultation" || sel.key === "traffic_accident_consultation" ? (
-                <p className="ua__next"><IconBolt />{t("onDuty")}</p>
+                  ordinary pool, which is the whole reason to pay more. Read
+                  off the catalog's own immediate_call flag instead of the two
+                  service keys it used to name: the live catalog sets it on
+                  express AND on traffic_accident_consultation (GET
+                  /urgent-advokat/catalog, 2026-09-29), which is exactly what
+                  the express MD's L36 says, and a third immediate kind the
+                  backend adds would have kept the pool wording. */}
+              {sel.immediateCall ? (
+                <>
+                  <p className="ua__next"><IconBolt />{t("onDuty")}</p>
+                  {/* LEXGO_EXPRESS_…md L160-162: "Bu xizmat nomi frontendda
+                      hali ham `Express videokonsultatsiya` bo'lishi mumkin,
+                      lekin backend real ulanishni audio call sifatida
+                      ochadi." The client is paying for something called a
+                      video consultation and will be put into an audio room —
+                      said here, before the button, rather than discovered
+                      when the camera never turns on. Verified on the live
+                      record LGT-20260928-224E46AF, whose payload carries
+                      call_channel "audio" for an express order. */}
+                  <p className="ua__next ua__next--audio"><IconPhone />{t("audioNote")}</p>
+                </>
               ) : null}
               {sel.supportsFiles || sel.supportsVoice ? <p className="ua__next ua__next--muted"><IconChat />{t("filesInChat")}</p> : null}
             </div>
@@ -599,6 +688,32 @@ export default function UrgentAdvocatePanel() {
                   {r.groupLawyers.length ? (
                     <span className="ua__when"><IconUsers />{t("panelOf", { names: r.groupLawyers.map((g) => g.name).join(", ") })}</span>
                   ) : null}
+                  {/* LEXGO_EXPRESS_…md L104-120 and L137-141: an immediate
+                      order carries payload.call_status and payload.call_channel
+                      alongside the request's own status. They say two things
+                      `status` cannot. A record sitting at "meeting_active"
+                      with call_status "calling" is a phone still ringing, not
+                      a meeting under way — the live list has exactly such a
+                      row (LGT-20260928-224E46AF, call_status "calling",
+                      call_channel "audio") and it read identically to a
+                      running one. And the channel is the audio/video answer
+                      for a service whose NAME says video, so it is stated
+                      rather than inferred from the service key. An unknown
+                      value from a later backend is printed as it came rather
+                      than swallowed. */}
+                  {r.callStatus || r.callChannel ? (
+                    <span className={`ua__call${r.callStatus === "calling" ? " ua__call--ring" : ""}`}>
+                      <IconPhone />
+                      {r.callStatus
+                        ? t.has(`callState.${r.callStatus}`) ? t(`callState.${r.callStatus}`) : r.callStatus
+                        : null}
+                      {r.callChannel ? (
+                        <em className="ua__callch">
+                          {r.callChannel === "audio" ? t("chAudio") : r.callChannel === "video" ? t("chVideo") : r.callChannel}
+                        </em>
+                      ) : null}
+                    </span>
+                  ) : null}
                 </div>
                 {/* The row itself opens the detail, so anything clickable in
                     here must keep its own click to itself. */}
@@ -621,15 +736,28 @@ export default function UrgentAdvocatePanel() {
       {/* An express or YTX request is a call, not a queue entry: it opens
           here the moment the backend answers. `callType` comes off the
           session the backend made, which is audio even for the kind whose
-          name says video. */}
-      {live && live.call ? (
+          name says video.
+
+          The header used to be hardcoded to the express service name, so a
+          YTX call (same immediate flow — express MD L36) announced itself as
+          an express consultation. It now names the kind that was actually
+          ordered and the advocate the response assigned (`assigned_lawyer`,
+          MD L51-56), so the client can see who picked up before anyone
+          speaks. */}
+      {live ? (
         <CallRoom
           roomId={live.call.roomId}
           callId={live.call.id}
           callType={live.call.callType === "video" ? "video" : "audio"}
           isCaller
-          lk={{ url: live.call.livekitUrl, token: live.call.livekitToken, room: live.call.livekitRoom }}
-          title={live.workId ? `${t("kinds.express_video_consultation")} · ${live.workId}` : undefined}
+          lk={{ url: live.call.livekitUrl, token: live.call.livekitToken, room: live.call.livekitRoom, hints: live.call.hints, quality: live.call.quality }}
+          title={
+            [
+              t.has(`kinds.${live.serviceKind}`) ? t(`kinds.${live.serviceKind}`) : "",
+              live.lawyer,
+              live.workId,
+            ].filter(Boolean).join(" · ") || undefined
+          }
           onEnd={() => { setLive(null); setReload((k) => k + 1); }}
         />
       ) : null}
@@ -735,10 +863,44 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   const [rHover, setRHover] = useState(0);
   const [rComment, setRComment] = useState("");
   const [rDone, setRDone] = useState(false);
+  // The window having shut is NOT the same answer as a rating having been
+  // given, and both used to set rDone: a client who missed the fifteen
+  // minutes was thanked for a rating they never left. Its own flag now, so
+  // the 409 the backend answers ("Muddati o'tsa 409", FULL_DOCS §39) shows
+  // the closed card below instead.
+  const [rClosed, setRClosed] = useState(false);
   const [rErr, setRErr] = useState("");
+  // Ticks the countdown, from a timer callback — never from an effect body.
+  const [now, setNow] = useState(() => Date.now());
 
   const canCancel = req.nextStatuses.includes("cancelled");
-  const canRate = !rDone && ratingOpen(req.rating);
+  // FULL_DOCS §39 (L1361-1385) and the §51 checklist line "Rating timer 15
+  // minut chiqadi / 15 minutdan keyin rating yopiladi": the urgent card had
+  // stars and no clock, so the window expired in silence and the send then
+  // failed with a 409 the client could not have predicted. The deadline is
+  // the backend's own `rating.deadline_at` — verified live on
+  // LGT-20260928-EBA06E95, which answers
+  // {available: true, deadline_at: "2026-09-28T09:06:14.742794+00:00"} —
+  // and the remaining time is computed from it rather than counted down from
+  // fifteen, so a modal left open overnight cannot offer a window that shut
+  // hours ago. This is the same contract DocRatingBox already honours for
+  // documents.
+  const deadline = req.rating.deadlineAt ? Date.parse(req.rating.deadlineAt) : NaN;
+  const timed = !Number.isNaN(deadline);
+  const left = timed ? deadline - now : Infinity;
+  const canRate = !rDone && !rClosed && ratingOpen(req.rating) && left > 0;
+  // The window was open and ran out under the client's eyes, or the backend
+  // refused a late send. Either way there is something to say — a card that
+  // simply vanished looked like a bug.
+  const rShut = rClosed || (!rDone && !req.rating.submitted && req.rating.available && timed && left <= 0);
+
+  // One interval for the whole window; the dependency is `timed`, not `left`,
+  // so the timer is not torn down and rebuilt on every tick.
+  useEffect(() => {
+    if (!timed) return;
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, [timed]);
   // What the star row should look like right now: the hovered star while the
   // pointer is on it, otherwise the one that was picked.
   const rShown = rHover || stars;
@@ -752,8 +914,10 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
       setRDone(true);
     } catch (e) {
       // Already rated, or the window has closed — both are 409 and both are
-      // an answer, not a failure.
-      if (isRatingClosed(e)) { setRDone(true); return; }
+      // an answer, not a failure. They are not the SAME answer, though, and
+      // `rating.submitted` is what tells them apart: without a rating on the
+      // record the 409 can only mean the fifteen minutes are up.
+      if (isRatingClosed(e)) { if (req.rating.submitted) setRDone(true); else setRClosed(true); return; }
       logApiError("urgent rating", e);
       setRErr(errDetail(e) || t("rateError"));
     } finally {
@@ -782,7 +946,18 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
           work is completed, so this block simply stops rendering. */}
       {canRate ? (
         <div className="uamore__block urate">
-          <b><RateStar />{t("rateTitle")}</b>
+          {/* The clock sits on the title row, where the document rating window
+              already puts it (.drate__left), so a client who has rated a
+              finished document meets the same widget here. aria-live is
+              "off": a value that changes once a second would be read out once
+              a second, and the minutes remaining are not news on every tick —
+              the deadline is also spelled out in words underneath. */}
+          <div className="urate__h">
+            <b><RateStar />{t("rateTitle")}</b>
+            {timed ? (
+              <span className="urate__left" aria-live="off"><IconClock />{t("rateLeft", { time: ratingClock(left) })}</span>
+            ) : null}
+          </div>
           <span className="advmuted">{t("rateLead")}</span>
           {/* Two classes for two questions. `on` means "draw this one gold"
               and follows the preview, so the row fills and empties as the
@@ -837,6 +1012,13 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
         <div className="uamore__block uamore__block--ok">
           <b><RateStar />{t("rateThanks")}</b>
           {req.rating.value ? <span className="advmuted">{t("rateGiven", { n: req.rating.value })}</span> : null}
+        </div>
+      ) : rShut ? (
+        // The window ran out. Said plainly, and the stars are gone: leaving
+        // them on screen invites a send the backend will only answer 409 to.
+        <div className="uamore__block uamore__block--warn urate__shut">
+          <b><IconClock />{t("rateClosedTitle")}</b>
+          <span className="advmuted">{t("rateClosedText")}</span>
         </div>
       ) : null}
 

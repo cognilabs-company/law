@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -16,8 +16,9 @@ import {
   type DocumentRequestEditorSession,
   type FinalizeDocumentRequestResult,
   type CallParticipant,
+  type LiveKitJoin,
 } from "@/lib/services/backend";
-import { ApiError, asDict, asStr, isConflict, logApiError } from "@/lib/http";
+import { ApiError, asDict, asStr, errDetail, http, isConflict, logApiError } from "@/lib/http";
 import { cleanDocTitle } from "@/lib/docTitle";
 import { fetchAndDeliver, extFromMime } from "@/lib/download";
 import { humanizeSlug, initials } from "@/lib/lawyers";
@@ -27,6 +28,11 @@ import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
+// §14 option 1 ("Advokat o'zi file upload qiladi") is the upload the inbox
+// already owns — the same DOCX → POST fulfill-file dialogue, not a second
+// copy of it. It lives in the inbox file because that is where it was first
+// needed; it is exported rather than duplicated here.
+import { FulfillModal } from "./DocumentRequestsInbox";
 import CallRoom from "@/components/chat/CallRoom";
 import SecureChat from "@/components/chat/SecureChat";
 import {
@@ -45,6 +51,9 @@ import {
   IconMenu,
   IconFileText,
   IconHeadset,
+  IconLock,
+  IconSparkle,
+  IconUpload,
 } from "@/components/icons";
 
 // LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md: a dedicated full-page
@@ -67,7 +76,7 @@ declare global {
 type RightTab = "chat" | "meeting" | "versions" | "info";
 type EditorState = "loading" | "ready" | "needsClaim" | "error";
 type SaveState = "" | "saving" | "saved" | "error";
-type Meeting = { roomId: string; callId: string; lk: { url: string; room: string; token: string } | null; open: boolean; isCaller: boolean };
+type Meeting = { roomId: string; callId: string; lk: LiveKitJoin | null; open: boolean; isCaller: boolean };
 
 // MD2's five documented states: Yangi / Olingan / Jarayonda / Tayyor / Yuborilgan.
 // "Olingan" is a claimed record nobody has saved anything on yet; it becomes
@@ -105,6 +114,46 @@ function storedRightW(): number {
     return clampRightW(v > 0 ? v : RIGHT_DEF, window.innerWidth);
   } catch {
     return RIGHT_DEF;
+  }
+}
+
+// ── §14 "Advokat editor ochilishidan oldingi 3 variant" (L527-548) ──
+// The MD is explicit that three starting points are offered BEFORE the
+// editor page opens — the advocate uploads their own file, works on the
+// client's file, or works on an AI draft — and it names `editor_mode` /
+// `editor_source` as where the backend keeps that decision.
+//
+// MEASURED against production on 2026-09-29, read-only with the client
+// token: over the 50 newest document requests on GET
+// /document-requests/service-flow, the `editor_mode` values the API has
+// actually stored (answers.editor_mode on GET /document-requests/{id}) are
+// "lawyer_editor" (5 requests) and "ai_draft" (1); the other 44 carry no
+// editor_mode at all. "template", "client_file" and "upload_file" appear on
+// nothing, and `editor_source` — which lexgo_frontend_custom_doc_flows.md
+// documents as blank|uploaded_docx — is absent from every client-readable
+// payload. §14's "Tavsiya enum" is therefore a PROPOSAL, not the live
+// contract, which matches what an earlier pass in this repo learned by
+// collecting 422s from sending "client_file"/"upload_file".
+//
+// So the chooser below sends nothing. It routes the advocate locally: the
+// upload option opens the fulfill-file upload that already exists, and the
+// other two open the system editor on whatever file the backend itself
+// prepared — with the prepared one marked as such, and the other shown with
+// the real reason it is shut instead of a button that would 422. The
+// missing piece (an advocate-side endpoint that accepts the choice) is
+// written up in backendAsks.
+type StartChoice = "upload" | "client_file" | "ai_draft";
+const START_KEY = "lexgo_deditor_start";
+// Stored per RECORD, not globally: the advocate answers "how do we start?"
+// once for this document, and a reload — including the automatic one this
+// workspace does on every claim/finalize realtime event — must not throw
+// them back to the chooser over an editor already holding their work.
+function storedStarted(recordId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(`${START_KEY}_${recordId}`) === "1";
+  } catch {
+    return false;
   }
 }
 
@@ -163,6 +212,13 @@ export default function DocumentEditorWorkspace({
   const [editor, setEditor] = useState<DocumentRequestEditorSession | null>(null);
   const [editorState, setEditorState] = useState<EditorState>("loading");
   const [editorErrStatus, setEditorErrStatus] = useState(0);
+  // §15 L600 asks for the BACKEND's reason, not ours. The editor endpoint
+  // answers refusals with a human sentence — production returns e.g.
+  // {"detail":"Faqat callcenter advokatlar ko'ra oladi"} on
+  // /call-center/document-requests/open and {"detail":"Hujjat so'rovi
+  // topilmadi"} on an unknown record id (both measured 2026-09-29) — and
+  // that sentence used to be dropped in favour of a generic status message.
+  const [editorErrDetail, setEditorErrDetail] = useState("");
   const [claimUrl, setClaimUrl] = useState("");
   const [claimBusy, setClaimBusy] = useState(false);
   const [claimErr, setClaimErr] = useState<"" | "taken" | "generic">("");
@@ -189,6 +245,7 @@ export default function DocumentEditorWorkspace({
         }
         logApiError("document-request editor", e);
         setEditorErrStatus(e instanceof ApiError ? e.status : 0);
+        setEditorErrDetail(errDetail(e));
         setEditorState("error");
       });
     return () => {
@@ -211,6 +268,103 @@ export default function DocumentEditorWorkspace({
       if (!isConflict(e)) logApiError("document-request claim", e);
     } finally {
       setClaimBusy(false);
+    }
+  }
+
+  // ── §15 L600: "can_open_editor=false bo'lsa editor ochmasin,
+  // editor_block_reason ko'rsatsin" ─────────────────────────────────
+  // Until now a blocked record simply produced nothing on this screen: the
+  // editor endpoint refused, the refusal was flattened into the generic
+  // "templateError" sentence, and nobody was told why. Two of the three
+  // false-y cases are NOT blocks and are excluded here:
+  //   • `canClaim` — an unclaimed record is claimable, not blocked, and the
+  //     file-header contract above depends on that case still reaching the
+  //     editor endpoint so its 409 can hand back `claim_url`;
+  //   • status "completed" — a delivered record's can_open_editor is false
+  //     (normLawyerDocRequest also defaults it to false off that status),
+  //     yet the workspace must still open so the advocate can read back
+  //     what they sent. DocumentRequestsInbox.openRecord makes the same two
+  //     exceptions, and the two screens have to agree or a row the list
+  //     lets you click lands on a wall.
+  const blocked = !!req && !req.canOpenEditor && !req.canClaim && req.status !== "completed";
+  // Already with the client. Nothing about §14's "how do we start?" applies
+  // any more, and every one of its three options would be disabled — so the
+  // gate is skipped outright rather than shown as a dead end. Read off the
+  // record because this is needed above the finalize state further down.
+  const delivered = req?.status === "completed";
+  const [blockReason, setBlockReason] = useState("");
+  const [systemEditorSupported, setSystemEditorSupported] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!blocked) return;
+    let alive = true;
+    // A raw re-read of the record getMyLawyerDocumentRequest() already
+    // fetched above. backend.ts is frozen for this pass and its
+    // normLawyerDocRequest keeps `can_open_editor` while dropping the two
+    // fields §15 prints beside it, so this is the only way to show the
+    // backend's OWN wording instead of a sentence we invented. It costs one
+    // GET and only on the blocked path, which is the rare one — see
+    // backendAsks: adding `editorBlockReason`/`systemEditorSupported` to
+    // LawyerDocumentRequest deletes this whole effect.
+    // §15's example nests both inside `request`, while the detail endpoint
+    // serves the same lawyer_request object flat (that is where
+    // normLawyerDocRequest finds can_open_editor), so every spelling is
+    // read rather than guessed at.
+    http(`/lawyers/me/document-requests/${recordId}`)
+      .then((raw) => {
+        if (!alive) return;
+        const d = asDict(raw);
+        const lr = d.lawyer_request ? asDict(d.lawyer_request) : d;
+        const rq = asDict(d.request);
+        setBlockReason(asStr(lr.editor_block_reason) || asStr(rq.editor_block_reason) || asStr(d.editor_block_reason));
+        const se = [lr.system_editor_supported, rq.system_editor_supported, d.system_editor_supported].find((v) => typeof v === "boolean");
+        setSystemEditorSupported(typeof se === "boolean" ? se : null);
+      })
+      .catch((e) => {
+        // The panel still states the block with its own fallback wording:
+        // losing the reason must never turn a blocked editor back into the
+        // silent blank screen this row exists to kill.
+        logApiError("document-request editor block reason", e);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [blocked, recordId, reqReloadKey]);
+
+  // ── §14: the three-option start gate ──────────────────────────────
+  const [started, setStarted] = useState(() => storedStarted(recordId));
+  const [uploadOpen, setUploadOpen] = useState(false);
+  // What the CLIENT asked for when the request was created — the one piece
+  // of §14's decision that demonstrably exists on the wire (see the
+  // StartChoice comment block for the production measurement). "ai_draft"
+  // means the backend has already written a draft into the editor file, so
+  // the AI option is an accomplished fact to be named, not something this
+  // screen can ask for.
+  const requestedEditorMode = asStr(req?.answers.editor_mode) || asStr(req?.request.answers.editor_mode);
+  const aiDraftReady = requestedEditorMode === "ai_draft";
+  function start(choice: StartChoice) {
+    // Upload is the one option that does not open the editor at all: it
+    // ends the job with the advocate's own file, so it opens the existing
+    // fulfill dialogue and leaves the gate standing behind it.
+    if (choice === "upload") {
+      setUploadOpen(true);
+      return;
+    }
+    setStarted(true);
+    try {
+      localStorage.setItem(`${START_KEY}_${recordId}`, "1");
+    } catch {
+      /* private mode */
+    }
+  }
+  // The three options must stay reachable after the first answer — an
+  // advocate who opened the editor and then decided to deliver their own
+  // file would otherwise have to go back to the inbox to find the upload.
+  function reopenStart() {
+    setStarted(false);
+    try {
+      localStorage.removeItem(`${START_KEY}_${recordId}`);
+    } catch {
+      /* private mode */
     }
   }
 
@@ -254,8 +408,14 @@ export default function DocumentEditorWorkspace({
   const ooRef = useRef<{ destroyEditor?: () => void } | null>(null);
   const sessionId = editor?.sessionId || "";
   const configured = !!editor?.configured;
+  // §15 L600 "editor ochmasin" and §14 "editor page ochilishidan oldin 3 ta
+  // option" are both statements about the editor never being MOUNTED, not
+  // just hidden: the container div is not rendered in either state, and a
+  // DocEditor built against a missing id would only throw into the catch
+  // below and leave the advocate staring at a pane that is silently dead.
+  const canMount = !blocked && (started || delivered);
   useEffect(() => {
-    if (editorState !== "ready" || !configured || !editor?.onlyoffice) return;
+    if (editorState !== "ready" || !configured || !canMount || !editor?.onlyoffice) return;
     const oo = editor.onlyoffice as Record<string, unknown>;
     const serverUrl = typeof oo.document_server_url === "string" ? oo.document_server_url.replace(/\/$/, "") : "";
     if (!serverUrl) return;
@@ -324,7 +484,7 @@ export default function DocumentEditorWorkspace({
       ooRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorState, sessionId, configured]);
+  }, [editorState, sessionId, configured, canMount]);
 
   // ── Files ────────────────────────────────────────────────────────
   const [preview, setPreview] = useState<"template" | "editorFile" | "final" | "">("");
@@ -369,7 +529,7 @@ export default function DocumentEditorWorkspace({
       setMeeting({
         roomId: m.roomId,
         callId: m.id,
-        lk: m.livekitToken ? { url: m.livekitUrl, room: m.livekitRoom, token: m.livekitToken } : null,
+        lk: m.livekitToken ? { url: m.livekitUrl, room: m.livekitRoom, token: m.livekitToken, hints: m.hints, quality: m.quality } : null,
         open: true,
         isCaller: true,
       });
@@ -558,7 +718,41 @@ export default function DocumentEditorWorkspace({
   const templateName = cleanDocTitle(req?.templateName || req?.templateFile?.fileName || "");
   const templateLabel = templateName && templateName !== cleanDocTitle(req?.serviceName || "") ? templateName : "";
   const chatRoomId = req?.secureChatRoomId || "";
-  const editorErrMsg = editorErrStatus === 403 ? t("noAccess") : editorErrStatus === 404 ? t("notFound") : t("templateError");
+  // The server's own sentence first (errDetail translates the Uzbek-only
+  // wording into the UI locale via lib/apiMessage), the status map only as
+  // the fallback for a refusal that carried no detail at all.
+  const editorErrMsg = editorErrDetail || (editorErrStatus === 403 ? t("noAccess") : editorErrStatus === 404 ? t("notFound") : t("templateError"));
+  // The three §14 options, in the MD's own order. Exactly one of the two
+  // editor options is live at a time, because the backend — not this screen
+  // — decides which file the editor session holds (`editor_source`), and
+  // offering the other as a button would promise something no endpoint can
+  // deliver. The dead one still shows, with the true reason it is shut.
+  const startOptions: { key: StartChoice; icon: ReactNode; title: string; text: string; enabled: boolean; recommended: boolean }[] = [
+    {
+      key: "upload",
+      icon: <IconUpload />,
+      title: t("startUpload"),
+      text: t("startUploadText"),
+      enabled: !!req?.fulfillFileUrl && !isSent,
+      recommended: false,
+    },
+    {
+      key: "client_file",
+      icon: <IconFileText />,
+      title: t("startClient"),
+      text: aiDraftReady ? t("startClientBusy") : t("startClientText"),
+      enabled: !aiDraftReady && editorState === "ready",
+      recommended: !aiDraftReady,
+    },
+    {
+      key: "ai_draft",
+      icon: <IconSparkle />,
+      title: t("startAi"),
+      text: aiDraftReady ? t("startAiText") : t("startAiUnavailable"),
+      enabled: aiDraftReady && editorState === "ready",
+      recommended: aiDraftReady,
+    },
+  ];
 
   return (
     // The right panel's width lives on the ROOT, not on the body, so the top
@@ -721,13 +915,58 @@ export default function DocumentEditorWorkspace({
                     </button>
                   </div>
                 ) : null}
+                {/* §14's three options are a decision, not a one-way door:
+                    an advocate who opened the editor and then decided to
+                    deliver their own file reaches the upload from here
+                    instead of having to walk back to the inbox. Hidden once
+                    the document is with the client, when nothing is left to
+                    choose. */}
+                {started && !blocked && !isSent ? (
+                  <div className="dsec__acts">
+                    <button type="button" className="dchip" onClick={reopenStart}>
+                      <IconRefresh /> {t("startChange")}
+                    </button>
+                  </div>
+                ) : null}
               </section>
             </>
           )}
         </aside>
 
         <main className="deditor__main">
-          {editorState === "loading" ? (
+          {/* §15 L600, first branch of all: a blocked record never reaches
+              the editor states below, so nothing can mount an editor the
+              backend has closed — and the advocate is told why instead of
+              being left on a blank pane. */}
+          {blocked ? (
+            <div className="deditor__mainState deditor__mainState--start">
+              <div className="dblock">
+                <span className="dblock__i"><IconLock /></span>
+                <b>{t("editorBlockedTitle")}</b>
+                {/* The backend's own sentence. The MD's own example ships
+                    editor_block_reason as "", so a fallback line is
+                    mandatory — an empty box explains nothing. */}
+                <p className="dblock__why">{blockReason || t("editorBlockedFallback")}</p>
+                {/* §14 L547: "Agar backend response system_editor_supported=true
+                    desa, tizim ichidagi editor ochiladi" — read here because
+                    this is the one path on which the raw record is fetched.
+                    An explicit false means no amount of retrying will open
+                    the in-system editor, so the advocate is pointed at the
+                    file instead of at a button that cannot help. */}
+                {systemEditorSupported === false ? <p className="dblock__note">{t("editorBlockedNoSystem")}</p> : null}
+                <div className="chiprow">
+                  {req?.templateFile?.hasFile ? (
+                    <button type="button" className="btn btn--line" onClick={downloadTemplate}>
+                      <IconDownload /> {t("downloadTemplate")}
+                    </button>
+                  ) : null}
+                  <button className="btn btn--line" type="button" onClick={() => setReqReloadKey((k) => k + 1)}>
+                    <IconRefresh /> {t("retryLater")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : editorState === "loading" ? (
             <div className="deditor__mainState">
               <Skeleton rows={6} />
             </div>
@@ -754,6 +993,41 @@ export default function DocumentEditorWorkspace({
               <button className="btn btn--line" type="button" onClick={() => setReloadKey((k) => k + 1)}>
                 <IconRefresh /> {t("retryLater")}
               </button>
+            </div>
+          ) : !started && !delivered ? (
+            /* §14 L529: "Frontend advokat editor page ochilishidan oldin 3
+               ta option ko'rsatishi kerak." The gate stands in the editor's
+               own pane rather than on a separate route so the left panel —
+               the client's need, their answers, the template — is already
+               readable while the choice is made. */
+            <div className="deditor__mainState deditor__mainState--start">
+              <div className="dstart">
+                <header className="dstart__h">
+                  <b>{t("startTitle")}</b>
+                  <p>{t("startLead")}</p>
+                </header>
+                <div className="dstart__grid">
+                  {startOptions.map((o) => (
+                    <button
+                      key={o.key}
+                      type="button"
+                      className={`dstart__opt${o.recommended && o.enabled ? " dstart__opt--rec" : ""}`}
+                      onClick={() => start(o.key)}
+                      disabled={!o.enabled}
+                      aria-disabled={!o.enabled}
+                    >
+                      <span className="dstart__i" aria-hidden>{o.icon}</span>
+                      <b>{o.title}</b>
+                      <small>{o.text}</small>
+                      {o.enabled ? (
+                        o.recommended ? <span className="dstart__tag">{t("startRecommended")}</span> : null
+                      ) : (
+                        <span className="dstart__tag dstart__tag--off">{t("startUnavailable")}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : configured ? (
             <div id="onlyoffice-editor" className="deditor__oo" />
@@ -951,6 +1225,17 @@ export default function DocumentEditorWorkspace({
         title={t("viewFinalFile")}
         fetchBlob={finalFile?.inline || finalFile?.download ? () => getServiceTemplateSourceFile(finalFile.inline || finalFile.download) : null}
         fileName={`${req?.clientName || "hujjat"}.${finalFile?.format || "docx"}`}
+      />
+
+      {/* §14 option 1. The upload ends the job outright (the backend turns
+          the file into the client's contract file and moves the request to
+          file_ready), so the record is refetched afterwards — the badge and
+          the disabled Finalize button both follow from its status. */}
+      <FulfillModal
+        ns={ns}
+        target={uploadOpen ? req : null}
+        onClose={() => setUploadOpen(false)}
+        onDone={() => setReqReloadKey((k) => k + 1)}
       />
 
       <Modal open={finalizeConfirmOpen} onClose={() => setFinalizeConfirmOpen(false)} title={t("finalize")}>

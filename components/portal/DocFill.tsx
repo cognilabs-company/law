@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { previewDocumentRequest, getServiceTemplateSourceFile, requestServiceDocumentLawyer, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
+import { previewDocumentRequest, getServiceTemplateSourceFile, requestServiceDocumentLawyerGated, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
 import { preopenTab, showBlob, saveBlob, closeTab } from "@/lib/download";
 import { useIsFreeAiTier } from "@/lib/useAiTier";
 import { docxToDoc, type DocPage } from "@/lib/docxParse";
@@ -388,6 +388,11 @@ export default function DocFill({
   const locale = useLocale();
   const [askBusy, setAskBusy] = useState(false);
   const [askSent, setAskSent] = useState(false);
+  // LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md L124: when the
+  // backend opens a payment gate the request has NOT reached the advocates,
+  // so the tick and "Advokatga yuborildi" must not appear. This button was
+  // using the un-gated call and claimed success either way.
+  const [askGated, setAskGated] = useState("");
   const [askErr, setAskErr] = useState(false);
   async function askLawyer() {
     // lawyerHeldNote disables every button that reaches here, so this guard
@@ -398,12 +403,17 @@ export default function DocFill({
     setAskErr(false);
     setAskBusy(true);
     try {
-      await requestServiceDocumentLawyer(sourceFile.lawyerFlow.requestUrl, {
+      const r = await requestServiceDocumentLawyerGated(sourceFile.lawyerFlow.requestUrl, {
         need: t("askLawyerNeed", { title: req.title || t("fillTitle") }),
         answers,
         language: locale,
       });
-      setAskSent(true);
+      // Three outcomes and only one of them is "sent": the fee is waiting for
+      // approval, the same document already has a live request, or it really
+      // did go. The backend's own sentence is preferred when it sent one.
+      if (r.paymentRequired) setAskGated(r.message || t("gateWaitShort"));
+      else if (r.alreadyExists) setAskGated(r.message || t("askLawyerAlready"));
+      else setAskSent(true);
     } catch {
       setAskErr(true);
     } finally {
@@ -644,6 +654,7 @@ export default function DocFill({
           actions, the way the advocate's "Uchrashuv boshlash" sits there. */}
       {chrome ? null : askButton}
       {askErr ? <p className="svc__err">{t("askLawyerError")}</p> : null}
+      {askGated ? <p className="dgate__note">{askGated}</p> : null}
       {chrome || !lawyerHeldNote ? null : <p className="dgate__note">{lawyerHeldNote}</p>}
     </header>
   );
@@ -742,6 +753,7 @@ export default function DocFill({
       onAskLawyer={!chrome && sourceFile?.lawyerFlow ? askLawyer : undefined}
       askLawyerBusy={askBusy}
       askLawyerSent={askSent}
+      askLawyerGated={askGated}
       askLawyerNote={lawyerHeldNote}
       sourceBusy={sourceBusy}
       sourceError={sourceErr}
@@ -938,6 +950,7 @@ export default function DocFill({
                   </div>
                   {askButton}
                   {askErr ? <p className="svc__err">{t("askLawyerError")}</p> : null}
+                  {askGated ? <p className="dgate__note">{askGated}</p> : null}
                   {lawyerHeldNote ? <p className="dgate__note">{lawyerHeldNote}</p> : null}
                 </div>
               )}

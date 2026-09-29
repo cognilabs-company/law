@@ -2,17 +2,28 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { listClientDocumentFlowPage, getDocumentRequestFile, DOC_FLOW_PAGE, type ClientDocFlowItem, type ClientDocFlowMode } from "@/lib/services/backend";
+import { useSearchParams } from "next/navigation";
+import {
+  listClientDocumentFlowPage,
+  getDocumentRequestFile,
+  getDocumentRequest,
+  searchServices,
+  requestDocumentLawyerReviewGated,
+  DOC_FLOW_PAGE,
+  type ClientDocFlowItem,
+  type ClientDocFlowMode,
+} from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useDocChatRooms } from "@/lib/useDocChatRooms";
 import { useDocRatings } from "@/lib/useDocRatings";
 import DocRatingBox from "./DocRatingBox";
 import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
+import Modal from "@/components/admin/Modal";
 import { Skeleton, EmptyState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight, IconTag } from "@/components/icons";
 
 // Which way this document is being produced — the client filled it in, the
@@ -52,6 +63,8 @@ export default function ClientDocumentRequests() {
   const tcommon = useTranslations("portal.client.documents");
   const tcm = useTranslations("portal.common");
   const locale = useLocale();
+  const router = useRouter();
+  const params = useSearchParams();
   const [tab, setTab] = useState<TabKey>("all");
   // LEXGO_REALTIME_AND_LIGHT_API_FRONTEND.md: /document-requests/service-flow
   // is paged now (the unpaged call was ~2MB for an account with a long
@@ -103,6 +116,79 @@ export default function ClientDocumentRequests() {
   const [dlBusy, setDlBusy] = useState("");
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  // LEXGO_DOCUMENT_TITLE_CONSTRUCTOR_PROMPT_UPDATE_2026-09-29.md §3 L74 /
+  // §6 L158: the row whose "Ishingiz Navbatchi advokatga berildi" prompt is
+  // open. `?doc=<document_request_id>` opens it straight away — that is the
+  // link lib/notifications.ts builds for the
+  // `document_constructor_continue_prompt` notification when the payload
+  // carries no service_id to go to the constructor with directly.
+  const [promptId, setPromptId] = useState(() => params.get("doc") ?? "");
+  // The row whose constructor is being resolved (see openConstructor), and
+  // the row whose "Advokat tekshiruviga yuborish" box is open.
+  const [openBusy, setOpenBusy] = useState("");
+  const [sendId, setSendId] = useState("");
+  const [sendNeed, setSendNeed] = useState("");
+  const [sendBusy, setSendBusy] = useState(false);
+
+  // §3 L64 + §5 L117-122: "Ha" opens the held document's OWN constructor.
+  // The backend points at it with an API path
+  // (actions.constructor_continue_url = "/document-requests/{id}"), while the
+  // page that renders the constructor is keyed on the SERVICE
+  // (/portal/client/services/document/{serviceId}, which resumes exactly this
+  // request — see ServiceDocumentRequest). The service-flow row does carry
+  // `service.id`, but ClientDocFlowItem does not expose it, so the service is
+  // resolved here from two ids the backend does hand over: the request's
+  // template_id (GET /document-requests/{id}) matched against the catalogue
+  // search for the row's own title. Verified read-only on 2026-09-29 for the
+  // held row 824695c3…: the search returned 50 hits and exactly one of them
+  // carried that template id, the service the row names.
+  async function openConstructor(item: ClientDocFlowItem) {
+    if (openBusy) return;
+    setOpenBusy(item.id);
+    setNote(null);
+    try {
+      const req = await getDocumentRequest(item.id);
+      const hits = await searchServices(item.title || req.title, { limit: 50 }, locale);
+      const svc = hits.map((h) => h.service).find((s) => !!s.documentTemplateId && s.documentTemplateId === req.templateId);
+      if (!svc) {
+        setNote({ ok: false, msg: t("constructorOpenError") });
+        return;
+      }
+      setPromptId("");
+      router.push(`/portal/client/services/document/${svc.id}`);
+    } catch {
+      setNote({ ok: false, msg: t("constructorOpenError") });
+    } finally {
+      setOpenBusy("");
+    }
+  }
+
+  // §4 L99-100: a second advocate request for a document that already has a
+  // live one is refused, not queued — the answer comes back
+  // already_exists=true with can_send_lawyer_request=false and the backend's
+  // own sentence. Telling the client "so'rovingiz yuborildi" there would be a
+  // straight lie, so nothing is claimed unless the answer says a request was
+  // really created, and what is shown instead is the backend's `message`.
+  async function sendToLawyer(item: ClientDocFlowItem) {
+    if (sendBusy) return;
+    setSendBusy(true);
+    setNote(null);
+    try {
+      const r = await requestDocumentLawyerReviewGated(item.id, sendNeed.trim() || tcommon("reviewNeedDefault"));
+      setSendId("");
+      if (r.alreadyExists || !r.canSendLawyerRequest) setNote({ ok: false, msg: r.message || item.lawyerRequestBlockReason || tcommon("lawyerPendingLead") });
+      // The fee gate of the lawyer-review endpoint: the request exists but it
+      // has not reached the advocates, so it is not reported as sent either.
+      else if (r.paymentRequired) setNote({ ok: false, msg: r.message || t("lawyerPayRequired") });
+      else setNote({ ok: true, msg: r.message || tcommon("reviewSent") });
+      refresh();
+    } catch {
+      setNote({ ok: false, msg: tcommon("error") });
+    } finally {
+      setSendBusy(false);
+    }
+  }
+
   // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md §"Realtime": this is
   // the page the client is told to come back to, so it must not need a
   // manual reload to show that an advocate claimed the work, started a
@@ -125,6 +211,13 @@ export default function ClientDocumentRequests() {
   // The 15-minute rating window, and the work id, per finished row — see
   // useDocRatings for why they are not simply read off this list.
   const rated = useDocRatings(rows.filter((r) => RATEABLE.has(r.status)).map((r) => r.id), reloadKey);
+
+  // The rows the two modals below are about. Looked up rather than copied
+  // into state so a refresh (a socket event, a send) keeps the open modal on
+  // the row's current server truth; `?doc=` can name a row that is not on
+  // this page yet, and then nothing opens rather than an empty prompt.
+  const promptRow = rows.find((r) => r.id === promptId) ?? null;
+  const sendRow = rows.find((r) => r.id === sendId) ?? null;
 
   async function download(item: ClientDocFlowItem) {
     if (!item.file.ready || dlBusy) return;
@@ -167,12 +260,27 @@ export default function ClientDocumentRequests() {
             const room = item.secureChatRoomId || rooms[item.id];
             const ready = item.file.ready;
             const tone = statusTone(item.status);
-            const acts = !!room || ready;
+            // §5 L116-122: the constructor half of a document an advocate is
+            // holding. Offered strictly on the backend's word —
+            // constructor_action.available with a constructor_continue_url —
+            // which on 2026-09-29 was true for 10 of the 50 live rows and
+            // false for the 9 held rows that have no template behind them.
+            const canContinue = !!item.constructorAction?.available && !!(item.constructorUrls.continueUrl || item.constructorAction?.continueUrl);
+            // §5 L114-115. can_send_lawyer_request defaults to true when the
+            // field is absent, so an older deployment is not locked out.
+            const blocked = !item.canSendLawyerRequest;
+            // Handing the client's own document to the call-center pool is
+            // what POST /document-requests/{id}/lawyer-review is for, so the
+            // control belongs on the rows the client filled in themselves —
+            // plus, disabled, on any row the backend has blocked, because a
+            // refusal with nothing to refuse explains nothing.
+            const canSend = (item.mode === "manual" && tone !== "closed") || blocked;
+            const acts = !!room || ready || canContinue || canSend;
             const info = rated[item.id];
             // The work id the client and the advocate quote at each other.
             const workId = item.workId || info?.workId || "";
             return (
-              <article className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}${tone === "closed" ? " mydoc--closed" : ""}`} key={item.id}>
+              <article className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}${tone === "closed" ? " mydoc--closed" : ""}${promptId === item.id ? " mydoc--flag" : ""}`} key={item.id}>
                 <span className={`mydoc__i mydoc__i--${item.mode}`} aria-hidden><ModeIcon /></span>
                 {/* One column of content, not two: the status pill used to sit
                     in a flex row of its own while the buttons occupied a third
@@ -234,8 +342,39 @@ export default function ClientDocumentRequests() {
                           {dlBusy === item.id ? tcommon("processingShort") : t("download")}
                         </button>
                       ) : null}
+                      {/* The prompt comes first when the backend asks for one
+                          (prompt_required is true only while an advocate is
+                          actually holding the row); otherwise the constructor
+                          opens straight away, as §3 L74 reads. */}
+                      {canContinue ? (
+                        <button
+                          type="button"
+                          className="btn btn--line btn--sm"
+                          disabled={!!openBusy}
+                          onClick={() => (item.constructorAction?.promptRequired ? setPromptId(item.id) : void openConstructor(item))}
+                        >
+                          <IconEdit />
+                          {openBusy === item.id ? tcommon("processingShort") : t("constructorContinue")}
+                        </button>
+                      ) : null}
+                      {canSend ? (
+                        <button
+                          type="button"
+                          className="btn btn--line btn--sm"
+                          disabled={blocked || sendBusy}
+                          title={blocked ? item.lawyerRequestBlockReason || undefined : undefined}
+                          onClick={() => { setSendId(item.id); setSendNeed(""); }}
+                        >
+                          <IconScale />
+                          {tcommon("reviewOpen")}
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
+                  {/* Why that button is dead, in the backend's own words
+                      (§5 L115) rather than a tooltip nobody on a phone can
+                      reach. */}
+                  {blocked && item.lawyerRequestBlockReason ? <p className="mydoc__block">{item.lawyerRequestBlockReason}</p> : null}
                 </div>
               </article>
             );
@@ -247,6 +386,54 @@ export default function ClientDocumentRequests() {
           ) : null}
         </div>
       )}
+
+      {/* §3 L74 + §5 L116: the two-button prompt, in the backend's own title
+          and message. Measured on 2026-09-29: its title is byte-identical to
+          portal.client.documents.lawyerGateTitle, while its message is one
+          short question where the local lead still promised a document filled
+          in "0 dan" — which stopped being true when the backend started
+          handing back the held row's own constructor. The server's text wins;
+          the local strings are the fallback for a deployment that sends none,
+          and the button labels stay local because the backend names the two
+          actions ("open_constructor" / "wait_for_lawyer") without wording
+          them. */}
+      <Modal open={!!promptRow} onClose={() => setPromptId("")} title={promptRow?.constructorAction?.title || tcommon("lawyerGateTitle")}>
+        <div className="cform" style={{ maxWidth: "none" }}>
+          <p className="dexit__lead">
+            <span className="dexit__i"><IconScale /></span>
+            {promptRow?.constructorAction?.message || tcommon("lawyerGateLead")}
+          </p>
+          {promptRow?.lawyerRequestBlockReason ? <p className="dgate__note">{promptRow.lawyerRequestBlockReason}</p> : null}
+          <div className="dexit__btns">
+            <button type="button" className="btn btn--line btn--full" onClick={() => setPromptId("")}>
+              {tcommon("lawyerGateWait")}
+            </button>
+            <button type="button" className="btn btn--grad btn--full" disabled={!!openBusy} onClick={() => promptRow && void openConstructor(promptRow)}>
+              {openBusy ? tcommon("processingShort") : tcommon("lawyerGateOpen")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* "Advokat tekshiruviga yuborish" from the list. Same endpoint and the
+          same wording as the one inside the builder, so a client who meets
+          both is not told two different things. */}
+      <Modal open={!!sendRow} onClose={() => setSendId("")} title={tcommon("reviewOpen")}>
+        <div className="cform" style={{ maxWidth: "none" }}>
+          <div className="docreview">
+            <label htmlFor="mydoc-review-need">{tcommon("reviewNeedLabel")}</label>
+            <textarea id="mydoc-review-need" rows={3} value={sendNeed} onChange={(e) => setSendNeed(e.target.value)} placeholder={tcommon("reviewNeedDefault")} />
+          </div>
+          <div className="dexit__btns">
+            <button type="button" className="btn btn--line btn--full" onClick={() => setSendId("")} disabled={sendBusy}>
+              {tcommon("reviewCancel")}
+            </button>
+            <button type="button" className="btn btn--grad btn--full" disabled={sendBusy} onClick={() => sendRow && void sendToLawyer(sendRow)}>
+              {sendBusy ? tcommon("processingShort") : tcommon("reviewSubmit")}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

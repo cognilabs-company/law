@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth, canMakeCalls } from "@/lib/auth";
-import { createSecureChat, startCall, searchUsers } from "@/lib/services/backend";
+import { createSecureChat, startCall, searchUsers, type LiveKitJoin } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import CallRoom from "@/components/chat/CallRoom";
 import { IconVideo } from "@/components/icons";
@@ -24,7 +24,7 @@ export type CcMeetingButtonProps = {
   onStarted?: (ids: { roomId: string; callId: string }) => void;
 };
 
-type Active = { roomId: string; callId: string; lk: { url: string; room: string; token: string } | null };
+type Active = { roomId: string; callId: string; lk: LiveKitJoin | null };
 
 // Opens a secure-chat room for the client (staff pay nothing) and starts a
 // titled video meeting with them invited. Returns the ids for the caller.
@@ -34,7 +34,7 @@ export async function startClientMeeting(clientUserId: string, title: string): P
   return {
     roomId: room.id,
     callId: call.id,
-    lk: call.livekitToken ? { url: call.livekitUrl, room: call.livekitRoom, token: call.livekitToken } : null,
+    lk: call.livekitToken ? { url: call.livekitUrl, room: call.livekitRoom, token: call.livekitToken, hints: call.hints, quality: call.quality } : null,
   };
 }
 

@@ -1687,18 +1687,29 @@ export async function generateServiceDocumentAi(
 // inconsistency in the backend's own contract, not a typo here.
 export async function requestServiceDocumentLawyer(
   requestUrl: string,
-  input: { need: string; answers?: Record<string, unknown>; language?: string } & DocLawyerExtras,
+  input: { need: string; answers?: Record<string, unknown>; language?: string; pageCount?: number } & DocLawyerExtras,
 ): Promise<DocumentRequest> {
-  const { editorMode, extraInstructions, requestedDocumentType, ...rest } = input;
+  return (await requestServiceDocumentLawyerGated(requestUrl, input)).request;
+}
+// The same call, with the gate. Kept separate so the long-standing callers
+// that only want the request are not forced to unpack a result they ignore.
+export async function requestServiceDocumentLawyerGated(
+  requestUrl: string,
+  input: { need: string; answers?: Record<string, unknown>; language?: string; pageCount?: number } & DocLawyerExtras,
+): Promise<DocLawyerSubmitResult> {
+  const { editorMode, extraInstructions, requestedDocumentType, pageCount, ...rest } = input;
   const body: Record<string, unknown> = { ...rest };
+  // How many pages the advocate will have to read. The fee is banded on it,
+  // so sending it lets the backend quote before the work starts instead of
+  // after.
+  if (pageCount && pageCount > 0) body.page_count = pageCount;
   // editor_mode "ai_draft" makes the backend write a first draft the advocate
   // then edits; left out, they open the clean template (the default).
   if (editorMode) body.editor_mode = editorMode;
   if (extraInstructions) body.extra_instructions = extraInstructions;
   // Optional: sent only when the client chose or wrote one.
   if (requestedDocumentType) body.requested_document_type = requestedDocumentType;
-  const d = asDict(await http(requestUrl, { method: "POST", body: JSON.stringify(body) }));
-  return normDocRequest(d.request);
+  return normDocLawyerSubmit(await http(requestUrl, { method: "POST", body: JSON.stringify(body) }));
 }
 
 // ── Attachments on a lawyer request, and the two from-scratch flows ──
@@ -1791,12 +1802,17 @@ function voiceExt(mime: string): string {
 // of them into a chat message, so nothing has to be re-sent afterwards.
 export async function requestServiceDocumentLawyerWithFiles(
   serviceId: string,
-  input: { need: string; title?: string; language?: string; answers?: Record<string, unknown> } & DocLawyerExtras & DocRequestAttachments,
+  input: { need: string; title?: string; language?: string; answers?: Record<string, unknown>; pageCount?: number } & DocLawyerExtras & DocRequestAttachments,
 ): Promise<DocumentRequest> {
-  const d = asDict(
-    await http(`/services/${serviceId}/document-lawyer/request-with-files`, { method: "POST", body: docFlowForm(input) }),
-  );
-  return normDocRequest(d.request ?? d.document_request ?? d);
+  return (await requestServiceDocumentLawyerWithFilesGated(serviceId, input)).request;
+}
+export async function requestServiceDocumentLawyerWithFilesGated(
+  serviceId: string,
+  input: { need: string; title?: string; language?: string; answers?: Record<string, unknown>; pageCount?: number } & DocLawyerExtras & DocRequestAttachments,
+): Promise<DocLawyerSubmitResult> {
+  const form = docFlowForm(input);
+  if (input.pageCount && input.pageCount > 0) form.append("page_count", String(input.pageCount));
+  return normDocLawyerSubmit(await http(`/services/${serviceId}/document-lawyer/request-with-files`, { method: "POST", body: form }));
 }
 // "0 dan hujjat yasash": no template at all — the advocate opens a blank DOCX
 // and writes the document from nothing.
@@ -1810,12 +1826,17 @@ export async function requestCustomDraft(
 // main file. A DOCX opens directly in the editor; anything else (PDF, scan)
 // rides along as an attachment beside a blank editor.
 export async function requestExistingDocumentReview(
-  input: { need: string; mainFile: File; title?: string; language?: string } & DocRequestAttachments,
+  input: { need: string; mainFile: File; title?: string; language?: string; pageCount?: number } & DocRequestAttachments,
 ): Promise<DocumentRequest> {
+  return (await requestExistingDocumentReviewGated(input)).request;
+}
+export async function requestExistingDocumentReviewGated(
+  input: { need: string; mainFile: File; title?: string; language?: string; pageCount?: number } & DocRequestAttachments,
+): Promise<DocLawyerSubmitResult> {
   const form = docFlowForm(input);
   form.append("main_file", input.mainFile, input.mainFile.name);
-  const d = asDict(await http("/document-services/review-existing/request", { method: "POST", body: form }));
-  return normDocRequest(d.request ?? d.document_request ?? d);
+  if (input.pageCount && input.pageCount > 0) form.append("page_count", String(input.pageCount));
+  return normDocLawyerSubmit(await http("/document-services/review-existing/request", { method: "POST", body: form }));
 }
 
 // ── Lawyer-side document-assist inbox (advokat/yurist/call-center) ────
@@ -2135,6 +2156,12 @@ export type DocumentRequestMeeting = {
   livekitRoom: string;
   livekitToken: string;
   provider: string;
+  // LEXGO_CALL_ADAPTIVE_QUALITY_FRONTEND §"Yangi maydonlar" L21: the document
+  // meeting payload carries the same two blocks as a call session, and they
+  // were being dropped — so the 15-minute document meeting ran on library
+  // defaults while the same call opened from a chat ran on the backend ladder.
+  hints: CallConnectionHints | null;
+  quality: CallQualityPolicy | null;
   // The same limit/extension block CallSession carries — the document
   // meeting is where the 15-minute cap actually applies.
   maxDurationMinutes: number;
@@ -2170,6 +2197,8 @@ function normDocRequestMeeting(v: unknown): DocumentRequestMeeting {
     maxDurationMinutes: asNum(d.max_duration_minutes),
     autoEndAt: asStr(d.auto_end_at),
     remainingSeconds: asNum(d.remaining_seconds),
+    hints: normHints(d.connection_hints),
+    quality: normQuality(d.quality_policy),
     ...normCallLimits(d),
   };
 }
@@ -2265,6 +2294,77 @@ export type DocumentRequest = {
   // handling it, instead of an anonymous "someone is on it".
   assignedLawyerName?: string;
 };
+
+// LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md. A lawyer review is
+// priced by the document's page count, and past the free allowance the request
+// does not reach the advocates until the fee is approved over Telegram. The
+// four endpoints that can open a gate all answer in the same shape.
+//
+// Verified 2026-09-29: GET /platform/policies → items.document_analysis gives
+// the live price table (1-10 pages 149 000, 11-20 299 000, 21-30 499 000,
+// each further page 15 000, urgent +50%, written opinion 99 000 UZS). The gate
+// itself has never fired on the test account, so the response fields below are
+// taken from the MD and read defensively — a deployment that sends none of
+// them behaves exactly as it does today.
+export type DocPaymentGate = {
+  id: string;
+  status: string;
+  paymentId: string;
+  amount: number;
+  currency: string;
+  pageCount: number;
+  includedPages: number;
+  extraPages: number;
+  // Whether the approval request actually reached Telegram. False means the
+  // client is waiting on something that was never sent.
+  telegramSent: boolean;
+};
+export type DocLawyerSubmitResult = {
+  request: DocumentRequest;
+  // true ⇒ do NOT tell the client it went to the advocates.
+  paymentRequired: boolean;
+  gate: DocPaymentGate | null;
+  // §4 of the constructor-prompt MD: the repeat was refused, nothing new was
+  // created.
+  alreadyExists: boolean;
+  canSendLawyerRequest: boolean;
+  message: string;
+  constructorAction: DocConstructorAction | null;
+};
+function normDocPaymentGate(v: unknown): DocPaymentGate | null {
+  if (!v || typeof v !== "object") return null;
+  const d = asDict(v);
+  if (!d.id && !d.payment_id && !d.amount) return null;
+  return {
+    id: asStr(d.id),
+    status: asStr(d.status),
+    paymentId: asStr(d.payment_id),
+    amount: uzs(d, "amount"),
+    currency: asStr(d.currency, "UZS"),
+    pageCount: asNum(d.page_count),
+    includedPages: asNum(d.included_pages),
+    extraPages: asNum(d.extra_pages),
+    telegramSent: Boolean(d.telegram_sent),
+  };
+}
+// Every lawyer-review POST goes through this, so one reading of the answer
+// serves all four entry points.
+export function normDocLawyerSubmit(v: unknown): DocLawyerSubmitResult {
+  const d = asDict(v);
+  return {
+    request: normDocRequest(d.request ?? d.document_request ?? d),
+    paymentRequired: Boolean(d.payment_required),
+    gate: normDocPaymentGate(d.payment_gate),
+    alreadyExists: Boolean(d.already_exists),
+    canSendLawyerRequest: d.can_send_lawyer_request !== false,
+    message: asStr(d.message) || asStr(d.detail),
+    constructorAction: normConstructorAction(d.constructor_action),
+  };
+}
+// The statuses the gate puts the two records into while it is open, and the
+// one it leaves behind when the fee is refused.
+export const DOC_PAYMENT_WAIT = new Set(["payment_required", "pending_payment"]);
+export const DOC_PAYMENT_CANCELLED = "payment_cancelled";
 
 // Is an advocate holding this document right now?
 //
@@ -2475,11 +2575,23 @@ export async function requestDocumentLawyerReview(
   requestId: string,
   need: string,
   requestedDocumentType?: string,
+  pageCount?: number,
 ): Promise<DocumentRequest> {
+  return (await requestDocumentLawyerReviewGated(requestId, need, requestedDocumentType, pageCount)).request;
+}
+// This one can also come back refused rather than gated — the same document
+// already has a live advocate request — so its result carries alreadyExists
+// and the backend's own sentence for it.
+export async function requestDocumentLawyerReviewGated(
+  requestId: string,
+  need: string,
+  requestedDocumentType?: string,
+  pageCount?: number,
+): Promise<DocLawyerSubmitResult> {
   const body: Record<string, unknown> = { need };
   if (requestedDocumentType) body.requested_document_type = requestedDocumentType;
-  const d = asDict(await http(`/document-requests/${requestId}/lawyer-review`, { method: "POST", body: JSON.stringify(body) }));
-  return normDocRequest(d.request ?? d.document_request ?? d);
+  if (pageCount && pageCount > 0) body.page_count = pageCount;
+  return normDocLawyerSubmit(await http(`/document-requests/${requestId}/lawyer-review`, { method: "POST", body: JSON.stringify(body) }));
 }
 
 // ── Client's own document requests, across all 3 fill methods ─────
@@ -2490,6 +2602,49 @@ export async function requestDocumentLawyerReview(
 // is a fixed, known set (all/self/ai/lawyer) — not re-derived here, the
 // frontend renders the same 4 every time and just refetches per `mode`.
 export type ClientDocFlowMode = "manual" | "ai" | "lawyer";
+// LEXGO_DOCUMENT_TITLE_CONSTRUCTOR_PROMPT_UPDATE_2026-09-29.md §3-§5. The
+// backend now answers the question the frontend had been deducing from status:
+// is an advocate holding this document, may another request be sent, and may
+// the client carry on filling it in themselves.
+//
+// Measured on 2026-09-29: every one of the 50 rows of
+// GET /document-requests/service-flow carries all of it, and
+// GET /document-requests/{id} and GET /document-requests carry NONE of it —
+// so anything that needs this has to read the service-flow endpoint.
+export type DocConstructorAction = {
+  available: boolean;
+  // true only on a row an advocate is actually holding — 10 of 50 live rows.
+  promptRequired: boolean;
+  event: string;
+  title: string;
+  message: string;
+  // The backend's own words for the two buttons' meanings.
+  yesAction: string;
+  noAction: string;
+  continueUrl: string;
+  answersUrl: string;
+  previewUrl: string;
+  generateUrl: string;
+};
+function normConstructorAction(v: unknown): DocConstructorAction | null {
+  if (!v || typeof v !== "object") return null;
+  const d = asDict(v);
+  if (!("available" in d) && !d.continue_url) return null;
+  return {
+    available: d.available !== false,
+    promptRequired: Boolean(d.prompt_required),
+    event: asStr(d.event),
+    title: asStr(d.title),
+    message: asStr(d.message),
+    yesAction: asStr(d.yes_action, "open_constructor"),
+    noAction: asStr(d.no_action, "wait_for_lawyer"),
+    continueUrl: asStr(d.continue_url),
+    answersUrl: asStr(d.answers_url),
+    previewUrl: asStr(d.preview_url),
+    generateUrl: asStr(d.generate_url),
+  };
+}
+
 export type ClientDocFlowItem = {
   id: string;
   mode: string;
@@ -2517,6 +2672,16 @@ export type ClientDocFlowItem = {
   // where it appears and the UI falls back to nothing rather than a UUID.
   workId: string;
   rating: UrgentRating;
+  // Server truth about the advocate hold, replacing the status guess.
+  // `canSendLawyerRequest` defaults to true so an older deployment that does
+  // not send it keeps today's behaviour instead of locking every button.
+  lawyerRequestActive: boolean;
+  canSendLawyerRequest: boolean;
+  lawyerRequestBlockReason: string;
+  constructorAction: DocConstructorAction | null;
+  // actions.constructor_* — where the client's own half of a held document
+  // lives. Present and populated on every live row.
+  constructorUrls: { continueUrl: string; answersUrl: string; previewUrl: string; generateUrl: string };
   createdAt: string;
   updatedAt: string;
 };
@@ -2566,6 +2731,18 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
       downloadUrl: asStr(file.download_url) || asStr(actions.file_download_url),
       inlineUrl: asStr(file.inline_url),
       format: asStr(file.format),
+    },
+    lawyerRequestActive: Boolean(d.lawyer_request_active),
+    // Absent means "no rule stated": an older deployment must not silently
+    // lock every send button.
+    canSendLawyerRequest: d.can_send_lawyer_request !== false,
+    lawyerRequestBlockReason: asStr(d.lawyer_request_block_reason),
+    constructorAction: normConstructorAction(d.constructor_action),
+    constructorUrls: {
+      continueUrl: asStr(actions.constructor_continue_url),
+      answersUrl: asStr(actions.constructor_answers_url),
+      previewUrl: asStr(actions.constructor_preview_url),
+      generateUrl: asStr(actions.constructor_generate_url),
     },
     createdAt: asStr(d.created_at),
     updatedAt: asStr(d.updated_at),
@@ -5788,13 +5965,15 @@ function normCallLimits(d: Dict): Pick<
   };
 }
 // Client/seller fetch their own LiveKit token to join an existing call.
-export type LiveKitJoin = { url: string; room: string; token: string };
+export type LiveKitJoin = { url: string; room: string; token: string; hints: CallConnectionHints | null; quality: CallQualityPolicy | null };
 export async function getCallJoinToken(roomId: string, callId: string): Promise<LiveKitJoin> {
   const d = asDict(await http(`/secure-chats/${roomId}/calls/${callId}/join-token`));
   return {
     url: livekitUrl(d.livekit_url ?? d.url),
     room: asStr(d.livekit_room ?? d.room),
     token: asStr(d.livekit_token ?? d.token),
+    hints: normHints(d.connection_hints),
+    quality: normQuality(d.quality_policy),
   };
 }
 export async function startCall(
@@ -5836,6 +6015,8 @@ export async function joinCall(roomId: string, callId: string): Promise<LiveKitJ
     url: livekitUrl(d.livekit_url ?? d.url),
     room: asStr(d.livekit_room ?? d.room),
     token: asStr(d.livekit_token ?? d.token),
+    hints: normHints(d.connection_hints),
+    quality: normQuality(d.quality_policy),
   };
 }
 export async function updateCallParticipant(
@@ -6255,6 +6436,31 @@ export async function getPlatformPolicies(): Promise<PlatformPolicies> {
   policiesCache = { at: Date.now(), p };
   return p;
 }
+// What an advocate's review of a document of this length will cost, from the
+// backend's own table rather than a number typed into the UI. Live on
+// 2026-09-29: 1-10 pages 149 000, 11-20 299 000, 21-30 499 000, every page
+// past the last band 15 000, urgent +50%.
+//
+// The client sees this BEFORE they send, so the fee is never a surprise that
+// arrives with a Telegram message. Returns 0 when the policy has no table, in
+// which case the caller must say nothing rather than quote zero.
+export type DocReviewQuote = { amount: number; band: { minPages: number; maxPages: number; amount: number } | null; extraPages: number; extraAmount: number; currency: string };
+export function quoteDocReviewFee(p: PlatformPolicies, pageCount: number, urgent = false): DocReviewQuote {
+  const da = p.documentAnalysis;
+  const pages = Math.max(0, Math.round(pageCount || 0));
+  const empty: DocReviewQuote = { amount: 0, band: null, extraPages: 0, extraAmount: 0, currency: p.payment.currency || "UZS" };
+  if (!pages || !da.ranges.length) return empty;
+  const bands = [...da.ranges].sort((a, b) => a.minPages - b.minPages);
+  const band = bands.find((r) => pages >= r.minPages && pages <= r.maxPages) ?? null;
+  const top = bands[bands.length - 1];
+  // Past the last band the table stops and the per-page rate takes over.
+  const extraPages = band ? 0 : Math.max(0, pages - top.maxPages);
+  const extraAmount = extraPages * da.extraPageAmount;
+  const base = (band ? band.amount : top.amount) + extraAmount;
+  const amount = urgent && da.urgentPercent ? Math.round(base * (1 + da.urgentPercent / 100)) : base;
+  return { amount, band: band ?? top, extraPages, extraAmount, currency: empty.currency };
+}
+
 // T0-10 §5: how unverified advocates/lawyers appear in the catalogue —
 // "badge" (listed with an "unverified" mark) or "hidden" (not listed). The
 // backend has no dedicated section yet, so the value lives under the public
@@ -6965,6 +7171,8 @@ export type UrgentRequest = {
   cancelReason: string;
   cancelledAt: string;
   slaBreached: boolean;
+  callStatus: string;
+  callChannel: string;
   rating: UrgentRating;
   // How the request is routed: "on_duty_pool" for the express and traffic
   // kinds, which go straight to whoever is on duty.
@@ -7061,6 +7269,12 @@ function normUrgentRequest(v: unknown): UrgentRequest {
     cancelReason: asStr(p.cancel_reason),
     cancelledAt: asStr(p.cancelled_at),
     slaBreached: Boolean(pick("sla_breached")),
+    // "calling" while the on-duty advocate's phone is still ringing, then the
+    // call's own state. Distinct from `status`, which is the request's.
+    callStatus: asStr(p.call_status),
+    // "audio" on the express and YTX flows even though the service is sold as
+    // a video consultation — the honest label for the row.
+    callChannel: asStr(p.call_channel),
     rating: normRating(d.rating, d),
     // "callcenter_pool" for the queued kinds, "direct_on_duty_call" for
   // express and YTX — verified live. Never "on_duty_pool", which an earlier
@@ -7319,11 +7533,15 @@ export async function listUrgentCandidates(
 }
 // The same ranking without a request behind it, for an operator searching by
 // practice area and region directly.
-export async function searchUrgentCandidates(params: { directions?: string[]; region?: string; limit?: number }): Promise<UrgentCandidate[]> {
+export async function searchUrgentCandidates(params: { directions?: string[]; region?: string; limit?: number; includeExternal?: boolean; includeCallcenter?: boolean }): Promise<UrgentCandidate[]> {
   const qs = new URLSearchParams();
   if (params.directions?.length) qs.set("directions", params.directions.join(","));
   if (params.region) qs.set("region", params.region);
   if (params.limit) qs.set("limit", String(params.limit));
+  // The wide search was the only one that could not reach outside advocates or
+  // the duty desk, although the endpoint accepts both flags.
+  if (params.includeExternal) qs.set("include_external", "true");
+  if (params.includeCallcenter) qs.set("include_callcenter", "true");
   const q = qs.toString();
   return listFrom(await http("/call-center/urgent-advokat/candidates" + (q ? "?" + q : "")), "items", "data").map(normUrgentCandidate);
 }
@@ -7436,8 +7654,16 @@ export function isRatingClosed(e: unknown): boolean {
 // assigned advocate). Same CallSessionOut the secure-chat calls return, so the
 // existing meeting component takes it unchanged. Creating it also moves the
 // record to `meeting_active` by itself.
-export async function createUrgentMeeting(id: string): Promise<CallSession> {
-  return normCall(await http(ccUrgent(id, "/meeting"), { method: "POST", body: "{}" }));
+export async function createUrgentMeeting(
+  id: string,
+  input?: { title?: string; durationMinutes?: number },
+): Promise<CallSession> {
+  // Both optional: the backend names and times the meeting itself when the
+  // operator does not, which is the long-standing behaviour.
+  const body: Record<string, unknown> = {};
+  if (input?.title) body.title = input.title;
+  if (input?.durationMinutes) body.duration_minutes = input.durationMinutes;
+  return normCall(await http(ccUrgent(id, "/meeting"), { method: "POST", body: JSON.stringify(body) }));
 }
 // One endpoint for all four services: the summary and any files reach the
 // client as a notification and as a message in the secure chat.

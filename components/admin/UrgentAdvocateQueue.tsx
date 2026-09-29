@@ -21,6 +21,7 @@ import {
   type UrgentRequest,
   type UrgentCandidate,
   type CallSession,
+  type LiveKitJoin,
 } from "@/lib/services/backend";
 import { subscribeUserEvents, subscribeUserSocketState, onUserSocketResync } from "@/lib/userSocket";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
@@ -129,10 +130,20 @@ function directionLabel(te: Te, slug: string): string {
 
 // A chat opened from the board carries the record it belongs to, so the
 // chat screen can offer the end-chat action the backend only allows staff.
-function chatHref(r: Pick<UrgentRequest, "secureChatRoomId" | "id" | "workId" | "serviceTitle">): string {
+//
+// R28/R29 (LEXGO_URGENT_GROUP_CHAT_FRONTEND L253-254): the chat header shows
+// the work id and the service name. `label` is the localised catalogue title
+// this board has already computed for the row — the record's own `title` is
+// the backend's single ASCII spelling of it ("Ikkinchi fikr - advokatlar
+// guruhi", captured live on record 77ada6f5), so sending that instead would
+// put an untranslated hyphenated string into a Russian operator's chat
+// header. The raw title stays as the fallback for a kind the catalogue has
+// no wording for.
+function chatHref(r: Pick<UrgentRequest, "secureChatRoomId" | "id" | "workId" | "serviceTitle">, label?: string): string {
   const q = new URLSearchParams({ ua: r.id });
   if (r.workId) q.set("wid", r.workId);
-  if (r.serviceTitle) q.set("svc", r.serviceTitle);
+  const svc = label || r.serviceTitle;
+  if (svc) q.set("svc", svc);
   return `/portal/chat/${r.secureChatRoomId}?${q.toString()}`;
 }
 
@@ -146,7 +157,7 @@ const KIND_ICON: Record<string, typeof IconVideo> = {
 };
 
 type State = { status: "loading" | "ready" | "error" | "forbidden" | "missing"; items: UrgentRequest[] };
-type Meeting = { roomId: string; callId: string; title: string; lk: { url: string; room: string; token: string } | null };
+type Meeting = { roomId: string; callId: string; title: string; lk: LiveKitJoin | null };
 
 export default function UrgentAdvocateQueue() {
   const t = useTranslations("admin.urgent");
@@ -273,7 +284,7 @@ export default function UrgentAdvocateQueue() {
         roomId: call.roomId || r.secureChatRoomId,
         callId: call.id,
         title: tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind,
-        lk: call.livekitToken ? { url: call.livekitUrl, room: call.livekitRoom, token: call.livekitToken } : null,
+        lk: call.livekitToken ? { url: call.livekitUrl, room: call.livekitRoom, token: call.livekitToken, hints: call.hints, quality: call.quality } : null,
       });
     },
     [tk],
@@ -369,12 +380,13 @@ export default function UrgentAdvocateQueue() {
             const open = (r.status || "open_pool") === "open_pool";
             const isGroup = r.serviceKind === GROUP;
             const final = r.nextStatuses.length === 0 && !open;
+            const kindName = tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind;
             return (
               <li key={r.id} className={`uaq__row${open ? " uaq__row--open" : ""}${r.slaBreached ? " uaq__row--sla" : ""}`}>
                 <span className={`uaq__i uaq__i--${r.channel || "video"}`}><Icon /></span>
                 <div className="uaq__m">
                   <b>
-                    {tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind}
+                    {kindName}
                     {r.channel ? <em className="uaq__ch">{r.channel === "chat" ? <IconChat /> : <IconVideo />}{r.channel === "chat" ? tk("chChat") : tk("chVideo")}</em> : null}
                     {r.workId ? <em className="ua__wid" title={tk("workId")}>{r.workId}</em> : null}
                     {/* on_duty_pool: nobody has to pick this out of the pool. */}
@@ -428,9 +440,20 @@ export default function UrgentAdvocateQueue() {
                       </button>
                     ) : null}
                     {/* The claim opened this room and notified the client, but
-                        until now nothing on the board led into it. */}
+                        until now nothing on the board led into it.
+
+                        On a `channel=chat` record the room IS the
+                        consultation — there is no meeting to start, and
+                        R3/R32 (MD L16, L260-262) put the operator in it
+                        alongside the selected advocates with the "Chatni
+                        yakunlash" action — so on those rows it is the primary
+                        action rather than one outline button among four. */}
                     {r.secureChatRoomId ? (
-                      <Link href={chatHref(r)} className="btn btn--line btn--sm" title={t("openChatTitle")}>
+                      <Link
+                        href={chatHref(r, kindName)}
+                        className={`btn btn--sm ${!open && r.channel === "chat" ? "btn--pri" : "btn--line"}`}
+                        title={t("openChatTitle")}
+                      >
                         <IconChat />{t("openChat")}
                       </Link>
                     ) : null}
@@ -762,7 +785,7 @@ function UrgentDetailDrawer({
                 already being answered, so it stays reachable on a finished
                 record too — that is where the conversation lives. */}
             {req.secureChatRoomId ? (
-              <Link href={chatHref(req)} className="btn btn--line" title={t("openChatTitle")}>
+              <Link href={chatHref(req, kindLabel)} className="btn btn--line" title={t("openChatTitle")}>
                 <IconChat />{t("openChat")}
               </Link>
             ) : null}

@@ -261,8 +261,23 @@ export default function IncomingCallWatcher() {
           {inc.callType === "video" ? <IconVideo /> : <IconPhone />}
         </span>
         <div className="incall__m">
+          {/* Express L122 — "Advokat shu event kelganda incoming audio call
+              modalini chiqaradi": an express/traffic request rings the advocate
+              on duty with call_type "audio", and it reaches this card as a
+              MEETING (the /calls/invited safety net at
+              urgent_advokat.express_call_started sets kind "meet"), which used
+              to make it read "Video uchrashuvga taklif" — the wrong medium and
+              the wrong shape of call, on the one flow the express MD writes an
+              explicit rule for. The medium is decided first now, the kind
+              second, so every audio ring says audio. */}
           <b>{inc.callerName}</b>
-          <span>{inc.resume ? t("resumeMeet") : inc.kind === "meet" ? t("incomingMeet") : inc.callType === "video" ? t("incomingVideo") : t("incomingAudio")}</span>
+          <span>
+            {inc.resume
+              ? t("resumeMeet")
+              : inc.callType === "audio"
+                ? inc.kind === "meet" ? t("incomingMeetAudio") : t("incomingAudio")
+                : inc.kind === "meet" ? t("incomingMeet") : t("incomingVideo")}
+          </span>
         </div>
         <div className="incall__act">
           <button className="incall__btn incall__btn--decline" type="button" onClick={decline} aria-label={t("decline")}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   getPlatformPolicies,
@@ -10,10 +10,15 @@ import {
   getDocumentUnlockPolicy,
   generateDocumentRequest,
   getDocumentRequestFile,
-  requestDocumentLawyerReview,
+  requestDocumentLawyerReviewGated,
   listDocumentRequests,
   isDocPaymentSkipped,
+  quoteDocReviewFee,
+  DOC_PAYMENT_WAIT,
+  DOC_PAYMENT_CANCELLED,
+  type DocPaymentGate,
   type DocumentRequest,
+  type PlatformPolicies,
   type TemplateQuestion,
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
@@ -30,11 +35,130 @@ import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Notice } from "@/components/admin/AdminBits";
 import { Link } from "@/i18n/navigation";
-import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset } from "@/components/icons";
+import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset, IconCard, IconAlert } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
-type Stage = "answers" | "pay" | "generating" | "lawyerReview" | "claimed" | "pending" | "done";
+// ── The advocate-review payment gate ─────────────────────────────────
+// LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md: past the free
+// allowance an advocate review is no longer free, and the request does NOT
+// reach the advocates until the fee is approved — the backend opens a gate,
+// sends the client an inline "To'landi / Bekor qilish" request over Telegram
+// (MD step 4) and holds the work until one of them is pressed (steps 5-7).
+//
+// Three of the four endpoints that can open a gate are called from this file
+// and from the two order forms beside it, so the pieces all three share live
+// here: DocumentRequestPanel is the module both forms already import, and
+// putting them in NewDocumentOrder (the other shared module of this trio)
+// would close an import cycle.
+//
+// Verified against production 2026-09-29 on the test client: the gate has
+// never fired on this account (0 of 114 document requests is in any of the
+// gate statuses, 0 of 300 notifications names one), so everything below is
+// read from the MD and rendered defensively — a deployment that opens no gate
+// reaches none of it.
+const MAX_REVIEW_PAGES = 500;
+// How many pages the review fee covers before the gate can open. Read from
+// the live table rather than typed in: GET /platform/policies 2026-09-29 gives
+// document_analysis.review_fee_ranges 1-10 / 11-20 / 21-30, so the first
+// band's top page is the free allowance, and MD L182 ("Payment gate faqat
+// page_count > 10 bo'lganda majburiy") agrees with it at today's values.
+function includedPagesOf(p: PlatformPolicies | null): number {
+  const rs = [...(p?.documentAnalysis.ranges || [])].sort((a, b) => a.minPages - b.minPages);
+  return rs[0]?.maxPages || 10;
+}
+
+// The optional page count, asked for at the three call sites where a document
+// the advocate will have to read actually exists.
+//
+// It is asked for, never computed: counting the pages of a PDF in the browser
+// means parsing a page tree that every modern writer compresses into object
+// streams, so a hand-rolled count is wrong exactly on the documents that are
+// long enough to matter — and a wrong count here is a wrong fee. It is
+// optional because MD L81-84 says review-existing lets the backend derive it
+// from the file itself (PDF: the real count; DOCX/TXT: 2 500 characters per
+// page), and because MD L130 makes an absent page_count mean "behave exactly
+// as before": no gate, straight to the pool.
+export function DocPagesField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const t = useTranslations("portal.client.documents");
+  const uid = useId();
+  const policies = useResourceOne(getPlatformPolicies, []).data;
+  const pages = Number(value);
+  const ok = !!value && Number.isInteger(pages) && pages > 0 && pages <= MAX_REVIEW_PAGES;
+  const included = includedPagesOf(policies);
+  // MD L121-127: the fee must be on screen BEFORE the send. quoteDocReviewFee
+  // reads the same table the backend charges from, so the number here is the
+  // number the Telegram message will carry — it is never the first time the
+  // client sees the price.
+  const quote = ok && policies ? quoteDocReviewFee(policies, pages) : null;
+  const extra = Math.max(0, pages - included);
+  return (
+    <div className="pgask">
+      <label className="pgask__l" htmlFor={`pg-${uid}`}>{t("pagesLabel")}</label>
+      <input
+        id={`pg-${uid}`}
+        className="pgask__n"
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={MAX_REVIEW_PAGES}
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, "").slice(0, 4))}
+        placeholder={t("pagesPlaceholder")}
+        aria-invalid={(!!value && !ok) || undefined}
+      />
+      <small className="pgask__h">{value && !ok ? t("pagesRange", { max: MAX_REVIEW_PAGES }) : t("pagesHint")}</small>
+      {ok && quote && quote.amount ? (
+        extra === 0 ? (
+          <p className="pgask__free">{t("pagesFree", { n: included })}</p>
+        ) : (
+          <div className="pgquote">
+            <div className="pgquote__r">
+              <span>{t("quotePages", { n: pages })}</span>
+              <b>{fmtUzs(quote.amount)} {t("som")}</b>
+            </div>
+            <div className="pgquote__r pgquote__r--sub">
+              <span>{t("gateIncluded", { n: included })}</span>
+              <span>{t("gateExtra", { n: extra })}</span>
+            </div>
+            <p className="pgquote__lead">{t("quoteLead")}</p>
+          </div>
+        )
+      ) : null}
+    </div>
+  );
+}
+
+// What the gate answer said, shown wherever the client is waiting on it.
+// MD L93-111 is the whole of what the frontend is ever told about a gate:
+// amount, page_count / included_pages / extra_pages, and telegram_sent.
+export function DocGateFacts({ gate, telegram = true }: { gate: DocPaymentGate; telegram?: boolean }) {
+  const t = useTranslations("portal.client.documents");
+  return (
+    <>
+      {gate.amount ? (
+        <b className="pgate__amt">{fmtUzs(gate.amount)} {gate.currency && gate.currency !== "UZS" ? gate.currency : t("som")}</b>
+      ) : null}
+      <div className="pgate__meta">
+        {gate.pageCount ? <span>{t("gatePages", { n: gate.pageCount })}</span> : null}
+        {gate.includedPages ? <span>{t("gateIncluded", { n: gate.includedPages })}</span> : null}
+        {gate.extraPages ? <span className="pgate__meta--x">{t("gateExtra", { n: gate.extraPages })}</span> : null}
+      </div>
+      {/* telegram_sent false means the client is waiting on an approval
+          request that was never delivered — the one thing they cannot find
+          out for themselves, and the one that makes the wait pointless.
+          Off once the gate is closed: "press To'landi in Telegram" is
+          instructions for a message that has already been answered. */}
+      {telegram ? (
+        <p className={`pgate__tg${gate.telegramSent ? "" : " pgate__tg--bad"}`}>
+          {gate.telegramSent ? t("gateTelegramOk") : t("gateTelegramFail")}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+type Stage = "answers" | "pay" | "generating" | "lawyerReview" | "claimed" | "pending" | "payGate" | "payCancelled" | "done";
 
 // Map a request's backend status to the modal stage. Shared by every entry
 // point (standalone template list, service "Create document" button, and
@@ -51,6 +175,27 @@ type Stage = "answers" | "pay" | "generating" | "lawyerReview" | "claimed" | "pe
 function stageFor(r: DocumentRequest): Stage {
   if (r.status === "file_ready") return "done";
   if (!r.status || r.status === "questionnaire" || r.status === "draft") return "answers";
+  // LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md L112-117: an open
+  // gate puts the document request in `payment_required` and the lawyer
+  // request nested in it in `pending_payment` (DOC_PAYMENT_WAIT holds both,
+  // because a panel can be handed either record). Neither is the ordinary
+  // "your payment is being processed" wait below — no payment has been made
+  // yet and none can be made here; the client is waiting on a Telegram
+  // approval. Note this is NOT the constructor's own `payment_pending`
+  // (2 live rows on the test account on 2026-09-29), which keeps falling
+  // through to "pending" exactly as it did.
+  if (DOC_PAYMENT_WAIT.has(r.status)) return "payGate";
+  // MD L158-162: the fee was refused over Telegram, so both records end in
+  // `payment_cancelled` and nothing was sent to anybody. Terminal — there is
+  // nothing left to poll for.
+  if (r.status === DOC_PAYMENT_CANCELLED) return "payCancelled";
+  // MD L136-138: after the approval the document request becomes
+  // `lawyer_review_requested` and the lawyer request `open_pool` — i.e. the
+  // work has finally reached the advocates and the client is back on the
+  // ordinary "waiting for somebody to claim it" screen. Without this line it
+  // fell to the generic "pending" card, which talks about a payment being
+  // processed and would be exactly wrong at the moment the payment cleared.
+  if (r.status === "lawyer_review_requested") return "lawyerReview";
   // LEXGO_FRONTEND_DOCUMENT_CALLCENTER_EDITOR_FLOW.md: the call-center pool
   // flow splits the wait in two, and the client is told different things at
   // each point — "open_pool" is nobody-has-it-yet ("Callcenter advokat
@@ -101,14 +246,24 @@ function answersFrom(r: DocumentRequest): Record<string, string> {
 
 export default function DocumentRequestPanel({
   initialReq,
+  initialGate,
   fields,
   templateText,
   sourceFile,
   onBump,
   onStartNew,
+  onRetry,
   lawyerHeldNote,
 }: {
   initialReq: DocumentRequest;
+  // The payment gate as the POST that opened it described it — passed in by
+  // whichever form sent the request. It cannot be re-read: verified against
+  // production on 2026-09-29, GET /document-requests/{id} answers 26 fields
+  // and not one of them is payment_gate, payment_required or page_count, and
+  // the list rows are thinner still. So this is the only moment the gate's
+  // amount and page breakdown exist on the client, and after a reload the
+  // panel can only show the status without them.
+  initialGate?: DocPaymentGate | null;
   // The template's own questions and text. The request normally echoes the
   // questions back, but only the template carries the document body the live
   // pane renders — without it there is nothing to fill in as you type.
@@ -125,6 +280,11 @@ export default function DocumentRequestPanel({
   // way to fill the same template again with different facts (a different
   // case, a different counterparty). This lets the "done" screen start over.
   onStartNew?: () => void;
+  // MD L167: after a refused fee the client "may" be offered a re-send. There
+  // is no endpoint that restarts a cancelled payment, so the only honest
+  // re-send is the form that sent it — the two order forms hand this in and
+  // it takes the client back to their own filled-in form.
+  onRetry?: () => void;
   // Non-empty when a request for this same document is already with an
   // advocate (ServiceDocumentRequest composes it). Both ways out of this
   // panel towards an advocate — the builder's "Advokatdan yordam" and the
@@ -154,6 +314,14 @@ export default function DocumentRequestPanel({
   const [reviewType, setReviewType] = useState("");
   const [reviewBusy, setReviewBusy] = useState(false);
   const [reviewSent, setReviewSent] = useState(false);
+  // The page count the client typed for THIS review (empty = not known, not
+  // sent), and what the answer to the send said.
+  const [reviewPages, setReviewPages] = useState("");
+  const [gate, setGate] = useState<DocPaymentGate | null>(initialGate ?? null);
+  // Set from the answer's own `already_exists` (the constructor endpoint can
+  // refuse a repeat instead of gating it) so the refusal is shown in the
+  // backend's own words rather than as "something went wrong".
+  const [reviewRefused, setReviewRefused] = useState("");
   // Set instead of opening a tab whenever the generated file is a DOCX (see
   // deliver() inside getFile below) — DocTemplateViewer then renders it
   // inline the same way it already does for template previews.
@@ -179,6 +347,10 @@ export default function DocumentRequestPanel({
     setStage(stageFor(initialReq));
     setNote(null);
     setFatal("");
+    // A different request means a different gate — including none.
+    setGate(initialGate ?? null);
+    setReviewSent(false);
+    setReviewRefused("");
   }
 
   // 3 free downloads a month (S-35), for the pay-step reminder text.
@@ -320,7 +492,11 @@ export default function DocumentRequestPanel({
   // generating/pending keep the original tight budget — those really should
   // resolve in seconds. The socket below is the fast path; this poll is the
   // safety net for a dropped connection.
-  const humanWait = stage === "lawyerReview" || stage === "claimed";
+  // The gate joins the human-paced waits: MD step 4-6 has a person opening
+  // Telegram and pressing a button, which is an hour-scale wait, not the
+  // seconds a file generation takes. "payCancelled" is deliberately absent —
+  // it is terminal (MD L158-162), so polling it would be polling forever.
+  const humanWait = stage === "lawyerReview" || stage === "claimed" || stage === "payGate";
   const pendingId = !fatal && (stage === "pending" || stage === "generating" || humanWait) ? req.id : undefined;
   useEffect(() => {
     if (!pendingId) return;
@@ -351,9 +527,12 @@ export default function DocumentRequestPanel({
           setNote({ ok: true, msg: t("readyToast") });
           bump();
         } else {
-          // open_pool → claimed mid-wait moves the screen forward.
+          // open_pool → claimed mid-wait moves the screen forward, and so do
+          // both ways out of the payment gate: payment_required →
+          // lawyer_review_requested on a Telegram approval (MD L136-138), or
+          // → payment_cancelled on a refusal (MD L158-162).
           const next = stageFor(r);
-          if (next === "lawyerReview" || next === "claimed") setStage(next);
+          if (next === "lawyerReview" || next === "claimed" || next === "payGate" || next === "payCancelled") setStage(next);
         }
       } catch (e) {
         const s = statusOf(e);
@@ -374,8 +553,21 @@ export default function DocumentRequestPanel({
     // MD §"Realtime": the client's own socket carries the state changes this
     // screen is waiting for — react the moment one lands instead of sitting
     // out the rest of a 15s interval.
+    // LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md L126 says the
+    // client waits on this socket rather than polling, and L140-154 names the
+    // two events the gate resolves with: `document_request.pool_created`
+    // (backend side) and `document_request.sent` (the client's own). They are
+    // added to the filter so the approval lands here the moment it happens.
+    //
+    // Unverified, and the poll above stays for it: neither name occurs in this
+    // account's history — 300 notifications on 2026-09-29 carry 15 distinct
+    // data.event values (document_lawyer_request_sent/claimed/ready,
+    // document_request_created/file_ready/meeting_created, the urgent_advokat
+    // family…) and none of them is a gate event, under either spelling. So the
+    // 15-second poll and the "Holatni tekshirish" button are what actually
+    // move this screen today; these two names are a hope, not a measurement.
     const unsub = subscribeUserEvents((ev) => {
-      if (!/^document_request\.(ready|claimed|completed|meeting_created|editor_saved)$/.test(ev.event)) return;
+      if (!/^document_request\.(ready|claimed|completed|meeting_created|editor_saved|sent|pool_created|payment_cancelled)$/.test(ev.event)) return;
       const nested = ev.request && typeof ev.request === "object" ? (ev.request as Record<string, unknown>) : null;
       const id = String(ev.request_id ?? ev.document_request_id ?? nested?.id ?? "");
       if (id && id !== pendingId) return;
@@ -455,12 +647,40 @@ export default function DocumentRequestPanel({
 
   async function sendToLawyerReview() {
     if (reviewBusy || lawyerHeldNote) return;
+    const pages = Number(reviewPages);
     setReviewBusy(true);
     setNote(null);
     try {
-      await requestDocumentLawyerReview(req.id, reviewNeed.trim() || t("reviewNeedDefault"), reviewType || undefined);
-      setReviewSent(true);
+      // MD §3 (POST /document-requests/{id}/lawyer-review): page_count rides
+      // along when the client typed one, and is simply absent when they did
+      // not — which MD L130 defines as the old behaviour, straight to the
+      // pool. The gated twin is used because the answer, not the request row,
+      // is what says whether this reached the advocates at all.
+      const r = await requestDocumentLawyerReviewGated(
+        req.id,
+        reviewNeed.trim() || t("reviewNeedDefault"),
+        reviewType || undefined,
+        reviewPages && Number.isInteger(pages) && pages > 0 ? pages : undefined,
+      );
       setReviewOpen(false);
+      if (!r.canSendLawyerRequest || r.alreadyExists) {
+        // Nothing new was created; say what the backend said.
+        setReviewRefused(r.message || t("lawyerPendingLead"));
+        return;
+      }
+      setGate(r.gate);
+      setReviewSent(true);
+      // MD L124 "Advokatga yuborildi deb ko'rsatmaydi": when the gate is open
+      // the sentence under the finished document becomes the wait for the
+      // fee instead of "sent to the advocates". `req` is deliberately NOT
+      // replaced with the answer's row — this screen's download buttons are
+      // keyed on the client's own finished document, and the answer's
+      // `request` is the record the gate put in `payment_required`, which on
+      // this endpoint may not be the same row at all. The wait is rendered
+      // beside the document rather than instead of it; "Holatni tekshirish"
+      // in that block re-reads the request, and if the backend really did
+      // move THIS row into payment_required, stageFor takes the panel to the
+      // full gate screen from there.
     } catch (e) {
       if (statusOf(e) >= 500) logApiError("document-request lawyer-review", e);
       setNote({ ok: false, msg: t("error") });
@@ -584,6 +804,56 @@ export default function DocumentRequestPanel({
         </div>
       ) : null}
 
+      {/* MD L121-127. The one wait on this panel where nothing at all is
+          happening yet: the request is NOT with the advocates, it is held
+          until somebody presses "To'landi" in Telegram. Hence the lock, the
+          amount, and the page breakdown that explains where the amount came
+          from — and hence no "advokatlarga yuborildi" anywhere on it. */}
+      {shown === "payGate" ? (
+        <div className="docpend pgate" role="status">
+          <span className="docpend__ic docpend__ic--pay"><IconCard /></span>
+          <b>{t("gateTitle")}</b>
+          <span className="docpend__sub">{t("gateSub")}</span>
+          <span className="docpend__badge docpend__badge--pay">
+            <span className="docpend__dot" />
+            {t("gateStatus")}
+          </span>
+          {/* No GET returns a gate (production, 2026-09-29), so a panel that
+              was reopened rather than handed the POST answer has the status
+              and nothing else — say that, instead of showing a blank card or
+              an amount that would be invented. */}
+          {gate ? <DocGateFacts gate={gate} /> : <p className="pgate__none">{t("gateNoFacts")}</p>}
+          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+          <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
+            {busy ? t("processingShort") : t("checkStatus")}
+          </button>
+          <small className="advmuted">{t("gateRefreshHint")}</small>
+        </div>
+      ) : null}
+
+      {/* MD L156-167: "Bekor qilish" was pressed, the payment is `cancelled`
+          and both records are `payment_cancelled`. Nothing is in flight, so
+          this card has no pulse and no poll — only the fact and the way
+          back. */}
+      {shown === "payCancelled" ? (
+        <div className="docpend pgate pgate--off">
+          <span className="docpend__ic docpend__ic--off"><IconAlert /></span>
+          <b>{t("cancelledTitle")}</b>
+          <span className="docpend__sub">{t("cancelledSub")}</span>
+          <span className="docpend__badge docpend__badge--off">{t("cancelledStatus")}</span>
+          {gate ? <DocGateFacts gate={gate} telegram={false} /> : null}
+          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+          {onRetry ? (
+            <button className="btn btn--grad btn--full" type="button" onClick={onRetry}>
+              {t("gateRetry")}
+            </button>
+          ) : null}
+          <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
+            {busy ? t("processingShort") : t("checkStatus")}
+          </button>
+        </div>
+      ) : null}
+
       {shown === "pending" ? (
         <div className="docpend" role="status">
           <span className="docpend__ic"><IconClock /></span>
@@ -639,13 +909,30 @@ export default function DocumentRequestPanel({
           ) : null}
           {/* Hand this finished document to a call-center advocate to check
               — the same pool the from-scratch flows land in. */}
-          {reviewSent ? (
+          {reviewRefused ? (
+            <p className="dgate__note">{reviewRefused}</p>
+          ) : reviewSent && gate ? (
+            /* The gate is open: this document did NOT go to the advocates
+               (MD L124), so the green "yuborildi" notice is replaced by the
+               wait — with the amount, the page breakdown and whether the
+               Telegram request was actually sent. */
+            <div className="pgate pgate--inline">
+              <b className="pgate__t">{t("gateTitle")}</b>
+              <span className="pgate__sub">{t("gateSub")}</span>
+              <DocGateFacts gate={gate} />
+              <button className="btn btn--soft btn--sm" type="button" onClick={refresh} disabled={busy}>
+                {busy ? t("processingShort") : t("checkStatus")}
+              </button>
+            </div>
+          ) : reviewSent ? (
             <Notice ok msg={t("reviewSent")} />
           ) : reviewOpen ? (
             <div className="docreview">
               <label htmlFor="doc-review-need">{t("reviewNeedLabel")}</label>
               <textarea id="doc-review-need" rows={2} value={reviewNeed} onChange={(e) => setReviewNeed(e.target.value)} placeholder={t("reviewNeedDefault")} />
               <DocTypePicker flow="constructor_review" value={reviewType} onChange={setReviewType} />
+              {/* The price of the review, before the send. */}
+              <DocPagesField value={reviewPages} onChange={setReviewPages} />
               <div className="docreview__btns">
                 <button className="btn btn--grad btn--sm" type="button" onClick={sendToLawyerReview} disabled={reviewBusy}>
                   {reviewBusy ? t("processingShort") : t("reviewSubmit")}

@@ -35,6 +35,13 @@ const EVENT_CATEGORY: Record<string, NotifCategory> = {
   document_payment_created: "payments",
   document_request_created: "documents",
   document_request_file_ready: "documents",
+  // LEXGO_DOCUMENT_TITLE_CONSTRUCTOR_PROMPT_UPDATE_2026-09-29.md §6 L132:
+  // sent when the client hands a document to the Navbatchi advokat, asking
+  // whether they want to carry on filling it in themselves. Listed by name
+  // even though the /^document/ rule below would also catch it, because
+  // notifLink() treats it specially and a reader looking for it should find
+  // it here first.
+  document_constructor_continue_prompt: "documents",
   contract_signature_otp: "documents",
   secure_chat_message: "chat",
   meeting_invite: "chat",
@@ -155,6 +162,27 @@ export function notifLink(event: string, category: NotifCategory, data: Dict, ro
     return `/portal/chat/${roomId}${event === "meeting_invite" && callId ? `?join=${encodeURIComponent(callId)}` : ""}`;
   }
   if (!role) return "";
+  // LEXGO_DOCUMENT_TITLE_CONSTRUCTOR_PROMPT_UPDATE_2026-09-29.md §6 L158:
+  // "Frontend notification bosilganda shu modalni ochishi yoki to'g'ridan-
+  // to'g'ri konstruktor sahifasiga olib kirishi mumkin." Both routes are
+  // here, in that order of preference:
+  //   • the payload's own service id goes straight to the constructor page
+  //     (that page resumes this very request — see ServiceDocumentRequest);
+  //   • otherwise the document list, with ?doc=<request id>, which opens the
+  //     same two-button prompt there (ClientDocumentRequests).
+  // §6 L144-155 lists document_request_id and the four constructor URLs but
+  // no service_id, so the id is also read out of constructor_continue_url
+  // ("/document-requests/{id}") as a second source. `service_id` is not
+  // guesswork either: the sibling event document_lawyer_request_sent carries
+  // one on all 20 of this client's live rows (measured 2026-09-29), and the
+  // two are created by the same send.
+  if (event === "document_constructor_continue_prompt" && role === "client") {
+    const serviceId = asStr(data.service_id).trim();
+    if (serviceId) return `/portal/client/services/document/${encodeURIComponent(serviceId)}`;
+    const m = /\/document-requests\/([^/?#]+)/i.exec(asStr(data.constructor_continue_url));
+    const docId = asStr(data.document_request_id).trim() || (m ? m[1] : "");
+    return docId ? `/portal/client/documents?doc=${encodeURIComponent(docId)}` : "/portal/client/documents";
+  }
   if (event.startsWith("calendar_event") && role !== "client") return `/portal/${role}/calendar`;
   if (category === "orders") return `/portal/${role}/cases`;
   if (category === "payments") return role === "client" ? "/portal/client/payments" : `/portal/${role}/cases`;

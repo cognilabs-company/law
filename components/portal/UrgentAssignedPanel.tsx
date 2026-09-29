@@ -13,11 +13,12 @@ import {
 import { subscribeUserEvents, onUserSocketResync } from "@/lib/userSocket";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
 import { dateTimeFull } from "@/lib/date";
-import { statusLabel, regionLabel } from "@/lib/labels";
+import { statusLabel, regionLabel, humanize } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import Select from "@/components/Select";
+import CallRoom from "@/components/chat/CallRoom";
 import { Skeleton, EmptyState } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import {
@@ -96,6 +97,49 @@ function isUpcoming(r: UrgentRequest): boolean {
   return !!r.scheduledAt && (r.status === "scheduled" || r.status === "meeting_active");
 }
 
+// LEXGO_SECOND_OPINION_GROUP_CALLCENTER_FLOW_2026-09-28.md L62-67: the chosen
+// advocate must see the DIRECTIONS the client asked about. They arrive as the
+// Uzbek slugs the client form sends (payload.directions — the live list has
+// ["iqtisodiy","jinoiy"] on an open group request), while messages/enums.areas
+// is keyed by the English practice area. So te.has("areas.iqtisodiy") was
+// false for every one of them and the row printed the bare slug, which reads
+// as nothing at all to a Russian- or English-language advocate.
+//
+// The same table and lookup already exist, module-private, in
+// components/admin/UrgentAdvocateQueue.tsx:110-128, which this workpackage
+// does not own and therefore cannot export from. It is repeated here rather
+// than left broken; the lead has the move to lib/labels.ts in the handover.
+const DIRECTION_AREA: Record<string, string> = {
+  jinoiy: "criminal",
+  fuqarolik: "civil",
+  oila: "family",
+  mehnat: "labor",
+  mamuriy: "administrative",
+  iqtisodiy: "economic",
+  soliq: "tax",
+};
+type Te = ((key: string) => string) & { has: (key: string) => boolean };
+// Production writes the same slug two ways ("mamuriy" and "ma'muriy"), so the
+// apostrophe is dropped before the lookup; a slug with no practice area of its
+// own ("ytx", "avtoavariya") is humanized rather than blanked.
+function directionLabel(te: Te, slug: string): string {
+  const key = slug.trim().toLowerCase().replace(/[‘’'`]/g, "");
+  const area = DIRECTION_AREA[key];
+  if (area && te.has(`areas.${area}`)) return te(`areas.${area}`);
+  if (te.has(`areas.${key}`)) return te(`areas.${key}`);
+  return humanize(slug);
+}
+
+// Whether this advocate can walk into the meeting right now. Both ids are
+// required: the room the meeting runs in and the call itself. CallRoom asks
+// the backend for its own join token with exactly that pair
+// (GET /secure-chats/{room_id}/calls/{call_id}/join-token), which is the only
+// route open to a participant — POST /meeting lives under the call-center
+// prefix and answers 403 for an assigned external advocate.
+function joinable(r: UrgentRequest): boolean {
+  return !!r.callId && !!r.secureChatRoomId;
+}
+
 const KIND_ICON: Record<string, typeof IconVideo> = {
   video_consultation: IconVideo,
   express_video_consultation: IconBolt,
@@ -121,6 +165,9 @@ export default function UrgentAssignedPanel() {
   const [kind, setKind] = useState("");
   const [state, setState] = useState<State>({ status: "loading", items: [] });
   const [openId, setOpenId] = useState("");
+  // The meeting this advocate has walked into, if any. Opened from the row's
+  // own join button — see the button for why it carries no LiveKit creds.
+  const [meeting, setMeeting] = useState<{ roomId: string; callId: string; callType: "audio" | "video"; title: string } | null>(null);
 
   const load = useCallback(
     () =>
@@ -245,7 +292,7 @@ export default function UrgentAssignedPanel() {
                       // block below, where they read as what the meeting is
                       // about instead of one more grey clause.
                       !up && r.directions.length
-                        ? r.directions.map((d) => (te.has(`areas.${d}`) ? te(`areas.${d}`) : d)).join(", ")
+                        ? r.directions.map((d) => directionLabel(te, d)).join(", ")
                         : "",
                       r.createdAt ? dateTimeFull(r.createdAt, locale) : "",
                     ].filter(Boolean).join(" · ")}
@@ -260,7 +307,7 @@ export default function UrgentAssignedPanel() {
                       {r.directions.length ? (
                         <span className="uasg__tags">
                           {r.directions.map((d) => (
-                            <em key={d} className="uasg__tag">{te.has(`areas.${d}`) ? te(`areas.${d}`) : d}</em>
+                            <em key={d} className="uasg__tag">{directionLabel(te, d)}</em>
                           ))}
                         </span>
                       ) : null}
@@ -275,6 +322,53 @@ export default function UrgentAssignedPanel() {
                 <div className="uasg__r">
                   <em className={`creq__badge uaq__st uaq__st--${r.status || "claimed"}`}>{statusLabel(tcm, r.status)}</em>
                   <div className="uaq__acts">
+                    {/* "`Meetingga kirish` buttoni meeting yaratilgandan
+                        keyin aktiv bo'ladi" — SECOND_OPINION MD L342, and the
+                        advocate card it lists at L334-342. Until now the only
+                        way into a panel meeting was the ring card, which
+                        lasts seconds: an advocate who was away from the
+                        screen had no way back in, and this list is the one
+                        place the meeting is visible to them at all.
+
+                        Rendered on every record that is scheduled or already
+                        running, and DISABLED until the record carries the
+                        pair of ids a join needs — that disabled state is the
+                        "aktiv bo'ladi" the MD asks for, and it is what tells
+                        a waiting advocate the button will light up here
+                        rather than somewhere else. The operator is the one
+                        who creates the meeting (POST /meeting, call-center
+                        prefix), so nothing is posted from this panel; the
+                        realtime subscription above refetches the record the
+                        moment the meeting is made.
+
+                        No `lk` prop: this advocate is a joiner, not the
+                        caller, so CallRoom fetches its own join token from
+                        the room and call ids. */}
+                    {up || r.callId ? (
+                      <button
+                        type="button"
+                        className="btn btn--grad btn--sm"
+                        disabled={!joinable(r)}
+                        title={joinable(r) ? undefined : t("joinWaiting")}
+                        onClick={() =>
+                          setMeeting({
+                            roomId: r.secureChatRoomId,
+                            callId: r.callId,
+                            // The express and YTX flows open an audio session
+                            // even where the service is sold as video, and
+                            // the record says so in payload.call_channel.
+                            callType: r.callChannel === "audio" ? "audio" : "video",
+                            title: [
+                              tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind,
+                              r.workId,
+                            ].filter(Boolean).join(" · "),
+                          })
+                        }
+                      >
+                        {r.callChannel === "audio" ? <IconPhone /> : <IconVideo />}
+                        {t("joinMeeting")}
+                      </button>
+                    ) : null}
                     {r.secureChatRoomId ? (
                       <Link href={chatHref} className="btn btn--line btn--sm"><IconChat />{t("openChat")}</Link>
                     ) : null}
@@ -295,6 +389,20 @@ export default function UrgentAssignedPanel() {
           })}
         </ul>
       )}
+
+      {/* Joining a meeting does not change the record here, but leaving one
+          usually means it has moved (the operator completes it, or it ends),
+          so the list is refetched on the way out. */}
+      {meeting ? (
+        <CallRoom
+          roomId={meeting.roomId}
+          callId={meeting.callId}
+          callType={meeting.callType}
+          isCaller={false}
+          title={meeting.title}
+          onEnd={() => { setMeeting(null); void load(); }}
+        />
+      ) : null}
     </section>
   );
 }
@@ -351,7 +459,7 @@ function AssignedDetail({ id, recordId, fallback }: { id: string; recordId: stri
         {req.directions.length ? (
           <div className="chiprow" style={{ margin: "6px 0 0" }}>
             {req.directions.map((d) => (
-              <span key={d} className="fchip">{te.has(`areas.${d}`) ? te(`areas.${d}`) : d}</span>
+              <span key={d} className="fchip">{directionLabel(te, d)}</span>
             ))}
           </div>
         ) : null}
