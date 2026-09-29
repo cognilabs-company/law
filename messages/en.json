@@ -2968,6 +2968,10 @@
       "complaints": {
         "title": "Complaints",
         "lead": "File a complaint about service quality — we review it quickly.",
+        "fileOne": "File a complaint",
+        "fileTitle": "Complaint about this work",
+        "fileLead": "A complaint is reviewed separately from the rating and is not time-limited.",
+        "ref": "Work",
         "new": "New complaint",
         "empty": "No complaints",
         "emptyText": "Your complaints will appear here.",

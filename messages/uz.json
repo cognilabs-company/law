@@ -2974,6 +2974,10 @@
       "complaints": {
         "title": "Shikoyatlar",
         "lead": "Xizmat sifati bo'yicha shikoyat qoldiring — tez ko'rib chiqamiz.",
+        "fileOne": "Shikoyat qilish",
+        "fileTitle": "Ish bo'yicha shikoyat",
+        "fileLead": "Shikoyat baholashdan alohida ko'rib chiqiladi va vaqt bilan cheklanmagan.",
+        "ref": "Ish",
         "new": "Yangi shikoyat",
         "empty": "Shikoyat yo'q",
         "emptyText": "Shikoyatlaringiz shu yerda ko'rinadi.",

@@ -10337,3 +10337,21 @@ html[data-theme="dark"]{
      #FEF2F2 on a dark card would be a white block. */
   --dk-bad-wash:rgba(255, 138, 138, .12);
 }
+
+/* ── Shikoyat, beside the rating ─────────────────────────────────── */
+/* The complaint trigger is deliberately NOT part of the rating window: the
+   stars vanish when the backend's fifteen minutes lapse and this must not,
+   so it is its own row rather than a control inside .drate / .urate. The
+   trigger itself is a plain .btn--line .btn--sm — only its placement and the
+   dialog's two extra lines are new here. */
+.uamore__cmpl{display:flex}
+.uamore__cmpl .btn{flex:0 0 auto}
+/* Says the complaint is not the rating, before the form asks for anything. */
+.cmpl__lead{margin:0;font-size:.85rem;line-height:1.55;color:var(--gray)}
+/* Which work the complaint is about, shown because POST /complaints has no
+   field for a document request or an urgent record and the reference travels
+   inside the text — the client should see what is being attached. */
+.cmpl__ref{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:0;padding:10px 12px;
+  border-radius:14px;background:var(--dk-surface-2, #F7FAFE)}
+.cmpl__ref span{font-size:.72rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--gray2)}
+.cmpl__ref b{font-size:.86rem;font-weight:650;overflow-wrap:anywhere}

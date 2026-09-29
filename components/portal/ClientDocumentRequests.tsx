@@ -17,6 +17,7 @@ import { subscribeUserEvents } from "@/lib/userSocket";
 import { useDocChatRooms } from "@/lib/useDocChatRooms";
 import { useDocRatings } from "@/lib/useDocRatings";
 import DocRatingBox from "./DocRatingBox";
+import ComplaintBox from "./ComplaintBox";
 import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -275,8 +276,13 @@ export default function ClientDocumentRequests() {
             // plus, disabled, on any row the backend has blocked, because a
             // refusal with nothing to refuse explains nothing.
             const canSend = (item.mode === "manual" && tone !== "closed") || blocked;
-            const acts = !!room || ready || canContinue || canSend;
             const info = rated[item.id];
+            // A complaint is offered on exactly the rows a rating is offered
+            // on — the finished ones — but unlike the rating it does not
+            // expire with the 15-minute window, so it is gated on the row
+            // being finished rather than on the window still being open.
+            const canComplain = !!info;
+            const acts = !!room || ready || canContinue || canSend || canComplain;
             // The work id the client and the advocate quote at each other.
             const workId = item.workId || info?.workId || "";
             return (
@@ -368,6 +374,12 @@ export default function ClientDocumentRequests() {
                           <IconScale />
                           {tcommon("reviewOpen")}
                         </button>
+                      ) : null}
+                      {/* Last in the row, and deliberately not inside the
+                          rating block above: the stars disappear when the
+                          fifteen minutes lapse, a complaint must not. */}
+                      {canComplain ? (
+                        <ComplaintBox subject={item.title || t("title")} workId={workId} onSent={refresh} />
                       ) : null}
                     </div>
                   ) : null}

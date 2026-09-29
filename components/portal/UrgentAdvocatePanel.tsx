@@ -40,6 +40,7 @@ import { Skeleton, EmptyState } from "./DataState";
 // draw, is the four-point sparkle icons.tsx itself notes "reads as AI, not as
 // one of five".
 import { RateStar } from "./DocRatingBox";
+import ComplaintBox from "./ComplaintBox";
 // The wait clock the three client order forms share (wp-hourglass). Defined
 // in NewDocumentOrder because that module is already the shared one of the
 // document forms; imported here rather than re-declared so the mark a client
@@ -1061,6 +1062,12 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   // refused a late send. Either way there is something to say — a card that
   // simply vanished looked like a bug.
   const rShut = rClosed || (!rDone && !req.rating.submitted && req.rating.available && timed && left <= 0);
+  // A complaint is not a low rating, and it is not on the rating's clock.
+  // Offered from the moment the work is handed over — the backend having
+  // opened a rating window is the earliest signal of that, a summary or a
+  // completion timestamp the later ones — and it stays offered after the
+  // fifteen minutes lapse, which is the whole difference between the two.
+  const canComplain = !!req.completedAt || !!req.resultSummary || req.rating.available || req.rating.submitted;
 
   // One interval for the whole window; the dependency is `timed`, not `left`,
   // so the timer is not torn down and rebuilt on every tick.
@@ -1187,6 +1194,16 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
         <div className="uamore__block uamore__block--warn urate__shut">
           <b><IconClock />{t("rateClosedTitle")}</b>
           <span className="advmuted">{t("rateClosedText")}</span>
+        </div>
+      ) : null}
+
+      {/* Beside the stars, on its own terms. Whichever of the three rating
+          faces is showing above — and after all three have gone — the client
+          can still say the work was wrong, which the rating window alone
+          never let them do. */}
+      {canComplain ? (
+        <div className="uamore__cmpl">
+          <ComplaintBox subject={req.serviceTitle || t("title")} workId={req.workId} />
         </div>
       ) : null}
 
