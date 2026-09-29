@@ -6723,7 +6723,14 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .ua__st--open_pool{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
 .ua__st--scheduled{background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
 .ua__st--in_progress,.ua__st--meeting_active{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
-.ua__st--cancelled,.ua__st--expired{background:var(--dk-surface-2, #F1F4F8);color:var(--gray)}
+/* Cancelled is red, not grey. Grey is what this sheet uses for "nothing is
+   happening here" — and on a card that also carries a work id and a date it
+   made a cancelled request read as merely old. It is an outcome, and the one
+   the client most needs to spot down a list. Expired keeps the grey: nobody
+   decided it, the clock ran out. Same tokens as .st--unpaid, so the two
+   negative states on the client's screens paint alike. */
+.ua__st--cancelled{background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #C0392B)}
+.ua__st--expired{background:var(--dk-surface-2, #F1F4F8);color:var(--gray)}
 
 /* "Umumiy qidiruv": the operator widens past the request's own practice area
    and region when nobody in it is free. */
@@ -7334,8 +7341,12 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
 .svfilt{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin-bottom:16px}
 .svfilt__f{display:flex;flex-direction:column;gap:6px;min-width:min(232px,100%);flex:0 1 auto}
 .svfilt__f>span{font-size:.76rem;font-weight:700;letter-spacing:.02em;color:var(--gray2)}
-.svfilt__clear{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 14px;border:0;cursor:pointer;
-  border-radius:12px;background:var(--dk-surface-2, #F2F6FC);color:var(--gray);font:inherit;font-size:.84rem;font-weight:700;
+/* 48px, which is what .dsel__btn is: this row ends in a select, a clear
+   button and the free-to-view chip, and they were 48 / 44 / 38 — three
+   heights on one baseline, which is what made the strip read as debris
+   rather than as one control bar. One number now, named once here. */
+.svfilt__clear{display:inline-flex;align-items:center;gap:6px;height:48px;padding:0 14px;border:0;cursor:pointer;
+  border-radius:14px;background:var(--dk-surface-2, #F2F6FC);color:var(--gray);font:inherit;font-size:.84rem;font-weight:700;
   transition:background .18s,color .18s}
 .svfilt__clear:hover{background:var(--b100);color:var(--dk-acc, var(--b600))}
 .svfilt__clear svg{width:14px;height:14px}
@@ -9205,22 +9216,31 @@ html[data-theme="dark"]{--dk-txt-err:#FF8A8A}
    time cannot come back. Keyboard focus opens it too; a touch device, which
    never fires hover, still has the dialog one tap away. */
 .uacard{position:relative}
-.uacard__peek{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:6;
-  display:grid;gap:8px;padding:13px 15px;text-align:left;pointer-events:none;
-  border:1.5px solid var(--line);border-radius:16px;background:var(--dk-surface, #fff);
-  box-shadow:var(--s3);opacity:0;transform:translateY(-6px);
-  transition:opacity .18s ease,transform .18s ease}
-.uacard:hover .uacard__peek,.uacard:focus-visible .uacard__peek{opacity:1;transform:translateY(0)}
+/* The panel covers the card rather than hanging below it.
+   Hanging down put it over whatever the grid sat on — for the bottom row that
+   is the order form — and a card near the fold opened its detail off-screen.
+   Covering puts the detail exactly where the pointer already is, asks the
+   page for no room at all, and can never be clipped. It is the card's own
+   footprint, so it inherits the card's radius and reads as the card turning
+   over rather than as a tooltip arriving from somewhere.
+   min-height:100% instead of inset:0 so a long panel grows downward instead
+   of cropping its own last line. */
+.uacard__peek{position:absolute;left:0;right:0;top:0;min-height:100%;z-index:6;
+  display:grid;align-content:center;gap:8px;padding:15px 16px;text-align:left;pointer-events:none;
+  border:1.5px solid var(--dk-bd-blue, var(--b300));border-radius:var(--rl);
+  background:var(--dk-surface, #fff);box-shadow:var(--s3);
+  opacity:0;transform:scale(.985);
+  transition:opacity .16s ease,transform .16s ease}
+.uacard:hover .uacard__peek,.uacard:focus-visible .uacard__peek{opacity:1;transform:none}
 .uacard__peek b{font-size:.84rem;font-weight:700;line-height:1.35;color:var(--ink)}
 .uacard__peek span{font-size:.79rem;line-height:1.5;color:var(--gray)}
 .uacard__peek em{display:block;font-style:normal;font-size:.75rem;line-height:1.45;color:var(--gray2)}
 .uacard__peek .uacard__peekk{display:grid;gap:3px;padding-top:9px;border-top:1px dashed var(--line)}
 .uacard__peek .uacard__peekk b::before{content:"";display:inline-block;width:5px;height:5px;margin-right:7px;
   border-radius:50%;background:var(--dk-acc, var(--b600));transform:translateY(-2px)}
-/* A card in the last column would push its panel off the right edge only if
-   the panel were wider than the card; it is exactly the card's width, so the
-   only real risk is the bottom of the grid — the panel opens downward over the
-   order form, which is why it is pointer-events:none and never eats a click. */
+/* pointer-events:none for two reasons: the click must reach the card under
+   it, and the pointer must never "enter" the panel and so leave the card,
+   which would flicker it off and on at the boundary. */
 @media (hover:none){
   .uacard__peek{display:none}
 }
@@ -10149,29 +10169,28 @@ html[data-theme="dark"] .dstart__opt--rec { border-color: var(--dk-bd-blue, #2C3
 .svfilt__clear{flex:none;align-self:flex-end}
 
 /* ── "Barcha hujjatlarni ko'rish bepul!" ─────────────────────────────
-   It was a full-width green banner of its own above the search box: 41.8px
-   tall on every screen, 1084.7px wide at 1440 for 33 characters, and two lines
-   at 400px. The GM wanted it beside the filters and loud, so it is a pill in
-   the house brand gradient at the end of the row, pushed right by margin-left
-   and kept on one line — measured 275px against the 328px available at 400px,
-   which is why nowrap is safe there.
-   The sheen is the same shape as this stylesheet's own button shimmer
-   (.btn--grad::before): a skewed white band behind the text (z-index:-1 under
-   isolation, so it never washes out the label), only on a timer instead of on
-   hover, because nothing hovers a label. */
-.svfilt__free{position:relative;display:inline-flex;align-items:center;gap:7px;
-  margin-left:auto;max-width:100%;padding:9px 15px;border-radius:var(--pill);
-  overflow:hidden;isolation:isolate;white-space:nowrap;
-  font-size:.85rem;font-weight:800;line-height:1.25;letter-spacing:.01em;
-  color:#fff;background:var(--grad);box-shadow:var(--sblue)}
-.svfilt__free svg{width:16px;height:16px;flex:none}
-.svfilt__free::before{content:"";position:absolute;top:-40%;bottom:-40%;width:38%;left:-70%;z-index:-1;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-22deg);
-  animation:svfreeSheen 4.2s cubic-bezier(.3,.9,.4,1) infinite}
-@keyframes svfreeSheen{0%{left:-70%}38%{left:130%}100%{left:130%}}
-@media (prefers-reduced-motion: reduce){
-  .svfilt__free::before{animation:none;left:-70%}
-}
+   It sits at the end of the filter row, pushed right by margin-left and kept
+   on one line — measured 275px against the 328px available at 400px, which is
+   why nowrap is safe there.
+   It used to be a brand-gradient pill with a shimmer on a 4.2s loop. That
+   read as the row's primary button: filled, brand-coloured and the only thing
+   moving, next to four controls that do something when you press them. It
+   does nothing when pressed — it is a fact about the catalogue, not an
+   action — and the loop pulled the eye away from the filters on every pass.
+   So it states the fact instead: the house success tint, one accent mark (the
+   eye), the same 48px as everything beside it, and still. Loud enough to
+   read from across the row; no longer promising a click it does not have. */
+.svfilt__free{display:inline-flex;align-items:center;gap:8px;
+  margin-left:auto;max-width:100%;min-height:48px;padding:0 16px;border-radius:14px;
+  white-space:nowrap;
+  font-size:.85rem;font-weight:700;line-height:1.2;
+  color:var(--dk-txt-ok, var(--ok));background:var(--dk-tint-ok, #E1F6EE);
+  box-shadow:inset 0 0 0 1.5px var(--dk-bd-ok, #BFE8D4)}
+/* The eye reads as "you may look", which is the whole claim; it carries the
+   accent so the chip has one coloured mark rather than being coloured all
+   over. */
+.svfilt__free svg{width:17px;height:17px;flex:none;color:var(--ok)}
+.svfilt__free b{font-weight:800}
 
 @media (max-width:620px){
   /* Two fields to a row, not one. Measured at 400px: one field per row made
@@ -10201,7 +10220,9 @@ html[data-theme="dark"] .dstart__opt--rec { border-color: var(--dk-bd-blue, #2C3
   .advpick.is-bad{animation:none}
 }
 
-html[data-theme="dark"] .svfilt__free{box-shadow:0 12px 28px -16px rgba(22,104,240,.95)}
+/* The chip is a tinted surface now, not a glowing blue pill, so the blue
+   drop shadow that lifted it off a dark page has nothing left to lift; the
+   tint and ring tokens already carry their own dark values. */
 
 /* ── wp-docprotect: the on-screen document is a view, not a copy ──────────
    The GM asked that an opened document not be obtainable "by any means".
@@ -10355,3 +10376,15 @@ html[data-theme="dark"]{
   border-radius:14px;background:var(--dk-surface-2, #F7FAFE)}
 .cmpl__ref span{font-size:.72rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--gray2)}
 .cmpl__ref b{font-size:.86rem;font-weight:650;overflow-wrap:anywhere}
+
+/* ── The document card on the Tezkor grid ────────────────────────────
+   Every other card on that grid buys time with an advocate; this one buys a
+   document. It carries the violet the rest of the app already uses for
+   advocate-written work (.svc__act--adv, .atype--lawyer) so the difference
+   is visible before the title is read, and nothing else about the card
+   changes — same frame, same hover panel, same floor. */
+.uacard--docs .uacard__i{background:var(--dk-tint-violet, #F1EBFF);color:var(--dk-txt-violet, #6A3DE8)}
+.uacard--docs:hover{border-color:var(--dk-bd-violet, #D8C8FA)}
+.uacard--docs .uacard__f em.uacard__kinds{color:var(--dk-txt-violet, #6A3DE8);background:var(--dk-tint-violet, #F1EBFF)}
+.uacard--docs .uacard__peek{border-color:var(--dk-bd-violet, #D8C8FA)}
+.uacard--docs .uacard__peek .uacard__peekk b::before{background:var(--dk-txt-violet, #6A3DE8)}

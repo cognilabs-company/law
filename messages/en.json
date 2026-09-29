@@ -2591,6 +2591,10 @@
           "video_consultation": "A 30-minute video meeting with an advocate. Your request queues and a free advocate on duty takes it."
         },
         "detailsOf": "{kind} — open the details",
+        "docs": {
+          "title": "Work on legal documents",
+          "lead": "The duty advocate writes the document from scratch, or checks and corrects the one you have."
+        },
         "deliveryPool": "Queues, and a free advocate on duty takes it.",
         "deliveryNow": "Goes straight to the advocate on duty.",
         "immediate": "Right away",
@@ -4509,6 +4513,11 @@
         "calendar_event_updated": {
           "title": "Calendar event updated",
           "body": "“{eventTitle}” was updated. Status: {status}."
+        },
+        "urgent_advokat": {
+          "group_assigned": {
+            "title": "You were picked for a group meeting"
+          }
         },
         "sos_request": {
           "title": "SOS request",

@@ -183,6 +183,17 @@ export function notifLink(event: string, category: NotifCategory, data: Dict, ro
     const docId = asStr(data.document_request_id).trim() || (m ? m[1] : "");
     return docId ? `/portal/client/documents?doc=${encodeURIComponent(docId)}` : "/portal/client/documents";
   }
+  // Tezkor Advokat. LEXGO_SECOND_OPINION_GROUP_CALLCENTER_FLOW_2026-09-28.md
+  // asks that an advocate picked for a group meeting be able to reach the
+  // work from the notification ("scheduled meetingni upcoming listga
+  // qo'shish"); every urgent_advokat.* event is about one record, and the
+  // screen that lists those records is the same one per role. The record id
+  // does travel as data.record_id, but no urgent screen reads an id out of
+  // the query string yet, so the link lands on the list rather than promising
+  // a deep link it cannot honour.
+  if (event.startsWith("urgent_advokat.")) {
+    return role === "client" ? "/portal/client/urgent" : `/portal/${role}/urgent`;
+  }
   if (event.startsWith("calendar_event") && role !== "client") return `/portal/${role}/calendar`;
   if (category === "orders") return `/portal/${role}/cases`;
   if (category === "payments") return role === "client" ? "/portal/client/payments" : `/portal/${role}/cases`;

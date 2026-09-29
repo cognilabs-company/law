@@ -2597,6 +2597,10 @@
           "video_consultation": "Advokat bilan 30 daqiqalik video uchrashuv. So‘rovingiz navbatga tushadi va bo‘sh navbatchi advokat oladi."
         },
         "detailsOf": "{kind} — batafsil ochish",
+        "docs": {
+          "title": "Huquqiy hujjatlar bo'yicha ishlash",
+          "lead": "Navbatchi advokat hujjatni noldan yozib beradi yoki sizdagi hujjatni tekshirib to'g'irlaydi."
+        },
         "deliveryPool": "Navbatga tushadi, bo‘sh navbatchi advokat oladi.",
         "deliveryNow": "Navbatchi advokatga to‘g‘ridan-to‘g‘ri boradi.",
         "immediate": "Darhol",
@@ -4515,6 +4519,11 @@
         "calendar_event_updated": {
           "title": "Kalendar voqeasi yangilandi",
           "body": "«{eventTitle}» yangilandi. Holati: {status}."
+        },
+        "urgent_advokat": {
+          "group_assigned": {
+            "title": "Guruh uchrashuviga tanlandingiz"
+          }
         },
         "sos_request": {
           "title": "SOS so'rovi",

@@ -20,9 +20,7 @@ import {
   IconChevronLeft,
   IconEdit,
   IconClipboardCheck,
-  IconClipboardList,
   IconEye,
-  IconFileText,
   IconPaperclip,
   IconArrowRight,
   IconLock,
@@ -134,7 +132,14 @@ function draftTitle(docType: string, need: string): string {
   return `${(sp > TITLE_MAX / 2 ? cut.slice(0, sp) : cut).trimEnd()}…`;
 }
 
-export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) {
+export default function NewDocumentOrder({
+  onClose,
+  // The AI analysis card is a link out to its own page, not one of the two
+  // flows this component runs. The Tezkor Advokat grid opens this dialog to
+  // offer exactly the advocate-written pair, so it turns the link off rather
+  // than sending a client who came looking for an advocate to a robot.
+  showAnalysis = true,
+}: { onClose?: () => void; showAnalysis?: boolean }) {
   const t = useTranslations("portal.client.newDoc");
   const td = useTranslations("portal.client.documents");
   const locale = useLocale();
@@ -308,35 +313,26 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
     );
 
   // ── The picker ─────────────────────────────────────────────────
-  // MD §5 names four ways a document can come into being, and only two of
-  // them start here. The template-backed pair — an advocate filling a
-  // catalogue template, and the client filling it in the builder themselves —
-  // belong to ServiceDocumentRequest, which needs a chosen service before it
-  // can offer either. So they are named but link into the catalogue: a client
-  // who cannot see them here concludes the two flows do not exist, and a card
-  // that pretended to start them would dead-end.
+  // Three ways in, and every one of them starts here.
+  //
+  // It used to offer five. Two of those — "Tayyor shablondan hujjat" and
+  // "O'zim to'ldiraman" — were not flows at all: both were links that shut
+  // this dialog and dropped the client on the catalogue to go and find a
+  // service, which is the same journey the page's own catalogue already is.
+  // A card that only restates the page behind it makes the choice look wider
+  // than it is and buries the two that actually do something, so they are
+  // gone. Nothing is lost: the catalogue is the screen this dialog opens on
+  // top of.
   if (!flow)
     return (
       <div className="cform" style={{ maxWidth: "none" }}>
         <p className="advmuted" style={{ margin: 0 }}>{t("lead")}</p>
         <div className="docchoose">
-          <Link href="/portal/client/services" className="docchoose__c" onClick={onClose}>
-            <span className="docchoose__i"><IconFileText /></span>
-            <b>{t("templateTitle")}</b>
-            <span>{t("templateSub")}</span>
-            <span className="docchoose__go">{t("catalogHint")}<IconArrowRight /></span>
-          </Link>
           <button type="button" className="docchoose__c" onClick={() => setFlow("scratch")}>
             <span className="docchoose__i"><IconEdit /></span>
             <b>{t("scratchTitle")}</b>
             <span>{t("scratchSub")}</span>
           </button>
-          <Link href="/portal/client/services" className="docchoose__c" onClick={onClose}>
-            <span className="docchoose__i"><IconClipboardList /></span>
-            <b>{t("selfTitle")}</b>
-            <span>{t("selfSub")}</span>
-            <span className="docchoose__go">{t("catalogHint")}<IconArrowRight /></span>
-          </Link>
           <button type="button" className="docchoose__c" onClick={() => setFlow("review")}>
             <span className="docchoose__i"><IconClipboardCheck /></span>
             <b>{t("reviewTitle")}</b>
@@ -344,11 +340,13 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
           </button>
           {/* The AI analysis page used to be a sidebar item of its own; it
               lives here now so both document journeys start in one place. */}
-          <Link href="/portal/client/doc-analysis" className="docchoose__c" onClick={onClose}>
-            <span className="docchoose__i"><IconEye /></span>
-            <b>{t("analysisTitle")}</b>
-            <span>{t("analysisSub")}</span>
-          </Link>
+          {showAnalysis ? (
+            <Link href="/portal/client/doc-analysis" className="docchoose__c" onClick={onClose}>
+              <span className="docchoose__i"><IconEye /></span>
+              <b>{t("analysisTitle")}</b>
+              <span>{t("analysisSub")}</span>
+            </Link>
+          ) : null}
         </div>
       </div>
     );

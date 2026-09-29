@@ -46,7 +46,7 @@ import ComplaintBox from "./ComplaintBox";
 // document forms; imported here rather than re-declared so the mark a client
 // sees while an urgent request is out is the same mark they saw while a
 // document request was out.
-import { WaitClock } from "./NewDocumentOrder";
+import NewDocumentOrder, { WaitClock } from "./NewDocumentOrder";
 import { Notice } from "@/components/admin/AdminBits";
 import {
   IconVideo,
@@ -145,6 +145,9 @@ export default function UrgentAdvocatePanel() {
   const t = useTranslations("portal.client.urgent");
   const te = useTranslations("enums");
   const tcm = useTranslations("portal.common");
+  // The two document flows name themselves in portal.client.newDoc — the
+  // document card lists them, and one wording for both screens is the point.
+  const tnd = useTranslations("portal.client.newDoc");
   const locale = useLocale();
 
   const [cat, setCat] = useState<UrgentCatalog | null>(null);
@@ -160,6 +163,9 @@ export default function UrgentAdvocatePanel() {
   // The grouped card whose kinds are on offer, by card key. It survives the
   // move to the form step so the Back button knows where it came from.
   const [kindPick, setKindPick] = useState("");
+  // The document card's dialog. It is not a Tezkor service and has no catalog
+  // entry — see the card itself, at the end of the grid.
+  const [docsOpen, setDocsOpen] = useState(false);
   // Which step of the ONE order dialog is showing, "" for shut. The kind
   // chooser and the configurator used to be two different things in two
   // different places — a <Modal> for "which kind?" and then an in-page panel
@@ -550,8 +556,62 @@ export default function UrgentAdvocatePanel() {
               </button>
             );
           })}
+
+          {/* ── Huquqiy hujjatlar bo'yicha ishlash ────────────────────
+              The one card on this grid with no catalog entry behind it, and
+              written by hand for that reason. GET /urgent-advokat/catalog
+              sells consultations — time with an advocate — while this is the
+              other thing a duty advocate does: write the document, or read
+              the one the client already has. Both routes exist already
+              (POST /services/…/document-lawyer/request-with-files, the
+              from-scratch and review-existing flows of NewDocumentOrder);
+              what was missing was any way to reach them from the screen a
+              client opens when they want an advocate now.
+
+              So it is a real card, not a service: no price, no channel, no
+              meeting minutes, and its own dialog rather than the order form.
+              Rendered last so the paid consultations keep the top of the
+              grid. */}
+          <button
+            type="button"
+            className="uacard uacard--docs"
+            aria-haspopup="dialog"
+            onClick={() => setDocsOpen(true)}
+          >
+            <span className="uacard__i"><IconFileText /></span>
+            <b className="uacard__t">{t("docs.title")}</b>
+            <span className="uacard__d">{t("docs.lead")}</span>
+            <span className="uacard__f">
+              <em className="uacard__kinds"><IconLayers />{t("kindsN", { n: 2 })}</em>
+            </span>
+            <span className="uacard__go" aria-hidden><IconArrowRight /></span>
+
+            <span className="uacard__peek" aria-hidden>
+              <b>{t("docs.title")}</b>
+              <span>{t("docs.lead")}</span>
+              <em>{t("deliveryPool")}</em>
+              <span className="uacard__peekk">
+                <b>{tnd("scratchTitle")}</b>
+                <b>{tnd("reviewTitle")}</b>
+              </span>
+            </span>
+
+            <span className="uacard__more">
+              <span className="uacard__morei">
+                <span className="uacard__how">{t("deliveryPool")}</span>
+              </span>
+            </span>
+          </button>
         </div>
       )}
+
+      {/* The two document flows, in the dialog the card opens. The AI
+          analysis card NewDocumentOrder also offers is turned off here: a
+          client who pressed "Huquqiy hujjatlar bo'yicha ishlash" on the
+          Tezkor Advokat grid asked for an advocate. */}
+      <Modal open={docsOpen} onClose={() => setDocsOpen(false)} title={t("docs.title")} wide>
+        <NewDocumentOrder showAnalysis={false} onClose={() => setDocsOpen(false)} />
+      </Modal>
 
       {/* ── The client's own requests ─────────────────────────────── */}
       <section className="ppanel">
