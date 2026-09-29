@@ -16,6 +16,10 @@ import GiftNudge from "./GiftNudge";
 // three.js/R3F must never run during SSR; isolated behind ssr:false rather
 // than disabling SSR for the shell itself.
 const LexGoRobot = dynamic(() => import("@/components/lexgo/robot/LexGoRobot"), { ssr: false });
+// The system assistant is a floating overlay on every portal page; loading it
+// with the shell would pull the AI client into the first paint of a cabinet
+// that may never open it.
+const AiSystemAssistant = dynamic(() => import("./AiSystemAssistant"), { ssr: false });
 import { CabinetProvider, useCabinetLoader } from "./SellerCabinet";
 import type { SellerActions } from "@/lib/services/backend";
 import {
@@ -205,6 +209,9 @@ export default function PortalShell({
   // Starts expanded (matches the server-rendered shell) and reads the saved
   // value right after mount, so there is no hydration mismatch.
   const [collapsed, setCollapsed] = useState(false);
+  // The system assistant's panel. Owned here rather than by the component so
+  // the robot in the corner can open it.
+  const [aiOpen, setAiOpen] = useState(false);
   useEffect(() => {
     const h = setTimeout(() => {
       try { if (localStorage.getItem("lexgo_sidebar_collapsed") === "1") setCollapsed(true); } catch { /* ignore */ }
@@ -281,8 +288,16 @@ export default function PortalShell({
   return (
     <div className={`portal${collapsed ? " psb-collapsed" : ""}${fullscreen ? " portal--full" : ""}`}>
       <IncomingCallWatcher />
+      {/* LEXGO_AI_SYSTEM_ASSISTANT_FRONTEND_BACKEND_2026-09-29.md asks for a
+          floating assistant at the bottom right on desktop. That corner is
+          the robot's — .robot-edge-zone, and it is hidden below 900px — so
+          the robot opens the assistant instead of navigating away to the AI
+          page, which is still in the sidebar and is a different tool (the
+          case-analysis suite). Below 900px the assistant shows its own
+          launcher, so there is exactly one control at every width. */}
+      {fullscreen ? null : <LexGoRobot onRobotClick={() => setAiOpen(true)} />}
       {fullscreen ? null : (
-        <LexGoRobot onRobotClick={() => router.push(role === "advocate" ? "/portal/advocate/assistant" : `/portal/${role}/ai`)} />
+        <AiSystemAssistant open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} role={role} />
       )}
       <div
         className={`psb__scrim${open ? " on" : ""}`}

@@ -8056,3 +8056,168 @@ export function editorClaimNeeded(e: unknown): EditorClaimNeeded {
 // Only .docx is accepted as an editable source (§7). Checked in the browser
 // so the advocate is told before the upload rather than by a 4xx after it.
 export const isDocxFile = (f: File) => /\.docx$/i.test(f.name);
+
+// ════════════════════════════════════════════════════════════════════
+// LEXGO_AI_SYSTEM_ASSISTANT_FRONTEND_BACKEND_2026-09-29.md
+// The system assistant: a navigator over LexGo itself, not the case-analysis
+// tool suite that lives at askAiAssistant() above (that one is POST
+// /ai/assistant; this one is POST /api/ai/assistant — different module, and
+// the `/api` prefix is real, verified: /ai/health is 404 and /api/ai/health
+// is 200).
+//
+// Shapes below are what production answered on 2026-09-29, which is richer
+// and in places different from the MD:
+//   • the response also carries session_id and tool_results;
+//   • `highlight` is a SENTENCE, not the data-ai-id element reference the
+//     MD's UI section implies;
+//   • an action is {name, type, route, page_id, title, requires_confirmation}
+//     with no action_id — and POST /api/ai/actions/execute answers
+//     {"detail":"Action topilmadi"} for one, so actions are navigation only;
+//   • `metadata` carries user_id and a documents_sample of real titles and
+//     ids. Only provider/model/latency are read out of it here: the rest is
+//     the client's own data echoed back, and nothing on screen needs it.
+// ════════════════════════════════════════════════════════════════════
+
+export type AiIntent =
+  | "answer" | "navigation" | "search" | "read_data"
+  | "action_preview" | "clarification" | "permission_denied" | "unsupported";
+export type AiNavigation = { type: string; route: string; pageId: string; title: string; params: Dict };
+export type AiAction = { name: string; type: string; route: string; pageId: string; title: string; needsConfirm: boolean };
+export type AiSource = { type: string; pageId: string; title: string; route: string };
+export type AiAnswer = {
+  requestId: string;
+  sessionId: string;
+  intent: AiIntent;
+  answer: string;
+  confidence: number;
+  navigation: AiNavigation | null;
+  // One sentence the backend wants emphasised. Rendered as a lead line.
+  highlight: string;
+  actions: AiAction[];
+  sources: AiSource[];
+  provider: string;
+  model: string;
+  latencyMs: number;
+};
+const AI_INTENTS = new Set<string>([
+  "answer", "navigation", "search", "read_data",
+  "action_preview", "clarification", "permission_denied", "unsupported",
+]);
+function normAiNavigation(v: unknown): AiNavigation | null {
+  const d = asDict(v);
+  const route = asStr(d.route);
+  if (!route) return null;
+  return {
+    type: asStr(d.type, "route"),
+    route,
+    pageId: asStr(d.page_id),
+    title: asStr(d.title),
+    params: asDict(d.params),
+  };
+}
+function normAiAnswer(v: unknown, fallbackRequestId: string, fallbackSessionId: string): AiAnswer {
+  const d = asDict(v);
+  const m = asDict(d.metadata);
+  const intent = asStr(d.intent);
+  return {
+    requestId: asStr(d.request_id) || fallbackRequestId,
+    sessionId: asStr(d.session_id) || fallbackSessionId,
+    intent: (AI_INTENTS.has(intent) ? intent : "answer") as AiIntent,
+    answer: asStr(d.answer),
+    // Absent means "no opinion", and the UI's low-confidence caution must not
+    // fire on a backend that simply did not send one — so absence reads as 1.
+    confidence: d.confidence === undefined || d.confidence === null ? 1 : asNum(d.confidence),
+    navigation: normAiNavigation(d.navigation),
+    highlight: typeof d.highlight === "string" ? d.highlight : asStr(asDict(d.highlight).text),
+    actions: asArr(d.actions).map((x) => {
+      const a = asDict(x);
+      return {
+        name: asStr(a.name ?? a.title),
+        type: asStr(a.type),
+        route: asStr(a.route),
+        pageId: asStr(a.page_id),
+        title: asStr(a.title),
+        needsConfirm: a.requires_confirmation === true,
+      };
+    }).filter((a) => a.name || a.route),
+    sources: asArr(d.sources).map((x) => {
+      const s = asDict(x);
+      return { type: asStr(s.type), pageId: asStr(s.page_id ?? s.id), title: asStr(s.title), route: asStr(s.route) };
+    }).filter((s) => s.title || s.pageId),
+    provider: asStr(m.provider),
+    model: asStr(m.model),
+    latencyMs: asNum(m.latency_ms),
+  };
+}
+export type AiPageContext = { route: string; pageId: string; title: string; context?: Record<string, unknown> };
+export type AiAskInput = {
+  message: string;
+  sessionId: string;
+  requestId: string;
+  page: AiPageContext;
+  locale: string;
+};
+export async function aiAssistantAsk(input: AiAskInput): Promise<AiAnswer> {
+  // Role, permission and user_id are deliberately NOT sent: "Backend o'zi
+  // token orqali aniqlaydi", and sending them would be a claim the client
+  // has no business making.
+  const body = {
+    message: input.message,
+    session_id: input.sessionId,
+    request_id: input.requestId,
+    locale: input.locale,
+    client_time: new Date().toISOString(),
+    current_page: {
+      route: input.page.route,
+      page_id: input.page.pageId,
+      title: input.page.title,
+      context: input.page.context ?? {},
+    },
+  };
+  return normAiAnswer(await http("/api/ai/assistant", { method: "POST", body: JSON.stringify(body) }), input.requestId, input.sessionId);
+}
+// The registry, filtered by the caller's role server-side — 7 pages for a
+// client, 16 for a superadmin (measured). Used for the "what can I ask?"
+// hints, and to translate a page_id the answer names into a route this app
+// actually has (see lib/aiPages.ts, which is where that mapping lives).
+export type AiPage = { pageId: string; title: string; route: string; description: string; capabilities: string[]; keywords: string[] };
+export async function aiPages(q?: string): Promise<AiPage[]> {
+  const url = "/api/ai/pages" + (q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : "");
+  return listFrom(await http(url), "items", "data").map((v) => {
+    const d = asDict(v);
+    const strs = (x: unknown) => asArr(x).map((y) => asStr(y)).filter(Boolean);
+    return {
+      pageId: asStr(d.page_id),
+      title: asStr(d.title),
+      route: asStr(d.route),
+      description: asStr(d.description),
+      capabilities: strs(d.capabilities),
+      keywords: strs(d.keywords),
+    };
+  }).filter((p) => p.pageId);
+}
+export type AiHealth = { status: string; provider: string; configured: boolean; model: string; pages: number; tools: string[] };
+export async function aiHealth(): Promise<AiHealth> {
+  const d = asDict(await http("/api/ai/health"));
+  return {
+    status: asStr(d.status),
+    provider: asStr(d.provider),
+    configured: d.configured === true,
+    model: asStr(d.model),
+    pages: asNum(d.registry_pages),
+    tools: asArr(d.tools).map((x) => asStr(x)).filter(Boolean),
+  };
+}
+// Best-effort: a rating that fails to send is not worth telling the client
+// about, and the answer it rates is already on screen.
+export async function aiFeedback(requestId: string, rating: number, opts?: { comment?: string; useful?: boolean }): Promise<void> {
+  await http("/api/ai/feedback", {
+    method: "POST",
+    body: JSON.stringify({
+      request_id: requestId,
+      rating,
+      comment: opts?.comment ?? "",
+      useful: opts?.useful ?? rating >= 4,
+    }),
+  });
+}

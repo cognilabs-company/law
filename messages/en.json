@@ -2187,6 +2187,30 @@
       "checklistPh": "One item per line\n[x] a done item",
       "checklistHint": "Each line is an item. Mark done items with \"[x]\"."
     },
+    "aiAssistant": {
+      "title": "LexGo assistant",
+      "close": "Close",
+      "intro": "Ask about the system — where to do something, how it works, and where your own work stands.",
+      "egLawyer": "Where do I choose an advocate?",
+      "egDocs": "Where are my documents?",
+      "egUrgent": "How do I reach an urgent advocate?",
+      "ph": "Write your question…",
+      "send": "Send",
+      "thinking": "Thinking…",
+      "failed": "No answer came back. Try again.",
+      "goTo": "Go to the page",
+      "sources": "What this is based on",
+      "lowConfidence": "This answer is not certain — narrow the question and I can do better.",
+      "useful": "Was this useful?",
+      "yes": "Yes",
+      "no": "No",
+      "thanks": "Thank you",
+      "intent": {
+        "permission_denied": "Not permitted",
+        "unsupported": "Not available",
+        "clarification": "Needs clarifying"
+      }
+    },
     "assistant": {
       "title": "AI assistant",
       "subtitle": "Quick case help: draft a reply, summarize, find practice.",

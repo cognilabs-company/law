@@ -2193,6 +2193,30 @@
       "checklistPh": "Har bir qatorga bitta band\n[x] bajarilgan band",
       "checklistHint": "Har bir qator — alohida band. Bajarilganini \"[x]\" bilan belgilang."
     },
+    "aiAssistant": {
+      "title": "LexGo yordamchisi",
+      "close": "Yopish",
+      "intro": "Tizim bo'yicha savol bering — qayerdan qilishni, qanday ishlashini va sizning ishlaringiz qay holatda ekanini aytaman.",
+      "egLawyer": "Advokatni qayerdan tanlayman?",
+      "egDocs": "Mening hujjatlarim qayerda?",
+      "egUrgent": "Tezkor advokatga qanday murojaat qilaman?",
+      "ph": "Savolingizni yozing…",
+      "send": "Yuborish",
+      "thinking": "O'ylayapti…",
+      "failed": "Javob olinmadi. Qayta urining.",
+      "goTo": "Bo'limga o'tish",
+      "sources": "Nimaga asoslandi",
+      "lowConfidence": "Bu javobga to'liq ishonch yo'q — savolni aniqroq yozsangiz yaxshiroq javob beraman.",
+      "useful": "Foydali bo'ldimi?",
+      "yes": "Ha",
+      "no": "Yo'q",
+      "thanks": "Rahmat",
+      "intent": {
+        "permission_denied": "Ruxsat yo'q",
+        "unsupported": "Bunday imkoniyat yo'q",
+        "clarification": "Aniqlashtirish kerak"
+      }
+    },
     "assistant": {
       "title": "Sun'iy intellekt yordamchi",
       "subtitle": "Ish bo'yicha tez yordam: javob loyihasi, xulosa, amaliyot.",
