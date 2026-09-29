@@ -2293,6 +2293,24 @@ export type DocumentRequest = {
   // advocate claims the request the client's wait screen can name who is
   // handling it, instead of an anonymous "someone is on it".
   assignedLawyerName?: string;
+  // ── The advocate-hold gate ──────────────────────────────────────
+  // GET /document-requests/{id} has carried these four for a while and
+  // normDocRequest was throwing them away, which is why the wait screen
+  // became a dead end: the panel could not know an advocate was holding
+  // the row, could not know the constructor was still open to the client,
+  // and could not say why a second request was refused. Verified on the
+  // live held row 1da1b8d2 — 39 fields, all four present, constructor_action
+  // fully populated with prompt_required true and all four URLs.
+  //
+  // lawyerRequestActive — an advocate has this document.
+  // canSendLawyerRequest — may another request be sent for it. False for
+  //   the whole life of the hold; the reason below is the sentence to show.
+  // constructorAction — whether the client may still fill it themselves,
+  //   and whether to ask before opening.
+  lawyerRequestActive: boolean;
+  canSendLawyerRequest: boolean;
+  lawyerRequestBlockReason: string;
+  constructorAction: DocConstructorAction | null;
 };
 
 // LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md. A lawyer review is
@@ -2422,6 +2440,13 @@ function normDocRequest(v: unknown): DocumentRequest {
     requiresPayment: typeof d.requires_payment === "boolean" ? d.requires_payment : undefined,
     autoConfirmPayment: typeof d.auto_confirm_payment === "boolean" ? d.auto_confirm_payment : undefined,
     assignedLawyerName: asStr(al.name ?? al.full_name ?? d.assigned_lawyer_name) || undefined,
+    lawyerRequestActive: Boolean(d.lawyer_request_active),
+    // Absent means allowed — the same convention ClientDocFlowItem already
+    // uses, so an older deployment that omits the flag does not lock the
+    // client out of asking for an advocate at all.
+    canSendLawyerRequest: d.can_send_lawyer_request !== false,
+    lawyerRequestBlockReason: asStr(d.lawyer_request_block_reason),
+    constructorAction: normConstructorAction(d.constructor_action),
     contractFile: cf
       ? {
           id: asStr(cf.id),

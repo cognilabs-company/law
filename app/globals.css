@@ -2374,12 +2374,12 @@ body:has(.schat) .fab{display:none}
 /* Service document assist flow: 3-way picker (manual/AI/lawyer) + the two
    new flow headers. */
 .docchoose{display:grid;gap:10px}
-.docchoose__c{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:16px;border:1.5px solid var(--line);border-radius:16px;
+.docchoose__c{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:16px;border:1.5px solid var(--line);border-radius:16px;
   background:var(--dk-surface, #fff);text-align:left;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s}
 .docchoose__c:hover{border-color:var(--b300);box-shadow:var(--s1);transform:translateY(-1px)}
-.docchoose__c b{font-size:.95rem;color:var(--ink)}
+.docchoose__c b{font-size:.95rem;line-height:1.35;color:var(--ink)}
 .docchoose__c>span:last-child{font-size:.82rem;color:var(--gray)}
-.docchoose__i{width:38px;height:38px;border-radius:12px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center}
+.docchoose__i{margin-bottom:6px;width:38px;height:38px;border-radius:12px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center}
 .docchoose__i svg{width:19px;height:19px}
 .docassist{gap:18px}
 .docassist__head{display:flex;align-items:flex-start;gap:14px;padding-bottom:16px;border-bottom:1.5px solid var(--line)}
@@ -10727,7 +10727,12 @@ html[data-theme="dark"]{
 /* The window is no longer in front: a screenshot utility, a recorder or a
    second monitor. Softer than the cloak — coming back from another tab to a
    blank page reads as a crash. */
-.docguard__paper--dim .docpaper__sheet{filter:blur(9px);opacity:.4;transition:filter .12s linear,opacity .12s linear}
+/* Softened from blur(9px)/.4: this is the layer most likely to be wrong —
+   it fires on a focus event, and a browser panel or an iframe can take the
+   keyboard without the person having looked away. At blur(5px) a mistaken
+   dim is a smeared page the reader can see through and click to clear,
+   not a document that has vanished. */
+.docguard__paper--dim .docpaper__sheet{filter:blur(5px);opacity:.62;transition:filter .12s linear,opacity .12s linear}
 .docguard__paper{position:relative}
 .docguard__cloak{position:absolute;inset:0;z-index:6;display:grid;align-content:center;justify-items:center;gap:8px;
   padding:24px;text-align:center;border-radius:inherit;
@@ -10738,3 +10743,20 @@ html[data-theme="dark"]{
 /* On paper the cloak is the only thing that exists — the sheet is already
    hidden by the print rules above, and this must not print either. */
 @media print{.docguard__cloak{display:none}}
+
+/* ── The advocate-hold wait card gets a way out ───────────────────────
+   Why the second request is refused, said where the client is stuck rather
+   than only on the list screen they may never reach. */
+.docpend__why{max-width:46ch;margin:2px auto 0;font-size:.8rem;line-height:1.55;color:var(--dk-txt-warn, #b45309)}
+.docpend .btn--line{margin-top:8px}
+
+/* ── Real tariff cards inside the subscription dialog ─────────────────
+   Same PlanCard the Tariflar page draws. A dialog is narrower than the page,
+   so the grid drops to one column sooner and the cards keep their own
+   internal spacing rather than being squeezed. */
+.pgate__grid{grid-template-columns:repeat(auto-fit,minmax(min(236px,100%),1fr));gap:10px}
+
+/* The description under each choice-card title was still inheriting the
+   page's 1.55 leading, which is what was left of the gap between the two
+   after the card itself was tightened. */
+.docchoose__c>span:not(.docchoose__i):not(.docchoose__go){line-height:1.4}

@@ -35,7 +35,7 @@ import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Notice } from "@/components/admin/AdminBits";
 import { Link } from "@/i18n/navigation";
-import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset, IconCard, IconAlert } from "@/components/icons";
+import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset, IconCard, IconAlert, IconEdit } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
@@ -215,6 +215,33 @@ type Stage = "answers" | "pay" | "generating" | "lawyerReview" | "claimed" | "pe
 // sent to a lawyer, no file yet, nothing to pay) needs its own screen
 // rather than either the generic pay-pending or "processing your payment"
 // copy, which would be actively wrong here (there is no payment).
+// The one control that turns the wait screen from a dead end back into a
+// choice. The backend keeps the whole answer on the record — constructor_action
+// says whether the client may still fill the document themselves, and
+// prompt_required says whether to ask first — so this only has to carry the
+// press somewhere useful. A caller with its own constructor route passes
+// onOpenConstructor; everyone else lands on the documents list with ?doc=<id>,
+// which already answers that parameter with the same two-button prompt.
+function ConstructorEscape({ req, onOpenConstructor }: { req: DocumentRequest; onOpenConstructor?: () => void }) {
+  const t = useTranslations("portal.client.documents");
+  const ca = req.constructorAction;
+  if (!ca?.available) return null;
+  const label = t("constructorContinue");
+  if (onOpenConstructor) {
+    return (
+      <button type="button" className="btn btn--line btn--full" onClick={onOpenConstructor}>
+        <IconEdit />
+        {label}
+      </button>
+    );
+  }
+  return (
+    <Link href={`/portal/client/documents?doc=${encodeURIComponent(req.id)}`} className="btn btn--line btn--full">
+      <IconEdit />
+      {label}
+    </Link>
+  );
+}
 function stageFor(r: DocumentRequest): Stage {
   if (r.status === "file_ready") return "done";
   if (!r.status || r.status === "questionnaire" || r.status === "draft") return "answers";
@@ -297,6 +324,7 @@ export default function DocumentRequestPanel({
   onStartNew,
   onRetry,
   lawyerHeldNote,
+  onOpenConstructor,
 }: {
   initialReq: DocumentRequest;
   // The payment gate as the POST that opened it described it — passed in by
@@ -323,6 +351,11 @@ export default function DocumentRequestPanel({
   // way to fill the same template again with different facts (a different
   // case, a different counterparty). This lets the "done" screen start over.
   onStartNew?: () => void;
+  // Opens the constructor on a row an advocate is already holding. Optional:
+  // a caller that has its own way in (ServiceDocumentRequest does) passes it,
+  // and everyone else falls back to the documents list, which answers
+  // ?doc=<id> with the same two-button prompt.
+  onOpenConstructor?: () => void;
   // MD L167: after a refused fee the client "may" be offered a re-send. There
   // is no endpoint that restarts a cancelled payment, so the only honest
   // re-send is the form that sent it — the two order forms hand this in and
@@ -845,6 +878,21 @@ export default function DocumentRequestPanel({
           <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
             {busy ? t("processingShort") : t("checkStatus")}
           </button>
+          {/* THE WAY OUT.
+              Until now these two wait cards offered "Holatni tekshirish" and
+              nothing else, so a client whose document had gone to an advocate
+              was simply stuck: the constructor was unreachable and the screen
+              never said why a second request was refused. Both facts were
+              already on the record the backend sends — lawyer_request_block_reason
+              and constructor_action — and normDocRequest was throwing them away.
+              The reason is shown where the client is actually stuck, and when the
+              backend says the constructor is still open, so is the door to it. */}
+          {req.lawyerRequestBlockReason ? (
+            <small className="docpend__why">{req.lawyerRequestBlockReason}</small>
+          ) : null}
+          {req.constructorAction?.available ? (
+            <ConstructorEscape req={req} onOpenConstructor={onOpenConstructor} />
+          ) : null}
         </div>
       ) : null}
 
@@ -865,6 +913,21 @@ export default function DocumentRequestPanel({
           <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
             {busy ? t("processingShort") : t("checkStatus")}
           </button>
+          {/* THE WAY OUT.
+              Until now these two wait cards offered "Holatni tekshirish" and
+              nothing else, so a client whose document had gone to an advocate
+              was simply stuck: the constructor was unreachable and the screen
+              never said why a second request was refused. Both facts were
+              already on the record the backend sends — lawyer_request_block_reason
+              and constructor_action — and normDocRequest was throwing them away.
+              The reason is shown where the client is actually stuck, and when the
+              backend says the constructor is still open, so is the door to it. */}
+          {req.lawyerRequestBlockReason ? (
+            <small className="docpend__why">{req.lawyerRequestBlockReason}</small>
+          ) : null}
+          {req.constructorAction?.available ? (
+            <ConstructorEscape req={req} onOpenConstructor={onOpenConstructor} />
+          ) : null}
         </div>
       ) : null}
 

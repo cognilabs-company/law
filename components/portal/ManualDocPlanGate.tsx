@@ -10,6 +10,7 @@ import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import { fmtUzs } from "@/lib/money";
 import { IconCheck } from "@/components/icons";
+import PlanCard from "./PlanCard";
 
 // LEXGO_MANUAL_DOCUMENT_PLAN_FRONTEND.md: template download and self/AI-fill
 // now require a plan with `entitlements.manual_document_fill=true` — this is
@@ -130,17 +131,36 @@ export default function ManualDocPlanGate({
           </>
         ) : (
           <>
+            {/* The tariff cards themselves, not a list of names.
+                A client who is being asked to buy a plan in order to carry on
+                should be shown the same thing the Tariflar page shows them —
+                what the plan includes, at what price — rather than a radio row
+                that names it and nothing more. PlanCard is that card, already
+                shared with the page and with the AI upgrade dialog, so the two
+                cannot drift apart. The period chips below still drive the
+                price: priceFor(p, effPeriod) is what the card is handed, so it
+                re-prices with the chips. */}
             <div>
               <label>{t("choosePlan")}</label>
-              <div className="advpick">
+              <div className="plans__grid pgate__grid">
                 {qualifying.map((p) => (
-                  <button type="button" key={p.id} className={`advpick__c${planId === p.id ? " on" : ""}`} onClick={() => setPlanId(p.id)}>
-                    <span className="advpick__m">
-                      <b>{p.name}</b>
-                      <span className="advpick__stats">{fmtUzs(priceFor(p, effPeriod))} {t("som")}</span>
-                    </span>
-                    {planId === p.id ? <IconCheck className="advpick__ck" /> : null}
-                  </button>
+                  <PlanCard
+                    key={p.id}
+                    slug={p.slug || p.id}
+                    name={p.name}
+                    features={p.features ?? []}
+                    price={{ amount: fmtUzs(priceFor(p, effPeriod)), unit: t("som") }}
+                    state={planId === p.id ? "featured" : "plain"}
+                    selected={planId === p.id}
+                    onSelect={() => setPlanId(p.id)}
+                    cta={{
+                      label: planId === p.id ? t("planPicked") : t("planPick"),
+                      onClick: () => setPlanId(p.id),
+                      variant: planId === p.id ? "soft" : "line",
+                      pressed: planId === p.id,
+                      icon: planId === p.id ? <IconCheck /> : undefined,
+                    }}
+                  />
                 ))}
               </div>
             </div>

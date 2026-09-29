@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import ServiceDocumentRequest from "./ServiceDocumentRequest";
@@ -27,6 +27,7 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   const [title, setTitle] = useState("");
   const [draftId, setDraftId] = useState("");
   const [exitOpen, setExitOpen] = useState(false);
+  const [backOpen, setBackOpen] = useState(false);
   const backHref = useCatalogBackHref();
 
   // Once the builder itself is on screen it takes over the whole page in the
@@ -34,11 +35,14 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   // its own top bar; this page's bar below then steps aside (CSS, see
   // .docbuild--full:has(.deditor--fill)). Every other step — the chooser,
   // the lawyer flow, waiting, done — keeps it.
+  // Back now asks first. It used to navigate on the press, which is what
+  // the client reported: they pressed it, the builder went, and nothing
+  // told them what had happened to what they had typed.
+  const leave = useCallback(() => (backHref ? router.push(backHref) : router.back()), [backHref, router]);
   const chrome = useMemo<DocChrome>(
-    () => ({ onBack: () => (backHref ? router.push(backHref) : router.back()), onExit: () => setExitOpen(true) }),
-    [backHref, router],
+    () => ({ onBack: () => setBackOpen(true), onExit: () => setExitOpen(true) }),
+    [],
   );
-  const leave = chrome.onBack;
 
   // Two different intentions, two different buttons.
   //
@@ -56,7 +60,7 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   return (
     <div className="docbuild docbuild--full">
       <div className="docbuild__top">
-        <button type="button" className="docbuild__back" onClick={leave}>
+        <button type="button" className="docbuild__back" onClick={() => setBackOpen(true)}>
           <IconChevronLeft />
           {t("back")}
         </button>
@@ -69,6 +73,34 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
       <DocChromeContext.Provider value={chrome}>
         <ServiceDocumentRequest serviceId={serviceId} onTitle={setTitle} onDraftId={setDraftId} />
       </DocChromeContext.Provider>
+
+      {/* Leaving without finishing.
+          Worded against what actually happens, which is not what the ask
+          assumed: DocFill writes every keystroke to localStorage and the
+          panel merges it back on reopen, so pressing Back on this browser
+          really does resume the half-filled form. What is true — and what
+          the client needs told — is that NOTHING has reached the server yet:
+          the answers live in this browser alone until the document is
+          generated, so another device, another browser or a cleared cache
+          has nothing. Saying "saqlanmadi" flatly would have contradicted the
+          "Qoralama saqlandi" badge two inches above it in the same bar. */}
+      <Modal open={backOpen} onClose={() => setBackOpen(false)} title={td("backTitle")}>
+        <div className="cform" style={{ maxWidth: "none" }}>
+          <p className="dexit__lead">
+            <span className="dexit__i"><IconAlert /></span>
+            {td("backLead")}
+          </p>
+          <div className="dexit__btns">
+            <button type="button" className="btn btn--line btn--full" onClick={() => setBackOpen(false)}>
+              {td("backStay")}
+            </button>
+            <button type="button" className="btn btn--grad btn--full" onClick={() => { setBackOpen(false); leave(); }}>
+              <IconChevronLeft />
+              {td("backConfirm")}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={exitOpen} onClose={() => setExitOpen(false)} title={td("exitTitle")}>
         <div className="cform" style={{ maxWidth: "none" }}>

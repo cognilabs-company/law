@@ -78,13 +78,24 @@ export function useViewerStamp(): string {
  * not installed over the rest of the portal.
  */
 /**
- * How far the outer window may exceed the inner viewport before docked
- * devtools is the likeliest explanation. Chrome's docked panel is never
- * narrower than ~200px; 160 leaves room for a scrollbar and a zoom level
- * without crying wolf. An undocked window is not caught by this and is not
- * meant to be — see the header.
+ * How much the gap between the outer window and the viewport must GROW,
+ * against the gap measured when the document opened, before docked devtools
+ * is the likeliest explanation.
+ *
+ * It is a growth and not an absolute, because the absolute is never zero: an
+ * ordinary Chrome window spends its own chrome on that gap — roughly 40px of
+ * tab strip, 40px of address bar, ~30px more with a bookmarks bar, plus the
+ * window frame — so outerHeight − innerHeight sits around 110-190px on a
+ * normal desktop with nothing open at all. A flat "gap > 160 means devtools"
+ * therefore fires for a large share of ordinary users, which is exactly what
+ * went wrong: the sheet was hidden from people who had opened nothing.
+ *
+ * Measuring the growth instead costs one thing and it is worth stating: if
+ * devtools is ALREADY open when the document is opened, it is part of the
+ * baseline and goes unnoticed. Hiding the document from everyone was the
+ * worse trade.
  */
-const DEVTOOLS_GAP = 160;
+const DEVTOOLS_GROWTH = 140;
 
 export function useDocGuard(active: boolean) {
   const [blocked, setBlocked] = useState(false);
@@ -176,21 +187,36 @@ export function useDocGuard(active: boolean) {
     // Focus and visibility: a screenshot utility, a screen recorder or a
     // second window taking over all read as "this tab is no longer the thing
     // being looked at".
+    //
+    // Visibility is the authority and activity is the override.
+    //
+    // Neither a one-way blur handler nor document.hasFocus() can be trusted to
+    // clear this on its own: a blur can arrive with no focus to answer it (a
+    // browser panel or an iframe taking the keyboard), and hasFocus() reports
+    // false in perfectly ordinary situations — measured, a headless Chrome
+    // never has focus at all and the sheet stayed dimmed through a click.
+    // A page that dims and never recovers is the bug this whole layer was
+    // supposed to avoid, so the rule is: the tab being HIDDEN dims it, and any
+    // sign of a person working in the page clears it, whatever focus claims.
+    const wake = () => setDimmed(document.visibilityState !== "visible");
     const onBlur = () => setDimmed(true);
-    const onFocus = () => setDimmed(false);
-    const onVis = () => setDimmed(document.visibilityState !== "visible");
+    const onFocus = wake;
+    const onVis = wake;
+    const recheck = wake;
 
-    // Docked devtools changes the gap between the outer window and the
-    // viewport. Polled rather than driven by resize alone because opening a
-    // docked panel does not always fire one. 900ms is slow enough to be free
-    // and fast enough that the sheet is gone before anything is read off it.
+    // Docked devtools GROWS the gap between the outer window and the viewport.
+    // The baseline is whatever that gap is right now, with the document
+    // freshly on screen — see DEVTOOLS_GROWTH for why an absolute threshold
+    // was wrong. Polled rather than driven by resize alone because opening a
+    // docked panel does not always fire one; 900ms is slow enough to be free.
+    const baseW = window.outerWidth - window.innerWidth;
+    const baseH = window.outerHeight - window.innerHeight;
     const checkDevtools = () => {
-      const w = window.outerWidth - window.innerWidth;
-      const h = window.outerHeight - window.innerHeight;
-      const open = w > DEVTOOLS_GAP || h > DEVTOOLS_GAP;
+      const w = window.outerWidth - window.innerWidth - baseW;
+      const h = window.outerHeight - window.innerHeight - baseH;
+      const open = w > DEVTOOLS_GROWTH || h > DEVTOOLS_GROWTH;
       setCloak((c) => (open ? "devtools" : c === "devtools" ? "" : c));
     };
-    checkDevtools();
     const poll = setInterval(checkDevtools, 900);
 
     window.addEventListener("keydown", onKey, true);
@@ -200,6 +226,11 @@ export function useDocGuard(active: boolean) {
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVis);
+    // Any sign that a person is working in this page clears a stale dim.
+    window.addEventListener("pointerdown", recheck, true);
+    window.addEventListener("pointermove", recheck, { passive: true });
+    window.addEventListener("wheel", recheck, { passive: true });
+    window.addEventListener("keydown", recheck, true);
     printMq?.addEventListener?.("change", onPrintMq);
     return () => {
       window.removeEventListener("keydown", onKey, true);
@@ -209,6 +240,10 @@ export function useDocGuard(active: boolean) {
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pointerdown", recheck, true);
+      window.removeEventListener("pointermove", recheck);
+      window.removeEventListener("wheel", recheck);
+      window.removeEventListener("keydown", recheck, true);
       printMq?.removeEventListener?.("change", onPrintMq);
       clearInterval(poll);
       clearTimeout(timer.current);
