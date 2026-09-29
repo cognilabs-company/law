@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { RobotRig } from "./RobotRig";
+import type { RobotBones } from "./RobotBones";
 import type { Hand, HandTransformConfig } from "./robot-types";
 
 const DEFAULT_TRANSFORM: HandTransformConfig = {
@@ -8,19 +8,28 @@ const DEFAULT_TRANSFORM: HandTransformConfig = {
   scale: [1, 1, 1],
 };
 
+// Bone attachment, not GLB merging (spec #25) — a prop rides along with
+// whatever the hand bone does every frame for free, since it becomes a
+// child of the bone in the scene graph. No props are implemented by any v1
+// behavior; this exists so holdObject()/releaseObject() are real, not
+// placeholders, the moment a future feature hands it a mesh.
 export class RobotPropManager {
   private attached = new Map<Hand, THREE.Object3D>();
 
-  constructor(private rig: RobotRig) {}
+  constructor(private bones: RobotBones) {}
 
   attach(hand: Hand, object: THREE.Object3D, config: Partial<HandTransformConfig> = {}): boolean {
-    const target = hand === "left" ? this.rig.arms.left.hand : this.rig.arms.right.hand;
+    const bone = this.bones.get(hand === "left" ? "leftHand" : "rightHand");
+    if (!bone) {
+      if (process.env.NODE_ENV !== "production") console.warn(`[LexGoRobot] cannot attach prop — ${hand} hand bone missing.`);
+      return false;
+    }
     this.detach(hand);
-    const transform = { ...DEFAULT_TRANSFORM, ...config };
-    object.position.set(...transform.position);
-    object.rotation.set(...transform.rotation);
-    object.scale.set(...transform.scale);
-    target.add(object);
+    const t = { ...DEFAULT_TRANSFORM, ...config };
+    object.position.set(...t.position);
+    object.rotation.set(...t.rotation);
+    object.scale.set(...t.scale);
+    bone.add(object);
     this.attached.set(hand, object);
     return true;
   }
