@@ -1,215 +1,475 @@
 import * as THREE from "three";
-import gsap from "gsap";
-import { RobotBones } from "./RobotBones";
-import { RobotStateMachine } from "./RobotStateMachine";
 import { RobotPropManager } from "./RobotPropManager";
-import {
-  fingerBoneName,
-  GESTURE_CLIPS,
-  GESTURE_FADE_SECONDS,
-  GESTURE_HOLD_SECONDS,
-  IDLE,
-  LOOK_CLAMP,
-  PEEK,
-  POINT,
-  ROOT_PLACEMENT,
-  THINK_POSE,
-  WAVE,
-} from "./robot-config";
-import { resolveHeadAvoidance, type HeadAvoidCorrection } from "./robotHeadSafety";
+import type { RobotRig } from "./RobotRig";
 import type { GestureName } from "./robot-gestures";
-import type { Finger, FingerSegment, Hand, RobotControllerApi, RobotExpression, RobotState } from "./robot-types";
+import type { Hand, RobotControllerApi, RobotExpression, RobotState } from "./robot-types";
 
+type ActionName = "peek" | "greet" | "wave" | "point" | "think" | "hide" | "success" | "error" | "gesture";
+
+type Action = {
+  name: ActionName;
+  elapsed: number;
+  duration: number;
+  hold: boolean;
+  gesture?: GestureName;
+};
+
+type Pose = {
+  rootX: number;
+  rootY: number;
+  rootYaw: number;
+  torsoPitch: number;
+  torsoYaw: number;
+  neckYaw: number;
+  neckPitch: number;
+  headYaw: number;
+  headPitch: number;
+  headRoll: number;
+  leftShoulder: number;
+  rightShoulder: number;
+  leftForearm: number;
+  rightForearm: number;
+  leftHand: number;
+  rightHand: number;
+  leftFinger: number;
+  rightFinger: number;
+  leftHip: number;
+  rightHip: number;
+  leftKnee: number;
+  rightKnee: number;
+  leftFoot: number;
+  rightFoot: number;
+};
+
+const DEG = Math.PI / 180;
 const scratchEuler = new THREE.Euler();
-const scratchQuat = new THREE.Quaternion();
-const scratchBaseHeadQuat = new THREE.Quaternion();
-const scratchSavedHeadQuat = new THREE.Quaternion();
-const scratchSavedNeckQuat = new THREE.Quaternion();
-const scratchSavedSpine2Quat = new THREE.Quaternion();
-const scratchVecA = new THREE.Vector3();
-const scratchVecB = new THREE.Vector3();
-const deg = THREE.MathUtils.degToRad;
+const scratchQuaternion = new THREE.Quaternion();
+const scratchWorldPoint = new THREE.Vector3();
+const scratchHeadPoint = new THREE.Vector3();
+const scratchTargetPoint = new THREE.Vector3();
 
-// One controller instance per mounted <LexGoRobot/>. All rotation is a
-// delta on top of the rest pose captured by RobotBones (section 13) — never
-// an absolute assignment — composed as restQuaternion * Quaternion(deltaEuler).
+function createPose(): Pose {
+  return {
+    rootX: 0,
+    rootY: 0,
+    rootYaw: 0,
+    torsoPitch: 0,
+    torsoYaw: 0,
+    neckYaw: 0,
+    neckPitch: 0,
+    headYaw: 0,
+    headPitch: 0,
+    headRoll: 0,
+    leftShoulder: 0,
+    rightShoulder: 0,
+    leftForearm: 0,
+    rightForearm: 0,
+    leftHand: 0,
+    rightHand: 0,
+    leftFinger: 0,
+    rightFinger: 0,
+    leftHip: 0,
+    rightHip: 0,
+    leftKnee: 0,
+    rightKnee: 0,
+    leftFoot: 0,
+    rightFoot: 0,
+  };
+}
+
+function easeInOut(value: number): number {
+  const clamped = THREE.MathUtils.clamp(value, 0, 1);
+  return clamped * clamped * (3 - 2 * clamped);
+}
+
+function actionState(name: ActionName): RobotState {
+  if (name === "peek") return "PEEKING";
+  if (name === "hide") return "HIDDEN";
+  if (name === "wave" || name === "greet") return "WAVING";
+  if (name === "point") return "POINTING";
+  if (name === "think") return "THINKING";
+  if (name === "success") return "SUCCESS";
+  if (name === "error") return "ERROR";
+  return "GESTURE";
+}
+
 export class RobotController implements RobotControllerApi {
-  private stateMachine = new RobotStateMachine();
-  private props: RobotPropManager;
   private disposed = false;
-
-  // Continuous head aim (radians), damped every frame toward whichever
-  // target currently has priority: an explicit lookAt() > a peek glance >
-  // the pointer > idle wander.
-  private headYaw = 0;
-  private headPitch = 0;
+  private reducedMotion = false;
+  private expression: RobotExpression = "default";
+  private state: RobotState = "IDLE";
+  private action: Action | null = null;
   private cursorNDC: { x: number; y: number } | null = null;
   private lookAtCursorEnabled = false;
   private explicitLookTarget: THREE.Vector3 | null = null;
   private pointNDC: { x: number; y: number } | null = null;
-  private peekHeadOverrideYaw: number | null = null;
-  private wanderYawDeg = 0;
-  private wanderPitchDeg = 0;
+  private pointWorldTarget: THREE.Vector3 | null = null;
+  private wanderYaw = 0;
+  private wanderPitch = 0;
   private nextWanderAt = 0;
-  private reducedMotion = false;
+  private leftFingerCurl = 0.08;
+  private rightFingerCurl = 0.08;
+  private rest = new Map<THREE.Object3D, { position: THREE.Vector3; quaternion: THREE.Quaternion }>();
+  private propsManager: RobotPropManager;
 
-  private waveTimeline: gsap.core.Timeline | null = null;
-  private rootTimeline: gsap.core.Timeline | null = null;
-  private reactionTimeline: gsap.core.Timeline | null = null;
-  private pointTimeline: gsap.core.Timeline | null = null;
-  private rightArmResetTimeline: gsap.core.Timeline | null = null;
-  private greetingTimeline: gsap.core.Timeline | null = null;
-  private waveProgress = { shoulder: 0, out: 0, lift: 0, elbow: 0, wristPhase: 0, headCue: 0, edgeReveal: 0 };
-
-  // Baked full-body gesture playback (section: 14 GLB animation clips),
-  // layered on top of the procedural system rather than replacing it — see
-  // playGesture(). The mixer targets sceneRoot (the actual GLTF scene
-  // graph), not `root` (a plain wrapper THREE.Group RobotModel creates for
-  // procedural position/rotation offsets) — AnimationClip tracks resolve by
-  // node name against whatever object graph the mixer is given, and only
-  // sceneRoot's subtree contains the named bones.
-  private mixer: THREE.AnimationMixer;
-  private clipsByRawName = new Map<string, THREE.AnimationClip>();
-  private activeGestureAction: THREE.AnimationAction | null = null;
-  private gestureEndTimer: gsap.core.Tween | null = null;
-  private gestureResetTween: gsap.core.Tween | null = null;
-  private gestureVersion = 0;
-  private activeGestureFinishedHandler: ((event: { action: THREE.AnimationAction }) => void) | null = null;
-  private expression: RobotExpression = "default";
-  private greetingStepActive = false;
-
-  constructor(
-    private root: THREE.Object3D,
-    private bones: RobotBones,
-    sceneRoot: THREE.Object3D,
-    clips: THREE.AnimationClip[],
-    private onExpressionChange?: (expression: RobotExpression) => void,
-  ) {
-    this.props = new RobotPropManager(bones);
-    this.root.position.x = ROOT_PLACEMENT.restX;
-    this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
-    this.resetLeftArmToRest();
-    this.mixer = new THREE.AnimationMixer(sceneRoot);
-    for (const clip of clips) this.clipsByRawName.set(clip.name, clip);
+  constructor(private rig: RobotRig, private onExpressionChange?: (expression: RobotExpression) => void) {
+    this.propsManager = new RobotPropManager(rig);
+    this.captureRestPose();
+    this.rig.root.position.set(0, 0, 0);
+    this.rig.root.rotation.set(0, 0, 0);
   }
 
-  private resetLeftArmToRest(): void {
-    const leftArmBones = [this.bones.get("leftShoulder"), this.bones.get("leftArm"), this.bones.get("leftForeArm"), this.bones.get("leftHand")].filter(
-      Boolean,
-    ) as THREE.Bone[];
-    for (const bone of leftArmBones) bone.quaternion.copy(this.bones.restQuaternion(bone));
-    this.setFingerCurl("left", 0);
+  private captureRestPose(): void {
+    const nodes = [
+      this.rig.root,
+      this.rig.pelvis,
+      this.rig.torso,
+      this.rig.neck,
+      this.rig.head,
+      this.rig.arms.left.shoulder,
+      this.rig.arms.left.forearm,
+      this.rig.arms.left.hand,
+      this.rig.arms.right.shoulder,
+      this.rig.arms.right.forearm,
+      this.rig.arms.right.hand,
+      this.rig.legs.left.hip,
+      this.rig.legs.left.knee,
+      this.rig.legs.left.foot,
+      this.rig.legs.right.hip,
+      this.rig.legs.right.knee,
+      this.rig.legs.right.foot,
+      ...this.rig.arms.left.fingers,
+      ...this.rig.arms.right.fingers,
+    ];
+    nodes.forEach((node) => this.rest.set(node, { position: node.position.clone(), quaternion: node.quaternion.clone() }));
   }
 
-  private resetRightArmToRest(duration = 0, onComplete?: () => void): void {
-    const rightArmBones = [this.bones.get("rightShoulder"), this.bones.get("rightArm"), this.bones.get("rightForeArm"), this.bones.get("rightHand")].filter(
-      Boolean,
-    ) as THREE.Bone[];
-    this.rightArmResetTimeline?.kill();
-    this.rightArmResetTimeline = null;
-    if (duration <= 0 || this.reducedMotion) {
-      for (const bone of rightArmBones) bone.quaternion.copy(this.bones.restQuaternion(bone));
-      this.setFingerCurl("right", 0);
-      onComplete?.();
-      return;
-    }
-    const starts = rightArmBones.map((bone) => bone.quaternion.clone());
-    const rests = rightArmBones.map((bone) => this.bones.restQuaternion(bone).clone());
-    const p = { t: 0 };
-    this.rightArmResetTimeline = gsap.timeline({
-      onUpdate: () => {
-        rightArmBones.forEach((bone, i) => bone.quaternion.copy(starts[i]).slerp(rests[i], p.t));
-      },
-      onComplete: () => {
-        this.rightArmResetTimeline = null;
-        this.setFingerCurl("right", 0);
-        onComplete?.();
-      },
-    });
-    this.rightArmResetTimeline.to(p, { t: 1, duration, ease: "power2.out" });
-  }
-
-  private clearRightArmTimelines(): void {
-    this.waveTimeline?.kill();
-    this.pointTimeline?.kill();
-    this.rightArmResetTimeline?.kill();
-    this.setFingerCurl("right", 0);
-  }
-
-  private cancelGreetingSequence(): void {
-    if (this.greetingStepActive) return;
-    this.greetingTimeline?.kill();
-    this.greetingTimeline = null;
-  }
-
-  private runGreetingStep(action: () => void): void {
-    this.greetingStepActive = true;
-    try {
-      action();
-    } finally {
-      this.greetingStepActive = false;
-    }
-  }
-
-  setExpression(expression: RobotExpression): void {
+  private applyExpression(expression: RobotExpression): void {
     if (this.expression === expression) return;
     this.expression = expression;
     this.onExpressionChange?.(expression);
   }
 
-  private stopActiveGesture(restore = true): void {
-    this.gestureVersion += 1;
-    this.gestureEndTimer?.kill();
-    this.gestureEndTimer = null;
-    this.gestureResetTween?.kill();
-    this.gestureResetTween = null;
-    if (this.activeGestureFinishedHandler) {
-      this.mixer.removeEventListener("finished", this.activeGestureFinishedHandler);
-      this.activeGestureFinishedHandler = null;
-    }
-    this.mixer.stopAllAction();
-    this.activeGestureAction = null;
-    if (!restore) return;
-    this.bones.resetEvery();
-    this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
-    this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
-    this.resetLeftArmToRest();
+  setExpression(expression: RobotExpression): void {
+    this.applyExpression(expression);
   }
 
-  private stopBehavior(state: RobotState): void {
-    if (state === "GESTURE") {
-      this.stopActiveGesture();
+  private startAction(name: ActionName, duration: number, hold = false, gesture?: GestureName): void {
+    this.action = { name, elapsed: 0, duration, hold, gesture };
+    this.state = actionState(name);
+  }
+
+  private clearAction(): void {
+    this.action = null;
+    this.state = "IDLE";
+  }
+
+  private stopAction(): void {
+    this.clearAction();
+    this.pointWorldTarget = null;
+    this.pointNDC = null;
+    this.explicitLookTarget = null;
+    this.leftFingerCurl = 0.08;
+    this.rightFingerCurl = 0.08;
+  }
+
+  private setNodeRotation(node: THREE.Object3D, x: number, y: number, z: number, amount: number): void {
+    const rest = this.rest.get(node);
+    if (!rest) return;
+    scratchEuler.set(x, y, z);
+    scratchQuaternion.setFromEuler(scratchEuler);
+    scratchQuaternion.premultiply(rest.quaternion);
+    node.quaternion.slerp(scratchQuaternion, amount);
+  }
+
+  private setNodePosition(node: THREE.Object3D, x: number, y: number, z: number, amount: number): void {
+    const rest = this.rest.get(node);
+    if (!rest) return;
+    node.position.x = THREE.MathUtils.lerp(node.position.x, rest.position.x + x, amount);
+    node.position.y = THREE.MathUtils.lerp(node.position.y, rest.position.y + y, amount);
+    node.position.z = THREE.MathUtils.lerp(node.position.z, rest.position.z + z, amount);
+  }
+
+  private applyPose(pose: Pose, dt: number): void {
+    const amount = 1 - Math.exp(-12 * Math.max(dt, 0.001));
+    this.setNodePosition(this.rig.root, pose.rootX, pose.rootY, 0, amount);
+    this.setNodeRotation(this.rig.root, 0, pose.rootYaw, 0, amount);
+    this.setNodeRotation(this.rig.torso, pose.torsoPitch, pose.torsoYaw, 0, amount);
+    this.setNodeRotation(this.rig.neck, pose.neckPitch, pose.neckYaw, 0, amount);
+    this.setNodeRotation(this.rig.head, pose.headPitch, pose.headYaw, pose.headRoll, amount);
+    this.setNodeRotation(this.rig.arms.left.shoulder, 0, 0, -pose.leftShoulder, amount);
+    this.setNodeRotation(this.rig.arms.right.shoulder, 0, 0, pose.rightShoulder, amount);
+    this.setNodeRotation(this.rig.arms.left.forearm, 0, 0, -pose.leftForearm, amount);
+    this.setNodeRotation(this.rig.arms.right.forearm, 0, 0, pose.rightForearm, amount);
+    this.setNodeRotation(this.rig.arms.left.hand, 0, 0, -pose.leftHand, amount);
+    this.setNodeRotation(this.rig.arms.right.hand, 0, 0, pose.rightHand, amount);
+    this.setNodeRotation(this.rig.legs.left.hip, pose.leftHip, 0, 0, amount);
+    this.setNodeRotation(this.rig.legs.right.hip, pose.rightHip, 0, 0, amount);
+    this.setNodeRotation(this.rig.legs.left.knee, pose.leftKnee, 0, 0, amount);
+    this.setNodeRotation(this.rig.legs.right.knee, pose.rightKnee, 0, 0, amount);
+    this.setNodeRotation(this.rig.legs.left.foot, pose.leftFoot, 0, 0, amount);
+    this.setNodeRotation(this.rig.legs.right.foot, pose.rightFoot, 0, 0, amount);
+    const leftCurl = pose.leftFinger || this.leftFingerCurl;
+    const rightCurl = pose.rightFinger || this.rightFingerCurl;
+    this.rig.arms.left.fingers.forEach((finger) => this.setNodeRotation(finger, -leftCurl * 0.72, 0, 0, amount));
+    this.rig.arms.right.fingers.forEach((finger) => this.setNodeRotation(finger, rightCurl * 0.72, 0, 0, amount));
+  }
+
+  private aimAtWorldPoint(target: THREE.Vector3): { yaw: number; pitch: number } {
+    scratchTargetPoint.copy(target);
+    this.rig.root.worldToLocal(scratchTargetPoint);
+    this.rig.head.getWorldPosition(scratchWorldPoint);
+    this.rig.root.worldToLocal(scratchHeadPoint.copy(scratchWorldPoint));
+    scratchTargetPoint.sub(scratchHeadPoint);
+    const yaw = Math.atan2(scratchTargetPoint.x, Math.max(0.05, scratchTargetPoint.z));
+    const pitch = Math.atan2(scratchTargetPoint.y, Math.max(0.05, Math.hypot(scratchTargetPoint.x, scratchTargetPoint.z)));
+    return { yaw: THREE.MathUtils.clamp(yaw, -24 * DEG, 24 * DEG), pitch: THREE.MathUtils.clamp(pitch, -14 * DEG, 14 * DEG) };
+  }
+
+  private getLookTarget(elapsed: number): { yaw: number; pitch: number } {
+    if (this.explicitLookTarget) return this.aimAtWorldPoint(this.explicitLookTarget);
+    if (this.pointWorldTarget) return this.aimAtWorldPoint(this.pointWorldTarget);
+    if (this.pointNDC) return { yaw: this.pointNDC.x * 20 * DEG, pitch: -this.pointNDC.y * 12 * DEG };
+    if (this.lookAtCursorEnabled && this.cursorNDC && !this.reducedMotion) return { yaw: this.cursorNDC.x * 20 * DEG, pitch: -this.cursorNDC.y * 12 * DEG };
+    if (elapsed >= this.nextWanderAt && !this.reducedMotion) {
+      this.wanderYaw = THREE.MathUtils.randFloatSpread(14) * DEG;
+      this.wanderPitch = THREE.MathUtils.randFloatSpread(8) * DEG;
+      this.nextWanderAt = elapsed + THREE.MathUtils.randFloat(4, 10);
+    }
+    return { yaw: this.wanderYaw, pitch: this.wanderPitch };
+  }
+
+  private applyLook(pose: Pose, elapsed: number): void {
+    const target = this.getLookTarget(elapsed);
+    pose.headYaw += target.yaw * 0.7;
+    pose.neckYaw += target.yaw * 0.3;
+    pose.headPitch += target.pitch * 0.72;
+    pose.neckPitch += target.pitch * 0.28;
+  }
+
+  private applyPointIK(pose: Pose): void {
+    const shoulder = this.rig.arms.right.shoulder.position;
+    if (this.pointWorldTarget) {
+      scratchTargetPoint.copy(this.pointWorldTarget);
+      this.rig.root.worldToLocal(scratchTargetPoint);
+    } else {
+      scratchTargetPoint.set(
+        shoulder.x + (this.pointNDC?.x ?? 0) * 0.42,
+        shoulder.y + (this.pointNDC?.y ?? 0) * 0.34,
+        0.08,
+      );
+    }
+    const upperLength = 0.235;
+    const forearmLength = 0.275;
+    const dx = scratchTargetPoint.x - shoulder.x;
+    const dy = scratchTargetPoint.y - shoulder.y;
+    const distance = THREE.MathUtils.clamp(Math.hypot(dx, dy), 0.12, upperLength + forearmLength - 0.015);
+    const elbowCos = THREE.MathUtils.clamp((upperLength * upperLength + forearmLength * forearmLength - distance * distance) / (2 * upperLength * forearmLength), -1, 1);
+    const elbowAngle = Math.acos(elbowCos);
+    const targetAngle = Math.atan2(dy, dx);
+    const upperAngle = targetAngle + Math.atan2(forearmLength * Math.sin(elbowAngle), upperLength + forearmLength * Math.cos(elbowAngle));
+    const elbowX = shoulder.x + upperLength * Math.cos(upperAngle);
+    const elbowY = shoulder.y + upperLength * Math.sin(upperAngle);
+    const forearmAngle = Math.atan2(scratchTargetPoint.y - elbowY, scratchTargetPoint.x - elbowX);
+    pose.rightShoulder = THREE.MathUtils.clamp(upperAngle + Math.PI / 2, -1.2, 1.35);
+    pose.rightForearm = THREE.MathUtils.clamp(forearmAngle - upperAngle, -2.2, 2.2);
+    pose.rightHand = THREE.MathUtils.clamp(-pose.rightForearm * 0.12, -0.3, 0.3);
+    pose.rightFinger = 0;
+  }
+
+  private applyWave(pose: Pose, progress: number): void {
+    const pulse = Math.sin(THREE.MathUtils.clamp(progress, 0, 1) * Math.PI);
+    pose.rightShoulder = 1.0 * pulse;
+    pose.rightForearm = -0.85 * pulse + Math.sin(progress * Math.PI * 6) * 0.1 * pulse;
+    pose.rightHand = Math.sin(progress * Math.PI * 6) * 0.22 * pulse;
+    pose.rightFinger = 0.16;
+    pose.headRoll += Math.sin(progress * Math.PI) * 0.04;
+  }
+
+  private applyGesture(pose: Pose, name: GestureName, progress: number): void {
+    const wave = Math.sin(progress * Math.PI);
+    const beat = Math.sin(progress * Math.PI * 8);
+    if (name === "waveGoodbye") {
+      this.applyWave(pose, progress);
       return;
     }
-    if (state === "WAVING") this.waveTimeline?.kill();
-    if (state === "POINTING") this.pointTimeline?.kill();
-    if (state === "PEEKING" || state === "HIDDEN") this.rootTimeline?.kill();
-    if (state === "THINKING" || state === "SUCCESS" || state === "ERROR") this.reactionTimeline?.kill();
-    this.waveTimeline = null;
-    this.pointTimeline = null;
-    this.rootTimeline = null;
-    this.reactionTimeline = null;
-    this.rightArmResetTimeline?.kill();
-    this.rightArmResetTimeline = null;
+    if (name === "run") {
+      pose.rightShoulder = 0.55 + beat * 0.35;
+      pose.leftShoulder = 0.55 - beat * 0.35;
+      pose.rightForearm = -0.7 + beat * 0.28;
+      pose.leftForearm = -0.7 - beat * 0.28;
+      pose.rightHip = beat * 0.18;
+      pose.leftHip = -beat * 0.18;
+      pose.rightKnee = 0.55 + beat * 0.25;
+      pose.leftKnee = 0.55 - beat * 0.25;
+      return;
+    }
+    if (name === "pressUp") {
+      pose.leftShoulder = 0.9 * wave;
+      pose.rightShoulder = 0.9 * wave;
+      pose.leftForearm = -0.3 * wave;
+      pose.rightForearm = -0.3 * wave;
+      pose.leftKnee = 0.35 * wave;
+      pose.rightKnee = 0.35 * wave;
+      pose.rootY = -0.08 * wave;
+      return;
+    }
+    if (name === "sit") {
+      pose.rootY = -0.12 * wave;
+      pose.leftHip = -0.35 * wave;
+      pose.rightHip = 0.35 * wave;
+      pose.leftKnee = 0.9 * wave;
+      pose.rightKnee = 0.9 * wave;
+      pose.leftShoulder = 0.14 * wave;
+      pose.rightShoulder = 0.14 * wave;
+      return;
+    }
+    if (name === "liftHeavy") {
+      pose.leftShoulder = 0.55 * wave;
+      pose.rightShoulder = 0.55 * wave;
+      pose.leftForearm = -1.1 * wave;
+      pose.rightForearm = -1.1 * wave;
+      pose.torsoPitch = -0.16 * wave;
+      pose.rootY = -0.04 * wave;
+      return;
+    }
+    if (name === "swagger") {
+      pose.rootYaw = Math.sin(progress * Math.PI * 4) * 0.12 * wave;
+      pose.torsoYaw = Math.sin(progress * Math.PI * 2) * 0.12 * wave;
+      pose.leftShoulder = 0.24 * wave;
+      pose.rightShoulder = -0.24 * wave;
+      pose.headRoll = Math.sin(progress * Math.PI * 2) * 0.08 * wave;
+      return;
+    }
+    if (name === "dive") {
+      pose.torsoPitch = 0.42 * wave;
+      pose.rootY = -0.13 * wave;
+      pose.leftShoulder = 0.85 * wave;
+      pose.rightShoulder = 0.85 * wave;
+      pose.leftForearm = -0.35 * wave;
+      pose.rightForearm = -0.35 * wave;
+      return;
+    }
+    if (name === "box") {
+      pose.rightShoulder = 0.62 + Math.max(0, beat) * 0.42;
+      pose.leftShoulder = 0.62 + Math.max(0, -beat) * 0.42;
+      pose.rightForearm = -0.55;
+      pose.leftForearm = -0.55;
+      pose.rightFinger = 0.48;
+      pose.leftFinger = 0.48;
+      return;
+    }
+    if (name === "frustrated" || name === "complain") {
+      pose.headRoll = Math.sin(progress * Math.PI * 5) * 0.12 * wave;
+      pose.leftShoulder = 0.32 * wave;
+      pose.rightShoulder = 0.32 * wave;
+      pose.leftForearm = -0.5 * wave;
+      pose.rightForearm = -0.5 * wave;
+      return;
+    }
+    if (name === "depressed") {
+      pose.headPitch = 0.2 * wave;
+      pose.headRoll = -0.08 * wave;
+      pose.torsoPitch = 0.18 * wave;
+      pose.leftShoulder = 0.16 * wave;
+      pose.rightShoulder = 0.16 * wave;
+      return;
+    }
+    pose.leftShoulder = 0.35 * wave;
+    pose.rightShoulder = -0.35 * wave;
+    pose.leftForearm = -0.55 * wave;
+    pose.rightForearm = -0.55 * wave;
+    pose.headRoll = Math.sin(progress * Math.PI * 4) * 0.1 * wave;
   }
 
-  private beginBehavior(state: RobotState): boolean {
-    this.cancelGreetingSequence();
-    for (const active of this.stateMachine.activeStates()) {
-      if (active === state && state !== "GESTURE") continue;
-      this.stopBehavior(active);
-      this.stateMachine.exit(active);
+  private applyAction(pose: Pose, elapsed: number): void {
+    const action = this.action;
+    if (!action) return;
+    const progress = action.duration > 0 ? THREE.MathUtils.clamp(action.elapsed / action.duration, 0, 1) : 1;
+    if (action.name === "peek") {
+      const travel = Math.sin(progress * Math.PI);
+      pose.rootX = -0.055 * travel;
+      pose.rootYaw = 0.12 * travel;
+      pose.headYaw += 0.2 * travel;
+      return;
     }
-    this.rightArmResetTimeline?.kill();
-    this.rightArmResetTimeline = null;
-    this.resetRightArmToRest();
-    if (state !== "PEEKING") this.peekHeadOverrideYaw = null;
-    if (state !== "POINTING") this.pointNDC = null;
-    if (state !== "HIDDEN") {
-      this.root.position.x = ROOT_PLACEMENT.restX;
-      this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
+    if (action.name === "hide") {
+      const travel = easeInOut(progress);
+      pose.rootX = 0.16 * travel;
+      pose.rootYaw = -0.12 * travel;
+      return;
     }
-    return this.stateMachine.enter(state);
+    if (action.name === "wave") {
+      this.applyWave(pose, progress);
+      return;
+    }
+    if (action.name === "greet") {
+      if (progress < 0.25) {
+        const phase = easeInOut(progress / 0.25);
+        pose.rootX = -0.055 * phase;
+        pose.rootYaw = 0.12 * phase;
+        pose.headYaw += 0.2 * phase;
+      } else if (progress < 0.4) {
+        pose.headYaw += 0.2;
+      } else if (progress < 0.78) {
+        this.applyWave(pose, (progress - 0.4) / 0.38);
+      } else if (progress < 0.9) {
+        const phase = easeInOut((progress - 0.78) / 0.12);
+        pose.rootX = 0.15 * phase;
+        pose.rootYaw = -0.1 * phase;
+      }
+      return;
+    }
+    if (action.name === "point") {
+      this.applyPointIK(pose);
+      return;
+    }
+    if (action.name === "think") {
+      pose.rightShoulder = 0.52;
+      pose.rightForearm = -1.55;
+      pose.rightHand = 0.22;
+      pose.rightFinger = 0.18;
+      pose.headRoll += -0.1 + Math.sin(elapsed * 2.5) * 0.03;
+      pose.headPitch += 0.08;
+      return;
+    }
+    if (action.name === "success") {
+      const pulse = Math.sin(progress * Math.PI * 2) * (1 - progress);
+      pose.leftShoulder = -0.78 - pulse * 0.2;
+      pose.rightShoulder = 0.78 + pulse * 0.2;
+      pose.leftForearm = -0.45;
+      pose.rightForearm = -0.45;
+      pose.leftFinger = 0.25;
+      pose.rightFinger = 0.25;
+      return;
+    }
+    if (action.name === "error") {
+      pose.headRoll = Math.sin(progress * Math.PI * 4) * 0.12;
+      pose.leftShoulder = 0.32;
+      pose.rightShoulder = 0.32;
+      return;
+    }
+    if (action.name === "gesture" && action.gesture) this.applyGesture(pose, action.gesture, progress);
+  }
+
+  update(dt: number, elapsed: number): void {
+    if (this.disposed) return;
+    const pose = createPose();
+    if (!this.reducedMotion) {
+      const breathe = Math.sin(elapsed * Math.PI * 2 / 4.2);
+      pose.rootY = breathe * 0.006;
+      pose.torsoPitch = breathe * 0.012;
+    }
+    this.applyLook(pose, elapsed);
+    this.applyAction(pose, elapsed);
+    this.applyPose(pose, dt);
+    if (!this.action) return;
+    if (this.action.elapsed < this.action.duration) this.action.elapsed = Math.min(this.action.duration, this.action.elapsed + dt);
+    if (this.action.hold || this.action.elapsed < this.action.duration) return;
+    const completed = this.action.name;
+    this.clearAction();
+    if (completed === "greet") this.explicitLookTarget = null;
+    if (completed !== "gesture") this.setExpression("default");
   }
 
   setReducedMotion(reduced: boolean): void {
@@ -218,231 +478,31 @@ export class RobotController implements RobotControllerApi {
   }
 
   setPointerNDC(x: number, y: number): void {
-    this.cursorNDC = { x, y };
+    this.cursorNDC = { x: THREE.MathUtils.clamp(x, -1, 1), y: THREE.MathUtils.clamp(y, -1, 1) };
   }
 
-  // --- per-frame procedural update (called from useFrame) -----------------
-  update(dt: number, elapsed: number): void {
-    if (this.disposed) return;
-    // Always stepped, not just while GESTURE owns the channels — a clip's
-    // fade-in/out still needs the mixer advancing during those transitions.
-    this.mixer.update(dt);
-    this.updateIdleBreathing(elapsed);
-    this.updateHead(dt, elapsed);
-  }
-
-  private channelFree(channel: "ROOT" | "TORSO" | "HEAD"): boolean {
-    // A channel is free for the ambient systems below when no *other*
-    // active behavior currently owns it — reuses the state machine's own
-    // "can this state enter" check against a state that claims only the
-    // channel being asked about.
-    return this.stateMachine.canEnter(channel === "HEAD" ? "LOOKING" : "IDLE");
-  }
-
-  private updateIdleBreathing(elapsed: number): void {
-    if (!this.channelFree("ROOT")) return;
-    const spine1 = this.bones.get("spine1");
-    if (this.reducedMotion) {
-      this.root.position.y = 0;
-      if (spine1) spine1.quaternion.copy(this.bones.restQuaternion(spine1));
-      return;
-    }
-    const phase = (elapsed / IDLE.breatheSeconds) * Math.PI * 2;
-    this.root.position.y = Math.sin(phase) * IDLE.breatheAmplitude;
-    if (spine1) {
-      const rest = this.bones.restQuaternion(spine1);
-      scratchEuler.set(Math.sin(phase) * deg(1.1), 0, 0);
-      scratchQuat.setFromEuler(scratchEuler);
-      spine1.quaternion.copy(rest).multiply(scratchQuat);
-    }
-  }
-
-  private updateHead(dt: number, elapsed: number): void {
-    const neck = this.bones.get("neck");
-    const head = this.bones.get("head");
-    if (!neck || !head) return;
-    if (!this.channelFree("HEAD")) return;
-
-    let targetYaw = 0;
-    let targetPitch = 0;
-    if (this.explicitLookTarget) {
-      const aim = this.aimAtWorldPoint(this.explicitLookTarget, head);
-      targetYaw = aim.yaw;
-      targetPitch = -aim.pitch;
-    } else if (this.pointNDC) {
-      targetYaw = this.pointNDC.x * deg(LOOK_CLAMP.yawMaxDeg);
-      targetPitch = -this.pointNDC.y * deg(LOOK_CLAMP.pitchMaxDeg);
-    } else if (this.peekHeadOverrideYaw !== null) {
-      targetYaw = this.peekHeadOverrideYaw;
-    } else if (this.lookAtCursorEnabled && this.cursorNDC && !this.reducedMotion) {
-      targetYaw = this.cursorNDC.x * deg(LOOK_CLAMP.yawMaxDeg);
-      targetPitch = -this.cursorNDC.y * deg(LOOK_CLAMP.pitchMaxDeg);
-    } else if (!this.reducedMotion) {
-      if (elapsed > this.nextWanderAt) {
-        this.wanderYawDeg = THREE.MathUtils.randFloatSpread(LOOK_CLAMP.yawMaxDeg * 0.7);
-        this.wanderPitchDeg = THREE.MathUtils.randFloatSpread(LOOK_CLAMP.pitchMaxDeg * 0.6);
-        this.nextWanderAt = elapsed + THREE.MathUtils.randFloat(IDLE.minGapSeconds, IDLE.maxGapSeconds);
-      }
-      targetYaw = deg(this.wanderYawDeg);
-      targetPitch = deg(this.wanderPitchDeg);
-    }
-
-    // WAVING owns the arm and hands, so the head remains available for this
-    // tiny social cue. It is intentionally added before damping: the same
-    // smoothing as ordinary look-at motion keeps the cue soft when a wave is
-    // interrupted by another behavior.
-    if (this.stateMachine.get() === "WAVING") {
-      targetYaw += deg(WAVE.headTurnDeg) * this.waveProgress.headCue;
-      targetPitch += deg(WAVE.headTiltDeg) * this.waveProgress.headCue;
-    }
-
-    const yawMax = deg(LOOK_CLAMP.yawMaxDeg);
-    const pitchMax = deg(LOOK_CLAMP.pitchMaxDeg);
-    targetYaw = THREE.MathUtils.clamp(targetYaw, -yawMax, yawMax);
-    targetPitch = THREE.MathUtils.clamp(targetPitch, -pitchMax, pitchMax);
-
-    this.headYaw = THREE.MathUtils.damp(this.headYaw, targetYaw, LOOK_CLAMP.damping, dt);
-    this.headPitch = THREE.MathUtils.damp(this.headPitch, targetPitch, LOOK_CLAMP.damping, dt);
-
-    const waveRoll = this.stateMachine.get() === "WAVING" ? deg(1.5) * this.waveProgress.headCue : 0;
-    this.applyDelta(head, this.headYaw * 0.62, this.headPitch, waveRoll);
-    this.applyDelta(neck, this.headYaw * 0.38, this.headPitch * 0.3, waveRoll * 0.35);
-    const spine2 = this.bones.get("spine2");
-    if (spine2) {
-      const spineYawMax = deg(LOOK_CLAMP.spineYawMaxDeg);
-      const spineYaw = THREE.MathUtils.clamp(this.headYaw * 0.15, -spineYawMax, spineYawMax);
-      this.applyDelta(spine2, spineYaw, 0, 0);
-    }
-  }
-
-  // World-space atan2 aim, treated as a local yaw/pitch delta. An
-  // approximation (it ignores the character's own world rotation) rather
-  // than a real IK solve — acceptable for the small corrective glances
-  // lookAt()/pointAt() are used for today; revisit if a future gesture needs
-  // to track a target across a wide angular range.
-  private aimAtWorldPoint(target: THREE.Vector3, head: THREE.Bone): { yaw: number; pitch: number } {
-    const neck = this.bones.get("neck");
-    const spine2 = this.bones.get("spine2");
-    scratchSavedHeadQuat.copy(head.quaternion);
-    if (neck) scratchSavedNeckQuat.copy(neck.quaternion);
-    if (spine2) scratchSavedSpine2Quat.copy(spine2.quaternion);
-    head.quaternion.copy(this.bones.restQuaternion(head));
-    if (neck) neck.quaternion.copy(this.bones.restQuaternion(neck));
-    if (spine2) spine2.quaternion.copy(this.bones.restQuaternion(spine2));
-    this.root.updateWorldMatrix(true, true);
-    head.updateWorldMatrix(true, false);
-    head.getWorldPosition(scratchVecA);
-    head.getWorldQuaternion(scratchBaseHeadQuat);
-    scratchBaseHeadQuat.invert();
-    scratchVecB.copy(target).sub(scratchVecA).applyQuaternion(scratchBaseHeadQuat);
-    head.quaternion.copy(scratchSavedHeadQuat);
-    if (neck) neck.quaternion.copy(scratchSavedNeckQuat);
-    if (spine2) spine2.quaternion.copy(scratchSavedSpine2Quat);
-    this.root.updateWorldMatrix(true, true);
-    const yaw = Math.atan2(scratchVecB.x, scratchVecB.z);
-    const horizontal = Math.hypot(scratchVecB.x, scratchVecB.z);
-    const pitch = Math.atan2(scratchVecB.y, horizontal);
-    return { yaw, pitch };
-  }
-
-  private applyDelta(bone: THREE.Bone, x: number, y: number, z: number): void {
-    const rest = this.bones.restQuaternion(bone);
-    scratchEuler.set(x, y, z);
-    scratchQuat.setFromEuler(scratchEuler);
-    bone.quaternion.copy(rest).multiply(scratchQuat);
-  }
-
-  // --- public behaviors -----------------------------------------------------
-
-  // The universal "return to normal resting behavior" entry point — safe to
-  // call from any state, including the architecturally-stubbed ones that
-  // have no other natural way back to IDLE (think() in particular).
   idle(): void {
-    this.cancelGreetingSequence();
-    this.peekHeadOverrideYaw = null;
-    this.pointNDC = null;
-    this.explicitLookTarget = null;
-    for (const active of this.stateMachine.activeStates()) {
-      this.stopBehavior(active);
-      this.stateMachine.exit(active);
-    }
-    this.rootTimeline?.kill();
-    this.resetRightArmToRest(0.28);
-    if (this.reducedMotion) {
-      this.root.position.x = ROOT_PLACEMENT.restX;
-      this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
-      this.setExpression("default");
-      return;
-    }
-    this.rootTimeline = gsap
-      .timeline()
-      .to(this.root.position, { x: ROOT_PLACEMENT.restX, duration: PEEK.moveSeconds, ease: "power2.inOut" }, 0)
-      .to(this.root.rotation, { y: ROOT_PLACEMENT.restRotationY, duration: PEEK.moveSeconds, ease: "power2.inOut" }, 0);
+    this.stopAction();
     this.setExpression("default");
   }
 
   peek(): void {
     if (this.reducedMotion) return;
-    if (!this.beginBehavior("PEEKING")) return;
-    this.rootTimeline?.kill();
-    this.peekHeadOverrideYaw = deg(PEEK.headTurnDeg);
+    this.startAction("peek", 2.2);
     this.setExpression("curious");
-    this.rootTimeline = gsap
-      .timeline()
-      .to(this.root.position, { x: ROOT_PLACEMENT.restX + ROOT_PLACEMENT.peekOffsetX, duration: PEEK.moveSeconds, ease: "power2.out" }, 0)
-      .to(this.root.rotation, { y: ROOT_PLACEMENT.restRotationY + ROOT_PLACEMENT.peekRotationYDelta, duration: PEEK.moveSeconds, ease: "power2.out" }, 0)
-      .to({}, { duration: PEEK.holdSeconds })
-      .to(this.root.position, { x: ROOT_PLACEMENT.restX, duration: PEEK.moveSeconds, ease: "power2.inOut" }, ">")
-      .to(
-        this.root.rotation,
-        {
-          y: ROOT_PLACEMENT.restRotationY,
-          duration: PEEK.moveSeconds,
-          ease: "power2.inOut",
-          onComplete: () => {
-            this.peekHeadOverrideYaw = null;
-            this.stateMachine.exit("PEEKING");
-          },
-        },
-        "<",
-      );
   }
 
-  /**
-   * Complete Salom sequence from the reference board:
-   * subtle peek → look around → wave from the edge → hide slightly → return.
-   */
   greet(target?: THREE.Vector3 | null): void {
     if (this.reducedMotion) return;
-    this.cancelGreetingSequence();
-    this.pointNDC = null;
-    this.explicitLookTarget = null;
-    this.peekHeadOverrideYaw = null;
-    this.idle();
-
-    const lookTarget = target ?? new THREE.Vector3(0.58, 0.76, 1);
-    this.peek();
+    this.explicitLookTarget = target?.clone() ?? new THREE.Vector3(0.55, 0.75, 1);
+    this.startAction("greet", 5.8);
     this.setExpression("happy");
-    this.greetingTimeline = gsap
-      .timeline({ onComplete: () => { this.greetingTimeline = null; } })
-      .call(() => this.runGreetingStep(() => this.lookAt(lookTarget)), [], 0.75)
-      .call(() => this.runGreetingStep(() => this.wave()), [], 2.2)
-      .call(() => this.runGreetingStep(() => this.hide()), [], 4.25)
-      .call(() => this.runGreetingStep(() => {
-        this.lookAt(null);
-        this.idle();
-      }), [], 5.75);
   }
 
   hide(): void {
     if (this.reducedMotion) return;
-    if (!this.beginBehavior("HIDDEN")) return;
-    this.rootTimeline?.kill();
+    this.startAction("hide", 0.8, true);
     this.setExpression("default");
-    this.rootTimeline = gsap
-      .timeline()
-      .to(this.root.position, { x: ROOT_PLACEMENT.restX + ROOT_PLACEMENT.hiddenOffsetX, duration: PEEK.moveSeconds * 1.4, ease: "power2.inOut" }, 0)
-      .to(this.root.rotation, { y: ROOT_PLACEMENT.restRotationY - 0.08, duration: PEEK.moveSeconds * 1.4, ease: "power2.inOut" }, 0);
   }
 
   lookAtCursor(enabled: boolean): void {
@@ -451,405 +511,103 @@ export class RobotController implements RobotControllerApi {
   }
 
   lookAt(target: THREE.Vector3 | null): void {
-    this.cancelGreetingSequence();
-    this.explicitLookTarget = this.reducedMotion ? null : target?.clone() ?? null;
-    if (target) this.pointNDC = null;
+    this.explicitLookTarget = target?.clone() ?? null;
+    if (!target && !this.action) this.state = "IDLE";
+  }
+
+  pointAt(target: THREE.Vector3 | HTMLElement | null): void {
+    if (!target) {
+      this.idle();
+      return;
+    }
+    if (target instanceof HTMLElement) {
+      const rect = target.getBoundingClientRect();
+      this.pointNDC = {
+        x: THREE.MathUtils.clamp(((rect.left + rect.width / 2) / window.innerWidth) * 2 - 1, -1, 1),
+        y: THREE.MathUtils.clamp(-((rect.top + rect.height / 2) / window.innerHeight) * 2 + 1, -1, 1),
+      };
+      this.pointWorldTarget = null;
+    } else {
+      this.pointNDC = null;
+      this.pointWorldTarget = target.clone();
+    }
+    this.startAction("point", 0.5, true);
+    this.setExpression("curious");
+  }
+
+  think(): void {
+    if (this.reducedMotion) return;
+    this.startAction("think", 0.55, true);
+    this.setExpression("thinking");
+  }
+
+  reactSuccess(): void {
+    if (this.reducedMotion) return;
+    this.startAction("success", 0.9);
+    this.setExpression("success");
+  }
+
+  reactError(): void {
+    if (this.reducedMotion) return;
+    this.startAction("error", 0.9);
+    this.setExpression("error");
+  }
+
+  reactNotification(): void {
+    this.greet();
+    this.setExpression("surprised");
   }
 
   wave(): void {
     if (this.reducedMotion) return;
-    if (!this.beginBehavior("WAVING")) return;
-    // Peek owns the root channel. End any previous root travel before the
-    // greeting takes over, otherwise two timelines fight over x/rotation.
-    this.rootTimeline?.kill();
-    this.rootTimeline = null;
-    this.clearRightArmTimelines();
-    this.reactionTimeline?.kill();
-    this.reactionTimeline = null;
+    this.startAction("wave", 2.8);
     this.setExpression("happy");
-    const shoulder = this.bones.get("rightShoulder");
-    const arm = this.bones.get("rightArm");
-    const foreArm = this.bones.get("rightForeArm");
-    const hand = this.bones.get("rightHand");
-    const head = this.bones.get("head");
-    if (!shoulder || !arm || !foreArm || !hand) {
-      this.stateMachine.exit("WAVING");
-      return;
-    }
-
-    const p = this.waveProgress;
-    p.shoulder = 0;
-    p.out = 0;
-    p.lift = 0;
-    p.elbow = 0;
-    p.wristPhase = 0;
-    p.headCue = 0;
-    p.edgeReveal = 0;
-
-    // Real collision avoidance, not a warning: measure the hand's actual
-    // (post-forward-kinematics) world position against the head ellipsoid
-    // every update, and if it intrudes, push the shoulder further out /
-    // reduce the lift and re-measure — resolveHeadAvoidance owns the
-    // measure/check/nudge loop, this closure just knows WAVE's own bone
-    // wiring and axis signs.
-    const applyPose = () => {
-      this.root.position.x = ROOT_PLACEMENT.restX + WAVE.edgeRevealX * p.edgeReveal;
-      const measureHand = (correction: HeadAvoidCorrection) => {
-        this.applyDelta(shoulder, 0, 0, deg(WAVE.shoulderOutDeg) * p.shoulder + deg(correction.extraShoulderDeg));
-        this.applyDelta(arm, deg(WAVE.armLiftDeg) * p.lift, 0, deg(WAVE.armOutDeg) * p.out);
-        this.applyDelta(foreArm, 0, 0, deg(WAVE.elbowBendDeg) * p.elbow);
-        this.applyDelta(
-          hand,
-          deg(WAVE.wristXDeg) * p.elbow,
-          deg(WAVE.wristYDeg) * p.elbow,
-          (deg(WAVE.wristZDeg) + Math.sin(p.wristPhase) * deg(WAVE.wristWiggleDeg)) * p.elbow,
-        );
-        hand.updateWorldMatrix(true, false);
-        return hand.getWorldPosition(scratchVecA);
-      };
-      if (head) resolveHeadAvoidance(head, measureHand);
-      else measureHand({ extraShoulderDeg: 0, liftMultiplier: 1 });
-    };
-
-    // The GLB bind pose keeps the fingers slightly curled. A small negative
-    // curl opens them into a readable five-finger greeting silhouette.
-    this.curlFingers("right", ["thumb", "index", "middle", "ring", "pinky"], -0.35);
-    this.waveTimeline?.kill();
-    const t = WAVE.timing;
-    this.waveTimeline = gsap
-      .timeline({
-        onUpdate: applyPose,
-        onComplete: () => {
-          this.waveTimeline = null;
-          this.resetRightArmToRest();
-          this.setFingerCurl("right", 0);
-          this.stateMachine.exit("WAVING");
-        },
-      })
-      .to(p, { shoulder: -0.15, duration: t.anticipation, ease: "power1.out" })
-      .to(p, { edgeReveal: 1, duration: t.anticipation, ease: "power2.out" }, "<")
-      .to(p, { shoulder: 1, duration: t.shoulderOut, ease: "back.out(1.4)" })
-      .to(p, { out: 1, duration: t.armOut, ease: "power2.out" }, "<0.05")
-      .to(p, { lift: 1, duration: t.lift, ease: "power2.out" }, "<0.05")
-      .to(p, { elbow: 1, duration: t.elbowBend, ease: "power2.out" }, "<0.1")
-      .to(p, { headCue: 1, duration: t.elbowBend, ease: "sine.out" }, "<")
-      .to(p, { wristPhase: Math.PI * 2 * WAVE.wiggleCount, duration: t.wiggle, ease: "none" })
-      .to(p, { shoulder: 0, out: 0, lift: 0, elbow: 0, wristPhase: 0, duration: t.returnArm, ease: "power2.inOut" })
-      .to(p, { headCue: 0, edgeReveal: 0, duration: t.settle, ease: "sine.inOut" });
   }
 
-  // Baked full-body reaction — layered on top of every procedural behavior
-  // above, not one of them: the clip drives the entire skeleton at once (see
-  // GESTURE's channel claim in robot-types.ts), so every other bone-writing
-  // system here is suspended for its duration (enterInterrupting kills
-  // whatever else currently owns any of those channels) and the whole
-  // skeleton is explicitly restored afterward via endGesture() —
-  // RobotBones.resetEvery(), not the narrower ~15-bone resetAll() the rest
-  // of this class uses, since a clip also drives legs/spine/fingers nothing
-  // procedural ever touches.
   playGesture(name: GestureName): void {
     if (this.reducedMotion) return;
-    const clip = this.clipsByRawName.get(GESTURE_CLIPS[name]);
-    if (!clip) return;
-    if (!this.beginBehavior("GESTURE")) return;
-    this.greetingTimeline?.kill();
-    this.greetingTimeline = null;
-    this.gestureEndTimer?.kill();
-    this.gestureEndTimer = null;
-    this.gestureResetTween?.kill();
-    this.gestureResetTween = null;
-    this.peekHeadOverrideYaw = null;
-    this.pointNDC = null;
-    this.explicitLookTarget = null;
-    this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
-    this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
-    this.bones.resetEvery();
-    this.resetLeftArmToRest();
-    this.setExpression("default");
-    const action = this.mixer.clipAction(clip);
-    const version = ++this.gestureVersion;
-    action.reset();
-    action.setLoop(THREE.LoopOnce, 1);
-    action.clampWhenFinished = true;
-    action.setEffectiveTimeScale(1);
-    action.setEffectiveWeight(1);
-    action.fadeIn(0.15);
-    action.play();
-    this.activeGestureAction = action;
-
-    const onFinished = (event: { action: THREE.AnimationAction }) => {
-      if (event.action !== action || this.activeGestureAction !== action || version !== this.gestureVersion) return;
-      this.mixer.removeEventListener("finished", onFinished);
-      this.activeGestureFinishedHandler = null;
-      this.gestureEndTimer = gsap.delayedCall(GESTURE_HOLD_SECONDS, () => this.endGesture(action, version));
-    };
-    this.activeGestureFinishedHandler = onFinished;
-    this.mixer.addEventListener("finished", onFinished);
-  }
-
-  private endGesture(action: THREE.AnimationAction, version: number): void {
-    if (this.activeGestureAction !== action || version !== this.gestureVersion) return;
-    this.gestureEndTimer = null;
-    action.fadeOut(GESTURE_FADE_SECONDS);
-    this.gestureResetTween = gsap.delayedCall(GESTURE_FADE_SECONDS, () => {
-      if (this.activeGestureAction !== action || version !== this.gestureVersion) return;
-      action.stop();
-      if (this.activeGestureFinishedHandler) {
-        this.mixer.removeEventListener("finished", this.activeGestureFinishedHandler);
-        this.activeGestureFinishedHandler = null;
-      }
-      this.bones.resetEvery();
-      this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
-      this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
-      this.resetLeftArmToRest();
-      this.activeGestureAction = null;
-      this.gestureResetTween = null;
-      this.stateMachine.exit("GESTURE");
-      this.setExpression("default");
-    });
-  }
-
-  // --- stubs: typed, callable, architecturally wired; not fully realized ---
-
-  // Head turn (same NDC mapping lookAtCursor() uses) PLUS a real right-arm
-  // extension, direction-biased by the target's screen position — not just
-  // a head-orientation placeholder any more. No true unprojected 3D ray (the
-  // controller has no camera reference) or IK: the arm's reach direction is
-  // approximated from the same yaw/pitch the head already turns to, clamped
-  // and scaled by POINT's config — precise enough for "the robot gestures
-  // toward this general area", not pixel-accurate aim.
-  pointAt(target: THREE.Vector3 | HTMLElement | null): void {
-    this.cancelGreetingSequence();
-    if (this.reducedMotion) {
-      if (!target) this.lookAt(null);
-      return;
-    }
-    if (!target) {
-      this.pointNDC = null;
-      this.lookAt(null);
-      this.exitPointing();
-      return;
-    }
-    let ndcX = 0;
-    let ndcY = 0;
-    if (target instanceof HTMLElement) {
-      const rect = target.getBoundingClientRect();
-      this.explicitLookTarget = null;
-      ndcX = ((rect.left + rect.width / 2) / window.innerWidth) * 2 - 1;
-      ndcY = -((rect.top + rect.height / 2) / window.innerHeight) * 2 + 1;
-      ndcX = THREE.MathUtils.clamp(ndcX, -1, 1);
-      ndcY = THREE.MathUtils.clamp(ndcY, -1, 1);
-      this.pointNDC = { x: ndcX, y: ndcY };
-    } else {
-      this.lookAt(target);
-      const head = this.bones.get("head");
-      if (head) {
-        const aim = this.aimAtWorldPoint(target, head);
-        ndcX = THREE.MathUtils.clamp(aim.yaw / deg(LOOK_CLAMP.yawMaxDeg), -1, 1);
-        ndcY = THREE.MathUtils.clamp(aim.pitch / deg(LOOK_CLAMP.pitchMaxDeg), -1, 1);
-      }
-    }
-    this.animatePointArm(ndcX, ndcY);
-  }
-
-  private exitPointing(): void {
-    if (this.stateMachine.get() !== "POINTING") return;
-    this.pointTimeline?.kill();
-    this.resetRightArmToRest();
-    this.stateMachine.exit("POINTING");
-  }
-
-  // Re-entrant: calling this again while already POINTING (pointing at a
-  // new target) just re-tweens toward the new direction — canEnter() treats
-  // "already owned by this same state" as free, same as everywhere else.
-  private animatePointArm(ndcX: number, ndcY: number): void {
-    if (this.reducedMotion) return;
-    if (!this.beginBehavior("POINTING")) return;
-    this.clearRightArmTimelines();
-    this.setExpression("curious");
-    const shoulder = this.bones.get("rightShoulder");
-    const arm = this.bones.get("rightArm");
-    const foreArm = this.bones.get("rightForeArm");
-    const head = this.bones.get("head");
-    const hand = this.bones.get("rightHand");
-    if (!shoulder || !arm || !foreArm || !hand) {
-      this.stateMachine.exit("POINTING");
-      return;
-    }
-    this.pointFinger("right");
-    // Cross-body clamp: the head (and, via updateHead()'s existing spine2
-    // contribution, a little of the upper torso) already turn toward the
-    // FULL ndcX range — POINTING claims RIGHT_ARM + HANDS, not HEAD, so
-    // updateHead() keeps running unmodified. The arm itself only follows a
-    // narrower range, so a target on the character's far (left) side is
-    // communicated mainly by the head/torso turning to face it rather than
-    // the arm dragging across the chest to physically reach it.
-    const armBiasX = THREE.MathUtils.clamp(ndcX, -POINT.armCrossBodyClampNdc, 1);
-    const armOutBase = -deg(POINT.armOutDeg) * armBiasX;
-    const armLiftBase = deg(POINT.armLiftBaseDeg + POINT.armLiftRangeDeg * ndcY);
-    const p = { progress: 0 };
-    const applyPose = () => {
-      const measureHand = (correction: HeadAvoidCorrection) => {
-        this.applyDelta(shoulder, 0, 0, (deg(POINT.shoulderOutDeg) + deg(correction.extraShoulderDeg)) * p.progress);
-        this.applyDelta(arm, armLiftBase * correction.liftMultiplier * p.progress, 0, armOutBase * p.progress);
-        this.applyDelta(foreArm, 0, 0, deg(POINT.elbowBendDeg) * p.progress);
-        hand.updateWorldMatrix(true, false);
-        return hand.getWorldPosition(scratchVecA);
-      };
-      if (head) resolveHeadAvoidance(head, measureHand);
-      else measureHand({ extraShoulderDeg: 0, liftMultiplier: 1 });
-    };
-    this.pointTimeline?.kill();
-    this.pointTimeline = gsap.timeline({ onUpdate: applyPose }).to(p, { progress: 1, duration: POINT.moveSeconds, ease: "power2.out" });
-  }
-
-  // A held "considering" cue, own dedicated pose (not wave's end pose reused
-  // — that read as "about to wave", not "thinking"): head tilts and settles
-  // into a slow sway, right arm bends to bring the hand toward the LOWER
-  // side of the face (verified via real forward kinematics through the
-  // actual GLB skeleton — see THINK_POSE's comment in robot-config.ts — to
-  // land noticeably lower on screen than wave's hand-beside-head height)
-  // with relaxed, not gripping, fingers. Runs until idle()/reactSuccess()/
-  // reactError() ends it — no natural end of its own.
-  think(): void {
-    if (this.reducedMotion) return;
-    if (!this.beginBehavior("THINKING")) return;
-    this.clearRightArmTimelines();
-    const head = this.bones.get("head");
-    const shoulder = this.bones.get("rightShoulder");
-    const arm = this.bones.get("rightArm");
-    const foreArm = this.bones.get("rightForeArm");
-    const hand = this.bones.get("rightHand");
-    this.reactionTimeline?.kill();
-    this.setExpression("thinking");
-    this.setFingerCurl("right", THINK_POSE.fingerCurl);
-    const p = { tilt: 0, armIn: 0, sway: 0 };
-    const applyPose = () => {
-      if (head) {
-        this.applyDelta(
-          head,
-          deg(THINK_POSE.headTiltXDeg) * p.tilt + deg(THINK_POSE.swayDeg) * Math.sin(p.sway),
-          0,
-          deg(THINK_POSE.headTiltZDeg) * p.tilt,
-        );
-      }
-      const measureHand = (correction: HeadAvoidCorrection) => {
-        if (shoulder) this.applyDelta(shoulder, 0, 0, (deg(THINK_POSE.shoulderOutDeg) + deg(correction.extraShoulderDeg)) * p.armIn);
-        if (arm) this.applyDelta(arm, deg(THINK_POSE.armLiftDeg) * correction.liftMultiplier * p.armIn, 0, deg(THINK_POSE.armOutDeg) * p.armIn);
-        if (foreArm) this.applyDelta(foreArm, 0, 0, deg(THINK_POSE.elbowBendDeg) * p.armIn);
-        if (hand) hand.updateWorldMatrix(true, false);
-        return hand ? hand.getWorldPosition(scratchVecA) : scratchVecA;
-      };
-      if (head && shoulder && arm && foreArm && hand) resolveHeadAvoidance(head, measureHand);
-      else measureHand({ extraShoulderDeg: 0, liftMultiplier: 1 });
-    };
-    this.reactionTimeline = gsap
-      .timeline({ onUpdate: applyPose })
-      .to(p, { tilt: 1, armIn: 1, duration: THINK_POSE.moveSeconds, ease: "power2.out" })
-      .to(p, { sway: Math.PI * 2, duration: THINK_POSE.swaySeconds, ease: "none", repeat: -1 });
-  }
-
-  reactSuccess(): void {
-    this.playReactionBlip(1);
-  }
-
-  reactError(): void {
-    this.playReactionBlip(-1);
-  }
-
-  reactNotification(): void {
-    this.peek();
-    this.setExpression("surprised");
-  }
-
-  private playReactionBlip(sign: 1 | -1): void {
-    const state: RobotState = sign === 1 ? "SUCCESS" : "ERROR";
-    if (!this.beginBehavior(state)) return;
-    const head = this.bones.get("head");
-    if (!head) {
-      this.stateMachine.exit(state);
-      return;
-    }
-    const p = { v: 0 };
-    this.reactionTimeline?.kill();
-    this.reactionTimeline = gsap
-      .timeline({
-        onUpdate: () => this.applyDelta(head, 0, 0, sign === 1 ? deg(8) * Math.sin(p.v * Math.PI * 2) : deg(10) * Math.sin(p.v * Math.PI * 3)),
-        onComplete: () => {
-          this.reactionTimeline = null;
-          this.stateMachine.exit(state);
-          this.setExpression("default");
-        },
-      })
-      .to(p, { v: 1, duration: 0.55, ease: "power1.inOut" });
-    this.setExpression(sign === 1 ? "success" : "error");
+    const duration = name === "run" || name === "pressUp" ? 3.2 : name === "sit" || name === "dive" ? 2.8 : 2.6;
+    this.startAction("gesture", duration, false, name);
+    this.setExpression(name === "frustrated" || name === "depressed" || name === "complain" ? "error" : "happy");
   }
 
   holdObject(object: THREE.Object3D, hand: Hand): void {
-    this.props.attach(hand, object);
+    this.propsManager.attach(hand, object);
+    this.state = "HOLDING";
   }
 
   releaseObject(hand: Hand): void {
-    this.props.detach(hand);
+    this.propsManager.detach(hand);
+    if (this.state === "HOLDING") this.state = "IDLE";
   }
 
   openHand(hand: Hand): void {
-    this.setFingerCurl(hand, 0);
+    if (hand === "left") this.leftFingerCurl = 0;
+    else this.rightFingerCurl = 0;
   }
 
   relaxedHand(hand: Hand): void {
-    this.setFingerCurl(hand, 0.18);
+    if (hand === "left") this.leftFingerCurl = 0.08;
+    else this.rightFingerCurl = 0.08;
   }
 
   pointFinger(hand: Hand): void {
-    const curled: Finger[] = ["thumb", "middle", "ring", "pinky"];
-    this.curlFingers(hand, curled, 0.6);
-    this.curlFingers(hand, ["index"], 0);
+    if (hand === "left") this.leftFingerCurl = 0.16;
+    else this.rightFingerCurl = 0.16;
   }
 
   gripObject(hand: Hand): void {
-    this.setFingerCurl(hand, 0.55);
-  }
-
-  private setFingerCurl(hand: Hand, amount: number): void {
-    this.curlFingers(hand, ["thumb", "index", "middle", "ring", "pinky"], amount);
-  }
-
-  private curlFingers(hand: Hand, fingers: Finger[], amount: number): void {
-    const curl = deg(amount * 40) * (hand === "left" ? -1 : 1);
-    const segments: FingerSegment[] = [1, 2, 3, 4];
-    const weights = [1, 0.88, 0.7, 0.45];
-    for (const finger of fingers) {
-      for (const [index, segment] of segments.entries()) {
-        const bone = this.bones.getByRawName(fingerBoneName(hand, finger, segment));
-        if (!bone) continue;
-        this.applyDelta(bone, 0, 0, curl * weights[index]);
-      }
-    }
+    if (hand === "left") this.leftFingerCurl = 0.58;
+    else this.rightFingerCurl = 0.58;
   }
 
   getState(): RobotState {
-    return this.stateMachine.get();
+    return this.state;
   }
 
   dispose(): void {
     this.disposed = true;
-    this.waveTimeline?.kill();
-    this.rootTimeline?.kill();
-    this.reactionTimeline?.kill();
-    this.pointTimeline?.kill();
-    this.rightArmResetTimeline?.kill();
-    this.greetingTimeline?.kill();
-    this.greetingTimeline = null;
-    this.greetingStepActive = false;
-    this.gestureEndTimer?.kill();
-    this.gestureResetTween?.kill();
-    this.stopActiveGesture(false);
-    this.mixer.stopAllAction();
-    this.bones.resetEvery();
-    this.resetLeftArmToRest();
-    this.root.position.set(ROOT_PLACEMENT.restX, 0, 0);
-    this.root.rotation.y = ROOT_PLACEMENT.restRotationY;
-    this.props.detachAll();
+    this.propsManager.detachAll();
+    this.clearAction();
   }
 }
