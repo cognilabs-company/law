@@ -40,25 +40,18 @@ import {
   IconRefresh,
   IconInfo,
   IconCrown,
-  IconGem,
-  IconLeaf,
   IconHeadset,
   IconChartBar,
   IconChatDots,
   IconChevronRight,
   IconCalendar,
-  IconStar,
 } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
-
-// Tier icon shown above the plan name (purely presentational — matches
-// whichever of the three fixed LexGo.AI slugs the plan is).
-function tierIcon(slug: string) {
-  if (slug === "lexgo-ai-pro") return { Icon: IconCrown, cls: "pro" };
-  if (slug === "lexgo-ai-lite") return { Icon: IconGem, cls: "lite" };
-  if (slug === "lexgo-ai-free") return { Icon: IconLeaf, cls: "free" };
-  return null;
-}
+// The LexGo.AI grid below and the upgrade dialog on the services catalog
+// (AiPlanUpgradeGate) show the same card, so it lives in one file now:
+// tierIcon and the featured CTA's class moved there with it, the pricing
+// helpers stayed here because they are this PAGE's rules, not the card's.
+import PlanCard, { FEATURED_CTA } from "./PlanCard";
 
 type Term = 1 | 3 | 6 | 12;
 type Variant = "personal" | "all";
@@ -70,12 +63,6 @@ type Variant = "personal" | "all";
 // admin-created yurist/advokat tariff shows up without a slug rule.
 const AI_SLUG = /^lexgo-ai-(free|lite|pro)$/;
 const FEATURED_SLUG = "lexgo-ai-pro";
-// The recommended plan's buy button is the one thing on this screen that is
-// meant to be noticed, so it gets btn--unlock on top of the house btn--grad:
-// a blue→cyan gradient painted three times wider than the button, which
-// slides on hover, and a crown that fills in with it (globals.css wp-plans).
-// Every other plan keeps btn--line — if all three shouted, none of them would.
-const FEATURED_CTA = "btn--grad btn--unlock";
 // Fallback monthly AI limits when a plan carries no entitlements (T1-03).
 const AI_LIMIT_BY_SLUG: Record<string, number> = { "lexgo-ai-free": 5, "lexgo-ai-lite": 100, "lexgo-ai-pro": 1000 };
 // T1-03 §5: term discounts 3 → −5 %, 6 → −10 %, 12 → −15 %; paying up front
@@ -327,61 +314,44 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
             const limit = Number(plan.entitlements?.ai_requests ?? 0) || AI_LIMIT_BY_SLUG[plan.slug] || 0;
             const hasPro = aiPlans.some((p) => p.slug === FEATURED_SLUG);
             const featured = hasPro ? plan.slug === FEATURED_SLUG : aiPlans.length > 1 && i === aiPlans.length - 1;
-            const tier = tierIcon(plan.slug);
             const isCurrent = !!currentPlanName && planName(plan) === currentPlanName;
+            const free = plan.monthlyPrice === 0;
+            // Everything below is this page's decision, worked out here and
+            // handed over finished — PlanCard is told what to show, never how
+            // to work it out (see the note at the top of PlanCard.tsx).
             return (
-              <div key={plan.id} className={`splan${isCurrent ? " splan--current" : featured ? " splan--feat" : ""}`}>
-                {isCurrent ? (
-                  <span className="splan__ribbon splan__ribbon--current"><IconCheck />{t("current")}</span>
-                ) : featured ? (
-                  <span className="splan__ribbon"><IconStar />{t("recommended")}</span>
-                ) : null}
-                {tier ? (
-                  <span className={`splan__icon splan__icon--${tier.cls}`}>
-                    <tier.Icon />
-                  </span>
-                ) : null}
-                <div className="splan__h">
-                  <b className="splan__name">{planName(plan)}</b>
-                  {pr.savePct > 0 && plan.monthlyPrice > 0 ? <span className="splan__save">−{pr.savePct}%</span> : null}
-                  {sellerPct && plan.monthlyPrice > 0 ? <span className="splan__save">−{sellerPct}%</span> : null}
-                </div>
-                <div className="splan__price">
-                  {plan.monthlyPrice === 0 ? (
-                    <b>{t("freeLabel")}</b>
-                  ) : (
-                    <>
-                      <b>{som(pr.perMonth)}</b>
-                      <span>{t("perMonth")}</span>
-                      {sellerPct ? <s className="splan__was">{som(plan.monthlyPrice)}</s> : null}
-                    </>
-                  )}
-                </div>
-                {plan.monthlyPrice > 0 && aiTerm > 1 ? (
-                  <p className="splan__total">{t("totalNote", { term: aiTerm, total: som(pr.total) })}</p>
-                ) : null}
-                {plan.monthlyPrice === 0 && limit ? <p className="splan__usage">{t("ai.usage", { used: Math.min(aiUsed, limit), limit })}</p> : null}
-                <ul className="splan__feats">
-                  {(plan.features ?? []).map((f, k) => (
-                    <li key={k}><IconCheck />{f}</li>
-                  ))}
-                </ul>
-                {isCurrent ? (
-                  <span className="btn btn--soft btn--full" aria-disabled><IconCheck />{t("current")}</span>
-                ) : plan.monthlyPrice === 0 ? (
-                  <span className="btn btn--line btn--full" aria-disabled>{t("ai.included")}</span>
-                ) : (
-                  <button
-                    type="button"
-                    className={`btn ${featured ? FEATURED_CTA : "btn--line"} btn--full`}
-                    disabled={busy === plan.id}
-                    onClick={() => choose(plan, pr.total, billingPeriod(aiTerm, aiUpfront))}
-                  >
-                    {featured ? <IconCrown aria-hidden /> : null}
-                    {busy === plan.id ? t("processing") : t("choose")}
-                  </button>
-                )}
-              </div>
+              <PlanCard
+                key={plan.id}
+                slug={plan.slug}
+                name={planName(plan)}
+                features={plan.features ?? []}
+                state={isCurrent ? "current" : featured ? "featured" : "plain"}
+                ribbon={isCurrent ? t("current") : featured ? t("recommended") : undefined}
+                saves={[
+                  ...(pr.savePct > 0 && !free ? [`−${pr.savePct}%`] : []),
+                  ...(sellerPct && !free ? [`−${sellerPct}%`] : []),
+                ]}
+                price={
+                  free
+                    ? { amount: t("freeLabel") }
+                    : { amount: som(pr.perMonth), unit: t("perMonth"), was: sellerPct ? som(plan.monthlyPrice) : undefined }
+                }
+                totalNote={!free && aiTerm > 1 ? t("totalNote", { term: aiTerm, total: som(pr.total) }) : undefined}
+                usage={free && limit ? t("ai.usage", { used: Math.min(aiUsed, limit), limit }) : undefined}
+                cta={
+                  isCurrent
+                    ? { label: t("current"), variant: "soft", icon: <IconCheck /> }
+                    : free
+                      ? { label: t("ai.included"), variant: "line" }
+                      : {
+                          label: busy === plan.id ? t("processing") : t("choose"),
+                          variant: featured ? "featured" : "line",
+                          icon: featured ? <IconCrown aria-hidden /> : undefined,
+                          disabled: busy === plan.id,
+                          onClick: () => choose(plan, pr.total, billingPeriod(aiTerm, aiUpfront)),
+                        }
+                }
+              />
             );
           })}
         </div>
