@@ -12,7 +12,7 @@ import {
 } from "@/lib/services/backend";
 import { ApiError, isConflict, isPaymentRequired, logApiError, errDetail } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
-import DocumentRequestPanel, { DocPagesField, readDocPages } from "./DocumentRequestPanel";
+import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocTemplateViewer from "./DocTemplateViewer";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
@@ -89,7 +89,7 @@ export default function DocumentLawyerAssist({
   // fixes what it pointed at. "pages" joined it on 2026-09-29: the page box
   // paints anything over 500 red, but the send used to drop such a value
   // without a word and quote the advocate a different document.
-  const [missing, setMissing] = useState<"" | "need" | "pages" | "consent">("");
+  const [missing, setMissing] = useState<"" | "need" | "consent">("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   // The whole answer, not only the request row: past the free allowance the
@@ -97,11 +97,6 @@ export default function DocumentLawyerAssist({
   // advocates (LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md L124),
   // and only `payment_required` in the answer says so.
   const [result, setResult] = useState<DocLawyerSubmitResult | null>(null);
-  // How many pages the attached document runs to. Asked for only when there
-  // IS an attached document (see the field below), optional, and not sent
-  // when empty — MD L130: an absent page_count is the old behaviour, straight
-  // to the pool.
-  const [pages, setPages] = useState("");
   const [sent, setSent] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   // The request only opens the form once the client's plan allows it
@@ -123,11 +118,6 @@ export default function DocumentLawyerAssist({
     }
     // Walked in the order the fields are read, so the first thing the client
     // is sent back to is the highest one on the screen that is wrong.
-    if (readDocPages(pages).bad) {
-      setMissing("pages");
-      document.getElementById("lawyer-pages")?.focus();
-      return;
-    }
     if (!consent) {
       setMissing("consent");
       document.getElementById("lawyer-consent")?.focus();
@@ -146,12 +136,6 @@ export default function DocumentLawyerAssist({
           ? (b: LawyerRequestBody) => requestServiceDocumentLawyerWithFilesGated(serviceId, { ...b, files, voiceFiles: voices.map((v) => v.blob) })
           : (b: LawyerRequestBody) => requestServiceDocumentLawyerGated(lawyerFlow.requestUrl, b);
       const r = await send({
-        // MD §1 and §2: page_count is optional on both of these endpoints.
-        // It goes only when the client answered the field, which only
-        // appears when they attached something for the advocate to read —
-        // this form's own flow is "write me this document", where there is
-        // no document yet and therefore no honest page count to send.
-        pageCount: files.length ? readDocPages(pages).count : undefined,
         need: note.trim() ? `${need.trim()}\n\n${t("lawyerNoteLabel")}: ${note.trim()}` : need.trim(),
         // The consent the client just gave is recorded with the request, not
         // only enforced in the browser. Neither document-lawyer endpoint has a
@@ -315,25 +299,6 @@ export default function DocumentLawyerAssist({
         <label>{tn("extrasLabel")}</label>
         <AttachmentPicker files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onError={setErr} />
 
-        {/* Only once a document is actually attached. Asking "how many pages
-            is your document" of a client who has attached nothing — this
-            form's usual case, where the advocate WRITES the document — is a
-            question with no answer, and the fee it quotes would be for a
-            document nobody has. With a file attached the question is real:
-            past the free allowance the advocate's reading of it is charged
-            (MD §"Narx qoidasi"), and MD L121-127 wants that price on screen
-            before the send rather than arriving as a Telegram message. */}
-        {/* No `cform__bad` sentence beside it: DocPagesField's own hint line
-            already turns into the error and carries role="alert", so a second
-            copy would say the same thing twice. */}
-        {files.length ? (
-          <DocPagesField
-            id="lawyer-pages"
-            value={pages}
-            onChange={(v) => { setPages(v); setMissing((m) => (m === "pages" ? "" : m)); }}
-            invalid={missing === "pages"}
-          />
-        ) : null}
 
         <label>{t("langLabel")}</label>
         <Select

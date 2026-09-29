@@ -12,7 +12,7 @@ import { ApiError, isPaymentRequired, logApiError, errDetail } from "@/lib/http"
 import { Notice } from "@/components/admin/AdminBits";
 import { Link } from "@/i18n/navigation";
 import Select from "@/components/Select";
-import DocumentRequestPanel, { DocPagesField, readDocPages } from "./DocumentRequestPanel";
+import DocumentRequestPanel from "./DocumentRequestPanel";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
 import DocTypePicker from "./DocTypePicker";
@@ -169,11 +169,10 @@ export default function NewDocumentOrder({
   // (PDF: the real count; DOCX/TXT: 2 500 characters per page), which is a
   // better number than a guess — so this is an override for when the client
   // knows better, and an empty field keeps exactly today's behaviour.
-  const [pages, setPages] = useState("");
   // Which control refused the last press, "" when none did. Same shape and
   // same rules as DocumentLawyerAssist's `missing`, which is the instance of
   // this pattern that shipped first.
-  const [missing, setMissing] = useState<"" | "main" | "need" | "pages">("");
+  const [missing, setMissing] = useState<"" | "main" | "need">("");
 
   const mainRef = useRef<HTMLInputElement>(null);
 
@@ -224,15 +223,6 @@ export default function NewDocumentOrder({
       document.getElementById("newdoc-need")?.focus();
       return;
     }
-    // Typed but impossible — the box already says 1…500 in red, and sending
-    // anyway would price the advocate's reading off a page count the form
-    // refuses.
-    const page = readDocPages(pages);
-    if (page.bad) {
-      setMissing("pages");
-      document.getElementById("newdoc-pages")?.focus();
-      return;
-    }
     setMissing("");
     setBusy(true);
     setErr("");
@@ -241,11 +231,11 @@ export default function NewDocumentOrder({
     try {
       const r =
         flow === "review" && mainFile
-          ? // MD §4: page_count is an optional form field here, sent only
-            // when the client filled the box in. Left empty it is not
-            // appended at all, and the backend counts the pages of main_file
-            // itself — the behaviour this flow has always had.
-            await requestExistingDocumentReviewGated({ ...payload, mainFile, pageCount: page.count })
+          ? // MD §4: page_count is optional and is never appended — the
+            // backend counts the pages of main_file itself, which is the
+            // behaviour this flow has always had when the field was left
+            // empty, and now the only one.
+            await requestExistingDocumentReviewGated({ ...payload, mainFile })
           : // "0 dan hujjat yasash" is not one of the four endpoints that can
             // open a gate (there is no document to charge by the page for),
             // so its plain answer is lifted into the same shape by hand —
@@ -395,20 +385,6 @@ export default function NewDocumentOrder({
           {missing === "main" ? (
             <p className="cform__bad" role="alert" id="newdoc-main-bad">{t("mainFileRequired")}</p>
           ) : null}
-          {/* The one place in the product where the client is holding the
-              document the fee is computed from, so it is the one place the
-              page count can honestly be asked for — and MD L121-127 wants
-              the price of the advocate's review on screen before the send,
-              never first as a Telegram message. Optional: left empty, the
-              backend derives the count from main_file itself. */}
-          {/* No `cform__bad` sentence beside it: DocPagesField's own hint
-              line already turns into the error and carries role="alert". */}
-          <DocPagesField
-            id="newdoc-pages"
-            value={pages}
-            onChange={(v) => { setPages(v); setMissing((m) => (m === "pages" ? "" : m)); }}
-            invalid={missing === "pages"}
-          />
         </section>
       ) : null}
 

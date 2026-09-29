@@ -153,15 +153,24 @@ export default function ClientDocumentRequests() {
   // (actions.constructor_continue_url = "/document-requests/{id}"), while the
   // page that renders the constructor is keyed on the SERVICE
   // (/portal/client/services/document/{serviceId}, which resumes exactly this
-  // request — see ServiceDocumentRequest). The service-flow row does carry
-  // `service.id`, but ClientDocFlowItem does not expose it, so the service is
-  // resolved here from two ids the backend does hand over: the request's
-  // template_id (GET /document-requests/{id}) matched against the catalogue
-  // search for the row's own title. Verified read-only on 2026-09-29 for the
-  // held row 824695c3…: the search returned 50 hits and exactly one of them
-  // carried that template id, the service the row names.
+  // request — see ServiceDocumentRequest). The row names that service itself
+  // (`service.id`, on 39 of the 50 live rows), so this is a straight
+  // navigation with nothing to look up and nothing to fail.
+  //
+  // It used to find the service by searching the catalogue for the request's
+  // title, and that is the button the client reported as dead: catalogue
+  // titles run to 133 characters, /services/search refuses a q longer than
+  // 120 with a 422, so every long-titled document landed in the catch below
+  // and the constructor never opened. The search survives only as the
+  // fallback for a row that names no service, and searchServices trims q now.
   async function openConstructor(item: ClientDocFlowItem) {
     if (openBusy) return;
+    if (item.service?.id) {
+      setPromptId("");
+      setNote(null);
+      router.push(`/portal/client/services/document/${item.service.id}`);
+      return;
+    }
     setOpenBusy(item.id);
     setNote(null);
     try {
@@ -170,12 +179,16 @@ export default function ClientDocumentRequests() {
       const svc = hits.map((h) => h.service).find((s) => !!s.documentTemplateId && s.documentTemplateId === req.templateId);
       if (!svc) {
         setNote({ ok: false, msg: t("constructorOpenError") });
+        setPromptId("");
         return;
       }
       setPromptId("");
       router.push(`/portal/client/services/document/${svc.id}`);
     } catch {
+      // The notice lives at the top of the list, which is behind this
+      // dialog — leaving it open would have shown the client nothing at all.
       setNote({ ok: false, msg: t("constructorOpenError") });
+      setPromptId("");
     } finally {
       setOpenBusy("");
     }

@@ -724,13 +724,30 @@ export async function getAllServices(filters?: ServiceFilters, locale = "uz"): P
 // Catalog search (GET /services/search): the backend normalizes Latin/Cyrillic
 // Uzbek and Russian spellings and matches name, slug, category, subcategory and
 // AI category. q must be non-empty; limit is clamped to 1–50 server-side.
+//
+// q is capped at 120 characters server-side, and the cap is a refusal, not a
+// truncation: a longer one comes back 422
+// {"type":"string_too_long","loc":["query","q"]} and the whole search fails.
+// Document titles routinely run past it — the catalogue holds names of 133
+// characters — so the trim happens here rather than at each call site, where
+// it was already missing once and took the "open the constructor" button on
+// the client's documents page down with it. Cut on a word boundary when there
+// is one near the end, so the query the backend scores is still whole words.
+export const SERVICE_Q_MAX = 120;
+export function clampServiceQuery(q: string): string {
+  const t = q.trim();
+  if (t.length <= SERVICE_Q_MAX) return t;
+  const cut = t.slice(0, SERVICE_Q_MAX);
+  const sp = cut.lastIndexOf(" ");
+  return (sp > SERVICE_Q_MAX - 24 ? cut.slice(0, sp) : cut).trim();
+}
 export type ServiceSearchHit = { service: BackendService; score: number };
 export async function searchServices(
   q: string,
   opts?: { limit?: number; executorType?: string },
   locale = "uz",
 ): Promise<ServiceSearchHit[]> {
-  const qs = new URLSearchParams({ q: q.trim() });
+  const qs = new URLSearchParams({ q: clampServiceQuery(q) });
   qs.set("limit", String(Math.max(1, Math.min(opts?.limit ?? 50, 50))));
   if (opts?.executorType) qs.set("executor_type", opts.executorType);
   return asArr(await http(`/services/search?${qs}`)).map((v) => {
@@ -2755,6 +2772,12 @@ export type ClientDocFlowItem = {
   // actions.constructor_* — where the client's own half of a held document
   // lives. Present and populated on every live row.
   constructorUrls: { continueUrl: string; answersUrl: string; previewUrl: string; generateUrl: string };
+  // The catalogue service this request came from, as the row itself names it
+  // (39 of 50 live rows carry it, with its id and document_template_id). It is
+  // the id the full-page constructor is keyed on, so keeping it is what lets
+  // "Konstruktorda davom etish" go straight there instead of trying to find
+  // the service again by searching the catalogue for the request's title.
+  service: BackendService | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -2817,6 +2840,10 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
       previewUrl: asStr(actions.constructor_preview_url),
       generateUrl: asStr(actions.constructor_generate_url),
     },
+    // null rather than a service with an empty id: the callers' question is
+    // "do I know which service this is", and an object that answers it with ""
+    // is the shape that sends them looking it up by title instead.
+    service: asDict(d.service).id ? normService(d.service) : null,
     createdAt: asStr(d.created_at),
     updatedAt: asStr(d.updated_at),
   };
@@ -6121,13 +6148,35 @@ export async function joinCall(roomId: string, callId: string): Promise<LiveKitJ
     quality: normQuality(d.quality_policy),
   };
 }
+// LEXGO_AUDIO_CALL_CAMERA_UPGRADE_FRONTEND.md: switching the camera on inside
+// an AUDIO call turns that call into a video call server-side, and the PATCH
+// answers with the call's new shape — `call_type: "video"` and a quality
+// policy whose `video_enabled` has flipped to true. This used to return void,
+// so the one answer that says the upgrade happened was read off the wire and
+// thrown away; the room then kept the audio policy it was born with and the
+// MD's "UI holatini backend response bo'yicha yangilasin" could not be
+// honoured. The fields are optional because every OTHER patch this function
+// sends (mic, screen, status, role) answers with a participant row that
+// carries neither.
+export type CallParticipantPatchResult = {
+  callType: string;
+  quality: CallQualityPolicy | null;
+};
 export async function updateCallParticipant(
   roomId: string,
   callId: string,
   userId: string,
   patch: Partial<{ status: string; role: string; mic_enabled: boolean; camera_enabled: boolean; screen_enabled: boolean }>,
-): Promise<void> {
-  await http(`/secure-chats/${roomId}/calls/${callId}/participants/${userId}`, { method: "PATCH", body: JSON.stringify(patch) });
+): Promise<CallParticipantPatchResult> {
+  const d = asDict(
+    await http(`/secure-chats/${roomId}/calls/${callId}/participants/${userId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  );
+  // The call may be nested (a participant row with its call) or flat.
+  const call = asDict(d.call);
+  return {
+    callType: asStr(d.call_type ?? call.call_type),
+    quality: normQuality(d.quality_policy ?? call.quality_policy),
+  };
 }
 export async function leaveCall(roomId: string, callId: string): Promise<void> {
   await http(`/secure-chats/${roomId}/calls/${callId}/leave`, { method: "POST", body: "{}" });
@@ -8041,6 +8090,12 @@ export type QualityComplaintRow = {
   lawyerName: string;
   rating: number;
   complaint: string;
+  // Which piece of work the complaint came off. A complaint is opened by a
+  // 1-2 star rating on EITHER a document request or an urgent-advocate
+  // record (LEXGO_RATING_COMPLAINT_WINDOW_2026-09-29.md §"Callcenter uchun"),
+  // and the summary names whichever it was. Reading only the document id, as
+  // this did, left every Tezkor complaint looking like it had no work behind
+  // it at all.
   documentRequestId: string;
   detailUrl: string;
   createdAt: string;

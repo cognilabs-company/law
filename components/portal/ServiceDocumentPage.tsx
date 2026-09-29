@@ -27,7 +27,6 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   const [title, setTitle] = useState("");
   const [draftId, setDraftId] = useState("");
   const [exitOpen, setExitOpen] = useState(false);
-  const [backOpen, setBackOpen] = useState(false);
   const backHref = useCatalogBackHref();
 
   // Once the builder itself is on screen it takes over the whole page in the
@@ -39,18 +38,23 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   // the client reported: they pressed it, the builder went, and nothing
   // told them what had happened to what they had typed.
   const leave = useCallback(() => (backHref ? router.push(backHref) : router.back()), [backHref, router]);
+  // Back and Exit are the same act, so they ask the same question. They were
+  // two dialogs saying two different things about the same press: Back
+  // explained that the answers were in this browser and not on the server,
+  // Exit said they would be gone. Whichever the client happened to press
+  // decided which was true, which is no way to word a warning — and the one
+  // they actually reached from the builder was the wrong one.
   const chrome = useMemo<DocChrome>(
-    () => ({ onBack: () => setBackOpen(true), onExit: () => setExitOpen(true) }),
+    () => ({ onBack: () => setExitOpen(true), onExit: () => setExitOpen(true) }),
     [],
   );
 
-  // Two different intentions, two different buttons.
-  //
-  // "Back" is navigation: the answers stay in localStorage and reopening the
-  // document resumes them. "Exit" is the one that was missing — the client
-  // who wants to abandon this document and start it clean next time. It had
-  // no control at all, so the only way out kept the draft and every later
-  // visit reopened a half-filled form with no way to reset it.
+  // Leaving means leaving: the draft goes with it. That is what the dialog
+  // promises — "bu hujjatni keyingi safar 0 dan boshlaysiz" — and clearing
+  // it here is what makes the sentence true. Back used to keep the draft and
+  // say so in a paragraph of its own, which left the builder with two exits
+  // that behaved differently and a client who could not tell which they had
+  // just taken.
   function confirmExit() {
     if (draftId) clearDraft(draftId);
     setExitOpen(false);
@@ -60,7 +64,7 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   return (
     <div className="docbuild docbuild--full">
       <div className="docbuild__top">
-        <button type="button" className="docbuild__back" onClick={() => setBackOpen(true)}>
+        <button type="button" className="docbuild__back" onClick={() => setExitOpen(true)}>
           <IconChevronLeft />
           {t("back")}
         </button>
@@ -74,34 +78,7 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
         <ServiceDocumentRequest serviceId={serviceId} onTitle={setTitle} onDraftId={setDraftId} />
       </DocChromeContext.Provider>
 
-      {/* Leaving without finishing.
-          Worded against what actually happens, which is not what the ask
-          assumed: DocFill writes every keystroke to localStorage and the
-          panel merges it back on reopen, so pressing Back on this browser
-          really does resume the half-filled form. What is true — and what
-          the client needs told — is that NOTHING has reached the server yet:
-          the answers live in this browser alone until the document is
-          generated, so another device, another browser or a cleared cache
-          has nothing. Saying "saqlanmadi" flatly would have contradicted the
-          "Qoralama saqlandi" badge two inches above it in the same bar. */}
-      <Modal open={backOpen} onClose={() => setBackOpen(false)} title={td("backTitle")}>
-        <div className="cform" style={{ maxWidth: "none" }}>
-          <p className="dexit__lead">
-            <span className="dexit__i"><IconAlert /></span>
-            {td("backLead")}
-          </p>
-          <div className="dexit__btns">
-            <button type="button" className="btn btn--line btn--full" onClick={() => setBackOpen(false)}>
-              {td("backStay")}
-            </button>
-            <button type="button" className="btn btn--grad btn--full" onClick={() => { setBackOpen(false); leave(); }}>
-              <IconChevronLeft />
-              {td("backConfirm")}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
+      {/* The one way out, whichever control was pressed. */}
       <Modal open={exitOpen} onClose={() => setExitOpen(false)} title={td("exitTitle")}>
         <div className="cform" style={{ maxWidth: "none" }}>
           <p className="dexit__lead">

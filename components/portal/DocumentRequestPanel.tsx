@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   getPlatformPolicies,
@@ -13,12 +13,10 @@ import {
   requestDocumentLawyerReviewGated,
   listDocumentRequests,
   isDocPaymentSkipped,
-  quoteDocReviewFee,
   DOC_PAYMENT_WAIT,
   DOC_PAYMENT_CANCELLED,
   type DocPaymentGate,
   type DocumentRequest,
-  type PlatformPolicies,
   type TemplateQuestion,
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
@@ -28,7 +26,7 @@ import { base64Blob, closeTab, extFromMime, mimeFromName, preopenTab, saveBlob, 
 import { normalizeAnswers } from "@/lib/docTemplate";
 import ContractSign from "./ContractSign";
 import DocumentRequestChat from "./DocumentRequestChat";
-import DocFill, { loadDraft, clearDraft } from "./DocFill";
+import DocFill, { loadDraft, clearDraft, DocChromeContext } from "./DocFill";
 import DocTemplateViewer from "./DocTemplateViewer";
 import DocTypePicker from "./DocTypePicker";
 import Modal from "@/components/admin/Modal";
@@ -58,120 +56,6 @@ const som = (n?: number) => (n ? fmtUzs(n) : "");
 // gate statuses, 0 of 300 notifications names one), so everything below is
 // read from the MD and rendered defensively — a deployment that opens no gate
 // reaches none of it.
-export const MAX_REVIEW_PAGES = 500;
-// How many pages the review fee covers before the gate can open. Read from
-// the live table rather than typed in: GET /platform/policies 2026-09-29 gives
-// document_analysis.review_fee_ranges 1-10 / 11-20 / 21-30, so the first
-// band's top page is the free allowance, and MD L182 ("Payment gate faqat
-// page_count > 10 bo'lganda majburiy") agrees with it at today's values.
-function includedPagesOf(p: PlatformPolicies | null): number {
-  const rs = [...(p?.documentAnalysis.ranges || [])].sort((a, b) => a.minPages - b.minPages);
-  return rs[0]?.maxPages || 10;
-}
-
-// The optional page count, asked for at the three call sites where a document
-// the advocate will have to read actually exists.
-//
-// It is asked for, never computed: counting the pages of a PDF in the browser
-// means parsing a page tree that every modern writer compresses into object
-// streams, so a hand-rolled count is wrong exactly on the documents that are
-// long enough to matter — and a wrong count here is a wrong fee. It is
-// optional because MD L81-84 says review-existing lets the backend derive it
-// from the file itself (PDF: the real count; DOCX/TXT: 2 500 characters per
-// page), and because MD L130 makes an absent page_count mean "behave exactly
-// as before": no gate, straight to the pool.
-//
-// One reading of the box, used by the field AND by every submit handler that
-// has to decide whether to send the number — because the two did not agree.
-// The box has refused anything above MAX_REVIEW_PAGES in red since it was
-// written, while all three send handlers tested only
-// `Number.isInteger(n) && n > 0`: a client who typed 9999 (the box accepts
-// four digits) saw the range warning and the request still went out carrying
-// 9999 pages, i.e. a fee computed from a page count the form had already
-// called impossible. `bad` is what a press must stop on; `count` is what may
-// be sent, and is undefined for an empty box — which MD L130 defines as
-// "behave exactly as before": no gate, straight to the pool.
-export function readDocPages(value: string): { bad: boolean; count?: number } {
-  if (!value) return { bad: false };
-  const n = Number(value);
-  return Number.isInteger(n) && n > 0 && n <= MAX_REVIEW_PAGES ? { bad: false, count: n } : { bad: true };
-}
-
-export function DocPagesField({
-  value,
-  onChange,
-  id,
-  invalid,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  // Given by a form that needs to move focus here when a press was refused;
-  // without one the field generates its own, as it always has.
-  id?: string;
-  // Set by the form when a press could not go through because of this box, so
-  // the mark is the same whether the client typed the bad value or found out
-  // about it by pressing send.
-  invalid?: boolean;
-}) {
-  const t = useTranslations("portal.client.documents");
-  const uid = useId();
-  const inputId = id || `pg-${uid}`;
-  const policies = useResourceOne(getPlatformPolicies, []).data;
-  const { bad, count } = readDocPages(value);
-  const ok = count !== undefined;
-  const pages = count ?? 0;
-  const shown = bad || !!invalid;
-  const included = includedPagesOf(policies);
-  // MD L121-127: the fee must be on screen BEFORE the send. quoteDocReviewFee
-  // reads the same table the backend charges from, so the number here is the
-  // number the Telegram message will carry — it is never the first time the
-  // client sees the price.
-  const quote = ok && policies ? quoteDocReviewFee(policies, pages) : null;
-  const extra = Math.max(0, pages - included);
-  return (
-    <div className="pgask">
-      <label className="pgask__l" htmlFor={inputId}>{t("pagesLabel")}</label>
-      <input
-        id={inputId}
-        className={`pgask__n${shown ? " is-bad" : ""}`}
-        type="number"
-        inputMode="numeric"
-        min={1}
-        max={MAX_REVIEW_PAGES}
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, "").slice(0, 4))}
-        placeholder={t("pagesPlaceholder")}
-        aria-invalid={shown || undefined}
-      />
-      {/* This line is the field's hint AND its error, which is why a refused
-          press adds no sentence of its own beside it: rendering a
-          `cform__bad` paragraph here as well put the identical sentence on
-          screen twice, 8px apart (seen on the live review box at 400px). It
-          carries role="alert" only while it is the error, so the reason a
-          press did nothing is announced and not merely coloured. */}
-      <small className={`pgask__h${shown ? " pgask__h--bad" : ""}`} role={shown ? "alert" : undefined}>
-        {shown ? t("pagesRange", { max: MAX_REVIEW_PAGES }) : t("pagesHint")}
-      </small>
-      {ok && quote && quote.amount ? (
-        extra === 0 ? (
-          <p className="pgask__free">{t("pagesFree", { n: included })}</p>
-        ) : (
-          <div className="pgquote">
-            <div className="pgquote__r">
-              <span>{t("quotePages", { n: pages })}</span>
-              <b>{fmtUzs(quote.amount)} {t("som")}</b>
-            </div>
-            <div className="pgquote__r pgquote__r--sub">
-              <span>{t("gateIncluded", { n: included })}</span>
-              <span>{t("gateExtra", { n: extra })}</span>
-            </div>
-            <p className="pgquote__lead">{t("quoteLead")}</p>
-          </div>
-        )
-      ) : null}
-    </div>
-  );
-}
 
 // What the gate answer said, shown wherever the client is waiting on it.
 // MD L93-111 is the whole of what the frontend is ever told about a gate:
@@ -397,6 +281,14 @@ export default function DocumentRequestPanel({
   // than in each of the three forms that mount this panel, so every one of
   // them gets it — and only once per request, see alreadyAsked above.
   const [askCtor, setAskCtor] = useState(false);
+  // Non-null only inside the full-page constructor (ServiceDocumentPage).
+  // There the ask is worse than useless: that page asks the same question
+  // itself before it lets anyone in, so a client who had just pressed
+  // "Konstruktor bilan to'ldirish" was asked "shall we open the
+  // constructor?" a second time — and pressing Back then put a third dialog
+  // on top of the two already stacked. Reproduced on 2026-09-29 against the
+  // held row df415fdb…: two .amodal elements on screen at once.
+  const inConstructor = useContext(DocChromeContext) !== null;
   const router = useRouter();
   const [pdfBusy, setPdfBusy] = useState(false);
   // MD §"Error states": 403 ("User bu requestga kira olmaydi") and 404
@@ -412,15 +304,7 @@ export default function DocumentRequestPanel({
   const [reviewType, setReviewType] = useState("");
   const [reviewBusy, setReviewBusy] = useState(false);
   const [reviewSent, setReviewSent] = useState(false);
-  // The page count the client typed for THIS review (empty = not known, not
-  // sent), and what the answer to the send said.
-  const [reviewPages, setReviewPages] = useState("");
-  // Which control in the review box stopped the last press, "" when none did.
-  // Same shape as DocumentLawyerAssist's `missing`: the send button is never
-  // disabled for it, because a disabled button that is pressed answers
-  // nothing at all — the press happens, this is set, and the offending
-  // control is marked and focused.
-  const [reviewMissing, setReviewMissing] = useState<"" | "pages">("");
+
   const [gate, setGate] = useState<DocPaymentGate | null>(initialGate ?? null);
   // Set from the answer's own `already_exists` (the constructor endpoint can
   // refuse a repeat instead of gating it) so the refusal is shown in the
@@ -455,7 +339,6 @@ export default function DocumentRequestPanel({
     setGate(initialGate ?? null);
     setReviewSent(false);
     setReviewRefused("");
-    setReviewMissing("");
   }
 
   // 3 free downloads a month (S-35), for the pay-step reminder text.
@@ -752,34 +635,23 @@ export default function DocumentRequestPanel({
 
   async function sendToLawyerReview() {
     if (reviewBusy || lawyerHeldNote) return;
-    // The one control here that can refuse a press. "Nimani tekshirish
-    // kerak?" deliberately cannot: it has a default sentence
-    // (reviewNeedDefault) that is sent when the client leaves it alone, so an
-    // empty box is a complete answer and gating it would invent a
-    // requirement the backend does not have. A page count the field has
-    // already painted red is different — left to itself the send would drop
-    // it and quote the advocate a different document than the price on
-    // screen was computed from, with nothing said to anybody.
-    const { bad, count } = readDocPages(reviewPages);
-    if (bad) {
-      setReviewMissing("pages");
-      document.getElementById("doc-review-pages")?.focus();
-      return;
-    }
-    setReviewMissing("");
+    // Nothing here can refuse a press. "Nimani tekshirish kerak?" has a
+    // default sentence (reviewNeedDefault) that is sent when the client
+    // leaves it alone, so an empty box is a complete answer and gating it
+    // would invent a requirement the backend does not have.
     setReviewBusy(true);
     setNote(null);
     try {
-      // MD §3 (POST /document-requests/{id}/lawyer-review): page_count rides
-      // along when the client typed one, and is simply absent when they did
-      // not — which MD L130 defines as the old behaviour, straight to the
-      // pool. The gated twin is used because the answer, not the request row,
-      // is what says whether this reached the advocates at all.
+      // MD §3 (POST /document-requests/{id}/lawyer-review): page_count is
+      // not sent at all now that the client is no longer asked for it, which
+      // MD L130 defines as the old behaviour — straight to the pool, and the
+      // backend counts the file's pages itself where it needs to. The gated
+      // twin is used because the answer, not the request row, is what says
+      // whether this reached the advocates at all.
       const r = await requestDocumentLawyerReviewGated(
         req.id,
         reviewNeed.trim() || t("reviewNeedDefault"),
         reviewType || undefined,
-        count,
       );
       setReviewOpen(false);
       if (!r.canSendLawyerRequest || r.alreadyExists) {
@@ -818,6 +690,7 @@ export default function DocumentRequestPanel({
   // disabled for this one setState rather than worked around, because the
   // guard above it means it can fire at most once per request id.
   useEffect(() => {
+    if (inConstructor) return;
     const ca = req.constructorAction;
     if (!ca?.promptRequired || !ca.available) return;
     if (stage !== "lawyerReview" && stage !== "claimed") return;
@@ -825,7 +698,7 @@ export default function DocumentRequestPanel({
     markAsked(req.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAskCtor(true);
-  }, [req.id, req.constructorAction, stage]);
+  }, [req.id, req.constructorAction, stage, inConstructor]);
 
   return (
     <div className={`cform${shown === "answers" ? " cform--doc" : ""}`} style={{ maxWidth: "none" }}>
@@ -1108,18 +981,11 @@ export default function DocumentRequestPanel({
               <DocTypePicker flow="constructor_review" value={reviewType} onChange={setReviewType} />
               <label htmlFor="doc-review-need">{t("reviewNeedLabel")}</label>
               <textarea id="doc-review-need" rows={2} value={reviewNeed} onChange={(e) => setReviewNeed(e.target.value)} placeholder={t("reviewNeedDefault")} />
-              {/* The price of the review, before the send. */}
-              <DocPagesField
-                id="doc-review-pages"
-                value={reviewPages}
-                onChange={(v) => { setReviewPages(v); setReviewMissing(""); }}
-                invalid={reviewMissing === "pages"}
-              />
               <div className="docreview__btns">
                 <button className="btn btn--grad btn--sm" type="button" onClick={sendToLawyerReview} disabled={reviewBusy}>
                   {reviewBusy ? t("processingShort") : t("reviewSubmit")}
                 </button>
-                <button className="rf__link rf__link--muted" type="button" onClick={() => { setReviewOpen(false); setReviewMissing(""); }} disabled={reviewBusy}>
+                <button className="rf__link rf__link--muted" type="button" onClick={() => setReviewOpen(false)} disabled={reviewBusy}>
                   {t("reviewCancel")}
                 </button>
               </div>
