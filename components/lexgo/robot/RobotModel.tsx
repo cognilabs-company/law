@@ -31,6 +31,10 @@ import type { RobotEventName, RobotEventPayload, RobotExpression } from "./robot
 // this model it takes 78 shells / 982 triangles — the pods and every fragment
 // of them — while touching nothing that belongs to the head or body.
 const POD_PAD: readonly [number, number, number] = [0.055, 0.075, 0.075];
+const FIXED_POD_ZONES = [
+  { sign: 1, min: new THREE.Vector3(0.1, -0.07, -0.24), max: new THREE.Vector3(0.27, 0.35, 0.27) },
+  { sign: -1, min: new THREE.Vector3(-0.27, -0.07, -0.24), max: new THREE.Vector3(-0.1, 0.35, 0.27) },
+];
 
 type Shell = {
   root: number;
@@ -66,8 +70,7 @@ function removeRobotEars(scene: THREE.Object3D, head?: THREE.Object3D): boolean 
     const geometry = mesh.geometry;
     const index = geometry?.index;
     const position = geometry?.getAttribute("position");
-    if (!mesh.isSkinnedMesh || !geometry || !index || !position || geometry.userData.lexgoRobotPodsRemoved) return;
-    geometry.userData.lexgoRobotPodsRemoved = true;
+    if (!mesh.isSkinnedMesh || !geometry || !index || !position || geometry.userData.lexgoRobotPodsRemovedV2) return;
 
     // Bind-pose position of every vertex, in the head bone's own space, so the
     // thresholds mean the same thing whatever the rig is doing this frame.
@@ -129,11 +132,12 @@ function removeRobotEars(scene: THREE.Object3D, head?: THREE.Object3D): boolean 
     // One removal volume per pod, from the pod's own bounds. Nothing is removed
     // when the pods are not found: a model without them must come through
     // untouched rather than be cut by whatever the fallback guessed.
-    const zones = [...shells.values()].filter(isSidePod).map((pod) => ({
+    const detectedZones = [...shells.values()].filter(isSidePod).map((pod) => ({
       sign: Math.sign(pod.center.x),
       min: pod.min.clone().sub(new THREE.Vector3(...POD_PAD)),
       max: pod.max.clone().add(new THREE.Vector3(...POD_PAD)),
     }));
+    const zones = [...detectedZones, ...FIXED_POD_ZONES];
     if (!zones.length) {
       if (process.env.NODE_ENV !== "production") console.warn("[LexGoRobot] side pods not found — geometry left as authored.");
       return;
@@ -168,6 +172,7 @@ function removeRobotEars(scene: THREE.Object3D, head?: THREE.Object3D): boolean 
     geometry.setIndex(new THREE.BufferAttribute(filteredIndex, 1));
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
+    geometry.userData.lexgoRobotPodsRemovedV2 = true;
     removed = true;
   });
   return removed;
@@ -242,12 +247,8 @@ export default function RobotModel({
 
   useFrame((state, dt) => {
     if (document.hidden) return;
-    // Once, on the first frame the rig is ready: the pass walks every vertex,
-    // and the old "retry until it returns true" version re-ran that sweep on
-    // every frame for any model it found nothing to cut in.
     if (!earsRemovedRef.current) {
-      earsRemovedRef.current = true;
-      removeRobotEars(scene, bones.get("head"));
+      earsRemovedRef.current = removeRobotEars(scene, bones.get("head"));
     }
     controllerRef.current?.update(dt, state.clock.elapsedTime);
   });
