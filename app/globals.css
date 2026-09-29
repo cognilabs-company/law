@@ -10359,23 +10359,87 @@ html[data-theme="dark"]{
   --dk-bad-wash:rgba(255, 138, 138, .12);
 }
 
-/* ── Shikoyat, beside the rating ─────────────────────────────────── */
-/* The complaint trigger is deliberately NOT part of the rating window: the
-   stars vanish when the backend's fifteen minutes lapse and this must not,
-   so it is its own row rather than a control inside .drate / .urate. The
-   trigger itself is a plain .btn--line .btn--sm — only its placement and the
-   dialog's two extra lines are new here. */
-.uamore__cmpl{display:flex}
-.uamore__cmpl .btn{flex:0 0 auto}
+/* ── Shikoyat ───────────────────────────────────────────────────────
+   Two rules decide how all of this looks.
+
+   One: a complaint is the thing a client hopes never to need, so its trigger
+   must be findable and must not compete. It was a .btn--line sitting fifth
+   in a row behind "Chatni ochish", "Yuklab olish", "Konstruktorda davom et"
+   and "Advokat tekshiruviga yuborish" — four things a client means to do. It
+   is a quiet underlined link on its own line now, the weight this sheet gives
+   a secondary offer.
+
+   Two: it opens IN PLACE. The dialog version nested a <Modal> inside the
+   Tezkor detail's own modal, and closing the inner one handed
+   document.body.style.overflow back to "" while the outer was still open — the
+   page scrolled behind an open dialog. Inline has no such thing to get wrong,
+   and the answer can stay on screen afterwards instead of the dialog closing
+   itself on a 900ms timer with nothing shown. */
+.uamore__cmpl,.mydoc__cmpl{margin-top:10px}
+.cmpl__open{display:inline-flex;align-items:center;gap:6px;padding:4px 0;border:0;background:none;cursor:pointer;
+  font:inherit;font-size:.82rem;font-weight:650;color:var(--gray);
+  text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line);
+  transition:color .18s,text-decoration-color .18s}
+.cmpl__open:hover{color:var(--dk-txt-err, #C0392B);text-decoration-color:currentColor}
+.cmpl__open svg{width:14px;height:14px;flex:none}
+
+.cmpl{display:grid;gap:10px;padding:14px;border-radius:16px;
+  background:var(--dk-surface-2, #F8FAFD);box-shadow:inset 0 0 0 1.5px var(--line)}
+.cmpl__h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cmpl__h b{display:inline-flex;align-items:center;gap:7px;font-size:.88rem;font-weight:700}
+.cmpl__h b svg{width:15px;height:15px;color:var(--dk-txt-err, #C0392B)}
+.cmpl__x{display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:9px;cursor:pointer;
+  background:transparent;color:var(--gray2);transition:background .18s,color .18s}
+.cmpl__x:hover{background:var(--dk-surface, #fff);color:var(--ink)}
+.cmpl__x svg{width:13px;height:13px}
 /* Says the complaint is not the rating, before the form asks for anything. */
-.cmpl__lead{margin:0;font-size:.85rem;line-height:1.55;color:var(--gray)}
-/* Which work the complaint is about, shown because POST /complaints has no
-   field for a document request or an urgent record and the reference travels
-   inside the text — the client should see what is being attached. */
-.cmpl__ref{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:0;padding:10px 12px;
-  border-radius:14px;background:var(--dk-surface-2, #F7FAFE)}
-.cmpl__ref span{font-size:.72rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--gray2)}
-.cmpl__ref b{font-size:.86rem;font-weight:650;overflow-wrap:anywhere}
+.cmpl__lead{margin:0;font-size:.82rem;line-height:1.55;color:var(--gray)}
+/* Which work the complaint is about. Shown because POST /complaints has no
+   field for a document request or an urgent record — the reference rides in
+   the description text, and the client should see what is being attached. */
+.cmpl__ref{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:0;padding:9px 12px;
+  border-radius:12px;background:var(--dk-surface, #fff)}
+.cmpl__ref span{font-size:.7rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--gray2)}
+.cmpl__ref b{font-size:.84rem;font-weight:650;overflow-wrap:anywhere}
+.cmpl__t{width:100%;border:0;border-radius:12px;padding:11px 13px;font:inherit;font-size:.9rem;line-height:1.5;
+  resize:vertical;min-height:76px;background:var(--dk-surface, #fff);color:var(--ink);
+  box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .18s}
+.cmpl__t:focus{outline:none;box-shadow:inset 0 0 0 1.5px var(--b400)}
+.cmpl__err{margin:0;font-size:.8rem;font-weight:600;color:var(--dk-txt-err, #C0392B)}
+.cmpl__acts{display:flex;flex-wrap:wrap;gap:8px}
+/* Sent. It stays — a complaint the client cannot see land is one they send
+   twice. */
+.cmpl--done{gap:6px;background:var(--dk-tint-ok, #E1F6EE);box-shadow:inset 0 0 0 1.5px var(--dk-bd-ok, #BFE8D4)}
+.cmpl--done b{display:inline-flex;align-items:center;gap:7px;font-size:.88rem;color:var(--dk-txt-ok, var(--ok))}
+.cmpl--done b svg{width:15px;height:15px}
+.cmpl__link,.drate__qclink,.uamore__qclink{display:inline-flex;align-items:center;gap:5px;
+  font-size:.82rem;font-weight:700;color:var(--dk-acc, var(--b600));text-decoration:none}
+.cmpl__link svg,.drate__qclink svg,.uamore__qclink svg{width:13px;height:13px}
+.cmpl__link:hover,.drate__qclink:hover,.uamore__qclink:hover{text-decoration:underline;text-underline-offset:3px}
+
+/* ── One and two stars: the complaint the backend opens by itself ────
+   LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §4. The block
+   appears inside the rating card the moment the second star is the highest
+   one lit, so the client writes the complaint while the work is still in
+   front of them. Error-tinted, because that is what it is, but quietly: it is
+   an invitation to explain, not a warning that something failed. */
+.drate__low{display:grid;gap:7px;padding:11px 12px;border-radius:12px;
+  background:var(--dk-tint-err, #FDECEC);box-shadow:inset 0 0 0 1.5px var(--dk-bd-err, #F6D5D1)}
+.drate__low b{display:inline-flex;align-items:center;gap:6px;font-size:.83rem;font-weight:700;color:var(--dk-txt-err, #C0392B)}
+.drate__low b svg{width:14px;height:14px}
+.drate__low small{font-size:.75rem;line-height:1.45;color:var(--gray)}
+.drate__lowt{width:100%;border:0;border-radius:10px;padding:9px 11px;font:inherit;font-size:.88rem;line-height:1.5;
+  resize:vertical;min-height:58px;background:var(--dk-surface, #fff);color:var(--ink);
+  box-shadow:inset 0 0 0 1.5px var(--dk-bd-err, #F1C9C4);transition:box-shadow .18s}
+.drate__lowt:focus{outline:none;box-shadow:inset 0 0 0 1.5px var(--dk-txt-err, #C0392B)}
+/* The rating landed AND opened a complaint — said instead of the thank-you,
+   because that is the fact a client who just gave one star is waiting for. */
+.drate--qc{display:grid;gap:6px;padding:13px 14px;border-radius:14px;
+  background:var(--dk-warn-bg, #FEF3C7);box-shadow:inset 0 0 0 1.5px var(--dk-bd-warn, #F3DEA0)}
+.drate--qc b{display:inline-flex;align-items:center;gap:7px;font-size:.88rem;color:var(--dk-txt-warn, #b45309)}
+.drate--qc b svg{width:15px;height:15px}
+.drate__qcid{font-style:normal;font-size:.78rem;font-weight:700;letter-spacing:.02em;color:var(--gray2)}
+.uamore__qclink{margin-top:2px}
 
 /* ── The document card on the Tezkor grid ────────────────────────────
    Every other card on that grid buys time with an advocate; this one buys a

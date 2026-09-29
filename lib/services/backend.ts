@@ -7631,18 +7631,67 @@ export async function completeUrgentChat(recordId: string, summary = ""): Promis
     body: JSON.stringify({ summary }),
   });
 }
-export async function rateUrgentRequest(id: string, rating: number, comment = ""): Promise<void> {
-  await http(`/urgent-advokat/requests/${encodeURIComponent(id)}/rating`, {
-    method: "POST",
-    body: JSON.stringify({ rating, comment }),
-  });
+// LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §4: the rating
+// body carries an optional `complaint`, and a rating of 1 or 2 makes the
+// backend open a quality complaint of its own and name it in the response.
+// That is the ONE place a complaint can be tied to the work it is about —
+// POST /complaints has no field for a document request or an urgent record
+// (verified: a complaint created there comes back with document_request_id
+// and lawyer_request_id both null), so a complaint that travels with the
+// rating is the one an operator can actually act on.
+//
+// The extra key was probed against production on a record whose window had
+// closed: the answer was 409 "baholash oynasi ochilmagan", not a 422 naming
+// the field, so it passes validation on the live build.
+export type QualityComplaint = {
+  id: string;
+  workId: string;
+  type: string;
+  status: string;
+  statusLabel: string;
+  detailUrl: string;
+};
+function normQualityComplaint(v: unknown): QualityComplaint | null {
+  const d = asDict(v);
+  const id = asStr(d.id);
+  const workId = asStr(d.work_id);
+  if (!id && !workId) return null;
+  return {
+    id,
+    workId,
+    type: asStr(d.type, "quality_complaint"),
+    status: asStr(d.status, "new"),
+    statusLabel: asStr(d.status_label),
+    detailUrl: asStr(d.detail_url),
+  };
 }
-export async function rateDocumentRequest(id: string, rating: number, comment = ""): Promise<void> {
-  await http(`/document-requests/${encodeURIComponent(id)}/rating`, {
-    method: "POST",
-    body: JSON.stringify({ rating, comment }),
-  });
+// Both raters answer the same way: null when the send opened no complaint,
+// which is every rating of 3 and up and every rating sent without one.
+function ratingBody(rating: number, comment: string, complaint: string): string {
+  const body: Record<string, unknown> = { rating, comment };
+  if (complaint.trim()) body.complaint = complaint.trim();
+  return JSON.stringify(body);
 }
+export async function rateUrgentRequest(id: string, rating: number, comment = "", complaint = ""): Promise<QualityComplaint | null> {
+  const d = asDict(await http(`/urgent-advokat/requests/${encodeURIComponent(id)}/rating`, {
+    method: "POST",
+    body: ratingBody(rating, comment, complaint),
+  }));
+  return normQualityComplaint(d.quality_complaint);
+}
+export async function rateDocumentRequest(id: string, rating: number, comment = "", complaint = ""): Promise<QualityComplaint | null> {
+  const d = asDict(await http(`/document-requests/${encodeURIComponent(id)}/rating`, {
+    method: "POST",
+    body: ratingBody(rating, comment, complaint),
+  }));
+  return normQualityComplaint(d.quality_complaint);
+}
+// The rating at which the backend opens a quality complaint by itself (§4
+// "Agar rating <= 2 bo'lsa backend avtomatik quality complaint ochadi"). The
+// form asks for the complaint text at exactly this point rather than after
+// the send, when there would be nothing left to attach it to.
+export const COMPLAINT_RATING_MAX = 2;
+export const opensComplaint = (stars: number) => stars > 0 && stars <= COMPLAINT_RATING_MAX;
 // Already rated, or the work is not finished yet — both are 409 and both are
 // states to show rather than errors to log.
 export function isRatingClosed(e: unknown): boolean {

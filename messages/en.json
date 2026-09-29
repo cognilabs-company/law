@@ -2544,6 +2544,11 @@
     },
     "client": {
       "rate": {
+        "lowTitle": "What went wrong?",
+        "lowHint": "At this rating the complaint goes to the call centre and an operator reviews it.",
+        "lowPh": "Briefly — for the operator.",
+        "complaintSent": "Your complaint was sent to the call centre",
+        "complaintOpen": "View the complaint",
         "w5": "Excellent",
         "w4": "Very good",
         "w3": "Good",
@@ -2973,6 +2978,8 @@
         "title": "Complaints",
         "lead": "File a complaint about service quality — we review it quickly.",
         "fileOne": "File a complaint",
+        "descRequired": "Write what happened.",
+        "cancel": "Cancel",
         "fileTitle": "Complaint about this work",
         "fileLead": "A complaint is reviewed separately from the rating and is not time-limited.",
         "ref": "Work",

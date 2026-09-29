@@ -2550,6 +2550,11 @@
     },
     "client": {
       "rate": {
+        "lowTitle": "Nima noto'g'ri bo'ldi?",
+        "lowHint": "Bu baho bilan shikoyat callcenterga boradi va operator ko'rib chiqadi.",
+        "lowPh": "Qisqacha yozing — operator uchun.",
+        "complaintSent": "Shikoyatingiz callcenterga yuborildi",
+        "complaintOpen": "Shikoyatni ko'rish",
         "w5": "A'lo",
         "w4": "Juda yaxshi",
         "w3": "Yaxshi",
@@ -2979,6 +2984,8 @@
         "title": "Shikoyatlar",
         "lead": "Xizmat sifati bo'yicha shikoyat qoldiring — tez ko'rib chiqamiz.",
         "fileOne": "Shikoyat qilish",
+        "descRequired": "Nima bo'lganini yozing.",
+        "cancel": "Bekor qilish",
         "fileTitle": "Ish bo'yicha shikoyat",
         "fileLead": "Shikoyat baholashdan alohida ko'rib chiqiladi va vaqt bilan cheklanmagan.",
         "ref": "Ish",

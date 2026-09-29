@@ -17,6 +17,8 @@ import {
   rateUrgentRequest,
   ratingOpen,
   isRatingClosed,
+  opensComplaint,
+  type QualityComplaint,
   type UrgentCatalog,
   type UrgentService,
   type UrgentRequest,
@@ -1091,6 +1093,11 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   // a click would give. Only `stars` is ever sent.
   const [rHover, setRHover] = useState(0);
   const [rComment, setRComment] = useState("");
+  // §4 of the 2026-09-29 MD: one or two stars opens a quality complaint on
+  // the backend, and the rating body carries its text. Asked for beside the
+  // stars, while the work is still on screen.
+  const [rComplaint, setRComplaint] = useState("");
+  const [rQc, setRQc] = useState<QualityComplaint | null>(null);
   const [rDone, setRDone] = useState(false);
   // The window having shut is NOT the same answer as a rating having been
   // given, and both used to set rDone: a client who missed the fifteen
@@ -1122,12 +1129,15 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   // refused a late send. Either way there is something to say — a card that
   // simply vanished looked like a bug.
   const rShut = rClosed || (!rDone && !req.rating.submitted && req.rating.available && timed && left <= 0);
-  // A complaint is not a low rating, and it is not on the rating's clock.
-  // Offered from the moment the work is handed over — the backend having
-  // opened a rating window is the earliest signal of that, a summary or a
-  // completion timestamp the later ones — and it stays offered after the
-  // fifteen minutes lapse, which is the whole difference between the two.
-  const canComplain = !!req.completedAt || !!req.resultSummary || req.rating.available || req.rating.submitted;
+  // A complaint is not a low rating and it is not on the rating's clock.
+  // Offered on any record that is OVER, whichever way it ended: the backend's
+  // own lifecycle.final_statuses decides that, plus the three facts a record
+  // carries when it finished. Gating it on completion alone was wrong by
+  // measurement — 27 of this client's 41 live Tezkor records are `cancelled`,
+  // and a cancelled request is one of the likelier things to complain about,
+  // yet it showed no route to a complaint at all.
+  const over = req.finalStatuses.includes(req.status) || !!req.completedAt || !!req.cancelledAt;
+  const canComplain = over || !!req.resultSummary || req.rating.available || req.rating.submitted;
 
   // One interval for the whole window; the dependency is `timed`, not `left`,
   // so the timer is not torn down and rebuilt on every tick.
@@ -1145,7 +1155,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
     setBusy("rate");
     setRErr("");
     try {
-      await rateUrgentRequest(req.id, stars, rComment.trim());
+      setRQc(await rateUrgentRequest(req.id, stars, rComment.trim(), rComplaint));
       setRDone(true);
     } catch (e) {
       // Already rated, or the window has closed — both are 409 and both are
@@ -1237,11 +1247,40 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
             placeholder={t("rateCommentPh")}
             aria-label={t("rateCommentPh")}
           />
+          {/* One or two stars means a quality complaint is opened by this
+              send; the form says so and asks what to put in it. It never
+              gates the send. */}
+          {opensComplaint(stars) ? (
+            <div className="drate__low">
+              <b><IconAlert />{tr("lowTitle")}</b>
+              <textarea
+                className="drate__lowt"
+                rows={2}
+                value={rComplaint}
+                onChange={(e) => setRComplaint(e.target.value)}
+                placeholder={tr("lowPh")}
+                aria-label={tr("lowTitle")}
+                maxLength={2000}
+              />
+              <small>{tr("lowHint")}</small>
+            </div>
+          ) : null}
           {rErr ? <Notice ok={false} msg={rErr} /> : null}
           <button type="button" className="btn btn--grad btn--sm" disabled={!stars || !!busy} aria-busy={busy === "rate" || undefined} onClick={() => void rate()}>
             {busy === "rate" ? <WaitClock /> : null}
             {busy === "rate" ? t("sending") : t("rateSubmit")}
           </button>
+        </div>
+      ) : rQc ? (
+        // The send opened a quality complaint. That, and not the thank-you,
+        // is what a client who just gave one star is waiting to be told.
+        <div className="uamore__block uamore__block--warn" role="status">
+          <b><IconAlert />{tr("complaintSent")}</b>
+          {rQc.workId ? <span className="advmuted">{rQc.workId}</span> : null}
+          <Link href="/portal/client/complaints" className="uamore__qclink">
+            {tr("complaintOpen")}
+            <IconArrowRight />
+          </Link>
         </div>
       ) : rDone || req.rating.submitted ? (
         <div className="uamore__block uamore__block--ok">

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { rateDocumentRequest, isRatingClosed, ratingOpen, type UrgentRating } from "@/lib/services/backend";
+import { rateDocumentRequest, isRatingClosed, ratingOpen, opensComplaint, type QualityComplaint, type UrgentRating } from "@/lib/services/backend";
 import { errDetail, logApiError } from "@/lib/http";
-import { IconStarRate, IconClock, IconCheck } from "@/components/icons";
+import { Link } from "@/i18n/navigation";
+import { IconStarRate, IconClock, IconCheck, IconAlert, IconArrowRight } from "@/components/icons";
 
 // The 15-minute window the backend opens when an advocate finalises a
 // document (LEXGO_FRONTEND_DOCUMENT_RATING_AND_CALENDAR_FIX). Three states
@@ -56,6 +57,16 @@ export default function DocRatingBox({
   // preview only: `stars` alone is what gets sent, and what aria-checked says.
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
+  // LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §4: at one or
+  // two stars the backend opens a quality complaint of its own, and the
+  // rating body carries the text for it. Asked for HERE, while the client
+  // still has the work in front of them — after the send there is nothing
+  // left to attach it to.
+  const [complaint, setComplaint] = useState("");
+  // What the send opened, when it opened one. Shown instead of the plain
+  // thank-you, because "your complaint reached the call centre" is the one
+  // fact a client who just gave one star is waiting for.
+  const [qc, setQc] = useState<QualityComplaint | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [closed, setClosed] = useState(false);
@@ -79,6 +90,20 @@ export default function DocRatingBox({
 
   const submitted = done || rating.submitted;
   if (submitted) {
+    // Two different answers. A rating that opened a complaint says so and
+    // points at it; an ordinary rating just thanks them.
+    if (qc) {
+      return (
+        <div className="drate drate--qc" role="status">
+          <b><IconAlert />{tr("complaintSent")}</b>
+          {qc.workId ? <em className="drate__qcid">{qc.workId}</em> : null}
+          <Link href="/portal/client/complaints" className="drate__qclink">
+            {tr("complaintOpen")}
+            <IconArrowRight />
+          </Link>
+        </div>
+      );
+    }
     return (
       <p className="drate drate__done">
         <IconCheck />
@@ -95,7 +120,7 @@ export default function DocRatingBox({
     setBusy(true);
     setErr("");
     try {
-      await rateDocumentRequest(id, stars, comment.trim());
+      setQc(await rateDocumentRequest(id, stars, comment.trim(), complaint));
       setDone(true);
       onRated?.();
     } catch (e) {
@@ -162,6 +187,26 @@ export default function DocRatingBox({
         maxLength={500}
         disabled={busy}
       />
+      {/* One or two stars means the backend will open a quality complaint on
+          this send, so the form says so and asks what to put in it. It does
+          not gate the send — a client who wants to give one star and write
+          nothing still can, and the complaint is opened either way. */}
+      {opensComplaint(stars) ? (
+        <div className="drate__low">
+          <b><IconAlert />{tr("lowTitle")}</b>
+          <textarea
+            className="drate__lowt"
+            rows={2}
+            value={complaint}
+            onChange={(e) => setComplaint(e.target.value)}
+            placeholder={tr("lowPh")}
+            aria-label={tr("lowTitle")}
+            maxLength={2000}
+            disabled={busy}
+          />
+          <small>{tr("lowHint")}</small>
+        </div>
+      ) : null}
       {err ? <p className="drate__err" role="status">{err}</p> : null}
       <button type="button" className="btn btn--grad btn--sm" onClick={() => void send()} disabled={!stars || busy}>
         {busy ? t("rateSending") : t("rateSubmit")}
