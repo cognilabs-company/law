@@ -12,7 +12,7 @@ import { ApiError, isPaymentRequired, logApiError, errDetail } from "@/lib/http"
 import { Notice } from "@/components/admin/AdminBits";
 import { Link } from "@/i18n/navigation";
 import Select from "@/components/Select";
-import DocumentRequestPanel, { DocPagesField } from "./DocumentRequestPanel";
+import DocumentRequestPanel, { DocPagesField, readDocPages } from "./DocumentRequestPanel";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
 import DocTypePicker from "./DocTypePicker";
@@ -165,6 +165,10 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
   // better number than a guess — so this is an override for when the client
   // knows better, and an empty field keeps exactly today's behaviour.
   const [pages, setPages] = useState("");
+  // Which control refused the last press, "" when none did. Same shape and
+  // same rules as DocumentLawyerAssist's `missing`, which is the instance of
+  // this pattern that shipped first.
+  const [missing, setMissing] = useState<"" | "main" | "need" | "pages">("");
 
   const mainRef = useRef<HTMLInputElement>(null);
 
@@ -179,6 +183,7 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
     }
     setErr("");
     setMainFile(f);
+    setMissing((m) => (m === "main" ? "" : m));
   }
 
   // The review flow is defined by the document being reviewed, so that file
@@ -190,15 +195,44 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
   // so the text box is no longer the only way to fill this form in. The
   // backend may still insist on `need`; its 422 is caught below and says so.
   const described = !!need.trim() || files.length > 0 || voices.length > 0 || flow === "review";
-  const canSubmit = mainReady && described && !busy;
 
   async function submit() {
-    if (!canSubmit) return;
+    if (busy) return;
+    // GM 2026-09-29: "to'ldirmasdan so'rov yuborishni bossa, to'ldirilmagan
+    // joyi qizilda ogohlantirish sifatida chiqishi kerak."
+    //
+    // Until now this button was `disabled={!canSubmit}`, i.e. dead for a
+    // review with no file attached and dead for a from-scratch order with
+    // nothing typed and nothing recorded — which are exactly the two states a
+    // first-time client arrives in. A dead button that is pressed answers
+    // nothing: there is no click event, no message, no focus move, and the
+    // client is left deciding whether the page is broken. So the press is
+    // allowed and each gate below marks its own control and takes focus to
+    // it, in the order the fields are read down the form.
+    if (!mainReady) {
+      setMissing("main");
+      document.getElementById("newdoc-main-btn")?.focus();
+      return;
+    }
+    if (!described) {
+      setMissing("need");
+      document.getElementById("newdoc-need")?.focus();
+      return;
+    }
+    // Typed but impossible — the box already says 1…500 in red, and sending
+    // anyway would price the advocate's reading off a page count the form
+    // refuses.
+    const page = readDocPages(pages);
+    if (page.bad) {
+      setMissing("pages");
+      document.getElementById("newdoc-pages")?.focus();
+      return;
+    }
+    setMissing("");
     setBusy(true);
     setErr("");
     const payload = { need: need.trim(), language: lang, files, voiceFiles: voices.map((v) => v.blob) };
     const title = draftTitle(docType, need);
-    const n = Number(pages);
     try {
       const r =
         flow === "review" && mainFile
@@ -206,7 +240,7 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
             // when the client filled the box in. Left empty it is not
             // appended at all, and the backend counts the pages of main_file
             // itself — the behaviour this flow has always had.
-            await requestExistingDocumentReviewGated({ ...payload, mainFile, pageCount: pages && Number.isInteger(n) && n > 0 ? n : undefined })
+            await requestExistingDocumentReviewGated({ ...payload, mainFile, pageCount: page.count })
           : // "0 dan hujjat yasash" is not one of the four endpoints that can
             // open a gate (there is no document to charge by the page for),
             // so its plain answer is lifted into the same shape by hand —
@@ -340,23 +374,54 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
         <section className="docassist__sec">
           <label htmlFor="newdoc-main">{t("mainFileLabel")}</label>
           <input ref={mainRef} id="newdoc-main" type="file" hidden accept=".doc,.docx,.pdf,.jpg,.jpeg,.png" onChange={(e) => pickMain(e.target.files)} />
-          <button type="button" className="docpick" onClick={() => mainRef.current?.click()}>
+          {/* The one field on this form that is genuinely mandatory: the
+              review flow IS this document, and without it there is nothing to
+              send. Marked with .is-bad and described by the alert below
+              rather than with aria-invalid — the control the client presses
+              is a <button>, and ARIA 1.2 does not support aria-invalid on
+              role=button (the real form control is the file input, which is
+              `hidden` and therefore not in the accessibility tree at all). */}
+          <button
+            id="newdoc-main-btn"
+            type="button"
+            className={`docpick${missing === "main" ? " is-bad" : ""}`}
+            aria-describedby={missing === "main" ? "newdoc-main-bad" : undefined}
+            onClick={() => mainRef.current?.click()}
+          >
             <span className="docpick__i"><IconPaperclip /></span>
             <span className="docpick__t">
               <b>{mainFile ? mainFile.name : t("mainFilePick")}</b>
               <small>{mainFile ? t("mainFileChange") : t("mainFileHint", { mb: MAX_FILE_MB })}</small>
             </span>
           </button>
+          {missing === "main" ? (
+            <p className="cform__bad" role="alert" id="newdoc-main-bad">{t("mainFileRequired")}</p>
+          ) : null}
           {/* The one place in the product where the client is holding the
               document the fee is computed from, so it is the one place the
               page count can honestly be asked for — and MD L121-127 wants
               the price of the advocate's review on screen before the send,
               never first as a Telegram message. Optional: left empty, the
               backend derives the count from main_file itself. */}
-          <DocPagesField value={pages} onChange={setPages} />
+          {/* No `cform__bad` sentence beside it: DocPagesField's own hint
+              line already turns into the error and carries role="alert". */}
+          <DocPagesField
+            id="newdoc-pages"
+            value={pages}
+            onChange={(v) => { setPages(v); setMissing((m) => (m === "pages" ? "" : m)); }}
+            invalid={missing === "pages"}
+          />
         </section>
       ) : null}
 
+      {/* GM 2026-09-29: "agar Hujjat turi mavjud bo'lsa, u hujjat turi
+          1-chida turishi shart." Already true here and left alone — this
+          section has sat above the request text since the picker was added,
+          and the only thing that can precede it is the review flow's own
+          document, which never shows a picker (DocTypePicker is asked for
+          flow "custom_from_scratch" and this block renders only for it). The
+          section renders only when the flow asks for it, so an unsupported
+          backend leaves no empty card either. */}
       {flow === "scratch" ? (
         <section className="docassist__sec">
           <DocTypePicker flow="custom_from_scratch" value={docType} onChange={setDocType} />
@@ -365,12 +430,36 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
 
       <section className="docassist__sec">
         <label htmlFor="newdoc-need">{t("needLabel")}</label>
-        <textarea id="newdoc-need" rows={5} value={need} onChange={(e) => setNeed(e.target.value)} placeholder={t("needPlaceholder")} />
+        <textarea
+          id="newdoc-need"
+          rows={5}
+          value={need}
+          onChange={(e) => { setNeed(e.target.value); if (e.target.value.trim()) setMissing((m) => (m === "need" ? "" : m)); }}
+          placeholder={t("needPlaceholder")}
+          aria-invalid={missing === "need" || undefined}
+          className={missing === "need" ? "is-bad" : undefined}
+        />
+        {/* "described" is satisfied by an attachment or a voice note as well
+            as by typing, so the sentence names all three ways out rather than
+            only the box it is standing under. */}
+        {missing === "need" ? <p className="cform__bad" role="alert">{t("needRequired")}</p> : null}
       </section>
 
       <section className="docassist__sec">
         <label>{t("extrasLabel")}</label>
-        <AttachmentPicker files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onError={setErr} maxFileMb={MAX_FILE_MB} maxFiles={MAX_FILES} />
+        {/* An attachment or a voice note describes the request as well as
+            typing does (see `described`), so adding one has to clear the mark
+            on the text box too — otherwise the form would still be shouting
+            about an empty field it no longer needs. */}
+        <AttachmentPicker
+          files={files}
+          voices={voices}
+          onFiles={(f) => { setFiles(f); if (f.length) setMissing((m) => (m === "need" ? "" : m)); }}
+          onVoices={(v) => { setVoices(v); if (v.length) setMissing((m) => (m === "need" ? "" : m)); }}
+          onError={setErr}
+          maxFileMb={MAX_FILE_MB}
+          maxFiles={MAX_FILES}
+        />
       </section>
 
       <section className="docassist__sec">
@@ -385,12 +474,14 @@ export default function NewDocumentOrder({ onClose }: { onClose?: () => void }) 
 
       {err ? <Notice ok={false} msg={err} /> : null}
 
-      {/* `disabled` here covers two different things — a form that is not
-          filled in yet, and a request that is out — and only the second one
-          is a wait, so the clock keys off `busy` alone. It takes the slot the
+      {/* `disabled` used to cover two different things — a form that is not
+          filled in yet, and a request that is out. Only the second is a wait
+          and only the second is a reason to refuse the press, so `busy` is
+          all that is left in it; an unfilled form is answered by the marks
+          above. The clock still keys off `busy` and takes the slot the
           forward arrow vacates, which is why the busy button is exactly as
           tall as the idle one: measured 49.2px in both states. */}
-      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={!canSubmit} aria-busy={busy || undefined}>
+      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy} aria-busy={busy || undefined}>
         {busy ? <WaitClock /> : null}
         {busy ? td("processingShort") : t("submit")}
         {busy ? null : <IconArrowRight />}

@@ -61,6 +61,7 @@ import {
   IconFileText,
   IconClose,
   IconChevronRight,
+  IconChevronLeft,
   IconLayers,
   IconPhone,
 } from "@/components/icons";
@@ -155,8 +156,21 @@ export default function UrgentAdvocatePanel() {
   // road-accident card links straight to the one it names.
   const params = useSearchParams();
   const [pick, setPick] = useState(() => params.get("service") ?? "");
-  // The grouped card whose "which kind?" dialog is open, by card key.
+  // The grouped card whose kinds are on offer, by card key. It survives the
+  // move to the form step so the Back button knows where it came from.
   const [kindPick, setKindPick] = useState("");
+  // Which step of the ONE order dialog is showing, "" for shut. The kind
+  // chooser and the configurator used to be two different things in two
+  // different places — a <Modal> for "which kind?" and then an in-page panel
+  // below the grid for everything else. They are one dialog now, so the box
+  // that opens on the press is the box the order finishes in, and Back from
+  // the form returns to the kinds instead of dropping the client on the grid.
+  //
+  // ?service=<key> arrives already meaning "order this one" (the dashboard's
+  // road-accident card links here), so it opens on the form. Read from the
+  // query in the initialiser, beside `pick`, rather than corrected by an
+  // effect afterwards.
+  const [step, setStep] = useState<"" | "kind" | "form">(() => (params.get("service") ? "form" : ""));
   // LexGo Express Videokonsultatsiya, 2026-09-28: the express and YTX kinds
   // do not queue. The POST comes back with an on-duty advocate already
   // assigned and an audio call ringing, so the client goes straight into the
@@ -172,6 +186,17 @@ export default function UrgentAdvocatePanel() {
   const [need, setNeed] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  // Which required field blocked the last press, "" when none did. The send
+  // is NOT disabled for these — see submit(). Cleared the moment the client
+  // fixes what it names. Same shape as the consent gate in
+  // components/portal/DocumentLawyerAssist.tsx, deliberately: one press must
+  // not produce two different vocabularies for "fill this in".
+  const [miss, setMiss] = useState<"" | "dirs" | "need">("");
+  // A failed POST, shown INSIDE the dialog. It used to go to the page-level
+  // banner, which would now be behind a dialog the client is still standing
+  // in — and closing the dialog to show it would throw away everything they
+  // typed just to say "try again".
+  const [formErr, setFormErr] = useState("");
   // The 402 second-opinion refusal, as its own modal rather than an inline
   // line — see the gate component below.
   const [gate, setGate] = useState("");
@@ -275,33 +300,61 @@ export default function UrgentAdvocatePanel() {
   const price = urgentPrice(sel, channel, isGroup ? lawyers : 1);
   const minutes = urgentMinutes(sel, channel);
 
+  // Picking no longer toggles. While the configurator was an in-page panel a
+  // second press on the same card was the only way to fold it away again; the
+  // dialog has its own close, and a card that un-picked itself on the press
+  // that was meant to re-open the order was simply a dead press.
   function choose(s: UrgentService) {
-    setPick((cur) => (cur === s.key ? "" : s.key));
+    setPick(s.key);
     setNote(null);
     setGate("");
+    setMiss("");
+    setFormErr("");
     if (s.key === GROUP) setLawyers(Math.max(s.lawyerCountMin || 2, 3));
+  }
+
+  // Open the dialog on the kinds of a grouped card, or straight on the form
+  // for a card that stands for a single service.
+  function openKinds(key: string) {
+    setKindPick(key);
+    setStep("kind");
+  }
+  function openForm(s: UrgentService) {
+    choose(s);
+    setStep("form");
   }
 
   function toggleDir(slug: string) {
     setDirs((cur) => (cur.includes(slug) ? cur.filter((x) => x !== slug) : [...cur, slug]));
+    // Touching the chips answers the complaint about the chips, whichever way
+    // the press went — the warning must not outlive the thing it pointed at.
+    setMiss((m) => (m === "dirs" ? "" : m));
   }
 
-  // Why the button is not available yet, in the order the form asks for it.
-  // Without this the control simply sat dead and the page gave no reason.
-  const missing: string = !sel
-    ? t("missPick")
-    : !dirs.length
-      ? t("missDirection")
-      : need.trim().length < 10
-        ? t("missNeed", { n: 10 })
-        : "";
-  const canSubmit = !missing && !busy;
-
   async function submit() {
-    if (!sel || !canSubmit) return;
+    if (!sel || busy) return;
+    // The gate is HERE and not on the button's `disabled`, which is the whole
+    // point of this change: the send used to carry
+    // disabled={busy || !need.trim() || !dirs.length}, so a client who had
+    // missed a field pressed a control that could not be pressed and was told
+    // nothing at all. One field at a time, in the order the form asks for
+    // them, marked on the control itself and given focus — which inside a
+    // scrolling dialog also brings it back into view.
+    if (!dirs.length) {
+      setMiss("dirs");
+      document.getElementById("ua-dirs")?.focus();
+      return;
+    }
+    if (need.trim().length < 10) {
+      setMiss("need");
+      document.getElementById("ua-need")?.focus();
+      return;
+    }
+    setMiss("");
     setBusy(true);
     setNote(null);
     setGate("");
+    setFormErr("");
     try {
       const created = await createUrgentRequest({
         serviceKind: sel.key,
@@ -315,6 +368,12 @@ export default function UrgentAdvocatePanel() {
       setNeed("");
       setDirs([]);
       setPick("");
+      // The order is placed, so the dialog has nothing left to ask. Shut
+      // before anything else so that on the immediate-call branch below the
+      // Modal's unmount (which restores body overflow) runs in the same
+      // commit that mounts CallRoom, rather than a call opening behind a
+      // dialog that is still holding the page's scroll.
+      setStep("");
       setFresh(created.request.id);
       setReload((k) => k + 1);
       if (created.immediateCall && created.call) {
@@ -347,9 +406,18 @@ export default function UrgentAdvocatePanel() {
       // queued order has a better Uzbek line of its own here.
       setNote({ ok: true, msg: t("sent") });
     } catch (e) {
-      if (isPriorPurchaseRequired(e)) { setGate(errDetail(e) || t("priorPurchase")); return; }
+      if (isPriorPurchaseRequired(e)) {
+        // The gate is a Modal of its own and its whole job is to send the
+        // client somewhere else, so this dialog stands down rather than the
+        // two stacking two scrims and two body-overflow locks on one page.
+        // Nothing typed is lost: `need` and `dirs` are still in state, so
+        // picking one of the gate's alternatives reopens the form as it was.
+        setStep("");
+        setGate(errDetail(e) || t("priorPurchase"));
+        return;
+      }
       logApiError("urgent request", e);
-      setNote({ ok: false, msg: errDetail(e) || t("sendError") });
+      setFormErr(errDetail(e) || t("sendError"));
     } finally {
       setBusy(false);
     }
@@ -415,9 +483,13 @@ export default function UrgentAdvocatePanel() {
                 key={card.key}
                 type="button"
                 className={`uacard${on ? " on" : ""}`}
-                aria-pressed={on}
-                aria-haspopup={card.group ? "dialog" : undefined}
-                onClick={() => (card.group ? setKindPick(card.key) : choose(s))}
+                // aria-pressed is gone: every card now opens the order dialog,
+                // so none of them is a toggle any more and announcing one as
+                // pressed described state the button no longer owns. The `on`
+                // class stays — it marks the service the client last
+                // configured, which is worth seeing behind the dialog.
+                aria-haspopup="dialog"
+                onClick={() => (card.group ? openKinds(card.key) : openForm(s))}
               >
                 <span className="uacard__i"><Icon /></span>
                 <b className="uacard__t">{name}</b>
@@ -479,160 +551,6 @@ export default function UrgentAdvocatePanel() {
           })}
         </div>
       )}
-
-      {/* ── Configurator for the picked service ───────────────────── */}
-      {sel ? (
-        <section className="ppanel ua__form">
-          <div className="ppanel__h">
-            <b className="ppanel__t"><span className="pico"><IconBolt /></span>{t.has(`kinds.${sel.key}`) ? t(`kinds.${sel.key}`) : sel.title}</b>
-            <span className="advmuted">{t("formLead")}</span>
-          </div>
-
-          <div className="cform" style={{ maxWidth: "none" }}>
-            {channels.length > 1 ? (
-              <div>
-                <label>{t("channel")}</label>
-                <div className="segs segs--sm" role="tablist" aria-label={t("channel")}>
-                  {channels.map((c) => (
-                    <button key={c} type="button" role="tab" className="seg" aria-selected={channel === c} onClick={() => setChannelPref(c)}>
-                      {c === "video" ? <IconVideo /> : <IconChat />}
-                      {c === "video" ? t("chVideo") : t("chChat")}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {/* A grouped service is one box on the grid; which of its kinds
-                it means is chosen here. */}
-            {groupOf(sel) ? (
-              <div>
-                <label>{t.has(`groupKind.${groupOf(sel)!.key}`) ? t(`groupKind.${groupOf(sel)!.key}`) : t("opinionKind")}</label>
-                <div className="segs segs--sm" role="tablist" aria-label={t.has(`groupKind.${groupOf(sel)!.key}`) ? t(`groupKind.${groupOf(sel)!.key}`) : t("opinionKind")}>
-                  {groupOf(sel)!.items.map((k) => {
-                    const m = services.find((x) => x.key === k);
-                    if (!m) return null;
-                    const MIcon = ICONS[k] ?? IconScale;
-                    return (
-                      <button key={k} type="button" role="tab" className="seg" aria-selected={sel.key === k} onClick={() => choose(m)}>
-                        <MIcon />
-                        {t.has(`kinds.${k}`) ? t(`kinds.${k}`) : m.title}
-                        {/* Only one of the two needs a previous LexGo service;
-                            saying which, here, beats a 402 after the form. */}
-                        {m.requiresPriorPurchase ? <IconLock className="seg__lock" /> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-                {/* What the chosen kind actually changes — the price is not
-                    the difference that matters. */}
-                {about(sel.key) ? <p className="ua__kindnote">{about(sel.key)}</p> : null}
-              </div>
-            ) : null}
-
-            {isGroup ? (
-              <div>
-                <label htmlFor="ua-n">{t("lawyerCount")}</label>
-                <div className="ua__count">
-                  <button type="button" className="btn btn--line btn--sm" onClick={() => setLawyers((n) => Math.max(sel.lawyerCountMin || 2, n - 1))} aria-label={t("less")}>−</button>
-                  <b id="ua-n">{lawyers}</b>
-                  <button type="button" className="btn btn--line btn--sm" onClick={() => setLawyers((n) => Math.min(sel.lawyerCountMax || 7, n + 1))} aria-label={t("more")}>+</button>
-                  <span className="advmuted">{t("lawyerRange", { min: sel.lawyerCountMin || 2, max: sel.lawyerCountMax || 7 })}</span>
-                </div>
-              </div>
-            ) : null}
-
-            {/* Said before the form is filled, not after the backend has
-                refused it — the 402 gate is the fallback, not the warning.
-                Straight off the catalog's own flag, so a service the backend
-                opens up stops warning the moment it does. */}
-            {sel.requiresPriorPurchase ? (
-              <p className="ua__pre"><IconLock />{t("priorPurchaseNote")}</p>
-            ) : null}
-
-            <div>
-              <label>{t("directions")}</label>
-              <div className="chiprow" style={{ margin: "4px 0 0" }}>
-                {DIRECTIONS.map((d) => (
-                  <button key={d.slug} type="button" className="fchip" aria-pressed={dirs.includes(d.slug)} onClick={() => toggleDir(d.slug)}>
-                    {te.has(`areas.${d.area}`) ? te(`areas.${d.area}`) : d.slug}
-                  </button>
-                ))}
-              </div>
-              <span className="rf__hint">{t("directionsHint")}</span>
-            </div>
-
-            <div>
-              <label htmlFor="ua-need">{t("need")}</label>
-              <textarea
-                id="ua-need"
-                rows={4}
-                value={need}
-                onChange={(e) => setNeed(e.target.value)}
-                placeholder={t("needPh")}
-              />
-              <span className="rf__hint">{t("needHint")}</span>
-            </div>
-
-            {/* Price, duration and what happens next — before the button, so
-                nothing about the order is a surprise after it is pressed. */}
-            <div className="ua__sum">
-              <div className="ua__sumrow">
-                <span>{t("total")}</span>
-                <b>{fmtUzs(price)} {te("currency")}</b>
-              </div>
-              {minutes ? (
-                <div className="ua__sumrow ua__sumrow--sub">
-                  <span><IconClock />{t("meetingLen")}</span>
-                  <span>{t("minutesN", { n: minutes })}</span>
-                </div>
-              ) : null}
-              {isGroup ? (
-                <div className="ua__sumrow ua__sumrow--sub">
-                  <span><IconUsers />{t("perLawyerNote")}</span>
-                  <span>{fmtUzs(urgentPrice(sel, channel, 1))} × {lawyers}</span>
-                </div>
-              ) : null}
-              <p className="ua__next"><IconCheck />{isGroup ? t("nextGroup") : t("next")}</p>
-              {/* express / YTX go to the on-duty advocate rather than the
-                  ordinary pool, which is the whole reason to pay more. Read
-                  off the catalog's own immediate_call flag instead of the two
-                  service keys it used to name: the live catalog sets it on
-                  express AND on traffic_accident_consultation (GET
-                  /urgent-advokat/catalog, 2026-09-29), which is exactly what
-                  the express MD's L36 says, and a third immediate kind the
-                  backend adds would have kept the pool wording. */}
-              {sel.immediateCall ? (
-                <>
-                  <p className="ua__next"><IconBolt />{t("onDuty")}</p>
-                  {/* LEXGO_EXPRESS_…md L160-162: "Bu xizmat nomi frontendda
-                      hali ham `Express videokonsultatsiya` bo'lishi mumkin,
-                      lekin backend real ulanishni audio call sifatida
-                      ochadi." The client is paying for something called a
-                      video consultation and will be put into an audio room —
-                      said here, before the button, rather than discovered
-                      when the camera never turns on. Verified on the live
-                      record LGT-20260928-224E46AF, whose payload carries
-                      call_channel "audio" for an express order. */}
-                  <p className="ua__next ua__next--audio"><IconPhone />{t("audioNote")}</p>
-                </>
-              ) : null}
-              {sel.supportsFiles || sel.supportsVoice ? <p className="ua__next ua__next--muted"><IconChat />{t("filesInChat")}</p> : null}
-            </div>
-
-            {missing ? <p className="ua__miss" role="status"><IconAlert />{missing}</p> : null}
-
-            {/* canSubmit is false for two unrelated reasons — the form is
-                still missing something (which .ua__miss above spells out and
-                which is not a wait at all) and the POST is out. Only the
-                second one gets the clock. */}
-            <button type="button" className="btn btn--grad btn--full btn--lg" disabled={!canSubmit} aria-busy={busy || undefined} onClick={() => void submit()}>
-              {busy ? <WaitClock /> : null}
-              {busy ? t("sending") : t("submit")}
-            </button>
-          </div>
-        </section>
-      ) : null}
 
       {/* ── The client's own requests ─────────────────────────────── */}
       <section className="ppanel">
@@ -762,14 +680,41 @@ export default function UrgentAdvocatePanel() {
         />
       ) : null}
 
-      {/* Which kind — asked on the press, not buried in the form. */}
+      {/* ── The order dialog: which kind, then the order itself ─────
+          Measured on this page before the change (CDP, real client
+          session): picking a service dropped the configurator in below the
+          card grid at y=656.5 in a 1100-tall viewport — 443.5 of its
+          618.5px on screen, 71.7%, with the submit button at y=1205.9,
+          106px under the fold. At 400×860 the same press put the panel at
+          y=1554.7 with 0 of its 911.1px visible and the button at y=2378,
+          and nothing scrolled: on a phone, tapping a service card produced
+          no visible change whatsoever. A dialog puts the whole order in
+          the viewport on every press, at every width.
+
+          The kind chooser is step ONE of this same dialog rather than a
+          second dialog handing over to it. Two dialogs in sequence show
+          the page between them and make Escape from the form mean "back
+          to the grid"; one dialog that swaps its contents is a single
+          gesture, and Back from the form returns to the kinds. A card that
+          stands for one service opens straight on the form and never sees
+          step one. */}
       <Modal
-        open={!!kindCard}
-        onClose={() => setKindPick("")}
-        title={kindCard ? groupTitle(kindCard.group!) : ""}
+        open={step === "kind" ? !!kindCard : step === "form" ? !!sel : false}
+        onClose={() => setStep("")}
+        title={
+          step === "kind" && kindCard
+            ? groupTitle(kindCard.group!)
+            : sel
+              ? t.has(`kinds.${sel.key}`) ? t(`kinds.${sel.key}`) : sel.title
+              : ""
+        }
       >
-        {kindCard ? (
-          <div className="uakind">
+        {/* The two steps are separate children rather than one element whose
+            class changes, so React really unmounts one and mounts the other
+            and the swap animation (.uastep) plays instead of being skipped
+            on a reused DOM node. */}
+        {step === "kind" && kindCard ? (
+          <div className="uakind uastep">
             {about(kindCard.group!.key) ? <p className="uakind__lead">{about(kindCard.group!.key)}</p> : null}
             <div className="uakind__grid">
               {kindCard.items.map((x) => {
@@ -779,7 +724,7 @@ export default function UrgentAdvocatePanel() {
                     key={x.key}
                     type="button"
                     className="uakind__c"
-                    onClick={() => { setKindPick(""); choose(x); }}
+                    onClick={() => openForm(x)}
                   >
                     <span className="uakind__i"><XIcon /></span>
                     <b>{t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}</b>
@@ -792,6 +737,224 @@ export default function UrgentAdvocatePanel() {
                   </button>
                 );
               })}
+            </div>
+          </div>
+        ) : null}
+
+        {step === "form" && sel ? (
+          <div className="uaform uastep">
+            {/* Everything the client answers scrolls; the price and the send
+                do not — see .uaform__foot below. */}
+            <div className="cform uaform__body">
+              {/* Back to the kinds, and only for a service that came from a
+                  grouped card: for the others there is nothing behind this
+                  step and the button would be a lie. */}
+              {groupOf(sel) ? (
+                <button
+                  type="button"
+                  className="rf__link uaform__back"
+                  onClick={() => { setKindPick(groupOf(sel)!.key); setStep("kind"); }}
+                >
+                  {/* t.has guards the one string this workpackage asks for:
+                      the label reads better than the generic one, but the
+                      dialog must not break on a locale that has not been
+                      given it yet, and portal.common.back is the same idea in
+                      fewer words. */}
+                  <IconChevronLeft />{t.has("backToKinds") ? t("backToKinds") : tcm("back")}
+                </button>
+              ) : null}
+
+              <p className="uaform__lead">{t("formLead")}</p>
+
+              {channels.length > 1 ? (
+                <div>
+                  <label>{t("channel")}</label>
+                  <div className="segs segs--sm" role="tablist" aria-label={t("channel")}>
+                    {channels.map((c) => (
+                      <button key={c} type="button" role="tab" className="seg" aria-selected={channel === c} onClick={() => setChannelPref(c)}>
+                        {c === "video" ? <IconVideo /> : <IconChat />}
+                        {c === "video" ? t("chVideo") : t("chChat")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* A grouped service is one box on the grid; which of its kinds
+                  it means was answered on step one, and this row is how the
+                  client changes that answer without going back for it. */}
+              {groupOf(sel) ? (
+                <div>
+                  <label>{t.has(`groupKind.${groupOf(sel)!.key}`) ? t(`groupKind.${groupOf(sel)!.key}`) : t("opinionKind")}</label>
+                  <div className="segs segs--sm" role="tablist" aria-label={t.has(`groupKind.${groupOf(sel)!.key}`) ? t(`groupKind.${groupOf(sel)!.key}`) : t("opinionKind")}>
+                    {groupOf(sel)!.items.map((k) => {
+                      const m = services.find((x) => x.key === k);
+                      if (!m) return null;
+                      const MIcon = ICONS[k] ?? IconScale;
+                      return (
+                        <button key={k} type="button" role="tab" className="seg" aria-selected={sel.key === k} onClick={() => choose(m)}>
+                          <MIcon />
+                          {t.has(`kinds.${k}`) ? t(`kinds.${k}`) : m.title}
+                          {/* Only one of the two needs a previous LexGo service;
+                              saying which, here, beats a 402 after the form. */}
+                          {m.requiresPriorPurchase ? <IconLock className="seg__lock" /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* What the chosen kind actually changes — the price is not
+                      the difference that matters. */}
+                  {about(sel.key) ? <p className="ua__kindnote">{about(sel.key)}</p> : null}
+                </div>
+              ) : null}
+
+              {isGroup ? (
+                <div>
+                  <label htmlFor="ua-n">{t("lawyerCount")}</label>
+                  <div className="ua__count">
+                    <button type="button" className="btn btn--line btn--sm" onClick={() => setLawyers((n) => Math.max(sel.lawyerCountMin || 2, n - 1))} aria-label={t("less")}>−</button>
+                    <b id="ua-n">{lawyers}</b>
+                    <button type="button" className="btn btn--line btn--sm" onClick={() => setLawyers((n) => Math.min(sel.lawyerCountMax || 7, n + 1))} aria-label={t("more")}>+</button>
+                    <span className="advmuted">{t("lawyerRange", { min: sel.lawyerCountMin || 2, max: sel.lawyerCountMax || 7 })}</span>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Said before the form is filled, not after the backend has
+                  refused it — the 402 gate is the fallback, not the warning.
+                  Straight off the catalog's own flag, so a service the backend
+                  opens up stops warning the moment it does. */}
+              {sel.requiresPriorPurchase ? (
+                <p className="ua__pre"><IconLock />{t("priorPurchaseNote")}</p>
+              ) : null}
+
+              <div>
+                <label id="ua-dirs-l">{t("directions")}</label>
+                {/* A multi-select of buttons is neither an input nor a
+                    checkbox, so the house pattern's aria-invalid goes on the
+                    GROUP and the whole group is what turns red — marking one
+                    arbitrary chip would read as "this chip is wrong". It is
+                    focusable at tabIndex -1 only so a failed press can bring
+                    it back into view inside the scrolling body; it stays out
+                    of the tab order, where the seven chips already are. */}
+                <div
+                  id="ua-dirs"
+                  role="group"
+                  tabIndex={-1}
+                  aria-labelledby="ua-dirs-l"
+                  aria-invalid={miss === "dirs" || undefined}
+                  aria-describedby={miss === "dirs" ? "ua-dirs-bad" : undefined}
+                  className={`chiprow uaform__chips${miss === "dirs" ? " is-bad" : ""}`}
+                >
+                  {DIRECTIONS.map((d) => (
+                    <button key={d.slug} type="button" className="fchip" aria-pressed={dirs.includes(d.slug)} onClick={() => toggleDir(d.slug)}>
+                      {te.has(`areas.${d.area}`) ? te(`areas.${d.area}`) : d.slug}
+                    </button>
+                  ))}
+                </div>
+                {miss === "dirs" ? (
+                  <p className="cform__bad" id="ua-dirs-bad" role="alert"><IconAlert />{t("missDirection")}</p>
+                ) : (
+                  <span className="rf__hint">{t("directionsHint")}</span>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="ua-need">{t("need")}</label>
+                <textarea
+                  id="ua-need"
+                  rows={4}
+                  value={need}
+                  // Cleared when the value SATISFIES the rule rather than on
+                  // the first keystroke: the sentence says "at least 10
+                  // characters", and dropping the warning after one letter
+                  // only to fail the same press again is worse than letting it
+                  // stand until the field is actually fixed.
+                  onChange={(e) => {
+                    setNeed(e.target.value);
+                    if (e.target.value.trim().length >= 10) setMiss((m) => (m === "need" ? "" : m));
+                  }}
+                  placeholder={t("needPh")}
+                  aria-invalid={miss === "need" || undefined}
+                  aria-describedby={miss === "need" ? "ua-need-bad" : undefined}
+                  className={miss === "need" ? "is-bad" : undefined}
+                />
+                {miss === "need" ? (
+                  <p className="cform__bad" id="ua-need-bad" role="alert"><IconAlert />{t("missNeed", { n: 10 })}</p>
+                ) : (
+                  <span className="rf__hint">{t("needHint")}</span>
+                )}
+              </div>
+
+              {/* Everything about the order that is read once and then
+                  remembered. The one number that must survive every scroll —
+                  the total — is not here; it is in the pinned footer. */}
+              <div className="ua__sum">
+                {minutes ? (
+                  <div className="ua__sumrow ua__sumrow--sub">
+                    <span><IconClock />{t("meetingLen")}</span>
+                    <span>{t("minutesN", { n: minutes })}</span>
+                  </div>
+                ) : null}
+                {isGroup ? (
+                  <div className="ua__sumrow ua__sumrow--sub">
+                    <span><IconUsers />{t("perLawyerNote")}</span>
+                    <span>{fmtUzs(urgentPrice(sel, channel, 1))} × {lawyers}</span>
+                  </div>
+                ) : null}
+                <p className="ua__next"><IconCheck />{isGroup ? t("nextGroup") : t("next")}</p>
+                {/* express / YTX go to the on-duty advocate rather than the
+                    ordinary pool, which is the whole reason to pay more. Read
+                    off the catalog's own immediate_call flag instead of the two
+                    service keys it used to name: the live catalog sets it on
+                    express AND on traffic_accident_consultation (GET
+                    /urgent-advokat/catalog, 2026-09-29), which is exactly what
+                    the express MD's L36 says, and a third immediate kind the
+                    backend adds would have kept the pool wording. */}
+                {sel.immediateCall ? (
+                  <>
+                    <p className="ua__next"><IconBolt />{t("onDuty")}</p>
+                    {/* LEXGO_EXPRESS_…md L160-162: "Bu xizmat nomi frontendda
+                        hali ham `Express videokonsultatsiya` bo'lishi mumkin,
+                        lekin backend real ulanishni audio call sifatida
+                        ochadi." The client is paying for something called a
+                        video consultation and will be put into an audio room —
+                        said here, before the button, rather than discovered
+                        when the camera never turns on. Verified on the live
+                        record LGT-20260928-224E46AF, whose payload carries
+                        call_channel "audio" for an express order. */}
+                    <p className="ua__next ua__next--audio"><IconPhone />{t("audioNote")}</p>
+                  </>
+                ) : null}
+                {sel.supportsFiles || sel.supportsVoice ? <p className="ua__next ua__next--muted"><IconChat />{t("filesInChat")}</p> : null}
+              </div>
+
+              {/* A failed POST belongs in the dialog the client is standing
+                  in, beside the form that produced it. */}
+              {formErr ? <Notice ok={false} msg={formErr} /> : null}
+            </div>
+
+            {/* Pinned, because at 400×860 the filled fields measured 787.8px
+                inside a dialog the viewport caps at 774px: the total and the
+                send would otherwise scroll out of sight exactly while the
+                client is deciding whether to press. The button's only
+                `disabled` is the POST being out — a missing field is answered
+                by submit(), not by a control that cannot be pressed. */}
+            <div className="uaform__foot">
+              <div className="uaform__price">
+                <span>{t("total")}</span>
+                <b>{fmtUzs(price)} {te("currency")}</b>
+              </div>
+              <button
+                type="button"
+                className="btn btn--grad btn--lg uaform__send"
+                disabled={busy}
+                aria-busy={busy || undefined}
+                onClick={() => void submit()}
+              >
+                {busy ? <WaitClock /> : null}
+                {busy ? t("sending") : t("submit")}
+              </button>
             </div>
           </div>
         ) : null}
@@ -820,7 +983,12 @@ export default function UrgentAdvocatePanel() {
         onPick={(key) => {
           setGate("");
           const s = services.find((x) => x.key === key);
-          if (s) choose(s);
+          // Back into the dialog, not merely "selected": the gate closed the
+          // order dialog to get out of its own way, and the client's need
+          // text and directions are still in state, so the form they were
+          // refused reopens filled in on the service that is actually open
+          // to them.
+          if (s) openForm(s);
         }}
         // Offered only while the backend really does leave it open.
         hasSingle={services.some((s) => s.key === "second_opinion_single" && !s.requiresPriorPurchase)}

@@ -2565,6 +2565,7 @@
         "label": "Hujjat turi"
       },
       "urgent": {
+        "backToKinds": "Boshqa turni tanlash",
         "rateClosedText": "15 daqiqalik muddat tugadi — bu ish uchun endi baho qoldirib bo‘lmaydi.",
         "rateClosedTitle": "Baholash oynasi yopildi",
         "rateLeft": "{time} qoldi",
@@ -3313,6 +3314,22 @@
         "servicesSub": "Hujjat shabloni va advokatlar"
       },
       "services": {
+        "sellerRequired": "Avval advokatni tanlang",
+        "sizeSmall": "Kichik (1–4)",
+        "sizeMid": "O'rtacha (5–19)",
+        "sizeBig": "Yirik (20+ xizmat)",
+        "filterSize": "Yo'nalish hajmi",
+        "sortByCountAsc": "Xizmatlari kami birinchi",
+        "sortDocFirst": "Tayyor hujjatlilar birinchi",
+        "sortCheapFirst": "Arzonlari birinchi",
+        "sortRelevance": "Tavsiya bo'yicha",
+        "priceBandHigh": "1 mln so'mdan yuqori",
+        "priceBandMid": "300 ming – 1 mln so'm",
+        "priceBandLow": "300 ming so'mgacha",
+        "execAdvokat": "Advokat",
+        "execYurist": "Yurist",
+        "execAi": "AI tayyorlaydi",
+        "filterExec": "Kim bajaradi",
         "badgeTopHint": "Bu xizmatni advokat shaxsan bajaradi — yagona yo'l shu",
         "badgeTop": "TOP",
         "badgeProHint": "Shablonni yuklab olish pulli tarifda ochiladi",
@@ -3421,6 +3438,10 @@
         "preSellerNoList": "Bu advokat hali xizmatlar ro'yxatini belgilamagan — butun katalog ko'rsatilmoqda."
       },
       "documents": {
+        "lawyerNeedRequired": "So'rov matnini yozing — advokat nimadan boshlashini bilishi kerak.",
+        "guardPrint": "LexGo hujjati chop etish uchun ochiq emas. Hujjatni faqat kabinetingizdan yuklab olish mumkin.",
+        "guardBlocked": "Bu hujjatdan nusxa olib bo'lmaydi.",
+        "guardNote": "Himoyalangan ko'rinish — nusxa olish va chop etish yopilgan, sahifada hujjatni kim ochgani belgilab qo'yilgan.",
         "askLawyerAlready": "Bu hujjat bo'yicha so'rov allaqachon yuborilgan. Ish yakunlangandan keyin qayta yuborish mumkin.",
         "gateWaitShort": "So'rov hali advokatlarga yetmadi — to'lov tasdiqlanishi kutilmoqda.",
         "cancelledStatus": "Bekor qilingan",
@@ -3821,6 +3842,7 @@
         "manualDisabled": "Qo'lda to'ldirish paket talab qiladi"
       },
       "newDoc": {
+        "mainFileRequired": "Tekshiriladigan hujjatni yuklang.",
         "previewSeek": "Ovozli xabar bo‘ylab o‘tish",
         "previewNone": "Bu turdagi faylni shu yerda ko‘rib bo‘lmaydi",
         "previewHide": "Yopish",

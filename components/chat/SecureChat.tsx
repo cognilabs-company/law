@@ -5,8 +5,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { useAuth, canMakeCalls, hasAdminAccess, sessionRoles, type Session } from "@/lib/auth";
-import ContentRevealBar from "./ContentRevealBar";
+import { useAuth, canMakeCalls, sessionRoles, type Session } from "@/lib/auth";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
 import { maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
@@ -678,7 +677,10 @@ export default function SecureChat({
   // indicator lit in the browser tab indefinitely.
   useEffect(() => () => recRef.current?.cancel(), []);
   // Bumped after a content reveal so the history is fetched again unmasked.
-  const [reloadKey, setReloadKey] = useState(0);
+  // Bumped to re-read the history from scratch. The only caller was the
+  // content-reveal bar, which no longer renders; the key stays because the
+  // effect below keys on it and a future re-read will need it.
+  const [reloadKey] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
   const seen = useRef<Set<string>>(new Set());
   const dismissedCalls = useRef<Set<string>>(new Set());
@@ -1501,9 +1503,6 @@ export default function SecureChat({
         />
       ) : null}
 
-      {hasAdminAccess(session) ? (
-        <ContentRevealBar roomId={roomId} onChanged={() => { seen.current.clear(); setMsgs([]); setReloadKey((k) => k + 1); }} />
-      ) : null}
       <div className="schat__body" ref={bodyRef}>
         <div className="schat__sys">
           <IconLock />

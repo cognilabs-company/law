@@ -67,11 +67,6 @@ import {
   IconEye,
   IconEdit,
   IconPlus,
-  IconList,
-  IconGrid,
-  IconGift,
-  IconCard,
-  IconChatDots,
   IconClose,
 } from "@/components/icons";
 import { fmtRating } from "@/lib/date";
@@ -188,9 +183,91 @@ function templateFileName(rawName: string, serviceName: string, mimeType: string
 }
 
 type Sort = "match" | "rating" | "exp" | "price";
-// Catalog filters — see the `shown` memo for what each one selects on.
+
+// ── Catalogue filters, each one measured before it was offered ──────────
+// A filter whose rows all share one value is noise, so every option below was
+// counted against the live catalogue (GET /services?catalog_only=true, 497
+// rows, 2026-09-29) first:
+//   · documentTemplateId   348 with a ready document / 149 without
+//   · executor bucket      349 AI / 123 yurist / 25 advokat
+//   · price band           348 free / 44 up to 300k / 54 300k-1M / 51 over 1M
+// Two options that used to sit here are gone on the same evidence. "So'rov
+// bo'yicha" (no price and not the free tier) matched exactly 1 row of 497.
+// And the free/paid pair was not a second filter at all: has_document_template
+// and base_price == 0 agree on 497 of 497 rows, so "Narx: bepul" and "Hujjat:
+// tayyor hujjat bor" selected the identical 348 cards. The price control only
+// earns its place by splitting the 149 paid rows into bands (median 500 000,
+// p75 3 500 000 so'm) that the free/paid pair could not see.
 type DocFilter = "all" | "template" | "lawyer";
-type PriceFilter = "all" | "free" | "quote" | "paid";
+type PriceFilter = "all" | "free" | "low" | "mid" | "high";
+type ExecFilter = "all" | "ai" | "yurist" | "advokat";
+type SvcSort = "rel" | "az" | "cheap" | "doc";
+// The directions and subcategory screens deliberately hold no service rows
+// (see the /services fetch below — loading the whole catalogue up front was
+// the page's real slowness), so the only thing they can honestly filter on is
+// what GET /service-categories returns. services_count is the field that
+// varies: of the 23 live directions, 4 hold 50+ services, 3 hold 20-49,
+// 8 hold 5-19 and 8 hold 1-4.
+type DirSize = "all" | "big" | "mid" | "small";
+type SubSort = "count" | "countAsc" | "name";
+
+const DOC_VALUES = ["all", "template", "lawyer"] as const;
+const PRICE_VALUES = ["all", "free", "low", "mid", "high"] as const;
+const EXEC_VALUES = ["all", "ai", "yurist", "advokat"] as const;
+const SVCSORT_VALUES = ["rel", "az", "cheap", "doc"] as const;
+const DIRSIZE_VALUES = ["all", "big", "mid", "small"] as const;
+const SUBSORT_VALUES = ["count", "countAsc", "name"] as const;
+// The i18n key each option's label comes from, kept beside the values so the
+// row below is a list of controls rather than a wall of ternaries.
+const DOC_LABEL: Record<DocFilter, string> = { all: "filterAll", template: "filterHasDoc", lawyer: "filterNoDoc" };
+const PRICE_LABEL: Record<PriceFilter, string> = { all: "filterAll", free: "filterFree", low: "priceBandLow", mid: "priceBandMid", high: "priceBandHigh" };
+const EXEC_LABEL: Record<ExecFilter, string> = { all: "filterAll", ai: "execAi", yurist: "execYurist", advokat: "execAdvokat" };
+const SVCSORT_LABEL: Record<SvcSort, string> = { rel: "sortRelevance", az: "sortByName", cheap: "sortCheapFirst", doc: "sortDocFirst" };
+const DIRSIZE_LABEL: Record<DirSize, string> = { all: "filterAll", big: "sizeBig", mid: "sizeMid", small: "sizeSmall" };
+const SUBSORT_LABEL: Record<SubSort, string> = { count: "sortByCount", countAsc: "sortByCountAsc", name: "sortByName" };
+
+// Select hands back a plain string; this is the one place it is narrowed back
+// to the union, so a stale URL or a future option can never set a value the
+// predicates below do not understand.
+function pick<T extends string>(vals: readonly T[], v: string, dflt: T): T {
+  return (vals as readonly string[]).includes(v) ? (v as T) : dflt;
+}
+
+const PRICE_LOW = 300_000;
+const PRICE_MID = 1_000_000;
+const inDoc = (s: BackendService, v: DocFilter) =>
+  v === "all" ? true : v === "template" ? !!s.documentTemplateId : !s.documentTemplateId;
+const inPrice = (s: BackendService, v: PriceFilter) => {
+  if (v === "all") return true;
+  const p = s.price ?? 0;
+  if (v === "free") return !p;
+  if (v === "low") return p > 0 && p <= PRICE_LOW;
+  if (v === "mid") return p > PRICE_LOW && p <= PRICE_MID;
+  return p > PRICE_MID;
+};
+// executor_type arrives in two scripts and two conventions at once — counted
+// live: "ai_lawyer" 346, "Юрист" 55, "Юрист/Адвокат" 52, "yurist_advokat" 16,
+// "Адвокат" 20, "advokat" 4, "Йўқ (фақат AI)" 2, "call_center_lawyer" 1,
+// "document_constructor" 1. Nine raw values are not a filter; these three
+// buckets are, and they divide what the document filter cannot: a search for
+// "sud" returns 81 AI / 12 yurist / 4 advokat where the document filter only
+// sees 81 and 16. Normalized through the same transliterator the search uses,
+// so the Cyrillic spellings land in the same bucket as the Latin ones.
+// advokat_required wins outright where it is set — it is the flag the card's
+// own "Advokat bilan" ribbon is drawn from, and it moves the one
+// "call_center_lawyer" row the string alone would have called a yurist.
+function execBucket(s: BackendService): Exclude<ExecFilter, "all"> {
+  if (s.advokatRequired) return "advokat";
+  const n = normalizeSearchText(s.executorType || "");
+  if (/(?:^| )ai(?: |$)/.test(n)) return "ai";
+  if (n.includes("advokat") && !n.includes("yurist")) return "advokat";
+  if (n.includes("yurist") || n.includes("lawyer")) return "yurist";
+  return "ai";
+}
+const inExec = (s: BackendService, v: ExecFilter) => v === "all" || execBucket(s) === v;
+// A direction's size bucket, from the backend's own services_count.
+const sizeOf = (n: number): Exclude<DirSize, "all"> => (n >= 20 ? "big" : n >= 5 ? "mid" : "small");
+const inSize = (n: number, v: DirSize) => v === "all" || sizeOf(n) === v;
 
 export default function ClientServices() {
   const t = useTranslations("portal.client.services");
@@ -346,6 +423,14 @@ export default function ClientServices() {
     };
   }, []);
   const [buying, setBuying] = useState(false);
+  // Which required field stopped the last press of "Buyurtma berish" ("" when
+  // nothing did). Same shape as the shipped pattern in
+  // components/portal/DocumentLawyerAssist.tsx, deliberately: the order button
+  // used to carry disabled={!sellerId}, and a disabled button cannot be
+  // pressed, so a client who had not picked an advocate pressed a dead control
+  // and was told nothing at all. The press is allowed now and the gate lives
+  // in buy() below, which marks the list and moves focus into it.
+  const [missing, setMissing] = useState<"" | "seller">("");
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [quote, setQuote] = useState<PriceQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -354,12 +439,15 @@ export default function ClientServices() {
   // document-template service (normally that branch is skipped in favor of
   // the self-fill flow) — set only by that button, reset with the modal.
   const [forceAdvocate, setForceAdvocate] = useState(false);
-  // Two filters the catalog can actually answer from what it returns: does
-  // this service come with a ready document, and what does it cost. Anything
-  // richer (region, executor type) is backend metadata the client has no way
-  // to reason about.
+  // The three service filters and the service sort — see the measured
+  // distributions beside the type declarations above.
   const [docFilter, setDocFilter] = useState<DocFilter>("all");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
+  const [execFilter, setExecFilter] = useState<ExecFilter>("all");
+  // "rel" keeps whatever order `list` produced: the backend's relevance
+  // ranking while searching, alphabetical inside a direction. Any other value
+  // re-sorts in `shown` below.
+  const [svcSort, setSvcSort] = useState<SvcSort>("rel");
   const [newDocOpen, setNewDocOpen] = useState(false);
   // "Advokatga yo'llash" on a card that HAS a document template is the same
   // journey as choosing "Advokat bilan tayyorlash" inside the fill screen —
@@ -467,11 +555,22 @@ export default function ClientServices() {
   }, [allSubcats]);
   const totalServices = useMemo(() => cats.data.reduce((n, c) => n + c.servicesCount, 0), [cats.data]);
   const [famFilter, setFamFilter] = useState("");
-  const [subSort, setSubSort] = useState<"count" | "name">("count");
+  const [subSort, setSubSort] = useState<SubSort>("count");
+  const [dirSize, setDirSize] = useState<DirSize>("all");
+  // Split out of flatSubcats so the size control can count what each of its
+  // options would leave against the soha strip's current choice, the same way
+  // the service filters count against each other.
+  const famSubcats = useMemo(
+    () => (famFilter ? allSubcats.filter((x) => x.cat === famFilter) : allSubcats),
+    [allSubcats, famFilter],
+  );
   const flatSubcats = useMemo(() => {
-    const rows = famFilter ? allSubcats.filter((x) => x.cat === famFilter) : allSubcats;
-    return subSort === "name" ? [...rows].sort((a, b) => a.name.localeCompare(b.name)) : rows;
-  }, [allSubcats, famFilter, subSort]);
+    const rows = famSubcats.filter((x) => inSize(x.n, dirSize));
+    // allSubcats already arrives count-desc, so "count" needs no sort at all.
+    if (subSort === "name") return [...rows].sort((a, b) => a.name.localeCompare(b.name));
+    if (subSort === "countAsc") return [...rows].sort((a, b) => a.n - b.n || a.name.localeCompare(b.name));
+    return rows;
+  }, [famSubcats, dirSize, subSort]);
 
   const NO_SUBCAT = "Boshqa";
   // The selected general category's own services, grouped by the backend's
@@ -499,10 +598,21 @@ export default function ClientServices() {
     for (const [k, v] of derivedCounts) if (v) m.set(k, v);
     return m;
   }, [backendSubcats, derivedCounts]);
-  const subcatList = useMemo(
-    () => [...subcatCounts.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name),
-    [subcatCounts],
-  );
+  // The per-category subcategory screen answers to the same two controls as
+  // the flat directions screen, so the row above stays the row the client
+  // just used instead of silently losing its settings one level down.
+  const subRows = useMemo(() => [...subcatCounts.entries()].map(([name, n]) => ({ name, n })), [subcatCounts]);
+  const subcatList = useMemo(() => {
+    const rows = subRows.filter((x) => inSize(x.n, dirSize));
+    rows.sort((a, b) =>
+      subSort === "name"
+        ? a.name.localeCompare(b.name)
+        : subSort === "countAsc"
+          ? a.n - b.n || a.name.localeCompare(b.name)
+          : b.n - a.n || a.name.localeCompare(b.name),
+    );
+    return rows.map((r) => r.name);
+  }, [subRows, dirSize, subSort]);
   // The same sample_services titles as the flat grid, for the per-category
   // subcategory screen (reached by a ?cat= deep link, or by backing out of a
   // subcategory). Empty on a subcategory the backend only knows through the
@@ -574,46 +684,37 @@ export default function ClientServices() {
 
   // Applied after `list` rather than inside it so the filters work the same
   // in search results and inside a subcategory, and so clearing them never
-  // has to re-run the catalog fetch.
+  // has to re-run the catalog fetch. They used to be skipped outright unless
+  // the client was searching (`if (!query) return list`), which is why a
+  // drilled-in direction had no filters at all; the row is on every screen
+  // now, so the predicates have to be too.
   const shown = useMemo(() => {
-    // Only in search mode — see the filter bar below.
-    if (!query) return list;
-    const byDoc = (s: BackendService) =>
-      docFilter === "all" ? true : docFilter === "template" ? !!s.documentTemplateId : !s.documentTemplateId;
-    const byPrice = (s: BackendService) =>
-      priceFilter === "all"
-        ? true
-        : priceFilter === "paid"
-          ? !!s.price
-          : priceFilter === "free"
-            ? // An explicit 0, or the backend's own free tier — NOT merely a
-              // price the catalog has not set, which is the quote case below.
-              s.price === 0 || s.pricingTier === "free"
-            : !s.price && s.pricingTier !== "free";
-    return list.filter((s) => byDoc(s) && byPrice(s));
-  }, [list, docFilter, priceFilter, query]);
-  const filtersOn = !!query && (docFilter !== "all" || priceFilter !== "all");
+    const rows = list.filter((s) => inDoc(s, docFilter) && inPrice(s, priceFilter) && inExec(s, execFilter));
+    // "rel" leaves `list` alone: relevance while searching, A-Z inside a
+    // direction. localeCompare with the active locale, like `list` itself.
+    if (svcSort === "az") rows.sort((a, b) => a.name.localeCompare(b.name, locale));
+    else if (svcSort === "cheap") rows.sort((a, b) => (a.price ?? 0) - (b.price ?? 0) || a.name.localeCompare(b.name, locale));
+    else if (svcSort === "doc") rows.sort((a, b) => Number(!!b.documentTemplateId) - Number(!!a.documentTemplateId) || a.name.localeCompare(b.name, locale));
+    return rows;
+  }, [list, docFilter, priceFilter, execFilter, svcSort, locale]);
   // How many services each option would leave, counted against the other
-  // group's current choice — the number a person actually wants to see before
-  // clicking, rather than a total that ignores the filter already applied.
+  // groups' current choices — the number a person actually wants to see before
+  // clicking, rather than a total that ignores the filters already applied.
+  // Inside one direction these counts are also the honest answer to "why does
+  // this filter do nothing": measured live, not one of the 11 directions
+  // holding 5+ services is divided by the document or price filter, so the
+  // zeroes beside the other options say so instead of pretending otherwise.
   const fCounts = useMemo(() => {
-    const byDoc = (s: BackendService, v: DocFilter) =>
-      v === "all" ? true : v === "template" ? !!s.documentTemplateId : !s.documentTemplateId;
-    const byPrice = (s: BackendService, v: PriceFilter) =>
-      v === "all"
-        ? true
-        : v === "paid"
-          ? !!s.price
-          : v === "free"
-            ? s.price === 0 || s.pricingTier === "free"
-            : !s.price && s.pricingTier !== "free";
     const doc = {} as Record<DocFilter, number>;
-    for (const v of ["all", "template", "lawyer"] as DocFilter[]) doc[v] = list.filter((s) => byDoc(s, v) && byPrice(s, priceFilter)).length;
+    for (const v of DOC_VALUES) doc[v] = list.filter((s) => inDoc(s, v) && inPrice(s, priceFilter) && inExec(s, execFilter)).length;
     const price = {} as Record<PriceFilter, number>;
-    for (const v of ["all", "free", "quote", "paid"] as PriceFilter[]) price[v] = list.filter((s) => byDoc(s, docFilter) && byPrice(s, v)).length;
-    return { doc, price };
-  }, [list, docFilter, priceFilter]);
-  const activeFilters = (docFilter !== "all" ? 1 : 0) + (priceFilter !== "all" ? 1 : 0);
+    for (const v of PRICE_VALUES) price[v] = list.filter((s) => inDoc(s, docFilter) && inPrice(s, v) && inExec(s, execFilter)).length;
+    const exec = {} as Record<ExecFilter, number>;
+    for (const v of EXEC_VALUES) exec[v] = list.filter((s) => inDoc(s, docFilter) && inPrice(s, priceFilter) && inExec(s, v)).length;
+    return { doc, price, exec };
+  }, [list, docFilter, priceFilter, execFilter]);
+  const svcFiltersOn = docFilter !== "all" || priceFilter !== "all" || execFilter !== "all" || svcSort !== "rel";
+  const dirFiltersOn = dirSize !== "all" || subSort !== "count";
 
   // Deep link from the AI offer cards (?service=<id>) opens that service's order
   // modal once the catalog is loaded; a service outside the catalog list is
@@ -680,6 +781,7 @@ export default function ClientServices() {
       setNote(null);
       setQuote(null);
       setPayOrderId(null);
+      setMissing("");
     } else {
       setForceAdvocate(false);
     }
@@ -763,7 +865,15 @@ export default function ClientServices() {
   }, [order, sellerId, myRegion]);
 
   async function buy() {
-    if (!order || !sellerId || buying) return;
+    if (!order || buying) return;
+    // The one required field on this form. Marked, named in words and focused
+    // rather than silently refused — see `missing` above.
+    if (!sellerId) {
+      setMissing("seller");
+      (document.querySelector("#advpick button") as HTMLElement | null)?.focus();
+      return;
+    }
+    setMissing("");
     setBuying(true);
     setNote(null);
     try {
@@ -786,6 +896,16 @@ export default function ClientServices() {
 
   const showFamilies = !query && !cat;
   const showSubcats = !query && !!cat && !subcat;
+  // Service cards are on screen: search results, or a direction drilled into.
+  const svcScreen = !showFamilies && !showSubcats;
+  // The two direction screens share one filter row, so the size control counts
+  // against whichever of the two lists is actually rendered.
+  const dirRows = showSubcats ? subRows : famSubcats;
+  const dirCounts = useMemo(() => {
+    const c: Record<DirSize, number> = { all: dirRows.length, big: 0, mid: 0, small: 0 };
+    for (const r of dirRows) c[sizeOf(r.n)] += 1;
+    return c;
+  }, [dirRows]);
 
   return (
     <div className="mkt">
@@ -847,14 +967,6 @@ export default function ClientServices() {
             place the client is told what is inside before drilling further. */}
         {showSubcats && catRow?.description ? <p className="svcat__lead">{catRow.description}</p> : null}
 
-        {/* Reading any document in the catalog costs nothing — the charge is
-            for filling one in, and saying so up front is what gets people to
-            open one at all. */}
-        <p className="svfree" role="status">
-          <IconEye />
-          {t("freeToView")}
-        </p>
-
         <div className="svsel__bar">
           <span className="svsel__search">
             <IconSearch />
@@ -862,74 +974,111 @@ export default function ClientServices() {
           </span>
         </div>
 
-        {query ? (
-          <div className={`svfb${filtersOn ? " svfb--on" : ""}`}>
-            <div className="svfb__head">
-              <span className="svfb__title">
-                <IconList />
-                {t("filtersTitle")}
-                {activeFilters ? <em className="svfb__n">{activeFilters}</em> : null}
-              </span>
-              {filtersOn ? (
-                <button type="button" className="svfb__clear" onClick={() => { setDocFilter("all"); setPriceFilter("all"); }}>
-                  <IconClose />
-                  {t("filterClear")}
-                </button>
-              ) : null}
-            </div>
-            <div className="svfb__groups">
-              {/* One choice out of several is a radio group, not a row of
-                  independent toggles — aria-pressed announced four unrelated
-                  switches where there is exactly one answer. */}
-              <div className="svfb__g">
-                <span className="svfb__l" id="svfb-doc">{t("filterDoc")}</span>
-                <div className="svfb__opts" role="radiogroup" aria-labelledby="svfb-doc">
-                  {(["all", "template", "lawyer"] as DocFilter[]).map((v) => {
-                    const on = docFilter === v;
-                    const n = fCounts.doc[v];
-                    return (
-                      <button
-                        key={v}
-                        type="button"
-                        role="radio"
-                        aria-checked={on}
-                        className={`svfopt${on ? " on" : ""}${!n && !on ? " svfopt--empty" : ""}`}
-                        onClick={() => setDocFilter(v)}
-                      >
-                        <span className="svfopt__i">{v === "all" ? <IconGrid /> : v === "template" ? <IconFileText /> : <IconScale />}</span>
-                        <span className="svfopt__t">{t(v === "all" ? "filterAll" : v === "template" ? "filterHasDoc" : "filterNoDoc")}</span>
-                        <em className="svfopt__n">{n}</em>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="svfb__g">
-                <span className="svfb__l" id="svfb-price">{t("filterPrice")}</span>
-                <div className="svfb__opts" role="radiogroup" aria-labelledby="svfb-price">
-                  {(["all", "free", "quote", "paid"] as PriceFilter[]).map((v) => {
-                    const on = priceFilter === v;
-                    const n = fCounts.price[v];
-                    return (
-                      <button
-                        key={v}
-                        type="button"
-                        role="radio"
-                        aria-checked={on}
-                        className={`svfopt${on ? " on" : ""}${!n && !on ? " svfopt--empty" : ""}`}
-                        onClick={() => setPriceFilter(v)}
-                      >
-                        <span className="svfopt__i">{v === "all" ? <IconGrid /> : v === "free" ? <IconGift /> : v === "quote" ? <IconChatDots /> : <IconCard />}</span>
-                        <span className="svfopt__t">{t(v === "all" ? "filterAll" : v === "free" ? "filterFree" : v === "quote" ? "filterQuote" : "filterPaid")}</span>
-                        <em className="svfopt__n">{n}</em>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        {/* ── One filter row for every screen of the catalogue ──────────
+            The GM asked for two things that only work together: more filters
+            beside "Tartib", and the "Barcha hujjatlarni ko'rish bepul!" line
+            moved out of its own banner to the END of that row. There was no
+            single row to move it to before this — the sort select lived inside
+            the directions branch, a second and richer filter bar appeared only
+            while searching, and the free line was a full-width banner above the
+            search box (measured 41.8px tall on every screen, two lines at
+            400px). One row on every screen is what makes "at the end of the
+            filters" mean the same thing everywhere.
+            Which controls the row carries depends on what the screen can
+            honestly answer: the two direction screens hold no service rows on
+            purpose, so they filter on the one field GET /service-categories
+            returns that varies. */}
+        <div className="svfilt">
+          {svcScreen ? (
+            <>
+              <label className="svfilt__f">
+                <span>{t("filterDoc")}</span>
+                <Select
+                  value={docFilter}
+                  onChange={(v) => setDocFilter(pick(DOC_VALUES, v, "all"))}
+                  ariaLabel={t("filterDoc")}
+                  options={DOC_VALUES.map((v) => ({ value: v, label: `${t(DOC_LABEL[v])} · ${fCounts.doc[v]}` }))}
+                />
+              </label>
+              <label className="svfilt__f">
+                <span>{t("filterExec")}</span>
+                <Select
+                  value={execFilter}
+                  onChange={(v) => setExecFilter(pick(EXEC_VALUES, v, "all"))}
+                  ariaLabel={t("filterExec")}
+                  options={EXEC_VALUES.map((v) => ({ value: v, label: `${t(EXEC_LABEL[v])} · ${fCounts.exec[v]}` }))}
+                />
+              </label>
+              <label className="svfilt__f">
+                <span>{t("filterPrice")}</span>
+                <Select
+                  value={priceFilter}
+                  onChange={(v) => setPriceFilter(pick(PRICE_VALUES, v, "all"))}
+                  ariaLabel={t("filterPrice")}
+                  options={PRICE_VALUES.map((v) => ({ value: v, label: `${t(PRICE_LABEL[v])} · ${fCounts.price[v]}` }))}
+                />
+              </label>
+              <label className="svfilt__f">
+                <span>{t("sortLabel")}</span>
+                <Select
+                  value={svcSort}
+                  onChange={(v) => setSvcSort(pick(SVCSORT_VALUES, v, "rel"))}
+                  ariaLabel={t("sortLabel")}
+                  options={SVCSORT_VALUES.map((v) => ({ value: v, label: t(SVCSORT_LABEL[v]) }))}
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className="svfilt__f">
+                <span>{t("sortLabel")}</span>
+                <Select
+                  value={subSort}
+                  onChange={(v) => setSubSort(pick(SUBSORT_VALUES, v, "count"))}
+                  ariaLabel={t("sortLabel")}
+                  options={SUBSORT_VALUES.map((v) => ({ value: v, label: t(SUBSORT_LABEL[v]) }))}
+                />
+              </label>
+              <label className="svfilt__f">
+                <span>{t("filterSize")}</span>
+                <Select
+                  value={dirSize}
+                  onChange={(v) => setDirSize(pick(DIRSIZE_VALUES, v, "all"))}
+                  ariaLabel={t("filterSize")}
+                  options={DIRSIZE_VALUES.map((v) => ({ value: v, label: `${t(DIRSIZE_LABEL[v])} · ${dirCounts[v]}` }))}
+                />
+              </label>
+            </>
+          )}
+          {(svcScreen ? svcFiltersOn : dirFiltersOn) ? (
+            <button
+              type="button"
+              className="svfilt__clear"
+              onClick={() => {
+                if (svcScreen) {
+                  setDocFilter("all");
+                  setPriceFilter("all");
+                  setExecFilter("all");
+                  setSvcSort("rel");
+                } else {
+                  setDirSize("all");
+                  setSubSort("count");
+                }
+              }}
+            >
+              <IconClose />
+              {t("filterClear")}
+            </button>
+          ) : null}
+          {/* Reading any document in the catalogue costs nothing — the charge
+              is for filling one in, and saying so up front is what gets people
+              to open one at all. Same string and the same role="status" as the
+              banner it replaces; only the place and the paint changed. */}
+          <span className="svfilt__free" role="status">
+            <IconEye />
+            {t("freeToView")}
+          </span>
+        </div>
 
         {!showFamilies && !query ? (
           <button type="button" className="mkt__back" onClick={() => (subcat ? setSubcat("") : setCat(""))}>
@@ -1001,20 +1150,9 @@ export default function ClientServices() {
                 );
               })}
             </div>
-            <div className="svfilt">
-              <label className="svfilt__f">
-                <span>{t("sortLabel")}</span>
-                <Select
-                  value={subSort}
-                  onChange={(v) => setSubSort(v === "name" ? "name" : "count")}
-                  ariaLabel={t("sortLabel")}
-                  options={[
-                    { value: "count", label: t("sortByCount") },
-                    { value: "name", label: t("sortByName") },
-                  ]}
-                />
-              </label>
-            </div>
+            {/* The sort select that used to sit here is part of the one
+                filter row above now — it was the only control on the page
+                that a client could not find again after drilling in. */}
             {!flatSubcats.length ? (
               <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
             ) : (
@@ -1320,7 +1458,7 @@ export default function ClientServices() {
                       </button>
                     ))}
                   </div>
-                  <div className="advpick">
+                  <div id="advpick" className={`advpick${missing === "seller" ? " is-bad" : ""}`}>
                     {sortedSellers.filter((l) => l.userId).map((l) => {
                       const on = sellerId === l.userId;
                       const c = cands.get(l.userId);
@@ -1330,7 +1468,7 @@ export default function ClientServices() {
                           key={l.userId}
                           type="button"
                           className={`advpick__c${on ? " on" : ""}`}
-                          onClick={() => setSellerId(l.userId)}
+                          onClick={() => { setSellerId(l.userId); setMissing(""); }}
                         >
                           <span className="advpick__av">{initials(l.name || "A")}</span>
                           <span className="advpick__m">
@@ -1363,6 +1501,11 @@ export default function ClientServices() {
                   </div>
                 </>
               )}
+              {/* The red box alone would leave the press mute — it marks the
+                  list and moves focus into it, and the client is never told in
+                  words what was wrong. Same sentence-beside-the-control shape
+                  as DocumentLawyerAssist. */}
+              {missing === "seller" ? <p className="cform__bad" role="alert">{t("sellerRequired")}</p> : null}
             </div>
 
             {afterHours ? (
@@ -1371,7 +1514,11 @@ export default function ClientServices() {
               <p className="bhnote bhnote--ok" role="status"><IconClock />{t("respondBy", { when: respondBy })}</p>
             ) : null}
             {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-            <button className="btn btn--grad btn--full btn--lg" type="button" disabled={!sellerId || buying} onClick={buy}>
+            {/* Not disabled while the advocate is unpicked: buy() answers the
+                press instead — see `missing`. Only the in-flight request
+                disables it, which is the one state a second press would
+                actually break. */}
+            <button className="btn btn--grad btn--full btn--lg" type="button" disabled={buying} onClick={buy}>
               {buying ? t("buying") : t("buy")}
             </button>
             <p className="rf__hint">{t("orderNote")}</p>

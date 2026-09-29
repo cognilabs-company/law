@@ -9900,3 +9900,440 @@ html[data-theme="dark"] .docpend__ic--pay{animation-name:pgRingDark}
    needs nothing; these two are the light-only values used above. */
 html[data-theme="dark"] .dstart__opt:focus-visible { outline-color: var(--dk-acc, #6EA8FF); }
 html[data-theme="dark"] .dstart__opt--rec { border-color: var(--dk-bd-blue, #2C3D60); }
+
+/* ── wp-urgentmodal: the Tezkor advokat order form becomes a dialog ───────
+   The GM: "to'ldiradigan joy modalka ko'rinishida chiqishi kerak … modalka
+   dizayni yaxshiroq bo'lishi kerak."
+
+   What was wrong, measured on /uz/portal/client/urgent with a real client
+   session before this change (CDP, chat_consultation picked):
+
+     1440 x 1100 — picking a service put .ua__form at y=656.5 with a height of
+                   618.5px, so 443.5px of it (71.7%) was on screen and the
+                   submit button sat at y=1205.9, 106px below the fold.
+      400 x 860  — the same press put the panel at y=1554.7, height 911.1px,
+                   with 0px visible (0.0%) and the button at y=2378. scrollY
+                   stayed 0, so on a phone the tap changed nothing the client
+                   could see at all.
+
+   A dialog puts the whole order inside the viewport on every press. The rules
+   below are all scoped through :has(.uastep) / :has(.uaform) or .uaform so
+   that the twenty other callers of components/admin/Modal.tsx keep the modal
+   they have — Modal takes no className, and :has() is how this file reaches
+   the dialog chrome without touching that component. The repo already ships
+   :has() in anger (body:has(.schat), .docbuild--full:has(.cform--doc)).
+
+   .uastep is on BOTH steps of the order dialog and .uaform on the second
+   only. Anything about the box itself — its width, where it sits, how it
+   arrives — hangs off .uastep, so the box does not change shape underneath
+   the client when step one hands over to step two. Anything about the form's
+   own three-band layout hangs off .uaform. */
+
+/* ── Shape: header, scrolling middle, pinned footer ──────────────────────
+   .amodal__c is max-height:90vh with overflow-y:auto, which would scroll the
+   header and the price away together with the fields. Turning the panel into
+   a flex column and moving the scroll one level in gives three bands: the
+   title stays, the questions scroll, the total and the send never move. The
+   kind step has no footer and keeps the base overflow-y:auto, so a longer
+   list of kinds than today's two still scrolls.
+   640px rather than the default 560: the form carries a seven-chip
+   multi-select whose labels total 944.6px of max-content, and 560 minus 44px
+   of padding wrapped them into four rows. */
+.amodal__c:has(.uastep){width:min(640px,100%)}
+.amodal__c:has(.uaform){display:flex;flex-direction:column;overflow:hidden}
+.amodal__b:has(.uaform){flex:1;min-height:0;padding:0;display:flex;flex-direction:column}
+.uaform{display:flex;flex-direction:column;flex:1;min-height:0}
+
+/* .cform's own max-width:560px and its implicit grid column both have to go.
+   The column is the one that matters: a grid with no explicit track sizes it
+   to its widest child, and the chip row's 944.6px of max-content is what made
+   the in-page panel overflow by 188px at 820 and 597px at 400 until it was
+   fixed last night. The same single minmax(0,1fr) track is re-established
+   here, because the fix lived on .ua__form and .ua__form no longer exists. */
+.uaform__body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  max-width:none;grid-template-columns:minmax(0,1fr);align-content:start;
+  padding:16px 22px 20px}
+.uaform__back{justify-self:start}
+.uaform__lead{margin:0;font-size:.86rem;line-height:1.5;color:var(--gray)}
+
+.uaform__foot{flex:none;display:flex;align-items:center;gap:14px;
+  padding:14px 22px;border-top:1px solid var(--line);
+  background:var(--dk-surface, #fff)}
+.uaform__price{display:flex;flex-direction:column;gap:2px;min-width:0}
+.uaform__price span{font-size:.74rem;font-weight:700;letter-spacing:.03em;
+  text-transform:uppercase;color:var(--gray2)}
+.uaform__price b{font-family:var(--fd);font-size:1.18rem;line-height:1.2;white-space:nowrap;color:var(--ink)}
+.uaform__send{margin-left:auto;flex:0 1 auto;min-width:0}
+
+/* ── The practice-area chips ─────────────────────────────────────────────
+   At 400 the wrapped chip row measured 213.3px — 23.4% of the whole 911.1px
+   form, the single largest block in it. Trimming the pill padding and the
+   type one step gets the seven areas into fewer rows while they stay 33px
+   tall. .chiprow's negative margin-inline is cancelled outright rather than
+   left to .pbody, an ancestor the dialog only happens to sit inside today. */
+.uaform__chips{margin:6px 0 0;padding:7px 9px;gap:7px;flex-wrap:wrap;overflow:visible;
+  border-radius:15px;background:transparent;
+  /* Transparent until it is not: the border is always 1.5px, so the group
+     turning red costs no layout. The colour itself comes from the existing
+     global .is-bad rule, which sets border-color and nothing else — this is
+     the border it had nothing to paint. */
+  border:1.5px solid transparent;
+  transition:background .2s,border-color .2s}
+.uaform__chips .fchip{padding:8px 13px;font-size:.82rem}
+.uaform__chips:focus-visible{outline:3px solid var(--b400);outline-offset:2px}
+/* submit() focuses this group at the same moment it marks it, so the two
+   rings are drawn together: at 400 the blue focus outline sat 2px outside the
+   red border and the pair read as neither. Focus keeps its ring — a keyboard
+   user still needs to see where it went — but in the colour of the thing the
+   group is currently saying. */
+.uaform__chips.is-bad:focus-visible{outline-color:var(--dk-txt-err, #DC2626)}
+/* Borrowed, not redefined: the one-shot shake the consent gate already uses
+   (wp-cbxbad's cbxShake). One press, one vocabulary for "fill this in". */
+.uaform__chips.is-bad{background:var(--dk-tint-err, #FDECEC);animation:cbxShake .42s ease both}
+
+/* ── The kind switch, narrow ─────────────────────────────────────────────
+   Same defect as the chip row, in the other control: .segs is width:max-content
+   with overflow-x:auto and scrollbar-width:none, and the second-opinion
+   switch needs 546px for "Ikkinchi fikr — yakka advokat" beside "Ikkinchi
+   fikr — advokatlar guruhi". Measured in the dialog at 400: scrollWidth 546
+   against clientWidth 368, an overflow of 178px, with the SELECTED segment's
+   right edge at 558.4 against the row's 368 — the kind the client had just
+   chosen was the half hanging off the end, and the hidden scrollbar meant
+   nothing said so. Below 660 the body is narrower than those 546px (at a
+   660px viewport the dialog is 620 and the body 576, the last width that
+   fits), so there the row wraps: each segment may shrink and its label may
+   break, and a segment that ends up alone on its line grows to fill it.
+   Video / Chat needs 186px and simply becomes a full-width two-up switch. */
+@media (max-width:660px){
+  .uaform__body .segs{width:100%;flex-wrap:wrap;overflow:visible}
+  .uaform__body .seg{flex:1 1 auto;min-width:0;white-space:normal;text-align:center}
+}
+
+/* ── Making the house .is-bad marking actually visible ───────────────────
+   Measured: adding .is-bad to #ua-need gives border-top-color
+   rgb(220,38,38) — and border-top-width 0px, border-top-style none, with the
+   box-shadow still rgb(228,235,245) 0 0 0 1.5px inset. .cform input and
+   .cform textarea are border:0 and draw their ring with an inset box-shadow,
+   so the global border-color rule paints a border that is not there and the
+   field looks exactly as it did. (The same is true of the shipped instance in
+   components/portal/DocumentLawyerAssist.tsx — reported to the lead.) The
+   ring is what the eye reads on these fields, so the ring is what turns red.
+   Written at two classes so it also beats .cform textarea:focus, which fires
+   immediately: submit() focuses the field it is complaining about. */
+.uaform .is-bad{box-shadow:inset 0 0 0 1.6px var(--dk-txt-err, #DC2626)}
+.uaform .is-bad:focus{box-shadow:inset 0 0 0 1.6px var(--dk-txt-err, #DC2626)}
+/* .cform__bad is a flex line and carries no svg rule of its own; the glyph is
+   sized here rather than there so the shared class keeps its declarations. */
+.uaform .cform__bad{margin-top:6px}
+.uaform .cform__bad svg{width:14px;height:14px;flex:none}
+
+/* ── The entrance ────────────────────────────────────────────────────────
+   .amodal__c's own pop is 12px over .22s and the scrim's fade .2s, so scrim
+   and panel start and stop together and the result reads as a flash. This one
+   is a single continuous rise: 22px over .38s on an expo-out curve that
+   covers two thirds of the distance in the first third of the time and then
+   settles, with the scrim given a little longer so the panel is never ahead
+   of its own backdrop. Higher specificity than the base rule, so it wins —
+   but NOT !important, which is deliberate: the reduced-motion block at
+   globals.css:5991 is .amodal__c,.amodal{animation:none!important}, so a
+   reader who has asked for less motion still overrides everything here for
+   free. */
+.amodal:has(.uastep){animation:uaScrim .34s ease both}
+.amodal__c:has(.uastep){animation:uaRise .38s cubic-bezier(.16,1,.3,1) both}
+@keyframes uaScrim{from{opacity:0}to{opacity:1}}
+@keyframes uaRise{from{opacity:0;transform:translateY(22px) scale(.975)}to{opacity:1;transform:none}}
+
+/* Step one to step two inside the standing dialog. The panel's height changes
+   under it, so the content fades up rather than sliding sideways — a lateral
+   move next to a vertical resize reads as two things happening at once. */
+.uastep{animation:uaStep .24s cubic-bezier(.2,.8,.2,1) both}
+@keyframes uaStep{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+
+/* ── Phone: a bottom sheet ───────────────────────────────────────────────
+   At 400x860 the centred dialog has 20px of scrim above and below and caps at
+   90vh = 774px, which spends 86px of a screen the form is already too tall
+   for. Docked to the bottom edge it gets those pixels back, the thumb reaches
+   the send button without a stretch, and the gesture it arrives with — up
+   from the edge it is docked to — is the one a phone dialog should have. 44px
+   of scrim is left at the top so tap-to-dismiss still has somewhere to land.
+   dvh where it is understood, vh first for anything that is not. Docked off
+   .uastep, not .uaform: the kind step used to stay centred while the form
+   docked, so choosing a kind slid the whole box down the screen — two boxes
+   again, which is the thing this workpackage set out to stop. */
+@media (max-width:560px){
+  .amodal:has(.uastep){padding:0;align-items:end}
+  .amodal__c:has(.uastep){width:100%;border-radius:22px 22px 0 0;
+    max-height:calc(100vh - 44px);max-height:calc(100dvh - 44px)}
+  .amodal__c:has(.uastep){animation-name:uaSheet}
+  @keyframes uaSheet{from{opacity:.4;transform:translateY(100%)}to{opacity:1;transform:none}}
+  /* The header's 22px side padding against the body's 16px read as an indent
+     on a 400px sheet; they line up now. */
+  .amodal__c:has(.uastep) .amodal__h{padding:16px}
+  .amodal__b:has(.uakind){padding:16px}
+  .uaform__body{padding:14px 16px 18px}
+  /* Stacked, not squeezed: side by side at 400 the button had 168px left and
+     "So'rov yuborish" broke onto two lines inside it. */
+  .uaform__foot{padding:12px 16px;gap:10px;flex-direction:column;align-items:stretch}
+  .uaform__price{flex-direction:row;align-items:baseline;justify-content:space-between;gap:10px}
+  .uaform__send{margin-left:0;width:100%}
+}
+
+@media (prefers-reduced-motion:reduce){
+  /* The dialog entrance is already neutralised by globals.css:5991, which is
+     !important; these two are the ones this file added on its own. */
+  .uastep{animation:none}
+  .uaform__chips.is-bad{animation:none}
+  .uaform__chips{transition:none}
+}
+
+/* ── wp-svccards: the service card's button floor, the catalogue's one filter
+      row, and the free-to-view line that now lives at the end of it ──────────
+   Three complaints from the same screen, "Huquqiy hujjatlar". Every number
+   below was taken off the running app at 1920 / 1440 / 820 / 400 before the
+   rule that moves it was written. Appended last on purpose: most of it wins
+   only by coming after the rule it replaces. */
+
+/* ── The four actions had no standard place ──────────────────────────
+   Measured at 1440 before this block, over the 280 cards of the biggest
+   direction: 55 of 56 grid rows had their action blocks at DIFFERENT
+   distances from the card's own bottom edge — five distinct offsets
+   (17 / 40 / 63.1 / 86.1 / 109.2px), a 92.2px spread, and 98.3px at 1920 over
+   nine distinct offsets. The cards in a row were already exactly the same
+   height (measured spread 0px), so what floated was the buttons, not the
+   cards: .svc__acts{margin-top:0} glues them straight under the title, and the
+   title ran 46.1px to 138.3px because it is a whole DOCX filename wrapped to
+   between two and six lines.
+   Both earlier attempts fixed one half and broke the other. margin-top:auto
+   alone pinned the buttons to the floor but left a measured 219px hole under a
+   one-line title; margin-top:0 closed the hole and produced what the GM is
+   looking at now. So do both: pin the actions to the floor AND stop the space
+   above them depending on how long the title is, by giving the title a box of
+   its own that is the same on every card. */
+.svsel__grid--svc{align-items:stretch}
+.svc__acts{margin-top:auto}
+/* Five lines, reserved whether the title fills them or not. Line-height 1.35
+   is this stylesheet's own card-title value (.svfam__t b), and it buys a line:
+   at 23.05px per line a six-line clamp stood 138.3px tall, at 1.35 five lines
+   are 100.4px. Five and not six because a sixth costs 20px of dead space on
+   every card in the grid to complete 11% more titles; five and not four
+   because at the real column width (231px at 1440) five lines carry about 150
+   characters, which is the whole of the long conveyance title the GM points at
+   as the card that reads right. 161 of 280 titles are complete in five lines;
+   the rest keep the full name on the element's title attribute, and every
+   button on the card opens a page that shows it in full. */
+.svc__t{min-height:calc(5 * 1.35 * 0.93rem)}
+.svc__t b{line-height:1.35;-webkit-line-clamp:5}
+@media (max-width:560px){
+  /* One card per row here (the grid resolves to a single 328px column at
+     400px), so nothing needs aligning with anything and a reserved box would
+     only cost the scarcest thing a phone has. Measured at 400: 39 titles fit
+     one line and 110 fit two, so two lines is the reserve, and the clamp goes
+     back to six because at this width only 4 of 280 titles reach it. */
+  .svc__t{min-height:calc(2 * 1.35 * 0.93rem)}
+  .svc__t b{-webkit-line-clamp:6}
+}
+
+/* ── One filter row, on every screen ─────────────────────────────────
+   It used to be three separate things: a sort select that existed only on the
+   directions screen, a richer filter bar that existed only while searching,
+   and no filters at all inside a direction. The row is now rendered once,
+   above the results, on all of them — which is also the only way the
+   free-to-view line can be "at the end of the filters" everywhere.
+   Four labelled selects have to fit beside a clear button and that line.
+   Stacked label over control is the layout that makes that possible: measured
+   side by side, one field wants about 220px and four of them plus the line
+   overflow the 1084.7px container at 1440. */
+.svfilt{align-items:flex-end;gap:10px 12px;margin-bottom:12px}
+.svfilt__f{flex:1 1 150px;min-width:0;flex-direction:column;align-items:stretch;gap:5px}
+.svfilt__f>span{flex:none;font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--gray2)}
+.svfilt__clear{flex:none;align-self:flex-end}
+
+/* ── "Barcha hujjatlarni ko'rish bepul!" ─────────────────────────────
+   It was a full-width green banner of its own above the search box: 41.8px
+   tall on every screen, 1084.7px wide at 1440 for 33 characters, and two lines
+   at 400px. The GM wanted it beside the filters and loud, so it is a pill in
+   the house brand gradient at the end of the row, pushed right by margin-left
+   and kept on one line — measured 275px against the 328px available at 400px,
+   which is why nowrap is safe there.
+   The sheen is the same shape as this stylesheet's own button shimmer
+   (.btn--grad::before): a skewed white band behind the text (z-index:-1 under
+   isolation, so it never washes out the label), only on a timer instead of on
+   hover, because nothing hovers a label. */
+.svfilt__free{position:relative;display:inline-flex;align-items:center;gap:7px;
+  margin-left:auto;max-width:100%;padding:9px 15px;border-radius:var(--pill);
+  overflow:hidden;isolation:isolate;white-space:nowrap;
+  font-size:.85rem;font-weight:800;line-height:1.25;letter-spacing:.01em;
+  color:#fff;background:var(--grad);box-shadow:var(--sblue)}
+.svfilt__free svg{width:16px;height:16px;flex:none}
+.svfilt__free::before{content:"";position:absolute;top:-40%;bottom:-40%;width:38%;left:-70%;z-index:-1;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-22deg);
+  animation:svfreeSheen 4.2s cubic-bezier(.3,.9,.4,1) infinite}
+@keyframes svfreeSheen{0%{left:-70%}38%{left:130%}100%{left:130%}}
+@media (prefers-reduced-motion: reduce){
+  .svfilt__free::before{animation:none;left:-70%}
+}
+
+@media (max-width:620px){
+  /* Two fields to a row, not one. Measured at 400px: one field per row made
+     the whole strip 358.4px tall on the search screen — a third of the
+     viewport spent on chrome before a card appears — where two bring it under
+     200px. The cost is that a long chosen option ellipsizes in a 158px
+     control ("Tayyor hujjat bor · 81" wants 139px of text against 126px of
+     room); the field's own label above it still says what it filters, and the
+     menu shows every option in full. The default "Barchasi · N" fits. */
+  .svfilt__f{flex:1 1 132px}
+  .svfilt .dsel__btn{font-size:.88rem;min-height:44px;padding:10px 11px 10px 13px}
+  .svfilt__free{flex:1 1 100%;margin-left:0;justify-content:center}
+}
+
+/* ── The order form's one required field says so ─────────────────────
+   "Buyurtma berish" used to carry disabled={!sellerId}: a client who had not
+   picked an advocate pressed a dead button and got no answer. The page uses
+   the house gate now (the wp-cbxbad vocabulary: .is-bad on the control, a
+   .cform__bad sentence beside it, focus moved into it), and this is the one
+   thing that vocabulary needs here and nowhere else — the advocate list is
+   the control, and .advpick is a bare flex column with no border of its own
+   (globals.css:3334) for the shared rule's border-color to paint. Giving it a
+   transparent box is what makes the same red land on the same place it lands
+   on every input. One pulse, not a loop, exactly as the checkbox gate does. */
+.advpick.is-bad{border:1.5px solid transparent;border-radius:16px;padding:8px;animation:cbxShake .42s ease both}
+@media (prefers-reduced-motion:reduce){
+  .advpick.is-bad{animation:none}
+}
+
+html[data-theme="dark"] .svfilt__free{box-shadow:0 12px 28px -16px rgba(22,104,240,.95)}
+
+/* ── wp-docprotect: the on-screen document is a view, not a copy ──────────
+   The GM asked that an opened document not be obtainable "by any means".
+   A browser cannot deliver that — it drew the page, so it can always hand it
+   back — and components/portal/DocTemplateViewer.tsx says so at length in its
+   header. What these rules do is the achievable half: make casual copying
+   come back empty, and make a deliberate capture carry the name of whoever
+   made it. Same two-layer shape as the wp-mtgguard block above, adapted from
+   a video stage of known size to a sheet that is as tall as the filing. */
+
+/* Layer 1 — nothing on the document surface is selectable, so a drag, a
+   double-click, a long-press on a phone and Ctrl+A all come back with an
+   empty string, and the clipboard handlers in the component have almost
+   nothing left to refuse. Only the scrolling pane that holds the sheet wears
+   this: the page around it, the download button and every form field on the
+   site keep normal selection, because what a client typed is the client's. */
+.docguard__paper{-webkit-user-select:none;-moz-user-select:none;user-select:none;-webkit-touch-callout:none}
+/* Belt and braces for the one path user-select does not cover on its own: a
+   selection started outside the sheet and dragged across it still paints a
+   highlight in some builds, which looks as if text had been taken. */
+.docguard__paper ::selection{background:transparent}
+.docguard__paper ::-moz-selection{background:transparent}
+
+/* Layer 2 — the watermark. The tile itself is an SVG data URI built in the
+   component (it carries the viewer's name, phone tail and the date), so the
+   only thing style has to do is repeat it over the whole sheet and keep it
+   out of the way of the pointer. It sits above the text rather than behind
+   it: at 8.5% ink it does not interfere with reading, and behind the text it
+   would be erased by the paragraphs it is meant to mark.
+   Deliberately no dark-mode variant: .docpaper__sheet is white paper in both
+   themes (see its own rule above, background:#fff), so a second palette here
+   would be a colour nobody ever sees. */
+.docguard__wm{position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:inherit;
+  background-repeat:repeat;background-position:0 0}
+@media print{.docguard__wm{display:none}}
+
+/* The one quiet line that says why copying does nothing. Matched to
+   .docview__hint deliberately — on the full-page viewer the two sit one under
+   the other and have to read as one note, not as a hint plus a warning. */
+.docguard__note{display:flex;align-items:center;gap:6px;margin:0 0 10px;
+  color:var(--gray);font-size:.8rem;line-height:1.5}
+.docguard__note svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:2}
+/* The moment a press is actually refused the same line turns into the answer,
+   in the danger colour, with the house's one-shot shake (cbxShake, defined in
+   the wp-cbxbad block) — one pulse to catch the eye, then quiet, exactly as
+   the required-field marker behaves. It stops asking for attention after
+   2.6s, when the component swaps the sentence back. */
+.docguard__note--hit{color:var(--dk-txt-err, #B91C1C);font-weight:600;animation:cbxShake .42s ease both}
+@media (prefers-reduced-motion:reduce){.docguard__note--hit{animation:none}}
+
+/* Print, whether from Ctrl+P, the browser menu or "save as PDF": the sheet is
+   replaced by a line explaining where the real file comes from. The keyboard
+   guard cannot cover the menu route, so the paper itself has to refuse. */
+.docguard__printnote{display:none}
+@media print{
+  .docguard__paper{display:none !important}
+  .docguard__note{display:none !important}
+  .docguard__printnote{display:block;margin:24px 0;font-size:.95rem;line-height:1.6;color:#14213d}
+}
+
+html[data-theme="dark"]{
+  /* The refusal line is the only guard element that takes page colours; the
+     token it uses is already lifted for dark by the wp-cbxbad block, and this
+     restates it so the block stands on its own if that one ever moves. */
+  --dk-txt-err:#FF8A8A;
+}
+
+/* ── wp-forms: a refused press that points at something ───────────────
+   GM 2026-09-29: "qaysidir ma'lumotni turini to'ldirmasdan so'rov yuborishni
+   bosa, to'ldirilmagan joyi qizilda ya'ni ogohlantirish sifatida chiqishi
+   kerak." The vocabulary for that already exists in wp-cbxbad (the is-bad
+   border, the cform__bad sentence, the cbx--bad tick and its one-shot shake)
+   and is reused verbatim by the three order forms — nothing here redefines
+   any of it and nothing here adds a second shake, so the reduced-motion rule
+   wp-cbxbad already carries stays the only one this vocabulary needs. What
+   follows is the one layout rule the document-type move needs, and the three
+   places the existing marking had nothing to say. */
+
+/* 1. The document type moved to the top of the advocate-assist form, and
+   DocTypePicker renders NOTHING when the backend does not offer the field
+   (getRequestedDocumentTypes missing, or docTypeApplies saying no for this
+   flow). Its section then has no child nodes at all, and .docassist__sec is a
+   filled card: 18px 18px 20px of padding on a #F7F9FC ground. Measured on the
+   live advocate-assist form 2026-09-29 with the picker emptied — the card is
+   38px tall without this rule and 0 with it, taking the form from 900px to
+   844px. At the bottom of the form that was a stray grey strip nobody looked
+   at; as the first thing under the heading it reads as a broken field.
+   Collapsing it is what makes "first" degrade cleanly to "absent".
+   :empty is exact here — JSX strips the whitespace-only lines around a child
+   component, so a section whose only child returned null has no text node
+   either. It also fixes the same strip in the old position for anyone still
+   on a backend without the field. */
+.docassist__sec:empty{display:none}
+
+/* 2. The page-count box is the only field on these forms whose value changes
+   the price, and the only one that could be wrong rather than merely empty.
+   Its hint line doubles as the error text (1…500), so when the box is marked
+   the sentence under it has to leave the muted grey it shares with every
+   other hint and join the box in the danger colour — otherwise the red border
+   is the only signal and the words explaining it read as ordinary help. */
+.pgask__h--bad{color:var(--dk-txt-err, #B91C1C)}
+
+/* 2b. The mark and the focus ring were fighting, and the ring was winning at
+   the exact moment the mark matters. wp-cbxbad paints the marked border with
+   border-color !important, but .cform draws focus as an INSET 1.5px box-shadow
+   in --b400 — a different property, so no amount of !important on the border
+   touches it. Every gate in these three forms ends by focusing the control it
+   marked, so the client's first sight of a refused press was a normal blue
+   focused field with a red hint under it. Measured on the live review box:
+   the focused marked input reported border rgb(220,38,38) and ring
+   rgb(92,168,255), the ring drawn inside the border and therefore on top of
+   it; with this rule both read rgb(220,38,38) in light and rgb(255,138,138)
+   in dark. Same ring, danger colour, only while marked. */
+.cform .is-bad:focus{box-shadow:inset 0 0 0 1.5px var(--dk-txt-err, #DC2626)}
+
+/* 3. The "Hujjatni yuklang" picker on Hujjatimni tekshirtirish is a <button>
+   with a 1.5px DASHED border, so the plain is-bad border-color swap is much
+   quieter on it than on a solid input: a dashed line is roughly half ink, and
+   at 400px wide the red reads as a tint rather than as an alarm. A wash
+   behind it restores the weight without changing the control's size — the
+   border width, radius and padding are untouched, so nothing reflows when the
+   mark appears or clears. The hover rule needs no override: wp-cbxbad's
+   is-bad border-color carries !important, so .docpick:hover cannot paint it
+   blue again while the client is reaching for it. The icon tile joins in
+   because at 400px it is the largest coloured object in the row and a blue
+   one beside a red border reads as two states at once. */
+.docpick.is-bad{background:var(--dk-bad-wash, #FEF2F2)}
+.docpick.is-bad .docpick__i{background:var(--dk-bad-wash, #FEF2F2);color:var(--dk-txt-err, #DC2626)}
+
+html[data-theme="dark"]{
+  /* Same hue as --dk-txt-err's dark value, at the opacity the house uses for
+     a tint behind text (matching the --b50-style washes elsewhere): a solid
+     #FEF2F2 on a dark card would be a white block. */
+  --dk-bad-wash:rgba(255, 138, 138, .12);
+}

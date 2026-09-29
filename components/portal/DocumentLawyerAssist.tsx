@@ -12,7 +12,7 @@ import {
 } from "@/lib/services/backend";
 import { ApiError, isConflict, isPaymentRequired, logApiError, errDetail } from "@/lib/http";
 import { Notice } from "@/components/admin/AdminBits";
-import DocumentRequestPanel, { DocPagesField } from "./DocumentRequestPanel";
+import DocumentRequestPanel, { DocPagesField, readDocPages } from "./DocumentRequestPanel";
 import DocTemplateViewer from "./DocTemplateViewer";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import AttachmentPicker, { type VoiceNoteItem } from "./AttachmentPicker";
@@ -86,8 +86,10 @@ export default function DocumentLawyerAssist({
   // gate, not a stored record.
   const [consent, setConsent] = useState(false);
   // Set by a press that could not go through, cleared the moment the client
-  // fixes what it pointed at.
-  const [missing, setMissing] = useState<"" | "need" | "consent">("");
+  // fixes what it pointed at. "pages" joined it on 2026-09-29: the page box
+  // paints anything over 500 red, but the send used to drop such a value
+  // without a word and quote the advocate a different document.
+  const [missing, setMissing] = useState<"" | "need" | "pages" | "consent">("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   // The whole answer, not only the request row: past the free allowance the
@@ -119,6 +121,13 @@ export default function DocumentLawyerAssist({
       document.getElementById("lawyer-need")?.focus();
       return;
     }
+    // Walked in the order the fields are read, so the first thing the client
+    // is sent back to is the highest one on the screen that is wrong.
+    if (readDocPages(pages).bad) {
+      setMissing("pages");
+      document.getElementById("lawyer-pages")?.focus();
+      return;
+    }
     if (!consent) {
       setMissing("consent");
       document.getElementById("lawyer-consent")?.focus();
@@ -136,14 +145,13 @@ export default function DocumentLawyerAssist({
         (files.length || voices.length) && serviceId
           ? (b: LawyerRequestBody) => requestServiceDocumentLawyerWithFilesGated(serviceId, { ...b, files, voiceFiles: voices.map((v) => v.blob) })
           : (b: LawyerRequestBody) => requestServiceDocumentLawyerGated(lawyerFlow.requestUrl, b);
-      const n = Number(pages);
       const r = await send({
         // MD §1 and §2: page_count is optional on both of these endpoints.
         // It goes only when the client answered the field, which only
         // appears when they attached something for the advocate to read —
         // this form's own flow is "write me this document", where there is
         // no document yet and therefore no honest page count to send.
-        pageCount: files.length && pages && Number.isInteger(n) && n > 0 ? n : undefined,
+        pageCount: files.length ? readDocPages(pages).count : undefined,
         need: note.trim() ? `${need.trim()}\n\n${t("lawyerNoteLabel")}: ${note.trim()}` : need.trim(),
         // The consent the client just gave is recorded with the request, not
         // only enforced in the browser. Neither document-lawyer endpoint has a
@@ -248,6 +256,28 @@ export default function DocumentLawyerAssist({
         </div>
       </div>
 
+      {/* GM 2026-09-29: "agar Hujjat turi mavjud bo'lsa, u hujjat turi
+          1-chida turishi shart." It used to sit in its own card below the
+          language select, four fields down — so the advocate's first question
+          ("what am I being asked to write?") was the client's last. It is
+          also the cheapest field on the form to answer, which makes it the
+          right one to open with. Nothing but the order changed: measured on
+          the live form 2026-09-29, the card is 1008px tall either way and
+          every child keeps its height (34 / 68 / 146 / 520 / 113 / 49) — the
+          146px document-type section and the 520px request-text section
+          simply trade places, at 199px and 363px instead of 737px and 199px.
+
+          Which kind of document is being asked for — read by the advocate
+          before they open anything. Optional; the picker hides itself on a
+          backend that does not offer the field (docTypeApplies /
+          getRequestedDocumentTypes both have to say yes), and then this
+          section has no child nodes at all and wp-forms' `.docassist__sec:empty`
+          rule collapses it, so "first" degrades to "absent" rather than to an
+          empty grey card above the request text. */}
+      <section className="docassist__sec">
+        <DocTypePicker flow="template_lawyer_assisted" value={docType} onChange={setDocType} />
+      </section>
+
       <section className="docassist__sec">
         <div className="docassist__sech">
           <label htmlFor="lawyer-need">{t("lawyerNeedLabel")}</label>
@@ -269,6 +299,11 @@ export default function DocumentLawyerAssist({
           aria-invalid={missing === "need" || undefined}
           className={missing === "need" ? "is-bad" : undefined}
         />
+        {/* The red border alone left the press mute: it marked the box and
+            moved focus into it, and the client was never told in words what
+            was wrong — while the consent tick two cards down has had a
+            sentence since it was written. One vocabulary for both. */}
+        {missing === "need" ? <p className="cform__bad" role="alert">{t("lawyerNeedRequired")}</p> : null}
 
         {/* The marginTop:10 that used to sit inline on each of the labels
             below is gone: label→control and group→group were then the same
@@ -288,7 +323,17 @@ export default function DocumentLawyerAssist({
             past the free allowance the advocate's reading of it is charged
             (MD §"Narx qoidasi"), and MD L121-127 wants that price on screen
             before the send rather than arriving as a Telegram message. */}
-        {files.length ? <DocPagesField value={pages} onChange={setPages} /> : null}
+        {/* No `cform__bad` sentence beside it: DocPagesField's own hint line
+            already turns into the error and carries role="alert", so a second
+            copy would say the same thing twice. */}
+        {files.length ? (
+          <DocPagesField
+            id="lawyer-pages"
+            value={pages}
+            onChange={(v) => { setPages(v); setMissing((m) => (m === "pages" ? "" : m)); }}
+            invalid={missing === "pages"}
+          />
+        ) : null}
 
         <label>{t("langLabel")}</label>
         <Select
@@ -297,13 +342,6 @@ export default function DocumentLawyerAssist({
           options={docLangOptions(lang).map((o) => ({ value: o.value, label: o.key ? t(o.key) : o.value }))}
           ariaLabel={t("langLabel")}
         />
-      </section>
-
-      {/* Which kind of document is being asked for — read by the advocate
-          before they open anything. Optional; the picker hides itself on a
-          backend that does not offer the field. */}
-      <section className="docassist__sec">
-        <DocTypePicker flow="template_lawyer_assisted" value={docType} onChange={setDocType} />
       </section>
 
       {/* Its own card between the fields and the send button: it is a gate on
@@ -328,10 +366,11 @@ export default function DocumentLawyerAssist({
 
       {/* This is literally the "ariza berish" the clock was asked for: the
           document, the attachments and the voice notes all leave here for the
-          Navbatchi advokat in one multipart POST, which is the longest of the
-          three waits it marks. The other two thirds of `disabled` are an
-          unfilled form and an unticked consent — neither is processing
-          anything, so neither gets the clock. */}
+          Navbatchi advokat in one multipart POST, which is the longest wait
+          this screen has. `disabled` is `busy` and nothing else — an unfilled
+          request text, a bad page count and an unticked consent all let the
+          press through and are answered by the marks above, because a
+          disabled button that is pressed says nothing at all. */}
       {missing === "consent" ? <p className="cform__bad" role="alert">{t("consentRequired")}</p> : null}
 
       <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy} aria-busy={busy || undefined}>

@@ -12,6 +12,11 @@ import ManualDocPlanGate from "./ManualDocPlanGate";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import { ApiError, errDetail } from "@/lib/http";
+// The preview guard lives next to the other viewer rather than in a file of
+// its own so there is exactly one implementation of it: both screens render
+// the same sheet from the same DOCX pipeline, and two copies of a security
+// rule is how one of them quietly stops matching the other.
+import { DocGuardNote, DocPrintNotice, DocWatermark, useDocGuard } from "./DocTemplateViewer";
 import { IconChevronLeft, IconEye, IconLock } from "@/components/icons";
 
 // A dedicated full page for "Hujjatni ko'rish" on the services catalog — the
@@ -21,6 +26,11 @@ import { IconChevronLeft, IconEye, IconLock } from "@/components/icons";
 // downloading a real document still costs money; looking at a blank sample
 // doesn't, so this exists purely to show what the service produces before a
 // client commits to it.
+//
+// Because nothing on this page hands the file over, it is the screen the
+// preview guard matters most on: the only way off it is to copy what is
+// drawn. See DocTemplateViewer's header comment for what that guard can and
+// cannot honestly do.
 export default function ServiceDocumentView({ serviceId }: { serviceId: string }) {
   const t = useTranslations("portal.client.services");
   const td = useTranslations("portal.client.documents");
@@ -31,6 +41,9 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [planRequired, setPlanRequired] = useState("");
   const [planGateOpen, setPlanGateOpen] = useState(false);
+  // Only while a document is actually on screen: the plan gate below is a
+  // form, and swallowing Ctrl+A there would break choosing a tariff.
+  const guard = useDocGuard(status === "ready");
 
   useEffect(() => {
     let alive = true;
@@ -109,9 +122,14 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
             <IconEye />
             {t("docViewHint")}
           </p>
-          <div className="docpaper__scroll" style={{ maxHeight: "none" }}>
-            <article className="docpaper__sheet docpaper__sheet--doc">{tree ? renderDocTree(tree) : null}</article>
+          <DocGuardNote blocked={guard.blocked} />
+          <div className="docpaper__scroll docguard__paper" style={{ maxHeight: "none" }} {...guard.surface}>
+            <article className="docpaper__sheet docpaper__sheet--doc">
+              <DocWatermark style={guard.wm} />
+              {tree ? renderDocTree(tree) : null}
+            </article>
           </div>
+          <DocPrintNotice />
         </>
       )}
     </div>

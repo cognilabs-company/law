@@ -2559,6 +2559,7 @@
         "label": "Kind of document"
       },
       "urgent": {
+        "backToKinds": "Choose another type",
         "rateClosedText": "The 15 minutes are up, so this work can no longer be rated.",
         "rateClosedTitle": "The rating window has closed",
         "rateLeft": "{time} left",
@@ -3307,6 +3308,22 @@
         "servicesSub": "Document templates and lawyers"
       },
       "services": {
+        "sellerRequired": "Choose an advocate first",
+        "sizeSmall": "Small (1–4)",
+        "sizeMid": "Medium (5–19)",
+        "sizeBig": "Large (20+ services)",
+        "filterSize": "Direction size",
+        "sortByCountAsc": "Fewest services first",
+        "sortDocFirst": "Ready documents first",
+        "sortCheapFirst": "Cheapest first",
+        "sortRelevance": "Recommended first",
+        "priceBandHigh": "Over 1,000,000 UZS",
+        "priceBandMid": "300,000 to 1,000,000 UZS",
+        "priceBandLow": "Up to 300,000 UZS",
+        "execAdvokat": "Advocate",
+        "execYurist": "Lawyer",
+        "execAi": "Prepared by AI",
+        "filterExec": "Handled by",
         "badgeTopHint": "A licensed advocate handles this service in person — this is the only route",
         "badgeTop": "TOP",
         "badgeProHint": "Downloading the template opens on a paid plan",
@@ -3415,6 +3432,10 @@
         "preSellerNoList": "This advocate has not listed services yet — the full catalogue is shown."
       },
       "documents": {
+        "lawyerNeedRequired": "Write the request text — the advocate needs to know where to start.",
+        "guardPrint": "This LexGo document is not open for printing. It can only be downloaded from your cabinet.",
+        "guardBlocked": "This document cannot be copied.",
+        "guardNote": "Protected view — copying and printing are off, and the page is marked with who opened the document.",
         "askLawyerAlready": "A request for this document has already been sent. You can send another once the work is finished.",
         "gateWaitShort": "The request has not reached the advocates yet — the payment is awaiting approval.",
         "cancelledStatus": "Cancelled",
@@ -3815,6 +3836,7 @@
         "manualDisabled": "Manual filling requires a plan"
       },
       "newDoc": {
+        "mainFileRequired": "Upload the document to be checked.",
         "previewSeek": "Seek in the voice note",
         "previewNone": "This kind of file cannot be shown here",
         "previewHide": "Hide",
