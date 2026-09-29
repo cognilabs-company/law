@@ -18,6 +18,7 @@ import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
 import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
+import Select from "@/components/Select";
 import { Skeleton, EmptyState } from "./DataState";
 import {
   IconBriefcase,
@@ -81,23 +82,33 @@ export default function ClientWorks() {
   const locale = useLocale();
 
   const [tab, setTab] = useState("all");
+  // The status filter, "" for every status. Sent to the endpoint rather than
+  // applied here: ?status= filters server-side (measured — ?status=new
+  // answers 14 rows with total 14 out of 87), so a filtered view pages
+  // correctly instead of filtering one page of fifty.
+  const [pick, setPick] = useState("");
   const [rows, setRows] = useState<ClientWork[]>([]);
   const [tabs, setTabs] = useState<ClientWorkTab[]>([]);
+  // Every status this client has actually had, learnt from the unfiltered
+  // answers only. Taking it from a filtered one would collapse the menu to
+  // the single status just chosen and strand the user inside it.
+  const [seen, setSeen] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [moreBusy, setMoreBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
 
-  // Back to the skeleton during render when the tab changes, not in the
+  // Back to the skeleton during render when the query changes, not in the
   // effect — one render instead of a cascade (the house pattern, see
   // ClientDocumentRequests).
-  const [prevTab, setPrevTab] = useState(tab);
-  if (prevTab !== tab) { setPrevTab(tab); setStatus("loading"); }
+  const query = `${tab}|${pick}`;
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) { setPrevQuery(query); setStatus("loading"); }
 
   useEffect(() => {
     let alive = true;
-    listClientWorks({ type: tab, limit: WORKS_PAGE, offset: 0 })
+    listClientWorks({ type: tab, status: pick || undefined, limit: WORKS_PAGE, offset: 0 })
       .then((p) => {
         if (!alive) return;
         setRows(p.items);
@@ -106,11 +117,18 @@ export default function ClientWorks() {
         // same tab list, but taking it from every answer would let a slow
         // filtered response overwrite the strip mid-click.
         if (p.tabs.length) setTabs(p.tabs);
+        if (!pick) {
+          setSeen((cur) => {
+            const next = new Set(cur);
+            p.items.forEach((x) => x.status && next.add(x.status));
+            return next.size === cur.length ? cur : [...next];
+          });
+        }
         setStatus("ready");
       })
       .catch(() => alive && setStatus("error"));
     return () => { alive = false; };
-  }, [tab, reloadKey]);
+  }, [tab, pick, reloadKey]);
 
   // §6 plus the modules this list aggregates: a complaint opening, an urgent
   // record moving or a document request changing all change a row here.
@@ -124,10 +142,10 @@ export default function ClientWorks() {
     if (moreBusy || rows.length >= total) return;
     setMoreBusy(true);
     try {
-      const p = await listClientWorks({ type: tab, limit: WORKS_PAGE, offset: rows.length });
+      const p = await listClientWorks({ type: tab, status: pick || undefined, limit: WORKS_PAGE, offset: rows.length });
       setRows((cur) => {
-        const seen = new Set(cur.map((x) => x.id));
-        return [...cur, ...p.items.filter((x) => !seen.has(x.id))];
+        const have = new Set(cur.map((x) => x.id));
+        return [...cur, ...p.items.filter((x) => !have.has(x.id))];
       });
       setTotal(p.total);
     } catch {
@@ -173,18 +191,35 @@ export default function ClientWorks() {
         </Link>
       </p>
 
-      <div className="chiprow cwork__tabs">
-        {strip.map((x) => (
-          <button
-            key={x.key}
-            type="button"
-            className={`chip${tab === x.key ? " on" : ""}`}
-            aria-pressed={tab === x.key}
-            onClick={() => setTab(x.key)}
-          >
-            {x.title}
-          </button>
-        ))}
+      <div className="cwork__bar">
+        <div className="chiprow cwork__tabs">
+          {strip.map((x) => (
+            <button
+              key={x.key}
+              type="button"
+              className={`chip${tab === x.key ? " on" : ""}`}
+              aria-pressed={tab === x.key}
+              onClick={() => setTab(x.key)}
+            >
+              {x.title}
+            </button>
+          ))}
+        </div>
+        {/* The type is a tab because there are six of them and they are the
+            first cut; the status is a select because there are thirteen and
+            they are the second. Only statuses this client actually has are
+            offered — an empty filter is a dead end the menu should not sell. */}
+        {seen.length > 1 ? (
+          <label className="cwork__filt">
+            <span>{tcm("filterStatus")}</span>
+            <Select
+              value={pick}
+              onChange={setPick}
+              ariaLabel={tcm("filterStatus")}
+              options={[{ value: "", label: tcm("filterAllStatuses") }, ...seen.map((s) => ({ value: s, label: statusLabel(tcm, s) || s }))]}
+            />
+          </label>
+        ) : null}
       </div>
 
       {status === "loading" ? (

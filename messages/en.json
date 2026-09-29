@@ -1947,6 +1947,8 @@
       },
       "roleAdvocate": "Advocate",
       "loadError": "Couldn't load data",
+      "filterStatus": "Status",
+      "filterAllStatuses": "All statuses",
       "loadErrorText": "Please check your connection and try again.",
       "admin": "Admin",
       "accepting": "Accepting…",

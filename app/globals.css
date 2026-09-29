@@ -6685,8 +6685,20 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .uamore__hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
 .uamore__hist li{display:flex;justify-content:space-between;gap:10px;font-size:.8rem}
 .uamore__hist em{font-style:normal;font-size:.74rem;color:var(--gray2);white-space:nowrap}
-.uamore__cancel{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.uamore__cancel input{flex:1;min-width:180px}
+/* The cancel confirmation. The reason field was a bare browser input wedged
+   between two styled buttons - no background, no border, no padding, and
+   181px of it on a row that also had to carry both answers. It is a framed
+   block now: the field owns its row and the two answers sit under it,
+   right-aligned, with the destructive one last. */
+.uamore__cancel{display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:12px;border-radius:14px;
+  background:var(--dk-surface-2, #F7FAFE);box-shadow:inset 0 0 0 1.5px var(--line)}
+.uamore__cancel input{flex:1 0 100%;min-width:0;width:100%;border:0;border-radius:12px;padding:11px 13px;
+  font:inherit;font-size:.9rem;background:var(--dk-surface, #fff);color:var(--ink);
+  box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .18s}
+.uamore__cancel input::placeholder{color:var(--gray2)}
+.uamore__cancel input:focus{outline:none;box-shadow:inset 0 0 0 1.5px var(--dk-txt-err, #C0392B)}
+/* Pushes the pair to the right edge of the block. */
+.uamore__cancel button:first-of-type{margin-left:auto}
 
 /* ── The second-opinion gate ─────────────────────────────────────── */
 /* A refusal the client can act on: the sentence, then the three services that
@@ -10610,12 +10622,11 @@ html[data-theme="dark"]{
   background:var(--grad);color:#fff;box-shadow:var(--sblue);transition:transform .18s}
 .aiasi__launch:hover{transform:translateY(-2px)}
 .aiasi__launch svg{width:23px;height:23px}
-/* Desktop: the robot also opens the panel, but it is a dynamically loaded
-   three.js scene and a slow or failed load would leave the assistant with
-   no way in at all. So the launcher stays, parked to the LEFT of the
-   robot rather than under it — measured, the robot zone is 196x220 at
-   right:14, so 224px clears it with the same gap on both sides. */
-@media (min-width:900px){ .aiasi__launch{right:224px} }
+/* Desktop has exactly one way in and it is the robot: two floating controls
+   in one corner read as two different features. Below 900px
+   .robot-edge-zone is display:none, so the launcher is the only thing left
+   and takes the corner itself. */
+@media (min-width:900px){ .aiasi__launch{display:none} }
 
 .aiasi{position:fixed;right:clamp(14px,2vw,26px);bottom:clamp(14px,3vh,26px);z-index:60;
   width:min(392px,calc(100vw - 28px));max-height:min(620px,78vh);
@@ -10689,4 +10700,15 @@ html[data-theme="dark"]{
 }
 @media (prefers-reduced-motion:reduce){
   .aiasi__launch{transition:none}
+}
+
+/* ── The filter bar the two client lists share ────────────────────────
+   Type or mode on the left as chips, status on the right as a select.
+   Both lists wear the same bar so moving between them costs nothing. */
+.cwork__bar{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 14px;margin-bottom:12px}
+.cwork__bar .chiprow{margin:0;flex:1 1 auto}
+.cwork__filt{display:flex;flex-direction:column;gap:5px;flex:0 1 210px;min-width:min(180px,100%)}
+.cwork__filt>span{font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--gray2)}
+@media (max-width:560px){
+  .cwork__filt{flex-basis:100%}
 }

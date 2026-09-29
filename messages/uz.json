@@ -1953,6 +1953,8 @@
       },
       "roleAdvocate": "Advokat",
       "loadError": "Ma'lumot yuklanmadi",
+      "filterStatus": "Holat",
+      "filterAllStatuses": "Barcha holatlar",
       "loadErrorText": "Internet aloqasini tekshirib, qayta urinib ko'ring.",
       "admin": "Admin",
       "accepting": "Qabul qilinmoqda…",

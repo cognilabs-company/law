@@ -21,6 +21,7 @@ import ComplaintBox from "./ComplaintBox";
 import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
+import Select from "@/components/Select";
 import { Skeleton, EmptyState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
@@ -79,33 +80,50 @@ export default function ClientDocumentRequests() {
   const [moreBusy, setMoreBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
+  // The status filter, "" for all of them. Sent to the endpoint, not applied
+  // here: ?status= filters server-side (measured — ?status=file_ready answers
+  // 47 rows with total 47 out of 121), so a filtered view pages correctly
+  // instead of filtering one page of twenty.
+  const [pick, setPick] = useState("");
+  // Every status this client's documents have actually been in, learnt from
+  // the unfiltered answers only — a filtered one would collapse the menu to
+  // the single status just chosen.
+  const [seen, setSeen] = useState<string[]>([]);
 
-  // Back to "loading" the moment the tab changes — during render, not in the
+  // Back to "loading" the moment the query changes — during render, not in the
   // effect, so there is no extra cascading render (same pattern as useResource).
-  const [prevTab, setPrevTab] = useState(tab);
-  if (prevTab !== tab) { setPrevTab(tab); setStatus("loading"); }
+  const query = `${tab}|${pick}`;
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) { setPrevQuery(query); setStatus("loading"); }
 
   useEffect(() => {
     let alive = true;
-    listClientDocumentFlowPage({ mode: tab === "all" ? undefined : tab, limit: DOC_FLOW_PAGE, offset: 0 })
+    listClientDocumentFlowPage({ mode: tab === "all" ? undefined : tab, status: pick || undefined, limit: DOC_FLOW_PAGE, offset: 0 })
       .then((p) => {
         if (!alive) return;
         setRows(p.items);
         setMore(p.hasMore);
+        if (!pick) {
+          setSeen((cur) => {
+            const next = new Set(cur);
+            p.items.forEach((x) => x.status && next.add(x.status));
+            return next.size === cur.length ? cur : [...next];
+          });
+        }
         setStatus("ready");
       })
       .catch(() => alive && setStatus("error"));
     return () => { alive = false; };
-  }, [tab, reloadKey]);
+  }, [tab, pick, reloadKey]);
 
   async function loadMore() {
     if (moreBusy || !more) return;
     setMoreBusy(true);
     try {
-      const p = await listClientDocumentFlowPage({ mode: tab === "all" ? undefined : tab, limit: DOC_FLOW_PAGE, offset: rows.length });
+      const p = await listClientDocumentFlowPage({ mode: tab === "all" ? undefined : tab, status: pick || undefined, limit: DOC_FLOW_PAGE, offset: rows.length });
       setRows((cur) => {
-        const seen = new Set(cur.map((x) => x.id));
-        return [...cur, ...p.items.filter((x) => !seen.has(x.id))];
+        const have = new Set(cur.map((x) => x.id));
+        return [...cur, ...p.items.filter((x) => !have.has(x.id))];
       });
       setMore(p.hasMore);
     } catch {
@@ -236,12 +254,30 @@ export default function ClientDocumentRequests() {
         <span className="advmuted">{rows.length}</span>
       </div>
 
-      <div className="chiprow chiprow--tabs">
-        {TABS.map((tb) => (
-          <button key={tb} type="button" className="fchip" aria-pressed={tab === tb} onClick={() => setTab(tb)}>
-            {t(`tab_${tb}`)}
-          </button>
-        ))}
+      <div className="cwork__bar">
+        <div className="chiprow chiprow--tabs">
+          {TABS.map((tb) => (
+            <button key={tb} type="button" className="fchip" aria-pressed={tab === tb} onClick={() => setTab(tb)}>
+              {t(`tab_${tb}`)}
+            </button>
+          ))}
+        </div>
+        {/* How the document was made is a tab; where it has got to is a
+            select. Only statuses this client's own documents have actually
+            been in are offered — the endpoint knows a dozen and most of them
+            would filter to nothing here. Same control, same place, as
+            "Mening ishlarim". */}
+        {seen.length > 1 ? (
+          <label className="cwork__filt">
+            <span>{tcm("filterStatus")}</span>
+            <Select
+              value={pick}
+              onChange={setPick}
+              ariaLabel={tcm("filterStatus")}
+              options={[{ value: "", label: tcm("filterAllStatuses") }, ...seen.map((s) => ({ value: s, label: statusLabel(tcm, s, "docStatus") || s }))]}
+            />
+          </label>
+        ) : null}
       </div>
 
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
