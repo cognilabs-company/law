@@ -33,6 +33,7 @@ import DocTemplateViewer from "./DocTemplateViewer";
 // copy of it. It lives in the inbox file because that is where it was first
 // needed; it is exported rather than duplicated here.
 import { FulfillModal } from "./DocumentRequestsInbox";
+import EditorSourcePicker from "./EditorSourcePicker";
 import CallRoom from "@/components/chat/CallRoom";
 import SecureChat from "@/components/chat/SecureChat";
 import {
@@ -43,6 +44,7 @@ import {
   IconCheck,
   IconAlert,
   IconVideo,
+  IconLayers,
   IconChat,
   IconInfo,
   IconDownload,
@@ -142,6 +144,21 @@ function storedRightW(): number {
 // the real reason it is shut instead of a button that would 422. The
 // missing piece (an advocate-side endpoint that accepts the choice) is
 // written up in backendAsks.
+//
+// UPDATE 2026-09-29: that endpoint has now shipped.
+// LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §7-8 adds
+// GET/POST /lawyers/me/document-requests/{id}/editor/source(s) and
+// /editor/source-upload, with a real enum (template | blank | ai_draft |
+// attachment) the backend accepts and echoes as `current_source`. That is
+// what EditorSourcePicker below speaks, reached from the toolbar's
+// "chooseSource" action, and it is the one that actually changes what the
+// editor opens on.
+// The local chooser here is therefore superseded and should be folded into
+// the picker — left in place for now because it is what every record in
+// flight was started through, and because the sources endpoint could not be
+// read end to end from here: all 13 live lawyer records are `open_pool`, and
+// it answers 409 "Editor ochishdan oldin ishni pooldan olish kerak" until one
+// is claimed. Fold it in once a claimed record can be observed.
 type StartChoice = "upload" | "client_file" | "ai_draft";
 const START_KEY = "lexgo_deditor_start";
 // Stored per RECORD, not globally: the advocate answers "how do we start?"
@@ -222,6 +239,10 @@ export default function DocumentEditorWorkspace({
   const [claimUrl, setClaimUrl] = useState("");
   const [claimBusy, setClaimBusy] = useState(false);
   const [claimErr, setClaimErr] = useState<"" | "taken" | "generic">("");
+  // §7-8: the source picker. Opened from the toolbar; picking one closes the
+  // session on the backend, so the reload key is bumped and the editor is
+  // re-fetched rather than left pointing at a session that no longer exists.
+  const [srcOpen, setSrcOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -796,6 +817,23 @@ export default function DocumentEditorWorkspace({
         <span className="deditor__spacer" />
         {/* One group, right-aligned over the chat column — see .deditor__actions. */}
         <div className="deditor__actions">
+          {/* LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §7-8:
+              what the editor opens on is the advocate's choice — a clean
+              template, a blank page, the AI draft, one of the client's DOCX
+              files, or one of their own. Changing it closes the session
+              server-side, so picking reloads the editor rather than reusing
+              what is open. Offered rather than forced: a record that already
+              has a source opens straight into it, which is every record that
+              worked before this shipped. */}
+          <button
+            type="button"
+            className="deditor__act"
+            onClick={() => setSrcOpen(true)}
+            disabled={isSent || editorState === "needsClaim"}
+          >
+            <IconLayers />
+            <span className="deditor__actLabel">{t("chooseSource")}</span>
+          </button>
           <button type="button" className="deditor__act" onClick={startMeeting} disabled={meetBusy || !req?.meetingUrl || isSent || !!meeting}>
             <IconVideo />
             <span className="deditor__actLabel">{meetBusy ? t("processingShort") : t("startMeeting")}</span>
@@ -1275,6 +1313,13 @@ export default function DocumentEditorWorkspace({
           }}
         />
       ) : null}
+
+      <EditorSourcePicker
+        recordId={recordId}
+        open={srcOpen}
+        onClose={() => setSrcOpen(false)}
+        onPicked={() => setReloadKey((k) => k + 1)}
+      />
     </div>
   );
 }

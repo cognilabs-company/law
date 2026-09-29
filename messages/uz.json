@@ -2396,6 +2396,22 @@
         "aiNote": "Sun'iy intellekt ushbu hujjatda ko'rib chiqish uchun 7 ta nuqta topdi.",
         "emptyText": "Mavjud hujjat namunalari shu yerda ko'rinadi."
       },
+      "editorSource": {
+        "title": "Editor nimadan boshlansin?",
+        "lead": "Tanlaganingiz editorda ochiladi. Manbani almashtirsangiz, joriy editor sessiyasi yopiladi.",
+        "error": "Manbani o'zgartirib bo'lmadi. Qayta urining.",
+        "claimFirst": "Editor ochishdan oldin ishni pooldan olish kerak.",
+        "docxOnly": "Faqat .docx fayl manba bo'la oladi.",
+        "unavailable": "Bu variant bu ish uchun mavjud emas",
+        "uploadHint": "O'zingizdagi .docx faylni yuklang",
+        "kind": {
+          "template": "Toza shablon",
+          "blank": "Bo'sh hujjat",
+          "ai_draft": "AI tayyorlagan draft",
+          "attachment": "Mijoz yuborgan fayl",
+          "upload": "O'z faylimni yuklayman"
+        }
+      },
       "documentRequests": {
         "editorBlockedCard": "Muharrir yopiq",
         "editorBlockedNoSystem": "Bu hujjat uchun tizim ichidagi muharrir qo'llab-quvvatlanmaydi. Faylni yuklab olib tahrirlang va tayyor variantni yuklang.",
@@ -2465,6 +2481,7 @@
         "statusTaken": "Olingan",
         "statusInProgress": "Jarayonda",
         "statusReady": "Tayyor",
+        "chooseSource": "Manbani tanlash",
         "statusSent": "Yuborilgan",
         "serviceLabel": "Xizmat",
         "needClaimTitle": "Bu ish hali olinmagan",
@@ -2979,6 +2996,42 @@
         "continue": "Davom etish",
         "today": "bugun",
         "tomorrow": "ertaga"
+      },
+      "works": {
+        "title": "Mening ishlarim",
+        "lead": "Advokat bilan ishlar, tezkor xizmatlar, buyurtmalar va shikoyatlar shu yerda.",
+        "documentsLink": "Hujjatlar arxivi",
+        "type": {
+          "document_lawyer_work": "Advokat bilan hujjat",
+          "urgent_advokat": "Tezkor xizmat",
+          "quality_complaint": "Shikoyat",
+          "complaint": "Shikoyat",
+          "service_order": "Buyurtma",
+          "legal_case": "Yuridik ish"
+        },
+        "tabAll": "Barcha ishlar",
+        "empty": "Hozircha ish yo'q",
+        "emptyText": "Xizmat buyurtma qilsangiz yoki advokatga murojaat qilsangiz, ish shu yerda paydo bo'ladi.",
+        "more": "Yana {n} ta",
+        "hasChat": "Chat bor",
+        "hasMeeting": "Uchrashuv bor",
+        "fWorkId": "Ish ID",
+        "fType": "Turi",
+        "fStatus": "Holat",
+        "fLawyer": "Advokat",
+        "fOperator": "Operator",
+        "fCreated": "Ochilgan",
+        "bComplaint": "Shikoyat matni",
+        "bReview": "Callcenter xulosasi",
+        "openChat": "Chatni ochish",
+        "openWork": "Ishga o'tish",
+        "qcAction": {
+          "new": "Yangi",
+          "under_review": "Ko'rib chiqilmoqda",
+          "rework_required": "Qayta ishlash kerak",
+          "rejected": "Rad etildi",
+          "resolved": "Hal qilindi"
+        }
       },
       "complaints": {
         "title": "Shikoyatlar",
@@ -4080,6 +4133,7 @@
         "statusTaken": "Olingan",
         "statusInProgress": "Jarayonda",
         "statusReady": "Tayyor",
+        "chooseSource": "Manbani tanlash",
         "statusSent": "Yuborilgan",
         "serviceLabel": "Xizmat",
         "needClaimTitle": "Bu ish hali olinmagan",
@@ -5429,6 +5483,47 @@
     "stat3l": "o‘rtacha reyting"
   },
   "admin": {
+    "qualityComplaints": {
+      "title": "Sifat shikoyatlari",
+      "lead": "Mijoz ishni 1 yoki 2 yulduz bilan baholaganda shikoyat shu yerga tushadi.",
+      "all": "Barchasi",
+      "empty": "Shikoyat yo'q",
+      "emptyText": "Past baho berilgan ish paydo bo'lsa, shikoyat shu yerda ko'rinadi.",
+      "status": {
+        "new": "Yangi",
+        "under_review": "Ko'rib chiqilmoqda",
+        "rework_required": "Qayta ishlash kerak",
+        "rejected": "Rad etildi",
+        "resolved": "Hal qilindi"
+      },
+      "fWorkId": "Ish ID",
+      "fStatus": "Holat",
+      "fRating": "Baho",
+      "fClient": "Mijoz",
+      "fLawyer": "Advokat",
+      "fCreated": "Ochilgan",
+      "bComplaint": "Mijoz shikoyati",
+      "bReview": "Mijoz izohi",
+      "bDocument": "Hujjat",
+      "openFile": "Faylni ochish",
+      "alreadySettled": "Bu shikoyat bo'yicha qaror qabul qilingan: {action}",
+      "resolveTitle": "Xulosa",
+      "resolveSubmit": "Xulosani saqlash",
+      "resolved": "Xulosa saqlandi",
+      "noteRequired": "Izoh yozing — mijoz shuni o'qiydi.",
+      "noteLabel": "Izoh",
+      "notePh": "Qarorni qisqacha asoslang…",
+      "action": {
+        "rework_required": "Qayta ishlash kerak",
+        "rejected": "Rad etish",
+        "resolved": "Yopish"
+      },
+      "actionHint": {
+        "rework_required": "Ish o'sha advokatga bepul qayta ochiladi.",
+        "rejected": "Shikoyat rad etiladi, mijozga izoh yuboriladi.",
+        "resolved": "Shikoyat yopiladi."
+      }
+    },
     "urgent": {
       "openChatTitle": "Xavfsiz chatni ochish",
       "openChat": "Xavfsiz chat",

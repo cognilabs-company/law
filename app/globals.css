@@ -10452,3 +10452,150 @@ html[data-theme="dark"]{
 .uacard--docs .uacard__f em.uacard__kinds{color:var(--dk-txt-violet, #6A3DE8);background:var(--dk-tint-violet, #F1EBFF)}
 .uacard--docs .uacard__peek{border-color:var(--dk-bd-violet, #D8C8FA)}
 .uacard--docs .uacard__peek .uacard__peekk b::before{background:var(--dk-txt-violet, #6A3DE8)}
+
+/* ══ LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29 ═════════════
+   Three screens that arrived together: the client's works list, the
+   call-centre's quality-complaint queue, and the advocate's source picker.
+   All three are lists of one row shape plus a detail, so they share the
+   house furniture (.ppanel, .chip, .alist, Modal) and only add what is
+   genuinely new. Every light colour is wrapped in its --dk-* token. */
+
+/* ── Mening ishlarim ──────────────────────────────────────────────── */
+.cwork__sep{display:inline-flex;align-items:center;gap:4px;font-weight:700;color:var(--dk-acc, var(--b600));text-decoration:none}
+.cwork__sep svg{width:12px;height:12px}
+.cwork__sep:hover{text-decoration:underline;text-underline-offset:3px}
+.cwork__tabs{margin:2px 0 12px}
+.cworks{display:grid;gap:10px}
+.cwork{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;width:100%;
+  padding:14px;border:1.5px solid var(--line);border-radius:16px;background:var(--dk-surface, #fff);
+  text-align:left;cursor:pointer;color:inherit;font:inherit;
+  transition:border-color .18s,box-shadow .18s,transform .18s}
+.cwork:hover{border-color:var(--b300);box-shadow:var(--s1);transform:translateY(-1px)}
+.cwork__i{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+  background:var(--b100);color:var(--dk-acc, var(--b600))}
+.cwork__i svg{width:19px;height:19px}
+/* One tint per kind, so the list reads down its left edge. */
+.cwork__i--urgent_advokat{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+.cwork__i--quality_complaint,.cwork__i--complaint{background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #C0392B)}
+.cwork__i--legal_case{background:var(--dk-tint-violet, #F1EBFF);color:var(--dk-txt-violet, #6A3DE8)}
+.cwork__i--service_order{background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, var(--ok))}
+.cwork__m{display:grid;gap:6px;min-width:0}
+.cwork__top{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:space-between}
+.cwork__t{font-size:.95rem;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.cwork__st{flex:none;font-style:normal;font-size:.72rem;font-weight:800;letter-spacing:.02em;
+  padding:4px 10px;border-radius:var(--pill);background:var(--dk-surface-2, #F1F4F8);color:var(--gray)}
+.cwork__st--done{background:var(--dk-tint-ok, #E1F6EE);color:var(--dk-txt-ok, var(--ok))}
+.cwork__st--waiting{background:var(--dk-warn-bg, #FEF3C7);color:var(--dk-txt-warn, #b45309)}
+.cwork__st--working{background:var(--b100);color:var(--dk-acc-strong, var(--b700))}
+.cwork__st--closed{background:var(--dk-surface-2, #F1F4F8);color:var(--gray)}
+.cwork__row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.cwork__row small{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;color:var(--gray)}
+.cwork__row small svg{width:13px;height:13px}
+.cwork__wid{font-weight:700;letter-spacing:.02em;color:var(--gray2)!important;
+  padding:2px 8px;border-radius:var(--pill);background:var(--dk-surface-2, #F1F4F8)}
+.cwork__type{font-weight:700;color:var(--dk-acc, var(--b600))!important}
+.cwork__next{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;line-height:1.5;color:var(--gray)}
+.cwork__next svg{width:13px;height:13px;flex:none;color:var(--dk-acc, var(--b600))}
+
+.cwdet{display:grid;gap:12px}
+.cwdet__facts{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin:0;align-items:baseline}
+.cwdet__facts dt{font-size:.74rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--gray2)}
+.cwdet__facts dd{margin:0;font-size:.9rem;overflow-wrap:anywhere}
+.cwdet__wid{font-weight:700;letter-spacing:.02em}
+.cwdet__next{display:flex;align-items:center;gap:7px;margin:0;font-size:.86rem;line-height:1.5;color:var(--gray)}
+.cwdet__next svg{width:14px;height:14px;flex:none;color:var(--dk-acc, var(--b600))}
+.cwdet__b{display:grid;gap:6px;padding:12px 13px;border-radius:14px;
+  background:var(--dk-surface-2, #F7FAFE);box-shadow:inset 0 0 0 1.5px var(--line)}
+.cwdet__b b{display:inline-flex;align-items:center;gap:7px;font-size:.84rem;font-weight:700}
+.cwdet__b b svg{width:14px;height:14px;color:var(--gray2)}
+.cwdet__b p{margin:0;font-size:.88rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.cwdet__b--ok{background:var(--dk-tint-ok, #E1F6EE);box-shadow:inset 0 0 0 1.5px var(--dk-bd-ok, #BFE8D4)}
+.cwdet__b--ok b svg{color:var(--ok)}
+.cwdet__acts{display:flex;flex-wrap:wrap;gap:8px}
+
+/* ── Sifat shikoyatlari (call-centre) ─────────────────────────────── */
+.qcrow{display:grid;grid-template-columns:4px 1fr auto;gap:12px;align-items:start;width:100%;
+  padding:13px 14px;border:1.5px solid var(--line);border-radius:14px;background:var(--dk-surface, #fff);
+  text-align:left;cursor:pointer;color:inherit;font:inherit;transition:border-color .18s,box-shadow .18s}
+.qcrow:hover{border-color:var(--b300);box-shadow:var(--s1)}
+/* The status rail: one glance down the queue says what is still open. */
+.qcrow__st{align-self:stretch;border-radius:var(--pill);background:var(--dk-surface-2, #E6ECF5)}
+.qcrow__st--new{background:var(--dk-txt-err, #C0392B)}
+.qcrow__st--under_review{background:var(--dk-txt-warn, #b45309)}
+.qcrow__st--rework_required{background:var(--dk-acc, var(--b600))}
+.qcrow__st--resolved{background:var(--ok)}
+.qcrow__m{display:grid;gap:5px;min-width:0}
+.qcrow__m>b{font-size:.92rem;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.qcrow__meta{display:flex;flex-wrap:wrap;align-items:center;gap:5px 12px}
+.qcrow__meta small{display:inline-flex;align-items:center;gap:5px;font-size:.77rem;color:var(--gray)}
+.qcrow__meta small svg{width:13px;height:13px}
+.qcrow__wid{font-weight:700;letter-spacing:.02em;color:var(--gray2)!important;
+  padding:2px 8px;border-radius:var(--pill);background:var(--dk-surface-2, #F1F4F8)}
+.qcrow__rate{font-weight:800;color:var(--dk-txt-err, #C0392B)!important}
+.qcrow__rate svg{color:var(--dk-txt-err, #C0392B)}
+.qcrow__txt{font-size:.83rem;line-height:1.55;color:var(--gray);
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.qcrow__badge{flex:none;font-size:.72rem;font-weight:800;letter-spacing:.02em;
+  padding:5px 11px;border-radius:var(--pill);background:var(--dk-surface-2, #F1F4F8);color:var(--gray)}
+
+.qcdet{display:grid;gap:12px}
+.qcdet__facts{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin:0;align-items:baseline}
+.qcdet__facts dt{font-size:.74rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--gray2)}
+.qcdet__facts dd{margin:0;font-size:.9rem;overflow-wrap:anywhere}
+.qcdet__wid{font-weight:700;letter-spacing:.02em}
+.qcdet__rate{display:inline-flex;align-items:center;gap:6px;font-weight:800;color:var(--dk-txt-err, #C0392B)}
+.qcdet__rate svg{width:15px;height:15px}
+.qcdet__b{display:grid;gap:6px;padding:12px 13px;border-radius:14px;
+  background:var(--dk-surface-2, #F7FAFE);box-shadow:inset 0 0 0 1.5px var(--line)}
+.qcdet__b b{display:inline-flex;align-items:center;gap:7px;font-size:.84rem;font-weight:700}
+.qcdet__b b svg{width:14px;height:14px;color:var(--gray2)}
+.qcdet__b p{margin:0;font-size:.89rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.qcdet__b--err{background:var(--dk-tint-err, #FDECEC);box-shadow:inset 0 0 0 1.5px var(--dk-bd-err, #F6D5D1)}
+.qcdet__b--err b{color:var(--dk-txt-err, #C0392B)}
+.qcdet__b--err b svg{color:var(--dk-txt-err, #C0392B)}
+/* The ruling. Its own framed block, because it is the one thing on this
+   screen that changes the world — and one of its three options gives the
+   advocate free work. */
+.qcdet__resolve{display:grid;gap:9px;padding:14px;border-radius:16px;
+  background:var(--dk-surface-2, #F1F5FB);box-shadow:inset 0 0 0 1.5px var(--dk-bd-blue, var(--b200))}
+.qcdet__resolve>b{font-size:.88rem;font-weight:800}
+.qcdet__resolve>p{margin:0}
+.qcdet__note{width:100%;border:0;border-radius:12px;padding:11px 13px;font:inherit;font-size:.9rem;line-height:1.5;
+  resize:vertical;min-height:76px;background:var(--dk-surface, #fff);color:var(--ink);
+  box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .18s}
+.qcdet__note:focus{outline:none;box-shadow:inset 0 0 0 1.5px var(--b400)}
+
+/* ── Editor manbasi (advocate) ────────────────────────────────────── */
+.esrc{display:grid;gap:12px}
+.esrc__lead{margin:0;font-size:.85rem;line-height:1.55;color:var(--gray)}
+.esrc__list{display:grid;gap:9px}
+.esrc__o{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;width:100%;
+  padding:13px 14px;border:1.5px solid var(--line);border-radius:14px;background:var(--dk-surface, #fff);
+  text-align:left;cursor:pointer;color:inherit;font:inherit;transition:border-color .18s,box-shadow .18s}
+.esrc__o:hover:not(:disabled){border-color:var(--b300);box-shadow:var(--s1)}
+.esrc__o--on{border-color:var(--b600);box-shadow:var(--sblue)}
+/* Shown and greyed, never hidden: the advocate should see that an AI draft
+   exists as a concept and simply was not ordered for this work. */
+.esrc__o--off{opacity:.55;cursor:not-allowed}
+.esrc__o--up{cursor:pointer}
+.esrc__o--busy{opacity:.6;pointer-events:none}
+.esrc__i{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
+  background:var(--b100);color:var(--dk-acc, var(--b600))}
+.esrc__i svg{width:18px;height:18px}
+.esrc__m{display:grid;gap:3px;min-width:0}
+.esrc__m b{font-size:.9rem;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.esrc__m small{font-size:.78rem;line-height:1.45;color:var(--gray)}
+.esrc__on{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;
+  background:var(--b600);color:#fff}
+.esrc__on svg{width:13px;height:13px;stroke-width:3}
+.esrc__lock{color:var(--gray2)}
+.esrc__lock svg{width:15px;height:15px}
+
+@media (max-width:560px){
+  .cwork{grid-template-columns:1fr}
+  .cwork__i{display:none}
+  .cwdet__facts,.qcdet__facts{grid-template-columns:1fr;gap:2px 0}
+  .cwdet__facts dd,.qcdet__facts dd{margin-bottom:6px}
+  .qcrow{grid-template-columns:4px 1fr}
+  .qcrow__badge{grid-column:2;justify-self:start}
+}

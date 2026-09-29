@@ -7768,3 +7768,291 @@ function listFrom(data: unknown, ...keys: string[]): unknown[] {
   for (const k of keys) if (Array.isArray(d[k])) return d[k] as unknown[];
   return [];
 }
+
+// ════════════════════════════════════════════════════════════════════
+// LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md
+// Three things that arrived together: the client's works list separated from
+// their document archive, the call-centre's quality-complaint queue, and the
+// advocate choosing what the editor opens on. Every shape below was read off
+// production on 2026-09-29 rather than taken from the MD — the two disagree
+// in places, and the notes say where.
+// ════════════════════════════════════════════════════════════════════
+
+// ── §1-3 Mening ishlarim ──────────────────────────────────────────
+// GET /clients/me/works. §9: "Mening hujjatlarim" is the document archive
+// (/document-requests) and this is the legal processes — advocate work,
+// Tezkor, orders, cases and complaints. The two must not show each other's
+// rows, which is the whole point of the endpoint.
+export type ClientWorkPerson = { id: string; name: string; phone: string };
+export type ClientWork = {
+  id: string;
+  // DOC-LAW-… / URG-… / ORD-… / CASE-… / QCA-… / CMP-… in the MD; production
+  // sends LGD-/LGT-/LGQ- prefixes instead. Either way it is the id to show a
+  // human, which is all this cares about.
+  workId: string;
+  type: string;
+  title: string;
+  status: string;
+  statusLabel: string;
+  source: string;
+  documentRequestId: string;
+  lawyerRequestId: string;
+  assignedLawyer: ClientWorkPerson | null;
+  operator: ClientWorkPerson | null;
+  hasChat: boolean;
+  hasMeeting: boolean;
+  nextAction: string;
+  detailUrl: string;
+  createdAt: string;
+  updatedAt: string;
+};
+function normWorkPerson(v: unknown): ClientWorkPerson | null {
+  const d = asDict(v);
+  const id = asStr(d.id ?? d.user_id);
+  const name = asStr(d.name);
+  if (!id && !name) return null;
+  return { id, name, phone: asStr(d.phone) };
+}
+function normClientWork(v: unknown): ClientWork {
+  const d = asDict(v);
+  return {
+    id: asStr(d.id),
+    workId: asStr(d.work_id),
+    type: asStr(d.type),
+    title: asStr(d.title),
+    status: asStr(d.status),
+    statusLabel: asStr(d.status_label),
+    source: asStr(d.source),
+    documentRequestId: asStr(d.document_request_id),
+    lawyerRequestId: asStr(d.lawyer_request_id),
+    assignedLawyer: normWorkPerson(d.assigned_lawyer),
+    operator: normWorkPerson(d.operator),
+    hasChat: Boolean(d.has_chat),
+    hasMeeting: Boolean(d.has_meeting),
+    nextAction: asStr(d.next_action),
+    detailUrl: asStr(d.detail_url),
+    createdAt: asStr(d.created_at),
+    updatedAt: asStr(d.updated_at),
+  };
+}
+// The tab strip comes from the backend ("Frontend tablarni backenddan olishi
+// mumkin"), so a type it adds later needs no frontend release. Read live:
+// all / urgent_advokat / document_lawyer_work / quality_complaint /
+// service_order / legal_case.
+export type ClientWorkTab = { key: string; title: string };
+export type ClientWorksPage = {
+  items: ClientWork[];
+  total: number;
+  limit: number;
+  offset: number;
+  tabs: ClientWorkTab[];
+  // The endpoint's own statement of the separation rule, carried so the UI
+  // can quote it rather than restating it in three locales.
+  documentsEndpoint: string;
+  worksEndpoint: string;
+};
+export type ClientWorksFilter = { type?: string; status?: string; limit?: number; offset?: number };
+export const WORKS_PAGE = 50;
+export async function listClientWorks(f?: ClientWorksFilter): Promise<ClientWorksPage> {
+  const qs = new URLSearchParams();
+  if (f?.type && f.type !== "all") qs.set("type", f.type);
+  if (f?.status) qs.set("status", f.status);
+  qs.set("limit", String(f?.limit ?? WORKS_PAGE));
+  qs.set("offset", String(f?.offset ?? 0));
+  const d = asDict(await http(`/clients/me/works?${qs.toString()}`));
+  const sep = asDict(d.separation);
+  const items = listFrom(d, "items", "data").map(normClientWork);
+  return {
+    items,
+    // `total` is the whole filtered count; `count` is this page's length.
+    total: asNum(d.total, items.length),
+    limit: asNum(d.limit, WORKS_PAGE),
+    offset: asNum(d.offset),
+    tabs: asArr(d.tabs)
+      .map((x) => { const t = asDict(x); return { key: asStr(t.key), title: asStr(t.title) }; })
+      .filter((t) => t.key),
+    documentsEndpoint: asStr(sep.documents_endpoint),
+    worksEndpoint: asStr(sep.works_endpoint),
+  };
+}
+// GET /clients/me/works/{work_id}. The blocks differ per type — verified on
+// production, one record of each:
+//   document_lawyer_work → summary, lawyer_request, document, chat, meeting,
+//                          rating, complaints
+//   complaint            → summary, complaint, document, lawyer_request, review
+//   urgent_advokat       → summary, urgent_request
+//   legal_case           → summary, case, timeline
+//   service_order        → summary, order, status_history
+// Anything the caller needs beyond `summary` it reads off `blocks` itself:
+// typing five unions here would be five things to keep in step with a backend
+// that is still adding types.
+export type ClientWorkDetail = { summary: ClientWork; type: string; blocks: Dict };
+export async function getClientWork(workId: string): Promise<ClientWorkDetail> {
+  const d = asDict(await http(`/clients/me/works/${encodeURIComponent(workId)}`));
+  const { summary, type, ...rest } = d;
+  return { summary: normClientWork(summary), type: asStr(type), blocks: rest as Dict };
+}
+
+// ── §5 Call-centre quality complaints ─────────────────────────────
+// Opened by the backend itself when a client rates a piece of work 1 or 2
+// (see rateDocumentRequest). The operator reads the complaint beside the
+// advocate's document and the client's review, then rules on it.
+export type QualityComplaintRow = {
+  id: string;
+  workId: string;
+  type: string;
+  status: string;
+  statusLabel: string;
+  title: string;
+  clientName: string;
+  lawyerName: string;
+  rating: number;
+  complaint: string;
+  documentRequestId: string;
+  detailUrl: string;
+  createdAt: string;
+  updatedAt: string;
+};
+function normQcRow(v: unknown): QualityComplaintRow {
+  const d = asDict(v);
+  const client = asDict(d.client);
+  const lawyer = asDict(d.lawyer ?? d.assigned_lawyer);
+  const p = asDict(d.payload);
+  const pick = (k: string) => (d[k] === undefined || d[k] === null ? p[k] : d[k]);
+  return {
+    id: asStr(d.id),
+    workId: asStr(pick("work_id")),
+    type: asStr(d.type, "quality_complaint"),
+    status: asStr(d.status, "new"),
+    statusLabel: asStr(d.status_label),
+    title: asStr(pick("title")),
+    clientName: asStr(client.name ?? pick("client_name")),
+    lawyerName: asStr(lawyer.name ?? pick("lawyer_name")),
+    rating: asNum(pick("rating")),
+    complaint: asStr(pick("complaint") ?? pick("description") ?? pick("text")),
+    documentRequestId: asStr(pick("document_request_id")),
+    detailUrl: asStr(d.detail_url),
+    createdAt: asStr(d.created_at),
+    updatedAt: asStr(d.updated_at),
+  };
+}
+export type QualityComplaintQueue = {
+  items: QualityComplaintRow[];
+  count: number;
+  // The backend names its own status vocabulary and its own realtime events,
+  // so the filter strip and the socket wiring both track it instead of a
+  // hardcoded list. Live: new, under_review, rework_required, rejected,
+  // resolved; events quality_complaint.created / .updated on /ws/users/me.
+  statuses: string[];
+  realtimeEvents: string[];
+};
+export async function listQualityComplaints(status?: string): Promise<QualityComplaintQueue> {
+  const q = status ? `?status=${encodeURIComponent(status)}` : "";
+  const d = asDict(await http(`/call-center/quality-complaints${q}`));
+  const rt = asDict(d.realtime);
+  const items = listFrom(d, "items", "data").map(normQcRow);
+  return {
+    items,
+    count: asNum(d.count, items.length),
+    statuses: asArr(d.statuses).map((x) => asStr(x)).filter(Boolean),
+    realtimeEvents: asArr(rt.events).map((x) => asStr(x)).filter(Boolean),
+  };
+}
+export async function getQualityComplaint(id: string): Promise<{ row: QualityComplaintRow; blocks: Dict }> {
+  const d = asDict(await http(`/call-center/quality-complaints/${encodeURIComponent(id)}`));
+  return { row: normQcRow(d.summary ?? d.complaint ?? d), blocks: d };
+}
+// §5: rework_required reopens the work for the SAME advocate, free; rejected
+// closes it with a note to the client; resolved just closes it.
+export type QcAction = "rework_required" | "rejected" | "resolved";
+export const QC_ACTIONS: QcAction[] = ["rework_required", "rejected", "resolved"];
+export async function resolveQualityComplaint(id: string, action: QcAction, note: string): Promise<QualityComplaintRow> {
+  return normQcRow(
+    await http(`/call-center/quality-complaints/${encodeURIComponent(id)}/resolve`, {
+      method: "POST",
+      body: JSON.stringify({ action, note }),
+    }),
+  );
+}
+// §6. Prefix-matched like isUrgentEvent, so a third event costs nothing.
+export function isQualityComplaintEvent(event: string): boolean {
+  return event.startsWith("quality_complaint.");
+}
+
+// ── §7-8 What the editor opens on ─────────────────────────────────
+// GET /lawyers/me/document-requests/{id}/editor/sources. The advocate picks
+// before the editor opens: a clean template, a blank document, the AI draft
+// when one was ordered, or one of the DOCX files the client attached. Only
+// .docx is an editable source; everything else stays an attachment.
+export type EditorSource = {
+  sourceType: string;
+  attachmentId: string;
+  title: string;
+  available: boolean;
+  note: string;
+};
+export type EditorSources = { recordId: string; currentSource: string; options: EditorSource[] };
+function normEditorSource(v: unknown): EditorSource {
+  const d = asDict(v);
+  return {
+    sourceType: asStr(d.source_type),
+    attachmentId: asStr(d.attachment_id),
+    title: asStr(d.title),
+    // Absent means offered: the MD only ever spells out `available` to turn
+    // one OFF ("Frontend available=false bo'lgan variantni disabled
+    // ko'rsatsin"), and defaulting to false would grey out every option on a
+    // backend that omits the flag.
+    available: d.available === undefined ? true : d.available === true,
+    note: asStr(d.note ?? d.reason ?? d.description),
+  };
+}
+function normEditorSources(v: unknown, recordId: string, fallbackCurrent = ""): EditorSources {
+  const d = asDict(v);
+  return {
+    recordId: asStr(d.record_id) || recordId,
+    currentSource: asStr(d.current_source) || fallbackCurrent,
+    options: listFrom(d, "options", "items", "sources").map(normEditorSource),
+  };
+}
+export async function getEditorSources(recordId: string): Promise<EditorSources> {
+  return normEditorSources(await http(`/lawyers/me/document-requests/${encodeURIComponent(recordId)}/editor/sources`), recordId);
+}
+// "Muhim: source o'zgarsa backend eski editor sessionni yopadi" — so the
+// caller re-opens the editor after this, never reuses the session it had.
+export async function setEditorSource(recordId: string, input: { sourceType: string; attachmentId?: string }): Promise<EditorSources> {
+  const body: Record<string, unknown> = { source_type: input.sourceType };
+  if (input.attachmentId) body.attachment_id = input.attachmentId;
+  const d = await http(`/lawyers/me/document-requests/${encodeURIComponent(recordId)}/editor/source`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return normEditorSources(d, recordId, input.sourceType);
+}
+// The advocate's own DOCX. Multipart; authedFetch leaves Content-Type to
+// FormData so the boundary survives.
+export async function uploadEditorSource(recordId: string, file: File, note = ""): Promise<EditorSources> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  if (note) form.append("note", note);
+  const d = await http(`/lawyers/me/document-requests/${encodeURIComponent(recordId)}/editor/source-upload`, {
+    method: "POST",
+    body: form,
+  });
+  return normEditorSources(d, recordId, "attachment");
+}
+// The one refusal this flow really meets. Verified on production against
+// every one of the 13 live records: an unclaimed request answers
+// 409 {"detail":{"message":"Editor ochishdan oldin ishni pooldan olish
+// kerak","claim_url":"…/claim","status":"open_pool"}}. That is an instruction,
+// not a fault — the UI offers the claim rather than printing a raw error.
+export type EditorClaimNeeded = { message: string; claimUrl: string; status: string } | null;
+export function editorClaimNeeded(e: unknown): EditorClaimNeeded {
+  if (!(e instanceof ApiError) || e.status !== 409) return null;
+  const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
+  const claimUrl = asStr(d.claim_url);
+  if (!claimUrl) return null;
+  return { message: asStr(d.message) || e.detail || "", claimUrl, status: asStr(d.status) };
+}
+// Only .docx is accepted as an editable source (§7). Checked in the browser
+// so the advocate is told before the upload rather than by a 4xx after it.
+export const isDocxFile = (f: File) => /\.docx$/i.test(f.name);

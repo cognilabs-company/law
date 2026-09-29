@@ -2390,6 +2390,22 @@
         "aiNote": "AI found 7 points to review in this document.",
         "emptyText": "Available document templates will appear here."
       },
+      "editorSource": {
+        "title": "What should the editor open on?",
+        "lead": "What you pick opens in the editor. Changing the source closes the current editor session.",
+        "error": "The source could not be changed. Try again.",
+        "claimFirst": "The work has to be claimed from the pool before the editor opens.",
+        "docxOnly": "Only a .docx file can be an editable source.",
+        "unavailable": "Not available for this work",
+        "uploadHint": "Upload your own .docx file",
+        "kind": {
+          "template": "Clean template",
+          "blank": "Blank document",
+          "ai_draft": "AI draft",
+          "attachment": "The client's file",
+          "upload": "Upload my own file"
+        }
+      },
       "documentRequests": {
         "editorBlockedCard": "Editor closed",
         "editorBlockedNoSystem": "The in-app editor isn't supported for this document. Download the file, edit it, and upload the finished version.",
@@ -2459,6 +2475,7 @@
         "statusTaken": "Taken",
         "statusInProgress": "In progress",
         "statusReady": "Ready",
+        "chooseSource": "Choose the source",
         "statusSent": "Sent",
         "serviceLabel": "Service",
         "needClaimTitle": "This case hasn't been claimed yet",
@@ -2973,6 +2990,42 @@
         "continue": "Continue",
         "today": "today",
         "tomorrow": "tomorrow"
+      },
+      "works": {
+        "title": "My works",
+        "lead": "Work with an advocate, urgent services, orders and complaints live here.",
+        "documentsLink": "Document archive",
+        "type": {
+          "document_lawyer_work": "Document with an advocate",
+          "urgent_advokat": "Urgent service",
+          "quality_complaint": "Complaint",
+          "complaint": "Complaint",
+          "service_order": "Order",
+          "legal_case": "Legal case"
+        },
+        "tabAll": "All works",
+        "empty": "No works yet",
+        "emptyText": "Order a service or ask an advocate, and the work appears here.",
+        "more": "{n} more",
+        "hasChat": "Has a chat",
+        "hasMeeting": "Has a meeting",
+        "fWorkId": "Work ID",
+        "fType": "Type",
+        "fStatus": "Status",
+        "fLawyer": "Advocate",
+        "fOperator": "Operator",
+        "fCreated": "Opened",
+        "bComplaint": "The complaint",
+        "bReview": "Call-centre ruling",
+        "openChat": "Open the chat",
+        "openWork": "Go to the work",
+        "qcAction": {
+          "new": "New",
+          "under_review": "Under review",
+          "rework_required": "Rework required",
+          "rejected": "Rejected",
+          "resolved": "Resolved"
+        }
       },
       "complaints": {
         "title": "Complaints",
@@ -4074,6 +4127,7 @@
         "statusTaken": "Taken",
         "statusInProgress": "In progress",
         "statusReady": "Ready",
+        "chooseSource": "Choose the source",
         "statusSent": "Sent",
         "serviceLabel": "Service",
         "needClaimTitle": "This case hasn't been claimed yet",
@@ -5423,6 +5477,47 @@
     "stat3l": "avg. rating"
   },
   "admin": {
+    "qualityComplaints": {
+      "title": "Quality complaints",
+      "lead": "A complaint lands here when a client rates the work one or two stars.",
+      "all": "All",
+      "empty": "No complaints",
+      "emptyText": "When a piece of work is rated low, its complaint appears here.",
+      "status": {
+        "new": "New",
+        "under_review": "Under review",
+        "rework_required": "Rework required",
+        "rejected": "Rejected",
+        "resolved": "Resolved"
+      },
+      "fWorkId": "Work ID",
+      "fStatus": "Status",
+      "fRating": "Rating",
+      "fClient": "Client",
+      "fLawyer": "Advocate",
+      "fCreated": "Opened",
+      "bComplaint": "The client's complaint",
+      "bReview": "The client's comment",
+      "bDocument": "Document",
+      "openFile": "Open the file",
+      "alreadySettled": "This complaint has been ruled on: {action}",
+      "resolveTitle": "Ruling",
+      "resolveSubmit": "Save the ruling",
+      "resolved": "Ruling saved",
+      "noteRequired": "Write a note — the client reads it.",
+      "noteLabel": "Note",
+      "notePh": "Briefly justify the ruling…",
+      "action": {
+        "rework_required": "Rework required",
+        "rejected": "Reject",
+        "resolved": "Close"
+      },
+      "actionHint": {
+        "rework_required": "The work reopens for the same advocate, free of charge.",
+        "rejected": "The complaint is rejected and the note goes to the client.",
+        "resolved": "The complaint is closed."
+      }
+    },
     "urgent": {
       "openChatTitle": "Open the secure chat",
       "openChat": "Secure chat",

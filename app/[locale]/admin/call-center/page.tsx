@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth, isCallCenterUser } from "@/lib/auth";
 import CallCenterQueue from "@/components/admin/CallCenterQueue";
 import UrgentAdvocateQueue from "@/components/admin/UrgentAdvocateQueue";
+import QualityComplaints from "@/components/admin/QualityComplaints";
 import CallCenterBoard from "@/components/admin/CallCenterBoard";
 import CcClientSearch from "@/components/admin/CcClientSearch";
 import CcCallLog from "@/components/admin/CcCallLog";
@@ -25,6 +26,11 @@ export default function AdminCallCenter() {
       {/* Tezkor Advokat pool: its own board above the lead board, since its
           rows are claimed and scheduled rather than moved through stages. */}
       {cc ? <UrgentAdvocateQueue /> : null}
+      {/* Quality complaints: their own queue, as §9 asks, because a complaint
+          is not a lead and does not move through the board's stages — an
+          operator rules on it once and it is done. Call-centre only: the
+          endpoint answers 403 to everyone else. */}
+      {cc ? <QualityComplaints /> : null}
       <CallCenterBoard />
       <div className="pgrid2">
         <CcClientSearch canLog={cc} onLogged={onLogged} />
