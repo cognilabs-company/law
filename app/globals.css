@@ -3152,6 +3152,13 @@ body:has(.schat) .fab{display:none}
 /* kanban board: fill the panel; columns take full height, cards scroll inside */
 .pbody__in > .ppanel:only-child:has(.pipe){display:flex;flex-direction:column;overflow:hidden;padding-top:20px}
 .pbody__in > .ppanel:only-child:has(.pipe) > .ppanel__h{position:static;padding-top:0}
+/* On this page the panel is a flex column, so everything above the board is a
+   flex item and shrinks by default when the viewport is short. That was
+   invisible while the chrome was a heading and one line of text; the banner
+   is 140px and got squashed to a sliver with its contents clipped by its own
+   overflow:hidden. Nothing above the board flexes — the board takes what is
+   left, which is what the rule below already says. */
+.pbody__in > .ppanel:only-child:has(.pipe) > *{flex:none}
 .pbody__in > .ppanel:only-child > .pipe{flex:1 1 auto;min-height:0}
 .pbody__in > .ppanel:only-child .pipe__col{max-height:100%}
 /* Kanban animated drop slot (euroflowers-style) */
@@ -3250,10 +3257,7 @@ body:has(.schat) .fab{display:none}
 .ldrw__noteadd textarea:focus{border-color:var(--b400)}
 .ldrw__remind{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .ldrw__remind .mpick,.ldrw__remind .dpick{flex:1;min-width:150px}
-/* Sales KPI strip + filter bar */
-/* Only the pipeline page uses this — kept compact so it (plus the filter bar
-   below it) leaves the kanban board itself enough of the panel's fixed
-   height to not read as squeezed/scrolling oddly; see .pipe__col below. */
+
 /* ── Sotuv voronkasi: the banner the page opens on ────────────────
    From the reference design for this page: what the screen is on the left,
    the artwork beside it, and the board's own progress on the right. Colours
@@ -3303,6 +3307,10 @@ body:has(.schat) .fab{display:none}
 .pipebar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;margin-bottom:10px}
 .pipebar__per,.pipebar__act{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 
+/* Sales KPI strip. Only the pipeline page uses it. It used to be kept
+   deliberately small so the kanban board had room left in the panel; the
+   board takes whatever the chrome leaves now (see the flex:none rule on the
+   panel's children), so the size here is a design choice again. */
 .lkpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:10px;margin-bottom:12px}
 /* Mark on the left, number and label stacked beside it — the shape in the
    design, and it leaves no empty quarter in the tile the way a stacked
