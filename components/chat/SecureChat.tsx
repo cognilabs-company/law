@@ -34,6 +34,7 @@ import {
   type LiveKitJoin,
   type UrgentRequest,
 } from "@/lib/services/backend";
+import ChatFilePreview, { canPreviewFile } from "./ChatFilePreview";
 import { statusLabel } from "@/lib/labels";
 // The star is imported, not re-drawn: it needs pathLength on its path for the
 // dashed-outline animation, and DocRatingBox is where that one widget lives —
@@ -236,6 +237,7 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
   const [open, setOpen] = useState(false);
+  const [prev, setPrev] = useState(false);
   // A photo is only worth fetching once it is close to being looked at — a
   // long history would otherwise pull every image in it on mount.
   const [want, setWant] = useState(false);
@@ -353,15 +355,36 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
       </span>
     );
 
+  const previewable = !msg.pending && canPreviewFile(msg.file);
   return (
-    <button type="button" className="sattach sattach--file" onClick={download} disabled={busy || msg.pending}>
-      <span className="sattach__i"><IconFileText /></span>
-      <span className="sattach__t">
-        <b>{name}</b>
-        <small>{err ? t("attachFailed") : msg.pending ? t("attachSending") : fmtSize(msg.file?.size || 0)}</small>
-      </span>
-      <span className="sattach__dl">{busy ? <IconClock /> : <IconDownload />}</span>
-    </button>
+    <span className="sattach sattach--file">
+      <button
+        type="button"
+        className="sattach__open"
+        onClick={() => (previewable ? setPrev(true) : void download())}
+        disabled={busy || msg.pending}
+        title={previewable ? t("previewOpen") : t("attachDownload")}
+      >
+        <span className="sattach__i"><IconFileText /></span>
+        <span className="sattach__t">
+          <b>{name}</b>
+          <small>{err ? t("attachFailed") : msg.pending ? t("attachSending") : fmtSize(msg.file?.size || 0)}</small>
+        </span>
+      </button>
+      <button
+        type="button"
+        className="sattach__dlbtn"
+        onClick={download}
+        disabled={busy || msg.pending}
+        aria-label={t("attachDownload")}
+        title={t("attachDownload")}
+      >
+        {busy ? <IconClock /> : <IconDownload />}
+      </button>
+      {prev && msg.file ? (
+        <ChatFilePreview file={msg.file} size={fmtSize(msg.file.size || 0)} onClose={() => setPrev(false)} />
+      ) : null}
+    </span>
   );
 }
 
@@ -948,15 +971,10 @@ export default function SecureChat({
   }, [incoming, activeCall]);
 
   function push(list: LocalMsg[]) {
-    setMsgs((prev) => {
-      const next = [...prev];
-      for (const m of list) {
-        if (m.id && seen.current.has(m.id)) continue;
-        if (m.id) seen.current.add(m.id);
-        next.push(m);
-      }
-      return next;
-    });
+    const fresh = list.filter((m) => !m.id || !seen.current.has(m.id));
+    if (!fresh.length) return;
+    for (const m of fresh) if (m.id) seen.current.add(m.id);
+    setMsgs((prev) => [...prev, ...fresh]);
   }
 
   useEffect(() => {
@@ -1190,7 +1208,7 @@ export default function SecureChat({
         isBlocked: false,
         createdAt: new Date().toISOString(),
         messageType,
-        file: { fileName: name, mimeType: file.type, size: file.size, downloadUrl: "" },
+        file: { fileName: name, mimeType: file.type, size: file.size, downloadUrl: "", inlineUrl: "", preview: null },
         pending: true,
       },
     ]);

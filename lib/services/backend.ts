@@ -2980,7 +2980,71 @@ export async function addOrgMember(
 // note. The file lives behind an authed endpoint, so meta.download_url is
 // fetched with the bearer token like every other file in this app — never
 // linked directly.
-export type SecureMessageFile = { fileName: string; mimeType: string; size: number; downloadUrl: string };
+export type SecureFilePreview = {
+  supported: boolean;
+  kind: string;
+  viewer: string;
+  openMode: string;
+  inlineUrl: string;
+  downloadUrl: string;
+};
+export type SecureMessageFile = {
+  fileName: string;
+  mimeType: string;
+  size: number;
+  downloadUrl: string;
+  inlineUrl: string;
+  preview: SecureFilePreview | null;
+};
+const PREVIEW_BY_MIME: Array<[RegExp, string]> = [
+  [/^image\//, "image"],
+  [/^application\/pdf$/, "pdf"],
+  [/^audio\//, "audio"],
+  [/^video\//, "video"],
+  [/^text\//, "text"],
+  [/^application\/(json|xml|csv|x-ndjson)/, "text"],
+  [/wordprocessingml|msword/, "office_document"],
+  [/spreadsheetml|ms-excel/, "office_spreadsheet"],
+  [/presentationml|ms-powerpoint/, "office_presentation"],
+];
+const PREVIEW_BY_EXT: Array<[RegExp, string]> = [
+  [/\.(png|jpe?g|gif|webp|bmp|avif|heic|heif)$/i, "image"],
+  [/\.pdf$/i, "pdf"],
+  [/\.(mp3|wav|ogg|oga|m4a|aac|opus|weba)$/i, "audio"],
+  [/\.(mp4|webm|mov|m4v|ogv)$/i, "video"],
+  [/\.(txt|csv|json|xml|log|md)$/i, "text"],
+  [/\.docx?$/i, "office_document"],
+  [/\.xlsx?$/i, "office_spreadsheet"],
+  [/\.pptx?$/i, "office_presentation"],
+];
+function previewKindFrom(mimeType: string, fileName: string): string {
+  const m = mimeType.toLowerCase();
+  for (const [re, kind] of PREVIEW_BY_MIME) if (re.test(m)) return kind;
+  for (const [re, kind] of PREVIEW_BY_EXT) if (re.test(fileName)) return kind;
+  return "download_only";
+}
+function inlineDisposition(url: string): string {
+  if (!url) return "";
+  if (/[?&]disposition=/.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}disposition=inline`;
+}
+function normSecureFilePreview(meta: Dict, fileName: string, mimeType: string, downloadUrl: string): SecureFilePreview {
+  const p = asDict(meta.preview);
+  const kind = asStr(p.kind) || asStr(meta.preview_kind) || previewKindFrom(mimeType, fileName);
+  const dl = asStr(p.download_url) || downloadUrl;
+  const inline =
+    asStr(p.inline_url) || asStr(p.url) || asStr(meta.inline_url) || asStr(meta.preview_url) || inlineDisposition(dl);
+  const said =
+    "supported" in p ? p.supported !== false : "preview_supported" in meta ? meta.preview_supported !== false : true;
+  return {
+    supported: said && kind !== "download_only" && !!inline,
+    kind,
+    viewer: asStr(p.viewer) || asStr(meta.viewer) || (kind === "download_only" ? "download" : "browser_inline"),
+    openMode: asStr(p.open_mode) || asStr(meta.open_mode) || "modal_preview",
+    inlineUrl: inline,
+    downloadUrl: dl,
+  };
+}
 // Who wrote a message. `role` is the backend's own word — "client",
 // "advokat", "yurist", "call_center_lawyer" — and is what tells an operator
 // apart from an advocate in a three-party room.
@@ -3047,9 +3111,20 @@ export function normSecureMsgFile(d: Dict): Pick<SecureMessage, "messageType" | 
   const meta = asDict(d.meta);
   const name = asStr(meta.file_name);
   const url = asStr(meta.download_url);
+  const messageType = asStr(d.message_type) || "text";
+  if (!name && !url) return { messageType, file: null };
+  const mimeType = asStr(meta.mime_type);
+  const preview = normSecureFilePreview(meta, name, mimeType, url);
   return {
-    messageType: asStr(d.message_type) || "text",
-    file: name || url ? { fileName: name, mimeType: asStr(meta.mime_type), size: asNum(meta.size), downloadUrl: url } : null,
+    messageType,
+    file: {
+      fileName: name,
+      mimeType,
+      size: asNum(meta.size),
+      downloadUrl: preview.downloadUrl,
+      inlineUrl: preview.inlineUrl,
+      preview,
+    },
   };
 }
 export type SecureRoom = {
@@ -3136,6 +3211,9 @@ export async function uploadSecureMessage(
 // fetched with the session's bearer token, never opened as a bare link.
 export async function getSecureMessageFile(roomId: string, messageId: string): Promise<Blob> {
   return httpBlob(`/secure-chats/${roomId}/messages/${messageId}/file`);
+}
+export async function getSecureMessageFileAt(relativeUrl: string): Promise<Blob> {
+  return httpBlob(relativeUrl);
 }
 export function secureSocketUrl(roomId: string, token?: string | null): string {
   const q = token ? `?token=${encodeURIComponent(token)}` : "";
