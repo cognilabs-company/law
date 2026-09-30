@@ -33,15 +33,15 @@ const DONE_STATUSES = new Set(["completed", "archived"]);
 // half off the edge and behind the text — the arrangement in the mockup. The
 // files are cut-outs on transparency (public/img/card-*.png) and are named
 // after the action they belong to, which is the pairing used here.
-const QUICK_ACTIONS: { key: string; icon: string; href: string; art: string; primary?: boolean; live?: boolean; ask?: boolean }[] = [
+const QUICK_ACTIONS: { key: string; icon: string; href: string; art: string; low?: boolean; primary?: boolean; live?: boolean; ask?: boolean }[] = [
   // `ask`: this one opens the advocate-or-AI chooser rather than navigating.
   { key: "describe", icon: "IconChatDots", href: "/portal/client/ai", art: "card-muammoni-tavsiflash", primary: true, ask: true },
   // "Tezkor Advokat xizmati online" — the live-advocate module. Flagged as
   // live rather than primary so it reads as a service that is on right now,
   // beside the primary AI action instead of competing with it.
-  { key: "urgent", icon: "IconBolt", href: "/portal/client/urgent", art: "card-advokatga-tezkor-boglanish", live: true },
-  { key: "findSpecialist", icon: "IconSearch", href: "/portal/client/lawyers", art: "card-mutaxassis-topish" },
-  { key: "consultation", icon: "IconAlert", href: "/portal/client/urgent?service=traffic_accident_consultation", art: "card-avtoavariya-huquqiy-konsultatsiya" },
+  { key: "urgent", icon: "IconBolt", href: "/portal/client/urgent", art: "card-advokatga-tezkor-boglanish", low: true, live: true },
+  { key: "findSpecialist", icon: "IconSearch", href: "/portal/client/lawyers", art: "card-mutaxassis-topish", low: true },
+  { key: "consultation", icon: "IconAlert", href: "/portal/client/urgent?service=traffic_accident_consultation", art: "card-avtoavariya-huquqiy-konsultatsiya", low: true },
   { key: "askAi", icon: "IconSparkle", href: "/portal/client/ai", art: "card-lexgo-ai-sorash" },
   { key: "upload", icon: "IconDownload", href: "/portal/client/doc-analysis", art: "card-hujjat-tahlili" },
 ];
@@ -125,7 +125,7 @@ export default function ClientDashboard() {
                   identical link labels would be noise. It stays FIRST so the
                   primary card's chevron, which hangs off `span:last-child`,
                   still lands on the text. */}
-              <span className="cdact__art" style={{ "--art": `url(/img/${a.art}.png)` } as CSSProperties} aria-hidden />
+              <span className={`cdact__art${a.low ? " cdact__art--low" : ""}`} style={{ "--art": `url(/img/${a.art}.png)` } as CSSProperties} aria-hidden />
               <span className="cdact__ico">{a.live ? <i className="cdact__dot" aria-hidden /> : null}<Icon name={a.icon} /></span>
               <span className="cdact__t">
                 {ta(a.key)}
