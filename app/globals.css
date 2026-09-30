@@ -4834,6 +4834,20 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .dsel__btn{background:var(--dk-surface-2, #F7FAFE);border-radius:14px;padding:12px 13px 12px 15px;min-height:48px;box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .18s,background .18s}
 .dsel__btn:hover{box-shadow:inset 0 0 0 1.5px var(--b300);background:var(--dk-surface, #fff)}
 .dsel[data-open="true"] .dsel__btn,.dsel__btn:focus-visible{outline:none;box-shadow:inset 0 0 0 1.5px var(--b400);background:var(--dk-surface, #fff)}
+/* …and inside a dialog it needs a stronger one. The default pairing is an
+   #F7FAFE fill with an #E4EBF5 hairline, which reads fine on the page's own
+   off-white ground but disappears against the modal card, which is pure
+   white: on the light theme the control had no visible edge at all and the
+   client could not see where the dropdown was. A darker border only there,
+   and only as far as the modal body reaches. The dark theme keeps the
+   neutral border it already has for this job.
+
+   Placed after .dfrow's rule above, which sets this same border to
+   transparent for the document rows — equal specificity, so the later of
+   the two wins and a select in a dialog is outlined even there. */
+.amodal__b .dsel__btn{box-shadow:inset 0 0 0 1.5px var(--dk-bd-neutral, #C7D5E8)}
+.amodal__b .dsel__btn:hover{box-shadow:inset 0 0 0 1.5px var(--b300)}
+.amodal__b .dsel[data-open="true"] .dsel__btn,.amodal__b .dsel__btn:focus-visible{box-shadow:inset 0 0 0 1.5px var(--b400)}
 /* chevron in a soft round badge so the control reads as a dropdown */
 .dsel__cv{box-sizing:border-box;width:24px;height:24px;border:0;border-radius:50%;background:var(--b100);position:relative;transform:none;margin:0;transition:background .18s}
 .dsel__cv::after{content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;border-right:2px solid var(--dk-acc, var(--b600));border-bottom:2px solid var(--dk-acc, var(--b600));transform:translate(-50%,-65%) rotate(45deg);transition:transform .22s}
@@ -7351,16 +7365,26 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
    the same proportion of the card at each of them instead of dominating the
    wide one and swamping the narrow one.
 
-   26% × 48% is where the longest of the six subtitles still clears it. The
-   sizes above that were measured against the real strings at the real grid
-   width: at 30% "Tasdiqlangan advokat va yuristlar" and "…bilan darhol" run
-   under the picture, and at 32% the corner bleed starts cutting the parts
-   that carry the meaning — the AI badge and the download arrow. The only way
-   to draw it larger is to hold the text off with a max-width, and the text
-   is the thing that must not move. */
+   It sits on the ICON ROW, not in the bottom-right corner the mockup draws.
+   The corner cannot work here without moving the text: the row is six cards
+   across, the titles run to four words and the subtitles to eight, and at
+   every size that left the picture readable the longest three ran across it
+   — "Tasdiqlangan advokat va yuristlar", "…bilan darhol", "…faqat real
+   advokat". Reserving a column for it means a max-width on the text, and the
+   text is the thing that must not move. The icon row is the one band that is
+   empty on all six cards whatever the copy does: a 42px icon on the left and
+   nothing to its right. So the picture goes there, centred against that icon
+   — both are visible, neither touches the other, and the placement is
+   identical on every card.
+
+   The files are normalised for that: each was trimmed of its transparent
+   margin (42-59% of the original canvas, differently distributed on each,
+   which is why they used to land at six different sizes and offsets) and
+   re-centred in one square. `contain` in a square box now draws all six at
+   the same size. */
 .cdact__i{position:relative;overflow:hidden}
-.cdact__art{position:absolute;z-index:0;right:0;bottom:0;width:26%;height:48%;pointer-events:none;
-  background:var(--art) no-repeat right bottom/contain;
+.cdact__art{position:absolute;z-index:0;top:4px;right:10px;width:64px;height:64px;pointer-events:none;
+  background:var(--art) no-repeat center/contain;
   transition:transform .28s cubic-bezier(.2,.8,.2,1)}
 .cdact__i:hover .cdact__art{transform:translateY(-3px) scale(1.05)}
 /* The text simply sits in front. Positioned only so it paints above the
