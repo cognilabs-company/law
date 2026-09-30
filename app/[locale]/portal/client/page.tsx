@@ -22,8 +22,8 @@ import {
   IconCheck,
   IconFileText,
   IconAlert,
-  IconScale,
-  IconChatDots,
+  IconAdvocatePerson,
+  IconAiAnswer,
 } from "@/components/icons";
 
 const DONE_STATUSES = new Set(["completed", "archived"]);
@@ -63,14 +63,24 @@ export default function ClientDashboard() {
   const res = useResource(listCases, []);
   const kpi = useMemo(() => {
     const rows = res.data;
-    const done = rows.filter((c) => DONE_STATUSES.has(c.status)).length;
+    const open = rows.filter((c) => !DONE_STATUSES.has(c.status));
     return {
       total: rows.length,
-      active: rows.length - done,
-      done,
-      pending: rows.filter((c) => c.nextAction).length,
+      active: open.length,
+      done: rows.length - open.length,
+      // "Harakat kutilmoqda" means the client still has something to do, so a
+      // next_action left behind on a closed case is not one of them. Counted
+      // over every row, this tile sat at 3 for an account whose cases were all
+      // finished — the only one of the four that ignored the status.
+      pending: open.filter((c) => c.nextAction).length,
     };
   }, [res.data]);
+  // The panel below is headed "Faol so'rovlaringiz" and its empty state reads
+  // "Faol so'rov yo'q", but it was rendering res.data — every case, closed and
+  // archived ones included. Both labels were already telling the truth about
+  // what belongs there; the list is what disagreed. "Hammasini ko'rish" still
+  // goes to /cases, which is where the full history lives.
+  const openCases = useMemo(() => res.data.filter((c) => !DONE_STATUSES.has(c.status)), [res.data]);
 
   function describe() {
     const q = ask.trim();
@@ -144,7 +154,7 @@ export default function ClientDashboard() {
           <p className="cdwho__lead">{ta("whoLead")}</p>
           <div className="cdwho__grid">
             <Link href="/portal/client/urgent" className="cdwho__c cdwho__c--adv" onClick={() => setWhoOpen(false)}>
-              <span className="cdwho__i"><IconScale /></span>
+              <span className="cdwho__i"><IconAdvocatePerson /></span>
               <span className="cdwho__t">
                 <b>{ta("whoAdvocate")}</b>
                 <span>{ta("whoAdvocateSub")}</span>
@@ -152,7 +162,7 @@ export default function ClientDashboard() {
               <em className="cdwho__go"><IconArrowRight /></em>
             </Link>
             <Link href="/portal/client/ai" className="cdwho__c cdwho__c--ai" onClick={() => setWhoOpen(false)}>
-              <span className="cdwho__i"><IconChatDots /></span>
+              <span className="cdwho__i"><IconAiAnswer /></span>
               <span className="cdwho__t">
                 <b>{ta("whoAi")}</b>
                 <span>{ta("whoAiSub")}</span>
@@ -200,15 +210,18 @@ export default function ClientDashboard() {
           </div>
           {res.status === "loading" ? (
             <Skeleton rows={3} />
-          ) : !res.data.length ? (
+          ) : !openCases.length ? (
             <EmptyState icon={<IconSparkle />} title={t("emptyTitle")} text={t("emptyText")} />
           ) : (
-            res.data.map((c) => (
+            openCases.map((c) => (
               <div className="creq" key={c.id}>
                 <span className="creq__st" />
                 <div className="creq__m">
+                  {/* CASE-XXXXX went in both lines whenever the case had no
+                      type to lead with, so the row printed the same id twice.
+                      The meta line carries it only when the title did not. */}
                   <b>{c.caseType || c.caseNumber}</b>
-                  <span>{[statusLabel(tc, c.stage), c.caseNumber].filter(Boolean).join(" · ")}</span>
+                  <span>{[statusLabel(tc, c.stage), c.caseType ? c.caseNumber : ""].filter(Boolean).join(" · ")}</span>
                   {c.nextAction ? (
                     <em className="creq__next">
                       <IconArrowRight />

@@ -724,6 +724,35 @@ export const IconOpinionPanel = (p: P) => (
   </svg>
 );
 
+// ── "Kimdan maslahat olasiz?" — the two answers, told apart ───────────
+//
+// The choice is a human advocate or LexGo's AI, and it was drawn with the
+// scales and a plain chat bubble: the scales are what every legal screen on
+// the site already wears, and a bubble with three dots is any chat anywhere.
+// Neither said which of the two you were picking. These do — a person behind
+// the scales, and an answer with the spark in it.
+
+// A real advocate: a person, with the law behind them rather than instead of
+// them. Same 1.6 stroke as the Tezkor set, for the same reason.
+export const IconAdvocatePerson = (p: P) => (
+  <svg {...fine} {...p}>
+    <circle cx="8.6" cy="8.2" r="3.3" />
+    <path d="M2.4 20.2a6.2 6.2 0 0112.4 0" />
+    <path d="M18.5 3.3v7.2M15.8 5.4h5.4M16.9 10.5h3.2" />
+    <path d="M15.8 5.4l-1.3 2.9h2.6l-1.3-2.9zM21.2 5.4l-1.3 2.9h2.6l-1.3-2.9z" />
+  </svg>
+);
+
+// The AI's answer: a reply with the spark inside it, so the spark is what the
+// answer is made of rather than a badge stuck on a generic bubble.
+export const IconAiAnswer = (p: P) => (
+  <svg {...fine} {...p}>
+    <path d="M20.8 11.7a8 8 0 01-8 8H6.9L3 22.2l1.1-4.1a8 8 0 016.7-12.3h2a8 8 0 018 5.9" />
+    <path d="M11.8 7.7l1.2 2.9 2.9 1.2-2.9 1.2-1.2 2.9-1.2-2.9L7.7 11.8l2.9-1.2 1.2-2.9z" />
+    <path d="M17.4 3.1l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6.6-1.5z" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 // Name → component registry so data files can reference icons by string.
 const ICON_MAP: Record<string, ComponentType<P>> = {
   IconChatDots,
@@ -764,6 +793,8 @@ const ICON_MAP: Record<string, ComponentType<P>> = {
   IconChatConsult,
   IconSecondOpinion,
   IconOpinionPanel,
+  IconAdvocatePerson,
+  IconAiAnswer,
 };
 
 export function Icon({ name, ...p }: { name: string } & P) {
