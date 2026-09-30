@@ -6391,44 +6391,46 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
   .slight,.slight__img{animation:none}
 }
 
-.sprev{position:fixed;inset:0;z-index:300;display:flex;flex-direction:column;
-  background:rgba(3,10,26,.9);backdrop-filter:blur(6px);animation:fade .18s ease both}
-.sprev__bar{flex:none;min-height:52px;display:flex;align-items:center;gap:10px;padding:8px 14px;color:#fff}
+.sprev{position:fixed;inset:0;z-index:300;background:rgba(3,16,43,.46);backdrop-filter:blur(3px);
+  opacity:0;transition:opacity .28s ease}
+.sprev--on{opacity:1}
+.sprev__panel{position:absolute;top:0;right:0;bottom:0;width:min(760px,100%);display:flex;flex-direction:column;
+  background:var(--dk-surface, #fff);box-shadow:var(--s3);
+  transform:translateX(100%);transition:transform .32s cubic-bezier(.3,1,.4,1)}
+.sprev--on .sprev__panel{transform:none}
+.sprev__bar{flex:none;display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
 .sprev__name{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
-.sprev__name b{font-size:.86rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.92)}
-.sprev__name small{font-size:.72rem;color:rgba(255,255,255,.6)}
-.sprev__btn{flex:none;width:34px;height:34px;border-radius:11px;border:0;cursor:pointer;display:grid;place-items:center;
-  background:rgba(255,255,255,.14);color:#fff;transition:background .15s}
-.sprev__btn:hover:not(:disabled){background:rgba(255,255,255,.26)}
+.sprev__name b{font-size:.92rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sprev__name small{font-size:.74rem;color:var(--gray)}
+.sprev__btn{flex:none;width:32px;height:32px;border-radius:9px;border:0;cursor:pointer;display:grid;place-items:center;
+  background:var(--b50);color:var(--gray);transition:background .15s,color .15s}
+.sprev__btn:hover:not(:disabled){background:var(--b100);color:var(--dk-acc, var(--b600))}
 .sprev__btn:disabled{opacity:.45;cursor:default}
 .sprev__btn svg{width:16px;height:16px}
-.sprev__body{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 16px 16px}
-.sprev__wait{color:rgba(255,255,255,.75);font-size:.86rem}
-.sprev__img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;
-  animation:pop .22s cubic-bezier(.2,.8,.3,1) both}
-.sprev__pdf{width:min(980px,100%);height:100%;border:0;border-radius:12px;background:#fff}
-.sprev__video{max-width:100%;max-height:100%;border-radius:12px;background:#000}
-.sprev__audio{width:min(420px,100%);background:var(--dk-surface, #fff);border-radius:16px;padding:18px;box-shadow:var(--s3)}
-.sprev__sheet{width:min(980px,100%);max-height:100%;overflow:auto;background:var(--dk-surface, #fff);
-  color:var(--ink);border-radius:14px;box-shadow:var(--s3);padding:24px}
+.sprev__body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto;padding:18px}
+.sprev__wait{margin:auto;color:var(--gray);font-size:.86rem}
+.sprev__img{margin:auto;max-width:100%;border-radius:10px;background:var(--dk-surface-2, #F1F5FB)}
+.sprev__pdf{flex:1;min-height:420px;width:100%;border:0;border-radius:10px;background:var(--dk-surface-2, #F1F5FB)}
+.sprev__video{margin:auto;max-width:100%;border-radius:10px;background:#000}
+.sprev__audio{margin:auto;width:100%;max-width:420px}
+.sprev__sheet{flex:none}
 .sprev__text{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.82rem;line-height:1.6;
   white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
 .sprev__note{margin:0 0 14px;padding:9px 12px;border-radius:10px;font-size:.8rem;
   background:var(--dk-tint-warn, #FFF1DE);color:var(--dk-txt-warn, #B26A00)}
-.sprev__fb{width:min(420px,100%);display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
-  background:var(--dk-surface, #fff);color:var(--ink);border-radius:16px;box-shadow:var(--s3);padding:26px 22px}
+.sprev__fb{margin:auto;width:min(360px,100%);display:flex;flex-direction:column;align-items:center;gap:10px;
+  text-align:center;color:var(--ink)}
 .sprev__fbi{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;
   background:var(--b50);color:var(--dk-acc, var(--b600))}
 .sprev__fbi svg{width:22px;height:22px}
 .sprev__fb b{font-size:.92rem;overflow-wrap:anywhere}
 .sprev__fb p{margin:0;font-size:.84rem;line-height:1.5;color:var(--gray)}
 @media (max-width:640px){
-  .sprev__body{padding:0 10px 10px}
-  .sprev__sheet{padding:16px}
-  .sprev__bar{padding:8px 10px}
+  .sprev__body{padding:12px}
+  .sprev__bar{padding:12px 14px}
 }
 @media (prefers-reduced-motion:reduce){
-  .sprev,.sprev__img{animation:none}
+  .sprev,.sprev__panel{transition:none}
 }
 
 /* ── wp-mictoggle: the microphone control in a meeting ─────────────────

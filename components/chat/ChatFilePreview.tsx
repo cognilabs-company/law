@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { getSecureMessageFileAt, type SecureMessageFile } from "@/lib/services/backend";
@@ -13,6 +13,7 @@ import { IconClose, IconDownload, IconFileText } from "@/components/icons";
 
 const TEXT_LIMIT = 200_000;
 const BLOB_KINDS = new Set(["image", "pdf", "audio", "video"]);
+const SLIDE_MS = 320;
 
 export function canPreviewFile(file: SecureMessageFile | null | undefined): boolean {
   const p = file?.preview;
@@ -36,16 +37,39 @@ export default function ChatFilePreview({
   const [clipped, setClipped] = useState(false);
   const [tree, setTree] = useState<DocTree[] | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
+  const [on, setOn] = useState(false);
+  const leaving = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const downOnScrim = useRef(false);
+
+  useEffect(() => {
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setOn(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+      clearTimeout(timer.current);
+    };
+  }, []);
+
+  const close = useCallback(() => {
+    if (leaving.current) return;
+    leaving.current = true;
+    setOn(false);
+    timer.current = setTimeout(onClose, SLIDE_MS);
+  }, [onClose]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       e.stopPropagation();
-      onClose();
+      close();
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
+  }, [close]);
 
   const src = file.preview?.inlineUrl || file.inlineUrl || file.downloadUrl;
   const status = src ? loadState : "error";
@@ -143,27 +167,46 @@ export default function ChatFilePreview({
   else body = fallback(t("previewUnsupported"));
 
   return createPortal(
-    <div className="sprev" role="dialog" aria-modal="true" aria-label={file.fileName}>
-      <div className="sprev__bar">
-        <span className="sprev__name">
-          <b>{file.fileName}</b>
-          <small>{size}</small>
-        </span>
-        <button
-          type="button"
-          className="sprev__btn"
-          onClick={download}
-          disabled={!blob}
-          aria-label={t("attachDownload")}
-          title={t("attachDownload")}
-        >
-          <IconDownload />
-        </button>
-        <button type="button" className="sprev__btn" onClick={onClose} aria-label={t("close")} title={t("close")}>
-          <IconClose />
-        </button>
-      </div>
-      <div className="sprev__body">{body}</div>
+    <div
+      className={`sprev${on ? " sprev--on" : ""}`}
+      onMouseDown={(e) => {
+        downOnScrim.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && downOnScrim.current) close();
+      }}
+    >
+      <aside
+        className="sprev__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={file.fileName}
+        onMouseDown={(e) => {
+          downOnScrim.current = false;
+          e.stopPropagation();
+        }}
+      >
+        <div className="sprev__bar">
+          <span className="sprev__name">
+            <b>{file.fileName}</b>
+            <small>{size}</small>
+          </span>
+          <button
+            type="button"
+            className="sprev__btn"
+            onClick={download}
+            disabled={!blob}
+            aria-label={t("attachDownload")}
+            title={t("attachDownload")}
+          >
+            <IconDownload />
+          </button>
+          <button type="button" className="sprev__btn" onClick={close} aria-label={t("close")} title={t("close")}>
+            <IconClose />
+          </button>
+        </div>
+        <div className="sprev__body">{body}</div>
+      </aside>
     </div>,
     document.body,
   );
