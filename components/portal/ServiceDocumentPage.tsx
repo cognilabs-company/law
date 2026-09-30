@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import ServiceDocumentRequest from "./ServiceDocumentRequest";
-import { clearDraft, DocChromeContext, type DocChrome } from "./DocFill";
+import { clearDraft, hasDraftAnswers, DocChromeContext, type DocChrome } from "./DocFill";
 import { useCatalogBackHref } from "@/lib/catalogNav";
 import Modal from "@/components/admin/Modal";
 import { IconChevronLeft, IconClose, IconAlert } from "@/components/icons";
@@ -38,6 +38,22 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   // the client reported: they pressed it, the builder went, and nothing
   // told them what had happened to what they had typed.
   const leave = useCallback(() => (backHref ? router.push(backHref) : router.back()), [backHref, router]);
+  // …but only where there is something to lose. The dialog says "chiqsangiz
+  // to'ldirgan ma'lumotlaringiz saqlanmaydi", and it was being raised by
+  // every Back on this route — including the wait screen ("Hujjat
+  // tayyorlanmoqda"), where the answers have already gone to the server and
+  // the draft was cleared when they did. Warning someone about losing work
+  // that is already saved is how a confirmation stops being read at all.
+  //
+  // The draft is the test, because the draft is the thing at stake: it
+  // exists only while the builder is being filled in and DocumentRequestPanel
+  // deletes it the moment the answers are submitted. So a builder with typed
+  // answers asks; a builder nobody has typed in, the payment step, the wait
+  // screen and a finished document all just leave.
+  const askOrLeave = useCallback(() => {
+    if (hasDraftAnswers(draftId)) setExitOpen(true);
+    else leave();
+  }, [draftId, leave]);
   // Back and Exit are the same act, so they ask the same question. They were
   // two dialogs saying two different things about the same press: Back
   // explained that the answers were in this browser and not on the server,
@@ -45,8 +61,8 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   // decided which was true, which is no way to word a warning — and the one
   // they actually reached from the builder was the wrong one.
   const chrome = useMemo<DocChrome>(
-    () => ({ onBack: () => setExitOpen(true), onExit: () => setExitOpen(true) }),
-    [],
+    () => ({ onBack: askOrLeave, onExit: askOrLeave }),
+    [askOrLeave],
   );
 
   // Leaving means leaving: the draft goes with it. That is what the dialog
@@ -64,12 +80,12 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   return (
     <div className="docbuild docbuild--full">
       <div className="docbuild__top">
-        <button type="button" className="docbuild__back" onClick={() => setExitOpen(true)}>
+        <button type="button" className="docbuild__back" onClick={askOrLeave}>
           <IconChevronLeft />
           {t("back")}
         </button>
         {title ? <b className="docbuild__title">{title}</b> : null}
-        <button type="button" className="docbuild__exit" onClick={() => setExitOpen(true)}>
+        <button type="button" className="docbuild__exit" onClick={askOrLeave}>
           <IconClose />
           {td("exit")}
         </button>

@@ -47,6 +47,18 @@ export function loadDraft(id: string): Record<string, string> | null {
     return null;
   }
 }
+// Whether leaving would actually lose anything: a draft exists AND somebody
+// has typed into it. The draft is written on every keystroke, so an untouched
+// builder already has one — an empty `{}` — and presence alone is not the
+// question. This is what decides whether the exit confirmation is raised at
+// all: it is a warning about losing answers, so it has no business appearing
+// on a screen that has none (the wait screen, the payment step, a finished
+// document) or in a builder nobody has typed in yet.
+export function hasDraftAnswers(id: string): boolean {
+  if (!id) return false;
+  const d = loadDraft(id);
+  return !!d && Object.values(d).some((v) => v.trim() !== "");
+}
 export function clearDraft(id: string) {
   try {
     localStorage.removeItem(DRAFT_KEY(id));
