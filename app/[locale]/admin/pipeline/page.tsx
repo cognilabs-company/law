@@ -330,11 +330,11 @@ export default function AdminPipeline() {
 
   return (
     <div className="ppanel">
-      {/* The banner the design opens on: what this page is, in one line, with
-          the artwork running off its right edge. The progress block beside it
-          is the board's own won/total — the mockup draws a "goal" there, but
-          there is no target stored anywhere, so this shows the two real
-          numbers that fill the same shape rather than inventing a quota. */}
+      {/* The banner the design opens on: what this page is on the left, the
+          artwork beside it, the board's own progress on the right. The mockup
+          draws a monthly "goal" in that last slot, but no target is stored
+          anywhere, so it carries the two real numbers — won against total —
+          that fill the same shape rather than inventing a quota. */}
       <div className="pipehero">
         <div className="pipehero__m">
           <span className="pipehero__i"><IconTrendingUp /></span>
@@ -359,44 +359,54 @@ export default function AdminPipeline() {
       </div>
 
       {cols.length ? (
+        <div className="lkpi">
+          <div className="lkpi__c"><span className="lkpi__i lkpi__i--total"><IconUsers /></span><div><b>{total}</b><span>{t("kpi.total")}</span></div></div>
+          <div className="lkpi__c"><span className="lkpi__i lkpi__i--active"><IconPhone /></span><div><b>{active}</b><span>{t("kpi.active")}</span></div></div>
+          <div className="lkpi__c"><span className="lkpi__i lkpi__i--won"><IconAward /></span><div><b>{wonCount}</b><span>{t("kpi.won")}</span></div></div>
+          <div className="lkpi__c"><span className="lkpi__i lkpi__i--conv"><IconTrendingUp /></span><div><b>{conv}%</b><span>{t("kpi.conv")}</span></div></div>
+        </div>
+      ) : null}
+
+      {/* Period on the left, what you can do to the board on the right — one
+          row, as the design has it, instead of the actions sitting up in the
+          page heading away from everything they act on.
+          The row itself is NOT behind `cols.length`, only the period chips
+          are: moving these buttons out of the heading put "Status qo'shish"
+          and "Qo'shish" inside that guard, and an empty board — the one place
+          where adding a status is the only thing left to do — lost both. */}
+      <div className="pipebar">
+        <div className="pipebar__per">
+          {cols.length ? periodPresets.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              className={`btn btn--sm ${f.from === p.from && f.to === p.to ? "btn--pri" : "btn--line"}`}
+              onClick={() => setF((cur) => ({ ...cur, from: p.from, to: p.to }))}
+            >
+              {p.label}
+            </button>
+          )) : null}
+          {cols.length && (f.from || f.to) ? (
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setF((cur) => ({ ...cur, from: "", to: "" }))}>
+              {t("f.clear")}
+            </button>
+          ) : null}
+        </div>
+        <div className="pipebar__act">
+          {cols.length ? (
+            <span className="segtab">
+              <button type="button" className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")} aria-label={t("viewKanban")}><IconGrid />{t("viewKanban")}</button>
+              <button type="button" className={view === "table" ? "on" : ""} onClick={() => setView("table")} aria-label={t("viewTable")}><IconDocLines />{t("viewTable")}</button>
+            </span>
+          ) : null}
+          <button className="btn btn--soft btn--sm" type="button" onClick={openAuto} disabled={!cols.length}><IconBolt />{t("auto.btn")}{unassigned.length ? ` · ${unassigned.length}` : ""}</button>
+          <button className="btn btn--line btn--sm" type="button" onClick={openAddStatus}><IconPlus />{t("addStatus")}</button>
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => setAddOpen(true)}><IconPlus />{ta("form.add")}</button>
+        </div>
+      </div>
+
+      {cols.length ? (
         <>
-          <div className="lkpi">
-            <div className="lkpi__c"><span className="lkpi__i lkpi__i--total"><IconUsers /></span><div><b>{total}</b><span>{t("kpi.total")}</span></div></div>
-            <div className="lkpi__c"><span className="lkpi__i lkpi__i--active"><IconPhone /></span><div><b>{active}</b><span>{t("kpi.active")}</span></div></div>
-            <div className="lkpi__c"><span className="lkpi__i lkpi__i--won"><IconAward /></span><div><b>{wonCount}</b><span>{t("kpi.won")}</span></div></div>
-            <div className="lkpi__c"><span className="lkpi__i lkpi__i--conv"><IconTrendingUp /></span><div><b>{conv}%</b><span>{t("kpi.conv")}</span></div></div>
-          </div>
-          {/* Period on the left, what you can do to the board on the right —
-              one row, as the design has it, instead of the actions sitting up
-              in the page heading away from everything they act on. */}
-          <div className="pipebar">
-            <div className="pipebar__per">
-              {periodPresets.map((p) => (
-                <button
-                  key={p.key}
-                  type="button"
-                  className={`btn btn--sm ${f.from === p.from && f.to === p.to ? "btn--pri" : "btn--line"}`}
-                  onClick={() => setF((cur) => ({ ...cur, from: p.from, to: p.to }))}
-                >
-                  {p.label}
-                </button>
-              ))}
-              {f.from || f.to ? (
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setF((cur) => ({ ...cur, from: "", to: "" }))}>
-                  {t("f.clear")}
-                </button>
-              ) : null}
-            </div>
-            <div className="pipebar__act">
-              <span className="segtab">
-                <button type="button" className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")} aria-label={t("viewKanban")}><IconGrid />{t("viewKanban")}</button>
-                <button type="button" className={view === "table" ? "on" : ""} onClick={() => setView("table")} aria-label={t("viewTable")}><IconDocLines />{t("viewTable")}</button>
-              </span>
-              <button className="btn btn--soft btn--sm" type="button" onClick={openAuto} disabled={!cols.length}><IconBolt />{t("auto.btn")}{unassigned.length ? ` · ${unassigned.length}` : ""}</button>
-              <button className="btn btn--line btn--sm" type="button" onClick={openAddStatus}><IconPlus />{t("addStatus")}</button>
-              <button className="btn btn--pri btn--sm" type="button" onClick={() => setAddOpen(true)}><IconPlus />{ta("form.add")}</button>
-            </div>
-          </div>
           <LeadFilterBar
             value={f}
             onChange={setF}
