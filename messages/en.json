@@ -1942,6 +1942,60 @@
     "lastFreeText": "{limit} free questions a month. To continue, pick the LexGo.AI Lite or Pro tariff — the limit resets on the 1st."
   },
   "portal": {
+    "workFilters": {
+      "search": "Search",
+      "clearSearch": "Clear search",
+      "filters": "Filters",
+      "sortLabel": "Sort",
+      "period": "Period",
+      "periods": {
+        "all": "All time",
+        "today": "Today",
+        "week": "Last 7 days",
+        "month": "Last 30 days"
+      },
+      "found": "{n} results",
+      "reset": "Clear filters",
+      "searchUrgent": "Search by client, ADV number or text",
+      "searchDocs": "Search by client, document or service",
+      "ownerLabel": "Taken by",
+      "owner": {
+        "all": "All",
+        "free": "Not taken",
+        "mine": "Taken by me",
+        "others": "Taken by another advocate"
+      },
+      "stageLabel": "Status",
+      "stage": {
+        "active": "Active",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "all": "All"
+      },
+      "sort": {
+        "attention": "By priority",
+        "new": "Newest first",
+        "old": "Oldest first"
+      },
+      "emptyFiltered": "Nothing matches the filters",
+      "emptyFilteredText": "Change or clear the filters.",
+      "flowLabel": "Work type",
+      "flow": {
+        "all": "All",
+        "template_lawyer_assisted": "From a template",
+        "custom_from_scratch": "From scratch",
+        "review_existing_document": "Document review"
+      },
+      "docType": "Document type",
+      "docTypeAll": "All types",
+      "ago": {
+        "now": "just now",
+        "minutes": "{n} min ago",
+        "hours": "{n} h ago",
+        "days": "{n} d ago"
+      },
+      "waitingSince": "Not taken: {ago}"
+    },
     "seller": {
       "urgent": {
         "joinWaiting": "The meeting has not started yet — the button goes live when the operator starts it.",

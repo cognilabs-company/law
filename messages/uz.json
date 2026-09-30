@@ -1948,6 +1948,60 @@
     "lastFreeText": "Oyiga {limit} ta bepul savol. Davom etish uchun LexGo.AI Lite yoki Pro tarifini tanlang — limit har oyning 1-sanasida yangilanadi."
   },
   "portal": {
+    "workFilters": {
+      "search": "Qidiruv",
+      "clearSearch": "Qidiruvni tozalash",
+      "filters": "Filtrlar",
+      "sortLabel": "Saralash",
+      "period": "Davr",
+      "periods": {
+        "all": "Barcha vaqt",
+        "today": "Bugun",
+        "week": "Oxirgi 7 kun",
+        "month": "Oxirgi 30 kun"
+      },
+      "found": "{n} ta natija",
+      "reset": "Filtrlarni tozalash",
+      "searchUrgent": "Mijoz, ADV raqami yoki matn bo'yicha qidirish",
+      "searchDocs": "Mijoz, hujjat yoki xizmat bo'yicha qidirish",
+      "ownerLabel": "Kim olgan",
+      "owner": {
+        "all": "Hammasi",
+        "free": "Olinmagan",
+        "mine": "Men olgan",
+        "others": "Boshqa advokat olgan"
+      },
+      "stageLabel": "Holat",
+      "stage": {
+        "active": "Faol",
+        "completed": "Yakunlangan",
+        "cancelled": "Bekor qilingan",
+        "all": "Hammasi"
+      },
+      "sort": {
+        "attention": "Muhimligi bo'yicha",
+        "new": "Avval yangilari",
+        "old": "Avval eskilari"
+      },
+      "emptyFiltered": "Filtrga mos ish topilmadi",
+      "emptyFilteredText": "Filtrlarni o'zgartiring yoki tozalang.",
+      "flowLabel": "Ish turi",
+      "flow": {
+        "all": "Hammasi",
+        "template_lawyer_assisted": "Shablon bo'yicha",
+        "custom_from_scratch": "Noldan tayyorlash",
+        "review_existing_document": "Hujjatni tekshirish"
+      },
+      "docType": "Hujjat turi",
+      "docTypeAll": "Barcha turlar",
+      "ago": {
+        "now": "hozirgina",
+        "minutes": "{n} daqiqa oldin",
+        "hours": "{n} soat oldin",
+        "days": "{n} kun oldin"
+      },
+      "waitingSince": "Olinmagan: {ago}"
+    },
     "seller": {
       "urgent": {
         "joinWaiting": "Meeting hali boshlanmadi — navbatchi advokat uni boshlaganda tugma aktiv bo‘ladi.",

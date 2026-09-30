@@ -1974,6 +1974,7 @@ function normLawyerDocTemplateFile(v: unknown): LawyerDocTemplateFile | null {
 }
 export type LawyerDocumentRequest = {
   id: string; // the lawyer_request record id — what detail/fulfill URLs key on
+  flow?: string;
   need: string;
   status: string;
   title: string;
@@ -2034,6 +2035,7 @@ function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
     title: cleanDocTitle(asStr(lr.title ?? d.title)),
     requestedDocumentType: asStr(lr.requested_document_type ?? d.requested_document_type),
     requestedDocumentTypeIsCustom: Boolean(lr.requested_document_type_is_custom ?? d.requested_document_type_is_custom),
+    flow: asStr(d.flow ?? lr.flow) || undefined,
     clientName: asStr(lr.client_name ?? client.name),
     clientPhone: asStr(lr.client_phone ?? client.phone),
     serviceName: cleanDocTitle(asStr(service.title ?? service.name)),
@@ -2121,6 +2123,7 @@ export type DocumentRequestPoolItem = {
   // "can_claim=true bo'lsa Ishni olish button active bo'lsin" — the backend's
   // own say, not re-derived from status.
   canClaim: boolean;
+  flow?: string;
 };
 function normPoolItem(v: unknown): DocumentRequestPoolItem {
   const d = asDict(v);
@@ -2135,6 +2138,7 @@ function normPoolItem(v: unknown): DocumentRequestPoolItem {
     title: cleanDocTitle(asStr(d.title) || asStr(template.title) || asStr(template.name)),
     requestedDocumentType: asStr(d.requested_document_type),
     requestedDocumentTypeIsCustom: Boolean(d.requested_document_type_is_custom),
+    flow: asStr(d.flow) || undefined,
     clientName: asStr(client.name),
     clientPhone: asStr(client.phone),
     // Cleaned like the card's own title above it: the pool card prints both,

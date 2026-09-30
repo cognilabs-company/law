@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -24,7 +24,39 @@ import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
 import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
-import { IconFileText, IconUser, IconPhone, IconCheck, IconClock, IconEye, IconDownload, IconUpload, IconAlert, IconTag, IconLock } from "@/components/icons";
+import { IconFileText, IconUser, IconPhone, IconCheck, IconClock, IconEye, IconDownload, IconUpload, IconAlert, IconTag, IconLock, IconLayers } from "@/components/icons";
+import WorkFilterBar, { inPeriod, useStoredFilters, type Period } from "./WorkFilterBar";
+import { matchesSearch } from "@/lib/searchText";
+
+const FLOWS = ["template_lawyer_assisted", "custom_from_scratch", "review_existing_document"] as const;
+const LATE_MS = 24 * 3600 * 1000;
+
+type Filterable = { title: string; clientName: string; serviceName: string; need: string; requestedDocumentType: string; createdAt: string; flow?: string };
+
+function useAgo() {
+  const tf = useTranslations("portal.workFilters");
+  return (iso: string) => {
+    const t = Date.parse(iso);
+    if (Number.isNaN(t)) return "";
+    const m = Math.max(0, Math.round((Date.now() - t) / 60000));
+    if (m < 1) return tf("ago.now");
+    if (m < 60) return tf("ago.minutes", { n: m });
+    const h = Math.round(m / 60);
+    if (h < 24) return tf("ago.hours", { n: h });
+    return tf("ago.days", { n: Math.round(h / 24) });
+  };
+}
+
+function FlowBadge({ flow }: { flow?: string }) {
+  const tf = useTranslations("portal.workFilters");
+  if (!flow || !tf.has(`flow.${flow}`)) return null;
+  return (
+    <span className={`wfb__flow wfb__flow--${flow}`}>
+      <IconLayers />
+      {tf(`flow.${flow}`)}
+    </span>
+  );
+}
 
 // LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md: 4 tabs instead of two stacked
 // sections — "Yangi so'rovlar" is the live pool (unclaimed, realtime);
@@ -71,6 +103,20 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
   // with).
   const assignedList = assigned.data.filter((r) => r.status !== "open_pool");
 
+  const tf = useTranslations("portal.workFilters");
+  const [f, setF, resetF] = useStoredFilters("docreq", { q: "", flow: "", docType: "", period: "", sort: "new" });
+  const pass = (r: Filterable, skipFlow = false) => {
+    if (!skipFlow && f.flow && r.flow !== f.flow) return false;
+    if (f.docType && (r.requestedDocumentType || "").trim() !== f.docType) return false;
+    if (!inPeriod(r.createdAt, f.period as Period)) return false;
+    if (f.q.trim() && !matchesSearch([r.title, r.clientName, r.serviceName, r.need, r.requestedDocumentType].join(" "), f.q)) return false;
+    return true;
+  };
+  const order = <T extends Filterable>(rows: T[]) => {
+    const made = (r: T) => Date.parse(r.createdAt) || 0;
+    return [...rows].sort((a, b) => (f.sort === "old" ? made(a) - made(b) : made(b) - made(a)));
+  };
+
   // Realtime — no polling: another advocate claiming a pooled request, or a
   // new one landing, refreshes the pool tab the instant it happens.
   useEffect(() => {
@@ -107,14 +153,32 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
     router.push(`${basePath}/${r.id}/editor`);
   }
 
+  const poolShown = order(poolVisible.filter((r) => pass(r)));
+  const assignedShown = order(assignedList.filter((r) => pass(r)));
+  const progressShown = order(progress.data.filter((r) => pass(r)));
+  const doneShown = order(done.data.filter((r) => pass(r)));
   const TABS: { key: Tab; label: string; count: number }[] = [
-    { key: "pool", label: t("tabNewRequests"), count: poolVisible.length },
-    { key: "assigned", label: t("tabAssigned"), count: assignedList.length },
-    { key: "progress", label: t("tabInProgress"), count: progress.data.length },
-    { key: "done", label: t("tabCompleted"), count: done.data.length },
+    { key: "pool", label: t("tabNewRequests"), count: poolShown.length },
+    { key: "assigned", label: t("tabAssigned"), count: assignedShown.length },
+    { key: "progress", label: t("tabInProgress"), count: progressShown.length },
+    { key: "done", label: t("tabCompleted"), count: doneShown.length },
   ];
-  const activeRows = tab === "assigned" ? assignedList : tab === "progress" ? progress.data : tab === "done" ? done.data : [];
+  const activeRows = tab === "assigned" ? assignedShown : tab === "progress" ? progressShown : tab === "done" ? doneShown : [];
   const activeStatus = tab === "assigned" ? assigned.status : tab === "progress" ? progress.status : tab === "done" ? done.status : pool.status;
+  const tabSource: Filterable[] = tab === "pool" ? poolVisible : tab === "assigned" ? assignedList : tab === "progress" ? progress.data : done.data;
+  const tabTotal = tabSource.length;
+  const flowCount = (fl: string) => tabSource.filter((r) => pass(r, true) && (!fl || r.flow === fl)).length;
+  const docTypes = useMemo(() => {
+    const all = [...pool.data, ...assigned.data].map((r) => (r.requestedDocumentType || "").trim()).filter(Boolean);
+    return Array.from(new Set(all)).sort((a, b) => a.localeCompare(b));
+  }, [pool.data, assigned.data]);
+  const activeCount = [f.flow, f.docType, f.period].filter(Boolean).length;
+  const filteredEmpty = (
+    <div className="wfb__empty">
+      <EmptyState icon={<IconFileText />} title={tf("emptyFiltered")} text={tf("emptyFilteredText")} />
+      <button type="button" className="btn btn--line btn--sm" onClick={resetF}>{tf("reset")}</button>
+    </div>
+  );
 
   return (
     <div className="ppanel">
@@ -135,6 +199,42 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         ))}
       </div>
 
+      <WorkFilterBar
+        q={f.q}
+        onQ={(v) => setF({ q: v })}
+        placeholder={tf("searchDocs")}
+        chips={[
+          {
+            key: "flow",
+            label: tf("flowLabel"),
+            value: f.flow,
+            onChange: (v) => setF({ flow: v }),
+            options: ["", ...FLOWS].map((fl) => ({ value: fl, label: tf(`flow.${fl || "all"}`), count: flowCount(fl) })),
+          },
+        ]}
+        selects={
+          docTypes.length
+            ? [
+                {
+                  key: "docType",
+                  label: tf("docType"),
+                  value: f.docType,
+                  onChange: (v) => setF({ docType: v }),
+                  options: [{ value: "", label: tf("docTypeAll") }, ...docTypes.map((d) => ({ value: d, label: d }))],
+                },
+              ]
+            : []
+        }
+        period={f.period as Period}
+        onPeriod={(v) => setF({ period: v })}
+        sort={f.sort}
+        onSort={(v) => setF({ sort: v })}
+        sortOptions={["new", "old"].map((o) => ({ value: o, label: tf(`sort.${o}`) }))}
+        activeCount={activeCount}
+        onReset={resetF}
+        resultCount={tab === "pool" ? poolShown.length : activeRows.length}
+      />
+
       {/* A failed fetch must never be dressed up as an empty pool — an
           advocate told "no requests" stops checking, which is the opposite
           of the truth on a 403/500. */}
@@ -145,9 +245,11 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
           <Notice ok={false} msg={t("loadError")} />
         ) : !poolVisible.length ? (
           <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
+        ) : !poolShown.length ? (
+          filteredEmpty
         ) : (
           <div className="pcards">
-            {poolVisible.map((p) => (
+            {poolShown.map((p) => (
               <PoolCard key={p.id} item={p} ns={ns} tcm={tcm} onClaimed={(r) => onClaimed(p.id, r)} onTaken={() => setGone((s) => new Set(s).add(p.id))} />
             ))}
           </div>
@@ -156,8 +258,10 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         <Skeleton rows={3} />
       ) : activeStatus === "error" ? (
         <Notice ok={false} msg={t("loadError")} />
-      ) : !activeRows.length ? (
+      ) : !tabTotal ? (
         <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
+      ) : !activeRows.length ? (
+        filteredEmpty
       ) : (
         <div className="pcards">
           {activeRows.map((r) => {
@@ -181,6 +285,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
                     {r.clientName}
                   </small>
                 ) : null}
+                <FlowBadge flow={r.flow} />
                 {/* What the client asked for, in their own words when they
                     wrote their own — the backend says which it was. */}
                 {r.requestedDocumentType ? (
@@ -244,6 +349,10 @@ function PoolCard({
   const [done, setDone] = useState<"" | "claimed" | "taken">("");
   const [err, setErr] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const ago = useAgo();
+  const tfw = useTranslations("portal.workFilters");
+  const [now] = useState(() => Date.now());
+  const late = item.status === "open_pool" && !!item.createdAt && now - Date.parse(item.createdAt) > LATE_MS;
 
   async function claim() {
     if (busy || done) return;
@@ -269,7 +378,7 @@ function PoolCard({
   // The card's documented rows, in the documented order: document name,
   // client, service, a 2-3 line preview of the request, created time, status.
   return (
-    <div className="pcase">
+    <div className={`pcase${late ? " pcase--late" : ""}`}>
       <div className="pcase__h">
         <b className="pcase__ttl">{item.title || t("title")}</b>
         <span className="st st--new">{item.status === "open_pool" ? t("statusNew") : statusLabel(tcm, item.status, "docStatus")}</span>
@@ -285,6 +394,7 @@ function PoolCard({
           <span className="advmuted">{t("serviceLabel")}:</span> {item.serviceName}
         </small>
       ) : null}
+      <FlowBadge flow={item.flow} />
       {item.requestedDocumentType ? (
         <span className={`dtag${item.requestedDocumentTypeIsCustom ? " dtag--own" : ""}`}>
           <IconTag />
@@ -293,9 +403,9 @@ function PoolCard({
       ) : null}
       {item.need ? <p className={`pcase__q${expanded ? " on" : ""}`}>{item.need}</p> : null}
       {item.createdAt ? (
-        <small>
+        <small className={late ? "pcase__wait" : undefined} title={shortDateTime(item.createdAt, locale)}>
           <IconClock />
-          {shortDateTime(item.createdAt, locale)}
+          {late ? tfw("waitingSince", { ago: ago(item.createdAt) }) : `${ago(item.createdAt)} · ${shortDateTime(item.createdAt, locale)}`}
         </small>
       ) : null}
       {done === "claimed" ? (

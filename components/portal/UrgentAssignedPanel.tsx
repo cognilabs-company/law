@@ -17,7 +17,8 @@ import { statusLabel, regionLabel, humanize } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
-import Select from "@/components/Select";
+import WorkFilterBar, { inPeriod, useStoredFilters, type Period } from "./WorkFilterBar";
+import { matchesSearch } from "@/lib/searchText";
 import CallRoom from "@/components/chat/CallRoom";
 import { Skeleton, EmptyState } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
@@ -72,10 +73,6 @@ const KINDS = [
   "second_opinion_single",
   "second_opinion_group",
 ] as const;
-// open_pool and expired were missing: a record can be handed back to the pool
-// and an unanswered one expires on its own, so both are states an advocate
-// finds on their own list and could not filter down to.
-const STATUSES = ["open_pool", "claimed", "scheduled", "in_progress", "meeting_active", "completed", "cancelled", "expired"] as const;
 
 // The endpoint answers in the record's own order, which buries a meeting
 // twenty minutes away under a case that was completed last week. Rank by how
@@ -159,6 +156,12 @@ const KIND_ICON: Record<string, typeof IconVideo> = {
 
 type State = { status: "loading" | "ready" | "error" | "missing"; items: UrgentRequest[] };
 
+function urgentStage(r: UrgentRequest): "active" | "completed" | "cancelled" {
+  if (r.status === "completed") return "completed";
+  if (r.status === "cancelled" || r.status === "expired") return "cancelled";
+  return "active";
+}
+
 export default function UrgentAssignedPanel() {
   const t = useTranslations("portal.seller.urgent");
   const tk = useTranslations("portal.client.urgent");
@@ -169,8 +172,8 @@ export default function UrgentAssignedPanel() {
   // The advocate cabinet calls it "messages", the lawyer one "chat".
   const chatHref = session?.role === "lawyer" ? "/portal/lawyer/chat" : "/portal/advocate/messages";
 
-  const [status, setStatus] = useState("");
-  const [kind, setKind] = useState("");
+  const tf = useTranslations("portal.workFilters");
+  const [f, setF, resetF] = useStoredFilters("urgent", { q: "", owner: "", stage: "active", kind: "", period: "", sort: "attention" });
   const [state, setState] = useState<State>({ status: "loading", items: [] });
   const [openId, setOpenId] = useState("");
   // The meeting this advocate has walked into, if any. Opened from the row's
@@ -179,7 +182,7 @@ export default function UrgentAssignedPanel() {
 
   const load = useCallback(
     () =>
-      listAssignedUrgentRequests({ status: status || undefined, serviceKind: kind || undefined })
+      listAssignedUrgentRequests({})
         .then((items) => setState({ status: "ready", items }))
         .catch((e) => {
           logApiError("urgent assigned", e);
@@ -191,7 +194,7 @@ export default function UrgentAssignedPanel() {
             items: s.items,
           }));
         }),
-    [status, kind],
+    [],
   );
 
   useEffect(() => {
@@ -213,10 +216,39 @@ export default function UrgentAssignedPanel() {
   // Sorted here rather than asked of the backend: the endpoint takes status
   // and service_kind filters only, and a copy is made because state.items is
   // the array the fetch put in state.
+  const me = session?.id ?? "";
+  const ownerOf = useCallback(
+    (r: UrgentRequest): "free" | "mine" | "others" => {
+      const taker = r.claimedByUserId || r.assignedLawyerUserId;
+      if (!taker) return "free";
+      return r.claimedByUserId === me || r.assignedLawyerUserId === me ? "mine" : "others";
+    },
+    [me],
+  );
+  const base = useMemo(
+    () =>
+      state.items.filter((r) => {
+        if (f.kind && r.serviceKind !== f.kind) return false;
+        if (!inPeriod(r.createdAt, f.period as Period)) return false;
+        if (f.q.trim() && !matchesSearch([r.clientName, r.workId, r.need, r.serviceTitle, tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : ""].join(" "), f.q)) return false;
+        return true;
+      }),
+    [state.items, f.kind, f.period, f.q, tk],
+  );
+  const ownerCount = (o: string) => base.filter((r) => (!f.stage || urgentStage(r) === f.stage) && (!o || ownerOf(r) === o)).length;
+  const stageCount = (st: string) => base.filter((r) => (!f.owner || ownerOf(r) === f.owner) && (!st || urgentStage(r) === st)).length;
+  const filtered = useMemo(
+    () => base.filter((r) => (!f.owner || ownerOf(r) === f.owner) && (!f.stage || urgentStage(r) === f.stage)),
+    [base, f.owner, f.stage, ownerOf],
+  );
+  const activeCount = [f.owner, f.stage !== "active" ? f.stage || "all" : "", f.kind, f.period].filter(Boolean).length;
+
   const shown = useMemo(() => {
     const when = (r: UrgentRequest) => (r.scheduledAt ? Date.parse(r.scheduledAt) : NaN);
     const made = (r: UrgentRequest) => Date.parse(r.createdAt) || 0;
-    return [...state.items].sort((a, b) => {
+    if (f.sort === "new") return [...filtered].sort((a, b) => made(b) - made(a));
+    if (f.sort === "old") return [...filtered].sort((a, b) => made(a) - made(b));
+    return [...filtered].sort((a, b) => {
       const ra = attentionRank(a.status);
       const rb = attentionRank(b.status);
       if (ra !== rb) return ra - rb;
@@ -230,7 +262,7 @@ export default function UrgentAssignedPanel() {
       }
       return made(b) - made(a); // finished work, and ties: newest first
     });
-  }, [state.items]);
+  }, [filtered, f.sort]);
 
   if (state.status === "missing") return null;
 
@@ -244,27 +276,56 @@ export default function UrgentAssignedPanel() {
       </div>
       <p className="advmuted uasg__lead">{t("lead")}</p>
 
-      <div className="uaq__filters">
-        <Select
-          value={status}
-          onChange={setStatus}
-          ariaLabel={t("fStatus")}
-          options={[{ value: "", label: t("allStatuses") }, ...STATUSES.map((s) => ({ value: s, label: statusLabel(tcm, s) }))]}
-        />
-        <Select
-          value={kind}
-          onChange={setKind}
-          ariaLabel={t("fKind")}
-          options={[{ value: "", label: t("allKinds") }, ...KINDS.map((k) => ({ value: k, label: tk.has(`kinds.${k}`) ? tk(`kinds.${k}`) : k }))]}
-        />
-      </div>
+      <WorkFilterBar
+        q={f.q}
+        onQ={(v) => setF({ q: v })}
+        placeholder={tf("searchUrgent")}
+        chips={[
+          {
+            key: "owner",
+            label: tf("ownerLabel"),
+            value: f.owner,
+            onChange: (v) => setF({ owner: v }),
+            options: ["", "free", "mine", "others"].map((o) => ({ value: o, label: tf(`owner.${o || "all"}`), count: ownerCount(o) })),
+          },
+          {
+            key: "stage",
+            label: tf("stageLabel"),
+            value: f.stage,
+            onChange: (v) => setF({ stage: v }),
+            options: ["active", "completed", "cancelled", ""].map((st) => ({ value: st, label: tf(`stage.${st || "all"}`), count: stageCount(st) })),
+          },
+        ]}
+        selects={[
+          {
+            key: "kind",
+            label: t("fKind"),
+            value: f.kind,
+            onChange: (v) => setF({ kind: v }),
+            options: [{ value: "", label: t("allKinds") }, ...KINDS.map((k) => ({ value: k, label: tk.has(`kinds.${k}`) ? tk(`kinds.${k}`) : k }))],
+          },
+        ]}
+        period={f.period as Period}
+        onPeriod={(v) => setF({ period: v })}
+        sort={f.sort}
+        onSort={(v) => setF({ sort: v })}
+        sortOptions={["attention", "new", "old"].map((o) => ({ value: o, label: tf(`sort.${o}`) }))}
+        activeCount={activeCount}
+        onReset={resetF}
+        resultCount={filtered.length}
+      />
 
       {state.status === "loading" ? (
         <Skeleton rows={3} />
       ) : state.status === "error" ? (
         <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
-      ) : !shown.length ? (
+      ) : !state.items.length ? (
         <EmptyState icon={<IconBolt />} title={t("empty")} text={t("emptyText")} />
+      ) : !shown.length ? (
+        <div className="wfb__empty">
+          <EmptyState icon={<IconBolt />} title={tf("emptyFiltered")} text={tf("emptyFilteredText")} />
+          <button type="button" className="btn btn--line btn--sm" onClick={resetF}>{tf("reset")}</button>
+        </div>
       ) : (
         <ul className="uasg__list">
           {shown.map((r) => {

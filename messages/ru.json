@@ -1942,6 +1942,60 @@
     "lastFreeText": "{limit} бесплатных вопросов в месяц. Чтобы продолжить, выберите тариф LexGo.AI Lite или Pro — лимит обновляется 1-го числа."
   },
   "portal": {
+    "workFilters": {
+      "search": "Поиск",
+      "clearSearch": "Очистить поиск",
+      "filters": "Фильтры",
+      "sortLabel": "Сортировка",
+      "period": "Период",
+      "periods": {
+        "all": "За всё время",
+        "today": "Сегодня",
+        "week": "Последние 7 дней",
+        "month": "Последние 30 дней"
+      },
+      "found": "Найдено: {n}",
+      "reset": "Сбросить фильтры",
+      "searchUrgent": "Поиск по клиенту, номеру ADV или тексту",
+      "searchDocs": "Поиск по клиенту, документу или услуге",
+      "ownerLabel": "Кто взял",
+      "owner": {
+        "all": "Все",
+        "free": "Не взятые",
+        "mine": "Взял я",
+        "others": "Взял другой адвокат"
+      },
+      "stageLabel": "Статус",
+      "stage": {
+        "active": "Активные",
+        "completed": "Завершённые",
+        "cancelled": "Отменённые",
+        "all": "Все"
+      },
+      "sort": {
+        "attention": "По важности",
+        "new": "Сначала новые",
+        "old": "Сначала старые"
+      },
+      "emptyFiltered": "По фильтру ничего не найдено",
+      "emptyFilteredText": "Измените или сбросьте фильтры.",
+      "flowLabel": "Тип работы",
+      "flow": {
+        "all": "Все",
+        "template_lawyer_assisted": "По шаблону",
+        "custom_from_scratch": "С нуля",
+        "review_existing_document": "Проверка документа"
+      },
+      "docType": "Тип документа",
+      "docTypeAll": "Все типы",
+      "ago": {
+        "now": "только что",
+        "minutes": "{n} мин. назад",
+        "hours": "{n} ч. назад",
+        "days": "{n} дн. назад"
+      },
+      "waitingSince": "Не взят: {ago}"
+    },
     "seller": {
       "urgent": {
         "joinWaiting": "Встреча ещё не началась — кнопка станет активной, когда её запустит дежурный адвокат.",
