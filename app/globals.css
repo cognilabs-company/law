@@ -7392,7 +7392,7 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
    the card edge — the product owner's call, and it is the better looking of
    the two: the picture reads as part of the card rather than as a sticker
    placed on it, and pushing its mass down and to the right is what keeps it
-   clear of the copy. The card still clips it (overflow:hidden below), the
+   clear of the copy. The card still clips it (overflow:hidden above), the
    card is still exactly the height its text gives it, and the text still has
    no width imposed on it: the art is out of flow and paints behind.
 
