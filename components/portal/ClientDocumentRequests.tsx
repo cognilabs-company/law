@@ -17,7 +17,7 @@ import { subscribeUserEvents } from "@/lib/userSocket";
 import { useDocChatRooms } from "@/lib/useDocChatRooms";
 import { useDocRatings } from "@/lib/useDocRatings";
 import { ctorPromptAsked, markCtorPromptAsked } from "@/lib/docCtorPrompt";
-import DocRatingBox from "./DocRatingBox";
+import DocRatingBox, { DocRatedStars } from "./DocRatingBox";
 import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -435,7 +435,7 @@ export default function ClientDocumentRequests() {
             // on — the finished ones — but unlike the rating it does not
             // expire with the 15-minute window, so it is gated on the row
             // being finished rather than on the window still being open.
-            const acts = !!room || ready || canContinue || canSend;
+            const acts = !!room || ready || canContinue || canSend || !!(info?.rating.submitted && info.rating.value);
             // The work id the client and the advocate quote at each other.
             const workId = item.workId || info?.workId || "";
             return (
@@ -484,6 +484,7 @@ export default function ClientDocumentRequests() {
                   {info ? <DocRatingBox id={item.id} rating={info.rating} onRated={refresh} /> : null}
                   {acts ? (
                     <div className="mydoc__acts">
+                      {info?.rating.submitted && info.rating.value ? <DocRatedStars value={info.rating.value} /> : null}
                       {room ? (
                         <Link href={`/portal/chat/${room}`} className="btn btn--line btn--sm">
                           <IconChat />

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { rateDocumentRequest, isRatingClosed, ratingOpen, opensComplaint, type QualityComplaint, type UrgentRating } from "@/lib/services/backend";
 import { errDetail, logApiError } from "@/lib/http";
 import { Link } from "@/i18n/navigation";
-import { IconStarRate, IconClock, IconCheck, IconAlert, IconArrowRight } from "@/components/icons";
+import { IconStarRate, IconClock, IconAlert, IconArrowRight } from "@/components/icons";
 
 // The 15-minute window the backend opens when an advocate finalises a
 // document (LEXGO_FRONTEND_DOCUMENT_RATING_AND_CALENDAR_FIX). Three states
@@ -38,6 +38,25 @@ export const RateStar = () => (
     <path pathLength={360} d="M12 3.2l2.7 5.5 6 .9-4.35 4.24 1.03 5.99L12 17l-5.38 2.83 1.03-5.99L3.3 9.6l6-.9L12 3.2z" />
   </svg>
 );
+
+// The score a client already gave, as the five stars themselves and nothing
+// else — no sentence, no "N yulduz". It sits in the row's action line, so a
+// finished document reads left to right as "what you can still do with it,
+// and what you thought of it". The aria-label carries the number for a
+// screen reader, which cannot see the fill.
+export function DocRatedStars({ value }: { value: number }) {
+  const tr = useTranslations("portal.client.rate");
+  if (!value) return null;
+  return (
+    <span className="drated" role="img" aria-label={tr("rateGiven", { n: value })} title={tr("rateGiven", { n: value })}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <i key={n} className={n <= value ? "on" : ""} aria-hidden>
+          <RateStar />
+        </i>
+      ))}
+    </span>
+  );
+}
 
 export default function DocRatingBox({
   id,
@@ -115,13 +134,13 @@ export default function DocRatingBox({
         </div>
       );
     }
-    return (
-      <p className="drate drate__done">
-        <IconCheck />
-        {t("rateThanks")}
-        {rating.value ? <em>{t("rateGiven", { n: rating.value })}</em> : null}
-      </p>
-    );
+    // An ordinary rating renders nothing here any more. "Bahoyingiz uchun
+    // rahmat · 2 yulduz" was a paragraph of its own above the buttons,
+    // saying in words what the score already says: the client knows they
+    // rated it, and the only fact worth keeping is how many stars. That is
+    // drawn by DocRatedStars instead, on the same line as the actions —
+    // see the row in ClientDocumentRequests.
+    return null;
   }
   // Closed by the clock, by a 409, or because the backend says so.
   // Shut. The MD asks for this to be said rather than to vanish — "15

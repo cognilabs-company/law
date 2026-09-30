@@ -7304,6 +7304,21 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .mydoc--ready .mydoc__next{color:var(--ink)}
 
 .mydoc__acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:3px}
+/* The score a client already gave, on the action line rather than in a
+   sentence above it. It used to be a paragraph — "Bahoyingiz uchun rahmat ·
+   2 yulduz" — which spent two lines telling them something they did
+   themselves; the stars alone say it, and say it faster. `margin-left:auto`
+   puts them at the far end of the row, so the buttons keep reading as a
+   group and the score sits apart from them. Sized to the small buttons
+   beside it. */
+.drated{display:inline-flex;align-items:center;gap:3px;margin-left:auto;line-height:0}
+.drated i{line-height:0;color:var(--dk-bd-neutral, #CBD6E6)}
+.drated i.on{color:var(--dk-txt-warn, #F5A623)}
+.drated svg{width:17px;height:17px}
+.drated i.on svg{fill:currentColor}
+@media (max-width:560px){
+  .drated{margin-left:0}
+}
 @media (max-width:560px){
   .mydoc{grid-template-columns:1fr;gap:10px;padding:14px 15px 14px 16px}
   .mydoc__i{display:none}
