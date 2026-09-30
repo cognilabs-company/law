@@ -33,6 +33,7 @@ import {
   IconLogout,
   IconMenu,
   IconClose,
+  IconChartBar,
 } from "../icons";
 
 type SvgC = ComponentType<{ className?: string }>;
@@ -40,7 +41,7 @@ type SvgC = ComponentType<{ className?: string }>;
 // perm: one code, or a list where any one code is enough. Codes outside
 // ADMIN_PERMISSIONS (b2b.manage, meetings.manage) only gate the item; they
 // don't grant admin access on their own.
-type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage";
+type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage";
 type NavItem = { href: string; key: string; Icon: SvgC; perm?: NavPerm | NavPerm[] };
 // CRM modules grouped per the platform plan. `perm` = the backend permission a
 // page needs; items without a perm (overview, ceo, bootstrap…) are full-admin
@@ -71,6 +72,7 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   {
     group: "catalog",
     items: [
+      { href: "/admin/marketplace", key: "marketplace", Icon: IconChartBar, perm: "orders.manage" },
       { href: "/admin/services", key: "services", Icon: IconBriefcase, perm: "services.manage" },
       { href: "/admin/plans", key: "plans", Icon: IconStar, perm: "subscriptions.manage" },
       { href: "/admin/templates", key: "templates", Icon: IconDocLines, perm: "templates.manage" },

@@ -5838,6 +5838,262 @@
     "stat3l": "avg. rating"
   },
   "admin": {
+    "marketplace": {
+      "eyebrow": "Marketplace · live monitoring",
+      "updated": "updated {time}",
+      "title": "Marketplace monitoring",
+      "lead": "Orders, payments and seller workload in one place. The date range applies to every section.",
+      "refresh": "Refresh",
+      "revenue": "Paid revenue",
+      "revenueSub": "{n, plural, one {# paid order} other {# paid orders}}",
+      "scopeAll": "All time",
+      "tabsAria": "Marketplace sections",
+      "tabs": {
+        "overview": "Overview",
+        "orders": "Orders",
+        "sellers": "Sellers"
+      },
+      "filter": {
+        "aria": "Marketplace filters",
+        "presetsAria": "Quick period",
+        "presets": {
+          "today": "Today",
+          "d7": "7 days",
+          "d30": "30 days",
+          "d90": "90 days"
+        },
+        "from": "From",
+        "to": "To",
+        "clearDate": "Clear date",
+        "status": "Status",
+        "statusOpt": {
+          "all": "All statuses",
+          "pending_payment": "Awaiting payment",
+          "paid": "Paid (active + completed)",
+          "completed": "Completed",
+          "cancelled": "Cancelled"
+        },
+        "seller": "Seller",
+        "sellerPh": "All sellers",
+        "client": "Client",
+        "clientPh": "All clients",
+        "sellersSearch": "Seller: name, phone or LexGo ID",
+        "clearSearch": "Clear search",
+        "reset": "Clear filters",
+        "sellersNote": "Only the date range applies to the seller list. The status, seller and client filters work in Overview and Orders."
+      },
+      "status": {
+        "pending_payment": "Awaiting payment",
+        "paid": "Active",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "rejected": "Rejected",
+        "expired": "Expired",
+        "refunded": "Refunded"
+      },
+      "pay": {
+        "pending": "Payment pending",
+        "paid": "Paid",
+        "cancelled": "Payment cancelled",
+        "refunded": "Refunded",
+        "failed": "Payment failed"
+      },
+      "kpi": {
+        "open": "Show orders",
+        "openSellers": "Show sellers",
+        "total": "Total orders",
+        "active": "Active orders",
+        "activeSub": "paid, work in progress",
+        "paid": "Paid",
+        "paidSub": "including completed",
+        "completed": "Completed",
+        "pending": "Awaiting payment",
+        "cancelled": "Cancelled",
+        "sellers": "Sellers",
+        "sellersSub": "with orders",
+        "clients": "Clients",
+        "clientsSub": "who bought"
+      },
+      "chart": {
+        "title": "Status breakdown",
+        "total": "{n, plural, one {# order in total} other {# orders in total}}",
+        "share": "{n} · {p}%",
+        "table": "Table",
+        "colStatus": "Status",
+        "colCount": "Count",
+        "colShare": "Share",
+        "empty": "No orders in this period",
+        "aria": "Orders by status"
+      },
+      "top": {
+        "title": "Seller workload",
+        "lead": "By active orders",
+        "all": "All sellers",
+        "empty": "No seller had orders in this period",
+        "aria": "{name}: {n, plural, one {# active order} other {# active orders}}. Show their orders",
+        "meta": "{done} completed · {total} total",
+        "activeShort": "active",
+        "scopeNote": "Only the date range applies here — the status, seller and client filters don't affect this card."
+      },
+      "latest": {
+        "title": "Latest orders",
+        "all": "All orders",
+        "empty": "No orders yet",
+        "emptyFiltered": "No orders match the filters"
+      },
+      "orders": {
+        "title": "Marketplace orders",
+        "lead": "Click a row for the full details, the Telegram approval and the activity history.",
+        "col": {
+          "order": "Order",
+          "service": "Service",
+          "client": "Client",
+          "seller": "Seller",
+          "amount": "Amount",
+          "status": "Status",
+          "date": "Date"
+        },
+        "open": "Open order {id}",
+        "openCol": "Open",
+        "empty": "No marketplace orders yet",
+        "emptyText": "When a client buys a seller's service, the order shows up here.",
+        "emptyFiltered": "No orders match the filters",
+        "emptyFilteredText": "Try another period, status or party.",
+        "reset": "Clear filters",
+        "firstPage": "Back to the first page"
+      },
+      "pager": {
+        "range": "{from}–{to} of {total}",
+        "prev": "Previous",
+        "next": "Next"
+      },
+      "sellers": {
+        "title": "Seller monitoring",
+        "lead": "Sellers with the most active orders come first.",
+        "col": {
+          "seller": "Seller",
+          "type": "Type & region",
+          "rating": "Rating & verification",
+          "active": "Active",
+          "orders": "Orders",
+          "revenue": "Revenue"
+        },
+        "servicesN": "{n, plural, one {# service} other {# services}}",
+        "totalN": "{n} total",
+        "breakdown": "{done} completed · {pending} pending",
+        "lastOrder": "Last order: {date}",
+        "reviews": "{n, plural, one {# review} other {# reviews}}",
+        "verified": "Verified",
+        "verify": {
+          "pending": "Under review",
+          "rejected": "Rejected",
+          "none": "Not verified"
+        },
+        "account": {
+          "blocked": "Blocked",
+          "suspended": "Suspended",
+          "deleted": "Deleted",
+          "inactive": "Inactive",
+          "pending": "Awaiting approval"
+        },
+        "never": "No orders yet",
+        "orders": "Orders",
+        "ordersAria": "Show orders of {name}",
+        "empty": "No sellers found",
+        "emptyText": "Try another search."
+      },
+      "detail": {
+        "title": "Order {id}",
+        "notFound": "This order can no longer be found — showing the last data from the list.",
+        "ids": {
+          "work": "Work ID",
+          "order": "Order ID",
+          "payment": "Payment ID"
+        },
+        "journey": {
+          "aria": "Order stages",
+          "requested": "Request sent",
+          "confirm": "Telegram approval",
+          "rejected": "Rejected",
+          "work": "Work",
+          "done": "Completed",
+          "cancelled": "Cancelled",
+          "finish": "Completion",
+          "waiting": "Waiting",
+          "state": {
+            "done": "done",
+            "now": "current step",
+            "fail": "stopped",
+            "todo": "not reached yet"
+          }
+        },
+        "parties": "Parties",
+        "client": "Client",
+        "seller": "Seller",
+        "theirOrders": "All their orders",
+        "order": "Order details",
+        "service": "Service",
+        "channel": "Contact channel",
+        "time": "Preferred time",
+        "created": "Created",
+        "updated": "Updated",
+        "note": "Client note",
+        "payment": "Payment",
+        "provider": "Method",
+        "providers": {
+          "telegram_manual": "Telegram (manual approval)"
+        },
+        "payStatus": "Status",
+        "amount": "Amount",
+        "paid": "Paid",
+        "noPayment": "No payment record",
+        "contact": "Contact",
+        "openChat": "Open chat",
+        "noChat": "No chat yet",
+        "callOn": "Calls enabled",
+        "callOff": "Calls disabled",
+        "confirm": "Telegram approval record",
+        "confirmStatus": {
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "pending": "Awaiting reply",
+          "cancelled": "Cancelled",
+          "expired": "Expired"
+        },
+        "reviewedBy": "Answered by chat",
+        "sentAt": "Sent",
+        "category": "Category",
+        "delivered": "{n, plural, one {Message delivered to {ok} of # chat} other {Message delivered to {ok} of # chats}}",
+        "deliveryOk": "Delivered",
+        "deliveryFail": "Not delivered",
+        "reviewer": "answered",
+        "noConfirm": "No Telegram record",
+        "activity": "Activity history",
+        "noActivity": "No activity yet",
+        "actions": {
+          "marketplace_purchase_request_create": "Purchase request created",
+          "marketplace_purchase_approved": "Purchase approved",
+          "marketplace_purchase_rejected": "Purchase rejected",
+          "marketplace_order_paid": "Payment received",
+          "marketplace_order_cancelled": "Order cancelled",
+          "marketplace_order_completed": "Order completed"
+        },
+        "outcome": {
+          "failure": "Error",
+          "failed": "Error",
+          "denied": "Denied",
+          "error": "Error"
+        }
+      },
+      "errors": {
+        "load": "Couldn't load the data",
+        "loadText": "Check your connection and try again.",
+        "retry": "Retry",
+        "refreshFailed": "Couldn't refresh — showing the last data.",
+        "forbidden": "No access to this section",
+        "forbiddenText": "Marketplace monitoring needs the orders.manage permission. Ask an administrator."
+      }
+    },
     "qualityComplaints": {
       "title": "Quality complaints",
       "lead": "A complaint lands here when a client rates the work one or two stars.",
@@ -5881,6 +6137,8 @@
       }
     },
     "urgent": {
+      "takeOverTitle": "Moves work claimed by another operator to you (admin right)",
+      "takeOver": "Take over",
       "openChatTitle": "Open the secure chat",
       "openChat": "Secure chat",
       "tabAll": "All",
@@ -6020,6 +6278,7 @@
       "system": "System"
     },
     "nav": {
+      "marketplace": "Marketplace monitoring",
       "overview": "Overview",
       "services": "Services",
       "plans": "Package tariffs",

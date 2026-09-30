@@ -5844,6 +5844,262 @@
     "stat3l": "o‘rtacha reyting"
   },
   "admin": {
+    "marketplace": {
+      "eyebrow": "Marketplace · jonli nazorat",
+      "updated": "yangilandi {time}",
+      "title": "Marketplace monitoring",
+      "lead": "Buyurtmalar, to'lovlar va sotuvchilar yuklamasi bir joyda. Sana oralig'i barcha bo'limlarga ta'sir qiladi.",
+      "refresh": "Yangilash",
+      "revenue": "To'langan tushum",
+      "revenueSub": "{n, number} ta to'langan buyurtma",
+      "scopeAll": "Barcha vaqt",
+      "tabsAria": "Marketplace bo'limlari",
+      "tabs": {
+        "overview": "Umumiy",
+        "orders": "Buyurtmalar",
+        "sellers": "Sotuvchilar"
+      },
+      "filter": {
+        "aria": "Marketplace filtrlari",
+        "presetsAria": "Tezkor davr",
+        "presets": {
+          "today": "Bugun",
+          "d7": "7 kun",
+          "d30": "30 kun",
+          "d90": "90 kun"
+        },
+        "from": "Boshlanish",
+        "to": "Tugash",
+        "clearDate": "Sanani tozalash",
+        "status": "Holat",
+        "statusOpt": {
+          "all": "Barcha holatlar",
+          "pending_payment": "To'lov kutilmoqda",
+          "paid": "To'langan (aktiv + yakunlangan)",
+          "completed": "Yakunlangan",
+          "cancelled": "Bekor qilingan"
+        },
+        "seller": "Sotuvchi",
+        "sellerPh": "Barcha sotuvchilar",
+        "client": "Mijoz",
+        "clientPh": "Barcha mijozlar",
+        "sellersSearch": "Sotuvchi: ism, telefon yoki LexGo ID",
+        "clearSearch": "Qidiruvni tozalash",
+        "reset": "Filtrlarni tozalash",
+        "sellersNote": "Sotuvchilar ro'yxatiga faqat sana oralig'i ta'sir qiladi. Holat, sotuvchi va mijoz filtrlari Umumiy va Buyurtmalar bo'limlarida ishlaydi."
+      },
+      "status": {
+        "pending_payment": "To'lov kutilmoqda",
+        "paid": "Aktiv",
+        "completed": "Yakunlangan",
+        "cancelled": "Bekor qilingan",
+        "rejected": "Rad etilgan",
+        "expired": "Muddati o'tgan",
+        "refunded": "Qaytarilgan"
+      },
+      "pay": {
+        "pending": "To'lov kutilmoqda",
+        "paid": "To'langan",
+        "cancelled": "To'lov bekor qilingan",
+        "refunded": "Qaytarilgan",
+        "failed": "To'lov o'tmadi"
+      },
+      "kpi": {
+        "open": "Buyurtmalarni ko'rish",
+        "openSellers": "Sotuvchilarni ko'rish",
+        "total": "Jami buyurtmalar",
+        "active": "Aktiv ishlar",
+        "activeSub": "to'langan, ish jarayonida",
+        "paid": "To'langan",
+        "paidSub": "yakunlanganlar bilan birga",
+        "completed": "Yakunlangan",
+        "pending": "To'lov kutilmoqda",
+        "cancelled": "Bekor qilingan",
+        "sellers": "Sotuvchilar",
+        "sellersSub": "buyurtma olganlar",
+        "clients": "Mijozlar",
+        "clientsSub": "xarid qilganlar"
+      },
+      "chart": {
+        "title": "Holatlar taqsimoti",
+        "total": "Jami {n, number} ta buyurtma",
+        "share": "{n} ta · {p}%",
+        "table": "Jadval",
+        "colStatus": "Holat",
+        "colCount": "Soni",
+        "colShare": "Ulushi",
+        "empty": "Bu davrda buyurtma yo'q",
+        "aria": "Buyurtmalar holati bo'yicha taqsimot"
+      },
+      "top": {
+        "title": "Sotuvchilar yuklamasi",
+        "lead": "Aktiv ishlar soni bo'yicha",
+        "all": "Barcha sotuvchilar",
+        "empty": "Bu davrda buyurtma olgan sotuvchi yo'q",
+        "aria": "{name}: {n, number} ta aktiv ish. Buyurtmalarini ko'rish",
+        "meta": "{done} yakunlangan · {total} jami",
+        "activeShort": "aktiv",
+        "scopeNote": "Bu kartaga faqat sana oralig'i ta'sir qiladi — holat, sotuvchi va mijoz filtrlari bu yerda qo'llanmaydi."
+      },
+      "latest": {
+        "title": "So'nggi buyurtmalar",
+        "all": "Barcha buyurtmalar",
+        "empty": "Buyurtmalar hali yo'q",
+        "emptyFiltered": "Filtrga mos buyurtma yo'q"
+      },
+      "orders": {
+        "title": "Marketplace buyurtmalari",
+        "lead": "Qatorni bosing — to'liq tafsilot, Telegram tasdig'i va faoliyat tarixi ochiladi.",
+        "col": {
+          "order": "Buyurtma",
+          "service": "Xizmat",
+          "client": "Mijoz",
+          "seller": "Sotuvchi",
+          "amount": "Summa",
+          "status": "Holat",
+          "date": "Sana"
+        },
+        "open": "{id} buyurtmasini ochish",
+        "openCol": "Ochish",
+        "empty": "Hali marketplace buyurtmalari yo'q",
+        "emptyText": "Mijoz sotuvchi xizmatini sotib olganda buyurtma shu yerda paydo bo'ladi.",
+        "emptyFiltered": "Filtrga mos buyurtma topilmadi",
+        "emptyFilteredText": "Davr, holat yoki tomonlarni o'zgartirib ko'ring.",
+        "reset": "Filtrlarni tozalash",
+        "firstPage": "Birinchi sahifaga"
+      },
+      "pager": {
+        "range": "{from}–{to} / {total}",
+        "prev": "Oldingi",
+        "next": "Keyingi"
+      },
+      "sellers": {
+        "title": "Sotuvchilar monitoringi",
+        "lead": "Aktiv ishlari ko'p sotuvchilar tepada turadi.",
+        "col": {
+          "seller": "Sotuvchi",
+          "type": "Turi va hudud",
+          "rating": "Reyting va tasdiq",
+          "active": "Aktiv",
+          "orders": "Buyurtmalar",
+          "revenue": "Tushum"
+        },
+        "servicesN": "{n, number} ta xizmat",
+        "totalN": "{n} ta jami",
+        "breakdown": "{done} yakunlangan · {pending} kutilmoqda",
+        "lastOrder": "Oxirgi ish: {date}",
+        "reviews": "{n, number} sharh",
+        "verified": "Tasdiqlangan",
+        "verify": {
+          "pending": "Tekshiruvda",
+          "rejected": "Rad etilgan",
+          "none": "Tasdiqlanmagan"
+        },
+        "account": {
+          "blocked": "Bloklangan",
+          "suspended": "To'xtatilgan",
+          "deleted": "O'chirilgan",
+          "inactive": "Faol emas",
+          "pending": "Tasdiq kutilmoqda"
+        },
+        "never": "Hali buyurtma yo'q",
+        "orders": "Buyurtmalari",
+        "ordersAria": "{name} buyurtmalarini ko'rsatish",
+        "empty": "Sotuvchi topilmadi",
+        "emptyText": "Qidiruvni o'zgartirib ko'ring."
+      },
+      "detail": {
+        "title": "Buyurtma {id}",
+        "notFound": "Bu buyurtma endi topilmadi — ro'yxatdagi oxirgi ma'lumot ko'rsatilmoqda.",
+        "ids": {
+          "work": "Ish ID",
+          "order": "Buyurtma ID",
+          "payment": "To'lov ID"
+        },
+        "journey": {
+          "aria": "Buyurtma bosqichlari",
+          "requested": "So'rov yuborildi",
+          "confirm": "Telegram tasdig'i",
+          "rejected": "Rad etildi",
+          "work": "Ish jarayoni",
+          "done": "Yakunlandi",
+          "cancelled": "Bekor qilindi",
+          "finish": "Yakunlash",
+          "waiting": "Kutilmoqda",
+          "state": {
+            "done": "bajarildi",
+            "now": "joriy bosqich",
+            "fail": "to'xtatildi",
+            "todo": "hali yetib kelinmagan"
+          }
+        },
+        "parties": "Tomonlar",
+        "client": "Mijoz",
+        "seller": "Sotuvchi",
+        "theirOrders": "Barcha buyurtmalari",
+        "order": "Buyurtma tafsilotlari",
+        "service": "Xizmat",
+        "channel": "Bog'lanish usuli",
+        "time": "Qulay vaqt",
+        "created": "Yaratilgan",
+        "updated": "Yangilangan",
+        "note": "Mijoz izohi",
+        "payment": "To'lov",
+        "provider": "Usul",
+        "providers": {
+          "telegram_manual": "Telegram (qo'lda tasdiq)"
+        },
+        "payStatus": "Holati",
+        "amount": "Summa",
+        "paid": "To'langan",
+        "noPayment": "To'lov yozuvi yo'q",
+        "contact": "Aloqa",
+        "openChat": "Chatni ochish",
+        "noChat": "Chat hali ochilmagan",
+        "callOn": "Qo'ng'iroq ruxsat etilgan",
+        "callOff": "Qo'ng'iroq yopiq",
+        "confirm": "Telegram tasdiq yozuvi",
+        "confirmStatus": {
+          "approved": "Tasdiqlandi",
+          "rejected": "Rad etildi",
+          "pending": "Javob kutilmoqda",
+          "cancelled": "Bekor qilindi",
+          "expired": "Muddati o'tdi"
+        },
+        "reviewedBy": "Javob bergan chat",
+        "sentAt": "Yuborilgan",
+        "category": "Kategoriya",
+        "delivered": "Xabar {n, number} ta chatdan {ok, number} tasiga yetkazildi",
+        "deliveryOk": "Yetkazildi",
+        "deliveryFail": "Yetkazilmadi",
+        "reviewer": "javob bergan",
+        "noConfirm": "Telegram yozuvi topilmadi",
+        "activity": "Faoliyat tarixi",
+        "noActivity": "Hali faoliyat yozilmagan",
+        "actions": {
+          "marketplace_purchase_request_create": "Xarid so'rovi yaratildi",
+          "marketplace_purchase_approved": "Xarid tasdiqlandi",
+          "marketplace_purchase_rejected": "Xarid rad etildi",
+          "marketplace_order_paid": "To'lov qabul qilindi",
+          "marketplace_order_cancelled": "Buyurtma bekor qilindi",
+          "marketplace_order_completed": "Buyurtma yakunlandi"
+        },
+        "outcome": {
+          "failure": "Xato",
+          "failed": "Xato",
+          "denied": "Rad etildi",
+          "error": "Xato"
+        }
+      },
+      "errors": {
+        "load": "Ma'lumotlarni yuklab bo'lmadi",
+        "loadText": "Internet aloqasini tekshiring va qayta urinib ko'ring.",
+        "retry": "Qayta urinish",
+        "refreshFailed": "Yangilab bo'lmadi — oxirgi ma'lumot ko'rsatilmoqda.",
+        "forbidden": "Bu bo'limga ruxsat yo'q",
+        "forbiddenText": "Marketplace monitoringi uchun orders.manage ruxsati kerak. Administratorga murojaat qiling."
+      }
+    },
     "qualityComplaints": {
       "title": "Sifat shikoyatlari",
       "lead": "Mijoz ishni 1 yoki 2 yulduz bilan baholaganda shikoyat shu yerga tushadi.",
@@ -5887,6 +6143,8 @@
       }
     },
     "urgent": {
+      "takeOverTitle": "Boshqa operator olgan ishni o'zingizga o'tkazasiz (admin huquqi)",
+      "takeOver": "O'zimga olish",
       "openChatTitle": "Xavfsiz chatni ochish",
       "openChat": "Xavfsiz chat",
       "tabAll": "Barchasi",
@@ -6026,6 +6284,7 @@
       "system": "Tizim"
     },
     "nav": {
+      "marketplace": "Marketplace monitoring",
       "overview": "Umumiy",
       "services": "Xizmatlar",
       "plans": "Paket tariflar",

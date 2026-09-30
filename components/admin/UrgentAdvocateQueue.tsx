@@ -25,6 +25,7 @@ import {
 } from "@/lib/services/backend";
 import { subscribeUserEvents, subscribeUserSocketState, onUserSocketResync } from "@/lib/userSocket";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
+import { useAuth, sessionRoles } from "@/lib/auth";
 import { dateTimeFull } from "@/lib/date";
 import { statusLabel, regionLabel, humanize } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
@@ -388,6 +389,7 @@ export default function UrgentAdvocateQueue() {
             const open = (r.status || "open_pool") === "open_pool";
             const isGroup = r.serviceKind === GROUP;
             const final = r.nextStatuses.length === 0 && !open;
+            const claimable = open || (r.nextStatuses.includes("claimed") && !r.claimedByUserId);
             const kindName = tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind;
             return (
               <li key={r.id} className={`uaq__row${open ? " uaq__row--open" : ""}${r.slaBreached ? " uaq__row--sla" : ""}`}>
@@ -433,7 +435,7 @@ export default function UrgentAdvocateQueue() {
                 <div className="uaq__r">
                   <em className={`creq__badge uaq__st uaq__st--${r.status || "open_pool"}`}>{statusLabel(tcm, r.status || "open_pool")}</em>
                   <div className="uaq__acts">
-                    {open ? (
+                    {claimable ? (
                       <button type="button" className="btn btn--pri btn--sm" disabled={busyId === r.id} onClick={() => void claim(r)}>
                         <IconCheck />{busyId === r.id ? t("claiming") : t("claim")}
                       </button>
@@ -527,6 +529,9 @@ function UrgentDetailDrawer({
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [panel, setPanel] = useState<"" | "candidates" | "complete" | "cancel" | "transfer">("");
+  const { session } = useAuth();
+  const me = session?.id ?? "";
+  const isAdmin = sessionRoles(session).some((x) => x === "superadmin" || x === "admin");
 
   // Answers with the record so a caller that has to know where it went (the
   // meeting, whose own response is only the call session) need not guess.
@@ -610,6 +615,9 @@ function UrgentDetailDrawer({
   const isGroup = req?.serviceKind === GROUP;
   const isSecond = !!req && (req.serviceKind === GROUP || req.serviceKind === "second_opinion_single");
   const finished = !!req && req.nextStatuses.length === 0;
+  const claimOpen = !!req && (req.status === "open_pool" || req.nextStatuses.includes("claimed"));
+  const takeOver = claimOpen && !!req?.claimedByUserId && req.claimedByUserId !== me && isAdmin;
+  const canClaim = (claimOpen && !req?.claimedByUserId) || takeOver;
 
   return (
     <Modal open={!!id} onClose={onClose} title={kindLabel || t("openDetail")} wide>
@@ -779,9 +787,9 @@ function UrgentDetailDrawer({
 
           {/* ── Everything the lifecycle still allows ───────────────── */}
           <div className="uad__acts">
-            {req.status === "open_pool" ? (
-              <button type="button" className="btn btn--pri" disabled={!!busy} onClick={() => void run("claim", () => claimUrgentRequest(req.id), t("claimed"))}>
-                <IconCheck />{busy === "claim" ? t("claiming") : t("claim")}
+            {canClaim ? (
+              <button type="button" className="btn btn--pri" disabled={!!busy} title={takeOver ? t("takeOverTitle") : undefined} onClick={() => void run("claim", () => claimUrgentRequest(req.id), t("claimed"))}>
+                <IconCheck />{busy === "claim" ? t("claiming") : takeOver ? t("takeOver") : t("claim")}
               </button>
             ) : null}
             {!finished && req.status !== "open_pool" && req.channel !== "chat" ? (
@@ -814,7 +822,15 @@ function UrgentDetailDrawer({
                 <IconClose />{t("cancel")}
               </button>
             ) : null}
-            <StatusMover req={req} busy={!!busy} onMove={(s, n) => void run("status", () => setUrgentStatus(req.id, s, n), t("statusMoved", { status: statusLabel(tcm, s) }))} />
+            <StatusMover
+              key={`${req.status}|${req.claimedByUserId}`}
+              req={req}
+              busy={!!busy}
+              skip={req.claimedByUserId && req.claimedByUserId === me ? [] : ["claimed"]}
+              onMove={(s, n) =>
+                void run("status", () => (s === "claimed" ? claimUrgentRequest(req.id) : setUrgentStatus(req.id, s, n)), s === "claimed" ? t("claimed") : t("statusMoved", { status: statusLabel(tcm, s) }))
+              }
+            />
           </div>
 
           {panel === "complete" ? (
@@ -858,7 +874,7 @@ function UrgentDetailDrawer({
 // answered 409 ("in_progress holatidan open_pool holatiga o'tkazib
 // bo'lmaydi") — so the control offers exactly that and disappears on a final
 // status, where the list is empty.
-function StatusMover({ req, busy, onMove }: { req: UrgentRequest; busy: boolean; onMove: (status: string, note: string) => void }) {
+function StatusMover({ req, busy, skip = [], onMove }: { req: UrgentRequest; busy: boolean; skip?: string[]; onMove: (status: string, note: string) => void }) {
   const t = useTranslations("admin.urgent");
   const tcm = useTranslations("portal.common");
   const [next, setNext] = useState("");
@@ -866,13 +882,14 @@ function StatusMover({ req, busy, onMove }: { req: UrgentRequest; busy: boolean;
 
   // completed / cancelled have their own dedicated buttons above, with the
   // summary and the reason those endpoints require.
-  const choices = req.nextStatuses.filter((s) => s !== "completed" && s !== "cancelled");
+  const choices = req.nextStatuses.filter((s) => s !== "completed" && s !== "cancelled" && !skip.includes(s));
   if (!choices.length) return null;
+  const sel = choices.includes(next) ? next : "";
 
   return (
     <div className="uad__move">
       <Select
-        value={next}
+        value={sel}
         onChange={setNext}
         ariaLabel={t("moveTo")}
         options={[{ value: "", label: t("moveTo") }, ...choices.map((s) => ({ value: s, label: statusLabel(tcm, s) }))]}
@@ -883,8 +900,9 @@ function StatusMover({ req, busy, onMove }: { req: UrgentRequest; busy: boolean;
         onChange={(e) => setNote(e.target.value)}
         placeholder={t("statusNotePh")}
         aria-label={t("statusNotePh")}
+        disabled={sel === "claimed"}
       />
-      <button type="button" className="btn btn--line btn--sm" disabled={!next || busy} onClick={() => onMove(next, note.trim())}>
+      <button type="button" className="btn btn--line btn--sm" disabled={!sel || busy} onClick={() => onMove(sel, sel === "claimed" ? "" : note.trim())}>
         {t("move")}
       </button>
     </div>
