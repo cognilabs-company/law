@@ -37,6 +37,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:locale(uz|ru|en)/portal/advokat/:path*", destination: "/:locale/portal/advocate/:path*", permanent: false },
       { source: "/:locale(uz|ru|en)/portal/yurist/:path*", destination: "/:locale/portal/lawyer/:path*", permanent: false },
+      { source: "/:locale(uz|ru|en)/marketplace/lawyers", destination: "/:locale/lawyers", permanent: false },
+      { source: "/:locale(uz|ru|en)/marketplace/lawyers/:id", destination: "/:locale/lawyers/:id", permanent: false },
     ];
   },
 };

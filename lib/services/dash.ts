@@ -317,6 +317,7 @@ function normOrder(v: unknown): BackendOrder {
     createdAt: asStr(d.created_at ?? d.createdAt),
     lawyerName: asStr(d.lawyer_name ?? asDict(d.lawyer).name) || undefined,
     confirmationDeadlineAt: asStr(d.confirmation_deadline_at ?? details.confirmation_deadline_at) || undefined,
+    source: asStr(d.source ?? (details.marketplace === true ? "marketplace" : "")) || undefined,
   };
 }
 function normStats(v: unknown): SellerStats {
@@ -374,7 +375,7 @@ export async function getSellerCabinetFull(): Promise<SellerCabinetFull> {
       verified: Boolean(v.is_verified ?? v.verified ?? profile.is_verified),
     },
     stats: normStats(d.stats),
-    newOrders: listOf(d.new_orders, "orders", "items", "data").map(normOrder),
+    newOrders: listOf(d.new_orders, "orders", "items", "data").map(normOrder).filter((o) => !(o.source === "marketplace" && o.status.toLowerCase() === "pending_payment")),
     activeCases: listOf(d.active_cases, "items", "data").map(normCabinetCase),
     secureChats: listOf(d.secure_chats, "rooms", "items", "data").map(normCabinetRoom),
     notifications: listOf(d.notifications, "items", "data").map(normCabinetNotification),

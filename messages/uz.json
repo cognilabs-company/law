@@ -1,4 +1,246 @@
 {
+  "marketplace": {
+    "metaTitle": "Advokat va yuristlar marketplace'i",
+    "kicker": "Marketplace",
+    "title": "Ishonchli mutaxassisni tanlang",
+    "lead": "Tasdiqlangan advokat va yuristlar. Xizmatni tanlang, narx oldindan ma'lum, to'lov tasdiqlangach xavfsiz chat ochiladi.",
+    "heroStats": {
+      "sellers": "mutaxassis",
+      "services": "xizmat",
+      "from": "eng arzon xizmat"
+    },
+    "searchPh": "Ism, yo'nalish yoki xizmat bo'yicha qidiring",
+    "searchLabel": "Qidiruv",
+    "roles": {
+      "all": "Hammasi",
+      "advokat": "Advokat",
+      "yurist": "Yurist",
+      "advokat_tashkiloti": "Advokat tashkiloti"
+    },
+    "filters": {
+      "toggle": "Filtrlar",
+      "region": "Hudud",
+      "allRegions": "Barcha hududlar",
+      "specialization": "Yo'nalish",
+      "allSpecs": "Barcha yo'nalishlar",
+      "category": "Kategoriya",
+      "allCategories": "Barcha kategoriyalar",
+      "service": "Xizmat",
+      "allServices": "Barcha xizmatlar",
+      "rating": "Reyting",
+      "any": "Farqi yo'q",
+      "priceMax": "Narx (gacha)",
+      "online": "Faqat hozir faol",
+      "sort": "Saralash",
+      "reset": "Filtrlarni tozalash"
+    },
+    "sort": {
+      "recommended": "Tavsiya etilgan",
+      "rating": "Reyting bo'yicha",
+      "experience": "Tajriba bo'yicha",
+      "price_asc": "Arzonidan boshlab"
+    },
+    "count": "{n} ta mutaxassis",
+    "empty": "Mos mutaxassis topilmadi",
+    "emptyText": "Filtrlarni o'zgartirib ko'ring yoki tozalang.",
+    "error": "Ro'yxatni yuklab bo'lmadi.",
+    "retry": "Qayta urinish",
+    "loadMore": "Yana ko'rsatish",
+    "langs": {
+      "uz": "O'zbek",
+      "uz-latn": "O'zbek",
+      "uz-cyrl": "Ўзбек",
+      "ru": "Русский",
+      "en": "English"
+    },
+    "card": {
+      "promoted": "Reklama",
+      "verified": "Tasdiqlangan",
+      "newSeller": "Yangi",
+      "reviews": "{count} ta baho",
+      "newHint": "Baholar to'planmoqda",
+      "experience": "yil tajriba",
+      "cases": "ta ish",
+      "success": "muvaffaqiyat",
+      "gathering": "to'planmoqda",
+      "priceFrom": "{price} so'mdan",
+      "priceAsk": "Narx kelishiladi",
+      "servicesMore": "+{n} ta",
+      "details": "Batafsil",
+      "busy": "Hozir band"
+    },
+    "detail": {
+      "back": "Barcha mutaxassislar",
+      "loading": "Profil yuklanmoqda…",
+      "notFound": "Mutaxassis topilmadi",
+      "notFoundText": "Profil marketplace'dan olib tashlangan yoki manzil noto'g'ri.",
+      "about": "Mutaxassis haqida",
+      "noBio": "Mutaxassis o'zi haqida hali yozmagan.",
+      "education": "Ma'lumoti",
+      "bar": "Advokatlar palatasi",
+      "license": "Litsenziya",
+      "organization": "Tashkilot",
+      "languages": "Tillar",
+      "specializations": "Yo'nalishlar",
+      "region": "Hudud",
+      "services": "Xizmatlar va narxlar",
+      "servicesLead": "Xizmatni tanlang — narx mutaxassis tomonidan belgilangan.",
+      "noServices": "Hozircha sotuvdagi xizmat yo'q.",
+      "deliveryDays": "{n} kun ichida",
+      "deliveryHours": "{n} soat ichida",
+      "buy": "Sotib olish",
+      "selectService": "Xizmatni tanlang",
+      "blockedUnverified": "Mutaxassis hali tasdiqlanmagan — xarid yopiq.",
+      "blockedBusy": "Mutaxassis hozir band — keyinroq urinib ko'ring.",
+      "blockedOwn": "Bu sizning profilingiz.",
+      "blockedSeller": "Xizmatni faqat mijoz akkaunti sotib oladi.",
+      "loginToBuy": "Sotib olish uchun tizimga kiring",
+      "reviews": "Mijozlar fikri",
+      "noReviews": "Hali sharh yo'q",
+      "noReviewsText": "Birinchi buyurtmadan keyin sharhlar shu yerda chiqadi.",
+      "anonymous": "Mijoz",
+      "sellerReply": "Mutaxassis javobi",
+      "stats": {
+        "rating": "Reyting",
+        "reviews": "Baho",
+        "experience": "Yil tajriba",
+        "cases": "Ish",
+        "success": "Muvaffaqiyat",
+        "completed": "Bajarilgan buyurtma"
+      },
+      "newRating": "Yangi",
+      "gathering": "Statistika to'planmoqda",
+      "privateChat": "Maxfiy chat",
+      "privateChatHint": "Buyurtmasiz pullik maxfiy chat",
+      "otherOrder": "Paket bo'yicha buyurtma",
+      "safeTitle": "Xavfsiz xarid",
+      "safe1": "To'lov tasdiqlanmaguncha mutaxassisga pul o'tmaydi.",
+      "safe2": "Kontaktlar faqat to'lovdan keyin ochiladi.",
+      "safe3": "Chat va qo'ng'iroq LexGo ichida, yozuvlar saqlanadi.",
+      "chatError": "Chatni ochib bo'lmadi."
+    },
+    "purchase": {
+      "title": "Xizmatni sotib olish",
+      "seller": "Mutaxassis",
+      "note": "Vaziyatingizni qisqacha yozing",
+      "notePh": "Masalan: ijara shartnomasi bo'yicha maslahat kerak",
+      "channel": "Qanday bog'lanish qulay?",
+      "channels": {
+        "chat": "Chat",
+        "audio": "Audio qo'ng'iroq",
+        "video": "Video qo'ng'iroq",
+        "meeting": "Uchrashuv"
+      },
+      "time": "Qulay vaqt",
+      "timePh": "Masalan: bugun 18:00 dan keyin",
+      "quick": {
+        "today": "Bugun",
+        "evening": "Bugun kechqurun",
+        "tomorrow": "Ertaga",
+        "week": "Shu hafta ichida"
+      },
+      "total": "Jami",
+      "totalNote": "Narxni LexGo belgilaydi. To'lov Telegram orqali tasdiqlanadi.",
+      "submit": "So'rov yuborish",
+      "sending": "Yuborilmoqda…",
+      "noteTooLong": "Izoh 1000 belgidan oshmasin.",
+      "sentTitle": "So'rovingiz qabul qilindi",
+      "sentLead": "To'lov tasdiqlanishi bilan mutaxassisga ish tushadi va xavfsiz chat ochiladi.",
+      "pending": "To'lov tasdiqlanishi kutilmoqda",
+      "notDelivered": "Tasdiqlovchilarga xabar yetib bormadi. So'rov saqlandi — biz uni qo'lda tekshiramiz.",
+      "toOrders": "Buyurtmalarimga o'tish",
+      "close": "Yopish",
+      "active": "Bu mutaxassis va xizmat bo'yicha faol so'rovingiz bor.",
+      "activeOpen": "Mavjud buyurtmani ochish",
+      "staleSeller": "Mutaxassis yoki xizmat topilmadi. Ro'yxat yangilandi.",
+      "staleService": "Mutaxassis bu xizmatni endi ko'rsatmaydi. Xizmatlar yangilandi.",
+      "error": "So'rovni yuborib bo'lmadi. Qayta urinib ko'ring.",
+      "steps": {
+        "request": "So'rov",
+        "confirm": "To'lov tasdig'i",
+        "chat": "Chat va ish"
+      }
+    },
+    "orders": {
+      "clientTitle": "Xizmat buyurtmalarim",
+      "clientLead": "Marketplace orqali sotib olgan xizmatlaringiz: holati, chat va qo'ng'iroq.",
+      "sellerTitle": "Xizmat buyurtmalari",
+      "sellerLead": "Marketplace orqali sizga kelgan, to'lovi tasdiqlangan buyurtmalar.",
+      "tabs": {
+        "all": "Hammasi",
+        "pending": "To'lov kutilmoqda",
+        "active": "Faol",
+        "completed": "Yakunlangan",
+        "cancelled": "Bekor qilingan"
+      },
+      "stage": {
+        "pending": "To'lov tasdiqlanishi kutilmoqda",
+        "active": "Ish jarayonida",
+        "completed": "Yakunlandi",
+        "cancelled": "Bekor qilindi"
+      },
+      "steps": {
+        "request": "So'rov",
+        "confirm": "To'lov",
+        "work": "Ish",
+        "done": "Yakun"
+      },
+      "emptyClient": "Hali marketplace xizmati sotib olinmagan",
+      "emptyClientText": "Mutaxassislar ro'yxatidan xizmat tanlang — buyurtma shu yerda chiqadi.",
+      "emptySeller": "Hali marketplace buyurtmasi yo'q",
+      "emptySellerText": "Mijoz xizmatingizni sotib olib, to'lov tasdiqlangach buyurtma shu yerda chiqadi.",
+      "emptyTab": "Bu bo'limda buyurtma yo'q",
+      "browse": "Mutaxassis tanlash",
+      "error": "Buyurtmalarni yuklab bo'lmadi.",
+      "retry": "Qayta urinish",
+      "refresh": "Yangilash",
+      "client": "Mijoz",
+      "seller": "Mutaxassis",
+      "price": "Narx",
+      "channel": "Bog'lanish",
+      "time": "Qulay vaqt",
+      "note": "Mijoz izohi",
+      "created": "Sana",
+      "phone": "Telefon",
+      "phoneHidden": "To'lovdan keyin ochiladi",
+      "waitNote": "To'lov Telegram orqali tasdiqlanmoqda. Tasdiqlangach chat ochiladi.",
+      "openChat": "Chatni ochish",
+      "call": "Qo'ng'iroq",
+      "audio": "Audio",
+      "video": "Video",
+      "calling": "Ulanmoqda…",
+      "callError": "Qo'ng'iroqni boshlab bo'lmadi.",
+      "cancel": "Bekor qilish",
+      "cancelTitle": "Xaridni bekor qilish",
+      "cancelLead": "So'rov va to'lov bekor qilinadi. Pul yechilmagan.",
+      "reason": "Sabab (ixtiyoriy)",
+      "reasonPh": "Masalan: fikrimdan qaytdim",
+      "cancelConfirm": "Ha, bekor qilish",
+      "cancelling": "Bekor qilinmoqda…",
+      "cancelError": "Bekor qilib bo'lmadi.",
+      "complete": "Yakunlash",
+      "completeTitle": "Buyurtmani yakunlash",
+      "completeLead": "Ish topshirilgan bo'lsa yakunlang. Mijozga xabar boradi.",
+      "completeNote": "Izoh (ixtiyoriy)",
+      "completeNotePh": "Masalan: maslahat berildi, hujjat topshirildi",
+      "completeConfirm": "Yakunlash",
+      "completing": "Yakunlanmoqda…",
+      "completeError": "Yakunlab bo'lmadi.",
+      "keep": "Ortga",
+      "updated": "Holat yangilandi"
+    },
+    "toast": {
+      "paid": "Xizmat faollashtirildi",
+      "paidText": "{service} — chat ochildi.",
+      "paidTextNoService": "To'lov tasdiqlandi, chat ochildi.",
+      "newOrder": "Yangi marketplace buyurtma",
+      "newOrderText": "To'lovi tasdiqlangan yangi ish keldi.",
+      "rejected": "Xizmat so'rovi bekor qilindi",
+      "rejectedText": "To'lov tasdiqlanmadi. Pul yechilmagan.",
+      "open": "Ochish",
+      "close": "Yopish"
+    }
+  },
   "common": {
     "kb": "KB",
     "minuteShort": "DD",
@@ -2257,6 +2499,7 @@
     },
     "sidebar": {
       "lawyer": {
+        "marketplaceOrders": "Xizmat buyurtmalari",
         "urgentAssigned": "Tezkor ishlar",
         "dashboard": "Boshqaruv paneli",
         "marketplace": "Ishlar bozori",
@@ -2280,6 +2523,7 @@
         "meetings": "Uchrashuvlar"
       },
       "client": {
+        "marketplaceOrders": "Xizmat buyurtmalarim",
         "urgent": "Tezkor Advokat",
         "dashboard": "Boshqaruv paneli",
         "sos": "SOS — Shoshilinch",
@@ -2306,6 +2550,7 @@
         "packages": "Paketlar"
       },
       "advocate": {
+        "marketplaceOrders": "Xizmat buyurtmalari",
         "urgentAssigned": "Tezkor ishlar",
         "dashboard": "Boshqaruv paneli",
         "opportunities": "Imkoniyatlar",
@@ -4555,6 +4800,22 @@
         "failed": "Muvaffaqiyatsiz"
       },
       "events": {
+        "marketplace_purchase_rejected": {
+          "title": "Xizmat so'rovi bekor qilindi",
+          "body": "«{service}» — to'lov tasdiqlanmadi, pul yechilmagan."
+        },
+        "marketplace_order_paid": {
+          "title": "Yangi marketplace buyurtma",
+          "body": "To'lovi tasdiqlangan yangi ish: {body}"
+        },
+        "marketplace_purchase_approved": {
+          "title": "Xizmat faollashtirildi",
+          "body": "«{service}» — to'lov tasdiqlandi, chat ochildi."
+        },
+        "marketplace_purchase_requested": {
+          "title": "Xizmat so'rovi yuborildi",
+          "body": "«{service}» — to'lov tasdiqlanishi kutilmoqda."
+        },
         "order_created": {
           "title": "Buyurtma yaratildi",
           "body": "«{service}» bo'yicha {order} buyurtma yaratildi. Holati: {status}."

@@ -1,4 +1,246 @@
 {
+  "marketplace": {
+    "metaTitle": "Lawyers and advocates marketplace",
+    "kicker": "Marketplace",
+    "title": "Choose a specialist you can trust",
+    "lead": "Verified advocates and lawyers. Pick a service with a known price; a secure chat opens once the payment is confirmed.",
+    "heroStats": {
+      "sellers": "specialists",
+      "services": "services",
+      "from": "lowest price"
+    },
+    "searchPh": "Search by name, area or service",
+    "searchLabel": "Search",
+    "roles": {
+      "all": "All",
+      "advokat": "Advocate",
+      "yurist": "Lawyer",
+      "advokat_tashkiloti": "Law firm"
+    },
+    "filters": {
+      "toggle": "Filters",
+      "region": "Region",
+      "allRegions": "All regions",
+      "specialization": "Area",
+      "allSpecs": "All areas",
+      "category": "Category",
+      "allCategories": "All categories",
+      "service": "Service",
+      "allServices": "All services",
+      "rating": "Rating",
+      "any": "Any",
+      "priceMax": "Price (up to)",
+      "online": "Active now only",
+      "sort": "Sort",
+      "reset": "Clear filters"
+    },
+    "sort": {
+      "recommended": "Recommended",
+      "rating": "By rating",
+      "experience": "By experience",
+      "price_asc": "Cheapest first"
+    },
+    "count": "{n} specialists",
+    "empty": "No matching specialists",
+    "emptyText": "Change or clear the filters.",
+    "error": "Could not load the list.",
+    "retry": "Try again",
+    "loadMore": "Show more",
+    "langs": {
+      "uz": "Uzbek",
+      "uz-latn": "Uzbek",
+      "uz-cyrl": "Uzbek (Cyrillic)",
+      "ru": "Russian",
+      "en": "English"
+    },
+    "card": {
+      "promoted": "Promoted",
+      "verified": "Verified",
+      "newSeller": "New",
+      "reviews": "{count} ratings",
+      "newHint": "Ratings are being collected",
+      "experience": "years of experience",
+      "cases": "cases",
+      "success": "success",
+      "gathering": "collecting",
+      "priceFrom": "from {price} UZS",
+      "priceAsk": "Price on request",
+      "servicesMore": "+{n}",
+      "details": "Details",
+      "busy": "Busy now"
+    },
+    "detail": {
+      "back": "All specialists",
+      "loading": "Loading profile…",
+      "notFound": "Specialist not found",
+      "notFoundText": "The profile was removed from the marketplace or the link is wrong.",
+      "about": "About",
+      "noBio": "The specialist has not written about themselves yet.",
+      "education": "Education",
+      "bar": "Bar association",
+      "license": "Licence",
+      "organization": "Organization",
+      "languages": "Languages",
+      "specializations": "Areas",
+      "region": "Region",
+      "services": "Services and prices",
+      "servicesLead": "Pick a service — the specialist set the price.",
+      "noServices": "No services on sale right now.",
+      "deliveryDays": "Within {n} days",
+      "deliveryHours": "Within {n} hours",
+      "buy": "Buy",
+      "selectService": "Pick a service",
+      "blockedUnverified": "The specialist is not verified yet — buying is closed.",
+      "blockedBusy": "The specialist is busy now — try again later.",
+      "blockedOwn": "This is your profile.",
+      "blockedSeller": "Only a client account can buy a service.",
+      "loginToBuy": "Sign in to buy",
+      "reviews": "Client reviews",
+      "noReviews": "No reviews yet",
+      "noReviewsText": "Reviews appear here after the first orders.",
+      "anonymous": "Client",
+      "sellerReply": "Specialist's reply",
+      "stats": {
+        "rating": "Rating",
+        "reviews": "Ratings",
+        "experience": "Years",
+        "cases": "Cases",
+        "success": "Success",
+        "completed": "Orders done"
+      },
+      "newRating": "New",
+      "gathering": "Stats are being collected",
+      "privateChat": "Private chat",
+      "privateChatHint": "Paid private chat without an order",
+      "otherOrder": "Order a package",
+      "safeTitle": "Safe purchase",
+      "safe1": "The specialist is not paid until the payment is confirmed.",
+      "safe2": "Contacts open only after payment.",
+      "safe3": "Chat and calls stay inside LexGo, with history kept.",
+      "chatError": "Could not open the chat."
+    },
+    "purchase": {
+      "title": "Buy a service",
+      "seller": "Specialist",
+      "note": "Describe your situation briefly",
+      "notePh": "For example: I need advice on a lease agreement",
+      "channel": "How would you like to talk?",
+      "channels": {
+        "chat": "Chat",
+        "audio": "Audio call",
+        "video": "Video call",
+        "meeting": "Meeting"
+      },
+      "time": "Convenient time",
+      "timePh": "For example: today after 18:00",
+      "quick": {
+        "today": "Today",
+        "evening": "This evening",
+        "tomorrow": "Tomorrow",
+        "week": "This week"
+      },
+      "total": "Total",
+      "totalNote": "LexGo sets the price. The payment is confirmed through Telegram.",
+      "submit": "Send request",
+      "sending": "Sending…",
+      "noteTooLong": "Keep the note under 1000 characters.",
+      "sentTitle": "Your request is in",
+      "sentLead": "Once the payment is confirmed, the specialist gets the order and a secure chat opens.",
+      "pending": "Waiting for payment confirmation",
+      "notDelivered": "The approvers were not notified. The request is saved — we will check it by hand.",
+      "toOrders": "Go to my orders",
+      "close": "Close",
+      "active": "You already have an active request for this specialist and service.",
+      "activeOpen": "Open the existing order",
+      "staleSeller": "The specialist or the service was not found. The list was refreshed.",
+      "staleService": "The specialist no longer offers this service. Services were refreshed.",
+      "error": "Could not send the request. Please try again.",
+      "steps": {
+        "request": "Request",
+        "confirm": "Payment check",
+        "chat": "Chat and work"
+      }
+    },
+    "orders": {
+      "clientTitle": "My service orders",
+      "clientLead": "Services you bought in the marketplace: status, chat and calls.",
+      "sellerTitle": "Service orders",
+      "sellerLead": "Marketplace orders with a confirmed payment.",
+      "tabs": {
+        "all": "All",
+        "pending": "Awaiting payment",
+        "active": "Active",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "stage": {
+        "pending": "Waiting for payment confirmation",
+        "active": "In progress",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "steps": {
+        "request": "Request",
+        "confirm": "Payment",
+        "work": "Work",
+        "done": "Done"
+      },
+      "emptyClient": "You have not bought a marketplace service yet",
+      "emptyClientText": "Pick a service in the specialists list — the order shows up here.",
+      "emptySeller": "No marketplace orders yet",
+      "emptySellerText": "When a client buys your service and the payment is confirmed, the order shows up here.",
+      "emptyTab": "No orders in this section",
+      "browse": "Choose a specialist",
+      "error": "Could not load the orders.",
+      "retry": "Try again",
+      "refresh": "Refresh",
+      "client": "Client",
+      "seller": "Specialist",
+      "price": "Price",
+      "channel": "Contact",
+      "time": "Convenient time",
+      "note": "Client's note",
+      "created": "Date",
+      "phone": "Phone",
+      "phoneHidden": "Opens after payment",
+      "waitNote": "The payment is being confirmed through Telegram. The chat opens once it is.",
+      "openChat": "Open chat",
+      "call": "Call",
+      "audio": "Audio",
+      "video": "Video",
+      "calling": "Connecting…",
+      "callError": "Could not start the call.",
+      "cancel": "Cancel",
+      "cancelTitle": "Cancel the purchase",
+      "cancelLead": "The request and the payment will be cancelled. Nothing was charged.",
+      "reason": "Reason (optional)",
+      "reasonPh": "For example: I changed my mind",
+      "cancelConfirm": "Yes, cancel",
+      "cancelling": "Cancelling…",
+      "cancelError": "Could not cancel.",
+      "complete": "Complete",
+      "completeTitle": "Complete the order",
+      "completeLead": "Complete it once the work is delivered. The client will be notified.",
+      "completeNote": "Note (optional)",
+      "completeNotePh": "For example: advice given, document handed over",
+      "completeConfirm": "Complete",
+      "completing": "Completing…",
+      "completeError": "Could not complete.",
+      "keep": "Back",
+      "updated": "Status updated"
+    },
+    "toast": {
+      "paid": "Service activated",
+      "paidText": "{service} — the chat is open.",
+      "paidTextNoService": "Payment confirmed, the chat is open.",
+      "newOrder": "New marketplace order",
+      "newOrderText": "A new order with a confirmed payment has arrived.",
+      "rejected": "Service request cancelled",
+      "rejectedText": "The payment was not confirmed. Nothing was charged.",
+      "open": "Open",
+      "close": "Close"
+    }
+  },
   "common": {
     "kb": "KB",
     "minuteShort": "MM",
@@ -2251,6 +2493,7 @@
     },
     "sidebar": {
       "lawyer": {
+        "marketplaceOrders": "Service orders",
         "urgentAssigned": "Urgent cases",
         "dashboard": "Dashboard",
         "marketplace": "Case Marketplace",
@@ -2274,6 +2517,7 @@
         "meetings": "Meetings"
       },
       "client": {
+        "marketplaceOrders": "My service orders",
         "urgent": "Urgent advocate",
         "dashboard": "Dashboard",
         "sos": "SOS — Emergency",
@@ -2300,6 +2544,7 @@
         "packages": "Packages"
       },
       "advocate": {
+        "marketplaceOrders": "Service orders",
         "urgentAssigned": "Urgent cases",
         "dashboard": "Dashboard",
         "opportunities": "Opportunities",
@@ -4549,6 +4794,22 @@
         "failed": "Failed"
       },
       "events": {
+        "marketplace_purchase_rejected": {
+          "title": "Service request cancelled",
+          "body": "«{service}» — payment not confirmed, nothing was charged."
+        },
+        "marketplace_order_paid": {
+          "title": "New marketplace order",
+          "body": "A new order with a confirmed payment: {body}"
+        },
+        "marketplace_purchase_approved": {
+          "title": "Service activated",
+          "body": "«{service}» — payment confirmed, the chat is open."
+        },
+        "marketplace_purchase_requested": {
+          "title": "Service request sent",
+          "body": "«{service}» — waiting for payment confirmation."
+        },
         "order_created": {
           "title": "Order created",
           "body": "Order {order} for “{service}” was created. Status: {status}."

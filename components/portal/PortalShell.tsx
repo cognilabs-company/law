@@ -10,6 +10,7 @@ import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
 import NotificationBell from "./NotificationBell";
 import IncomingCallWatcher from "./IncomingCallWatcher";
+import MarketWatcher from "../marketplace/MarketWatcher";
 import GrowthBanner from "./GrowthBanner";
 import GiftNudge from "./GiftNudge";
 
@@ -59,6 +60,7 @@ import {
   IconDocSearch,
   IconPackage,
   IconClipboardList,
+  IconTag,
 } from "../icons";
 
 type SvgC = ComponentType<{ className?: string }>;
@@ -90,6 +92,7 @@ function isLocked(role: Role, key: string, limited: boolean, actions: SellerActi
 const LAWYER_NAV: NavItem[] = [
   { href: "/portal/lawyer", key: "dashboard", Icon: IconGrid },
   { href: "/portal/lawyer/marketplace", key: "marketplace", Icon: IconBriefcase },
+  { href: "/portal/lawyer/marketplace-orders", key: "marketplaceOrders", Icon: IconTag },
   { href: "/portal/lawyer/cases", key: "cases", Icon: IconFileText },
   { href: "/portal/lawyer/urgent", key: "urgentAssigned", Icon: IconBolt },
   { href: "/portal/lawyer/tasks", key: "tasks", Icon: IconClipboardCheck },
@@ -113,6 +116,7 @@ const LAWYER_NAV: NavItem[] = [
 const ADVOCATE_NAV: NavItem[] = [
   { href: "/portal/advocate", key: "dashboard", Icon: IconGrid },
   { href: "/portal/advocate/opportunities", key: "opportunities", Icon: IconBriefcase },
+  { href: "/portal/advocate/marketplace-orders", key: "marketplaceOrders", Icon: IconTag },
   { href: "/portal/advocate/cases", key: "cases", Icon: IconFileText },
   { href: "/portal/advocate/urgent", key: "urgentAssigned", Icon: IconBolt },
   { href: "/portal/advocate/document-requests", key: "documentRequests", Icon: IconDocLines },
@@ -164,6 +168,7 @@ const CLIENT_NAV: NavItem[] = [
   // page beside it is "Huquqiy hujjatlar", so the two no longer share a name.
   { href: "/portal/client/academy", key: "academy", Icon: IconGraduation },
   { href: "/portal/client/lawyers", key: "lawyers", Icon: IconUsers },
+  { href: "/portal/client/marketplace-orders", key: "marketplaceOrders", Icon: IconTag },
   { href: "/portal/client/matches", key: "matches", Icon: IconTarget },
   { href: "/portal/client/subscription", key: "subscription", Icon: IconGem },
   { href: "/portal/client/payments", key: "payments", Icon: IconCard },
@@ -288,6 +293,7 @@ export default function PortalShell({
   return (
     <div className={`portal${collapsed ? " psb-collapsed" : ""}${fullscreen ? " portal--full" : ""}`}>
       <IncomingCallWatcher />
+      <MarketWatcher role={role} />
       {/* LEXGO_AI_SYSTEM_ASSISTANT_FRONTEND_BACKEND_2026-09-29.md asks for a
           floating assistant at the bottom right on desktop. That corner is
           the robot's — .robot-edge-zone, and it is hidden below 900px — so

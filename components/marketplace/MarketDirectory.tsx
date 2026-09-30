@@ -1,0 +1,431 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import Select, { type Option } from "@/components/Select";
+import { IconArrowRight, IconMapPin, IconRefresh, IconSearch, IconShieldCheck, IconSparkle, IconStar } from "@/components/icons";
+import { listMarketplace, rememberSellers, type MarketMeta, type MarketSeller } from "@/lib/services/marketplace";
+import { matchesSearch } from "@/lib/searchText";
+import { regionKeyOf, regionLabel } from "@/lib/labels";
+import { fmtUzs } from "@/lib/money";
+import { fmtRating } from "@/lib/date";
+import { Monogram, SELLER_TYPES, hasRating, hasSuccess, sellerTypeLabel, specLabel } from "./bits";
+
+type Status = "loading" | "ready" | "error";
+
+const SORTS = ["recommended", "rating", "experience", "price_asc"];
+const PRICE_STEPS = [300000, 500000, 1000000, 2000000];
+
+export default function MarketDirectory({ variant, initialArea = "" }: { variant: "public" | "portal"; initialArea?: string }) {
+  const t = useTranslations("marketplace");
+  const te = useTranslations("enums");
+  const locale = useLocale();
+  const base = variant === "portal" ? "/portal/client/lawyers" : "/lawyers";
+
+  const [items, setItems] = useState<MarketSeller[]>([]);
+  const [total, setTotal] = useState(0);
+  const [meta, setMeta] = useState<MarketMeta | null>(null);
+  const [status, setStatus] = useState<Status>("loading");
+  const [refreshing, setRefreshing] = useState(false);
+  const [moreBusy, setMoreBusy] = useState(false);
+  const [sort, setSort] = useState("recommended");
+  const [reload, setReload] = useState(0);
+  const seq = useRef(0);
+  const metaRef = useRef<MarketMeta | null>(null);
+
+  const [q, setQ] = useState("");
+  const [role, setRole] = useState("");
+  const [region, setRegion] = useState("");
+  const [spec, setSpec] = useState<string | null>(null);
+  const [category, setCategory] = useState("");
+  const [service, setService] = useState("");
+  const [minRating, setMinRating] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const [onlineOnly, setOnlineOnly] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    const my = ++seq.current;
+    listMarketplace({ sort, includeMeta: !metaRef.current })
+      .then((r) => {
+        if (my !== seq.current) return;
+        rememberSellers(r.items);
+        setItems(r.items);
+        setTotal(r.total);
+        if (r.meta) {
+          metaRef.current = r.meta;
+          setMeta(r.meta);
+        }
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (my !== seq.current) return;
+        setStatus((s) => (s === "ready" ? s : "error"));
+      })
+      .finally(() => {
+        if (my === seq.current) setRefreshing(false);
+      });
+  }, [sort, reload]);
+
+  const changeSort = (v: string) => {
+    if (v === sort) return;
+    setRefreshing(true);
+    setSort(v);
+  };
+
+  const retry = () => {
+    setStatus("loading");
+    setReload((n) => n + 1);
+  };
+
+  const loadMore = useCallback(async () => {
+    if (moreBusy) return;
+    setMoreBusy(true);
+    const my = seq.current;
+    const r = await listMarketplace({ sort, offset: items.length }).catch(() => null);
+    setMoreBusy(false);
+    if (!r || my !== seq.current) return;
+    rememberSellers(r.items);
+    setItems((cur) => {
+      const seen = new Set(cur.map((x) => x.userId));
+      return cur.concat(r.items.filter((x) => !seen.has(x.userId)));
+    });
+    setTotal(r.total);
+  }, [moreBusy, sort, items.length]);
+
+  const allSpecs = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of items) for (const sp of s.specializations) if (!m.has(sp.toLowerCase())) m.set(sp.toLowerCase(), sp);
+    return [...m.entries()].map(([value, raw]) => ({ value, label: specLabel(te, raw) })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [items, te]);
+
+  const areaSpec = useMemo(() => {
+    const a = initialArea.trim().toLowerCase();
+    if (!a) return "";
+    return allSpecs.find((s) => s.value === a || s.value.includes(a))?.value ?? "";
+  }, [initialArea, allSpecs]);
+  const effSpec = spec ?? areaSpec;
+
+  const regionOpts = useMemo(() => {
+    const keys = new Map<string, string>();
+    for (const s of items) {
+      if (!s.region) continue;
+      const k = regionKeyOf(te, s.region) || s.region.toLowerCase();
+      if (!keys.has(k)) keys.set(k, regionLabel(te, s.region));
+    }
+    return [...keys.entries()].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [items, te]);
+
+  const categories = useMemo(() => {
+    const src = meta?.categories.length ? meta.categories : items.flatMap((s) => s.categories);
+    const m = new Map<string, string>();
+    for (const c of src) if (c.id && !m.has(c.id)) m.set(c.id, specLabel(te, c.title || c.slug));
+    return [...m.entries()].map(([value, label]) => ({ value, label }));
+  }, [meta, items, te]);
+
+  const services = useMemo(() => {
+    const src = meta?.services.length ? meta.services : items.flatMap((s) => s.services.map((x) => ({ id: x.id, title: x.title, categoryId: x.categoryId, basePrice: x.basePrice })));
+    const m = new Map<string, { value: string; label: string; categoryId: string }>();
+    for (const x of src) if (x.id && !m.has(x.id)) m.set(x.id, { value: x.id, label: x.title, categoryId: x.categoryId });
+    return [...m.values()].filter((x) => !category || x.categoryId === category);
+  }, [meta, items, category]);
+
+  const roles = useMemo(() => {
+    const present = new Set(items.map((s) => s.sellerType));
+    const known = meta?.sellerTypes.length ? meta.sellerTypes : [...SELLER_TYPES];
+    return known.filter((r) => present.has(r) || (SELLER_TYPES as readonly string[]).includes(r));
+  }, [items, meta]);
+
+  const list = useMemo(() => {
+    const minR = Number(minRating) || 0;
+    const maxP = Number(priceMax) || 0;
+    return items.filter((s) => {
+      if (role && s.sellerType !== role) return false;
+      if (region && (regionKeyOf(te, s.region) || s.region.toLowerCase()) !== region) return false;
+      if (effSpec && !s.specializations.some((x) => x.toLowerCase() === effSpec)) return false;
+      if (category && !s.categories.some((c) => c.id === category) && !s.services.some((x) => x.categoryId === category)) return false;
+      if (service && !s.services.some((x) => x.id === service)) return false;
+      if (minR && !(hasRating(s) && s.rating >= minR)) return false;
+      if (maxP && !(s.priceFrom > 0 && s.priceFrom <= maxP)) return false;
+      if (onlineOnly && !s.onlineNow) return false;
+      if (q.trim()) {
+        const hay = [s.name, s.organizationName, regionLabel(te, s.region), s.district, ...s.specializations.map((x) => specLabel(te, x)), ...s.serviceTitles, ...s.services.map((x) => x.title), ...s.categories.map((c) => c.title)].join(" ");
+        if (!matchesSearch(hay, q)) return false;
+      }
+      return true;
+    });
+  }, [items, role, region, effSpec, category, service, minRating, priceMax, onlineOnly, q, te]);
+
+  const activeFilters = [region, effSpec, category, service, minRating, priceMax, onlineOnly ? "1" : ""].filter(Boolean).length;
+  const resetFilters = () => {
+    setRole("");
+    setRegion("");
+    setSpec("");
+    setCategory("");
+    setService("");
+    setMinRating("");
+    setPriceMax("");
+    setOnlineOnly(false);
+    setQ("");
+  };
+
+  const stats = useMemo(() => {
+    const ids = new Set<string>();
+    let min = 0;
+    for (const s of items) {
+      for (const x of s.services) ids.add(x.id);
+      if (s.priceFrom > 0 && (!min || s.priceFrom < min)) min = s.priceFrom;
+    }
+    return { sellers: total || items.length, services: ids.size, min };
+  }, [items, total]);
+
+  const sortOpts: Option[] = (meta?.sortOptions.length ? meta.sortOptions : SORTS).filter((s) => t.has(`sort.${s}`)).map((s) => ({ value: s, label: t(`sort.${s}`) }));
+
+  return (
+    <section className={`mk mk--${variant}`}>
+      <div className="mk-hero">
+        <div className="mk-hero__glow" aria-hidden="true" />
+        <div className="mk-hero__grid" aria-hidden="true" />
+        <div className="mk-hero__in">
+          <span className="mk-kick">
+            <IconShieldCheck />
+            {t("kicker")}
+          </span>
+          <h1 className="mk-hero__t">{t("title")}</h1>
+          <p className="mk-hero__l">{t("lead")}</p>
+          <label className="mk-search">
+            <IconSearch />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchLabel")} />
+          </label>
+          <div className="mk-hero__stats">
+            <div>
+              <b>{status === "loading" ? "—" : stats.sellers}</b>
+              <span>{t("heroStats.sellers")}</span>
+            </div>
+            <div>
+              <b>{status === "loading" ? "—" : stats.services}</b>
+              <span>{t("heroStats.services")}</span>
+            </div>
+            <div>
+              <b>{stats.min ? fmtUzs(stats.min) : "—"}</b>
+              <span>{t("heroStats.from")}</span>
+            </div>
+          </div>
+        </div>
+        {items.length ? (
+          <div className="mk-deck" aria-hidden="true">
+            {items.slice(0, 3).map((s, i) => (
+              <div key={s.userId} className={`mk-deck__c mk-deck__c--${i}`}>
+                <Monogram name={s.name} rating={s.rating} showRing={hasRating(s)} />
+                <div>
+                  <b>{s.name}</b>
+                  <span>{sellerTypeLabel(t, s.sellerType)}</span>
+                  {s.priceFrom > 0 ? <em>{t("card.priceFrom", { price: fmtUzs(s.priceFrom) })}</em> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mk-bar">
+        <div className="mk-roles" role="group" aria-label={t("roles.all")}>
+          {["", ...roles].map((r) => (
+            <button key={r || "all"} type="button" className="mk-role" aria-pressed={role === r} onClick={() => setRole(r)}>
+              {r ? sellerTypeLabel(t, r) : t("roles.all")}
+            </button>
+          ))}
+        </div>
+        <div className="mk-bar__end">
+          <button type="button" className="mk-ftoggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
+            {t("filters.toggle")}
+            {activeFilters ? <span className="mk-ftoggle__n">{activeFilters}</span> : null}
+          </button>
+          <div className="mk-sort">
+            <Select value={sort} onChange={changeSort} options={sortOpts} ariaLabel={t("filters.sort")} />
+          </div>
+        </div>
+      </div>
+
+      {allSpecs.length ? (
+        <div className="mk-specs">
+          <button type="button" className="mk-chip" aria-pressed={!effSpec} onClick={() => setSpec("")}>
+            {t("filters.allSpecs")}
+          </button>
+          {allSpecs.map((s) => (
+            <button key={s.value} type="button" className="mk-chip" aria-pressed={effSpec === s.value} onClick={() => setSpec(effSpec === s.value ? "" : s.value)}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <div className={`mk-filters${filtersOpen ? " is-open" : ""}`}>
+        <div className="mk-fld">
+          <label>{t("filters.region")}</label>
+          <Select value={region} onChange={setRegion} ariaLabel={t("filters.region")} options={[{ value: "", label: t("filters.allRegions") }, ...regionOpts]} />
+        </div>
+        <div className="mk-fld">
+          <label>{t("filters.category")}</label>
+          <Select
+            value={category}
+            onChange={(v) => {
+              setCategory(v);
+              setService("");
+            }}
+            ariaLabel={t("filters.category")}
+            options={[{ value: "", label: t("filters.allCategories") }, ...categories]}
+          />
+        </div>
+        <div className="mk-fld">
+          <label>{t("filters.service")}</label>
+          <Select value={service} onChange={setService} ariaLabel={t("filters.service")} options={[{ value: "", label: t("filters.allServices") }, ...services.map(({ value, label }) => ({ value, label }))]} />
+        </div>
+        <div className="mk-fld">
+          <label>{t("filters.rating")}</label>
+          <Select value={minRating} onChange={setMinRating} ariaLabel={t("filters.rating")} options={[{ value: "", label: t("filters.any") }, { value: "4", label: "4.0+" }, { value: "4.5", label: "4.5+" }]} />
+        </div>
+        <div className="mk-fld">
+          <label>{t("filters.priceMax")}</label>
+          <Select value={priceMax} onChange={setPriceMax} ariaLabel={t("filters.priceMax")} options={[{ value: "", label: t("filters.any") }, ...PRICE_STEPS.map((p) => ({ value: String(p), label: `≤ ${fmtUzs(p)}` }))]} />
+        </div>
+        <label className="mk-switch">
+          <input type="checkbox" checked={onlineOnly} onChange={(e) => setOnlineOnly(e.target.checked)} />
+          <span className="mk-switch__track" aria-hidden="true" />
+          {t("filters.online")}
+        </label>
+        {activeFilters || q || role ? (
+          <button type="button" className="mk-reset" onClick={resetFilters}>
+            {t("filters.reset")}
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mk-count" aria-live="polite">
+        {status === "ready" ? t("count", { n: list.length }) : null}
+        {refreshing ? <span className="mk-dot" aria-hidden="true" /> : null}
+      </div>
+
+      {status === "loading" ? (
+        <div className="mk-grid">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="mk-card mk-card--ghost" aria-hidden="true" />
+          ))}
+        </div>
+      ) : status === "error" ? (
+        <div className="mk-empty">
+          <b>{t("error")}</b>
+          <button type="button" className="btn btn--line btn--sm" onClick={retry}>
+            <IconRefresh />
+            {t("retry")}
+          </button>
+        </div>
+      ) : !list.length ? (
+        <div className="mk-empty">
+          <IconSparkle />
+          <b>{t("empty")}</b>
+          <span>{t("emptyText")}</span>
+          {activeFilters || q || role ? (
+            <button type="button" className="btn btn--line btn--sm" onClick={resetFilters}>
+              {t("filters.reset")}
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <div className={`mk-grid${refreshing ? " is-busy" : ""}`}>
+          {list.map((s, i) => (
+            <SellerCard key={s.userId} s={s} href={`${base}/${encodeURIComponent(s.userId)}`} index={i} locale={locale} />
+          ))}
+        </div>
+      )}
+
+      {status === "ready" && items.length < total ? (
+        <div className="mk-more">
+          <button type="button" className="btn btn--line" disabled={moreBusy} onClick={() => void loadMore()}>
+            {t("loadMore")}
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function SellerCard({ s, href, index, locale }: { s: MarketSeller; href: string; index: number; locale: string }) {
+  const t = useTranslations("marketplace");
+  const te = useTranslations("enums");
+  const rated = hasRating(s);
+  const titles = s.serviceTitles.length ? s.serviceTitles : s.services.map((x) => x.title);
+  const shown = titles.slice(0, 2);
+  const promoted = s.promotion?.active === true;
+  return (
+    <article className={`mk-card${promoted ? " mk-card--promo" : ""}`} style={{ ["--mk-i" as string]: String(Math.min(index, 11)) }}>
+      {promoted ? <span className="mk-card__ad">{t("card.promoted")}</span> : null}
+      <div className="mk-card__head">
+        <Monogram name={s.name} rating={s.rating} showRing={rated} />
+        <div className="mk-card__who">
+          <Link href={href} className="mk-card__name">
+            {s.name}
+          </Link>
+          <div className="mk-card__meta">
+            <span className={`mk-type mk-type--${s.sellerType || "yurist"}`}>{sellerTypeLabel(t, s.sellerType)}</span>
+            {s.verified ? (
+              <span className="mk-verified" title={t("card.verified")}>
+                <IconShieldCheck />
+                {t("card.verified")}
+              </span>
+            ) : null}
+          </div>
+          {s.region ? (
+            <div className="mk-card__place">
+              <IconMapPin />
+              {[regionLabel(te, s.region), s.district && s.district.toLowerCase() !== "demo" ? s.district : ""].filter(Boolean).join(", ")}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mk-card__kpis">
+        <div className="mk-kpi">
+          {rated ? (
+            <b>
+              <IconStar />
+              {fmtRating(s.rating, locale)}
+            </b>
+          ) : (
+            <b className="mk-kpi__new">{t("card.newSeller")}</b>
+          )}
+          <span>{rated ? t("card.reviews", { count: s.reviewsCount }) : t("card.newHint")}</span>
+        </div>
+        <div className="mk-kpi">
+          <b>{s.experienceYears || "—"}</b>
+          <span>{t("card.experience")}</span>
+        </div>
+        <div className="mk-kpi">
+          <b>{hasSuccess(s) ? `${Math.round(s.successRate)}%` : "—"}</b>
+          <span>{hasSuccess(s) ? t("card.success") : `${t("card.success")} · ${t("card.gathering")}`}</span>
+        </div>
+      </div>
+
+      {shown.length ? (
+        <ul className="mk-card__svc">
+          {shown.map((x) => (
+            <li key={x}>{x}</li>
+          ))}
+          {titles.length > shown.length ? <li className="mk-card__svcmore">{t("card.servicesMore", { n: titles.length - shown.length })}</li> : null}
+        </ul>
+      ) : null}
+
+      <div className="mk-card__foot">
+        <div className="mk-card__price">
+          {s.priceFrom > 0 ? <b>{t("card.priceFrom", { price: fmtUzs(s.priceFrom) })}</b> : <b className="mk-card__ask">{t("card.priceAsk")}</b>}
+          {!s.available ? <span className="mk-card__busy">{t("card.busy")}</span> : null}
+        </div>
+        <Link href={href} className="mk-card__go" aria-label={`${t("card.details")}: ${s.name}`}>
+          {t("card.details")}
+          <IconArrowRight />
+        </Link>
+      </div>
+    </article>
+  );
+}

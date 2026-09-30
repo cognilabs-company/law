@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { readReferral } from "@/lib/referral";
+import { takeReturnTo } from "@/lib/returnTo";
 import { useAuth, hasAdminAccess, type Session } from "@/lib/auth";
 import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
 import type { TwoFactorChallenge } from "@/lib/services/backend";
@@ -26,6 +27,10 @@ const serverFailed = (e: unknown) => e instanceof ApiError && e.status >= 500 &&
 const channelDown = (e: unknown) => e instanceof ApiError && e.status === 503;
 // Staff (admin, sales, call-center…) land in the admin panel, everyone else in their portal.
 const homeFor = (s: Session) => (hasAdminAccess(s) ? "/admin" : `/portal/${s.role}`);
+const exitFor = (s: Session) => {
+  const next = takeReturnTo();
+  return next && s.role === "client" && !hasAdminAccess(s) ? next : homeFor(s);
+};
 
 export default function LoginForm() {
   const t = useTranslations("portal.login");
@@ -45,7 +50,7 @@ export default function LoginForm() {
   // The one-time-code field's own "accepted" animation. Separate from exitTo
   // so the tick is on screen BEFORE the card starts fading out.
   const [codeOk, setCodeOk] = useState(false);
-  const leave = (s: Session) => setExitTo(homeFor(s));
+  const leave = (s: Session) => setExitTo(exitFor(s));
   // How long the accepted-code animation needs before the exit may start.
   const CODE_OK_MS = 620;
   useEffect(() => {

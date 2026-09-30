@@ -48,6 +48,10 @@ const EVENT_CATEGORY: Record<string, NotifCategory> = {
   upsell_redeemed: "marketing",
   seller_register_approved: "system",
   seller_register_rejected: "system",
+  marketplace_purchase_requested: "orders",
+  marketplace_purchase_approved: "orders",
+  marketplace_order_paid: "orders",
+  marketplace_purchase_rejected: "orders",
 };
 
 // Prefix / fragment rules for events that are not listed above (future
@@ -168,6 +172,11 @@ export function notifLink(event: string, category: NotifCategory, data: Dict, ro
     return `/portal/chat/${roomId}${event === "meeting_invite" && callId ? `?join=${encodeURIComponent(callId)}` : ""}`;
   }
   if (!role) return "";
+  if (event.startsWith("marketplace_")) {
+    if (role !== "client") return `/portal/${role}/marketplace-orders`;
+    return event === "marketplace_purchase_approved" && roomId ? `/portal/chat/${roomId}` : "/portal/client/marketplace-orders";
+  }
+  if (event.startsWith("promotion.") && role !== "client") return `/portal/${role}/promotion`;
   // LEXGO_DOCUMENT_TITLE_CONSTRUCTOR_PROMPT_UPDATE_2026-09-29.md §6 L158:
   // "Frontend notification bosilganda shu modalni ochishi yoki to'g'ridan-
   // to'g'ri konstruktor sahifasiga olib kirishi mumkin." Both routes are

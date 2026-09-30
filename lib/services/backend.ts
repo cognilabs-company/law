@@ -1062,7 +1062,12 @@ export type BackendOrder = {
   lawyerName?: string;
   // Seller response window (T1-10 §6): details.confirmation_deadline_at.
   confirmationDeadlineAt?: string;
+  source?: string;
 };
+
+export function isUnpaidMarketplaceOrder(o: Pick<BackendOrder, "source" | "status">): boolean {
+  return (o.source || "").toLowerCase() === "marketplace" && (o.status || "").toLowerCase() === "pending_payment";
+}
 
 function normOrder(v: unknown): BackendOrder {
   const d = asDict(v);
@@ -1087,6 +1092,7 @@ function normOrder(v: unknown): BackendOrder {
     createdAt: asStr(d.created_at ?? d.createdAt),
     lawyerName: asStr(d.lawyer_name ?? asDict(d.lawyer).name) || undefined,
     confirmationDeadlineAt: asStr(d.confirmation_deadline_at ?? details.confirmation_deadline_at) || undefined,
+    source: asStr(d.source ?? (details.marketplace === true ? "marketplace" : "")) || undefined,
   };
 }
 
@@ -1116,7 +1122,7 @@ const TAKEN_ORDER_STATUSES = new Set([
   "done",
 ]);
 export async function listOpenOrders(): Promise<BackendOrder[]> {
-  return (await listOrders()).filter((o) => !TAKEN_ORDER_STATUSES.has((o.status || "").toLowerCase()));
+  return (await listOrders()).filter((o) => !TAKEN_ORDER_STATUSES.has((o.status || "").toLowerCase()) && !isUnpaidMarketplaceOrder(o));
 }
 
 export async function createOrder(input: {
