@@ -1970,8 +1970,8 @@ body:has(.rf) .fab{display:none}
 @media (prefers-reduced-motion:reduce){.cdart__img--first,.cdart__img--in,.cdart__img--out{animation:none}}
 
 .cdact{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
-.cdact__i{display:flex;flex-direction:column;gap:10px;align-items:flex-start;background:var(--dk-surface, #fff);border:1px solid var(--line);border-radius:var(--rl);
-  padding:16px;font-weight:600;font-size:.9rem;color:var(--ink);transition:.18s;box-shadow:var(--s1)}
+.cdact__i{display:flex;flex-direction:column;gap:10px;align-items:flex-start;justify-content:flex-start;background:var(--dk-surface, #fff);border:1px solid var(--line);border-radius:var(--rl);
+  padding:16px;min-height:162px;font-weight:600;font-size:.9rem;color:var(--ink);transition:.18s;box-shadow:var(--s1)}
 .cdact__i:hover{transform:translateY(-3px);box-shadow:var(--s2);border-color:var(--b200)}
 .cdact__ico{position:relative;z-index:1;width:42px;height:42px;border-radius:12px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center}
 .cdact__ico svg{width:21px;height:21px}
@@ -7514,9 +7514,15 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
    the card edge — the product owner's call, and it is the better looking of
    the two: the picture reads as part of the card rather than as a sticker
    placed on it, and pushing its mass down and to the right is what keeps it
-   clear of the copy. The card still clips it (overflow:hidden above), the
-   card is still exactly the height its text gives it, and the text still has
-   no width imposed on it: the art is out of flow and paints behind.
+   clear of the copy. The card still clips it (overflow:hidden above) and
+   the text still has no width imposed on it: the art is out of flow and
+   paints behind.
+
+   All six cards share one min-height (set with the layout above), so the
+   longest title no longer decides how tall its neighbours are. That extra
+   room is also what retired the old per-card drops: the three whose weight
+   sits high in the frame used to ride up against the copy on a short card,
+   and on a 162px one they no longer do — one offset for all six.
 
    The files are normalised for that: each was trimmed of its transparent
    margin (42-59% of the original canvas, differently distributed on each,
@@ -7524,20 +7530,9 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
    re-centred in one square. `contain` in a square box now draws all six at
    the same size, and the same fifth is cut from each. */
 .cdact__i{position:relative;overflow:hidden}
-.cdact__art{position:absolute;z-index:0;right:-8px;bottom:-8px;width:78px;height:78px;pointer-events:none;
+.cdact__art{position:absolute;z-index:0;right:-8px;bottom:-8px;width:94px;height:94px;pointer-events:none;
   background:var(--art) no-repeat center/contain;
   transition:transform .28s cubic-bezier(.2,.8,.2,1)}
-/* Three of the six sit lower still: the advocate, the magnifier and the
-   crash each have their weight in the upper half of the frame, so at the
-   shared offset they rode high against the copy while the other three sat
-   where they should. Another 30% of the box (23px of 78) drops them into
-   the corner with the rest. Per-card, not a new shared offset — moving all
-   six would bury the three that are already right. */
-.cdact__art--low{bottom:-31px}
-/* …and 15% less far for the two that only needed some of it: the
-   magnifier, and the crash once its subtitle went and the card grew
-   shorter. */
-.cdact__art--mid{bottom:-19px}
 .cdact__i:hover .cdact__art{transform:translateY(-3px) scale(1.05)}
 /* The text simply sits in front. Positioned only so it paints above the
    artwork — no width, no wrap, nothing that moves it from where it was. */
