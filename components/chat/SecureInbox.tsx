@@ -9,6 +9,8 @@ import {
   getLawyerClients,
   listAssignedUrgentRequests,
   listMyUrgentRequests,
+  mergeSecureRoom,
+  normSecureRoom,
   type SecureRoom,
   type UrgentRequest,
 } from "@/lib/services/backend";
@@ -29,6 +31,14 @@ import { IconShieldCheck, IconArrowRight, IconLock, IconSearch, IconChat, IconCl
 // message arrives on the user socket.
 
 type Dir = Map<string, string>;
+
+function roomStamp(room: SecureRoom): number {
+  const value = Date.parse(room.updatedAt || room.lastMessageAt || room.createdAt || "");
+  return Number.isFinite(value) ? value : 0;
+}
+function sortRooms(rooms: SecureRoom[]): SecureRoom[] {
+  return [...rooms].sort((a, b) => roomStamp(b) - roomStamp(a));
+}
 
 // R3/R32 (LEXGO_URGENT_GROUP_CHAT_FRONTEND L16, L260-262). A selected advocate
 // has to be able to ENTER the group room, and to find the "Chatni yakunlash"
@@ -59,6 +69,7 @@ function pickRecord(a: UrgentRequest | undefined, b: UrgentRequest): UrgentReque
 
 export default function SecureInbox() {
   const t = useTranslations("secureChat.inbox");
+  const ts = useTranslations("secureChat");
   const tc = useTranslations("portal.common");
   // The service names are the client-facing catalogue wording, which is where
   // "Ikkinchi fikr — advokatlar guruhi" is already translated; the raw
@@ -67,10 +78,9 @@ export default function SecureInbox() {
   const locale = useLocale();
   const { session } = useAuth();
   const res = useResource(listSecureChats, []);
+  const { setData } = res;
   const [q, setQ] = useState("");
   const [dir, setDir] = useState<Dir>(new Map());
-  // Rooms with a message that arrived while this page was open.
-  const [fresh, setFresh] = useState<Set<string>>(new Set());
   // roomId → the Tezkor Advokat record that room belongs to.
   const [ua, setUa] = useState<Map<string, UrgentRequest>>(new Map());
 
@@ -114,20 +124,46 @@ export default function SecureInbox() {
   useEffect(() => {
     return subscribeUserEvents((e) => {
       const d = e as Record<string, unknown>;
-      const room = String(d.room_id ?? "");
-      // The user-level stream names it "secure_chat.message_created"
-      // (lexgo_frontend_doc_chat_update.md §5); "secure_chat_message" is the
-      // NOTIFICATION event name, which also reaches here through
-      // notification.created. Both are accepted so neither spelling is missed.
-      const isChat = e.event === "secure_chat.message_created" || e.event === "secure_chat_message" || e.event === "notification.created";
-      if (!room || !isChat) return;
-      setFresh((cur) => (cur.has(room) ? cur : new Set(cur).add(room)));
+      const roomId = String(d.room_id ?? "");
+      if (!roomId) return;
+      if (e.event === "secure_chat.read") {
+        setData((cur) => cur.map((room) => (room.id === roomId
+          ? { ...room, unreadCount: 0, hasUnread: false, lastReadAt: String(d.last_read_at ?? room.lastReadAt) }
+          : room)));
+        return;
+      }
+      if (e.event !== "secure_chat.message_created") return;
+      const rawRoom = d.room && typeof d.room === "object" && !Array.isArray(d.room) ? d.room as Record<string, unknown> : null;
+      const rawMessage = d.message && typeof d.message === "object" && !Array.isArray(d.message) ? d.message as Record<string, unknown> : null;
+      setData((cur) => {
+        const current = cur.find((room) => room.id === roomId);
+        const patch = rawRoom
+          ? { ...rawRoom, id: rawRoom.id ?? roomId }
+          : rawMessage
+            ? { id: roomId, updated_at: rawMessage.created_at, last_message_at: rawMessage.created_at, last_message: rawMessage }
+            : null;
+        if (!patch) return cur;
+        const next = current ? mergeSecureRoom(current, patch) : normSecureRoom(patch);
+        if (!next.id) return cur;
+        const senderId = rawMessage ? String(rawMessage.sender_user_id ?? rawMessage.sender_id ?? "") : "";
+        const isMine = rawMessage ? senderId === (session?.id ?? "") || rawMessage.is_mine === true : false;
+        const updated = rawRoom || isMine
+          ? next
+          : { ...next, unreadCount: Math.max(next.unreadCount, (current?.unreadCount ?? 0) + 1), hasUnread: true };
+        return sortRooms([updated, ...cur.filter((room) => room.id !== roomId)]);
+      });
     });
-  }, []);
+  }, [session?.id, setData]);
 
   const me = session?.id ?? "";
-  const otherOf = (r: SecureRoom) => (r.clientUserId === me ? r.sellerUserId : r.clientUserId) || r.sellerUserId || r.clientUserId || "";
-  const nameOf = (r: SecureRoom) => dir.get(otherOf(r)) || "";
+  const otherOf = (r: SecureRoom) => (r.clientUserId === me ? r.sellerUserId : r.clientUserId) || r.sellerUserId || r.clientUserId || r.lastMessage?.senderId || "";
+  const nameOf = (r: SecureRoom) => dir.get(otherOf(r)) || r.lastMessage?.senderName || "";
+  const previewOf = (r: SecureRoom) => {
+    const message = r.lastMessage;
+    if (!message) return "";
+    const content = message.content || (message.messageType === "voice" ? ts("voiceNote") : message.messageType === "file" ? ts("fileGeneric") : "");
+    return message.isMine ? t("minePrefix", { text: content }) : content;
+  };
   const svcOf = (req: UrgentRequest) => (tk.has(`kinds.${req.serviceKind}`) ? tk(`kinds.${req.serviceKind}`) : req.serviceTitle || req.serviceKind);
   // The record travels in the query string, exactly as the call-centre board
   // sends it (?ua=&wid=&svc=) — that is what the chat reads to offer
@@ -146,7 +182,7 @@ export default function SecureInbox() {
   const rows = useMemo(() => {
     // Newest room first — the list arrived in creation order, which put the
     // conversation the user is most likely to want at the very bottom.
-    const sorted = [...res.data].sort((a, b) => Date.parse(b.createdAt || "") - Date.parse(a.createdAt || "") || 0);
+    const sorted = sortRooms(res.data);
     const needle = q.trim().toLowerCase();
     if (!needle) return sorted;
     // The work id is searchable too: it is the number a client and an advocate
@@ -160,7 +196,7 @@ export default function SecureInbox() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [res.data, q, dir, me, ua]);
 
-  const unreadN = rows.filter((r) => fresh.has(r.id)).length;
+  const unreadN = rows.reduce((sum, room) => sum + room.unreadCount, 0);
 
   return (
     <div className="ppanel">
@@ -198,7 +234,9 @@ export default function SecureInbox() {
         <div className="sinbox">
           {rows.map((r, i) => {
             const name = nameOf(r);
-            const isNew = fresh.has(r.id);
+            const isNew = r.unreadCount > 0;
+            const preview = previewOf(r);
+            const lastAt = r.lastMessage?.createdAt || r.lastMessageAt || r.updatedAt;
             const req = ua.get(r.id);
             const group = req?.serviceKind === "second_opinion_group";
             return (
@@ -206,17 +244,18 @@ export default function SecureInbox() {
                 key={r.id}
                 href={hrefOf(r)}
                 className={`sinbox__item${isNew ? " sinbox__item--new" : ""}`}
-                onClick={() => setFresh((cur) => { if (!cur.has(r.id)) return cur; const n = new Set(cur); n.delete(r.id); return n; })}
+                onClick={() => setData((cur) => cur.map((room) => (room.id === r.id ? { ...room, unreadCount: 0, hasUnread: false } : room)))}
               >
                 <span className={`sinbox__av${group ? " sinbox__av--group" : ""}`}>
                   {group ? <IconUsers /> : name ? initials(name) : <IconShieldCheck />}
                 </span>
                 <div className="sinbox__m">
                   <b>{name || `${t("room")} #${i + 1}`}</b>
+                  {preview ? <span className="sinbox__preview">{preview}</span> : null}
                   <span className="sinbox__sub">
                     <IconLock />
                     {t("secured")}
-                    {r.createdAt ? <><span className="sinbox__dot">·</span><IconClock />{dateTimeFull(r.createdAt, locale)}</> : null}
+                    {lastAt ? <><IconClock />{dateTimeFull(lastAt, locale)}</> : null}
                   </span>
                   {/* Which work this room is. Without it a group panel and a
                       private conversation with the same advocate are two
@@ -228,9 +267,11 @@ export default function SecureInbox() {
                     </span>
                   ) : null}
                 </div>
-                {isNew ? <span className="sinbox__new" aria-label={t("newMessage")} /> : null}
-                {r.status ? <span className={`sinbox__st sinbox__st--${r.status.toLowerCase()}`}>{statusLabel(tc, r.status)}</span> : null}
-                <span className="sinbox__go"><IconArrowRight /></span>
+                <div className="sinbox__right">
+                  {isNew ? <span className="sinbox__unread" aria-label={t("unreadCount", { n: r.unreadCount })}>{r.unreadCount}</span> : null}
+                  {r.status ? <span className={`sinbox__st sinbox__st--${r.status.toLowerCase()}`}>{statusLabel(tc, r.status)}</span> : null}
+                  <span className="sinbox__go"><IconArrowRight /></span>
+                </div>
               </Link>
             );
           })}

@@ -3127,6 +3127,30 @@ export function normSecureMsgFile(d: Dict): Pick<SecureMessage, "messageType" | 
     },
   };
 }
+export type SecureRoomLastMessage = {
+  id: string;
+  senderId: string;
+  senderName: string;
+  messageType: string;
+  content: string;
+  isBlocked: boolean;
+  createdAt: string;
+  isMine: boolean;
+};
+function normSecureRoomLastMessage(v: unknown): SecureRoomLastMessage | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const d = asDict(v);
+  return {
+    id: asStr(d.id),
+    senderId: asStr(d.sender_user_id ?? d.sender_id ?? d.senderId),
+    senderName: asStr(d.sender_name ?? d.senderName),
+    messageType: asStr(d.message_type ?? d.messageType, "text"),
+    content: asStr(d.filtered_content ?? d.content),
+    isBlocked: d.is_blocked === true || d.isBlocked === true,
+    createdAt: asStr(d.created_at ?? d.createdAt),
+    isMine: d.is_mine === true || d.isMine === true,
+  };
+}
 export type SecureRoom = {
   id: string;
   status: string;
@@ -3135,9 +3159,19 @@ export type SecureRoom = {
   clientUserId?: string;
   sellerUserId?: string;
   createdAt: string;
+  updatedAt: string;
+  lastMessageAt: string;
+  lastMessage: SecureRoomLastMessage | null;
+  unreadCount: number;
+  hasUnread: boolean;
+  lastReadAt: string;
 };
-function normRoom(v: unknown): SecureRoom {
+export function normSecureRoom(v: unknown): SecureRoom {
   const d = asDict(v);
+  const lastMessage = normSecureRoomLastMessage(d.last_message ?? d.lastMessage);
+  const createdAt = asStr(d.created_at ?? d.createdAt);
+  const lastMessageAt = asStr(d.last_message_at ?? d.lastMessageAt) || lastMessage?.createdAt || "";
+  const unreadCount = Math.max(0, asNum(d.unread_count ?? d.unreadCount));
   return {
     id: asStr(d.id),
     status: asStr(d.status),
@@ -3145,14 +3179,53 @@ function normRoom(v: unknown): SecureRoom {
     caseId: asStr(d.case_id) || undefined,
     clientUserId: asStr(d.client_user_id) || undefined,
     sellerUserId: asStr(d.seller_user_id) || undefined,
-    createdAt: asStr(d.created_at ?? d.createdAt),
+    createdAt,
+    updatedAt: asStr(d.updated_at ?? d.updatedAt) || lastMessageAt || createdAt,
+    lastMessageAt,
+    lastMessage,
+    unreadCount,
+    hasUnread: d.has_unread === true || d.hasUnread === true || unreadCount > 0,
+    lastReadAt: asStr(d.last_read_at ?? d.lastReadAt),
+  };
+}
+function hasRoomField(d: Dict, ...keys: string[]): boolean {
+  return keys.some((key) => Object.prototype.hasOwnProperty.call(d, key));
+}
+export function mergeSecureRoom(room: SecureRoom, v: unknown): SecureRoom {
+  const d = asDict(v);
+  const patch = normSecureRoom(v);
+  const hasLastMessage = hasRoomField(d, "last_message", "lastMessage");
+  const hasUnreadCount = hasRoomField(d, "unread_count", "unreadCount");
+  const hasHasUnread = hasRoomField(d, "has_unread", "hasUnread");
+  const hasLastReadAt = hasRoomField(d, "last_read_at", "lastReadAt");
+  const lastMessage = hasLastMessage ? patch.lastMessage : room.lastMessage;
+  const unreadCount = hasUnreadCount ? patch.unreadCount : room.unreadCount;
+  return {
+    ...room,
+    id: patch.id || room.id,
+    status: patch.status || room.status,
+    orderId: patch.orderId ?? room.orderId,
+    caseId: patch.caseId ?? room.caseId,
+    clientUserId: patch.clientUserId ?? room.clientUserId,
+    sellerUserId: patch.sellerUserId ?? room.sellerUserId,
+    createdAt: patch.createdAt || room.createdAt,
+    updatedAt: hasRoomField(d, "updated_at", "updatedAt") ? patch.updatedAt || room.updatedAt : room.updatedAt,
+    lastMessageAt: hasRoomField(d, "last_message_at", "lastMessageAt")
+      ? patch.lastMessageAt || room.lastMessageAt
+      : hasLastMessage && lastMessage?.createdAt
+        ? lastMessage.createdAt
+        : room.lastMessageAt,
+    lastMessage,
+    unreadCount,
+    hasUnread: hasHasUnread ? patch.hasUnread : hasUnreadCount ? unreadCount > 0 : room.hasUnread,
+    lastReadAt: hasLastReadAt ? patch.lastReadAt : room.lastReadAt,
   };
 }
 export async function listSecureChats(): Promise<SecureRoom[]> {
-  return listFrom(await http("/secure-chats"), "rooms", "items", "data").map(normRoom);
+  return listFrom(await http("/secure-chats"), "rooms", "items", "data").map(normSecureRoom);
 }
 export async function createSecureChat(input: Record<string, unknown>): Promise<SecureRoom> {
-  return normRoom(await http("/secure-chats", { method: "POST", body: JSON.stringify(input) }));
+  return normSecureRoom(await http("/secure-chats", { method: "POST", body: JSON.stringify(input) }));
 }
 // Set how long messages live before auto-deletion. 0 = never (off).
 // The backend keeps a 30-day archive after deletion.
@@ -3834,7 +3907,7 @@ export async function getLawyerServices(lawyerUserId: string): Promise<{ id: str
 }
 export async function getLawyerPrivateChat(lawyerUserId: string): Promise<SecureRoom | null> {
   try {
-    const r = normRoom(await http(`/lawyers/${lawyerUserId}/private-chat`));
+    const r = normSecureRoom(await http(`/lawyers/${lawyerUserId}/private-chat`));
     return r.id ? r : null;
   } catch {
     return null;

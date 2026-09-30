@@ -8068,6 +8068,8 @@
     "loginRequired": "Войдите, чтобы открыть приватный чат.",
     "login": "Войти",
     "inbox": {
+      "minePrefix": "Вы: {text}",
+      "unreadCount": "{n} непрочитанных",
       "workId": "Номер дела",
       "newMessage": "Новое сообщение",
       "newN": "{n} новых",

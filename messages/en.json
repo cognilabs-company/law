@@ -8068,6 +8068,8 @@
     "loginRequired": "Log in to open this private chat.",
     "login": "Log in",
     "inbox": {
+      "minePrefix": "You: {text}",
+      "unreadCount": "{n} unread",
       "workId": "Work ID",
       "newMessage": "New message",
       "newN": "{n} new",

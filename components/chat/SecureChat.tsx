@@ -32,6 +32,7 @@ import {
   type SecureMessage,
   type SecureReply,
   type LiveKitJoin,
+  type CallSession,
   type UrgentRequest,
 } from "@/lib/services/backend";
 import ChatFilePreview, { canPreviewFile } from "./ChatFilePreview";
@@ -89,6 +90,18 @@ function fmtTime(iso: string): string {
 function dayKey(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : d.toDateString();
+}
+
+const INCOMING_CALL_MAX_AGE_MS = 2 * 60 * 1000;
+const TERMINAL_CALL_STATUSES = new Set(["ended", "cancelled", "expired", "completed"]);
+
+function isFreshIncomingCall(call: CallSession, userId: string): boolean {
+  const status = call.status.trim().toLowerCase();
+  if (!call.id || call.callerUserId === userId || !["active", "ringing"].includes(status) || call.endedAt) return false;
+  const startedAt = Date.parse(call.startedAt);
+  if (!Number.isFinite(startedAt)) return false;
+  const age = Date.now() - startedAt;
+  return age >= -30_000 && age <= INCOMING_CALL_MAX_AGE_MS;
 }
 
 // A call link posted by the backend when a call starts (a zoom.us URL or the
@@ -914,10 +927,10 @@ export default function SecureChat({
     const check = async () => {
       try {
         const calls = await listCalls(roomId);
-        const live = calls.find(
-          (c) => (c.status === "active" || c.status === "ringing") && c.callerUserId !== session.id && !dismissedCalls.current.has(c.id),
-        );
-        if (alive) setIncoming(live && !activeCall ? { callId: live.id, callType: live.callType === "video" ? "video" : "audio" } : null);
+        const live = calls
+          .filter((c) => isFreshIncomingCall(c, session.id) && !dismissedCalls.current.has(c.id))
+          .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
+        if (alive) setIncoming(live && !activeCallRef.current ? { callId: live.id, callType: live.callType === "video" ? "video" : "audio" } : null);
       } catch {
         /* ignore */
       }
@@ -926,6 +939,12 @@ export default function SecureChat({
     const unsub = subscribeRoomCallEvents(roomId, (e) => {
       const call = (e.call && typeof e.call === "object" ? e.call : {}) as Record<string, unknown>;
       const callId = String(e.call_id ?? call.id ?? "");
+      const callStatus = String(e.status ?? call.status ?? "").trim().toLowerCase();
+      if (e.event === "call.ended" || TERMINAL_CALL_STATUSES.has(callStatus)) {
+        setIncoming((cur) => (cur && cur.callId === callId ? null : cur));
+        return;
+      }
+      if (callStatus && !["active", "ringing"].includes(callStatus)) return;
       if (e.event === "call.created") {
         const caller = String(e.caller_user_id ?? call.caller_user_id ?? "");
         if (!callId || caller === session.id || dismissedCalls.current.has(callId) || activeCall) return;
@@ -934,8 +953,6 @@ export default function SecureChat({
           if (activeCallRef.current || dismissedCalls.current.has(callId)) return;
           setIncoming({ callId, callType: String(call.call_type) === "audio" ? "audio" : "video" });
         }, caller ? 0 : 800);
-      } else if (e.event === "call.ended") {
-        setIncoming((cur) => (cur && cur.callId === callId ? null : cur));
       }
     });
     return () => {

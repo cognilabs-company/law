@@ -386,7 +386,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
               {ready && !session ? t("detail.loginToBuy") : t("detail.buy")}
               <IconArrowRight />
             </button>
-            {!isSeller && !isStaff && !isOwn ? (
+            {variant !== "public" && !isSeller && !isStaff && !isOwn ? (
               <div className="mk-side__alts">
                 <PrivateChatButton sellerUserId={seller.userId} returnPath={selfPath} />
                 {session ? (

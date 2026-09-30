@@ -8077,6 +8077,8 @@
       "workId": "Ish raqami",
       "newMessage": "Yangi xabar",
       "newN": "{n} ta yangi",
+      "minePrefix": "Siz: {text}",
+      "unreadCount": "{n} ta o'qilmagan",
       "noMatchText": "Boshqa nom yoki raqam bilan qidirib ko'ring.",
       "noMatch": "Topilmadi",
       "search": "Suhbat qidirish",

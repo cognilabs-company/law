@@ -2347,6 +2347,9 @@ body:has(.schat) .fab{display:none}
 .sinbox__av svg{width:21px;height:21px;stroke:#fff}
 .sinbox__m{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
 .sinbox__m b{font-weight:700}
+.sinbox__preview{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-size:.84rem;line-height:1.35}
+.sinbox__right{display:flex;align-items:center;gap:8px;margin-left:auto;flex:none}
+.sinbox__unread{min-width:22px;height:22px;padding:0 6px;border-radius:var(--pill);background:var(--b600);color:#fff;font-size:.72rem;font-weight:800;display:grid;place-items:center}
 .sinbox__sub{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;color:var(--ok)}
 .sinbox__sub svg{width:13px;height:13px;stroke:var(--ok)}
 .sinbox__st{font-size:.72rem;font-weight:700;color:var(--dk-acc-strong, var(--b700));background:var(--b100);padding:4px 10px;border-radius:var(--pill);text-transform:capitalize;flex:none}
