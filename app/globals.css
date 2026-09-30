@@ -7338,27 +7338,36 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
    renders carry their own blue and their own soft shadow and sit on white
    and on navy without help.
 
-   The card gets a min-height so the art has room to be the size the mockup
-   draws it at; without one, the two short-titled cards collapsed to the
-   height of their text and cropped the illustration in half. */
-.cdact__i{position:relative;overflow:hidden;min-height:148px}
-.cdact__art{position:absolute;right:-2px;bottom:-10px;width:112px;height:112px;pointer-events:none;
+   The artwork changes NOTHING about the card. It is out of flow, it is sized
+   as a share of whatever the card already is, and it sets no min-height and
+   no max-width on anything: the six cards are exactly the size and the text
+   is exactly the shape they were before the pictures arrived. A first
+   attempt did hold the card open with a min-height and pull the title in
+   with a max-width, and that is the wrong way round — the picture follows
+   the card, not the card the picture.
+
+   Percentages rather than pixels, for the same reason: the row is six across
+   on a desktop, three on a tablet and two on a phone, and the picture keeps
+   the same proportion of the card at each of them instead of dominating the
+   wide one and swamping the narrow one.
+
+   26% × 48% is where the longest of the six subtitles still clears it. The
+   sizes above that were measured against the real strings at the real grid
+   width: at 30% "Tasdiqlangan advokat va yuristlar" and "…bilan darhol" run
+   under the picture, and at 32% the corner bleed starts cutting the parts
+   that carry the meaning — the AI badge and the download arrow. The only way
+   to draw it larger is to hold the text off with a max-width, and the text
+   is the thing that must not move. */
+.cdact__i{position:relative;overflow:hidden}
+.cdact__art{position:absolute;z-index:0;right:0;bottom:0;width:26%;height:48%;pointer-events:none;
   background:var(--art) no-repeat right bottom/contain;
   transition:transform .28s cubic-bezier(.2,.8,.2,1)}
 .cdact__i:hover .cdact__art{transform:translateY(-3px) scale(1.05)}
-/* The text keeps clear of the artwork instead of running under it — a light
-   clamp, so the longer titles wrap to the two lines the mockup shows rather
-   than to three. */
-.cdact__t{position:relative;z-index:1;max-width:calc(100% - 46px)}
+/* The text simply sits in front. Positioned only so it paints above the
+   artwork — no width, no wrap, nothing that moves it from where it was. */
+.cdact__t{position:relative;z-index:1}
 @media (prefers-reduced-motion:reduce){
   .cdact__i:hover .cdact__art{transform:none}
-}
-/* Three and then two per row: the card gets wider as they wrap, so the art
-   grows with it and the title gets its room back. */
-@media (max-width:1100px){
-  .cdact__i{min-height:136px}
-  .cdact__art{width:104px;height:104px}
-  .cdact__t{max-width:calc(100% - 92px)}
 }
 
 .cdact__i--pri{position:relative;overflow:hidden;box-shadow:0 14px 34px -14px rgba(22,104,240,.55)}
