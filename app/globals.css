@@ -7365,25 +7365,21 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
    the same proportion of the card at each of them instead of dominating the
    wide one and swamping the narrow one.
 
-   It sits on the ICON ROW, not in the bottom-right corner the mockup draws.
-   The corner cannot work here without moving the text: the row is six cards
-   across, the titles run to four words and the subtitles to eight, and at
-   every size that left the picture readable the longest three ran across it
-   — "Tasdiqlangan advokat va yuristlar", "…bilan darhol", "…faqat real
-   advokat". Reserving a column for it means a max-width on the text, and the
-   text is the thing that must not move. The icon row is the one band that is
-   empty on all six cards whatever the copy does: a 42px icon on the left and
-   nothing to its right. So the picture goes there, centred against that icon
-   — both are visible, neither touches the other, and the placement is
-   identical on every card.
+   It sits in the bottom-right corner and about a fifth of it is cut off by
+   the card edge — the product owner's call, and it is the better looking of
+   the two: the picture reads as part of the card rather than as a sticker
+   placed on it, and pushing its mass down and to the right is what keeps it
+   clear of the copy. The card still clips it (overflow:hidden below), the
+   card is still exactly the height its text gives it, and the text still has
+   no width imposed on it: the art is out of flow and paints behind.
 
    The files are normalised for that: each was trimmed of its transparent
    margin (42-59% of the original canvas, differently distributed on each,
    which is why they used to land at six different sizes and offsets) and
    re-centred in one square. `contain` in a square box now draws all six at
-   the same size. */
+   the same size, and the same fifth is cut from each. */
 .cdact__i{position:relative;overflow:hidden}
-.cdact__art{position:absolute;z-index:0;top:4px;right:10px;width:64px;height:64px;pointer-events:none;
+.cdact__art{position:absolute;z-index:0;right:-8px;bottom:-8px;width:78px;height:78px;pointer-events:none;
   background:var(--art) no-repeat center/contain;
   transition:transform .28s cubic-bezier(.2,.8,.2,1)}
 .cdact__i:hover .cdact__art{transform:translateY(-3px) scale(1.05)}
@@ -10783,6 +10779,25 @@ html[data-theme="dark"]{
 /* ── The filter bar the two client lists share ────────────────────────
    Type or mode on the left as chips, status on the right as a select.
    Both lists wear the same bar so moving between them costs nothing. */
+/* ── "Mening hujjatlarim" header, counts and search ────────────────
+   From the reference design for this page: a two-line heading, a row of
+   four counts, and a search box beside the tabs. The counts reuse the
+   platform's own .pk tiles and the search its own .lsearch, so the screen
+   gains the layout without a second set of components that look nearly but
+   not quite like the ones everywhere else. */
+.mydocs__ttl{display:flex;flex-direction:column;gap:3px;min-width:0}
+.mydocs__ttl span{font-size:.82rem;font-weight:500;line-height:1.45;color:var(--gray)}
+.mydocs__stats{margin:14px 0 16px}
+.mydocs__srch{flex:0 1 300px;min-width:min(200px,100%)}
+/* Three controls on this bar, not two: the tabs stop growing so the search
+   and the status filter sit beside them instead of being pushed onto a line
+   of their own. Scoped to this page — the same bar on "Mening ishlarim" has
+   no search and keeps its stretching tabs. */
+.mydocs__bar .chiprow{flex:0 1 auto}
+@media (max-width:700px){
+  .mydocs__srch{flex-basis:100%;order:3}
+}
+
 .cwork__bar{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 14px;margin-bottom:12px}
 .cwork__bar .chiprow{margin:0;flex:1 1 auto}
 .cwork__filt{display:flex;flex-direction:column;gap:5px;flex:0 1 210px;min-width:min(180px,100%)}

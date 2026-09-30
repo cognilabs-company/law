@@ -26,7 +26,7 @@ import { Skeleton, EmptyState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
 import { Link, useRouter } from "@/i18n/navigation";
-import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight, IconTag } from "@/components/icons";
+import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight, IconTag, IconCheck, IconSearch } from "@/components/icons";
 
 // Which way this document is being produced — the client filled it in, the
 // AI drafted it, or an advocate is writing it. It changes what the card
@@ -132,6 +132,31 @@ export default function ClientDocumentRequests() {
       setMoreBusy(false);
     }
   }
+  // The four counts at the top. They are about the whole archive, so they
+  // cannot come from `rows` — that is one page of twenty, and narrowed by
+  // whichever tab is open. Each is the `total` of a one-row query instead:
+  // cheap, and exact for the bucket it names. The unfiltered call gives the
+  // grand total (service-flow's `total` ignores ?mode — a backend defect the
+  // asks list already carries, and the one place where it happens to be the
+  // number wanted), and the three status calls are filtered properly, which
+  // is measured: ?status=file_ready answers total 47 out of 121.
+  //
+  // Only the three statuses that can be asked for exactly are shown. A
+  // bucket like "everything still in progress" spans half a dozen statuses
+  // and would need a request each, so it is not offered rather than
+  // estimated.
+  const [stats, setStats] = useState<{ total: number; filling: number; ready: number; lawyer: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const count = (status?: string) => listClientDocumentFlowPage({ status, limit: 1, offset: 0 }).then((p) => p.total);
+    Promise.all([count(), count("questionnaire"), count("file_ready"), count("lawyer_review")])
+      .then(([total, filling, ready, lawyer]) => { if (alive) setStats({ total, filling, ready, lawyer }); })
+      // A failed count hides the row; it must never block the list itself.
+      .catch(() => { if (alive) setStats(null); });
+    return () => { alive = false; };
+  }, [reloadKey]);
+  // Filters what is loaded. There is no query parameter on this endpoint.
+  const [q, setQ] = useState("");
   const [dlBusy, setDlBusy] = useState("");
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
 
@@ -272,6 +297,14 @@ export default function ClientDocumentRequests() {
   // into state so a refresh (a socket event, a send) keeps the open modal on
   // the row's current server truth; `?doc=` can name a row that is not on
   // this page yet, and then nothing opens rather than an empty prompt.
+  // What the list actually renders: the loaded rows, narrowed by the search
+  // box. Matched against the things a client would type — the document title,
+  // its public work id, and the service it came from.
+  const needle = q.trim().toLowerCase();
+  const shown = needle
+    ? rows.filter((r) => `${r.title} ${r.workId} ${r.service?.name ?? ""}`.toLowerCase().includes(needle))
+    : rows;
+
   const promptRow = rows.find((r) => r.id === promptId) ?? null;
   const sendRow = rows.find((r) => r.id === sendId) ?? null;
 
@@ -287,17 +320,58 @@ export default function ClientDocumentRequests() {
   return (
     <div className="ppanel">
       <div className="ppanel__h">
-        <b>{t("title")}</b>
-        <span className="advmuted">{rows.length}</span>
+        <div className="mydocs__ttl">
+          <b>{t("title")}</b>
+          <span>{t("lead")}</span>
+        </div>
+        <span className="advmuted">{stats ? stats.total : rows.length}</span>
       </div>
 
-      <div className="cwork__bar">
+      {/* Four counts over the whole archive, not over the page on screen —
+          see `stats` above for where each number comes from. The tiles are
+          the platform's existing KPI row (.pk, shared with the meetings
+          screen), so this screen gains the summary without inventing a
+          second visual language for it. */}
+      {stats ? (
+        <div className="pk mydocs__stats">
+          <div className="pk__i pk__i--ic pk__i--neutral">
+            <span className="pk__ico"><IconFileText /></span>
+            <b>{stats.total}</b>
+            <span>{t("statTotal")}</span>
+          </div>
+          <div className="pk__i pk__i--ic pk__i--warn">
+            <span className="pk__ico"><IconEdit /></span>
+            <b>{stats.filling}</b>
+            <span>{t("statFilling")}</span>
+          </div>
+          <div className="pk__i pk__i--ic pk__i--ok">
+            <span className="pk__ico"><IconCheck /></span>
+            <b>{stats.ready}</b>
+            <span>{t("statReady")}</span>
+          </div>
+          <div className="pk__i pk__i--ic pk__i--active">
+            <span className="pk__ico"><IconScale /></span>
+            <b>{stats.lawyer}</b>
+            <span>{t("statLawyer")}</span>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="cwork__bar mydocs__bar">
         <div className="chiprow chiprow--tabs">
           {TABS.map((tb) => (
             <button key={tb} type="button" className="fchip" aria-pressed={tab === tb} onClick={() => setTab(tb)}>
               {t(`tab_${tb}`)}
             </button>
           ))}
+        </div>
+        {/* Searches the rows that are loaded, which is the page plus whatever
+            "Yana yuklash" has added — the endpoint takes no query parameter,
+            so there is nothing to ask the server. Said out loud under the
+            list when a search comes up empty and there are still pages left. */}
+        <div className="lsearch mydocs__srch">
+          <IconSearch />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} />
         </div>
         {/* How the document was made is a tab; where it has got to is a
             select. Only statuses this client's own documents have actually
@@ -325,11 +399,18 @@ export default function ClientDocumentRequests() {
         // A failed fetch used to render as "you have no documents" — the one
         // message that must never be guessed at on this page.
         <Notice ok={false} msg={t("loadError")} />
-      ) : !rows.length ? (
-        <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
+      ) : !shown.length ? (
+        rows.length ? (
+          // Searched, and nothing on the rows we hold matched. Says so, and
+          // says the archive may still have more — the search cannot reach
+          // pages that have not been fetched.
+          <EmptyState icon={<IconSearch />} title={t("searchEmpty")} text={more ? t("searchEmptyMore") : t("searchEmptyText")} />
+        ) : (
+          <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
+        )
       ) : (
         <div className="mydocs">
-          {rows.map((item) => {
+          {shown.map((item) => {
             const ModeIcon = MODE_ICON[item.mode as keyof typeof MODE_ICON] ?? IconFileText;
             const room = item.secureChatRoomId || rooms[item.id];
             const ready = item.file.ready;
