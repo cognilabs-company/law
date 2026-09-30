@@ -618,7 +618,17 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // audio_priority means the mic is the last thing to go, never the first.
       if (!cameraAllowed || name === "audio_only" || !pol.videoEnabled) {
         profileRef.current = "audio_only";
-        if (alive) setLinkAudioOnly(true);
+        // `linkAudioOnly` means "this connection cannot carry video", and it
+        // is what hides the upgrade control. Only a call whose policy already
+        // allows video can say that: an AUDIO call has video_enabled false
+        // and camera_allowed false on every rung by definition, so reading
+        // either of those as a weak link took the camera button off every
+        // audio call at the first quality event — and the camera button is
+        // the only way the upgrade in
+        // LEXGO_AUDIO_TO_VIDEO_CALL_FRONTEND_2026-09-30.md can ever start.
+        // After an upgrade the policy carries video_enabled true, and from
+        // then on a collapsing link hides it exactly as it should.
+        if (alive && pol.videoEnabled) setLinkAudioOnly(true);
         // §Audio-only fallback L162-166 is TWO calls, not one:
         // setCameraEnabled(false) AND setMicrophoneEnabled(true). Only the
         // first half was ever here, so a client whose link collapsed lost the
@@ -1876,6 +1886,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         <div className="mtg__title">
           <b>{title || t("meetingTitle")}</b>
           <span className={`mtg__badge mtg__badge--${status}`}><i />{statusLabel}</span>
+          {/* Which kind of call this is, which nothing on the screen said
+              before. It matters most at the moment it changes: an audio call
+              becomes a video call the instant anybody switches a camera on
+              (LEXGO_AUDIO_TO_VIDEO_CALL_FRONTEND_2026-09-30.md), and the
+              person who did not press anything needs to see that it happened.
+              It sits with the other badges rather than in a corner of its
+              own, so the header still reads as one line: what the meeting is,
+              how it is going, and what it is carrying. */}
+          <span className={`mtg__badge mtg__badge--mode${videoAllowed ? " mtg__badge--video" : ""}`}>
+            {videoAllowed ? <IconVideo /> : <IconMic />}
+            {t(videoAllowed ? "modeVideo" : "modeAudio")}
+          </span>
           {recOn || recBy.size ? (
             <span className="mtg__badge mtg__badge--rec" title={[recOn ? t("you") : "", ...recByNames].filter(Boolean).join(", ")}><i />{recLabel}</span>
           ) : null}
@@ -1889,8 +1911,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           ) : null}
         </div>
         <div className="mtg__tools">
-          <button type="button" className={`mtg__tool${view === "grid" ? " on" : ""}`} onClick={() => setView("grid")} aria-label={t("layoutGrid")} title={t("layoutGrid")}><IconGrid /></button>
-          <button type="button" className={`mtg__tool${view === "speaker" ? " on" : ""}`} onClick={() => setView("speaker")} aria-label={t("layoutSpeaker")} title={t("layoutSpeaker")}><IconUser /></button>
+          {/* Grid and speaker arrange video tiles, so they are only offered
+              once there is video to arrange. On an audio call they were two
+              controls that changed nothing on screen; they appear by
+              themselves the moment the call is upgraded. */}
+          {videoAllowed ? (
+            <>
+              <button type="button" className={`mtg__tool${view === "grid" ? " on" : ""}`} onClick={() => setView("grid")} aria-label={t("layoutGrid")} title={t("layoutGrid")}><IconGrid /></button>
+              <button type="button" className={`mtg__tool${view === "speaker" ? " on" : ""}`} onClick={() => setView("speaker")} aria-label={t("layoutSpeaker")} title={t("layoutSpeaker")}><IconUser /></button>
+            </>
+          ) : null}
           <button type="button" className={`mtg__tool${panel === "people" ? " on" : ""}`} onClick={() => openPanel(panel === "people" ? "" : "people")} aria-label={t("rosterTitle")} title={t("rosterTitle")}>
             <IconUsers /><span className="mtg__n">{count}</span>
           </button>

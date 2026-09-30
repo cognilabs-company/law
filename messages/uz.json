@@ -8031,6 +8031,8 @@
     "camOn": "Kamerani yoqish",
     "camOff2": "Kamerani o'chirish",
     "camError": "Kamerani yoqib bo'lmadi.",
+    "modeAudio": "Audio",
+    "modeVideo": "Video",
     "camUpgrade": "Videoni yoqish",
     "upgradedToVideo": "Qo'ng'iroq video rejimga o'tdi.",
     "camDenied": "Brauzerda kameraga ruxsat bering (manzil qatoridagi qulf belgisi → Kamera).",

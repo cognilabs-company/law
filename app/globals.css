@@ -3933,6 +3933,12 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .mtg__badge--live{background:rgba(49,209,143,.15);color:var(--mtg-ok)}.mtg__badge--live i{background:var(--mtg-ok);animation:mtgBlink 1.4s infinite}
 .mtg__badge--ringing i,.mtg__badge--connecting i{background:#f5a623;animation:mtgBlink 1s infinite}
 .mtg__badge--error{background:rgba(229,72,77,.18);color:#fca5a5}.mtg__badge--error i{background:#e5484d}
+/* What the call is carrying — audio, or video once somebody switched a
+   camera on. It wears an icon rather than the other badges' status dot,
+   because it reports a kind and not a state, and the blue lights up on the
+   upgrade so the change is visible to the person who did not cause it. */
+.mtg__badge--mode svg{width:13px;height:13px;flex:none}
+.mtg__badge--video{background:rgba(94,164,255,.18);color:#9cc4ff}
 @keyframes mtgBlink{0%,100%{opacity:1}50%{opacity:.25}}
 .mtg__timer{display:flex;align-items:center;gap:10px;font-variant-numeric:tabular-nums}
 .mtg__rec{display:inline-flex;align-items:center;gap:8px;font-size:.9rem;font-weight:700;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.06)}

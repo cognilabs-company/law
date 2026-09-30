@@ -8025,6 +8025,8 @@
     "camOn": "Turn camera on",
     "camOff2": "Turn camera off",
     "camError": "Could not turn the camera on.",
+    "modeAudio": "Audio",
+    "modeVideo": "Video",
     "camUpgrade": "Turn on video",
     "upgradedToVideo": "The call switched to video.",
     "camDenied": "Allow camera access in the browser (lock icon in the address bar → Camera).",
