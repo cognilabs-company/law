@@ -435,7 +435,7 @@ export default function ClientDocumentRequests() {
             // on — the finished ones — but unlike the rating it does not
             // expire with the 15-minute window, so it is gated on the row
             // being finished rather than on the window still being open.
-            const acts = !!room || ready || canContinue || canSend || !!(info?.rating.submitted && info.rating.value);
+            const acts = !!room || ready || canContinue || canSend;
             // The work id the client and the advocate quote at each other.
             const workId = item.workId || info?.workId || "";
             return (
@@ -450,9 +450,16 @@ export default function ClientDocumentRequests() {
                     {/* The slug resolves against portal.common.docStatus, which
                         is translated; item.statusLabel is the server's own
                         wording, itself sometimes only the slug. */}
-                    <em className={`mydoc__st mydoc__st--${tone}`}>
-                      {statusLabel(tcm, item.status, "docStatus") || item.statusLabel}
-                    </em>
+                    {/* The score takes the corner the status pill had, and
+                        the pill moves under it. On a rated document the
+                        stars are the thing worth seeing first — "Baholangan"
+                        only repeats what five filled stars already say. */}
+                    <span className="mydoc__corner">
+                      {info?.rating.submitted && info.rating.value ? <DocRatedStars value={info.rating.value} /> : null}
+                      <em className={`mydoc__st mydoc__st--${tone}`}>
+                        {statusLabel(tcm, item.status, "docStatus") || item.statusLabel}
+                      </em>
+                    </span>
                   </div>
                   <div className="mydoc__row">
                     {workId ? <small className="mydoc__wid" title={t("workId")}>{workId}</small> : null}
@@ -484,7 +491,6 @@ export default function ClientDocumentRequests() {
                   {info ? <DocRatingBox id={item.id} rating={info.rating} onRated={refresh} /> : null}
                   {acts ? (
                     <div className="mydoc__acts">
-                      {info?.rating.submitted && info.rating.value ? <DocRatedStars value={info.rating.value} /> : null}
                       {room ? (
                         <Link href={`/portal/chat/${room}`} className="btn btn--line btn--sm">
                           <IconChat />

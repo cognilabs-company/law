@@ -7283,6 +7283,11 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
    three-line Cyrillic title cannot push the status off the card. */
 .mydoc__top{display:grid;grid-template-columns:1fr auto;gap:8px 14px;align-items:start}
 .mydoc__t{font-size:.94rem;font-weight:700;line-height:1.4;min-width:0;overflow-wrap:anywhere}
+/* The right-hand corner of a document row: the score on top, the status
+   pill under it. The pill used to own this spot alone; on a rated document
+   the stars say more, so they lead and the pill follows. */
+.mydoc__corner{grid-column:2;justify-self:end;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.mydoc__corner .drated{margin-left:0}
 .mydoc__st{flex:none;justify-self:end;font-style:normal;white-space:nowrap;font-size:.72rem;font-weight:700;
   padding:4px 11px;border-radius:var(--pill);background:var(--dk-surface-2, #F2F6FC);color:var(--gray)}
 /* Read the list down its right edge: green is finished, blue is being worked
@@ -7324,6 +7329,9 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
   .mydoc__i{display:none}
   .mydoc__top{grid-template-columns:1fr}
   .mydoc__st{justify-self:start}
+  /* One column on a phone, so the corner stops being a corner: it goes
+     back to the left edge and lies flat under the title. */
+  .mydoc__corner{grid-column:1;justify-self:start;flex-direction:row;align-items:center;gap:10px}
 }
 
 /* ── wp-pkg: three tiers that can be told apart ──────────────────── */
@@ -7404,6 +7412,10 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
    the corner with the rest. Per-card, not a new shared offset — moving all
    six would bury the three that are already right. */
 .cdact__art--low{bottom:-31px}
+/* …and 15% less far for the two that only needed some of it: the
+   magnifier, and the crash once its subtitle went and the card grew
+   shorter. */
+.cdact__art--mid{bottom:-19px}
 .cdact__i:hover .cdact__art{transform:translateY(-3px) scale(1.05)}
 /* The text simply sits in front. Positioned only so it paints above the
    artwork — no width, no wrap, nothing that moves it from where it was. */
