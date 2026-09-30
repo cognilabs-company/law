@@ -49,3 +49,23 @@ export function regionLabel(te: T, value?: string | null): string {
   const k = regionKeyOf(te, value);
   return k && te.has(`regions.${k}`) ? te(`regions.${k}`) : (value || "");
 }
+
+// A person's name, without the id fragment some accounts carry in it.
+// Twelve of the seventy advocate accounts on production are seeded with one —
+// "Iqtisodiy Advokat 81ebba64", "AI Docs Seller b03c26ef" — and the operator
+// picking a panel sees it in every row. The backend stores it as part of the
+// name, so there is nothing to ask for at read time; this drops it at the
+// point of display.
+//
+// Deliberately narrow, because this runs over real people's names: only a
+// trailing word of six or more characters, all of them hex digits, carrying
+// BOTH a letter and a number. A surname cannot be mistaken for that — "Decade"
+// is all hex letters but has no digit, "2026" has no letter and is too short —
+// and a name that is nothing but the fragment is left alone rather than
+// emptied.
+const ID_TAIL = /\s+(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])[0-9a-f]{6,}$/i;
+export function personName(value?: string | null): string {
+  const s = (value || "").trim();
+  const out = s.replace(ID_TAIL, "").trim();
+  return out || s;
+}

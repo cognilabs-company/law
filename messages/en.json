@@ -5922,6 +5922,7 @@
       "includeExternal": "External advocates",
       "candidatesError": "The advocate list could not be loaded",
       "candidatesLead": "Ranked by the backend. The client asked for {n} advocates.",
+      "pickedFullHint": "The client asked for {n} — that is how many can be picked. Deselect one to choose someone else.",
       "candidates": "Matching advocates",
       "statusMoved": "Status: {status}",
       "statusNotePh": "Note (optional)",

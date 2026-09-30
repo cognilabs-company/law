@@ -1091,7 +1091,23 @@ function CandidatePanel({
   }, [list]);
 
   const want = req.lawyerCount || 2;
-  const toggle = (uid: string) => setIds((cur) => (cur.includes(uid) ? cur.filter((x) => x !== uid) : [...cur, uid]));
+  // The client asked for `want` advocates, so `want` is what can be ticked.
+  // The picker used to take as many as the operator clicked and only find out
+  // on submit, when the backend refused the whole panel — with four ticked
+  // against a request for three, every click after the third was work thrown
+  // away. Deselecting always works, so a full panel can still be changed.
+  //
+  // The cap lifts once the count override is on. That checkbox only appears
+  // after the backend has refused the count, which it still can: the operator
+  // reaches that refusal by submitting FEWER than asked, and from then on may
+  // deliberately go over.
+  const full = !okCount && ids.length >= want;
+  const toggle = (uid: string) =>
+    setIds((cur) => {
+      if (cur.includes(uid)) return cur.filter((x) => x !== uid);
+      if (!okCount && cur.length >= want) return cur;
+      return [...cur, uid];
+    });
 
   async function submit() {
     if (!ids.length || busy) return;
@@ -1141,7 +1157,17 @@ function CandidatePanel({
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const row = (c: UrgentCandidate) => (
     <li key={c.userId}>
-      <button type="button" className={`ucand${ids.includes(c.userId) ? " on" : ""}`} aria-pressed={ids.includes(c.userId)} onClick={() => toggle(c.userId)}>
+      {/* Disabled rather than silently inert once the panel is full: a row
+          that does nothing when clicked, with no reason on screen, is the
+          worse of the two. */}
+      <button
+        type="button"
+        className={`ucand${ids.includes(c.userId) ? " on" : ""}`}
+        aria-pressed={ids.includes(c.userId)}
+        disabled={full && !ids.includes(c.userId)}
+        title={full && !ids.includes(c.userId) ? t("pickedFullHint", { n: want }) : undefined}
+        onClick={() => toggle(c.userId)}
+      >
         <span className="ucand__score" aria-hidden>{c.score}</span>
         <span className="ucand__m">
           <b>{c.name}</b>
@@ -1170,7 +1196,12 @@ function CandidatePanel({
 
   return (
     <section className="uad__sec ucand__wrap">
-      <h4><IconStar />{t("candidates")}</h4>
+      <h4>
+        <IconStar />{t("candidates")}
+        {/* How many of the asked-for places are taken, next to the heading:
+            the cap is only obvious once you can see the count it counts to. */}
+        <em className={`ucand__count${full ? " ucand__count--full" : ""}`}>{ids.length} / {want}</em>
+      </h4>
       <p className="advmuted uad__note">{t("candidatesLead", { n: want })}</p>
 
       <div className="ucand__filters">

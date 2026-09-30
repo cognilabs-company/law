@@ -1,4 +1,5 @@
 // Typed client for the LexGo backend contract (FRONTEND_API.md / MOBILE_API.md).
+import { personName } from "@/lib/labels";
 // Every function talks to the same-origin proxy with the bearer token attached.
 // UI callers wrap reads in `withFallback(...)` so the app keeps working on local
 // mock data until the backend is reachable.
@@ -7260,7 +7261,7 @@ function normPerson(v: unknown): UrgentPerson | null {
   const d = asDict(v);
   const id = asStr(d.id ?? d.user_id);
   if (!id) return null;
-  return { id, name: asStr(d.name), phone: asStr(d.phone), role: asStr(d.role), lexgoId: asStr(d.lexgo_id) };
+  return { id, name: personName(asStr(d.name)), phone: asStr(d.phone), role: asStr(d.role), lexgoId: asStr(d.lexgo_id) };
 }
 function normPeople(v: unknown): UrgentPerson[] {
   return asArr(v).map(normPerson).filter((x): x is UrgentPerson => x !== null);
@@ -7729,7 +7730,7 @@ function normUrgentCandidate(v: unknown): UrgentCandidate {
   const strs = (x: unknown) => asArr(x).map((y) => asStr(y)).filter(Boolean);
   return {
     userId: asStr(d.lawyer_user_id ?? u.id),
-    name: asStr(d.name ?? u.name) || asStr(u.phone),
+    name: personName(asStr(d.name ?? u.name)) || asStr(u.phone),
     role: asStr(d.role ?? u.role),
     sellerType: asStr(d.seller_type),
     isCallcenterMember: Boolean(d.is_callcenter_member),

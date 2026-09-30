@@ -5928,6 +5928,7 @@
       "includeExternal": "Tashqi advokatlar",
       "candidatesError": "Advokatlar ro'yxatini yuklab bo'lmadi",
       "candidatesLead": "Backend reytingi bo'yicha tartiblangan. Mijoz {n} ta advokat so'ragan.",
+      "pickedFullHint": "Mijoz {n} ta advokat so‘ragan — shuncha tanlanadi. Boshqasini tanlash uchun avval birini bekor qiling.",
       "candidates": "Mos advokatlar",
       "statusMoved": "Status: {status}",
       "statusNotePh": "Izoh (ixtiyoriy)",
