@@ -1971,7 +1971,7 @@ body:has(.rf) .fab{display:none}
 
 .cdact{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
 .cdact__i{display:flex;flex-direction:column;gap:10px;align-items:flex-start;justify-content:flex-start;background:var(--dk-surface, #fff);border:1px solid var(--line);border-radius:var(--rl);
-  padding:16px;min-height:162px;font-weight:600;font-size:.9rem;color:var(--ink);transition:.18s;box-shadow:var(--s1)}
+  padding:16px;min-height:172px;font-weight:600;font-size:.9rem;color:var(--ink);transition:.18s;box-shadow:var(--s1)}
 .cdact__i:hover{transform:translateY(-3px);box-shadow:var(--s2);border-color:var(--b200)}
 .cdact__ico{position:relative;z-index:1;width:42px;height:42px;border-radius:12px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center}
 .cdact__ico svg{width:21px;height:21px}
@@ -7523,7 +7523,7 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
    longest title no longer decides how tall its neighbours are. That extra
    room is also what retired the old per-card drops: the three whose weight
    sits high in the frame used to ride up against the copy on a short card,
-   and on a 162px one they no longer do — one offset for all six.
+   and on a 172px one they no longer do — one offset for all six.
 
    The files are normalised for that: each was trimmed of its transparent
    margin (42-59% of the original canvas, differently distributed on each,
@@ -7531,7 +7531,7 @@ button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line)
    re-centred in one square. `contain` in a square box now draws all six at
    the same size, and the same fifth is cut from each. */
 .cdact__i{position:relative;overflow:hidden}
-.cdact__art{position:absolute;z-index:0;right:-8px;bottom:-8px;width:94px;height:94px;pointer-events:none;
+.cdact__art{position:absolute;z-index:0;right:-8px;bottom:-8px;width:78px;height:78px;pointer-events:none;
   background:var(--art) no-repeat center/contain;
   transition:transform .28s cubic-bezier(.2,.8,.2,1)}
 .cdact__i:hover .cdact__art{transform:translateY(-3px) scale(1.05)}
