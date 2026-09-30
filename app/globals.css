@@ -3254,10 +3254,71 @@ body:has(.schat) .fab{display:none}
 /* Only the pipeline page uses this — kept compact so it (plus the filter bar
    below it) leaves the kanban board itself enough of the panel's fixed
    height to not read as squeezed/scrolling oddly; see .pipe__col below. */
-.lkpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(110px,100%),1fr));gap:8px;margin-bottom:10px}
-.lkpi__c{background:var(--b50);border-radius:12px;padding:8px 14px;display:flex;flex-direction:column;gap:1px}
-.lkpi__c b{font-family:var(--fd);font-size:1.4rem;color:var(--dk-acc, var(--b600))}
-.lkpi__c span{font-size:.78rem;color:var(--gray)}
+/* ── Sotuv voronkasi: the banner the page opens on ────────────────
+   From the reference design for this page: what the screen is on the left,
+   the artwork beside it, and the board's own progress on the right. Colours
+   are the platform's own — only the arrangement is taken from the mockup,
+   and the banner keeps whatever height its text gives it. */
+.pipehero{position:relative;overflow:hidden;display:flex;flex-wrap:wrap;align-items:center;gap:16px 22px;
+  margin-bottom:16px;padding:18px 22px;border-radius:var(--rl);
+  background:linear-gradient(120deg,var(--b100),var(--dk-surface-2, #F3F8FF) 62%);
+  box-shadow:inset 0 0 0 1.5px var(--line)}
+/* Its own zone between the text and the progress card, not a layer behind
+   them: as an absolute backdrop it ended up entirely under the progress card
+   and clipped at both edges. It is the first thing to go when the row gets
+   tight, because it is the only part carrying no information. */
+.pipehero__art{flex:0 1 250px;align-self:stretch;min-height:104px;pointer-events:none;
+  background:url(/img/sotuv-voronkasi.png) no-repeat center/contain}
+.pipehero__m{position:relative;z-index:1;display:flex;align-items:flex-start;gap:14px;flex:1 1 320px;min-width:0}
+.pipehero__i{flex:none;width:44px;height:44px;border-radius:13px;display:grid;place-items:center;
+  background:var(--dk-acc, var(--b600));color:#fff;box-shadow:var(--sblue)}
+.pipehero__i svg{width:22px;height:22px}
+.pipehero__t{min-width:0}
+.pipehero__t b{display:block;font-family:var(--fd);font-size:1.5rem;letter-spacing:-.02em;line-height:1.2}
+.pipehero__t p{margin:5px 0 0;font-size:.85rem;line-height:1.5;color:var(--gray);max-width:46ch}
+/* Won against total, in the slot the mockup gives a monthly goal. There is
+   no target stored anywhere, so this carries the two numbers the board
+   really has rather than a quota nobody set. */
+.pipehero__goal{position:relative;z-index:1;flex:0 1 250px;display:flex;align-items:center;gap:12px;
+  padding:12px 14px;border-radius:15px;background:var(--dk-surface, #fff);box-shadow:var(--s1)}
+.pipehero__gi{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
+  background:var(--b100);color:var(--dk-acc, var(--b600))}
+.pipehero__gi svg{width:18px;height:18px}
+.pipehero__gt{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.pipehero__gt b{font-size:.8rem;font-weight:700}
+.pipehero__gt span{font-size:.74rem;color:var(--gray);font-variant-numeric:tabular-nums}
+.pipehero__bar{height:6px;border-radius:999px;background:var(--b100);overflow:hidden}
+.pipehero__bar i{display:block;height:100%;border-radius:999px;background:var(--grad);transition:width .4s ease}
+.pipehero__pct{flex:none;font-style:normal;font-weight:800;font-size:.9rem;padding:4px 9px;border-radius:var(--pill);
+  background:var(--b100);color:var(--dk-acc-strong, var(--b700));font-variant-numeric:tabular-nums}
+@media (max-width:1180px){
+  /* Text and progress first; the picture is what the row can spare. */
+  .pipehero__art{display:none}
+}
+@media (max-width:760px){
+  .pipehero__goal{flex-basis:100%}
+}
+
+/* Period on the left, board actions on the right — one row. */
+.pipebar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;margin-bottom:10px}
+.pipebar__per,.pipebar__act{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+
+.lkpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:10px;margin-bottom:12px}
+/* Mark on the left, number and label stacked beside it — the shape in the
+   design, and it leaves no empty quarter in the tile the way a stacked
+   icon did. */
+.lkpi__c{background:var(--dk-surface, #fff);border-radius:14px;padding:13px 15px;
+  display:flex;align-items:center;gap:12px;box-shadow:inset 0 0 0 1.5px var(--line)}
+.lkpi__c b{display:block;font-family:var(--fd);font-size:1.5rem;letter-spacing:-.02em;line-height:1.1;color:var(--ink)}
+.lkpi__c span:not(.lkpi__i){display:block;font-size:.78rem;color:var(--gray);margin-top:2px}
+/* One tinted mark per number, so the four read apart at a glance instead of
+   as four identical grey boxes. */
+.lkpi__i{flex:none;width:38px;height:38px;border-radius:12px;display:grid;place-items:center}
+.lkpi__i svg{width:18px;height:18px}
+.lkpi__i--total{background:var(--b100);color:var(--dk-acc, var(--b600))}
+.lkpi__i--active{background:var(--dk-tint-violet, #F1EBFF);color:var(--dk-txt-violet, #6A3DE8)}
+.lkpi__i--won{background:var(--dk-tint-ok, #E1F6EE);color:var(--ok)}
+.lkpi__i--conv{background:var(--dk-tint-warn, #FFF1DE);color:var(--dk-txt-warn, #B26A00)}
 .lfilters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
 .lfilters .svsel__search{flex:1 1 200px}
 /* Seller profile-completion growth nudge (ad-style, shown on every seller page) */
