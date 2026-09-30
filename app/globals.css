@@ -1973,7 +1973,7 @@ body:has(.rf) .fab{display:none}
 .cdact__i{display:flex;flex-direction:column;gap:10px;align-items:flex-start;background:var(--dk-surface, #fff);border:1px solid var(--line);border-radius:var(--rl);
   padding:16px;font-weight:600;font-size:.9rem;color:var(--ink);transition:.18s;box-shadow:var(--s1)}
 .cdact__i:hover{transform:translateY(-3px);box-shadow:var(--s2);border-color:var(--b200)}
-.cdact__ico{width:42px;height:42px;border-radius:12px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center}
+.cdact__ico{position:relative;z-index:1;width:42px;height:42px;border-radius:12px;background:var(--b100);color:var(--dk-acc, var(--b600));display:grid;place-items:center}
 .cdact__ico svg{width:21px;height:21px}
 .cdact__i--pri{background:var(--grad);color:#fff;border:0}
 .cdact__i--pri .cdact__ico{background:rgba(255,255,255,.2);color:#fff}
@@ -7325,6 +7325,42 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
    it. It carries its own weight: a soft glow behind the icon, a sweep of
    light on hover, and a chevron that says something opens. */
 button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line);cursor:pointer;width:100%}
+/* ── The quick-action artwork ─────────────────────────────────────
+   One 3D illustration per card, sitting in the bottom-right corner and
+   running off both edges, with the text in front of it — the arrangement in
+   the product owner's mockup. Colours are NOT taken from that mockup: the
+   cards keep the palette they already have in both themes, and only the
+   placement is copied.
+
+   The file comes in as the custom property --art, set inline per card, so one
+   rule draws all six. Nothing is drawn behind it: a tint was tried and, on a
+   fixed-size box, it reads as a pale rectangle pasted into the corner — the
+   renders carry their own blue and their own soft shadow and sit on white
+   and on navy without help.
+
+   The card gets a min-height so the art has room to be the size the mockup
+   draws it at; without one, the two short-titled cards collapsed to the
+   height of their text and cropped the illustration in half. */
+.cdact__i{position:relative;overflow:hidden;min-height:148px}
+.cdact__art{position:absolute;right:-2px;bottom:-10px;width:112px;height:112px;pointer-events:none;
+  background:var(--art) no-repeat right bottom/contain;
+  transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+.cdact__i:hover .cdact__art{transform:translateY(-3px) scale(1.05)}
+/* The text keeps clear of the artwork instead of running under it — a light
+   clamp, so the longer titles wrap to the two lines the mockup shows rather
+   than to three. */
+.cdact__t{position:relative;z-index:1;max-width:calc(100% - 46px)}
+@media (prefers-reduced-motion:reduce){
+  .cdact__i:hover .cdact__art{transform:none}
+}
+/* Three and then two per row: the card gets wider as they wrap, so the art
+   grows with it and the title gets its room back. */
+@media (max-width:1100px){
+  .cdact__i{min-height:136px}
+  .cdact__art{width:104px;height:104px}
+  .cdact__t{max-width:calc(100% - 92px)}
+}
+
 .cdact__i--pri{position:relative;overflow:hidden;box-shadow:0 14px 34px -14px rgba(22,104,240,.55)}
 .cdact__i--pri::before{content:"";position:absolute;right:-42px;top:-52px;width:150px;height:150px;border-radius:50%;
   background:radial-gradient(circle,rgba(255,255,255,.34),rgba(255,255,255,0) 68%);pointer-events:none}

@@ -2,7 +2,7 @@
 
 import { statusLabel } from "@/lib/labels";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -20,8 +20,6 @@ import {
   IconShieldCheck,
   IconClock,
   IconCheck,
-  IconFileText,
-  IconAlert,
   IconAdvocatePerson,
   IconAiAnswer,
 } from "@/components/icons";
@@ -31,17 +29,21 @@ const DONE_STATUSES = new Set(["completed", "archived"]);
 // Static quick-action shortcuts (navigation, not backend data). Six of
 // them, not five — .cdact is a fixed 6-column grid (3 on tablet, 2 on
 // phone), so five left an empty trailing cell in every row size.
-const QUICK_ACTIONS: { key: string; icon: string; href: string; primary?: boolean; live?: boolean; ask?: boolean }[] = [
+// `art` is the 3D illustration that sits in the card's bottom-right corner,
+// half off the edge and behind the text — the arrangement in the mockup. The
+// files are cut-outs on transparency (public/img/card-*.png) and are named
+// after the action they belong to, which is the pairing used here.
+const QUICK_ACTIONS: { key: string; icon: string; href: string; art: string; primary?: boolean; live?: boolean; ask?: boolean }[] = [
   // `ask`: this one opens the advocate-or-AI chooser rather than navigating.
-  { key: "describe", icon: "IconChatDots", href: "/portal/client/ai", primary: true, ask: true },
+  { key: "describe", icon: "IconChatDots", href: "/portal/client/ai", art: "card-muammoni-tavsiflash", primary: true, ask: true },
   // "Tezkor Advokat xizmati online" — the live-advocate module. Flagged as
   // live rather than primary so it reads as a service that is on right now,
   // beside the primary AI action instead of competing with it.
-  { key: "urgent", icon: "IconBolt", href: "/portal/client/urgent", live: true },
-  { key: "findSpecialist", icon: "IconSearch", href: "/portal/client/lawyers" },
-  { key: "consultation", icon: "IconAlert", href: "/portal/client/urgent?service=traffic_accident_consultation" },
-  { key: "askAi", icon: "IconSparkle", href: "/portal/client/ai" },
-  { key: "upload", icon: "IconDownload", href: "/portal/client/doc-analysis" },
+  { key: "urgent", icon: "IconBolt", href: "/portal/client/urgent", art: "card-advokatga-tezkor-boglanish", live: true },
+  { key: "findSpecialist", icon: "IconSearch", href: "/portal/client/lawyers", art: "card-mutaxassis-topish" },
+  { key: "consultation", icon: "IconAlert", href: "/portal/client/urgent?service=traffic_accident_consultation", art: "card-avtoavariya-huquqiy-konsultatsiya" },
+  { key: "askAi", icon: "IconSparkle", href: "/portal/client/ai", art: "card-lexgo-ai-sorash" },
+  { key: "upload", icon: "IconDownload", href: "/portal/client/doc-analysis", art: "card-hujjat-tahlili" },
 ];
 const ACTION_SUB: Record<string, string> = {
   describe: "describeSub",
@@ -61,20 +63,11 @@ export default function ClientDashboard() {
   const [ask, setAsk] = useState("");
   const [whoOpen, setWhoOpen] = useState(false);
   const res = useResource(listCases, []);
-  const kpi = useMemo(() => {
-    const rows = res.data;
-    const open = rows.filter((c) => !DONE_STATUSES.has(c.status));
-    return {
-      total: rows.length,
-      active: open.length,
-      done: rows.length - open.length,
-      // "Harakat kutilmoqda" means the client still has something to do, so a
-      // next_action left behind on a closed case is not one of them. Counted
-      // over every row, this tile sat at 3 for an account whose cases were all
-      // finished — the only one of the four that ignored the status.
-      pending: open.filter((c) => c.nextAction).length,
-    };
-  }, [res.data]);
+  // The four-tile KPI row that used to sit between the actions and the list
+  // is gone at the product owner's request. It counted the same cases the
+  // panel below already shows, one row lower, and on a new account it was
+  // four zeros taking a full band of the screen.
+  //
   // The panel below is headed "Faol so'rovlaringiz" and its empty state reads
   // "Faol so'rov yo'q", but it was rendering res.data — every case, closed and
   // archived ones included. Both labels were already telling the truth about
@@ -126,8 +119,15 @@ export default function ClientDashboard() {
           const cls = `cdact__i${a.primary ? " cdact__i--pri" : ""}${a.live ? " cdact__i--live" : ""}`;
           const inner = (
             <>
+              {/* Decorative, so it is a background rather than an <img>: it
+                  carries no information the title does not already give, and
+                  a screen reader reading six illustration names before six
+                  identical link labels would be noise. It stays FIRST so the
+                  primary card's chevron, which hangs off `span:last-child`,
+                  still lands on the text. */}
+              <span className="cdact__art" style={{ "--art": `url(/img/${a.art}.png)` } as CSSProperties} aria-hidden />
               <span className="cdact__ico">{a.live ? <i className="cdact__dot" aria-hidden /> : null}<Icon name={a.icon} /></span>
-              <span>
+              <span className="cdact__t">
                 {ta(a.key)}
                 <span className="cdact__sub">{ta(ACTION_SUB[a.key])}</span>
               </span>
@@ -172,34 +172,6 @@ export default function ClientDashboard() {
           </div>
         </div>
       </Modal>
-
-      {/* At-a-glance analytics: real counts from the same case list rendered
-          below, not separate/fake numbers — total, still-open, done, and how
-          many need the client's own next step. */}
-      {res.status !== "loading" ? (
-        <div className="pk">
-          <div className="pk__i pk__i--ic pk__i--neutral">
-            <span className="pk__ico"><IconFileText /></span>
-            <b>{kpi.total}</b>
-            <span>{t("kpiTotal")}</span>
-          </div>
-          <div className="pk__i pk__i--ic pk__i--active">
-            <span className="pk__ico"><IconClock /></span>
-            <b>{kpi.active}</b>
-            <span>{t("activeOrders")}</span>
-          </div>
-          <div className="pk__i pk__i--ic pk__i--ok">
-            <span className="pk__ico"><IconCheck /></span>
-            <b>{kpi.done}</b>
-            <span>{t("kpiCompleted")}</span>
-          </div>
-          <div className="pk__i pk__i--ic pk__i--warn">
-            <span className="pk__ico"><IconAlert /></span>
-            <b>{kpi.pending}</b>
-            <span>{t("kpiPending")}</span>
-          </div>
-        </div>
-      ) : null}
 
       {/* Active requests (backend) + sidebar */}
       <div className="cdgrid">
