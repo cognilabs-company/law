@@ -758,6 +758,10 @@ function TelegramPlanRequest({
   const [only, setOnly] = useState<ManualDocBillingPeriod[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  // LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: SUB-ABCDE — quoted back on the
+  // receipt so the client has something to name when they chase the
+  // approval. Empty when the backend did not send one; nothing is printed.
+  const [sentWorkId, setSentWorkId] = useState("");
   const [err, setErr] = useState("");
 
   // The plan the caller was on when the provider failed, and the period they
@@ -799,6 +803,7 @@ function TelegramPlanRequest({
       const r = await requestPlanTelegramPurchase(plan.id, eff);
       // status "pending" is the documented success; anything else still means
       // the request exists, so the receipt is shown either way.
+      setSentWorkId(r.workId);
       setSent(true);
       onSent();
       if (r.telegramSent === false || (r.telegramDelivered === 0 && r.telegramFailed > 0)) {
@@ -825,6 +830,7 @@ function TelegramPlanRequest({
           <>
             <p className="cform__ok"><IconCheck style={{ width: 16, height: 16 }} /> {ttg("sent")}</p>
             <p className="advmuted">{ttg("sentLead")}</p>
+            {sentWorkId ? <p><span className="wid">{sentWorkId}</span></p> : null}
             {err ? <Notice ok={false} msg={err} /> : null}
             <button type="button" className="btn btn--line btn--full" onClick={onClose}>{ttg("close")}</button>
           </>

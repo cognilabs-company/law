@@ -4542,31 +4542,31 @@
       "events": {
         "order_created": {
           "title": "Order created",
-          "body": "Order #{order} for “{service}” was created. Status: {status}."
+          "body": "Order {order} for “{service}” was created. Status: {status}."
         },
         "order_assigned": {
           "title": "New order",
-          "body": "You have a new order: “{service}” (#{order})."
+          "body": "You have a new order: “{service}” ({order})."
         },
         "order_accepted": {
           "title": "Order accepted",
-          "body": "The professional accepted your order #{order}."
+          "body": "The professional accepted your order {order}."
         },
         "order_declined": {
           "title": "Order declined",
-          "body": "The professional declined your order #{order}. You can pick another specialist."
+          "body": "The professional declined your order {order}. You can pick another specialist."
         },
         "order_status_changed": {
           "title": "Order status updated",
-          "body": "Order #{order} status: {status}."
+          "body": "Order {order} status: {status}."
         },
         "milestone_paid": {
           "title": "Milestone paid",
-          "body": "Payment received for milestone “{milestone}” (#{order})."
+          "body": "Payment received for milestone “{milestone}” ({order})."
         },
         "milestone_released": {
           "title": "Milestone payment released",
-          "body": "The payment for milestone “{milestone}” was released to you (#{order})."
+          "body": "The payment for milestone “{milestone}” was released to you ({order})."
         },
         "payment_paid": {
           "title": "Payment received",
@@ -4574,7 +4574,7 @@
         },
         "order_payment_updated": {
           "title": "Order payment updated",
-          "body": "Order #{order} payment status: {paymentStatus}."
+          "body": "Order {order} payment status: {paymentStatus}."
         },
         "document_payment_created": {
           "title": "Document payment created",
@@ -6282,6 +6282,7 @@
       "detailError": "Could not load the details.",
       "status": { "active": "Active", "scheduled": "Scheduled", "ended": "Ended", "cancelled": "Cancelled", "expired": "Expired" },
       "detail": {
+        "workId": "Work ID",
         "meeting": "Meeting",
         "status": "Status",
         "type": "Type",
@@ -6344,6 +6345,7 @@
       "period": { "today": "Today", "week": "This week", "month": "This month" },
       "f": { "search": "Name or phone…", "allSource": "All sources", "allRegion": "All regions", "allStage": "All stages", "assignee": "Operator", "allAssignee": "All operators", "unassigned": "Unassigned", "mine": "My leads", "from": "From date", "to": "To date", "clear": "Clear", "reset": "Reset filters", "shown": "{n} / {total} leads", "noMatch": "No leads match the filters." },
       "d": {
+        "workId": "Work ID",
         "close": "Close",
         "stage": "Stage",
         "info": "Client info",
@@ -7754,6 +7756,8 @@
     "camOn": "Turn camera on",
     "camOff2": "Turn camera off",
     "camError": "Could not turn the camera on.",
+    "camUpgrade": "Turn on video",
+    "upgradedToVideo": "The call switched to video.",
     "camDenied": "Allow camera access in the browser (lock icon in the address bar → Camera).",
     "emptyEnding": "The other side left — the meeting ends in {s} s",
     "endingIn": "Ending in {s} s",

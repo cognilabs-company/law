@@ -204,6 +204,9 @@ export default function CallCenterBoard() {
                   <div className="ccb__card" key={lead.id}>
                     <b>{lead.name || lead.phone || leadCategoryLabel(tp, lead.category) || tp("untitledLead")}</b>
                     <span className="ccb__meta">
+                      {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: LEAD-DX36K — what
+                          an operator reads out on the phone. */}
+                      {lead.workId ? <em className="wid">{lead.workId}</em> : null}
                       {[titledByCategory ? "" : leadCategoryLabel(tp, lead.category), leadRegionLabel(te, lead.region)].filter(Boolean).join(" · ")}
                     </span>
                     <span className="pipe__tags">

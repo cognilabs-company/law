@@ -96,12 +96,18 @@ export function categoryOf(event: string, channel: string | string[], title: str
   return "system";
 }
 
-// Short, readable id for templates ("#a1b2c3d4"): UUIDs are cut to 8 chars,
-// short ids stay as they are.
-export function shortId(id: unknown): string {
-  const s = asStr(id).trim();
-  if (!s) return "";
-  return s.length > 12 ? s.slice(0, 8) : s;
+// The public id a notification may print. LEXGO_PUBLIC_WORK_IDS_FRONTEND.md
+// replaced the old "#a1b2c3d4" — the first eight characters of a UUID — with
+// a real short id the backend mints (ORD-XXXXX, PAY-K1OWV …), and rules the
+// truncation out by name: "fallback sifatida `id.slice(0, 8)` emas". A
+// payload that carries no work id therefore yields nothing, and the sentence
+// is written without it rather than around a UUID fragment.
+export function publicWorkId(data: Dict, ...keys: string[]): string {
+  for (const k of keys) {
+    const s = asStr(data[k]).trim();
+    if (s) return s;
+  }
+  return "";
 }
 
 // Values for the client-side event templates (portal.notifications.events.*).
@@ -136,7 +142,7 @@ export function templateVars(data: Dict, title: string, body: string): NotifTemp
   return {
     body,
     title,
-    order: shortId(data.order_id),
+    order: publicWorkId(data, "order_work_id", "work_id"),
     status: asStr(data.status).trim(),
     paymentStatus: asStr(data.payment_status).trim(),
     amount,

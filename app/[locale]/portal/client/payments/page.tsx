@@ -42,7 +42,7 @@ export default function ClientPayments() {
     if (from && day && day < from) return false;
     if (to && day && day > to) return false;
     const needle = q.trim().toLowerCase();
-    return !needle || `${p.description} ${p.kind} ${p.status} ${p.amount}`.toLowerCase().includes(needle);
+    return !needle || `${p.description} ${p.kind} ${p.status} ${p.amount} ${p.workId}`.toLowerCase().includes(needle);
   });
   const [failedId, setFailedId] = useState("");
 
@@ -91,6 +91,10 @@ export default function ClientPayments() {
               <div className="ptable__row" key={p.id}>
                 <span data-l={t("what")}>
                   <b>{whatOf(p.description, p.kind)}</b>
+                  {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: PAY-K1OWV, the id a
+                      client can quote at support. The UUID this row is keyed
+                      on is never printed. */}
+                  {p.workId ? <small className="wid">{p.workId}</small> : null}
                 </span>
                 <span data-l={t("date")}>{fmtDate(p.createdAt, locale)}</span>
                 <span data-l={t("amount")}>{som(p.amount, p.currency, te("currency"))}</span>

@@ -45,3 +45,7 @@ next-env.d.ts
 *.xlsx
 *.pdf
 /lex/
+
+# Telegram MD bot — local state, never commit
+/tools/mdbot/subscribers.json
+/tools/mdbot/.offset

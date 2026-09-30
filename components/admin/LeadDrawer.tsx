@@ -91,6 +91,9 @@ export default function LeadDrawer({
   }
 
   const info: [string, string][] = [
+    // LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: LEAD-DX36K. First, because it is what
+    // an operator quotes when the same lead comes up on another channel.
+    [t("d.workId"), lead.workId],
     [t("d.phone"), lead.phone],
     // The board card beside this drawer resolves the very same slug through
     // leadCategoryLabel; d.cat.* was never written, so the drawer showed the

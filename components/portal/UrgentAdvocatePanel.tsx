@@ -66,6 +66,12 @@ import {
   IconChevronLeft,
   IconLayers,
   IconPhone,
+  IconVideoConsult,
+  IconExpressCall,
+  IconTrafficCase,
+  IconChatConsult,
+  IconSecondOpinion,
+  IconOpinionPanel,
 } from "@/components/icons";
 
 // LEXGO_URGENT_ADVOCATE_FRONTEND_UPDATE.md — "Tezkor Advokat xizmati online".
@@ -74,14 +80,20 @@ import {
 // previous_lexgo_purchase_required), which this screen states up front rather
 // than letting the client fill a whole form and then be refused.
 
+// One icon per service, each drawn for that service by name — see the
+// "Tezkor advokat" block in components/icons.tsx. The generic set that used
+// to sit here (camera / bolt / warning triangle / chat bubble / scales /
+// crowd) described the medium at best, and inside the "Ikkinchi fikr" dialog
+// it described nothing at all: the scales are what every legal screen on the
+// site already uses, and a crowd is not a panel of advocates.
 const ICONS: Record<string, typeof IconVideo> = {
-  video_consultation: IconVideo,
+  video_consultation: IconVideoConsult,
   // Straight to whoever is on duty (payload.assignment_mode = on_duty_pool).
-  express_video_consultation: IconBolt,
-  traffic_accident_consultation: IconAlert,
-  chat_consultation: IconChat,
-  second_opinion_single: IconScale,
-  second_opinion_group: IconUsers,
+  express_video_consultation: IconExpressCall,
+  traffic_accident_consultation: IconTrafficCase,
+  chat_consultation: IconChatConsult,
+  second_opinion_single: IconSecondOpinion,
+  second_opinion_group: IconOpinionPanel,
 };
 
 // The documented payload sends the direction as the Uzbek slug

@@ -45,6 +45,7 @@ export function normLeadX(v: unknown): LeadX {
   const det = asDict(d.details) as Record<string, unknown>;
   return {
     id: asStr(d.id),
+    workId: asStr(d.work_id),
     name: asStr(det.name ?? d.name),
     phone: asStr(det.phone ?? d.phone),
     source: asStr(d.source),

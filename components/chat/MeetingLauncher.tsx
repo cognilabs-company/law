@@ -49,6 +49,8 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
         <div className="dkv">
           <div className="dkv__sect">
             <b>{t("detail.meeting")}</b>
+            {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: CALL-83JVE. */}
+            {row(t("detail.workId"), d.call.workId)}
             {row(t("detail.status"), t.has(`status.${d.call.status}`) ? t(`status.${d.call.status}`) : d.call.status)}
             {row(t("detail.type"), t(`formatLabel.${d.call.callType}`))}
             {row(t("detail.room"), d.room?.title || d.call.roomId)}

@@ -153,6 +153,9 @@ export default function ClientGifts() {
               <span className="creq__st" />
               <div className="creq__m">
                 <b>{g.planName || t("untitledGift")}</b>
+                {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: GFT-XXXXX — the gift's own
+                    public id, distinct from the redemption code below. */}
+                {g.workId ? <small className="wid">{g.workId}</small> : null}
                 <span>
                   {[g.recipientPhone, g.termMonths ? `${g.termMonths} ${t("months")}` : "", fmtDate(g.createdAt, locale)]
                     .filter(Boolean)

@@ -197,9 +197,9 @@ export function demoSellerCases(today: string): CabinetCase[] {
 }
 export function demoSellerOrders(today: string): BackendOrder[] {
   return [
-    { id: "demo-o1", title: "Ish beruvchi 2 oylik maoshni to'lamayapti, nima qilish kerak?", serviceName: "Mehnat huquqi bo'yicha maslahat", status: "new", paymentStatus: "pending", contactUnlocked: false, areaKey: "labor", region: "tashkent", budget: "350 000", createdAt: `${today}T09:40:00Z` },
-    { id: "demo-o2", title: "Ijaraga beruvchi depozitni qaytarmayapti", serviceName: "Ijara nizosi", status: "new", paymentStatus: "pending", contactUnlocked: false, areaKey: "realEstate", region: "samarkand", budget: "500 000", createdAt: `${dayBefore(today, 1)}T16:15:00Z` },
-    { id: "demo-o3", title: "Nikoh shartnomasini tuzish", serviceName: "Oilaviy huquq", status: "new", paymentStatus: "pending", contactUnlocked: false, areaKey: "family", region: "fergana", budget: "600 000", createdAt: `${dayBefore(today, 2)}T11:05:00Z` },
+    { id: "demo-o1", workId: "", title: "Ish beruvchi 2 oylik maoshni to'lamayapti, nima qilish kerak?", serviceName: "Mehnat huquqi bo'yicha maslahat", status: "new", paymentStatus: "pending", contactUnlocked: false, areaKey: "labor", region: "tashkent", budget: "350 000", createdAt: `${today}T09:40:00Z` },
+    { id: "demo-o2", workId: "", title: "Ijaraga beruvchi depozitni qaytarmayapti", serviceName: "Ijara nizosi", status: "new", paymentStatus: "pending", contactUnlocked: false, areaKey: "realEstate", region: "samarkand", budget: "500 000", createdAt: `${dayBefore(today, 1)}T16:15:00Z` },
+    { id: "demo-o3", workId: "", title: "Nikoh shartnomasini tuzish", serviceName: "Oilaviy huquq", status: "new", paymentStatus: "pending", contactUnlocked: false, areaKey: "family", region: "fergana", budget: "600 000", createdAt: `${dayBefore(today, 2)}T11:05:00Z` },
   ];
 }
 export function demoSellerRooms(today: string): CabinetRoom[] {

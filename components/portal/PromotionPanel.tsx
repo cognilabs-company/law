@@ -35,7 +35,7 @@ export default function PromotionPanel() {
   // The Telegram wait. Held here rather than re-read, because /promotions/me
   // answers the seller's ACTIVE promotion and a pending one is not active yet
   // — there is nothing to poll for until an admin presses the button.
-  const [pending, setPending] = useState<{ packageId: string; amount: number; currency: string; telegramSent: boolean } | null>(null);
+  const [pending, setPending] = useState<{ packageId: string; workId: string; amount: number; currency: string; telegramSent: boolean } | null>(null);
 
   // Back from the checkout page may restore this page from the bfcache with the
   // button still busy (it stays busy while the browser navigates away).
@@ -66,7 +66,7 @@ export default function PromotionPanel() {
       // simply stopped spinning and the seller was told nothing at all,
       // while their package sat inactive.
       if (r.promotionStatus === PROMOTION_PENDING || !r.paymentUrl) {
-        setPending({ packageId: pkg.id, amount: r.amount, currency: r.currency, telegramSent: r.telegramSent });
+        setPending({ packageId: pkg.id, workId: r.promotionWorkId, amount: r.amount, currency: r.currency, telegramSent: r.telegramSent });
       }
       setReloadKey((k) => k + 1);
     } catch (e) {
@@ -144,6 +144,7 @@ export default function PromotionPanel() {
           <div className="promo__pend" role="status">
             <b><IconClock />{t("pendingTitle")}</b>
             <p>{t("pendingText")}</p>
+            {pending.workId ? <span className="wid">{pending.workId}</span> : null}
             {pending.amount ? <span className="promo__pendamt">{fmtUzs(pending.amount)} {pending.currency}</span> : null}
             <small className={pending.telegramSent ? "promo__tgok" : "promo__tgbad"}>
               {pending.telegramSent ? t("pendingTelegramOk") : t("pendingTelegramFail")}

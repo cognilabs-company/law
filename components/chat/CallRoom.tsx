@@ -37,6 +37,7 @@ import {
   requestCallExtensionPayment,
   pauseCall,
   resumeCall,
+  parseCallQualityPolicy,
   type LiveKitJoin,
   type CallSession,
   type CallConnectionHints,
@@ -299,6 +300,17 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(callType === "video");
   const [camBusy, setCamBusy] = useState(false);
+  // The adaptive controller's verdict on the link, mirrored into state
+  // because the render reads it: an audio call whose connection has already
+  // collapsed to audio_only is not offered the video upgrade. profileRef
+  // itself cannot be read during render.
+  const [linkAudioOnly, setLinkAudioOnly] = useState(false);
+  // LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: CALL-83JVE. The watermark used to
+  // stamp the first eight characters of the call UUID onto every frame,
+  // which is the fallback that MD rules out by name. This is the id a
+  // person can actually quote, and the watermark simply drops it when the
+  // record has none rather than printing a UUID fragment instead.
+  const [callWorkId, setCallWorkId] = useState("");
   // The call's adaptive-quality policy. In state because `video_enabled`
   // decides whether the camera control exists at all; in a ref because the
   // LiveKit handlers are registered once and would otherwise close over the
@@ -308,6 +320,23 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // Guarded, so a poll that has not answered yet cannot wipe the policy the
   // connect path already fetched.
   useEffect(() => { if (quality) qualityRef.current = quality; }, [quality]);
+  // The one thing about a policy that is NOT fixed for the life of a call.
+  // LEXGO_AUDIO_CALL_CAMERA_UPGRADE_FRONTEND.md: a camera switched on inside
+  // an audio call promotes the call to video server-side, and from that
+  // moment `video_enabled` is true for everyone in the room. Every other
+  // field stays "once per call" — hence a replace that only fires on the
+  // flip, rather than dropping the freeze the poll relies on.
+  // `known` is for the answers that say the call is a video call now but do
+  // not restate the policy — the flag is then flipped on the policy already
+  // in hand rather than leaving the room to wait for a poll that would have
+  // kept the frozen audio copy anyway.
+  const promoteToVideo = useCallback((pol: CallQualityPolicy | null, known = false) => {
+    if (qualityRef.current?.videoEnabled) return;
+    const next = pol?.videoEnabled ? pol : known && qualityRef.current ? { ...qualityRef.current, videoEnabled: true } : null;
+    if (!next) return;
+    qualityRef.current = next;
+    setQuality(next);
+  }, []);
   // Transport hints. Nothing here is rendered — only auto_quality is read,
   // as the switch that says whether this client may walk the ladder at all.
   const hintsRef = useRef<CallConnectionHints | null>(null);
@@ -589,6 +618,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // audio_priority means the mic is the last thing to go, never the first.
       if (!cameraAllowed || name === "audio_only" || !pol.videoEnabled) {
         profileRef.current = "audio_only";
+        if (alive) setLinkAudioOnly(true);
         // §Audio-only fallback L162-166 is TWO calls, not one:
         // setCameraEnabled(false) AND setMicrophoneEnabled(true). Only the
         // first half was ever here, so a client whose link collapsed lost the
@@ -610,6 +640,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       }
       const prof = pol.profiles[name];
       if (!prof) return;
+      if (alive) setLinkAudioOnly(false);
       if (!lp.isCameraEnabled) {
         // Only a camera THIS controller put away comes back, and only into a
         // call that is not paused (a paused call publishes nothing at all).
@@ -800,6 +831,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         ]);
         if (!alive) return;
         if (call) {
+          setCallWorkId(call.workId);
           qualityRef.current = call.quality;
           hintsRef.current = call.hints;
           setQuality((cur) => cur ?? call.quality);
@@ -998,6 +1030,20 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // timer itself already honours `paused` — this is only about learning
       // of it at once.
       if (/^call[.](extended|payment_extension_|paused|resumed)/.test(e.event)) setMetaTick((n) => n + 1);
+      // Somebody else switched their camera on and the backend promoted this
+      // audio call to video. The payload carries the updated call object, so
+      // the policy is taken from there when it is present and otherwise
+      // inferred from the event itself — either way the camera control has
+      // to appear for THIS participant too, without waiting out the poll.
+      if (e.event === "call.upgraded_to_video") {
+        const payload = e as Record<string, unknown>;
+        const call = payload.call && typeof payload.call === "object" ? (payload.call as Record<string, unknown>) : {};
+        // Said out loud, because the bar changes shape underneath them: a
+        // camera control appears where there was none a second ago.
+        if (!qualityRef.current?.videoEnabled) toast(t("upgradedToVideo"), "join");
+        promoteToVideo(parseCallQualityPolicy(call.quality_policy ?? payload.quality_policy), true);
+        setMetaTick((n) => n + 1);
+      }
     };
     const unsub = subscribeRoomCallEvents(roomId, onCallEvent);
     // Both streams, one handler, one dedupe. The room socket carries them for
@@ -1009,7 +1055,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       onCallEvent(e);
     });
     return () => { unsub(); unsubUser(); };
-  }, [roomId, callId, session?.id, toast, t]);
+  }, [roomId, callId, session?.id, toast, t, promoteToVideo]);
 
   // Meeting meta: participants roster, host permissions, remaining time.
   // Polls every 3s and refreshes immediately when a realtime event bumps
@@ -1030,6 +1076,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             setDeclined((cur) => (cur.includes(p.userId) ? cur : [...cur, p.userId]));
             toast(t("declinedBy", { name: p.name || t("someone") }), "leave");
           }
+          setCallWorkId(c.workId);
           setRoster(c.participants);
           setPerms(c.permissions);
           setLimits(callLimitsOf(c));
@@ -1043,6 +1090,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           if (!qualityRef.current && c.quality) qualityRef.current = c.quality;
           if (!hintsRef.current && c.hints) hintsRef.current = c.hints;
           setQuality((cur) => cur ?? c.quality);
+          // …with one exception, added with the audio→video upgrade: an
+          // audio call that somebody promoted comes back with video_enabled
+          // true, and that single flag DOES have to overwrite the frozen
+          // copy. This is the fallback for a socket that never delivered
+          // `call.upgraded_to_video`.
+          promoteToVideo(c.quality, c.callType === "video");
           // A paused call freezes at pausedRemainingSeconds; an extension
           // RAISES the remaining time, so a server value that moved in
           // either direction has to be taken, not only a bigger one.
@@ -1271,8 +1324,19 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     setAudioBlocked(!r.canPlaybackAudio);
   }
   // Keep the backend roster in sync with my real mic/cam so others see it.
+  // The camera patch is the one whose ANSWER matters: on an audio call it
+  // comes back carrying `call_type: "video"` and a policy with video
+  // enabled, which is how this room learns the call it is in has just been
+  // promoted (LEXGO_AUDIO_CALL_CAMERA_UPGRADE_FRONTEND.md — "UI holatini
+  // backend response bo'yicha yangilasin"). The other patches answer with a
+  // participant row and promoteToVideo ignores them.
   function syncSelf(patch: { mic_enabled?: boolean; camera_enabled?: boolean; screen_enabled?: boolean }) {
-    if (session?.id) { prevMicRef.current = patch.mic_enabled ?? prevMicRef.current; updateCallParticipant(roomId, callId, session.id, patch).catch(() => {}); }
+    if (session?.id) {
+      prevMicRef.current = patch.mic_enabled ?? prevMicRef.current;
+      updateCallParticipant(roomId, callId, session.id, patch)
+        .then((r) => { if (r.callType === "video" || r.quality?.videoEnabled) promoteToVideo(r.quality, r.callType === "video"); })
+        .catch(() => {});
+    }
   }
   async function toggleMic() {
     const r = roomRef.current;
@@ -1693,6 +1757,20 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // connection-quality actions, so the policy says exactly this once it
   // arrives — this only stops the room guessing the opposite while it waits.
   const videoAllowed = quality ? quality.videoEnabled : callType === "video";
+  // …and whether it may GROW one. LEXGO_AUDIO_CALL_CAMERA_UPGRADE_FRONTEND.md
+  // is the newer contract and it overrides the line above for the audio case:
+  // "Audio call ichida user camera yoqsa backend callni video callga
+  // o'tkazadi". That flow was unreachable while the control only existed for
+  // a call the policy had already blessed — the camera button was simply not
+  // in the bar, so nothing could ever send camera_enabled=true. The adaptive
+  // MD's "default hidden yoki disabled" is honoured by what the button SAYS
+  // rather than by its absence: on an audio call it is an upgrade ("Videoni
+  // yoqish"), not a toggle, and the upgrade is the backend's to grant — the
+  // PATCH answer is what flips this room over to the video policy. A call
+  // that is over, or one the connection has dropped to audio_only, is not
+  // offered the upgrade.
+  const canUpgradeToVideo = !videoAllowed && status === "live" && !linkAudioOnly;
+  const camControl = videoAllowed || canUpgradeToVideo;
   const activeRoster = roster.filter((p) => p.status !== "removed" && p.status !== "left" && p.status !== "declined");
   const gridN = strip.length;
   const flipKey = `${strip.map((p) => p.identity).join("|")}:${view}:${stageIsShare ? 1 : 0}:${panel}`;
@@ -1705,8 +1783,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // be a contact detail someone can harvest off a screenshot.
   const wmLabel = [
     session?.name || t("you"),
-    session?.phone ? "••" + session.phone.replace(/\D/g, "").slice(-4) : session?.id?.slice(0, 8) || "",
-    callId.slice(0, 8),
+    session?.phone ? "••" + session.phone.replace(/\D/g, "").slice(-4) : "",
+    callWorkId,
   ].filter(Boolean).join(" · ");
   const announceGuard = useCallback((why: GuardTrip) => {
     // Only the deliberate signals are reported. Tab switches and window blurs
@@ -2115,7 +2193,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             call becomes a video call once it is turned on. A session with
             video_enabled=false has no camera control at all, since turning it
             on would publish a track the backend never provisioned for. */}
-        {videoAllowed ? <Ctl on={camOn} off={!camOn} label={camOn ? t("camOff2") : t("camOn")} onClick={toggleCam} disabled={camBusy}><IconVideo /></Ctl> : null}
+        {camControl ? <Ctl on={camOn} off={!camOn} label={canUpgradeToVideo ? t("camUpgrade") : camOn ? t("camOff2") : t("camOn")} onClick={toggleCam} disabled={camBusy}><IconVideo /></Ctl> : null}
         {videoAllowed && camOn && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
         {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing} desktop><IconMonitor /></Ctl> : null}
         {canRecord() ? <Ctl on={recOn || !!recReq} label={recOn ? t("recStopShort") : recReq ? t("recWaitingShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} disabled={!!recReq} desktop><IconRecord /></Ctl> : null}

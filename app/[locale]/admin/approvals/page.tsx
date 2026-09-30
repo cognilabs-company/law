@@ -46,6 +46,8 @@ export default function AdminApprovals() {
               <div className="aitem__m">
                 <b>{a.type ? (t.has(`approvals.type.${a.type}`) ? t(`approvals.type.${a.type}`) : a.type) : t("approvals.item")}</b>
                 <div className="aitem__tags">
+                  {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: APR-JFQDL. */}
+                  {a.workId ? <em className="wid">{a.workId}</em> : null}
                   <em className={`atag${a.adminApproved ? " atag--ok" : " atag--muted"}`}>
                     {t("approvals.admin")}{a.adminApproved ? " ✓" : ""}
                   </em>

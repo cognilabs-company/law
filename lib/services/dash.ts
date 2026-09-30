@@ -305,6 +305,7 @@ function normOrder(v: unknown): BackendOrder {
   const question = cleanDocText(asStr(details.question));
   return {
     id: asStr(d.id),
+    workId: asStr(d.work_id),
     title: question || cleanDocTitle(asStr(d.title ?? details.title ?? service.name)),
     serviceName: cleanDocTitle(asStr(service.name ?? service.title ?? d.service_name ?? d.service_title ?? details.service_title ?? details.service_name)),
     status: asStr(d.status),

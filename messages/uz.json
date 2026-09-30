@@ -4548,31 +4548,31 @@
       "events": {
         "order_created": {
           "title": "Buyurtma yaratildi",
-          "body": "«{service}» bo'yicha #{order} buyurtma yaratildi. Holati: {status}."
+          "body": "«{service}» bo'yicha {order} buyurtma yaratildi. Holati: {status}."
         },
         "order_assigned": {
           "title": "Yangi buyurtma",
-          "body": "Sizga yangi buyurtma keldi: «{service}» (#{order})."
+          "body": "Sizga yangi buyurtma keldi: «{service}» ({order})."
         },
         "order_accepted": {
           "title": "Buyurtma qabul qilindi",
-          "body": "Ijrochi #{order} buyurtmangizni qabul qildi."
+          "body": "Ijrochi {order} buyurtmangizni qabul qildi."
         },
         "order_declined": {
           "title": "Buyurtma rad etildi",
-          "body": "Ijrochi #{order} buyurtmangizni rad etdi. Boshqa mutaxassis tanlashingiz mumkin."
+          "body": "Ijrochi {order} buyurtmangizni rad etdi. Boshqa mutaxassis tanlashingiz mumkin."
         },
         "order_status_changed": {
           "title": "Buyurtma holati yangilandi",
-          "body": "#{order} buyurtma holati: {status}."
+          "body": "{order} buyurtma holati: {status}."
         },
         "milestone_paid": {
           "title": "Bosqich to'landi",
-          "body": "«{milestone}» bosqichi uchun to'lov qabul qilindi (#{order})."
+          "body": "«{milestone}» bosqichi uchun to'lov qabul qilindi ({order})."
         },
         "milestone_released": {
           "title": "Bosqich to'lovi chiqarildi",
-          "body": "«{milestone}» bosqichi to'lovi sizga o'tkazildi (#{order})."
+          "body": "«{milestone}» bosqichi to'lovi sizga o'tkazildi ({order})."
         },
         "payment_paid": {
           "title": "To'lov qabul qilindi",
@@ -4580,7 +4580,7 @@
         },
         "order_payment_updated": {
           "title": "Buyurtma to'lovi yangilandi",
-          "body": "#{order} buyurtma to'lov holati: {paymentStatus}."
+          "body": "{order} buyurtma to'lov holati: {paymentStatus}."
         },
         "document_payment_created": {
           "title": "Hujjat to'lovi yaratildi",
@@ -6288,6 +6288,7 @@
       "detailError": "Tafsilotlarni yuklab bo'lmadi.",
       "status": { "active": "Faol", "scheduled": "Rejalashtirilgan", "ended": "Tugagan", "cancelled": "Bekor qilingan", "expired": "Muddati o'tgan" },
       "detail": {
+        "workId": "Ish ID",
         "meeting": "Uchrashuv",
         "status": "Holat",
         "type": "Turi",
@@ -6350,6 +6351,7 @@
       "period": { "today": "Bugun", "week": "Bu hafta", "month": "Bu oy" },
       "f": { "search": "Ism yoki telefon…", "allSource": "Barcha manba", "allRegion": "Barcha hudud", "allStage": "Barcha bosqich", "assignee": "Operator", "allAssignee": "Barcha operatorlar", "unassigned": "Taqsimlanmagan", "mine": "Mening lidlarim", "from": "Sanadan", "to": "Sanagacha", "clear": "Tozalash", "reset": "Filtrlarni tiklash", "shown": "{n} / {total} ta lid", "noMatch": "Filtrga mos lid topilmadi." },
       "d": {
+        "workId": "Ish ID",
         "close": "Yopish",
         "stage": "Bosqich",
         "info": "Mijoz ma'lumotlari",
@@ -7760,6 +7762,8 @@
     "camOn": "Kamerani yoqish",
     "camOff2": "Kamerani o'chirish",
     "camError": "Kamerani yoqib bo'lmadi.",
+    "camUpgrade": "Videoni yoqish",
+    "upgradedToVideo": "Qo'ng'iroq video rejimga o'tdi.",
     "camDenied": "Brauzerda kameraga ruxsat bering (manzil qatoridagi qulf belgisi → Kamera).",
     "emptyEnding": "Suhbatdosh chiqib ketdi — uchrashuv {s} soniyadan keyin tugaydi",
     "endingIn": "Tugaydi: {s} s",

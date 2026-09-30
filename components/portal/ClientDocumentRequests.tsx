@@ -16,6 +16,7 @@ import {
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useDocChatRooms } from "@/lib/useDocChatRooms";
 import { useDocRatings } from "@/lib/useDocRatings";
+import { ctorPromptAsked, markCtorPromptAsked } from "@/lib/docCtorPrompt";
 import DocRatingBox from "./DocRatingBox";
 import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
@@ -140,7 +141,31 @@ export default function ClientDocumentRequests() {
   // link lib/notifications.ts builds for the
   // `document_constructor_continue_prompt` notification when the payload
   // carries no service_id to go to the constructor with directly.
-  const [promptId, setPromptId] = useState(() => params.get("doc") ?? "");
+  // …once. The backend keeps `prompt_required` true for the whole life of the
+  // hold, and the ?doc= parameter stays in the URL after the dialog is
+  // answered, so this used to re-ask on every visit, every refresh and every
+  // back-navigation — the "juda ko'p chiqyapti" report. Two things stop it:
+  // the shared per-request memory below (the same one the wait screen uses,
+  // so answering in either place counts), and dropping ?doc= from the URL as
+  // soon as it has been read.
+  const [promptId, setPromptId] = useState(() => {
+    const id = params.get("doc") ?? "";
+    return id && !ctorPromptAsked(id) ? id : "";
+  });
+  // Asked, and remembered, the moment the dialog is put on screen — not when
+  // it is answered. Closing it with the × or the scrim is an answer too
+  // ("not now"), and the one thing that must not happen is being asked again
+  // on the next render. The ?doc= parameter goes with it, so a refresh or a
+  // Back into this page lands on a plain list.
+  useEffect(() => {
+    if (!promptId) return;
+    markCtorPromptAsked(promptId);
+    if (typeof window === "undefined" || !params.get("doc")) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("doc");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, [promptId, params]);
+
   // The row whose constructor is being resolved (see openConstructor), and
   // the row whose "Advokat tekshiruviga yuborish" box is open.
   const [openBusy, setOpenBusy] = useState("");

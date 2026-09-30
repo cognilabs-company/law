@@ -10555,6 +10555,15 @@ html[data-theme="dark"]{
 .qcdet__facts dt{font-size:.74rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--gray2)}
 .qcdet__facts dd{margin:0;font-size:.9rem;overflow-wrap:anywhere}
 .qcdet__wid{font-weight:700;letter-spacing:.02em}
+.qcdet__urgmeta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;
+  font-size:.8rem;color:var(--gray)}
+.qcdet__urgmeta em{font-style:normal}
+/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md — the short public id (DOC-9M36Z,
+   PAY-K1OWV …) wherever a surface grew one after the four that already had
+   their own class. Same chip the older rules draw, written once. */
+.wid{display:inline-block;font-weight:700;letter-spacing:.02em;font-size:.72rem;
+  color:var(--gray2)!important;padding:2px 8px;border-radius:var(--pill);
+  background:var(--dk-surface-2, #F1F4F8);font-variant-numeric:tabular-nums}
 .qcdet__rate{display:inline-flex;align-items:center;gap:6px;font-weight:800;color:var(--dk-txt-err, #C0392B)}
 .qcdet__rate svg{width:15px;height:15px}
 .qcdet__b{display:grid;gap:6px;padding:12px 13px;border-radius:14px;

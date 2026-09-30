@@ -36,6 +36,14 @@ export const CALL_EVENTS = new Set([
   // only noticed on the next 15-second poll and a resumed one likewise.
   "call.paused",
   "call.resumed",
+  // LEXGO_AUDIO_CALL_CAMERA_UPGRADE_FRONTEND.md: somebody switched a camera on
+  // inside an audio call and the backend promoted the whole call to video.
+  // Everyone else in the room has to learn the call is a video call now —
+  // their own camera control is gated on the policy, and the history row they
+  // will see afterwards says "video". Missing from this set, the name was
+  // dropped here and the other participants stayed on the audio policy for
+  // the rest of the call.
+  "call.upgraded_to_video",
 ]);
 
 export function isCallEvent(name: unknown): name is string {

@@ -59,6 +59,12 @@ import {
   IconHeadset,
   IconClose,
   IconChevronRight,
+  IconVideoConsult,
+  IconExpressCall,
+  IconTrafficCase,
+  IconChatConsult,
+  IconSecondOpinion,
+  IconOpinionPanel,
 } from "@/components/icons";
 
 // LEXGO_URGENT_ADVOKAT_FRONTEND_UPDATE.md — the call-center side of "Tezkor
@@ -147,13 +153,15 @@ function chatHref(r: Pick<UrgentRequest, "secureChatRoomId" | "id" | "workId" | 
   return `/portal/chat/${r.secureChatRoomId}?${q.toString()}`;
 }
 
+// The same six icons the client's own Tezkor advokat grid uses — one
+// service, one icon, wherever it is shown. See components/icons.tsx.
 const KIND_ICON: Record<string, typeof IconVideo> = {
-  video_consultation: IconVideo,
-  express_video_consultation: IconBolt,
-  traffic_accident_consultation: IconAlert,
-  chat_consultation: IconChat,
-  second_opinion_single: IconScale,
-  second_opinion_group: IconUsers,
+  video_consultation: IconVideoConsult,
+  express_video_consultation: IconExpressCall,
+  traffic_accident_consultation: IconTrafficCase,
+  chat_consultation: IconChatConsult,
+  second_opinion_single: IconSecondOpinion,
+  second_opinion_group: IconOpinionPanel,
 };
 
 type State = { status: "loading" | "ready" | "error" | "forbidden" | "missing"; items: UrgentRequest[] };

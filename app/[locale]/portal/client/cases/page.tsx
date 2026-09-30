@@ -163,6 +163,10 @@ export default function ClientCases() {
               <span className="creq__st" />
               <div className="creq__m">
                 <b>{c ? c.caseType || c.title || t("title") : o?.serviceName || o?.title || t("orderItem")}</b>
+                {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: CASE-XXXXX / ORD-XXXXX.
+                    A case already prints its case_number, which the backend
+                    sends as the same string, so only the order needs it. */}
+                {!c && o?.workId ? <small className="wid">{o.workId}</small> : null}
                 <span>{[c?.stage ? statusLabel(tcCommon, c.stage) : "", c?.status ? caseStatus(c.status) : ""].filter(Boolean).join(" · ") || (o?.title && o.title !== o.serviceName ? o.title : "")}</span>
                 {stage ? <StageTrack stage={stage} /> : null}
                 {(() => { const dl = deadlineOf(o); return dl ? (

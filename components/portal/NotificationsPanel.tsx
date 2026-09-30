@@ -56,6 +56,20 @@ export function DeliveryChips({ items, channels }: { items: NotificationDelivery
   );
 }
 
+// A template whose {order} came back empty leaves a hole behind it — a
+// double space, or the "()" the two order templates wrap it in. That happens
+// whenever a notification predates the work-id migration
+// (LEXGO_PUBLIC_WORK_IDS_FRONTEND.md), and the MD forbids filling the hole
+// with a slice of the UUID, so the sentence is closed up instead.
+function tidy(s: string): string {
+  return s
+    .replace(/\(\s*\)/g, "")
+    .replace(/«\s*»/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+([.,:;!?])/g, "$1")
+    .trim();
+}
+
 // Title/body shown for a row: the client-side template for the event when
 // one exists (portal.notifications.events.<event>), else the backend text.
 function useNotifText() {
@@ -72,8 +86,8 @@ function useNotifText() {
         : "—";
       if (ev === "secure_chat_message" && n.data.is_blocked === true) vars.body = t("events.secure_chat_message.blocked");
       return {
-        title: t.has(`events.${ev}.title`) ? t(`events.${ev}.title`, vars) : n.title,
-        body: t.has(`events.${ev}.body`) ? t(`events.${ev}.body`, vars) : n.body,
+        title: t.has(`events.${ev}.title`) ? tidy(t(`events.${ev}.title`, vars)) : n.title,
+        body: t.has(`events.${ev}.body`) ? tidy(t(`events.${ev}.body`, vars)) : n.body,
       };
     },
     [t, statusLabel],

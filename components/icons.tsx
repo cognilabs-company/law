@@ -637,6 +637,93 @@ export const IconClipboardList = (p: P) => (
   </svg>
 );
 
+// ── Tezkor advokat: one icon per service, each drawn for its own name ──
+//
+// The six services used to share the generic set (a camera, a bolt, a
+// warning triangle, a chat bubble, the scales, a group of people), and two of
+// them — the pair inside the "Ikkinchi fikr" dialog — said nothing about what
+// they were: the scales mean "law" on every other screen, and a crowd of
+// people is not "a panel of advocates giving a second opinion".
+//
+// These are drawn at the size they are actually used (20-21px in the card
+// tile, 17px in the segmented tabs), which is why they run on a 1.6 stroke
+// instead of the shared 2: at 20px a 2px stroke closes up the interior detail
+// that tells two of these apart. The solid accents are the one mark that
+// carries each icon's meaning — the bolt, the impact, the check, the gavel —
+// so the difference survives even at tab size.
+const fine: P = { ...base, strokeWidth: 1.6 };
+
+// Scheduled video consultation: a real meeting with a person in frame.
+export const IconVideoConsult = (p: P) => (
+  <svg {...fine} {...p}>
+    <rect x="2.4" y="5" width="13.4" height="14" rx="3.2" />
+    <path d="M19.2 9.1l2.4-1.5v8.8l-2.4-1.5" />
+    <circle cx="9.1" cy="10.4" r="2.1" />
+    <path d="M5.6 16.4a3.7 3.7 0 017 0" />
+  </svg>
+);
+
+// Express: the same call, but it rings a duty advocate the instant it is
+// made — a headset with the bolt struck through it.
+export const IconExpressCall = (p: P) => (
+  <svg {...fine} {...p}>
+    <path d="M4.3 13.6v-1.8a7.7 7.7 0 0115.4 0v1.8" />
+    <path d="M4.3 12.9h1.5a1.6 1.6 0 011.6 1.6v2.6a1.6 1.6 0 01-1.6 1.6H5.5a1.2 1.2 0 01-1.2-1.2v-4.6z" />
+    <path d="M19.7 12.9h-1.5a1.6 1.6 0 00-1.6 1.6v2.6a1.6 1.6 0 001.6 1.6h.3a1.2 1.2 0 001.2-1.2v-4.6z" />
+    <path d="M12.9 7.6l-2.3 3.4h2.6l-.6 3.2 2.5-3.5h-2.6l.4-3.1z" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+// Traffic-accident consultation: a car in side view with the impact struck
+// off its nose. One car reads at 17px where two did not — the earlier pair
+// collapsed into two indistinct blobs.
+export const IconTrafficCase = (p: P) => (
+  <svg {...fine} {...p}>
+    <path d="M2.4 16.2v-2.5l1.7-3.9A1.9 1.9 0 015.8 8.7h6.3a1.9 1.9 0 011.7 1.1l1.7 3.9v2.5" />
+    <path d="M2.4 16.2h13.1M4.2 13.3h9.5" />
+    <circle cx="5.8" cy="16.5" r="1.6" />
+    <circle cx="12.4" cy="16.5" r="1.6" />
+    <path d="M18 9.2l2.3-1.7M18.6 12.1h2.9M18.2 15l2.4 1.4" />
+  </svg>
+);
+
+// Chat consultation: the advocate's answer arrives written — a bubble of
+// text with a pen over it. No tick here: the tick belongs to the second
+// opinion below, and two icons wearing one would say the same thing twice.
+export const IconChatConsult = (p: P) => (
+  <svg {...fine} {...p}>
+    <rect x="2.4" y="3.6" width="14.8" height="11.3" rx="3.4" />
+    <path d="M7.3 14.9v3.6l3.9-3.6" />
+    <path d="M6.1 7.7h7.4M6.1 11.1h4.9" />
+    <path d="M21.2 13.6l1.4 1.4-4.8 4.8-2 .6.6-2 4.8-4.8z" />
+  </svg>
+);
+
+// Second opinion, one advocate: a first view already given, and a second,
+// independent one set beside it and signed off.
+export const IconSecondOpinion = (p: P) => (
+  <svg {...fine} {...p}>
+    <path d="M2.6 8.4a4.9 4.9 0 014.9-4.9h3.2a4.9 4.9 0 010 9.8H7.5l-3.2 2.4.6-2.9a4.9 4.9 0 01-2.3-4.4z" opacity=".45" />
+    <path d="M21.4 14.1a5.2 5.2 0 00-5.2-5.2h-3.4a5.2 5.2 0 000 10.4h3.4l3.4 2.6-.6-3.1a5.2 5.2 0 002.4-4.7z" />
+    <path d="M14.1 14.2l1.6 1.6 3-3.1" />
+  </svg>
+);
+
+// Second opinion, a panel: three advocates on the bench and the one verdict
+// they agree on. A gavel was tried here and read as a scribble at 20px; the
+// check is what the client is actually buying — a shared conclusion.
+export const IconOpinionPanel = (p: P) => (
+  <svg {...fine} {...p}>
+    <circle cx="12" cy="5.1" r="2.5" />
+    <path d="M7.9 12a4.2 4.2 0 018.2 0" />
+    <circle cx="4.5" cy="7.3" r="1.9" />
+    <path d="M1.7 13a3 3 0 014.2-2.6" />
+    <circle cx="19.5" cy="7.3" r="1.9" />
+    <path d="M22.3 13a3 3 0 00-4.2-2.6" />
+    <path d="M8.3 18.4l2.6 2.6 4.8-5.4" />
+  </svg>
+);
+
 // Name → component registry so data files can reference icons by string.
 const ICON_MAP: Record<string, ComponentType<P>> = {
   IconChatDots,
@@ -671,6 +758,12 @@ const ICON_MAP: Record<string, ComponentType<P>> = {
   IconAlert,
   IconClock,
   IconChat,
+  IconVideoConsult,
+  IconExpressCall,
+  IconTrafficCase,
+  IconChatConsult,
+  IconSecondOpinion,
+  IconOpinionPanel,
 };
 
 export function Icon({ name, ...p }: { name: string } & P) {

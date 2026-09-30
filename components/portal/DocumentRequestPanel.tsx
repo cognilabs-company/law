@@ -24,6 +24,7 @@ import { ApiError, isProviderUnavailable, logApiError } from "@/lib/http";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { base64Blob, closeTab, extFromMime, mimeFromName, preopenTab, saveBlob, showBlob } from "@/lib/download";
 import { normalizeAnswers } from "@/lib/docTemplate";
+import { ctorPromptAsked, markCtorPromptAsked } from "@/lib/docCtorPrompt";
 import ContractSign from "./ContractSign";
 import DocumentRequestChat from "./DocumentRequestChat";
 import DocFill, { loadDraft, clearDraft, DocChromeContext } from "./DocFill";
@@ -107,20 +108,10 @@ type Stage = "answers" | "pay" | "generating" | "lawyerReview" | "claimed" | "pe
 // press somewhere useful. A caller with its own constructor route passes
 // onOpenConstructor; everyone else lands on the documents list with ?doc=<id>,
 // which already answers that parameter with the same two-button prompt.
-// Whether this client has already been asked about THIS request. The backend
-// sends prompt_required for the whole life of the hold, so without
-// remembering the answer a client who chose "Yo'q, advokatni kutaman" would
-// be asked again on every visit. Keyed by request id, in the same browser
-// storage the draft already uses.
-const ASK_KEY = "lexgo_doc_ctor_ask";
-function alreadyAsked(id: string): boolean {
-  if (typeof window === "undefined" || !id) return true;
-  try { return localStorage.getItem(`${ASK_KEY}_${id}`) === "1"; } catch { return true; }
-}
-function markAsked(id: string): void {
-  if (typeof window === "undefined" || !id) return;
-  try { localStorage.setItem(`${ASK_KEY}_${id}`, "1"); } catch { /* private mode */ }
-}
+// Whether this client has already been asked about THIS request — now in
+// lib/docCtorPrompt.ts, because the documents list asks the very same
+// question from the notification deep link and the two have to share one
+// answer. See that file for why the memory exists at all.
 
 function ConstructorEscape({ req, onOpenConstructor }: { req: DocumentRequest; onOpenConstructor?: () => void }) {
   const t = useTranslations("portal.client.documents");
@@ -694,8 +685,8 @@ export default function DocumentRequestPanel({
     const ca = req.constructorAction;
     if (!ca?.promptRequired || !ca.available) return;
     if (stage !== "lawyerReview" && stage !== "claimed") return;
-    if (alreadyAsked(req.id)) return;
-    markAsked(req.id);
+    if (ctorPromptAsked(req.id)) return;
+    markCtorPromptAsked(req.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAskCtor(true);
   }, [req.id, req.constructorAction, stage, inConstructor]);

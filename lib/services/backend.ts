@@ -1003,8 +1003,16 @@ export async function listSubscriptionPlansAdmin(locale = "uz"): Promise<{ plans
 }
 
 // ── Orders & cases ────────────────────────────────────────────────
+// LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: every record a person can be shown now
+// carries a short, prefixed, base36 id of its own — DOC-9M36Z, ADV-TI9N4,
+// CALL-83JVE, PAY-K1OWV — and that, never the UUID, is what a screen prints.
+// The UUID stays what routing and every API call use. There is deliberately
+// no "shorten the UUID instead" fallback: the MD rules it out by name, so a
+// record that arrives without one shows nothing and the gap is the backend's
+// to close.
 export type BackendCase = {
   id: string;
+  workId: string;
   caseNumber: string;
   caseType: string;
   stage: string;
@@ -1022,7 +1030,10 @@ function normCase(v: unknown): BackendCase {
   const d = asDict(v);
   return {
     id: asStr(d.id),
-    caseNumber: asStr(d.case_number ?? d.caseNumber),
+    workId: asStr(d.work_id),
+    // The MD sends these as the same CASE-XXXXX string; the fallback is for
+    // an endpoint that only learned about one of the two.
+    caseNumber: asStr(d.case_number ?? d.caseNumber ?? d.work_id),
     caseType: asStr(d.title ?? d.case_type ?? d.caseType),
     stage: asStr(d.stage),
     status: asStr(d.status),
@@ -1038,6 +1049,7 @@ function normCase(v: unknown): BackendCase {
 
 export type BackendOrder = {
   id: string;
+  workId: string;
   title: string;
   serviceName: string;
   status: string;
@@ -1063,6 +1075,7 @@ function normOrder(v: unknown): BackendOrder {
   const question = cleanDocText(asStr(details.question));
   return {
     id: asStr(d.id),
+    workId: asStr(d.work_id),
     title: question || cleanDocTitle(asStr(d.title ?? details.title ?? service.name)),
     serviceName: cleanDocTitle(asStr(service.name ?? service.title ?? d.service_name ?? d.service_title ?? details.service_title ?? details.service_name)),
     status: asStr(d.status),
@@ -1209,6 +1222,8 @@ export async function createCase(input: Record<string, unknown>): Promise<unknow
 
 // ── Demo purchase flows (LEXGO_FRONTEND_UPDATE.md) ────────────────
 export type PurchaseResult = {
+  workId: string;
+  paymentWorkId: string;
   paymentId: string;
   paymentStatus: string;
   paymentUrl?: string;
@@ -1236,6 +1251,8 @@ function normPurchase(v: unknown): PurchaseResult {
       ? d.payment
       : (payment.payment_url ?? payment.checkout_url ?? invoice.payment_url ?? invoice.url ?? d.payment_url ?? d.checkout_url);
   return {
+    workId: asStr(d.work_id),
+    paymentWorkId: asStr(payment.work_id ?? d.payment_work_id),
     paymentId: asStr(payment.id ?? d.payment_id ?? invoice.payment_id),
     paymentStatus: asStr(payment.status ?? d.payment_status ?? invoice.status),
     paymentUrl: safePaymentUrl(url) || undefined,
@@ -1357,6 +1374,10 @@ export type ManualDocBillingPeriod = "monthly" | "six_month" | "yearly" | "prepa
 export const BILLING_PERIODS: ManualDocBillingPeriod[] = ["monthly", "six_month", "yearly", "prepaid_yearly"];
 export type PlanPurchaseRequest = {
   id: string;
+  // SUB-ABCDE (LEXGO_PUBLIC_WORK_IDS_FRONTEND.md); the payment behind it
+  // carries its own PAY-XXXXX.
+  workId: string;
+  paymentWorkId: string;
   status: string;
   paymentId: string;
   planId: string;
@@ -1387,6 +1408,8 @@ export async function requestPlanTelegramPurchase(
   const results = asArr(d.telegram_results).map((x) => asDict(x));
   return {
     id: asStr(d.id),
+    workId: asStr(d.work_id),
+    paymentWorkId: asStr(d.payment_work_id ?? asDict(d.payment).work_id),
     status: asStr(d.status),
     paymentId: asStr(d.payment_id),
     planId: asStr(d.plan_id, planId),
@@ -3116,6 +3139,7 @@ export function callSocketUrl(roomId: string, callId: string, token?: string | n
 // ── Approvals (four-eyes) ─────────────────────────────────────────
 export type Approval = {
   id: string;
+  workId: string;
   type: string;
   status: string;
   adminApproved: boolean;
@@ -3126,6 +3150,7 @@ function normApproval(v: unknown): Approval {
   const d = asDict(v);
   return {
     id: asStr(d.id),
+    workId: asStr(d.work_id),
     type: asStr(d.request_type ?? d.type ?? d.kind),
     status: asStr(d.status),
     adminApproved: !!(d.admin_approved_by_user_id ?? d.admin_approved),
@@ -3149,6 +3174,7 @@ export async function managerApprove(id: string): Promise<Approval> {
 // ── Leads ─────────────────────────────────────────────────────────
 export type Lead = {
   id: string;
+  workId: string;
   name: string;
   phone: string;
   source: string;
@@ -3166,6 +3192,7 @@ function normLead(v: unknown): Lead {
   const det = asDict(d.details);
   return {
     id: asStr(d.id),
+    workId: asStr(d.work_id),
     name: asStr(det.name ?? d.name),
     phone: asStr(det.phone ?? d.phone),
     source: asStr(d.source),
@@ -4158,6 +4185,9 @@ export async function getPromotionAnalytics(): Promise<PromotionAnalytics> {
 // this does not need to take.
 const PROMOTION_PROVIDER = "telegram_manual";
 export type PromotionCheckout = PurchaseResult & {
+  // PROMO-XXXXX (LEXGO_PUBLIC_WORK_IDS_FRONTEND.md) — what the seller sees
+  // while the request waits on Telegram.
+  promotionWorkId: string;
   // "pending_telegram_approval" while an admin has not answered yet.
   promotionStatus: string;
   checkoutRequestId: string;
@@ -4178,6 +4208,7 @@ export async function checkoutPromotion(packageId: string, days: number): Promis
   const pay = asDict(d.payment);
   return {
     ...normPurchase(raw),
+    promotionWorkId: asStr(d.work_id ?? gate.work_id),
     promotionStatus: asStr(d.promotion_status),
     checkoutRequestId: asStr(d.checkout_request_id ?? gate.id),
     telegramSent: gate.telegram_sent === true,
@@ -4189,6 +4220,7 @@ export async function checkoutPromotion(packageId: string, days: number): Promis
 // ── Gifts ─────────────────────────────────────────────────────────
 export type Gift = {
   id: string;
+  workId: string;
   direction: string;
   recipientPhone: string;
   planName: string;
@@ -4204,6 +4236,7 @@ function normGift(v: unknown): Gift {
   const code = asStr(d.gift_code ?? d.code);
   return {
     id: asStr(d.id),
+    workId: asStr(d.work_id),
     direction: asStr(d.direction, "sent"),
     recipientPhone: asStr(d.recipient_phone),
     planName: asStr(d.plan_name ?? d.service_name),
@@ -5631,6 +5664,7 @@ export async function enableTotp(setupId: string, code: string): Promise<void> {
 // ── Payments history ──────────────────────────────────────────────
 export type PaymentHistory = {
   id: string;
+  workId: string;
   amount: number;
   currency: string;
   status: string;
@@ -5645,6 +5679,7 @@ function normPaymentHistory(v: unknown): PaymentHistory {
   const d = asDict(v);
   return {
     id: asStr(d.id),
+    workId: asStr(d.work_id),
     amount: uzs(d, "amount"),
     currency: asStr(d.currency, "UZS"),
     status: asStr(d.status),
@@ -5877,6 +5912,7 @@ export type CallQualityPolicy = {
 };
 export type CallSession = {
   id: string;
+  workId: string;
   roomId: string;
   callerUserId: string;
   callType: string;
@@ -6041,6 +6077,7 @@ function normCall(v: unknown): CallSession {
   const d = asDict(v);
   return {
     id: asStr(d.id),
+    workId: asStr(d.work_id),
     roomId: asStr(d.room_id),
     callerUserId: asStr(d.caller_user_id),
     callType: asStr(d.call_type),
@@ -6158,6 +6195,13 @@ export async function joinCall(roomId: string, callId: string): Promise<LiveKitJ
 // honoured. The fields are optional because every OTHER patch this function
 // sends (mic, screen, status, role) answers with a participant row that
 // carries neither.
+// The policy carried by a `call.upgraded_to_video` socket payload, which no
+// normalised call object passes through — the room reads it straight off the
+// event. Returns null for anything that is not a policy, so an event that
+// omits it falls back to the flag the room already holds.
+export function parseCallQualityPolicy(v: unknown): CallQualityPolicy | null {
+  return normQuality(v);
+}
 export type CallParticipantPatchResult = {
   callType: string;
   quality: CallQualityPolicy | null;
@@ -6195,6 +6239,7 @@ export async function endMeeting(roomId: string, callId: string): Promise<void> 
 // history page: who created it, how long it ran, how many joined.
 export type AdminCallRow = {
   id: string;
+  workId: string;
   status: string;
   title: string;
   callType: string;
@@ -6212,6 +6257,7 @@ function normAdminCallRow(v: unknown): AdminCallRow {
   const d = asDict(v);
   return {
     id: asStr(d.id ?? d.call_id),
+    workId: asStr(d.work_id),
     status: asStr(d.status),
     title: asStr(d.title),
     callType: asStr(d.call_type),
@@ -6390,6 +6436,7 @@ export async function searchUsers(q: string, opts?: { role?: string; limit?: num
 // only (403 for pending sellers and clients), 1GB quota per seller.
 export type WorkspaceFolder = {
   id: string;
+  workId: string;
   name: string;
   parentId?: string;
   caseId?: string;
@@ -6404,6 +6451,7 @@ function normFolder(v: unknown): WorkspaceFolder {
   const d = asDict(v);
   return {
     id: asStr(d.id),
+    workId: asStr(d.work_id),
     name: asStr(d.name),
     parentId: asStr(d.parent_id) || undefined,
     caseId: asStr(d.case_id) || undefined,
@@ -6442,6 +6490,7 @@ export async function deleteFolder(id: string): Promise<FolderDeleteResult> {
 
 export type WorkspaceFile = {
   id: string;
+  workId: string;
   folderId?: string;
   caseId?: string;
   fileName: string;
@@ -6462,6 +6511,7 @@ function normFile(v: unknown): WorkspaceFile {
   return {
     scan: Object.keys(sc).length ? { required: sc.scan_required !== false && sc.required !== false, status: asStr(sc.scan_status ?? sc.status).toLowerCase(), engine: asStr(sc.scan_engine ?? sc.engine), issues: asArr(sc.issues).map((x) => asStr(x)), scannedAt: asStr(sc.scanned_at) } : undefined,
     id: asStr(d.id),
+    workId: asStr(d.work_id),
     folderId: asStr(d.folder_id) || undefined,
     caseId: asStr(d.case_id) || undefined,
     fileName: asStr(d.file_name),
@@ -8097,6 +8147,7 @@ export type QualityComplaintRow = {
   // this did, left every Tezkor complaint looking like it had no work behind
   // it at all.
   documentRequestId: string;
+  urgentRequestId: string;
   detailUrl: string;
   createdAt: string;
   updatedAt: string;
@@ -8119,6 +8170,7 @@ function normQcRow(v: unknown): QualityComplaintRow {
     rating: asNum(pick("rating")),
     complaint: asStr(pick("complaint") ?? pick("description") ?? pick("text")),
     documentRequestId: asStr(pick("document_request_id")),
+    urgentRequestId: asStr(pick("urgent_advokat_request_id") ?? pick("urgent_request_id")),
     detailUrl: asStr(d.detail_url),
     createdAt: asStr(d.created_at),
     updatedAt: asStr(d.updated_at),

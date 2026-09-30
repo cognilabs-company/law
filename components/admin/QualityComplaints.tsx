@@ -19,7 +19,7 @@ import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText } from "@/components/icons";
+import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, IconBolt } from "@/components/icons";
 
 // LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §5.
 //
@@ -153,6 +153,20 @@ function QcDetail({ row, label, onDone }: { row: QualityComplaintRow; label: (s:
   const lr = asDict(blocks.lawyer_request);
   const review = asDict(blocks.review ?? blocks.rating);
   const fileUrl = asStr(doc.file_url ?? doc.download_url ?? lr.fulfill_file_url ?? lr.source_file_url);
+  // The other half of the queue. A complaint is opened by a 1-2 star rating
+  // on a document request OR on a Tezkor advocate record, and the detail
+  // carries `document` for the first and `urgent_request` for the second
+  // (LEXGO_RATING_COMPLAINT_WINDOW_2026-09-29.md, "Callcenter uchun"). Only
+  // the document block was read here, so an operator opening a Tezkor
+  // complaint saw the client's words and nothing about the work they were
+  // about — no service, no request, nothing to rule on.
+  const urg = asDict(blocks.urgent_request ?? blocks.urgent_advokat_request);
+  const urgPayload = asDict(urg.payload);
+  const urgPick = (k: string) => asStr(urg[k] === undefined || urg[k] === null ? urgPayload[k] : urg[k]);
+  const urgTitle = urgPick("title") || urgPick("service_title") || urgPick("service_kind");
+  const urgNeed = urgPick("need") || urgPick("description");
+  const urgStatus = urgPick("status_label") || (urgPick("status") ? label(urgPick("status")) : "");
+  const urgWorkId = urgPick("work_id") || row.urgentRequestId;
   // A ruling is only final once: the form disappears rather than inviting a
   // second POST the backend would refuse.
   const settled = row.status === "resolved" || row.status === "rejected" || row.status === "rework_required";
@@ -209,6 +223,20 @@ function QcDetail({ row, label, onDone }: { row: QualityComplaintRow; label: (s:
             <a className="btn btn--line btn--sm" href={fileUrl} target="_blank" rel="noopener noreferrer">
               {t("openFile")}
             </a>
+          ) : null}
+        </section>
+      ) : null}
+
+      {state === "ready" && (urgTitle || urgNeed) ? (
+        <section className="qcdet__b">
+          <b><IconBolt />{t("bUrgent")}</b>
+          {urgTitle ? <p>{urgTitle}</p> : null}
+          {urgNeed ? <p className="advmuted">{urgNeed}</p> : null}
+          {urgWorkId || urgStatus ? (
+            <p className="qcdet__urgmeta">
+              {urgWorkId ? <em className="qcdet__wid">{urgWorkId}</em> : null}
+              {urgStatus ? <span>{urgStatus}</span> : null}
+            </p>
           ) : null}
         </section>
       ) : null}

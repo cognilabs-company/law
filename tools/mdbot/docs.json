@@ -1,0 +1,16 @@
+{
+  "project": "LexGo",
+  "tagline": "O'zbekistonning yuridik xizmatlar ekotizimi",
+  "docs": [
+    {
+      "file": "../../md/LEXGO_LANDING_CONTENT_BRIEF.md",
+      "title": "Landing page — mazmun brifi",
+      "description": "Veb-saytning bosh sahifasi uchun to'liq kontent: loyiha nima, 3 ta auditoriya, muammo va yechim, 11 ta mahsulot bloki, barcha real narxlar va tariflar, biznes-model (10% avans, 18% komissiya), yo'nalishlar va ish bosqichlari, ishonch raqamlari, tayyor matnlar va 12 ta FAQ. Dizayn haqida emas — faqat mazmun."
+    },
+    {
+      "file": "../../md/LEXGO_MOBILE_APP_BRIEF_2026-09-29.md",
+      "title": "Mobil ilova — funksiya va mazmun brifi",
+      "description": "Mobil ilova uchun to'liq spetsifikatsiya: ikki rol (mijoz va advokat), auth va 2FA, mehmon kvotasi, LexGo.AI, advokat topish va buyurtma oqimi, hujjatlar, SOS va tezkor advokat, qo'ng'iroqlar (audio→video), obuna va to'lovlar, majburiy platforma qoidalari, 15 daqiqalik baholash oynasi, qisqa ish ID'lari, realtime hodisalar va mobil-specific talablar. Dizayn haqida emas."
+    }
+  ]
+}
