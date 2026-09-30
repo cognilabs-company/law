@@ -3257,7 +3257,6 @@ body:has(.schat) .fab{display:none}
 .ldrw__noteadd textarea:focus{border-color:var(--b400)}
 .ldrw__remind{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .ldrw__remind .mpick,.ldrw__remind .dpick{flex:1;min-width:150px}
-
 /* ── Sotuv voronkasi: the banner the page opens on ────────────────
    From the reference design for this page: what the screen is on the left,
    the artwork beside it, and the board's own progress on the right. Colours
@@ -11496,6 +11495,10 @@ html[data-theme="dark"] .splan--feat.splan--sel{
   .wfb__more{display:none}
   .wfb__more.is-open{display:grid}
   .wfb__chips{flex-direction:column;align-items:stretch;gap:6px}
+  .wfb__lbl{width:auto}
+}
+.wfb__flow{justify-self:start}
+@media (max-width:760px){.wfb__row{flex-wrap:wrap;overflow:visible}}
 .mkm{--mkm-done:#0ca30c;--mkm-active:#2a78d6;--mkm-pending:#fab219;--mkm-cancel:#d03b3b;--mkm-other:#898781;display:flex;flex-direction:column;gap:16px;min-width:0}
 html[data-theme="dark"] .mkm{--mkm-active:#3987e5}
 @keyframes mkm-ping{0%{box-shadow:0 0 0 0 rgba(61,220,151,.55)}70%{box-shadow:0 0 0 8px rgba(61,220,151,0)}100%{box-shadow:0 0 0 0 rgba(61,220,151,0)}}
@@ -11877,7 +11880,3 @@ html[data-theme="dark"] .mkm{--mkm-active:#3987e5}
   .mkm-hero__glow,.mkm-live,.mkm-journey__c,.mkm-kpi--ghost{animation:none}
   .mkm-kpi--btn:hover{transform:none}
 }
-  .wfb__lbl{width:auto}
-}
-.wfb__flow{justify-self:start}
-@media (max-width:760px){.wfb__row{flex-wrap:wrap;overflow:visible}}
