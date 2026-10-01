@@ -11883,3 +11883,65 @@ html[data-theme="dark"] .mkm{--mkm-active:#3987e5}
   .mkm-hero__glow,.mkm-live,.mkm-journey__c,.mkm-kpi--ghost{animation:none}
   .mkm-kpi--btn:hover{transform:none}
 }
+.mtg__bgwrap{position:absolute;inset:0;z-index:45;display:flex;align-items:flex-end;justify-content:center;padding:0 16px 104px;pointer-events:none;animation:mtgIn .2s ease}
+.mtg__bgpanel{width:min(640px,100%);max-height:min(660px,calc(100% - 150px));overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:14px;padding:16px 16px 14px;border-radius:20px;background:var(--b850);border:1px solid var(--mtg-line);box-shadow:0 30px 80px -20px rgba(0,0,0,.65);outline:none;scrollbar-width:thin;color:#fff;pointer-events:auto}
+.mtg__bggrip{display:none;flex:none;width:38px;height:4px;margin:2px auto 0;border-radius:999px;background:rgba(255,255,255,.25)}
+.mtg__bgh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mtg__bgh b{font-family:var(--fd);font-size:1.02rem;letter-spacing:-.01em}
+.mtg__bgx{display:grid;place-items:center;flex:none;width:32px;height:32px;border:0;border-radius:10px;background:rgba(255,255,255,.08);color:#cbd5e1;cursor:pointer;transition:background .15s,color .15s}
+.mtg__bgx:hover{background:rgba(255,255,255,.14);color:#fff}
+.mtg__bgx:focus-visible{outline:2px solid var(--b400);outline-offset:2px}
+.mtg__bgx svg{width:16px;height:16px}
+.mtg__bgnote{margin:0;padding:8px 12px;border-radius:12px;background:rgba(251,193,94,.12);color:#FBC15E;font-size:.82rem;line-height:1.45}
+.mtg__bgsec{display:flex;flex-direction:column;gap:8px}
+.mtg__bgcap{font-size:.68rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.mtg__bgrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mtg__bggrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.mtg__bgopt{position:relative;display:flex;flex-direction:column;gap:5px;min-width:0;width:100%;padding:0;border:0;background:none;color:#cbd5e1;font:inherit;text-align:left;cursor:pointer}
+.mtg__bgopt:focus-visible{outline:none}
+.mtg__bgpic{position:relative;display:grid;place-items:center;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);transition:box-shadow .15s,transform .15s}
+.mtg__bgpic img{width:100%;height:100%;object-fit:cover;display:block}
+.mtg__bgopt:hover .mtg__bgpic{box-shadow:inset 0 0 0 2px rgba(255,255,255,.35)}
+.mtg__bgopt:active .mtg__bgpic{transform:scale(.97)}
+.mtg__bgopt:focus-visible .mtg__bgpic{outline:2px solid #fff;outline-offset:2px}
+.mtg__bgopt[aria-pressed=true]{color:#fff}
+.mtg__bgopt[aria-pressed=true] .mtg__bgpic{box-shadow:inset 0 0 0 3px var(--b400),0 8px 22px -10px rgba(92,168,255,.9)}
+.mtg__bglbl{font-size:.74rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mtg__bgblur{transform:scale(1.18)}
+.mtg__bgblur--light{filter:blur(1.6px)}
+.mtg__bgblur--strong{filter:blur(4.5px)}
+.mtg__bgslash{position:relative;width:26px;height:26px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.6)}
+.mtg__bgslash::after{content:"";position:absolute;left:50%;top:-1px;bottom:-1px;width:2px;border-radius:2px;background:rgba(255,255,255,.6);transform:translateX(-50%) rotate(45deg)}
+.mtg__bgup .mtg__bgpic{background:rgba(92,168,255,.08);box-shadow:none;border:1.5px dashed rgba(92,168,255,.55)}
+.mtg__bgup:hover .mtg__bgpic{box-shadow:none;border-color:var(--b300);background:rgba(92,168,255,.14)}
+.mtg__bgup .mtg__bgpic svg{width:22px;height:22px;color:var(--b300)}
+.mtg__bgup:disabled{cursor:progress}
+.mtg__bgcustom{position:relative;min-width:0}
+.mtg__bgdel{position:absolute;top:6px;right:6px;z-index:1;display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:8px;background:rgba(4,12,31,.72);color:#fff;cursor:pointer;transition:background .15s}
+.mtg__bgdel:hover{background:#E5484D}
+.mtg__bgdel:focus-visible{outline:2px solid #fff;outline-offset:1px}
+.mtg__bgdel svg{width:14px;height:14px}
+.mtg__bgspin{position:absolute;inset:0;display:grid;place-items:center;background:rgba(4,12,31,.45)}
+.mtg__bgspin::after{content:"";width:22px;height:22px;border-radius:50%;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;animation:mk-spin .8s linear infinite}
+.mtg__bgerr{margin:0;padding:8px 12px;border-radius:12px;background:rgba(229,72,77,.14);color:#FF9494;font-size:.82rem;line-height:1.45}
+.mtg__bgfoot{margin:0;font-size:.74rem;color:rgba(255,255,255,.5);text-align:center}
+@media (max-width:760px){
+  .mtg__bgwrap{padding:0;pointer-events:auto;background:rgba(3,16,43,.45);backdrop-filter:blur(2px)}
+  .mtg__bgpanel{width:100%;max-height:84%;border-radius:20px 20px 0 0;border-width:1px 0 0;padding:6px 14px calc(14px + env(safe-area-inset-bottom));animation:mtgSheet .25s ease}
+  .mtg__bggrip{display:block}
+  .mtg__bggrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (min-width:761px) and (max-height:560px){
+  .mtg__bgwrap{padding:0 16px;pointer-events:auto;background:rgba(3,16,43,.45);backdrop-filter:blur(2px)}
+  .mtg__bgpanel{max-height:92%;border-radius:20px 20px 0 0;border-bottom-width:0;padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+}
+@media (min-width:761px) and (max-width:1000px){
+  .mtg:not(.mtg--float) .mtg__bar{flex-wrap:wrap;row-gap:2px}
+  .mtg:not(.mtg--float) .mtg__bar>.mtg__ctl{flex:1 1 72px;max-width:max-content}
+}
+.mtg:has(.mtg__bgwrap) .mtg__toasts{z-index:46}
+.mtg__moresheet{max-height:100%;overflow-y:auto;overscroll-behavior:contain}
+@media (prefers-reduced-motion:reduce){
+  .mtg__bgwrap,.mtg__bgpanel{animation:none}
+  .mtg__bgopt:active .mtg__bgpic{transform:none}
+}

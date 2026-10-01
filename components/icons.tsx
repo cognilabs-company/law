@@ -491,6 +491,15 @@ export const IconMoreHorizontal = (p: P) => (
   </svg>
 );
 
+export const IconBgPerson = (p: P) => (
+  <svg {...base} {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="3" />
+    <circle cx="12" cy="10.5" r="2.8" />
+    <path d="M6.8 20a5.2 5.2 0 0110.4 0" />
+    <path d="M17.5 7.5h.01M6.5 7.5h.01" />
+  </svg>
+);
+
 export const IconImage = (p: P) => (
   <svg {...base} {...p}>
     <rect x="3" y="3" width="18" height="18" rx="3" />

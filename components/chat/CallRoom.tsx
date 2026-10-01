@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   Room,
@@ -12,6 +12,7 @@ import {
   isVideoCodec,
   type ConnectionQuality,
   type LocalParticipant,
+  type LocalTrackPublication,
   type LocalVideoTrack,
   type Participant,
   type RemoteParticipant,
@@ -60,7 +61,9 @@ import SearchSelect from "@/components/SearchSelect";
 import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, primeCallAudio } from "@/lib/callSounds";
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
-import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord } from "../icons";
+import { NO_BG, bgSupported, getBgEffect, preloadBgAssets, serverBgEffect, setBgEffect, setBgOwner, subscribeBgEffect, syncBackground, type BgEffect, type BgHooks } from "@/lib/callBackground";
+import CallBackgroundPicker from "./CallBackgroundPicker";
+import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson } from "../icons";
 import { regionLabel } from "@/lib/labels";
 
 type Props = {
@@ -545,6 +548,48 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const nameOf = useCallback((p: Participant) => roster.find((r) => r.userId === p.identity)?.name || p.name || t("someone"), [roster, t]);
   const nameOfRef = useRef(nameOf);
   useEffect(() => { nameOfRef.current = nameOf; }, [nameOf]);
+
+  const [bgOpen, setBgOpen] = useState(false);
+  const bgOk = useSyncExternalStore(noopSubscribe, bgSupported, serverFalse);
+  const bgEffect = useSyncExternalStore(subscribeBgEffect, getBgEffect, serverBgEffect);
+  const bgHooks = useRef<BgHooks>({});
+  useEffect(() => {
+    bgHooks.current = {
+      onError: () => toast(t("bg.failed"), "leave"),
+      onSlow: () => {
+        toast(t("bg.slow"), "leave");
+        setBgEffect(NO_BG);
+      },
+    };
+  });
+  const syncBg = useCallback(() => {
+    const track = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Camera)?.track as LocalVideoTrack | undefined;
+    if (!track) return;
+    void syncBackground(track, bgHooks.current);
+  }, []);
+  const pickBg = useCallback((next: BgEffect) => {
+    setBgEffect(next);
+    syncBg();
+  }, [syncBg]);
+  const closeBg = useCallback(() => setBgOpen(false), []);
+  useEffect(() => {
+    setBgOwner(session?.id ?? null);
+  }, [session?.id]);
+  useEffect(() => {
+    if (!room || !bgOk) return;
+    const onPublished = (pub: LocalTrackPublication) => { if (pub.source === Track.Source.Camera) syncBg(); };
+    const onUnmuted = (pub: TrackPublication, p: Participant) => { if (p.isLocal && pub.source === Track.Source.Camera) syncBg(); };
+    room.on(RoomEvent.LocalTrackPublished, onPublished);
+    room.on(RoomEvent.TrackUnmuted, onUnmuted);
+    const unsubscribe = subscribeBgEffect(syncBg);
+    if (getBgEffect().kind !== "none") preloadBgAssets();
+    syncBg();
+    return () => {
+      room.off(RoomEvent.LocalTrackPublished, onPublished);
+      room.off(RoomEvent.TrackUnmuted, onUnmuted);
+      unsubscribe();
+    };
+  }, [room, bgOk, syncBg]);
 
   useEffect(() => {
     let alive = true;
@@ -2203,9 +2248,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             ) : null}
             {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }}><IconRecord />{recOn ? t("recStop", { mode: t(recMode === "screen" ? "recModeScreen" : "recModeAudio") }) : recReq ? t("recWaitingShort") : t("recStart")}</button> : null}
             <button type="button" onClick={() => { setMore(false); setView(view === "grid" ? "speaker" : "grid"); }}>{view === "grid" ? <IconUser /> : <IconGrid />}{view === "grid" ? t("layoutSpeaker") : t("layoutGrid")}</button>
+            {camControl && bgOk ? <button type="button" onClick={() => { setMore(false); setBgOpen(true); }}><IconBgPerson />{t("bg.button")}</button> : null}
           </div>
         </div>
       ) : null}
+
+      {bgOpen && camControl && bgOk ? <CallBackgroundPicker camOn={camOn} onClose={closeBg} onPick={pickBg} /> : null}
 
       <footer className="mtg__bar">
         {/* Mic: both glyphs stay mounted and CSS reveals exactly one, so the
@@ -2225,6 +2273,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             on would publish a track the backend never provisioned for. */}
         {camControl ? <Ctl on={camOn} off={!camOn} label={canUpgradeToVideo ? t("camUpgrade") : camOn ? t("camOff2") : t("camOn")} onClick={toggleCam} disabled={camBusy}><IconVideo /></Ctl> : null}
         {videoAllowed && camOn && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
+        {camControl && bgOk ? <Ctl on={bgOpen || bgEffect.kind !== "none"} label={t("bg.button")} onClick={() => setBgOpen((v) => !v)} desktop><IconBgPerson /></Ctl> : null}
         {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing} desktop><IconMonitor /></Ctl> : null}
         {canRecord() ? <Ctl on={recOn || !!recReq} label={recOn ? t("recStopShort") : recReq ? t("recWaitingShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} disabled={!!recReq} desktop><IconRecord /></Ctl> : null}
         <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")} desktop><IconUsers /></Ctl>
@@ -2265,6 +2314,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     </div>
   );
 }
+
+const noopSubscribe = () => () => {};
+const serverFalse = () => false;
 
 function Ctl({ children, label, aria, onClick, on, off, end, accent, rec, mic, pressed, disabled, title, badge, desktop, phone }: { children: ReactNode; label: string; aria?: string; onClick: () => void; on?: boolean; off?: boolean; end?: boolean; accent?: boolean; rec?: boolean; mic?: boolean; pressed?: boolean; disabled?: boolean; title?: string; badge?: number; desktop?: boolean; phone?: boolean }) {
   return (

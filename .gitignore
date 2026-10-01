@@ -49,3 +49,5 @@ next-env.d.ts
 # Telegram MD bot — local state, never commit
 /tools/mdbot/subscribers.json
 /tools/mdbot/.offset
+
+/public/mediapipe/wasm/
