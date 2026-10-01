@@ -19,7 +19,7 @@ import {
 } from "@/lib/callBackground";
 import { IconClose, IconPlus, IconTrash } from "../icons";
 
-const BLUR_PREVIEW = "/meeting-bg/thumbs/office.webp";
+const BLUR_PREVIEW = "/meeting-bg/thumbs/modern-office.webp";
 
 function Opt({ label, selected, busy, onClick, children, className = "" }: { label: string; selected: boolean; busy: boolean; onClick: () => void; children: ReactNode; className?: string }) {
   return (

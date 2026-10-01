@@ -33,8 +33,8 @@ function mediapipeVersion(): string {
   const copied = copiedMediapipe();
   if (copied.length === 1) return copied[0];
   try {
-    const pkg = JSON.parse(readFileSync(path.join(process.cwd(), "node_modules", "@livekit", "track-processors", "package.json"), "utf8"));
-    return String(pkg.dependencies?.["@mediapipe/tasks-vision"] ?? "");
+    const pkg = JSON.parse(readFileSync(path.join(process.cwd(), "node_modules", "@mediapipe", "tasks-vision", "package.json"), "utf8"));
+    return String(pkg.version ?? "");
   } catch {
     return "";
   }

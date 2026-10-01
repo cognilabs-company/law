@@ -19,6 +19,7 @@ import {
   type RemoteTrack,
   type RoomOptions,
   type TrackPublication,
+  type VideoCaptureOptions,
   type VideoEncoding,
   type VideoResolution,
 } from "livekit-client";
@@ -61,7 +62,7 @@ import SearchSelect from "@/components/SearchSelect";
 import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, primeCallAudio } from "@/lib/callSounds";
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
-import { NO_BG, bgSupported, getBgEffect, preloadBgAssets, serverBgEffect, setBgEffect, setBgOwner, subscribeBgEffect, syncBackground, type BgEffect, type BgHooks } from "@/lib/callBackground";
+import { NO_BG, bgSupported, cameraProcessor, getBgEffect, preloadBgAssets, serverBgEffect, setBgEffect, releaseBackgroundEngine, retainBackgroundEngine, setBgOwner, subscribeBgEffect, syncBackground, type BgEffect, type BgHooks } from "@/lib/callBackground";
 import CallBackgroundPicker from "./CallBackgroundPicker";
 import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson } from "../icons";
 import { regionLabel } from "@/lib/labels";
@@ -162,7 +163,7 @@ const micPublishOf = (pol: CallQualityPolicy | null) =>
 // publication, so simulcast layers split it in proportion to pixel count
 // (bitrate goes with area: a layer at scaleResolutionDownBy 2 gets a quarter)
 // and their total lands on the ceiling instead of each layer claiming it.
-async function capSender(track: LocalVideoTrack | undefined, ceiling: number) {
+async function capSender(track: LocalVideoTrack | undefined, ceiling: number, fps = 0) {
   const sender = track?.sender;
   if (!sender || ceiling <= 0) return;
   try {
@@ -174,7 +175,10 @@ async function capSender(track: LocalVideoTrack | undefined, ceiling: number) {
       return 1 / (s * s);
     };
     const total = encs.reduce((sum, e) => sum + area(e), 0) || 1;
-    for (const e of encs) e.maxBitrate = Math.max(1, Math.round((ceiling * area(e)) / total));
+    for (const e of encs) {
+      e.maxBitrate = Math.max(1, Math.round((ceiling * area(e)) / total));
+      if (fps > 0) e.maxFramerate = fps;
+    }
     await sender.setParameters(params);
   } catch {
     // The browser refuses setParameters mid-negotiation; the next rung change
@@ -182,8 +186,12 @@ async function capSender(track: LocalVideoTrack | undefined, ceiling: number) {
     // running one rung too wide is still a call.
   }
 }
-const capCamera = (lp: LocalParticipant, ceiling: number) =>
-  capSender(lp.getTrackPublication(Track.Source.Camera)?.track as LocalVideoTrack | undefined, ceiling);
+const capCamera = (lp: LocalParticipant, ceiling: number, fps = 0) =>
+  capSender(lp.getTrackPublication(Track.Source.Camera)?.track as LocalVideoTrack | undefined, ceiling, fps);
+const withBackground = async (options: VideoCaptureOptions | undefined): Promise<VideoCaptureOptions | undefined> => {
+  const processor = await cameraProcessor();
+  return processor ? { ...options, processor } : options;
+};
 // Room options are frozen at construction, so the policy has to be in hand
 // before `new Room` — hence the fetch on the connect path rather than a
 // later hand-off from the meta poll. Without a policy this returns exactly
@@ -576,6 +584,10 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     setBgOwner(session?.id ?? null);
   }, [session?.id]);
   useEffect(() => {
+    retainBackgroundEngine();
+    return () => releaseBackgroundEngine();
+  }, []);
+  useEffect(() => {
     if (!room || !bgOk) return;
     const onPublished = (pub: LocalTrackPublication) => { if (pub.source === Track.Source.Camera) syncBg(); };
     const onUnmuted = (pub: TrackPublication, p: Participant) => { if (p.isLocal && pub.source === Track.Source.Camera) syncBg(); };
@@ -590,6 +602,15 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       unsubscribe();
     };
   }, [room, bgOk, syncBg]);
+  const bgWarned = useRef(false);
+  useEffect(() => {
+    if (!room || bgOk || bgWarned.current || getBgEffect().kind === "none") return;
+    const id = setTimeout(() => {
+      bgWarned.current = true;
+      toast(t("bg.unavailable"), "leave");
+    }, 0);
+    return () => clearTimeout(id);
+  }, [room, bgOk, toast, t]);
 
   useEffect(() => {
     let alive = true;
@@ -703,7 +724,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         autoCamOffRef.current = false;
         profileRef.current = name;
         await lp.setCameraEnabled(true, { facingMode: facingRef.current, resolution: resOf(prof) }, encOf(prof) ? { videoEncoding: encOf(prof) } : undefined).catch(() => {});
-        await capCamera(lp, prof.maxBitrate);
+        await capCamera(lp, prof.maxBitrate, prof.fps);
         if (alive) { setCamOn(true); bump(); }
         return;
       }
@@ -717,7 +738,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // …and restartTrack only moves the CAMERA. The rung's `max_bitrate` is a
       // publish ceiling, so it has to be pushed at the sender separately or a
       // downgrade to `low` would keep sending 450 kbit/s of a 320x180 picture.
-      await capCamera(lp, prof.maxBitrate);
+      await capCamera(lp, prof.maxBitrate, prof.fps);
     };
     const onQuality = (q: ConnectionQuality, p: Participant) => {
       // Remote participants rate their own uplink; only mine says anything
@@ -856,7 +877,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           // well — otherwise a reconnect silently promotes a `low` call to a
           // 2.5 Mbit/s one on the very link that just failed.
           .setCameraEnabled(true, prof ? { facingMode: facingRef.current, resolution: resOf(prof) } : undefined, encOf(prof) ? { videoEncoding: encOf(prof) } : undefined)
-          .then(() => capCamera(lp, prof ? prof.maxBitrate : 0))
+          .then(() => capCamera(lp, prof ? prof.maxBitrate : 0, prof ? prof.fps : 0))
           .then(() => { if (alive) { setCamOn(true); bump(); } })
           .catch(() => {});
       })
@@ -938,8 +959,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               // and the connection-quality actions climb from there — at that
               // rung's 160 kbit/s ceiling, not the SDK's 720p default.
               try {
-                await r.localParticipant.setCameraEnabled(true, low ? { facingMode: "user", resolution: resOf(low) } : undefined, encOf(low) ? { videoEncoding: encOf(low) } : undefined);
-                if (low) await capCamera(r.localParticipant, low.maxBitrate);
+                await r.localParticipant.setCameraEnabled(true, await withBackground(low ? { facingMode: "user", resolution: resOf(low) } : undefined), encOf(low) ? { videoEncoding: encOf(low) } : undefined);
+                if (low) await capCamera(r.localParticipant, low.maxBitrate, low.fps);
               } catch { if (alive) setCamOn(false); }
             } else if (alive) setCamOn(false);
           }
@@ -1268,7 +1289,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         const prof = qualityRef.current?.profiles[profileRef.current] ?? qualityRef.current?.profiles.low;
         void lp
           .setCameraEnabled(true, prof ? { facingMode: facingRef.current, resolution: resOf(prof) } : undefined, encOf(prof) ? { videoEncoding: encOf(prof) } : undefined)
-          .then(() => capCamera(lp, prof ? prof.maxBitrate : 0))
+          .then(() => capCamera(lp, prof ? prof.maxBitrate : 0, prof ? prof.fps : 0))
           .then(() => setCamOn(true))
           .catch(() => {});
       }
@@ -1440,8 +1461,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // §quality_policy L54-57 ceiling — the policy governs the link, not the
       // reason the track exists.
       const prof = camProfile();
-      await r.localParticipant.setCameraEnabled(on, on ? { facingMode: facingRef.current, resolution: camResolution() } : undefined, on && encOf(prof) ? { videoEncoding: encOf(prof) } : undefined);
-      if (on && prof) await capCamera(r.localParticipant, prof.maxBitrate);
+      await r.localParticipant.setCameraEnabled(on, on ? await withBackground({ facingMode: facingRef.current, resolution: camResolution() }) : undefined, on && encOf(prof) ? { videoEncoding: encOf(prof) } : undefined);
+      if (on && prof) await capCamera(r.localParticipant, prof.maxBitrate, prof.fps);
       setCamOn(on);
       bump();
       syncSelf({ camera_enabled: on });
@@ -1489,7 +1510,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // Both paths above leave a fresh encoder behind (restartTrack swaps the
       // capture track, switchActiveDevice swaps the device), so the rung's
       // ceiling is restated rather than left to the SDK default.
-      await capCamera(r.localParticipant, camProfile()?.maxBitrate ?? 0);
+      await capCamera(r.localParticipant, camProfile()?.maxBitrate ?? 0, camProfile()?.fps ?? 0);
       setMirror(next === "user");
       bump();
     } catch { /* ignore */ } finally {
@@ -1518,7 +1539,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // simulcast layer the SDK added beside it, so the whole publication
       // stays inside the 500 kbit/s the backend allotted.
       if (!sharing && ss && ss.maxBitrate > 0) {
-        await capSender(r.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track as LocalVideoTrack | undefined, ss.maxBitrate);
+        await capSender(r.localParticipant.getTrackPublication(Track.Source.ScreenShare)?.track as LocalVideoTrack | undefined, ss.maxBitrate, ss.fps);
       }
       setSharing(!sharing);
       syncSelf({ screen_enabled: !sharing });

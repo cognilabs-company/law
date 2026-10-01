@@ -11896,7 +11896,7 @@ html[data-theme="dark"] .mkm{--mkm-active:#3987e5}
 .mtg__bgsec{display:flex;flex-direction:column;gap:8px}
 .mtg__bgcap{font-size:.68rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.55)}
 .mtg__bgrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.mtg__bggrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.mtg__bggrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .mtg__bgopt{position:relative;display:flex;flex-direction:column;gap:5px;min-width:0;width:100%;padding:0;border:0;background:none;color:#cbd5e1;font:inherit;text-align:left;cursor:pointer}
 .mtg__bgopt:focus-visible{outline:none}
 .mtg__bgpic{position:relative;display:grid;place-items:center;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);transition:box-shadow .15s,transform .15s}

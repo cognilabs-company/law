@@ -8232,18 +8232,14 @@
       "privacy": "Fon qurilmangizning o'zida qayta ishlanadi.",
       "failed": "Fon effektini yoqib bo'lmadi — kamera effektsiz ishlayapti.",
       "slow": "Qurilma fon effektini tortolmayapti — effekt o'chirildi.",
+      "unavailable": "Fon effekti bu qurilmada ishlamaydi — kamerangiz haqiqiy fonni ko'rsatadi.",
       "images": {
-        "lexgo-blue": "LexGo",
-        "study": "Kabinet",
-        "library": "Kutubxona",
-        "office": "Ofis",
-        "home": "Uy ofisi",
-        "openspace": "Ochiq ofis",
+        "law-library": "Huquqiy kutubxona",
+        "advocate-office": "Advokat kabineti",
+        "modern-office": "Zamonaviy ofis",
+        "calm-home": "Uy",
         "tashkent": "Toshkent",
-        "chimgan": "Chimyon",
-        "bokeh": "Bokeh",
-        "dawn": "Tong",
-        "night": "Tun"
+        "blue-wall": "Ko'k devor"
       }
     },
     "extPeerNo": "Mijoz uzaytirishni rad etdi.",

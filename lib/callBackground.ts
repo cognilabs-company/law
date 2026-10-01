@@ -1,5 +1,5 @@
-import type { LocalVideoTrack } from "livekit-client";
-import type { BackgroundOptions, BackgroundProcessorWrapper, SwitchBackgroundProcessorOptions } from "@livekit/track-processors";
+import type { LocalTrack, LocalVideoTrack } from "livekit-client";
+import { BackgroundEngineProcessor, ENGINE_NAME, engineGeneration, engineTransport, isEngineStopped, releaseEngine, retainEngine, setEngineEffect, warmEngine, type EngineEffect, type EngineTrouble } from "./bgEngine/engine";
 
 export type BlurLevel = "light" | "strong";
 export type BgEffect = { kind: "none" } | { kind: "blur"; level: BlurLevel } | { kind: "image"; id: string };
@@ -9,7 +9,7 @@ export type BgHooks = { onSlow?: () => void; onError?: (e: unknown) => void };
 
 export const CUSTOM_BG = "custom";
 export const NO_BG: BgEffect = { kind: "none" };
-export const BG_IMAGES: BgImage[] = ["lexgo-blue", "study", "library", "office", "home", "openspace", "tashkent", "chimgan", "bokeh", "dawn", "night"].map((id) => ({
+export const BG_IMAGES: BgImage[] = ["law-library", "advocate-office", "modern-office", "calm-home", "tashkent", "blue-wall"].map((id) => ({
   id,
   src: `/meeting-bg/${id}.webp`,
   thumb: `/meeting-bg/thumbs/${id}.webp`,
@@ -17,14 +17,6 @@ export const BG_IMAGES: BgImage[] = ["lexgo-blue", "study", "library", "office",
 
 const EFFECT_KEY = "lexgo_call_bg";
 const CUSTOM_KEY = "lexgo_call_bg_custom";
-const PROCESSOR_NAME = "lexgo-background";
-const BLUR_RADIUS: Record<BlurLevel, number> = { light: 6, strong: 14 };
-const ASSETS = { tasksVisionFileSet: `/mediapipe/wasm/${process.env.MEDIAPIPE_VERSION}`, modelAssetPath: "/mediapipe/models/selfie_segmenter.tflite" };
-const PASSTHROUGH: BackgroundOptions = { blurRadius: undefined, imagePath: undefined, backgroundDisabled: true };
-const SLOW_FRAME_MS = 85;
-const SLOW_WINDOW = 120;
-const WARMUP_FRAMES = 60;
-const GAP_MS = 1000;
 const CUSTOM_EDGE = 1280;
 const CUSTOM_MAX_BYTES = 20 * 1024 * 1024;
 
@@ -148,145 +140,32 @@ export function bgImageSrc(id: string): string | null {
   return BG_IMAGES.find((b) => b.id === id)?.src ?? null;
 }
 
-let supported: boolean | null = null;
-
 export function bgSupported(): boolean {
-  if (typeof window === "undefined") return false;
-  if (supported !== null) return supported;
-  try {
-    const canvas = document.createElement("canvas");
-    const gl = canvas.getContext("webgl2");
-    const transformer = typeof OffscreenCanvas !== "undefined" && typeof VideoFrame !== "undefined" && typeof createImageBitmap !== "undefined" && !!gl;
-    gl?.getExtension("WEBGL_lose_context")?.loseContext();
-    const modern = typeof MediaStreamTrackGenerator !== "undefined" && typeof MediaStreamTrackProcessor !== "undefined";
-    const fallback = typeof HTMLCanvasElement !== "undefined" && typeof VideoFrame !== "undefined" && "captureStream" in HTMLCanvasElement.prototype;
-    supported = transformer && (modern || fallback);
-  } catch {
-    supported = false;
-  }
-  return supported;
-}
-
-let assetCheck: Promise<typeof ASSETS | undefined> | null = null;
-
-function localAssets(): Promise<typeof ASSETS | undefined> {
-  if (!assetCheck) {
-    const ok = (url: string) =>
-      fetch(url, { cache: "force-cache" })
-        .then((r) => (r.ok ? r.arrayBuffer().then(() => true) : false))
-        .catch(() => false);
-    const base = ASSETS.tasksVisionFileSet;
-    assetCheck = Promise.all([ok(`${base}/vision_wasm_internal.js`), ok(`${base}/vision_wasm_internal.wasm`), ok(ASSETS.modelAssetPath)]).then((all) =>
-      all.every(Boolean) ? ASSETS : undefined,
-    );
-  }
-  return assetCheck;
+  return engineTransport() !== null;
 }
 
 export function preloadBgAssets() {
-  if (!bgSupported()) return;
-  void import("@livekit/track-processors").catch(() => null);
-  void localAssets();
+  if (bgSupported()) void warmEngine();
 }
 
-function optionsOf(e: BgEffect): SwitchBackgroundProcessorOptions | null {
-  if (e.kind === "blur") return { mode: "background-blur", blurRadius: BLUR_RADIUS[e.level] };
-  if (e.kind === "image") {
-    const src = bgImageSrc(e.id);
-    return src ? { mode: "virtual-background", imagePath: src } : null;
-  }
-  return null;
+export function retainBackgroundEngine() {
+  retainEngine();
 }
 
-type Watch = { reset: () => void; onSlow?: () => void };
-const watches = new WeakMap<BackgroundProcessorWrapper, Watch>();
-const applied = new WeakMap<BackgroundProcessorWrapper, string>();
-
-function watcher(hooks: BgHooks) {
-  let samples: number[] = [];
-  let fired = false;
-  let seen = 0;
-  let last = 0;
-  const restart = () => {
-    samples = [];
-    seen = 0;
-  };
-  const w: Watch = {
-    onSlow: hooks.onSlow,
-    reset: () => {
-      restart();
-      fired = false;
-    },
-  };
-  const onFrame = (s: { processingTimeMs: number }) => {
-    if (fired) return;
-    const now = performance.now();
-    if (now - last > GAP_MS) restart();
-    last = now;
-    seen += 1;
-    if (seen <= WARMUP_FRAMES) return;
-    samples.push(s.processingTimeMs);
-    if (samples.length > SLOW_WINDOW) samples = samples.slice(-SLOW_WINDOW);
-    if (samples.length < SLOW_WINDOW) return;
-    const median = [...samples].sort((a, b) => a - b)[samples.length >> 1];
-    if (median > SLOW_FRAME_MS) {
-      fired = true;
-      w.onSlow?.();
-    }
-  };
-  return { w, onFrame };
+export function releaseBackgroundEngine() {
+  releaseEngine();
 }
 
-function guard(proc: BackgroundProcessorWrapper) {
-  const restart = proc.restart.bind(proc);
-  const destroy = proc.destroy.bind(proc);
-  let restarting = false;
-  let dropped = false;
-  proc.destroy = async (opts) => {
-    if (restarting && !opts?.willProcessorRestart) dropped = true;
-    await destroy(opts);
-  };
-  proc.restart = async (opts) => {
-    restarting = true;
-    dropped = false;
-    try {
-      await restart(opts);
-    } finally {
-      restarting = false;
-      if (dropped) {
-        await destroy().catch(() => null);
-        opts.track.stop();
-      }
-    }
-  };
-}
-
-const keyOf = (e: BgEffect) =>
-  e.kind === "blur" ? `blur:${e.level}` : e.kind === "image" ? `image:${e.id}${e.id === CUSTOM_BG ? `:${customVersion}` : ""}` : "none";
-
-async function createProcessor(e: BgEffect, hooks: BgHooks): Promise<BackgroundProcessorWrapper | null> {
-  const opts = optionsOf(e);
-  if (!opts) return null;
-  const [{ BackgroundProcessor }, assetPaths] = await Promise.all([import("@livekit/track-processors"), localAssets()]);
-  const coarse = typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
-  const { w, onFrame } = watcher(hooks);
-  const proc = BackgroundProcessor({ ...opts, assetPaths, maxFps: coarse ? 24 : 30, onFrameProcessed: onFrame }, PROCESSOR_NAME) as BackgroundProcessorWrapper;
-  guard(proc);
-  watches.set(proc, w);
-  return proc;
-}
-
-async function release(track: LocalVideoTrack, proc: BackgroundProcessorWrapper) {
-  if (!track.isMuted) {
-    await track.stopProcessor();
-    return;
-  }
-  if (applied.get(proc) === "none") return;
-  await proc.updateTransformerOptions(PASSTHROUGH);
-  applied.set(proc, "none");
+function engineEffectOf(e: BgEffect): EngineEffect | null {
+  if (e.kind === "none") return { kind: "none" };
+  if (e.kind === "blur") return { kind: "blur", level: e.level };
+  const src = bgImageSrc(e.id);
+  if (!src) return null;
+  return { kind: "image", src, key: e.id === CUSTOM_BG ? `${CUSTOM_BG}:${customVersion}` : e.id };
 }
 
 let chain: Promise<unknown> = Promise.resolve();
+let latestHooks: BgHooks = {};
 
 function serial<T>(fn: () => Promise<T>): Promise<T> {
   const run = chain.then(fn, fn);
@@ -294,35 +173,52 @@ function serial<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-function oursOn(track: LocalVideoTrack): BackgroundProcessorWrapper | undefined {
-  const current = track.getProcessor() as BackgroundProcessorWrapper | undefined;
-  return current && current.name === PROCESSOR_NAME ? current : undefined;
+function oursOn(track: LocalTrack): boolean {
+  const current = track.getProcessor();
+  return !!current && current.name === ENGINE_NAME;
 }
 
-async function syncOnce(track: LocalVideoTrack, hooks: BgHooks): Promise<boolean> {
-  const want = getBgEffect();
-  const ours = oursOn(track);
-  const opts = optionsOf(want);
-  if (!opts) {
-    if (ours) await release(track, ours);
-    return true;
+function onTrouble(reason: EngineTrouble, error: string | undefined, track: LocalTrack | null) {
+  setBgEffect(NO_BG);
+  const hooks = latestHooks;
+  if (reason === "slow") {
+    hooks.onSlow?.();
+    return;
   }
-  if (ours) {
-    const w = watches.get(ours);
-    if (w) w.onSlow = hooks.onSlow;
-    if (applied.get(ours) === keyOf(want)) return true;
-    await ours.switchTo(opts);
-    applied.set(ours, keyOf(want));
-    w?.reset();
+  hooks.onError?.(new Error(error || "background effect failed"));
+  void serial(async () => {
+    if (track && oursOn(track)) await track.stopProcessor().catch(() => null);
+  });
+}
+
+export async function cameraProcessor(): Promise<BackgroundEngineProcessor | undefined> {
+  const fx = engineEffectOf(getBgEffect());
+  if (!fx || fx.kind === "none" || !bgSupported()) return undefined;
+  try {
+    if (!(await warmEngine())) return undefined;
+    await setEngineEffect(fx);
+  } catch {
+    return undefined;
+  }
+  return new BackgroundEngineProcessor(onTrouble);
+}
+
+async function syncOnce(track: LocalVideoTrack): Promise<boolean> {
+  const want = getBgEffect();
+  const fx = engineEffectOf(want);
+  if (!fx) return false;
+  if (oursOn(track) || fx.kind === "none") {
+    await setEngineEffect(fx);
     return true;
   }
   if (track.getProcessor() || track.isMuted || !track.sender || !bgSupported()) return false;
-  const proc = await createProcessor(want, hooks);
-  if (!proc || getBgEffect() !== want || track.getProcessor() || track.isMuted || !track.sender) return false;
+  if (!(await warmEngine())) throw new Error("background engine unavailable");
+  await setEngineEffect(fx);
+  if (getBgEffect() !== want || track.getProcessor() || track.isMuted || !track.sender) return false;
+  const processor = new BackgroundEngineProcessor(onTrouble);
   await track.pauseUpstream();
   try {
-    await track.setProcessor(proc);
-    applied.set(proc, keyOf(want));
+    await track.setProcessor(processor);
   } finally {
     await track.resumeUpstream();
   }
@@ -330,16 +226,17 @@ async function syncOnce(track: LocalVideoTrack, hooks: BgHooks): Promise<boolean
 }
 
 export function syncBackground(track: LocalVideoTrack | undefined, hooks: BgHooks = {}): Promise<boolean> {
+  latestHooks = hooks;
   if (!track) return Promise.resolve(false);
+  const started = engineGeneration();
   return serial(async () => {
     patchStatus({ pending: true });
     try {
-      return await syncOnce(track, hooks);
+      return await syncOnce(track);
     } catch (e) {
-      if (!track.sender) return false;
+      if (isEngineStopped(e) || !track.sender || engineGeneration() !== started) return false;
       setBgEffect(NO_BG);
-      const ours = oursOn(track);
-      if (ours) await release(track, ours).catch(() => null);
+      if (oursOn(track)) await setEngineEffect({ kind: "none" }).catch(() => null);
       hooks.onError?.(e);
       return false;
     } finally {

@@ -8226,18 +8226,14 @@
       "privacy": "The background is processed on your device.",
       "failed": "Couldn't turn on the background effect — the camera keeps working without it.",
       "slow": "Your device can't keep up with the background effect — it was turned off.",
+      "unavailable": "Background effects aren't supported on this device — your camera shows your real background.",
       "images": {
-        "lexgo-blue": "LexGo",
-        "study": "Study",
-        "library": "Library",
-        "office": "Office",
-        "home": "Home office",
-        "openspace": "Open space",
+        "law-library": "Law library",
+        "advocate-office": "Advocate's office",
+        "modern-office": "Modern office",
+        "calm-home": "Home",
         "tashkent": "Tashkent",
-        "chimgan": "Chimgan",
-        "bokeh": "Bokeh",
-        "dawn": "Dawn",
-        "night": "Night"
+        "blue-wall": "Blue wall"
       }
     },
     "extPeerNo": "The client declined the extension.",
