@@ -11,6 +11,7 @@
     },
     "searchPh": "Search by name, area or service",
     "searchLabel": "Search",
+    "searchClear": "Clear",
     "roles": {
       "all": "All",
       "advokat": "Advocate",

@@ -11,6 +11,7 @@
     },
     "searchPh": "Ism, yo'nalish yoki xizmat bo'yicha qidiring",
     "searchLabel": "Qidiruv",
+    "searchClear": "Tozalash",
     "roles": {
       "all": "Hammasi",
       "advokat": "Advokat",

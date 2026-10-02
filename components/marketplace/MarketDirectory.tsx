@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Select, { type Option } from "@/components/Select";
-import { IconArrowRight, IconMapPin, IconRefresh, IconSearch, IconShieldCheck, IconSparkle, IconStar } from "@/components/icons";
+import { IconArrowRight, IconClose, IconMapPin, IconRefresh, IconSearch, IconShieldCheck, IconSparkle, IconStar } from "@/components/icons";
 import { listMarketplace, rememberSellers, type MarketMeta, type MarketSeller } from "@/lib/services/marketplace";
 import { matchesSearch } from "@/lib/searchText";
 import { regionKeyOf, regionLabel } from "@/lib/labels";
@@ -33,6 +33,8 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [reload, setReload] = useState(0);
   const seq = useRef(0);
   const metaRef = useRef<MarketMeta | null>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const typedRef = useRef(false);
 
   const [q, setQ] = useState("");
   const [role, setRole] = useState("");
@@ -170,15 +172,28 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     setQ("");
   };
 
+  const filtering = Boolean(q.trim()) || Boolean(role) || activeFilters > 0;
+
   const stats = useMemo(() => {
     const ids = new Set<string>();
     let min = 0;
-    for (const s of items) {
+    for (const s of list) {
       for (const x of s.services) ids.add(x.id);
       if (s.priceFrom > 0 && (!min || s.priceFrom < min)) min = s.priceFrom;
     }
-    return { sellers: total || items.length, services: ids.size, min };
-  }, [items, total]);
+    return { sellers: filtering ? list.length : total || items.length, services: ids.size, min };
+  }, [list, filtering, items.length, total]);
+
+  useEffect(() => {
+    if (!typedRef.current || !q.trim()) return;
+    const id = window.setTimeout(() => {
+      const el = resultsRef.current;
+      if (!el || el.getBoundingClientRect().top < window.innerHeight * 0.75) return;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    }, 500);
+    return () => window.clearTimeout(id);
+  }, [q]);
 
   const sortOpts: Option[] = (meta?.sortOptions.length ? meta.sortOptions : SORTS).filter((s) => t.has(`sort.${s}`)).map((s) => ({ value: s, label: t(`sort.${s}`) }));
 
@@ -196,7 +211,23 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
           <p className="mk-hero__l">{t("lead")}</p>
           <label className="mk-search">
             <IconSearch />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchLabel")} />
+            <input
+              value={q}
+              onChange={(e) => {
+                typedRef.current = true;
+                setQ(e.target.value);
+              }}
+              placeholder={t("searchPh")}
+              aria-label={t("searchLabel")}
+            />
+            {q ? (
+              <>
+                <span className="mk-search__n">{t("count", { n: list.length })}</span>
+                <button type="button" className="mk-search__x" onClick={() => setQ("")} aria-label={t("searchClear")}>
+                  <IconClose />
+                </button>
+              </>
+            ) : null}
           </label>
           <div className="mk-hero__stats">
             <div>
@@ -302,7 +333,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         ) : null}
       </div>
 
-      <div className="mk-count" aria-live="polite">
+      <div className="mk-count" ref={resultsRef} aria-live="polite">
         {status === "ready" ? t("count", { n: list.length }) : null}
         {refreshing ? <span className="mk-dot" aria-hidden="true" /> : null}
       </div>

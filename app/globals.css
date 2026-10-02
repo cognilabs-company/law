@@ -11124,6 +11124,11 @@ html[data-theme="dark"] .splan--feat.splan--sel{
 .mk-search svg{width:20px;height:20px;color:#5C6E85;flex:none}
 .mk-search input{flex:1;min-width:0;border:0;background:transparent;padding:10px 4px;font-size:1rem;outline:none;color:#0A1526}
 .mk-search input::placeholder{color:#8A99AC}
+.mk-search__n{flex:none;padding:5px 11px;border-radius:var(--pill);background:#EEF3FA;color:#5C6E85;font-size:.78rem;font-weight:700;white-space:nowrap}
+.mk-search__x{flex:none;width:34px;height:34px;border:0;border-radius:50%;cursor:pointer;display:grid;place-items:center;background:#EEF3FA;color:#5C6E85;transition:background .15s,color .15s}
+.mk-search__x:hover{background:#DCE6F3;color:#0A1526}
+.mk-search__x svg{width:15px;height:15px;color:inherit}
+@media (max-width:560px){.mk-search__n{display:none}}
 .mk-hero__stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
 .mk-hero__stats>div{display:flex;flex-direction:column;padding:10px 16px;border-radius:16px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);min-width:120px}
 .mk-hero__stats b{font-family:var(--fd);font-size:1.3rem;letter-spacing:-.02em}
@@ -11155,7 +11160,7 @@ html[data-theme="dark"] .splan--feat.splan--sel{
 .mk-switch input:checked+.mk-switch__track::after{transform:translateX(18px)}
 .mk-switch input:focus-visible+.mk-switch__track{outline:3px solid var(--b400);outline-offset:2px}
 .mk-reset{justify-self:start;border:0;background:none;color:var(--dk-acc, var(--b600));font-weight:700;font-size:.86rem;cursor:pointer;padding:10px 0;text-decoration:underline;text-underline-offset:3px}
-.mk-count{display:flex;align-items:center;gap:8px;font-size:.86rem;font-weight:600;color:var(--gray);min-height:20px}
+.mk-count{scroll-margin-top:84px;display:flex;align-items:center;gap:8px;font-size:.86rem;font-weight:600;color:var(--gray);min-height:20px}
 .mk-dot{width:8px;height:8px;border-radius:50%;background:var(--cy);animation:mk-pulse 1.2s infinite}
 
 .mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:18px;transition:opacity .2s}
