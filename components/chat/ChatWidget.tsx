@@ -15,6 +15,8 @@ import {
   type Contract,
 } from "@/lib/api";
 import ContractCard from "../ContractCard";
+import AgentAnswer from "./AgentAnswer";
+import AgentThinking from "./AgentThinking";
 import { IconSend, IconStar, IconClose, IconArrowRight } from "../icons";
 
 type Msg = {
@@ -166,18 +168,24 @@ export default function ChatWidget({
 
       <div className="chat" ref={bodyRef}>
         {msgs.map((m, i) => (
-          <div key={i} className={`msg msg--${m.role}`}>
-            {m.content}
+          <div key={i} className={`msg msg--${m.role}${m.role === "a" ? " msg--md" : ""}`}>
+            {m.role === "u" ? (
+              m.content
+            ) : (
+              <AgentAnswer
+                compact
+                content={m.content}
+                sources={m.sources}
+                interactive={i === msgs.length - 1 && !typing}
+                onAsk={ask}
+                onRetry={() => {
+                  const q = [...msgs.slice(0, i)].reverse().find((x) => x.role === "u")?.content;
+                  if (q) ask(q);
+                }}
+                documentHref={session?.role === "client" ? "/portal/client/services" : "/services"}
+              />
+            )}
             {m.meta ? <small>{m.meta}</small> : null}
-            {m.sources && m.sources.length ? (
-              <div className="amsg__sources">
-                {m.sources.map((s, j) => (
-                  <span key={j} className="asrc">
-                    {s.title || s.snippet || s.url}
-                  </span>
-                ))}
-              </div>
-            ) : null}
             {m.contracts && m.contracts.length ? (
               <div className="amsg__files">
                 {m.contracts.map((c, j) => (
@@ -217,13 +225,7 @@ export default function ChatWidget({
             ) : null}
           </div>
         ))}
-        {typing ? (
-          <div className="typing">
-            <i />
-            <i />
-            <i />
-          </div>
-        ) : null}
+        {typing ? <AgentThinking compact /> : null}
       </div>
 
       <div className="qr">

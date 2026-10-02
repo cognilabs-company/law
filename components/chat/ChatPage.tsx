@@ -18,6 +18,9 @@ import { useLexAi } from "./useLexAi";
 import { useAuth } from "@/lib/auth";
 import { Link } from "@/i18n/navigation";
 import ContractCard from "../ContractCard";
+import AgentAnswer from "./AgentAnswer";
+import AgentThinking from "./AgentThinking";
+import { mdPlain } from "@/lib/agentAnswer";
 import {
   IconStar,
   IconSend,
@@ -201,6 +204,10 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
   }
 
   const empty = messages.length === 0;
+  const lastQuestionBefore = (i: number) => {
+    for (let j = i - 1; j >= 0; j--) if (messages[j].role === "user") return messages[j].content;
+    return "";
+  };
 
   return (
     <div className={`aichat ${embedded ? "aichat--embed" : "aichat--full"}`}>
@@ -225,7 +232,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                 onClick={() => selectChat(c.id)}
               >
                 <b>{c.title || t("untitled")}</b>
-                {c.lastMessage ? <span>{c.lastMessage}</span> : null}
+                {c.lastMessage ? <span>{mdPlain(c.lastMessage)}</span> : null}
               </button>
             ))
           ) : (
@@ -290,28 +297,21 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                     <div className="amsg__role">
                       {m.role === "user" ? t("you") : t("assistant")}
                     </div>
-                    <div className="amsg__text">{m.content}</div>
-                    {m.sources && m.sources.length ? (
-                      <div className="amsg__sources">
-                        {m.sources.map((s, j) =>
-                          s.url ? (
-                            <a
-                              key={j}
-                              className="asrc"
-                              href={s.url}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              {s.title || s.url}
-                            </a>
-                          ) : (
-                            <span key={j} className="asrc">
-                              {s.title || s.snippet}
-                            </span>
-                          ),
-                        )}
-                      </div>
-                    ) : null}
+                    {m.role === "user" ? (
+                      <div className="amsg__text">{m.content}</div>
+                    ) : (
+                      <AgentAnswer
+                        content={m.content}
+                        sources={m.sources}
+                        interactive={i === messages.length - 1 && !sending}
+                        onAsk={send}
+                        onRetry={() => {
+                          const q = lastQuestionBefore(i);
+                          if (q) send(q);
+                        }}
+                        documentHref={session?.role === "client" ? "/portal/client/services" : "/services"}
+                      />
+                    )}
                     {m.contracts && m.contracts.length ? (
                       <div className="amsg__files">
                         {m.contracts.map((c, k) => (
@@ -360,11 +360,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                   </div>
                   <div className="amsg__c">
                     <div className="amsg__role">{t("assistant")}</div>
-                    <div className="typing" style={{ marginTop: 4 }}>
-                      <i />
-                      <i />
-                      <i />
-                    </div>
+                    <AgentThinking />
                   </div>
                 </div>
               ) : null}

@@ -1902,6 +1902,27 @@
     "aiQuotaReachedShort": "Your monthly AI limit is used up. Upgrade your plan to continue.",
     "upgradePlan": "Upgrade plan"
   },
+  "agent": {
+    "sources": "Sources",
+    "checkedDocs": "Documents checked",
+    "moreSources": "{count} more",
+    "showMore": "Show full quote",
+    "showLess": "Show less",
+    "openOnLex": "Open on lex.uz",
+    "retry": "Try again",
+    "createDocRequest": "Create a document request",
+    "thinkingSub": "Based on current law from lex.uz",
+    "elapsed": "Elapsed",
+    "slow": "Complex questions can take over a minute — the answer is on its way.",
+    "steps": {
+      "thinking": "Analysing the question",
+      "searching": "Searching laws on lex.uz",
+      "reading": "Studying the legal acts",
+      "selecting": "Selecting relevant articles",
+      "writing": "Writing the answer",
+      "verifying": "Checking the answer against sources"
+    }
+  },
   "chatPage": {
     "guestTotalLimit": "You've used all the free guest questions. Sign up to keep going.",
     "guestDailyLimit": "You've used today's free questions. Try again tomorrow, or sign up.",
