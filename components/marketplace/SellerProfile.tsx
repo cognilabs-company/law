@@ -16,9 +16,8 @@ import {
   type MarketSellerDetail,
   type MarketService,
 } from "@/lib/services/marketplace";
-import { IconArrowRight, IconChevronLeft, IconClock, IconGlobe, IconLock, IconMapPin, IconRefresh, IconShieldCheck, IconStar, IconChat, IconBriefcase } from "@/components/icons";
+import { IconArrowRight, IconChevronLeft, IconClock, IconGlobe, IconLock, IconMapPin, IconRefresh, IconShieldCheck, IconStar, IconBriefcase } from "@/components/icons";
 import PurchaseDialog from "./PurchaseDialog";
-import PrivateChatButton from "./PrivateChatButton";
 import { Monogram, Stars, deliveryLabel, hasRating, hasSuccess, langLabel, sellerTypeLabel, specLabel } from "./bits";
 
 type Status = "loading" | "ready" | "notfound" | "error";
@@ -30,7 +29,6 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
   const router = useRouter();
   const { session, ready } = useAuth();
   const listHref = variant === "portal" ? "/portal/client/lawyers" : "/lawyers";
-  const selfPath = variant === "portal" ? `/portal/client/lawyers/${encodeURIComponent(userId)}` : `/lawyers/${encodeURIComponent(userId)}`;
 
   const [seller, setSeller] = useState<MarketSellerDetail | null>(() => {
     const s = peekSeller(userId);
@@ -386,17 +384,6 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
               {ready && !session ? t("detail.loginToBuy") : t("detail.buy")}
               <IconArrowRight />
             </button>
-            {variant !== "public" && !isSeller && !isStaff && !isOwn ? (
-              <div className="mk-side__alts">
-                <PrivateChatButton sellerUserId={seller.userId} returnPath={selfPath} />
-                {session ? (
-                  <Link href={`/portal/client/services?lawyer=${encodeURIComponent(seller.userId)}&name=${encodeURIComponent(seller.name)}`} className="btn btn--line btn--sm mk-side__alt">
-                    <IconChat />
-                    {t("detail.otherOrder")}
-                  </Link>
-                ) : null}
-              </div>
-            ) : null}
           </div>
           <div className="mk-safe">
             <b>

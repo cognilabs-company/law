@@ -1958,20 +1958,26 @@ body:has(.rf) .fab{display:none}
 .cdlawyer-ad__cta{display:inline-flex;align-items:center;gap:9px;margin-top:2px;padding:11px 16px;border-radius:var(--pill);background:#fff;color:#09264c;font-size:.82rem;font-weight:800;box-shadow:0 8px 18px -10px rgba(0,0,0,.7);transition:gap .2s ease,transform .2s ease}
 .cdlawyer-ad:hover .cdlawyer-ad__cta{gap:13px;transform:translateX(2px)}
 .cdlawyer-ad__cta svg{width:16px;height:16px}
-.cdlawyer-ad__visual{position:relative;z-index:1;display:block;min-height:218px;overflow:hidden}
+.cdlawyer-ad__visual{position:relative;z-index:1;display:block;min-height:218px;overflow:hidden;transform-origin:right bottom;animation:cdlawyerAdVisualIn .85s cubic-bezier(.22,1,.36,1) .08s both}
 .cdlawyer-ad__halo{position:absolute;top:50%;left:52%;border:1px solid rgba(137,236,255,.3);border-radius:50%;transform:translate(-50%,-50%) rotate(-18deg)}
 .cdlawyer-ad__halo--outer{width:270px;height:150px}
 .cdlawyer-ad__halo--inner{width:190px;height:110px;border-color:rgba(255,255,255,.24);transform:translate(-50%,-50%) rotate(32deg)}
 .cdlawyer-ad__orbit{position:absolute;z-index:2;display:grid;place-items:center;width:38px;height:38px;border:2px solid rgba(255,255,255,.75);border-radius:50%;background:linear-gradient(145deg,#23d1e0,#1871e8);color:#fff;font-family:var(--fd);font-size:.8rem;font-weight:900;box-shadow:0 7px 18px rgba(0,0,0,.23)}
-.cdlawyer-ad__orbit--one{top:29%;left:18%}
-.cdlawyer-ad__orbit--two{top:62%;right:14%}
-.cdlawyer-ad__orbit--three{bottom:12%;left:29%;background:linear-gradient(145deg,#786bff,#cc54c9)}
-.cdlawyer-ad__seal{position:absolute;z-index:3;top:50%;left:52%;display:grid;place-items:center;width:74px;height:74px;border:1px solid rgba(255,255,255,.6);border-radius:25px;background:linear-gradient(145deg,rgba(255,255,255,.24),rgba(255,255,255,.08));color:#fff;box-shadow:0 16px 32px rgba(0,0,0,.23),inset 0 0 0 8px rgba(255,255,255,.06);transform:translate(-50%,-50%) rotate(8deg)}
+.cdlawyer-ad__orbit--one{top:29%;left:18%;animation:cdlawyerAdOrbitOne 4.8s ease-in-out .7s infinite}
+.cdlawyer-ad__orbit--two{top:62%;right:14%;animation:cdlawyerAdOrbitTwo 5.4s ease-in-out 1s infinite}
+.cdlawyer-ad__orbit--three{bottom:12%;left:29%;background:linear-gradient(145deg,#786bff,#cc54c9);animation:cdlawyerAdOrbitThree 5s ease-in-out .9s infinite}
+.cdlawyer-ad__seal{position:absolute;z-index:3;top:50%;left:52%;display:grid;place-items:center;width:74px;height:74px;border:1px solid rgba(255,255,255,.6);border-radius:25px;background:linear-gradient(145deg,rgba(255,255,255,.24),rgba(255,255,255,.08));color:#fff;box-shadow:0 16px 32px rgba(0,0,0,.23),inset 0 0 0 8px rgba(255,255,255,.06);transform:translate(-50%,-50%) rotate(8deg);animation:cdlawyerAdSealIn 1.2s cubic-bezier(.22,1,.36,1) .24s both}
 .cdlawyer-ad__seal svg{width:35px;height:35px;stroke:#a5f6ff}
 .cdlawyer-ad__spark{position:absolute;z-index:4;display:grid;place-items:center;width:27px;height:27px;border-radius:10px;background:rgba(255,255,255,.14);color:#a5f6ff}
 .cdlawyer-ad__spark svg{width:14px;height:14px}
 .cdlawyer-ad__spark--one{top:19%;right:24%}
 .cdlawyer-ad__spark--two{bottom:20%;right:33%;color:#c5ffcf}
+@keyframes cdlawyerAdVisualIn{from{opacity:0;transform:translate(34px,42px) scale(.84)}to{opacity:1;transform:translate(0,0) scale(1)}}
+@keyframes cdlawyerAdSealIn{0%{opacity:0;transform:translate(-50%,-34%) rotate(8deg) scale(.7)}65%{opacity:1;transform:translate(-50%,-52%) rotate(8deg) scale(1.06)}100%{opacity:1;transform:translate(-50%,-50%) rotate(8deg) scale(1)}}
+@keyframes cdlawyerAdOrbitOne{0%,100%{transform:translate(0,0)}50%{transform:translate(-5px,-9px)}}
+@keyframes cdlawyerAdOrbitTwo{0%,100%{transform:translate(0,0)}50%{transform:translate(5px,8px)}}
+@keyframes cdlawyerAdOrbitThree{0%,100%{transform:translate(0,0)}50%{transform:translate(-4px,6px)}}
+@media (prefers-reduced-motion:reduce){.cdlawyer-ad__visual,.cdlawyer-ad__seal,.cdlawyer-ad__orbit--one,.cdlawyer-ad__orbit--two,.cdlawyer-ad__orbit--three{animation:none}}
 @media (max-width:700px){.cdlawyer-ad{grid-template-columns:minmax(0,1fr) 132px;min-height:250px}.cdlawyer-ad__copy{padding:24px 20px}.cdlawyer-ad__visual{min-height:250px}.cdlawyer-ad__copy strong{font-size:1.55rem}.cdlawyer-ad__text{font-size:.82rem}.cdlawyer-ad__halo--outer{width:200px}.cdlawyer-ad__halo--inner{width:145px}.cdlawyer-ad__orbit--one{left:2%}.cdlawyer-ad__orbit--two{right:5%}.cdlawyer-ad__seal{left:50%}}
 @media (max-width:480px){.cdlawyer-ad{display:block;min-height:0}.cdlawyer-ad__copy{padding-bottom:8px}.cdlawyer-ad__copy strong{max-width:18ch}.cdlawyer-ad__visual{height:132px;min-height:132px}.cdlawyer-ad__halo--outer{width:230px;height:105px;left:58%}.cdlawyer-ad__halo--inner{width:160px;height:80px;left:58%}.cdlawyer-ad__seal{top:52%;left:58%;width:62px;height:62px}.cdlawyer-ad__orbit--one{top:20%;left:26%}.cdlawyer-ad__orbit--two{top:33%;right:12%}.cdlawyer-ad__orbit--three{bottom:4%;left:40%}.cdlawyer-ad__spark--one{top:6%;right:28%}.cdlawyer-ad__spark--two{bottom:12%;right:20%}}
 /* Pictures on the right of the hero. The glow is re-pinned: `.cdhero>*` above
@@ -11316,8 +11322,6 @@ html[data-theme="dark"] .splan--feat.splan--sel{
 .mk-side__eta svg{width:15px;height:15px}
 .mk-side__block{display:flex;gap:8px;align-items:flex-start;margin:0;padding:10px 12px;border-radius:12px;background:var(--dk-tint-warn, #FFF6E5);color:var(--dk-txt-warn, #8A5300);font-size:.84rem;font-weight:600}
 .mk-side__block svg{width:16px;height:16px;flex:none;margin-top:1px}
-.mk-side__alts{display:flex;flex-direction:column;gap:8px}
-.mk-side__alt{width:100%}
 .mk-safe{padding:16px 18px;border-radius:var(--rl);background:var(--dk-tint-ok, #EAF8F2);color:var(--ink)}
 .mk-safe b{display:flex;align-items:center;gap:8px;font-family:var(--fd);color:var(--dk-txt-ok, #0B7A55)}
 .mk-safe b svg{width:18px;height:18px}
