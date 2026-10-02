@@ -147,7 +147,7 @@ const CLIENT_NAV: NavItem[] = [
   { href: "/portal/client/urgent", key: "urgent", Icon: IconBolt },
   { href: "/portal/client/services", key: "services", Icon: IconDocSearch },
   { href: "/portal/client/documents", key: "documentRequests", Icon: IconDocLines },
-  { href: "/portal/client/packages", key: "packages", Icon: IconPackage },
+  { href: "/portal/client/lawyers", key: "lawyers", Icon: IconUsers },
   // "Mening ishlarim" is the works list now, not the legal-cases list.
   // LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §9 divides the
   // client's two screens by what they hold: documents are the archive, works
@@ -167,7 +167,7 @@ const CLIENT_NAV: NavItem[] = [
   // above gives it its own header title ("Hujjat tahlili"); the catalogue
   // page beside it is "Huquqiy hujjatlar", so the two no longer share a name.
   { href: "/portal/client/academy", key: "academy", Icon: IconGraduation },
-  { href: "/portal/client/lawyers", key: "lawyers", Icon: IconUsers },
+  { href: "/portal/client/packages", key: "packages", Icon: IconPackage },
   { href: "/portal/client/marketplace-orders", key: "marketplaceOrders", Icon: IconTag },
   { href: "/portal/client/matches", key: "matches", Icon: IconTarget },
   { href: "/portal/client/subscription", key: "subscription", Icon: IconGem },

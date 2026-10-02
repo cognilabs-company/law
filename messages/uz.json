@@ -3070,7 +3070,11 @@
         "emptyText": "Boshlash uchun yuqorida muammoni yozing.",
         "sideAiTitle": "Yordam kerakmi?",
         "sideAiSub": "Savolingiz bo'lsa, AI yordamchisi bilan suhbatlashing — tez va maxfiy.",
-        "sideAiCta": "AI bilan suhbatlashish"
+        "sideAiCta": "AI bilan suhbatlashish",
+        "lawyerAdEyebrow": "Siz uchun yangi",
+        "lawyerAdTitle": "Muammoingizga mos advokatni toping",
+        "lawyerAdText": "Tasdiqlangan profillar, aniq paketlar va maxfiy aloqa — barchasi bir joyda.",
+        "lawyerAdCta": "Advokatlarni ko'rish"
       },
       "cases": {
         "title": "So'rovlarim",

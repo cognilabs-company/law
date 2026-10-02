@@ -1946,6 +1946,34 @@ body:has(.rf) .fab{display:none}
 .cdhero__trust{display:flex;flex-wrap:wrap;gap:18px;margin-top:18px}
 .cdhero__trust span{display:inline-flex;align-items:center;gap:7px;font-size:.82rem;color:#C4DEFF}
 .cdhero__trust svg{width:15px;height:15px;stroke:var(--cy)}
+.cdlawyer-ad{position:relative;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(190px,.92fr);min-height:218px;margin:16px 0;overflow:hidden;border:1px solid rgba(115,221,255,.3);border-radius:var(--rx);background:linear-gradient(135deg,#071a39 0%,#123e79 56%,#087f9b 130%);color:#fff;text-decoration:none;isolation:isolate;box-shadow:0 18px 42px -22px rgba(0,79,164,.72);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.cdlawyer-ad:hover{transform:translateY(-3px);border-color:rgba(130,232,255,.72);box-shadow:0 24px 52px -24px rgba(0,79,164,.9)}
+.cdlawyer-ad:focus-visible{outline:3px solid var(--cy);outline-offset:3px}
+.cdlawyer-ad__glow{position:absolute;inset:0;z-index:0;background:radial-gradient(55% 100% at 92% 30%,rgba(0,207,232,.34),transparent 62%),radial-gradient(40% 90% at 0% 100%,rgba(22,104,240,.44),transparent 70%);pointer-events:none}
+.cdlawyer-ad__copy{position:relative;z-index:2;display:flex;align-items:flex-start;flex-direction:column;gap:12px;padding:29px clamp(22px,4vw,42px)}
+.cdlawyer-ad__eyebrow{display:inline-flex;align-items:center;gap:7px;color:#86efff;font-size:.75rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.cdlawyer-ad__eyebrow svg{width:15px;height:15px;stroke:currentColor}
+.cdlawyer-ad__copy strong{max-width:16ch;font-family:var(--fd);font-size:clamp(1.55rem,3vw,2.35rem);line-height:1.04;letter-spacing:-.035em}
+.cdlawyer-ad__text{max-width:45ch;color:#c9ddfa;font-size:.91rem;line-height:1.5}
+.cdlawyer-ad__cta{display:inline-flex;align-items:center;gap:9px;margin-top:2px;padding:11px 16px;border-radius:var(--pill);background:#fff;color:#09264c;font-size:.82rem;font-weight:800;box-shadow:0 8px 18px -10px rgba(0,0,0,.7);transition:gap .2s ease,transform .2s ease}
+.cdlawyer-ad:hover .cdlawyer-ad__cta{gap:13px;transform:translateX(2px)}
+.cdlawyer-ad__cta svg{width:16px;height:16px}
+.cdlawyer-ad__visual{position:relative;z-index:1;display:block;min-height:218px;overflow:hidden}
+.cdlawyer-ad__halo{position:absolute;top:50%;left:52%;border:1px solid rgba(137,236,255,.3);border-radius:50%;transform:translate(-50%,-50%) rotate(-18deg)}
+.cdlawyer-ad__halo--outer{width:270px;height:150px}
+.cdlawyer-ad__halo--inner{width:190px;height:110px;border-color:rgba(255,255,255,.24);transform:translate(-50%,-50%) rotate(32deg)}
+.cdlawyer-ad__orbit{position:absolute;z-index:2;display:grid;place-items:center;width:38px;height:38px;border:2px solid rgba(255,255,255,.75);border-radius:50%;background:linear-gradient(145deg,#23d1e0,#1871e8);color:#fff;font-family:var(--fd);font-size:.8rem;font-weight:900;box-shadow:0 7px 18px rgba(0,0,0,.23)}
+.cdlawyer-ad__orbit--one{top:29%;left:18%}
+.cdlawyer-ad__orbit--two{top:62%;right:14%}
+.cdlawyer-ad__orbit--three{bottom:12%;left:29%;background:linear-gradient(145deg,#786bff,#cc54c9)}
+.cdlawyer-ad__seal{position:absolute;z-index:3;top:50%;left:52%;display:grid;place-items:center;width:74px;height:74px;border:1px solid rgba(255,255,255,.6);border-radius:25px;background:linear-gradient(145deg,rgba(255,255,255,.24),rgba(255,255,255,.08));color:#fff;box-shadow:0 16px 32px rgba(0,0,0,.23),inset 0 0 0 8px rgba(255,255,255,.06);transform:translate(-50%,-50%) rotate(8deg)}
+.cdlawyer-ad__seal svg{width:35px;height:35px;stroke:#a5f6ff}
+.cdlawyer-ad__spark{position:absolute;z-index:4;display:grid;place-items:center;width:27px;height:27px;border-radius:10px;background:rgba(255,255,255,.14);color:#a5f6ff}
+.cdlawyer-ad__spark svg{width:14px;height:14px}
+.cdlawyer-ad__spark--one{top:19%;right:24%}
+.cdlawyer-ad__spark--two{bottom:20%;right:33%;color:#c5ffcf}
+@media (max-width:700px){.cdlawyer-ad{grid-template-columns:minmax(0,1fr) 132px;min-height:250px}.cdlawyer-ad__copy{padding:24px 20px}.cdlawyer-ad__visual{min-height:250px}.cdlawyer-ad__copy strong{font-size:1.55rem}.cdlawyer-ad__text{font-size:.82rem}.cdlawyer-ad__halo--outer{width:200px}.cdlawyer-ad__halo--inner{width:145px}.cdlawyer-ad__orbit--one{left:2%}.cdlawyer-ad__orbit--two{right:5%}.cdlawyer-ad__seal{left:50%}}
+@media (max-width:480px){.cdlawyer-ad{display:block;min-height:0}.cdlawyer-ad__copy{padding-bottom:8px}.cdlawyer-ad__copy strong{max-width:18ch}.cdlawyer-ad__visual{height:132px;min-height:132px}.cdlawyer-ad__halo--outer{width:230px;height:105px;left:58%}.cdlawyer-ad__halo--inner{width:160px;height:80px;left:58%}.cdlawyer-ad__seal{top:52%;left:58%;width:62px;height:62px}.cdlawyer-ad__orbit--one{top:20%;left:26%}.cdlawyer-ad__orbit--two{top:33%;right:12%}.cdlawyer-ad__orbit--three{bottom:4%;left:40%}.cdlawyer-ad__spark--one{top:6%;right:28%}.cdlawyer-ad__spark--two{bottom:12%;right:20%}}
 /* Pictures on the right of the hero. The glow is re-pinned: `.cdhero>*` above
    made it a zero-height relative box, and in the grid it would take a cell. */
 .cdhero{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;container-type:inline-size}

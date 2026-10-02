@@ -3064,7 +3064,11 @@
         "emptyText": "Describe a problem above to get started.",
         "sideAiTitle": "Need help?",
         "sideAiSub": "Chat with the AI assistant for a fast, private answer.",
-        "sideAiCta": "Chat with AI"
+        "sideAiCta": "Chat with AI",
+        "lawyerAdEyebrow": "Made for your next step",
+        "lawyerAdTitle": "Find the right legal expert",
+        "lawyerAdText": "Verified profiles, clear packages and private contact — all in one place.",
+        "lawyerAdCta": "Browse advocates"
       },
       "cases": {
         "title": "My requests",
