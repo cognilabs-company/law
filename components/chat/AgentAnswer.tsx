@@ -90,7 +90,7 @@ export default function AgentAnswer({
               target="_blank"
               rel="noopener noreferrer"
               className={law ? "acite" : "alink"}
-              title={law ? t("openOnLex") : url}
+              title={law ? t("openSource") : url}
             >
               {law ? <IconScale className="acite__ic" aria-hidden /> : null}
               <span>{inline(m[1], k)}</span>
@@ -239,7 +239,6 @@ function SourceList({
         <span className="ag-src__ic"><IconScale aria-hidden /></span>
         <b>{checkedOnly ? t("checkedDocs") : t("sources")}</b>
         <span className="ag-src__cnt">{sources.length}</span>
-        <span className="ag-src__via">lex.uz</span>
       </header>
       <ol className="ag-src__list">
         {shown.map((s, i) => (
@@ -283,7 +282,7 @@ function SourceCard({ s, n }: { s: Source; n: number }) {
   return (
     <li className="ag-card">
       {safe ? (
-        <a className="ag-card__hd" href={safe} target="_blank" rel="noopener noreferrer" title={t("openOnLex")}>
+        <a className="ag-card__hd" href={safe} target="_blank" rel="noopener noreferrer" title={t("openSource")}>
           {head}
         </a>
       ) : (
