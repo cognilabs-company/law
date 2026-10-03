@@ -1,5 +1,5 @@
 import type { LocalTrack, LocalVideoTrack } from "livekit-client";
-import { BackgroundEngineProcessor, ENGINE_NAME, engineGeneration, engineTransport, isEngineStopped, releaseEngine, retainEngine, setEngineEffect, warmEngine, type EngineEffect, type EngineTrouble } from "./bgEngine/engine";
+import { BackgroundEngineProcessor, engineGeneration, engineTransport, isEngineStopped, releaseEngine, retainEngine, setEngineEffect, warmEngine, type EngineEffect, type TroubleHandler } from "./bgEngine/engine";
 
 export type BlurLevel = "light" | "strong";
 export type BgEffect = { kind: "none" } | { kind: "blur"; level: BlurLevel } | { kind: "image"; id: string };
@@ -156,6 +156,15 @@ export function releaseBackgroundEngine() {
   releaseEngine();
 }
 
+let unavailableNoticed = false;
+
+export function claimBgUnavailableNotice(): boolean {
+  if (unavailableNoticed || bgSupported() || getBgEffect().kind === "none") return false;
+  unavailableNoticed = true;
+  setBgEffect(NO_BG);
+  return true;
+}
+
 function engineEffectOf(e: BgEffect): EngineEffect | null {
   if (e.kind === "none") return { kind: "none" };
   if (e.kind === "blur") return { kind: "blur", level: e.level };
@@ -164,8 +173,9 @@ function engineEffectOf(e: BgEffect): EngineEffect | null {
   return { kind: "image", src, key: e.id === CUSTOM_BG ? `${CUSTOM_BG}:${customVersion}` : e.id };
 }
 
+const desiredEffect = () => engineEffectOf(getBgEffect());
+
 let chain: Promise<unknown> = Promise.resolve();
-let latestHooks: BgHooks = {};
 
 function serial<T>(fn: () => Promise<T>): Promise<T> {
   const run = chain.then(fn, fn);
@@ -173,49 +183,49 @@ function serial<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-function oursOn(track: LocalTrack): boolean {
+function engineProcessorOn(track: LocalTrack): BackgroundEngineProcessor | null {
   const current = track.getProcessor();
-  return !!current && current.name === ENGINE_NAME;
+  return current instanceof BackgroundEngineProcessor ? current : null;
 }
 
-function onTrouble(reason: EngineTrouble, error: string | undefined, track: LocalTrack | null) {
-  setBgEffect(NO_BG);
-  const hooks = latestHooks;
-  if (reason === "slow") {
-    hooks.onSlow?.();
-    return;
-  }
-  hooks.onError?.(new Error(error || "background effect failed"));
-  void serial(async () => {
-    if (track && oursOn(track)) await track.stopProcessor().catch(() => null);
-  });
+function troubleHandler(hooks: () => BgHooks, started: number): TroubleHandler {
+  return (reason, error, track) => {
+    if (engineGeneration() !== started) return;
+    setBgEffect(NO_BG);
+    if (reason === "slow") {
+      hooks().onSlow?.();
+      return;
+    }
+    hooks().onError?.(new Error(error || "background effect failed"));
+    void serial(async () => {
+      const current = track ? engineProcessorOn(track) : null;
+      if (track && current && !current.healthy) await track.stopProcessor().catch(() => null);
+    });
+  };
 }
 
-export async function cameraProcessor(): Promise<BackgroundEngineProcessor | undefined> {
-  const fx = engineEffectOf(getBgEffect());
+export function cameraProcessor(hooks: () => BgHooks): BackgroundEngineProcessor | undefined {
+  const fx = desiredEffect();
   if (!fx || fx.kind === "none" || !bgSupported()) return undefined;
-  try {
-    if (!(await warmEngine())) return undefined;
-    await setEngineEffect(fx);
-  } catch {
-    return undefined;
-  }
-  return new BackgroundEngineProcessor(onTrouble);
+  return new BackgroundEngineProcessor(troubleHandler(hooks, engineGeneration()), desiredEffect);
 }
 
-async function syncOnce(track: LocalVideoTrack): Promise<boolean> {
+async function syncOnce(track: LocalVideoTrack, hooks: () => BgHooks, started: number): Promise<boolean> {
   const want = getBgEffect();
   const fx = engineEffectOf(want);
   if (!fx) return false;
-  if (oursOn(track) || fx.kind === "none") {
+  const current = engineProcessorOn(track);
+  if (current && !current.healthy) {
+    await track.stopProcessor().catch(() => null);
+  } else if (current || fx.kind === "none") {
     await setEngineEffect(fx);
     return true;
   }
-  if (track.getProcessor() || track.isMuted || !track.sender || !bgSupported()) return false;
+  if (fx.kind === "none" || track.getProcessor() || !track.sender || !bgSupported()) return false;
   if (!(await warmEngine())) throw new Error("background engine unavailable");
   await setEngineEffect(fx);
-  if (getBgEffect() !== want || track.getProcessor() || track.isMuted || !track.sender) return false;
-  const processor = new BackgroundEngineProcessor(onTrouble);
+  if (getBgEffect() !== want || track.getProcessor() || !track.sender) return false;
+  const processor = new BackgroundEngineProcessor(troubleHandler(hooks, started), desiredEffect);
   await track.pauseUpstream();
   try {
     await track.setProcessor(processor);
@@ -225,19 +235,18 @@ async function syncOnce(track: LocalVideoTrack): Promise<boolean> {
   return true;
 }
 
-export function syncBackground(track: LocalVideoTrack | undefined, hooks: BgHooks = {}): Promise<boolean> {
-  latestHooks = hooks;
+export function syncBackground(track: LocalVideoTrack | undefined, hooks: () => BgHooks): Promise<boolean> {
   if (!track) return Promise.resolve(false);
   const started = engineGeneration();
   return serial(async () => {
     patchStatus({ pending: true });
     try {
-      return await syncOnce(track);
+      return await syncOnce(track, hooks, started);
     } catch (e) {
       if (isEngineStopped(e) || !track.sender || engineGeneration() !== started) return false;
       setBgEffect(NO_BG);
-      if (oursOn(track)) await setEngineEffect({ kind: "none" }).catch(() => null);
-      hooks.onError?.(e);
+      if (engineProcessorOn(track)) await setEngineEffect({ kind: "none" }).catch(() => null);
+      hooks().onError?.(e);
       return false;
     } finally {
       patchStatus({ pending: false });

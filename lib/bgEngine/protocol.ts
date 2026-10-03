@@ -8,9 +8,9 @@ export type EngineAssets = {
 };
 
 export type ToWorker =
-  | { type: "warm"; assets: EngineAssets; portrait: boolean; phone: boolean }
-  | { type: "attach"; id: number; readable: ReadableStream<VideoFrame>; writable: WritableStream<VideoFrame>; portrait: boolean }
-  | { type: "attach-track"; id: number; track: MediaStreamTrack; portrait: boolean }
+  | { type: "warm"; assets: EngineAssets; portrait: boolean }
+  | { type: "attach"; id: number; readable: ReadableStream<VideoFrame> | null; writable: WritableStream<VideoFrame>; portrait: boolean }
+  | { type: "attach-track"; id: number; track: MediaStreamTrack | null; portrait: boolean }
   | { type: "source"; id: number; readable?: ReadableStream<VideoFrame>; track?: MediaStreamTrack; portrait: boolean }
   | { type: "pause-source"; id: number }
   | { type: "detach"; id: number }

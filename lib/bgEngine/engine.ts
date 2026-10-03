@@ -11,6 +11,7 @@ type Transport = "streams" | "track";
 type WarmResult = "ok" | "failed" | "cancelled";
 
 const READY_TIMEOUT_MS = 30000;
+const EFFECT_TIMEOUT_MS = 15000;
 const OUTPUT_TIMEOUT_MS = 8000;
 const STALL_MS = 2500;
 const SILENT_MS = 5000;
@@ -23,6 +24,8 @@ export class EngineStoppedError extends Error {
 }
 
 export const isEngineStopped = (e: unknown) => e instanceof EngineStoppedError;
+
+const messageOf = (e: unknown, fallback: string) => (e instanceof Error && e.message ? e.message : fallback);
 
 let transport: Transport | null | undefined;
 let worker: Worker | null = null;
@@ -110,22 +113,22 @@ function send(message: ToWorker, transfer: Transferable[] = []) {
   worker?.postMessage(message, transfer);
 }
 
-function reset(result: WarmResult) {
+function reset(result: WarmResult, reason: Error) {
   worker?.terminate();
   worker = null;
   ready = null;
   const settle = readyResolve;
   readyResolve = null;
   settle?.(result);
-  for (const [, waiter] of effectWaiters) waiter.reject(new EngineStoppedError());
+  for (const [, waiter] of effectWaiters) waiter.reject(reason);
   effectWaiters.clear();
-  for (const [, done] of outputWaiters) done(null, "engine stopped");
+  for (const [, done] of outputWaiters) done(null, reason.message);
   outputWaiters.clear();
 }
 
 function fail(error: string) {
   const victims = [...live.values()];
-  reset("cancelled");
+  reset("cancelled", new Error(error));
   for (const p of victims) p.trouble("failed", error);
 }
 
@@ -174,7 +177,7 @@ function spawn(): Worker {
 }
 
 export function warmEngine(): Promise<boolean> {
-  if (!engineTransport()) return Promise.resolve(false);
+  if (!engineTransport() || !users) return Promise.resolve(false);
   if (ready) return ready;
   worker = worker ?? spawn();
   const pending = new Promise<WarmResult>((resolve) => {
@@ -187,12 +190,12 @@ export function warmEngine(): Promise<boolean> {
     }, READY_TIMEOUT_MS);
   });
   const portrait = isPhone() && typeof matchMedia !== "undefined" && matchMedia("(orientation: portrait)").matches;
-  send({ type: "warm", assets: engineAssets(), portrait, phone: isPhone() });
+  send({ type: "warm", assets: engineAssets(), portrait });
   send({ type: "effect", seq: ++effectSeq, effect: lastEffect });
   const current = pending.then((result) => {
     if (result === "ok") return true;
     if (result === "failed") broken = true;
-    if (ready === current) reset("cancelled");
+    if (ready === current) reset("cancelled", new Error("background engine unavailable"));
     return false;
   });
   ready = current;
@@ -205,12 +208,19 @@ export function setEngineEffect(effect: EngineEffect): Promise<void> {
   if (!w) return Promise.resolve();
   const seq = ++effectSeq;
   return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      if (effectWaiters.delete(seq)) reject(new Error("background effect timed out"));
+    }, EFFECT_TIMEOUT_MS);
     effectWaiters.set(seq, {
       resolve: () => {
+        clearTimeout(timer);
         if (effect.kind !== "none") for (const p of live.values()) p.armSlow();
         resolve();
       },
-      reject,
+      reject: (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
     });
     w.postMessage({ type: "effect", seq, effect } satisfies ToWorker);
   });
@@ -222,7 +232,7 @@ export function disposeEngine() {
   generation++;
   for (const p of live.values()) p.orphan();
   live.clear();
-  reset("cancelled");
+  reset("cancelled", new EngineStoppedError());
 }
 
 export function retainEngine() {
@@ -238,6 +248,7 @@ export class BackgroundEngineProcessor implements TrackProcessor<Track.Kind.Vide
   readonly name = ENGINE_NAME;
   processedTrack?: MediaStreamTrack;
   private readonly id = ++attachSeq;
+  private readonly gen = generation;
   private destroyed = false;
   private inert = false;
   private slowSent = false;
@@ -252,7 +263,14 @@ export class BackgroundEngineProcessor implements TrackProcessor<Track.Kind.Vide
   private progressAt = 0;
   private healthAt = 0;
 
-  constructor(private readonly onTrouble: TroubleHandler) {}
+  constructor(
+    private readonly onTrouble: TroubleHandler,
+    private readonly desired: () => EngineEffect | null = () => lastEffect,
+  ) {}
+
+  get healthy() {
+    return !this.inert && !this.destroyed && !this.failedSent && this.gen === generation;
+  }
 
   private readonly onMuted = () => {
     if (transport !== "track" || this.paused || this.destroyed) return;
@@ -263,9 +281,25 @@ export class BackgroundEngineProcessor implements TrackProcessor<Track.Kind.Vide
   async init(opts: ProcessorOptions<Track.Kind.Video>) {
     this.localTrack = opts.localTrack ?? null;
     const ok = await warmEngine();
-    if (!ok || !worker || this.destroyed) {
+    if (this.destroyed) return;
+    if (this.gen !== generation) {
       this.inert = true;
-      if (!this.destroyed) queueMicrotask(() => this.trouble("failed", "background engine unavailable"));
+      return;
+    }
+    if (!ok || !worker) {
+      this.fallback("background engine unavailable");
+      return;
+    }
+    try {
+      await setEngineEffect(this.desired() ?? { kind: "none" });
+    } catch (error) {
+      if (this.gen !== generation || isEngineStopped(error)) this.inert = true;
+      else this.fallback(messageOf(error, "background effect failed"));
+      return;
+    }
+    if (this.destroyed) return;
+    if (this.gen !== generation || !worker) {
+      this.inert = true;
       return;
     }
     live.set(this.id, this);
@@ -273,9 +307,8 @@ export class BackgroundEngineProcessor implements TrackProcessor<Track.Kind.Vide
     try {
       await this.connect(opts.track, true);
     } catch (error) {
-      this.inert = true;
       this.processedTrack = undefined;
-      queueMicrotask(() => this.trouble("failed", error instanceof Error ? error.message : "background output unavailable"));
+      this.fallback(messageOf(error, "background output unavailable"));
       return;
     }
     this.progressAt = performance.now();
@@ -288,7 +321,7 @@ export class BackgroundEngineProcessor implements TrackProcessor<Track.Kind.Vide
       opts.track.stop();
       return;
     }
-    if (this.inert || !worker) return;
+    if (this.inert || !worker || this.gen !== generation) return;
     await this.connect(opts.track, false);
     this.progressAt = performance.now();
     if (this.destroyed) {
@@ -336,6 +369,11 @@ export class BackgroundEngineProcessor implements TrackProcessor<Track.Kind.Vide
     this.onTrouble(reason, error, this.localTrack);
   }
 
+  private fallback(error: string) {
+    this.inert = true;
+    setTimeout(() => this.trouble("failed", error), 0);
+  }
+
   private checkMuted() {
     const source = this.source;
     if (!source) return;
@@ -362,22 +400,24 @@ export class BackgroundEngineProcessor implements TrackProcessor<Track.Kind.Vide
   private async connect(track: MediaStreamTrack, first: boolean) {
     this.source = track;
     this.paused = false;
-    const portrait = isPortrait(track);
+    const running = track.readyState === "live";
+    const portrait = running && isPortrait(track);
     if (transport === "streams") {
-      const processor = new MediaStreamTrackProcessor({ track: track as MediaStreamVideoTrack, maxBufferSize: 1 });
+      const processor = running ? new MediaStreamTrackProcessor({ track: track as MediaStreamVideoTrack, maxBufferSize: 1 }) : null;
       this.stream = processor;
       if (first) {
         const generator = new MediaStreamTrackGenerator({ kind: "video" });
         this.processedTrack = generator;
-        send({ type: "attach", id: this.id, readable: processor.readable, writable: generator.writable, portrait }, [processor.readable, generator.writable]);
-      } else {
+        if (processor) send({ type: "attach", id: this.id, readable: processor.readable, writable: generator.writable, portrait }, [processor.readable, generator.writable]);
+        else send({ type: "attach", id: this.id, readable: null, writable: generator.writable, portrait }, [generator.writable]);
+      } else if (processor) {
         send({ type: "source", id: this.id, readable: processor.readable, portrait }, [processor.readable]);
       }
       return;
     }
-    const clone = track.clone();
+    const clone = running ? track.clone() : null;
     if (!first) {
-      send({ type: "source", id: this.id, track: clone, portrait }, [clone as unknown as Transferable]);
+      if (clone) send({ type: "source", id: this.id, track: clone, portrait }, [clone as unknown as Transferable]);
       return;
     }
     const output = new Promise<MediaStreamTrack>((resolve, reject) => {
@@ -391,7 +431,7 @@ export class BackgroundEngineProcessor implements TrackProcessor<Track.Kind.Vide
         else reject(new Error(error || "background output unavailable"));
       });
     });
-    send({ type: "attach-track", id: this.id, track: clone, portrait }, [clone as unknown as Transferable]);
+    send({ type: "attach-track", id: this.id, track: clone, portrait }, clone ? [clone as unknown as Transferable] : []);
     this.processedTrack = await output;
   }
 }

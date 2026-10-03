@@ -62,7 +62,7 @@ import SearchSelect from "@/components/SearchSelect";
 import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, primeCallAudio } from "@/lib/callSounds";
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
-import { NO_BG, bgSupported, cameraProcessor, getBgEffect, preloadBgAssets, serverBgEffect, setBgEffect, releaseBackgroundEngine, retainBackgroundEngine, setBgOwner, subscribeBgEffect, syncBackground, type BgEffect, type BgHooks } from "@/lib/callBackground";
+import { NO_BG, bgSupported, cameraProcessor, claimBgUnavailableNotice, getBgEffect, preloadBgAssets, serverBgEffect, setBgEffect, releaseBackgroundEngine, retainBackgroundEngine, setBgOwner, subscribeBgEffect, syncBackground, type BgEffect, type BgHooks } from "@/lib/callBackground";
 import CallBackgroundPicker from "./CallBackgroundPicker";
 import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson } from "../icons";
 import { regionLabel } from "@/lib/labels";
@@ -188,8 +188,8 @@ async function capSender(track: LocalVideoTrack | undefined, ceiling: number, fp
 }
 const capCamera = (lp: LocalParticipant, ceiling: number, fps = 0) =>
   capSender(lp.getTrackPublication(Track.Source.Camera)?.track as LocalVideoTrack | undefined, ceiling, fps);
-const withBackground = async (options: VideoCaptureOptions | undefined): Promise<VideoCaptureOptions | undefined> => {
-  const processor = await cameraProcessor();
+const withBackground = (options: VideoCaptureOptions | undefined, hooks: () => BgHooks): VideoCaptureOptions | undefined => {
+  const processor = cameraProcessor(hooks);
   return processor ? { ...options, processor } : options;
 };
 // Room options are frozen at construction, so the policy has to be in hand
@@ -570,11 +570,20 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       },
     };
   });
+  const readBgHooks = useCallback(() => bgHooks.current, []);
   const syncBg = useCallback(() => {
     const track = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Camera)?.track as LocalVideoTrack | undefined;
     if (!track) return;
-    void syncBackground(track, bgHooks.current);
-  }, []);
+    void syncBackground(track, readBgHooks);
+  }, [readBgHooks]);
+  const readyCamera = useCallback(async (r: Room) => {
+    const track = r.localParticipant.getTrackPublication(Track.Source.Camera)?.track as LocalVideoTrack | undefined;
+    if (track) await syncBackground(track, readBgHooks);
+  }, [readBgHooks]);
+  const cameraOptions = useCallback(
+    (r: Room, options: VideoCaptureOptions | undefined) => (r.localParticipant.getTrackPublication(Track.Source.Camera) ? options : withBackground(options, readBgHooks)),
+    [readBgHooks],
+  );
   const pickBg = useCallback((next: BgEffect) => {
     setBgEffect(next);
     syncBg();
@@ -602,15 +611,13 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       unsubscribe();
     };
   }, [room, bgOk, syncBg]);
-  const bgWarned = useRef(false);
   useEffect(() => {
-    if (!room || bgOk || bgWarned.current || getBgEffect().kind === "none") return;
+    if (!room || bgOk || !camOn) return;
     const id = setTimeout(() => {
-      bgWarned.current = true;
-      toast(t("bg.unavailable"), "leave");
+      if (claimBgUnavailableNotice()) toast(t("bg.unavailable"), "leave");
     }, 0);
     return () => clearTimeout(id);
-  }, [room, bgOk, toast, t]);
+  }, [room, bgOk, camOn, toast, t]);
 
   useEffect(() => {
     let alive = true;
@@ -723,7 +730,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         if (!autoCamOffRef.current || !camWantedRef.current || pausedRef.current) return;
         autoCamOffRef.current = false;
         profileRef.current = name;
-        await lp.setCameraEnabled(true, { facingMode: facingRef.current, resolution: resOf(prof) }, encOf(prof) ? { videoEncoding: encOf(prof) } : undefined).catch(() => {});
+        await readyCamera(room);
+        await lp.setCameraEnabled(true, cameraOptions(room, { facingMode: facingRef.current, resolution: resOf(prof) }), encOf(prof) ? { videoEncoding: encOf(prof) } : undefined).catch(() => {});
         await capCamera(lp, prof.maxBitrate, prof.fps);
         if (alive) { setCamOn(true); bump(); }
         return;
@@ -871,12 +879,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         const lp = r.localParticipant;
         if (!pol || !pol.videoEnabled || !camWantedRef.current || autoCamOffRef.current || pausedRef.current || lp.isCameraEnabled) return;
         const prof = pol.profiles[profileRef.current] ?? pol.profiles.low;
-        void lp
+        void readyCamera(r)
           // A renegotiated publisher starts from the SDK's defaults, so the
           // rung's §quality_policy L54-57 ceiling has to be restated here as
           // well — otherwise a reconnect silently promotes a `low` call to a
           // 2.5 Mbit/s one on the very link that just failed.
-          .setCameraEnabled(true, prof ? { facingMode: facingRef.current, resolution: resOf(prof) } : undefined, encOf(prof) ? { videoEncoding: encOf(prof) } : undefined)
+          .then(() => lp.setCameraEnabled(true, cameraOptions(r, prof ? { facingMode: facingRef.current, resolution: resOf(prof) } : undefined), encOf(prof) ? { videoEncoding: encOf(prof) } : undefined))
           .then(() => capCamera(lp, prof ? prof.maxBitrate : 0, prof ? prof.fps : 0))
           .then(() => { if (alive) { setCamOn(true); bump(); } })
           .catch(() => {});
@@ -958,10 +966,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               // start_profile is "low": the camera opens at the bottom rung
               // and the connection-quality actions climb from there — at that
               // rung's 160 kbit/s ceiling, not the SDK's 720p default.
-              try {
-                await r.localParticipant.setCameraEnabled(true, await withBackground(low ? { facingMode: "user", resolution: resOf(low) } : undefined), encOf(low) ? { videoEncoding: encOf(low) } : undefined);
-                if (low) await capCamera(r.localParticipant, low.maxBitrate, low.fps);
-              } catch { if (alive) setCamOn(false); }
+              void (async () => {
+                try {
+                  await r.localParticipant.setCameraEnabled(true, cameraOptions(r, low ? { facingMode: "user", resolution: resOf(low) } : undefined), encOf(low) ? { videoEncoding: encOf(low) } : undefined);
+                  if (!alive || !camWantedRef.current || pausedRef.current) {
+                    await r.localParticipant.setCameraEnabled(false).catch(() => {});
+                    return;
+                  }
+                  if (low) await capCamera(r.localParticipant, low.maxBitrate, low.fps);
+                  const cams = await Room.getLocalDevices("videoinput").catch(() => null);
+                  if (alive && cams) setCanSwitchCam(cams.length > 1);
+                } catch { if (alive) setCamOn(false); }
+              })();
             } else if (alive) setCamOn(false);
           }
         }
@@ -1285,16 +1301,17 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // (§quality_policy L53 for the mic, L54-57 for the camera's rung) —
       // a resume must not hand the call back at the SDK's defaults.
       if (mic && !hostMutedRef.current) void lp.setMicrophoneEnabled(true, undefined, micPublishOf(qualityRef.current)).then(() => setMicOn(true)).catch(() => {});
-      if (cam) {
+      const r = roomRef.current;
+      if (cam && r) {
         const prof = qualityRef.current?.profiles[profileRef.current] ?? qualityRef.current?.profiles.low;
-        void lp
-          .setCameraEnabled(true, prof ? { facingMode: facingRef.current, resolution: resOf(prof) } : undefined, encOf(prof) ? { videoEncoding: encOf(prof) } : undefined)
+        void readyCamera(r)
+          .then(() => lp.setCameraEnabled(true, cameraOptions(r, prof ? { facingMode: facingRef.current, resolution: resOf(prof) } : undefined), encOf(prof) ? { videoEncoding: encOf(prof) } : undefined))
           .then(() => capCamera(lp, prof ? prof.maxBitrate : 0, prof ? prof.fps : 0))
           .then(() => setCamOn(true))
           .catch(() => {});
       }
     }
-  }, [paused]);
+  }, [paused, readyCamera, cameraOptions]);
 
   // Self-enforce host actions: the backend only records status/mic on the
   // participant, it doesn't evict/mute at the LiveKit layer — so each client
@@ -1461,7 +1478,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // §quality_policy L54-57 ceiling — the policy governs the link, not the
       // reason the track exists.
       const prof = camProfile();
-      await r.localParticipant.setCameraEnabled(on, on ? await withBackground({ facingMode: facingRef.current, resolution: camResolution() }) : undefined, on && encOf(prof) ? { videoEncoding: encOf(prof) } : undefined);
+      if (on) await readyCamera(r);
+      await r.localParticipant.setCameraEnabled(on, on ? cameraOptions(r, { facingMode: facingRef.current, resolution: camResolution() }) : undefined, on && encOf(prof) ? { videoEncoding: encOf(prof) } : undefined);
       if (on && prof) await capCamera(r.localParticipant, prof.maxBitrate, prof.fps);
       setCamOn(on);
       bump();
