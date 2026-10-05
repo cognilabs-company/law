@@ -73,7 +73,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
     [setItems],
   );
 
-  const { live } = useSupportEvents((e) => {
+  useSupportEvents((e) => {
     if (e.kind === "message" && e.message) {
       const m = e.message;
       list.setItems((cur) => cur.map((x) => (x.id === e.ticketId ? { ...x, lastMessage: m.content || x.lastMessage, updatedAt: m.createdAt || x.updatedAt } : x)));
@@ -83,7 +83,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
     if (e.kind === "transferred" && e.ticketId === selectedId && e.ticket && e.ticket.operatorUserId !== meId) toast(t("transferredAway"));
     list.refresh();
   }, list.refresh);
-  usePoll(list.refresh, 30000, !live && list.status === "ready");
+  usePoll(list.refresh, 30000, list.status === "ready");
 
   const open = (tk: SupportTicket) => {
     setSelected(tk);

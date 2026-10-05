@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { listSupportMessages, sendSupportMessage, type SupportMessage, type SupportTicket } from "@/lib/services/support";
+import { loadLatestMessages, loadNewMessages, loadOlderMessages, sendSupportMessage, type MessageCursor, type SupportMessage, type SupportTicket } from "@/lib/services/support";
 import { contactBlockedOf, isAborted } from "@/lib/http";
 import { errorText } from "@/lib/errorText";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
@@ -48,60 +48,82 @@ export default function SupportChat({
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const loaded = useRef(0);
+  const cursor = useRef<MessageCursor | null>(null);
+  const onTicketRef = useRef(onTicket);
   const box = useRef<HTMLDivElement>(null);
   const keep = useRef<number | null>(null);
   const stick = useRef(true);
   const closed = ticket.status === "closed";
 
-  const fetchLatest = useCallback((signal?: AbortSignal) => listSupportMessages(ticket.id, 0, PAGE, signal), [ticket.id]);
+  useEffect(() => {
+    onTicketRef.current = onTicket;
+  });
+
+  const ticketId = ticket.id;
+  const clientUserId = ticket.clientUserId;
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const c = new AbortController();
-    loaded.current = 0;
-    fetchLatest(c.signal)
-      .then((p) => {
-        loaded.current = p.items.length;
+    cursor.current = null;
+    loadLatestMessages(ticketId, PAGE, c.signal)
+      .then((r) => {
+        if (c.signal.aborted) return;
+        cursor.current = r.cursor;
         stick.current = true;
-        setMsgs(merge([], p.items));
-        setHasMore(p.hasMore);
+        setMsgs(merge([], r.items));
+        setHasMore(r.cursor.hasOlder);
         setState("ready");
+        if (r.ticket) onTicketRef.current?.(r.ticket);
       })
       .catch((e: unknown) => {
         if (!isAborted(e) && !c.signal.aborted) setState("error");
       });
     return () => c.abort();
-  }, [fetchLatest]);
+  }, [ticketId, reloadKey]);
 
   const refresh = useCallback(() => {
-    fetchLatest()
-      .then((p) => setMsgs((cur) => merge(cur, p.items)))
+    const cur = cursor.current;
+    if (!cur) return;
+    loadNewMessages(ticketId, cur, clientUserId)
+      .then((r) => {
+        cursor.current = r.cursor;
+        if (r.items.length) setMsgs((list) => merge(list, r.items));
+        if (r.ticket) onTicketRef.current?.(r.ticket);
+      })
       .catch(() => {});
-  }, [fetchLatest]);
+  }, [ticketId, clientUserId]);
 
-  const { live } = useSupportEvents((e) => {
-    if (e.ticketId !== ticket.id) return;
+  const retry = () => {
+    setState("loading");
+    setReloadKey((n) => n + 1);
+  };
+
+  useSupportEvents((e) => {
+    if (e.ticketId !== ticketId) return;
     if (e.message) {
       const m = e.message;
       setMsgs((cur) => merge(cur, [m]));
     }
-    if (e.ticket) onTicket?.(e.ticket);
-    else if (e.kind === "closed") onTicket?.({ ...ticket, status: "closed" });
+    if (e.ticket) onTicketRef.current?.(e.ticket);
+    else if (e.kind === "closed") onTicketRef.current?.({ ...ticket, status: "closed" });
+    refresh();
   }, refresh);
 
-  usePoll(refresh, 12000, !live && !closed && state === "ready");
+  usePoll(refresh, 12000, !closed && state === "ready");
 
   const loadOlder = async () => {
-    if (older || !hasMore) return;
+    const cur = cursor.current;
+    if (older || !hasMore || !cur) return;
     setOlder(true);
     const el = box.current;
     keep.current = el ? el.scrollHeight - el.scrollTop : null;
     stick.current = false;
     try {
-      const p = await listSupportMessages(ticket.id, loaded.current, PAGE);
-      loaded.current += p.items.length;
-      setMsgs((cur) => merge(cur, p.items));
-      setHasMore(p.hasMore && p.items.length > 0);
+      const r = await loadOlderMessages(ticketId, cur, PAGE, clientUserId);
+      cursor.current = r.cursor;
+      setMsgs((list) => merge(list, r.items));
+      setHasMore(r.cursor.hasOlder);
     } catch {
       keep.current = null;
     } finally {
@@ -133,7 +155,7 @@ export default function SupportChat({
     setSending(true);
     setError(null);
     try {
-      const m = await sendSupportMessage(ticket.id, body);
+      const m = await sendSupportMessage(ticketId, body, clientUserId);
       stick.current = true;
       setMsgs((cur) => merge(cur, [{ ...m, senderUserId: m.senderUserId || meId, content: m.content || body, createdAt: m.createdAt || new Date().toISOString() }]));
       setText("");
@@ -178,7 +200,7 @@ export default function SupportChat({
         {state === "error" ? (
           <p className="supchat__hint">
             {tc("serverError")}{" "}
-            <button type="button" className="supchat__retry" onClick={refresh}>
+            <button type="button" className="supchat__retry" onClick={retry}>
               {tc("retry")}
             </button>
           </p>

@@ -4,13 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { onUserSocketResync, subscribeUserEvents, subscribeUserSocketState, userSocketState } from "./userSocket";
 import { supportEventOf, type SupportEvent } from "./services/support";
 
-let liveSeen = false;
+const SETTLE_MS = 400;
 
 export function useSupportEvents(handler: (e: SupportEvent) => void, onResync?: () => void) {
   const ref = useRef(handler);
   const resyncRef = useRef(onResync);
   const [online, setOnline] = useState(() => userSocketState() === "online");
-  const [live, setLive] = useState(liveSeen);
 
   useEffect(() => {
     ref.current = handler;
@@ -18,14 +17,19 @@ export function useSupportEvents(handler: (e: SupportEvent) => void, onResync?: 
   });
 
   useEffect(() => {
+    const pending = new Map<string, { e: SupportEvent; timer: number }>();
     const offEv = subscribeUserEvents((raw) => {
       const e = supportEventOf(raw);
       if (!e) return;
-      if (!liveSeen) {
-        liveSeen = true;
-        setLive(true);
-      }
-      ref.current(e);
+      const key = `${e.kind}:${e.ticketId}`;
+      const prev = pending.get(key);
+      if (prev) window.clearTimeout(prev.timer);
+      const merged = prev ? { ...e, ticket: e.ticket ?? prev.e.ticket, message: e.message ?? prev.e.message } : e;
+      const timer = window.setTimeout(() => {
+        pending.delete(key);
+        ref.current(merged);
+      }, SETTLE_MS);
+      pending.set(key, { e: merged, timer });
     });
     const offState = subscribeUserSocketState((s) => setOnline(s === "online"));
     const offSync = onUserSocketResync(() => resyncRef.current?.());
@@ -33,10 +37,12 @@ export function useSupportEvents(handler: (e: SupportEvent) => void, onResync?: 
       offEv();
       offState();
       offSync();
+      pending.forEach((p) => window.clearTimeout(p.timer));
+      pending.clear();
     };
   }, []);
 
-  return { online, live: online && live };
+  return { online };
 }
 
 export function usePoll(fn: () => void, ms: number, enabled: boolean) {
@@ -50,6 +56,13 @@ export function usePoll(fn: () => void, ms: number, enabled: boolean) {
       if (document.visibilityState === "visible") ref.current();
     };
     const id = window.setInterval(tick, ms);
-    return () => window.clearInterval(id);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") ref.current();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [ms, enabled]);
 }

@@ -14,6 +14,7 @@ export function usePaged<T>(
   key: string,
   limit = 20,
   keyOf?: (item: T) => string,
+  maxLimit = 100,
 ) {
   const [st, setSt] = useState<State<T>>(initial);
   const [prevKey, setPrevKey] = useState(key);
@@ -42,11 +43,21 @@ export function usePaged<T>(
     ctrl.current = c;
     const silent = quiet.current;
     quiet.current = false;
-    const size = silent ? Math.max(limit, loaded.current) : limit;
+    const size = silent ? Math.min(maxLimit, Math.max(limit, loaded.current)) : limit;
     fetcherRef
       .current(0, size, c.signal)
       .then((p) => {
         if (c.signal.aborted) return;
+        if (silent && loaded.current > size) {
+          const k = keyRef.current;
+          setSt((cur) => {
+            const head = p.items;
+            const seen = k ? new Set(head.map(k)) : null;
+            const tail = cur.items.slice(size).filter((x) => !(seen && k && seen.has(k(x))));
+            return { items: head.concat(tail), total: p.total, hasMore: cur.hasMore, status: "ready", error: null };
+          });
+          return;
+        }
         loaded.current = p.items.length;
         setSt({ items: p.items, total: p.total, hasMore: p.hasMore, status: "ready", error: null });
       })
@@ -55,7 +66,7 @@ export function usePaged<T>(
         setSt((cur) => (silent ? { ...cur, error: e } : { ...initial<T>(), status: "error", error: e }));
       });
     return () => c.abort();
-  }, [key, tick, limit]);
+  }, [key, tick, limit, maxLimit]);
 
   const loadMore = useCallback(async () => {
     if (more || !st.hasMore) return;

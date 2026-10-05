@@ -91,7 +91,7 @@ export default function ClientSupport({ ticketId }: { ticketId?: string }) {
     [setItems, setExtra],
   );
 
-  const { live } = useSupportEvents(
+  useSupportEvents(
     (e) => {
       if (e.ticket) patch(e.ticket);
       else if (e.kind === "message" && e.message) {
@@ -102,7 +102,7 @@ export default function ClientSupport({ ticketId }: { ticketId?: string }) {
     },
     list.refresh,
   );
-  usePoll(list.refresh, 30000, !live && list.status === "ready");
+  usePoll(list.refresh, 30000, list.status === "ready");
 
   const open = (id: string) => {
     setSelected(id);
