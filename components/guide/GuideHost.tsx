@@ -60,7 +60,11 @@ export default function GuideHost() {
   useEffect(() => {
     pathRef.current = pathname;
     const s = getGuide();
-    if (s.phase === "idle" || s.phase === "navigating" || navRef.current) return;
+    if (s.phase === "idle") return;
+    if (s.phase === "navigating" || s.phase === "locating" || navRef.current) {
+      if (!navRef.current) expectRef.current = pathname;
+      return;
+    }
     if (expectRef.current && samePath(pathname, expectRef.current)) return;
     stopTour();
   }, [pathname]);
@@ -171,6 +175,26 @@ export default function GuideHost() {
         return;
       }
       const id = remapTarget(step.target, role);
+      const flexible = cur.source === "page" || cur.source === "local";
+      const skip = () => {
+        const known = new Set([...s.missing, id]);
+        const pick = (from: number, by: number) => {
+          for (let k = from; k >= 0 && k < cur.steps.length; k += by) if (!known.has(remapTarget(cur.steps[k].target, role))) return k;
+          return -1;
+        };
+        let to = pick(s.index + s.dir, s.dir);
+        if (to < 0 && s.dir < 0) to = pick(s.index + 1, 1);
+        if (to >= 0) {
+          patchGuide({ index: to, phase: "locating", element: null, missing: [...known] });
+          return true;
+        }
+        if (s.shown > 0) {
+          stopTour();
+          return true;
+        }
+        return false;
+      };
+      if (flexible && s.missing.includes(id) && skip()) return;
       let el = findTarget(id);
       if (!el) {
         await revealTarget(id);
@@ -188,6 +212,7 @@ export default function GuideHost() {
       }
       if (signal.aborted) return;
       if (!el) {
+        if (flexible && skip()) return;
         RobotEvents.emit("reactError");
         patchGuide({ phase: "missing", element: null, missing: [...s.missing, id] });
         return;
@@ -206,6 +231,7 @@ export default function GuideHost() {
   useEffect(() => {
     if (phase !== "showing" || !element) return;
     const restore = focusWanted ? focusTarget(element) : () => {};
+    if (!(document.activeElement instanceof Node && element.contains(document.activeElement))) document.querySelector<HTMLElement>(".gcap__btn--pri")?.focus({ preventScroll: true });
     element.setAttribute("aria-describedby", "guide-caption");
     RobotEvents.emit("point", { target: element });
     const onClick = (e: MouseEvent) => {

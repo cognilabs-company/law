@@ -133,10 +133,10 @@ export default function ClientGifts() {
   }
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target={gifts.status !== "loading" && gifts.data.length ? undefined : "gifts:list"}>
       <div className="ppanel__h">
         <b>{t("title")}</b>
-        <button className="btn btn--pri btn--sm" type="button" onClick={() => { reset(); setOpen(true); }}>
+        <button className="btn btn--pri btn--sm" type="button" onClick={() => { reset(); setOpen(true); }} data-ai-target="button:give-gift">
           <IconPlus />
           {t("give")}
         </button>
@@ -147,7 +147,7 @@ export default function ClientGifts() {
       ) : !gifts.data.length ? (
         <EmptyState icon={<IconGift />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="alist">
+        <div className="alist" data-ai-target="gifts:list">
           {gifts.data.map((g) => (
             <div className="creq" key={g.id}>
               <span className="creq__st" />

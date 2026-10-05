@@ -29,7 +29,7 @@ export default function ClientAcademy() {
       </div>
 
       {res.status !== "loading" && res.data.length ? (
-        <div className="chiprow">
+        <div className="chiprow" data-ai-target="academy:categories">
           {cats.map((c) => (
             <button key={c || "all"} className="fchip" aria-pressed={cat === c} onClick={() => setCat(c)}>
               {c ? catLabel(c) : t("all")}
@@ -43,7 +43,7 @@ export default function ClientAcademy() {
       ) : !list.length ? (
         <EmptyState icon={<IconGraduation />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="acad__grid">
+        <div className="acad__grid" data-ai-target="academy:courses">
           {list.map((c) => (
             <article className="course" key={c.id}>
               <div className={`course__cover course__cover--${(c.title.length % 4) + 1}`}>

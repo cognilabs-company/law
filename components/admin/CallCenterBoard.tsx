@@ -146,7 +146,7 @@ export default function CallCenterBoard() {
   const assigneeOpts = [{ value: "", label: tp("assign.none") }, ...ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${o.name || o.phone} (${tp("assign.me")})` : o.name || o.phone || o.lexgoId }))];
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="callcenter:board">
       <Modal open={!!lostAsk} onClose={() => setLostAsk(null)} title={tp("lost.title")}>
         <div className="cform" style={{ maxWidth: "none" }}>
           <p className="advmuted">{tp("lost.lead")}</p>

@@ -49,10 +49,10 @@ export default function SellerMetrics({ stats, userId, profile, demo }: { stats:
   ];
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="seller-dashboard:metrics">
       <div className="ppanel__h">
         <b>{t("title")}</b>
-        <label className={`vac${vacation ? " on" : ""}`}>
+        <label className={`vac${vacation ? " on" : ""}`} data-ai-target="seller-dashboard:vacation">
           <input type="checkbox" checked={vacation} onChange={toggle} />
           <IconSun />{vacation ? t("vacationOn") : t("vacationOff")}
         </label>

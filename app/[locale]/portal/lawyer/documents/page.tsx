@@ -32,7 +32,7 @@ export default function LawyerDocuments() {
   const res = useResource(getDocumentTemplates, []);
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target={res.data.length ? undefined : "doc-templates:list"}>
       <div className="ppanel__h">
         <b>{t("title")}</b>
       </div>
@@ -44,7 +44,7 @@ export default function LawyerDocuments() {
       ) : !res.data.length ? (
         <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div>
+        <div data-ai-target="doc-templates:list" data-ai-label={t("title")}>
           {res.data.map((d) => (
             <div className="prow" key={d.id}>
               <span className="prow__i" style={{ background: "var(--grad)", color: "#fff" }}>

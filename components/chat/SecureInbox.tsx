@@ -199,7 +199,7 @@ export default function SecureInbox() {
   const unreadN = rows.reduce((sum, room) => sum + room.unreadCount, 0);
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target={res.status === "ready" && rows.length ? undefined : "messages:inbox"}>
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconChat /></span>{t("title")}</b>
         <span className="ppanel__hact">
@@ -214,7 +214,7 @@ export default function SecureInbox() {
       </div>
 
       {res.data.length > 4 ? (
-        <div className="svsel__bar sinbox__search">
+        <div className="svsel__bar sinbox__search" data-ai-target="messages:search" data-ai-label={t("search")}>
           <span className="svsel__search">
             <IconSearch />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
@@ -231,7 +231,7 @@ export default function SecureInbox() {
       ) : !rows.length ? (
         <EmptyState icon={<IconSearch />} title={t("noMatch")} text={t("noMatchText")} />
       ) : (
-        <div className="sinbox">
+        <div className="sinbox" data-ai-target="messages:inbox" data-ai-label={t("title")}>
           {rows.map((r, i) => {
             const name = nameOf(r);
             const isNew = r.unreadCount > 0;

@@ -61,7 +61,7 @@ export default function DashFilterBar({
   }
 
   return (
-    <div className={`dfbar${compact ? " dfbar--compact" : ""}`} role="group" aria-label={t("aria")}>
+    <div className={`dfbar${compact ? " dfbar--compact" : ""}`} role="group" aria-label={t("aria")} data-ai-target="stats:filters">
       <div className="dfbar__row">
         <span className="dfbar__f dfbar__f--region">
           <Select value={value.region} onChange={(region) => onChange({ ...value, region })} options={regions} ariaLabel={t("region")} />

@@ -153,6 +153,7 @@ const TEXT_ENTRY = "input:not([type=hidden]):not([type=checkbox]):not([type=radi
 const TYPEABLE = "input:not([type]),input[type=text],input[type=search],input[type=email],input[type=tel],input[type=url],input[type=number],textarea";
 const POPUP = ".mpick,.ssel,[aria-haspopup],[role=combobox]";
 const FIDGETY = "input[type=radio],input[type=checkbox],input[type=range],input[type=date],input[type=time],input[type=file],select";
+const ACTIONABLE = "a[href],button,[role=button],[role=link],[role=menuitem],input[type=submit],input[type=button],input[type=reset],summary";
 
 function calmInput(el: HTMLElement): boolean {
   return el.matches(TYPEABLE) && !el.matches("[readonly],[disabled]") && !el.closest(POPUP);
@@ -160,7 +161,7 @@ function calmInput(el: HTMLElement): boolean {
 
 export function focusTarget(el: HTMLElement): () => void {
   const touch = window.matchMedia("(pointer: coarse)").matches;
-  if (el.matches(FIDGETY) || (el.matches(TYPEABLE) && !calmInput(el))) return () => {};
+  if (el.matches(FIDGETY) || el.matches(ACTIONABLE) || (el.matches(TYPEABLE) && !calmInput(el))) return () => {};
   const own = el.matches("a[href],button,input,select,textarea,[tabindex]:not([tabindex='-1'])");
   const inner = own || touch ? null : Array.from(el.querySelectorAll<HTMLElement>(TYPEABLE)).find((x) => calmInput(x) && isShown(x)) ?? null;
   const focusable = own ? el : inner ?? el;

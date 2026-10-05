@@ -333,7 +333,7 @@ export default function ClientDocumentRequests() {
           screen), so this screen gains the summary without inventing a
           second visual language for it. */}
       {stats ? (
-        <div className="pk mydocs__stats">
+        <div className="pk mydocs__stats" data-ai-target="documents:my-stats">
           <div className="pk__i pk__i--ic pk__i--neutral">
             <span className="pk__ico"><IconFileText /></span>
             <b>{stats.total}</b>
@@ -357,7 +357,7 @@ export default function ClientDocumentRequests() {
         </div>
       ) : null}
 
-      <div className="cwork__bar mydocs__bar">
+      <div className="cwork__bar mydocs__bar" data-ai-target="documents:my-filters">
         <div className="chiprow chiprow--tabs">
           {TABS.map((tb) => (
             <button key={tb} type="button" className="fchip" aria-pressed={tab === tb} onClick={() => setTab(tb)}>

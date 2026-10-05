@@ -73,7 +73,7 @@ export default function CaseManageModal({
             <b>{target.caseType || target.title || "—"}</b>
             {target.description ? <p className="advmuted">{target.description}</p> : null}
           </div>
-          <div>
+          <div data-ai-target="case:status">
             <label>{t("status")}</label>
             <Select value={status} onChange={setStatus} options={statusOpts} ariaLabel={t("status")} />
           </div>

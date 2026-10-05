@@ -64,7 +64,7 @@ export default function ClientSos() {
             <p className="sos2__sub">{t("subtitle")}</p>
           </div>
         </div>
-        <a className="sos2__herocall" href={HOTLINE_TEL}>
+        <a className="sos2__herocall" href={HOTLINE_TEL} data-ai-target="sos:call">
           <span className="sos2__calli"><IconPhone /></span>
           <span className="sos2__callt">
             <span className="sos2__calll">{t("callNow")}</span>
@@ -78,7 +78,7 @@ export default function ClientSos() {
           <div className="sos2__form">
             <h2 className="sos2__h2">{t("formTitle")}</h2>
             <label className="sos2__lbl">{t("catLabel")}</label>
-            <div className="sos2__cats">
+            <div className="sos2__cats" data-ai-target="sos:categories">
               {CATS.map(({ key, Icon }) => (
                 <button
                   key={key}
@@ -98,15 +98,17 @@ export default function ClientSos() {
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               placeholder={t("descPh")}
+              data-ai-target="sos:description"
+              data-ai-label={t("descLabel")}
             />
-            <button className="sos2__btn" type="button" onClick={trigger} disabled={busy}>
+            <button className="sos2__btn" type="button" onClick={trigger} disabled={busy} data-ai-target="button:sos-connect">
               <IconAlert />
               {t("connect")}
             </button>
             <p className="sos2__hint">{t("hint")}</p>
           </div>
 
-          <aside className="sos2__side">
+          <aside className="sos2__side" data-ai-target="sos:how">
             <div className="sos2__how">
               <h3 className="sos2__h3">{t("howTitle")}</h3>
               <ol className="sos2__steps">

@@ -363,7 +363,7 @@ export default function FileManager() {
 
       <div className="fmgr">
         <aside className="fmgr__side">
-          <nav className="fmgr__nav">
+          <nav className="fmgr__nav" data-ai-target="files:sections">
             <button type="button" className={`fmgr__navbtn${filter === "all" ? " on" : ""}`} onClick={() => selectFilter("all")}>
               <IconFolder />
               {t("navAll")}
@@ -378,7 +378,7 @@ export default function FileManager() {
             </button>
           </nav>
           {quota ? (
-            <div className="fmgr__storage">
+            <div className="fmgr__storage" data-ai-target="files:storage">
               <span className="fmgr__storage-l">{t("storageLabel")}</span>
               <div className="fmgr__storage-bar">
                 <div className="fmgr__storage-fill" style={{ width: `${usedPct}%` }} />
@@ -390,7 +390,7 @@ export default function FileManager() {
 
         <div className="fmgr__main">
           <div className="fmgr__toolbar">
-            <div className="fmgr__search">
+            <div className="fmgr__search" data-ai-target="files:search" data-ai-label={t("searchPh")}>
               <IconSearch />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} />
             </div>
@@ -402,11 +402,11 @@ export default function FileManager() {
                 <IconList />
               </button>
             </div>
-            <button type="button" className="fmgr__btn" onClick={() => setNewFolderOpen(true)} disabled={busy}>
+            <button type="button" className="fmgr__btn" onClick={() => setNewFolderOpen(true)} disabled={busy} data-ai-target="button:new-folder">
               <IconFolderPlus />
               {t("newFolder")}
             </button>
-            <button type="button" className="fmgr__btn fmgr__btn--upload" onClick={() => fileInputRef.current?.click()} disabled={busy}>
+            <button type="button" className="fmgr__btn fmgr__btn--upload" onClick={() => fileInputRef.current?.click()} disabled={busy} data-ai-target="button:upload-file">
               <IconUpload />
               {busy ? t("uploading") : t("upload")}
             </button>
@@ -434,13 +434,13 @@ export default function FileManager() {
           )}
 
           {!visible.length ? (
-            <div className="fmgr__empty">
+            <div className="fmgr__empty" data-ai-target="files:list">
               <IconFolder />
               <b>{t("emptyTitle")}</b>
               <span>{emptyText}</span>
             </div>
           ) : view === "grid" ? (
-            <div className="fmgr__grid">
+            <div className="fmgr__grid" data-ai-target="files:list" data-ai-label={t("title")}>
               {visible.map((item) => {
                 const kind = kindOf(item);
                 return (
@@ -487,7 +487,7 @@ export default function FileManager() {
               })}
             </div>
           ) : (
-            <div className="fmgr__list">
+            <div className="fmgr__list" data-ai-target="files:list" data-ai-label={t("title")}>
               {visible.map((item) => (
                 <div key={item.id} className="fmgr__lrow" onDoubleClick={() => item.type === "folder" && openFolder(item.id)}>
                   <span className={`fmgr__ic fmgr__ic--${item.type === "folder" ? "folder" : "file"} fmgr__ic--sm`}>

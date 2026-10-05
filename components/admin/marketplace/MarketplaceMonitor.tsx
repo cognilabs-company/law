@@ -14,6 +14,7 @@ import {
 import { isForbidden } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { dateOnly, timeOnly } from "@/lib/date";
+import { useAiReveal } from "@/lib/guide/targets";
 import { EmptyState } from "@/components/portal/DataState";
 import { IconLock, IconRefresh } from "@/components/icons";
 import { useLive } from "./useLive";
@@ -42,6 +43,9 @@ export default function MarketplaceMonitor() {
   const [ordersAt, setOrdersAt] = useState(0);
   const [sellersAt, setSellersAt] = useState(0);
   const [open, setOpen] = useState<MkmOrder | null>(null);
+  useAiReveal(/^marketplace:(kpis|status-chart|top-sellers|latest-orders|filters)$/, () => setTab("overview"));
+  useAiReveal("marketplace:orders-list", () => setTab("orders"));
+  useAiReveal(/^marketplace:(sellers-list|seller-search)$/, () => setTab("sellers"));
 
   const scope: MkmScope = useMemo(
     () => ({ status: f.status, sellerUserId: f.seller?.id ?? "", clientUserId: f.client?.id ?? "", dateFrom: f.from, dateTo: f.to }),
@@ -159,7 +163,7 @@ export default function MarketplaceMonitor() {
             <h2 className="mkm-hero__t">{t("title")}</h2>
             <p className="mkm-hero__l">{t("lead")}</p>
           </div>
-          <div className={`mkm-rev${overview.changing ? " is-busy" : ""}`} aria-live="polite">
+          <div className={`mkm-rev${overview.changing ? " is-busy" : ""}`} aria-live="polite" data-ai-target="marketplace:revenue">
             <span className="mkm-rev__l">{t("revenue")}</span>
             <b className="mkm-rev__v">
               {stats ? fmtUzs(stats.revenuePaid) : "—"}
@@ -172,7 +176,7 @@ export default function MarketplaceMonitor() {
           </div>
         </div>
         <div className="mkm-hero__bar">
-          <div className="mkm-tabs" role="tablist" aria-label={t("tabsAria")}>
+          <div className="mkm-tabs" role="tablist" aria-label={t("tabsAria")} data-ai-target="marketplace:tabs">
             {TABS.map((k) => {
               const n = badge(k);
               return (

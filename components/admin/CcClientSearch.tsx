@@ -48,7 +48,7 @@ export default function CcClientSearch({ canLog, onLogged }: { canLog: boolean; 
   return (
     <div className="ppanel">
       <div className="ppanel__h"><b>{t("search")}</b><BusinessHoursBadge showHolidayNote /></div>
-      <form className="lsp__search" onSubmit={(e) => { e.preventDefault(); void run(q.trim()); }} style={{ marginBottom: 12 }}>
+      <form className="lsp__search" onSubmit={(e) => { e.preventDefault(); void run(q.trim()); }} style={{ marginBottom: 12 }} data-ai-target="callcenter:client-search">
         <IconSearch />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("search")} autoComplete="off" />
         <button type="submit" className="btn btn--pri btn--sm" disabled={q.trim().length < 2 || searching}>{searching ? t("searching") : t("searchBtn")}</button>

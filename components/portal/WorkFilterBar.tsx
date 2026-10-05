@@ -78,6 +78,7 @@ export default function WorkFilterBar({
   activeCount,
   onReset,
   resultCount,
+  aiTarget,
 }: {
   q: string;
   onQ: (v: string) => void;
@@ -92,11 +93,12 @@ export default function WorkFilterBar({
   activeCount: number;
   onReset: () => void;
   resultCount?: number;
+  aiTarget?: string;
 }) {
   const t = useTranslations("portal.workFilters");
   const [open, setOpen] = useState(false);
   return (
-    <div className="wfb">
+    <div className="wfb" data-ai-target={aiTarget} data-ai-label={aiTarget ? t("filters") : undefined}>
       <div className="wfb__top">
         <label className="wfb__search">
           <IconSearch />

@@ -33,7 +33,7 @@ export default function MkmOrders({
   const col = (k: string) => t(`col.${k}`);
 
   return (
-    <section className={`mkm-card${live.changing ? " is-busy" : ""}`} aria-busy={live.changing || live.loading}>
+    <section className={`mkm-card${live.changing ? " is-busy" : ""}`} aria-busy={live.changing || live.loading} data-ai-target="marketplace:orders-list">
       <div className="mkm-card__h">
         <div>
           <b>{t("title")}</b>

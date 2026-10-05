@@ -14,6 +14,7 @@ import {
   type CalendarEvent,
 } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
+import { useAiReveal } from "@/lib/guide/targets";
 import { Skeleton, EmptyState } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -72,6 +73,8 @@ export default function CalendarPanel({ ns }: { ns: string }) {
   const [vm, setVm] = useState(now.getMonth());
   const [sel, setSel] = useState(todayKey);
   const [mode, setMode] = useState<"month" | "list">("month");
+  useAiReveal(/^calendar:(month|agenda)$/, () => setMode("month"));
+  useAiReveal("calendar:list", () => setMode("list"));
 
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<string>("hearing");
@@ -239,15 +242,15 @@ export default function CalendarPanel({ ns }: { ns: string }) {
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <div className="segs segs--sm" role="tablist" aria-label={tc("view")}>
+          <div className="segs segs--sm" role="tablist" aria-label={tc("view")} data-ai-target="calendar:view">
             <button type="button" role="tab" className="seg" aria-selected={mode === "month"} onClick={() => setMode("month")}>{tc("month")}</button>
             <button type="button" role="tab" className="seg" aria-selected={mode === "list"} onClick={() => setMode("list")}>{tc("list")}</button>
           </div>
-          <button className="btn btn--soft btn--sm" type="button" onClick={() => { setCalcRes(null); setCalcErr(null); setCalcOpen(true); }}>
+          <button className="btn btn--soft btn--sm" type="button" onClick={() => { setCalcRes(null); setCalcErr(null); setCalcOpen(true); }} data-ai-target="button:deadline-calculator">
             <IconClock />
             {td("open")}
           </button>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => openAdd()}>
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => openAdd()} data-ai-target="button:add-event">
             <IconPlus />
             {t("add")}
           </button>
@@ -261,13 +264,13 @@ export default function CalendarPanel({ ns }: { ns: string }) {
         !res.data.length ? (
           <EmptyState icon={<IconCalendar />} title={t("empty")} text={t("emptyText")} />
         ) : (
-          <div className="calist">
+          <div className="calist" data-ai-target="calendar:list" data-ai-label={tc("list")}>
             {[...res.data].sort((a, b) => a.startsAt.localeCompare(b.startsAt)).map((ev) => eventRow(ev, true))}
           </div>
         )
       ) : (
         <div className="calwrap">
-          <div className="calgrid">
+          <div className="calgrid" data-ai-target="calendar:month">
             <div className="calgrid__nav">
               <button type="button" aria-label={tc("prev")} onClick={() => step(-1)}><IconChevronLeft /></button>
               <b>{monthTitle(vy, vm, locale)}</b>
@@ -302,7 +305,7 @@ export default function CalendarPanel({ ns }: { ns: string }) {
               })}
             </div>
           </div>
-          <aside className="calside">
+          <aside className="calside" data-ai-target="calendar:agenda">
             <div className="calside__h">
               <b>{sel === todayKey ? t("today") : fmtDate(sel, locale)}</b>
               <button type="button" className="aitem__act" aria-label={t("add")} title={t("add")} onClick={() => openAdd(sel)}><IconPlus /></button>

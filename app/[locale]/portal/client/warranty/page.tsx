@@ -62,7 +62,7 @@ export default function ClientWarranty() {
         </div>
       </div>
 
-      <div className="war__points">
+      <div className="war__points" data-ai-target="warranty:points">
         {points.map((p) => (
           <div className="war__point" key={p}>
             <span className="war__check"><IconCheck /></span>
@@ -72,7 +72,7 @@ export default function ClientWarranty() {
       </div>
 
       <div className="pgrid2">
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="warranty:form">
           <div className="ppanel__h"><b>{t("requestTitle")}</b></div>
           <p className="ppanel__note">{t("requestLead")}</p>
           <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
@@ -91,7 +91,7 @@ export default function ClientWarranty() {
           </form>
         </div>
 
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="warranty:claims">
           <div className="ppanel__h"><b>{t("claimsTitle")}</b></div>
           {claims.status === "loading" ? (
             <Skeleton rows={2} />

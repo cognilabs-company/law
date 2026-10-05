@@ -48,7 +48,7 @@ export default function AdminB2b() {
         <b>{t("title")}</b>
         <span className="ahdr">
           <span className="advmuted">{res.data.length}</span>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)}><IconPlus />{t("add")}</button>
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-b2b-client"><IconPlus />{t("add")}</button>
         </span>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
@@ -84,20 +84,20 @@ export default function AdminB2b() {
       ) : !res.data.length ? (
         <EmptyState icon={<IconBuilding />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="alist">
+        <div className="alist" data-ai-target="b2b:list" data-ai-label={t("title")}>
           {res.data.map((c) => (
             <div className="aitem" key={c.id}>
               <span className="aitem__n"><IconBuilding /></span>
               <div className="aitem__m">
                 <b>{c.name || "—"}</b>
                 <span className="aitem__meta">{[c.industry, c.contact].filter(Boolean).join(" · ")}</span>
-                <div className="aitem__tags" style={{ marginTop: 6 }}>
+                <div className="aitem__tags" style={{ marginTop: 6 }} data-ai-target="b2b:documents">
                   <button type="button" className="btn btn--line btn--sm" onClick={() => setDoc({ kind: "invoice", client: c })}><IconCard />{t("invoice")}</button>
                   <button type="button" className="btn btn--line btn--sm" onClick={() => setDoc({ kind: "contract", client: c })}><IconFileText />{t("contract")}</button>
                   <button type="button" className="btn btn--line btn--sm" onClick={() => setDoc({ kind: "report", client: c })}><IconDownload />{t("report")}</button>
                 </div>
               </div>
-              <div className="aitem__r" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <div className="aitem__r" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }} data-ai-target="b2b:stage">
                 {c.value ? <b className="b2b__val">{som(c.value)}</b> : null}
                 <Select value={STAGES.includes(c.stage) ? c.stage : "discovered"} onChange={(v) => setStage(c, v)} options={stageOpts} ariaLabel={t("stageLabel")} />
               </div>

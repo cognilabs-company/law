@@ -152,8 +152,8 @@ export default function ClientDocAnalysis() {
 
       <div className="ppanel">
         <label className="intake__lbl">{t("label")}</label>
-        {file ? null : <textarea className="intake__ta" rows={7} value={text} onChange={(e) => setText(e.target.value)} placeholder={t("placeholder")} />}
-        <div className="docf">
+        {file ? null : <textarea className="intake__ta" rows={7} value={text} onChange={(e) => setText(e.target.value)} placeholder={t("placeholder")} data-ai-target="doc-analysis:text" data-ai-label={t("label")} />}
+        <div className="docf" data-ai-target="doc-analysis:file">
           {file ? (
             <span className="docf__name"><IconFileText />{file.name} · {Math.max(1, Math.round(file.size / 1024))} {tcommon("kb")}</span>
           ) : null}
@@ -165,7 +165,7 @@ export default function ClientDocAnalysis() {
         </div>
         {fileErr ? <p className="docq__err">{fileErr}</p> : null}
 
-        <div className="docq">
+        <div className="docq" data-ai-target="doc-analysis:options">
           <label className="docq__pages">
             <span>{t("pages")}</span>
             <input
@@ -189,7 +189,7 @@ export default function ClientDocAnalysis() {
         {pagesOk && pageCount > INCLUDED_PAGES ? <p className="docq__hint">{t("extraPagesHint", { n: INCLUDED_PAGES })}</p> : null}
 
         {fresh ? (
-          <div className="oquote" style={{ marginBottom: 12 }}>
+          <div className="oquote" style={{ marginBottom: 12 }} data-ai-target="doc-analysis:quote">
             {fresh.aiIncluded ? (
               <div className="oquote__row oquote__row--disc"><span>{t("quoteAiIncluded", { n: fresh.pageCount || pageCount })}</span><span>{t("quoteIncluded")}</span></div>
             ) : (
@@ -208,13 +208,13 @@ export default function ClientDocAnalysis() {
             <div className="oquote__row oquote__row--total"><span>{t("quoteTotal")}</span><b>{som(fresh.totalAmount)}</b></div>
           </div>
         ) : (
-          <button className="btn btn--line btn--full" type="button" style={{ marginBottom: 10 }} onClick={() => getQuote()} disabled={quoting || !pagesOk}>
+          <button className="btn btn--line btn--full" type="button" style={{ marginBottom: 10 }} onClick={() => getQuote()} disabled={quoting || !pagesOk} data-ai-target="doc-analysis:quote">
             {quoting ? t("quoting") : t("getQuote")}
           </button>
         )}
         {quoteFailed ? <p className="docq__err">{t("quoteError")}</p> : null}
 
-        <button className="btn btn--pri btn--full" type="button" onClick={run} disabled={busy || !canRun}>
+        <button className="btn btn--pri btn--full" type="button" onClick={run} disabled={busy || !canRun} data-ai-target="button:doc-analysis-run">
           <IconSparkle />
           {busy ? t("analyzing") : t("analyze")}
         </button>
@@ -223,7 +223,7 @@ export default function ClientDocAnalysis() {
 
       {res ? (
         <>
-          <div className="ppanel">
+          <div className="ppanel" data-ai-target="doc-analysis:result">
             <div className="ppanel__h">
               <b>{t("summary")}</b>
               {res.pageCount ? <span className="creq__badge">{t("pagesN", { n: res.pageCount })}</span> : null}

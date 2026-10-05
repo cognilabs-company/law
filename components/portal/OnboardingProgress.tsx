@@ -68,7 +68,7 @@ export default function OnboardingProgress({ role, limited }: { role: Role; limi
   const pct = p.totalCount ? Math.round((p.completedCount / p.totalCount) * 100) : 0;
 
   return (
-    <div className="ppanel onbp">
+    <div className="ppanel onbp" data-ai-target="seller-dashboard:completeness">
       <div className="ppanel__h">
         <b>{t("strength", { pct })}</b>
         <span className={`creq__badge${done ? " creq__badge--ok" : ""}`}>{t("count", { done: p.completedCount, total: p.totalCount })}</span>

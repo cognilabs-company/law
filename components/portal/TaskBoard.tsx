@@ -126,16 +126,16 @@ export default function TaskBoard() {
   }
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target={res.data.length ? undefined : "tasks:board"}>
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="ahdr">
           <span className="advmuted">{t("count", { n: res.data.length, open: res.data.filter((x) => stageOf(x.status) !== "done").length })}</span>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setEditing("new")}><IconPlus />{t("add")}</button>
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => setEditing("new")} data-ai-target="button:new-task"><IconPlus />{t("add")}</button>
         </span>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
-      <div className="lfilters">
+      <div className="lfilters" data-ai-target="tasks:filters" data-ai-label={t("searchPh")}>
         <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>
         <label className={`vac${hideDone ? " on" : ""}`}><input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /><IconCheck />{t("hideDone")}</label>
       </div>
@@ -148,7 +148,7 @@ export default function TaskBoard() {
       ) : !res.data.length ? (
         <EmptyState icon={<IconClipboardCheck />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="pipe pipe--tasks">
+        <div className="pipe pipe--tasks" data-ai-target="tasks:board" data-ai-label={t("title")}>
           {shownStages.map((s) => {
             const si = STAGES.indexOf(s);
             return (

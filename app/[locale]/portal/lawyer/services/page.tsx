@@ -94,7 +94,7 @@ export default function LawyerServices() {
       <ServiceSelector value={sel} onChange={setSel} excludeAdvokatRequired />
 
       {sel.length ? (
-        <div className="svprices">
+        <div className="svprices" data-ai-target="services:prices">
           <div className="ppanel__h" style={{ marginTop: 18 }}><b>{t("pricesTitle")}</b><span className="advmuted">{t("pricesBand")}</span></div>
           <div className="alist">
             {sel.map((id) => {
@@ -116,14 +116,14 @@ export default function LawyerServices() {
         </div>
       ) : null}
 
-      <label className={`vac${agreed ? " on" : ""}`} style={{ marginTop: 14, alignSelf: "flex-start" }}>
+      <label className={`vac${agreed ? " on" : ""}`} style={{ marginTop: 14, alignSelf: "flex-start" }} data-ai-target="services:policy">
         <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
         <IconCheck />{t("policyAgree")}
       </label>
       <p className="rf__hint">{t("policyHint")}</p>
 
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-      <button className="btn btn--pri btn--full" type="button" onClick={save} disabled={busy || !loaded} style={{ marginTop: 14 }}>
+      <button className="btn btn--pri btn--full" type="button" onClick={save} disabled={busy || !loaded} style={{ marginTop: 14 }} data-ai-target="button:save-services">
         {busy ? t("saving") : t("save")}
         {busy ? null : <IconCheck />}
       </button>

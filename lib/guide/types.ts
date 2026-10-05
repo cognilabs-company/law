@@ -25,6 +25,7 @@ export type GuideState = {
   element: HTMLElement | null;
   missing: string[];
   shown: number;
+  dir: 1 | -1;
 };
 
 export type TargetInfo = { id: string; label: string; kind: string; in_view: boolean };

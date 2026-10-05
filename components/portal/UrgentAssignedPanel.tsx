@@ -267,7 +267,7 @@ export default function UrgentAssignedPanel() {
   if (state.status === "missing") return null;
 
   return (
-    <section className="ppanel uasg">
+    <section className="ppanel uasg" data-ai-target={shown.length ? undefined : "urgent-assigned:list"}>
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconBolt /></span>{t("title")}</b>
         <button type="button" className="btn btn--line btn--sm" onClick={() => void load()} aria-label={tcm("open")} title={tcm("open")}>
@@ -313,6 +313,7 @@ export default function UrgentAssignedPanel() {
         activeCount={activeCount}
         onReset={resetF}
         resultCount={filtered.length}
+        aiTarget="urgent-assigned:filters"
       />
 
       {state.status === "loading" ? (
@@ -327,7 +328,7 @@ export default function UrgentAssignedPanel() {
           <button type="button" className="btn btn--line btn--sm" onClick={resetF}>{tf("reset")}</button>
         </div>
       ) : (
-        <ul className="uasg__list">
+        <ul className="uasg__list" data-ai-target="urgent-assigned:list" data-ai-label={t("title")}>
           {shown.map((r) => {
             const Icon = KIND_ICON[r.serviceKind] ?? IconScale;
             const on = openId === r.id;

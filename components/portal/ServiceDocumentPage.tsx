@@ -8,6 +8,7 @@ import { clearDraft, hasDraftAnswers, DocChromeContext, type DocChrome } from ".
 import { useCatalogBackHref } from "@/lib/catalogNav";
 import Modal from "@/components/admin/Modal";
 import { IconChevronLeft, IconClose, IconAlert } from "@/components/icons";
+import InstructorButton from "@/components/guide/InstructorButton";
 
 // A dedicated full-page builder for the service → document flow (as opposed
 // to the modal used elsewhere): the questions on the left and the document
@@ -85,6 +86,7 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
           {t("back")}
         </button>
         {title ? <b className="docbuild__title">{title}</b> : null}
+        <InstructorButton className="docbuild__ai" />
         <button type="button" className="docbuild__exit" onClick={askOrLeave}>
           <IconClose />
           {td("exit")}

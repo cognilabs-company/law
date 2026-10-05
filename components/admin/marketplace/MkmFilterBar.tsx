@@ -92,7 +92,7 @@ export default function MkmFilterBar({
   return (
     <div className="mkm-fbar" role="group" aria-label={t("aria")}>
       <div className="mkm-fbar__top">
-        <div className="mkm-presets" role="group" aria-label={t("presetsAria")}>
+        <div className="mkm-presets" role="group" aria-label={t("presetsAria")} data-ai-target="marketplace:period">
           {PRESETS.map((p) => (
             <button key={p.key} type="button" className="mkm-preset" aria-pressed={value.preset === p.key} onClick={() => preset(p.key)}>
               {t(`presets.${p.key}`)}
@@ -119,7 +119,7 @@ export default function MkmFilterBar({
       </div>
 
       {partyScoped ? (
-        <div className="mkm-fbar__grid">
+        <div className="mkm-fbar__grid" data-ai-target="marketplace:filters">
           <div className="mkm-f">
             <Select
               value={value.status}
@@ -158,7 +158,7 @@ export default function MkmFilterBar({
           </div>
         </div>
       ) : (
-        <label className="mkm-search">
+        <label className="mkm-search" data-ai-target="marketplace:seller-search">
           <IconSearch aria-hidden />
           <input value={q} onChange={(e) => onQ(e.target.value)} placeholder={t("sellersSearch")} aria-label={t("sellersSearch")} />
           {q ? (

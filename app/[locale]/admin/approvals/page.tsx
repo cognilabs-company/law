@@ -28,7 +28,7 @@ export default function AdminApprovals() {
   }
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="approvals:queue">
       <div className="ppanel__h">
         <b>{t("approvals.title")}</b>
         <span className="advmuted">{res.data.length}</span>
@@ -57,7 +57,7 @@ export default function AdminApprovals() {
                   <em className="atag">{a.status ? (t.has(`approvals.status.${a.status}`) ? t(`approvals.status.${a.status}`) : a.status) : ""}</em>
                 </div>
               </div>
-              <div className="aitem__r" style={{ display: "flex", gap: 8 }}>
+              <div className="aitem__r" style={{ display: "flex", gap: 8 }} data-ai-target="approvals:actions">
                 <button
                   className="btn btn--soft btn--sm"
                   type="button"

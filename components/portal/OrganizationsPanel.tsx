@@ -77,12 +77,12 @@ export default function OrganizationsPanel() {
   }
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target={mine.length ? undefined : "organization:list"}>
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="ahdr">
           <span className="advmuted">{mine.length}</span>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreateOpen(true)}>
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreateOpen(true)} data-ai-target="button:create-organization">
             <IconPlus />
             {t("create")}
           </button>
@@ -95,7 +95,7 @@ export default function OrganizationsPanel() {
       ) : !mine.length ? (
         <EmptyState icon={<IconBuilding />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="alist">
+        <div className="alist" data-ai-target="organization:list" data-ai-label={t("title")}>
           {mine.map((o, i) => (
             <AdminItem
               key={o.id}
@@ -166,7 +166,7 @@ export default function OrganizationsPanel() {
             ) : (
               <EmptyState icon={<IconUsers />} title={t("noMembers")} />
             )}
-            <form className="cform" style={{ maxWidth: "none" }} onSubmit={addMember}>
+            <form className="cform" style={{ maxWidth: "none" }} onSubmit={addMember} data-ai-target="organization:add-member" data-ai-label={t("addMember")}>
               <UserSelect value={uid} onChange={setUid} label={t("member")} placeholder={t("selectMember")} />
               <div>
                 <label>{t("memberTitle")}</label>

@@ -41,7 +41,7 @@ export default function ServiceSelector({
     return <EmptyState title={t("empty")} text={t("emptyText")} />;
 
   return (
-    <div className="svsel">
+    <div className="svsel" data-ai-target="services:catalog">
       <div className="svsel__bar">
         <span className="svsel__search">
           <IconSearch />

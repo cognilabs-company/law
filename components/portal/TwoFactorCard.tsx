@@ -186,7 +186,7 @@ export default function TwoFactorCard() {
   }
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="profile:two-factor">
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconLock /></span>{t("title")}</b>
         {on ? <span className="tfa__on"><IconShieldCheck />{t("enabledBadge")}</span> : null}

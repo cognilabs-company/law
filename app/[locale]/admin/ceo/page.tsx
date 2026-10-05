@@ -83,14 +83,14 @@ export default function AdminCeo() {
         <Skeleton rows={4} />
       ) : (
         <>
-          <div className="castat">
+          <div className="castat" data-ai-target="ceo:kpis">
             <StatTile icon={<IconCard />} value={short(d.revenue)} label={t("revenue")} sub={`${d.revenueDeltaPct >= 0 ? "+" : ""}${d.revenueDeltaPct}%`} demo={demo} hint={regionHint} onClick={drillRevenue} />
             <StatTile icon={<IconTrendingUp />} tone="ok" value={short(d.mrr)} label={t("mrr")} demo={demo} hint={regionHint ?? dateHint} onClick={drillMrr} />
             <StatTile icon={<IconUsers />} value={String(d.users)} label={t("users")} sub={`${d.activeUsers} ${t("active")}`} demo={demo} hint={dateHint} onClick={drillUsers} />
             <StatTile icon={<IconTarget />} value={pct(d.conversionPct)} label={t("conversion")} demo={demo} hint={regionHint} onClick={drillConversion} />
           </div>
 
-          <div className="cachart">
+          <div className="cachart" data-ai-target="ceo:revenue-trend">
             <h3>{t("revenueTrend")}</h3>
             {trend.length ? (
               <LineChart points={trend} format={(v) => som(v)} controls={false} />
@@ -98,7 +98,7 @@ export default function AdminCeo() {
           </div>
 
           <div className="pgrid2">
-            <div className="cablock">
+            <div className="cablock" data-ai-target="ceo:funnel">
               <h3>{t("funnel")}</h3>
               {d.funnel.length ? (
                 <div className="fnl">
@@ -111,7 +111,7 @@ export default function AdminCeo() {
                 </div>
               ) : <p className="advmuted">{t("noData")}</p>}
             </div>
-            <div className="cablock">
+            <div className="cablock" data-ai-target="ceo:channels">
               <h3>{t("channels")}</h3>
               {d.channels.length ? (
                 <DonutChart
@@ -126,7 +126,7 @@ export default function AdminCeo() {
           </div>
 
           {d.channels.length ? (
-            <div className="cablock">
+            <div className="cablock" data-ai-target="ceo:channel-table">
               <h3>{t("channelTable.title")}</h3>
               <div className="ceoch">
                 <div className="ceoch__row ceoch__row--h">
@@ -151,7 +151,7 @@ export default function AdminCeo() {
 
           {/* Chapter V KPI system */}
           <div className="cachart" style={{ paddingBottom: 0 }}><h3>{t("kpi.title")}</h3></div>
-          <div className="castat">
+          <div className="castat" data-ai-target="ceo:kpi-system">
             <StatTile icon={<IconUsers />} value={String(d.mau)} label={t("kpi.mau")} sub={`${d.dau} ${t("kpi.dau")}`} demo={demo} hint={regionHint} onClick={drillUsers} />
             <StatTile icon={<IconTrendingUp />} tone="ok" value={short(d.gmv)} label={t("kpi.gmv")} demo={demo} hint={regionHint} onClick={simple(t("kpi.gmv"), som(d.gmv))} />
             <StatTile icon={<IconCard />} tone="ok" value={short(d.arr)} label={t("kpi.arr")} demo={demo} hint={regionHint ?? dateHint} onClick={drillMrr} />
@@ -171,7 +171,7 @@ export default function AdminCeo() {
             <StatTile icon={<IconCard />} tone="ok" value={String(d.paidPayments)} label={t("kpi.paidPayments")} demo={demo} hint={regionHint} onClick={drillRevenue} />
           </div>
 
-          <div className="cablock">
+          <div className="cablock" data-ai-target="ceo:gift-kpis">
             <h3>{t("kpi.giftTitle")}</h3>
             <div className="castat">
               <StatTile icon={<IconCard />} value={String(d.giftKpis.giftPurchases)} label={t("kpi.giftPurchases")} demo={demo} hint={regionHint} onClick={drillGifts} />

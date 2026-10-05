@@ -30,6 +30,8 @@ import DocPaper from "./DocPaper";
 import { Link } from "@/i18n/navigation";
 import { fmtUzs } from "@/lib/money";
 import { IconCheck, IconChevronLeft, IconClock, IconClose, IconFileText, IconHeadset, IconInfo, IconList, IconMenu } from "@/components/icons";
+import InstructorButton from "@/components/guide/InstructorButton";
+import { useAiReveal } from "@/lib/guide/targets";
 
 const DRAFT_KEY = (id: string) => `lexgo_doc_draft_${id}`;
 export function loadDraft(id: string): Record<string, string> | null {
@@ -295,6 +297,11 @@ export default function DocFill({
   // starts closed and is one click away in the top bar.
   const roomy = () => typeof window !== "undefined" && window.matchMedia("(min-width: 1361px)").matches;
   const [leftOpen, setLeftOpen] = useState(true);
+  useAiReveal("documents:fill-form", () => {
+    setTab("form");
+    setLeftOpen(true);
+  });
+  useAiReveal("documents:fill-preview", () => setTab("doc"));
   const [rightOpen, setRightOpen] = useState(roomy);
   const [rightTab, setRightTab] = useState<"sections" | "info">("sections");
   const [leftW, setLeftW] = useState(storedLeftW);
@@ -715,7 +722,7 @@ export default function DocFill({
   );
 
   const submitButton = (
-    <button type="button" className={`btn btn--grad btn--full btn--lg${chrome ? " dfws__submit" : ""}`} onClick={submit} disabled={busy} aria-disabled={blocked}>
+    <button type="button" className={`btn btn--grad btn--full btn--lg${chrome ? " dfws__submit" : ""}`} onClick={submit} disabled={busy} aria-disabled={blocked} data-ai-target="button:document-submit">
       {busy ? t("saving") : submitLabel}
     </button>
   );
@@ -823,11 +830,12 @@ export default function DocFill({
               .deditor__actions the advocate's two actions sit in. */}
           <div className="deditor__actions">
             {askButton}
+            <InstructorButton className="deditor__act deditor__act--ai" labelClassName="deditor__actLabel" size={18} />
             <button type="button" className="deditor__act" onClick={chrome.onExit} title={t("exit")}>
               <IconClose />
               <span className="deditor__actLabel">{t("exit")}</span>
             </button>
-            <button type="button" className="deditor__act deditor__act--primary" onClick={submit} disabled={busy} aria-disabled={blocked}>
+            <button type="button" className="deditor__act deditor__act--primary" onClick={submit} disabled={busy} aria-disabled={blocked} data-ai-target="button:document-submit">
               <IconCheck />
               <span className="deditor__actLabel">{busy ? t("saving") : submitLabel}</span>
             </button>
@@ -856,6 +864,7 @@ export default function DocFill({
             role="tabpanel"
             aria-labelledby="docb-tab-form"
             className={`deditor__left${leftOpen ? " on" : ""}${tab === "form" ? " is-tab" : ""}`}
+            data-ai-target="documents:fill-form"
           >
             <button type="button" className="deditor__panelToggle" onClick={() => setLeftOpen(false)} aria-label={t("wsTogglePanel")}>
               <IconChevronLeft />
@@ -886,7 +895,7 @@ export default function DocFill({
             </div>
           ) : null}
 
-          <main id="docb-pane-doc" role="tabpanel" aria-labelledby="docb-tab-doc" className={`deditor__main${tab === "doc" ? " is-tab" : ""}`}>
+          <main id="docb-pane-doc" role="tabpanel" aria-labelledby="docb-tab-doc" className={`deditor__main${tab === "doc" ? " is-tab" : ""}`} data-ai-target="documents:fill-preview">
             {paper}
           </main>
 
@@ -986,6 +995,7 @@ export default function DocFill({
         role="tabpanel"
         aria-labelledby="docb-tab-form"
         className={`docfill${tab === "form" ? " on" : ""}`}
+        data-ai-target="documents:fill-form"
       >
         {formHead}
         {formList}
@@ -1013,6 +1023,7 @@ export default function DocFill({
         role="tabpanel"
         aria-labelledby="docb-tab-doc"
         className={`docb__pane${tab === "doc" ? " on" : ""}`}
+        data-ai-target="documents:fill-preview"
       >
         {paper}
       </section>

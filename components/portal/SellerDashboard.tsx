@@ -167,7 +167,7 @@ export default function SellerDashboard({ role, compact = false }: { role: Role;
       {cabinet.data ? <SellerPayouts /> : null}
       <ReferralProgress side="seller" href={role === "advocate" ? "/portal/advocate/referrals" : "/portal/lawyer/referrals"} />
 
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="seller-dashboard:new-orders">
         <div className="ppanel__h">
           <b>{t("newCases")}</b>
           <span className="advmuted">{t("newCasesSub", { n: openCases.length })}</span>
@@ -199,7 +199,7 @@ function CabinetStatus({ cabinet: c, role }: { cabinet: SellerCabinet; role: Rol
   const region = c.profile.region;
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="seller-dashboard:status">
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="creq__badge">{t.has(`status.${statusKey}`) ? t(`status.${statusKey}`) : statusKey}</span>

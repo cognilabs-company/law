@@ -24,7 +24,7 @@ export default function ProfilePreview({ p }: { p: ProfessionalProfile }) {
   const stats = p.stats;
 
   return (
-    <div className="ppv">
+    <div className="ppv" data-ai-target="profile:preview">
       <div className="ppv__badge">
         <IconClock />
         {t("verifyPending")}

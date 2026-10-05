@@ -35,7 +35,7 @@ export default function ReferralProgress({ side, href }: { side: "client" | "sel
   const pct = Math.min(100, Math.round((r.joined / Math.max(1, goal)) * 100));
   const remaining = Math.max(0, goal - r.joined);
   return (
-    <Link href={href} className="refprog">
+    <Link href={href} className="refprog" data-ai-target="referrals:progress">
       <span className="refprog__ico"><IconUsers /></span>
       <div className="refprog__m">
         <b>{t("title")}</b>

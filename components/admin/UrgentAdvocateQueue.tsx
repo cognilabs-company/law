@@ -320,7 +320,7 @@ export default function UrgentAdvocateQueue() {
   if (state.status === "forbidden" || state.status === "missing") return null;
 
   return (
-    <section className="ppanel uaq" id="cc-urgent">
+    <section className="ppanel uaq" id="cc-urgent" data-ai-target="callcenter:urgent">
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconBolt /></span>{t("title")}</b>
         <span className={`uaq__live${live ? " on" : ""}`} title={live ? t("liveOn") : t("liveOff")}>
@@ -336,7 +336,7 @@ export default function UrgentAdvocateQueue() {
           among three: they claim here, schedule here, and have to find that
           same record again a minute later. Tabs say where it went; a Select
           hid it. The count is whatever that tab last returned. */}
-      <div className="tabs uaq__tabs" role="tablist" aria-label={t("fStatus")}>
+      <div className="tabs uaq__tabs" role="tablist" aria-label={t("fStatus")} data-ai-target="callcenter:urgent-tabs">
         {TABS.map((tab) => (
           <button
             key={tab.value || "all"}
@@ -354,7 +354,7 @@ export default function UrgentAdvocateQueue() {
 
       {/* Source is fixed — this board IS the Tezkor Advokat source — so it is
           shown as a standing chip rather than a filter that can be turned off. */}
-      <div className="uaq__filters">
+      <div className="uaq__filters" data-ai-target="callcenter:urgent-filters">
         <span className="uaq__src"><IconBolt />{t("sourceTezkor")}</span>
         <Select
           value={kind}
@@ -383,7 +383,7 @@ export default function UrgentAdvocateQueue() {
       ) : !state.items.length ? (
         <EmptyState icon={<IconBolt />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <ul className="uaq__list">
+        <ul className="uaq__list" data-ai-target="callcenter:urgent-list">
           {state.items.map((r) => {
             const Icon = KIND_ICON[r.serviceKind] ?? IconScale;
             const open = (r.status || "open_pool") === "open_pool";
@@ -436,7 +436,7 @@ export default function UrgentAdvocateQueue() {
                   <em className={`creq__badge uaq__st uaq__st--${r.status || "open_pool"}`}>{statusLabel(tcm, r.status || "open_pool")}</em>
                   <div className="uaq__acts">
                     {claimable ? (
-                      <button type="button" className="btn btn--pri btn--sm" disabled={busyId === r.id} onClick={() => void claim(r)}>
+                      <button type="button" className="btn btn--pri btn--sm" disabled={busyId === r.id} onClick={() => void claim(r)} data-ai-target="button:urgent-claim">
                         <IconCheck />{busyId === r.id ? t("claiming") : t("claim")}
                       </button>
                     ) : null}

@@ -24,12 +24,12 @@ export default function ClientsPanel({ ns }: { ns: string }) {
 
   return (
     <>
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target={res.data.length ? undefined : "seller:client-list"}>
         <div className="ppanel__h">
           <b>{t("title")}</b>
           <span style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn--soft btn--sm" type="button" onClick={() => setCheckOpen(true)}><IconShieldCheck />{tc("checkCta")}</button>
-            <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)}><IconPlus />{tc("addCta")}</button>
+            <button className="btn btn--soft btn--sm" type="button" onClick={() => setCheckOpen(true)} data-ai-target="button:conflict-check"><IconShieldCheck />{tc("checkCta")}</button>
+            <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:add-client"><IconPlus />{tc("addCta")}</button>
           </span>
         </div>
         <p className="ppanel__note">{tc("lead")}</p>
@@ -39,7 +39,7 @@ export default function ClientsPanel({ ns }: { ns: string }) {
         ) : !res.data.length ? (
           <EmptyState icon={<IconUsers />} title={t("empty")} text={t("emptyText")} />
         ) : (
-          <div className="pclients" data-ai-target="seller:client-list">
+          <div className="pclients" data-ai-target="seller:client-list" data-ai-label={t("title")}>
             {res.data.map((c) => (
               <div className="pclient pclient--btn" key={c.id} role="button" tabIndex={0} onClick={() => setDetail(c.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(c.id); } }}>
                 <span className="pclient__av">{initials(c.name || "?")}</span>

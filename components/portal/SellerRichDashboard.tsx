@@ -121,7 +121,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
       </div>
 
       {cabinet.status === "loading" ? null : (
-        <div className="amet">
+        <div className="amet" data-ai-target="seller-dashboard:stats">
           <Link href={`${base}/clients`} className="amet__c stile stile--btn">
             <span className="amet__i"><IconUsers /></span>
             <b>{clientsCount}</b>
@@ -146,7 +146,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
       )}
 
       <div className="dgrid2">
-        <div className="ppanel pcompl">
+        <div className="ppanel pcompl" data-ai-target="seller-dashboard:completeness" data-ai-label={t("completeness")}>
           <div className="ring" style={{ "--v": `${completeness}%` } as CSSProperties}>
             <b>{completeness}%</b>
           </div>
@@ -168,7 +168,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
           </div>
         </div>
 
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="seller-dashboard:quick-actions">
           <div className="ppanel__h">
             <b>{t("quickActions")}</b>
           </div>
@@ -184,7 +184,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
       </div>
 
       <div className="dgrid3">
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="seller-dashboard:tasks">
           <div className="ppanel__h">
             <b>{t("myTasks")}</b>
           </div>
@@ -219,7 +219,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
           )}
         </div>
 
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="seller-dashboard:calendar">
           <div className="ppanel__h">
             <b>{t("calendar")}</b>
           </div>
@@ -227,7 +227,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
         </div>
 
         <div className="dgrid3__col">
-          <div className="ppanel">
+          <div className="ppanel" data-ai-target="seller-dashboard:activity">
             <div className="ppanel__h">
               <b>{t("recentActivity")}</b>
             </div>
@@ -248,7 +248,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
             )}
           </div>
 
-          <div className="aicard">
+          <div className="aicard" data-ai-target="seller-dashboard:ai" data-ai-label={t("aiTitle")}>
             <div className="aicard__h">
               <IconSparkle />
               {t("aiTitle")}
@@ -264,7 +264,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
       </div>
 
       {role === "advocate" ? (
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="seller-dashboard:promotion">
           <div className="ppanel__h">
             <b>{t("boostTitle")}</b>
           </div>

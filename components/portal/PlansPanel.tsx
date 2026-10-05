@@ -289,7 +289,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
           <h2 className="psec-h"><IconSparkle style={{ width: 20, height: 20, verticalAlign: "-3px", marginRight: 8 }} />{t("ai.title")}</h2>
           <p className="plans__sub">{sellerPct ? t("ai.subtitleSeller", { pct: sellerPct }) : t("ai.subtitle")}</p>
         </div>
-        <div className="switch switch--sm" role="group" aria-label={t("ai.term")}>
+        <div className="switch switch--sm" role="group" aria-label={t("ai.term")} data-ai-target="plans:period">
           {([1, 3, 6, 12] as Term[]).map((m) => (
             <button key={m} type="button" aria-pressed={aiTerm === m} onClick={() => setAiTerm(m)}>{t(`ai.term${m}`)}{TERM_DISCOUNT[m] ? <small> −{TERM_DISCOUNT[m]}%</small> : null}</button>
           ))}
@@ -393,7 +393,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
 
       {aiPlans.length ? (
         <div className="subs__bottom">
-          <div className="ppanel">
+          <div className="ppanel" data-ai-target="plans:compare">
             <div className="ppanel__h">
               <b className="ppanel__t"><span className="pico"><IconChartBar /></span>{t("compare.title")}</b>
             </div>
@@ -444,7 +444,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
               <h2 className="psec-h"><IconShieldCheck style={{ width: 20, height: 20, verticalAlign: "-3px", marginRight: 8 }} />{t("otherTitle")}</h2>
               <p className="plans__sub">{personal ? t("subtitlePersonal") : t("otherSubtitle")}</p>
             </div>
-            <div className="switch switch--sm" role="group">
+            <div className="switch switch--sm" role="group" data-ai-target="plans:other-period">
               <button type="button" aria-pressed={term === 6} onClick={() => setTerm(6)}>{t("term6")}</button>
               <button type="button" aria-pressed={term === 12} onClick={() => setTerm(12)}>{t("term12")}</button>
             </div>
@@ -504,7 +504,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
               })}
 
               {/* Gift tariff (module 6): pay 3/6/12 months up front, send a QR link. */}
-              <div className="splan splan--gift">
+              <div className="splan splan--gift" data-ai-target="plans:gift">
                 <div className="splan__h">
                   <b className="splan__name">
                     <IconGift style={{ width: 16, height: 16, marginRight: 6, verticalAlign: "-2px" }} />
@@ -527,7 +527,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         </>
       ) : null}
 
-      <div className="ppanel" style={{ marginTop: 22 }}>
+      <div className="ppanel" style={{ marginTop: 22 }} data-ai-target="plans:billing">
         <div className="ppanel__h">
           <b>{t("billing.title")}</b>
         </div>
@@ -605,7 +605,7 @@ function AutopayCard({
 
   return (
     <>
-      <div className="subs__top">
+      <div className="subs__top" data-ai-target="plans:current">
         <div className="subs__topcard">
           <span className="subs__topico subs__topico--crown"><IconCrown /></span>
           <div>
@@ -632,7 +632,7 @@ function AutopayCard({
         </div>
       </div>
 
-      <div className="ppanel apay" style={{ marginBottom: 22 }}>
+      <div className="ppanel apay" style={{ marginBottom: 22 }} data-ai-target="plans:autopay">
       {!state ? (
         <Skeleton rows={2} />
       ) : (

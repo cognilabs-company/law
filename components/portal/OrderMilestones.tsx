@@ -135,7 +135,7 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
   const statusLabel = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : humanizeSlug(s));
 
   return (
-    <div className="omile">
+    <div className="omile" data-ai-target="order:milestones">
       <b className="omile__h">{t("title")}</b>
       <ol className="omile__list">
         {rows.map((m, i) => {

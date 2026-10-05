@@ -27,13 +27,13 @@ export default function CcCallLog({ reloadKey = 0 }: { reloadKey?: number }) {
 
   if (res.status === "error") return null;
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="callcenter:call-log">
       <div className="ppanel__h">
         <b>{t("recent")}</b>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span className="advmuted">{calls.length}</span>
           <button type="button" className="btn btn--line btn--sm" onClick={() => void res.refresh()} aria-label={t("queue.refresh")}><IconRefresh /></button>
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => setFormOpen(true)}><IconPlus />{t("logCall")}</button>
+          <button type="button" className="btn btn--pri btn--sm" onClick={() => setFormOpen(true)} data-ai-target="button:log-call"><IconPlus />{t("logCall")}</button>
         </div>
       </div>
       <div className="chiprow" style={{ marginInline: 0, paddingInline: 0, paddingTop: 0 }}>

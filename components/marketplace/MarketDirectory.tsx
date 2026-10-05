@@ -13,6 +13,7 @@ import { regionKeyOf, regionLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { fmtRating } from "@/lib/date";
 import { Monogram, hasRating, hasSuccess, sellerTypeLabel, specLabel } from "./bits";
+import { useAiReveal } from "@/lib/guide/targets";
 
 type Status = "loading" | "ready" | "error";
 
@@ -54,6 +55,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [priceMax, setPriceMax] = useState("");
   const [minExp, setMinExp] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  useAiReveal("marketplace:filters", () => setFiltersOpen(true));
   const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string; disclaimer: string } | null>(null);
   const aiCtrl = useRef<AbortController | null>(null);
   const [aiPending, setAiPending] = useState("");
@@ -496,7 +498,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
           </button>
         </div>
       ) : !list.length ? (
-        <div className="mk-empty">
+        <div className="mk-empty" data-ai-target="marketplace:lawyer-list">
           <IconSparkle />
           <b>{t("empty")}</b>
           <span>{q ? t("emptyTextAi") : t("emptyText")}</span>
@@ -515,7 +517,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
           </div>
         </div>
       ) : (
-        <div className={`mk-grid${aiThinking ? " is-busy" : ""}`}>
+        <div className={`mk-grid${aiThinking ? " is-busy" : ""}`} data-ai-target="marketplace:lawyer-list">
           {list.map((s, i) => (
             <SellerCard key={s.userId} s={s} href={`${base}/${encodeURIComponent(s.userId)}`} index={i} locale={locale} match={aiMatchOf.get(s.userId)} />
           ))}

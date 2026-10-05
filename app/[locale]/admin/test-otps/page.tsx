@@ -14,7 +14,7 @@ export default function AdminTestOtps() {
   const res = useResource(getTestOtps, []);
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="test-otps:list">
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="advmuted">{res.data.length}</span>

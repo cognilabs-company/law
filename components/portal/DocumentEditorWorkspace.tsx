@@ -24,6 +24,7 @@ import { fetchAndDeliver, extFromMime } from "@/lib/download";
 import { humanizeSlug, initials } from "@/lib/lawyers";
 import { shortDateTime } from "@/lib/date";
 import { subscribeUserEvents } from "@/lib/userSocket";
+import { useAiReveal } from "@/lib/guide/targets";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -57,6 +58,7 @@ import {
   IconSparkle,
   IconUpload,
 } from "@/components/icons";
+import InstructorButton from "@/components/guide/InstructorButton";
 
 // LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md: a dedicated full-page
 // workspace, not a small in-card iframe/modal ("Editor sahifa card ichida
@@ -594,6 +596,14 @@ export default function DocumentEditorWorkspace({
   const [leftOpen, setLeftOpen] = useState(wide);
   const [rightOpen, setRightOpen] = useState(wide);
   const [rightTab, setRightTab] = useState<RightTab>("chat");
+  useAiReveal("doc-editor:request", () => {
+    setLeftOpen(true);
+    if (!wide()) setRightOpen(false);
+  });
+  useAiReveal("doc-editor:side-panel", () => {
+    setRightOpen(true);
+    if (!wide()) setLeftOpen(false);
+  });
   // Read during the initializer, never in an effect: restoring in an effect is
   // both a cascading render and a visible jump from 360px to the stored width.
   const [rightW, setRightW] = useState(storedRightW);
@@ -799,7 +809,7 @@ export default function DocumentEditorWorkspace({
         >
           <IconMenu />
         </button>
-        <span className="deditor__ident">
+        <span className="deditor__ident" data-ai-target="ai-help:current-page" data-ai-label={t("title")}>
           <b className="deditor__title">{req?.title || req?.clientName || t("title")}</b>
           <small className="deditor__sub">
             {[req?.clientName, req?.serviceName].filter(Boolean).join(" · ") || t("subtitleFallback")}
@@ -825,16 +835,18 @@ export default function DocumentEditorWorkspace({
               what is open. Offered rather than forced: a record that already
               has a source opens straight into it, which is every record that
               worked before this shipped. */}
+          <InstructorButton className="deditor__act deditor__act--ai" labelClassName="deditor__actLabel" size={18} />
           <button
             type="button"
             className="deditor__act"
             onClick={() => setSrcOpen(true)}
             disabled={isSent || editorState === "needsClaim"}
+            data-ai-target="button:editor-source"
           >
             <IconLayers />
             <span className="deditor__actLabel">{t("chooseSource")}</span>
           </button>
-          <button type="button" className="deditor__act" onClick={startMeeting} disabled={meetBusy || !req?.meetingUrl || isSent || !!meeting}>
+          <button type="button" className="deditor__act" onClick={startMeeting} disabled={meetBusy || !req?.meetingUrl || isSent || !!meeting} data-ai-target="button:editor-meeting">
             <IconVideo />
             <span className="deditor__actLabel">{meetBusy ? t("processingShort") : t("startMeeting")}</span>
           </button>
@@ -843,6 +855,7 @@ export default function DocumentEditorWorkspace({
             className="deditor__act deditor__act--primary"
             onClick={() => setFinalizeConfirmOpen(true)}
             disabled={isSent || editorState !== "ready" || finalizeBusy}
+            data-ai-target="button:editor-finalize"
           >
             <IconCheck />
             <span className="deditor__actLabel">{isSent ? t("statusSent") : t("finalize")}</span>
@@ -869,7 +882,7 @@ export default function DocumentEditorWorkspace({
         ref={bodyRef}
         className={`deditor__body${leftOpen ? "" : " deditor__body--leftClosed"}${rightOpen ? "" : " deditor__body--rightClosed"}${sizingOn ? " deditor__body--sizing" : ""}`}
       >
-        <aside className={`deditor__left${leftOpen ? " on" : ""}`}>
+        <aside className={`deditor__left${leftOpen ? " on" : ""}`} data-ai-target="doc-editor:request" data-ai-label={t("need")}>
           <button type="button" className="deditor__panelToggle" onClick={() => setLeftOpen((v) => !v)} aria-label={t("togglePanels")}>
             <IconChevronLeft />
           </button>
@@ -971,7 +984,7 @@ export default function DocumentEditorWorkspace({
           )}
         </aside>
 
-        <main className="deditor__main">
+        <main className="deditor__main" data-ai-target="doc-editor:document">
           {/* §15 L600, first branch of all: a blocked record never reaches
               the editor states below, so nothing can mount an editor the
               backend has closed — and the advocate is told why instead of
@@ -1039,7 +1052,7 @@ export default function DocumentEditorWorkspace({
                the client's need, their answers, the template — is already
                readable while the choice is made. */
             <div className="deditor__mainState deditor__mainState--start">
-              <div className="dstart">
+              <div className="dstart" data-ai-target="doc-editor:start-options">
                 <header className="dstart__h">
                   <b>{t("startTitle")}</b>
                   <p>{t("startLead")}</p>
@@ -1108,7 +1121,7 @@ export default function DocumentEditorWorkspace({
             <span className="deditor__sizerGrip" aria-hidden />
           </div>
         ) : null}
-        <aside className={`deditor__right${rightOpen ? " on" : ""}`}>
+        <aside className={`deditor__right${rightOpen ? " on" : ""}`} data-ai-target="doc-editor:side-panel">
           <button
             type="button"
             className="deditor__panelToggle deditor__panelToggle--right"

@@ -31,7 +31,7 @@ export default function SellerCases({ ns }: { ns: string }) {
   const emptyTitle = t.has("empty") ? t("empty") : t("emptyTitle");
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target={cases.data.length ? undefined : "cases:list"}>
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="advmuted">{t("count", { n: cases.data.length })}</span>
@@ -41,7 +41,7 @@ export default function SellerCases({ ns }: { ns: string }) {
       ) : !cases.data.length ? (
         <EmptyState icon={<IconFileText />} title={emptyTitle} text={t("emptyText")} />
       ) : (
-        <div className="pcards">
+        <div className="pcards" data-ai-target="cases:list" data-ai-label={t("title")}>
           {cases.data.map((c) => {
             const name = clientName(c);
             const primary = name || c.caseType || c.title || t("title");

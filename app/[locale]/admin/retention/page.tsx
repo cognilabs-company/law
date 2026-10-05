@@ -68,7 +68,7 @@ export default function AdminRetention() {
         {!loaded ? (
           <Skeleton rows={3} />
         ) : (
-          <div className="castat">
+          <div className="castat" data-ai-target="retention:kpis">
             <StatTile icon={<IconAlert />} tone="bad" value={String(d.atRisk)} label={t("atRisk")} sub={`${td("drill.atRiskLeads")}: ${d.atRiskLeads}`} demo={demo} hint={regionHint} onClick={() => open(t("atRisk"), String(d.atRisk), [riskList(), periodKv()])} />
             <StatTile icon={<IconUsers />} value={String(d.churnedThisMonth)} label={t("churned")} demo={demo} hint={regionHint} onClick={() => open(t("churned"), String(d.churnedThisMonth), [periodKv(), riskList()])} />
             <StatTile icon={<IconTrendingUp />} tone="ok" value={`${d.retainedPct}%`} label={t("retained")} demo={demo} hint={regionHint} onClick={() => open(t("retained"), `${d.retainedPct}%`, [periodKv(), upsellList()])} />
@@ -77,7 +77,7 @@ export default function AdminRetention() {
       </div>
 
       <div className="pgrid2">
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="retention:at-risk">
           <div className="ppanel__h"><b>{t("atRiskTitle")}</b></div>
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           {!loaded ? <Skeleton rows={2} /> : !d.atRiskClients.length ? (
@@ -85,16 +85,16 @@ export default function AdminRetention() {
           ) : (
             <div className="alist">
               {d.atRiskClients.map((c, i) => (
-                <div className="creq" key={c.id || i}>
+                <div className="creq" key={c.id || i} data-ai-target="retention:at-risk-client" data-ai-label={t("atRiskTitle")}>
                   <span className="creq__st" />
                   <div className="creq__m"><b>{c.name || c.phone}</b><span>{[c.reasons.map(reason).join(", "), lastPaid(c)].filter(Boolean).join(" · ")}</span></div>
-                  <button className="btn btn--soft btn--sm" type="button" disabled={busy === (c.id || c.phone)} onClick={() => winBack(c)}>{busy === (c.id || c.phone) ? t("adding") : t("winBack")}</button>
+                  <button className="btn btn--soft btn--sm" type="button" disabled={busy === (c.id || c.phone)} onClick={() => winBack(c)} data-ai-target="button:win-back">{busy === (c.id || c.phone) ? t("adding") : t("winBack")}</button>
                 </div>
               ))}
             </div>
           )}
         </div>
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="retention:upsell">
           <div className="ppanel__h"><b>{t("upsellTitle")}</b></div>
           {!loaded ? <Skeleton rows={2} /> : !d.upsell.length ? (
             <p className="advmuted">{t("noUpsell")}</p>

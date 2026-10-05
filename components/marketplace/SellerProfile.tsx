@@ -201,7 +201,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
         {t("detail.back")}
       </Link>
 
-      <header className="mk-prof__hero">
+      <header className="mk-prof__hero" data-ai-target="marketplace:seller-summary">
         <div className="mk-hero__glow" aria-hidden="true" />
         <div className="mk-prof__id">
           <Monogram name={seller.name} rating={seller.rating} showRing={rated} size="lg" />
@@ -247,7 +247,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
 
       <div className="mk-prof__body">
         <div className="mk-prof__main">
-          <section className="mk-panel">
+          <section className="mk-panel" data-ai-target="marketplace:seller-services">
             <h2 className="mk-panel__t">{t("detail.services")}</h2>
             <p className="mk-panel__l">{t("detail.servicesLead")}</p>
             {services.length ? (
@@ -292,7 +292,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
             )}
           </section>
 
-          <section className="mk-panel">
+          <section className="mk-panel" data-ai-target="marketplace:seller-about">
             <h2 className="mk-panel__t">{t("detail.about")}</h2>
             <p className="mk-prof__bio">{seller.bio || t("detail.noBio")}</p>
             {seller.specializations.length ? (
@@ -319,7 +319,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
             ) : null}
           </section>
 
-          <section className="mk-panel">
+          <section className="mk-panel" data-ai-target="marketplace:seller-reviews">
             <h2 className="mk-panel__t">{t("detail.reviews")}</h2>
             {!reviewsReady ? (
               <div className="mk-review mk-review--ghost" aria-hidden="true" />
@@ -353,7 +353,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
         </div>
 
         <aside className="mk-side">
-          <div className="mk-side__card">
+          <div className="mk-side__card" data-ai-target="marketplace:buy-box">
             <small>{selected ? selected.title : t("detail.selectService")}</small>
             <b className="mk-side__price">
               {selected && selected.price > 0 ? fmtUzs(selected.price) : seller.priceFrom > 0 ? t("card.priceFrom", { price: fmtUzs(seller.priceFrom) }) : t("card.priceAsk")}
@@ -381,7 +381,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
               <IconArrowRight />
             </button>
           </div>
-          <div className="mk-safe">
+          <div className="mk-safe" data-ai-target="marketplace:safe-deal">
             <b>
               <IconShieldCheck />
               {t("detail.safeTitle")}

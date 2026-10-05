@@ -12,6 +12,7 @@ import {
   type UserConsentRow,
 } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
+import { useAiReveal } from "@/lib/guide/targets";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
@@ -50,6 +51,8 @@ export default function AdminLegal() {
   const t = useTranslations("admin.legal");
   const locale = useLocale();
   const [tab, setTab] = useState<"docs" | "journal">("docs");
+  useAiReveal(/^(legal:docs-list|button:new-legal-doc)$/, () => setTab("docs"));
+  useAiReveal("legal:journal", () => setTab("journal"));
   const [key, setKey] = useState(0);
   const docs = useResource(listAdminConsentDocs, [key]);
   const [view, setView] = useState<ConsentDoc | null>(null);
@@ -74,7 +77,7 @@ export default function AdminLegal() {
           <span className="advmuted">{t("readiness", { n: published, total: REQUIRED_SLUGS.length })}</span>
         </div>
         <p className="ppanel__note">{t("lead")}</p>
-        <div className="tabs" role="tablist" style={{ marginBottom: 0 }}>
+        <div className="tabs" role="tablist" style={{ marginBottom: 0 }} data-ai-target="legal:tabs">
           <button type="button" role="tab" aria-selected={tab === "docs"} className="tab" onClick={() => setTab("docs")}><IconFileText />{t("tabDocs")}</button>
           <button type="button" role="tab" aria-selected={tab === "journal"} className="tab" onClick={() => setTab("journal")}><IconShieldCheck />{t("tabJournal")}</button>
         </div>
@@ -84,14 +87,14 @@ export default function AdminLegal() {
         <div className="ppanel">
           <div className="ppanel__h">
             <b>{t("docsTitle")}</b>
-            <button type="button" className="btn btn--pri btn--sm" onClick={() => setEdit({ slug: "", version: "1.0", title: "", body: "", active: true })}><IconPlus />{t("newDoc")}</button>
+            <button type="button" className="btn btn--pri btn--sm" onClick={() => setEdit({ slug: "", version: "1.0", title: "", body: "", active: true })} data-ai-target="button:new-legal-doc"><IconPlus />{t("newDoc")}</button>
           </div>
           {docs.status === "loading" ? (
             <Skeleton rows={5} />
           ) : docs.status === "error" ? (
             <Notice ok={false} msg={t("loadError")} />
           ) : (
-            <div className="alist">
+            <div className="alist" data-ai-target="legal:docs-list">
               {slugs.map((slug) => {
                 const versions = bySlug.get(slug) ?? [];
                 const cur = versions.find((d) => d.active) ?? versions[0];
@@ -231,7 +234,7 @@ function Journal() {
   const list: UserConsentRow[] = slug === "all" ? rows.data : rows.data.filter((r) => r.slug === slug);
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="legal:journal">
       <div className="ppanel__h">
         <b>{t("journalTitle")}</b>
         <span className="advmuted">{rows.status === "ready" ? t("rows", { n: list.length }) : ""}</span>

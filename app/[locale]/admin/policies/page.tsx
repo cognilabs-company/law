@@ -71,7 +71,7 @@ export default function AdminPolicies() {
 
   return (
     <>
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="policies:readiness">
         <div className="ppanel__h">
           <b>{t("readyTitle")}</b>
           {ready.data?.status ? <em className={`atag${ready.data.status === "production_ready" ? " atag--ok" : ""}`}>{t.has(`readyStatus.${ready.data.status}`) ? t(`readyStatus.${ready.data.status}`) : ready.data.status}</em> : null}
@@ -101,7 +101,7 @@ export default function AdminPolicies() {
         )}
       </div>
 
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="policies:sections">
         <div className="ppanel__h"><b>{t("title")}</b><span className="advmuted">{t("versioned")}</span></div>
         <p className="ppanel__note">{t("lead")}</p>
         {res.status === "loading" ? <Skeleton rows={4} /> : forbidden || !res.data ? (
@@ -138,7 +138,7 @@ export default function AdminPolicies() {
       </div>
 
       <div className="ppanel">
-        <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconShieldCheck /></span>{t("unverified.title")}</b></div>
+        <div className="ppanel__h" data-ai-target="policies:unverified"><b className="ppanel__t"><span className="pico"><IconShieldCheck /></span>{t("unverified.title")}</b></div>
         <p className="ppanel__note">{t("unverified.lead")}</p>
         {unvMode === null ? <Skeleton rows={2} /> : (
           <div className="unvmode" role="radiogroup" aria-label={t("unverified.title")}>

@@ -77,6 +77,7 @@ import {
 } from "../icons";
 import { timeOnly, dateOnly } from "@/lib/date";
 import { localizeApiDetail } from "@/lib/apiMessage";
+import InstructorButton from "@/components/guide/InstructorButton";
 
 type LocalMsg = SecureMessage & { pending?: boolean; failed?: boolean };
 type Conn = "connecting" | "online" | "offline";
@@ -1392,7 +1393,7 @@ export default function SecureChat({
           <IconShieldCheck />
           <i className={`schat__pulse schat__pulse--${conn}`} aria-hidden />
         </span>
-        <div className="schat__t">
+        <div className="schat__t" data-ai-target={compact ? undefined : "ai-help:current-page"}>
           <b>{t("title")}</b>
           {/* R28/R29/R31 (MD L253-257): the work id, the service and the
               status, on one line under the title. */}
@@ -1419,7 +1420,7 @@ export default function SecureChat({
           </span>
         ) : null}
         {!compact && canMakeCalls(session) ? (
-          <div className="schat__calls">
+          <div className="schat__calls" data-ai-target="chat-room:calls">
             <button
               className="schat__call"
               type="button"
@@ -1455,11 +1456,13 @@ export default function SecureChat({
             onClick={() => setAskSummary(true)}
             disabled={completing}
             title={t("completeChat")}
+            data-ai-target="button:chat-complete"
           >
             {completing ? <IconClock /> : <IconClipboardCheck />}
             <span>{t("completeChat")}</span>
           </button>
         ) : null}
+        {compact ? null : <InstructorButton className="schat__call schat__ai" iconOnly size={26} />}
         <div className="schat__menu" hidden={compact}>
           <button
             className="schat__call"
@@ -1539,7 +1542,7 @@ export default function SecureChat({
         />
       ) : null}
 
-      <div className="schat__body" ref={bodyRef}>
+      <div className="schat__body" ref={bodyRef} data-ai-target="chat-room:messages" data-ai-label={t("title")}>
         <div className="schat__sys">
           <IconLock />
           <span>{t("encrypted")}</span>
@@ -1721,7 +1724,7 @@ export default function SecureChat({
         </div>
       ) : null}
 
-      <div className={`schat__bar${recOn ? " schat__bar--rec" : ""}`}>
+      <div className={`schat__bar${recOn ? " schat__bar--rec" : ""}`} data-ai-target="chat-room:composer" data-ai-label={t("placeholder")}>
         {recOn ? (
           <>
             <button type="button" className="schat__reccancel" onClick={cancelVoice} aria-label={t("voiceCancel")}>

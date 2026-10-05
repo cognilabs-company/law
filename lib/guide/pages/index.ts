@@ -44,6 +44,7 @@ export function stepTextKey(target: string, role: GuideRole, path = ""): string 
 }
 
 export function registryHome(target: string, role: GuideRole): string {
+  if (/^(ai-help|header|nav):/.test(target)) return "";
   for (const { page, rules } of COMPILED) {
     if (!fits(page, role) || !page.tour.some((s) => s.target === target)) continue;
     const plain = rules.find(({ m }) => !m.includes("[") && (role === "staff" ? m.startsWith("/admin") : m.startsWith(`/portal/${role}`)));

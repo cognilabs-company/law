@@ -92,7 +92,7 @@ export default function ClientDashboard() {
           <span className="cdhero__hi">{t("hi", { name: session?.name ?? "" })}</span>
           <h2 className="cdhero__title">{t("heroTitle")}</h2>
           <p className="cdhero__sub">{t("heroSub")}</p>
-          <div className="cdhero__ask">
+          <div className="cdhero__ask" data-ai-target="dashboard:ask" data-ai-label={t("askPh")}>
             <IconSparkle />
             <input
               value={ask}
@@ -180,7 +180,7 @@ export default function ClientDashboard() {
 
       {/* Active requests (backend) + sidebar */}
       <div className="cdgrid">
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="dashboard:requests">
           <div className="ppanel__h">
             <b>{t("requests")}</b>
             <Link href="/portal/client/cases">{tc("viewAll")}</Link>
@@ -215,7 +215,7 @@ export default function ClientDashboard() {
         </div>
         <div className="cdgrid__side">
           <ReferralProgress side="client" href="/portal/client/referrals" />
-          <div className="aicard">
+          <div className="aicard" data-ai-target="dashboard:ai-card">
             <div className="aicard__h">
               <IconSparkle />
               {t("sideAiTitle")}

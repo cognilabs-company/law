@@ -9,7 +9,7 @@ export default function AdminBootstrap() {
   const t = useTranslations("admin");
 
   return (
-    <div className="ppanel" style={{ maxWidth: 560 }}>
+    <div className="ppanel" style={{ maxWidth: 560 }} data-ai-target="bootstrap:form">
       <div className="ppanel__h">
         <b>
           <IconBolt style={{ width: 18, height: 18, verticalAlign: "-3px", marginRight: 6 }} />

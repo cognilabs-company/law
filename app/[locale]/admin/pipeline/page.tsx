@@ -359,7 +359,7 @@ export default function AdminPipeline() {
       </div>
 
       {cols.length ? (
-        <div className="lkpi">
+        <div className="lkpi" data-ai-target="pipeline:kpis">
           <div className="lkpi__c"><span className="lkpi__i lkpi__i--total"><IconUsers /></span><div><b>{total}</b><span>{t("kpi.total")}</span></div></div>
           <div className="lkpi__c"><span className="lkpi__i lkpi__i--active"><IconPhone /></span><div><b>{active}</b><span>{t("kpi.active")}</span></div></div>
           <div className="lkpi__c"><span className="lkpi__i lkpi__i--won"><IconAward /></span><div><b>{wonCount}</b><span>{t("kpi.won")}</span></div></div>
@@ -394,14 +394,14 @@ export default function AdminPipeline() {
         </div>
         <div className="pipebar__act">
           {cols.length ? (
-            <span className="segtab">
+            <span className="segtab" data-ai-target="pipeline:view-toggle">
               <button type="button" className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")} aria-label={t("viewKanban")}><IconGrid />{t("viewKanban")}</button>
               <button type="button" className={view === "table" ? "on" : ""} onClick={() => setView("table")} aria-label={t("viewTable")}><IconDocLines />{t("viewTable")}</button>
             </span>
           ) : null}
-          <button className="btn btn--soft btn--sm" type="button" onClick={openAuto} disabled={!cols.length}><IconBolt />{t("auto.btn")}{unassigned.length ? ` · ${unassigned.length}` : ""}</button>
-          <button className="btn btn--line btn--sm" type="button" onClick={openAddStatus}><IconPlus />{t("addStatus")}</button>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setAddOpen(true)}><IconPlus />{ta("form.add")}</button>
+          <button className="btn btn--soft btn--sm" type="button" onClick={openAuto} disabled={!cols.length} data-ai-target="button:auto-assign"><IconBolt />{t("auto.btn")}{unassigned.length ? ` · ${unassigned.length}` : ""}</button>
+          <button className="btn btn--line btn--sm" type="button" onClick={openAddStatus} data-ai-target="button:add-status"><IconPlus />{t("addStatus")}</button>
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => setAddOpen(true)} data-ai-target="button:new-lead"><IconPlus />{ta("form.add")}</button>
         </div>
       </div>
 
@@ -429,7 +429,7 @@ export default function AdminPipeline() {
       ) : !cols.length ? (
         <EmptyState icon={<IconTrendingUp />} title={t("empty")} text={t("emptyText")} />
       ) : view === "kanban" ? (
-        <div className="pipe">
+        <div className="pipe" data-ai-target="pipeline:board" data-ai-label={t("title")}>
           {viewCols.map((col, ci) => (
             <div
               className={`pipe__col${overCol === col.key ? " pipe__col--over" : ""}`}
@@ -501,7 +501,7 @@ export default function AdminPipeline() {
           ))}
         </div>
       ) : (
-        <div className="alist">
+        <div className="alist" data-ai-target="pipeline:board" data-ai-label={t("title")}>
           {rows.length === 0 ? (
             <EmptyState icon={<IconUsers />} title={filtered ? t("f.noMatch") : t("empty")} text={filtered ? "" : t("emptyText")} />
           ) : (

@@ -97,7 +97,7 @@ export default function BusinessCalendarCard() {
       <p className="ppanel__note">{t("lead")}</p>
       {bh.status === "loading" ? <Skeleton rows={2} /> : !h ? <Notice ok={false} msg={t("error")} /> : (
         <div className="bcal">
-          <div className="bcal__sched">
+          <div className="bcal__sched" data-ai-target="policies:business-hours">
             <span className="bcal__k">{t("schedule")}</span>
             <b>{h.days.map((d) => dayNames[d % 7]).join(", ")} · {h.start}–{h.end}</b>
             <small>{h.timezone}{h.isWorkingTime != null ? ` · ${h.isWorkingTime ? t("nowOpen") : t("nowClosed")}` : ""}</small>

@@ -50,14 +50,14 @@ export default function AdminCallAnalytics() {
         <Skeleton rows={3} />
       ) : (
         <>
-          <div className="castat">
+          <div className="castat" data-ai-target="call-analytics:kpis">
             <StatTile icon={<IconPhone />} value={String(a.total)} label={t("total")} demo={demo} hint={regionHint} onClick={() => open(t("total"), String(a.total))} />
             <StatTile icon={<IconCheck />} tone="ok" value={String(a.answered)} label={t("answered")} sub={`${answerRate}%`} demo={demo} hint={regionHint} onClick={() => open(t("answered"), String(a.answered), `${t("answerRate")}: ${answerRate}%`)} />
             <StatTile icon={<IconClose />} tone="bad" value={String(a.missed)} label={t("missed")} demo={demo} hint={regionHint} onClick={() => open(t("missed"), String(a.missed), `${td("drill.missRate")}: ${100 - answerRate}%`)} />
             <StatTile icon={<IconClock />} value={mmss(a.avgDurationSec)} label={t("avg")} demo={demo} hint={regionHint} onClick={() => open(t("avg"), mmss(a.avgDurationSec))} />
           </div>
 
-          <div className="cachart">
+          <div className="cachart" data-ai-target="call-analytics:by-day">
             <h3>{t("byDay")}</h3>
             {byDay.length ? (
               <LineChart points={byDay} controls={false} />
@@ -66,7 +66,7 @@ export default function AdminCallAnalytics() {
             )}
           </div>
 
-          <div className="cablock">
+          <div className="cablock" data-ai-target="call-analytics:agents">
             <h3>{t("topAgents")}</h3>
             {a.topAgents.length ? (
               <div className="alist">

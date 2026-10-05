@@ -317,7 +317,7 @@ export default function NewDocumentOrder({
     return (
       <div className="cform" style={{ maxWidth: "none" }}>
         <p className="advmuted" style={{ margin: 0 }}>{t("lead")}</p>
-        <div className="docchoose">
+        <div className="docchoose" data-ai-target="documents:order-options">
           <button type="button" className="docchoose__c" onClick={() => setFlow("scratch")}>
             <span className="docchoose__i"><IconEdit /></span>
             <b>{t("scratchTitle")}</b>

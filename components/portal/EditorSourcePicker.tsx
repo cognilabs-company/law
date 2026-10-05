@@ -134,7 +134,7 @@ export default function EditorSourcePicker({
         ) : state === "error" ? (
           <Notice ok={false} msg={err || t("error")} />
         ) : (
-          <div className="esrc__list">
+          <div className="esrc__list" data-ai-target="doc-editor:sources" data-ai-label={t("title")}>
             {(data?.options ?? []).map((o) => {
               const key = o.sourceType + (o.attachmentId || "");
               const Icon = SOURCE_ICON[o.sourceType] ?? IconFileText;

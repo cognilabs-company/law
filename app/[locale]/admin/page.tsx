@@ -301,7 +301,7 @@ export default function AdminOverview() {
       {!loaded ? <Skeleton rows={3} /> : null}
 
       {/* Headline KPIs — each tile opens its breakdown */}
-      <div className="castat castat--4">
+      <div className="castat castat--4" data-ai-target="overview:kpis">
         <StatTile icon={<IconCard />} label={tc("revenue")} value={moneyShort(c?.revenue)} sub={c?.revenueDeltaPct ? `${c.revenueDeltaPct > 0 ? "▲" : "▼"} ${Math.abs(c.revenueDeltaPct)}%` : undefined} demo={demo} hint={regionHint} onClick={drillRevenue} />
         <StatTile icon={<IconTrendingUp />} tone="ok" label={tc("mrr")} value={moneyShort(c?.mrr)} demo={demo} hint={regionHint ?? dateHint} onClick={drillMrr} />
         <StatTile icon={<IconUsers />} label={tc("users")} value={c ? fmt(c.users) : DASH} sub={c ? `${fmt(c.activeUsers)} ${tceo("active")}` : undefined} demo={demo} hint={dateHint} onClick={drillUsers} />
@@ -316,7 +316,7 @@ export default function AdminOverview() {
         <StatTile icon={<IconStar />} label={t("metrics.reviews")} value={d ? fmt(d.lists.reviews.length) : DASH} demo={demo} onClick={drillReviews} />
       </div>
 
-      <div className="pgrid2">
+      <div className="pgrid2" data-ai-target="overview:charts">
         <div className="ppanel">
           <div className="ppanel__h">
             <b>{tc("revenueTrend")}</b>
@@ -341,7 +341,7 @@ export default function AdminOverview() {
       </div>
 
       {d ? (
-        <div className="pgrid2">
+        <div className="pgrid2" data-ai-target="overview:payments">
           <div className="ppanel">
             <div className="ppanel__h"><b>{tc("payments")}</b></div>
             <div className="castat castat--2">
@@ -376,7 +376,7 @@ export default function AdminOverview() {
         </div>
       ) : null}
 
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="overview:modules">
         <div className="ppanel__h"><b>{tc("modules")}</b></div>
         <div className="kmods">
           {MODULES.map(({ href, key, Icon }) => (

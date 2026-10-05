@@ -35,7 +35,7 @@ export default function ClientMatches() {
       {res.status === "loading" ? (
         <Skeleton rows={3} />
       ) : !res.data.length ? (
-        <div className="mtch__empty">
+        <div className="mtch__empty" data-ai-target="matches:list">
           <span className="mtch__emptyi"><IconSparkle /></span>
           <b>{t("empty")}</b>
           <span className="mtch__emptyt">{t("emptyText")}</span>
@@ -45,7 +45,7 @@ export default function ClientMatches() {
           </button>
         </div>
       ) : (
-        <div className="mtch__grid">
+        <div className="mtch__grid" data-ai-target="matches:list">
           {res.data.map((m) => (
             <article className="mtchcard" key={m.id}>
               <div className="mtchcard__ring" style={{ ["--p" as string]: `${Math.min(m.matchPct, 100)}` }}>

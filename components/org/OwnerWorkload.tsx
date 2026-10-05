@@ -82,7 +82,7 @@ export default function OwnerWorkload({ orgId }: { orgId: string }) {
         </label>
       </div>
 
-      <section className="opanel">
+      <section className="opanel" data-ai-target="organization:workload-list" data-ai-label={t("workloadTitle")}>
         {list.status === "loading" ? (
           [0, 1, 2].map((i) => <div key={i} className="supcard supcard--ghost" aria-hidden="true" />)
         ) : list.status === "error" ? (

@@ -42,7 +42,7 @@ export default function AdminPayouts() {
         {rec.status === "loading" ? (
           <Skeleton rows={2} />
         ) : (
-          <div className="castat">
+          <div className="castat" data-ai-target="payouts:reconciliation">
             <div className="castat__c"><span className="castat__i"><IconCard /></span><b>{som(r.gross)}</b><span>{t("gross")}</span></div>
             <div className="castat__c"><span className="castat__i"><IconCard /></span><b>{som(r.platformFee)}</b><span>{t("platformFee")} · 18%</span></div>
             <div className="castat__c"><span className="castat__i"><IconCard /></span><b>{som(r.providerFee)}</b><span>{t("providerFee")} · 1%</span></div>
@@ -60,7 +60,7 @@ export default function AdminPayouts() {
         ) : !list.data.length ? (
           <EmptyState icon={<IconCard />} title={t("empty")} text={t("emptyText")} />
         ) : (
-          <div className="alist">
+          <div className="alist" data-ai-target="payouts:list">
             {list.data.map((p) => (
               <div className="aitem" key={p.id}>
                 <span className="aitem__n"><IconCard /></span>
@@ -68,10 +68,10 @@ export default function AdminPayouts() {
                   <b>{som(p.sellerShare)} {p.currency}</b>
                   <span className="aitem__meta">{t("gross")}: {som(p.gross)} · {t("fees")}: {som(p.platformFee + p.providerFee)}</span>
                 </div>
-                <div className="aitem__r" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div className="aitem__r" style={{ display: "flex", gap: 8, alignItems: "center" }} data-ai-target="payouts:item-actions">
                   <span className={`creq__badge payout__st payout__st--${p.status}`}>{t.has(`status.${p.status}`) ? t(`status.${p.status}`) : p.status}</span>
                   {p.status !== "paid" ? (
-                    <button className="btn btn--pri btn--sm" type="button" disabled={busy === p.id} onClick={() => mark(p.id, "paid")}>{t("markPaid")}</button>
+                    <button className="btn btn--pri btn--sm" type="button" disabled={busy === p.id} onClick={() => mark(p.id, "paid")} data-ai-target="button:mark-paid">{t("markPaid")}</button>
                   ) : null}
                 </div>
               </div>

@@ -75,7 +75,7 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
           <span>{t("title")}</span>
           <h2>{data?.organization.name || "…"}</h2>
         </div>
-        <Link href={`${base}/workload`} className="btn btn--pri btn--sm">
+        <Link href={`${base}/workload`} className="btn btn--pri btn--sm" data-ai-target="button:org-workload">
           <IconList />
           {t("workloadLink")}
         </Link>

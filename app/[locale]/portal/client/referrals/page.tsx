@@ -83,14 +83,14 @@ export default function ClientReferrals() {
         <span className="ref__ico"><IconGift /></span>
         <h1 className="ref__title">{t("title")}</h1>
         <p className="ref__sub">{t("subtitle")}</p>
-        <div className="ref__code">
+        <div className="ref__code" data-ai-target="referrals:code">
           <span className="ref__codeval">{code}</span>
           <button type="button" className="ref__copy" onClick={() => copy("code", code)}>
             {copied === "code" ? <IconCheck /> : null}
             {copied === "code" ? t("copied") : t("copy")}
           </button>
         </div>
-        <div className="ref__linkrow">
+        <div className="ref__linkrow" data-ai-target="referrals:share">
           <input readOnly value={link} className="ref__link" aria-label={t("link")} />
           <button type="button" className="btn btn--pri btn--sm" onClick={share}>{t("share")}</button>
         </div>
@@ -106,14 +106,14 @@ export default function ClientReferrals() {
       {res.status === "loading" ? (
         <Skeleton rows={2} />
       ) : (
-        <div className="ref__stats">
+        <div className="ref__stats" data-ai-target="referrals:stats">
           <div className="ref__stat"><b>{r.invited}</b><span>{t("invited")}</span></div>
           <div className="ref__stat"><b>{r.joined}</b><span>{t("joined")}</span></div>
           <div className="ref__stat ref__stat--reward"><b>{som(r.rewardBalance)}</b><span>{t("reward")}</span></div>
         </div>
       )}
 
-      <div className={`ref__disc${r.discountUnlocked ? " ref__disc--on" : ""}`}>
+      <div className={`ref__disc${r.discountUnlocked ? " ref__disc--on" : ""}`} data-ai-target="referrals:discount">
         <span className="ref__disci"><IconGift /></span>
         <p>
           {r.discountUnlocked
@@ -125,7 +125,7 @@ export default function ClientReferrals() {
         </p>
       </div>
 
-      <div className="ref__how">
+      <div className="ref__how" data-ai-target="referrals:how">
         <h2 className="ref__h2">{t("howTitle")}</h2>
         <div className="ref__steps">
           {steps.map((s, i) => (
@@ -138,7 +138,7 @@ export default function ClientReferrals() {
         </div>
       </div>
 
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="referrals:invites">
         <div className="ppanel__h"><b>{t("invitesTitle")}</b></div>
         {r.items.length === 0 ? (
           <div className="ref__empty">

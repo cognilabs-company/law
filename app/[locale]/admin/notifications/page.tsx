@@ -8,6 +8,7 @@ import { sendAdminNotification } from "@/lib/services/notify";
 import { NOTIF_ROW_CATEGORIES, type NotifCategory } from "@/lib/notifications";
 import { type NotificationDelivery } from "@/lib/services/backend";
 import { humanizeSlug } from "@/lib/lawyers";
+import { useAiReveal } from "@/lib/guide/targets";
 import Select from "@/components/Select";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
@@ -33,6 +34,8 @@ export default function AdminNotifications() {
   const tp = useTranslations("portal.notifications");
 
   const [mode, setMode] = useState<SendMode>("individual");
+  useAiReveal("notifications:recipients", () => setMode("individual"));
+  useAiReveal("notifications:broadcast-role", () => setMode("broadcast"));
   const [broadcastRole, setBroadcastRole] = useState<Exclude<RoleTab, "all">>("client");
   const [roleTab, setRoleTab] = useState<RoleTab>("all");
   const [q, setQ] = useState("");
@@ -175,7 +178,7 @@ export default function AdminNotifications() {
       <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconBell /></span>{t("notifications.title")}</b></div>
       <p className="ppanel__note">{t("notifications.lead")}</p>
 
-      <div className="segs segs--sm" role="tablist" aria-label={tn("mode")} style={{ marginBottom: 14 }}>
+      <div className="segs segs--sm" role="tablist" aria-label={tn("mode")} style={{ marginBottom: 14 }} data-ai-target="notifications:mode">
         <button type="button" role="tab" className="seg" aria-selected={mode === "individual"} onClick={() => setMode("individual")}>
           {tn("modeIndividual")}
         </button>
@@ -185,14 +188,14 @@ export default function AdminNotifications() {
       </div>
 
       {mode === "broadcast" ? (
-        <section className="nrcp" aria-label={tn("broadcastRole")}>
+        <section className="nrcp" aria-label={tn("broadcastRole")} data-ai-target="notifications:broadcast-role">
           <div className="nrcp__lbl">{tn("broadcastRole")}</div>
           <p className="nrcp__hint">{tn("broadcastHint")}</p>
           <Select value={broadcastRole} onChange={(v) => setBroadcastRole(v as Exclude<RoleTab, "all">)} options={broadcastRoleOpts} ariaLabel={tn("broadcastRole")} />
         </section>
       ) : (
       /* Recipients: role tabs → searchable checkbox list (GET /admin/users?role=). */
-      <section className="nrcp" aria-label={tn("recipients")}>
+      <section className="nrcp" aria-label={tn("recipients")} data-ai-target="notifications:recipients">
         <div className="nrcp__lbl">{tn("recipients")}</div>
         <p className="nrcp__hint">{tn("recipientsHint")}</p>
         <div className="segs segs--sm nrcp__tabs" role="tablist" aria-label={tn("roleTabs")}>
@@ -253,7 +256,7 @@ export default function AdminNotifications() {
       </section>
       )}
 
-      <form className="cform" style={{ maxWidth: "none" }} onSubmit={send}>
+      <form className="cform" style={{ maxWidth: "none" }} onSubmit={send} data-ai-target="notifications:compose">
         <div className="cform__row2">
           <div>
             <label>{tn("category")}</label>
@@ -282,7 +285,7 @@ export default function AdminNotifications() {
           </div>
         ) : null}
         <div>
-          <button className="btn btn--pri" type="submit" disabled={!!progress}>
+          <button className="btn btn--pri" type="submit" disabled={!!progress} data-ai-target="button:send-notification">
             <IconSend />
             {progress ? t("notifications.sending") : t("notifications.send")}
           </button>

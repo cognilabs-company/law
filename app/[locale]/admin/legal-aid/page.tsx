@@ -85,7 +85,7 @@ export default function AdminLegalAid() {
       ) : !res.data.length ? (
         <EmptyState icon={<IconScale />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="laist">
+        <div className="laist" data-ai-target="legal-aid:list" data-ai-label={t("title")}>
           {res.data.map((r, i) => {
             const name = s(r.payload.name) || t("anon");
             const phone = s(r.payload.phone);
@@ -97,7 +97,7 @@ export default function AdminLegalAid() {
                   <span className={`aitem__st aitem__st--${(r.status || "new").toLowerCase()}`}>
                     {r.status ? (t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status) : t("new")}
                   </span>
-                  <button type="button" className="aitem__act" aria-label={t("detailTitle")} title={t("detailTitle")} onClick={() => setDetail(r.id)}>
+                  <button type="button" className="aitem__act" aria-label={t("detailTitle")} title={t("detailTitle")} onClick={() => setDetail(r.id)} data-ai-target="button:legal-aid-detail">
                     <IconEye />
                   </button>
                 </div>

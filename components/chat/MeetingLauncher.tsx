@@ -351,7 +351,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   };
 
   const createForm = (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="meetings:create">
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico">{rich ? <IconPlus /> : <IconVideo />}</span>{rich ? t("createTitle") : t("title")}</b>
       </div>
@@ -557,7 +557,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
       <div className="mgrid3">
         {createForm}
 
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="meetings:today">
           <div className="ppanel__h">
             <b className="ppanel__t"><span className="pico"><IconCalendar /></span>{t("todayAgenda")}</b>
           </div>
@@ -588,7 +588,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         </div>
       </div>
 
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="seller:meeting-list">
         <div className="ppanel__h">
           <b className="ppanel__t"><span className="pico"><IconClock /></span>{t("history")}</b>
           <button type="button" className="btn btn--line btn--sm" onClick={refreshHistory} disabled={history === null}>

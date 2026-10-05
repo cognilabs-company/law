@@ -139,7 +139,7 @@ export default function IdentityVerify() {
   );
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="profile:identity">
       <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconShieldCheck /></span>{t("title")}</b></div>
       <p className="ppanel__note">{t("lead")}</p>
 

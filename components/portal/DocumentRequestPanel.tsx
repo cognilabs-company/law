@@ -721,7 +721,7 @@ export default function DocumentRequestPanel({
           <p className="advmuted">{t("payLead")}</p>
           <p className="dwiz__policy">{t("downloadPolicy", { n: monthDownloads, limit: 3 })}</p>
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-          <button className="btn btn--grad btn--full btn--lg" type="button" onClick={pay} disabled={busy}>
+          <button className="btn btn--grad btn--full btn--lg" type="button" onClick={pay} disabled={busy} data-ai-target="button:document-pay">
             {busy ? t("processingShort") : t("pay")}
           </button>
           <button className="rf__link rf__link--muted" type="button" onClick={refresh} disabled={busy}>
@@ -899,7 +899,7 @@ export default function DocumentRequestPanel({
       ) : null}
 
       {shown === "done" ? (
-        <div className="docdone">
+        <div className="docdone" data-ai-target="documents:result">
           {/* Reopening a request created before this template had any fields
               (or simply never filled in) shows the same blank contractFile it
               generated back then — nothing here re-checks that against the

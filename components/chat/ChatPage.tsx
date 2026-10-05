@@ -16,6 +16,7 @@ import {
 } from "@/lib/api";
 import { useLexAi } from "./useLexAi";
 import { useAuth } from "@/lib/auth";
+import { useAiReveal } from "@/lib/guide/targets";
 import { Link } from "@/i18n/navigation";
 import ContractCard from "../ContractCard";
 import AgentAnswer from "./AgentAnswer";
@@ -55,6 +56,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [sideOpen, setSideOpen] = useState(false);
+  useAiReveal("ai-chat:history", () => setSideOpen(true));
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const FREE_LIMIT = 5; // S-6: registered users get 5 free questions a month
@@ -216,7 +218,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
         onClick={() => setSideOpen(false)}
       />
 
-      <aside className={`aichat__side${sideOpen ? " on" : ""}`}>
+      <aside className={`aichat__side${sideOpen ? " on" : ""}`} data-ai-target={sideOpen ? "ai-chat:history" : undefined} data-ai-label={t("historyTitle")}>
         <button className="aichat__new" type="button" onClick={newChat}>
           <IconPlus />
           {t("newChat")}
@@ -274,7 +276,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
               ) : null}
               <h2>{t("emptyTitle")}</h2>
               <p>{t("emptyText")}</p>
-              <div className="sugg">
+              <div className="sugg" data-ai-target="ai-chat:suggestions">
                 {suggestions.map((s, i) => (
                   <button key={i} type="button" onClick={() => send(s)}>
                     {s}
@@ -369,7 +371,7 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
         </div>
 
         <div className="aichat__composer">
-          <div className="composer">
+          <div className="composer" data-ai-target="ai-chat:input" data-ai-label={t("inputPlaceholder")}>
             <textarea
               ref={taRef}
               rows={1}

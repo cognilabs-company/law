@@ -112,7 +112,7 @@ export default function PromotionPanel() {
         </div>
       ) : null}
 
-      <div className="ppanel" style={{ marginTop: 18 }}>
+      <div className="ppanel" style={{ marginTop: 18 }} data-ai-target="promotion:analytics">
         <div className="ppanel__h">
           <b>{t("analyticsTitle")}</b>
         </div>
@@ -131,7 +131,7 @@ export default function PromotionPanel() {
         )}
       </div>
 
-      <div className="ppanel" style={{ marginTop: 18 }}>
+      <div className="ppanel" style={{ marginTop: 18 }} data-ai-target="promotion:packages">
         <div className="ppanel__h">
           <b>{t("packagesTitle")}</b>
         </div>

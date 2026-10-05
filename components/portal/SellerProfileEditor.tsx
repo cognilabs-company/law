@@ -44,6 +44,7 @@ const DEFAULT_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat"];
 // Recommended hourly range (so'm) per specialization until the catalogue
 // provides one (T1-08); the allowed band is 70–100 % of the recommendation.
 const PRICE_HINT: Record<string, [number, number]> = { criminalAdmin: [300000, 800000], economicCivil: [250000, 700000], both: [300000, 800000], lawyer: [150000, 500000] };
+const PANEL_TARGET: Record<string, string> = { personal: "seller:profile-edit", professional: "profile:professional", areas: "profile:practice-areas", price: "profile:pricing", hours: "profile:work-hours", history: "profile:work-history" };
 
 // Fields the backend profile (PUT /lawyers/me) has no columns for yet
 // (reported: gender, work hours, work history). Kept per user in the browser
@@ -231,7 +232,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
   const panel = (id: string, icon: ReactNode, title: string, read: ReactNode, edit: ReactNode) => {
     const on = section === id;
     return (
-      <div className="ppanel" data-ai-target={id === "personal" ? "seller:profile-edit" : undefined}>
+      <div className="ppanel" data-ai-target={PANEL_TARGET[id]}>
         <div className="ppanel__h">
           <b className="ppanel__t">{icon}{title}</b>
           {on ? (
@@ -267,7 +268,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
 
   return (
     <div className="advprofile">
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="profile:visibility">
         <div className="ppanel__h">
           <b>{t("title")}</b>
           <span className="advmuted">{t("visibility", { pct: livePct })}</span>
@@ -277,7 +278,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         {missing.length ? <p className="advmuted" style={{ fontSize: ".82rem" }}>{tp("missing")}: {missing.join(", ")}</p> : null}
         <div className="pverify">
           <div><b>{t("verifyTitle")}</b><span>{t("verifyLead")}</span></div>
-          <button className="btn btn--pri btn--sm" type="button" onClick={verify} disabled={vbusy}><IconShieldCheck />{vbusy ? t("verifySending") : t("verifyCta")}</button>
+          <button className="btn btn--pri btn--sm" type="button" onClick={verify} disabled={vbusy} data-ai-target="button:request-verification"><IconShieldCheck />{vbusy ? t("verifySending") : t("verifyCta")}</button>
         </div>
         {vnote ? <Notice ok={vnote.ok} msg={vnote.msg} /> : null}
         {note && !section ? <Notice ok={note.ok} msg={note.msg} /> : null}
@@ -484,7 +485,7 @@ function MyServices({ userId }: { userId: string }) {
   const load = useCallback(() => (userId ? getLawyerServices(userId) : Promise.resolve([])), [userId]);
   const svc = useResource(load, [userId]);
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="profile:services">
       <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconGavel /></span>{t("servicesTitle")}</b><span className="advmuted">{svc.data.length}</span></div>
       {svc.status === "loading" ? <Skeleton rows={2} /> : !svc.data.length ? (
         <EmptyState icon={<IconBriefcase />} title={t("servicesEmpty")} text={t("servicesEmptyText")} />

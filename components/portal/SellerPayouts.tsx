@@ -32,7 +32,7 @@ export default function SellerPayouts() {
   const fmt = (s: string) => dateOnly(s, locale);
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="seller-dashboard:payouts">
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="advmuted">{t("nextPayout", { date: nextThursday(locale) })}</span>

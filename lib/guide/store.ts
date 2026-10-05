@@ -1,6 +1,6 @@
 import type { GuideState, GuideTour } from "./types";
 
-const IDLE: GuideState = { phase: "idle", tour: null, index: 0, element: null, missing: [], shown: 0 };
+const IDLE: GuideState = { phase: "idle", tour: null, index: 0, element: null, missing: [], shown: 0, dir: 1 };
 
 let state: GuideState = IDLE;
 const listeners = new Set<() => void>();
@@ -39,13 +39,13 @@ export function nextStep(): void {
     stopTour();
     return;
   }
-  state = { ...state, index: state.index + 1, phase: "locating", element: null };
+  state = { ...state, index: state.index + 1, phase: "locating", element: null, dir: 1 };
   emit();
 }
 
 export function prevStep(): void {
   if (!state.tour || state.index <= 0) return;
-  state = { ...state, index: state.index - 1, phase: "locating", element: null };
+  state = { ...state, index: state.index - 1, phase: "locating", element: null, dir: -1 };
   emit();
 }
 

@@ -72,7 +72,7 @@ export default function ClientDetailModal({ id, onClose }: { id: string | null; 
               ))}
             </div>
           ) : null}
-          <div className="segs segs--sm" role="tablist">
+          <div className="segs segs--sm" role="tablist" data-ai-target="client-detail:tabs">
             {tabs.map(([k, n]) => (
               <button key={k} type="button" role="tab" className="seg" aria-selected={tab === k} onClick={() => setTab(k)}>{t(`tabs.${k}`)}{n ? ` (${n})` : ""}</button>
             ))}

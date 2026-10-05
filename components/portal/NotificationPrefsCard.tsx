@@ -36,7 +36,7 @@ export default function NotificationPrefsCard() {
   }
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="profile:notification-prefs">
       <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconBell /></span>{t("notifPrefs")}</b></div>
       {prefs.status === "loading" ? (
         <Skeleton rows={2} />

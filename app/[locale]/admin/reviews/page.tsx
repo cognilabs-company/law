@@ -107,7 +107,7 @@ export default function AdminReviews() {
       <div className="ppanel__h"><b>{t("title")}</b><span className="advmuted">{res.data.length}</span></div>
       <p className="ppanel__note">{t("lead")}</p>
 
-      <div className="segs segs--sm" role="tablist" aria-label={t("sellerTypeTabs")} style={{ marginBottom: 14 }}>
+      <div className="segs segs--sm" role="tablist" aria-label={t("sellerTypeTabs")} style={{ marginBottom: 14 }} data-ai-target="reviews:seller-tabs">
         {SELLER_TABS.map((s) => (
           <button key={s} type="button" role="tab" className="seg" aria-selected={tab === s} onClick={() => setTab(s)}>
             {s === "all" ? t("allSellers") : t(`sellerType.${s}`)}
@@ -121,7 +121,7 @@ export default function AdminReviews() {
       ) : !res.data.length ? (
         <EmptyState icon={<IconStar />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="alist">
+        <div className="alist" data-ai-target="reviews:list">
           {res.data.map((r) => (
             <div className="rvw" key={r.id}>
               <div className="rvw__top">
@@ -137,7 +137,7 @@ export default function AdminReviews() {
               </div>
               {r.comment ? <p className="rvw__c">{r.comment}</p> : null}
               {r.status === "pending" ? (
-                <div className="rvw__acts">
+                <div className="rvw__acts" data-ai-target="reviews:moderation">
                   <button className="btn btn--pri btn--sm" type="button" disabled={busy === r.id} onClick={() => moderate(r.id, "approved")}><IconCheck />{t("approve")}</button>
                   <button className="btn btn--line btn--sm" type="button" disabled={busy === r.id} onClick={() => moderate(r.id, "rejected")}><IconClose />{t("reject")}</button>
                 </div>

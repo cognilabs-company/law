@@ -21,7 +21,7 @@ export default function LawyerMarketplace() {
   const orders = res.data.filter((o) => !gone.has(o.id));
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target={orders.length ? undefined : "open-orders:list"}>
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="advmuted">{t("count", { n: orders.length })}</span>
@@ -31,7 +31,7 @@ export default function LawyerMarketplace() {
       ) : !orders.length ? (
         <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="pcards">
+        <div className="pcards" data-ai-target="open-orders:list" data-ai-label={t("title")}>
           {orders.map((o) => (
             <div className="oppc oppc--full" key={o.id}>
               <div className="oppc__h">

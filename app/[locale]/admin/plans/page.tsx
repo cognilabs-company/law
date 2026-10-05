@@ -346,14 +346,14 @@ export default function AdminPlans() {
         <b>{t("plans.listTitle")}</b>
         <span className="ahdr">
           <span className="advmuted">{plans.length - hiddenCount}</span>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => { setPageNote(null); setOpen(true); }}>
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => { setPageNote(null); setOpen(true); }} data-ai-target="button:new-plan">
             <IconPlus />
             {t("form.add")}
           </button>
         </span>
       </div>
 
-      <div className="lfilters">
+      <div className="lfilters" data-ai-target="plans:filters">
         <div className="lsearch">
           <IconSearch />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("plans.searchPh")} aria-label={t("plans.searchPh")} />
@@ -386,7 +386,7 @@ export default function AdminPlans() {
       ) : !list.length ? (
         <EmptyState icon={<IconSearch />} title={t("plans.noResults")} />
       ) : (
-        <div className="alist">
+        <div className="alist" data-ai-target="plans:list">
           {list.map((p, i) => (
             <div className="aitem" key={p.id}>
               <span className="aitem__n">{i + 1}</span>
@@ -404,7 +404,7 @@ export default function AdminPlans() {
                 </div>
               </div>
               <div className="aitem__r">{priceLabel(p)}</div>
-              <div className="aitem__acts">
+              <div className="aitem__acts" data-ai-target="plans:item-actions">
                 {p.hidden ? (
                   <button className="aitem__act" type="button" aria-label={t("plans.restore")} title={t("plans.restore")} disabled={toggling === p.id} onClick={() => restore(p)}>
                     <IconEye />

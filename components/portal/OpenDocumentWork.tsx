@@ -54,7 +54,7 @@ export default function OpenDocumentWork() {
   if (!ready || !items.length) return null;
 
   return (
-    <section className="ppanel odw">
+    <section className="ppanel odw" data-ai-target="cases:open-documents">
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconFileText /></span>{t("openTitle")}</b>
         <Link href="/portal/client/documents" className="btn btn--line btn--sm">

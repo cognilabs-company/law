@@ -40,7 +40,7 @@ export default function CaseAiTools({ caseId }: { caseId: string }) {
   }
 
   return (
-    <div className="ohist" style={{ marginTop: 14 }}>
+    <div className="ohist" style={{ marginTop: 14 }} data-ai-target="case:ai-tools">
       <div className="ohist__h"><b><IconSparkle style={{ width: 15, height: 15 }} /> {t("title")}</b></div>
       <p className="advmuted" style={{ margin: 0, fontSize: ".8rem" }}>{t("lead")}</p>
       <div className="ohist__btns">

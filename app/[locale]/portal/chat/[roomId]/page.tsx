@@ -1,5 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
 import SecureChat from "@/components/chat/SecureChat";
+import InstructorDock from "@/components/guide/InstructorDock";
 
 type Props = {
   params: Promise<{ locale: string; roomId: string }>;
@@ -12,5 +13,10 @@ export default async function Page({ params, searchParams }: Props) {
   const { locale, roomId } = await params;
   const { ua, wid, svc } = await searchParams;
   setRequestLocale(locale);
-  return <SecureChat roomId={roomId} urgentRecordId={ua} workId={wid} serviceTitle={svc} />;
+  return (
+    <>
+      <SecureChat roomId={roomId} urgentRecordId={ua} workId={wid} serviceTitle={svc} />
+      <InstructorDock />
+    </>
+  );
 }

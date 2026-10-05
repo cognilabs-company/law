@@ -74,7 +74,7 @@ export default function QualityComplaints() {
   const label = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : statusLabel(tcm, s));
 
   return (
-    <section className="ppanel">
+    <section className="ppanel" data-ai-target="callcenter:complaints">
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconAlert /></span>{t("title")}</b>
         <span className="advmuted">{count}</span>

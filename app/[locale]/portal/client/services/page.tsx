@@ -70,6 +70,7 @@ import {
 } from "@/components/icons";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { fmtRating } from "@/lib/date";
+import { useAiReveal } from "@/lib/guide/targets";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
@@ -907,6 +908,25 @@ export default function ClientServices() {
     return c;
   }, [dirRows]);
 
+  useAiReveal("documents:category-list", () => {
+    setQ("");
+    setCat("");
+  });
+  useAiReveal("documents:direction-list", () => {
+    setQ("");
+    setSubcat("");
+  });
+  useAiReveal("documents:template-list", () => {
+    setQ("");
+    if (cat && subcat) return;
+    if (cat) {
+      if (subcatList[0]) setSubcat(subcatList[0]);
+      return;
+    }
+    const first = flatSubcats[0] ?? allSubcats[0];
+    if (first) openSubcat(first.cat, first.name);
+  });
+
   return (
     <div className="mkt">
       {/* Module 10 client entry points: AI intake + urgent advocate. */}
@@ -967,7 +987,7 @@ export default function ClientServices() {
             place the client is told what is inside before drilling further. */}
         {showSubcats && catRow?.description ? <p className="svcat__lead">{catRow.description}</p> : null}
 
-        <div className="svsel__bar">
+        <div className="svsel__bar" data-ai-target="documents:catalog-search" data-ai-label={t("search")}>
           <span className="svsel__search">
             <IconSearch />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
@@ -988,7 +1008,7 @@ export default function ClientServices() {
             honestly answer: the two direction screens hold no service rows on
             purpose, so they filter on the one field GET /service-categories
             returns that varies. */}
-        <div className="svfilt">
+        <div className="svfilt" data-ai-target="documents:catalog-filters">
           {svcScreen ? (
             <>
               <label className="svfilt__f">
@@ -1156,7 +1176,7 @@ export default function ClientServices() {
             {!flatSubcats.length ? (
               <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
             ) : (
-              <div className="svfam__grid">
+              <div className="svfam__grid" data-ai-target="documents:direction-list">
                 {flatSubcats.map((sc, i) => {
                   const img = subcategoryImage(sc.name);
                   const Icon = FAM_ICONS[i % FAM_ICONS.length];
@@ -1192,7 +1212,7 @@ export default function ClientServices() {
           !famList.length ? (
             <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
           ) : (
-            <div className="svfam__grid">
+            <div className="svfam__grid" data-ai-target="documents:category-list">
               {famList.map((c, i) => {
                 const img = generalCategoryImage(c.name);
                 const Icon = FAM_ICONS[i % FAM_ICONS.length];
@@ -1232,7 +1252,7 @@ export default function ClientServices() {
           !subcatList.length ? (
             <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
           ) : (
-            <div className="svfam__grid">
+            <div className="svfam__grid" data-ai-target="documents:direction-list">
               {subcatList.map((name, i) => {
                 const img = subcategoryImage(name);
                 const Icon = FAM_ICONS[i % FAM_ICONS.length];

@@ -103,7 +103,7 @@ export default function ClientProfile() {
 
   return (
     <>
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="profile:personal">
         <div className="ppanel__h">
           <b className="ppanel__t"><span className="pico"><IconUser /></span>{t("personal")}{ident.data?.verified ? <span className="tfa__on" title={ident.data.provider.toUpperCase()}><IconShieldCheck />{t("verifiedProfile")}</span> : null}</b>
           <button className="btn btn--soft btn--sm" type="button" onClick={() => setEditOpen(true)}>
@@ -138,7 +138,7 @@ export default function ClientProfile() {
       <TelegramLinkCard />
 
       <div className="pgrid2">
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="profile:family">
           <div className="ppanel__h">
             <b className="ppanel__t"><span className="pico"><IconUsers /></span>{t("family")}</b>
             <button className="btn btn--soft btn--sm" type="button" onClick={() => setFamOpen(true)}>
@@ -184,7 +184,7 @@ export default function ClientProfile() {
           )}
         </div>
 
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="profile:cards">
           <div className="ppanel__h">
             <b className="ppanel__t"><span className="pico"><IconCard /></span>{t("cards")}</b>
             <button className="btn btn--soft btn--sm" type="button" onClick={() => setCardOpen(true)}>
@@ -220,7 +220,7 @@ export default function ClientProfile() {
         </div>
       </div>
 
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="profile:subscription">
         <div className="ppanel__h">
           <b className="ppanel__t"><span className="pico"><IconSparkle /></span>{t("subscription")}</b>
         </div>
@@ -234,7 +234,7 @@ export default function ClientProfile() {
 
       <div className="pgrid2">
         <NotificationPrefsCard />
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="profile:sessions">
           <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconMonitor /></span>{t("sessions")}</b></div>
           {sessions.status === "loading" ? (
             <Skeleton rows={2} />

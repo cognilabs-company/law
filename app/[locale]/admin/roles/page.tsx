@@ -110,7 +110,7 @@ export default function AdminRoles() {
           <b>{t("roles.listTitle")}</b>
           <span className="ahdr">
             <span className="advmuted">{roles.data.length}</span>
-            <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)}>
+            <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-role">
               <IconPlus />
               {t("form.add")}
             </button>
@@ -121,7 +121,7 @@ export default function AdminRoles() {
         ) : !roles.data.length ? (
           <EmptyState icon={<IconShield />} title={t("roles.empty")} />
         ) : (
-          <div className="alist">
+          <div className="alist" data-ai-target="roles:list">
             {roles.data.map((r, i) => (
               <AdminItem
                 key={r.id}
@@ -136,7 +136,7 @@ export default function AdminRoles() {
       </div>
 
       {/* Assign role */}
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="roles:assign">
         <div className="ppanel__h"><b>{t("roles.assignTitle")}</b></div>
         <p className="advmuted" style={{ marginBottom: 16 }}>{t("roles.assignLead")}</p>
         <form className="cform" style={{ maxWidth: "none" }} onSubmit={submitAssign}>
@@ -165,7 +165,7 @@ export default function AdminRoles() {
       </div>
 
       {/* Permission matrix (read-only): roles × permissions */}
-      <div className="ppanel" style={{ gridColumn: "1 / -1" }}>
+      <div className="ppanel" style={{ gridColumn: "1 / -1" }} data-ai-target="roles:matrix">
         <div className="ppanel__h"><b>{t("roles.matrixTitle")}</b></div>
         {matrix.status === "loading" ? (
           <Skeleton rows={4} />

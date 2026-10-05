@@ -31,6 +31,7 @@ import Select from "@/components/Select";
 import { IconFileText, IconArrowRight, IconDocLines } from "@/components/icons";
 import { statusLabel } from "@/lib/labels";
 import OpenDocumentWork from "@/components/portal/OpenDocumentWork";
+import { useAiReveal } from "@/lib/guide/targets";
 
 // A replacement request can't be listed back by the client (the list needs
 // replacements.manage), so its id is kept per case to read its history.
@@ -98,6 +99,14 @@ export default function ClientCases() {
     return rows;
   }, [res.data, orders.data]);
 
+  const firstOrderKey = items.find((it) => it.case?.orderId || it.order?.id)?.key ?? "";
+  useAiReveal("order:status", () => {
+    if (firstOrderKey) setOpenHistory(firstOrderKey);
+  });
+  useAiReveal("order:milestones", () => {
+    if (firstOrderKey) setOpenMilestones(firstOrderKey);
+  });
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!target || busy) return;
@@ -144,7 +153,7 @@ export default function ClientCases() {
         its own page too, but this is where a client looks for what is still
         open — and, until now, an unfinished request was invisible here. */}
     <OpenDocumentWork />
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="cases:list">
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="advmuted">{t("count", { n: items.length })}</span>

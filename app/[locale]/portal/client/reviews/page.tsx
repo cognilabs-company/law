@@ -68,7 +68,7 @@ export default function ClientReviews() {
 
   return (
     <>
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="reviews:pending">
         <div className="ppanel__h"><b>{t("pendingTitle")}</b></div>
         <p className="ppanel__note">{t("pendingLead")}</p>
         {pending.status === "loading" ? (
@@ -91,7 +91,7 @@ export default function ClientReviews() {
         )}
       </div>
 
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="reviews:mine">
         <div className="ppanel__h"><b>{t("mineTitle")}</b></div>
         {mine.status === "loading" ? (
           <Skeleton rows={2} />

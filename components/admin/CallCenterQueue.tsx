@@ -96,7 +96,7 @@ export default function CallCenterQueue() {
   const breached = state.items.filter((i) => i.slaBreached).length;
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="callcenter:queue">
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>

@@ -18,6 +18,7 @@ import { ApiError, errDetail } from "@/lib/http";
 // rule is how one of them quietly stops matching the other.
 import { DocCloak, DocGuardNote, DocPrintNotice, DocWatermark, useDocGuard } from "./DocTemplateViewer";
 import { IconChevronLeft, IconEye, IconLock } from "@/components/icons";
+import InstructorButton from "@/components/guide/InstructorButton";
 
 // A dedicated full page for "Hujjatni ko'rish" on the services catalog — the
 // clean template rendered read-only, with no download/save action anywhere
@@ -89,11 +90,12 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
   return (
     <div className="docbuild docbuild--full">
       <div className="docbuild__top">
-        <button type="button" className="docbuild__back" onClick={() => (backHref ? router.push(backHref) : router.back())}>
+        <button type="button" className="docbuild__back" onClick={() => (backHref ? router.push(backHref) : router.back())} data-ai-target="button:document-back">
           <IconChevronLeft />
           {t("back")}
         </button>
         <b className="docbuild__title">{fields?.title || t("docViewTitle")}</b>
+        <InstructorButton className="docbuild__ai" />
       </div>
 
       {status === "loading" ? (
@@ -123,7 +125,7 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
             {t("docViewHint")}
           </p>
           <DocGuardNote blocked={guard.blocked} />
-          <div className={`docpaper__scroll docguard__paper${guard.cls}`} style={{ maxHeight: "none" }} {...guard.surface}>
+          <div className={`docpaper__scroll docguard__paper${guard.cls}`} style={{ maxHeight: "none" }} data-ai-target="documents:template-preview" {...guard.surface}>
             <DocCloak reason={guard.cloak} />
             <article className="docpaper__sheet docpaper__sheet--doc">
               <DocWatermark style={guard.wm} />

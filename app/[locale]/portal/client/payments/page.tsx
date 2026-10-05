@@ -61,13 +61,13 @@ export default function ClientPayments() {
   }
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target={res.status !== "loading" && rows.length ? undefined : "payments:history"}>
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="advmuted">{t("history")}</span>
       </div>
 
-      <div className="lfilters">
+      <div className="lfilters" data-ai-target="payments:filters" data-ai-label={t("searchPh")}>
         <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>
         <DatePicker value={from} onChange={setFrom} max={to || undefined} placeholder={t("from")} ariaLabel={t("from")} />
         <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={t("to")} ariaLabel={t("to")} />
@@ -79,7 +79,7 @@ export default function ClientPayments() {
       ) : !rows.length ? (
         <EmptyState icon={<IconSearch />} title={t("noResults")} text={t("noResultsText")} />
       ) : (
-        <div className="ptable__wrap">
+        <div className="ptable__wrap" data-ai-target="payments:history">
           <div className="ptable">
             <div className="ptable__head">
               <span>{t("what")}</span>

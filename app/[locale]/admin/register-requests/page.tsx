@@ -51,7 +51,7 @@ function Actions({ id, onDone }: { id: string; onDone: () => void }) {
     );
   }
   return (
-    <div className="pcase__act">
+    <div className="pcase__act" data-ai-target="register-requests:decision">
       <button className="btn btn--pri btn--sm" type="button" disabled={!!busy} onClick={() => run("accept")}>
         <IconCheck />
         {busy === "accept" ? t("accepting") : t("accept")}
@@ -87,7 +87,7 @@ export default function AdminRegisterRequests() {
       <p className="advmuted" style={{ marginBottom: 16 }}>{t("lead")}</p>
 
       {stats ? (
-        <div className="amet" style={{ marginBottom: 16 }}>
+        <div className="amet" style={{ marginBottom: 16 }} data-ai-target="register-requests:stats">
           <div className="amet__c"><b>{stats.total}</b><span className="amet__l">{t("stats.total")}</span></div>
           <div className="amet__c"><b>{stats.advokat}</b><span className="amet__l">{t("role.advokat")}</span></div>
           <div className="amet__c"><b>{stats.yurist}</b><span className="amet__l">{t("role.yurist")}</span></div>
@@ -98,7 +98,7 @@ export default function AdminRegisterRequests() {
         </div>
       ) : null}
 
-      <div className="segs segs--sm" role="tablist" aria-label={t("stats.roleTabs")} style={{ marginBottom: 12 }}>
+      <div className="segs segs--sm" role="tablist" aria-label={t("stats.roleTabs")} style={{ marginBottom: 12 }} data-ai-target="register-requests:role-tabs">
         {ROLE_TABS.map((r) => (
           <button key={r} type="button" role="tab" className="seg" aria-selected={roleTab === r} onClick={() => setRoleTab(r)}>
             {r === "all" ? t("stats.allRoles") : t(`role.${r}`)}
@@ -115,7 +115,7 @@ export default function AdminRegisterRequests() {
       ) : !items.length ? (
         <EmptyState icon={<IconUser />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="alist">
+        <div className="alist" data-ai-target="register-requests:list" data-ai-label={t("title")}>
           {items.map((r: RegisterRequest, i) => (
             <AdminItem
               key={r.id || i}
@@ -128,7 +128,7 @@ export default function AdminRegisterRequests() {
               ].filter(Boolean).join(" · ")}
               tags={[{ label: r.status ? (t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status) : t("status.pending"), tone: "muted" }]}
               right={<Actions id={r.id} onDone={reload} />}
-              actions={<button type="button" className="aitem__act" aria-label={t("detailTitle")} title={t("detailTitle")} onClick={() => setDetail(r.id)}><IconEye /></button>}
+              actions={<button type="button" className="aitem__act" aria-label={t("detailTitle")} title={t("detailTitle")} onClick={() => setDetail(r.id)} data-ai-target="button:register-request-detail"><IconEye /></button>}
             />
           ))}
         </div>

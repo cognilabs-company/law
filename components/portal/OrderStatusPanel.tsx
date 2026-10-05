@@ -52,7 +52,7 @@ export default function OrderStatusPanel({ orderId, side, status, onChanged }: {
   }
 
   return (
-    <div className="ohist">
+    <div className="ohist" data-ai-target="order:status">
       <div className="ohist__h">
         <b>{t("title")}</b>
         {current ? <span className="creq__badge">{label(current)}</span> : null}

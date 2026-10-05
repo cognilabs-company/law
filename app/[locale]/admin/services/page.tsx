@@ -194,7 +194,7 @@ export default function AdminServices() {
   return (
     <div className="agrid svcadm__grid">
       {/* Categories */}
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="services:categories">
         <div className="ppanel__h">
           <b>{t("services.catTitle")}</b>
           <span className="ahdr">
@@ -205,7 +205,7 @@ export default function AdminServices() {
                 {ts("cat.hiddenChip", { n: hiddenCats.length })}
               </button>
             ) : null}
-            <button className="btn btn--pri btn--sm" type="button" onClick={() => setCatOpen(true)}>
+            <button className="btn btn--pri btn--sm" type="button" onClick={() => setCatOpen(true)} data-ai-target="button:new-category">
               <IconPlus />
               {t("form.add")}
             </button>
@@ -263,14 +263,14 @@ export default function AdminServices() {
           <b>{t("services.svcTitle")}</b>
           <span className="ahdr">
             <span className="advmuted">{svcs.status === "ready" ? ts("shown", { n: list.length, total: all.length }) : svcs.data.length}</span>
-            <button className="btn btn--pri btn--sm" type="button" onClick={() => setSvcOpen(true)}>
+            <button className="btn btn--pri btn--sm" type="button" onClick={() => setSvcOpen(true)} data-ai-target="button:new-service">
               <IconPlus />
               {t("form.add")}
             </button>
           </span>
         </div>
 
-        <div className="svcadm__tools">
+        <div className="svcadm__tools" data-ai-target="services:filters">
           <div className="lsearch">
             <IconSearch />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={ts("searchPh")} aria-label={ts("searchLabel")} />
@@ -311,7 +311,7 @@ export default function AdminServices() {
         ) : !list.length ? (
           <EmptyState icon={<IconSearch />} title={ts("noResults")} />
         ) : (
-          <div className="alist">
+          <div className="alist" data-ai-target="services:list">
             {list.map((s, i) => (
               <AdminItem
                 key={s.id}

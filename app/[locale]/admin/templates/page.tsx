@@ -101,18 +101,18 @@ export default function AdminTemplates() {
         <b>{t("templates.listTitle")}</b>
         <span className="ahdr">
           <span className="advmuted">{tpls.data.length}</span>
-          <button className="btn btn--soft btn--sm" type="button" onClick={() => setImportOpen(true)}>
+          <button className="btn btn--soft btn--sm" type="button" onClick={() => setImportOpen(true)} data-ai-target="button:import-templates">
             <IconUpload />
             {t("templates.import.cta")}
           </button>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)}>
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-template">
             <IconPlus />
             {t("form.add")}
           </button>
         </span>
       </div>
 
-      <div className="lsp__search" style={{ marginBottom: 14 }}>
+      <div className="lsp__search" style={{ marginBottom: 14 }} data-ai-target="templates:search">
         <IconSearch />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("templates.searchPh")} aria-label={t("templates.search")} />
       </div>
@@ -124,7 +124,7 @@ export default function AdminTemplates() {
       ) : !list.length ? (
         <EmptyState icon={<IconSearch />} title={t("templates.noResults")} />
       ) : (
-        <div className="alist">
+        <div className="alist" data-ai-target="templates:list">
           {list.map((d, i) => (
             <AdminItem
               key={d.id}

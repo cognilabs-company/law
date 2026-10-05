@@ -132,7 +132,7 @@ export default function MarketOrders({ view }: { view: View }) {
         </div>
       ) : null}
 
-      <div className="mk-tabs" role="tablist">
+      <div className="mk-tabs" role="tablist" data-ai-target="orders:filters">
         {tabs.map((k) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} className="mk-tab" onClick={() => setTab(k)}>
             {t(`tabs.${k}`)}
@@ -163,7 +163,7 @@ export default function MarketOrders({ view }: { view: View }) {
           </button>
         </div>
       ) : !orders.length ? (
-        <div className="mk-empty">
+        <div className="mk-empty" data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"}>
           <IconSparkle />
           <b>{view === "client" ? t("emptyClient") : t("emptySeller")}</b>
           <span>{view === "client" ? t("emptyClientText") : t("emptySellerText")}</span>
@@ -174,7 +174,7 @@ export default function MarketOrders({ view }: { view: View }) {
           ) : null}
         </div>
       ) : !shown.length ? (
-        <div className="mk-empty mk-empty--flat">
+        <div className="mk-empty mk-empty--flat" data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"}>
           <span>{t("emptyTab")}</span>
         </div>
       ) : (

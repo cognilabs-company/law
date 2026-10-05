@@ -24,7 +24,7 @@ function ResidencyCard({ r }: { r: DataResidency | null }) {
     .filter(Boolean)
     .join(" · ");
   return (
-    <div className="intg__group">
+    <div className="intg__group" data-ai-target="integrations:residency">
       <b className="intg__cat">{t("category")}</b>
       <div className={`intg__c intg__c--${tone} intg__res`}>
         <span className="intg__dot" />
@@ -69,7 +69,7 @@ export default function AdminIntegrations() {
         <EmptyState icon={<IconBolt />} title={t("empty")} text={t("empty")} />
       ) : (
         groups.map((g) => (
-          <div className="intg__group" key={g.category || "_"}>
+          <div className="intg__group" key={g.category || "_"} data-ai-target="integrations:services">
             {g.category ? (
               <b className="intg__cat">{t.has(`categories.${g.category}`) ? t(`categories.${g.category}`) : humanizeSlug(g.category)}</b>
             ) : null}

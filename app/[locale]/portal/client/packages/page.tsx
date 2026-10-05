@@ -78,7 +78,7 @@ export default function ClientPackages() {
         <span className="advmuted">{pk.status === "ready" ? t("count", { n: groups.length }) : ""}</span>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
-      <div className="lfilters">
+      <div className="lfilters" data-ai-target="packages:search" data-ai-label={t("searchPh")}>
         <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>
       </div>
       {pk.status === "loading" ? (
@@ -86,14 +86,14 @@ export default function ClientPackages() {
       ) : !groups.length ? (
         <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        groups.map(([code, items]) => (
+        groups.map(([code, items], gi) => (
           <div className="pkg" key={code}>
             <div className="pkg__h">
               <span className="pkg__hi" aria-hidden><IconPackage /></span>
               <b>{items[0].title}</b>
               <span className="advmuted">{items[0].categoryTitle} · {code}</span>
             </div>
-            <div className="pkg__tiers">
+            <div className="pkg__tiers" data-ai-target={gi === 0 ? "packages:tiers" : undefined}>
               {items.map((p, i) => {
                 const sep = separately(p);
                 const saves = sep > p.price ? sep - p.price : 0;

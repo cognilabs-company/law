@@ -181,7 +181,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
   );
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target={(tab === "pool" ? poolShown.length : activeRows.length) ? undefined : "list:document-requests"}>
       <div className="ppanel__h">
         <b>{t("title")}</b>
       </div>
@@ -190,7 +190,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
           builder's mobile-only form/document switcher and is display:none
           from 980px up — reusing it hid this whole tab strip on every
           desktop, which is the call-center advocate's actual device. */}
-      <div className="docb__tabs dreq__tabs" role="tablist" style={{ marginBottom: 16 }}>
+      <div className="docb__tabs dreq__tabs" role="tablist" style={{ marginBottom: 16 }} data-ai-target="document-requests:tabs">
         {TABS.map((tb) => (
           <button key={tb.key} type="button" role="tab" aria-selected={tab === tb.key} className={tab === tb.key ? "on" : ""} onClick={() => setTab(tb.key)}>
             {tb.label}
@@ -233,6 +233,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         activeCount={activeCount}
         onReset={resetF}
         resultCount={tab === "pool" ? poolShown.length : activeRows.length}
+        aiTarget="document-requests:filters"
       />
 
       {/* A failed fetch must never be dressed up as an empty pool — an
@@ -248,7 +249,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         ) : !poolShown.length ? (
           filteredEmpty
         ) : (
-          <div className="pcards">
+          <div className="pcards" data-ai-target="list:document-requests" data-ai-label={t("title")}>
             {poolShown.map((p) => (
               <PoolCard key={p.id} item={p} ns={ns} tcm={tcm} onClaimed={(r) => onClaimed(p.id, r)} onTaken={() => setGone((s) => new Set(s).add(p.id))} />
             ))}
@@ -263,7 +264,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
       ) : !activeRows.length ? (
         filteredEmpty
       ) : (
-        <div className="pcards" data-ai-target="list:document-requests">
+        <div className="pcards" data-ai-target="list:document-requests" data-ai-label={t("title")}>
           {activeRows.map((r) => {
             const locked = POOL_FLOW_STATUSES.has(r.status) && !r.canOpenEditor && r.status !== "completed";
             return (

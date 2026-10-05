@@ -225,7 +225,7 @@ export default function TelegramLinkCard() {
   const busyOrWaiting = busy || waitLeft > 0;
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="profile:telegram">
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconSend /></span>{t("title")}</b>
         {linked ? <span className="tfa__on"><IconCheck />{t("linkedBadge")}</span> : null}

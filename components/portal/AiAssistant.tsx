@@ -49,7 +49,7 @@ export default function AiAssistant() {
         </div>
       </div>
 
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target="ai-chat:input" data-ai-label={t("caseLabel")}>
         <label className="intake__lbl">{t("caseLabel")}</label>
         <textarea
           className="intake__ta"
@@ -57,8 +57,10 @@ export default function AiAssistant() {
           value={ctx}
           onChange={(e) => setCtx(e.target.value)}
           placeholder={t("casePh")}
+          data-ai-target="assistant:case-input"
+          data-ai-label={t("caseLabel")}
         />
-        <div className="chiprow" style={{ marginTop: 10 }}>
+        <div className="chiprow" style={{ marginTop: 10 }} data-ai-target="assistant:tools">
           {TOOLS.map((k) => (
             <button
               key={k}
@@ -72,7 +74,7 @@ export default function AiAssistant() {
             </button>
           ))}
         </div>
-        <button className="btn btn--pri btn--full" type="button" style={{ marginTop: 12 }} disabled={busy || !ready} onClick={() => run("free")}>
+        <button className="btn btn--pri btn--full" type="button" style={{ marginTop: 12 }} disabled={busy || !ready} onClick={() => run("free")} data-ai-target="button:assistant-run">
           <IconSend />
           {busy ? t("thinking") : t("run")}
         </button>
@@ -82,7 +84,7 @@ export default function AiAssistant() {
       </div>
 
       {answer ? (
-        <div className="ppanel asist__ans">
+        <div className="ppanel asist__ans" data-ai-target="assistant:answer">
           <div className="ppanel__h">
             <b>{active && active !== "free" ? t(`tools.${active}`) : t("answer")}</b>
           </div>

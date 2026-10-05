@@ -176,7 +176,7 @@ export default function PurchaseDialog({
               void submit();
             }}
           >
-            <fieldset className="mk-buy__ch">
+            <fieldset className="mk-buy__ch" data-ai-target="marketplace:purchase-channel">
               <legend>{t("channel")}</legend>
               <div className="mk-seg">
                 {PREFERRED_CHANNELS.map((c) => {
@@ -190,12 +190,12 @@ export default function PurchaseDialog({
                 })}
               </div>
             </fieldset>
-            <label className="mk-in">
+            <label className="mk-in" data-ai-target="marketplace:purchase-note">
               <span>{t("note")}</span>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("notePh")} maxLength={NOTE_MAX} rows={3} />
               <em>{note.length}/{NOTE_MAX}</em>
             </label>
-            <label className="mk-in">
+            <label className="mk-in" data-ai-target="marketplace:purchase-time">
               <span>{t("time")}</span>
               <input value={time} onChange={(e) => setTime(e.target.value)} placeholder={t("timePh")} maxLength={120} />
             </label>
@@ -208,7 +208,7 @@ export default function PurchaseDialog({
             </div>
             <p className="mk-buy__note">{t("totalNote")}</p>
             {err ? <Notice ok={false} msg={err} /> : null}
-            <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy}>
+            <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy} data-ai-target="button:marketplace-purchase-submit">
               {busy ? t("sending") : t("submit")}
             </button>
           </form>

@@ -50,7 +50,7 @@ export default function LeadFilterBar({
   const hasChips = !!mine || !!scores || !!urgencies?.length || active || !!summary;
 
   return (
-    <div className="lfbar">
+    <div className="lfbar" data-ai-target="leads:filters">
       <div className="lfilters">
         <span className="svsel__search">
           <IconSearch />

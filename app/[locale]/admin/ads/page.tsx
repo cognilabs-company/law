@@ -45,7 +45,7 @@ export default function AdminAds() {
         <b>{t("ads.title")}</b>
         <span className="ahdr">
           <span className="advmuted">{ads.data.length}</span>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)}>
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-ad">
             <IconPlus />
             {t("form.add")}
           </button>
@@ -58,7 +58,7 @@ export default function AdminAds() {
       ) : !ads.data.length ? (
         <EmptyState icon={<IconRocket />} title={t("ads.empty")} text={t("ads.emptyText")} />
       ) : (
-        <div className="alist">
+        <div className="alist" data-ai-target="ads:list">
           {ads.data.map((a, i) => (
             <AdminItem
               key={a.id}

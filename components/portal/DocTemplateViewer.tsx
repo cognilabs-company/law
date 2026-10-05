@@ -438,6 +438,7 @@ export default function DocTemplateViewer({
           <div
             className={`docpaper__scroll${protect ? ` docguard__paper${guard.cls}` : ""}`}
             style={{ maxHeight: "60vh" }}
+            data-ai-target="documents:template-viewer"
             {...(protect ? guard.surface : null)}
           >
             {protect ? <DocCloak reason={guard.cloak} /> : null}

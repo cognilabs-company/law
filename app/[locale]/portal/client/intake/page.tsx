@@ -85,8 +85,8 @@ export default function ClientIntake() {
 
       <div className="ppanel">
         <label className="intake__lbl">{t("label")}</label>
-        <textarea className="intake__ta" rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={t("placeholder")} />
-        <button className="btn btn--pri btn--full" type="button" onClick={analyze} disabled={busy || text.trim().length < 8}>
+        <textarea className="intake__ta" rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={t("placeholder")} data-ai-target="intake:input" data-ai-label={t("label")} />
+        <button className="btn btn--pri btn--full" type="button" onClick={analyze} disabled={busy || text.trim().length < 8} data-ai-target="button:intake-analyze">
           <IconSparkle />
           {busy ? t("analyzing") : t("analyze")}
         </button>
@@ -116,7 +116,7 @@ export default function ClientIntake() {
             </div>
           ) : null}
 
-          <div className="ppanel intake__res">
+          <div className="ppanel intake__res" data-ai-target="intake:result">
             <div className="intake__resh">
               <b>{t("resultTitle")}</b>
               <span className={`intake__urg intake__urg--${urgent ? "critical" : result.urgency}`}>{label("urgency", result.urgency)}</span>
@@ -206,7 +206,7 @@ export default function ClientIntake() {
       ) : null}
 
       {!result && sources.length ? (
-        <div className="ppanel">
+        <div className="ppanel" data-ai-target="intake:sources">
           <SourceList sources={sources} title={t("corpusTitle")} lead={t("corpusLead")} />
         </div>
       ) : null}

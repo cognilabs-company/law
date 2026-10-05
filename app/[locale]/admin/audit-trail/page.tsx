@@ -91,7 +91,7 @@ function Anomalies({ onReady }: { onReady?: () => void }) {
   const rows: ModuleRecord[] = res.data;
   const label = (r: ModuleRecord) => (t.has(`types.${r.recordType}`) ? t(`types.${r.recordType}`) : r.title || r.recordType);
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="audit:anomalies">
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="audit__hact">
@@ -222,7 +222,7 @@ export default function AdminAuditTrail() {
         <b>{t("title")}</b>
         <span className="audit__hact">
           <span className="advmuted">{rows.length}</span>
-          <button type="button" className="btn btn--line btn--sm" onClick={exportCsv} disabled={exporting || current?.status === "forbidden"}>
+          <button type="button" className="btn btn--line btn--sm" onClick={exportCsv} disabled={exporting || current?.status === "forbidden"} data-ai-target="button:export-audit">
             <IconDownload />
             {exporting ? t("exporting") : t("export")}
           </button>
@@ -234,7 +234,7 @@ export default function AdminAuditTrail() {
         <DatePicker value={from} onChange={setFrom} max={to || undefined} placeholder={tc("from")} ariaLabel={tc("from")} clearLabel={tc("clear")} />
         <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={tc("to")} ariaLabel={tc("to")} clearLabel={tc("clear")} />
       </div>
-      <form className="audit__filters" onSubmit={apply}>
+      <form className="audit__filters" onSubmit={apply} data-ai-target="audit:filters">
         <SearchSelect
           value={draft.userId ? [draft.userId] : []}
           onChange={(v) => setDraft((d) => ({ ...d, userId: v[0] ?? "" }))}
@@ -276,7 +276,7 @@ export default function AdminAuditTrail() {
                 ? `${t("chainSummary", { linked: chain.linked, total: chain.total })} ${t("chainNote")}`
                 : t("chainNote")}
           </p>
-          <div className="alist">
+          <div className="alist" data-ai-target="audit:list">
             {rows.map((a, i) => {
               const rowKey = a.id || a.eventHash || String(i);
               const state = chain.states[i];
