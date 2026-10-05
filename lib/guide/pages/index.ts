@@ -38,12 +38,9 @@ export function stepTextKey(target: string, role: GuideRole, path = ""): string 
   const here = path ? pageFor(path, role) : null;
   const local = here?.tour.find((s) => s.target === target);
   if (local) return local.text;
-  for (const { page } of COMPILED) {
-    if (!fits(page, role)) continue;
-    const step = page.tour.find((s) => s.target === target);
-    if (step) return step.text;
-  }
-  return "";
+  const owners = COMPILED.filter(({ page }) => fits(page, role) && page.tour.some((s) => s.target === target));
+  if (owners.length !== 1) return "";
+  return owners[0].page.tour.find((s) => s.target === target)?.text ?? "";
 }
 
 export function registryHome(target: string, role: GuideRole): string {

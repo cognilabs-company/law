@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { getGuide, getIdleGuide, nextStep, patchGuide, prevStep, stopTour, subscribeGuide } from "@/lib/guide/store";
-import { findTarget, focusTarget, revealTarget, waitForTarget } from "@/lib/guide/targets";
+import { findTarget, focusTarget, revealTarget, targetLabel, waitForTarget } from "@/lib/guide/targets";
 import { guideHref, remapTarget, samePath, targetHome } from "@/lib/guide/routes";
 import { registryHome } from "@/lib/guide/pages";
 import type { GuideRole } from "@/lib/guide/types";
@@ -45,6 +45,7 @@ async function settle(el: HTMLElement, signal: AbortSignal) {
 
 export default function GuideHost() {
   const t = useTranslations("guide.ui");
+  const tg = useTranslations("guide.caption");
   const { session } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -229,7 +230,7 @@ export default function GuideHost() {
         return;
       }
       const target = e.target instanceof Element ? e.target : null;
-      if (target?.closest("input,textarea,select,[contenteditable=true],[role=tablist],[role=radiogroup],[role=listbox],[role=menu],[role=menubar],[role=slider],[role=grid],[role=tree]")) return;
+      if (target?.closest("input,textarea,select,[contenteditable=true],[role=tab],[role=radio],[role=option],[role=menuitem],[role=menuitemradio],[role=menuitemcheckbox],[role=slider],[role=spinbutton],[role=gridcell],[role=treeitem],[role=switch],[role=combobox]")) return;
       if (e.key === "ArrowRight") {
         e.preventDefault();
         nextStep();
@@ -245,7 +246,8 @@ export default function GuideHost() {
   const step = tour?.steps[index];
   const busy = phase === "navigating" || phase === "locating";
   const missing = phase === "missing";
-  const text = busy ? (phase === "navigating" ? t("navigating") : t("locating")) : missing ? t("missing") : step?.caption || tour?.reply || "";
+  const label = phase === "showing" && element && !step?.caption ? targetLabel(element) : "";
+  const text = busy ? (phase === "navigating" ? t("navigating") : t("locating")) : missing ? t("missing") : step?.caption || (label ? tg("generic", { label }) : "") || tour?.reply || "";
   const announce = phase === "showing" || missing ? text : "";
 
   return (
