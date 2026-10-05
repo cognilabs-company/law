@@ -54,11 +54,12 @@ export default function GuideHost() {
   const expectRef = useRef<string | null>(null);
   const activeRef = useRef(false);
   const savedFocus = useRef<HTMLElement | null>(null);
+  const navRef = useRef(false);
 
   useEffect(() => {
     pathRef.current = pathname;
     const s = getGuide();
-    if (s.phase === "idle" || s.phase === "navigating") return;
+    if (s.phase === "idle" || s.phase === "navigating" || navRef.current) return;
     if (expectRef.current && samePath(pathname, expectRef.current)) return;
     stopTour();
   }, [pathname]);
@@ -102,12 +103,33 @@ export default function GuideHost() {
     const signal = ctrl.signal;
 
     const go = async (href: string) => {
+      navRef.current = true;
+      try {
+        return await travel(href);
+      } finally {
+        navRef.current = false;
+      }
+    };
+
+    const travel = async (href: string) => {
+      const from = pathRef.current;
       expectRef.current = href;
       router.push(href as Parameters<typeof router.push>[0], { scroll: false });
       const query = href.includes("?") ? href.slice(href.indexOf("?")).split("#")[0] : "";
       const t0 = Date.now();
+      let seen = from;
+      let since = t0;
       while (!signal.aborted) {
-        if (samePath(pathRef.current, href) && (!query || window.location.search === query)) return true;
+        const here = pathRef.current;
+        if (samePath(here, href) && (!query || window.location.search === query)) return true;
+        if (here !== seen) {
+          seen = here;
+          since = Date.now();
+        }
+        if (!samePath(here, from) && Date.now() - since > 1200) {
+          expectRef.current = here;
+          return true;
+        }
         if (Date.now() - t0 > NAV_TIMEOUT) return false;
         await sleep(80, signal);
       }
