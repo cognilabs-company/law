@@ -46,6 +46,22 @@ export const isPaymentRequired = (e: unknown) => hasStatus(e, 402);
 export const isConflict = (e: unknown) => hasStatus(e, 409);
 // 422: field validation — show `fieldErrors` next to the inputs.
 export const isValidation = (e: unknown) => hasStatus(e, 422);
+export const isAborted = (e: unknown) => e instanceof ApiError && e.status === 0 && e.detail === "aborted";
+export function isRouteMissing(e: unknown): boolean {
+  if (!(e instanceof ApiError)) return false;
+  if (e.status === 405 || e.status === 501) return true;
+  return e.status === 404 && (!e.detail || e.detail === "Not Found");
+}
+
+export type ContactBlocked = { message: string; filteredPreview: string };
+export function contactBlockedOf(e: unknown): ContactBlocked | null {
+  if (!(e instanceof ApiError) || e.code !== "platform_contact_blocked") return null;
+  const dd = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
+  return {
+    message: typeof dd.message === "string" ? dd.message : "",
+    filteredPreview: typeof dd.filtered_preview === "string" ? dd.filtered_preview : "",
+  };
+}
 
 // Reconnect delay for WebSockets: exponential (1s, 2s, 4s … capped at 30s)
 // with "equal jitter" (half fixed, half random) so many clients that dropped
@@ -111,7 +127,7 @@ export function guestLimitOf(e: unknown): GuestLimitExceeded | null {
 // reached the server). 429s carry the cooldown/lock wording, so callers show
 // `errDetail(e) || tc("rateLimited")`.
 export function errDetail(e: unknown): string {
-  if (!(e instanceof ApiError) || !e.detail || e.detail === "network_error") return "";
+  if (!(e instanceof ApiError) || !e.detail || e.detail === "network_error" || e.detail === "aborted") return "";
   // Uzbek-only server wording → the UI locale (lib/apiMessage).
   return localizeApiDetail(e.detail);
 }
@@ -332,7 +348,13 @@ export async function http<T = unknown>(
   init?: RequestInit,
 ): Promise<T> {
   const res = await authedFetch(path, init, "application/json");
-  const text = await res.text();
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (err) {
+    if (init?.signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) throw new ApiError(0, "aborted");
+    throw new ApiError(0, "network_error");
+  }
   return (text ? JSON.parse(text) : null) as T;
 }
 
@@ -363,7 +385,8 @@ async function authedFetch(path: string, init: RequestInit | undefined, accept: 
           ...(init?.headers || {}),
         },
       });
-    } catch {
+    } catch (err) {
+      if (init?.signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) throw new ApiError(0, "aborted");
       throw new ApiError(0, "network_error");
     }
   };

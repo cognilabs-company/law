@@ -6,6 +6,7 @@ import { personName } from "@/lib/labels";
 import { http, httpBlob, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
 import { cleanDocTitle, cleanDocText } from "@/lib/docTitle";
 import { mimeFromName } from "@/lib/download";
+import { sellerTrustOf, type RatingStatus } from "./trust";
 import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
@@ -360,6 +361,10 @@ export type BackendLawyer = {
   experienceYears: number;
   rating: number;
   reviews: number;
+  rated: boolean;
+  ratingStatus: RatingStatus;
+  ratingLabel: string;
+  badgeLabel: string;
   basePrice: number;
   bio?: string;
   verified: boolean;
@@ -406,6 +411,10 @@ function normPromotionInfo(v: unknown): PromotionInfo | null {
   };
 }
 
+export function trustFields(d: Record<string, unknown>) {
+  return sellerTrustOf(d, asNum(d.rating), asNum(d.reviews_count ?? d.reviews));
+}
+
 function normLawyer(v: unknown): BackendLawyer {
   const d = asDict(v);
   const user = asDict(d.user);
@@ -419,11 +428,11 @@ function normLawyer(v: unknown): BackendLawyer {
     specializations: asArr(d.specializations).map((s) => asStr(s)),
     languages: asArr(d.languages).map((l) => asStr(l)),
     experienceYears: asNum(d.experience_years),
-    rating: asNum(d.rating, 5),
+    rating: asNum(d.rating),
     reviews: asNum(d.reviews_count ?? d.reviews),
+    ...trustFields(d),
     basePrice: uzs(d, "base_hourly_price"),
     bio: asStr(d.bio) || undefined,
-    verified: Boolean(d.verified ?? d.is_verified),
     verificationStatus: asStr(d.verification_status),
     sellerType: asStr(d.seller_type),
     createdAt: asStr(d.created_at),

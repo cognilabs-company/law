@@ -160,7 +160,7 @@ export default function LawyerProfileModal({
             <div className="lprof__id">
               <div className="lprof__n">
                 {data.name || "—"}
-                {data.verified ? <VerifiedBadge name={data.name} subtitle={t(`kind.${kind}`)} /> : <span className="lprof__vf lprof__vf--un">{t("unverified")}</span>}
+                {data.verified ? <VerifiedBadge name={data.name} subtitle={t(`kind.${kind}`)} text={data.badgeLabel} /> : <span className="lprof__vf lprof__vf--un">{t("unverified")}</span>}
               </div>
               <div className="lprof__tags">
                 <span className={`advcard__kind advcard__kind--${kind}`}>{t(`kind.${kind}`)}</span>
@@ -171,7 +171,7 @@ export default function LawyerProfileModal({
 
           <div className="lprof__stats">
             <div>
-              <b>{fmtRating(data.rating, locale)}</b>
+              <b>{data.rated ? fmtRating(data.rating, locale) : t("unrated")}</b>
               <span>{t("rating")}</span>
             </div>
             <div>

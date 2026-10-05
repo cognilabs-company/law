@@ -825,7 +825,7 @@ export default function ClientServices() {
       if (sort === "price") return (a.basePrice || Infinity) - (b.basePrice || Infinity);
       if (sort === "exp") return b.experienceYears - a.experienceYears;
       if (sort === "match" && score(a) !== score(b)) return score(b) - score(a);
-      return b.rating - a.rating;
+      return Number(b.rated) - Number(a.rated) || b.rating - a.rating;
     });
     return rows;
   }, [sellers, sort, cands]);
@@ -1474,10 +1474,10 @@ export default function ClientServices() {
                           <span className="advpick__m">
                             <b>
                               {l.name || "—"}
-                              {l.verified || c ? <VerifiedBadge interactive={false} label={false} className="advpick__vf" /> : <em className="advpick__un">{t("unverified")}</em>}
+                              {l.verified || c?.reasons.includes("verified") ? <VerifiedBadge interactive={false} label={false} className="advpick__vf" /> : <em className="advpick__un">{t("unverified")}</em>}
                             </b>
                             <span className="advpick__stats">
-                              <i><IconStar />{l.rating ? fmtRating(l.rating, locale) : "—"}</i>
+                              <i><IconStar />{l.rated ? fmtRating(l.rating, locale) : t("unrated")}</i>
                               {l.experienceYears ? <i>{t("expYears", { n: l.experienceYears })}</i> : null}
                               {l.successRate ? <i>{t("successRate", { n: l.successRate })}</i> : null}
                               {l.region ? <i><IconMapPin />{te.has(`regions.${l.region}`) ? te(`regions.${l.region}`) : l.region}</i> : null}

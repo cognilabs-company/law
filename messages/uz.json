@@ -1,5 +1,10 @@
 {
   "marketplace": {
+    "aiReasons": "Moslik sabablari",
+    "askSupport": "Operatorga murojaat",
+    "emptyTextAi": "Oddiy filtrlar bilan qidirib ko'ring yoki operatordan yordam so'rang.",
+    "aiDisclaimer": "Bu qidiruv faqat mos advokat/yuristlarni topishga yordam beradi, yuridik maslahat emas.",
+    "aiNone": "AI bu so'rov bo'yicha mos mutaxassis topmadi",
     "metaTitle": "Advokat va yuristlar marketplace'i",
     "kicker": "Marketplace",
     "title": "Muammoingizni yozing — <hl>AI mos mutaxassisni</hl> topib beradi",
@@ -9,7 +14,7 @@
       "services": "xizmat",
       "from": "eng arzon xizmat"
     },
-    "searchPh": "Ism, yo'nalish yoki xizmat bo'yicha qidiring",
+    "searchPh": "Masalan: avtoavariya bo'yicha advokat kerak",
     "searchPhExample": "Masalan: {ex}",
     "findBtn": "Topish",
     "examplesLabel": "Ko'p tanlanadi:",
@@ -17,7 +22,7 @@
     "aiFound": "AI {n} ta mos mutaxassis topdi",
     "aiMatch": "{pct}% mos",
     "aiPick": "AI tanlovi",
-    "searchLabel": "Qidiruv",
+    "searchLabel": "AI orqali mos mutaxassis topish",
     "searchClear": "Tozalash",
     "roles": {
       "all": "Hammasi",
@@ -74,7 +79,7 @@
     "card": {
       "promoted": "Reklama",
       "verified": "Tasdiqlangan",
-      "newSeller": "Yangi",
+      "newSeller": "Hali baholanmagan",
       "reviews": "{count} ta baho",
       "newHint": "Baholar to'planmoqda",
       "experience": "yil tajriba",
@@ -126,7 +131,7 @@
         "success": "Muvaffaqiyat",
         "completed": "Bajarilgan buyurtma"
       },
-      "newRating": "Yangi",
+      "newRating": "Hali baholanmagan",
       "gathering": "Statistika to'planmoqda",
       "privateChat": "Maxfiy chat",
       "privateChatHint": "Buyurtmasiz pullik maxfiy chat",
@@ -260,6 +265,15 @@
     }
   },
   "common": {
+    "requestId": "So'rov ID: {id}",
+    "loadMore": "Ko'proq yuklash",
+    "retry": "Qayta urinish",
+    "serverError": "Xatolik yuz berdi. Qayta urinib ko'ring.",
+    "conflict": "Holat o'zgargan, ma'lumot yangilandi.",
+    "notFound": "Ma'lumot topilmadi.",
+    "forbidden": "Bu amal uchun ruxsat yo'q.",
+    "featureSoon": "Bu imkoniyat tez orada ishga tushadi.",
+    "contactBlocked": "Platformadan tashqarida bog'lanish ma'lumotini yozish mumkin emas. Muloqotni tizim ichida davom ettiring.",
     "kb": "KB",
     "minuteShort": "DD",
     "hourShort": "SS",
@@ -694,6 +708,7 @@
     "askTooShort": "Bir-ikki gap yozing — nima bo'lgani va qachon bo'lgani muhim.",
     "docSeed": "Menga {doc} tayyorlab bering ({who}). Kerakli ma'lumotlarni so'rang, so'ng hujjatni yarating.",
     "result": {
+      "unrated": "hali baholanmagan",
       "title": "Natija",
       "ready": "Tayyor",
       "lawyersFound": "{count} ta advokat topildi",
@@ -963,6 +978,7 @@
     "roleAdvocates": "Advokatlar",
     "roleLawyers": "Yuristlar",
     "card": {
+      "unrated": "Hali baholanmagan",
       "promoted": "Reklama",
       "kindAdvocate": "Advokat",
       "kindLawyer": "Yurist",
@@ -3348,6 +3364,7 @@
         "kind": { "advocate": "Advokat", "lawyer": "Yurist" }
       },
       "lawyerProfile": {
+        "unrated": "Hali baholanmagan",
         "title": "Advokat profili",
         "verified": "Tasdiqlangan",
         "kind": { "advocate": "Advokat", "lawyer": "Yurist" },
@@ -3761,6 +3778,7 @@
         "servicesSub": "Hujjat shabloni va advokatlar"
       },
       "services": {
+        "unrated": "Hali baholanmagan",
         "sellerRequired": "Avval advokatni tanlang",
         "sizeSmall": "Kichik (1–4)",
         "sizeMid": "O'rtacha (5–19)",

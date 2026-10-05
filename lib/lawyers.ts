@@ -6,6 +6,8 @@ export type Lawyer = {
   exp: number;
   rate: number;
   rev: number;
+  rated?: boolean;
+  badgeLabel?: string;
   full: number;
   part: number;
   price: string; // formatted number, currency word comes from translations

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { IconArrowRight, IconClose, IconFileText, IconLock, IconPhone, IconShieldCheck, IconStarRate, IconUser, IconAlert, IconCheck } from "@/components/icons";
 
@@ -13,14 +13,17 @@ type Props = {
   name?: string;
   subtitle?: string;
   label?: boolean;
+  text?: string;
   size?: "sm" | "md" | "lg";
   tone?: "light" | "glass";
   interactive?: boolean;
   className?: string;
 };
 
-export default function VerifiedBadge({ name, subtitle, label = true, size = "sm", tone = "light", interactive = true, className }: Props) {
+export default function VerifiedBadge({ name, subtitle, label = true, text, size = "sm", tone = "light", interactive = true, className }: Props) {
   const t = useTranslations("verifiedBadge");
+  const locale = useLocale();
+  const shown = text && locale === "uz" ? text : t("label");
   const ref = useRef<HTMLElement | null>(null);
   const [tip, setTip] = useState<{ x: number; y: number; below: boolean } | null>(null);
   const [open, setOpen] = useState(false);
@@ -50,7 +53,7 @@ export default function VerifiedBadge({ name, subtitle, label = true, size = "sm
       <span className="vbadge__img">
         <Image src={SRC} alt="" width={40} height={40} />
       </span>
-      {label ? <span className="vbadge__t">{t("label")}</span> : null}
+      {label ? <span className="vbadge__t">{shown}</span> : null}
     </>
   );
   const tipNode =

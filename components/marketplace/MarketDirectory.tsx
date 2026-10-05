@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Select from "@/components/Select";
-import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconLayers, IconList, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUsers } from "@/components/icons";
+import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconHeadset, IconLayers, IconList, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUsers } from "@/components/icons";
 import HeroShowcase from "./HeroShowcase";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { aiSearchMarketplace, listMarketplace, marketAiAvailable, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketSeller } from "@/lib/services/marketplace";
@@ -54,7 +54,8 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [priceMax, setPriceMax] = useState("");
   const [minExp, setMinExp] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string } | null>(null);
+  const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string; disclaimer: string } | null>(null);
+  const aiCtrl = useRef<AbortController | null>(null);
   const [aiPending, setAiPending] = useState("");
   const aiSeq = useRef(0);
 
@@ -136,15 +137,18 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   }, [meta, items, category]);
 
   const query = q.trim();
-  const aiHit = ai && ai.q === query ? ai : null;
+  const aiHit = ai && ai.q === query && ai.matches.length ? ai : null;
+  const aiEmpty = Boolean(ai && ai.q === query && !ai.matches.length);
   const aiThinking = Boolean(query) && aiPending === query;
 
   const list = useMemo(() => {
     const minR = Number(minRating) || 0;
     const maxP = Number(priceMax) || 0;
     const rank = new Map((aiHit?.matches ?? []).map((m, i) => [m.userId, i]));
+    const known = new Set(items.map((s) => s.userId));
+    const extra = (aiHit?.matches ?? []).map((m) => m.seller).filter((x): x is MarketSeller => Boolean(x && !known.has(x.userId)));
     const hayOf = (s: MarketSeller) => [s.name, s.organizationName, regionLabel(te, s.region), s.district, ...s.specializations.map((x) => specLabel(te, x)), ...s.serviceTitles, ...s.services.map((x) => x.title), ...s.categories.map((c) => c.title)].join(" ");
-    const pool = items.filter((s) => {
+    const pool = items.concat(extra).filter((s) => {
       if (region && (regionKeyOf(te, s.region) || s.region.toLowerCase()) !== region) return false;
       if (effSpec && !s.specializations.some((x) => x.toLowerCase() === effSpec)) return false;
       if (category && !s.categories.some((c) => c.id === category) && !s.services.some((x) => x.categoryId === category)) return false;
@@ -171,22 +175,37 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
 
   const aiMatchOf = useMemo(() => new Map((aiHit?.matches ?? []).map((m) => [m.userId, m])), [aiHit]);
 
-  const runAi = useCallback(async (text: string) => {
-    const wanted = text.trim();
-    if (wanted.length < 3 || !marketAiAvailable()) return;
-    const my = ++aiSeq.current;
-    setAiPending(wanted);
-    const r = await aiSearchMarketplace(wanted);
-    if (my !== aiSeq.current) return;
-    setAiPending("");
-    setAi(r && r.matches.length ? { q: wanted, matches: r.matches, summary: r.summary } : null);
-  }, []);
+  const regionRaw = useMemo(() => (region ? items.find((s) => (regionKeyOf(te, s.region) || s.region.toLowerCase()) === region)?.region ?? "" : ""), [region, items, te]);
+
+  const runAi = useCallback(
+    async (text: string) => {
+      const wanted = text.trim();
+      if (wanted.length < 3 || !marketAiAvailable()) return;
+      aiCtrl.current?.abort();
+      const c = new AbortController();
+      aiCtrl.current = c;
+      const my = ++aiSeq.current;
+      setAiPending(wanted);
+      let r: Awaited<ReturnType<typeof aiSearchMarketplace>> = null;
+      try {
+        r = await aiSearchMarketplace(wanted, { region: regionRaw, signal: c.signal });
+      } catch {
+        return;
+      }
+      if (my !== aiSeq.current || c.signal.aborted) return;
+      setAiPending("");
+      setAi(r ? { q: wanted, matches: r.matches, summary: r.summary, disclaimer: r.disclaimer } : null);
+    },
+    [regionRaw],
+  );
 
   useEffect(() => {
     if (query.length < 3) return;
-    const id = window.setTimeout(() => void runAi(query), 650);
+    const id = window.setTimeout(() => void runAi(query), 500);
     return () => window.clearTimeout(id);
   }, [query, runAi]);
+
+  useEffect(() => () => aiCtrl.current?.abort(), []);
 
   const activeFilters = [region, effSpec, category, service, minRating, priceMax, minExp].filter(Boolean).length;
   const resetFilters = () => {
@@ -271,7 +290,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
           </span>
           <h1 className="mk-hero__t">{t.rich("title", { hl: (chunks) => <span className="mk-hero__hl">{chunks}</span> })}</h1>
           <p className="mk-hero__l">{t("lead")}</p>
-          <label className={`mk-search mk-search--ai${aiThinking ? " is-thinking" : ""}`}>
+          <label className={`mk-search mk-search--ai${aiThinking ? " is-thinking" : ""}`} data-ai-target="marketplace:ai-search">
             <span className="mk-search__ai" aria-hidden="true">
               <IconSparkle />
             </span>
@@ -286,6 +305,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
               }}
               placeholder={examples.length ? t("searchPhExample", { ex: examples[exampleAt % examples.length] }) : t("searchPh")}
               aria-label={t("searchLabel")}
+              data-ai-target="marketplace:ai-search-input"
             />
             {q ? (
               <>
@@ -315,7 +335,13 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
                 {t("aiFound", { n: list.length })}
                 {aiHit.summary ? <em>{aiHit.summary}</em> : null}
               </span>
+            ) : aiEmpty ? (
+              <span className="mk-aistate__none">
+                <IconSparkle />
+                {t("aiNone")}
+              </span>
             ) : null}
+            {(aiHit || aiEmpty) && !aiThinking ? <small className="mk-aistate__note">{ai?.disclaimer && locale === "uz" ? ai.disclaimer : t("aiDisclaimer")}</small> : null}
           </div>
           {examples.length ? (
             <div className="mk-hero__ex">
@@ -375,7 +401,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       </div>
 
       {filtersOpen ? <button type="button" className="mk-sheetbg" aria-label={t("filters.close")} onClick={() => setFiltersOpen(false)} /> : null}
-      <div className={`mk-filters${filtersOpen ? " is-open" : ""}`}>
+      <div className={`mk-filters${filtersOpen ? " is-open" : ""}`} data-ai-target="marketplace:filters">
         <div className="mk-filters__head">
           <b>{t("filters.toggle")}</b>
           <button type="button" onClick={() => setFiltersOpen(false)} aria-label={t("filters.close")}>
@@ -473,12 +499,20 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         <div className="mk-empty">
           <IconSparkle />
           <b>{t("empty")}</b>
-          <span>{t("emptyText")}</span>
-          {activeFilters || q ? (
-            <button type="button" className="btn btn--line btn--sm" onClick={resetFilters}>
-              {t("filters.reset")}
-            </button>
-          ) : null}
+          <span>{q ? t("emptyTextAi") : t("emptyText")}</span>
+          <div className="mk-empty__acts">
+            {activeFilters || q ? (
+              <button type="button" className="btn btn--line btn--sm" onClick={resetFilters}>
+                {t("filters.reset")}
+              </button>
+            ) : null}
+            {q ? (
+              <Link href="/portal/client/support?topic=marketplace" className="btn btn--pri btn--sm" data-ai-target="button:operator-support">
+                <IconHeadset />
+                {t("askSupport")}
+              </Link>
+            ) : null}
+          </div>
         </div>
       ) : (
         <div className={`mk-grid${aiThinking ? " is-busy" : ""}`}>
@@ -507,7 +541,7 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
   const shown = titles.slice(0, 2);
   const promoted = s.promotion?.active === true;
   return (
-    <article className={`mk-card${promoted ? " mk-card--promo" : ""}`} style={{ ["--mk-i" as string]: String(Math.min(index, 11)) }}>
+    <article className={`mk-card${promoted ? " mk-card--promo" : ""}`} style={{ ["--mk-i" as string]: String(Math.min(index, 11)) }} data-ai-target={`marketplace:lawyer-card:${s.userId}`}>
       {promoted ? <span className="mk-card__ad">{t("card.promoted")}</span> : null}
       <div className="mk-card__head">
         <Monogram name={s.name} rating={s.rating} showRing={rated} />
@@ -517,7 +551,7 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
           </Link>
           <div className="mk-card__meta">
             <span className={`mk-type mk-type--${s.sellerType || "yurist"}`}>{sellerTypeLabel(t, s.sellerType)}</span>
-            {s.verified ? <VerifiedBadge name={s.name} subtitle={sellerTypeLabel(t, s.sellerType)} /> : null}
+            {s.verified ? <VerifiedBadge name={s.name} subtitle={sellerTypeLabel(t, s.sellerType)} text={s.badgeLabel} /> : null}
           </div>
           {s.region ? (
             <div className="mk-card__place">
@@ -534,7 +568,21 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
             <IconSparkle />
             {match.score > 0 ? t("aiMatch", { pct: Math.round(match.score * 100) }) : t("aiPick")}
           </span>
-          {match.reason ? <span className="mk-card__aiwhy">{match.reason}</span> : null}
+          {match.score > 0 ? (
+            <span className="mk-card__aibar" aria-hidden="true">
+              <i style={{ width: `${Math.round(match.score * 100)}%` }} />
+            </span>
+          ) : null}
+          {match.reasons.length ? (
+            <>
+              <b className="mk-card__aih">{t("aiReasons")}</b>
+              <ul className="mk-card__aiwhy">
+                {match.reasons.slice(0, 3).map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </div>
       ) : null}
       <div className="mk-card__kpis">

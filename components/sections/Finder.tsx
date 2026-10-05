@@ -134,8 +134,7 @@ export default function Finder() {
         <div className="resrow__r">
           <b>{b.basePrice ? fmtUzs(b.basePrice) : "—"}</b>
           <span>
-            {tf("result.fromSom")} {cur} · {tf("result.ratingSuffix")}{" "}
-            {fmtRating(b.rating, locale)}
+            {tf("result.fromSom")} {cur} · {b.rated ? `${tf("result.ratingSuffix")} ${fmtRating(b.rating, locale)}` : tf("result.unrated")}
           </span>
         </div>
       </button>

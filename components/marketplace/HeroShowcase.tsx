@@ -73,7 +73,7 @@ export default function HeroShowcase({ items, base, locale }: { items: MarketSel
             <div className="mk-show__body">
               <div className="mk-card__meta">
                 <span className={`mk-type mk-type--${s.sellerType || "yurist"}`}>{sellerTypeLabel(t, s.sellerType)}</span>
-                {s.verified ? <VerifiedBadge name={s.name} subtitle={sellerTypeLabel(t, s.sellerType)} /> : null}
+                {s.verified ? <VerifiedBadge name={s.name} subtitle={sellerTypeLabel(t, s.sellerType)} text={s.badgeLabel} /> : null}
               </div>
               <b className="mk-show__name">{s.name}</b>
               <span className="mk-show__sub">

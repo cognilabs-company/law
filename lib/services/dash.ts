@@ -22,6 +22,7 @@ import type {
   SellerCabinet,
   SellerStats,
 } from "@/lib/services/backend";
+import { trustFields } from "@/lib/services/backend";
 
 // ── Filter ────────────────────────────────────────────────────────
 export type DashFilter = {
@@ -275,11 +276,11 @@ function normLawyer(v: unknown): BackendLawyer {
     specializations: asArr(d.specializations).map((s) => asStr(s)),
     languages: asArr(d.languages).map((l) => asStr(l)),
     experienceYears: asNum(d.experience_years),
-    rating: asNum(d.rating, 5),
+    rating: asNum(d.rating),
     reviews: asNum(d.reviews_count ?? d.reviews),
+    ...trustFields(d),
     basePrice: uzs(d, "base_hourly_price"),
     bio: asStr(d.bio) || undefined,
-    verified: Boolean(d.verified ?? d.is_verified),
     verificationStatus: asStr(d.verification_status),
     sellerType: asStr(d.seller_type),
     createdAt: asStr(d.created_at),

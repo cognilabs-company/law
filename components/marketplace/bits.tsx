@@ -29,8 +29,8 @@ export function deliveryLabel(t: TFn, minutes: number): string {
   return t("detail.deliveryHours", { n: Math.max(1, Math.round(minutes / 60)) });
 }
 
-export function hasRating(s: Pick<MarketSeller, "reviewsCount">): boolean {
-  return s.reviewsCount >= 5;
+export function hasRating(s: Pick<MarketSeller, "rated">): boolean {
+  return s.rated;
 }
 
 export function hasSuccess(s: Pick<MarketSeller, "totalCases">): boolean {

@@ -30,6 +30,8 @@ const priceNum = (p: string) => Number(p.replace(/\s/g, "")) || 0;
 
 // Map a backend lawyer profile onto the directory card shape (best-effort;
 // missing fields default sanely). Only runs when the backend returns data.
+const isRated = (l: Lawyer) => l.rated ?? (l.rev >= 5 && l.rate > 0);
+
 function toLawyer(b: BackendLawyer): Lawyer {
   const r = b.region.toLowerCase();
   const st = b.sellerType.toLowerCase();
@@ -41,6 +43,8 @@ function toLawyer(b: BackendLawyer): Lawyer {
     exp: b.experienceYears,
     rate: b.rating,
     rev: b.reviews,
+    rated: b.rated,
+    badgeLabel: b.badgeLabel,
     full: b.winsCount,
     part: b.partialWins,
     price: b.basePrice ? fmtUzs(b.basePrice) : "—",
@@ -194,7 +198,7 @@ export default function LawyersSection({
         (!area || l.areaKey === area) &&
         (!region || l.regionKey === region) &&
         (!kind || l.kind === kind) &&
-        (!minRate || l.rate >= Number(minRate)) &&
+        (!minRate || (isRated(l) && l.rate >= Number(minRate))) &&
         (!minExp || l.exp >= Number(minExp)) &&
         (!lang || (l.languages ?? []).includes(lang)) &&
         (!maxPrice || (priceNum(l.price) > 0 && priceNum(l.price) <= Number(maxPrice))) &&
@@ -211,7 +215,7 @@ export default function LawyersSection({
       if (sort === "experience") return b.exp - a.exp;
       if (sort === "priceAsc") return priceNum(a.price) - priceNum(b.price);
       if (sort === "priceDesc") return priceNum(b.price) - priceNum(a.price);
-      return b.rate - a.rate;
+      return Number(isRated(b)) - Number(isRated(a)) || b.rate - a.rate;
     });
     // New-seller quota (S-19): at least one "new" verified seller within the
     // first 8 cards when the default ranking would push them all down.
@@ -305,7 +309,7 @@ export default function LawyersSection({
                 <span className={`advcard__kind advcard__kind--${l.kind ?? "lawyer"}`}>
                   {t(l.kind === "advocate" ? "card.kindAdvocate" : "card.kindLawyer")}
                 </span>
-                {l.verified ? <VerifiedBadge name={l.name} subtitle={t(l.kind === "advocate" ? "card.kindAdvocate" : "card.kindLawyer")} /> : <span className="advcard__badge advcard__badge--un">{t("card.unverified")}</span>}
+                {l.verified ? <VerifiedBadge name={l.name} subtitle={t(l.kind === "advocate" ? "card.kindAdvocate" : "card.kindLawyer")} text={l.badgeLabel} /> : <span className="advcard__badge advcard__badge--un">{t("card.unverified")}</span>}
                 {l.isNew ? <span className="advcard__badge advcard__badge--new">{t("card.new")}</span> : null}
                 {/* S2: a paid boost, named. The MD allows the badge and forbids
                     re-sorting what the backend ranked — see the sort memo, which
@@ -317,8 +321,8 @@ export default function LawyersSection({
         </div>
         <div className="advcard__b">
           <div className="rating">
-            <b>{l.rev < 5 ? t("card.new") : fmtRating(l.rate, locale)}</b>
-            <span>{l.rev < 5 ? t("card.newHint") : t("card.reviews", { count: l.rev, years: l.exp })}</span>
+            <b>{!isRated(l) ? t("card.unrated") : fmtRating(l.rate, locale)}</b>
+            <span>{!isRated(l) ? t("card.newHint") : t("card.reviews", { count: l.rev, years: l.exp })}</span>
           </div>
           <div className="wins">
             <div className="win">

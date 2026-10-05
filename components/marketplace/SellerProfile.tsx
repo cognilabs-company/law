@@ -208,7 +208,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
           <div className="mk-prof__who">
             <div className="mk-prof__tags">
               <span className={`mk-type mk-type--${seller.sellerType || "yurist"}`}>{sellerTypeLabel(t, seller.sellerType)}</span>
-              {seller.verified ? <VerifiedBadge name={seller.name} subtitle={sellerTypeLabel(t, seller.sellerType)} tone="glass" size="md" /> : null}
+              {seller.verified ? <VerifiedBadge name={seller.name} subtitle={sellerTypeLabel(t, seller.sellerType)} text={seller.badgeLabel} tone="glass" size="md" /> : null}
               {seller.promotion?.active ? <span className="mk-card__ad mk-card__ad--inline">{t("card.promoted")}</span> : null}
             </div>
             <h1 className="mk-prof__name">{seller.name}</h1>
@@ -256,7 +256,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
                   const on = selected?.id === svc.id;
                   const eta = deliveryLabel(t, svc.deliveryMinutes);
                   return (
-                    <div key={svc.id} className={`mk-svc${on ? " is-on" : ""}`}>
+                    <div key={svc.id} className={`mk-svc${on ? " is-on" : ""}`} data-ai-target={`marketplace:service-card:${svc.id}`}>
                       <button type="button" role="radio" aria-checked={on} className="mk-svc__pick" onClick={() => setPicked(svc.id)}>
                         <span className="mk-svc__radio" aria-hidden="true" />
                         <span className="mk-svc__txt">
@@ -276,7 +276,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
                       </button>
                       <div className="mk-svc__end">
                         <b>{svc.price > 0 ? fmtUzs(svc.price) : t("card.priceAsk")}</b>
-                        <button type="button" className="btn btn--pri btn--sm" onClick={() => startBuy(svc)} disabled={!!blocked || svc.price <= 0}>
+                        <button type="button" className="btn btn--pri btn--sm" onClick={() => startBuy(svc)} disabled={!!blocked || svc.price <= 0} data-ai-target={`button:marketplace-purchase:${seller.userId}:${svc.id}`}>
                           {t("detail.buy")}
                         </button>
                       </div>

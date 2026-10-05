@@ -1,5 +1,10 @@
 {
   "marketplace": {
+    "aiReasons": "Why it matches",
+    "askSupport": "Contact an operator",
+    "emptyTextAi": "Try the regular filters or ask an operator for help.",
+    "aiDisclaimer": "This search only helps you find a matching lawyer; it is not legal advice.",
+    "aiNone": "AI found no matching specialists for this request",
     "metaTitle": "Lawyers and advocates marketplace",
     "kicker": "Marketplace",
     "title": "Describe your problem — <hl>AI finds the right</hl> specialist",
@@ -9,7 +14,7 @@
       "services": "services",
       "from": "lowest price"
     },
-    "searchPh": "Search by name, area or service",
+    "searchPh": "For example: I need a lawyer for a car accident",
     "searchPhExample": "For example: {ex}",
     "findBtn": "Find",
     "examplesLabel": "Popular:",
@@ -17,7 +22,7 @@
     "aiFound": "AI found {n} matching specialists",
     "aiMatch": "{pct}% match",
     "aiPick": "AI pick",
-    "searchLabel": "Search",
+    "searchLabel": "Find a matching specialist with AI",
     "searchClear": "Clear",
     "roles": {
       "all": "All",
@@ -74,7 +79,7 @@
     "card": {
       "promoted": "Promoted",
       "verified": "Verified",
-      "newSeller": "New",
+      "newSeller": "Not rated yet",
       "reviews": "{count} ratings",
       "newHint": "Ratings are being collected",
       "experience": "years of experience",
@@ -126,7 +131,7 @@
         "success": "Success",
         "completed": "Orders done"
       },
-      "newRating": "New",
+      "newRating": "Not rated yet",
       "gathering": "Stats are being collected",
       "privateChat": "Private chat",
       "privateChatHint": "Paid private chat without an order",
@@ -260,6 +265,15 @@
     }
   },
   "common": {
+    "requestId": "Request ID: {id}",
+    "loadMore": "Load more",
+    "retry": "Retry",
+    "serverError": "Something went wrong. Please try again.",
+    "conflict": "The status changed, so the data was refreshed.",
+    "notFound": "Nothing was found.",
+    "forbidden": "You don't have permission for this action.",
+    "featureSoon": "This feature is coming soon.",
+    "contactBlocked": "You can't share contact details outside the platform. Please keep the conversation here.",
     "kb": "KB",
     "minuteShort": "MM",
     "hourShort": "HH",
@@ -694,6 +708,7 @@
     "askTooShort": "Write a sentence or two — what happened and when matters.",
     "docSeed": "Please prepare a {doc} for me ({who}). Ask me for any details you need, then generate the document.",
     "result": {
+      "unrated": "not rated yet",
       "title": "Result",
       "ready": "Ready",
       "lawyersFound": "{count} lawyers found",
@@ -957,6 +972,7 @@
     "roleAdvocates": "Advocates",
     "roleLawyers": "Lawyers",
     "card": {
+      "unrated": "Not rated yet",
       "promoted": "Promoted",
       "kindAdvocate": "Advocate",
       "kindLawyer": "Lawyer",
@@ -3342,6 +3358,7 @@
         "kind": { "advocate": "Advocate", "lawyer": "Lawyer" }
       },
       "lawyerProfile": {
+        "unrated": "Not rated yet",
         "title": "Advocate profile",
         "verified": "Verified",
         "kind": { "advocate": "Advocate", "lawyer": "Lawyer" },
@@ -3755,6 +3772,7 @@
         "servicesSub": "Document templates and lawyers"
       },
       "services": {
+        "unrated": "Not rated yet",
         "sellerRequired": "Choose an advocate first",
         "sizeSmall": "Small (1–4)",
         "sizeMid": "Medium (5–19)",

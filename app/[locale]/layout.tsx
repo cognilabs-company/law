@@ -24,6 +24,7 @@ import ScrollProgress from "@/components/ScrollProgress";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import ThemeSync from "@/components/ThemeSync";
 import ReferralCapture from "@/components/ReferralCapture";
+import Toaster from "@/components/Toaster";
 import { THEME_SCRIPT } from "@/lib/themeScript";
 
 const inter = Inter({
@@ -96,6 +97,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <MobileTabBar />
             <AIChatDock />
             <RevealOnScroll />
+            <Toaster />
           </AuthProvider>
         </IntlProvider>
         </NextIntlClientProvider>
