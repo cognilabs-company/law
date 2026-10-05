@@ -8,7 +8,7 @@ import { aiPageIdFor, aiRouteFor, type AiRole } from "@/lib/aiPages";
 import { errDetail, isAborted, logApiError } from "@/lib/http";
 import { featureMissing } from "@/lib/endpointGate";
 import { useAuth } from "@/lib/auth";
-import { collectTargets } from "@/lib/guide/targets";
+import { collectState, collectTargets } from "@/lib/guide/targets";
 import { pageFor, stepTextKey } from "@/lib/guide/pages";
 import { startTour, stopTour, tourActive } from "@/lib/guide/store";
 import { onInstructorOpen } from "@/lib/guide/panel";
@@ -195,7 +195,7 @@ export default function AiSystemAssistant({
       session_id: sessionRef.current,
       page: { id: page?.id || aiPageIdFor(pathname), path: pathname, title: headerTitle(), portal: gRole },
       targets,
-      state: { open_modal: typeof document !== "undefined" && Boolean(document.querySelector(".amodal")) },
+      state: collectState(),
       history,
     };
   };

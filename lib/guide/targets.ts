@@ -129,6 +129,24 @@ export function collectTargets(limit = 120): TargetInfo[] {
   return [...out.values()];
 }
 
+export function collectState(): Record<string, unknown> {
+  if (typeof document === "undefined") return {};
+  const modal = openModalRoot();
+  const heading = modal?.querySelector("h1,h2,h3")?.textContent || modal?.getAttribute("aria-label") || "";
+  const tabs = Array.from(document.querySelectorAll<HTMLElement>("[role=tab][aria-selected=true]"))
+    .filter(isShown)
+    .slice(0, 3)
+    .map((el) => clean(el.textContent || "").slice(0, 40));
+  const room = document.documentElement.scrollHeight - window.innerHeight;
+  return {
+    open_modal: Boolean(modal),
+    modal_title: modal ? clean(heading).slice(0, 80) || null : null,
+    active_tabs: tabs,
+    viewport: window.innerWidth < 900 ? "mobile" : "desktop",
+    scroll_pct: room > 0 ? Math.round((window.scrollY / room) * 100) : 0,
+  };
+}
+
 const TEXT_ENTRY = "input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]),textarea,[contenteditable=true]";
 
 export function focusTarget(el: HTMLElement): () => void {
