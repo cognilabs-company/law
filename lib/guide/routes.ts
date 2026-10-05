@@ -140,6 +140,7 @@ export const ROUTE_KEYS: Record<string, Partial<Record<GuideRole, string>>> = {
   organization: { advocate: "/portal/advocate/organization" },
   notifications: { client: "/portal/client/notifications", lawyer: "/portal/lawyer/notifications", advocate: "/portal/advocate/notifications", staff: "/admin/notifications" },
   profile: { client: "/portal/client/profile", lawyer: "/portal/lawyer/profile", advocate: "/portal/advocate/profile" },
+  ai_chat: { client: "/portal/client/ai", lawyer: "/portal/lawyer/ai", advocate: "/portal/advocate/assistant" },
 };
 
 export function routeForKey(key: string, role: GuideRole): string {
