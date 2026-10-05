@@ -454,7 +454,7 @@ export default function UrgentAdvocatePanel() {
           <p className="ua__sub">{t("lead")}</p>
         </div>
         {cat ? (
-          <dl className="ua__meta">
+          <dl className="ua__meta" data-ai-target="urgent:terms">
             <div><dt>{t("metaMinutes")}</dt><dd>{t("minutesN", { n: cat.meetingDefaultMinutes })}</dd></div>
             <div><dt>{t("metaFree")}</dt><dd>{t("minutesN", { n: cat.freeExtensionOnceMinutes })}</dd></div>
             <div><dt>{t("metaPaid")}</dt><dd>{t("perMinute", { price: fmtUzs(cat.paidExtensionPricePerMinute) })}</dd></div>
@@ -591,6 +591,7 @@ export default function UrgentAdvocatePanel() {
             className="uacard uacard--docs"
             aria-haspopup="dialog"
             onClick={() => setDocsOpen(true)}
+            data-ai-target="urgent:documents"
           >
             <span className="uacard__i"><IconFileText /></span>
             <b className="uacard__t">{t("docs.title")}</b>
@@ -628,7 +629,7 @@ export default function UrgentAdvocatePanel() {
       </Modal>
 
       {/* ── The client's own requests ─────────────────────────────── */}
-      <section className="ppanel">
+      <section className="ppanel" data-ai-target="urgent:my-requests">
         <div className="ppanel__h">
           <b className="ppanel__t"><span className="pico"><IconClock /></span>{t("mine")}</b>
         </div>
@@ -915,6 +916,7 @@ export default function UrgentAdvocatePanel() {
                 <div
                   id="ua-dirs"
                   role="group"
+                  data-ai-target="urgent:form-directions"
                   tabIndex={-1}
                   aria-labelledby="ua-dirs-l"
                   aria-invalid={miss === "dirs" || undefined}
@@ -934,7 +936,7 @@ export default function UrgentAdvocatePanel() {
                 )}
               </div>
 
-              <div>
+              <div data-ai-target="urgent:form-need">
                 <label htmlFor="ua-need">{t("need")}</label>
                 <textarea
                   id="ua-need"
@@ -1023,6 +1025,7 @@ export default function UrgentAdvocatePanel() {
               <button
                 type="button"
                 className="btn btn--grad btn--lg uaform__send"
+                data-ai-target="button:urgent-submit"
                 disabled={busy}
                 aria-busy={busy || undefined}
                 onClick={() => void submit()}
@@ -1281,7 +1284,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
         <div className="uamore__block uamore__block--warn" role="status">
           <b><IconAlert />{tr("complaintSent")}</b>
           {rQc.workId ? <span className="advmuted">{rQc.workId}</span> : null}
-          <Link href="/portal/client/complaints" className="uamore__qclink">
+          <Link href={rQc.workId ? `/portal/client/complaints?work=${encodeURIComponent(rQc.workId)}` : "/portal/client/complaints"} className="uamore__qclink">
             {tr("complaintOpen")}
             <IconArrowRight />
           </Link>

@@ -128,7 +128,7 @@ export default function DocRatingBox({
         <div className="drate drate--qc" role="status">
           <b><IconAlert />{tr("complaintSent")}</b>
           {qc.workId ? <em className="drate__qcid">{qc.workId}</em> : null}
-          <Link href="/portal/client/complaints" className="drate__qclink">
+          <Link href={qc.workId ? `/portal/client/complaints?work=${encodeURIComponent(qc.workId)}` : "/portal/client/complaints"} className="drate__qclink">
             {tr("complaintOpen")}
             <IconArrowRight />
           </Link>

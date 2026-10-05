@@ -176,7 +176,7 @@ export default function ClientWorks() {
   const strip: ClientWorkTab[] = tabs.length ? tabs : [{ key: "all", title: t("tabAll") }];
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target={status === "ready" && rows.length ? undefined : "works:list"}>
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconBriefcase /></span>{t("title")}</b>
         <span className="advmuted">{total}</span>
@@ -191,7 +191,7 @@ export default function ClientWorks() {
         </Link>
       </p>
 
-      <div className="cwork__bar">
+      <div className="cwork__bar" data-ai-target="works:filters">
         <div className="chiprow cwork__tabs">
           {strip.map((x) => (
             <button
@@ -230,7 +230,7 @@ export default function ClientWorks() {
         <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
       ) : (
         <>
-          <div className="cworks">
+          <div className="cworks" data-ai-target="works:list">
             {rows.map((r) => {
               const Icon = TYPE_ICON[r.type] ?? IconBriefcase;
               const tn = tone(r.status);
@@ -330,7 +330,8 @@ function WorkDetail({ row, typeName }: { row: ClientWork; typeName: (k: string) 
     return asStr(c.room_id) || asStr(asDict(detail.blocks.lawyer_request).secure_chat_room_id);
   })();
 
-  const href = TYPE_HREF[row.type] || "";
+  const base = TYPE_HREF[row.type] || "";
+  const href = base && (row.type === "quality_complaint" || row.type === "complaint") && row.workId ? `${base}?work=${encodeURIComponent(row.workId)}` : base;
 
   return (
     <div className="cwdet">
