@@ -11,6 +11,7 @@ import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import HeroCarousel from "@/components/portal/HeroCarousel";
 import ReferralProgress from "@/components/portal/ReferralProgress";
+import LawyerPromo from "@/components/portal/LawyerPromo";
 import Modal from "@/components/admin/Modal";
 import {
   Icon,
@@ -115,25 +116,7 @@ export default function ClientDashboard() {
         <HeroCarousel />
       </div>
 
-      <Link href="/portal/client/lawyers" className="cdlawyer-ad">
-        <span className="cdlawyer-ad__glow" aria-hidden="true" />
-        <span className="cdlawyer-ad__copy">
-          <span className="cdlawyer-ad__eyebrow"><IconSparkle />{t("lawyerAdEyebrow")}</span>
-          <strong>{t("lawyerAdTitle")}</strong>
-          <span className="cdlawyer-ad__text">{t("lawyerAdText")}</span>
-          <span className="cdlawyer-ad__cta">{t("lawyerAdCta")}<IconArrowRight /></span>
-        </span>
-        <span className="cdlawyer-ad__visual" aria-hidden="true">
-          <span className="cdlawyer-ad__halo cdlawyer-ad__halo--outer" />
-          <span className="cdlawyer-ad__halo cdlawyer-ad__halo--inner" />
-          <span className="cdlawyer-ad__orbit cdlawyer-ad__orbit--one">A</span>
-          <span className="cdlawyer-ad__orbit cdlawyer-ad__orbit--two">Y</span>
-          <span className="cdlawyer-ad__orbit cdlawyer-ad__orbit--three">L</span>
-          <span className="cdlawyer-ad__seal"><IconShieldCheck /></span>
-          <span className="cdlawyer-ad__spark cdlawyer-ad__spark--one"><IconSparkle /></span>
-          <span className="cdlawyer-ad__spark cdlawyer-ad__spark--two"><IconCheck /></span>
-        </span>
-      </Link>
+      <LawyerPromo />
 
       {/* Quick actions */}
       <div className="cdact">

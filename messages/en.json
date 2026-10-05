@@ -2,14 +2,17 @@
   "marketplace": {
     "metaTitle": "Lawyers and advocates marketplace",
     "kicker": "Marketplace",
-    "title": "Choose a specialist you can trust",
-    "lead": "Verified advocates and lawyers. Pick a service with a known price; a secure chat opens once the payment is confirmed.",
+    "title": "Find the <hl>right specialist</hl> for your case",
+    "lead": "Type a name, practice area or service — verified advocates and lawyers are sorted instantly. Prices are known up front; a secure chat opens after payment.",
     "heroStats": {
       "sellers": "specialists",
       "services": "services",
       "from": "lowest price"
     },
     "searchPh": "Search by name, area or service",
+    "searchPhExample": "For example: {ex}",
+    "findBtn": "Find",
+    "examplesLabel": "Popular:",
     "searchLabel": "Search",
     "searchClear": "Clear",
     "roles": {
@@ -1964,6 +1967,16 @@
     "lastFreeText": "{limit} free questions a month. To continue, pick the LexGo.AI Lite or Pro tariff — the limit resets on the 1st."
   },
   "portal": {
+    "support": {
+      "label": "Support",
+      "title": "Need help?",
+      "sub": "We are here — pick what suits you.",
+      "ai": "AI assistant",
+      "aiSub": "Quick answers to your questions",
+      "complaint": "Send a request",
+      "complaintSub": "A problem or a complaint",
+      "call": "Call us"
+    },
     "workFilters": {
       "search": "Search",
       "clearSearch": "Clear search",
@@ -3086,10 +3099,11 @@
         "sideAiTitle": "Need help?",
         "sideAiSub": "Chat with the AI assistant for a fast, private answer.",
         "sideAiCta": "Chat with AI",
-        "lawyerAdEyebrow": "Made for your next step",
-        "lawyerAdTitle": "Find the right legal expert",
-        "lawyerAdText": "Verified profiles, clear packages and private contact — all in one place.",
-        "lawyerAdCta": "Browse advocates"
+        "lawyerAdEyebrow": "New",
+        "lawyerAdTitle": "A lawyer for your problem",
+        "lawyerAdText": "Verified advocates and lawyers — prices up front, private contact.",
+        "lawyerAdCta": "Browse advocates",
+        "lawyerAdClose": "Close"
       },
       "cases": {
         "title": "My requests",

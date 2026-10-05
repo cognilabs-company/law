@@ -195,6 +195,31 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     return () => window.clearTimeout(id);
   }, [q]);
 
+  const examples = useMemo(() => {
+    const groups = new Set<string>();
+    const out: string[] = [];
+    for (const s of services) {
+      const label = s.label.trim();
+      if (!label || label.length > 30 || groups.has(s.categoryId)) continue;
+      groups.add(s.categoryId);
+      out.push(label);
+      if (out.length === 3) break;
+    }
+    return out;
+  }, [services]);
+  const [exampleAt, setExampleAt] = useState(0);
+  useEffect(() => {
+    if (q || examples.length < 2) return;
+    const id = window.setInterval(() => setExampleAt((i) => i + 1), 3200);
+    return () => window.clearInterval(id);
+  }, [q, examples.length]);
+  const showResults = () => {
+    const el = resultsRef.current;
+    if (!el) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  };
+
   const sortOpts: Option[] = (meta?.sortOptions.length ? meta.sortOptions : SORTS).filter((s) => t.has(`sort.${s}`)).map((s) => ({ value: s, label: t(`sort.${s}`) }));
 
   return (
@@ -207,7 +232,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
             <IconShieldCheck />
             {t("kicker")}
           </span>
-          <h1 className="mk-hero__t">{t("title")}</h1>
+          <h1 className="mk-hero__t">{t.rich("title", { hl: (chunks) => <span className="mk-hero__hl">{chunks}</span> })}</h1>
           <p className="mk-hero__l">{t("lead")}</p>
           <label className="mk-search">
             <IconSearch />
@@ -217,7 +242,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
                 typedRef.current = true;
                 setQ(e.target.value);
               }}
-              placeholder={t("searchPh")}
+              placeholder={examples.length ? t("searchPhExample", { ex: examples[exampleAt % examples.length] }) : t("searchPh")}
               aria-label={t("searchLabel")}
             />
             {q ? (
@@ -228,7 +253,29 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
                 </button>
               </>
             ) : null}
+            <button type="button" className="mk-search__go" onClick={showResults}>
+              <span>{t("findBtn")}</span>
+              <IconArrowRight />
+            </button>
           </label>
+          {examples.length ? (
+            <div className="mk-hero__ex">
+              <span>{t("examplesLabel")}</span>
+              {examples.map((x) => (
+                <button
+                  key={x}
+                  type="button"
+                  className={q === x ? "on" : undefined}
+                  onClick={() => {
+                    typedRef.current = true;
+                    setQ(x);
+                  }}
+                >
+                  {x}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="mk-hero__stats">
             <div>
               <b>{status === "loading" ? "—" : stats.sellers}</b>

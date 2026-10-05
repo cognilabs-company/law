@@ -2,14 +2,17 @@
   "marketplace": {
     "metaTitle": "Advokat va yuristlar marketplace'i",
     "kicker": "Marketplace",
-    "title": "Ishonchli mutaxassisni tanlang",
-    "lead": "Tasdiqlangan advokat va yuristlar. Xizmatni tanlang, narx oldindan ma'lum, to'lov tasdiqlangach xavfsiz chat ochiladi.",
+    "title": "Muammoingizga <hl>mos mutaxassisni</hl> toping",
+    "lead": "Ism, yo'nalish yoki xizmat nomini yozing — tasdiqlangan advokat va yuristlar shu zahoti saralanadi. Narx oldindan ma'lum, to'lovdan keyin xavfsiz chat ochiladi.",
     "heroStats": {
       "sellers": "mutaxassis",
       "services": "xizmat",
       "from": "eng arzon xizmat"
     },
     "searchPh": "Ism, yo'nalish yoki xizmat bo'yicha qidiring",
+    "searchPhExample": "Masalan: {ex}",
+    "findBtn": "Topish",
+    "examplesLabel": "Ko'p tanlanadi:",
     "searchLabel": "Qidiruv",
     "searchClear": "Tozalash",
     "roles": {
@@ -1970,6 +1973,16 @@
     "lastFreeText": "Oyiga {limit} ta bepul savol. Davom etish uchun LexGo.AI Lite yoki Pro tarifini tanlang — limit har oyning 1-sanasida yangilanadi."
   },
   "portal": {
+    "support": {
+      "label": "Qo'llab-quvvatlash",
+      "title": "Yordam kerakmi?",
+      "sub": "Biz shu yerdamiz — qulay yo'lni tanlang.",
+      "ai": "AI yordamchi",
+      "aiSub": "Savolingizga tezkor javob",
+      "complaint": "Murojaat yuborish",
+      "complaintSub": "Muammo yoki shikoyat",
+      "call": "Qo'ng'iroq qilish"
+    },
     "workFilters": {
       "search": "Qidiruv",
       "clearSearch": "Qidiruvni tozalash",
@@ -3092,10 +3105,11 @@
         "sideAiTitle": "Yordam kerakmi?",
         "sideAiSub": "Savolingiz bo'lsa, AI yordamchisi bilan suhbatlashing — tez va maxfiy.",
         "sideAiCta": "AI bilan suhbatlashish",
-        "lawyerAdEyebrow": "Siz uchun yangi",
-        "lawyerAdTitle": "Muammoingizga mos advokatni toping",
-        "lawyerAdText": "Tasdiqlangan profillar, aniq paketlar va maxfiy aloqa — barchasi bir joyda.",
-        "lawyerAdCta": "Advokatlarni ko'rish"
+        "lawyerAdEyebrow": "Yangi",
+        "lawyerAdTitle": "Muammoingizga mos advokat",
+        "lawyerAdText": "Tasdiqlangan advokat va yuristlar — narxi oldindan ma'lum, aloqa maxfiy.",
+        "lawyerAdCta": "Advokatlarni ko'rish",
+        "lawyerAdClose": "Yopish"
       },
       "cases": {
         "title": "So'rovlarim",

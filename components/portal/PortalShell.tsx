@@ -9,6 +9,7 @@ import { initials } from "@/lib/lawyers";
 import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
 import NotificationBell from "./NotificationBell";
+import SupportMenu from "./SupportMenu";
 import IncomingCallWatcher from "./IncomingCallWatcher";
 import MarketWatcher from "../marketplace/MarketWatcher";
 import GrowthBanner from "./GrowthBanner";
@@ -404,6 +405,7 @@ export default function PortalShell({
             </button>
             <h1>{title}</h1>
             <div className="ptop__sp">
+              <SupportMenu role={role} />
               <NotificationBell role={role} />
               <ThemeToggle variant="square" />
               <LanguageSwitcher />
