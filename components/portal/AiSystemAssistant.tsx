@@ -178,10 +178,14 @@ export default function AiSystemAssistant({
 
   const buildRequest = (message: string): InstructorRequest => {
     const targets = collectTargets(120);
-    const history = msgs
-      .filter((m): m is GuideMsg => m.kind === "guide")
-      .slice(-3)
-      .map((m) => ({ q: "", intent: m.intent }));
+    const turns: { q: string; intent: string }[] = [];
+    let asked = "";
+    for (const m of msgs) {
+      if (m.kind === "me") asked = m.text;
+      else if (m.kind === "guide") turns.push({ q: asked.slice(0, 300), intent: m.intent });
+      else if (m.kind === "ai") turns.push({ q: asked.slice(0, 300), intent: m.ans.intent });
+    }
+    const history = turns.slice(-3);
     return {
       message,
       current_path: pathname,
