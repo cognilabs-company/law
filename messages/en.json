@@ -19,55 +19,567 @@
       "pageFallback": "Here's this page — let's go through its main parts."
     },
     "tours": {
+      "seller_support": {
+        "channels": "Three ways to get help: the AI instructor, an operator chat and a phone call.",
+        "ai": "The AI instructor shows you the right page and answers right away.",
+        "operator": "Start a chat with a live operator from this button.",
+        "call": "If it's urgent, call us during working hours.",
+        "list": "All your operator chats are here — active and closed.",
+        "newChat": "Write your question here, pick a topic and mark it urgent if needed."
+      },
+      "client_complaints": {
+        "title": "The complaints page — if a service or an advocate let you down, you follow your formal complaint here.",
+        "new": "Start a new complaint with this button: pick a category and describe what happened in detail.",
+        "list": "All your complaints and their status are here — open one to see the details and the decision.",
+        "filters": "Filter your complaints by type and status."
+      },
+      "seller_chat_room": {
+        "title": "A protected chat room with your client.",
+        "messages": "The message history; use the arrow beside a message to reply to it.",
+        "composer": "Type a message, attach a file or send a voice note."
+      },
+      "advocate_organization_workload": {
+        "title": "Member workload — who is working on what.",
+        "filter": "Filter by member or status.",
+        "list": "Click an item to see its details."
+      },
+      "advocate_organization_dashboard": {
+        "title": "The organization dashboard: members and their active work.",
+        "workload": "See every member's work in one list.",
+        "summary": "At a glance: members, verified members, orders, cases and urgent requests.",
+        "members": "Click a member to open their workload.",
+        "active": "Active orders, cases and urgent requests, split into tabs."
+      },
+      "advocate_organization": {
+        "title": "Your law office: create an organization and manage its members.",
+        "create": "Register a new organization with this button.",
+        "list": "Your organizations: Dashboard shows the work, Members shows the team."
+      },
+      "seller_subscription": {
+        "title": "Plans: your AI request limit and extra features.",
+        "current": "Your current plan, the next charge date and your linked card.",
+        "period": "Pick a term — longer terms get a bigger discount.",
+        "pro": "The Pro plan — more AI requests and document analysis.",
+        "buy": "To pick a plan, press this button yourself — payment happens only with your confirmation."
+      },
+      "seller_promotion": {
+        "title": "Promotion — show your profile to more clients.",
+        "analytics": "Views, search appearances, profile clicks and contact requests.",
+        "packages": "Pick a package and press “Promote now” yourself."
+      },
+      "seller_referrals": {
+        "title": "Invite friends and colleagues with your link — you get a bonus for each one.",
+        "code": "Your personal invite code — copy it and send it to a colleague.",
+        "share": "Or share your invite link directly.",
+        "stats": "How many people you invited, how many joined and your bonus.",
+        "invites": "The people you invited and their status are in this list."
+      },
+      "seller_profile": {
+        "title": "Fill in the profile that clients see here.",
+        "visibility": "Profile completeness and the verification request. A complete profile reaches more clients.",
+        "personal": "Change each section with its own Edit button.",
+        "areas": "Your practice areas — clients find you by these.",
+        "pricing": "Your hourly rate must stay within the recommended range.",
+        "security": "Protect your account with two-step verification."
+      },
+      "seller_assistant": {
+        "title": "An AI assistant that works with your case materials.",
+        "input": "Paste the case materials or your question here.",
+        "tools": "Ready actions: case summary, chronology, contradictions, deadlines and more.",
+        "run": "Press this to ask your own question."
+      },
+      "lawyer_ai": {
+        "title": "The AI answers your legal questions.",
+        "input": "Type your question here and send it.",
+        "history": "Your earlier chats and the new chat button are here."
+      },
+      "seller_notifications": {
+        "title": "All your notifications: orders, payments, chat and documents.",
+        "filters": "Filter by category: orders, payments, chat, documents.",
+        "search": "Search by text or keep only the unread ones.",
+        "list": "Clicking a notification marks it read; its go button opens the related page."
+      },
+      "seller_meetings": {
+        "list": "The history of all meetings: rejoin active ones and see the ended ones.",
+        "today": "Today's meetings are here — join from here when it's time.",
+        "create": "Type a meeting name, pick the participants and start the video meeting here.",
+        "title": "Start a video meeting with a client or colleague; today's agenda and history are here too."
+      },
+      "seller_messages": {
+        "title": "Your protected conversations with clients.",
+        "inbox": "Click a conversation to open it; the number of new messages is on the right."
+      },
+      "seller_files": {
+        "title": "Your private file storage — keep documents in folders.",
+        "upload": "Upload files into the folder that's open.",
+        "folder": "Create a folder to keep your documents organized.",
+        "sections": "All files, recent ones or the ones you starred.",
+        "list": "Click a file to open it; its “…” menu has download, rename and delete."
+      },
+      "seller_document_editor": {
+        "title": "The document workspace: the request, the document and the client chat side by side.",
+        "document": "This is where you edit the document. First choose how to start it.",
+        "source": "Choose what to work from: a template, a blank page, the AI draft or your own file.",
+        "finalize": "When the document is ready, send it to the client with this button.",
+        "request": "What the client asked for and their answers — read this before you start.",
+        "side": "Client chat, the video meeting, versions and details are in this panel."
+      },
+      "lawyer_documents": {
+        "title": "A library of document templates — download the ones you need.",
+        "list": "Download a template with the button on its right."
+      },
+      "lawyer_services": {
+        "title": "The services you offer and their prices.",
+        "catalog": "Tick services in the catalogue, then set a price for each within the recommended range.",
+        "policy": "Accept the terms and the pricing policy before saving.",
+        "save": "Save your chosen services and prices with this button."
+      },
+      "seller_clients": {
+        "title": "Your client base: clients from the platform and those you added.",
+        "add": "Add a client from outside the platform with this button.",
+        "conflict": "Check for a conflict of interest before taking a new case.",
+        "list": "Click a client to see their cases, orders, payments and documents."
+      },
+      "seller_calendar": {
+        "title": "Your calendar of hearings, meetings and deadlines.",
+        "add": "Add an event — a hearing, meeting or deadline — with a reminder.",
+        "calc": "Works out appeal and filing deadlines for you.",
+        "month": "Month view: click a day to select it, double-click to add an event on it.",
+        "agenda": "The selected day's agenda and your upcoming events."
+      },
+      "seller_tasks": {
+        "title": "Your task board — move work through its stages.",
+        "add": "Create a task with a due date, priority and checklist.",
+        "filters": "Search tasks by name or hide the finished ones.",
+        "board": "Four columns: to do, in progress, in review, done. Drag a card or use its arrows to move it."
+      },
+      "seller_urgent": {
+        "title": "Urgent advocate requests you've been assigned to.",
+        "filters": "Search and filter by status, type or period.",
+        "list": "Join the meeting from here when it starts; “Details” shows the client's request."
+      },
+      "seller_cases": {
+        "title": "All the cases you handle for your clients.",
+        "list": "Click a case to update its status, stage and next step; the AI tools are there too."
+      },
+      "seller_opportunities": {
+        "title": "Open client orders — take the ones that suit you.",
+        "list": "Each card shows the service, region and budget. Accept or decline before the response time ends."
+      },
+      "seller_dashboard": {
+        "title": "This is your work dashboard — today's work, clients and new orders in one place.",
+        "stats": "Key numbers: clients, active cases, today's meetings and documents. Click one to open its section.",
+        "completeness": "How complete your profile is. A complete profile ranks higher in search.",
+        "tasks": "Your deadlines: today's, upcoming and completed tasks.",
+        "metrics": "Your response speed, acceptance rate and rating. Going on vacation? Switch it on here.",
+        "newOrders": "New orders that match you. Accept or decline them before the timer runs out."
+      },
+      "client_works": {
+        "title": "My cases — work with lawyers, urgent services, orders and complaints.",
+        "filters": "Filter by type of work or status.",
+        "list": "Tap a case to see its details and next step."
+      },
+      "client_warranty": {
+        "title": "LexGo guarantee — if you're unhappy with the service, we change the lawyer.",
+        "points": "What the guarantee covers.",
+        "form": "Name the case, give the reason and send a change request.",
+        "claims": "Your requests and their status."
+      },
+      "client_sos": {
+        "title": "SOS — reach the duty lawyer fast in an emergency.",
+        "call": "If it's very urgent, call this number right away.",
+        "categories": "Choose what kind of situation it is.",
+        "description": "Briefly describe what happened.",
+        "connect": "Press this button and the duty lawyer is alerted at once."
+      },
+      "client_service_document_view": {
+        "preview": "A sample of the document — viewing it is free.",
+        "back": "Go back to the catalogue to fill it in or send it to a lawyer."
+      },
+      "client_service_document": {
+        "form": "Answer the questions — the document beside them fills itself in.",
+        "preview": "A live view of the document — your answers appear here.",
+        "submit": "When everything is filled in, create the document with this button."
+      },
+      "client_reviews": {
+        "title": "Ratings and reviews — rate your lawyers' work.",
+        "pending": "Finished work you haven't rated yet — give each one a score.",
+        "mine": "The reviews you left are here."
+      },
+      "client_referrals": {
+        "title": "Invite friends and earn bonuses.",
+        "code": "Your personal invite code — copy it and send it to a friend.",
+        "share": "Or share the invite link directly.",
+        "stats": "How many friends you invited, how many joined and your bonus.",
+        "invites": "The people you invited and their status are in this list."
+      },
+      "client_profile": {
+        "title": "Profile — personal details, security and settings.",
+        "personal": "Your name, phone and email — edit them here.",
+        "identity": "Verify your identity with MyID or OneID.",
+        "twoFactor": "Turn on two-step login to protect your account better.",
+        "telegram": "Connect Telegram to get codes and alerts there.",
+        "notifications": "Choose which alerts you get and through which channel."
+      },
+      "client_payments": {
+        "title": "Payment history — every payment, its date and status.",
+        "filters": "Find a payment by text or date range.",
+        "history": "All your payments are in this table; you can download receipts here too."
+      },
+      "client_packages": {
+        "title": "Service packages — several services for one price.",
+        "search": "Search packages by name or area.",
+        "tiers": "Each package has tiers — compare price and contents, then order."
+      },
+      "client_notifications": {
+        "title": "Notifications — updates on orders, payments and chats.",
+        "filters": "Filter by section: orders, payments, chat, documents.",
+        "search": "Search by text or keep only the unread ones.",
+        "list": "Tap a notification to mark it read; the button beside it opens the related page."
+      },
+      "client_messages": {
+        "title": "Secure chats — protected conversations with specialists.",
+        "inbox": "All your conversations are listed here — open one to reply."
+      },
+      "client_matches": {
+        "title": "Lawyers the AI picked to match your request.",
+        "list": "Each one shows a match percentage — open the profile to learn more."
+      },
+      "client_lawyer_profile": {
+        "title": "A lawyer's profile — check experience and reviews before you choose.",
+        "summary": "Rating, experience, number of cases and success rate.",
+        "services": "The lawyer's services with prices — pick the one you need.",
+        "buy": "Buy the selected service here.",
+        "reviews": "Reviews and ratings from clients."
+      },
+      "client_intake": {
+        "title": "Problem analysis — AI identifies your situation and shows what to do.",
+        "input": "Describe your situation in plain words.",
+        "analyze": "This button starts the analysis — matching services and lawyers follow.",
+        "sources": "These are the official legal sources the AI relies on."
+      },
+      "client_gifts": {
+        "title": "Gifts — give a subscription or a service to someone close.",
+        "give": "Start a gift here: choose it, pay and send the link.",
+        "list": "Your gifts and their status are listed here."
+      },
+      "client_doc_analysis": {
+        "title": "Document analysis — AI finds the risks in your document and gives advice.",
+        "text": "Paste the document text here.",
+        "file": "Or upload a PDF, DOCX or TXT file.",
+        "options": "Set the page count and extras: OCR, urgent or a lawyer's review.",
+        "run": "Start the analysis with this button — the result appears below."
+      },
+      "client_cases": {
+        "title": "Your legal cases and service orders are gathered here.",
+        "list": "Each case shows its stage and deadline; the buttons open its documents and history.",
+        "status": "The order's status history and next step are shown here."
+      },
+      "client_ai": {
+        "title": "The AI answers your legal questions right away.",
+        "input": "Type your question here and send it.",
+        "history": "Your earlier chats are here — open one to continue."
+      },
+      "client_academy": {
+        "title": "LexGo Academy — short courses on legal literacy.",
+        "categories": "Filter the courses by topic.",
+        "courses": "Each course shows its number of lessons and length."
+      },
+      "admin_bootstrap": {
+        "title": "Initial setup — the page for appointing the first superadmin.",
+        "form": "Enter the phone number and the server bootstrap key — that number becomes superadmin."
+      },
+      "admin_policies": {
+        "title": "Platform policies — order, payment, security and other settings change here without code.",
+        "readiness": "Production readiness: which conditions are met and which are still pending.",
+        "sections": "Rules by section: Edit changes them, History shows earlier versions.",
+        "unverified": "Choose here whether unverified lawyers show in the catalog with a badge or stay hidden.",
+        "hours": "Working days and hours. Below you add holidays and check the response deadline."
+      },
+      "admin_legal": {
+        "title": "Legal documents — the terms, privacy policy and other texts users consent to.",
+        "tabs": "Switch between the documents and the consents journal.",
+        "add": "Publish a new legal document with this button.",
+        "docs": "Document status: text entered, placeholder or not published. Release a new version here.",
+        "journal": "The consents journal: who agreed to which version, when and from which IP."
+      },
+      "admin_audit_trail": {
+        "title": "The audit trail — every important action is kept as a record that can't be changed.",
+        "anomalies": "Suspicious events, such as a login from a new IP. You can filter them by status.",
+        "export": "Download the filtered records as a CSV file.",
+        "filters": "Search by user, action type or target.",
+        "list": "The record chain: each entry links to the one before it by hash."
+      },
+      "admin_roles": {
+        "title": "Roles & access — decide who can open which pages and actions.",
+        "add": "Create a new role with this button and pick its permissions.",
+        "list": "Existing roles and how many permissions each has.",
+        "assign": "Find a staff member by name or phone and assign them a role.",
+        "matrix": "The permission matrix: a tick shows which role has which permission."
+      },
+      "admin_test_otps": {
+        "title": "Test OTP codes — staging/demo only; login codes show up here.",
+        "list": "Phone, purpose and code. Take the code for a test login from here."
+      },
+      "admin_integrations": {
+        "title": "Integrations — the status of payments, SMS, Telegram, MyID and other outside services.",
+        "residency": "Whether data is stored in Uzbekistan, and where.",
+        "services": "Service cards: green works, amber is waiting, grey is off."
+      },
+      "admin_notifications": {
+        "title": "Send notifications — message users in the app, by push, Telegram or email.",
+        "mode": "Choose whether to send to selected users or to an entire role.",
+        "recipients": "Find recipients by role and tick them — you can mix several roles.",
+        "compose": "Set the category, channel, title and text.",
+        "send": "Press send — the results then show who the message reached."
+      },
+      "admin_legal_aid": {
+        "title": "Legal aid — citizens' requests for free legal help.",
+        "list": "Requests with name, phone, issue and date. Tap the phone to call.",
+        "detail": "The eye icon opens the details: the source and who created the request."
+      },
+      "admin_approvals": {
+        "title": "Approvals — refunds and lawyer replacements need two sign-offs.",
+        "queue": "Requests waiting for approval; a tick shows who has already approved.",
+        "actions": "The admin and the manager approve separately; the request goes through after both."
+      },
+      "admin_payouts": {
+        "title": "Payouts — money due to sellers and its reconciliation.",
+        "reconciliation": "Gross revenue, platform and provider fees, and the seller's share.",
+        "list": "Each payout with the seller's share, fees and status.",
+        "markPaid": "Each payout's status. Once the money is sent, press \"Mark as paid\"."
+      },
+      "admin_reviews": {
+        "title": "Review moderation — client reviews pass through here before they go live.",
+        "tabs": "View reviews of advocates or lawyers separately.",
+        "list": "Reviews with rating, text and status. Click the name for full details.",
+        "moderation": "Approve or reject a new review — approved ones appear on the profile."
+      },
+      "admin_register_requests": {
+        "title": "Registration requests — approve new advocates and lawyers here.",
+        "stats": "Request counts by role, plus pending, approved and rejected.",
+        "roleTabs": "Filter by role: advocates, lawyers or advocate organizations.",
+        "list": "Pending requests with name, role, phone and date.",
+        "detail": "The eye icon opens the full request — check the documents before accepting.",
+        "decision": "Once checked, accept or reject the request."
+      },
+      "admin_ads": {
+        "title": "Ads & promotions — the promoted listings shown on the site.",
+        "add": "Add a new ad with this button: title, description and price.",
+        "list": "Ads with their status and price. The pencil edits, the bin deletes."
+      },
+      "admin_templates": {
+        "title": "Document templates — ready-made forms that clients fill in.",
+        "add": "Create a template by hand: name, category, text and price.",
+        "import": "Upload several templates at once from a DOCX or ZIP file.",
+        "search": "Find a template by name, category or language.",
+        "list": "The templates list: the pencil edits, the bin deletes."
+      },
+      "admin_plans": {
+        "title": "Package tariffs — the subscription plans clients and lawyers buy.",
+        "add": "Create a new plan with this button: price, period and who it's for.",
+        "filters": "Search plans by name or filter them by audience.",
+        "list": "All plans with their audience, status and price.",
+        "actions": "Each plan has buttons to edit, switch off or delete it."
+      },
+      "admin_services": {
+        "title": "The service catalog — categories and the services clients buy.",
+        "categories": "Service categories: add, rename or hide them.",
+        "add": "Add a new service with this button: name, category and price.",
+        "filters": "Search by name and filter by category and status (active or inactive).",
+        "list": "The services list: the pencil edits, the bin deletes."
+      },
+      "admin_marketplace": {
+        "title": "Marketplace monitoring — orders, payments and seller workload in one place.",
+        "tabs": "Switch between the overview, the orders table and the sellers list.",
+        "period": "Pick a period: today, 7, 30 or 90 days. Type exact dates in the fields next to it.",
+        "filters": "Filter by status, seller and client — it applies to the overview and orders.",
+        "kpis": "Orders by status. Click a card to open the list of those orders.",
+        "orders": "The orders table: click a row to see the order, its payment and both parties."
+      },
+      "admin_b2b": {
+        "title": "B2B clients — corporate clients, deal stages and documents.",
+        "add": "Add a new company with this button: name, tax ID, director and contact.",
+        "list": "All corporate clients are in this list.",
+        "documents": "Get the invoice (VAT shown separately), the contract and the monthly report as PDFs.",
+        "stage": "Change the deal stage here — from first contact to contract."
+      },
+      "admin_retention": {
+        "title": "Retention — clients who may leave and chances to upsell.",
+        "kpis": "At-risk, churned and the retained share. Click a card to open the list.",
+        "atRisk": "Clients who may leave — with the reason and their last payment date.",
+        "winBack": "Each client row has \"Win back\" — it queues the client for an operator to call with an offer.",
+        "upsell": "Upsell suggestions: what you could offer each client."
+      },
+      "admin_call_analytics": {
+        "title": "Call analytics — how many calls came in, were answered or were missed.",
+        "kpis": "Total, answered and missed calls plus the average length. Click a card for details.",
+        "byDay": "Calls per day — the busiest days show up here.",
+        "agents": "Operators ranked by number of calls."
+      },
+      "admin_meetings": {
+        "create": "Type a meeting name, pick the participants and start the video meeting here.",
+        "title": "Meetings — start a video meeting, rejoin active ones and see the history.",
+        "list": "Your meetings: rejoin active ones; the ended ones are listed below."
+      },
+      "admin_call_center": {
+        "title": "The duty desk — the call-center operator's main workspace.",
+        "queue": "The queue: SLA breaches come first. Send an order to the next advocate or move a lead to a stage.",
+        "urgent": "Urgent advocate requests: claim one, pick advocates, start the meeting and record the result.",
+        "complaints": "Quality complaints land here after a 1–2 star rating. Open one and make a ruling.",
+        "board": "The lead board: move leads between stages, assign an operator or call the client.",
+        "clientSearch": "Find a client by name or phone — the card shows orders and payments and lets you log a call."
+      },
+      "admin_pipeline": {
+        "title": "The sales pipeline — every lead by stage, from new to won.",
+        "kpis": "Total leads, active ones, won deals and the conversion rate.",
+        "newLead": "Add a lead from a call or a meeting by hand with this button.",
+        "autoAssign": "Spreads unassigned leads across operators automatically.",
+        "filters": "Filter by search, source, region, operator, date and lead score.",
+        "board": "Leads by stage. Click a card for details; drag it or use the arrows to move it."
+      },
+      "admin_ceo": {
+        "title": "The CEO dashboard — revenue, growth and unit economics on one page.",
+        "kpis": "Revenue, MRR, users and conversion. Click a card to open the details.",
+        "trend": "The revenue trend — this chart shows growth or a dip.",
+        "funnel": "The sales funnel shows the stage where leads get stuck.",
+        "channels": "Which channels bring in leads — use it to split the ad budget.",
+        "kpiSystem": "The KPI system: MAU, GMV, ARR and ARPU, with CAC, LTV and NPS below."
+      },
+      "admin_overview": {
+        "title": "This is the CRM command center — the platform's key numbers in one place.",
+        "kpis": "The headline metrics. Click a card to see the breakdown behind the number.",
+        "charts": "The revenue trend and sales funnel: where the money comes from and where leads stall.",
+        "modules": "Shortcuts to the CRM modules: pipeline, payouts, B2B, retention and the duty desk."
+      },
       "common": {
+        "statsFilters": "Pick a region and a date range — every figure on the page updates to this filter.",
         "support": "Need help? Choose the AI instructor, an operator chat, a complaint or a call here."
       },
       "client_dashboard": {
+        "requests": "Your active requests and their status show up here.",
         "title": "This is your dashboard — every service starts here.",
         "describe": "Describe your problem in plain words — AI picks the right service and lawyer.",
         "urgent": "In an emergency, reach an urgent advocate from here.",
         "findSpecialist": "Find verified advocates and lawyers here."
       },
       "client_subscription": {
+        "billing": "The history of your plan payments is here.",
+        "period": "Pick a term — the longer it is, the bigger the discount.",
+        "current": "Your current plan, next charge date and card are shown here.",
         "title": "The plans page — AI request and document analysis limits.",
         "pro": "Pro plan: 1000 AI requests a month, document analysis and case-law search.",
         "buy": "To pick a plan, press this button yourself — payment happens only with your confirmation."
       },
       "client_lawyers": {
+        "list": "Each card shows rating, experience and price — open a profile to pick a service.",
+        "title": "A directory of verified advocates and lawyers — find the right one here.",
         "search": "Describe your situation — AI finds a matching advocate or lawyer.",
         "filters": "Sort by region, service, experience, rating and price."
       },
       "client_services": {
+        "directions": "Then open the direction you need.",
+        "search": "Search for the document you need by its name.",
         "create": "A new document order starts with this button.",
-        "categories": "First choose the area you need.",
+        "categories": "First choose the area of law — its directions appear below.",
         "templates": "Then pick the document type and fill it in."
       },
       "client_documents": {
+        "filters": "Filter by how a document is made or search by its name.",
+        "stats": "How many documents you have in total, in progress, ready and with a lawyer.",
+        "title": "My documents — everything you filled in or ordered is here.",
         "list": "All your finished and in-progress documents are here."
       },
       "client_urgent": {
+        "mine": "Your requests and their status are listed here.",
+        "terms": "How long a meeting lasts and how it can be extended.",
+        "title": "Urgent advocate — get advice by video or chat right now.",
         "services": "Urgent advocate services: video, chat and a second opinion.",
         "video": "An instant video consultation with an advocate starts here."
       },
       "client_support": {
-        "operator": "Start a chat with a live operator with this button.",
-        "list": "All your operator chats are in this list."
+        "newChat": "Write your question here, pick a topic and mark it urgent if needed.",
+        "call": "If it's urgent, call us during working hours.",
+        "complaints": "Unhappy with a service or specialist? Send a formal complaint from here.",
+        "ai": "The AI instructor shows you the right page and answers right away.",
+        "channels": "Four ways to get help: the AI instructor, an operator chat, a complaint and a phone call.",
+        "operator": "Start a chat with a live operator from this button.",
+        "list": "All your operator chats are here — active and closed."
       },
       "client_marketplace_orders": {
+        "filters": "Filter your orders by status.",
+        "title": "Services you bought through the marketplace are on this page.",
         "list": "Your purchased services and their status are here."
       },
       "seller_document_requests": {
+        "filters": "Search by title or client and filter by work type and period.",
+        "tabs": "“New requests” is the open pool; the other tabs hold the ones assigned to you.",
+        "title": "Client document requests: the open pool, those assigned to you and the finished ones.",
         "list": "Document requests sent to you — take one and start working."
       },
       "seller_marketplace_orders": {
+        "filters": "Sort orders by status: active, completed or cancelled.",
+        "title": "This is where you manage orders for your services.",
         "list": "Services clients bought from you and the order status are here."
       },
       "admin_support": {
+        "title": "Operator chats — the queue of live client chats. Take a waiting chat and reply.",
+        "chat": "The selected chat: reply to the client here, and transfer or close it when needed.",
         "list": "The queue of client operator chats: claim, reply, transfer or close."
       }
     },
     "suggest": {
+      "support": {
+        "operator": "How do I start a chat with an operator?",
+        "complaint": "Where do I file a complaint?",
+        "payment": "My payment fails, what should I do?",
+        "reply": "Where will I see the operator's reply?",
+        "sellerOrder": "There's a problem with an order — who do I write to?",
+        "sellerProfile": "Why isn't my profile verified yet?",
+        "queueClaim": "How do I claim a chat?",
+        "queueTransfer": "How do I transfer a chat to another operator?",
+        "queueClose": "How do I close a chat?"
+      },
+      "complaints": {
+        "how": "How do I file a complaint?",
+        "status": "When will my complaint be reviewed?",
+        "lawyer": "I'm unhappy with my advocate's work"
+      },
       "client": {
+        "urgentPrice": "How much is an urgent consultation?",
+        "docsWhere": "Where are my documents?",
+        "workStatus": "What stage is my case at?",
+        "lawyerChange": "How do I change my lawyer?",
+        "sosHow": "What happens after I press SOS?",
+        "unhappy": "What if I'm unhappy with my lawyer?",
+        "reviewLeave": "How do I rate my lawyer?",
+        "referralBonus": "When does the discount unlock?",
+        "referralShare": "How do I share my invite link?",
+        "identity": "How do I verify my identity?",
+        "telegramLink": "How do I connect Telegram?",
+        "twoFactor": "How do I turn on two-step login?",
+        "receipt": "How do I get a payment receipt?",
+        "packageSave": "How much do I save with a package?",
+        "packagePick": "Which package suits me?",
+        "notifSettings": "How do I set up notifications?",
+        "notifRead": "Can I mark everything as read?",
+        "chatSafe": "Are my chats private?",
+        "chatLawyer": "How do I message my lawyer?",
+        "matchWhy": "How were these lawyers chosen?",
+        "safeDeal": "How is my payment protected?",
+        "buyService": "How do I buy a service?",
+        "intakeHow": "How does the AI analyse my problem?",
+        "giftLink": "How do I send the gift link?",
+        "giftSend": "I want to gift a subscription to a friend",
+        "docDownload": "How do I download a finished document?",
+        "analysisPrice": "How much does document analysis cost?",
+        "refund": "How do I get a refund?",
+        "orderCancel": "How do I cancel an order?",
+        "orderStatus": "What stage is my order at?",
+        "aiHistory": "Where do I find an old chat?",
+        "aiLimit": "What's my AI request limit?",
+        "academyFree": "Are the courses free?",
+        "academyStart": "How do I start a course?",
         "plan": "I need a plan around 100 thousand",
         "lawyer": "I need a lawyer for a car accident",
         "document": "I want to create a document",
@@ -79,11 +591,99 @@
         "urgent": "I want to talk to a lawyer now"
       },
       "seller": {
+        "orgFilter": "How do I see one member's work?",
+        "orgWorkload": "Where can I see member workload?",
+        "orgMember": "How do I add a member to my organization?",
+        "orgCreate": "How do I register my organization?",
+        "planDiscount": "Do verified specialists get a discount?",
+        "plan": "Which plan suits me?",
+        "promotionStats": "Where can I see promotion results?",
+        "promotion": "How do I promote my profile?",
+        "referralReward": "What do I get for an invite?",
+        "referral": "Where is my referral link?",
+        "missingDocs": "Which documents are missing?",
+        "chronology": "Build a chronology from the case files",
+        "aiLimit": "What is my AI request limit?",
+        "aiAsk": "How do I ask the AI about a law?",
+        "readAll": "How do I mark everything as read?",
+        "notifySettings": "How do I set up notifications?",
+        "pastMeetings": "Where are my past meetings?",
+        "startMeeting": "How do I start a video call with a client?",
+        "newMessages": "Where are my new messages?",
+        "chatFile": "How do I send a file to a client?",
+        "newFolder": "How do I create a folder?",
+        "uploadFile": "How do I upload a file?",
+        "sendDocument": "How do I send the finished document?",
+        "claimRequest": "How do I take a document request?",
+        "templates": "Where can I download a contract template?",
+        "addService": "How do I add a service?",
+        "prices": "How do I set my service prices?",
+        "conflict": "How do I check for a conflict of interest?",
+        "addClient": "How do I add a client?",
+        "deadline": "How do I work out an appeal deadline?",
+        "hearing": "How do I add a hearing to the calendar?",
+        "moveTask": "How do I move a task to the next stage?",
+        "newTask": "How do I create a task?",
+        "urgentRequest": "Where can I read the client's request?",
+        "joinUrgent": "How do I join an urgent meeting?",
+        "caseAi": "How do I get an AI summary of a case?",
+        "caseStatus": "How do I change a case status?",
+        "payout": "When do I get paid?",
+        "completeOrder": "How do I complete an order?",
+        "orderTimer": "What happens when the response time runs out?",
+        "vacation": "How do I pause orders while on vacation?",
+        "verify": "How do I get my profile verified?",
+        "newOrder": "How do I accept a new order?",
         "works": "Where are my incoming requests?",
         "orders": "Where are my marketplace orders?",
         "profile": "How do I fill in my profile?"
       },
       "staff": {
+        "holidayAdd": "How do I add a public holiday?",
+        "policyChange": "How do I change a payment rule?",
+        "consentCheck": "How do I check that a client gave consent?",
+        "termsVersion": "How do I publish a new version of the terms?",
+        "auditExport": "How do I export the audit trail?",
+        "auditUser": "How do I check what a staff member did?",
+        "roleCreate": "How do I create a new role?",
+        "roleGive": "How do I give someone the call-center role?",
+        "otpCode": "Where do I get an SMS code for testing?",
+        "smsStatus": "Is the SMS service working?",
+        "notifyUser": "I need to notify one client",
+        "notifyRole": "How do I message all advocates?",
+        "legalAidNew": "Where are the new legal aid requests?",
+        "refundApprove": "How do I approve a refund?",
+        "platformFee": "What's the platform fee?",
+        "payoutMark": "How do I mark a payout as paid?",
+        "reviewRemove": "How do I remove an abusive review?",
+        "reviewApprove": "How do I approve a review?",
+        "sellerDocs": "Where do I see an advocate's documents?",
+        "sellerApprove": "How do I approve a new advocate?",
+        "adStop": "How do I stop an ad?",
+        "adAdd": "How do I add a new ad?",
+        "templateEdit": "How do I edit a template's text?",
+        "templateImport": "How do I upload a template from Word?",
+        "planOff": "How do I switch off a plan for now?",
+        "planPrice": "How do I change a plan's price?",
+        "serviceAdd": "How do I add a new service?",
+        "servicePrice": "How do I change a service's price?",
+        "sellerOrders": "How do I see a seller's orders?",
+        "ordersPaidToday": "How many orders were paid today?",
+        "b2bAdd": "How do I add a corporate client?",
+        "b2bInvoice": "How do I invoice a B2B client?",
+        "winBackClient": "How do I win back a leaving client?",
+        "atRiskClients": "Which clients might leave?",
+        "topOperator": "Which operator made the most calls?",
+        "missedCalls": "How many calls were missed?",
+        "meetingStart": "How do I start a video meeting?",
+        "callLog": "How do I log a call?",
+        "clientFind": "How do I find a client by phone number?",
+        "leadAssign": "How do I assign a lead to an operator?",
+        "leadMove": "How do I move a lead to the next stage?",
+        "bestChannel": "Which channel brings the most leads?",
+        "ltvCac": "What's our LTV to CAC ratio?",
+        "metricsRegion": "How do I see the numbers by region?",
+        "revenueMonth": "What's the revenue this month?",
         "queue": "Where are new operator chats?",
         "urgent": "Where is the urgent advocate queue?"
       }
@@ -167,57 +767,177 @@
     }
   },
   "support": {
+    "queue": {
+      "count": "{n, plural, one {# chat} other {# chats}}",
+      "refresh": "Refresh",
+      "oldestFirst": "Longest waiting first",
+      "topic": "Topic",
+      "waiting": "Waiting"
+    },
+    "wait": {
+      "now": "Just arrived",
+      "minutes": "Waiting {n} min",
+      "hours": "Waiting {h} h {m} min",
+      "days": "Waiting {n} d"
+    },
+    "ago": {
+      "now": "just now",
+      "minutes": "{n} min ago",
+      "hours": "{n} h ago",
+      "days": "{n} d ago"
+    },
+    "chat": {
+      "connecting": "Connecting an operator…",
+      "operatorFallback": "LexGo operator",
+      "lexgoId": "LexGo ID: {id}",
+      "log": "Chat messages",
+      "missing": "This chat wasn't found or isn't yours.",
+      "closedAt": "Closed: {date}",
+      "noResolution": "The operator didn't leave a summary.",
+      "newChat": "Start a new chat",
+      "enterHint": "Enter to send · Shift+Enter for a new line"
+    },
+    "compose": {
+      "title": "New chat with an operator",
+      "lead": "Describe the problem — an operator replies in this chat.",
+      "resumeTitle": "You already have an active chat",
+      "resumeText": "Instead of starting over, continue this chat — the operator sees the whole conversation.",
+      "resume": "Continue",
+      "newAnyway": "Start a new one anyway",
+      "autoTopic": "Topic detected from your text: {topic}",
+      "autoHint": "If you skip the topic, we'll detect it from your text.",
+      "urgent": "Urgent",
+      "urgentHint": "Turn on if it can't wait"
+    },
+    "chats": {
+      "title": "My chats",
+      "lead": "Your conversations with operators are kept here",
+      "tabs": {
+        "active": "Active",
+        "closed": "Closed"
+      },
+      "emptyActive": "No active chats",
+      "emptyActiveText": "When a question comes up, message an operator — the reply lands here.",
+      "emptyClosed": "No closed chats yet.",
+      "firstTitle": "You haven't chatted with an operator yet",
+      "firstText": "Try the AI instructor first — it answers most questions right away. If that doesn't help, message an operator.",
+      "start": "Start a chat",
+      "askAi": "Ask the AI instructor"
+    },
+    "channels": {
+      "ai": {
+        "title": "AI instructor",
+        "sub": "Shows you the right place and answers right away",
+        "hint": "Online — 24/7"
+      },
+      "operator": {
+        "title": "Contact an operator",
+        "sub": "Live chat — an operator replies right here",
+        "hintActive": "{count, plural, one {# active chat} other {# active chats}} — continue",
+        "hintIdle": "Replies arrive here and in notifications"
+      },
+      "complaint": {
+        "title": "File a complaint",
+        "sub": "A formal complaint about a service or specialist",
+        "hint": "Track the review in Complaints"
+      },
+      "call": {
+        "title": "Call us"
+      }
+    },
+    "hub": {
+      "heroTitle": "Got a question? Ask the AI instructor first",
+      "heroLead": "It shows you the right place on the platform and answers right away. Still stuck? Chat with an operator, file a complaint or call us.",
+      "heroLeadSeller": "It shows you the right place on the platform and answers right away. Still stuck? Chat with an operator or call us.",
+      "askPh": "For example: how do I change my plan?",
+      "askBtn": "Ask the AI instructor",
+      "quick": "Quick questions:",
+      "channels": "Ways to get help",
+      "topics": {
+        "subscription": {
+          "label": "Plans",
+          "q": "Which plan suits me?"
+        },
+        "payment": {
+          "label": "Payment",
+          "q": "My plan payment fails — what should I do?"
+        },
+        "documents": {
+          "label": "Documents",
+          "q": "How do I create a document?"
+        },
+        "marketplace": {
+          "label": "Find a lawyer",
+          "q": "How do I find the right lawyer?"
+        },
+        "urgent_advokat": {
+          "label": "Urgent advocate",
+          "q": "How do I start an urgent consultation?"
+        },
+        "account": {
+          "label": "Account",
+          "q": "Where are my profile and account settings?"
+        },
+        "orders": {
+          "label": "Orders",
+          "q": "Where are the orders sent to me?"
+        },
+        "profile": {
+          "label": "Profile",
+          "q": "How do I fill in my profile?"
+        }
+      }
+    },
+    "urgent": "Urgent",
     "title": "Help center",
-    "lead": "If something doesn't work on the platform, message an operator — we reply in the in-app chat.",
-    "newTicket": "Contact an operator",
-    "category": "Topic",
+    "newTicket": "New chat",
+    "category": "What's it about? (optional)",
     "priority": "Priority",
     "message": "Briefly describe the problem",
     "messagePh": "For example: payment fails when buying a plan",
-    "submit": "Open a ticket",
+    "submit": "Start the chat",
     "cancel": "Cancel",
-    "created": "Ticket opened: {id}",
-    "createdPlain": "Ticket opened",
-    "empty": "You have no tickets yet.",
-    "pickTicket": "Pick a ticket on the left or open a new one.",
+    "created": "Chat started: {id}",
+    "createdPlain": "Chat started",
+    "pickTicket": "Pick a chat from the list on the left.",
     "back": "Back",
-    "untitled": "Ticket",
+    "untitled": "Operator chat",
     "operatorIs": "Operator: {name}",
-    "waitingBanner": "Waiting for an operator — we'll reply shortly.",
-    "closedBanner": "Ticket closed",
-    "readOnly": "This ticket isn't assigned to you — view only.",
+    "waitingBanner": "An operator will join shortly. Even if you close this page, the reply arrives as a notification.",
+    "closedBanner": "Chat closed",
+    "readOnly": "This chat isn't assigned to you — view only.",
     "loadOlder": "Earlier messages",
     "loadingMsgs": "Loading messages…",
     "noMessages": "No messages yet.",
     "ph": "Type your message…",
     "send": "Send",
     "callUs": "Call us",
-    "queueTitle": "Support tickets",
-    "queueLead": "The client ticket queue — claim, reply, transfer or close.",
-    "queueEmpty": "No tickets in this tab.",
+    "queueTitle": "Operator chats",
+    "queueLead": "Client and specialist chats with operators: claim, reply, transfer or close.",
+    "queueEmpty": "No chats in this tab.",
     "client": "Client",
     "createdAt": "Opened",
     "statusLabel": "Status",
     "claim": "Claim",
-    "claimedOk": "The ticket is assigned to you",
-    "claimTaken": "Another operator already took this ticket",
+    "claimedOk": "The chat is assigned to you",
+    "claimTaken": "Another operator already took this chat",
     "transfer": "Transfer to another operator",
     "transferDo": "Transfer",
     "transferOk": "Transferred to {name}",
-    "transferredAway": "The ticket was transferred to another operator",
+    "transferredAway": "The chat was transferred to another operator",
     "operator": "Operator",
     "operatorSearch": "Operator name or phone",
     "operatorNone": "No operator found",
     "reason": "Reason",
     "reasonPh": "For example: to the payments specialist",
     "reasonRequired": "Please give a reason",
-    "close": "End the conversation",
+    "close": "Close the chat",
     "closeDo": "Close",
-    "closeNote": "After closing, the client can't write to this ticket.",
+    "closeNote": "After closing, the client can't write in this chat.",
     "resolution": "Resolution",
     "resolutionPh": "For example: helped the client pick a plan",
     "resolutionRequired": "Please write the resolution",
-    "closedOk": "Ticket closed",
+    "closedOk": "Chat closed",
     "tabs": {
       "new": "New",
       "mine": "Assigned to me",
@@ -225,11 +945,13 @@
       "closed": "Closed"
     },
     "status": {
+      "waiting_client_confirm": "Awaiting confirmation",
+      "ai_handling": "AI is replying",
       "waiting_operator": "Waiting for operator",
       "claimed": "Operator joined",
       "transferred": "Transferred",
       "reopened": "Reopened",
-      "closed": "Ticket closed"
+      "closed": "Closed"
     },
     "categories": {
       "general": "General",
@@ -247,6 +969,11 @@
       "high": "High"
     },
     "roles": {
+      "advokat_tashkiloti": "Law firm",
+      "yurist": "Lawyer",
+      "advokat": "Advocate",
+      "sales": "Sales",
+      "manager": "Manager",
       "client": "Client",
       "operator": "Operator",
       "call_center": "Operator",
@@ -254,7 +981,7 @@
       "admin": "Admin",
       "superadmin": "Admin",
       "system": "System",
-      "ai": "AI assistant"
+      "ai": "AI instructor"
     }
   },
   "marketplace": {
@@ -289,9 +1016,15 @@
       "advokat_tashkiloti": "Law firm"
     },
     "show": {
+      "priceLabel": "Price",
+      "wonLabel": "cases won",
+      "expLabel": "experience",
+      "years": "{n, plural, one {# yr} other {# yrs}}",
+      "specialist": "Specialist in {spec}",
+      "carousel": "carousel",
+      "label": "Featured specialists",
       "reviews": "{n} reviews",
       "cases": "cases",
-      "priceShort": "UZS from",
       "cta": "Get advice",
       "switch": "Switch specialists"
     },
@@ -2256,15 +2989,16 @@
   },
   "portal": {
     "support": {
-      "operatorSub": "Chat with a live operator",
+      "hub": "Open the help center",
+      "operatorSub": "Live chat — an operator replies right here",
       "operator": "Contact an operator",
       "label": "Support",
       "title": "Need help?",
       "sub": "We are here — pick what suits you.",
-      "ai": "AI assistant",
-      "aiSub": "Quick answers to your questions",
-      "complaint": "Send a request",
-      "complaintSub": "A problem or a complaint",
+      "ai": "AI instructor",
+      "aiSub": "Shows you around and answers instantly",
+      "complaint": "File a complaint",
+      "complaintSub": "A formal complaint about a service or specialist",
       "call": "Call us"
     },
     "workFilters": {
@@ -2812,9 +3546,10 @@
       "checklistHint": "Each line is an item. Mark done items with \"[x]\"."
     },
     "aiAssistant": {
+      "short": "AI instructor",
       "ticketWrite": "Write any extra details here — the operator replies in this chat.",
       "pageTourShort": "Show this page",
-      "ticketShown": "Your request is sent — your chat with an operator is here.",
+      "ticketShown": "Your question is sent — your chat with an operator is here.",
       "showMe": "Show me",
       "safety": "I never click or pay anything on your behalf.",
       "newChat": "New chat",
@@ -2830,11 +3565,11 @@
       "subtitle": "I show you around the platform",
       "online": "Online",
       "open": "Open the AI instructor",
-      "ticketCreatedPlain": "Ticket opened",
-      "ticketCreated": "Ticket opened: {id}",
+      "ticketCreatedPlain": "Operator chat started",
+      "ticketCreated": "Operator chat started: {id}",
       "confirmNo": "Cancel",
       "confirmYes": "Yes, connect me",
-      "confirmText": "Open a support ticket to reach an operator?",
+      "confirmText": "Start a chat with an operator? Your question goes as the first message.",
       "confirmTitle": "Contact an operator",
       "toOperator": "Contact an operator",
       "replay": "Show again",
@@ -2887,6 +3622,7 @@
     },
     "sidebar": {
       "lawyer": {
+        "support": "Help center",
         "marketplaceOrders": "Service orders",
         "urgentAssigned": "Urgent cases",
         "dashboard": "Dashboard",
@@ -2911,6 +3647,7 @@
         "meetings": "Meetings"
       },
       "client": {
+        "requests": "My requests",
         "support": "Help center",
         "marketplaceOrders": "My service orders",
         "urgent": "Urgent advocate",
@@ -2939,6 +3676,7 @@
         "packages": "Packages"
       },
       "advocate": {
+        "support": "Help center",
         "marketplaceOrders": "Service orders",
         "urgentAssigned": "Urgent cases",
         "dashboard": "Dashboard",
@@ -3701,28 +4439,115 @@
         }
       },
       "complaints": {
-        "title": "Complaints",
-        "lead": "File a complaint about service quality — we review it quickly.",
-        "fileOne": "File a complaint",
+        "statuses": {
+          "new": "New",
+          "pending": "Pending",
+          "under_review": "Under review",
+          "rework_required": "Sent for rework",
+          "rework_in_progress": "Being reworked",
+          "resolved": "Resolved",
+          "rejected": "Rejected",
+          "closed": "Closed",
+          "cancelled": "Cancelled"
+        },
+        "categories": {
+          "service": "Service",
+          "lawyer": "Lawyer/Advocate",
+          "payment": "Payment",
+          "quality": "Quality",
+          "sla": "Missed deadline",
+          "other": "Other"
+        },
+        "v": {
+          "subject": "Add a subject.",
+          "subjectShort": "The subject is too short — use at least {min} characters.",
+          "descShort": "Add a little more detail — at least {min} characters."
+        },
+        "form": {
+          "lead": "Be specific: what happened, when, and which work it concerns. The complaint is logged and you can follow its status on this page.",
+          "related": "Which work",
+          "optional": "(optional)",
+          "relatedNone": "Not about a specific work",
+          "relatedLoading": "Loading your works…",
+          "relatedError": "Couldn't load your works — you can still send the complaint without linking one.",
+          "counter": "{n}/{max}"
+        },
+        "detailError": "Couldn't load the details.",
+        "relatedId": "Work no. {id}",
+        "relatedOpen": "Open the work",
+        "related": "Related work",
+        "hint": {
+          "waiting": "Your complaint is in the queue — a staff member will review it and the decision will appear here.",
+          "review": "A call-centre operator is checking the work and your rating.",
+          "rework": "Your complaint was upheld — the advocate will redo the work for free.",
+          "rejected": "After review, the complaint was not upheld."
+        },
+        "tl": {
+          "sent": "Complaint filed",
+          "opened": "Opened by your {n}★ rating",
+          "openedPlain": "Opened by a low rating",
+          "review": "Review",
+          "decision": "Decision"
+        },
+        "timeline": "Review progress",
+        "decisionBy": "Reviewed by {name}",
+        "ratingAria": "{n} out of 5 stars",
+        "noComment": "No comment was left with the rating.",
+        "comment": "Your rating comment",
+        "text": "What you wrote",
+        "f": {
+          "category": "Category",
+          "source": "Work type",
+          "rating": "Your rating",
+          "lawyer": "Advocate",
+          "created": "Filed",
+          "updated": "Updated"
+        },
+        "sentId": "Number: {id}. Track its status in this list.",
+        "linkMissing": "The complaint from the link wasn't found.",
+        "partialQuality": "Couldn't load your quality complaints — the list is incomplete.",
+        "partialManual": "Couldn't load the complaints you filed — the list is incomplete.",
+        "loadError": "Couldn't load your complaints",
+        "source": {
+          "document": "Document work",
+          "urgent": "Urgent advocate"
+        },
+        "filter": {
+          "label": "Complaint type",
+          "all": "All",
+          "manual": "Complaints",
+          "quality": "Quality",
+          "empty": "No complaints match this filter.",
+          "reset": "Clear filter"
+        },
+        "kind": {
+          "manual": "Complaint",
+          "quality": "Quality complaint"
+        },
+        "listLabel": "Your complaints",
+        "steps": {
+          "write": "You write",
+          "review": "We review",
+          "decision": "You get a decision"
+        },
+        "stepsLabel": "How a complaint is handled",
+        "chatShort": "Chat with an operator",
+        "chatLink": "Quick question? Chat with an operator",
+        "auto": "If you rate a piece of work 1–2 stars, a quality complaint opens automatically and appears in this list.",
+        "lead": "A complaint is a formal report about service quality, an advocate's work or a payment. It is logged, a staff member reviews it, and the decision appears here.",
         "descRequired": "Write what happened.",
         "cancel": "Cancel",
-        "fileTitle": "Complaint about this work",
-        "fileLead": "A complaint is reviewed separately from the rating and is not time-limited.",
-        "ref": "Work",
         "new": "New complaint",
-        "empty": "No complaints",
-        "emptyText": "Your complaints will appear here.",
-        "catLabel": "Type",
-        "cat": { "service": "Service", "lawyer": "Lawyer/Advocate", "payment": "Payment", "quality": "Quality", "other": "Other" },
+        "empty": "No complaints yet",
+        "emptyText": "If something went wrong with a service, file a complaint — you can follow its status here.",
+        "catLabel": "Category",
         "subject": "Subject",
-        "subjectPh": "Short subject",
+        "subjectPh": "For example: the document wasn't ready by the promised date",
         "desc": "Description",
         "descPh": "Describe what happened…",
         "submit": "Submit",
         "sending": "Sending…",
-        "sent": "Complaint received",
-        "error": "Error. Please try again.",
-        "status": { "new": "New", "reviewing": "Reviewing", "resolved": "Resolved", "rejected": "Rejected" }
+        "sent": "Complaint received"
       },
       "warranty": {
         "title": "LexGo Warranty",
@@ -6627,7 +7452,7 @@
       "system": "System"
     },
     "nav": {
-      "supportTickets": "Support tickets",
+      "supportTickets": "Operator chats",
       "marketplace": "Marketplace monitoring",
       "overview": "Overview",
       "services": "Services",
