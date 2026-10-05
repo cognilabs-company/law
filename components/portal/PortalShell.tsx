@@ -49,6 +49,7 @@ import {
   IconAlert,
   IconGraduation,
   IconClipboardCheck,
+  IconHeadset,
   IconShieldCheck,
   IconTarget,
   IconLock,
@@ -178,6 +179,7 @@ const CLIENT_NAV: NavItem[] = [
   { href: "/portal/client/reviews", key: "reviews", Icon: IconStar },
   { href: "/portal/client/warranty", key: "warranty", Icon: IconShieldCheck },
   { href: "/portal/client/complaints", key: "complaints", Icon: IconClipboardCheck },
+  { href: "/portal/client/support", key: "support", Icon: IconHeadset },
   { href: "/portal/client/profile", key: "profile", Icon: IconUser },
 ];
 

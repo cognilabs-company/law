@@ -1,4 +1,95 @@
 {
+  "support": {
+    "title": "Yordam markazi",
+    "lead": "Platformada biror narsa qila olmasangiz, operatorga yozing — ichki chatda javob beramiz.",
+    "newTicket": "Operatorga ulanish",
+    "category": "Mavzu",
+    "priority": "Muhimlik",
+    "message": "Muammoni qisqacha yozing",
+    "messagePh": "Masalan: tarif sotib olishda to'lov o'tmayapti",
+    "submit": "Murojaat ochish",
+    "cancel": "Bekor qilish",
+    "created": "Murojaat ochildi: {id}",
+    "createdPlain": "Murojaat ochildi",
+    "empty": "Hozircha murojaatlaringiz yo'q.",
+    "pickTicket": "Chap tomondan murojaatni tanlang yoki yangisini oching.",
+    "back": "Orqaga",
+    "untitled": "Murojaat",
+    "operatorIs": "Operator: {name}",
+    "waitingBanner": "Operator kutilmoqda — tez orada javob beriladi.",
+    "closedBanner": "Ticket yopilgan",
+    "readOnly": "Bu murojaat sizga biriktirilmagan — faqat ko'rish mumkin.",
+    "loadOlder": "Oldingi xabarlar",
+    "loadingMsgs": "Xabarlar yuklanmoqda…",
+    "noMessages": "Hali xabar yo'q.",
+    "ph": "Xabaringizni yozing…",
+    "send": "Yuborish",
+    "callUs": "Qo'ng'iroq qilish",
+    "queueTitle": "Support murojaatlari",
+    "queueLead": "Mijozlar murojaatlari navbati — oling, javob bering, o'tkazing yoki yakunlang.",
+    "queueEmpty": "Bu bo'limda murojaat yo'q.",
+    "client": "Mijoz",
+    "createdAt": "Ochilgan",
+    "statusLabel": "Holat",
+    "claim": "Olish",
+    "claimedOk": "Murojaat sizga biriktirildi",
+    "claimTaken": "Bu ticket boshqa operator tomonidan olindi",
+    "transfer": "Boshqa operatorga o'tkazish",
+    "transferDo": "O'tkazish",
+    "transferOk": "{name} ga o'tkazildi",
+    "transferredAway": "Murojaat boshqa operatorga o'tkazildi",
+    "operator": "Operator",
+    "operatorSearch": "Operator ismi yoki telefoni",
+    "operatorNone": "Operator topilmadi",
+    "reason": "Sabab",
+    "reasonPh": "Masalan: to'lov bo'yicha mutaxassisga",
+    "reasonRequired": "Sababni yozing",
+    "close": "Muloqotni yakunlash",
+    "closeDo": "Yakunlash",
+    "closeNote": "Yopilgandan keyin mijoz bu murojaatga yoza olmaydi.",
+    "resolution": "Yakuniy xulosa",
+    "resolutionPh": "Masalan: mijozga tarif tanlab berildi",
+    "resolutionRequired": "Yakuniy xulosani yozing",
+    "closedOk": "Murojaat yopildi",
+    "tabs": {
+      "new": "Yangi",
+      "mine": "Menga biriktirilgan",
+      "transferred": "O'tkazilgan",
+      "closed": "Yopilgan"
+    },
+    "status": {
+      "waiting_operator": "Operator kutilmoqda",
+      "claimed": "Operator ulandi",
+      "transferred": "O'tkazilgan",
+      "reopened": "Qayta ochilgan",
+      "closed": "Ticket yopilgan"
+    },
+    "categories": {
+      "general": "Umumiy",
+      "subscription": "Tarif / obuna",
+      "payment": "To'lov",
+      "marketplace": "Advokat topish",
+      "documents": "Hujjatlar",
+      "urgent_advokat": "Tezkor advokat",
+      "account": "Hisob",
+      "technical": "Texnik muammo"
+    },
+    "priorities": {
+      "low": "Past",
+      "normal": "Oddiy",
+      "high": "Yuqori"
+    },
+    "roles": {
+      "client": "Mijoz",
+      "operator": "Operator",
+      "call_center": "Operator",
+      "call_center_lawyer": "Operator",
+      "admin": "Admin",
+      "superadmin": "Admin",
+      "system": "Tizim",
+      "ai": "AI yordamchi"
+    }
+  },
   "marketplace": {
     "aiReasons": "Moslik sabablari",
     "askSupport": "Operatorga murojaat",
@@ -2004,6 +2095,8 @@
   },
   "portal": {
     "support": {
+      "operatorSub": "Jonli operator bilan yozishma",
+      "operator": "Operatorga ulanish",
       "label": "Qo'llab-quvvatlash",
       "title": "Yordam kerakmi?",
       "sub": "Biz shu yerdamiz — qulay yo'lni tanlang.",
@@ -2665,6 +2758,7 @@
         "meetings": "Uchrashuvlar"
       },
       "client": {
+        "support": "Yordam markazi",
         "marketplaceOrders": "Xizmat buyurtmalarim",
         "urgent": "Tezkor Advokat",
         "dashboard": "Boshqaruv paneli",
@@ -6379,6 +6473,7 @@
       "system": "Tizim"
     },
     "nav": {
+      "supportTickets": "Support murojaatlari",
       "marketplace": "Marketplace monitoring",
       "overview": "Umumiy",
       "services": "Xizmatlar",

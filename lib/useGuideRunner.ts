@@ -36,10 +36,12 @@ export function useGuideRunner(role: GuideRole, opts: { covers?: () => DOMRect |
     async (href: string): Promise<boolean> => {
       const to = guideHref(href, role);
       if (!to) return false;
-      if (samePath(pathRef.current, to)) return true;
+      const query = to.includes("?") ? to.slice(to.indexOf("?")).split("#")[0] : "";
+      const arrived = () => samePath(pathRef.current, to) && (!query || window.location.search === query);
+      if (arrived()) return true;
       router.push(to as Parameters<typeof router.push>[0]);
       const t0 = Date.now();
-      while (!samePath(pathRef.current, to)) {
+      while (!arrived()) {
         if (Date.now() - t0 > NAV_TIMEOUT) {
           toast(t("navFailed"), { tone: "err" });
           return false;

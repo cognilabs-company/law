@@ -58,6 +58,17 @@ export default function SupportMenu({ role }: { role: Role }) {
             </Link>
           ) : null}
           {client ? (
+            <Link role="menuitem" href="/portal/client/support?new=1" className="psup__it" onClick={done}>
+              <span className="psup__ic psup__ic--op">
+                <IconHeadset />
+              </span>
+              <span className="psup__tx">
+                <b>{t("operator")}</b>
+                <small>{t("operatorSub")}</small>
+              </span>
+            </Link>
+          ) : null}
+          {client ? (
             <Link role="menuitem" href="/portal/client/complaints" className="psup__it" onClick={done}>
               <span className="psup__ic psup__ic--case">
                 <IconAlert />

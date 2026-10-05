@@ -19,6 +19,7 @@ import {
   IconDocLines,
   IconFileText,
   IconShield,
+  IconHeadset,
   IconShieldCheck,
   IconChat,
   IconUsers,
@@ -103,6 +104,7 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   {
     group: "support",
     items: [
+      { href: "/admin/call-center/support", key: "supportTickets", Icon: IconHeadset, perm: ["leads.manage", "callcenter.access"] },
       { href: "/admin/legal-aid", key: "legalAid", Icon: IconScale, perm: "legal_aid.manage" },
       { href: "/admin/notifications", key: "notifications", Icon: IconChat, perm: "notifications.manage" },
     ],

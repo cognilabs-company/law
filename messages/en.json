@@ -1,4 +1,95 @@
 {
+  "support": {
+    "title": "Help center",
+    "lead": "If something doesn't work on the platform, message an operator — we reply in the in-app chat.",
+    "newTicket": "Contact an operator",
+    "category": "Topic",
+    "priority": "Priority",
+    "message": "Briefly describe the problem",
+    "messagePh": "For example: payment fails when buying a plan",
+    "submit": "Open a ticket",
+    "cancel": "Cancel",
+    "created": "Ticket opened: {id}",
+    "createdPlain": "Ticket opened",
+    "empty": "You have no tickets yet.",
+    "pickTicket": "Pick a ticket on the left or open a new one.",
+    "back": "Back",
+    "untitled": "Ticket",
+    "operatorIs": "Operator: {name}",
+    "waitingBanner": "Waiting for an operator — we'll reply shortly.",
+    "closedBanner": "Ticket closed",
+    "readOnly": "This ticket isn't assigned to you — view only.",
+    "loadOlder": "Earlier messages",
+    "loadingMsgs": "Loading messages…",
+    "noMessages": "No messages yet.",
+    "ph": "Type your message…",
+    "send": "Send",
+    "callUs": "Call us",
+    "queueTitle": "Support tickets",
+    "queueLead": "The client ticket queue — claim, reply, transfer or close.",
+    "queueEmpty": "No tickets in this tab.",
+    "client": "Client",
+    "createdAt": "Opened",
+    "statusLabel": "Status",
+    "claim": "Claim",
+    "claimedOk": "The ticket is assigned to you",
+    "claimTaken": "Another operator already took this ticket",
+    "transfer": "Transfer to another operator",
+    "transferDo": "Transfer",
+    "transferOk": "Transferred to {name}",
+    "transferredAway": "The ticket was transferred to another operator",
+    "operator": "Operator",
+    "operatorSearch": "Operator name or phone",
+    "operatorNone": "No operator found",
+    "reason": "Reason",
+    "reasonPh": "For example: to the payments specialist",
+    "reasonRequired": "Please give a reason",
+    "close": "End the conversation",
+    "closeDo": "Close",
+    "closeNote": "After closing, the client can't write to this ticket.",
+    "resolution": "Resolution",
+    "resolutionPh": "For example: helped the client pick a plan",
+    "resolutionRequired": "Please write the resolution",
+    "closedOk": "Ticket closed",
+    "tabs": {
+      "new": "New",
+      "mine": "Assigned to me",
+      "transferred": "Transferred",
+      "closed": "Closed"
+    },
+    "status": {
+      "waiting_operator": "Waiting for operator",
+      "claimed": "Operator joined",
+      "transferred": "Transferred",
+      "reopened": "Reopened",
+      "closed": "Ticket closed"
+    },
+    "categories": {
+      "general": "General",
+      "subscription": "Plan / subscription",
+      "payment": "Payment",
+      "marketplace": "Finding a lawyer",
+      "documents": "Documents",
+      "urgent_advokat": "Urgent advocate",
+      "account": "Account",
+      "technical": "Technical issue"
+    },
+    "priorities": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High"
+    },
+    "roles": {
+      "client": "Client",
+      "operator": "Operator",
+      "call_center": "Operator",
+      "call_center_lawyer": "Operator",
+      "admin": "Admin",
+      "superadmin": "Admin",
+      "system": "System",
+      "ai": "AI assistant"
+    }
+  },
   "marketplace": {
     "aiReasons": "Why it matches",
     "askSupport": "Contact an operator",
@@ -1998,6 +2089,8 @@
   },
   "portal": {
     "support": {
+      "operatorSub": "Chat with a live operator",
+      "operator": "Contact an operator",
       "label": "Support",
       "title": "Need help?",
       "sub": "We are here — pick what suits you.",
@@ -2659,6 +2752,7 @@
         "meetings": "Meetings"
       },
       "client": {
+        "support": "Help center",
         "marketplaceOrders": "My service orders",
         "urgent": "Urgent advocate",
         "dashboard": "Dashboard",
@@ -6373,6 +6467,7 @@
       "system": "System"
     },
     "nav": {
+      "supportTickets": "Support tickets",
       "marketplace": "Marketplace monitoring",
       "overview": "Overview",
       "services": "Services",
