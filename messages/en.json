@@ -2,8 +2,8 @@
   "marketplace": {
     "metaTitle": "Lawyers and advocates marketplace",
     "kicker": "Marketplace",
-    "title": "Find the <hl>right specialist</hl> for your case",
-    "lead": "Type a name, practice area or service — verified advocates and lawyers are sorted instantly. Prices are known up front; a secure chat opens after payment.",
+    "title": "Describe your problem — <hl>AI finds the right</hl> specialist",
+    "lead": "Explain your situation in plain words or type a name, practice area or service — the best matches among verified advocates and lawyers are picked out.",
     "heroStats": {
       "sellers": "specialists",
       "services": "services",
@@ -13,6 +13,10 @@
     "searchPhExample": "For example: {ex}",
     "findBtn": "Find",
     "examplesLabel": "Popular:",
+    "aiThinking": "AI is finding matching specialists",
+    "aiFound": "AI found {n} matching specialists",
+    "aiMatch": "{pct}% match",
+    "aiPick": "AI pick",
     "searchLabel": "Search",
     "searchClear": "Clear",
     "roles": {
@@ -23,6 +27,8 @@
     },
     "filters": {
       "toggle": "Filters",
+      "show": "Show {n} results",
+      "close": "Close",
       "region": "Region",
       "allRegions": "All regions",
       "specialization": "Area",

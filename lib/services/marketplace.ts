@@ -197,6 +197,37 @@ export async function listMarketplace(opts: { sort?: string; offset?: number; in
   return { items, total: asNum(d.total, items.length), meta: normMeta(d.meta) };
 }
 
+export type MarketAiMatch = { userId: string; score: number; reason: string };
+export type MarketAiResult = { matches: MarketAiMatch[]; summary: string };
+
+let aiSearchMissing = false;
+
+export const marketAiAvailable = () => !aiSearchMissing;
+
+function normAiMatch(v: unknown): MarketAiMatch {
+  const d = asDict(v);
+  const raw = asNum(d.score ?? d.match_score ?? d.relevance ?? d.confidence, 0);
+  return {
+    userId: asStr(d.lawyer_user_id ?? d.user_id ?? d.seller_user_id ?? d.lawyer_id ?? d.id),
+    score: Math.max(0, Math.min(1, raw > 1 ? raw / 100 : raw)),
+    reason: asStr(d.reason ?? d.explanation ?? d.why ?? d.match_reason),
+  };
+}
+
+export async function aiSearchMarketplace(query: string): Promise<MarketAiResult | null> {
+  if (aiSearchMissing) return null;
+  try {
+    const d = asDict(await http("/marketplace/ai-search", { method: "POST", body: JSON.stringify({ query, limit: 30 }) }));
+    const list = asArr(d.items ?? d.matches ?? d.results ?? d.lawyers);
+    const seen = new Set<string>();
+    const matches = list.map(normAiMatch).filter((m) => m.userId && !seen.has(m.userId) && (seen.add(m.userId), true));
+    return { matches, summary: asStr(d.summary ?? d.explanation ?? d.message) };
+  } catch (e) {
+    if (e instanceof ApiError && (e.status === 404 || e.status === 405 || e.status === 501)) aiSearchMissing = true;
+    return null;
+  }
+}
+
 export async function getMarketplaceSeller(userId: string): Promise<MarketSellerDetail> {
   const d = asDict(await http(`/marketplace/lawyers/${encodeURIComponent(userId)}`));
   return { ...normMarketSeller(d), reviews: asArr(d.reviews).map(normReview).filter((r) => r.rating > 0 || r.comment) };

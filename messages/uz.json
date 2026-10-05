@@ -2,8 +2,8 @@
   "marketplace": {
     "metaTitle": "Advokat va yuristlar marketplace'i",
     "kicker": "Marketplace",
-    "title": "Muammoingizga <hl>mos mutaxassisni</hl> toping",
-    "lead": "Ism, yo'nalish yoki xizmat nomini yozing — tasdiqlangan advokat va yuristlar shu zahoti saralanadi. Narx oldindan ma'lum, to'lovdan keyin xavfsiz chat ochiladi.",
+    "title": "Muammoingizni yozing — <hl>AI mos mutaxassisni</hl> topib beradi",
+    "lead": "Vaziyatingizni oddiy so'zlar bilan tushuntiring yoki ism, yo'nalish, xizmat nomini yozing — tasdiqlangan advokat va yuristlar orasidan eng moslari saralanadi.",
     "heroStats": {
       "sellers": "mutaxassis",
       "services": "xizmat",
@@ -13,6 +13,10 @@
     "searchPhExample": "Masalan: {ex}",
     "findBtn": "Topish",
     "examplesLabel": "Ko'p tanlanadi:",
+    "aiThinking": "AI mos mutaxassislarni qidirmoqda",
+    "aiFound": "AI {n} ta mos mutaxassis topdi",
+    "aiMatch": "{pct}% mos",
+    "aiPick": "AI tanlovi",
     "searchLabel": "Qidiruv",
     "searchClear": "Tozalash",
     "roles": {
@@ -23,6 +27,8 @@
     },
     "filters": {
       "toggle": "Filtrlar",
+      "show": "{n} ta natijani ko'rsatish",
+      "close": "Yopish",
       "region": "Hudud",
       "allRegions": "Barcha hududlar",
       "specialization": "Yo'nalish",
