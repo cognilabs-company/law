@@ -172,7 +172,7 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
   }, [ready]);
 
   function handleClick() {
-    if (DEBUG_ROBOT) {
+    if (DEBUG_ROBOT && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("robot") === "debug") {
       const controller = controllerRef.current;
       if (!controller) return;
       DEMO_STEPS[demoStepRef.current % DEMO_STEPS.length](controller);
@@ -193,14 +193,14 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
         style={{ width: size.width, height: size.height }}
         role="button"
         tabIndex={0}
-        aria-label={DEBUG_ROBOT ? "LexGo AI (dev: click to cycle behaviors, gestures, and face expressions)" : "LexGo AI"}
+        aria-label="LexGo AI instruktor"
+        title="LexGo AI instruktor"
         onClick={handleClick}
         onMouseEnter={() => !DEBUG_ROBOT && RobotEvents.emit("peek")}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            if (DEBUG_ROBOT) handleClick();
-            else onRobotClick?.();
+            handleClick();
           }
         }}
       >

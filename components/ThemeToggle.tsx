@@ -59,7 +59,7 @@ export default function ThemeToggle({ variant = "bar" }: { variant?: "bar" | "sq
 
   const Current = OPTIONS.find((o) => o.pref === pref)?.Icon ?? IconMonitor;
   return (
-    <div className={`thm thm--${variant}`} ref={ref}>
+    <div className={`thm thm--${variant}`} ref={ref} data-ai-target="header:theme">
       <button
         type="button"
         className={variant === "bar" ? "btn btn--glass btn--sm thm__btn" : "thm__btn thm__sq"}

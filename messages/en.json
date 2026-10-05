@@ -1,4 +1,94 @@
 {
+  "guide": {
+    "caption": {
+      "generic": "This is “{label}”."
+    },
+    "ui": {
+      "narrator": "AI instructor",
+      "next": "Next",
+      "back": "Back",
+      "done": "Got it",
+      "skip": "Skip",
+      "close": "Close",
+      "stop": "Stop",
+      "stopHint": "Stop (Esc)",
+      "navigating": "Opening the right page…",
+      "locating": "Looking for the right spot…",
+      "missing": "This element isn't visible on the page right now.",
+      "navFailed": "The page didn't open. Please try again.",
+      "pageFallback": "Here's this page — let's go through its main parts."
+    },
+    "tours": {
+      "common": {
+        "support": "Need help? Choose the AI instructor, an operator chat, a complaint or a call here."
+      },
+      "client_dashboard": {
+        "title": "This is your dashboard — every service starts here.",
+        "describe": "Describe your problem in plain words — AI picks the right service and lawyer.",
+        "urgent": "In an emergency, reach an urgent advocate from here.",
+        "findSpecialist": "Find verified advocates and lawyers here."
+      },
+      "client_subscription": {
+        "title": "The plans page — AI request and document analysis limits.",
+        "pro": "Pro plan: 1000 AI requests a month, document analysis and case-law search.",
+        "buy": "To pick a plan, press this button yourself — payment happens only with your confirmation."
+      },
+      "client_lawyers": {
+        "search": "Describe your situation — AI finds a matching advocate or lawyer.",
+        "filters": "Sort by region, service, experience, rating and price."
+      },
+      "client_services": {
+        "create": "A new document order starts with this button.",
+        "categories": "First choose the area you need.",
+        "templates": "Then pick the document type and fill it in."
+      },
+      "client_documents": {
+        "list": "All your finished and in-progress documents are here."
+      },
+      "client_urgent": {
+        "services": "Urgent advocate services: video, chat and a second opinion.",
+        "video": "An instant video consultation with an advocate starts here."
+      },
+      "client_support": {
+        "operator": "Start a chat with a live operator with this button.",
+        "list": "All your operator chats are in this list."
+      },
+      "client_marketplace_orders": {
+        "list": "Your purchased services and their status are here."
+      },
+      "seller_document_requests": {
+        "list": "Document requests sent to you — take one and start working."
+      },
+      "seller_marketplace_orders": {
+        "list": "Services clients bought from you and the order status are here."
+      },
+      "admin_support": {
+        "list": "The queue of client operator chats: claim, reply, transfer or close."
+      }
+    },
+    "suggest": {
+      "client": {
+        "plan": "I need a plan around 100 thousand",
+        "lawyer": "I need a lawyer for a car accident",
+        "document": "I want to create a document",
+        "operator": "I need an operator, payment isn't working",
+        "planCompare": "What's the difference between plans?",
+        "planPay": "How do I pay for a plan?",
+        "lawyerRating": "How do I find a highly rated lawyer?",
+        "documentCheck": "I want my document checked",
+        "urgent": "I want to talk to a lawyer now"
+      },
+      "seller": {
+        "works": "Where are my incoming requests?",
+        "orders": "Where are my marketplace orders?",
+        "profile": "How do I fill in my profile?"
+      },
+      "staff": {
+        "queue": "Where are new operator chats?",
+        "urgent": "Where is the urgent advocate queue?"
+      }
+    }
+  },
   "orgOwner": {
     "title": "Organization management",
     "allOrgs": "All organizations",
@@ -2722,8 +2812,24 @@
       "checklistHint": "Each line is an item. Mark done items with \"[x]\"."
     },
     "aiAssistant": {
-      "targetMissing": "This element isn't visible on the page right now",
-      "navFailed": "The page didn't open. Please try again.",
+      "ticketWrite": "Write any extra details here — the operator replies in this chat.",
+      "pageTourShort": "Show this page",
+      "ticketShown": "Your request is sent — your chat with an operator is here.",
+      "showMe": "Show me",
+      "safety": "I never click or pay anything on your behalf.",
+      "newChat": "New chat",
+      "try": "For example:",
+      "pageTourSub": "I'll show the main parts one by one",
+      "pageTour": "What's on this page?",
+      "capOperator": "I connect you to an operator if needed",
+      "capExplain": "I explain what to do",
+      "capGo": "I take you to the page",
+      "capShow": "I point out the right spot",
+      "greet": "Hi! I'm the LexGo AI instructor. Tell me what you want to do — I'll open the right page and show you exactly where to click.",
+      "youAreOn": "You are on: {page}",
+      "subtitle": "I show you around the platform",
+      "online": "Online",
+      "open": "Open the AI instructor",
       "ticketCreatedPlain": "Ticket opened",
       "ticketCreated": "Ticket opened: {id}",
       "confirmNo": "Cancel",
@@ -2732,41 +2838,17 @@
       "confirmTitle": "Contact an operator",
       "toOperator": "Contact an operator",
       "replay": "Show again",
-      "stepFocus": "Field ready",
-      "stepTooltip": "Hint shown",
-      "stepHighlight": "Highlighted",
-      "stepScroll": "Scrolled to the spot",
-      "stepNavigate": "Page opened",
       "done": "Done.",
-      "showing": "Showing you…",
-      "egUrgentQueue": "Where is the urgent advocate queue?",
-      "egQueue": "Where are new support tickets?",
-      "egOrders": "Where are my marketplace orders?",
-      "egWorks": "Where are my incoming requests?",
-      "egSupport": "I need an operator, payment isn't working",
-      "egPlan": "I need a plan around 100 thousand",
-      "title": "Assistant",
+      "title": "LexGo AI instructor",
       "close": "Close",
-      "intro": "Type your question and I'll show you where to go.",
-      "egLawyer": "I need a lawyer for a car accident",
-      "egDocs": "I want to create a document",
-      "egUrgent": "How do I reach an urgent advocate?",
       "ph": "What would you like to do?",
       "send": "Send",
       "thinking": "Thinking…",
       "failed": "No answer came back. Try again.",
-      "goTo": "Go to the page",
-      "sources": "What this is based on",
-      "lowConfidence": "This answer is not certain — narrow the question and I can do better.",
       "useful": "Was this useful?",
       "yes": "Yes",
       "no": "No",
-      "thanks": "Thank you",
-      "intent": {
-        "permission_denied": "Not permitted",
-        "unsupported": "Not available",
-        "clarification": "Needs clarifying"
-      }
+      "thanks": "Thank you"
     },
     "assistant": {
       "title": "AI assistant",

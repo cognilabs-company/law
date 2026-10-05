@@ -51,6 +51,7 @@ export default function NotificationBell({ role }: { role: string }) {
     <Link
       href={`/portal/${role}/notifications`}
       className={`ptop__bell${pop ? " ptop__bell--pop" : ""}`}
+      data-ai-target="header:notifications"
       aria-label={count > 0 ? t("ariaN", { n: count }) : t("aria")}
     >
       <IconBell />

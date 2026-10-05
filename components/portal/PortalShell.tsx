@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess, type Role } from "@/lib/auth";
+import { useAiReveal } from "@/lib/guide/targets";
 import { initials } from "@/lib/lawyers";
 import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
@@ -220,6 +221,9 @@ export default function PortalShell({
   // The system assistant's panel. Owned here rather than by the component so
   // the robot in the corner can open it.
   const [aiOpen, setAiOpen] = useState(false);
+  useAiReveal(/^nav:/, () => {
+    if (window.matchMedia("(max-width: 900px)").matches) setOpenPath(pathname);
+  });
   useEffect(() => {
     const h = setTimeout(() => {
       try { if (localStorage.getItem("lexgo_sidebar_collapsed") === "1") setCollapsed(true); } catch { /* ignore */ }
@@ -339,6 +343,7 @@ export default function PortalShell({
               return (
                 <span
                   key={href}
+                  data-ai-target={`nav:${key}`}
                   className="psb__link psb__link--locked"
                   aria-disabled="true"
                   title={t("pending.locked")}
@@ -350,7 +355,7 @@ export default function PortalShell({
               );
             }
             return (
-              <Link key={href} href={href} className={`psb__link${on ? " on" : ""}`} title={collapsed ? label : undefined}>
+              <Link key={href} href={href} className={`psb__link${on ? " on" : ""}`} title={collapsed ? label : undefined} data-ai-target={`nav:${key}`}>
                 <Icon />
                 <span className="psb__label">{label}</span>
               </Link>
@@ -405,13 +410,13 @@ export default function PortalShell({
             >
               {open ? <IconClose /> : <IconMenu />}
             </button>
-            <h1>{title}</h1>
+            <h1 data-ai-target="ai-help:current-page">{title}</h1>
             <div className="ptop__sp">
               <SupportMenu role={role} />
               <NotificationBell role={role} />
               <ThemeToggle variant="square" />
               <LanguageSwitcher />
-              <Link className="ptop__user" href={profileHref} title={session.name}>
+              <Link className="ptop__user" href={profileHref} title={session.name} data-ai-target="header:profile">
                 <span className="ptop__av">{initials(session.name || "U")}</span>
                 <span>{session.name}</span>
               </Link>

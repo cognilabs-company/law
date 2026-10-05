@@ -1,4 +1,94 @@
 {
+  "guide": {
+    "caption": {
+      "generic": "Bu yer — «{label}»."
+    },
+    "ui": {
+      "narrator": "AI instruktor",
+      "next": "Keyingi",
+      "back": "Orqaga",
+      "done": "Tushunarli",
+      "skip": "O'tkazib yuborish",
+      "close": "Yopish",
+      "stop": "To'xtatish",
+      "stopHint": "To'xtatish (Esc)",
+      "navigating": "Kerakli sahifani ochyapman…",
+      "locating": "Kerakli joyni qidiryapman…",
+      "missing": "Bu element hozir sahifada ko'rinmadi.",
+      "navFailed": "Sahifa ochilmadi. Qayta urinib ko'ring.",
+      "pageFallback": "Mana shu sahifa — asosiy bo'limlari bilan tanishamiz."
+    },
+    "tours": {
+      "common": {
+        "support": "Yordam kerak bo'lsa — shu yerdan AI instruktor, operator bilan chat, shikoyat yoki qo'ng'iroqni tanlaysiz."
+      },
+      "client_dashboard": {
+        "title": "Bu sizning boshqaruv panelingiz — barcha xizmatlarga shu yerdan kirasiz.",
+        "describe": "Muammoingizni oddiy so'zlar bilan yozing — AI mos xizmat va advokatni tanlab beradi.",
+        "urgent": "Shoshilinch holatda shu yerdan tezkor advokat bilan bog'lanasiz.",
+        "findSpecialist": "Tasdiqlangan advokat va yuristlarni shu yerdan topasiz."
+      },
+      "client_subscription": {
+        "title": "Tariflar sahifasi — AI so'rovlari va hujjat tahlili limitlari shu yerda.",
+        "pro": "Pro tarif: oyiga 1000 ta AI so'rovi, hujjat tahlili va sud amaliyoti qidiruvi.",
+        "buy": "Tarifni tanlash uchun shu tugmani o'zingiz bosasiz — to'lov faqat sizning tasdig'ingiz bilan."
+      },
+      "client_lawyers": {
+        "search": "Vaziyatingizni yozing — AI mos advokat yoki yuristni topib beradi.",
+        "filters": "Hudud, xizmat, tajriba, reyting va narx bo'yicha saralang."
+      },
+      "client_services": {
+        "create": "Yangi hujjat buyurtmasini shu tugmadan boshlaysiz.",
+        "categories": "Avval kerakli yo'nalishni tanlang.",
+        "templates": "Keyin tayyor hujjat turini tanlab, to'ldirasiz."
+      },
+      "client_documents": {
+        "list": "Tayyorlangan va jarayondagi barcha hujjatlaringiz shu yerda."
+      },
+      "client_urgent": {
+        "services": "Tezkor advokat xizmatlari: video, chat va ikkinchi fikr.",
+        "video": "Advokat bilan darhol video konsultatsiya shu yerdan boshlanadi."
+      },
+      "client_support": {
+        "operator": "Jonli operator bilan yozishmani shu tugmadan boshlaysiz.",
+        "list": "Operator bilan barcha suhbatlaringiz shu ro'yxatda."
+      },
+      "client_marketplace_orders": {
+        "list": "Sotib olgan xizmatlaringiz va ularning holati shu yerda."
+      },
+      "seller_document_requests": {
+        "list": "Sizga kelgan hujjat so'rovlari shu ro'yxatda — kerakligini olib, ishlaysiz."
+      },
+      "seller_marketplace_orders": {
+        "list": "Mijozlar sotib olgan xizmatlaringiz va buyurtmalar holati shu yerda."
+      },
+      "admin_support": {
+        "list": "Mijozlarning operator chatlari navbati: oling, javob bering, o'tkazing yoki yakunlang."
+      }
+    },
+    "suggest": {
+      "client": {
+        "plan": "100 ming atrofidagi tarif kerak",
+        "lawyer": "Avtoavariya bo'yicha advokat kerak",
+        "document": "Hujjat yaratmoqchiman",
+        "operator": "Operator kerak, to'lov ishlamayapti",
+        "planCompare": "Tariflar farqi nimada?",
+        "planPay": "Tarifni qanday to'layman?",
+        "lawyerRating": "Reytingi yuqori advokatni qanday topaman?",
+        "documentCheck": "Hujjatimni tekshirtirmoqchiman",
+        "urgent": "Hozir advokat bilan gaplashmoqchiman"
+      },
+      "seller": {
+        "works": "Kelgan ishlarim qayerda?",
+        "orders": "Marketplace buyurtmalarim qayerda?",
+        "profile": "Profilimni qanday to'ldiraman?"
+      },
+      "staff": {
+        "queue": "Yangi operator chatlari qayerda?",
+        "urgent": "Tezkor advokat navbati qayerda?"
+      }
+    }
+  },
   "orgOwner": {
     "title": "Tashkilot boshqaruvi",
     "allOrgs": "Barcha tashkilotlar",
@@ -2728,8 +2818,24 @@
       "checklistHint": "Har bir qator — alohida band. Bajarilganini \"[x]\" bilan belgilang."
     },
     "aiAssistant": {
-      "targetMissing": "Bu element hozir sahifada ko'rinmadi",
-      "navFailed": "Sahifa ochilmadi. Qayta urinib ko'ring.",
+      "ticketWrite": "Qo'shimcha ma'lumotni shu yerga yozasiz — operator shu chatda javob beradi.",
+      "pageTourShort": "Sahifani ko'rsat",
+      "ticketShown": "Murojaatingiz yuborildi — operator bilan suhbatingiz shu yerda.",
+      "showMe": "Ko'rsatish",
+      "safety": "Men hech narsani sizning nomingizdan bosmayman va to'lamayman.",
+      "newChat": "Yangi suhbat",
+      "try": "Masalan:",
+      "pageTourSub": "Asosiy joylarni birma-bir ko'rsatib beraman",
+      "pageTour": "Bu sahifada nima bor?",
+      "capOperator": "Kerak bo'lsa operatorga ulayman",
+      "capExplain": "Nima qilishni tushuntiraman",
+      "capGo": "Sahifaga olib boraman",
+      "capShow": "Kerakli joyni ko'rsataman",
+      "greet": "Salom! Men LexGo AI instruktoriman. Nima qilmoqchi ekaningizni yozing — kerakli sahifaga olib borib, aynan qayerni bosishni ko'rsataman.",
+      "youAreOn": "Siz hozir: {page}",
+      "subtitle": "platformada yo'l ko'rsataman",
+      "online": "Onlayn",
+      "open": "AI instruktorni ochish",
       "ticketCreatedPlain": "Murojaat ochildi",
       "ticketCreated": "Murojaat ochildi: {id}",
       "confirmNo": "Bekor qilish",
@@ -2738,41 +2844,17 @@
       "confirmTitle": "Operatorga ulanish",
       "toOperator": "Operatorga ulanish",
       "replay": "Yana ko'rsatish",
-      "stepFocus": "Maydon tayyor",
-      "stepTooltip": "Izoh ko'rsatildi",
-      "stepHighlight": "Belgilandi",
-      "stepScroll": "Kerakli joyga o'tildi",
-      "stepNavigate": "Sahifa ochildi",
       "done": "Tayyor.",
-      "showing": "Ko'rsatyapman…",
-      "egUrgentQueue": "Tezkor advokat navbati qayerda?",
-      "egQueue": "Yangi support murojaatlari qayerda?",
-      "egOrders": "Marketplace buyurtmalarim qayerda?",
-      "egWorks": "Kelgan ishlarim qayerda?",
-      "egSupport": "Operator kerak, to'lov ishlamayapti",
-      "egPlan": "100 ming atrofidagi tarif kerak",
-      "title": "Yordamchi",
+      "title": "LexGo AI instruktor",
       "close": "Yopish",
-      "intro": "Savolingizni yozing, kerakli joyni ko'rsataman.",
-      "egLawyer": "Avtoavariya bo'yicha advokat kerak",
-      "egDocs": "Hujjat yaratmoqchiman",
-      "egUrgent": "Tezkor advokatga qanday murojaat qilaman?",
       "ph": "Nima qilmoqchisiz?",
       "send": "Yuborish",
-      "thinking": "O'ylayapti…",
+      "thinking": "O'ylayapman…",
       "failed": "Javob olinmadi. Qayta urining.",
-      "goTo": "Bo'limga o'tish",
-      "sources": "Nimaga asoslandi",
-      "lowConfidence": "Bu javobga to'liq ishonch yo'q — savolni aniqroq yozsangiz yaxshiroq javob beraman.",
       "useful": "Foydali bo'ldimi?",
       "yes": "Ha",
       "no": "Yo'q",
-      "thanks": "Rahmat",
-      "intent": {
-        "permission_denied": "Ruxsat yo'q",
-        "unsupported": "Bunday imkoniyat yo'q",
-        "clarification": "Aniqlashtirish kerak"
-      }
+      "thanks": "Rahmat"
     },
     "assistant": {
       "title": "Sun'iy intellekt yordamchi",

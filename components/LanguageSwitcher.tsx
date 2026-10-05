@@ -36,7 +36,7 @@ export default function LanguageSwitcher() {
   const CurrentFlag = FLAG[locale] ?? FLAG.uz;
 
   return (
-    <div className="lang" ref={ref}>
+    <div className="lang" ref={ref} data-ai-target="header:language">
       <button
         type="button"
         className="btn btn--glass btn--sm"

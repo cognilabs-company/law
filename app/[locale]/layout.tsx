@@ -25,7 +25,7 @@ import RevealOnScroll from "@/components/RevealOnScroll";
 import ThemeSync from "@/components/ThemeSync";
 import ReferralCapture from "@/components/ReferralCapture";
 import Toaster from "@/components/Toaster";
-import AiGuideLayer from "@/components/AiGuideLayer";
+import GuideHost from "@/components/guide/GuideHost";
 import { THEME_SCRIPT } from "@/lib/themeScript";
 
 const inter = Inter({
@@ -99,7 +99,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <AIChatDock />
             <RevealOnScroll />
             <Toaster />
-            <AiGuideLayer />
+            <GuideHost />
           </AuthProvider>
         </IntlProvider>
         </NextIntlClientProvider>

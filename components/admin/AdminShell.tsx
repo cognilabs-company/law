@@ -9,6 +9,7 @@ import { useDemoTools } from "@/lib/demoTools";
 import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
 import IncomingCallWatcher from "../portal/IncomingCallWatcher";
+import { useAiReveal } from "@/lib/guide/targets";
 import dynamic from "next/dynamic";
 
 import {
@@ -141,6 +142,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // The mobile sidebar is open only on the path it was opened on, so navigating closes it.
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
+  useAiReveal(/^nav:/, () => {
+    if (window.matchMedia("(max-width: 900px)").matches) setOpenPath(pathname);
+  });
   const open = openPath === pathname;
 
   const isBootstrap = pathname === "/admin/bootstrap";
@@ -239,7 +243,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                 {items.map(({ href, key, Icon }) => {
                   const on = active?.href === href;
                   return (
-                    <Link key={href} href={href} className={`psb__link${on ? " on" : ""}`}>
+                    <Link key={href} href={href} className={`psb__link${on ? " on" : ""}`} data-ai-target={`nav:${key}`}>
                       <Icon />
                       {t(`nav.${key}`)}
                     </Link>
@@ -266,11 +270,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <button className="ptop__burger" type="button" aria-label={t("menu")} onClick={() => setOpenPath(open ? null : pathname)}>
             {open ? <IconClose /> : <IconMenu />}
           </button>
-          <h1>{title}</h1>
+          <h1 data-ai-target="ai-help:current-page">{title}</h1>
           <div className="ptop__sp">
             <ThemeToggle variant="square" />
             <LanguageSwitcher />
-            <Link className="ptop__user" href={profileHref} title={session?.name || t("badge")}>
+            <Link className="ptop__user" href={profileHref} title={session?.name || t("badge")} data-ai-target="header:profile">
               <span className="ptop__av">{initials(session?.name || "A")}</span>
               <span>{session?.name || t("badge")}</span>
             </Link>
