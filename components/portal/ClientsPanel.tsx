@@ -39,7 +39,7 @@ export default function ClientsPanel({ ns }: { ns: string }) {
         ) : !res.data.length ? (
           <EmptyState icon={<IconUsers />} title={t("empty")} text={t("emptyText")} />
         ) : (
-          <div className="pclients">
+          <div className="pclients" data-ai-target="seller:client-list">
             {res.data.map((c) => (
               <div className="pclient pclient--btn" key={c.id} role="button" tabIndex={0} onClick={() => setDetail(c.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(c.id); } }}>
                 <span className="pclient__av">{initials(c.name || "?")}</span>

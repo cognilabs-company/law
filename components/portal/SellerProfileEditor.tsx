@@ -231,7 +231,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
   const panel = (id: string, icon: ReactNode, title: string, read: ReactNode, edit: ReactNode) => {
     const on = section === id;
     return (
-      <div className="ppanel">
+      <div className="ppanel" data-ai-target={id === "personal" ? "seller:profile-edit" : undefined}>
         <div className="ppanel__h">
           <b className="ppanel__t">{icon}{title}</b>
           {on ? (

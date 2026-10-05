@@ -114,7 +114,7 @@ export default function PlanCard({
   const pick = onSelect ? ` splan--pick${selected ? " splan--sel" : ""}` : "";
 
   return (
-    <div className={`splan${frame}${pick}`} onClick={onSelect}>
+    <div className={`splan${frame}${pick}`} onClick={onSelect} data-ai-target={`plan:${slug}`}>
       {ribbon ? (
         <span className={`splan__ribbon${state === "current" ? " splan__ribbon--current" : ""}`}>
           {state === "current" ? <IconCheck /> : <IconStar />}
@@ -153,6 +153,7 @@ export default function PlanCard({
         <button
           type="button"
           className={`btn ${CTA_CLASS[cta.variant ?? "line"]} btn--full`}
+          data-ai-target={`button:buy-plan:${slug}`}
           disabled={cta.disabled}
           aria-pressed={cta.pressed}
           onClick={cta.onClick}

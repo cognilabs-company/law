@@ -469,7 +469,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                 // Naming it says so, and keeps the card and its button in step.
                 const featured = i === 1;
                 return (
-                  <div key={plan.id} className={`splan${isCurrent ? " splan--current" : featured ? " splan--feat" : ""}`}>
+                  <div key={plan.id} className={`splan${isCurrent ? " splan--current" : featured ? " splan--feat" : ""}`} data-ai-target={`plan:${plan.slug}`}>
                     {isCurrent ? <span className="splan__ribbon splan__ribbon--current"><IconCheck />{t("current")}</span> : null}
                     <div className="splan__h">
                       <b className="splan__name">{planName(plan)}</b>
@@ -491,6 +491,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                     <button
                       type="button"
                       className={`btn ${featured ? FEATURED_CTA : "btn--line"} btn--full`}
+                      data-ai-target={`button:buy-plan:${plan.slug}`}
                       disabled={busy === plan.id}
                       onClick={() => choose(plan, pr.total, billingPeriod(term, upfront))}
                     >

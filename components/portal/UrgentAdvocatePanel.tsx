@@ -481,7 +481,7 @@ export default function UrgentAdvocatePanel() {
       ) : catState === "error" ? (
         <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
       ) : (
-        <div className="ua__grid">
+        <div className="ua__grid" data-ai-target="section:urgent-services">
           {cards.map((card) => {
             // A group card stands for whichever of its members is picked, and
             // offers the first one when nothing is.
@@ -503,6 +503,7 @@ export default function UrgentAdvocatePanel() {
                 key={card.key}
                 type="button"
                 className={`uacard${on ? " on" : ""}`}
+                data-ai-target={card.key === VIDEO_GROUP ? "urgent:video-consultation" : `urgent:${card.key.replace(/_/g, "-")}`}
                 // aria-pressed is gone: every card now opens the order dialog,
                 // so none of them is a toggle any more and announcing one as
                 // pressed described state the button no longer owns. The `on`

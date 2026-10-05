@@ -428,7 +428,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           ) : null}
           {showMine ? (
             historyBody ?? (
-              <div className="mlist">
+              <div className="mlist" data-ai-target="seller:meeting-list">
                 {live.length ? (
                   <div className="mlist__grp">
                     <span className="mlist__gl"><i className="mlist__dot" />{t("activeGroup")} · {live.length}</span>

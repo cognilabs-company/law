@@ -263,7 +263,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
       ) : !activeRows.length ? (
         filteredEmpty
       ) : (
-        <div className="pcards">
+        <div className="pcards" data-ai-target="list:document-requests">
           {activeRows.map((r) => {
             const locked = POOL_FLOW_STATUSES.has(r.status) && !r.canOpenEditor && r.status !== "completed";
             return (

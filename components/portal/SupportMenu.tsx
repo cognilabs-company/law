@@ -34,8 +34,8 @@ export default function SupportMenu({ role }: { role: Role }) {
   const done = () => setOpen(false);
 
   return (
-    <div className="psup" ref={box}>
-      <button type="button" className={`psup__btn${open ? " psup__btn--on" : ""}`} aria-label={t("label")} title={t("label")} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+    <div className="psup" ref={box} data-ai-target="ai-help:current-page">
+      <button type="button" data-ai-target="button:support" className={`psup__btn${open ? " psup__btn--on" : ""}`} aria-label={t("label")} title={t("label")} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         <span className="psup__wave" aria-hidden="true" />
         <span className="psup__wave psup__wave--late" aria-hidden="true" />
         <IconHeadset />

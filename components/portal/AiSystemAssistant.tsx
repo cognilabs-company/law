@@ -5,10 +5,18 @@ import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { aiAssistantAsk, type AiAnswer } from "@/lib/services/backend";
 import { aiPageIdFor, aiRouteFor, type AiRole } from "@/lib/aiPages";
-import { errDetail, logApiError } from "@/lib/http";
+import { errDetail, isAborted, isRouteMissing, logApiError } from "@/lib/http";
+import { featureMissing } from "@/lib/endpointGate";
+import { visibleTargets, type GuideRole } from "@/lib/aiGuide";
+import { useGuideRunner } from "@/lib/useGuideRunner";
+import { askInstructor, confirmInstructorAction, previewInstructorAction, type GuideAction, type InstructorReply } from "@/lib/services/instructor";
+import { createSupportTicket, supportCategoryFor } from "@/lib/services/support";
+import { errorText } from "@/lib/errorText";
+import { toast } from "@/lib/toast";
+import Modal from "@/components/admin/Modal";
 import {
   IconSparkle, IconSend, IconClose, IconArrowRight, IconInfo,
-  IconCheck, IconAlert, IconLock,
+  IconCheck, IconAlert, IconLock, IconHeadset, IconRefresh,
 } from "@/components/icons";
 
 // LEXGO_AI_SYSTEM_ASSISTANT_FRONTEND_BACKEND_2026-09-29.md.
@@ -44,7 +52,25 @@ const INTENT_ICON: Record<string, typeof IconInfo> = {
 type Msg =
   | { kind: "me"; id: string; text: string }
   | { kind: "ai"; id: string; ans: AiAnswer; rated: number }
+  | { kind: "guide"; id: string; reply: InstructorReply; message: string; steps: GuideAction["type"][]; state: "running" | "done" | "partial" }
   | { kind: "err"; id: string; text: string };
+
+type Confirm = { actionType: string; message: string; text: string; busy: boolean; error: string };
+
+const EXAMPLES: Record<GuideRole, string[]> = {
+  client: ["egPlan", "egLawyer", "egDocs", "egSupport"],
+  lawyer: ["egWorks", "egOrders", "egSupport"],
+  advocate: ["egWorks", "egOrders", "egSupport"],
+  staff: ["egQueue", "egUrgentQueue"],
+};
+
+const STEP_KEY: Partial<Record<GuideAction["type"], string>> = {
+  navigate: "stepNavigate",
+  scroll_to: "stepScroll",
+  highlight: "stepHighlight",
+  tooltip: "stepTooltip",
+  focus: "stepFocus",
+};
 
 // A stable id per message without Date.now()/random in render.
 function makeId(): string {
@@ -57,13 +83,24 @@ export default function AiSystemAssistant({
   onOpen,
   onClose,
   role,
+  guideRole,
+  launcher = "auto",
 }: {
   open: boolean;
   onOpen: () => void;
   onClose: () => void;
   role: AiRole;
+  guideRole?: GuideRole;
+  launcher?: "auto" | "always";
 }) {
   const t = useTranslations("portal.aiAssistant");
+  const tc = useTranslations("common");
+  const gRole: GuideRole = guideRole ?? role;
+  const { run } = useGuideRunner(gRole, {
+    covers: () => document.querySelector(".aiasi")?.getBoundingClientRect() ?? null,
+    onCovered: onClose,
+  });
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
   const locale = useLocale();
   const pathname = usePathname();
   const router = useRouter();
@@ -97,6 +134,71 @@ export default function AiSystemAssistant({
     return () => document.removeEventListener("keydown", h);
   }, [open, onClose]);
 
+  const askConfirm = useCallback(
+    async (actionType: string, message: string) => {
+      let confirmText = t("confirmText");
+      try {
+        const p = await previewInstructorAction(actionType, message);
+        confirmText = p.confirmationText || confirmText;
+      } catch (e) {
+        if (!isRouteMissing(e)) {
+          toast(errorText(e, tc), { tone: "err" });
+          return;
+        }
+      }
+      setConfirm({ actionType, message, text: confirmText, busy: false, error: "" });
+    },
+    [t, tc],
+  );
+
+  const runGuide = useCallback(
+    async (id: string, reply: InstructorReply, message: string) => {
+      if (reply.actions.length && window.innerWidth < 900) onClose();
+      const res = await run(reply.actions);
+      setMsgs((m) => m.map((x) => (x.kind === "guide" && x.id === id ? { ...x, steps: res.steps, state: res.ok ? "done" : "partial" } : x)));
+      if (reply.requiresConfirmation) void askConfirm(reply.confirmActionType || "start_support_ticket", message);
+    },
+    [run, onClose, askConfirm],
+  );
+
+  const doConfirm = useCallback(async () => {
+    if (!confirm || confirm.busy) return;
+    setConfirm({ ...confirm, busy: true, error: "" });
+    let ticketId = "";
+    let workId = "";
+    let href = "";
+    let target = "";
+    try {
+      try {
+        const r = await confirmInstructorAction(confirm.actionType, confirm.message);
+        ticketId = r.ticket?.id ?? "";
+        workId = r.ticket?.workId ?? "";
+        href = r.nextHref;
+        target = r.nextTarget;
+      } catch (e) {
+        if (!isRouteMissing(e)) throw e;
+        const tk = await createSupportTicket({
+          message: confirm.message,
+          category: supportCategoryFor(pathname || "/", confirm.message),
+          priority: "normal",
+          context: { current_path: pathname || "/", source: "ai_instructor" },
+        });
+        ticketId = tk.id;
+        workId = tk.workId;
+      }
+    } catch (e) {
+      setConfirm((c) => (c ? { ...c, busy: false, error: isRouteMissing(e) ? tc("featureSoon") : errorText(e, tc) } : c));
+      return;
+    }
+    setConfirm(null);
+    toast(workId ? t("ticketCreated", { id: workId }) : t("ticketCreatedPlain"), { tone: "ok" });
+    const base = (href || "/portal/client/support").split("?")[0];
+    await run([
+      { type: "navigate", href: ticketId ? `${base}?ticket=${encodeURIComponent(ticketId)}` : base },
+      ...(ticketId || target ? [{ type: "highlight" as const, target: target || `support-ticket:${ticketId}`, style: "red_pulse", durationMs: 6000 }] : []),
+    ]);
+  }, [confirm, pathname, run, t, tc]);
+
   const send = useCallback(async () => {
     const message = text.trim();
     if (!message || busy) return;
@@ -105,15 +207,46 @@ export default function AiSystemAssistant({
     setText("");
     setBusy(true);
     try {
+      if (!featureMissing("instructor")) {
+        const reply = await askInstructor({ message, currentPath: pathname || "/", visibleTargets: visibleTargets() });
+        if (reply) {
+          const id = makeId();
+          setMsgs((m) => [...m, { kind: "guide", id, reply, message, steps: [], state: "running" }]);
+          setBusy(false);
+          await runGuide(id, reply, message);
+          return;
+        }
+      }
       const ans = await aiAssistantAsk({ message, sessionId: session.current, requestId, page, locale });
       setMsgs((m) => [...m, { kind: "ai", id: ans.requestId || requestId, ans, rated: 0 }]);
     } catch (e) {
+      if (isAborted(e)) return;
       logApiError("ai assistant", e);
       setMsgs((m) => [...m, { kind: "err", id: makeId(), text: errDetail(e) || t("failed") }]);
     } finally {
       setBusy(false);
     }
-  }, [text, busy, page, locale, t]);
+  }, [text, busy, page, locale, t, pathname, runGuide]);
+
+  const confirmModal = (
+    <Modal open={!!confirm} onClose={() => setConfirm(null)} title={t("confirmTitle")}>
+      <div className="aiconfirm">
+        <span className="aiconfirm__ic" aria-hidden="true">
+          <IconHeadset />
+        </span>
+        <p>{confirm?.text}</p>
+        {confirm?.error ? <p className="aiconfirm__err" role="alert">{confirm.error}</p> : null}
+        <div className="aiconfirm__acts">
+          <button type="button" className="btn btn--line" onClick={() => setConfirm(null)} disabled={confirm?.busy}>
+            {t("confirmNo")}
+          </button>
+          <button type="button" className="btn btn--pri" onClick={() => void doConfirm()} disabled={confirm?.busy}>
+            {t("confirmYes")}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
 
   function go(pageId: string, rawRoute: string) {
     const to = aiRouteFor(pageId, rawRoute, role);
@@ -135,14 +268,18 @@ export default function AiSystemAssistant({
 
   if (!open) {
     return (
-      <button type="button" className="aiasi__launch" onClick={onOpen} aria-label={t("title")} data-ai-id="assistant-open">
-        <IconSparkle />
-      </button>
+      <>
+        <button type="button" className={`aiasi__launch${launcher === "always" ? " aiasi__launch--always" : ""}`} onClick={onOpen} aria-label={t("title")} title={t("title")} data-ai-id="assistant-open">
+          <IconSparkle />
+        </button>
+        {confirmModal}
+      </>
     );
   }
 
   return (
     <div className="aiasi" role="dialog" aria-label={t("title")}>
+      {confirmModal}
       <div className="aiasi__h">
         <b><IconSparkle />{t("title")}</b>
         <button type="button" className="aiasi__x" onClick={onClose} aria-label={t("close")}>
@@ -155,7 +292,7 @@ export default function AiSystemAssistant({
           <div className="aiasi__intro">
             <p>{t("intro")}</p>
             <div className="aiasi__eg">
-              {["egLawyer", "egDocs", "egUrgent"].map((k) => (
+              {EXAMPLES[gRole].map((k) => (
                 <button key={k} type="button" onClick={() => setText(t(k))}>{t(k)}</button>
               ))}
             </div>
@@ -165,6 +302,47 @@ export default function AiSystemAssistant({
         {msgs.map((m) => {
           if (m.kind === "me") return <p className="aiasi__me" key={m.id}>{m.text}</p>;
           if (m.kind === "err") return <p className="aiasi__err" key={m.id} role="status">{m.text}</p>;
+          if (m.kind === "guide") {
+            const r = m.reply;
+            const labels = Array.from(new Set(m.steps.map((x) => STEP_KEY[x]).filter((x): x is string => Boolean(x))));
+            const visual = r.actions.some((x) => x.type !== "navigate");
+            return (
+              <div className="aiasi__ai aiasi__ai--guide" key={m.id}>
+                <p className="aiasi__text">{r.reply || t("done")}</p>
+                {m.state === "running" ? (
+                  <p className="aiasi__steps aiasi__steps--busy">
+                    <IconSparkle />
+                    {t("showing")}
+                  </p>
+                ) : labels.length ? (
+                  <p className="aiasi__steps">
+                    {labels.map((k) => (
+                      <span key={k}>
+                        <IconCheck />
+                        {t(k)}
+                      </span>
+                    ))}
+                  </p>
+                ) : null}
+                {m.state !== "running" && (visual || r.intent === "support_guidance") ? (
+                  <div className="aiasi__acts">
+                    {visual ? (
+                      <button type="button" className="btn btn--line btn--sm" onClick={() => void runGuide(m.id, { ...r, requiresConfirmation: false }, m.message)}>
+                        <IconRefresh />
+                        {t("replay")}
+                      </button>
+                    ) : null}
+                    {r.intent === "support_guidance" ? (
+                      <button type="button" className="btn btn--pri btn--sm" onClick={() => void askConfirm("start_support_ticket", m.message)}>
+                        <IconHeadset />
+                        {t("toOperator")}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
           const a = m.ans;
           const Icon = INTENT_ICON[a.intent];
           const navTo = a.navigation ? aiRouteFor(a.navigation.pageId, a.navigation.route, role) : "";

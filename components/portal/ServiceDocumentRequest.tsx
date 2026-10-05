@@ -526,7 +526,7 @@ export default function ServiceDocumentRequest({
     );
 
   return (
-    <div className="cform" style={{ maxWidth: "none" }}>
+    <div className="cform" style={{ maxWidth: "none" }} data-ai-target="documents:constructor">
       {mode !== "manual" || !sourceFile?.lawyerFlow ? null : (
         <button type="button" className="rf__link" onClick={() => setMode("choose")}>
           <IconChevronLeft />

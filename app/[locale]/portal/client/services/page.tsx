@@ -954,7 +954,7 @@ export default function ClientServices() {
             {/* Nothing in the catalog fits every case — this is the way out
                 of it: an advocate writes the document from scratch, or
                 checks one the client already has. */}
-            <button type="button" className="btn btn--grad btn--sm" onClick={() => setNewDocOpen(true)}>
+            <button type="button" className="btn btn--grad btn--sm" onClick={() => setNewDocOpen(true)} data-ai-target="button:create-document">
               <IconPlus />
               {t("newDocOrder")}
             </button>
@@ -1111,7 +1111,7 @@ export default function ClientServices() {
                 this page had ever rendered. "Barcha sohalar" is the way back
                 to the full list, which is what the Select's first option and
                 the clear button used to be. */}
-            <div className="svcats" role="radiogroup" aria-label={t("filterCategory")}>
+            <div className="svcats" role="radiogroup" aria-label={t("filterCategory")} data-ai-target="documents:category-list">
               <button
                 type="button"
                 role="radio"
@@ -1266,7 +1266,7 @@ export default function ClientServices() {
         ) : !shown.length ? (
           <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
         ) : (
-          <div className="svsel__grid svsel__grid--svc">
+          <div className="svsel__grid svsel__grid--svc" data-ai-target="documents:template-list">
             {shown.map((s, i) => {
               const hasDoc = !!s.documentTemplateId;
               // advokat_required, normalized in lib/services/backend.ts. The

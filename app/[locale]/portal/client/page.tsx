@@ -139,9 +139,9 @@ export default function ClientDashboard() {
             </>
           );
           return a.ask ? (
-            <button type="button" key={a.key} className={cls} onClick={() => setWhoOpen(true)}>{inner}</button>
+            <button type="button" key={a.key} className={cls} onClick={() => setWhoOpen(true)} data-ai-target={`dashboard:${a.key}`}>{inner}</button>
           ) : (
-            <Link href={a.href} key={a.key} className={cls}>{inner}</Link>
+            <Link href={a.href} key={a.key} className={cls} data-ai-target={`dashboard:${a.key}`}>{inner}</Link>
           );
         })}
       </div>

@@ -9,6 +9,8 @@ import { useDemoTools } from "@/lib/demoTools";
 import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
 import IncomingCallWatcher from "../portal/IncomingCallWatcher";
+import dynamic from "next/dynamic";
+
 import {
   IconLogo,
   IconGrid,
@@ -35,6 +37,8 @@ import {
   IconClose,
   IconChartBar,
 } from "../icons";
+
+const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
 
 type SvgC = ComponentType<{ className?: string }>;
 // b2b.manage is checked for the nav item only; it doesn't grant admin access on its own.
@@ -134,6 +138,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   // The mobile sidebar is open only on the path it was opened on, so navigating closes it.
   const [openPath, setOpenPath] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
   const open = openPath === pathname;
 
   const isBootstrap = pathname === "/admin/bootstrap";
@@ -273,6 +278,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <div className="pbody__in">{children}</div>
         </div>
       </div>
+      <AiSystemAssistant open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} role="client" guideRole="staff" launcher="always" />
     </div>
   );
 }

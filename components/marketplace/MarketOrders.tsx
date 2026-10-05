@@ -178,7 +178,7 @@ export default function MarketOrders({ view }: { view: View }) {
           <span>{t("emptyTab")}</span>
         </div>
       ) : (
-        <div className={`mk-olist${refreshing ? " is-busy" : ""}`}>
+        <div className={`mk-olist${refreshing ? " is-busy" : ""}`} data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"}>
           {shown.map((o) => (
             <OrderCard key={o.id} o={o} view={view} locale={locale} onCancel={() => setCancelFor(o)} onComplete={() => setCompleteFor(o)} />
           ))}

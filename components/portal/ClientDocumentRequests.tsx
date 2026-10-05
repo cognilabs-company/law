@@ -318,7 +318,7 @@ export default function ClientDocumentRequests() {
   }
 
   return (
-    <div className="ppanel">
+    <div className="ppanel" data-ai-target="documents:my-documents">
       <div className="ppanel__h">
         <div className="mydocs__ttl">
           <b>{t("title")}</b>
