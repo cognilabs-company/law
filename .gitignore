@@ -51,3 +51,15 @@ next-env.d.ts
 /tools/mdbot/.offset
 
 /public/mediapipe/wasm/
+
+# Working notes, briefs and reference material — kept locally, never commit
+/md/
+/format-file/
+/view-img/
+/*.md
+!/README.md
+!/AGENTS.md
+!/CLAUDE.md
+/public/img/advokat-yuristlar.png
+/public/img/demo-advokat.png
+/public/img/demo-yurist.png
