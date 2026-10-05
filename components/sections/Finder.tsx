@@ -22,6 +22,7 @@ import {
   IconUsers,
   IconBolt,
 } from "@/components/icons";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { fmtRating } from "@/lib/date";
 
 type Tab = "lawyer" | "doc" | "ai";
@@ -119,9 +120,7 @@ export default function Finder() {
           <div className="resrow__n">
             {b.name}
             {b.verified ? (
-              <span className="pill" style={{ fontSize: ".66rem" }}>
-                {tf("superBadge")}
-              </span>
+              <VerifiedBadge interactive={false} />
             ) : (
               <span className="pill pill--gray" style={{ fontSize: ".66rem" }}>
                 {tf("unverified")}

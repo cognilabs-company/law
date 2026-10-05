@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import VerifiedBadge from "../VerifiedBadge";
 import {
   getLawyerById,
   getLawyerPrivateChat,
@@ -159,7 +160,7 @@ export default function LawyerProfileModal({
             <div className="lprof__id">
               <div className="lprof__n">
                 {data.name || "—"}
-                {data.verified ? <span className="lprof__vf">{t("verified")}</span> : <span className="lprof__vf lprof__vf--un">{t("unverified")}</span>}
+                {data.verified ? <VerifiedBadge name={data.name} subtitle={t(`kind.${kind}`)} /> : <span className="lprof__vf lprof__vf--un">{t("unverified")}</span>}
               </div>
               <div className="lprof__tags">
                 <span className={`advcard__kind advcard__kind--${kind}`}>{t(`kind.${kind}`)}</span>

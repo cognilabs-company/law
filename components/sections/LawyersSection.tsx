@@ -24,6 +24,7 @@ import { Skeleton, EmptyState } from "../portal/DataState";
 import Select, { type Option } from "../Select";
 import { IconChevronLeft, IconChevronRight, IconInfo, IconSearch, IconShieldCheck, IconStar } from "../icons";
 import { fmtRating } from "@/lib/date";
+import VerifiedBadge from "../VerifiedBadge";
 
 const priceNum = (p: string) => Number(p.replace(/\s/g, "")) || 0;
 
@@ -304,7 +305,7 @@ export default function LawyersSection({
                 <span className={`advcard__kind advcard__kind--${l.kind ?? "lawyer"}`}>
                   {t(l.kind === "advocate" ? "card.kindAdvocate" : "card.kindLawyer")}
                 </span>
-                {l.verified ? <span className="advcard__badge">{t("card.verified")}</span> : <span className="advcard__badge advcard__badge--un">{t("card.unverified")}</span>}
+                {l.verified ? <VerifiedBadge name={l.name} subtitle={t(l.kind === "advocate" ? "card.kindAdvocate" : "card.kindLawyer")} /> : <span className="advcard__badge advcard__badge--un">{t("card.unverified")}</span>}
                 {l.isNew ? <span className="advcard__badge advcard__badge--new">{t("card.new")}</span> : null}
                 {/* S2: a paid boost, named. The MD allows the badge and forbids
                     re-sorting what the backend ranked — see the sort memo, which

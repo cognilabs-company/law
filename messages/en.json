@@ -8464,5 +8464,23 @@
     "cancel": "Cancel",
     "slide": "Slide left to cancel",
     "denied": "Microphone access was denied."
+  },
+  "verifiedBadge": {
+    "label": "Verified",
+    "tip": "Verified by LexGo",
+    "kicker": "Official verification",
+    "title": "Specialist verified by LexGo",
+    "checkedTitle": "What was checked",
+    "c1": "Phone number confirmed with an SMS code",
+    "c2": "Identity and professional documents reviewed by LexGo moderators by hand",
+    "c3": "Practice area, experience and region checked in the profile",
+    "c4": "Agreed to the platform rules and terms of service",
+    "meansTitle": "What this means for you",
+    "m1": "You pay through LexGo — if the service isn't delivered, the guarantee applies",
+    "m2": "Ratings come only after real orders",
+    "m3": "If something goes wrong, you can file a complaint and contact LexGo support",
+    "warranty": "More about the guarantee",
+    "ok": "Got it",
+    "close": "Close"
   }
 }

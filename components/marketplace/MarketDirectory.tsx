@@ -3,19 +3,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import Select, { type Option } from "@/components/Select";
+import Select from "@/components/Select";
 import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconLayers, IconList, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUsers } from "@/components/icons";
 import HeroShowcase from "./HeroShowcase";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { aiSearchMarketplace, listMarketplace, marketAiAvailable, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketSeller } from "@/lib/services/marketplace";
 import { matchesSearch, normalizeSearchText, searchTerms } from "@/lib/searchText";
 import { regionKeyOf, regionLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { fmtRating } from "@/lib/date";
-import { Monogram, SELLER_TYPES, hasRating, hasSuccess, sellerTypeLabel, specLabel } from "./bits";
+import { Monogram, hasRating, hasSuccess, sellerTypeLabel, specLabel } from "./bits";
 
 type Status = "loading" | "ready" | "error";
 
-const SORTS = ["recommended", "rating", "experience", "price_asc"];
+const SORT = "recommended";
 const PRICE_STEPS = [300000, 500000, 1000000, 2000000];
 const EXPERIENCE_STEPS = [3, 5, 10];
 
@@ -37,9 +38,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [total, setTotal] = useState(0);
   const [meta, setMeta] = useState<MarketMeta | null>(null);
   const [status, setStatus] = useState<Status>("loading");
-  const [refreshing, setRefreshing] = useState(false);
   const [moreBusy, setMoreBusy] = useState(false);
-  const [sort, setSort] = useState("recommended");
   const [reload, setReload] = useState(0);
   const seq = useRef(0);
   const metaRef = useRef<MarketMeta | null>(null);
@@ -47,7 +46,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const typedRef = useRef(false);
 
   const [q, setQ] = useState("");
-  const [role, setRole] = useState("");
   const [region, setRegion] = useState("");
   const [spec, setSpec] = useState<string | null>(null);
   const [category, setCategory] = useState("");
@@ -62,7 +60,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
 
   useEffect(() => {
     const my = ++seq.current;
-    listMarketplace({ sort, includeMeta: !metaRef.current })
+    listMarketplace({ sort: SORT, includeMeta: !metaRef.current })
       .then((r) => {
         if (my !== seq.current) return;
         rememberSellers(r.items);
@@ -77,17 +75,8 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       .catch(() => {
         if (my !== seq.current) return;
         setStatus((s) => (s === "ready" ? s : "error"));
-      })
-      .finally(() => {
-        if (my === seq.current) setRefreshing(false);
       });
-  }, [sort, reload]);
-
-  const changeSort = (v: string) => {
-    if (v === sort) return;
-    setRefreshing(true);
-    setSort(v);
-  };
+  }, [reload]);
 
   const retry = () => {
     setStatus("loading");
@@ -98,7 +87,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     if (moreBusy) return;
     setMoreBusy(true);
     const my = seq.current;
-    const r = await listMarketplace({ sort, offset: items.length }).catch(() => null);
+    const r = await listMarketplace({ sort: SORT, offset: items.length }).catch(() => null);
     setMoreBusy(false);
     if (!r || my !== seq.current) return;
     rememberSellers(r.items);
@@ -107,7 +96,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       return cur.concat(r.items.filter((x) => !seen.has(x.userId)));
     });
     setTotal(r.total);
-  }, [moreBusy, sort, items.length]);
+  }, [moreBusy, items.length]);
 
   const allSpecs = useMemo(() => {
     const m = new Map<string, string>();
@@ -146,12 +135,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     return [...m.values()].filter((x) => !category || x.categoryId === category);
   }, [meta, items, category]);
 
-  const roles = useMemo(() => {
-    const present = new Set(items.map((s) => s.sellerType));
-    const known = meta?.sellerTypes.length ? meta.sellerTypes : [...SELLER_TYPES];
-    return known.filter((r) => present.has(r) || (SELLER_TYPES as readonly string[]).includes(r));
-  }, [items, meta]);
-
   const query = q.trim();
   const aiHit = ai && ai.q === query ? ai : null;
   const aiThinking = Boolean(query) && aiPending === query;
@@ -162,7 +145,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     const rank = new Map((aiHit?.matches ?? []).map((m, i) => [m.userId, i]));
     const hayOf = (s: MarketSeller) => [s.name, s.organizationName, regionLabel(te, s.region), s.district, ...s.specializations.map((x) => specLabel(te, x)), ...s.serviceTitles, ...s.services.map((x) => x.title), ...s.categories.map((c) => c.title)].join(" ");
     const pool = items.filter((s) => {
-      if (role && s.sellerType !== role) return false;
       if (region && (regionKeyOf(te, s.region) || s.region.toLowerCase()) !== region) return false;
       if (effSpec && !s.specializations.some((x) => x.toLowerCase() === effSpec)) return false;
       if (category && !s.categories.some((c) => c.id === category) && !s.services.some((x) => x.categoryId === category)) return false;
@@ -185,7 +167,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       .filter((x) => x.hits > 0)
       .sort((a, b) => b.hits - a.hits)
       .map((x) => x.s);
-  }, [items, role, region, effSpec, category, service, minRating, priceMax, minExp, q, te, aiHit, aiThinking]);
+  }, [items, region, effSpec, category, service, minRating, priceMax, minExp, q, te, aiHit, aiThinking]);
 
   const aiMatchOf = useMemo(() => new Map((aiHit?.matches ?? []).map((m) => [m.userId, m])), [aiHit]);
 
@@ -206,15 +188,8 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     return () => window.clearTimeout(id);
   }, [query, runAi]);
 
-  const roleCounts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const s of items) m.set(s.sellerType, (m.get(s.sellerType) ?? 0) + 1);
-    return m;
-  }, [items]);
-
   const activeFilters = [region, effSpec, category, service, minRating, priceMax, minExp].filter(Boolean).length;
   const resetFilters = () => {
-    setRole("");
     setRegion("");
     setSpec("");
     setCategory("");
@@ -225,7 +200,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     setQ("");
   };
 
-  const filtering = Boolean(q.trim()) || Boolean(role) || activeFilters > 0;
+  const filtering = Boolean(q.trim()) || activeFilters > 0;
 
   const stats = useMemo(() => {
     const ids = new Set<string>();
@@ -276,7 +251,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
 
   const labelOf = (opts: { value: string; label: string }[], v: string) => opts.find((o) => o.value === v)?.label ?? v;
   const chosen = [
-    role ? { key: "role", label: sellerTypeLabel(t, role), clear: () => setRole("") } : null,
     effSpec ? { key: "spec", label: labelOf(allSpecs, effSpec), clear: () => setSpec("") } : null,
     region ? { key: "region", label: labelOf(regionOpts, region), clear: () => setRegion("") } : null,
     category ? { key: "category", label: labelOf(categories, category), clear: () => { setCategory(""); setService(""); } } : null,
@@ -285,8 +259,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     priceMax ? { key: "price", label: `≤ ${fmtUzs(Number(priceMax))}`, clear: () => setPriceMax("") } : null,
     minExp ? { key: "exp", label: t("filters.expN", { n: Number(minExp) }), clear: () => setMinExp("") } : null,
   ].filter((x): x is { key: string; label: string; clear: () => void } => x !== null);
-
-  const sortOpts: Option[] = (meta?.sortOptions.length ? meta.sortOptions : SORTS).filter((s) => t.has(`sort.${s}`)).map((s) => ({ value: s, label: t(`sort.${s}`) }));
 
   return (
     <section className={`mk mk--${variant}`}>
@@ -395,40 +367,12 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       </div>
 
       <div className="mk-bar">
-        <div className="mk-roles" role="group" aria-label={t("roles.all")}>
-          {["", ...roles].map((r) => (
-            <button key={r || "all"} type="button" className="mk-role" aria-pressed={role === r} onClick={() => setRole(r)}>
-              {r ? sellerTypeLabel(t, r) : t("roles.all")}
-              <span className="mk-role__n">{r ? roleCounts.get(r) ?? 0 : items.length}</span>
-            </button>
-          ))}
-        </div>
-        <div className="mk-bar__end">
-          <button type="button" className="mk-ftoggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
-            <IconList />
-            {t("filters.toggle")}
-            {activeFilters ? <span className="mk-ftoggle__n">{activeFilters}</span> : null}
-          </button>
-          <div className="mk-sort">
-            <Select value={sort} onChange={changeSort} options={sortOpts} ariaLabel={t("filters.sort")} />
-          </div>
-        </div>
+        <button type="button" className="mk-ftoggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
+          <IconList />
+          {t("filters.toggle")}
+          {activeFilters ? <span className="mk-ftoggle__n">{activeFilters}</span> : null}
+        </button>
       </div>
-
-      {allSpecs.length ? (
-        <div className="mk-specs-wrap">
-        <div className="mk-specs">
-          <button type="button" className="mk-chip" aria-pressed={!effSpec} onClick={() => setSpec("")}>
-            {t("filters.allSpecs")}
-          </button>
-          {allSpecs.map((s) => (
-            <button key={s.value} type="button" className="mk-chip" aria-pressed={effSpec === s.value} onClick={() => setSpec(effSpec === s.value ? "" : s.value)}>
-              {s.label}
-            </button>
-          ))}
-        </div>
-        </div>
-      ) : null}
 
       {filtersOpen ? <button type="button" className="mk-sheetbg" aria-label={t("filters.close")} onClick={() => setFiltersOpen(false)} /> : null}
       <div className={`mk-filters${filtersOpen ? " is-open" : ""}`}>
@@ -509,7 +453,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
 
       <div className="mk-count" ref={resultsRef} aria-live="polite">
         {status === "ready" ? t("count", { n: list.length }) : null}
-        {refreshing ? <span className="mk-dot" aria-hidden="true" /> : null}
       </div>
 
       {status === "loading" ? (
@@ -531,14 +474,14 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
           <IconSparkle />
           <b>{t("empty")}</b>
           <span>{t("emptyText")}</span>
-          {activeFilters || q || role ? (
+          {activeFilters || q ? (
             <button type="button" className="btn btn--line btn--sm" onClick={resetFilters}>
               {t("filters.reset")}
             </button>
           ) : null}
         </div>
       ) : (
-        <div className={`mk-grid${refreshing || aiThinking ? " is-busy" : ""}`}>
+        <div className={`mk-grid${aiThinking ? " is-busy" : ""}`}>
           {list.map((s, i) => (
             <SellerCard key={s.userId} s={s} href={`${base}/${encodeURIComponent(s.userId)}`} index={i} locale={locale} match={aiMatchOf.get(s.userId)} />
           ))}
@@ -574,12 +517,7 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
           </Link>
           <div className="mk-card__meta">
             <span className={`mk-type mk-type--${s.sellerType || "yurist"}`}>{sellerTypeLabel(t, s.sellerType)}</span>
-            {s.verified ? (
-              <span className="mk-verified" title={t("card.verified")}>
-                <IconShieldCheck />
-                {t("card.verified")}
-              </span>
-            ) : null}
+            {s.verified ? <VerifiedBadge name={s.name} subtitle={sellerTypeLabel(t, s.sellerType)} /> : null}
           </div>
           {s.region ? (
             <div className="mk-card__place">

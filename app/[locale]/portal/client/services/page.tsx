@@ -52,7 +52,6 @@ import {
   IconSparkle,
   IconAlert,
   IconStar,
-  IconShieldCheck,
   IconMapPin,
   IconScale,
   IconFileText,
@@ -69,6 +68,7 @@ import {
   IconPlus,
   IconClose,
 } from "@/components/icons";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { fmtRating } from "@/lib/date";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
@@ -1474,7 +1474,7 @@ export default function ClientServices() {
                           <span className="advpick__m">
                             <b>
                               {l.name || "—"}
-                              {l.verified || c ? <IconShieldCheck className="advpick__vf" aria-label={t("verified")} /> : <em className="advpick__un">{t("unverified")}</em>}
+                              {l.verified || c ? <VerifiedBadge interactive={false} label={false} className="advpick__vf" /> : <em className="advpick__un">{t("unverified")}</em>}
                             </b>
                             <span className="advpick__stats">
                               <i><IconStar />{l.rating ? fmtRating(l.rating, locale) : "—"}</i>

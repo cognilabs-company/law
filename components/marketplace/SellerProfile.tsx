@@ -16,6 +16,7 @@ import {
   type MarketSellerDetail,
   type MarketService,
 } from "@/lib/services/marketplace";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { IconArrowRight, IconChevronLeft, IconClock, IconGlobe, IconLock, IconMapPin, IconRefresh, IconShieldCheck, IconStar, IconBriefcase } from "@/components/icons";
 import PurchaseDialog from "./PurchaseDialog";
 import { Monogram, Stars, deliveryLabel, hasRating, hasSuccess, langLabel, sellerTypeLabel, specLabel } from "./bits";
@@ -207,12 +208,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
           <div className="mk-prof__who">
             <div className="mk-prof__tags">
               <span className={`mk-type mk-type--${seller.sellerType || "yurist"}`}>{sellerTypeLabel(t, seller.sellerType)}</span>
-              {seller.verified ? (
-                <span className="mk-verified mk-verified--glass">
-                  <IconShieldCheck />
-                  {t("card.verified")}
-                </span>
-              ) : null}
+              {seller.verified ? <VerifiedBadge name={seller.name} subtitle={sellerTypeLabel(t, seller.sellerType)} tone="glass" size="md" /> : null}
               {seller.promotion?.active ? <span className="mk-card__ad mk-card__ad--inline">{t("card.promoted")}</span> : null}
             </div>
             <h1 className="mk-prof__name">{seller.name}</h1>

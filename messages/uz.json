@@ -8470,5 +8470,23 @@
     "cancel": "Bekor qilish",
     "slide": "Bekor qilish uchun chapga suring",
     "denied": "Mikrofonga ruxsat berilmadi."
+  },
+  "verifiedBadge": {
+    "label": "Tasdiqlangan",
+    "tip": "LexGo kompaniyasi tomonidan tasdiqlangan",
+    "kicker": "Rasmiy tasdiq",
+    "title": "LexGo tomonidan tasdiqlangan mutaxassis",
+    "checkedTitle": "Nimalar tekshirildi",
+    "c1": "Telefon raqami SMS-kod orqali tasdiqlangan",
+    "c2": "Shaxsi va kasbiy hujjatlari LexGo moderatorlari tomonidan qo'lda ko'rib chiqilgan",
+    "c3": "Yo'nalishi, tajribasi va hududi profilda tekshirilgan",
+    "c4": "Platforma qoidalari va xizmat ko'rsatish shartlariga rozilik bildirgan",
+    "meansTitle": "Bu siz uchun nimani anglatadi",
+    "m1": "To'lov LexGo orqali amalga oshadi — xizmat bajarilmasa kafolat amal qiladi",
+    "m2": "Baholar faqat haqiqiy buyurtmalardan keyin qo'yiladi",
+    "m3": "Muammo bo'lsa, shikoyat qilish va LexGo yordamiga murojaat qilish imkoniyati bor",
+    "warranty": "Kafolat haqida batafsil",
+    "ok": "Tushunarli",
+    "close": "Yopish"
   }
 }
