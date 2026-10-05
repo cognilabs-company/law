@@ -165,13 +165,23 @@ export function templateVars(data: Dict, title: string, body: string): NotifTemp
 
 // Portal route a notification can open, or "" when there is no fitting page.
 // `role` is the UI role (client | lawyer | advocate) that prefixes portal URLs.
-export function notifLink(event: string, category: NotifCategory, data: Dict, role: string): string {
+export function notifLink(event: string, category: NotifCategory, data: Dict, role: string, staff = false): string {
   const roomId = asStr(data.room_id).trim();
   if (roomId && (event === "secure_chat_message" || event === "meeting_invite" || category === "chat")) {
     const callId = asStr(data.call_id).trim();
     return `/portal/chat/${roomId}${event === "meeting_invite" && callId ? `?join=${encodeURIComponent(callId)}` : ""}`;
   }
   if (!role) return "";
+  if (event.startsWith("support.")) {
+    const ticket = encodeURIComponent(asStr(data.ticket_id).trim());
+    if (event === "support.ticket_created" || event === "support.ticket_transferred_to_you") return ticket ? `/admin/call-center/support/${ticket}` : "/admin/call-center/support";
+    return ticket ? `/portal/${role}/support?ticket=${ticket}` : `/portal/${role}/support`;
+  }
+  if (event.startsWith("quality_complaint.") && (staff || role === "client")) {
+    if (staff) return "/admin/call-center";
+    const ref = asStr(data.complaint_id).trim() || asStr(data.work_id).trim();
+    return ref ? `/portal/client/complaints?work=${encodeURIComponent(ref)}` : "/portal/client/complaints";
+  }
   if (event.startsWith("marketplace_")) {
     if (role !== "client") return `/portal/${role}/marketplace-orders`;
     return event === "marketplace_purchase_approved" && roomId ? `/portal/chat/${roomId}` : "/portal/client/marketplace-orders";

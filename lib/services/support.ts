@@ -4,8 +4,8 @@ import type { Page } from "@/lib/usePaged";
 
 export const SUPPORT_CATEGORIES = ["general", "subscription", "payment", "marketplace", "documents", "urgent_advokat", "account", "technical"] as const;
 export const SUPPORT_PRIORITIES = ["low", "normal", "high"] as const;
-export const SUPPORT_STATUSES = ["waiting_operator", "claimed", "transferred", "reopened", "closed"] as const;
-export const SUPPORT_ACTIVE_STATUSES = ["waiting_operator", "claimed", "transferred", "reopened"] as const;
+export const SUPPORT_STATUSES = ["ai_handling", "waiting_operator", "claimed", "transferred", "waiting_client_confirm", "reopened", "closed"] as const;
+export const SUPPORT_ACTIVE_STATUSES = ["ai_handling", "waiting_operator", "claimed", "transferred", "waiting_client_confirm", "reopened"] as const;
 export const SUPPORT_PAGE_MAX = 100;
 
 const GENERIC_TITLES = new Set(["support so'rovi", "support so‘rovi", "ai instruktor orqali support", "support message", "support"]);
@@ -55,6 +55,10 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trim
 
 export function isActiveTicket(t: Pick<SupportTicket, "status">): boolean {
   return t.status !== "closed";
+}
+
+export function isWaitingTicket(t: Pick<SupportTicket, "status">): boolean {
+  return t.status === "waiting_operator" || t.status === "reopened";
 }
 
 export function ticketTitle(t: Pick<SupportTicket, "title" | "description" | "lastMessage">, fallback: string): string {
@@ -184,13 +188,14 @@ export function listMySupportTickets(offset: number, limit: number, signal?: Abo
 }
 
 export async function listMyActiveSupportTickets(signal?: AbortSignal): Promise<SupportTicket[]> {
-  const pages = await Promise.all(SUPPORT_ACTIVE_STATUSES.map((s) => listMySupportTickets(0, 50, signal, s).catch((e) => {
-    if (isAborted(e)) throw e;
-    return { items: [] as SupportTicket[], total: 0, hasMore: false };
-  })));
+  const settled = await Promise.allSettled(SUPPORT_ACTIVE_STATUSES.map((s) => listMySupportTickets(0, 50, signal, s)));
+  const failed = settled.flatMap((r) => (r.status === "rejected" ? [r.reason as unknown] : []));
+  const aborted = failed.find((e) => isAborted(e));
+  if (aborted !== undefined) throw aborted;
+  if (failed.length === settled.length && failed.length) throw failed[0];
   const seen = new Set<string>();
-  return pages
-    .flatMap((p) => p.items)
+  return settled
+    .flatMap((r) => (r.status === "fulfilled" ? r.value.items : []))
     .filter((t) => t.id && !seen.has(t.id) && (seen.add(t.id), true))
     .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
 }
@@ -203,6 +208,25 @@ export function listSupportQueue(
   if (opts.status) qs.set("status", opts.status);
   if (opts.assignedToMe) qs.set("assigned_to_me", "true");
   return gated("supportQueue", async () => pageOf(asDict(await http(`/call-center/support/tickets?${qs.toString()}`, { signal })), normSupportTicket));
+}
+
+const QUEUE_WALK = 5;
+
+export async function listSupportQueueAll(opts: { status?: string; assignedToMe?: boolean }, signal?: AbortSignal): Promise<Page<SupportTicket>> {
+  const seen = new Set<string>();
+  const items: SupportTicket[] = [];
+  let offset = 0;
+  for (let i = 0; i < QUEUE_WALK; i++) {
+    const page = await listSupportQueue({ ...opts, offset, limit: SUPPORT_PAGE_MAX }, signal);
+    for (const t of page.items) {
+      if (!t.id || seen.has(t.id)) continue;
+      seen.add(t.id);
+      items.push(t);
+    }
+    offset += page.items.length;
+    if (!page.hasMore || page.items.length < SUPPORT_PAGE_MAX) break;
+  }
+  return { items, total: items.length, hasMore: false };
 }
 
 export async function claimSupportTicket(id: string): Promise<SupportTicket> {

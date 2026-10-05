@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { useAuth } from "@/lib/auth";
+import { hasAdminAccess, useAuth } from "@/lib/auth";
 import { shortDateTime } from "@/lib/date";
 import { markNotificationRead, markAllNotificationsRead, type NotificationDelivery } from "@/lib/services/backend";
 import { listNotificationsRich, getNotificationCategoryCounts, richNotificationOf, NOTIF_PAGE, type RichNotification, type NotifCategoryCounts } from "@/lib/services/notify";
@@ -99,6 +99,7 @@ export default function NotificationsPanel() {
   const locale = useLocale();
   const { session } = useAuth();
   const role = session?.role ?? "";
+  const staff = hasAdminAccess(session);
   const textOf = useNotifText();
   const fmt = (s: string) => shortDateTime(s, locale);
   const [items, setItems] = useState<RichNotification[]>([]);
@@ -282,7 +283,7 @@ export default function NotificationsPanel() {
             <IconRefresh />
           </button>
           {shownUnread.length ? (
-            <button className="btn btn--soft btn--sm" type="button" onClick={readAll}>
+            <button className="btn btn--soft btn--sm" type="button" onClick={readAll} data-ai-target="button:notifications-read-all">
               <IconCheckDouble />
               {narrowed ? t("markShown") : t("markAll")}
             </button>
@@ -290,7 +291,7 @@ export default function NotificationsPanel() {
         </span>
       </div>
 
-      <div className="segs segs--sm ntabs" role="tablist" aria-label={t("title")}>
+      <div className="segs segs--sm ntabs" role="tablist" aria-label={t("title")} data-ai-target="notifications:filters">
         {NOTIF_CATEGORIES.map((c) => (
           <button key={c} type="button" role="tab" className="seg" aria-selected={tab === c} onClick={() => setTab(c)}>
             {t(`tabs.${c}`)}
@@ -298,7 +299,7 @@ export default function NotificationsPanel() {
           </button>
         ))}
       </div>
-      <div className="lfilters ntfilters">
+      <div className="lfilters ntfilters" data-ai-target="notifications:search" data-ai-label={t("searchPh")}>
         <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>
         <Select value={filter} onChange={(v) => setFilter(v as ReadFilter)} options={filterOpts} ariaLabel={t("filterLabel")} />
       </div>
@@ -308,7 +309,7 @@ export default function NotificationsPanel() {
       ) : status === "error" ? (
         <Notice ok={false} msg={t("loadError")} />
       ) : !items.length && !narrowed ? (
-        <div className="ntlist">
+        <div className="ntlist" data-ai-target="notifications:list">
           {(t.raw("sample") as SampleNotif[]).map((s, i) => (
             <div key={i} className="ntrow">
               <div className="ntitem ntitem--static">
@@ -330,9 +331,9 @@ export default function NotificationsPanel() {
       ) : !shown.length ? (
         <EmptyState icon={<IconSearch />} title={t("noMatch")} text={t("noMatchText")} />
       ) : (
-        <div className="ntlist">
+        <div className="ntlist" data-ai-target="notifications:list">
           {shown.map(({ n, title, body }) => {
-            const link = notifLink(n.event, n.category, n.data, role);
+            const link = notifLink(n.event, n.category, n.data, role, staff);
             const via = n.channels.filter((c) => VIA_CHANNELS.includes(c)).map(chLabel);
             return (
               <div key={n.id} className="ntrow">

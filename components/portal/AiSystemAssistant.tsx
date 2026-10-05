@@ -62,7 +62,8 @@ function readHistory(key: string): Msg[] {
 
 function headerTitle(): string {
   if (typeof document === "undefined") return "";
-  return (document.querySelector('[data-ai-target="ai-help:current-page"]')?.textContent || "").replace(/\s+/g, " ").trim();
+  const el = document.querySelector('[data-ai-target="ai-help:current-page"]');
+  return (el?.getAttribute("data-ai-label") || el?.textContent || "").replace(/\s+/g, " ").trim();
 }
 
 export default function AiSystemAssistant({
@@ -78,7 +79,7 @@ export default function AiSystemAssistant({
   onClose: () => void;
   role: AiRole;
   guideRole?: GuideRole;
-  launcher?: "auto" | "always";
+  launcher?: "auto" | "always" | "none";
 }) {
   const t = useTranslations("portal.aiAssistant");
   const tg = useTranslations("guide");
@@ -212,7 +213,7 @@ export default function AiSystemAssistant({
         const reply = await askInstructor(buildRequest(message));
         if (reply && replyHasGuide(reply)) {
           const tour = tourFromReply(reply, gRole, captionFor);
-          const support = gRole === "client" && (reply.intent === "support_guidance" || reply.confirmActionType === "start_support_ticket");
+          const support = gRole !== "staff" && (reply.intent === "support_guidance" || reply.confirmActionType === "start_support_ticket");
           setMsgs((m) => [...m, { kind: "guide", id: makeId(), text: reply.reply, intent: reply.intent, tour, support }]);
           setBusy(false);
           runTour(tour);
@@ -284,7 +285,7 @@ export default function AiSystemAssistant({
       runTour({
         id: newTourId(),
         source: "local",
-        navigate: `/portal/client/support?ticket=${encodeURIComponent(tk.id)}`,
+        navigate: `/portal/${gRole}/support?ticket=${encodeURIComponent(tk.id)}`,
         steps: [
           { target: "support:chat", caption: t("ticketShown"), focus: false },
           { target: "support:message-input", caption: t("ticketWrite"), focus: true },
@@ -335,6 +336,7 @@ export default function AiSystemAssistant({
     <>
       {confirmModal}
       {!open ? (
+        launcher === "none" ? null : (
         <button
           type="button"
           className={`ains__launch${launcher === "always" ? " ains__launch--always" : ""}`}
@@ -345,6 +347,7 @@ export default function AiSystemAssistant({
           <RobotAvatar size={34} mood="idle" />
           <span>{t("title")}</span>
         </button>
+        )
       ) : (
         <div className="ains" role="dialog" aria-label={t("title")}>
           <div className="ains__h">

@@ -7,7 +7,7 @@ export default async function Page({ params }: Props) {
   const { ticketId } = await params;
   return (
     <Suspense fallback={null}>
-      <SupportHub role="client" ticketId={decodeURIComponent(ticketId)} />
+      <SupportHub role="lawyer" ticketId={decodeURIComponent(ticketId)} />
     </Suspense>
   );
 }

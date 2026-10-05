@@ -74,8 +74,8 @@ type NavItem = { href: string; key: string; Icon: SvgC };
 // (the backend also returns 403 on those endpoints until approval).
 const PENDING_ALLOWED: Record<Role, Set<string>> = {
   client: new Set(),
-  lawyer: new Set(["dashboard", "profile", "services", "subscription", "notifications"]),
-  advocate: new Set(["dashboard", "profile", "subscription", "notifications"]),
+  lawyer: new Set(["dashboard", "profile", "services", "subscription", "notifications", "support"]),
+  advocate: new Set(["dashboard", "profile", "subscription", "notifications", "support"]),
 };
 
 // Nav items that also need a specific cabinet action (available_actions).
@@ -114,6 +114,7 @@ const LAWYER_NAV: NavItem[] = [
   { href: "/portal/lawyer/referrals", key: "referrals", Icon: IconGift },
   { href: "/portal/lawyer/promotion", key: "promotion", Icon: IconBolt },
   { href: "/portal/lawyer/subscription", key: "subscription", Icon: IconGem },
+  { href: "/portal/lawyer/support", key: "support", Icon: IconHeadset },
 ];
 
 const ADVOCATE_NAV: NavItem[] = [
@@ -136,12 +137,14 @@ const ADVOCATE_NAV: NavItem[] = [
   { href: "/portal/advocate/referrals", key: "referrals", Icon: IconGift },
   { href: "/portal/advocate/promotion", key: "promotion", Icon: IconBolt },
   { href: "/portal/advocate/subscription", key: "subscription", Icon: IconGem },
+  { href: "/portal/advocate/support", key: "support", Icon: IconHeadset },
 ];
 
 // Reachable pages that deliberately have no sidebar row of their own.
 // They are consulted for the header title only, never rendered in the nav.
 const CLIENT_TITLE_ONLY: NavItem[] = [
   { href: "/portal/client/doc-analysis", key: "docAnalysis", Icon: IconDocSearch },
+  { href: "/portal/client/cases", key: "requests", Icon: IconFileText },
 ];
 
 const CLIENT_NAV: NavItem[] = [
@@ -309,9 +312,7 @@ export default function PortalShell({
           case-analysis suite). Below 900px the assistant shows its own
           launcher, so there is exactly one control at every width. */}
       {fullscreen ? null : <LexGoRobot onRobotClick={() => setAiOpen(true)} />}
-      {fullscreen ? null : (
-        <AiSystemAssistant open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} role={role} />
-      )}
+      <AiSystemAssistant open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} role={role} launcher={fullscreen ? "none" : "auto"} />
       <div
         className={`psb__scrim${open ? " on" : ""}`}
         onClick={() => setOpenPath(null)}
