@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { IconArrowRight, IconAward, IconBriefcase, IconMapPin, IconShieldCheck, IconStarRate } from "@/components/icons";
+import { IconArrowRight, IconMapPin, IconShieldCheck, IconStarRate } from "@/components/icons";
 import type { MarketSeller } from "@/lib/services/marketplace";
 import { regionLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
@@ -20,10 +20,26 @@ function best(items: MarketSeller[], type: string) {
     .sort((a, b) => Number(hasRating(b)) - Number(hasRating(a)) || b.rating - a.rating || b.reviewsCount - a.reviewsCount || b.experienceYears - a.experienceYears)[0];
 }
 
+function shortPrice(n: number) {
+  if (n >= 1000000) return `${Math.round(n / 100000) / 10}M`;
+  if (n >= 1000) return `${Math.round(n / 1000)}k`;
+  return String(n);
+}
+
 export default function HeroShowcase({ items, base, locale }: { items: MarketSeller[]; base: string; locale: string }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
-  const cards = useMemo(() => ["advokat", "yurist"].map((type) => best(items, type)).filter((s): s is MarketSeller => Boolean(s)), [items]);
+  const cards = useMemo(() => {
+    const used = new Set<string>();
+    return ["advokat", "yurist"]
+      .map((type) => best(items, type))
+      .filter((s): s is MarketSeller => Boolean(s))
+      .map((s) => {
+        const code = s.specializations.find((c) => !used.has(c)) ?? s.specializations[0];
+        if (code) used.add(code);
+        return { s, spec: code ? specLabel(te, code) : s.serviceTitles[0] ?? "" };
+      });
+  }, [items, te]);
   const [at, setAt] = useState(0);
   const [paused, setPaused] = useState(false);
 
@@ -38,75 +54,67 @@ export default function HeroShowcase({ items, base, locale }: { items: MarketSel
 
   return (
     <div className="mk-show" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-      {cards.map((s, i) => {
-        const rated = hasRating(s);
-        const spec = s.specializations[0] ? specLabel(te, s.specializations[0]) : s.serviceTitles[0] ?? "";
-        const wins = s.winsCount || s.completedOrders || s.totalCases;
+      {cards.map(({ s, spec }, i) => {
+        const cases = s.winsCount || s.completedOrders || s.totalCases;
         const href = `${base}/${encodeURIComponent(s.userId)}`;
         return (
           <article key={s.userId} className={`mk-show__card${i === active ? " is-on" : ""}`} aria-hidden={i !== active}>
             <div className="mk-show__photo">
-              <Image src={PHOTOS[s.sellerType] ?? PHOTOS.advokat} alt="" fill sizes="340px" priority={i === 0} />
-              {s.verified ? (
-                <span className="mk-show__seal">
-                  <IconShieldCheck />
-                  {t(s.sellerType === "advokat" ? "show.verifiedAdvokat" : "show.verifiedYurist")}
-                </span>
-              ) : null}
-              {rated ? (
+              <Image src={PHOTOS[s.sellerType] ?? PHOTOS.advokat} alt="" fill sizes="300px" priority={i === 0} />
+              {hasRating(s) ? (
                 <span className="mk-show__rate">
-                  <span className="mk-show__stars">
-                    {[0, 1, 2, 3, 4].map((k) => (
-                      <IconStarRate key={k} className={k < Math.round(s.rating) ? "on" : undefined} />
-                    ))}
-                  </span>
+                  <IconStarRate />
                   <b>{fmtRating(s.rating, locale)}</b>
-                  <i />
                   <span>{t("show.reviews", { n: s.reviewsCount })}</span>
                 </span>
               ) : null}
             </div>
             <div className="mk-show__body">
-              <span className="mk-show__role">{sellerTypeLabel(t, s.sellerType)}</span>
+              <div className="mk-card__meta">
+                <span className={`mk-type mk-type--${s.sellerType || "yurist"}`}>{sellerTypeLabel(t, s.sellerType)}</span>
+                {s.verified ? (
+                  <span className="mk-verified">
+                    <IconShieldCheck />
+                    {t("card.verified")}
+                  </span>
+                ) : null}
+              </div>
               <b className="mk-show__name">{s.name}</b>
-              {spec ? <span className="mk-show__spec">{spec}</span> : null}
-              <div className="mk-show__facts">
-                {s.experienceYears > 0 ? (
-                  <span>
-                    <IconBriefcase />
-                    <b>{t("show.years", { n: s.experienceYears })}</b>
-                    <small>{t("show.experience")}</small>
-                  </span>
-                ) : null}
+              <span className="mk-show__sub">
                 {s.region ? (
-                  <span>
+                  <>
                     <IconMapPin />
-                    <b>{regionLabel(te, s.region)}</b>
-                    <small>{t("show.region")}</small>
-                  </span>
+                    {regionLabel(te, s.region)}
+                  </>
                 ) : null}
-                {wins > 0 ? (
-                  <span>
-                    <IconAward />
-                    <b>{wins}+</b>
-                    <small>{t("show.cases")}</small>
-                  </span>
-                ) : null}
+                {s.region && spec ? <i>·</i> : null}
+                {spec ? <span>{spec}</span> : null}
+              </span>
+              <div className="mk-card__kpis">
+                <div className="mk-kpi">
+                  <b>{s.experienceYears || "—"}</b>
+                  <span>{t("card.experience")}</span>
+                </div>
+                <div className="mk-kpi">
+                  <b>{cases || "—"}</b>
+                  <span>{t("show.cases")}</span>
+                </div>
+                <div className="mk-kpi">
+                  <b>{s.priceFrom > 0 ? shortPrice(s.priceFrom) : "—"}</b>
+                  <span title={s.priceFrom > 0 ? t("card.priceFrom", { price: fmtUzs(s.priceFrom) }) : undefined}>{t("show.priceShort")}</span>
+                </div>
               </div>
-              <div className="mk-show__cta">
-                <Link href={href} className="mk-show__go" tabIndex={i === active ? 0 : -1}>
-                  {t("show.cta")}
-                  <IconArrowRight />
-                </Link>
-                {s.priceFrom > 0 ? <span className="mk-show__price">{t("card.priceFrom", { price: fmtUzs(s.priceFrom) })}</span> : null}
-              </div>
+              <Link href={href} className="mk-show__go" tabIndex={i === active ? 0 : -1}>
+                {t("show.cta")}
+                <IconArrowRight />
+              </Link>
             </div>
           </article>
         );
       })}
       {cards.length > 1 ? (
         <div className="mk-show__dots" role="tablist" aria-label={t("show.switch")}>
-          {cards.map((s, i) => (
+          {cards.map(({ s }, i) => (
             <button key={s.userId} type="button" role="tab" aria-selected={i === active} aria-label={sellerTypeLabel(t, s.sellerType)} className={i === active ? "is-on" : undefined} onClick={() => setAt(i)} />
           ))}
         </div>

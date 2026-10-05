@@ -26,13 +26,9 @@
       "advokat_tashkiloti": "Advokat tashkiloti"
     },
     "show": {
-      "verifiedAdvokat": "Tasdiqlangan advokat",
-      "verifiedYurist": "Tasdiqlangan yurist",
       "reviews": "{n} ta sharh",
-      "years": "{n}+ yil",
-      "experience": "Tajriba",
-      "region": "Hudud",
-      "cases": "Ko'rilgan ishlar",
+      "cases": "ta ish",
+      "priceShort": "so'mdan",
       "cta": "Maslahat olish",
       "switch": "Mutaxassislarni almashtirish"
     },
@@ -53,7 +49,6 @@
       "priceMax": "Narx (gacha)",
       "experience": "Tajriba",
       "expN": "{n}+ yil",
-      "online": "Faqat hozir faol",
       "sort": "Saralash",
       "reset": "Filtrlarni tozalash"
     },

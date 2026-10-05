@@ -54,7 +54,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [service, setService] = useState("");
   const [minRating, setMinRating] = useState("");
   const [priceMax, setPriceMax] = useState("");
-  const [onlineOnly, setOnlineOnly] = useState(false);
   const [minExp, setMinExp] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string } | null>(null);
@@ -170,7 +169,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       if (service && !s.services.some((x) => x.id === service)) return false;
       if (minR && !(hasRating(s) && s.rating >= minR)) return false;
       if (maxP && !(s.priceFrom > 0 && s.priceFrom <= maxP)) return false;
-      if (onlineOnly && !s.onlineNow) return false;
       if (Number(minExp) && s.experienceYears < Number(minExp)) return false;
       return true;
     });
@@ -187,7 +185,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       .filter((x) => x.hits > 0)
       .sort((a, b) => b.hits - a.hits)
       .map((x) => x.s);
-  }, [items, role, region, effSpec, category, service, minRating, priceMax, onlineOnly, minExp, q, te, aiHit, aiThinking]);
+  }, [items, role, region, effSpec, category, service, minRating, priceMax, minExp, q, te, aiHit, aiThinking]);
 
   const aiMatchOf = useMemo(() => new Map((aiHit?.matches ?? []).map((m) => [m.userId, m])), [aiHit]);
 
@@ -214,7 +212,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     return m;
   }, [items]);
 
-  const activeFilters = [region, effSpec, category, service, minRating, priceMax, minExp, onlineOnly ? "1" : ""].filter(Boolean).length;
+  const activeFilters = [region, effSpec, category, service, minRating, priceMax, minExp].filter(Boolean).length;
   const resetFilters = () => {
     setRole("");
     setRegion("");
@@ -223,7 +221,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     setService("");
     setMinRating("");
     setPriceMax("");
-    setOnlineOnly(false);
     setMinExp("");
     setQ("");
   };
@@ -287,7 +284,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     minRating ? { key: "rating", label: `★ ${minRating}+`, clear: () => setMinRating("") } : null,
     priceMax ? { key: "price", label: `≤ ${fmtUzs(Number(priceMax))}`, clear: () => setPriceMax("") } : null,
     minExp ? { key: "exp", label: t("filters.expN", { n: Number(minExp) }), clear: () => setMinExp("") } : null,
-    onlineOnly ? { key: "online", label: t("filters.online"), clear: () => setOnlineOnly(false) } : null,
   ].filter((x): x is { key: string; label: string; clear: () => void } => x !== null);
 
   const sortOpts: Option[] = (meta?.sortOptions.length ? meta.sortOptions : SORTS).filter((s) => t.has(`sort.${s}`)).map((s) => ({ value: s, label: t(`sort.${s}`) }));
@@ -373,31 +369,25 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
           ) : null}
           <div className="mk-hero__stats">
             <div>
-              <i className="mk-hero__si mk-hero__si--a">
+              <b>
                 <IconUsers />
-              </i>
-              <span>
-                <b>{status === "loading" ? "—" : stats.sellers}</b>
-                <small>{t("heroStats.sellers")}</small>
-              </span>
+                {status === "loading" ? "—" : stats.sellers}
+              </b>
+              <span>{t("heroStats.sellers")}</span>
             </div>
             <div>
-              <i className="mk-hero__si mk-hero__si--b">
+              <b>
                 <IconBriefcase />
-              </i>
-              <span>
-                <b>{status === "loading" ? "—" : stats.services}</b>
-                <small>{t("heroStats.services")}</small>
-              </span>
+                {status === "loading" ? "—" : stats.services}
+              </b>
+              <span>{t("heroStats.services")}</span>
             </div>
             <div>
-              <i className="mk-hero__si mk-hero__si--c">
+              <b>
                 <IconCard />
-              </i>
-              <span>
-                <b>{stats.min ? fmtUzs(stats.min) : "—"}</b>
-                <small>{t("heroStats.from")}</small>
-              </span>
+                {stats.min ? fmtUzs(stats.min) : "—"}
+              </b>
+              <span>{t("heroStats.from")}</span>
             </div>
           </div>
         </div>
@@ -498,11 +488,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
           </label>
           <Select value={priceMax} onChange={setPriceMax} ariaLabel={t("filters.priceMax")} options={[{ value: "", label: t("filters.any") }, ...PRICE_STEPS.map((p) => ({ value: String(p), label: `≤ ${fmtUzs(p)}` }))]} />
         </div>
-        <label className="mk-switch">
-          <input type="checkbox" checked={onlineOnly} onChange={(e) => setOnlineOnly(e.target.checked)} />
-          <span className="mk-switch__track" aria-hidden="true" />
-          {t("filters.online")}
-        </label>
         <button type="button" className="btn btn--pri mk-filters__apply" onClick={() => setFiltersOpen(false)}>
           {t("filters.show", { n: list.length })}
         </button>

@@ -26,13 +26,9 @@
       "advokat_tashkiloti": "Law firm"
     },
     "show": {
-      "verifiedAdvokat": "Verified advocate",
-      "verifiedYurist": "Verified lawyer",
       "reviews": "{n} reviews",
-      "years": "{n}+ yrs",
-      "experience": "Experience",
-      "region": "Region",
-      "cases": "Cases handled",
+      "cases": "cases",
+      "priceShort": "UZS from",
       "cta": "Get advice",
       "switch": "Switch specialists"
     },
@@ -53,7 +49,6 @@
       "priceMax": "Price (up to)",
       "experience": "Experience",
       "expN": "{n}+ years",
-      "online": "Active now only",
       "sort": "Sort",
       "reset": "Clear filters"
     },
