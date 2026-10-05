@@ -1,4 +1,4 @@
-import type { GuidePage, GuideRole } from "../types";
+import type { GuidePage, GuideRole, RegistryTarget } from "../types";
 import { normPath } from "../routes";
 import { CLIENT_PAGES } from "./client";
 import { SELLER_PAGES } from "./seller";
@@ -43,12 +43,41 @@ export function stepTextKey(target: string, role: GuideRole, path = ""): string 
   return owners[0].page.tour.find((s) => s.target === target)?.text ?? "";
 }
 
+const SHELL = /^(ai-help|header|nav):/;
+
+const plainRoute = (rules: { m: string }[], role: GuideRole) =>
+  rules.find(({ m }) => !m.includes("[") && (role === "staff" ? m.startsWith("/admin") : m.startsWith(`/portal/${role}`)))?.m ?? "";
+
 export function registryHome(target: string, role: GuideRole): string {
-  if (/^(ai-help|header|nav):/.test(target)) return "";
+  if (SHELL.test(target)) return "";
   for (const { page, rules } of COMPILED) {
     if (!fits(page, role) || !page.tour.some((s) => s.target === target)) continue;
-    const plain = rules.find(({ m }) => !m.includes("[") && (role === "staff" ? m.startsWith("/admin") : m.startsWith(`/portal/${role}`)));
-    if (plain) return plain.m;
+    const plain = plainRoute(rules, role);
+    if (plain) return plain;
   }
   return "";
+}
+
+export function registryTargets(role: GuideRole, path = ""): RegistryTarget[] {
+  const here = path ? pageFor(path, role) : null;
+  const columns: RegistryTarget[][] = [];
+  for (const { page, rules } of COMPILED) {
+    if (!fits(page, role) || page === here) continue;
+    const route = plainRoute(rules, role);
+    if (!route || (path && normPath(route) === normPath(path))) continue;
+    const steps = page.tour.filter((s) => !SHELL.test(s.target)).map((s) => ({ id: s.target, text: s.text, route, page: page.id }));
+    if (steps.length) columns.push(steps);
+  }
+  const out: RegistryTarget[] = [];
+  const seen = new Set<string>();
+  const depth = Math.max(0, ...columns.map((c) => c.length));
+  for (let i = 0; i < depth; i++) {
+    for (const col of columns) {
+      const item = col[i];
+      if (!item || seen.has(item.id)) continue;
+      seen.add(item.id);
+      out.push(item);
+    }
+  }
+  return out;
 }

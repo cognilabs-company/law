@@ -1,11 +1,30 @@
 "use client";
 
-import { useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 import { parseServerTime } from "@/lib/http";
+import { errorText } from "@/lib/errorText";
+import { toast } from "@/lib/toast";
+import { primeCallAudio } from "@/lib/callSounds";
 import { shortDateTime } from "@/lib/date";
 import { initials } from "@/lib/lawyers";
-import { isWaitingTicket, ticketTitle, type SupportTicket } from "@/lib/services/support";
+import {
+  SUPPORT_META_FALLBACK,
+  isClosedStatus,
+  isUrgentPriority,
+  isWaitingTicket,
+  loadSupportMeta,
+  startSupportCall,
+  subscribeSupportMeta,
+  supportCallHref,
+  supportMetaSnapshot,
+  ticketTitle,
+  type SupportCallKind,
+  type SupportMeta,
+  type SupportMetaOption,
+  type SupportTicket,
+} from "@/lib/services/support";
 import { IconCheck, IconClock, IconHeadset, IconUser } from "@/components/icons";
 
 type T = ReturnType<typeof useTranslations>;
@@ -21,6 +40,57 @@ export function useMinuteNow(): number | null {
   const minute = useSyncExternalStore<number | null>(subscribeClock, readMinute, serverMinute);
   return minute === null ? null : minute * 60000;
 }
+
+const serverMeta = () => SUPPORT_META_FALLBACK;
+
+export function useSupportMeta(): SupportMeta {
+  const meta = useSyncExternalStore(subscribeSupportMeta, supportMetaSnapshot, serverMeta);
+  useEffect(() => {
+    void loadSupportMeta();
+  }, []);
+  return meta;
+}
+
+const metaLabel = (list: SupportMetaOption[], key: string) => list.find((o) => o.key === key)?.label ?? "";
+
+export function useSupportLabels() {
+  const t = useTranslations("support");
+  const meta = useSupportMeta();
+  const category = (key: string) => (!key ? "" : t.has(`categories.${key}`) ? t(`categories.${key}`) : metaLabel(meta.categories, key) || key);
+  const priority = (key: string) => (!key ? "" : t.has(`priorities.${key}`) ? t(`priorities.${key}`) : metaLabel(meta.priorities, key) || key);
+  return { meta, category, priority };
+}
+
+export function useSupportCall(ticketId: string, workId = "") {
+  const t = useTranslations("support");
+  const tc = useTranslations("common");
+  const router = useRouter();
+  const [calling, setCalling] = useState<SupportCallKind | "">("");
+  const pending = useRef(false);
+  const start = async (kind: SupportCallKind) => {
+    if (calling || pending.current || !ticketId) return;
+    pending.current = true;
+    primeCallAudio();
+    setCalling(kind);
+    try {
+      const s = await startSupportCall(ticketId, kind, workId ? t("call.sessionTitle", { id: workId }) : t("call.sessionTitlePlain"));
+      if (!s.id || !s.roomId) {
+        pending.current = false;
+        setCalling("");
+        toast(t("call.failed"), { tone: "err" });
+        return;
+      }
+      router.push(supportCallHref(s.roomId, s.id));
+    } catch (e) {
+      pending.current = false;
+      setCalling("");
+      toast(errorText(e, tc) || t("call.failed"), { tone: "err" });
+    }
+  };
+  return { calling, start };
+}
+
+export type SupportCallControl = ReturnType<typeof useSupportCall>;
 
 export function minutesSince(iso: string, now: number | null): number | null {
   if (now === null || !iso) return null;
@@ -80,18 +150,20 @@ export function TicketCard({
 }) {
   const t = useTranslations("support");
   const locale = useLocale();
+  const labels = useSupportLabels();
   const title = ticketTitle(ticket, t("untitled"));
-  const cat = t.has(`categories.${ticket.category}`) ? t(`categories.${ticket.category}`) : ticket.category;
+  const cat = labels.category(ticket.category);
   const waiting = isWaitingTicket(ticket);
-  const closed = ticket.status === "closed";
+  const closed = isClosedStatus(ticket.status);
   const person = view === "client" ? ticket.operatorName : ticket.clientName;
   const heading = view === "operator" && person ? person : title;
   const when = ticket.lastMessageAt || ticket.updatedAt;
   const lead = flat(title).replace(/…$/, "").trim();
   const last = ticket.lastMessage && !(lead && flat(ticket.lastMessage).startsWith(lead)) ? ticket.lastMessage : "";
   const wait = view === "operator" && waiting ? waitText(t, ticket.createdAt, now) : "";
+  const fresh = unread && unread > 0 ? unread : 0;
   return (
-    <div className={`supitem${active ? " is-on" : ""}${unread ? " has-new" : ""}${closed ? " is-closed" : ""}`} data-ai-target={`support-ticket:${ticket.id}`}>
+    <div className={`supitem${active ? " is-on" : ""}${fresh ? " has-new" : ""}${closed ? " is-closed" : ""}`} data-ai-target={`support-ticket:${ticket.id}`}>
       <button type="button" className="supitem__main" onClick={onOpen} aria-current={active || undefined}>
         <span className={`supitem__av${view === "client" && waiting && !person ? " supitem__av--wait" : ""}`} aria-hidden="true">
           {person ? initials(person) : view === "client" ? <IconHeadset /> : <IconUser />}
@@ -102,20 +174,25 @@ export function TicketCard({
             {when ? <time dateTime={when}>{agoText(t, locale, when, now)}</time> : null}
           </span>
           {view === "operator" && heading !== title ? <span className="supitem__sub">{title}</span> : null}
-          {last ? <span className="supitem__last">{last}</span> : null}
+          {last ? <span className={`supitem__last${fresh ? " supitem__last--new" : ""}`}>{last}</span> : null}
           <span className="supitem__meta">
             <SupportStatus status={ticket.status} />
             {view === "client" && ticket.operatorName ? <span>{t("operatorIs", { name: ticket.operatorName })}</span> : null}
             {view === "operator" && ticket.clientLexgoId ? <span>{t("chat.lexgoId", { id: ticket.clientLexgoId })}</span> : null}
             {cat ? <span>{cat}</span> : null}
-            {ticket.priority === "high" ? <span className="supitem__urgent">{t("urgent")}</span> : null}
+            {isUrgentPriority(ticket.priority) ? <span className="supitem__urgent">{t("urgent")}</span> : null}
             {wait ? (
               <span className="supitem__wait">
                 <IconClock />
                 {wait}
               </span>
             ) : null}
-            {unread ? <span className="supitem__new">{unread}</span> : null}
+            {fresh ? (
+              <span className="supitem__new" title={t("unreadAria", { n: fresh })}>
+                <span aria-hidden="true">{fresh > 99 ? "99+" : fresh}</span>
+                <span className="sr-only">{t("unreadAria", { n: fresh })}</span>
+              </span>
+            ) : null}
           </span>
           {closed && ticket.resolution ? (
             <span className="supitem__res">

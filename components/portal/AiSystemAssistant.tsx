@@ -6,14 +6,32 @@ import { usePathname } from "@/i18n/navigation";
 import { aiAssistantAsk, aiFeedback, type AiAnswer } from "@/lib/services/backend";
 import { aiPageIdFor, aiRouteFor, type AiRole } from "@/lib/aiPages";
 import { errDetail, isAborted, logApiError } from "@/lib/http";
+import { localizeApiDetail } from "@/lib/apiMessage";
 import { featureMissing } from "@/lib/endpointGate";
 import { useAuth } from "@/lib/auth";
 import { collectState, collectTargets } from "@/lib/guide/targets";
-import { pageFor, stepTextKey } from "@/lib/guide/pages";
+import { pageFor, registryTargets, stepTextKey } from "@/lib/guide/pages";
 import { startTour, stopTour, tourActive } from "@/lib/guide/store";
 import { onInstructorOpen } from "@/lib/guide/panel";
 import type { GuideRole, GuideTour } from "@/lib/guide/types";
-import { askInstructor, newTourId, replyHasGuide, tourFromReply, type InstructorRequest } from "@/lib/services/instructor";
+import {
+  INSTRUCTOR_CONTRACT,
+  askInstructor,
+  confirmSupportHandoff,
+  confirmUnsupported,
+  instructorHistory,
+  instructorPath,
+  instructorState,
+  instructorTargets,
+  newTourId,
+  previewSupportHandoff,
+  replyHasGuide,
+  replyNeedsAssistant,
+  replyOffersSupport,
+  tourFromReply,
+  type InstructorReply,
+  type InstructorRequest,
+} from "@/lib/services/instructor";
 import { createSupportTicket, supportCategoryFor } from "@/lib/services/support";
 import { errorText } from "@/lib/errorText";
 import { toast } from "@/lib/toast";
@@ -28,14 +46,14 @@ import {
 const MAX = 1000;
 const HISTORY = 30;
 
-type GuideMsg = { kind: "guide"; id: string; text: string; intent: string; tour: GuideTour; support: boolean };
+type GuideMsg = { kind: "guide"; id: string; text: string; intent: string; tour: GuideTour | null; support: boolean; checklist?: string[]; needs?: string[] };
 type Msg =
   | { kind: "me"; id: string; text: string }
   | GuideMsg
   | { kind: "ai"; id: string; ans: AiAnswer; tour: GuideTour | null; rated: number }
   | { kind: "err"; id: string; text: string };
 
-type Confirm = { message: string; busy: boolean; error: string };
+type Confirm = { key: string; message: string; busy: boolean; error: string; note: string; v2: boolean };
 
 const ROLE_SUGGEST: Record<GuideRole, string[]> = {
   client: ["suggest.client.plan", "suggest.client.lawyer", "suggest.client.document", "suggest.client.operator"],
@@ -178,27 +196,39 @@ export default function AiSystemAssistant({
   };
 
   const buildRequest = (message: string): InstructorRequest => {
-    const targets = collectTargets(120);
-    const turns: { q: string; intent: string }[] = [];
+    const seen = collectTargets(200);
+    const here = instructorPath(pathname, gRole);
+    const { targets, visible } = instructorTargets(seen, registryTargets(gRole, pathname), pathname, gRole, (r) => (tg.has(r.text) ? tg(r.text) : ""));
+    const turns: { q: string; a: string }[] = [];
     let asked = "";
     for (const m of msgs) {
       if (m.kind === "me") asked = m.text;
-      else if (m.kind === "guide") turns.push({ q: asked.slice(0, 300), intent: m.intent });
-      else if (m.kind === "ai") turns.push({ q: asked.slice(0, 300), intent: m.ans.intent });
+      else if (m.kind === "guide") turns.push({ q: asked, a: m.text });
+      else if (m.kind === "ai") turns.push({ q: asked, a: m.ans.answer });
     }
-    const history = turns.slice(-3);
     return {
+      contract_version: INSTRUCTOR_CONTRACT,
       message,
-      current_path: pathname,
-      visible_targets: targets.map((x) => x.id),
-      contract_version: 2,
+      current_path: here,
+      visible_targets: visible,
       locale,
       session_id: sessionRef.current,
-      page: { id: page?.id || aiPageIdFor(pathname), path: pathname, title: headerTitle(), portal: gRole },
+      page: { path: here, title: headerTitle(), id: page?.id || aiPageIdFor(pathname), portal: gRole },
       targets,
-      state: collectState(),
-      history,
+      state: instructorState(collectState(), seen),
+      history: instructorHistory(turns),
     };
+  };
+
+  const instructorReply = async (message: string): Promise<InstructorReply | null> => {
+    if (featureMissing("instructor")) return null;
+    try {
+      return await askInstructor(buildRequest(message));
+    } catch (e) {
+      if (isAborted(e)) throw e;
+      logApiError("ai instructor", e);
+      return null;
+    }
   };
 
   const send = async (raw?: string) => {
@@ -209,16 +239,19 @@ export default function AiSystemAssistant({
     setBusy(true);
     RobotEvents.emit("think");
     try {
-      if (!featureMissing("instructor")) {
-        const reply = await askInstructor(buildRequest(message));
-        if (reply && replyHasGuide(reply)) {
-          const tour = tourFromReply(reply, gRole, captionFor);
-          const support = gRole !== "staff" && (reply.intent === "support_guidance" || reply.confirmActionType === "start_support_ticket");
-          setMsgs((m) => [...m, { kind: "guide", id: makeId(), text: reply.reply, intent: reply.intent, tour, support }]);
-          setBusy(false);
-          runTour(tour);
-          return;
-        }
+      const reply = await instructorReply(message);
+      const guided = reply ? replyHasGuide(reply, gRole, pathname) : false;
+      if (reply && !replyNeedsAssistant(reply, guided)) {
+        const tour = guided ? tourFromReply(reply, gRole, captionFor, pathname) : null;
+        const support = replyOffersSupport(reply, gRole, Boolean(tour));
+        setMsgs((m) => [
+          ...m,
+          { kind: "guide", id: makeId(), text: reply.reply, intent: reply.intent, tour, support, checklist: reply.checklist, needs: reply.missingRequirements },
+        ]);
+        setBusy(false);
+        if (tour && !support && !reply.checklist.length && !reply.missingRequirements.length) runTour(tour);
+        else RobotEvents.emit("idle");
+        return;
       }
       const ans = await aiAssistantAsk({
         message,
@@ -269,30 +302,50 @@ export default function AiSystemAssistant({
     }
   };
 
+  const openHandoff = (question: string) => {
+    const key = makeId();
+    setConfirm({ key, message: question, busy: false, error: "", note: "", v2: false });
+    previewSupportHandoff().then(
+      (p) => {
+        const note = localizeApiDetail(p.message);
+        const shown = locale === "uz" || note !== p.message ? note : "";
+        setConfirm((c) => (c && c.key === key ? { ...c, note: shown, v2: p.v2 } : c));
+      },
+      (e: unknown) => {
+        if (!isAborted(e)) logApiError("ai instructor preview", e);
+      },
+    );
+  };
+
   const doConfirm = async () => {
     if (!confirm || confirm.busy) return;
-    setConfirm({ ...confirm, busy: true, error: "" });
+    const cur = confirm;
+    setConfirm((c) => (c && c.key === cur.key ? { ...c, busy: true, error: "" } : c));
+    const message = cur.message.trim();
+    const category = supportCategoryFor(pathname, message);
     try {
-      const tk = await createSupportTicket({
-        message: confirm.message,
-        category: supportCategoryFor(pathname, confirm.message),
-        priority: "normal",
-        source: "ai_platform_instructor",
-        context: { current_path: pathname },
-      });
+      const viaBackend = cur.v2
+        ? await confirmSupportHandoff({ message, category, priority: "normal" }).catch((e: unknown) => {
+            if (confirmUnsupported(e)) return null;
+            throw e;
+          })
+        : null;
+      const tk = viaBackend
+        ? viaBackend.ticket
+        : await createSupportTicket({ message, category, priority: "normal", source: "ai_platform_instructor", context: { current_path: pathname } });
       setConfirm(null);
-      toast(tk.workId ? t("ticketCreated", { id: tk.workId }) : t("ticketCreatedPlain"), { tone: "ok" });
+      toast(tk?.workId ? t("ticketCreated", { id: tk.workId }) : t("ticketCreatedPlain"), { tone: "ok" });
       runTour({
         id: newTourId(),
         source: "local",
-        navigate: `/portal/${gRole}/support?ticket=${encodeURIComponent(tk.id)}`,
+        navigate: `/portal/${gRole}/support${tk?.id ? `?ticket=${encodeURIComponent(tk.id)}` : ""}`,
         steps: [
           { target: "support:chat", caption: t("ticketShown"), focus: false },
           { target: "support:message-input", caption: t("ticketWrite"), focus: true },
         ],
       });
     } catch (e) {
-      setConfirm((c) => (c ? { ...c, busy: false, error: errorText(e, tc) } : c));
+      setConfirm((c) => (c && c.key === cur.key ? { ...c, busy: false, error: errorText(e, tc) } : c));
     }
   };
 
@@ -312,6 +365,7 @@ export default function AiSystemAssistant({
           <IconHeadset />
         </span>
         <p>{t("confirmText")}</p>
+        {confirm?.note ? <p className="aiconfirm__note">{confirm.note}</p> : null}
         {confirm?.message ? <blockquote className="aiconfirm__q">{confirm.message}</blockquote> : null}
         {confirm?.error ? (
           <p className="aiconfirm__err" role="alert">
@@ -428,21 +482,53 @@ export default function AiSystemAssistant({
               if (m.kind === "me") return <p className="ains__me" key={m.id}>{m.text}</p>;
               if (m.kind === "err") return <p className="ains__err" key={m.id} role="status">{m.text}</p>;
               if (m.kind === "guide") {
+                const tour = m.tour;
+                const checklist = m.checklist ?? [];
+                const needs = m.needs ?? [];
                 return (
                   <div className="ains__ai ains__ai--guide" key={m.id}>
                     <p className="ains__text">{m.text || t("done")}</p>
-                    <div className="ains__acts">
-                      <button type="button" className="btn btn--line btn--sm" onClick={() => runTour({ ...m.tour, id: newTourId() })}>
-                        <IconTarget />
-                        {t("replay")}
-                      </button>
-                      {m.support ? (
-                        <button type="button" className="btn btn--pri btn--sm" onClick={() => setConfirm({ message: lastQuestion(m.id), busy: false, error: "" })}>
-                          <IconHeadset />
-                          {t("toOperator")}
-                        </button>
-                      ) : null}
-                    </div>
+                    {checklist.length ? (
+                      <div className="ains__steps">
+                        <p className="ains__stepsT" id={`ains-steps-${m.id}`}>
+                          {t("stepsTitle")}
+                        </p>
+                        <ol className="ains__list" role="list" aria-labelledby={`ains-steps-${m.id}`}>
+                          {checklist.map((s, i) => (
+                            <li key={`${i}-${s}`}>
+                              <span className="ains__num">{i + 1}</span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    ) : null}
+                    {needs.length ? (
+                      <div className="ains__needs">
+                        <p id={`ains-needs-${m.id}`}>{t("needsTitle")}</p>
+                        <ul aria-labelledby={`ains-needs-${m.id}`}>
+                          {needs.map((s, i) => (
+                            <li key={`${i}-${s}`}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {tour || m.support ? (
+                      <div className="ains__acts">
+                        {tour ? (
+                          <button type="button" className="btn btn--pri btn--sm" onClick={() => runTour({ ...tour, id: newTourId() })}>
+                            <IconTarget />
+                            {t("showMe")}
+                          </button>
+                        ) : null}
+                        {m.support ? (
+                          <button type="button" className={`btn ${tour ? "btn--line" : "btn--pri"} btn--sm`} onClick={() => openHandoff(lastQuestion(m.id))}>
+                            <IconHeadset />
+                            {t("toOperator")}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 );
               }

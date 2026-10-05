@@ -17,6 +17,7 @@ import {
   isActiveTicket,
   normSupportTicket,
   supportCategoryFor,
+  type SupportEventKind,
   type SupportMessage,
   type SupportTicket,
 } from "@/lib/services/support";
@@ -37,7 +38,7 @@ import {
   IconSparkle,
 } from "@/components/icons";
 import SupportChat from "./SupportChat";
-import { TicketCard, useMinuteNow } from "./bits";
+import { TicketCard, useMinuteNow, useSupportLabels } from "./bits";
 import { useMyChats } from "./useMyChats";
 import { SUPPORT_PHONE, SUPPORT_TEL } from "./contact";
 
@@ -45,6 +46,9 @@ const CLIENT_ASK = ["subscription", "payment", "documents", "marketplace", "urge
 const SELLER_ASK = ["orders", "profile", "subscription", "payment", "account"] as const;
 const CLIENT_TOPICS: readonly string[] = ["subscription", "payment", "documents", "marketplace", "urgent_advokat", "account", "technical"];
 const SELLER_TOPICS: readonly string[] = ["subscription", "payment", "documents", "urgent_advokat", "account", "technical"];
+const KNOWN_TOPICS: readonly string[] = SUPPORT_CATEGORIES;
+const TOPIC_ALIAS: Record<string, string> = { document: "documents" };
+const STATUS_OF: Partial<Record<SupportEventKind, string>> = { claimed: "claimed", transferred: "transferred", closed: "closed", reopened: "reopened" };
 const MAX = 4000;
 const NARROW = "(max-width: 1180px)";
 
@@ -72,7 +76,12 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   const client = role === "client";
   const base = `/portal/${role}/support`;
   const asks = client ? CLIENT_ASK : SELLER_ASK;
-  const topics = client ? CLIENT_TOPICS : SELLER_TOPICS;
+  const labels = useSupportLabels();
+  const baseTopics = client ? CLIENT_TOPICS : SELLER_TOPICS;
+  const extraTopics = labels.meta.categories
+    .map((o) => TOPIC_ALIAS[o.key] ?? o.key)
+    .filter((k, i, all) => k !== "general" && !KNOWN_TOPICS.includes(k) && all.indexOf(k) === i);
+  const topics = extraTopics.length ? [...baseTopics, ...extraTopics] : baseTopics;
 
   const rawTopic = params.get("topic") || "";
   const urlTicket = ticketId || params.get("ticket") || "";
@@ -89,42 +98,45 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   const [sending, setSending] = useState(false);
   const [formErr, setFormErr] = useState<unknown>(null);
   const [tab, setTab] = useState<"active" | "closed">("active");
-  const [unread, setUnread] = useState<Record<string, number>>({});
   const [ask, setAsk] = useState("");
   const [foreign, setForeign] = useState("");
   const [prevUrlKey, setPrevUrlKey] = useState(urlKey);
+
+  const chats = useMyChats();
+  const { upsert, patch, poll, bump, clearUnread } = chats;
   if (prevUrlKey !== urlKey) {
     setPrevUrlKey(urlKey);
+    if (selected && selected !== urlTicket) clearUnread(selected);
     setSelected(urlTicket);
     if (wantsComposer) {
       setComposer((c) => ({ open: true, force: false, nonce: c.nonce + 1 }));
       if (urlTopic) setTopic(urlTopic);
     }
   }
-
-  const chats = useMyChats();
-  const { upsert, patch, poll } = chats;
   const now = useMinuteNow();
   const missing = chats.status === "error" && isRouteMissing(chats.error);
   const placeholder = useMemo(() => (selected ? normSupportTicket({ id: selected, status: "" }) : null), [selected]);
   const current = selected ? chats.map[selected] ?? placeholder : null;
   const latest = chats.active[0] ?? null;
   const ready = chats.status !== "loading";
-  const hasAny = chats.active.length + chats.closed.length > 0 || chats.closedMore;
+  const hasAny = chats.active.length + chats.closed.length > 0 || chats.more.closed || chats.more.active;
   const rootRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLElement>(null);
+  const unreadOf = (tk: SupportTicket) => (tk.id === selected ? 0 : tk.unreadCount);
 
   const go = useCallback((href: string) => router.replace(href as Parameters<typeof router.replace>[0], { scroll: false }), [router]);
 
   const open = (id: string) => {
     if (!id) return;
+    if (selected && selected !== id) clearUnread(selected);
+    clearUnread(id);
     setSelected(id);
     setComposer((c) => (c.open ? { ...c, open: false, force: false } : c));
-    setUnread((u) => (u[id] ? { ...u, [id]: 0 } : u));
     go(`${base}?ticket=${encodeURIComponent(id)}`);
   };
 
   const back = () => {
+    clearUnread(selected);
     setSelected("");
     go(base);
   };
@@ -134,6 +146,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
       go(`${base}?new=1`);
       return;
     }
+    clearUnread(selected);
     setSelected("");
     setFormErr(null);
     setComposer((c) => ({ open: true, force, nonce: c.nonce + 1 }));
@@ -182,8 +195,9 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
         return;
       }
       upsert(tk);
+      clearUnread(tk.id);
     },
-    [meId, upsert],
+    [meId, upsert, clearUnread],
   );
 
   const onMessage = useCallback(
@@ -193,6 +207,14 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
       patch(selected, { lastMessage: m.content, lastMessageAt: at, updatedAt: at });
     },
     [patch, selected],
+  );
+
+  const onReopen = useCallback(
+    (tk: SupportTicket) => {
+      upsert(tk);
+      setTab("active");
+    },
+    [upsert],
   );
 
   useEffect(() => {
@@ -214,24 +236,24 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
     if (!window.matchMedia("(pointer: coarse)").matches) el.querySelector<HTMLElement>("textarea, .supnew__acts .btn--pri")?.focus({ preventScroll: true });
   }, [composer.nonce, composer.open, ready]);
 
-  useSupportEvents((e) => {
-    if (e.ticket && (!e.ticket.clientUserId || e.ticket.clientUserId === meId)) upsert(e.ticket);
-    else if (e.kind === "message" && e.message) {
-      const m = e.message;
-      const part: Partial<SupportTicket> = {};
-      if (m.content) part.lastMessage = m.content;
-      if (m.createdAt) {
-        part.lastMessageAt = m.createdAt;
-        part.updatedAt = m.createdAt;
+  const { online } = useSupportEvents((e) => {
+    const owner = e.ticket?.clientUserId || e.clientUserId;
+    if (owner && meId && owner !== meId) return;
+    const known = Boolean(chats.map[e.ticketId]);
+    const status = STATUS_OF[e.kind];
+    if (e.ticket) upsert(e.ticket);
+    else if (known && status) patch(e.ticketId, { status });
+    if (e.kind === "message") {
+      const last = e.messages[e.messages.length - 1];
+      if (last && !e.ticket) {
+        const at = last.createdAt || new Date().toISOString();
+        patch(e.ticketId, { lastMessage: last.content, lastMessageAt: at, updatedAt: at });
       }
-      patch(e.ticketId, part);
-    } else if (e.kind === "closed") patch(e.ticketId, { status: "closed" });
-    if (e.kind === "message" && e.ticketId !== selected && e.message?.senderUserId !== meId && chats.map[e.ticketId]) {
-      setUnread((u) => ({ ...u, [e.ticketId]: (u[e.ticketId] ?? 0) + 1 }));
-    }
-    poll();
+      if (e.ticketId !== selected) for (const m of e.messages) if (m.senderUserId && m.senderUserId !== meId) bump(e.ticketId, m.id);
+      if (!e.messages.length) poll();
+    } else if (!e.ticket && !known && e.kind === "created") poll();
   }, poll);
-  usePoll(poll, 30000, chats.status === "ready");
+  usePoll(poll, 30000, chats.status === "ready" && !online);
 
   useAiReveal(/^(support:(channels|ai|call|complaints)|button:operator-support)$/, () => {
     if (selected) back();
@@ -307,7 +329,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
         </button>
       </div>
     ) : shown.length ? (
-      shown.map((tk) => <TicketCard key={tk.id} ticket={tk} view="client" now={now} active={tk.id === selected} unread={unread[tk.id]} onOpen={() => open(tk.id)} />)
+      shown.map((tk) => <TicketCard key={tk.id} ticket={tk} view="client" now={now} active={tk.id === selected} unread={unreadOf(tk)} onOpen={() => open(tk.id)} />)
     ) : tab === "closed" ? (
       <div className="supempty supempty--sm">
         <span className="supempty__ic" aria-hidden="true">
@@ -345,8 +367,8 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   const list = (
     <div className={selected ? "supwork__list" : "supchats__list"} data-ai-target="support:ticket-list">
       {listBody}
-      {tab === "closed" && chats.closedMore && chats.status === "ready" ? (
-        <button type="button" className="btn btn--line btn--sm sup__more" onClick={() => void chats.loadMoreClosed()} disabled={chats.closedBusy}>
+      {chats.more[tab] && chats.status === "ready" ? (
+        <button type="button" className="btn btn--line btn--sm sup__more" onClick={() => void chats.loadMore(tab)} disabled={chats.busy[tab]}>
           {tc("loadMore")}
         </button>
       ) : null}
@@ -377,9 +399,10 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
               ticket={current}
               meId={meId}
               mode="client"
-              canWrite={current.status !== "closed" && foreign !== current.id}
+              canWrite={isActiveTicket(current) && foreign !== current.id}
               onTicket={onTicket}
               onMessage={onMessage}
+              onReopen={onReopen}
               onNewChat={() => startChat(true)}
               onBack={back}
             />
@@ -530,7 +553,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
               <div className="supcard supcard--ghost" aria-hidden="true" />
             ) : resumeFirst && latest ? (
               <div className="supnew__resume">
-                <TicketCard ticket={latest} view="client" now={now} active={false} onOpen={() => open(latest.id)} />
+                <TicketCard ticket={latest} view="client" now={now} active={false} unread={unreadOf(latest)} onOpen={() => open(latest.id)} />
                 <div className="supnew__acts">
                   <button type="button" className="btn btn--pri btn--sm" onClick={() => open(latest.id)}>
                     <IconArrowRight />
@@ -570,12 +593,12 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
                   <div className="supnew__chips">
                     {topics.map((c) => (
                       <button key={c} type="button" className="supchip" aria-pressed={topic === c} onClick={() => setTopic((cur) => (cur === c ? "" : c))}>
-                        {t(`categories.${c}`)}
+                        {labels.category(c)}
                       </button>
                     ))}
                   </div>
                   {topic ? null : (
-                    <small className="supnew__auto">{auto && auto !== "general" ? t("compose.autoTopic", { topic: t(`categories.${auto}`) }) : t("compose.autoHint")}</small>
+                    <small className="supnew__auto">{auto && auto !== "general" ? t("compose.autoTopic", { topic: labels.category(auto) }) : t("compose.autoHint")}</small>
                   )}
                 </fieldset>
                 <label className="supnew__urgent">

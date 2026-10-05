@@ -30,6 +30,8 @@ export type GuideState = {
 
 export type TargetInfo = { id: string; label: string; kind: string; in_view: boolean };
 
+export type RegistryTarget = { id: string; text: string; route: string; page: string };
+
 export type TourStepDef = { target: string; text: string };
 
 export type GuidePage = {

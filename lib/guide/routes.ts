@@ -5,6 +5,18 @@ const SELLER_PAGES: Record<"lawyer" | "advocate", Set<string>> = {
   advocate: new Set(["", "/assistant", "/calendar", "/cases", "/clients", "/document-requests", "/files", "/marketplace-orders", "/meetings", "/messages", "/notifications", "/opportunities", "/organization", "/profile", "/promotion", "/referrals", "/subscription", "/support", "/tasks", "/urgent"]),
 };
 
+const SELLER_TWIN: Record<"lawyer" | "advocate", Record<string, string>> = {
+  lawyer: { "/messages": "/chat", "/opportunities": "/marketplace", "/assistant": "/ai" },
+  advocate: { "/chat": "/messages", "/marketplace": "/opportunities", "/ai": "/assistant" },
+};
+
+const ADMIN_ALIAS: Record<string, string> = {
+  dashboard: "/admin/dashboard",
+  marketplace: "/admin/marketplace",
+  subscriptions: "/admin/plans",
+  support: "/admin/call-center/support",
+};
+
 const CLIENT_TO_SELLER: Record<string, Partial<Record<"lawyer" | "advocate", string>>> = {
   "": { lawyer: "", advocate: "" },
   "/subscription": { lawyer: "/subscription", advocate: "/subscription" },
@@ -30,6 +42,7 @@ const CLIENT_TO_STAFF: Record<string, string> = {
 };
 
 const ALIAS: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [/^\/portal\/client\/documents\/my$/, () => "/portal/client/documents"],
   [/^\/portal\/client\/subscriptions$/, () => "/portal/client/subscription"],
   [/^\/portal\/client\/marketplace$/, () => "/portal/client/lawyers"],
   [/^\/portal\/client\/urgent-advokat$/, () => "/portal/client/urgent"],
@@ -40,8 +53,10 @@ const ALIAS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^\/portal\/call-center\/support(\/[^/]+)?$/, (m) => `/admin/call-center/support${m[1] ?? ""}`],
   [/^\/portal\/call-center(\/.*)?$/, () => "/admin/call-center"],
   [/^\/portal\/organization\/([^/]+)\/dashboard$/, (m) => `/portal/advocate/organization/${m[1]}`],
+  [/^\/portal\/organization\/(advocates|works|stats)$/, () => "/portal/advocate/organization"],
   [/^\/portal\/organization(\/.*)?$/, (m) => `/portal/advocate/organization${m[1] ?? ""}`],
   [/^\/portal\/seller(\/.*)?$/, (m) => `/portal/advocate${m[1] ?? ""}`],
+  [/^\/portal\/admin\/(dashboard|marketplace|subscriptions|support)$/, (m) => ADMIN_ALIAS[m[1]]],
 ];
 
 export function normPath(raw: string): string {
@@ -91,7 +106,12 @@ export function guideHref(raw: string, role: GuideRole): string {
   }
   if (suffix === undefined) return "";
   const head = "/" + (suffix.split("/")[1] ?? "");
-  if (!SELLER_PAGES[role].has(head === "/" ? "" : head)) return "";
+  const key = head === "/" ? "" : head;
+  if (!SELLER_PAGES[role].has(key)) {
+    const twin = SELLER_TWIN[role][key];
+    if (twin === undefined || suffix !== key || !SELLER_PAGES[role].has(twin)) return "";
+    suffix = twin;
+  }
   return own + suffix + rest;
 }
 

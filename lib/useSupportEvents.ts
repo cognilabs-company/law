@@ -1,15 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { onUserSocketResync, subscribeUserEvents, subscribeUserSocketState, userSocketState } from "./userSocket";
-import { supportEventOf, type SupportEvent } from "./services/support";
+import { mergeSupportEvents, supportEventOf, type SupportEvent } from "./services/support";
 
 const SETTLE_MS = 400;
+
+const keyOf = (e: SupportEvent) => `${e.kind === "assist" ? e.name : e.kind}:${e.ticketId}`;
+
+const subscribeOnline = (cb: () => void) => subscribeUserSocketState(() => cb());
+const readOnline = () => userSocketState() === "online";
+const serverOnline = () => false;
+
+export function useSocketOnline(): boolean {
+  return useSyncExternalStore(subscribeOnline, readOnline, serverOnline);
+}
 
 export function useSupportEvents(handler: (e: SupportEvent) => void, onResync?: () => void) {
   const ref = useRef(handler);
   const resyncRef = useRef(onResync);
-  const [online, setOnline] = useState(() => userSocketState() === "online");
+  const online = useSocketOnline();
 
   useEffect(() => {
     ref.current = handler;
@@ -21,21 +31,19 @@ export function useSupportEvents(handler: (e: SupportEvent) => void, onResync?: 
     const offEv = subscribeUserEvents((raw) => {
       const e = supportEventOf(raw);
       if (!e) return;
-      const key = `${e.kind}:${e.ticketId}`;
+      const key = keyOf(e);
       const prev = pending.get(key);
       if (prev) window.clearTimeout(prev.timer);
-      const merged = prev ? { ...e, ticket: e.ticket ?? prev.e.ticket, message: e.message ?? prev.e.message } : e;
+      const merged = prev ? mergeSupportEvents(prev.e, e) : e;
       const timer = window.setTimeout(() => {
         pending.delete(key);
         ref.current(merged);
       }, SETTLE_MS);
       pending.set(key, { e: merged, timer });
     });
-    const offState = subscribeUserSocketState((s) => setOnline(s === "online"));
     const offSync = onUserSocketResync(() => resyncRef.current?.());
     return () => {
       offEv();
-      offState();
       offSync();
       pending.forEach((p) => window.clearTimeout(p.timer));
       pending.clear();

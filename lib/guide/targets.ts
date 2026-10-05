@@ -117,14 +117,17 @@ const KIND: [RegExp, string][] = [
   [/^tab:|:tab:/, "tab"],
 ];
 
+export function targetKind(id: string): string {
+  return KIND.find(([re]) => re.test(id))?.[1] ?? "section";
+}
+
 export function collectTargets(limit = 120): TargetInfo[] {
   if (typeof document === "undefined") return [];
   const out = new Map<string, TargetInfo>();
   for (const el of Array.from(document.querySelectorAll<HTMLElement>("[data-ai-target]"))) {
     const id = el.dataset.aiTarget;
     if (!id || out.has(id) || !isShown(el)) continue;
-    const kind = KIND.find(([re]) => re.test(id))?.[1] ?? "section";
-    out.set(id, { id, label: targetLabel(el), kind, in_view: intersectsViewport(el) });
+    out.set(id, { id, label: targetLabel(el), kind: targetKind(id), in_view: intersectsViewport(el) });
     if (out.size >= limit) break;
   }
   return [...out.values()];

@@ -38,6 +38,7 @@ export const SUPPORT_PAGES: GuidePage[] = [
       { target: "ai-help:current-page", text: "tours.admin_support.title" },
       { target: "support:ticket-list", text: "tours.admin_support.list" },
       { target: "support:chat", text: "tours.admin_support.chat" },
+      { target: "support:assist", text: "tours.admin_support.assist" },
     ],
     suggestions: ["suggest.support.queueClaim", "suggest.support.queueTransfer", "suggest.support.queueClose"],
   },

@@ -523,6 +523,7 @@
         "list": "Services clients bought from you and the order status are here."
       },
       "admin_support": {
+        "assist": "Help the client: after you claim the chat, request a plan, document or service on the client's behalf here.",
         "title": "Operator chats — the queue of live client chats. Take a waiting chat and reply.",
         "chat": "The selected chat: reply to the client here, and transfer or close it when needed.",
         "list": "The queue of client operator chats: claim, reply, transfer or close."
@@ -767,7 +768,237 @@
     }
   },
   "support": {
+    "assistNote": {
+      "kicker": "Operator help",
+      "workId": "ID: {id}",
+      "amount": "{amount} UZS",
+      "open": "Open",
+      "subscription_preview": {
+        "title": "The operator picked a plan for you",
+        "text": "Agree on the price with the operator — if you're happy, they will set the plan up."
+      },
+      "subscription_checkout": {
+        "title": "Plan prepared — waiting for payment approval",
+        "text": "The plan turns on automatically once the payment is approved."
+      },
+      "document_request": {
+        "title": "Your document request was sent to the duty lawyers",
+        "text": "You'll get a notification when a lawyer takes it."
+      },
+      "marketplace_purchase": {
+        "title": "Service order created — waiting for payment approval",
+        "text": "The specialist starts once the payment is approved."
+      }
+    },
+    "call": {
+      "group": "Call the client",
+      "audio": "Audio call",
+      "video": "Video call",
+      "starting": "Connecting…",
+      "failed": "Couldn't start the call. Please try again.",
+      "sessionTitle": "LexGo support call · {id}",
+      "sessionTitlePlain": "LexGo support call",
+      "incoming": "The operator is calling you",
+      "join": "Join"
+    },
+    "operatorsLoading": "Loading operators…",
+    "unreadAria": "{n, plural, one {# unread message} other {# unread messages}}",
+    "assist": {
+      "title": "Help the client",
+      "lead": "Plan, document and service requests on the client's behalf",
+      "refresh": "Refresh details",
+      "stale": "Could not refresh — showing the last known state.",
+      "sum": "{amount} UZS",
+      "perMonth": "{amount} UZS/mo",
+      "months": "{n, plural, one {# month} other {# months}}",
+      "locked": {
+        "claimTitle": "Claim the chat first",
+        "claimText": "You can act on the client's behalf only in a chat assigned to you. Once you claim it, you can create plan, document and service requests here.",
+        "otherTitle": "Another operator has this chat",
+        "otherText": "Only the operator assigned to this chat can act on the client's behalf.",
+        "closedTitle": "The chat is closed",
+        "closedText": "Nothing can be done on the client's behalf in a closed chat.",
+        "notClientTitle": "For client chats only",
+        "notClientText": "This request did not come from a client account (for example, an advocate or a lawyer wrote it). Acting on someone's behalf works for clients only.",
+        "missingTitle": "Chat not found",
+        "missingText": "This chat was removed or is not visible to you.",
+        "unavailableTitle": "Client help is not available yet",
+        "unavailableText": "The server does not support these actions yet. Try again later.",
+        "errorTitle": "Could not load the client's details"
+      },
+      "client": {
+        "lexgoId": "LexGo ID: {id}",
+        "noName": "No name given",
+        "account": "Account: {status}",
+        "ticket": "Request",
+        "callLabel": "Call",
+        "audio": "Audio",
+        "video": "Video",
+        "callAudio": "Start an audio call with the client",
+        "callVideo": "Start a video call with the client"
+      },
+      "overview": {
+        "heading": "Client status",
+        "subs": "Active plans",
+        "pending": "Awaiting payment",
+        "docs": "Documents",
+        "orders": "Orders",
+        "subsEmpty": "No active plans.",
+        "pendingEmpty": "No requests awaiting payment.",
+        "docsEmpty": "No document requests.",
+        "ordersEmpty": "No orders.",
+        "until": "until {date}",
+        "unknownPlan": "Plan",
+        "viaOperator": "Via operator",
+        "showAll": "All ({n})",
+        "showLess": "Show less"
+      },
+      "tabs": {
+        "label": "Act on the client's behalf",
+        "plan": "Plan",
+        "doc": "Document",
+        "market": "Service",
+        "capOff": "This action is not available right now."
+      },
+      "period": {
+        "monthly": "1 month",
+        "six_month": "6 months",
+        "yearly": "1 year",
+        "prepaid_yearly": "1 year (prepaid)"
+      },
+      "plan": {
+        "heading": "Pick a plan",
+        "lead": "Choose a plan and a term, check the price, then send the payment request with the client's consent.",
+        "plan": "Plan",
+        "period": "Term",
+        "listPrice": "List price: {amount}",
+        "loading": "Loading plans…",
+        "none": "No plans are on sale for clients.",
+        "loadError": "Could not load the plans.",
+        "preview": "Check the price",
+        "previewing": "Calculating…",
+        "quote": "Price for the client",
+        "total": "Total",
+        "base": "Base price",
+        "discount": "Discount",
+        "stale": "The plan or the term changed — check the price again.",
+        "next": "Prepare the payment request",
+        "confirmTitle": "Confirm the payment request",
+        "confirmNote": "A payment request on the client's behalf goes to Telegram for approval. The plan turns on only after the payment is approved.",
+        "sentTitle": "The payment request was sent to Telegram for approval"
+      },
+      "doc": {
+        "heading": "Document request",
+        "lead": "Find the document or choose “From scratch” — the request goes to the advocates on duty.",
+        "base": "Document basis",
+        "searchPh": "Document or service name",
+        "searching": "Searching…",
+        "noHits": "Nothing found.",
+        "searchError": "Search failed. Try again.",
+        "typeMore": "Type at least 2 letters.",
+        "scratch": "From scratch",
+        "scratchHint": "No template — the advocate writes the document from a blank page.",
+        "withTemplate": "Has a template",
+        "change": "Change",
+        "title": "Title",
+        "titlePh": "For example: statement of claim",
+        "need": "What the client needs",
+        "needPh": "The situation in the client's words and what they expect",
+        "needRequired": "Describe what the client needs.",
+        "baseRequired": "Pick a document or choose “From scratch”.",
+        "language": "Document language",
+        "lang": {
+          "uz": "Uzbek",
+          "ru": "Russian",
+          "en": "English"
+        },
+        "type": "Kind of document",
+        "price": "Service price",
+        "next": "Prepare the request",
+        "confirmTitle": "Confirm the document request",
+        "confirmNote": "The request goes to the on-duty advocates' queue on the client's behalf.",
+        "sentTitle": "The request was sent to the advocates on duty",
+        "poolNote": "Advocates pick the work up from the call-center document queue. The client sees “Your request was sent to the advocates on duty”.",
+        "mode": {
+          "callcenter_pool": "On-duty advocates' queue"
+        },
+        "payment": "Payment",
+        "paid": "Paid",
+        "unpaid": "Awaiting payment"
+      },
+      "market": {
+        "heading": "Marketplace service",
+        "lead": "Pick a specialist and one of their services — the request is sent on the client's behalf.",
+        "seller": "Specialist",
+        "sellerPh": "Name, field or service",
+        "sellersLoading": "Loading specialists…",
+        "sellersError": "Could not load the specialists.",
+        "noSellers": "No matching specialists.",
+        "servicesCount": "{n, plural, one {# service} other {# services}}",
+        "priceFrom": "from {amount}",
+        "service": "Service",
+        "servicesLoading": "Loading services…",
+        "servicesError": "Could not load the services.",
+        "noServices": "This specialist has no active services.",
+        "change": "Change",
+        "price": "Price",
+        "channel": "How to connect",
+        "channels": {
+          "chat": "Chat",
+          "audio": "Audio call",
+          "video": "Video call",
+          "meeting": "Meeting"
+        },
+        "time": "Preferred time",
+        "timePh": "For example: today at 15:00",
+        "note": "Note",
+        "notePh": "The client's situation in short",
+        "sellerRequired": "Pick a specialist.",
+        "serviceRequired": "Pick a service.",
+        "next": "Prepare the request",
+        "confirmTitle": "Confirm the service request",
+        "confirmNote": "A service request on the client's behalf goes to Telegram for approval. The specialist sees the work once the payment is approved.",
+        "sentTitle": "The service request was sent to Telegram for approval",
+        "nextStatus": {
+          "admin_telegram_confirm_required": "Waiting for an admin to approve in Telegram"
+        },
+        "afterPayment": "Once the payment is approved, the work goes to the specialist."
+      },
+      "confirm": {
+        "client": "Client",
+        "cancel": "Cancel",
+        "send": "Confirm and send",
+        "sending": "Sending…"
+      },
+      "result": {
+        "workId": "Work ID",
+        "status": "Status",
+        "amount": "Amount",
+        "plan": "Plan",
+        "telegram": "Telegram",
+        "telegramSent": "Sent for approval",
+        "telegramFailed": "Not delivered — tell an admin",
+        "next": "Next step",
+        "mode": "Assignment",
+        "dismiss": "Dismiss"
+      },
+      "errors": {
+        "planMissing": "This plan was not found or is not on sale.",
+        "planRole": "This plan is not open to clients.",
+        "period": "This term is not available for the chosen plan.",
+        "needRequired": "Describe what the client needs.",
+        "notApproved": "The specialist is not approved for the marketplace yet.",
+        "docDuplicate": "The client already has an open request for this document: {id}.",
+        "docDuplicatePlain": "The client already has an open request for this document.",
+        "marketDuplicate": "The client already has an active request with this specialist for this service: {id}.",
+        "marketDuplicatePlain": "The client already has an active request with this specialist for this service."
+      }
+    },
     "queue": {
+      "viewChat": "Chat",
+      "views": "Chat or client help",
+      "transferReason": "Transfer reason",
+      "reopenReason": "Reopen reason",
       "count": "{n, plural, one {# chat} other {# chats}}",
       "refresh": "Refresh",
       "oldestFirst": "Longest waiting first",
@@ -787,6 +1018,11 @@
       "days": "{n} d ago"
     },
     "chat": {
+      "reopenedOk": "The chat is open again — you can write to the operator",
+      "reopenDo": "Reopen the chat",
+      "reopenPh": "For example: the payment still fails",
+      "reopenReason": "What is still unresolved? (optional)",
+      "reopen": "Reopen",
       "connecting": "Connecting an operator…",
       "operatorFallback": "LexGo operator",
       "lexgoId": "LexGo ID: {id}",
@@ -945,6 +1181,8 @@
       "closed": "Closed"
     },
     "status": {
+      "cancelled": "Cancelled",
+      "resolved": "Resolved",
       "waiting_client_confirm": "Awaiting confirmation",
       "ai_handling": "AI is replying",
       "waiting_operator": "Waiting for operator",
@@ -954,6 +1192,7 @@
       "closed": "Closed"
     },
     "categories": {
+      "document": "Document",
       "general": "General",
       "subscription": "Plan / subscription",
       "payment": "Payment",
@@ -964,6 +1203,7 @@
       "technical": "Technical issue"
     },
     "priorities": {
+      "urgent": "Urgent",
       "low": "Low",
       "normal": "Normal",
       "high": "High"
@@ -3546,6 +3786,8 @@
       "checklistHint": "Each line is an item. Mark done items with \"[x]\"."
     },
     "aiAssistant": {
+      "needsTitle": "You'll need:",
+      "stepsTitle": "Steps",
       "short": "AI instructor",
       "ticketWrite": "Write any extra details here — the operator replies in this chat.",
       "pageTourShort": "Show this page",

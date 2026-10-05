@@ -523,6 +523,7 @@
         "list": "Mijozlar sotib olgan xizmatlaringiz va buyurtmalar holati shu yerda."
       },
       "admin_support": {
+        "assist": "Mijozga yordam: chatni olganingizdan so'ng mijoz nomidan tarif, hujjat yoki xizmat so'rovini shu yerdan yuborasiz.",
         "title": "Operator chatlari — mijozlarning jonli chatlari navbati. Kutayotgan chatni olib, javob berasiz.",
         "chat": "Tanlangan chat: mijozga shu yerda javob berasiz, kerak bo'lsa o'tkazasiz yoki yakunlaysiz.",
         "list": "Mijozlarning operator chatlari navbati: oling, javob bering, o'tkazing yoki yakunlang."
@@ -767,7 +768,237 @@
     }
   },
   "support": {
+    "assistNote": {
+      "kicker": "Operator yordami",
+      "workId": "ID: {id}",
+      "amount": "{amount} so'm",
+      "open": "Ko'rish",
+      "subscription_preview": {
+        "title": "Operator siz uchun tarif tanladi",
+        "text": "Narxni operator bilan kelishib oling — rozi bo'lsangiz, u tarifni rasmiylashtiradi."
+      },
+      "subscription_checkout": {
+        "title": "Tarif tayyorlandi — to'lov tasdiqlanishi kutilmoqda",
+        "text": "To'lov tasdiqlangach, tarif avtomatik faollashadi."
+      },
+      "document_request": {
+        "title": "Hujjat so'rovingiz navbatchi advokatlarga yuborildi",
+        "text": "Advokat ishni olgach, sizga bildirishnoma keladi."
+      },
+      "marketplace_purchase": {
+        "title": "Xizmat buyurtmasi yaratildi — to'lov tasdiqlanishi kutilmoqda",
+        "text": "To'lov tasdiqlangach, mutaxassis ishni boshlaydi."
+      }
+    },
+    "call": {
+      "group": "Mijozga qo'ng'iroq",
+      "audio": "Audio qo'ng'iroq",
+      "video": "Video qo'ng'iroq",
+      "starting": "Ulanmoqda…",
+      "failed": "Qo'ng'iroqni boshlab bo'lmadi. Qayta urinib ko'ring.",
+      "sessionTitle": "LexGo yordam qo'ng'irog'i · {id}",
+      "sessionTitlePlain": "LexGo yordam qo'ng'irog'i",
+      "incoming": "Operator sizga qo'ng'iroq qilmoqda",
+      "join": "Qo'shilish"
+    },
+    "operatorsLoading": "Operatorlar yuklanmoqda…",
+    "unreadAria": "{n} ta o'qilmagan xabar",
+    "assist": {
+      "title": "Mijozga yordam",
+      "lead": "Mijoz nomidan tarif, hujjat va xizmat so'rovi",
+      "refresh": "Ma'lumotni yangilash",
+      "stale": "Ma'lumot yangilanmadi — oxirgi holat ko'rsatilmoqda.",
+      "sum": "{amount} so'm",
+      "perMonth": "{amount} so'm/oy",
+      "months": "{n} oy",
+      "locked": {
+        "claimTitle": "Avval chatni oling",
+        "claimText": "Mijoz nomidan amal bajarish uchun chat sizga biriktirilgan bo'lishi kerak. Chatni olganingizdan keyin shu yerda tarif, hujjat va xizmat so'rovlarini yarata olasiz.",
+        "otherTitle": "Chat boshqa operatorda",
+        "otherText": "Mijoz nomidan amallarni chat biriktirilgan operator bajaradi.",
+        "closedTitle": "Chat yopilgan",
+        "closedText": "Yopilgan chat bo'yicha mijoz nomidan amal bajarib bo'lmaydi.",
+        "notClientTitle": "Faqat mijoz chatlari uchun",
+        "notClientText": "Bu murojaat mijoz hisobidan emas (masalan, advokat yoki yurist yozgan). Mijoz nomidan yordam faqat mijozlar uchun ishlaydi.",
+        "missingTitle": "Chat topilmadi",
+        "missingText": "Bu chat o'chirilgan yoki sizga ko'rinmaydi.",
+        "unavailableTitle": "Mijozga yordam hali ishlamaydi",
+        "unavailableText": "Server bu amallarni hali qo'llab-quvvatlamaydi. Keyinroq qayta urinib ko'ring.",
+        "errorTitle": "Mijoz ma'lumotini yuklab bo'lmadi"
+      },
+      "client": {
+        "lexgoId": "LexGo ID: {id}",
+        "noName": "Ism ko'rsatilmagan",
+        "account": "Hisob: {status}",
+        "ticket": "Murojaat",
+        "callLabel": "Qo'ng'iroq",
+        "audio": "Audio",
+        "video": "Video",
+        "callAudio": "Mijozga audio qo'ng'iroq qilish",
+        "callVideo": "Mijozga video qo'ng'iroq qilish"
+      },
+      "overview": {
+        "heading": "Mijoz holati",
+        "subs": "Faol obuna",
+        "pending": "To'lov kutilmoqda",
+        "docs": "Hujjatlar",
+        "orders": "Buyurtmalar",
+        "subsEmpty": "Faol obuna yo'q.",
+        "pendingEmpty": "To'lov kutayotgan so'rov yo'q.",
+        "docsEmpty": "Hujjat so'rovlari yo'q.",
+        "ordersEmpty": "Buyurtmalar yo'q.",
+        "until": "{date} gacha",
+        "unknownPlan": "Tarif",
+        "viaOperator": "Operator orqali",
+        "showAll": "Hammasi ({n})",
+        "showLess": "Kamroq ko'rsatish"
+      },
+      "tabs": {
+        "label": "Mijoz nomidan amal",
+        "plan": "Tarif",
+        "doc": "Hujjat",
+        "market": "Xizmat",
+        "capOff": "Bu amal hozircha yopiq."
+      },
+      "period": {
+        "monthly": "1 oy",
+        "six_month": "6 oy",
+        "yearly": "1 yil",
+        "prepaid_yearly": "1 yil (oldindan to'lov)"
+      },
+      "plan": {
+        "heading": "Tarif tanlab berish",
+        "lead": "Tarif va muddatni tanlang, narxni ko'ring, keyin mijoz roziligi bilan to'lov so'rovini yuboring.",
+        "plan": "Tarif",
+        "period": "Muddat",
+        "listPrice": "Ro'yxat narxi: {amount}",
+        "loading": "Tariflar yuklanmoqda…",
+        "none": "Mijozlar uchun sotuvdagi tarif topilmadi.",
+        "loadError": "Tariflarni yuklab bo'lmadi.",
+        "preview": "Narxni ko'rish",
+        "previewing": "Hisoblanmoqda…",
+        "quote": "Mijoz uchun narx",
+        "total": "Jami",
+        "base": "Asl narx",
+        "discount": "Chegirma",
+        "stale": "Tarif yoki muddat o'zgardi — narxni qayta ko'ring.",
+        "next": "To'lov so'rovini tayyorlash",
+        "confirmTitle": "To'lov so'rovini tasdiqlang",
+        "confirmNote": "Mijoz nomidan to'lov so'rovi Telegram tasdig'iga yuboriladi. Tarif faqat to'lov tasdiqlangandan keyin faollashadi.",
+        "sentTitle": "To'lov so'rovi Telegram tasdig'iga yuborildi"
+      },
+      "doc": {
+        "heading": "Hujjat so'rovi",
+        "lead": "Kerakli hujjatni toping yoki 0 dan tayyorlashni tanlang — so'rov navbatchi advokatlarga boradi.",
+        "base": "Hujjat asosi",
+        "searchPh": "Hujjat yoki xizmat nomi",
+        "searching": "Qidirilmoqda…",
+        "noHits": "Hech narsa topilmadi.",
+        "searchError": "Qidiruv ishlamadi. Qayta urinib ko'ring.",
+        "typeMore": "Kamida 2 ta harf yozing.",
+        "scratch": "0 dan tayyorlash",
+        "scratchHint": "Shablonsiz — advokat hujjatni bo'sh varaqdan yozadi.",
+        "withTemplate": "Shablon bor",
+        "change": "O'zgartirish",
+        "title": "Sarlavha",
+        "titlePh": "Masalan: Da'vo arizasi",
+        "need": "Mijoz ehtiyoji",
+        "needPh": "Mijoz aytgan vaziyat va undan nima kutilayotgani",
+        "needRequired": "Mijoz ehtiyojini yozing.",
+        "baseRequired": "Hujjatni tanlang yoki «0 dan tayyorlash»ni belgilang.",
+        "language": "Hujjat tili",
+        "lang": {
+          "uz": "O'zbekcha",
+          "ru": "Ruscha",
+          "en": "Inglizcha"
+        },
+        "type": "Hujjat turi",
+        "price": "Xizmat narxi",
+        "next": "So'rovni tayyorlash",
+        "confirmTitle": "Hujjat so'rovini tasdiqlang",
+        "confirmNote": "So'rov mijoz nomidan navbatchi advokatlar navbatiga yuboriladi.",
+        "sentTitle": "So'rov navbatchi advokatlarga yuborildi",
+        "poolNote": "Advokatlar ishni callcenter hujjat so'rovlari navbatidan oladi. Mijozga «So'rovingiz navbatchi advokatlarga yuborildi» deb ko'rinadi.",
+        "mode": {
+          "callcenter_pool": "Navbatchi advokatlar navbati"
+        },
+        "payment": "To'lov",
+        "paid": "To'langan",
+        "unpaid": "To'lov kutilmoqda"
+      },
+      "market": {
+        "heading": "Marketplace xizmati",
+        "lead": "Mutaxassis va uning xizmatini tanlang — so'rov mijoz nomidan yuboriladi.",
+        "seller": "Mutaxassis",
+        "sellerPh": "Ism, yo'nalish yoki xizmat",
+        "sellersLoading": "Mutaxassislar yuklanmoqda…",
+        "sellersError": "Mutaxassislarni yuklab bo'lmadi.",
+        "noSellers": "Mos mutaxassis topilmadi.",
+        "servicesCount": "{n} ta xizmat",
+        "priceFrom": "{amount} dan",
+        "service": "Xizmat",
+        "servicesLoading": "Xizmatlar yuklanmoqda…",
+        "servicesError": "Xizmatlarni yuklab bo'lmadi.",
+        "noServices": "Bu mutaxassisda faol xizmat yo'q.",
+        "change": "O'zgartirish",
+        "price": "Narx",
+        "channel": "Aloqa usuli",
+        "channels": {
+          "chat": "Chat",
+          "audio": "Audio qo'ng'iroq",
+          "video": "Video qo'ng'iroq",
+          "meeting": "Uchrashuv"
+        },
+        "time": "Qulay vaqt",
+        "timePh": "Masalan: bugun 15:00",
+        "note": "Izoh",
+        "notePh": "Mijozning vaziyati qisqacha",
+        "sellerRequired": "Mutaxassisni tanlang.",
+        "serviceRequired": "Xizmatni tanlang.",
+        "next": "So'rovni tayyorlash",
+        "confirmTitle": "Xizmat so'rovini tasdiqlang",
+        "confirmNote": "Mijoz nomidan xizmat so'rovi Telegram tasdig'iga yuboriladi. To'lov tasdiqlangach ish mutaxassisga ko'rinadi.",
+        "sentTitle": "Xizmat so'rovi Telegram tasdig'iga yuborildi",
+        "nextStatus": {
+          "admin_telegram_confirm_required": "Telegramda admin tasdig'i kutilmoqda"
+        },
+        "afterPayment": "To'lov tasdiqlangach ish mutaxassisga yuboriladi."
+      },
+      "confirm": {
+        "client": "Mijoz",
+        "cancel": "Bekor qilish",
+        "send": "Tasdiqlash va yuborish",
+        "sending": "Yuborilmoqda…"
+      },
+      "result": {
+        "workId": "Ish ID",
+        "status": "Holat",
+        "amount": "Summa",
+        "plan": "Tarif",
+        "telegram": "Telegram",
+        "telegramSent": "Tasdiqlashga yuborildi",
+        "telegramFailed": "Yetib bormadi — adminga xabar bering",
+        "next": "Keyingi bosqich",
+        "mode": "Taqsimlash",
+        "dismiss": "Yopish"
+      },
+      "errors": {
+        "planMissing": "Bu tarif topilmadi yoki sotuvda emas.",
+        "planRole": "Bu tarif mijozlar uchun ochilmagan.",
+        "period": "Bu muddat tanlangan tarif uchun mavjud emas.",
+        "needRequired": "Mijoz ehtiyojini yozing.",
+        "notApproved": "Mutaxassis hali marketplace uchun tasdiqlanmagan.",
+        "docDuplicate": "Mijozda bu hujjat bo'yicha ochiq so'rov bor: {id}.",
+        "docDuplicatePlain": "Mijozda bu hujjat bo'yicha ochiq so'rov bor.",
+        "marketDuplicate": "Mijozda bu mutaxassis va xizmat bo'yicha faol so'rov bor: {id}.",
+        "marketDuplicatePlain": "Mijozda bu mutaxassis va xizmat bo'yicha faol so'rov bor."
+      }
+    },
     "queue": {
+      "viewChat": "Chat",
+      "views": "Chat yoki mijozga yordam",
+      "transferReason": "O'tkazish sababi",
+      "reopenReason": "Qayta ochish sababi",
       "count": "{n} ta chat",
       "refresh": "Yangilash",
       "oldestFirst": "Eng uzoq kutayotganlar tepada",
@@ -787,6 +1018,11 @@
       "days": "{n} kun oldin"
     },
     "chat": {
+      "reopenedOk": "Suhbat qayta ochildi — operatorga yozishingiz mumkin",
+      "reopenDo": "Suhbatni qayta ochish",
+      "reopenPh": "Masalan: to'lov hali ham o'tmayapti",
+      "reopenReason": "Nima hal bo'lmadi? (ixtiyoriy)",
+      "reopen": "Qayta ochish",
       "connecting": "Operator ulanmoqda…",
       "operatorFallback": "LexGo operatori",
       "lexgoId": "LexGo ID: {id}",
@@ -945,6 +1181,8 @@
       "closed": "Yakunlangan"
     },
     "status": {
+      "cancelled": "Bekor qilingan",
+      "resolved": "Hal qilingan",
       "waiting_client_confirm": "Tasdiq kutilmoqda",
       "ai_handling": "AI javob bermoqda",
       "waiting_operator": "Operator kutilmoqda",
@@ -954,6 +1192,7 @@
       "closed": "Yakunlangan"
     },
     "categories": {
+      "document": "Hujjat",
       "general": "Umumiy",
       "subscription": "Tarif / obuna",
       "payment": "To'lov",
@@ -964,6 +1203,7 @@
       "technical": "Texnik muammo"
     },
     "priorities": {
+      "urgent": "Tezkor",
       "low": "Past",
       "normal": "Oddiy",
       "high": "Yuqori"
@@ -3552,6 +3792,8 @@
       "checklistHint": "Har bir qator — alohida band. Bajarilganini \"[x]\" bilan belgilang."
     },
     "aiAssistant": {
+      "needsTitle": "Buning uchun kerak:",
+      "stepsTitle": "Qadamlar",
       "short": "AI instruktor",
       "ticketWrite": "Qo'shimcha ma'lumotni shu yerga yozasiz — operator shu chatda javob beradi.",
       "pageTourShort": "Sahifani ko'rsat",

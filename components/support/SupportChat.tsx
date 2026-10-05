@@ -2,37 +2,85 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { Link, useRouter } from "@/i18n/navigation";
 import {
+  assistInfoOf,
+  byMessageTime,
+  isClosedStatus,
+  isVisibleMessage,
   isWaitingTicket,
   loadLatestMessages,
   loadNewMessages,
   loadOlderMessages,
+  reopenSupportTicket,
   sendSupportMessage,
+  supportCallHref,
   ticketTitle,
+  timeOf,
   type MessageCursor,
+  type SupportAssistInfo,
+  type SupportAssistKind,
+  type SupportCall,
+  type SupportEvent,
   type SupportMessage,
   type SupportTicket,
 } from "@/lib/services/support";
-import { ApiError, contactBlockedOf, isAborted, isForbidden, parseServerTime } from "@/lib/http";
+import { ApiError, asDict, asStr, contactBlockedOf, isAborted, isForbidden, parseServerTime } from "@/lib/http";
 import { errorText } from "@/lib/errorText";
+import { toast } from "@/lib/toast";
+import { fmtUzs } from "@/lib/money";
+import { subscribeUserEvents } from "@/lib/userSocket";
+import { primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
 import { dateOnly, dateTimeFull, timeOnly } from "@/lib/date";
 import { initials } from "@/lib/lawyers";
 import ContactBlockedNote from "@/components/ContactBlockedNote";
-import { IconAlert, IconCheckDouble, IconHeadset, IconLock, IconPaperclip, IconPlus, IconRefresh, IconSend, IconSparkle, IconUser } from "@/components/icons";
-import { SupportStatus } from "./bits";
+import {
+  IconAlert,
+  IconArrowRight,
+  IconBriefcase,
+  IconCard,
+  IconCheckDouble,
+  IconClose,
+  IconFileText,
+  IconHeadset,
+  IconLock,
+  IconPaperclip,
+  IconPhone,
+  IconPlus,
+  IconRefresh,
+  IconSend,
+  IconSparkle,
+  IconUser,
+  IconVideo,
+} from "@/components/icons";
+import { SupportStatus, useSupportCall, useSupportLabels, type SupportCallControl } from "./bits";
 
 const PAGE = 50;
 const GROUP_MS = 5 * 60 * 1000;
+const SYNC_MS = 1500;
+const CALL_OVER = new Set(["ended", "cancelled", "expired", "missed", "rejected", "failed"]);
 
-const byTime = (a: SupportMessage, b: SupportMessage) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0);
+type AssistCard = { key: string; info: SupportAssistInfo; at: string };
+type Row = { kind: "msg"; m: SupportMessage; at: number } | { kind: "card"; c: AssistCard; at: number };
 
-const visible = (m: SupportMessage) => Boolean(m.content.trim() || m.attachments.length || m.messageType === "system");
+const ASSIST_HREF: Partial<Record<SupportAssistKind, string>> = {
+  subscription_checkout: "/portal/client/payments",
+  document_request: "/portal/client/documents",
+  marketplace_purchase: "/portal/client/marketplace-orders",
+};
+
+const ASSIST_TONE: Record<SupportAssistKind, string> = {
+  subscription_preview: "info",
+  subscription_checkout: "wait",
+  document_request: "ok",
+  marketplace_purchase: "wait",
+};
 
 function merge(cur: SupportMessage[], next: SupportMessage[]): SupportMessage[] {
   const seen = new Map(cur.map((m) => [m.id, m]));
-  for (const m of next) if (m.id && visible(m)) seen.set(m.id, m);
-  return [...seen.values()].sort(byTime);
+  for (const m of next) if (m.id && isVisibleMessage(m)) seen.set(m.id, m);
+  return [...seen.values()].sort(byMessageTime);
 }
 
 function near(a: string, b: string): boolean {
@@ -43,14 +91,63 @@ function near(a: string, b: string): boolean {
 
 const isMissing = (e: unknown) => isForbidden(e) || (e instanceof ApiError && e.status === 404);
 
+function AssistIcon({ kind }: { kind: SupportAssistKind }) {
+  if (kind === "subscription_checkout") return <IconCard />;
+  if (kind === "document_request") return <IconFileText />;
+  if (kind === "marketplace_purchase") return <IconBriefcase />;
+  return <IconSparkle />;
+}
+
+function AssistNote({ card }: { card: AssistCard }) {
+  const t = useTranslations("support");
+  const locale = useLocale();
+  const { info } = card;
+  const href = ASSIST_HREF[info.kind];
+  const money = info.amount > 0 ? (info.currency && !/^uzs$/i.test(info.currency) ? `${fmtUzs(info.amount)} ${info.currency}` : t("assistNote.amount", { amount: fmtUzs(info.amount) })) : "";
+  return (
+    <div className={`supassist supassist--${ASSIST_TONE[info.kind]}`} role="note">
+      <span className="supassist__ic" aria-hidden="true">
+        <AssistIcon kind={info.kind} />
+      </span>
+      <div className="supassist__tx">
+        <span className="supassist__kick">{t("assistNote.kicker")}</span>
+        <b>{t(`assistNote.${info.kind}.title`)}</b>
+        {info.title ? <span className="supassist__what">{info.title}</span> : null}
+        <p>{t(`assistNote.${info.kind}.text`)}</p>
+        {info.workId || money ? (
+          <span className="supassist__meta">
+            {info.workId ? <span className="supassist__id">{t("assistNote.workId", { id: info.workId })}</span> : null}
+            {money ? <span className="supassist__sum">{money}</span> : null}
+          </span>
+        ) : null}
+        {href ? (
+          <Link href={href} className="supassist__go">
+            {t("assistNote.open")}
+            <IconArrowRight aria-hidden="true" />
+          </Link>
+        ) : null}
+      </div>
+      {card.at ? (
+        <time className="supassist__at" dateTime={card.at}>
+          {timeOnly(card.at, locale)}
+        </time>
+      ) : null}
+    </div>
+  );
+}
+
 export default function SupportChat({
   ticket,
   meId,
   mode,
   canWrite,
+  canCall,
+  call,
   readOnlyNote,
   onTicket,
   onMessage,
+  onReopen,
+  onMissing,
   onNewChat,
   onBack,
 }: {
@@ -58,15 +155,21 @@ export default function SupportChat({
   meId: string;
   mode: "client" | "operator";
   canWrite: boolean;
+  canCall?: boolean;
+  call?: SupportCallControl;
   readOnlyNote?: string;
   onTicket?: (t: SupportTicket) => void;
   onMessage?: (m: SupportMessage) => void;
+  onReopen?: (t: SupportTicket) => void;
+  onMissing?: (ticketId: string) => void;
   onNewChat?: () => void;
   onBack?: () => void;
 }) {
   const t = useTranslations("support");
   const tc = useTranslations("common");
   const locale = useLocale();
+  const router = useRouter();
+  const labels = useSupportLabels();
   const [msgs, setMsgs] = useState<SupportMessage[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error" | "missing">("loading");
   const [hasMore, setHasMore] = useState(false);
@@ -76,20 +179,40 @@ export default function SupportChat({
   const [error, setError] = useState<unknown>(null);
   const [announce, setAnnounce] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const [syncReq, setSyncReq] = useState(0);
+  const [ring, setRing] = useState<SupportCall | null>(null);
+  const [cards, setCards] = useState<AssistCard[]>([]);
+  const [reopen, setReopen] = useState<{ reason: string; busy: boolean; err: unknown } | null>(null);
+  const ownCall = useSupportCall(ticket.id, ticket.workId);
+  const { calling, start: startCall } = call ?? ownCall;
   const cursor = useRef<MessageCursor | null>(null);
   const onTicketRef = useRef(onTicket);
+  const onMissingRef = useRef(onMissing);
   const msgsRef = useRef<SupportMessage[]>([]);
   const box = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const keep = useRef<number | null>(null);
   const stick = useRef(true);
+  const syncLater = useRef(false);
   const known = Boolean(ticket.status);
-  const closed = ticket.status === "closed";
+  const closed = isClosedStatus(ticket.status);
   const ticketId = ticket.id;
   const clientUserId = ticket.clientUserId;
+  const [prevClosed, setPrevClosed] = useState(closed);
+  if (prevClosed !== closed) {
+    setPrevClosed(closed);
+    setReopen(null);
+  }
+  const holder = `${ticket.status}|${ticket.operatorUserId}`;
+  const [prevHolder, setPrevHolder] = useState(holder);
+  if (prevHolder !== holder) {
+    setPrevHolder(holder);
+    if (!prevHolder.startsWith("|")) setSyncReq((n) => n + 1);
+  }
 
   useEffect(() => {
     onTicketRef.current = onTicket;
+    onMissingRef.current = onMissing;
     msgsRef.current = msgs;
   });
 
@@ -103,14 +226,16 @@ export default function SupportChat({
         if (c.signal.aborted) return;
         cursor.current = r.cursor;
         stick.current = true;
-        setMsgs(merge([], r.items));
+        setMsgs((cur) => merge(cur, r.items));
         setHasMore(r.cursor.hasOlder);
         setState("ready");
         if (r.ticket) onTicketRef.current?.(r.ticket);
       })
       .catch((e: unknown) => {
         if (isAborted(e) || c.signal.aborted) return;
-        setState(isMissing(e) ? "missing" : "error");
+        const gone = isMissing(e);
+        setState(gone ? "missing" : "error");
+        if (gone) onMissingRef.current?.(ticketId);
       });
     return () => c.abort();
   }, [ticketId, reloadKey]);
@@ -128,9 +253,12 @@ export default function SupportChat({
   const refresh = useCallback(() => {
     const cur = cursor.current;
     if (!cur) return;
-    loadNewMessages(ticketId, cur, clientUserId)
+    const have = new Set(msgsRef.current.map((m) => m.id));
+    loadNewMessages(ticketId, cur, clientUserId, have)
       .then((r) => {
-        cursor.current = r.cursor;
+        const now = cursor.current;
+        if (!now) return;
+        if (r.cursor.order === "asc") cursor.current = { ...now, loaded: Math.max(now.loaded, r.cursor.loaded) };
         if (r.items.length) {
           announceFresh(r.items);
           setMsgs((list) => merge(list, r.items));
@@ -140,24 +268,73 @@ export default function SupportChat({
       .catch(() => {});
   }, [ticketId, clientUserId, announceFresh]);
 
+  useEffect(() => {
+    if (!syncReq) return;
+    const id = window.setTimeout(() => {
+      if (document.visibilityState === "visible") refresh();
+      else syncLater.current = true;
+    }, SYNC_MS);
+    return () => window.clearTimeout(id);
+  }, [syncReq, refresh]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || !syncLater.current) return;
+      syncLater.current = false;
+      refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refresh]);
+
   const retry = () => {
     setState("loading");
     setReloadKey((n) => n + 1);
   };
 
-  useSupportEvents((e) => {
+  const addCard = (e: SupportEvent) => {
+    const info = assistInfoOf(e.name, e.action, locale);
+    if (!info) return;
+    const at = e.createdAt || new Date().toISOString();
+    const key = info.kind === "subscription_preview" ? info.kind : `${info.kind}:${info.workId || at}`;
+    setCards((cur) => [...cur.filter((c) => c.key !== key), { key, info, at }]);
+    const title = t(`assistNote.${info.kind}.title`);
+    setAnnounce(title);
+    if (info.kind !== "subscription_preview") toast(title, { tone: "ok" });
+  };
+
+  const { online } = useSupportEvents((e) => {
     if (e.ticketId !== ticketId) return;
-    if (e.message && visible(e.message)) {
-      const m = e.message;
-      announceFresh([m]);
-      setMsgs((cur) => merge(cur, [m]));
+    if (e.kind === "message" || e.kind === "created") {
+      const fresh = e.messages.filter(isVisibleMessage);
+      if (fresh.length) {
+        announceFresh(fresh);
+        setMsgs((cur) => merge(cur, fresh));
+        if (fresh.some((m) => m.senderUserId !== meId)) setSyncReq((n) => n + 1);
+      } else if (e.kind === "message" && !e.messages.length) refresh();
     }
     if (e.ticket) onTicketRef.current?.(e.ticket);
     else if (e.kind === "closed") onTicketRef.current?.({ ...ticket, status: "closed" });
-    refresh();
+    else if (e.kind === "reopened") onTicketRef.current?.({ ...ticket, status: "reopened" });
+    if (mode !== "client") return;
+    if (e.kind === "call" && e.call && !CALL_OVER.has(e.call.status.toLowerCase())) setRing(e.call);
+    if (e.kind === "assist") addCard(e);
   }, refresh);
 
-  usePoll(refresh, 12000, !closed && state === "ready");
+  const live = mode === "client" || (Boolean(meId) && ticket.operatorUserId === meId);
+  usePoll(refresh, 12000, !closed && state === "ready" && (!online || !live));
+
+  const ringId = ring?.callId ?? "";
+  useEffect(() => {
+    if (!ringId) return;
+    return subscribeUserEvents((ev) => {
+      if (!ev.event.startsWith("call.")) return;
+      const c = asDict(ev.call);
+      if (asStr(ev.call_id ?? c.id) !== ringId) return;
+      const status = asStr(c.status ?? ev.status).toLowerCase();
+      if (ev.event === "call.ended" || ev.event === "call.participant_joined" || CALL_OVER.has(status)) setRing(null);
+    });
+  }, [ringId]);
 
   const loadOlder = async () => {
     const cur = cursor.current;
@@ -168,7 +345,9 @@ export default function SupportChat({
     stick.current = false;
     try {
       const r = await loadOlderMessages(ticketId, cur, PAGE, clientUserId);
-      cursor.current = r.cursor;
+      const now = cursor.current;
+      const loaded = r.cursor.order === "asc" && now ? Math.max(r.cursor.loaded, now.loaded) : r.cursor.loaded;
+      cursor.current = { ...r.cursor, loaded };
       setMsgs((list) => merge(list, r.items));
       setHasMore(r.cursor.hasOlder);
     } catch {
@@ -177,6 +356,13 @@ export default function SupportChat({
       setOlder(false);
     }
   };
+
+  const rows = useMemo<Row[]>(() => {
+    const list: Row[] = msgs.map((m) => ({ kind: "msg", m, at: timeOf(m.createdAt) }));
+    if (!cards.length) return list;
+    for (const c of cards) list.push({ kind: "card", c, at: timeOf(c.at) });
+    return list.sort((a, b) => a.at - b.at);
+  }, [msgs, cards]);
 
   useLayoutEffect(() => {
     const el = box.current;
@@ -187,7 +373,7 @@ export default function SupportChat({
       return;
     }
     if (stick.current) el.scrollTop = el.scrollHeight;
-  }, [msgs]);
+  }, [rows]);
 
   const onScroll = () => {
     const el = box.current;
@@ -203,9 +389,10 @@ export default function SupportChat({
     setError(null);
     try {
       const m = await sendSupportMessage(ticketId, body, clientUserId);
-      const sent = { ...m, id: m.id || `local-${Date.now()}`, senderUserId: m.senderUserId || meId, content: m.content || body, createdAt: m.createdAt || new Date().toISOString() };
+      const sent = { ...m, senderUserId: m.senderUserId || meId, content: m.content || body, createdAt: m.createdAt || new Date().toISOString() };
       stick.current = true;
-      setMsgs((cur) => merge(cur, [sent]));
+      if (sent.id) setMsgs((cur) => merge(cur, [sent]));
+      else refresh();
       setText("");
       if (field.current) field.current.style.height = "";
       onMessage?.(sent);
@@ -213,6 +400,32 @@ export default function SupportChat({
       setError(e);
     } finally {
       setSending(false);
+    }
+  };
+
+  const joinRing = () => {
+    if (!ring) return;
+    stopAllCallTones();
+    primeCallAudio();
+    const href = supportCallHref(ring.roomId, ring.callId);
+    setRing(null);
+    router.push(href);
+  };
+
+  const doReopen = async () => {
+    if (!reopen || reopen.busy) return;
+    const reason = reopen.reason;
+    setReopen({ reason, busy: true, err: null });
+    try {
+      const next = await reopenSupportTicket(ticketId, reason);
+      const status = next.status && !isClosedStatus(next.status) ? next.status : "reopened";
+      const tk = next.id ? { ...next, status } : { ...ticket, status };
+      setReopen(null);
+      onReopen?.(tk);
+      toast(t("chat.reopenedOk"), { tone: "ok" });
+      window.requestAnimationFrame(() => field.current?.focus({ preventScroll: true }));
+    } catch (e) {
+      setReopen((r) => (r ? { ...r, busy: false, err: e } : r));
     }
   };
 
@@ -234,11 +447,13 @@ export default function SupportChat({
       ? opName || (connecting ? t("chat.connecting") : aiNow ? t("roles.ai") : t("chat.operatorFallback"))
       : clientName || t("client");
   const person = mode === "client" ? opName : clientName;
-  const category = t.has(`categories.${ticket.category}`) ? t(`categories.${ticket.category}`) : ticket.category;
+  const category = labels.category(ticket.category);
   const sub = [mode === "operator" && ticket.clientLexgoId ? t("chat.lexgoId", { id: ticket.clientLexgoId }) : "", ticketTitle(ticket, t("untitled")), category, ticket.workId]
     .filter(Boolean)
     .join(" · ");
   const writable = canWrite && !closed && state !== "missing";
+  const callable = mode === "operator" && Boolean(canCall) && known && !closed && state !== "missing";
+  const canReopen = mode === "client" && Boolean(onReopen) && state !== "missing" && (!clientUserId || !meId || clientUserId === meId);
 
   return (
     <div className="supchat" data-ai-target="support:chat">
@@ -260,7 +475,38 @@ export default function SupportChat({
           )}
         </div>
         <SupportStatus status={ticket.status} />
+        {callable ? (
+          <div className="supchat__calls" role="group" aria-label={t("call.group")}>
+            <button type="button" className="supchat__call" onClick={() => void startCall("audio")} disabled={Boolean(calling)} title={t("call.audio")} aria-busy={calling === "audio" || undefined}>
+              <IconPhone aria-hidden="true" />
+              <span>{calling === "audio" ? t("call.starting") : t("call.audio")}</span>
+            </button>
+            <button type="button" className="supchat__call supchat__call--video" onClick={() => void startCall("video")} disabled={Boolean(calling)} title={t("call.video")} aria-busy={calling === "video" || undefined}>
+              <IconVideo aria-hidden="true" />
+              <span>{calling === "video" ? t("call.starting") : t("call.video")}</span>
+            </button>
+          </div>
+        ) : null}
       </div>
+
+      {ring && mode === "client" ? (
+        <div className="supchat__ring" role="status">
+          <span className="supchat__ringic" aria-hidden="true">
+            {ring.callType === "video" ? <IconVideo /> : <IconPhone />}
+          </span>
+          <span className="supchat__ringtx">
+            <b>{t("call.incoming")}</b>
+            <small>{ring.callType === "video" ? t("call.video") : t("call.audio")}</small>
+          </span>
+          <button type="button" className="btn btn--sm supchat__join" onClick={joinRing}>
+            {ring.callType === "video" ? <IconVideo aria-hidden="true" /> : <IconPhone aria-hidden="true" />}
+            {t("call.join")}
+          </button>
+          <button type="button" className="supchat__ringx" onClick={() => setRing(null)} aria-label={tc("a11y.close")} title={tc("a11y.close")}>
+            <IconClose />
+          </button>
+        </div>
+      ) : null}
 
       {connecting ? (
         <p className="supchat__banner supchat__banner--wait" role="status">
@@ -304,13 +550,25 @@ export default function SupportChat({
             ) : null}
           </div>
         ) : null}
-        {state === "ready" && !msgs.length ? <p className="supchat__hint">{t("noMessages")}</p> : null}
-        {msgs.map((m, i) => {
-          const prev = i > 0 ? msgs[i - 1] : undefined;
+        {state === "ready" && !rows.length ? <p className="supchat__hint">{t("noMessages")}</p> : null}
+        {rows.map((row, i) => {
+          const prevRow = i > 0 ? rows[i - 1] : undefined;
+          const iso = row.kind === "msg" ? row.m.createdAt : row.c.at;
+          const prevIso = prevRow ? (prevRow.kind === "msg" ? prevRow.m.createdAt : prevRow.c.at) : "";
+          const day = iso ? dateOnly(iso, locale) : "";
+          const showDay = Boolean(day) && (!prevRow || dateOnly(prevIso, locale) !== day);
+          if (row.kind === "card") {
+            return (
+              <div key={`card-${row.c.key}`} className="supchat__row">
+                {showDay ? <span className="supchat__day">{day}</span> : null}
+                <AssistNote card={row.c} />
+              </div>
+            );
+          }
+          const m = row.m;
+          const prev = prevRow && prevRow.kind === "msg" ? prevRow.m : undefined;
           const mine = Boolean(meId) && m.senderUserId === meId;
           const sys = m.senderRole === "system" || m.messageType === "system";
-          const day = m.createdAt ? dateOnly(m.createdAt, locale) : "";
-          const showDay = Boolean(day) && (!prev || dateOnly(prev.createdAt, locale) !== day);
           const cont = Boolean(prev) && !showDay && !sys && prev?.senderUserId === m.senderUserId && prev?.messageType !== "system" && near(prev?.createdAt ?? "", m.createdAt);
           const role = m.senderRole && !sys ? roleLabel(m.senderRole) : "";
           return (
@@ -367,11 +625,59 @@ export default function SupportChat({
               <p>{t("chat.noResolution")}</p>
             )}
           </div>
-          {onNewChat ? (
-            <button type="button" className="btn btn--pri btn--sm" onClick={onNewChat}>
-              <IconPlus />
-              {t("chat.newChat")}
-            </button>
+          {!(canReopen && reopen) && (canReopen || onNewChat) ? (
+            <div className="supchat__endacts">
+              {canReopen ? (
+                <button type="button" className="btn btn--line btn--sm" onClick={() => setReopen({ reason: "", busy: false, err: null })}>
+                  <IconRefresh />
+                  {t("chat.reopen")}
+                </button>
+              ) : null}
+              {onNewChat ? (
+                <button type="button" className="btn btn--pri btn--sm" onClick={onNewChat}>
+                  <IconPlus />
+                  {t("chat.newChat")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {canReopen && reopen ? (
+            <form
+              className="supchat__reopen"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void doReopen();
+              }}
+            >
+              <label className="supchat__reopenfield">
+                <span>{t("chat.reopenReason")}</span>
+                <textarea
+                  value={reopen.reason}
+                  onChange={(e) => {
+                    const reason = e.target.value;
+                    setReopen((r) => (r ? { ...r, reason, err: null } : r));
+                  }}
+                  rows={2}
+                  maxLength={1000}
+                  placeholder={t("chat.reopenPh")}
+                  autoFocus
+                />
+              </label>
+              {reopen.err ? (
+                <p className="supchat__reopenerr" role="alert">
+                  {errorText(reopen.err, tc)}
+                </p>
+              ) : null}
+              <div className="supchat__reopenacts">
+                <button type="button" className="btn btn--line btn--sm" onClick={() => setReopen(null)} disabled={reopen.busy}>
+                  {t("cancel")}
+                </button>
+                <button type="submit" className="btn btn--pri btn--sm" disabled={reopen.busy}>
+                  <IconRefresh />
+                  {t("chat.reopenDo")}
+                </button>
+              </div>
+            </form>
           ) : null}
         </div>
       ) : state === "missing" ? null : (
