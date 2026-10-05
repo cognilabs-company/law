@@ -4,8 +4,9 @@ import { CLIENT_PAGES } from "./client";
 import { SELLER_PAGES } from "./seller";
 import { ADMIN_PAGES } from "./admin";
 import { SUPPORT_PAGES } from "./support";
+import { COMPLAINT_PAGES } from "./complaints";
 
-export const GUIDE_PAGES: GuidePage[] = [...CLIENT_PAGES, ...SELLER_PAGES, ...ADMIN_PAGES, ...SUPPORT_PAGES];
+export const GUIDE_PAGES: GuidePage[] = [...CLIENT_PAGES, ...SELLER_PAGES, ...ADMIN_PAGES, ...SUPPORT_PAGES, ...COMPLAINT_PAGES];
 
 const toRegex = (pattern: string) =>
   new RegExp(
