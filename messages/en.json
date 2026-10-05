@@ -1,4 +1,81 @@
 {
+  "orgOwner": {
+    "title": "Organization management",
+    "allOrgs": "All organizations",
+    "workloadLink": "Member workload",
+    "workloadTitle": "Member workload",
+    "backDashboard": "Dashboard",
+    "membersTitle": "Members and their work",
+    "activeTitle": "Active work",
+    "noMembers": "The organization has no members yet.",
+    "noWorks": "No active work in this tab.",
+    "untitled": "Work item",
+    "unrated": "Not rated yet",
+    "openSection": "Open section",
+    "total": "Total: {n}",
+    "filterMember": "Member",
+    "filterStatus": "Status",
+    "allMembers": "All members",
+    "allStatuses": "All statuses",
+    "summary": {
+      "members": "Members",
+      "verified": "Verified",
+      "orders": "Active orders",
+      "cases": "Active cases",
+      "urgent": "Urgent requests"
+    },
+    "tabs": {
+      "orders": "Orders",
+      "cases": "Cases",
+      "urgent": "Urgent"
+    },
+    "col": {
+      "name": "Name",
+      "role": "Position",
+      "sellerType": "Type",
+      "region": "Region",
+      "verification": "Verification",
+      "rating": "Rating",
+      "orders": "Orders",
+      "cases": "Cases",
+      "urgent": "Urgent",
+      "workId": "ID",
+      "kind": "Type",
+      "status": "Status",
+      "member": "Assignee",
+      "client": "Client",
+      "amount": "Amount",
+      "created": "Created",
+      "updated": "Updated"
+    },
+    "sellerTypes": {
+      "advokat": "Advocate",
+      "yurist": "Lawyer",
+      "advokat_tashkiloti": "Law firm"
+    },
+    "verification": {
+      "approved": "Verified",
+      "verified": "Verified",
+      "pending": "Pending",
+      "rejected": "Rejected"
+    },
+    "kinds": {
+      "order": "Order",
+      "case": "Case",
+      "urgent": "Urgent request"
+    },
+    "statuses": {
+      "pending": "Pending",
+      "pending_payment": "Awaiting payment",
+      "in_progress": "In progress",
+      "paid": "Paid",
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "claimed": "Claimed",
+      "open": "Open"
+    }
+  },
   "support": {
     "title": "Help center",
     "lead": "If something doesn't work on the platform, message an operator — we reply in the in-app chat.",
@@ -4823,6 +4900,7 @@
       }
     },
     "org": {
+      "manage": "Dashboard",
       "statusMap": {
         "pending": "Under review",
         "verified": "Verified",

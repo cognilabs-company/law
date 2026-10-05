@@ -77,6 +77,7 @@ const HREF_ALIAS: [RegExp, (role: GuideRole, m: RegExpMatchArray) => string][] =
   [/^\/portal\/client\/urgent-advokat$/, () => "/portal/client/urgent"],
   [/^\/portal\/call-center\/support(\/[^/?#]+)?$/, (_r, m) => `/admin/call-center/support${m[1] ?? ""}`],
   [/^\/portal\/call-center(\/.*)?$/, () => "/admin/call-center"],
+  [/^\/portal\/organization\/([^/?#]+)\/dashboard$/, (_r, m) => `/portal/advocate/organization/${m[1]}`],
   [/^\/portal\/organization(\/.*)?$/, (_r, m) => `/portal/advocate/organization${m[1] ?? ""}`],
   [/^\/portal\/(advocate|lawyer|seller)(\/.*)?$/, (role, m) => `/portal/${seller(role)}${m[2] ?? ""}`],
 ];

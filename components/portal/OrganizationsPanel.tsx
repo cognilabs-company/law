@@ -11,16 +11,21 @@ import {
   type OrgMember,
 } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
+import { useAuth } from "@/lib/auth";
+import { Link } from "@/i18n/navigation";
 import { Skeleton, EmptyState } from "./DataState";
 import { AdminForm, AdminItem, UserSelect, Notice, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
-import { IconBuilding, IconPlus, IconUsers } from "@/components/icons";
+import { IconBuilding, IconChartBar, IconPlus, IconUsers } from "@/components/icons";
 
 export default function OrganizationsPanel() {
   const t = useTranslations("portal.org");
   const ts = useTranslations("portal.org.statusMap");
   const [key, reload] = useReload();
   const orgs = useResource(listOrganizations, [key]);
+  const { session } = useAuth();
+  const me = session?.id ?? "";
+  const mine = orgs.data.filter((o) => !o.ownerUserId || o.ownerUserId === me);
   const [createOpen, setCreateOpen] = useState(false);
   const [membersOrg, setMembersOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -76,7 +81,7 @@ export default function OrganizationsPanel() {
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="ahdr">
-          <span className="advmuted">{orgs.data.length}</span>
+          <span className="advmuted">{mine.length}</span>
           <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreateOpen(true)}>
             <IconPlus />
             {t("create")}
@@ -87,11 +92,11 @@ export default function OrganizationsPanel() {
 
       {orgs.status === "loading" ? (
         <Skeleton rows={3} />
-      ) : !orgs.data.length ? (
+      ) : !mine.length ? (
         <EmptyState icon={<IconBuilding />} title={t("empty")} text={t("emptyText")} />
       ) : (
         <div className="alist">
-          {orgs.data.map((o, i) => (
+          {mine.map((o, i) => (
             <AdminItem
               key={o.id}
               index={i + 1}
@@ -99,10 +104,18 @@ export default function OrganizationsPanel() {
               meta={[o.region, o.inn].filter(Boolean).join(" · ")}
               tags={[{ label: ts.has(o.verificationStatus) ? ts(o.verificationStatus) : o.verificationStatus || t("pending"), tone: o.verificationStatus === "verified" ? "ok" : "muted" }]}
               right={
-                <button className="btn btn--soft btn--sm" type="button" onClick={() => setMembersOrg(o)}>
-                  <IconUsers />
-                  {t("members")}
-                </button>
+                <span className="ahdr">
+                  {o.ownerUserId === me ? (
+                    <Link className="btn btn--pri btn--sm" href={`/portal/advocate/organization/${encodeURIComponent(o.id)}`}>
+                      <IconChartBar />
+                      {t("manage")}
+                    </Link>
+                  ) : null}
+                  <button className="btn btn--soft btn--sm" type="button" onClick={() => setMembersOrg(o)}>
+                    <IconUsers />
+                    {t("members")}
+                  </button>
+                </span>
               }
             />
           ))}

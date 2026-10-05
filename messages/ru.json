@@ -1,4 +1,81 @@
 {
+  "orgOwner": {
+    "title": "Управление организацией",
+    "allOrgs": "Все организации",
+    "workloadLink": "Загрузка сотрудников",
+    "workloadTitle": "Загрузка сотрудников",
+    "backDashboard": "Панель управления",
+    "membersTitle": "Сотрудники и их работа",
+    "activeTitle": "Активные дела",
+    "noMembers": "В организации пока нет сотрудников.",
+    "noWorks": "В этом разделе нет активных дел.",
+    "untitled": "Дело",
+    "unrated": "Пока без оценок",
+    "openSection": "Перейти в раздел",
+    "total": "Всего: {n}",
+    "filterMember": "Сотрудник",
+    "filterStatus": "Статус",
+    "allMembers": "Все сотрудники",
+    "allStatuses": "Все статусы",
+    "summary": {
+      "members": "Сотрудники",
+      "verified": "Проверенные",
+      "orders": "Активные заказы",
+      "cases": "Активные дела",
+      "urgent": "Срочные запросы"
+    },
+    "tabs": {
+      "orders": "Заказы",
+      "cases": "Дела",
+      "urgent": "Срочные запросы"
+    },
+    "col": {
+      "name": "Имя",
+      "role": "Должность",
+      "sellerType": "Тип",
+      "region": "Регион",
+      "verification": "Проверка",
+      "rating": "Рейтинг",
+      "orders": "Заказы",
+      "cases": "Дела",
+      "urgent": "Срочные",
+      "workId": "ID",
+      "kind": "Тип",
+      "status": "Статус",
+      "member": "Ответственный",
+      "client": "Клиент",
+      "amount": "Сумма",
+      "created": "Создано",
+      "updated": "Обновлено"
+    },
+    "sellerTypes": {
+      "advokat": "Адвокат",
+      "yurist": "Юрист",
+      "advokat_tashkiloti": "Адвокатская организация"
+    },
+    "verification": {
+      "approved": "Проверен",
+      "verified": "Проверен",
+      "pending": "Ожидает",
+      "rejected": "Отклонён"
+    },
+    "kinds": {
+      "order": "Заказ",
+      "case": "Дело",
+      "urgent": "Срочный запрос"
+    },
+    "statuses": {
+      "pending": "Ожидает",
+      "pending_payment": "Ожидает оплаты",
+      "in_progress": "В работе",
+      "paid": "Оплачен",
+      "active": "Активен",
+      "completed": "Завершён",
+      "cancelled": "Отменён",
+      "claimed": "Взят",
+      "open": "Открыт"
+    }
+  },
   "support": {
     "title": "Центр поддержки",
     "lead": "Если что-то не получается на платформе, напишите оператору — ответим во внутреннем чате.",
@@ -4823,6 +4900,7 @@
       }
     },
     "org": {
+      "manage": "Панель управления",
       "statusMap": {
         "pending": "На проверке",
         "verified": "Подтверждена",

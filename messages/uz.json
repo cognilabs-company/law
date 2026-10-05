@@ -1,4 +1,81 @@
 {
+  "orgOwner": {
+    "title": "Tashkilot boshqaruvi",
+    "allOrgs": "Barcha tashkilotlar",
+    "workloadLink": "A'zolar workloadi",
+    "workloadTitle": "A'zolar workloadi",
+    "backDashboard": "Boshqaruv paneli",
+    "membersTitle": "A'zolar va ularning ishlari",
+    "activeTitle": "Aktiv ishlar",
+    "noMembers": "Tashkilotda hali a'zo yo'q.",
+    "noWorks": "Bu bo'limda aktiv ish yo'q.",
+    "untitled": "Ish",
+    "unrated": "Hali baholanmagan",
+    "openSection": "Bo'limga o'tish",
+    "total": "Jami: {n}",
+    "filterMember": "A'zo",
+    "filterStatus": "Holat",
+    "allMembers": "Barcha a'zolar",
+    "allStatuses": "Barcha holatlar",
+    "summary": {
+      "members": "A'zolar",
+      "verified": "Tasdiqlanganlar",
+      "orders": "Aktiv buyurtmalar",
+      "cases": "Aktiv ishlar",
+      "urgent": "Tezkor so'rovlar"
+    },
+    "tabs": {
+      "orders": "Buyurtmalar",
+      "cases": "Ishlar",
+      "urgent": "Tezkor so'rovlar"
+    },
+    "col": {
+      "name": "Ism",
+      "role": "Lavozim",
+      "sellerType": "Turi",
+      "region": "Hudud",
+      "verification": "Tasdiq",
+      "rating": "Reyting",
+      "orders": "Buyurtma",
+      "cases": "Ish",
+      "urgent": "Tezkor",
+      "workId": "ID",
+      "kind": "Turi",
+      "status": "Holat",
+      "member": "Mas'ul",
+      "client": "Mijoz",
+      "amount": "Summa",
+      "created": "Yaratilgan",
+      "updated": "Yangilangan"
+    },
+    "sellerTypes": {
+      "advokat": "Advokat",
+      "yurist": "Yurist",
+      "advokat_tashkiloti": "Advokat tashkiloti"
+    },
+    "verification": {
+      "approved": "Tasdiqlangan",
+      "verified": "Tasdiqlangan",
+      "pending": "Kutilmoqda",
+      "rejected": "Rad etilgan"
+    },
+    "kinds": {
+      "order": "Buyurtma",
+      "case": "Ish",
+      "urgent": "Tezkor so'rov"
+    },
+    "statuses": {
+      "pending": "Kutilmoqda",
+      "pending_payment": "To'lov kutilmoqda",
+      "in_progress": "Jarayonda",
+      "paid": "To'langan",
+      "active": "Aktiv",
+      "completed": "Yakunlangan",
+      "cancelled": "Bekor qilingan",
+      "claimed": "Olingan",
+      "open": "Ochiq"
+    }
+  },
   "support": {
     "title": "Yordam markazi",
     "lead": "Platformada biror narsa qila olmasangiz, operatorga yozing — ichki chatda javob beramiz.",
@@ -4829,6 +4906,7 @@
       }
     },
     "org": {
+      "manage": "Boshqaruv paneli",
       "statusMap": {
         "pending": "Tekshiruvda",
         "verified": "Tasdiqlangan",
