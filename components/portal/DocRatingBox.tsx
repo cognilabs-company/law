@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { rateDocumentRequest, isRatingClosed, ratingOpen, opensComplaint, type QualityComplaint, type UrgentRating } from "@/lib/services/backend";
-import { errDetail, logApiError } from "@/lib/http";
+import { contactBlockedOf, errDetail, logApiError } from "@/lib/http";
 import { Link } from "@/i18n/navigation";
 import { IconStarRate, IconClock, IconAlert, IconArrowRight } from "@/components/icons";
 
@@ -68,6 +68,7 @@ export default function DocRatingBox({
   onRated?: () => void;
 }) {
   const t = useTranslations("portal.client.documentRequests");
+  const tcb = useTranslations("common");
   // The five words the row puts under the stars. They are shared with the
   // urgent-advocate rating, which is why they sit in their own namespace
   // rather than being duplicated in both.
@@ -171,7 +172,7 @@ export default function DocRatingBox({
       // Already rated, or the fifteen minutes are up — an answer, not a fault.
       if (isRatingClosed(e)) { setClosed(true); return; }
       logApiError("document rating", e);
-      setErr(errDetail(e) || t("rateError"));
+      setErr(contactBlockedOf(e) ? tcb("contactBlocked") : errDetail(e) || t("rateError"));
     } finally {
       setBusy(false);
     }

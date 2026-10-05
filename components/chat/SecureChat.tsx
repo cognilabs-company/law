@@ -9,7 +9,7 @@ import { useAuth, canMakeCalls, sessionRoles, type Session } from "@/lib/auth";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
 import { maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
-import { backoffMs, errDetail, isConflict, logApiError, refreshAccessToken } from "@/lib/http";
+import { backoffMs, contactBlockedOf, errDetail, isConflict, logApiError, refreshAccessToken } from "@/lib/http";
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
 import {
   getSecureMessages,
@@ -502,6 +502,7 @@ function ClientRatingBox({
   tu: Tr;
   tr: Tr;
 }) {
+  const tcb = useTranslations("common");
   const [stars, setStars] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
@@ -536,7 +537,7 @@ function ClientRatingBox({
         return;
       }
       logApiError("urgent chat rating", e);
-      setErr(errDetail(e) || tu("rateError"));
+      setErr(contactBlockedOf(e) ? tcb("contactBlocked") : errDetail(e) || tu("rateError"));
     } finally {
       setBusy(false);
     }

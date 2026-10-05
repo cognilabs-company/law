@@ -26,7 +26,7 @@ import {
   type UrgentCreated,
 } from "@/lib/services/backend";
 import { subscribeUserEvents, onUserSocketResync } from "@/lib/userSocket";
-import { errDetail, logApiError } from "@/lib/http";
+import { contactBlockedOf, errDetail, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { dateTimeFull } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
@@ -1084,6 +1084,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   // Shared with the document rating window, which is why the five words for
   // one..five stars live in their own namespace instead of once per widget.
   const tr = useTranslations("portal.client.rate");
+  const tcb = useTranslations("common");
   const locale = useLocale();
   // WHICH request is out, not merely that one is. The rating window and the
   // cancel confirmation can both be on screen at once (a completed request
@@ -1167,7 +1168,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
       // record the 409 can only mean the fifteen minutes are up.
       if (isRatingClosed(e)) { if (req.rating.submitted) setRDone(true); else setRClosed(true); return; }
       logApiError("urgent rating", e);
-      setRErr(errDetail(e) || t("rateError"));
+      setRErr(contactBlockedOf(e) ? tcb("contactBlocked") : errDetail(e) || t("rateError"));
     } finally {
       setBusy("");
     }

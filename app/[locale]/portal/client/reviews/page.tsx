@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { listReviewable, listMyReviews, submitReview, type ReviewTarget } from "@/lib/services/backend";
+import { contactBlockedOf } from "@/lib/http";
 import { useResource } from "@/lib/useResource";
 import { useReload, Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
@@ -30,6 +31,7 @@ function Stars({ value, onChange }: { value: number; onChange?: (n: number) => v
 
 export default function ClientReviews() {
   const t = useTranslations("portal.client.reviews");
+  const tcb = useTranslations("common");
   const [key, reload] = useReload();
   const pending = useResource(() => listReviewable(), [key]);
   const mine = useResource(() => listMyReviews(), [key]);
@@ -57,8 +59,8 @@ export default function ClientReviews() {
         setTarget(null);
         reload();
       }, 900);
-    } catch {
-      setNote({ ok: false, msg: t("error") });
+    } catch (e) {
+      setNote({ ok: false, msg: contactBlockedOf(e) ? tcb("contactBlocked") : t("error") });
     } finally {
       setBusy(false);
     }
