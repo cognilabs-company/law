@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Select, { type Option } from "@/components/Select";
-import { IconArrowRight, IconBriefcase, IconCard, IconClose, IconLayers, IconList, IconMapPin, IconRefresh, IconShieldCheck, IconSparkle, IconStar } from "@/components/icons";
+import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconLayers, IconList, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUsers } from "@/components/icons";
+import HeroShowcase from "./HeroShowcase";
 import { aiSearchMarketplace, listMarketplace, marketAiAvailable, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketSeller } from "@/lib/services/marketplace";
 import { matchesSearch, normalizeSearchText, searchTerms } from "@/lib/searchText";
 import { regionKeyOf, regionLabel } from "@/lib/labels";
@@ -16,6 +17,15 @@ type Status = "loading" | "ready" | "error";
 
 const SORTS = ["recommended", "rating", "experience", "price_asc"];
 const PRICE_STEPS = [300000, 500000, 1000000, 2000000];
+const EXPERIENCE_STEPS = [3, 5, 10];
+
+function chipIcon(label: string) {
+  const l = label.toLowerCase();
+  if (/aliment|nikoh|ajrash|oila|farzand|meros/.test(l)) return IconUsers;
+  if (/shartnoma|hujjat|ariza|da'vo|davo/.test(l)) return IconFileText;
+  if (/jinoy|sud|himoya/.test(l)) return IconGavel;
+  return IconScale;
+}
 
 export default function MarketDirectory({ variant, initialArea = "" }: { variant: "public" | "portal"; initialArea?: string }) {
   const t = useTranslations("marketplace");
@@ -45,6 +55,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [minRating, setMinRating] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [onlineOnly, setOnlineOnly] = useState(false);
+  const [minExp, setMinExp] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string } | null>(null);
   const [aiPending, setAiPending] = useState("");
@@ -160,6 +171,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       if (minR && !(hasRating(s) && s.rating >= minR)) return false;
       if (maxP && !(s.priceFrom > 0 && s.priceFrom <= maxP)) return false;
       if (onlineOnly && !s.onlineNow) return false;
+      if (Number(minExp) && s.experienceYears < Number(minExp)) return false;
       return true;
     });
     if (aiHit) return pool.filter((s) => rank.has(s.userId)).sort((a, b) => (rank.get(a.userId) ?? 0) - (rank.get(b.userId) ?? 0));
@@ -175,7 +187,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       .filter((x) => x.hits > 0)
       .sort((a, b) => b.hits - a.hits)
       .map((x) => x.s);
-  }, [items, role, region, effSpec, category, service, minRating, priceMax, onlineOnly, q, te, aiHit, aiThinking]);
+  }, [items, role, region, effSpec, category, service, minRating, priceMax, onlineOnly, minExp, q, te, aiHit, aiThinking]);
 
   const aiMatchOf = useMemo(() => new Map((aiHit?.matches ?? []).map((m) => [m.userId, m])), [aiHit]);
 
@@ -202,7 +214,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     return m;
   }, [items]);
 
-  const activeFilters = [region, effSpec, category, service, minRating, priceMax, onlineOnly ? "1" : ""].filter(Boolean).length;
+  const activeFilters = [region, effSpec, category, service, minRating, priceMax, minExp, onlineOnly ? "1" : ""].filter(Boolean).length;
   const resetFilters = () => {
     setRole("");
     setRegion("");
@@ -212,6 +224,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     setMinRating("");
     setPriceMax("");
     setOnlineOnly(false);
+    setMinExp("");
     setQ("");
   };
 
@@ -273,6 +286,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     service ? { key: "service", label: labelOf(services, service), clear: () => setService("") } : null,
     minRating ? { key: "rating", label: `★ ${minRating}+`, clear: () => setMinRating("") } : null,
     priceMax ? { key: "price", label: `≤ ${fmtUzs(Number(priceMax))}`, clear: () => setPriceMax("") } : null,
+    minExp ? { key: "exp", label: t("filters.expN", { n: Number(minExp) }), clear: () => setMinExp("") } : null,
     onlineOnly ? { key: "online", label: t("filters.online"), clear: () => setOnlineOnly(false) } : null,
   ].filter((x): x is { key: string; label: string; clear: () => void } => x !== null);
 
@@ -338,50 +352,56 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
           {examples.length ? (
             <div className="mk-hero__ex">
               <span>{t("examplesLabel")}</span>
-              {examples.map((x) => (
-                <button
-                  key={x}
-                  type="button"
-                  className={q === x ? "on" : undefined}
-                  onClick={() => {
-                    typedRef.current = true;
-                    setQ(x);
-                  }}
-                >
-                  {x}
-                </button>
-              ))}
+              {examples.map((x) => {
+                const ChipIcon = chipIcon(x);
+                return (
+                  <button
+                    key={x}
+                    type="button"
+                    className={q === x ? "on" : undefined}
+                    onClick={() => {
+                      typedRef.current = true;
+                      setQ(x);
+                    }}
+                  >
+                    <ChipIcon />
+                    {x}
+                  </button>
+                );
+              })}
             </div>
           ) : null}
           <div className="mk-hero__stats">
             <div>
-              <b>{status === "loading" ? "—" : stats.sellers}</b>
-              <span>{t("heroStats.sellers")}</span>
+              <i className="mk-hero__si mk-hero__si--a">
+                <IconUsers />
+              </i>
+              <span>
+                <b>{status === "loading" ? "—" : stats.sellers}</b>
+                <small>{t("heroStats.sellers")}</small>
+              </span>
             </div>
             <div>
-              <b>{status === "loading" ? "—" : stats.services}</b>
-              <span>{t("heroStats.services")}</span>
+              <i className="mk-hero__si mk-hero__si--b">
+                <IconBriefcase />
+              </i>
+              <span>
+                <b>{status === "loading" ? "—" : stats.services}</b>
+                <small>{t("heroStats.services")}</small>
+              </span>
             </div>
             <div>
-              <b>{stats.min ? fmtUzs(stats.min) : "—"}</b>
-              <span>{t("heroStats.from")}</span>
+              <i className="mk-hero__si mk-hero__si--c">
+                <IconCard />
+              </i>
+              <span>
+                <b>{stats.min ? fmtUzs(stats.min) : "—"}</b>
+                <small>{t("heroStats.from")}</small>
+              </span>
             </div>
           </div>
         </div>
-        {items.length ? (
-          <div className="mk-deck" aria-hidden="true">
-            {items.slice(0, 3).map((s, i) => (
-              <div key={s.userId} className={`mk-deck__c mk-deck__c--${i}`}>
-                <Monogram name={s.name} rating={s.rating} showRing={hasRating(s)} />
-                <div>
-                  <b>{s.name}</b>
-                  <span>{sellerTypeLabel(t, s.sellerType)}</span>
-                  {s.priceFrom > 0 ? <em>{t("card.priceFrom", { price: fmtUzs(s.priceFrom) })}</em> : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
+        <HeroShowcase items={items} base={base} locale={locale} />
       </div>
 
       <div className="mk-bar">
@@ -456,6 +476,13 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
             {t("filters.service")}
           </label>
           <Select value={service} onChange={setService} ariaLabel={t("filters.service")} options={[{ value: "", label: t("filters.allServices") }, ...services.map(({ value, label }) => ({ value, label }))]} />
+        </div>
+        <div className="mk-fld">
+          <label>
+            <IconAward />
+            {t("filters.experience")}
+          </label>
+          <Select value={minExp} onChange={setMinExp} ariaLabel={t("filters.experience")} options={[{ value: "", label: t("filters.any") }, ...EXPERIENCE_STEPS.map((n) => ({ value: String(n), label: t("filters.expN", { n }) }))]} />
         </div>
         <div className="mk-fld">
           <label>

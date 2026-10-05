@@ -25,6 +25,17 @@
       "yurist": "Yurist",
       "advokat_tashkiloti": "Advokat tashkiloti"
     },
+    "show": {
+      "verifiedAdvokat": "Tasdiqlangan advokat",
+      "verifiedYurist": "Tasdiqlangan yurist",
+      "reviews": "{n} ta sharh",
+      "years": "{n}+ yil",
+      "experience": "Tajriba",
+      "region": "Hudud",
+      "cases": "Ko'rilgan ishlar",
+      "cta": "Maslahat olish",
+      "switch": "Mutaxassislarni almashtirish"
+    },
     "filters": {
       "toggle": "Filtrlar",
       "show": "{n} ta natijani ko'rsatish",
@@ -40,6 +51,8 @@
       "rating": "Reyting",
       "any": "Farqi yo'q",
       "priceMax": "Narx (gacha)",
+      "experience": "Tajriba",
+      "expN": "{n}+ yil",
       "online": "Faqat hozir faol",
       "sort": "Saralash",
       "reset": "Filtrlarni tozalash"

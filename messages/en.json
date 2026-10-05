@@ -25,6 +25,17 @@
       "yurist": "Lawyer",
       "advokat_tashkiloti": "Law firm"
     },
+    "show": {
+      "verifiedAdvokat": "Verified advocate",
+      "verifiedYurist": "Verified lawyer",
+      "reviews": "{n} reviews",
+      "years": "{n}+ yrs",
+      "experience": "Experience",
+      "region": "Region",
+      "cases": "Cases handled",
+      "cta": "Get advice",
+      "switch": "Switch specialists"
+    },
     "filters": {
       "toggle": "Filters",
       "show": "Show {n} results",
@@ -40,6 +51,8 @@
       "rating": "Rating",
       "any": "Any",
       "priceMax": "Price (up to)",
+      "experience": "Experience",
+      "expN": "{n}+ years",
       "online": "Active now only",
       "sort": "Sort",
       "reset": "Clear filters"
