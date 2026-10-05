@@ -75,6 +75,14 @@ export default function ClientSupport({ ticketId }: { ticketId?: string }) {
     return () => c.abort();
   }, [selected, list.status, list.items, setItems]);
 
+  useEffect(() => {
+    if (!selected) return;
+    const el = document.querySelector<HTMLElement>(".sup");
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    if (top > 100) window.scrollTo({ top: window.scrollY + top - 84, behavior: "smooth" });
+  }, [selected]);
+
   const patch = useCallback(
     (tk: SupportTicket) => {
       setItems((cur) => (cur.some((x) => x.id === tk.id) ? cur.map((x) => (x.id === tk.id ? { ...x, ...tk } : x)) : [tk, ...cur]));
