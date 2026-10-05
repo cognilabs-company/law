@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { collectTargets } from "@/lib/guide/targets";
 import { pageFor, stepTextKey } from "@/lib/guide/pages";
 import { startTour, stopTour, tourActive } from "@/lib/guide/store";
+import { onInstructorOpen } from "@/lib/guide/panel";
 import type { GuideRole, GuideTour } from "@/lib/guide/types";
 import { askInstructor, newTourId, replyHasGuide, tourFromReply, type InstructorRequest } from "@/lib/services/instructor";
 import { createSupportTicket, supportCategoryFor } from "@/lib/services/support";
@@ -234,6 +235,25 @@ export default function AiSystemAssistant({
       setBusy(false);
     }
   };
+
+  const openRef = useRef(onOpen);
+  const sendRef = useRef(send);
+  useEffect(() => {
+    openRef.current = onOpen;
+    sendRef.current = send;
+  });
+
+  useEffect(
+    () =>
+      onInstructorOpen((d) => {
+        openRef.current();
+        const preset = (d.text || "").trim().slice(0, MAX);
+        if (!preset) return;
+        if (d.send) window.setTimeout(() => void sendRef.current(preset), 80);
+        else setText(preset);
+      }),
+    [],
+  );
 
   const rate = async (id: string, value: number) => {
     setMsgs((m) => m.map((x) => (x.kind === "ai" && x.id === id ? { ...x, rated: value } : x)));

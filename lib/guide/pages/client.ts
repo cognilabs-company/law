@@ -63,16 +63,6 @@ export const CLIENT_PAGES: GuidePage[] = [
     suggestions: ["suggest.client.urgent"],
   },
   {
-    id: "client_support",
-    match: ["/portal/client/support", "/portal/client/support/[ticketId]"],
-    roles: ["client"],
-    tour: [
-      { target: "button:operator-support", text: "tours.client_support.operator" },
-      { target: "support:ticket-list", text: "tours.client_support.list" },
-    ],
-    suggestions: ["suggest.client.operator"],
-  },
-  {
     id: "client_marketplace_orders",
     match: ["/portal/client/marketplace-orders"],
     roles: ["client"],

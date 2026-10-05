@@ -1,8 +1,8 @@
 import type { GuideRole } from "./types";
 
 const SELLER_PAGES: Record<"lawyer" | "advocate", Set<string>> = {
-  lawyer: new Set(["", "/ai", "/assistant", "/calendar", "/cases", "/chat", "/clients", "/document-requests", "/documents", "/files", "/marketplace", "/marketplace-orders", "/meetings", "/notifications", "/profile", "/promotion", "/referrals", "/services", "/subscription", "/tasks", "/urgent"]),
-  advocate: new Set(["", "/assistant", "/calendar", "/cases", "/clients", "/document-requests", "/files", "/marketplace-orders", "/meetings", "/messages", "/notifications", "/opportunities", "/organization", "/profile", "/promotion", "/referrals", "/subscription", "/tasks", "/urgent"]),
+  lawyer: new Set(["", "/ai", "/assistant", "/calendar", "/cases", "/chat", "/clients", "/document-requests", "/documents", "/files", "/marketplace", "/marketplace-orders", "/meetings", "/notifications", "/profile", "/promotion", "/referrals", "/services", "/subscription", "/support", "/tasks", "/urgent"]),
+  advocate: new Set(["", "/assistant", "/calendar", "/cases", "/clients", "/document-requests", "/files", "/marketplace-orders", "/meetings", "/messages", "/notifications", "/opportunities", "/organization", "/profile", "/promotion", "/referrals", "/subscription", "/support", "/tasks", "/urgent"]),
 };
 
 const CLIENT_TO_SELLER: Record<string, Partial<Record<"lawyer" | "advocate", string>>> = {
@@ -17,6 +17,7 @@ const CLIENT_TO_SELLER: Record<string, Partial<Record<"lawyer" | "advocate", str
   "/cases": { lawyer: "/cases", advocate: "/cases" },
   "/referrals": { lawyer: "/referrals", advocate: "/referrals" },
   "/document-requests": { lawyer: "/document-requests", advocate: "/document-requests" },
+  "/support": { lawyer: "/support", advocate: "/support" },
 };
 
 const CLIENT_TO_STAFF: Record<string, string> = {
@@ -100,7 +101,6 @@ export function remapTarget(id: string, role: GuideRole): string {
     if (id === "button:operator-support" || id === "support:ticket-list") return "support:ticket-list";
     return id;
   }
-  if (id === "button:operator-support" || id.startsWith("support:") || id === "ai-help:current-page") return id === "ai-help:current-page" ? id : "header:support";
   return id;
 }
 
@@ -109,7 +109,7 @@ const RULES: [RegExp, Partial<Record<GuideRole, string>>][] = [
   [/^marketplace:(ai-search|ai-search-input|filters|lawyer-card:)/, { client: "/portal/client/lawyers", staff: "/admin/marketplace" }],
   [/^(button:create-document|documents:(category-list|template-list|constructor))$/, { client: "/portal/client/services" }],
   [/^documents:my-documents$/, { client: "/portal/client/documents" }],
-  [/^(button:operator-support|support:|support-ticket:)/, { client: "/portal/client/support", staff: "/admin/call-center/support" }],
+  [/^(button:operator-support|support:|support-ticket:)/, { client: "/portal/client/support", lawyer: "/portal/lawyer/support", advocate: "/portal/advocate/support", staff: "/admin/call-center/support" }],
   [/^(section:urgent-services|urgent:)/, { client: "/portal/client/urgent" }],
   [/^dashboard:/, { client: "/portal/client" }],
   [/^list:document-requests$/, { lawyer: "/portal/lawyer/document-requests", advocate: "/portal/advocate/document-requests" }],
@@ -131,7 +131,7 @@ export const ROUTE_KEYS: Record<string, Partial<Record<GuideRole, string>>> = {
   marketplace: { client: "/portal/client/lawyers", staff: "/admin/marketplace" },
   documents_create: { client: "/portal/client/services", lawyer: "/portal/lawyer/documents", staff: "/admin/templates" },
   my_documents: { client: "/portal/client/documents" },
-  support: { client: "/portal/client/support", staff: "/admin/call-center/support" },
+  support: { client: "/portal/client/support", lawyer: "/portal/lawyer/support", advocate: "/portal/advocate/support", staff: "/admin/call-center/support" },
   complaints: { client: "/portal/client/complaints" },
   urgent: { client: "/portal/client/urgent", lawyer: "/portal/lawyer/urgent", advocate: "/portal/advocate/urgent", staff: "/admin/call-center" },
   my_works: { client: "/portal/client/works", lawyer: "/portal/lawyer/cases", advocate: "/portal/advocate/cases" },

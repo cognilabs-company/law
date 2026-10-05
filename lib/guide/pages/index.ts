@@ -3,8 +3,9 @@ import { normPath } from "../routes";
 import { CLIENT_PAGES } from "./client";
 import { SELLER_PAGES } from "./seller";
 import { ADMIN_PAGES } from "./admin";
+import { SUPPORT_PAGES } from "./support";
 
-export const GUIDE_PAGES: GuidePage[] = [...CLIENT_PAGES, ...SELLER_PAGES, ...ADMIN_PAGES];
+export const GUIDE_PAGES: GuidePage[] = [...CLIENT_PAGES, ...SELLER_PAGES, ...ADMIN_PAGES, ...SUPPORT_PAGES];
 
 const toRegex = (pattern: string) =>
   new RegExp(
