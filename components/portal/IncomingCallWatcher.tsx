@@ -1,16 +1,38 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { listInvitedCalls, listLawyers, getCall, updateCallParticipant } from "@/lib/services/backend";
 import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
+import { subscribeRoomCallEvents } from "@/lib/callEvents";
 import { playRingtone, primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
 import CallRoom, { isCallRoomMounted, CALLROOM_EVENT } from "@/components/chat/CallRoom";
 import { IconPhone, IconVideo, IconClose } from "@/components/icons";
 
 type Incoming = { kind: "chat" | "meet"; roomId: string; callId: string; callType: "audio" | "video"; callerName: string; resume?: boolean };
+
+const SETTLE_EVENTS = new Set(["call.ended", "call.updated", "call.participant_joined", "call.participant_left", "call.participant_removed", "call.participant_updated"]);
+const CALL_OVER = new Set(["ended", "cancelled", "expired", "completed", "missed"]);
+const OUT_OF_CALL = new Set(["left", "declined", "removed", "kicked"]);
+const SELF_STATUS: Record<string, string> = { "call.participant_joined": "joined", "call.participant_left": "left", "call.participant_removed": "removed" };
+const RECHECK_MS = [2500, 7000];
+
+function cardDone(callStatus: string, mine: string, resume: boolean): boolean {
+  if (CALL_OVER.has(callStatus.trim().toLowerCase())) return true;
+  const own = mine.trim().toLowerCase();
+  return resume ? OUT_OF_CALL.has(own) : Boolean(own) && own !== "invited";
+}
+
+function eventDone(e: Record<string, unknown>, me: string, resume: boolean): boolean {
+  if (e.event === "call.ended") return true;
+  const call = (e.call && typeof e.call === "object" ? e.call : {}) as Record<string, unknown>;
+  const parts = Array.isArray(call.participants) ? (call.participants as Record<string, unknown>[]) : [];
+  const row = parts.find((p) => String(p.user_id ?? p.id) === me);
+  const mine = row ? String(row.status ?? "") : String(e.participant_user_id ?? "") === me ? (SELF_STATUS[String(e.event)] ?? "") : "";
+  return cardDone(String(e.status ?? call.status ?? ""), mine, resume);
+}
 
 // The user socket announces the same ring under two names: `call.incoming` is
 // what production emits today, `call.invited` is the name the realtime MD
@@ -74,6 +96,55 @@ export default function IncomingCallWatcher() {
   useEffect(() => { onChatPageRef.current = onChatPage; }, [onChatPage]);
   const inMeetRef = useRef(!!meet);
   useEffect(() => { inMeetRef.current = !!meet; }, [meet]);
+  const incRef = useRef(inc);
+  useEffect(() => { incRef.current = inc; }, [inc]);
+  const selfId = session?.id ?? "";
+  const settle = useCallback((callId: string) => {
+    dismissed.current.add(callId);
+    setInc((cur) => (cur && cur.callId === callId ? null : cur));
+  }, []);
+  const onCallChange = useCallback(
+    (e: Record<string, unknown>) => {
+      const cur = incRef.current;
+      if (!cur || !selfId || !SETTLE_EVENTS.has(String(e.event))) return;
+      const call = (e.call && typeof e.call === "object" ? e.call : {}) as Record<string, unknown>;
+      const callId = String(e.call_id ?? call.id ?? "");
+      if (callId === cur.callId && eventDone(e, selfId, Boolean(cur.resume))) settle(callId);
+    },
+    [selfId, settle],
+  );
+  const recheck = useCallback(() => {
+    const cur = incRef.current;
+    if (!cur || !selfId) return;
+    getCall(cur.roomId, cur.callId)
+      .then((c) => {
+        const mine = c.participants.find((p) => p.userId === selfId)?.status ?? "";
+        if (cardDone(c.status, mine, Boolean(cur.resume))) settle(cur.callId);
+      })
+      .catch(() => {});
+  }, [selfId, settle]);
+  useEffect(() => {
+    if (!selfId) return;
+    return subscribeUserEvents(onCallChange);
+  }, [selfId, onCallChange]);
+  const ringRoom = inc?.roomId ?? "";
+  useEffect(() => {
+    if (!ringRoom) return;
+    return subscribeRoomCallEvents(ringRoom, onCallChange);
+  }, [ringRoom, onCallChange]);
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") recheck();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    const unsub = subscribeUserSocketState((s) => {
+      if (s === "online") recheck();
+    });
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      unsub();
+    };
+  }, [recheck]);
 
   // Global user socket: opened once per session token, closed on logout.
   const token = session?.token ?? "";
@@ -198,10 +269,23 @@ export default function IncomingCallWatcher() {
   // A CallRoom mounted elsewhere (launcher resume, chat call) makes a pending
   // resume card redundant — drop it.
   useEffect(() => {
-    const onRoom = () => setInc((cur) => (cur?.resume ? null : cur));
+    const timers = new Set<number>();
+    const onRoom = () => {
+      setInc((cur) => (cur?.resume ? null : cur));
+      for (const ms of RECHECK_MS) {
+        const id = window.setTimeout(() => {
+          timers.delete(id);
+          recheck();
+        }, ms);
+        timers.add(id);
+      }
+    };
     window.addEventListener(CALLROOM_EVENT, onRoom);
-    return () => window.removeEventListener(CALLROOM_EVENT, onRoom);
-  }, []);
+    return () => {
+      window.removeEventListener(CALLROOM_EVENT, onRoom);
+      for (const id of timers) window.clearTimeout(id);
+    };
+  }, [recheck]);
 
   // An accepted meeting is rendered inline (invitee isn't a chat-room member).
   if (meet) {

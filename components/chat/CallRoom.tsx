@@ -66,6 +66,7 @@ import { NO_BG, bgSupported, cameraProcessor, claimBgUnavailableNotice, getBgEff
 import CallBackgroundPicker from "./CallBackgroundPicker";
 import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson } from "../icons";
 import { regionLabel } from "@/lib/labels";
+import { CALLROOM_EVENT } from "@/lib/callEvents";
 
 type Props = {
   roomId: string;
@@ -288,7 +289,7 @@ function callLimitsOf(c: CallSession): CallLimits {
 // mounting also fires a "lexgo:callroom" window event.
 let mountedRooms = 0;
 export function isCallRoomMounted(): boolean { return mountedRooms > 0; }
-export const CALLROOM_EVENT = "lexgo:callroom";
+export { CALLROOM_EVENT };
 
 // In-app audio/video meeting over LiveKit (managed SFU + coturn on the
 // backend). Everything stays inside LexGo: a tile per participant with name,

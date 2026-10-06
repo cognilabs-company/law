@@ -13277,3 +13277,5 @@ body[data-guide-dock="top"] .gcap{top:max(80px,env(safe-area-inset-top));bottom:
   .supview .suptab{padding:8px 10px}
   .supview .suptab svg{display:none}
 }
+.sasst__view{display:flex;align-items:flex-start;gap:8px;margin:0;padding:8px 10px;border-radius:12px;background:var(--dk-surface-2, #F5F8FC);box-shadow:inset 0 0 0 1px var(--line);font-size:.76rem;line-height:1.4;color:var(--gray)}
+.sasst__view svg{flex:none;width:14px;height:14px;margin-top:1px;color:var(--dk-acc, var(--b600))}

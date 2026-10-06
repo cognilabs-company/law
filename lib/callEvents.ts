@@ -1,6 +1,8 @@
 // In-page bus for `call.*` events received on a secure-chat room socket, so
 // the call room (roster, timer) and the chat's incoming-call card update on
 // events instead of polling. Emitted by SecureChat's socket handler.
+export const CALLROOM_EVENT = "lexgo:callroom";
+
 export type CallEvent = { event: string; room_id?: string; call_id?: string } & Record<string, unknown>;
 type Handler = (e: CallEvent) => void;
 

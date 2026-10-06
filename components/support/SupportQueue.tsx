@@ -88,21 +88,16 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
   const [ping, setPing] = useState(0);
   const [missingId, setMissingId] = useState("");
   const counted = useRef(new Set<string>());
-  const shownCount = useRef(0);
   const acted = useRef({ ticketId: "", at: 0 });
   const claiming = useRef("");
   const uid = useId();
 
   const fetcher = useCallback(
-    (o: number, l: number, s: AbortSignal) => listSupportQueue({ ...QUERY[tab], offset: o > 0 ? shownCount.current : 0, limit: l }, s).then((p) => shape(tab, p)),
+    (o: number, l: number, s: AbortSignal) => listSupportQueue({ ...QUERY[tab], offset: o, limit: l }, s).then((p) => shape(tab, p)),
     [tab],
   );
   const list = usePaged(fetcher, tab, 50, (x) => x.id, 100);
   const { setItems, refresh, hasMore } = list;
-  const shownNow = list.items.length;
-  useEffect(() => {
-    shownCount.current = shownNow;
-  }, [shownNow]);
   const missing = list.status === "error" && isRouteMissing(list.error);
   const placeholder = useMemo(() => (selectedId ? normSupportTicket({ id: selectedId, status: "" }) : null), [selectedId]);
   const current = list.items.find((x) => x.id === selectedId) ?? (selected && selected.id === selectedId ? selected : placeholder);
@@ -110,6 +105,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
 
   const patch = useCallback(
     (tk: SupportTicket) => {
+      if (tk.id && tk.id === claiming.current) return;
       setItems((cur) => cur.map((x) => (x.id === tk.id ? { ...x, ...tk } : x)));
       setSelected((s) => (s && s.id === tk.id ? { ...s, ...tk } : s && s.id !== tk.id ? s : tk));
     },
@@ -177,7 +173,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
     }
     refresh();
   }, refresh);
-  usePoll(refresh, 30000, list.status === "ready" && !online);
+  usePoll(refresh, 30000, list.status === "ready" && (!online || tab === "new" || tab === "transferred"));
 
   const syncUrl = (id: string) => {
     const path = window.location.pathname;

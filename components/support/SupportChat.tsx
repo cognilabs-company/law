@@ -30,6 +30,8 @@ import { errorText } from "@/lib/errorText";
 import { toast } from "@/lib/toast";
 import { fmtUzs } from "@/lib/money";
 import { subscribeUserEvents } from "@/lib/userSocket";
+import { CALLROOM_EVENT } from "@/lib/callEvents";
+import { getCall } from "@/lib/services/backend";
 import { primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
 import { dateOnly, dateTimeFull, timeOnly } from "@/lib/date";
@@ -335,6 +337,33 @@ export default function SupportChat({
       if (ev.event === "call.ended" || ev.event === "call.participant_joined" || CALL_OVER.has(status)) setRing(null);
     });
   }, [ringId]);
+
+  const ringRoom = ring?.roomId ?? "";
+  useEffect(() => {
+    if (!ringId || !ringRoom) return;
+    const timers: number[] = [];
+    const recheck = () => {
+      getCall(ringRoom, ringId)
+        .then((c) => {
+          const mine = c.participants.find((p) => p.userId === meId)?.status ?? "";
+          if (CALL_OVER.has(c.status.toLowerCase()) || (mine !== "" && mine !== "invited")) setRing(null);
+        })
+        .catch(() => {});
+    };
+    const onRoom = () => {
+      timers.push(window.setTimeout(recheck, 2500), window.setTimeout(recheck, 7000));
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") recheck();
+    };
+    window.addEventListener(CALLROOM_EVENT, onRoom);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+      window.removeEventListener(CALLROOM_EVENT, onRoom);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [ringId, ringRoom, meId]);
 
   const loadOlder = async () => {
     const cur = cursor.current;
