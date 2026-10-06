@@ -25,6 +25,7 @@ import {
   IconArrowRight,
   IconLock,
 } from "@/components/icons";
+import { useAiField } from "@/lib/ai/registry";
 
 // lexgo_frontend_custom_doc_flows.md: two ways into the call-center pool
 // that need no template at all — the advocate writes the document from a
@@ -176,6 +177,23 @@ export default function NewDocumentOrder({
 
   const mainRef = useRef<HTMLInputElement>(null);
 
+  const formShown = !!flow && !result && !planRequired;
+  useAiField(formShown ? "documents.create.need" : "", {
+    get: () => need,
+    set: (v) => {
+      setNeed(v);
+      if (v.trim()) setMissing((m) => (m === "need" ? "" : m));
+    },
+    sensitive: true,
+    fillable: true,
+  });
+  useAiField(formShown ? "documents.create.language" : "", {
+    get: () => lang,
+    set: (v) => {
+      if ((DOC_LANGS as readonly string[]).includes(v)) setLang(v);
+    },
+  });
+
   function pickMain(list: FileList | null) {
     const f = list?.[0];
     // Reset so picking the same file twice still fires onChange.
@@ -317,13 +335,13 @@ export default function NewDocumentOrder({
     return (
       <div className="cform" style={{ maxWidth: "none" }}>
         <p className="advmuted" style={{ margin: 0 }}>{t("lead")}</p>
-        <div className="docchoose" data-ai-target="documents:order-options">
-          <button type="button" className="docchoose__c" onClick={() => setFlow("scratch")}>
+        <div className="docchoose" data-ai-target="documents:order-options" data-ai-id="documents.create.options" data-ai-type="section">
+          <button type="button" className="docchoose__c" onClick={() => setFlow("scratch")} data-ai-id="documents.create.option.scratch">
             <span className="docchoose__i"><IconEdit /></span>
             <b>{t("scratchTitle")}</b>
             <span>{t("scratchSub")}</span>
           </button>
-          <button type="button" className="docchoose__c" onClick={() => setFlow("review")}>
+          <button type="button" className="docchoose__c" onClick={() => setFlow("review")} data-ai-id="documents.create.option.review">
             <span className="docchoose__i"><IconClipboardCheck /></span>
             <b>{t("reviewTitle")}</b>
             <span>{t("reviewSub")}</span>
@@ -331,7 +349,7 @@ export default function NewDocumentOrder({
           {/* The AI analysis page used to be a sidebar item of its own; it
               lives here now so both document journeys start in one place. */}
           {showAnalysis ? (
-            <Link href="/portal/client/doc-analysis" className="docchoose__c" onClick={onClose}>
+            <Link href="/portal/client/doc-analysis" className="docchoose__c" onClick={onClose} data-ai-id="documents.create.option.analysis">
               <span className="docchoose__i"><IconEye /></span>
               <b>{t("analysisTitle")}</b>
               <span>{t("analysisSub")}</span>
@@ -342,7 +360,13 @@ export default function NewDocumentOrder({
     );
 
   return (
-    <div className="cform docassist" style={{ maxWidth: "none" }}>
+    <div
+      className="cform docassist"
+      style={{ maxWidth: "none" }}
+      data-ai-id="documents.create.form"
+      data-ai-type="section"
+      data-ai-label={flow === "review" ? t("reviewTitle") : t("scratchTitle")}
+    >
       <button type="button" className="rf__link" onClick={() => setFlow("")}>
         <IconChevronLeft />
         {td("backToChoices")}
@@ -375,6 +399,10 @@ export default function NewDocumentOrder({
             className={`docpick${missing === "main" ? " is-bad" : ""}`}
             aria-describedby={missing === "main" ? "newdoc-main-bad" : undefined}
             onClick={() => mainRef.current?.click()}
+            data-ai-id="documents.create.main-file"
+            data-ai-type="file_dropzone"
+            data-ai-label={t("mainFileLabel")}
+            data-ai-private
           >
             <span className="docpick__i"><IconPaperclip /></span>
             <span className="docpick__t">
@@ -402,7 +430,7 @@ export default function NewDocumentOrder({
         </section>
       ) : null}
 
-      <section className="docassist__sec">
+      <section className="docassist__sec" data-ai-private>
         <label htmlFor="newdoc-need">{t("needLabel")}</label>
         <textarea
           id="newdoc-need"
@@ -412,6 +440,9 @@ export default function NewDocumentOrder({
           placeholder={t("needPlaceholder")}
           aria-invalid={missing === "need" || undefined}
           className={missing === "need" ? "is-bad" : undefined}
+          data-ai-id="documents.create.need"
+          data-ai-label={t("needLabel")}
+          data-ai-private
         />
         {/* "described" is satisfied by an attachment or a voice note as well
             as by typing, so the sentence names all three ways out rather than
@@ -436,7 +467,7 @@ export default function NewDocumentOrder({
         />
       </section>
 
-      <section className="docassist__sec">
+      <section className="docassist__sec" data-ai-id="documents.create.language" data-ai-type="select" data-ai-label={t("langHint")}>
         <label htmlFor="newdoc-lang">{t("langHint")}</label>
         <Select
           value={lang}
@@ -455,7 +486,7 @@ export default function NewDocumentOrder({
           above. The clock still keys off `busy` and takes the slot the
           forward arrow vacates, which is why the busy button is exactly as
           tall as the idle one: measured 49.2px in both states. */}
-      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy} aria-busy={busy || undefined}>
+      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy} aria-busy={busy || undefined} data-ai-id="documents.create.submit">
         {busy ? <WaitClock /> : null}
         {busy ? td("processingShort") : t("submit")}
         {busy ? null : <IconArrowRight />}

@@ -33,6 +33,9 @@ import { statusLabel } from "@/lib/labels";
 import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import CallRoom from "@/components/chat/CallRoom";
+import { useAiReveal } from "@/lib/guide/targets";
+import { aiId, aiSeg } from "@/lib/ai/ids";
+import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
 import { Skeleton, EmptyState } from "./DataState";
 // The five-point star the rating rows draw. It is not in components/icons.tsx
 // because it carries pathLength="360" for the dashed idle animation, and that
@@ -152,6 +155,22 @@ type LiveCall = { call: NonNullable<UrgentCreated["call"]>; workId: string; serv
 function ratingClock(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+const AI_FORM_PARTS = new Set(["form", "direction", "description", "submit", "channel", "kind", "lawyer-count", "total"]);
+
+function aiKebab(key: string): string {
+  return key.replace(/_/g, "-");
+}
+
+function aiFold(v: string): string {
+  return v.toLowerCase().replace(/[ʻʼ'‘’`]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function aiRateable(r: UrgentRequest): boolean {
+  if (!ratingOpen(r.rating)) return false;
+  const end = r.rating.deadlineAt ? Date.parse(r.rating.deadlineAt) : NaN;
+  return Number.isNaN(end) || end > Date.now();
 }
 
 export default function UrgentAdvocatePanel() {
@@ -443,6 +462,87 @@ export default function UrgentAdvocatePanel() {
     }
   }
 
+  const formOpen = step === "form" && !!sel;
+  const selGroup = groupOf(sel);
+  const dirLabel = (d: { slug: string; area: string }) => (te.has(`areas.${d.area}`) ? te(`areas.${d.area}`) : d.slug);
+  const kindLabel = (x: UrgentService) => (t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title);
+  useAiField(formOpen ? "urgent_advokat.request.direction" : "", {
+    get: () => dirs.join(","),
+    set: (v) => {
+      const want = v.split(/[,;|\n]+/).map(aiFold).filter(Boolean);
+      const next = DIRECTIONS.filter((d) =>
+        want.some((w) => {
+          const label = aiFold(dirLabel(d));
+          return w === d.slug || w === d.area || w === label || (w.length >= 3 && (label.startsWith(w) || w.startsWith(d.slug)));
+        }),
+      ).map((d) => d.slug);
+      if (want.length && !next.length) return;
+      setDirs(next);
+      if (next.length) setMiss((m) => (m === "dirs" ? "" : m));
+    },
+  });
+  useAiField(formOpen ? "urgent_advokat.request.description" : "", {
+    get: () => need,
+    set: (v) => {
+      setNeed(v);
+      if (v.trim().length >= 10) setMiss((m) => (m === "need" ? "" : m));
+    },
+    sensitive: true,
+    fillable: true,
+  });
+  useAiField(formOpen && channels.length > 1 ? "urgent_advokat.request.channel" : "", {
+    get: () => channel,
+    set: (v) => {
+      const w = aiFold(v);
+      const hit = channels.find((c) => c === w || aiFold(c === "video" ? t("chVideo") : t("chChat")) === w);
+      if (hit) setChannelPref(hit);
+    },
+  });
+  useAiField(formOpen && isGroup ? "urgent_advokat.request.lawyer-count" : "", {
+    get: () => String(lawyers),
+    set: (v) => {
+      const n = parseInt(v, 10);
+      if (!sel || !Number.isFinite(n)) return;
+      setLawyers(Math.min(sel.lawyerCountMax || 7, Math.max(sel.lawyerCountMin || 2, n)));
+    },
+  });
+  useAiField(formOpen && selGroup ? "urgent_advokat.request.kind" : "", {
+    get: () => sel?.key ?? "",
+    set: (v) => {
+      const w = aiFold(v);
+      const m = services.find((x) => !!selGroup?.items.includes(x.key) && (x.key === w || aiKebab(x.key) === w || aiFold(kindLabel(x)) === w));
+      if (m) choose(m);
+    },
+  });
+  useAiSelection(formOpen ? "service_kind" : "", sel?.key);
+  useAiSelection(formOpen ? "channel" : "", channel);
+  useAiSelection(formOpen ? "directions" : "", dirs.join(","));
+  useAiSelection(formOpen && isGroup ? "lawyer_count" : "", lawyers);
+  useAiModal("urgent_advokat.request.form", () => {
+    if (sel) setStep("form");
+  });
+  useAiModal("urgent_advokat.documents-modal", () => setDocsOpen(true));
+  useAiReveal(/^urgent_advokat\./, (id) => {
+    const [, section, part] = id.split(".");
+    if (section === "service" && part) {
+      const card = cards.find((c) => c.group && c.items.some((x) => aiKebab(x.key) === part));
+      if (card) openKinds(card.key);
+      return;
+    }
+    if (section === "rating") {
+      const r = mine.find(aiRateable);
+      if (r) setOpenId(r.id);
+      return;
+    }
+    if (section !== "request" || !part) return;
+    if (AI_FORM_PARTS.has(part)) {
+      if (sel) setStep("form");
+      return;
+    }
+    const r = mine.find((x) => aiSeg(x.id) === part);
+    if (r) setOpenId(r.id);
+  });
+
   return (
     <div className="ua">
       {/* ── Hero: what the module is, and the three numbers that govern
@@ -454,7 +554,7 @@ export default function UrgentAdvocatePanel() {
           <p className="ua__sub">{t("lead")}</p>
         </div>
         {cat ? (
-          <dl className="ua__meta" data-ai-target="urgent:terms">
+          <dl className="ua__meta" data-ai-target="urgent:terms" data-ai-id="urgent_advokat.terms" data-ai-type="section">
             <div><dt>{t("metaMinutes")}</dt><dd>{t("minutesN", { n: cat.meetingDefaultMinutes })}</dd></div>
             <div><dt>{t("metaFree")}</dt><dd>{t("minutesN", { n: cat.freeExtensionOnceMinutes })}</dd></div>
             <div><dt>{t("metaPaid")}</dt><dd>{t("perMinute", { price: fmtUzs(cat.paidExtensionPricePerMinute) })}</dd></div>
@@ -481,7 +581,7 @@ export default function UrgentAdvocatePanel() {
       ) : catState === "error" ? (
         <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
       ) : (
-        <div className="ua__grid" data-ai-target="section:urgent-services">
+        <div className="ua__grid" data-ai-target="section:urgent-services" data-ai-id="urgent_advokat.services" data-ai-type="section">
           {cards.map((card) => {
             // A group card stands for whichever of its members is picked, and
             // offers the first one when nothing is.
@@ -504,6 +604,10 @@ export default function UrgentAdvocatePanel() {
                 type="button"
                 className={`uacard${on ? " on" : ""}`}
                 data-ai-target={card.key === VIDEO_GROUP ? "urgent:video-consultation" : `urgent:${card.key.replace(/_/g, "-")}`}
+                data-ai-id={aiId("urgent_advokat.service", card.key === VIDEO_GROUP ? "video-consultation" : aiKebab(card.key))}
+                data-ai-type="card"
+                data-ai-entity-type={card.group ? undefined : "urgent_service"}
+                data-ai-entity-id={card.group ? undefined : s.key}
                 // aria-pressed is gone: every card now opens the order dialog,
                 // so none of them is a toggle any more and announcing one as
                 // pressed described state the button no longer owns. The `on`
@@ -592,6 +696,8 @@ export default function UrgentAdvocatePanel() {
             aria-haspopup="dialog"
             onClick={() => setDocsOpen(true)}
             data-ai-target="urgent:documents"
+            data-ai-id="urgent_advokat.service.documents"
+            data-ai-type="card"
           >
             <span className="uacard__i"><IconFileText /></span>
             <b className="uacard__t">{t("docs.title")}</b>
@@ -625,11 +731,13 @@ export default function UrgentAdvocatePanel() {
           client who pressed "Huquqiy hujjatlar bo'yicha ishlash" on the
           Tezkor Advokat grid asked for an advocate. */}
       <Modal open={docsOpen} onClose={() => setDocsOpen(false)} title={t("docs.title")} wide>
-        <NewDocumentOrder showAnalysis={false} onClose={() => setDocsOpen(false)} />
+        <div data-ai-id="urgent_advokat.documents-modal" data-ai-type="modal" data-ai-label={t("docs.title")}>
+          <NewDocumentOrder showAnalysis={false} onClose={() => setDocsOpen(false)} />
+        </div>
       </Modal>
 
       {/* ── The client's own requests ─────────────────────────────── */}
-      <section className="ppanel" data-ai-target="urgent:my-requests">
+      <section className="ppanel" data-ai-target="urgent:my-requests" data-ai-id="urgent_advokat.my-requests" data-ai-type="list">
         <div className="ppanel__h">
           <b className="ppanel__t"><span className="pico"><IconClock /></span>{t("mine")}</b>
         </div>
@@ -652,6 +760,10 @@ export default function UrgentAdvocatePanel() {
                 role="button"
                 tabIndex={0}
                 aria-label={t("detailsOf", { kind })}
+                data-ai-id={aiId("urgent_advokat.request", r.id)}
+                data-ai-type="list_item"
+                data-ai-entity-type="urgent_advokat_request"
+                data-ai-entity-id={r.id}
                 onClick={() => setOpenId(r.id)}
                 onKeyDown={(e) => {
                   if (e.key !== "Enter" && e.key !== " ") return;
@@ -675,12 +787,12 @@ export default function UrgentAdvocatePanel() {
                     {kind}
                     {r.workId ? <em className="ua__wid" title={t("workId")}>{r.workId}</em> : null}
                   </b>
-                  <span>{[r.need, r.createdAt ? dateTimeFull(r.createdAt, locale) : ""].filter(Boolean).join(" · ")}</span>
+                  <span data-ai-private>{[r.need, r.createdAt ? dateTimeFull(r.createdAt, locale) : ""].filter(Boolean).join(" · ")}</span>
                   {r.scheduledAt ? (
                     <span className="ua__when"><IconClock />{t("scheduled", { when: dateTimeFull(r.scheduledAt, locale) })}</span>
                   ) : null}
                   {r.groupLawyers.length ? (
-                    <span className="ua__when"><IconUsers />{t("panelOf", { names: r.groupLawyers.map((g) => g.name).join(", ") })}</span>
+                    <span className="ua__when" data-ai-private><IconUsers />{t("panelOf", { names: r.groupLawyers.map((g) => g.name).join(", ") })}</span>
                   ) : null}
                   {/* LEXGO_EXPRESS_…md L104-120 and L137-141: an immediate
                       order carries payload.call_status and payload.call_channel
@@ -714,7 +826,7 @@ export default function UrgentAdvocatePanel() {
                 <div className="ua__rowr" onClick={(e) => e.stopPropagation()}>
                   <em className={`creq__badge ua__st ua__st--${r.status || "open"}`}>{statusLabel(tcm, r.status)}</em>
                   {r.secureChatRoomId ? (
-                    <Link href="/portal/client/messages" className="btn btn--line btn--sm"><IconChat />{t("openChat")}</Link>
+                    <Link href="/portal/client/messages" className="btn btn--line btn--sm" data-ai-id={aiId("urgent_advokat.request", r.id, "chat")}><IconChat />{t("openChat")}</Link>
                   ) : null}
                   <button type="button" className="btn btn--soft btn--sm" onClick={() => setOpenId(r.id)}>
                     {t("details")}<IconChevronRight />
@@ -753,6 +865,7 @@ export default function UrgentAdvocatePanel() {
             ].filter(Boolean).join(" · ") || undefined
           }
           onEnd={() => { setLive(null); setReload((k) => k + 1); }}
+          aiScope="urgent_advokat.call"
         />
       ) : null}
 
@@ -790,7 +903,7 @@ export default function UrgentAdvocatePanel() {
             and the swap animation (.uastep) plays instead of being skipped
             on a reused DOM node. */}
         {step === "kind" && kindCard ? (
-          <div className="uakind uastep">
+          <div className="uakind uastep" data-ai-id="urgent_advokat.request.kind-picker" data-ai-type="modal" data-ai-label={groupTitle(kindCard.group!)}>
             {about(kindCard.group!.key) ? <p className="uakind__lead">{about(kindCard.group!.key)}</p> : null}
             <div className="uakind__grid">
               {kindCard.items.map((x) => {
@@ -801,6 +914,10 @@ export default function UrgentAdvocatePanel() {
                     type="button"
                     className="uakind__c"
                     onClick={() => openForm(x)}
+                    data-ai-id={aiId("urgent_advokat.service", aiKebab(x.key))}
+                    data-ai-type="card"
+                    data-ai-entity-type="urgent_service"
+                    data-ai-entity-id={x.key}
                   >
                     <span className="uakind__i"><XIcon /></span>
                     <b>{t.has(`kinds.${x.key}`) ? t(`kinds.${x.key}`) : x.title}</b>
@@ -818,7 +935,7 @@ export default function UrgentAdvocatePanel() {
         ) : null}
 
         {step === "form" && sel ? (
-          <div className="uaform uastep">
+          <div className="uaform uastep" data-ai-id="urgent_advokat.request.form" data-ai-type="modal" data-ai-label={kindLabel(sel)} data-ai-entity-type="urgent_service" data-ai-entity-id={sel.key}>
             {/* Everything the client answers scrolls; the price and the send
                 do not — see .uaform__foot below. */}
             <div className="cform uaform__body">
@@ -845,9 +962,9 @@ export default function UrgentAdvocatePanel() {
               {channels.length > 1 ? (
                 <div>
                   <label>{t("channel")}</label>
-                  <div className="segs segs--sm" role="tablist" aria-label={t("channel")}>
+                  <div className="segs segs--sm" role="tablist" aria-label={t("channel")} data-ai-id="urgent_advokat.request.channel">
                     {channels.map((c) => (
-                      <button key={c} type="button" role="tab" className="seg" aria-selected={channel === c} onClick={() => setChannelPref(c)}>
+                      <button key={c} type="button" role="tab" className="seg" aria-selected={channel === c} onClick={() => setChannelPref(c)} data-ai-id={aiId("urgent_advokat.request.channel", c)}>
                         {c === "video" ? <IconVideo /> : <IconChat />}
                         {c === "video" ? t("chVideo") : t("chChat")}
                       </button>
@@ -862,13 +979,23 @@ export default function UrgentAdvocatePanel() {
               {groupOf(sel) ? (
                 <div>
                   <label>{t.has(`groupKind.${groupOf(sel)!.key}`) ? t(`groupKind.${groupOf(sel)!.key}`) : t("opinionKind")}</label>
-                  <div className="segs segs--sm" role="tablist" aria-label={t.has(`groupKind.${groupOf(sel)!.key}`) ? t(`groupKind.${groupOf(sel)!.key}`) : t("opinionKind")}>
+                  <div className="segs segs--sm" role="tablist" aria-label={t.has(`groupKind.${groupOf(sel)!.key}`) ? t(`groupKind.${groupOf(sel)!.key}`) : t("opinionKind")} data-ai-id="urgent_advokat.request.kind">
                     {groupOf(sel)!.items.map((k) => {
                       const m = services.find((x) => x.key === k);
                       if (!m) return null;
                       const MIcon = ICONS[k] ?? IconScale;
                       return (
-                        <button key={k} type="button" role="tab" className="seg" aria-selected={sel.key === k} onClick={() => choose(m)}>
+                        <button
+                          key={k}
+                          type="button"
+                          role="tab"
+                          className="seg"
+                          aria-selected={sel.key === k}
+                          onClick={() => choose(m)}
+                          data-ai-id={aiId("urgent_advokat.request.kind", aiKebab(k))}
+                          data-ai-entity-type="urgent_service"
+                          data-ai-entity-id={k}
+                        >
                           <MIcon />
                           {t.has(`kinds.${k}`) ? t(`kinds.${k}`) : m.title}
                           {/* Only one of the two needs a previous LexGo service;
@@ -887,7 +1014,7 @@ export default function UrgentAdvocatePanel() {
               {isGroup ? (
                 <div>
                   <label htmlFor="ua-n">{t("lawyerCount")}</label>
-                  <div className="ua__count">
+                  <div className="ua__count" data-ai-id="urgent_advokat.request.lawyer-count" data-ai-label={t("lawyerCount")}>
                     <button type="button" className="btn btn--line btn--sm" onClick={() => setLawyers((n) => Math.max(sel.lawyerCountMin || 2, n - 1))} aria-label={t("less")}>−</button>
                     <b id="ua-n">{lawyers}</b>
                     <button type="button" className="btn btn--line btn--sm" onClick={() => setLawyers((n) => Math.min(sel.lawyerCountMax || 7, n + 1))} aria-label={t("more")}>+</button>
@@ -917,6 +1044,9 @@ export default function UrgentAdvocatePanel() {
                   id="ua-dirs"
                   role="group"
                   data-ai-target="urgent:form-directions"
+                  data-ai-id="urgent_advokat.request.direction"
+                  data-ai-type="select"
+                  data-ai-label={t("directions")}
                   tabIndex={-1}
                   aria-labelledby="ua-dirs-l"
                   aria-invalid={miss === "dirs" || undefined}
@@ -924,7 +1054,7 @@ export default function UrgentAdvocatePanel() {
                   className={`chiprow uaform__chips${miss === "dirs" ? " is-bad" : ""}`}
                 >
                   {DIRECTIONS.map((d) => (
-                    <button key={d.slug} type="button" className="fchip" aria-pressed={dirs.includes(d.slug)} onClick={() => toggleDir(d.slug)}>
+                    <button key={d.slug} type="button" className="fchip" aria-pressed={dirs.includes(d.slug)} onClick={() => toggleDir(d.slug)} data-ai-id={aiId("urgent_advokat.request.direction", d.slug)}>
                       {te.has(`areas.${d.area}`) ? te(`areas.${d.area}`) : d.slug}
                     </button>
                   ))}
@@ -936,10 +1066,13 @@ export default function UrgentAdvocatePanel() {
                 )}
               </div>
 
-              <div data-ai-target="urgent:form-need">
+              <div data-ai-target="urgent:form-need" data-ai-private>
                 <label htmlFor="ua-need">{t("need")}</label>
                 <textarea
                   id="ua-need"
+                  data-ai-id="urgent_advokat.request.description"
+                  data-ai-label={t("need")}
+                  data-ai-private
                   rows={4}
                   value={need}
                   // Cleared when the value SATISFIES the rule rather than on
@@ -1018,7 +1151,7 @@ export default function UrgentAdvocatePanel() {
                 `disabled` is the POST being out — a missing field is answered
                 by submit(), not by a control that cannot be pressed. */}
             <div className="uaform__foot">
-              <div className="uaform__price">
+              <div className="uaform__price" data-ai-id="urgent_advokat.request.total">
                 <span>{t("total")}</span>
                 <b>{fmtUzs(price)} {te("currency")}</b>
               </div>
@@ -1026,6 +1159,9 @@ export default function UrgentAdvocatePanel() {
                 type="button"
                 className="btn btn--grad btn--lg uaform__send"
                 data-ai-target="button:urgent-submit"
+                data-ai-id="urgent_advokat.request.submit"
+                data-ai-entity-type="urgent_service"
+                data-ai-entity-id={sel.key}
                 disabled={busy}
                 aria-busy={busy || undefined}
                 onClick={() => void submit()}
@@ -1192,12 +1328,23 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
     }
   }
 
+  useAiSelection(canRate ? "rating_stars" : "", stars || "");
+  const kindName = t.has(`kinds.${req.serviceKind}`) ? t(`kinds.${req.serviceKind}`) : req.serviceTitle || req.serviceKind;
+
   return (
-    <div className="uamore" id={id}>
+    <div
+      className="uamore"
+      id={id}
+      data-ai-id={aiId("urgent_advokat.request", req.id, "detail")}
+      data-ai-type="modal"
+      data-ai-label={[kindName, req.workId].filter(Boolean).join(" · ")}
+      data-ai-entity-type="urgent_advokat_request"
+      data-ai-entity-id={req.id}
+    >
       {/* The rating window, while it is open. It closes 15 minutes after the
           work is completed, so this block simply stops rendering. */}
       {canRate ? (
-        <div className="uamore__block urate">
+        <div className="uamore__block urate" data-ai-id="urgent_advokat.rating" data-ai-type="rating" data-ai-label={t("rateTitle")} data-ai-entity-type="urgent_advokat_request" data-ai-entity-id={req.id}>
           {/* The clock sits on the title row, where the document rating window
               already puts it (.drate__left), so a client who has rated a
               finished document meets the same widget here. aria-live is
@@ -1225,6 +1372,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
             className="urate__stars"
             role="radiogroup"
             aria-label={t("rateTitle")}
+            data-ai-id="urgent_advokat.rating.stars"
             onPointerLeave={() => setRHover(0)}
             onBlur={() => setRHover(0)}
           >
@@ -1253,15 +1401,20 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
             onChange={(e) => setRComment(e.target.value)}
             placeholder={t("rateCommentPh")}
             aria-label={t("rateCommentPh")}
+            data-ai-id="urgent_advokat.rating.comment"
+            data-ai-private
           />
           {/* One or two stars means a quality complaint is opened by this
               send; the form says so and asks what to put in it. It never
               gates the send. */}
           {opensComplaint(stars) ? (
-            <div className="drate__low">
+            <div className="drate__low" data-ai-private>
               <b><IconAlert />{tr("lowTitle")}</b>
               <textarea
                 className="drate__lowt"
+                data-ai-id="urgent_advokat.rating.complaint"
+                data-ai-label={tr("lowTitle")}
+                data-ai-private
                 rows={2}
                 value={rComplaint}
                 onChange={(e) => setRComplaint(e.target.value)}
@@ -1273,7 +1426,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
             </div>
           ) : null}
           {rErr ? <Notice ok={false} msg={rErr} /> : null}
-          <button type="button" className="btn btn--grad btn--sm" disabled={!stars || !!busy} aria-busy={busy === "rate" || undefined} onClick={() => void rate()}>
+          <button type="button" className="btn btn--grad btn--sm" disabled={!stars || !!busy} aria-busy={busy === "rate" || undefined} onClick={() => void rate()} data-ai-id="urgent_advokat.rating.submit">
             {busy === "rate" ? <WaitClock /> : null}
             {busy === "rate" ? t("sending") : t("rateSubmit")}
           </button>
@@ -1284,7 +1437,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
         <div className="uamore__block uamore__block--warn" role="status">
           <b><IconAlert />{tr("complaintSent")}</b>
           {rQc.workId ? <span className="advmuted">{rQc.workId}</span> : null}
-          <Link href={rQc.workId ? `/portal/client/complaints?work=${encodeURIComponent(rQc.workId)}` : "/portal/client/complaints"} className="uamore__qclink">
+          <Link href={rQc.workId ? `/portal/client/complaints?work=${encodeURIComponent(rQc.workId)}` : "/portal/client/complaints"} className="uamore__qclink" data-ai-id="urgent_advokat.rating.complaint-link">
             {tr("complaintOpen")}
             <IconArrowRight />
           </Link>
@@ -1304,20 +1457,20 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
       ) : null}
 
       {req.resultSummary ? (
-        <div className="uamore__block uamore__block--ok">
+        <div className="uamore__block uamore__block--ok" data-ai-private>
           <b><IconCheck />{t("resultTitle")}</b>
           <p>{req.resultSummary}</p>
           {req.nextAction ? <span className="advmuted">{t("nextAction")}: {req.nextAction}</span> : null}
         </div>
       ) : null}
       {req.cancelReason ? (
-        <div className="uamore__block uamore__block--warn">
+        <div className="uamore__block uamore__block--warn" data-ai-private>
           <b><IconClose />{t("cancelledTitle")}</b>
           <p>{req.cancelReason}</p>
         </div>
       ) : null}
       {req.files.length || req.voiceMessages.length ? (
-        <div className="uamore__block">
+        <div className="uamore__block" data-ai-private>
           <b><IconFileText />{t("attachments")}</b>
           <ul className="uamore__files">
             {req.files.map((f, i) => (
@@ -1353,15 +1506,16 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
               onChange={(e) => setReason(e.target.value)}
               placeholder={t("cancelReasonPh")}
               aria-label={t("cancelReasonPh")}
+              data-ai-private
             />
             <button type="button" className="btn btn--soft btn--sm" onClick={() => setAsking(false)}>{t("keepIt")}</button>
-            <button type="button" className="btn btn--danger btn--sm" disabled={!!busy} aria-busy={busy === "cancel" || undefined} onClick={() => void cancel()}>
+            <button type="button" className="btn btn--danger btn--sm" disabled={!!busy} aria-busy={busy === "cancel" || undefined} onClick={() => void cancel()} data-ai-id={aiId("urgent_advokat.request", req.id, "cancel-confirm")}>
               {busy === "cancel" ? <WaitClock /> : null}
               {busy === "cancel" ? t("cancelling") : t("cancelConfirm")}
             </button>
           </div>
         ) : (
-          <button type="button" className="btn btn--line btn--sm" onClick={() => setAsking(true)}>
+          <button type="button" className="btn btn--line btn--sm" onClick={() => setAsking(true)} data-ai-id={aiId("urgent_advokat.request", req.id, "cancel")}>
             <IconClose />{t("cancelRequest")}
           </button>
         )
@@ -1394,7 +1548,7 @@ function SecondOpinionGate({
   const t = useTranslations("portal.client.urgent");
   return (
     <Modal open={!!message} onClose={onClose} title={t("priorPurchaseTitle")}>
-      <div className="uagate">
+      <div className="uagate" data-ai-id="urgent_advokat.prior-purchase-gate" data-ai-type="modal" data-ai-label={t("priorPurchaseTitle")}>
         <span className="uagate__i" aria-hidden><IconLock /></span>
         {/* The backend's own sentence first when it sent one; the recommended
             wording from the MD otherwise. */}
@@ -1402,24 +1556,24 @@ function SecondOpinionGate({
         <p className="uagate__hint">{t("priorPurchaseHow")}</p>
         <div className="uagate__cta">
           {hasSingle ? (
-            <button type="button" className="btn btn--grad btn--full" onClick={() => onPick("second_opinion_single")}>
+            <button type="button" className="btn btn--grad btn--full" onClick={() => onPick("second_opinion_single")} data-ai-id="urgent_advokat.prior-purchase-gate.single">
               <IconScale />{t("ctaSingleOpinion")}
             </button>
           ) : null}
           {hasVideo ? (
-            <button type="button" className={`btn btn--full ${hasSingle ? "btn--line" : "btn--grad"}`} onClick={() => onPick("video_consultation")}>
+            <button type="button" className={`btn btn--full ${hasSingle ? "btn--line" : "btn--grad"}`} onClick={() => onPick("video_consultation")} data-ai-id="urgent_advokat.prior-purchase-gate.video">
               <IconVideo />{t("ctaConsult")}
             </button>
           ) : null}
           {hasChat ? (
-            <button type="button" className="btn btn--line btn--full" onClick={() => onPick("chat_consultation")}>
+            <button type="button" className="btn btn--line btn--full" onClick={() => onPick("chat_consultation")} data-ai-id="urgent_advokat.prior-purchase-gate.chat">
               <IconChat />{t("ctaChat")}
             </button>
           ) : null}
-          <Link href="/portal/client/documents" className="btn btn--line btn--full" onClick={onClose}>
+          <Link href="/portal/client/documents" className="btn btn--line btn--full" onClick={onClose} data-ai-id="urgent_advokat.prior-purchase-gate.document">
             <IconFileText />{t("ctaDocument")}
           </Link>
-          <Link href="/portal/client/services" className="btn btn--soft btn--full" onClick={onClose}>
+          <Link href="/portal/client/services" className="btn btn--soft btn--full" onClick={onClose} data-ai-id="urgent_advokat.prior-purchase-gate.services">
             <IconArrowRight />{t("browseServices")}
           </Link>
         </div>

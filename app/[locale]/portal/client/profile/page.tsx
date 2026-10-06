@@ -21,6 +21,7 @@ import {
 } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import { useResource, useResourceOne } from "@/lib/useResource";
+import { useAiModal } from "@/lib/ai/registry";
 import { Skeleton } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -94,6 +95,9 @@ export default function ClientProfile() {
   const [editOpen, setEditOpen] = useState(false);
   const [famOpen, setFamOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
+  useAiModal("profile.personal.edit-modal", () => setEditOpen(true));
+  useAiModal("profile.family.add-modal", () => setFamOpen(true));
+  useAiModal("profile.cards.add-modal", () => setCardOpen(true));
 
   const p = prof.data;
   const name = p?.name || session?.name || "—";
@@ -103,10 +107,10 @@ export default function ClientProfile() {
 
   return (
     <>
-      <div className="ppanel" data-ai-target="profile:personal">
+      <div className="ppanel" data-ai-target="profile:personal" data-ai-id="profile.personal" data-ai-type="section">
         <div className="ppanel__h">
           <b className="ppanel__t"><span className="pico"><IconUser /></span>{t("personal")}{ident.data?.verified ? <span className="tfa__on" title={ident.data.provider.toUpperCase()}><IconShieldCheck />{t("verifiedProfile")}</span> : null}</b>
-          <button className="btn btn--soft btn--sm" type="button" onClick={() => setEditOpen(true)}>
+          <button className="btn btn--soft btn--sm" type="button" onClick={() => setEditOpen(true)} data-ai-id="profile.personal.edit">
             <IconEdit />
             {t("edit")}
           </button>
@@ -115,10 +119,10 @@ export default function ClientProfile() {
           <Skeleton rows={2} />
         ) : (
           <>
-          <div className="pkv__av">
+          <div className="pkv__av" data-ai-private>
             <PhotoUpload value={avatarUrl} name={name} onChange={() => {}} label="" hint="" readOnly />
           </div>
-          <div className="pkv">
+          <div className="pkv" data-ai-private>
             {session?.lexgoId ? (
               <div className="pkv__i"><label>{t("myId")}</label><b className="pkv__id">{session.lexgoId}</b></div>
             ) : null}
@@ -138,10 +142,10 @@ export default function ClientProfile() {
       <TelegramLinkCard />
 
       <div className="pgrid2">
-        <div className="ppanel" data-ai-target="profile:family">
+        <div className="ppanel" data-ai-target="profile:family" data-ai-id="profile.family" data-ai-type="section">
           <div className="ppanel__h">
             <b className="ppanel__t"><span className="pico"><IconUsers /></span>{t("family")}</b>
-            <button className="btn btn--soft btn--sm" type="button" onClick={() => setFamOpen(true)}>
+            <button className="btn btn--soft btn--sm" type="button" onClick={() => setFamOpen(true)} data-ai-id="profile.family.add">
               <IconPlus />
               {t("addFamily")}
             </button>
@@ -153,7 +157,7 @@ export default function ClientProfile() {
           ) : !family.data.length ? (
             <p style={{ margin: 0, color: "var(--gray2)", fontSize: ".88rem" }}>{t("noFamily")}</p>
           ) : (
-            <div className="alist">
+            <div className="alist" data-ai-private>
               {family.data.map((m) => (
                 <div className="creq" key={m.id}>
                   <span className="creq__st" />
@@ -184,10 +188,10 @@ export default function ClientProfile() {
           )}
         </div>
 
-        <div className="ppanel" data-ai-target="profile:cards">
+        <div className="ppanel" data-ai-target="profile:cards" data-ai-id="profile.cards" data-ai-type="section">
           <div className="ppanel__h">
             <b className="ppanel__t"><span className="pico"><IconCard /></span>{t("cards")}</b>
-            <button className="btn btn--soft btn--sm" type="button" onClick={() => setCardOpen(true)}>
+            <button className="btn btn--soft btn--sm" type="button" onClick={() => setCardOpen(true)} data-ai-id="profile.cards.add">
               <IconPlus />
               {t("addCard")}
             </button>
@@ -197,7 +201,7 @@ export default function ClientProfile() {
           ) : !methods.data.length ? (
             <p style={{ margin: 0, color: "var(--gray2)", fontSize: ".88rem" }}>{t("noCards")}</p>
           ) : (
-            <div className="alist">
+            <div className="alist" data-ai-private>
               {methods.data.map((m) => (
                 <div className="creq" key={m.id}>
                   <span className="creq__st" />
@@ -220,7 +224,7 @@ export default function ClientProfile() {
         </div>
       </div>
 
-      <div className="ppanel" data-ai-target="profile:subscription">
+      <div className="ppanel" data-ai-target="profile:subscription" data-ai-id="profile.subscription" data-ai-type="section">
         <div className="ppanel__h">
           <b className="ppanel__t"><span className="pico"><IconSparkle /></span>{t("subscription")}</b>
         </div>
@@ -234,14 +238,14 @@ export default function ClientProfile() {
 
       <div className="pgrid2">
         <NotificationPrefsCard />
-        <div className="ppanel" data-ai-target="profile:sessions">
+        <div className="ppanel" data-ai-target="profile:sessions" data-ai-id="profile.sessions" data-ai-type="section">
           <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconMonitor /></span>{t("sessions")}</b></div>
           {sessions.status === "loading" ? (
             <Skeleton rows={2} />
           ) : !sessions.data.length ? (
             <p className="advmuted">{t("noSessions")}</p>
           ) : (
-            <div className="alist">
+            <div className="alist" data-ai-private>
               {sessions.data.map((s) => (
                 <div className="creq" key={s.id}>
                   <span className="creq__st" />
@@ -317,7 +321,7 @@ function EditModal({
 
   return (
     <Modal open={open} onClose={onClose} title={t("editTitle")}>
-      <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
+      <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} data-ai-id="profile.personal.edit-modal" data-ai-type="modal" data-ai-label={t("editTitle")} data-ai-private>
         <PhotoUpload value={photo} name={name} onChange={setPhoto} label={t("photo")} hint={t("photoHint")} />
         <div>
           <label>{t("name")}</label>
@@ -369,7 +373,7 @@ function FamilyModal({ open, onClose, onSaved }: { open: boolean; onClose: () =>
 
   return (
     <Modal open={open} onClose={onClose} title={t("addFamily")}>
-      <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
+      <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} data-ai-id="profile.family.add-modal" data-ai-type="modal" data-ai-label={t("addFamily")} data-ai-private>
         <div>
           <label>{t("memberName")}</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("namePh")} />
@@ -426,7 +430,7 @@ function CardModal({ open, onClose, onSaved }: { open: boolean; onClose: () => v
 
   return (
     <Modal open={open} onClose={onClose} title={t("addCard")}>
-      <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
+      <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} data-ai-id="profile.cards.add-modal" data-ai-type="modal" data-ai-label={t("addCard")} data-ai-private>
         <div>
           <label>{t("cardBrand")}</label>
           <Select value={brand} onChange={setBrand} options={brandOpts} ariaLabel={t("cardBrand")} />

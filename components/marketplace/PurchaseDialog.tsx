@@ -19,6 +19,7 @@ import {
   type PreferredChannel,
 } from "@/lib/services/marketplace";
 import { deliveryLabel } from "./bits";
+import { useAiField, useAiSelection } from "@/lib/ai/registry";
 
 const CHANNEL_ICON = { chat: IconChat, audio: IconPhone, video: IconVideo, meeting: IconUsers } as const;
 const NOTE_MAX = 1000;
@@ -63,6 +64,27 @@ export default function PurchaseDialog({
     setActive(null);
   }
 
+  const aiForm = !!service && !done && !active;
+  useAiField(aiForm ? "marketplace.purchase.channel" : "", {
+    get: () => channel,
+    set: (v) => {
+      const w = v.trim().toLowerCase();
+      const hit = PREFERRED_CHANNELS.find((c) => c === w || t(`channels.${c}`).toLowerCase() === w);
+      if (hit) setChannel(hit);
+    },
+  });
+  useAiField(aiForm ? "marketplace.purchase.note" : "", {
+    get: () => note,
+    set: (v) => setNote(v.slice(0, NOTE_MAX)),
+    sensitive: true,
+    fillable: true,
+  });
+  useAiField(aiForm ? "marketplace.purchase.time" : "", {
+    get: () => time,
+    set: (v) => setTime(v.slice(0, 120)),
+  });
+  useAiSelection(aiForm ? "preferred_channel" : "", channel);
+
   if (!service) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
 
   const quick = [t("quick.today"), t("quick.evening"), t("quick.tomorrow"), t("quick.week")];
@@ -104,7 +126,7 @@ export default function PurchaseDialog({
 
   return (
     <Modal open onClose={onClose} title={t("title")}>
-      <div className="mk-buy">
+      <div className="mk-buy" data-ai-id="marketplace.purchase-modal" data-ai-type="modal" data-ai-label={t("title")} data-ai-entity-type="marketplace_service" data-ai-entity-id={service.id}>
         <ol className="mk-steps" aria-label={t("title")}>
           {(["request", "confirm", "chat"] as const).map((s, i) => (
             <li key={s} className={i < step ? "is-done" : i === step ? "is-now" : ""}>
@@ -147,7 +169,7 @@ export default function PurchaseDialog({
             <p>{t("sentLead")}</p>
             {!done.telegramSent ? <Notice ok={false} msg={t("notDelivered")} /> : null}
             <div className="mk-buy__acts">
-              <Link href={CLIENT_ORDERS_HREF} className="btn btn--grad">
+              <Link href={CLIENT_ORDERS_HREF} className="btn btn--grad" data-ai-id="marketplace.purchase.to-orders">
                 {t("toOrders")}
               </Link>
               <button type="button" className="btn btn--line" onClick={onClose}>
@@ -160,7 +182,7 @@ export default function PurchaseDialog({
             <b>{t("active")}</b>
             {active.workId ? <span className="wid">{active.workId}</span> : null}
             <div className="mk-buy__acts">
-              <Link href={CLIENT_ORDERS_HREF} className="btn btn--grad">
+              <Link href={CLIENT_ORDERS_HREF} className="btn btn--grad" data-ai-id="marketplace.purchase.active-order">
                 {t("activeOpen")}
               </Link>
               <button type="button" className="btn btn--line" onClick={onClose}>
@@ -176,13 +198,13 @@ export default function PurchaseDialog({
               void submit();
             }}
           >
-            <fieldset className="mk-buy__ch" data-ai-target="marketplace:purchase-channel">
+            <fieldset className="mk-buy__ch" data-ai-target="marketplace:purchase-channel" data-ai-id="marketplace.purchase.channel" data-ai-type="select">
               <legend>{t("channel")}</legend>
               <div className="mk-seg">
                 {PREFERRED_CHANNELS.map((c) => {
                   const Icon = CHANNEL_ICON[c];
                   return (
-                    <button key={c} type="button" className="mk-seg__b" aria-pressed={channel === c} onClick={() => setChannel(c)}>
+                    <button key={c} type="button" className="mk-seg__b" aria-pressed={channel === c} onClick={() => setChannel(c)} data-ai-id={`marketplace.purchase.channel.${c}`}>
                       <Icon />
                       {t(`channels.${c}`)}
                     </button>
@@ -190,14 +212,23 @@ export default function PurchaseDialog({
                 })}
               </div>
             </fieldset>
-            <label className="mk-in" data-ai-target="marketplace:purchase-note">
+            <label className="mk-in" data-ai-target="marketplace:purchase-note" data-ai-private>
               <span>{t("note")}</span>
-              <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("notePh")} maxLength={NOTE_MAX} rows={3} />
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder={t("notePh")}
+                maxLength={NOTE_MAX}
+                rows={3}
+                data-ai-id="marketplace.purchase.note"
+                data-ai-label={t("note")}
+                data-ai-private
+              />
               <em>{note.length}/{NOTE_MAX}</em>
             </label>
             <label className="mk-in" data-ai-target="marketplace:purchase-time">
               <span>{t("time")}</span>
-              <input value={time} onChange={(e) => setTime(e.target.value)} placeholder={t("timePh")} maxLength={120} />
+              <input value={time} onChange={(e) => setTime(e.target.value)} placeholder={t("timePh")} maxLength={120} data-ai-id="marketplace.purchase.time" data-ai-label={t("time")} />
             </label>
             <div className="mk-quick">
               {quick.map((q) => (
@@ -208,7 +239,7 @@ export default function PurchaseDialog({
             </div>
             <p className="mk-buy__note">{t("totalNote")}</p>
             {err ? <Notice ok={false} msg={err} /> : null}
-            <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy} data-ai-target="button:marketplace-purchase-submit">
+            <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type="marketplace_service" data-ai-entity-id={service.id}>
               {busy ? t("sending") : t("submit")}
             </button>
           </form>

@@ -8,6 +8,9 @@ import { errorText } from "@/lib/errorText";
 import { fmtRating } from "@/lib/date";
 import { getOwnerDashboard, type OrgWorkItem, type OwnerDashboard as Dash } from "@/lib/services/orgOwner";
 import { IconBolt, IconBriefcase, IconChevronLeft, IconList, IconRefresh, IconShieldCheck, IconTag, IconUsers } from "@/components/icons";
+import { aiId, aiSeg } from "@/lib/ai/ids";
+import { useAiSelection } from "@/lib/ai/registry";
+import { useAiReveal } from "@/lib/guide/targets";
 import { OrgBlocked, WorkDetail, WorkRow } from "./bits";
 
 type WorkTab = "orders" | "cases" | "urgent";
@@ -23,6 +26,15 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
   const [tick, setTick] = useState(0);
   const [tab, setTab] = useState<WorkTab>("orders");
   const [detail, setDetail] = useState<OrgWorkItem | null>(null);
+  useAiSelection("organization_works_tab", tab);
+  useAiReveal(/^works\.item\./, (id) => {
+    if (!data) return;
+    const seg = id.split(".")[2] ?? "";
+    const has = (list: OrgWorkItem[]) => list.some((w) => aiSeg(w.workId || w.id) === seg);
+    if (has(data.activeOrders)) setTab("orders");
+    else if (has(data.activeCases)) setTab("cases");
+    else if (has(data.urgentRequests)) setTab("urgent");
+  });
 
   useEffect(() => {
     const c = new AbortController();
@@ -75,13 +87,13 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
           <span>{t("title")}</span>
           <h2>{data?.organization.name || "…"}</h2>
         </div>
-        <Link href={`${base}/workload`} className="btn btn--pri btn--sm" data-ai-target="button:org-workload">
+        <Link href={`${base}/workload`} className="btn btn--pri btn--sm" data-ai-target="button:org-workload" data-ai-id="organization.dashboard.workload-link">
           <IconList />
           {t("workloadLink")}
         </Link>
       </div>
 
-      <div className="osum" data-ai-target="organization:summary">
+      <div className="osum" data-ai-target="organization:summary" data-ai-id="organization.dashboard.summary" data-ai-type="section" data-ai-label={t("title")}>
         {cards.map(({ k, Icon, v, tone }) => (
           <div key={k} className={`osum__c osum__c--${tone}`}>
             <i>
@@ -93,7 +105,7 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
         ))}
       </div>
 
-      <section className="opanel" data-ai-target="organization:members">
+      <section className="opanel" data-ai-target="organization:members" data-ai-id="organization.dashboard.members" data-ai-label={t("membersTitle")}>
         <div className="opanel__h">
           <b>{t("membersTitle")}</b>
           <span className="advmuted">{data?.members.length ?? 0}</span>
@@ -104,7 +116,7 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
         ) : !data.members.length ? (
           <p className="advmuted">{t("noMembers")}</p>
         ) : (
-          <div className="otable" role="table">
+          <div className="otable" role="table" data-ai-id="organization.dashboard.members.table" data-ai-type="table" data-ai-label={t("membersTitle")}>
             <div className="otable__r otable__r--h" role="row">
               {["name", "role", "sellerType", "region", "verification", "rating", "orders", "cases", "urgent"].map((c) => (
                 <span key={c} role="columnheader">
@@ -119,6 +131,12 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
                 role="row"
                 className="otable__r"
                 data-ai-target={i === 0 ? "organization:member-row" : undefined}
+                data-ai-id={m.userId ? aiId("organization.member", m.userId) : undefined}
+                data-ai-type="list_item"
+                data-ai-entity-type="seller"
+                data-ai-entity-id={m.userId || undefined}
+                data-ai-label={[m.title || m.role, t.has(`sellerTypes.${m.sellerType}`) ? t(`sellerTypes.${m.sellerType}`) : m.sellerType].filter(Boolean).join(" · ") || t("col.name")}
+                data-ai-private
                 onClick={() => router.push((m.userId ? `${base}/members/${encodeURIComponent(m.userId)}` : `${base}/workload`) as Parameters<typeof router.push>[0])}
               >
                 <span role="cell" data-l={t("col.name")}>
@@ -141,12 +159,12 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
         )}
       </section>
 
-      <section className="opanel" data-ai-target="organization:active-orders">
+      <section className="opanel" data-ai-target="organization:active-orders" data-ai-id="organization.dashboard.works" data-ai-label={t("activeTitle")}>
         <div className="opanel__h">
           <b>{t("activeTitle")}</b>
           <div className="suptabs" role="tablist">
             {(["orders", "cases", "urgent"] as WorkTab[]).map((k) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k} className="suptab" onClick={() => setTab(k)}>
+              <button key={k} type="button" role="tab" aria-selected={tab === k} className="suptab" onClick={() => setTab(k)} data-ai-id={`organization.dashboard.works.tab.${k}`}>
                 {t(`tabs.${k}`)}
                 <em>{data ? (k === "orders" ? data.activeOrders.length : k === "cases" ? data.activeCases.length : data.urgentRequests.length) : 0}</em>
               </button>

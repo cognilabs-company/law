@@ -26,6 +26,8 @@ import { Notice, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconStar, IconPlus, IconSearch, IconEdit, IconTrash, IconEyeOff, IconEye, IconRefresh } from "@/components/icons";
+import { aiId } from "@/lib/ai/ids";
+import { useAiField, useAiModal } from "@/lib/ai/registry";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "—");
 const toList = (v: string) =>
@@ -105,9 +107,11 @@ function seedVals(p?: BackendPlan): FormVals {
 function PlanForm({
   plan,
   onDone,
+  aiId: formAiId,
 }: {
   plan?: BackendPlan;
   onDone: () => void;
+  aiId?: string;
 }) {
   const t = useTranslations("admin");
   const [v, setV] = useState<FormVals>(() => seedVals(plan));
@@ -160,7 +164,7 @@ function PlanForm({
   }
 
   return (
-    <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
+    <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} data-ai-id={formAiId} data-ai-type={formAiId ? "modal" : undefined} data-ai-label={formAiId ? t(plan ? "plans.editTitle" : "plans.create") : undefined}>
       <div>
         <label>{t("form.title")}</label>
         <input value={v.title} onChange={(e) => set("title", e.target.value)} required />
@@ -292,6 +296,18 @@ export default function AdminPlans() {
 
   // Audience chips: the three GM roles always, business only when a plan has it.
   const chips: AudienceFilter[] = ["all", ...PLAN_AUDIENCES.filter((a) => a !== "business" || plans.some((p) => planAudience(p).includes("business")))];
+  useAiField("admin.plans.search.input", { get: () => q, set: setQ });
+  useAiField("admin.plans.filters.audience", {
+    get: () => aud,
+    set: (v) => {
+      const hit = chips.find((c) => c === v);
+      if (hit) setAud(hit);
+    },
+  });
+  useAiModal("admin.plans.create-modal", () => {
+    setPageNote(null);
+    setOpen(true);
+  });
 
   // Plan edits write straight to the backend now; a write that genuinely
   // can't reach it falls back to a local overlay (see lib/services/
@@ -346,19 +362,19 @@ export default function AdminPlans() {
         <b>{t("plans.listTitle")}</b>
         <span className="ahdr">
           <span className="advmuted">{plans.length - hiddenCount}</span>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => { setPageNote(null); setOpen(true); }} data-ai-target="button:new-plan">
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => { setPageNote(null); setOpen(true); }} data-ai-target="button:new-plan" data-ai-id="admin.plans.create">
             <IconPlus />
             {t("form.add")}
           </button>
         </span>
       </div>
 
-      <div className="lfilters" data-ai-target="plans:filters">
+      <div className="lfilters" data-ai-target="plans:filters" data-ai-id="admin.plans.filters" data-ai-label={t("plans.audience")}>
         <div className="lsearch">
           <IconSearch />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("plans.searchPh")} aria-label={t("plans.searchPh")} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("plans.searchPh")} aria-label={t("plans.searchPh")} data-ai-id="admin.plans.search.input" />
         </div>
-        <div className="chipm" role="group" aria-label={t("plans.audience")}>
+        <div className="chipm" role="group" aria-label={t("plans.audience")} data-ai-id="admin.plans.filters.audience" data-ai-type="select">
           {chips.map((a) => (
             <button key={a} type="button" className={`chip${aud === a ? " on" : ""}`} aria-pressed={aud === a} onClick={() => setAud(a)}>
               {t(`plans.audiences.${a}`)}
@@ -386,9 +402,17 @@ export default function AdminPlans() {
       ) : !list.length ? (
         <EmptyState icon={<IconSearch />} title={t("plans.noResults")} />
       ) : (
-        <div className="alist" data-ai-target="plans:list">
+        <div className="alist" data-ai-target="plans:list" data-ai-id="admin.plans.list" data-ai-type="list" data-ai-label={t("plans.listTitle")}>
           {list.map((p, i) => (
-            <div className="aitem" key={p.id}>
+            <div
+              className="aitem"
+              key={p.id}
+              data-ai-id={p.slug || p.id ? aiId("admin.plans.item", p.slug || p.id) : undefined}
+              data-ai-type="list_item"
+              data-ai-entity-type="subscription_plan"
+              data-ai-entity-id={p.id || undefined}
+              data-ai-entity-slug={p.slug || undefined}
+            >
               <span className="aitem__n">{i + 1}</span>
               <div className="aitem__m">
                 <b>{p.name}</b>
@@ -415,7 +439,7 @@ export default function AdminPlans() {
                     <IconRefresh />
                   </button>
                 ) : null}
-                <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => { setPageNote(null); setEdit(p); }}>
+                <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => { setPageNote(null); setEdit(p); }} data-ai-id={p.slug || p.id ? aiId("admin.plans.item", p.slug || p.id, "edit") : undefined}>
                   <IconEdit />
                 </button>
                 <button
@@ -442,6 +466,7 @@ export default function AdminPlans() {
       {/* Create */}
       <Modal open={open} onClose={() => setOpen(false)} title={t("plans.create")}>
         <PlanForm
+          aiId="admin.plans.create-modal"
           key={open ? "new" : "closed"}
           onDone={() => {
             reload();
@@ -454,6 +479,7 @@ export default function AdminPlans() {
       <Modal open={edit !== null} onClose={() => setEdit(null)} title={t("plans.editTitle")}>
         {edit ? (
           <PlanForm
+            aiId="admin.plans.edit-modal"
             key={edit.id}
             plan={edit}
             onDone={() => {
@@ -467,7 +493,7 @@ export default function AdminPlans() {
       {/* Delete confirm */}
       <Modal open={del !== null} onClose={() => setDel(null)} title={t("form.deleteConfirm")}>
         {del ? (
-          <div className="cform" style={{ maxWidth: "none" }}>
+          <div className="cform" style={{ maxWidth: "none" }} data-ai-id="admin.plans.delete-modal" data-ai-type="modal" data-ai-label={t("form.deleteConfirm")}>
             <p style={{ margin: 0 }}>
               <b>{del.name}</b> <span className="advmuted">{del.slug}</span>
             </p>

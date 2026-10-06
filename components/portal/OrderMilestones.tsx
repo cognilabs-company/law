@@ -19,25 +19,42 @@ import { IconCheck, IconCard } from "@/components/icons";
 // The invoice a checkout just created: amount and status first, then the user
 // goes to the provider page (same tab — a popup opened after an await is blocked).
 // `untitled`: the caller already shows a title (e.g. a modal header).
-export function CheckoutIntent({ intent, onCancel, untitled }: { intent: PaymentIntent; onCancel?: () => void; untitled?: boolean }) {
+export function CheckoutIntent({
+  intent,
+  onCancel,
+  untitled,
+  aiId = "payments.checkout",
+}: {
+  intent: PaymentIntent;
+  onCancel?: () => void;
+  untitled?: boolean;
+  aiId?: string;
+}) {
   const t = useTranslations("portal.payment");
   const st = (intent.status || "pending").toLowerCase();
   return (
-    <div className="opay ckint">
+    <div
+      className="opay ckint"
+      data-ai-id={aiId}
+      data-ai-type="payment_gate"
+      data-ai-label={t("intentTitle")}
+      data-ai-entity-type="payment"
+      data-ai-entity-id={intent.id || undefined}
+    >
       {untitled ? null : <b className="ckint__h"><IconCard />{t("intentTitle")}</b>}
       <div className="opay__rows">
         <div className="opay__row"><span>{t("intentAmount")}</span><b>{fmtUzs(intent.amount)} {t("som")}</b></div>
         <div className="opay__row"><span>{t("intentStatus")}</span><span>{t.has(`intentStates.${st}`) ? t(`intentStates.${st}`) : humanizeSlug(st)}</span></div>
       </div>
       {intent.paymentUrl ? (
-        <button className="btn btn--grad btn--full" type="button" onClick={() => window.location.assign(intent.paymentUrl!)}>
+        <button className="btn btn--grad btn--full" type="button" onClick={() => window.location.assign(intent.paymentUrl!)} data-ai-id={`${aiId}.proceed`}>
           {t("proceed")}
         </button>
       ) : (
         <Notice ok={false} msg={t("noLink")} />
       )}
       {onCancel ? (
-        <button className="rf__link rf__link--muted" type="button" onClick={onCancel}>{t("cancel")}</button>
+        <button className="rf__link rf__link--muted" type="button" onClick={onCancel} data-ai-id={`${aiId}.cancel`}>{t("cancel")}</button>
       ) : null}
     </div>
   );

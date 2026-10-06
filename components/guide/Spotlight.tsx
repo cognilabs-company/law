@@ -49,14 +49,15 @@ function holePath(W: number, H: number, b: Box): string {
   return `path(evenodd, "M0 0H${f(W)}V${f(H)}H0Z M${f(x + k)} ${f(y)}H${f(x + w - k)}A${f(k)} ${f(k)} 0 0 1 ${f(x + w)} ${f(y + k)}V${f(y + h - k)}A${f(k)} ${f(k)} 0 0 1 ${f(x + w - k)} ${f(y + h)}H${f(x + k)}A${f(k)} ${f(k)} 0 0 1 ${f(x)} ${f(y + h - k)}V${f(y + k)}A${f(k)} ${f(k)} 0 0 1 ${f(x + k)} ${f(y)}Z")`;
 }
 
-export default function Spotlight({ targetId, stepKey }: { targetId: string; stepKey: string }) {
+export default function Spotlight({ targetId, stepKey, variant }: { targetId: string; stepKey: string; variant?: "pulse" | "soft" }) {
   const scrim = useRef<HTMLDivElement>(null);
   const ring = useRef<HTMLDivElement>(null);
+  const soft = variant === "soft";
 
   useEffect(() => {
     const s = scrim.current;
     const g = ring.current;
-    if (!s || !g) return;
+    if (!g || (!soft && !s)) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let raf = 0;
     let cur: Box | null = null;
@@ -65,6 +66,7 @@ export default function Spotlight({ targetId, stepKey }: { targetId: string; ste
     let last = "";
     let scrollTimer = 0;
     const onScroll = () => {
+      if (!s) return;
       s.dataset.scrolling = "1";
       window.clearTimeout(scrollTimer);
       scrollTimer = window.setTimeout(() => {
@@ -81,7 +83,7 @@ export default function Spotlight({ targetId, stepKey }: { targetId: string; ste
       const pad = window.innerWidth < 600 ? 6 : 8;
       const want = el ? visibleBox(el, clip, pad) : null;
       if (!want) {
-        s.style.opacity = "0";
+        if (s) s.style.opacity = "0";
         g.style.opacity = "0";
         cur = null;
         last = "";
@@ -100,15 +102,17 @@ export default function Spotlight({ targetId, stepKey }: { targetId: string; ste
         }
         const path = holePath(window.innerWidth, window.innerHeight, cur);
         if (path !== last) {
-          s.style.clipPath = path;
-          s.style.setProperty("-webkit-clip-path", path);
+          if (s) {
+            s.style.clipPath = path;
+            s.style.setProperty("-webkit-clip-path", path);
+          }
           g.style.transform = `translate(${cur.x}px, ${cur.y}px)`;
           g.style.width = `${cur.w}px`;
           g.style.height = `${cur.h}px`;
           g.style.borderRadius = `${Math.min(cur.r, cur.w / 2, cur.h / 2)}px`;
           last = path;
         }
-        s.style.opacity = "1";
+        if (s) s.style.opacity = "1";
         g.style.opacity = "1";
         const mid = want.y + want.h / 2;
         const dock = mid > window.innerHeight * (window.innerWidth < 720 ? 0.52 : 0.68) ? "top" : "bottom";
@@ -123,7 +127,7 @@ export default function Spotlight({ targetId, stepKey }: { targetId: string; ste
       window.removeEventListener("scroll", onScroll, { capture: true });
       delete document.body.dataset.guideDock;
     };
-  }, [targetId]);
+  }, [targetId, soft]);
 
   useEffect(() => {
     const g = ring.current;
@@ -136,8 +140,8 @@ export default function Spotlight({ targetId, stepKey }: { targetId: string; ste
   if (typeof document === "undefined") return null;
   return createPortal(
     <>
-      <div className="gscrim" ref={scrim} aria-hidden="true" />
-      <div className="gring" ref={ring} aria-hidden="true">
+      {soft ? null : <div className="gscrim" ref={scrim} aria-hidden="true" />}
+      <div className={`gring${variant === "pulse" ? " gring--pulse" : soft ? " gring--soft" : ""}`} ref={ring} aria-hidden="true">
         <i className="gring__glow" />
       </div>
     </>,

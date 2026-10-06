@@ -38,6 +38,7 @@ export function StatusSwitch({
   onChange,
   label,
   aiTarget,
+  aiId,
 }: {
   value: ServiceStatus;
   busy?: boolean;
@@ -45,6 +46,7 @@ export function StatusSwitch({
   onChange: (s: ServiceStatus) => void;
   label: string;
   aiTarget?: string;
+  aiId?: string;
 }) {
   const t = useTranslations("sellerServices");
   const off = Boolean(disabled || busy);
@@ -58,7 +60,7 @@ export function StatusSwitch({
     e.currentTarget.querySelectorAll<HTMLButtonElement>("[role=radio]")[SERVICE_STATUSES.indexOf(next)]?.focus();
   };
   return (
-    <div className={`svsw${busy ? " is-busy" : ""}`} role="radiogroup" aria-label={label} aria-busy={busy || undefined} onKeyDown={onKey} data-ai-target={aiTarget}>
+    <div className={`svsw${busy ? " is-busy" : ""}`} role="radiogroup" aria-label={label} aria-busy={busy || undefined} onKeyDown={onKey} data-ai-target={aiTarget} data-ai-id={aiId} data-ai-type={aiId ? "select" : undefined}>
       {SERVICE_STATUSES.map((s) => {
         const Icon = STATUS_ICON[s];
         const on = value === s;
@@ -99,12 +101,14 @@ export function RemoveServiceModal({
   error,
   onCancel,
   onConfirm,
+  aiId,
 }: {
   item: ManagedService;
   busy: boolean;
   error: string;
   onCancel: () => void;
   onConfirm: () => void;
+  aiId?: string;
 }) {
   const t = useTranslations("sellerServices");
   const close = () => {
@@ -113,7 +117,7 @@ export function RemoveServiceModal({
   return (
     <InBody>
       <Modal open onClose={close} title={t("remove.title")}>
-        <div className="svrm">
+        <div className="svrm" data-ai-id={aiId} data-ai-type={aiId ? "modal" : undefined} data-ai-label={aiId ? t("remove.title") : undefined}>
           <span className="svrm__ic" aria-hidden="true">
             <IconTrash />
           </span>

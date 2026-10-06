@@ -81,13 +81,13 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
   return (
     <div className="docbuild docbuild--full">
       <div className="docbuild__top">
-        <button type="button" className="docbuild__back" onClick={askOrLeave}>
+        <button type="button" className="docbuild__back" onClick={askOrLeave} data-ai-id="documents.constructor.back">
           <IconChevronLeft />
           {t("back")}
         </button>
         {title ? <b className="docbuild__title">{title}</b> : null}
         <InstructorButton className="docbuild__ai" />
-        <button type="button" className="docbuild__exit" onClick={askOrLeave}>
+        <button type="button" className="docbuild__exit" onClick={askOrLeave} data-ai-id="documents.constructor.exit">
           <IconClose />
           {td("exit")}
         </button>
@@ -98,7 +98,7 @@ export default function ServiceDocumentPage({ serviceId }: { serviceId: string }
 
       {/* The one way out, whichever control was pressed. */}
       <Modal open={exitOpen} onClose={() => setExitOpen(false)} title={td("exitTitle")}>
-        <div className="cform" style={{ maxWidth: "none" }}>
+        <div className="cform" style={{ maxWidth: "none" }} data-ai-id="documents.constructor.exit-confirm" data-ai-type="modal" data-ai-label={td("exitTitle")}>
           <p className="dexit__lead">
             <span className="dexit__i"><IconAlert /></span>
             {td("exitLead")}

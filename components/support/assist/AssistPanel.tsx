@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode 
 import { useLocale, useTranslations } from "next-intl";
 import { isAborted } from "@/lib/http";
 import { errorText } from "@/lib/errorText";
+import { aiId } from "@/lib/ai/ids";
 import type { BackendPlan } from "@/lib/services/backend";
 import { isClosedStatus, type SupportTicket } from "@/lib/services/support";
 import { assistBlockOf, getAssistContext, loadAssistPlans, type AssistBlock, type AssistContext } from "@/lib/services/supportAssist";
@@ -16,6 +17,7 @@ import { AssistNote } from "./bits";
 
 type Tab = "plan" | "doc" | "market";
 const TABS: Tab[] = ["plan", "doc", "market"];
+const AI_TAB: Record<Tab, string> = { plan: "subscription", doc: "document", market: "marketplace" };
 
 type Load = { ticketId: string; key: string; ctx: AssistContext | null; error: unknown };
 type Plans = { locale: string; status: "ready" | "error"; all: BackendPlan[]; sellable: BackendPlan[] };
@@ -224,6 +226,7 @@ export default function AssistPanel({
                   tabIndex={tab === k ? 0 : -1}
                   className="suptab"
                   onClick={() => pick(k)}
+                  data-ai-id={aiId("call_center.support.ticket", ticketId, "assist", AI_TAB[k])}
                 >
                   {t(`tabs.${k}`)}
                 </button>
@@ -243,7 +246,13 @@ export default function AssistPanel({
   }
 
   return (
-    <section className="sasst" data-ai-target="support:assist" aria-label={t("title")}>
+    <section
+      className="sasst"
+      data-ai-target="support:assist"
+      aria-label={t("title")}
+      data-ai-id={ticketId ? aiId("call_center.support.ticket", ticketId, "assist") : undefined}
+      data-ai-label={t("title")}
+    >
       <header className="sasst__h">
         <span className="sasst__hic" aria-hidden="true">
           <IconHeadset />

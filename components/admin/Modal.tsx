@@ -14,6 +14,7 @@ export default function Modal({
   title,
   children,
   wide,
+  aiId,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +23,7 @@ export default function Modal({
   // A form-and-live-preview flow (document generation) needs real room for
   // the two side by side; every other modal keeps the normal narrow width.
   wide?: boolean;
+  aiId?: string;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   // Where the click that might close this started. A drag that begins on text
@@ -102,6 +104,8 @@ export default function Modal({
         aria-label={title || undefined}
         tabIndex={-1}
         className={`amodal__c${wide ? " amodal__c--wide" : ""}`}
+        data-ai-id={aiId || undefined}
+        data-ai-type={aiId ? "modal" : undefined}
         onMouseDown={(e) => {
           // A press that starts inside the panel must not be remembered as a
           // backdrop press — otherwise releasing the drag on the backdrop

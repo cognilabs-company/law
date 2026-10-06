@@ -62,11 +62,11 @@ const fmt = (n: number, locale = "uz") => (Math.abs(n) >= 1000 ? fmtInt(n, local
 const DASH = "—";
 
 const MODULES = [
-  { href: "/admin/pipeline", key: "pipeline", Icon: IconTrendingUp },
-  { href: "/admin/payouts", key: "payouts", Icon: IconCard },
-  { href: "/admin/b2b", key: "b2b", Icon: IconBuilding },
-  { href: "/admin/retention", key: "retention", Icon: IconUsers },
-  { href: "/admin/call-center", key: "callCenter", Icon: IconPhone },
+  { href: "/admin/pipeline", key: "pipeline", ai: "pipeline", Icon: IconTrendingUp },
+  { href: "/admin/payouts", key: "payouts", ai: "payouts", Icon: IconCard },
+  { href: "/admin/b2b", key: "b2b", ai: "b2b", Icon: IconBuilding },
+  { href: "/admin/retention", key: "retention", ai: "retention", Icon: IconUsers },
+  { href: "/admin/call-center", key: "callCenter", ai: "call-center", Icon: IconPhone },
 ];
 
 // Admin overview: KPI tiles (each opens a drill-down with the breakdown
@@ -301,7 +301,7 @@ export default function AdminOverview() {
       {!loaded ? <Skeleton rows={3} /> : null}
 
       {/* Headline KPIs — each tile opens its breakdown */}
-      <div className="castat castat--4" data-ai-target="overview:kpis">
+      <div className="castat castat--4" data-ai-target="overview:kpis" data-ai-id="admin.dashboard.kpis" data-ai-type="section" data-ai-label={[tc("revenue"), tc("mrr"), tc("users"), tc("conversion")].join(" · ")}>
         <StatTile icon={<IconCard />} label={tc("revenue")} value={moneyShort(c?.revenue)} sub={c?.revenueDeltaPct ? `${c.revenueDeltaPct > 0 ? "▲" : "▼"} ${Math.abs(c.revenueDeltaPct)}%` : undefined} demo={demo} hint={regionHint} onClick={drillRevenue} />
         <StatTile icon={<IconTrendingUp />} tone="ok" label={tc("mrr")} value={moneyShort(c?.mrr)} demo={demo} hint={regionHint ?? dateHint} onClick={drillMrr} />
         <StatTile icon={<IconUsers />} label={tc("users")} value={c ? fmt(c.users) : DASH} sub={c ? `${fmt(c.activeUsers)} ${tceo("active")}` : undefined} demo={demo} hint={dateHint} onClick={drillUsers} />
@@ -316,7 +316,7 @@ export default function AdminOverview() {
         <StatTile icon={<IconStar />} label={t("metrics.reviews")} value={d ? fmt(d.lists.reviews.length) : DASH} demo={demo} onClick={drillReviews} />
       </div>
 
-      <div className="pgrid2" data-ai-target="overview:charts">
+      <div className="pgrid2" data-ai-target="overview:charts" data-ai-id="admin.dashboard.charts" data-ai-type="section" data-ai-label={tc("revenueTrend")}>
         <div className="ppanel">
           <div className="ppanel__h">
             <b>{tc("revenueTrend")}</b>
@@ -341,7 +341,7 @@ export default function AdminOverview() {
       </div>
 
       {d ? (
-        <div className="pgrid2" data-ai-target="overview:payments">
+        <div className="pgrid2" data-ai-target="overview:payments" data-ai-id="admin.dashboard.payments" data-ai-type="section" data-ai-label={tc("payments")}>
           <div className="ppanel">
             <div className="ppanel__h"><b>{tc("payments")}</b></div>
             <div className="castat castat--2">
@@ -376,11 +376,11 @@ export default function AdminOverview() {
         </div>
       ) : null}
 
-      <div className="ppanel" data-ai-target="overview:modules">
+      <div className="ppanel" data-ai-target="overview:modules" data-ai-id="admin.dashboard.modules" data-ai-label={tc("modules")}>
         <div className="ppanel__h"><b>{tc("modules")}</b></div>
         <div className="kmods">
-          {MODULES.map(({ href, key, Icon }) => (
-            <Link href={href} key={key} className="kmod">
+          {MODULES.map(({ href, key, ai, Icon }) => (
+            <Link href={href} key={key} className="kmod" data-ai-id={`admin.dashboard.modules.${ai}`}>
               <span className="kmod__i"><Icon /></span>
               <span className="kmod__t">{tn(`nav.${key}`)}</span>
               <IconArrowRight className="kmod__a" />

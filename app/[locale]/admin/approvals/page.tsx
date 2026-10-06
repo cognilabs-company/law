@@ -7,6 +7,7 @@ import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { useReload } from "@/components/admin/AdminBits";
 import { IconShieldCheck, IconCheck } from "@/components/icons";
+import { aiId } from "@/lib/ai/ids";
 
 export default function AdminApprovals() {
   const t = useTranslations("admin");
@@ -28,7 +29,7 @@ export default function AdminApprovals() {
   }
 
   return (
-    <div className="ppanel" data-ai-target="approvals:queue">
+    <div className="ppanel" data-ai-target="approvals:queue" data-ai-id="admin.approvals.queue" data-ai-type="list" data-ai-label={t("approvals.title")}>
       <div className="ppanel__h">
         <b>{t("approvals.title")}</b>
         <span className="advmuted">{res.data.length}</span>
@@ -41,7 +42,14 @@ export default function AdminApprovals() {
       ) : (
         <div className="alist">
           {res.data.map((a, i) => (
-            <div className="aitem" key={a.id}>
+            <div
+              className="aitem"
+              key={a.id}
+              data-ai-id={a.id ? aiId("admin.approvals.item", a.id) : undefined}
+              data-ai-type="list_item"
+              data-ai-entity-type="approval"
+              data-ai-entity-id={a.id || undefined}
+            >
               <span className="aitem__n">{i + 1}</span>
               <div className="aitem__m">
                 <b>{a.type ? (t.has(`approvals.type.${a.type}`) ? t(`approvals.type.${a.type}`) : a.type) : t("approvals.item")}</b>
@@ -63,6 +71,7 @@ export default function AdminApprovals() {
                   type="button"
                   disabled={a.adminApproved || busy === a.id}
                   onClick={() => act(a.id, adminApprove)}
+                  data-ai-id={a.id ? aiId("admin.approvals.item", a.id, "admin-approve") : undefined}
                 >
                   <IconCheck />
                   {t("approvals.adminApprove")}
@@ -72,6 +81,7 @@ export default function AdminApprovals() {
                   type="button"
                   disabled={a.managerApproved || busy === a.id}
                   onClick={() => act(a.id, managerApprove)}
+                  data-ai-id={a.id ? aiId("admin.approvals.item", a.id, "manager-approve") : undefined}
                 >
                   <IconCheck />
                   {t("approvals.managerApprove")}

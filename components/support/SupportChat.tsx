@@ -36,6 +36,8 @@ import { primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
 import { dateOnly, dateTimeFull, timeOnly } from "@/lib/date";
 import { initials } from "@/lib/lawyers";
+import { aiId } from "@/lib/ai/ids";
+import { useAiField } from "@/lib/ai/registry";
 import ContactBlockedNote from "@/components/ContactBlockedNote";
 import {
   IconAlert,
@@ -483,14 +485,47 @@ export default function SupportChat({
   const writable = canWrite && !closed && state !== "missing";
   const callable = mode === "operator" && Boolean(canCall) && known && !closed && state !== "missing";
   const canReopen = mode === "client" && Boolean(onReopen) && state !== "missing" && (!clientUserId || !meId || clientUserId === meId);
+  const aiBase = mode === "client" ? "support.ticket" : "call_center.support.ticket";
+  const aiOf = (...parts: string[]) => (ticketId ? aiId(aiBase, ticketId, ...parts) : undefined);
+  const aiInput = aiOf("message-input");
+  const fitAfterFill = useRef(false);
+
+  useAiField(mode === "client" && aiInput ? aiInput : "", {
+    get: () => text,
+    set: (value) => {
+      fitAfterFill.current = true;
+      setText(value.slice(0, 4000));
+      setError(null);
+    },
+    sensitive: true,
+    fillable: true,
+    disabled: !writable,
+  });
+
+  useLayoutEffect(() => {
+    if (!fitAfterFill.current) return;
+    fitAfterFill.current = false;
+    const el = field.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [text]);
 
   return (
-    <div className="supchat" data-ai-target="support:chat">
+    <div
+      className="supchat"
+      data-ai-target="support:chat"
+      data-ai-id={mode === "client" ? "support.chat" : "call_center.support.chat"}
+      data-ai-type="chat"
+      data-ai-label={mode === "client" ? t("aiLabels.chat") : t("aiLabels.clientChat")}
+      data-ai-entity-type="support_ticket"
+      data-ai-entity-id={ticketId || undefined}
+    >
       <div className="supchat__head">
         <span className={`supchat__av${connecting ? " supchat__av--wait" : ""}${aiNow ? " supchat__av--ai" : ""}`} aria-hidden="true">
           {person ? initials(person) : aiNow ? <IconSparkle /> : mode === "client" ? <IconHeadset /> : <IconUser />}
         </span>
-        <div className="supchat__who">
+        <div className="supchat__who" data-ai-private>
           {known ? (
             <>
               <b>{who}</b>
@@ -505,12 +540,30 @@ export default function SupportChat({
         </div>
         <SupportStatus status={ticket.status} />
         {callable ? (
-          <div className="supchat__calls" role="group" aria-label={t("call.group")}>
-            <button type="button" className="supchat__call" onClick={() => void startCall("audio")} disabled={Boolean(calling)} title={t("call.audio")} aria-busy={calling === "audio" || undefined}>
+          <div className="supchat__calls" role="group" aria-label={t("call.group")} data-ai-id={aiOf("call")} data-ai-type="call_button">
+            <button
+              type="button"
+              className="supchat__call"
+              onClick={() => void startCall("audio")}
+              disabled={Boolean(calling)}
+              title={t("call.audio")}
+              aria-busy={calling === "audio" || undefined}
+              data-ai-id={aiOf("call", "audio")}
+              data-ai-type="call_button"
+            >
               <IconPhone aria-hidden="true" />
               <span>{calling === "audio" ? t("call.starting") : t("call.audio")}</span>
             </button>
-            <button type="button" className="supchat__call supchat__call--video" onClick={() => void startCall("video")} disabled={Boolean(calling)} title={t("call.video")} aria-busy={calling === "video" || undefined}>
+            <button
+              type="button"
+              className="supchat__call supchat__call--video"
+              onClick={() => void startCall("video")}
+              disabled={Boolean(calling)}
+              title={t("call.video")}
+              aria-busy={calling === "video" || undefined}
+              data-ai-id={aiOf("call", "video")}
+              data-ai-type="call_button"
+            >
               <IconVideo aria-hidden="true" />
               <span>{calling === "video" ? t("call.starting") : t("call.video")}</span>
             </button>
@@ -527,7 +580,7 @@ export default function SupportChat({
             <b>{t("call.incoming")}</b>
             <small>{ring.callType === "video" ? t("call.video") : t("call.audio")}</small>
           </span>
-          <button type="button" className="btn btn--sm supchat__join" onClick={joinRing}>
+          <button type="button" className="btn btn--sm supchat__join" onClick={joinRing} data-ai-id={aiOf("call")} data-ai-type="call_button">
             {ring.callType === "video" ? <IconVideo aria-hidden="true" /> : <IconPhone aria-hidden="true" />}
             {t("call.join")}
           </button>
@@ -544,7 +597,19 @@ export default function SupportChat({
         </p>
       ) : null}
 
-      <div className="supchat__msgs" ref={box} onScroll={onScroll} role="log" aria-live="off" aria-label={t("chat.log")} aria-busy={state === "loading"} tabIndex={0}>
+      <div
+        className="supchat__msgs"
+        ref={box}
+        onScroll={onScroll}
+        role="log"
+        aria-live="off"
+        aria-label={t("chat.log")}
+        aria-busy={state === "loading"}
+        tabIndex={0}
+        data-ai-id={aiOf("messages")}
+        data-ai-type="list"
+        data-ai-private
+      >
         {hasMore ? (
           <button type="button" className="supchat__older" onClick={() => void loadOlder()} disabled={older}>
             {t("loadOlder")}
@@ -642,7 +707,7 @@ export default function SupportChat({
           <span className="supchat__endic" aria-hidden="true">
             <IconCheckDouble />
           </span>
-          <div className="supchat__endtx">
+          <div className="supchat__endtx" data-ai-private>
             <b>{t("closedBanner")}</b>
             {ticket.closedAt ? <small>{t("chat.closedAt", { date: dateTimeFull(ticket.closedAt, locale) })}</small> : null}
             {ticket.resolution ? (
@@ -657,7 +722,7 @@ export default function SupportChat({
           {!(canReopen && reopen) && (canReopen || onNewChat) ? (
             <div className="supchat__endacts">
               {canReopen ? (
-                <button type="button" className="btn btn--line btn--sm" onClick={() => setReopen({ reason: "", busy: false, err: null })}>
+                <button type="button" className="btn btn--line btn--sm" onClick={() => setReopen({ reason: "", busy: false, err: null })} data-ai-id={aiOf("reopen")}>
                   <IconRefresh />
                   {t("chat.reopen")}
                 </button>
@@ -673,6 +738,7 @@ export default function SupportChat({
           {canReopen && reopen ? (
             <form
               className="supchat__reopen"
+              data-ai-private
               onSubmit={(e) => {
                 e.preventDefault();
                 void doReopen();
@@ -719,6 +785,7 @@ export default function SupportChat({
           ) : null}
           <form
             className="supchat__form"
+            data-ai-private
             onSubmit={(e) => {
               e.preventDefault();
               void send();
@@ -746,6 +813,7 @@ export default function SupportChat({
               maxLength={4000}
               disabled={!writable}
               data-ai-target="support:message-input"
+              data-ai-id={aiInput}
             />
             <button type="submit" className="supchat__send" disabled={!writable || sending || !text.trim()} aria-label={t("send")} title={t("send")}>
               <IconSend />

@@ -11,6 +11,8 @@ import { toast } from "@/lib/toast";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
 import { useAiReveal } from "@/lib/guide/targets";
 import { openInstructor } from "@/lib/guide/panel";
+import { aiSeg } from "@/lib/ai/ids";
+import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import {
   SUPPORT_CATEGORIES,
   createSupportTicket,
@@ -271,6 +273,56 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
     if (selected && window.matchMedia(NARROW).matches) back();
   });
 
+  const ticketBySeg = (seg: string) => Object.values(chats.map).find((x) => aiSeg(x.id) === seg) ?? null;
+  const composing = !selected && composer.open && ready && (!latest || composer.force);
+
+  useAiReveal(/^support\.(channels(\.[a-z-]+)?|ai-message-input|operator-handoff\.button|tickets\.new)$/, () => {
+    if (selected) back();
+  });
+  useAiReveal(/^support\.new-ticket(\.[a-z-]+)?$/, (id) => {
+    startChat(id !== "support.new-ticket" && id !== "support.new-ticket.resume");
+  });
+  useAiReveal("support.chat", () => {
+    if (!selected && latest) open(latest.id);
+  });
+  useAiReveal(/^support\.ticket\.[^.]+\.(messages|message-input|reopen|call)$/, (id) => {
+    const tk = ticketBySeg(id.split(".")[2]);
+    if (tk && tk.id !== selected) open(tk.id);
+  });
+  useAiReveal(/^support\.ticket\.[^.]+$/, (id) => {
+    const tk = ticketBySeg(id.split(".")[2]);
+    setTab(tk && !isActiveTicket(tk) ? "closed" : "active");
+    if (selected && window.matchMedia(NARROW).matches) back();
+  });
+  useAiReveal(/^support\.tickets\.(list|tabs|tab\.[a-z]+)$/, () => {
+    if (selected && window.matchMedia(NARROW).matches) back();
+  });
+
+  useAiField("support.ai-message-input", {
+    get: () => ask,
+    set: (value) => setAsk(value.slice(0, 1000)),
+    sensitive: true,
+    fillable: true,
+    disabled: Boolean(selected),
+  });
+  useAiField("support.new-ticket.message", {
+    get: () => (composing ? text : ""),
+    set: (value) => {
+      setText(value.slice(0, MAX));
+      setFormErr(null);
+    },
+    sensitive: true,
+    fillable: true,
+    disabled: !composing,
+  });
+  useAiField("support.new-ticket.topic", {
+    get: () => (composing ? topic : ""),
+    set: (value) => setTopic(topicOf(value, topics)),
+    fillable: true,
+    disabled: !composing,
+  });
+  useAiSelection("support_tickets_tab", tab);
+
   const askAi = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const q = ask.trim();
@@ -306,12 +358,12 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   const shown = tab === "active" ? chats.active : chats.closed;
 
   const tabs = (
-    <div className="suptabs" role="tablist" aria-label={t("chats.title")}>
-      <button type="button" role="tab" aria-selected={tab === "active"} className="suptab" onClick={() => setTab("active")}>
+    <div className="suptabs" role="tablist" aria-label={t("chats.title")} data-ai-id="support.tickets.tabs">
+      <button type="button" role="tab" aria-selected={tab === "active"} className="suptab" onClick={() => setTab("active")} data-ai-id="support.tickets.tab.active">
         {t("chats.tabs.active")}
         {chats.active.length ? <em>{chats.active.length}</em> : null}
       </button>
-      <button type="button" role="tab" aria-selected={tab === "closed"} className="suptab" onClick={() => setTab("closed")}>
+      <button type="button" role="tab" aria-selected={tab === "closed"} className="suptab" onClick={() => setTab("closed")} data-ai-id="support.tickets.tab.closed">
         {t("chats.tabs.closed")}
       </button>
     </div>
@@ -365,7 +417,13 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
     );
 
   const list = (
-    <div className={selected ? "supwork__list" : "supchats__list"} data-ai-target="support:ticket-list">
+    <div
+      className={selected ? "supwork__list" : "supchats__list"}
+      data-ai-target="support:ticket-list"
+      data-ai-id="support.tickets.list"
+      data-ai-type="list"
+      data-ai-label={t("chats.title")}
+    >
       {listBody}
       {chats.more[tab] && chats.status === "ready" ? (
         <button type="button" className="btn btn--line btn--sm sup__more" onClick={() => void chats.loadMore(tab)} disabled={chats.busy[tab]}>
@@ -383,7 +441,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
             <IconChevronLeft />
             {t("title")}
           </button>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => startChat(true)} data-ai-target="button:operator-support">
+          <button type="button" className="btn btn--line btn--sm" onClick={() => startChat(true)} data-ai-target="button:operator-support" data-ai-id="support.operator-handoff.button">
             <IconPlus />
             {t("newTicket")}
           </button>
@@ -430,7 +488,16 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
           <p className="suphero__lead">{client ? t("hub.heroLead") : t("hub.heroLeadSeller")}</p>
           <form className="suphero__ask" onSubmit={askAi}>
             <IconSparkle aria-hidden="true" />
-            <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={t("hub.askPh")} aria-label={t("hub.askPh")} maxLength={1000} enterKeyHint="send" />
+            <input
+              value={ask}
+              onChange={(e) => setAsk(e.target.value)}
+              placeholder={t("hub.askPh")}
+              aria-label={t("hub.askPh")}
+              maxLength={1000}
+              enterKeyHint="send"
+              data-ai-id="support.ai-message-input"
+              data-ai-label={t("hub.askBtn")}
+            />
             <button type="submit" disabled={!ask.trim()} aria-label={t("hub.askBtn")} title={t("hub.askBtn")}>
               <IconSend />
             </button>
@@ -449,9 +516,9 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
         </div>
       </section>
 
-      <section className={`supch${client ? "" : " supch--3"}`} data-ai-target="support:channels" aria-label={t("hub.channels")}>
+      <section className={`supch${client ? "" : " supch--3"}`} data-ai-target="support:channels" aria-label={t("hub.channels")} data-ai-id="support.channels" data-ai-label={t("hub.channels")}>
         <div className="supch__card supch__card--ai">
-          <button type="button" className="supch__main" onClick={() => openInstructor()} data-ai-target="support:ai">
+          <button type="button" className="supch__main" onClick={() => openInstructor()} data-ai-target="support:ai" data-ai-id="support.channels.ai">
             <span className="supch__ic" aria-hidden="true">
               <RobotAvatar size={34} />
             </span>
@@ -468,7 +535,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
         </div>
 
         <div className="supch__card supch__card--op">
-          <button type="button" className="supch__main" onClick={() => startChat(false)} data-ai-target="button:operator-support">
+          <button type="button" className="supch__main" onClick={() => startChat(false)} data-ai-target="button:operator-support" data-ai-id="support.operator-handoff.button">
             <span className="supch__ic" aria-hidden="true">
               <IconHeadset />
             </span>
@@ -491,7 +558,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
 
         {client ? (
           <div className="supch__card supch__card--case">
-            <Link href="/portal/client/complaints" className="supch__main" data-ai-target="support:complaints">
+            <Link href="/portal/client/complaints" className="supch__main" data-ai-target="support:complaints" data-ai-id="support.channels.complaint">
               <span className="supch__ic" aria-hidden="true">
                 <IconAlert />
               </span>
@@ -506,7 +573,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
         ) : null}
 
         <div className="supch__card supch__card--call">
-          <a href={`tel:${SUPPORT_TEL}`} className="supch__main" data-ai-target="support:call">
+          <a href={`tel:${SUPPORT_TEL}`} className="supch__main" data-ai-target="support:call" data-ai-id="support.channels.call">
             <span className="supch__ic" aria-hidden="true">
               <IconPhone />
             </span>
@@ -529,14 +596,21 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
             <p>{t("chats.lead")}</p>
           </div>
           {tabs}
-          <button type="button" className="btn btn--line btn--sm" onClick={() => startChat(false)}>
+          <button type="button" className="btn btn--line btn--sm" onClick={() => startChat(false)} data-ai-id="support.tickets.new">
             <IconPlus />
             {t("newTicket")}
           </button>
         </div>
 
         {composer.open ? (
-          <section className="supnew" ref={composerRef} data-ai-target="support:new-chat" aria-labelledby="supnew-title">
+          <section
+            className="supnew"
+            ref={composerRef}
+            data-ai-target="support:new-chat"
+            aria-labelledby="supnew-title"
+            data-ai-id="support.new-ticket"
+            data-ai-label={resumeFirst ? t("compose.resumeTitle") : t("compose.title")}
+          >
             <div className="supnew__h">
               <span className="supnew__ic" aria-hidden="true">
                 <IconHeadset />
@@ -553,9 +627,9 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
               <div className="supcard supcard--ghost" aria-hidden="true" />
             ) : resumeFirst && latest ? (
               <div className="supnew__resume">
-                <TicketCard ticket={latest} view="client" now={now} active={false} unread={unreadOf(latest)} onOpen={() => open(latest.id)} />
+                <TicketCard ticket={latest} view="client" now={now} active={false} unread={unreadOf(latest)} onOpen={() => open(latest.id)} noAiId />
                 <div className="supnew__acts">
-                  <button type="button" className="btn btn--pri btn--sm" onClick={() => open(latest.id)}>
+                  <button type="button" className="btn btn--pri btn--sm" onClick={() => open(latest.id)} data-ai-id="support.new-ticket.resume">
                     <IconArrowRight />
                     {t("compose.resume")}
                   </button>
@@ -572,7 +646,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
                   void submit();
                 }}
               >
-                <label className="supnew__msg">
+                <label className="supnew__msg" data-ai-private>
                   <span>{t("message")}</span>
                   <textarea
                     value={text}
@@ -583,12 +657,14 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
                     placeholder={t("messagePh")}
                     rows={4}
                     maxLength={MAX}
+                    data-ai-id="support.new-ticket.message"
+                    data-ai-label={t("message")}
                   />
                   <small className="supnew__count" aria-hidden="true">
                     {text.length}/{MAX}
                   </small>
                 </label>
-                <fieldset className="supnew__topics">
+                <fieldset className="supnew__topics" data-ai-id="support.new-ticket.topic" data-ai-type="select" data-ai-label={t("category")}>
                   <legend>{t("category")}</legend>
                   <div className="supnew__chips">
                     {topics.map((c) => (
@@ -601,7 +677,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
                     <small className="supnew__auto">{auto && auto !== "general" ? t("compose.autoTopic", { topic: labels.category(auto) }) : t("compose.autoHint")}</small>
                   )}
                 </fieldset>
-                <label className="supnew__urgent">
+                <label className="supnew__urgent" data-ai-id="support.new-ticket.urgent" data-ai-type="input" data-ai-label={t("compose.urgent")}>
                   <input type="checkbox" role="switch" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} />
                   <span className="supnew__switch" aria-hidden="true" />
                   <span className="supnew__urgtx">
@@ -619,7 +695,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
                   )
                 ) : null}
                 <div className="supnew__acts">
-                  <button type="submit" className="btn btn--pri btn--sm" disabled={sending || text.trim().length < 3}>
+                  <button type="submit" className="btn btn--pri btn--sm" disabled={sending || text.trim().length < 3} data-ai-id="support.new-ticket.submit">
                     <IconSend />
                     {t("submit")}
                   </button>

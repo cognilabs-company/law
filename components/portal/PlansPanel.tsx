@@ -21,6 +21,8 @@ import {
 } from "@/lib/services/backend";
 import { loadAutopay, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
 import { useAuth } from "@/lib/auth";
+import { aiId } from "@/lib/ai/ids";
+import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
 import { useSellerCabinet } from "./SellerCabinet";
 import { errDetail, isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
@@ -72,6 +74,18 @@ const UPFRONT_DISCOUNT = 5;
 const MAX_DISCOUNT = 20;
 // T1-03 §6: verified advocates / lawyers get 50 % off LexGo.AI automatically.
 const SELLER_DISCOUNT = 50;
+const AI_TERM_ID: Record<Term, string> = {
+  1: "pricing.billing.monthly",
+  3: "pricing.billing.three-month",
+  6: "pricing.billing.six-month",
+  12: "pricing.billing.yearly",
+};
+const PERIOD_SEG: Record<ManualDocBillingPeriod, string> = {
+  monthly: "monthly",
+  six_month: "six-month",
+  yearly: "yearly",
+  prepaid_yearly: "prepaid-yearly",
+};
 
 function som(n: number): string {
   return fmtUzs(n);
@@ -85,6 +99,20 @@ function fmtDate(s: string, locale: string) {
 // yearly / prepaid_yearly; a 3-month term is billed as monthly — reported).
 function billingPeriod(term: Term, upfront: boolean): string {
   return term === 6 ? "six_month" : term === 12 ? (upfront ? "prepaid_yearly" : "yearly") : "monthly";
+}
+const AI_PERIODS: Record<string, { term: Term; upfront: boolean }> = {
+  "1": { term: 1, upfront: false },
+  monthly: { term: 1, upfront: false },
+  "3": { term: 3, upfront: false },
+  "three-month": { term: 3, upfront: false },
+  "6": { term: 6, upfront: false },
+  "six-month": { term: 6, upfront: false },
+  "12": { term: 12, upfront: false },
+  yearly: { term: 12, upfront: false },
+  "prepaid-yearly": { term: 12, upfront: true },
+};
+function aiPeriodOf(v: string): { term: Term; upfront: boolean } | null {
+  return AI_PERIODS[v.trim().toLowerCase().replace(/[\s_]+/g, "-")] ?? null;
 }
 // The same four strings, narrowed for the Telegram approval request (which is
 // the one caller that has to name the period back to the backend).
@@ -191,6 +219,30 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const otherPlans = sellable.filter((p) => !AI_SLUG.test(p.slug));
   const giftPlan = active.find(isGift);
   const planName = (plan: BackendPlan) => plan.name;
+  const otherShown = personal || otherPlans.length > 0;
+  useAiSelection("billing_period", billingPeriod(aiTerm, aiUpfront));
+  useAiSelection("plan_term", aiTerm);
+  useAiSelection("plan_upfront", aiTerm > 1 && aiUpfront ? "true" : "false");
+  useAiSelection("other_billing_period", otherShown ? billingPeriod(term, upfront) : "");
+  useAiSelection("other_plan_term", otherShown ? term : "");
+  useAiField("pricing.billing", {
+    get: () => billingPeriod(aiTerm, aiUpfront),
+    set: (v) => {
+      const p = aiPeriodOf(v);
+      if (!p) return;
+      setAiTerm(p.term);
+      setAiUpfront(p.upfront);
+    },
+  });
+  useAiField(otherShown ? "pricing.other-billing" : "", {
+    get: () => billingPeriod(term, upfront),
+    set: (v) => {
+      const p = aiPeriodOf(v);
+      if (!p || (p.term !== 6 && p.term !== 12)) return;
+      setTerm(p.term);
+      setUpfront(p.upfront);
+    },
+  });
 
   // Back from the checkout page may restore this page from the bfcache with the
   // button still busy (it stays busy while the browser navigates away).
@@ -289,14 +341,14 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
           <h2 className="psec-h"><IconSparkle style={{ width: 20, height: 20, verticalAlign: "-3px", marginRight: 8 }} />{t("ai.title")}</h2>
           <p className="plans__sub">{sellerPct ? t("ai.subtitleSeller", { pct: sellerPct }) : t("ai.subtitle")}</p>
         </div>
-        <div className="switch switch--sm" role="group" aria-label={t("ai.term")} data-ai-target="plans:period">
+        <div className="switch switch--sm" role="group" aria-label={t("ai.term")} data-ai-target="plans:period" data-ai-id="pricing.billing" data-ai-type="select">
           {([1, 3, 6, 12] as Term[]).map((m) => (
-            <button key={m} type="button" aria-pressed={aiTerm === m} onClick={() => setAiTerm(m)}>{t(`ai.term${m}`)}{TERM_DISCOUNT[m] ? <small> −{TERM_DISCOUNT[m]}%</small> : null}</button>
+            <button key={m} type="button" aria-pressed={aiTerm === m} onClick={() => setAiTerm(m)} data-ai-id={AI_TERM_ID[m]}>{t(`ai.term${m}`)}{TERM_DISCOUNT[m] ? <small> −{TERM_DISCOUNT[m]}%</small> : null}</button>
           ))}
         </div>
       </div>
       {aiTerm > 1 ? (
-        <label className="chkline">
+        <label className="chkline" data-ai-id="pricing.billing.prepaid-yearly" data-ai-type="input">
           <input type="checkbox" checked={aiUpfront} onChange={(e) => setAiUpfront(e.target.checked)} />
           {t("ai.upfront", { pct: UPFRONT_DISCOUNT, max: MAX_DISCOUNT })}
         </label>
@@ -308,7 +360,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       ) : !aiPlans.length ? (
         <EmptyState icon={<IconSparkle />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="plans__grid">
+        <div className="plans__grid" data-ai-id="pricing.ai-plans" data-ai-type="list">
           {aiPlans.map((plan, i) => {
             const pr = aiPricing(plan, aiTerm, aiUpfront, sellerPct);
             const limit = Number(plan.entitlements?.ai_requests ?? 0) || AI_LIMIT_BY_SLUG[plan.slug] || 0;
@@ -322,6 +374,8 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
             return (
               <PlanCard
                 key={plan.id}
+                aiId={aiId("pricing.plan", plan.slug)}
+                planId={plan.id}
                 slug={plan.slug}
                 name={planName(plan)}
                 features={plan.features ?? []}
@@ -393,7 +447,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
 
       {aiPlans.length ? (
         <div className="subs__bottom">
-          <div className="ppanel" data-ai-target="plans:compare">
+          <div className="ppanel" data-ai-target="plans:compare" data-ai-id="pricing.compare" data-ai-type="table">
             <div className="ppanel__h">
               <b className="ppanel__t"><span className="pico"><IconChartBar /></span>{t("compare.title")}</b>
             </div>
@@ -444,13 +498,13 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
               <h2 className="psec-h"><IconShieldCheck style={{ width: 20, height: 20, verticalAlign: "-3px", marginRight: 8 }} />{t("otherTitle")}</h2>
               <p className="plans__sub">{personal ? t("subtitlePersonal") : t("otherSubtitle")}</p>
             </div>
-            <div className="switch switch--sm" role="group" data-ai-target="plans:other-period">
-              <button type="button" aria-pressed={term === 6} onClick={() => setTerm(6)}>{t("term6")}</button>
-              <button type="button" aria-pressed={term === 12} onClick={() => setTerm(12)}>{t("term12")}</button>
+            <div className="switch switch--sm" role="group" data-ai-target="plans:other-period" data-ai-id="pricing.other-billing" data-ai-type="select">
+              <button type="button" aria-pressed={term === 6} onClick={() => setTerm(6)} data-ai-id="pricing.other-billing.six-month">{t("term6")}</button>
+              <button type="button" aria-pressed={term === 12} onClick={() => setTerm(12)} data-ai-id="pricing.other-billing.yearly">{t("term12")}</button>
             </div>
           </div>
           {term === 12 ? (
-            <label className="chkline">
+            <label className="chkline" data-ai-id="pricing.other-billing.prepaid-yearly" data-ai-type="input">
               <input type="checkbox" checked={upfront} onChange={(e) => setUpfront(e.target.checked)} />
               {t("upfront")}
             </label>
@@ -460,7 +514,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
           ) : failed ? null : !otherPlans.length && !personal ? (
             <EmptyState icon={<IconCard />} title={t("empty")} text={t("emptyText")} />
           ) : (
-            <div className="plans__grid">
+            <div className="plans__grid" data-ai-id="pricing.other-plans" data-ai-type="list">
               {otherPlans.map((plan, i) => {
                 const pr = personalPricing(plan, term, upfront);
                 const isCurrent = !!currentPlanName && planName(plan) === currentPlanName;
@@ -468,8 +522,18 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                 // the second card has always been the highlighted one here.
                 // Naming it says so, and keeps the card and its button in step.
                 const featured = i === 1;
+                const planAi = aiId("pricing.plan", plan.slug);
                 return (
-                  <div key={plan.id} className={`splan${isCurrent ? " splan--current" : featured ? " splan--feat" : ""}`} data-ai-target={`plan:${plan.slug}`}>
+                  <div
+                    key={plan.id}
+                    className={`splan${isCurrent ? " splan--current" : featured ? " splan--feat" : ""}`}
+                    data-ai-target={`plan:${plan.slug}`}
+                    data-ai-id={planAi}
+                    data-ai-type="card"
+                    data-ai-entity-type="subscription_plan"
+                    data-ai-entity-id={plan.id}
+                    data-ai-entity-slug={plan.slug}
+                  >
                     {isCurrent ? <span className="splan__ribbon splan__ribbon--current"><IconCheck />{t("current")}</span> : null}
                     <div className="splan__h">
                       <b className="splan__name">{planName(plan)}</b>
@@ -480,7 +544,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                       <span>{t("perMonth")}</span>
                     </div>
                     <p className="splan__total">{t("totalNote", { term: pr.months, total: som(pr.total) })}</p>
-                    <ul className="splan__feats">
+                    <ul className="splan__feats" data-ai-id={`${planAi}.features`} data-ai-type="list">
                       {(plan.features ?? []).map((f, k) => (
                         <li key={k}><IconCheck />{f}</li>
                       ))}
@@ -492,6 +556,10 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                       type="button"
                       className={`btn ${featured ? FEATURED_CTA : "btn--line"} btn--full`}
                       data-ai-target={`button:buy-plan:${plan.slug}`}
+                      data-ai-id={`${planAi}.buy`}
+                      data-ai-entity-type="subscription_plan"
+                      data-ai-entity-id={plan.id}
+                      data-ai-entity-slug={plan.slug}
                       disabled={busy === plan.id}
                       onClick={() => choose(plan, pr.total, billingPeriod(term, upfront))}
                     >
@@ -504,7 +572,15 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
               })}
 
               {/* Gift tariff (module 6): pay 3/6/12 months up front, send a QR link. */}
-              <div className="splan splan--gift" data-ai-target="plans:gift">
+              <div
+                className="splan splan--gift"
+                data-ai-target="plans:gift"
+                data-ai-id="pricing.gift"
+                data-ai-type="card"
+                data-ai-entity-type={giftPlan ? "subscription_plan" : undefined}
+                data-ai-entity-id={giftPlan?.id}
+                data-ai-entity-slug={giftPlan?.slug}
+              >
                 <div className="splan__h">
                   <b className="splan__name">
                     <IconGift style={{ width: 16, height: 16, marginRight: 6, verticalAlign: "-2px" }} />
@@ -517,7 +593,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                     <li key={k}><IconCheck />{f}</li>
                   ))}
                 </ul>
-                <Link href="/portal/client/gifts" className="btn btn--line btn--full">
+                <Link href="/portal/client/gifts" className="btn btn--line btn--full" data-ai-id="pricing.gift.cta">
                   {ts("plans.gift.cta")}
                 </Link>
               </div>
@@ -527,7 +603,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         </>
       ) : null}
 
-      <div className="ppanel" style={{ marginTop: 22 }} data-ai-target="plans:billing">
+      <div className="ppanel" style={{ marginTop: 22 }} data-ai-target="plans:billing" data-ai-id="pricing.billing-history" data-ai-type="section">
         <div className="ppanel__h">
           <b>{t("billing.title")}</b>
         </div>
@@ -538,7 +614,14 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         ) : (
           <div className="alist">
             {bills.map((p) => (
-              <div className="creq" key={p.id}>
+              <div
+                className="creq"
+                key={p.id}
+                data-ai-id={aiId("pricing.billing-history.item", p.id)}
+                data-ai-type="list_item"
+                data-ai-entity-type="payment"
+                data-ai-entity-id={p.id}
+              >
                 <span className="creq__st" />
                 <div className="creq__m">
                   <b>{p.description || p.kind || "—"}</b>
@@ -580,6 +663,7 @@ function AutopayCard({
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [bind, setBind] = useState(false);
   const setState = onStateChange;
+  useAiModal("pricing.autopay.bind-card-modal", () => setBind(true));
 
   async function toggle() {
     if (!state || busy) return;
@@ -605,7 +689,7 @@ function AutopayCard({
 
   return (
     <>
-      <div className="subs__top" data-ai-target="plans:current">
+      <div className="subs__top" data-ai-target="plans:current" data-ai-id="pricing.current" data-ai-type="section">
         <div className="subs__topcard">
           <span className="subs__topico subs__topico--crown"><IconCrown /></span>
           <div>
@@ -622,7 +706,7 @@ function AutopayCard({
             {!sub?.renewsAt ? <span className="subs__tops">{t("nextChargeHintEmpty")}</span> : null}
           </div>
         </div>
-        <div className="subs__topcard">
+        <div className="subs__topcard" data-ai-private>
           <span className="subs__topico"><IconCard /></span>
           <div>
             <span className="subs__topl">{t("card")}</span>
@@ -632,20 +716,20 @@ function AutopayCard({
         </div>
       </div>
 
-      <div className="ppanel apay" style={{ marginBottom: 22 }} data-ai-target="plans:autopay">
+      <div className="ppanel apay" style={{ marginBottom: 22 }} data-ai-target="plans:autopay" data-ai-id="pricing.autopay" data-ai-type="section">
       {!state ? (
         <Skeleton rows={2} />
       ) : (
         <>
           <div className="apay__row">
-            <button type="button" className="apay__tg" role="switch" aria-checked={enabled} onClick={toggle} disabled={busy}>
+            <button type="button" className="apay__tg" role="switch" aria-checked={enabled} onClick={toggle} disabled={busy} data-ai-id="pricing.autopay.toggle">
               <span className="apay__sw" aria-hidden />
               <span>
                 {t("toggle")} · <span className="apay__state">{enabled ? t("on") : t("off")}</span>
                 {state.source === "local" ? <><br /><span className="apay__local">{t("localNote")}</span></> : null}
               </span>
             </button>
-            <button type="button" className="btn btn--soft btn--sm" onClick={() => setBind(true)}>
+            <button type="button" className="btn btn--soft btn--sm" onClick={() => setBind(true)} data-ai-id="pricing.autopay.bind-card">
               <IconCard />
               {t("bindCard")}
             </button>
@@ -660,7 +744,7 @@ function AutopayCard({
       <Modal open={bind} onClose={() => setBind(false)} title={t("bindTitle")}>
         <BindCardForm
           note={t("bindNote")}
-          labels={{ brand: tc("cardBrand"), last4: tc("cardLast4"), expires: tc("cardExpires"), save: tc("save"), saving: tc("saving"), saved: tc("saved"), error: tc("error") }}
+          labels={{ title: t("bindTitle"), brand: tc("cardBrand"), last4: tc("cardLast4"), expires: tc("cardExpires"), save: tc("save"), saving: tc("saving"), saved: tc("saved"), error: tc("error") }}
           onSaved={() => {
             void cards.refresh();
             setTimeout(() => setBind(false), 800);
@@ -679,7 +763,7 @@ function BindCardForm({
   onSaved,
 }: {
   note: string;
-  labels: { brand: string; last4: string; expires: string; save: string; saving: string; saved: string; error: string };
+  labels: { title: string; brand: string; last4: string; expires: string; save: string; saving: string; saved: string; error: string };
   onSaved: () => void;
 }) {
   const [brand, setBrand] = useState("uzcard");
@@ -713,7 +797,7 @@ function BindCardForm({
   }
 
   return (
-    <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
+    <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} data-ai-id="pricing.autopay.bind-card-modal" data-ai-type="modal" data-ai-label={labels.title} data-ai-private>
       <p className="apay__note" style={{ margin: 0 }}><IconInfo />{note}</p>
       <div>
         <label>{labels.brand}</label>
@@ -826,23 +910,32 @@ function TelegramPlanRequest({
 
   return (
     <Modal open onClose={onClose} title={ttg("title")}>
-      <div className="cform" style={{ maxWidth: "none" }}>
+      <div
+        className="cform"
+        style={{ maxWidth: "none" }}
+        data-ai-id="pricing.telegram-request-modal"
+        data-ai-type="modal"
+        data-ai-label={ttg("title")}
+        data-ai-entity-type="subscription_plan"
+        data-ai-entity-id={plan.id}
+        data-ai-entity-slug={plan.slug}
+      >
         {sent ? (
           <>
             <p className="cform__ok"><IconCheck style={{ width: 16, height: 16 }} /> {ttg("sent")}</p>
             <p className="advmuted">{ttg("sentLead")}</p>
             {sentWorkId ? <p><span className="wid">{sentWorkId}</span></p> : null}
             {err ? <Notice ok={false} msg={err} /> : null}
-            <button type="button" className="btn btn--line btn--full" onClick={onClose}>{ttg("close")}</button>
+            <button type="button" className="btn btn--line btn--full" onClick={onClose} data-ai-id="pricing.telegram-request-modal.close">{ttg("close")}</button>
           </>
         ) : (
           <>
             <p className="advmuted" style={{ margin: 0 }}>{ttg("lead", { plan: plan.name })}</p>
             <div>
               <label>{ttg("period")}</label>
-              <div className="chiprow" style={{ margin: "4px 0 0" }}>
+              <div className="chiprow" style={{ margin: "4px 0 0" }} data-ai-id="pricing.telegram-request-modal.period" data-ai-type="select">
                 {periods.map((p) => (
-                  <button key={p} type="button" className="fchip" aria-pressed={eff === p} onClick={() => setPeriod(p)}>
+                  <button key={p} type="button" className="fchip" aria-pressed={eff === p} onClick={() => setPeriod(p)} data-ai-id={aiId("pricing.telegram-request-modal.period", PERIOD_SEG[p])}>
                     {tdoc.has(`period_${p}`) ? tdoc(`period_${p}`) : p}
                   </button>
                 ))}
@@ -853,7 +946,7 @@ function TelegramPlanRequest({
               <b>{fmtUzs(priceFor(eff))}</b>
             </div>
             {err ? <Notice ok={false} msg={err} /> : null}
-            <button type="button" className="btn btn--grad btn--full btn--lg" disabled={busy} onClick={() => void submit()}>
+            <button type="button" className="btn btn--grad btn--full btn--lg" disabled={busy} onClick={() => void submit()} data-ai-id="pricing.telegram-request-modal.confirm">
               {busy ? ttg("sending") : ttg("submit")}
             </button>
           </>

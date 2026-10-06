@@ -9,6 +9,8 @@ import { errorText } from "@/lib/errorText";
 import { toast } from "@/lib/toast";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
 import { useAiReveal } from "@/lib/guide/targets";
+import { aiId, aiSeg } from "@/lib/ai/ids";
+import { useAiModal, useAiSelection } from "@/lib/ai/registry";
 import {
   claimSupportTicket,
   closeSupportTicket,
@@ -226,6 +228,40 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
     setView("assist");
   });
 
+  const ticketBySeg = (seg: string) => list.items.find((x) => aiSeg(x.id) === seg) ?? (current && aiSeg(current.id) === seg ? current : null);
+  const focusTicket = (seg: string) => {
+    const tk = seg ? ticketBySeg(seg) : (current ?? list.items[0] ?? null);
+    if (tk && tk.id !== selectedId) open(tk, false);
+  };
+  const segOf = (id: string) => id.split(".")[3] ?? "";
+
+  useAiReveal(/^call_center\.support\.(queue|queue\.tabs|queue\.tab\.[a-z]+|ticket\.[^.]+)$/, () => {
+    if (selectedId && window.matchMedia(NARROW).matches) back(false);
+  });
+  useAiReveal(/^call_center\.support\.(chat|ticket\.[^.]+\.(messages|message-input|call(\.audio|\.video)?))$/, (id) => {
+    focusTicket(id === "call_center.support.chat" ? "" : segOf(id));
+    showView("chat");
+  });
+  useAiReveal(/^call_center\.support\.ticket\.[^.]+\.(claim|transfer|close)$/, (id) => {
+    focusTicket(segOf(id));
+  });
+  useAiReveal(/^call_center\.support\.ticket\.[^.]+\.assist(\..+)?$/, (id) => {
+    focusTicket(segOf(id));
+    setView("assist");
+  });
+
+  const aiTicket = current?.id ?? "";
+  const ownOpen = (tk: SupportTicket | null) => Boolean(tk && tk.status && tk.operatorUserId && tk.operatorUserId === meId && isActiveTicket(tk));
+  useAiModal(aiTicket ? aiId("call_center.support.ticket", aiTicket, "transfer-modal") : "", () => {
+    if (busy || !ownOpen(current)) return;
+    setTransfer({ q: "", results: [], loading: true, pick: null, reason: "", err: "" });
+  });
+  useAiModal(aiTicket ? aiId("call_center.support.ticket", aiTicket, "close-modal") : "", () => {
+    if (busy || !ownOpen(current)) return;
+    setClosing({ resolution: "", err: "" });
+  });
+  useAiSelection("support_queue_tab", tab);
+
   const claim = async (tk: SupportTicket) => {
     if (busy) return;
     setBusy(true);
@@ -362,15 +398,15 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
 
       <div className="supwork">
         <aside className="supwork__side" aria-label={t("queueTitle")}>
-          <div className="suptabs" role="tablist" aria-label={t("queueTitle")}>
+          <div className="suptabs" role="tablist" aria-label={t("queueTitle")} data-ai-id="call_center.support.queue.tabs">
             {TABS.map((k) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k} className="suptab" onClick={() => setTab(k)}>
+              <button key={k} type="button" role="tab" aria-selected={tab === k} className="suptab" onClick={() => setTab(k)} data-ai-id={`call_center.support.queue.tab.${k}`}>
                 {t(`tabs.${k}`)}
               </button>
             ))}
           </div>
           {tab === "new" && list.status === "ready" && list.items.length > 1 ? <p className="supq__hint">{t("queue.oldestFirst")}</p> : null}
-          <div className="supwork__list" data-ai-target="support:ticket-list">
+          <div className="supwork__list" data-ai-target="support:ticket-list" data-ai-id="call_center.support.queue" data-ai-type="list" data-ai-label={t("queueTitle")}>
             {list.status === "loading" ? (
               [0, 1, 2].map((i) => <div key={i} className="supcard supcard--ghost" aria-hidden="true" />)
             ) : list.status === "error" ? (
@@ -400,7 +436,14 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                   onOpen={() => open(tk)}
                   extra={
                     tab === "new" && isWaitingTicket(tk) ? (
-                      <button type="button" className="btn btn--pri btn--sm supitem__claim" disabled={busy} onClick={() => void claim(tk)}>
+                      <button
+                        type="button"
+                        className="btn btn--pri btn--sm supitem__claim"
+                        disabled={busy}
+                        onClick={() => void claim(tk)}
+                        data-ai-id={aiId("call_center.support.ticket", tk.id, "claim")}
+                        data-ai-label={t("claim")}
+                      >
                         {t("claim")}
                       </button>
                     ) : null
@@ -436,6 +479,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                       tabIndex={view === k ? 0 : -1}
                       className="suptab"
                       onClick={() => showView(k)}
+                      data-ai-id={`call_center.support.view.${k}`}
                     >
                       {k === "chat" ? <IconChat aria-hidden="true" /> : <IconHeadset aria-hidden="true" />}
                       {k === "chat" ? t("queue.viewChat") : t("assist.title")}
@@ -488,7 +532,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                 </dl>
                 <div className="supop__acts">
                   {claimable ? (
-                    <button type="button" className="btn btn--pri btn--sm" disabled={busy} onClick={() => void claim(current)}>
+                    <button type="button" className="btn btn--pri btn--sm" disabled={busy} onClick={() => void claim(current)} data-ai-id={aiId("call_center.support.ticket", current.id, "claim")}>
                       {t("claim")}
                     </button>
                   ) : null}
@@ -499,10 +543,17 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                         className="btn btn--line btn--sm"
                         disabled={busy}
                         onClick={() => setTransfer({ q: "", results: [], loading: true, pick: null, reason: "", err: "" })}
+                        data-ai-id={aiId("call_center.support.ticket", current.id, "transfer")}
                       >
                         {t("transfer")}
                       </button>
-                      <button type="button" className="btn btn--line btn--sm supop__close" disabled={busy} onClick={() => setClosing({ resolution: "", err: "" })}>
+                      <button
+                        type="button"
+                        className="btn btn--line btn--sm supop__close"
+                        disabled={busy}
+                        onClick={() => setClosing({ resolution: "", err: "" })}
+                        data-ai-id={aiId("call_center.support.ticket", current.id, "close")}
+                      >
                         {t("close")}
                       </button>
                     </>
@@ -555,7 +606,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
 
       <Modal open={!!transfer} onClose={() => setTransfer(null)} title={t("transfer")}>
         {transfer ? (
-          <div className="supmodal">
+          <div className="supmodal" data-ai-id={aiId("call_center.support.ticket", aiTicket, "transfer-modal")} data-ai-type="modal" data-ai-label={t("transfer")} data-ai-private>
             <label className="supmodal__search">
               <IconSearch />
               <input
@@ -564,9 +615,18 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                 placeholder={t("operatorSearch")}
                 aria-label={t("operatorSearch")}
                 autoFocus
+                data-ai-id={aiId("call_center.support.ticket", aiTicket, "transfer-modal", "search")}
               />
             </label>
-            <ul className="supmodal__list" role="listbox" aria-label={t("operator")} aria-busy={transfer.loading}>
+            <ul
+              className="supmodal__list"
+              role="listbox"
+              aria-label={t("operator")}
+              aria-busy={transfer.loading}
+              data-ai-id={aiId("call_center.support.ticket", aiTicket, "transfer-modal", "operators")}
+              data-ai-type="list"
+              data-ai-label={t("operator")}
+            >
               {transfer.results.map((u) => (
                 <li key={u.id}>
                   <button
@@ -586,14 +646,28 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
             </ul>
             <label className="supmodal__field">
               <span>{t("reason")}</span>
-              <textarea value={transfer.reason} onChange={(e) => setTransfer({ ...transfer, reason: e.target.value, err: "" })} rows={3} placeholder={t("reasonPh")} />
+              <textarea
+                value={transfer.reason}
+                onChange={(e) => setTransfer({ ...transfer, reason: e.target.value, err: "" })}
+                rows={3}
+                placeholder={t("reasonPh")}
+                data-ai-id={aiId("call_center.support.ticket", aiTicket, "transfer-modal", "reason")}
+                data-ai-label={t("reason")}
+              />
             </label>
             {transfer.err ? <p className="supchat__err" role="alert">{transfer.err}</p> : null}
             <div className="supmodal__acts">
               <button type="button" className="btn btn--line" onClick={() => setTransfer(null)}>
                 {t("cancel")}
               </button>
-              <button type="button" className="btn btn--pri" disabled={!transfer.pick || busy} onClick={() => void doTransfer()}>
+              <button
+                type="button"
+                className="btn btn--pri"
+                disabled={!transfer.pick || busy}
+                onClick={() => void doTransfer()}
+                data-ai-id={aiId("call_center.support.ticket", aiTicket, "transfer-modal", "confirm")}
+                data-ai-label={t("transferDo")}
+              >
                 {t("transferDo")}
               </button>
             </div>
@@ -603,18 +677,33 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
 
       <Modal open={!!closing} onClose={() => setClosing(null)} title={t("close")}>
         {closing ? (
-          <div className="supmodal">
+          <div className="supmodal" data-ai-id={aiId("call_center.support.ticket", aiTicket, "close-modal")} data-ai-type="modal" data-ai-label={t("close")} data-ai-private>
             <p className="supmodal__note">{t("closeNote")}</p>
             <label className="supmodal__field">
               <span>{t("resolution")}</span>
-              <textarea value={closing.resolution} onChange={(e) => setClosing({ resolution: e.target.value, err: "" })} rows={3} placeholder={t("resolutionPh")} autoFocus />
+              <textarea
+                value={closing.resolution}
+                onChange={(e) => setClosing({ resolution: e.target.value, err: "" })}
+                rows={3}
+                placeholder={t("resolutionPh")}
+                autoFocus
+                data-ai-id={aiId("call_center.support.ticket", aiTicket, "close-modal", "resolution")}
+                data-ai-label={t("resolution")}
+              />
             </label>
             {closing.err ? <p className="supchat__err" role="alert">{closing.err}</p> : null}
             <div className="supmodal__acts">
               <button type="button" className="btn btn--line" onClick={() => setClosing(null)}>
                 {t("cancel")}
               </button>
-              <button type="button" className="btn btn--pri" disabled={busy || !closing.resolution.trim()} onClick={() => void doClose()}>
+              <button
+                type="button"
+                className="btn btn--pri"
+                disabled={busy || !closing.resolution.trim()}
+                onClick={() => void doClose()}
+                data-ai-id={aiId("call_center.support.ticket", aiTicket, "close-modal", "confirm")}
+                data-ai-label={t("closeDo")}
+              >
                 {t("closeDo")}
               </button>
             </div>

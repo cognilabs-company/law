@@ -186,7 +186,7 @@ export default function TwoFactorCard() {
   }
 
   return (
-    <div className="ppanel" data-ai-target="profile:two-factor">
+    <div className="ppanel" data-ai-target="profile:two-factor" data-ai-id="profile.two-factor" data-ai-type="section">
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconLock /></span>{t("title")}</b>
         {on ? <span className="tfa__on"><IconShieldCheck />{t("enabledBadge")}</span> : null}
@@ -194,7 +194,7 @@ export default function TwoFactorCard() {
       <p className="advmuted" style={{ marginBottom: 12 }}>{t("desc")}</p>
 
       {stage === "sms" ? (
-        <div className="cform" style={{ maxWidth: "none" }}>
+        <div className="cform" style={{ maxWidth: "none" }} data-ai-private>
           <div>
             <label>{t("codeLabel")}</label>
             <input
@@ -222,7 +222,7 @@ export default function TwoFactorCard() {
           </div>
         </div>
       ) : stage === "totp" && totp ? (
-        <div className="cform" style={{ maxWidth: "none" }}>
+        <div className="cform" style={{ maxWidth: "none" }} data-ai-private>
           <b>{t("totpSetupTitle")}</b>
           <p className="advmuted" style={{ margin: 0 }}>{t("scanHint")}</p>
           {totp.qrCode ? (
@@ -278,22 +278,22 @@ export default function TwoFactorCard() {
           {mandatory ? <p className="advmuted" style={{ margin: "0 0 12px" }}>{t(on ? "mandatory" : "mandatoryEnable")}</p> : null}
           {on ? (
             !mandatory ? (
-              <button className="btn btn--line btn--sm" type="button" onClick={disable} disabled={busy}>
+              <button className="btn btn--line btn--sm" type="button" onClick={disable} disabled={busy} data-ai-id="profile.two-factor.disable">
                 {busy ? t("disabling") : t("disable")}
               </button>
             ) : session?.twoFactorMethod !== "totp" ? (
-              <button className="btn btn--pri btn--sm" type="button" onClick={startTotp} disabled={busy}>
+              <button className="btn btn--pri btn--sm" type="button" onClick={startTotp} disabled={busy} data-ai-id="profile.two-factor.totp">
                 <IconShield />
                 {t("switchToTotp")}
               </button>
             ) : null
           ) : (
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button className="btn btn--pri btn--sm" type="button" onClick={startTotp} disabled={busy}>
+              <button className="btn btn--pri btn--sm" type="button" onClick={startTotp} disabled={busy} data-ai-id="profile.two-factor.totp">
                 <IconShield />
                 {t("chooseTotp")}
               </button>
-              <button className="btn btn--line btn--sm" type="button" onClick={enableSms} disabled={busy || otp.resendIn > 0}>
+              <button className="btn btn--line btn--sm" type="button" onClick={enableSms} disabled={busy || otp.resendIn > 0} data-ai-id="profile.two-factor.sms">
                 {busy
                   ? t("enableSending")
                   : otp.resendIn > 0

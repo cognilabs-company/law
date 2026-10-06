@@ -1,12 +1,20 @@
 export type GuideRole = "client" | "lawyer" | "advocate" | "staff";
 
+export type GuideStepStyle = "pulse" | "soft";
+
+export type GuideFocusMode = "auto" | "force" | "none";
+
 export type GuideStep = {
   target: string;
   caption: string;
   focus?: boolean;
+  commandId?: string;
+  holdMs?: number;
+  style?: GuideStepStyle;
+  focusMode?: GuideFocusMode;
 };
 
-export type GuideSource = "instructor" | "page" | "assistant" | "local";
+export type GuideSource = "instructor" | "page" | "assistant" | "local" | "instructor21";
 
 export type GuideTour = {
   id: string;

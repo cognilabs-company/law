@@ -10,6 +10,7 @@ import {
   type NotifPrefs,
 } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
+import { aiId } from "@/lib/ai/ids";
 import { Skeleton } from "./DataState";
 import { IconBell } from "@/components/icons";
 
@@ -36,7 +37,7 @@ export default function NotificationPrefsCard() {
   }
 
   return (
-    <div className="ppanel" data-ai-target="profile:notification-prefs">
+    <div className="ppanel" data-ai-target="profile:notification-prefs" data-ai-id="profile.notification-prefs" data-ai-type="section">
       <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconBell /></span>{t("notifPrefs")}</b></div>
       {prefs.status === "loading" ? (
         <Skeleton rows={2} />
@@ -45,7 +46,14 @@ export default function NotificationPrefsCard() {
       ) : (
         <div className="prefs">
           {NOTIF_KEYS.map((k) => (
-            <button key={k} type="button" className={`prefs__row${pf[k] ? " on" : ""}`} onClick={() => toggle(k)} aria-pressed={pf[k]}>
+            <button
+              key={k}
+              type="button"
+              className={`prefs__row${pf[k] ? " on" : ""}`}
+              onClick={() => toggle(k)}
+              aria-pressed={pf[k]}
+              data-ai-id={aiId("profile.notification-prefs", k)}
+            >
               <span>
                 {t.has(`notif.${k}`) ? t(`notif.${k}`) : k}
                 {/* Only when the link state is known to be off, never when unknown. */}

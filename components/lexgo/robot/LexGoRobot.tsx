@@ -195,6 +195,8 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
         tabIndex={0}
         aria-label="LexGo AI instruktor"
         title="LexGo AI instruktor"
+        data-ai-id="dashboard.ai-instructor.open"
+        data-ai-type="button"
         onClick={handleClick}
         onMouseEnter={() => !DEBUG_ROBOT && RobotEvents.emit("peek")}
         onKeyDown={(e) => {

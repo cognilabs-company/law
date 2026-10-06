@@ -78,11 +78,12 @@ async function sendDoc(chatId, filePath, text) {
 }
 
 // ── the payload ────────────────────────────────────────────────────
-function loadDocs() {
+function loadDocs(only = null) {
   const cfg = readJson(DOCS_FILE, null);
   if (!cfg) throw new Error("docs.json o'qib bo'lmadi");
   const docs = cfg.docs
     .map((d) => ({ ...d, abs: path.resolve(HERE, d.file) }))
+    .filter((d) => !only || only.includes(path.basename(d.abs)))
     .filter((d) => {
       if (fs.existsSync(d.abs)) return true;
       console.warn(`[skip] topilmadi: ${d.file}`);
@@ -93,16 +94,18 @@ function loadDocs() {
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-async function deliver(chatId) {
-  const { project, tagline, docs } = loadDocs();
+async function deliver(chatId, only = null) {
+  const { project, tagline, docs } = loadDocs(only);
   if (!docs.length) {
     await sendMessage(chatId, "Hozircha yuboradigan hujjat yo'q.");
     return;
   }
   await sendMessage(
     chatId,
-    `<b>${esc(project)}</b> — ${esc(tagline)}\n\n` +
-      `Quyida ${docs.length} ta tayyor hujjat. Har birining ostida nima haqida ekani yozilgan.`,
+    only
+      ? `<b>${esc(project)}</b> — yangi hujjat\n\n${docs.map((d) => `• ${esc(d.title)}`).join("\n")}`
+      : `<b>${esc(project)}</b> — ${esc(tagline)}\n\n` +
+          `Quyida ${docs.length} ta tayyor hujjat. Har birining ostida nima haqida ekani yozilgan.`,
   );
   for (const d of docs) {
     const kb = Math.max(1, Math.round(fs.statSync(d.abs).size / 1024));
@@ -174,15 +177,20 @@ async function poll({ once }) {
   }
 }
 
-async function broadcast() {
+async function broadcast(only = null) {
   const subs = Object.values(readJson(SUBS_FILE, {}));
   if (!subs.length) {
     console.log("[mdbot] hali hech kim /start bosmagan.");
     return;
   }
+  if (only && !loadDocs(only).docs.length) {
+    console.error(`[mdbot] docs.json da topilmadi: ${only.join(", ")}`);
+    process.exitCode = 1;
+    return;
+  }
   for (const s of subs) {
     try {
-      await deliver(s.id);
+      await deliver(s.id, only);
       console.log(`[mdbot] yuborildi → ${s.name || s.id}`);
     } catch (e) {
       console.error(`[mdbot] ${s.id}:`, e.message);
@@ -191,7 +199,14 @@ async function broadcast() {
 }
 
 const argv = process.argv.slice(2);
-(argv.includes("--broadcast") ? broadcast() : poll({ once: argv.includes("--once") })).catch((e) => {
+function onlyArg() {
+  const i = argv.findIndex((a) => a === "--only" || a.startsWith("--only="));
+  if (i < 0) return null;
+  const raw = argv[i].startsWith("--only=") ? argv[i].slice("--only=".length) : argv[i + 1] || "";
+  const names = raw.split(",").map((x) => path.basename(x.trim())).filter(Boolean);
+  return names.length ? names : null;
+}
+(argv.includes("--broadcast") ? broadcast(onlyArg()) : poll({ once: argv.includes("--once") })).catch((e) => {
   console.error("[mdbot]", e.message);
   process.exit(1);
 });

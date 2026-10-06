@@ -71,7 +71,15 @@ export default function MkmSellers({
   const account = (st: string) => (t.has(`account.${st}`) ? t(`account.${st}`) : humanize(st));
 
   return (
-    <section className={`mkm-card${live.changing ? " is-busy" : ""}`} aria-busy={live.changing || live.loading} data-ai-target="marketplace:sellers-list">
+    <section
+      className={`mkm-card${live.changing ? " is-busy" : ""}`}
+      aria-busy={live.changing || live.loading}
+      data-ai-target="marketplace:sellers-list"
+      data-ai-id="admin.marketplace.sellers"
+      data-ai-type="table"
+      data-ai-label={t("title")}
+      data-ai-private
+    >
       <div className="mkm-card__h">
         <div>
           <b>{t("title")}</b>

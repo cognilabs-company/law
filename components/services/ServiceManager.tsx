@@ -45,6 +45,8 @@ import {
   IconShieldCheck,
   IconStore,
 } from "@/components/icons";
+import { aiId } from "@/lib/ai/ids";
+import { useAiField, useAiModal } from "@/lib/ai/registry";
 import ServiceCard from "./ServiceCard";
 import ServiceFormModal from "./ServiceFormModal";
 import PromoteModal from "./PromoteModal";
@@ -97,6 +99,16 @@ export default function ServiceManager({
   const [removing, setRemoving] = useState(false);
   const [removeErr, setRemoveErr] = useState("");
   const onDataRef = useRef(onData);
+  const aiBase = orgId ? aiId("organization.member", memberId, "services") : "advocate.services";
+  const aiCard = orgId ? aiId("organization.member", memberId, "service") : "services.card";
+  useAiField(load.data?.items.length ? `${aiBase}.search.input` : "", { get: () => query, set: setQuery });
+  useAiField(load.data?.items.length ? `${aiBase}.filters.status` : "", {
+    get: () => filter,
+    set: (v) => {
+      if ((FILTERS as string[]).includes(v)) setFilter(v as Filter);
+    },
+  });
+  useAiModal(load.data ? `${aiBase}.form-modal` : "", () => setDialog({ kind: "add" }));
 
   useEffect(() => {
     onDataRef.current = onData;
@@ -281,7 +293,7 @@ export default function ServiceManager({
 
   return (
     <div className="svm">
-      <section className="svm__hero" data-ai-target="services:summary">
+      <section className="svm__hero" data-ai-target="services:summary" data-ai-id={`${aiBase}.summary`} data-ai-type="section" data-ai-label={t("kicker")}>
         <div className="svm__hero-t">
           <span className="kick svm__kick">
             <IconStore aria-hidden="true" />
@@ -291,7 +303,7 @@ export default function ServiceManager({
           <p className="svm__lead">{owner ? t("leadOwner") : t("lead")}</p>
         </div>
         <div className="svm__hero-a">
-          <button type="button" className="btn btn--grad" onClick={() => setDialog({ kind: "add" })} data-ai-target="button:add-service">
+          <button type="button" className="btn btn--grad" onClick={() => setDialog({ kind: "add" })} data-ai-target="button:add-service" data-ai-id={`${aiBase}.add`}>
             <IconPlus aria-hidden="true" />
             {t("add")}
           </button>
@@ -351,8 +363,8 @@ export default function ServiceManager({
 
       {items.length ? (
         <>
-          <div className="svm__bar" data-ai-target="services:filters">
-            <div className="suptabs svm__tabs" role="tablist" aria-label={t("filters.label")}>
+          <div className="svm__bar" data-ai-target="services:filters" data-ai-id={`${aiBase}.filters`} data-ai-label={t("filters.label")}>
+            <div className="suptabs svm__tabs" role="tablist" aria-label={t("filters.label")} data-ai-id={`${aiBase}.filters.status`} data-ai-type="select">
               {FILTERS.map((f) => (
                 <button
                   key={f}
@@ -362,6 +374,7 @@ export default function ServiceManager({
                   aria-controls={listId}
                   className="suptab"
                   onClick={() => setFilter(f)}
+                  data-ai-id={`${aiBase}.filter.${f}`}
                 >
                   {t(`filters.${f}`)}
                   <span className="svm__count">{counts[f]}</span>
@@ -370,7 +383,7 @@ export default function ServiceManager({
             </div>
             <label className="svm__search">
               <IconSearch aria-hidden="true" />
-              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("search")} aria-label={t("searchLabel")} />
+              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("search")} aria-label={t("searchLabel")} data-ai-id={`${aiBase}.search.input`} />
             </label>
             <button
               type="button"
@@ -384,10 +397,11 @@ export default function ServiceManager({
             </button>
           </div>
 
-          <div className="svm__grid" id={listId} role="tabpanel" aria-busy={loading || undefined} data-ai-target="services:list">
+          <div className="svm__grid" id={listId} role="tabpanel" aria-busy={loading || undefined} data-ai-target="services:list" data-ai-id={`${aiBase}.list`} data-ai-type="list" data-ai-label={t("kicker")}>
             {shown.map((x, i) => (
               <ServiceCard
                 key={x.id}
+                aiId={x.id ? aiId(aiCard, x.id) : undefined}
                 item={x}
                 index={i}
                 first={i === 0}
@@ -414,7 +428,7 @@ export default function ServiceManager({
           </div>
         </>
       ) : (
-        <div className="svm__empty" data-ai-target="services:list">
+        <div className="svm__empty" data-ai-target="services:list" data-ai-id={`${aiBase}.list`} data-ai-type="list" data-ai-label={t("kicker")}>
           <span className="svm__eic" aria-hidden="true">
             <IconBriefcase />
           </span>
@@ -429,6 +443,7 @@ export default function ServiceManager({
 
       {dialog?.kind === "add" || dialog?.kind === "edit" ? (
         <ServiceFormModal
+          aiId={`${aiBase}.form-modal`}
           key={dialog.kind === "edit" ? dialog.item.id : "new"}
           item={dialog.kind === "edit" ? dialog.item : null}
           scope={sc}
@@ -447,10 +462,11 @@ export default function ServiceManager({
         />
       ) : null}
       {dialog?.kind === "promote" ? (
-        <PromoteModal item={dialog.item} scope={sc} uid={uid} owner={owner} onClose={() => setDialog(null)} onSent={() => toast(t("toast.promoSent"), { tone: "ok" })} />
+        <PromoteModal aiId={`${aiBase}.promote-modal`} item={dialog.item} scope={sc} uid={uid} owner={owner} onClose={() => setDialog(null)} onSent={() => toast(t("toast.promoSent"), { tone: "ok" })} />
       ) : null}
       {dialog?.kind === "remove" ? (
         <RemoveServiceModal
+          aiId={`${aiBase}.remove-modal`}
           item={dialog.item}
           busy={removing}
           error={removeErr}

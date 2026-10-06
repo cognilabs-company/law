@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { leadCategoryLabel } from "@/lib/leadLabels";
 import { getCallCenterQueue, assignNextSeller, moveCallCenterLead, type QueueItem } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
+import { aiId } from "@/lib/ai/ids";
 import Select from "@/components/Select";
 import { Skeleton } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
@@ -13,6 +14,7 @@ import { IconClock, IconRefresh, IconArrowRight } from "@/components/icons";
 const REFRESH_MS = 60_000;
 // Default lead board columns a call-center operator moves a lead to.
 const LEAD_STAGES = ["contacted", "qualified", "proposal", "won", "lost"] as const;
+const AI_ENTITY: Record<string, string> = { lead: "lead", order: "order", urgent_advokat: "urgent_advokat_request" };
 
 type State = { status: "loading" | "ready" | "error" | "forbidden"; items: QueueItem[] };
 
@@ -96,7 +98,7 @@ export default function CallCenterQueue() {
   const breached = state.items.filter((i) => i.slaBreached).length;
 
   return (
-    <div className="ppanel" data-ai-target="callcenter:queue">
+    <div className="ppanel" data-ai-target="callcenter:queue" data-ai-id="call_center.leads.queue" data-ai-type="section" data-ai-label={t("title")}>
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
@@ -127,8 +129,19 @@ export default function CallCenterQueue() {
             // else-branch below offered the lead-stage mover, which would have
             // called /call-center/leads/{id}/move on a record that is not one.
             const urgent = item.type === "urgent_advokat";
+            const typeLabel = t.has(`type.${item.type}`) ? t(`type.${item.type}`) : item.type;
+            const statusText = item.status ? (t.has(`status.${item.status}`) ? t(`status.${item.status}`) : item.status) : "";
             return (
-              <div className={`ccq${item.slaBreached ? " ccq--breach" : ""}`} key={`${item.type}-${item.id}`}>
+              <div
+                className={`ccq${item.slaBreached ? " ccq--breach" : ""}`}
+                key={`${item.type}-${item.id}`}
+                data-ai-id={aiId("call_center.leads.item", item.type, item.id)}
+                data-ai-type="list_item"
+                data-ai-label={[typeLabel, statusText].filter(Boolean).join(" · ")}
+                data-ai-entity-type={AI_ENTITY[item.type] ?? item.type}
+                data-ai-entity-id={item.id}
+                data-ai-private
+              >
                 <div className="ccq__top">
                   <span className={`tprio tprio--${urgent ? "high" : item.type === "order" ? "medium" : "low"}`}>{t.has(`type.${item.type}`) ? t(`type.${item.type}`) : item.type}</span>
                   {hot ? <span className="tprio tprio--high">{t("hot")}</span> : null}

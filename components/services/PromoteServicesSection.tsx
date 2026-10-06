@@ -145,6 +145,7 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
       )}
       {promote ? (
         <PromoteModal
+          aiId="advocate.promotion.promote-modal"
           item={promote}
           scope={ME}
           uid={uid}

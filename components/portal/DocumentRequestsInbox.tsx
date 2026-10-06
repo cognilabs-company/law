@@ -27,6 +27,12 @@ import { shortDateTime } from "@/lib/date";
 import { IconFileText, IconUser, IconPhone, IconCheck, IconClock, IconEye, IconDownload, IconUpload, IconAlert, IconTag, IconLock, IconLayers } from "@/components/icons";
 import WorkFilterBar, { inPeriod, useStoredFilters, type Period } from "./WorkFilterBar";
 import { matchesSearch } from "@/lib/searchText";
+import { aiId, aiSeg } from "@/lib/ai/ids";
+import { useAiSelection } from "@/lib/ai/registry";
+import { useAiReveal } from "@/lib/guide/targets";
+
+const AI = "advocate.document-requests";
+const itemAiId = (id: string) => (id ? aiId(`${AI}.item`, id) : undefined);
 
 const FLOWS = ["template_lawyer_assisted", "custom_from_scratch", "review_existing_document"] as const;
 const LATE_MS = 24 * 3600 * 1000;
@@ -163,7 +169,18 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
     { key: "progress", label: t("tabInProgress"), count: progressShown.length },
     { key: "done", label: t("tabCompleted"), count: doneShown.length },
   ];
+  useAiSelection("document_requests_tab", tab);
+  useAiReveal(/^advocate\.document-requests\.item\./, (id) => {
+    const seg = id.split(".")[3] ?? "";
+    const has = (rows: { id: string }[]) => rows.some((r) => aiSeg(r.id) === seg);
+    const next: Tab | "" = has(poolVisible) ? "pool" : has(assignedList) ? "assigned" : has(progress.data) ? "progress" : has(done.data) ? "done" : "";
+    if (!next) return;
+    setTab(next);
+    const visible = next === "pool" ? poolShown : next === "assigned" ? assignedShown : next === "progress" ? progressShown : doneShown;
+    if (!has(visible)) resetF();
+  });
   const activeRows = tab === "assigned" ? assignedShown : tab === "progress" ? progressShown : tab === "done" ? doneShown : [];
+  const listEmpty = !(tab === "pool" ? poolShown.length : activeRows.length);
   const activeStatus = tab === "assigned" ? assigned.status : tab === "progress" ? progress.status : tab === "done" ? done.status : pool.status;
   const tabSource: Filterable[] = tab === "pool" ? poolVisible : tab === "assigned" ? assignedList : tab === "progress" ? progress.data : done.data;
   const tabTotal = tabSource.length;
@@ -181,7 +198,13 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
   );
 
   return (
-    <div className="ppanel" data-ai-target={(tab === "pool" ? poolShown.length : activeRows.length) ? undefined : "list:document-requests"}>
+    <div
+      className="ppanel"
+      data-ai-target={(tab === "pool" ? poolShown.length : activeRows.length) ? undefined : "list:document-requests"}
+      data-ai-id={listEmpty ? `${AI}.list` : undefined}
+      data-ai-type={listEmpty ? "list" : undefined}
+      data-ai-label={listEmpty ? t("title") : undefined}
+    >
       <div className="ppanel__h">
         <b>{t("title")}</b>
       </div>
@@ -190,9 +213,9 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
           builder's mobile-only form/document switcher and is display:none
           from 980px up — reusing it hid this whole tab strip on every
           desktop, which is the call-center advocate's actual device. */}
-      <div className="docb__tabs dreq__tabs" role="tablist" style={{ marginBottom: 16 }} data-ai-target="document-requests:tabs">
+      <div className="docb__tabs dreq__tabs" role="tablist" style={{ marginBottom: 16 }} data-ai-target="document-requests:tabs" data-ai-id={`${AI}.tabs`}>
         {TABS.map((tb) => (
-          <button key={tb.key} type="button" role="tab" aria-selected={tab === tb.key} className={tab === tb.key ? "on" : ""} onClick={() => setTab(tb.key)}>
+          <button key={tb.key} type="button" role="tab" aria-selected={tab === tb.key} className={tab === tb.key ? "on" : ""} onClick={() => setTab(tb.key)} data-ai-id={`${AI}.tab.${tb.key}`}>
             {tb.label}
             <span className="docb__tabn">{tb.count}</span>
           </button>
@@ -234,6 +257,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         onReset={resetF}
         resultCount={tab === "pool" ? poolShown.length : activeRows.length}
         aiTarget="document-requests:filters"
+        aiBase={AI}
       />
 
       {/* A failed fetch must never be dressed up as an empty pool — an
@@ -249,7 +273,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         ) : !poolShown.length ? (
           filteredEmpty
         ) : (
-          <div className="pcards" data-ai-target="list:document-requests" data-ai-label={t("title")}>
+          <div className="pcards" data-ai-target="list:document-requests" data-ai-label={t("title")} data-ai-id={`${AI}.list`} data-ai-type="list">
             {poolShown.map((p) => (
               <PoolCard key={p.id} item={p} ns={ns} tcm={tcm} onClaimed={(r) => onClaimed(p.id, r)} onTaken={() => setGone((s) => new Set(s).add(p.id))} />
             ))}
@@ -264,7 +288,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
       ) : !activeRows.length ? (
         filteredEmpty
       ) : (
-        <div className="pcards" data-ai-target="list:document-requests" data-ai-label={t("title")}>
+        <div className="pcards" data-ai-target="list:document-requests" data-ai-label={t("title")} data-ai-id={`${AI}.list`} data-ai-type="list">
           {activeRows.map((r) => {
             const locked = POOL_FLOW_STATUSES.has(r.status) && !r.canOpenEditor && r.status !== "completed";
             return (
@@ -275,6 +299,12 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
                 onClick={() => openRecord(r)}
                 disabled={locked}
                 aria-disabled={locked}
+                data-ai-id={itemAiId(r.id)}
+                data-ai-type="card"
+                data-ai-entity-type="document_request"
+                data-ai-entity-id={r.id || undefined}
+                data-ai-label={[r.serviceName, statusLabel(tcm, r.status || r.request.status, "docStatus")].filter(Boolean).join(" · ") || t("title")}
+                data-ai-private
               >
                 <div className="pcase__h">
                   <b className="pcase__ttl">{r.title || r.clientName || t("title")}</b>
@@ -379,7 +409,15 @@ function PoolCard({
   // The card's documented rows, in the documented order: document name,
   // client, service, a 2-3 line preview of the request, created time, status.
   return (
-    <div className={`pcase${late ? " pcase--late" : ""}`}>
+    <div
+      className={`pcase${late ? " pcase--late" : ""}`}
+      data-ai-id={itemAiId(item.id)}
+      data-ai-type="card"
+      data-ai-entity-type="document_request"
+      data-ai-entity-id={item.id || undefined}
+      data-ai-label={[item.serviceName, item.status === "open_pool" ? t("statusNew") : statusLabel(tcm, item.status, "docStatus")].filter(Boolean).join(" · ") || t("title")}
+      data-ai-private
+    >
       <div className="pcase__h">
         <b className="pcase__ttl">{item.title || t("title")}</b>
         <span className="st st--new">{item.status === "open_pool" ? t("statusNew") : statusLabel(tcm, item.status, "docStatus")}</span>
@@ -427,7 +465,7 @@ function PoolCard({
             </button>
           ) : null}
           {/* "can_claim=true bo'lsa Ishni olish button active bo'lsin" */}
-          <button className="btn btn--grad btn--sm" type="button" onClick={claim} disabled={busy || !item.canClaim}>
+          <button className="btn btn--grad btn--sm" type="button" onClick={claim} disabled={busy || !item.canClaim} data-ai-id={item.id ? aiId(`${AI}.item`, item.id, "claim") : undefined} data-ai-label={t("claim")}>
             {busy ? t("claiming") : t("claim")}
           </button>
           {err ? <span className="pcase__err" role="alert">{t("claimError")}</span> : null}
@@ -523,7 +561,7 @@ export function FulfillModal({
   return (
     <Modal open={!!target} onClose={onClose} title={target?.clientName || target?.title || t("title")} wide>
       {target ? (
-        <div className="cform docassist" style={{ maxWidth: "none" }}>
+        <div className="cform docassist" style={{ maxWidth: "none" }} data-ai-id={`${AI}.upload-modal`} data-ai-type="modal" data-ai-label={t("fileLabel")} data-ai-private>
           {target.clientPhone ? (
             <p className="advmuted" style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
               <IconPhone style={{ width: 14, height: 14 }} />

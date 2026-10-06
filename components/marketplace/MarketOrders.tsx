@@ -11,6 +11,9 @@ import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
 import { onUserSocketResync } from "@/lib/userSocket";
 import { startCall } from "@/lib/services/backend";
+import { aiId, aiSeg } from "@/lib/ai/ids";
+import { useAiSelection } from "@/lib/ai/registry";
+import { useAiReveal } from "@/lib/guide/targets";
 import {
   MARKET_EVENT,
   cancelMarketplaceOrder,
@@ -35,6 +38,8 @@ export function stageOf(o: Pick<MarketOrder, "status" | "paymentStatus">): Stage
 }
 
 const STEP_INDEX: Record<Stage, number> = { pending: 1, active: 2, completed: 4, cancelled: -1 };
+
+const aiBaseOf = (view: View) => (view === "client" ? "marketplace.orders" : "advocate.marketplace-orders");
 
 export default function MarketOrders({ view }: { view: View }) {
   const t = useTranslations("marketplace.orders");
@@ -109,6 +114,12 @@ export default function MarketOrders({ view }: { view: View }) {
     return c;
   }, [orders]);
   const shown = tab === "all" ? orders : orders.filter((o) => stageOf(o) === tab);
+  const ai = aiBaseOf(view);
+  useAiSelection(view === "client" ? "marketplace_orders_tab" : "seller_orders_tab", tab);
+  useAiReveal(/^(advocate\.marketplace-orders|marketplace\.orders)\.item\./, (id) => {
+    const seg = id.split(".")[3] ?? "";
+    if (!shown.some((o) => aiSeg(o.id) === seg) && orders.some((o) => aiSeg(o.id) === seg)) setTab("all");
+  });
 
   const patch = (id: string, next: Partial<MarketOrder>) => setOrders((cur) => cur.map((o) => (o.id === id ? { ...o, ...next, canCancel: false, canComplete: false } : o)));
 
@@ -132,9 +143,9 @@ export default function MarketOrders({ view }: { view: View }) {
         </div>
       ) : null}
 
-      <div className="mk-tabs" role="tablist" data-ai-target="orders:filters">
+      <div className="mk-tabs" role="tablist" data-ai-target="orders:filters" data-ai-id={`${ai}.tabs`}>
         {tabs.map((k) => (
-          <button key={k} type="button" role="tab" aria-selected={tab === k} className="mk-tab" onClick={() => setTab(k)}>
+          <button key={k} type="button" role="tab" aria-selected={tab === k} className="mk-tab" onClick={() => setTab(k)} data-ai-id={`${ai}.tab.${k}`}>
             {t(`tabs.${k}`)}
             <span>{counts[k]}</span>
           </button>
@@ -163,7 +174,7 @@ export default function MarketOrders({ view }: { view: View }) {
           </button>
         </div>
       ) : !orders.length ? (
-        <div className="mk-empty" data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"}>
+        <div className="mk-empty" data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"} data-ai-id={`${ai}.list`} data-ai-type="list">
           <IconSparkle />
           <b>{view === "client" ? t("emptyClient") : t("emptySeller")}</b>
           <span>{view === "client" ? t("emptyClientText") : t("emptySellerText")}</span>
@@ -174,11 +185,17 @@ export default function MarketOrders({ view }: { view: View }) {
           ) : null}
         </div>
       ) : !shown.length ? (
-        <div className="mk-empty mk-empty--flat" data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"}>
+        <div className="mk-empty mk-empty--flat" data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"} data-ai-id={`${ai}.list`} data-ai-type="list">
           <span>{t("emptyTab")}</span>
         </div>
       ) : (
-        <div className={`mk-olist${refreshing ? " is-busy" : ""}`} data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"}>
+        <div
+          className={`mk-olist${refreshing ? " is-busy" : ""}`}
+          data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"}
+          data-ai-id={`${ai}.list`}
+          data-ai-type="list"
+          data-ai-label={view === "client" ? t("clientTitle") : t("sellerTitle")}
+        >
           {shown.map((o) => (
             <OrderCard key={o.id} o={o} view={view} locale={locale} onCancel={() => setCancelFor(o)} onComplete={() => setCompleteFor(o)} />
           ))}
@@ -186,6 +203,7 @@ export default function MarketOrders({ view }: { view: View }) {
       )}
 
       <ActionDialog
+        aiId={`${ai}.cancel-modal`}
         order={cancelFor}
         title={t("cancelTitle")}
         lead={t("cancelLead")}
@@ -205,6 +223,7 @@ export default function MarketOrders({ view }: { view: View }) {
         }}
       />
       <ActionDialog
+        aiId={`${ai}.complete-modal`}
         order={completeFor}
         title={t("completeTitle")}
         lead={t("completeLead")}
@@ -252,6 +271,8 @@ function OrderCard({
   const phone = view === "seller" ? o.clientPhone : o.lawyerPhone;
   const chatHref = `/portal/chat/${encodeURIComponent(o.roomId)}?${new URLSearchParams({ ...(o.workId ? { wid: o.workId } : {}), ...(o.serviceTitle ? { svc: o.serviceTitle } : {}) })}`;
   const stepAt = STEP_INDEX[stage];
+  const item = o.id ? aiId(`${aiBaseOf(view)}.item`, o.id) : undefined;
+  const sub = (s: string) => (item ? `${item}.${s}` : undefined);
 
   async function call(kind: "audio" | "video") {
     if (calling || !o.roomId) return;
@@ -267,7 +288,15 @@ function OrderCard({
   }
 
   return (
-    <article className={`mk-order mk-order--${stage}`}>
+    <article
+      className={`mk-order mk-order--${stage}`}
+      data-ai-id={item}
+      data-ai-type="card"
+      data-ai-entity-type="marketplace_order"
+      data-ai-entity-id={o.id || undefined}
+      data-ai-label={[o.serviceTitle, t(`stage.${stage}`)].filter(Boolean).join(" · ")}
+      data-ai-private
+    >
       <div className="mk-order__rail" aria-hidden="true" />
       <div className="mk-order__main">
         <div className="mk-order__top">
@@ -353,13 +382,13 @@ function OrderCard({
 
         <div className="mk-order__acts">
           {o.canStartChat ? (
-            <Link href={chatHref} className="btn btn--pri btn--sm">
+            <Link href={chatHref} className="btn btn--pri btn--sm" data-ai-id={sub("chat")} data-ai-label={t("openChat")}>
               <IconChat />
               {t("openChat")}
             </Link>
           ) : null}
           {o.canCreateCall && stage !== "cancelled" && stage !== "completed" ? (
-            <span className="mk-callgrp" role="group" aria-label={t("call")}>
+            <span className="mk-callgrp" role="group" aria-label={t("call")} data-ai-id={sub("call")} data-ai-type="call_button" data-ai-label={t("call")}>
               <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("audio")}>
                 <IconPhone />
                 {calling === "audio" ? t("calling") : t("audio")}
@@ -371,13 +400,13 @@ function OrderCard({
             </span>
           ) : null}
           {view === "seller" && o.canComplete && stage === "active" ? (
-            <button type="button" className="btn btn--grad btn--sm" onClick={onComplete}>
+            <button type="button" className="btn btn--grad btn--sm" onClick={onComplete} data-ai-id={sub("complete")} data-ai-label={t("complete")}>
               <IconCheck />
               {t("complete")}
             </button>
           ) : null}
           {view === "client" && o.canCancel && stage === "pending" ? (
-            <button type="button" className="btn btn--line btn--sm mk-danger" onClick={onCancel}>
+            <button type="button" className="btn btn--line btn--sm mk-danger" onClick={onCancel} data-ai-id={sub("cancel")} data-ai-label={t("cancel")}>
               <IconClose />
               {t("cancel")}
             </button>
@@ -389,6 +418,7 @@ function OrderCard({
 }
 
 function ActionDialog({
+  aiId: modalAiId,
   order,
   title,
   lead,
@@ -402,6 +432,7 @@ function ActionDialog({
   onClose,
   run,
 }: {
+  aiId: string;
   order: MarketOrder | null;
   title: string;
   lead: string;
@@ -444,7 +475,7 @@ function ActionDialog({
 
   return (
     <Modal open onClose={busy ? () => undefined : onClose} title={title}>
-      <div className="mk-act">
+      <div className="mk-act" data-ai-id={modalAiId} data-ai-type="modal" data-ai-label={title} data-ai-private>
         <div className="mk-act__head">
           {target.workId ? <span className="wid">{target.workId}</span> : null}
           <b>{target.serviceTitle}</b>

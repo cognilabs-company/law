@@ -5,6 +5,8 @@ import { useTranslations, useLocale } from "next-intl";
 import { getPaymentReceipt, listPayments } from "@/lib/services/backend";
 import { saveBlob } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
+import { aiId } from "@/lib/ai/ids";
+import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { fmtUzs } from "@/lib/money";
 import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
@@ -37,6 +39,9 @@ export default function ClientPayments() {
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  useAiField("payments.search.input", { get: () => q, set: setQ });
+  useAiSelection("payments_date_from", from);
+  useAiSelection("payments_date_to", to);
   const rows = res.data.filter((p) => {
     const day = (p.createdAt || "").slice(0, 10);
     if (from && day && day < from) return false;
@@ -61,14 +66,29 @@ export default function ClientPayments() {
   }
 
   return (
-    <div className="ppanel" data-ai-target={res.status !== "loading" && rows.length ? undefined : "payments:history"}>
+    <div
+      className="ppanel"
+      data-ai-target={res.status !== "loading" && rows.length ? undefined : "payments:history"}
+      data-ai-id="payments.history"
+      data-ai-type="section"
+      data-ai-label={t("title")}
+    >
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="advmuted">{t("history")}</span>
       </div>
 
-      <div className="lfilters" data-ai-target="payments:filters" data-ai-label={t("searchPh")}>
-        <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>
+      <div className="lfilters" data-ai-target="payments:filters" data-ai-id="payments.filters" data-ai-type="section" data-ai-label={t("searchPh")}>
+        <div className="lsearch">
+          <IconSearch />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("searchPh")}
+            aria-label={t("searchPh")}
+            data-ai-id="payments.search.input"
+          />
+        </div>
         <DatePicker value={from} onChange={setFrom} max={to || undefined} placeholder={t("from")} ariaLabel={t("from")} />
         <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={t("to")} ariaLabel={t("to")} />
       </div>
@@ -79,7 +99,7 @@ export default function ClientPayments() {
       ) : !rows.length ? (
         <EmptyState icon={<IconSearch />} title={t("noResults")} text={t("noResultsText")} />
       ) : (
-        <div className="ptable__wrap" data-ai-target="payments:history">
+        <div className="ptable__wrap" data-ai-target="payments:history" data-ai-id="payments.history.table" data-ai-type="table">
           <div className="ptable">
             <div className="ptable__head">
               <span>{t("what")}</span>
@@ -88,7 +108,14 @@ export default function ClientPayments() {
               <span>{t("statusCol")}</span>
             </div>
             {rows.map((p) => (
-              <div className="ptable__row" key={p.id}>
+              <div
+                className="ptable__row"
+                key={p.id}
+                data-ai-id={aiId("payments.item", p.id)}
+                data-ai-type="list_item"
+                data-ai-entity-type="payment"
+                data-ai-entity-id={p.id}
+              >
                 <span data-l={t("what")}>
                   <b>{whatOf(p.description, p.kind)}</b>
                   {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: PAY-K1OWV, the id a
@@ -108,6 +135,7 @@ export default function ClientPayments() {
                       disabled={busyId === p.id}
                       aria-label={t("receipt")}
                       title={failedId === p.id ? t("receiptError") : t("receipt")}
+                      data-ai-id={aiId("payments.item", p.id, "receipt")}
                     >
                       <IconDownload style={{ width: 14, height: 14 }} />
                     </button>

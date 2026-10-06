@@ -219,7 +219,7 @@ export default function MkmOrderModal({
   return (
     <Modal open={!!order} onClose={onClose} title={o ? t("title", { id: o.workId || "—" }) : ""} wide>
       {o ? (
-        <div className="mkm-det">
+        <div className="mkm-det" data-ai-id="admin.marketplace.order-modal" data-ai-type="modal" data-ai-label={o.workId || o.serviceTitle || "—"} data-ai-private>
           <div className="mkm-ticket">
             <div className="mkm-ticket__badges">
               <StatusBadge status={o.status} />

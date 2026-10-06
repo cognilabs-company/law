@@ -15,6 +15,8 @@ import { AdminForm, AdminItem, Notice, useReload, type Field } from "@/component
 import Modal from "@/components/admin/Modal";
 import TemplateImport from "@/components/admin/TemplateImport";
 import { IconDocLines, IconPlus, IconSearch, IconEdit, IconTrash, IconUpload } from "@/components/icons";
+import { aiId } from "@/lib/ai/ids";
+import { useAiField, useAiModal } from "@/lib/ai/registry";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "—");
 const num = (v: string | boolean) => parseInt(String(v || "0"), 10) || 0;
@@ -78,6 +80,8 @@ export default function AdminTemplates() {
       return terms.every((w) => hay.includes(w));
     });
   }, [q, tpls.data]);
+  useAiField("admin.templates.search.input", { get: () => q, set: setQ });
+  useAiModal("admin.templates.create-modal", () => setOpen(true));
 
   async function confirmDelete() {
     if (!del || delBusy) return;
@@ -101,11 +105,11 @@ export default function AdminTemplates() {
         <b>{t("templates.listTitle")}</b>
         <span className="ahdr">
           <span className="advmuted">{tpls.data.length}</span>
-          <button className="btn btn--soft btn--sm" type="button" onClick={() => setImportOpen(true)} data-ai-target="button:import-templates">
+          <button className="btn btn--soft btn--sm" type="button" onClick={() => setImportOpen(true)} data-ai-target="button:import-templates" data-ai-id="admin.templates.import">
             <IconUpload />
             {t("templates.import.cta")}
           </button>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-template">
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-template" data-ai-id="admin.templates.create">
             <IconPlus />
             {t("form.add")}
           </button>
@@ -114,7 +118,7 @@ export default function AdminTemplates() {
 
       <div className="lsp__search" style={{ marginBottom: 14 }} data-ai-target="templates:search">
         <IconSearch />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("templates.searchPh")} aria-label={t("templates.search")} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("templates.searchPh")} aria-label={t("templates.search")} data-ai-id="admin.templates.search.input" />
       </div>
 
       {tpls.status === "loading" ? (
@@ -124,26 +128,35 @@ export default function AdminTemplates() {
       ) : !list.length ? (
         <EmptyState icon={<IconSearch />} title={t("templates.noResults")} />
       ) : (
-        <div className="alist" data-ai-target="templates:list">
+        <div className="alist" data-ai-target="templates:list" data-ai-id="admin.templates.list" data-ai-type="list" data-ai-label={t("templates.listTitle")}>
           {list.map((d, i) => (
-            <AdminItem
+            <div
               key={d.id}
-              index={i + 1}
-              title={d.name}
-              meta={[d.category, d.language, d.slug].filter(Boolean).join(" · ")}
-              right={d.price ? som(d.price) : undefined}
-              tags={[{ label: d.isActive ? t("form.active") : t("form.inactive"), tone: d.isActive ? "ok" : "muted" }]}
-              actions={
-                <>
-                  <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => openEdit(d)}>
-                    <IconEdit />
-                  </button>
-                  <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => { setDelNote(null); setDel(d); }}>
-                    <IconTrash />
-                  </button>
-                </>
-              }
-            />
+              data-ai-id={d.id ? aiId("admin.templates.item", d.id) : undefined}
+              data-ai-type="list_item"
+              data-ai-entity-type="document_template"
+              data-ai-entity-id={d.id || undefined}
+              data-ai-entity-slug={d.slug || undefined}
+              data-ai-label={d.name || d.slug}
+            >
+              <AdminItem
+                index={i + 1}
+                title={d.name}
+                meta={[d.category, d.language, d.slug].filter(Boolean).join(" · ")}
+                right={d.price ? som(d.price) : undefined}
+                tags={[{ label: d.isActive ? t("form.active") : t("form.inactive"), tone: d.isActive ? "ok" : "muted" }]}
+                actions={
+                  <>
+                    <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => openEdit(d)} data-ai-id={d.id ? aiId("admin.templates.item", d.id, "edit") : undefined}>
+                      <IconEdit />
+                    </button>
+                    <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => { setDelNote(null); setDel(d); }}>
+                      <IconTrash />
+                    </button>
+                  </>
+                }
+              />
+            </div>
           ))}
         </div>
       )}
@@ -152,52 +165,11 @@ export default function AdminTemplates() {
 
       {/* Create */}
       <Modal open={open} onClose={() => setOpen(false)} title={t("templates.create")}>
-        <AdminForm
-          fields={fields}
-          onSubmit={async (v) =>
-            void (await createDocumentTemplate({
-              slug: String(v.slug),
-              title: String(v.title),
-              category: String(v.category),
-              language: String(v.language),
-              description: String(v.description),
-              template_text: String(v.template_text),
-              price: num(v.price),
-              is_active: v.is_active as boolean,
-            }))
-          }
-          submitLabel={t("form.save")}
-          busyLabel={t("form.saving")}
-          okMsg={t("form.created")}
-          errMsg={t("form.error")}
-          onDone={() => {
-            reload();
-            setOpen(false);
-          }}
-        />
-      </Modal>
-
-      {/* Edit (full, incl. body) */}
-      <Modal open={edit !== null} onClose={() => setEdit(null)} title={t("templates.editTitle")}>
-        {!editFull ? (
-          <Skeleton rows={4} />
-        ) : (
+        <div data-ai-id="admin.templates.create-modal" data-ai-type="modal" data-ai-label={t("templates.create")}>
           <AdminForm
-            key={editFull.id}
             fields={fields}
-            initialValues={{
-              title: editFull.name,
-              slug: editFull.slug,
-              category: editFull.category,
-              language: editFull.language,
-              description: editFull.description,
-              template_text: editFull.templateText,
-              price: editFull.price ? String(Math.round(editFull.price)) : "",
-              is_active: editFull.isActive,
-            }}
-            resetOnDone={false}
             onSubmit={async (v) =>
-              void (await updateDocumentTemplate(editFull.id, {
+              void (await createDocumentTemplate({
                 slug: String(v.slug),
                 title: String(v.title),
                 category: String(v.category),
@@ -208,22 +180,67 @@ export default function AdminTemplates() {
                 is_active: v.is_active as boolean,
               }))
             }
-            submitLabel={t("form.update")}
+            submitLabel={t("form.save")}
             busyLabel={t("form.saving")}
-            okMsg={t("form.updated")}
-            errMsg={t("form.updateError")}
+            okMsg={t("form.created")}
+            errMsg={t("form.error")}
             onDone={() => {
               reload();
-              setEdit(null);
+              setOpen(false);
             }}
           />
+        </div>
+      </Modal>
+
+      {/* Edit (full, incl. body) */}
+      <Modal open={edit !== null} onClose={() => setEdit(null)} title={t("templates.editTitle")}>
+        {!editFull ? (
+          <Skeleton rows={4} />
+        ) : (
+          <div data-ai-id="admin.templates.edit-modal" data-ai-type="modal" data-ai-label={t("templates.editTitle")}>
+            <AdminForm
+              key={editFull.id}
+              fields={fields}
+              initialValues={{
+                title: editFull.name,
+                slug: editFull.slug,
+                category: editFull.category,
+                language: editFull.language,
+                description: editFull.description,
+                template_text: editFull.templateText,
+                price: editFull.price ? String(Math.round(editFull.price)) : "",
+                is_active: editFull.isActive,
+              }}
+              resetOnDone={false}
+              onSubmit={async (v) =>
+                void (await updateDocumentTemplate(editFull.id, {
+                  slug: String(v.slug),
+                  title: String(v.title),
+                  category: String(v.category),
+                  language: String(v.language),
+                  description: String(v.description),
+                  template_text: String(v.template_text),
+                  price: num(v.price),
+                  is_active: v.is_active as boolean,
+                }))
+              }
+              submitLabel={t("form.update")}
+              busyLabel={t("form.saving")}
+              okMsg={t("form.updated")}
+              errMsg={t("form.updateError")}
+              onDone={() => {
+                reload();
+                setEdit(null);
+              }}
+            />
+          </div>
         )}
       </Modal>
 
       {/* Delete confirm */}
       <Modal open={del !== null} onClose={() => setDel(null)} title={t("form.deleteConfirm")}>
         {del ? (
-          <div className="cform" style={{ maxWidth: "none" }}>
+          <div className="cform" style={{ maxWidth: "none" }} data-ai-id="admin.templates.delete-modal" data-ai-type="modal" data-ai-label={t("form.deleteConfirm")}>
             <p style={{ margin: 0 }}>
               <b>{del.name}</b>
             </p>

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import DocTypePicker from "@/components/portal/DocTypePicker";
+import { aiId } from "@/lib/ai/ids";
+import { useAiField } from "@/lib/ai/registry";
 import { searchServices, type BackendService } from "@/lib/services/backend";
 import { ASSIST_DOC_LANGUAGES, createAssistDocumentRequest, type AssistDocLanguage, type AssistDocResult } from "@/lib/services/supportAssist";
 import { IconDocLines, IconEdit, IconSearch } from "@/components/icons";
@@ -64,6 +66,24 @@ export default function AssistDoc({ ticketId, client, clientName, onDone, onBloc
 
   const service = base?.kind === "service" ? base.service : null;
   const flow = service?.documentTemplateId ? "template_lawyer_assisted" : "custom_from_scratch";
+  const ai = (...parts: string[]) => aiId("call_center.support.ticket", ticketId, "assist", "document", ...parts);
+
+  useAiField(ai("search"), {
+    get: () => (base ? "" : q),
+    set: (value) => setQ(value.slice(0, 120)),
+    fillable: true,
+    disabled: Boolean(base) || busy,
+  });
+  useAiField(ai("need"), {
+    get: () => need,
+    set: (value) => {
+      setNeed(value.slice(0, NEED_MAX));
+      setErr("");
+    },
+    sensitive: true,
+    fillable: true,
+    disabled: busy,
+  });
 
   function pickService(s: BackendService) {
     setBase({ kind: "service", service: s });
@@ -188,7 +208,7 @@ export default function AssistDoc({ ticketId, client, clientName, onDone, onBloc
           <>
             <label className="sasst__search">
               <IconSearch aria-hidden="true" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("doc.searchPh")} aria-label={t("doc.searchPh")} maxLength={120} />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("doc.searchPh")} aria-label={t("doc.searchPh")} maxLength={120} data-ai-id={ai("search")} />
             </label>
             <ul className="sasst__pick" aria-label={t("doc.base")}>
               <li>
@@ -227,12 +247,12 @@ export default function AssistDoc({ ticketId, client, clientName, onDone, onBloc
         )}
       </div>
 
-      <label className="sasst__f">
+      <label className="sasst__f" data-ai-private>
         <span className="sasst__lbl">{t("doc.title")}</span>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("doc.titlePh")} maxLength={TITLE_MAX} />
       </label>
 
-      <label className="sasst__f">
+      <label className="sasst__f" data-ai-private>
         <span className="sasst__lbl">{t("doc.need")}</span>
         <textarea
           value={need}
@@ -243,6 +263,8 @@ export default function AssistDoc({ ticketId, client, clientName, onDone, onBloc
           placeholder={t("doc.needPh")}
           maxLength={NEED_MAX}
           rows={4}
+          data-ai-id={ai("need")}
+          data-ai-label={t("doc.need")}
         />
         <em>
           {need.length}/{NEED_MAX}
@@ -270,7 +292,7 @@ export default function AssistDoc({ ticketId, client, clientName, onDone, onBloc
         </p>
       ) : null}
       <div className="sasst__acts">
-        <button type="button" className="btn btn--grad btn--sm" onClick={review} disabled={busy}>
+        <button type="button" className="btn btn--grad btn--sm" onClick={review} disabled={busy} data-ai-id={ai("next")}>
           {t("doc.next")}
         </button>
       </div>
@@ -284,6 +306,7 @@ export default function AssistDoc({ ticketId, client, clientName, onDone, onBloc
         error={confirmErr}
         onCancel={() => setConfirming(false)}
         onConfirm={() => void submit()}
+        aiId={ai("confirm-modal")}
       />
     </div>
   );

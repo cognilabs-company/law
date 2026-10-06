@@ -56,10 +56,10 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
   const [taskTab, setTaskTab] = useState<"today" | "upcoming" | "done">("today");
   const base = `/portal/${role}`;
   const QUICK = [
-    { key: "quickClient", Icon: IconUserPlus, href: `${base}/clients` },
-    { key: "quickCase", Icon: IconFolderPlus, href: `${base}/cases` },
-    { key: "quickDoc", Icon: IconUpload, href: `${base}/files` },
-    { key: "quickMeeting", Icon: IconCalendar, href: `${base}/calendar` },
+    { key: "quickClient", ai: "clients", Icon: IconUserPlus, href: `${base}/clients` },
+    { key: "quickCase", ai: "cases", Icon: IconFolderPlus, href: `${base}/cases` },
+    { key: "quickDoc", ai: "files", Icon: IconUpload, href: `${base}/files` },
+    { key: "quickMeeting", ai: "calendar", Icon: IconCalendar, href: `${base}/calendar` },
   ];
 
   const today = new Date().toISOString().slice(0, 10);
@@ -102,7 +102,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
 
   return (
     <>
-      <div className="dhero">
+      <div className="dhero" data-ai-id="advocate.dashboard" data-ai-type="section" data-ai-label={t("kicker")}>
         <div className="dhero__main">
           <span className="dhero__k">{t("kicker")}</span>
           <h2 className="psec-h" style={{ color: "#fff" }}>{t("heroTitle")}</h2>
@@ -113,7 +113,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
             <Image src="/img/law-banner.png" alt="" fill sizes="(max-width: 980px) 60vw, 280px" style={{ objectFit: "contain" }} />
           </div>
         </div>
-        <div className="dhero__greet">
+        <div className="dhero__greet" data-ai-private>
           <span className="dhero__date">{new Date().toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}</span>
           <b>{t("hi", { name: session?.name ?? "" })}</b>
           <p>{t("greetSub", { meetings: num(workload, "courts_today"), tasks: taskGroups.today.length })}</p>
@@ -121,7 +121,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
       </div>
 
       {cabinet.status === "loading" ? null : (
-        <div className="amet" data-ai-target="seller-dashboard:stats">
+        <div className="amet" data-ai-target="seller-dashboard:stats" data-ai-id="advocate.dashboard.stats">
           <Link href={`${base}/clients`} className="amet__c stile stile--btn">
             <span className="amet__i"><IconUsers /></span>
             <b>{clientsCount}</b>
@@ -146,7 +146,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
       )}
 
       <div className="dgrid2">
-        <div className="ppanel pcompl" data-ai-target="seller-dashboard:completeness" data-ai-label={t("completeness")}>
+        <div className="ppanel pcompl" data-ai-target="seller-dashboard:completeness" data-ai-label={t("completeness")} data-ai-id="advocate.dashboard.completeness">
           <div className="ring" style={{ "--v": `${completeness}%` } as CSSProperties}>
             <b>{completeness}%</b>
           </div>
@@ -168,13 +168,13 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
           </div>
         </div>
 
-        <div className="ppanel" data-ai-target="seller-dashboard:quick-actions">
+        <div className="ppanel" data-ai-target="seller-dashboard:quick-actions" data-ai-id="advocate.dashboard.quick-actions">
           <div className="ppanel__h">
             <b>{t("quickActions")}</b>
           </div>
           <div className="qact">
             {QUICK.map((q) => (
-              <Link key={q.key} href={q.href} className="qact__i">
+              <Link key={q.key} href={q.href} className="qact__i" data-ai-id={`advocate.dashboard.quick-actions.${q.ai}`}>
                 <span className="qact__ico"><q.Icon /></span>
                 {t(q.key)}
               </Link>
@@ -184,13 +184,13 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
       </div>
 
       <div className="dgrid3">
-        <div className="ppanel" data-ai-target="seller-dashboard:tasks">
+        <div className="ppanel" data-ai-target="seller-dashboard:tasks" data-ai-id="advocate.dashboard.tasks" data-ai-label={t("myTasks")}>
           <div className="ppanel__h">
             <b>{t("myTasks")}</b>
           </div>
           <div className="dtabs" role="tablist">
             {(["today", "upcoming", "done"] as const).map((k) => (
-              <button key={k} type="button" role="tab" aria-selected={taskTab === k} onClick={() => setTaskTab(k)}>
+              <button key={k} type="button" role="tab" aria-selected={taskTab === k} onClick={() => setTaskTab(k)} data-ai-id={`advocate.dashboard.tasks.tab.${k}`}>
                 {t(`tab_${k}`, { n: taskGroups[k].length })}
               </button>
             ))}
@@ -198,7 +198,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
           {!shownTasks.length ? (
             <p className="advmuted" style={{ marginTop: 14 }}>{t("tasksEmpty")}</p>
           ) : (
-            <div style={{ marginTop: 6 }}>
+            <div style={{ marginTop: 6 }} data-ai-private>
               {shownTasks.map((c) => (
                 <div className="dtask" key={c.id}>
                   <span className={`dtask__dot${c.isDone ? " dtask__dot--done" : ""}`} />
@@ -219,7 +219,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
           )}
         </div>
 
-        <div className="ppanel" data-ai-target="seller-dashboard:calendar">
+        <div className="ppanel" data-ai-target="seller-dashboard:calendar" data-ai-id="advocate.dashboard.calendar" data-ai-label={t("calendar")}>
           <div className="ppanel__h">
             <b>{t("calendar")}</b>
           </div>
@@ -227,14 +227,14 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
         </div>
 
         <div className="dgrid3__col">
-          <div className="ppanel" data-ai-target="seller-dashboard:activity">
+          <div className="ppanel" data-ai-target="seller-dashboard:activity" data-ai-id="advocate.dashboard.activity" data-ai-label={t("recentActivity")}>
             <div className="ppanel__h">
               <b>{t("recentActivity")}</b>
             </div>
             {!notifications.length ? (
               <p className="advmuted">{t("activityEmpty")}</p>
             ) : (
-              <div className="dactivity">
+              <div className="dactivity" data-ai-private>
                 {notifications.slice(0, 5).map((n) => (
                   <div className="dactivity__row" key={n.id}>
                     <span className="dactivity__ico"><IconBell /></span>
@@ -248,7 +248,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
             )}
           </div>
 
-          <div className="aicard" data-ai-target="seller-dashboard:ai" data-ai-label={t("aiTitle")}>
+          <div className="aicard" data-ai-target="seller-dashboard:ai" data-ai-label={t("aiTitle")} data-ai-id="advocate.dashboard.ai-assistant">
             <div className="aicard__h">
               <IconSparkle />
               {t("aiTitle")}
@@ -264,7 +264,7 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
       </div>
 
       {role === "advocate" ? (
-        <div className="ppanel" data-ai-target="seller-dashboard:promotion">
+        <div className="ppanel" data-ai-target="seller-dashboard:promotion" data-ai-id="advocate.dashboard.promotion" data-ai-label={t("boostTitle")}>
           <div className="ppanel__h">
             <b>{t("boostTitle")}</b>
           </div>

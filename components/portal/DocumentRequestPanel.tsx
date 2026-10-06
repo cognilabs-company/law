@@ -36,6 +36,7 @@ import { fmtUzs } from "@/lib/money";
 import { Notice } from "@/components/admin/AdminBits";
 import { Link, useRouter } from "@/i18n/navigation";
 import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset, IconCard, IconAlert, IconEdit } from "@/components/icons";
+import { useAiField } from "@/lib/ai/registry";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
@@ -675,6 +676,14 @@ export default function DocumentRequestPanel({
   // stage left to render once the request is gone or off-limits.
   const shown: Stage | "" = fatal ? "" : stage;
 
+  const reviewFormShown = shown === "done" && reviewOpen && !reviewSent && !reviewRefused;
+  useAiField(reviewFormShown ? "documents.constructor.result.review-need" : "", {
+    get: () => reviewNeed,
+    set: setReviewNeed,
+    sensitive: true,
+    fillable: true,
+  });
+
   // A one-shot, and it has to be an effect: the decision reads localStorage
   // and writes it, which is a side effect and must not happen during render —
   // and the ref-during-render alternative trips react-hooks/refs. The rule is
@@ -721,7 +730,7 @@ export default function DocumentRequestPanel({
           <p className="advmuted">{t("payLead")}</p>
           <p className="dwiz__policy">{t("downloadPolicy", { n: monthDownloads, limit: 3 })}</p>
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-          <button className="btn btn--grad btn--full btn--lg" type="button" onClick={pay} disabled={busy} data-ai-target="button:document-pay">
+          <button className="btn btn--grad btn--full btn--lg" type="button" onClick={pay} disabled={busy} data-ai-target="button:document-pay" data-ai-id="documents.constructor.pay">
             {busy ? t("processingShort") : t("pay")}
           </button>
           <button className="rf__link rf__link--muted" type="button" onClick={refresh} disabled={busy}>
@@ -745,7 +754,7 @@ export default function DocumentRequestPanel({
           sub-line and the badge already state, hence aria-hidden on them and
           role="status" on the block that carries the words. */}
       {shown === "generating" ? (
-        <div className="docpend" role="status">
+        <div className="docpend" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
           <span className="docfly" aria-hidden="true">
             <i className="docfly__s" />
             <i className="docfly__s" />
@@ -767,7 +776,7 @@ export default function DocumentRequestPanel({
           produced" stream would be a lie here, so this and the two waits below
           keep the quiet pulsing dot they already had. */}
       {shown === "lawyerReview" ? (
-        <div className="docpend" role="status">
+        <div className="docpend" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
           <span className="docpend__ic docpend__ic--lawyer"><IconHeadset /></span>
           <b>{t("lawyerReviewTitle")}</b>
           <span className="docpend__sub">{t("lawyerReviewSub")}</span>
@@ -801,7 +810,7 @@ export default function DocumentRequestPanel({
           now get a meeting invite from them, so this screen says so rather
           than repeating "waiting for someone to pick it up". */}
       {shown === "claimed" ? (
-        <div className="docpend" role="status">
+        <div className="docpend" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
           <span className="docpend__ic docpend__ic--lawyer"><IconHeadset /></span>
           <b>{t("claimedTitle")}</b>
           <span className="docpend__sub">{t("claimedSub")}</span>
@@ -838,7 +847,7 @@ export default function DocumentRequestPanel({
           amount, and the page breakdown that explains where the amount came
           from — and hence no "advokatlarga yuborildi" anywhere on it. */}
       {shown === "payGate" ? (
-        <div className="docpend pgate" role="status">
+        <div className="docpend pgate" role="status" data-ai-id="documents.constructor.payment-gate" data-ai-type="payment_gate">
           <span className="docpend__ic docpend__ic--pay"><IconCard /></span>
           <b>{t("gateTitle")}</b>
           <span className="docpend__sub">{t("gateSub")}</span>
@@ -864,7 +873,7 @@ export default function DocumentRequestPanel({
           this card has no pulse and no poll — only the fact and the way
           back. */}
       {shown === "payCancelled" ? (
-        <div className="docpend pgate pgate--off">
+        <div className="docpend pgate pgate--off" data-ai-id="documents.constructor.status" data-ai-type="section">
           <span className="docpend__ic docpend__ic--off"><IconAlert /></span>
           <b>{t("cancelledTitle")}</b>
           <span className="docpend__sub">{t("cancelledSub")}</span>
@@ -883,7 +892,7 @@ export default function DocumentRequestPanel({
       ) : null}
 
       {shown === "pending" ? (
-        <div className="docpend" role="status">
+        <div className="docpend" role="status" data-ai-id="documents.constructor.status" data-ai-type="section">
           <span className="docpend__ic"><IconClock /></span>
           <b>{t("pendingTitle")}</b>
           <span className="docpend__sub">{t("pendingSub")}</span>
@@ -899,7 +908,7 @@ export default function DocumentRequestPanel({
       ) : null}
 
       {shown === "done" ? (
-        <div className="docdone" data-ai-target="documents:result">
+        <div className="docdone" data-ai-target="documents:result" data-ai-id="documents.constructor.result" data-ai-type="section" data-ai-entity-type="document_request" data-ai-entity-id={req.id}>
           {/* Reopening a request created before this template had any fields
               (or simply never filled in) shows the same blank contractFile it
               generated back then — nothing here re-checks that against the
@@ -920,11 +929,11 @@ export default function DocumentRequestPanel({
           <b>{t("ready")}</b>
           <span className="docdone__f">{req.contractFile?.fileName || t("fileGeneric")}</span>
           <div className="docdone__act">
-            <button className="btn btn--pri" type="button" onClick={() => getFile(false)} disabled={pdfBusy}>
+            <button className="btn btn--pri" type="button" onClick={() => getFile(false)} disabled={pdfBusy} data-ai-id="documents.constructor.result.open">
               <IconExternal />
               {t("open")}
             </button>
-            <button className="btn btn--line" type="button" onClick={() => getFile(true)} disabled={pdfBusy}>
+            <button className="btn btn--line" type="button" onClick={() => getFile(true)} disabled={pdfBusy} data-ai-id="documents.constructor.result.download">
               <IconDownload />
               {pdfBusy ? t("fileLoading") : t("download")}
             </button>
@@ -955,7 +964,7 @@ export default function DocumentRequestPanel({
           ) : reviewSent ? (
             <Notice ok msg={t("reviewSent")} />
           ) : reviewOpen ? (
-            <div className="docreview">
+            <div className="docreview" data-ai-private>
               {/* GM 2026-09-29: "agar Hujjat turi mavjud bo'lsa, u hujjat
                   turi 1-chida turishi shart." Which kind of document this is
                   comes before what to look at inside it — it is also the
@@ -971,9 +980,18 @@ export default function DocumentRequestPanel({
                   plus the one gap, with nothing left behind. */}
               <DocTypePicker flow="constructor_review" value={reviewType} onChange={setReviewType} />
               <label htmlFor="doc-review-need">{t("reviewNeedLabel")}</label>
-              <textarea id="doc-review-need" rows={2} value={reviewNeed} onChange={(e) => setReviewNeed(e.target.value)} placeholder={t("reviewNeedDefault")} />
+              <textarea
+                id="doc-review-need"
+                rows={2}
+                value={reviewNeed}
+                onChange={(e) => setReviewNeed(e.target.value)}
+                placeholder={t("reviewNeedDefault")}
+                data-ai-id="documents.constructor.result.review-need"
+                data-ai-label={t("reviewNeedLabel")}
+                data-ai-private
+              />
               <div className="docreview__btns">
-                <button className="btn btn--grad btn--sm" type="button" onClick={sendToLawyerReview} disabled={reviewBusy}>
+                <button className="btn btn--grad btn--sm" type="button" onClick={sendToLawyerReview} disabled={reviewBusy} data-ai-id="documents.constructor.result.review-submit" data-ai-label={t("reviewSubmit")}>
                   {reviewBusy ? t("processingShort") : t("reviewSubmit")}
                 </button>
                 <button className="rf__link rf__link--muted" type="button" onClick={() => setReviewOpen(false)} disabled={reviewBusy}>
@@ -983,7 +1001,7 @@ export default function DocumentRequestPanel({
             </div>
           ) : (
             <>
-              <button className="btn btn--line btn--sm" type="button" onClick={() => setReviewOpen(true)} disabled={!!lawyerHeldNote} title={lawyerHeldNote || undefined}>
+              <button className="btn btn--line btn--sm" type="button" onClick={() => setReviewOpen(true)} disabled={!!lawyerHeldNote} title={lawyerHeldNote || undefined} data-ai-id="documents.constructor.result.review">
                 <IconHeadset />
                 {t("reviewOpen")}
               </button>
@@ -1023,7 +1041,15 @@ export default function DocumentRequestPanel({
           for the advocate, and the wait card keeps the way in if they change
           their mind. */}
       <Modal open={askCtor} onClose={() => setAskCtor(false)} title={req.constructorAction?.title || t("ctorAskTitle")}>
-        <div className="cform" style={{ maxWidth: "none" }}>
+        <div
+          className="cform"
+          style={{ maxWidth: "none" }}
+          data-ai-id="documents.constructor.continue-prompt"
+          data-ai-type="modal"
+          data-ai-label={req.constructorAction?.title || t("ctorAskTitle")}
+          data-ai-entity-type="document_request"
+          data-ai-entity-id={req.id}
+        >
           <p className="dexit__lead">
             <span className="dexit__i"><IconHeadset /></span>
             {req.constructorAction?.message || t("ctorAskLead")}

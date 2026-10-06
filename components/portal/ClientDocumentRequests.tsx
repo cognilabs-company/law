@@ -27,6 +27,9 @@ import { shortDateTime } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
 import { Link, useRouter } from "@/i18n/navigation";
 import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight, IconTag, IconCheck, IconSearch } from "@/components/icons";
+import { useAiReveal } from "@/lib/guide/targets";
+import { aiId, aiSeg } from "@/lib/ai/ids";
+import { useAiField, useAiSelection } from "@/lib/ai/registry";
 
 // Which way this document is being produced — the client filled it in, the
 // AI drafted it, or an advocate is writing it. It changes what the card
@@ -308,6 +311,28 @@ export default function ClientDocumentRequests() {
   const promptRow = rows.find((r) => r.id === promptId) ?? null;
   const sendRow = rows.find((r) => r.id === sendId) ?? null;
 
+  useAiField("documents.my.search.input", { get: () => q, set: setQ });
+  useAiField(seen.length > 1 ? "documents.my.filters.status" : "", {
+    get: () => pick,
+    set: (v) => {
+      if (!v || seen.includes(v)) setPick(v);
+    },
+  });
+  useAiField(sendRow ? "documents.my.review.need" : "", { get: () => sendNeed, set: setSendNeed, sensitive: true, fillable: true });
+  useAiSelection("my_documents_tab", tab);
+  useAiReveal("documents.my.list", () => setQ(""));
+  useAiReveal(/^documents\.my\.item\./, (id) => {
+    const rid = id.slice("documents.my.item.".length).split(".")[0] ?? "";
+    setQ("");
+    if (!rid || rows.some((r) => aiSeg(r.id) === rid)) return;
+    if (tab !== "all" || pick) {
+      setTab("all");
+      setPick("");
+      return;
+    }
+    if (more) void loadMore();
+  });
+
   async function download(item: ClientDocFlowItem) {
     if (!item.file.ready || dlBusy) return;
     setDlBusy(item.id);
@@ -318,7 +343,7 @@ export default function ClientDocumentRequests() {
   }
 
   return (
-    <div className="ppanel" data-ai-target="documents:my-documents">
+    <div className="ppanel" data-ai-target="documents:my-documents" data-ai-id="documents.my.page" data-ai-type="section" data-ai-label={t("title")}>
       <div className="ppanel__h">
         <div className="mydocs__ttl">
           <b>{t("title")}</b>
@@ -333,7 +358,7 @@ export default function ClientDocumentRequests() {
           screen), so this screen gains the summary without inventing a
           second visual language for it. */}
       {stats ? (
-        <div className="pk mydocs__stats" data-ai-target="documents:my-stats">
+        <div className="pk mydocs__stats" data-ai-target="documents:my-stats" data-ai-id="documents.my.stats" data-ai-type="section">
           <div className="pk__i pk__i--ic pk__i--neutral">
             <span className="pk__ico"><IconFileText /></span>
             <b>{stats.total}</b>
@@ -357,10 +382,10 @@ export default function ClientDocumentRequests() {
         </div>
       ) : null}
 
-      <div className="cwork__bar mydocs__bar" data-ai-target="documents:my-filters">
+      <div className="cwork__bar mydocs__bar" data-ai-target="documents:my-filters" data-ai-id="documents.my.filters" data-ai-type="section">
         <div className="chiprow chiprow--tabs">
           {TABS.map((tb) => (
-            <button key={tb} type="button" className="fchip" aria-pressed={tab === tb} onClick={() => setTab(tb)}>
+            <button key={tb} type="button" className="fchip" aria-pressed={tab === tb} onClick={() => setTab(tb)} data-ai-id={aiId("documents.my.tab", tb)} data-ai-type="tab">
               {t(`tab_${tb}`)}
             </button>
           ))}
@@ -371,7 +396,7 @@ export default function ClientDocumentRequests() {
             list when a search comes up empty and there are still pages left. */}
         <div className="lsearch mydocs__srch">
           <IconSearch />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} data-ai-id="documents.my.search.input" />
         </div>
         {/* How the document was made is a tab; where it has got to is a
             select. Only statuses this client's own documents have actually
@@ -379,7 +404,7 @@ export default function ClientDocumentRequests() {
             would filter to nothing here. Same control, same place, as
             "Mening ishlarim". */}
         {seen.length > 1 ? (
-          <label className="cwork__filt">
+          <label className="cwork__filt" data-ai-id="documents.my.filters.status" data-ai-type="select">
             <span>{tcm("filterStatus")}</span>
             <Select
               value={pick}
@@ -409,7 +434,7 @@ export default function ClientDocumentRequests() {
           <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
         )
       ) : (
-        <div className="mydocs">
+        <div className="mydocs" data-ai-id="documents.my.list" data-ai-type="list">
           {shown.map((item) => {
             const ModeIcon = MODE_ICON[item.mode as keyof typeof MODE_ICON] ?? IconFileText;
             const room = item.secureChatRoomId || rooms[item.id];
@@ -438,8 +463,20 @@ export default function ClientDocumentRequests() {
             const acts = !!room || ready || canContinue || canSend;
             // The work id the client and the advocate quote at each other.
             const workId = item.workId || info?.workId || "";
+            const itemAi = aiId("documents.my.item", item.id);
+            const modeText = t.has(`tab_${item.mode}`) ? t(`tab_${item.mode}`) : item.mode;
+            const statusText = statusLabel(tcm, item.status, "docStatus") || item.statusLabel;
             return (
-              <article className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}${tone === "closed" ? " mydoc--closed" : ""}${promptId === item.id ? " mydoc--flag" : ""}`} key={item.id}>
+              <article
+                className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}${tone === "closed" ? " mydoc--closed" : ""}${promptId === item.id ? " mydoc--flag" : ""}`}
+                key={item.id}
+                data-ai-id={itemAi}
+                data-ai-type="list_item"
+                data-ai-label={[modeText, statusText].filter(Boolean).join(" · ")}
+                data-ai-entity-type="document_request"
+                data-ai-entity-id={item.id}
+                data-ai-private
+              >
                 <span className={`mydoc__i mydoc__i--${item.mode}`} aria-hidden><ModeIcon /></span>
                 {/* One column of content, not two: the status pill used to sit
                     in a flex row of its own while the buttons occupied a third
@@ -457,13 +494,13 @@ export default function ClientDocumentRequests() {
                     <span className="mydoc__corner">
                       {info?.rating.submitted && info.rating.value ? <DocRatedStars value={info.rating.value} /> : null}
                       <em className={`mydoc__st mydoc__st--${tone}`}>
-                        {statusLabel(tcm, item.status, "docStatus") || item.statusLabel}
+                        {statusText}
                       </em>
                     </span>
                   </div>
                   <div className="mydoc__row">
                     {workId ? <small className="mydoc__wid" title={t("workId")}>{workId}</small> : null}
-                    <small className="mydoc__mode"><ModeIcon />{t.has(`tab_${item.mode}`) ? t(`tab_${item.mode}`) : item.mode}</small>
+                    <small className="mydoc__mode"><ModeIcon />{modeText}</small>
                     {/* The kind of document asked for, when one was given. */}
                     {item.requestedDocumentType ? (
                       <small className="mydoc__kind"><IconTag />{item.requestedDocumentType}</small>
@@ -492,7 +529,7 @@ export default function ClientDocumentRequests() {
                   {acts ? (
                     <div className="mydoc__acts">
                       {room ? (
-                        <Link href={`/portal/chat/${room}`} className="btn btn--line btn--sm">
+                        <Link href={`/portal/chat/${room}`} className="btn btn--line btn--sm" data-ai-id={aiId(itemAi, "chat")} data-ai-label={t("openChat")}>
                           <IconChat />
                           {t("openChat")}
                         </Link>
@@ -503,6 +540,8 @@ export default function ClientDocumentRequests() {
                           className="btn btn--grad btn--sm"
                           disabled={dlBusy === item.id}
                           onClick={() => download(item)}
+                          data-ai-id={aiId(itemAi, "download")}
+                          data-ai-label={t("download")}
                         >
                           <IconDownload />
                           {dlBusy === item.id ? tcommon("processingShort") : t("download")}
@@ -518,6 +557,8 @@ export default function ClientDocumentRequests() {
                           className="btn btn--line btn--sm"
                           disabled={!!openBusy}
                           onClick={() => (item.constructorAction?.promptRequired ? setPromptId(item.id) : void openConstructor(item))}
+                          data-ai-id={aiId(itemAi, "continue")}
+                          data-ai-label={t("constructorContinue")}
                         >
                           <IconEdit />
                           {openBusy === item.id ? tcommon("processingShort") : t("constructorContinue")}
@@ -530,6 +571,8 @@ export default function ClientDocumentRequests() {
                           disabled={blocked || sendBusy}
                           title={blocked ? item.lawyerRequestBlockReason || undefined : undefined}
                           onClick={() => { setSendId(item.id); setSendNeed(""); }}
+                          data-ai-id={aiId(itemAi, "review")}
+                          data-ai-label={tcommon("reviewOpen")}
                         >
                           <IconScale />
                           {tcommon("reviewOpen")}
@@ -546,7 +589,7 @@ export default function ClientDocumentRequests() {
             );
           })}
           {more ? (
-            <button type="button" className="btn btn--line btn--full ntmore" onClick={() => void loadMore()} disabled={moreBusy}>
+            <button type="button" className="btn btn--line btn--full ntmore" onClick={() => void loadMore()} disabled={moreBusy} data-ai-id="documents.my.load-more">
               {moreBusy ? tcm("loadingMore") : tcm("loadMore")}
             </button>
           ) : null}
@@ -564,7 +607,15 @@ export default function ClientDocumentRequests() {
           actions ("open_constructor" / "wait_for_lawyer") without wording
           them. */}
       <Modal open={!!promptRow} onClose={() => setPromptId("")} title={promptRow?.constructorAction?.title || tcommon("lawyerGateTitle")}>
-        <div className="cform" style={{ maxWidth: "none" }}>
+        <div
+          className="cform"
+          style={{ maxWidth: "none" }}
+          data-ai-id="documents.my.continue-prompt"
+          data-ai-type="modal"
+          data-ai-label={promptRow?.constructorAction?.title || tcommon("lawyerGateTitle")}
+          data-ai-entity-type="document_request"
+          data-ai-entity-id={promptRow?.id || undefined}
+        >
           <p className="dexit__lead">
             <span className="dexit__i"><IconScale /></span>
             {promptRow?.constructorAction?.message || tcommon("lawyerGateLead")}
@@ -585,16 +636,33 @@ export default function ClientDocumentRequests() {
           same wording as the one inside the builder, so a client who meets
           both is not told two different things. */}
       <Modal open={!!sendRow} onClose={() => setSendId("")} title={tcommon("reviewOpen")}>
-        <div className="cform" style={{ maxWidth: "none" }}>
-          <div className="docreview">
+        <div
+          className="cform"
+          style={{ maxWidth: "none" }}
+          data-ai-id="documents.my.review"
+          data-ai-type="modal"
+          data-ai-label={tcommon("reviewOpen")}
+          data-ai-entity-type="document_request"
+          data-ai-entity-id={sendRow?.id || undefined}
+        >
+          <div className="docreview" data-ai-private>
             <label htmlFor="mydoc-review-need">{tcommon("reviewNeedLabel")}</label>
-            <textarea id="mydoc-review-need" rows={3} value={sendNeed} onChange={(e) => setSendNeed(e.target.value)} placeholder={tcommon("reviewNeedDefault")} />
+            <textarea
+              id="mydoc-review-need"
+              rows={3}
+              value={sendNeed}
+              onChange={(e) => setSendNeed(e.target.value)}
+              placeholder={tcommon("reviewNeedDefault")}
+              data-ai-id="documents.my.review.need"
+              data-ai-label={tcommon("reviewNeedLabel")}
+              data-ai-private
+            />
           </div>
           <div className="dexit__btns">
             <button type="button" className="btn btn--line btn--full" onClick={() => setSendId("")} disabled={sendBusy}>
               {tcommon("reviewCancel")}
             </button>
-            <button type="button" className="btn btn--grad btn--full" disabled={sendBusy} onClick={() => sendRow && void sendToLawyer(sendRow)}>
+            <button type="button" className="btn btn--grad btn--full" disabled={sendBusy} onClick={() => sendRow && void sendToLawyer(sendRow)} data-ai-id="documents.my.review.submit">
               {sendBusy ? tcommon("processingShort") : tcommon("reviewSubmit")}
             </button>
           </div>

@@ -147,7 +147,7 @@ function TopSellers({ live, scoped, onSeller, onAll }: { live: Live<MkmPage<MkmS
   const rows = (live.data?.items ?? []).filter((s) => s.ordersTotal > 0 || s.activeOrders > 0).slice(0, 5);
   const max = Math.max(1, ...rows.map((s) => s.activeOrders));
   return (
-    <section className={`mkm-card${live.changing ? " is-busy" : ""}`} aria-busy={live.changing || live.loading} data-ai-target="marketplace:top-sellers">
+    <section className={`mkm-card${live.changing ? " is-busy" : ""}`} aria-busy={live.changing || live.loading} data-ai-target="marketplace:top-sellers" data-ai-id="admin.marketplace.top-sellers" data-ai-label={t("title")}>
       <div className="mkm-card__h">
         <div>
           <b>{t("title")}</b>
@@ -203,7 +203,7 @@ function Latest({ live, filtered, onOpen, onAll }: { live: Live<MkmPage<MkmOrder
   const when = useWhen();
   const rows = live.data?.items ?? [];
   return (
-    <section className={`mkm-card${live.changing ? " is-busy" : ""}`} aria-busy={live.changing || live.loading} data-ai-target="marketplace:latest-orders">
+    <section className={`mkm-card${live.changing ? " is-busy" : ""}`} aria-busy={live.changing || live.loading} data-ai-target="marketplace:latest-orders" data-ai-id="admin.marketplace.latest-orders" data-ai-label={t("title")} data-ai-private>
       <div className="mkm-card__h">
         <b>{t("title")}</b>
         <button type="button" className="mkm-link" onClick={onAll}>
@@ -297,7 +297,7 @@ export default function MkmOverview({
   return (
     <div className="mkm-over">
       {overview.failed ? <RefreshFailed /> : null}
-      <div className={`mkm-kpis${overview.changing ? " is-busy" : ""}`} data-ai-target="marketplace:kpis">
+      <div className={`mkm-kpis${overview.changing ? " is-busy" : ""}`} data-ai-target="marketplace:kpis" data-ai-id="admin.marketplace.kpis" data-ai-type="section" data-ai-label={[t("total"), t("active"), t("paid")].join(" · ")}>
         <Kpi label={t("total")} value={count(s.ordersTotal)} tone="brand" icon={<IconLayers />} onClick={() => onStatus("")} openLabel={open} />
         <Kpi label={t("active")} value={count(s.activeOrders)} sub={t("activeSub")} tone="active" icon={<IconBolt />} openLabel={open} />
         <Kpi label={t("paid")} value={count(s.paidOrders)} sub={t("paidSub")} tone="brand" icon={<IconCard />} onClick={() => onStatus("paid")} openLabel={open} />

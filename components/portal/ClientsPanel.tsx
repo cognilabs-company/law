@@ -10,6 +10,8 @@ import Modal from "@/components/admin/Modal";
 import ClientDetailModal from "@/components/portal/ClientDetailModal";
 import { initials } from "@/lib/lawyers";
 import { IconUsers, IconAlert, IconPlus, IconShieldCheck, IconCheck } from "@/components/icons";
+import { aiId } from "@/lib/ai/ids";
+import { useAiModal } from "@/lib/ai/registry";
 
 // Client roster + manual client base (T1B-05 §3) + conflict check (§1–2),
 // shared by the advocate and lawyer portals.
@@ -21,15 +23,23 @@ export default function ClientsPanel({ ns }: { ns: string }) {
   const [open, setOpen] = useState(false);
   const [checkOpen, setCheckOpen] = useState(false);
   const [detail, setDetail] = useState<string | null>(null);
+  useAiModal("advocate.clients.add-modal", () => setOpen(true));
+  useAiModal("advocate.clients.conflict-check-modal", () => setCheckOpen(true));
 
   return (
     <>
-      <div className="ppanel" data-ai-target={res.data.length ? undefined : "seller:client-list"}>
+      <div
+        className="ppanel"
+        data-ai-target={res.data.length ? undefined : "seller:client-list"}
+        data-ai-id={res.data.length ? undefined : "advocate.clients"}
+        data-ai-type={res.data.length ? undefined : "list"}
+        data-ai-label={res.data.length ? undefined : t("title")}
+      >
         <div className="ppanel__h">
           <b>{t("title")}</b>
           <span style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn--soft btn--sm" type="button" onClick={() => setCheckOpen(true)} data-ai-target="button:conflict-check"><IconShieldCheck />{tc("checkCta")}</button>
-            <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:add-client"><IconPlus />{tc("addCta")}</button>
+            <button className="btn btn--soft btn--sm" type="button" onClick={() => setCheckOpen(true)} data-ai-target="button:conflict-check" data-ai-id="advocate.clients.conflict-check"><IconShieldCheck />{tc("checkCta")}</button>
+            <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:add-client" data-ai-id="advocate.clients.add"><IconPlus />{tc("addCta")}</button>
           </span>
         </div>
         <p className="ppanel__note">{tc("lead")}</p>
@@ -39,9 +49,22 @@ export default function ClientsPanel({ ns }: { ns: string }) {
         ) : !res.data.length ? (
           <EmptyState icon={<IconUsers />} title={t("empty")} text={t("emptyText")} />
         ) : (
-          <div className="pclients" data-ai-target="seller:client-list" data-ai-label={t("title")}>
+          <div className="pclients" data-ai-target="seller:client-list" data-ai-label={t("title")} data-ai-id="advocate.clients" data-ai-type="list">
             {res.data.map((c) => (
-              <div className="pclient pclient--btn" key={c.id} role="button" tabIndex={0} onClick={() => setDetail(c.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(c.id); } }}>
+              <div
+                className="pclient pclient--btn"
+                key={c.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setDetail(c.id)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(c.id); } }}
+                data-ai-id={c.id ? aiId("advocate.clients.item", c.id) : undefined}
+                data-ai-type="list_item"
+                data-ai-entity-type="client"
+                data-ai-entity-id={c.id || undefined}
+                data-ai-label={[t("casesCount", { n: c.casesCount }), c.hasConflict ? t("conflict") : ""].filter(Boolean).join(" · ")}
+                data-ai-private
+              >
                 <span className="pclient__av">{initials(c.name || "?")}</span>
                 <div className="pclient__m">
                   <b>{c.name || "—"}</b>
@@ -106,7 +129,7 @@ function NewClientModal({ open, onClose, onSaved }: { open: boolean; onClose: ()
 
   return (
     <Modal open={open} onClose={onClose} title={tc("addTitle")}>
-      <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
+      <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} data-ai-id="advocate.clients.add-modal" data-ai-type="modal" data-ai-label={tc("addTitle")} data-ai-private>
         <p className="advmuted">{tc("addLead")}</p>
         <div className="cform__row2">
           <div><label>{tc("name")}</label><input value={f.name} onChange={(e) => set("name", e.target.value)} required minLength={2} /></div>
@@ -145,7 +168,7 @@ function ConflictModal({ open, onClose }: { open: boolean; onClose: () => void }
   }
   return (
     <Modal open={open} onClose={onClose} title={tc("checkTitle")}>
-      <form className="cform" style={{ maxWidth: "none" }} onSubmit={run}>
+      <form className="cform" style={{ maxWidth: "none" }} onSubmit={run} data-ai-id="advocate.clients.conflict-check-modal" data-ai-type="modal" data-ai-label={tc("checkTitle")} data-ai-private>
         <p className="advmuted">{tc("checkLead")}</p>
         <div className="cform__row2">
           <div><label>{tc("phone")}</label><input value={f.phone} onChange={(e) => set("phone", e.target.value)} inputMode="tel" /></div>

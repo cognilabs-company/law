@@ -42,7 +42,7 @@ export function AssistClientCard({
   const subject = tk?.subject || ticket.title || ticket.description;
   const account = client?.accountStatus && client.accountStatus !== "active" ? client.accountStatus : "";
   return (
-    <div className="sasst__card">
+    <div className="sasst__card" data-ai-private>
       <div className="sasst__who">
         <span className="sasst__av" aria-hidden="true">
           {name ? initials(name) : <IconUser />}
@@ -234,7 +234,7 @@ export function AssistOverview({ ctx, plans, plansReady }: { ctx: AssistContext;
   const total = shown ? counts[shown] : 0;
 
   return (
-    <div className="sasst__card">
+    <div className="sasst__card" data-ai-private>
       <h4 className="sasst__h4">{t("overview.heading")}</h4>
       <div className="sasst__stats">
         {KINDS.map((k) => (

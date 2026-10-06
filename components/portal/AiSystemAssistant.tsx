@@ -12,8 +12,24 @@ import { useAuth } from "@/lib/auth";
 import { collectState, collectTargets } from "@/lib/guide/targets";
 import { pageFor, registryTargets, stepTextKey } from "@/lib/guide/pages";
 import { startTour, stopTour, tourActive } from "@/lib/guide/store";
-import { onInstructorOpen } from "@/lib/guide/panel";
+import { onInstructorOpen, openInstructor } from "@/lib/guide/panel";
 import type { GuideRole, GuideTour } from "@/lib/guide/types";
+import { abortCommands, commandsRunning, normCommands, replayCommands, runCommands, supportCommand, tourFromSteps, type RunCtx } from "@/lib/ai/commands";
+import { buildAiSnapshot } from "@/lib/ai/manifest";
+import { noteChatActivity, setPanelEngaged } from "@/lib/ai/runtime";
+import { aiSessionId, resetAiSession, setAiScope, setAiSessionId, type AiScope } from "@/lib/ai/session";
+import { markAiSeen, onAiRealtime, type AiRealtimeEvent } from "@/lib/ai/realtime";
+import type { AiChatResponse, AiCommand, InstructorContract } from "@/lib/ai/types";
+import {
+  cachedInstructorContract,
+  ensureInstructorContract,
+  instructorChat,
+  instructorMode,
+  isUnknownSession,
+  normInstructorChat,
+  noteInstructorV21Missing,
+} from "@/lib/services/instructorV21";
+import AiCommandStatus from "@/components/guide/AiCommandStatus";
 import {
   INSTRUCTOR_CONTRACT,
   askInstructor,
@@ -47,11 +63,17 @@ const MAX = 1000;
 const HISTORY = 30;
 
 type GuideMsg = { kind: "guide"; id: string; text: string; intent: string; tour: GuideTour | null; support: boolean; checklist?: string[]; needs?: string[] };
+type V21Msg = { kind: "v21"; id: string; text: string; intent: string; cmds: AiCommand[]; question: string; sid: string };
 type Msg =
   | { kind: "me"; id: string; text: string }
   | GuideMsg
+  | V21Msg
   | { kind: "ai"; id: string; ans: AiAnswer; tour: GuideTour | null; rated: number }
   | { kind: "err"; id: string; text: string };
+
+type V21Outcome = { kind: "ok"; res: AiChatResponse; contract: InstructorContract } | { kind: "fallback" } | { kind: "unavailable" };
+
+const VISUAL = new Set(["navigate", "highlight", "tooltip", "scroll_to", "focus_input"]);
 
 type Confirm = { key: string; message: string; busy: boolean; error: string; note: string; v2: boolean };
 
@@ -117,6 +139,22 @@ export default function AiSystemAssistant({
   if (!sessionRef.current) sessionRef.current = makeId();
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const owner = session?.id || "";
+
+  useEffect(() => {
+    setAiScope(owner ? { owner, role: gRole } : null);
+    return () => setAiScope(null);
+  }, [owner, gRole]);
+
+  useEffect(() => {
+    setPanelEngaged(open);
+    return () => setPanelEngaged(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !owner || instructorMode() === "v20") return;
+    ensureInstructorContract(gRole).catch(() => undefined);
+  }, [open, owner, gRole]);
 
   const page = useMemo(() => pageFor(pathname, gRole), [pathname, gRole]);
   const suggestions = useMemo(() => {
@@ -182,6 +220,96 @@ export default function AiSystemAssistant({
     window.setTimeout(() => startTour(tour), 60);
   }, []);
 
+  const scopeNow = (): AiScope => ({ owner, role: gRole });
+
+  const pageDescription = () => {
+    const first = page?.tour[0];
+    return first && first.target === "ai-help:current-page" && tg.has(first.text) ? tg(first.text) : "";
+  };
+
+  const v21History = () => {
+    const turns: { q: string; a: string }[] = [];
+    let asked = "";
+    for (const m of msgs) {
+      if (m.kind === "me") asked = m.text;
+      else if (m.kind === "guide" || m.kind === "v21") turns.push({ q: asked, a: m.text });
+      else if (m.kind === "ai") turns.push({ q: asked, a: m.ans.answer });
+    }
+    return instructorHistory(turns);
+  };
+
+  const runCtx = (sid: string, contract: InstructorContract | null, message: string, answer: string, source: "http" | "ws"): RunCtx => ({
+    scope: scopeNow(),
+    sessionId: sid,
+    role: gRole,
+    contract,
+    message,
+    answer,
+    source,
+    captionFor,
+    closePanel: () => closeRef.current(),
+    handoffUi: gRole !== "staff",
+    labels: {
+      ticketCreated: (id: string) => t("ticketCreated", { id }),
+      ticketCreatedPlain: t("ticketCreatedPlain"),
+      ticketShown: t("ticketShown"),
+      ticketWrite: t("ticketWrite"),
+    },
+  });
+
+  const instructorV21Reply = async (message: string): Promise<V21Outcome> => {
+    const mode = instructorMode();
+    if (mode === "v20" || !owner) return { kind: "fallback" };
+    const contract = await ensureInstructorContract(gRole);
+    if (!contract) return mode === "v21" ? { kind: "unavailable" } : { kind: "fallback" };
+    const scope = scopeNow();
+    let sid = aiSessionId(scope);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const snapshot = buildAiSnapshot({ role: contract.role || gRole, description: pageDescription() });
+        const res = await instructorChat({ ...(sid ? { session_id: sid } : {}), locale, message, ...snapshot, history: v21History() });
+        if (res.sessionId) setAiSessionId(scope, res.sessionId);
+        noteChatActivity();
+        return { kind: "ok", res, contract };
+      } catch (e) {
+        if (isAborted(e)) throw e;
+        if (attempt === 0 && sid && isUnknownSession(e)) {
+          resetAiSession(scope);
+          sid = "";
+          continue;
+        }
+        if (noteInstructorV21Missing(e, gRole)) return mode === "v21" ? { kind: "unavailable" } : { kind: "fallback" };
+        throw e;
+      }
+    }
+    return { kind: "fallback" };
+  };
+
+  const startV21 = (res: AiChatResponse, contract: InstructorContract | null, question: string, source: "http" | "ws") => {
+    const cmds = normCommands(res.rawCommands, res.responseId || makeId());
+    if (res.responseId) markAiSeen(`response:${res.responseId}`);
+    const sid = res.sessionId || aiSessionId(scopeNow());
+    setMsgs((m) => [...m, { kind: "v21", id: makeId(), text: res.answer, intent: res.intent, cmds, question, sid }]);
+    if (!cmds.length || (source === "ws" && commandsRunning())) return;
+    void runCommands(cmds, runCtx(sid, contract, question, res.answer, source)).then((sum) => {
+      if (sum.missing || sum.failed) openInstructor();
+    });
+  };
+
+  const replayV21 = (m: V21Msg) => {
+    void replayCommands(m.cmds, runCtx(m.sid, cachedInstructorContract(gRole), m.question, m.text, "http"));
+  };
+
+  const supportV21 = (m: V21Msg, base: AiCommand) => {
+    void runCommands([supportCommand(base, m.question)], runCtx(m.sid || aiSessionId(scopeNow()), cachedInstructorContract(gRole), m.question, m.text, "http"));
+  };
+
+  const newChat = () => {
+    abortCommands("reset");
+    resetAiSession(scopeNow());
+    setMsgs([]);
+  };
+
   const runPageTour = () => {
     const fallback = tg("ui.pageFallback");
     if (page?.tour.length) {
@@ -239,7 +367,19 @@ export default function AiSystemAssistant({
     setBusy(true);
     RobotEvents.emit("think");
     try {
-      const reply = await instructorReply(message);
+      const v21 = await instructorV21Reply(message);
+      if (v21.kind === "unavailable") {
+        setMsgs((m) => [...m, { kind: "err", id: makeId(), text: t("v21.errors.unavailable") }]);
+        RobotEvents.emit("reactError");
+        return;
+      }
+      if (v21.kind === "ok" && (v21.res.answer || v21.res.rawCommands.length)) {
+        setBusy(false);
+        RobotEvents.emit("idle");
+        startV21(v21.res, v21.contract, message, "http");
+        return;
+      }
+      const reply = v21.kind === "ok" ? null : await instructorReply(message);
       const guided = reply ? replyHasGuide(reply, gRole, pathname) : false;
       if (reply && !replyNeedsAssistant(reply, guided)) {
         const tour = guided ? tourFromReply(reply, gRole, captionFor, pathname) : null;
@@ -276,10 +416,21 @@ export default function AiSystemAssistant({
 
   const openRef = useRef(onOpen);
   const sendRef = useRef(send);
+  const realtimeRef = useRef<(ev: AiRealtimeEvent) => void>(() => undefined);
   useEffect(() => {
     openRef.current = onOpen;
     sendRef.current = send;
+    realtimeRef.current = (ev) => {
+      if (ev.kind !== "response" || busy) return;
+      const res = normInstructorChat(ev.data, ev.sessionId);
+      if (!res.answer && !res.rawCommands.length) return;
+      let question = "";
+      for (const m of msgs) if (m.kind === "me") question = m.text;
+      startV21(res, cachedInstructorContract(gRole), question, "ws");
+    };
   });
+
+  useEffect(() => onAiRealtime((ev) => realtimeRef.current(ev)), []);
 
   useEffect(
     () =>
@@ -396,14 +547,15 @@ export default function AiSystemAssistant({
           className={`ains__launch${launcher === "always" ? " ains__launch--always" : ""}`}
           onClick={onOpen}
           aria-label={t("open")}
-          data-ai-id="assistant-open"
+          data-ai-id="dashboard.ai-instructor.open"
+          data-ai-type="button"
         >
           <RobotAvatar size={34} mood="idle" />
           <span>{t("title")}</span>
         </button>
         )
       ) : (
-        <div className="ains" role="dialog" aria-label={t("title")}>
+        <div className="ains" role="dialog" aria-label={t("title")} data-ai-ignore="">
           <div className="ains__h">
             <RobotAvatar size={44} mood={busy ? "think" : "idle"} className="ains__av" />
             <div className="ains__id">
@@ -414,7 +566,7 @@ export default function AiSystemAssistant({
               </span>
             </div>
             {msgs.length ? (
-              <button type="button" className="ains__icon" onClick={() => setMsgs([])} aria-label={t("newChat")} title={t("newChat")}>
+              <button type="button" className="ains__icon" onClick={newChat} aria-label={t("newChat")} title={t("newChat")}>
                 <IconRefresh />
               </button>
             ) : null}
@@ -481,6 +633,64 @@ export default function AiSystemAssistant({
             {msgs.map((m) => {
               if (m.kind === "me") return <p className="ains__me" key={m.id}>{m.text}</p>;
               if (m.kind === "err") return <p className="ains__err" key={m.id} role="status">{m.text}</p>;
+              if (m.kind === "v21") {
+                const cmds = Array.isArray(m.cmds) ? m.cmds : [];
+                const steps = cmds.filter((c) => c.type === "show_steps").flatMap((c) => (Array.isArray(c.steps) ? c.steps : []));
+                const stepTour = steps.some((s) => s.target);
+                const handoff = gRole === "staff" ? undefined : cmds.find((c) => c.type === "support_handoff");
+                const replay = cmds.some((c) => VISUAL.has(c.type));
+                const intent = String(m.intent || "").toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+                return (
+                  <div className={`ains__ai ains__ai--guide${intent ? ` ains__ai--${intent}` : ""}`} key={m.id} data-intent={intent || undefined}>
+                    <p className="ains__text">{m.text || t("done")}</p>
+                    {steps.length ? (
+                      <div className="ains__steps">
+                        <p className="ains__stepsT" id={`ains-steps-${m.id}`}>
+                          {t("stepsTitle")}
+                        </p>
+                        <ol className="ains__list" role="list" aria-labelledby={`ains-steps-${m.id}`}>
+                          {steps.map((s, i) => (
+                            <li key={`${i}-${s.text}`}>
+                              <span className="ains__num">{i + 1}</span>
+                              <span>{s.text}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    ) : null}
+                    <AiCommandStatus commands={cmds} />
+                    {replay || stepTour || handoff ? (
+                      <div className="ains__acts">
+                        {replay ? (
+                          <button type="button" className="btn btn--pri btn--sm" onClick={() => replayV21({ ...m, cmds })}>
+                            <IconTarget />
+                            {t("showMe")}
+                          </button>
+                        ) : null}
+                        {stepTour ? (
+                          <button
+                            type="button"
+                            className={`btn ${replay ? "btn--line" : "btn--pri"} btn--sm`}
+                            onClick={() => {
+                              const tour = tourFromSteps(steps);
+                              if (tour) runTour(tour);
+                            }}
+                          >
+                            <IconSparkle />
+                            {t("showMe")}
+                          </button>
+                        ) : null}
+                        {handoff ? (
+                          <button type="button" className={`btn ${replay || stepTour ? "btn--line" : "btn--pri"} btn--sm`} onClick={() => supportV21(m, handoff)}>
+                            <IconHeadset />
+                            {t("toOperator")}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
               if (m.kind === "guide") {
                 const tour = m.tour;
                 const checklist = m.checklist ?? [];
@@ -594,7 +804,6 @@ export default function AiSystemAssistant({
               aria-label={t("ph")}
               maxLength={MAX}
               disabled={busy}
-              data-ai-id="assistant-input"
             />
             <button type="submit" disabled={busy || !text.trim()} aria-label={t("send")}>
               <IconSend />

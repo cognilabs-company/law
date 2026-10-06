@@ -47,7 +47,7 @@ export default function ClientDetailModal({ id, onClose }: { id: string | null; 
   return (
     <Modal open={!!id} onClose={onClose} title={d?.client.name || t("title")}>
       {err ? <Notice ok={false} msg={err} /> : !d ? <Skeleton rows={3} /> : (
-        <div className="cdet">
+        <div className="cdet" data-ai-id="advocate.clients.detail-modal" data-ai-type="modal" data-ai-label={t("title")} data-ai-private>
           <div className="cdet__head">
             <span className="pclient__av">{(d.client.name || "?").split(/\s+/).map((s) => s[0]).join("").slice(0, 2).toUpperCase()}</span>
             <div className="cdet__m">

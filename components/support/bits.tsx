@@ -9,6 +9,7 @@ import { toast } from "@/lib/toast";
 import { primeCallAudio } from "@/lib/callSounds";
 import { shortDateTime } from "@/lib/date";
 import { initials } from "@/lib/lawyers";
+import { aiId } from "@/lib/ai/ids";
 import {
   SUPPORT_META_FALLBACK,
   isClosedStatus,
@@ -139,6 +140,7 @@ export function TicketCard({
   now,
   onOpen,
   extra,
+  noAiId,
 }: {
   ticket: SupportTicket;
   active: boolean;
@@ -147,6 +149,7 @@ export function TicketCard({
   now: number | null;
   onOpen: () => void;
   extra?: ReactNode;
+  noAiId?: boolean;
 }) {
   const t = useTranslations("support");
   const locale = useLocale();
@@ -162,8 +165,19 @@ export function TicketCard({
   const last = ticket.lastMessage && !(lead && flat(ticket.lastMessage).startsWith(lead)) ? ticket.lastMessage : "";
   const wait = view === "operator" && waiting ? waitText(t, ticket.createdAt, now) : "";
   const fresh = unread && unread > 0 ? unread : 0;
+  const statusText = ticket.status ? (t.has(`status.${ticket.status}`) ? t(`status.${ticket.status}`) : ticket.status) : "";
+  const aiLabel = [ticket.workId, cat, statusText].filter(Boolean).join(" · ") || t("untitled");
   return (
-    <div className={`supitem${active ? " is-on" : ""}${fresh ? " has-new" : ""}${closed ? " is-closed" : ""}`} data-ai-target={`support-ticket:${ticket.id}`}>
+    <div
+      className={`supitem${active ? " is-on" : ""}${fresh ? " has-new" : ""}${closed ? " is-closed" : ""}`}
+      data-ai-target={`support-ticket:${ticket.id}`}
+      data-ai-id={noAiId || !ticket.id ? undefined : aiId(view === "client" ? "support.ticket" : "call_center.support.ticket", ticket.id)}
+      data-ai-type="list_item"
+      data-ai-label={aiLabel}
+      data-ai-entity-type="support_ticket"
+      data-ai-entity-id={ticket.id || undefined}
+      data-ai-private
+    >
       <button type="button" className="supitem__main" onClick={onOpen} aria-current={active || undefined}>
         <span className={`supitem__av${view === "client" && waiting && !person ? " supitem__av--wait" : ""}`} aria-hidden="true">
           {person ? initials(person) : view === "client" ? <IconHeadset /> : <IconUser />}

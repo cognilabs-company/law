@@ -10,6 +10,7 @@ import { errorText } from "@/lib/errorText";
 import { getOwnerDashboard, listOwnerWorkload, type OrgMemberRow, type OrgWorkItem } from "@/lib/services/orgOwner";
 import Select from "@/components/Select";
 import { IconChevronLeft, IconRefresh } from "@/components/icons";
+import { useAiField } from "@/lib/ai/registry";
 import { OrgBlocked, WorkDetail, WorkRow, statusLabel } from "./bits";
 
 const STATUSES = ["", "pending", "in_progress", "paid", "completed", "cancelled"];
@@ -57,6 +58,19 @@ export default function OwnerWorkload({ orgId, memberId }: { orgId: string; memb
     router.replace(`${base}/workload${qs.size ? `?${qs.toString()}` : ""}` as Parameters<typeof router.replace>[0], { scroll: false });
   };
 
+  useAiField(locked ? "" : "organization.workload.filters.member", {
+    get: () => member,
+    set: (v) => {
+      if (!v || members.some((m) => m.userId === v)) apply({ member: v });
+    },
+  });
+  useAiField("organization.workload.filters.status", {
+    get: () => status,
+    set: (v) => {
+      if (STATUSES.includes(v)) apply({ status: v });
+    },
+  });
+
   if (list.status === "error" && isForbidden(list.error)) return <OrgBlocked kind="forbidden" />;
   if (list.status === "error" && isRouteMissing(list.error)) return <OrgBlocked kind="soon" />;
 
@@ -76,20 +90,20 @@ export default function OwnerWorkload({ orgId, memberId }: { orgId: string; memb
         </div>
       )}
 
-      <div className="ofilter" data-ai-target="organization:workload-filter">
+      <div className="ofilter" data-ai-target="organization:workload-filter" data-ai-id="organization.workload.filters" data-ai-type="section" data-ai-label={locked ? t("filterStatus") : `${t("filterMember")} · ${t("filterStatus")}`}>
         {locked ? null : (
-          <label>
+          <label data-ai-id="organization.workload.filters.member" data-ai-type="select" data-ai-label={t("filterMember")}>
             <span>{t("filterMember")}</span>
             <Select value={member} onChange={(v) => apply({ member: v })} ariaLabel={t("filterMember")} options={[{ value: "", label: t("allMembers") }, ...members.filter((m) => m.userId).map((m) => ({ value: m.userId, label: m.name || m.userId }))]} />
           </label>
         )}
-        <label>
+        <label data-ai-id="organization.workload.filters.status" data-ai-type="select" data-ai-label={t("filterStatus")}>
           <span>{t("filterStatus")}</span>
           <Select value={status} onChange={(v) => apply({ status: v })} ariaLabel={t("filterStatus")} options={STATUSES.map((s) => ({ value: s, label: s ? statusLabel(t, t.has, s) : t("allStatuses") }))} />
         </label>
       </div>
 
-      <section className="opanel" data-ai-target="organization:workload-list" data-ai-label={t("workloadTitle")}>
+      <section className="opanel" data-ai-target="organization:workload-list" data-ai-label={t("workloadTitle")} data-ai-id="organization.workload.list" data-ai-type="list">
         {list.status === "loading" ? (
           [0, 1, 2].map((i) => <div key={i} className="supcard supcard--ghost" aria-hidden="true" />)
         ) : list.status === "error" ? (
@@ -110,7 +124,7 @@ export default function OwnerWorkload({ orgId, memberId }: { orgId: string; memb
           </div>
         )}
         {list.hasMore ? (
-          <button type="button" className="btn btn--line btn--sm sup__more" onClick={() => void list.loadMore()} disabled={list.loadingMore}>
+          <button type="button" className="btn btn--line btn--sm sup__more" onClick={() => void list.loadMore()} disabled={list.loadingMore} data-ai-id="organization.workload.load-more">
             {tc("loadMore")}
           </button>
         ) : null}

@@ -25,6 +25,7 @@ import { humanizeSlug, initials } from "@/lib/lawyers";
 import { shortDateTime } from "@/lib/date";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useAiReveal } from "@/lib/guide/targets";
+import { aiId } from "@/lib/ai/ids";
 import { Skeleton } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -604,6 +605,18 @@ export default function DocumentEditorWorkspace({
     setRightOpen(true);
     if (!wide()) setLeftOpen(false);
   });
+  const ai = aiId("advocate.document-requests.item", recordId);
+  useAiReveal(/^advocate\.document-requests\.item\.[^.]+\.details$/, () => {
+    setLeftOpen(true);
+    if (!wide()) setRightOpen(false);
+  });
+  useAiReveal(/^advocate\.document-requests\.item\.[^.]+\.(panel|tab\.[a-z]+|meeting\.join)$/, (id) => {
+    setRightOpen(true);
+    if (!wide()) setLeftOpen(false);
+    const tab = id.match(/\.tab\.([a-z]+)$/)?.[1];
+    if (id.endsWith(".meeting.join")) setRightTab("meeting");
+    else if (tab === "chat" || tab === "meeting" || tab === "versions" || tab === "info") setRightTab(tab);
+  });
   // Read during the initializer, never in an effect: restoring in an effect is
   // both a cascading render and a visible jump from 360px to the stored width.
   const [rightW, setRightW] = useState(storedRightW);
@@ -809,7 +822,7 @@ export default function DocumentEditorWorkspace({
         >
           <IconMenu />
         </button>
-        <span className="deditor__ident" data-ai-target="ai-help:current-page" data-ai-label={t("title")}>
+        <span className="deditor__ident" data-ai-target="ai-help:current-page" data-ai-label={t("title")} data-ai-private>
           <b className="deditor__title">{req?.title || req?.clientName || t("title")}</b>
           <small className="deditor__sub">
             {[req?.clientName, req?.serviceName].filter(Boolean).join(" · ") || t("subtitleFallback")}
@@ -842,11 +855,22 @@ export default function DocumentEditorWorkspace({
             onClick={() => setSrcOpen(true)}
             disabled={isSent || editorState === "needsClaim"}
             data-ai-target="button:editor-source"
+            data-ai-id={`${ai}.source`}
+            data-ai-label={t("chooseSource")}
           >
             <IconLayers />
             <span className="deditor__actLabel">{t("chooseSource")}</span>
           </button>
-          <button type="button" className="deditor__act" onClick={startMeeting} disabled={meetBusy || !req?.meetingUrl || isSent || !!meeting} data-ai-target="button:editor-meeting">
+          <button
+            type="button"
+            className="deditor__act"
+            onClick={startMeeting}
+            disabled={meetBusy || !req?.meetingUrl || isSent || !!meeting}
+            data-ai-target="button:editor-meeting"
+            data-ai-id={`${ai}.meeting`}
+            data-ai-type="call_button"
+            data-ai-label={t("startMeeting")}
+          >
             <IconVideo />
             <span className="deditor__actLabel">{meetBusy ? t("processingShort") : t("startMeeting")}</span>
           </button>
@@ -856,6 +880,8 @@ export default function DocumentEditorWorkspace({
             onClick={() => setFinalizeConfirmOpen(true)}
             disabled={isSent || editorState !== "ready" || finalizeBusy}
             data-ai-target="button:editor-finalize"
+            data-ai-id={`${ai}.finalize`}
+            data-ai-label={t("finalize")}
           >
             <IconCheck />
             <span className="deditor__actLabel">{isSent ? t("statusSent") : t("finalize")}</span>
@@ -882,7 +908,7 @@ export default function DocumentEditorWorkspace({
         ref={bodyRef}
         className={`deditor__body${leftOpen ? "" : " deditor__body--leftClosed"}${rightOpen ? "" : " deditor__body--rightClosed"}${sizingOn ? " deditor__body--sizing" : ""}`}
       >
-        <aside className={`deditor__left${leftOpen ? " on" : ""}`} data-ai-target="doc-editor:request" data-ai-label={t("need")}>
+        <aside className={`deditor__left${leftOpen ? " on" : ""}`} data-ai-target="doc-editor:request" data-ai-label={t("need")} data-ai-id={`${ai}.details`} data-ai-type="section" data-ai-private>
           <button type="button" className="deditor__panelToggle" onClick={() => setLeftOpen((v) => !v)} aria-label={t("togglePanels")}>
             <IconChevronLeft />
           </button>
@@ -984,7 +1010,7 @@ export default function DocumentEditorWorkspace({
           )}
         </aside>
 
-        <main className="deditor__main" data-ai-target="doc-editor:document">
+        <main className="deditor__main" data-ai-target="doc-editor:document" data-ai-id={`${ai}.editor`} data-ai-type="editor" data-ai-label={t("workspaceEditor")}>
           {/* §15 L600, first branch of all: a blocked record never reaches
               the editor states below, so nothing can mount an editor the
               backend has closed — and the advocate is told why instead of
@@ -1031,7 +1057,7 @@ export default function DocumentEditorWorkspace({
               ) : (
                 <>
                   {claimErr === "generic" ? <Notice ok={false} msg={t("claimError")} /> : null}
-                  <button className="btn btn--grad btn--lg" type="button" onClick={claimAndRetry} disabled={claimBusy}>
+                  <button className="btn btn--grad btn--lg" type="button" onClick={claimAndRetry} disabled={claimBusy} data-ai-id={`${ai}.claim`} data-ai-label={t("claim")}>
                     {claimBusy ? t("claiming") : t("claim")}
                   </button>
                 </>
@@ -1052,7 +1078,7 @@ export default function DocumentEditorWorkspace({
                the client's need, their answers, the template — is already
                readable while the choice is made. */
             <div className="deditor__mainState deditor__mainState--start">
-              <div className="dstart" data-ai-target="doc-editor:start-options">
+              <div className="dstart" data-ai-target="doc-editor:start-options" data-ai-id={`${ai}.start-options`} data-ai-label={t("startTitle")}>
                 <header className="dstart__h">
                   <b>{t("startTitle")}</b>
                   <p>{t("startLead")}</p>
@@ -1066,6 +1092,8 @@ export default function DocumentEditorWorkspace({
                       onClick={() => start(o.key)}
                       disabled={!o.enabled}
                       aria-disabled={!o.enabled}
+                      data-ai-id={`${ai}.start.${o.key.replace(/_/g, "-")}`}
+                      data-ai-label={o.title}
                     >
                       <span className="dstart__i" aria-hidden>{o.icon}</span>
                       <b>{o.title}</b>
@@ -1121,7 +1149,7 @@ export default function DocumentEditorWorkspace({
             <span className="deditor__sizerGrip" aria-hidden />
           </div>
         ) : null}
-        <aside className={`deditor__right${rightOpen ? " on" : ""}`} data-ai-target="doc-editor:side-panel">
+        <aside className={`deditor__right${rightOpen ? " on" : ""}`} data-ai-target="doc-editor:side-panel" data-ai-id={`${ai}.panel`} data-ai-type="section" data-ai-label={`${t("tabChat")} · ${t("tabMeeting")}`} data-ai-private>
           <button
             type="button"
             className="deditor__panelToggle deditor__panelToggle--right"
@@ -1140,6 +1168,8 @@ export default function DocumentEditorWorkspace({
                 className={rightTab === tab ? "on" : ""}
                 onClick={() => setRightTab(tab)}
                 title={t(tab === "meeting" ? "tabMeeting" : tab === "chat" ? "tabChat" : tab === "versions" ? "tabVersions" : "tabInfo")}
+                data-ai-id={`${ai}.tab.${tab}`}
+                data-ai-label={t(tab === "meeting" ? "tabMeeting" : tab === "chat" ? "tabChat" : tab === "versions" ? "tabVersions" : "tabInfo")}
               >
                 {tab === "meeting" ? <IconVideo /> : tab === "chat" ? <IconChat /> : tab === "versions" ? <IconClock /> : <IconInfo />}
                 <span>{t(tab === "meeting" ? "tabMeeting" : tab === "chat" ? "tabChat" : tab === "versions" ? "tabVersions" : "tabInfo")}</span>
@@ -1166,7 +1196,7 @@ export default function DocumentEditorWorkspace({
                   </span>
                 </div>
                 {meeting ? (
-                  <button type="button" className="btn btn--grad btn--full" onClick={rejoinMeeting} disabled={meetBusy || meeting.open}>
+                  <button type="button" className="btn btn--grad btn--full" onClick={rejoinMeeting} disabled={meetBusy || meeting.open} data-ai-id={`${ai}.meeting.join`} data-ai-type="call_button" data-ai-label={t("meetingJoin")}>
                     <IconVideo /> {meetBusy ? t("processingShort") : t("meetingJoin")}
                   </button>
                 ) : (
@@ -1290,7 +1320,7 @@ export default function DocumentEditorWorkspace({
       />
 
       <Modal open={finalizeConfirmOpen} onClose={() => setFinalizeConfirmOpen(false)} title={t("finalize")}>
-        <div className="cform" style={{ maxWidth: "none" }}>
+        <div className="cform" style={{ maxWidth: "none" }} data-ai-id={`${ai}.finalize-modal`} data-ai-type="modal" data-ai-label={t("finalize")}>
           <p className="advmuted">{t("finalizeConfirmText")}</p>
           <label htmlFor="finalize-notes">{t("finalizeNotes")}</label>
           <textarea id="finalize-notes" rows={2} value={finalizeNotes} onChange={(e) => setFinalizeNotes(e.target.value)} placeholder={t("finalizeNotesDefault")} />

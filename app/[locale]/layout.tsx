@@ -26,6 +26,7 @@ import ThemeSync from "@/components/ThemeSync";
 import ReferralCapture from "@/components/ReferralCapture";
 import Toaster from "@/components/Toaster";
 import GuideHost from "@/components/guide/GuideHost";
+import AiRuntimeHost from "@/components/guide/AiRuntimeHost";
 import { THEME_SCRIPT } from "@/lib/themeScript";
 
 const inter = Inter({
@@ -100,6 +101,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <RevealOnScroll />
             <Toaster />
             <GuideHost />
+            <AiRuntimeHost />
           </AuthProvider>
         </IntlProvider>
         </NextIntlClientProvider>

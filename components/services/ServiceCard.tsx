@@ -29,7 +29,9 @@ export default function ServiceCard({
   onEdit,
   onPromote,
   onRemove,
+  aiId,
 }: {
+  aiId?: string;
   item: ManagedService;
   profile: ServiceSellerProfile;
   sellerId: string;
@@ -71,6 +73,7 @@ export default function ServiceCard({
   const canPromote = item.status === "active" && item.service.isActive && !own && !pending;
   const promoteTitle = own ? t("card.promotedHint", { days: own.daysLeft }) : pending ? t("card.pendingHint") : item.status !== "active" ? t("card.promoteInactive") : undefined;
   const category = item.service.categoryTitle || item.service.subcategory || t("card.service");
+  const sub = (s: string) => (aiId ? `${aiId}.${s}` : undefined);
 
   return (
     <article
@@ -78,6 +81,10 @@ export default function ServiceCard({
       style={{ ["--msv-i" as string]: String(Math.min(index, 10)) }}
       data-ai-target={first ? "services:card" : undefined}
       aria-label={item.service.name}
+      data-ai-id={aiId}
+      data-ai-type={aiId ? "card" : undefined}
+      data-ai-entity-type={aiId ? "service" : undefined}
+      data-ai-entity-id={aiId ? item.id : undefined}
     >
       <div className="msv__top">
         <span className="msv__cat" title={category}>
@@ -136,9 +143,9 @@ export default function ServiceCard({
       </p>
 
       <div className="msv__foot">
-        <StatusSwitch value={item.status} busy={busy} onChange={onStatus} label={t("statusLabel")} aiTarget={first ? "services:status" : undefined} />
+        <StatusSwitch value={item.status} busy={busy} onChange={onStatus} label={t("statusLabel")} aiTarget={first ? "services:status" : undefined} aiId={sub("status")} />
         <div className="msv__acts">
-          <button type="button" className="btn btn--line btn--sm" onClick={onEdit}>
+          <button type="button" className="btn btn--line btn--sm" onClick={onEdit} data-ai-id={sub("edit")}>
             <IconEdit aria-hidden="true" />
             {t("card.edit")}
           </button>
@@ -149,6 +156,7 @@ export default function ServiceCard({
             disabled={!canPromote}
             title={promoteTitle}
             data-ai-target={first ? "button:promote-service" : undefined}
+            data-ai-id={sub("promote")}
           >
             {pending && !own ? <IconClock aria-hidden="true" /> : <IconMegaphone aria-hidden="true" />}
             {own ? t("card.promotedShort") : pending ? t("card.pending") : t("card.promote")}

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import Select from "@/components/Select";
 import { fmtUzs } from "@/lib/money";
+import { aiId } from "@/lib/ai/ids";
 import type { BackendPlan } from "@/lib/services/backend";
 import {
   assistPlanPeriods,
@@ -43,6 +44,7 @@ export default function AssistPlan({ ticketId, client, clientName, onDone, onBlo
   const fresh = quote && plan && quote.planId === plan.id && quote.period === per ? quote.data : null;
   const stale = Boolean(quote && !fresh);
   const monthly = (p: BackendPlan) => assistPlanPrice(p, "monthly");
+  const ai = (...parts: string[]) => aiId("call_center.support.ticket", ticketId, "assist", "subscription", ...parts);
 
   async function runPreview() {
     if (!plan || inflight.current) return;
@@ -134,7 +136,7 @@ export default function AssistPlan({ ticketId, client, clientName, onDone, onBlo
         <p className="sasst__empty">{t("plan.none")}</p>
       ) : (
         <>
-          <div className="sasst__f">
+          <div className="sasst__f" data-ai-id={ai("plan")} data-ai-type="select" data-ai-label={t("plan.plan")}>
             <span className="sasst__lbl">{t("plan.plan")}</span>
             <Select
               value={plan.id}
@@ -143,7 +145,7 @@ export default function AssistPlan({ ticketId, client, clientName, onDone, onBlo
               options={list.map((p) => ({ value: p.id, label: monthly(p) > 0 ? `${p.name || p.title} · ${t("perMonth", { amount: fmtUzs(monthly(p)) })}` : p.name || p.title }))}
             />
           </div>
-          <div className="sasst__f">
+          <div className="sasst__f" data-ai-id={ai("period")} data-ai-type="select" data-ai-label={t("plan.period")}>
             <span className="sasst__lbl">{t("plan.period")}</span>
             <Select
               value={per}
@@ -169,7 +171,14 @@ export default function AssistPlan({ ticketId, client, clientName, onDone, onBlo
             </p>
           ) : null}
           <div className="sasst__acts">
-            <button type="button" className="btn btn--line btn--sm" onClick={() => void runPreview()} disabled={Boolean(busy)} aria-busy={busy === "preview" || undefined}>
+            <button
+              type="button"
+              className="btn btn--line btn--sm"
+              onClick={() => void runPreview()}
+              disabled={Boolean(busy)}
+              aria-busy={busy === "preview" || undefined}
+              data-ai-id={ai("preview")}
+            >
               {busy === "preview" ? t("plan.previewing") : t("plan.preview")}
             </button>
             <button
@@ -180,6 +189,7 @@ export default function AssistPlan({ ticketId, client, clientName, onDone, onBlo
                 setConfirming(true);
               }}
               disabled={!fresh || Boolean(busy)}
+              data-ai-id={ai("next")}
             >
               {t("plan.next")}
             </button>
@@ -195,6 +205,7 @@ export default function AssistPlan({ ticketId, client, clientName, onDone, onBlo
         error={confirmErr}
         onCancel={() => setConfirming(false)}
         onConfirm={() => void runCheckout()}
+        aiId={ai("confirm-modal")}
       />
     </div>
   );

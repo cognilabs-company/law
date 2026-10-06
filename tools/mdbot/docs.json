@@ -11,6 +11,16 @@
       "file": "../../md/LEXGO_MOBILE_APP_BRIEF_2026-09-29.md",
       "title": "Mobil ilova — funksiya va mazmun brifi",
       "description": "Mobil ilova uchun to'liq spetsifikatsiya: ikki rol (mijoz va advokat), auth va 2FA, mehmon kvotasi, LexGo.AI, advokat topish va buyurtma oqimi, hujjatlar, SOS va tezkor advokat, qo'ng'iroqlar (audio→video), obuna va to'lovlar, majburiy platforma qoidalari, 15 daqiqalik baholash oynasi, qisqa ish ID'lari, realtime hodisalar va mobil-specific talablar. Dizayn haqida emas."
+    },
+    {
+      "file": "../../md/LEXGO_AI_INSTRUCTOR_V21_BACKEND_NOTES_2026-10-06.md",
+      "title": "AI Instruktor v2.1 — backend uchun tahlil va savollar",
+      "description": "/ai/instructor/* hali deploy qilinmagan (production 404, GitHub'da yo'q) — frontend v2.1 ga tayyor va deploy bo'lgach o'zi o'tadi. Ichida: frontend yuboradigan chat/runtime/events/preview/confirm shakllari, 24 ta kontrakt ziddiyati va savollar (target nomlari, route lug'ati, locale, sxemalar, sessiya, realtime, rollar), route jadvali, data-ai-id qamrovi (114 dan 99 to'liq), xavfsizlik va test natijalari, backend vazifalari."
+    },
+    {
+      "file": "../../md/LEXGO_AI_ID_REGISTRY_V21_2026-10-06.json",
+      "title": "AI Instruktor v2.1 — data-ai-id registri (ilova)",
+      "description": "Frontenddagi 396 ta data-ai-id (statik va {entity} shablonlari, fayl:qator bilan), kontraktning 114 ta ID'si bo'yicha qamrov (done / approximate / unmapped + izoh + route) va 126 ta legacy data-ai-target ↔ v2.1 alias qoidasi. Backend buyruqlarda faqat shu ID'larni ishlatsin."
     }
   ]
 }

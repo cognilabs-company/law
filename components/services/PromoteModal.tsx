@@ -27,6 +27,7 @@ export default function PromoteModal({
   owner,
   onClose,
   onSent,
+  aiId,
 }: {
   item: ManagedService;
   scope: ServiceScope;
@@ -34,6 +35,7 @@ export default function PromoteModal({
   owner: boolean;
   onClose: () => void;
   onSent: (req: PromotionRequest) => void;
+  aiId?: string;
 }) {
   const t = useTranslations("sellerServices.promote");
   const tc = useTranslations("sellerServices");
@@ -92,7 +94,7 @@ export default function PromoteModal({
     <InBody>
       <Modal open onClose={close} title={t("title")}>
         {done ? (
-          <div className="svpdone" role="status">
+          <div className="svpdone" role="status" data-ai-id={aiId} data-ai-type={aiId ? "modal" : undefined} data-ai-label={aiId ? t("title") : undefined}>
             <span className="svpdone__ic" aria-hidden="true">
               <IconClock />
             </span>
@@ -127,7 +129,7 @@ export default function PromoteModal({
             </button>
           </div>
         ) : (
-          <div className="svprom">
+          <div className="svprom" data-ai-id={aiId} data-ai-type={aiId ? "modal" : undefined} data-ai-label={aiId ? t("title") : undefined}>
             <div className="svprom__svc">
               <span className="svprom__svcic" aria-hidden="true">
                 <IconMegaphone />
@@ -160,7 +162,7 @@ export default function PromoteModal({
                 <p>{t("emptyText")}</p>
               </div>
             ) : (
-              <div className="svprom__grid" role="radiogroup" aria-label={t("packages")}>
+              <div className="svprom__grid" role="radiogroup" aria-label={t("packages")} data-ai-id={aiId ? `${aiId}.packages` : undefined} data-ai-type={aiId ? "select" : undefined}>
                 {items.map((p, i) => {
                   const Icon = TIER_ICON[Math.min(i, TIER_ICON.length - 1)];
                   const on = chosen?.id === p.id;
@@ -226,7 +228,7 @@ export default function PromoteModal({
               <button type="button" className="btn btn--line" onClick={close} disabled={busy}>
                 {tc("form.cancel")}
               </button>
-              <button type="button" className="btn btn--grad" onClick={() => void send()} disabled={busy || !chosen}>
+              <button type="button" className="btn btn--grad" onClick={() => void send()} disabled={busy || !chosen} data-ai-id={aiId ? `${aiId}.submit` : undefined}>
                 <IconMegaphone aria-hidden="true" />
                 {busy ? t("sending") : t("submit")}
               </button>

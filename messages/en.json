@@ -210,7 +210,7 @@
       "stopHint": "Stop (Esc)",
       "navigating": "Opening the right page…",
       "locating": "Looking for the right spot…",
-      "missing": "This element isn't visible on the page right now.",
+      "missing": "This element wasn't found on the page right now.",
       "navFailed": "The page didn't open. Please try again.",
       "pageFallback": "Here's this page — let's go through its main parts."
     },
@@ -670,6 +670,9 @@
         "support": "Need help? Choose the AI instructor, an operator chat, a complaint or a call here."
       },
       "client_dashboard": {
+        "support": "Help center — open a chat with an operator and follow the status of your requests here.",
+        "subscriptions": "Plans — choose or renew your LexGo.AI and personal advocate subscription here.",
+        "documents": "Legal documents — draft applications, contracts and claims from ready-made templates here.",
         "requests": "Your active requests and their status show up here.",
         "title": "This is your dashboard — every service starts here.",
         "describe": "Describe your problem in plain words — AI picks the right service and lawyer.",
@@ -992,6 +995,10 @@
     }
   },
   "support": {
+    "aiLabels": {
+      "chat": "Chat with an operator",
+      "clientChat": "Chat with the client"
+    },
     "assistNote": {
       "kicker": "Operator help",
       "workId": "ID: {id}",
@@ -4013,6 +4020,93 @@
       "checklistHint": "Each line is an item. Mark done items with \"[x]\"."
     },
     "aiAssistant": {
+      "v21": {
+        "chips": "Actions taken",
+        "status": {
+          "pending": "Queued",
+          "running": "Running",
+          "done": "Done",
+          "missing": "This element wasn't found on the page right now",
+          "failed": "Failed",
+          "cancelled": "Cancelled",
+          "skipped": "Skipped"
+        },
+        "cmd": {
+          "navigate": "Open page",
+          "highlight": "Show",
+          "scroll_to": "Scroll to",
+          "focus_input": "Select field",
+          "open_modal": "Open window",
+          "fill_form": "Fill in fields",
+          "preview_action": "Prepare action",
+          "confirm_required": "Confirm",
+          "support_handoff": "Contact an operator",
+          "show_steps": "Steps",
+          "tooltip": "Hint",
+          "unknown": "Command"
+        },
+        "reason": {
+          "route_not_allowed": "This page isn't available to you",
+          "navigation_timeout": "The page didn't open",
+          "navigation_failed": "The page didn't open",
+          "unsupported_command": "This command isn't supported yet",
+          "field_not_fillable": "AI can't fill in this field",
+          "not_focusable": "Couldn't select the field",
+          "no_opener": "Couldn't open the window",
+          "modal_not_opened": "The window didn't open",
+          "user_declined": "You cancelled",
+          "user_stopped": "You stopped it",
+          "route_changed": "You moved to another page",
+          "superseded": "Replaced by a newer request",
+          "preview_failed": "The action couldn't be prepared",
+          "element_clicked": "You clicked the element",
+          "interrupted": "Interrupted"
+        },
+        "confirm": {
+          "title": "Confirm the action AI prepared",
+          "lead": "Nothing happens until you confirm.",
+          "what": "What will be done",
+          "price": "Possible payment",
+          "free": "Free",
+          "priceLater": "The exact amount is shown at the next step",
+          "currency": "UZS",
+          "onBehalf": "On whose behalf",
+          "onBehalfOther": "Note: this action runs on behalf of another user.",
+          "yes": "Confirm",
+          "no": "Cancel",
+          "busy": "Working…",
+          "expired": "The confirmation expired — the details were refreshed, please confirm again.",
+          "blocked": "This action can't be done right now.",
+          "genericTitle": "Shall we continue?",
+          "pay": "Go to payment",
+          "payReady": "The payment page is ready. Press the button to continue.",
+          "close": "Close"
+        },
+        "action": {
+          "start_support_ticket": "Start a chat with an operator",
+          "prepare_subscription_purchase": "Prepare a plan purchase",
+          "start_document_request": "Start a document request",
+          "prepare_marketplace_purchase": "Prepare a marketplace service purchase",
+          "prepare_urgent_advokat_request": "Prepare an urgent lawyer request",
+          "generic": "Run the action"
+        },
+        "roles": {
+          "client": "Client",
+          "lawyer": "Lawyer",
+          "advocate": "Advocate",
+          "staff": "Staff"
+        },
+        "fill": {
+          "title": "AI wants to fill in fields",
+          "lead": "Check the values. Press “Apply” to put them into the fields.",
+          "apply": "Apply",
+          "cancel": "Cancel"
+        },
+        "errors": {
+          "unavailable": "The new AI instructor version isn't available right now.",
+          "failed": "No answer came back. Try again."
+        }
+      },
       "needsTitle": "You'll need:",
       "stepsTitle": "Steps",
       "short": "AI instructor",
@@ -5321,6 +5415,12 @@
         "chooseSpecialist": "Choose a matched specialist"
       },
       "actions": {
+        "supportSub": "Operator, complaint or a call",
+        "support": "Help center",
+        "subscriptionsSub": "Choose or renew your plan",
+        "subscriptions": "Plans",
+        "documentsSub": "Application, contract and claim templates",
+        "documents": "Legal documents",
         "whoAiSub": "Answers right away, within the free limit. It hands hard cases to an advocate.",
         "whoAi": "An answer from LexGo's AI",
         "whoAdvocateSub": "An advocate answers by video or in writing.",

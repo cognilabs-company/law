@@ -54,6 +54,7 @@ export default function ServiceFormModal({
   taken,
   onClose,
   onSaved,
+  aiId,
 }: {
   item: ManagedService | null;
   scope: ServiceScope;
@@ -65,6 +66,7 @@ export default function ServiceFormModal({
   taken: Set<string>;
   onClose: () => void;
   onSaved: (saved: ManagedService, created: boolean) => void;
+  aiId?: string;
 }) {
   const t = useTranslations("sellerServices");
   const locale = useLocale();
@@ -150,6 +152,9 @@ export default function ServiceFormModal({
             void save();
           }}
           noValidate
+          data-ai-id={aiId}
+          data-ai-type={aiId ? "modal" : undefined}
+          data-ai-label={aiId ? (editing ? t("form.editTitle") : t("form.addTitle")) : undefined}
         >
           <section className="svform__sec">
             <label className="svform__lbl" htmlFor={`${ids}-svc`}>

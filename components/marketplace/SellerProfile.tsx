@@ -20,6 +20,8 @@ import VerifiedBadge from "@/components/VerifiedBadge";
 import { IconArrowRight, IconChevronLeft, IconClock, IconGlobe, IconLock, IconMapPin, IconRefresh, IconShieldCheck, IconStar, IconBriefcase } from "@/components/icons";
 import PurchaseDialog from "./PurchaseDialog";
 import { Monogram, Stars, deliveryLabel, hasRating, hasSuccess, langLabel, sellerTypeLabel, specLabel } from "./bits";
+import { aiId } from "@/lib/ai/ids";
+import { useAiModal, useAiSelection } from "@/lib/ai/registry";
 
 type Status = "loading" | "ready" | "notfound" | "error";
 
@@ -134,6 +136,12 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
     return () => clearTimeout(h);
   }, [autoBuy, ready, services, seller, session, blocked]);
 
+  useAiSelection(seller ? "service_id" : "", selected?.id);
+  useAiModal("marketplace.purchase-modal", () => {
+    if (!ready || !session || blocked || !selected || selected.price <= 0) return;
+    setBuying(selected);
+  });
+
   if (status === "loading") {
     return (
       <section className="mk mk-prof">
@@ -193,6 +201,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
     [t("detail.bar"), seller.barAssociation],
     [t("detail.license"), seller.licenseNumber],
   ].filter((f): f is [string, string] => !!f[1]);
+  const sellerAiId = aiId("marketplace.seller", seller.userId);
 
   return (
     <section className="mk mk-prof">
@@ -201,7 +210,15 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
         {t("detail.back")}
       </Link>
 
-      <header className="mk-prof__hero" data-ai-target="marketplace:seller-summary">
+      <header
+        className="mk-prof__hero"
+        data-ai-target="marketplace:seller-summary"
+        data-ai-id={sellerAiId}
+        data-ai-type="section"
+        data-ai-label={[sellerTypeLabel(t, seller.sellerType), place].filter(Boolean).join(" · ")}
+        data-ai-entity-type="seller"
+        data-ai-entity-id={seller.userId}
+      >
         <div className="mk-hero__glow" aria-hidden="true" />
         <div className="mk-prof__id">
           <Monogram name={seller.name} rating={seller.rating} showRing={rated} size="lg" />
@@ -251,7 +268,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
 
       <div className="mk-prof__body">
         <div className="mk-prof__main">
-          <section className="mk-panel" data-ai-target="marketplace:seller-services">
+          <section className="mk-panel" data-ai-target="marketplace:seller-services" data-ai-id={`${sellerAiId}.services`} data-ai-type="list">
             <h2 className="mk-panel__t">{t("detail.services")}</h2>
             <p className="mk-panel__l">{t("detail.servicesLead")}</p>
             {services.length ? (
@@ -259,8 +276,17 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
                 {services.map((svc) => {
                   const on = selected?.id === svc.id;
                   const eta = deliveryLabel(t, svc.deliveryMinutes);
+                  const svcAiId = aiId(`${sellerAiId}.service`, svc.id);
                   return (
-                    <div key={svc.id} className={`mk-svc${on ? " is-on" : ""}`} data-ai-target={`marketplace:service-card:${svc.id}`}>
+                    <div
+                      key={svc.id}
+                      className={`mk-svc${on ? " is-on" : ""}`}
+                      data-ai-target={`marketplace:service-card:${svc.id}`}
+                      data-ai-id={svcAiId}
+                      data-ai-type="card"
+                      data-ai-entity-type="marketplace_service"
+                      data-ai-entity-id={svc.id}
+                    >
                       <button type="button" role="radio" aria-checked={on} className="mk-svc__pick" onClick={() => setPicked(svc.id)}>
                         <span className="mk-svc__radio" aria-hidden="true" />
                         <span className="mk-svc__txt">
@@ -280,7 +306,16 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
                       </button>
                       <div className="mk-svc__end">
                         <b>{svc.price > 0 ? fmtUzs(svc.price) : t("card.priceAsk")}</b>
-                        <button type="button" className="btn btn--pri btn--sm" onClick={() => startBuy(svc)} disabled={!!blocked || svc.price <= 0} data-ai-target={`button:marketplace-purchase:${seller.userId}:${svc.id}`}>
+                        <button
+                          type="button"
+                          className="btn btn--pri btn--sm"
+                          onClick={() => startBuy(svc)}
+                          disabled={!!blocked || svc.price <= 0}
+                          data-ai-target={`button:marketplace-purchase:${seller.userId}:${svc.id}`}
+                          data-ai-id={`${svcAiId}.buy`}
+                          data-ai-entity-type="marketplace_service"
+                          data-ai-entity-id={svc.id}
+                        >
                           {t("detail.buy")}
                         </button>
                       </div>
@@ -296,7 +331,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
             )}
           </section>
 
-          <section className="mk-panel" data-ai-target="marketplace:seller-about">
+          <section className="mk-panel" data-ai-target="marketplace:seller-about" data-ai-id={`${sellerAiId}.about`} data-ai-type="section">
             <h2 className="mk-panel__t">{t("detail.about")}</h2>
             <p className="mk-prof__bio">{seller.bio || t("detail.noBio")}</p>
             {seller.specializations.length ? (
@@ -323,12 +358,12 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
             ) : null}
           </section>
 
-          <section className="mk-panel" data-ai-target="marketplace:seller-reviews">
+          <section className="mk-panel" data-ai-target="marketplace:seller-reviews" data-ai-id={`${sellerAiId}.reviews`} data-ai-type="list">
             <h2 className="mk-panel__t">{t("detail.reviews")}</h2>
             {!reviewsReady ? (
               <div className="mk-review mk-review--ghost" aria-hidden="true" />
             ) : seller.reviews.length ? (
-              <ul className="mk-reviews">
+              <ul className="mk-reviews" data-ai-private>
                 {seller.reviews.map((r, i) => (
                   <li key={r.id || i} className="mk-review">
                     <div className="mk-review__h">
@@ -357,7 +392,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
         </div>
 
         <aside className="mk-side">
-          <div className="mk-side__card" data-ai-target="marketplace:buy-box">
+          <div className="mk-side__card" data-ai-target="marketplace:buy-box" data-ai-id={`${sellerAiId}.buy-box`} data-ai-type="section">
             <small>{selected ? selected.title : t("detail.selectService")}</small>
             <b className="mk-side__price">
               {selected && selected.price > 0 ? fmtUzs(selected.price) : seller.priceFrom > 0 ? t("card.priceFrom", { price: fmtUzs(seller.priceFrom) }) : t("card.priceAsk")}
@@ -380,12 +415,15 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
               className="btn btn--grad btn--full btn--lg"
               disabled={!selected || !!blocked || !ready || selected.price <= 0}
               onClick={() => selected && startBuy(selected)}
+              data-ai-id={`${sellerAiId}.buy`}
+              data-ai-entity-type={selected ? "marketplace_service" : undefined}
+              data-ai-entity-id={selected?.id}
             >
               {ready && !session ? t("detail.loginToBuy") : t("detail.buy")}
               <IconArrowRight />
             </button>
           </div>
-          <div className="mk-safe" data-ai-target="marketplace:safe-deal">
+          <div className="mk-safe" data-ai-target="marketplace:safe-deal" data-ai-id="marketplace.safe-deal" data-ai-type="section">
             <b>
               <IconShieldCheck />
               {t("detail.safeTitle")}

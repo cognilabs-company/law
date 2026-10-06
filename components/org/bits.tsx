@@ -7,6 +7,7 @@ import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
 import type { OrgWorkItem } from "@/lib/services/orgOwner";
 import { IconArrowRight, IconBuilding, IconLock } from "@/components/icons";
+import { aiId } from "@/lib/ai/ids";
 
 export function statusLabel(t: (k: string) => string, has: (k: string) => boolean, s: string) {
   return has(`statuses.${s}`) ? t(`statuses.${s}`) : s || "—";
@@ -23,8 +24,20 @@ export function kindHref(kind: string): string {
 export function WorkRow({ item, onOpen }: { item: OrgWorkItem; onOpen: () => void }) {
   const t = useTranslations("orgOwner");
   const locale = useLocale();
+  const wid = item.workId || item.id;
+  const kind = t.has(`kinds.${item.kind}`) ? t(`kinds.${item.kind}`) : item.kind;
   return (
-    <button type="button" className="owork" onClick={onOpen}>
+    <button
+      type="button"
+      className="owork"
+      onClick={onOpen}
+      data-ai-id={wid ? aiId("works.item", wid) : undefined}
+      data-ai-type="list_item"
+      data-ai-entity-type="work"
+      data-ai-entity-id={item.id || undefined}
+      data-ai-label={[kind, item.workId, statusLabel(t, t.has, item.status)].filter(Boolean).join(" · ")}
+      data-ai-private
+    >
       <span className="owork__id">{item.workId || item.id.slice(0, 8)}</span>
       <span className="owork__t">
         <b>{item.title || t("untitled")}</b>
@@ -54,7 +67,7 @@ export function WorkDetail({ item, onClose }: { item: OrgWorkItem | null; onClos
   return (
     <Modal open={!!item} onClose={onClose} title={item?.title || t("untitled")}>
       {item ? (
-        <div className="odetail">
+        <div className="odetail" data-ai-id="organization.work-detail-modal" data-ai-type="modal" data-ai-label={t.has(`kinds.${item.kind}`) ? t(`kinds.${item.kind}`) : t("activeTitle")} data-ai-private>
           <dl>
             {rows.map(([k, v]) => (
               <div key={k}>

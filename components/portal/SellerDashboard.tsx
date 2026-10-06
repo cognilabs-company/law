@@ -167,7 +167,7 @@ export default function SellerDashboard({ role, compact = false }: { role: Role;
       {cabinet.data ? <SellerPayouts /> : null}
       <ReferralProgress side="seller" href={role === "advocate" ? "/portal/advocate/referrals" : "/portal/lawyer/referrals"} />
 
-      <div className="ppanel" data-ai-target="seller-dashboard:new-orders">
+      <div className="ppanel" data-ai-target="seller-dashboard:new-orders" data-ai-id="advocate.dashboard.new-orders" data-ai-label={t("newCases")}>
         <div className="ppanel__h">
           <b>{t("newCases")}</b>
           <span className="advmuted">{t("newCasesSub", { n: openCases.length })}</span>
@@ -199,12 +199,12 @@ function CabinetStatus({ cabinet: c, role }: { cabinet: SellerCabinet; role: Rol
   const region = c.profile.region;
 
   return (
-    <div className="ppanel" data-ai-target="seller-dashboard:status">
+    <div className="ppanel" data-ai-target="seller-dashboard:status" data-ai-id="advocate.dashboard" data-ai-type="section" data-ai-label={t("title")}>
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <span className="creq__badge">{t.has(`status.${statusKey}`) ? t(`status.${statusKey}`) : statusKey}</span>
       </div>
-      <div className="pkv">
+      <div className="pkv" data-ai-private>
         <div className="pkv__i"><label>{t("name")}</label><b>{c.profile.name || session?.name || "—"}</b></div>
         <div className="pkv__i"><label>{t("type")}</label><b>{tc(role === "advocate" ? "roleAdvocate" : "roleLawyer")}</b></div>
         {region ? (
@@ -228,6 +228,7 @@ function CabinetStatus({ cabinet: c, role }: { cabinet: SellerCabinet; role: Rol
         href={role === "advocate" ? "/portal/advocate/profile" : "/portal/lawyer/services"}
         className="btn btn--pri btn--sm"
         style={{ marginTop: 16 }}
+        data-ai-id={role === "advocate" ? "advocate.dashboard.complete-profile" : "advocate.dashboard.choose-services"}
       >
         {t(role === "advocate" ? "completeProfile" : "chooseServices")}
       </Link>

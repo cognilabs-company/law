@@ -15,6 +15,7 @@ import { isForbidden } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { dateOnly, timeOnly } from "@/lib/date";
 import { useAiReveal } from "@/lib/guide/targets";
+import { useAiSelection } from "@/lib/ai/registry";
 import { EmptyState } from "@/components/portal/DataState";
 import { IconLock, IconRefresh } from "@/components/icons";
 import { useLive } from "./useLive";
@@ -46,6 +47,10 @@ export default function MarketplaceMonitor() {
   useAiReveal(/^marketplace:(kpis|status-chart|top-sellers|latest-orders|filters)$/, () => setTab("overview"));
   useAiReveal("marketplace:orders-list", () => setTab("orders"));
   useAiReveal(/^marketplace:(sellers-list|seller-search)$/, () => setTab("sellers"));
+  useAiReveal(/^admin\.marketplace\.orders(\.|$)/, () => setTab("orders"));
+  useAiReveal(/^admin\.marketplace\.sellers(\.|$)/, () => setTab("sellers"));
+  useAiReveal(/^admin\.marketplace\.(kpis|top-sellers|latest-orders)(\.|$)/, () => setTab("overview"));
+  useAiSelection("admin_marketplace_tab", tab);
 
   const scope: MkmScope = useMemo(
     () => ({ status: f.status, sellerUserId: f.seller?.id ?? "", clientUserId: f.client?.id ?? "", dateFrom: f.from, dateTo: f.to }),
@@ -176,7 +181,7 @@ export default function MarketplaceMonitor() {
           </div>
         </div>
         <div className="mkm-hero__bar">
-          <div className="mkm-tabs" role="tablist" aria-label={t("tabsAria")} data-ai-target="marketplace:tabs">
+          <div className="mkm-tabs" role="tablist" aria-label={t("tabsAria")} data-ai-target="marketplace:tabs" data-ai-id="admin.marketplace.tabs">
             {TABS.map((k) => {
               const n = badge(k);
               return (
@@ -185,6 +190,7 @@ export default function MarketplaceMonitor() {
                   type="button"
                   role="tab"
                   id={`mkm-tab-${k}`}
+                  data-ai-id={`admin.marketplace.tab.${k}`}
                   aria-controls="mkm-panel"
                   aria-selected={tab === k}
                   tabIndex={tab === k ? 0 : -1}

@@ -126,11 +126,11 @@ export default function IdentityVerify() {
     <div className="idv__providers">
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {waiting ? <p className="advmuted" role="status">{t("retryIn", { time: fmtClock(wait.resendIn) })}</p> : null}
-      <button className="idv__prov idv__prov--main" type="button" disabled={busy || waiting} onClick={() => start("myid")}>
+      <button className="idv__prov idv__prov--main" type="button" disabled={busy || waiting} onClick={() => start("myid")} data-ai-id="profile.identity.myid">
         <b>MyID <em className="idv__tag">{t("primary")}</em></b>
         <span>{t("myidSub")}</span>
       </button>
-      <button className="idv__prov" type="button" disabled={busy || waiting} onClick={() => start("oneid")}>
+      <button className="idv__prov" type="button" disabled={busy || waiting} onClick={() => start("oneid")} data-ai-id="profile.identity.oneid">
         <b>OneID</b>
         <span>{t("oneidSub")}</span>
       </button>
@@ -139,14 +139,14 @@ export default function IdentityVerify() {
   );
 
   return (
-    <div className="ppanel" data-ai-target="profile:identity">
+    <div className="ppanel" data-ai-target="profile:identity" data-ai-id="profile.identity" data-ai-type="section">
       <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconShieldCheck /></span>{t("title")}</b></div>
       <p className="ppanel__note">{t("lead")}</p>
 
       {res.status === "loading" && !id ? (
         <Skeleton rows={2} />
       ) : cur?.verified ? (
-        <div className="idv__ok">
+        <div className="idv__ok" data-ai-private>
           <span className="idv__oki"><IconShieldCheck /></span>
           <div>
             <b>{t("verified")}</b>
@@ -154,7 +154,7 @@ export default function IdentityVerify() {
           </div>
         </div>
       ) : flow ? (
-        <div className="idv__flow">
+        <div className="idv__flow" data-ai-private>
           <p className="advmuted">{t("codeHint", { provider: provName(prov) })}</p>
           <div>
             <label>{t("codeLabel")}</label>

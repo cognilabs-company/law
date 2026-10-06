@@ -45,6 +45,7 @@ const ALIAS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^\/portal\/client\/documents\/my$/, () => "/portal/client/documents"],
   [/^\/portal\/client\/subscriptions$/, () => "/portal/client/subscription"],
   [/^\/portal\/client\/marketplace$/, () => "/portal/client/lawyers"],
+  [/^\/portal\/client\/marketplace\/([^/]+)$/, (m) => `/portal/client/lawyers/${m[1]}`],
   [/^\/portal\/client\/urgent-advokat$/, () => "/portal/client/urgent"],
   [/^\/portal\/client\/ai-help$/, () => ""],
   [/^\/marketplace\/lawyers\/([^/]+)$/, (m) => `/portal/client/lawyers/${m[1]}`],
@@ -113,6 +114,22 @@ export function guideHref(raw: string, role: GuideRole): string {
     suffix = twin;
   }
   return own + suffix + rest;
+}
+
+const ROLE_ROOT = /^\/(portal\/[^/]+|admin)$/;
+
+export function routeAllowed(href: string, allowed: string[], role: GuideRole): boolean {
+  if (!allowed.length) return true;
+  const path = normPath(href);
+  for (const raw of allowed) {
+    const mapped = guideHref(raw, role);
+    if (!mapped) continue;
+    const base = normPath(mapped);
+    if (base === "/") continue;
+    if (path === base) return true;
+    if (path.startsWith(`${base}/`) && !ROLE_ROOT.test(base)) return true;
+  }
+  return false;
 }
 
 export function remapTarget(id: string, role: GuideRole): string {

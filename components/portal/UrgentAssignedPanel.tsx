@@ -19,6 +19,8 @@ import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import WorkFilterBar, { inPeriod, useStoredFilters, type Period } from "./WorkFilterBar";
 import { matchesSearch } from "@/lib/searchText";
+import { aiId, aiSeg } from "@/lib/ai/ids";
+import { useAiReveal } from "@/lib/guide/targets";
 import CallRoom from "@/components/chat/CallRoom";
 import { Skeleton, EmptyState } from "./DataState";
 import { Notice } from "@/components/admin/AdminBits";
@@ -264,10 +266,21 @@ export default function UrgentAssignedPanel() {
     });
   }, [filtered, f.sort]);
 
+  useAiReveal(/^advocate\.urgent\.item\./, (id) => {
+    const seg = id.split(".")[3] ?? "";
+    if (!shown.some((r) => aiSeg(r.id) === seg) && state.items.some((r) => aiSeg(r.id) === seg)) setF({ q: "", owner: "", stage: "", kind: "", period: "" });
+  });
+
   if (state.status === "missing") return null;
 
   return (
-    <section className="ppanel uasg" data-ai-target={shown.length ? undefined : "urgent-assigned:list"}>
+    <section
+      className="ppanel uasg"
+      data-ai-target={shown.length ? undefined : "urgent-assigned:list"}
+      data-ai-id={shown.length ? undefined : "advocate.urgent.list"}
+      data-ai-type={shown.length ? undefined : "list"}
+      data-ai-label={shown.length ? undefined : t("title")}
+    >
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconBolt /></span>{t("title")}</b>
         <button type="button" className="btn btn--line btn--sm" onClick={() => void load()} aria-label={tcm("open")} title={tcm("open")}>
@@ -314,6 +327,7 @@ export default function UrgentAssignedPanel() {
         onReset={resetF}
         resultCount={filtered.length}
         aiTarget="urgent-assigned:filters"
+        aiBase="advocate.urgent"
       />
 
       {state.status === "loading" ? (
@@ -328,7 +342,7 @@ export default function UrgentAssignedPanel() {
           <button type="button" className="btn btn--line btn--sm" onClick={resetF}>{tf("reset")}</button>
         </div>
       ) : (
-        <ul className="uasg__list" data-ai-target="urgent-assigned:list" data-ai-label={t("title")}>
+        <ul className="uasg__list" data-ai-target="urgent-assigned:list" data-ai-label={t("title")} data-ai-id="advocate.urgent.list" data-ai-type="list">
           {shown.map((r) => {
             const Icon = KIND_ICON[r.serviceKind] ?? IconScale;
             const on = openId === r.id;
@@ -338,8 +352,18 @@ export default function UrgentAssignedPanel() {
             // place they learn who else was chosen; there is no roster
             // endpoint a participant may call.
             const peers = up ? r.groupLawyers.filter((g) => g.name && g.id !== session?.id) : [];
+            const item = r.id ? aiId("advocate.urgent.item", r.id) : undefined;
             return (
-              <li key={r.id} className={`uasg__row${on ? " uasg__row--on" : ""}${up ? " uasg__row--soon" : ""}`}>
+              <li
+                key={r.id}
+                className={`uasg__row${on ? " uasg__row--on" : ""}${up ? " uasg__row--soon" : ""}`}
+                data-ai-id={item}
+                data-ai-type="list_item"
+                data-ai-entity-type="urgent_advokat_request"
+                data-ai-entity-id={r.id || undefined}
+                data-ai-label={[tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind, r.workId, statusLabel(tcm, r.status)].filter(Boolean).join(" · ")}
+                data-ai-private
+              >
                 <span className={`uaq__i uaq__i--${r.channel || "video"}`}><Icon /></span>
                 <div className="uasg__m">
                   <b>
@@ -420,6 +444,9 @@ export default function UrgentAssignedPanel() {
                         className="btn btn--grad btn--sm"
                         disabled={!joinable(r)}
                         title={joinable(r) ? undefined : t("joinWaiting")}
+                        data-ai-id={item ? `${item}.join` : undefined}
+                        data-ai-type="call_button"
+                        data-ai-label={t("joinMeeting")}
                         onClick={() =>
                           setMeeting({
                             roomId: r.secureChatRoomId,
@@ -440,7 +467,7 @@ export default function UrgentAssignedPanel() {
                       </button>
                     ) : null}
                     {r.secureChatRoomId ? (
-                      <Link href={chatHref} className="btn btn--line btn--sm"><IconChat />{t("openChat")}</Link>
+                      <Link href={chatHref} className="btn btn--line btn--sm" data-ai-id={item ? `${item}.chat` : undefined} data-ai-label={t("openChat")}><IconChat />{t("openChat")}</Link>
                     ) : null}
                     <button
                       type="button"
@@ -448,6 +475,8 @@ export default function UrgentAssignedPanel() {
                       aria-expanded={on}
                       aria-controls={`uasg-${r.id}`}
                       onClick={() => setOpenId(on ? "" : r.id)}
+                      data-ai-id={item ? `${item}.details` : undefined}
+                      data-ai-label={tcm("details")}
                     >
                       {tcm("details")}<IconChevronRight />
                     </button>

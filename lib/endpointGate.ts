@@ -1,6 +1,6 @@
 import { isRouteMissing } from "./http";
 
-export type GatedFeature = "instructor" | "marketAiSearch" | "support" | "supportQueue" | "orgOwner";
+export type GatedFeature = "instructor" | "instructorV21" | "marketAiSearch" | "support" | "supportQueue" | "orgOwner";
 
 const missing = new Set<GatedFeature>();
 const listeners = new Set<() => void>();
@@ -16,6 +16,11 @@ export function noteFeatureError(key: GatedFeature, e: unknown): boolean {
     listeners.forEach((fn) => fn());
   }
   return true;
+}
+
+export function clearFeatureMissing(key: GatedFeature): void {
+  if (!missing.delete(key)) return;
+  listeners.forEach((fn) => fn());
 }
 
 export function subscribeFeatureGate(fn: () => void): () => void {

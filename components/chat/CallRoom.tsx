@@ -88,6 +88,7 @@ type Props = {
   // also passes just to label its header, leaving the caller stuck in an
   // empty room after the other side hung up.
   keepAlone?: boolean;
+  aiScope?: string;
   onEnd: () => void;
 };
 
@@ -295,7 +296,7 @@ export { CALLROOM_EVENT };
 // backend). Everything stays inside LexGo: a tile per participant with name,
 // mic state and speaking ring, screen share on a stage, in-call chat over the
 // LiveKit data channel, and host controls from the backend roster.
-export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, float, keepAlone: keepAloneProp, onEnd }: Props) {
+export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, float, keepAlone: keepAloneProp, aiScope, onEnd }: Props) {
   const t = useTranslations("call");
   const te = useTranslations("enums");
   const { session } = useAuth();
@@ -1942,12 +1943,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // for and the host gets the resume back: that is the whole point of carrying
   // the answer over the data channel.
   const showPause = canPause && !(paused && !!pendExt && extFor.peer !== "no");
+  const aiAt = (part?: string) => (aiScope ? (part ? `${aiScope}.${part}` : aiScope) : undefined);
 
   return (
     <div
       className={`mtg${panel ? " mtg--panel" : ""}${floating ? " mtg--float" : ""}${floating && fmin ? " mtg--fmin" : ""}`}
       data-tick={tick}
       style={floating ? { right: fbox.right, bottom: fbox.bottom, width: fbox.w, height: fmin ? undefined : fbox.h } : undefined}
+      data-ai-id={aiAt()}
+      data-ai-type={aiScope ? "section" : undefined}
+      data-ai-label={aiScope ? t("meetingTitle") : undefined}
     >
       <div ref={audioRef} hidden />
       {floating ? (
@@ -1968,7 +1973,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         onPointerUp={floating ? endFloat : undefined}
         onPointerCancel={floating ? endFloat : undefined}
       >
-        <div className="mtg__title">
+        <div className="mtg__title" data-ai-private>
           <b>{title || t("meetingTitle")}</b>
           <span className={`mtg__badge mtg__badge--${status}`}><i />{statusLabel}</span>
           {/* Which kind of call this is, which nothing on the screen said
@@ -2043,6 +2048,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         <main
           className={`mtg__stage${guard.shielded ? " mtg__stage--guard" : ""}`}
           ref={stageRef}
+          data-ai-private
           onContextMenu={(e) => e.preventDefault()}
           onDragStart={(e) => e.preventDefault()}
         >
@@ -2159,8 +2165,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
                 ) : (
                   <>
                     <div className="mtg__recask-btns">
-                      <button type="button" className="btn btn--pri btn--sm" onClick={() => answerExtension(true)}><IconPlus />{t("extConfirm")}</button>
-                      <button type="button" className="btn btn--line btn--sm" onClick={() => answerExtension(false)}><IconClose />{t("extDecline")}</button>
+                      <button type="button" className="btn btn--pri btn--sm" onClick={() => answerExtension(true)} data-ai-id={aiAt("extend")} data-ai-label={aiScope ? t("extConfirm") : undefined}><IconPlus />{t("extConfirm")}</button>
+                      <button type="button" className="btn btn--line btn--sm" onClick={() => answerExtension(false)} data-ai-id={aiAt("extend.decline")} data-ai-label={aiScope ? t("extDecline") : undefined}><IconClose />{t("extDecline")}</button>
                     </div>
                     <small>{t("extAskNote")}</small>
                   </>
@@ -2199,7 +2205,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         </main>
 
         {panel ? (
-          <aside className="mtg__side">
+          <aside className="mtg__side" data-ai-private>
             <div className="mtg__tabs">
               <button type="button" className={panel === "chat" ? "on" : ""} onClick={() => openPanel("chat")}>{t("chatTab")}</button>
               <button type="button" className={panel === "people" ? "on" : ""} onClick={() => openPanel("people")}>{t("rosterTitle")} · {count}</button>
@@ -2284,9 +2290,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             <button type="button" onClick={() => { setMore(false); openPanel("chat"); }}><IconChat />{t("chatTab")}{unread ? <i className="mtg__cb">{unread > 9 ? "9+" : unread}</i> : null}</button>
             <button type="button" onClick={() => { setMore(false); openPanel("people"); }}><IconUsers />{t("rosterTitle")} · {count}</button>
             {canExtend ? (
-              <button type="button" onClick={() => { setMore(false); setExtErr(""); setExtOpen(true); }} disabled={paused}><IconClock />{t("extendPaidShort")}</button>
+              <button type="button" onClick={() => { setMore(false); setExtErr(""); setExtOpen(true); }} disabled={paused} data-ai-id={aiAt("extend")}><IconClock />{t("extendPaidShort")}</button>
             ) : null}
-            {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }}><IconRecord />{recOn ? t("recStop", { mode: t(recMode === "screen" ? "recModeScreen" : "recModeAudio") }) : recReq ? t("recWaitingShort") : t("recStart")}</button> : null}
+            {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }} data-ai-id={aiAt("record")}><IconRecord />{recOn ? t("recStop", { mode: t(recMode === "screen" ? "recModeScreen" : "recModeAudio") }) : recReq ? t("recWaitingShort") : t("recStart")}</button> : null}
             <button type="button" onClick={() => { setMore(false); setView(view === "grid" ? "speaker" : "grid"); }}>{view === "grid" ? <IconUser /> : <IconGrid />}{view === "grid" ? t("layoutSpeaker") : t("layoutGrid")}</button>
             {camControl && bgOk ? <button type="button" onClick={() => { setMore(false); setBgOpen(true); }}><IconBgPerson />{t("bg.button")}</button> : null}
           </div>
@@ -2304,18 +2310,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             announced "Mute microphone, pressed" while the mic was live, i.e.
             the opposite of what was true. The host's force-mute still
             disables it and the label/title keep working. */}
-        <Ctl mic on={micOn} off={!micOn} label={t("mic")} aria={micOn ? t("micMute") : t("micUnmute")} onClick={toggleMic} disabled={hostMuted && !micOn} title={hostMuted && !micOn ? t("mutedByHost") : micOn ? t("micMute") : t("micUnmute")}>
+        <Ctl mic on={micOn} off={!micOn} label={t("mic")} aria={micOn ? t("micMute") : t("micUnmute")} onClick={toggleMic} disabled={hostMuted && !micOn} title={hostMuted && !micOn ? t("mutedByHost") : micOn ? t("micMute") : t("micUnmute")} aiId={aiAt("audio-toggle")}>
           <span className={`mtg__mic${micOn ? "" : " mtg__mic--off"}`} aria-hidden="true"><IconMic className="mtg__micOn" /><IconMicOff className="mtg__micOff" /></span>
         </Ctl>
         {/* Camera is offered on any call the policy allows video on — such a
             call becomes a video call once it is turned on. A session with
             video_enabled=false has no camera control at all, since turning it
             on would publish a track the backend never provisioned for. */}
-        {camControl ? <Ctl on={camOn} off={!camOn} label={canUpgradeToVideo ? t("camUpgrade") : camOn ? t("camOff2") : t("camOn")} onClick={toggleCam} disabled={camBusy}><IconVideo /></Ctl> : null}
+        {camControl ? <Ctl on={camOn} off={!camOn} label={canUpgradeToVideo ? t("camUpgrade") : camOn ? t("camOff2") : t("camOn")} onClick={toggleCam} disabled={camBusy} aiId={aiAt("video-toggle")}><IconVideo /></Ctl> : null}
         {videoAllowed && camOn && canSwitchCam ? <Ctl label={t("switchCam")} onClick={switchCam} disabled={camBusy}><IconRefresh /></Ctl> : null}
         {camControl && bgOk ? <Ctl on={bgOpen || bgEffect.kind !== "none"} label={t("bg.button")} onClick={() => setBgOpen((v) => !v)} desktop><IconBgPerson /></Ctl> : null}
         {canShare ? <Ctl on={sharing} label={sharing ? t("screenStop") : t("screen")} onClick={toggleShare} accent={sharing} desktop><IconMonitor /></Ctl> : null}
-        {canRecord() ? <Ctl on={recOn || !!recReq} label={recOn ? t("recStopShort") : recReq ? t("recWaitingShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} disabled={!!recReq} desktop><IconRecord /></Ctl> : null}
+        {canRecord() ? <Ctl on={recOn || !!recReq} label={recOn ? t("recStopShort") : recReq ? t("recWaitingShort") : t("recStart")} onClick={() => void toggleRec()} rec={recOn} disabled={!!recReq} desktop aiId={aiAt("record")}><IconRecord /></Ctl> : null}
         <Ctl on={panel === "people"} label={t("rosterTitle")} onClick={() => openPanel(panel === "people" ? "" : "people")} desktop><IconUsers /></Ctl>
         <Ctl on={panel === "chat"} label={t("chatTab")} onClick={() => openPanel(panel === "chat" ? "" : "chat")} badge={unread} desktop><IconChat /></Ctl>
         {/* Extensions are host-only server-side, and only offered at all on
@@ -2328,11 +2334,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             aria={`${t("extendFree", { n: limits.freeExtensionMaxMinutes || 3 })} — ${t("extendFreeNote", { n: limits.freeExtensionMaxMinutes || 3, price: fmtUzs(limits.paidExtensionPricePerMinute || 2000) })}`}
             onClick={() => void extendFree()}
             disabled={extBusy || paused}
+            aiId={aiAt("extend-free")}
           ><IconPlus /></Ctl>
         ) : null}
         {/* NOT desktop-only while floating: .mtg--float hides .mtg__ctl--desktop,
             and the floating panel is exactly where the document meeting runs. */}
-        {canExtend ? <Ctl on={extOpen} label={t("extendPaidShort")} onClick={() => { setExtErr(""); setExtOpen((v) => !v); }} disabled={extBusy || paused} desktop={!floating}><IconClock /></Ctl> : null}
+        {canExtend ? <Ctl on={extOpen} label={t("extendPaidShort")} onClick={() => { setExtErr(""); setExtOpen((v) => !v); }} disabled={extBusy || paused} desktop={!floating} aiId={aiAt("extend")}><IconClock /></Ctl> : null}
         {/* Hold the meeting. It sits with the extension controls because they
             are the same family — everything here manipulates the clock — and
             it is offered at EVERY width, including the phone bar and the
@@ -2348,8 +2355,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             onClick={() => void togglePause()}
           />
         ) : null}
-        <Ctl label={t("more")} onClick={() => setMore((m) => !m)} badge={unread} phone><IconGrid /></Ctl>
-        <Ctl end label={isCaller ? t("endAll") : t("end")} onClick={hangUp}><IconClose /></Ctl>
+        <Ctl label={t("more")} onClick={() => setMore((m) => !m)} badge={unread} phone aiId={aiAt("more")}><IconGrid /></Ctl>
+        <Ctl end label={isCaller ? t("endAll") : t("end")} onClick={hangUp} aiId={aiAt("end")}><IconClose /></Ctl>
       </footer>
     </div>
   );
@@ -2358,9 +2365,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
 const noopSubscribe = () => () => {};
 const serverFalse = () => false;
 
-function Ctl({ children, label, aria, onClick, on, off, end, accent, rec, mic, pressed, disabled, title, badge, desktop, phone }: { children: ReactNode; label: string; aria?: string; onClick: () => void; on?: boolean; off?: boolean; end?: boolean; accent?: boolean; rec?: boolean; mic?: boolean; pressed?: boolean; disabled?: boolean; title?: string; badge?: number; desktop?: boolean; phone?: boolean }) {
+function Ctl({ children, label, aria, onClick, on, off, end, accent, rec, mic, pressed, disabled, title, badge, desktop, phone, aiId }: { children: ReactNode; label: string; aria?: string; onClick: () => void; on?: boolean; off?: boolean; end?: boolean; accent?: boolean; rec?: boolean; mic?: boolean; pressed?: boolean; disabled?: boolean; title?: string; badge?: number; desktop?: boolean; phone?: boolean; aiId?: string }) {
   return (
-    <button type="button" className={`mtg__ctl${on ? " on" : ""}${off ? " off" : ""}${end ? " end" : ""}${accent ? " accent" : ""}${rec ? " rec" : ""}${mic ? " mtg__ctl--mic" : ""}${desktop ? " mtg__ctl--desktop" : ""}${phone ? " mtg__ctl--phone" : ""}`} onClick={onClick} disabled={disabled} title={title} aria-label={aria || label} aria-pressed={pressed}>
+    <button type="button" className={`mtg__ctl${on ? " on" : ""}${off ? " off" : ""}${end ? " end" : ""}${accent ? " accent" : ""}${rec ? " rec" : ""}${mic ? " mtg__ctl--mic" : ""}${desktop ? " mtg__ctl--desktop" : ""}${phone ? " mtg__ctl--phone" : ""}`} onClick={onClick} disabled={disabled} title={title} aria-label={aria || label} aria-pressed={pressed} data-ai-id={aiId}>
       <span className="mtg__ci">{children}{badge ? <i className="mtg__cb">{badge > 9 ? "9+" : badge}</i> : null}</span>
       <span className="mtg__cl">{label}</span>
     </button>

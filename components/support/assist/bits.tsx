@@ -76,7 +76,7 @@ export function InfoList({ rows }: { rows: InfoRow[] }) {
 export function ResultCard({ title, rows, note, warn, onDismiss }: { title: string; rows: InfoRow[]; note?: ReactNode; warn?: boolean; onDismiss: () => void }) {
   const t = useTranslations("support.assist");
   return (
-    <div className={`sasst__res${warn ? " sasst__res--warn" : ""}`} role="status">
+    <div className={`sasst__res${warn ? " sasst__res--warn" : ""}`} role="status" data-ai-private>
       <div className="sasst__resh">
         {warn ? <IconAlert aria-hidden="true" /> : <IconCheck aria-hidden="true" />}
         <b>{title}</b>
@@ -99,6 +99,7 @@ export function ConfirmModal({
   error,
   onCancel,
   onConfirm,
+  aiId,
 }: {
   open: boolean;
   title: string;
@@ -108,6 +109,7 @@ export function ConfirmModal({
   error: string;
   onCancel: () => void;
   onConfirm: () => void;
+  aiId?: string;
 }) {
   const t = useTranslations("support.assist");
   if (!open || typeof document === "undefined") return null;
@@ -116,7 +118,7 @@ export function ConfirmModal({
   };
   return createPortal(
     <Modal open onClose={close} title={title}>
-      <div className="sasst__cf">
+      <div className="sasst__cf" data-ai-id={aiId || undefined} data-ai-type={aiId ? "modal" : undefined} data-ai-label={title} data-ai-private>
         <InfoList rows={rows} />
         <p className="sasst__cfnote">
           <IconAlert aria-hidden="true" />
@@ -131,7 +133,15 @@ export function ConfirmModal({
           <button type="button" className="btn btn--line" onClick={close} disabled={busy}>
             {t("confirm.cancel")}
           </button>
-          <button type="button" className="btn btn--grad" onClick={onConfirm} disabled={busy} aria-busy={busy || undefined}>
+          <button
+            type="button"
+            className="btn btn--grad"
+            onClick={onConfirm}
+            disabled={busy}
+            aria-busy={busy || undefined}
+            data-ai-id={aiId ? `${aiId}.confirm` : undefined}
+            data-ai-label={t("confirm.send")}
+          >
             {busy ? t("confirm.sending") : t("confirm.send")}
           </button>
         </div>

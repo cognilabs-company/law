@@ -15,6 +15,8 @@ import DatePicker from "@/components/DatePicker";
 import { IconUser, IconCheck, IconClose, IconEye } from "@/components/icons";
 import RegisterRequestDetail from "@/components/admin/RegisterRequestDetail";
 import { dateOnly } from "@/lib/date";
+import { aiId } from "@/lib/ai/ids";
+import { useAiSelection } from "@/lib/ai/registry";
 
 const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const fmtDate = (v: string, locale: string) => {
@@ -51,7 +53,7 @@ function Actions({ id, onDone }: { id: string; onDone: () => void }) {
     );
   }
   return (
-    <div className="pcase__act" data-ai-target="register-requests:decision">
+    <div className="pcase__act" data-ai-target="register-requests:decision" data-ai-id={id ? aiId("admin.register-requests.item", id, "decision") : undefined} data-ai-label={`${t("accept")} · ${t("reject")}`}>
       <button className="btn btn--pri btn--sm" type="button" disabled={!!busy} onClick={() => run("accept")}>
         <IconCheck />
         {busy === "accept" ? t("accepting") : t("accept")}
@@ -77,6 +79,8 @@ export default function AdminRegisterRequests() {
   const [detail, setDetail] = useState<string | null>(null);
   const stats = res.data?.stats;
   const items: RegisterRequest[] = res.data?.items ?? [];
+  useAiSelection("register_requests_role", roleTab);
+  const roleLabel = (role: string) => (role ? (t.has(`role.${role}`) ? t(`role.${role}`) : cap(role.replace(/_/g, " "))) : "");
 
   return (
     <div className="ppanel">
@@ -87,7 +91,7 @@ export default function AdminRegisterRequests() {
       <p className="advmuted" style={{ marginBottom: 16 }}>{t("lead")}</p>
 
       {stats ? (
-        <div className="amet" style={{ marginBottom: 16 }} data-ai-target="register-requests:stats">
+        <div className="amet" style={{ marginBottom: 16 }} data-ai-target="register-requests:stats" data-ai-id="admin.register-requests.stats" data-ai-type="section" data-ai-label={t("stats.total")}>
           <div className="amet__c"><b>{stats.total}</b><span className="amet__l">{t("stats.total")}</span></div>
           <div className="amet__c"><b>{stats.advokat}</b><span className="amet__l">{t("role.advokat")}</span></div>
           <div className="amet__c"><b>{stats.yurist}</b><span className="amet__l">{t("role.yurist")}</span></div>
@@ -98,9 +102,9 @@ export default function AdminRegisterRequests() {
         </div>
       ) : null}
 
-      <div className="segs segs--sm" role="tablist" aria-label={t("stats.roleTabs")} style={{ marginBottom: 12 }} data-ai-target="register-requests:role-tabs">
+      <div className="segs segs--sm" role="tablist" aria-label={t("stats.roleTabs")} style={{ marginBottom: 12 }} data-ai-target="register-requests:role-tabs" data-ai-id="admin.register-requests.role-tabs">
         {ROLE_TABS.map((r) => (
-          <button key={r} type="button" role="tab" className="seg" aria-selected={roleTab === r} onClick={() => setRoleTab(r)}>
+          <button key={r} type="button" role="tab" className="seg" aria-selected={roleTab === r} onClick={() => setRoleTab(r)} data-ai-id={`admin.register-requests.tab.${r.replace(/_/g, "-")}`}>
             {r === "all" ? t("stats.allRoles") : t(`role.${r}`)}
           </button>
         ))}
@@ -115,21 +119,30 @@ export default function AdminRegisterRequests() {
       ) : !items.length ? (
         <EmptyState icon={<IconUser />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="alist" data-ai-target="register-requests:list" data-ai-label={t("title")}>
+        <div className="alist" data-ai-target="register-requests:list" data-ai-label={t("title")} data-ai-id="admin.register-requests.list" data-ai-type="list">
           {items.map((r: RegisterRequest, i) => (
-            <AdminItem
+            <div
               key={r.id || i}
-              index={i + 1}
-              title={r.name || "—"}
-              meta={[
-                r.role ? (t.has(`role.${r.role}`) ? t(`role.${r.role}`) : cap(r.role.replace(/_/g, " "))) : "",
-                r.phone,
-                fmtDate(r.createdAt, locale),
-              ].filter(Boolean).join(" · ")}
-              tags={[{ label: r.status ? (t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status) : t("status.pending"), tone: "muted" }]}
-              right={<Actions id={r.id} onDone={reload} />}
-              actions={<button type="button" className="aitem__act" aria-label={t("detailTitle")} title={t("detailTitle")} onClick={() => setDetail(r.id)} data-ai-target="button:register-request-detail"><IconEye /></button>}
-            />
+              data-ai-id={r.id ? aiId("admin.register-requests.item", r.id) : undefined}
+              data-ai-type="list_item"
+              data-ai-entity-type="register_request"
+              data-ai-entity-id={r.id || undefined}
+              data-ai-label={[roleLabel(r.role), fmtDate(r.createdAt, locale)].filter(Boolean).join(" · ") || t("title")}
+              data-ai-private
+            >
+              <AdminItem
+                index={i + 1}
+                title={r.name || "—"}
+                meta={[
+                  roleLabel(r.role),
+                  r.phone,
+                  fmtDate(r.createdAt, locale),
+                ].filter(Boolean).join(" · ")}
+                tags={[{ label: r.status ? (t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status) : t("status.pending"), tone: "muted" }]}
+                right={<Actions id={r.id} onDone={reload} />}
+                actions={<button type="button" className="aitem__act" aria-label={t("detailTitle")} title={t("detailTitle")} onClick={() => setDetail(r.id)} data-ai-target="button:register-request-detail" data-ai-id={r.id ? aiId("admin.register-requests.item", r.id, "detail") : undefined}><IconEye /></button>}
+              />
+            </div>
           ))}
         </div>
       )}

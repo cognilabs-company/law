@@ -1,20 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { getGuide, getIdleGuide, nextStep, patchGuide, prevStep, stopTour, subscribeGuide } from "@/lib/guide/store";
-import { findTarget, focusTarget, revealTarget, targetLabel, waitForTarget } from "@/lib/guide/targets";
+import { findTarget, focusInput, focusTarget, revealTarget, settle, targetLabel, targetMatch, waitForTarget } from "@/lib/guide/targets";
 import { guideHref, remapTarget, samePath, targetHome } from "@/lib/guide/routes";
 import { registryHome } from "@/lib/guide/pages";
-import type { GuideRole } from "@/lib/guide/types";
+import { emitGuideEvent, type TourEndReason } from "@/lib/guide/events";
+import { forgetResolved } from "@/lib/ai/resolve";
+import type { GuideRole, GuideTour } from "@/lib/guide/types";
 import { RobotEvents } from "@/components/lexgo/robot/RobotEvents";
 import { toast } from "@/lib/toast";
 import Spotlight from "./Spotlight";
 import GuideCaption from "./GuideCaption";
 
 const NAV_TIMEOUT = 9000;
+const MISSING_HOLD = 2500;
 
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve) => {
@@ -24,24 +27,6 @@ const sleep = (ms: number, signal?: AbortSignal) =>
       resolve();
     });
   });
-
-async function settle(el: HTMLElement, signal: AbortSignal) {
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const r0 = el.getBoundingClientRect();
-  const pad = 96;
-  const fits = r0.top >= pad && r0.bottom <= window.innerHeight - 140;
-  if (!fits) el.scrollIntoView({ block: r0.height > window.innerHeight * 0.6 ? "start" : "center", inline: "nearest", behavior: reduce ? "auto" : "smooth" });
-  let last = -1;
-  let still = 0;
-  const t0 = performance.now();
-  while (!signal.aborted && performance.now() - t0 < 1200) {
-    await new Promise((r) => window.requestAnimationFrame(r));
-    const top = Math.round(el.getBoundingClientRect().top);
-    still = top === last ? still + 1 : 0;
-    last = top;
-    if (still >= 4) break;
-  }
-}
 
 export default function GuideHost() {
   const t = useTranslations("guide.ui");
@@ -56,6 +41,21 @@ export default function GuideHost() {
   const activeRef = useRef(false);
   const savedFocus = useRef<HTMLElement | null>(null);
   const navRef = useRef(false);
+  const endRef = useRef<TourEndReason | null>(null);
+  const lastTourRef = useRef<GuideTour | null>(null);
+  const keepFocusRef = useRef(false);
+  const forcedRef = useRef<HTMLElement | null>(null);
+
+  const stop = useCallback((reason: TourEndReason) => {
+    endRef.current = reason;
+    stopTour();
+  }, []);
+
+  const advance = useCallback(() => {
+    const s = getGuide();
+    if (s.tour && s.index >= s.tour.steps.length - 1) endRef.current = "done";
+    nextStep();
+  }, []);
 
   useEffect(() => {
     pathRef.current = pathname;
@@ -66,14 +66,16 @@ export default function GuideHost() {
       return;
     }
     if (expectRef.current && samePath(pathname, expectRef.current)) return;
-    stopTour();
-  }, [pathname]);
+    stop("route_change");
+  }, [pathname, stop]);
 
   useEffect(() => {
     const active = g.phase !== "idle";
     if (active && !activeRef.current) {
       savedFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       expectRef.current = pathRef.current;
+      keepFocusRef.current = false;
+      forcedRef.current = null;
       document.body.dataset.guide = "on";
     }
     if (!active && activeRef.current) {
@@ -81,8 +83,15 @@ export default function GuideHost() {
       delete document.body.dataset.guideDock;
       expectRef.current = null;
       const back = savedFocus.current;
+      const forced = forcedRef.current;
       savedFocus.current = null;
-      if (back && back.isConnected) back.focus({ preventScroll: true });
+      forcedRef.current = null;
+      if (keepFocusRef.current) {
+        const now = document.activeElement;
+        const elsewhere = now instanceof HTMLElement && now !== forced && !now.closest(".gcap") && now.matches("input,textarea,select,[contenteditable=true]");
+        if (forced && forced.isConnected && endRef.current !== "clicked" && !elsewhere) forced.focus({ preventScroll: true });
+      } else if (back && back.isConnected) back.focus({ preventScroll: true });
+      keepFocusRef.current = false;
       RobotEvents.emit("reactSuccess");
     }
     activeRef.current = active;
@@ -101,11 +110,21 @@ export default function GuideHost() {
   const phase = g.phase;
 
   useEffect(() => {
+    const prev = lastTourRef.current;
+    if (prev === tour) return;
+    forgetResolved();
+    if (prev) emitGuideEvent({ type: "tour_end", tourId: prev.id, reason: tour ? "replaced" : (endRef.current ?? "stopped") });
+    endRef.current = null;
+    lastTourRef.current = tour;
+  }, [tour]);
+
+  useEffect(() => {
     const s = getGuide();
     const cur = s.tour;
     if (!cur || (s.phase !== "navigating" && s.phase !== "locating")) return;
     const ctrl = new AbortController();
     const signal = ctrl.signal;
+    const fixed = cur.source === "instructor21";
 
     const go = async (href: string) => {
       navRef.current = true;
@@ -145,8 +164,13 @@ export default function GuideHost() {
       RobotEvents.emit("think");
       if (s.phase === "navigating") {
         let href = cur.navigate ? guideHref(cur.navigate, role) : "";
+        if (fixed && cur.navigate && !href) {
+          emitGuideEvent({ type: "nav_failed", tourId: cur.id, href: cur.navigate, reason: "route_not_allowed" });
+          stop("nav_failed");
+          return;
+        }
         const first = cur.steps[0] ? remapTarget(cur.steps[0].target, role) : "";
-        const home = first ? targetHome(first, role, registryHome) : "";
+        const home = !fixed && first ? targetHome(first, role, registryHome) : "";
         if (home && first && !findTarget(first) && (!href || !samePath(home, href))) href = home;
         const query = href.includes("?") ? href.slice(href.indexOf("?")).split("#")[0] : "";
         const there = href ? samePath(pathRef.current, href) && (!query || window.location.search === query) : true;
@@ -155,14 +179,18 @@ export default function GuideHost() {
           if (signal.aborted) return;
           if (!ok) {
             toast(t("navFailed"), { tone: "err" });
-            stopTour();
+            emitGuideEvent({ type: "nav_failed", tourId: cur.id, href, reason: "navigation_timeout" });
+            stop("nav_failed");
             return;
           }
+          emitGuideEvent({ type: "nav_ok", tourId: cur.id, href, already: false });
           await sleep(160, signal);
+        } else if (href) {
+          emitGuideEvent({ type: "nav_ok", tourId: cur.id, href, already: true });
         }
         if (signal.aborted) return;
         if (!cur.steps.length) {
-          stopTour();
+          stop("done");
           return;
         }
         patchGuide({ phase: "locating" });
@@ -171,7 +199,7 @@ export default function GuideHost() {
 
       const step = cur.steps[s.index];
       if (!step) {
-        stopTour();
+        stop("done");
         return;
       }
       const id = remapTarget(step.target, role);
@@ -189,18 +217,23 @@ export default function GuideHost() {
           return true;
         }
         if (s.shown > 0) {
-          stopTour();
+          stop("done");
           return true;
         }
         return false;
       };
       if (flexible && s.missing.includes(id) && skip()) return;
-      let el = findTarget(id);
+      let loose = !fixed;
+      let el = findTarget(id, false, loose);
       if (!el) {
         await revealTarget(id);
-        el = await waitForTarget(id, 2600, signal);
+        el = await waitForTarget(id, 2600, signal, loose);
       }
-      if (!el && !signal.aborted) {
+      if (!el && !loose && !signal.aborted && step.focusMode !== "force") {
+        loose = true;
+        el = findTarget(id, true, true);
+      }
+      if (!el && !signal.aborted && !fixed) {
         const home = targetHome(id, role, registryHome);
         if (home && !samePath(pathRef.current, home)) {
           const ok = await go(home);
@@ -215,28 +248,54 @@ export default function GuideHost() {
         if (flexible && skip()) return;
         RobotEvents.emit("reactError");
         patchGuide({ phase: "missing", element: null, missing: [...s.missing, id] });
+        emitGuideEvent({ type: "step_missing", tourId: cur.id, index: s.index, commandId: step.commandId ?? "", target: id });
         return;
       }
       await settle(el, signal);
       if (signal.aborted) return;
-      patchGuide({ phase: "showing", element: findTarget(id) ?? el, shown: s.shown + 1 });
+      patchGuide({ phase: "showing", element: findTarget(id, false, loose) ?? el, shown: s.shown + 1 });
     })();
 
     return () => ctrl.abort();
-  }, [tour, index, phase, role, router, t]);
+  }, [tour, index, phase, role, router, t, stop]);
 
   const element = g.element;
-  const focusWanted = tour?.steps[index]?.focus !== false;
+  const step = tour?.steps[index];
+  const focusWanted = step?.focus !== false;
+  const focusMode = step?.focusMode ?? "auto";
+  const hold = step?.holdMs ?? 0;
+  const auto = tour?.source === "instructor21";
 
   useEffect(() => {
     if (phase !== "showing" || !element) return;
-    const restore = focusWanted ? focusTarget(element) : () => {};
+    let restore: () => void = () => {};
+    let focused = false;
+    if (focusMode === "force") {
+      focused = focusInput(element);
+      if (focused) {
+        keepFocusRef.current = true;
+        forcedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      }
+    } else if (focusWanted && focusMode !== "none") {
+      restore = focusTarget(element);
+    }
     if (!(document.activeElement instanceof Node && element.contains(document.activeElement))) document.querySelector<HTMLElement>(".gcap__btn--pri")?.focus({ preventScroll: true });
     element.setAttribute("aria-describedby", "guide-caption");
     RobotEvents.emit("point", { target: element });
+    const s = getGuide();
+    const st = s.tour?.steps[s.index];
+    if (s.tour && st) {
+      const id = remapTarget(st.target, role);
+      const m = targetMatch(id);
+      emitGuideEvent({ type: "step_shown", tourId: s.tour.id, index: s.index, commandId: st.commandId ?? "", target: id, by: m?.by ?? "exact", canonical: m?.canonical ?? id, focused });
+    }
     const onClick = (e: MouseEvent) => {
       const hit = e.target instanceof Element ? e.target.closest("a[href],button,[role=button]") : null;
-      if (hit && element.contains(hit) && !hit.closest(".gcap")) window.setTimeout(stopTour, 0);
+      if (!hit || !element.contains(hit) || hit.closest(".gcap")) return;
+      const now = getGuide();
+      const cs = now.tour?.steps[now.index];
+      if (now.tour && cs) emitGuideEvent({ type: "step_clicked", tourId: now.tour.id, index: now.index, commandId: cs.commandId ?? "", target: remapTarget(cs.target, role) });
+      window.setTimeout(() => stop("clicked"), 0);
     };
     element.addEventListener("click", onClick);
     return () => {
@@ -244,7 +303,19 @@ export default function GuideHost() {
       element.removeAttribute("aria-describedby");
       restore();
     };
-  }, [phase, element, focusWanted]);
+  }, [phase, element, focusWanted, focusMode, role, stop]);
+
+  useEffect(() => {
+    if (phase !== "showing" || hold <= 0) return;
+    const id = window.setTimeout(advance, hold);
+    return () => window.clearTimeout(id);
+  }, [phase, hold, index, tour, advance]);
+
+  useEffect(() => {
+    if (phase !== "missing" || !auto) return;
+    const id = window.setTimeout(advance, MISSING_HOLD);
+    return () => window.clearTimeout(id);
+  }, [phase, auto, index, tour, advance]);
 
   useEffect(() => {
     if (phase === "idle") return;
@@ -252,14 +323,14 @@ export default function GuideHost() {
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopImmediatePropagation();
-        stopTour();
+        stop("user_stop");
         return;
       }
       const target = e.target instanceof Element ? e.target : null;
       if (target?.closest("input,textarea,select,[contenteditable=true],[role=tab],[role=radio],[role=option],[role=menuitem],[role=menuitemradio],[role=menuitemcheckbox],[role=slider],[role=spinbutton],[role=gridcell],[role=treeitem],[role=switch],[role=combobox]")) return;
       if (e.key === "ArrowRight") {
         e.preventDefault();
-        nextStep();
+        advance();
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         prevStep();
@@ -267,9 +338,8 @@ export default function GuideHost() {
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [phase]);
+  }, [phase, advance, stop]);
 
-  const step = tour?.steps[index];
   const busy = phase === "navigating" || phase === "locating";
   const missing = phase === "missing";
   const label = phase === "showing" && element && !step?.caption ? targetLabel(element) : "";
@@ -281,7 +351,7 @@ export default function GuideHost() {
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {announce}
       </p>
-      {phase === "showing" && step && tour ? <Spotlight targetId={remapTarget(step.target, role)} stepKey={`${tour.id}:${index}`} /> : null}
+      {phase === "showing" && step && tour ? <Spotlight targetId={remapTarget(step.target, role)} stepKey={`${tour.id}:${index}`} variant={step.style} /> : null}
       {phase !== "idle" && tour ? (
         <GuideCaption
           text={text}
@@ -289,9 +359,9 @@ export default function GuideHost() {
           missing={missing}
           index={index}
           total={tour.steps.length || 1}
-          onNext={nextStep}
+          onNext={advance}
           onPrev={prevStep}
-          onStop={stopTour}
+          onStop={() => stop("user_stop")}
         />
       ) : null}
     </>

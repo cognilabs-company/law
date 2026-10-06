@@ -25,6 +25,8 @@ async function proxy(
   // Client identity for the session device label (/auth/sessions).
   const ua = req.headers.get("user-agent");
   if (ua) headers["user-agent"] = ua;
+  const idem = req.headers.get("idempotency-key");
+  if (idem && /^[\w:.-]{1,200}$/.test(idem)) headers["idempotency-key"] = idem;
   // Client IP for per-user rate limits and the session / user_consents IP.
   // Controlled by the server env BACKEND_FORWARD_CLIENT_IP. Off by default
   // (unset or anything but "1"): no x-forwarded-for / x-real-ip is sent and

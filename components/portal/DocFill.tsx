@@ -32,6 +32,64 @@ import { fmtUzs } from "@/lib/money";
 import { IconCheck, IconChevronLeft, IconClock, IconClose, IconFileText, IconHeadset, IconInfo, IconList, IconMenu } from "@/components/icons";
 import InstructorButton from "@/components/guide/InstructorButton";
 import { useAiReveal } from "@/lib/guide/targets";
+import { aiId } from "@/lib/ai/ids";
+import { useAiField } from "@/lib/ai/registry";
+
+const AI_FIELD_TR: Record<string, string> = {
+  "ў": "o", "ғ": "g", "қ": "q", "ҳ": "h", "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "yo",
+  "ж": "j", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r",
+  "с": "s", "т": "t", "у": "u", "ф": "f", "х": "x", "ц": "s", "ч": "ch", "ш": "sh", "ъ": "", "ь": "", "э": "e",
+  "ю": "yu", "я": "ya",
+};
+
+function aiFieldKey(name: string): string {
+  let k = (name || "").trim();
+  if (k.startsWith("{{")) k = k.slice(2);
+  if (k.endsWith("}}")) k = k.slice(0, -2);
+  k = k.trim();
+  if (k.startsWith("{")) k = k.slice(1);
+  if (k.endsWith("}")) k = k.slice(0, -1);
+  k = k.trim().replace(/[.-]/g, "_").replace(/'/g, "");
+  let out = "";
+  for (const ch of k) {
+    const low = ch.toLowerCase();
+    out += low in AI_FIELD_TR ? AI_FIELD_TR[low] : ch;
+  }
+  return out.replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase();
+}
+
+function aiRowId(name: string): string {
+  const key = aiFieldKey(name);
+  return key ? aiId("documents.constructor.field", key) : "";
+}
+
+const AI_NO_FILL_KINDS: ReadonlySet<DocKind> = new Set<DocKind>(["phone", "email", "pinfl", "inn"]);
+const AI_NO_FILL_NAME = /pass?port|паспорт|pinfl|jshshir|жшшир|karta|карта|card|parol|password/i;
+
+function aiFillable(f: DocField, kind: DocKind): boolean {
+  return !AI_NO_FILL_KINDS.has(kind) && !AI_NO_FILL_NAME.test(`${f.name} ${f.label}`);
+}
+
+function aiFieldValue(f: DocField, kind: DocKind, raw: string): string | null {
+  const v = String(raw ?? "");
+  if (kind === "date") {
+    const iso = isoDate(v);
+    if (!iso) return "";
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    if (!m) return null;
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    const d = Number(m[3]);
+    const dt = new Date(y, mo, d);
+    return dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d ? iso : null;
+  }
+  if (kind === "select") {
+    const want = v.trim().toLowerCase();
+    if (!want) return "";
+    return (f.options || []).find((o) => o.trim().toLowerCase() === want) ?? null;
+  }
+  return sanitizeInput(kind, v);
+}
 
 const DRAFT_KEY = (id: string) => `lexgo_doc_draft_${id}`;
 export function loadDraft(id: string): Record<string, string> | null {
@@ -304,6 +362,19 @@ export default function DocFill({
   useAiReveal("documents:fill-preview", () => setTab("doc"));
   const [rightOpen, setRightOpen] = useState(roomy);
   const [rightTab, setRightTab] = useState<"sections" | "info">("sections");
+  const revealForm = () => {
+    setTab("form");
+    setLeftOpen(true);
+  };
+  const revealSections = () => {
+    setRightOpen(true);
+    setRightTab("sections");
+  };
+  useAiReveal("documents.constructor.form", revealForm);
+  useAiReveal("documents.constructor.generate", revealForm);
+  useAiReveal("documents.constructor.preview", () => setTab("doc"));
+  useAiReveal("documents.constructor.steps", revealSections);
+  useAiReveal(/^documents\.constructor\.(field|step)\./, (id) => (id.endsWith(".nav") ? revealSections() : revealForm()));
   const [leftW, setLeftW] = useState(storedLeftW);
   const wsBody = useRef<HTMLDivElement>(null);
   const sizing = useRef(false);
@@ -520,6 +591,18 @@ export default function DocFill({
 
   const setVal = (f: DocField, v: string) => onChange({ ...answers, [f.name]: v });
 
+  const liveAnswers = useRef(answers);
+  const changeRef = useRef(onChange);
+  useEffect(() => {
+    liveAnswers.current = answers;
+    changeRef.current = onChange;
+  }, [answers, onChange]);
+  const aiSetVal = useCallback((name: string, v: string) => {
+    const next = { ...liveAnswers.current, [name]: v };
+    liveAnswers.current = next;
+    changeRef.current(next);
+  }, []);
+
   // Jump from a blank in the document to the question that fills it. On a
   // phone that also means switching tabs, and the form is still display:none
   // during this render — measuring or focusing now would silently do nothing
@@ -579,19 +662,19 @@ export default function DocFill({
     if (sections?.length) {
       const byName = new Map(fields.map((f) => [f.name, f]));
       const used = new Set<string>();
-      const out: { title: string; items: DocField[] }[] = [];
+      const out: { id: string; title: string; items: DocField[] }[] = [];
       for (const sec of sections) {
         const items = sec.fields.map((sf) => byName.get(sf.name)).filter((f): f is DocField => !!f);
         items.forEach((f) => used.add(f.name));
-        if (items.length) out.push({ title: sec.title || t("sectionN", { n: out.length + 1 }), items });
+        if (items.length) out.push({ id: sec.id, title: sec.title || t("sectionN", { n: out.length + 1 }), items });
       }
       // A field the section list somehow missed still needs to be fillable —
       // trailing group rather than a silently dropped question.
       const leftover = fields.filter((f) => !used.has(f.name));
-      if (leftover.length) out.push({ title: t("sectionN", { n: out.length + 1 }), items: leftover });
+      if (leftover.length) out.push({ id: "", title: t("sectionN", { n: out.length + 1 }), items: leftover });
       if (out.length) return out;
     }
-    if (!fields.some((f) => typeof f.step === "number")) return [{ title: "", items: fields }];
+    if (!fields.some((f) => typeof f.step === "number")) return [{ id: "", title: "", items: fields }];
     const m = new Map<number, DocField[]>();
     for (const f of fields) {
       const k = f.step ?? 1;
@@ -600,8 +683,8 @@ export default function DocFill({
     }
     const stepped = [...m.entries()].sort((a, b) => a[0] - b[0]).map(([, items]) => items);
     return stepped.length > 1
-      ? stepped.map((items, i) => ({ title: t("sectionN", { n: i + 1 }), items }))
-      : [{ title: "", items: stepped[0] ?? [] }];
+      ? stepped.map((items, i) => ({ id: "", title: t("sectionN", { n: i + 1 }), items }))
+      : [{ id: "", title: "", items: stepped[0] ?? [] }];
   }, [fields, sourceFile, t]);
 
   // ── Shared pieces: both layouts show the same form and the same page ──
@@ -615,6 +698,7 @@ export default function DocFill({
         aria-selected={tab === "form"}
         className={tab === "form" ? "on" : ""}
         onClick={() => setTab("form")}
+        data-ai-id="documents.constructor.tab.form"
       >
         <IconList />
         {t("tabForm")}
@@ -628,6 +712,7 @@ export default function DocFill({
         aria-selected={tab === "doc"}
         className={tab === "doc" ? "on" : ""}
         onClick={() => setTab("doc")}
+        data-ai-id="documents.constructor.tab.doc"
       >
         <IconFileText />
         {t("tabDoc")}
@@ -646,12 +731,13 @@ export default function DocFill({
       onClick={askLawyer}
       disabled={askBusy || askSent || !!lawyerHeldNote}
       title={lawyerHeldNote || (askSent ? t("askLawyerSent") : t("askLawyer"))}
+      data-ai-id="documents.constructor.ask-lawyer"
     >
       {askSent ? <IconCheck /> : <IconHeadset />}
       <span className={chrome ? "deditor__actLabel" : undefined}>{askSent ? t("askLawyerSent") : askBusy ? t("askLawyerSending") : t("askLawyer")}</span>
     </button>
   ) : (
-    <Link href="/portal/client/lawyers" className={chrome ? "deditor__act deditor__act--help" : "docfill__ask"} title={t("askLawyer")}>
+    <Link href="/portal/client/lawyers" className={chrome ? "deditor__act deditor__act--help" : "docfill__ask"} title={t("askLawyer")} data-ai-id="documents.constructor.ask-lawyer">
       <IconHeadset />
       <span className={chrome ? "deditor__actLabel" : undefined}>{t("askLawyer")}</span>
     </Link>
@@ -682,11 +768,20 @@ export default function DocFill({
     <div className="docfill__list" ref={formPane}>
       {total === 0 ? <p className="advmuted">{t("noFields")}</p> : null}
       {groups.map((g, gi) => (
-        <div className="docfill__grp" key={gi}>
+        <div
+          className="docfill__grp"
+          key={gi}
+          data-ai-id={g.id ? aiId("documents.constructor.step", g.id) : undefined}
+          data-ai-type={g.id ? "section" : undefined}
+          data-ai-label={g.id ? g.title : undefined}
+          data-ai-private={g.id ? true : undefined}
+        >
           {g.title ? <h3 className="docfill__gt">{g.title}</h3> : null}
           {g.items.map((f) => (
             <Row
               key={f.name}
+              fieldAiId={aiRowId(f.name)}
+              aiSet={(v) => aiSetVal(f.name, v)}
               f={f}
               kind={fieldKind(f)}
               label={label(f)}
@@ -722,7 +817,7 @@ export default function DocFill({
   );
 
   const submitButton = (
-    <button type="button" className={`btn btn--grad btn--full btn--lg${chrome ? " dfws__submit" : ""}`} onClick={submit} disabled={busy} aria-disabled={blocked} data-ai-target="button:document-submit">
+    <button type="button" className={`btn btn--grad btn--full btn--lg${chrome ? " dfws__submit" : ""}`} onClick={submit} disabled={busy} aria-disabled={blocked} data-ai-target="button:document-submit" data-ai-id="documents.constructor.generate">
       {busy ? t("saving") : submitLabel}
     </button>
   );
@@ -799,7 +894,7 @@ export default function DocFill({
         style={{ "--deditor-rw": `${RIGHT_W}px` } as CSSProperties}
       >
         <div className="deditor__top">
-          <button type="button" className="deditor__back" onClick={chrome.onBack}>
+          <button type="button" className="deditor__back" onClick={chrome.onBack} data-ai-id="documents.constructor.back">
             <IconChevronLeft />
             {tc("back")}
           </button>
@@ -831,11 +926,11 @@ export default function DocFill({
           <div className="deditor__actions">
             {askButton}
             <InstructorButton className="deditor__act deditor__act--ai" labelClassName="deditor__actLabel" size={18} />
-            <button type="button" className="deditor__act" onClick={chrome.onExit} title={t("exit")}>
+            <button type="button" className="deditor__act" onClick={chrome.onExit} title={t("exit")} data-ai-id="documents.constructor.exit">
               <IconClose />
               <span className="deditor__actLabel">{t("exit")}</span>
             </button>
-            <button type="button" className="deditor__act deditor__act--primary" onClick={submit} disabled={busy} aria-disabled={blocked} data-ai-target="button:document-submit">
+            <button type="button" className="deditor__act deditor__act--primary" onClick={submit} disabled={busy} aria-disabled={blocked} data-ai-target="button:document-submit" data-ai-id="documents.constructor.generate">
               <IconCheck />
               <span className="deditor__actLabel">{busy ? t("saving") : submitLabel}</span>
             </button>
@@ -865,6 +960,10 @@ export default function DocFill({
             aria-labelledby="docb-tab-form"
             className={`deditor__left${leftOpen ? " on" : ""}${tab === "form" ? " is-tab" : ""}`}
             data-ai-target="documents:fill-form"
+            data-ai-id="documents.constructor.form"
+            data-ai-type="section"
+            data-ai-label={t("tabForm")}
+            data-ai-private
           >
             <button type="button" className="deditor__panelToggle" onClick={() => setLeftOpen(false)} aria-label={t("wsTogglePanel")}>
               <IconChevronLeft />
@@ -895,7 +994,17 @@ export default function DocFill({
             </div>
           ) : null}
 
-          <main id="docb-pane-doc" role="tabpanel" aria-labelledby="docb-tab-doc" className={`deditor__main${tab === "doc" ? " is-tab" : ""}`} data-ai-target="documents:fill-preview">
+          <main
+            id="docb-pane-doc"
+            role="tabpanel"
+            aria-labelledby="docb-tab-doc"
+            className={`deditor__main${tab === "doc" ? " is-tab" : ""}`}
+            data-ai-target="documents:fill-preview"
+            data-ai-id="documents.constructor.preview"
+            data-ai-type="section"
+            data-ai-label={t("tabDoc")}
+            data-ai-private
+          >
             {paper}
           </main>
 
@@ -918,14 +1027,19 @@ export default function DocFill({
             </div>
             <div className="deditor__tabBody">
               {rightTab === "sections" ? (
-                <ul className="dfws__secs">
+                <ul className="dfws__secs" data-ai-id="documents.constructor.steps" data-ai-type="list">
                   {groups.map((g, gi) => {
                     const n = g.items.length;
                     const d = g.items.filter((f) => isFilled(fieldKind(f), answers[f.name])).length;
                     const complete = n > 0 && d === n;
                     return (
                       <li key={gi}>
-                        <button type="button" className={`dfws__sec${complete ? " done" : ""}`} onClick={() => goSection(g.items)}>
+                        <button
+                          type="button"
+                          className={`dfws__sec${complete ? " done" : ""}`}
+                          onClick={() => goSection(g.items)}
+                          data-ai-id={g.id ? aiId("documents.constructor.step", g.id, "nav") : undefined}
+                        >
                           <span className="dfws__secn" aria-hidden>{complete ? <IconCheck /> : gi + 1}</span>
                           <span className="dfws__sect">
                             <b>{g.title || t("wsAllFields")}</b>
@@ -996,6 +1110,10 @@ export default function DocFill({
         aria-labelledby="docb-tab-form"
         className={`docfill${tab === "form" ? " on" : ""}`}
         data-ai-target="documents:fill-form"
+        data-ai-id="documents.constructor.form"
+        data-ai-type="section"
+        data-ai-label={t("tabForm")}
+        data-ai-private
       >
         {formHead}
         {formList}
@@ -1024,6 +1142,10 @@ export default function DocFill({
         aria-labelledby="docb-tab-doc"
         className={`docb__pane${tab === "doc" ? " on" : ""}`}
         data-ai-target="documents:fill-preview"
+        data-ai-id="documents.constructor.preview"
+        data-ai-type="section"
+        data-ai-label={t("tabDoc")}
+        data-ai-private
       >
         {paper}
       </section>
@@ -1047,6 +1169,8 @@ function Row({
   onBlur,
   onJump,
   bind,
+  fieldAiId,
+  aiSet,
 }: {
   f: DocField;
   kind: DocKind;
@@ -1061,8 +1185,19 @@ function Row({
   onBlur: () => void;
   onJump: () => void;
   bind: (el: HTMLElement | null) => void;
+  fieldAiId: string;
+  aiSet: (v: string) => void;
 }) {
   const t = useTranslations("portal.client.documents");
+  useAiField(aiFillable(f, kind) ? fieldAiId : "", {
+    get: () => value,
+    set: (v) => {
+      const next = aiFieldValue(f, kind, v);
+      if (next !== null) aiSet(next);
+    },
+    sensitive: true,
+    fillable: true,
+  });
   const id = `df-${f.name}`;
   const filled = shown !== "";
   const ph = t("enterField", { label });
@@ -1084,7 +1219,13 @@ function Row({
   };
 
   return (
-    <div className={`dfrow${active ? " on" : ""}${err ? " err" : ""}${filled ? " done" : ""}`}>
+    <div
+      className={`dfrow${active ? " on" : ""}${err ? " err" : ""}${filled ? " done" : ""}`}
+      data-ai-id={fieldAiId || undefined}
+      data-ai-type={kind === "multiline" ? "textarea" : kind === "select" ? "select" : "input"}
+      data-ai-label={label}
+      data-ai-private
+    >
       {/* One label, doing double duty: click jumps to this field's spot in
           the document pane (same as the old separate [bracket] chip did),
           and its own check icon animates in once filled — no `<label

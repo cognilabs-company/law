@@ -26,6 +26,7 @@ import { defaultDocLang, docLangOptions, WaitClock } from "./NewDocumentOrder";
 import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
 import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock, IconShieldCheck } from "@/components/icons";
+import { useAiField } from "@/lib/ai/registry";
 
 type LawyerRequestBody = {
   need: string;
@@ -108,6 +109,18 @@ export default function DocumentLawyerAssist({
   // the AI has already written instead of a clean template. Off by default,
   // which is the unchanged behaviour.
   const [docType, setDocType] = useState("");
+
+  const formShown = !result && !planRequired;
+  useAiField(formShown ? "documents.lawyer.need" : "", {
+    get: () => need,
+    set: (v) => {
+      setNeed(v);
+      if (v.trim()) setMissing((m) => (m === "need" ? "" : m));
+    },
+    sensitive: true,
+    fillable: true,
+  });
+  useAiField(formShown ? "documents.lawyer.note" : "", { get: () => note, set: setNote, sensitive: true, fillable: true });
 
   async function submit() {
     if (busy) return;
@@ -226,7 +239,7 @@ export default function DocumentLawyerAssist({
     );
 
   return (
-    <div className="cform docassist" style={{ maxWidth: "none" }}>
+    <div className="cform docassist" style={{ maxWidth: "none" }} data-ai-id="documents.lawyer.form" data-ai-type="section" data-ai-label={t("chooseLawyer")}>
       <button type="button" className="rf__link" onClick={onBack}>
         <IconChevronLeft />
         {t("backToChoices")}
@@ -262,7 +275,7 @@ export default function DocumentLawyerAssist({
         <DocTypePicker flow="template_lawyer_assisted" value={docType} onChange={setDocType} />
       </section>
 
-      <section className="docassist__sec">
+      <section className="docassist__sec" data-ai-private>
         <div className="docassist__sech">
           <label htmlFor="lawyer-need">{t("lawyerNeedLabel")}</label>
           {cleanUrl ? (
@@ -282,6 +295,9 @@ export default function DocumentLawyerAssist({
           placeholder={tn("needPlaceholder")}
           aria-invalid={missing === "need" || undefined}
           className={missing === "need" ? "is-bad" : undefined}
+          data-ai-id="documents.lawyer.need"
+          data-ai-label={t("lawyerNeedLabel")}
+          data-ai-private
         />
         {/* The red border alone left the press mute: it marked the box and
             moved focus into it, and the client was never told in words what
@@ -294,7 +310,16 @@ export default function DocumentLawyerAssist({
             10px and nothing grouped. Spacing is in CSS now (wp-cbx), where
             the two distances can differ. Nothing about the fields changed. */}
         <label htmlFor="lawyer-note">{t("lawyerNoteLabel")}</label>
-        <textarea id="lawyer-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("lawyerNotePlaceholder")} />
+        <textarea
+          id="lawyer-note"
+          rows={2}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={t("lawyerNotePlaceholder")}
+          data-ai-id="documents.lawyer.note"
+          data-ai-label={t("lawyerNoteLabel")}
+          data-ai-private
+        />
 
         <label>{tn("extrasLabel")}</label>
         <AttachmentPicker files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onError={setErr} />
@@ -311,7 +336,7 @@ export default function DocumentLawyerAssist({
 
       {/* Its own card between the fields and the send button: it is a gate on
           the send, not one more thing to fill in. */}
-      <div className="cbxcard">
+      <div className="cbxcard" data-ai-id="documents.lawyer.consent" data-ai-label={t("consentTitle")}>
         <b className="cbxcard__t">
           <IconShieldCheck />
           {t("consentTitle")}
@@ -338,7 +363,7 @@ export default function DocumentLawyerAssist({
           disabled button that is pressed says nothing at all. */}
       {missing === "consent" ? <p className="cform__bad" role="alert">{t("consentRequired")}</p> : null}
 
-      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy} aria-busy={busy || undefined}>
+      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy} aria-busy={busy || undefined} data-ai-id="documents.lawyer.submit">
         {busy ? <WaitClock /> : null}
         {busy ? t("processingShort") : t("lawyerSubmit")}
       </button>

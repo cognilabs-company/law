@@ -11,7 +11,10 @@ Bot: **@notifer_projects_bot**
 node tools/mdbot/bot.mjs             # doimiy ishlaydi (long polling)
 node tools/mdbot/bot.mjs --once      # kutib turgan xabarlarga javob berib chiqadi
 node tools/mdbot/bot.mjs --broadcast # /start bosganlarning hammasiga qayta yuboradi
+node tools/mdbot/bot.mjs --broadcast --only FAYL.md   # faqat shu hujjat(lar)ni yuboradi (vergul bilan bir nechtasi)
 ```
+
+`--only` ga `docs.json` dagi fayl nomi beriladi; topilmasa bot hech narsa yubormaydi.
 
 Bot ishlab turgandagina `/start` javob oladi. Serverda doimiy ushlab turish uchun
 `pm2 start tools/mdbot/bot.mjs --name lexgo-mdbot` yoki systemd/Task Scheduler.

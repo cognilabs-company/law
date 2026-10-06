@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { MKM_PAGE, type MkmOrder, type MkmPage } from "@/lib/services/adminMarketplace";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconChevronRight, IconLayers, IconRefresh } from "@/components/icons";
+import { aiId } from "@/lib/ai/ids";
 import type { Live } from "./useLive";
 import { LoadFailed, Pager, PayBadge, RefreshFailed, StatusBadge, payWorthShowing, useCount, useMoney, useTypeLabel, useWhen } from "./bits";
 
@@ -33,7 +34,15 @@ export default function MkmOrders({
   const col = (k: string) => t(`col.${k}`);
 
   return (
-    <section className={`mkm-card${live.changing ? " is-busy" : ""}`} aria-busy={live.changing || live.loading} data-ai-target="marketplace:orders-list">
+    <section
+      className={`mkm-card${live.changing ? " is-busy" : ""}`}
+      aria-busy={live.changing || live.loading}
+      data-ai-target="marketplace:orders-list"
+      data-ai-id="admin.marketplace.orders"
+      data-ai-type="table"
+      data-ai-label={t("title")}
+      data-ai-private
+    >
       <div className="mkm-card__h">
         <div>
           <b>{t("title")}</b>
@@ -89,6 +98,12 @@ export default function MkmOrders({
                     onClick={() => {
                       if (!window.getSelection()?.toString()) onOpen(o);
                     }}
+                    data-ai-id={o.id ? aiId("admin.marketplace.orders.item", o.id) : undefined}
+                    data-ai-type="list_item"
+                    data-ai-entity-type="marketplace_order"
+                    data-ai-entity-id={o.id || undefined}
+                    data-ai-label={[o.workId, o.serviceTitle].filter(Boolean).join(" · ") || t("title")}
+                    data-ai-private
                   >
                     <td data-l={col("order")} className="mkm-td--id">
                       <button

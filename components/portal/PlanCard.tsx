@@ -84,6 +84,8 @@ export type PlanCardProps = {
   onSelect?: () => void;
   selected?: boolean;
   cta: PlanCardCta;
+  aiId?: string;
+  planId?: string;
 };
 
 const CTA_CLASS: Record<NonNullable<PlanCardCta["variant"]>, string> = {
@@ -105,6 +107,8 @@ export default function PlanCard({
   onSelect,
   selected = false,
   cta,
+  aiId,
+  planId,
 }: PlanCardProps) {
   const tier = tierIcon(slug);
   const frame =
@@ -112,9 +116,21 @@ export default function PlanCard({
   // splan--pick only says "this card answers to a click"; splan--sel is the
   // ring that says which one the buy button will charge for.
   const pick = onSelect ? ` splan--pick${selected ? " splan--sel" : ""}` : "";
+  const entityType = aiId ? "subscription_plan" : undefined;
+  const entityId = aiId ? planId : undefined;
+  const entitySlug = aiId ? slug : undefined;
 
   return (
-    <div className={`splan${frame}${pick}`} onClick={onSelect} data-ai-target={`plan:${slug}`}>
+    <div
+      className={`splan${frame}${pick}`}
+      onClick={onSelect}
+      data-ai-target={`plan:${slug}`}
+      data-ai-id={aiId}
+      data-ai-type={aiId ? "card" : undefined}
+      data-ai-entity-type={entityType}
+      data-ai-entity-id={entityId}
+      data-ai-entity-slug={entitySlug}
+    >
       {ribbon ? (
         <span className={`splan__ribbon${state === "current" ? " splan__ribbon--current" : ""}`}>
           {state === "current" ? <IconCheck /> : <IconStar />}
@@ -141,7 +157,7 @@ export default function PlanCard({
       </div>
       {totalNote ? <p className="splan__total">{totalNote}</p> : null}
       {usage ? <p className="splan__usage">{usage}</p> : null}
-      <ul className="splan__feats">
+      <ul className="splan__feats" data-ai-id={aiId ? `${aiId}.features` : undefined} data-ai-type={aiId ? "list" : undefined}>
         {features.map((f, k) => (
           <li key={k}>
             <IconCheck />
@@ -154,6 +170,10 @@ export default function PlanCard({
           type="button"
           className={`btn ${CTA_CLASS[cta.variant ?? "line"]} btn--full`}
           data-ai-target={`button:buy-plan:${slug}`}
+          data-ai-id={aiId ? `${aiId}.buy` : undefined}
+          data-ai-entity-type={entityType}
+          data-ai-entity-id={entityId}
+          data-ai-entity-slug={entitySlug}
           disabled={cta.disabled}
           aria-pressed={cta.pressed}
           onClick={cta.onClick}

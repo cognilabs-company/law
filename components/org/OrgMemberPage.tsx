@@ -9,6 +9,7 @@ import { getOwnerDashboard, type OrgMemberRow } from "@/lib/services/orgOwner";
 import type { ManagedServices, ServiceScope } from "@/lib/services/sellerServices";
 import { IconBolt, IconBriefcase, IconChevronLeft, IconClipboardList, IconShieldCheck, IconStarRate, IconTag } from "@/components/icons";
 import ServiceManager from "@/components/services/ServiceManager";
+import { aiId } from "@/lib/ai/ids";
 import OwnerWorkload from "./OwnerWorkload";
 import { OrgBlocked } from "./bits";
 
@@ -68,6 +69,7 @@ export default function OrgMemberPage({ orgId, memberId, tab }: { orgId: string;
     { k: "services", Icon: IconBriefcase, href: `${mbase}/services` },
     { k: "workload", Icon: IconClipboardList, href: `${mbase}/workload` },
   ];
+  const ai = aiId("organization.member", memberId);
 
   return (
     <div className="omem">
@@ -76,7 +78,16 @@ export default function OrgMemberPage({ orgId, memberId, tab }: { orgId: string;
         {h?.orgName || t("backDashboard")}
       </Link>
 
-      <section className="omem__card" data-ai-target="org-member:header">
+      <section
+        className="omem__card"
+        data-ai-target="org-member:header"
+        data-ai-id={ai}
+        data-ai-type="section"
+        data-ai-entity-type="seller"
+        data-ai-entity-id={memberId || undefined}
+        data-ai-label={t("member.kicker")}
+        data-ai-private
+      >
         <span className="omem__av" aria-hidden="true">
           {name ? initials(name) : "…"}
         </span>
@@ -113,9 +124,9 @@ export default function OrgMemberPage({ orgId, memberId, tab }: { orgId: string;
         ) : null}
       </section>
 
-      <nav className="suptabs omem__tabs" aria-label={t("member.tabs")} data-ai-target="org-member:tabs">
+      <nav className="suptabs omem__tabs" aria-label={t("member.tabs")} data-ai-target="org-member:tabs" data-ai-id={`${ai}.tabs`}>
         {tabs.map(({ k, Icon, href }) => (
-          <Link key={k} href={href} className={`suptab omem__tab${tab === k ? " is-on" : ""}`} aria-current={tab === k ? "page" : undefined}>
+          <Link key={k} href={href} className={`suptab omem__tab${tab === k ? " is-on" : ""}`} aria-current={tab === k ? "page" : undefined} data-ai-id={`${ai}.${k}`} data-ai-type="tab">
             <Icon aria-hidden="true" />
             {t(`member.tab.${k}`)}
           </Link>

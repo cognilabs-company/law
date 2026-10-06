@@ -29,6 +29,9 @@ import { useAuth, sessionRoles } from "@/lib/auth";
 import { dateTimeFull } from "@/lib/date";
 import { statusLabel, regionLabel, humanize } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
+import { aiId, aiSeg } from "@/lib/ai/ids";
+import { useAiSelection } from "@/lib/ai/registry";
+import { useAiReveal } from "@/lib/guide/targets";
 import { Link } from "@/i18n/navigation";
 import Select from "@/components/Select";
 import DatePicker from "@/components/DatePicker";
@@ -167,6 +170,9 @@ const KIND_ICON: Record<string, typeof IconVideo> = {
 
 type State = { status: "loading" | "ready" | "error" | "forbidden" | "missing"; items: UrgentRequest[] };
 type Meeting = { roomId: string; callId: string; title: string; lk: LiveKitJoin | null };
+
+const AI_ITEM = "call_center.urgent-advokat.item";
+const AI_DRAWER_ONLY = new Set(["detail-modal", "complete", "transfer", "cancel", "status", "assign-group"]);
 
 export default function UrgentAdvocateQueue() {
   const t = useTranslations("admin.urgent");
@@ -317,10 +323,26 @@ export default function UrgentAdvocateQueue() {
     }
   }
 
+  useAiSelection("urgent_queue_tab", status || "all");
+  useAiSelection("urgent_filter_kind", kind);
+  useAiSelection("urgent_filter_channel", channel);
+  useAiReveal(/^call_center\.urgent-advokat\.item\.[^.]+(\.[a-z-]+)?$/, (id) => {
+    const parts = id.split(".");
+    const seg = parts[3] ?? "";
+    const action = parts[4] ?? "";
+    const r = state.items.find((x) => aiSeg(x.id) === seg);
+    if (AI_DRAWER_ONLY.has(action)) {
+      setOpenId(r?.id ?? seg);
+      setNote(null);
+      return;
+    }
+    if (!r && status) setStatus("");
+  });
+
   if (state.status === "forbidden" || state.status === "missing") return null;
 
   return (
-    <section className="ppanel uaq" id="cc-urgent" data-ai-target="callcenter:urgent">
+    <section className="ppanel uaq" id="cc-urgent" data-ai-target="callcenter:urgent" data-ai-id="call_center.urgent-advokat.queue" data-ai-label={t("title")}>
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconBolt /></span>{t("title")}</b>
         <span className={`uaq__live${live ? " on" : ""}`} title={live ? t("liveOn") : t("liveOff")}>
@@ -336,7 +358,7 @@ export default function UrgentAdvocateQueue() {
           among three: they claim here, schedule here, and have to find that
           same record again a minute later. Tabs say where it went; a Select
           hid it. The count is whatever that tab last returned. */}
-      <div className="tabs uaq__tabs" role="tablist" aria-label={t("fStatus")} data-ai-target="callcenter:urgent-tabs">
+      <div className="tabs uaq__tabs" role="tablist" aria-label={t("fStatus")} data-ai-target="callcenter:urgent-tabs" data-ai-id="call_center.urgent-advokat.tabs">
         {TABS.map((tab) => (
           <button
             key={tab.value || "all"}
@@ -345,6 +367,7 @@ export default function UrgentAdvocateQueue() {
             className="tab"
             aria-selected={status === tab.value}
             onClick={() => setStatus(tab.value)}
+            data-ai-id={`call_center.urgent-advokat.tab.${tab.value || "all"}`}
           >
             {t(tab.key)}
             {counts[tab.value] !== undefined ? <em className="uaq__n">{counts[tab.value]}</em> : null}
@@ -354,7 +377,7 @@ export default function UrgentAdvocateQueue() {
 
       {/* Source is fixed — this board IS the Tezkor Advokat source — so it is
           shown as a standing chip rather than a filter that can be turned off. */}
-      <div className="uaq__filters" data-ai-target="callcenter:urgent-filters">
+      <div className="uaq__filters" data-ai-target="callcenter:urgent-filters" data-ai-id="call_center.urgent-advokat.filters" data-ai-type="section">
         <span className="uaq__src"><IconBolt />{t("sourceTezkor")}</span>
         <Select
           value={kind}
@@ -392,9 +415,17 @@ export default function UrgentAdvocateQueue() {
             const claimable = open || (r.nextStatuses.includes("claimed") && !r.claimedByUserId);
             const kindName = tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind;
             return (
-              <li key={r.id} className={`uaq__row${open ? " uaq__row--open" : ""}${r.slaBreached ? " uaq__row--sla" : ""}`}>
+              <li
+                key={r.id}
+                className={`uaq__row${open ? " uaq__row--open" : ""}${r.slaBreached ? " uaq__row--sla" : ""}`}
+                data-ai-id={aiId(AI_ITEM, r.id)}
+                data-ai-type="list_item"
+                data-ai-label={[kindName, r.workId].filter(Boolean).join(" · ")}
+                data-ai-entity-type="urgent_advokat_request"
+                data-ai-entity-id={r.id}
+              >
                 <span className={`uaq__i uaq__i--${r.channel || "video"}`}><Icon /></span>
-                <div className="uaq__m">
+                <div className="uaq__m" data-ai-private>
                   <b>
                     {kindName}
                     {r.channel ? <em className="uaq__ch">{r.channel === "chat" ? <IconChat /> : <IconVideo />}{r.channel === "chat" ? tk("chChat") : tk("chVideo")}</em> : null}
@@ -436,7 +467,7 @@ export default function UrgentAdvocateQueue() {
                   <em className={`creq__badge uaq__st uaq__st--${r.status || "open_pool"}`}>{statusLabel(tcm, r.status || "open_pool")}</em>
                   <div className="uaq__acts">
                     {claimable ? (
-                      <button type="button" className="btn btn--pri btn--sm" disabled={busyId === r.id} onClick={() => void claim(r)} data-ai-target="button:urgent-claim">
+                      <button type="button" className="btn btn--pri btn--sm" disabled={busyId === r.id} onClick={() => void claim(r)} data-ai-target="button:urgent-claim" data-ai-id={aiId(AI_ITEM, r.id, "claim")}>
                         <IconCheck />{busyId === r.id ? t("claiming") : t("claim")}
                       </button>
                     ) : null}
@@ -445,7 +476,7 @@ export default function UrgentAdvocateQueue() {
                         started without opening the drawer — `scheduled`
                         really does list meeting_active in next_statuses. */}
                     {!open && !final && r.channel !== "chat" ? (
-                      <button type="button" className="btn btn--line btn--sm" disabled={busyId === r.id} onClick={() => void meet(r)}>
+                      <button type="button" className="btn btn--line btn--sm" disabled={busyId === r.id} onClick={() => void meet(r)} data-ai-id={aiId(AI_ITEM, r.id, "meeting")}>
                         <IconVideo />{t("startMeeting")}
                       </button>
                     ) : null}
@@ -463,11 +494,12 @@ export default function UrgentAdvocateQueue() {
                         href={chatHref(r, kindName)}
                         className={`btn btn--sm ${!open && r.channel === "chat" ? "btn--pri" : "btn--line"}`}
                         title={t("openChatTitle")}
+                        data-ai-id={aiId(AI_ITEM, r.id, "chat")}
                       >
                         <IconChat />{t("openChat")}
                       </Link>
                     ) : null}
-                    <button type="button" className="btn btn--soft btn--sm" onClick={() => { setOpenId(r.id); setNote(null); }}>
+                    <button type="button" className="btn btn--soft btn--sm" onClick={() => { setOpenId(r.id); setNote(null); }} data-ai-id={aiId(AI_ITEM, r.id, "detail")}>
                       <IconList />{t("openDetail")}<IconChevronRight />
                     </button>
                   </div>
@@ -626,7 +658,14 @@ function UrgentDetailDrawer({
       ) : load2 === "error" || !req ? (
         <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
       ) : (
-        <div className="uad">
+        <div
+          className="uad"
+          data-ai-id={aiId(AI_ITEM, req.id, "detail-modal")}
+          data-ai-type="modal"
+          data-ai-label={kindLabel || t("openDetail")}
+          data-ai-entity-type="urgent_advokat_request"
+          data-ai-entity-id={req.id}
+        >
           {/* ── Header line: status, channel, price, SLA ───────────── */}
           <div className="uad__top">
             <em className={`creq__badge uaq__st uaq__st--${req.status}`}>{statusLabel(tcm, req.status)}</em>
@@ -639,7 +678,7 @@ function UrgentDetailDrawer({
             {req.slaBreached ? <span className="uad__chip uad__chip--warn"><IconAlert />{t("slaBreached")}</span> : null}
           </div>
 
-          <div className="uad__cols">
+          <div className="uad__cols" data-ai-private>
             <div className="uad__main">
               {/* ── Who asked ───────────────────────────────────────── */}
               <section className="uad__sec">
@@ -705,7 +744,13 @@ function UrgentDetailDrawer({
                   ) : null}
                   {req.meetingNote ? <p className="advmuted uad__note">{req.meetingNote}</p> : null}
                   {!finished ? (
-                    <button type="button" className="btn btn--line btn--sm" onClick={() => setPanel(panel === "candidates" ? "" : "candidates")}>
+                    <button
+                      type="button"
+                      className="btn btn--line btn--sm"
+                      onClick={() => setPanel(panel === "candidates" ? "" : "candidates")}
+                      data-ai-id={aiId(AI_ITEM, req.id, "assign-group")}
+                      data-ai-label={req.groupLawyers.length ? t("regroup") : t("assignGroup")}
+                    >
                       <IconUsers />{req.groupLawyers.length ? t("regroup") : t("assignGroup")}
                     </button>
                   ) : null}
@@ -788,12 +833,19 @@ function UrgentDetailDrawer({
           {/* ── Everything the lifecycle still allows ───────────────── */}
           <div className="uad__acts">
             {canClaim ? (
-              <button type="button" className="btn btn--pri" disabled={!!busy} title={takeOver ? t("takeOverTitle") : undefined} onClick={() => void run("claim", () => claimUrgentRequest(req.id), t("claimed"))}>
+              <button
+                type="button"
+                className="btn btn--pri"
+                disabled={!!busy}
+                title={takeOver ? t("takeOverTitle") : undefined}
+                onClick={() => void run("claim", () => claimUrgentRequest(req.id), t("claimed"))}
+                data-ai-id={aiId(AI_ITEM, req.id, "claim")}
+              >
                 <IconCheck />{busy === "claim" ? t("claiming") : takeOver ? t("takeOver") : t("claim")}
               </button>
             ) : null}
             {!finished && req.status !== "open_pool" && req.channel !== "chat" ? (
-              <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => void meet()}>
+              <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => void meet()} data-ai-id={aiId(AI_ITEM, req.id, "meeting")}>
                 <IconVideo />{busy === "meeting" ? t("starting") : t("startMeeting")}
               </button>
             ) : null}
@@ -801,24 +853,24 @@ function UrgentDetailDrawer({
                 already being answered, so it stays reachable on a finished
                 record too — that is where the conversation lives. */}
             {req.secureChatRoomId ? (
-              <Link href={chatHref(req, kindLabel)} className="btn btn--line" title={t("openChatTitle")}>
+              <Link href={chatHref(req, kindLabel)} className="btn btn--line" title={t("openChatTitle")} data-ai-id={aiId(AI_ITEM, req.id, "chat")}>
                 <IconChat />{t("openChat")}
               </Link>
             ) : null}
             {!finished && req.status !== "open_pool" ? (
-              <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => setPanel(panel === "complete" ? "" : "complete")}>
+              <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => setPanel(panel === "complete" ? "" : "complete")} data-ai-id={aiId(AI_ITEM, req.id, "complete")}>
                 <IconCheck />{t("complete")}
               </button>
             ) : null}
             {/* Hand it to someone who fits better. Only once it is claimed:
                 an open_pool record has nobody to transfer FROM. */}
             {!finished && req.status !== "open_pool" ? (
-              <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => setPanel(panel === "transfer" ? "" : "transfer")}>
+              <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => setPanel(panel === "transfer" ? "" : "transfer")} data-ai-id={aiId(AI_ITEM, req.id, "transfer")}>
                 <IconUsers />{t("transfer")}
               </button>
             ) : null}
             {!finished ? (
-              <button type="button" className="btn btn--soft" disabled={!!busy} onClick={() => setPanel(panel === "cancel" ? "" : "cancel")}>
+              <button type="button" className="btn btn--soft" disabled={!!busy} onClick={() => setPanel(panel === "cancel" ? "" : "cancel")} data-ai-id={aiId(AI_ITEM, req.id, "cancel")}>
                 <IconClose />{t("cancel")}
               </button>
             ) : null}
@@ -887,7 +939,7 @@ function StatusMover({ req, busy, skip = [], onMove }: { req: UrgentRequest; bus
   const sel = choices.includes(next) ? next : "";
 
   return (
-    <div className="uad__move">
+    <div className="uad__move" data-ai-id={aiId(AI_ITEM, req.id, "status")} data-ai-type="select" data-ai-label={t("moveTo")} data-ai-private>
       <Select
         value={sel}
         onChange={setNext}
@@ -914,7 +966,7 @@ function CompleteForm({ busy, onCancel, onSubmit }: { busy: boolean; onCancel: (
   const [summary, setSummary] = useState("");
   const [next, setNext] = useState("");
   return (
-    <div className="uad__form">
+    <div className="uad__form" data-ai-private>
       <p className="advmuted" style={{ margin: 0 }}>{t("completeLead")}</p>
       <div>
         <label htmlFor="uad-sum">{t("summary")}</label>
@@ -938,7 +990,7 @@ function CancelForm({ busy, onCancel, onSubmit }: { busy: boolean; onCancel: () 
   const t = useTranslations("admin.urgent");
   const [reason, setReason] = useState("");
   return (
-    <div className="uad__form">
+    <div className="uad__form" data-ai-private>
       <p className="advmuted" style={{ margin: 0 }}>{t("cancelLead")}</p>
       <div>
         <label htmlFor="uad-reason">{t("reason")}</label>
@@ -992,7 +1044,7 @@ function TransferPanel({
   );
 
   return (
-    <section className="uad__form">
+    <section className="uad__form" data-ai-private>
       <p className="advmuted" style={{ margin: 0 }}>{t("transferLead")}</p>
       {state === "loading" ? (
         <Skeleton rows={2} />

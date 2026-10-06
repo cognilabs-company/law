@@ -19,6 +19,7 @@ import { ApiError, errDetail } from "@/lib/http";
 import { DocCloak, DocGuardNote, DocPrintNotice, DocWatermark, useDocGuard } from "./DocTemplateViewer";
 import { IconChevronLeft, IconEye, IconLock } from "@/components/icons";
 import InstructorButton from "@/components/guide/InstructorButton";
+import { aiId } from "@/lib/ai/ids";
 
 // A dedicated full page for "Hujjatni ko'rish" on the services catalog — the
 // clean template rendered read-only, with no download/save action anywhere
@@ -87,10 +88,18 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceId]);
 
+  const viewAi = fields?.templateId ? aiId("documents.template", fields.templateId, "view") : "";
+
   return (
     <div className="docbuild docbuild--full">
       <div className="docbuild__top">
-        <button type="button" className="docbuild__back" onClick={() => (backHref ? router.push(backHref) : router.back())} data-ai-target="button:document-back">
+        <button
+          type="button"
+          className="docbuild__back"
+          onClick={() => (backHref ? router.push(backHref) : router.back())}
+          data-ai-target="button:document-back"
+          data-ai-id={viewAi ? aiId(viewAi, "back") : undefined}
+        >
           <IconChevronLeft />
           {t("back")}
         </button>
@@ -125,7 +134,17 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
             {t("docViewHint")}
           </p>
           <DocGuardNote blocked={guard.blocked} />
-          <div className={`docpaper__scroll docguard__paper${guard.cls}`} style={{ maxHeight: "none" }} data-ai-target="documents:template-preview" {...guard.surface}>
+          <div
+            className={`docpaper__scroll docguard__paper${guard.cls}`}
+            style={{ maxHeight: "none" }}
+            data-ai-target="documents:template-preview"
+            data-ai-id={viewAi ? aiId(viewAi, "preview") : undefined}
+            data-ai-type="section"
+            data-ai-label={fields?.title || t("docViewTitle")}
+            data-ai-entity-type="service"
+            data-ai-entity-id={serviceId}
+            {...guard.surface}
+          >
             <DocCloak reason={guard.cloak} />
             <article className="docpaper__sheet docpaper__sheet--doc">
               <DocWatermark style={guard.wm} />

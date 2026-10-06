@@ -56,6 +56,7 @@ export default function SupportMenu({ role }: { role: Role }) {
         ref={btn}
         type="button"
         data-ai-target="button:support"
+        data-ai-id="support.menu.open"
         className={`psup__btn${open ? " psup__btn--on" : ""}`}
         aria-label={t("label")}
         title={t("label")}
@@ -77,6 +78,7 @@ export default function SupportMenu({ role }: { role: Role }) {
             type="button"
             role="menuitem"
             className="psup__it"
+            data-ai-id="support.menu.ai-instructor"
             onClick={() => {
               done();
               openInstructor();
@@ -90,7 +92,7 @@ export default function SupportMenu({ role }: { role: Role }) {
               <small>{t("aiSub")}</small>
             </span>
           </button>
-          <Link role="menuitem" href={`${hub}?new=1`} className="psup__it" onClick={done}>
+          <Link role="menuitem" href={`${hub}?new=1`} className="psup__it" onClick={done} data-ai-id="support.menu.operator">
             <span className="psup__ic psup__ic--op" aria-hidden="true">
               <IconHeadset />
             </span>
@@ -100,7 +102,7 @@ export default function SupportMenu({ role }: { role: Role }) {
             </span>
           </Link>
           {client ? (
-            <Link role="menuitem" href="/portal/client/complaints?new=1" className="psup__it" onClick={done}>
+            <Link role="menuitem" href="/portal/client/complaints?new=1" className="psup__it" onClick={done} data-ai-id="support.menu.complaint">
               <span className="psup__ic psup__ic--case" aria-hidden="true">
                 <IconAlert />
               </span>
@@ -110,7 +112,7 @@ export default function SupportMenu({ role }: { role: Role }) {
               </span>
             </Link>
           ) : null}
-          <a role="menuitem" href={`tel:${SUPPORT_TEL}`} className="psup__it" onClick={done}>
+          <a role="menuitem" href={`tel:${SUPPORT_TEL}`} className="psup__it" onClick={done} data-ai-id="support.menu.call" data-ai-type="call_button">
             <span className="psup__ic psup__ic--call" aria-hidden="true">
               <IconPhone />
             </span>
@@ -120,7 +122,7 @@ export default function SupportMenu({ role }: { role: Role }) {
               <BusinessHoursBadge />
             </span>
           </a>
-          <Link role="menuitem" href={hub} className="psup__all" onClick={done}>
+          <Link role="menuitem" href={hub} className="psup__all" onClick={done} data-ai-id="support.menu.hub">
             {t("hub")}
             <IconArrowRight aria-hidden="true" />
           </Link>

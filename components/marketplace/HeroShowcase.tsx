@@ -11,6 +11,7 @@ import { regionLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { fmtRating } from "@/lib/date";
 import { hasRating, hasSuccess, sellerTypeLabel, specLabel } from "./bits";
+import { aiId } from "@/lib/ai/ids";
 
 const PHOTOS: Record<string, string> = { advokat: "/img/demo-advokat-card.webp", yurist: "/img/demo-yurist-card.webp" };
 const STARS = [0, 1, 2, 3, 4];
@@ -51,11 +52,12 @@ export default function HeroShowcase({ items, base, locale }: { items: MarketSel
   const active = at % cards.length;
 
   return (
-    <div className="mk-show" role="group" aria-roledescription={t("show.carousel")} aria-label={t("show.label")} data-ai-target="marketplace:featured">
+    <div className="mk-show" role="group" aria-roledescription={t("show.carousel")} aria-label={t("show.label")} data-ai-target="marketplace:featured" data-ai-id="marketplace.featured" data-ai-type="section">
       {cards.map(({ s, spec }, i) => {
         const on = i === active;
         const type = sellerTypeLabel(t, s.sellerType);
         const href = `${base}/${encodeURIComponent(s.userId)}`;
+        const featuredAiId = aiId("marketplace.featured", s.userId);
         const won = s.winsCount > 0;
         const facts = [
           { k: "exp", Icon: IconBriefcase, v: s.experienceYears > 0 ? t("show.years", { n: s.experienceYears }) : "—", l: t("show.expLabel") },
@@ -63,7 +65,16 @@ export default function HeroShowcase({ items, base, locale }: { items: MarketSel
           { k: "success", Icon: IconTrendingUp, v: hasSuccess(s) ? `${Math.round(s.successRate)}%` : "—", l: t("card.success") },
         ];
         return (
-          <article key={s.userId} className={`mk-show__card${on ? " is-on" : ""}`} inert={!on}>
+          <article
+            key={s.userId}
+            className={`mk-show__card${on ? " is-on" : ""}`}
+            inert={!on}
+            data-ai-id={featuredAiId}
+            data-ai-type="card"
+            data-ai-label={[type, s.region ? regionLabel(te, s.region) : ""].filter(Boolean).join(" · ")}
+            data-ai-entity-type="seller"
+            data-ai-entity-id={s.userId}
+          >
             <div className="mk-show__photo">
               <Image src={PHOTOS[s.sellerType] ?? PHOTOS.advokat} alt="" fill sizes="344px" />
               {s.verified ? <VerifiedBadge className="mk-show__vb" tone="glass" size="md" name={s.name} subtitle={type} /> : null}
@@ -115,7 +126,7 @@ export default function HeroShowcase({ items, base, locale }: { items: MarketSel
                   <small>{t("show.priceLabel")}</small>
                   <b>{s.priceFrom > 0 ? t("card.priceFrom", { price: fmtUzs(s.priceFrom) }) : t("card.priceAsk")}</b>
                 </span>
-                <Link href={href} className="mk-show__go" aria-label={`${t("show.cta")}: ${s.name}`}>
+                <Link href={href} className="mk-show__go" aria-label={`${t("show.cta")}: ${s.name}`} data-ai-id={`${featuredAiId}.detail`} data-ai-label={t("show.cta")}>
                   {t("show.cta")}
                   <IconArrowRight />
                 </Link>

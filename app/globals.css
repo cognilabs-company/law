@@ -1969,7 +1969,9 @@ body:has(.rf) .fab{display:none}
 @container (max-width:760px){.cdart{display:none}}
 @media (prefers-reduced-motion:reduce){.cdart__img--first,.cdart__img--in,.cdart__img--out{animation:none}}
 
-.cdact{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.cdact{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.cdact>.cdact__i--pri{grid-column:span 2}
+.cdact>.cdact__i--pri .cdact__art{width:116px;height:116px;right:-10px;bottom:-12px}
 .cdact__i{display:flex;flex-direction:column;gap:10px;align-items:flex-start;justify-content:flex-start;background:var(--dk-surface, #fff);border:1px solid var(--line);border-radius:var(--rl);
   padding:16px;min-height:174px;font-weight:600;font-size:.9rem;color:var(--ink);transition:.18s;box-shadow:var(--s1)}
 .cdact__i:hover{transform:translateY(-3px);box-shadow:var(--s2);border-color:var(--b200)}
@@ -1979,8 +1981,16 @@ body:has(.rf) .fab{display:none}
 .cdact__i--pri .cdact__ico{background:rgba(255,255,255,.2);color:#fff}
 .cdact__sub{display:block;font-size:.76rem;font-weight:500;color:var(--gray2);margin-top:-4px}
 .cdact__i--pri .cdact__sub{color:rgba(255,255,255,.8)}
-@media (max-width:1100px){.cdact{grid-template-columns:repeat(3,1fr)}}
-@media (max-width:560px){.cdact{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:1100px){
+  .cdact{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cdact>.cdact__i--pri{grid-column:auto}
+  .cdact>.cdact__i--pri .cdact__art{width:78px;height:78px;right:-8px;bottom:-8px}
+}
+@media (max-width:600px){
+  .cdact{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cdact>.cdact__i--pri{grid-column:1/-1;min-height:140px}
+  .cdact>.cdact__i--pri .cdact__art{width:104px;height:104px;right:-8px;bottom:-12px}
+}
 
 /* Client dashboard body: requests list (wide) + sidebar (referral, AI nudge) */
 .cdgrid{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
@@ -7481,58 +7491,7 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
 .pkg__cmp{color:var(--gray);font-weight:500}
 .pkg__acts .btn svg{width:14px;height:14px}
 
-/* ── wp-cdpri: the primary quick action ──────────────────────────
-   "Muammoni tavsiflash" is the one card on the dashboard that starts a
-   journey rather than opening a list, and it now asks a question when it is
-   pressed. It was the same box as the other five with a gradient poured over
-   it. It carries its own weight: a soft glow behind the icon, a sweep of
-   light on hover, and a chevron that says something opens. */
 button.cdact__i{text-align:left;font-family:inherit;border:1px solid var(--line);cursor:pointer;width:100%}
-/* ── The quick-action artwork ─────────────────────────────────────
-   One 3D illustration per card, sitting in the bottom-right corner and
-   running off both edges, with the text in front of it — the arrangement in
-   the product owner's mockup. Colours are NOT taken from that mockup: the
-   cards keep the palette they already have in both themes, and only the
-   placement is copied.
-
-   The file comes in as the custom property --art, set inline per card, so one
-   rule draws all six. Nothing is drawn behind it: a tint was tried and, on a
-   fixed-size box, it reads as a pale rectangle pasted into the corner — the
-   renders carry their own blue and their own soft shadow and sit on white
-   and on navy without help.
-
-   The artwork changes NOTHING about the card. It is out of flow, it is sized
-   as a share of whatever the card already is, and it sets no min-height and
-   no max-width on anything: the six cards are exactly the size and the text
-   is exactly the shape they were before the pictures arrived. A first
-   attempt did hold the card open with a min-height and pull the title in
-   with a max-width, and that is the wrong way round — the picture follows
-   the card, not the card the picture.
-
-   Percentages rather than pixels, for the same reason: the row is six across
-   on a desktop, three on a tablet and two on a phone, and the picture keeps
-   the same proportion of the card at each of them instead of dominating the
-   wide one and swamping the narrow one.
-
-   It sits in the bottom-right corner and about a fifth of it is cut off by
-   the card edge — the product owner's call, and it is the better looking of
-   the two: the picture reads as part of the card rather than as a sticker
-   placed on it, and pushing its mass down and to the right is what keeps it
-   clear of the copy. The card still clips it (overflow:hidden above) and
-   the text still has no width imposed on it: the art is out of flow and
-   paints behind.
-
-   All six cards share one min-height (set with the layout above), so the
-   longest title no longer decides how tall its neighbours are. That extra
-   room is also what retired the old per-card drops: the three whose weight
-   sits high in the frame used to ride up against the copy on a short card,
-   and on a 174px one they no longer do — one offset for all six.
-
-   The files are normalised for that: each was trimmed of its transparent
-   margin (42-59% of the original canvas, differently distributed on each,
-   which is why they used to land at six different sizes and offsets) and
-   re-centred in one square. `contain` in a square box now draws all six at
-   the same size, and the same fifth is cut from each. */
 .cdact__i{position:relative;overflow:hidden}
 .cdact__art{position:absolute;z-index:0;right:-8px;bottom:-8px;width:78px;height:78px;pointer-events:none;
   background:var(--art) no-repeat center/contain;
@@ -13596,3 +13555,34 @@ body[data-guide-dock="top"] .gcap{top:max(80px,env(safe-area-inset-top));bottom:
 @media (max-width:900px){.svm__hero{grid-template-columns:1fr}.svm__hero-a{flex-direction:row;flex-wrap:wrap}.svm__stats{grid-template-columns:repeat(2,minmax(0,1fr))}.omem__card{grid-template-columns:auto minmax(0,1fr)}.omem__kpis{grid-column:1/-1}.omem__kpis li{flex:1}}
 @media (max-width:560px){.svm__hero-a .btn{flex:1 1 auto}.svm__tabs{flex:1 1 100%}.svform__st{grid-template-columns:1fr}.svform__sto{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px;align-items:center}.svform__stic{grid-row:1/3}.svprom__grid{grid-template-columns:1fr}.svform__acts .btn,.svrm__acts .btn{flex:1}.svps__row{flex-wrap:wrap}.svps__row .btn,.svps__chip{margin-left:50px}.omem__card{padding:16px}.omem__av{width:52px;height:52px;border-radius:16px;font-size:1.1rem}.svm__stat b{font-size:1.3rem}}
 @media (prefers-reduced-motion:reduce){.msv,.svpdone__ic,.svst--active i,.svm__refresh.is-spin svg,.svm__hero.is-skel,.msv.is-skel,.svpk.is-skel,.svps__skel{animation:none}.msv:hover,.svpk:hover{transform:none}}
+.gring--pulse{outline-color:var(--dk-txt-err, #E5484D);box-shadow:0 0 0 4px var(--dk-bd-err, rgba(229,72,77,.32)),0 0 0 5px rgba(3,16,43,.18)}
+.gring--pulse .gring__glow{box-shadow:0 0 30px 8px var(--dk-bd-err, rgba(229,72,77,.5))}
+.gring--pulse.is-in .gring__glow{animation:gdPop .45s cubic-bezier(.2,.8,.2,1) both,gdBreath 1.2s ease-in-out .45s infinite}
+.gring--soft{box-shadow:0 0 0 3px var(--gd-ring2),0 0 0 4px rgba(3,16,43,.12)}
+.gring--soft .gring__glow{opacity:.45}
+@media (prefers-reduced-motion:reduce){.gring--pulse.is-in .gring__glow{animation:none;opacity:.9}}
+.aicmds{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.aicmd{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:3px 9px;border-radius:var(--pill);background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1px var(--line);font-size:.73rem;font-weight:700;line-height:1.35;color:var(--gray);overflow-wrap:anywhere}
+.aicmd svg{flex:none;width:12px;height:12px}
+.aicmd b{font-weight:800;color:inherit}
+.aicmd--running{background:var(--dk-tint-blue, #EEF5FF);box-shadow:inset 0 0 0 1px var(--dk-bd-blue, rgba(22,104,240,.25));color:var(--dk-acc-strong, var(--b700))}
+.aicmd--done{background:var(--dk-tint-ok, #E1F6EE);box-shadow:inset 0 0 0 1px var(--dk-bd-ok, rgba(16,148,94,.25));color:var(--dk-txt-ok, #0E7A4F)}
+.aicmd--missing{background:var(--dk-warn-bg, #FEF3C7);box-shadow:inset 0 0 0 1px var(--dk-bd-warn, #F3DEA0);color:var(--dk-txt-warn, #9A5B06)}
+.aicmd--failed{background:var(--dk-tint-err, #FDECEC);box-shadow:inset 0 0 0 1px var(--dk-bd-err, #F6D5D1);color:var(--dk-txt-err, #B42318)}
+.aicmd--cancelled,.aicmd--skipped{opacity:.78}
+.aicmd--running svg{animation:aicmdSpin 1s linear infinite}
+@keyframes aicmdSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.aicmd--running svg{animation:none}}
+.aiact__rows{display:grid;gap:8px;width:100%;margin:0}
+.aiact__row{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;background:var(--dk-surface-2, #F5F9FF);box-shadow:inset 0 0 0 1px var(--line);text-align:left}
+.aiact__row dt{font-size:.7rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--gray2)}
+.aiact__row dd{margin:0;font-size:.92rem;font-weight:600;line-height:1.45;color:var(--ink);overflow-wrap:anywhere}
+.aiact__row--warn{background:var(--dk-warn-bg, #FEF3C7);box-shadow:inset 0 0 0 1px var(--dk-bd-warn, #F3DEA0)}
+.aiact__warn{margin:0;font-size:.82rem;font-weight:700;color:var(--dk-txt-warn, #9A5B06)}
+.aiact__list{display:flex;flex-direction:column;gap:4px;width:100%;margin:0;padding:0 0 0 18px;font-size:.84rem;line-height:1.45;color:var(--gray);text-align:left}
+.aiact__pay{display:inline-flex;align-items:center;gap:6px}
+.aiact__pay svg{width:15px;height:15px}
+.aifill__rows{display:grid;gap:6px;width:100%;margin:0;padding:0;list-style:none}
+.aifill__row{display:flex;flex-direction:column;gap:2px;padding:9px 12px;border-radius:12px;background:var(--dk-surface-2, #F5F9FF);box-shadow:inset 0 0 0 1px var(--line);text-align:left}
+.aifill__row span{font-size:.74rem;font-weight:700;color:var(--gray2)}
+.aifill__row b{font-size:.9rem;font-weight:600;color:var(--ink);overflow-wrap:anywhere;white-space:pre-wrap}

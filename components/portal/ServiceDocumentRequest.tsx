@@ -26,6 +26,7 @@ import { ApiError, errDetail } from "@/lib/http";
 import { statusLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { IconList, IconHeadset, IconChevronLeft, IconLock } from "@/components/icons";
+import { aiId } from "@/lib/ai/ids";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
@@ -385,6 +386,9 @@ export default function ServiceDocumentRequest({
 
   if (!tpl) return <Notice ok={false} msg={t("error")} />;
 
+  const tplKey = sourceFile?.templateId || tpl.id;
+  const tplAi = tplKey ? aiId("documents.template", tplKey) : "";
+
   if (mode === "choose")
     return (
       <div className="cform" style={{ maxWidth: "none" }}>
@@ -393,11 +397,16 @@ export default function ServiceDocumentRequest({
           <span>{t("price")}</span>
           <b>{tpl.price ? `${som(tpl.price)} ${t("som")}` : t("free")}</b>
         </div>
-        <div className="docchoose">
+        <div className="docchoose" data-ai-id="documents.constructor.mode" data-ai-type="section" data-ai-entity-type="service" data-ai-entity-id={serviceId}>
           {/* An advocate holding the document does not take the constructor
               away — §3 L50 is explicit about that, and §3 L74 says it asks
               first only while constructor_action.prompt_required is true. */}
-          <button type="button" className="docchoose__c" onClick={() => (askFirst ? setGateOpen(true) : setMode("manual"))}>
+          <button
+            type="button"
+            className="docchoose__c"
+            onClick={() => (askFirst ? setGateOpen(true) : setMode("manual"))}
+            data-ai-id={tplAi ? aiId(tplAi, "manual") : undefined}
+          >
             <span className="docchoose__i"><IconList /></span>
             <b>{t("chooseManual")}</b>
             <span>{t("chooseManualSub")}</span>
@@ -407,7 +416,12 @@ export default function ServiceDocumentRequest({
               The sub-line is the backend's own refusal (§5 L115) once
               can_send_lawyer_request is false, so the card says why before it
               is pressed rather than only after. */}
-          <button type="button" className={`docchoose__c${canSendLawyer ? "" : " docchoose__c--held"}`} onClick={() => setMode("lawyer")}>
+          <button
+            type="button"
+            className={`docchoose__c${canSendLawyer ? "" : " docchoose__c--held"}`}
+            onClick={() => setMode("lawyer")}
+            data-ai-id={tplAi ? aiId(tplAi, "lawyer") : undefined}
+          >
             <span className="docchoose__i"><IconHeadset /></span>
             <b>{t("chooseLawyer")}</b>
             <span>{canSendLawyer ? t("chooseLawyerSub") : blockReason || t("lawyerPendingStatus", { status: heldStatus })}</span>
@@ -419,7 +433,7 @@ export default function ServiceDocumentRequest({
             ("open_constructor" / "wait_for_lawyer") but sends no wording for
             them. */}
         <Modal open={gateOpen} onClose={() => setGateOpen(false)} title={gateTitle}>
-          <div className="cform" style={{ maxWidth: "none" }}>
+          <div className="cform" style={{ maxWidth: "none" }} data-ai-id="documents.constructor.lawyer-gate" data-ai-type="modal" data-ai-label={gateTitle}>
             <p className="dexit__lead">
               <span className="dexit__i"><IconHeadset /></span>
               {gateMessage}
@@ -454,7 +468,7 @@ export default function ServiceDocumentRequest({
   if (lawyerHeld && mode === "lawyer")
     return (
       <>
-        <div className="cform" style={{ maxWidth: "none" }}>
+        <div className="cform" style={{ maxWidth: "none" }} data-ai-id="documents.lawyer.pending" data-ai-type="section" data-ai-entity-type="document_request" data-ai-entity-id={lawyerHeld.id}>
           {initialMode ? null : (
             <button type="button" className="rf__link" onClick={() => setMode("choose")}>
               <IconChevronLeft />
@@ -526,7 +540,7 @@ export default function ServiceDocumentRequest({
     );
 
   return (
-    <div className="cform" style={{ maxWidth: "none" }} data-ai-target="documents:constructor">
+    <div className="cform" style={{ maxWidth: "none" }} data-ai-target="documents:constructor" data-ai-id="documents.constructor.intro" data-ai-type="section" data-ai-entity-type="service" data-ai-entity-id={serviceId}>
       {mode !== "manual" || !sourceFile?.lawyerFlow ? null : (
         <button type="button" className="rf__link" onClick={() => setMode("choose")}>
           <IconChevronLeft />
@@ -542,7 +556,7 @@ export default function ServiceDocumentRequest({
       {/* Live only once the resume lookup has answered: clicking before then
           creates a second, separately-payable request for a template this
           client had already started. */}
-      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={start} disabled={busy || !resumed}>
+      <button className="btn btn--grad btn--full btn--lg" type="button" onClick={start} disabled={busy || !resumed} data-ai-id="documents.constructor.start">
         {busy || !resumed ? t("processingShort") : t("continue")}
       </button>
     </div>

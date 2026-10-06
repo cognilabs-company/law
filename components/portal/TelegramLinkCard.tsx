@@ -225,7 +225,7 @@ export default function TelegramLinkCard() {
   const busyOrWaiting = busy || waitLeft > 0;
 
   return (
-    <div className="ppanel" data-ai-target="profile:telegram">
+    <div className="ppanel" data-ai-target="profile:telegram" data-ai-id="profile.telegram" data-ai-type="section">
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconSend /></span>{t("title")}</b>
         {linked ? <span className="tfa__on"><IconCheck />{t("linkedBadge")}</span> : null}
@@ -233,7 +233,7 @@ export default function TelegramLinkCard() {
       <p className="advmuted" style={{ marginBottom: 12 }}>{t("desc")}</p>
 
       {link ? (
-        <div className="cform" style={{ maxWidth: "none" }}>
+        <div className="cform" style={{ maxWidth: "none" }} data-ai-private>
           {showExpired ? (
             <Notice ok={false} msg={t("expired")} />
           ) : (
@@ -295,14 +295,14 @@ export default function TelegramLinkCard() {
             </div>
           </div>
           {shownNote ? <div style={{ marginTop: 12 }}><Notice ok={shownNote.ok} msg={shownNote.msg} /></div> : null}
-          <button className="btn btn--line btn--sm" type="button" style={{ marginTop: 12 }} onClick={generate} disabled={busyOrWaiting}>
+          <button className="btn btn--line btn--sm" type="button" style={{ marginTop: 12 }} onClick={generate} disabled={busyOrWaiting} data-ai-id="profile.telegram.connect">
             {busy ? t("generating") : t("relink")}
           </button>
         </>
       ) : (
         <>
           {note ? <div style={{ marginBottom: 12 }}><Notice ok={note.ok} msg={note.msg} /></div> : null}
-          <button className="btn btn--pri btn--sm" type="button" onClick={generate} disabled={busyOrWaiting || !session}>
+          <button className="btn btn--pri btn--sm" type="button" onClick={generate} disabled={busyOrWaiting || !session} data-ai-id="profile.telegram.connect">
             <IconSend />
             {busy ? t("generating") : t("connect")}
           </button>

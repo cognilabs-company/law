@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { fmtRating } from "@/lib/date";
 import { humanize } from "@/lib/labels";
 import { initials } from "@/lib/lawyers";
+import { aiId } from "@/lib/ai/ids";
+import { useAiField } from "@/lib/ai/registry";
 import { getMarketplaceSellerServices, type MarketSeller, type MarketService } from "@/lib/services/marketplace";
 import {
   ASSIST_CHANNELS,
@@ -103,6 +105,15 @@ export default function AssistMarket({ ticketId, client, clientName, onDone, onB
       alive = false;
     };
   }, [sellerId, serviceTick]);
+
+  const ai = (...parts: string[]) => aiId("call_center.support.ticket", ticketId, "assist", "marketplace", ...parts);
+
+  useAiField(ai("search"), {
+    get: () => (seller ? "" : q),
+    set: (value) => setQ(value.slice(0, 120)),
+    fillable: true,
+    disabled: Boolean(seller) || sellers.status !== "ready" || busy,
+  });
 
   const svc = services && services.userId === sellerId ? services : null;
   const svcItems = svc?.status === "ready" ? svc.items : (seller?.services ?? []);
@@ -251,7 +262,7 @@ export default function AssistMarket({ ticketId, client, clientName, onDone, onB
           <>
             <label className="sasst__search">
               <IconSearch aria-hidden="true" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("market.sellerPh")} aria-label={t("market.sellerPh")} maxLength={120} />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("market.sellerPh")} aria-label={t("market.sellerPh")} maxLength={120} data-ai-id={ai("search")} />
             </label>
             {shown.length ? (
               <ul className="sasst__pick" aria-label={t("market.seller")}>
@@ -335,12 +346,12 @@ export default function AssistMarket({ ticketId, client, clientName, onDone, onB
         </div>
       </div>
 
-      <label className="sasst__f">
+      <label className="sasst__f" data-ai-private>
         <span className="sasst__lbl">{t("market.time")}</span>
         <input value={time} onChange={(e) => setTime(e.target.value)} placeholder={t("market.timePh")} maxLength={TIME_MAX} />
       </label>
 
-      <label className="sasst__f">
+      <label className="sasst__f" data-ai-private>
         <span className="sasst__lbl">{t("market.note")}</span>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("market.notePh")} maxLength={NOTE_MAX} rows={3} />
         <em>
@@ -354,7 +365,7 @@ export default function AssistMarket({ ticketId, client, clientName, onDone, onB
         </p>
       ) : null}
       <div className="sasst__acts">
-        <button type="button" className="btn btn--grad btn--sm" onClick={review} disabled={busy}>
+        <button type="button" className="btn btn--grad btn--sm" onClick={review} disabled={busy} data-ai-id={ai("next")}>
           {t("market.next")}
         </button>
       </div>
@@ -368,6 +379,7 @@ export default function AssistMarket({ ticketId, client, clientName, onDone, onB
         error={confirmErr}
         onCancel={() => setConfirming(false)}
         onConfirm={() => void submit()}
+        aiId={ai("confirm-modal")}
       />
     </div>
   );

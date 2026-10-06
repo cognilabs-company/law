@@ -22,6 +22,8 @@ import { initials } from "@/lib/lawyers";
 import { statusLabel } from "@/lib/labels";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconShieldCheck, IconArrowRight, IconLock, IconSearch, IconChat, IconClock, IconUsers, IconBolt } from "@/components/icons";
+import { aiId } from "@/lib/ai/ids";
+import { useAiField } from "@/lib/ai/registry";
 
 // The secure-chat inbox. /secure-chats returns rooms with ids only — no
 // counterpart name, no last message — so every row used to read "Room #1",
@@ -197,9 +199,19 @@ export default function SecureInbox() {
   }, [res.data, q, dir, me, ua]);
 
   const unreadN = rows.reduce((sum, room) => sum + room.unreadCount, 0);
+  const ai = session ? (session.role === "client" ? "marketplace.messages" : "advocate.messages") : "";
+  const listShown = res.status === "ready" && rows.length > 0;
+  const searchShown = res.data.length > 4;
+  useAiField(searchShown && ai ? `${ai}.search.input` : "", { get: () => q, set: setQ, sensitive: true });
 
   return (
-    <div className="ppanel" data-ai-target={res.status === "ready" && rows.length ? undefined : "messages:inbox"}>
+    <div
+      className="ppanel"
+      data-ai-target={res.status === "ready" && rows.length ? undefined : "messages:inbox"}
+      data-ai-id={listShown || !ai ? undefined : ai}
+      data-ai-type={listShown ? undefined : "list"}
+      data-ai-label={listShown ? undefined : t("title")}
+    >
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconChat /></span>{t("title")}</b>
         <span className="ppanel__hact">
@@ -213,11 +225,11 @@ export default function SecureInbox() {
         <span>{t("lead")}</span>
       </div>
 
-      {res.data.length > 4 ? (
+      {searchShown ? (
         <div className="svsel__bar sinbox__search" data-ai-target="messages:search" data-ai-label={t("search")}>
           <span className="svsel__search">
             <IconSearch />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} data-ai-id={ai ? `${ai}.search.input` : undefined} />
           </span>
         </div>
       ) : null}
@@ -231,7 +243,7 @@ export default function SecureInbox() {
       ) : !rows.length ? (
         <EmptyState icon={<IconSearch />} title={t("noMatch")} text={t("noMatchText")} />
       ) : (
-        <div className="sinbox" data-ai-target="messages:inbox" data-ai-label={t("title")}>
+        <div className="sinbox" data-ai-target="messages:inbox" data-ai-label={t("title")} data-ai-id={ai || undefined} data-ai-type="list">
           {rows.map((r, i) => {
             const name = nameOf(r);
             const isNew = r.unreadCount > 0;
@@ -243,6 +255,12 @@ export default function SecureInbox() {
               <Link
                 key={r.id}
                 href={hrefOf(r)}
+                data-ai-id={r.id && ai ? aiId(`${ai}.room`, r.id) : undefined}
+                data-ai-type="list_item"
+                data-ai-entity-type="secure_chat"
+                data-ai-entity-id={r.id || undefined}
+                data-ai-label={[req ? svcOf(req) : `${t("room")} #${i + 1}`, req?.workId, isNew ? t("unreadCount", { n: r.unreadCount }) : ""].filter(Boolean).join(" · ")}
+                data-ai-private
                 className={`sinbox__item${isNew ? " sinbox__item--new" : ""}`}
                 onClick={() => setData((cur) => cur.map((room) => (room.id === r.id ? { ...room, unreadCount: 0, hasUnread: false } : room)))}
               >

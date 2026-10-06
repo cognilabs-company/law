@@ -18,9 +18,11 @@ type Outcome = "accept" | "decline" | "taken";
 export default function OrderActions({
   orderId,
   onDone,
+  aiBase,
 }: {
   orderId: string;
   onDone?: (action: Outcome) => void;
+  aiBase?: string;
 }) {
   const tc = useTranslations("portal.common");
   const [busy, setBusy] = useState<null | "accept" | "decline">(null);
@@ -82,15 +84,15 @@ export default function OrderActions({
 
   return (
     <div className="pcase__act">
-      <button className="btn btn--pri btn--sm" type="button" disabled={!!busy || !canAct} onClick={() => run("accept")}>
+      <button className="btn btn--pri btn--sm" type="button" disabled={!!busy || !canAct} onClick={() => run("accept")} data-ai-id={aiBase ? `${aiBase}.accept` : undefined} data-ai-label={aiBase ? tc("accept") : undefined}>
         {busy === "accept" ? tc("accepting") : tc("accept")}
       </button>
-      <button className="btn btn--line btn--sm" type="button" disabled={!!busy || !canAct} onClick={() => run("decline")}>
+      <button className="btn btn--line btn--sm" type="button" disabled={!!busy || !canAct} onClick={() => run("decline")} data-ai-id={aiBase ? `${aiBase}.decline` : undefined} data-ai-label={aiBase ? tc("decline") : undefined}>
         {tc("decline")}
       </button>
       {failed ? <span className="pcase__err" role="alert">{tc("orderActionFailed")}</span> : null}
       <Modal open={askReason} onClose={() => setAskReason(false)} title={tr("title")}>
-        <div className="cform" style={{ maxWidth: "none" }}>
+        <div className="cform" style={{ maxWidth: "none" }} data-ai-id={aiBase ? `${aiBase}.decline-modal` : undefined} data-ai-type={aiBase ? "modal" : undefined}>
           <p className="advmuted">{tr("lead")}</p>
           <div>
             <label>{tr("reason")}</label>

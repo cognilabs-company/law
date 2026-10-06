@@ -210,7 +210,7 @@
       "stopHint": "To'xtatish (Esc)",
       "navigating": "Kerakli sahifani ochyapman…",
       "locating": "Kerakli joyni qidiryapman…",
-      "missing": "Bu element hozir sahifada ko'rinmadi.",
+      "missing": "Bu element hozir sahifada topilmadi.",
       "navFailed": "Sahifa ochilmadi. Qayta urinib ko'ring.",
       "pageFallback": "Mana shu sahifa — asosiy bo'limlari bilan tanishamiz."
     },
@@ -670,6 +670,9 @@
         "support": "Yordam kerak bo'lsa — shu yerdan AI instruktor, operator bilan chat, shikoyat yoki qo'ng'iroqni tanlaysiz."
       },
       "client_dashboard": {
+        "support": "Yordam markazi — operator bilan chat ochasiz va murojaatlaringiz holatini shu yerda kuzatasiz.",
+        "subscriptions": "Tariflar — LexGo.AI va shaxsiy advokat obunasini shu yerdan tanlaysiz yoki yangilaysiz.",
+        "documents": "Huquqiy hujjatlar — ariza, shartnoma va da’volarni tayyor namunalar asosida shu yerdan tuzasiz.",
         "requests": "Faol so'rovlaringiz va ularning holati shu yerda ko'rinadi.",
         "title": "Bu sizning boshqaruv panelingiz — barcha xizmatlarga shu yerdan kirasiz.",
         "describe": "Muammoingizni oddiy so'zlar bilan yozing — AI mos xizmat va advokatni tanlab beradi.",
@@ -992,6 +995,10 @@
     }
   },
   "support": {
+    "aiLabels": {
+      "chat": "Operator bilan chat",
+      "clientChat": "Mijoz bilan chat"
+    },
     "assistNote": {
       "kicker": "Operator yordami",
       "workId": "ID: {id}",
@@ -4019,6 +4026,93 @@
       "checklistHint": "Har bir qator — alohida band. Bajarilganini \"[x]\" bilan belgilang."
     },
     "aiAssistant": {
+      "v21": {
+        "chips": "Bajarilgan amallar",
+        "status": {
+          "pending": "Navbatda",
+          "running": "Bajarilmoqda",
+          "done": "Bajarildi",
+          "missing": "Bu element hozir sahifada topilmadi",
+          "failed": "Bajarilmadi",
+          "cancelled": "Bekor qilindi",
+          "skipped": "O'tkazib yuborildi"
+        },
+        "cmd": {
+          "navigate": "Sahifaga o'tish",
+          "highlight": "Ko'rsatish",
+          "scroll_to": "Joyiga o'tish",
+          "focus_input": "Maydonni tanlash",
+          "open_modal": "Oynani ochish",
+          "fill_form": "Maydonlarni to'ldirish",
+          "preview_action": "Amalni tayyorlash",
+          "confirm_required": "Tasdiqlash",
+          "support_handoff": "Operatorga ulanish",
+          "show_steps": "Qadamlar",
+          "tooltip": "Izoh",
+          "unknown": "Buyruq"
+        },
+        "reason": {
+          "route_not_allowed": "Bu sahifa siz uchun ochiq emas",
+          "navigation_timeout": "Sahifa ochilmadi",
+          "navigation_failed": "Sahifa ochilmadi",
+          "unsupported_command": "Bu buyruq hali qo'llab-quvvatlanmaydi",
+          "field_not_fillable": "Bu maydonni AI to'ldira olmaydi",
+          "not_focusable": "Maydonni tanlab bo'lmadi",
+          "no_opener": "Oynani ochib bo'lmadi",
+          "modal_not_opened": "Oyna ochilmadi",
+          "user_declined": "Siz bekor qildingiz",
+          "user_stopped": "Siz to'xtatdingiz",
+          "route_changed": "Boshqa sahifaga o'tildi",
+          "superseded": "Yangi so'rov bilan almashtirildi",
+          "preview_failed": "Amal tayyorlanmadi",
+          "element_clicked": "Siz elementni bosdingiz",
+          "interrupted": "To'xtatildi"
+        },
+        "confirm": {
+          "title": "AI tayyorlagan amalni tasdiqlang",
+          "lead": "Siz tasdiqlamaguningizcha hech narsa bajarilmaydi.",
+          "what": "Nima qilinadi",
+          "price": "Taxminiy to'lov",
+          "free": "Bepul",
+          "priceLater": "To'lov summasi keyingi qadamda aniq ko'rsatiladi",
+          "currency": "so'm",
+          "onBehalf": "Kimning nomidan",
+          "onBehalfOther": "Diqqat: amal boshqa foydalanuvchi nomidan bajariladi.",
+          "yes": "Tasdiqlayman",
+          "no": "Bekor qilish",
+          "busy": "Bajarilmoqda…",
+          "expired": "Tasdiqlash muddati tugadi — ma'lumot yangilandi, qayta tasdiqlang.",
+          "blocked": "Bu amalni hozir bajarib bo'lmaydi.",
+          "genericTitle": "Davom etamizmi?",
+          "pay": "To'lovga o'tish",
+          "payReady": "To'lov sahifasi tayyor. Davom etish uchun tugmani bosing.",
+          "close": "Yopish"
+        },
+        "action": {
+          "start_support_ticket": "Operator bilan chat ochish",
+          "prepare_subscription_purchase": "Tarif xaridini tayyorlash",
+          "start_document_request": "Hujjat so'rovini boshlash",
+          "prepare_marketplace_purchase": "Marketplace xizmatini xarid qilishni tayyorlash",
+          "prepare_urgent_advokat_request": "Tezkor advokat so'rovini tayyorlash",
+          "generic": "Amalni bajarish"
+        },
+        "roles": {
+          "client": "Mijoz",
+          "lawyer": "Yurist",
+          "advocate": "Advokat",
+          "staff": "Xodim"
+        },
+        "fill": {
+          "title": "AI maydonlarni to'ldirmoqchi",
+          "lead": "Qiymatlarni tekshiring. «Qo'llash» tugmasini bossangiz, ular maydonlarga yoziladi.",
+          "apply": "Qo'llash",
+          "cancel": "Bekor qilish"
+        },
+        "errors": {
+          "unavailable": "AI instruktorning yangi versiyasi hozir mavjud emas.",
+          "failed": "Javob olinmadi. Qayta urining."
+        }
+      },
       "needsTitle": "Buning uchun kerak:",
       "stepsTitle": "Qadamlar",
       "short": "AI instruktor",
@@ -5327,6 +5421,12 @@
         "chooseSpecialist": "Mos mutaxassisni tanlang"
       },
       "actions": {
+        "supportSub": "Operator, shikoyat yoki qo‘ng‘iroq",
+        "support": "Yordam markazi",
+        "subscriptionsSub": "Obunani tanlang yoki yangilang",
+        "subscriptions": "Tariflar",
+        "documentsSub": "Ariza, shartnoma va da’vo namunalari",
+        "documents": "Huquqiy hujjatlar",
         "whoAiSub": "Bepul limit doirasida darhol javob beradi. Murakkab holatda advokatga yo‘naltiradi.",
         "whoAi": "LexGo sun’iy intellekti javobi",
         "whoAdvocateSub": "Advokat video yoki yozishma orqali javob beradi.",
