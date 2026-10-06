@@ -19,8 +19,13 @@
     },
     {
       "file": "../../md/LEXGO_AI_ID_REGISTRY_V21_2026-10-06.json",
-      "title": "AI Instruktor v2.1 — data-ai-id registri (ilova)",
-      "description": "Frontenddagi 396 ta data-ai-id (statik va {entity} shablonlari, fayl:qator bilan), kontraktning 114 ta ID'si bo'yicha qamrov (done / approximate / unmapped + izoh + route) va 126 ta legacy data-ai-target ↔ v2.1 alias qoidasi. Backend buyruqlarda faqat shu ID'larni ishlatsin."
+      "title": "AI Instruktor v2.1 — data-ai-id registri (yangilangan, 385e698)",
+      "description": "Frontenddagi joriy data-ai-id'lar (fayl:qator bilan), kontrakt qamrovi va 138 ta alias qoidasi. Filtrlar dropdown'ga o'tgani uchun per-tab ID'lar o'rniga select ID'lar (…tabs, …filters.status) — backend buyruqlarda shularni ishlating."
+    },
+    {
+      "file": "../../md/LEXGO_BACKEND_ASKS_REALTIME_AI_SERVICES_2026-10-06.md",
+      "title": "Realtime, AI instruktor v2.1 (live) va xizmatlar — backend uchun so'rovlar",
+      "description": "Eng muhimi: Telegram webhook (async) realtime xabarlarni yo'qotadi — marketplace xarid tasdig'i, reklama tasdig'i mijozga yetib bormaydi (main.py:1125, broadcast_realtime_event 5865). Ichida: marketplace realtime so'rovlari (commit'dan keyin yuborish, reject frame, status maydonlari), AI v2.1 bo'yicha 10 ta so'rov (requires_frontend, ruscha self-help, targets maydoni, WS response, events runtime_state, token kodlari), xizmatlar boshqaruvi B2-B13, filtrlar yagona dizaynga o'tgani sababli o'zgargan data-ai-id jadvali. Frontend commit 385e698."
     }
   ]
 }
