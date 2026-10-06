@@ -56,6 +56,7 @@ function toLawyer(b: BackendLawyer): Lawyer {
     // Only /marketplace/lawyers knows this; from /lawyers it is undefined and
     // the badge simply never appears.
     promoted: b.promotion?.active === true,
+    promotedService: b.promotion?.active ? (b.promotion.serviceTitle ?? "") : "",
     boost: b.promotionBoostScore ?? 0,
   };
 }
@@ -314,7 +315,11 @@ export default function LawyersSection({
                 {/* S2: a paid boost, named. The MD allows the badge and forbids
                     re-sorting what the backend ranked — see the sort memo, which
                     returns the server order untouched on "recommended". */}
-                {l.promoted ? <span className="advcard__badge advcard__badge--promo">{t("card.promoted")}</span> : null}
+                {l.promoted ? (
+                  <span className="advcard__badge advcard__badge--promo" title={l.promotedService ? t("card.promotedService", { service: l.promotedService }) : undefined}>
+                    {t("card.promoted")}
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>

@@ -1,4 +1,200 @@
 {
+  "sellerServices": {
+    "kicker": "Marketplace services",
+    "title": "My services",
+    "titleOwner": "{name}'s services",
+    "lead": "Add services, set your price and experience, manage availability and promote them — all in one place.",
+    "leadOwner": "Add services on the specialist's behalf, update price and description, manage status and promote.",
+    "add": "Add service",
+    "addFirst": "Add your first service",
+    "promoteProfile": "Promote profile",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "error": "Couldn't load services",
+    "search": "Search my services…",
+    "searchLabel": "Search my services",
+    "stats": {
+      "active": "Active",
+      "paused": "Paused",
+      "inactive": "Inactive",
+      "promoted": "Promoted",
+      "waiting": "{n} pending"
+    },
+    "filters": {
+      "label": "Filter by status",
+      "all": "All",
+      "active": "Active",
+      "paused": "Paused",
+      "inactive": "Inactive"
+    },
+    "empty": {
+      "title": "No services yet",
+      "text": "Pick a service from the catalogue, set your price and experience — clients will find you on the marketplace.",
+      "textOwner": "Pick a catalogue service for this specialist and set a price and description.",
+      "filtered": "No services here",
+      "filteredText": "Choose another status or clear the search."
+    },
+    "unverified": {
+      "title": "Profile not verified yet",
+      "text": "Your services stay hidden from the marketplace until verification. Complete your profile and documents.",
+      "textOwner": "This specialist's profile isn't verified — their services are hidden from the marketplace.",
+      "action": "Go to profile"
+    },
+    "boost": {
+      "title": "Profile boost is on",
+      "text": "{days} more days — all your services rank higher on the marketplace."
+    },
+    "blocked": {
+      "lockTitle": "No access"
+    },
+    "status": {
+      "active": "Active",
+      "paused": "Paused",
+      "inactive": "Inactive"
+    },
+    "statusHint": {
+      "active": "Visible on the marketplace and accepting orders",
+      "paused": "Temporarily not accepting orders",
+      "inactive": "Hidden from the marketplace list"
+    },
+    "statusLabel": "Service status",
+    "statusSaved": {
+      "active": "Service activated",
+      "paused": "Service paused",
+      "inactive": "Service deactivated"
+    },
+    "card": {
+      "service": "Service",
+      "som": "UZS",
+      "catalogPrice": "Catalogue price",
+      "band": "Allowed: {min} – {max} UZS",
+      "bandOff": "Price outside the range: {min} – {max} UZS",
+      "bandLoading": "Calculating the allowed range…",
+      "bandUnknown": "The range is checked on save",
+      "noteEmpty": "Add an experience note — it builds client trust",
+      "visible": "Visible on the marketplace",
+      "hidden": "Hidden: {reasons}",
+      "edit": "Edit",
+      "promote": "Promote",
+      "promoted": "Promoted · {days} d",
+      "promotedShort": "Promoted",
+      "promotedHint": "Promotion active for {days} more days",
+      "pending": "Awaiting approval",
+      "pendingHint": "The promotion request is waiting for admin approval in Telegram",
+      "promoteInactive": "Only active services can be promoted",
+      "remove": "Remove service"
+    },
+    "reasons": {
+      "catalogOff": "inactive in the catalogue",
+      "paused": "paused",
+      "inactive": "inactive",
+      "noPrice": "no price",
+      "unverified": "profile not verified",
+      "other": "marketplace conditions not met"
+    },
+    "form": {
+      "addTitle": "Add service",
+      "editTitle": "Edit service",
+      "service": "Service",
+      "serviceHint": "Search the catalogue: for example divorce, inheritance or contract.",
+      "searchPh": "Type a service name…",
+      "searching": "Searching…",
+      "searchFailed": "Search failed. Try again.",
+      "noResults": "Nothing found. Try another word.",
+      "typeMore": "Type at least 2 characters",
+      "added": "Added",
+      "advocateOnly": "Advocates only",
+      "advocateOnlyHint": "Only advocates can provide this service",
+      "change": "Change",
+      "clear": "Clear",
+      "fromPrice": "from {price} UZS",
+      "price": "Price",
+      "pricePh": "e.g. 250 000",
+      "priceHint": "Leave empty to use the catalogue price.",
+      "priceHintBase": "Leave empty to use the catalogue price ({price} UZS).",
+      "som": "UZS",
+      "bandHint": "Allowed range: {min} – {max} UZS (70–100% of the recommended price).",
+      "bandLoading": "Calculating the allowed range…",
+      "bandUnknown": "Couldn't calculate the range — the price is checked on save.",
+      "useRecommended": "Recommended: {price}",
+      "useMin": "Minimum: {price}",
+      "useCatalog": "Catalogue price",
+      "priceOut": "The price must be between {min} and {max} UZS.",
+      "note": "Experience note",
+      "notePh": "e.g. 7 years in family disputes, 120+ cases resolved in clients' favour.",
+      "noteHint": "Clients see this on the service card. Don't include phone numbers or links.",
+      "status": "Status",
+      "policy": "I agree to the pricing policy: the price stays within 70–100% of the recommendation, and changes apply to new orders only.",
+      "policyRequired": "Accept the pricing policy to save.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…"
+    },
+    "errors": {
+      "range": "The price must be between {min} and {max} UZS.",
+      "advocateOnly": "Only advocates can add this service.",
+      "pendingAccount": "Service management opens once an admin verifies your profile.",
+      "forbidden": "You don't have permission for this.",
+      "forbiddenOwner": "Only the organization owner can manage members' services.",
+      "notFound": "Service or specialist not found. The list was refreshed.",
+      "inactivePromo": "Only active services can be promoted.",
+      "invalid": "Invalid data. Check the fields.",
+      "offline": "No internet connection. Try again.",
+      "unknown": "Something went wrong. Try again."
+    },
+    "toast": {
+      "added": "Service added",
+      "saved": "Changes saved",
+      "removed": "Service removed",
+      "approved": "Promotion approved — the service now ranks higher",
+      "rejected": "Promotion request rejected",
+      "promoSent": "Promotion request sent for approval"
+    },
+    "remove": {
+      "title": "Remove service",
+      "text": "“{title}” will be removed from your list. The catalogue service stays — you can add it back any time.",
+      "promoWarn": "This service is promoted — the remaining promotion time isn't refunded.",
+      "confirm": "Remove",
+      "removing": "Removing…"
+    },
+    "promote": {
+      "title": "Promote service",
+      "lead": "Choose a package — once approved, the service ranks higher on the marketplace.",
+      "packages": "Promotion packages",
+      "days": "{d} days",
+      "reach": "up to {x}x reach",
+      "popular": "Best value",
+      "service": "Service",
+      "package": "Package",
+      "duration": "Duration",
+      "amount": "Amount",
+      "note": "The payment request goes to an admin in Telegram. The promotion starts only after approval.",
+      "noteOwner": "The request is sent in your name (organization owner); the specialist gets a notification.",
+      "submit": "Send for approval",
+      "sending": "Sending…",
+      "empty": "No active promotion packages",
+      "emptyText": "Packages appear here once an admin adds them.",
+      "loadError": "Couldn't load packages",
+      "notFound": "Package or service not found. Refresh the page.",
+      "doneTitle": "Waiting for approval in Telegram",
+      "doneText": "Once an admin approves, the promotion turns on automatically and you'll be notified.",
+      "request": "Request",
+      "telegramOk": "Sent to Telegram",
+      "telegramFail": "Not sent to Telegram — contact support",
+      "close": "Close"
+    },
+    "packages": {
+      "top": "Top of search",
+      "featured": "Featured profile",
+      "regional": "Regional boost"
+    },
+    "pending": {
+      "title": "Your profile is awaiting verification",
+      "text": "Full service management — notes, status and promotion — opens after an admin verifies your profile.",
+      "action": "Go to profile",
+      "legacyNote": "For now, pick the services you provide — after verification you'll manage them fully on this page."
+    }
+  },
   "guide": {
     "caption": {
       "generic": "This is “{label}”."
@@ -19,6 +215,27 @@
       "pageFallback": "Here's this page — let's go through its main parts."
     },
     "tours": {
+      "advocate_org_member": {
+        "title": "Organization member: services and workload.",
+        "header": "About the specialist: role, verification, rating and active work.",
+        "tabs": "Switch between the Services and Workload sections.",
+        "add": "Add a catalogue service on the specialist's behalf.",
+        "card": "Manage price, note and status right from the card.",
+        "promote": "Promote a member's service — the payment in your name is approved in Telegram.",
+        "workload": "The member's orders and cases."
+      },
+      "seller_services": {
+        "title": "Your services: price, status and promotion in one place.",
+        "summary": "How many services are active, paused, inactive and promoted.",
+        "add": "Add a catalogue service with your price, experience note and status.",
+        "filters": "Filter services by status or search them by name.",
+        "card": "Each card shows the price, the allowed range and marketplace visibility.",
+        "status": "One click: Active, Paused or Inactive.",
+        "promote": "Promote an active service — the request is approved in Telegram.",
+        "catalog": "Until your profile is verified, tick the services you provide here.",
+        "policy": "Accept the pricing policy before saving.",
+        "save": "Save the selected services and prices with this button."
+      },
       "seller_support": {
         "channels": "Three ways to get help: the AI instructor, an operator chat and a phone call.",
         "ai": "The AI instructor shows you the right page and answers right away.",
@@ -44,10 +261,11 @@
         "list": "Click an item to see its details."
       },
       "advocate_organization_dashboard": {
+        "memberRow": "Click the row to open the member's services and workload.",
         "title": "The organization dashboard: members and their active work.",
         "workload": "See every member's work in one list.",
         "summary": "At a glance: members, verified members, orders, cases and urgent requests.",
-        "members": "Click a member to open their workload.",
+        "members": "Members list: role, region, verification and active work.",
         "active": "Active orders, cases and urgent requests, split into tabs."
       },
       "advocate_organization": {
@@ -63,6 +281,7 @@
         "buy": "To pick a plan, press this button yourself — payment happens only with your confirmation."
       },
       "seller_promotion": {
+        "services": "Promote a single service — it ranks higher in its own category.",
         "title": "Promotion — show your profile to more clients.",
         "analytics": "Views, search appearances, profile clicks and contact requests.",
         "packages": "Pick a package and press “Promote now” yourself."
@@ -127,12 +346,6 @@
       "lawyer_documents": {
         "title": "A library of document templates — download the ones you need.",
         "list": "Download a template with the button on its right."
-      },
-      "lawyer_services": {
-        "title": "The services you offer and their prices.",
-        "catalog": "Tick services in the catalogue, then set a price for each within the recommended range.",
-        "policy": "Accept the terms and the pricing policy before saving.",
-        "save": "Save your chosen services and prices with this button."
       },
       "seller_clients": {
         "title": "Your client base: clients from the platform and those you added.",
@@ -691,6 +904,17 @@
     }
   },
   "orgOwner": {
+    "member": {
+      "kicker": "Organization member",
+      "tabs": "Member sections",
+      "tab": {
+        "services": "Services",
+        "workload": "Workload"
+      },
+      "openHint": "Click a member to open their services and workload.",
+      "notFoundTitle": "Specialist not found",
+      "notFoundText": "This specialist isn't a member of any organization you own."
+    },
     "title": "Organization management",
     "allOrgs": "All organizations",
     "workloadLink": "Member workload",
@@ -1309,6 +1533,7 @@
       "en": "English"
     },
     "card": {
+      "promotedService": "Promoted · {service}",
       "promoted": "Promoted",
       "verified": "Verified",
       "newSeller": "Not rated yet",
@@ -2204,6 +2429,7 @@
     "roleAdvocates": "Advocates",
     "roleLawyers": "Lawyers",
     "card": {
+      "promotedService": "Promoted · {service}",
       "unrated": "Not rated yet",
       "promoted": "Promoted",
       "kindAdvocate": "Advocate",
@@ -3919,6 +4145,7 @@
         "packages": "Packages"
       },
       "advocate": {
+        "services": "My services",
         "support": "Help center",
         "marketplaceOrders": "Service orders",
         "urgentAssigned": "Urgent cases",
@@ -6050,6 +6277,7 @@
       }
     },
     "org": {
+      "memberServices": "Services",
       "manage": "Dashboard",
       "statusMap": {
         "pending": "Under review",
@@ -7207,6 +7435,10 @@
     }
   },
   "promotion": {
+    "servicesEmpty": "No active services to promote.",
+    "servicesLead": "Promote a single service — it ranks higher on the marketplace in its own category.",
+    "servicesManage": "Manage services",
+    "servicesTitle": "Promote services",
     "kicker": "Visibility tool",
     "title": "Promote your profile",
     "intro": "Increase your visibility and get discovered by more potential clients.",

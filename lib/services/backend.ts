@@ -397,6 +397,8 @@ export type PromotionInfo = {
   daysLeft: number;
   endsAt: string;
   boostScore: number;
+  serviceId: string;
+  serviceTitle: string;
 };
 function normPromotionInfo(v: unknown): PromotionInfo | null {
   if (v === undefined || v === null) return null;
@@ -408,6 +410,8 @@ function normPromotionInfo(v: unknown): PromotionInfo | null {
     daysLeft: asNum(d.days_left),
     endsAt: asStr(d.ends_at),
     boostScore: asNum(d.boost_score),
+    serviceId: asStr(d.service_id),
+    serviceTitle: asStr(d.service_title),
   };
 }
 
@@ -635,7 +639,7 @@ function serviceTitle(d: Dict, locale: string): string {
   return cleanDocTitle(raw) || raw;
 }
 
-function normService(v: unknown, locale = "uz"): BackendService {
+export function normService(v: unknown, locale = "uz"): BackendService {
   const d = asDict(v);
   return {
     id: asStr(d.id),

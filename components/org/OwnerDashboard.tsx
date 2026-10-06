@@ -98,6 +98,7 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
           <b>{t("membersTitle")}</b>
           <span className="advmuted">{data?.members.length ?? 0}</span>
         </div>
+        {data?.members.length ? <p className="omem__hint">{t("member.openHint")}</p> : null}
         {!data ? (
           <div className="supcard supcard--ghost" aria-hidden="true" />
         ) : !data.members.length ? (
@@ -111,13 +112,14 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
                 </span>
               ))}
             </div>
-            {data.members.map((m) => (
+            {data.members.map((m, i) => (
               <button
                 key={m.userId || m.name}
                 type="button"
                 role="row"
                 className="otable__r"
-                onClick={() => router.push(`${base}/workload?member=${encodeURIComponent(m.userId)}` as Parameters<typeof router.push>[0])}
+                data-ai-target={i === 0 ? "organization:member-row" : undefined}
+                onClick={() => router.push((m.userId ? `${base}/members/${encodeURIComponent(m.userId)}` : `${base}/workload`) as Parameters<typeof router.push>[0])}
               >
                 <span role="cell" data-l={t("col.name")}>
                   <b>{m.name || "—"}</b>

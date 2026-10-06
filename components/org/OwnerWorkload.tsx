@@ -14,12 +14,13 @@ import { OrgBlocked, WorkDetail, WorkRow, statusLabel } from "./bits";
 
 const STATUSES = ["", "pending", "in_progress", "paid", "completed", "cancelled"];
 
-export default function OwnerWorkload({ orgId }: { orgId: string }) {
+export default function OwnerWorkload({ orgId, memberId }: { orgId: string; memberId?: string }) {
   const t = useTranslations("orgOwner");
   const tc = useTranslations("common");
   const params = useSearchParams();
   const router = useRouter();
-  const [member, setMember] = useState(params.get("member") ?? "");
+  const locked = Boolean(memberId);
+  const [member, setMember] = useState(memberId ?? params.get("member") ?? "");
   const [status, setStatus] = useState(params.get("status") ?? "");
   const [members, setMembers] = useState<OrgMemberRow[]>([]);
   const [orgName, setOrgName] = useState("");
@@ -27,6 +28,7 @@ export default function OwnerWorkload({ orgId }: { orgId: string }) {
   const base = `/portal/advocate/organization/${encodeURIComponent(orgId)}`;
 
   useEffect(() => {
+    if (locked) return;
     const c = new AbortController();
     getOwnerDashboard(orgId, c.signal)
       .then((d) => {
@@ -38,7 +40,7 @@ export default function OwnerWorkload({ orgId }: { orgId: string }) {
         if (isAborted(e)) return;
       });
     return () => c.abort();
-  }, [orgId]);
+  }, [orgId, locked]);
 
   const fetcher = useCallback((o: number, l: number, s: AbortSignal) => listOwnerWorkload(orgId, { memberUserId: member, status, offset: o, limit: l }, s), [orgId, member, status]);
   const list = usePaged(fetcher, `${orgId}|${member}|${status}`, 50, (x) => `${x.kind}-${x.id}`);
@@ -48,6 +50,7 @@ export default function OwnerWorkload({ orgId }: { orgId: string }) {
     const st = next.status ?? status;
     setMember(m);
     setStatus(st);
+    if (locked) return;
     const qs = new URLSearchParams();
     if (m) qs.set("member", m);
     if (st) qs.set("status", st);
@@ -58,24 +61,28 @@ export default function OwnerWorkload({ orgId }: { orgId: string }) {
   if (list.status === "error" && isRouteMissing(list.error)) return <OrgBlocked kind="soon" />;
 
   return (
-    <div className="oown">
-      <div className="oown__head">
-        <Link href={base} className="sup__back oown__back">
-          <IconChevronLeft />
-          {t("backDashboard")}
-        </Link>
-        <div className="oown__title">
-          <span>{t("workloadTitle")}</span>
-          <h2>{orgName || "…"}</h2>
+    <div className={`oown${locked ? " oown--embed" : ""}`}>
+      {locked ? null : (
+        <div className="oown__head">
+          <Link href={base} className="sup__back oown__back">
+            <IconChevronLeft />
+            {t("backDashboard")}
+          </Link>
+          <div className="oown__title">
+            <span>{t("workloadTitle")}</span>
+            <h2>{orgName || "…"}</h2>
+          </div>
+          <span className="advmuted">{t("total", { n: list.total })}</span>
         </div>
-        <span className="advmuted">{t("total", { n: list.total })}</span>
-      </div>
+      )}
 
       <div className="ofilter" data-ai-target="organization:workload-filter">
-        <label>
-          <span>{t("filterMember")}</span>
-          <Select value={member} onChange={(v) => apply({ member: v })} ariaLabel={t("filterMember")} options={[{ value: "", label: t("allMembers") }, ...members.filter((m) => m.userId).map((m) => ({ value: m.userId, label: m.name || m.userId }))]} />
-        </label>
+        {locked ? null : (
+          <label>
+            <span>{t("filterMember")}</span>
+            <Select value={member} onChange={(v) => apply({ member: v })} ariaLabel={t("filterMember")} options={[{ value: "", label: t("allMembers") }, ...members.filter((m) => m.userId).map((m) => ({ value: m.userId, label: m.name || m.userId }))]} />
+          </label>
+        )}
         <label>
           <span>{t("filterStatus")}</span>
           <Select value={status} onChange={(v) => apply({ status: v })} ariaLabel={t("filterStatus")} options={STATUSES.map((s) => ({ value: s, label: s ? statusLabel(t, t.has, s) : t("allStatuses") }))} />

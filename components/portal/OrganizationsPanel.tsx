@@ -16,7 +16,7 @@ import { Link } from "@/i18n/navigation";
 import { Skeleton, EmptyState } from "./DataState";
 import { AdminForm, AdminItem, UserSelect, Notice, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
-import { IconBuilding, IconChartBar, IconPlus, IconUsers } from "@/components/icons";
+import { IconBriefcase, IconBuilding, IconChartBar, IconPlus, IconUsers } from "@/components/icons";
 
 export default function OrganizationsPanel() {
   const t = useTranslations("portal.org");
@@ -160,7 +160,24 @@ export default function OrganizationsPanel() {
             {members.length ? (
               <div className="alist" style={{ marginBottom: 14 }}>
                 {members.map((m, i) => (
-                  <AdminItem key={m.id} index={i + 1} title={m.title || t("member")} meta={m.status && ts.has(m.status) ? ts(m.status) : m.status} />
+                  <AdminItem
+                    key={m.id}
+                    index={i + 1}
+                    title={m.title || t("member")}
+                    meta={m.status && ts.has(m.status) ? ts(m.status) : m.status}
+                    right={
+                      membersOrg && membersOrg.ownerUserId === me && m.userId ? (
+                        <Link
+                          className="btn btn--soft btn--sm"
+                          href={`/portal/advocate/organization/${encodeURIComponent(membersOrg.id)}/members/${encodeURIComponent(m.userId)}/services`}
+                          onClick={() => setMembersOrg(null)}
+                        >
+                          <IconBriefcase />
+                          {t("memberServices")}
+                        </Link>
+                      ) : undefined
+                    }
+                  />
                 ))}
               </div>
             ) : (

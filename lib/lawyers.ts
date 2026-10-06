@@ -17,6 +17,7 @@ export type Lawyer = {
   isNew?: boolean; // T1-09: recently verified with few reviews → "Yangi" badge + first-page quota
   // A paid marketplace boost, from /marketplace/lawyers only.
   promoted?: boolean;
+  promotedService?: string;
   boost?: number;
 };
 

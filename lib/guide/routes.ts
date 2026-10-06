@@ -2,7 +2,7 @@ import type { GuideRole } from "./types";
 
 const SELLER_PAGES: Record<"lawyer" | "advocate", Set<string>> = {
   lawyer: new Set(["", "/ai", "/assistant", "/calendar", "/cases", "/chat", "/clients", "/document-requests", "/documents", "/files", "/marketplace", "/marketplace-orders", "/meetings", "/notifications", "/profile", "/promotion", "/referrals", "/services", "/subscription", "/support", "/tasks", "/urgent"]),
-  advocate: new Set(["", "/assistant", "/calendar", "/cases", "/clients", "/document-requests", "/files", "/marketplace-orders", "/meetings", "/messages", "/notifications", "/opportunities", "/organization", "/profile", "/promotion", "/referrals", "/subscription", "/support", "/tasks", "/urgent"]),
+  advocate: new Set(["", "/assistant", "/calendar", "/cases", "/clients", "/document-requests", "/files", "/marketplace-orders", "/meetings", "/messages", "/notifications", "/opportunities", "/organization", "/profile", "/promotion", "/referrals", "/services", "/subscription", "/support", "/tasks", "/urgent"]),
 };
 
 const SELLER_TWIN: Record<"lawyer" | "advocate", Record<string, string>> = {

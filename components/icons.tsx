@@ -627,6 +627,38 @@ export const IconPackage = (p: P) => (
   </svg>
 );
 
+export const IconMegaphone = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M3 11l18-5v12L3 14v-3z" />
+    <path d="M11.6 16.8a3 3 0 11-5.8-1.6" />
+  </svg>
+);
+
+export const IconCoins = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M18.09 10.37A6 6 0 1110.34 18" />
+    <path d="M7 6h1v4" />
+    <path d="M16.71 13.88l.7.71-2.82 2.82" />
+  </svg>
+);
+
+export const IconStore = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M3 9l1.5-5h15L21 9" />
+    <path d="M3 9h18v1.5a2.5 2.5 0 01-4.5 1.5 2.5 2.5 0 01-4.5 0 2.5 2.5 0 01-4.5 0A2.5 2.5 0 013 10.5V9z" />
+    <path d="M5 12.6V20h14v-7.4" />
+    <path d="M10 20v-4h4v4" />
+  </svg>
+);
+
+export const IconPower = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M12 2v10" />
+    <path d="M18.4 6.6a9 9 0 11-12.77.04" />
+  </svg>
+);
+
 // Document analysis: the page, plus the lens that is being run over it.
 export const IconDocSearch = (p: P) => (
   <svg {...base} {...p}>

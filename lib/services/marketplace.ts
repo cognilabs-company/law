@@ -20,7 +20,7 @@ export type MarketService = {
   advokatRequired: boolean;
 };
 
-export type MarketPromotion = { active: boolean; packageTitle: string; daysLeft: number; boostScore: number };
+export type MarketPromotion = { active: boolean; packageTitle: string; daysLeft: number; boostScore: number; serviceId: string; serviceTitle: string };
 
 export type MarketSeller = {
   id: string;
@@ -109,7 +109,14 @@ export function normMarketService(v: unknown): MarketService {
 function normPromotion(v: unknown): MarketPromotion | null {
   if (v === undefined || v === null) return null;
   const d = asDict(v);
-  return { active: d.active === true, packageTitle: asStr(d.package_title), daysLeft: asNum(d.days_left), boostScore: asNum(d.boost_score) };
+  return {
+    active: d.active === true,
+    packageTitle: asStr(d.package_title),
+    daysLeft: asNum(d.days_left),
+    boostScore: asNum(d.boost_score),
+    serviceId: asStr(d.service_id),
+    serviceTitle: asStr(d.service_title),
+  };
 }
 
 export function normMarketSeller(v: unknown): MarketSeller {

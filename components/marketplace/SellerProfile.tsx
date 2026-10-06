@@ -209,7 +209,11 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
             <div className="mk-prof__tags">
               <span className={`mk-type mk-type--${seller.sellerType || "yurist"}`}>{sellerTypeLabel(t, seller.sellerType)}</span>
               {seller.verified ? <VerifiedBadge name={seller.name} subtitle={sellerTypeLabel(t, seller.sellerType)} text={seller.badgeLabel} tone="glass" size="md" /> : null}
-              {seller.promotion?.active ? <span className="mk-card__ad mk-card__ad--inline">{t("card.promoted")}</span> : null}
+              {seller.promotion?.active ? (
+                <span className="mk-card__ad mk-card__ad--inline">
+                  {seller.promotion.serviceTitle ? t("card.promotedService", { service: seller.promotion.serviceTitle }) : t("card.promoted")}
+                </span>
+              ) : null}
             </div>
             <h1 className="mk-prof__name">{seller.name}</h1>
             <div className="mk-prof__line">

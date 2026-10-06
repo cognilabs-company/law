@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import {
   listAds,
@@ -11,11 +11,27 @@ import {
   type ModuleRecord,
   type PromotionAnalytics,
 } from "@/lib/services/backend";
-import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { isDemoUnavailable, isProviderUnavailable, parseServerTime } from "@/lib/http";
+import { useAuth } from "@/lib/auth";
+import { subscribeUserEvents } from "@/lib/userSocket";
+import {
+  dropPendingPromos,
+  parsePendingPromos,
+  pendingPromoKey,
+  pendingPromosRaw,
+  promoSignalOf,
+  savePendingPromo,
+  subscribePendingPromos,
+  type ManagedServices,
+} from "@/lib/services/sellerServices";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
+import PromoteServicesSection from "@/components/services/PromoteServicesSection";
+import { usePackageName } from "@/components/services/bits";
 import { Skeleton, EmptyState } from "./DataState";
 import { IconRocket, IconTrendingUp, IconEye, IconSearch, IconTarget, IconChat, IconClock } from "@/components/icons";
+
+const PROFILE_KEY = pendingPromoKey("profile");
 
 const som = (n: number) => (n ? fmtUzs(n) : "0");
 const numOf = (v: unknown, fallback: number) => {
@@ -32,10 +48,23 @@ export default function PromotionPanel() {
   const analytics = useResourceOne<PromotionAnalytics>(getPromotionAnalytics, [reloadKey]);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  // The Telegram wait. Held here rather than re-read, because /promotions/me
-  // answers the seller's ACTIVE promotion and a pending one is not active yet
-  // — there is nothing to poll for until an admin presses the button.
-  const [pending, setPending] = useState<{ packageId: string; workId: string; amount: number; currency: string; telegramSent: boolean } | null>(null);
+  const { session } = useAuth();
+  const uid = session?.id ?? "";
+  const role = session?.role === "lawyer" ? "lawyer" : "advocate";
+  const packName = usePackageName();
+  const [svc, setSvc] = useState<ManagedServices | null>(null);
+  const pendingRaw = useSyncExternalStore(subscribePendingPromos, () => pendingPromosRaw(uid), () => "");
+  const pending = useMemo(() => parsePendingPromos(pendingRaw)[PROFILE_KEY] ?? null, [pendingRaw]);
+
+  useEffect(() => {
+    if (!uid) return;
+    return subscribeUserEvents((ev) => {
+      const s = promoSignalOf(ev);
+      if (!s || s.kind === "pending" || s.serviceId) return;
+      dropPendingPromos(uid, (k, p) => k === PROFILE_KEY && (!s.requestId || !p.requestId || p.requestId === s.requestId));
+      setReloadKey((n) => n + 1);
+    });
+  }, [uid]);
 
   // Back from the checkout page may restore this page from the bfcache with the
   // button still busy (it stays busy while the browser navigates away).
@@ -66,7 +95,13 @@ export default function PromotionPanel() {
       // simply stopped spinning and the seller was told nothing at all,
       // while their package sat inactive.
       if (r.promotionStatus === PROMOTION_PENDING || !r.paymentUrl) {
-        setPending({ packageId: pkg.id, workId: r.promotionWorkId, amount: r.amount, currency: r.currency, telegramSent: r.telegramSent });
+        savePendingPromo(uid, PROFILE_KEY, {
+          requestId: r.checkoutRequestId || r.promotionWorkId,
+          packageTitle: packName(pkg.title),
+          amount: r.amount,
+          currency: r.currency,
+          telegramSent: r.telegramSent,
+        });
       }
       setReloadKey((k) => k + 1);
     } catch (e) {
@@ -85,6 +120,11 @@ export default function PromotionPanel() {
         { v: a.contactRequests, label: t("contactRequests"), Icon: IconChat },
       ]
     : [];
+  const st = status.data;
+  const boost = svc?.items.find((x) => x.profileBoost)?.profileBoost ?? null;
+  const stAt = st?.endsAt ? parseServerTime(st.endsAt) : NaN;
+  const stIsService = Boolean(st?.active && svc?.items.some((x) => x.ownPromotion && parseServerTime(x.ownPromotion.endsAt) === stAt));
+  const profileDays = boost ? boost.daysLeft : st?.active && !stIsService ? st.daysLeft : null;
 
   return (
     <div className="promo">
@@ -97,18 +137,18 @@ export default function PromotionPanel() {
           <h2 className="h2" style={{ color: "#fff" }}>{t("title")}</h2>
           <p className="lead" style={{ color: "#B7CDEC" }}>{t("intro")}</p>
         </div>
-        {status.data?.active ? (
+        {profileDays !== null ? (
           <div className="promo__gauge">
-            <b>{status.data.daysLeft}</b>
+            <b>{profileDays}</b>
             <span>{t("activeShort")}</span>
           </div>
         ) : null}
       </div>
 
-      {status.data?.active ? (
+      {profileDays !== null ? (
         <div className="promo__active">
           <IconRocket />
-          {t("activeMsg", { days: status.data.daysLeft })}
+          {t("activeMsg", { days: profileDays })}
         </div>
       ) : null}
 
@@ -144,7 +184,7 @@ export default function PromotionPanel() {
           <div className="promo__pend" role="status">
             <b><IconClock />{t("pendingTitle")}</b>
             <p>{t("pendingText")}</p>
-            {pending.workId ? <span className="wid">{pending.workId}</span> : null}
+            {pending.packageTitle ? <span className="wid">{pending.packageTitle}</span> : null}
             {pending.amount ? <span className="promo__pendamt">{fmtUzs(pending.amount)} {pending.currency}</span> : null}
             <small className={pending.telegramSent ? "promo__tgok" : "promo__tgbad"}>
               {pending.telegramSent ? t("pendingTelegramOk") : t("pendingTelegramFail")}
@@ -166,7 +206,7 @@ export default function PromotionPanel() {
                 return (
                   <div key={pkg.id} className={`ppack${feat ? " ppack--feat" : ""}`}>
                     {feat ? <span className="ppack__ribbon">{t("popular")}</span> : null}
-                    <b>{pkg.title}</b>
+                    <b>{packName(pkg.title)}</b>
                     <span className="ppack__days">{t("days", { d: days })}</span>
                     <span className="ppack__reach">
                       <IconTrendingUp />
@@ -192,6 +232,8 @@ export default function PromotionPanel() {
           </>
         )}
       </div>
+
+      <PromoteServicesSection role={role} onData={setSvc} />
     </div>
   );
 }

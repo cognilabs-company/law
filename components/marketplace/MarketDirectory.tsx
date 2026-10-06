@@ -544,7 +544,11 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
   const promoted = s.promotion?.active === true;
   return (
     <article className={`mk-card${promoted ? " mk-card--promo" : ""}`} style={{ ["--mk-i" as string]: String(Math.min(index, 11)) }} data-ai-target={`marketplace:lawyer-card:${s.userId}`}>
-      {promoted ? <span className="mk-card__ad">{t("card.promoted")}</span> : null}
+      {promoted ? (
+        <span className="mk-card__ad" title={s.promotion?.serviceTitle ? t("card.promotedService", { service: s.promotion.serviceTitle }) : undefined}>
+          {t("card.promoted")}
+        </span>
+      ) : null}
       <div className="mk-card__head">
         <Monogram name={s.name} rating={s.rating} showRing={rated} />
         <div className="mk-card__who">
