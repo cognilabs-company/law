@@ -4,8 +4,6 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent }
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { Role } from "@/lib/auth";
-import { openInstructor } from "@/lib/guide/panel";
-import RobotAvatar from "@/components/guide/RobotAvatar";
 import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
 import { SUPPORT_PHONE, SUPPORT_TEL } from "@/components/support/contact";
 import { IconAlert, IconArrowRight, IconHeadset, IconPhone } from "@/components/icons";
@@ -74,23 +72,6 @@ export default function SupportMenu({ role }: { role: Role }) {
             <strong>{t("title")}</strong>
             <span>{t("sub")}</span>
           </div>
-          <button
-            type="button"
-            role="menuitem"
-            className="psup__it psup__it--solo"
-            data-ai-id="support.menu.ai-instructor"
-            onClick={() => {
-              done();
-              openInstructor();
-            }}
-          >
-            <span className="psup__ic psup__ic--ai" aria-hidden="true">
-              <RobotAvatar size={28} />
-            </span>
-            <span className="psup__tx">
-              <b>{t("ai")}</b>
-            </span>
-          </button>
           <Link role="menuitem" href={`${hub}?new=1`} className="psup__it" onClick={done} data-ai-id="support.menu.operator">
             <span className="psup__ic psup__ic--op" aria-hidden="true">
               <IconHeadset />
