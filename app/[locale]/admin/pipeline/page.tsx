@@ -117,22 +117,7 @@ export default function AdminPipeline() {
 
   // Filters (client-side over the loaded board).
   const [f, setF] = useState<LeadFilter>(EMPTY_LEAD_FILTER);
-  // Quick date-range presets over the same from/to LeadFilterBar's own date
-  // pickers already filter on — one click instead of opening both pickers.
-  const periodPresets = useMemo(() => {
-    const now = new Date();
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
-    const today = iso(now);
-    const weekStart = new Date(now);
-    const dow = weekStart.getDay();
-    weekStart.setDate(weekStart.getDate() + (dow === 0 ? -6 : 1 - dow));
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    return [
-      { key: "today", label: t("period.today"), from: today, to: today },
-      { key: "week", label: t("period.week"), from: iso(weekStart), to: today },
-      { key: "month", label: t("period.month"), from: iso(monthStart), to: today },
-    ];
-  }, [t]);
+  const filterItems = useMemo(() => allCards.map((x) => ({ lead: leadFilterable(x.lead), stage: x.colKey })), [allCards]);
   const sources = useMemo(() => [...new Set(allLeads.map((l) => l.source).filter(Boolean))], [allLeads]);
   const regions = useMemo(() => [...new Set(allLeads.map((l) => l.region).filter(Boolean))], [allLeads]);
   const urgencies = useMemo(() => [...new Set(allLeads.map((l) => l.urgency.trim().toLowerCase()).filter(Boolean))], [allLeads]);
@@ -367,38 +352,14 @@ export default function AdminPipeline() {
         </div>
       ) : null}
 
-      {/* Period on the left, what you can do to the board on the right — one
-          row, as the design has it, instead of the actions sitting up in the
-          page heading away from everything they act on.
-          The row itself is NOT behind `cols.length`, only the period chips
-          are: moving these buttons out of the heading put "Status qo'shish"
-          and "Qo'shish" inside that guard, and an empty board — the one place
-          where adding a status is the only thing left to do — lost both. */}
       <div className="pipebar">
-        <div className="pipebar__per">
-          {cols.length ? periodPresets.map((p) => (
-            <button
-              key={p.key}
-              type="button"
-              className={`btn btn--sm ${f.from === p.from && f.to === p.to ? "btn--pri" : "btn--line"}`}
-              onClick={() => setF((cur) => ({ ...cur, from: p.from, to: p.to }))}
-            >
-              {p.label}
-            </button>
-          )) : null}
-          {cols.length && (f.from || f.to) ? (
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setF((cur) => ({ ...cur, from: "", to: "" }))}>
-              {t("f.clear")}
-            </button>
-          ) : null}
-        </div>
+        {cols.length ? (
+          <span className="segtab" data-ai-target="pipeline:view-toggle">
+            <button type="button" className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")} aria-label={t("viewKanban")}><IconGrid />{t("viewKanban")}</button>
+            <button type="button" className={view === "table" ? "on" : ""} onClick={() => setView("table")} aria-label={t("viewTable")}><IconDocLines />{t("viewTable")}</button>
+          </span>
+        ) : null}
         <div className="pipebar__act">
-          {cols.length ? (
-            <span className="segtab" data-ai-target="pipeline:view-toggle">
-              <button type="button" className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")} aria-label={t("viewKanban")}><IconGrid />{t("viewKanban")}</button>
-              <button type="button" className={view === "table" ? "on" : ""} onClick={() => setView("table")} aria-label={t("viewTable")}><IconDocLines />{t("viewTable")}</button>
-            </span>
-          ) : null}
           <button className="btn btn--soft btn--sm" type="button" onClick={openAuto} disabled={!cols.length} data-ai-target="button:auto-assign"><IconBolt />{t("auto.btn")}{unassigned.length ? ` · ${unassigned.length}` : ""}</button>
           <button className="btn btn--line btn--sm" type="button" onClick={openAddStatus} data-ai-target="button:add-status"><IconPlus />{t("addStatus")}</button>
           <button className="btn btn--pri btn--sm" type="button" onClick={() => setAddOpen(true)} data-ai-target="button:new-lead"><IconPlus />{ta("form.add")}</button>
@@ -410,13 +371,16 @@ export default function AdminPipeline() {
           <LeadFilterBar
             value={f}
             onChange={setF}
+            items={filterItems}
+            meId={meId}
             regions={regions}
             sources={sources}
             stages={view === "table" ? cols.map((c) => ({ value: c.key, label: colName(c) })) : undefined}
-            operators={ops.status === "ready" ? ops.ops : []}
+            operators={ops.status === "ready" ? ops.ops : undefined}
             scores
             urgencies={urgencies}
-            summary={filtered ? { shown: view === "table" ? rows.length : shown, total: allCards.length } : undefined}
+            count={view === "table" ? rows.length : shown}
+            aiId="admin.pipeline.filters"
           />
           {ops.status === "forbidden" ? <p className="advmuted" style={{ marginTop: -8, marginBottom: 12 }}>{t("assign.opsForbidden")}</p> : null}
         </>

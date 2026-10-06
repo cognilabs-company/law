@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, useSyncExternalStore, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, useRef, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -22,9 +22,11 @@ import {
   scopeKey,
   serviceErrorOf,
   setManagedServiceStatus,
+  settlePendingFromInbox,
   subscribePendingPromos,
   type ManagedService,
   type ManagedServices,
+  type PromoOutcome,
   type ServiceError,
   type ServiceScope,
   type ServiceStatus,
@@ -32,6 +34,7 @@ import {
 import {
   IconAlert,
   IconBriefcase,
+  IconClipboardCheck,
   IconClock,
   IconLock,
   IconMegaphone,
@@ -44,16 +47,21 @@ import {
   IconSearch,
   IconShieldCheck,
   IconStore,
+  IconUsers,
 } from "@/components/icons";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { aiId } from "@/lib/ai/ids";
-import { useAiField, useAiModal } from "@/lib/ai/registry";
+import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
+import { useAiReveal } from "@/lib/guide/targets";
 import ServiceCard from "./ServiceCard";
 import ServiceFormModal from "./ServiceFormModal";
 import PromoteModal from "./PromoteModal";
 import { RemoveServiceModal, som } from "./bits";
+import { useAutoRefresh } from "./useAutoRefresh";
 
 type Filter = "all" | ServiceStatus;
 type Load = { key: string; data: ManagedServices | null; error: ServiceError | null };
+type Tick = { n: number; quiet: boolean };
 type Dialog =
   | { kind: "add" }
   | { kind: "edit"; item: ManagedService }
@@ -63,6 +71,13 @@ type Dialog =
 
 const FILTERS: Filter[] = ["all", "active", "paused", "inactive"];
 const RANK: Record<ServiceStatus, number> = { active: 0, paused: 1, inactive: 2 };
+const isFilter = (v: string): v is Filter => (FILTERS as string[]).includes(v);
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function announce(out: Pick<PromoOutcome, "kind">[], approved: string, rejected: string): void {
+  if (out.some((o) => o.kind === "approved")) toast(approved, { tone: "ok" });
+  if (out.some((o) => o.kind === "rejected")) toast(rejected, { tone: "err" });
+}
 
 export default function ServiceManager({
   scope,
@@ -80,17 +95,18 @@ export default function ServiceManager({
   renderBlocked?: (e: ServiceError) => ReactNode;
 }) {
   const t = useTranslations("sellerServices");
+  const to = useTranslations("orgOwner");
   const locale = useLocale();
   const { session } = useAuth();
   const uid = session?.id ?? "";
-  const listId = useId();
   const orgId = scope.kind === "org" ? scope.orgId : "";
   const memberId = scope.kind === "org" ? scope.memberId : "";
   const sc = useMemo<ServiceScope>(() => (orgId ? { kind: "org", orgId, memberId } : { kind: "me" }), [orgId, memberId]);
   const skey = scopeKey(sc);
-  const [tick, setTick] = useState(0);
+  const prefix = `${skey}|`;
+  const [tick, setTick] = useState<Tick>({ n: 0, quiet: false });
   const [pulse, setPulse] = useState(0);
-  const reqKey = `${skey}|${locale}|${tick}`;
+  const reqKey = `${skey}|${locale}|${tick.n}`;
   const [load, setLoad] = useState<Load>({ key: "", data: null, error: null });
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -99,16 +115,25 @@ export default function ServiceManager({
   const [removing, setRemoving] = useState(false);
   const [removeErr, setRemoveErr] = useState("");
   const onDataRef = useRef(onData);
+  const mut = useRef({ seq: 0, skey: "" });
   const aiBase = orgId ? aiId("organization.member", memberId, "services") : "advocate.services";
   const aiCard = orgId ? aiId("organization.member", memberId, "service") : "services.card";
-  useAiField(load.data?.items.length ? `${aiBase}.search.input` : "", { get: () => query, set: setQuery });
-  useAiField(load.data?.items.length ? `${aiBase}.filters.status` : "", {
-    get: () => filter,
-    set: (v) => {
-      if ((FILTERS as string[]).includes(v)) setFilter(v as Filter);
-    },
+  const data = load.key.startsWith(prefix) ? load.data : null;
+  const hasItems = Boolean(data?.items.length);
+
+  const pickFilter = (v: string) => {
+    const w = v.trim().toLowerCase();
+    const f = FILTERS.find((x) => x === w || t(`filters.${x}`).toLowerCase() === w);
+    if (f) setFilter(f);
+  };
+  useAiField(hasItems ? `${aiBase}.search.input` : "", { get: () => query, set: setQuery });
+  useAiField(hasItems ? `${aiBase}.filters.status` : "", { get: () => filter, set: pickFilter });
+  useAiSelection(hasItems ? "seller_services_tab" : "", filter);
+  useAiReveal(new RegExp(`^${esc(aiBase)}\\.filter\\.(?:all|active|paused|inactive)$`), (id) => {
+    const f = id.slice(id.lastIndexOf(".") + 1);
+    if (isFilter(f)) setFilter(f);
   });
-  useAiModal(load.data ? `${aiBase}.form-modal` : "", () => setDialog({ kind: "add" }));
+  useAiModal(data ? `${aiBase}.form-modal` : "", () => setDialog({ kind: "add" }));
 
   useEffect(() => {
     onDataRef.current = onData;
@@ -116,11 +141,16 @@ export default function ServiceManager({
 
   useEffect(() => {
     const c = new AbortController();
+    const seq = mut.current.seq;
     listManagedServices(sc, locale, c.signal)
-      .then((data) => {
+      .then((d) => {
         if (c.signal.aborted) return;
-        setLoad({ key: reqKey, data, error: null });
-        onDataRef.current?.(data);
+        if (seq !== mut.current.seq && mut.current.skey === skey) {
+          setLoad((cur) => ({ ...cur, key: reqKey, error: null }));
+          return;
+        }
+        setLoad({ key: reqKey, data: d, error: null });
+        onDataRef.current?.(d);
       })
       .catch((e: unknown) => {
         if (isAborted(e) || c.signal.aborted) return;
@@ -131,13 +161,12 @@ export default function ServiceManager({
 
   useEffect(() => {
     if (!pulse) return;
-    const h = window.setTimeout(() => setTick((n) => n + 1), 700);
+    const h = window.setTimeout(() => setTick((x) => ({ n: x.n + 1, quiet: true })), 700);
     return () => window.clearTimeout(h);
   }, [pulse]);
 
   const raw = useSyncExternalStore(subscribePendingPromos, () => pendingPromosRaw(uid), () => "");
   const pending = useMemo(() => parsePendingPromos(raw), [raw]);
-  const data = load.data;
 
   useEffect(() => {
     if (uid) prunePendingPromos(uid);
@@ -146,29 +175,35 @@ export default function ServiceManager({
   useEffect(() => {
     if (!uid || !data) return;
     const live = new Set(data.items.filter((x) => x.ownPromotion).map((x) => pendingPromoKey(sc, x.id)));
-    if (live.size) dropPendingPromos(uid, (k) => live.has(k));
-  }, [uid, data, sc]);
+    if (!live.size) return;
+    const out = dropPendingPromos(uid, (k) => live.has(k));
+    announce(out.map(() => ({ kind: "approved" as const })), t("toast.approved"), t("toast.rejected"));
+  }, [uid, data, sc, t]);
 
   useEffect(() => {
     if (!uid) return;
     return subscribeUserEvents((ev) => {
       const s = promoSignalOf(ev);
       if (!s || s.kind === "pending") return;
-      dropPendingPromos(uid, (k, p) => (s.requestId !== "" && p.requestId === s.requestId) || (s.serviceId !== "" && k === pendingPromoKey(sc, s.serviceId)));
-      toast(s.kind === "approved" ? t("toast.approved") : t("toast.rejected"), { tone: s.kind === "approved" ? "ok" : "err" });
+      const kind = s.kind;
+      const out = dropPendingPromos(
+        uid,
+        (k, p) => k.startsWith(`${skey}|`) && ((s.requestId !== "" && p.requestId === s.requestId) || (s.serviceId !== "" && k === pendingPromoKey(sc, s.serviceId))),
+      );
+      announce(out.map(() => ({ kind })), t("toast.approved"), t("toast.rejected"));
       setPulse((n) => n + 1);
     });
-  }, [uid, sc, t]);
+  }, [uid, sc, skey, t]);
 
-  const hasPending = Object.keys(pending).some((k) => k.startsWith(`${skey}|`));
-  useEffect(() => {
-    if (!hasPending) return;
-    const onVis = () => {
-      if (document.visibilityState === "visible") setPulse((n) => n + 1);
-    };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, [hasPending]);
+  const hasPending = Object.keys(pending).some((k) => k.startsWith(prefix));
+  useAutoRefresh(Boolean(uid) && hasPending, async () => {
+    if (uid && hasPending) {
+      prunePendingPromos(uid);
+      const out = await settlePendingFromInbox(uid, (k) => k.startsWith(prefix)).catch(() => []);
+      announce(out, t("toast.approved"), t("toast.rejected"));
+    }
+    setTick((x) => ({ n: x.n + 1, quiet: true }));
+  });
 
   const items = useMemo(
     () => [...(data?.items ?? [])].sort((a, b) => RANK[a.status] - RANK[b.status] || a.service.name.localeCompare(b.service.name, locale)),
@@ -192,11 +227,13 @@ export default function ServiceManager({
   );
   const waiting = items.filter((x) => !x.ownPromotion && pending[pendingPromoKey(sc, x.id)]).length;
   const loading = load.key !== reqKey;
-  const reload = () => setTick((n) => n + 1);
+  const dim = loading && !(tick.quiet && load.key.startsWith(`${skey}|${locale}|`));
+  const reload = () => setTick((x) => ({ n: x.n + 1, quiet: false }));
 
   const errText = (e: ServiceError) => {
     if (e.kind === "range") return t("errors.range", { min: som(e.min), max: som(e.max) });
-    if (e.kind === "forbidden" && owner) return t("errors.forbiddenOwner");
+    if (owner && e.kind === "forbidden") return t("errors.forbiddenOwner");
+    if (owner && e.kind === "pendingAccount") return t("errors.pendingAccountOwner");
     return t(`errors.${e.kind}`);
   };
 
@@ -209,7 +246,9 @@ export default function ServiceManager({
     if (busyIds[item.id]) return;
     setBusyIds((b) => ({ ...b, [item.id]: true }));
     try {
-      replaceItem(await setManagedServiceStatus(sc, item.id, status, locale));
+      const saved = await setManagedServiceStatus(sc, item.id, status, locale);
+      mut.current = { seq: mut.current.seq + 1, skey };
+      replaceItem(saved);
       toast(t(`statusSaved.${status}`), { tone: "ok" });
     } catch (e) {
       const err = serviceErrorOf(e);
@@ -227,6 +266,7 @@ export default function ServiceManager({
     setRemoveErr("");
     try {
       await removeManagedService(sc, item.id);
+      mut.current = { seq: mut.current.seq + 1, skey };
       dropItem(item.id);
       dropPendingPromos(uid, (k) => k === pendingPromoKey(sc, item.id));
       toast(t("toast.removed"), { tone: "ok" });
@@ -260,15 +300,21 @@ export default function ServiceManager({
     }
     const custom = renderBlocked?.(load.error);
     if (custom) return <>{custom}</>;
-    const locked = load.error.kind === "forbidden" || load.error.kind === "pendingAccount";
+    const e = load.error;
+    const missing = owner && e.kind === "notFound";
+    const wait = e.kind === "pendingAccount";
+    const locked = e.kind === "forbidden" || wait || missing;
+    const Icon = wait ? IconClock : missing ? IconUsers : locked ? IconLock : IconAlert;
+    const head = missing ? to("member.notFoundTitle") : wait ? t("blocked.waitTitle") : locked ? t("blocked.lockTitle") : t("error");
+    const text = missing ? to("member.notFoundText") : e.kind === "notFound" ? t("errors.unknown") : errText(e);
     return (
       <div className="svm">
-        <div className={`svm__blocked${locked ? " is-lock" : ""}`} role="alert">
+        <div className={`svm__blocked${wait ? " is-wait" : locked ? " is-lock" : ""}`} role="alert">
           <span className="svm__bic" aria-hidden="true">
-            {locked ? <IconLock /> : <IconAlert />}
+            <Icon />
           </span>
-          <b>{locked ? t("blocked.lockTitle") : t("error")}</b>
-          <p>{errText(load.error)}</p>
+          <b>{head}</b>
+          <p>{text}</p>
           {locked ? null : (
             <button type="button" className="btn btn--line btn--sm" onClick={reload}>
               <IconRefresh aria-hidden="true" />
@@ -280,7 +326,7 @@ export default function ServiceManager({
     );
   }
 
-  const lawyer = isLawyerSeller(data.profile.sellerType, owner ? undefined : role);
+  const lawyer = data.seller.role === "yurist" || (!owner && role === "lawyer") || isLawyerSeller(data.profile.sellerType);
   const sellerId = data.seller.id || data.profile.userId;
   const boost = items.find((x) => x.profileBoost)?.profileBoost ?? null;
   const verified = profileVerified(data.profile);
@@ -290,6 +336,21 @@ export default function ServiceManager({
     { k: "inactive", Icon: IconPower, v: counts.inactive },
     { k: "promoted", Icon: IconMegaphone, v: counts.promoted },
   ] as const;
+  const fields: FilterField[] = [
+    {
+      key: "status",
+      label: t("form.status"),
+      icon: IconClipboardCheck,
+      value: filter,
+      empty: "all",
+      onChange: (v) => {
+        if (isFilter(v)) setFilter(v);
+      },
+      options: FILTERS.map((f) => ({ value: f, label: `${t(`filters.${f}`)} (${counts[f]})` })),
+      aiId: `${aiBase}.filters.status`,
+      aiLabel: t("filters.label"),
+    },
+  ];
 
   return (
     <div className="svm">
@@ -363,41 +424,34 @@ export default function ServiceManager({
 
       {items.length ? (
         <>
-          <div className="svm__bar" data-ai-target="services:filters" data-ai-id={`${aiBase}.filters`} data-ai-label={t("filters.label")}>
-            <div className="suptabs svm__tabs" role="tablist" aria-label={t("filters.label")} data-ai-id={`${aiBase}.filters.status`} data-ai-type="select">
-              {FILTERS.map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === f}
-                  aria-controls={listId}
-                  className="suptab"
-                  onClick={() => setFilter(f)}
-                  data-ai-id={`${aiBase}.filter.${f}`}
-                >
-                  {t(`filters.${f}`)}
-                  <span className="svm__count">{counts[f]}</span>
-                </button>
-              ))}
-            </div>
-            <label className="svm__search">
-              <IconSearch aria-hidden="true" />
-              <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("search")} aria-label={t("searchLabel")} data-ai-id={`${aiBase}.search.input`} />
-            </label>
-            <button
-              type="button"
-              className={`svm__refresh${loading ? " is-spin" : ""}`}
-              onClick={reload}
-              disabled={loading}
-              aria-label={t("refresh")}
-              title={t("refresh")}
-            >
-              <IconRefresh aria-hidden="true" />
-            </button>
-          </div>
+          <FilterBar
+            className="svm__filters"
+            fields={fields}
+            search={{ value: query, onChange: setQuery, placeholder: t("search"), maxLength: 120, aiId: `${aiBase}.search.input` }}
+            count={shown.length}
+            onReset={() => {
+              setFilter("all");
+              setQuery("");
+            }}
+            aiId={`${aiBase}.filters`}
+            aiTarget="services:filters"
+            aiLabel={t("filters.label")}
+            extra={
+              <button
+                type="button"
+                className={`svm__refresh${dim ? " is-spin" : ""}`}
+                onClick={reload}
+                disabled={dim}
+                aria-label={t("refresh")}
+                title={t("refresh")}
+                data-ai-id={`${aiBase}.refresh`}
+              >
+                <IconRefresh aria-hidden="true" />
+              </button>
+            }
+          />
 
-          <div className="svm__grid" id={listId} role="tabpanel" aria-busy={loading || undefined} data-ai-target="services:list" data-ai-id={`${aiBase}.list`} data-ai-type="list" data-ai-label={t("kicker")}>
+          <div className="svm__grid" aria-busy={dim || undefined} data-ai-target="services:list" data-ai-id={`${aiBase}.list`} data-ai-type="list" data-ai-label={t("kicker")}>
             {shown.map((x, i) => (
               <ServiceCard
                 key={x.id}
@@ -454,7 +508,9 @@ export default function ServiceManager({
           owner={owner}
           taken={taken}
           onClose={() => setDialog(null)}
+          onStale={reload}
           onSaved={(saved, created) => {
+            mut.current = { seq: mut.current.seq + 1, skey };
             replaceItem(saved);
             toast(t(created ? "toast.added" : "toast.saved"), { tone: "ok" });
             setDialog(null);
@@ -462,7 +518,18 @@ export default function ServiceManager({
         />
       ) : null}
       {dialog?.kind === "promote" ? (
-        <PromoteModal aiId={`${aiBase}.promote-modal`} item={dialog.item} scope={sc} uid={uid} owner={owner} onClose={() => setDialog(null)} onSent={() => toast(t("toast.promoSent"), { tone: "ok" })} />
+        <PromoteModal
+          aiId={`${aiBase}.promote-modal`}
+          item={dialog.item}
+          scope={sc}
+          uid={uid}
+          owner={owner}
+          onClose={() => setDialog(null)}
+          onStale={reload}
+          onSent={(req) => {
+            if (req.telegramSent) toast(t("toast.promoSent"), { tone: "ok" });
+          }}
+        />
       ) : null}
       {dialog?.kind === "remove" ? (
         <RemoveServiceModal

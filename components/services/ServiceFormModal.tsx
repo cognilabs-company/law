@@ -54,6 +54,7 @@ export default function ServiceFormModal({
   taken,
   onClose,
   onSaved,
+  onStale,
   aiId,
 }: {
   item: ManagedService | null;
@@ -66,6 +67,7 @@ export default function ServiceFormModal({
   taken: Set<string>;
   onClose: () => void;
   onSaved: (saved: ManagedService, created: boolean) => void;
+  onStale?: () => void;
   aiId?: string;
 }) {
   const t = useTranslations("sellerServices");
@@ -103,8 +105,9 @@ export default function ServiceFormModal({
 
   const loaded = bandLoad && bandLoad.key === bandKey ? bandLoad : null;
   const serverBand = err?.kind === "range" ? { recommended: err.max, min: err.min, max: err.max } : null;
-  const band = serverBand ?? loaded?.band ?? null;
-  const bandState = !serviceId ? "idle" : serverBand || loaded?.band ? "ready" : loaded ? "failed" : "loading";
+  const savedBand = item && item.id === serviceId ? item.limits : null;
+  const band = serverBand ?? loaded?.band ?? savedBand ?? null;
+  const bandState = !serviceId ? "idle" : band ? "ready" : loaded ? "failed" : "loading";
   const n = Number(price || "0");
   const off = priceOutOfBand(n, band);
   const advocateBlocked = Boolean(loaded?.advocate) || err?.kind === "advocateOnly";
@@ -112,6 +115,7 @@ export default function ServiceFormModal({
   const errText = (e: ServiceError) => {
     if (e.kind === "range") return t("errors.range", { min: som(e.min), max: som(e.max) });
     if (e.kind === "forbidden" && owner) return t("errors.forbiddenOwner");
+    if (e.kind === "pendingAccount" && owner) return t("errors.pendingAccountOwner");
     return t(`errors.${e.kind}`);
   };
 
@@ -130,7 +134,9 @@ export default function ServiceFormModal({
       rememberPolicy(uid);
       onSaved(saved, !editing);
     } catch (e) {
-      setErr(serviceErrorOf(e));
+      const se = serviceErrorOf(e);
+      setErr(se);
+      if (se.kind === "notFound") onStale?.();
     } finally {
       setBusy(false);
     }

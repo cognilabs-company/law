@@ -6,9 +6,11 @@ import { useAuth, canMakeCalls, sessionRoles } from "@/lib/auth";
 import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type AdminCallDetail, type LiveKitJoin } from "@/lib/services/backend";
 import { http, asArr, asDict, asStr, ApiError } from "@/lib/http";
 import { useResource } from "@/lib/useResource";
-import { shortDateTime } from "@/lib/date";
+import { shortDate, shortDateTime } from "@/lib/date";
 import { makeInviteSearch } from "@/lib/inviteSearch";
+import { useAiSelection } from "@/lib/ai/registry";
 import SearchSelect from "@/components/SearchSelect";
+import FilterBar from "@/components/filters/FilterBar";
 import CallRoom from "@/components/chat/CallRoom";
 import { Notice, AdminItem } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -155,6 +157,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const [platTo, setPlatTo] = useState("");
   const platRes = useResource(() => listAdminCalls({ from: platFrom || undefined, to: platTo || undefined }), [platFrom, platTo]);
   const [platDetail, setPlatDetail] = useState<string | null>(null);
+  useAiSelection("admin_meetings_scope", canSeeAllHistory ? histTab : "");
   const searchRef = useRef<ReturnType<typeof makeInviteSearch> | null>(null);
   const clientLabel = tc("inviteClient");
 
@@ -404,6 +407,8 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
 
   if (!rich) {
     const showMine = !canSeeAllHistory || histTab === "mine";
+    const day = (iso: string) => (iso ? shortDate(iso, locale) : "…");
+    const platChip = platFrom || platTo ? (platFrom && platFrom === platTo ? day(platFrom) : `${day(platFrom)} – ${day(platTo)}`) : null;
     return (
       <div className="mlaunch">
         {createForm}
@@ -417,14 +422,46 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
             ) : null}
           </div>
           {canSeeAllHistory ? (
-            <div className="segs segs--sm" role="tablist" style={{ marginBottom: 14 }}>
-              <button type="button" role="tab" aria-selected={histTab === "mine"} className={`seg${histTab === "mine" ? " on" : ""}`} onClick={() => setHistTab("mine")}>
-                {t("history")}
-              </button>
-              <button type="button" role="tab" aria-selected={histTab === "all"} className={`seg${histTab === "all" ? " on" : ""}`} onClick={() => setHistTab("all")}>
-                {tch("title")}
-              </button>
-            </div>
+            <FilterBar
+              className="uf--tray"
+              fields={[
+                {
+                  key: "scope",
+                  label: t("scope"),
+                  icon: IconUsers,
+                  value: histTab,
+                  empty: "mine",
+                  onChange: (v) => setHistTab(v === "all" ? "all" : "mine"),
+                  options: [
+                    { value: "mine", label: t("history") },
+                    { value: "all", label: t("scopeAll") },
+                  ],
+                  chip: null,
+                },
+                {
+                  key: "from",
+                  label: tch("from"),
+                  icon: IconCalendar,
+                  hidden: histTab !== "all",
+                  active: histTab === "all" && Boolean(platFrom || platTo),
+                  chip: platChip,
+                  clear: () => {
+                    setPlatFrom("");
+                    setPlatTo("");
+                  },
+                  node: <DatePicker value={platFrom} onChange={setPlatFrom} placeholder={tch("from")} ariaLabel={tch("from")} max={platTo || undefined} clearLabel={tch("clearDates")} />,
+                },
+                {
+                  key: "to",
+                  label: tch("to"),
+                  icon: IconCalendar,
+                  hidden: histTab !== "all",
+                  chip: null,
+                  node: <DatePicker value={platTo} onChange={setPlatTo} placeholder={tch("to")} ariaLabel={tch("to")} min={platFrom || undefined} clearLabel={tch("clearDates")} />,
+                },
+              ]}
+              count={histTab === "all" && platRes.status === "ready" ? platRes.data.length : undefined}
+            />
           ) : null}
           {showMine ? (
             historyBody ?? (
@@ -446,10 +483,6 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           ) : (
             <>
               <p className="advmuted" style={{ marginBottom: 16 }}>{tch("lead")}</p>
-              <div className="lfilters" style={{ marginBottom: 16 }}>
-                <DatePicker value={platFrom} onChange={setPlatFrom} placeholder={tch("from")} ariaLabel={tch("from")} max={platTo || undefined} clearLabel={tch("clearDates")} />
-                <DatePicker value={platTo} onChange={setPlatTo} placeholder={tch("to")} ariaLabel={tch("to")} min={platFrom || undefined} clearLabel={tch("clearDates")} />
-              </div>
               {platRes.status === "loading" ? (
                 <Skeleton rows={4} />
               ) : !platRes.data.length ? (

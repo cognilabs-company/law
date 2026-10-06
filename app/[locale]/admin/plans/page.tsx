@@ -25,7 +25,8 @@ import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
-import { IconStar, IconPlus, IconSearch, IconEdit, IconTrash, IconEyeOff, IconEye, IconRefresh } from "@/components/icons";
+import FilterBar from "@/components/filters/FilterBar";
+import { IconStar, IconPlus, IconSearch, IconEdit, IconTrash, IconEyeOff, IconEye, IconRefresh, IconUsers } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiModal } from "@/lib/ai/registry";
 
@@ -44,6 +45,32 @@ const num = (v: string) => parseInt(String(v || "0"), 10) || 0;
 type FormAudience = PlanAudience | "seller";
 const FORM_AUDIENCES: FormAudience[] = ["client", "yurist", "advokat", "seller"];
 type AudienceFilter = "all" | PlanAudience;
+
+const aiNorm = (v: string) =>
+  v
+    .toLowerCase()
+    .replace(/[ʻʼ'‘’`]/g, "")
+    .replace(/\(\d+\)/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const aiStem = (v: string) => v.replace(/(lari|lar)\b/g, "");
+
+function pickOption(opts: { value: string; label: string }[], raw: string): string | null {
+  const w = aiNorm(raw);
+  if (!w) return opts[0]?.value ?? null;
+  const exact = opts.find((o) => aiNorm(o.value) === w || aiNorm(o.label) === w);
+  if (exact) return exact.value;
+  const s = aiStem(w);
+  const near = opts
+    .filter((o) => {
+      const l = aiNorm(o.label);
+      return l.includes(s) || (s.length >= 4 && s.includes(aiStem(l)));
+    })
+    .sort((a, b) => aiNorm(b.label).length - aiNorm(a.label).length);
+  return near.length ? near[0].value : null;
+}
 
 type Note = { ok: boolean; msg: string; tone?: "warn" };
 
@@ -278,30 +305,46 @@ export default function AdminPlans() {
   const [aud, setAud] = useState<AudienceFilter>("all");
   const [showHidden, setShowHidden] = useState(false);
   const hiddenCount = plans.filter((p) => p.hidden).length;
+  const viewHidden = showHidden && hiddenCount > 0;
   const [pageNote, setPageNote] = useState<Note | null>(null);
   const [delBusy, setDelBusy] = useState(false);
   const [delNote, setDelNote] = useState<Note | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
 
-  const list = useMemo(() => {
+  const inView = useMemo(() => {
     const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return plans.filter((p) => {
-      if (p.hidden !== showHidden) return false;
-      if (aud !== "all" && !planAudience(p).includes(aud)) return false;
+      if (p.hidden !== viewHidden) return false;
       if (!terms.length) return true;
       const hay = [p.name, p.title, p.slug].join(" ").toLowerCase();
       return terms.every((w) => hay.includes(w));
     });
-  }, [plans, q, aud, showHidden]);
+  }, [plans, q, viewHidden]);
+  const list = useMemo(() => (aud === "all" ? inView : inView.filter((p) => planAudience(p).includes(aud))), [inView, aud]);
 
   // Audience chips: the three GM roles always, business only when a plan has it.
-  const chips: AudienceFilter[] = ["all", ...PLAN_AUDIENCES.filter((a) => a !== "business" || plans.some((p) => planAudience(p).includes("business")))];
+  const audiences: AudienceFilter[] = ["all", ...PLAN_AUDIENCES.filter((a) => a !== "business" || plans.some((p) => planAudience(p).includes("business")))];
+  const audOpts = audiences.map((a) => ({
+    value: a,
+    label: `${t(`plans.audiences.${a}`)} (${a === "all" ? inView.length : inView.filter((p) => planAudience(p).includes(a)).length})`,
+  }));
+  const visOpts = [
+    { value: "visible", label: t("plans.visibleChip", { n: plans.length - hiddenCount }) },
+    { value: "hidden", label: t("plans.hiddenChip", { n: hiddenCount }) },
+  ];
   useAiField("admin.plans.search.input", { get: () => q, set: setQ });
   useAiField("admin.plans.filters.audience", {
     get: () => aud,
     set: (v) => {
-      const hit = chips.find((c) => c === v);
-      if (hit) setAud(hit);
+      const hit = pickOption(audOpts, v);
+      if (hit) setAud(hit as AudienceFilter);
+    },
+  });
+  useAiField("admin.plans.filters.visibility", {
+    get: () => (viewHidden ? "hidden" : "visible"),
+    set: (v) => {
+      const hit = pickOption(visOpts, v);
+      if (hit) setShowHidden(hit === "hidden");
     },
   });
   useAiModal("admin.plans.create-modal", () => {
@@ -369,29 +412,32 @@ export default function AdminPlans() {
         </span>
       </div>
 
-      <div className="lfilters" data-ai-target="plans:filters" data-ai-id="admin.plans.filters" data-ai-label={t("plans.audience")}>
-        <div className="lsearch">
-          <IconSearch />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("plans.searchPh")} aria-label={t("plans.searchPh")} data-ai-id="admin.plans.search.input" />
-        </div>
-        <div className="chipm" role="group" aria-label={t("plans.audience")} data-ai-id="admin.plans.filters.audience" data-ai-type="select">
-          {chips.map((a) => (
-            <button key={a} type="button" className={`chip${aud === a ? " on" : ""}`} aria-pressed={aud === a} onClick={() => setAud(a)}>
-              {t(`plans.audiences.${a}`)}
-            </button>
-          ))}
-          {hiddenCount ? (
-            <button type="button" className={`chip chip--muted${showHidden ? " on" : ""}`} aria-pressed={showHidden} onClick={() => setShowHidden((v) => !v)}>
-              <IconEyeOff />
-              {t("plans.hiddenChip", { n: hiddenCount })}
-            </button>
-          ) : null}
-        </div>
-      </div>
+      <FilterBar
+        className="uf--tray"
+        fields={[
+          { key: "audience", label: t("plans.audience"), icon: IconUsers, value: aud, empty: "all", onChange: (v) => setAud(v as AudienceFilter), options: audOpts, aiId: "admin.plans.filters.audience" },
+          {
+            key: "visibility",
+            label: t("plans.visibility"),
+            icon: IconEye,
+            hidden: !hiddenCount,
+            value: viewHidden ? "hidden" : "visible",
+            empty: "visible",
+            onChange: (v) => setShowHidden(v === "hidden"),
+            options: visOpts,
+            aiId: "admin.plans.filters.visibility",
+          },
+        ]}
+        search={{ value: q, onChange: setQ, placeholder: t("plans.searchPh"), aiId: "admin.plans.search.input" }}
+        count={res.status === "ready" ? list.length : undefined}
+        aiId="admin.plans.filters"
+        aiTarget="plans:filters"
+        aiLabel={t("plans.audience")}
+      />
 
       {pageNote ? <div className={`anote anote--${pageNote.tone === "warn" ? "warn" : pageNote.ok ? "ok" : "err"}`} style={{ marginBottom: 12 }}>{pageNote.msg}</div> : null}
       {res.data?.activeOnly ? <p className="advmuted aplan__only">{t("plans.activeOnly")}</p> : null}
-      {showHidden ? <p className="advmuted aplan__only">{t("plans.hiddenNote")}</p> : null}
+      {viewHidden ? <p className="advmuted aplan__only">{t("plans.hiddenNote")}</p> : null}
 
       {res.status === "loading" ? (
         <Skeleton rows={3} />

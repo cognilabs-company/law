@@ -14,6 +14,7 @@ import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { AdminForm, AdminItem, Notice, useReload, type Field } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import TemplateImport from "@/components/admin/TemplateImport";
+import FilterBar from "@/components/filters/FilterBar";
 import { IconDocLines, IconPlus, IconSearch, IconEdit, IconTrash, IconUpload } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiModal } from "@/lib/ai/registry";
@@ -116,10 +117,12 @@ export default function AdminTemplates() {
         </span>
       </div>
 
-      <div className="lsp__search" style={{ marginBottom: 14 }} data-ai-target="templates:search">
-        <IconSearch />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("templates.searchPh")} aria-label={t("templates.search")} data-ai-id="admin.templates.search.input" />
-      </div>
+      <FilterBar
+        className="tplf"
+        fields={[]}
+        search={{ value: q, onChange: setQ, placeholder: t("templates.searchPh"), label: t("templates.search"), aiId: "admin.templates.search.input", aiTarget: "templates:search" }}
+        count={tpls.status === "ready" ? list.length : undefined}
+      />
 
       {tpls.status === "loading" ? (
         <Skeleton rows={3} />

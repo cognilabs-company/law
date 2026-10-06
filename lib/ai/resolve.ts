@@ -160,3 +160,38 @@ export function resolveAiTarget(id: string, fresh = false, loose = true): Resolv
 export function forgetResolved(): void {
   memo.clear();
 }
+
+export function resolveExact(id: string, fresh = false): Resolved | null {
+  const hit = resolveAiTarget(id, fresh, false);
+  return hit && (hit.by === "exact" || hit.by === "alias") ? hit : null;
+}
+
+const WATCH_ATTRS = ["data-ai-target", "data-ai-id", "class", "style", "hidden"];
+
+export function waitForExact(id: string, ms: number, signal?: AbortSignal): Promise<Resolved | null> {
+  return new Promise((resolve) => {
+    if (typeof document === "undefined" || !id || signal?.aborted) return resolve(null);
+    const now = resolveExact(id, true);
+    if (now) return resolve(now);
+    let done = false;
+    const finish = (v: Resolved | null) => {
+      if (done) return;
+      done = true;
+      obs.disconnect();
+      window.clearTimeout(timer);
+      window.clearInterval(poll);
+      signal?.removeEventListener("abort", onAbort);
+      resolve(v);
+    };
+    const check = () => {
+      const v = resolveExact(id);
+      if (v) finish(v);
+    };
+    const onAbort = () => finish(null);
+    const obs = new MutationObserver(check);
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: WATCH_ATTRS });
+    const poll = window.setInterval(check, 250);
+    const timer = window.setTimeout(() => finish(resolveExact(id, true)), ms);
+    signal?.addEventListener("abort", onAbort);
+  });
+}

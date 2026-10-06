@@ -1,4 +1,17 @@
 {
+  "filterBar": {
+    "title": "Filters",
+    "search": "Search",
+    "reset": "Clear all",
+    "apply": "Apply",
+    "show": "Show {n} results",
+    "count": "{n} results",
+    "close": "Close",
+    "remove": "Remove: {label}",
+    "clearSearch": "Clear search",
+    "all": "All",
+    "any": "Any"
+  },
   "sellerServices": {
     "kicker": "Marketplace services",
     "title": "My services",
@@ -45,6 +58,7 @@
       "text": "{days} more days — all your services rank higher on the marketplace."
     },
     "blocked": {
+      "waitTitle": "Awaiting approval",
       "lockTitle": "No access"
     },
     "status": {
@@ -64,6 +78,7 @@
       "inactive": "Service deactivated"
     },
     "card": {
+      "editLocked": "Inactive in the catalogue — can't be edited",
       "service": "Service",
       "som": "UZS",
       "catalogPrice": "Catalogue price",
@@ -131,6 +146,7 @@
       "saving": "Saving…"
     },
     "errors": {
+      "pendingAccountOwner": "This specialist's profile hasn't been approved by an admin yet.",
       "range": "The price must be between {min} and {max} UZS.",
       "advocateOnly": "Only advocates can add this service.",
       "pendingAccount": "Service management opens once an admin verifies your profile.",
@@ -143,6 +159,8 @@
       "unknown": "Something went wrong. Try again."
     },
     "toast": {
+      "profileRejected": "Profile promotion request rejected",
+      "profileApproved": "Profile promotion approved",
       "added": "Service added",
       "saved": "Changes saved",
       "removed": "Service removed",
@@ -158,6 +176,9 @@
       "removing": "Removing…"
     },
     "promote": {
+      "retry": "Send again",
+      "failText": "An admin won't see the request. Send it again a bit later or contact support.",
+      "failTitle": "Not sent to Telegram",
       "title": "Promote service",
       "lead": "Choose a package — once approved, the service ranks higher on the marketplace.",
       "packages": "Promotion packages",
@@ -200,7 +221,7 @@
       "generic": "This is “{label}”."
     },
     "ui": {
-      "narrator": "AI instructor",
+      "narrator": "LexGo AI",
       "next": "Next",
       "back": "Back",
       "done": "Got it",
@@ -266,7 +287,7 @@
         "workload": "See every member's work in one list.",
         "summary": "At a glance: members, verified members, orders, cases and urgent requests.",
         "members": "Members list: role, region, verification and active work.",
-        "active": "Active orders, cases and urgent requests, split into tabs."
+        "active": "Active orders, cases and urgent requests. Pick the type from the list."
       },
       "advocate_organization": {
         "title": "Your law office: create an organization and manage its members.",
@@ -436,7 +457,7 @@
       },
       "client_payments": {
         "title": "Payment history — every payment, its date and status.",
-        "filters": "Find a payment by text or date range.",
+        "filters": "Find a payment by text, status or date.",
         "history": "All your payments are in this table; you can download receipts here too."
       },
       "client_packages": {
@@ -605,7 +626,7 @@
       "admin_marketplace": {
         "title": "Marketplace monitoring — orders, payments and seller workload in one place.",
         "tabs": "Switch between the overview, the orders table and the sellers list.",
-        "period": "Pick a period: today, 7, 30 or 90 days. Type exact dates in the fields next to it.",
+        "period": "Pick a period: today, 7, 30 or 90 days. For exact dates, choose “Custom”.",
         "filters": "Filter by status, seller and client — it applies to the overview and orders.",
         "kpis": "Orders by status. Click a card to open the list of those orders.",
         "orders": "The orders table: click a row to see the order, its payment and both parties."
@@ -670,8 +691,6 @@
         "support": "Need help? Choose the AI instructor, an operator chat, a complaint or a call here."
       },
       "client_dashboard": {
-        "support": "Help center — open a chat with an operator and follow the status of your requests here.",
-        "subscriptions": "Plans — choose or renew your LexGo.AI and personal advocate subscription here.",
         "documents": "Legal documents — draft applications, contracts and claims from ready-made templates here.",
         "requests": "Your active requests and their status show up here.",
         "title": "This is your dashboard — every service starts here.",
@@ -729,7 +748,7 @@
       },
       "seller_document_requests": {
         "filters": "Search by title or client and filter by work type and period.",
-        "tabs": "“New requests” is the open pool; the other tabs hold the ones assigned to you.",
+        "tabs": "“New requests” is the open pool. “Assigned to me” holds your own work; filter it by status.",
         "title": "Client document requests: the open pool, those assigned to you and the finished ones.",
         "list": "Document requests sent to you — take one and start working."
       },
@@ -1227,6 +1246,7 @@
       }
     },
     "queue": {
+      "filter": "Queue",
       "viewChat": "Chat",
       "views": "Chat or client help",
       "transferReason": "Transfer reason",
@@ -1250,6 +1270,13 @@
       "days": "{n} d ago"
     },
     "chat": {
+      "yesterday": "Yesterday",
+      "today": "Today",
+      "waitText": "An operator will join soon. We'll let you know even if you leave this page.",
+      "waitTitle": "Message received",
+      "hoursLine": "Working hours: {hours}",
+      "replyFast": "We usually reply quickly",
+      "teamName": "LexGo support",
       "reopenedOk": "The chat is open again — you can write to the operator",
       "reopenDo": "Reopen the chat",
       "reopenPh": "For example: the payment still fails",
@@ -1278,6 +1305,10 @@
       "urgentHint": "Turn on if it can't wait"
     },
     "chats": {
+      "noMatchText": "Try different words.",
+      "noMatch": "Nothing found",
+      "searchPh": "Search by topic or message",
+      "filterLabel": "Status",
       "title": "My chats",
       "lead": "Your conversations with operators are kept here",
       "tabs": {
@@ -1314,6 +1345,14 @@
       }
     },
     "hub": {
+      "other": "Other ways",
+      "opText": "Chat with a real person during working hours.",
+      "ask": "Ask a question",
+      "aiText": "Answers instantly and shows you where things are.",
+      "all": "View all",
+      "ongoing": "Ongoing chats",
+      "lead": "The AI instructor answers instantly, and an operator helps in chat during working hours.",
+      "title": "How can we help?",
       "heroTitle": "Got a question? Ask the AI instructor first",
       "heroLead": "It shows you the right place on the platform and answers right away. Still stuck? Chat with an operator, file a complaint or call us.",
       "heroLeadSeller": "It shows you the right place on the platform and answers right away. Still stuck? Chat with an operator or call us.",
@@ -1501,6 +1540,8 @@
       "switch": "Switch specialists"
     },
     "filters": {
+      "allSellerTypes": "Advocates and lawyers",
+      "sellerType": "Specialist type",
       "toggle": "Filters",
       "show": "Show {n} results",
       "close": "Close",
@@ -1607,6 +1648,22 @@
       "chatError": "Could not open the chat."
     },
     "purchase": {
+      "activePaid": "You already have this service active",
+      "retry": "Send again",
+      "rejectedLead": "The payment was not confirmed. Nothing was charged.",
+      "rejectedTitle": "Request cancelled",
+      "completedTitle": "This service is complete",
+      "openChat": "Open chat",
+      "chatLead": "Payment confirmed and your secure chat is open. You can message the specialist now.",
+      "chatTitle": "Service activated",
+      "paidNoRoom": "The chat is taking a little longer to open. You'll find it in your orders.",
+      "paidPreparing": "Preparing your secure chat…",
+      "paidTitle": "Payment confirmed",
+      "recheck": "Check now",
+      "slow": "Confirmation is taking longer than usual. We'll let you know when it's done.",
+      "offline": "Connection lost. We'll check the status once it's back.",
+      "liveNote": "We'll let you know even if you close this window",
+      "live": "The status updates automatically",
       "title": "Buy a service",
       "seller": "Specialist",
       "note": "Describe your situation briefly",
@@ -1649,6 +1706,11 @@
       }
     },
     "orders": {
+      "emptyFilter": "No orders match these filters",
+      "searchLabel": "Search orders",
+      "searchPhSeller": "Service, ADV number or client",
+      "searchPhClient": "Service, ADV number or specialist",
+      "filterStatus": "Status",
       "clientTitle": "My service orders",
       "clientLead": "Services you bought in the marketplace: status, chat and calls.",
       "sellerTitle": "Service orders",
@@ -1773,6 +1835,8 @@
     "hidePassword": "Hide password"
   },
   "chart": {
+    "custom": "Custom",
+    "period": "Period",
     "d7": "7 days",
     "d30": "30 days",
     "d90": "90 days",
@@ -2398,6 +2462,8 @@
     "title": "Advocates and lawyers whose experience and wins are open to view",
     "lead": "Every lawyer shows how many full and partial wins they achieved at the investigation and court stages, and uploads documents to prove it.",
     "filters": {
+      "area": "Practice area",
+      "kind": "Type",
       "region": "Region",
       "sort": "Sort by",
       "sortRating": "Highest rating",
@@ -3698,6 +3764,7 @@
       "success": "Signing you in…"
     },
     "common": {
+      "processingShort": "Please wait…",
       "loadingMore": "Loading…",
       "loadMore": "Load more",
       "paymentStatus": {
@@ -3731,6 +3798,7 @@
       "roleClient": "Client",
       "roleLawyer": "Lawyer",
       "status": {
+        "open": "Open",
         "expired": "Expired",
         "cancelled": "Cancelled",
         "meeting_active": "Meeting live",
@@ -3747,6 +3815,12 @@
         "archived": "Archived"
       },
       "docStatus": {
+        "lawyer_review_requested": "Sent for lawyer review",
+        "pending_review": "Waiting for review",
+        "review": "Under review",
+        "payment_cancelled": "Payment cancelled",
+        "payment_required": "Waiting for extra payment",
+        "awaiting_payment": "Waiting for payment",
         "rated": "Rated",
         "closed": "Closed",
         "payment_pending": "Waiting for payment",
@@ -3979,6 +4053,9 @@
       }
     },
     "tasks": {
+      "showOpen": "Unfinished only",
+      "showAll": "All tasks",
+      "showLabel": "Show",
       "title": "Tasks",
       "lead": "Manage your work by stage.",
       "empty": "No tasks",
@@ -4019,7 +4096,68 @@
       "checklistHint": "Each line is an item. Mark done items with \"[x]\"."
     },
     "aiAssistant": {
+      "panel": {
+        "name": "LexGo assistant",
+        "badge": "AI",
+        "fullName": "LexGo AI assistant",
+        "open": "Open the AI assistant",
+        "tagline": "I'll show you around LexGo",
+        "hello": "How can I help?",
+        "lead": "I'll find the right page and show you where to click.",
+        "noAdvice": "I don't give legal advice — that's an advocate's job.",
+        "try": "For example",
+        "tour": "Show me around this page",
+        "aiLabel": "LexGo AI",
+        "show": "Show me",
+        "walk": "Walk me through",
+        "operator": "Contact an operator",
+        "retry": "Send again",
+        "disclaimer": "AI can make mistakes.",
+        "writeOperator": "Message an operator"
+      },
       "v21": {
+        "chip": {
+          "pending": "queued",
+          "running": "running",
+          "done": "done",
+          "missing": "not found",
+          "failed": "failed",
+          "cancelled": "stopped"
+        },
+        "done": {
+          "prepare_subscription_purchase": "Plan request sent. It turns on once approved.",
+          "prepare_marketplace_purchase": "Order sent. Track it in My Cases.",
+          "start_document_request": "Document request sent.",
+          "prepare_urgent_advokat_request": "Urgent request sent.",
+          "generic": "Done."
+        },
+        "targets": {
+          "launcher": "Open the AI assistant button",
+          "planFree": "LexGo.AI Free plan",
+          "planLite": "LexGo.AI Lite plan",
+          "planPro": "LexGo.AI Pro plan",
+          "planStandard": "Personal advocate Standard plan",
+          "planPremium": "Personal advocate Premium plan",
+          "telegramModal": "Plan request via Telegram window",
+          "docCreate": "Order a new document button",
+          "docSearch": "Document search field",
+          "catCivil": "Civil case documents",
+          "catCriminal": "Criminal case documents",
+          "catAdmin": "Administrative case documents",
+          "catEconomic": "Economic cases and contracts",
+          "myDocs": "My documents list",
+          "aiSearch": "Find a lawyer with AI",
+          "search": "Search lawyers and advocates",
+          "sellerType": "Specialist type filter",
+          "operator": "Contact an operator button",
+          "newTicket": "New support request",
+          "urgentServices": "Urgent lawyer services",
+          "urgentVideo": "Video consultation with a lawyer",
+          "urgentChat": "Chat consultation",
+          "urgentSingle": "Second opinion — one lawyer",
+          "urgentGroup": "Second opinion — group of lawyers",
+          "works": "My Cases list"
+        },
         "chips": "Actions taken",
         "status": {
           "pending": "Queued",
@@ -4062,6 +4200,12 @@
           "interrupted": "Interrupted"
         },
         "confirm": {
+          "period": {
+            "month": "per month",
+            "year": "per year",
+            "week": "per week"
+          },
+          "retry": "Try again",
           "title": "Confirm the action AI prepared",
           "lead": "Nothing happens until you confirm.",
           "what": "What will be done",
@@ -4757,6 +4901,13 @@
         "hideHistory": "Hide history"
       },
       "payments": {
+        "datePh": "Pick a date",
+        "periods": {
+          "monthly": "1 month",
+          "six_month": "6 months",
+          "yearly": "1 year",
+          "prepaid_yearly": "1 year, prepaid"
+        },
         "title": "Payments",
         "pay": "Make a payment",
         "history": "History",
@@ -4781,6 +4932,11 @@
           "held": "On hold"
         },
         "kinds": {
+          "subscription_plan_telegram_approval": "Subscription",
+          "subscription_renewal": "Subscription renewal",
+          "call_extension": "Call extension",
+          "document_review_extra_pages": "Document review: extra pages",
+          "marketplace_order": "Service order",
           "order": "Service order",
           "order_milestone": "Order stage",
           "document_request": "Document template",
@@ -4964,6 +5120,12 @@
         "tomorrow": "tomorrow"
       },
       "works": {
+        "filterEmptyText": "Try another type or status.",
+        "searchEmptyMore": "Try another word, or load the rest. The search only looks through what is loaded.",
+        "searchEmptyText": "Try another word.",
+        "searchEmpty": "Nothing found",
+        "searchPh": "Search by title or ID",
+        "allTypes": "All types",
         "title": "My works",
         "lead": "Work with an advocate, urgent services, orders and complaints live here.",
         "documentsLink": "Document archive",
@@ -5000,6 +5162,43 @@
         }
       },
       "complaints": {
+        "sentNext": "A staff member will review it — you'll be notified of every change.",
+        "sentRef": "Reference:",
+        "updatedAt": "Last change: {date}",
+        "escalate": "Disagree with the decision? Write to an operator in chat.",
+        "reply": {
+          "title": "Staff reply",
+          "staff": "Staff member"
+        },
+        "step": {
+          "received": "Received",
+          "review": "Under review",
+          "decision": "Decision",
+          "queued": "In the queue",
+          "active": "In progress"
+        },
+        "row": {
+          "work": "Work: {id}",
+          "workLinked": "Linked to a work"
+        },
+        "catHint": {
+          "service": "The service wasn't delivered as promised",
+          "lawyer": "The specialist's conduct or work",
+          "payment": "A charge, the amount or a refund",
+          "quality": "The result is poor or has mistakes",
+          "sla": "The work wasn't done on time",
+          "other": "None of the above"
+        },
+        "stage": {
+          "new": "New",
+          "review": "Under review",
+          "rework": "Being reworked",
+          "resolved": "Resolved",
+          "rejected": "Rejected",
+          "closed": "Closed"
+        },
+        "stepN": "Step {n}",
+        "title": "Complaints",
         "statuses": {
           "new": "New",
           "pending": "Pending",
@@ -5020,13 +5219,16 @@
           "other": "Other"
         },
         "v": {
+          "category": "Choose a category.",
           "subject": "Add a subject.",
           "subjectShort": "The subject is too short — use at least {min} characters.",
           "descShort": "Add a little more detail — at least {min} characters."
         },
         "form": {
+          "reassure": "You'll be notified of every change; the reply will appear on this page.",
+          "descHint": "Say what happened, when, and which work it concerns.",
           "lead": "Be specific: what happened, when, and which work it concerns. The complaint is logged and you can follow its status on this page.",
-          "related": "Which work",
+          "related": "Which work is it about?",
           "optional": "(optional)",
           "relatedNone": "Not about a specific work",
           "relatedLoading": "Loading your works…",
@@ -5038,6 +5240,9 @@
         "relatedOpen": "Open the work",
         "related": "Related work",
         "hint": {
+          "closed": "This complaint is closed.",
+          "resolved": "Your complaint was reviewed and resolved.",
+          "reviewing": "A staff member is reviewing your complaint. The decision will appear here.",
           "waiting": "Your complaint is in the queue — a staff member will review it and the decision will appear here.",
           "review": "A call-centre operator is checking the work and your rating.",
           "rework": "Your complaint was upheld — the advocate will redo the work for free.",
@@ -5074,9 +5279,10 @@
           "urgent": "Urgent advocate"
         },
         "filter": {
-          "label": "Complaint type",
+          "searchPh": "Subject, number or text",
+          "label": "Type",
           "all": "All",
-          "manual": "Complaints",
+          "manual": "Filed by you",
           "quality": "Quality",
           "empty": "No complaints match this filter.",
           "reset": "Clear filter"
@@ -5087,24 +5293,24 @@
         },
         "listLabel": "Your complaints",
         "steps": {
-          "write": "You write",
-          "review": "We review",
-          "decision": "You get a decision"
+          "write": "You send it",
+          "review": "A staff member reviews it",
+          "decision": "The decision appears here"
         },
         "stepsLabel": "How a complaint is handled",
         "chatShort": "Chat with an operator",
         "chatLink": "Quick question? Chat with an operator",
         "auto": "If you rate a piece of work 1–2 stars, a quality complaint opens automatically and appears in this list.",
-        "lead": "A complaint is a formal report about service quality, an advocate's work or a payment. It is logged, a staff member reviews it, and the decision appears here.",
+        "lead": "Unhappy with a service, an advocate's work or a payment? File a formal complaint here.",
         "descRequired": "Write what happened.",
         "cancel": "Cancel",
         "new": "New complaint",
         "empty": "No complaints yet",
-        "emptyText": "If something went wrong with a service, file a complaint — you can follow its status here.",
-        "catLabel": "Category",
+        "emptyText": "If you're unhappy with a service, an advocate's work or a payment, file a complaint. A staff member reviews it and the decision appears here.",
+        "catLabel": "What happened?",
         "subject": "Subject",
         "subjectPh": "For example: the document wasn't ready by the promised date",
-        "desc": "Description",
+        "desc": "Details",
         "descPh": "Describe what happened…",
         "submit": "Submit",
         "sending": "Sending…",
@@ -5137,6 +5343,10 @@
         "resultClose": "Got it"
       },
       "academy": {
+        "noMatchText": "Try another word or clear the filter.",
+        "noMatch": "No matching courses",
+        "searchPh": "Search by course name",
+        "fCategory": "Topic",
         "title": "LexGo Academy",
         "subtitle": "Short courses for legal literacy.",
         "all": "All",
@@ -5414,13 +5624,15 @@
         "chooseSpecialist": "Choose a matched specialist"
       },
       "actions": {
-        "supportSub": "Operator, complaint or a call",
-        "support": "Help center",
-        "subscriptionsSub": "Choose or renew your plan",
-        "subscriptions": "Plans",
+        "whoAiCta": "Ask the AI",
+        "whoAiPerk2": "Hands complex cases to an advocate",
+        "whoAiPerk1": "Answers in seconds",
+        "whoAdvocateCta": "Contact an advocate",
+        "whoAdvocatePerk2": "An answer for your exact situation",
+        "whoAdvocatePerk1": "Verified advocates only",
         "documentsSub": "Application, contract and claim templates",
         "documents": "Legal documents",
-        "whoAiSub": "Answers right away, within the free limit. It hands hard cases to an advocate.",
+        "whoAiSub": "Answers your question within the free limit.",
         "whoAi": "An answer from LexGo's AI",
         "whoAdvocateSub": "An advocate answers by video or in writing.",
         "whoAdvocate": "Advice from a professional, experienced advocate",
@@ -5444,9 +5656,9 @@
       "services": {
         "unrated": "Not rated yet",
         "sellerRequired": "Choose an advocate first",
-        "sizeSmall": "Small (1–4)",
-        "sizeMid": "Medium (5–19)",
-        "sizeBig": "Large (20+ services)",
+        "sizeSmall": "Small: 1–4 services",
+        "sizeMid": "Medium: 5–19 services",
+        "sizeBig": "Large: 20+ services",
         "filterSize": "Direction size",
         "sortByCountAsc": "Fewest services first",
         "sortDocFirst": "Ready documents first",
@@ -6018,6 +6230,13 @@
         "error": "Something went wrong. Please try again."
       },
       "documentRequests": {
+        "nextLawyerHere": "Once the advocate prepares it, download it on this page",
+        "filterEmptyText": "Try another method or status.",
+        "filterMode": "Preparation method",
+        "nextFill": "Check the details and create the document",
+        "nextLawyer": "Once the advocate prepares it, download it from “{section}”",
+        "nextDownload": "Download the finished document",
+        "nextTrack": "Track the request status",
         "lawyerPayRequired": "The request reaches the advocates only after the payment is confirmed. Carry on from the document page.",
         "constructorOpenError": "The builder for this document could not be opened. Open the document again from the services list.",
         "constructorContinue": "Continue in the builder",
@@ -6060,6 +6279,7 @@
         "meetingActive": "Meeting in progress"
       },
       "packages": {
+        "allCategories": "All categories",
         "bestValue": "Most chosen",
         "title": "Service packages",
         "count": "{n, plural, one {# package} other {# packages}}",
@@ -6113,7 +6333,7 @@
         "tab_today": "Today ({n})",
         "tab_upcoming": "Upcoming ({n})",
         "tab_done": "Done ({n})",
-        "tasksEmpty": "No tasks in this tab.",
+        "tasksEmpty": "No tasks here.",
         "calendar": "Calendar",
         "recentActivity": "Recent activity",
         "activityEmpty": "No activity yet.",
@@ -6541,6 +6761,9 @@
       }
     },
     "notifications": {
+      "catNew": "{label} ({n} new)",
+      "fRead": "Read status",
+      "fCategory": "Section",
       "loadingMore": "Loading…",
       "loadMore": "Load more",
       "ariaN": "Notifications — {n} unread",
@@ -6577,7 +6800,7 @@
       "open": "Open",
       "markShown": "Mark shown as read",
       "noMatch": "No matching notifications",
-      "noMatchText": "Pick another tab or clear the search.",
+      "noMatchText": "Pick another section or clear the search.",
       "loadError": "Could not load notifications. Refresh the page.",
       "unreadN": "{n} unread",
       "viaChannels": "via {list}",
@@ -6777,6 +7000,7 @@
       "openError": "Could not open the file. Try again."
     },
     "files": {
+      "sectionLabel": "Section",
       "title": "Files",
       "subtitle": "Manage your files and folders",
       "navAll": "All Files",
@@ -6925,6 +7149,8 @@
       "maxTier": "lowest commission"
     },
     "accountAudit": {
+      "noMatchText": "Change the filter or clear the search.",
+      "noMatch": "No matching entries",
       "sessions": "Active sessions",
       "noSessions": "No active sessions.",
       "device": "Device",
@@ -7602,6 +7828,9 @@
         "sellers": "Sellers"
       },
       "filter": {
+        "custom": "Custom",
+        "allTime": "All time",
+        "period": "Period",
         "aria": "Marketplace filters",
         "presetsAria": "Quick period",
         "presets": {
@@ -7885,6 +8114,9 @@
       }
     },
     "urgent": {
+      "movedTo": "The list switched to “{status}”.",
+      "sourceValue": "Urgent advocate",
+      "fSource": "Source",
       "takeOverTitle": "Moves work claimed by another operator to you (admin right)",
       "takeOver": "Take over",
       "openChatTitle": "Open the secure chat",
@@ -8189,6 +8421,7 @@
       "add": "Add"
     },
     "services": {
+      "stateLabel": "Status",
       "state": {
         "all": "All",
         "active": "Active",
@@ -8281,6 +8514,8 @@
         "forbidden": "Not permitted."
       },
       "cat": {
+        "visibleChip": "Visible ({n})",
+        "view": "Show",
         "editTitle": "Edit category",
         "overlayNote": "The backend cannot edit categories yet — the change is stored in the platform settings and applied in the catalogue.",
         "deleteText": "The category is hidden from the catalogue (client and admin lists). Its services are kept; it can be restored.",
@@ -8295,6 +8530,8 @@
       }
     },
     "plans": {
+      "visibleChip": "Visible ({n})",
+      "visibility": "Show",
       "searchPh": "Name or slug…",
       "noResults": "Nothing found",
       "editTitle": "Edit tariff",
@@ -8438,6 +8675,7 @@
       "selectUser": "Select a user"
     },
     "notifications": {
+      "roleLabel": "Role",
       "title": "Send notification",
       "lead": "Send a user a notification. It is delivered in-app, by push, Telegram and email; SMS is only a fallback for critical events.",
       "userId": "User id",
@@ -8530,6 +8768,8 @@
       }
     },
     "meetings": {
+      "scopeAll": "All meetings",
+      "scope": "Show",
       "title": "Meetings",
       "subtitle": "Start a multi-participant video meeting and invite people.",
       "titleLabel": "Meeting title",
@@ -8638,6 +8878,11 @@
       "stagingOnlyText": "Test OTP codes are kept only on the staging/demo server. Production has no such list — codes are sent by SMS or Telegram."
     },
     "pipeline": {
+      "periodPick": {
+        "label": "Period",
+        "all": "All time",
+        "custom": "Custom"
+      },
       "urgency": {
         "low": "Low",
         "normal": "Normal",
@@ -8936,6 +9181,13 @@
       "price": "Price"
     },
     "audit": {
+      "ph": {
+        "action": "e.g. login",
+        "targetType": "e.g. user",
+        "targetId": "UUID"
+      },
+      "to": "To",
+      "from": "From",
       "title": "Audit trail",
       "lead": "Log of all important actions in the system.",
       "empty": "No records",
@@ -8974,7 +9226,7 @@
       "userIdPh": "Search by name, phone or LexGo ID…",
       "noUsers": "No user found",
       "f": {
-        "action": "Action (e.g. login)",
+        "action": "Action",
         "targetType": "Target type",
         "targetId": "Target ID"
       },
@@ -9309,6 +9561,7 @@
       }
     },
     "registerRequests": {
+      "roleLabel": "Role",
       "title": "Seller registration requests",
       "lead": "Review and approve yurist / advokat registrations.",
       "empty": "No pending requests",
@@ -9623,6 +9876,10 @@
     },
     "dash": {
       "filter": {
+        "custom": "Custom",
+        "today": "Today",
+        "allTime": "All time",
+        "period": "Period",
         "aria": "Dashboard filters",
         "region": "Region",
         "from": "From date",
@@ -9817,6 +10074,13 @@
     "loginRequired": "Log in to open this private chat.",
     "login": "Log in",
     "inbox": {
+      "kinds": {
+        "urgent": "Urgent advocate",
+        "order": "Orders",
+        "case": "Cases",
+        "other": "Other"
+      },
+      "fKind": "Type",
       "minePrefix": "You: {text}",
       "unreadCount": "{n} unread",
       "workId": "Work ID",

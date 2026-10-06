@@ -16,6 +16,7 @@ import { aiLabel, currentRoute, nativeField, sensitiveInput, sensitiveName } fro
 import { askAction, askFill, dismissPrompts, freeAction } from "./prompts";
 import { flushRuntime, queueAiEvent, setQueueRunning } from "./runtime";
 import { markExecuted, wasExecuted, type AiScope } from "./session";
+import { SELF_TARGET_BLOCKED, selfTargetBlocked } from "./self";
 import { AI_COMMAND_TYPES, type ActionPreview, type ActionResult, type AiCommand, type AiEventType, type AiStep, type CmdState, type CmdStatus, type InstructorContract } from "./types";
 
 export type RunLabels = {
@@ -23,6 +24,7 @@ export type RunLabels = {
   ticketCreatedPlain: string;
   ticketShown: string;
   ticketWrite: string;
+  actionDone?: (action: string, workId: string) => string;
 };
 
 export type RunCtx = {
@@ -41,16 +43,19 @@ export type RunCtx = {
 
 export type RunSummary = { done: number; missing: number; failed: number; cancelled: number; skipped: number };
 
-type Kind = "run" | "skip" | "dup" | "unknown" | "invalid";
+type Kind = "run" | "skip" | "dup" | "unknown" | "invalid" | "blocked";
 type Step = { stop: boolean; reason: string };
 
 const KNOWN = new Set<string>(AI_COMMAND_TYPES);
 const STEP_TYPES = new Set(["highlight", "tooltip", "scroll_to", "focus_input"]);
+const SELF_GUARDED = new Set(["highlight", "tooltip", "scroll_to", "focus_input", "open_modal"]);
+const BACKEND_FLAGGED = new Set(["preview_action", "confirm_required", "support_handoff"]);
 const FINAL = new Set<CmdStatus>(["done", "missing", "failed", "cancelled", "skipped"]);
 const STATUSES = new Set<string>(["pending", "running", "done", "missing", "failed", "cancelled", "skipped"]);
 const WS_BLOCKED = new Set(["preview_action", "confirm_required", "fill_form"]);
 const OK: Step = { stop: false, reason: "" };
 const MISSING_REASON = "DOM element with data-ai-id was not found";
+const TG_MODAL = "pricing.telegram-request-modal";
 const STATUS_KEY = "lexgo_ai_cmd_status";
 const STATUS_MAX = 300;
 
@@ -216,6 +221,8 @@ function setStatus(id: string, status: CmdStatus, reason = ""): void {
 function post(ctx: RunCtx, c: AiCommand, type: AiEventType, details: Dict = {}, target = ""): void {
   const status = type === "command_completed" || type === "element_clicked" ? "completed" : type === "command_cancelled" ? "cancelled" : "failed";
   const tgt = target || c.target || c.modal;
+  const route = currentRoute();
+  const reason = typeof details.reason === "string" ? details.reason : "";
   queueAiEvent({
     session_id: ctx.sessionId,
     event_type: type,
@@ -223,8 +230,22 @@ function post(ctx: RunCtx, c: AiCommand, type: AiEventType, details: Dict = {}, 
     command_type: c.type,
     status,
     ...(tgt ? { target: tgt } : {}),
-    details: { route: currentRoute(), ...details },
+    ...(reason ? { reason } : {}),
+    current_route: route,
+    details: { route, ...details },
   });
+}
+
+function selfBlocked(c: AiCommand, message: string): boolean {
+  const target = c.target || c.modal;
+  return SELF_GUARDED.has(c.type) && Boolean(target) && selfTargetBlocked(target, message);
+}
+
+function blockSelf(ctx: RunCtx, c: AiCommand): void {
+  if (isFinal(c.id)) return;
+  setStatus(c.id, "skipped", SELF_TARGET_BLOCKED);
+  markExecuted(c.id, ctx.scope);
+  post(ctx, c, "command_cancelled", { reason: SELF_TARGET_BLOCKED });
 }
 
 function settleCmd(ctx: RunCtx, c: AiCommand, status: CmdStatus, reason: string): boolean {
@@ -347,7 +368,7 @@ function endReasonText(r: TourEndReason, abortReason: string): string {
   }
 }
 
-type Run = { ctrl: AbortController; reason: string };
+type Run = { ctrl: AbortController; reason: string; followUps: Set<string> };
 
 let current: Run | null = null;
 
@@ -404,9 +425,9 @@ async function runSegment(seg: AiCommand[], ctx: RunCtx, run: Run): Promise<Step
         later(() => commandFailed(ctx, s, "not_focusable", { target_found: true }));
         return;
       }
-      const details: Dict = { target_found: true, resolved_by: e.by, requested_target: s.target };
+      const details: Dict = { target_found: true, resolved_by: e.by, requested_target: s.target, resolved_target: e.canonical };
       if (s.type === "focus_input" && touch()) details.keyboard = "not_guaranteed";
-      later(() => completed(ctx, s, details, e.canonical));
+      later(() => completed(ctx, s, details));
     } else if (e.type === "step_missing") {
       const s = steps[e.index];
       if (!s || s.id !== e.commandId) return;
@@ -670,13 +691,22 @@ async function fallbackTicket(c: AiCommand, ctx: RunCtx, run: Run, payload: Dict
   return OK;
 }
 
-function supportPayload(c: AiCommand, ctx: RunCtx): Dict {
+function actionPayload(c: AiCommand, ctx: RunCtx): Dict {
   const payload: Dict = { ...c.payload };
+  if (c.action === "prepare_subscription_purchase" && !pick(payload.plan_slug, payload.plan_id, payload.slug, payload.plan)) {
+    const m = /^pricing\.plan\.([^.]+)$/.exec(c.target);
+    if (m) payload.plan_slug = m[1];
+  }
   if (c.action !== "start_support_ticket") return payload;
   const message = pick(payload.message, payload.text) || ctx.message;
   if (!pick(payload.message)) payload.message = message;
   if (!pick(payload.category)) payload.category = c.category || supportCategoryFor(currentRoute(), message);
   return payload;
+}
+
+function followable(x: AiCommand): boolean {
+  const target = x.target || x.modal;
+  return x.type === "navigate" || !target.startsWith(TG_MODAL) || modalIsOpen(TG_MODAL);
 }
 
 async function mutate(c: AiCommand, ctx: RunCtx, run: Run, list: AiCommand[], at: number): Promise<Step> {
@@ -695,10 +725,11 @@ async function mutate(c: AiCommand, ctx: RunCtx, run: Run, list: AiCommand[], at
     completed(ctx, c, { confirmed: true });
     return OK;
   }
-  const payload = supportPayload(c, ctx);
+  const payload = actionPayload(c, ctx);
+  const target = c.target ? { target: c.target } : {};
   let preview: ActionPreview;
   try {
-    preview = await previewInstructorAction({ session_id: ctx.sessionId, command_id: c.id, action: c.action, payload }, signal);
+    preview = await previewInstructorAction({ session_id: ctx.sessionId, command_id: c.id, action: c.action, ...target, payload }, signal);
   } catch (e) {
     if (isAborted(e) || signal.aborted) return { stop: true, reason: run.reason || "aborted" };
     if (isRouteMissing(e)) return c.action === "start_support_ticket" ? fallbackTicket(c, ctx, run, payload) : guided(c, ctx, run, payload);
@@ -715,6 +746,7 @@ async function mutate(c: AiCommand, ctx: RunCtx, run: Run, list: AiCommand[], at
           session_id: ctx.sessionId,
           command_id: c.id,
           action: c.action,
+          ...target,
           payload,
           confirm_token: state.token,
           idempotency_key: c.id,
@@ -722,7 +754,7 @@ async function mutate(c: AiCommand, ctx: RunCtx, run: Run, list: AiCommand[], at
         return { pay: state.result.paymentUrl };
       },
       refresh: async () => {
-        const p = await previewInstructorAction({ session_id: ctx.sessionId, command_id: c.id, action: c.action, payload });
+        const p = await previewInstructorAction({ session_id: ctx.sessionId, command_id: c.id, action: c.action, ...target, payload });
         state.token = p.confirmToken;
         return p;
       },
@@ -736,22 +768,27 @@ async function mutate(c: AiCommand, ctx: RunCtx, run: Run, list: AiCommand[], at
   const r = state.result;
   completed(ctx, c, { confirmed: true, ...(r?.resultRef ? { result_ref: r.resultRef } : {}), ...(r?.status ? { result_status: r.status } : {}) });
   if (!r || r.paymentUrl) return OK;
-  const more = normCommands(r.commands, `${c.id}:next`);
+  if (r.ticketId || c.action === "start_support_ticket") {
+    showTicket(ctx, r.ticketId, r.ticketWorkId || r.workId);
+    return OK;
+  }
+  const done = ctx.labels?.actionDone?.(c.action, r.workId) ?? "";
+  if (done) toast(done, { tone: "ok" });
+  const more = normCommands(r.commands, `${c.id}:next`).filter(followable);
   if (more.length) {
+    more.forEach((x) => run.followUps.add(x.id));
     list.splice(at + 1, 0, ...more);
     return OK;
   }
-  if (r.ticketId) {
-    showTicket(ctx, r.ticketId, r.ticketWorkId);
-    return OK;
-  }
   const next = r.nextHref ? navTarget(r.nextHref, ctx) : "";
-  if (next || r.nextTarget) {
+  const nextTarget = r.nextTarget && (!r.nextTarget.startsWith(TG_MODAL) || modalIsOpen(TG_MODAL)) ? r.nextTarget : "";
+  const go = next && !hereIs(next) ? next : undefined;
+  if (go || nextTarget) {
     const tour: GuideTour = {
       id: newTourId(),
       source: "instructor21",
-      navigate: next && !hereIs(next) ? next : undefined,
-      steps: r.nextTarget ? [{ target: r.nextTarget, caption: r.message, holdMs: 6000, style: "pulse" }] : [],
+      navigate: go,
+      steps: nextTarget ? [{ target: nextTarget, caption: r.message, holdMs: 6000, style: "pulse" }] : [],
       reply: ctx.answer,
     };
     await playTour(tour, signal, ctx);
@@ -761,8 +798,9 @@ async function mutate(c: AiCommand, ctx: RunCtx, run: Run, list: AiCommand[], at
 
 function classify(c: AiCommand, ctx: RunCtx): Kind {
   if (wasExecuted(c.id, ctx.scope)) return "dup";
-  if (c.status !== "pending" || !c.requiresFrontend) return "skip";
+  if (c.status !== "pending" || (!c.requiresFrontend && !BACKEND_FLAGGED.has(c.type))) return "skip";
   if (!KNOWN.has(c.type)) return "unknown";
+  if (selfBlocked(c, ctx.message)) return "blocked";
   if (ctx.source === "ws" && (WS_BLOCKED.has(c.type) || (typeof document !== "undefined" && document.hidden))) return "skip";
   if (STEP_TYPES.has(c.type) && !c.target) return "invalid";
   if (c.type === "navigate" && !c.href && !c.routeKey) return "invalid";
@@ -788,7 +826,7 @@ async function interactive(c: AiCommand, ctx: RunCtx, run: Run, list: AiCommand[
 
 export async function runCommands(cmds: AiCommand[], ctx: RunCtx): Promise<RunSummary> {
   abortCommands("superseded");
-  const run: Run = { ctrl: new AbortController(), reason: "" };
+  const run: Run = { ctrl: new AbortController(), reason: "", followUps: new Set() };
   current = run;
   setQueueRunning(true);
   const list = [...cmds];
@@ -815,6 +853,7 @@ export async function runCommands(cmds: AiCommand[], ctx: RunCtx): Promise<RunSu
       const kind = kindOf(c);
       if (kind !== "run") {
         if (kind === "skip") setStatus(c.id, "skipped", c.requiresFrontend ? "display_only" : "backend_only");
+        else if (kind === "blocked") blockSelf(ctx, c);
         else if (kind === "unknown") commandFailed(ctx, c, "unsupported_command");
         else if (kind === "invalid") commandFailed(ctx, c, c.type === "navigate" ? "missing_href" : "missing_target");
         i++;
@@ -850,6 +889,7 @@ export async function runCommands(cmds: AiCommand[], ctx: RunCtx): Promise<RunSu
   const snap = statuses();
   const sum: RunSummary = { done: 0, missing: 0, failed: 0, cancelled: 0, skipped: 0 };
   for (const c of list) {
+    if (run.followUps.has(c.id)) continue;
     const s = snap.get(c.id)?.status;
     if (s === "done") sum.done++;
     else if (s === "missing") sum.missing++;
@@ -860,21 +900,41 @@ export async function runCommands(cmds: AiCommand[], ctx: RunCtx): Promise<RunSu
   return sum;
 }
 
-export function tourFromCommands(cmds: AiCommand[], role: GuideRole, captionFor?: (target: string) => string): GuideTour | null {
+function replayHref(c: AiCommand, role: GuideRole): string {
+  return c.type === "navigate" ? guideHref(c.href || (c.routeKey ? routeForKey(c.routeKey, role) : ""), role) : "";
+}
+
+function replayStep(c: AiCommand, question: string): boolean {
+  return STEP_TYPES.has(c.type) && Boolean(c.target) && !selfBlocked(c, question);
+}
+
+export function tourFromCommands(cmds: AiCommand[], role: GuideRole, captionFor?: (target: string) => string, question = ""): GuideTour | null {
   let navigate: string | undefined;
   const steps: GuideStep[] = [];
   for (const c of cmds) {
     if (c.type === "navigate" && !navigate && !steps.length) {
-      const to = guideHref(c.href || (c.routeKey ? routeForKey(c.routeKey, role) : ""), role);
+      const to = replayHref(c, role);
       if (to) navigate = to;
       continue;
     }
-    if (!STEP_TYPES.has(c.type) || !c.target) continue;
+    if (!replayStep(c, question)) continue;
     const caption = c.text || captionFor?.(c.target) || "";
     steps.push({ target: c.target, caption, holdMs: c.type === "scroll_to" ? 1500 : clamp(c.durationMs || 6000, 1500, 15000), style: c.style.includes("pulse") ? "pulse" : undefined });
   }
   if (!navigate && !steps.length) return null;
   return { id: newTourId(), source: "instructor21", navigate, steps };
+}
+
+export function canReplay(cmds: AiCommand[], role: GuideRole, question = ""): boolean {
+  return cmds.some((c) => Boolean(replayHref(c, role)) || replayStep(c, question));
+}
+
+export function commandsKnown(raw: unknown[]): boolean {
+  const snap = statuses();
+  return raw.some((v) => {
+    const id = isDict(v) ? pick(v.id, v.command_id) : "";
+    return Boolean(id) && (snap.has(id) || wasExecuted(id));
+  });
 }
 
 let supportSeq = 0;
@@ -892,12 +952,18 @@ export function supportCommand(base: AiCommand, question: string): AiCommand {
 }
 
 export async function replayCommands(cmds: AiCommand[], ctx: RunCtx): Promise<void> {
-  const tour = tourFromCommands(cmds, ctx.role, ctx.captionFor);
+  const tour = tourFromCommands(cmds, ctx.role, ctx.captionFor, ctx.message);
   if (!tour) return;
   await playTour(tour, new AbortController().signal, ctx);
 }
 
-export function tourFromSteps(steps: AiStep[]): GuideTour | null {
-  const list: GuideStep[] = steps.filter((s) => s.target).map((s) => ({ target: s.target, caption: s.text, holdMs: 5000 }));
+const stepUsable = (s: AiStep, question: string) => Boolean(s.target) && !selfTargetBlocked(s.target, question);
+
+export function hasStepTour(steps: AiStep[], question = ""): boolean {
+  return steps.some((s) => stepUsable(s, question));
+}
+
+export function tourFromSteps(steps: AiStep[], question = ""): GuideTour | null {
+  const list: GuideStep[] = steps.filter((s) => stepUsable(s, question)).map((s) => ({ target: s.target, caption: s.text, holdMs: 5000 }));
   return list.length ? { id: newTourId(), source: "instructor21", steps: list } : null;
 }

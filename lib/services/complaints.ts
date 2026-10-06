@@ -11,6 +11,9 @@ export const DESC_MAX = 4000;
 export type ComplaintKind = "manual" | "quality";
 export type ComplaintSource = "" | "document" | "urgent";
 export type ComplaintPhase = "open" | "rework" | "resolved" | "closed";
+export type ComplaintStage = "new" | "review" | "rework" | "resolved" | "rejected" | "closed";
+
+export const COMPLAINT_STAGES: readonly ComplaintStage[] = ["new", "review", "rework", "resolved", "rejected", "closed"];
 
 export type ComplaintItem = {
   key: string;
@@ -227,12 +230,45 @@ export function complaintPhase(status: string): ComplaintPhase {
   return "open";
 }
 
+export function complaintStage(status: string): ComplaintStage {
+  if (status === "new") return "new";
+  if (status === "rework_required" || status === "rework_in_progress") return "rework";
+  if (status === "resolved") return "resolved";
+  if (status === "rejected") return "rejected";
+  if (status === "closed" || status === "cancelled") return "closed";
+  return "review";
+}
+
+export function isKnownComplaintStatus(status: string): boolean {
+  return STATUS_ORDER.includes(status);
+}
+
+export function sortStages(list: ComplaintStage[]): ComplaintStage[] {
+  return [...list].sort((a, b) => COMPLAINT_STAGES.indexOf(a) - COMPLAINT_STAGES.indexOf(b));
+}
+
 export function sortStatuses(list: string[]): string[] {
   const rank = (s: string) => {
     const i = STATUS_ORDER.indexOf(s);
     return i < 0 ? STATUS_ORDER.length : i;
   };
   return [...list].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+export function foldText(s: string): string {
+  return s.toLowerCase().replace(/[ʻʼ‘’`´]/g, "'").replace(/\s+/g, " ").trim();
+}
+
+export function complaintMatches(item: Pick<ComplaintItem, "subject" | "description" | "workId" | "id" | "relatedRef">, query: string, extra: string[] = []): boolean {
+  const q = foldText(query);
+  if (!q) return true;
+  return [item.subject, item.description, item.workId, item.id, item.relatedRef, ...extra].some((v) => !!v && foldText(v).includes(q));
+}
+
+const OPAQUE_REF = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isOpaqueRef(ref: string): boolean {
+  return OPAQUE_REF.test(ref.trim());
 }
 
 export function matchesRef(item: Pick<ComplaintItem, "id" | "workId">, ref: string): boolean {

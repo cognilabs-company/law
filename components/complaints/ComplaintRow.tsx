@@ -1,10 +1,10 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { dateOnly } from "@/lib/date";
-import type { ComplaintItem } from "@/lib/services/complaints";
-import { IconAlert, IconChevronRight, IconClock, IconStarRate } from "@/components/icons";
-import { KindBadge, StatusPill, rowDomId, useComplaintLabels } from "./bits";
+import { isOpaqueRef, type ComplaintItem } from "@/lib/services/complaints";
+import { IconCalendar, IconChevronRight } from "@/components/icons";
+import { CategoryTile, QualityBadge, StatusPill, rowDomId, useComplaintLabels } from "./bits";
 
 export default function ComplaintRow({
   item,
@@ -15,12 +15,14 @@ export default function ComplaintRow({
   highlighted: boolean;
   onOpen: () => void;
 }) {
+  const t = useTranslations("portal.client.complaints");
   const locale = useLocale();
   const L = useComplaintLabels();
-  const kindLabel = L.kind(item.kind);
-  const facet = item.kind === "manual" ? (item.category ? L.category(item.category) : "") : L.source(item.source);
-  const title = item.subject || facet || kindLabel;
+  const quality = item.kind === "quality";
+  const facet = quality ? L.source(item.source) : item.category ? L.category(item.category) : "";
+  const title = item.subject || facet || L.kind(item.kind);
   const line = item.description || L.hint(item);
+  const ref = quality ? "" : item.relatedRef;
 
   return (
     <button
@@ -30,30 +32,27 @@ export default function ComplaintRow({
       onClick={onOpen}
       aria-haspopup="dialog"
     >
-      <span className={`shk__ic shk__ic--${item.kind}`} aria-hidden>
-        {item.kind === "quality" ? <IconStarRate /> : <IconAlert />}
-      </span>
+      <CategoryTile item={item} />
       <span className="shk__m">
         <span className="shk__top">
           <b className="shk__t">{title}</b>
-          <StatusPill status={item.status} label={L.status(item.status)} />
+          <StatusPill status={item.status} label={L.tag(item.status)} />
         </span>
         <span className="shk__meta">
-          <KindBadge kind={item.kind} label={kindLabel} />
-          {item.workId ? <small className="wid">{item.workId}</small> : null}
-          {facet && facet !== title ? <small>{facet}</small> : null}
+          {quality ? <QualityBadge label={t("filter.quality")} /> : null}
+          {facet && facet !== title ? <span>{facet}</span> : null}
+          {item.workId ? <span className="wid">{item.workId}</span> : null}
+          {ref ? <span>{isOpaqueRef(ref) ? t("row.workLinked") : t("row.work", { id: ref })}</span> : null}
           {item.createdAt ? (
-            <small>
-              <IconClock aria-hidden />
+            <span>
+              <IconCalendar aria-hidden />
               {dateOnly(item.createdAt, locale)}
-            </small>
+            </span>
           ) : null}
         </span>
         {line ? <span className="shk__desc">{line}</span> : null}
       </span>
-      <span className="shk__go" aria-hidden>
-        <IconChevronRight />
-      </span>
+      <IconChevronRight className="shk__go" aria-hidden />
     </button>
   );
 }

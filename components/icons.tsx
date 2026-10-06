@@ -794,6 +794,73 @@ export const IconAiAnswer = (p: P) => (
   </svg>
 );
 
+export const IconSliders = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
+    <circle cx="15" cy="6" r="2" />
+    <circle cx="9" cy="12" r="2" />
+    <circle cx="17" cy="18" r="2" />
+  </svg>
+);
+
+export const IconFlag = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M5 21V4" />
+    <path d="M5 4h11.5l-2 4 2 4H5" />
+  </svg>
+);
+
+export const IconHelpCircle = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.6 9.4a2.5 2.5 0 014.8.9c0 1.7-2.4 2.2-2.4 3.7" />
+    <path d="M12 17.2h.01" />
+  </svg>
+);
+
+export const IconHourglass = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M7 3h10M7 21h10" />
+    <path d="M8 3v3.5a4 4 0 001.8 3.3L12 11.3l2.2-1.5A4 4 0 0016 6.5V3M8 21v-3.5a4 4 0 011.8-3.3l2.2-1.5 2.2 1.5a4 4 0 011.8 3.3V21" />
+  </svg>
+);
+
+export const IconCircleCheck = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8.5 12.2l2.3 2.3 4.7-4.9" />
+  </svg>
+);
+
+export const IconCircleX = (p: P) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.5 9.5l5 5M14.5 9.5l-5 5" />
+  </svg>
+);
+
+export const IconLightbulb = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M9 18h6M10 21h4" />
+    <path d="M12 3a6 6 0 00-3.6 10.8c.6.5 1 1.2 1.1 2V16h5v-.2c.1-.8.5-1.5 1.1-2A6 6 0 0012 3z" />
+  </svg>
+);
+
+export const IconInbox = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M3 13l2.6-7.2A2 2 0 017.5 4.5h9a2 2 0 011.9 1.3L21 13" />
+    <path d="M3 13v5a2 2 0 002 2h14a2 2 0 002-2v-5h-5.2a3 3 0 01-5.6 0H3z" />
+  </svg>
+);
+
+export const IconHistory = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M3.5 12a8.5 8.5 0 102.5-6" />
+    <path d="M3 4v4h4" />
+    <path d="M12 8v4.5l3 1.8" />
+  </svg>
+);
+
 // Name → component registry so data files can reference icons by string.
 const ICON_MAP: Record<string, ComponentType<P>> = {
   IconChatDots,

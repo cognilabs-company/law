@@ -53,12 +53,15 @@ const ALIAS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^\/(lawyers|services|subscription)$/, (m) => (m[1] === "lawyers" ? "/portal/client/lawyers" : m[1] === "services" ? "/portal/client/services" : "/portal/client/subscription")],
   [/^\/portal\/call-center\/support(\/[^/]+)?$/, (m) => `/admin/call-center/support${m[1] ?? ""}`],
   [/^\/portal\/call-center(\/.*)?$/, () => "/admin/call-center"],
+  [/^\/portal\/(?:advocate\/)?organization\/members\/([^/]+)(?:\/services)?$/, (m) => `/portal/organization/members/${m[1]}/services`],
   [/^\/portal\/organization\/([^/]+)\/dashboard$/, (m) => `/portal/advocate/organization/${m[1]}`],
   [/^\/portal\/organization\/(advocates|works|stats)$/, () => "/portal/advocate/organization"],
   [/^\/portal\/organization(\/.*)?$/, (m) => `/portal/advocate/organization${m[1] ?? ""}`],
   [/^\/portal\/seller(\/.*)?$/, (m) => `/portal/advocate${m[1] ?? ""}`],
   [/^\/portal\/admin\/(dashboard|marketplace|subscriptions|support)$/, (m) => ADMIN_ALIAS[m[1]]],
 ];
+
+const ORG_MEMBER_SERVICES = /^\/portal\/organization\/members\/[^/]+\/services$/;
 
 export function normPath(raw: string): string {
   const path = (raw || "").split(/[?#]/)[0].replace(/^\/(uz|ru|en)(?=\/|$)/, "").replace(/\/+$/, "");
@@ -85,6 +88,8 @@ export function guideHref(raw: string, role: GuideRole): string {
   if (!path) return "";
 
   if (role === "client") return path === "/portal/client" || path.startsWith("/portal/client/") ? path + rest : "";
+
+  if (ORG_MEMBER_SERVICES.test(path)) return role === "advocate" ? path + rest : "";
 
   if (role === "staff") {
     if (path === "/admin" || path.startsWith("/admin/")) return path + rest;
@@ -120,7 +125,8 @@ const ROLE_ROOT = /^\/(portal\/[^/]+|admin)$/;
 
 export function routeAllowed(href: string, allowed: string[], role: GuideRole): boolean {
   if (!allowed.length) return true;
-  const path = normPath(href);
+  const given = normPath(href);
+  const path = ORG_MEMBER_SERVICES.test(given) ? `/portal/advocate/organization${given.slice("/portal/organization".length)}` : given;
   for (const raw of allowed) {
     const mapped = guideHref(raw, role);
     if (!mapped) continue;

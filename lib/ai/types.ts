@@ -67,6 +67,8 @@ export type AiEndpoints = {
   confirm: string;
 };
 
+export type AiSupportFallback = { available: boolean; reason: string; confirmAction: string };
+
 export type AiChatResponse = {
   contractVersion: string;
   sessionId: string;
@@ -76,6 +78,9 @@ export type AiChatResponse = {
   rawCommands: unknown[];
   toolResults: Record<string, unknown>;
   suggestions: string[];
+  steps: string[];
+  missingRequirements: string[];
+  supportFallback: AiSupportFallback | null;
   endpoints: AiEndpoints;
 };
 
@@ -112,12 +117,15 @@ export type UiManifest = {
 
 export type AiTurn = { role: "user" | "assistant"; content: string };
 
+export type AiTargetDecl = { ai_id: string; type: string; label: string; route: string };
+
 export type AiChatRequest = {
   session_id?: string;
   locale: string;
   message: string;
   runtime_state: RuntimeState;
   ui_manifest: UiManifest;
+  targets?: AiTargetDecl[];
   history: AiTurn[];
 };
 
@@ -139,10 +147,14 @@ export type AiEventBody = {
   command_type?: string;
   status: AiEventStatus;
   target?: string;
+  reason?: string;
+  current_route: string;
   details: Record<string, unknown>;
 };
 
 export type AiActor = { userId: string; name: string; role: string };
+
+export type AiDetailRow = { label: string; value: string };
 
 export type ActionPreview = {
   action: string;
@@ -159,6 +171,7 @@ export type ActionPreview = {
   expiresAt: number;
   warnings: string[];
   details: string[];
+  detailRows: AiDetailRow[];
   message: string;
 };
 
@@ -166,6 +179,7 @@ export type ActionResult = {
   status: string;
   ticketId: string;
   ticketWorkId: string;
+  workId: string;
   paymentUrl: string;
   nextHref: string;
   nextTarget: string;

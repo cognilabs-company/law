@@ -380,8 +380,8 @@ export function normMarketOrder(v: unknown): MarketOrder {
   };
 }
 
-export async function listMarketplaceOrders(roleView: "client" | "seller"): Promise<MarketOrder[]> {
-  const d = await http(`/marketplace/me/orders?role_view=${roleView}`);
+export async function listMarketplaceOrders(roleView: "client" | "seller", opts: { signal?: AbortSignal } = {}): Promise<MarketOrder[]> {
+  const d = await http(`/marketplace/me/orders?role_view=${roleView}`, { signal: opts.signal });
   const items = Array.isArray(d) ? d : asArr(asDict(d).items);
   return items.map(normMarketOrder).filter((o) => o.id);
 }
@@ -412,26 +412,100 @@ export async function completeMarketplaceOrder(orderId: string, note: string): P
 
 export const MARKET_EVENT = "lexgo:marketplace";
 
-export type MarketSignal = { kind: "paid" | "rejected" | "requested" | "other"; orderId: string; roomId: string; serviceTitle: string };
+export type MarketSignal = { kind: "paid" | "rejected" | "requested" | "other"; orderId: string; workId: string; roomId: string; serviceTitle: string };
 
 export function marketSignalOf(ev: { event: string } & Record<string, unknown>): MarketSignal | null {
   const name = ev.event;
   if (name.startsWith("marketplace.")) {
     const kind = /paid|approved/.test(name) ? "paid" : /reject|cancel/.test(name) ? "rejected" : "other";
     const chat = asStr(ev.chat_url);
-    return { kind, orderId: asStr(ev.order_id), roomId: asStr(ev.room_id) || (ROOM_RE.exec(chat)?.[1] ?? ""), serviceTitle: asStr(ev.service_title) };
+    return {
+      kind,
+      orderId: asStr(ev.order_id),
+      workId: asStr(ev.work_id) || asStr(asDict(ev.purchase_request).work_id),
+      roomId: asStr(ev.room_id) || (ROOM_RE.exec(chat)?.[1] ?? ""),
+      serviceTitle: asStr(ev.service_title),
+    };
   }
   if (name !== "notification.created") return null;
   const n = asDict(ev.notification);
   const data = asDict(n.data);
   const inner = asStr(data.event);
+  if (inner === "order_payment_updated" && asStr(data.order_id)) {
+    return { kind: "other", orderId: asStr(data.order_id), workId: "", roomId: "", serviceTitle: "" };
+  }
+  if (inner === "payment_paid" && asStr(data.target_type) === "marketplace_order" && asStr(data.target_id)) {
+    return { kind: "other", orderId: asStr(data.target_id), workId: "", roomId: "", serviceTitle: "" };
+  }
   if (!inner.startsWith("marketplace_")) return null;
   const kind = inner === "marketplace_purchase_approved" || inner === "marketplace_order_paid" ? "paid" : inner === "marketplace_purchase_rejected" ? "rejected" : inner === "marketplace_purchase_requested" ? "requested" : "other";
-  return { kind, orderId: asStr(data.order_id), roomId: asStr(data.room_id), serviceTitle: asStr(data.service_title) || asStr(n.body) };
+  return { kind, orderId: asStr(data.order_id), workId: asStr(data.work_id), roomId: asStr(data.room_id), serviceTitle: asStr(data.service_title) || asStr(n.body) };
 }
 
 export function isOrderPending(o: Pick<MarketOrder, "status" | "paymentStatus">): boolean {
-  return o.status === "pending_payment" || (o.status === "pending" && o.paymentStatus !== "paid");
+  return o.status === "pending_payment" || o.status === "waiting_payment" || (o.status === "pending" && o.paymentStatus !== "paid");
+}
+
+export const MARKET_DONE = new Set(["completed", "rated", "done", "closed"]);
+export const MARKET_STOPPED = new Set(["cancelled", "canceled", "declined", "rejected", "lost", "refunded"]);
+
+export type MarketStage = "pending" | "active" | "completed" | "cancelled";
+
+export function marketStageOf(o: Pick<MarketOrder, "status" | "paymentStatus">): MarketStage {
+  if (MARKET_STOPPED.has(o.status)) return "cancelled";
+  if (MARKET_DONE.has(o.status)) return "completed";
+  if (isOrderPending(o)) return "pending";
+  return "active";
+}
+
+export type MarketTrackPhase = "pending" | "paid" | "chat" | "completed" | "cancelled";
+
+export function phaseOfStatus(status: string): MarketTrackPhase {
+  const s = status.trim().toLowerCase();
+  if (MARKET_STOPPED.has(s)) return "cancelled";
+  if (MARKET_DONE.has(s)) return "completed";
+  if (!s || s === "pending" || s === "pending_payment" || s === "waiting_payment") return "pending";
+  return "paid";
+}
+
+export function trackPhaseOf(o: Pick<MarketOrder, "status" | "paymentStatus" | "canStartChat">): MarketTrackPhase {
+  const stage = marketStageOf(o);
+  if (stage !== "active") return stage;
+  return o.canStartChat ? "chat" : "paid";
+}
+
+export function findMarketOrder(list: MarketOrder[], orderId: string, workId: string): MarketOrder | null {
+  const byId = orderId ? list.find((o) => o.id === orderId) : undefined;
+  if (byId) return byId;
+  const byWork = workId ? list.find((o) => o.workId === workId) : undefined;
+  return byWork ?? null;
+}
+
+export function marketChatHref(o: { roomId: string; workId?: string; serviceTitle?: string }): string {
+  const qs = new URLSearchParams();
+  if (o.workId) qs.set("wid", o.workId);
+  if (o.serviceTitle) qs.set("svc", o.serviceTitle);
+  const q = qs.toString();
+  return `/portal/chat/${encodeURIComponent(o.roomId)}${q ? `?${q}` : ""}`;
+}
+
+const heldOrders = new Map<string, number>();
+
+export function holdMarketOrder(orderId: string): () => void {
+  if (!orderId) return () => {};
+  heldOrders.set(orderId, (heldOrders.get(orderId) ?? 0) + 1);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const left = (heldOrders.get(orderId) ?? 1) - 1;
+    if (left > 0) heldOrders.set(orderId, left);
+    else heldOrders.delete(orderId);
+  };
+}
+
+export function isMarketOrderHeld(orderId: string): boolean {
+  return !!orderId && heldOrders.has(orderId);
 }
 
 const sellerCache = new Map<string, MarketSeller>();

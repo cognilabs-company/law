@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentType, useCallback } from "react";
+import { useEffect, useMemo, useState, type ComponentType, type SVGProps, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -40,13 +40,13 @@ import { fmtUzs } from "@/lib/money";
 import { initials, humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Select from "@/components/Select";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { evalBusinessHours, responseDeadline, deadlineLabel } from "@/lib/businessHours";
 import { getBusinessHours, DEFAULT_BUSINESS_HOURS } from "@/lib/services/backend";
 import {
   IconBriefcase,
-  IconSearch,
   IconArrowRight,
   IconChevronLeft,
   IconSparkle,
@@ -66,7 +66,9 @@ import {
   IconEye,
   IconEdit,
   IconPlus,
-  IconClose,
+  IconCard,
+  IconUser,
+  IconGrid,
 } from "@/components/icons";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { fmtRating } from "@/lib/date";
@@ -186,7 +188,29 @@ function templateFileName(rawName: string, serviceName: string, mimeType: string
   return `${cleanDocTitle(rawName.replace(FILE_EXT, "")) || cleanDocTitle(serviceName) || fallback}.${ext}`;
 }
 
-type Sort = "match" | "rating" | "exp" | "price";
+const SORT_VALUES = ["match", "rating", "exp", "price"] as const;
+type Sort = (typeof SORT_VALUES)[number];
+const SORT_LABEL: Record<Sort, string> = { match: "sortMatch", rating: "sortRating", exp: "sortExp", price: "sortPrice" };
+
+const CATEGORY_AI_SLUG: Record<string, string> = {
+  "legal-doc-civil": "fuqarolik",
+  "legal-doc-criminal": "jinoiy",
+  "legal-doc-administrative": "mamuriy",
+  "legal-doc-economic": "iqtisodiy",
+};
+const categoryAiId = (c: { id: string; slug: string }) => {
+  const slug = CATEGORY_AI_SLUG[c.slug];
+  return slug ? `documents.catalog.category.${slug}` : aiId("documents.category", c.id);
+};
+
+const SEARCH_PANEL_TARGET = "documents:catalog-search";
+
+const IconSortArrows = (p: SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M7 20V4M3 8l4-4 4 4" />
+    <path d="M17 4v16M13 16l4 4 4-4" />
+  </svg>
+);
 
 // ── Catalogue filters, each one measured before it was offered ──────────
 // A filter whose rows all share one value is noise, so every option below was
@@ -717,8 +741,6 @@ export default function ClientServices() {
     for (const v of EXEC_VALUES) exec[v] = list.filter((s) => inDoc(s, docFilter) && inPrice(s, priceFilter) && inExec(s, v)).length;
     return { doc, price, exec };
   }, [list, docFilter, priceFilter, execFilter]);
-  const svcFiltersOn = docFilter !== "all" || priceFilter !== "all" || execFilter !== "all" || svcSort !== "rel";
-  const dirFiltersOn = dirSize !== "all" || subSort !== "count";
 
   // Deep link from the AI offer cards (?service=<id>) opens that service's order
   // modal once the catalog is loaded; a service outside the catalog list is
@@ -822,6 +844,7 @@ export default function ClientServices() {
     };
   }, [order, myRegion, forceAdvocate]);
 
+  const sortable = !sellersLoading && sellers.filter((l) => l.userId).length > 1;
   const sortedSellers = useMemo(() => {
     const rows = [...sellers];
     const score = (l: BackendLawyer) => cands.get(l.userId)?.score ?? -1;
@@ -966,7 +989,7 @@ export default function ClientServices() {
     setCat("");
   };
   useAiReveal("documents.categories", showCategories);
-  useAiReveal(/^documents\.category\./, showCategories);
+  useAiReveal(/^documents\.(?:catalog\.)?category\./, showCategories);
   useAiReveal("documents.subcategories", () => {
     setQ("");
     setSubcat("");
@@ -977,6 +1000,7 @@ export default function ClientServices() {
   useAiReveal(/^services\.card\./, (id) => revealService(segAfter(id, "services.card"), (s) => s.id));
 
   useAiField("documents.search.input", { get: () => q, set: setQ });
+  useAiField("documents.catalog.search", { get: () => q, set: setQ });
   useAiField(svcScreen ? "documents.filters.doc" : "", { get: () => docFilter, set: (v) => setDocFilter(pick(DOC_VALUES, v, "all")) });
   useAiField(svcScreen ? "documents.filters.executor" : "", { get: () => execFilter, set: (v) => setExecFilter(pick(EXEC_VALUES, v, "all")) });
   useAiField(svcScreen ? "documents.filters.price" : "", { get: () => priceFilter, set: (v) => setPriceFilter(pick(PRICE_VALUES, v, "all")) });
@@ -988,6 +1012,102 @@ export default function ClientServices() {
   useAiSelection("documents_category", cat || famFilter);
   useAiSelection("documents_subcategory", subcat);
   useAiModal("documents.create.modal", () => setNewDocOpen(true));
+  const pickerOpen = Boolean(order && orderAsAdvocate && !payOrderId && !docLawyer);
+  useAiField(pickerOpen && sortable ? "services.order.sellers.sort" : "", {
+    get: () => sort,
+    set: (v) => {
+      const w = v.trim().toLowerCase();
+      const hit = SORT_VALUES.find((s) => s === w || t(SORT_LABEL[s]).toLowerCase() === w);
+      if (hit) setSort(hit);
+    },
+  });
+
+  const resetFilters = () => {
+    if (svcScreen) {
+      clearSvcFilters();
+      setSvcSort("rel");
+    } else {
+      setDirSize("all");
+      setSubSort("count");
+    }
+  };
+  const withCount = (label: string, n: number) => `${label} (${n})`;
+  const filterFields: FilterField[] = svcScreen
+    ? [
+        {
+          key: "doc",
+          label: t("filterDoc"),
+          icon: IconFileText,
+          value: docFilter,
+          empty: "all",
+          onChange: (v) => setDocFilter(pick(DOC_VALUES, v, "all")),
+          options: DOC_VALUES.map((v) => ({ value: v, label: withCount(t(DOC_LABEL[v]), fCounts.doc[v]) })),
+          aiId: "documents.filters.doc",
+        },
+        {
+          key: "executor",
+          label: t("filterExec"),
+          icon: IconUser,
+          value: execFilter,
+          empty: "all",
+          onChange: (v) => setExecFilter(pick(EXEC_VALUES, v, "all")),
+          options: EXEC_VALUES.map((v) => ({ value: v, label: withCount(t(EXEC_LABEL[v]), fCounts.exec[v]) })),
+          aiId: "documents.filters.executor",
+        },
+        {
+          key: "price",
+          label: t("filterPrice"),
+          icon: IconCard,
+          value: priceFilter,
+          empty: "all",
+          onChange: (v) => setPriceFilter(pick(PRICE_VALUES, v, "all")),
+          options: PRICE_VALUES.map((v) => ({ value: v, label: withCount(t(PRICE_LABEL[v]), fCounts.price[v]) })),
+          aiId: "documents.filters.price",
+        },
+        {
+          key: "sort",
+          label: t("sortLabel"),
+          icon: IconSortArrows,
+          value: svcSort,
+          empty: "rel",
+          onChange: (v) => setSvcSort(pick(SVCSORT_VALUES, v, "rel")),
+          options: SVCSORT_VALUES.map((v) => ({ value: v, label: t(SVCSORT_LABEL[v]) })),
+          aiId: "documents.filters.sort",
+        },
+      ]
+    : [
+        {
+          key: "sort",
+          label: t("sortLabel"),
+          icon: IconSortArrows,
+          value: subSort,
+          empty: "count",
+          onChange: (v) => setSubSort(pick(SUBSORT_VALUES, v, "count")),
+          options: SUBSORT_VALUES.map((v) => ({ value: v, label: t(SUBSORT_LABEL[v]) })),
+          aiId: "documents.filters.sort",
+        },
+        {
+          key: "size",
+          label: t("filterSize"),
+          icon: IconGrid,
+          value: dirSize,
+          empty: "all",
+          onChange: (v) => setDirSize(pick(DIRSIZE_VALUES, v, "all")),
+          options: DIRSIZE_VALUES.map((v) => ({ value: v, label: withCount(t(DIRSIZE_LABEL[v]), dirCounts[v]) })),
+          aiId: "documents.filters.size",
+        },
+      ];
+  const resultsLoading =
+    cats.status === "loading" || (Boolean(cat) && services.status === "loading") || (Boolean(query) && (!remote || remote.q.toLowerCase() !== query));
+  const resultCount = resultsLoading
+    ? undefined
+    : svcScreen
+      ? shown.length
+      : showSubcats
+        ? subcatList.length
+        : allSubcats.length
+          ? flatSubcats.length
+          : famList.length;
 
   const orderModalId = payOrderId
     ? "services.order.payment"
@@ -1057,13 +1177,6 @@ export default function ClientServices() {
             place the client is told what is inside before drilling further. */}
         {showSubcats && catRow?.description ? <p className="svcat__lead">{catRow.description}</p> : null}
 
-        <div className="svsel__bar" data-ai-target="documents:catalog-search" data-ai-label={t("search")}>
-          <span className="svsel__search">
-            <IconSearch />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} data-ai-id="documents.search.input" />
-          </span>
-        </div>
-
         {/* ── One filter row for every screen of the catalogue ──────────
             The GM asked for two things that only work together: more filters
             beside "Tartib", and the "Barcha hujjatlarni ko'rish bepul!" line
@@ -1078,98 +1191,24 @@ export default function ClientServices() {
             honestly answer: the two direction screens hold no service rows on
             purpose, so they filter on the one field GET /service-categories
             returns that varies. */}
-        <div className="svfilt" data-ai-target="documents:catalog-filters" data-ai-id="documents.filters" data-ai-type="section">
-          {svcScreen ? (
-            <>
-              <label className="svfilt__f" data-ai-id="documents.filters.doc" data-ai-type="select">
-                <span>{t("filterDoc")}</span>
-                <Select
-                  value={docFilter}
-                  onChange={(v) => setDocFilter(pick(DOC_VALUES, v, "all"))}
-                  ariaLabel={t("filterDoc")}
-                  options={DOC_VALUES.map((v) => ({ value: v, label: `${t(DOC_LABEL[v])} · ${fCounts.doc[v]}` }))}
-                />
-              </label>
-              <label className="svfilt__f" data-ai-id="documents.filters.executor" data-ai-type="select">
-                <span>{t("filterExec")}</span>
-                <Select
-                  value={execFilter}
-                  onChange={(v) => setExecFilter(pick(EXEC_VALUES, v, "all"))}
-                  ariaLabel={t("filterExec")}
-                  options={EXEC_VALUES.map((v) => ({ value: v, label: `${t(EXEC_LABEL[v])} · ${fCounts.exec[v]}` }))}
-                />
-              </label>
-              <label className="svfilt__f" data-ai-id="documents.filters.price" data-ai-type="select">
-                <span>{t("filterPrice")}</span>
-                <Select
-                  value={priceFilter}
-                  onChange={(v) => setPriceFilter(pick(PRICE_VALUES, v, "all"))}
-                  ariaLabel={t("filterPrice")}
-                  options={PRICE_VALUES.map((v) => ({ value: v, label: `${t(PRICE_LABEL[v])} · ${fCounts.price[v]}` }))}
-                />
-              </label>
-              <label className="svfilt__f" data-ai-id="documents.filters.sort" data-ai-type="select">
-                <span>{t("sortLabel")}</span>
-                <Select
-                  value={svcSort}
-                  onChange={(v) => setSvcSort(pick(SVCSORT_VALUES, v, "rel"))}
-                  ariaLabel={t("sortLabel")}
-                  options={SVCSORT_VALUES.map((v) => ({ value: v, label: t(SVCSORT_LABEL[v]) }))}
-                />
-              </label>
-            </>
-          ) : (
-            <>
-              <label className="svfilt__f" data-ai-id="documents.filters.sort" data-ai-type="select">
-                <span>{t("sortLabel")}</span>
-                <Select
-                  value={subSort}
-                  onChange={(v) => setSubSort(pick(SUBSORT_VALUES, v, "count"))}
-                  ariaLabel={t("sortLabel")}
-                  options={SUBSORT_VALUES.map((v) => ({ value: v, label: t(SUBSORT_LABEL[v]) }))}
-                />
-              </label>
-              <label className="svfilt__f" data-ai-id="documents.filters.size" data-ai-type="select">
-                <span>{t("filterSize")}</span>
-                <Select
-                  value={dirSize}
-                  onChange={(v) => setDirSize(pick(DIRSIZE_VALUES, v, "all"))}
-                  ariaLabel={t("filterSize")}
-                  options={DIRSIZE_VALUES.map((v) => ({ value: v, label: `${t(DIRSIZE_LABEL[v])} · ${dirCounts[v]}` }))}
-                />
-              </label>
-            </>
-          )}
-          {(svcScreen ? svcFiltersOn : dirFiltersOn) ? (
-            <button
-              type="button"
-              className="svfilt__clear"
-              data-ai-id="documents.filters.clear"
-              onClick={() => {
-                if (svcScreen) {
-                  setDocFilter("all");
-                  setPriceFilter("all");
-                  setExecFilter("all");
-                  setSvcSort("rel");
-                } else {
-                  setDirSize("all");
-                  setSubSort("count");
-                }
-              }}
-            >
-              <IconClose />
-              {t("filterClear")}
-            </button>
-          ) : null}
-          {/* Reading any document in the catalogue costs nothing — the charge
-              is for filling one in, and saying so up front is what gets people
-              to open one at all. Same string and the same role="status" as the
-              banner it replaces; only the place and the paint changed. */}
-          <span className="svfilt__free" role="status">
-            <IconEye />
-            {t("freeToView")}
-          </span>
-        </div>
+        <FilterBar
+          fields={filterFields}
+          search={{ value: q, onChange: setQ, placeholder: t("search"), maxLength: 120, aiId: "documents.search.input", aiTarget: SEARCH_PANEL_TARGET, aiLabel: t("search") }}
+          count={resultCount}
+          onReset={resetFilters}
+          extra={
+            <span className="svfilt__free" role="status">
+              <IconEye aria-hidden="true" />
+              {t("freeToView")}
+            </span>
+          }
+          aiId="documents.filters"
+          aiTarget="documents:catalog-filters"
+        />
+        <p className="svfilt__free svfilt__free--m" role="status">
+          <IconEye aria-hidden="true" />
+          {t("freeToView")}
+        </p>
 
         {!showFamilies && !query ? (
           <button type="button" className="mkt__back" onClick={() => (subcat ? setSubcat("") : setCat(""))} data-ai-id="documents.catalog.back">
@@ -1230,7 +1269,7 @@ export default function ClientServices() {
                     aria-checked={on}
                     className={`svcat${on ? " on" : ""}`}
                     onClick={() => setFamFilter(c.id)}
-                    data-ai-id={aiId("documents.category", c.id)}
+                    data-ai-id={categoryAiId(c)}
                     data-ai-entity-type="service_category"
                     data-ai-entity-id={c.id}
                     data-ai-entity-slug={c.slug || undefined}
@@ -1308,7 +1347,7 @@ export default function ClientServices() {
                     type="button"
                     className="svfam"
                     onClick={() => setCat(c.id)}
-                    data-ai-id={aiId("documents.category", c.id)}
+                    data-ai-id={categoryAiId(c)}
                     data-ai-entity-type="service_category"
                     data-ai-entity-id={c.id}
                     data-ai-entity-slug={c.slug || undefined}
@@ -1592,63 +1631,70 @@ export default function ClientServices() {
               {order ? <ServicePassport serviceId={order.id} /> : null}
 
               <div>
-                <label>{t("chooseAdvocate")}</label>
+                <div className="svfilt__pick">
+                  <label>{t("chooseAdvocate")}</label>
+                  {sortable ? (
+                    <div className="svfilt__sort" data-ai-id="services.order.sellers.sort" data-ai-type="select" data-ai-label={t("sortLabel")}>
+                      <span className="svfilt__sortl">
+                        <IconSortArrows aria-hidden="true" />
+                        {t("sortLabel")}
+                      </span>
+                      <Select
+                        value={sort}
+                        onChange={(v) => setSort(pick(SORT_VALUES, v, "match"))}
+                        ariaLabel={t("sortLabel")}
+                        options={SORT_VALUES.map((s) => ({ value: s, label: t(SORT_LABEL[s]) }))}
+                      />
+                    </div>
+                  ) : null}
+                </div>
                 {preSeller && preSellerOffers === false ? <p className="bhnote" role="status"><IconAlert />{t("preSellerNotOffering", { name: preSeller.name || t("preSellerAnon") })}</p> : null}
                 {sellersLoading ? (
                   <Skeleton rows={2} />
                 ) : !sortedSellers.length ? (
                   <p className="advmuted">{t("noSellers")}</p>
                 ) : (
-                  <>
-                    <div className="chiprow chiprow--tabs">
-                      {(["match", "rating", "exp", "price"] as Sort[]).map((s) => (
-                        <button key={s} type="button" className="fchip" aria-pressed={sort === s} onClick={() => setSort(s)}>
-                          {t(s === "match" ? "sortMatch" : s === "rating" ? "sortRating" : s === "exp" ? "sortExp" : "sortPrice")}
-                        </button>
-                      ))}
-                    </div>
-                    <div id="advpick" className={`advpick${missing === "seller" ? " is-bad" : ""}`}>
-                      {sortedSellers.filter((l) => l.userId).map((l) => {
-                        const on = sellerId === l.userId;
-                        const c = cands.get(l.userId);
-                        const reasons = (c?.reasons ?? []).filter((r) => r !== "verified").slice(0, 2);
-                        return (
-                          <button
-                            key={l.userId}
-                            type="button"
-                            className={`advpick__c${on ? " on" : ""}`}
-                            onClick={() => { setSellerId(l.userId); setMissing(""); }}
-                          >
-                            <span className="advpick__av">{initials(l.name || "A")}</span>
-                            <span className="advpick__m">
-                              <b>
-                                {l.name || "—"}
-                                {l.verified || c?.reasons.includes("verified") ? <VerifiedBadge interactive={false} label={false} className="advpick__vf" /> : <em className="advpick__un">{t("unverified")}</em>}
-                              </b>
-                              <span className="advpick__stats">
-                                <i><IconStar />{l.rated ? fmtRating(l.rating, locale) : t("unrated")}</i>
-                                {l.experienceYears ? <i>{t("expYears", { n: l.experienceYears })}</i> : null}
-                                {l.successRate ? <i>{t("successRate", { n: l.successRate })}</i> : null}
-                                {l.region ? <i><IconMapPin />{te.has(`regions.${l.region}`) ? te(`regions.${l.region}`) : l.region}</i> : null}
+                  <div id="advpick" className={`advpick${missing === "seller" ? " is-bad" : ""}`}>
+                    {sortedSellers.filter((l) => l.userId).map((l) => {
+                      const on = sellerId === l.userId;
+                      const c = cands.get(l.userId);
+                      const reasons = (c?.reasons ?? []).filter((r) => r !== "verified").slice(0, 2);
+                      return (
+                        <button
+                          key={l.userId}
+                          type="button"
+                          className={`advpick__c${on ? " on" : ""}`}
+                          onClick={() => { setSellerId(l.userId); setMissing(""); }}
+                        >
+                          <span className="advpick__av">{initials(l.name || "A")}</span>
+                          <span className="advpick__m">
+                            <b>
+                              {l.name || "—"}
+                              {l.verified || c?.reasons.includes("verified") ? <VerifiedBadge interactive={false} label={false} className="advpick__vf" /> : <em className="advpick__un">{t("unverified")}</em>}
+                            </b>
+                            <span className="advpick__stats">
+                              <i><IconStar />{l.rated ? fmtRating(l.rating, locale) : t("unrated")}</i>
+                              {l.experienceYears ? <i>{t("expYears", { n: l.experienceYears })}</i> : null}
+                              {l.successRate ? <i>{t("successRate", { n: l.successRate })}</i> : null}
+                              {l.region ? <i><IconMapPin />{te.has(`regions.${l.region}`) ? te(`regions.${l.region}`) : l.region}</i> : null}
+                            </span>
+                            {c ? (
+                              <span className="advpick__match">
+                                <em>{t("matchScore", { n: Math.round(c.score) })}</em>
+                                {reasons.map((r) => (
+                                  <small key={r}>{reasonLabel(r)}</small>
+                                ))}
                               </span>
-                              {c ? (
-                                <span className="advpick__match">
-                                  <em>{t("matchScore", { n: Math.round(c.score) })}</em>
-                                  {reasons.map((r) => (
-                                    <small key={r}>{reasonLabel(r)}</small>
-                                  ))}
-                                </span>
-                              ) : null}
-                            </span>
-                            <span className="advpick__price">
-                              {l.basePrice ? `${som(l.basePrice)} ${t("som")}` : t("byRequest")}
-                              {on ? <IconCheck className="advpick__ck" /> : null}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
+                            ) : null}
+                          </span>
+                          <span className="advpick__price">
+                            {l.basePrice ? `${som(l.basePrice)} ${t("som")}` : t("byRequest")}
+                            {on ? <IconCheck className="advpick__ck" /> : null}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
                 {/* The red box alone would leave the press mute — it marks the
                     list and moves focus into it, and the client is never told in

@@ -7,6 +7,8 @@ import { dateOnly } from "@/lib/date";
 import { Link } from "@/i18n/navigation";
 import type { Role } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
+import { useAiField, useAiSelection } from "@/lib/ai/registry";
+import Select from "@/components/Select";
 import SellerDashboard from "./SellerDashboard";
 import { useSellerCabinet } from "./SellerCabinet";
 import MiniCalendar, { type MiniCalEvent } from "./MiniCalendar";
@@ -35,6 +37,10 @@ const num = (o: Record<string, unknown> | undefined, k: string): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+type TaskTab = "today" | "upcoming" | "done";
+const TASK_TABS: TaskTab[] = ["today", "upcoming", "done"];
+const isTaskTab = (v: string): v is TaskTab => (TASK_TABS as string[]).includes(v);
+
 const CHECKLIST = [
   { key: "checkBasics", at: 1 },
   { key: "checkId", at: 25 },
@@ -49,11 +55,19 @@ const CHECKLIST = [
 // since the lawyer nav has no dedicated place for those) differ.
 export default function SellerRichDashboard({ role }: { role: "advocate" | "lawyer" }) {
   const t = useTranslations("portal.advocate.dashboard");
+  const tt = useTranslations("portal.tasks");
   const locale = useLocale();
   const { session } = useAuth();
   const cabinet = useSellerCabinet();
   const completeness = session?.completeness ?? 0;
-  const [taskTab, setTaskTab] = useState<"today" | "upcoming" | "done">("today");
+  const [taskTab, setTaskTab] = useState<TaskTab>("today");
+  useAiSelection("dashboard_tasks_tab", taskTab);
+  useAiField("advocate.dashboard.tasks.filters.period", {
+    get: () => taskTab,
+    set: (v) => {
+      if (isTaskTab(v)) setTaskTab(v);
+    },
+  });
   const base = `/portal/${role}`;
   const QUICK = [
     { key: "quickClient", ai: "clients", Icon: IconUserPlus, href: `${base}/clients` },
@@ -187,18 +201,21 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
         <div className="ppanel" data-ai-target="seller-dashboard:tasks" data-ai-id="advocate.dashboard.tasks" data-ai-label={t("myTasks")}>
           <div className="ppanel__h">
             <b>{t("myTasks")}</b>
-          </div>
-          <div className="dtabs" role="tablist">
-            {(["today", "upcoming", "done"] as const).map((k) => (
-              <button key={k} type="button" role="tab" aria-selected={taskTab === k} onClick={() => setTaskTab(k)} data-ai-id={`advocate.dashboard.tasks.tab.${k}`}>
-                {t(`tab_${k}`, { n: taskGroups[k].length })}
-              </button>
-            ))}
+            <div className="wsel" data-ai-id="advocate.dashboard.tasks.filters.period" data-ai-type="select" data-ai-label={tt("due")}>
+              <Select
+                value={taskTab}
+                onChange={(v) => {
+                  if (isTaskTab(v)) setTaskTab(v);
+                }}
+                ariaLabel={tt("due")}
+                options={TASK_TABS.map((k) => ({ value: k, label: t(`tab_${k}`, { n: taskGroups[k].length }) }))}
+              />
+            </div>
           </div>
           {!shownTasks.length ? (
-            <p className="advmuted" style={{ marginTop: 14 }}>{t("tasksEmpty")}</p>
+            <p className="advmuted">{t("tasksEmpty")}</p>
           ) : (
-            <div style={{ marginTop: 6 }} data-ai-private>
+            <div data-ai-private>
               {shownTasks.map((c) => (
                 <div className="dtask" key={c.id}>
                   <span className={`dtask__dot${c.isDone ? " dtask__dot--done" : ""}`} />

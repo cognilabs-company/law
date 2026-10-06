@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import Select from "@/components/Select";
-import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconHeadset, IconLayers, IconList, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUsers } from "@/components/icons";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
+import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconHeadset, IconLayers, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUser, IconUsers } from "@/components/icons";
 import HeroShowcase from "./HeroShowcase";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { aiSearchMarketplace, listMarketplace, marketAiAvailable, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketSeller } from "@/lib/services/marketplace";
@@ -13,7 +13,6 @@ import { regionKeyOf, regionLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { fmtRating } from "@/lib/date";
 import { Monogram, hasRating, hasSuccess, sellerTypeLabel, specLabel } from "./bits";
-import { useAiReveal } from "@/lib/guide/targets";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 
@@ -22,7 +21,6 @@ type Status = "loading" | "ready" | "error";
 const SORT = "recommended";
 const PRICE_STEPS = [300000, 500000, 1000000, 2000000];
 const EXPERIENCE_STEPS = [3, 5, 10];
-const AI_FILTER_REVEAL = /^marketplace\.filters(\.(region|category|service|experience|rating|price|apply))?$/;
 
 function aiNorm(v: string): string {
   return v.toLowerCase().replace(/[ʻʼ'‘’`]/g, "").replace(/\s+/g, " ").trim();
@@ -103,8 +101,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [minRating, setMinRating] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [minExp, setMinExp] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  useAiReveal("marketplace:filters", () => setFiltersOpen(true));
+  const [sellerType, setSellerType] = useState("");
   const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string; disclaimer: string } | null>(null);
   const aiCtrl = useRef<AbortController | null>(null);
   const [aiPending, setAiPending] = useState("");
@@ -173,6 +170,13 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     return [...keys.entries()].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
   }, [items, te]);
 
+  const sellerTypes = useMemo(() => {
+    const seen = new Set<string>();
+    const src = meta?.sellerTypes.length ? meta.sellerTypes : items.map((s) => s.sellerType);
+    for (const v of src) if (v === "advokat" || v === "yurist") seen.add(v);
+    return (["advokat", "yurist"] as const).filter((v) => seen.has(v)).map((value) => ({ value, label: sellerTypeLabel(t, value) }));
+  }, [meta, items, t]);
+
   const categories = useMemo(() => {
     const src = meta?.categories.length ? meta.categories : items.flatMap((s) => s.categories);
     const m = new Map<string, string>();
@@ -201,6 +205,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     const hayOf = (s: MarketSeller) => [s.name, s.organizationName, regionLabel(te, s.region), s.district, ...s.specializations.map((x) => specLabel(te, x)), ...s.serviceTitles, ...s.services.map((x) => x.title), ...s.categories.map((c) => c.title)].join(" ");
     const pool = items.concat(extra).filter((s) => {
       if (region && (regionKeyOf(te, s.region) || s.region.toLowerCase()) !== region) return false;
+      if (sellerType && s.sellerType !== sellerType) return false;
       if (effSpec && !s.specializations.some((x) => x.toLowerCase() === effSpec)) return false;
       if (category && !s.categories.some((c) => c.id === category) && !s.services.some((x) => x.categoryId === category)) return false;
       if (service && !s.services.some((x) => x.id === service)) return false;
@@ -222,7 +227,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       .filter((x) => x.hits > 0)
       .sort((a, b) => b.hits - a.hits)
       .map((x) => x.s);
-  }, [items, region, effSpec, category, service, minRating, priceMax, minExp, q, te, aiHit, aiThinking]);
+  }, [items, region, sellerType, effSpec, category, service, minRating, priceMax, minExp, q, te, aiHit, aiThinking]);
 
   const aiMatchOf = useMemo(() => new Map((aiHit?.matches ?? []).map((m) => [m.userId, m])), [aiHit]);
 
@@ -239,7 +244,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       setAiPending(wanted);
       let r: Awaited<ReturnType<typeof aiSearchMarketplace>> = null;
       try {
-        r = await aiSearchMarketplace(wanted, { region: regionRaw, signal: c.signal });
+        r = await aiSearchMarketplace(wanted, { region: regionRaw, sellerType, signal: c.signal });
       } catch {
         return;
       }
@@ -247,7 +252,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       setAiPending("");
       setAi(r ? { q: wanted, matches: r.matches, summary: r.summary, disclaimer: r.disclaimer } : null);
     },
-    [regionRaw],
+    [regionRaw, sellerType],
   );
 
   useEffect(() => {
@@ -258,9 +263,10 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
 
   useEffect(() => () => aiCtrl.current?.abort(), []);
 
-  const activeFilters = [region, effSpec, category, service, minRating, priceMax, minExp].filter(Boolean).length;
+  const activeFilters = [region, sellerType, effSpec, category, service, minRating, priceMax, minExp].filter(Boolean).length;
   const resetFilters = () => {
     setRegion("");
+    setSellerType("");
     setSpec("");
     setCategory("");
     setService("");
@@ -319,16 +325,27 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
   };
 
-  const labelOf = (opts: { value: string; label: string }[], v: string) => opts.find((o) => o.value === v)?.label ?? v;
-  const chosen = [
-    effSpec ? { key: "spec", label: labelOf(allSpecs, effSpec), clear: () => setSpec("") } : null,
-    region ? { key: "region", label: labelOf(regionOpts, region), clear: () => setRegion("") } : null,
-    category ? { key: "category", label: labelOf(categories, category), clear: () => { setCategory(""); setService(""); } } : null,
-    service ? { key: "service", label: labelOf(services, service), clear: () => setService("") } : null,
-    minRating ? { key: "rating", label: `★ ${minRating}+`, clear: () => setMinRating("") } : null,
-    priceMax ? { key: "price", label: `≤ ${fmtUzs(Number(priceMax))}`, clear: () => setPriceMax("") } : null,
-    minExp ? { key: "exp", label: t("filters.expN", { n: Number(minExp) }), clear: () => setMinExp("") } : null,
-  ].filter((x): x is { key: string; label: string; clear: () => void } => x !== null);
+  const filterFields: FilterField[] = [
+    { key: "region", label: t("filters.region"), icon: IconMapPin, value: region, onChange: setRegion, options: [{ value: "", label: t("filters.allRegions") }, ...regionOpts], aiId: "marketplace.filters.region" },
+    { key: "seller-type", label: t("filters.sellerType"), icon: IconUser, value: sellerType, onChange: setSellerType, options: [{ value: "", label: t("filters.allSellerTypes") }, ...sellerTypes], aiId: "marketplace.filters.seller-type" },
+    {
+      key: "category",
+      label: t("filters.category"),
+      icon: IconLayers,
+      value: category,
+      onChange: (v) => {
+        setCategory(v);
+        setService("");
+      },
+      options: [{ value: "", label: t("filters.allCategories") }, ...categories],
+      aiId: "marketplace.filters.category",
+    },
+    { key: "service", label: t("filters.service"), icon: IconBriefcase, value: service, onChange: setService, options: [{ value: "", label: t("filters.allServices") }, ...services.map(({ value, label }) => ({ value, label }))], aiId: "marketplace.filters.service" },
+    { key: "exp", label: t("filters.experience"), icon: IconAward, value: minExp, onChange: setMinExp, options: [{ value: "", label: t("filters.any") }, ...EXPERIENCE_STEPS.map((n) => ({ value: String(n), label: t("filters.expN", { n }) }))], aiId: "marketplace.filters.experience" },
+    { key: "rating", label: t("filters.rating"), icon: IconStar, value: minRating, onChange: setMinRating, options: [{ value: "", label: t("filters.any") }, { value: "4", label: "4.0+" }, { value: "4.5", label: "4.5+" }], chip: minRating ? `★ ${minRating}+` : undefined, aiId: "marketplace.filters.rating" },
+    { key: "price", label: t("filters.priceMax"), icon: IconCard, value: priceMax, onChange: setPriceMax, options: [{ value: "", label: t("filters.any") }, ...PRICE_STEPS.map((p) => ({ value: String(p), label: `≤ ${fmtUzs(p)}` }))], aiId: "marketplace.filters.price" },
+    { key: "spec", label: t("filters.specialization"), value: effSpec, onChange: (v) => setSpec(v), options: [{ value: "", label: "" }, ...allSpecs], hidden: true },
+  ];
 
   const searchField = { get: () => q, set: (v: string) => setQ(v) };
   useAiField("marketplace.search.input", searchField);
@@ -338,6 +355,14 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     set: (v) => {
       const next = aiOption(regionOpts, v);
       if (next !== null) setRegion(next);
+    },
+  });
+  useAiField("marketplace.filters.seller-type", {
+    get: () => sellerType,
+    set: (v) => {
+      const w = aiNorm(v);
+      const next = !w ? "" : /advokat|адвокат|advocate/.test(w) ? "advokat" : /yurist|юрист|lawyer/.test(w) ? "yurist" : aiOption(sellerTypes, v);
+      if (next !== null) setSellerType(next);
     },
   });
   useAiField("marketplace.filters.specialization", {
@@ -385,13 +410,13 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     },
   });
   useAiSelection("region", regionRaw || region);
+  useAiSelection("seller_type", sellerType);
   useAiSelection("specialization", effSpec);
   useAiSelection("category_id", category);
   useAiSelection("service_id", service);
   useAiSelection("min_rating", minRating);
   useAiSelection("price_max", priceMax);
   useAiSelection("min_experience", minExp);
-  useAiReveal(AI_FILTER_REVEAL, () => setFiltersOpen(true));
 
   return (
     <section className={`mk mk--${variant}`}>
@@ -513,97 +538,15 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         <HeroShowcase items={items} base={base} locale={locale} />
       </div>
 
-      <div className="mk-bar">
-        <button type="button" className="mk-ftoggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)} data-ai-id="marketplace.filters.toggle">
-          <IconList />
-          {t("filters.toggle")}
-          {activeFilters ? <span className="mk-ftoggle__n">{activeFilters}</span> : null}
-        </button>
-      </div>
-
-      {filtersOpen ? <button type="button" className="mk-sheetbg" aria-label={t("filters.close")} onClick={() => setFiltersOpen(false)} /> : null}
-      <div className={`mk-filters${filtersOpen ? " is-open" : ""}`} data-ai-target="marketplace:filters" data-ai-id="marketplace.filters" data-ai-type="section">
-        <div className="mk-filters__head">
-          <b>{t("filters.toggle")}</b>
-          <button type="button" onClick={() => setFiltersOpen(false)} aria-label={t("filters.close")}>
-            <IconClose />
-          </button>
-        </div>
-        <div className="mk-fld" data-ai-id="marketplace.filters.region" data-ai-type="select">
-          <label>
-            <IconMapPin />
-            {t("filters.region")}
-          </label>
-          <Select value={region} onChange={setRegion} ariaLabel={t("filters.region")} options={[{ value: "", label: t("filters.allRegions") }, ...regionOpts]} />
-        </div>
-        <div className="mk-fld" data-ai-id="marketplace.filters.category" data-ai-type="select">
-          <label>
-            <IconLayers />
-            {t("filters.category")}
-          </label>
-          <Select
-            value={category}
-            onChange={(v) => {
-              setCategory(v);
-              setService("");
-            }}
-            ariaLabel={t("filters.category")}
-            options={[{ value: "", label: t("filters.allCategories") }, ...categories]}
-          />
-        </div>
-        <div className="mk-fld" data-ai-id="marketplace.filters.service" data-ai-type="select">
-          <label>
-            <IconBriefcase />
-            {t("filters.service")}
-          </label>
-          <Select value={service} onChange={setService} ariaLabel={t("filters.service")} options={[{ value: "", label: t("filters.allServices") }, ...services.map(({ value, label }) => ({ value, label }))]} />
-        </div>
-        <div className="mk-fld" data-ai-id="marketplace.filters.experience" data-ai-type="select">
-          <label>
-            <IconAward />
-            {t("filters.experience")}
-          </label>
-          <Select value={minExp} onChange={setMinExp} ariaLabel={t("filters.experience")} options={[{ value: "", label: t("filters.any") }, ...EXPERIENCE_STEPS.map((n) => ({ value: String(n), label: t("filters.expN", { n }) }))]} />
-        </div>
-        <div className="mk-fld" data-ai-id="marketplace.filters.rating" data-ai-type="select">
-          <label>
-            <IconStar />
-            {t("filters.rating")}
-          </label>
-          <Select value={minRating} onChange={setMinRating} ariaLabel={t("filters.rating")} options={[{ value: "", label: t("filters.any") }, { value: "4", label: "4.0+" }, { value: "4.5", label: "4.5+" }]} />
-        </div>
-        <div className="mk-fld" data-ai-id="marketplace.filters.price" data-ai-type="select">
-          <label>
-            <IconCard />
-            {t("filters.priceMax")}
-          </label>
-          <Select value={priceMax} onChange={setPriceMax} ariaLabel={t("filters.priceMax")} options={[{ value: "", label: t("filters.any") }, ...PRICE_STEPS.map((p) => ({ value: String(p), label: `≤ ${fmtUzs(p)}` }))]} />
-        </div>
-        <button type="button" className="btn btn--pri mk-filters__apply" onClick={() => setFiltersOpen(false)} data-ai-id="marketplace.filters.apply">
-          {t("filters.show", { n: list.length })}
-        </button>
-      </div>
-
-      {chosen.length ? (
-        <div className="mk-chosen" data-ai-id="marketplace.filters.chosen">
-          {chosen.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              className="mk-chosen__c"
-              onClick={c.clear}
-              aria-label={`${t("searchClear")}: ${c.label}`}
-              data-ai-id={aiId("marketplace.filters.chosen", c.key)}
-            >
-              {c.label}
-              <IconClose />
-            </button>
-          ))}
-          <button type="button" className="mk-chosen__all" onClick={resetFilters} data-ai-id="marketplace.filters.reset">
-            {t("filters.reset")}
-          </button>
-        </div>
-      ) : null}
+      <FilterBar
+        variant="market"
+        fields={filterFields}
+        count={list.length}
+        onReset={resetFilters}
+        title={t("filters.toggle")}
+        aiId="marketplace.filters"
+        aiTarget="marketplace:filters"
+      />
 
       <div className="mk-count" ref={resultsRef} aria-live="polite">
         {status === "ready" ? t("count", { n: list.length }) : null}

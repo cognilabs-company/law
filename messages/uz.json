@@ -1,4 +1,17 @@
 {
+  "filterBar": {
+    "title": "Filtrlar",
+    "search": "Qidirish",
+    "reset": "Tozalash",
+    "apply": "Qo'llash",
+    "show": "{n} ta natijani ko'rsatish",
+    "count": "{n} ta natija",
+    "close": "Yopish",
+    "remove": "Olib tashlash: {label}",
+    "clearSearch": "Qidiruvni tozalash",
+    "all": "Barchasi",
+    "any": "Farqi yo'q"
+  },
   "sellerServices": {
     "kicker": "Marketplace xizmatlari",
     "title": "Mening xizmatlarim",
@@ -45,6 +58,7 @@
       "text": "Yana {days} kun — barcha xizmatlaringiz marketplace ro'yxatida yuqoriroq chiqadi."
     },
     "blocked": {
+      "waitTitle": "Tasdiq kutilmoqda",
       "lockTitle": "Ruxsat yo'q"
     },
     "status": {
@@ -64,6 +78,7 @@
       "inactive": "Xizmat nofaol qilindi"
     },
     "card": {
+      "editLocked": "Katalogda nofaol — tahrirlab bo'lmaydi",
       "service": "Xizmat",
       "som": "so'm",
       "catalogPrice": "Katalog narxi",
@@ -131,6 +146,7 @@
       "saving": "Saqlanmoqda…"
     },
     "errors": {
+      "pendingAccountOwner": "Mutaxassis profili hali admin tasdig'idan o'tmagan.",
       "range": "Narx {min} – {max} so'm oralig'ida bo'lishi kerak.",
       "advocateOnly": "Bu xizmatni faqat advokatlar qo'sha oladi.",
       "pendingAccount": "Profil admin tasdig'idan o'tgach xizmatlarni boshqarish ochiladi.",
@@ -143,6 +159,8 @@
       "unknown": "Xatolik yuz berdi. Qayta urinib ko'ring."
     },
     "toast": {
+      "profileRejected": "Profil reklamasi so'rovi rad etildi",
+      "profileApproved": "Profil reklamasi tasdiqlandi",
       "added": "Xizmat qo'shildi",
       "saved": "O'zgarishlar saqlandi",
       "removed": "Xizmat olib tashlandi",
@@ -158,6 +176,9 @@
       "removing": "O'chirilmoqda…"
     },
     "promote": {
+      "retry": "Qayta yuborish",
+      "failText": "Admin so'rovni ko'rmaydi. Birozdan so'ng qayta yuboring yoki qo'llab-quvvatlashga yozing.",
+      "failTitle": "Telegram'ga yuborilmadi",
       "title": "Xizmatni reklama qilish",
       "lead": "Paketni tanlang — tasdiqlangach xizmat marketplace ro'yxatida yuqoriroq chiqadi.",
       "packages": "Reklama paketlari",
@@ -200,7 +221,7 @@
       "generic": "Bu yer — «{label}»."
     },
     "ui": {
-      "narrator": "AI instruktor",
+      "narrator": "LexGo AI",
       "next": "Keyingi",
       "back": "Orqaga",
       "done": "Tushunarli",
@@ -266,7 +287,7 @@
         "workload": "Barcha a'zolarning ishlarini bitta ro'yxatda ko'rasiz.",
         "summary": "Qisqacha: a'zolar, tasdiqlanganlar, buyurtmalar, ishlar va tezkor so'rovlar soni.",
         "members": "A'zolar ro'yxati: rol, hudud, tasdiq holati va faol ishlar.",
-        "active": "Faol buyurtmalar, ishlar va tezkor so'rovlar — tablarga ajratilgan."
+        "active": "Faol buyurtmalar, ishlar va tezkor so'rovlar. Turini ro'yxatdan tanlang."
       },
       "advocate_organization": {
         "title": "Advokatlik tuzilmangiz: tashkilot yaratasiz va a'zolarini boshqarasiz.",
@@ -436,7 +457,7 @@
       },
       "client_payments": {
         "title": "To'lovlar tarixi — har bir to'lov, uning sanasi va holati.",
-        "filters": "To'lovni matn yoki sana oralig'i bo'yicha toping.",
+        "filters": "To'lovni matn, holat yoki sana bo'yicha toping.",
         "history": "Barcha to'lovlaringiz shu jadvalda; chekni ham shu yerdan yuklab olasiz."
       },
       "client_packages": {
@@ -605,7 +626,7 @@
       "admin_marketplace": {
         "title": "Marketplace monitoring — buyurtmalar, to'lovlar va sotuvchilar yuklamasi bir joyda.",
         "tabs": "Umumiy ko'rinish, buyurtmalar jadvali va sotuvchilar ro'yxati orasida almashing.",
-        "period": "Davrni tanlang: bugun, 7, 30 yoki 90 kun. Aniq sanalarni yonidagi maydonlarga yozasiz.",
+        "period": "Davrni tanlang: bugun, 7, 30 yoki 90 kun. Aniq sanalar uchun «Boshqa»ni tanlang.",
         "filters": "Holat, sotuvchi va mijoz bo'yicha saralang — tanlov umumiy ko'rinish va buyurtmalarga ta'sir qiladi.",
         "kpis": "Buyurtmalar holat bo'yicha. Kartani bossangiz, o'sha buyurtmalar ro'yxati ochiladi.",
         "orders": "Buyurtmalar jadvali: qatorni bossangiz, buyurtma, to'lov va tomonlar haqida to'liq ma'lumot ochiladi."
@@ -670,8 +691,6 @@
         "support": "Yordam kerak bo'lsa — shu yerdan AI instruktor, operator bilan chat, shikoyat yoki qo'ng'iroqni tanlaysiz."
       },
       "client_dashboard": {
-        "support": "Yordam markazi — operator bilan chat ochasiz va murojaatlaringiz holatini shu yerda kuzatasiz.",
-        "subscriptions": "Tariflar — LexGo.AI va shaxsiy advokat obunasini shu yerdan tanlaysiz yoki yangilaysiz.",
         "documents": "Huquqiy hujjatlar — ariza, shartnoma va da’volarni tayyor namunalar asosida shu yerdan tuzasiz.",
         "requests": "Faol so'rovlaringiz va ularning holati shu yerda ko'rinadi.",
         "title": "Bu sizning boshqaruv panelingiz — barcha xizmatlarga shu yerdan kirasiz.",
@@ -729,7 +748,7 @@
       },
       "seller_document_requests": {
         "filters": "Nomi yoki mijoz bo'yicha qidiring, ish turi va davr bo'yicha saralang.",
-        "tabs": "«Yangi so'rovlar» — hammaga ochiq pool. Qolgan tablarda sizga biriktirilganlar turadi.",
+        "tabs": "«Yangi so'rovlar» — hammaga ochiq pool. «Menga biriktirilgan»da o'z ishlaringiz: ularni holat bo'yicha saralang.",
         "title": "Mijozlarning hujjat so'rovlari: umumiy pool, sizga biriktirilganlar va yakunlanganlar.",
         "list": "Sizga kelgan hujjat so'rovlari shu ro'yxatda — kerakligini olib, ishlaysiz."
       },
@@ -1227,6 +1246,7 @@
       }
     },
     "queue": {
+      "filter": "Navbat",
       "viewChat": "Chat",
       "views": "Chat yoki mijozga yordam",
       "transferReason": "O'tkazish sababi",
@@ -1250,6 +1270,13 @@
       "days": "{n} kun oldin"
     },
     "chat": {
+      "yesterday": "Kecha",
+      "today": "Bugun",
+      "waitText": "Operator tez orada qo'shiladi. Sahifadan chiqsangiz ham xabar beramiz.",
+      "waitTitle": "Xabaringiz qabul qilindi",
+      "hoursLine": "Ish vaqti: {hours}",
+      "replyFast": "Odatda tez javob beramiz",
+      "teamName": "LexGo yordam",
       "reopenedOk": "Suhbat qayta ochildi — operatorga yozishingiz mumkin",
       "reopenDo": "Suhbatni qayta ochish",
       "reopenPh": "Masalan: to'lov hali ham o'tmayapti",
@@ -1278,6 +1305,10 @@
       "urgentHint": "Masala kechiktirib bo'lmaydigan bo'lsa yoqing"
     },
     "chats": {
+      "noMatchText": "Boshqa so'z bilan qidirib ko'ring.",
+      "noMatch": "Hech narsa topilmadi",
+      "searchPh": "Mavzu yoki xabar bo'yicha qidirish",
+      "filterLabel": "Holat",
       "title": "Mening suhbatlarim",
       "lead": "Operator bilan yozishmalaringiz shu yerda saqlanadi",
       "tabs": {
@@ -1314,6 +1345,14 @@
       }
     },
     "hub": {
+      "other": "Boshqa yo'llar",
+      "opText": "Ish vaqtida jonli operator bilan yozishasiz.",
+      "ask": "Savol berish",
+      "aiText": "Savolingizga darhol javob beradi va kerakli joyni ko'rsatadi.",
+      "all": "Barchasi",
+      "ongoing": "Davom etayotgan suhbatlar",
+      "lead": "AI instruktor darhol javob beradi, operator esa ish vaqtida chatda yordam beradi.",
+      "title": "Qanday yordam kerak?",
       "heroTitle": "Savolingiz bormi? Avval AI instruktordan so'rang",
       "heroLead": "U kerakli sahifani ko'rsatadi va darhol javob beradi. Hal bo'lmasa — operator bilan jonli chat, shikoyat yoki qo'ng'iroq.",
       "heroLeadSeller": "U kerakli sahifani ko'rsatadi va darhol javob beradi. Hal bo'lmasa — operator bilan jonli chat yoki qo'ng'iroq.",
@@ -1501,6 +1540,8 @@
       "switch": "Mutaxassislarni almashtirish"
     },
     "filters": {
+      "allSellerTypes": "Advokat va yuristlar",
+      "sellerType": "Mutaxassis turi",
       "toggle": "Filtrlar",
       "show": "{n} ta natijani ko'rsatish",
       "close": "Yopish",
@@ -1607,6 +1648,22 @@
       "chatError": "Chatni ochib bo'lmadi."
     },
     "purchase": {
+      "activePaid": "Bu xizmat sizda allaqachon faol",
+      "retry": "Qayta yuborish",
+      "rejectedLead": "To'lov tasdiqlanmadi. Pul yechilmagan.",
+      "rejectedTitle": "So'rov bekor qilindi",
+      "completedTitle": "Bu xizmat yakunlangan",
+      "openChat": "Chatni ochish",
+      "chatLead": "To'lov tasdiqlandi, xavfsiz chat ochildi. Mutaxassisga yozishingiz mumkin.",
+      "chatTitle": "Xizmat faollashtirildi",
+      "paidNoRoom": "Chat ochilishi biroz cho'zilyapti. Uni buyurtmalaringizda ko'rasiz.",
+      "paidPreparing": "Xavfsiz chat tayyorlanmoqda…",
+      "paidTitle": "To'lov tasdiqlandi",
+      "recheck": "Hozir tekshirish",
+      "slow": "Tasdiqlash odatdagidan uzoq cho'zilyapti. Tayyor bo'lgach xabar beramiz.",
+      "offline": "Aloqa uzildi. Qayta ulanib, holatni tekshiramiz.",
+      "liveNote": "Oynani yopsangiz ham xabar beramiz",
+      "live": "Holat avtomatik yangilanadi",
       "title": "Xizmatni sotib olish",
       "seller": "Mutaxassis",
       "note": "Vaziyatingizni qisqacha yozing",
@@ -1649,6 +1706,11 @@
       }
     },
     "orders": {
+      "emptyFilter": "Filtrga mos buyurtma topilmadi",
+      "searchLabel": "Buyurtma qidirish",
+      "searchPhSeller": "Xizmat, ADV raqam yoki mijoz",
+      "searchPhClient": "Xizmat, ADV raqam yoki mutaxassis",
+      "filterStatus": "Holat",
       "clientTitle": "Xizmat buyurtmalarim",
       "clientLead": "Marketplace orqali sotib olgan xizmatlaringiz: holati, chat va qo'ng'iroq.",
       "sellerTitle": "Xizmat buyurtmalari",
@@ -1773,6 +1835,8 @@
     "hidePassword": "Parolni yashirish"
   },
   "chart": {
+    "custom": "Boshqa",
+    "period": "Davr",
     "d7": "7 kun",
     "d30": "30 kun",
     "d90": "90 kun",
@@ -2404,6 +2468,8 @@
     "title": "Tajribasi va g'alabalari ochiq ko'rinadigan advokat va yuristlar",
     "lead": "Har bir advokat tergov va sud bosqichlarida nechta to'liq va nechta qisman g'alaba qozonganini ko'rsatadi hamda buni tasdiqlovchi hujjatlarni yuklaydi.",
     "filters": {
+      "area": "Yo'nalish",
+      "kind": "Turi",
       "region": "Hudud",
       "sort": "Saralash",
       "sortRating": "Eng yuqori reyting",
@@ -3704,6 +3770,7 @@
       "success": "Kirilmoqda…"
     },
     "common": {
+      "processingShort": "Kuting…",
       "loadingMore": "Yuklanmoqda…",
       "loadMore": "Yana yuklash",
       "paymentStatus": {
@@ -3737,6 +3804,7 @@
       "roleClient": "Mijoz",
       "roleLawyer": "Yurist",
       "status": {
+        "open": "Ochiq",
         "expired": "Muddati o'tdi",
         "cancelled": "Bekor qilindi",
         "meeting_active": "Uchrashuv ketyapti",
@@ -3753,6 +3821,12 @@
         "archived": "Arxivlangan"
       },
       "docStatus": {
+        "lawyer_review_requested": "Advokat tekshiruviga yuborildi",
+        "pending_review": "Tekshiruv kutilmoqda",
+        "review": "Ko'rib chiqilmoqda",
+        "payment_cancelled": "To'lov bekor qilingan",
+        "payment_required": "Qo'shimcha to'lov kutilmoqda",
+        "awaiting_payment": "To'lov kutilmoqda",
         "rated": "Baholangan",
         "closed": "Yopilgan",
         "payment_pending": "To'lov kutilmoqda",
@@ -3985,6 +4059,9 @@
       }
     },
     "tasks": {
+      "showOpen": "Faqat bajarilmaganlar",
+      "showAll": "Barcha vazifalar",
+      "showLabel": "Ko'rsatish",
       "title": "Vazifalar",
       "lead": "Ishlaringizni bosqichlar bo'yicha boshqaring.",
       "empty": "Vazifa yo'q",
@@ -4025,7 +4102,68 @@
       "checklistHint": "Har bir qator — alohida band. Bajarilganini \"[x]\" bilan belgilang."
     },
     "aiAssistant": {
+      "panel": {
+        "name": "LexGo yordamchi",
+        "badge": "AI",
+        "fullName": "LexGo AI yordamchi",
+        "open": "AI yordamchini ochish",
+        "tagline": "Platformada yo'l ko'rsataman",
+        "hello": "Qanday yordam beray?",
+        "lead": "Kerakli sahifani topib, qayerni bosishni ko'rsataman.",
+        "noAdvice": "Yuridik maslahat bermayman — buni advokat beradi.",
+        "try": "Masalan",
+        "tour": "Shu sahifani tanishtir",
+        "aiLabel": "LexGo AI",
+        "show": "Ko'rsat",
+        "walk": "Qadamma-qadam ko'rsat",
+        "operator": "Operatorga ulash",
+        "retry": "Qayta yuborish",
+        "disclaimer": "AI xato qilishi mumkin.",
+        "writeOperator": "Operatorga yozish"
+      },
       "v21": {
+        "chip": {
+          "pending": "navbatda",
+          "running": "bajarilmoqda",
+          "done": "bajarildi",
+          "missing": "topilmadi",
+          "failed": "bajarilmadi",
+          "cancelled": "to'xtatildi"
+        },
+        "done": {
+          "prepare_subscription_purchase": "Tarif so'rovi yuborildi. Tasdiqlangach faollashadi.",
+          "prepare_marketplace_purchase": "Buyurtma yuborildi. Uni «Mening ishlarim»da kuzating.",
+          "start_document_request": "Hujjat so'rovi yuborildi.",
+          "prepare_urgent_advokat_request": "Tezkor so'rov yuborildi.",
+          "generic": "Bajarildi."
+        },
+        "targets": {
+          "launcher": "AI yordamchini ochish tugmasi",
+          "planFree": "LexGo.AI Free tarifi",
+          "planLite": "LexGo.AI Lite tarifi",
+          "planPro": "LexGo.AI Pro tarifi",
+          "planStandard": "Shaxsiy advokat Standard tarifi",
+          "planPremium": "Shaxsiy advokat Premium tarifi",
+          "telegramModal": "Tarifni Telegram orqali so'rash oynasi",
+          "docCreate": "Yangi hujjat buyurtma qilish tugmasi",
+          "docSearch": "Hujjat qidirish maydoni",
+          "catCivil": "Fuqarolik ishlari hujjatlari",
+          "catCriminal": "Jinoiy ishlar hujjatlari",
+          "catAdmin": "Ma'muriy ishlar hujjatlari",
+          "catEconomic": "Iqtisodiy ishlar va shartnomalar",
+          "myDocs": "Mening hujjatlarim ro'yxati",
+          "aiSearch": "Advokatni AI bilan qidirish",
+          "search": "Advokat va yuristlarni qidirish",
+          "sellerType": "Mutaxassis turi filtri",
+          "operator": "Operatorga ulanish tugmasi",
+          "newTicket": "Yangi murojaat yozish",
+          "urgentServices": "Tezkor advokat xizmatlari",
+          "urgentVideo": "Advokat bilan videokonsultatsiya",
+          "urgentChat": "Chat orqali konsultatsiya",
+          "urgentSingle": "Ikkinchi fikr — bitta advokat",
+          "urgentGroup": "Ikkinchi fikr — advokatlar guruhi",
+          "works": "Mening ishlarim ro'yxati"
+        },
         "chips": "Bajarilgan amallar",
         "status": {
           "pending": "Navbatda",
@@ -4068,6 +4206,12 @@
           "interrupted": "To'xtatildi"
         },
         "confirm": {
+          "period": {
+            "month": "oyiga",
+            "year": "yiliga",
+            "week": "haftasiga"
+          },
+          "retry": "Qayta urinish",
           "title": "AI tayyorlagan amalni tasdiqlang",
           "lead": "Siz tasdiqlamaguningizcha hech narsa bajarilmaydi.",
           "what": "Nima qilinadi",
@@ -4763,6 +4907,13 @@
         "hideHistory": "Tarixni yopish"
       },
       "payments": {
+        "datePh": "Sanani tanlang",
+        "periods": {
+          "monthly": "1 oy",
+          "six_month": "6 oy",
+          "yearly": "1 yil",
+          "prepaid_yearly": "1 yil, oldindan to'lov"
+        },
         "title": "To'lovlar",
         "pay": "To'lov qilish",
         "history": "Tarix",
@@ -4787,6 +4938,11 @@
           "held": "Ushlab turilgan"
         },
         "kinds": {
+          "subscription_plan_telegram_approval": "Obuna",
+          "subscription_renewal": "Obunani uzaytirish",
+          "call_extension": "Qo'ng'iroqni uzaytirish",
+          "document_review_extra_pages": "Hujjat tekshiruvi: qo'shimcha sahifalar",
+          "marketplace_order": "Xizmat buyurtmasi",
           "order": "Xizmat buyurtmasi",
           "order_milestone": "Buyurtma bosqichi",
           "document_request": "Hujjat namunasi",
@@ -4970,6 +5126,12 @@
         "tomorrow": "ertaga"
       },
       "works": {
+        "filterEmptyText": "Boshqa tur yoki holatni tanlang.",
+        "searchEmptyMore": "Boshqa so'z bilan qidiring yoki qolgan ishlarni yuklang. Qidiruv faqat yuklangan ishlar ichidan izlaydi.",
+        "searchEmptyText": "Boshqa so'z bilan qidirib ko'ring.",
+        "searchEmpty": "Hech narsa topilmadi",
+        "searchPh": "Ish nomi yoki ID bo'yicha qidirish",
+        "allTypes": "Barcha turlar",
         "title": "Mening ishlarim",
         "lead": "Advokat bilan ishlar, tezkor xizmatlar, buyurtmalar va shikoyatlar shu yerda.",
         "documentsLink": "Hujjatlar arxivi",
@@ -5006,6 +5168,43 @@
         }
       },
       "complaints": {
+        "sentNext": "Mas'ul xodim ko'rib chiqadi — har bir o'zgarish haqida bildirishnoma olasiz.",
+        "sentRef": "Raqami:",
+        "updatedAt": "Oxirgi o'zgarish: {date}",
+        "escalate": "Qarorga rozi bo'lmasangiz, operator bilan chatda yozing.",
+        "reply": {
+          "title": "Xodim javobi",
+          "staff": "Mas'ul xodim"
+        },
+        "step": {
+          "received": "Qabul qilindi",
+          "review": "Ko'rib chiqilmoqda",
+          "decision": "Qaror",
+          "queued": "Navbatda",
+          "active": "Jarayonda"
+        },
+        "row": {
+          "work": "Ish: {id}",
+          "workLinked": "Ishga bog'langan"
+        },
+        "catHint": {
+          "service": "Xizmat va'da qilinganidek bajarilmadi",
+          "lawyer": "Mutaxassisning muomalasi yoki ishi",
+          "payment": "Pul yechilishi, summa yoki qaytarish",
+          "quality": "Natija sifatsiz yoki xato",
+          "sla": "Ish o'z vaqtida tayyor bo'lmadi",
+          "other": "Yuqoridagilarga to'g'ri kelmaydi"
+        },
+        "stage": {
+          "new": "Yangi",
+          "review": "Ko'rib chiqilmoqda",
+          "rework": "Qayta ishlanmoqda",
+          "resolved": "Hal qilindi",
+          "rejected": "Rad etildi",
+          "closed": "Yopildi"
+        },
+        "stepN": "{n}-qadam",
+        "title": "Shikoyatlar",
         "statuses": {
           "new": "Yangi",
           "pending": "Kutilmoqda",
@@ -5026,13 +5225,16 @@
           "other": "Boshqa"
         },
         "v": {
+          "category": "Toifani tanlang.",
           "subject": "Mavzuni yozing.",
           "subjectShort": "Mavzu juda qisqa — kamida {min} ta belgi yozing.",
           "descShort": "Batafsilroq yozing — kamida {min} ta belgi."
         },
         "form": {
+          "reassure": "Har bir o'zgarish haqida bildirishnoma olasiz; javob shu sahifada ko'rinadi.",
+          "descHint": "Nima bo'ldi, qachon va qaysi ish bo'yicha — shularni yozing.",
           "lead": "Aniq yozing: nima bo'ldi, qachon va qaysi ish bo'yicha. Shikoyat ro'yxatga olinadi, holatini shu sahifada kuzatasiz.",
-          "related": "Qaysi ish bo'yicha",
+          "related": "Qaysi ish bo'yicha?",
           "optional": "(ixtiyoriy)",
           "relatedNone": "Muayyan ishga bog'liq emas",
           "relatedLoading": "Ishlaringiz yuklanmoqda…",
@@ -5044,7 +5246,10 @@
         "relatedOpen": "Ishni ochish",
         "related": "Bog'liq ish",
         "hint": {
-          "waiting": "Shikoyatingiz navbatda — mas'ul xodim ko'rib chiqadi, xulosa shu yerda chiqadi.",
+          "closed": "Bu shikoyat yopilgan.",
+          "resolved": "Shikoyatingiz ko'rib chiqildi va hal qilindi.",
+          "reviewing": "Mas'ul xodim shikoyatingizni ko'rib chiqmoqda. Qaror shu yerda ko'rinadi.",
+          "waiting": "Shikoyatingiz navbatda — mas'ul xodim ko'rib chiqadi, qaror shu yerda ko'rinadi.",
           "review": "Callcenter operatori ish va bahoingizni tekshirmoqda.",
           "rework": "Shikoyat asosli deb topildi — advokat ishni bepul qayta bajaradi.",
           "rejected": "Tekshiruvda shikoyat asosli deb topilmadi."
@@ -5080,9 +5285,10 @@
           "urgent": "Tezkor advokat"
         },
         "filter": {
-          "label": "Shikoyat turi",
+          "searchPh": "Mavzu, raqam yoki matn",
+          "label": "Turi",
           "all": "Barchasi",
-          "manual": "Shikoyatlar",
+          "manual": "Siz yozgan",
           "quality": "Sifat bo'yicha",
           "empty": "Bu filtrga mos shikoyat yo'q.",
           "reset": "Filtrni tozalash"
@@ -5093,24 +5299,24 @@
         },
         "listLabel": "Shikoyatlaringiz",
         "steps": {
-          "write": "Siz yozasiz",
-          "review": "Biz ko'rib chiqamiz",
-          "decision": "Xulosa beramiz"
+          "write": "Yuborasiz",
+          "review": "Mas'ul xodim ko'rib chiqadi",
+          "decision": "Qaror shu yerda ko'rinadi"
         },
         "stepsLabel": "Shikoyat qanday ko'rib chiqiladi",
         "chatShort": "Operator bilan chat",
         "chatLink": "Tezkor savol bo'lsa — operator bilan chat",
         "auto": "Ishga 1–2 yulduz qo'ysangiz, sifat bo'yicha shikoyat o'zi ochiladi va shu ro'yxatga tushadi.",
-        "lead": "Shikoyat — xizmat sifati, advokat ishi yoki to'lov bo'yicha rasmiy murojaat. U ro'yxatga olinadi, mas'ul xodim ko'rib chiqadi va xulosa shu yerda ko'rinadi.",
+        "lead": "Xizmat, advokat ishi yoki to'lovdan norozi bo'lsangiz — shu yerda rasmiy shikoyat yozing.",
         "descRequired": "Nima bo'lganini yozing.",
         "cancel": "Bekor qilish",
         "new": "Yangi shikoyat",
         "empty": "Hozircha shikoyat yo'q",
-        "emptyText": "Xizmatdan norozi bo'lsangiz, shikoyat yozing — uning holatini shu yerda kuzatasiz.",
-        "catLabel": "Toifa",
+        "emptyText": "Xizmat, advokat ishi yoki to'lovdan norozi bo'lsangiz, shikoyat yozing. Mas'ul xodim ko'rib chiqadi, qaror shu yerda ko'rinadi.",
+        "catLabel": "Nima bo'ldi?",
         "subject": "Mavzu",
         "subjectPh": "Masalan: hujjat va'da qilingan muddatda tayyor bo'lmadi",
-        "desc": "Tavsif",
+        "desc": "Batafsil",
         "descPh": "Nima bo'lganini batafsil yozing…",
         "submit": "Yuborish",
         "sending": "Yuborilmoqda…",
@@ -5143,6 +5349,10 @@
         "resultClose": "Tushunarli"
       },
       "academy": {
+        "noMatchText": "Boshqa so'z bilan qidiring yoki filtrni tozalang.",
+        "noMatch": "Mos kurs topilmadi",
+        "searchPh": "Kurs nomi bo'yicha qidirish",
+        "fCategory": "Mavzu",
         "title": "LexGo Akademiya",
         "subtitle": "Huquqiy savodxonlik uchun qisqa kurslar.",
         "all": "Barchasi",
@@ -5420,13 +5630,15 @@
         "chooseSpecialist": "Mos mutaxassisni tanlang"
       },
       "actions": {
-        "supportSub": "Operator, shikoyat yoki qo‘ng‘iroq",
-        "support": "Yordam markazi",
-        "subscriptionsSub": "Obunani tanlang yoki yangilang",
-        "subscriptions": "Tariflar",
+        "whoAiCta": "AI’dan so‘rash",
+        "whoAiPerk2": "Murakkab holatda advokatga yo‘naltiradi",
+        "whoAiPerk1": "Bir zumda javob",
+        "whoAdvocateCta": "Advokat bilan bog‘lanish",
+        "whoAdvocatePerk2": "Aynan sizning holatingizga javob",
+        "whoAdvocatePerk1": "Faqat tasdiqlangan advokatlar",
         "documentsSub": "Ariza, shartnoma va da’vo namunalari",
         "documents": "Huquqiy hujjatlar",
-        "whoAiSub": "Bepul limit doirasida darhol javob beradi. Murakkab holatda advokatga yo‘naltiradi.",
+        "whoAiSub": "Savolingizga bepul limit doirasida javob beradi.",
         "whoAi": "LexGo sun’iy intellekti javobi",
         "whoAdvocateSub": "Advokat video yoki yozishma orqali javob beradi.",
         "whoAdvocate": "Professional va tajribali advokat maslahati",
@@ -5450,9 +5662,9 @@
       "services": {
         "unrated": "Hali baholanmagan",
         "sellerRequired": "Avval advokatni tanlang",
-        "sizeSmall": "Kichik (1–4)",
-        "sizeMid": "O'rtacha (5–19)",
-        "sizeBig": "Yirik (20+ xizmat)",
+        "sizeSmall": "Kichik: 1–4 xizmat",
+        "sizeMid": "O'rtacha: 5–19 xizmat",
+        "sizeBig": "Yirik: 20+ xizmat",
         "filterSize": "Yo'nalish hajmi",
         "sortByCountAsc": "Xizmatlari kami birinchi",
         "sortDocFirst": "Tayyor hujjatlilar birinchi",
@@ -6024,6 +6236,13 @@
         "error": "Xatolik yuz berdi. Qayta urining."
       },
       "documentRequests": {
+        "nextLawyerHere": "Advokat tayyorlagach, hujjatni shu sahifada yuklab olasiz",
+        "filterEmptyText": "Boshqa usul yoki holatni tanlang.",
+        "filterMode": "Tayyorlash usuli",
+        "nextFill": "Ma'lumotlarni tekshirib, hujjatni yarating",
+        "nextLawyer": "Advokat tayyorlagach, hujjatni «{section}» bo'limidan yuklab olasiz",
+        "nextDownload": "Tayyor hujjatni yuklab oling",
+        "nextTrack": "So'rov holatini kuzating",
         "lawyerPayRequired": "So'rov advokatlarga yuborilishidan oldin to'lov tasdiqlanishi kerak. Hujjat sahifasida davom eting.",
         "constructorOpenError": "Bu hujjatning konstruktorini ochib bo'lmadi. Xizmatlar bo'limidan hujjatni qayta oching.",
         "constructorContinue": "Konstruktorda davom etish",
@@ -6066,6 +6285,7 @@
         "meetingActive": "Uchrashuv faol"
       },
       "packages": {
+        "allCategories": "Barcha toifalar",
         "bestValue": "Eng ko‘p tanlanadi",
         "title": "Xizmat paketlari",
         "count": "{n} ta paket",
@@ -6119,7 +6339,7 @@
         "tab_today": "Bugun ({n})",
         "tab_upcoming": "Kelingusi ({n})",
         "tab_done": "Bajarilgan ({n})",
-        "tasksEmpty": "Bu bo'limda vazifa yo'q.",
+        "tasksEmpty": "Bu yerda vazifa yo'q.",
         "calendar": "Kalendar",
         "recentActivity": "So'nggi faollik",
         "activityEmpty": "Hozircha faollik yo'q.",
@@ -6547,6 +6767,9 @@
       }
     },
     "notifications": {
+      "catNew": "{label} ({n} yangi)",
+      "fRead": "O'qilganlik",
+      "fCategory": "Bo'lim",
       "loadingMore": "Yuklanmoqda…",
       "loadMore": "Yana yuklash",
       "ariaN": "Bildirishnomalar — {n} ta oqilmagan",
@@ -6783,6 +7006,7 @@
       "openError": "Faylni ochib bo'lmadi. Qayta urining."
     },
     "files": {
+      "sectionLabel": "Bo'lim",
       "title": "Fayllar",
       "subtitle": "Fayllar va papkalaringizni boshqaring",
       "navAll": "Barcha fayllar",
@@ -6931,6 +7155,8 @@
       "maxTier": "eng past komissiya"
     },
     "accountAudit": {
+      "noMatchText": "Filtrni o'zgartiring yoki qidiruvni tozalang.",
+      "noMatch": "Mos yozuv topilmadi",
       "sessions": "Faol sessiyalar",
       "noSessions": "Faol sessiyalar yo'q.",
       "device": "Qurilma",
@@ -7608,6 +7834,9 @@
         "sellers": "Sotuvchilar"
       },
       "filter": {
+        "custom": "Boshqa",
+        "allTime": "Barcha vaqt",
+        "period": "Davr",
         "aria": "Marketplace filtrlari",
         "presetsAria": "Tezkor davr",
         "presets": {
@@ -7891,6 +8120,9 @@
       }
     },
     "urgent": {
+      "movedTo": "Ro'yxat «{status}» holatiga o'tkazildi.",
+      "sourceValue": "Tezkor Advokat",
+      "fSource": "Manba",
       "takeOverTitle": "Boshqa operator olgan ishni o'zingizga o'tkazasiz (admin huquqi)",
       "takeOver": "O'zimga olish",
       "openChatTitle": "Xavfsiz chatni ochish",
@@ -8195,6 +8427,7 @@
       "add": "Qo‘shish"
     },
     "services": {
+      "stateLabel": "Holat",
       "state": {
         "all": "Hammasi",
         "active": "Faol",
@@ -8287,6 +8520,8 @@
         "forbidden": "Ruxsat yo'q."
       },
       "cat": {
+        "visibleChip": "Ko'rinadigan ({n})",
+        "view": "Ko'rinish",
         "editTitle": "Kategoriyani tahrirlash",
         "overlayNote": "Backend hali kategoriya tahririni qo'llab-quvvatlamaydi — o'zgarish platforma sozlamasida saqlandi va katalogda qo'llanadi.",
         "deleteText": "Kategoriya katalogdan yashiriladi (mijoz va admin ro'yxatlari). Undagi xizmatlar o'chmaydi; keyin qaytarish mumkin.",
@@ -8301,6 +8536,8 @@
       }
     },
     "plans": {
+      "visibleChip": "Ko'rinadigan ({n})",
+      "visibility": "Ko'rinish",
       "searchPh": "Nomi yoki slug…",
       "noResults": "Hech narsa topilmadi",
       "editTitle": "Tarifni tahrirlash",
@@ -8444,6 +8681,7 @@
       "selectUser": "Foydalanuvchini tanlang"
     },
     "notifications": {
+      "roleLabel": "Rol",
       "title": "Bildirishnoma yuborish",
       "lead": "Foydalanuvchiga bildirishnoma yuboring. U ilova ichida, push, Telegram va email orqali yetkaziladi; SMS faqat muhim hodisalarda zaxira kanal.",
       "userId": "Foydalanuvchi id",
@@ -8536,6 +8774,8 @@
       }
     },
     "meetings": {
+      "scopeAll": "Barcha uchrashuvlar",
+      "scope": "Ko'rinish",
       "title": "Uchrashuvlar",
       "subtitle": "Ko'p ishtirokchili video uchrashuv oching va odamlarni taklif qiling.",
       "titleLabel": "Uchrashuv nomi",
@@ -8644,6 +8884,11 @@
       "stagingOnlyText": "Test OTP kodlari faqat staging/demo serverda saqlanadi. Production serverda bu ro'yxat yo'q — kodlar SMS yoki Telegram orqali yuboriladi."
     },
     "pipeline": {
+      "periodPick": {
+        "label": "Davr",
+        "all": "Barcha vaqt",
+        "custom": "Boshqa"
+      },
       "urgency": {
         "low": "Past",
         "normal": "O'rtacha",
@@ -8942,6 +9187,13 @@
       "price": "Narx"
     },
     "audit": {
+      "ph": {
+        "action": "masalan, login",
+        "targetType": "masalan, user",
+        "targetId": "UUID"
+      },
+      "to": "Sanagacha",
+      "from": "Sanadan",
       "title": "Audit jurnali",
       "lead": "Tizimdagi barcha muhim harakatlar jurnali.",
       "empty": "Yozuv yo'q",
@@ -8980,7 +9232,7 @@
       "userIdPh": "Ism, telefon yoki LexGo ID bo'yicha qidirish…",
       "noUsers": "Foydalanuvchi topilmadi",
       "f": {
-        "action": "Harakat (masalan, login)",
+        "action": "Harakat",
         "targetType": "Obyekt turi",
         "targetId": "Obyekt ID"
       },
@@ -9315,6 +9567,7 @@
       }
     },
     "registerRequests": {
+      "roleLabel": "Rol",
       "title": "Sotuvchi ro‘yxatdan o‘tish so‘rovlari",
       "lead": "Yurist / advokat ro‘yxatlarini ko‘rib chiqing va tasdiqlang.",
       "empty": "Kutilayotgan so‘rov yo‘q",
@@ -9629,6 +9882,10 @@
     },
     "dash": {
       "filter": {
+        "custom": "Boshqa",
+        "today": "Bugun",
+        "allTime": "Barcha vaqt",
+        "period": "Davr",
         "aria": "Panel filtrlari",
         "region": "Hudud",
         "from": "Sanadan",
@@ -9823,6 +10080,13 @@
     "loginRequired": "Bu maxfiy chatni ochish uchun tizimga kiring.",
     "login": "Kirish",
     "inbox": {
+      "kinds": {
+        "urgent": "Tezkor advokat",
+        "order": "Buyurtmalar",
+        "case": "Ishlar",
+        "other": "Boshqa"
+      },
+      "fKind": "Turi",
       "workId": "Ish raqami",
       "newMessage": "Yangi xabar",
       "newN": "{n} ta yangi",

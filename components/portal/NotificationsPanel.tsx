@@ -12,10 +12,11 @@ import { setUnreadCount } from "@/lib/unread";
 import { NOTIF_CATEGORIES, templateVars, notifLink, type NotifTab, type NotifCategory } from "@/lib/notifications";
 import { useOrderStatusLabel } from "@/lib/orderStatus";
 import { humanizeSlug } from "@/lib/lawyers";
-import Select from "@/components/Select";
+import { useAiField, useAiSelection } from "@/lib/ai/registry";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "./DataState";
-import { IconBell, IconChat, IconCheckDouble, IconRefresh, IconSearch } from "@/components/icons";
+import { IconBell, IconChat, IconCheckDouble, IconLayers, IconRefresh, IconSearch } from "@/components/icons";
 
 // Fired whenever notifications are read so the header bell can refresh its
 // unread count without a full reload.
@@ -32,6 +33,16 @@ const INBOX_CHANNELS = ["push", "telegram", "email"];
 const VIA_CHANNELS = ["push", "telegram", "email", "sms", "secure_chat", "meeting_invite"];
 
 type ReadFilter = "all" | "unread" | "read";
+const READ_FILTERS: ReadFilter[] = ["all", "unread", "read"];
+
+const aiNorm = (v: string) => v.toLowerCase().replace(/[ʻʼ'‘’`]/g, "").replace(/\s*\(.*\)$/, "").replace(/\s+/g, " ").trim();
+
+function aiPick(opts: { value: string; label: string }[], raw: string): string | null {
+  const w = aiNorm(raw);
+  if (!w) return opts[0]?.value ?? null;
+  const hit = opts.find((o) => aiNorm(o.value) === w) ?? opts.find((o) => aiNorm(o.label) === w) ?? opts.find((o) => w.length > 2 && aiNorm(o.label).includes(w));
+  return hit ? hit.value : null;
+}
 
 type SampleNotif = { title: string; body: string; category: NotifCategory; hoursAgo: number };
 
@@ -271,7 +282,48 @@ export default function NotificationsPanel() {
 
   const chLabel = (c: string) => (t.has(`channel.${c}`) ? t(`channel.${c}`) : humanizeSlug(c));
   const catLabel = (c: NotifCategory) => t(`tabs.${c}`);
-  const filterOpts = (["all", "unread", "read"] as ReadFilter[]).map((v) => ({ value: v, label: t(`filter.${v}`) }));
+  const filterOpts = READ_FILTERS.map((v) => ({ value: v, label: t(`filter.${v}`) }));
+  const catOpts = NOTIF_CATEGORIES.map((c) => ({ value: c, label: unreadBy[c] ? t("catNew", { label: t(`tabs.${c}`), n: unreadBy[c] }) : t(`tabs.${c}`) }));
+  const filterFields: FilterField[] = [
+    {
+      key: "category",
+      label: t("fCategory"),
+      icon: IconLayers,
+      value: tab,
+      onChange: (v) => setTab(v as NotifTab),
+      options: catOpts,
+      empty: "all",
+      chip: t(`tabs.${tab}`),
+      aiId: "notifications.filters.category",
+    },
+    {
+      key: "read",
+      label: t("fRead"),
+      icon: IconCheckDouble,
+      value: filter,
+      onChange: (v) => setFilter(v as ReadFilter),
+      options: filterOpts,
+      empty: "all",
+      aiId: "notifications.filters.read",
+    },
+  ];
+  useAiField("notifications.search.input", { get: () => q, set: setQ });
+  useAiField("notifications.filters.category", {
+    get: () => tab,
+    set: (v) => {
+      const next = aiPick(catOpts, v);
+      if (next !== null) setTab(next as NotifTab);
+    },
+  });
+  useAiField("notifications.filters.read", {
+    get: () => filter,
+    set: (v) => {
+      const next = aiPick(filterOpts, v);
+      if (next !== null) setFilter(next as ReadFilter);
+    },
+  });
+  useAiSelection("notifications_category", tab === "all" ? "" : tab);
+  useAiSelection("notifications_read", filter === "all" ? "" : filter);
 
   return (
     <div className="ppanel">
@@ -291,18 +343,21 @@ export default function NotificationsPanel() {
         </span>
       </div>
 
-      <div className="segs segs--sm ntabs" role="tablist" aria-label={t("title")} data-ai-target="notifications:filters">
-        {NOTIF_CATEGORIES.map((c) => (
-          <button key={c} type="button" role="tab" className="seg" aria-selected={tab === c} onClick={() => setTab(c)}>
-            {t(`tabs.${c}`)}
-            {unreadBy[c] ? <span className="ntab__n">{unreadBy[c] > 99 ? "99+" : unreadBy[c]}</span> : null}
-          </button>
-        ))}
-      </div>
-      <div className="lfilters ntfilters" data-ai-target="notifications:search" data-ai-label={t("searchPh")}>
-        <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>
-        <Select value={filter} onChange={(v) => setFilter(v as ReadFilter)} options={filterOpts} ariaLabel={t("filterLabel")} />
-      </div>
+      <FilterBar
+        className="ppfilters"
+        fields={filterFields}
+        search={{
+          value: q,
+          onChange: setQ,
+          placeholder: t("searchPh"),
+          aiId: "notifications.search.input",
+          aiTarget: "notifications:search",
+          aiLabel: t("searchPh"),
+        }}
+        count={status === "ready" && !more ? shown.length : undefined}
+        aiId="notifications.filters"
+        aiTarget="notifications:filters"
+      />
 
       {status === "loading" ? (
         <Skeleton rows={4} />

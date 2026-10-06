@@ -2898,7 +2898,7 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
 // Work the client still has to come back to: anything not delivered and not
 // cancelled. Used by the cases page, which is where they look for "what is
 // still open" rather than in the documents list.
-const DOC_FLOW_DONE = new Set(["completed", "done", "closed", "cancelled", "canceled", "rejected", "refunded", "delivered"]);
+const DOC_FLOW_DONE = new Set(["completed", "done", "closed", "cancelled", "canceled", "rejected", "refunded", "delivered", "payment_cancelled"]);
 export function isDocFlowOpen(it: ClientDocFlowItem): boolean {
   if (it.file.ready) return false;
   return !DOC_FLOW_DONE.has((it.status || "").toLowerCase());
@@ -3866,6 +3866,7 @@ function createModule(path: string, input: ModuleInput): Promise<ModuleRecord> {
 export const listCourses = () => listModule("/academy/courses");
 export const listB2bProducts = () => listModule("/b2b/products");
 export const listAds = () => listModule("/ads/products");
+export const listActiveAds = () => listModule("/ads/products?status=active").then((rows) => rows.filter((r) => !r.status || r.status === "active"));
 export const createAd = (i: ModuleInput) => createModule("/ads/products", i);
 // PATCH/DELETE /ads/products/{id} (2026-09-19 backend). Delete is a soft
 // delete (status → "deleted"); edit is a plain partial patch.

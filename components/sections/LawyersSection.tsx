@@ -21,12 +21,17 @@ import { fmtUzs } from "@/lib/money";
 import { useAuth } from "@/lib/auth";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Skeleton, EmptyState } from "../portal/DataState";
-import Select, { type Option } from "../Select";
-import { IconChevronLeft, IconChevronRight, IconInfo, IconSearch, IconShieldCheck, IconStar } from "../icons";
+import FilterBar, { type FilterField } from "../filters/FilterBar";
+import { IconChevronLeft, IconChevronRight, IconInfo, IconScale, IconShieldCheck, IconStar, IconUsers } from "../icons";
 import { fmtRating } from "@/lib/date";
 import VerifiedBadge from "../VerifiedBadge";
 
-const priceNum = (p: string) => Number(p.replace(/\s/g, "")) || 0;
+type Kind = "" | "advocate" | "lawyer";
+const KINDS: [Kind, string][] = [
+  ["", "roleAll"],
+  ["advocate", "roleAdvocates"],
+  ["lawyer", "roleLawyers"],
+];
 
 // Map a backend lawyer profile onto the directory card shape (best-effort;
 // missing fields default sanely). Only runs when the backend returns data.
@@ -82,15 +87,7 @@ export default function LawyersSection({
   const ta = useTranslations("common.a11y");
   const te = useTranslations("enums");
   const [area, setArea] = useState(initialArea);
-  const [query, setQuery] = useState("");
-  const [region, setRegion] = useState("");
-  const [sort, setSort] = useState("rating");
-  const [kind, setKind] = useState<"" | "advocate" | "lawyer">("");
-  // T1-09 filters: rating, experience, language, max price.
-  const [minRate, setMinRate] = useState("");
-  const [minExp, setMinExp] = useState("");
-  const [lang, setLang] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
+  const [kind, setKind] = useState<Kind>("");
   const res = useResource<BackendLawyer>(
     () => (marketplace ? listMarketplaceLawyers({ sort: "recommended" }) : listLawyers()),
     [marketplace],
@@ -189,43 +186,18 @@ export default function LawyersSection({
   const [atEnd, setAtEnd] = useState(false);
 
   const list = useMemo(() => {
-    // Split the query into words and require every word to appear in the name,
-    // so word order and extra spaces don't hide a match ("yurist civil" still
-    // finds "Civil Yurist").
-    const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const filtered = source.filter((l) => {
-      const name = l.name.toLowerCase();
-      return (
-        (!area || l.areaKey === area) &&
-        (!region || l.regionKey === region) &&
-        (!kind || l.kind === kind) &&
-        (!minRate || (isRated(l) && l.rate >= Number(minRate))) &&
-        (!minExp || l.exp >= Number(minExp)) &&
-        (!lang || (l.languages ?? []).includes(lang)) &&
-        (!maxPrice || (priceNum(l.price) > 0 && priceNum(l.price) <= Number(maxPrice))) &&
-        (!terms.length || terms.every((w) => name.includes(w)))
-      );
-    });
-    const sorted = [...filtered];
+    const sorted = source.filter((l) => (!area || l.areaKey === area) && (!kind || l.kind === kind));
     // S2: "Sortingni frontendda qayta buzmaslik kerak, backend tartibini
     // saqlang." On the marketplace list the backend has already ranked by
-    // boost, so the default order is returned untouched; the explicit sorts
-    // (experience, price) are the client's own choice and still apply.
-    if (marketplace && sort === "rating") return sorted;
-    sorted.sort((a, b) => {
-      if (sort === "experience") return b.exp - a.exp;
-      if (sort === "priceAsc") return priceNum(a.price) - priceNum(b.price);
-      if (sort === "priceDesc") return priceNum(b.price) - priceNum(a.price);
-      return Number(isRated(b)) - Number(isRated(a)) || b.rate - a.rate;
-    });
+    // boost, so the default order is returned untouched.
+    if (marketplace) return sorted;
+    sorted.sort((a, b) => Number(isRated(b)) - Number(isRated(a)) || b.rate - a.rate);
     // New-seller quota (S-19): at least one "new" verified seller within the
     // first 8 cards when the default ranking would push them all down.
-    if (sort === "rating") {
-      const firstNew = sorted.findIndex((l) => l.isNew && l.verified);
-      if (firstNew >= 8) { const [n] = sorted.splice(firstNew, 1); sorted.splice(7, 0, n); }
-    }
+    const firstNew = sorted.findIndex((l) => l.isNew && l.verified);
+    if (firstNew >= 8) { const [n] = sorted.splice(firstNew, 1); sorted.splice(7, 0, n); }
     return sorted;
-  }, [area, region, sort, kind, query, source, minRate, minExp, lang, maxPrice, marketplace]);
+  }, [area, kind, source, marketplace]);
 
   const syncNav = useCallback(() => {
     const el = scroller.current;
@@ -238,7 +210,7 @@ export default function LawyersSection({
   useEffect(() => {
     if (scroller.current) scroller.current.scrollLeft = 0;
     syncNav();
-  }, [area, region, sort, query, syncNav]);
+  }, [area, kind, syncNav]);
 
   // RevealOnScroll scans the DOM once per navigation, and these cards are not
   // in it yet when it runs: the section renders a <Skeleton> until GET /lawyers
@@ -277,15 +249,27 @@ export default function LawyersSection({
     el.scrollBy({ left: dir * step, behavior: reduce ? "auto" : "smooth" });
   }
 
-  const regionOpts: Option[] = [
-    { value: "", label: te("regions.all") },
-    ...REGION_KEYS.map((r) => ({ value: r, label: te(`regions.${r}`) })),
-  ];
-  const sortOpts: Option[] = [
-    { value: "rating", label: t("filters.sortRating") },
-    { value: "experience", label: t("filters.sortExperience") },
-    { value: "priceAsc", label: t("filters.sortPriceAsc") },
-    { value: "priceDesc", label: t("filters.sortPriceDesc") },
+  const ready = res.status === "ready";
+  const withN = (label: string, n: number) => (ready ? `${label} (${n})` : label);
+  const kindN = (k: Kind) => source.filter((l) => (!area || l.areaKey === area) && (!k || l.kind === k)).length;
+  const areaN = (a: string) => source.filter((l) => (!kind || l.kind === kind) && (!a || l.areaKey === a)).length;
+  const filterFields: FilterField[] = [
+    {
+      key: "kind",
+      label: t("filters.kind"),
+      icon: IconUsers,
+      value: kind,
+      onChange: (v) => setKind(v as Kind),
+      options: KINDS.map(([v, k]) => ({ value: v, label: withN(t(k), kindN(v)) })),
+    },
+    {
+      key: "area",
+      label: t("filters.area"),
+      icon: IconScale,
+      value: area,
+      onChange: setArea,
+      options: [{ value: "", label: withN(t("filterAll"), areaN("")) }, ...AREA_KEYS.map((a) => ({ value: a, label: withN(te(`areas.${a}`), areaN(a)) }))],
+    },
   ];
   const stats = t.raw("stats") as { value: string; label: string }[];
 
@@ -437,94 +421,7 @@ export default function LawyersSection({
           </div>
         ) : null}
 
-        {standalone ? (
-          <div className="lsp__search" style={{ marginBottom: 14 }}>
-            <IconSearch />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("filters.searchPh")}
-              aria-label={t("filters.searchLabel")}
-            />
-          </div>
-        ) : null}
-
-        <div className="rolerow">
-          {([
-            ["", "roleAll"],
-            ["advocate", "roleAdvocates"],
-            ["lawyer", "roleLawyers"],
-          ] as const).map(([v, k]) => (
-            <button
-              key={k}
-              type="button"
-              className="roletab"
-              aria-pressed={kind === v}
-              onClick={() => setKind(v)}
-            >
-              {t(k)}
-            </button>
-          ))}
-        </div>
-
-        <div className="chiprow">
-          <button
-            className="fchip"
-            aria-pressed={area === ""}
-            onClick={() => setArea("")}
-          >
-            {t("filterAll")}
-          </button>
-          {AREA_KEYS.map((a) => (
-            <button
-              key={a}
-              className="fchip"
-              aria-pressed={area === a}
-              onClick={() => setArea(a)}
-            >
-              {te(`areas.${a}`)}
-            </button>
-          ))}
-        </div>
-
-        {standalone ? (
-          <div className="filters">
-            <div className="fld">
-              <label>{t("filters.region")}</label>
-              <Select
-                value={region}
-                onChange={setRegion}
-                options={regionOpts}
-                ariaLabel={t("filters.region")}
-              />
-            </div>
-            <div className="fld">
-              <label>{t("filters.sort")}</label>
-              <Select
-                value={sort}
-                onChange={setSort}
-                options={sortOpts}
-                ariaLabel={t("filters.sort")}
-              />
-            </div>
-            <div className="fld">
-              <label>{t("filters.rating")}</label>
-              <Select value={minRate} onChange={setMinRate} ariaLabel={t("filters.rating")} options={[{ value: "", label: t("filters.any") }, { value: "4", label: "4.0+" }, { value: "4.5", label: "4.5+" }, { value: "4.8", label: "4.8+" }]} />
-            </div>
-            <div className="fld">
-              <label>{t("filters.experience")}</label>
-              <Select value={minExp} onChange={setMinExp} ariaLabel={t("filters.experience")} options={[{ value: "", label: t("filters.any") }, { value: "3", label: t("filters.yearsPlus", { n: 3 }) }, { value: "5", label: t("filters.yearsPlus", { n: 5 }) }, { value: "10", label: t("filters.yearsPlus", { n: 10 }) }]} />
-            </div>
-            <div className="fld">
-              <label>{t("filters.language")}</label>
-              <Select value={lang} onChange={setLang} ariaLabel={t("filters.language")} options={[{ value: "", label: t("filters.any") }, { value: "uz-latn", label: "O'zbek (lotin)" }, { value: "uz-cyrl", label: "Ўзбек (кирилл)" }, { value: "ru", label: "Русский" }, { value: "en", label: "English" }]} />
-            </div>
-            <div className="fld">
-              <label>{t("filters.maxPrice")}</label>
-              <Select value={maxPrice} onChange={setMaxPrice} ariaLabel={t("filters.maxPrice")} options={[{ value: "", label: t("filters.any") }, { value: "200000", label: "≤ 200 000" }, { value: "300000", label: "≤ 300 000" }, { value: "500000", label: "≤ 500 000" }, { value: "1000000", label: "≤ 1 000 000" }]} />
-            </div>
-          </div>
-        ) : null}
+        <FilterBar className="lawfilters" fields={filterFields} count={ready ? list.length : undefined} />
 
         {compact && res.status !== "loading" && list.length ? (
           <div className="lawres">
@@ -540,7 +437,7 @@ export default function LawyersSection({
           // advgrid is a centred flex row rather than a grid: the count comes
           // from the catalogue (76 today), so no column count divides it at
           // every width and the tail has to centre itself instead.
-          <div className="advgrid rvseq" ref={advbox}>{list.map((l, i) => card(l, compact && sort === "rating" && i === 0))}</div>
+          <div className="advgrid rvseq" ref={advbox}>{list.map((l, i) => card(l, compact && i === 0))}</div>
         ) : (
           <div className="scroller rvseq" ref={scroller} onScroll={syncNav}>
             {list.map((l) => card(l, false))}

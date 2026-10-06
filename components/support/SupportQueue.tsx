@@ -10,7 +10,8 @@ import { toast } from "@/lib/toast";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
 import { useAiReveal } from "@/lib/guide/targets";
 import { aiId, aiSeg } from "@/lib/ai/ids";
-import { useAiModal, useAiSelection } from "@/lib/ai/registry";
+import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
+import FilterBar from "@/components/filters/FilterBar";
 import {
   claimSupportTicket,
   closeSupportTicket,
@@ -29,7 +30,7 @@ import {
 } from "@/lib/services/support";
 import { shortDateTime } from "@/lib/date";
 import Modal from "@/components/admin/Modal";
-import { IconChat, IconChevronLeft, IconClock, IconHeadset, IconRefresh, IconSearch } from "@/components/icons";
+import { IconChat, IconChevronLeft, IconClock, IconHeadset, IconInbox, IconRefresh, IconSearch } from "@/components/icons";
 import SupportChat from "./SupportChat";
 import AssistPanel from "./assist/AssistPanel";
 import { SupportStatus, TicketCard, useMinuteNow, useSupportCall, useSupportLabels, waitText } from "./bits";
@@ -54,6 +55,10 @@ const NARROW = "(max-width: 980px)";
 const QUEUE_PATH = /\/admin\/call-center\/support(?:\/[^/]+)?\/?$/;
 
 const oldest = (a: SupportTicket, b: SupportTicket) => timeOf(a.createdAt) - timeOf(b.createdAt);
+
+const asTab = (v: string): Tab | null => TABS.find((k) => k === v) ?? null;
+
+const aiNorm = (s: string) => s.toLowerCase().replace(/[ʻʼ'‘’`]/g, "").replace(/[\s_-]+/g, " ").trim();
 
 function pastLoaded(tk: SupportTicket, loaded: SupportTicket[]): boolean {
   const last = loaded[loaded.length - 1];
@@ -235,7 +240,10 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
   };
   const segOf = (id: string) => id.split(".")[3] ?? "";
 
-  useAiReveal(/^call_center\.support\.(queue|queue\.tabs|queue\.tab\.[a-z]+|ticket\.[^.]+)$/, () => {
+  useAiReveal(/^call_center\.support\.(queue|queue\.tabs|queue\.tab\.[a-z]+|ticket\.[^.]+)$/, (id) => {
+    const k = /^call_center\.support\.queue\.tab\.([a-z]+)$/.exec(id)?.[1];
+    const next = k ? asTab(k) : null;
+    if (next) setTab(next);
     if (selectedId && window.matchMedia(NARROW).matches) back(false);
   });
   useAiReveal(/^call_center\.support\.(chat|ticket\.[^.]+\.(messages|message-input|call(\.audio|\.video)?))$/, (id) => {
@@ -261,6 +269,19 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
     setClosing({ resolution: "", err: "" });
   });
   useAiSelection("support_queue_tab", tab);
+  const tabOpts = TABS.map((k) => ({ value: k, label: t(`tabs.${k}`) }));
+  const pickTab = (v: string) => {
+    const next = asTab(v);
+    if (next) setTab(next);
+  };
+  useAiField("call_center.support.queue.tabs", {
+    get: () => tab,
+    set: (raw) => {
+      const w = aiNorm(raw);
+      const hit = tabOpts.find((o) => o.value === w || aiNorm(o.label) === w) ?? tabOpts.find((o) => w.length >= 3 && aiNorm(o.label).includes(w));
+      if (hit) pickTab(hit.value);
+    },
+  });
 
   const claim = async (tk: SupportTicket) => {
     if (busy) return;
@@ -398,13 +419,11 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
 
       <div className="supwork">
         <aside className="supwork__side" aria-label={t("queueTitle")}>
-          <div className="suptabs" role="tablist" aria-label={t("queueTitle")} data-ai-id="call_center.support.queue.tabs">
-            {TABS.map((k) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k} className="suptab" onClick={() => setTab(k)} data-ai-id={`call_center.support.queue.tab.${k}`}>
-                {t(`tabs.${k}`)}
-              </button>
-            ))}
-          </div>
+          <FilterBar
+            className="uf--solo supq__filter"
+            fields={[{ key: "queue", label: t("queue.filter"), icon: IconInbox, value: tab, onChange: pickTab, options: tabOpts, chip: null, aiId: "call_center.support.queue.tabs" }]}
+            aiId="call_center.support.queue.filters"
+          />
           {tab === "new" && list.status === "ready" && list.items.length > 1 ? <p className="supq__hint">{t("queue.oldestFirst")}</p> : null}
           <div className="supwork__list" data-ai-target="support:ticket-list" data-ai-id="call_center.support.queue" data-ai-type="list" data-ai-label={t("queueTitle")}>
             {list.status === "loading" ? (

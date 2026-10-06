@@ -48,8 +48,10 @@ export default function ServiceCard({
   const region = profile.region;
   const bandKey = `${item.id}|${sellerId}|${region}`;
   const [bandLoad, setBandLoad] = useState<BandLoad | null>(null);
+  const hasLimits = Boolean(item.limits);
 
   useEffect(() => {
+    if (hasLimits) return;
     let alive = true;
     priceBandFor(item.id, sellerId, region)
       .then((band) => {
@@ -61,17 +63,25 @@ export default function ServiceCard({
     return () => {
       alive = false;
     };
-  }, [item.id, sellerId, region, bandKey]);
+  }, [item.id, sellerId, region, bandKey, hasLimits]);
 
   const loaded = bandLoad && bandLoad.key === bandKey ? bandLoad : null;
-  const band = loaded?.band ?? null;
+  const band = item.limits ?? loaded?.band ?? null;
+  const known = hasLimits || Boolean(loaded);
   const off = priceOutOfBand(item.selectedPrice, band);
   const own = item.ownPromotion;
+  const editable = item.service.isActive;
   const reasons = hiddenReasons(item, profile)
     .map((r) => t(`reasons.${r}`))
     .join(", ");
   const canPromote = item.status === "active" && item.service.isActive && !own && !pending;
-  const promoteTitle = own ? t("card.promotedHint", { days: own.daysLeft }) : pending ? t("card.pendingHint") : item.status !== "active" ? t("card.promoteInactive") : undefined;
+  const promoteTitle = own
+    ? t("card.promotedHint", { days: own.daysLeft })
+    : pending
+      ? t("card.pendingHint")
+      : item.status !== "active" || !item.service.isActive
+        ? t("card.promoteInactive")
+        : undefined;
   const category = item.service.categoryTitle || item.service.subcategory || t("card.service");
   const sub = (s: string) => (aiId ? `${aiId}.${s}` : undefined);
 
@@ -118,7 +128,7 @@ export default function ServiceCard({
       <p className={`msv__band${off ? " is-off" : ""}`}>
         <IconCoins aria-hidden="true" />
         <span>
-          {!loaded
+          {!known
             ? t("card.bandLoading")
             : band
               ? off
@@ -130,12 +140,12 @@ export default function ServiceCard({
 
       {item.experienceNote ? (
         <p className="msv__note">{item.experienceNote}</p>
-      ) : (
+      ) : editable ? (
         <button type="button" className="msv__addnote" onClick={onEdit}>
           <IconEdit aria-hidden="true" />
           {t("card.noteEmpty")}
         </button>
-      )}
+      ) : null}
 
       <p className={`msv__vis${item.visible ? " is-on" : ""}`}>
         {item.visible ? <IconEye aria-hidden="true" /> : <IconEyeOff aria-hidden="true" />}
@@ -145,7 +155,14 @@ export default function ServiceCard({
       <div className="msv__foot">
         <StatusSwitch value={item.status} busy={busy} onChange={onStatus} label={t("statusLabel")} aiTarget={first ? "services:status" : undefined} aiId={sub("status")} />
         <div className="msv__acts">
-          <button type="button" className="btn btn--line btn--sm" onClick={onEdit} data-ai-id={sub("edit")}>
+          <button
+            type="button"
+            className="btn btn--line btn--sm msv__edit"
+            onClick={onEdit}
+            disabled={!editable}
+            title={editable ? undefined : t("card.editLocked")}
+            data-ai-id={sub("edit")}
+          >
             <IconEdit aria-hidden="true" />
             {t("card.edit")}
           </button>

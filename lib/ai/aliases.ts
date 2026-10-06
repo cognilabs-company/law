@@ -14,7 +14,7 @@ const RULES: [string, string, Kind][] = [
   ["dashboard.quick-actions.documents", "nav:services", "a"],
   ["dashboard.quick-actions.support", "header:support", "a"],
   ["dashboard.quick-actions.support", "nav:support", "a"],
-  ["dashboard.ai-instructor.open", "button:open-instructor", "a"],
+  ["dashboard.ai-instructor.open", "button:open-instructor", "f"],
   ["pricing.plan.{slug}.buy", "button:buy-plan:{slug}", "x"],
   ["pricing.plan.{slug}.features", "plan:{slug}", "a"],
   ["pricing.plan.{slug}", "plan:{slug}", "x"],
@@ -36,6 +36,7 @@ const RULES: [string, string, Kind][] = [
   ["marketplace.results", "marketplace:lawyer-list", "x"],
   ["marketplace.seller.{uid}.service.{sid}.buy", "button:marketplace-purchase:{uid}:{sid}", "x"],
   ["marketplace.seller.{uid}.service.{sid}", "marketplace:service-card:{sid}", "f"],
+  ["marketplace.service.{sid}", "marketplace:service-card:{sid}", "f"],
   ["marketplace.seller.{uid}.services", "marketplace:seller-services", "a"],
   ["marketplace.seller.{uid}.detail", "marketplace:seller-summary", "a"],
   ["marketplace.seller.{uid}", "marketplace:lawyer-card:{uid}", "x"],
@@ -72,6 +73,7 @@ const RULES: [string, string, Kind][] = [
   ["documents.create.open", "button:create-document", "x"],
   ["documents.search.input", "documents:catalog-search", "x"],
   ["documents.categories", "documents:category-list", "x"],
+  ["documents.catalog.category.{slug}", "documents:category-list", "a"],
   ["documents.category.{id}", "documents:category-list", "a"],
   ["documents.subcategories", "documents:direction-list", "x"],
   ["documents.subcategory.{slug}", "documents:direction-list", "a"],
@@ -127,6 +129,16 @@ const RULES: [string, string, Kind][] = [
   ["profile.{section}.edit", "profile:{section}", "a"],
   ["profile.{section}", "profile:{section}", "x"],
   ["services.card.{id}", "services:card", "a"],
+  ["advocate.services.summary", "services:summary", "x"],
+  ["advocate.services.add", "button:add-service", "x"],
+  ["advocate.services.filters", "services:filters", "x"],
+  ["advocate.services.list", "services:list", "x"],
+  ["works.list", "works:list", "x"],
+  ["works.filters", "works:filters", "x"],
+  ["complaints.new", "button:new-complaint", "x"],
+  ["complaints.list", "complaints:list", "x"],
+  ["complaints.filters.{name}", "complaints:filters", "a"],
+  ["complaints.filters", "complaints:filters", "x"],
 ];
 
 type Compiled = { re: RegExp; names: string[]; tpl: string };
@@ -134,7 +146,21 @@ type Rule = { ai: Compiled; legacy: Compiled; kind: Kind; lossy: boolean };
 
 export type AliasHit = { id: string; exact: boolean; lossy: boolean; tpl: string; params: string[] };
 
-const REWRITES: [RegExp, string][] = [[/^documents\.request\.([^.:]+)((?:\.[^.:]+)*)$/, "documents.my.item.$1$2"]];
+const REWRITES: [RegExp, string][] = [
+  [/^documents\.request\.([^.:]+)((?:\.[^.:]+)*)$/, "documents.my.item.$1$2"],
+  [/^documents\.catalog\.search(\.input)?$/, "documents.search.input"],
+  [/^documents\.my\.tab\.[^.]+$/, "documents.my.filters.mode"],
+  [/^documents\.filters\.clear$/, "documents.filters.reset"],
+  [/^advocate\.document-requests\.tab\.(progress|done)$/, "advocate.document-requests.filters.status"],
+  [/^advocate\.dashboard\.tasks\.tab\.[^.]+$/, "advocate.dashboard.tasks.filters.period"],
+  [/^organization\.dashboard\.works\.tab\.[^.]+$/, "organization.dashboard.works.filters.kind"],
+  [/^call_center\.urgent-advokat\.tab\.[a-z_]+$/, "call_center.urgent-advokat.tabs"],
+  [/^call_center\.support\.queue\.tab\.[a-z]+$/, "call_center.support.queue.tabs"],
+  [/^(marketplace\.orders|advocate\.marketplace-orders)\.tab\.[a-z]+$/, "$1.tabs"],
+  [/^support\.tickets\.tab\.(active|closed)$/, "support.tickets.tabs"],
+  [/^admin\.register-requests\.tab\.[a-z-]+$/, "admin.register-requests.role-tabs"],
+  [/^(advocate|organization\.member\.[^.]+)\.services\.filter\.(all|active|paused|inactive)$/, "$1.services.filters.status"],
+];
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 

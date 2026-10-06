@@ -8,9 +8,11 @@ import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import DatePicker from "@/components/DatePicker";
+import FilterBar from "@/components/filters/FilterBar";
 import { ApiError } from "@/lib/http";
+import { useAiField } from "@/lib/ai/registry";
 import { Skeleton, EmptyState } from "./DataState";
-import { IconClipboardCheck, IconChevronLeft, IconChevronRight, IconPlus, IconEdit, IconTrash, IconSearch, IconCheck, IconAlert } from "@/components/icons";
+import { IconClipboardCheck, IconChevronLeft, IconChevronRight, IconPlus, IconEdit, IconTrash, IconEye, IconAlert } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 
 // Backend task statuses: todo · doing · review · done (+ blocked as a flag, deleted).
@@ -35,6 +37,7 @@ const EMPTY: Form = { title: "", priority: "medium", due: "", description: "", c
 // Moves are optimistic (the list is patched first, then synced).
 export default function TaskBoard() {
   const t = useTranslations("portal.tasks");
+  const tfb = useTranslations("filterBar");
   const locale = useLocale();
   const res = useResource(() => listMyTasks(), []);
   const [busy, setBusy] = useState<string | null>(null);
@@ -73,6 +76,14 @@ export default function TaskBoard() {
     return by;
   }, [res.data, q]);
   const shownStages = hideDone ? STAGES.filter((s) => s !== "done") : STAGES;
+  const shownCount = shownStages.reduce((n, s) => n + cols[s].length, 0);
+  useAiField("advocate.tasks.search.input", { get: () => q, set: setQ, sensitive: true });
+  useAiField("advocate.tasks.filters.show", {
+    get: () => (hideDone ? "open" : ""),
+    set: (v) => {
+      if (v === "" || v === "open") setHideDone(v === "open");
+    },
+  });
   const failMsg = (e: unknown) => (e instanceof ApiError && e.status === 403 ? t("forbidden") : e instanceof ApiError && e.detail ? e.detail : t("errorCreate"));
 
   async function moveTo(x: WorkTask, stage: Stage) {
@@ -135,10 +146,28 @@ export default function TaskBoard() {
         </span>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
-      <div className="lfilters" data-ai-target="tasks:filters" data-ai-label={t("searchPh")}>
-        <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>
-        <label className={`vac${hideDone ? " on" : ""}`}><input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /><IconCheck />{t("hideDone")}</label>
-      </div>
+      <FilterBar
+        className="wfb"
+        fields={[
+          {
+            key: "show",
+            label: t("showLabel"),
+            icon: IconEye,
+            value: hideDone ? "open" : "",
+            onChange: (v) => setHideDone(v === "open"),
+            options: [
+              { value: "", label: t("showAll") },
+              { value: "open", label: t("showOpen") },
+            ],
+            aiId: "advocate.tasks.filters.show",
+          },
+        ]}
+        search={{ value: q, onChange: setQ, placeholder: t("searchPh"), aiId: "advocate.tasks.search.input" }}
+        count={res.status === "ready" ? shownCount : undefined}
+        aiId="advocate.tasks.filters"
+        aiTarget="tasks:filters"
+        aiLabel={tfb("title")}
+      />
       {err ? <Notice ok={false} msg={err} /> : null}
 
       {res.status === "loading" ? (

@@ -5,24 +5,30 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconChat, IconCheck, IconClock, IconPhone, IconUsers, IconVideo } from "@/components/icons";
+import { IconAlert, IconChat, IconCheck, IconClock, IconClose, IconHourglass, IconPhone, IconRefresh, IconSend, IconUsers, IconVideo } from "@/components/icons";
 import { ApiError, errDetail } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { setReturnTo } from "@/lib/returnTo";
 import {
   PREFERRED_CHANNELS,
   activePurchaseOf,
+  marketChatHref,
+  phaseOfStatus,
   requestMarketplacePurchase,
   type ActivePurchase,
   type MarketPurchase,
   type MarketService,
+  type MarketTrackPhase,
   type PreferredChannel,
 } from "@/lib/services/marketplace";
+import { useMarketOrderTracker } from "@/lib/useMarketOrderTracker";
 import { deliveryLabel } from "./bits";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 
 const CHANNEL_ICON = { chat: IconChat, audio: IconPhone, video: IconVideo, meeting: IconUsers } as const;
 const NOTE_MAX = 1000;
+const STEPS = ["request", "confirm", "chat"] as const;
+const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, paid: 2, chat: 2, completed: 3, cancelled: 1 };
 export const CLIENT_ORDERS_HREF = "/portal/client/marketplace-orders";
 
 export default function PurchaseDialog({
@@ -85,10 +91,25 @@ export default function PurchaseDialog({
   });
   useAiSelection(aiForm ? "preferred_channel" : "", channel);
 
+  const tracked = done ?? active;
+  const track = useMarketOrderTracker(service && tracked ? tracked.orderId : "", service && tracked ? tracked.workId : "", service && tracked ? tracked.status : "");
+
   if (!service) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
 
   const quick = [t("quick.today"), t("quick.evening"), t("quick.tomorrow"), t("quick.week")];
-  const step = done ? 1 : 0;
+  const phase: MarketTrackPhase | null = tracked ? (track?.phase ?? phaseOfStatus(tracked.status)) : null;
+  const step = phase ? STEP_OF[phase] : 0;
+  const failed = phase === "cancelled";
+  const slow = !!track && (track.slow || track.offline);
+  const ended = !!track?.ended;
+  const live = !!track && !slow && !ended && (phase === "pending" || phase === "paid");
+  const isActive = !done && !!active;
+
+  function retry() {
+    setDone(null);
+    setActive(null);
+    setErr("");
+  }
 
   async function submit() {
     if (busy || done || !service) return;
@@ -123,17 +144,85 @@ export default function PurchaseDialog({
   }
 
   const delivery = deliveryLabel(tm, service.deliveryMinutes);
+  const chatHref = track?.roomId && tracked ? marketChatHref({ roomId: track.roomId, workId: tracked.workId, serviceTitle: service.title }) : "";
+
+  const titles: Record<MarketTrackPhase, string> = {
+    pending: isActive ? t("active") : t("sentTitle"),
+    paid: isActive ? t("activePaid") : t("paidTitle"),
+    chat: isActive ? t("activePaid") : t("chatTitle"),
+    completed: t("completedTitle"),
+    cancelled: t("rejectedTitle"),
+  };
+  const leads: Record<MarketTrackPhase, string> = {
+    pending: track?.slow ? t("slow") : t("sentLead"),
+    paid: track?.slow ? t("paidNoRoom") : "",
+    chat: t("chatLead"),
+    completed: "",
+    cancelled: t("rejectedLead"),
+  };
+  const receiptTitle = phase ? titles[phase] : "";
+  const receiptLead = phase ? leads[phase] : "";
+
+  const ordersLink = (primary: boolean) => (
+    <Link
+      key="orders"
+      href={CLIENT_ORDERS_HREF}
+      className={`btn ${primary ? "btn--grad" : "btn--line"}`}
+      data-ai-id={isActive ? "marketplace.purchase.active-order" : "marketplace.purchase.to-orders"}
+    >
+      {isActive ? t("activeOpen") : t("toOrders")}
+    </Link>
+  );
+  const recheckButton = (primary: boolean) => (
+    <button key="recheck" type="button" className={`btn ${primary ? "btn--grad" : "btn--line"}`} onClick={() => track?.recheck()} data-ai-id="marketplace.purchase.recheck">
+      <IconRefresh />
+      {t("recheck")}
+    </button>
+  );
+  const closeButton = (
+    <button key="close" type="button" className="btn btn--line" onClick={onClose}>
+      {t("close")}
+    </button>
+  );
+
+  const actions =
+    phase === "chat" && chatHref
+      ? [
+          <Link key="chat" href={chatHref} className="btn btn--grad" data-ai-id="marketplace.purchase.open-chat" data-ai-label={t("openChat")}>
+            <IconChat />
+            {t("openChat")}
+          </Link>,
+          ordersLink(false),
+        ]
+      : phase === "cancelled"
+        ? [
+            <button key="retry" type="button" className="btn btn--grad" onClick={retry} data-ai-id="marketplace.purchase.retry">
+              <IconSend />
+              {t("retry")}
+            </button>,
+            closeButton,
+          ]
+        : ended
+          ? [ordersLink(true)]
+          : phase === "pending" && slow
+            ? [recheckButton(true), ordersLink(false)]
+            : phase === "paid" && slow
+              ? [ordersLink(true), recheckButton(false)]
+              : [ordersLink(true), closeButton];
 
   return (
     <Modal open onClose={onClose} title={t("title")}>
       <div className="mk-buy" data-ai-id="marketplace.purchase-modal" data-ai-type="modal" data-ai-label={t("title")} data-ai-entity-type="marketplace_service" data-ai-entity-id={service.id}>
-        <ol className="mk-steps" aria-label={t("title")}>
-          {(["request", "confirm", "chat"] as const).map((s, i) => (
-            <li key={s} className={i < step ? "is-done" : i === step ? "is-now" : ""}>
-              <span>{i < step ? <IconCheck /> : i + 1}</span>
-              {t(`steps.${s}`)}
-            </li>
-          ))}
+        <ol className={`mk-steps${phase ? " mk-steps--calm" : ""}`} aria-label={t("title")}>
+          {STEPS.map((s, i) => {
+            const fail = failed && i === step;
+            return (
+              <li key={s} className={fail ? "is-fail" : i < step ? "is-done" : i === step ? "is-now" : ""} aria-current={i === step ? "step" : undefined}>
+                <span>{fail ? <IconClose /> : i < step ? <IconCheck /> : i + 1}</span>
+                {t(`steps.${s}`)}
+              </li>
+            );
+          })}
         </ol>
 
         <div className="mk-buy__ticket">
@@ -155,40 +244,61 @@ export default function PurchaseDialog({
           </div>
         </div>
 
-        {done ? (
-          <div className="mk-receipt" role="status">
-            <span className="mk-receipt__stamp" aria-hidden="true">
-              <IconCheck />
-            </span>
-            <b>{t("sentTitle")}</b>
-            {done.workId ? <span className="wid">{done.workId}</span> : null}
-            <span className="mk-pending">
-              <i aria-hidden="true" />
-              {t("pending")}
-            </span>
-            <p>{t("sentLead")}</p>
-            {!done.telegramSent ? <Notice ok={false} msg={t("notDelivered")} /> : null}
-            <div className="mk-buy__acts">
-              <Link href={CLIENT_ORDERS_HREF} className="btn btn--grad" data-ai-id="marketplace.purchase.to-orders">
-                {t("toOrders")}
-              </Link>
-              <button type="button" className="btn btn--line" onClick={onClose}>
-                {t("close")}
-              </button>
+        {phase ? (
+          <div
+            className={`mk-receipt mk-receipt--${phase}${phase === "pending" && isActive ? " mk-receipt--warn" : ""}`}
+            data-ai-id="marketplace.purchase.status"
+            data-ai-type="section"
+            data-ai-label={receiptTitle}
+          >
+            <div className="mk-receipt__msg" role="status">
+              <div key={phase} className="mk-receipt__in">
+                {phase === "pending" ? (
+                  <span className={`mk-receipt__stamp mk-receipt__stamp--wait${live ? "" : " is-idle"}`} aria-hidden="true">
+                    <IconHourglass />
+                  </span>
+                ) : phase === "cancelled" ? (
+                  <span className="mk-receipt__stamp mk-receipt__stamp--off" aria-hidden="true">
+                    <IconClose />
+                  </span>
+                ) : (
+                  <span className={`mk-receipt__stamp${phase === "completed" ? "" : " mk-receipt__stamp--win"}`} aria-hidden="true">
+                    <IconCheck />
+                  </span>
+                )}
+                <b className="mk-receipt__t">{receiptTitle}</b>
+                {tracked?.workId ? <span className="wid">{tracked.workId}</span> : null}
+                {phase === "pending" ? (
+                  <span className={`mk-pending${live ? "" : " mk-pending--idle"}`}>
+                    <i aria-hidden="true" />
+                    {t("pending")}
+                  </span>
+                ) : phase === "paid" ? (
+                  <span className={`mk-pending mk-pending--ok${live ? "" : " mk-pending--idle"}`}>
+                    <i aria-hidden="true" />
+                    {t("paidPreparing")}
+                  </span>
+                ) : null}
+                {receiptLead ? <p>{receiptLead}</p> : null}
+                {phase === "pending" && done && !done.telegramSent ? <Notice ok={false} msg={t("notDelivered")} /> : null}
+              </div>
+              {live ? (
+                <div className="mk-live">
+                  <span className="mk-live__main">
+                    <i aria-hidden="true" />
+                    {t("live")}
+                  </span>
+                  <span className="mk-live__note">{t("liveNote")}</span>
+                </div>
+              ) : null}
+              {track?.offline && !ended && (phase === "pending" || phase === "paid") ? (
+                <div className="mk-live mk-live--off">
+                  <IconAlert aria-hidden="true" />
+                  <span>{t("offline")}</span>
+                </div>
+              ) : null}
             </div>
-          </div>
-        ) : active ? (
-          <div className="mk-receipt mk-receipt--warn" role="status">
-            <b>{t("active")}</b>
-            {active.workId ? <span className="wid">{active.workId}</span> : null}
-            <div className="mk-buy__acts">
-              <Link href={CLIENT_ORDERS_HREF} className="btn btn--grad" data-ai-id="marketplace.purchase.active-order">
-                {t("activeOpen")}
-              </Link>
-              <button type="button" className="btn btn--line" onClick={onClose}>
-                {t("close")}
-              </button>
-            </div>
+            <div className="mk-buy__acts">{actions}</div>
           </div>
         ) : (
           <form

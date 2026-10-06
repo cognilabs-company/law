@@ -74,6 +74,7 @@ export default function CallCenterBoard() {
   }, [load]);
 
   const allLeads = useMemo(() => leadsOf(state.columns), [state.columns]);
+  const filterItems = useMemo(() => state.columns.flatMap((c) => c.cards.map((x) => ({ lead: leadFilterable(x.lead), stage: c.key }))), [state.columns]);
   const regions = useMemo(() => [...new Set(allLeads.map((l) => l.region).filter(Boolean))], [allLeads]);
   const filtered = filterActive(f);
   const viewCols = useMemo(
@@ -171,12 +172,14 @@ export default function CallCenterBoard() {
         <LeadFilterBar
           value={f}
           onChange={setF}
+          items={filterItems}
+          meId={meId}
           regions={regions}
           stages={state.columns.map((c) => ({ value: c.key, label: colTitle(c) }))}
           operators={ops.status === "ready" ? ops.ops : undefined}
-          mine
           scores
-          summary={filtered ? { shown, total: allLeads.length } : undefined}
+          count={shown}
+          aiId="call_center.board.filters"
         />
       ) : null}
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}

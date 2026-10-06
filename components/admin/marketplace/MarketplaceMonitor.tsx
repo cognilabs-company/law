@@ -135,6 +135,7 @@ export default function MarketplaceMonitor() {
   const busy = overview.refreshing || top.refreshing || latest.refreshing || orders.refreshing || sellers.refreshing;
   const stats = overview.failed && overview.stale ? null : overview.data;
   const sellersTotal = top.failed && top.stale ? undefined : top.data?.total;
+  const listTotal = tab === "orders" ? orders.data?.total : tab === "sellers" ? sellers.data?.total : undefined;
   const period = f.preset
     ? t(`filter.presets.${f.preset}`)
     : f.from || f.to
@@ -216,7 +217,7 @@ export default function MarketplaceMonitor() {
         </div>
       </section>
 
-      <MkmFilterBar tab={tab} value={f} onChange={patch} q={qInput} onQ={setQInput} onReset={resetAll} />
+      <MkmFilterBar tab={tab} value={f} onChange={patch} q={qInput} onQ={setQInput} onReset={resetAll} count={listTotal} />
 
       <div role="tabpanel" id="mkm-panel" aria-labelledby={`mkm-tab-${tab}`} className="mkm-panel">
         {tab === "overview" ? (

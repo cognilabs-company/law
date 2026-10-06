@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { findTarget } from "@/lib/guide/targets";
+import { resolveExact } from "@/lib/ai/resolve";
 
 type Box = { x: number; y: number; w: number; h: number; r: number };
 
@@ -49,7 +50,7 @@ function holePath(W: number, H: number, b: Box): string {
   return `path(evenodd, "M0 0H${f(W)}V${f(H)}H0Z M${f(x + k)} ${f(y)}H${f(x + w - k)}A${f(k)} ${f(k)} 0 0 1 ${f(x + w)} ${f(y + k)}V${f(y + h - k)}A${f(k)} ${f(k)} 0 0 1 ${f(x + w - k)} ${f(y + h)}H${f(x + k)}A${f(k)} ${f(k)} 0 0 1 ${f(x)} ${f(y + h - k)}V${f(y + k)}A${f(k)} ${f(k)} 0 0 1 ${f(x + k)} ${f(y)}Z")`;
 }
 
-export default function Spotlight({ targetId, stepKey, variant }: { targetId: string; stepKey: string; variant?: "pulse" | "soft" }) {
+export default function Spotlight({ targetId, stepKey, variant, strict = false }: { targetId: string; stepKey: string; variant?: "pulse" | "soft"; strict?: boolean }) {
   const scrim = useRef<HTMLDivElement>(null);
   const ring = useRef<HTMLDivElement>(null);
   const soft = variant === "soft";
@@ -75,7 +76,7 @@ export default function Spotlight({ targetId, stepKey, variant }: { targetId: st
     };
     window.addEventListener("scroll", onScroll, { capture: true, passive: true });
     const loop = () => {
-      const found = findTarget(targetId);
+      const found = strict ? (resolveExact(targetId)?.el ?? null) : findTarget(targetId);
       if (found !== el) {
         el = found;
         clip = el ? clippers(el) : [];
@@ -127,7 +128,7 @@ export default function Spotlight({ targetId, stepKey, variant }: { targetId: st
       window.removeEventListener("scroll", onScroll, { capture: true });
       delete document.body.dataset.guideDock;
     };
-  }, [targetId, soft]);
+  }, [targetId, soft, strict]);
 
   useEffect(() => {
     const g = ring.current;

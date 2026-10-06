@@ -21,12 +21,13 @@ import DocRatingBox, { DocRatedStars } from "./DocRatingBox";
 import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
-import Select from "@/components/Select";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { Skeleton, EmptyState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
-import { statusLabel } from "@/lib/labels";
+import { docNextActionKey, statusLabel } from "@/lib/labels";
+import { matchesSearch } from "@/lib/searchText";
 import { Link, useRouter } from "@/i18n/navigation";
-import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight, IconTag, IconCheck, IconSearch } from "@/components/icons";
+import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight, IconTag, IconCheck, IconSearch, IconCircleCheck } from "@/components/icons";
 import { useAiReveal } from "@/lib/guide/targets";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
@@ -46,9 +47,9 @@ const MODE_ICON = { manual: IconEdit, ai: IconSparkle, lawyer: IconScale } as co
 function statusTone(status: string): "done" | "waiting" | "you" | "closed" | "working" {
   if (status === "file_ready" || status === "rated") return "done";
   if (status === "open_pool" || status === "lawyer_review") return "waiting";
-  if (status === "questionnaire" || status === "ready_to_generate" || status === "payment_pending") return "you";
+  if (status === "questionnaire" || status === "ready_to_generate" || status === "payment_pending" || status === "payment_required" || status === "awaiting_payment" || status === "pending_payment") return "you";
   // The case is over: nothing more will happen on this document.
-  if (status === "closed" || status === "cancelled" || status === "rejected") return "closed";
+  if (status === "closed" || status === "cancelled" || status === "rejected" || status === "payment_cancelled") return "closed";
   return "working";
 }
 // Which rows could carry a rating window, and therefore are worth one detail
@@ -62,6 +63,7 @@ const RATEABLE = new Set(["file_ready", "rated", "closed"]);
 // re-open the service it came from to find out.
 type TabKey = "all" | ClientDocFlowMode;
 const TABS: TabKey[] = ["all", "manual", "ai", "lawyer"];
+const asTab = (v: string): TabKey => TABS.find((tb) => tb === v) ?? "all";
 
 export default function ClientDocumentRequests() {
   const t = useTranslations("portal.client.documentRequests");
@@ -70,6 +72,11 @@ export default function ClientDocumentRequests() {
   const locale = useLocale();
   const router = useRouter();
   const params = useSearchParams();
+  const nextActionText = (raw: string) => {
+    const key = docNextActionKey(raw);
+    if (!key) return raw;
+    return key === "nextLawyer" ? t("nextLawyerHere") : t(key, { section: t("title") });
+  };
   const [tab, setTab] = useState<TabKey>("all");
   // LEXGO_REALTIME_AND_LIGHT_API_FRONTEND.md: /document-requests/service-flow
   // is paged now (the unpaged call was ~2MB for an account with a long
@@ -303,15 +310,21 @@ export default function ClientDocumentRequests() {
   // What the list actually renders: the loaded rows, narrowed by the search
   // box. Matched against the things a client would type — the document title,
   // its public work id, and the service it came from.
-  const needle = q.trim().toLowerCase();
-  const shown = needle
-    ? rows.filter((r) => `${r.title} ${r.workId} ${r.service?.name ?? ""}`.toLowerCase().includes(needle))
-    : rows;
+  const needle = q.trim();
+  const shown = needle ? rows.filter((r) => matchesSearch(`${r.title} ${r.workId} ${r.service?.name ?? ""}`, needle)) : rows;
 
   const promptRow = rows.find((r) => r.id === promptId) ?? null;
   const sendRow = rows.find((r) => r.id === sendId) ?? null;
 
   useAiField("documents.my.search.input", { get: () => q, set: setQ });
+  useAiField("documents.my.filters.mode", {
+    get: () => tab,
+    set: (v) => {
+      const w = v.trim().toLowerCase();
+      const hit = TABS.find((tb) => tb === w || t(`tab_${tb}`).toLowerCase() === w);
+      if (hit || !w) setTab(hit ?? "all");
+    },
+  });
   useAiField(seen.length > 1 ? "documents.my.filters.status" : "", {
     get: () => pick,
     set: (v) => {
@@ -332,6 +345,29 @@ export default function ClientDocumentRequests() {
     }
     if (more) void loadMore();
   });
+
+  const fields: FilterField[] = [
+    {
+      key: "mode",
+      label: t("filterMode"),
+      icon: IconEdit,
+      value: tab,
+      empty: "all",
+      onChange: (v) => setTab(asTab(v)),
+      options: TABS.map((tb) => ({ value: tb, label: t(`tab_${tb}`) })),
+      aiId: "documents.my.filters.mode",
+    },
+    {
+      key: "status",
+      label: tcm("filterStatus"),
+      icon: IconCircleCheck,
+      value: pick,
+      onChange: setPick,
+      hidden: seen.length < 2,
+      options: [{ value: "", label: tcm("filterAllStatuses") }, ...seen.map((s) => ({ value: s, label: statusLabel(tcm, s, "docStatus") || s }))],
+      aiId: "documents.my.filters.status",
+    },
+  ];
 
   async function download(item: ClientDocFlowItem) {
     if (!item.file.ready || dlBusy) return;
@@ -382,39 +418,18 @@ export default function ClientDocumentRequests() {
         </div>
       ) : null}
 
-      <div className="cwork__bar mydocs__bar" data-ai-target="documents:my-filters" data-ai-id="documents.my.filters" data-ai-type="section">
-        <div className="chiprow chiprow--tabs">
-          {TABS.map((tb) => (
-            <button key={tb} type="button" className="fchip" aria-pressed={tab === tb} onClick={() => setTab(tb)} data-ai-id={aiId("documents.my.tab", tb)} data-ai-type="tab">
-              {t(`tab_${tb}`)}
-            </button>
-          ))}
-        </div>
-        {/* Searches the rows that are loaded, which is the page plus whatever
-            "Yana yuklash" has added — the endpoint takes no query parameter,
-            so there is nothing to ask the server. Said out loud under the
-            list when a search comes up empty and there are still pages left. */}
-        <div className="lsearch mydocs__srch">
-          <IconSearch />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} data-ai-id="documents.my.search.input" />
-        </div>
-        {/* How the document was made is a tab; where it has got to is a
-            select. Only statuses this client's own documents have actually
-            been in are offered — the endpoint knows a dozen and most of them
-            would filter to nothing here. Same control, same place, as
-            "Mening ishlarim". */}
-        {seen.length > 1 ? (
-          <label className="cwork__filt" data-ai-id="documents.my.filters.status" data-ai-type="select">
-            <span>{tcm("filterStatus")}</span>
-            <Select
-              value={pick}
-              onChange={setPick}
-              ariaLabel={tcm("filterStatus")}
-              options={[{ value: "", label: tcm("filterAllStatuses") }, ...seen.map((s) => ({ value: s, label: statusLabel(tcm, s, "docStatus") || s }))]}
-            />
-          </label>
-        ) : null}
-      </div>
+      {/* Searches the rows that are loaded, which is the page plus whatever
+          "Yana yuklash" has added — the endpoint takes no query parameter,
+          so there is nothing to ask the server. Said out loud under the
+          list when a search comes up empty and there are still pages left. */}
+      <FilterBar
+        className="cwk-filters"
+        fields={fields}
+        search={{ value: q, onChange: setQ, placeholder: t("searchPh"), aiId: "documents.my.search.input" }}
+        count={status === "ready" && (!more || needle) ? shown.length : undefined}
+        aiId="documents.my.filters"
+        aiTarget="documents:my-filters"
+      />
 
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
 
@@ -429,7 +444,16 @@ export default function ClientDocumentRequests() {
           // Searched, and nothing on the rows we hold matched. Says so, and
           // says the archive may still have more — the search cannot reach
           // pages that have not been fetched.
-          <EmptyState icon={<IconSearch />} title={t("searchEmpty")} text={more ? t("searchEmptyMore") : t("searchEmptyText")} />
+          <>
+            <EmptyState icon={<IconSearch />} title={t("searchEmpty")} text={more ? t("searchEmptyMore") : t("searchEmptyText")} />
+            {more ? (
+              <button type="button" className="btn btn--line btn--full ntmore" onClick={() => void loadMore()} disabled={moreBusy} data-ai-id="documents.my.load-more">
+                {moreBusy ? tcm("loadingMore") : tcm("loadMore")}
+              </button>
+            ) : null}
+          </>
+        ) : tab !== "all" || pick ? (
+          <EmptyState icon={<IconSearch />} title={t("searchEmpty")} text={t("filterEmptyText")} />
         ) : (
           <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
         )
@@ -518,7 +542,7 @@ export default function ClientDocumentRequests() {
                   </div>
                   {/* What to do next, as a sentence — it was a full-width grey
                       box that read as an empty input. */}
-                  {item.nextAction ? <p className="mydoc__next"><IconArrowRight />{item.nextAction}</p> : null}
+                  {item.nextAction ? <p className="mydoc__next"><IconArrowRight />{nextActionText(item.nextAction)}</p> : null}
                   {/* Two things the client could not reach once the order modal
                       was closed: the private chat with the advocate handling
                       the document, and the finished file. */}

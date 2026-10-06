@@ -3,13 +3,16 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
+import { useAuth } from "@/lib/auth";
 import { parseServerTime } from "@/lib/http";
 import { errorText } from "@/lib/errorText";
 import { toast } from "@/lib/toast";
 import { primeCallAudio } from "@/lib/callSounds";
-import { shortDateTime } from "@/lib/date";
+import { shortDateTime, weekdays } from "@/lib/date";
 import { initials } from "@/lib/lawyers";
 import { aiId } from "@/lib/ai/ids";
+import { evalBusinessHours } from "@/lib/businessHours";
+import { DEFAULT_BUSINESS_HOURS, getBusinessHours, type BusinessHours } from "@/lib/services/backend";
 import {
   SUPPORT_META_FALLBACK,
   isClosedStatus,
@@ -40,6 +43,54 @@ const serverMinute = () => null;
 export function useMinuteNow(): number | null {
   const minute = useSyncExternalStore<number | null>(subscribeClock, readMinute, serverMinute);
   return minute === null ? null : minute * 60000;
+}
+
+const HOURS_STEP_MS = 15 * 60000;
+const HOURS_TRUST_MS = 2 * HOURS_STEP_MS;
+
+let hoursReq: { key: string; p: Promise<BusinessHours> } | null = null;
+
+function loadHours(key: string): Promise<BusinessHours> {
+  if (!hoursReq || hoursReq.key !== key) hoursReq = { key, p: getBusinessHours() };
+  return hoursReq.p;
+}
+
+export type SupportHours = { open: boolean; schedule: string };
+
+export function useSupportHours(enabled = true): SupportHours | null {
+  const locale = useLocale();
+  const { session } = useAuth();
+  const token = session?.token ?? "";
+  const now = useMinuteNow();
+  const step = now === null ? null : Math.floor(now / HOURS_STEP_MS);
+  const [loaded, setLoaded] = useState<{ token: string; data: BusinessHours } | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !token || step === null) return;
+    let alive = true;
+    loadHours(`${token}|${step}`)
+      .then((data) => {
+        if (alive) setLoaded({ token, data });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [enabled, token, step]);
+
+  if (!enabled || now === null) return null;
+  const api = loaded && loaded.token === token ? loaded.data : null;
+  const bh = api ?? DEFAULT_BUSINESS_HOURS;
+  const skew = api?.serverNow != null ? api.serverNow - api.fetchedAt : 0;
+  let open = evalBusinessHours(bh, now + skew).workingTime;
+  if (api && api.isWorkingTime !== null && now - api.fetchedAt < HOURS_TRUST_MS) {
+    const atFetch = evalBusinessHours(bh, api.fetchedAt + skew);
+    if (bh.timezone !== "Asia/Tashkent" || atFetch.workingTime !== api.isWorkingTime) open = api.isWorkingTime;
+  }
+  const w = weekdays(locale);
+  const run = bh.days.length > 1 && bh.days.every((d, i) => i === 0 || d === bh.days[i - 1] + 1);
+  const days = run ? `${w[bh.days[0] - 1]}–${w[bh.days[bh.days.length - 1] - 1]}` : bh.days.map((d) => w[d - 1]).join(", ");
+  return { open, schedule: `${days}, ${bh.start}–${bh.end}` };
 }
 
 const serverMeta = () => SUPPORT_META_FALLBACK;
@@ -121,6 +172,11 @@ export function waitText(t: T, iso: string, now: number | null): string {
 
 const flat = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
+export function lastPreview(ticket: Pick<SupportTicket, "lastMessage">, title: string): string {
+  const lead = flat(title).replace(/…$/, "").trim();
+  return ticket.lastMessage && !(lead && flat(ticket.lastMessage).startsWith(lead)) ? ticket.lastMessage : "";
+}
+
 export function SupportStatus({ status }: { status: string }) {
   const t = useTranslations("support");
   if (!status) return null;
@@ -161,8 +217,7 @@ export function TicketCard({
   const person = view === "client" ? ticket.operatorName : ticket.clientName;
   const heading = view === "operator" && person ? person : title;
   const when = ticket.lastMessageAt || ticket.updatedAt;
-  const lead = flat(title).replace(/…$/, "").trim();
-  const last = ticket.lastMessage && !(lead && flat(ticket.lastMessage).startsWith(lead)) ? ticket.lastMessage : "";
+  const last = lastPreview(ticket, title);
   const wait = view === "operator" && waiting ? waitText(t, ticket.createdAt, now) : "";
   const fresh = unread && unread > 0 ? unread : 0;
   const statusText = ticket.status ? (t.has(`status.${ticket.status}`) ? t(`status.${ticket.status}`) : ticket.status) : "";

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import {
-  listAds,
+  listActiveAds,
   checkoutPromotion,
   PROMOTION_PENDING,
   getPromotionStatus,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/services/backend";
 import { isDemoUnavailable, isProviderUnavailable, parseServerTime } from "@/lib/http";
 import { useAuth } from "@/lib/auth";
+import { toast } from "@/lib/toast";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import {
   dropPendingPromos,
@@ -42,8 +43,9 @@ const numOf = (v: unknown, fallback: number) => {
 export default function PromotionPanel() {
   const t = useTranslations("promotion");
   const tcommon = useTranslations("common");
+  const ts = useTranslations("sellerServices");
   const [reloadKey, setReloadKey] = useState(0);
-  const packages = useResource(() => listAds(), [reloadKey]);
+  const packages = useResource(() => listActiveAds(), [reloadKey]);
   const status = useResourceOne(getPromotionStatus, [reloadKey]);
   const analytics = useResourceOne<PromotionAnalytics>(getPromotionAnalytics, [reloadKey]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -61,8 +63,21 @@ export default function PromotionPanel() {
     return subscribeUserEvents((ev) => {
       const s = promoSignalOf(ev);
       if (!s || s.kind === "pending" || s.serviceId) return;
-      dropPendingPromos(uid, (k, p) => k === PROFILE_KEY && (!s.requestId || !p.requestId || p.requestId === s.requestId));
+      const out = dropPendingPromos(uid, (k, p) => k === PROFILE_KEY && (!s.requestId || !p.requestId || p.requestId === s.requestId));
+      if (out.some(([, p]) => !s.requestId || p.requestId === s.requestId)) {
+        toast(ts(s.kind === "approved" ? "toast.profileApproved" : "toast.profileRejected"), { tone: s.kind === "approved" ? "ok" : "err" });
+      }
       setReloadKey((n) => n + 1);
+    });
+  }, [uid, ts]);
+
+  useEffect(() => {
+    if (!uid) return;
+    let had = Boolean(parsePendingPromos(pendingPromosRaw(uid))[PROFILE_KEY]);
+    return subscribePendingPromos(() => {
+      const has = Boolean(parsePendingPromos(pendingPromosRaw(uid))[PROFILE_KEY]);
+      if (had && !has) setReloadKey((n) => n + 1);
+      had = has;
     });
   }, [uid]);
 

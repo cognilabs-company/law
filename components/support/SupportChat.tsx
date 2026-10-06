@@ -45,9 +45,11 @@ import {
   IconBriefcase,
   IconCard,
   IconCheckDouble,
+  IconChevronLeft,
   IconClose,
   IconFileText,
   IconHeadset,
+  IconHourglass,
   IconLock,
   IconPaperclip,
   IconPhone,
@@ -58,12 +60,14 @@ import {
   IconUser,
   IconVideo,
 } from "@/components/icons";
-import { SupportStatus, useSupportCall, useSupportLabels, type SupportCallControl } from "./bits";
+import { SupportStatus, useMinuteNow, useSupportCall, useSupportHours, useSupportLabels, type SupportCallControl } from "./bits";
 
 const PAGE = 50;
 const GROUP_MS = 5 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const SYNC_MS = 1500;
 const CALL_OVER = new Set(["ended", "cancelled", "expired", "missed", "rejected", "failed"]);
+const AI_ROLES = new Set(["ai", "assistant", "ai_instructor", "bot"]);
 
 type AssistCard = { key: string; info: SupportAssistInfo; at: string };
 type Row = { kind: "msg"; m: SupportMessage; at: number } | { kind: "card"; c: AssistCard; at: number };
@@ -473,15 +477,19 @@ export default function SupportChat({
   const clientName = ticket.clientName || clientFromMsgs;
   const connecting = mode === "client" && !opName && isWaitingTicket(ticket);
   const aiNow = mode === "client" && !opName && ticket.status === "ai_handling";
-  const who =
-    mode === "client"
-      ? opName || (connecting ? t("chat.connecting") : aiNow ? t("roles.ai") : t("chat.operatorFallback"))
-      : clientName || t("client");
+  const who = mode === "client" ? opName || (aiNow ? t("roles.ai") : t("chat.teamName")) : clientName || t("client");
   const person = mode === "client" ? opName : clientName;
   const category = labels.category(ticket.category);
   const sub = [mode === "operator" && ticket.clientLexgoId ? t("chat.lexgoId", { id: ticket.clientLexgoId }) : "", ticketTitle(ticket, t("untitled")), category, ticket.workId]
     .filter(Boolean)
     .join(" · ");
+  const meta = [category, ticket.workId].filter(Boolean).join(" · ");
+  const hours = useSupportHours(mode === "client" && !closed);
+  const line = mode !== "client" ? sub : closed ? meta : hours ? (hours.open ? t("chat.replyFast") : t("chat.hoursLine", { hours: hours.schedule })) : "";
+  const now = useMinuteNow();
+  const today = now === null ? "" : dateOnly(new Date(now).toISOString(), locale);
+  const yesterday = now === null ? "" : dateOnly(new Date(now - DAY_MS).toISOString(), locale);
+  const dayText = (day: string) => (day && day === today ? t("chat.today") : day && day === yesterday ? t("chat.yesterday") : day);
   const writable = canWrite && !closed && state !== "missing";
   const callable = mode === "operator" && Boolean(canCall) && known && !closed && state !== "missing";
   const canReopen = mode === "client" && Boolean(onReopen) && state !== "missing" && (!clientUserId || !meId || clientUserId === meId);
@@ -522,6 +530,11 @@ export default function SupportChat({
       data-ai-entity-id={ticketId || undefined}
     >
       <div className="supchat__head">
+        {mode === "client" && onBack ? (
+          <button type="button" className="supchat__back" onClick={onBack} aria-label={t("back")} title={t("back")}>
+            <IconChevronLeft />
+          </button>
+        ) : null}
         <span className={`supchat__av${connecting ? " supchat__av--wait" : ""}${aiNow ? " supchat__av--ai" : ""}`} aria-hidden="true">
           {person ? initials(person) : aiNow ? <IconSparkle /> : mode === "client" ? <IconHeadset /> : <IconUser />}
         </span>
@@ -529,7 +542,7 @@ export default function SupportChat({
           {known ? (
             <>
               <b>{who}</b>
-              <small>{sub}</small>
+              {line ? <small className={mode === "client" && !closed ? `supchat__line${hours?.open ? " is-open" : ""}` : undefined}>{line}</small> : null}
             </>
           ) : (
             <>
@@ -591,10 +604,15 @@ export default function SupportChat({
       ) : null}
 
       {connecting ? (
-        <p className="supchat__banner supchat__banner--wait" role="status">
-          <i aria-hidden="true" />
-          {t("waitingBanner")}
-        </p>
+        <div className="supwait" role="status">
+          <span className="supwait__ic" aria-hidden="true">
+            <IconHourglass />
+          </span>
+          <span className="supwait__tx">
+            <b>{t("chat.waitTitle")}</b>
+            <span>{t("chat.waitText")}</span>
+          </span>
+        </div>
       ) : null}
 
       <div
@@ -645,6 +663,7 @@ export default function SupportChat({
           </div>
         ) : null}
         {state === "ready" && !rows.length ? <p className="supchat__hint">{t("noMessages")}</p> : null}
+        {mode === "client" && state === "ready" && !hasMore && rows.length && meta ? <p className="supchat__start">{meta}</p> : null}
         {rows.map((row, i) => {
           const prevRow = i > 0 ? rows[i - 1] : undefined;
           const iso = row.kind === "msg" ? row.m.createdAt : row.c.at;
@@ -654,7 +673,7 @@ export default function SupportChat({
           if (row.kind === "card") {
             return (
               <div key={`card-${row.c.key}`} className="supchat__row">
-                {showDay ? <span className="supchat__day">{day}</span> : null}
+                {showDay ? <span className="supchat__day">{dayText(day)}</span> : null}
                 <AssistNote card={row.c} />
               </div>
             );
@@ -663,13 +682,21 @@ export default function SupportChat({
           const prev = prevRow && prevRow.kind === "msg" ? prevRow.m : undefined;
           const mine = Boolean(meId) && m.senderUserId === meId;
           const sys = m.senderRole === "system" || m.messageType === "system";
+          const ai = !mine && !sys && AI_ROLES.has(m.senderRole);
           const cont = Boolean(prev) && !showDay && !sys && prev?.senderUserId === m.senderUserId && prev?.messageType !== "system" && near(prev?.createdAt ?? "", m.createdAt);
           const role = m.senderRole && !sys ? roleLabel(m.senderRole) : "";
           return (
             <div key={m.id || `${m.createdAt}-${i}`} className="supchat__row">
-              {showDay ? <span className="supchat__day">{day}</span> : null}
-              <div className={`supmsg${mine ? " supmsg--me" : ""}${sys ? " supmsg--sys" : ""}${cont ? " supmsg--cont" : ""}`}>
-                {!mine && !sys && !cont && (m.senderName || role) ? (
+              {showDay ? <span className="supchat__day">{dayText(day)}</span> : null}
+              <div className={`supmsg${mine ? " supmsg--me" : ""}${sys ? " supmsg--sys" : ""}${ai ? " supmsg--ai" : ""}${cont ? " supmsg--cont" : ""}`}>
+                {ai && !cont ? (
+                  <span className="supmsg__who">
+                    <span className="supmsg__ai">
+                      <IconSparkle aria-hidden="true" />
+                      {m.senderName || t("roles.ai")}
+                    </span>
+                  </span>
+                ) : !mine && !sys && !cont && (m.senderName || role) ? (
                   <span className="supmsg__who">
                     {m.senderName || role}
                     {m.senderName && role ? <em>{role}</em> : null}
@@ -711,7 +738,7 @@ export default function SupportChat({
             <b>{t("closedBanner")}</b>
             {ticket.closedAt ? <small>{t("chat.closedAt", { date: dateTimeFull(ticket.closedAt, locale) })}</small> : null}
             {ticket.resolution ? (
-              <p>
+              <p className="supchat__res">
                 <em>{t("resolution")}</em>
                 {ticket.resolution}
               </p>
@@ -791,33 +818,35 @@ export default function SupportChat({
               void send();
             }}
           >
-            <textarea
-              ref={field}
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                if (error) setError(null);
-                const el = e.currentTarget;
-                el.style.height = "auto";
-                el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-              }}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
-                if (window.matchMedia("(pointer: coarse)").matches) return;
-                e.preventDefault();
-                void send();
-              }}
-              placeholder={t("ph")}
-              aria-label={t("ph")}
-              rows={1}
-              maxLength={4000}
-              disabled={!writable}
-              data-ai-target="support:message-input"
-              data-ai-id={aiInput}
-            />
-            <button type="submit" className="supchat__send" disabled={!writable || sending || !text.trim()} aria-label={t("send")} title={t("send")}>
-              <IconSend />
-            </button>
+            <div className="supchat__field">
+              <textarea
+                ref={field}
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  if (error) setError(null);
+                  const el = e.currentTarget;
+                  el.style.height = "auto";
+                  el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+                  if (window.matchMedia("(pointer: coarse)").matches) return;
+                  e.preventDefault();
+                  void send();
+                }}
+                placeholder={t("ph")}
+                aria-label={t("ph")}
+                rows={1}
+                maxLength={4000}
+                disabled={!writable}
+                data-ai-target="support:message-input"
+                data-ai-id={aiInput}
+              />
+              <button type="submit" className="supchat__send" disabled={!writable || sending || !text.trim()} aria-label={t("send")} title={t("send")}>
+                <IconSend />
+              </button>
+            </div>
             <span className="supchat__keys" aria-hidden="true">
               {t("chat.enterHint")}
             </span>

@@ -12,9 +12,10 @@ import {
   type AdPackage,
   type ManagedService,
   type PromotionRequest,
+  type ServiceError,
   type ServiceScope,
 } from "@/lib/services/sellerServices";
-import { IconAlert, IconCheck, IconClock, IconCrown, IconGem, IconInfo, IconMegaphone, IconRocket, IconTrendingUp } from "@/components/icons";
+import { IconAlert, IconCheck, IconClock, IconCrown, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp } from "@/components/icons";
 import { InBody, som, usePackageName } from "./bits";
 
 type Packs = { status: "loading" | "ready" | "error"; items: AdPackage[] };
@@ -27,6 +28,7 @@ export default function PromoteModal({
   owner,
   onClose,
   onSent,
+  onStale,
   aiId,
 }: {
   item: ManagedService;
@@ -35,6 +37,7 @@ export default function PromoteModal({
   owner: boolean;
   onClose: () => void;
   onSent: (req: PromotionRequest) => void;
+  onStale?: () => void;
   aiId?: string;
 }) {
   const t = useTranslations("sellerServices.promote");
@@ -63,24 +66,35 @@ export default function PromoteModal({
   const feat = items.length >= 3 ? items[1].id : items.length ? items[items.length - 1].id : "";
   const chosen = items.find((p) => p.id === picked) ?? items.find((p) => p.id === feat) ?? null;
 
+  const errLine = (e: ServiceError) => {
+    if (e.kind === "notFound") return t("notFound");
+    if (e.kind === "forbidden") return tc(owner ? "errors.forbiddenOwner" : "errors.forbidden");
+    if (e.kind === "pendingAccount") return tc(owner ? "errors.pendingAccountOwner" : "errors.pendingAccount");
+    if (e.kind === "range" || e.kind === "advocateOnly") return tc("errors.unknown");
+    return tc(`errors.${e.kind}`);
+  };
+
   const send = async () => {
     if (!chosen || busy) return;
     setBusy(true);
     setErr("");
     try {
       const req = await promoteManagedService(scope, item.id, chosen);
-      savePendingPromo(uid, pendingPromoKey(scope, item.id), {
-        requestId: req.requestId,
-        packageTitle: packName(chosen.title),
-        amount: req.amount,
-        currency: req.currency,
-        telegramSent: req.telegramSent,
-      });
+      if (req.telegramSent) {
+        savePendingPromo(uid, pendingPromoKey(scope, item.id), {
+          requestId: req.requestId,
+          packageTitle: packName(chosen.title),
+          amount: req.amount,
+          currency: req.currency,
+          telegramSent: req.telegramSent,
+        });
+      }
       setDone(req);
       onSent(req);
     } catch (e) {
-      const k = serviceErrorOf(e).kind;
-      setErr(k === "inactivePromo" ? tc("errors.inactivePromo") : k === "notFound" ? t("notFound") : k === "forbidden" ? tc("errors.forbidden") : tc(`errors.${k === "offline" ? "offline" : "unknown"}`));
+      const se = serviceErrorOf(e);
+      setErr(errLine(se));
+      if (se.kind === "notFound" || se.kind === "inactivePromo") onStale?.();
     } finally {
       setBusy(false);
     }
@@ -90,16 +104,18 @@ export default function PromoteModal({
     if (!busy) onClose();
   };
 
+  const sent = Boolean(done?.telegramSent);
+
   return (
     <InBody>
       <Modal open onClose={close} title={t("title")}>
         {done ? (
           <div className="svpdone" role="status" data-ai-id={aiId} data-ai-type={aiId ? "modal" : undefined} data-ai-label={aiId ? t("title") : undefined}>
-            <span className="svpdone__ic" aria-hidden="true">
-              <IconClock />
+            <span className={`svpdone__ic${sent ? "" : " is-bad"}`} aria-hidden="true">
+              {sent ? <IconClock /> : <IconAlert />}
             </span>
-            <b className="svpdone__t">{t("doneTitle")}</b>
-            <p className="svpdone__p">{t("doneText")}</p>
+            <b className="svpdone__t">{sent ? t("doneTitle") : t("failTitle")}</b>
+            <p className="svpdone__p">{sent ? t("doneText") : t("failText")}</p>
             <div className="svpdone__rows">
               <span>{t("service")}</span>
               <b>{item.service.name}</b>
@@ -120,13 +136,27 @@ export default function PromoteModal({
                 </>
               ) : null}
             </div>
-            <p className={`svpdone__tg${done.telegramSent ? " is-ok" : " is-bad"}`}>
-              {done.telegramSent ? <IconCheck aria-hidden="true" /> : <IconAlert aria-hidden="true" />}
-              {done.telegramSent ? t("telegramOk") : t("telegramFail")}
-            </p>
-            <button type="button" className="btn btn--pri btn--full" onClick={onClose}>
-              {t("close")}
-            </button>
+            {sent ? (
+              <>
+                <p className="svpdone__tg is-ok">
+                  <IconCheck aria-hidden="true" />
+                  {t("telegramOk")}
+                </p>
+                <button type="button" className="btn btn--pri btn--full" onClick={onClose}>
+                  {t("close")}
+                </button>
+              </>
+            ) : (
+              <div className="svpdone__acts">
+                <button type="button" className="btn btn--line" onClick={onClose}>
+                  {t("close")}
+                </button>
+                <button type="button" className="btn btn--grad" onClick={() => setDone(null)} data-ai-id={aiId ? `${aiId}.retry` : undefined}>
+                  <IconRefresh aria-hidden="true" />
+                  {t("retry")}
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="svprom" data-ai-id={aiId} data-ai-type={aiId ? "modal" : undefined} data-ai-label={aiId ? t("title") : undefined}>

@@ -8,7 +8,8 @@ import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
-import { IconBriefcase, IconCheck, IconClose, IconClock, IconSearch, IconPackage, IconStar, IconGem, IconArrowRight } from "@/components/icons";
+import FilterBar from "@/components/filters/FilterBar";
+import { IconBriefcase, IconCheck, IconClose, IconClock, IconLayers, IconPackage, IconStar, IconGem, IconArrowRight } from "@/components/icons";
 
 // One mark per tariff, so the three boxes are told apart before they are read.
 const TIER_ICON = { BASIC: IconPackage, STANDARD: IconStar, PREMIUM: IconGem } as const;
@@ -16,6 +17,7 @@ const TIER_ICON = { BASIC: IconPackage, STANDARD: IconStar, PREMIUM: IconGem } a
 const TIERS = ["BASIC", "STANDARD", "PREMIUM"] as const;
 // Seed/test packages the backend team left in the catalogue (reported).
 const isTest = (p: BackendPackage) => /test|t1b/i.test(p.code) || /test/i.test(p.title);
+const codeCount = (list: BackendPackage[]) => new Set(list.map((p) => p.code)).size;
 
 // T1B-01: packages = services + one price + what's included. Grouped by
 // package code, one card per tariff; "Alohida: X · Paketda: Y · Tejaysiz: Z"
@@ -31,6 +33,7 @@ export default function ClientPackages() {
   // service outside it would silently show no "separately" price.
   const services = useResource(() => getAllServices(undefined, locale), [locale]);
   const [q, setQ] = useState("");
+  const [cat, setCat] = useState("");
   const [open, setOpen] = useState<BackendPackage | null>(null);
 
   // Catalogue code → service (for the "separately" price and the order deep link).
@@ -53,18 +56,28 @@ export default function ClientPackages() {
     const prices = codesOf(p).map((c) => byCode.get(c)?.price ?? 0);
     return prices.length && prices.every((x) => x > 0) ? prices.reduce((a, b) => a + b, 0) : 0;
   };
+  const found = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return pk.data.filter((p) => !isTest(p) && (!needle || `${p.title} ${p.categoryTitle} ${p.code}`.toLowerCase().includes(needle)));
+  }, [pk.data, q]);
+  const cats = useMemo(
+    () => [...new Set(pk.data.filter((p) => !isTest(p)).map((p) => p.categoryTitle).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [pk.data],
+  );
   const groups = useMemo(() => {
     const m = new Map<string, BackendPackage[]>();
-    const needle = q.trim().toLowerCase();
-    for (const p of pk.data) {
-      if (isTest(p)) continue;
-      if (needle && !`${p.title} ${p.categoryTitle} ${p.code}`.toLowerCase().includes(needle)) continue;
+    for (const p of found) {
+      if (cat && p.categoryTitle !== cat) continue;
       if (!m.has(p.code)) m.set(p.code, []);
       m.get(p.code)!.push(p);
     }
     for (const v of m.values()) v.sort((a, b) => TIERS.indexOf(a.tariff as (typeof TIERS)[number]) - TIERS.indexOf(b.tariff as (typeof TIERS)[number]));
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [pk.data, q]);
+  }, [found, cat]);
+  const catOpts = [
+    { value: "", label: `${t("allCategories")} (${codeCount(found)})` },
+    ...cats.map((c) => ({ value: c, label: `${c} (${codeCount(found.filter((p) => p.categoryTitle === c))})` })),
+  ];
 
   function order(p: BackendPackage) {
     const first = codesOf(p).map((c) => byCode.get(c)).find(Boolean);
@@ -78,8 +91,13 @@ export default function ClientPackages() {
         <span className="advmuted">{pk.status === "ready" ? t("count", { n: groups.length }) : ""}</span>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
-      <div className="lfilters" data-ai-target="packages:search" data-ai-label={t("searchPh")}>
-        <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>
+      <div data-ai-target="packages:search" data-ai-label={t("searchPh")}>
+        <FilterBar
+          className="ppfilters"
+          fields={[{ key: "cat", label: t("category"), icon: IconLayers, value: cat, onChange: setCat, options: catOpts, hidden: cats.length < 2 }]}
+          search={{ value: q, onChange: setQ, placeholder: t("searchPh") }}
+          count={pk.status === "loading" ? undefined : groups.length}
+        />
       </div>
       {pk.status === "loading" ? (
         <Skeleton rows={4} />

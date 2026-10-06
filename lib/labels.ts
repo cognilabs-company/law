@@ -69,3 +69,13 @@ export function personName(value?: string | null): string {
   const out = s.replace(ID_TAIL, "").trim();
   return out || s;
 }
+
+const DOC_NEXT_ACTION_KEYS = new Map([
+  ["So'rov holatini kuzating", "nextTrack"],
+  ["Tayyor hujjatni yuklab oling", "nextDownload"],
+  ["Advokat hujjatni tayyorlagandan keyin shu sahifada yuklab olasiz", "nextLawyer"],
+  ["Ma'lumotlarni tekshirib hujjatni yarating", "nextFill"],
+]);
+export function docNextActionKey(raw?: string | null): string {
+  return DOC_NEXT_ACTION_KEYS.get((raw || "").trim().replace(/[‘’ʻʼ`]/g, "'")) ?? "";
+}

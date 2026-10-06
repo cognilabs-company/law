@@ -24,7 +24,7 @@ import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
 import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
-import { IconFileText, IconUser, IconPhone, IconCheck, IconClock, IconEye, IconDownload, IconUpload, IconAlert, IconTag, IconLock, IconLayers } from "@/components/icons";
+import { IconFileText, IconUser, IconPhone, IconCheck, IconClock, IconEye, IconDownload, IconUpload, IconAlert, IconTag, IconLock, IconLayers, IconInbox, IconBriefcase, IconClipboardCheck } from "@/components/icons";
 import WorkFilterBar, { inPeriod, useStoredFilters, type Period } from "./WorkFilterBar";
 import { matchesSearch } from "@/lib/searchText";
 import { aiId, aiSeg } from "@/lib/ai/ids";
@@ -81,6 +81,9 @@ function FlowBadge({ flow }: { flow?: string }) {
 const POOL_FLOW_STATUSES = new Set(["open_pool", "claimed", "completed"]);
 
 type Tab = "pool" | "assigned" | "progress" | "done";
+type Mine = Exclude<Tab, "pool">;
+const MINE: Mine[] = ["assigned", "progress", "done"];
+const isMine = (v: string): v is Mine => (MINE as string[]).includes(v);
 
 export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; basePath: string }) {
   const t = useTranslations(ns);
@@ -88,7 +91,19 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
   const locale = useLocale();
   const router = useRouter();
 
-  const [tab, setTab] = useState<Tab>("pool");
+  const tf = useTranslations("portal.workFilters");
+  const [f, setF, resetF] = useStoredFilters("docreq", { q: "", flow: "", docType: "", period: "", sort: "new", status: "assigned" });
+  const [view, setView] = useState<"pool" | "mine">("pool");
+  const mine: Mine = isMine(f.status) ? f.status : "assigned";
+  const tab: Tab = view === "pool" ? "pool" : mine;
+  const setTab = (next: Tab) => {
+    if (next === "pool") {
+      setView("pool");
+      return;
+    }
+    setView("mine");
+    setF({ status: next });
+  };
   const [target, setTarget] = useState<LawyerDocumentRequest | null>(null);
 
   const [poolReloadKey, setPoolReloadKey] = useState(0);
@@ -109,8 +124,6 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
   // with).
   const assignedList = assigned.data.filter((r) => r.status !== "open_pool");
 
-  const tf = useTranslations("portal.workFilters");
-  const [f, setF, resetF] = useStoredFilters("docreq", { q: "", flow: "", docType: "", period: "", sort: "new" });
   const pass = (r: Filterable, skipFlow = false) => {
     if (!skipFlow && f.flow && r.flow !== f.flow) return false;
     if (f.docType && (r.requestedDocumentType || "").trim() !== f.docType) return false;
@@ -163,33 +176,50 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
   const assignedShown = order(assignedList.filter((r) => pass(r)));
   const progressShown = order(progress.data.filter((r) => pass(r)));
   const doneShown = order(done.data.filter((r) => pass(r)));
-  const TABS: { key: Tab; label: string; count: number }[] = [
-    { key: "pool", label: t("tabNewRequests"), count: poolShown.length },
-    { key: "assigned", label: t("tabAssigned"), count: assignedShown.length },
-    { key: "progress", label: t("tabInProgress"), count: progressShown.length },
-    { key: "done", label: t("tabCompleted"), count: doneShown.length },
-  ];
   useAiSelection("document_requests_tab", tab);
   useAiReveal(/^advocate\.document-requests\.item\./, (id) => {
     const seg = id.split(".")[3] ?? "";
     const has = (rows: { id: string }[]) => rows.some((r) => aiSeg(r.id) === seg);
     const next: Tab | "" = has(poolVisible) ? "pool" : has(assignedList) ? "assigned" : has(progress.data) ? "progress" : has(done.data) ? "done" : "";
     if (!next) return;
-    setTab(next);
     const visible = next === "pool" ? poolShown : next === "assigned" ? assignedShown : next === "progress" ? progressShown : doneShown;
     if (!has(visible)) resetF();
+    setTab(next);
   });
   const activeRows = tab === "assigned" ? assignedShown : tab === "progress" ? progressShown : tab === "done" ? doneShown : [];
   const listEmpty = !(tab === "pool" ? poolShown.length : activeRows.length);
   const activeStatus = tab === "assigned" ? assigned.status : tab === "progress" ? progress.status : tab === "done" ? done.status : pool.status;
   const tabSource: Filterable[] = tab === "pool" ? poolVisible : tab === "assigned" ? assignedList : tab === "progress" ? progress.data : done.data;
   const tabTotal = tabSource.length;
+  const noRecords = !tabTotal && (tab === "assigned" || !assignedList.length);
   const flowCount = (fl: string) => tabSource.filter((r) => pass(r, true) && (!fl || r.flow === fl)).length;
   const docTypes = useMemo(() => {
     const all = [...pool.data, ...assigned.data].map((r) => (r.requestedDocumentType || "").trim()).filter(Boolean);
     return Array.from(new Set(all)).sort((a, b) => a.localeCompare(b));
   }, [pool.data, assigned.data]);
-  const activeCount = [f.flow, f.docType, f.period].filter(Boolean).length;
+  const statusGroup = {
+    key: "status",
+    label: t("statusLabel"),
+    icon: IconClipboardCheck,
+    value: mine,
+    empty: "assigned",
+    onChange: (v: string) => {
+      if (isMine(v)) setF({ status: v });
+    },
+    options: [
+      { value: "assigned", label: tf("stage.all"), count: assignedShown.length },
+      { value: "progress", label: t("tabInProgress"), count: progressShown.length },
+      { value: "done", label: t("tabCompleted"), count: doneShown.length },
+    ],
+  };
+  const flowGroup = {
+    key: "flow",
+    label: tf("flowLabel"),
+    icon: IconLayers,
+    value: f.flow,
+    onChange: (v: string) => setF({ flow: v }),
+    options: ["", ...FLOWS].map((fl) => ({ value: fl, label: tf(`flow.${fl || "all"}`), count: flowCount(fl) })),
+  };
   const filteredEmpty = (
     <div className="wfb__empty">
       <EmptyState icon={<IconFileText />} title={tf("emptyFiltered")} text={tf("emptyFilteredText")} />
@@ -213,34 +243,31 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
           builder's mobile-only form/document switcher and is display:none
           from 980px up — reusing it hid this whole tab strip on every
           desktop, which is the call-center advocate's actual device. */}
-      <div className="docb__tabs dreq__tabs" role="tablist" style={{ marginBottom: 16 }} data-ai-target="document-requests:tabs" data-ai-id={`${AI}.tabs`}>
-        {TABS.map((tb) => (
-          <button key={tb.key} type="button" role="tab" aria-selected={tab === tb.key} className={tab === tb.key ? "on" : ""} onClick={() => setTab(tb.key)} data-ai-id={`${AI}.tab.${tb.key}`}>
-            {tb.label}
-            <span className="docb__tabn">{tb.count}</span>
-          </button>
-        ))}
+      <div className="docb__tabs dreq__tabs" role="tablist" aria-label={t("title")} data-ai-target="document-requests:tabs" data-ai-id={`${AI}.tabs`}>
+        <button type="button" role="tab" aria-selected={view === "pool"} className={view === "pool" ? "on" : ""} onClick={() => setView("pool")} data-ai-id={`${AI}.tab.pool`}>
+          <IconInbox aria-hidden="true" />
+          {t("tabNewRequests")}
+          <span className="docb__tabn">{poolShown.length}</span>
+        </button>
+        <button type="button" role="tab" aria-selected={view === "mine"} className={view === "mine" ? "on" : ""} onClick={() => setView("mine")} data-ai-id={`${AI}.tab.assigned`}>
+          <IconBriefcase aria-hidden="true" />
+          {t("tabAssigned")}
+          <span className="docb__tabn">{assignedShown.length}</span>
+        </button>
       </div>
 
       <WorkFilterBar
         q={f.q}
         onQ={(v) => setF({ q: v })}
         placeholder={tf("searchDocs")}
-        chips={[
-          {
-            key: "flow",
-            label: tf("flowLabel"),
-            value: f.flow,
-            onChange: (v) => setF({ flow: v }),
-            options: ["", ...FLOWS].map((fl) => ({ value: fl, label: tf(`flow.${fl || "all"}`), count: flowCount(fl) })),
-          },
-        ]}
+        chips={view === "mine" ? [statusGroup, flowGroup] : [flowGroup]}
         selects={
-          docTypes.length
+          docTypes.length || f.docType
             ? [
                 {
                   key: "docType",
                   label: tf("docType"),
+                  icon: IconFileText,
                   value: f.docType,
                   onChange: (v) => setF({ docType: v }),
                   options: [{ value: "", label: tf("docTypeAll") }, ...docTypes.map((d) => ({ value: d, label: d }))],
@@ -253,9 +280,8 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         sort={f.sort}
         onSort={(v) => setF({ sort: v })}
         sortOptions={["new", "old"].map((o) => ({ value: o, label: tf(`sort.${o}`) }))}
-        activeCount={activeCount}
         onReset={resetF}
-        resultCount={tab === "pool" ? poolShown.length : activeRows.length}
+        resultCount={activeStatus === "ready" ? (tab === "pool" ? poolShown.length : activeRows.length) : undefined}
         aiTarget="document-requests:filters"
         aiBase={AI}
       />
@@ -283,7 +309,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         <Skeleton rows={3} />
       ) : activeStatus === "error" ? (
         <Notice ok={false} msg={t("loadError")} />
-      ) : !tabTotal ? (
+      ) : noRecords ? (
         <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
       ) : !activeRows.length ? (
         filteredEmpty

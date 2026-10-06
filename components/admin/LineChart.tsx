@@ -4,14 +4,18 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { shortDate, fmtDate } from "@/lib/date";
 import DatePicker from "@/components/DatePicker";
+import Select from "@/components/Select";
+import { IconClock } from "@/components/icons";
 
 // Responsive SVG line chart for time series (revenue trend etc.) with a
 // date-range selector and hover tooltips. X labels are localized dates.
-const RANGES = [
+type Period = "all" | "d7" | "d30" | "d90" | "custom";
+
+const RANGES: { key: Exclude<Period, "custom">; n: number }[] = [
+  { key: "all", n: 0 },
   { key: "d7", n: 7 },
   { key: "d30", n: 30 },
   { key: "d90", n: 90 },
-  { key: "all", n: 0 },
 ];
 
 export default function LineChart({
@@ -27,21 +31,32 @@ export default function LineChart({
   const locale = useLocale();
   const t = useTranslations("chart");
   const fmtV = format ?? ((n: number) => String(n));
-  const [range, setRange] = useState(3); // default: all
+  const [period, setPeriod] = useState<Period>("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [hover, setHover] = useState<number | null>(null);
 
-  const custom = !!(from || to);
+  const custom = period === "custom";
+  const span = RANGES.find((r) => r.key === period)?.n ?? 0;
   const base = custom
     ? points.filter((p) => {
         const iso = p.label.slice(0, 10);
         return (!from || iso >= from) && (!to || iso <= to);
       })
-    : RANGES[range].n > 0
-      ? points.slice(-RANGES[range].n)
+    : span > 0
+      ? points.slice(-span)
       : points;
   const pts = base.slice(-120);
+
+  const pickPeriod = (v: string) => {
+    const next = (RANGES.some((r) => r.key === v) || v === "custom" ? v : "all") as Period;
+    setPeriod(next);
+    setHover(null);
+    if (next !== "custom") {
+      setFrom("");
+      setTo("");
+    }
+  };
 
   const W = 600, H = 180, P = 6;
   const max = Math.max(...pts.map((p) => p.value), 1);
@@ -59,28 +74,27 @@ export default function LineChart({
   return (
     <div className="lchart">
       {controls ? (
-      <div className="lchart__ranges">
-        <div className="lchart__dates">
-          <DatePicker value={from} max={to || undefined} placeholder={t("from")} ariaLabel={t("from")} onChange={(v) => { setFrom(v); setHover(null); }} />
-          <span>–</span>
-          <DatePicker value={to} min={from || undefined} placeholder={t("to")} ariaLabel={t("to")} onChange={(v) => { setTo(v); setHover(null); }} />
+        <div className="lchart__bar">
+          <span className="lchart__lbl">
+            <IconClock aria-hidden="true" />
+            {t("period")}
+          </span>
+          <div className="lchart__sel">
+            <Select
+              value={period}
+              onChange={pickPeriod}
+              ariaLabel={t("period")}
+              options={[...RANGES.map((r) => ({ value: r.key, label: t(r.key) })), { value: "custom", label: t("custom") }]}
+            />
+          </div>
           {custom ? (
-            <button type="button" className="lchart__clear" onClick={() => { setFrom(""); setTo(""); }} aria-label={t("clear")}>×</button>
+            <div className="lchart__dates">
+              <DatePicker value={from} max={to || undefined} placeholder={t("from")} ariaLabel={t("from")} clearLabel={t("clear")} onChange={(v) => { setFrom(v); setHover(null); }} />
+              <span aria-hidden="true">–</span>
+              <DatePicker value={to} min={from || undefined} placeholder={t("to")} ariaLabel={t("to")} clearLabel={t("clear")} onChange={(v) => { setTo(v); setHover(null); }} />
+            </div>
           ) : null}
         </div>
-        <div className="lchart__presets">
-          {RANGES.map((r, i) => (
-            <button
-              key={r.key}
-              type="button"
-              className={`lchart__range${!custom && i === range ? " on" : ""}`}
-              onClick={() => { setRange(i); setFrom(""); setTo(""); setHover(null); }}
-            >
-              {t(r.key)}
-            </button>
-          ))}
-        </div>
-      </div>
       ) : null}
 
       {pts.length < 2 ? (

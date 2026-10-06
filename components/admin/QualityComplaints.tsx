@@ -17,9 +17,11 @@ import { shortDateTime } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
+import FilterBar from "@/components/filters/FilterBar";
+import { useAiSelection } from "@/lib/ai/registry";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, IconBolt } from "@/components/icons";
+import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, IconBolt, IconClipboardCheck } from "@/components/icons";
 
 // LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §5.
 //
@@ -72,6 +74,7 @@ export default function QualityComplaints() {
 
   const openRow = useMemo(() => rows.find((r) => r.id === openId) ?? null, [rows, openId]);
   const label = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : statusLabel(tcm, s));
+  useAiSelection("quality_complaints_status", status);
 
   return (
     <section className="ppanel" data-ai-target="callcenter:complaints">
@@ -81,16 +84,22 @@ export default function QualityComplaints() {
       </div>
       <p className="ppanel__note">{t("lead")}</p>
 
-      <div className="chiprow">
-        <button type="button" className={`chip${status === "" ? " on" : ""}`} aria-pressed={status === ""} onClick={() => setStatus("")}>
-          {t("all")}
-        </button>
-        {statuses.map((s) => (
-          <button key={s} type="button" className={`chip${status === s ? " on" : ""}`} aria-pressed={status === s} onClick={() => setStatus(s)}>
-            {label(s)}
-          </button>
-        ))}
-      </div>
+      <FilterBar
+        className="uf--tray uf--solo"
+        fields={[
+          {
+            key: "status",
+            label: t("fStatus"),
+            icon: IconClipboardCheck,
+            value: status,
+            onChange: setStatus,
+            options: [{ value: "", label: t("all") }, ...statuses.map((s) => ({ value: s, label: label(s) }))],
+            chip: null,
+            aiId: "call_center.complaints.filters.status",
+          },
+        ]}
+        aiId="call_center.complaints.filters"
+      />
 
       {state === "loading" ? (
         <Skeleton rows={3} />

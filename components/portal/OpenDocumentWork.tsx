@@ -12,7 +12,7 @@ import {
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useDocChatRooms } from "@/lib/useDocChatRooms";
 import { shortDateTime } from "@/lib/date";
-import { statusLabel } from "@/lib/labels";
+import { docNextActionKey, statusLabel } from "@/lib/labels";
 import { IconFileText, IconChat, IconVideo, IconClock, IconArrowRight } from "@/components/icons";
 
 // Document work the client has started and not got back yet.
@@ -51,6 +51,11 @@ export default function OpenDocumentWork() {
   const chatIds = items.filter((it) => it.mode === "lawyer" || it.assignedLawyer).map((it) => it.id);
   const rooms = useDocChatRooms(chatIds, reload);
 
+  const nextActionText = (raw: string) => {
+    const key = docNextActionKey(raw);
+    return key ? t(key, { section: t("title") }) : raw;
+  };
+
   if (!ready || !items.length) return null;
 
   return (
@@ -76,7 +81,7 @@ export default function OpenDocumentWork() {
                   it.createdAt ? shortDateTime(it.createdAt, locale) : "",
                 ].filter(Boolean).join(" · ")}
               </span>
-              {it.nextAction ? <span className="odw__next">{it.nextAction}</span> : null}
+              {it.nextAction ? <span className="odw__next">{nextActionText(it.nextAction)}</span> : null}
               {it.meeting?.active ? (
                 <span className="odw__live"><IconVideo />{t("meetingActive")}</span>
               ) : null}

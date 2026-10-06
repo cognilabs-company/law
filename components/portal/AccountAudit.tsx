@@ -6,8 +6,8 @@ import { listMyActivity, listSecurityEvents, listSessions, revokeSession, type A
 import { useResource } from "@/lib/useResource";
 import { useAuth } from "@/lib/auth";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import Select from "@/components/Select";
-import { IconClock, IconShieldCheck, IconSearch, IconMonitor, IconClipboardCheck } from "@/components/icons";
+import FilterBar from "@/components/filters/FilterBar";
+import { IconClock, IconShieldCheck, IconSearch, IconMonitor, IconClipboardCheck, IconTag } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
 
 function fmt(s: string, locale: string) {
@@ -26,6 +26,7 @@ function groupOf(a: string): string {
   for (const [k, re] of Object.entries(GROUPS)) if (re.test(a)) return k;
   return "other";
 }
+const GROUP_KEYS = ["all", "auth", "orders", "documents", "profile", "other"];
 
 // Account audit (T0-11 / T3-10, user side): active sessions, the user's own
 // activity log with a type filter and search, and security events (new
@@ -41,11 +42,12 @@ export default function AccountAudit({ withSessions = true }: { withSessions?: b
   const sessions = useResource(() => (withSessions ? listSessions() : Promise.resolve([])), [key, withSessions]);
   const [group, setGroup] = useState("all");
   const [q, setQ] = useState("");
-  const opts = ["all", "auth", "orders", "documents", "profile", "other"].map((g) => ({ value: g, label: t(`groups.${g}`) }));
-  const rows = useMemo(() => {
+  const found = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return activity.data.filter((a) => (group === "all" || groupOf(a.action) === group) && (!needle || `${a.action} ${a.detail} ${a.titleUz ?? ""} ${a.descriptionUz ?? ""} ${a.ip ?? ""}`.toLowerCase().includes(needle)));
-  }, [activity.data, group, q]);
+    return activity.data.filter((a) => !needle || `${a.action} ${tl.has(a.action) ? tl(a.action) : ""} ${a.detail} ${a.titleUz ?? ""} ${a.descriptionUz ?? ""} ${a.ip ?? ""}`.toLowerCase().includes(needle));
+  }, [activity.data, q, tl]);
+  const rows = useMemo(() => (group === "all" ? found : found.filter((a) => groupOf(a.action) === group)), [found, group]);
+  const opts = GROUP_KEYS.map((g) => ({ value: g, label: `${t(`groups.${g}`)} (${g === "all" ? found.length : found.filter((a) => groupOf(a.action) === g).length})` }));
   const label = (a: string) => (tl.has(a) ? tl(a) : a.replace(/[_.]/g, " ") || "—");
 
   async function revoke(id: string) {
@@ -97,11 +99,17 @@ export default function AccountAudit({ withSessions = true }: { withSessions?: b
 
       <div className="ppanel" data-ai-target="profile:account-audit">
         <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconClipboardCheck /></span>{t("activity")}</b><span className="advmuted">{activity.status === "ready" ? t("rows", { n: rows.length }) : ""}</span></div>
-        <div className="audit__filters" style={{ gridTemplateColumns: "minmax(140px, 200px) 1fr" }}>
-          <Select value={group} onChange={setGroup} options={opts} ariaLabel={t("filter")} />
-          <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} /></div>
-        </div>
-        {activity.status === "loading" ? <Skeleton rows={3} /> : !rows.length ? (
+        {activity.data.length ? (
+          <FilterBar
+            className="ppfilters"
+            fields={[{ key: "group", label: t("filter"), icon: IconTag, value: group, onChange: setGroup, options: opts, empty: "all" }]}
+            search={{ value: q, onChange: setQ, placeholder: t("searchPh") }}
+            count={rows.length}
+          />
+        ) : null}
+        {activity.status === "loading" ? <Skeleton rows={3} /> : !rows.length && activity.data.length ? (
+          <EmptyState icon={<IconSearch />} title={t("noMatch")} text={t("noMatchText")} />
+        ) : !rows.length ? (
           <EmptyState icon={<IconClock />} title={t("noActivity")} text={t("noActivityText")} />
         ) : (
           <div className="alist">

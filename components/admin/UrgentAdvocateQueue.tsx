@@ -30,9 +30,10 @@ import { dateTimeFull } from "@/lib/date";
 import { statusLabel, regionLabel, humanize } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { aiId, aiSeg } from "@/lib/ai/ids";
-import { useAiSelection } from "@/lib/ai/registry";
+import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { useAiReveal } from "@/lib/guide/targets";
 import { Link } from "@/i18n/navigation";
+import FilterBar from "@/components/filters/FilterBar";
 import Select from "@/components/Select";
 import DatePicker from "@/components/DatePicker";
 import TimePicker from "@/components/TimePicker";
@@ -69,6 +70,10 @@ import {
   IconChatConsult,
   IconSecondOpinion,
   IconOpinionPanel,
+  IconClipboardCheck,
+  IconBriefcase,
+  IconChatDots,
+  IconMegaphone,
 } from "@/components/icons";
 
 // LEXGO_URGENT_ADVOKAT_FRONTEND_UPDATE.md — the call-center side of "Tezkor
@@ -174,6 +179,15 @@ type Meeting = { roomId: string; callId: string; title: string; lk: LiveKitJoin 
 const AI_ITEM = "call_center.urgent-advokat.item";
 const AI_DRAWER_ONLY = new Set(["detail-modal", "complete", "transfer", "cancel", "status", "assign-group"]);
 
+const aiNorm = (s: string) => s.toLowerCase().replace(/\(\d+\)/g, "").replace(/[ʻʼ'‘’`]/g, "").replace(/[\s_-]+/g, " ").trim();
+
+function aiPick(opts: { value: string; label: string }[], raw: string): string | null {
+  const w = aiNorm(raw);
+  if (!w || w === "all") return "";
+  const hit = opts.find((o) => aiNorm(o.value) === w) ?? opts.find((o) => aiNorm(o.label) === w) ?? opts.find((o) => w.length >= 3 && aiNorm(o.label).includes(w));
+  return hit ? hit.value : null;
+}
+
 export default function UrgentAdvocateQueue() {
   const t = useTranslations("admin.urgent");
   const tk = useTranslations("portal.client.urgent");
@@ -266,10 +280,14 @@ export default function UrgentAdvocateQueue() {
   // the row is visible either way) just reloads in place.
   const follow = useCallback(
     (next: string) => {
-      if (next && status && next !== status) setStatus(next);
-      else void load();
+      const tab = TABS.find((x) => x.value === next);
+      if (tab && next && status && next !== status) {
+        setStatus(next);
+        const moved = t("movedTo", { status: t(tab.key) });
+        setNote((n) => ({ ok: n?.ok ?? true, msg: n?.msg ? `${n.msg} ${moved}` : moved }));
+      } else void load();
     },
-    [status, load],
+    [status, load, t],
   );
 
   async function claim(r: UrgentRequest) {
@@ -339,6 +357,43 @@ export default function UrgentAdvocateQueue() {
     if (!r && status) setStatus("");
   });
 
+  const statusOpts = [...TABS.filter((x) => !x.value), ...TABS.filter((x) => x.value)].map((x) => ({
+    value: x.value,
+    label: counts[x.value] !== undefined ? `${t(x.key)} (${counts[x.value]})` : t(x.key),
+  }));
+  const kindOpts = [{ value: "", label: t("allKinds") }, ...KINDS.map((k) => ({ value: k, label: tk.has(`kinds.${k}`) ? tk(`kinds.${k}`) : k }))];
+  const channelOpts = [
+    { value: "", label: t("allChannels") },
+    { value: "video", label: tk("chVideo") },
+    { value: "chat", label: tk("chChat") },
+  ];
+  useAiField("call_center.urgent-advokat.tabs", {
+    get: () => status || "all",
+    set: (raw) => {
+      const v = aiPick(statusOpts, raw);
+      if (v !== null) setStatus(v);
+    },
+  });
+  useAiField("call_center.urgent-advokat.filters.kind", {
+    get: () => kind,
+    set: (raw) => {
+      const v = aiPick(kindOpts, raw);
+      if (v !== null) setKind(v);
+    },
+  });
+  useAiField("call_center.urgent-advokat.filters.channel", {
+    get: () => channel,
+    set: (raw) => {
+      const v = aiPick(channelOpts, raw);
+      if (v !== null) setChannel(v);
+    },
+  });
+  useAiReveal(/^call_center\.urgent-advokat\.tab\.[a-z_]+$/, (id) => {
+    const seg = id.split(".")[3] ?? "";
+    const next = seg === "all" ? "" : seg;
+    if (TABS.some((x) => x.value === next)) setStatus(next);
+  });
+
   if (state.status === "forbidden" || state.status === "missing") return null;
 
   return (
@@ -354,48 +409,33 @@ export default function UrgentAdvocateQueue() {
       </div>
       <p className="advmuted uaq__lead">{t("lead")}</p>
 
-      {/* Status is the operator's working view of the board, not one filter
-          among three: they claim here, schedule here, and have to find that
-          same record again a minute later. Tabs say where it went; a Select
-          hid it. The count is whatever that tab last returned. */}
-      <div className="tabs uaq__tabs" role="tablist" aria-label={t("fStatus")} data-ai-target="callcenter:urgent-tabs" data-ai-id="call_center.urgent-advokat.tabs">
-        {TABS.map((tab) => (
-          <button
-            key={tab.value || "all"}
-            type="button"
-            role="tab"
-            className="tab"
-            aria-selected={status === tab.value}
-            onClick={() => setStatus(tab.value)}
-            data-ai-id={`call_center.urgent-advokat.tab.${tab.value || "all"}`}
-          >
-            {t(tab.key)}
-            {counts[tab.value] !== undefined ? <em className="uaq__n">{counts[tab.value]}</em> : null}
-          </button>
-        ))}
-      </div>
-
-      {/* Source is fixed — this board IS the Tezkor Advokat source — so it is
-          shown as a standing chip rather than a filter that can be turned off. */}
-      <div className="uaq__filters" data-ai-target="callcenter:urgent-filters" data-ai-id="call_center.urgent-advokat.filters" data-ai-type="section">
-        <span className="uaq__src"><IconBolt />{t("sourceTezkor")}</span>
-        <Select
-          value={kind}
-          onChange={setKind}
-          ariaLabel={t("fKind")}
-          options={[{ value: "", label: t("allKinds") }, ...KINDS.map((k) => ({ value: k, label: tk.has(`kinds.${k}`) ? tk(`kinds.${k}`) : k }))]}
-        />
-        <Select
-          value={channel}
-          onChange={setChannel}
-          ariaLabel={t("fChannel")}
-          options={[
-            { value: "", label: t("allChannels") },
-            { value: "video", label: tk("chVideo") },
-            { value: "chat", label: tk("chChat") },
-          ]}
-        />
-      </div>
+      <FilterBar
+        className="uf--tray"
+        fields={[
+          { key: "status", label: t("fStatus"), icon: IconClipboardCheck, value: status, onChange: setStatus, options: statusOpts, aiId: "call_center.urgent-advokat.tabs", aiTarget: "callcenter:urgent-tabs" },
+          { key: "kind", label: t("fKind"), icon: IconBriefcase, value: kind, onChange: setKind, options: kindOpts, aiId: "call_center.urgent-advokat.filters.kind" },
+          { key: "channel", label: t("fChannel"), icon: IconChatDots, value: channel, onChange: setChannel, options: channelOpts, aiId: "call_center.urgent-advokat.filters.channel" },
+          {
+            key: "source",
+            label: t("fSource"),
+            icon: IconMegaphone,
+            node: (
+              <span className="uaq__src">
+                <IconBolt aria-hidden="true" />
+                {t("sourceValue")}
+              </span>
+            ),
+          },
+        ]}
+        count={state.status === "ready" ? state.items.length : undefined}
+        onReset={() => {
+          setStatus("");
+          setKind("");
+          setChannel("");
+        }}
+        aiId="call_center.urgent-advokat.filters"
+        aiTarget="callcenter:urgent-filters"
+      />
 
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
 

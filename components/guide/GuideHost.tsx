@@ -9,7 +9,8 @@ import { findTarget, focusInput, focusTarget, revealTarget, settle, targetLabel,
 import { guideHref, remapTarget, samePath, targetHome } from "@/lib/guide/routes";
 import { registryHome } from "@/lib/guide/pages";
 import { emitGuideEvent, type TourEndReason } from "@/lib/guide/events";
-import { forgetResolved } from "@/lib/ai/resolve";
+import { forgetResolved, resolveExact, waitForExact } from "@/lib/ai/resolve";
+import { isSelfTarget } from "@/lib/ai/self";
 import type { GuideRole, GuideTour } from "@/lib/guide/types";
 import { RobotEvents } from "@/components/lexgo/robot/RobotEvents";
 import { toast } from "@/lib/toast";
@@ -18,6 +19,8 @@ import GuideCaption from "./GuideCaption";
 
 const NAV_TIMEOUT = 9000;
 const MISSING_HOLD = 2500;
+const LOCATE_MS = 2600;
+const LOCATE_AFTER_NAV_MS = 6000;
 
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve) => {
@@ -223,23 +226,33 @@ export default function GuideHost() {
         return false;
       };
       if (flexible && s.missing.includes(id) && skip()) return;
-      let loose = !fixed;
-      let el = findTarget(id, false, loose);
-      if (!el) {
-        await revealTarget(id);
-        el = await waitForTarget(id, 2600, signal, loose);
+      if (fixed && s.missing.includes(id)) {
+        emitGuideEvent({ type: "step_missing", tourId: cur.id, index: s.index, commandId: step.commandId ?? "", target: id });
+        advance();
+        return;
       }
-      if (!el && !loose && !signal.aborted && step.focusMode !== "force") {
-        loose = true;
-        el = findTarget(id, true, true);
-      }
-      if (!el && !signal.aborted && !fixed) {
-        const home = targetHome(id, role, registryHome);
-        if (home && !samePath(pathRef.current, home)) {
-          const ok = await go(home);
-          if (ok && !signal.aborted) {
-            await revealTarget(id);
-            el = await waitForTarget(id, 5000, signal);
+      let el: HTMLElement | null = null;
+      if (fixed) {
+        el = resolveExact(id, true)?.el ?? null;
+        if (!el) {
+          await revealTarget(id);
+          if (signal.aborted) return;
+          el = (await waitForExact(id, cur.navigate && !s.shown ? LOCATE_AFTER_NAV_MS : LOCATE_MS, signal))?.el ?? null;
+        }
+      } else {
+        el = findTarget(id, false, true);
+        if (!el) {
+          await revealTarget(id);
+          el = await waitForTarget(id, LOCATE_MS, signal, true);
+        }
+        if (!el && !signal.aborted) {
+          const home = targetHome(id, role, registryHome);
+          if (home && !samePath(pathRef.current, home)) {
+            const ok = await go(home);
+            if (ok && !signal.aborted) {
+              await revealTarget(id);
+              el = await waitForTarget(id, 5000, signal);
+            }
           }
         }
       }
@@ -253,11 +266,12 @@ export default function GuideHost() {
       }
       await settle(el, signal);
       if (signal.aborted) return;
-      patchGuide({ phase: "showing", element: findTarget(id, false, loose) ?? el, shown: s.shown + 1 });
+      const settled = fixed ? resolveExact(id, true)?.el : findTarget(id, false, true);
+      patchGuide({ phase: "showing", element: settled ?? el, shown: s.shown + 1 });
     })();
 
     return () => ctrl.abort();
-  }, [tour, index, phase, role, router, t, stop]);
+  }, [tour, index, phase, role, router, t, stop, advance]);
 
   const element = g.element;
   const step = tour?.steps[index];
@@ -265,6 +279,15 @@ export default function GuideHost() {
   const focusMode = step?.focusMode ?? "auto";
   const hold = step?.holdMs ?? 0;
   const auto = tour?.source === "instructor21";
+  const selfStep = phase !== "idle" && Boolean(step) && isSelfTarget(remapTarget(step?.target ?? "", role));
+
+  useEffect(() => {
+    if (!selfStep) return;
+    document.body.dataset.guideSelf = "on";
+    return () => {
+      delete document.body.dataset.guideSelf;
+    };
+  }, [selfStep]);
 
   useEffect(() => {
     if (phase !== "showing" || !element) return;
@@ -286,7 +309,7 @@ export default function GuideHost() {
     const st = s.tour?.steps[s.index];
     if (s.tour && st) {
       const id = remapTarget(st.target, role);
-      const m = targetMatch(id);
+      const m = s.tour.source === "instructor21" ? resolveExact(id) : targetMatch(id);
       emitGuideEvent({ type: "step_shown", tourId: s.tour.id, index: s.index, commandId: st.commandId ?? "", target: id, by: m?.by ?? "exact", canonical: m?.canonical ?? id, focused });
     }
     const onClick = (e: MouseEvent) => {
@@ -351,7 +374,7 @@ export default function GuideHost() {
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {announce}
       </p>
-      {phase === "showing" && step && tour ? <Spotlight targetId={remapTarget(step.target, role)} stepKey={`${tour.id}:${index}`} variant={step.style} /> : null}
+      {phase === "showing" && step && tour ? <Spotlight targetId={remapTarget(step.target, role)} stepKey={`${tour.id}:${index}`} variant={step.style} strict={auto} /> : null}
       {phase !== "idle" && tour ? (
         <GuideCaption
           text={text}

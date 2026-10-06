@@ -14,17 +14,34 @@ import {
   pendingPromoKey,
   pendingPromosRaw,
   promoSignalOf,
+  prunePendingPromos,
+  scopeKey,
+  settlePendingFromInbox,
   subscribePendingPromos,
   type ManagedService,
   type ManagedServices,
+  type PromoOutcome,
   type ServiceScope,
 } from "@/lib/services/sellerServices";
 import { IconArrowRight, IconBriefcase, IconClock, IconMegaphone } from "@/components/icons";
 import PromoteModal from "./PromoteModal";
 import { som } from "./bits";
+import { useAutoRefresh } from "./useAutoRefresh";
 
 const ME: ServiceScope = { kind: "me" };
+const PROFILE_KEY = pendingPromoKey("profile");
+const ME_PREFIX = `${scopeKey(ME)}|`;
+const inScope = (k: string) => k === PROFILE_KEY || k.startsWith(ME_PREFIX);
 type Load = { key: string; data: ManagedServices | null };
+type Toasts = { approved: string; rejected: string; profileApproved: string; profileRejected: string };
+
+function announce(out: PromoOutcome[], m: Toasts): void {
+  const has = (profile: boolean, kind: PromoOutcome["kind"]) => out.some((o) => (o.key === PROFILE_KEY) === profile && o.kind === kind);
+  if (has(false, "approved")) toast(m.approved, { tone: "ok" });
+  if (has(false, "rejected")) toast(m.rejected, { tone: "err" });
+  if (has(true, "approved")) toast(m.profileApproved, { tone: "ok" });
+  if (has(true, "rejected")) toast(m.profileRejected, { tone: "err" });
+}
 
 export default function PromoteServicesSection({ role, onData }: { role: "lawyer" | "advocate"; onData?: (d: ManagedServices) => void }) {
   const t = useTranslations("sellerServices");
@@ -37,6 +54,12 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
   const [promote, setPromote] = useState<ManagedService | null>(null);
   const key = `${locale}|${tick}`;
   const onDataRef = useRef(onData);
+  const messages = (): Toasts => ({
+    approved: t("toast.approved"),
+    rejected: t("toast.rejected"),
+    profileApproved: t("toast.profileApproved"),
+    profileRejected: t("toast.profileRejected"),
+  });
 
   useEffect(() => {
     onDataRef.current = onData;
@@ -52,7 +75,7 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
       })
       .catch((e: unknown) => {
         if (isAborted(e) || c.signal.aborted) return;
-        setLoad({ key, data: null });
+        setLoad((cur) => ({ key, data: cur?.data ?? null }));
       });
     return () => c.abort();
   }, [key, locale]);
@@ -62,20 +85,38 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
   const data = load?.data ?? null;
 
   useEffect(() => {
+    if (uid) prunePendingPromos(uid);
+  }, [uid]);
+
+  useEffect(() => {
     if (!uid || !data) return;
     const live = new Set(data.items.filter((x) => x.ownPromotion).map((x) => pendingPromoKey(ME, x.id)));
-    if (live.size) dropPendingPromos(uid, (k) => live.has(k));
-  }, [uid, data]);
+    if (!live.size) return;
+    const out = dropPendingPromos(uid, (k) => live.has(k));
+    if (out.length) toast(t("toast.approved"), { tone: "ok" });
+  }, [uid, data, t]);
 
   useEffect(() => {
     if (!uid) return;
     return subscribeUserEvents((ev) => {
       const s = promoSignalOf(ev);
       if (!s || s.kind === "pending" || !s.serviceId) return;
-      dropPendingPromos(uid, (k, p) => (s.requestId !== "" && p.requestId === s.requestId) || k === pendingPromoKey(ME, s.serviceId));
+      const kind = s.kind;
+      const out = dropPendingPromos(uid, (k, p) => k.startsWith(ME_PREFIX) && ((s.requestId !== "" && p.requestId === s.requestId) || k === pendingPromoKey(ME, s.serviceId)));
+      if (out.length) toast(kind === "approved" ? t("toast.approved") : t("toast.rejected"), { tone: kind === "approved" ? "ok" : "err" });
       setTick((n) => n + 1);
     });
-  }, [uid]);
+  }, [uid, t]);
+
+  const hasPending = Object.keys(pending).some(inScope);
+  useAutoRefresh(Boolean(uid) && hasPending, async () => {
+    if (uid && hasPending) {
+      prunePendingPromos(uid);
+      const out = await settlePendingFromInbox(uid, inScope).catch(() => []);
+      announce(out, messages());
+    }
+    setTick((n) => n + 1);
+  });
 
   if (!load) {
     return (
@@ -151,7 +192,10 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
           uid={uid}
           owner={false}
           onClose={() => setPromote(null)}
-          onSent={() => toast(t("toast.promoSent"), { tone: "ok" })}
+          onStale={() => setTick((n) => n + 1)}
+          onSent={(req) => {
+            if (req.telegramSent) toast(t("toast.promoSent"), { tone: "ok" });
+          }}
         />
       ) : null}
     </div>

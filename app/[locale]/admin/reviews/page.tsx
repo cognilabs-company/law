@@ -8,7 +8,9 @@ import { useReload, Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
 import { errDetail } from "@/lib/http";
-import { IconStar, IconCheck, IconClose, IconEye } from "@/components/icons";
+import FilterBar from "@/components/filters/FilterBar";
+import { useAiSelection } from "@/lib/ai/registry";
+import { IconStar, IconCheck, IconClose, IconEye, IconScale } from "@/components/icons";
 
 function Stars({ n }: { n: number }) {
   return (
@@ -88,6 +90,7 @@ export default function AdminReviews() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
+  useAiSelection("admin_reviews_seller_type", tab === "all" ? "" : tab);
 
   async function moderate(id: string, status: string) {
     setBusy(id);
@@ -107,13 +110,22 @@ export default function AdminReviews() {
       <div className="ppanel__h"><b>{t("title")}</b><span className="advmuted">{res.data.length}</span></div>
       <p className="ppanel__note">{t("lead")}</p>
 
-      <div className="segs segs--sm" role="tablist" aria-label={t("sellerTypeTabs")} style={{ marginBottom: 14 }} data-ai-target="reviews:seller-tabs">
-        {SELLER_TABS.map((s) => (
-          <button key={s} type="button" role="tab" className="seg" aria-selected={tab === s} onClick={() => setTab(s)}>
-            {s === "all" ? t("allSellers") : t(`sellerType.${s}`)}
-          </button>
-        ))}
-      </div>
+      <FilterBar
+        className="uf--tray uf--solo"
+        fields={[
+          {
+            key: "seller",
+            label: t("sellerTypeTabs"),
+            icon: IconScale,
+            value: tab,
+            empty: "all",
+            onChange: (v) => setTab(v as SellerTab),
+            options: SELLER_TABS.map((s) => ({ value: s, label: s === "all" ? t("allSellers") : t(`sellerType.${s}`) })),
+            chip: null,
+            aiTarget: "reviews:seller-tabs",
+          },
+        ]}
+      />
 
       {err ? <Notice ok={false} msg={err} /> : null}
       {res.status === "loading" ? (

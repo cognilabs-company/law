@@ -20,21 +20,25 @@ import {
 import Select from "@/components/Select";
 import { Notice } from "@/components/admin/AdminBits";
 import ContactBlockedNote from "@/components/ContactBlockedNote";
-import { IconRefresh } from "@/components/icons";
+import { IconAlert, IconBell, IconRefresh, IconSend } from "@/components/icons";
+import { CategoryIcon } from "./bits";
 
 export type ComplaintDraft = { category: string; subject: string; description: string; related: string };
 export type WorksState = { status: "loading" | "ready" | "error"; items: WorkRef[] };
 
+const CATEGORY_SET: ReadonlySet<string> = new Set(COMPLAINT_CATEGORIES);
+
 export function emptyDraft(related = ""): ComplaintDraft {
-  return { category: COMPLAINT_CATEGORIES[0], subject: "", description: "", related };
+  return { category: "", subject: "", description: "", related };
 }
 
-type Problems = { subject?: "required" | "short"; description?: "required" | "short" };
+type Problems = { category?: "required"; subject?: "required" | "short"; description?: "required" | "short" };
 
 function check(d: ComplaintDraft): Problems {
   const out: Problems = {};
   const subject = d.subject.trim();
   const description = d.description.trim();
+  if (!CATEGORY_SET.has(d.category)) out.category = "required";
   if (!subject) out.subject = "required";
   else if (subject.length < SUBJECT_MIN) out.subject = "short";
   if (!description) out.description = "required";
@@ -61,6 +65,7 @@ export default function NewComplaintForm({
   const tw = useTranslations("portal.client.works");
   const tc = useTranslations("common");
   const uid = useId();
+  const catRef = useRef<HTMLInputElement>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
   const [tried, setTried] = useState(false);
@@ -69,13 +74,16 @@ export default function NewComplaintForm({
 
   const ids = {
     cat: `${uid}-cat`,
+    catErr: `${uid}-cat-err`,
     subject: `${uid}-subject`,
     subjectErr: `${uid}-subject-err`,
     desc: `${uid}-desc`,
+    descHint: `${uid}-desc-hint`,
     descErr: `${uid}-desc-err`,
     descCount: `${uid}-desc-count`,
   };
   const problems = tried ? check(draft) : {};
+  const catMsg = problems.category ? t("v.category") : "";
   const subjectMsg =
     problems.subject === "required" ? t("v.subject") : problems.subject === "short" ? t("v.subjectShort", { min: SUBJECT_MIN }) : "";
   const descMsg =
@@ -85,12 +93,17 @@ export default function NewComplaintForm({
   const serverMsg = err && !blocked ? errorText(err, tc) : "";
   const workType = (type: string) => (type && tw.has(`type.${type}`) ? tw(`type.${type}`) : humanize(type));
   const set = (patch: Partial<ComplaintDraft>) => onDraft((cur) => ({ ...cur, ...patch }));
+  const descDescribedBy = [ids.descHint, descMsg ? ids.descErr : "", ids.descCount].filter(Boolean).join(" ");
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
     setTried(true);
     const found = check(draft);
+    if (found.category) {
+      catRef.current?.focus();
+      return;
+    }
     if (found.subject) {
       subjectRef.current?.focus();
       return;
@@ -117,71 +130,11 @@ export default function NewComplaintForm({
 
   return (
     <form className="cform shkf" noValidate onSubmit={submit} aria-busy={busy || undefined}>
-      <p className="shkf__lead">{t("form.lead")}</p>
-
-      <fieldset className="shkf__set">
-        <legend className="shkf__lbl">{t("catLabel")}</legend>
-        <div className="shkf__chips">
-          {COMPLAINT_CATEGORIES.map((c) => (
-            <label key={c} className={`chip shkf__chip${draft.category === c ? " on" : ""}`}>
-              <input type="radio" name={ids.cat} value={c} checked={draft.category === c} onChange={() => set({ category: c })} />
-              {t(`categories.${c}`)}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <div>
-        <label htmlFor={ids.subject}>{t("subject")}</label>
-        <input
-          id={ids.subject}
-          ref={subjectRef}
-          value={draft.subject}
-          maxLength={SUBJECT_MAX}
-          autoComplete="off"
-          placeholder={t("subjectPh")}
-          onChange={(e) => set({ subject: e.target.value })}
-          aria-invalid={subjectMsg ? true : undefined}
-          aria-describedby={subjectMsg ? ids.subjectErr : undefined}
-        />
-        {subjectMsg ? (
-          <p id={ids.subjectErr} className="shkf__err">
-            {subjectMsg}
-          </p>
-        ) : null}
-      </div>
-
-      <div>
-        <label htmlFor={ids.desc}>{t("desc")}</label>
-        <textarea
-          id={ids.desc}
-          ref={descRef}
-          rows={5}
-          value={draft.description}
-          maxLength={DESC_MAX}
-          placeholder={t("descPh")}
-          onChange={(e) => set({ description: e.target.value })}
-          aria-invalid={descMsg ? true : undefined}
-          aria-describedby={descMsg ? `${ids.descErr} ${ids.descCount}` : ids.descCount}
-        />
-        <div className="shkf__under">
-          {descMsg ? (
-            <p id={ids.descErr} className="shkf__err">
-              {descMsg}
-            </p>
-          ) : (
-            <span />
-          )}
-          <small id={ids.descCount} className="shkf__count">
-            {t("form.counter", { n: draft.description.length, max: DESC_MAX })}
-          </small>
-        </div>
-      </div>
-
       {works.status === "ready" && !works.items.length ? null : (
-        <div>
+        <div className="shkf__f" data-ai-id="complaints.form.related" data-ai-type="select" data-ai-label={t("form.related")}>
           <span className="shkf__lbl">
-            {t("form.related")} <span className="shkf__opt">{t("form.optional")}</span>
+            {t("form.related")}
+            <span className="shkf__opt">{t("form.optional")}</span>
           </span>
           {works.status === "loading" ? (
             <p className="shkf__muted" role="status">
@@ -212,6 +165,104 @@ export default function NewComplaintForm({
         </div>
       )}
 
+      <fieldset
+        className={`shkf__set${catMsg ? " is-bad" : ""}`}
+        data-ai-id="complaints.form.category"
+        data-ai-label={t("catLabel")}
+      >
+        <legend className="shkf__lbl">{t("catLabel")}</legend>
+        <div className="shkf__cats">
+          {COMPLAINT_CATEGORIES.map((c, i) => {
+            const on = draft.category === c;
+            return (
+              <label key={c} className={`shkf__cat${on ? " on" : ""}`}>
+                <input
+                  ref={i === 0 ? catRef : undefined}
+                  type="radio"
+                  name={ids.cat}
+                  value={c}
+                  checked={on}
+                  onChange={() => set({ category: c })}
+                  aria-describedby={catMsg ? ids.catErr : undefined}
+                />
+                <span className="shkf__catic" aria-hidden>
+                  <CategoryIcon category={c} />
+                </span>
+                <span className="shkf__cattx">
+                  <b>{t(`categories.${c}`)}</b>
+                  <small>{t(`catHint.${c}`)}</small>
+                </span>
+                <span className="shkf__radio" aria-hidden />
+              </label>
+            );
+          })}
+        </div>
+        {catMsg ? (
+          <p id={ids.catErr} className="shkf__err">
+            <IconAlert aria-hidden />
+            {catMsg}
+          </p>
+        ) : null}
+      </fieldset>
+
+      <div className="shkf__f">
+        <label htmlFor={ids.subject} className="shkf__lbl">
+          {t("subject")}
+        </label>
+        <input
+          id={ids.subject}
+          ref={subjectRef}
+          value={draft.subject}
+          maxLength={SUBJECT_MAX}
+          autoComplete="off"
+          placeholder={t("subjectPh")}
+          onChange={(e) => set({ subject: e.target.value })}
+          aria-invalid={subjectMsg ? true : undefined}
+          aria-describedby={subjectMsg ? ids.subjectErr : undefined}
+          data-ai-id="complaints.form.subject"
+          data-ai-private
+        />
+        {subjectMsg ? (
+          <p id={ids.subjectErr} className="shkf__err">
+            <IconAlert aria-hidden />
+            {subjectMsg}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="shkf__f">
+        <label htmlFor={ids.desc} className="shkf__lbl">
+          {t("desc")}
+        </label>
+        <p id={ids.descHint} className="shkf__hint">
+          {t("form.descHint")}
+        </p>
+        <textarea
+          id={ids.desc}
+          ref={descRef}
+          rows={5}
+          value={draft.description}
+          maxLength={DESC_MAX}
+          placeholder={t("descPh")}
+          onChange={(e) => set({ description: e.target.value })}
+          aria-invalid={descMsg ? true : undefined}
+          aria-describedby={descDescribedBy}
+          data-ai-id="complaints.form.description"
+          data-ai-private
+        />
+        <div className="shkf__under">
+          {descMsg ? (
+            <p id={ids.descErr} className="shkf__err">
+              <IconAlert aria-hidden />
+              {descMsg}
+            </p>
+          ) : null}
+          <small id={ids.descCount} className="shkf__count">
+            {t("form.counter", { n: draft.description.length, max: DESC_MAX })}
+          </small>
+        </div>
+      </div>
+
       {blocked ? <ContactBlockedNote error={err} /> : null}
       {serverMsg ? (
         <div role="alert">
@@ -219,11 +270,17 @@ export default function NewComplaintForm({
         </div>
       ) : null}
 
+      <p className="shkf__assure">
+        <IconBell aria-hidden />
+        <span>{t("form.reassure")}</span>
+      </p>
+
       <div className="shkf__acts">
         <button type="button" className="btn btn--line" onClick={onCancel}>
           {t("cancel")}
         </button>
         <button type="submit" className="btn btn--grad" disabled={busy}>
+          {busy ? null : <IconSend aria-hidden />}
           {busy ? t("sending") : t("submit")}
         </button>
       </div>

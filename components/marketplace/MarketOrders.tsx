@@ -5,49 +5,52 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconChat, IconCheck, IconClock, IconPhone, IconRefresh, IconSparkle, IconVideo, IconClose, IconUser } from "@/components/icons";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
+import { IconChat, IconCheck, IconClipboardCheck, IconClock, IconPhone, IconRefresh, IconSparkle, IconVideo, IconClose, IconUser } from "@/components/icons";
 import { errDetail } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
+import { matchesSearch } from "@/lib/searchText";
 import { onUserSocketResync } from "@/lib/userSocket";
 import { startCall } from "@/lib/services/backend";
 import { aiId, aiSeg } from "@/lib/ai/ids";
-import { useAiSelection } from "@/lib/ai/registry";
+import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { useAiReveal } from "@/lib/guide/targets";
 import {
   MARKET_EVENT,
   cancelMarketplaceOrder,
   completeMarketplaceOrder,
-  isOrderPending,
   listMarketplaceOrders,
+  marketChatHref,
+  marketStageOf,
   type MarketOrder,
+  type MarketStage,
 } from "@/lib/services/marketplace";
 
 type View = "client" | "seller";
-type Stage = "pending" | "active" | "completed" | "cancelled";
-type Tab = "all" | Stage;
+type Tab = "all" | MarketStage;
 
-const DONE = new Set(["completed", "rated", "done", "closed"]);
-const STOPPED = new Set(["cancelled", "canceled", "declined", "rejected", "lost", "refunded"]);
-
-export function stageOf(o: Pick<MarketOrder, "status" | "paymentStatus">): Stage {
-  if (STOPPED.has(o.status)) return "cancelled";
-  if (DONE.has(o.status)) return "completed";
-  if (isOrderPending(o)) return "pending";
-  return "active";
-}
-
-const STEP_INDEX: Record<Stage, number> = { pending: 1, active: 2, completed: 4, cancelled: -1 };
+const STEP_INDEX: Record<MarketStage, number> = { pending: 1, active: 2, completed: 4, cancelled: -1 };
+const EVENT_SETTLE_MS = 500;
+const SEARCH_MAX = 100;
 
 const aiBaseOf = (view: View) => (view === "client" ? "marketplace.orders" : "advocate.marketplace-orders");
 
+const tabsOf = (view: View): Tab[] => (view === "client" ? ["all", "pending", "active", "completed", "cancelled"] : ["all", "active", "completed", "cancelled"]);
+
+const lower = (s: string) => s.trim().toLowerCase();
+
+const haystackOf = (o: MarketOrder, view: View) => [o.serviceTitle, o.workId, view === "client" ? o.lawyerName : o.clientName].join(" ");
+
 export default function MarketOrders({ view }: { view: View }) {
   const t = useTranslations("marketplace.orders");
+  const tf = useTranslations("filterBar");
   const locale = useLocale();
   const [orders, setOrders] = useState<MarketOrder[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<Tab>("all");
+  const [q, setQ] = useState("");
   const [cancelFor, setCancelFor] = useState<MarketOrder | null>(null);
   const [completeFor, setCompleteFor] = useState<MarketOrder | null>(null);
   const [flash, setFlash] = useState("");
@@ -78,21 +81,27 @@ export default function MarketOrders({ view }: { view: View }) {
   }, [load]);
 
   useEffect(() => {
+    let timer = 0;
     const soft = () => void load(true);
+    const settle = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(soft, EVENT_SETTLE_MS);
+    };
     const onVis = () => {
       if (document.visibilityState === "visible") soft();
     };
-    window.addEventListener(MARKET_EVENT, soft);
+    window.addEventListener(MARKET_EVENT, settle);
     document.addEventListener("visibilitychange", onVis);
     const off = onUserSocketResync(soft);
     return () => {
-      window.removeEventListener(MARKET_EVENT, soft);
+      window.clearTimeout(timer);
+      window.removeEventListener(MARKET_EVENT, settle);
       document.removeEventListener("visibilitychange", onVis);
       off();
     };
   }, [load]);
 
-  const hasPending = view === "client" && orders.some((o) => stageOf(o) === "pending");
+  const hasPending = view === "client" && orders.some((o) => marketStageOf(o) === "pending");
   useEffect(() => {
     if (!hasPending) return;
     const h = setInterval(() => {
@@ -107,19 +116,60 @@ export default function MarketOrders({ view }: { view: View }) {
     return () => clearTimeout(h);
   }, [flash]);
 
-  const tabs: Tab[] = view === "client" ? ["all", "pending", "active", "completed", "cancelled"] : ["all", "active", "completed", "cancelled"];
+  const tabs = tabsOf(view);
+  const term = q.trim();
+  const searched = useMemo(() => (term ? orders.filter((o) => matchesSearch(haystackOf(o, view), term)) : orders), [orders, term, view]);
   const counts = useMemo(() => {
-    const c: Record<Tab, number> = { all: orders.length, pending: 0, active: 0, completed: 0, cancelled: 0 };
-    for (const o of orders) c[stageOf(o)]++;
+    const c: Record<Tab, number> = { all: searched.length, pending: 0, active: 0, completed: 0, cancelled: 0 };
+    for (const o of searched) c[marketStageOf(o)]++;
     return c;
-  }, [orders]);
-  const shown = tab === "all" ? orders : orders.filter((o) => stageOf(o) === tab);
+  }, [searched]);
+  const shown = tab === "all" ? searched : searched.filter((o) => marketStageOf(o) === tab);
   const ai = aiBaseOf(view);
+
+  const tabOf = (v: string): Tab | null => {
+    const w = lower(v);
+    if (!w) return "all";
+    return tabs.find((k) => k === w || lower(t(`tabs.${k}`)) === w || (k !== "all" && lower(t(`stage.${k}`)) === w)) ?? null;
+  };
+  const resetFilters = () => {
+    setTab("all");
+    setQ("");
+  };
+
   useAiSelection(view === "client" ? "marketplace_orders_tab" : "seller_orders_tab", tab);
+  useAiField(`${ai}.tabs`, {
+    get: () => tab,
+    set: (v) => {
+      const next = tabOf(v);
+      if (next) setTab(next);
+    },
+  });
+  useAiField(`${ai}.search`, {
+    get: () => q,
+    set: (v) => setQ(v.slice(0, SEARCH_MAX)),
+  });
   useAiReveal(/^(advocate\.marketplace-orders|marketplace\.orders)\.item\./, (id) => {
     const seg = id.split(".")[3] ?? "";
-    if (!shown.some((o) => aiSeg(o.id) === seg) && orders.some((o) => aiSeg(o.id) === seg)) setTab("all");
+    if (shown.some((o) => aiSeg(o.id) === seg) || !orders.some((o) => aiSeg(o.id) === seg)) return;
+    resetFilters();
   });
+  useAiReveal(new RegExp(`^${ai.replace(/\./g, "\\.")}\\.tab\\.([a-z]+)$`), (id) => {
+    const next = tabOf(id.slice(id.lastIndexOf(".") + 1));
+    if (next) setTab(next);
+  });
+
+  const fields: FilterField[] = [
+    {
+      key: "status",
+      label: t("filterStatus"),
+      icon: IconClipboardCheck,
+      value: tab === "all" ? "" : tab,
+      onChange: (v) => setTab(tabOf(v) ?? "all"),
+      options: tabs.map((k) => ({ value: k === "all" ? "" : k, label: `${t(`tabs.${k}`)} (${counts[k]})` })),
+      aiId: `${ai}.tabs`,
+    },
+  ];
 
   const patch = (id: string, next: Partial<MarketOrder>) => setOrders((cur) => cur.map((o) => (o.id === id ? { ...o, ...next, canCancel: false, canComplete: false } : o)));
 
@@ -143,14 +193,23 @@ export default function MarketOrders({ view }: { view: View }) {
         </div>
       ) : null}
 
-      <div className="mk-tabs" role="tablist" data-ai-target="orders:filters" data-ai-id={`${ai}.tabs`}>
-        {tabs.map((k) => (
-          <button key={k} type="button" role="tab" aria-selected={tab === k} className="mk-tab" onClick={() => setTab(k)} data-ai-id={`${ai}.tab.${k}`}>
-            {t(`tabs.${k}`)}
-            <span>{counts[k]}</span>
-          </button>
-        ))}
-      </div>
+      <FilterBar
+        fields={fields}
+        search={{
+          value: q,
+          onChange: (v) => setQ(v.slice(0, SEARCH_MAX)),
+          placeholder: view === "client" ? t("searchPhClient") : t("searchPhSeller"),
+          label: t("searchLabel"),
+          maxLength: SEARCH_MAX,
+          aiId: `${ai}.search`,
+          aiLabel: t("searchLabel"),
+        }}
+        count={status === "ready" ? shown.length : undefined}
+        onReset={resetFilters}
+        aiId={`${ai}.filters`}
+        aiTarget="orders:filters"
+        aiLabel={tf("title")}
+      />
 
       {status === "loading" ? (
         <div className="mk-olist">
@@ -186,7 +245,7 @@ export default function MarketOrders({ view }: { view: View }) {
         </div>
       ) : !shown.length ? (
         <div className="mk-empty mk-empty--flat" data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"} data-ai-id={`${ai}.list`} data-ai-type="list">
-          <span>{t("emptyTab")}</span>
+          <span>{t("emptyFilter")}</span>
         </div>
       ) : (
         <div
@@ -262,14 +321,14 @@ function OrderCard({
   const tch = useTranslations("marketplace.purchase.channels");
   const te = useTranslations("enums");
   const router = useRouter();
-  const stage = stageOf(o);
+  const stage = marketStageOf(o);
   const [calling, setCalling] = useState<"" | "audio" | "video">("");
   const [callErr, setCallErr] = useState("");
   const counterpart = view === "client" ? o.lawyerName : o.clientName;
   const counterpartId = view === "client" ? o.lawyerUserId : o.clientUserId;
   const paid = o.paymentStatus === "paid";
   const phone = view === "seller" ? o.clientPhone : o.lawyerPhone;
-  const chatHref = `/portal/chat/${encodeURIComponent(o.roomId)}?${new URLSearchParams({ ...(o.workId ? { wid: o.workId } : {}), ...(o.serviceTitle ? { svc: o.serviceTitle } : {}) })}`;
+  const chatHref = marketChatHref(o);
   const stepAt = STEP_INDEX[stage];
   const item = o.id ? aiId(`${aiBaseOf(view)}.item`, o.id) : undefined;
   const sub = (s: string) => (item ? `${item}.${s}` : undefined);

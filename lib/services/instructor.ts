@@ -4,10 +4,13 @@ import { guideHref, normPath, routeForKey, samePath } from "@/lib/guide/routes";
 import { targetKind } from "@/lib/guide/targets";
 import type { GuideRole, GuideStep, GuideTour, RegistryTarget, TargetInfo } from "@/lib/guide/types";
 import { normSupportTicket, subjectFrom, type SupportTicket } from "@/lib/services/support";
+import { AI_LAUNCHER_ID, isSelfTarget, selfHelpAsked } from "@/lib/ai/self";
 
 export const INSTRUCTOR_CONTRACT = "2.0";
 export const PAGE_TARGET = "ai-help:current-page";
 export const SUPPORT_ACTION = "start_support_ticket";
+
+const SHELL_TARGET = /^(ai-help|header|nav):/;
 
 const VISIBLE_MAX = 70;
 const TARGETS_MAX = 120;
@@ -108,21 +111,31 @@ export function instructorTargets(
   currentPath: string,
   role: GuideRole,
   labelOf: (t: RegistryTarget) => string,
+  question = "",
+  launcherLabel = "",
 ): { targets: InstructorTarget[]; visible: string[] } {
   const route = instructorPath(currentPath, role);
+  const self = selfHelpAsked(question);
+  const usable = (id: string) => Boolean(id) && !SHELL_TARGET.test(id) && (self || !isSelfTarget(id));
   const out = new Map<string, InstructorTarget>();
+  if (self) out.set(AI_LAUNCHER_ID, { id: AI_LAUNCHER_ID, label: clip(squash(launcherLabel) || AI_LAUNCHER_ID, LABEL_MAX), route, type: "button", in_view: true });
   for (const v of [...visible.filter((x) => x.in_view), ...visible.filter((x) => !x.in_view)]) {
     if (out.size >= VISIBLE_MAX) break;
-    if (!v.id || out.has(v.id)) continue;
+    if (!usable(v.id) || out.has(v.id)) continue;
     out.set(v.id, { id: v.id, label: clip(squash(v.label) || v.id, LABEL_MAX), route, type: v.kind || targetKind(v.id), in_view: v.in_view });
   }
   const shown = [...out.keys()];
   for (const r of [...registry.filter((x) => PRIORITY_TARGETS.has(x.id)), ...registry]) {
     if (out.size >= TARGETS_MAX) break;
-    if (!r.id || out.has(r.id)) continue;
+    if (!usable(r.id) || out.has(r.id)) continue;
     out.set(r.id, { id: r.id, label: clip(squash(labelOf(r)) || r.id, LABEL_MAX), route: instructorPath(r.route, role), type: targetKind(r.id), in_view: false });
   }
   return { targets: [...out.values()], visible: shown };
+}
+
+function selfGate(question?: string): (target: string) => boolean {
+  if (question === undefined || selfHelpAsked(question)) return () => true;
+  return (target: string) => !isSelfTarget(target);
 }
 
 export function instructorState(base: Record<string, unknown>, visible: TargetInfo[]): Record<string, unknown> {
@@ -216,22 +229,24 @@ function normSupport(v: unknown): InstructorSupport {
   return { available: isObj(v) && d.available !== false, reason: firstText(d.reason), confirmAction: pick(d.confirm_action) || SUPPORT_ACTION };
 }
 
-export function normInstructorReply(raw: unknown, currentPath = ""): InstructorReply {
+export function normInstructorReply(raw: unknown, currentPath = "", question?: string): InstructorReply {
   const d = asDict(raw);
   const here = currentPath ? normPath(currentPath) : "";
   const goes = (href: string) => !strayRoot(href, here);
+  const allowed = selfGate(question);
   const all = asArr(d.actions).map(normAction).filter((a): a is GuideAction => a !== null);
   const confirm = all.find((a): a is Extract<GuideAction, { type: "confirm" }> => a.type === "confirm");
   const support = normSupport(d.support_fallback);
   const rawSteps = asArr(d.steps);
   const explicit = d.requires_confirmation === true;
+  const hl = normHighlight(d.highlight);
   return {
     reply: pick(d.reply, d.answer),
     intent: pick(d.intent) || "general_help",
-    actions: all.filter((a) => a.type !== "confirm" && (a.type !== "navigate" || goes(a.href))),
-    steps: rawSteps.map(normStep).filter((s): s is InstructorV2Step => s !== null && (s.action !== "navigate" || Boolean(s.routeKey) || goes(s.href))),
+    actions: all.filter((a) => a.type !== "confirm" && (a.type !== "navigate" || goes(a.href)) && (!("target" in a) || allowed(a.target))),
+    steps: rawSteps.map(normStep).filter((s): s is InstructorV2Step => s !== null && (s.action !== "navigate" || Boolean(s.routeKey) || goes(s.href)) && (!s.target || allowed(s.target))),
     checklist: textList(rawSteps.filter((s) => !normStep(s)), CHECKLIST_MAX),
-    highlight: normHighlight(d.highlight),
+    highlight: hl && allowed(hl.target) ? hl : null,
     route: normRoute(d.route, here),
     suggestions: asArr(d.suggestions).map((s) => firstText(s)).filter(Boolean).slice(0, 3),
     requiresConfirmation: explicit || Boolean(confirm),
@@ -247,7 +262,7 @@ export function normInstructorReply(raw: unknown, currentPath = ""): InstructorR
 export async function askInstructor(input: InstructorRequest, signal?: AbortSignal): Promise<InstructorReply | null> {
   if (featureMissing("instructor")) return null;
   try {
-    return normInstructorReply(await http("/ai/platform-instructor", { method: "POST", body: JSON.stringify(input), signal }), input.current_path);
+    return normInstructorReply(await http("/ai/platform-instructor", { method: "POST", body: JSON.stringify(input), signal }), input.current_path, input.message);
   } catch (e) {
     if (isAborted(e)) throw e;
     if (noteFeatureError("instructor", e)) return null;
@@ -290,9 +305,10 @@ export function replyOffersSupport(r: InstructorReply, role: GuideRole, hasTour:
 let seq = 0;
 const tourId = () => `t${Date.now().toString(36)}${(++seq).toString(36)}`;
 
-export function tourFromReply(reply: InstructorReply, role: GuideRole, captionFor: (target: string) => string, currentPath = ""): GuideTour {
+export function tourFromReply(reply: InstructorReply, role: GuideRole, captionFor: (target: string) => string, currentPath = "", question?: string): GuideTour {
   const steps: GuideStep[] = [];
   let navigate: string | undefined;
+  const allowed = selfGate(question);
   const take = (target: string) => {
     let s = steps.find((x) => x.target === target);
     if (!s) {
@@ -311,7 +327,7 @@ export function tourFromReply(reply: InstructorReply, role: GuideRole, captionFo
       go(st.routeKey ? routeForKey(st.routeKey, role) : st.href);
       continue;
     }
-    if (!st.target || SKIP_STEP.has(st.action)) continue;
+    if (!st.target || SKIP_STEP.has(st.action) || !allowed(st.target)) continue;
     const s = take(st.target);
     if (st.caption) s.caption = st.caption;
   }
@@ -321,13 +337,13 @@ export function tourFromReply(reply: InstructorReply, role: GuideRole, captionFo
         go(a.href);
         continue;
       }
-      if (a.type === "confirm") continue;
+      if (a.type === "confirm" || !allowed(a.target)) continue;
       const s = take(a.target);
       if (a.type === "tooltip" && a.text) s.caption = a.text;
     }
   }
   if (reply.route) go(reply.route.href);
-  const hl = reply.highlight;
+  const hl = reply.highlight && allowed(reply.highlight.target) ? reply.highlight : null;
   if (hl && realTarget(reply, hl.target)) take(hl.target);
   steps.forEach((s, i) => {
     if (!s.caption && hl?.reason && s.target === hl.target) s.caption = hl.reason;
@@ -350,7 +366,7 @@ export async function previewSupportHandoff(): Promise<HandoffPreview> {
     }),
   );
   return {
-    message: firstText(d.message),
+    message: firstText(d.message, d.summary, asDict(d.preview).summary),
     requiresConfirmation: d.requires_confirmation !== false,
     canExecute: d.can_execute !== false,
     v2: Boolean(firstText(d.confirm_url, d.user_role)),

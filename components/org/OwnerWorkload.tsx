@@ -8,8 +8,8 @@ import { usePaged } from "@/lib/usePaged";
 import { isForbidden, isRouteMissing, isAborted } from "@/lib/http";
 import { errorText } from "@/lib/errorText";
 import { getOwnerDashboard, listOwnerWorkload, type OrgMemberRow, type OrgWorkItem } from "@/lib/services/orgOwner";
-import Select from "@/components/Select";
-import { IconChevronLeft, IconRefresh } from "@/components/icons";
+import FilterBar, { type FilterSelectField } from "@/components/filters/FilterBar";
+import { IconChevronLeft, IconClipboardCheck, IconRefresh, IconUser } from "@/components/icons";
 import { useAiField } from "@/lib/ai/registry";
 import { OrgBlocked, WorkDetail, WorkRow, statusLabel } from "./bits";
 
@@ -74,6 +74,25 @@ export default function OwnerWorkload({ orgId, memberId }: { orgId: string; memb
   if (list.status === "error" && isForbidden(list.error)) return <OrgBlocked kind="forbidden" />;
   if (list.status === "error" && isRouteMissing(list.error)) return <OrgBlocked kind="soon" />;
 
+  const memberField: FilterSelectField = {
+    key: "member",
+    label: t("filterMember"),
+    icon: IconUser,
+    value: member,
+    onChange: (v) => apply({ member: v }),
+    options: [{ value: "", label: t("allMembers") }, ...members.filter((m) => m.userId).map((m) => ({ value: m.userId, label: m.name || m.userId }))],
+    aiId: "organization.workload.filters.member",
+  };
+  const statusField: FilterSelectField = {
+    key: "status",
+    label: t("filterStatus"),
+    icon: IconClipboardCheck,
+    value: status,
+    onChange: (v) => apply({ status: v }),
+    options: STATUSES.map((s) => ({ value: s, label: s ? statusLabel(t, t.has, s) : t("allStatuses") })),
+    aiId: "organization.workload.filters.status",
+  };
+
   return (
     <div className={`oown${locked ? " oown--embed" : ""}`}>
       {locked ? null : (
@@ -90,18 +109,14 @@ export default function OwnerWorkload({ orgId, memberId }: { orgId: string; memb
         </div>
       )}
 
-      <div className="ofilter" data-ai-target="organization:workload-filter" data-ai-id="organization.workload.filters" data-ai-type="section" data-ai-label={locked ? t("filterStatus") : `${t("filterMember")} · ${t("filterStatus")}`}>
-        {locked ? null : (
-          <label data-ai-id="organization.workload.filters.member" data-ai-type="select" data-ai-label={t("filterMember")}>
-            <span>{t("filterMember")}</span>
-            <Select value={member} onChange={(v) => apply({ member: v })} ariaLabel={t("filterMember")} options={[{ value: "", label: t("allMembers") }, ...members.filter((m) => m.userId).map((m) => ({ value: m.userId, label: m.name || m.userId }))]} />
-          </label>
-        )}
-        <label data-ai-id="organization.workload.filters.status" data-ai-type="select" data-ai-label={t("filterStatus")}>
-          <span>{t("filterStatus")}</span>
-          <Select value={status} onChange={(v) => apply({ status: v })} ariaLabel={t("filterStatus")} options={STATUSES.map((s) => ({ value: s, label: s ? statusLabel(t, t.has, s) : t("allStatuses") }))} />
-        </label>
-      </div>
+      <FilterBar
+        fields={locked ? [statusField] : [memberField, statusField]}
+        count={list.status === "ready" ? list.total : undefined}
+        onReset={() => apply(locked ? { status: "" } : { member: "", status: "" })}
+        aiId="organization.workload.filters"
+        aiTarget="organization:workload-filter"
+        aiLabel={locked ? t("filterStatus") : `${t("filterMember")} · ${t("filterStatus")}`}
+      />
 
       <section className="opanel" data-ai-target="organization:workload-list" data-ai-label={t("workloadTitle")} data-ai-id="organization.workload.list" data-ai-type="list">
         {list.status === "loading" ? (

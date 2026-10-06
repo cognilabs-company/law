@@ -5,20 +5,29 @@ import { useTranslations } from "next-intl";
 import { listAcademyCourses } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import FilterBar from "@/components/filters/FilterBar";
 import { humanizeSlug } from "@/lib/lawyers";
-import { IconGraduation, IconClock, IconFileText } from "@/components/icons";
+import { IconGraduation, IconClock, IconFileText, IconLayers, IconSearch } from "@/components/icons";
+
+const SEARCH_FROM = 7;
 
 export default function ClientAcademy() {
   const t = useTranslations("portal.client.academy");
   const res = useResource(() => listAcademyCourses(), []);
   const [cat, setCat] = useState("");
+  const [q, setQ] = useState("");
 
-  const cats = useMemo(() => {
-    const set = new Set(res.data.map((c) => c.category).filter(Boolean));
-    return ["", ...set];
-  }, [res.data]);
-  const list = res.data.filter((c) => !cat || c.category === cat);
+  const cats = useMemo(() => [...new Set(res.data.map((c) => c.category).filter(Boolean))], [res.data]);
   const catLabel = (c: string) => (t.has(`categories.${c}`) ? t(`categories.${c}`) : humanizeSlug(c));
+  const searchable = res.data.length >= SEARCH_FROM;
+  const needle = searchable ? q.trim().toLowerCase() : "";
+  const found = res.data.filter((c) => !needle || `${c.title} ${c.category ? catLabel(c.category) : ""}`.toLowerCase().includes(needle));
+  const list = found.filter((c) => !cat || c.category === cat);
+  const catOpts = [
+    { value: "", label: `${t("all")} (${found.length})` },
+    ...cats.map((c) => ({ value: c, label: `${catLabel(c)} (${found.filter((x) => x.category === c).length})` })),
+  ];
+  const barShown = res.status !== "loading" && (cats.length > 1 || searchable);
 
   return (
     <div className="acad">
@@ -28,18 +37,19 @@ export default function ClientAcademy() {
         <p className="acad__sub">{t("subtitle")}</p>
       </div>
 
-      {res.status !== "loading" && res.data.length ? (
-        <div className="chiprow" data-ai-target="academy:categories">
-          {cats.map((c) => (
-            <button key={c || "all"} className="fchip" aria-pressed={cat === c} onClick={() => setCat(c)}>
-              {c ? catLabel(c) : t("all")}
-            </button>
-          ))}
-        </div>
+      {barShown ? (
+        <FilterBar
+          fields={[{ key: "cat", label: t("fCategory"), icon: IconLayers, value: cat, onChange: setCat, options: catOpts, hidden: cats.length < 2 }]}
+          search={searchable ? { value: q, onChange: setQ, placeholder: t("searchPh") } : undefined}
+          count={list.length}
+          aiTarget={cats.length > 1 ? "academy:categories" : undefined}
+        />
       ) : null}
 
       {res.status === "loading" ? (
         <Skeleton rows={3} />
+      ) : !list.length && res.data.length ? (
+        <EmptyState icon={<IconSearch />} title={t("noMatch")} text={t("noMatchText")} />
       ) : !list.length ? (
         <EmptyState icon={<IconGraduation />} title={t("empty")} text={t("emptyText")} />
       ) : (

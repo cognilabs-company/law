@@ -19,9 +19,10 @@ import { matchesSearch } from "@/lib/searchText";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { AdminForm, AdminItem, Notice, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
-import Select from "@/components/Select";
+import FilterBar from "@/components/filters/FilterBar";
 import ServiceEditModal from "@/components/admin/ServiceEditModal";
-import { IconBriefcase, IconPlus, IconSearch, IconEdit, IconTrash, IconRefresh, IconClose, IconInfo, IconEye, IconEyeOff } from "@/components/icons";
+import { useAiSelection } from "@/lib/ai/registry";
+import { IconBriefcase, IconPlus, IconSearch, IconEdit, IconTrash, IconRefresh, IconInfo, IconEye, IconLayers, IconCircleCheck } from "@/components/icons";
 
 function num(v: string | boolean): number {
   const n = parseInt(String(v || "0"), 10);
@@ -134,6 +135,9 @@ export default function AdminServices() {
   }, [all, state, cat, term, remoteIds]);
 
   const catOpts = [{ value: "", label: ts("allCats") }, ...cats.data.map((c) => ({ value: c.id, label: c.name }))];
+  const stateOpts = (["all", "active", "inactive"] as StateFilter[]).map((k) => ({ value: k, label: ts(`state.${k}`) }));
+  const viewHiddenCats = showHiddenCats && hiddenCats.length > 0;
+  useAiSelection("admin_services_state", state === "all" ? "" : state);
 
   function noteFor(e: unknown, fallback: string, ns: "edit" | "del"): string {
     if (e instanceof ApiError) {
@@ -199,12 +203,6 @@ export default function AdminServices() {
           <b>{t("services.catTitle")}</b>
           <span className="ahdr">
             <span className="advmuted">{visibleCats.length}</span>
-            {hiddenCats.length ? (
-              <button type="button" className={`chip chip--muted${showHiddenCats ? " on" : ""}`} aria-pressed={showHiddenCats} onClick={() => setShowHiddenCats((v) => !v)}>
-                <IconEyeOff />
-                {ts("cat.hiddenChip", { n: hiddenCats.length })}
-              </button>
-            ) : null}
             <button className="btn btn--pri btn--sm" type="button" onClick={() => setCatOpen(true)} data-ai-target="button:new-category">
               <IconPlus />
               {t("form.add")}
@@ -212,13 +210,33 @@ export default function AdminServices() {
           </span>
         </div>
         {catNote ? <Notice ok={catNote.ok} msg={catNote.msg} /> : null}
+        {hiddenCats.length ? (
+          <FilterBar
+            className="uf--tray uf--solo"
+            fields={[
+              {
+                key: "view",
+                label: ts("cat.view"),
+                icon: IconEye,
+                value: viewHiddenCats ? "hidden" : "visible",
+                empty: "visible",
+                onChange: (v) => setShowHiddenCats(v === "hidden"),
+                options: [
+                  { value: "visible", label: ts("cat.visibleChip", { n: visibleCats.length }) },
+                  { value: "hidden", label: ts("cat.hiddenChip", { n: hiddenCats.length }) },
+                ],
+                chip: null,
+              },
+            ]}
+          />
+        ) : null}
         {cats.status === "loading" ? (
           <Skeleton rows={3} />
         ) : !cats.data.length ? (
           <EmptyState icon={<IconBriefcase />} title={t("services.catEmpty")} />
         ) : (
           <div className="alist">
-            {(showHiddenCats ? hiddenCats : visibleCats).map((c, i) => (
+            {(viewHiddenCats ? hiddenCats : visibleCats).map((c, i) => (
               <AdminItem
                 key={c.id}
                 index={i + 1}
@@ -270,25 +288,16 @@ export default function AdminServices() {
           </span>
         </div>
 
-        <div className="svcadm__tools" data-ai-target="services:filters">
-          <div className="lsearch">
-            <IconSearch />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={ts("searchPh")} aria-label={ts("searchLabel")} />
-            {q ? (
-              <button type="button" className="svcadm__clear" aria-label={t("form.cancel")} onClick={() => setQ("")}>
-                <IconClose />
-              </button>
-            ) : null}
-          </div>
-          <Select value={cat} onChange={setCat} options={catOpts} ariaLabel={ts("catFilter")} />
-          <div className="segs segs--sm" role="tablist">
-            {(["all", "active", "inactive"] as StateFilter[]).map((k) => (
-              <button key={k} type="button" role="tab" className="seg" aria-selected={state === k} onClick={() => setState(k)}>
-                {ts(`state.${k}`)}
-              </button>
-            ))}
-          </div>
-        </div>
+        <FilterBar
+          className="uf--tray svcadm__filters"
+          fields={[
+            { key: "cat", label: ts("catFilter"), icon: IconLayers, value: cat, onChange: setCat, options: catOpts },
+            { key: "state", label: ts("stateLabel"), icon: IconCircleCheck, value: state, empty: "all", onChange: (v) => setState(v as StateFilter), options: stateOpts },
+          ]}
+          search={{ value: q, onChange: setQ, placeholder: ts("searchPh"), label: ts("searchLabel") }}
+          count={svcs.status === "ready" ? list.length : undefined}
+          aiTarget="services:filters"
+        />
 
         {serverSearchOff && term.length >= 2 ? (
           <p className="svcadm__hint svcadm__hint--warn">

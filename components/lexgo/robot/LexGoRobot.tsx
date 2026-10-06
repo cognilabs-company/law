@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import * as THREE from "three";
 import RobotCanvas from "./RobotCanvas";
 import { RobotEvents } from "./RobotEvents";
@@ -53,12 +54,23 @@ const DEMO_STEPS: Array<(c: RobotController) => void> = [
   ...GESTURE_NAMES.map((name) => (c: RobotController) => c.playGesture(name)),
 ];
 
+const PEEK_AFTER = 48;
+const SIZE_SCALE: Record<Tier, number> = { full: 0.88, compact: 0.88, mini: 1 };
+const NOT_PAGE = 'aside,nav,[role="dialog"],[aria-modal="true"],[data-ai-ignore],.amodal,.robot-edge-zone';
+
+function pageScroller(el: Element): boolean {
+  if (el === document.scrollingElement || el === document.documentElement || el === document.body) return true;
+  if (el.closest(NOT_PAGE)) return false;
+  return el.clientHeight >= window.innerHeight * 0.45 && el.scrollHeight - el.clientHeight > 1;
+}
+
 // The persistent "lives behind the right edge" companion (spec section 5) —
 // mounted once at the portal shell root, not per-page. Four responsive
 // states (section 35): full (>=1280px), compact (~80% size, 1024-1279),
 // mini (a mostly-head sliver, 901-1023), hidden at or below this app's own
 // portal mobile breakpoint (900px) rather than inventing an unrelated one.
 export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void }) {
+  const t = useTranslations("portal.aiAssistant.panel");
   const controllerRef = useRef<RobotController | null>(null);
   const demoStepRef = useRef(0);
   const previewStepRef = useRef(0);
@@ -66,6 +78,35 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
   const [tier, setTier] = useState<Tier>("full");
   const [reducedMotion, setReducedMotion] = useState(false);
   const [ready, setReady] = useState(false);
+  const [peek, setPeek] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    const tops = new WeakMap<Element, number>();
+    let pending: Element | null = null;
+    let frame = 0;
+    const read = () => {
+      frame = 0;
+      const el = pending;
+      pending = null;
+      if (!el) return;
+      const top = el.scrollTop;
+      if (tops.get(el) === top) return;
+      tops.set(el, top);
+      setPeek(top > PEEK_AFTER);
+    };
+    const onScroll = (e: Event) => {
+      const el = e.target instanceof Element ? e.target : document.scrollingElement;
+      if (!el || !pageScroller(el)) return;
+      pending = el;
+      if (!frame) frame = window.requestAnimationFrame(read);
+    };
+    window.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll, { capture: true });
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [visible]);
 
   useEffect(() => {
     const compactQuery = window.matchMedia(`(max-width:${BREAKPOINTS.fullMinWidth - 1}px)`);
@@ -184,17 +225,18 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
   }
 
   if (!visible) return null;
-  const size = VIEWPORT_SIZE[tier];
+  const base = VIEWPORT_SIZE[tier];
+  const scale = SIZE_SCALE[tier];
 
   return (
-    <div className="robot-edge-zone">
+    <div className={`robot-edge-zone${peek ? " is-peek" : ""}`}>
       <div
         className="robot-viewport"
-        style={{ width: size.width, height: size.height }}
+        style={{ width: Math.round(base.width * scale), height: Math.round(base.height * scale) }}
         role="button"
         tabIndex={0}
-        aria-label="LexGo AI instruktor"
-        title="LexGo AI instruktor"
+        aria-label={t("open")}
+        title={t("fullName")}
         data-ai-id="dashboard.ai-instructor.open"
         data-ai-type="button"
         onClick={handleClick}

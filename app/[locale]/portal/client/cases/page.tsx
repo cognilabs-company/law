@@ -50,7 +50,6 @@ type Item = { key: string; case?: BackendCase; order?: BackendOrder };
 
 export default function ClientCases() {
   const t = useTranslations("portal.client.cases");
-  const tcs = useTranslations("portal.common.status");
   const tcCommon = useTranslations("portal.common");
   const orderLabel = useOrderStatusLabel();
   const res = useResource(listCases, []);
@@ -144,7 +143,7 @@ export default function ClientCases() {
     { value: "replacement", label: t("replacement") },
   ];
 
-  const caseStatus = (s: string) => (s && tcs.has(s) ? tcs(s) : humanizeSlug(s));
+  const caseStatus = (s: string) => statusLabel(tcCommon, s);
   const loading = res.status === "loading" || orders.status === "loading";
 
   return (

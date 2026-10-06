@@ -22,16 +22,12 @@ import {
   IconShieldCheck,
   IconClock,
   IconCheck,
-  IconAdvocatePerson,
-  IconAiAnswer,
   IconChatDots,
   IconBolt,
   IconSearch,
   IconAlert,
   IconDownload,
   IconDocSearch,
-  IconGem,
-  IconHeadset,
 } from "@/components/icons";
 
 const DONE_STATUSES = new Set(["completed", "archived"]);
@@ -61,8 +57,6 @@ const QUICK_ACTIONS: {
   { key: "askAi", ai: "ask-ai", Icon: IconSparkle, href: "/portal/client/ai", art: "card-lexgo-ai-sorash" },
   { key: "upload", ai: "doc-analysis", Icon: IconDownload, href: "/portal/client/doc-analysis", art: "card-hujjat-tahlili" },
   { key: "documents", ai: "documents", Icon: IconDocSearch, href: "/portal/client/services", art: "card-huquqiy-hujjatlar" },
-  { key: "subscriptions", ai: "subscriptions", Icon: IconGem, href: "/portal/client/subscription", art: "card-tariflar" },
-  { key: "support", ai: "support", Icon: IconHeadset, href: "/portal/client/support", art: "card-yordam-markazi" },
 ];
 // The road-accident card carries no subtitle. Its title is already a whole
 // sentence — "Avtoavariya bo‘yicha huquqiy konsultatsiya olish" — and the
@@ -74,9 +68,31 @@ const ACTION_SUB: Record<string, string> = {
   askAi: "askAiSub",
   upload: "uploadSub",
   documents: "documentsSub",
-  subscriptions: "subscriptionsSub",
-  support: "supportSub",
 };
+
+function WhoOption({ art, title, sub, perks, cta }: { art: string; title: string; sub: string; perks: string[]; cta: string }) {
+  return (
+    <>
+      <span className="cdwho__stage" aria-hidden>
+        <span className="cdwho__art" style={{ "--art": `url(/img/${art}.png)` } as CSSProperties} />
+      </span>
+      <b className="cdwho__t">{title}</b>
+      <span className="cdwho__sub">{sub}</span>
+      <ul className="cdwho__perks">
+        {perks.map((p) => (
+          <li key={p}>
+            <span className="cdwho__tick" aria-hidden><IconCheck /></span>
+            {p}
+          </li>
+        ))}
+      </ul>
+      <span className="btn btn--pri btn--sm btn--full cdwho__cta">
+        {cta}
+        <IconArrowRight />
+      </span>
+    </>
+  );
+}
 
 export default function ClientDashboard() {
   const t = useTranslations("portal.client.dashboard");
@@ -174,30 +190,27 @@ export default function ClientDashboard() {
       {/* Who should answer this — asked once, before anything is typed.
           Sending every described problem to the AI page hid the fact that a
           real advocate is one of the two answers. */}
-      {/* The title and the sub sit in their own column (.cdwho__t) because the
-          two options are laid out as full-width rows rather than as a pair of
-          stretched cells: at the 516px modal width each title then fits on one
-          line, so the longer advocate title no longer wraps while the AI one
-          stays short, and neither row is padded out to match the other. */}
       <Modal open={whoOpen} onClose={() => setWhoOpen(false)} title={ta("whoTitle")}>
         <div className="cdwho" data-ai-id="dashboard.who-modal" data-ai-type="modal">
           <p className="cdwho__lead">{ta("whoLead")}</p>
           <div className="cdwho__grid">
-            <Link href="/portal/client/urgent" className="cdwho__c cdwho__c--adv" onClick={() => setWhoOpen(false)} data-ai-id="dashboard.who-modal.advocate">
-              <span className="cdwho__i"><IconAdvocatePerson /></span>
-              <span className="cdwho__t">
-                <b>{ta("whoAdvocate")}</b>
-                <span>{ta("whoAdvocateSub")}</span>
-              </span>
-              <em className="cdwho__go"><IconArrowRight /></em>
+            <Link href="/portal/client/urgent" className="cdwho__c cdwho__c--adv" onClick={() => setWhoOpen(false)} data-ai-id="dashboard.who-modal.advocate" data-ai-label={ta("whoAdvocate")}>
+              <WhoOption
+                art="card-advokatga-tezkor-boglanish"
+                title={ta("whoAdvocate")}
+                sub={ta("whoAdvocateSub")}
+                perks={[ta("whoAdvocatePerk1"), ta("whoAdvocatePerk2")]}
+                cta={ta("whoAdvocateCta")}
+              />
             </Link>
-            <Link href="/portal/client/ai" className="cdwho__c cdwho__c--ai" onClick={() => setWhoOpen(false)} data-ai-id="dashboard.who-modal.ai">
-              <span className="cdwho__i"><IconAiAnswer /></span>
-              <span className="cdwho__t">
-                <b>{ta("whoAi")}</b>
-                <span>{ta("whoAiSub")}</span>
-              </span>
-              <em className="cdwho__go"><IconArrowRight /></em>
+            <Link href="/portal/client/ai" className="cdwho__c cdwho__c--ai" onClick={() => setWhoOpen(false)} data-ai-id="dashboard.who-modal.ai" data-ai-label={ta("whoAi")}>
+              <WhoOption
+                art="card-lexgo-ai-sorash"
+                title={ta("whoAi")}
+                sub={ta("whoAiSub")}
+                perks={[ta("whoAiPerk1"), ta("whoAiPerk2")]}
+                cta={ta("whoAiCta")}
+              />
             </Link>
           </div>
         </div>

@@ -1,15 +1,16 @@
 "use client";
 
-import { useRef } from "react";
-import { useTranslations } from "next-intl";
-import Select from "@/components/Select";
+import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
 import DatePicker from "@/components/DatePicker";
 import { listAdminMarketplaceSellers, MKM_STATUSES } from "@/lib/services/adminMarketplace";
 import { searchUsers } from "@/lib/services/backend";
 import { todayIso } from "@/lib/services/dash";
 import { dayBefore } from "@/lib/demoStats";
-import { IconClose, IconRefresh, IconSearch } from "@/components/icons";
+import { shortDate } from "@/lib/date";
+import { IconCalendar, IconClipboardCheck, IconClock, IconStore, IconUser } from "@/components/icons";
 
 export type Preset = "" | "today" | "d7" | "d30" | "d90";
 export type PartyPick = { id: string; label: string; sub: string };
@@ -46,6 +47,7 @@ export default function MkmFilterBar({
   q,
   onQ,
   onReset,
+  count,
 }: {
   tab: MkmTab;
   value: MkmFilters;
@@ -53,13 +55,27 @@ export default function MkmFilterBar({
   q: string;
   onQ: (v: string) => void;
   onReset: () => void;
+  count?: number;
 }) {
   const t = useTranslations("admin.marketplace.filter");
   const tu = useTranslations("admin.userSelect");
-  const seen = useRef(new Map<string, SearchOption>());
+  const locale = useLocale();
+  const [known, setKnown] = useState<Record<string, SearchOption>>({});
+  const [custom, setCustom] = useState(false);
+  const [own, setOwn] = useState(false);
+  const [prev, setPrev] = useState(value);
+  if (prev !== value) {
+    setPrev(value);
+    if (own) setOwn(false);
+    else if (custom && !value.from && !value.to && (prev.from || prev.to)) setCustom(false);
+  }
 
   const remember = (rows: SearchOption[]) => {
-    for (const r of rows) seen.current.set(r.value, r);
+    setKnown((cur) => {
+      const next = { ...cur };
+      for (const r of rows) next[r.value] = r;
+      return next;
+    });
     return rows;
   };
   const findSellers = async (text: string) => {
@@ -73,102 +89,124 @@ export default function MkmFilterBar({
   const pickOf = (ids: string[]): PartyPick | null => {
     const id = ids[0];
     if (!id) return null;
-    const o = seen.current.get(id);
+    const o = known[id];
     return { id, label: o?.label ?? "—", sub: o?.sub ?? "" };
   };
 
-  function preset(key: Exclude<Preset, "">) {
-    if (value.preset === key) {
-      onChange({ from: "", to: "", preset: "" });
+  const dated = Boolean(value.from || value.to);
+  const period = value.preset || (custom || dated ? "custom" : "");
+  const day = (iso: string) => (iso ? shortDate(iso, locale) : "…");
+  const range = !dated ? "" : value.from && value.from === value.to ? day(value.from) : `${day(value.from)} – ${day(value.to)}`;
+
+  const pickPeriod = (next: string) => {
+    if (next === "custom") {
+      setCustom(true);
+      if (value.preset) onChange({ preset: "" });
       return;
     }
-    onChange({ ...presetRange(key), preset: key });
-  }
+    setCustom(false);
+    const hit = PRESETS.find((p) => p.key === next);
+    if (hit) {
+      onChange({ ...presetRange(hit.key), preset: hit.key });
+      return;
+    }
+    if (dated || value.preset) onChange({ from: "", to: "", preset: "" });
+  };
+
+  const setDate = (patch: Partial<MkmFilters>) => {
+    setCustom(true);
+    setOwn(true);
+    onChange({ ...patch, preset: "" });
+  };
+
+  const reset = () => {
+    setCustom(false);
+    onReset();
+  };
 
   const partyScoped = tab !== "sellers";
   const hidden = !partyScoped && !!(value.status || value.seller || value.client);
-  const active = filtersActive(value) || (!partyScoped && !!q.trim());
+
+  const party = (key: "seller" | "client", icon: FilterField["icon"], find: (text: string) => Promise<SearchOption[]>): FilterField => {
+    const pick = value[key];
+    const set = (next: PartyPick | null) => onChange(key === "seller" ? { seller: next } : { client: next });
+    return {
+      key,
+      label: t(key),
+      icon,
+      hidden: !partyScoped,
+      active: Boolean(pick),
+      chip: pick ? `${t(key)}: ${pick.label}` : null,
+      clear: () => set(null),
+      node: (
+        <SearchSelect
+          single
+          value={pick ? [pick.id] : []}
+          onChange={(ids) => set(pickOf(ids))}
+          options={pick ? [{ value: pick.id, label: pick.label, sub: pick.sub }] : []}
+          onSearch={find}
+          placeholder={t(`${key}Ph`)}
+          searchPlaceholder={tu("searchPh")}
+          emptyText={tu("empty")}
+          ariaLabel={t(key)}
+          removeLabel={tu("clear")}
+        />
+      ),
+    };
+  };
+
+  const fields: FilterField[] = [
+    {
+      key: "period",
+      label: t("period"),
+      icon: IconClock,
+      value: period,
+      onChange: pickPeriod,
+      options: [
+        { value: "", label: t("allTime") },
+        ...PRESETS.map((p) => ({ value: p.key, label: t(`presets.${p.key}`) })),
+        { value: "custom", label: t("custom") },
+      ],
+      chip: period === "custom" ? range || null : undefined,
+      aiTarget: "marketplace:period",
+    },
+    {
+      key: "from",
+      label: t("from"),
+      icon: IconCalendar,
+      hidden: period !== "custom",
+      chip: null,
+      node: <DatePicker value={value.from} onChange={(from) => setDate({ from })} placeholder={t("from")} ariaLabel={t("from")} max={value.to || undefined} clearLabel={t("clearDate")} />,
+    },
+    {
+      key: "to",
+      label: t("to"),
+      icon: IconCalendar,
+      hidden: period !== "custom",
+      chip: null,
+      node: <DatePicker value={value.to} onChange={(to) => setDate({ to })} placeholder={t("to")} ariaLabel={t("to")} min={value.from || undefined} clearLabel={t("clearDate")} />,
+    },
+    {
+      key: "status",
+      label: t("status"),
+      icon: IconClipboardCheck,
+      hidden: !partyScoped,
+      value: value.status,
+      onChange: (status) => onChange({ status }),
+      options: ["", ...MKM_STATUSES].map((s) => ({ value: s, label: t(`statusOpt.${s || "all"}`) })),
+    },
+    party("seller", IconStore, findSellers),
+    party("client", IconUser, findClients),
+  ];
 
   return (
-    <div className="mkm-fbar" role="group" aria-label={t("aria")}>
-      <div className="mkm-fbar__top">
-        <div className="mkm-presets" role="group" aria-label={t("presetsAria")} data-ai-target="marketplace:period">
-          {PRESETS.map((p) => (
-            <button key={p.key} type="button" className="mkm-preset" aria-pressed={value.preset === p.key} onClick={() => preset(p.key)}>
-              {t(`presets.${p.key}`)}
-            </button>
-          ))}
-        </div>
-        <div className="mkm-dates">
-          <span className="mkm-date">
-            <DatePicker value={value.from} onChange={(from) => onChange({ from, preset: "" })} placeholder={t("from")} ariaLabel={t("from")} max={value.to || undefined} clearLabel={t("clearDate")} />
-          </span>
-          <span className="mkm-dates__sep" aria-hidden>
-            –
-          </span>
-          <span className="mkm-date">
-            <DatePicker value={value.to} onChange={(to) => onChange({ to, preset: "" })} placeholder={t("to")} ariaLabel={t("to")} min={value.from || undefined} clearLabel={t("clearDate")} />
-          </span>
-        </div>
-        {active ? (
-          <button type="button" className="mkm-reset" onClick={onReset}>
-            <IconRefresh aria-hidden />
-            {t("reset")}
-          </button>
-        ) : null}
-      </div>
-
-      {partyScoped ? (
-        <div className="mkm-fbar__grid" data-ai-target="marketplace:filters">
-          <div className="mkm-f">
-            <Select
-              value={value.status}
-              onChange={(status) => onChange({ status })}
-              ariaLabel={t("status")}
-              options={["", ...MKM_STATUSES].map((s) => ({ value: s, label: t(`statusOpt.${s || "all"}`) }))}
-            />
-          </div>
-          <div className="mkm-f">
-            <SearchSelect
-              single
-              value={value.seller ? [value.seller.id] : []}
-              onChange={(ids) => onChange({ seller: pickOf(ids) })}
-              options={value.seller ? [{ value: value.seller.id, label: value.seller.label, sub: value.seller.sub }] : []}
-              onSearch={findSellers}
-              placeholder={t("sellerPh")}
-              searchPlaceholder={tu("searchPh")}
-              emptyText={tu("empty")}
-              ariaLabel={t("seller")}
-              removeLabel={tu("clear")}
-            />
-          </div>
-          <div className="mkm-f">
-            <SearchSelect
-              single
-              value={value.client ? [value.client.id] : []}
-              onChange={(ids) => onChange({ client: pickOf(ids) })}
-              options={value.client ? [{ value: value.client.id, label: value.client.label, sub: value.client.sub }] : []}
-              onSearch={findClients}
-              placeholder={t("clientPh")}
-              searchPlaceholder={tu("searchPh")}
-              emptyText={tu("empty")}
-              ariaLabel={t("client")}
-              removeLabel={tu("clear")}
-            />
-          </div>
-        </div>
-      ) : (
-        <label className="mkm-search" data-ai-target="marketplace:seller-search">
-          <IconSearch aria-hidden />
-          <input value={q} onChange={(e) => onQ(e.target.value)} placeholder={t("sellersSearch")} aria-label={t("sellersSearch")} />
-          {q ? (
-            <button type="button" className="mkm-search__x" onClick={() => onQ("")} aria-label={t("clearSearch")}>
-              <IconClose aria-hidden />
-            </button>
-          ) : null}
-        </label>
-      )}
-
+    <div className="mkm-filters" role="group" aria-label={t("aria")} data-ai-target="marketplace:filters" data-ai-label={t("aria")}>
+      <FilterBar
+        fields={fields}
+        search={partyScoped ? undefined : { value: q, onChange: onQ, placeholder: t("sellersSearch"), aiTarget: "marketplace:seller-search" }}
+        count={count}
+        onReset={reset}
+      />
       {hidden ? <p className="mkm-fnote">{t("sellersNote")}</p> : null}
     </div>
   );

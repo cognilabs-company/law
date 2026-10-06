@@ -8,9 +8,11 @@ import {
   type AiActor,
   type AiChatRequest,
   type AiChatResponse,
+  type AiDetailRow,
   type AiEndpoints,
   type AiEventBody,
   type AiRuntimeRequest,
+  type AiSupportFallback,
   type InstructorContract,
   type InstructorMode,
 } from "@/lib/ai/types";
@@ -19,6 +21,9 @@ const MISSING_TTL = 10 * 60 * 1000;
 const RETRY_TTL = 60 * 1000;
 const CONTRACT_TTL = 30 * 60 * 1000;
 const ENDPOINT_RE = /^\/ai\/instructor\/[A-Za-z0-9_\-/]*$/;
+const REPR_TEXT = /['"](?:text|title|caption|label|description|name|step|instruction)['"]\s*:\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")/;
+const TOKEN_CODE = /^(invalid_confirm_token|confirm_token_[a-z_]*mismatch)$/;
+const ZERO_IS_FREE = new Set(["start_support_ticket", "prepare_subscription_purchase"]);
 
 export const DEFAULT_ENDPOINTS: AiEndpoints = {
   events: "/ai/instructor/events",
@@ -65,11 +70,43 @@ function strList(v: unknown): string[] {
   return out;
 }
 
+function reprText(s: string): string {
+  if (!/^[[{][\s\S]*[\]}]$/.test(s)) return s;
+  const m = REPR_TEXT.exec(s);
+  return (m?.[1] ?? m?.[2] ?? "").replace(/\\(['"\\])/g, "$1").trim();
+}
+
 function textList(v: unknown, max: number): string[] {
   const out: string[] = [];
   for (const item of asArr(v)) {
-    const s = typeof item === "string" ? item.trim() : isDict(item) ? pick(item.text, item.title, item.label, item.message, item.description) : "";
-    if (s && !out.includes(s)) out.push(s.slice(0, 240));
+    const raw = typeof item === "string" ? reprText(item.trim()) : isDict(item) ? pick(item.text, item.title, item.label, item.message, item.description, item.step) : "";
+    const s = raw.replace(/\s+/g, " ").replace(/^(?:\d{1,2}[.)]|[-*•])\s+/, "").slice(0, 240);
+    if (s && !out.includes(s)) out.push(s);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+function normSupportFallback(v: unknown): AiSupportFallback | null {
+  if (!isDict(v)) return null;
+  return { available: v.available !== false, reason: pick(v.reason), confirmAction: pick(v.confirm_action) || "start_support_ticket" };
+}
+
+function detailRow(item: unknown): AiDetailRow | null {
+  if (typeof item === "string") {
+    const value = reprText(item.trim());
+    return value ? { label: "", value: value.slice(0, 240) } : null;
+  }
+  if (!isDict(item)) return null;
+  const value = pick(item.value, item.text, item.amount_text, item.description);
+  return value ? { label: pick(item.label, item.title, item.name, item.key).slice(0, 80), value: value.slice(0, 240) } : null;
+}
+
+function detailRows(v: unknown, max: number): AiDetailRow[] {
+  const out: AiDetailRow[] = [];
+  for (const item of asArr(v)) {
+    const row = detailRow(item);
+    if (row && !out.some((r) => r.label === row.label && r.value === row.value)) out.push(row);
     if (out.length >= max) break;
   }
   return out;
@@ -188,6 +225,9 @@ export function normInstructorChat(raw: unknown, sentSessionId = ""): AiChatResp
     rawCommands: asArr(d.commands ?? d.actions),
     toolResults: isDict(d.tool_results) ? d.tool_results : {},
     suggestions: textList(d.suggestions, 3),
+    steps: textList(d.steps, 8),
+    missingRequirements: textList(d.missing_requirements, 6),
+    supportFallback: normSupportFallback(d.support_fallback),
     endpoints: {
       events: safeEndpoint(d.event_url ?? d.events_url, DEFAULT_ENDPOINTS.events),
       runtime: safeEndpoint(d.runtime_url, DEFAULT_ENDPOINTS.runtime),
@@ -238,30 +278,40 @@ function normActor(v: unknown): AiActor | null {
   return userId || name ? { userId, name, role } : null;
 }
 
-export function normActionPreview(raw: unknown, action: string): ActionPreview {
+export function normActionPreview(raw: unknown, action: string, payload: Record<string, unknown> = {}): ActionPreview {
   const d = unwrap(raw, ["confirm_token", "title", "summary", "amount", "requires_confirmation", "preview"]);
   const p = isDict(d.preview) ? d.preview : d;
   const pay = asDict(p.payment ?? p.price_info);
+  const rows = detailRows(asArr(p.details).length ? p.details : asArr(d.details).length ? d.details : (p.items ?? p.lines), 6);
+  const kind = pick(p.action, d.action, action);
+  const quoted = num(p.amount, p.price, p.total, p.estimated_amount, pay.amount, d.amount, d.price);
+  const blank = isDict(d.preview) && !Object.keys(d.preview).length;
+  const amount = quoted === 0 && (blank || !ZERO_IS_FREE.has(kind)) ? null : quoted;
   return {
-    action: pick(p.action, d.action, action),
-    title: pick(p.title, p.action_title),
-    summary: pick(p.summary, p.description, p.what, p.message, d.message),
-    amount: num(p.amount, p.price, p.total, p.estimated_amount, pay.amount),
-    currency: pick(p.currency, pay.currency) || "UZS",
-    amountText: pick(p.amount_text, p.price_text, pay.amount_text),
-    billingPeriod: pick(p.billing_period, p.period),
+    action: kind,
+    title: pick(p.title, p.action_title, d.title),
+    summary: pick(p.summary, p.description, p.what, d.summary, p.message, d.message),
+    amount,
+    currency: pick(p.currency, d.currency, pay.currency) || "UZS",
+    amountText: pick(p.amount_text, p.price_text, pay.amount_text, amount ? d.amount_text : ""),
+    billingPeriod: pick(p.billing_period, p.period, d.billing_period, payload.billing_period),
     onBehalfOf: normActor(p.on_behalf_of ?? d.on_behalf_of ?? p.actor),
-    requiresConfirmation: p.requires_confirmation !== false,
+    requiresConfirmation: p.requires_confirmation !== false && d.requires_confirmation !== false,
     canExecute: p.can_execute !== false && d.can_execute !== false,
     confirmToken: pick(p.confirm_token, d.confirm_token, p.token),
     expiresAt: (() => {
       const t = parseServerTime(p.expires_at ?? d.expires_at);
       return Number.isFinite(t) ? t : 0;
     })(),
-    warnings: textList(p.warnings ?? d.warnings, 4),
-    details: textList(p.details ?? p.items ?? p.lines, 6),
+    warnings: textList(asArr(p.warnings).length ? p.warnings : d.warnings, 4),
+    details: rows.map((r) => (r.label ? `${r.label}: ${r.value}` : r.value)),
+    detailRows: rows,
     message: pick(d.message, p.message),
   };
+}
+
+function firstId(...vals: unknown[]): string {
+  return pick(...vals.map((v) => (isDict(v) ? pick(v.id, v.record_id) : v)));
 }
 
 export function normActionResult(raw: unknown): ActionResult {
@@ -269,31 +319,46 @@ export function normActionResult(raw: unknown): ActionResult {
   const r = isDict(d.result) ? d.result : d;
   const ticket = asDict(r.ticket ?? d.ticket);
   const next = asDict(r.next ?? d.next);
+  const purchase = asDict(r.purchase_request ?? d.purchase_request);
+  const order = asDict(purchase.order);
+  const doc = asDict(r.document_request ?? d.document_request);
+  const urgent = asDict(r.urgent_request ?? d.urgent_request);
   const ticketId = pick(ticket.id, ticket.ticket_id, r.ticket_id, d.ticket_id);
   return {
     status: pick(d.status, r.status) || "confirmed",
     ticketId,
     ticketWorkId: pick(ticket.work_id, asDict(ticket.payload).work_id, r.work_id),
+    workId: pick(ticket.work_id, asDict(ticket.payload).work_id, purchase.work_id, order.work_id, asDict(doc.lawyer_request).work_id, asDict(doc.request).work_id, doc.work_id, urgent.work_id, r.work_id),
     paymentUrl: safePaymentUrl(r.payment_url ?? d.payment_url ?? r.checkout_url ?? asDict(r.payment).payment_url ?? asDict(r.invoice).payment_url),
     nextHref: pick(next.href, next.route, r.href, r.redirect, d.href),
     nextTarget: pick(next.target, next.ai_id, r.target),
-    resultRef: pick(ticketId, r.order_id, r.request_id, r.record_id, r.payment_id, r.subscription_id, r.id),
+    resultRef: pick(
+      ticketId,
+      firstId(order, purchase.order_id, purchase, doc.lawyer_request, doc.request, urgent),
+      r.order_id,
+      r.request_id,
+      r.record_id,
+      r.payment_id,
+      r.subscription_id,
+      r.id,
+    ),
     commands: asArr(r.commands ?? d.commands),
     message: pick(d.message, r.message),
   };
 }
 
 export async function previewInstructorAction(
-  body: { session_id: string; command_id: string; action: string; payload: Record<string, unknown> },
+  body: { session_id: string; command_id: string; action: string; target?: string; payload: Record<string, unknown> },
   signal?: AbortSignal,
 ): Promise<ActionPreview> {
-  return normActionPreview(await http(endpoints.preview, { method: "POST", body: JSON.stringify(body), signal }), body.action);
+  return normActionPreview(await http(endpoints.preview, { method: "POST", body: JSON.stringify(body), signal }), body.action, body.payload);
 }
 
 export async function confirmInstructorAction(body: {
   session_id: string;
   command_id: string;
   action: string;
+  target?: string;
   payload: Record<string, unknown>;
   confirm_token: string;
   idempotency_key: string;
@@ -306,5 +371,6 @@ export function isConfirmExpired(e: unknown): boolean {
   if (!(e instanceof ApiError)) return false;
   if (e.status === 410) return true;
   const code = (e.code || "").toLowerCase();
+  if (e.status === 403) return TOKEN_CODE.test(code);
   return (e.status === 409 || e.status === 400 || e.status === 422) && (code.includes("expired") || code.includes("token") || /expire|muddat|eskir|истек|истёк/i.test(e.detail || ""));
 }

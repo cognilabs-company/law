@@ -9,11 +9,13 @@ import { NOTIF_ROW_CATEGORIES, type NotifCategory } from "@/lib/notifications";
 import { type NotificationDelivery } from "@/lib/services/backend";
 import { humanizeSlug } from "@/lib/lawyers";
 import { useAiReveal } from "@/lib/guide/targets";
+import { useAiSelection } from "@/lib/ai/registry";
 import Select from "@/components/Select";
+import FilterBar from "@/components/filters/FilterBar";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
 import { DeliveryChips } from "@/components/portal/NotificationsPanel";
-import { IconBell, IconCheck, IconSearch, IconSend } from "@/components/icons";
+import { IconBell, IconCheck, IconSend, IconUsers } from "@/components/icons";
 
 // Role tabs feed GET /admin/users?role=… (backend UserRole values).
 const ROLE_TABS = ["all", "client", "yurist", "advokat", "advokat_tashkiloti", "call_center", "sales"] as const;
@@ -64,6 +66,11 @@ export default function AdminNotifications() {
   const stopRef = useRef(false);
 
   const selectedInRole = (r: RoleTab) => [...selected.values()].filter((u) => r === "all" || u.role === r).length;
+  const roleOpts = ROLE_TABS.map((r) => {
+    const n = selectedInRole(r);
+    return { value: r, label: n ? `${tn(`roles.${r}`)} · ${tn("selectedN", { n })}` : tn(`roles.${r}`) };
+  });
+  useAiSelection("admin_notifications_role", mode === "individual" && roleTab !== "all" ? roleTab : "");
 
   function toggle(u: AdminUser) {
     setSelected((m) => {
@@ -198,19 +205,14 @@ export default function AdminNotifications() {
       <section className="nrcp" aria-label={tn("recipients")} data-ai-target="notifications:recipients">
         <div className="nrcp__lbl">{tn("recipients")}</div>
         <p className="nrcp__hint">{tn("recipientsHint")}</p>
-        <div className="segs segs--sm nrcp__tabs" role="tablist" aria-label={tn("roleTabs")}>
-          {ROLE_TABS.map((r) => {
-            const n = selectedInRole(r);
-            return (
-              <button key={r} type="button" role="tab" className="seg" aria-selected={roleTab === r} onClick={() => setRoleTab(r)}>
-                {tn(`roles.${r}`)}
-                {n ? <span className="ntab__n">{n}</span> : null}
-              </button>
-            );
-          })}
-        </div>
+        <FilterBar
+          className="uf--tray nrcp__filters"
+          fields={[
+            { key: "role", label: tn("roleLabel"), icon: IconUsers, value: roleTab, empty: "all", onChange: (v) => setRoleTab(v as RoleTab), options: roleOpts, chip: null, aiLabel: tn("roleTabs") },
+          ]}
+          search={{ value: q, onChange: setQ, placeholder: tn("searchPh") }}
+        />
         <div className="nrcp__bar">
-          <div className="lsearch"><IconSearch /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tn("searchPh")} aria-label={tn("searchPh")} /></div>
           <button className="btn btn--soft btn--sm" type="button" onClick={() => selectMany(users.data)} disabled={!users.data.length}>
             {tn("selectAllRole")}
           </button>

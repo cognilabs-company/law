@@ -1,5 +1,6 @@
 import { isAiId, type AiElementType } from "./ids";
 import { canonicalAiId } from "./aliases";
+import { isSelfTarget } from "./self";
 import { OVERLAY, cssEsc, intersectsViewport, isShown, modalAiId, openModalRoot } from "./dom";
 import { aiField, aiFormState, aiSelections } from "./registry";
 import type { ManifestElement, ManifestEntity, RuntimeState, UiManifest } from "./types";
@@ -247,7 +248,7 @@ export function pageTitle(): string {
   return redactLabel(own || document.title || "");
 }
 
-export function collectAiElements(limit = VISIBLE_MAX): FoundElement[] {
+export function collectAiElements(limit = VISIBLE_MAX, keepSelf = false): FoundElement[] {
   if (typeof document === "undefined") return [];
   const modal = openModalRoot();
   const scope: ParentNode = modal ?? document;
@@ -258,7 +259,7 @@ export function collectAiElements(limit = VISIBLE_MAX): FoundElement[] {
     if (el.closest(OVERLAY)) continue;
     const own = el.getAttribute("data-ai-id") || "";
     const id = own && isAiId(own) ? own : canonicalAiId(el.getAttribute("data-ai-target") || "");
-    if (!id || seen.has(id) || !isShown(el)) continue;
+    if (!id || seen.has(id) || (!keepSelf && isSelfTarget(id)) || !isShown(el)) continue;
     seen.add(id);
     const item = { id, el, inView: intersectsViewport(el), legacy: !(own && isAiId(own)) };
     if (item.inView) inView.push(item);
@@ -320,7 +321,7 @@ export function buildUiManifest(opts: { role: string; description?: string }, fo
   };
 }
 
-export function buildAiSnapshot(opts: { role: string; description?: string }): { runtime_state: RuntimeState; ui_manifest: UiManifest } {
-  const found = collectAiElements(VISIBLE_MAX);
+export function buildAiSnapshot(opts: { role: string; description?: string; selfHelp?: boolean }): { runtime_state: RuntimeState; ui_manifest: UiManifest } {
+  const found = collectAiElements(VISIBLE_MAX, Boolean(opts.selfHelp));
   return { runtime_state: buildRuntimeState(found), ui_manifest: buildUiManifest(opts, found) };
 }

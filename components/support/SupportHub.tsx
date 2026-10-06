@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { hasAdminAccess, useAuth, type Role } from "@/lib/auth";
 import { contactBlockedOf, isRouteMissing } from "@/lib/http";
@@ -13,39 +13,49 @@ import { useAiReveal } from "@/lib/guide/targets";
 import { openInstructor } from "@/lib/guide/panel";
 import { aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
+import { initials } from "@/lib/lawyers";
 import {
   SUPPORT_CATEGORIES,
   createSupportTicket,
   isActiveTicket,
+  isWaitingTicket,
   normSupportTicket,
   supportCategoryFor,
+  ticketTitle,
   type SupportEventKind,
   type SupportMessage,
   type SupportTicket,
 } from "@/lib/services/support";
 import ContactBlockedNote from "@/components/ContactBlockedNote";
 import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
-import RobotAvatar from "@/components/guide/RobotAvatar";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
+import Select from "@/components/Select";
 import {
   IconAlert,
   IconArrowRight,
+  IconBell,
   IconCheckDouble,
   IconChevronLeft,
+  IconClipboardCheck,
   IconClose,
   IconHeadset,
+  IconInbox,
   IconPhone,
   IconPlus,
   IconRefresh,
+  IconSearch,
   IconSend,
   IconSparkle,
 } from "@/components/icons";
 import SupportChat from "./SupportChat";
-import { TicketCard, useMinuteNow, useSupportLabels } from "./bits";
+import { SupportStatus, TicketCard, agoText, lastPreview, useMinuteNow, useSupportHours, useSupportLabels } from "./bits";
 import { useMyChats } from "./useMyChats";
 import { SUPPORT_PHONE, SUPPORT_TEL } from "./contact";
 
-const CLIENT_ASK = ["subscription", "payment", "documents", "marketplace", "urgent_advokat", "account"] as const;
-const SELLER_ASK = ["orders", "profile", "subscription", "payment", "account"] as const;
+type Tab = "active" | "closed";
+
+const CLIENT_ASK = ["subscription", "payment", "documents", "marketplace"] as const;
+const SELLER_ASK = ["orders", "profile", "subscription", "payment"] as const;
 const CLIENT_TOPICS: readonly string[] = ["subscription", "payment", "documents", "marketplace", "urgent_advokat", "account", "technical"];
 const SELLER_TOPICS: readonly string[] = ["subscription", "payment", "documents", "urgent_advokat", "account", "technical"];
 const KNOWN_TOPICS: readonly string[] = SUPPORT_CATEGORIES;
@@ -53,6 +63,7 @@ const TOPIC_ALIAS: Record<string, string> = { document: "documents" };
 const STATUS_OF: Partial<Record<SupportEventKind, string>> = { claimed: "claimed", transferred: "transferred", closed: "closed", reopened: "reopened" };
 const MAX = 4000;
 const NARROW = "(max-width: 1180px)";
+const ONGOING = 3;
 
 function topicOf(raw: string, allowed: readonly string[]): string {
   const v = raw.trim().toLowerCase();
@@ -66,9 +77,49 @@ function guessTopic(text: string, allowed: readonly string[]): string {
   return allowed.includes(hit) ? hit : "general";
 }
 
+function tabOf(raw: string): Tab | null {
+  const v = raw.trim().toLowerCase();
+  if (!v) return null;
+  if (/(clos|yakun|resol|done|заверш|закры|реш)/.test(v)) return "closed";
+  if (/(activ|faol|open|ochiq|актив|откры)/.test(v)) return "active";
+  return null;
+}
+
+function OngoingRow({ ticket, now, unread, onOpen }: { ticket: SupportTicket; now: number | null; unread: number; onOpen: () => void }) {
+  const t = useTranslations("support");
+  const locale = useLocale();
+  const title = ticketTitle(ticket, t("untitled"));
+  const when = ticket.lastMessageAt || ticket.updatedAt;
+  const person = ticket.operatorName;
+  const last = lastPreview(ticket, title) || (person ? t("operatorIs", { name: person }) : "");
+  return (
+    <button type="button" className={`supcrow${unread ? " has-new" : ""}`} onClick={onOpen}>
+      <span className={`supcrow__av${!person && isWaitingTicket(ticket) ? " supcrow__av--wait" : ""}`} aria-hidden="true">
+        {person ? initials(person) : <IconHeadset />}
+      </span>
+      <span className="supcrow__body">
+        <b className="supcrow__t">{title}</b>
+        <span className="supcrow__sub">
+          <SupportStatus status={ticket.status} />
+          {last ? <span className="supcrow__last">{last}</span> : null}
+        </span>
+      </span>
+      <span className="supcrow__side">
+        {when ? <time dateTime={when}>{agoText(t, locale, when, now)}</time> : null}
+        {unread ? (
+          <span className="supcrow__dot">
+            <span className="sr-only">{t("unreadAria", { n: unread })}</span>
+          </span>
+        ) : null}
+      </span>
+    </button>
+  );
+}
+
 export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: string }) {
   const t = useTranslations("support");
   const tc = useTranslations("common");
+  const tf = useTranslations("filterBar");
   const { session } = useAuth();
   const params = useSearchParams();
   const router = useRouter();
@@ -99,7 +150,8 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   const [urgent, setUrgent] = useState(false);
   const [sending, setSending] = useState(false);
   const [formErr, setFormErr] = useState<unknown>(null);
-  const [tab, setTab] = useState<"active" | "closed">("active");
+  const [tab, setTab] = useState<Tab>("active");
+  const [q, setQ] = useState("");
   const [ask, setAsk] = useState("");
   const [foreign, setForeign] = useState("");
   const [prevUrlKey, setPrevUrlKey] = useState(urlKey);
@@ -116,14 +168,17 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
     }
   }
   const now = useMinuteNow();
+  const hours = useSupportHours();
   const missing = chats.status === "error" && isRouteMissing(chats.error);
   const placeholder = useMemo(() => (selected ? normSupportTicket({ id: selected, status: "" }) : null), [selected]);
   const current = selected ? chats.map[selected] ?? placeholder : null;
   const latest = chats.active[0] ?? null;
   const ready = chats.status !== "loading";
+  const loaded = chats.status === "ready";
   const hasAny = chats.active.length + chats.closed.length > 0 || chats.more.closed || chats.more.active;
   const rootRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLElement>(null);
+  const listRef = useRef<HTMLElement>(null);
   const unreadOf = (tk: SupportTicket) => (tk.id === selected ? 0 : tk.unreadCount);
 
   const go = useCallback((href: string) => router.replace(href as Parameters<typeof router.replace>[0], { scroll: false }), [router]);
@@ -257,6 +312,21 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   }, poll);
   usePoll(poll, 30000, chats.status === "ready" && !online);
 
+  const pickTab = (v: string) => setTab(v === "closed" ? "closed" : "active");
+
+  const resetFilters = () => {
+    setTab("active");
+    setQ("");
+  };
+
+  const showAll = () => {
+    resetFilters();
+    const el = listRef.current;
+    if (!el) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+  };
+
   useAiReveal(/^(support:(channels|ai|call|complaints)|button:operator-support)$/, () => {
     if (selected) back();
   });
@@ -270,6 +340,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   useAiReveal("support-ticket:*", (id) => {
     const tk = chats.map[id.slice("support-ticket:".length)];
     setTab(tk && !isActiveTicket(tk) ? "closed" : "active");
+    setQ("");
     if (selected && window.matchMedia(NARROW).matches) back();
   });
 
@@ -292,10 +363,15 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   useAiReveal(/^support\.ticket\.[^.]+$/, (id) => {
     const tk = ticketBySeg(id.split(".")[2]);
     setTab(tk && !isActiveTicket(tk) ? "closed" : "active");
+    setQ("");
     if (selected && window.matchMedia(NARROW).matches) back();
   });
-  useAiReveal(/^support\.tickets\.(list|tabs|tab\.[a-z]+)$/, () => {
+  useAiReveal(/^support\.tickets\.(list|tabs|tab\.[a-z]+)$/, (id) => {
+    if (id.startsWith("support.tickets.tab.")) pickTab(id.slice("support.tickets.tab.".length));
     if (selected && window.matchMedia(NARROW).matches) back();
+  });
+  useAiReveal(/^support\.tickets\.(search|ongoing|filters(\.[a-z.-]+)?)$/, () => {
+    if (selected) back();
   });
 
   useAiField("support.ai-message-input", {
@@ -321,13 +397,31 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
     fillable: true,
     disabled: !composing,
   });
+  useAiField("support.tickets.tabs", {
+    get: () => tab,
+    set: (value) => {
+      const next = tabOf(value);
+      if (next) setTab(next);
+    },
+    fillable: true,
+  });
+  useAiField("support.tickets.search", {
+    get: () => q,
+    set: (value) => setQ(value.slice(0, 120)),
+    sensitive: true,
+    fillable: true,
+    disabled: Boolean(selected) || !(loaded && hasAny),
+  });
   useAiSelection("support_tickets_tab", tab);
 
   const askAi = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const q = ask.trim();
-    if (!q) return;
-    openInstructor({ text: q, send: true });
+    const question = ask.trim();
+    if (!question) {
+      openInstructor();
+      return;
+    }
+    openInstructor({ text: question, send: true });
     setAsk("");
   };
 
@@ -355,19 +449,30 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
     );
   }
 
-  const shown = tab === "active" ? chats.active : chats.closed;
+  const countOf = (n: number, more: boolean) => (loaded ? ` (${n}${more ? "+" : ""})` : "");
+  const statusOptions = [
+    { value: "active", label: `${t("chats.tabs.active")}${countOf(chats.active.length, chats.more.active)}` },
+    { value: "closed", label: `${t("chats.tabs.closed")}${countOf(chats.closed.length, chats.more.closed)}` },
+  ];
+  const needle = selected ? "" : q.trim().toLowerCase();
+  const pool = tab === "active" ? chats.active : chats.closed;
+  const shown = needle
+    ? pool.filter((tk) => [ticketTitle(tk, ""), tk.lastMessage, tk.workId, labels.category(tk.category), tk.operatorName].join(" ").toLowerCase().includes(needle))
+    : pool;
 
-  const tabs = (
-    <div className="suptabs" role="tablist" aria-label={t("chats.title")} data-ai-id="support.tickets.tabs">
-      <button type="button" role="tab" aria-selected={tab === "active"} className="suptab" onClick={() => setTab("active")} data-ai-id="support.tickets.tab.active">
-        {t("chats.tabs.active")}
-        {chats.active.length ? <em>{chats.active.length}</em> : null}
-      </button>
-      <button type="button" role="tab" aria-selected={tab === "closed"} className="suptab" onClick={() => setTab("closed")} data-ai-id="support.tickets.tab.closed">
-        {t("chats.tabs.closed")}
-      </button>
-    </div>
-  );
+  const filterFields: FilterField[] = [
+    {
+      key: "status",
+      label: t("chats.filterLabel"),
+      icon: IconClipboardCheck,
+      value: tab,
+      onChange: pickTab,
+      options: statusOptions,
+      empty: "active",
+      chip: t("chats.tabs.closed"),
+      aiId: "support.tickets.tabs",
+    },
+  ];
 
   const listBody =
     chats.status === "loading" ? (
@@ -382,43 +487,52 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
       </div>
     ) : shown.length ? (
       shown.map((tk) => <TicketCard key={tk.id} ticket={tk} view="client" now={now} active={tk.id === selected} unread={unreadOf(tk)} onOpen={() => open(tk.id)} />)
+    ) : needle ? (
+      <div className="supnone">
+        <span className="supnone__ic" aria-hidden="true">
+          <IconSearch />
+        </span>
+        <span className="supnone__tx">
+          <b>{t("chats.noMatch")}</b>
+          <span>{t("chats.noMatchText")}</span>
+        </span>
+        <button type="button" className="btn btn--line btn--sm" onClick={() => setQ("")}>
+          {tf("clearSearch")}
+        </button>
+      </div>
     ) : tab === "closed" ? (
-      <div className="supempty supempty--sm">
-        <span className="supempty__ic" aria-hidden="true">
+      <div className="supnone">
+        <span className="supnone__ic" aria-hidden="true">
           <IconCheckDouble />
         </span>
-        <p>{t("chats.emptyClosed")}</p>
+        <span className="supnone__tx">
+          <span>{t("chats.emptyClosed")}</span>
+        </span>
       </div>
     ) : composer.open || selected ? (
-      <div className="supempty supempty--sm">
-        <span className="supempty__ic" aria-hidden="true">
+      <div className="supnone">
+        <span className="supnone__ic" aria-hidden="true">
           <IconHeadset />
         </span>
-        <p>{t("chats.emptyActive")}</p>
+        <span className="supnone__tx">
+          <span>{t("chats.emptyActive")}</span>
+        </span>
       </div>
     ) : (
-      <div className="supempty">
-        <span className="supempty__art" aria-hidden="true" />
-        <b>{hasAny ? t("chats.emptyActive") : t("chats.firstTitle")}</b>
-        <p>{hasAny ? t("chats.emptyActiveText") : t("chats.firstText")}</p>
-        <div className="supempty__acts">
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => startChat(false)}>
-            <IconHeadset />
-            {t("chats.start")}
-          </button>
-          {hasAny ? null : (
-            <button type="button" className="btn btn--line btn--sm" onClick={() => openInstructor()}>
-              <IconSparkle />
-              {t("chats.askAi")}
-            </button>
-          )}
-        </div>
+      <div className="supnone">
+        <span className="supnone__ic" aria-hidden="true">
+          <IconInbox />
+        </span>
+        <span className="supnone__tx">
+          <b>{hasAny ? t("chats.emptyActive") : t("chats.firstTitle")}</b>
+          <span>{hasAny ? t("chats.emptyActiveText") : t("chats.firstText")}</span>
+        </span>
       </div>
     );
 
   const list = (
     <div
-      className={selected ? "supwork__list" : "supchats__list"}
+      className={selected ? "supwork__list" : "suplist__items"}
       data-ai-target="support:ticket-list"
       data-ai-id="support.tickets.list"
       data-ai-type="list"
@@ -448,7 +562,12 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
         </div>
         <div className="supwork">
           <aside className="supwork__side" aria-label={t("chats.title")}>
-            {tabs}
+            <div className="supside">
+              <b className="supside__t">{t("chats.title")}</b>
+              <div className="supside__sel" data-ai-id="support.tickets.tabs" data-ai-type="select" data-ai-label={t("chats.filterLabel")}>
+                <Select value={tab} onChange={pickTab} options={statusOptions} ariaLabel={t("chats.filterLabel")} />
+              </div>
+            </div>
             {list}
           </aside>
           <section className="supwork__main">
@@ -472,130 +591,151 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
 
   const resumeFirst = Boolean(latest) && !composer.force;
   const auto = topic ? "" : guessTopic(text, topics);
+  const ongoing = loaded ? chats.active.slice(0, ONGOING) : [];
 
   return (
     <div className="sup sup--hub" ref={rootRef}>
-      <section className="suphero" aria-labelledby="suphero-title">
-        <div className="suphero__glow" aria-hidden="true" />
-        <div className="suphero__main">
-          <span className="suphero__kick">
-            <RobotAvatar size={24} />
-            {t("channels.ai.title")}
-          </span>
-          <h2 className="suphero__title" id="suphero-title">
-            {t("hub.heroTitle")}
-          </h2>
-          <p className="suphero__lead">{client ? t("hub.heroLead") : t("hub.heroLeadSeller")}</p>
-          <form className="suphero__ask" onSubmit={askAi}>
-            <IconSparkle aria-hidden="true" />
-            <input
-              value={ask}
-              onChange={(e) => setAsk(e.target.value)}
-              placeholder={t("hub.askPh")}
-              aria-label={t("hub.askPh")}
-              maxLength={1000}
-              enterKeyHint="send"
-              data-ai-id="support.ai-message-input"
-              data-ai-label={t("hub.askBtn")}
-            />
-            <button type="submit" disabled={!ask.trim()} aria-label={t("hub.askBtn")} title={t("hub.askBtn")}>
-              <IconSend />
-            </button>
-          </form>
-          <div className="suphero__chips" role="group" aria-label={t("hub.quick")}>
-            <span aria-hidden="true">{t("hub.quick")}</span>
-            {asks.map((k) => (
-              <button key={k} type="button" onClick={() => openInstructor({ text: t(`hub.topics.${k}.q`), send: true })}>
-                {t(`hub.topics.${k}.label`)}
-              </button>
-            ))}
-          </div>
+      <header className="suphead">
+        <div className="suphead__tx">
+          <h2 className="suphead__t">{t("hub.title")}</h2>
+          <p className="suphead__l">{t("hub.lead")}</p>
         </div>
-        <div className="suphero__art" aria-hidden="true">
-          <RobotAvatar size={104} />
+        <div className="suphead__hours">
+          <BusinessHoursBadge />
         </div>
-      </section>
+      </header>
 
-      <section className={`supch${client ? "" : " supch--3"}`} data-ai-target="support:channels" aria-label={t("hub.channels")} data-ai-id="support.channels" data-ai-label={t("hub.channels")}>
-        <div className="supch__card supch__card--ai">
-          <button type="button" className="supch__main" onClick={() => openInstructor()} data-ai-target="support:ai" data-ai-id="support.channels.ai">
-            <span className="supch__ic" aria-hidden="true">
-              <RobotAvatar size={34} />
-            </span>
-            <span className="supch__tx">
-              <b>{t("channels.ai.title")}</b>
-              <small>{t("channels.ai.sub")}</small>
-            </span>
-            <IconArrowRight className="supch__go" aria-hidden="true" />
-          </button>
-          <span className="supch__hint">
-            <i className="supch__dot" aria-hidden="true" />
-            {t("channels.ai.hint")}
-          </span>
-        </div>
-
-        <div className="supch__card supch__card--op">
-          <button type="button" className="supch__main" onClick={() => startChat(false)} data-ai-target="button:operator-support" data-ai-id="support.operator-handoff.button">
-            <span className="supch__ic" aria-hidden="true">
-              <IconHeadset />
-            </span>
-            <span className="supch__tx">
-              <b>{t("channels.operator.title")}</b>
-              <small>{t("channels.operator.sub")}</small>
-            </span>
-            <IconArrowRight className="supch__go" aria-hidden="true" />
-          </button>
-          {latest ? (
-            <button type="button" className="supch__hint supch__hint--go" onClick={() => open(latest.id)}>
-              <i className="supch__dot supch__dot--live" aria-hidden="true" />
-              <span>{t("channels.operator.hintActive", { count: chats.active.length })}</span>
+      {ongoing.length ? (
+        <section className="supcont" aria-labelledby="supcont-title" data-ai-id="support.tickets.ongoing" data-ai-type="list" data-ai-label={t("hub.ongoing")}>
+          <div className="supcont__h">
+            <h3 id="supcont-title">
+              {t("hub.ongoing")}
+              <em>
+                {chats.active.length}
+                {chats.more.active ? "+" : ""}
+              </em>
+            </h3>
+            <button type="button" className="supcont__all" onClick={showAll}>
+              {t("hub.all")}
               <IconArrowRight aria-hidden="true" />
             </button>
-          ) : (
-            <span className="supch__hint">{t("channels.operator.hintIdle")}</span>
-          )}
-        </div>
-
-        {client ? (
-          <div className="supch__card supch__card--case">
-            <Link href="/portal/client/complaints" className="supch__main" data-ai-target="support:complaints" data-ai-id="support.channels.complaint">
-              <span className="supch__ic" aria-hidden="true">
-                <IconAlert />
-              </span>
-              <span className="supch__tx">
-                <b>{t("channels.complaint.title")}</b>
-                <small>{t("channels.complaint.sub")}</small>
-              </span>
-              <IconArrowRight className="supch__go" aria-hidden="true" />
-            </Link>
-            <span className="supch__hint">{t("channels.complaint.hint")}</span>
           </div>
-        ) : null}
+          <ul className="supcont__list" data-ai-private>
+            {ongoing.map((tk) => (
+              <li key={tk.id}>
+                <OngoingRow ticket={tk} now={now} unread={unreadOf(tk)} onOpen={() => open(tk.id)} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
-        <div className="supch__card supch__card--call">
-          <a href={`tel:${SUPPORT_TEL}`} className="supch__main" data-ai-target="support:call" data-ai-id="support.channels.call">
-            <span className="supch__ic" aria-hidden="true">
-              <IconPhone />
-            </span>
-            <span className="supch__tx">
-              <b>{t("channels.call.title")}</b>
-              <small className="supch__tel">{SUPPORT_PHONE}</small>
-            </span>
-            <IconArrowRight className="supch__go" aria-hidden="true" />
-          </a>
-          <span className="supch__hint">
-            <BusinessHoursBadge />
-          </span>
+      <section className="supways" data-ai-target="support:channels" aria-label={t("hub.channels")} data-ai-id="support.channels" data-ai-label={t("hub.channels")}>
+        <div className="supways__main">
+          <article className="supopt supopt--ai" aria-labelledby="supopt-ai">
+            <div className="supopt__top">
+              <span className="supopt__art" aria-hidden="true" />
+              <span className="supopt__tag">
+                <i aria-hidden="true" />
+                {t("channels.ai.hint")}
+              </span>
+            </div>
+            <h3 className="supopt__t" id="supopt-ai">
+              {t("channels.ai.title")}
+            </h3>
+            <p className="supopt__l">{t("hub.aiText")}</p>
+            <form className="supopt__ask" onSubmit={askAi}>
+              <label className="supopt__field">
+                <IconSparkle aria-hidden="true" />
+                <input
+                  value={ask}
+                  onChange={(e) => setAsk(e.target.value)}
+                  placeholder={t("hub.askPh")}
+                  aria-label={t("hub.askBtn")}
+                  maxLength={1000}
+                  enterKeyHint="send"
+                  data-ai-id="support.ai-message-input"
+                  data-ai-label={t("hub.askBtn")}
+                />
+              </label>
+              <button type="submit" className="btn btn--pri btn--sm" data-ai-target="support:ai" data-ai-id="support.channels.ai">
+                <IconSend />
+                {t("hub.ask")}
+              </button>
+            </form>
+            <div className="supopt__chips" role="group" aria-label={t("hub.quick")}>
+              <span aria-hidden="true">{t("hub.quick")}</span>
+              {asks.map((k) => (
+                <button key={k} type="button" className="supopt__chip" onClick={() => openInstructor({ text: t(`hub.topics.${k}.q`), send: true })}>
+                  {t(`hub.topics.${k}.label`)}
+                </button>
+              ))}
+            </div>
+          </article>
+
+          <article className="supopt supopt--op" aria-labelledby="supopt-op">
+            <div className="supopt__top">
+              <span className="supopt__art" aria-hidden="true" />
+            </div>
+            <h3 className="supopt__t" id="supopt-op">
+              {t("channels.operator.title")}
+            </h3>
+            <p className="supopt__l">{t("hub.opText")}</p>
+            <p className="supopt__note">
+              <IconBell aria-hidden="true" />
+              {t("channels.operator.hintIdle")}
+            </p>
+            <div className="supopt__acts">
+              <button type="button" className="btn btn--pri btn--sm" onClick={() => startChat(false)} data-ai-target="button:operator-support" data-ai-id="support.operator-handoff.button">
+                <IconHeadset />
+                {t("chats.start")}
+              </button>
+            </div>
+          </article>
         </div>
+
+        <aside className="supways__side" aria-labelledby="supways-other">
+          <h3 className="supways__st" id="supways-other">
+            {t("hub.other")}
+          </h3>
+          <ul className="supalt">
+            <li>
+              <a href={`tel:${SUPPORT_TEL}`} className="supalt__row" data-ai-target="support:call" data-ai-id="support.channels.call">
+                <span className="supalt__ic supalt__ic--call" aria-hidden="true">
+                  <IconPhone />
+                </span>
+                <span className="supalt__tx">
+                  <b>{t("channels.call.title")}</b>
+                  <span className="supalt__tel">{SUPPORT_PHONE}</span>
+                  {hours ? <small>{hours.schedule}</small> : null}
+                </span>
+                <IconArrowRight className="supalt__go" aria-hidden="true" />
+              </a>
+            </li>
+            {client ? (
+              <li>
+                <Link href="/portal/client/complaints" className="supalt__row" data-ai-target="support:complaints" data-ai-id="support.channels.complaint">
+                  <span className="supalt__ic supalt__ic--case" aria-hidden="true">
+                    <IconAlert />
+                  </span>
+                  <span className="supalt__tx">
+                    <b>{t("channels.complaint.title")}</b>
+                    <small>{t("channels.complaint.sub")}</small>
+                  </span>
+                  <IconArrowRight className="supalt__go" aria-hidden="true" />
+                </Link>
+              </li>
+            ) : null}
+          </ul>
+        </aside>
       </section>
 
-      <section className="supchats" aria-labelledby="supchats-title">
-        <div className="supchats__h">
-          <div className="supchats__ttl">
-            <h3 id="supchats-title">{t("chats.title")}</h3>
+      <section className="suplist" ref={listRef} aria-labelledby="suplist-title">
+        <div className="suplist__h">
+          <div className="suplist__tt">
+            <h3 id="suplist-title">{t("chats.title")}</h3>
             <p>{t("chats.lead")}</p>
           </div>
-          {tabs}
           <button type="button" className="btn btn--line btn--sm" onClick={() => startChat(false)} data-ai-id="support.tickets.new">
             <IconPlus />
             {t("newTicket")}
@@ -706,6 +846,17 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
               </form>
             )}
           </section>
+        ) : null}
+
+        {loaded && hasAny ? (
+          <FilterBar
+            fields={filterFields}
+            search={{ value: q, onChange: setQ, placeholder: t("chats.searchPh"), maxLength: 120, aiId: "support.tickets.search", aiLabel: t("chats.searchPh") }}
+            count={shown.length}
+            onReset={resetFilters}
+            aiId="support.tickets.filters"
+            aiLabel={tf("title")}
+          />
         ) : null}
 
         {list}

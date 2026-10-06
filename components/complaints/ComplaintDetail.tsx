@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { dateTimeFull } from "@/lib/date";
 import { humanize, personName } from "@/lib/labels";
 import {
-  complaintPhase,
+  complaintStage,
   getQualityComplaintDetail,
   getWorkRef,
   sourceHref,
@@ -16,19 +16,56 @@ import {
   type WorkRef,
 } from "@/lib/services/complaints";
 import { Skeleton } from "@/components/portal/DataState";
-import { IconArrowRight, IconBolt, IconBriefcase, IconChat, IconCheck, IconFileText, IconRefresh } from "@/components/icons";
-import { KindBadge, StatusPill, Stars, useComplaintLabels } from "./bits";
+import {
+  IconArrowRight,
+  IconBolt,
+  IconBriefcase,
+  IconChat,
+  IconCheck,
+  IconClose,
+  IconEdit,
+  IconFileText,
+  IconHeadset,
+  IconMinus,
+  IconRefresh,
+  IconStarRate,
+} from "@/components/icons";
+import { CategoryTile, STAGE_ICONS, StatusPill, Stars, useComplaintLabels } from "./bits";
 
 type Load<T> = { status: "idle" | "loading" | "ready" | "error"; data: T | null };
 
 type Related = { Icon: ComponentType; title: string; workId: string; href: string } | "loading" | null;
 
+type StepTone = "done" | "now" | "todo" | "rework" | "ok" | "bad" | "end";
+
 const MINUTE = 60_000;
+
+const STEP_MARK: Record<StepTone, ReactNode> = {
+  done: <IconCheck />,
+  now: null,
+  todo: null,
+  rework: <IconRefresh />,
+  ok: <IconCheck />,
+  bad: <IconClose />,
+  end: <IconMinus />,
+};
 
 function apart(a: string, b: string): boolean {
   const x = Date.parse(a);
   const y = Date.parse(b);
   return Number.isFinite(x) && Number.isFinite(y) && Math.abs(x - y) > MINUTE;
+}
+
+function Step({ tone, label, sub, current }: { tone: StepTone; label: string; sub?: string; current?: boolean }) {
+  return (
+    <li className={`shks__s shks__s--${tone}`} aria-current={current ? "step" : undefined}>
+      <span className="shks__dot" aria-hidden>
+        {STEP_MARK[tone]}
+      </span>
+      <span className="shks__l">{label}</span>
+      {sub ? <span className="shks__sub">{sub}</span> : null}
+    </li>
+  );
 }
 
 export default function ComplaintDetail({ item }: { item: ComplaintItem }) {
@@ -80,22 +117,31 @@ export default function ComplaintDetail({ item }: { item: ComplaintItem }) {
   }
 
   const d = detail.data;
+  const quality = item.kind === "quality";
   const status = d?.status || item.status;
-  const phase = complaintPhase(status);
-  const decided = phase !== "open";
+  const stage = complaintStage(status);
+  const decided = stage === "resolved" || stage === "rejected" || stage === "closed";
+  const reviewed = decided || stage === "rework";
   const rating = d?.rating ?? 0;
   const lawyerName = personName(d?.lawyerName || item.lawyerName);
   const operatorName = personName(d?.operatorName || item.operatorName);
   const operatorNote = d?.operatorNote || item.operatorNote;
   const updatedAt = d?.updatedAt || item.updatedAt;
   const decidedAt = decided ? d?.resolvedAt || item.resolvedAt || updatedAt : "";
+  const changedAt = !decided && apart(updatedAt, item.createdAt) ? updatedAt : "";
   const hint = L.hint({ kind: item.kind, status });
-  const sentLabel = item.kind === "quality" ? (rating > 0 ? t("tl.opened", { n: rating }) : t("tl.openedPlain")) : t("tl.sent");
-  const decidedMeta = [operatorName ? t("decisionBy", { name: operatorName }) : "", decidedAt ? dateTimeFull(decidedAt, locale) : ""].filter(Boolean).join(" · ");
+  const tag = L.tag(status);
+  const StateIcon = STAGE_ICONS[stage];
+  const headLabel = quality ? L.kind("quality") : item.category ? L.category(item.category) : L.kind("manual");
+  const decisionMeta = [operatorName && !operatorNote ? t("decisionBy", { name: operatorName }) : "", decidedAt ? dateTimeFull(decidedAt, locale) : ""]
+    .filter(Boolean)
+    .join(" · ");
+  const replyAt = decided ? "" : changedAt;
+  const finalTone: StepTone = stage === "resolved" ? "ok" : stage === "rejected" ? "bad" : stage === "closed" ? "end" : stage === "rework" ? "rework" : "todo";
   const workType = (type: string) => (type && tw.has(`type.${type}`) ? tw(`type.${type}`) : humanize(type));
 
   let related: Related = null;
-  if (item.kind === "quality" && item.source) {
+  if (quality && item.source) {
     related = {
       Icon: item.source === "urgent" ? IconBolt : IconFileText,
       title: d?.workTitle || item.subject || L.source(item.source),
@@ -117,118 +163,98 @@ export default function ComplaintDetail({ item }: { item: ComplaintItem }) {
 
   return (
     <div className="shkd">
-      <div className="shkd__head">
-        <KindBadge kind={item.kind} label={L.kind(item.kind)} />
-        <StatusPill status={status} label={L.status(status)} />
-        {item.workId ? <span className="wid">{item.workId}</span> : null}
+      <div className="shkd__id">
+        <CategoryTile item={item} />
+        <span className="shkd__idtx">
+          <b>{headLabel}</b>
+          {item.workId ? <span className="wid">{item.workId}</span> : null}
+        </span>
+        <StatusPill status={status} label={tag} />
       </div>
 
-      <dl className="shkd__facts">
-        {item.kind === "manual" && item.category ? (
-          <>
-            <dt>{t("f.category")}</dt>
-            <dd>{L.category(item.category)}</dd>
-          </>
-        ) : null}
-        {item.kind === "quality" && item.source ? (
-          <>
-            <dt>{t("f.source")}</dt>
-            <dd>{L.source(item.source)}</dd>
-          </>
-        ) : null}
-        {rating > 0 ? (
-          <>
-            <dt>{t("f.rating")}</dt>
-            <dd>
-              <Stars n={rating} label={t("ratingAria", { n: rating })} />
-            </dd>
-          </>
-        ) : null}
-        {lawyerName ? (
-          <>
-            <dt>{t("f.lawyer")}</dt>
-            <dd>{lawyerName}</dd>
-          </>
-        ) : null}
-        {item.createdAt ? (
-          <>
-            <dt>{t("f.created")}</dt>
-            <dd>{dateTimeFull(item.createdAt, locale)}</dd>
-          </>
-        ) : null}
-        {apart(updatedAt, item.createdAt) ? (
-          <>
-            <dt>{t("f.updated")}</dt>
-            <dd>{dateTimeFull(updatedAt, locale)}</dd>
-          </>
-        ) : null}
-      </dl>
+      <ol className="shks" aria-label={t("timeline")}>
+        <Step tone="done" label={t("step.received")} sub={item.createdAt ? dateTimeFull(item.createdAt, locale) : ""} />
+        <Step
+          tone={reviewed ? "done" : "now"}
+          label={t("step.review")}
+          sub={reviewed ? "" : stage === "new" ? t("step.queued") : t("step.active")}
+          current={!reviewed}
+        />
+        <Step
+          tone={finalTone}
+          label={t("step.decision")}
+          sub={decided ? tag : stage === "rework" ? L.stage("rework") : ""}
+          current={reviewed}
+        />
+      </ol>
 
-      {item.kind === "manual" ? (
-        item.description ? (
-          <section className="shkd__b">
-            <b>{t("text")}</b>
-            <p>{item.description}</p>
-          </section>
-        ) : null
-      ) : detail.status === "loading" ? (
-        <Skeleton rows={1} />
-      ) : detail.status === "error" ? (
-        <div className="shkd__err" role="alert">
-          <span>{t("detailError")}</span>
-          <button type="button" className="btn btn--line btn--sm" onClick={retryDetail}>
-            <IconRefresh aria-hidden />
-            {tc("retry")}
-          </button>
+      <div className={`shkd__state shkd__state--${stage}`}>
+        <StateIcon aria-hidden />
+        <div className="shkd__statetx">
+          {decided || stage === "rework" ? <b>{tag}</b> : null}
+          <p>{hint}</p>
+          {stage === "rejected" ? <p className="shkd__esc">{t("escalate")}</p> : null}
+          {decided && decisionMeta ? <small>{decisionMeta}</small> : null}
+          {!decided && changedAt ? <small>{t("updatedAt", { date: dateTimeFull(changedAt, locale) })}</small> : null}
         </div>
-      ) : (
-        <section className="shkd__b">
-          <b>{t("comment")}</b>
-          {d?.comment ? <p>{d.comment}</p> : <p className="shkd__muted">{t("noComment")}</p>}
-        </section>
-      )}
+      </div>
 
-      <section className="shkd__sec">
-        <b className="shkd__h">{t("timeline")}</b>
-        <ol className="shkt">
-          <li className="shkt__s shkt__s--done">
-            <span className="shkt__dot" aria-hidden>
-              <IconCheck />
+      {operatorNote ? (
+        <article className="shkd__reply" aria-label={t("reply.title")}>
+          <span className="shkd__av" aria-hidden>
+            <IconHeadset />
+          </span>
+          <div className="shkd__bubble" data-ai-private>
+            <span className="shkd__bubbleh">
+              <b>{operatorName || t("reply.staff")}</b>
+              {replyAt ? <small>{dateTimeFull(replyAt, locale)}</small> : null}
             </span>
-            <div className="shkt__m">
-              <b>{sentLabel}</b>
-              {item.createdAt ? <small>{dateTimeFull(item.createdAt, locale)}</small> : null}
+            <p>{operatorNote}</p>
+          </div>
+        </article>
+      ) : null}
+
+      {quality ? (
+        <section className="shkd__sec">
+          <h3 className="shkd__h">
+            <IconStarRate aria-hidden />
+            {t("comment")}
+          </h3>
+          {detail.status === "loading" ? (
+            <Skeleton rows={1} />
+          ) : detail.status === "error" ? (
+            <div className="shkd__err" role="alert">
+              <span>{t("detailError")}</span>
+              <button type="button" className="btn btn--line btn--sm" onClick={retryDetail}>
+                <IconRefresh aria-hidden />
+                {tc("retry")}
+              </button>
             </div>
-          </li>
-          <li className={`shkt__s shkt__s--${decided ? "done" : "current"}`} aria-current={decided ? undefined : "step"}>
-            <span className="shkt__dot" aria-hidden>
-              {decided ? <IconCheck /> : null}
-            </span>
-            <div className="shkt__m">
-              <b>{t("tl.review")}</b>
-              {!decided && hint ? <p>{hint}</p> : null}
+          ) : (
+            <div className="shkd__mine" data-ai-private>
+              {rating > 0 ? <Stars n={rating} label={t("ratingAria", { n: rating })} /> : null}
+              {d?.comment ? <p>{d.comment}</p> : <p className="shkd__muted">{t("noComment")}</p>}
             </div>
-          </li>
-          <li
-            className={`shkt__s ${decided ? `shkt__s--done shkt__s--${phase}` : "shkt__s--todo"}`}
-            aria-current={decided ? "step" : undefined}
-          >
-            <span className="shkt__dot" aria-hidden>
-              {decided ? <IconCheck /> : null}
-            </span>
-            <div className="shkt__m">
-              <b>{decided ? L.status(status) : t("tl.decision")}</b>
-              {decided && hint ? <p>{hint}</p> : null}
-              {decided && operatorNote ? <p className="shkt__note">{operatorNote}</p> : null}
-              {decided && decidedMeta ? <small>{decidedMeta}</small> : null}
-            </div>
-          </li>
-        </ol>
-      </section>
+          )}
+        </section>
+      ) : item.description ? (
+        <section className="shkd__sec">
+          <h3 className="shkd__h">
+            <IconEdit aria-hidden />
+            {t("text")}
+          </h3>
+          <div className="shkd__mine" data-ai-private>
+            <p>{item.description}</p>
+          </div>
+        </section>
+      ) : null}
 
       {related ? (
         <section className="shkd__sec">
-          <b className="shkd__h">{t("related")}</b>
+          <h3 className="shkd__h">
+            <IconBriefcase aria-hidden />
+            {t("related")}
+          </h3>
           {related === "loading" ? (
             <Skeleton rows={1} />
           ) : (
@@ -240,6 +266,7 @@ export default function ComplaintDetail({ item }: { item: ComplaintItem }) {
                 <span className="shkd__relt">
                   <b>{related.title}</b>
                   {related.workId ? <small className="wid">{related.workId}</small> : null}
+                  {lawyerName ? <small className="shkd__who">{t("f.lawyer")}: {lawyerName}</small> : null}
                 </span>
               </span>
               {related.href ? (
@@ -251,6 +278,10 @@ export default function ComplaintDetail({ item }: { item: ComplaintItem }) {
             </div>
           )}
         </section>
+      ) : lawyerName ? (
+        <p className="shkd__who">
+          {t("f.lawyer")}: {lawyerName}
+        </p>
       ) : null}
 
       <div className="shkd__acts">

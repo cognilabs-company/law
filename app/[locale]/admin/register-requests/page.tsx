@@ -12,11 +12,12 @@ import { useResourceOne } from "@/lib/useResource";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { AdminItem, useReload } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
-import { IconUser, IconCheck, IconClose, IconEye } from "@/components/icons";
+import FilterBar from "@/components/filters/FilterBar";
+import { IconUser, IconCheck, IconClose, IconEye, IconUserPlus, IconCalendar } from "@/components/icons";
 import RegisterRequestDetail from "@/components/admin/RegisterRequestDetail";
-import { dateOnly } from "@/lib/date";
+import { dateOnly, shortDate } from "@/lib/date";
 import { aiId } from "@/lib/ai/ids";
-import { useAiSelection } from "@/lib/ai/registry";
+import { useAiField, useAiSelection } from "@/lib/ai/registry";
 
 const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const fmtDate = (v: string, locale: string) => {
@@ -27,6 +28,31 @@ const fmtDate = (v: string, locale: string) => {
 
 type RoleTab = "all" | "advokat" | "yurist" | "advokat_tashkiloti";
 const ROLE_TABS: RoleTab[] = ["all", "advokat", "yurist", "advokat_tashkiloti"];
+
+const aiNorm = (v: string) =>
+  v
+    .toLowerCase()
+    .replace(/[ʻʼ'‘’`]/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const aiStem = (v: string) => v.replace(/(lari|lar)\b/g, "");
+
+function pickRole(opts: { value: string; label: string }[], raw: string): RoleTab | null {
+  const w = aiNorm(raw);
+  if (!w) return "all";
+  const exact = opts.find((o) => aiNorm(o.value) === w || aiNorm(o.label) === w);
+  if (exact) return exact.value as RoleTab;
+  const s = aiStem(w);
+  const near = opts
+    .filter((o) => {
+      const l = aiNorm(o.label);
+      return l.includes(s) || (s.length >= 4 && s.includes(aiStem(l)));
+    })
+    .sort((a, b) => b.label.length - a.label.length);
+  return near.length ? (near[0].value as RoleTab) : null;
+}
 
 function Actions({ id, onDone }: { id: string; onDone: () => void }) {
   const t = useTranslations("admin.registerRequests");
@@ -81,6 +107,16 @@ export default function AdminRegisterRequests() {
   const items: RegisterRequest[] = res.data?.items ?? [];
   useAiSelection("register_requests_role", roleTab);
   const roleLabel = (role: string) => (role ? (t.has(`role.${role}`) ? t(`role.${role}`) : cap(role.replace(/_/g, " "))) : "");
+  const roleOpts = ROLE_TABS.map((r) => ({ value: r, label: r === "all" ? t("stats.allRoles") : t(`role.${r}`) }));
+  useAiField("admin.register-requests.role-tabs", {
+    get: () => roleTab,
+    set: (v) => {
+      const next = pickRole(roleOpts, v);
+      if (next) setRoleTab(next);
+    },
+  });
+  const day = (iso: string) => (iso ? shortDate(iso, locale) : "…");
+  const dateChip = from || to ? (from && from === to ? day(from) : `${day(from)} – ${day(to)}`) : null;
 
   return (
     <div className="ppanel">
@@ -102,17 +138,43 @@ export default function AdminRegisterRequests() {
         </div>
       ) : null}
 
-      <div className="segs segs--sm" role="tablist" aria-label={t("stats.roleTabs")} style={{ marginBottom: 12 }} data-ai-target="register-requests:role-tabs" data-ai-id="admin.register-requests.role-tabs">
-        {ROLE_TABS.map((r) => (
-          <button key={r} type="button" role="tab" className="seg" aria-selected={roleTab === r} onClick={() => setRoleTab(r)} data-ai-id={`admin.register-requests.tab.${r.replace(/_/g, "-")}`}>
-            {r === "all" ? t("stats.allRoles") : t(`role.${r}`)}
-          </button>
-        ))}
-      </div>
-      <div className="lfilters" style={{ marginBottom: 16 }}>
-        <DatePicker value={from} onChange={setFrom} placeholder={t("stats.from")} ariaLabel={t("stats.from")} max={to || undefined} clearLabel={t("stats.clearDates")} />
-        <DatePicker value={to} onChange={setTo} placeholder={t("stats.to")} ariaLabel={t("stats.to")} min={from || undefined} clearLabel={t("stats.clearDates")} />
-      </div>
+      <FilterBar
+        className="uf--tray"
+        fields={[
+          {
+            key: "role",
+            label: t("roleLabel"),
+            icon: IconUserPlus,
+            value: roleTab,
+            empty: "all",
+            onChange: (v) => setRoleTab(v as RoleTab),
+            options: roleOpts,
+            aiId: "admin.register-requests.role-tabs",
+            aiTarget: "register-requests:role-tabs",
+            aiLabel: t("stats.roleTabs"),
+          },
+          {
+            key: "from",
+            label: t("stats.from"),
+            icon: IconCalendar,
+            active: Boolean(from || to),
+            chip: dateChip,
+            clear: () => {
+              setFrom("");
+              setTo("");
+            },
+            node: <DatePicker value={from} onChange={setFrom} placeholder={t("stats.from")} ariaLabel={t("stats.from")} max={to || undefined} clearLabel={t("stats.clearDates")} />,
+          },
+          {
+            key: "to",
+            label: t("stats.to"),
+            icon: IconCalendar,
+            chip: null,
+            node: <DatePicker value={to} onChange={setTo} placeholder={t("stats.to")} ariaLabel={t("stats.to")} min={from || undefined} clearLabel={t("stats.clearDates")} />,
+          },
+        ]}
+        count={res.status === "ready" ? items.length : undefined}
+      />
 
       {res.status === "loading" ? (
         <Skeleton rows={3} />

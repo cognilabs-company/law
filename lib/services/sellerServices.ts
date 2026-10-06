@@ -1,6 +1,7 @@
 import { http, asDict, asStr, asNum, asArr, ApiError, isOffline } from "@/lib/http";
 import { uzs } from "@/lib/money";
 import { normService, type BackendService } from "@/lib/services/backend";
+import { listNotificationsRich } from "@/lib/services/notify";
 import type { UserEvent } from "@/lib/userSocket";
 
 export const SERVICE_STATUSES = ["active", "paused", "inactive"] as const;
@@ -29,6 +30,7 @@ export type ManagedService = {
   visible: boolean;
   ownPromotion: ServicePromotion | null;
   profileBoost: ServicePromotion | null;
+  limits: PriceBand | null;
 };
 
 export type ServiceSeller = { id: string; name: string; lexgoId: string; role: string; accountStatus: string };
@@ -92,6 +94,14 @@ function normPromotion(v: unknown): ServicePromotion | null {
   };
 }
 
+function normLimits(v: unknown): PriceBand | null {
+  const d = asDict(v);
+  const max = uzs(d, "max_allowed", "recommended_price");
+  const min = uzs(d, "min_allowed");
+  if (!max || min > max) return null;
+  return { recommended: uzs(d, "recommended_price", "max_allowed"), min, max };
+}
+
 function normManaged(v: unknown, locale: string): ManagedService {
   const d = asDict(v);
   const service = normService(d, locale);
@@ -107,6 +117,7 @@ function normManaged(v: unknown, locale: string): ManagedService {
     visible: d.is_marketplace_visible === true,
     ownPromotion: promo && promo.serviceId === service.id ? promo : null,
     profileBoost: promo && !promo.serviceId ? promo : null,
+    limits: normLimits(d.pricing_limits),
   };
 }
 
@@ -361,16 +372,47 @@ export function savePendingPromo(uid: string, key: string, p: Omit<PendingPromo,
   writePendingPromos(uid, { ...freshPendingPromos(uid), [key]: { ...p, at: Date.now() } });
 }
 
-export function dropPendingPromos(uid: string, match: (key: string, p: PendingPromo) => boolean): void {
-  if (!uid) return;
-  const all = parsePendingPromos(pendingPromosRaw(uid));
+export function dropPendingPromos(uid: string, match: (key: string, p: PendingPromo) => boolean): [string, PendingPromo][] {
+  if (!uid) return [];
+  const all = Object.entries(parsePendingPromos(pendingPromosRaw(uid)));
   const now = Date.now();
-  const next = Object.fromEntries(Object.entries(all).filter(([k, p]) => now - p.at <= PENDING_TTL && !match(k, p)));
-  if (Object.keys(next).length !== Object.keys(all).length) writePendingPromos(uid, next);
+  const keep: Record<string, PendingPromo> = {};
+  const dropped: [string, PendingPromo][] = [];
+  for (const [k, p] of all) {
+    if (now - p.at > PENDING_TTL) continue;
+    if (match(k, p)) dropped.push([k, p]);
+    else keep[k] = p;
+  }
+  if (Object.keys(keep).length !== all.length) writePendingPromos(uid, keep);
+  return dropped;
 }
 
 export function prunePendingPromos(uid: string): void {
   dropPendingPromos(uid, () => false);
+}
+
+export type PromoOutcome = { key: string; kind: "approved" | "rejected" };
+
+const INBOX_SCAN = 40;
+
+function outcomeOf(event: string): PromoOutcome["kind"] | null {
+  if (event === "promotion.checkout_approved") return "approved";
+  if (event === "promotion.checkout_rejected") return "rejected";
+  return null;
+}
+
+export async function settlePendingFromInbox(uid: string, inScope: (key: string) => boolean): Promise<PromoOutcome[]> {
+  if (!uid) return [];
+  const waiting = Object.entries(parsePendingPromos(pendingPromosRaw(uid))).some(([k, p]) => inScope(k) && p.requestId);
+  if (!waiting) return [];
+  const done = new Map<string, PromoOutcome["kind"]>();
+  for (const n of await listNotificationsRich({ limit: INBOX_SCAN })) {
+    const kind = outcomeOf(n.event);
+    const id = asStr(n.data.request_id);
+    if (kind && id && !done.has(id)) done.set(id, kind);
+  }
+  if (!done.size) return [];
+  return dropPendingPromos(uid, (k, p) => inScope(k) && done.has(p.requestId)).map(([key, p]) => ({ key, kind: done.get(p.requestId) ?? "approved" }));
 }
 
 export function subscribePendingPromos(fn: () => void): () => void {

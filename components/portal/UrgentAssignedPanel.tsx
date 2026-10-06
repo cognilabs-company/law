@@ -47,6 +47,8 @@ import {
   IconChatConsult,
   IconSecondOpinion,
   IconOpinionPanel,
+  IconClipboardCheck,
+  IconBriefcase,
 } from "@/components/icons";
 
 // "Mening Tezkor ishlarim" — the advocate's and lawyer's side of Tezkor
@@ -243,7 +245,6 @@ export default function UrgentAssignedPanel() {
     () => base.filter((r) => (!f.owner || ownerOf(r) === f.owner) && (!f.stage || urgentStage(r) === f.stage)),
     [base, f.owner, f.stage, ownerOf],
   );
-  const activeCount = [f.owner, f.stage !== "active" ? f.stage || "all" : "", f.kind, f.period].filter(Boolean).length;
 
   const shown = useMemo(() => {
     const when = (r: UrgentRequest) => (r.scheduledAt ? Date.parse(r.scheduledAt) : NaN);
@@ -295,24 +296,28 @@ export default function UrgentAssignedPanel() {
         placeholder={tf("searchUrgent")}
         chips={[
           {
-            key: "owner",
-            label: tf("ownerLabel"),
-            value: f.owner,
-            onChange: (v) => setF({ owner: v }),
-            options: ["", "free", "mine", "others"].map((o) => ({ value: o, label: tf(`owner.${o || "all"}`), count: ownerCount(o) })),
-          },
-          {
             key: "stage",
             label: tf("stageLabel"),
+            icon: IconClipboardCheck,
+            empty: "active",
             value: f.stage,
             onChange: (v) => setF({ stage: v }),
             options: ["active", "completed", "cancelled", ""].map((st) => ({ value: st, label: tf(`stage.${st || "all"}`), count: stageCount(st) })),
+          },
+          {
+            key: "owner",
+            label: tf("ownerLabel"),
+            icon: IconUsers,
+            value: f.owner,
+            onChange: (v) => setF({ owner: v }),
+            options: ["", "free", "mine", "others"].map((o) => ({ value: o, label: tf(`owner.${o || "all"}`), count: ownerCount(o) })),
           },
         ]}
         selects={[
           {
             key: "kind",
             label: t("fKind"),
+            icon: IconBriefcase,
             value: f.kind,
             onChange: (v) => setF({ kind: v }),
             options: [{ value: "", label: t("allKinds") }, ...KINDS.map((k) => ({ value: k, label: tk.has(`kinds.${k}`) ? tk(`kinds.${k}`) : k }))],
@@ -323,9 +328,8 @@ export default function UrgentAssignedPanel() {
         sort={f.sort}
         onSort={(v) => setF({ sort: v })}
         sortOptions={["attention", "new", "old"].map((o) => ({ value: o, label: tf(`sort.${o}`) }))}
-        activeCount={activeCount}
         onReset={resetF}
-        resultCount={filtered.length}
+        resultCount={state.status === "ready" ? filtered.length : undefined}
         aiTarget="urgent-assigned:filters"
         aiBase="advocate.urgent"
       />

@@ -10,7 +10,8 @@ import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { fmtUzs } from "@/lib/money";
 import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { IconCard, IconDownload, IconSearch } from "@/components/icons";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
+import { IconCalendar, IconCard, IconClipboardCheck, IconDownload, IconSearch } from "@/components/icons";
 import DatePicker from "@/components/DatePicker";
 import { dateOnly } from "@/lib/date";
 
@@ -22,33 +23,129 @@ const fmtDate = (s: string, locale: string) => {
   return Number.isNaN(d.getTime()) ? s : dateOnly(s, locale);
 };
 
+const SLUG = /^[a-z0-9]+(_[a-z0-9]+)*$/;
+const STATUS_ORDER = ["pending", "payment_pending", "held", "paid", "partially_refunded", "refunded", "failed", "cancelled", "expired"];
+const statusRank = (s: string) => (STATUS_ORDER.includes(s) ? STATUS_ORDER.indexOf(s) : STATUS_ORDER.length);
+const slugOf = (s: string) => s.trim().toLowerCase().replace(/[\s-]+/g, "_");
+const aiNorm = (v: string) => v.toLowerCase().replace(/[ʻʼ'‘’`]/g, "").replace(/\s*\(.*\)$/, "").replace(/\s+/g, " ").trim();
+
+function aiPick(opts: { value: string; label: string }[], raw: string): string | null {
+  const w = aiNorm(raw);
+  if (!w) return "";
+  const hit =
+    opts.find((o) => o.value && aiNorm(o.value) === w) ??
+    opts.find((o) => o.value && aiNorm(o.label) === w) ??
+    opts.find((o) => o.value && w.length > 2 && aiNorm(o.label).includes(w));
+  return hit ? hit.value : null;
+}
+
+function aiDate(raw: string): string | null {
+  const s = raw.trim();
+  if (!s) return "";
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  const dmy = iso ? null : /^(\d{1,2})[./](\d{1,2})[./](\d{4})$/.exec(s);
+  const parts = iso ? [iso[1], iso[2], iso[3]] : dmy ? [dmy[3], dmy[2], dmy[1]] : null;
+  if (!parts) return null;
+  const [y, m, d] = parts;
+  if (Number(m) < 1 || Number(m) > 12 || Number(d) < 1 || Number(d) > 31) return null;
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+
 export default function ClientPayments() {
   const t = useTranslations("portal.client.payments");
+  const tc = useTranslations("portal.common");
+  const tf = useTranslations("filterBar");
   const te = useTranslations("enums");
   const locale = useLocale();
   // The backend falls back to the raw target type ("document_request", "gift") as the description.
   const whatOf = (desc: string, kind: string) => {
-    // A real title ("Private chat", a plan period) is shown as is; a bare key gets a label.
-    const key = !desc || /^[a-z]+(_[a-z]+)*$/.test(desc) ? desc || kind : "";
-    if (!key) return desc;
-    return t.has(`kinds.${key}`) ? t(`kinds.${key}`) : humanizeSlug(key) || "—";
+    const d = slugOf(desc);
+    const k = slugOf(kind);
+    const kindLabel = SLUG.test(k) && t.has(`kinds.${k}`) ? t(`kinds.${k}`) : "";
+    if (SLUG.test(d) && t.has(`periods.${d}`)) return `${kindLabel || t("kinds.subscription_plan")} · ${t(`periods.${d}`)}`;
+    if (SLUG.test(d) && t.has(`kinds.${d}`)) return t(`kinds.${d}`);
+    if (desc.trim() && !SLUG.test(desc.trim())) return desc;
+    return kindLabel || humanizeSlug(d || k) || "—";
   };
+  const stLabel = (s: string) => (!s ? "—" : SLUG.test(s) && t.has(`statuses.${s}`) ? t(`statuses.${s}`) : humanizeSlug(s));
   const res = useResource(listPayments, []);
   const [busyId, setBusyId] = useState("");
   // T1-13 §6: search by description/status and filter by date range.
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  useAiField("payments.search.input", { get: () => q, set: setQ });
-  useAiSelection("payments_date_from", from);
-  useAiSelection("payments_date_to", to);
-  const rows = res.data.filter((p) => {
+  const [pick, setPick] = useState("");
+  const needle = q.trim().toLowerCase();
+  const base = res.data.filter((p) => {
     const day = (p.createdAt || "").slice(0, 10);
     if (from && day && day < from) return false;
     if (to && day && day > to) return false;
-    const needle = q.trim().toLowerCase();
-    return !needle || `${p.description} ${p.kind} ${p.status} ${p.amount} ${p.workId}`.toLowerCase().includes(needle);
+    return !needle || `${whatOf(p.description, p.kind)} ${stLabel(p.status)} ${p.description} ${p.kind} ${p.status} ${p.amount} ${p.workId}`.toLowerCase().includes(needle);
   });
+  const rows = pick ? base.filter((p) => p.status === pick) : base;
+  const statuses = [...new Set(res.data.map((p) => p.status).filter(Boolean))].sort((a, b) => statusRank(a) - statusRank(b));
+  const statusShown = statuses.length > 1;
+  const statusOpts = [
+    { value: "", label: `${tc("filterAllStatuses")} (${base.length})` },
+    ...statuses.map((s) => ({ value: s, label: `${stLabel(s)} (${base.filter((p) => p.status === s).length})` })),
+  ];
+  const filterFields: FilterField[] = [
+    {
+      key: "status",
+      label: tc("filterStatus"),
+      icon: IconClipboardCheck,
+      value: pick,
+      onChange: setPick,
+      options: statusOpts,
+      hidden: !statusShown,
+      aiId: "payments.filters.status",
+    },
+    {
+      key: "from",
+      label: t("from"),
+      icon: IconCalendar,
+      node: <DatePicker value={from} onChange={setFrom} max={to || undefined} placeholder={t("datePh")} ariaLabel={t("from")} />,
+      active: Boolean(from),
+      clear: () => setFrom(""),
+      chip: `${t("from")}: ${fmtDate(from, locale)}`,
+      aiId: "payments.filters.from",
+    },
+    {
+      key: "to",
+      label: t("to"),
+      icon: IconCalendar,
+      node: <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={t("datePh")} ariaLabel={t("to")} />,
+      active: Boolean(to),
+      clear: () => setTo(""),
+      chip: `${t("to")}: ${fmtDate(to, locale)}`,
+      aiId: "payments.filters.to",
+    },
+  ];
+  useAiField("payments.search.input", { get: () => q, set: setQ });
+  useAiField(statusShown ? "payments.filters.status" : "", {
+    get: () => pick,
+    set: (v) => {
+      const next = aiPick(statusOpts, v);
+      if (next !== null) setPick(next);
+    },
+  });
+  useAiField("payments.filters.from", {
+    get: () => from,
+    set: (v) => {
+      const next = aiDate(v);
+      if (next !== null) setFrom(next);
+    },
+  });
+  useAiField("payments.filters.to", {
+    get: () => to,
+    set: (v) => {
+      const next = aiDate(v);
+      if (next !== null) setTo(next);
+    },
+  });
+  useAiSelection("payments_status", pick);
+  useAiSelection("payments_date_from", from);
+  useAiSelection("payments_date_to", to);
   const [failedId, setFailedId] = useState("");
 
   // GET /payments/{id}/receipt is an authed PDF: fetch it with the token.
@@ -78,20 +175,15 @@ export default function ClientPayments() {
         <span className="advmuted">{t("history")}</span>
       </div>
 
-      <div className="lfilters" data-ai-target="payments:filters" data-ai-id="payments.filters" data-ai-type="section" data-ai-label={t("searchPh")}>
-        <div className="lsearch">
-          <IconSearch />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={t("searchPh")}
-            aria-label={t("searchPh")}
-            data-ai-id="payments.search.input"
-          />
-        </div>
-        <DatePicker value={from} onChange={setFrom} max={to || undefined} placeholder={t("from")} ariaLabel={t("from")} />
-        <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={t("to")} ariaLabel={t("to")} />
-      </div>
+      <FilterBar
+        className="ppfilters"
+        fields={filterFields}
+        search={{ value: q, onChange: setQ, placeholder: t("searchPh"), aiId: "payments.search.input" }}
+        count={res.status === "loading" ? undefined : rows.length}
+        aiId="payments.filters"
+        aiTarget="payments:filters"
+        aiLabel={tf("title")}
+      />
       {res.status === "loading" ? (
         <Skeleton rows={4} />
       ) : !res.data.length ? (
@@ -126,7 +218,7 @@ export default function ClientPayments() {
                 <span data-l={t("date")}>{fmtDate(p.createdAt, locale)}</span>
                 <span data-l={t("amount")}>{som(p.amount, p.currency, te("currency"))}</span>
                 <span data-l={t("statusCol")} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className={`creq__badge${p.status === "paid" ? " creq__badge--ok" : ""}`}>{p.status ? (t.has(`statuses.${p.status}`) ? t(`statuses.${p.status}`) : humanizeSlug(p.status)) : "—"}</span>
+                  <span className={`creq__badge${p.status === "paid" ? " creq__badge--ok" : ""}`}>{stLabel(p.status)}</span>
                   {p.receiptUrl ? (
                     <button
                       type="button"

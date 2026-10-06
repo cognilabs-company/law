@@ -8,11 +8,13 @@
 // clients) — PortalShell already keeps a *pending* seller off this route,
 // but the 403 is still handled here as a defensive fallback.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { shortDateTime } from "@/lib/date";
 import { ApiError } from "@/lib/http";
 import { preopenTab, showBlob, saveBlob, closeTab } from "@/lib/download";
+import { useAiField } from "@/lib/ai/registry";
+import FilterBar from "@/components/filters/FilterBar";
 import {
   getWorkspaceTree,
   createFolder,
@@ -35,7 +37,6 @@ import {
   IconClock,
   IconStar,
   IconLock,
-  IconSearch,
   IconGrid,
   IconList,
   IconUpload,
@@ -50,6 +51,18 @@ import {
 
 type Filter = "all" | "recent" | "starred";
 type View = "grid" | "list";
+
+const FILTERS: Filter[] = ["all", "recent", "starred"];
+const isFilter = (v: string): v is Filter => (FILTERS as string[]).includes(v);
+
+const NARROW = "(max-width: 900px)";
+function onNarrowChange(cb: () => void) {
+  const mq = window.matchMedia(NARROW);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+const narrowNow = () => window.matchMedia(NARROW).matches;
+const narrowOnServer = () => false;
 
 type FMItem = {
   id: string;
@@ -98,6 +111,7 @@ const errStatus = (e: unknown) => (e instanceof ApiError ? e.status : 0);
 
 export default function FileManager() {
   const t = useTranslations("portal.files");
+  const tfb = useTranslations("filterBar");
   const ta = useTranslations("common.a11y");
   const locale = useLocale();
   const [status, setStatus] = useState<"loading" | "ready" | "forbidden" | "error">("loading");
@@ -192,6 +206,15 @@ export default function FileManager() {
     setSearch("");
     setMenuFor(null);
   }
+
+  const narrow = useSyncExternalStore(onNarrowChange, narrowNow, narrowOnServer);
+  useAiField("advocate.files.search.input", { get: () => search, set: setSearch, sensitive: true });
+  useAiField("advocate.files.filters.section", {
+    get: () => filter,
+    set: (v) => {
+      if (isFilter(v)) selectFilter(v);
+    },
+  });
 
   async function toggleStar(item: FMItem) {
     setMenuFor(null);
@@ -390,10 +413,35 @@ export default function FileManager() {
 
         <div className="fmgr__main">
           <div className="fmgr__toolbar">
-            <div className="fmgr__search" data-ai-target="files:search" data-ai-label={t("searchPh")}>
-              <IconSearch />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPh")} aria-label={t("searchPh")} />
-            </div>
+            <FilterBar
+              className="fmgr__filters"
+              fields={
+                narrow
+                  ? [
+                      {
+                        key: "section",
+                        label: t("sectionLabel"),
+                        icon: IconFolder,
+                        value: filter,
+                        empty: "all",
+                        onChange: (v) => {
+                          if (isFilter(v)) selectFilter(v);
+                        },
+                        options: [
+                          { value: "all", label: t("navAll") },
+                          { value: "recent", label: t("navRecent") },
+                          { value: "starred", label: t("navStarred") },
+                        ],
+                        aiId: "advocate.files.filters.section",
+                        aiTarget: "files:sections",
+                      },
+                    ]
+                  : []
+              }
+              search={{ value: search, onChange: setSearch, placeholder: t("searchPh"), aiId: "advocate.files.search.input", aiTarget: "files:search", aiLabel: t("searchPh") }}
+              aiId="advocate.files.filters"
+              aiLabel={tfb("title")}
+            />
             <div className="fmgr__viewtoggle" role="group">
               <button type="button" className={`fmgr__viewbtn${view === "grid" ? " on" : ""}`} aria-label={t("gridView")} title={t("gridView")} onClick={() => setView("grid")}>
                 <IconGrid />

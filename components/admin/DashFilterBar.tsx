@@ -1,23 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
-import Select from "@/components/Select";
+import { useLocale, useTranslations } from "next-intl";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import DatePicker from "@/components/DatePicker";
 import { REGION_KEYS } from "@/lib/lawyers";
-import { EMPTY_FILTER, isFiltered, type DashFilter } from "@/lib/services/dash";
-import { dayBefore } from "@/lib/demoStats";
-import { useDemoForced } from "@/lib/demoStats";
-import { IconRefresh, IconBolt } from "@/components/icons";
+import { EMPTY_FILTER, todayIso, type DashFilter } from "@/lib/services/dash";
+import { dayBefore, useDemoForced } from "@/lib/demoStats";
+import { shortDate } from "@/lib/date";
+import { useAiSelection } from "@/lib/ai/registry";
+import { IconBolt, IconCalendar, IconClock, IconMapPin } from "@/components/icons";
 
-const PRESETS: { key: "d7" | "d30" | "d90"; days: number }[] = [
+type Quick = "today" | "d7" | "d30" | "d90";
+
+const PRESETS: { key: Quick; days: number }[] = [
+  { key: "today", days: 1 },
   { key: "d7", days: 7 },
   { key: "d30", days: 30 },
   { key: "d90", days: 90 },
 ];
 
-// Filter state for one dashboard page (region + date range + preset) and the
-// shared "Demo ko'rsatish" flag.
 export function useDashFilter(): {
   filter: DashFilter;
   setFilter: (f: DashFilter) => void;
@@ -29,8 +31,6 @@ export function useDashFilter(): {
   return { filter, setFilter, demoForced, setDemoForced };
 }
 
-// Region + date range + presets + reset, and the demo toggle. `note` is an
-// optional caveat under the bar (e.g. which metrics the region filter reaches).
 export default function DashFilterBar({
   value,
   onChange,
@@ -50,59 +50,101 @@ export default function DashFilterBar({
 }) {
   const t = useTranslations("admin.dash.filter");
   const te = useTranslations("enums.regions");
-  const regions = [{ value: "", label: te("all") }, ...REGION_KEYS.map((k) => ({ value: k, label: te(k) }))];
+  const locale = useLocale();
+  const [mode, setMode] = useState<"" | "today" | "custom">("");
 
-  function preset(key: "d7" | "d30" | "d90", days: number) {
-    // Today is read in the click handler (never during render).
-    const d = new Date();
-    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    if (value.preset === key) onChange({ ...value, from: "", to: "", preset: "" });
-    else onChange({ ...value, from: dayBefore(today, days - 1), to: today, preset: key });
-  }
+  const dated = Boolean(value.from || value.to);
+  const period = value.preset || (mode === "today" && dated ? "today" : mode === "custom" || dated ? "custom" : "");
+  const day = (iso: string) => shortDate(iso, locale);
+  const range =
+    value.from && value.to
+      ? value.from === value.to
+        ? day(value.from)
+        : `${day(value.from)} – ${day(value.to)}`
+      : value.from
+        ? `${t("from")}: ${day(value.from)}`
+        : value.to
+          ? `${t("to")}: ${day(value.to)}`
+          : "";
+
+  const pickPeriod = (next: string) => {
+    if (next === "custom") {
+      setMode("custom");
+      onChange({ ...value, preset: "" });
+      return;
+    }
+    const hit = PRESETS.find((p) => p.key === next);
+    setMode(hit?.key === "today" ? "today" : "");
+    if (!hit) {
+      onChange({ ...value, from: "", to: "", preset: "" });
+      return;
+    }
+    const today = todayIso();
+    const key = hit.key;
+    onChange({ ...value, from: dayBefore(today, hit.days - 1), to: today, preset: key === "today" ? "" : key });
+  };
+
+  const setDate = (patch: Partial<DashFilter>) => {
+    setMode("custom");
+    onChange({ ...value, ...patch, preset: "" });
+  };
+
+  const reset = () => {
+    setMode("");
+    onChange(EMPTY_FILTER);
+  };
+
+  useAiSelection("dashboard_region", value.region);
+  useAiSelection("dashboard_period", period === "custom" ? range : period ? t(period) : "");
+
+  const fields: FilterField[] = [
+    {
+      key: "region",
+      label: t("region"),
+      icon: IconMapPin,
+      value: value.region,
+      onChange: (region) => onChange({ ...value, region }),
+      options: [{ value: "", label: te("all") }, ...REGION_KEYS.map((k) => ({ value: k, label: te(k) }))],
+    },
+    {
+      key: "period",
+      label: t("period"),
+      icon: IconClock,
+      value: period,
+      onChange: pickPeriod,
+      options: [{ value: "", label: t("allTime") }, ...PRESETS.map((p) => ({ value: p.key, label: t(p.key) })), { value: "custom", label: t("custom") }],
+      chip: period === "custom" ? range || null : undefined,
+    },
+    {
+      key: "from",
+      label: t("from"),
+      icon: IconCalendar,
+      hidden: period !== "custom",
+      chip: null,
+      node: <DatePicker value={value.from} onChange={(from) => setDate({ from })} placeholder={t("from")} ariaLabel={t("from")} max={value.to || undefined} clearLabel={t("clear")} />,
+    },
+    {
+      key: "to",
+      label: t("to"),
+      icon: IconCalendar,
+      hidden: period !== "custom",
+      chip: null,
+      node: <DatePicker value={value.to} onChange={(to) => setDate({ to })} placeholder={t("to")} ariaLabel={t("to")} min={value.from || undefined} clearLabel={t("clear")} />,
+    },
+  ];
+
+  const demo = showDemo ? (
+    <button type="button" role="switch" aria-checked={demoForced} className="dashf__demo" onClick={() => onDemoForced(!demoForced)} title={t("demoTitle")}>
+      <IconBolt aria-hidden="true" />
+      <span>{t("demo")}</span>
+      <i className="dashf__sw" aria-hidden="true" />
+    </button>
+  ) : null;
 
   return (
-    <div className={`dfbar${compact ? " dfbar--compact" : ""}`} role="group" aria-label={t("aria")} data-ai-target="stats:filters">
-      <div className="dfbar__row">
-        <span className="dfbar__f dfbar__f--region">
-          <Select value={value.region} onChange={(region) => onChange({ ...value, region })} options={regions} ariaLabel={t("region")} />
-        </span>
-        <span className="dfbar__f dfbar__f--date">
-          <DatePicker value={value.from} onChange={(from) => onChange({ ...value, from, preset: "" })} placeholder={t("from")} ariaLabel={t("from")} max={value.to || undefined} clearLabel={t("clear")} />
-        </span>
-        <span className="dfbar__f dfbar__f--date">
-          <DatePicker value={value.to} onChange={(to) => onChange({ ...value, to, preset: "" })} placeholder={t("to")} ariaLabel={t("to")} min={value.from || undefined} clearLabel={t("clear")} />
-        </span>
-        <div className="segs dfbar__segs" role="tablist" aria-label={t("presets")}>
-          {PRESETS.map((p) => (
-            <button key={p.key} type="button" role="tab" className="seg" aria-selected={value.preset === p.key} onClick={() => preset(p.key, p.days)}>
-              {t(p.key)}
-            </button>
-          ))}
-        </div>
-        {isFiltered(value) ? (
-          <button type="button" className="btn btn--ghost btn--sm" onClick={() => onChange(EMPTY_FILTER)}>
-            <IconRefresh />
-            {t("reset")}
-          </button>
-        ) : null}
-        {showDemo ? (
-          <button
-            type="button"
-            className={`chip dfbar__demo${demoForced ? " on" : ""}`}
-            aria-pressed={demoForced}
-            onClick={() => onDemoForced(!demoForced)}
-            title={t("demoTitle")}
-          >
-            <IconBolt />
-            {demoForced ? t("demoOn") : t("demo")}
-          </button>
-        ) : null}
-      </div>
-      {note ? (
-        <p className="dfbar__note">
-          {note}
-        </p>
-      ) : null}
+    <div className={`dashf${compact ? " dashf--compact" : ""}`}>
+      <FilterBar fields={fields} onReset={reset} extra={demo} aiTarget="stats:filters" aiLabel={t("aria")} />
+      {note ? <p className="dashf__note">{note}</p> : null}
     </div>
   );
 }

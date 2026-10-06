@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { Role } from "@/lib/auth";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { MARKET_EVENT, marketSignalOf, type MarketSignal } from "@/lib/services/marketplace";
+import { MARKET_EVENT, isMarketOrderHeld, marketChatHref, marketSignalOf, type MarketSignal } from "@/lib/services/marketplace";
 import { IconCheck, IconClose, IconInfo, IconTag } from "@/components/icons";
 
 type Toast = { id: number; kind: MarketSignal["kind"]; title: string; text: string; href: string };
@@ -33,6 +33,7 @@ export default function MarketWatcher({ role }: { role: Role }) {
       seen.current.set(key, now);
       if (now - last < 1500) return;
       window.dispatchEvent(new CustomEvent(MARKET_EVENT, { detail: sig }));
+      if (sig.orderId && isMarketOrderHeld(sig.orderId)) return;
       if (now - last < DEDUPE_MS) return;
       const tt = tRef.current;
       const ordersHref = role === "client" ? "/portal/client/marketplace-orders" : `/portal/${role}/marketplace-orders`;
@@ -42,7 +43,7 @@ export default function MarketWatcher({ role }: { role: Role }) {
           kind: "paid",
           title: tt("paid"),
           text: sig.serviceTitle ? tt("paidText", { service: sig.serviceTitle }) : tt("paidTextNoService"),
-          href: sig.roomId ? `/portal/chat/${encodeURIComponent(sig.roomId)}` : ordersHref,
+          href: sig.roomId ? marketChatHref({ roomId: sig.roomId, workId: sig.workId, serviceTitle: sig.serviceTitle }) : ordersHref,
         };
       } else if (sig.kind === "paid") {
         toast = { kind: "paid", title: tt("newOrder"), text: tt("newOrderText"), href: ordersHref };

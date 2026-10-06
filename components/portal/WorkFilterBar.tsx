@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType, type SVGProps } from "react";
 import { useTranslations } from "next-intl";
-import Select, { type Option } from "@/components/Select";
-import { IconSearch, IconClose } from "@/components/icons";
+import type { Option } from "@/components/Select";
+import FilterBar, { type FilterField, type FilterSelectField } from "@/components/filters/FilterBar";
+import { IconCalendar } from "@/components/icons";
 import { useAiField } from "@/lib/ai/registry";
-import { useAiReveal } from "@/lib/guide/targets";
+
+type FieldIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
 export type ChipOption = { value: string; label: string; count?: number };
-export type ChipGroup = { key: string; label: string; value: string; onChange: (v: string) => void; options: ChipOption[] };
-export type SelectGroup = { key: string; label: string; value: string; onChange: (v: string) => void; options: Option[] };
+export type ChipGroup = { key: string; label: string; value: string; onChange: (v: string) => void; options: ChipOption[]; icon?: FieldIcon; empty?: string };
+export type SelectGroup = { key: string; label: string; value: string; onChange: (v: string) => void; options: Option[]; icon?: FieldIcon; empty?: string };
 
 export type Period = "" | "today" | "week" | "month";
 export const PERIODS: Period[] = ["", "today", "week", "month"];
@@ -78,6 +80,32 @@ function AiChoice({ id, value, options, onChange }: { id: string; value: string;
   return null;
 }
 
+function IconSort(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M7 4v16M3.5 7.5L7 4l3.5 3.5M17 20V4M13.5 16.5L17 20l3.5-3.5" />
+    </svg>
+  );
+}
+
+function groupField(g: ChipGroup, aiId?: string): FilterSelectField {
+  const empty = g.empty ?? "";
+  const known = g.options.find((o) => o.value === g.value);
+  const options: Option[] = g.options.map((o) => ({ value: o.value, label: typeof o.count === "number" ? `${o.label} (${o.count})` : o.label }));
+  if (!known && g.value !== empty) options.push({ value: g.value, label: g.value });
+  return {
+    key: aiKey(g.key),
+    label: g.label,
+    icon: g.icon,
+    value: g.value,
+    onChange: g.onChange,
+    options,
+    empty,
+    chip: known && !known.value && empty ? `${g.label}: ${known.label}` : undefined,
+    aiId,
+  };
+}
+
 export default function WorkFilterBar({
   q,
   onQ,
@@ -89,7 +117,6 @@ export default function WorkFilterBar({
   sort,
   onSort,
   sortOptions,
-  activeCount,
   onReset,
   resultCount,
   aiTarget,
@@ -105,78 +132,43 @@ export default function WorkFilterBar({
   sort: string;
   onSort: (v: string) => void;
   sortOptions: Option[];
-  activeCount: number;
   onReset: () => void;
   resultCount?: number;
   aiTarget?: string;
   aiBase?: string;
 }) {
   const t = useTranslations("portal.workFilters");
-  const [open, setOpen] = useState(false);
   const ai = (s: string) => (aiBase ? `${aiBase}.${s}` : undefined);
   useAiField(ai("search.input") ?? "", { get: () => q, set: onQ, sensitive: true });
-  useAiReveal(aiBase ? `${aiBase}.filters.*` : "", () => setOpen(true));
   const periodOptions = PERIODS.map((p) => ({ value: p, label: t(`periods.${p || "all"}`) }));
+  const pickPeriod = (v: string) => onPeriod(v as Period);
+  const groups: ChipGroup[] = [...chips, ...selects];
+  const fields: FilterField[] = [
+    ...groups.map((g) => groupField(g, ai(`filters.${aiKey(g.key)}`))),
+    { key: "period", label: t("period"), icon: IconCalendar, value: period, onChange: pickPeriod, options: periodOptions, aiId: ai("filters.period") },
+    { key: "sort", label: t("sortLabel"), icon: IconSort, value: sort, onChange: onSort, options: sortOptions, chip: null, aiId: ai("filters.sort") },
+  ];
   return (
-    <div className="wfb" data-ai-target={aiTarget} data-ai-label={aiTarget || aiBase ? t("filters") : undefined} data-ai-id={ai("filters")}>
-      <div className="wfb__top">
-        <label className="wfb__search">
-          <IconSearch />
-          <input value={q} onChange={(e) => onQ(e.target.value)} placeholder={placeholder} aria-label={t("search")} data-ai-id={ai("search.input")} />
-          {q ? (
-            <button type="button" className="wfb__clear" onClick={() => onQ("")} aria-label={t("clearSearch")}>
-              <IconClose />
-            </button>
-          ) : null}
-        </label>
-        <button type="button" className="wfb__toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)} data-ai-id={ai("filters.toggle")}>
-          {t("filters")}
-          {activeCount ? <span className="wfb__n">{activeCount}</span> : null}
-        </button>
-        <div className="wfb__sort" data-ai-id={ai("filters.sort")} data-ai-type={aiBase ? "select" : undefined} data-ai-label={aiBase ? t("sortLabel") : undefined}>
-          <Select value={sort} onChange={onSort} options={sortOptions} ariaLabel={t("sortLabel")} />
-        </div>
-      </div>
-      {aiBase ? <AiChoice id={`${aiBase}.filters.sort`} value={sort} options={sortOptions} onChange={onSort} /> : null}
-
-      {chips.map((g) => (
-        <div key={g.key} className="wfb__chips" role="group" aria-label={g.label} data-ai-id={ai(`filters.${aiKey(g.key)}`)} data-ai-type={aiBase ? "select" : undefined}>
-          <span className="wfb__lbl">{g.label}</span>
-          <div className="wfb__row">
-            {g.options.map((o) => (
-              <button key={o.value || "all"} type="button" className="wfb__chip" aria-pressed={g.value === o.value} onClick={() => g.onChange(o.value)}>
-                {o.label}
-                {typeof o.count === "number" ? <span>{o.count}</span> : null}
-              </button>
-            ))}
-          </div>
-          {aiBase ? <AiChoice id={`${aiBase}.filters.${aiKey(g.key)}`} value={g.value} options={g.options} onChange={g.onChange} /> : null}
-        </div>
-      ))}
-
-      <div className={`wfb__more${open ? " is-open" : ""}`}>
-        {selects.map((s) => (
-          <div key={s.key} className="wfb__fld" data-ai-id={ai(`filters.${aiKey(s.key)}`)} data-ai-type={aiBase ? "select" : undefined} data-ai-label={aiBase ? s.label : undefined}>
-            <label>{s.label}</label>
-            <Select value={s.value} onChange={s.onChange} options={s.options} ariaLabel={s.label} />
-            {aiBase ? <AiChoice id={`${aiBase}.filters.${aiKey(s.key)}`} value={s.value} options={s.options} onChange={s.onChange} /> : null}
-          </div>
-        ))}
-        <div className="wfb__fld" data-ai-id={ai("filters.period")} data-ai-type={aiBase ? "select" : undefined} data-ai-label={aiBase ? t("period") : undefined}>
-          <label>{t("period")}</label>
-          <Select value={period} onChange={(v) => onPeriod(v as Period)} ariaLabel={t("period")} options={periodOptions} />
-          {aiBase ? <AiChoice id={`${aiBase}.filters.period`} value={period} options={periodOptions} onChange={(v) => onPeriod(v as Period)} /> : null}
-        </div>
-      </div>
-
-      {activeCount || q ? (
-        <div className="wfb__foot">
-          {typeof resultCount === "number" ? <span>{t("found", { n: resultCount })}</span> : <span />}
-          <button type="button" className="wfb__reset" onClick={onReset}>
-            {t("reset")}
-          </button>
-        </div>
+    <>
+      <FilterBar
+        className="wfb wfb--split"
+        fields={fields}
+        search={{ value: q, onChange: onQ, placeholder, label: t("search"), aiId: ai("search.input") }}
+        count={resultCount}
+        onReset={onReset}
+        aiId={ai("filters")}
+        aiTarget={aiTarget}
+        aiLabel={aiTarget || aiBase ? t("filters") : undefined}
+      />
+      {aiBase ? (
+        <>
+          {groups.map((g) => (
+            <AiChoice key={g.key} id={`${aiBase}.filters.${aiKey(g.key)}`} value={g.value} options={g.options} onChange={g.onChange} />
+          ))}
+          <AiChoice id={`${aiBase}.filters.period`} value={period} options={periodOptions} onChange={pickPeriod} />
+          <AiChoice id={`${aiBase}.filters.sort`} value={sort} options={sortOptions} onChange={onSort} />
+        </>
       ) : null}
-    </div>
+    </>
   );
 }

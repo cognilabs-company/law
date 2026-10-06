@@ -1,32 +1,43 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
-import Select from "@/components/Select";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
+import type { Option } from "@/components/Select";
 import { Skeleton } from "@/components/portal/DataState";
 import { subscribeUserEvents } from "@/lib/userSocket";
+import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
 import {
+  complaintMatches,
+  complaintStage,
+  foldText,
   isComplaintEvent,
+  isKnownComplaintStatus,
   listComplaintTargets,
   loadComplaintFeed,
   matchesRef,
-  sortStatuses,
+  sortStages,
   type ComplaintItem,
   type ComplaintKind,
+  type ComplaintStage,
 } from "@/lib/services/complaints";
 import {
   IconAlert,
   IconArrowRight,
   IconChat,
-  IconCheck,
+  IconCircleCheck,
   IconClipboardCheck,
   IconClose,
+  IconHeadset,
+  IconInfo,
   IconPlus,
   IconRefresh,
+  IconSend,
   IconStarRate,
+  IconTag,
 } from "@/components/icons";
 import ComplaintRow from "./ComplaintRow";
 import ComplaintDetail from "./ComplaintDetail";
@@ -38,6 +49,13 @@ type KindFilter = "all" | ComplaintKind;
 
 const FIRST_FEED: FeedState = { status: "loading", items: [], manualFailed: false, qualityFailed: false };
 const KINDS: KindFilter[] = ["all", "manual", "quality"];
+const SEARCH_MIN = 5;
+const SEARCH_MAX = 120;
+const FLOW = [
+  { key: "write", Icon: IconSend },
+  { key: "review", Icon: IconHeadset },
+  { key: "decision", Icon: IconCircleCheck },
+] as const;
 
 function stripParams(names: string[]) {
   if (typeof window === "undefined") return;
@@ -51,11 +69,24 @@ function stripParams(names: string[]) {
   if (changed) window.history.replaceState(null, "", url.pathname + url.search + url.hash);
 }
 
+const bare = (s: string) => foldText(s).replace(/\s*\(\d+\)$/, "");
+
+function pickOption(options: Option[], raw: string): string | null {
+  const want = bare(raw);
+  if (!want) return options[0]?.value ?? "";
+  const hit =
+    options.find((o) => foldText(o.value) === want) ??
+    options.find((o) => bare(o.label) === want) ??
+    options.find((o) => bare(o.label).startsWith(want));
+  return hit ? hit.value : null;
+}
+
 export default function ClientComplaints() {
   const t = useTranslations("portal.client.complaints");
   const tc = useTranslations("common");
   const tcm = useTranslations("portal.common");
   const L = useComplaintLabels();
+  const headId = useId();
   const params = useSearchParams();
   const workParam = params.get("work") ?? "";
   const aboutParam = params.get("about") ?? "";
@@ -65,7 +96,8 @@ export default function ClientComplaints() {
   const [feed, setFeed] = useState<FeedState>(FIRST_FEED);
   const [req, setReq] = useState({ n: 0, soft: false });
   const [kind, setKind] = useState<KindFilter>("all");
-  const [statusPick, setStatusPick] = useState("");
+  const [stagePick, setStagePick] = useState("");
+  const [q, setQ] = useState("");
   const [openKey, setOpenKey] = useState("");
   const [highlight, setHighlight] = useState("");
   const [focusRef, setFocusRef] = useState(workParam);
@@ -101,7 +133,8 @@ export default function ClientComplaints() {
       setOpenKey(hit.key);
       setHighlight(hit.key);
       setKind("all");
-      setStatusPick("");
+      setStagePick("");
+      setQ("");
     } else if (!feed.manualFailed && !feed.qualityFailed) {
       setFocusRef("");
       setMissingRef(true);
@@ -168,22 +201,42 @@ export default function ClientComplaints() {
   const items = feed.items;
   const counts = useMemo(() => {
     let manual = 0;
-    for (const x of items) if (x.kind === "manual") manual++;
-    return { all: items.length, manual, quality: items.length - manual };
+    const stage = new Map<ComplaintStage, number>();
+    for (const x of items) {
+      if (x.kind === "manual") manual++;
+      const s = complaintStage(x.status);
+      stage.set(s, (stage.get(s) ?? 0) + 1);
+    }
+    return { all: items.length, manual, quality: items.length - manual, stage };
   }, [items]);
-  const statuses = useMemo(() => sortStatuses([...new Set(items.map((x) => x.status))]), [items]);
+  const stages = useMemo(() => sortStages([...counts.stage.keys()]), [counts]);
   const bothKinds = counts.manual > 0 && counts.quality > 0;
+  const searchable = items.length >= SEARCH_MIN;
   const kindOn: KindFilter = bothKinds ? kind : "all";
-  const statusOn = statuses.length > 1 && statuses.includes(statusPick) ? statusPick : "";
+  const stageOn = stages.length > 1 && stages.some((s) => s === stagePick) ? stagePick : "";
+  const qOn = searchable ? q.trim() : "";
   const shown = useMemo(
-    () => items.filter((x) => (kindOn === "all" || x.kind === kindOn) && (!statusOn || x.status === statusOn)),
-    [items, kindOn, statusOn],
+    () =>
+      items.filter(
+        (x) =>
+          (kindOn === "all" || x.kind === kindOn) &&
+          (!stageOn || complaintStage(x.status) === stageOn) &&
+          (!qOn || complaintMatches(x, qOn, [x.category ? L.category(x.category) : "", L.source(x.source)])),
+      ),
+    [items, kindOn, stageOn, qOn, L],
   );
-  const showBar = feed.status === "ready" && items.length > 1 && (bothKinds || statuses.length > 1);
+  const showBar = feed.status === "ready" && items.length > 1 && (bothKinds || stages.length > 1 || searchable);
   const openItem = useMemo(() => items.find((x) => x.key === openKey) ?? null, [items, openKey]);
-  const statusOptions = useMemo(
-    () => [{ value: "", label: tcm("filterAllStatuses") }, ...statuses.map((s) => ({ value: s, label: L.status(s) }))],
-    [statuses, tcm, L],
+  const stageOptions = useMemo<Option[]>(
+    () => [
+      { value: "", label: tcm("filterAllStatuses") },
+      ...stages.map((s) => ({ value: s, label: `${L.stage(s)} (${counts.stage.get(s) ?? 0})` })),
+    ],
+    [stages, counts, tcm, L],
+  );
+  const kindOptions = useMemo<Option[]>(
+    () => KINDS.map((k) => ({ value: k, label: `${t(`filter.${k}`)} (${counts[k]})` })),
+    [counts, t],
   );
 
   function openForm() {
@@ -214,7 +267,12 @@ export default function ClientComplaints() {
 
   function resetFilters() {
     setKind("all");
-    setStatusPick("");
+    setStagePick("");
+    setQ("");
+  }
+
+  function pickKind(v: string) {
+    setKind(v === "manual" || v === "quality" ? v : "all");
   }
 
   function onCreated(item: ComplaintItem) {
@@ -233,38 +291,94 @@ export default function ClientComplaints() {
     softRefresh();
   }
 
+  useAiField("complaints.filters.status", {
+    get: () => stageOn,
+    set: (v) => {
+      const raw = v.trim().toLowerCase();
+      const next = isKnownComplaintStatus(raw) ? complaintStage(raw) : pickOption(stageOptions, v);
+      if (next === "") setStagePick("");
+      else if (next && stages.some((s) => s === next)) setStagePick(next);
+    },
+  });
+  useAiField("complaints.filters.kind", {
+    get: () => kindOn,
+    set: (v) => {
+      const next = pickOption(kindOptions, v);
+      if (next !== null) pickKind(next);
+    },
+  });
+  useAiField("complaints.filters.search", {
+    get: () => q,
+    set: (v) => setQ(v.slice(0, SEARCH_MAX)),
+  });
+  useAiSelection("complaint_status", stageOn);
+  useAiSelection("complaint_kind", kindOn === "all" ? "" : kindOn);
+  useAiModal("complaints.new-modal", () => openForm());
+
+  const fields: FilterField[] = [
+    {
+      key: "status",
+      label: tcm("filterStatus"),
+      icon: IconClipboardCheck,
+      value: stageOn,
+      onChange: setStagePick,
+      options: stageOptions,
+      hidden: stages.length < 2,
+      aiId: "complaints.filters.status",
+    },
+    {
+      key: "kind",
+      label: t("filter.label"),
+      icon: IconTag,
+      value: kindOn,
+      onChange: pickKind,
+      options: kindOptions,
+      empty: "all",
+      hidden: !bothKinds,
+      aiId: "complaints.filters.kind",
+    },
+  ];
+
   return (
     <div className="shk">
-      <section className="shk__intro">
-        <span className="shk__introic" aria-hidden>
-          <IconClipboardCheck />
-        </span>
-        <div className="shk__introtx">
-          <p className="shk__lead">{t("lead")}</p>
+      <section className="shk__head" aria-labelledby={headId}>
+        <div className="shk__headtop">
+          <div className="shk__headtx">
+            <h2 id={headId} className="shk__title">
+              {t("title")}
+            </h2>
+            <p className="shk__lead">{t("lead")}</p>
+          </div>
+          <button
+            type="button"
+            className="btn btn--grad shk__new"
+            data-ai-target="button:new-complaint"
+            data-ai-id="complaints.new"
+            aria-haspopup="dialog"
+            onClick={openForm}
+          >
+            <IconPlus aria-hidden />
+            {t("new")}
+          </button>
+        </div>
+        <ol className="shk__flow" aria-label={t("stepsLabel")}>
+          {FLOW.map(({ key, Icon }, i) => (
+            <li key={key}>
+              <span className="shk__flowic" aria-hidden>
+                <Icon />
+              </span>
+              <span className="shk__flowtx">
+                <small>{t("stepN", { n: i + 1 })}</small>
+                <b>{t(`steps.${key}`)}</b>
+              </span>
+            </li>
+          ))}
+        </ol>
+        <div className="shk__foot">
           <p className="shk__auto">
             <IconStarRate aria-hidden />
             <span>{t("auto")}</span>
           </p>
-        </div>
-        <ol className="shk__steps" aria-label={t("stepsLabel")}>
-          <li>
-            <span aria-hidden>1</span>
-            {t("steps.write")}
-          </li>
-          <li>
-            <span aria-hidden>2</span>
-            {t("steps.review")}
-          </li>
-          <li>
-            <span aria-hidden>3</span>
-            {t("steps.decision")}
-          </li>
-        </ol>
-        <div className="shk__acts">
-          <button type="button" className="btn btn--grad" data-ai-target="button:new-complaint" aria-haspopup="dialog" onClick={openForm}>
-            <IconPlus aria-hidden />
-            {t("new")}
-          </button>
           <Link href="/portal/client/support" className="shk__chat">
             <IconChat aria-hidden />
             <span>{t("chatLink")}</span>
@@ -273,71 +387,82 @@ export default function ClientComplaints() {
         </div>
       </section>
 
-      <section className="ppanel shk__panel" aria-label={t("listLabel")}>
-        {sentId !== null ? (
-          <div className="shk__note shk__note--ok" role="status">
-            <IconCheck aria-hidden />
-            <span>
-              <b>{t("sent")}</b>
-              {sentId ? ` ${t("sentId", { id: sentId })}` : ""}
-            </span>
-            <button type="button" className="shk__x" onClick={() => setSentId(null)} aria-label={tc("a11y.close")}>
-              <IconClose />
-            </button>
-          </div>
-        ) : null}
-        {missingRef ? (
-          <div className="shk__note shk__note--warn" role="status">
-            <IconAlert aria-hidden />
-            <span>{t("linkMissing")}</span>
-            <button type="button" className="shk__x" onClick={() => setMissingRef(false)} aria-label={tc("a11y.close")}>
-              <IconClose />
-            </button>
-          </div>
-        ) : null}
-        {feed.status === "ready" && (feed.manualFailed || feed.qualityFailed) ? (
-          <div className="shk__note shk__note--warn" role="status">
-            <IconAlert aria-hidden />
-            <span>{feed.manualFailed ? t("partialManual") : t("partialQuality")}</span>
-            <button type="button" className="btn btn--line btn--sm" onClick={retry}>
-              <IconRefresh aria-hidden />
-              {tc("retry")}
-            </button>
-          </div>
-        ) : null}
-
-        {showBar ? (
-          <div className="shk__bar" data-ai-target="complaints:filters">
-            {bothKinds ? (
-              <div className="shk__kinds" role="group" aria-label={t("filter.label")}>
-                {KINDS.map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    className={`chip${kindOn === k ? " on" : ""}`}
-                    aria-pressed={kindOn === k}
-                    onClick={() => setKind(k)}
-                  >
-                    {t(`filter.${k}`)}
-                    <span className="shk__n">{counts[k]}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <span />
-            )}
-            {statuses.length > 1 ? (
-              <label className="shk__filt">
-                <span>{tcm("filterStatus")}</span>
-                <Select value={statusOn} onChange={setStatusPick} ariaLabel={tcm("filterStatus")} options={statusOptions} />
-              </label>
+      {sentId !== null ? (
+        <div className="shk__note shk__note--ok" role="status">
+          <span className="shk__noteic" aria-hidden>
+            <IconCircleCheck />
+          </span>
+          <span className="shk__notetx">
+            <b>{t("sent")}</b>
+            {sentId ? (
+              <span>
+                {t("sentRef")} <span className="wid">{sentId}</span>
+              </span>
             ) : null}
-          </div>
+            <span>{t("sentNext")}</span>
+          </span>
+          <button type="button" className="shk__x" onClick={() => setSentId(null)} aria-label={tc("a11y.close")}>
+            <IconClose />
+          </button>
+        </div>
+      ) : null}
+      {missingRef ? (
+        <div className="shk__note shk__note--info" role="status">
+          <span className="shk__noteic" aria-hidden>
+            <IconInfo />
+          </span>
+          <span className="shk__notetx">{t("linkMissing")}</span>
+          <button type="button" className="shk__x" onClick={() => setMissingRef(false)} aria-label={tc("a11y.close")}>
+            <IconClose />
+          </button>
+        </div>
+      ) : null}
+      {feed.status === "ready" && (feed.manualFailed || feed.qualityFailed) ? (
+        <div className="shk__note shk__note--warn" role="status">
+          <span className="shk__noteic" aria-hidden>
+            <IconAlert />
+          </span>
+          <span className="shk__notetx">{feed.manualFailed ? t("partialManual") : t("partialQuality")}</span>
+          <button type="button" className="btn btn--line btn--sm" onClick={retry}>
+            <IconRefresh aria-hidden />
+            {tc("retry")}
+          </button>
+        </div>
+      ) : null}
+
+      <section className="shk__panel" aria-label={t("listLabel")}>
+        {showBar ? (
+          <FilterBar
+            fields={fields}
+            search={
+              searchable
+                ? {
+                    value: q,
+                    onChange: (v) => setQ(v.slice(0, SEARCH_MAX)),
+                    placeholder: t("filter.searchPh"),
+                    maxLength: SEARCH_MAX,
+                    aiId: "complaints.filters.search",
+                  }
+                : undefined
+            }
+            count={shown.length}
+            onReset={resetFilters}
+            aiId="complaints.filters"
+            aiTarget="complaints:filters"
+          />
         ) : null}
 
-        <div className="shk__body" data-ai-target="complaints:list" aria-busy={feed.status === "loading" || undefined}>
+        <div
+          className="shk__body"
+          data-ai-target="complaints:list"
+          data-ai-id="complaints.list"
+          data-ai-label={t("listLabel")}
+          aria-busy={feed.status === "loading" || undefined}
+        >
           {feed.status === "loading" ? (
-            <Skeleton rows={3} />
+            <div className="shk__card">
+              <Skeleton rows={3} />
+            </div>
           ) : feed.status === "error" ? (
             <div className="shk__state" role="alert">
               <span className="shk__stateic" aria-hidden>
@@ -382,7 +507,7 @@ export default function ClientComplaints() {
       <Modal open={!!openItem} onClose={closeDetail} title={openItem ? openItem.subject || L.kind(openItem.kind) : ""}>
         {openItem ? <ComplaintDetail key={openItem.key} item={openItem} /> : null}
       </Modal>
-      <Modal open={formOpen} onClose={closeForm} title={t("new")}>
+      <Modal open={formOpen} onClose={closeForm} title={t("new")} aiId="complaints.new-modal">
         <NewComplaintForm
           draft={draft}
           onDraft={setDraft}

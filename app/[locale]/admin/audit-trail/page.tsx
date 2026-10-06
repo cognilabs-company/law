@@ -1,17 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { listAuditTrail, exportAuditTrailCsv, listAdminSecurityEvents, searchUsers, type ActivityEntry, type AuditFilters, type ModuleRecord } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
-import Select from "@/components/Select";
-import SearchSelect from "@/components/SearchSelect";
+import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
+import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { ApiError, parseServerTime } from "@/lib/http";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
-import { IconShieldCheck, IconLock, IconCheck, IconClipboardCheck, IconDownload, IconSearch } from "@/components/icons";
-import { dateTimeFull } from "@/lib/date";
+import { IconShieldCheck, IconLock, IconCheck, IconClipboardCheck, IconDownload, IconSearch, IconCalendar, IconUser, IconClipboardList, IconLayers, IconTag } from "@/components/icons";
+import { dateTimeFull, shortDate } from "@/lib/date";
 import { humanize } from "@/lib/labels";
 
 type TextFilters = Required<Pick<AuditFilters, "userId" | "action" | "targetType" | "targetId">>;
@@ -20,6 +20,7 @@ const NO_TEXT: TextFilters = { userId: "", action: "", targetType: "", targetId:
 // id) — kept out of this generic text-input loop, but still lands in the same
 // `draft.userId`/`applied.userId` string the rest of the filter plumbing uses.
 const TEXT_KEYS = ["action", "targetType", "targetId"] as const;
+const TEXT_ICONS = { action: IconClipboardList, targetType: IconLayers, targetId: IconTag };
 const isForbidden = (e: unknown) => e instanceof ApiError && e.status === 403;
 
 function fmt(s: string, locale: string) {
@@ -94,12 +95,13 @@ function Anomalies({ onReady }: { onReady?: () => void }) {
     <div className="ppanel" data-ai-target="audit:anomalies">
       <div className="ppanel__h">
         <b>{t("title")}</b>
-        <span className="audit__hact">
-          <span className="advmuted">{res.status === "ready" ? rows.length : ""}</span>
-          <Select value={status} onChange={setStatus} options={opts} ariaLabel={t("filter")} />
-        </span>
+        <span className="advmuted">{res.status === "ready" ? rows.length : ""}</span>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
+      <FilterBar
+        className="uf--tray uf--solo"
+        fields={[{ key: "status", label: t("filter"), icon: IconShieldCheck, value: status, empty: "all", onChange: setStatus, options: opts, chip: null }]}
+      />
       {res.status === "loading" ? (
         <Skeleton rows={2} />
       ) : res.status === "error" ? (
@@ -156,16 +158,95 @@ export default function AdminAuditTrail() {
   const chain = useMemo(() => chainStates(rows), [rows]);
   const [exporting, setExporting] = useState(false);
   const [exportNote, setExportNote] = useState<string | null>(null);
-  const hasText = applied.userId || draft.userId || TEXT_KEYS.some((k) => applied[k] || draft[k]);
+  const [names, setNames] = useState<Record<string, string>>({});
+  const dirty = draft.userId.trim() !== applied.userId || TEXT_KEYS.some((k) => draft[k].trim() !== applied[k]);
 
-  function apply(e: FormEvent) {
-    e.preventDefault();
+  function commit() {
     setApplied({ userId: draft.userId.trim(), action: draft.action.trim(), targetType: draft.targetType.trim(), targetId: draft.targetId.trim() });
   }
-  function resetText() {
+  function apply(e: FormEvent) {
+    e.preventDefault();
+    commit();
+  }
+  function applyFromSheet(e: MouseEvent<HTMLFormElement>) {
+    if (e.target instanceof Element && e.target.closest(".uf-card__apply")) commit();
+  }
+  function clearText(k: keyof TextFilters) {
+    setDraft((d) => ({ ...d, [k]: "" }));
+    setApplied((a) => ({ ...a, [k]: "" }));
+  }
+  function resetAll() {
+    setFrom("");
+    setTo("");
     setDraft(NO_TEXT);
     setApplied(NO_TEXT);
   }
+  const findUsers = (q: string) =>
+    searchUsers(q).then((list) => {
+      const opts: SearchOption[] = list.map((u) => ({ value: u.id, label: u.name || u.lexgoId || u.id, sub: u.phone }));
+      setNames((cur) => {
+        const next = { ...cur };
+        for (const o of opts) next[o.value] = o.label;
+        return next;
+      });
+      return opts;
+    });
+  const nameOf = (id: string) => names[id] || id;
+  const day = (iso: string) => (iso ? shortDate(iso, locale) : "…");
+  const dateChip = from || to ? (from && from === to ? day(from) : `${day(from)} – ${day(to)}`) : null;
+
+  const fields: FilterField[] = [
+    {
+      key: "from",
+      label: t("from"),
+      icon: IconCalendar,
+      active: Boolean(from || to),
+      chip: dateChip,
+      clear: () => {
+        setFrom("");
+        setTo("");
+      },
+      node: <DatePicker value={from} onChange={setFrom} max={to || undefined} placeholder={t("from")} ariaLabel={t("from")} clearLabel={tc("clear")} />,
+    },
+    {
+      key: "to",
+      label: t("to"),
+      icon: IconCalendar,
+      chip: null,
+      node: <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={t("to")} ariaLabel={t("to")} clearLabel={tc("clear")} />,
+    },
+    {
+      key: "user",
+      label: t("user"),
+      icon: IconUser,
+      active: Boolean(applied.userId),
+      chip: applied.userId ? `${t("user")}: ${nameOf(applied.userId)}` : null,
+      clear: () => clearText("userId"),
+      node: (
+        <SearchSelect
+          value={draft.userId ? [draft.userId] : []}
+          onChange={(v) => setDraft((d) => ({ ...d, userId: v[0] ?? "" }))}
+          options={draft.userId ? [{ value: draft.userId, label: nameOf(draft.userId) }] : []}
+          onSearch={findUsers}
+          placeholder={t("userIdPh")}
+          searchPlaceholder={t("userIdPh")}
+          emptyText={t("noUsers")}
+          ariaLabel={t("user")}
+          removeLabel={t("reset")}
+          single
+        />
+      ),
+    },
+    ...TEXT_KEYS.map((k): FilterField => ({
+      key: k,
+      label: t(`f.${k}`),
+      icon: TEXT_ICONS[k],
+      active: Boolean(applied[k]),
+      chip: applied[k] ? `${t(`f.${k}`)}: ${applied[k]}` : null,
+      clear: () => clearText(k),
+      node: <input className="auditf__in" value={draft[k]} onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))} placeholder={t(`ph.${k}`)} aria-label={t(`f.${k}`)} enterKeyHint="search" />,
+    })),
+  ];
 
   // CSV of the filtered rows (GET …?export=csv, users.manage; the export itself is logged).
   async function exportCsv() {
@@ -230,33 +311,19 @@ export default function AdminAuditTrail() {
       </div>
       <p className="ppanel__note">{t("lead")}</p>
       <p className="ppanel__note audit__append"><IconLock />{t("appendOnly")}</p>
-      <div className="lfilters audit__dates">
-        <DatePicker value={from} onChange={setFrom} max={to || undefined} placeholder={tc("from")} ariaLabel={tc("from")} clearLabel={tc("clear")} />
-        <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={tc("to")} ariaLabel={tc("to")} clearLabel={tc("clear")} />
-      </div>
-      <form className="audit__filters" onSubmit={apply} data-ai-target="audit:filters">
-        <SearchSelect
-          value={draft.userId ? [draft.userId] : []}
-          onChange={(v) => setDraft((d) => ({ ...d, userId: v[0] ?? "" }))}
-          onSearch={(q) => searchUsers(q).then((list) => list.map((u) => ({ value: u.id, label: u.name || u.lexgoId || u.id, sub: u.phone })))}
-          placeholder={t("userIdPh")}
-          searchPlaceholder={t("userIdPh")}
-          emptyText={t("noUsers")}
-          ariaLabel={t("user")}
-          removeLabel={t("reset")}
-          single
+      <form className="auditf" onSubmit={apply} onClickCapture={applyFromSheet}>
+        <FilterBar
+          className="uf--tray"
+          fields={fields}
+          onReset={resetAll}
+          aiTarget="audit:filters"
+          extra={
+            <button type="submit" className="btn btn--pri" disabled={!dirty}>
+              <IconSearch />
+              {t("apply")}
+            </button>
+          }
         />
-        {TEXT_KEYS.map((k) => (
-          <input
-            key={k}
-            value={draft[k]}
-            onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
-            placeholder={t(`f.${k}`)}
-            aria-label={t(`f.${k}`)}
-          />
-        ))}
-        <button type="submit" className="btn btn--pri btn--sm"><IconSearch />{t("apply")}</button>
-        {hasText ? <button type="button" className="btn btn--ghost btn--sm" onClick={resetText}>{t("reset")}</button> : null}
       </form>
       {exportNote ? <Notice ok={false} msg={exportNote} /> : null}
       {!current ? (

@@ -8,12 +8,15 @@ import { errorText } from "@/lib/errorText";
 import { fmtRating } from "@/lib/date";
 import { getOwnerDashboard, type OrgWorkItem, type OwnerDashboard as Dash } from "@/lib/services/orgOwner";
 import { IconBolt, IconBriefcase, IconChevronLeft, IconList, IconRefresh, IconShieldCheck, IconTag, IconUsers } from "@/components/icons";
+import Select from "@/components/Select";
 import { aiId, aiSeg } from "@/lib/ai/ids";
-import { useAiSelection } from "@/lib/ai/registry";
+import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { useAiReveal } from "@/lib/guide/targets";
 import { OrgBlocked, WorkDetail, WorkRow } from "./bits";
 
 type WorkTab = "orders" | "cases" | "urgent";
+const WORK_TABS: WorkTab[] = ["orders", "cases", "urgent"];
+const isWorkTab = (v: string): v is WorkTab => (WORK_TABS as string[]).includes(v);
 
 export default function OwnerDashboard({ orgId }: { orgId: string }) {
   const t = useTranslations("orgOwner");
@@ -27,6 +30,12 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
   const [tab, setTab] = useState<WorkTab>("orders");
   const [detail, setDetail] = useState<OrgWorkItem | null>(null);
   useAiSelection("organization_works_tab", tab);
+  useAiField("organization.dashboard.works.filters.kind", {
+    get: () => tab,
+    set: (v) => {
+      if (isWorkTab(v)) setTab(v);
+    },
+  });
   useAiReveal(/^works\.item\./, (id) => {
     if (!data) return;
     const seg = id.split(".")[2] ?? "";
@@ -72,7 +81,8 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
     { k: "cases", Icon: IconBriefcase, v: s?.activeCases, tone: "blue" },
     { k: "urgent", Icon: IconBolt, v: s?.urgentRequests, tone: "warn" },
   ];
-  const works = data ? (tab === "orders" ? data.activeOrders : tab === "cases" ? data.activeCases : data.urgentRequests) : [];
+  const worksOf = (k: WorkTab) => (data ? (k === "orders" ? data.activeOrders : k === "cases" ? data.activeCases : data.urgentRequests) : []);
+  const works = worksOf(tab);
   const base = `/portal/advocate/organization/${encodeURIComponent(orgId)}`;
   const region = (r: string) => (te.has(`regions.${r}`) ? te(`regions.${r}`) : r);
 
@@ -162,13 +172,15 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
       <section className="opanel" data-ai-target="organization:active-orders" data-ai-id="organization.dashboard.works" data-ai-label={t("activeTitle")}>
         <div className="opanel__h">
           <b>{t("activeTitle")}</b>
-          <div className="suptabs" role="tablist">
-            {(["orders", "cases", "urgent"] as WorkTab[]).map((k) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k} className="suptab" onClick={() => setTab(k)} data-ai-id={`organization.dashboard.works.tab.${k}`}>
-                {t(`tabs.${k}`)}
-                <em>{data ? (k === "orders" ? data.activeOrders.length : k === "cases" ? data.activeCases.length : data.urgentRequests.length) : 0}</em>
-              </button>
-            ))}
+          <div className="wsel wsel--wide" data-ai-id="organization.dashboard.works.filters.kind" data-ai-type="select" data-ai-label={t("col.kind")}>
+            <Select
+              value={tab}
+              onChange={(v) => {
+                if (isWorkTab(v)) setTab(v);
+              }}
+              ariaLabel={t("col.kind")}
+              options={WORK_TABS.map((k) => ({ value: k, label: `${t(`tabs.${k}`)} (${worksOf(k).length})` }))}
+            />
           </div>
         </div>
         {!data ? (

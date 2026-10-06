@@ -16,10 +16,11 @@ import { useAiReveal } from "@/lib/guide/targets";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
-import SearchSelect from "@/components/SearchSelect";
+import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
+import FilterBar from "@/components/filters/FilterBar";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { ApiError, errDetail } from "@/lib/http";
-import { IconFileText, IconShieldCheck, IconPlus, IconEye } from "@/components/icons";
+import { IconFileText, IconShieldCheck, IconPlus, IconEye, IconUser } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
 
 // T0-18: the 10 legal documents (S-53) with their versions and the consents
@@ -225,13 +226,30 @@ function Journal() {
   const t = useTranslations("admin.legal");
   const [userSel, setUserSel] = useState<string[]>([]);
   const userId = userSel[0] ?? "";
+  const [names, setNames] = useState<Record<string, string>>({});
   const [slug, setSlug] = useState("all");
   const rows = useResource(() => listUserConsents(userId), [userId]);
   const slugOpts = useMemo(() => {
-    const s = [...new Set(rows.data.map((r) => r.slug).filter(Boolean))].sort();
-    return [{ value: "all", label: t("allDocs") }, ...s.map((x) => ({ value: x, label: t.has(`slugs.${x}`) ? t(`slugs.${x}`) : x }))];
-  }, [rows.data, t]);
+    const counts = new Map<string, number>();
+    for (const r of rows.data) if (r.slug) counts.set(r.slug, (counts.get(r.slug) ?? 0) + 1);
+    if (slug !== "all" && !counts.has(slug)) counts.set(slug, 0);
+    const name = (x: string) => (t.has(`slugs.${x}`) ? t(`slugs.${x}`) : x);
+    return [
+      { value: "all", label: `${t("allDocs")} (${rows.data.length})` },
+      ...[...counts.keys()].sort().map((x) => ({ value: x, label: `${name(x)} (${counts.get(x) ?? 0})` })),
+    ];
+  }, [rows.data, slug, t]);
   const list: UserConsentRow[] = slug === "all" ? rows.data : rows.data.filter((r) => r.slug === slug);
+  const findUsers = (q: string) =>
+    searchUsers(q).then((found) => {
+      const opts: SearchOption[] = found.map((u) => ({ value: u.id, label: u.name || u.lexgoId || u.id, sub: u.phone }));
+      setNames((cur) => {
+        const next = { ...cur };
+        for (const o of opts) next[o.value] = o.label;
+        return next;
+      });
+      return opts;
+    });
 
   return (
     <div className="ppanel" data-ai-target="legal:journal">
@@ -240,26 +258,36 @@ function Journal() {
         <span className="advmuted">{rows.status === "ready" ? t("rows", { n: list.length }) : ""}</span>
       </div>
       <p className="ppanel__note">{t("journalLead")}</p>
-      <div className="audit__filters">
-        <div>
-          <label>{t("userId")}</label>
-          <SearchSelect
-            value={userSel}
-            onChange={setUserSel}
-            onSearch={(q) => searchUsers(q).then((list) => list.map((u) => ({ value: u.id, label: u.name || u.lexgoId || u.id, sub: u.phone })))}
-            placeholder={t("userIdPh")}
-            searchPlaceholder={t("userIdPh")}
-            emptyText={t("noUsers")}
-            ariaLabel={t("userId")}
-            removeLabel={t("clear")}
-            single
-          />
-        </div>
-        <div>
-          <label>{t("doc")}</label>
-          <Select value={slug} onChange={setSlug} options={slugOpts} ariaLabel={t("doc")} />
-        </div>
-      </div>
+      <FilterBar
+        className="uf--tray legalf"
+        fields={[
+          {
+            key: "user",
+            label: t("userId"),
+            icon: IconUser,
+            wide: true,
+            active: Boolean(userId),
+            chip: userId ? `${t("userId")}: ${names[userId] || userId}` : null,
+            clear: () => setUserSel([]),
+            node: (
+              <SearchSelect
+                value={userSel}
+                onChange={setUserSel}
+                options={userId ? [{ value: userId, label: names[userId] || userId }] : []}
+                onSearch={findUsers}
+                placeholder={t("userIdPh")}
+                searchPlaceholder={t("userIdPh")}
+                emptyText={t("noUsers")}
+                ariaLabel={t("userId")}
+                removeLabel={t("clear")}
+                single
+              />
+            ),
+          },
+          { key: "doc", label: t("doc"), icon: IconFileText, value: slug, empty: "all", onChange: setSlug, options: slugOpts },
+        ]}
+        count={rows.status === "ready" ? list.length : undefined}
+      />
       {rows.status === "loading" ? (
         <Skeleton rows={5} />
       ) : rows.status === "error" ? (

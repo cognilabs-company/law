@@ -15,6 +15,7 @@ import { OrgBlocked } from "./bits";
 
 type Tab = "services" | "workload";
 type Head = { key: string; member: OrgMemberRow | null; orgName: string; error: unknown };
+type Svc = { key: string; data: ManagedServices };
 
 const initials = (name: string) =>
   name
@@ -29,8 +30,9 @@ export default function OrgMemberPage({ orgId, memberId, tab }: { orgId: string;
   const ts = useTranslations("sellerServices");
   const locale = useLocale();
   const [head, setHead] = useState<Head | null>(null);
-  const [svc, setSvc] = useState<ManagedServices | null>(null);
+  const [svcLoad, setSvcLoad] = useState<Svc | null>(null);
   const headKey = `${orgId}|${memberId}`;
+  const svc = svcLoad && svcLoad.key === headKey ? svcLoad.data : null;
   const scope = useMemo<ServiceScope>(() => ({ kind: "org", orgId, memberId }), [orgId, memberId]);
   const base = `/portal/advocate/organization/${encodeURIComponent(orgId)}`;
   const mbase = `${base}/members/${encodeURIComponent(memberId)}`;
@@ -139,7 +141,7 @@ export default function OrgMemberPage({ orgId, memberId, tab }: { orgId: string;
           role="advocate"
           owner
           title={name ? ts("titleOwner", { name }) : ts("title")}
-          onData={setSvc}
+          onData={(d) => setSvcLoad({ key: headKey, data: d })}
         />
       ) : (
         <OwnerWorkload orgId={orgId} memberId={memberId} />

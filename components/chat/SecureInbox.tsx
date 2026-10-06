@@ -21,7 +21,8 @@ import { dateTimeFull } from "@/lib/date";
 import { initials } from "@/lib/lawyers";
 import { statusLabel } from "@/lib/labels";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { IconShieldCheck, IconArrowRight, IconLock, IconSearch, IconChat, IconClock, IconUsers, IconBolt } from "@/components/icons";
+import FilterBar from "@/components/filters/FilterBar";
+import { IconShieldCheck, IconArrowRight, IconLock, IconSearch, IconChat, IconClock, IconUsers, IconBolt, IconTag } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField } from "@/lib/ai/registry";
 
@@ -33,6 +34,20 @@ import { useAiField } from "@/lib/ai/registry";
 // message arrives on the user socket.
 
 type Dir = Map<string, string>;
+
+const KINDS = ["urgent", "order", "case", "other"] as const;
+
+const aiNorm = (v: string) => v.toLowerCase().replace(/[ʻʼ'‘’`]/g, "").replace(/\s*\(.*\)$/, "").replace(/\s+/g, " ").trim();
+
+function aiPick(opts: { value: string; label: string }[], raw: string): string | null {
+  const w = aiNorm(raw);
+  if (!w) return "";
+  const hit =
+    opts.find((o) => o.value && aiNorm(o.value) === w) ??
+    opts.find((o) => o.value && aiNorm(o.label) === w) ??
+    opts.find((o) => o.value && w.length > 2 && aiNorm(o.label).includes(w));
+  return hit ? hit.value : null;
+}
 
 function roomStamp(room: SecureRoom): number {
   const value = Date.parse(room.updatedAt || room.lastMessageAt || room.createdAt || "");
@@ -77,11 +92,13 @@ export default function SecureInbox() {
   // "Ikkinchi fikr — advokatlar guruhi" is already translated; the raw
   // `title` the record carries is the backend's ASCII spelling of it.
   const tk = useTranslations("portal.client.urgent");
+  const tf = useTranslations("filterBar");
   const locale = useLocale();
   const { session } = useAuth();
   const res = useResource(listSecureChats, []);
   const { setData } = res;
   const [q, setQ] = useState("");
+  const [kind, setKind] = useState("");
   const [dir, setDir] = useState<Dir>(new Map());
   // roomId → the Tezkor Advokat record that room belongs to.
   const [ua, setUa] = useState<Map<string, UrgentRequest>>(new Map());
@@ -181,7 +198,7 @@ export default function SecureInbox() {
     return `/portal/chat/${r.id}?${q.toString()}`;
   };
 
-  const rows = useMemo(() => {
+  const found = useMemo(() => {
     // Newest room first — the list arrived in creation order, which put the
     // conversation the user is most likely to want at the very bottom.
     const sorted = sortRooms(res.data);
@@ -198,11 +215,28 @@ export default function SecureInbox() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [res.data, q, dir, me, ua]);
 
+  const kindOf = (r: SecureRoom) => (ua.has(r.id) ? "urgent" : r.orderId ? "order" : r.caseId ? "case" : "other");
+  const searchShown = res.data.length > 4;
+  const kinds = KINDS.filter((k) => k === kind || res.data.some((r) => kindOf(r) === k));
+  const kindShown = searchShown && kinds.length > 1;
+  const kindOn = kindShown ? kind : "";
+  const kindOpts = [
+    { value: "", label: `${tf("all")} (${found.length})` },
+    ...kinds.map((k) => ({ value: k, label: `${t(`kinds.${k}`)} (${found.filter((r) => kindOf(r) === k).length})` })),
+  ];
+  const rows = kindOn ? found.filter((r) => kindOf(r) === kindOn) : found;
+
   const unreadN = rows.reduce((sum, room) => sum + room.unreadCount, 0);
   const ai = session ? (session.role === "client" ? "marketplace.messages" : "advocate.messages") : "";
   const listShown = res.status === "ready" && rows.length > 0;
-  const searchShown = res.data.length > 4;
   useAiField(searchShown && ai ? `${ai}.search.input` : "", { get: () => q, set: setQ, sensitive: true });
+  useAiField(kindShown && ai ? `${ai}.filters.kind` : "", {
+    get: () => kindOn,
+    set: (v) => {
+      const next = aiPick(kindOpts, v);
+      if (next !== null) setKind(next);
+    },
+  });
 
   return (
     <div
@@ -226,12 +260,20 @@ export default function SecureInbox() {
       </div>
 
       {searchShown ? (
-        <div className="svsel__bar sinbox__search" data-ai-target="messages:search" data-ai-label={t("search")}>
-          <span className="svsel__search">
-            <IconSearch />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} data-ai-id={ai ? `${ai}.search.input` : undefined} />
-          </span>
-        </div>
+        <FilterBar
+          className="ppfilters"
+          fields={[{ key: "kind", label: t("fKind"), icon: IconTag, value: kindOn, onChange: setKind, options: kindOpts, hidden: !kindShown, aiId: ai ? `${ai}.filters.kind` : undefined }]}
+          search={{
+            value: q,
+            onChange: setQ,
+            placeholder: t("search"),
+            aiId: ai ? `${ai}.search.input` : undefined,
+            aiTarget: "messages:search",
+            aiLabel: t("search"),
+          }}
+          count={rows.length}
+          aiId={ai && kindShown ? `${ai}.filters` : undefined}
+        />
       ) : null}
 
       {res.status === "loading" ? (
