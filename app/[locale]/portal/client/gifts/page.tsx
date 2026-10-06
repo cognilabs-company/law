@@ -21,6 +21,8 @@ import Select from "@/components/Select";
 import { IconGift, IconPlus, IconCheck, IconArrowRight } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 
+const TERMS = [3, 6, 12];
+
 // The gift's exact price is fixed at checkout by the backend; this is only a
 // preview so the sender isn't guessing before they submit. Uses the plan's
 // own 6/12-month total when the term matches it, else the monthly rate × months.
@@ -28,6 +30,13 @@ function estimateGiftTotal(plan: BackendPlan, months: number): number {
   if (months === 12 && plan.yearlyPrice) return plan.yearlyPrice;
   if (months === 6 && plan.sixMonthPrice) return plan.sixMonthPrice;
   return plan.monthlyPrice * months;
+}
+
+function statusTone(status: string): "ok" | "wait" | "live" | "off" {
+  if (status === "claimed" || status === "activated") return "ok";
+  if (status === "pending" || status === "unpaid") return "wait";
+  if (status === "expired" || status === "canceled" || status === "cancelled") return "off";
+  return "live";
 }
 
 function fmtDate(s: string, locale: string) {
@@ -49,24 +58,26 @@ export default function ClientGifts() {
   // CATALOG_OPTIMIZATION_FRONTEND.md) — this dropdown needs every giftable
   // service, not just the first page.
   const services = useResource<BackendService>(() => getAllServices(undefined, locale), [locale]);
-  // A dedicated gift plan (billing_type "gift") is the wrapper, not something to
-  // gift — only offer the real giftable tariffs.
-  const giftable = plans.data.filter((p) => p.isGiftable && p.billingType !== "gift");
+  const giftable = plans.data.filter((p) => p.isGiftable);
 
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"plan" | "service">("plan");
   const [planId, setPlanId] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [hint, setHint] = useState("");
-  const [term, setTerm] = useState("6");
+  const [termPick, setTermPick] = useState(6);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [created, setCreated] = useState<GiftResult | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const planOpts = (giftable.length ? giftable : plans.data).map((p) => ({ value: p.id, label: p.name }));
+  const chosenPlan = giftable.find((p) => p.id === planId) || giftable[0] || null;
+  const planOpts = giftable.map((p) => ({ value: p.id, label: p.name }));
   const serviceOpts = services.data.filter((s) => s.isActive).map((s) => ({ value: s.id, label: s.name }));
-  const termOpts = ["3", "6", "12"].map((n) => ({ value: n, label: `${n} ${t("months")}` }));
+  const chosenService = serviceId || serviceOpts[0]?.value || "";
+  const terms = chosenPlan?.allowedGiftDurations.length ? chosenPlan.allowedGiftDurations : TERMS;
+  const term = terms.includes(termPick) ? termPick : terms[0];
+  const priced = chosenPlan && chosenPlan.monthlyPrice > 0 ? chosenPlan : null;
 
   // Back from the checkout page may restore this page from the bfcache with the
   // button still busy (it stays busy while the browser navigates away).
@@ -83,13 +94,15 @@ export default function ClientGifts() {
     setCopied(false);
     setHint("");
     setNote(null);
+    setKind("plan");
+    setPlanId("");
+    setServiceId("");
+    setTermPick(6);
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const isService = kind === "service";
-    const chosenPlan = giftable.find((p) => p.id === (planId || planOpts[0]?.value));
-    const chosenService = serviceId || serviceOpts[0]?.value;
     if (busy || (isService ? !chosenService : !chosenPlan)) {
       setNote({ ok: false, msg: t("error") });
       return;
@@ -101,7 +114,7 @@ export default function ClientGifts() {
       const r = await createGift(
         isService
           ? { service_id: chosenService, recipient_hint: hint.trim() || undefined }
-          : { plan_slug: chosenPlan!.slug, duration_months: parseInt(term, 10), recipient_hint: hint.trim() || undefined },
+          : { plan_slug: chosenPlan!.slug, duration_months: term, recipient_hint: hint.trim() || undefined },
       );
       setCreated(r);
       setReloadKey((k) => k + 1);
@@ -148,31 +161,41 @@ export default function ClientGifts() {
         <EmptyState icon={<IconGift />} title={t("empty")} text={t("emptyText")} />
       ) : (
         <div className="alist" data-ai-target="gifts:list">
-          {gifts.data.map((g) => (
-            <div className="creq" key={g.id}>
-              <span className="creq__st" />
-              <div className="creq__m">
-                <b>{g.planName || t("untitledGift")}</b>
-                {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: GFT-XXXXX — the gift's own
-                    public id, distinct from the redemption code below. */}
-                {g.workId ? <small className="wid">{g.workId}</small> : null}
-                <span>
-                  {[g.recipientPhone, g.termMonths ? `${g.termMonths} ${t("months")}` : "", fmtDate(g.createdAt, locale)]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-                {g.shareUrl && g.status !== "claimed" ? (
-                  <a className="gift__list-link" href={g.shareUrl} target="_blank" rel="noreferrer">
-                    {t("shareCta")}
-                  </a>
-                ) : null}
+          {gifts.data.map((g) => {
+            const tone = statusTone(g.status);
+            const incoming = g.direction === "received";
+            return (
+              <div className="creq" key={g.id}>
+                <span className={`creq__st creq__st--${tone}`} />
+                <div className="creq__m">
+                  <b>{g.title || t("untitledGift")}</b>
+                  {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: GFT-XXXXX — the gift's own
+                      public id, distinct from the redemption code below. */}
+                  {g.workId ? <small className="wid">{g.workId}</small> : null}
+                  <small className="gift__kind">{t(g.kind === "service" ? "kindService" : "kindPlan")}</small>
+                  {incoming ? <small className="gift__kind gift__kind--in">{t("gotIt")}</small> : null}
+                  <span>
+                    {[
+                      incoming ? "" : g.recipientPhone,
+                      g.termMonths ? `${g.termMonths} ${t("months")}` : "",
+                      fmtDate(g.createdAt, locale),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                  {g.shareUrl && !incoming && g.status !== "claimed" ? (
+                    <a className="gift__list-link" href={g.shareUrl} target="_blank" rel="noreferrer">
+                      {t("shareCta")}
+                    </a>
+                  ) : null}
+                </div>
+                {/* Scoped to the status map: an unscoped lookup could collide with any
+                    key on the page (a gift whose status is "title" would print the
+                    page heading). */}
+                <span className={`creq__badge creq__badge--${tone}`}>{tg.has(g.status) ? tg(g.status) : g.status}</span>
               </div>
-              {/* Scoped to the status map: an unscoped lookup could collide with any
-                  key on the page (a gift whose status is "title" would print the
-                  page heading). */}
-              <span className="creq__badge">{tg.has(g.status) ? tg(g.status) : g.status}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -184,7 +207,7 @@ export default function ClientGifts() {
             <p className="advmuted">{t("shareHint")}</p>
             {created.qrUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img className="gift__qr" src={created.qrUrl} alt={t("qrAlt")} width={180} height={180} onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              <img className="gift__qr" src={created.qrUrl} alt={t("qrAlt")} width={148} height={148} onError={(e) => { e.currentTarget.style.display = "none"; }} />
             ) : null}
             <div className="gift__share">
               <input readOnly value={created.shareUrl} onFocus={(e) => e.currentTarget.select()} />
@@ -205,8 +228,8 @@ export default function ClientGifts() {
             </div>
           </div>
         ) : (
-          <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
-            <div className="rolerow" style={{ display: "flex" }}>
+          <form className="cform gift__form" onSubmit={submit}>
+            <div className="rolerow gift__tabs">
               <button type="button" className="roletab" aria-pressed={kind === "plan"} onClick={() => setKind("plan")}>
                 {t("kindPlan")}
               </button>
@@ -214,50 +237,73 @@ export default function ClientGifts() {
                 {t("kindService")}
               </button>
             </div>
+
             {kind === "plan" ? (
-              <div>
-                <label>{t("plan")}</label>
-                <Select
-                  value={planId || planOpts[0]?.value || ""}
-                  onChange={setPlanId}
-                  options={planOpts.length ? planOpts : [{ value: "", label: "—" }]}
-                  ariaLabel={t("plan")}
-                />
-                {plans.status === "error" ? <p className="rf__hint">{tp("loadError")}. {tp("loadErrorText")}</p> : null}
-              </div>
+              plans.status === "error" ? (
+                <p className="rf__hint">{tp("loadError")}. {tp("loadErrorText")}</p>
+              ) : !giftable.length && plans.status !== "loading" ? (
+                <p className="gift__none">{t("noPlans")}</p>
+              ) : (
+                <>
+                  {giftable.length > 1 ? (
+                    <div>
+                      <label>{t("plan")}</label>
+                      <Select value={chosenPlan?.id || ""} onChange={setPlanId} options={planOpts} ariaLabel={t("plan")} />
+                    </div>
+                  ) : chosenPlan ? (
+                    <div className="gift__plan">
+                      <span className="gift__plan-ic"><IconGift /></span>
+                      <span className="gift__plan-tx">
+                        <b>{chosenPlan.name}</b>
+                        {chosenPlan.description ? <small>{chosenPlan.description}</small> : null}
+                      </span>
+                    </div>
+                  ) : null}
+                  <div>
+                    <label>{t("term")}</label>
+                    <div className="gift__terms" role="group" aria-label={t("term")}>
+                      {terms.map((n) => (
+                        <button key={n} type="button" className="fchip" aria-pressed={n === term} onClick={() => setTermPick(n)}>
+                          {n} {t("months")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )
             ) : (
               <div>
                 <label>{t("service")}</label>
                 <Select
-                  value={serviceId || serviceOpts[0]?.value || ""}
+                  value={chosenService}
                   onChange={setServiceId}
                   options={serviceOpts.length ? serviceOpts : [{ value: "", label: "—" }]}
                   ariaLabel={t("service")}
                 />
               </div>
             )}
-            {kind === "plan" ? (
-              <div>
-                <label>{t("term")}</label>
-                <Select value={term} onChange={setTerm} options={termOpts} ariaLabel={t("term")} />
-              </div>
-            ) : null}
+
             <div>
               <label>{t("recipient")}</label>
               <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder={t("recipientHintPh")} />
             </div>
-            {kind === "plan" && (planId || planOpts[0]?.value) ? (() => {
-              const chosen = giftable.find((p) => p.id === (planId || planOpts[0]?.value));
-              return chosen && chosen.monthlyPrice > 0 ? (
+
+            {kind === "plan" && priced ? (
+              <div className="gift__price">
                 <div className="pgift__est">
                   <span>{t("estTotal")} · {term} {t("months")}</span>
-                  <b>{fmtUzs(estimateGiftTotal(chosen, parseInt(term, 10)))} {t("som")}</b>
+                  <b>{fmtUzs(estimateGiftTotal(priced, term))} {t("som")}</b>
                 </div>
-              ) : null;
-            })() : null}
-            {kind === "plan" && (planId || planOpts[0]?.value) ? <p className="rf__hint" style={{ marginTop: -6 }}>{t("estHint")}</p> : null}
+                <p className="rf__hint">{t("estHint")}</p>
+              </div>
+            ) : null}
+
             {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-            <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
+            <button
+              className="btn btn--pri btn--full"
+              type="submit"
+              disabled={busy || (kind === "plan" ? !chosenPlan : !chosenService)}
+            >
               {busy ? t("sending") : t("send")}
             </button>
           </form>

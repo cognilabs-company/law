@@ -5303,6 +5303,8 @@
           "notFound": "Sovg'a topilmadi. Havolani tekshiring."
         },
         "untitledGift": "Obuna sovg'asi",
+      "noPlans": "Hozircha sovg'a qilish mumkin bo'lgan tarif yo'q.",
+      "gotIt": "Sizga sovg'a",
         "estTotal": "Taxminiy narx",
         "estHint": "Yakuniy narx to'lov sahifasida ko'rsatiladi.",
         "som": "so'm"

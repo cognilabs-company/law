@@ -5297,6 +5297,8 @@
           "notFound": "Gift not found. Check the link."
         },
         "untitledGift": "Gift subscription",
+      "noPlans": "No plan is available to gift right now.",
+      "gotIt": "Gift for you",
         "estTotal": "Estimated price",
         "estHint": "The final price is shown at checkout.",
         "som": "UZS"

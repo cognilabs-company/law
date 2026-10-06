@@ -4398,7 +4398,10 @@ export type Gift = {
   workId: string;
   direction: string;
   recipientPhone: string;
+  kind: "plan" | "service";
   planName: string;
+  serviceName: string;
+  title: string;
   termMonths: number;
   status: string;
   createdAt: string;
@@ -4409,13 +4412,19 @@ export type Gift = {
 function normGift(v: unknown): Gift {
   const d = asDict(v);
   const code = asStr(d.gift_code ?? d.code);
+  const planName = asStr(d.plan_name);
+  const serviceName = asStr(d.service_name);
+  const kind = planName || !serviceName ? "plan" : "service";
   return {
     id: asStr(d.id),
     workId: asStr(d.work_id),
     direction: asStr(d.direction, "sent"),
     recipientPhone: asStr(d.recipient_phone),
-    planName: asStr(d.plan_name ?? d.service_name),
-    termMonths: asNum(d.term_months ?? d.duration_months),
+    kind,
+    planName,
+    serviceName,
+    title: planName || serviceName,
+    termMonths: kind === "plan" ? asNum(d.term_months ?? d.duration_months) : 0,
     status: asStr(d.status),
     createdAt: asStr(d.created_at),
     giftCode: code,
@@ -4445,7 +4454,7 @@ export async function createGift(input: GiftInput): Promise<GiftResult> {
   const raw = asDict(
     await http("/gifts", {
       method: "POST",
-      body: JSON.stringify({ provider: CHECKOUT_PROVIDER, duration_months: 6, ...input }),
+      body: JSON.stringify({ provider: CHECKOUT_PROVIDER, ...input }),
     }),
   );
   // `payment` may be a bare URL string or an object with payment_url.
