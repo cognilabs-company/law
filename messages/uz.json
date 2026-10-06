@@ -3476,7 +3476,6 @@
       "title": "Yordam kerakmi?",
       "sub": "Biz shu yerdamiz — qulay yo'lni tanlang.",
       "ai": "AI instruktor",
-      "aiSub": "Kerakli joyni ko'rsatadi, darhol javob beradi",
       "complaint": "Shikoyat yuborish",
       "complaintSub": "Xizmat yoki mutaxassis ustidan rasmiy shikoyat",
       "call": "Qo'ng'iroq qilish"
@@ -4120,9 +4119,7 @@
       "pageTourShort": "Sahifani ko'rsat",
       "ticketShown": "Savolingiz yuborildi — operator bilan chatingiz shu yerda.",
       "showMe": "Ko'rsatish",
-      "safety": "Men hech narsani sizning nomingizdan bosmayman va to'lamayman.",
       "newChat": "Yangi suhbat",
-      "try": "Masalan:",
       "pageTourSub": "Asosiy joylarni birma-bir ko'rsatib beraman",
       "pageTour": "Bu sahifada nima bor?",
       "capOperator": "Kerak bo'lsa operatorga ulayman",

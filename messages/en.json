@@ -3470,7 +3470,6 @@
       "title": "Need help?",
       "sub": "We are here — pick what suits you.",
       "ai": "AI instructor",
-      "aiSub": "Shows you around and answers instantly",
       "complaint": "File a complaint",
       "complaintSub": "A formal complaint about a service or specialist",
       "call": "Call us"
@@ -4114,9 +4113,7 @@
       "pageTourShort": "Show this page",
       "ticketShown": "Your question is sent — your chat with an operator is here.",
       "showMe": "Show me",
-      "safety": "I never click or pay anything on your behalf.",
       "newChat": "New chat",
-      "try": "For example:",
       "pageTourSub": "I'll show the main parts one by one",
       "pageTour": "What's on this page?",
       "capOperator": "I connect you to an operator if needed",

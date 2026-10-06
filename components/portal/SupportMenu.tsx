@@ -77,7 +77,7 @@ export default function SupportMenu({ role }: { role: Role }) {
           <button
             type="button"
             role="menuitem"
-            className="psup__it"
+            className="psup__it psup__it--solo"
             data-ai-id="support.menu.ai-instructor"
             onClick={() => {
               done();
@@ -89,7 +89,6 @@ export default function SupportMenu({ role }: { role: Role }) {
             </span>
             <span className="psup__tx">
               <b>{t("ai")}</b>
-              <small>{t("aiSub")}</small>
             </span>
           </button>
           <Link role="menuitem" href={`${hub}?new=1`} className="psup__it" onClick={done} data-ai-id="support.menu.operator">

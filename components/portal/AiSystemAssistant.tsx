@@ -14,12 +14,27 @@ import { pageFor, registryTargets, stepTextKey } from "@/lib/guide/pages";
 import { startTour, stopTour, tourActive } from "@/lib/guide/store";
 import { onInstructorOpen, openInstructor } from "@/lib/guide/panel";
 import type { GuideRole, GuideTour } from "@/lib/guide/types";
-import { abortCommands, commandsRunning, normCommands, replayCommands, runCommands, supportCommand, tourFromSteps, type RunCtx } from "@/lib/ai/commands";
+import {
+  abortCommands,
+  canReplay,
+  commandsKnown,
+  commandsRunning,
+  hasStepTour,
+  normCommand,
+  normCommands,
+  replayCommands,
+  runCommands,
+  supportCommand,
+  tourFromSteps,
+  type RunCtx,
+} from "@/lib/ai/commands";
 import { buildAiSnapshot } from "@/lib/ai/manifest";
+import { crossPageTargets } from "@/lib/ai/destinations";
+import { selfHelpAsked } from "@/lib/ai/self";
 import { noteChatActivity, setPanelEngaged } from "@/lib/ai/runtime";
 import { aiSessionId, resetAiSession, setAiScope, setAiSessionId, type AiScope } from "@/lib/ai/session";
-import { markAiSeen, onAiRealtime, type AiRealtimeEvent } from "@/lib/ai/realtime";
-import type { AiChatResponse, AiCommand, InstructorContract } from "@/lib/ai/types";
+import { aiResponseKey, markAiSeen, onAiRealtime, type AiRealtimeEvent } from "@/lib/ai/realtime";
+import type { AiChatResponse, AiCommand, AiSupportFallback, InstructorContract } from "@/lib/ai/types";
 import {
   cachedInstructorContract,
   ensureInstructorContract,
@@ -56,14 +71,26 @@ import RobotAvatar from "@/components/guide/RobotAvatar";
 import Typewriter from "@/components/guide/Typewriter";
 import { RobotEvents } from "@/components/lexgo/robot/RobotEvents";
 import {
-  IconArrowRight, IconCheck, IconClose, IconHeadset, IconInfo, IconMapPin, IconRefresh, IconSend, IconShieldCheck, IconSparkle, IconTarget,
+  IconArrowRight, IconCheck, IconClose, IconHeadset, IconInfo, IconMapPin, IconRefresh, IconSend, IconSparkle, IconTarget,
 } from "@/components/icons";
 
 const MAX = 1000;
 const HISTORY = 30;
 
 type GuideMsg = { kind: "guide"; id: string; text: string; intent: string; tour: GuideTour | null; support: boolean; checklist?: string[]; needs?: string[] };
-type V21Msg = { kind: "v21"; id: string; text: string; intent: string; cmds: AiCommand[]; question: string; sid: string };
+type V21Msg = {
+  kind: "v21";
+  id: string;
+  text: string;
+  intent: string;
+  cmds: AiCommand[];
+  question: string;
+  sid: string;
+  steps?: string[];
+  needs?: string[];
+  fallback?: AiSupportFallback | null;
+  offerSupport?: boolean;
+};
 type Msg =
   | { kind: "me"; id: string; text: string }
   | GuideMsg
@@ -76,13 +103,6 @@ type V21Outcome = { kind: "ok"; res: AiChatResponse; contract: InstructorContrac
 const VISUAL = new Set(["navigate", "highlight", "tooltip", "scroll_to", "focus_input"]);
 
 type Confirm = { key: string; message: string; busy: boolean; error: string; note: string; v2: boolean };
-
-const ROLE_SUGGEST: Record<GuideRole, string[]> = {
-  client: ["suggest.client.plan", "suggest.client.lawyer", "suggest.client.document", "suggest.client.operator"],
-  lawyer: ["suggest.seller.works", "suggest.seller.orders", "suggest.seller.profile"],
-  advocate: ["suggest.seller.works", "suggest.seller.orders", "suggest.seller.profile"],
-  staff: ["suggest.staff.queue", "suggest.staff.urgent"],
-};
 
 function makeId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -157,10 +177,6 @@ export default function AiSystemAssistant({
   }, [open, owner, gRole]);
 
   const page = useMemo(() => pageFor(pathname, gRole), [pathname, gRole]);
-  const suggestions = useMemo(() => {
-    const keys = page?.suggestions?.length ? page.suggestions : ROLE_SUGGEST[gRole];
-    return keys.filter((k) => tg.has(k)).slice(0, 4).map((k) => tg(k));
-  }, [page, gRole, tg]);
 
   useEffect(() => {
     if (!storeKey) return;
@@ -254,8 +270,25 @@ export default function AiSystemAssistant({
       ticketCreatedPlain: t("ticketCreatedPlain"),
       ticketShown: t("ticketShown"),
       ticketWrite: t("ticketWrite"),
+      actionDone: (action: string, workId: string) => {
+        const text = t.has(`v21.done.${action}`) ? t(`v21.done.${action}`) : t("v21.done.generic");
+        return workId ? `${text} · ${workId}` : text;
+      },
     },
   });
+
+  const declaredTargets = (contract: InstructorContract, visible: string[], selfHelp: boolean) =>
+    crossPageTargets({
+      role: gRole,
+      path: pathname,
+      allowed: contract.allowedRoutes,
+      exclude: visible,
+      selfHelp,
+      labels: {
+        dest: (key) => (t.has(`v21.targets.${key}`) ? t(`v21.targets.${key}`) : ""),
+        tour: (key) => (tg.has(key) ? tg(key) : ""),
+      },
+    });
 
   const instructorV21Reply = async (message: string): Promise<V21Outcome> => {
     const mode = instructorMode();
@@ -263,11 +296,13 @@ export default function AiSystemAssistant({
     const contract = await ensureInstructorContract(gRole);
     if (!contract) return mode === "v21" ? { kind: "unavailable" } : { kind: "fallback" };
     const scope = scopeNow();
+    const selfHelp = selfHelpAsked(message);
     let sid = aiSessionId(scope);
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const snapshot = buildAiSnapshot({ role: contract.role || gRole, description: pageDescription() });
-        const res = await instructorChat({ ...(sid ? { session_id: sid } : {}), locale, message, ...snapshot, history: v21History() });
+        const snapshot = buildAiSnapshot({ role: contract.role || gRole, description: pageDescription(), selfHelp });
+        const targets = declaredTargets(contract, snapshot.runtime_state.visible_ai_ids, selfHelp);
+        const res = await instructorChat({ ...(sid ? { session_id: sid } : {}), locale, message, ...snapshot, targets, history: v21History() });
         if (res.sessionId) setAiSessionId(scope, res.sessionId);
         noteChatActivity();
         return { kind: "ok", res, contract };
@@ -287,9 +322,15 @@ export default function AiSystemAssistant({
 
   const startV21 = (res: AiChatResponse, contract: InstructorContract | null, question: string, source: "http" | "ws") => {
     const cmds = normCommands(res.rawCommands, res.responseId || makeId());
-    if (res.responseId) markAiSeen(`response:${res.responseId}`);
+    markAiSeen(aiResponseKey(res.responseId, res.rawCommands, res.answer));
     const sid = res.sessionId || aiSessionId(scopeNow());
-    setMsgs((m) => [...m, { kind: "v21", id: makeId(), text: res.answer, intent: res.intent, cmds, question, sid }]);
+    const guiding = cmds.some((c) => VISUAL.has(c.type) || c.type === "preview_action" || c.type === "confirm_required");
+    const fallback = res.supportFallback;
+    const offerSupport = gRole !== "staff" && (res.intent === "support_guidance" || (Boolean(fallback?.available) && !guiding && !res.steps.length));
+    setMsgs((m) => [
+      ...m,
+      { kind: "v21", id: makeId(), text: res.answer, intent: res.intent, cmds, question, sid, steps: res.steps, needs: res.missingRequirements, fallback, offerSupport },
+    ]);
     if (!cmds.length || (source === "ws" && commandsRunning())) return;
     void runCommands(cmds, runCtx(sid, contract, question, res.answer, source)).then((sum) => {
       if (sum.missing || sum.failed) openInstructor();
@@ -326,7 +367,7 @@ export default function AiSystemAssistant({
   const buildRequest = (message: string): InstructorRequest => {
     const seen = collectTargets(200);
     const here = instructorPath(pathname, gRole);
-    const { targets, visible } = instructorTargets(seen, registryTargets(gRole, pathname), pathname, gRole, (r) => (tg.has(r.text) ? tg(r.text) : ""));
+    const { targets, visible } = instructorTargets(seen, registryTargets(gRole, pathname), pathname, gRole, (r) => (tg.has(r.text) ? tg(r.text) : ""), message, t("v21.targets.launcher"));
     const turns: { q: string; a: string }[] = [];
     let asked = "";
     for (const m of msgs) {
@@ -359,9 +400,19 @@ export default function AiSystemAssistant({
     }
   };
 
+  const wsStash = useRef<{ res: AiChatResponse; at: number } | null>(null);
+
+  const takeStash = () => {
+    const v = wsStash.current;
+    wsStash.current = null;
+    return v;
+  };
+
   const send = async (raw?: string) => {
     const message = (raw ?? text).trim();
     if (!message || busy) return;
+    const sentAt = Date.now();
+    takeStash();
     setMsgs((m) => [...m, { kind: "me", id: makeId(), text: message }]);
     setText("");
     setBusy(true);
@@ -382,7 +433,7 @@ export default function AiSystemAssistant({
       const reply = v21.kind === "ok" ? null : await instructorReply(message);
       const guided = reply ? replyHasGuide(reply, gRole, pathname) : false;
       if (reply && !replyNeedsAssistant(reply, guided)) {
-        const tour = guided ? tourFromReply(reply, gRole, captionFor, pathname) : null;
+        const tour = guided ? tourFromReply(reply, gRole, captionFor, pathname, message) : null;
         const support = replyOffersSupport(reply, gRole, Boolean(tour));
         setMsgs((m) => [
           ...m,
@@ -406,6 +457,12 @@ export default function AiSystemAssistant({
       RobotEvents.emit("idle");
     } catch (e) {
       if (isAborted(e)) return;
+      const late = takeStash();
+      if (late && late.at >= sentAt) {
+        RobotEvents.emit("idle");
+        startV21(late.res, cachedInstructorContract(gRole), message, "ws");
+        return;
+      }
       logApiError("ai instructor", e);
       setMsgs((m) => [...m, { kind: "err", id: makeId(), text: errDetail(e) || t("failed") }]);
       RobotEvents.emit("reactError");
@@ -421,9 +478,14 @@ export default function AiSystemAssistant({
     openRef.current = onOpen;
     sendRef.current = send;
     realtimeRef.current = (ev) => {
-      if (ev.kind !== "response" || busy) return;
+      if (ev.kind !== "response") return;
       const res = normInstructorChat(ev.data, ev.sessionId);
       if (!res.answer && !res.rawCommands.length) return;
+      if (busy) {
+        wsStash.current = { res, at: Date.now() };
+        return;
+      }
+      if (commandsKnown(res.rawCommands)) return;
       let question = "";
       for (const m of msgs) if (m.kind === "me") question = m.text;
       startV21(res, cachedInstructorContract(gRole), question, "ws");
@@ -617,16 +679,6 @@ export default function AiSystemAssistant({
                   </span>
                   <IconArrowRight />
                 </button>
-                {suggestions.length ? (
-                  <div className="ains__sugg">
-                    <span>{t("try")}</span>
-                    {suggestions.map((s) => (
-                      <button key={s} type="button" onClick={() => void send(s)} disabled={busy}>
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
               </div>
             ) : null}
 
@@ -636,9 +688,10 @@ export default function AiSystemAssistant({
               if (m.kind === "v21") {
                 const cmds = Array.isArray(m.cmds) ? m.cmds : [];
                 const steps = cmds.filter((c) => c.type === "show_steps").flatMap((c) => (Array.isArray(c.steps) ? c.steps : []));
-                const stepTour = steps.some((s) => s.target);
-                const handoff = gRole === "staff" ? undefined : cmds.find((c) => c.type === "support_handoff");
-                const replay = cmds.some((c) => VISUAL.has(c.type));
+                const stepTour = hasStepTour(steps, m.question);
+                const fallbackHandoff = m.offerSupport ? normCommand({ id: `${m.id}:support`, type: "support_handoff", text: m.fallback?.reason ?? "" }, 0, m.id) : null;
+                const handoff = gRole === "staff" ? undefined : (cmds.find((c) => c.type === "support_handoff") ?? fallbackHandoff ?? undefined);
+                const replay = canReplay(cmds, gRole, m.question);
                 const intent = String(m.intent || "").toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
                 return (
                   <div className={`ains__ai ains__ai--guide${intent ? ` ains__ai--${intent}` : ""}`} key={m.id} data-intent={intent || undefined}>
@@ -672,7 +725,7 @@ export default function AiSystemAssistant({
                             type="button"
                             className={`btn ${replay ? "btn--line" : "btn--pri"} btn--sm`}
                             onClick={() => {
-                              const tour = tourFromSteps(steps);
+                              const tour = tourFromSteps(steps, m.question);
                               if (tour) runTour(tour);
                             }}
                           >
@@ -809,10 +862,6 @@ export default function AiSystemAssistant({
               <IconSend />
             </button>
           </form>
-          <p className="ains__safe">
-            <IconShieldCheck />
-            {t("safety")}
-          </p>
         </div>
       )}
     </>
