@@ -14,27 +14,12 @@ import { pageFor, registryTargets, stepTextKey } from "@/lib/guide/pages";
 import { startTour, stopTour, tourActive } from "@/lib/guide/store";
 import { onInstructorOpen, openInstructor } from "@/lib/guide/panel";
 import type { GuideRole, GuideTour } from "@/lib/guide/types";
-import {
-  abortCommands,
-  canReplay,
-  commandsKnown,
-  commandsRunning,
-  hasStepTour,
-  normCommand,
-  normCommands,
-  replayCommands,
-  runCommands,
-  supportCommand,
-  tourFromSteps,
-  type RunCtx,
-} from "@/lib/ai/commands";
+import { abortCommands, commandsRunning, normCommands, replayCommands, runCommands, supportCommand, tourFromSteps, type RunCtx } from "@/lib/ai/commands";
 import { buildAiSnapshot } from "@/lib/ai/manifest";
-import { crossPageTargets } from "@/lib/ai/destinations";
-import { selfHelpAsked } from "@/lib/ai/self";
 import { noteChatActivity, setPanelEngaged } from "@/lib/ai/runtime";
 import { aiSessionId, resetAiSession, setAiScope, setAiSessionId, type AiScope } from "@/lib/ai/session";
-import { aiResponseKey, markAiSeen, onAiRealtime, type AiRealtimeEvent } from "@/lib/ai/realtime";
-import type { AiChatResponse, AiCommand, AiSupportFallback, InstructorContract } from "@/lib/ai/types";
+import { markAiSeen, onAiRealtime, type AiRealtimeEvent } from "@/lib/ai/realtime";
+import type { AiChatResponse, AiCommand, InstructorContract } from "@/lib/ai/types";
 import {
   cachedInstructorContract,
   ensureInstructorContract,
@@ -78,19 +63,7 @@ const MAX = 1000;
 const HISTORY = 30;
 
 type GuideMsg = { kind: "guide"; id: string; text: string; intent: string; tour: GuideTour | null; support: boolean; checklist?: string[]; needs?: string[] };
-type V21Msg = {
-  kind: "v21";
-  id: string;
-  text: string;
-  intent: string;
-  cmds: AiCommand[];
-  question: string;
-  sid: string;
-  steps?: string[];
-  needs?: string[];
-  fallback?: AiSupportFallback | null;
-  offerSupport?: boolean;
-};
+type V21Msg = { kind: "v21"; id: string; text: string; intent: string; cmds: AiCommand[]; question: string; sid: string };
 type Msg =
   | { kind: "me"; id: string; text: string }
   | GuideMsg
@@ -270,25 +243,8 @@ export default function AiSystemAssistant({
       ticketCreatedPlain: t("ticketCreatedPlain"),
       ticketShown: t("ticketShown"),
       ticketWrite: t("ticketWrite"),
-      actionDone: (action: string, workId: string) => {
-        const text = t.has(`v21.done.${action}`) ? t(`v21.done.${action}`) : t("v21.done.generic");
-        return workId ? `${text} · ${workId}` : text;
-      },
     },
   });
-
-  const declaredTargets = (contract: InstructorContract, visible: string[], selfHelp: boolean) =>
-    crossPageTargets({
-      role: gRole,
-      path: pathname,
-      allowed: contract.allowedRoutes,
-      exclude: visible,
-      selfHelp,
-      labels: {
-        dest: (key) => (t.has(`v21.targets.${key}`) ? t(`v21.targets.${key}`) : ""),
-        tour: (key) => (tg.has(key) ? tg(key) : ""),
-      },
-    });
 
   const instructorV21Reply = async (message: string): Promise<V21Outcome> => {
     const mode = instructorMode();
@@ -296,13 +252,11 @@ export default function AiSystemAssistant({
     const contract = await ensureInstructorContract(gRole);
     if (!contract) return mode === "v21" ? { kind: "unavailable" } : { kind: "fallback" };
     const scope = scopeNow();
-    const selfHelp = selfHelpAsked(message);
     let sid = aiSessionId(scope);
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const snapshot = buildAiSnapshot({ role: contract.role || gRole, description: pageDescription(), selfHelp });
-        const targets = declaredTargets(contract, snapshot.runtime_state.visible_ai_ids, selfHelp);
-        const res = await instructorChat({ ...(sid ? { session_id: sid } : {}), locale, message, ...snapshot, targets, history: v21History() });
+        const snapshot = buildAiSnapshot({ role: contract.role || gRole, description: pageDescription() });
+        const res = await instructorChat({ ...(sid ? { session_id: sid } : {}), locale, message, ...snapshot, history: v21History() });
         if (res.sessionId) setAiSessionId(scope, res.sessionId);
         noteChatActivity();
         return { kind: "ok", res, contract };
@@ -322,15 +276,9 @@ export default function AiSystemAssistant({
 
   const startV21 = (res: AiChatResponse, contract: InstructorContract | null, question: string, source: "http" | "ws") => {
     const cmds = normCommands(res.rawCommands, res.responseId || makeId());
-    markAiSeen(aiResponseKey(res.responseId, res.rawCommands, res.answer));
+    if (res.responseId) markAiSeen(`response:${res.responseId}`);
     const sid = res.sessionId || aiSessionId(scopeNow());
-    const guiding = cmds.some((c) => VISUAL.has(c.type) || c.type === "preview_action" || c.type === "confirm_required");
-    const fallback = res.supportFallback;
-    const offerSupport = gRole !== "staff" && (res.intent === "support_guidance" || (Boolean(fallback?.available) && !guiding && !res.steps.length));
-    setMsgs((m) => [
-      ...m,
-      { kind: "v21", id: makeId(), text: res.answer, intent: res.intent, cmds, question, sid, steps: res.steps, needs: res.missingRequirements, fallback, offerSupport },
-    ]);
+    setMsgs((m) => [...m, { kind: "v21", id: makeId(), text: res.answer, intent: res.intent, cmds, question, sid }]);
     if (!cmds.length || (source === "ws" && commandsRunning())) return;
     void runCommands(cmds, runCtx(sid, contract, question, res.answer, source)).then((sum) => {
       if (sum.missing || sum.failed) openInstructor();
@@ -367,7 +315,7 @@ export default function AiSystemAssistant({
   const buildRequest = (message: string): InstructorRequest => {
     const seen = collectTargets(200);
     const here = instructorPath(pathname, gRole);
-    const { targets, visible } = instructorTargets(seen, registryTargets(gRole, pathname), pathname, gRole, (r) => (tg.has(r.text) ? tg(r.text) : ""), message, t("v21.targets.launcher"));
+    const { targets, visible } = instructorTargets(seen, registryTargets(gRole, pathname), pathname, gRole, (r) => (tg.has(r.text) ? tg(r.text) : ""));
     const turns: { q: string; a: string }[] = [];
     let asked = "";
     for (const m of msgs) {
@@ -400,19 +348,9 @@ export default function AiSystemAssistant({
     }
   };
 
-  const wsStash = useRef<{ res: AiChatResponse; at: number } | null>(null);
-
-  const takeStash = () => {
-    const v = wsStash.current;
-    wsStash.current = null;
-    return v;
-  };
-
   const send = async (raw?: string) => {
     const message = (raw ?? text).trim();
     if (!message || busy) return;
-    const sentAt = Date.now();
-    takeStash();
     setMsgs((m) => [...m, { kind: "me", id: makeId(), text: message }]);
     setText("");
     setBusy(true);
@@ -433,7 +371,7 @@ export default function AiSystemAssistant({
       const reply = v21.kind === "ok" ? null : await instructorReply(message);
       const guided = reply ? replyHasGuide(reply, gRole, pathname) : false;
       if (reply && !replyNeedsAssistant(reply, guided)) {
-        const tour = guided ? tourFromReply(reply, gRole, captionFor, pathname, message) : null;
+        const tour = guided ? tourFromReply(reply, gRole, captionFor, pathname) : null;
         const support = replyOffersSupport(reply, gRole, Boolean(tour));
         setMsgs((m) => [
           ...m,
@@ -457,12 +395,6 @@ export default function AiSystemAssistant({
       RobotEvents.emit("idle");
     } catch (e) {
       if (isAborted(e)) return;
-      const late = takeStash();
-      if (late && late.at >= sentAt) {
-        RobotEvents.emit("idle");
-        startV21(late.res, cachedInstructorContract(gRole), message, "ws");
-        return;
-      }
       logApiError("ai instructor", e);
       setMsgs((m) => [...m, { kind: "err", id: makeId(), text: errDetail(e) || t("failed") }]);
       RobotEvents.emit("reactError");
@@ -478,14 +410,9 @@ export default function AiSystemAssistant({
     openRef.current = onOpen;
     sendRef.current = send;
     realtimeRef.current = (ev) => {
-      if (ev.kind !== "response") return;
+      if (ev.kind !== "response" || busy) return;
       const res = normInstructorChat(ev.data, ev.sessionId);
       if (!res.answer && !res.rawCommands.length) return;
-      if (busy) {
-        wsStash.current = { res, at: Date.now() };
-        return;
-      }
-      if (commandsKnown(res.rawCommands)) return;
       let question = "";
       for (const m of msgs) if (m.kind === "me") question = m.text;
       startV21(res, cachedInstructorContract(gRole), question, "ws");
@@ -688,10 +615,9 @@ export default function AiSystemAssistant({
               if (m.kind === "v21") {
                 const cmds = Array.isArray(m.cmds) ? m.cmds : [];
                 const steps = cmds.filter((c) => c.type === "show_steps").flatMap((c) => (Array.isArray(c.steps) ? c.steps : []));
-                const stepTour = hasStepTour(steps, m.question);
-                const fallbackHandoff = m.offerSupport ? normCommand({ id: `${m.id}:support`, type: "support_handoff", text: m.fallback?.reason ?? "" }, 0, m.id) : null;
-                const handoff = gRole === "staff" ? undefined : (cmds.find((c) => c.type === "support_handoff") ?? fallbackHandoff ?? undefined);
-                const replay = canReplay(cmds, gRole, m.question);
+                const stepTour = steps.some((s) => s.target);
+                const handoff = gRole === "staff" ? undefined : cmds.find((c) => c.type === "support_handoff");
+                const replay = cmds.some((c) => VISUAL.has(c.type));
                 const intent = String(m.intent || "").toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
                 return (
                   <div className={`ains__ai ains__ai--guide${intent ? ` ains__ai--${intent}` : ""}`} key={m.id} data-intent={intent || undefined}>
@@ -725,7 +651,7 @@ export default function AiSystemAssistant({
                             type="button"
                             className={`btn ${replay ? "btn--line" : "btn--pri"} btn--sm`}
                             onClick={() => {
-                              const tour = tourFromSteps(steps, m.question);
+                              const tour = tourFromSteps(steps);
                               if (tour) runTour(tour);
                             }}
                           >
