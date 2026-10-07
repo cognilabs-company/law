@@ -20,6 +20,7 @@ import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import BusinessCalendarCard from "@/components/admin/BusinessCalendarCard";
+import MarketplacePricingCard from "@/components/admin/policies/MarketplacePricingCard";
 import { IconShieldCheck, IconCheck, IconAlert, IconClock, IconEdit } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
 import { humanize } from "@/lib/labels";
@@ -136,6 +137,8 @@ export default function AdminPolicies() {
           </div>
         )}
       </div>
+
+      <MarketplacePricingCard />
 
       <div className="ppanel">
         <div className="ppanel__h" data-ai-target="policies:unverified"><b className="ppanel__t"><span className="pico"><IconShieldCheck /></span>{t("unverified.title")}</b></div>

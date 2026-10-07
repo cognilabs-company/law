@@ -19,6 +19,7 @@ import {
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { IconArrowRight, IconChevronLeft, IconClock, IconGlobe, IconLock, IconMapPin, IconRefresh, IconShieldCheck, IconStar, IconBriefcase } from "@/components/icons";
 import PurchaseDialog from "./PurchaseDialog";
+import PricingExplainer from "./PricingExplainer";
 import { Monogram, Stars, deliveryLabel, hasRating, hasSuccess, langLabel, sellerTypeLabel, specLabel } from "./bits";
 import { aiId } from "@/lib/ai/ids";
 import { useAiModal, useAiSelection } from "@/lib/ai/registry";
@@ -269,7 +270,10 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
       <div className="mk-prof__body">
         <div className="mk-prof__main">
           <section className="mk-panel" data-ai-target="marketplace:seller-services" data-ai-id={`${sellerAiId}.services`} data-ai-type="list">
-            <h2 className="mk-panel__t">{t("detail.services")}</h2>
+            <div className="mkpx-row">
+              <h2 className="mk-panel__t">{t("detail.services")}</h2>
+              {services.length ? <PricingExplainer service={selected} aiId={`${sellerAiId}.price-info`} /> : null}
+            </div>
             <p className="mk-panel__l">{t("detail.servicesLead")}</p>
             {services.length ? (
               <div className="mk-svcs" role="radiogroup" aria-label={t("detail.services")}>

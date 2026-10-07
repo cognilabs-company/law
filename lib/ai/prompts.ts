@@ -13,6 +13,7 @@ export type ActionView = {
   note: "" | "expired";
   pay: string;
   done: boolean;
+  sharesHistory?: boolean;
 };
 
 export type ActionHandlers = {

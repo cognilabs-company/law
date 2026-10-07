@@ -11,20 +11,26 @@ import {
   assistPlanPrice,
   createAssistSubscriptionCheckout,
   isAssistPeriod,
+  mergeAssistLive,
+  payPhaseOf,
+  pickPayPhase,
+  planCtxState,
   previewAssistSubscription,
   type AssistBillingPeriod,
   type AssistCheckout,
+  type AssistLive,
+  type AssistPayPhase,
   type AssistPreview,
 } from "@/lib/services/supportAssist";
 import { IconRefresh } from "@/components/icons";
-import { ConfirmModal, InfoList, ResultCard, StatusChip, assistErrorText, clientLine, sumText, type AssistSectionProps, type InfoRow } from "./bits";
+import { ConfirmModal, InfoList, PayState, ResultCard, StatusChip, assistErrorText, clientLine, sumText, useAssistLive, type AssistSectionProps, type InfoRow } from "./bits";
 
 export type AssistPlansState = { status: "loading" | "ready" | "error"; sellable: BackendPlan[]; retry: () => void };
 
 type Quote = { planId: string; period: AssistBillingPeriod; data: AssistPreview };
-type Sent = { data: AssistCheckout; planName: string; period: AssistBillingPeriod };
+type Sent = { data: AssistCheckout; planName: string; period: AssistBillingPeriod; at: number; subsBefore: string[] };
 
-export default function AssistPlan({ ticketId, client, clientName, onDone, onBlock, plans }: AssistSectionProps & { plans: AssistPlansState }) {
+export default function AssistPlan({ ticketId, client, clientName, ctx, ctxAt, onDone, onBlock, plans }: AssistSectionProps & { plans: AssistPlansState }) {
   const t = useTranslations("support.assist");
   const tc = useTranslations("common");
   const [planId, setPlanId] = useState("");
@@ -35,7 +41,10 @@ export default function AssistPlan({ ticketId, client, clientName, onDone, onBlo
   const [confirming, setConfirming] = useState(false);
   const [confirmErr, setConfirmErr] = useState("");
   const [sent, setSent] = useState<Sent | null>(null);
+  const [live, setLive] = useState<AssistLive | null>(null);
   const inflight = useRef(false);
+
+  useAssistLive(sent ? [sent.data.id, sent.data.workId, sent.data.paymentId] : [], (e) => setLive((cur) => mergeAssistLive(cur, e)));
 
   const list = plans.sellable;
   const plan = list.find((p) => p.id === planId) ?? list[0] ?? null;
@@ -70,7 +79,9 @@ export default function AssistPlan({ ticketId, client, clientName, onDone, onBlo
     setConfirmErr("");
     try {
       const data = await createAssistSubscriptionCheckout(ticketId, { planId: plan.id, billingPeriod: per });
-      setSent({ data, planName: plan.name || plan.title, period: per });
+      const subsBefore = ctx.activeSubscriptions.filter((s) => s.planId === (data.planId || plan.id)).map((s) => s.id);
+      setSent({ data: { ...data, planId: data.planId || plan.id }, planName: plan.name || plan.title, period: per, at: Date.now(), subsBefore });
+      setLive(null);
       setQuote(null);
       setConfirming(false);
       onDone();
@@ -106,14 +117,22 @@ export default function AssistPlan({ ticketId, client, clientName, onDone, onBlo
         ]
       : [];
 
+  const basePhase: AssistPayPhase = sent ? payPhaseOf(sent.data.status) : "";
+  const known = sent ? planCtxState(ctx, { id: sent.data.id, workId: sent.data.workId, planId: sent.data.planId, subsBefore: sent.subsBefore }) : null;
+  const ctxPhase: AssistPayPhase = known?.activated ? "paid" : known?.pending ? "pending" : "";
+  const settled = pickPayPhase(live?.phase ?? "", ctxPhase, basePhase);
+  const reviewed = Boolean(sent && known && settled === "pending" && ctxAt > sent.at && !known.pending);
+  const phase: AssistPayPhase = sent && !reviewed ? settled : "";
+  const telegramSent = live?.telegramSent ?? sent?.data.telegramSent ?? false;
+
   const sentRows: InfoRow[] = sent
     ? [
         { key: "work", label: t("result.workId"), value: sent.data.workId ? <span className="sasst__wid">{sent.data.workId}</span> : "—" },
         { key: "plan", label: t("result.plan"), value: [sent.planName, sent.data.planSlug ? `(${sent.data.planSlug})` : ""].filter(Boolean).join(" ") },
         { key: "period", label: t("plan.period"), value: t(`period.${sent.period}`) },
-        { key: "amount", label: t("result.amount"), value: sumText(t, sent.data.amount, sent.data.currency) },
-        { key: "status", label: t("result.status"), value: <StatusChip status={sent.data.status} /> },
-        { key: "tg", label: t("result.telegram"), value: sent.data.telegramSent ? t("result.telegramSent") : t("result.telegramFailed") },
+        ...(!phase ? [{ key: "amount", label: t("result.amount"), value: sumText(t, sent.data.amount, sent.data.currency) }] : []),
+        ...(!phase && !reviewed ? [{ key: "status", label: t("result.status"), value: <StatusChip status={sent.data.status} /> }] : []),
+        { key: "tg", label: t("result.telegram"), value: telegramSent ? t("result.telegramSent") : t("result.telegramFailed") },
       ]
     : [];
 
@@ -121,7 +140,17 @@ export default function AssistPlan({ ticketId, client, clientName, onDone, onBlo
     <div className="sasst__secin">
       <h4 className="sasst__h4">{t("plan.heading")}</h4>
       <p className="sasst__lead">{t("plan.lead")}</p>
-      {sent ? <ResultCard title={t("plan.sentTitle")} rows={sentRows} warn={!sent.data.telegramSent} onDismiss={() => setSent(null)} /> : null}
+      {sent ? (
+        <ResultCard
+          title={t("plan.sentTitle")}
+          rows={sentRows}
+          note={reviewed ? t("pay.planReviewed") : phase === "paid" ? t("pay.planPaid") : phase === "rejected" ? t("pay.rejectedNote") : undefined}
+          warn={!telegramSent || phase === "rejected"}
+          onDismiss={() => setSent(null)}
+        >
+          <PayState phase={phase} amount={sent.data.amount} currency={sent.data.currency} />
+        </ResultCard>
+      ) : null}
       {plans.status === "loading" ? (
         <p className="sasst__muted">{t("plan.loading")}</p>
       ) : plans.status === "error" ? (

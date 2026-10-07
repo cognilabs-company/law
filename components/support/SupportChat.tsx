@@ -20,6 +20,7 @@ import {
   type MessageCursor,
   type SupportAssistInfo,
   type SupportAssistKind,
+  type SupportAssistPay,
   type SupportCall,
   type SupportEvent,
   type SupportMessage,
@@ -31,7 +32,7 @@ import { toast } from "@/lib/toast";
 import { fmtUzs } from "@/lib/money";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { CALLROOM_EVENT } from "@/lib/callEvents";
-import { getCall } from "@/lib/services/backend";
+import { docRealtimeOf, getCall } from "@/lib/services/backend";
 import { primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
 import { dateOnly, dateTimeFull, timeOnly } from "@/lib/date";
@@ -42,6 +43,7 @@ import ContactBlockedNote from "@/components/ContactBlockedNote";
 import {
   IconAlert,
   IconArrowRight,
+  IconBolt,
   IconBriefcase,
   IconCard,
   IconCheckDouble,
@@ -76,6 +78,7 @@ const ASSIST_HREF: Partial<Record<SupportAssistKind, string>> = {
   subscription_checkout: "/portal/client/payments",
   document_request: "/portal/client/documents",
   marketplace_purchase: "/portal/client/marketplace-orders",
+  urgent_advokat: "/portal/client/urgent",
 };
 
 const ASSIST_TONE: Record<SupportAssistKind, string> = {
@@ -83,7 +86,14 @@ const ASSIST_TONE: Record<SupportAssistKind, string> = {
   subscription_checkout: "wait",
   document_request: "ok",
   marketplace_purchase: "wait",
+  urgent_advokat: "ok",
 };
+
+const DOC_PAY_TONE: Partial<Record<SupportAssistPay, string>> = { pending: "wait", approved: "ok", rejected: "err" };
+
+const assistKey = (info: SupportAssistInfo) => (info.kind === "document_request" && DOC_PAY_TONE[info.pay] ? `assistNote.document_request.${info.pay}` : `assistNote.${info.kind}`);
+
+const assistTone = (info: SupportAssistInfo) => (info.kind === "document_request" ? DOC_PAY_TONE[info.pay] : undefined) ?? ASSIST_TONE[info.kind];
 
 function merge(cur: SupportMessage[], next: SupportMessage[]): SupportMessage[] {
   const seen = new Map(cur.map((m) => [m.id, m]));
@@ -103,6 +113,7 @@ function AssistIcon({ kind }: { kind: SupportAssistKind }) {
   if (kind === "subscription_checkout") return <IconCard />;
   if (kind === "document_request") return <IconFileText />;
   if (kind === "marketplace_purchase") return <IconBriefcase />;
+  if (kind === "urgent_advokat") return <IconBolt />;
   return <IconSparkle />;
 }
 
@@ -111,17 +122,18 @@ function AssistNote({ card }: { card: AssistCard }) {
   const locale = useLocale();
   const { info } = card;
   const href = ASSIST_HREF[info.kind];
+  const key = assistKey(info);
   const money = info.amount > 0 ? (info.currency && !/^uzs$/i.test(info.currency) ? `${fmtUzs(info.amount)} ${info.currency}` : t("assistNote.amount", { amount: fmtUzs(info.amount) })) : "";
   return (
-    <div className={`supassist supassist--${ASSIST_TONE[info.kind]}`} role="note">
+    <div className={`supassist supassist--${assistTone(info)}${info.pay === "pending" ? " supassist--live" : ""}`} role="note">
       <span className="supassist__ic" aria-hidden="true">
         <AssistIcon kind={info.kind} />
       </span>
       <div className="supassist__tx">
         <span className="supassist__kick">{t("assistNote.kicker")}</span>
-        <b>{t(`assistNote.${info.kind}.title`)}</b>
+        <b>{t(`${key}.title`)}</b>
         {info.title ? <span className="supassist__what">{info.title}</span> : null}
-        <p>{t(`assistNote.${info.kind}.text`)}</p>
+        <p>{t(`${key}.text`)}</p>
         {info.workId || money ? (
           <span className="supassist__meta">
             {info.workId ? <span className="supassist__id">{t("assistNote.workId", { id: info.workId })}</span> : null}
@@ -304,12 +316,35 @@ export default function SupportChat({
     const info = assistInfoOf(e.name, e.action, locale);
     if (!info) return;
     const at = e.createdAt || new Date().toISOString();
-    const key = info.kind === "subscription_preview" ? info.kind : `${info.kind}:${info.workId || at}`;
+    const key = info.kind === "subscription_preview" ? info.kind : `${info.kind}:${info.workId || info.targetId || at}`;
     setCards((cur) => [...cur.filter((c) => c.key !== key), { key, info, at }]);
-    const title = t(`assistNote.${info.kind}.title`);
+    const title = t(`${assistKey(info)}.title`);
     setAnnounce(title);
-    if (info.kind !== "subscription_preview") toast(title, { tone: "ok" });
+    if (info.kind !== "subscription_preview") toast(title, { tone: info.pay === "rejected" ? "err" : "ok" });
   };
+
+  const payWatch = mode === "client" ? cards.filter((c) => c.info.kind === "document_request" && c.info.pay === "pending" && c.info.targetId).map((c) => c.info.targetId).join("|") : "";
+  useEffect(() => {
+    if (!payWatch) return;
+    const ids = payWatch.split("|");
+    return subscribeUserEvents((ev) => {
+      const rt = docRealtimeOf(ev);
+      const id = rt?.ids.find((x) => ids.includes(x));
+      if (!rt || !id) return;
+      const same = (c: AssistCard) => c.info.kind === "document_request" && c.info.targetId === id;
+      if (rt.kind === "required") {
+        const amount = rt.gate?.amount ?? 0;
+        if (amount > 0) setCards((cur) => cur.map((c) => (same(c) && !c.info.amount ? { ...c, info: { ...c.info, amount, currency: rt.gate?.currency || c.info.currency } } : c)));
+        return;
+      }
+      if (rt.kind !== "pooled" && rt.kind !== "rejected") return;
+      const pay: SupportAssistPay = rt.kind === "pooled" ? "approved" : "rejected";
+      setCards((cur) => cur.map((c) => (same(c) ? { ...c, info: { ...c.info, pay } } : c)));
+      const title = t(`assistNote.document_request.${pay}.title`);
+      setAnnounce(title);
+      toast(title, { tone: pay === "approved" ? "ok" : "err" });
+    });
+  }, [payWatch, t]);
 
   const { online } = useSupportEvents((e) => {
     if (e.ticketId !== ticketId) return;

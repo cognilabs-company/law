@@ -2423,6 +2423,8 @@ export type DocumentRequest = {
   canSendLawyerRequest: boolean;
   lawyerRequestBlockReason: string;
   constructorAction: DocConstructorAction | null;
+  gate?: DocPaymentGate | null;
+  paymentRequired?: boolean;
 };
 
 // LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md. A lawyer review is
@@ -2495,6 +2497,60 @@ export function normDocLawyerSubmit(v: unknown): DocLawyerSubmitResult {
 // one it leaves behind when the fee is refused.
 export const DOC_PAYMENT_WAIT = new Set(["payment_required", "pending_payment"]);
 export const DOC_PAYMENT_CANCELLED = "payment_cancelled";
+export const DOC_PAYMENT_STOPPED = new Set([DOC_PAYMENT_CANCELLED, "payment_rejected"]);
+
+export type DocPayPhase = "" | "wait" | "cancelled";
+export function docPayPhase(status: string, lawyerFlow = false, required = false): DocPayPhase {
+  const s = (status || "").toLowerCase();
+  if (DOC_PAYMENT_STOPPED.has(s)) return "cancelled";
+  if (DOC_PAYMENT_WAIT.has(s)) return "wait";
+  if (s === "awaiting_payment" && (lawyerFlow || required)) return "wait";
+  return "";
+}
+
+export type DocRealtimeKind = "required" | "pooled" | "rejected" | "created" | "changed";
+export type DocRealtime = { kind: DocRealtimeKind; name: string; ids: string[]; gate: DocPaymentGate | null };
+const DOC_REALTIME: Record<string, DocRealtimeKind> = {
+  "document_request.payment_required": "required",
+  "document_request.pool_created": "pooled",
+  "document_request.sent": "pooled",
+  "document_request.payment_approved": "pooled",
+  "document_request.payment_rejected": "rejected",
+  "document_request.payment_cancelled": "rejected",
+  "support.assist_document_request_created": "created",
+  document_review_payment_required: "required",
+  document_review_payment_approved: "pooled",
+  document_review_payment_rejected: "rejected",
+};
+export function docRealtimeOf(ev: Record<string, unknown>): DocRealtime | null {
+  let name = asStr(ev.event);
+  let src: Dict = ev;
+  if (name === "notification.created") {
+    const n = asDict(ev.notification);
+    src = asDict(n.data ?? n.meta);
+    name = asStr(src.event);
+  }
+  const kind = DOC_REALTIME[name] ?? (name.startsWith("document_request.") ? "changed" : null);
+  if (!kind) return null;
+  const action = asDict(src.action ?? asDict(src.message).action);
+  const ids = new Set<string>();
+  const add = (v: unknown) => {
+    const s = typeof v === "string" || typeof v === "number" ? String(v).trim() : "";
+    if (s) ids.add(s);
+  };
+  for (const x of [src, action, asDict(src.lawyer_request), asDict(action.lawyer_request), asDict(src.payment_gate)]) {
+    add(x.document_request_id);
+    add(x.request_id);
+  }
+  for (const x of [asDict(src.document_request), asDict(action.document_request)]) {
+    add(x.document_request_id);
+    if (!x.document_request_id) add(x.id);
+  }
+  add(asDict(src.request).id);
+  add(asDict(action.request).id);
+  const gate = kind === "required" || kind === "created" ? normDocPaymentGate(src.payment_gate ?? action.payment_gate ?? (kind === "required" ? src : null)) : null;
+  return { kind, name, ids: [...ids], gate };
+}
 
 // Is an advocate holding this document right now?
 //
@@ -2559,6 +2615,8 @@ function normDocRequest(v: unknown): DocumentRequest {
     canSendLawyerRequest: d.can_send_lawyer_request !== false,
     lawyerRequestBlockReason: asStr(d.lawyer_request_block_reason),
     constructorAction: normConstructorAction(d.constructor_action),
+    gate: normDocPaymentGate(d.payment_gate),
+    paymentRequired: d.payment_required === true,
     contractFile: cf
       ? {
           id: asStr(cf.id),
@@ -2825,9 +2883,29 @@ export type ClientDocFlowItem = {
   // "Konstruktorda davom etish" go straight there instead of trying to find
   // the service again by searching the catalogue for the request's title.
   service: BackendService | null;
+  payment: DocFlowPayment;
   createdAt: string;
   updatedAt: string;
 };
+export type DocFlowPayment = { required: boolean; status: string; amount: number; currency: string; telegramSent: boolean | null };
+function normDocFlowPayment(d: Dict): DocFlowPayment {
+  const gate = asDict(d.payment_gate);
+  const req = asDict(d.document_request);
+  const lr = asDict(d.lawyer_request);
+  const gateStatus = asStr(gate.status);
+  return {
+    required:
+      d.payment_required === true ||
+      req.payment_required === true ||
+      gateStatus === "pending" ||
+      DOC_PAYMENT_WAIT.has(asStr(d.status)) ||
+      DOC_PAYMENT_WAIT.has(asStr(lr.status)),
+    status: gateStatus || asStr(d.payment_status) || asStr(req.payment_status),
+    amount: Math.max(0, uzsOpt(gate, "amount") ?? uzsOpt(d, "payment_amount", "amount") ?? uzsOpt(req, "price") ?? uzsOpt(d, "price") ?? 0),
+    currency: asStr(gate.currency) || asStr(req.currency) || asStr(d.currency) || "UZS",
+    telegramSent: typeof gate.telegram_sent === "boolean" ? gate.telegram_sent : null,
+  };
+}
 function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
   const d = asDict(v);
   // Same filename leftovers as the catalogue: the request is named after the
@@ -2891,6 +2969,7 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
     // "do I know which service this is", and an object that answers it with ""
     // is the shape that sends them looking it up by title instead.
     service: asDict(d.service).id ? normService(d.service) : null,
+    payment: normDocFlowPayment(d),
     createdAt: asStr(d.created_at),
     updatedAt: asStr(d.updated_at),
   };
@@ -2898,7 +2977,7 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
 // Work the client still has to come back to: anything not delivered and not
 // cancelled. Used by the cases page, which is where they look for "what is
 // still open" rather than in the documents list.
-const DOC_FLOW_DONE = new Set(["completed", "done", "closed", "cancelled", "canceled", "rejected", "refunded", "delivered", "payment_cancelled"]);
+const DOC_FLOW_DONE = new Set(["completed", "done", "closed", "cancelled", "canceled", "rejected", "refunded", "delivered", "payment_cancelled", "payment_rejected"]);
 export function isDocFlowOpen(it: ClientDocFlowItem): boolean {
   if (it.file.ready) return false;
   return !DOC_FLOW_DONE.has((it.status || "").toLowerCase());
@@ -6874,15 +6953,23 @@ export async function getAdminPolicies(): Promise<Record<string, Record<string, 
   const items = asDict(d.items ?? d.sections ?? d);
   return Object.fromEntries(Object.entries(items).filter(([k]) => (POLICY_SECTIONS as readonly string[]).includes(k)).map(([k, v]) => [k, asDict(v)]));
 }
-export async function putAdminPolicy(section: PolicySection, data: Record<string, unknown>): Promise<void> {
+export const PRICING_POLICY_SECTION = "marketplace_pricing";
+export type AdminPolicySection = PolicySection | typeof PRICING_POLICY_SECTION;
+export async function putAdminPolicy(section: AdminPolicySection, data: Record<string, unknown>): Promise<void> {
   policiesCache = null;
   await http(`/admin/platform/policies/${section}`, { method: "PUT", body: JSON.stringify(data) });
 }
 export type PolicyHistoryEntry = { version: string; changedBy: string; at: string; data: Record<string, unknown> };
-export async function getPolicyHistory(section: PolicySection): Promise<PolicyHistoryEntry[]> {
+export async function getPolicyHistory(section: AdminPolicySection): Promise<PolicyHistoryEntry[]> {
   return listFrom(await http(`/admin/platform/policies/${section}/history`), "items", "history", "data", "versions").map((x) => {
     const d = asDict(x);
-    return { version: asStr(d.version ?? d.id), changedBy: asStr(d.changed_by ?? d.updated_by ?? d.user_id ?? d.actor), at: asStr(d.created_at ?? d.updated_at ?? d.at), data: asDict(d.data ?? d.payload ?? d.value ?? d.policy) };
+    const p = asDict(d.payload);
+    return {
+      version: asStr(d.version ?? p.version),
+      changedBy: asStr(d.changed_by ?? d.updated_by ?? d.user_id ?? d.actor ?? d.owner_user_id),
+      at: asStr(d.created_at ?? d.updated_at ?? d.at),
+      data: asDict(d.data ?? d.payload ?? d.value ?? d.policy),
+    };
   });
 }
 // Admin: production readiness checklist (GET /admin/compliance/readiness).
@@ -7582,9 +7669,16 @@ export type UrgentRequest = {
   // the conservative pair.
   canManage: boolean;
   canView: boolean;
+  viaOperator: boolean;
   createdAt: string;
   updatedAt: string;
 };
+export const URGENT_OPERATOR_SOURCES = new Set(["callcenter_assist", "support_assist", "support", "support_ticket", "operator", "callcenter", "call_center"]);
+export function urgentViaOperator(v: unknown): boolean {
+  const d = asDict(v);
+  if ([d.source, d.created_via].some((s) => URGENT_OPERATOR_SOURCES.has(asStr(s).trim().toLowerCase()))) return true;
+  return Boolean(asStr(d.support_ticket_id).trim() || asStr(d.created_by_operator_user_id).trim());
+}
 function normUrgentRequest(v: unknown): UrgentRequest {
   const d = asDict(v);
   // Everything interesting hangs off `payload`; the few fields the record also
@@ -7682,6 +7776,7 @@ function normUrgentRequest(v: unknown): UrgentRequest {
     // A record that came back at all is one this viewer may see; the flag is
     // only authoritative where the backend sends it.
     canView: d.can_view === undefined ? true : d.can_view === true,
+    viaOperator: urgentViaOperator(d) || urgentViaOperator(p),
     createdAt: asStr(pick("created_at")),
     updatedAt: asStr(pick("updated_at")),
   };

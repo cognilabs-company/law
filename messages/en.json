@@ -1,4 +1,60 @@
 {
+  "marketPricing": {
+    "factors": "What shaped the price",
+    "som": "UZS",
+    "tierRange": "{min}–{max} yrs",
+    "tierFrom": "{min}+ yrs",
+    "mod": {
+      "region": "Region",
+      "experience": "Experience",
+      "experienceRange": "Experience {min}–{max} yrs",
+      "experienceFrom": "Experience {min}+ yrs",
+      "experienceYears": "Experience {n} yrs",
+      "seller_premium": "Strong results",
+      "client_rating_premium": "High rating",
+      "sector_experience_premium": "Sector experience",
+      "referral": "Referral discount",
+      "discount": "Discount",
+      "other": "Extra factor"
+    },
+    "region": {
+      "default": "Other regions",
+      "toshkent": "Tashkent",
+      "tashkent": "Tashkent",
+      "tashkent_city": "Tashkent city",
+      "tashkent_region": "Tashkent region",
+      "samarqand": "Samarkand",
+      "samarkand": "Samarkand",
+      "major_region": "Major regional centre",
+      "lower_region": "Region",
+      "qoraqalpogiston": "Karakalpakstan",
+      "district_rural": "District or village",
+      "remote": "Remote"
+    },
+    "explain": {
+      "open": "How is the price set?",
+      "title": "How is the price set?",
+      "close": "Close",
+      "lead": "The specialist sets the price, but can’t go outside the range LexGo allows.",
+      "selected": "“{service}”: catalogue price {base} UZS, specialist price {price} UZS.",
+      "loading": "Loading…",
+      "baseT": "Catalogue price",
+      "baseD": "It starts from the service’s base price in the LexGo catalogue.",
+      "regionT": "Region",
+      "regionD": "The price varies a little by region.",
+      "expT": "Experience",
+      "expD": "Experienced specialists get a premium.",
+      "premiumT": "Rating and results",
+      "premiumD": "A high rating and strong results add a premium.",
+      "clientRating": "Rating {rating}+ ({reviews}+ reviews): +{percent}%",
+      "sellerPremium": "Strong results: +{percent}%",
+      "sectorPremium": "{years}+ years in the field: +{percent}%",
+      "rangeT": "Allowed range",
+      "rangeD": "The specialist can only price within the allowed range and never above the recommended price.",
+      "rangeP": "The specialist’s price stays between {min}% and {max}% of the recommended price.",
+      "foot": "If the price changes, only new orders are affected."
+    }
+  },
   "filterBar": {
     "title": "Filters",
     "search": "Search",
@@ -13,6 +69,19 @@
     "any": "Any"
   },
   "sellerServices": {
+    "limits": {
+      "title": "How the price is built",
+      "base": "Catalogue price",
+      "recommended": "Recommended price",
+      "range": "Allowed range",
+      "rangeOf": "Allowed range ({lo}–{hi}%)",
+      "rangeValue": "{min} – {max} UZS",
+      "bandHint": "You choose the price within the allowed range.",
+      "serverRange": "For this service the price must be between {min} and {max} UZS.",
+      "policy": "I accept the pricing policy: the price stays at {lo}–{hi}% of the recommended price, and changes only affect new orders.",
+      "policyPlain": "I accept the pricing policy: the price stays within the allowed range, and changes only affect new orders.",
+      "cardRec": "recommended {price} UZS"
+    },
     "kicker": "Marketplace services",
     "title": "My services",
     "titleOwner": "{name}'s services",
@@ -1019,6 +1088,10 @@
       "clientChat": "Chat with the client"
     },
     "assistNote": {
+      "urgent_advokat": {
+        "title": "An operator created an urgent advocate request for you",
+        "text": "We'll tell you as soon as a duty advocate accepts it."
+      },
       "kicker": "Operator help",
       "workId": "ID: {id}",
       "amount": "{amount} UZS",
@@ -1032,6 +1105,18 @@
         "text": "The plan turns on automatically once the payment is approved."
       },
       "document_request": {
+        "rejected": {
+          "title": "The document request payment was cancelled",
+          "text": "The request was not sent to the advocates. If you have questions, write here."
+        },
+        "approved": {
+          "title": "Payment approved — your request is in the advocates' queue",
+          "text": "You'll get a notification when a lawyer takes it."
+        },
+        "pending": {
+          "title": "Document request ready — waiting for payment approval",
+          "text": "Once approved in Telegram, it joins the advocates' queue."
+        },
         "title": "Your document request was sent to the duty lawyers",
         "text": "You'll get a notification when a lawyer takes it."
       },
@@ -1054,9 +1139,60 @@
     "operatorsLoading": "Loading operators…",
     "unreadAria": "{n, plural, one {# unread message} other {# unread messages}}",
     "assist": {
+      "urgent": {
+        "heading": "Urgent lawyer request",
+        "lead": "Create a request on the client's behalf — it joins the usual urgent lawyer queue.",
+        "kind": "Service type",
+        "channel": "Channel",
+        "count": "Number of lawyers",
+        "directions": "Practice area",
+        "directionsHint": "You can pick several.",
+        "need": "Client's problem",
+        "needPh": "What happened and what help the client needs",
+        "price": "Price",
+        "meeting": "Meeting",
+        "perLawyer": "Per lawyer",
+        "immediate": "Goes straight to the on-duty lawyer.",
+        "pickKind": "Choose a service type.",
+        "missDirection": "Pick at least one practice area.",
+        "missNeed": "Describe the problem in at least {n} characters.",
+        "next": "Prepare request",
+        "confirmTitle": "Confirm the urgent request",
+        "confirmNote": "The request is created on behalf of {name}. The client is notified right away.",
+        "sentTitle": "Urgent request created",
+        "poolNote": "The request joined the urgent lawyer queue.",
+        "callNote": "A call with the on-duty lawyer opened on the client's screen.",
+        "soonTitle": "Coming soon",
+        "soonText": "Urgent requests aren't enabled on the server yet. This section opens by itself once they are.",
+        "checking": "Checking…",
+        "catalogOff": "Prices didn't load — you can still send the request.",
+        "lawyer": "Lawyer"
+      },
+      "pay": {
+        "planReviewed": "The request has been reviewed — see the result under “Client status”.",
+        "pending": "Waiting for payment approval",
+        "paid": "Payment approved",
+        "rejected": "Payment cancelled",
+        "pendingHint": "Approved in Telegram · status updates by itself",
+        "paidHint": "Approval came from Telegram",
+        "rejectedHint": "Rejected in Telegram",
+        "pendingShort": "Awaiting payment",
+        "docPending": "Once the payment is approved, the request goes to on-duty lawyers.",
+        "marketPaid": "Order paid; the client's chat with the specialist is open.",
+        "planPaid": "The plan is now active for the client.",
+        "rejectedNote": "If needed, talk to the client and send the request again."
+      },
+      "aiHistory": {
+        "title": "AI chat history",
+        "lead": "Came from the AI assistant · {n, plural, one {# question} other {# questions}}",
+        "client": "Client",
+        "ai": "AI answer",
+        "session": "AI session: {id}",
+        "earlier": "{n, plural, one {# earlier question} other {# earlier questions}}"
+      },
       "viewOnly": "View only: another operator owns this chat and acts for the client.",
       "title": "Help the client",
-      "lead": "Plan, document and service requests on the client's behalf",
+      "lead": "Requests and payments for the client",
       "refresh": "Refresh details",
       "stale": "Could not refresh — showing the last known state.",
       "sum": "{amount} UZS",
@@ -1064,7 +1200,7 @@
       "months": "{n, plural, one {# month} other {# months}}",
       "locked": {
         "claimTitle": "Claim the chat first",
-        "claimText": "You can act on the client's behalf only in a chat assigned to you. Once you claim it, you can create plan, document and service requests here.",
+        "claimText": "You can act on the client's behalf only in a chat assigned to you. Once you claim it, you can create plan, document, service and urgent lawyer requests here.",
         "otherTitle": "Another operator has this chat",
         "otherText": "Only the operator assigned to this chat can act on the client's behalf.",
         "closedTitle": "The chat is closed",
@@ -1105,6 +1241,15 @@
         "showLess": "Show less"
       },
       "tabs": {
+        "hint": {
+          "plan": "Sell a plan",
+          "doc": "Lawyer drafts",
+          "market": "Marketplace",
+          "urgent": "Connect now"
+        },
+        "soon": "Coming soon",
+        "off": "Off",
+        "urgent": "Urgent lawyer",
         "label": "Act on the client's behalf",
         "plan": "Plan",
         "doc": "Document",
@@ -1139,6 +1284,8 @@
         "sentTitle": "The payment request was sent to Telegram for approval"
       },
       "doc": {
+        "sentPayTitle": "Document request created",
+        "confirmPaid": "The request is created on the client's behalf. Price {amount} — once the payment is approved in Telegram, it goes to on-duty lawyers.",
         "heading": "Document request",
         "lead": "Find the document or choose “From scratch” — the request goes to the advocates on duty.",
         "base": "Document basis",
@@ -1222,6 +1369,8 @@
         "sending": "Sending…"
       },
       "result": {
+        "requestId": "Request ID",
+        "notified": "Client notified",
         "workId": "Work ID",
         "status": "Status",
         "amount": "Amount",
@@ -1234,6 +1383,9 @@
         "dismiss": "Dismiss"
       },
       "errors": {
+        "priorPurchase": "For a lawyer panel the client must have used a LexGo lawyer service before.",
+        "urgentDuplicatePlain": "The client already has an active urgent request.",
+        "urgentDuplicate": "The client already has an active urgent request: {id}.",
         "planMissing": "This plan was not found or is not on sale.",
         "planRole": "This plan is not open to clients.",
         "period": "This term is not available for the chosen plan.",
@@ -1246,6 +1398,7 @@
       }
     },
     "queue": {
+      "transferOff": "This ticket can't be passed to another operator.",
       "filter": "Queue",
       "viewChat": "Chat",
       "views": "Chat or client help",
@@ -3814,11 +3967,13 @@
         "archived": "Archived"
       },
       "docStatus": {
+        "payment_rejected": "Payment cancelled",
+        "pending_payment": "Awaiting payment",
         "lawyer_review_requested": "Sent for lawyer review",
         "pending_review": "Waiting for review",
         "review": "Under review",
         "payment_cancelled": "Payment cancelled",
-        "payment_required": "Waiting for extra payment",
+        "payment_required": "Awaiting payment",
         "awaiting_payment": "Waiting for payment",
         "rated": "Rated",
         "closed": "Closed",
@@ -4095,6 +4250,12 @@
       "checklistHint": "Each line is an item. Mark done items with \"[x]\"."
     },
     "aiAssistant": {
+      "handoff": {
+        "title": "An operator can help",
+        "lead": "We'll pass your question to a live operator.",
+        "shared": "The operator will see your chat with the AI",
+        "open": "Open chat"
+      },
       "panel": {
         "name": "LexGo assistant",
         "badge": "AI",
@@ -4690,6 +4851,8 @@
         "label": "Kind of document"
       },
       "urgent": {
+        "opCreated": "An operator created an urgent advocate request for you",
+        "byOperator": "Created by operator",
         "backToKinds": "Choose another type",
         "rateClosedText": "The 15 minutes are up, so this work can no longer be rated.",
         "rateClosedTitle": "The rating window has closed",
@@ -5778,6 +5941,8 @@
         "preSellerNoList": "This advocate has not listed services yet — the full catalogue is shown."
       },
       "documents": {
+        "gatePooledSub": "We'll tell you as soon as a duty advocate takes it.",
+        "gatePooled": "Payment approved — now in the advocates' queue",
         "lawyerNeedRequired": "Write the request text — the advocate needs to know where to start.",
         "cloakHint": "This document is for reading on screen. Copying, printing and saving are closed.",
         "cloak": {
@@ -5795,14 +5960,14 @@
         "cancelledTitle": "The payment was cancelled",
         "gateRetry": "Send the request again",
         "gateRefreshHint": "We tell you when the status changes. You need not wait for that — check it yourself any time.",
-        "gateNoFacts": "The payment details are not shown here. The amount is in the payment request in Telegram.",
+        "gateNoFacts": "The payment amount is not shown here yet.",
         "gateTelegramFail": "The payment request never reached Telegram, so there is nothing to wait for. Contact support.",
-        "gateTelegramOk": "The payment request was sent to Telegram — press \"Paid\" there.",
+        "gateTelegramOk": "The approval request was sent to Telegram.",
         "gateExtra": "Extra: {n} pages",
         "gateIncluded": "Free: {n} pages",
         "gatePages": "Document: {n} pages",
         "gateStatus": "Awaiting payment",
-        "gateSub": "Your request has not gone to the advocates yet. Approve the payment request in Telegram and the work goes to the advocates on duty straight away.",
+        "gateSub": "The request has not gone to the advocates yet. Once approved in Telegram, it joins the advocates' queue.",
         "gateTitle": "Waiting for the payment to be approved",
         "consentRequired": "Your consent is required to send the request — tick the box above.",
         "lawyerPendingWork": "Work id: {id}",
@@ -6229,6 +6394,21 @@
         "error": "Something went wrong. Please try again."
       },
       "documentRequests": {
+        "opCreated": "An operator created a document request for you",
+        "pay": {
+          "wait": {
+            "title": "Waiting for payment approval",
+            "text": "Once approved in Telegram, it joins the advocates' queue"
+          },
+          "pooled": {
+            "title": "In the advocates' queue",
+            "text": "We'll tell you as soon as a duty advocate takes it"
+          },
+          "cancelled": {
+            "title": "Payment cancelled",
+            "text": "The request was not sent to the advocates"
+          }
+        },
         "nextLawyerHere": "Once the advocate prepares it, download it on this page",
         "filterEmptyText": "Try another method or status.",
         "filterMode": "Preparation method",
@@ -7811,6 +7991,214 @@
     "stat3l": "avg. rating"
   },
   "admin": {
+    "aiReglaments": {
+      "eyebrow": "AI instructor · Support",
+      "title": "AI regulations",
+      "lead": "The AI instructor answers support questions based on these regulations",
+      "newCta": "New regulation",
+      "uploadCta": "Upload file",
+      "tabsAria": "Regulation sections",
+      "kpi": {
+        "active": "Active regulations",
+        "updated": "Last update",
+        "gaps": "Unanswered questions"
+      },
+      "tabs": {
+        "list": "Regulations",
+        "gaps": "Unanswered questions"
+      },
+      "list": {
+        "title": "Regulations",
+        "lead": "Active regulations are the source of AI answers. Every edit is saved as a new version."
+      },
+      "gaps": {
+        "title": "Unanswered questions",
+        "lead": "Questions the AI couldn't answer from the regulations. Add the answer to a regulation and the AI will answer next time.",
+        "refresh": "Refresh",
+        "asked": "{n, plural, one {Asked # time} other {Asked # times}}",
+        "last": "Last: {date}",
+        "session": "Session {id}",
+        "why": "What was missing:",
+        "add": "Add to a regulation",
+        "addMore": "Add again",
+        "added": "Added to a regulation",
+        "sorted": "Most asked first"
+      },
+      "filter": {
+        "title": "Filters",
+        "search": "Search",
+        "searchPh": "Search by title or text",
+        "gapsPh": "By question, user or session",
+        "category": "Category",
+        "status": "Status",
+        "all": "All",
+        "open": "Open"
+      },
+      "cat": {
+        "support": "Support",
+        "payment": "Payment",
+        "marketplace": "Marketplace",
+        "documents": "Documents",
+        "urgent": "Urgent lawyer",
+        "other": "Other",
+        "custom": "Custom…",
+        "none": "No category"
+      },
+      "status": {
+        "active": "Active",
+        "draft": "Draft",
+        "archived": "Archived"
+      },
+      "gapStatus": {
+        "open": "Open",
+        "resolved": "Resolved",
+        "closed": "Closed",
+        "ignored": "Ignored",
+        "answered": "Answered"
+      },
+      "roles": {
+        "client": "Client",
+        "yurist": "Lawyer",
+        "advokat": "Advocate",
+        "lawyer": "Lawyer",
+        "advocate": "Advocate",
+        "guest": "Guest",
+        "staff": "Staff",
+        "operator": "Operator"
+      },
+      "row": {
+        "updated": "Updated {date}",
+        "versions": "{n, plural, one {# version} other {# versions}}",
+        "fromFile": "From file",
+        "edit": "New version: {title}",
+        "editShort": "Edit (new version)"
+      },
+      "empty": {
+        "list": "No regulations yet",
+        "listText": "Write the first regulation or upload a file — the AI will answer from this text.",
+        "noResults": "No matching regulations",
+        "noResultsText": "Change or clear the filters.",
+        "gaps": "No unanswered questions",
+        "gapsAll": "No questions yet",
+        "gapsText": "Questions the AI couldn't answer from the regulations will show up here.",
+        "gapsNoResults": "No matching questions"
+      },
+      "missing": {
+        "soon": "Soon",
+        "title": "This section isn't enabled on the backend yet",
+        "text": "Once the backend turns it on, this page starts working by itself. Nothing to do.",
+        "recheck": "Check again",
+        "uploadText": "File upload isn't enabled on the backend yet. Use the editor for now.",
+        "uploadSoon": "File upload is coming soon",
+        "writeText": "Saving isn't enabled on the backend yet. Coming soon.",
+        "useEditor": "Use the editor"
+      },
+      "error": {
+        "load": "Couldn't load",
+        "loadText": "Check your connection and try again.",
+        "retry": "Try again",
+        "forbidden": "No access to this section",
+        "forbiddenText": "Only admins manage regulations.",
+        "forbiddenAction": "You don't have permission for this."
+      },
+      "editor": {
+        "createTitle": "New regulation",
+        "editTitle": "New version of the regulation",
+        "gapTitle": "Add the question to a regulation",
+        "gapLabel": "User question",
+        "target": "Add to",
+        "targetNew": "New regulation",
+        "targetLoading": "Loading the regulation text…",
+        "targetHintNew": "The question is saved as a new regulation.",
+        "targetHintOld": "The question is appended to that regulation as a new version.",
+        "title": "Title",
+        "titlePh": "E.g. Payments and refunds",
+        "category": "Category",
+        "customCategory": "Category name",
+        "customCategoryPh": "E.g. partners",
+        "version": "Version",
+        "versionHint": "E.g. 1.0, 1.1 or 2.0",
+        "versionCurrent": "Current version: v{v}. The new one must be higher.",
+        "versionPick": "Pick a version",
+        "bumpMinor": "minor edit",
+        "bumpMajor": "major change",
+        "status": "Status",
+        "statusHint": {
+          "active": "The AI uses this regulation.",
+          "draft": "Saved, but the AI doesn't use it yet.",
+          "archived": "Not used by the AI, kept for history."
+        },
+        "content": "Regulation text",
+        "contentPh": "Write rules and answers clearly, point by point. The AI relies only on this text.",
+        "count": "{chars} chars · {words} words",
+        "contentMissing": "The current text didn't load. Enter the full text of the new version.",
+        "gapNote": "The question is in the text. Write a clear answer to it.",
+        "qLabel": "Question",
+        "aLabel": "Answer",
+        "newVersionNote": "Saving creates a new version. Old versions are kept.",
+        "firstVersionNote": "This becomes the first version of the regulation.",
+        "save": "Save",
+        "saveVersion": "Save new version",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "created": "Regulation saved: {title}",
+        "updated": "New version saved: v{v}",
+        "errTitle": "Enter a title",
+        "errCategory": "Pick or type a category",
+        "errVersion": "Write the version like 1.0",
+        "errVersionLow": "The version must be higher than v{v}",
+        "errContent": "Enter the regulation text",
+        "errFix": "Fix the marked fields",
+        "errSave": "Couldn't save. Try again.",
+        "errConflict": "This version already exists. Pick another number."
+      },
+      "upload": {
+        "title": "Upload a regulation file",
+        "lead": "The backend extracts the text and saves it as a regulation version.",
+        "drop": "Drop the file here",
+        "dropNow": "Release to add",
+        "or": "or",
+        "choose": "choose from your computer",
+        "rules": ".docx, .doc or .pdf · up to 20 MB",
+        "change": "Choose another file",
+        "remove": "Remove the file",
+        "badType": "Upload a .docx, .doc or .pdf file",
+        "tooBig": "The file is too large: 20 MB max",
+        "empty": "The file is empty",
+        "needFile": "Choose a file first",
+        "target": "Regulation",
+        "targetHintNew": "The file is saved as a new regulation.",
+        "targetHintOld": "The file text becomes a new version of this regulation.",
+        "submit": "Upload",
+        "sending": "Uploading…",
+        "busy": "Uploading the file and extracting its text. This may take a moment.",
+        "done": "File uploaded: {title} · v{v}",
+        "err": "Couldn't upload the file. Try again.",
+        "mb": "{n} MB",
+        "kb": "{n} KB"
+      },
+      "drawer": {
+        "eyebrow": "AI regulation",
+        "close": "Close",
+        "updated": "Updated",
+        "created": "Created",
+        "source": "Source",
+        "sourceFile": "File",
+        "sourceEditor": "Editor",
+        "author": "Author",
+        "newVersion": "Create a new version",
+        "newVersionHint": "The current text stays — your edit is saved as a new version.",
+        "text": "Current text",
+        "textOf": "Text of v{v}",
+        "noText": "The backend didn't send the text.",
+        "history": "Version history",
+        "versionsCount": "{n, plural, one {# version} other {# versions}}",
+        "current": "Current",
+        "noVersionText": "This version's text isn't available",
+        "noHistory": "No versions yet.",
+        "onlyCurrent": "Only the current version is visible for now."
+      }
+    },
     "marketplace": {
       "eyebrow": "Marketplace · live monitoring",
       "updated": "updated {time}",
@@ -8257,6 +8645,7 @@
       "system": "System"
     },
     "nav": {
+      "aiReglaments": "AI regulations",
       "supportTickets": "Operator chats",
       "marketplace": "Marketplace monitoring",
       "overview": "Overview",
@@ -9754,6 +10143,128 @@
       "user": "User"
     },
     "policies": {
+      "pricing": {
+        "soonLoad": "Pricing rules are coming soon. Once the backend is ready, they will appear here on their own.",
+        "title": "Marketplace pricing",
+        "lead": "Advocates and lawyers can only price services within these rules. The recommended price starts from the catalogue price and adjusts for region, experience and rating.",
+        "live": "Active",
+        "notSaved": "Not on backend yet",
+        "lastChange": "Last change: v{v}, {when}.",
+        "lastChangePlain": "Last change: {when}.",
+        "missingSection": "The backend doesn’t return this section yet — it will be created on save. Default values are shown for now.",
+        "saveSoon": "Coming soon: the backend doesn’t accept this section yet. You can prepare the values; saving opens a little later.",
+        "soon": "Coming soon",
+        "forbidden": "Only an admin can view pricing rules.",
+        "loadError": "Couldn’t load pricing rules.",
+        "retry": "Retry",
+        "range": {
+          "title": "Allowed range",
+          "hint": "The specialist’s price stays within these percentages of the recommended price.",
+          "min": "Minimum percent",
+          "max": "Maximum percent",
+          "example": "For example, if the recommended price is 100 000 UZS, the specialist can charge {min} – {max} UZS."
+        },
+        "exp": {
+          "title": "Experience premium",
+          "hint": "Added to the recommended price based on the specialist’s total experience.",
+          "from": "From",
+          "to": "To",
+          "percent": "Premium",
+          "add": "Add row",
+          "sort": "Sort",
+          "empty": "No rows — no experience premium applies."
+        },
+        "region": {
+          "title": "Region coefficients",
+          "hint": "The catalogue price is multiplied by this number. “default” covers every region not listed.",
+          "key": "Region key",
+          "coef": "Coefficient",
+          "add": "Add region",
+          "keyPh": "e.g. buxoro",
+          "defaultLocked": "The “default” row is required"
+        },
+        "seller": {
+          "title": "Specialist results",
+          "hint": "A premium for specialists with strong results. Set the thresholds here.",
+          "successRateMin": "Success rate, at least",
+          "totalCasesMin": "Cases, at least",
+          "winsMin": "Wins, at least",
+          "ratingMin": "Rating, at least",
+          "reviewsMin": "Reviews, at least",
+          "percent": "Premium"
+        },
+        "client": {
+          "title": "Client rating",
+          "hint": "A premium for specialists that clients rate highly.",
+          "ratingMin": "Rating, at least",
+          "reviewsMin": "Reviews, at least",
+          "percent": "Premium"
+        },
+        "sector": {
+          "title": "Sector experience",
+          "hint": "A premium for long experience in one field.",
+          "verifiedOnly": "Count verified experience only",
+          "minYears": "Experience, at least",
+          "percent": "Premium"
+        },
+        "unit": {
+          "pct": "%",
+          "star": "★",
+          "years": "yrs"
+        },
+        "remove": "Remove",
+        "removeRow": "Remove row {row}",
+        "reset": "Discard",
+        "defaultsBtn": "Default values",
+        "save": "Save",
+        "saving": "Saving…",
+        "saved": "Pricing rules saved — a new version was created.",
+        "issuesCount": "{n, plural, one {# issue} other {# issues}}",
+        "errBad": "The backend rejected the values: {detail}",
+        "errBadPlain": "The backend rejected the values. Check the fields.",
+        "errForbidden": "You don’t have permission to save.",
+        "errOffline": "No internet connection. Please try again.",
+        "errUnknown": "Couldn’t save. Please try again.",
+        "kept": "{keys} kept the backend default value. Instead of removing it, set the coefficient to 1.00.",
+        "loaded": "v{v} loaded into the form. Saving creates a new version.",
+        "loadedPlain": "Version loaded into the form. Saving creates a new version.",
+        "yes": "Yes",
+        "no": "No",
+        "issues": {
+          "required": "{field}: enter a value.",
+          "range": "{field}: must be from {min} to {max}.",
+          "int": "{field}: must be a whole number.",
+          "minMax": "The minimum percent can’t be above the maximum.",
+          "rowMinMax": "Row {row}: “From” can’t be greater than “To”.",
+          "order": "Rows must go up by years.",
+          "overlap": "Rows {a} and {b} have overlapping years.",
+          "gap": "Years {from}–{to} aren’t covered by any row.",
+          "duplicate": "Region “{key}” is listed twice.",
+          "defaultMissing": "The “default” region is required.",
+          "emptyKey": "Row {row}: enter a region key.",
+          "rowField": "Row {row}, {field}"
+        },
+        "history": {
+          "open": "History",
+          "title": "Pricing rules — versions",
+          "empty": "No changes yet. Versions appear here after the first save.",
+          "soon": "Version history is coming soon.",
+          "error": "Couldn’t load the history.",
+          "first": "First version — compared with the default values.",
+          "noChanges": "Values didn’t change.",
+          "load": "Load into form",
+          "added": "added",
+          "removed": "removed",
+          "more": "{n} more changes",
+          "noVersion": "Version",
+          "unreadable": "This version couldn’t be read."
+        },
+        "diff": {
+          "exp": "Experience {range}",
+          "region": "Region “{key}”",
+          "regionNamed": "Region “{key}” ({name})"
+        }
+      },
       "boolNo": "No",
       "boolYes": "Yes",
       "readyTitle": "Production readiness",

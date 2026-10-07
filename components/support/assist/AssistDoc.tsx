@@ -6,9 +6,19 @@ import DocTypePicker from "@/components/portal/DocTypePicker";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField } from "@/lib/ai/registry";
 import { searchServices, type BackendService } from "@/lib/services/backend";
-import { ASSIST_DOC_LANGUAGES, createAssistDocumentRequest, type AssistDocLanguage, type AssistDocResult } from "@/lib/services/supportAssist";
+import {
+  ASSIST_DOC_LANGUAGES,
+  createAssistDocumentRequest,
+  docPayPhase,
+  mergeAssistLive,
+  pickPayPhase,
+  type AssistDocLanguage,
+  type AssistDocResult,
+  type AssistLive,
+  type AssistPayPhase,
+} from "@/lib/services/supportAssist";
 import { IconDocLines, IconEdit, IconSearch } from "@/components/icons";
-import { ConfirmModal, ResultCard, StatusChip, assistErrorText, clientLine, sumText, type AssistSectionProps, type InfoRow } from "./bits";
+import { ConfirmModal, PayState, ResultCard, StatusChip, assistErrorText, clientLine, sumText, useAssistLive, type AssistSectionProps, type InfoRow } from "./bits";
 
 type Base = { kind: "scratch" } | { kind: "service"; service: BackendService };
 type Hits = { q: string; items: BackendService[]; failed: boolean };
@@ -19,7 +29,7 @@ const NEED_PREVIEW = 280;
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 
-export default function AssistDoc({ ticketId, client, clientName, onDone, onBlock }: AssistSectionProps) {
+export default function AssistDoc({ ticketId, client, clientName, ctx, onDone, onBlock }: AssistSectionProps) {
   const t = useTranslations("support.assist");
   const tc = useTranslations("common");
   const locale = useLocale();
@@ -37,7 +47,10 @@ export default function AssistDoc({ ticketId, client, clientName, onDone, onBloc
   const [confirmErr, setConfirmErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<AssistDocResult | null>(null);
+  const [live, setLive] = useState<AssistLive | null>(null);
   const inflight = useRef(false);
+
+  useAssistLive(sent ? [sent.requestId, sent.recordId, sent.workId] : [], (e) => setLive((cur) => mergeAssistLive(cur, e)));
 
   const term = q.trim();
   const ready = hits && hits.q === term ? hits : null;
@@ -135,6 +148,7 @@ export default function AssistDoc({ ticketId, client, clientName, onDone, onBloc
         requestedDocumentType: docType,
       });
       setSent(r);
+      setLive(null);
       setConfirming(false);
       setBase(null);
       setQ("");
@@ -164,18 +178,27 @@ export default function AssistDoc({ ticketId, client, clientName, onDone, onBloc
     ...(docType.trim() ? [{ key: "type", label: t("doc.type"), value: docType.trim() }] : []),
     ...(service?.price ? [{ key: "price", label: t("doc.price"), value: sumText(t, service.price) }] : []),
   ];
+  const servicePrice = service?.price ?? 0;
+
+  const ctxDoc = sent ? ctx.recentDocuments.find((d) => (sent.requestId && d.id === sent.requestId) || (sent.workId && d.workId === sent.workId)) : undefined;
+  const basePhase: AssistPayPhase = sent ? docPayPhase(sent) : "";
+  const livePhase: AssistPayPhase = live?.phase ?? "";
+  const gated = basePhase !== "" || livePhase !== "";
+  const ctxPhase: AssistPayPhase = gated && ctxDoc ? (ctxDoc.paid ? "paid" : docPayPhase(ctxDoc)) : "";
+  const phase: AssistPayPhase = gated ? pickPayPhase(livePhase, ctxPhase, basePhase) : "";
+  const docStatus = sent ? live?.status || ctxDoc?.status || sent.poolStatus || sent.status : "";
 
   const sentRows: InfoRow[] = sent
     ? [
         { key: "work", label: t("result.workId"), value: sent.workId ? <span className="sasst__wid">{sent.workId}</span> : "—" },
         ...(sent.title ? [{ key: "title", label: t("doc.title"), value: sent.title }] : []),
-        { key: "status", label: t("result.status"), value: <StatusChip status={sent.poolStatus || sent.status} prefer="docStatus" /> },
+        ...(phase === "pending" || phase === "rejected" ? [] : [{ key: "status", label: t("result.status"), value: <StatusChip status={docStatus} prefer="docStatus" /> }]),
         {
           key: "mode",
           label: t("result.mode"),
           value: sent.assignmentMode && t.has(`doc.mode.${sent.assignmentMode}`) ? t(`doc.mode.${sent.assignmentMode}`) : sent.assignmentMode || "—",
         },
-        ...(sent.price > 0 ? [{ key: "pay", label: t("doc.payment"), value: sent.paid ? t("doc.paid") : `${t("doc.unpaid")} · ${sumText(t, sent.price, sent.currency)}` }] : []),
+        ...(!phase && sent.price > 0 ? [{ key: "pay", label: t("doc.payment"), value: sent.paid ? t("doc.paid") : `${t("doc.unpaid")} · ${sumText(t, sent.price, sent.currency)}` }] : []),
       ]
     : [];
 
@@ -183,7 +206,17 @@ export default function AssistDoc({ ticketId, client, clientName, onDone, onBloc
     <div className="sasst__secin">
       <h4 className="sasst__h4">{t("doc.heading")}</h4>
       <p className="sasst__lead">{t("doc.lead")}</p>
-      {sent ? <ResultCard title={t("doc.sentTitle")} rows={sentRows} note={t("doc.poolNote")} onDismiss={() => setSent(null)} /> : null}
+      {sent ? (
+        <ResultCard
+          title={phase === "pending" || phase === "rejected" ? t("doc.sentPayTitle") : t("doc.sentTitle")}
+          rows={sentRows}
+          note={phase === "pending" ? t("pay.docPending") : phase === "rejected" ? t("pay.rejectedNote") : t("doc.poolNote")}
+          warn={phase === "rejected"}
+          onDismiss={() => setSent(null)}
+        >
+          <PayState phase={phase} amount={sent.gate?.amount || sent.price} currency={sent.gate?.currency || sent.currency} />
+        </ResultCard>
+      ) : null}
 
       <div className="sasst__f">
         <span className="sasst__lbl">{t("doc.base")}</span>
@@ -301,7 +334,7 @@ export default function AssistDoc({ ticketId, client, clientName, onDone, onBloc
         open={confirming}
         title={t("doc.confirmTitle")}
         rows={confirmRows}
-        note={t("doc.confirmNote")}
+        note={servicePrice > 0 ? t("doc.confirmPaid", { amount: sumText(t, servicePrice) }) : t("doc.confirmNote")}
         busy={busy}
         error={confirmErr}
         onCancel={() => setConfirming(false)}

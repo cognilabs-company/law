@@ -9,11 +9,16 @@ import {
   getDocumentRequest,
   searchServices,
   requestDocumentLawyerReviewGated,
+  docPayPhase,
+  docRealtimeOf,
   DOC_FLOW_PAGE,
+  DOC_PAYMENT_STOPPED,
   type ClientDocFlowItem,
   type ClientDocFlowMode,
+  type DocPayPhase,
 } from "@/lib/services/backend";
-import { subscribeUserEvents } from "@/lib/userSocket";
+import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
+import { fmtUzs } from "@/lib/money";
 import { useDocChatRooms } from "@/lib/useDocChatRooms";
 import { useDocRatings } from "@/lib/useDocRatings";
 import { ctorPromptAsked, markCtorPromptAsked } from "@/lib/docCtorPrompt";
@@ -27,7 +32,7 @@ import { shortDateTime } from "@/lib/date";
 import { docNextActionKey, statusLabel } from "@/lib/labels";
 import { matchesSearch } from "@/lib/searchText";
 import { Link, useRouter } from "@/i18n/navigation";
-import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight, IconTag, IconCheck, IconSearch, IconCircleCheck } from "@/components/icons";
+import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight, IconTag, IconCheck, IconSearch, IconCircleCheck, IconCircleX, IconHourglass } from "@/components/icons";
 import { useAiReveal } from "@/lib/guide/targets";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
@@ -37,6 +42,10 @@ import { useAiField, useAiSelection } from "@/lib/ai/registry";
 // means, so it leads the card rather than hiding in a filter chip.
 const MODE_ICON = { manual: IconEdit, ai: IconSparkle, lawyer: IconScale } as const;
 
+type RowPhase = DocPayPhase | "pooled";
+const POOL_STATUSES = new Set(["open_pool", "lawyer_review_requested"]);
+const PHASE_ICON = { wait: IconHourglass, pooled: IconCircleCheck, cancelled: IconCircleX } as const;
+
 // Where a request has got to, as one of four states rather than six slugs.
 // The pill is coloured by this, so the list can be read down its right edge:
 // green is finished, blue is being worked on, amber is waiting on the client.
@@ -44,12 +53,15 @@ const MODE_ICON = { manual: IconEdit, ai: IconSparkle, lawyer: IconScale } as co
 // production: questionnaire, lawyer_review, file_ready, ready_to_generate,
 // open_pool, payment_pending); an unknown one lands on "working", which
 // claims nothing.
-function statusTone(status: string): "done" | "waiting" | "you" | "closed" | "working" {
+function statusTone(status: string, phase: RowPhase): "done" | "waiting" | "you" | "pay" | "off" | "closed" | "working" {
+  if (phase === "wait") return "pay";
+  if (phase === "cancelled") return "off";
+  if (phase === "pooled") return "waiting";
   if (status === "file_ready" || status === "rated") return "done";
-  if (status === "open_pool" || status === "lawyer_review") return "waiting";
-  if (status === "questionnaire" || status === "ready_to_generate" || status === "payment_pending" || status === "payment_required" || status === "awaiting_payment" || status === "pending_payment") return "you";
+  if (status === "open_pool" || status === "lawyer_review" || status === "lawyer_review_requested" || status === "claimed") return "waiting";
+  if (status === "questionnaire" || status === "ready_to_generate" || status === "payment_pending" || status === "awaiting_payment") return "you";
   // The case is over: nothing more will happen on this document.
-  if (status === "closed" || status === "cancelled" || status === "rejected" || status === "payment_cancelled") return "closed";
+  if (status === "closed" || status === "cancelled" || status === "rejected") return "closed";
   return "working";
 }
 // Which rows could carry a rating window, and therefore are worth one detail
@@ -99,6 +111,8 @@ export default function ClientDocumentRequests() {
   // the unfiltered answers only — a filtered one would collapse the menu to
   // the single status just chosen.
   const [seen, setSeen] = useState<string[]>([]);
+  const [flash, setFlash] = useState<Record<string, "pooled" | "rejected">>({});
+  const [fresh, setFresh] = useState<string[]>([]);
 
   // Back to "loading" the moment the query changes — during render, not in the
   // effect, so there is no extra cascading render (same pattern as useResource).
@@ -267,6 +281,12 @@ export default function ClientDocumentRequests() {
     try {
       const r = await requestDocumentLawyerReviewGated(item.id, sendNeed.trim() || tcommon("reviewNeedDefault"));
       setSendId("");
+      setFlash((cur) => {
+        if (!(item.id in cur)) return cur;
+        const next = { ...cur };
+        delete next[item.id];
+        return next;
+      });
       if (r.alreadyExists || !r.canSendLawyerRequest) setNote({ ok: false, msg: r.message || item.lawyerRequestBlockReason || tcommon("lawyerPendingLead") });
       // The fee gate of the lawyer-review endpoint: the request exists but it
       // has not reached the advocates, so it is not reported as sent either.
@@ -286,12 +306,39 @@ export default function ClientDocumentRequests() {
   // meeting, or sent the finished file. `refresh()` keeps what is on screen
   // while it refetches, so an event never flashes the list back to a skeleton.
   useEffect(() => {
-    return subscribeUserEvents((ev) => {
-      if (!ev.event.startsWith("document_request.")) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const later = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(refresh, 600);
+    };
+    const off = subscribeUserEvents((ev) => {
+      const rt = docRealtimeOf(ev);
+      if (!rt) return;
       // MD §"Client tayyor file ko'rishi" — the exact notice the client gets.
-      if (ev.event === "document_request.ready" || ev.event === "document_request.completed") setNote({ ok: true, msg: t("readyToast") });
-      refresh();
+      if (rt.name === "document_request.ready" || rt.name === "document_request.completed") setNote({ ok: true, msg: t("readyToast") });
+      if (rt.ids.length && rt.kind !== "changed") {
+        const mark = rt.kind === "pooled" || rt.kind === "rejected" ? rt.kind : "";
+        setFlash((cur) => {
+          const next = { ...cur };
+          for (const id of rt.ids) {
+            if (mark) next[id] = mark;
+            else delete next[id];
+          }
+          return next;
+        });
+      }
+      if (rt.kind === "created") {
+        setNote({ ok: true, msg: t("opCreated") });
+        if (rt.ids.length) setFresh(rt.ids);
+      }
+      later();
     });
+    const offSync = onUserSocketResync(refresh);
+    return () => {
+      if (timer) clearTimeout(timer);
+      off();
+      offSync();
+    };
   }, [refresh, t]);
 
   // The chat room is not on the list row — see useDocChatRooms. Only rows
@@ -463,7 +510,16 @@ export default function ClientDocumentRequests() {
             const ModeIcon = MODE_ICON[item.mode as keyof typeof MODE_ICON] ?? IconFileText;
             const room = item.secureChatRoomId || rooms[item.id];
             const ready = item.file.ready;
-            const tone = statusTone(item.status);
+            const basePhase = docPayPhase(item.status, item.mode === "lawyer", item.payment.required);
+            const mark = flash[item.id];
+            const phase: RowPhase =
+              mark === "rejected" && basePhase ? "cancelled" : mark === "pooled" && (basePhase === "wait" || POOL_STATUSES.has(item.status)) ? "pooled" : basePhase;
+            const shownStatus =
+              phase === "pooled" && !POOL_STATUSES.has(item.status) ? "open_pool" : phase === "cancelled" && !DOC_PAYMENT_STOPPED.has(item.status) ? "payment_cancelled" : item.status;
+            const tone = statusTone(shownStatus, phase);
+            const PhaseIcon = phase ? PHASE_ICON[phase] : null;
+            const payCur = item.payment.currency && !/^uzs$/i.test(item.payment.currency) ? item.payment.currency : tcommon("som");
+            const payAmount = phase === "wait" && item.payment.amount > 0 ? `${fmtUzs(item.payment.amount)} ${payCur}` : "";
             // §5 L116-122: the constructor half of a document an advocate is
             // holding. Offered strictly on the backend's word —
             // constructor_action.available with a constructor_continue_url —
@@ -478,7 +534,7 @@ export default function ClientDocumentRequests() {
             // control belongs on the rows the client filled in themselves —
             // plus, disabled, on any row the backend has blocked, because a
             // refusal with nothing to refuse explains nothing.
-            const canSend = (item.mode === "manual" && tone !== "closed") || blocked;
+            const canSend = (item.mode === "manual" && tone !== "closed" && phase !== "wait" && phase !== "pooled") || blocked;
             const info = rated[item.id];
             // A complaint is offered on exactly the rows a rating is offered
             // on — the finished ones — but unlike the rating it does not
@@ -489,10 +545,10 @@ export default function ClientDocumentRequests() {
             const workId = item.workId || info?.workId || "";
             const itemAi = aiId("documents.my.item", item.id);
             const modeText = t.has(`tab_${item.mode}`) ? t(`tab_${item.mode}`) : item.mode;
-            const statusText = statusLabel(tcm, item.status, "docStatus") || item.statusLabel;
+            const statusText = shownStatus === item.status ? statusLabel(tcm, item.status, "docStatus") || item.statusLabel : statusLabel(tcm, shownStatus, "docStatus");
             return (
               <article
-                className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}${tone === "closed" ? " mydoc--closed" : ""}${promptId === item.id ? " mydoc--flag" : ""}`}
+                className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}${tone === "closed" || tone === "off" ? " mydoc--closed" : ""}${promptId === item.id ? " mydoc--flag" : ""}${fresh.includes(item.id) ? " mydoc--fresh" : ""}`}
                 key={item.id}
                 data-ai-id={itemAi}
                 data-ai-type="list_item"
@@ -542,7 +598,22 @@ export default function ClientDocumentRequests() {
                   </div>
                   {/* What to do next, as a sentence — it was a full-width grey
                       box that read as an empty input. */}
-                  {item.nextAction ? <p className="mydoc__next"><IconArrowRight />{nextActionText(item.nextAction)}</p> : null}
+                  {phase && PhaseIcon ? (
+                    <div
+                      className={`mydoc__pay mydoc__pay--${phase}`}
+                      role="status"
+                      data-ai-id={phase === "wait" ? aiId(itemAi, "payment") : undefined}
+                      data-ai-type={phase === "wait" ? "payment_gate" : undefined}
+                      data-ai-label={phase === "wait" ? t(`pay.${phase}.title`) : undefined}
+                    >
+                      <span className="mydoc__payi" aria-hidden="true"><PhaseIcon /></span>
+                      <span className="mydoc__payt">
+                        <b>{t(`pay.${phase}.title`)}</b>
+                        <small>{t(`pay.${phase}.text`)}</small>
+                      </span>
+                      {payAmount ? <em className="mydoc__paysum">{payAmount}</em> : null}
+                    </div>
+                  ) : item.nextAction ? <p className="mydoc__next"><IconArrowRight />{nextActionText(item.nextAction)}</p> : null}
                   {/* Two things the client could not reach once the order modal
                       was closed: the private chat with the advocate handling
                       the document, and the finished file. */}

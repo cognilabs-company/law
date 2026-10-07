@@ -16,6 +16,7 @@ import { onInstructorOpen, openInstructor } from "@/lib/guide/panel";
 import type { GuideRole, GuideTour } from "@/lib/guide/types";
 import {
   abortCommands,
+  aiHandoff,
   canReplay,
   commandsKnown,
   commandsRunning,
@@ -26,6 +27,7 @@ import {
   runCommands,
   supportCommand,
   tourFromSteps,
+  type AiHandoffTurn,
   type RunCtx,
 } from "@/lib/ai/commands";
 import { buildAiSnapshot } from "@/lib/ai/manifest";
@@ -80,6 +82,7 @@ import {
   IconChat,
   IconCheck,
   IconChevronRight,
+  IconCircleCheck,
   IconClipboardList,
   IconClose,
   IconFileText,
@@ -89,6 +92,7 @@ import {
   IconGraduation,
   IconHeadset,
   IconHelpCircle,
+  IconHistory,
   IconMegaphone,
   IconPackage,
   IconPhone,
@@ -263,7 +267,20 @@ function NeedList({ id, title, items }: { id: string; title: string; items: stri
   );
 }
 
-type GuideMsg = { kind: "guide"; id: string; text: string; intent: string; tour: GuideTour | null; support: boolean; checklist?: string[]; needs?: string[] };
+type HandoffTicket = { id: string; workId: string };
+
+type GuideMsg = {
+  kind: "guide";
+  id: string;
+  text: string;
+  intent: string;
+  tour: GuideTour | null;
+  support: boolean;
+  checklist?: string[];
+  needs?: string[];
+  at?: string;
+  ticket?: HandoffTicket;
+};
 type V21Msg = {
   kind: "v21";
   id: string;
@@ -276,19 +293,105 @@ type V21Msg = {
   needs?: string[];
   fallback?: AiSupportFallback | null;
   offerSupport?: boolean;
+  at?: string;
+  ticket?: HandoffTicket;
 };
 type Msg =
   | { kind: "me"; id: string; text: string }
   | GuideMsg
   | V21Msg
-  | { kind: "ai"; id: string; ans: AiAnswer; tour: GuideTour | null; rated: number }
+  | { kind: "ai"; id: string; ans: AiAnswer; tour: GuideTour | null; rated: number; at?: string }
   | { kind: "err"; id: string; text: string };
 
 type V21Outcome = { kind: "ok"; res: AiChatResponse; contract: InstructorContract } | { kind: "fallback" } | { kind: "unavailable" };
 
 const VISUAL = new Set(["navigate", "highlight", "tooltip", "scroll_to", "focus_input"]);
+const SUPPORT_INTENT = /^(support|operator)(_|$)|(^|_)gap$/;
 
-type Confirm = { key: string; message: string; busy: boolean; error: string; note: string; v2: boolean };
+type Confirm = { key: string; msgId: string; message: string; busy: boolean; error: string; note: string; v2: boolean; shared: boolean };
+
+function offersSupport(res: AiChatResponse, guiding: boolean): boolean {
+  if (SUPPORT_INTENT.test(res.intent)) return true;
+  const fb = res.supportFallback;
+  if (fb && !fb.available) return false;
+  if (res.missingRequirements.length) return true;
+  return Boolean(fb?.available) && !guiding && !res.steps.length;
+}
+
+function withNeeds(text: string, needs?: string[]): string {
+  const list = Array.isArray(needs) ? needs.filter(Boolean) : [];
+  return list.length ? `${text}\n${list.map((n) => `• ${n}`).join("\n")}` : text;
+}
+
+const str = (v: unknown) => (typeof v === "string" ? v : "");
+
+function handoffTurns(list: Msg[], extra?: AiHandoffTurn): AiHandoffTurn[] {
+  const turns: AiHandoffTurn[] = [];
+  let asked = "";
+  for (const m of list) {
+    const at = str(m.kind === "me" || m.kind === "err" ? "" : m.at);
+    if (m.kind === "me") asked = str(m.text);
+    else if (m.kind === "guide" || m.kind === "v21") turns.push({ q: asked, a: withNeeds(str(m.text), m.needs), ...(at ? { at } : {}) });
+    else if (m.kind === "ai") turns.push({ q: asked, a: str(m.ans?.answer), ...(at ? { at } : {}) });
+  }
+  if (extra) turns.push(extra);
+  return turns;
+}
+
+const hasTurns = (turns: AiHandoffTurn[]) => turns.some((x) => x.q.trim() || x.a.trim());
+
+function HandoffCard({ id, needs, ticket, href, onConnect, onLeave }: { id: string; needs: string[]; ticket?: HandoffTicket; href: string; onConnect: () => void; onLeave: () => void }) {
+  const t = useTranslations("portal.aiAssistant");
+  if (ticket) {
+    const to = href && ticket.id ? `${href}?ticket=${encodeURIComponent(ticket.id)}` : href;
+    return (
+      <div className="ains__ho ains__ho--done">
+        <span className="ains__hoIc ains__hoIc--ok" aria-hidden="true">
+          <IconCircleCheck />
+        </span>
+        <p className="ains__hoT">{ticket.workId ? t("ticketCreated", { id: ticket.workId }) : t("ticketCreatedPlain")}</p>
+        {to ? (
+          <Link className="btn btn--line btn--sm" href={to} onClick={onLeave}>
+            <IconChat aria-hidden="true" />
+            {t("handoff.open")}
+          </Link>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <div className="ains__ho" role="group" aria-labelledby={`${id}-t`}>
+      <div className="ains__hoH">
+        <span className="ains__hoIc" aria-hidden="true">
+          <IconHeadset />
+        </span>
+        <div className="ains__hoTx">
+          <p className="ains__hoT" id={`${id}-t`}>
+            {t("handoff.title")}
+          </p>
+          <p className="ains__hoS">{t("handoff.lead")}</p>
+        </div>
+      </div>
+      {needs.length ? (
+        <div className="ains__hoNeeds">
+          <p id={`${id}-n`}>
+            <IconClipboardList aria-hidden="true" />
+            {t("needsTitle")}
+          </p>
+          <ul aria-labelledby={`${id}-n`}>
+            {needs.map((s, i) => (
+              <li key={`${i}-${s}`}>{s}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <button type="button" className="btn btn--pri btn--sm btn--full" onClick={onConnect}>
+        <IconHeadset aria-hidden="true" />
+        {t("toOperator")}
+      </button>
+    </div>
+  );
+}
 
 function makeId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -455,28 +558,47 @@ export default function AiSystemAssistant({
     return instructorHistory(turns);
   };
 
-  const runCtx = (sid: string, contract: InstructorContract | null, message: string, answer: string, source: "http" | "ws"): RunCtx => ({
-    scope: scopeNow(),
-    sessionId: sid,
-    role: gRole,
-    contract,
-    message,
-    answer,
-    source,
-    captionFor,
-    closePanel: () => closeRef.current(),
-    handoffUi: gRole !== "staff",
-    labels: {
-      ticketCreated: (id: string) => t("ticketCreated", { id }),
-      ticketCreatedPlain: t("ticketCreatedPlain"),
-      ticketShown: t("ticketShown"),
-      ticketWrite: t("ticketWrite"),
-      actionDone: (action: string, workId: string) => {
-        const text = t.has(`v21.done.${action}`) ? t(`v21.done.${action}`) : t("v21.done.generic");
-        return workId ? `${text} · ${workId}` : text;
+  const markHandoff = (msgId: string, ticketId: string, workId: string) => {
+    if (!msgId) return;
+    setMsgs((list) => list.map((x) => ((x.kind === "v21" || x.kind === "guide") && x.id === msgId ? { ...x, ticket: { id: ticketId, workId } } : x)));
+  };
+
+  const handoffSession = (sid = "") => sid || aiSessionId(scopeNow()) || sessionRef.current;
+
+  const runCtx = (
+    sid: string,
+    contract: InstructorContract | null,
+    message: string,
+    answer: string,
+    source: "http" | "ws",
+    extra?: { turn?: AiHandoffTurn; msgId?: string },
+  ): RunCtx => {
+    const msgId = extra?.msgId ?? "";
+    return {
+      scope: scopeNow(),
+      sessionId: sid,
+      role: gRole,
+      contract,
+      message,
+      answer,
+      source,
+      captionFor,
+      closePanel: () => closeRef.current(),
+      handoffUi: gRole !== "staff",
+      handoff: () => aiHandoff(handoffTurns(msgs, extra?.turn), handoffSession(sid)),
+      onTicket: msgId ? (ticketId, workId) => markHandoff(msgId, ticketId, workId) : undefined,
+      labels: {
+        ticketCreated: (id: string) => t("ticketCreated", { id }),
+        ticketCreatedPlain: t("ticketCreatedPlain"),
+        ticketShown: t("ticketShown"),
+        ticketWrite: t("ticketWrite"),
+        actionDone: (action: string, workId: string) => {
+          const text = t.has(`v21.done.${action}`) ? t(`v21.done.${action}`) : t("v21.done.generic");
+          return workId ? `${text} · ${workId}` : text;
+        },
       },
-    },
-  });
+    };
+  };
 
   const declaredTargets = (contract: InstructorContract, visible: string[], selfHelp: boolean) =>
     crossPageTargets({
@@ -527,13 +649,16 @@ export default function AiSystemAssistant({
     const sid = res.sessionId || aiSessionId(scopeNow());
     const guiding = cmds.some((c) => VISUAL.has(c.type) || c.type === "preview_action" || c.type === "confirm_required");
     const fallback = res.supportFallback;
-    const offerSupport = gRole !== "staff" && (res.intent === "support_guidance" || (Boolean(fallback?.available) && !guiding && !res.steps.length));
+    const offerSupport = gRole !== "staff" && offersSupport(res, guiding);
+    const id = makeId();
+    const at = new Date().toISOString();
     setMsgs((m) => [
       ...m,
-      { kind: "v21", id: makeId(), text: res.answer, intent: res.intent, cmds, question, sid, steps: res.steps, needs: res.missingRequirements, fallback, offerSupport },
+      { kind: "v21", id, at, text: res.answer, intent: res.intent, cmds, question, sid, steps: res.steps, needs: res.missingRequirements, fallback, offerSupport },
     ]);
     if (!cmds.length || (source === "ws" && commandsRunning())) return;
-    void runCommands(cmds, runCtx(sid, contract, question, res.answer, source)).then((sum) => {
+    const turn: AiHandoffTurn = { q: question, a: withNeeds(res.answer, res.missingRequirements), at };
+    void runCommands(cmds, runCtx(sid, contract, question, res.answer, source, { turn, msgId: id })).then((sum) => {
       if (sum.missing || sum.failed) openInstructor();
     });
   };
@@ -543,7 +668,7 @@ export default function AiSystemAssistant({
   };
 
   const supportV21 = (m: V21Msg, base: AiCommand) => {
-    void runCommands([supportCommand(base, m.question)], runCtx(m.sid || aiSessionId(scopeNow()), cachedInstructorContract(gRole), m.question, m.text, "http"));
+    void runCommands([supportCommand(base, m.question)], runCtx(m.sid || aiSessionId(scopeNow()), cachedInstructorContract(gRole), m.question, m.text, "http", { msgId: m.id }));
   };
 
   const newChat = () => {
@@ -636,9 +761,10 @@ export default function AiSystemAssistant({
       if (reply && !replyNeedsAssistant(reply, guided)) {
         const tour = guided ? tourFromReply(reply, gRole, captionFor, pathname, message) : null;
         const support = replyOffersSupport(reply, gRole, Boolean(tour));
+        const at = new Date().toISOString();
         setMsgs((m) => [
           ...m,
-          { kind: "guide", id: makeId(), text: reply.reply, intent: reply.intent, tour, support, checklist: reply.checklist, needs: reply.missingRequirements },
+          { kind: "guide", id: makeId(), at, text: reply.reply, intent: reply.intent, tour, support, checklist: reply.checklist, needs: reply.missingRequirements },
         ]);
         setBusy(false);
         if (tour && !support && !reply.checklist.length && !reply.missingRequirements.length) runTour(tour);
@@ -654,7 +780,8 @@ export default function AiSystemAssistant({
       });
       const route = ans.navigation ? aiRouteFor(ans.navigation.pageId, ans.navigation.route, role) : "";
       const tour = route ? pageTour(route, ans.navigation?.title || ans.highlight || ans.answer.slice(0, 140)) : null;
-      setMsgs((m) => [...m, { kind: "ai", id: ans.requestId || makeId(), ans, tour, rated: 0 }]);
+      const at = new Date().toISOString();
+      setMsgs((m) => [...m, { kind: "ai", id: ans.requestId || makeId(), at, ans, tour, rated: 0 }]);
       RobotEvents.emit("idle");
     } catch (e) {
       if (isAborted(e)) return;
@@ -716,9 +843,9 @@ export default function AiSystemAssistant({
     }
   };
 
-  const openHandoff = (question: string) => {
+  const openHandoff = (question: string, msgId: string) => {
     const key = makeId();
-    setConfirm({ key, message: question, busy: false, error: "", note: "", v2: false });
+    setConfirm({ key, msgId, message: question, busy: false, error: "", note: "", v2: false, shared: hasTurns(handoffTurns(msgs)) });
     previewSupportHandoff().then(
       (p) => {
         const note = localizeApiDetail(p.message);
@@ -737,17 +864,17 @@ export default function AiSystemAssistant({
     setConfirm((c) => (c && c.key === cur.key ? { ...c, busy: true, error: "" } : c));
     const message = cur.message.trim();
     const category = supportCategoryFor(pathname, message);
+    const context = { current_path: pathname, ...aiHandoff(handoffTurns(msgs), handoffSession()) };
     try {
       const viaBackend = cur.v2
-        ? await confirmSupportHandoff({ message, category, priority: "normal" }).catch((e: unknown) => {
+        ? await confirmSupportHandoff({ message, category, priority: "normal", context }).catch((e: unknown) => {
             if (confirmUnsupported(e)) return null;
             throw e;
           })
         : null;
-      const tk = viaBackend
-        ? viaBackend.ticket
-        : await createSupportTicket({ message, category, priority: "normal", source: "ai_platform_instructor", context: { current_path: pathname } });
+      const tk = viaBackend ? viaBackend.ticket : await createSupportTicket({ message, category, priority: "normal", source: "ai_platform_instructor", context });
       setConfirm(null);
+      markHandoff(cur.msgId, tk?.id ?? "", tk?.workId ?? "");
       toast(tk?.workId ? t("ticketCreated", { id: tk.workId }) : t("ticketCreatedPlain"), { tone: "ok" });
       runTour({
         id: newTourId(),
@@ -782,6 +909,12 @@ export default function AiSystemAssistant({
           <p className="aiconfirm__what">{t("confirmText")}</p>
         </div>
         {confirm?.message ? <blockquote className="aiconfirm__q">{confirm.message}</blockquote> : null}
+        {confirm?.shared ? (
+          <p className="aiconfirm__share">
+            <IconHistory aria-hidden="true" />
+            <span>{t("handoff.shared")}</span>
+          </p>
+        ) : null}
         {confirm?.note ? <p className="aiconfirm__note">{confirm.note}</p> : null}
         {confirm?.error ? (
           <p className="aiconfirm__err" role="alert">
@@ -908,7 +1041,9 @@ export default function AiSystemAssistant({
                 const needs = Array.isArray(m.needs) ? m.needs : [];
                 const stepTour = hasStepTour(steps, m.question);
                 const fallbackHandoff = m.offerSupport ? normCommand({ id: `${m.id}:support`, type: "support_handoff", text: m.fallback?.reason ?? "" }, 0, m.id) : null;
-                const handoff = gRole === "staff" ? undefined : (cmds.find((c) => c.type === "support_handoff") ?? fallbackHandoff ?? undefined);
+                const handoffCmd = cmds.find((c) => c.type === "support_handoff");
+                const handoff = gRole === "staff" ? undefined : (handoffCmd ?? fallbackHandoff ?? undefined);
+                const card = Boolean(handoff) && (needs.length > 0 || Boolean(handoffCmd) || SUPPORT_INTENT.test(str(m.intent)) || Boolean(m.ticket));
                 const replay = canReplay(cmds, gRole, m.question);
                 const intent = String(m.intent || "").toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
                 const walk = stepTour
@@ -937,23 +1072,26 @@ export default function AiSystemAssistant({
                         }
                       />
                     ) : null}
-                    {needs.length ? <NeedList id={`ains-needs-${m.id}`} title={t("needsTitle")} items={needs} /> : null}
+                    {needs.length && !card ? <NeedList id={`ains-needs-${m.id}`} title={t("needsTitle")} items={needs} /> : null}
                     <AiCommandStatus commands={cmds} />
-                    {show || handoff ? (
+                    {show || (handoff && !card) ? (
                       <div className="ains__acts">
                         {show ? (
-                          <button type="button" className="btn btn--pri btn--sm" onClick={show}>
+                          <button type="button" className={`btn ${card ? "btn--line" : "btn--pri"} btn--sm`} onClick={show}>
                             <IconTarget aria-hidden="true" />
                             {tp("show")}
                           </button>
                         ) : null}
-                        {handoff ? (
+                        {handoff && !card ? (
                           <button type="button" className={`btn ${show ? "btn--line" : "btn--pri"} btn--sm`} onClick={() => supportV21(m, handoff)}>
                             <IconHeadset aria-hidden="true" />
-                            {tp("operator")}
+                            {t("toOperator")}
                           </button>
                         ) : null}
                       </div>
+                    ) : null}
+                    {handoff && card ? (
+                      <HandoffCard id={`ains-ho-${m.id}`} needs={needs} ticket={m.ticket} href={supportHref} onConnect={() => supportV21(m, handoff)} onLeave={onClose} />
                     ) : null}
                   </div>
                 );
@@ -962,28 +1100,31 @@ export default function AiSystemAssistant({
                 const tour = m.tour;
                 const checklist = Array.isArray(m.checklist) ? m.checklist : [];
                 const needs = Array.isArray(m.needs) ? m.needs : [];
+                const card = m.support && (needs.length > 0 || SUPPORT_INTENT.test(str(m.intent)) || Boolean(m.ticket));
+                const connect = () => openHandoff(lastQuestion(m.id), m.id);
                 return (
                   <div className="ains__ai ains__ai--guide" key={m.id}>
                     <AiWho label={tp("aiLabel")} />
                     <p className="ains__text">{m.text || t("done")}</p>
                     {checklist.length ? <StepList id={`ains-steps-${m.id}`} title={t("stepsTitle")} steps={checklist} /> : null}
-                    {needs.length ? <NeedList id={`ains-needs-${m.id}`} title={t("needsTitle")} items={needs} /> : null}
-                    {tour || m.support ? (
+                    {needs.length && !card ? <NeedList id={`ains-needs-${m.id}`} title={t("needsTitle")} items={needs} /> : null}
+                    {tour || (m.support && !card) ? (
                       <div className="ains__acts">
                         {tour ? (
-                          <button type="button" className="btn btn--pri btn--sm" onClick={() => runTour({ ...tour, id: newTourId() })}>
+                          <button type="button" className={`btn ${card ? "btn--line" : "btn--pri"} btn--sm`} onClick={() => runTour({ ...tour, id: newTourId() })}>
                             <IconTarget aria-hidden="true" />
                             {tp("show")}
                           </button>
                         ) : null}
-                        {m.support ? (
-                          <button type="button" className={`btn ${tour ? "btn--line" : "btn--pri"} btn--sm`} onClick={() => openHandoff(lastQuestion(m.id))}>
+                        {m.support && !card ? (
+                          <button type="button" className={`btn ${tour ? "btn--line" : "btn--pri"} btn--sm`} onClick={connect}>
                             <IconHeadset aria-hidden="true" />
-                            {tp("operator")}
+                            {t("toOperator")}
                           </button>
                         ) : null}
                       </div>
                     ) : null}
+                    {card ? <HandoffCard id={`ains-ho-${m.id}`} needs={needs} ticket={m.ticket} href={supportHref} onConnect={connect} onLeave={onClose} /> : null}
                   </div>
                 );
               }

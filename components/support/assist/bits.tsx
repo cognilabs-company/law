@@ -1,14 +1,24 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import { errorText } from "@/lib/errorText";
 import { statusLabel, type StatusNamespace } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
-import { assistDocDuplicateOf, assistErrorKind, assistMarketDuplicateOf, type AssistClient } from "@/lib/services/supportAssist";
-import { IconAlert, IconCheck, IconClose } from "@/components/icons";
+import { subscribeUserEvents } from "@/lib/userSocket";
+import {
+  assistDocDuplicateOf,
+  assistErrorKind,
+  assistLiveOf,
+  assistMarketDuplicateOf,
+  type AssistClient,
+  type AssistContext,
+  type AssistLive,
+  type AssistPayPhase,
+} from "@/lib/services/supportAssist";
+import { IconAlert, IconCheck, IconCircleCheck, IconCircleX, IconClose, IconHourglass } from "@/components/icons";
 
 export type Tr = ReturnType<typeof useTranslations>;
 
@@ -16,6 +26,8 @@ export type AssistSectionProps = {
   ticketId: string;
   client: AssistClient | null;
   clientName: string;
+  ctx: AssistContext;
+  ctxAt: number;
   onDone: () => void;
   onBlock: (e: unknown) => boolean;
 };
@@ -25,6 +37,8 @@ export type InfoRow = { key: string; label: string; value: ReactNode };
 const OK = new Set(["active", "paid", "completed", "done", "file_ready", "delivered", "rated", "approved", "verified", "closed"]);
 const WARN = new Set(["pending", "pending_payment", "payment_pending", "waiting_payment", "awaiting_payment", "payment_required", "open_pool", "questionnaire", "new", "waiting_info", "waiting_docs"]);
 const ERR = new Set(["cancelled", "canceled", "rejected", "declined", "failed", "expired", "lost", "payment_cancelled", "refunded"]);
+
+const PAY_ICON = { pending: IconHourglass, paid: IconCircleCheck, rejected: IconCircleX } as const;
 
 function toneOf(status: string): string {
   const s = status.toLowerCase();
@@ -54,10 +68,44 @@ export function assistErrorText(e: unknown, t: Tr, tc: Tr): string {
   return errorText(e, tc);
 }
 
+export function useAssistLive(ids: string[], onMatch: (e: AssistLive) => void): void {
+  const key = Array.from(new Set(ids.filter(Boolean))).join("\n");
+  const ref = useRef(onMatch);
+  useEffect(() => {
+    ref.current = onMatch;
+  });
+  useEffect(() => {
+    if (!key) return;
+    const want = new Set(key.split("\n"));
+    return subscribeUserEvents((raw) => {
+      const e = assistLiveOf(raw);
+      if (e && e.ids.some((id) => want.has(id))) ref.current(e);
+    });
+  }, [key]);
+}
+
 export function StatusChip({ status, prefer }: { status: string; prefer?: StatusNamespace }) {
   const tp = useTranslations("portal.common");
   if (!status) return null;
   return <span className={`sasst__st sasst__st--${toneOf(status)}`}>{statusLabel(tp, status, prefer)}</span>;
+}
+
+export function PayState({ phase, amount = 0, currency = "UZS" }: { phase: AssistPayPhase; amount?: number; currency?: string }) {
+  const t = useTranslations("support.assist");
+  if (!phase) return null;
+  const Icon = PAY_ICON[phase];
+  return (
+    <div className={`sasst__pay sasst__pay--${phase}`}>
+      <span className="sasst__payic" aria-hidden="true">
+        <Icon />
+      </span>
+      <span className="sasst__payt">
+        <b>{t(`pay.${phase}`)}</b>
+        <small>{t(`pay.${phase}Hint`)}</small>
+      </span>
+      {amount > 0 ? <em>{sumText(t, amount, currency)}</em> : null}
+    </div>
+  );
 }
 
 export function InfoList({ rows }: { rows: InfoRow[] }) {
@@ -73,7 +121,21 @@ export function InfoList({ rows }: { rows: InfoRow[] }) {
   );
 }
 
-export function ResultCard({ title, rows, note, warn, onDismiss }: { title: string; rows: InfoRow[]; note?: ReactNode; warn?: boolean; onDismiss: () => void }) {
+export function ResultCard({
+  title,
+  rows,
+  note,
+  warn,
+  onDismiss,
+  children,
+}: {
+  title: string;
+  rows: InfoRow[];
+  note?: ReactNode;
+  warn?: boolean;
+  onDismiss: () => void;
+  children?: ReactNode;
+}) {
   const t = useTranslations("support.assist");
   return (
     <div className={`sasst__res${warn ? " sasst__res--warn" : ""}`} role="status" data-ai-private>
@@ -84,6 +146,7 @@ export function ResultCard({ title, rows, note, warn, onDismiss }: { title: stri
           <IconClose />
         </button>
       </div>
+      {children}
       <InfoList rows={rows} />
       {note ? <p>{note}</p> : null}
     </div>

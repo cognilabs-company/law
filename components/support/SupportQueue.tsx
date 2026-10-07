@@ -28,9 +28,10 @@ import {
   type SupportOperator,
   type SupportTicket,
 } from "@/lib/services/support";
+import type { AssistCapabilities } from "@/lib/services/supportAssist";
 import { shortDateTime } from "@/lib/date";
 import Modal from "@/components/admin/Modal";
-import { IconChat, IconChevronLeft, IconClock, IconHeadset, IconInbox, IconRefresh, IconSearch } from "@/components/icons";
+import { IconChat, IconChevronLeft, IconClock, IconHeadset, IconInbox, IconLock, IconRefresh, IconSearch } from "@/components/icons";
 import SupportChat from "./SupportChat";
 import AssistPanel from "./assist/AssistPanel";
 import { SupportStatus, TicketCard, useMinuteNow, useSupportCall, useSupportLabels, waitText } from "./bits";
@@ -38,6 +39,7 @@ import { SupportStatus, TicketCard, useMinuteNow, useSupportCall, useSupportLabe
 type Tab = "new" | "mine" | "transferred" | "closed";
 type View = "chat" | "assist";
 type Transfer = { q: string; results: SupportOperator[]; loading: boolean; pick: SupportOperator | null; reason: string; err: string };
+type Caps = { id: string; transfer: boolean; call: boolean };
 
 const TABS: Tab[] = ["new", "mine", "transferred", "closed"];
 const VIEWS: View[] = ["chat", "assist"];
@@ -94,6 +96,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
   const [assistKey, setAssistKey] = useState(0);
   const [ping, setPing] = useState(0);
   const [missingId, setMissingId] = useState("");
+  const [caps, setCaps] = useState<Caps | null>(null);
   const counted = useRef(new Set<string>());
   const acted = useRef({ ticketId: "", at: 0 });
   const claiming = useRef("");
@@ -259,9 +262,14 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
   });
 
   const aiTicket = current?.id ?? "";
+  const ticketCaps = caps && aiTicket && caps.id === aiTicket ? caps : null;
+  const transferOff = ticketCaps ? !ticketCaps.transfer : false;
+  const callOff = ticketCaps ? !ticketCaps.call : false;
+  const onCaps = (id: string, c: AssistCapabilities) =>
+    setCaps((cur) => (cur && cur.id === id && cur.transfer === c.operatorTransfer && cur.call === c.supportCall ? cur : { id, transfer: c.operatorTransfer, call: c.supportCall }));
   const ownOpen = (tk: SupportTicket | null) => Boolean(tk && tk.status && tk.operatorUserId && tk.operatorUserId === meId && isActiveTicket(tk));
   useAiModal(aiTicket ? aiId("call_center.support.ticket", aiTicket, "transfer-modal") : "", () => {
-    if (busy || !ownOpen(current)) return;
+    if (busy || transferOff || !ownOpen(current)) return;
     setTransfer({ q: "", results: [], loading: true, pick: null, reason: "", err: "" });
   });
   useAiModal(aiTicket ? aiId("call_center.support.ticket", aiTicket, "close-modal") : "", () => {
@@ -560,7 +568,9 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                       <button
                         type="button"
                         className="btn btn--line btn--sm"
-                        disabled={busy}
+                        disabled={busy || transferOff}
+                        title={transferOff ? t("queue.transferOff") : undefined}
+                        aria-describedby={transferOff ? `${uid}-noxfer` : undefined}
                         onClick={() => setTransfer({ q: "", results: [], loading: true, pick: null, reason: "", err: "" })}
                         data-ai-id={aiId("call_center.support.ticket", current.id, "transfer")}
                       >
@@ -578,6 +588,12 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                     </>
                   ) : null}
                 </div>
+                {mine && isOpen && transferOff ? (
+                  <p className="supop__note supop__off" id={`${uid}-noxfer`}>
+                    <IconLock aria-hidden="true" />
+                    {t("queue.transferOff")}
+                  </p>
+                ) : null}
                 {reasonNote ? (
                   <p className="supop__note">
                     <b>{reasonNote.label}:</b> {reasonNote.text}
@@ -592,7 +608,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                     meId={meId}
                     mode="operator"
                     canWrite={mine && isOpen}
-                    canCall={mine && isOpen}
+                    canCall={mine && isOpen && !callOff}
                     call={call}
                     readOnlyNote={t("readOnly")}
                     onTicket={patch}
@@ -610,6 +626,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                     onCall={(k) => void call.start(k)}
                     calling={call.calling}
                     onActed={markActed}
+                    onCapabilities={onCaps}
                   />
                 </div>
               </div>

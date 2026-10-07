@@ -1,6 +1,7 @@
 import { http, asDict, asStr, asNum, asArr, ApiError, isOffline } from "@/lib/http";
-import { uzs } from "@/lib/money";
+import { uzs, uzsOpt } from "@/lib/money";
 import { normService, type BackendService } from "@/lib/services/backend";
+import { getPublicPricingPolicy, readPriceModifiers, type PriceModifier } from "@/lib/services/marketplacePricing";
 import { listNotificationsRich } from "@/lib/services/notify";
 import type { UserEvent } from "@/lib/userSocket";
 
@@ -53,7 +54,14 @@ export type ManagedServices = {
 
 export type ServiceInput = { serviceId: string; selectedPrice: number; experienceNote: string; status: ServiceStatus };
 
-export type PriceBand = { recommended: number; min: number; max: number };
+export type PriceBand = {
+  recommended: number;
+  min: number;
+  max: number;
+  base: number | null;
+  currency: string;
+  modifiers: PriceModifier[] | null;
+};
 
 export type AdPackage = { id: string; title: string; price: number; currency: string; days: number; reach: number };
 
@@ -94,12 +102,19 @@ function normPromotion(v: unknown): ServicePromotion | null {
   };
 }
 
-function normLimits(v: unknown): PriceBand | null {
+function normLimits(v: unknown, locale = "uz"): PriceBand | null {
   const d = asDict(v);
-  const max = uzs(d, "max_allowed", "recommended_price");
-  const min = uzs(d, "min_allowed");
+  const max = uzs(d, "max_allowed", "max_price", "recommended_price");
+  const min = uzs(d, "min_allowed", "min_price");
   if (!max || min > max) return null;
-  return { recommended: uzs(d, "recommended_price", "max_allowed"), min, max };
+  return {
+    recommended: uzs(d, "recommended_price", "recommended", "max_allowed"),
+    min,
+    max,
+    base: uzsOpt(d, "base_price", "base_amount") ?? null,
+    currency: asStr(d.currency) || "UZS",
+    modifiers: d.modifiers != null ? readPriceModifiers(d.modifiers, locale) : null,
+  };
 }
 
 function normManaged(v: unknown, locale: string): ManagedService {
@@ -117,7 +132,7 @@ function normManaged(v: unknown, locale: string): ManagedService {
     visible: d.is_marketplace_visible === true,
     ownPromotion: promo && promo.serviceId === service.id ? promo : null,
     profileBoost: promo && !promo.serviceId ? promo : null,
-    limits: normLimits(d.pricing_limits),
+    limits: normLimits(d.pricing_limits, locale),
   };
 }
 
@@ -230,9 +245,21 @@ const bandCache = new Map<string, { at: number; p: Promise<PriceBand | null> }>(
 async function fetchPriceBand(serviceId: string, sellerId: string, region: string): Promise<PriceBand | null> {
   const qs = new URLSearchParams({ service_id: serviceId, apply_referral: "false", region });
   if (sellerId) qs.set("seller_user_id", sellerId);
-  const total = uzs(asDict(await http(`/pricing/quote?${qs}`)), "total_amount");
+  const [raw, policy] = await Promise.all([http(`/pricing/quote?${qs}`), getPublicPricingPolicy().catch(() => null)]);
+  const q = asDict(raw);
+  const total = uzs(q, "total_amount");
   if (!total) return null;
-  return { recommended: total, min: Math.floor((total * 70) / 100), max: total };
+  const custom = policy && policy.minPercent > 0 && policy.minPercent <= policy.maxPercent;
+  const lo = custom ? policy.minPercent : 70;
+  const hi = custom ? policy.maxPercent : 100;
+  return {
+    recommended: total,
+    min: Math.floor((total * lo) / 100),
+    max: Math.floor((total * hi) / 100),
+    base: uzsOpt(q, "base_amount", "base_price") ?? null,
+    currency: asStr(q.currency) || "UZS",
+    modifiers: Array.isArray(q.modifiers) ? readPriceModifiers(q.modifiers) : null,
+  };
 }
 
 export function priceBandFor(serviceId: string, sellerId: string, region: string): Promise<PriceBand | null> {
@@ -286,17 +313,16 @@ export type ServiceErrorKind =
   | "offline"
   | "unknown";
 
-export type ServiceError = { kind: ServiceErrorKind; min: number; max: number; detail: string };
+export type ServiceError = { kind: ServiceErrorKind; min: number; max: number; detail: string; limits: PriceBand | null };
 
-export function serviceErrorOf(e: unknown): ServiceError {
-  const out = (kind: ServiceErrorKind, extra?: Partial<ServiceError>): ServiceError => ({ kind, min: 0, max: 0, detail: "", ...extra });
+export function serviceErrorOf(e: unknown, locale = "uz"): ServiceError {
+  const out = (kind: ServiceErrorKind, extra?: Partial<ServiceError>): ServiceError => ({ kind, min: 0, max: 0, detail: "", limits: null, ...extra });
   if (!(e instanceof ApiError)) return out(isOffline(e) ? "offline" : "unknown");
   const detail = asDict(e.data.detail);
   const text = e.detail ?? "";
   if (e.status === 422) {
-    if (detail.min_allowed != null && detail.max_allowed != null) {
-      return out("range", { min: asNum(detail.min_allowed), max: asNum(detail.max_allowed) });
-    }
+    const limits = normLimits(detail.pricing_limits ?? detail.limits ?? asDict(e.data).pricing_limits ?? detail, locale);
+    if (limits) return out("range", { min: limits.min, max: limits.max, limits });
     return out("invalid", { detail: text });
   }
   if (e.status === 400 && Array.isArray(detail.advokat_only_services)) return out("advocateOnly");

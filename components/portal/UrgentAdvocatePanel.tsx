@@ -14,6 +14,7 @@ import {
   isPriorPurchaseRequired,
   isUrgentEvent,
   isMissingRoute,
+  urgentViaOperator,
   rateUrgentRequest,
   ratingOpen,
   isRatingClosed,
@@ -25,8 +26,8 @@ import {
   type UrgentGroup,
   type UrgentCreated,
 } from "@/lib/services/backend";
-import { subscribeUserEvents, onUserSocketResync } from "@/lib/userSocket";
-import { contactBlockedOf, errDetail, logApiError } from "@/lib/http";
+import { subscribeUserEvents, onUserSocketResync, type UserEvent } from "@/lib/userSocket";
+import { asDict, asStr, contactBlockedOf, errDetail, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { dateTimeFull } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
@@ -75,7 +76,21 @@ import {
   IconChatConsult,
   IconSecondOpinion,
   IconOpinionPanel,
+  IconHeadset,
 } from "@/components/icons";
+
+const URGENT_ASSIST_EVENT = "support.assist_urgent_advokat_request_created";
+
+function operatorMadeIds(e: UserEvent): string[] {
+  if (e.event === URGENT_ASSIST_EVENT) {
+    const a = asDict(e.action ?? asDict(e.message).action);
+    const rec = asDict(a.urgent_request ?? a.urgent_advokat_request ?? a.record ?? a.request);
+    return [rec.id, rec.record_id, a.record_id, a.urgent_request_id, a.service_kind ? a.id : ""].map((v) => asStr(v)).filter(Boolean);
+  }
+  if (!isUrgentEvent(e.event)) return [];
+  const rec = asDict(e.urgent_request);
+  return urgentViaOperator(rec) || urgentViaOperator(rec.payload) ? [asStr(e.record_id ?? rec.id)].filter(Boolean) : [];
+}
 
 // LEXGO_URGENT_ADVOCATE_FRONTEND_UPDATE.md — "Tezkor Advokat xizmati online".
 // One module, four services. The two "second opinion" ones are only sold to a
@@ -243,6 +258,7 @@ export default function UrgentAdvocatePanel() {
   // The request this visit created, highlighted in the list below so the
   // client can see the thing they just made.
   const [fresh, setFresh] = useState("");
+  const [opIds, setOpIds] = useState<string[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -275,10 +291,29 @@ export default function UrgentAdvocatePanel() {
   const again = useRef(refetch);
   useEffect(() => { again.current = refetch; }, [refetch]);
   useEffect(() => {
-    const off = subscribeUserEvents((e) => { if (isUrgentEvent(e.event)) again.current(); });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const soon = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => again.current(), 300);
+    };
+    const off = subscribeUserEvents((e) => {
+      const assist = e.event === URGENT_ASSIST_EVENT;
+      if (!assist && !isUrgentEvent(e.event)) return;
+      const ids = operatorMadeIds(e);
+      if (ids.length) {
+        setOpIds((cur) => (ids.every((id) => cur.includes(id)) ? cur : [...new Set([...cur, ...ids])]));
+        if (assist) setFresh(ids[0]);
+      }
+      if (assist) setNote({ ok: true, msg: t("opCreated") });
+      soon();
+    });
     const offSync = onUserSocketResync(() => again.current());
-    return () => { off(); offSync(); };
-  }, []);
+    return () => {
+      if (timer) clearTimeout(timer);
+      off();
+      offSync();
+    };
+  }, [t]);
 
   const services = useMemo(() => cat?.services ?? [], [cat]);
   // The catalog says which services the client should see as one choice
@@ -786,6 +821,9 @@ export default function UrgentAdvocatePanel() {
                   <b className="ua__rowt">
                     {kind}
                     {r.workId ? <em className="ua__wid" title={t("workId")}>{r.workId}</em> : null}
+                    {r.viaOperator || opIds.includes(r.id) ? (
+                      <em className="ua__op"><IconHeadset aria-hidden="true" />{t("byOperator")}</em>
+                    ) : null}
                   </b>
                   <span data-ai-private>{[r.need, r.createdAt ? dateTimeFull(r.createdAt, locale) : ""].filter(Boolean).join(" · ")}</span>
                   {r.scheduledAt ? (

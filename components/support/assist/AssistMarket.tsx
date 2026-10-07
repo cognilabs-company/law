@@ -12,13 +12,19 @@ import {
   ASSIST_CHANNELS,
   createAssistMarketplaceRequest,
   loadAssistSellers,
+  mergeAssistLive,
+  orderPayPhase,
+  payPhaseOf,
+  pickPayPhase,
   searchAssistSellers,
   sellerMatches,
   type AssistChannel,
+  type AssistLive,
   type AssistMarketResult,
+  type AssistPayPhase,
 } from "@/lib/services/supportAssist";
 import { IconRefresh, IconSearch } from "@/components/icons";
-import { ConfirmModal, ResultCard, StatusChip, assistErrorText, clientLine, sumText, type AssistSectionProps, type InfoRow } from "./bits";
+import { ConfirmModal, PayState, ResultCard, StatusChip, assistErrorText, clientLine, sumText, useAssistLive, type AssistSectionProps, type InfoRow } from "./bits";
 
 type Sellers = { status: "loading" | "ready" | "error"; items: MarketSeller[]; total: number };
 type Services = { userId: string; status: "ready" | "error"; items: MarketService[] };
@@ -26,7 +32,7 @@ type Services = { userId: string; status: "ready" | "error"; items: MarketServic
 const NOTE_MAX = 1000;
 const TIME_MAX = 120;
 
-export default function AssistMarket({ ticketId, client, clientName, onDone, onBlock }: AssistSectionProps) {
+export default function AssistMarket({ ticketId, client, clientName, ctx, onDone, onBlock }: AssistSectionProps) {
   const t = useTranslations("support.assist");
   const tc = useTranslations("common");
   const ts = useTranslations("support");
@@ -47,7 +53,10 @@ export default function AssistMarket({ ticketId, client, clientName, onDone, onB
   const [confirmErr, setConfirmErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<AssistMarketResult | null>(null);
+  const [live, setLive] = useState<AssistLive | null>(null);
   const inflight = useRef(false);
+
+  useAssistLive(sent ? [sent.orderId, sent.workId, sent.paymentId, sent.requestId] : [], (e) => setLive((cur) => mergeAssistLive(cur, e)));
 
   useEffect(() => {
     let alive = true;
@@ -168,6 +177,7 @@ export default function AssistMarket({ ticketId, client, clientName, onDone, onB
         preferredTime: time,
       });
       setSent({ ...r, serviceTitle: r.serviceTitle || service.title, lawyerName: r.lawyerName || seller.name, amount: r.amount || service.price });
+      setLive(null);
       setConfirming(false);
       setSeller(null);
       setServiceId("");
@@ -198,15 +208,21 @@ export default function AssistMarket({ ticketId, client, clientName, onDone, onB
         ]
       : [];
 
+  const ctxOrder = sent ? ctx.recentOrders.find((o) => (sent.orderId && o.id === sent.orderId) || (sent.workId && o.workId === sent.workId)) : undefined;
+  const basePhase: AssistPayPhase = sent ? sent.gate?.phase || orderPayPhase(sent.orderStatus, sent.paymentStatus) || payPhaseOf(sent.status) : "";
+  const ctxPhase: AssistPayPhase = ctxOrder ? orderPayPhase(ctxOrder.status, ctxOrder.paymentStatus) : "";
+  const phase: AssistPayPhase = sent ? pickPayPhase(live?.phase ?? "", ctxPhase, basePhase) : "";
+  const telegramSent = live?.telegramSent ?? sent?.telegramSent ?? false;
+
   const sentRows: InfoRow[] = sent
     ? [
         { key: "work", label: t("result.workId"), value: sent.workId ? <span className="sasst__wid">{sent.workId}</span> : "—" },
         ...(sent.serviceTitle ? [{ key: "service", label: t("market.service"), value: sent.serviceTitle }] : []),
         ...(sent.lawyerName ? [{ key: "seller", label: t("market.seller"), value: sent.lawyerName }] : []),
-        ...(sent.amount > 0 ? [{ key: "amount", label: t("result.amount"), value: sumText(t, sent.amount, sent.currency) }] : []),
-        { key: "status", label: t("result.status"), value: <StatusChip status={sent.status} /> },
-        { key: "tg", label: t("result.telegram"), value: sent.telegramSent ? t("result.telegramSent") : t("result.telegramFailed") },
-        ...(sent.nextStatus
+        ...(!phase && sent.amount > 0 ? [{ key: "amount", label: t("result.amount"), value: sumText(t, sent.amount, sent.currency) }] : []),
+        ...(!phase ? [{ key: "status", label: t("result.status"), value: <StatusChip status={sent.status} /> }] : []),
+        { key: "tg", label: t("result.telegram"), value: telegramSent ? t("result.telegramSent") : t("result.telegramFailed") },
+        ...(sent.nextStatus && phase !== "paid" && phase !== "rejected"
           ? [{ key: "next", label: t("result.next"), value: t.has(`market.nextStatus.${sent.nextStatus}`) ? t(`market.nextStatus.${sent.nextStatus}`) : humanize(sent.nextStatus) }]
           : []),
       ]
@@ -220,10 +236,12 @@ export default function AssistMarket({ ticketId, client, clientName, onDone, onB
         <ResultCard
           title={t("market.sentTitle")}
           rows={sentRows}
-          note={sent.sellerAfterPayment ? t("market.afterPayment") : undefined}
-          warn={!sent.telegramSent}
+          note={phase === "paid" ? t("pay.marketPaid") : phase === "rejected" ? t("pay.rejectedNote") : sent.sellerAfterPayment ? t("market.afterPayment") : undefined}
+          warn={!telegramSent || phase === "rejected"}
           onDismiss={() => setSent(null)}
-        />
+        >
+          <PayState phase={phase} amount={sent.gate?.amount || sent.amount} currency={sent.gate?.currency || sent.currency} />
+        </ResultCard>
       ) : null}
 
       <div className="sasst__f">

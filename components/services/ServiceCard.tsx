@@ -13,7 +13,7 @@ import {
 } from "@/lib/services/sellerServices";
 import { IconClock, IconCoins, IconEdit, IconEye, IconEyeOff, IconLayers, IconMegaphone, IconTrash } from "@/components/icons";
 import { StatusPill, StatusSwitch, som } from "./bits";
-import { priceOutOfBand } from "./PriceField";
+import { PriceModifiers, bandRecommended, priceOutOfBand } from "./PriceField";
 
 type BandLoad = { key: string; band: PriceBand | null };
 
@@ -69,6 +69,7 @@ export default function ServiceCard({
   const band = item.limits ?? loaded?.band ?? null;
   const known = hasLimits || Boolean(loaded);
   const off = priceOutOfBand(item.selectedPrice, band);
+  const rec = band ? bandRecommended(band) : 0;
   const own = item.ownPromotion;
   const editable = item.service.isActive;
   const reasons = hiddenReasons(item, profile)
@@ -135,8 +136,10 @@ export default function ServiceCard({
                 ? t("card.bandOff", { min: som(band.min), max: som(band.max) })
                 : t("card.band", { min: som(band.min), max: som(band.max) })
               : t("card.bandUnknown")}
+          {band && rec !== band.max ? <em className="msv__rec">{t("limits.cardRec", { price: som(rec) })}</em> : null}
         </span>
       </p>
+      {band?.modifiers?.length ? <PriceModifiers modifiers={band.modifiers} variant="chips" /> : null}
 
       {item.experienceNote ? (
         <p className="msv__note">{item.experienceNote}</p>

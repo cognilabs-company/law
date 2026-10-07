@@ -1,27 +1,44 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ComponentType, type KeyboardEvent, type ReactNode, type SVGProps } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { isAborted } from "@/lib/http";
 import { errorText } from "@/lib/errorText";
 import { aiId } from "@/lib/ai/ids";
+import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import type { BackendPlan } from "@/lib/services/backend";
 import { isClosedStatus, type SupportTicket } from "@/lib/services/support";
-import { assistBlockOf, getAssistContext, loadAssistPlans, type AssistBlock, type AssistContext } from "@/lib/services/supportAssist";
-import { IconAlert, IconHeadset, IconInfo, IconLock, IconRefresh, IconUser } from "@/components/icons";
-import { AssistClientCard, AssistOverview } from "./AssistSummary";
+import {
+  assistBlockOf,
+  assistLiveOf,
+  assistUrgentRoute,
+  getAssistContext,
+  loadAssistPlans,
+  probeAssistUrgentRoute,
+  subscribeAssistUrgentRoute,
+  type AssistBlock,
+  type AssistCapabilities,
+  type AssistContext,
+  type AssistUrgentRoute,
+} from "@/lib/services/supportAssist";
+import { IconAlert, IconBolt, IconBriefcase, IconCard, IconFileText, IconHeadset, IconInfo, IconLock, IconRefresh, IconUser } from "@/components/icons";
+import { AssistAiHistory, AssistClientCard, AssistOverview } from "./AssistSummary";
 import AssistPlan, { type AssistPlansState } from "./AssistPlan";
 import AssistDoc from "./AssistDoc";
 import AssistMarket from "./AssistMarket";
+import AssistUrgent, { type AssistUrgentState } from "./AssistUrgent";
 import { AssistNote } from "./bits";
 
-type Tab = "plan" | "doc" | "market";
-const TABS: Tab[] = ["plan", "doc", "market"];
-const AI_TAB: Record<Tab, string> = { plan: "subscription", doc: "document", market: "marketplace" };
+type Tab = "plan" | "doc" | "market" | "urgent";
+const TABS: Tab[] = ["plan", "doc", "market", "urgent"];
+const AI_TAB: Record<Tab, string> = { plan: "subscription", doc: "document", market: "marketplace", urgent: "urgent-advokat" };
+const TAB_ICON: Record<Tab, ComponentType<SVGProps<SVGSVGElement>>> = { plan: IconCard, doc: IconFileText, market: IconBriefcase, urgent: IconBolt };
+const LIVE_SETTLE_MS = 600;
 
-type Load = { ticketId: string; key: string; ctx: AssistContext | null; error: unknown };
+type Load = { ticketId: string; key: string; ctx: AssistContext | null; error: unknown; at: number };
 type Plans = { locale: string; status: "ready" | "error"; all: BackendPlan[]; sellable: BackendPlan[] };
 type Lock = "claim" | "other" | "closed" | "notClient" | "missing" | "unavailable";
+type Known = { client: string; ids: Set<string> };
 
 const LOCK_OF: Record<AssistBlock, Lock> = {
   closed: "closed",
@@ -31,6 +48,17 @@ const LOCK_OF: Record<AssistBlock, Lock> = {
   unavailable: "unavailable",
 };
 const RELOADABLE = new Set<AssistBlock>(["unavailable", "notAssigned"]);
+const serverRoute = (): AssistUrgentRoute => "unknown";
+
+function knownOf(ctx: AssistContext | null): Known {
+  if (!ctx) return { client: "", ids: new Set() };
+  const ids = [
+    ...ctx.recentDocuments.flatMap((d) => [d.id, d.workId]),
+    ...ctx.recentOrders.flatMap((o) => [o.id, o.workId]),
+    ...ctx.pendingRequests.flatMap((p) => [p.id, p.workId]),
+  ].filter(Boolean);
+  return { client: ctx.client?.id ?? "", ids: new Set(ids) };
+}
 
 export default function AssistPanel({
   ticket,
@@ -41,6 +69,7 @@ export default function AssistPanel({
   onCall,
   calling = "",
   onActed,
+  onCapabilities,
 }: {
   ticket: SupportTicket;
   mine: boolean;
@@ -50,6 +79,7 @@ export default function AssistPanel({
   onCall?: (type: "audio" | "video") => void;
   calling?: "audio" | "video" | "";
   onActed?: (ticketId: string) => void;
+  onCapabilities?: (ticketId: string, caps: AssistCapabilities) => void;
 }) {
   const t = useTranslations("support.assist");
   const tc = useTranslations("common");
@@ -60,28 +90,37 @@ export default function AssistPanel({
   const viewOnly = readOnly && !mine;
   const active = (mine || viewOnly) && !missing && Boolean(ticketId) && Boolean(ticket.operatorUserId) && !closed;
   const [tick, setTick] = useState(0);
-  const [load, setLoad] = useState<Load>({ ticketId: "", key: "", ctx: null, error: null });
+  const [load, setLoad] = useState<Load>({ ticketId: "", key: "", ctx: null, error: null, at: 0 });
   const [hard, setHard] = useState<{ ticketId: string; block: AssistBlock } | null>(null);
   const [plans, setPlans] = useState<Plans | null>(null);
   const [planTick, setPlanTick] = useState(0);
   const [tab, setTab] = useState<Tab>("plan");
-  const [seen, setSeen] = useState<Record<Tab, boolean>>({ plan: true, doc: false, market: false });
+  const [seen, setSeen] = useState<Record<Tab, boolean>>({ plan: true, doc: false, market: false, urgent: false });
+  const route = useSyncExternalStore(subscribeAssistUrgentRoute, assistUrgentRoute, serverRoute);
   const plansFor = useRef("");
+  const capsCb = useRef(onCapabilities);
+  const known = useRef<Known>(knownOf(null));
   const reqKey = `${ticketId}|${refreshKey}|${tick}`;
   const planKey = `${locale}|${planTick}`;
 
   useEffect(() => {
+    capsCb.current = onCapabilities;
+  });
+
+  useEffect(() => {
     if (!active) return;
     const c = new AbortController();
+    const at = Date.now();
     getAssistContext(ticketId, c.signal)
       .then((ctx) => {
         if (c.signal.aborted) return;
-        setLoad({ ticketId, key: reqKey, ctx, error: null });
+        setLoad({ ticketId, key: reqKey, ctx, error: null, at });
         setHard(null);
+        capsCb.current?.(ticketId, ctx.capabilities);
       })
       .catch((e: unknown) => {
         if (isAborted(e) || c.signal.aborted) return;
-        setLoad((cur) => ({ ticketId, key: reqKey, ctx: cur.ticketId === ticketId ? cur.ctx : null, error: e }));
+        setLoad((cur) => (cur.ticketId === ticketId ? { ...cur, key: reqKey, error: e } : { ticketId, key: reqKey, ctx: null, error: e, at: 0 }));
       });
     return () => c.abort();
   }, [active, ticketId, reqKey]);
@@ -104,6 +143,27 @@ export default function AssistPanel({
     };
   }, [active, locale, planKey]);
 
+  useEffect(() => {
+    if (!active) return;
+    let timer = 0;
+    const kick = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setTick((n) => n + 1), LIVE_SETTLE_MS);
+    };
+    const offEvents = subscribeUserEvents((raw) => {
+      const e = assistLiveOf(raw);
+      if (!e || e.name.startsWith("support.")) return;
+      const k = known.current;
+      if ((k.client && e.clientIds.includes(k.client)) || e.ids.some((id) => k.ids.has(id))) kick();
+    });
+    const offSync = onUserSocketResync(kick);
+    return () => {
+      offEvents();
+      offSync();
+      window.clearTimeout(timer);
+    };
+  }, [active, ticketId]);
+
   const current = load.ticketId === ticketId ? load : null;
   const ctx = current?.ctx ?? null;
   const error = current?.error ?? null;
@@ -118,6 +178,17 @@ export default function AssistPanel({
       setPlanTick((n) => n + 1);
     },
   };
+  const urgentCap = ctx ? ctx.capabilities.urgentAdvokatRequest : null;
+  const wantProbe = active && !viewOnly && ctx !== null && urgentCap === null && route === "unknown";
+  const urgentState: AssistUrgentState = route === "missing" ? "soon" : urgentCap === true || route === "open" ? "open" : "checking";
+
+  useEffect(() => {
+    known.current = knownOf(ctx);
+  });
+
+  useEffect(() => {
+    if (wantProbe) probeAssistUrgentRoute(ticketId);
+  }, [wantProbe, ticketId]);
 
   const reload = () => setTick((n) => n + 1);
   const done = () => {
@@ -186,12 +257,20 @@ export default function AssistPanel({
     );
   } else {
     const caps = ctx.capabilities;
-    const allowed: Record<Tab, boolean> = { plan: caps.subscriptionCheckout, doc: caps.documentLawyerRequest, market: caps.marketplacePurchaseRequest };
+    const allowed: Record<Tab, boolean> = {
+      plan: caps.subscriptionCheckout,
+      doc: caps.documentLawyerRequest,
+      market: caps.marketplacePurchaseRequest,
+      urgent: caps.urgentAdvokatRequest !== false,
+    };
+    const soon = (k: Tab) => k === "urgent" && allowed.urgent && urgentState === "soon";
+    const hint = (k: Tab) => (!allowed[k] ? t("tabs.off") : soon(k) ? t("tabs.soon") : t(`tabs.hint.${k}`));
     const section = (k: Tab) => {
       if (!allowed[k]) return <p className="sasst__empty">{t("tabs.capOff")}</p>;
-      const common = { ticketId, client: ctx.client, clientName: ticket.clientName, onDone: done, onBlock };
+      const common = { ticketId, client: ctx.client, clientName: ticket.clientName, ctx, ctxAt: current?.at ?? 0, onDone: done, onBlock };
       if (k === "plan") return <AssistPlan key={ticketId} {...common} plans={plansState} />;
       if (k === "doc") return <AssistDoc key={ticketId} {...common} />;
+      if (k === "urgent") return <AssistUrgent key={ticketId} {...common} state={urgentState} />;
       return <AssistMarket key={ticketId} {...common} />;
     };
     body = (
@@ -211,26 +290,39 @@ export default function AssistPanel({
           </p>
         ) : null}
         <AssistClientCard ctx={ctx} ticket={ticket} onCall={viewOnly ? undefined : onCall} calling={calling} />
+        <AssistAiHistory key={ticketId} history={ctx.aiHistory} />
         <AssistOverview ctx={ctx} plans={plansNow?.all ?? []} plansReady={plansNow !== null} />
         {viewOnly ? null : (
-          <div className="sasst__card">
-            <div className="suptabs sasst__tabs" role="tablist" aria-label={t("tabs.label")} onKeyDown={onTabKey}>
-              {TABS.map((k) => (
-                <button
-                  key={k}
-                  id={`${uid}-tab-${k}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === k}
-                  aria-controls={seen[k] ? `${uid}-panel-${k}` : undefined}
-                  tabIndex={tab === k ? 0 : -1}
-                  className="suptab"
-                  onClick={() => pick(k)}
-                  data-ai-id={aiId("call_center.support.ticket", ticketId, "assist", AI_TAB[k])}
-                >
-                  {t(`tabs.${k}`)}
-                </button>
-              ))}
+          <div className="sasst__card sasst__acard">
+            <h4 className="sasst__h4" id={`${uid}-acts`}>
+              {t("tabs.label")}
+            </h4>
+            <div className="sasst__menu" role="tablist" aria-labelledby={`${uid}-acts`} onKeyDown={onTabKey}>
+              {TABS.map((k) => {
+                const Icon = TAB_ICON[k];
+                return (
+                  <button
+                    key={k}
+                    id={`${uid}-tab-${k}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === k}
+                    aria-controls={seen[k] ? `${uid}-panel-${k}` : undefined}
+                    tabIndex={tab === k ? 0 : -1}
+                    className={`sasst__mi${!allowed[k] ? " is-off" : soon(k) ? " is-soon" : ""}`}
+                    onClick={() => pick(k)}
+                    data-ai-id={aiId("call_center.support.ticket", ticketId, "assist", AI_TAB[k])}
+                  >
+                    <span className="sasst__mic" aria-hidden="true">
+                      <Icon />
+                    </span>
+                    <span className="sasst__mit">
+                      <b>{t(`tabs.${k}`)}</b>
+                      <small>{hint(k)}</small>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
             {TABS.map((k) =>
               seen[k] ? (

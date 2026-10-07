@@ -1,6 +1,7 @@
 import { ApiError, http, asDict, asStr, asNum, asArr, isAborted, parseServerTime, type Dict } from "@/lib/http";
 import { featureMissing, noteFeatureError } from "@/lib/endpointGate";
 import { uzsOpt } from "@/lib/money";
+import { docPayPhase } from "@/lib/services/backend";
 import type { Page } from "@/lib/usePaged";
 
 export const SUPPORT_CATEGORIES = ["general", "subscription", "payment", "marketplace", "documents", "urgent_advokat", "account", "technical"] as const;
@@ -501,16 +502,20 @@ export const SUPPORT_ASSIST_EVENTS = [
   "support.assist_subscription_checkout_created",
   "support.assist_document_request_created",
   "support.assist_marketplace_purchase_requested",
+  "support.assist_urgent_advokat_request_created",
 ] as const;
 
-export type SupportAssistKind = "subscription_preview" | "subscription_checkout" | "document_request" | "marketplace_purchase";
+export type SupportAssistKind = "subscription_preview" | "subscription_checkout" | "document_request" | "marketplace_purchase" | "urgent_advokat";
 
 const ASSIST_KIND: Record<string, SupportAssistKind> = {
   "support.assist_subscription_preview_created": "subscription_preview",
   "support.assist_subscription_checkout_created": "subscription_checkout",
   "support.assist_document_request_created": "document_request",
   "support.assist_marketplace_purchase_requested": "marketplace_purchase",
+  "support.assist_urgent_advokat_request_created": "urgent_advokat",
 };
+
+export type SupportAssistPay = "" | "pending" | "sent" | "approved" | "rejected";
 
 export type SupportAssistInfo = {
   kind: SupportAssistKind;
@@ -520,7 +525,21 @@ export type SupportAssistInfo = {
   currency: string;
   status: string;
   telegramSent: boolean | null;
+  targetId: string;
+  pay: SupportAssistPay;
 };
+
+const ASSIST_POOL = new Set(["open_pool", "lawyer_review_requested", "claimed", "lawyer_review", "in_progress", "review"]);
+
+function assistDocPay(a: Dict, request: Dict, lawyerRequest: Dict, gate: Dict): SupportAssistPay {
+  const statuses = [request.status, lawyerRequest.status, lawyerRequest.pool_status, a.status].map((s) => asStr(s).toLowerCase()).filter(Boolean);
+  const gateStatus = asStr(gate.status).toLowerCase();
+  const phases = statuses.map((s) => docPayPhase(s, true));
+  if (phases.includes("cancelled") || gateStatus === "rejected" || gateStatus === "cancelled") return "rejected";
+  if (a.payment_required === true || request.payment_required === true || gateStatus === "pending" || phases.includes("wait")) return "pending";
+  if (gateStatus === "approved" || gateStatus === "paid") return "approved";
+  return statuses.some((s) => ASSIST_POOL.has(s)) ? "sent" : "";
+}
 
 export function assistInfoOf(name: string, action: unknown, locale = ""): SupportAssistInfo | null {
   const kind = ASSIST_KIND[name];
@@ -532,18 +551,38 @@ export function assistInfoOf(name: string, action: unknown, locale = ""): Suppor
   const order = asDict(a.order);
   const purchase = asDict(a.purchase_request);
   const payment = asDict(a.payment);
+  const gate = asDict(a.payment_gate ?? request.payment_gate ?? lawyerRequest.payment_gate);
+  const urgent = kind === "urgent_advokat" ? asDict(a.urgent_request ?? a.urgent_advokat_request ?? a.record ?? (request.id ? request : a)) : {};
   const planName = locale ? asStr(asDict(plan.name)[locale]).trim() : "";
-  const workId = asStr(a.work_id).trim() || asStr(request.work_id).trim() || asStr(lawyerRequest.work_id).trim() || asStr(asDict(lawyerRequest.payload).work_id).trim() || asStr(order.work_id).trim() || asStr(purchase.work_id).trim();
-  const title = planName || asStr(plan.title).trim() || asStr(request.title).trim() || asStr(order.service_title).trim() || asStr(purchase.title).trim();
-  const amount = uzsOpt(a, "amount") ?? uzsOpt(request, "price") ?? uzsOpt(order, "price") ?? uzsOpt(payment, "amount") ?? 0;
+  const workId =
+    asStr(a.work_id).trim() ||
+    asStr(urgent.work_id).trim() ||
+    asStr(asDict(urgent.payload).work_id).trim() ||
+    asStr(request.work_id).trim() ||
+    asStr(lawyerRequest.work_id).trim() ||
+    asStr(asDict(lawyerRequest.payload).work_id).trim() ||
+    asStr(order.work_id).trim() ||
+    asStr(purchase.work_id).trim();
+  const title = planName || asStr(plan.title).trim() || asStr(urgent.title).trim() || asStr(request.title).trim() || asStr(order.service_title).trim() || asStr(purchase.title).trim();
+  const amount = uzsOpt(a, "amount") ?? uzsOpt(gate, "amount") ?? uzsOpt(urgent, "price") ?? uzsOpt(request, "price") ?? uzsOpt(order, "price") ?? uzsOpt(payment, "amount") ?? 0;
+  const targetId =
+    kind === "urgent_advokat"
+      ? asStr(urgent.id ?? urgent.record_id ?? a.record_id)
+      : kind === "document_request"
+        ? asStr(request.id ?? lawyerRequest.document_request_id ?? a.document_request_id)
+        : kind === "marketplace_purchase"
+          ? asStr(order.id ?? a.order_id)
+          : asStr(a.id ?? purchase.id);
   return {
     kind,
     workId,
     title,
     amount: Math.max(0, amount),
-    currency: asStr(a.currency ?? order.currency ?? request.currency ?? payment.currency, "UZS"),
-    status: asStr(a.status ?? request.status ?? order.status),
-    telegramSent: typeof a.telegram_sent === "boolean" ? a.telegram_sent : null,
+    currency: asStr(a.currency ?? gate.currency ?? urgent.currency ?? order.currency ?? request.currency ?? payment.currency, "UZS"),
+    status: asStr(a.status ?? urgent.status ?? request.status ?? order.status),
+    telegramSent: typeof a.telegram_sent === "boolean" ? a.telegram_sent : typeof gate.telegram_sent === "boolean" ? gate.telegram_sent : null,
+    targetId,
+    pay: kind === "document_request" ? assistDocPay(a, request, lawyerRequest, gate) : "",
   };
 }
 

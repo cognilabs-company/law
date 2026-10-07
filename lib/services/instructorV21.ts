@@ -88,8 +88,14 @@ function textList(v: unknown, max: number): string[] {
 }
 
 function normSupportFallback(v: unknown): AiSupportFallback | null {
+  if (typeof v === "boolean") return { available: v, reason: "", confirmAction: "start_support_ticket" };
   if (!isDict(v)) return null;
   return { available: v.available !== false, reason: pick(v.reason), confirmAction: pick(v.confirm_action) || "start_support_ticket" };
+}
+
+function needsOf(d: Dict): unknown {
+  const own = d.missing_requirements ?? d.missingRequirements;
+  return asArr(own).length ? own : asDict(d.support_fallback ?? d.supportFallback).missing_requirements;
 }
 
 function detailRow(item: unknown): AiDetailRow | null {
@@ -226,8 +232,8 @@ export function normInstructorChat(raw: unknown, sentSessionId = ""): AiChatResp
     toolResults: isDict(d.tool_results) ? d.tool_results : {},
     suggestions: textList(d.suggestions, 3),
     steps: textList(d.steps, 8),
-    missingRequirements: textList(d.missing_requirements, 6),
-    supportFallback: normSupportFallback(d.support_fallback),
+    missingRequirements: textList(needsOf(d), 6),
+    supportFallback: normSupportFallback(d.support_fallback ?? d.supportFallback),
     endpoints: {
       events: safeEndpoint(d.event_url ?? d.events_url, DEFAULT_ENDPOINTS.events),
       runtime: safeEndpoint(d.runtime_url, DEFAULT_ENDPOINTS.runtime),

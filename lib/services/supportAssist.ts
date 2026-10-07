@@ -2,7 +2,7 @@ import { http, asDict, asStr, asNum, asArr, ApiError, isRouteMissing, type Dict 
 import { uzs } from "@/lib/money";
 import { cleanDocTitle } from "@/lib/docTitle";
 import { matchesSearch } from "@/lib/searchText";
-import { getSubscriptionPlan, getSubscriptionPlans, planForRole, type BackendPlan } from "@/lib/services/backend";
+import { getSubscriptionPlan, getSubscriptionPlans, getUrgentCatalog, planForRole, type BackendPlan, type UrgentService } from "@/lib/services/backend";
 import { listMarketplace, normMarketSeller, type MarketSeller } from "@/lib/services/marketplace";
 
 export const ASSIST_BILLING_PERIODS = ["monthly", "six_month", "yearly", "prepaid_yearly"] as const;
@@ -20,11 +20,34 @@ export const ASSIST_EVENTS = [
   "support.assist_subscription_checkout_created",
   "support.assist_document_request_created",
   "support.assist_marketplace_purchase_requested",
+  "support.assist_urgent_advokat_request_created",
 ] as const;
+
+export const ASSIST_URGENT_KINDS = [
+  "video_consultation",
+  "express_video_consultation",
+  "traffic_accident_consultation",
+  "chat_consultation",
+  "second_opinion_single",
+  "second_opinion_group",
+] as const;
+export type AssistUrgentKind = (typeof ASSIST_URGENT_KINDS)[number];
+export const ASSIST_URGENT_GROUP: AssistUrgentKind = "second_opinion_group";
+export const ASSIST_URGENT_NEED_MIN = 10;
+export const ASSIST_URGENT_DIRECTIONS: readonly { slug: string; area: string }[] = [
+  { slug: "jinoiy", area: "criminal" },
+  { slug: "fuqarolik", area: "civil" },
+  { slug: "oila", area: "family" },
+  { slug: "mehnat", area: "labor" },
+  { slug: "mamuriy", area: "administrative" },
+  { slug: "iqtisodiy", area: "economic" },
+  { slug: "soliq", area: "tax" },
+];
 
 const PERIOD_MONTHS: Record<AssistBillingPeriod, number> = { monthly: 1, six_month: 6, yearly: 12, prepaid_yearly: 12 };
 const WORK_ID = /^[A-Z]{2,7}-[0-9A-Z]{5,8}$/;
 const ASSIST_SOURCE = "callcenter_assist";
+const FEATURE_TTL_MS = 10 * 60 * 1000;
 
 export type AssistClient = {
   id: string;
@@ -53,8 +76,20 @@ export type AssistCapabilities = {
   subscriptionCheckout: boolean;
   documentLawyerRequest: boolean;
   marketplacePurchaseRequest: boolean;
+  urgentAdvokatRequest: boolean | null;
   supportCall: boolean;
   operatorTransfer: boolean;
+};
+
+export type AssistPayPhase = "" | "pending" | "paid" | "rejected";
+
+export type AssistPayGate = {
+  phase: AssistPayPhase;
+  status: string;
+  amount: number;
+  currency: string;
+  provider: string;
+  telegramSent: boolean | null;
 };
 
 export type AssistSubscription = {
@@ -90,6 +125,8 @@ export type AssistDocument = {
   price: number;
   currency: string;
   paid: boolean;
+  paymentRequired: boolean;
+  gate: AssistPayGate | null;
   viaOperator: boolean;
   createdAt: string;
 };
@@ -107,6 +144,9 @@ export type AssistOrder = {
   createdAt: string;
 };
 
+export type AssistAiTurn = { q: string; a: string; at: string };
+export type AssistAiHistory = { turns: AssistAiTurn[]; sessionId: string };
+
 export type AssistContext = {
   ticket: AssistTicket | null;
   client: AssistClient | null;
@@ -115,6 +155,7 @@ export type AssistContext = {
   pendingRequests: AssistPendingRequest[];
   recentDocuments: AssistDocument[];
   recentOrders: AssistOrder[];
+  aiHistory: AssistAiHistory;
 };
 
 export type AssistPreview = {
@@ -153,6 +194,8 @@ export type AssistDocResult = {
   price: number;
   currency: string;
   paid: boolean;
+  paymentRequired: boolean;
+  gate: AssistPayGate | null;
   assignmentMode: string;
   poolUrl: string;
   editorSource: string;
@@ -163,6 +206,8 @@ export type AssistDocResult = {
 export type AssistMarketResult = {
   workId: string;
   orderId: string;
+  paymentId: string;
+  requestId: string;
   status: string;
   orderStatus: string;
   paymentStatus: string;
@@ -173,6 +218,37 @@ export type AssistMarketResult = {
   sellerAfterPayment: boolean;
   serviceTitle: string;
   lawyerName: string;
+  gate: AssistPayGate | null;
+};
+
+export type AssistUrgentResult = {
+  id: string;
+  workId: string;
+  status: string;
+  serviceKind: string;
+  channel: string;
+  title: string;
+  amount: number;
+  currency: string;
+  immediateCall: boolean;
+  lawyerName: string;
+  clientNotified: boolean | null;
+  paymentRequired: boolean;
+  gate: AssistPayGate | null;
+};
+
+export type AssistUrgentInput = { serviceKind: AssistUrgentKind; channel: string; need: string; directions: string[]; lawyerCount?: number };
+export type AssistUrgentField = "kind" | "channel" | "count" | "directions" | "need";
+export type AssistUrgentCatalog = { services: UrgentService[]; priced: boolean };
+export type AssistUrgentRoute = "unknown" | "checking" | "open" | "missing";
+
+export type AssistLive = {
+  name: string;
+  ids: string[];
+  clientIds: string[];
+  status: string;
+  phase: AssistPayPhase;
+  telegramSent: boolean | null;
 };
 
 export type AssistBlock = "closed" | "notClient" | "notAssigned" | "missing" | "unavailable";
@@ -185,9 +261,124 @@ const titleOf = (v: unknown) => {
   const raw = asStr(v).trim();
   return cleanDocTitle(raw) || raw;
 };
+const text = (v: unknown): string => (typeof v === "string" ? v.trim() : typeof v === "number" && Number.isFinite(v) ? String(v) : "");
+const firstText = (...values: unknown[]): string => values.map(text).find(Boolean) ?? "";
+const flag = (v: unknown): boolean | null => (v === true || v === 1 || v === "true" ? true : v === false || v === 0 || v === "false" ? false : null);
+const filled = (d: Dict) => Object.keys(d).length > 0;
+
+function dictOf(v: unknown): Dict {
+  if (typeof v === "string" && v.trim().startsWith("{")) {
+    try {
+      return dictOf(JSON.parse(v));
+    } catch {
+      return {};
+    }
+  }
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Dict) : {};
+}
+
+function listOf(v: unknown): unknown[] {
+  if (typeof v === "string" && v.trim().startsWith("[")) {
+    try {
+      return asArr(JSON.parse(v));
+    } catch {
+      return [];
+    }
+  }
+  return asArr(v);
+}
 
 export function isAssistPeriod(v: string): v is AssistBillingPeriod {
   return (ASSIST_BILLING_PERIODS as readonly string[]).includes(v);
+}
+
+export function isAssistUrgentKind(v: string): v is AssistUrgentKind {
+  return (ASSIST_URGENT_KINDS as readonly string[]).includes(v);
+}
+
+const PAY_PAID = new Set(["paid", "approved", "confirmed", "succeeded", "success", "captured", "pool_created", "activated"]);
+const PAY_WAIT = new Set([
+  "pending",
+  "pending_payment",
+  "payment_pending",
+  "payment_required",
+  "waiting_payment",
+  "awaiting_payment",
+  "awaiting_approval",
+  "pending_approval",
+  "telegram_pending",
+  "admin_telegram_confirm_required",
+]);
+const PAY_STOP = new Set(["rejected", "declined", "cancelled", "canceled", "payment_cancelled", "payment_canceled", "payment_rejected", "failed", "expired", "refunded", "invalid"]);
+const DOC_PAY_WAIT = new Set(["payment_required", "pending_payment", "payment_pending", "awaiting_payment", "waiting_payment"]);
+const DOC_PAY_STOP = new Set(["payment_cancelled", "payment_canceled", "payment_rejected"]);
+const ORDER_PAID = new Set(["paid", "accepted", "started", "in_progress", "completed", "done", "delivered", "closed"]);
+const ORDER_WAIT = new Set(["pending_payment", "waiting_payment", "payment_pending", "awaiting_payment"]);
+const ORDER_STOP = new Set(["cancelled", "canceled", "rejected", "refunded"]);
+
+export function payPhaseOf(...statuses: unknown[]): AssistPayPhase {
+  for (const s of statuses) {
+    const v = text(s).toLowerCase();
+    if (!v) continue;
+    if (PAY_STOP.has(v)) return "rejected";
+    if (PAY_PAID.has(v)) return "paid";
+    if (PAY_WAIT.has(v)) return "pending";
+  }
+  return "";
+}
+
+const isFinalPhase = (p: AssistPayPhase) => p === "paid" || p === "rejected";
+
+export function pickPayPhase(...phases: AssistPayPhase[]): AssistPayPhase {
+  return phases.find(isFinalPhase) ?? (phases.includes("pending") ? "pending" : "");
+}
+
+function normPayGate(...sources: Dict[]): AssistPayGate | null {
+  for (const src of sources) {
+    const g = dictOf(src.payment_gate);
+    if (!filled(g)) continue;
+    const status = text(g.status);
+    return {
+      phase: payPhaseOf(status) || (flag(g.required) === true ? "pending" : ""),
+      status,
+      amount: uzs(g, "amount"),
+      currency: currencyOf(g.currency),
+      provider: text(g.provider),
+      telegramSent: flag(g.telegram_sent),
+    };
+  }
+  return null;
+}
+
+const payRequired = (...sources: Dict[]) => sources.some((s) => flag(s.payment_required) === true);
+
+export function docPayPhase(x: { status: string; poolStatus?: string; paid: boolean; paymentRequired: boolean; gate: AssistPayGate | null }): AssistPayPhase {
+  const g = x.gate?.phase ?? "";
+  if (isFinalPhase(g)) return g;
+  const st = [x.status, x.poolStatus ?? ""].map((v) => v.toLowerCase());
+  if (st.some((v) => DOC_PAY_STOP.has(v))) return "rejected";
+  if (!x.gate && !x.paymentRequired && !st.some((v) => DOC_PAY_WAIT.has(v))) return "";
+  return x.paid ? "paid" : "pending";
+}
+
+export function orderPayPhase(status: string, paymentStatus: string): AssistPayPhase {
+  const p = payPhaseOf(paymentStatus);
+  if (p) return p;
+  const s = status.toLowerCase();
+  if (ORDER_STOP.has(s)) return "rejected";
+  if (ORDER_PAID.has(s)) return "paid";
+  return ORDER_WAIT.has(s) ? "pending" : "";
+}
+
+export function urgentPayPhase(r: { gate: AssistPayGate | null; paymentRequired: boolean }): AssistPayPhase {
+  return r.gate?.phase || (r.paymentRequired ? "pending" : "");
+}
+
+export function planCtxState(ctx: AssistContext, sent: { id: string; workId: string; planId: string; subsBefore: string[] }): { activated: boolean; pending: boolean } {
+  return {
+    activated: Boolean(sent.planId) && ctx.activeSubscriptions.some((s) => s.planId === sent.planId && !sent.subsBefore.includes(s.id)),
+    pending: ctx.pendingRequests.some((p) => (sent.id && p.id === sent.id) || (sent.workId && p.workId === sent.workId)),
+  };
 }
 
 export function normAssistClient(v: unknown): AssistClient | null {
@@ -227,11 +418,12 @@ export function normAssistTicket(v: unknown): AssistTicket | null {
 
 function normCapabilities(v: unknown): AssistCapabilities {
   const d = asDict(v);
-  const on = (x: unknown) => x !== false;
+  const on = (x: unknown) => flag(x) !== false;
   return {
     subscriptionCheckout: on(d.subscription_checkout),
     documentLawyerRequest: on(d.document_lawyer_request),
     marketplacePurchaseRequest: on(d.marketplace_purchase_request),
+    urgentAdvokatRequest: flag(d.urgent_advokat_request),
     supportCall: on(d.support_call),
     operatorTransfer: on(d.operator_transfer),
   };
@@ -281,6 +473,8 @@ function normDocument(v: unknown): AssistDocument {
     price: uzs(d, "price"),
     currency: currencyOf(d.currency),
     paid: d.paid === true,
+    paymentRequired: payRequired(d, a),
+    gate: normPayGate(d, a),
     viaOperator: asStr(a.mode) === "support_assist_lawyer_pool" || Boolean(asStr(a.support_ticket_id)),
     createdAt: asStr(d.created_at),
   };
@@ -304,6 +498,58 @@ function normOrder(v: unknown): AssistOrder {
   };
 }
 
+const AI_TEXT_MAX = 600;
+const AI_TURNS_MAX = 10;
+const AI_USER = new Set(["user", "client", "human", "customer", "mijoz"]);
+const AI_BOT = new Set(["assistant", "ai", "bot", "model", "ai_instructor", "instructor"]);
+const aiClip = (s: string) => (s.length > AI_TEXT_MAX ? `${s.slice(0, AI_TEXT_MAX - 1).trimEnd()}…` : s);
+
+function aiTurnsOf(list: unknown[]): AssistAiTurn[] {
+  const out: AssistAiTurn[] = [];
+  for (const raw of list) {
+    const x = dictOf(raw);
+    if (!filled(x)) continue;
+    const at = firstText(x.at, x.created_at, x.timestamp, x.time);
+    const q = firstText(x.q, x.question, x.prompt);
+    const a = firstText(x.a, x.answer, x.response, x.reply);
+    if (q || a) {
+      out.push({ q: aiClip(q), a: aiClip(a), at });
+      continue;
+    }
+    const role = firstText(x.role, x.sender, x.author, x.from).toLowerCase();
+    const body = aiClip(firstText(x.content, x.text, x.message, x.body));
+    if (!body) continue;
+    const last = out[out.length - 1];
+    if (AI_BOT.has(role)) {
+      if (last && !last.a) out[out.length - 1] = { ...last, a: body, at: last.at || at };
+      else out.push({ q: "", a: body, at });
+    } else if (!role || AI_USER.has(role)) {
+      out.push({ q: body, a: "", at });
+    }
+  }
+  return out.slice(-AI_TURNS_MAX);
+}
+
+function aiHistoryOf(d: Dict): AssistAiHistory {
+  const tk = dictOf(d.ticket);
+  const tp = dictOf(tk.payload);
+  const scopes = [dictOf(tk.context), dictOf(tp.context), dictOf(tk.ai_context), dictOf(tp.ai_context), dictOf(d.context), dictOf(d.ai_context)].filter(filled);
+  const holders = [...scopes, tp, tk, d];
+  let turns: AssistAiTurn[] = [];
+  for (const h of holders) {
+    const scoped = scopes.includes(h);
+    const lists = [h.ai_history, h.ai_messages, scoped ? h.history : undefined, scoped ? h.messages : undefined];
+    for (const list of lists) {
+      const items = listOf(list);
+      if (!items.length) continue;
+      turns = aiTurnsOf(items);
+      if (turns.length) break;
+    }
+    if (turns.length) break;
+  }
+  return { turns, sessionId: firstText(...holders.map((h) => h.ai_session_id), ...scopes.map((s) => s.session_id)) };
+}
+
 export function normAssistContext(v: unknown): AssistContext {
   const d = asDict(v);
   return {
@@ -314,6 +560,7 @@ export function normAssistContext(v: unknown): AssistContext {
     pendingRequests: asArr(d.pending_subscription_requests).map(normPending).filter((x) => x.id),
     recentDocuments: asArr(d.recent_documents).map(normDocument).filter((x) => x.id),
     recentOrders: asArr(d.recent_orders).map(normOrder).filter((x) => x.id),
+    aiHistory: aiHistoryOf(d),
   };
 }
 
@@ -355,6 +602,7 @@ export function normAssistDocResult(v: unknown): AssistDocResult {
   const d = asDict(v);
   const r = asDict(d.request);
   const lr = asDict(d.lawyer_request);
+  const lrp = asDict(lr.payload);
   return {
     requestId: asStr(r.id ?? lr.document_request_id),
     recordId: asStr(lr.id),
@@ -365,6 +613,8 @@ export function normAssistDocResult(v: unknown): AssistDocResult {
     price: uzs(r, "price"),
     currency: currencyOf(r.currency),
     paid: r.paid === true,
+    paymentRequired: payRequired(d, r, lr, lrp),
+    gate: normPayGate(d, r, lr, lrp),
     assignmentMode: asStr(d.assignment_mode),
     poolUrl: asStr(d.pool_url),
     editorSource: asStr(d.editor_source),
@@ -383,6 +633,8 @@ export function normAssistMarketResult(v: unknown): AssistMarketResult {
   return {
     workId: asStr(d.work_id) || asStr(prp.work_id) || asStr(det.work_id) || asStr(pr.work_id),
     orderId: asStr(o.id ?? prp.order_id),
+    paymentId: asStr(pay.id ?? prp.payment_id),
+    requestId: asStr(pr.id),
     status: asStr(d.status, "pending") || "pending",
     orderStatus: asStr(o.status),
     paymentStatus: asStr(o.payment_status ?? pay.status),
@@ -393,6 +645,30 @@ export function normAssistMarketResult(v: unknown): AssistMarketResult {
     sellerAfterPayment: d.seller_will_receive_after_payment !== false,
     serviceTitle: titleOf(o.service_title ?? prp.service_title ?? det.service_title),
     lawyerName: asStr(prp.lawyer_name ?? o.lawyer_name ?? det.lawyer_name).trim(),
+    gate: normPayGate(d, o, pr),
+  };
+}
+
+export function normAssistUrgentResult(v: unknown): AssistUrgentResult {
+  const d = asDict(v);
+  const nested = dictOf(d.urgent_request ?? d.urgent_advokat_request ?? d.request ?? d.record);
+  const r = filled(nested) ? nested : d;
+  const p = dictOf(r.payload);
+  const lawyer = dictOf(d.assigned_lawyer ?? r.assigned_lawyer);
+  return {
+    id: firstText(r.id, d.record_id, d.request_id, d.urgent_request_id, d.id),
+    workId: firstText(d.work_id, r.work_id, p.work_id),
+    status: firstText(r.status, d.status),
+    serviceKind: firstText(r.service_kind, p.service_kind, d.service_kind, r.record_type),
+    channel: firstText(p.channel, r.channel, d.channel),
+    title: titleOf(firstText(r.title, d.title)),
+    amount: uzs(r, "price") || uzs(p, "price") || uzs(d, "amount", "price"),
+    currency: currencyOf(r.currency, p.currency, d.currency),
+    immediateCall: flag(d.immediate_call) === true || flag(p.immediate_call) === true,
+    lawyerName: firstText(lawyer.name, p.assigned_lawyer_name),
+    clientNotified: flag(d.client_notified ?? d.notified_client ?? d.client_notification_sent),
+    paymentRequired: payRequired(d, r, p),
+    gate: normPayGate(d, r, p),
   };
 }
 
@@ -452,6 +728,119 @@ export async function createAssistMarketplaceRequest(
       }),
     }),
   );
+}
+
+let urgentRoute: AssistUrgentRoute = "unknown";
+let urgentTimer: ReturnType<typeof setTimeout> | undefined;
+const urgentSubs = new Set<() => void>();
+
+function setUrgentRoute(next: AssistUrgentRoute): void {
+  if (urgentRoute === next) return;
+  urgentRoute = next;
+  urgentSubs.forEach((fn) => fn());
+}
+
+export const assistUrgentRoute = (): AssistUrgentRoute => urgentRoute;
+
+export function subscribeAssistUrgentRoute(fn: () => void): () => void {
+  urgentSubs.add(fn);
+  return () => {
+    urgentSubs.delete(fn);
+  };
+}
+
+function markUrgentMissing(): void {
+  clearTimeout(urgentTimer);
+  setUrgentRoute("missing");
+  urgentTimer = setTimeout(() => setUrgentRoute("unknown"), FEATURE_TTL_MS);
+}
+
+function markUrgentOpen(): void {
+  clearTimeout(urgentTimer);
+  setUrgentRoute("open");
+}
+
+const routeAbsent = (e: unknown) => e instanceof ApiError && (e.status === 501 || (e.status === 404 && (!e.detail || e.detail === "Not Found")));
+
+export function probeAssistUrgentRoute(ticketId: string): void {
+  if (urgentRoute !== "unknown" || !ticketId) return;
+  setUrgentRoute("checking");
+  http(assistPath(ticketId, "urgent-advokat-request"))
+    .then(markUrgentOpen)
+    .catch((e: unknown) => {
+      if (routeAbsent(e)) markUrgentMissing();
+      else markUrgentOpen();
+    });
+}
+
+export async function createAssistUrgentRequest(ticketId: string, input: AssistUrgentInput): Promise<AssistUrgentResult> {
+  const body: Dict = {
+    service_kind: input.serviceKind,
+    channel: input.channel,
+    need: input.need.trim(),
+    directions: input.directions,
+    files: [],
+    voice_messages: [],
+  };
+  if (input.serviceKind === ASSIST_URGENT_GROUP && input.lawyerCount) body.lawyer_count = input.lawyerCount;
+  try {
+    const r = normAssistUrgentResult(await http(assistPath(ticketId, "urgent-advokat-request"), { method: "POST", body: JSON.stringify(body) }));
+    markUrgentOpen();
+    return r;
+  } catch (e) {
+    if (isRouteMissing(e)) markUrgentMissing();
+    throw e;
+  }
+}
+
+function fallbackUrgent(key: AssistUrgentKind): UrgentService {
+  const base: UrgentService = {
+    key,
+    title: "",
+    delivery: "",
+    price: 0,
+    meetingMinutes: 30,
+    supportsChat: true,
+    supportsFiles: true,
+    supportsVoice: true,
+    variants: [],
+    requiresPriorPurchase: false,
+    lawyerCountMin: 2,
+    lawyerCountMax: 7,
+    variant: "",
+    immediateCall: false,
+  };
+  if (key === "chat_consultation") return { ...base, meetingMinutes: 0 };
+  if (key === "express_video_consultation" || key === "traffic_accident_consultation") return { ...base, immediateCall: true };
+  if (key === "second_opinion_single" || key === "second_opinion_group") {
+    return {
+      ...base,
+      variants: [
+        { channel: "video", price: 0, pricePerLawyer: 0, meetingMinutes: 30 },
+        { channel: "chat", price: 0, pricePerLawyer: 0, meetingMinutes: 0 },
+      ],
+      requiresPriorPurchase: key === ASSIST_URGENT_GROUP,
+    };
+  }
+  return base;
+}
+
+export const assistUrgentFallback = (): AssistUrgentCatalog => ({ services: ASSIST_URGENT_KINDS.map(fallbackUrgent), priced: false });
+
+let urgentCatalog: { at: number; data: AssistUrgentCatalog } | null = null;
+
+export async function loadAssistUrgentCatalog(): Promise<AssistUrgentCatalog> {
+  const now = Date.now();
+  if (urgentCatalog && now - urgentCatalog.at < FEATURE_TTL_MS) return urgentCatalog.data;
+  try {
+    const cat = await getUrgentCatalog();
+    const byKey = new Map(cat.services.map((s) => [s.key, s]));
+    const data: AssistUrgentCatalog = { services: ASSIST_URGENT_KINDS.map((k) => byKey.get(k) ?? fallbackUrgent(k)), priced: byKey.size > 0 };
+    urgentCatalog = { at: now, data };
+    return data;
+  } catch {
+    return assistUrgentFallback();
+  }
 }
 
 const isGiftPlan = (p: BackendPlan) => p.isGiftable || p.billingType === "gift";
@@ -561,6 +950,155 @@ export function assistMarketDuplicateOf(e: unknown): AssistDuplicate | null {
   const dd = detailDict(e);
   if (e.code !== "marketplace_order_already_active" && asStr(dd.code) !== "marketplace_order_already_active") return null;
   return { workId: asStr(dd.work_id), status: asStr(dd.status) };
+}
+
+export function assistUrgentDuplicateOf(e: unknown): AssistDuplicate | null {
+  if (!(e instanceof ApiError) || e.status !== 409) return null;
+  const dd = detailDict(e);
+  const code = firstText(e.code, dd.code, e.data.code);
+  if (code === "ticket_closed") return null;
+  const req = dictOf(dd.request ?? dd.urgent_request ?? dd.record);
+  const workId = firstText(dd.work_id, req.work_id, dictOf(req.payload).work_id);
+  if (!workId && !/already|duplicate|active|open/i.test(code)) return null;
+  return { workId, status: firstText(dd.status, req.status) };
+}
+
+const URGENT_FIELD_KEYS: Record<string, AssistUrgentField> = {
+  service_kind: "kind",
+  kind: "kind",
+  channel: "channel",
+  lawyer_count: "count",
+  directions: "directions",
+  specializations: "directions",
+  need: "need",
+  description: "need",
+};
+
+export function assistUrgentFieldErrors(e: unknown): Partial<Record<AssistUrgentField, string>> {
+  if (!(e instanceof ApiError) || e.status !== 422) return {};
+  const out: Partial<Record<AssistUrgentField, string>> = {};
+  for (const [k, msg] of Object.entries(e.fieldErrors)) {
+    const f = URGENT_FIELD_KEYS[k];
+    if (f && msg && !out[f]) out[f] = msg;
+  }
+  const detail = (e.detail || "").trim();
+  if (Object.keys(out).length || !detail) return out;
+  const d = detail.toLowerCase();
+  if (/channel|aloqa/.test(d)) out.channel = detail;
+  else if (/xizmat turi|service_kind/.test(d)) out.kind = detail;
+  else if (/lawyer_count|advokatlar soni/.test(d)) out.count = detail;
+  else if (/yo.?nalish|direction/.test(d)) out.directions = detail;
+  else if (/need|muammo|tavsif|ehtiyoj/.test(d)) out.need = detail;
+  return out;
+}
+
+const LIVE_PREFIXES = ["support.assist_", "document_request.", "marketplace.", "urgent_advokat.", "subscription.", "payment."];
+const LIVE_PHASE: Record<string, AssistPayPhase> = {
+  "document_request.payment_required": "pending",
+  "document_request.pool_created": "paid",
+  "document_request.payment_rejected": "rejected",
+  "document_request.payment_cancelled": "rejected",
+  "marketplace.purchase_request_created": "pending",
+  "marketplace.order_paid": "paid",
+  "marketplace.purchase_rejected": "rejected",
+  "subscription.purchase_request_created": "pending",
+  "subscription.purchase_approved": "paid",
+  "subscription.activated": "paid",
+  "subscription.purchase_rejected": "rejected",
+};
+const LIVE_ID_KEYS = [
+  "id",
+  "record_id",
+  "request_id",
+  "document_request_id",
+  "lawyer_request_id",
+  "order_id",
+  "payment_id",
+  "purchase_request_id",
+  "urgent_request_id",
+  "urgent_advokat_request_id",
+  "work_id",
+];
+const LIVE_NEST_KEYS = [
+  "action",
+  "payload",
+  "request",
+  "lawyer_request",
+  "document_request",
+  "order",
+  "payment",
+  "purchase_request",
+  "urgent_request",
+  "urgent_advokat_request",
+  "record",
+  "payment_gate",
+  "details",
+];
+
+function walkLive(root: Dict, depth: number, visit: (d: Dict) => void): void {
+  visit(root);
+  if (depth <= 0) return;
+  for (const k of LIVE_NEST_KEYS) {
+    const v = dictOf(root[k]);
+    if (filled(v)) walkLive(v, depth - 1, visit);
+  }
+}
+
+function livePhaseOf(name: string, base: Dict, action: Dict): AssistPayPhase {
+  const named = LIVE_PHASE[name];
+  if (named) return named;
+  if (name === "support.assist_document_request_created") return docPayPhase(normAssistDocResult(action));
+  if (name === "support.assist_subscription_checkout_created") return payPhaseOf(normAssistCheckout(action).status);
+  if (name === "support.assist_marketplace_purchase_requested") {
+    const m = normAssistMarketResult(action);
+    return m.gate?.phase || orderPayPhase(m.orderStatus, m.paymentStatus) || payPhaseOf(m.status);
+  }
+  if (name === "support.assist_urgent_advokat_request_created") return urgentPayPhase(normAssistUrgentResult(action));
+  let phase: AssistPayPhase = "";
+  walkLive(base, 3, (d) => {
+    if (phase) return;
+    phase = normPayGate(d)?.phase || (flag(d.payment_required) === true ? "pending" : "") || payPhaseOf(d.payment_status);
+  });
+  return phase;
+}
+
+export function assistLiveOf(raw: Dict): AssistLive | null {
+  let name = text(raw.event);
+  let src: Dict = raw;
+  if (name === "notification.created") {
+    const n = asDict(raw.notification);
+    src = dictOf(n.data ?? n.meta);
+    name = text(src.event);
+  }
+  if (!name || !LIVE_PREFIXES.some((p) => name.startsWith(p))) return null;
+  const inner = dictOf(src.message);
+  const base = text(inner.event) === name ? inner : src;
+  const action = dictOf(base.action);
+  const ids = new Set<string>();
+  const clientIds = new Set<string>();
+  walkLive(base, 3, (d) => {
+    for (const k of LIVE_ID_KEYS) {
+      const id = text(d[k]);
+      if (id) ids.add(id);
+    }
+    const client = text(d.client_user_id) || text(dictOf(d.client).id);
+    if (client) clientIds.add(client);
+  });
+  const urgent = dictOf(base.urgent_request ?? action.urgent_request);
+  return {
+    name,
+    ids: [...ids],
+    clientIds: [...clientIds],
+    status: firstText(base.status, urgent.status, dictOf(base.document_request).status, dictOf(action.request).status, action.status),
+    phase: livePhaseOf(name, base, action),
+    telegramSent: flag(base.telegram_sent ?? action.telegram_sent),
+  };
+}
+
+export function mergeAssistLive(cur: AssistLive | null, next: AssistLive): AssistLive {
+  if (!cur) return next;
+  const phase = isFinalPhase(next.phase) || !isFinalPhase(cur.phase) ? next.phase || cur.phase : cur.phase;
+  return { ...next, phase, status: next.status || cur.status, telegramSent: next.telegramSent ?? cur.telegramSent };
 }
 
 export function assistEventOf(raw: Dict): AssistEvent | null {

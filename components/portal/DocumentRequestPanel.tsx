@@ -13,15 +13,16 @@ import {
   requestDocumentLawyerReviewGated,
   listDocumentRequests,
   isDocPaymentSkipped,
+  docRealtimeOf,
   DOC_PAYMENT_WAIT,
-  DOC_PAYMENT_CANCELLED,
+  DOC_PAYMENT_STOPPED,
   type DocPaymentGate,
   type DocumentRequest,
   type TemplateQuestion,
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
 import { ApiError, isProviderUnavailable, logApiError } from "@/lib/http";
-import { subscribeUserEvents } from "@/lib/userSocket";
+import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { base64Blob, closeTab, extFromMime, mimeFromName, preopenTab, saveBlob, showBlob } from "@/lib/download";
 import { normalizeAnswers } from "@/lib/docTemplate";
 import { ctorPromptAsked, markCtorPromptAsked } from "@/lib/docCtorPrompt";
@@ -35,7 +36,7 @@ import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Notice } from "@/components/admin/AdminBits";
 import { Link, useRouter } from "@/i18n/navigation";
-import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset, IconCard, IconAlert, IconEdit } from "@/components/icons";
+import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset, IconCard, IconAlert, IconEdit, IconCircleCheck, IconCircleX } from "@/components/icons";
 import { useAiField } from "@/lib/ai/registry";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
@@ -147,10 +148,11 @@ function stageFor(r: DocumentRequest): Stage {
   // (2 live rows on the test account on 2026-09-29), which keeps falling
   // through to "pending" exactly as it did.
   if (DOC_PAYMENT_WAIT.has(r.status)) return "payGate";
+  if (r.status === "awaiting_payment" && (r.paymentRequired || r.gate?.status === "pending")) return "payGate";
   // MD L158-162: the fee was refused over Telegram, so both records end in
   // `payment_cancelled` and nothing was sent to anybody. Terminal — there is
   // nothing left to poll for.
-  if (r.status === DOC_PAYMENT_CANCELLED) return "payCancelled";
+  if (DOC_PAYMENT_STOPPED.has(r.status)) return "payCancelled";
   // MD L136-138: after the approval the document request becomes
   // `lawyer_review_requested` and the lawyer request `open_pool` — i.e. the
   // work has finally reached the advocates and the client is back on the
@@ -197,6 +199,16 @@ const inlineBlob = (f: DocumentRequest["contractFile"]) => base64Blob(f?.fileBas
 
 const statusOf = (e: unknown) => (e instanceof ApiError ? e.status : 0);
 
+const WATCHED_CHANGES = /^document_request\.(ready|claimed|completed|meeting_created|editor_saved)$/;
+const SETTLE_MS = 700;
+
+type GateOutcome = "" | "pooled" | "rejected";
+
+function priceGate(r: DocumentRequest): DocPaymentGate | null {
+  if (!(r.price > 0)) return null;
+  return { id: "", status: "pending", paymentId: r.paymentId ?? "", amount: r.price, currency: r.currency, pageCount: 0, includedPages: 0, extraPages: 0, telegramSent: false };
+}
+
 // The full answers → live document → pay → generate → download lifecycle for
 // one document request, as a self-contained panel — used by a catalog
 // service that has a document_template_id (ServiceDocumentRequest).
@@ -220,12 +232,7 @@ export default function DocumentRequestPanel({
 }: {
   initialReq: DocumentRequest;
   // The payment gate as the POST that opened it described it — passed in by
-  // whichever form sent the request. It cannot be re-read: verified against
-  // production on 2026-09-29, GET /document-requests/{id} answers 26 fields
-  // and not one of them is payment_gate, payment_required or page_count, and
-  // the list rows are thinner still. So this is the only moment the gate's
-  // amount and page breakdown exist on the client, and after a reload the
-  // panel can only show the status without them.
+  // whichever form sent the request.
   initialGate?: DocPaymentGate | null;
   // The template's own questions and text. The request normally echoes the
   // questions back, but only the template carries the document body the live
@@ -298,6 +305,9 @@ export default function DocumentRequestPanel({
   const [reviewSent, setReviewSent] = useState(false);
 
   const [gate, setGate] = useState<DocPaymentGate | null>(initialGate ?? null);
+  const [gateOutcome, setGateOutcome] = useState<GateOutcome>("");
+  const [reviewReqId, setReviewReqId] = useState("");
+  const settled = useRef<{ id: string; kind: GateOutcome }>({ id: "", kind: "" });
   // Set from the answer's own `already_exists` (the constructor endpoint can
   // refuse a repeat instead of gating it) so the refusal is shown in the
   // backend's own words rather than as "something went wrong".
@@ -329,6 +339,8 @@ export default function DocumentRequestPanel({
     setFatal("");
     // A different request means a different gate — including none.
     setGate(initialGate ?? null);
+    setGateOutcome("");
+    setReviewReqId("");
     setReviewSent(false);
     setReviewRefused("");
   }
@@ -432,6 +444,10 @@ export default function DocumentRequestPanel({
     try {
       let r = await getDocumentRequest(req.id);
       r = (await unlock(r)) ?? r;
+      if (settled.current.id === r.id && settled.current.kind) {
+        if (stageFor(r) === "payGate") return;
+        settled.current = { id: "", kind: "" };
+      }
       setReq(r);
       bump();
       if (r.status === "file_ready") {
@@ -472,11 +488,8 @@ export default function DocumentRequestPanel({
   // generating/pending keep the original tight budget — those really should
   // resolve in seconds. The socket below is the fast path; this poll is the
   // safety net for a dropped connection.
-  // The gate joins the human-paced waits: MD step 4-6 has a person opening
-  // Telegram and pressing a button, which is an hour-scale wait, not the
-  // seconds a file generation takes. "payCancelled" is deliberately absent —
-  // it is terminal (MD L158-162), so polling it would be polling forever.
   const humanWait = stage === "lawyerReview" || stage === "claimed" || stage === "payGate";
+  const gateWait = stage === "payGate";
   const pendingId = !fatal && (stage === "pending" || stage === "generating" || humanWait) ? req.id : undefined;
   useEffect(() => {
     if (!pendingId) return;
@@ -485,10 +498,11 @@ export default function DocumentRequestPanel({
     let stopped = false;
     // Held in an object so stop() can clear an interval created further down
     // (a terminal 403/404 can land before the interval is even started).
-    const h: { timer?: ReturnType<typeof setInterval> } = {};
+    const h: { timer?: ReturnType<typeof setInterval>; soon?: ReturnType<typeof setTimeout> } = {};
     const stop = () => {
       stopped = true;
       if (h.timer) clearInterval(h.timer);
+      if (h.soon) clearTimeout(h.soon);
     };
     const intervalMs = humanWait ? 15000 : 4000;
     let left = humanWait ? 240 : 150; // human wait: 240×15s = 1h; others: 150×4s ≈ 10min
@@ -499,6 +513,10 @@ export default function DocumentRequestPanel({
         const cur = await getDocumentRequest(pendingId);
         const r = (await unlock(cur)) ?? cur;
         if (!alive) return;
+        if (settled.current.id === pendingId && settled.current.kind) {
+          if (stageFor(r) === "payGate") return;
+          settled.current = { id: "", kind: "" };
+        }
         setReq(r);
         if (r.status === "file_ready") {
           setStage("done");
@@ -533,44 +551,47 @@ export default function DocumentRequestPanel({
     // MD §"Realtime": the client's own socket carries the state changes this
     // screen is waiting for — react the moment one lands instead of sitting
     // out the rest of a 15s interval.
-    // LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md L126 says the
-    // client waits on this socket rather than polling, and L140-154 names the
-    // two events the gate resolves with: `document_request.pool_created`
-    // (backend side) and `document_request.sent` (the client's own). They are
-    // added to the filter so the approval lands here the moment it happens.
-    //
-    // Unverified, and the poll above stays for it: neither name occurs in this
-    // account's history — 300 notifications on 2026-09-29 carry 15 distinct
-    // data.event values (document_lawyer_request_sent/claimed/ready,
-    // document_request_created/file_ready/meeting_created, the urgent_advokat
-    // family…) and none of them is a gate event, under either spelling. So the
-    // 15-second poll and the "Holatni tekshirish" button are what actually
-    // move this screen today; these two names are a hope, not a measurement.
-    const unsub = subscribeUserEvents((ev) => {
-      if (!/^document_request\.(ready|claimed|completed|meeting_created|editor_saved|sent|pool_created|payment_cancelled)$/.test(ev.event)) return;
-      const nested = ev.request && typeof ev.request === "object" ? (ev.request as Record<string, unknown>) : null;
-      const id = String(ev.request_id ?? ev.document_request_id ?? nested?.id ?? "");
-      if (id && id !== pendingId) return;
-      if (ev.event === "document_request.meeting_created") setNote({ ok: true, msg: t("meetingStarted") });
-      void tick();
-    });
-    // Give up after the budget rather than polling forever.
-    h.timer = setInterval(() => {
+    const soon = () => {
       if (stopped) return;
-      if (left-- > 0) {
-        void tick();
+      if (h.soon) clearTimeout(h.soon);
+      h.soon = setTimeout(() => void tick(), SETTLE_MS);
+    };
+    const unsub = subscribeUserEvents((ev) => {
+      const rt = docRealtimeOf(ev);
+      if (!rt || rt.kind === "created" || (rt.kind === "changed" && !WATCHED_CHANGES.test(rt.name))) return;
+      const mine = rt.ids.includes(pendingId);
+      if (rt.ids.length && !mine) return;
+      if (rt.name === "document_request.meeting_created") setNote({ ok: true, msg: t("meetingStarted") });
+      if (gateWait && mine && (rt.kind === "pooled" || rt.kind === "rejected")) {
+        settled.current = { id: pendingId, kind: rt.kind };
+        setStage(rt.kind === "pooled" ? "lawyerReview" : "payCancelled");
+        setNote(rt.kind === "pooled" ? { ok: true, msg: t("gatePooled") } : null);
         return;
       }
-      stop();
-      if (alive) setNote({ ok: false, msg: t("stillPending") });
-    }, intervalMs);
+      if (mine && rt.kind === "required" && rt.gate) setGate(rt.gate);
+      soon();
+    });
+    const offSync = onUserSocketResync(soon);
+    if (!gateWait) {
+      // Give up after the budget rather than polling forever.
+      h.timer = setInterval(() => {
+        if (stopped) return;
+        if (left-- > 0) {
+          void tick();
+          return;
+        }
+        stop();
+        if (alive) setNote({ ok: false, msg: t("stillPending") });
+      }, intervalMs);
+    }
     return () => {
       alive = false;
       stop();
       unsub();
+      offSync();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingId, humanWait]);
+  }, [pendingId, humanWait, gateWait]);
 
   // The document itself should be visible the moment it's ready, not only
   // after an extra "Ochish" click — fetch it once and show it inline.
@@ -652,6 +673,9 @@ export default function DocumentRequestPanel({
         return;
       }
       setGate(r.gate);
+      setGateOutcome("");
+      setReviewReqId(r.request.id);
+      settled.current = { id: "", kind: "" };
       setReviewSent(true);
       // MD L124 "Advokatga yuborildi deb ko'rsatmaydi": when the gate is open
       // the sentence under the finished document becomes the wait for the
@@ -675,6 +699,21 @@ export default function DocumentRequestPanel({
   // A terminal 403/404 replaces whatever screen was showing — there is no
   // stage left to render once the request is gone or off-limits.
   const shown: Stage | "" = fatal ? "" : stage;
+
+  const knownGate = gate ?? req.gate ?? null;
+  const shownGate = knownGate ?? priceGate(req);
+
+  const inlineWatch = shown === "done" && reviewSent && !!gate && !gateOutcome;
+  useEffect(() => {
+    if (!inlineWatch) return;
+    const ids = [reviewReqId, req.id].filter(Boolean);
+    return subscribeUserEvents((ev) => {
+      const rt = docRealtimeOf(ev);
+      if (!rt || !rt.ids.some((id) => ids.includes(id))) return;
+      if (rt.kind === "pooled" || rt.kind === "rejected") setGateOutcome(rt.kind);
+      else if (rt.kind === "required" && rt.gate) setGate(rt.gate);
+    });
+  }, [inlineWatch, reviewReqId, req.id]);
 
   const reviewFormShown = shown === "done" && reviewOpen && !reviewSent && !reviewRefused;
   useAiField(reviewFormShown ? "documents.constructor.result.review-need" : "", {
@@ -855,11 +894,7 @@ export default function DocumentRequestPanel({
             <span className="docpend__dot" />
             {t("gateStatus")}
           </span>
-          {/* No GET returns a gate (production, 2026-09-29), so a panel that
-              was reopened rather than handed the POST answer has the status
-              and nothing else — say that, instead of showing a blank card or
-              an amount that would be invented. */}
-          {gate ? <DocGateFacts gate={gate} /> : <p className="pgate__none">{t("gateNoFacts")}</p>}
+          {shownGate ? <DocGateFacts gate={shownGate} telegram={!!knownGate} /> : <p className="pgate__none">{t("gateNoFacts")}</p>}
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
             {busy ? t("processingShort") : t("checkStatus")}
@@ -878,7 +913,7 @@ export default function DocumentRequestPanel({
           <b>{t("cancelledTitle")}</b>
           <span className="docpend__sub">{t("cancelledSub")}</span>
           <span className="docpend__badge docpend__badge--off">{t("cancelledStatus")}</span>
-          {gate ? <DocGateFacts gate={gate} telegram={false} /> : null}
+          {knownGate ? <DocGateFacts gate={knownGate} telegram={false} /> : null}
           {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           {onRetry ? (
             <button className="btn btn--grad btn--full" type="button" onClick={onRetry}>
@@ -948,6 +983,12 @@ export default function DocumentRequestPanel({
               — the same pool the from-scratch flows land in. */}
           {reviewRefused ? (
             <p className="dgate__note">{reviewRefused}</p>
+          ) : reviewSent && gate && gateOutcome ? (
+            <div className={`pgate pgate--inline pgate--${gateOutcome}`} role="status">
+              <span className="pgate__icon" aria-hidden="true">{gateOutcome === "pooled" ? <IconCircleCheck /> : <IconCircleX />}</span>
+              <b className="pgate__t">{gateOutcome === "pooled" ? t("gatePooled") : t("cancelledTitle")}</b>
+              <span className="pgate__sub">{gateOutcome === "pooled" ? t("gatePooledSub") : t("cancelledSub")}</span>
+            </div>
           ) : reviewSent && gate ? (
             /* The gate is open: this document did NOT go to the advocates
                (MD L124), so the green "yuborildi" notice is replaced by the

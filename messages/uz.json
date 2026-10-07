@@ -1,4 +1,60 @@
 {
+  "marketPricing": {
+    "factors": "Narxga ta'sir qilgan omillar",
+    "som": "so'm",
+    "tierRange": "{min}–{max} yil",
+    "tierFrom": "{min}+ yil",
+    "mod": {
+      "region": "Hudud",
+      "experience": "Tajriba",
+      "experienceRange": "Tajriba {min}–{max} yil",
+      "experienceFrom": "Tajriba {min}+ yil",
+      "experienceYears": "Tajriba {n} yil",
+      "seller_premium": "Yuqori natijalar",
+      "client_rating_premium": "Yuqori reyting",
+      "sector_experience_premium": "Soha tajribasi",
+      "referral": "Taklif chegirmasi",
+      "discount": "Chegirma",
+      "other": "Qo'shimcha omil"
+    },
+    "region": {
+      "default": "Boshqa hududlar",
+      "toshkent": "Toshkent",
+      "tashkent": "Toshkent",
+      "tashkent_city": "Toshkent shahri",
+      "tashkent_region": "Toshkent viloyati",
+      "samarqand": "Samarqand",
+      "samarkand": "Samarqand",
+      "major_region": "Yirik viloyat markazi",
+      "lower_region": "Viloyat",
+      "qoraqalpogiston": "Qoraqalpog'iston",
+      "district_rural": "Tuman va qishloq",
+      "remote": "Masofaviy"
+    },
+    "explain": {
+      "open": "Narx qanday hisoblanadi?",
+      "title": "Narx qanday hisoblanadi?",
+      "close": "Yopish",
+      "lead": "Narxni mutaxassis o'zi qo'yadi, lekin LexGo belgilagan oraliqdan chiqa olmaydi.",
+      "selected": "«{service}»: katalog narxi {base} so'm, mutaxassis narxi {price} so'm.",
+      "loading": "Yuklanmoqda…",
+      "baseT": "Katalog narxi",
+      "baseD": "Hisob xizmatning LexGo katalogidagi asosiy narxidan boshlanadi.",
+      "regionT": "Hudud",
+      "regionD": "Hududga qarab narx biroz farq qiladi.",
+      "expT": "Tajriba",
+      "expD": "Tajribali mutaxassis uchun ustama qo'shiladi.",
+      "premiumT": "Reyting va natijalar",
+      "premiumD": "Yuqori reyting va yaxshi natijalar uchun ustama qo'shiladi.",
+      "clientRating": "Reyting {rating}+ ({reviews}+ sharh): +{percent}%",
+      "sellerPremium": "Yuqori natijalar: +{percent}%",
+      "sectorPremium": "Sohada {years}+ yil tajriba: +{percent}%",
+      "rangeT": "Ruxsat etilgan oraliq",
+      "rangeD": "Mutaxassis narxni faqat ruxsat etilgan oraliqda qo'yadi va tavsiya narxdan oshira olmaydi.",
+      "rangeP": "Mutaxassis narxi tavsiya narxning {min}–{max}% oralig'ida bo'ladi.",
+      "foot": "Narx o'zgarsa, faqat yangi buyurtmalarga ta'sir qiladi."
+    }
+  },
   "filterBar": {
     "title": "Filtrlar",
     "search": "Qidirish",
@@ -13,6 +69,19 @@
     "any": "Farqi yo'q"
   },
   "sellerServices": {
+    "limits": {
+      "title": "Narx qanday chiqdi",
+      "base": "Katalog narxi",
+      "recommended": "Tavsiya narx",
+      "range": "Ruxsat etilgan oraliq",
+      "rangeOf": "Ruxsat etilgan oraliq ({lo}–{hi}%)",
+      "rangeValue": "{min} – {max} so'm",
+      "bandHint": "Narxni ruxsat etilgan oraliqda o'zingiz tanlaysiz.",
+      "serverRange": "Bu xizmat uchun narx {min} – {max} so'm oralig'ida bo'lishi kerak.",
+      "policy": "Narx siyosatiga roziman: narx tavsiya narxning {lo}–{hi}% oralig'ida bo'ladi, o'zgarish faqat yangi buyurtmalarga ta'sir qiladi.",
+      "policyPlain": "Narx siyosatiga roziman: narx ruxsat etilgan oraliqda bo'ladi, o'zgarish faqat yangi buyurtmalarga ta'sir qiladi.",
+      "cardRec": "tavsiya {price} so'm"
+    },
     "kicker": "Marketplace xizmatlari",
     "title": "Mening xizmatlarim",
     "titleOwner": "{name} xizmatlari",
@@ -1019,6 +1088,10 @@
       "clientChat": "Mijoz bilan chat"
     },
     "assistNote": {
+      "urgent_advokat": {
+        "title": "Operator siz uchun tezkor advokat so'rovi yaratdi",
+        "text": "Navbatchi advokat qabul qilishi bilan xabar beramiz."
+      },
       "kicker": "Operator yordami",
       "workId": "ID: {id}",
       "amount": "{amount} so'm",
@@ -1032,6 +1105,18 @@
         "text": "To'lov tasdiqlangach, tarif avtomatik faollashadi."
       },
       "document_request": {
+        "rejected": {
+          "title": "Hujjat so'rovi to'lovi bekor qilindi",
+          "text": "So'rov advokatlarga yuborilmadi. Savolingiz bo'lsa, shu yerda yozing."
+        },
+        "approved": {
+          "title": "To'lov tasdiqlandi — so'rov advokatlar navbatiga tushdi",
+          "text": "Advokat ishni olgach, sizga bildirishnoma keladi."
+        },
+        "pending": {
+          "title": "Hujjat so'rovi tayyor — to'lov tasdiqlanishi kutilmoqda",
+          "text": "Telegram orqali tasdiqlangach advokatlar navbatiga tushadi."
+        },
         "title": "Hujjat so'rovingiz navbatchi advokatlarga yuborildi",
         "text": "Advokat ishni olgach, sizga bildirishnoma keladi."
       },
@@ -1054,9 +1139,60 @@
     "operatorsLoading": "Operatorlar yuklanmoqda…",
     "unreadAria": "{n} ta o'qilmagan xabar",
     "assist": {
+      "urgent": {
+        "heading": "Tezkor advokat so'rovi",
+        "lead": "Mijoz nomidan so'rov yarating — u odatdagi tezkor advokat navbatiga tushadi.",
+        "kind": "Xizmat turi",
+        "channel": "Aloqa turi",
+        "count": "Advokatlar soni",
+        "directions": "Yo'nalish",
+        "directionsHint": "Bir nechtasini tanlash mumkin.",
+        "need": "Mijoz muammosi",
+        "needPh": "Nima bo'ldi va mijozga qanday yordam kerak",
+        "price": "Narx",
+        "meeting": "Uchrashuv",
+        "perLawyer": "Har bir advokat",
+        "immediate": "Navbatchi advokatga darhol boradi.",
+        "pickKind": "Xizmat turini tanlang.",
+        "missDirection": "Kamida bitta yo'nalishni tanlang.",
+        "missNeed": "Muammoni kamida {n} ta belgi bilan yozing.",
+        "next": "So'rovni tayyorlash",
+        "confirmTitle": "Tezkor advokat so'rovini tasdiqlang",
+        "confirmNote": "So'rov {name} nomidan yaratiladi. Mijozga darhol xabar boradi.",
+        "sentTitle": "Tezkor advokat so'rovi yaratildi",
+        "poolNote": "So'rov tezkor advokat navbatiga tushdi.",
+        "callNote": "Navbatchi advokat bilan qo'ng'iroq mijoz ekranida ochildi.",
+        "soonTitle": "Tez orada",
+        "soonText": "Tezkor advokat so'rovi backendda hali yoqilmagan. Yoqilishi bilan bu bo'lim o'zi ochiladi.",
+        "checking": "Tekshirilmoqda…",
+        "catalogOff": "Narxlar yuklanmadi — so'rovni baribir yuborish mumkin.",
+        "lawyer": "Advokat"
+      },
+      "pay": {
+        "planReviewed": "So'rov ko'rib chiqildi — natijani «Mijoz holati»da ko'ring.",
+        "pending": "To'lov tasdiqlanishi kutilmoqda",
+        "paid": "To'lov tasdiqlandi",
+        "rejected": "To'lov bekor qilindi",
+        "pendingHint": "Telegram orqali tasdiqlanadi · holat o'zi yangilanadi",
+        "paidHint": "Tasdiq Telegram orqali keldi",
+        "rejectedHint": "Telegram orqali rad etildi",
+        "pendingShort": "To'lov kutilmoqda",
+        "docPending": "To'lov tasdiqlangach so'rov navbatchi advokatlarga tushadi.",
+        "marketPaid": "Buyurtma to'landi, mijoz va mutaxassis chati ochildi.",
+        "planPaid": "Tarif mijozda faollashdi.",
+        "rejectedNote": "Kerak bo'lsa, mijoz bilan gaplashib so'rovni qayta yuboring."
+      },
+      "aiHistory": {
+        "title": "AI bilan suhbat tarixi",
+        "lead": "Mijoz AI yordamchidan o'tdi · {n} ta savol",
+        "client": "Mijoz",
+        "ai": "AI javobi",
+        "session": "AI sessiyasi: {id}",
+        "earlier": "Oldingi {n} ta savol"
+      },
       "viewOnly": "Faqat ko'rish: bu chat boshqa operatorda, mijoz nomidan amallarni u bajaradi.",
       "title": "Mijozga yordam",
-      "lead": "Mijoz nomidan tarif, hujjat va xizmat so'rovi",
+      "lead": "Mijoz nomidan so'rov va to'lovlar",
       "refresh": "Ma'lumotni yangilash",
       "stale": "Ma'lumot yangilanmadi — oxirgi holat ko'rsatilmoqda.",
       "sum": "{amount} so'm",
@@ -1064,7 +1200,7 @@
       "months": "{n} oy",
       "locked": {
         "claimTitle": "Avval chatni oling",
-        "claimText": "Mijoz nomidan amal bajarish uchun chat sizga biriktirilgan bo'lishi kerak. Chatni olganingizdan keyin shu yerda tarif, hujjat va xizmat so'rovlarini yarata olasiz.",
+        "claimText": "Mijoz nomidan amal bajarish uchun chat sizga biriktirilgan bo'lishi kerak. Chatni olganingizdan keyin shu yerda tarif, hujjat, xizmat va tezkor advokat so'rovlarini yarata olasiz.",
         "otherTitle": "Chat boshqa operatorda",
         "otherText": "Mijoz nomidan amallarni chat biriktirilgan operator bajaradi.",
         "closedTitle": "Chat yopilgan",
@@ -1105,6 +1241,15 @@
         "showLess": "Kamroq ko'rsatish"
       },
       "tabs": {
+        "hint": {
+          "plan": "Paket sotish",
+          "doc": "Advokat yozadi",
+          "market": "Marketplace",
+          "urgent": "Darhol aloqa"
+        },
+        "soon": "Tez orada",
+        "off": "Yopiq",
+        "urgent": "Tezkor advokat",
         "label": "Mijoz nomidan amal",
         "plan": "Tarif",
         "doc": "Hujjat",
@@ -1139,6 +1284,8 @@
         "sentTitle": "To'lov so'rovi Telegram tasdig'iga yuborildi"
       },
       "doc": {
+        "sentPayTitle": "Hujjat so'rovi yaratildi",
+        "confirmPaid": "So'rov mijoz nomidan yaratiladi. Narxi {amount} — to'lov Telegram'da tasdiqlangach so'rov navbatchi advokatlarga tushadi.",
         "heading": "Hujjat so'rovi",
         "lead": "Kerakli hujjatni toping yoki 0 dan tayyorlashni tanlang — so'rov navbatchi advokatlarga boradi.",
         "base": "Hujjat asosi",
@@ -1222,6 +1369,8 @@
         "sending": "Yuborilmoqda…"
       },
       "result": {
+        "requestId": "So'rov ID",
+        "notified": "Mijozga xabar ketdi",
         "workId": "Ish ID",
         "status": "Holat",
         "amount": "Summa",
@@ -1234,6 +1383,9 @@
         "dismiss": "Yopish"
       },
       "errors": {
+        "priorPurchase": "Advokatlar guruhi uchun mijoz avval LexGo orqali advokat yoki yurist xizmatidan foydalangan bo'lishi kerak.",
+        "urgentDuplicatePlain": "Mijozda faol tezkor so'rov bor.",
+        "urgentDuplicate": "Mijozda faol tezkor so'rov bor: {id}.",
         "planMissing": "Bu tarif topilmadi yoki sotuvda emas.",
         "planRole": "Bu tarif mijozlar uchun ochilmagan.",
         "period": "Bu muddat tanlangan tarif uchun mavjud emas.",
@@ -1246,6 +1398,7 @@
       }
     },
     "queue": {
+      "transferOff": "Bu murojaatni boshqa operatorga o'tkazib bo'lmaydi.",
       "filter": "Navbat",
       "viewChat": "Chat",
       "views": "Chat yoki mijozga yordam",
@@ -3820,11 +3973,13 @@
         "archived": "Arxivlangan"
       },
       "docStatus": {
+        "payment_rejected": "To'lov bekor qilingan",
+        "pending_payment": "To'lov kutilmoqda",
         "lawyer_review_requested": "Advokat tekshiruviga yuborildi",
         "pending_review": "Tekshiruv kutilmoqda",
         "review": "Ko'rib chiqilmoqda",
         "payment_cancelled": "To'lov bekor qilingan",
-        "payment_required": "Qo'shimcha to'lov kutilmoqda",
+        "payment_required": "To'lov kutilmoqda",
         "awaiting_payment": "To'lov kutilmoqda",
         "rated": "Baholangan",
         "closed": "Yopilgan",
@@ -4101,6 +4256,12 @@
       "checklistHint": "Har bir qator — alohida band. Bajarilganini \"[x]\" bilan belgilang."
     },
     "aiAssistant": {
+      "handoff": {
+        "title": "Operator yordam beradi",
+        "lead": "Savolingizni jonli operatorga yuboramiz.",
+        "shared": "Operator AI bilan suhbatingizni ko'radi",
+        "open": "Chatni ochish"
+      },
       "panel": {
         "name": "LexGo yordamchi",
         "badge": "AI",
@@ -4696,6 +4857,8 @@
         "label": "Hujjat turi"
       },
       "urgent": {
+        "opCreated": "Operator siz uchun tezkor advokat so'rovi yaratdi",
+        "byOperator": "Operator yaratgan",
         "backToKinds": "Boshqa turni tanlash",
         "rateClosedText": "15 daqiqalik muddat tugadi — bu ish uchun endi baho qoldirib bo‘lmaydi.",
         "rateClosedTitle": "Baholash oynasi yopildi",
@@ -5784,6 +5947,8 @@
         "preSellerNoList": "Bu advokat hali xizmatlar ro'yxatini belgilamagan — butun katalog ko'rsatilmoqda."
       },
       "documents": {
+        "gatePooledSub": "Navbatchi advokat ishni olishi bilan xabar beramiz.",
+        "gatePooled": "To'lov tasdiqlandi — advokatlar navbatiga tushdi",
         "lawyerNeedRequired": "So'rov matnini yozing — advokat nimadan boshlashini bilishi kerak.",
         "cloakHint": "Hujjat faqat ekranda ko'rish uchun. Nusxa olish, chop etish va saqlash yopiq.",
         "cloak": {
@@ -5801,14 +5966,14 @@
         "cancelledTitle": "To'lov bekor qilindi",
         "gateRetry": "So'rovni qayta yuborish",
         "gateRefreshHint": "Holat o'zgarganda xabar beramiz. Kutmay, holatni o'zingiz ham tekshirishingiz mumkin.",
-        "gateNoFacts": "To'lov tafsilotlari bu yerda ko'rinmayapti. Summani Telegramdagi to'lov so'rovidan ko'ring.",
+        "gateNoFacts": "To'lov summasi bu yerda hali ko'rinmayapti.",
         "gateTelegramFail": "To'lov so'rovi Telegramga yuborilmadi, shuning uchun kutishning ma'nosi yo'q. Qo'llab-quvvatlash xizmatiga murojaat qiling.",
-        "gateTelegramOk": "To'lov so'rovi Telegramga yuborildi — u yerda \"To'landi\" tugmasini bosing.",
+        "gateTelegramOk": "Tasdiqlash so'rovi Telegramga yuborildi.",
         "gateExtra": "Qo'shimcha: {n} sahifa",
         "gateIncluded": "To'lovsiz: {n} sahifa",
         "gatePages": "Hujjat: {n} sahifa",
         "gateStatus": "To'lov kutilmoqda",
-        "gateSub": "So'rovingiz hali advokatlarga yuborilmadi. Telegramdagi to'lov so'rovini tasdiqlang — tasdiqlanishi bilan ish navbatchi advokatlarga o'tadi.",
+        "gateSub": "So'rov hali advokatlarga yuborilmadi. Telegram orqali tasdiqlangach advokatlar navbatiga tushadi.",
         "gateTitle": "To'lov tasdiqlanishi kutilmoqda",
         "consentRequired": "So'rovni yuborish uchun roziligingiz kerak — yuqoridagi katakchani belgilang.",
         "lawyerPendingWork": "Ish raqami: {id}",
@@ -6235,6 +6400,21 @@
         "error": "Xatolik yuz berdi. Qayta urining."
       },
       "documentRequests": {
+        "opCreated": "Operator siz uchun hujjat so'rovi yaratdi",
+        "pay": {
+          "wait": {
+            "title": "To'lov tasdiqlanishi kutilmoqda",
+            "text": "Telegram orqali tasdiqlangach advokatlar navbatiga tushadi"
+          },
+          "pooled": {
+            "title": "Advokatlar navbatiga tushdi",
+            "text": "Navbatchi advokat ishni olishi bilan xabar beramiz"
+          },
+          "cancelled": {
+            "title": "To'lov bekor qilindi",
+            "text": "So'rov advokatlarga yuborilmadi"
+          }
+        },
         "nextLawyerHere": "Advokat tayyorlagach, hujjatni shu sahifada yuklab olasiz",
         "filterEmptyText": "Boshqa usul yoki holatni tanlang.",
         "filterMode": "Tayyorlash usuli",
@@ -7817,6 +7997,214 @@
     "stat3l": "o‘rtacha reyting"
   },
   "admin": {
+    "aiReglaments": {
+      "eyebrow": "AI instruktor · Support",
+      "title": "AI reglamentlari",
+      "lead": "AI instruktor support savollariga shu reglamentlar asosida javob beradi",
+      "newCta": "Yangi reglament",
+      "uploadCta": "Fayl yuklash",
+      "tabsAria": "Reglament bo'limlari",
+      "kpi": {
+        "active": "Faol reglamentlar",
+        "updated": "Oxirgi yangilanish",
+        "gaps": "Javobsiz savollar"
+      },
+      "tabs": {
+        "list": "Reglamentlar",
+        "gaps": "Javobsiz savollar"
+      },
+      "list": {
+        "title": "Reglamentlar",
+        "lead": "Faol reglamentlar AI javoblari uchun manba bo'ladi. Har tahrir yangi versiya bo'lib saqlanadi."
+      },
+      "gaps": {
+        "title": "Javobsiz savollar",
+        "lead": "AI reglamentdan javob topa olmagan savollar. Javobini reglamentga qo'shing — keyingi safar AI o'zi javob beradi.",
+        "refresh": "Yangilash",
+        "asked": "{n} marta so'raldi",
+        "last": "Oxirgi: {date}",
+        "session": "Sessiya {id}",
+        "why": "Nima yetishmadi:",
+        "add": "Reglamentga qo'shish",
+        "addMore": "Yana qo'shish",
+        "added": "Reglamentga qo'shildi",
+        "sorted": "Eng ko'p so'ralganlari yuqorida"
+      },
+      "filter": {
+        "title": "Filtrlar",
+        "search": "Qidirish",
+        "searchPh": "Nomi yoki matni bo'yicha qidiring",
+        "gapsPh": "Savol, mijoz yoki sessiya bo'yicha",
+        "category": "Toifa",
+        "status": "Holat",
+        "all": "Barchasi",
+        "open": "Ochiq"
+      },
+      "cat": {
+        "support": "Qo'llab-quvvatlash",
+        "payment": "To'lov",
+        "marketplace": "Marketplace",
+        "documents": "Hujjatlar",
+        "urgent": "Tezkor advokat",
+        "other": "Boshqa",
+        "custom": "O'zim yozaman…",
+        "none": "Toifasiz"
+      },
+      "status": {
+        "active": "Faol",
+        "draft": "Qoralama",
+        "archived": "Arxivda"
+      },
+      "gapStatus": {
+        "open": "Ochiq",
+        "resolved": "Hal qilingan",
+        "closed": "Yopilgan",
+        "ignored": "E'tiborsiz qoldirilgan",
+        "answered": "Javob berilgan"
+      },
+      "roles": {
+        "client": "Mijoz",
+        "yurist": "Yurist",
+        "advokat": "Advokat",
+        "lawyer": "Yurist",
+        "advocate": "Advokat",
+        "guest": "Mehmon",
+        "staff": "Xodim",
+        "operator": "Operator"
+      },
+      "row": {
+        "updated": "Yangilangan: {date}",
+        "versions": "{n} ta versiya",
+        "fromFile": "Fayldan",
+        "edit": "Yangi versiya: {title}",
+        "editShort": "Tahrirlash (yangi versiya)"
+      },
+      "empty": {
+        "list": "Hali reglament yo'q",
+        "listText": "Birinchi reglamentni yozing yoki fayldan yuklang — AI shu matn asosida javob beradi.",
+        "noResults": "Mos reglament topilmadi",
+        "noResultsText": "Filtrni o'zgartiring yoki tozalang.",
+        "gaps": "Javobsiz savol yo'q",
+        "gapsAll": "Hali savol yozilmagan",
+        "gapsText": "AI reglamentdan javob topa olmagan savollar shu yerda chiqadi.",
+        "gapsNoResults": "Mos savol topilmadi"
+      },
+      "missing": {
+        "soon": "Tez orada",
+        "title": "Bu bo'lim backendda hali yoqilmagan",
+        "text": "Backend yoqilgach sahifa o'zi ishlay boshlaydi. Hech narsa qilish shart emas.",
+        "recheck": "Qayta tekshirish",
+        "uploadText": "Fayldan yuklash backendda hali yoqilmagan. Hozircha matnni editorda kiriting.",
+        "uploadSoon": "Fayldan yuklash tez orada ishlaydi",
+        "writeText": "Saqlash backendda hali yoqilmagan. Tez orada ishlaydi.",
+        "useEditor": "Editorda yozish"
+      },
+      "error": {
+        "load": "Ma'lumot yuklanmadi",
+        "loadText": "Internetni tekshirib, qayta urinib ko'ring.",
+        "retry": "Qayta urinish",
+        "forbidden": "Bu bo'lim uchun ruxsat yo'q",
+        "forbiddenText": "Reglamentlarni faqat admin boshqaradi.",
+        "forbiddenAction": "Bu amal uchun ruxsatingiz yo'q."
+      },
+      "editor": {
+        "createTitle": "Yangi reglament",
+        "editTitle": "Reglamentning yangi versiyasi",
+        "gapTitle": "Savolni reglamentga qo'shish",
+        "gapLabel": "Mijoz savoli",
+        "target": "Qayerga qo'shamiz",
+        "targetNew": "Yangi reglament",
+        "targetLoading": "Reglament matni yuklanmoqda…",
+        "targetHintNew": "Savol yangi reglament bo'lib saqlanadi.",
+        "targetHintOld": "Savol tanlangan reglament oxiriga qo'shiladi va yangi versiya bo'ladi.",
+        "title": "Nomi",
+        "titlePh": "Masalan: To'lov va qaytarish",
+        "category": "Toifa",
+        "customCategory": "Toifa nomi",
+        "customCategoryPh": "Masalan: hamkorlar",
+        "version": "Versiya",
+        "versionHint": "Masalan: 1.0, 1.1 yoki 2.0",
+        "versionCurrent": "Joriy versiya: v{v}. Yangisi undan katta bo'lsin.",
+        "versionPick": "Versiyani tanlash",
+        "bumpMinor": "kichik tahrir",
+        "bumpMajor": "katta o'zgarish",
+        "status": "Holat",
+        "statusHint": {
+          "active": "AI shu reglamentdan foydalanadi.",
+          "draft": "Saqlanadi, lekin AI hali ishlatmaydi.",
+          "archived": "AI ishlatmaydi, tarix uchun saqlanadi."
+        },
+        "content": "Reglament matni",
+        "contentPh": "Qoida va javoblarni aniq, bandma-band yozing. AI faqat shu matnga tayanadi.",
+        "count": "{chars} belgi · {words} so'z",
+        "contentMissing": "Joriy matn yuklanmadi. Yangi versiyaning to'liq matnini kiriting.",
+        "gapNote": "Savol matnga qo'shildi. Unga aniq javob yozing.",
+        "qLabel": "Savol",
+        "aLabel": "Javob",
+        "newVersionNote": "Saqlash yangi versiya yaratadi. Eski versiyalar o'chmaydi.",
+        "firstVersionNote": "Bu reglamentning birinchi versiyasi bo'ladi.",
+        "save": "Saqlash",
+        "saveVersion": "Yangi versiyani saqlash",
+        "saving": "Saqlanmoqda…",
+        "cancel": "Bekor qilish",
+        "created": "Reglament saqlandi: {title}",
+        "updated": "Yangi versiya saqlandi: v{v}",
+        "errTitle": "Nomini kiriting",
+        "errCategory": "Toifani tanlang yoki yozing",
+        "errVersion": "Versiyani 1.0 ko'rinishida yozing",
+        "errVersionLow": "Versiya v{v} dan katta bo'lsin",
+        "errContent": "Reglament matnini kiriting",
+        "errFix": "Belgilangan maydonlarni tuzating",
+        "errSave": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+        "errConflict": "Bu versiya allaqachon bor. Boshqa raqam tanlang."
+      },
+      "upload": {
+        "title": "Fayldan reglament yuklash",
+        "lead": "Backend fayldan matnni ajratadi va uni reglament versiyasi qilib saqlaydi.",
+        "drop": "Faylni shu yerga tashlang",
+        "dropNow": "Qo'yib yuboring",
+        "or": "yoki",
+        "choose": "kompyuterdan tanlang",
+        "rules": ".docx, .doc yoki .pdf · 20 MB gacha",
+        "change": "Boshqa fayl tanlash",
+        "remove": "Faylni olib tashlash",
+        "badType": "Faqat .docx, .doc yoki .pdf fayl yuklang",
+        "tooBig": "Fayl juda katta: 20 MB gacha bo'lsin",
+        "empty": "Fayl bo'sh",
+        "needFile": "Avval faylni tanlang",
+        "target": "Reglament",
+        "targetHintNew": "Fayl yangi reglament bo'lib saqlanadi.",
+        "targetHintOld": "Fayl matni shu reglamentning yangi versiyasi bo'ladi.",
+        "submit": "Yuklash",
+        "sending": "Yuklanmoqda…",
+        "busy": "Fayl yuklanmoqda va matni ajratilmoqda. Bu biroz vaqt olishi mumkin.",
+        "done": "Fayl yuklandi: {title} · v{v}",
+        "err": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
+        "mb": "{n} MB",
+        "kb": "{n} KB"
+      },
+      "drawer": {
+        "eyebrow": "AI reglamenti",
+        "close": "Yopish",
+        "updated": "Yangilangan",
+        "created": "Yaratilgan",
+        "source": "Manba",
+        "sourceFile": "Fayl",
+        "sourceEditor": "Editor",
+        "author": "Muallif",
+        "newVersion": "Yangi versiya yaratish",
+        "newVersionHint": "Joriy matn o'zgarmaydi — tahrir yangi versiya bo'lib saqlanadi.",
+        "text": "Joriy matn",
+        "textOf": "v{v} matni",
+        "noText": "Matn backenddan kelmadi.",
+        "history": "Versiyalar tarixi",
+        "versionsCount": "{n} ta",
+        "current": "Joriy",
+        "noVersionText": "Bu versiya matni ro'yxatda yo'q",
+        "noHistory": "Versiyalar hali yo'q.",
+        "onlyCurrent": "Hozircha faqat joriy versiya ko'rinadi."
+      }
+    },
     "marketplace": {
       "eyebrow": "Marketplace · jonli nazorat",
       "updated": "yangilandi {time}",
@@ -8263,6 +8651,7 @@
       "system": "Tizim"
     },
     "nav": {
+      "aiReglaments": "AI reglamentlari",
       "supportTickets": "Operator chatlari",
       "marketplace": "Marketplace monitoring",
       "overview": "Umumiy",
@@ -9760,6 +10149,128 @@
       "user": "Foydalanuvchi"
     },
     "policies": {
+      "pricing": {
+        "soonLoad": "Narx qoidalari bo'limi tez orada yoqiladi. Backend tayyor bo'lgach, shu yerda o'zi paydo bo'ladi.",
+        "title": "Marketplace narxlari",
+        "lead": "Advokat va yuristlar xizmat narxini faqat shu qoidalar ichida qo'ya oladi. Tavsiya narx katalog narxidan hudud, tajriba va reytingga qarab hisoblanadi.",
+        "live": "Faol",
+        "notSaved": "Backend'da hali yo'q",
+        "lastChange": "Oxirgi o'zgarish: v{v}, {when}.",
+        "lastChangePlain": "Oxirgi o'zgarish: {when}.",
+        "missingSection": "Backend hali bu bo'limni qaytarmayapti — saqlanganda yaratiladi. Hozir standart qiymatlar ko'rsatilgan.",
+        "saveSoon": "Tez orada: backend bu bo'limni hali qabul qilmayapti. Qiymatlarni tayyorlab qo'yishingiz mumkin, saqlash biroz keyin ochiladi.",
+        "soon": "Tez orada",
+        "forbidden": "Narx qoidalarini faqat admin ko'ra oladi.",
+        "loadError": "Narx qoidalarini yuklab bo'lmadi.",
+        "retry": "Qayta urinish",
+        "range": {
+          "title": "Ruxsat etilgan oraliq",
+          "hint": "Mutaxassis narxi tavsiya narxning shu foizlari oralig'ida bo'ladi.",
+          "min": "Minimal foiz",
+          "max": "Maksimal foiz",
+          "example": "Masalan, tavsiya narx 100 000 so'm bo'lsa, mutaxassis {min} – {max} so'm oralig'ida narx qo'ya oladi."
+        },
+        "exp": {
+          "title": "Tajriba ustamasi",
+          "hint": "Mutaxassisning umumiy tajribasiga qarab tavsiya narxga qo'shiladi.",
+          "from": "Dan",
+          "to": "Gacha",
+          "percent": "Ustama",
+          "add": "Qator qo'shish",
+          "sort": "Tartiblash",
+          "empty": "Qator yo'q — tajriba ustamasi qo'llanmaydi."
+        },
+        "region": {
+          "title": "Hudud koeffitsientlari",
+          "hint": "Katalog narxi shu songa ko'paytiriladi. «default» — ro'yxatda yo'q barcha hududlar uchun.",
+          "key": "Hudud kaliti",
+          "coef": "Koeffitsient",
+          "add": "Hudud qo'shish",
+          "keyPh": "masalan: buxoro",
+          "defaultLocked": "«default» qatori majburiy"
+        },
+        "seller": {
+          "title": "Mutaxassis natijalari",
+          "hint": "Natijalari yuqori mutaxassisga ustama. Chegaralarni shu yerda belgilang.",
+          "successRateMin": "Muvaffaqiyat, kamida",
+          "totalCasesMin": "Ishlar soni, kamida",
+          "winsMin": "G'alabalar, kamida",
+          "ratingMin": "Reyting, kamida",
+          "reviewsMin": "Sharhlar, kamida",
+          "percent": "Ustama"
+        },
+        "client": {
+          "title": "Mijozlar reytingi",
+          "hint": "Mijozlar yuqori baholagan mutaxassisga ustama.",
+          "ratingMin": "Reyting, kamida",
+          "reviewsMin": "Sharhlar, kamida",
+          "percent": "Ustama"
+        },
+        "sector": {
+          "title": "Soha tajribasi",
+          "hint": "Bir sohada uzoq ishlagan mutaxassisga ustama.",
+          "verifiedOnly": "Faqat tasdiqlangan tajriba hisoblansin",
+          "minYears": "Tajriba, kamida",
+          "percent": "Ustama"
+        },
+        "unit": {
+          "pct": "%",
+          "star": "★",
+          "years": "yil"
+        },
+        "remove": "O'chirish",
+        "removeRow": "{row}-qatorni o'chirish",
+        "reset": "Bekor qilish",
+        "defaultsBtn": "Standart qiymatlar",
+        "save": "Saqlash",
+        "saving": "Saqlanmoqda…",
+        "saved": "Narx qoidalari saqlandi — yangi versiya yaratildi.",
+        "issuesCount": "{n} ta xato",
+        "errBad": "Backend qiymatlarni qabul qilmadi: {detail}",
+        "errBadPlain": "Backend qiymatlarni qabul qilmadi. Maydonlarni tekshiring.",
+        "errForbidden": "Saqlashga ruxsat yo'q.",
+        "errOffline": "Internet aloqasi yo'q. Qayta urinib ko'ring.",
+        "errUnknown": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+        "kept": "{keys} backend standart qiymatida qoldi. Butunlay o'chirish o'rniga koeffitsientni 1.00 qiling.",
+        "loaded": "v{v} formaga yuklandi. Saqlasangiz, yangi versiya bo'ladi.",
+        "loadedPlain": "Versiya formaga yuklandi. Saqlasangiz, yangi versiya bo'ladi.",
+        "yes": "Ha",
+        "no": "Yo'q",
+        "issues": {
+          "required": "{field}: qiymat kiriting.",
+          "range": "{field}: {min} dan {max} gacha bo'lsin.",
+          "int": "{field}: butun son bo'lsin.",
+          "minMax": "Minimal foiz maksimaldan katta bo'lmasin.",
+          "rowMinMax": "{row}-qator: «Dan» qiymati «Gacha»dan katta bo'lmasin.",
+          "order": "Qatorlar yillar bo'yicha o'sish tartibida bo'lsin.",
+          "overlap": "{a}- va {b}-qator yillari kesishmoqda.",
+          "gap": "{from}–{to} yil hech qaysi qatorga kirmaydi.",
+          "duplicate": "«{key}» hududi ikki marta yozilgan.",
+          "defaultMissing": "«default» hududi bo'lishi shart.",
+          "emptyKey": "{row}-qator: hudud kalitini yozing.",
+          "rowField": "{row}-qator, {field}"
+        },
+        "history": {
+          "open": "Tarix",
+          "title": "Narx qoidalari — versiyalar",
+          "empty": "Hali o'zgarishlar yo'q. Birinchi saqlashdan keyin versiyalar shu yerda ko'rinadi.",
+          "soon": "Versiyalar tarixi tez orada ko'rinadi.",
+          "error": "Tarixni yuklab bo'lmadi.",
+          "first": "Birinchi versiya — standart qiymatlarga nisbatan.",
+          "noChanges": "Qiymatlar o'zgarmagan.",
+          "load": "Formaga yuklash",
+          "added": "qo'shildi",
+          "removed": "olib tashlandi",
+          "more": "Yana {n} ta o'zgarish",
+          "noVersion": "Versiya",
+          "unreadable": "Bu versiyani o'qib bo'lmadi."
+        },
+        "diff": {
+          "exp": "Tajriba {range}",
+          "region": "Hudud «{key}»",
+          "regionNamed": "Hudud «{key}» ({name})"
+        }
+      },
       "boolNo": "Yo'q",
       "boolYes": "Ha",
       "readyTitle": "Production tayyorgarligi",

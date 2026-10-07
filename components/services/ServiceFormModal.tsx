@@ -20,9 +20,16 @@ import {
 import { IconAlert, IconCheck, IconCoins, IconEdit, IconLayers, IconPause, IconPlay, IconPower } from "@/components/icons";
 import { InBody, som } from "./bits";
 import ServicePicker from "./ServicePicker";
-import PriceField, { digitsOf, priceOutOfBand } from "./PriceField";
+import PriceField, { bandPercents, digitsOf, priceOutOfBand } from "./PriceField";
 
 const POLICY_KEY = (uid: string) => `lexgo_price_policy_${uid}`;
+
+function withDetails(primary: PriceBand | null, extra: PriceBand | null): PriceBand | null {
+  if (!primary) return extra;
+  if (!extra) return primary;
+  return { ...primary, base: primary.base ?? extra.base, modifiers: primary.modifiers ?? extra.modifiers };
+}
+
 const STATUS_ICON = { active: IconPlay, paused: IconPause, inactive: IconPower } as const;
 
 function readPolicy(uid: string): boolean {
@@ -84,12 +91,15 @@ export default function ServiceFormModal({
   const [err, setErr] = useState<ServiceError | null>(null);
   const [policyErr, setPolicyErr] = useState(false);
   const [bandLoad, setBandLoad] = useState<BandLoad | null>(null);
+  const [serverBand, setServerBand] = useState<{ key: string; band: PriceBand } | null>(null);
 
   const serviceId = service?.id ?? "";
   const bandKey = `${serviceId}|${sellerId}|${region}`;
+  const savedBand = item && item.id === serviceId ? item.limits : null;
+  const savedComplete = Boolean(savedBand && savedBand.base !== null && savedBand.modifiers !== null);
 
   useEffect(() => {
-    if (!serviceId) return;
+    if (!serviceId || savedComplete) return;
     let alive = true;
     priceBandFor(serviceId, sellerId, region)
       .then((band) => {
@@ -101,19 +111,19 @@ export default function ServiceFormModal({
     return () => {
       alive = false;
     };
-  }, [serviceId, sellerId, region, bandKey]);
+  }, [serviceId, sellerId, region, bandKey, savedComplete]);
 
   const loaded = bandLoad && bandLoad.key === bandKey ? bandLoad : null;
-  const serverBand = err?.kind === "range" ? { recommended: err.max, min: err.min, max: err.max } : null;
-  const savedBand = item && item.id === serviceId ? item.limits : null;
-  const band = serverBand ?? loaded?.band ?? savedBand ?? null;
+  const fromServer = serverBand && serverBand.key === serviceId ? serverBand.band : null;
+  const band = withDetails(fromServer, withDetails(savedBand, loaded?.band ?? null));
   const bandState = !serviceId ? "idle" : band ? "ready" : loaded ? "failed" : "loading";
   const n = Number(price || "0");
   const off = priceOutOfBand(n, band);
   const advocateBlocked = Boolean(loaded?.advocate) || err?.kind === "advocateOnly";
+  const pct = bandPercents(band);
 
   const errText = (e: ServiceError) => {
-    if (e.kind === "range") return t("errors.range", { min: som(e.min), max: som(e.max) });
+    if (e.kind === "range") return t("limits.serverRange", { min: som(e.min), max: som(e.max) });
     if (e.kind === "forbidden" && owner) return t("errors.forbiddenOwner");
     if (e.kind === "pendingAccount" && owner) return t("errors.pendingAccountOwner");
     return t(`errors.${e.kind}`);
@@ -134,8 +144,9 @@ export default function ServiceFormModal({
       rememberPolicy(uid);
       onSaved(saved, !editing);
     } catch (e) {
-      const se = serviceErrorOf(e);
+      const se = serviceErrorOf(e, locale);
       setErr(se);
+      if (se.kind === "range" && se.limits) setServerBand({ key: service.id, band: se.limits });
       if (se.kind === "notFound") onStale?.();
     } finally {
       setBusy(false);
@@ -290,7 +301,7 @@ export default function ServiceFormModal({
               <span className="svform__box" aria-hidden="true">
                 <IconCheck />
               </span>
-              <span>{t("form.policy")}</span>
+              <span>{pct ? t("limits.policy", pct) : t("limits.policyPlain")}</span>
             </label>
           ) : null}
           {policyErr && !agreed ? (

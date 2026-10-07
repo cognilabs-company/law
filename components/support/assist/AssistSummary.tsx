@@ -8,13 +8,14 @@ import { initials } from "@/lib/lawyers";
 import { formatUzPhone, isValidUzPhone } from "@/lib/phone";
 import type { BackendPlan } from "@/lib/services/backend";
 import type { SupportTicket } from "@/lib/services/support";
-import { isAssistPeriod, resolveAssistPlanNames, type AssistContext } from "@/lib/services/supportAssist";
-import { IconPhone, IconUser, IconVideo } from "@/components/icons";
+import { docPayPhase, isAssistPeriod, resolveAssistPlanNames, type AssistAiHistory, type AssistContext } from "@/lib/services/supportAssist";
+import { IconAiAnswer, IconChevronRight, IconPhone, IconUser, IconVideo } from "@/components/icons";
 import { StatusChip, sumText } from "./bits";
 
 type Kind = "subs" | "pending" | "docs" | "orders";
 const KINDS: Kind[] = ["subs", "pending", "docs", "orders"];
 const PREVIEW = 3;
+const AI_PREVIEW = 3;
 
 export function AssistClientCard({
   ctx,
@@ -205,7 +206,7 @@ export function AssistOverview({ ctx, plans, plansReady }: { ctx: AssistContext;
         {cut(ctx.recentDocuments).map((d) => (
           <Row key={d.id} title={d.title || d.workId} via={d.viaOperator}>
             {d.workId ? <span className="sasst__wid">{d.workId}</span> : null}
-            <StatusChip status={d.status} prefer="docStatus" />
+            {docPayPhase(d) === "pending" ? <span className="sasst__st sasst__st--warn">{t("pay.pendingShort")}</span> : <StatusChip status={d.status} prefer="docStatus" />}
             {d.requestedType ? <span>{d.requestedType}</span> : null}
             {d.createdAt ? <span>{shortDateTime(d.createdAt, locale)}</span> : null}
           </Row>
@@ -259,6 +260,63 @@ export function AssistOverview({ ctx, plans, plansReady }: { ctx: AssistContext;
               {full ? t("overview.showLess") : t("overview.showAll", { n: total })}
             </button>
           ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function AssistAiHistory({ history }: { history: AssistAiHistory }) {
+  const t = useTranslations("support.assist");
+  const locale = useLocale();
+  const uid = useId();
+  const [open, setOpen] = useState(false);
+  const [all, setAll] = useState(false);
+  const turns = history.turns;
+  if (!turns.length) return null;
+  const shown = all ? turns : turns.slice(-AI_PREVIEW);
+  const start = turns.length - shown.length;
+  return (
+    <div className="sasst__card sasst__ai" data-ai-private>
+      <button type="button" className="sasst__aih" aria-expanded={open} aria-controls={open ? `${uid}-ai` : undefined} onClick={() => setOpen((v) => !v)}>
+        <span className="sasst__aiic" aria-hidden="true">
+          <IconAiAnswer />
+        </span>
+        <span className="sasst__ait">
+          <b>{t("aiHistory.title")}</b>
+          <small>{t("aiHistory.lead", { n: turns.length })}</small>
+        </span>
+        <IconChevronRight className="sasst__aichev" aria-hidden="true" />
+      </button>
+      {open ? (
+        <div id={`${uid}-ai`} className="sasst__aibody">
+          {turns.length > AI_PREVIEW ? (
+            <button type="button" className="sasst__more" onClick={() => setAll((v) => !v)}>
+              {all ? t("overview.showLess") : t("aiHistory.earlier", { n: start })}
+            </button>
+          ) : null}
+          <ol className="sasst__aiq">
+            {shown.map((x, i) => (
+              <li key={start + i}>
+                {x.q ? (
+                  <div className="sasst__aiqq">
+                    <span>
+                      {t("aiHistory.client")}
+                      {x.at ? <time dateTime={x.at}>{shortDateTime(x.at, locale)}</time> : null}
+                    </span>
+                    <p>{x.q}</p>
+                  </div>
+                ) : null}
+                {x.a ? (
+                  <div className="sasst__aiqa">
+                    <span>{t("aiHistory.ai")}</span>
+                    <p>{x.a}</p>
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+          {history.sessionId ? <p className="sasst__aisid">{t("aiHistory.session", { id: history.sessionId })}</p> : null}
         </div>
       ) : null}
     </div>

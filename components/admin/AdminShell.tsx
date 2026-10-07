@@ -38,6 +38,7 @@ import {
   IconMenu,
   IconClose,
   IconChartBar,
+  IconAiAnswer,
 } from "../icons";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
@@ -119,6 +120,7 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/audit-trail", key: "audit", Icon: IconShieldCheck, perm: "users.manage" },
       { href: "/admin/legal", key: "legal", Icon: IconFileText, perm: "users.manage" },
       { href: "/admin/policies", key: "policies", Icon: IconShield },
+      { href: "/admin/ai-reglaments", key: "aiReglaments", Icon: IconAiAnswer },
       // Not in the visible nav on purpose: one-time first-superadmin setup
       // (bootstrap_key), not a page anyone uses day to day. Still reachable
       // by URL — isBootstrap/bootstrapOk below gate it independently of NAV,

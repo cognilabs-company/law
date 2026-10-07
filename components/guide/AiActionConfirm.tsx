@@ -6,7 +6,7 @@ import Modal from "@/components/admin/Modal";
 import { hasAdminAccess, useAuth } from "@/lib/auth";
 import { errorText } from "@/lib/errorText";
 import { answerFill, cancelPrompt, confirmPrompt, promptServerSnapshot, promptSnapshot, subscribePrompts, type ActionView } from "@/lib/ai/prompts";
-import { IconAlert, IconBolt, IconCheck, IconCircleCheck, IconExternal, IconFileText, IconGem, IconHeadset, IconShieldCheck, IconSparkle, IconStore } from "@/components/icons";
+import { IconAlert, IconBolt, IconCheck, IconCircleCheck, IconExternal, IconFileText, IconGem, IconHeadset, IconHistory, IconShieldCheck, IconSparkle, IconStore } from "@/components/icons";
 
 type Glyph = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -43,6 +43,7 @@ function usePrompts() {
 
 function ActionBody({ view }: { view: ActionView }) {
   const t = useTranslations("portal.aiAssistant.v21");
+  const ta = useTranslations("portal.aiAssistant");
   const tc = useTranslations("common");
   const locale = useLocale();
   const { session } = useAuth();
@@ -160,6 +161,12 @@ function ActionBody({ view }: { view: ActionView }) {
         <p className="aiconfirm__err" role="alert">
           <IconAlert aria-hidden="true" />
           <span>{error}</span>
+        </p>
+      ) : null}
+      {view.sharesHistory ? (
+        <p className="aiconfirm__share">
+          <IconHistory aria-hidden="true" />
+          <span>{ta("handoff.shared")}</span>
         </p>
       ) : null}
       {safe ? (

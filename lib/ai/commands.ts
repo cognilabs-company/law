@@ -27,6 +27,10 @@ export type RunLabels = {
   actionDone?: (action: string, workId: string) => string;
 };
 
+export type AiHandoffTurn = { q: string; a: string; at?: string };
+
+export type AiHandoff = { ai_history: AiHandoffTurn[]; ai_session_id: string };
+
 export type RunCtx = {
   scope: AiScope;
   sessionId: string;
@@ -39,6 +43,8 @@ export type RunCtx = {
   closePanel?: () => void;
   labels?: RunLabels;
   handoffUi?: boolean;
+  handoff?: () => AiHandoff;
+  onTicket?: (ticketId: string, workId: string) => void;
 };
 
 export type RunSummary = { done: number; missing: number; failed: number; cancelled: number; skipped: number };
@@ -58,8 +64,58 @@ const MISSING_REASON = "DOM element with data-ai-id was not found";
 const TG_MODAL = "pricing.telegram-request-modal";
 const STATUS_KEY = "lexgo_ai_cmd_status";
 const STATUS_MAX = 300;
+const SUPPORT_ACTION = "start_support_ticket";
+const HANDOFF_TURNS = 10;
+const HANDOFF_CHARS = 600;
+const SECRET_MIN = 4;
+const TEXT_FIELD = "input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=reset]):not([type=file]):not([type=range]):not([type=color]),textarea,[contenteditable=true],[contenteditable='']";
 
 const isDict = (v: unknown): v is Dict => Boolean(v) && typeof v === "object" && !Array.isArray(v);
+
+const squash = (s: string) => s.replace(/\s+/g, " ").trim();
+
+const tidy = (s: string) =>
+  s
+    .split(/\r?\n/)
+    .map(squash)
+    .filter(Boolean)
+    .join("\n");
+
+function privateValues(): string[] {
+  if (typeof document === "undefined") return [];
+  const out = new Set<string>();
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>(TEXT_FIELD))) {
+    if (!sensitiveInput(el)) continue;
+    const raw = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el.value : el.textContent || "";
+    const v = squash(raw);
+    if (v.length >= SECRET_MIN) out.add(v);
+  }
+  return [...out].sort((a, b) => b.length - a.length);
+}
+
+function scrubTurn(text: string, secrets: string[]): string {
+  const flat = squash(text);
+  let s = secrets.some((v) => flat.includes(v)) ? flat : tidy(text);
+  for (const v of secrets) if (s.includes(v)) s = s.split(v).join("***");
+  return s.length > HANDOFF_CHARS ? `${s.slice(0, HANDOFF_CHARS - 1).trimEnd()}…` : s;
+}
+
+const textOf = (v: unknown) => (typeof v === "string" ? v : "");
+
+export function aiHandoff(turns: AiHandoffTurn[], sessionId: string): AiHandoff {
+  const live = turns.filter((x) => squash(textOf(x.q)) || squash(textOf(x.a))).slice(-HANDOFF_TURNS);
+  const secrets = live.length ? privateValues() : [];
+  const ai_history = live.map((x) => {
+    const at = textOf(x.at).trim();
+    return { q: scrubTurn(textOf(x.q), secrets), a: scrubTurn(textOf(x.a), secrets), ...(at ? { at } : {}) };
+  });
+  return { ai_history, ai_session_id: sessionId };
+}
+
+function sharesHistory(payload: Dict): boolean {
+  const ctx = payload.context;
+  return isDict(ctx) && Array.isArray(ctx.ai_history) && ctx.ai_history.length > 0;
+}
 
 function pick(...vals: unknown[]): string {
   for (const v of vals) {
@@ -595,6 +651,7 @@ function supportPath(ctx: RunCtx, ticketId: string): string {
 }
 
 function showTicket(ctx: RunCtx, ticketId: string, workId: string): void {
+  ctx.onTicket?.(ticketId, workId);
   const l = ctx.labels;
   if (l) toast(workId ? l.ticketCreated(workId) : l.ticketCreatedPlain, { tone: "ok" });
   const tour: GuideTour = {
@@ -673,11 +730,12 @@ async function fallbackTicket(c: AiCommand, ctx: RunCtx, run: Run, payload: Dict
   const message = pick(payload.message, payload.text, payload.subject) || ctx.message;
   const category = pick(payload.category, c.category) || supportCategoryFor(currentRoute(), message);
   const holder: { ticket: SupportTicket | null } = { ticket: null };
+  const context: Dict = { current_path: currentRoute(), ...(isDict(payload.context) ? payload.context : {}) };
   const ok = await askAction(
-    { commandId: c.id, action: "start_support_ticket", generic: false, text: c.text, preview: null, free: true },
+    { commandId: c.id, action: SUPPORT_ACTION, generic: false, text: c.text, preview: null, free: true, sharesHistory: sharesHistory(payload) },
     {
       confirm: async () => {
-        holder.ticket = await createSupportTicket({ message, category, priority: "normal", source: "ai_platform_instructor", context: { current_path: currentRoute() } });
+        holder.ticket = await createSupportTicket({ message, category, priority: "normal", source: "ai_platform_instructor", context });
       },
     },
   );
@@ -697,10 +755,12 @@ function actionPayload(c: AiCommand, ctx: RunCtx): Dict {
     const m = /^pricing\.plan\.([^.]+)$/.exec(c.target);
     if (m) payload.plan_slug = m[1];
   }
-  if (c.action !== "start_support_ticket") return payload;
+  if (c.action !== SUPPORT_ACTION) return payload;
   const message = pick(payload.message, payload.text) || ctx.message;
   if (!pick(payload.message)) payload.message = message;
   if (!pick(payload.category)) payload.category = c.category || supportCategoryFor(currentRoute(), message);
+  const handoff = ctx.handoff?.();
+  if (handoff) payload.context = { ...(isDict(payload.context) ? payload.context : {}), current_path: currentRoute(), ...handoff };
   return payload;
 }
 
@@ -732,14 +792,14 @@ async function mutate(c: AiCommand, ctx: RunCtx, run: Run, list: AiCommand[], at
     preview = await previewInstructorAction({ session_id: ctx.sessionId, command_id: c.id, action: c.action, ...target, payload }, signal);
   } catch (e) {
     if (isAborted(e) || signal.aborted) return { stop: true, reason: run.reason || "aborted" };
-    if (isRouteMissing(e)) return c.action === "start_support_ticket" ? fallbackTicket(c, ctx, run, payload) : guided(c, ctx, run, payload);
+    if (isRouteMissing(e)) return c.action === SUPPORT_ACTION ? fallbackTicket(c, ctx, run, payload) : guided(c, ctx, run, payload);
     logApiError("ai instructor preview", e);
     commandFailed(ctx, c, "preview_failed", { status: e instanceof ApiError ? e.status : 0 });
     return blocking ? { stop: true, reason: "preview_failed" } : OK;
   }
   const state: { token: string; result: ActionResult | null } = { token: preview.confirmToken, result: null };
   const ok = await askAction(
-    { commandId: c.id, action: c.action, generic: false, text: c.text, preview, free: freeAction(c.action, preview) },
+    { commandId: c.id, action: c.action, generic: false, text: c.text, preview, free: freeAction(c.action, preview), sharesHistory: c.action === SUPPORT_ACTION && sharesHistory(payload) },
     {
       confirm: async () => {
         state.result = await confirmInstructorAction({
@@ -768,7 +828,7 @@ async function mutate(c: AiCommand, ctx: RunCtx, run: Run, list: AiCommand[], at
   const r = state.result;
   completed(ctx, c, { confirmed: true, ...(r?.resultRef ? { result_ref: r.resultRef } : {}), ...(r?.status ? { result_status: r.status } : {}) });
   if (!r || r.paymentUrl) return OK;
-  if (r.ticketId || c.action === "start_support_ticket") {
+  if (r.ticketId || c.action === SUPPORT_ACTION) {
     showTicket(ctx, r.ticketId, r.ticketWorkId || r.workId);
     return OK;
   }
@@ -946,7 +1006,7 @@ export function supportCommand(base: AiCommand, question: string): AiCommand {
     type: "preview_action",
     status: "pending",
     requiresFrontend: true,
-    action: "start_support_ticket",
+    action: SUPPORT_ACTION,
     payload: { ...base.payload, message: pick(base.payload.message) || question, ...(base.category ? { category: base.category } : {}) },
   };
 }

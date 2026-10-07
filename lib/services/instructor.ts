@@ -225,8 +225,14 @@ function normRoute(v: unknown, here: string): InstructorRoute | null {
 }
 
 function normSupport(v: unknown): InstructorSupport {
+  if (typeof v === "boolean") return { available: v, reason: "", confirmAction: SUPPORT_ACTION };
   const d = asDict(v);
   return { available: isObj(v) && d.available !== false, reason: firstText(d.reason), confirmAction: pick(d.confirm_action) || SUPPORT_ACTION };
+}
+
+function needsOf(d: Record<string, unknown>): unknown[] {
+  const own = asArr(d.missing_requirements ?? d.missingRequirements);
+  return own.length ? own : asArr(asDict(d.support_fallback ?? d.supportFallback).missing_requirements);
 }
 
 export function normInstructorReply(raw: unknown, currentPath = "", question?: string): InstructorReply {
@@ -236,7 +242,7 @@ export function normInstructorReply(raw: unknown, currentPath = "", question?: s
   const allowed = selfGate(question);
   const all = asArr(d.actions).map(normAction).filter((a): a is GuideAction => a !== null);
   const confirm = all.find((a): a is Extract<GuideAction, { type: "confirm" }> => a.type === "confirm");
-  const support = normSupport(d.support_fallback);
+  const support = normSupport(d.support_fallback ?? d.supportFallback);
   const rawSteps = asArr(d.steps);
   const explicit = d.requires_confirmation === true;
   const hl = normHighlight(d.highlight);
@@ -251,7 +257,7 @@ export function normInstructorReply(raw: unknown, currentPath = "", question?: s
     suggestions: asArr(d.suggestions).map((s) => firstText(s)).filter(Boolean).slice(0, 3),
     requiresConfirmation: explicit || Boolean(confirm),
     confirmActionType: confirm?.actionType || pick(d.action_type) || (explicit ? support.confirmAction : ""),
-    missingRequirements: textList(asArr(d.missing_requirements), NEEDS_MAX),
+    missingRequirements: textList(needsOf(d), NEEDS_MAX),
     supportFallback: support,
     provider: pick(d.ai_provider),
     contractVersion: pick(d.contract_version, d.frontend_contract_version),
@@ -299,7 +305,8 @@ export function replyNeedsAssistant(r: InstructorReply, guided: boolean): boolea
 
 export function replyOffersSupport(r: InstructorReply, role: GuideRole, hasTour: boolean): boolean {
   if (role === "staff") return false;
-  return r.intent === "support_guidance" || r.confirmActionType === SUPPORT_ACTION || (!hasTour && !r.checklist.length && r.supportFallback.available);
+  if (r.intent === "support_guidance" || r.confirmActionType === SUPPORT_ACTION) return true;
+  return r.supportFallback.available && (r.missingRequirements.length > 0 || (!hasTour && !r.checklist.length));
 }
 
 let seq = 0;
@@ -373,12 +380,19 @@ export async function previewSupportHandoff(): Promise<HandoffPreview> {
   };
 }
 
-export async function confirmSupportHandoff(input: { message: string; category: string; priority?: string }): Promise<HandoffResult> {
+export async function confirmSupportHandoff(input: { message: string; category: string; priority?: string; context?: Record<string, unknown> }): Promise<HandoffResult> {
   const message = input.message.trim();
   const d = asDict(
     await http("/ai/platform-instructor/actions/confirm", {
       method: "POST",
-      body: JSON.stringify({ action: SUPPORT_ACTION, subject: subjectFrom(message).slice(0, 255), message, category: input.category, priority: input.priority || "normal" }),
+      body: JSON.stringify({
+        action: SUPPORT_ACTION,
+        subject: subjectFrom(message).slice(0, 255),
+        message,
+        category: input.category,
+        priority: input.priority || "normal",
+        ...(input.context ? { context: input.context } : {}),
+      }),
     }),
   );
   const ticket = isObj(d.ticket) ? normSupportTicket(d.ticket) : null;
