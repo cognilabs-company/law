@@ -26,6 +26,11 @@
       "file": "../../md/LEXGO_BACKEND_ASKS_REALTIME_AI_SERVICES_2026-10-06.md",
       "title": "Realtime, AI instruktor v2.1 (live) va xizmatlar — backend uchun so'rovlar",
       "description": "Eng muhimi: Telegram webhook (async) realtime xabarlarni yo'qotadi — marketplace xarid tasdig'i, reklama tasdig'i mijozga yetib bormaydi (main.py:1125, broadcast_realtime_event 5865). Ichida: marketplace realtime so'rovlari (commit'dan keyin yuborish, reject frame, status maydonlari), AI v2.1 bo'yicha 10 ta so'rov (requires_frontend, ruscha self-help, targets maydoni, WS response, events runtime_state, token kodlari), xizmatlar boshqaruvi B2-B13, filtrlar yagona dizaynga o'tgani sababli o'zgargan data-ai-id jadvali. Frontend commit 385e698."
+    },
+    {
+      "file": "../../md/LEXGO_BACKEND_ASKS_SUPPORT_PRICING_REGLAMENT_2026-10-07.md",
+      "title": "Support Assist, narx siyosati, AI reglament — backend uchun (07.10)",
+      "description": "LEXGO_SUPPORT_MARKETPLACE_AI_PAYMENT_UPDATE_2026_10_07 bo'yicha: frontend to'liq yozildi (3fda2a7), lekin backend qismlari production'da yo'q — assist/urgent-advokat-request 404, /admin/ai/support/reglaments 404, marketplace_pricing bo'limi yo'q, hujjat to'lov darvozasi va event'lar hali yo'q. Ichida: deploy so'rovi, har bo'lim bo'yicha javob shakli savollari, operator uchun realtime, AI tarixini tiketda saqlash (create_support_ticket_record context'ni tashlab yuboradi), support_fallback doim true muammosi, narx siyosati merge/422/modifiers, reglament versiya/upload/gaps savollari."
     }
   ]
 }
