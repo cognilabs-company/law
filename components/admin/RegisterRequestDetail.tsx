@@ -20,24 +20,30 @@ const fmt = (v: string | undefined, locale: string) => {
 const FOUR_STEPS = ["phone", "identity", "practice", "rules"] as const;
 type FourStep = (typeof FOUR_STEPS)[number];
 
+function verificationItemDone(status: string): boolean {
+  const normalized = status.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (!normalized || /reject|fail|declin|pending|wait|not_verified|unverified|in_progress|requested/.test(normalized)) return false;
+  return /approv|verified|complete|passed|confirmed|accepted|success/.test(normalized);
+}
+
 function fourStepState(step: FourStep, items: Detail["verificationItems"], verified: boolean): "done" | "pending" | "rejected" {
   if (verified) return "done";
   const aliases: Record<FourStep, string[]> = {
     phone: ["phone", "sms", "otp"],
     identity: ["identity", "passport", "id", "document"],
     practice: ["practice", "profile", "qualification", "license", "licence"],
-    rules: ["rules", "terms", "agreement", "consent"],
+    rules: ["rules", "rule", "policy", "terms", "agreement", "consent"],
   };
   const item = items.find((entry) => aliases[step].some((alias) => entry.key.toLowerCase().includes(alias)));
   const status = item?.status.toLowerCase() || "";
   if (/reject|fail|declin/.test(status)) return "rejected";
-  if (/approv|verif|complete|passed|confirmed|accepted/.test(status)) return "done";
+  if (verificationItemDone(status)) return "done";
   return "pending";
 }
 
 function FourStepVerification({ detail }: { detail: Detail }) {
   const t = useTranslations("admin.registerRequests");
-  const verified = detail.lawyerProfile?.verified === true;
+  const verified = FOUR_STEPS.every((step) => fourStepState(step, detail.verificationItems, false) === "done");
   return (
     <div className="dkv__sect dkv__fourstep">
       <b>{t("detail.fourStepTitle")}</b>

@@ -7203,16 +7203,21 @@ export type RegisterRequestDetail = {
 
 const FOUR_STEP_ALIASES: Record<"phone" | "identity" | "practice" | "rules", string[]> = {
   phone: ["phone", "sms", "otp"],
-  identity: ["identity", "passport", "id", "document"],
-  practice: ["practice", "profile", "qualification", "license", "licence"],
-  rules: ["rules", "terms", "agreement", "consent"],
+  identity: ["identity", "kyc", "passport", "id", "document"],
+  practice: ["practice", "professional", "profile", "qualification", "license", "licence"],
+  rules: ["rules", "rule", "policy", "terms", "agreement", "consent"],
 };
 
+function verificationItemDone(status: string): boolean {
+  const normalized = status.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (!normalized || /reject|fail|declin|pending|wait|not_verified|unverified|in_progress|requested/.test(normalized)) return false;
+  return /approv|verified|complete|passed|confirmed|accepted|success/.test(normalized);
+}
+
 export function registerRequestFourStepsComplete(detail: RegisterRequestDetail): boolean {
-  if (detail.lawyerProfile?.verified === true) return true;
   return (Object.values(FOUR_STEP_ALIASES) as string[][]).every((aliases) => {
     const item = detail.verificationItems.find((entry) => aliases.some((alias) => entry.key.toLowerCase().includes(alias)));
-    return Boolean(item && /approv|verif|complete|passed|confirmed|accepted/i.test(item.status));
+    return Boolean(item && verificationItemDone(item.status));
   });
 }
 
