@@ -1904,7 +1904,7 @@
       },
       "client_documents": {
         "filters": "Tayyorlanish usuli bo'yicha saralang yoki nomi bilan qidiring.",
-        "stats": "Jami, to'ldirilayotgan, tayyor va advokatdagi hujjatlar soni.",
+        "stats": "Bosing — hujjatlar shu holat bo'yicha saralanadi: jami, to'ldirilayotgan, advokatdagi va tayyor.",
         "title": "Mening hujjatlarim — to'ldirgan va buyurtma qilgan barcha hujjatlaringiz shu yerda.",
         "list": "Tayyorlangan va jarayondagi barcha hujjatlaringiz shu yerda."
       },
@@ -7576,7 +7576,19 @@
         "downloadError": "Faylni yuklab bo'lmadi. Qayta urining.",
         "readyToast": "Hujjatingiz tayyor. Yuklab olishingiz mumkin.",
         "meetingLabel": "Uchrashuv",
-        "meetingActive": "Uchrashuv faol"
+        "meetingActive": "Uchrashuv faol",
+        "secYou": "Sizdan harakat kutilmoqda",
+        "secYouHint": "To'lov yoki ma'lumot sizda turibdi — shulardan boshlang.",
+        "secRest": "Qolgan hujjatlar",
+        "views": "Holat bo'yicha tezkor ko'rinish",
+        "retry": "Qayta urinish",
+        "resetFilters": "Filtrlarni tozalash",
+        "browse": "Hujjat tanlash",
+        "step_fill": "Ma'lumot",
+        "step_pay": "To'lov",
+        "step_review": "Ko'rib chiqish",
+        "step_ready": "Tayyor",
+        "stepOf": "Bosqich {n}/{total}: {label}"
       },
       "packages": {
         "allCategories": "Barcha toifalar",

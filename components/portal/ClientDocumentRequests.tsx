@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import {
@@ -27,7 +27,7 @@ import { fetchAndDeliver } from "@/lib/download";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
-import { Skeleton, EmptyState } from "./DataState";
+import { EmptyState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
 import { docNextActionKey, statusLabel } from "@/lib/labels";
 import { matchesSearch } from "@/lib/searchText";
@@ -67,6 +67,45 @@ function statusTone(status: string, phase: RowPhase): "done" | "waiting" | "you"
 // Which rows could carry a rating window, and therefore are worth one detail
 // request each. Anything still being worked on cannot have one.
 const RATEABLE = new Set(["file_ready", "rated", "closed"]);
+
+type Tone = ReturnType<typeof statusTone>;
+type Step = "fill" | "pay" | "review" | "ready";
+const STEP_OF: Record<string, Step> = {
+  questionnaire: "fill",
+  ready_to_generate: "fill",
+  payment_pending: "pay",
+  awaiting_payment: "pay",
+  pending_payment: "pay",
+  payment_required: "pay",
+  open_pool: "review",
+  lawyer_review_requested: "review",
+  lawyer_review: "review",
+  pending_review: "review",
+  in_review: "review",
+  review: "review",
+  claimed: "review",
+  file_ready: "ready",
+  rated: "ready",
+};
+
+function railOf(item: ClientDocFlowItem, status: string, phase: RowPhase): { steps: Step[]; at: number } | null {
+  if (phase === "cancelled") return null;
+  const cur: Step | undefined = phase === "wait" ? "pay" : phase === "pooled" ? "review" : STEP_OF[status];
+  if (!cur) return null;
+  const steps: Step[] = ["fill"];
+  if (item.payment.required || cur === "pay") steps.push("pay");
+  if (item.mode === "lawyer" || item.lawyerRequestActive || !!item.assignedLawyer || cur === "review") steps.push("review");
+  steps.push("ready");
+  return { steps, at: steps.indexOf(cur) };
+}
+
+const VIEWS = [
+  { key: "all", status: "", Icon: IconFileText, tone: "neutral" },
+  { key: "filling", status: "questionnaire", Icon: IconEdit, tone: "warn" },
+  { key: "lawyer", status: "lawyer_review", Icon: IconScale, tone: "active" },
+  { key: "ready", status: "file_ready", Icon: IconCheck, tone: "ok" },
+] as const;
+const VIEW_LABEL = { all: "statTotal", filling: "statFilling", lawyer: "statLawyer", ready: "statReady" } as const;
 
 // LEXGO_CLIENT_DOCUMENT_REQUESTS_PAGE_FRONTEND.md: one place for the client
 // to see every document request they've ever started — however it was
@@ -425,6 +464,178 @@ export default function ClientDocumentRequests() {
     setDlBusy("");
   }
 
+  function describe(item: ClientDocFlowItem) {
+    const room = item.secureChatRoomId || rooms[item.id];
+    const ready = item.file.ready;
+    const basePhase = docPayPhase(item.status, item.mode === "lawyer", item.payment.required);
+    const mark = flash[item.id];
+    const phase: RowPhase =
+      mark === "rejected" && basePhase ? "cancelled" : mark === "pooled" && (basePhase === "wait" || POOL_STATUSES.has(item.status)) ? "pooled" : basePhase;
+    const shownStatus =
+      phase === "pooled" && !POOL_STATUSES.has(item.status) ? "open_pool" : phase === "cancelled" && !DOC_PAYMENT_STOPPED.has(item.status) ? "payment_cancelled" : item.status;
+    const tone: Tone = statusTone(shownStatus, phase);
+    return { item, room, ready, phase, shownStatus, tone };
+  }
+  const described = shown.map(describe);
+  const urgent = described.filter((v) => v.tone === "pay" || v.tone === "you");
+  const others = described.filter((v) => v.tone !== "pay" && v.tone !== "you");
+  const filtered = tab !== "all" || !!pick || !!needle;
+  function resetFilters() {
+    setTab("all");
+    setPick("");
+    setQ("");
+  }
+  function retry() {
+    setStatus("loading");
+    refresh();
+  }
+
+  function card({ item, room, ready, phase, shownStatus, tone }: ReturnType<typeof describe>) {
+    const ModeIcon = MODE_ICON[item.mode as keyof typeof MODE_ICON] ?? IconFileText;
+    const PhaseIcon = phase ? PHASE_ICON[phase] : null;
+    const payCur = item.payment.currency && !/^uzs$/i.test(item.payment.currency) ? item.payment.currency : tcommon("som");
+    const payAmount = phase === "wait" && item.payment.amount > 0 ? `${fmtUzs(item.payment.amount)} ${payCur}` : "";
+    const canContinue = !!item.constructorAction?.available && !!(item.constructorUrls.continueUrl || item.constructorAction?.continueUrl);
+    const blocked = !item.canSendLawyerRequest;
+    const canSend = (item.mode === "manual" && tone !== "closed" && phase !== "wait" && phase !== "pooled") || blocked;
+    const info = rated[item.id];
+    const acts = !!room || ready || canContinue || canSend;
+    const workId = item.workId || info?.workId || "";
+    const itemAi = aiId("documents.my.item", item.id);
+    const modeText = t.has(`tab_${item.mode}`) ? t(`tab_${item.mode}`) : item.mode;
+    const statusText = shownStatus === item.status ? statusLabel(tcm, item.status, "docStatus") || item.statusLabel : statusLabel(tcm, shownStatus, "docStatus");
+    const rail = tone === "closed" ? null : railOf(item, shownStatus, phase);
+    const railDone = rail ? rail.steps[rail.at] === "ready" : false;
+    const continueMain = !ready && tone === "you";
+    return (
+      <article
+        className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}${tone === "closed" || tone === "off" ? " mydoc--closed" : ""}${promptId === item.id ? " mydoc--flag" : ""}${fresh.includes(item.id) ? " mydoc--fresh" : ""}${acts ? " mydoc--acts" : ""}`}
+        key={item.id}
+        data-ai-id={itemAi}
+        data-ai-type="list_item"
+        data-ai-label={[modeText, statusText].filter(Boolean).join(" · ")}
+        data-ai-entity-type="document_request"
+        data-ai-entity-id={item.id}
+        data-ai-private
+      >
+        <span className={`mydoc__i mydoc__i--${item.mode}`} aria-hidden><ModeIcon /></span>
+        <div className="mydoc__m">
+          <b className="mydoc__t">{item.title || t("title")}</b>
+          <div className="mydoc__row">
+            {workId ? <small className="mydoc__wid" title={t("workId")}>{workId}</small> : null}
+            <small className="mydoc__mode"><ModeIcon />{modeText}</small>
+            {item.requestedDocumentType ? (
+              <small className="mydoc__kind"><IconTag />{item.requestedDocumentType}</small>
+            ) : null}
+            {item.assignedLawyer?.name ? <small><IconUser />{item.assignedLawyer.name}</small> : null}
+            {item.meeting ? (
+              <small className={item.meeting.active ? "mydoc__live" : undefined}>
+                <IconVideo />
+                {item.meeting.active ? t("meetingActive") : item.meeting.status || t("meetingLabel")}
+              </small>
+            ) : null}
+            {item.createdAt ? <small><IconClock />{shortDateTime(item.createdAt, locale)}</small> : null}
+          </div>
+          {rail ? (
+            <div
+              className={`mydoc__rail${railDone ? " mydoc__rail--done" : ""}`}
+              style={{ "--n": rail.steps.length } as CSSProperties}
+              role="img"
+              aria-label={t("stepOf", { n: rail.at + 1, total: rail.steps.length, label: t(`step_${rail.steps[rail.at]}`) })}
+            >
+              {rail.steps.map((s, i) => (
+                <span key={s} className={`mydoc__step mydoc__step--${i < rail.at || railDone ? "done" : i === rail.at ? "now" : "todo"}`} aria-hidden>
+                  <i />
+                  <small>{t(`step_${s}`)}</small>
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {phase && PhaseIcon ? (
+            <div
+              className={`mydoc__pay mydoc__pay--${phase}`}
+              role="status"
+              data-ai-id={phase === "wait" ? aiId(itemAi, "payment") : undefined}
+              data-ai-type={phase === "wait" ? "payment_gate" : undefined}
+              data-ai-label={phase === "wait" ? t(`pay.${phase}.title`) : undefined}
+            >
+              <span className="mydoc__payi" aria-hidden="true"><PhaseIcon /></span>
+              <span className="mydoc__payt">
+                <b>{t(`pay.${phase}.title`)}</b>
+                <small>{t(`pay.${phase}.text`)}</small>
+              </span>
+              {payAmount ? <em className="mydoc__paysum">{payAmount}</em> : null}
+            </div>
+          ) : item.nextAction ? <p className="mydoc__next"><IconArrowRight />{nextActionText(item.nextAction)}</p> : null}
+          {info ? <DocRatingBox id={item.id} rating={info.rating} onRated={refresh} /> : null}
+          {blocked && item.lawyerRequestBlockReason ? <p className="mydoc__block">{item.lawyerRequestBlockReason}</p> : null}
+        </div>
+        <div className="mydoc__side">
+          <span className="mydoc__corner">
+            <em className={`mydoc__st mydoc__st--${tone}`}>{statusText}</em>
+            {info?.rating.submitted && info.rating.value ? <DocRatedStars value={info.rating.value} /> : null}
+          </span>
+          {acts ? (
+            <div className="mydoc__acts">
+              {ready ? (
+                <button
+                  type="button"
+                  className="btn btn--grad btn--sm"
+                  disabled={dlBusy === item.id}
+                  onClick={() => download(item)}
+                  data-ai-id={aiId(itemAi, "download")}
+                  data-ai-label={t("download")}
+                >
+                  <IconDownload />
+                  {dlBusy === item.id ? tcommon("processingShort") : t("download")}
+                </button>
+              ) : null}
+              {canContinue ? (
+                <button
+                  type="button"
+                  className={`btn ${continueMain ? "btn--grad" : "btn--line"} btn--sm`}
+                  disabled={!!openBusy}
+                  onClick={() => (item.constructorAction?.promptRequired ? setPromptId(item.id) : void openConstructor(item))}
+                  data-ai-id={aiId(itemAi, "continue")}
+                  data-ai-label={t("constructorContinue")}
+                >
+                  <IconEdit />
+                  {openBusy === item.id ? tcommon("processingShort") : t("constructorContinue")}
+                </button>
+              ) : null}
+              {room ? (
+                <Link href={`/portal/chat/${room}`} className="btn btn--line btn--sm" data-ai-id={aiId(itemAi, "chat")} data-ai-label={t("openChat")}>
+                  <IconChat />
+                  {t("openChat")}
+                </Link>
+              ) : null}
+              {canSend ? (
+                <button
+                  type="button"
+                  className="btn btn--line btn--sm"
+                  disabled={blocked || sendBusy}
+                  title={blocked ? item.lawyerRequestBlockReason || undefined : undefined}
+                  onClick={() => { setSendId(item.id); setSendNeed(""); }}
+                  data-ai-id={aiId(itemAi, "review")}
+                  data-ai-label={tcommon("reviewOpen")}
+                >
+                  <IconScale />
+                  {tcommon("reviewOpen")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </article>
+    );
+  }
+
+  const loadMoreBtn = more ? (
+    <button type="button" className="btn btn--line btn--full ntmore" onClick={() => void loadMore()} disabled={moreBusy} data-ai-id="documents.my.load-more">
+      {moreBusy ? tcm("loadingMore") : tcm("loadMore")}
+    </button>
+  ) : null;
+
   return (
     <div className="ppanel" data-ai-target="documents:my-documents" data-ai-id="documents.my.page" data-ai-type="section" data-ai-label={t("title")}>
       <div className="ppanel__h">
@@ -432,43 +643,32 @@ export default function ClientDocumentRequests() {
           <b>{t("title")}</b>
           <span>{t("lead")}</span>
         </div>
-        <span className="advmuted">{stats ? stats.total : rows.length}</span>
       </div>
 
-      {/* Four counts over the whole archive, not over the page on screen —
-          see `stats` above for where each number comes from. The tiles are
-          the platform's existing KPI row (.pk, shared with the meetings
-          screen), so this screen gains the summary without inventing a
-          second visual language for it. */}
-      {stats ? (
-        <div className="pk mydocs__stats" data-ai-target="documents:my-stats" data-ai-id="documents.my.stats" data-ai-type="section">
-          <div className="pk__i pk__i--ic pk__i--neutral">
-            <span className="pk__ico"><IconFileText /></span>
-            <b>{stats.total}</b>
-            <span>{t("statTotal")}</span>
-          </div>
-          <div className="pk__i pk__i--ic pk__i--warn">
-            <span className="pk__ico"><IconEdit /></span>
-            <b>{stats.filling}</b>
-            <span>{t("statFilling")}</span>
-          </div>
-          <div className="pk__i pk__i--ic pk__i--ok">
-            <span className="pk__ico"><IconCheck /></span>
-            <b>{stats.ready}</b>
-            <span>{t("statReady")}</span>
-          </div>
-          <div className="pk__i pk__i--ic pk__i--active">
-            <span className="pk__ico"><IconScale /></span>
-            <b>{stats.lawyer}</b>
-            <span>{t("statLawyer")}</span>
-          </div>
-        </div>
-      ) : null}
+      <div className="mydocs__views" role="group" aria-label={t("views")} data-ai-target="documents:my-stats" data-ai-id="documents.my.stats" data-ai-type="section">
+        {VIEWS.map((v) => {
+          const n = stats ? stats[v.key === "all" ? "total" : v.key] : null;
+          const on = pick === v.status;
+          return (
+            <button
+              key={v.key}
+              type="button"
+              className={`mydocs__view mydocs__view--${v.tone}${on ? " is-on" : ""}`}
+              aria-pressed={on}
+              onClick={() => setPick(v.status)}
+              data-ai-id={`documents.my.view.${v.key}`}
+              data-ai-label={t(VIEW_LABEL[v.key])}
+            >
+              <span className="mydocs__viewi" aria-hidden><v.Icon /></span>
+              <span className="mydocs__viewt">
+                <b>{n ?? "—"}</b>
+                <small>{t(VIEW_LABEL[v.key])}</small>
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
-      {/* Searches the rows that are loaded, which is the page plus whatever
-          "Yana yuklash" has added — the endpoint takes no query parameter,
-          so there is nothing to ask the server. Said out loud under the
-          list when a search comes up empty and there are still pages left. */}
       <FilterBar
         className="cwk-filters"
         fields={fields}
@@ -481,213 +681,79 @@ export default function ClientDocumentRequests() {
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
 
       {status === "loading" ? (
-        <Skeleton rows={3} />
+        <div className="mydocs" aria-busy="true" aria-label={tcm("loadingMore")}>
+          {[0, 1, 2].map((i) => (
+            <div className="mydoc mydoc--skel" key={i} aria-hidden>
+              <span className="mydoc__i" />
+              <div className="mydoc__m">
+                <i className="mydoc__sk mydoc__sk--t" />
+                <i className="mydoc__sk mydoc__sk--m" />
+                <i className="mydoc__sk mydoc__sk--r" />
+              </div>
+              <div className="mydoc__side"><i className="mydoc__sk mydoc__sk--b" /></div>
+            </div>
+          ))}
+        </div>
       ) : status === "error" ? (
-        // A failed fetch used to render as "you have no documents" — the one
-        // message that must never be guessed at on this page.
-        <Notice ok={false} msg={t("loadError")} />
+        <div className="mydocs__fail" role="alert">
+          <Notice ok={false} msg={t("loadError")} />
+          <button type="button" className="btn btn--line btn--sm" onClick={retry} data-ai-id="documents.my.retry">
+            {t("retry")}
+          </button>
+        </div>
       ) : !shown.length ? (
         rows.length ? (
-          // Searched, and nothing on the rows we hold matched. Says so, and
-          // says the archive may still have more — the search cannot reach
-          // pages that have not been fetched.
           <>
             <EmptyState icon={<IconSearch />} title={t("searchEmpty")} text={more ? t("searchEmptyMore") : t("searchEmptyText")} />
-            {more ? (
-              <button type="button" className="btn btn--line btn--full ntmore" onClick={() => void loadMore()} disabled={moreBusy} data-ai-id="documents.my.load-more">
-                {moreBusy ? tcm("loadingMore") : tcm("loadMore")}
+            <div className="mydocs__emptyacts">
+              <button type="button" className="btn btn--line btn--sm" onClick={resetFilters} data-ai-id="documents.my.reset">
+                {t("resetFilters")}
               </button>
-            ) : null}
+            </div>
+            {loadMoreBtn}
           </>
-        ) : tab !== "all" || pick ? (
-          <EmptyState icon={<IconSearch />} title={t("searchEmpty")} text={t("filterEmptyText")} />
+        ) : filtered ? (
+          <>
+            <EmptyState icon={<IconSearch />} title={t("searchEmpty")} text={t("filterEmptyText")} />
+            <div className="mydocs__emptyacts">
+              <button type="button" className="btn btn--line btn--sm" onClick={resetFilters} data-ai-id="documents.my.reset">
+                {t("resetFilters")}
+              </button>
+            </div>
+          </>
         ) : (
-          <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
+          <>
+            <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
+            <div className="mydocs__emptyacts">
+              <Link href="/portal/client/services" className="btn btn--grad btn--sm" data-ai-id="documents.my.browse">
+                <IconFileText />
+                {t("browse")}
+              </Link>
+            </div>
+          </>
         )
       ) : (
         <div className="mydocs" data-ai-id="documents.my.list" data-ai-type="list">
-          {shown.map((item) => {
-            const ModeIcon = MODE_ICON[item.mode as keyof typeof MODE_ICON] ?? IconFileText;
-            const room = item.secureChatRoomId || rooms[item.id];
-            const ready = item.file.ready;
-            const basePhase = docPayPhase(item.status, item.mode === "lawyer", item.payment.required);
-            const mark = flash[item.id];
-            const phase: RowPhase =
-              mark === "rejected" && basePhase ? "cancelled" : mark === "pooled" && (basePhase === "wait" || POOL_STATUSES.has(item.status)) ? "pooled" : basePhase;
-            const shownStatus =
-              phase === "pooled" && !POOL_STATUSES.has(item.status) ? "open_pool" : phase === "cancelled" && !DOC_PAYMENT_STOPPED.has(item.status) ? "payment_cancelled" : item.status;
-            const tone = statusTone(shownStatus, phase);
-            const PhaseIcon = phase ? PHASE_ICON[phase] : null;
-            const payCur = item.payment.currency && !/^uzs$/i.test(item.payment.currency) ? item.payment.currency : tcommon("som");
-            const payAmount = phase === "wait" && item.payment.amount > 0 ? `${fmtUzs(item.payment.amount)} ${payCur}` : "";
-            // §5 L116-122: the constructor half of a document an advocate is
-            // holding. Offered strictly on the backend's word —
-            // constructor_action.available with a constructor_continue_url —
-            // which on 2026-09-29 was true for 10 of the 50 live rows and
-            // false for the 9 held rows that have no template behind them.
-            const canContinue = !!item.constructorAction?.available && !!(item.constructorUrls.continueUrl || item.constructorAction?.continueUrl);
-            // §5 L114-115. can_send_lawyer_request defaults to true when the
-            // field is absent, so an older deployment is not locked out.
-            const blocked = !item.canSendLawyerRequest;
-            // Handing the client's own document to the call-center pool is
-            // what POST /document-requests/{id}/lawyer-review is for, so the
-            // control belongs on the rows the client filled in themselves —
-            // plus, disabled, on any row the backend has blocked, because a
-            // refusal with nothing to refuse explains nothing.
-            const canSend = (item.mode === "manual" && tone !== "closed" && phase !== "wait" && phase !== "pooled") || blocked;
-            const info = rated[item.id];
-            // A complaint is offered on exactly the rows a rating is offered
-            // on — the finished ones — but unlike the rating it does not
-            // expire with the 15-minute window, so it is gated on the row
-            // being finished rather than on the window still being open.
-            const acts = !!room || ready || canContinue || canSend;
-            // The work id the client and the advocate quote at each other.
-            const workId = item.workId || info?.workId || "";
-            const itemAi = aiId("documents.my.item", item.id);
-            const modeText = t.has(`tab_${item.mode}`) ? t(`tab_${item.mode}`) : item.mode;
-            const statusText = shownStatus === item.status ? statusLabel(tcm, item.status, "docStatus") || item.statusLabel : statusLabel(tcm, shownStatus, "docStatus");
-            return (
-              <article
-                className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}${tone === "closed" || tone === "off" ? " mydoc--closed" : ""}${promptId === item.id ? " mydoc--flag" : ""}${fresh.includes(item.id) ? " mydoc--fresh" : ""}`}
-                key={item.id}
-                data-ai-id={itemAi}
-                data-ai-type="list_item"
-                data-ai-label={[modeText, statusText].filter(Boolean).join(" · ")}
-                data-ai-entity-type="document_request"
-                data-ai-entity-id={item.id}
-                data-ai-private
-              >
-                <span className={`mydoc__i mydoc__i--${item.mode}`} aria-hidden><ModeIcon /></span>
-                {/* One column of content, not two: the status pill used to sit
-                    in a flex row of its own while the buttons occupied a third
-                    grid column, and on a long title the two overlapped. */}
-                <div className="mydoc__m">
-                  <div className="mydoc__top">
-                    <b className="mydoc__t">{item.title || t("title")}</b>
-                    {/* The slug resolves against portal.common.docStatus, which
-                        is translated; item.statusLabel is the server's own
-                        wording, itself sometimes only the slug. */}
-                    {/* The score takes the corner the status pill had, and
-                        the pill moves under it. On a rated document the
-                        stars are the thing worth seeing first — "Baholangan"
-                        only repeats what five filled stars already say. */}
-                    <span className="mydoc__corner">
-                      {info?.rating.submitted && info.rating.value ? <DocRatedStars value={info.rating.value} /> : null}
-                      <em className={`mydoc__st mydoc__st--${tone}`}>
-                        {statusText}
-                      </em>
-                    </span>
-                  </div>
-                  <div className="mydoc__row">
-                    {workId ? <small className="mydoc__wid" title={t("workId")}>{workId}</small> : null}
-                    <small className="mydoc__mode"><ModeIcon />{modeText}</small>
-                    {/* The kind of document asked for, when one was given. */}
-                    {item.requestedDocumentType ? (
-                      <small className="mydoc__kind"><IconTag />{item.requestedDocumentType}</small>
-                    ) : null}
-                    {item.assignedLawyer?.name ? <small><IconUser />{item.assignedLawyer.name}</small> : null}
-                    {/* MD §"Client: o'z requestlari va tayyor file" lists the
-                        meeting status alongside status / assigned lawyer. */}
-                    {item.meeting ? (
-                      <small className={item.meeting.active ? "mydoc__live" : undefined}>
-                        <IconVideo />
-                        {item.meeting.active ? t("meetingActive") : item.meeting.status || t("meetingLabel")}
-                      </small>
-                    ) : null}
-                    {item.createdAt ? <small><IconClock />{shortDateTime(item.createdAt, locale)}</small> : null}
-                  </div>
-                  {/* What to do next, as a sentence — it was a full-width grey
-                      box that read as an empty input. */}
-                  {phase && PhaseIcon ? (
-                    <div
-                      className={`mydoc__pay mydoc__pay--${phase}`}
-                      role="status"
-                      data-ai-id={phase === "wait" ? aiId(itemAi, "payment") : undefined}
-                      data-ai-type={phase === "wait" ? "payment_gate" : undefined}
-                      data-ai-label={phase === "wait" ? t(`pay.${phase}.title`) : undefined}
-                    >
-                      <span className="mydoc__payi" aria-hidden="true"><PhaseIcon /></span>
-                      <span className="mydoc__payt">
-                        <b>{t(`pay.${phase}.title`)}</b>
-                        <small>{t(`pay.${phase}.text`)}</small>
-                      </span>
-                      {payAmount ? <em className="mydoc__paysum">{payAmount}</em> : null}
-                    </div>
-                  ) : item.nextAction ? <p className="mydoc__next"><IconArrowRight />{nextActionText(item.nextAction)}</p> : null}
-                  {/* Two things the client could not reach once the order modal
-                      was closed: the private chat with the advocate handling
-                      the document, and the finished file. */}
-                  {/* The 15-minute window the backend opens when the advocate
-                      finalises the document. Renders nothing once it has
-                      passed, which is what closes the block. */}
-                  {info ? <DocRatingBox id={item.id} rating={info.rating} onRated={refresh} /> : null}
-                  {acts ? (
-                    <div className="mydoc__acts">
-                      {room ? (
-                        <Link href={`/portal/chat/${room}`} className="btn btn--line btn--sm" data-ai-id={aiId(itemAi, "chat")} data-ai-label={t("openChat")}>
-                          <IconChat />
-                          {t("openChat")}
-                        </Link>
-                      ) : null}
-                      {ready ? (
-                        <button
-                          type="button"
-                          className="btn btn--grad btn--sm"
-                          disabled={dlBusy === item.id}
-                          onClick={() => download(item)}
-                          data-ai-id={aiId(itemAi, "download")}
-                          data-ai-label={t("download")}
-                        >
-                          <IconDownload />
-                          {dlBusy === item.id ? tcommon("processingShort") : t("download")}
-                        </button>
-                      ) : null}
-                      {/* The prompt comes first when the backend asks for one
-                          (prompt_required is true only while an advocate is
-                          actually holding the row); otherwise the constructor
-                          opens straight away, as §3 L74 reads. */}
-                      {canContinue ? (
-                        <button
-                          type="button"
-                          className="btn btn--line btn--sm"
-                          disabled={!!openBusy}
-                          onClick={() => (item.constructorAction?.promptRequired ? setPromptId(item.id) : void openConstructor(item))}
-                          data-ai-id={aiId(itemAi, "continue")}
-                          data-ai-label={t("constructorContinue")}
-                        >
-                          <IconEdit />
-                          {openBusy === item.id ? tcommon("processingShort") : t("constructorContinue")}
-                        </button>
-                      ) : null}
-                      {canSend ? (
-                        <button
-                          type="button"
-                          className="btn btn--line btn--sm"
-                          disabled={blocked || sendBusy}
-                          title={blocked ? item.lawyerRequestBlockReason || undefined : undefined}
-                          onClick={() => { setSendId(item.id); setSendNeed(""); }}
-                          data-ai-id={aiId(itemAi, "review")}
-                          data-ai-label={tcommon("reviewOpen")}
-                        >
-                          <IconScale />
-                          {tcommon("reviewOpen")}
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {/* Why that button is dead, in the backend's own words
-                      (§5 L115) rather than a tooltip nobody on a phone can
-                      reach. */}
-                  {blocked && item.lawyerRequestBlockReason ? <p className="mydoc__block">{item.lawyerRequestBlockReason}</p> : null}
-                </div>
-              </article>
-            );
-          })}
-          {more ? (
-            <button type="button" className="btn btn--line btn--full ntmore" onClick={() => void loadMore()} disabled={moreBusy} data-ai-id="documents.my.load-more">
-              {moreBusy ? tcm("loadingMore") : tcm("loadMore")}
-            </button>
+          {urgent.length ? (
+            <section className="mydocs__sec mydocs__sec--you" aria-labelledby="mydocs-sec-you">
+              <header className="mydocs__sech">
+                <h3 id="mydocs-sec-you">{t("secYou")}<em>{urgent.length}</em></h3>
+                <p>{t("secYouHint")}</p>
+              </header>
+              {urgent.map(card)}
+            </section>
           ) : null}
+          {others.length ? (
+            <section className="mydocs__sec" aria-labelledby={urgent.length ? "mydocs-sec-rest" : undefined}>
+              {urgent.length ? (
+                <header className="mydocs__sech">
+                  <h3 id="mydocs-sec-rest">{t("secRest")}<em>{others.length}</em></h3>
+                </header>
+              ) : null}
+              {others.map(card)}
+            </section>
+          ) : null}
+          {loadMoreBtn}
         </div>
       )}
 

@@ -1904,7 +1904,7 @@
       },
       "client_documents": {
         "filters": "Filter by how a document is made or search by its name.",
-        "stats": "How many documents you have in total, in progress, ready and with a lawyer.",
+        "stats": "Tap to filter documents by status: all, being filled in, with a lawyer and ready.",
         "title": "My documents — everything you filled in or ordered is here.",
         "list": "All your finished and in-progress documents are here."
       },
@@ -7570,7 +7570,19 @@
         "downloadError": "Couldn't download the file. Please try again.",
         "readyToast": "Your document is ready. You can download it.",
         "meetingLabel": "Meeting",
-        "meetingActive": "Meeting in progress"
+        "meetingActive": "Meeting in progress",
+        "secYou": "Waiting on you",
+        "secYouHint": "A payment or details are with you — start here.",
+        "secRest": "Other documents",
+        "views": "Quick views by status",
+        "retry": "Try again",
+        "resetFilters": "Clear filters",
+        "browse": "Choose a document",
+        "step_fill": "Details",
+        "step_pay": "Payment",
+        "step_review": "Review",
+        "step_ready": "Ready",
+        "stepOf": "Step {n} of {total}: {label}"
       },
       "packages": {
         "allCategories": "All categories",
