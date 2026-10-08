@@ -1049,6 +1049,8 @@ body:has(.plogin) .fab{display:none}
 .robot-edge-zone::after{content:"";position:absolute;top:58%;right:-16px;bottom:-80px;left:30%;display:none;pointer-events:auto}
 .robot-edge-zone.is-peek:hover::after{display:block}
 .robot-viewport{position:relative;overflow:hidden;pointer-events:none;cursor:pointer;outline:none}
+.robot-canvas-fallback{display:grid;place-items:center;width:100%;height:100%;opacity:.96}
+.robot-canvas-fallback img{width:auto;height:min(72%,104px);filter:drop-shadow(0 14px 18px rgba(3,16,43,.28))}
 .robot-viewport::after{content:"";position:absolute;inset:14% 26% 31% 30%;border-radius:28px;pointer-events:auto}
 .robot-viewport:focus-visible::after{box-shadow:0 0 0 3px var(--b400)}
 @media (max-width:900px){.robot-edge-zone{display:none}}
@@ -1952,8 +1954,8 @@ body:has(.rf) .fab{display:none}
 .cdhero{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;container-type:inline-size}
 .cdhero>.cdhero__glow{position:absolute}
 .cdhero__main{min-width:0}
-.cdart{width:clamp(260px,38cqi,460px);aspect-ratio:3/2;margin-left:clamp(16px,3cqi,40px);pointer-events:none;user-select:none}
-.cdart__img{object-fit:contain;opacity:0;visibility:hidden;filter:drop-shadow(0 22px 34px rgba(3,10,30,.5))}
+.cdart{position:relative;isolation:isolate;width:clamp(260px,38cqi,460px);aspect-ratio:3/2;margin-left:clamp(16px,3cqi,40px);pointer-events:none;user-select:none}
+.cdart__img{object-fit:contain;opacity:0;visibility:hidden;filter:drop-shadow(0 22px 34px rgba(3,10,30,.5));backface-visibility:hidden;transform:translateZ(0);will-change:opacity,transform}
 .cdart__img--solid{filter:none;
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent),linear-gradient(180deg,transparent,#000 14%,#000 86%,transparent);
   -webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent),linear-gradient(180deg,transparent,#000 14%,#000 86%,transparent);mask-composite:intersect}
@@ -5631,7 +5633,7 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 /* The folder itself is the button, so the whole tile is one target. */
 .ffcard__hit{width:100%;border:0;background:none;padding:0 0 4px;cursor:pointer;display:block;border-radius:18px}
 .ffcard__hit:focus-visible{outline:2px solid var(--dk-acc, var(--b600));outline-offset:3px}
-.ffold{position:relative;display:block;width:100%;aspect-ratio:3/2;perspective:1500px;transform-origin:bottom}
+.ffold{position:relative;display:block;width:100%;aspect-ratio:3/2;perspective:1500px;-webkit-perspective:1500px;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transform-origin:bottom}
 
 /* Back cover: the tab and its little notch are the two pseudo-elements. */
 .ffold__back{position:absolute;inset:0;background:var(--ff-back);border-radius:16px;border-top-left-radius:0;transform-origin:top;transition:box-shadow .3s ease}
@@ -5639,7 +5641,7 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .ffold__back::before{content:"";position:absolute;top:-12px;left:calc(34% - 4px);width:13px;height:13px;background:var(--ff-back);clip-path:polygon(0 35%,0 100%,50% 100%)}
 
 /* Paper inside — three sheets that fan out by increasing angles. */
-.ffold__s{position:absolute;inset:4px;border-radius:13px;transform-origin:bottom;transition:transform .3s ease;box-shadow:0 1px 2px rgba(3,16,43,.06)}
+.ffold__s{position:absolute;inset:4px;border-radius:13px;transform-origin:bottom;transition:transform .3s ease;box-shadow:0 1px 2px rgba(3,16,43,.06);backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .ffold__s--3{background:var(--ff-s3)}
 .ffold__s--2{background:var(--ff-s2)}
 .ffold__s--1{background:var(--ff-s1)}
@@ -5648,7 +5650,7 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .ffold__front{
   position:absolute;left:0;right:0;bottom:0;height:calc(100% - 4px);
   background:linear-gradient(to top,var(--ff-front),var(--ff-front-2));
-  border-radius:16px;border-top-right-radius:0;transform-origin:bottom;
+  border-radius:16px;border-top-right-radius:0;transform-origin:bottom;backface-visibility:hidden;-webkit-backface-visibility:hidden;
   transition:transform .3s ease,box-shadow .3s ease;display:flex;align-items:flex-end;
 }
 .ffold__front::after{content:"";position:absolute;bottom:99%;right:0;width:62%;height:13px;background:var(--ff-front-2);border-radius:13px 13px 0 0}

@@ -1,4 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
+import Image from "next/image";
 
 type P = SVGProps<SVGSVGElement>;
 
@@ -11,7 +12,7 @@ const base: P = {
   strokeLinejoin: "round",
 };
 
-export const IconLogo = () => <img src="/logo.png" alt="" />;
+export const IconLogo = () => <Image src="/logo.png" alt="" width={32} height={32} />;
 
 export const IconUser = (p: P) => (
   <svg {...base} {...p}>

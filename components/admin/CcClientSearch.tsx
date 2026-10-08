@@ -42,7 +42,6 @@ export default function CcClientSearch({ canLog, onLogged }: { canLog: boolean; 
     const term = q.trim();
     const h = setTimeout(() => void run(term), term.length < 2 ? 0 : 350);
     return () => clearTimeout(h);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
   return (

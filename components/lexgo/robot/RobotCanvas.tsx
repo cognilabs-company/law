@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import Image from "next/image";
 import { Canvas } from "@react-three/fiber";
 import RobotModel from "./RobotModel";
 import { CAMERA, CANVAS_OVERSCAN_RATIO } from "./robot-config";
@@ -46,6 +47,11 @@ export default function RobotCanvas({
         camera={{ fov: CAMERA.fov, position: CAMERA.position, near: CAMERA.near, far: CAMERA.far }}
         gl={{ alpha: true, antialias: true }}
         dpr={[1, 1.5]}
+        fallback={
+          <div className="robot-canvas-fallback" aria-hidden>
+            <Image src="/img/card-lexgo-ai-sorash.png" alt="" width={104} height={104} priority />
+          </div>
+        }
         onCreated={({ camera, scene }) => {
           camera.lookAt(...CAMERA.target);
           scene.background = null;

@@ -1,6 +1,5 @@
 // AI-chat client for the LexGo backend (see FRONTEND_API.md).
 import {
-  API_BASE,
   absUrl,
   asDict,
   asStr,

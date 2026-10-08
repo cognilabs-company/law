@@ -157,7 +157,6 @@ export default function Select({
                     }}
                     type="button"
                     className="dsel__opt"
-                    aria-selected={o.value === value}
                     onClick={() => pick(o.value)}
                   >
                     {o.label}

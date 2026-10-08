@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import Image from "next/image";
 import { getRegisterRequestDetail, getProofDocumentBlob, type RegisterRequestDetail as Detail, type ProofDocument } from "@/lib/services/backend";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
@@ -59,7 +60,7 @@ function ProofDocPreview({ doc }: { doc: ProofDocument }) {
           <Notice ok={false} msg={t("detail.fileError")} />
         ) : url ? (
           mime.startsWith("image/") ? (
-            <img src={url} alt="" className="dkv__doc-img" />
+            <Image src={url} alt="" width={1200} height={900} unoptimized className="dkv__doc-img" />
           ) : (
             <iframe src={url} title={doc.kind || "proof"} className="dkv__doc-frame" />
           )
