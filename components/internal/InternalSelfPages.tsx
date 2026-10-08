@@ -21,6 +21,7 @@ import { IconCheck, IconRefresh, IconSearch, IconSend, IconUser, IconUsers } fro
 import InternalPagination from "@/components/internal/InternalPagination";
 
 type Mode = "me" | "tasks" | "attendance" | "messages";
+const TASK_STATUSES = ["new", "accepted", "in_progress", "in_review", "done", "returned", "paused", "cancelled"] as const;
 
 function value(row: Dict, ...keys: string[]): string {
   for (const key of keys) {
@@ -49,7 +50,9 @@ export default function InternalSelfPages({ mode }: { mode: Mode }) {
   const [profile, setProfile] = useState<InternalRecord | null>(null);
   const [page, setPage] = useState<InternalPage<InternalRecord>>({ items: [], total: 0, offset: 0, limit: 25, hasMore: false });
   const [query, setQuery] = useState("");
-  const [message, setMessage] = useState({ subject: "", body: "" });
+  const [taskStatus, setTaskStatus] = useState("");
+  const [dates, setDates] = useState({ from: "", to: "" });
+  const [message, setMessage] = useState({ recipientUserId: "", subject: "", body: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
@@ -61,15 +64,15 @@ export default function InternalSelfPages({ mode }: { mode: Mode }) {
       if (mode === "me") {
         const [raw, kpis] = await Promise.all([getMyProfile(signal), getMyKpis({ limit: 6 }, signal)]);
         setProfile({ ...asDict(raw), kpis: kpis.items });
-      } else if (mode === "tasks") setPage(await getMyTasks({ q: query, limit: 25, offset }, signal));
-      else if (mode === "attendance") setPage(await getMyAttendance({ limit: 25, offset }, signal));
+      } else if (mode === "tasks") setPage(await getMyTasks({ q: query, status: taskStatus || undefined, limit: 25, offset }, signal));
+      else if (mode === "attendance") setPage(await getMyAttendance({ date_from: dates.from || undefined, date_to: dates.to || undefined, limit: 25, offset }, signal));
       else setPage(await getMyMessages({ limit: 25, offset }, signal));
     } catch (cause) {
       if (!(cause instanceof ApiError && cause.detail === "aborted")) setError(true);
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [mode, query, offset]);
+  }, [mode, query, taskStatus, dates, offset]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -80,9 +83,12 @@ export default function InternalSelfPages({ mode }: { mode: Mode }) {
 
   async function submitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!message.subject.trim() || !message.body.trim() || saving) return;
+    if (!message.recipientUserId.trim() || !message.subject.trim() || !message.body.trim() || saving) return;
     setSaving(true); setError(false);
-    try { await sendInternalMessage(message); setMessage({ subject: "", body: "" }); await load(); }
+    try {
+      await sendInternalMessage({ recipient_user_id: message.recipientUserId.trim(), thread_type: "direct", thread_id: null, subject: message.subject.trim(), body: message.body.trim(), attachments: [] });
+      setMessage({ recipientUserId: "", subject: "", body: "" }); await load();
+    }
     catch { setError(true); }
     finally { setSaving(false); }
   }
@@ -99,9 +105,10 @@ export default function InternalSelfPages({ mode }: { mode: Mode }) {
       <div className="internal-panel"><div className="internal-panel__head"><h3>{t("today")}</h3><span className="pill pill--ok"><IconCheck />{value(profile ?? {}, "today_status", "attendance_status")}</span></div><div className="internal-kv"><span>{t("department")}</span><b>{value(profile ?? {}, "unit_name", "department")}</b></div><div className="internal-kv"><span>{t("manager")}</span><b>{value(profile ?? {}, "manager_name", "manager")}</b></div></div>
       <div className="internal-panel internal-profile-kpis"><div className="internal-panel__head"><h3>{t("myKpis")}</h3><IconUsers /></div>{Array.isArray(profile?.kpis) && profile.kpis.length ? profile.kpis.map((kpi, index) => <div className="internal-kv" key={asStr(asDict(kpi).id, String(index))}><span>{recordName(asDict(kpi))}</span><b>{value(asDict(kpi), "value", "score", "target")}</b></div>) : <p className="internal-empty">{t("noKpis")}</p>}</div>
     </div> : <>
-      {mode === "tasks" && <div className="internal-toolbar"><label className="internal-search"><IconSearch /><input value={query} onChange={(event) => { setQuery(event.target.value); setOffset(0); }} placeholder={t("searchTasks")} aria-label={t("searchTasks")} maxLength={120} /></label><span className="pill pill--gray">{page.total} {t("total")}</span></div>}
+      {mode === "tasks" && <><div className="internal-toolbar"><label className="internal-search"><IconSearch /><input value={query} onChange={(event) => { setQuery(event.target.value); setOffset(0); }} placeholder={t("searchTasks")} aria-label={t("searchTasks")} maxLength={120} /></label><span className="pill pill--gray">{page.total} {t("total")}</span></div><div className="internal-tabs" role="tablist" aria-label={t("taskStatusLabel")}><button type="button" className={`internal-tab${!taskStatus ? " on" : ""}`} onClick={() => { setTaskStatus(""); setOffset(0); }} role="tab" aria-selected={!taskStatus}>{t("allStatuses")}</button>{TASK_STATUSES.map((status) => <button type="button" className={`internal-tab${taskStatus === status ? " on" : ""}`} key={status} onClick={() => { setTaskStatus(status); setOffset(0); }} role="tab" aria-selected={taskStatus === status}>{t(`taskStatuses.${status}`)}</button>)}</div></>}
+      {mode === "attendance" && <div className="internal-toolbar internal-filter-row"><label className="internal-date-field">{t("from")}<input type="date" value={dates.from} onChange={(event) => { setDates((current) => ({ ...current, from: event.target.value })); setOffset(0); }} /></label><label className="internal-date-field">{t("to")}<input type="date" value={dates.to} onChange={(event) => { setDates((current) => ({ ...current, to: event.target.value })); setOffset(0); }} /></label><span className="pill pill--gray">{page.total} {t("total")}</span></div>}
       <div className="internal-panel">{loading ? <div className="internal-loading" aria-busy="true" /> : <SelfTable rows={rows} mode={mode} empty={t(`empty.${mode}`)} />}<InternalPagination page={page} onChange={setOffset} /></div>
-      {mode === "messages" && <form className="internal-panel internal-message-form" onSubmit={submitMessage}><div className="internal-panel__head"><h3>{t("newMessage")}</h3><IconSend /></div><input value={message.subject} onChange={(event) => setMessage((current) => ({ ...current, subject: event.target.value }))} placeholder={t("subject")} aria-label={t("subject")} maxLength={160} required /><textarea value={message.body} onChange={(event) => setMessage((current) => ({ ...current, body: event.target.value }))} placeholder={t("messageBody")} aria-label={t("messageBody")} maxLength={4000} rows={4} required /><button className="btn btn--pri btn--sm" type="submit" disabled={saving}><IconSend />{saving ? t("sending") : t("send")}</button></form>}
+      {mode === "messages" && <form className="internal-panel internal-message-form" onSubmit={submitMessage}><div className="internal-panel__head"><h3>{t("newMessage")}</h3><IconSend /></div><input value={message.recipientUserId} onChange={(event) => setMessage((current) => ({ ...current, recipientUserId: event.target.value }))} placeholder={t("recipientUserId")} aria-label={t("recipientUserId")} maxLength={80} required /><input value={message.subject} onChange={(event) => setMessage((current) => ({ ...current, subject: event.target.value }))} placeholder={t("subject")} aria-label={t("subject")} maxLength={160} required /><textarea value={message.body} onChange={(event) => setMessage((current) => ({ ...current, body: event.target.value }))} placeholder={t("messageBody")} aria-label={t("messageBody")} maxLength={4000} rows={4} required /><button className="btn btn--pri btn--sm" type="submit" disabled={saving}><IconSend />{saving ? t("sending") : t("send")}</button></form>}
     </>}
   </section>;
 }
