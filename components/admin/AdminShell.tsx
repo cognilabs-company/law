@@ -10,6 +10,7 @@ import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
 import IncomingCallWatcher from "../portal/IncomingCallWatcher";
 import { useAiReveal } from "@/lib/guide/targets";
+import { hasStudioAccess, useStudioRegistry } from "@/lib/services/studio";
 import dynamic from "next/dynamic";
 
 import {
@@ -39,6 +40,7 @@ import {
   IconClose,
   IconChartBar,
   IconAiAnswer,
+  IconLayers,
 } from "../icons";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
@@ -85,6 +87,10 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/templates", key: "templates", Icon: IconDocLines, perm: "templates.manage" },
       { href: "/admin/ads", key: "ads", Icon: IconRocket, perm: "ads.manage" },
     ],
+  },
+  {
+    group: "studio",
+    items: [{ href: "/admin/studio", key: "studio", Icon: IconLayers }],
   },
   {
     group: "sellers",
@@ -150,7 +156,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const open = openPath === pathname;
 
   const isBootstrap = pathname === "/admin/bootstrap";
-  const allowed = hasAdminAccess(session) || isBootstrap;
+  const isStudioPath = pathname === "/admin/studio" || pathname.startsWith("/admin/studio/");
 
   // Superadmin sees everything. Admin sees the overview/bootstrap plus every
   // page it actually has the permission for (e.g. it lacks roles.manage, so no
@@ -160,6 +166,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const isSuper = roles.includes("superadmin");
   const isFullAdmin = isSuper || roles.includes("admin");
   const perms = session?.permissions ?? [];
+  const studioReg = useStudioRegistry(Boolean(session) && !isFullAdmin);
+  const studioUser = isFullAdmin || hasStudioAccess(studioReg.userRoles, roles);
+  const studioPending = Boolean(session) && !studioUser && studioReg.avail === "checking";
+  const adminAccess = hasAdminAccess(session);
+  const allowed = adminAccess || isBootstrap || studioUser || (isStudioPath && studioPending);
   // Test OTP is a staging tool: hidden where the backend's demo routes are off (T0-01).
   const demoTools = useDemoTools(isFullAdmin);
   // Meetings: anyone who may start calls (meetings.manage, or a call-center
@@ -168,7 +179,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const canSee = (n: NavItem) =>
     n.key === "testOtps" && demoTools !== true
       ? false
-      : n.key === "meetings" && canMakeCalls(session)
+      : n.key === "studio"
+        ? studioUser
+        : n.key === "meetings" && canMakeCalls(session)
         ? true
         : n.perm
           ? isSuper || (Array.isArray(n.perm) ? n.perm : [n.perm]).some((p) => perms.includes(p))
@@ -177,7 +190,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // The bootstrap page (needs the bootstrap key) serves first-time setup:
   // signed-out users, non-staff and full admins. Limited staff (sales,
   // call-center…) must not open it by URL.
-  const bootstrapOk = isBootstrap && (!session || !hasAdminAccess(session) || isFullAdmin);
+  const bootstrapOk = isBootstrap && (!session || !adminAccess || isFullAdmin);
 
   useEffect(() => {
     if (!ready) return;
@@ -186,7 +199,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       return;
     }
     if (!session) return;
-    if (!hasAdminAccess(session) && !isBootstrap) {
+    if (isStudioPath && studioPending) return;
+    if (!adminAccess && !studioUser && !isBootstrap) {
       router.replace(`/portal/${session.role}`);
       return;
     }
@@ -199,7 +213,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       if (!onAllowed) router.replace(visibleNav[0]?.href ?? `/portal/${session.role}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, session, router, isBootstrap, bootstrapOk, pathname]);
+  }, [ready, session, router, isBootstrap, bootstrapOk, pathname, studioUser, studioPending, isStudioPath]);
 
   const placeholder = <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div>;
   if (!ready) return placeholder;

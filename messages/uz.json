@@ -1,4 +1,1118 @@
 {
+  "studio": {
+    "editors": {
+      "jsonPeek": "Ma'lumotlar JSON ko'rinishida",
+      "jsonPeekHint": "Faqat ko'rish uchun. Tahrirlash uchun Forma bo'limiga qayting.",
+      "insertVar": "Matnga qo'yish",
+      "moveUp": "Yuqoriga surish: {what}",
+      "moveDown": "Pastga surish: {what}",
+      "removeRow": "Olib tashlash: {what}",
+      "removeTag": "Olib tashlash: {v}",
+      "what": {
+        "field": "maydon",
+        "section": "bo'lim",
+        "rule": "shart",
+        "clause": "band",
+        "item": "element",
+        "step": "bosqich"
+      },
+      "err": {
+        "snake": "Faqat kichik lotin harflari, raqam va _ (masalan: court_name)",
+        "options": "Tanlov uchun kamida bitta variant kiriting",
+        "fileMode": "Fayl rejimida fayl majburiy",
+        "minOne": "Kamida bittasini qo'shing",
+        "unknownVar": "Noma'lum o'zgaruvchi"
+      },
+      "common": {
+        "language": "Til",
+        "optional": "Ixtiyoriy",
+        "serviceId": "Xizmat ID",
+        "serviceIdHint": "Anketa qaysi xizmatga tegishli",
+        "serviceIdPh": "service-id"
+      },
+      "lang": {
+        "uz": "O'zbekcha (lotin)",
+        "uz-latn": "O'zbekcha (lotin)",
+        "uz-cyrl": "Ўзбекча (kirill)",
+        "ru": "Ruscha",
+        "en": "Inglizcha"
+      },
+      "fieldType": {
+        "text": "Matn",
+        "textarea": "Uzun matn",
+        "number": "Son",
+        "date": "Sana",
+        "select": "Tanlov",
+        "checkbox": "Belgi (ha/yo'q)",
+        "file": "Fayl"
+      },
+      "fields": {
+        "label": "Savol matni",
+        "labelPh": "Masalan: Sud nomi",
+        "name": "Kalit",
+        "type": "Turi",
+        "required": "Majburiy",
+        "options": "Variantlar",
+        "optionsPh": "Variant yozib Enter bosing",
+        "none": "Hali maydon yo'q",
+        "add": "Maydon qo'shish"
+      },
+      "file": {
+        "none": "Fayl yuklanmagan",
+        "unnamed": "Yuklangan fayl",
+        "hasHint": "Fayl joriy versiyaga biriktirilgan",
+        "pickHint": "Ruxsat etilgan formatlar: {ext}",
+        "roHint": "Bu versiyada fayl yo'q",
+        "saveFirst": "Fayl yuklash uchun avval qoralamani saqlang",
+        "upload": "Fayl yuklash",
+        "replace": "Faylni almashtirish",
+        "uploading": "Yuklanmoqda…",
+        "download": "Yuklab olish",
+        "badExt": "Bu format qabul qilinmaydi. Ruxsat etilgan: {ext}"
+      },
+      "k05": {
+        "lead": "Mijozdan so'raladigan savollar: bo'limlar, maydonlar va shartlar.",
+        "statSections": "bo'lim",
+        "statFields": "maydon",
+        "statRules": "shart",
+        "sections": "Bo'limlar",
+        "sectionsHint": "Mijoz anketani bo'limma-bo'lim to'ldiradi. Maydon kaliti butun anketada takrorlanmasin.",
+        "sectionTitle": "Bo'lim nomi",
+        "sectionTitlePh": "Masalan: Ariza rekvizitlari",
+        "addSection": "Bo'lim qo'shish",
+        "rules": "Shartli savollar",
+        "rulesHint": "Bir javobga qarab boshqa maydonlarni ko'rsating.",
+        "rulesNone": "Hali shart yo'q",
+        "rulesNeedFields": "Shart qo'shish uchun avval maydon yarating",
+        "addRule": "Shart qo'shish",
+        "if": "Agar",
+        "ruleField": "Maydon",
+        "pickField": "Maydonni tanlang",
+        "operator": "Shart",
+        "value": "Qiymat",
+        "valuePh": "Masalan: ha",
+        "show": "Unda ko'rsatish",
+        "showNone": "Ko'rsatish uchun boshqa maydon yo'q",
+        "op": {
+          "not_empty": "to'ldirilgan bo'lsa",
+          "empty": "bo'sh bo'lsa",
+          "equals": "teng bo'lsa",
+          "not_equals": "teng bo'lmasa",
+          "contains": "ichida bo'lsa"
+        }
+      },
+      "k06": {
+        "lead": "Hujjat shabloni: matn muharririda yozing yoki tayyor faylni yuklang.",
+        "mode": "Rejim",
+        "modeEditor": "Muharrir",
+        "modeUpload": "Fayl yuklash",
+        "modeEditorHint": "Shablon matnini shu yerda yozasiz. Maydonlar matnga avtomatik qo'yiladi.",
+        "modeUploadHint": "Tayyor faylni yuklaysiz (.docx, .pdf va boshqalar). Fayl majburiy.",
+        "docTitle": "Hujjat nomi",
+        "docTitlePh": "Masalan: Da'vo arizasi",
+        "templateId": "Shablon ID",
+        "file": "Shablon fayli",
+        "fileHint": "Fayl joriy versiyaga biriktiriladi.",
+        "template": "Shablon matni",
+        "templateHint": "Maydon qo'yish uchun quyidagi tugmalardan foydalaning.",
+        "templatePh": "Hujjat matnini shu yerga yozing…",
+        "insert": "Maydon qo'yish:",
+        "insertNone": "Matnga qo'yish uchun avval maydon qo'shing.",
+        "chars": "{n} belgi",
+        "vars": "{n} ta maydon ishlatilgan",
+        "unknownVars": "Maydonlar ro'yxatida yo'q:",
+        "fields": "Maydonlar",
+        "fieldsHint": "Hujjatni to'ldirishda so'raladigan ma'lumotlar.",
+        "fieldsHintUpload": "Fayldagi bo'sh joylar uchun ma'lumotlar. Ixtiyoriy.",
+        "clauses": "Bandlar kutubxonasi",
+        "clausesHint": "Tayyor bandlar. Ixtiyoriy.",
+        "clausesNone": "Hali band yo'q",
+        "clauseTitle": "Band nomi",
+        "clauseTitlePh": "Masalan: Tomonlarning javobgarligi",
+        "clauseText": "Band matni",
+        "clauseTextPh": "Band matnini yozing…",
+        "addClause": "Band qo'shish"
+      },
+      "k14": {
+        "lead": "Hodisa bo'yicha xabar: kanallar, qabul qiluvchilar va 3 tildagi matn.",
+        "event": "Hodisa",
+        "eventHint": "Xabar qaysi hodisada yuboriladi. Masalan: order.created",
+        "channels": "Kanallar",
+        "audience": "Kimga yuboriladi",
+        "audienceHint": "Bir nechtasini tanlash mumkin.",
+        "ch": {
+          "in_app": "Ilova ichida",
+          "telegram": "Telegram",
+          "sms": "SMS",
+          "email": "Email",
+          "push": "Push"
+        },
+        "aud": {
+          "client": "Mijoz",
+          "lawyer": "Advokat",
+          "jurist": "Yurist",
+          "organization": "Tashkilot",
+          "call_center": "Call-markaz",
+          "admin": "Admin"
+        },
+        "variables": "O'zgaruvchilar",
+        "variablesHint": "Xabarga qo'yiladigan ma'lumotlar. Masalan: client_name",
+        "variablesPh": "Nomini yozib Enter bosing",
+        "missingVars": "Matnda bor, lekin ro'yxatda yo'q:",
+        "addMissing": "Ro'yxatga qo'shish",
+        "messages": "Xabar matni",
+        "messagesHint": "Uchala tilda sarlavha va matn majburiy.",
+        "progress": "{n}/{total} til tayyor",
+        "lang": {
+          "uz_latn": "O'zbekcha",
+          "uz_cyrl": "Ўзбекча",
+          "ru": "Русский"
+        },
+        "state": {
+          "ok": "To'liq",
+          "bad": "To'liq emas",
+          "empty": "Bo'sh"
+        },
+        "msgTitle": "Sarlavha",
+        "msgBody": "Matn",
+        "titlePh": {
+          "uz_latn": "Masalan: Buyurtma yaratildi",
+          "uz_cyrl": "Масалан: Буюртма яратилди",
+          "ru": "Например: Заказ создан"
+        },
+        "bodyPh": {
+          "uz_latn": "Masalan: Buyurtmangiz qabul qilindi",
+          "uz_cyrl": "Масалан: Буюртмангиз қабул қилинди",
+          "ru": "Например: Ваш заказ принят"
+        },
+        "insert": "O'zgaruvchi qo'yish",
+        "insertTitle": "Sarlavhaga qo'yish:",
+        "insertBody": "Matnga qo'yish:",
+        "insertNone": "O'zgaruvchi qo'shsangiz, uni shu yerdan matnga qo'yasiz."
+      },
+      "k16": {
+        "lead": "Hududlar, turlar va boshqa ro'yxatlar.",
+        "note": "Bu ma'lumotnoma tasdiqsiz: Yuborish bosilganda darhol e'lon qilinadi.",
+        "key": "Ma'lumotnoma kaliti",
+        "keyHint": "Lotin harflari va _ bilan. Masalan: regions",
+        "items": "Elementlar",
+        "itemsHint": "Har bir element: ko'rinadigan nom va tizim qiymati.",
+        "label": "Nomi",
+        "labelPh": "Masalan: Toshkent",
+        "value": "Qiymat",
+        "none": "Hali element yo'q",
+        "add": "Element qo'shish",
+        "slugHint": "Qiymat nomdan avtomatik yasaladi. Uni qo'lda o'zgartirishingiz mumkin."
+      },
+      "k20": {
+        "lead": "Tanlangan tur uchun kim va qaysi tartibda tasdiqlaydi.",
+        "ctor": "Konstruktor",
+        "ctorHint": "Yo'nalish shu tur uchun ishlaydi.",
+        "pickCtor": "Konstruktorni tanlang",
+        "freeWarn": "Bu tur tasdiqsiz e'lon qilinadi, yo'nalish ishlatilmaydi.",
+        "title": "Yo'nalish nomi",
+        "titlePh": "Masalan: K06 ikki bosqichli tasdiq",
+        "status": "Holat",
+        "st": {
+          "active": "Faol",
+          "inactive": "O'chirilgan"
+        },
+        "activeHint": "Yangi yuborilgan obyektlar shu yo'nalishdan o'tadi.",
+        "inactiveHint": "Yo'nalish ishlatilmaydi, standart tartib qo'llanadi.",
+        "steps": "Tasdiqlash bosqichlari",
+        "stepsHint": "Bosqichlar yuqoridan pastga ketma-ket o'tadi.",
+        "role": "Kim tasdiqlaydi",
+        "pickRole": "Rolni tanlang",
+        "stepTitle": "Bosqich nomi",
+        "stepTitlePh": "Masalan: Kontent tekshiruvi",
+        "add": "Bosqich qo'shish",
+        "start": "Muharrir yuboradi",
+        "end": "E'lon qilinadi",
+        "preview": "Yo'nalish ko'rinishi"
+      }
+    },
+    "editor": {
+      "eyebrow": "Studio · {code}",
+      "loading": "Obyekt yuklanmoqda…",
+      "topLabel": "Obyekt ma'lumotlari",
+      "backToList": "Ro'yxatga qaytish",
+      "titleLabel": "Obyekt nomi",
+      "titlePh": "Masalan: Da'vo arizasi shabloni",
+      "titleRequired": "Nomini kiriting",
+      "unsaved": "Saqlanmagan o'zgarishlar",
+      "allSaved": "Hammasi saqlangan",
+      "notSaved": "Hali saqlanmagan",
+      "savedAt": "Saqlandi: {when}",
+      "shortcut": "Ctrl + S — saqlash",
+      "content": "Mazmun",
+      "contentHint": "O'zgarishlar saqlaganingizda yangi versiyaga yoziladi.",
+      "contentLabel": "Obyekt mazmuni",
+      "readOnly": "Faqat ko'rish",
+      "actionsLabel": "Obyekt amallari",
+      "sideLabel": "Versiyalar, izohlar, fayl va tasdiq",
+      "openReview": "Tasdiqlash sahifasi",
+      "unknown": {
+        "title": "Bunday konstruktor topilmadi",
+        "text": "\"{code}\" kodi Studio ro'yxatida yo'q. Bosh sahifadan konstruktorni tanlang."
+      },
+      "notFound": {
+        "title": "Obyekt topilmadi",
+        "text": "Havola eskirgan yoki obyektga ruxsatingiz yo'q."
+      },
+      "remote": {
+        "title": "Obyekt boshqa joyda yangilandi",
+        "text": "Sizdagi saqlanmagan o'zgarishlar hali turibdi. Yangisini yuklasangiz, ular yo'qoladi.",
+        "load": "Yangisini yuklash"
+      },
+      "banner": {
+        "changes": "Qayta ishlash so'raldi",
+        "rejected": "Tekshiruvchi rad etdi",
+        "changesNoNote": "Tekshiruvchi izoh qoldirmadi. Izohlar bo'limini ko'ring, tuzating va qayta yuboring.",
+        "published": "Bu obyekt e'lon qilingan",
+        "publishedText": "O'zgartirsangiz yangi qoralama versiya ochiladi. E'londagi versiya tasdiqlanmaguncha o'zgarmaydi.",
+        "approved": "Tasdiqlandi",
+        "approvedPublisher": "Ikkala bosqich yakunlandi. Endi e'lon qilishingiz mumkin.",
+        "approvedWait": "Ikkala bosqich yakunlandi. Nashr etuvchi e'lon qiladi.",
+        "review": "Tekshiruvda",
+        "reviewText": "Obyekt tasdiqlash navbatida. Natija chiqquncha tahrirlash yopiq.",
+        "viewOnly": "Faqat ko'rish rejimi",
+        "viewOnlyText": "Tahrirlash uchun Muharrir roli kerak. Rolni administrator beradi.",
+        "fileNeeded": "Fayl yuklash majburiy",
+        "fileNeededText": "Yuklash rejimi tanlangan. Yuborishdan oldin shablon faylini yuklang.",
+        "fileNeededNew": "Yuklash rejimi tanlangan. Avval qoralamani saqlang, keyin faylni yuklang."
+      },
+      "errors": {
+        "general": "Umumiy",
+        "count": "{n, plural, one {# ta xato} other {# ta xato}}",
+        "beforeSubmit": "Yuborishdan oldin tuzating"
+      },
+      "save": {
+        "create": "Qoralama yaratish",
+        "saving": "Saqlanmoqda…",
+        "more": "Izoh va versiya bilan saqlash",
+        "summary": "Nima o'zgardi",
+        "summaryPh": "Masalan: 3-band matni yangilandi",
+        "version": "Versiya raqami",
+        "versionHint": "Bo'sh qoldirsangiz, server o'zi raqam beradi.",
+        "versionBad": "Format: 1.2 yoki 1.2.3"
+      },
+      "submit": {
+        "saveAnd": "Saqlab yuborish",
+        "free": "Yuborish va e'lon qilish",
+        "freeHint": "Yuborilgach darhol e'lon qilinadi.",
+        "freeTitle": "Darhol e'lon qilinadi",
+        "freeLead": "Bu tur tasdiqsiz ishlaydi. Yuborilgach darhol e'lon qilinadi va tizimda ishlay boshlaydi.",
+        "freeSave": "Avval o'zgarishlar saqlanadi."
+      },
+      "publish": {
+        "title": "E'lon qilish",
+        "lead": "Tasdiqlangan versiya tizimga ulanadi va foydalanuvchilarga ko'rinadi.",
+        "note": "Izoh",
+        "notePh": "Masalan: Productionga chiqarildi",
+        "failed": "Runtime'ga ulab bo'lmadi, e'lon bekor qilindi",
+        "saveFirst": "Avval o'zgarishlarni saqlang"
+      },
+      "rollback": {
+        "cta": "Shu versiyaga qaytish",
+        "title": "v{v} versiyasiga qaytish",
+        "lead": "Obyekt shu versiyaga qaytariladi. Keyingi versiyalar tarixda qoladi.",
+        "note": "Sabab",
+        "notePh": "Masalan: Oldingi versiyaga qaytildi",
+        "confirm": "Qaytarish"
+      },
+      "archive": {
+        "title": "Arxivlash",
+        "lead": "Obyekt arxivga o'tadi va tahrirlab bo'lmaydi. U o'chirilmaydi, versiyalar tarixi saqlanadi.",
+        "dirty": "Saqlanmagan o'zgarishlar yo'qoladi."
+      },
+      "leave": {
+        "title": "Saqlanmagan o'zgarishlar bor",
+        "lead": "Sahifadan chiqsangiz, saqlanmagan o'zgarishlar yo'qoladi.",
+        "confirm": "Saqlamasdan chiqish"
+      },
+      "side": {
+        "versions": "Versiyalar",
+        "comments": "Izohlar",
+        "file": "Fayl",
+        "steps": "Tasdiq",
+        "newTitle": "Avval qoralamani saqlang",
+        "newText": "Saqlangandan keyin versiyalar, izohlar, fayl va tasdiq bosqichlari shu yerda ochiladi."
+      },
+      "versions": {
+        "count": "{n, plural, one {# ta versiya} other {# ta versiya}}",
+        "none": "Versiyalar yo'q",
+        "emptyText": "Saqlangan versiyalar shu yerda ko'rinadi.",
+        "excel": "Versiyalar Excel",
+        "current": "Joriy",
+        "live": "E'londa",
+        "preview": "Ko'rish",
+        "file": "Fayl",
+        "noSummary": "Izoh yozilmagan"
+      },
+      "preview": {
+        "title": "v{v} versiyasi",
+        "empty": "Bu versiya ma'lumotlari ro'yxatda kelmadi."
+      },
+      "comments": {
+        "label": "Izoh yozish",
+        "placeholder": "Umumiy izoh yozing…",
+        "hint": "Ctrl + Enter — yuborish",
+        "empty": "Hali izoh yo'q.",
+        "someone": "Foydalanuvchi"
+      },
+      "file": {
+        "none": "Joriy versiyada fayl yo'q.",
+        "required": "Yuklash rejimida fayl majburiy.",
+        "requiredOk": "Fayl yuklangan. Yuborish mumkin.",
+        "unnamed": "Fayl",
+        "current": "Joriy versiya",
+        "download": "Faylni yuklab olish",
+        "downloadFail": "Faylni yuklab bo'lmadi",
+        "uploadFail": "Fayl yuklanmadi",
+        "drop": "Faylni shu yerga tashlang",
+        "dropNow": "Qo'yib yuboring",
+        "replace": "Yangi fayl yuklash",
+        "or": "yoki",
+        "choose": "kompyuterdan tanlang",
+        "rules": "Ruxsat: {list}",
+        "uploading": "Yuklanmoqda…",
+        "badType": "Bu format qabul qilinmaydi. .docx, .doc, .pdf, .xlsx, .xls yoki .txt yuklang.",
+        "empty": "Fayl bo'sh.",
+        "saveFirst": "Fayl yuklash uchun avval qoralamani saqlang.",
+        "versionHint": "Yangi fayl joriy versiyaga biriktiriladi."
+      },
+      "steps": {
+        "step": "{n}-bosqich",
+        "order": "{n}-bosqich",
+        "free": "Bu tur tasdiqsiz. Yuborilganda darhol e'lon qilinadi.",
+        "empty": "Yuborilgandan keyin tasdiq bosqichlari shu yerda ko'rinadi.",
+        "pending": "Bosqichlar hali kelmadi. Birozdan keyin yangilanadi."
+      },
+      "toast": {
+        "saved": "Saqlandi",
+        "created": "Qoralama yaratildi",
+        "noId": "Server obyekt ID raqamini qaytarmadi",
+        "submitted": "Tasdiqlashga yuborildi",
+        "submittedFree": "Yuborildi va e'lon qilindi",
+        "archived": "Arxivga o'tkazildi",
+        "published": "E'lon qilindi",
+        "rolledBack": "v{v} versiyasiga qaytarildi",
+        "uploaded": "Fayl yuklandi"
+      }
+    },
+    "settings": {
+      "tabsAria": "Sozlamalar bo'limlari",
+      "tabs": {
+        "access": "Kirish huquqlari",
+        "routes": "Tasdiq marshrutlari",
+        "registry": "Registry",
+        "export": "Eksport"
+      },
+      "common": {
+        "refresh": "Yangilash",
+        "recheck": "Qayta tekshirish",
+        "missingTitle": "Serverda hali yoqilmagan",
+        "missingText": "Bu bo'lim server tomoni tayyor bo'lgach ishlaydi.",
+        "noMatch": "Hech narsa topilmadi",
+        "noMatchText": "Qidiruv yoki filtrlarni o'zgartiring."
+      },
+      "access": {
+        "title": "Kirish huquqlari",
+        "lead": "Kim Studio'da ishlay oladi va qaysi konstruktorlarda.",
+        "grant": "Ruxsat berish",
+        "newTitle": "Yangi ruxsat",
+        "editTitle": "Ruxsatni tahrirlash",
+        "edit": "Tahrirlash",
+        "pause": "To'xtatish",
+        "resume": "Qayta yoqish",
+        "pauseTitle": "Ruxsatni to'xtatasizmi?",
+        "pauseText": "{name} Studio'ga kira olmaydi. Ruxsat o'chirilmaydi, uni istalgan vaqtda qayta yoqish mumkin.",
+        "paused": "Ruxsat to'xtatildi",
+        "resumed": "Ruxsat qayta yoqildi",
+        "active": "Faol",
+        "pausedState": "To'xtatilgan",
+        "since": "{d} dan",
+        "noRoles": "Rol yo'q",
+        "allCtors": "Barcha konstruktorlar",
+        "searchPh": "Ism, telefon yoki LexGo ID",
+        "filterTitle": "Ruxsat filtrlari",
+        "filterRole": "Rol",
+        "filterState": "Holat",
+        "emptyTitle": "Hali hech kimga ruxsat berilmagan",
+        "emptyText": "Admin va superadmin Studio'dan doim foydalana oladi. Boshqalarga shu yerda rol bering.",
+        "missing": "Ruxsatlar ro'yxati serverda hali yoqilmagan. Rollar haqida quyida o'qishingiz mumkin.",
+        "readOnlyShape": "Server javobi kutilgan ko'rinishda emas, shuning uchun ro'yxat faqat ko'rish uchun ochildi.",
+        "readOnlyWrite": "Ruxsat berish serverda hali yoqilmagan. Ro'yxat faqat ko'rish uchun.",
+        "writeMissing": "Ruxsat berish serverda hali yoqilmagan",
+        "saved": "{name} uchun ruxsat saqlandi",
+        "savedHidden": "Saqlandi, lekin ro'yxatda hali ko'rinmadi. Birozdan keyin yangilang.",
+        "user": "Foydalanuvchi",
+        "userPh": "Ism, telefon yoki LexGo ID",
+        "userHint": "Kamida 2 ta belgi yozing.",
+        "results": "Topilgan foydalanuvchilar",
+        "noUsers": "Hech kim topilmadi.",
+        "searchFail": "Qidiruv ishlamadi.",
+        "useId": "ID {id} bilan davom etish",
+        "changeUser": "Boshqasini tanlash",
+        "hasGrant": "Ruxsati bor",
+        "existing": "Bu foydalanuvchida ruxsat bor. Saqlasangiz, u yangilanadi.",
+        "roles": "Rollar",
+        "scope": "Qaysi konstruktorlar",
+        "scope_all": "Hammasi",
+        "scope_some": "Tanlanganlar",
+        "scopeAllHint": "Barcha konstruktorlarda, yangilarida ham ishlaydi.",
+        "activeLabel": "Ruxsat faol",
+        "save": "Saqlash",
+        "errUser": "Foydalanuvchini tanlang",
+        "errRoles": "Kamida bitta rol tanlang",
+        "errCodes": "Kamida bitta konstruktor tanlang"
+      },
+      "roleInfo": {
+        "title": "Rollar nima qiladi",
+        "lead": "Har bir rol o'z bosqichi uchun javob beradi.",
+        "admins": "Admin va superadmin Studio'da hamma narsani qila oladi, ularga alohida ruxsat kerak emas.",
+        "studio_editor": {
+          "short": "Yaratadi va tahrirlaydi",
+          "text": "Qoralama yaratadi, tahrirlaydi, fayl yuklaydi va tasdiqlashga yuboradi."
+        },
+        "studio_reviewer": {
+          "short": "Tekshiradi",
+          "text": "Yuborilgan obyektni ko'rib chiqadi: tasdiqlaydi, qayta ishlashga qaytaradi yoki rad etadi."
+        },
+        "studio_publisher": {
+          "short": "E'lon qiladi",
+          "text": "Tasdiqlangan versiyani e'lon qiladi, kerak bo'lsa oldingi versiyaga qaytaradi yoki arxivlaydi."
+        },
+        "studio_admin": {
+          "short": "Hammasi",
+          "text": "Studio'dagi barcha amallar, ruxsatlar va tasdiq marshrutlari."
+        }
+      },
+      "routes": {
+        "title": "Tasdiq marshrutlari",
+        "lead": "Har bir konstruktor uchun kim va qaysi tartibda tasdiqlaydi.",
+        "create": "Marshrut qo'shish",
+        "newTitle": "Yangi marshrut",
+        "editTitle": "Marshrutni tahrirlash",
+        "edit": "Tahrirlash",
+        "setup": "Sozlash",
+        "defaultLabel": "Standart tartib",
+        "searchPh": "Konstruktor, nom yoki rol",
+        "filterTitle": "Marshrut filtrlari",
+        "filterCtor": "Konstruktor",
+        "filterStatus": "Holat",
+        "emptyTitle": "Maxsus marshrut yo'q",
+        "emptyText": "Hozir barcha konstruktorlar standart tartibda tasdiqlanadi: tekshiruvchi, keyin nashr etuvchi.",
+        "missing": "Tasdiq marshrutlari serverda hali yoqilmagan. Hozircha standart tartib ishlaydi.",
+        "uncoveredTitle": "Standart tartibdagi konstruktorlar",
+        "uncoveredText": "{n} ta konstruktorda maxsus marshrut yo'q. Kerak bo'lsa sozlang.",
+        "noSteps": "Bosqichlar ko'rsatilmagan",
+        "updated": "{d} da yangilangan",
+        "saved": "{code} marshruti saqlandi",
+        "constructor": "Konstruktor",
+        "pickCtor": "Konstruktorni tanlang",
+        "replaces": "Bu konstruktorda marshrut bor. Saqlasangiz, u yangilanadi.",
+        "freeHint": "Bu tur odatda tasdiqsiz e'lon qilinadi. Marshrut server sozlamasiga qarab ishlaydi.",
+        "status": "Holat",
+        "status_active": "Faol",
+        "status_inactive": "O'chiq",
+        "routeTitle": "Marshrut nomi",
+        "titlePh": "Masalan: Hujjatlar uchun ikki bosqich",
+        "steps": "Bosqichlar",
+        "stepsHint": "Yuqoridan pastga tartibda bajariladi.",
+        "stepN": "{n}-bosqich",
+        "stepRole": "Kim tasdiqlaydi",
+        "stepTitle": "Bosqich nomi",
+        "addStep": "Bosqich qo'shish",
+        "dropStep": "Bosqichni olib tashlash",
+        "up": "Yuqoriga",
+        "down": "Pastga",
+        "save": "Saqlash",
+        "errCode": "Konstruktorni tanlang",
+        "errSteps": "Kamida bitta bosqich kerak"
+      },
+      "registry": {
+        "title": "Konstruktorlar registri",
+        "lead": "Serverdagi {n} ta konstruktor: maqsad, tasdiq va majburiy maydonlar.",
+        "sync": "Sinxronlash",
+        "confirmTitle": "Registry sinxronlansinmi?",
+        "confirmText": "Server konstruktorlar ro'yxatini standart sozlamalar bo'yicha yangilaydi.",
+        "confirmP1": "Yaratilgan obyektlar va versiyalar o'zgarmaydi.",
+        "confirmP2": "Nom, sxema va tasdiq talabi yangilanishi mumkin.",
+        "synced": "Sinxronlandi: {n} ta konstruktor",
+        "syncedNoCount": "Sinxronlandi",
+        "syncFail": "Sinxronlab bo'lmadi",
+        "searchPh": "Kod, nom yoki maydon",
+        "filterTitle": "Registry filtrlari",
+        "filterGroup": "Guruh",
+        "filterApproval": "Tasdiq",
+        "approvalYes": "Tasdiq kerak",
+        "approvalNo": "Tasdiqsiz",
+        "fieldsN": "{n} ta maydon",
+        "emptyTitle": "Registry bo'sh",
+        "emptyText": "Sinxronlash serverga standart konstruktorlarni yozadi.",
+        "col": {
+          "ctor": "Konstruktor",
+          "target": "Ulanadigan joy",
+          "approval": "Tasdiq",
+          "required": "Majburiy maydonlar"
+        }
+      },
+      "export": {
+        "allTitle": "Butun Studio",
+        "allText": "Barcha obyektlar bitta Excel faylda.",
+        "allP1": "Obyekt, konstruktor va holat",
+        "allP2": "Joriy va e'lon qilingan versiya",
+        "allP3": "Kim yaratgan va qachon yangilangan",
+        "allBtn": "Excelga yuklab olish",
+        "verTitle": "Obyekt versiyalari",
+        "verText": "Bitta obyektning barcha versiyalari tarixi.",
+        "pickCtor": "Konstruktor",
+        "pickCtorPh": "Konstruktorni tanlang",
+        "pickCtorFirst": "Avval konstruktorni tanlang.",
+        "pickObj": "Obyekt",
+        "pickObjPh": "Obyektni tanlang",
+        "noObjects": "Bu konstruktorda obyekt yo'q.",
+        "shownOf": "{n} / {total}",
+        "verBtn": "Versiyalarni yuklab olish"
+      }
+    },
+    "monitoring": {
+      "summary": "Bugungi faollik",
+      "kpi": {
+        "online": "Hozir onlayn",
+        "sessions": "Bugungi sessiyalar",
+        "saves": "Bugungi saqlashlar",
+        "time": "Jami ish vaqti: {v}"
+      },
+      "listTitle": "Faol va oxirgi sessiyalar",
+      "liveHint": "Jonli yangilanadi",
+      "refresh": "Yangilash",
+      "privacy": "Bu yerda faqat kim, qayerda va qancha ishlagani ko'rinadi. Obyekt mazmuni ko'rsatilmaydi.",
+      "searchPh": "Ism, konstruktor yoki obyekt nomi",
+      "filterTitle": "Monitoring filtrlari",
+      "filterCtor": "Konstruktor",
+      "filterState": "Holat",
+      "online": "Onlayn",
+      "offline": "Oflayn",
+      "now": "Hozir",
+      "unknownUser": "Noma'lum foydalanuvchi",
+      "noObject": "Yangi obyekt",
+      "noMatch": "Mos sessiya topilmadi",
+      "noMatchText": "Filtrlarni o'zgartirib ko'ring.",
+      "missing": "Monitoring serverda hali yoqilmagan. Ishga tushgach, kim qaysi konstruktorda ishlayotgani shu yerda ko'rinadi.",
+      "col": {
+        "user": "Foydalanuvchi",
+        "work": "Konstruktor va obyekt",
+        "time": "Ish vaqti",
+        "saves": "Saqlash",
+        "seen": "Oxirgi faollik"
+      }
+    },
+    "list": {
+      "title": "Obyektlar",
+      "lead": "Shu konstruktordagi barcha obyektlar.",
+      "untitled": "Nomsiz obyekt",
+      "new": "Yangi",
+      "version": "v{v}",
+      "assigned": "Mas'ul: {name}",
+      "hasFile": "Fayl bor",
+      "openAria": "Ochish: {title}",
+      "archiveAria": "Arxivlash: {title}",
+      "col": {
+        "title": "Nomi",
+        "status": "Holat",
+        "updated": "Yangilangan"
+      },
+      "meta": {
+        "label": "Konstruktor haqida",
+        "runtime": "Ulanadi:",
+        "runtimeHint": "E'lon qilingach ma'lumot shu bo'limga tushadi",
+        "free": "Tasdiqsiz: yuborilganda darhol e'lon qilinadi",
+        "approval": "E'londan oldin tasdiqlanadi",
+        "required": "{n} ta majburiy maydon"
+      },
+      "filter": {
+        "title": "Filtrlar",
+        "status": "Holat",
+        "mine": "Biriktirilgan",
+        "mineText": "Faqat menga biriktirilganlar",
+        "searchPh": "Nomi bo'yicha qidirish"
+      },
+      "emptyTitle": "Hali obyekt yo'q",
+      "emptyText": "\"{name}\" uchun birinchi qoralamani yarating.",
+      "emptyRead": "Yaratilgan obyektlar shu yerda chiqadi.",
+      "noResults": "Hech narsa topilmadi",
+      "noResultsText": "Filtrni o'zgartiring yoki tozalang.",
+      "searchLoaded": "Qidiruv faqat yuklangan {n} ta obyekt ichida. Pastdan yana yuklang yoki filtrni o'zgartiring.",
+      "reset": "Filtrni tozalash",
+      "count": "{n} / {total} ta ko'rsatildi",
+      "countSearch": "{all} tadan {n} tasi mos keldi",
+      "more": "Yana yuklash",
+      "moreFail": "Keyingi sahifani yuklab bo'lmadi",
+      "archiveTitle": "Obyektni arxivlash",
+      "archiveText": "\"{title}\" arxivga o'tadi va tahrirlab bo'lmaydi. U o'chirilmaydi, tarixi saqlanadi.",
+      "archived": "\"{title}\" arxivlandi",
+      "missingTitle": "Konstruktor topilmadi",
+      "missingText": "\"{code}\" kodli konstruktor ro'yxatda yo'q. Studio bosh sahifasidan tanlang."
+    },
+    "dash": {
+      "title": "Studio",
+      "lead": "Xizmatlar, hujjatlar va qoidalarni konstruktorda yarating, tasdiqdan o'tkazing va saytga e'lon qiling.",
+      "tiles": {
+        "label": "Umumiy holat",
+        "draft": "Qoralamalar",
+        "draftHint": "Hali yuborilmagan",
+        "waiting": "Tasdiq kutmoqda",
+        "waitingHint": "Tekshiruvchida turibdi",
+        "readyToPublish": "{n} tasi e'longa tayyor",
+        "published": "E'lon qilingan",
+        "publishedHint": "Saytda ishlayapti",
+        "changes": "Qayta ishlash kerak",
+        "changesHint": "Tuzatib, qayta yuboring"
+      },
+      "mine": {
+        "title": "Mening ishlarim",
+        "hint": "Sizga biriktirilgan oxirgi 5 ta",
+        "empty": "Hozircha sizga biriktirilgan ish yo'q. Quyidagi konstruktorlardan birini tanlang."
+      },
+      "catalog": {
+        "title": "Konstruktorlar",
+        "lead": "{n} ta konstruktor. Kerakligini tanlang va ish boshlang.",
+        "group": "Bo'lim",
+        "searchPh": "Nomi yoki kodi (masalan, K06)",
+        "noResults": "Konstruktor topilmadi",
+        "noResultsText": "Boshqa so'z bilan qidiring yoki filtrni tozalang.",
+        "reset": "Filtrni tozalash",
+        "free": "Tasdiqsiz",
+        "count": "{n} ta faol",
+        "none": "Hali bo'sh",
+        "emptyTitle": "Konstruktorlar ro'yxati bo'sh",
+        "emptyText": "Ro'yxat administrator sinxronlagandan keyin paydo bo'ladi.",
+        "emptyAdmin": "Ro'yxatni serverdagi standart konstruktorlar bilan to'ldiring."
+      },
+      "sync": {
+        "cta": "Ro'yxatni sinxronlash",
+        "title": "Konstruktorlar ro'yxatini sinxronlash",
+        "text": "Konstruktorlar ro'yxati serverdagi standart sozlamalar bo'yicha yoziladi yoki yangilanadi. Yaratilgan obyektlar o'zgarmaydi.",
+        "confirm": "Sinxronlash",
+        "done": "Ro'yxat yangilandi: {n} ta konstruktor",
+        "donePlain": "Ro'yxat yangilandi"
+      }
+    },
+    "approvals": {
+      "title": "Tasdiqlash navbati",
+      "lead": "Yuborilgan ishlarni ko'rib chiqing: tasdiqlang, qaytaring yoki e'lon qiling.",
+      "loading": "Navbat yuklanmoqda…",
+      "untitled": "Nomsiz obyekt",
+      "mineNote": "{n, plural, other {# ta ish sizning qaroringizni kutmoqda}}",
+      "filter": {
+        "title": "Navbat filtrlari",
+        "ctor": "Konstruktor",
+        "status": "Holat",
+        "who": "Kimning navbati",
+        "everyone": "Hammasi",
+        "mine": "Mening navbatim",
+        "searchPh": "Nomi, kodi yoki muallif bo'yicha"
+      },
+      "empty": {
+        "title": "Navbat bo'sh",
+        "text": "Hozircha tasdiq kutayotgan ish yo'q. Yangi yuborilganlar shu yerda darhol chiqadi.",
+        "filteredTitle": "Hech narsa topilmadi",
+        "filteredText": "Filtrlarni o'zgartiring yoki tozalang."
+      },
+      "card": {
+        "step": "{n}/{total} · {name}",
+        "file": "Fayl bor",
+        "ready": "E'longa tayyor",
+        "yourTurn": "Sizning navbatingiz"
+      },
+      "decide": {
+        "commentLabel": "Izoh",
+        "noteLabel": "Izoh",
+        "needComment": "Muallif nimani tuzatishini yozing.",
+        "approve": {
+          "title": "Tasdiqlash",
+          "text": "\"{step}\" bosqichi tasdiqlanadi. Keyingi bosqich bo'lsa, ish unga o'tadi.",
+          "ph": "Masalan: tekshirildi, hammasi joyida",
+          "hint": "Izoh ixtiyoriy, u tarixda saqlanadi.",
+          "cta": "Tasdiqlash",
+          "ok": "Tasdiqlandi"
+        },
+        "changes": {
+          "title": "Qayta ishlashga qaytarish",
+          "text": "Ish muallifga qaytadi. U tuzatib, qayta yuboradi.",
+          "ph": "Nimani tuzatish kerak?",
+          "hint": "Izoh majburiy: muallif aynan shuni ko'radi.",
+          "cta": "Qaytarish",
+          "ok": "Ish qayta ishlashga qaytarildi"
+        },
+        "reject": {
+          "title": "Rad etish",
+          "text": "Ish rad etiladi va muallifga qaytadi.",
+          "ph": "Rad etish sababi",
+          "hint": "Sababni aniq yozing.",
+          "cta": "Rad etish",
+          "ok": "Ish rad etildi"
+        },
+        "publish": {
+          "title": "E'lon qilish",
+          "text": "Tasdiqlangan versiya tizimga ulanadi va foydalanuvchilarga ko'rinadi.",
+          "ph": "Masalan: productionga chiqarildi",
+          "hint": "Ulash xato bo'lsa, server e'lonni bekor qiladi va xatoni ko'rsatamiz.",
+          "cta": "E'lon qilish",
+          "ok": "E'lon qilindi"
+        }
+      },
+      "comments": {
+        "label": "Izoh yozish",
+        "ph": "Izoh yozing… (Ctrl+Enter — yuborish)",
+        "empty": "Hali izoh yo'q.",
+        "someone": "Foydalanuvchi",
+        "fail": "Izoh yuborilmadi"
+      },
+      "drawer": {
+        "sentBy": "Yubordi",
+        "sentAt": "Yuborilgan vaqt",
+        "version": "Versiya",
+        "step": "Joriy bosqich",
+        "allApproved": "Hamma bosqich tasdiqlandi",
+        "summary": "O'zgarish:",
+        "content": "Mazmuni",
+        "noPayload": "Bu versiyada ma'lumot yo'q.",
+        "file": "Fayl",
+        "fileUnnamed": "Biriktirilgan fayl",
+        "noFile": "Fayl biriktirilmagan.",
+        "fileFail": "Faylni yuklab bo'lmadi",
+        "steps": "Tasdiqlash bosqichlari",
+        "stepN": "{n}-bosqich",
+        "noSteps": "Bosqichlar haqida ma'lumot kelmadi.",
+        "comments": "Izohlar",
+        "openEditor": "Muharrirda ochish",
+        "publishHint": "Hamma bosqich tasdiqladi. Endi e'lon qilish mumkin.",
+        "waitStep": "Hozir \"{step}\" bosqichi. Uni {role} tasdiqlaydi.",
+        "nextStep": "keyingi",
+        "waitPublisher": "Tasdiqlandi. E'lon qilishni Nashr etuvchi bajaradi.",
+        "waitAuthor": "Muallif tuzatib, qayta yuborishini kutmoqda.",
+        "isPublished": "Bu ish allaqachon e'lon qilingan.",
+        "notInQueue": "Bu ish hozir tasdiqlash navbatida emas."
+      }
+    },
+    "title": "Studio",
+    "eyebrow": "LexGo Studio",
+    "lead": "Xizmatlar, hujjatlar va qoidalarni bir joyda yarating, tasdiqlang va e'lon qiling.",
+    "tabs": {
+      "home": "Bosh sahifa",
+      "approvals": "Tasdiqlash",
+      "monitoring": "Monitoring",
+      "settings": "Sozlamalar"
+    },
+    "status": {
+      "draft": "Qoralama",
+      "submitted": "Yuborildi",
+      "in_review": "Tekshiruvda",
+      "changes_requested": "Qayta ishlashda",
+      "approved": "Tasdiqlandi",
+      "published": "E'lon qilindi",
+      "archived": "Arxivda",
+      "rejected": "Rad etildi"
+    },
+    "stepStatus": {
+      "pending": "Kutilmoqda",
+      "approved": "Tasdiqladi",
+      "approve": "Tasdiqladi",
+      "changes_requested": "Qaytardi",
+      "rejected": "Rad etdi",
+      "reject": "Rad etdi",
+      "skipped": "O'tkazib yuborildi"
+    },
+    "flow": {
+      "label": "Holat bosqichlari",
+      "archived": "Bu obyekt arxivda. Uni faqat ko'rish mumkin.",
+      "back": "Tekshiruvchi qayta ishlashni so'radi. Tuzating va qayta yuboring.",
+      "rejected": "Tekshiruvchi rad etdi. Tuzatib, qayta yuborishingiz mumkin.",
+      "direct": "Bu tur tasdiqsiz: yuborilganda darhol e'lon qilinadi."
+    },
+    "groups": {
+      "marketplace": "Marketplace va xizmatlar",
+      "documents": "Hujjatlar va matnlar",
+      "quality": "Jarayon va sifat",
+      "system": "Tizim va ma'lumotnomalar"
+    },
+    "ctor": {
+      "k01": {
+        "name": "Hayotiy vaziyatlar",
+        "desc": "Mijoz muammosini to'g'ri xizmatga yo'naltiruvchi tasnif."
+      },
+      "k02": {
+        "name": "Xizmat pasporti",
+        "desc": "Xizmat tarkibi, natijasi va asosiy shartlari."
+      },
+      "k03m": {
+        "name": "Marketplace paketlari",
+        "desc": "Xizmat paketlari va ularning tarkibi."
+      },
+      "k04": {
+        "name": "Narx qoidalari",
+        "desc": "Narx oralig'i, ustamalar va chegirmalar."
+      },
+      "k05": {
+        "name": "Qabul anketasi",
+        "desc": "Bo'limlar, maydonlar va shartli savollar."
+      },
+      "k06": {
+        "name": "Hujjat shablonlari",
+        "desc": "Shablon matni, bandlar kutubxonasi yoki fayl yuklash."
+      },
+      "k07": {
+        "name": "Shartnoma va oferta",
+        "desc": "Mijoz bilan shartnoma va ommaviy oferta matni."
+      },
+      "k08": {
+        "name": "Ish jarayoni (SOP)",
+        "desc": "Xizmat bosqichma-bosqich qanday bajarilishi."
+      },
+      "k09": {
+        "name": "Nazorat ro'yxati",
+        "desc": "Bajarilishi shart bo'lgan bandlar ro'yxati."
+      },
+      "k10": {
+        "name": "SLA va ish kalendari",
+        "desc": "Muddatlar, ish vaqti va dam olish kunlari."
+      },
+      "k11": {
+        "name": "Xizmat shartlari",
+        "desc": "Qaytarish, bekor qilish va boshqa siyosatlar."
+      },
+      "k12m": {
+        "name": "Hamkor yurist tanlovi",
+        "desc": "Buyurtmaga yurist tanlash qoidalari."
+      },
+      "k13": {
+        "name": "Sifat, reyting va jarimalar",
+        "desc": "Sifat mezonlari, baholash va jarima qoidalari."
+      },
+      "k14": {
+        "name": "Bildirishnoma shablonlari",
+        "desc": "Hodisa bo'yicha xabarlar, 3 tilda."
+      },
+      "k15": {
+        "name": "AI bilimlar va yo'naltirish",
+        "desc": "AI yordamchi uchun bilimlar va savollarni yo'naltirish."
+      },
+      "k16": {
+        "name": "Ma'lumotnomalar",
+        "desc": "Hududlar, turlar va boshqa ro'yxatlar. Tasdiqsiz."
+      },
+      "k19": {
+        "name": "Landing va FAQ",
+        "desc": "Sahifa bloklari va ko'p beriladigan savollar."
+      },
+      "k20": {
+        "name": "Tasdiqlash yo'nalishlari",
+        "desc": "Har bir tur uchun kim va qaysi tartibda tasdiqlaydi."
+      },
+      "m1": {
+        "name": "Ish rejasi",
+        "desc": "Buyurtma bo'yicha ish bosqichlari va muddatlar."
+      },
+      "m2": {
+        "name": "Ishni qabul qilish",
+        "desc": "Natijani topshirish va qabul qilish qoidalari."
+      },
+      "m3": {
+        "name": "Rahbar nazorat markazi",
+        "desc": "Rahbar va admin uchun asosiy ko'rsatkichlar."
+      },
+      "core": {
+        "name": "Studio yadrosi",
+        "desc": "Studio'ning umumiy sozlamalari."
+      }
+    },
+    "roles": {
+      "studio_editor": "Muharrir",
+      "studio_reviewer": "Tekshiruvchi",
+      "studio_publisher": "Nashr etuvchi",
+      "studio_admin": "Studio admini",
+      "admin": "Admin",
+      "superadmin": "Superadmin"
+    },
+    "actions": {
+      "save": "Saqlash",
+      "submit": "Yuborish",
+      "archive": "Arxivlash",
+      "approve": "Tasdiqlash",
+      "changesRequested": "Qayta ishlashga qaytarish",
+      "reject": "Rad etish",
+      "publish": "E'lon qilish",
+      "rollback": "Oldingi versiyaga qaytarish",
+      "comment": "Izoh",
+      "file": "Fayl",
+      "versions": "Versiyalar",
+      "excel": "Excel",
+      "exportAll": "Studio'ni Excelga yuklab olish",
+      "exportVersions": "Versiyalarni Excelga yuklab olish",
+      "create": "Yangi yaratish",
+      "open": "Ochish",
+      "back": "Orqaga",
+      "backHome": "Studio bosh sahifasi",
+      "retry": "Qayta urinish",
+      "upload": "Fayl yuklash",
+      "download": "Yuklab olish",
+      "cancel": "Bekor qilish",
+      "close": "Yopish",
+      "formView": "Forma",
+      "jsonView": "JSON",
+      "sync": "Ro'yxatni yangilash",
+      "send": "Yuborish",
+      "history": "Tarix"
+    },
+    "off": {
+      "badge": "Tez orada",
+      "title": "Studio backendda hali yoqilmagan",
+      "text": "Interfeys tayyor. Server tomoni ishga tushishi bilan bu yerda konstruktorlar paydo bo'ladi.",
+      "p1": "Qoralama yaratish va tahrirlash",
+      "p2": "Ikki bosqichli tasdiqlash",
+      "p3": "E'lon qilish va versiyalar tarixi",
+      "recheck": "Qayta tekshirish",
+      "checking": "Tekshirilmoqda…",
+      "hint": "Sahifa 10 daqiqadan keyin o'zi qayta tekshiradi."
+    },
+    "noAccess": {
+      "title": "Studio'ga ruxsatingiz yo'q",
+      "text": "Kerakli rolni olish uchun administratorga murojaat qiling."
+    },
+    "common": {
+      "loading": "Yuklanmoqda…",
+      "required": "Majburiy",
+      "optional": "Ixtiyoriy",
+      "none": "Yo'q",
+      "all": "Hammasi",
+      "search": "Qidirish"
+    },
+    "error": {
+      "kind": {
+        "payload_invalid": "Ma'lumotlarda xato bor",
+        "submit_invalid": "Yuborib bo'lmadi",
+        "publish_requires_approved": "Avval tasdiqlash kerak",
+        "publish_failed": "E'lon qilinmadi",
+        "forbidden": "Bu amalga ruxsat yo'q",
+        "missing": "Bu imkoniyat serverda hali yo'q",
+        "not_found": "Topilmadi",
+        "conflict": "Holat o'zgargan",
+        "validation": "Maydonlarni tekshiring",
+        "network": "Server bilan aloqa yo'q",
+        "other": "Xatolik yuz berdi"
+      },
+      "hint": {
+        "payload_invalid": "Belgilangan maydonlarni tuzating.",
+        "submit_invalid": "Majburiy maydonlar va bog'liqliklarni tekshiring.",
+        "publish_requires_approved": "Ikkala tasdiqlash bosqichi yakunlangach e'lon qiling.",
+        "publish_failed": "Tizimga ulash muvaffaqiyatsiz bo'ldi, e'lon bekor qilindi. Keyinroq urinib ko'ring.",
+        "forbidden": "Kerakli rolni administrator beradi.",
+        "missing": "Server tomoni ishga tushgach qayta urinib ko'ring.",
+        "not_found": "Obyekt o'chirilgan yoki havola xato.",
+        "conflict": "Sahifani yangilang va qayta urinib ko'ring.",
+        "validation": "Maydonlardagi xatolarni tuzating.",
+        "network": "Internetni tekshirib, qayta urinib ko'ring.",
+        "other": "Birozdan keyin qayta urinib ko'ring."
+      }
+    },
+    "fieldErr": {
+      "required": "Bu maydon majburiy",
+      "json": "JSON formati xato",
+      "object": "JSON obyekt bo'lishi kerak: { … }",
+      "list": "Ro'yxat bo'lishi kerak",
+      "duplicate": "Takrorlanmasligi kerak",
+      "lang": "Uchala tilda ham to'ldiring",
+      "file": "Fayl yuklang",
+      "number": "Son kiriting",
+      "rule": "Shart mavjud maydonga bog'lanmagan"
+    },
+    "field": {
+      "title": "Nomi",
+      "mode": "Rejim",
+      "language": "Til",
+      "service_id": "Xizmat ID",
+      "template_id": "Shablon ID",
+      "event": "Hodisa",
+      "channels": "Kanallar",
+      "messages": "Xabarlar",
+      "variables": "O'zgaruvchilar",
+      "audience_roles": "Kimga yuboriladi",
+      "sections": "Bo'limlar",
+      "conditional_rules": "Shartli qoidalar",
+      "directory_key": "Ma'lumotnoma kaliti",
+      "items": "Elementlar",
+      "steps": "Bosqichlar",
+      "status": "Holat",
+      "description": "Tavsif",
+      "template_text": "Shablon matni",
+      "clauses": "Bandlar",
+      "fields": "Maydonlar",
+      "source_file_required": "Manba fayl majburiy"
+    },
+    "generic": {
+      "title": "Ma'lumotlar",
+      "view": "Ko'rinish",
+      "requiredHint": "majburiy maydonlar",
+      "wholePayload": "Barcha ma'lumotlar (JSON)",
+      "jsonHint": "To'g'ri JSON bo'lsa, o'zgarish formaga ham o'tadi.",
+      "noSchema": "Bu tur uchun maydonlar ro'yxati kelmadi. Ma'lumotni JSON ko'rinishida kiriting.",
+      "extra": "Qo'shimcha maydonlar"
+    },
+    "fmt": {
+      "hm": "{h} soat {m} daq",
+      "m": "{m} daq",
+      "s": "{s} soniya",
+      "justNow": "hozirgina",
+      "minAgo": "{m} daqiqa oldin",
+      "hourAgo": "{h} soat oldin"
+    },
+    "shell": {
+      "tabs": "Studio bo'limlari",
+      "exportOk": "Excel fayl yuklab olindi",
+      "exportFail": "Excel faylni yuklab bo'lmadi"
+    },
+    "screens": {
+      "home": {
+        "title": "Studio",
+        "lead": "Konstruktorni tanlang va ish boshlang.",
+        "emptyTitle": "Konstruktorlar hali yo'q",
+        "emptyText": "Ro'yxat serverdan kelgach shu yerda ko'rinadi."
+      },
+      "list": {
+        "title": "Obyektlar",
+        "lead": "Shu turdagi barcha obyektlar.",
+        "emptyTitle": "Hali obyekt yo'q",
+        "emptyText": "Yaratilgan obyektlar shu yerda chiqadi."
+      },
+      "object": {
+        "title": "Obyekt",
+        "lead": "Tahrirlang, saqlang va tasdiqlashga yuboring.",
+        "emptyTitle": "Obyekt ochilmadi",
+        "emptyText": "Ro'yxatdan obyektni tanlang."
+      },
+      "approvals": {
+        "title": "Tasdiqlash navbati",
+        "lead": "Yuborilgan obyektlarni ko'rib chiqing.",
+        "emptyTitle": "Navbat bo'sh",
+        "emptyText": "Yangi yuborilgan obyektlar shu yerda chiqadi."
+      },
+      "monitoring": {
+        "title": "Monitoring",
+        "lead": "Kim, qaysi konstruktorda, qancha vaqt ishlayapti.",
+        "emptyTitle": "Hozir hech kim ishlamayapti",
+        "emptyText": "Muharrir ochilganda faollik shu yerda ko'rinadi."
+      },
+      "settings": {
+        "title": "Sozlamalar",
+        "lead": "Ruxsatlar va tasdiqlash yo'nalishlari.",
+        "emptyTitle": "Sozlamalar yo'q",
+        "emptyText": "Ruxsatlar va yo'nalishlar shu yerda boshqariladi."
+      }
+    }
+  },
   "marketPricing": {
     "factors": "Narxga ta'sir qilgan omillar",
     "som": "so'm",
@@ -1446,6 +2560,7 @@
       "enterHint": "Enter — yuborish · Shift+Enter — yangi qator"
     },
     "compose": {
+      "aiShared": "Operator AI bilan suhbatingizni ko'radi",
       "title": "Operator bilan yangi suhbat",
       "lead": "Muammoni yozing — operator shu chatda javob beradi.",
       "resumeTitle": "Sizda faol suhbat bor",
@@ -8642,6 +9757,7 @@
     "logout": "Chiqish",
     "menu": "Menyu",
     "groups": {
+      "studio": "Konstruktorlar",
       "command": "Boshqaruv",
       "sales": "Mijozlar va sotuv",
       "catalog": "Katalog va buyurtmalar",
@@ -8651,6 +9767,7 @@
       "system": "Tizim"
     },
     "nav": {
+      "studio": "Studio",
       "aiReglaments": "AI reglamentlari",
       "supportTickets": "Operator chatlari",
       "marketplace": "Marketplace monitoring",

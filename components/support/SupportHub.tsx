@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
@@ -13,6 +13,8 @@ import { useAiReveal } from "@/lib/guide/targets";
 import { openInstructor } from "@/lib/guide/panel";
 import { aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
+import { aiSessionId, subscribeAiSession } from "@/lib/ai/session";
+import type { AiHandoffTurn } from "@/lib/ai/commands";
 import { initials } from "@/lib/lawyers";
 import {
   SUPPORT_CATEGORIES,
@@ -77,6 +79,66 @@ function guessTopic(text: string, allowed: readonly string[]): string {
   return allowed.includes(hit) ? hit : "general";
 }
 
+const AI_TURNS = 10;
+const AI_CHARS = 600;
+const AI_STORE = "lexgo_ains_";
+
+const textOf = (v: unknown) => (typeof v === "string" ? v : "");
+
+function clipTurn(s: string): string {
+  const v = s
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n");
+  return v.length > AI_CHARS ? `${v.slice(0, AI_CHARS - 1).trimEnd()}…` : v;
+}
+
+function readAiRaw(owner: string): string {
+  if (!owner) return "";
+  try {
+    return sessionStorage.getItem(`${AI_STORE}${owner}`) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+const noAiRaw = () => "";
+
+function aiTurnsOf(raw: string): AiHandoffTurn[] {
+  if (!raw) return [];
+  let list: unknown;
+  try {
+    list = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(list)) return [];
+  const out: AiHandoffTurn[] = [];
+  let asked = "";
+  for (const m of list) {
+    if (!m || typeof m !== "object") continue;
+    const d = m as Record<string, unknown>;
+    if (d.kind === "me") {
+      asked = textOf(d.text);
+      continue;
+    }
+    let answer = "";
+    if (d.kind === "guide" || d.kind === "v21") {
+      const needs = Array.isArray(d.needs) ? d.needs.filter((x): x is string => typeof x === "string" && Boolean(x.trim())) : [];
+      answer = needs.length ? `${textOf(d.text)}\n${needs.map((n) => `• ${n}`).join("\n")}` : textOf(d.text);
+    } else if (d.kind === "ai") {
+      const ans = d.ans && typeof d.ans === "object" ? (d.ans as Record<string, unknown>) : {};
+      answer = textOf(ans.answer);
+    } else continue;
+    const q = clipTurn(asked);
+    const a = clipTurn(answer);
+    const at = textOf(d.at).trim();
+    if (q || a) out.push({ q, a, ...(at ? { at } : {}) });
+  }
+  return out.slice(-AI_TURNS);
+}
+
 function tabOf(raw: string): Tab | null {
   const v = raw.trim().toLowerCase();
   if (!v) return null;
@@ -125,6 +187,8 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   const router = useRouter();
   const pathname = usePathname();
   const meId = session?.id ?? "";
+  const aiRaw = useSyncExternalStore(subscribeAiSession, () => readAiRaw(meId), noAiRaw);
+  const aiTurns = useMemo(() => aiTurnsOf(aiRaw), [aiRaw]);
   const staff = hasAdminAccess(session);
   const client = role === "client";
   const base = `/portal/${role}/support`;
@@ -221,13 +285,16 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
     if (message.length < 3 || sending) return;
     setSending(true);
     setFormErr(null);
+    const turns = aiTurnsOf(readAiRaw(meId));
+    const sid = turns.length ? aiSessionId() || aiSessionId({ owner: meId, role }) : "";
+    const handoff = turns.length ? { ai_history: turns, ...(sid ? { ai_session_id: sid } : {}) } : {};
     try {
       const tk = await createSupportTicket({
         message,
         category: topic || guessTopic(message, topics),
         priority: urgent ? "high" : "normal",
         source: "support_page",
-        context: { current_path: pathname, role, topic_picked: Boolean(topic) },
+        context: { current_path: pathname, role, topic_picked: Boolean(topic), ...handoff },
       });
       setText("");
       setTopic("");
@@ -833,6 +900,12 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
                       {isRouteMissing(formErr) ? tc("featureSoon") : errorText(formErr, tc)}
                     </p>
                   )
+                ) : null}
+                {aiTurns.length ? (
+                  <p className="supnew__ai" data-ai-id="support.new-ticket.ai-history" data-ai-label={t("compose.aiShared")}>
+                    <IconSparkle aria-hidden="true" />
+                    {t("compose.aiShared")}
+                  </p>
                 ) : null}
                 <div className="supnew__acts">
                   <button type="submit" className="btn btn--pri btn--sm" disabled={sending || text.trim().length < 3} data-ai-id="support.new-ticket.submit">

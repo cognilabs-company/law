@@ -1,4 +1,1118 @@
 {
+  "studio": {
+    "editors": {
+      "jsonPeek": "Data as JSON",
+      "jsonPeekHint": "Read only. Switch back to Form to edit.",
+      "insertVar": "Insert into text",
+      "moveUp": "Move up: {what}",
+      "moveDown": "Move down: {what}",
+      "removeRow": "Remove: {what}",
+      "removeTag": "Remove: {v}",
+      "what": {
+        "field": "field",
+        "section": "section",
+        "rule": "rule",
+        "clause": "clause",
+        "item": "item",
+        "step": "step"
+      },
+      "err": {
+        "snake": "Lowercase latin letters, digits and _ only (e.g. court_name)",
+        "options": "Add at least one option",
+        "fileMode": "A file is required in upload mode",
+        "minOne": "Add at least one",
+        "unknownVar": "Unknown variable"
+      },
+      "common": {
+        "language": "Language",
+        "optional": "Optional",
+        "serviceId": "Service ID",
+        "serviceIdHint": "Which service this questionnaire belongs to",
+        "serviceIdPh": "service-id"
+      },
+      "lang": {
+        "uz": "Uzbek (Latin)",
+        "uz-latn": "Uzbek (Latin)",
+        "uz-cyrl": "Uzbek (Cyrillic)",
+        "ru": "Russian",
+        "en": "English"
+      },
+      "fieldType": {
+        "text": "Text",
+        "textarea": "Long text",
+        "number": "Number",
+        "date": "Date",
+        "select": "Select",
+        "checkbox": "Checkbox (yes/no)",
+        "file": "File"
+      },
+      "fields": {
+        "label": "Label",
+        "labelPh": "e.g. Court name",
+        "name": "Key",
+        "type": "Type",
+        "required": "Required",
+        "options": "Options",
+        "optionsPh": "Type an option and press Enter",
+        "none": "No fields yet",
+        "add": "Add field"
+      },
+      "file": {
+        "none": "No file uploaded",
+        "unnamed": "Uploaded file",
+        "hasHint": "The file is attached to the current version",
+        "pickHint": "Allowed formats: {ext}",
+        "roHint": "This version has no file",
+        "saveFirst": "Save the draft first, then upload the file",
+        "upload": "Upload file",
+        "replace": "Replace file",
+        "uploading": "Uploading…",
+        "download": "Download",
+        "badExt": "This format is not accepted. Allowed: {ext}"
+      },
+      "k05": {
+        "lead": "Questions for the client: sections, fields and conditions.",
+        "statSections": "sections",
+        "statFields": "fields",
+        "statRules": "rules",
+        "sections": "Sections",
+        "sectionsHint": "The client fills the form section by section. Field keys must be unique across the whole form.",
+        "sectionTitle": "Section title",
+        "sectionTitlePh": "e.g. Application details",
+        "addSection": "Add section",
+        "rules": "Conditional questions",
+        "rulesHint": "Show fields depending on an answer.",
+        "rulesNone": "No rules yet",
+        "rulesNeedFields": "Create fields first to add a rule",
+        "addRule": "Add rule",
+        "if": "If",
+        "ruleField": "Field",
+        "pickField": "Choose a field",
+        "operator": "Condition",
+        "value": "Value",
+        "valuePh": "e.g. yes",
+        "show": "Then show",
+        "showNone": "No other fields to show",
+        "op": {
+          "not_empty": "is filled",
+          "empty": "is empty",
+          "equals": "equals",
+          "not_equals": "does not equal",
+          "contains": "contains"
+        }
+      },
+      "k06": {
+        "lead": "Document template: write it in the editor or upload a ready file.",
+        "mode": "Mode",
+        "modeEditor": "Editor",
+        "modeUpload": "File upload",
+        "modeEditorHint": "You write the template text here. Fields are filled in automatically.",
+        "modeUploadHint": "You upload a ready file (.docx, .pdf and more). A file is required.",
+        "docTitle": "Document title",
+        "docTitlePh": "e.g. Statement of claim",
+        "templateId": "Template ID",
+        "file": "Template file",
+        "fileHint": "The file is attached to the current version.",
+        "template": "Template text",
+        "templateHint": "Use the buttons below to insert a field.",
+        "templatePh": "Write the document text here…",
+        "insert": "Insert field:",
+        "insertNone": "Add fields first to insert them into the text.",
+        "chars": "{n} characters",
+        "vars": "{n} fields used",
+        "unknownVars": "Not in the field list:",
+        "fields": "Fields",
+        "fieldsHint": "Data asked when the document is filled in.",
+        "fieldsHintUpload": "Data for the blanks in the file. Optional.",
+        "clauses": "Clause library",
+        "clausesHint": "Ready-made clauses. Optional.",
+        "clausesNone": "No clauses yet",
+        "clauseTitle": "Clause title",
+        "clauseTitlePh": "e.g. Liability of the parties",
+        "clauseText": "Clause text",
+        "clauseTextPh": "Write the clause text…",
+        "addClause": "Add clause"
+      },
+      "k14": {
+        "lead": "Event message: channels, recipients and text in 3 languages.",
+        "event": "Event",
+        "eventHint": "Which event sends it. e.g. order.created",
+        "channels": "Channels",
+        "audience": "Recipients",
+        "audienceHint": "You can choose several.",
+        "ch": {
+          "in_app": "In app",
+          "telegram": "Telegram",
+          "sms": "SMS",
+          "email": "Email",
+          "push": "Push"
+        },
+        "aud": {
+          "client": "Client",
+          "lawyer": "Lawyer",
+          "jurist": "Jurist",
+          "organization": "Organization",
+          "call_center": "Call center",
+          "admin": "Admin"
+        },
+        "variables": "Variables",
+        "variablesHint": "Data inserted into the text. e.g. client_name",
+        "variablesPh": "Type a name and press Enter",
+        "missingVars": "Used in text but not listed:",
+        "addMissing": "Add to list",
+        "messages": "Message text",
+        "messagesHint": "Title and body are required in all three languages.",
+        "progress": "{n}/{total} languages ready",
+        "lang": {
+          "uz_latn": "Uzbek (Latin)",
+          "uz_cyrl": "Uzbek (Cyrillic)",
+          "ru": "Russian"
+        },
+        "state": {
+          "ok": "Complete",
+          "bad": "Incomplete",
+          "empty": "Empty"
+        },
+        "msgTitle": "Title",
+        "msgBody": "Body",
+        "titlePh": {
+          "uz_latn": "e.g. Buyurtma yaratildi",
+          "uz_cyrl": "e.g. Буюртма яратилди",
+          "ru": "e.g. Заказ создан"
+        },
+        "bodyPh": {
+          "uz_latn": "e.g. Buyurtmangiz qabul qilindi",
+          "uz_cyrl": "e.g. Буюртмангиз қабул қилинди",
+          "ru": "e.g. Ваш заказ принят"
+        },
+        "insert": "Insert variable",
+        "insertTitle": "Insert into title:",
+        "insertBody": "Insert into body:",
+        "insertNone": "Add variables to insert them from here."
+      },
+      "k16": {
+        "lead": "Regions, types and other lists.",
+        "note": "This directory needs no approval: it is published as soon as you submit.",
+        "key": "Directory key",
+        "keyHint": "Latin letters and _. e.g. regions",
+        "items": "Items",
+        "itemsHint": "Each item: a visible label and a system value.",
+        "label": "Label",
+        "labelPh": "e.g. Tashkent",
+        "value": "Value",
+        "none": "No items yet",
+        "add": "Add item",
+        "slugHint": "The value is made from the label automatically. You can change it by hand."
+      },
+      "k20": {
+        "lead": "Who approves the chosen type, and in which order.",
+        "ctor": "Constructor",
+        "ctorHint": "The route applies to this type.",
+        "pickCtor": "Choose a constructor",
+        "freeWarn": "This type is published without approval, so the route is not used.",
+        "title": "Route title",
+        "titlePh": "e.g. K06 two-step approval",
+        "status": "Status",
+        "st": {
+          "active": "Active",
+          "inactive": "Inactive"
+        },
+        "activeHint": "New submissions follow this route.",
+        "inactiveHint": "The route is not used; the default order applies.",
+        "steps": "Approval steps",
+        "stepsHint": "Steps run in order from top to bottom.",
+        "role": "Who approves",
+        "pickRole": "Choose a role",
+        "stepTitle": "Step title",
+        "stepTitlePh": "e.g. Content review",
+        "add": "Add step",
+        "start": "Editor submits",
+        "end": "Published",
+        "preview": "Route preview"
+      }
+    },
+    "editor": {
+      "eyebrow": "Studio · {code}",
+      "loading": "Loading the object…",
+      "topLabel": "Object details",
+      "backToList": "Back to the list",
+      "titleLabel": "Object name",
+      "titlePh": "For example: Statement of claim template",
+      "titleRequired": "Enter a name",
+      "unsaved": "Unsaved changes",
+      "allSaved": "All saved",
+      "notSaved": "Not saved yet",
+      "savedAt": "Saved {when}",
+      "shortcut": "Ctrl + S to save",
+      "content": "Content",
+      "contentHint": "Saving writes your changes to a new version.",
+      "contentLabel": "Object content",
+      "readOnly": "View only",
+      "actionsLabel": "Object actions",
+      "sideLabel": "Versions, comments, file and approval",
+      "openReview": "Approval page",
+      "unknown": {
+        "title": "Constructor not found",
+        "text": "The code \"{code}\" is not in the Studio list. Pick a constructor on the home page."
+      },
+      "notFound": {
+        "title": "Object not found",
+        "text": "The link is outdated or you have no access to this object."
+      },
+      "remote": {
+        "title": "This object was updated elsewhere",
+        "text": "Your unsaved changes are still here. Loading the new version will discard them.",
+        "load": "Load the new version"
+      },
+      "banner": {
+        "changes": "Changes requested",
+        "rejected": "The reviewer rejected it",
+        "changesNoNote": "The reviewer left no note. Check the comments, fix and submit again.",
+        "published": "This object is published",
+        "publishedText": "If you change it, a new draft version opens. The published version stays live until the new one is approved.",
+        "approved": "Approved",
+        "approvedPublisher": "Both steps are done. You can publish now.",
+        "approvedWait": "Both steps are done. A publisher will publish it.",
+        "review": "In review",
+        "reviewText": "The object is in the approval queue. Editing is closed until there is a decision.",
+        "viewOnly": "View only",
+        "viewOnlyText": "Editing needs the Editor role. An administrator can grant it.",
+        "fileNeeded": "A file is required",
+        "fileNeededText": "Upload mode is selected. Upload the template file before submitting.",
+        "fileNeededNew": "Upload mode is selected. Save the draft first, then upload the file."
+      },
+      "errors": {
+        "general": "General",
+        "count": "{n, plural, one {# error} other {# errors}}",
+        "beforeSubmit": "Fix these before submitting"
+      },
+      "save": {
+        "create": "Create draft",
+        "saving": "Saving…",
+        "more": "Save with a note and version",
+        "summary": "What changed",
+        "summaryPh": "For example: updated clause 3 text",
+        "version": "Version number",
+        "versionHint": "Leave empty and the server will number it.",
+        "versionBad": "Format: 1.2 or 1.2.3"
+      },
+      "submit": {
+        "saveAnd": "Save and submit",
+        "free": "Submit and publish",
+        "freeHint": "Publishes right after you submit.",
+        "freeTitle": "Publishes right away",
+        "freeLead": "This type needs no approval. Once submitted it is published and goes live at once.",
+        "freeSave": "Your changes will be saved first."
+      },
+      "publish": {
+        "title": "Publish",
+        "lead": "The approved version will be connected to the system and become visible to users.",
+        "note": "Note",
+        "notePh": "For example: Released to production",
+        "failed": "Could not connect to the runtime, publishing was cancelled",
+        "saveFirst": "Save your changes first"
+      },
+      "rollback": {
+        "cta": "Roll back to this version",
+        "title": "Roll back to v{v}",
+        "lead": "The object returns to this version. Later versions stay in the history.",
+        "note": "Reason",
+        "notePh": "For example: Returned to the previous version",
+        "confirm": "Roll back"
+      },
+      "archive": {
+        "title": "Archive",
+        "lead": "The object moves to the archive and can no longer be edited. It is not deleted and the version history is kept.",
+        "dirty": "Unsaved changes will be lost."
+      },
+      "leave": {
+        "title": "You have unsaved changes",
+        "lead": "If you leave this page, your unsaved changes will be lost.",
+        "confirm": "Leave without saving"
+      },
+      "side": {
+        "versions": "Versions",
+        "comments": "Comments",
+        "file": "File",
+        "steps": "Approval",
+        "newTitle": "Save the draft first",
+        "newText": "After saving, versions, comments, the file and approval steps will appear here."
+      },
+      "versions": {
+        "count": "{n, plural, one {# version} other {# versions}}",
+        "none": "No versions",
+        "emptyText": "Saved versions will appear here.",
+        "excel": "Versions to Excel",
+        "current": "Current",
+        "live": "Live",
+        "preview": "View",
+        "file": "File",
+        "noSummary": "No note"
+      },
+      "preview": {
+        "title": "Version v{v}",
+        "empty": "The data of this version did not come with the list."
+      },
+      "comments": {
+        "label": "Write a comment",
+        "placeholder": "Write a general comment…",
+        "hint": "Ctrl + Enter to send",
+        "empty": "No comments yet.",
+        "someone": "User"
+      },
+      "file": {
+        "none": "The current version has no file.",
+        "required": "A file is required in upload mode.",
+        "requiredOk": "The file is uploaded. You can submit.",
+        "unnamed": "File",
+        "current": "Current version",
+        "download": "Download the file",
+        "downloadFail": "Could not download the file",
+        "uploadFail": "The file was not uploaded",
+        "drop": "Drop the file here",
+        "dropNow": "Release to upload",
+        "replace": "Upload a new file",
+        "or": "or",
+        "choose": "choose from your computer",
+        "rules": "Allowed: {list}",
+        "uploading": "Uploading…",
+        "badType": "This format is not accepted. Upload .docx, .doc, .pdf, .xlsx, .xls or .txt.",
+        "empty": "The file is empty.",
+        "saveFirst": "Save the draft first to upload a file.",
+        "versionHint": "A new file is attached to the current version."
+      },
+      "steps": {
+        "step": "Step {n}",
+        "order": "Step {n}",
+        "free": "This type needs no approval. It is published when submitted.",
+        "empty": "Approval steps will appear here after you submit.",
+        "pending": "Steps have not arrived yet. This will update shortly."
+      },
+      "toast": {
+        "saved": "Saved",
+        "created": "Draft created",
+        "noId": "The server did not return the object ID",
+        "submitted": "Sent for approval",
+        "submittedFree": "Submitted and published",
+        "archived": "Moved to the archive",
+        "published": "Published",
+        "rolledBack": "Rolled back to v{v}",
+        "uploaded": "File uploaded"
+      }
+    },
+    "settings": {
+      "tabsAria": "Settings sections",
+      "tabs": {
+        "access": "Access",
+        "routes": "Approval routes",
+        "registry": "Registry",
+        "export": "Export"
+      },
+      "common": {
+        "refresh": "Refresh",
+        "recheck": "Check again",
+        "missingTitle": "Not enabled on the server yet",
+        "missingText": "This section will work once the server side is ready.",
+        "noMatch": "Nothing found",
+        "noMatchText": "Change the search or filters."
+      },
+      "access": {
+        "title": "Access",
+        "lead": "Who can work in Studio and in which constructors.",
+        "grant": "Grant access",
+        "newTitle": "New access",
+        "editTitle": "Edit access",
+        "edit": "Edit",
+        "pause": "Pause",
+        "resume": "Turn back on",
+        "pauseTitle": "Pause this access?",
+        "pauseText": "{name} will not be able to open Studio. The access is not removed and can be turned back on any time.",
+        "paused": "Access paused",
+        "resumed": "Access turned back on",
+        "active": "Active",
+        "pausedState": "Paused",
+        "since": "since {d}",
+        "noRoles": "No roles",
+        "allCtors": "All constructors",
+        "searchPh": "Name, phone or LexGo ID",
+        "filterTitle": "Access filters",
+        "filterRole": "Role",
+        "filterState": "Status",
+        "emptyTitle": "No one has access yet",
+        "emptyText": "Admins and superadmins can always use Studio. Give others a role here.",
+        "missing": "The access list is not enabled on the server yet. You can read about the roles below.",
+        "readOnlyShape": "The server reply has an unexpected format, so the list is view only.",
+        "readOnlyWrite": "Granting access is not enabled on the server yet. The list is view only.",
+        "writeMissing": "Granting access is not enabled on the server yet",
+        "saved": "Access saved for {name}",
+        "savedHidden": "Saved, but it does not show in the list yet. Refresh in a moment.",
+        "user": "User",
+        "userPh": "Name, phone or LexGo ID",
+        "userHint": "Type at least 2 characters.",
+        "results": "Found users",
+        "noUsers": "No one found.",
+        "searchFail": "Search did not work.",
+        "useId": "Continue with ID {id}",
+        "changeUser": "Pick someone else",
+        "hasGrant": "Has access",
+        "existing": "This user already has access. Saving will update it.",
+        "roles": "Roles",
+        "scope": "Which constructors",
+        "scope_all": "All",
+        "scope_some": "Selected",
+        "scopeAllHint": "Works in every constructor, new ones included.",
+        "activeLabel": "Access is active",
+        "save": "Save",
+        "errUser": "Pick a user",
+        "errRoles": "Pick at least one role",
+        "errCodes": "Pick at least one constructor"
+      },
+      "roleInfo": {
+        "title": "What the roles do",
+        "lead": "Each role owns its own step.",
+        "admins": "Admins and superadmins can do everything in Studio and need no separate access.",
+        "studio_editor": {
+          "short": "Creates and edits",
+          "text": "Creates a draft, edits it, uploads a file and sends it for approval."
+        },
+        "studio_reviewer": {
+          "short": "Reviews",
+          "text": "Reviews a submitted object: approves it, sends it back for changes or rejects it."
+        },
+        "studio_publisher": {
+          "short": "Publishes",
+          "text": "Publishes the approved version and, when needed, rolls back to an earlier one or archives it."
+        },
+        "studio_admin": {
+          "short": "Everything",
+          "text": "Every action in Studio, plus access and approval routes."
+        }
+      },
+      "routes": {
+        "title": "Approval routes",
+        "lead": "Who approves each constructor and in what order.",
+        "create": "Add route",
+        "newTitle": "New route",
+        "editTitle": "Edit route",
+        "edit": "Edit",
+        "setup": "Set up",
+        "defaultLabel": "Default order",
+        "searchPh": "Constructor, title or role",
+        "filterTitle": "Route filters",
+        "filterCtor": "Constructor",
+        "filterStatus": "Status",
+        "emptyTitle": "No custom routes",
+        "emptyText": "All constructors use the default order now: reviewer, then publisher.",
+        "missing": "Approval routes are not enabled on the server yet. The default order applies for now.",
+        "uncoveredTitle": "Constructors on the default order",
+        "uncoveredText": "{n} constructors have no custom route. Set one up if needed.",
+        "noSteps": "No steps given",
+        "updated": "updated {d}",
+        "saved": "Route for {code} saved",
+        "constructor": "Constructor",
+        "pickCtor": "Pick a constructor",
+        "replaces": "This constructor already has a route. Saving will update it.",
+        "freeHint": "This type is usually published without approval. The route applies as the server decides.",
+        "status": "Status",
+        "status_active": "Active",
+        "status_inactive": "Off",
+        "routeTitle": "Route title",
+        "titlePh": "For example: two steps for documents",
+        "steps": "Steps",
+        "stepsHint": "They run from top to bottom.",
+        "stepN": "Step {n}",
+        "stepRole": "Who approves",
+        "stepTitle": "Step title",
+        "addStep": "Add step",
+        "dropStep": "Take out step",
+        "up": "Move up",
+        "down": "Move down",
+        "save": "Save",
+        "errCode": "Pick a constructor",
+        "errSteps": "At least one step is needed"
+      },
+      "registry": {
+        "title": "Constructor registry",
+        "lead": "{n} constructors on the server: target, approval and required fields.",
+        "sync": "Sync",
+        "confirmTitle": "Sync the registry?",
+        "confirmText": "The server will refresh the constructor list from its default settings.",
+        "confirmP1": "Existing objects and versions stay as they are.",
+        "confirmP2": "Titles, schema and approval rules may be updated.",
+        "synced": "Synced: {n} constructors",
+        "syncedNoCount": "Synced",
+        "syncFail": "Could not sync",
+        "searchPh": "Code, title or field",
+        "filterTitle": "Registry filters",
+        "filterGroup": "Group",
+        "filterApproval": "Approval",
+        "approvalYes": "Needs approval",
+        "approvalNo": "No approval",
+        "fieldsN": "{n} fields",
+        "emptyTitle": "The registry is empty",
+        "emptyText": "Sync writes the default constructors to the server.",
+        "col": {
+          "ctor": "Constructor",
+          "target": "Runtime target",
+          "approval": "Approval",
+          "required": "Required fields"
+        }
+      },
+      "export": {
+        "allTitle": "All of Studio",
+        "allText": "Every object in one Excel file.",
+        "allP1": "Object, constructor and status",
+        "allP2": "Current and published version",
+        "allP3": "Who created it and when it changed",
+        "allBtn": "Download Excel",
+        "verTitle": "Object versions",
+        "verText": "The full version history of one object.",
+        "pickCtor": "Constructor",
+        "pickCtorPh": "Pick a constructor",
+        "pickCtorFirst": "Pick a constructor first.",
+        "pickObj": "Object",
+        "pickObjPh": "Pick an object",
+        "noObjects": "This constructor has no objects.",
+        "shownOf": "{n} / {total}",
+        "verBtn": "Download versions"
+      }
+    },
+    "monitoring": {
+      "summary": "Today's activity",
+      "kpi": {
+        "online": "Online now",
+        "sessions": "Sessions today",
+        "saves": "Saves today",
+        "time": "Total work time: {v}"
+      },
+      "listTitle": "Active and recent sessions",
+      "liveHint": "Updates live",
+      "refresh": "Refresh",
+      "privacy": "Only who worked, where and for how long is shown here. Object content is never shown.",
+      "searchPh": "Name, constructor or object title",
+      "filterTitle": "Monitoring filters",
+      "filterCtor": "Constructor",
+      "filterState": "Status",
+      "online": "Online",
+      "offline": "Offline",
+      "now": "Now",
+      "unknownUser": "Unknown user",
+      "noObject": "New object",
+      "noMatch": "No sessions found",
+      "noMatchText": "Try changing the filters.",
+      "missing": "Monitoring is not enabled on the server yet. Once it is, you will see who is working in which constructor here.",
+      "col": {
+        "user": "User",
+        "work": "Constructor and object",
+        "time": "Work time",
+        "saves": "Saves",
+        "seen": "Last activity"
+      }
+    },
+    "list": {
+      "title": "Objects",
+      "lead": "All objects of this constructor.",
+      "untitled": "Untitled object",
+      "new": "New",
+      "version": "v{v}",
+      "assigned": "Owner: {name}",
+      "hasFile": "Has a file",
+      "openAria": "Open: {title}",
+      "archiveAria": "Archive: {title}",
+      "col": {
+        "title": "Name",
+        "status": "Status",
+        "updated": "Updated"
+      },
+      "meta": {
+        "label": "About this constructor",
+        "runtime": "Connects to:",
+        "runtimeHint": "Once published, the data goes to this part of the system",
+        "free": "No approval: published as soon as it is sent",
+        "approval": "Approved before publishing",
+        "required": "{n} required fields"
+      },
+      "filter": {
+        "title": "Filters",
+        "status": "Status",
+        "mine": "Assigned",
+        "mineText": "Only assigned to me",
+        "searchPh": "Search by name"
+      },
+      "emptyTitle": "No objects yet",
+      "emptyText": "Create the first draft for \"{name}\".",
+      "emptyRead": "Created objects will show up here.",
+      "noResults": "Nothing found",
+      "noResultsText": "Change or clear the filter.",
+      "searchLoaded": "Search only covers the {n} loaded objects. Load more or change the filter.",
+      "reset": "Clear filter",
+      "count": "Showing {n} of {total}",
+      "countSearch": "{n} of {all} match",
+      "more": "Load more",
+      "moreFail": "Could not load the next page",
+      "archiveTitle": "Archive object",
+      "archiveText": "\"{title}\" moves to the archive and can no longer be edited. It is not deleted and its history is kept.",
+      "archived": "\"{title}\" archived",
+      "missingTitle": "Constructor not found",
+      "missingText": "There is no constructor with code \"{code}\". Pick one on the Studio home page."
+    },
+    "dash": {
+      "title": "Studio",
+      "lead": "Build services, documents and rules in a constructor, get them approved and publish them to the site.",
+      "tiles": {
+        "label": "Overview",
+        "draft": "Drafts",
+        "draftHint": "Not sent yet",
+        "waiting": "Awaiting approval",
+        "waitingHint": "With a reviewer",
+        "readyToPublish": "{n} ready to publish",
+        "published": "Published",
+        "publishedHint": "Live on the site",
+        "changes": "Needs changes",
+        "changesHint": "Fix and send again"
+      },
+      "mine": {
+        "title": "My work",
+        "hint": "Last 5 assigned to you",
+        "empty": "Nothing is assigned to you yet. Pick a constructor below."
+      },
+      "catalog": {
+        "title": "Constructors",
+        "lead": "{n} constructors. Pick one to start.",
+        "group": "Section",
+        "searchPh": "Name or code (e.g. K06)",
+        "noResults": "No constructor found",
+        "noResultsText": "Try another word or clear the filter.",
+        "reset": "Clear filter",
+        "free": "No approval",
+        "count": "{n} active",
+        "none": "Empty yet",
+        "emptyTitle": "The constructor list is empty",
+        "emptyText": "The list appears after an administrator syncs it.",
+        "emptyAdmin": "Fill the list with the server's default constructors."
+      },
+      "sync": {
+        "cta": "Sync list",
+        "title": "Sync the constructor list",
+        "text": "The constructor list is written or updated from the server defaults. Existing objects stay unchanged.",
+        "confirm": "Sync",
+        "done": "List updated: {n} constructors",
+        "donePlain": "List updated"
+      }
+    },
+    "approvals": {
+      "title": "Approval queue",
+      "lead": "Review submitted work: approve it, send it back or publish it.",
+      "loading": "Loading the queue…",
+      "untitled": "Untitled object",
+      "mineNote": "{n, plural, one {# item is waiting for your decision} other {# items are waiting for your decision}}",
+      "filter": {
+        "title": "Queue filters",
+        "ctor": "Constructor",
+        "status": "Status",
+        "who": "Whose turn",
+        "everyone": "Everyone",
+        "mine": "My turn",
+        "searchPh": "By title, code or author"
+      },
+      "empty": {
+        "title": "The queue is empty",
+        "text": "Nothing is waiting for approval right now. New submissions show up here right away.",
+        "filteredTitle": "Nothing found",
+        "filteredText": "Change or clear the filters."
+      },
+      "card": {
+        "step": "{n}/{total} · {name}",
+        "file": "Has file",
+        "ready": "Ready to publish",
+        "yourTurn": "Your turn"
+      },
+      "decide": {
+        "commentLabel": "Comment",
+        "noteLabel": "Note",
+        "needComment": "Tell the author what to fix.",
+        "approve": {
+          "title": "Approve",
+          "text": "The \"{step}\" step will be approved. If there is a next step, the work moves on to it.",
+          "ph": "For example: checked, all good",
+          "hint": "The comment is optional and is kept in the history.",
+          "cta": "Approve",
+          "ok": "Approved"
+        },
+        "changes": {
+          "title": "Request changes",
+          "text": "The work goes back to the author, who fixes it and submits again.",
+          "ph": "What needs to be fixed?",
+          "hint": "A comment is required: this is what the author will see.",
+          "cta": "Send back",
+          "ok": "Sent back for changes"
+        },
+        "reject": {
+          "title": "Reject",
+          "text": "The work will be rejected and returned to the author.",
+          "ph": "Reason for rejection",
+          "hint": "State the reason clearly.",
+          "cta": "Reject",
+          "ok": "Rejected"
+        },
+        "publish": {
+          "title": "Publish",
+          "text": "The approved version is connected to the system and becomes visible to users.",
+          "ph": "For example: released to production",
+          "hint": "If connecting fails, the server cancels the publish and we show the error.",
+          "cta": "Publish",
+          "ok": "Published"
+        }
+      },
+      "comments": {
+        "label": "Write a comment",
+        "ph": "Write a comment… (Ctrl+Enter to send)",
+        "empty": "No comments yet.",
+        "someone": "User",
+        "fail": "Comment was not sent"
+      },
+      "drawer": {
+        "sentBy": "Submitted by",
+        "sentAt": "Submitted at",
+        "version": "Version",
+        "step": "Current step",
+        "allApproved": "All steps approved",
+        "summary": "Changes:",
+        "content": "Content",
+        "noPayload": "This version has no data.",
+        "file": "File",
+        "fileUnnamed": "Attached file",
+        "noFile": "No file attached.",
+        "fileFail": "Could not download the file",
+        "steps": "Approval steps",
+        "stepN": "Step {n}",
+        "noSteps": "No step details came back.",
+        "comments": "Comments",
+        "openEditor": "Open in editor",
+        "publishHint": "Every step is approved. You can publish now.",
+        "waitStep": "Now at the \"{step}\" step. {role} approves it.",
+        "nextStep": "next",
+        "waitPublisher": "Approved. The publisher will publish it.",
+        "waitAuthor": "Waiting for the author to fix and resubmit.",
+        "isPublished": "This work is already published.",
+        "notInQueue": "This work is not in the approval queue right now."
+      }
+    },
+    "title": "Studio",
+    "eyebrow": "LexGo Studio",
+    "lead": "Create, approve and publish services, documents and rules in one place.",
+    "tabs": {
+      "home": "Home",
+      "approvals": "Approvals",
+      "monitoring": "Monitoring",
+      "settings": "Settings"
+    },
+    "status": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "in_review": "In review",
+      "changes_requested": "Changes requested",
+      "approved": "Approved",
+      "published": "Published",
+      "archived": "Archived",
+      "rejected": "Rejected"
+    },
+    "stepStatus": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "approve": "Approved",
+      "changes_requested": "Sent back",
+      "rejected": "Rejected",
+      "reject": "Rejected",
+      "skipped": "Skipped"
+    },
+    "flow": {
+      "label": "Status steps",
+      "archived": "This item is archived. It is read-only.",
+      "back": "The reviewer asked for changes. Fix them and submit again.",
+      "rejected": "The reviewer rejected it. You can fix it and submit again.",
+      "direct": "No approval needed: it goes live as soon as you submit."
+    },
+    "groups": {
+      "marketplace": "Marketplace & services",
+      "documents": "Documents & texts",
+      "quality": "Process & quality",
+      "system": "System & reference"
+    },
+    "ctor": {
+      "k01": {
+        "name": "Life situations",
+        "desc": "A classifier that routes a client's problem to the right service."
+      },
+      "k02": {
+        "name": "Service passport",
+        "desc": "What the service includes, its result and key terms."
+      },
+      "k03m": {
+        "name": "Marketplace packages",
+        "desc": "Service packages and what they include."
+      },
+      "k04": {
+        "name": "Pricing rules",
+        "desc": "Price ranges, surcharges and discounts."
+      },
+      "k05": {
+        "name": "Intake questionnaire",
+        "desc": "Sections, fields and conditional questions."
+      },
+      "k06": {
+        "name": "Document templates",
+        "desc": "Template text, clause library or a file upload."
+      },
+      "k07": {
+        "name": "Contract & offer",
+        "desc": "The client contract and public offer text."
+      },
+      "k08": {
+        "name": "Process (SOP)",
+        "desc": "How the service is carried out step by step."
+      },
+      "k09": {
+        "name": "Checklist",
+        "desc": "A list of items that must be done."
+      },
+      "k10": {
+        "name": "SLA & work calendar",
+        "desc": "Deadlines, working hours and days off."
+      },
+      "k11": {
+        "name": "Service terms",
+        "desc": "Refunds, cancellations and other policies."
+      },
+      "k12m": {
+        "name": "Partner lawyer selection",
+        "desc": "Rules for picking a lawyer for an order."
+      },
+      "k13": {
+        "name": "Quality, rating & sanctions",
+        "desc": "Quality criteria, scoring and sanctions."
+      },
+      "k14": {
+        "name": "Notification templates",
+        "desc": "Event messages in 3 languages."
+      },
+      "k15": {
+        "name": "AI knowledge & routing",
+        "desc": "Knowledge for the AI assistant and question routing."
+      },
+      "k16": {
+        "name": "Directories",
+        "desc": "Regions, types and other lists. No approval."
+      },
+      "k19": {
+        "name": "Landing & FAQ",
+        "desc": "Page blocks and frequently asked questions."
+      },
+      "k20": {
+        "name": "Approval routes",
+        "desc": "Who approves each type, and in what order."
+      },
+      "m1": {
+        "name": "Work plan",
+        "desc": "Work stages and deadlines for an order."
+      },
+      "m2": {
+        "name": "Work acceptance",
+        "desc": "Rules for handing over and accepting results."
+      },
+      "m3": {
+        "name": "Control center",
+        "desc": "Key indicators for the CEO and admins."
+      },
+      "core": {
+        "name": "Studio core",
+        "desc": "Shared Studio settings."
+      }
+    },
+    "roles": {
+      "studio_editor": "Editor",
+      "studio_reviewer": "Reviewer",
+      "studio_publisher": "Publisher",
+      "studio_admin": "Studio admin",
+      "admin": "Admin",
+      "superadmin": "Superadmin"
+    },
+    "actions": {
+      "save": "Save",
+      "submit": "Submit",
+      "archive": "Archive",
+      "approve": "Approve",
+      "changesRequested": "Request changes",
+      "reject": "Reject",
+      "publish": "Publish",
+      "rollback": "Roll back",
+      "comment": "Comment",
+      "file": "File",
+      "versions": "Versions",
+      "excel": "Excel",
+      "exportAll": "Export Studio to Excel",
+      "exportVersions": "Export versions to Excel",
+      "create": "Create new",
+      "open": "Open",
+      "back": "Back",
+      "backHome": "Studio home",
+      "retry": "Try again",
+      "upload": "Upload file",
+      "download": "Download",
+      "cancel": "Cancel",
+      "close": "Close",
+      "formView": "Form",
+      "jsonView": "JSON",
+      "sync": "Sync registry",
+      "send": "Send",
+      "history": "History"
+    },
+    "off": {
+      "badge": "Coming soon",
+      "title": "Studio isn't enabled on the server yet",
+      "text": "The interface is ready. Constructors will appear here as soon as the server side is live.",
+      "p1": "Create and edit drafts",
+      "p2": "Two-step approval",
+      "p3": "Publishing and version history",
+      "recheck": "Check again",
+      "checking": "Checking…",
+      "hint": "The page checks again by itself in 10 minutes."
+    },
+    "noAccess": {
+      "title": "You don't have Studio access",
+      "text": "Ask an administrator to grant you the right role."
+    },
+    "common": {
+      "loading": "Loading…",
+      "required": "Required",
+      "optional": "Optional",
+      "none": "None",
+      "all": "All",
+      "search": "Search"
+    },
+    "error": {
+      "kind": {
+        "payload_invalid": "Some data is invalid",
+        "submit_invalid": "Can't submit yet",
+        "publish_requires_approved": "Approval is needed first",
+        "publish_failed": "Publishing failed",
+        "forbidden": "You can't do this",
+        "missing": "Not available on the server yet",
+        "not_found": "Not found",
+        "conflict": "The status has changed",
+        "validation": "Check the fields",
+        "network": "Can't reach the server",
+        "other": "Something went wrong"
+      },
+      "hint": {
+        "payload_invalid": "Fix the highlighted fields.",
+        "submit_invalid": "Check the required fields and dependencies.",
+        "publish_requires_approved": "Publish once both approval steps are done.",
+        "publish_failed": "Sync failed and the publish was undone. Try again later.",
+        "forbidden": "An administrator can grant the role.",
+        "missing": "Try again once the server side is live.",
+        "not_found": "The item is gone or the link is wrong.",
+        "conflict": "Reload and try again.",
+        "validation": "Fix the errors in the fields.",
+        "network": "Check your connection and try again.",
+        "other": "Please try again shortly."
+      }
+    },
+    "fieldErr": {
+      "required": "This field is required",
+      "json": "Invalid JSON",
+      "object": "Must be a JSON object: { … }",
+      "list": "Must be a list",
+      "duplicate": "Must be unique",
+      "lang": "Fill in all three languages",
+      "file": "Upload a file",
+      "number": "Enter a number",
+      "rule": "The rule points to a field that doesn't exist"
+    },
+    "field": {
+      "title": "Title",
+      "mode": "Mode",
+      "language": "Language",
+      "service_id": "Service ID",
+      "template_id": "Template ID",
+      "event": "Event",
+      "channels": "Channels",
+      "messages": "Messages",
+      "variables": "Variables",
+      "audience_roles": "Audience roles",
+      "sections": "Sections",
+      "conditional_rules": "Conditional rules",
+      "directory_key": "Directory key",
+      "items": "Items",
+      "steps": "Steps",
+      "status": "Status",
+      "description": "Description",
+      "template_text": "Template text",
+      "clauses": "Clauses",
+      "fields": "Fields",
+      "source_file_required": "Source file required"
+    },
+    "generic": {
+      "title": "Content",
+      "view": "View",
+      "requiredHint": "required fields",
+      "wholePayload": "All data (JSON)",
+      "jsonHint": "Valid JSON is applied to the form right away.",
+      "noSchema": "No field list came for this type. Enter the data as JSON.",
+      "extra": "Extra fields"
+    },
+    "fmt": {
+      "hm": "{h} h {m} min",
+      "m": "{m} min",
+      "s": "{s} s",
+      "justNow": "just now",
+      "minAgo": "{m} min ago",
+      "hourAgo": "{h} h ago"
+    },
+    "shell": {
+      "tabs": "Studio sections",
+      "exportOk": "Excel file downloaded",
+      "exportFail": "Couldn't download the Excel file"
+    },
+    "screens": {
+      "home": {
+        "title": "Studio",
+        "lead": "Pick a constructor to get started.",
+        "emptyTitle": "No constructors yet",
+        "emptyText": "The list will show here once the server sends it."
+      },
+      "list": {
+        "title": "Items",
+        "lead": "All items of this type.",
+        "emptyTitle": "No items yet",
+        "emptyText": "Items you create will appear here."
+      },
+      "object": {
+        "title": "Item",
+        "lead": "Edit, save and send for approval.",
+        "emptyTitle": "Item not open",
+        "emptyText": "Pick an item from the list."
+      },
+      "approvals": {
+        "title": "Approval queue",
+        "lead": "Review submitted items.",
+        "emptyTitle": "The queue is empty",
+        "emptyText": "Newly submitted items will appear here."
+      },
+      "monitoring": {
+        "title": "Monitoring",
+        "lead": "Who works in which constructor, and for how long.",
+        "emptyTitle": "Nobody is working right now",
+        "emptyText": "Activity shows up once someone opens an editor."
+      },
+      "settings": {
+        "title": "Settings",
+        "lead": "Access and approval routes.",
+        "emptyTitle": "No settings yet",
+        "emptyText": "Access and routes are managed here."
+      }
+    }
+  },
   "marketPricing": {
     "factors": "What shaped the price",
     "som": "UZS",
@@ -1446,6 +2560,7 @@
       "enterHint": "Enter to send · Shift+Enter for a new line"
     },
     "compose": {
+      "aiShared": "The operator will see your AI chat",
       "title": "New chat with an operator",
       "lead": "Describe the problem — an operator replies in this chat.",
       "resumeTitle": "You already have an active chat",
@@ -8636,6 +9751,7 @@
     "logout": "Log out",
     "menu": "Menu",
     "groups": {
+      "studio": "Constructors",
       "command": "Command",
       "sales": "Clients & sales",
       "catalog": "Catalog & orders",
@@ -8645,6 +9761,7 @@
       "system": "System"
     },
     "nav": {
+      "studio": "Studio",
       "aiReglaments": "AI regulations",
       "supportTickets": "Operator chats",
       "marketplace": "Marketplace monitoring",
