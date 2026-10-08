@@ -4,8 +4,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
-import { IconArrowRight, IconClose, IconFileText, IconLock, IconPhone, IconShieldCheck, IconStarRate, IconUser, IconAlert, IconCheck } from "@/components/icons";
+import { IconClose } from "@/components/icons";
 
 const SRC = "/img/tasdiqlovchi-badge.webp";
 
@@ -123,17 +122,6 @@ function VerifiedModal({ name, subtitle, onClose }: { name?: string; subtitle?: 
     };
   }, [onClose]);
 
-  const checks = [
-    { Icon: IconPhone, k: "c1" },
-    { Icon: IconFileText, k: "c2" },
-    { Icon: IconUser, k: "c3" },
-    { Icon: IconShieldCheck, k: "c4" },
-  ];
-  const means = [
-    { Icon: IconLock, k: "m1" },
-    { Icon: IconStarRate, k: "m2" },
-    { Icon: IconAlert, k: "m3" },
-  ];
   const stop = (e: MouseEvent) => e.stopPropagation();
 
   return createPortal(
@@ -156,36 +144,8 @@ function VerifiedModal({ name, subtitle, onClose }: { name?: string; subtitle?: 
             </p>
           ) : null}
         </div>
-        <div className="vmodal__sect">
-          <b className="vmodal__h">{t("checkedTitle")}</b>
-          <ul className="vmodal__list">
-            {checks.map(({ Icon, k }, i) => (
-              <li key={k} style={{ animationDelay: `${0.15 + i * 0.07}s` }}>
-                <i>
-                  <Icon />
-                </i>
-                <span>{t(k)}</span>
-                <IconCheck className="vmodal__ok" />
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="vmodal__sect">
-          <b className="vmodal__h">{t("meansTitle")}</b>
-          <ul className="vmodal__means">
-            {means.map(({ Icon, k }, i) => (
-              <li key={k} style={{ animationDelay: `${0.45 + i * 0.07}s` }}>
-                <Icon />
-                <span>{t(k)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <p className="vmodal__desc">{t("description")}</p>
         <div className="vmodal__foot">
-          <Link href="/warranty" className="vmodal__more" onClick={onClose}>
-            {t("warranty")}
-            <IconArrowRight />
-          </Link>
           <button ref={okRef} type="button" className="btn btn--pri vmodal__okbtn" onClick={onClose}>
             {t("ok")}
           </button>
