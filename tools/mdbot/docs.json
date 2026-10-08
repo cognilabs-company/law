@@ -31,6 +31,11 @@
       "file": "../../md/LEXGO_BACKEND_ASKS_SUPPORT_PRICING_REGLAMENT_2026-10-07.md",
       "title": "Support Assist, narx siyosati, AI reglament — backend uchun (07.10)",
       "description": "LEXGO_SUPPORT_MARKETPLACE_AI_PAYMENT_UPDATE_2026_10_07 bo'yicha: frontend to'liq yozildi (3fda2a7), lekin backend qismlari production'da yo'q — assist/urgent-advokat-request 404, /admin/ai/support/reglaments 404, marketplace_pricing bo'limi yo'q, hujjat to'lov darvozasi va event'lar hali yo'q. Ichida: deploy so'rovi, har bo'lim bo'yicha javob shakli savollari, operator uchun realtime, AI tarixini tiketda saqlash (create_support_ticket_record context'ni tashlab yuboradi), support_fallback doim true muammosi, narx siyosati merge/422/modifiers, reglament versiya/upload/gaps savollari."
+    },
+    {
+      "file": "../../md/LEXGO_BACKEND_ASKS_STUDIO_2026-10-08.md",
+      "title": "Studio konstruktorlari — backend uchun (08.10)",
+      "description": "LEXGO_STUDIO_CONSTRUCTORS_FRONTEND_2026_10_07 bo'yicha: frontend to'liq tayyor (13 ekran, K05/K06/K14/K16/K20 muharrirlari), lekin /studio/* va /admin/studio/* production'da va GitHub'da yo'q (404). Ichida: deploy + sync so'rovi, /admin/studio/access shartnomasi, ro'yxat/detal/versiya shakllari, holatlar (reject, published save, rollback), tasdiqlash, fayl, 422 xato formati, har konstruktor bo'yicha savollar, heartbeat/monitoring, realtime kanal masalasi; 07.10 support MD hali deploy qilinmagani eslatmasi."
     }
   ]
 }
