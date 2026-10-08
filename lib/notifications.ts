@@ -165,7 +165,7 @@ export function templateVars(data: Dict, title: string, body: string): NotifTemp
 
 // Portal route a notification can open, or "" when there is no fitting page.
 // `role` is the UI role (client | lawyer | advocate) that prefixes portal URLs.
-export function notifLink(event: string, category: NotifCategory, data: Dict, role: string, staff = false): string {
+export function notifLink(event: string, category: NotifCategory, data: Dict, role: string, staff = false, callCenter = false): string {
   const roomId = asStr(data.room_id).trim();
   if (roomId && (event === "secure_chat_message" || event === "meeting_invite" || category === "chat")) {
     const callId = asStr(data.call_id).trim();
@@ -174,7 +174,10 @@ export function notifLink(event: string, category: NotifCategory, data: Dict, ro
   if (!role) return "";
   if (event.startsWith("support.")) {
     const ticket = encodeURIComponent(asStr(data.ticket_id).trim());
-    if (event === "support.ticket_created" || event === "support.ticket_transferred_to_you") return ticket ? `/admin/call-center/support/${ticket}` : "/admin/call-center/support";
+    if (event === "support.ticket_created" || event === "support.ticket_transferred_to_you") {
+      if (staff && !callCenter) return "";
+      return staff ? (ticket ? `/admin/call-center/support/${ticket}` : "/admin/call-center/support") : ticket ? `/portal/${role}/support?ticket=${ticket}` : `/portal/${role}/support`;
+    }
     return ticket ? `/portal/${role}/support?ticket=${ticket}` : `/portal/${role}/support`;
   }
   if (event.startsWith("quality_complaint.") && (staff || role === "client")) {

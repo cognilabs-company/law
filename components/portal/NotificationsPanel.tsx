@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { hasAdminAccess, useAuth } from "@/lib/auth";
+import { hasAdminAccess, isCallCenterUser, useAuth } from "@/lib/auth";
 import { shortDateTime } from "@/lib/date";
 import { markNotificationRead, markAllNotificationsRead, type NotificationDelivery } from "@/lib/services/backend";
 import { listNotificationsRich, getNotificationCategoryCounts, richNotificationOf, NOTIF_PAGE, type RichNotification, type NotifCategoryCounts } from "@/lib/services/notify";
@@ -111,6 +111,7 @@ export default function NotificationsPanel() {
   const { session } = useAuth();
   const role = session?.role ?? "";
   const staff = hasAdminAccess(session);
+  const callCenter = isCallCenterUser(session);
   const textOf = useNotifText();
   const fmt = (s: string) => shortDateTime(s, locale);
   const [items, setItems] = useState<RichNotification[]>([]);
@@ -388,7 +389,7 @@ export default function NotificationsPanel() {
       ) : (
         <div className="ntlist" data-ai-target="notifications:list">
           {shown.map(({ n, title, body }) => {
-            const link = notifLink(n.event, n.category, n.data, role, staff);
+            const link = notifLink(n.event, n.category, n.data, role, staff, callCenter);
             const via = n.channels.filter((c) => VIA_CHANNELS.includes(c)).map(chLabel);
             return (
               <div key={n.id} className="ntrow">

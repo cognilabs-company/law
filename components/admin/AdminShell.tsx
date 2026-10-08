@@ -3,7 +3,7 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import { useAuth, hasAdminAccess, sessionRoles, canMakeCalls, type AdminPermission } from "@/lib/auth";
+import { useAuth, hasAdminAccess, sessionRoles, canMakeCalls, isCallCenterUser, type AdminPermission } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
 import { useDemoTools } from "@/lib/demoTools";
 import LanguageSwitcher from "../LanguageSwitcher";
@@ -113,7 +113,9 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   {
     group: "support",
     items: [
-      { href: "/admin/call-center/support", key: "supportTickets", Icon: IconHeadset, perm: ["leads.manage", "callcenter.access"] },
+      // The support queue backend checks callcenter.access specifically.
+      // leads.manage alone must not expose a link that will return 403.
+      { href: "/admin/call-center/support", key: "supportTickets", Icon: IconHeadset, perm: "callcenter.access" },
       { href: "/admin/legal-aid", key: "legalAid", Icon: IconScale, perm: "legal_aid.manage" },
       { href: "/admin/notifications", key: "notifications", Icon: IconChat, perm: "notifications.manage" },
     ],
@@ -139,8 +141,9 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
 const NAV: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 // The overview (/admin) matches only itself; other items also cover their
 // sub-pages. A prefix match on /admin would let any page through by URL.
+const EXACT_NAV = new Set(["/admin/call-center"]);
 const onItem = (pathname: string, n: NavItem) =>
-  n.href === "/admin" ? pathname === n.href : pathname === n.href || pathname.startsWith(n.href + "/");
+  n.href === "/admin" || EXACT_NAV.has(n.href) ? pathname === n.href : pathname === n.href || pathname.startsWith(n.href + "/");
 // Most senior role first; the badge shows the first one the account has.
 const BADGE_ORDER = ["superadmin", "admin", "ceo_viewer", "manager", "finance", "quality_control", "moderator", "call_center_lawyer", "call_center", "sales_head", "sales_operator", "sales", "b2b_manager", "marketing", "content_manager"];
 
@@ -181,6 +184,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const canSee = (n: NavItem) =>
     n.key === "internal"
       ? hasInternalAccess(session)
+      : n.key === "supportTickets"
+        ? isCallCenterUser(session)
       : n.key === "testOtps" && demoTools !== true
         ? false
       : n.key === "studio"
