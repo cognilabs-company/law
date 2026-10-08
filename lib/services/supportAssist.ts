@@ -232,6 +232,7 @@ export type AssistUrgentResult = {
   amount: number;
   currency: string;
   immediateCall: boolean;
+  telegramSent: boolean;
   lawyerName: string;
   clientNotified: boolean | null;
   paymentRequired: boolean;
@@ -586,6 +587,8 @@ export function normAssistPreview(v: unknown): AssistPreview {
 
 export function normAssistCheckout(v: unknown): AssistCheckout {
   const d = asDict(v);
+  const payment = asDict(d.payment);
+  const gate = normPayGate(d, payment);
   return {
     id: asStr(d.id),
     workId: asStr(d.work_id),
@@ -595,7 +598,7 @@ export function normAssistCheckout(v: unknown): AssistCheckout {
     planSlug: asStr(d.plan_slug),
     amount: uzs(d, "amount"),
     currency: currencyOf(d.currency),
-    telegramSent: d.telegram_sent === true,
+    telegramSent: d.telegram_sent === true || payment.telegram_sent === true || gate?.telegramSent === true,
   };
 }
 
@@ -632,6 +635,7 @@ export function normAssistMarketResult(v: unknown): AssistMarketResult {
   const pay = asDict(d.payment);
   const pr = asDict(d.purchase_request);
   const prp = asDict(pr.payload);
+  const gate = normPayGate(d, o, pr, pay);
   return {
     workId: asStr(d.work_id) || asStr(prp.work_id) || asStr(det.work_id) || asStr(pr.work_id),
     orderId: asStr(o.id ?? prp.order_id),
@@ -643,11 +647,11 @@ export function normAssistMarketResult(v: unknown): AssistMarketResult {
     nextStatus: asStr(d.next_status),
     amount: uzs(pay, "amount") || uzs(o, "price") || uzs(prp, "amount"),
     currency: currencyOf(pay.currency, o.currency, prp.currency),
-    telegramSent: d.telegram_sent === true,
+    telegramSent: d.telegram_sent === true || pay.telegram_sent === true || gate?.telegramSent === true,
     sellerAfterPayment: d.seller_will_receive_after_payment !== false,
     serviceTitle: titleOf(o.service_title ?? prp.service_title ?? det.service_title),
     lawyerName: asStr(prp.lawyer_name ?? o.lawyer_name ?? det.lawyer_name).trim(),
-    gate: normPayGate(d, o, pr),
+    gate,
   };
 }
 
@@ -657,6 +661,7 @@ export function normAssistUrgentResult(v: unknown): AssistUrgentResult {
   const r = filled(nested) ? nested : d;
   const p = dictOf(r.payload);
   const lawyer = dictOf(d.assigned_lawyer ?? r.assigned_lawyer);
+  const gate = normPayGate(d, r, p);
   return {
     id: firstText(r.id, d.record_id, d.request_id, d.urgent_request_id, d.id),
     workId: firstText(d.work_id, r.work_id, p.work_id),
@@ -667,10 +672,11 @@ export function normAssistUrgentResult(v: unknown): AssistUrgentResult {
     amount: uzs(r, "price") || uzs(p, "price") || uzs(d, "amount", "price"),
     currency: currencyOf(r.currency, p.currency, d.currency),
     immediateCall: flag(d.immediate_call) === true || flag(p.immediate_call) === true,
+    telegramSent: d.telegram_sent === true || gate?.telegramSent === true,
     lawyerName: firstText(lawyer.name, p.assigned_lawyer_name),
     clientNotified: flag(d.client_notified ?? d.notified_client ?? d.client_notification_sent),
     paymentRequired: payRequired(d, r, p),
-    gate: normPayGate(d, r, p),
+    gate,
   };
 }
 

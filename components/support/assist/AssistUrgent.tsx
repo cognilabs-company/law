@@ -273,6 +273,7 @@ export default function AssistUrgent({ ticketId, client, clientName, onDone, onB
         ...(urgentStatus ? [{ key: "status", label: t("result.status"), value: <StatusChip status={urgentStatus} /> }] : []),
         ...(sent.lawyerName ? [{ key: "lawyer", label: t("urgent.lawyer"), value: sent.lawyerName }] : []),
         ...(!phase && sent.amount > 0 ? [{ key: "amount", label: t("urgent.price"), value: sumText(t, sent.amount, sent.currency) }] : []),
+        { key: "tg", label: t("result.telegram"), value: sent.telegramSent ? t("result.telegramSent") : t("result.telegramFailed") },
       ]
     : [];
 
