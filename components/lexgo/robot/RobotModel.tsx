@@ -32,8 +32,8 @@ import type { RobotEventName, RobotEventPayload, RobotExpression } from "./robot
 // of them — while touching nothing that belongs to the head or body.
 const POD_PAD: readonly [number, number, number] = [0.055, 0.075, 0.075];
 const FIXED_POD_ZONES = [
-  { sign: 1, min: new THREE.Vector3(0.1, -0.07, -0.24), max: new THREE.Vector3(0.27, 0.35, 0.27) },
-  { sign: -1, min: new THREE.Vector3(-0.27, -0.07, -0.24), max: new THREE.Vector3(-0.1, 0.35, 0.27) },
+  { sign: 1, min: new THREE.Vector3(0.1, -0.07, -0.24), max: new THREE.Vector3(0.34, 0.35, 0.27) },
+  { sign: -1, min: new THREE.Vector3(-0.34, -0.07, -0.24), max: new THREE.Vector3(-0.1, 0.35, 0.27) },
 ];
 
 type Shell = {
