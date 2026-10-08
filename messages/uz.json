@@ -7515,6 +7515,27 @@
         "error": "Xatolik yuz berdi. Qayta urining."
       },
       "documentRequests": {
+        "whyBlocked": "Nega advokatga yuborib bo'lmaydi?",
+        "actSend": "Advokatga yuborish",
+        "actChat": "Chat",
+        "actContinue": "Davom etish",
+        "priceNone": "Qo'shimcha to'lov yo'q",
+        "priceInfo": "Xizmat narxi",
+        "priceCancelled": "To'lov bekor qilindi",
+        "pricePaid": "To'langan",
+        "priceWait": "To'lov tasdig'i kutilmoqda",
+        "nowLabel": "Hozir",
+        "flowFail": "Bekor qilindi",
+        "flowSkip": "Kerak emas",
+        "flowTodo": "Keyingi bosqich",
+        "flowNow": "Hozir shu yerda",
+        "flowPaid": "To'landi",
+        "flowDone": "Bajarildi",
+        "flowStepReady": "Tayyor",
+        "flowStepReview": "Advokat tekshiruvi",
+        "flowStepPay": "To'lov",
+        "flowStepFill": "Ma'lumot",
+        "flowLabel": "Hujjat jarayoni",
         "opCreated": "Operator siz uchun hujjat so'rovi yaratdi",
         "pay": {
           "wait": {

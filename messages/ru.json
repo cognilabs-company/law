@@ -7509,6 +7509,27 @@
         "error": "Произошла ошибка. Попробуйте ещё раз."
       },
       "documentRequests": {
+        "whyBlocked": "Почему нельзя отправить юристу?",
+        "actSend": "Отправить юристу",
+        "actChat": "Чат",
+        "actContinue": "Продолжить",
+        "priceNone": "Без доплаты",
+        "priceInfo": "Стоимость услуги",
+        "priceCancelled": "Оплата отменена",
+        "pricePaid": "Оплачено",
+        "priceWait": "Ожидает подтверждения оплаты",
+        "nowLabel": "Сейчас",
+        "flowFail": "Отменено",
+        "flowSkip": "Не требуется",
+        "flowTodo": "Следующий этап",
+        "flowNow": "Сейчас здесь",
+        "flowPaid": "Оплачено",
+        "flowDone": "Выполнено",
+        "flowStepReady": "Готово",
+        "flowStepReview": "Проверка юристом",
+        "flowStepPay": "Оплата",
+        "flowStepFill": "Данные",
+        "flowLabel": "Ход документа",
         "opCreated": "Оператор создал для вас запрос на документ",
         "pay": {
           "wait": {

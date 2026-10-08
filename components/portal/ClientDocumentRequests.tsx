@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import {
@@ -32,8 +32,29 @@ import { shortDateTime } from "@/lib/date";
 import { docNextActionKey, statusLabel } from "@/lib/labels";
 import { matchesSearch } from "@/lib/searchText";
 import { Link, useRouter } from "@/i18n/navigation";
-import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconArrowRight, IconTag, IconCheck, IconSearch, IconCircleCheck, IconCircleX, IconHourglass } from "@/components/icons";
+import { IconFileText, IconDownload, IconUser, IconClock, IconVideo, IconChat, IconSparkle, IconScale, IconEdit, IconTag, IconSearch, IconCircleCheck } from "@/components/icons";
 import { useAiReveal } from "@/lib/guide/targets";
+import {
+  KIND_ICON,
+  docKindOf,
+  ModeSelf,
+  ModeAi,
+  ModeLawyer,
+  StepFill,
+  StepPay,
+  StepReview,
+  StepReady,
+  IcoCheck,
+  IcoCross,
+  IcoMinus,
+  IcoInfo,
+  IcoStack,
+  PriceWait,
+  PricePaid,
+  PriceCancelled,
+  PriceTag,
+  PriceIncluded,
+} from "./docs/DocIcons";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 
@@ -41,10 +62,10 @@ import { useAiField, useAiSelection } from "@/lib/ai/registry";
 // AI drafted it, or an advocate is writing it. It changes what the card
 // means, so it leads the card rather than hiding in a filter chip.
 const MODE_ICON = { manual: IconEdit, ai: IconSparkle, lawyer: IconScale } as const;
+const MODE_BADGE = { manual: ModeSelf, ai: ModeAi, lawyer: ModeLawyer } as const;
 
 type RowPhase = DocPayPhase | "pooled";
 const POOL_STATUSES = new Set(["open_pool", "lawyer_review_requested"]);
-const PHASE_ICON = { wait: IconHourglass, pooled: IconCircleCheck, cancelled: IconCircleX } as const;
 
 // Where a request has got to, as one of four states rather than six slugs.
 // The pill is coloured by this, so the list can be read down its right edge:
@@ -88,22 +109,35 @@ const STEP_OF: Record<string, Step> = {
   rated: "ready",
 };
 
-function railOf(item: ClientDocFlowItem, status: string, phase: RowPhase): { steps: Step[]; at: number } | null {
-  if (phase === "cancelled") return null;
-  const cur: Step | undefined = phase === "wait" ? "pay" : phase === "pooled" ? "review" : STEP_OF[status];
-  if (!cur) return null;
-  const steps: Step[] = ["fill"];
-  if (item.payment.required || cur === "pay") steps.push("pay");
-  if (item.mode === "lawyer" || item.lawyerRequestActive || !!item.assignedLawyer || cur === "review") steps.push("review");
-  steps.push("ready");
-  return { steps, at: steps.indexOf(cur) };
+const FLOW: Step[] = ["fill", "pay", "review", "ready"];
+const STEP_ICON = { fill: StepFill, pay: StepPay, review: StepReview, ready: StepReady } as const;
+const STEP_KEY = { fill: "flowStepFill", pay: "flowStepPay", review: "flowStepReview", ready: "flowStepReady" } as const;
+type StepState = "done" | "now" | "todo" | "skip" | "fail";
+
+function flowOf(item: ClientDocFlowItem, status: string, phase: RowPhase, tone: Tone): { state: Record<Step, StepState>; payDone: boolean } | null {
+  const closed = tone === "closed";
+  if (closed && !item.file.ready) return null;
+  let cur: Step | undefined = phase === "wait" || phase === "cancelled" ? "pay" : phase === "pooled" ? "review" : STEP_OF[status];
+  if (closed || (!cur && item.file.ready)) cur = "ready";
+  if (!cur) cur = item.mode === "lawyer" || item.lawyerRequestActive ? "review" : "fill";
+  const needPay = item.payment.required || cur === "pay" || phase === "pooled";
+  const needReview = item.mode === "lawyer" || item.lawyerRequestActive || !!item.assignedLawyer || cur === "review" || phase === "pooled";
+  const at = FLOW.indexOf(cur);
+  const state = {} as Record<Step, StepState>;
+  FLOW.forEach((st, i) => {
+    if ((st === "pay" && !needPay) || (st === "review" && !needReview)) state[st] = "skip";
+    else if (cur === "ready" || i < at) state[st] = "done";
+    else if (i === at) state[st] = phase === "cancelled" ? "fail" : "now";
+    else state[st] = "todo";
+  });
+  return { state, payDone: needPay && state.pay === "done" };
 }
 
 const VIEWS = [
-  { key: "all", status: "", Icon: IconFileText, tone: "neutral" },
-  { key: "filling", status: "questionnaire", Icon: IconEdit, tone: "warn" },
-  { key: "lawyer", status: "lawyer_review", Icon: IconScale, tone: "active" },
-  { key: "ready", status: "file_ready", Icon: IconCheck, tone: "ok" },
+  { key: "all", status: "", Icon: IcoStack, tone: "neutral" },
+  { key: "filling", status: "questionnaire", Icon: StepFill, tone: "warn" },
+  { key: "lawyer", status: "lawyer_review", Icon: StepReview, tone: "active" },
+  { key: "ready", status: "file_ready", Icon: StepReady, tone: "ok" },
 ] as const;
 const VIEW_LABEL = { all: "statTotal", filling: "statFilling", lawyer: "statLawyer", ready: "statReady" } as const;
 
@@ -492,24 +526,116 @@ export default function ClientDocumentRequests() {
 
   function card({ item, room, ready, phase, shownStatus, tone }: ReturnType<typeof describe>) {
     const ModeIcon = MODE_ICON[item.mode as keyof typeof MODE_ICON] ?? IconFileText;
-    const PhaseIcon = phase ? PHASE_ICON[phase] : null;
+    const Badge = MODE_BADGE[item.mode as keyof typeof MODE_BADGE] ?? ModeSelf;
+    const kind = docKindOf(item.requestedDocumentType, item.title, item.service?.name ?? "");
+    const KindIcon = KIND_ICON[kind];
     const payCur = item.payment.currency && !/^uzs$/i.test(item.payment.currency) ? item.payment.currency : tcommon("som");
-    const payAmount = phase === "wait" && item.payment.amount > 0 ? `${fmtUzs(item.payment.amount)} ${payCur}` : "";
     const canContinue = !!item.constructorAction?.available && !!(item.constructorUrls.continueUrl || item.constructorAction?.continueUrl);
     const blocked = !item.canSendLawyerRequest;
-    const canSend = (item.mode === "manual" && tone !== "closed" && phase !== "wait" && phase !== "pooled") || blocked;
+    const canSend = item.mode === "manual" && tone !== "closed" && phase !== "wait" && phase !== "pooled" && !blocked;
+    const why = blocked && item.lawyerRequestBlockReason && item.mode === "manual" && !ready && tone !== "closed" ? item.lawyerRequestBlockReason : "";
     const info = rated[item.id];
-    const acts = !!room || ready || canContinue || canSend;
     const workId = item.workId || info?.workId || "";
     const itemAi = aiId("documents.my.item", item.id);
     const modeText = t.has(`tab_${item.mode}`) ? t(`tab_${item.mode}`) : item.mode;
     const statusText = shownStatus === item.status ? statusLabel(tcm, item.status, "docStatus") || item.statusLabel : statusLabel(tcm, shownStatus, "docStatus");
-    const rail = tone === "closed" ? null : railOf(item, shownStatus, phase);
-    const railDone = rail ? rail.steps[rail.at] === "ready" : false;
-    const continueMain = !ready && tone === "you";
+    const flow = flowOf(item, shownStatus, phase, tone);
+    const servicePrice = item.service?.price ?? 0;
+    const amount = item.payment.amount > 0 ? item.payment.amount : servicePrice > 0 ? servicePrice : 0;
+    const price =
+      phase === "wait"
+        ? { kind: "wait", Icon: PriceWait, label: t("priceWait") }
+        : phase === "cancelled"
+          ? { kind: "off", Icon: PriceCancelled, label: t("priceCancelled") }
+          : flow?.payDone && amount
+            ? { kind: "paid", Icon: PricePaid, label: t("pricePaid") }
+            : amount
+              ? { kind: "info", Icon: PriceTag, label: t("priceInfo") }
+              : !item.payment.required && item.mode !== "lawyer" && tone !== "closed"
+                ? { kind: "none", Icon: PriceIncluded, label: "" }
+                : null;
+    const nowTitle = phase ? t(`pay.${phase}.title`) : item.nextAction ? nextActionText(item.nextAction) : "";
+    const nowText = phase ? t(`pay.${phase}.text`) : "";
+    type ActKey = "download" | "continue" | "chat" | "send";
+    const reviewing = flow?.state.review === "now";
+    const primary: ActKey | "" = reviewing && room ? "chat" : ready ? "download" : canContinue && (tone === "you" || !room) ? "continue" : room ? "chat" : canSend ? "send" : "";
+    const btn = (key: ActKey) => `btn ${primary === key ? "btn--grad" : "btn--line"} btn--sm mdc__btn`;
+    const acts: { key: ActKey; node: ReactNode }[] = [];
+    if (ready)
+      acts.push({
+        key: "download",
+        node: (
+          <button key="download" type="button" className={btn("download")} disabled={dlBusy === item.id} onClick={() => download(item)} data-ai-id={aiId(itemAi, "download")} data-ai-label={t("download")}>
+            <IconDownload />
+            {dlBusy === item.id ? tcommon("processingShort") : t("download")}
+          </button>
+        ),
+      });
+    if (canContinue)
+      acts.push({
+        key: "continue",
+        node: (
+          <button
+            key="continue"
+            type="button"
+            className={btn("continue")}
+            disabled={!!openBusy}
+            onClick={() => (item.constructorAction?.promptRequired ? setPromptId(item.id) : void openConstructor(item))}
+            data-ai-id={aiId(itemAi, "continue")}
+            data-ai-label={t("constructorContinue")}
+            title={t("constructorContinue")}
+          >
+            <IconEdit />
+            {openBusy === item.id ? tcommon("processingShort") : t("actContinue")}
+          </button>
+        ),
+      });
+    if (room)
+      acts.push({
+        key: "chat",
+        node: (
+          <Link key="chat" href={`/portal/chat/${room}`} className={btn("chat")} data-ai-id={aiId(itemAi, "chat")} data-ai-label={t("openChat")}>
+            <IconChat />
+            {t("actChat")}
+          </Link>
+        ),
+      });
+    if (canSend)
+      acts.push({
+        key: "send",
+        node: (
+          <button
+            key="send"
+            type="button"
+            className={btn("send")}
+            disabled={sendBusy}
+            onClick={() => {
+              setSendId(item.id);
+              setSendNeed("");
+            }}
+            data-ai-id={aiId(itemAi, "review")}
+            data-ai-label={tcommon("reviewOpen")}
+            title={tcommon("reviewOpen")}
+          >
+            <StepReview />
+            {t("actSend")}
+          </button>
+        ),
+      });
+    acts.sort((x, y) => (x.key === primary ? 1 : 0) - (y.key === primary ? 1 : 0));
+    const cls = [
+      "mdc",
+      `mdc--${tone}`,
+      ready ? "mdc--ready" : "",
+      tone === "closed" || tone === "off" ? "mdc--closed" : "",
+      promptId === item.id ? "mdc--flag" : "",
+      fresh.includes(item.id) ? "mdc--fresh" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     return (
       <article
-        className={`mydoc mydoc--${item.mode}${ready ? " mydoc--ready" : ""}${tone === "closed" || tone === "off" ? " mydoc--closed" : ""}${promptId === item.id ? " mydoc--flag" : ""}${fresh.includes(item.id) ? " mydoc--fresh" : ""}${acts ? " mydoc--acts" : ""}`}
+        className={cls}
         key={item.id}
         data-ai-id={itemAi}
         data-ai-type="list_item"
@@ -518,114 +644,149 @@ export default function ClientDocumentRequests() {
         data-ai-entity-id={item.id}
         data-ai-private
       >
-        <span className={`mydoc__i mydoc__i--${item.mode}`} aria-hidden><ModeIcon /></span>
-        <div className="mydoc__m">
-          <b className="mydoc__t">{item.title || t("title")}</b>
-          <div className="mydoc__row">
-            {workId ? <small className="mydoc__wid" title={t("workId")}>{workId}</small> : null}
-            <small className="mydoc__mode"><ModeIcon />{modeText}</small>
-            {item.requestedDocumentType ? (
-              <small className="mydoc__kind"><IconTag />{item.requestedDocumentType}</small>
-            ) : null}
-            {item.assignedLawyer?.name ? <small><IconUser />{item.assignedLawyer.name}</small> : null}
-            {item.meeting ? (
-              <small className={item.meeting.active ? "mydoc__live" : undefined}>
-                <IconVideo />
-                {item.meeting.active ? t("meetingActive") : item.meeting.status || t("meetingLabel")}
-              </small>
-            ) : null}
-            {item.createdAt ? <small><IconClock />{shortDateTime(item.createdAt, locale)}</small> : null}
-          </div>
-          {rail ? (
-            <div
-              className={`mydoc__rail${railDone ? " mydoc__rail--done" : ""}`}
-              style={{ "--n": rail.steps.length } as CSSProperties}
-              role="img"
-              aria-label={t("stepOf", { n: rail.at + 1, total: rail.steps.length, label: t(`step_${rail.steps[rail.at]}`) })}
-            >
-              {rail.steps.map((s, i) => (
-                <span key={s} className={`mydoc__step mydoc__step--${i < rail.at || railDone ? "done" : i === rail.at ? "now" : "todo"}`} aria-hidden>
-                  <i />
-                  <small>{t(`step_${s}`)}</small>
-                </span>
-              ))}
-            </div>
-          ) : null}
-          {phase && PhaseIcon ? (
-            <div
-              className={`mydoc__pay mydoc__pay--${phase}`}
-              role="status"
-              data-ai-id={phase === "wait" ? aiId(itemAi, "payment") : undefined}
-              data-ai-type={phase === "wait" ? "payment_gate" : undefined}
-              data-ai-label={phase === "wait" ? t(`pay.${phase}.title`) : undefined}
-            >
-              <span className="mydoc__payi" aria-hidden="true"><PhaseIcon /></span>
-              <span className="mydoc__payt">
-                <b>{t(`pay.${phase}.title`)}</b>
-                <small>{t(`pay.${phase}.text`)}</small>
-              </span>
-              {payAmount ? <em className="mydoc__paysum">{payAmount}</em> : null}
-            </div>
-          ) : item.nextAction ? <p className="mydoc__next"><IconArrowRight />{nextActionText(item.nextAction)}</p> : null}
-          {info ? <DocRatingBox id={item.id} rating={info.rating} onRated={refresh} /> : null}
-          {blocked && item.lawyerRequestBlockReason ? <p className="mydoc__block">{item.lawyerRequestBlockReason}</p> : null}
-        </div>
-        <div className="mydoc__side">
-          <span className="mydoc__corner">
-            <em className={`mydoc__st mydoc__st--${tone}`}>{statusText}</em>
-            {info?.rating.submitted && info.rating.value ? <DocRatedStars value={info.rating.value} /> : null}
+        <header className="mdc__h">
+          <span className={`mdc__ic mdc__ic--${kind}`} aria-hidden>
+            <KindIcon />
+            <span className={`mdc__badge mdc__badge--${item.mode}`}>
+              <Badge />
+            </span>
           </span>
-          {acts ? (
-            <div className="mydoc__acts">
-              {ready ? (
-                <button
-                  type="button"
-                  className="btn btn--grad btn--sm"
-                  disabled={dlBusy === item.id}
-                  onClick={() => download(item)}
-                  data-ai-id={aiId(itemAi, "download")}
-                  data-ai-label={t("download")}
-                >
-                  <IconDownload />
-                  {dlBusy === item.id ? tcommon("processingShort") : t("download")}
-                </button>
+          <div className="mdc__ht">
+            <div className="mdc__tl">
+              <b className="mdc__t">{item.title || t("title")}</b>
+              <em className={`mdc__st mdc__st--${tone}`}>{statusText}</em>
+            </div>
+            <div className="mdc__meta">
+              <span className={`mdc__mode mdc__mode--${item.mode}`}>
+                <ModeIcon />
+                {modeText}
+              </span>
+              {workId ? (
+                <span className="mdc__wid" title={t("workId")}>
+                  {workId}
+                </span>
               ) : null}
-              {canContinue ? (
-                <button
-                  type="button"
-                  className={`btn ${continueMain ? "btn--grad" : "btn--line"} btn--sm`}
-                  disabled={!!openBusy}
-                  onClick={() => (item.constructorAction?.promptRequired ? setPromptId(item.id) : void openConstructor(item))}
-                  data-ai-id={aiId(itemAi, "continue")}
-                  data-ai-label={t("constructorContinue")}
-                >
-                  <IconEdit />
-                  {openBusy === item.id ? tcommon("processingShort") : t("constructorContinue")}
-                </button>
+              {item.requestedDocumentType ? (
+                <span>
+                  <IconTag />
+                  {item.requestedDocumentType}
+                </span>
               ) : null}
-              {room ? (
-                <Link href={`/portal/chat/${room}`} className="btn btn--line btn--sm" data-ai-id={aiId(itemAi, "chat")} data-ai-label={t("openChat")}>
-                  <IconChat />
-                  {t("openChat")}
-                </Link>
+              {item.assignedLawyer?.name ? (
+                <span>
+                  <IconUser />
+                  {item.assignedLawyer.name}
+                </span>
               ) : null}
-              {canSend ? (
-                <button
-                  type="button"
-                  className="btn btn--line btn--sm"
-                  disabled={blocked || sendBusy}
-                  title={blocked ? item.lawyerRequestBlockReason || undefined : undefined}
-                  onClick={() => { setSendId(item.id); setSendNeed(""); }}
-                  data-ai-id={aiId(itemAi, "review")}
-                  data-ai-label={tcommon("reviewOpen")}
-                >
-                  <IconScale />
-                  {tcommon("reviewOpen")}
-                </button>
+              {item.meeting ? (
+                <span className={item.meeting.active ? "mdc__live" : undefined}>
+                  <IconVideo />
+                  {item.meeting.active ? t("meetingActive") : item.meeting.status || t("meetingLabel")}
+                </span>
+              ) : null}
+              {item.createdAt ? (
+                <span>
+                  <IconClock />
+                  {shortDateTime(item.createdAt, locale)}
+                </span>
               ) : null}
             </div>
+          </div>
+          {info?.rating.submitted && info.rating.value ? (
+            <span className="mdc__stars">
+              <DocRatedStars value={info.rating.value} />
+            </span>
           ) : null}
-        </div>
+        </header>
+
+        {flow ? (
+          <ol className="mdc__flow" aria-label={t("flowLabel")}>
+            {FLOW.map((st) => {
+              const state = flow.state[st];
+              const Ico = STEP_ICON[st];
+              const sub =
+                state === "done"
+                  ? st === "pay"
+                    ? t("flowPaid")
+                    : t("flowDone")
+                  : state === "now"
+                    ? t("flowNow")
+                    : state === "skip"
+                      ? t("flowSkip")
+                      : state === "fail"
+                        ? t("flowFail")
+                        : t("flowTodo");
+              return (
+                <li key={st} className={`mdc__step mdc__step--${state}`} aria-current={state === "now" ? "step" : undefined}>
+                  <span className="mdc__dot" aria-hidden>
+                    {state === "done" ? <IcoCheck /> : state === "fail" ? <IcoCross /> : state === "skip" ? <IcoMinus /> : <Ico />}
+                  </span>
+                  <span className="mdc__sl">
+                    <b>{t(STEP_KEY[st])}</b>
+                    <small>{sub}</small>
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        ) : null}
+
+        {nowTitle ? (
+          <div
+            className={`mdc__now mdc__now--${phase || tone}`}
+            role={phase ? "status" : undefined}
+            data-ai-id={phase === "wait" ? aiId(itemAi, "payment") : undefined}
+            data-ai-type={phase === "wait" ? "payment_gate" : undefined}
+            data-ai-label={phase === "wait" ? t("pay.wait.title") : undefined}
+          >
+            <span className="mdc__nowk">{t("nowLabel")}</span>
+            <span className="mdc__nowt">
+              <b>{nowTitle}</b>
+              {nowText ? <small>{nowText}</small> : null}
+            </span>
+          </div>
+        ) : null}
+
+        {info ? <DocRatingBox id={item.id} rating={info.rating} onRated={refresh} /> : null}
+
+        {price || acts.length || why ? (
+          <footer className="mdc__f">
+            {price ? (
+              <div className={`mdc__price mdc__price--${price.kind}`}>
+                <span className="mdc__pi" aria-hidden>
+                  <price.Icon />
+                </span>
+                {price.kind === "none" ? (
+                  <span className="mdc__pt">
+                    <b className="mdc__pnone">{t("priceNone")}</b>
+                  </span>
+                ) : (
+                  <span className="mdc__pt">
+                    {amount ? (
+                      <b>
+                        {fmtUzs(amount)} <i>{payCur}</i>
+                      </b>
+                    ) : null}
+                    <small>{price.label}</small>
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span />
+            )}
+            <div className="mdc__acts">
+              {why ? (
+                <details className="mdc__why">
+                  <summary aria-label={t("whyBlocked")} title={t("whyBlocked")}>
+                    <IcoInfo />
+                  </summary>
+                  <p role="note">{why}</p>
+                </details>
+              ) : null}
+              {acts.map((a) => a.node)}
+            </div>
+          </footer>
+        ) : null}
       </article>
     );
   }

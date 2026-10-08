@@ -7509,6 +7509,27 @@
         "error": "Something went wrong. Please try again."
       },
       "documentRequests": {
+        "whyBlocked": "Why can't I send it to a lawyer?",
+        "actSend": "Send to a lawyer",
+        "actChat": "Chat",
+        "actContinue": "Continue",
+        "priceNone": "No extra charge",
+        "priceInfo": "Service price",
+        "priceCancelled": "Payment cancelled",
+        "pricePaid": "Paid",
+        "priceWait": "Awaiting payment confirmation",
+        "nowLabel": "Now",
+        "flowFail": "Cancelled",
+        "flowSkip": "Not needed",
+        "flowTodo": "Next step",
+        "flowNow": "You are here",
+        "flowPaid": "Paid",
+        "flowDone": "Done",
+        "flowStepReady": "Ready",
+        "flowStepReview": "Lawyer review",
+        "flowStepPay": "Payment",
+        "flowStepFill": "Details",
+        "flowLabel": "Document progress",
         "opCreated": "An operator created a document request for you",
         "pay": {
           "wait": {
