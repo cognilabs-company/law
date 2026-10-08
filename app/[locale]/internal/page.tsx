@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ApiError, asDict, asNum, asStr } from "@/lib/http";
+import { subscribeUserEvents } from "@/lib/userSocket";
 import { getMyMessages, getMyTasks, getMyToday, type InternalRecord, type InternalTask } from "@/lib/services/internalHrm";
 import { IconBriefcase, IconCalendar, IconChat, IconRefresh } from "@/components/icons";
 
@@ -40,6 +41,7 @@ export default function InternalDashboard() {
     void Promise.resolve().then(() => load(controller.signal));
     return () => controller.abort();
   }, []);
+  useEffect(() => subscribeUserEvents((event) => { if (event.event.startsWith("internal.")) void load(); }), []);
 
   const today = data?.today ?? {};
   const stats = [
