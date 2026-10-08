@@ -21,6 +21,7 @@ import {
 } from "@/lib/services/backend";
 import { loadAutopay, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
 import { useAuth } from "@/lib/auth";
+import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
 import { useSellerCabinet } from "./SellerCabinet";
@@ -190,6 +191,30 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
     };
   }, [uid]);
   const currentPlanName = autopay?.subscription?.planName || "";
+  const refreshPayments = payments.refresh;
+  const refreshPlans = res.refresh;
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void refreshPayments();
+        void refreshPlans();
+        if (uid) loadAutopay(uid).then(setAutopay).catch(() => { /* keep the current state */ });
+      }, 400);
+    };
+    const off = subscribeUserEvents((event) => {
+      const name = event.event;
+      if (name === "support.assist_subscription_checkout_created" || name.startsWith("subscription.")) refresh();
+    });
+    const offSync = onUserSocketResync(refresh);
+    return () => {
+      if (timer) clearTimeout(timer);
+      off();
+      offSync();
+    };
+  }, [refreshPayments, refreshPlans, uid]);
 
   // /payments reports kind = Payment.target_type, i.e. "subscription_plan";
   // "subscription" is kept for older rows.

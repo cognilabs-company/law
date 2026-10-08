@@ -416,6 +416,20 @@ export type MarketSignal = { kind: "paid" | "rejected" | "requested" | "other"; 
 
 export function marketSignalOf(ev: { event: string } & Record<string, unknown>): MarketSignal | null {
   const name = ev.event;
+  if (name === "support.assist_marketplace_purchase_requested") {
+    const action = asDict(ev.action ?? asDict(ev.message).action);
+    const order = asDict(action.order);
+    const request = asDict(action.purchase_request);
+    const details = asDict(order.details);
+    const chat = asStr(order.chat_url ?? action.chat_url);
+    return {
+      kind: "requested",
+      orderId: asStr(order.id ?? action.order_id),
+      workId: asStr(action.work_id ?? order.work_id ?? request.work_id),
+      roomId: asStr(order.secure_chat_room_id ?? action.room_id) || (ROOM_RE.exec(chat)?.[1] ?? ""),
+      serviceTitle: asStr(order.service_title ?? details.service_title ?? request.service_title),
+    };
+  }
   if (name.startsWith("marketplace.")) {
     const kind = /paid|approved/.test(name) ? "paid" : /reject|cancel/.test(name) ? "rejected" : "other";
     const chat = asStr(ev.chat_url);

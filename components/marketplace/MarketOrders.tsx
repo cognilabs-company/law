@@ -101,15 +101,6 @@ export default function MarketOrders({ view }: { view: View }) {
     };
   }, [load]);
 
-  const hasPending = view === "client" && orders.some((o) => marketStageOf(o) === "pending");
-  useEffect(() => {
-    if (!hasPending) return;
-    const h = setInterval(() => {
-      if (document.visibilityState === "visible") void load(true);
-    }, 15000);
-    return () => clearInterval(h);
-  }, [hasPending, load]);
-
   useEffect(() => {
     if (!flash) return;
     const h = setTimeout(() => setFlash(""), 3500);
