@@ -141,8 +141,6 @@ export default function RobotFace({
   const mouthOpenMaterialRef = useRef<THREE.MeshBasicMaterial>(null);
   const blinkPhaseRef = useRef(0);
   const nextBlinkRef = useRef(3.1);
-  const cameraWorldPositionRef = useRef(new THREE.Vector3());
-  const cameraLocalPositionRef = useRef(new THREE.Vector3());
 
   useLayoutEffect(() => {
     const group = groupRef.current;
@@ -155,23 +153,9 @@ export default function RobotFace({
     };
   }, [head]);
 
-  useFrame(({ camera }, delta) => {
+  useFrame((_, delta) => {
     const style = FACE_STYLES[expression] ?? FACE_STYLES.default;
     const explicitBlink = expression === "blink";
-
-    const group = groupRef.current;
-    if (group && head) {
-      head.updateWorldMatrix(true, false);
-      camera.getWorldPosition(cameraWorldPositionRef.current);
-      cameraLocalPositionRef.current.copy(cameraWorldPositionRef.current);
-      head.worldToLocal(cameraLocalPositionRef.current);
-      const faceSide = cameraLocalPositionRef.current.z >= 0 ? 1 : -1;
-      const targetZ = faceSide * 0.34;
-      const targetRotationY = faceSide > 0 ? 0 : Math.PI;
-      const anchorSmooth = Math.min(1, delta * 18);
-      group.position.z = THREE.MathUtils.lerp(group.position.z, targetZ, anchorSmooth);
-      group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, targetRotationY, anchorSmooth);
-    }
 
     if (!explicitBlink) {
       if (blinkPhaseRef.current > 0) {
@@ -226,42 +210,42 @@ export default function RobotFace({
   });
 
   return (
-    <group ref={groupRef} position={[0, 0.17, 0.34]} renderOrder={20} frustumCulled={false}>
+    <group ref={groupRef} position={[0, 0.17, 0.23]} renderOrder={20} frustumCulled={false}>
       <mesh renderOrder={20}>
         <planeGeometry args={[0.2, 0.14]} />
-        <meshBasicMaterial color="#07111e" transparent opacity={0.92} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial color="#07111e" transparent opacity={0.92} depthWrite={false} />
       </mesh>
       <mesh ref={leftEyeRef} position={[-0.052, 0.028, 0.018]} renderOrder={21}>
         <sphereGeometry args={[0.027, 16, 10]} />
-        <meshBasicMaterial ref={leftEyeMaterialRef} color="#73dcff" transparent opacity={0.98} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial ref={leftEyeMaterialRef} color="#73dcff" transparent opacity={0.98} depthWrite={false} />
       </mesh>
       <mesh ref={rightEyeRef} position={[0.052, 0.028, 0.018]} renderOrder={21}>
         <sphereGeometry args={[0.027, 16, 10]} />
-        <meshBasicMaterial ref={rightEyeMaterialRef} color="#73dcff" transparent opacity={0.98} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial ref={rightEyeMaterialRef} color="#73dcff" transparent opacity={0.98} depthWrite={false} />
       </mesh>
       <mesh ref={leftPupilRef} position={[-0.052, 0.028, 0.024]} scale={[0.44, 0.44, 0.2]} renderOrder={22}>
         <sphereGeometry args={[0.027, 16, 10]} />
-        <meshBasicMaterial ref={leftPupilMaterialRef} color="#73dcff" transparent opacity={0.88} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial ref={leftPupilMaterialRef} color="#73dcff" transparent opacity={0.88} depthWrite={false} />
       </mesh>
       <mesh ref={rightPupilRef} position={[0.052, 0.028, 0.024]} scale={[0.44, 0.44, 0.2]} renderOrder={22}>
         <sphereGeometry args={[0.027, 16, 10]} />
-        <meshBasicMaterial ref={rightPupilMaterialRef} color="#73dcff" transparent opacity={0.88} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial ref={rightPupilMaterialRef} color="#73dcff" transparent opacity={0.88} depthWrite={false} />
       </mesh>
       <mesh ref={leftBrowRef} position={[-0.052, 0.073, 0.02]} scale={[0.86, 1, 1]} renderOrder={21}>
         <planeGeometry args={[0.047, 0.008]} />
-        <meshBasicMaterial color="#b8efff" transparent opacity={0.9} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial color="#b8efff" transparent opacity={0.9} depthWrite={false} />
       </mesh>
       <mesh ref={rightBrowRef} position={[0.052, 0.073, 0.02]} scale={[0.86, 1, 1]} renderOrder={21}>
         <planeGeometry args={[0.047, 0.008]} />
-        <meshBasicMaterial color="#b8efff" transparent opacity={0.9} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial color="#b8efff" transparent opacity={0.9} depthWrite={false} />
       </mesh>
       <mesh ref={mouthOpenRef} position={[0, -0.054, 0.019]} scale={[0.7, 0.6, 1]} renderOrder={21}>
         <planeGeometry args={[0.037, 0.022]} />
-        <meshBasicMaterial ref={mouthOpenMaterialRef} color="#02060b" transparent opacity={0.04} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial ref={mouthOpenMaterialRef} color="#02060b" transparent opacity={0.04} depthWrite={false} />
       </mesh>
       <mesh ref={mouthRef} position={[0, -0.051, 0.025]} scale={[1, 1, 1]} renderOrder={22}>
         <planeGeometry args={[0.058, 0.008]} />
-        <meshBasicMaterial ref={mouthMaterialRef} color="#a9efff" transparent opacity={0.94} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
+        <meshBasicMaterial ref={mouthMaterialRef} color="#a9efff" transparent opacity={0.94} depthWrite={false} />
       </mesh>
     </group>
   );
