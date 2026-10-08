@@ -29,6 +29,7 @@ import { IconCalendar, IconClock, IconDownload, IconPlus, IconRefresh } from "@/
 import InternalPagination from "@/components/internal/InternalPagination";
 
 type Mode = "execution" | "time" | "kpi" | "payroll" | "analytics";
+const EXECUTION_STATUSES = ["new", "accepted", "in_progress", "in_review", "done", "returned", "paused", "cancelled"] as const;
 
 function value(row: Dict, ...keys: string[]) {
   for (const key of keys) { const v = asStr(row[key]).trim(); if (v) return v; }
@@ -49,19 +50,25 @@ export default function InternalOperationsPages({ mode }: { mode: Mode }) {
   const [comment, setComment] = useState("");
   const [commentSaving, setCommentSaving] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [filters, setFilters] = useState({ q: "", status: "", responsibleEmployeeId: "", project: "", employeeId: "", dateFrom: "", dateTo: "", period: "" });
+
+  function setFilter(key: keyof typeof filters, value: string) {
+    setFilters((current) => ({ ...current, [key]: value }));
+    setOffset(0);
+  }
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true); setError(false);
     try {
-      if (mode === "execution") setPage(await getExecutionTasks({ limit: 25, offset }, signal));
-      else if (mode === "time") setPage(await getAttendanceDays({ limit: 25, offset }, signal));
-      else if (mode === "kpi") setPage(await getKpiMetrics({ limit: 25, offset }, signal));
-      else if (mode === "payroll") { const [rows, totals] = await Promise.all([getPayrollEntries({ limit: 25, offset }, signal), getPayrollSummary({}, signal)]); setPage(rows); setSummary(asDict(totals)); }
-      else setSummary(asDict(await getAnalyticsDashboard({}, signal)));
+      if (mode === "execution") setPage(await getExecutionTasks({ q: filters.q || undefined, status: filters.status || undefined, responsible_employee_id: filters.responsibleEmployeeId || undefined, project: filters.project || undefined, date_from: filters.dateFrom || undefined, date_to: filters.dateTo || undefined, limit: 25, offset }, signal));
+      else if (mode === "time") setPage(await getAttendanceDays({ employee_id: filters.employeeId || undefined, date_from: filters.dateFrom || undefined, date_to: filters.dateTo || undefined, limit: 25, offset }, signal));
+      else if (mode === "kpi") setPage(await getKpiMetrics({ employee_id: filters.employeeId || undefined, period: filters.period || undefined, limit: 25, offset }, signal));
+      else if (mode === "payroll") { const [rows, totals] = await Promise.all([getPayrollEntries({ employee_id: filters.employeeId || undefined, period: filters.period || undefined, limit: 25, offset }, signal), getPayrollSummary({ period: filters.period || undefined }, signal)]); setPage(rows); setSummary(asDict(totals)); }
+      else setSummary(asDict(await getAnalyticsDashboard({ date_from: filters.dateFrom || undefined, date_to: filters.dateTo || undefined }, signal)));
     } catch (cause) {
       if (!(cause instanceof ApiError && cause.detail === "aborted")) setError(true);
     } finally { if (!signal?.aborted) setLoading(false); }
-  }, [mode, offset]);
+  }, [filters, mode, offset]);
 
   useEffect(() => { const controller = new AbortController(); void Promise.resolve().then(() => load(controller.signal)); return () => controller.abort(); }, [load]);
   useEffect(() => subscribeUserEvents((event) => { if (event.event.startsWith("internal.")) void load(); }), [load]);
@@ -76,7 +83,7 @@ export default function InternalOperationsPages({ mode }: { mode: Mode }) {
     } catch { setError(true); } finally { setSaving(false); }
   }
 
-  async function attendanceEvent(eventType: "check_in" | "check_out") {
+  async function attendanceEvent(eventType: "check_in" | "check_out" | "break_start" | "break_end") {
     if (eventBusy) return; setEventBusy(true); setError(false);
     try { await createAttendanceEvent({ event_type: eventType }); await load(); } catch { setError(true); } finally { setEventBusy(false); }
   }
@@ -95,13 +102,16 @@ export default function InternalOperationsPages({ mode }: { mode: Mode }) {
   }
 
   async function exportAnalytics() {
-    try { const blob = await getAnalyticsExport({}); saveBlob(blob, "lexgo-internal-analytics.xlsx"); } catch { setError(true); }
+    try { const blob = await getAnalyticsExport({ date_from: filters.dateFrom || undefined, date_to: filters.dateTo || undefined }); saveBlob(blob, "lexgo-internal-analytics.xlsx"); } catch { setError(true); }
   }
 
   return <section className="internal-page">
     <div className="internal-section-head"><div><span className="internal-kicker">{t("kicker")}</span><h2>{t(`titles.${mode}`)}</h2><p>{t(`subtitles.${mode}`)}</p></div><div className="internal-action-row"><button className="btn btn--line btn--sm" type="button" onClick={() => void load()} disabled={loading}><IconRefresh />{t("refresh")}</button>{mode === "analytics" && <button className="btn btn--pri btn--sm" type="button" onClick={() => void exportAnalytics()}><IconDownload />{t("export")}</button>}</div></div>
     {error && <div className="internal-notice internal-notice--error" role="alert">{t("error")}</div>}
-    {mode === "time" && <div className="internal-panel internal-time-actions"><div><IconCalendar /><b>{t("attendanceActions")}</b><small>{t("attendanceHint")}</small></div><div className="internal-action-row"><button className="btn btn--pri btn--sm" type="button" onClick={() => void attendanceEvent("check_in")} disabled={eventBusy}><IconClock />{t("checkIn")}</button><button className="btn btn--line btn--sm" type="button" onClick={() => void attendanceEvent("check_out")} disabled={eventBusy}><IconClock />{t("checkOut")}</button></div></div>}
+    {mode === "execution" && <div className="internal-toolbar internal-toolbar--filters"><label className="internal-search"><input value={filters.q} onChange={(event) => setFilter("q", event.target.value)} placeholder={t("filters.search")} aria-label={t("filters.search")} maxLength={120} /></label><input value={filters.project} onChange={(event) => setFilter("project", event.target.value)} placeholder={t("filters.project")} aria-label={t("filters.project")} maxLength={80} /><input value={filters.responsibleEmployeeId} onChange={(event) => setFilter("responsibleEmployeeId", event.target.value)} placeholder={t("filters.employeeId")} aria-label={t("filters.employeeId")} maxLength={80} /><select value={filters.status} onChange={(event) => setFilter("status", event.target.value)} aria-label={t("filters.status")}><option value="">{t("filters.allStatuses")}</option>{EXECUTION_STATUSES.map((status) => <option key={status} value={status}>{t(`status.${status}`)}</option>)}</select><input type="date" value={filters.dateFrom} onChange={(event) => setFilter("dateFrom", event.target.value)} aria-label={t("filters.dateFrom")} /><input type="date" value={filters.dateTo} onChange={(event) => setFilter("dateTo", event.target.value)} aria-label={t("filters.dateTo")} /></div>}
+    {mode === "time" && <><div className="internal-toolbar internal-toolbar--filters"><input value={filters.employeeId} onChange={(event) => setFilter("employeeId", event.target.value)} placeholder={t("filters.employeeId")} aria-label={t("filters.employeeId")} maxLength={80} /><input type="date" value={filters.dateFrom} onChange={(event) => setFilter("dateFrom", event.target.value)} aria-label={t("filters.dateFrom")} /><input type="date" value={filters.dateTo} onChange={(event) => setFilter("dateTo", event.target.value)} aria-label={t("filters.dateTo")} /></div><div className="internal-panel internal-time-actions"><div><IconCalendar /><b>{t("attendanceActions")}</b><small>{t("attendanceHint")}</small></div><div className="internal-action-row"><button className="btn btn--pri btn--sm" type="button" onClick={() => void attendanceEvent("check_in")} disabled={eventBusy}><IconClock />{t("checkIn")}</button><button className="btn btn--line btn--sm" type="button" onClick={() => void attendanceEvent("check_out")} disabled={eventBusy}><IconClock />{t("checkOut")}</button><button className="btn btn--line btn--sm" type="button" onClick={() => void attendanceEvent("break_start")} disabled={eventBusy}><IconClock />{t("breakStart")}</button><button className="btn btn--line btn--sm" type="button" onClick={() => void attendanceEvent("break_end")} disabled={eventBusy}><IconClock />{t("breakEnd")}</button></div></div></>}
+    {(mode === "kpi" || mode === "payroll") && <div className="internal-toolbar internal-toolbar--filters"><input value={filters.employeeId} onChange={(event) => setFilter("employeeId", event.target.value)} placeholder={t("filters.employeeId")} aria-label={t("filters.employeeId")} maxLength={80} /><input value={filters.period} onChange={(event) => setFilter("period", event.target.value)} placeholder={t("filters.period")} aria-label={t("filters.period")} maxLength={30} /></div>}
+    {mode === "analytics" && <div className="internal-toolbar internal-toolbar--filters"><input type="date" value={filters.dateFrom} onChange={(event) => setFilter("dateFrom", event.target.value)} aria-label={t("filters.dateFrom")} /><input type="date" value={filters.dateTo} onChange={(event) => setFilter("dateTo", event.target.value)} aria-label={t("filters.dateTo")} /></div>}
     {mode === "analytics" ? <div className="internal-metric-grid">{Object.entries(summary).filter(([key]) => !["items", "series", "data"].includes(key)).slice(0, 8).map(([key, raw]) => <div className="internal-panel internal-metric" key={key}><span>{key.replaceAll("_", " ")}</span><b>{typeof raw === "object" ? asArr(raw).length : asStr(raw, "—")}</b></div>)}{!Object.keys(summary).length && !loading && <div className="internal-panel internal-empty">{t("emptyAnalytics")}</div>}</div> : <div className="internal-panel">{loading ? <div className="internal-loading" aria-busy="true" /> : <OperationsTable mode={mode} rows={page.items} empty={t(`empty.${mode}`)} onStatus={mode === "execution" ? setTaskStatus : undefined} statusBusy={statusBusy} onComment={mode === "execution" ? setCommentTaskId : undefined} />}<InternalPagination page={page} onChange={setOffset} /></div>}
     {mode === "execution" && commentTaskId && <form className="internal-panel internal-comment-form" onSubmit={saveComment}><div className="internal-panel__head"><h3>{t("commentTitle")}</h3><button className="btn btn--line btn--sm" type="button" onClick={() => setCommentTaskId("")}>{t("cancel")}</button></div><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder={t("commentPlaceholder")} aria-label={t("commentPlaceholder")} maxLength={2000} rows={3} required /><button className="btn btn--pri btn--sm" type="submit" disabled={commentSaving}>{commentSaving ? t("saving") : t("sendComment")}</button></form>}
     {mode !== "time" && mode !== "analytics" && <OperationsForm mode={mode} form={form} setForm={setForm} submit={submit} saving={saving} t={t} />}
@@ -112,7 +122,7 @@ function OperationsTable({ mode, rows, empty, onStatus, statusBusy, onComment }:
   const t = useTranslations("internal.operations");
   if (!rows.length) return <p className="internal-empty">{empty}</p>;
   return <div className="internal-table-wrap"><table className="internal-table"><thead><tr>{mode === "execution" ? <><th>{t("columns.task")}</th><th>{t("columns.assignee")}</th><th>{t("columns.status")}</th><th>{t("columns.due")}</th><th>{t("columns.actions")}</th></> : mode === "time" ? <><th>{t("columns.date")}</th><th>{t("columns.employee")}</th><th>{t("columns.status")}</th><th>{t("columns.hours")}</th></> : mode === "kpi" ? <><th>{t("columns.metric")}</th><th>{t("columns.employee")}</th><th>{t("columns.value")}</th><th>{t("columns.period")}</th></> : <><th>{t("columns.employee")}</th><th>{t("columns.period")}</th><th>{t("columns.amount")}</th><th>{t("columns.status")}</th></>}</tr></thead><tbody>{rows.map((row, index) => <tr key={asStr(row.id, `${recordLabel(row)}-${index}`)}>
-    {mode === "execution" && <><td><b>{recordName(row)}</b><small>{value(row, "description")}</small></td><td>{value(row, "assignee_name", "employee_code")}</td><td><select className="internal-status-select" value={recordStatus(row)} onChange={(event) => onStatus?.(asStr(row.id), event.target.value)} disabled={!onStatus || statusBusy === asStr(row.id)} aria-label={t("columns.status")}><option value="todo">{t("status.todo")}</option><option value="in_progress">{t("status.in_progress")}</option><option value="blocked">{t("status.blocked")}</option><option value="done">{t("status.done")}</option></select></td><td>{value(row, "due_at", "due_date")}</td><td><button className="btn btn--line btn--sm" type="button" onClick={() => onComment?.(asStr(row.id))} disabled={!onComment}>{t("comment")}</button></td></>}
+    {mode === "execution" && <><td><b>{recordName(row)}</b><small>{value(row, "description")}</small></td><td>{value(row, "assignee_name", "employee_code")}</td><td><select className="internal-status-select" value={recordStatus(row)} onChange={(event) => onStatus?.(asStr(row.id), event.target.value)} disabled={!onStatus || statusBusy === asStr(row.id)} aria-label={t("columns.status")}>{EXECUTION_STATUSES.map((status) => <option key={status} value={status}>{t(`status.${status}`)}</option>)}</select></td><td>{value(row, "due_at", "due_date")}</td><td><button className="btn btn--line btn--sm" type="button" onClick={() => onComment?.(asStr(row.id))} disabled={!onComment}>{t("comment")}</button></td></>}
     {mode === "time" && <><td>{value(row, "date", "day")}</td><td>{value(row, "employee_name", "employee_code")}</td><td><span className="pill pill--gray">{recordStatus(row)}</span></td><td>{value(row, "hours", "worked_hours")}</td></>}
     {mode === "kpi" && <><td><b>{recordName(row)}</b></td><td>{value(row, "employee_name", "employee_code")}</td><td>{value(row, "value", "score", "target")}</td><td>{value(row, "period")}</td></>}
     {mode === "payroll" && <><td>{value(row, "employee_name", "employee_code")}</td><td>{value(row, "period")}</td><td>{value(row, "amount", "total")}</td><td><span className="pill pill--gray">{recordStatus(row)}</span></td></>}

@@ -109,13 +109,13 @@ export const getOrgBoard = (include = "people", signal?: AbortSignal) => http<In
 export const createOrgUnit = (payload: Dict) => http<InternalRecord>("/internal/org/units", body(payload));
 export const updateOrgUnit = (id: string, payload: Dict) => http<InternalRecord>(`/internal/org/units/${encodeURIComponent(id)}`, patchBody(payload));
 
-export const getEmployees = (params: { q?: string; status?: string; unit_id?: string; position_id?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/employees", params, "items", signal);
+export const getEmployees = (params: { q?: string; status?: string; org_unit_id?: string; position_id?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/employees", params, "items", signal);
 export const createEmployee = (payload: Dict) => http<InternalRecord>("/internal/employees", body(payload));
 export const updateEmployee = (id: string, payload: Dict) => http<InternalRecord>(`/internal/employees/${encodeURIComponent(id)}`, patchBody(payload));
 export const assignEmployee = (id: string, payload: Dict) => http<InternalRecord>("/internal/employees/assignments", body({ employee_id: id, ...payload }));
 export const getEmployee360 = (id: string, signal?: AbortSignal) => http<InternalRecord>(`/internal/employees/${encodeURIComponent(id)}/360`, { signal });
 
-export const getExecutionTasks = (params: { q?: string; status?: string; assignee_id?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalTask>("/internal/execution/tasks", params, "items", signal);
+export const getExecutionTasks = (params: { q?: string; status?: string; responsible_employee_id?: string; project?: string; date_from?: string; date_to?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalTask>("/internal/execution/tasks", params, "items", signal);
 export const createExecutionTask = (payload: Dict) => http<InternalTask>("/internal/execution/tasks", body(payload));
 export const updateExecutionTask = (id: string, payload: Dict) => http<InternalTask>(`/internal/execution/tasks/${encodeURIComponent(id)}/status`, patchBody(payload));
 export const commentExecutionTask = (id: string, payload: Dict) => http<InternalRecord>(`/internal/execution/tasks/${encodeURIComponent(id)}/comments`, body(payload));
