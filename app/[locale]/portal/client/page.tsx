@@ -27,7 +27,6 @@ import {
   IconSearch,
   IconAlert,
   IconDownload,
-  IconDocSearch,
 } from "@/components/icons";
 
 const DONE_STATUSES = new Set(["completed", "archived"]);
@@ -56,7 +55,6 @@ const QUICK_ACTIONS: {
   { key: "consultation", ai: "consultation", Icon: IconAlert, href: "/portal/client/urgent?service=traffic_accident_consultation", art: "card-avtoavariya-huquqiy-konsultatsiya" },
   { key: "askAi", ai: "ask-ai", Icon: IconSparkle, href: "/portal/client/ai", art: "card-lexgo-ai-sorash" },
   { key: "upload", ai: "doc-analysis", Icon: IconDownload, href: "/portal/client/doc-analysis", art: "card-hujjat-tahlili" },
-  { key: "documents", ai: "documents", Icon: IconDocSearch, href: "/portal/client/services", art: "card-huquqiy-hujjatlar" },
 ];
 // The road-accident card carries no subtitle. Its title is already a whole
 // sentence — "Avtoavariya bo‘yicha huquqiy konsultatsiya olish" — and the
@@ -67,7 +65,6 @@ const ACTION_SUB: Record<string, string> = {
   findSpecialist: "findSpecialistSub",
   askAi: "askAiSub",
   upload: "uploadSub",
-  documents: "documentsSub",
 };
 
 function WhoOption({ art, title, sub, perks, cta }: { art: string; title: string; sub: string; perks: string[]; cta: string }) {
