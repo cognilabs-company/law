@@ -8,6 +8,7 @@ import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
 import { IconEye, IconClose, IconFileText } from "@/components/icons";
+import { IconCheck, IconClock, IconShieldCheck } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
 
 const fmt = (v: string | undefined, locale: string) => {
@@ -15,6 +16,46 @@ const fmt = (v: string | undefined, locale: string) => {
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? v : dateTimeFull(v, locale);
 };
+
+const FOUR_STEPS = ["phone", "identity", "practice", "rules"] as const;
+type FourStep = (typeof FOUR_STEPS)[number];
+
+function fourStepState(step: FourStep, items: Detail["verificationItems"], verified: boolean): "done" | "pending" | "rejected" {
+  if (verified) return "done";
+  const aliases: Record<FourStep, string[]> = {
+    phone: ["phone", "sms", "otp"],
+    identity: ["identity", "passport", "id", "document"],
+    practice: ["practice", "profile", "qualification", "license", "licence"],
+    rules: ["rules", "terms", "agreement", "consent"],
+  };
+  const item = items.find((entry) => aliases[step].some((alias) => entry.key.toLowerCase().includes(alias)));
+  const status = item?.status.toLowerCase() || "";
+  if (/reject|fail|declin/.test(status)) return "rejected";
+  if (/approv|verif|complete|passed|confirmed|accepted/.test(status)) return "done";
+  return "pending";
+}
+
+function FourStepVerification({ detail }: { detail: Detail }) {
+  const t = useTranslations("admin.registerRequests");
+  const verified = detail.lawyerProfile?.verified === true;
+  return (
+    <div className="dkv__sect dkv__fourstep">
+      <b>{t("detail.fourStepTitle")}</b>
+      <p className="advmuted">{t("detail.fourStepLead")}</p>
+      <ol className="verify-steps">
+        {FOUR_STEPS.map((step, index) => {
+          const state = fourStepState(step, detail.verificationItems, verified);
+          return <li className={`verify-step verify-step--${state}`} key={step}>
+            <span className="verify-step__mark">{state === "done" ? <IconCheck /> : state === "rejected" ? <IconClose /> : <IconClock />}</span>
+            <span><b>{t(`detail.fourStep.${step}`)}</b><small>{t(`detail.fourStepState.${state}`)}</small></span>
+            <em>{index + 1}</em>
+          </li>;
+        })}
+      </ol>
+      {verified ? <span className="pill pill--ok"><IconShieldCheck />{t("detail.fourStepVerified")}</span> : null}
+    </div>
+  );
+}
 
 // Inline preview of an uploaded proof document — fetched as a blob (the file
 // needs the admin's bearer token) and shown in this same modal, never a new
@@ -136,6 +177,7 @@ export default function RegisterRequestDetail({ id, onClose }: { id: string | nu
               {row(t("detail.verified"), d.lawyerProfile.verified ? "✓" : "—")}
             </div>
           ) : null}
+          <FourStepVerification detail={d} />
           {d.verificationItems.length ? (
             <div className="dkv__sect">
               <b>{t("detail.verificationItems")}</b>
