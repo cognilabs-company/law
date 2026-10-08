@@ -211,7 +211,9 @@ export async function listMarketplace(opts: { sort?: string; offset?: number; in
   if (opts.sort) qs.set("sort", opts.sort);
   if (opts.includeMeta) qs.set("include_meta", "true");
   const d = asDict(await http(`/marketplace/lawyers?${qs}`));
-  const items = asArr(d.items).map(normMarketSeller).filter((s) => s.userId);
+  // Public marketplace results must contain only LexGo-approved professionals.
+  // Admin monitoring uses its own endpoint and is intentionally unaffected.
+  const items = asArr(d.items).map(normMarketSeller).filter((s) => s.userId && s.verified);
   return { items, total: asNum(d.total, items.length), meta: normMeta(d.meta) };
 }
 

@@ -98,7 +98,7 @@ export const getMyProfile = (signal?: AbortSignal) => http<InternalRecord>("/int
 export const getMyToday = (signal?: AbortSignal) => http<InternalRecord>("/internal/me/today", { signal });
 export const getMyTasks = (params: { q?: string; status?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalTask>("/internal/me/tasks", params, "items", signal);
 export const getMyKpis = (params: { period?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/me/kpis", params, "items", signal);
-export const getMyAttendance = (params: { from?: string; to?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/me/attendance", params, "items", signal);
+export const getMyAttendance = (params: { date_from?: string; date_to?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/me/attendance", params, "items", signal);
 export const getMyMessages = (params: { unread?: boolean; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalMessage>("/internal/me/messages", params, "items", signal);
 export const sendInternalMessage = (payload: Dict) => http<InternalMessage>("/internal/messages", body(payload));
 
@@ -112,18 +112,18 @@ export const updateOrgUnit = (id: string, payload: Dict) => http<InternalRecord>
 export const getEmployees = (params: { q?: string; status?: string; unit_id?: string; position_id?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/employees", params, "items", signal);
 export const createEmployee = (payload: Dict) => http<InternalRecord>("/internal/employees", body(payload));
 export const updateEmployee = (id: string, payload: Dict) => http<InternalRecord>(`/internal/employees/${encodeURIComponent(id)}`, patchBody(payload));
-export const assignEmployee = (id: string, payload: Dict) => http<InternalRecord>(`/internal/employees/${encodeURIComponent(id)}/assignments`, body(payload));
+export const assignEmployee = (id: string, payload: Dict) => http<InternalRecord>("/internal/employees/assignments", body({ employee_id: id, ...payload }));
 export const getEmployee360 = (id: string, signal?: AbortSignal) => http<InternalRecord>(`/internal/employees/${encodeURIComponent(id)}/360`, { signal });
 
 export const getExecutionTasks = (params: { q?: string; status?: string; assignee_id?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalTask>("/internal/execution/tasks", params, "items", signal);
 export const createExecutionTask = (payload: Dict) => http<InternalTask>("/internal/execution/tasks", body(payload));
-export const updateExecutionTask = (id: string, payload: Dict) => http<InternalTask>(`/internal/execution/tasks/${encodeURIComponent(id)}`, patchBody(payload));
+export const updateExecutionTask = (id: string, payload: Dict) => http<InternalTask>(`/internal/execution/tasks/${encodeURIComponent(id)}/status`, patchBody(payload));
 export const commentExecutionTask = (id: string, payload: Dict) => http<InternalRecord>(`/internal/execution/tasks/${encodeURIComponent(id)}/comments`, body(payload));
 
-export const getSchedules = (params: { employee_id?: string; from?: string; to?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/time/schedules", params, "items", signal);
+export const getSchedules = (params: { employee_id?: string; org_unit_id?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/time/schedules", params, "items", signal);
 export const createSchedule = (payload: Dict) => http<InternalRecord>("/internal/time/schedules", body(payload));
 export const createAttendanceEvent = (payload: Dict) => http<InternalRecord>("/internal/time/attendance/events", body(payload));
-export const getAttendanceDays = (params: { employee_id?: string; from?: string; to?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/time/attendance/days", params, "items", signal);
+export const getAttendanceDays = (params: { employee_id?: string; date_from?: string; date_to?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/time/attendance/days", params, "items", signal);
 
 export const getKpiMetrics = (params: { employee_id?: string; period?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/kpi/metrics", params, "items", signal);
 export const createKpiMetric = (payload: Dict) => http<InternalRecord>("/internal/kpi/metrics", body(payload));
@@ -133,10 +133,10 @@ export const createPayrollEntry = (payload: Dict) => http<InternalRecord>("/inte
 export const getPayrollSummary = (params: { period?: string } = {}, signal?: AbortSignal) => http<InternalRecord>(`/internal/payroll/summary${query(params)}`, { signal });
 
 export const getMyApprovals = (params: { status?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/me/approvals", params, "items", signal);
-export const decideApproval = (id: string, payload: Dict) => http<InternalRecord>(`/internal/me/approvals/${encodeURIComponent(id)}/decision`, body(payload));
+export const decideApproval = (id: string, payload: Dict) => http<InternalRecord>(`/internal/approvals/${encodeURIComponent(id)}/decision`, body(payload));
 
-export const getAnalyticsDashboard = (params: { from?: string; to?: string; unit_id?: string } = {}, signal?: AbortSignal) => http<InternalRecord>(`/internal/analytics/dashboard${query(params)}`, { signal });
-export const getAnalyticsExport = async (params: { from?: string; to?: string; unit_id?: string } = {}): Promise<Blob> => httpBlob(`/internal/analytics/export.xlsx${query(params)}`);
+export const getAnalyticsDashboard = (params: { date_from?: string; date_to?: string; unit_id?: string } = {}, signal?: AbortSignal) => http<InternalRecord>(`/internal/analytics/dashboard${query(params)}`, { signal });
+export const getAnalyticsExport = async (params: { date_from?: string; date_to?: string; unit_id?: string } = {}): Promise<Blob> => httpBlob(`/internal/analytics/export.xlsx${query(params)}`);
 
 export function recordLabel(row: InternalRecord): string {
   return asStr(row.employee_code ?? row.work_code ?? row.name ?? row.title ?? row.id, "—");

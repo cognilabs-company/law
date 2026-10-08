@@ -21,6 +21,7 @@ import {
   IconCard,
   IconChat,
   IconCalendar,
+  IconShieldCheck,
   IconMenu,
   IconClose,
   IconLogout,
@@ -36,6 +37,7 @@ const GROUPS: Group[] = [
     { href: "/internal/me", key: "me", Icon: IconUser },
     { href: "/internal/me/tasks", key: "tasks", Icon: IconBriefcase },
     { href: "/internal/me/attendance", key: "attendance", Icon: IconCalendar },
+    { href: "/internal/me/approvals", key: "approvals", Icon: IconShieldCheck },
     { href: "/internal/me/messages", key: "messages", Icon: IconChat },
   ] },
   { key: "people", items: [
@@ -45,6 +47,7 @@ const GROUPS: Group[] = [
   { key: "operations", items: [
     { href: "/internal/execution", key: "execution", Icon: IconBriefcase, permission: "internal_execution.manage" },
     { href: "/internal/time", key: "time", Icon: IconClock, permission: "internal_time.manage" },
+    { href: "/internal/schedules", key: "schedules", Icon: IconCalendar, permission: "internal_time.manage" },
     { href: "/internal/kpi", key: "kpi", Icon: IconChartBar, permission: "internal_kpi.manage" },
     { href: "/internal/payroll", key: "payroll", Icon: IconCard, permission: "internal_payroll.manage" },
     { href: "/internal/analytics", key: "analytics", Icon: IconChartBar, permission: "internal_analytics.view" },

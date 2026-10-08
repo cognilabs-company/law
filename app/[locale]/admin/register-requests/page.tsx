@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   getSellerRequests,
+  getRegisterRequestDetail,
+  registerRequestFourStepsComplete,
   acceptRegisterRequest,
   rejectRegisterRequest,
   type RegisterRequest,
@@ -58,11 +60,21 @@ function Actions({ id, onDone }: { id: string; onDone: () => void }) {
   const t = useTranslations("admin.registerRequests");
   const [busy, setBusy] = useState<null | "accept" | "reject">(null);
   const [done, setDone] = useState<null | "accept" | "reject">(null);
+  const [error, setError] = useState(false);
   async function run(kind: "accept" | "reject") {
     if (busy || done) return;
     setBusy(kind);
+    setError(false);
     try {
-      if (kind === "accept") await acceptRegisterRequest(id);
+      if (kind === "accept") {
+        const detail = await getRegisterRequestDetail(id);
+        if (!registerRequestFourStepsComplete(detail)) {
+          setError(true);
+          setBusy(null);
+          return;
+        }
+        await acceptRegisterRequest(id);
+      }
       else await rejectRegisterRequest(id);
       setDone(kind);
       onDone();
@@ -80,6 +92,7 @@ function Actions({ id, onDone }: { id: string; onDone: () => void }) {
   }
   return (
     <div className="pcase__act" data-ai-target="register-requests:decision" data-ai-id={id ? aiId("admin.register-requests.item", id, "decision") : undefined} data-ai-label={`${t("accept")} · ${t("reject")}`}>
+      {error ? <span className="advmuted" role="alert">{t("detail.fourStepLead")}</span> : null}
       <button className="btn btn--pri btn--sm" type="button" disabled={!!busy} onClick={() => run("accept")}>
         <IconCheck />
         {busy === "accept" ? t("accepting") : t("accept")}

@@ -7200,6 +7200,22 @@ export type RegisterRequestDetail = {
   verificationItems: VerificationItem[];
   activity: ActivityEntry[];
 };
+
+const FOUR_STEP_ALIASES: Record<"phone" | "identity" | "practice" | "rules", string[]> = {
+  phone: ["phone", "sms", "otp"],
+  identity: ["identity", "passport", "id", "document"],
+  practice: ["practice", "profile", "qualification", "license", "licence"],
+  rules: ["rules", "terms", "agreement", "consent"],
+};
+
+export function registerRequestFourStepsComplete(detail: RegisterRequestDetail): boolean {
+  if (detail.lawyerProfile?.verified === true) return true;
+  return (Object.values(FOUR_STEP_ALIASES) as string[][]).every((aliases) => {
+    const item = detail.verificationItems.find((entry) => aliases.some((alias) => entry.key.toLowerCase().includes(alias)));
+    return Boolean(item && /approv|verif|complete|passed|confirmed|accepted/i.test(item.status));
+  });
+}
+
 export async function getRegisterRequestDetail(id: string): Promise<RegisterRequestDetail> {
   const d = asDict(await http(`/admin/register-requests/${encodeURIComponent(id)}`));
   const p = asDict(d.pending);
