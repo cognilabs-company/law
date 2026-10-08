@@ -195,6 +195,7 @@ export type AssistDocResult = {
   currency: string;
   paid: boolean;
   paymentRequired: boolean;
+  telegramSent: boolean;
   gate: AssistPayGate | null;
   assignmentMode: string;
   poolUrl: string;
@@ -418,7 +419,7 @@ export function normAssistTicket(v: unknown): AssistTicket | null {
 
 function normCapabilities(v: unknown): AssistCapabilities {
   const d = asDict(v);
-  const on = (x: unknown) => flag(x) !== false;
+  const on = (x: unknown) => flag(x) === true;
   return {
     subscriptionCheckout: on(d.subscription_checkout),
     documentLawyerRequest: on(d.document_lawyer_request),
@@ -614,6 +615,7 @@ export function normAssistDocResult(v: unknown): AssistDocResult {
     currency: currencyOf(r.currency),
     paid: r.paid === true,
     paymentRequired: payRequired(d, r, lr, lrp),
+    telegramSent: d.telegram_sent === true || normPayGate(d, r, lr, lrp)?.telegramSent === true,
     gate: normPayGate(d, r, lr, lrp),
     assignmentMode: asStr(d.assignment_mode),
     poolUrl: asStr(d.pool_url),

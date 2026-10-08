@@ -187,6 +187,7 @@ export default function AssistDoc({ ticketId, client, clientName, ctx, onDone, o
   const ctxPhase: AssistPayPhase = gated && ctxDoc ? (ctxDoc.paid ? "paid" : docPayPhase(ctxDoc)) : "";
   const phase: AssistPayPhase = gated ? pickPayPhase(livePhase, ctxPhase, basePhase) : "";
   const docStatus = sent ? live?.status || ctxDoc?.status || sent.poolStatus || sent.status : "";
+  const telegramSent = live?.telegramSent ?? sent?.telegramSent ?? false;
 
   const sentRows: InfoRow[] = sent
     ? [
@@ -198,6 +199,7 @@ export default function AssistDoc({ ticketId, client, clientName, ctx, onDone, o
           label: t("result.mode"),
           value: sent.assignmentMode && t.has(`doc.mode.${sent.assignmentMode}`) ? t(`doc.mode.${sent.assignmentMode}`) : sent.assignmentMode || "—",
         },
+        { key: "tg", label: t("result.telegram"), value: telegramSent ? t("result.telegramSent") : t("result.telegramFailed") },
         ...(!phase && sent.price > 0 ? [{ key: "pay", label: t("doc.payment"), value: sent.paid ? t("doc.paid") : `${t("doc.unpaid")} · ${sumText(t, sent.price, sent.currency)}` }] : []),
       ]
     : [];
@@ -211,7 +213,7 @@ export default function AssistDoc({ ticketId, client, clientName, ctx, onDone, o
           title={phase === "pending" || phase === "rejected" ? t("doc.sentPayTitle") : t("doc.sentTitle")}
           rows={sentRows}
           note={phase === "pending" ? t("pay.docPending") : phase === "rejected" ? t("pay.rejectedNote") : t("doc.poolNote")}
-          warn={phase === "rejected"}
+          warn={!telegramSent || phase === "rejected"}
           onDismiss={() => setSent(null)}
         >
           <PayState phase={phase} amount={sent.gate?.amount || sent.price} currency={sent.gate?.currency || sent.currency} />
