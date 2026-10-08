@@ -11,6 +11,7 @@ import ThemeToggle from "../ThemeToggle";
 import IncomingCallWatcher from "../portal/IncomingCallWatcher";
 import { useAiReveal } from "@/lib/guide/targets";
 import { hasStudioAccess, useStudioRegistry } from "@/lib/services/studio";
+import { hasInternalAccess } from "@/lib/services/internalHrm";
 import dynamic from "next/dynamic";
 
 import {
@@ -120,6 +121,7 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   {
     group: "system",
     items: [
+      { href: "/internal", key: "internal", Icon: IconUsers },
       { href: "/admin/integrations", key: "integrations", Icon: IconBolt },
       { href: "/admin/test-otps", key: "testOtps", Icon: IconShieldCheck },
       { href: "/admin/roles", key: "roles", Icon: IconShield, perm: "roles.manage" },
@@ -177,8 +179,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // role on a session stored before permissions were saved) — call-center
   // operators run video meetings from here.
   const canSee = (n: NavItem) =>
-    n.key === "testOtps" && demoTools !== true
-      ? false
+    n.key === "internal"
+      ? hasInternalAccess(session)
+      : n.key === "testOtps" && demoTools !== true
+        ? false
       : n.key === "studio"
         ? studioUser
         : n.key === "meetings" && canMakeCalls(session)
