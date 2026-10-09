@@ -152,7 +152,10 @@ export default function AssistPanel({
     };
     const offEvents = subscribeUserEvents((raw) => {
       const e = assistLiveOf(raw);
-      if (!e || e.name.startsWith("support.")) return;
+      // Assist creation events carry the client_user_id and must refresh the
+      // client's overview immediately; payment lifecycle events are handled
+      // by the result cards once an operator has created the record.
+      if (!e) return;
       const k = known.current;
       if ((k.client && e.clientIds.includes(k.client)) || e.ids.some((id) => k.ids.has(id))) kick();
     });
