@@ -302,7 +302,7 @@ export default function AssistUrgent({ ticketId, client, clientName, onDone, onB
         <ResultCard
           title={t("urgent.sentTitle")}
           rows={sentRows}
-          warn={phase === "rejected"}
+          warn={phase === "rejected" || !sent.telegramSent}
           onDismiss={() => setSent(null)}
           note={
             <>
