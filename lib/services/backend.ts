@@ -7201,7 +7201,9 @@ export type RegisterRequestDetail = {
   activity: ActivityEntry[];
 };
 
-const FOUR_STEP_ALIASES: Record<"phone" | "identity" | "practice" | "rules", string[]> = {
+export type RegisterFourStep = "phone" | "identity" | "practice" | "rules";
+
+const FOUR_STEP_ALIASES: Record<RegisterFourStep, string[]> = {
   phone: ["phone", "sms", "otp"],
   identity: ["identity", "kyc", "passport", "id", "document"],
   practice: ["practice", "professional", "profile", "qualification", "license", "licence"],
@@ -7214,11 +7216,25 @@ function verificationItemDone(status: string): boolean {
   return /approv|verified|complete|passed|confirmed|accepted|success/.test(normalized);
 }
 
+function verificationItemMatches(entry: VerificationItem, aliases: string[]): boolean {
+  // Backends may expose the machine name as key/code, while some versions
+  // only expose a human label. Use both, but keep the short `id` alias token
+  // based so it cannot match unrelated words such as `middle_name`.
+  const text = `${entry.key} ${entry.label}`.toLowerCase().replace(/[^a-z0-9]+/g, " ");
+  const tokens = new Set(text.split(" ").filter(Boolean));
+  return aliases.some((alias) => alias.length <= 2 ? tokens.has(alias) : text.includes(alias));
+}
+
+export function registerRequestFourStepState(detail: RegisterRequestDetail, step: RegisterFourStep): "done" | "pending" | "rejected" {
+  const item = detail.verificationItems.find((entry) => verificationItemMatches(entry, FOUR_STEP_ALIASES[step]));
+  const status = item?.status.toLowerCase() || "";
+  if (/reject|fail|declin/.test(status)) return "rejected";
+  if (verificationItemDone(status)) return "done";
+  return "pending";
+}
+
 export function registerRequestFourStepsComplete(detail: RegisterRequestDetail): boolean {
-  return (Object.values(FOUR_STEP_ALIASES) as string[][]).every((aliases) => {
-    const item = detail.verificationItems.find((entry) => aliases.some((alias) => entry.key.toLowerCase().includes(alias)));
-    return Boolean(item && verificationItemDone(item.status));
-  });
+  return (Object.keys(FOUR_STEP_ALIASES) as RegisterFourStep[]).every((step) => registerRequestFourStepState(detail, step) === "done");
 }
 
 export async function getRegisterRequestDetail(id: string): Promise<RegisterRequestDetail> {

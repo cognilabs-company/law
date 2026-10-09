@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Image from "next/image";
-import { getRegisterRequestDetail, getProofDocumentBlob, type RegisterRequestDetail as Detail, type ProofDocument } from "@/lib/services/backend";
+import { getRegisterRequestDetail, getProofDocumentBlob, registerRequestFourStepState, type RegisterRequestDetail as Detail, type ProofDocument, type RegisterFourStep } from "@/lib/services/backend";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
@@ -17,40 +17,18 @@ const fmt = (v: string | undefined, locale: string) => {
   return Number.isNaN(d.getTime()) ? v : dateTimeFull(v, locale);
 };
 
-const FOUR_STEPS = ["phone", "identity", "practice", "rules"] as const;
-type FourStep = (typeof FOUR_STEPS)[number];
-
-function verificationItemDone(status: string): boolean {
-  const normalized = status.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (!normalized || /reject|fail|declin|pending|wait|not_verified|unverified|in_progress|requested/.test(normalized)) return false;
-  return /approv|verified|complete|passed|confirmed|accepted|success/.test(normalized);
-}
-
-function fourStepState(step: FourStep, items: Detail["verificationItems"], verified: boolean): "done" | "pending" | "rejected" {
-  if (verified) return "done";
-  const aliases: Record<FourStep, string[]> = {
-    phone: ["phone", "sms", "otp"],
-    identity: ["identity", "passport", "id", "document"],
-    practice: ["practice", "profile", "qualification", "license", "licence"],
-    rules: ["rules", "rule", "policy", "terms", "agreement", "consent"],
-  };
-  const item = items.find((entry) => aliases[step].some((alias) => entry.key.toLowerCase().includes(alias)));
-  const status = item?.status.toLowerCase() || "";
-  if (/reject|fail|declin/.test(status)) return "rejected";
-  if (verificationItemDone(status)) return "done";
-  return "pending";
-}
+const FOUR_STEPS: RegisterFourStep[] = ["phone", "identity", "practice", "rules"];
 
 function FourStepVerification({ detail }: { detail: Detail }) {
   const t = useTranslations("admin.registerRequests");
-  const verified = FOUR_STEPS.every((step) => fourStepState(step, detail.verificationItems, false) === "done");
+  const verified = FOUR_STEPS.every((step) => registerRequestFourStepState(detail, step) === "done");
   return (
     <div className="dkv__sect dkv__fourstep">
       <b>{t("detail.fourStepTitle")}</b>
       <p className="advmuted">{t("detail.fourStepLead")}</p>
       <ol className="verify-steps">
         {FOUR_STEPS.map((step, index) => {
-          const state = fourStepState(step, detail.verificationItems, verified);
+          const state = registerRequestFourStepState(detail, step);
           return <li className={`verify-step verify-step--${state}`} key={step}>
             <span className="verify-step__mark">{state === "done" ? <IconCheck /> : state === "rejected" ? <IconClose /> : <IconClock />}</span>
             <span><b>{t(`detail.fourStep.${step}`)}</b><small>{t(`detail.fourStepState.${state}`)}</small></span>
