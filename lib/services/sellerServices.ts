@@ -129,7 +129,7 @@ function normManaged(v: unknown, locale: string): ManagedService {
     selectedPrice: uzs(d, "selected_price"),
     effectivePrice: uzs(d, "effective_price"),
     experienceNote: asStr(d.experience_note),
-    visible: d.is_marketplace_visible === true,
+    visible: d.is_marketplace_visible === true || d.marketplace_visible === true || d.visible === true,
     ownPromotion: promo && promo.serviceId === service.id ? promo : null,
     profileBoost: promo && !promo.serviceId ? promo : null,
     limits: normLimits(d.pricing_limits, locale),
@@ -145,14 +145,17 @@ function normSeller(v: unknown): ServiceSeller {
 function normProfile(v: unknown): ServiceSellerProfile {
   const d = asDict(v);
   const badge = asDict(d.verification_badge);
+  const verification = asDict(d.verification);
+  const verificationStatus = asStr(d.verification_status ?? verification.status ?? badge.status ?? d.status).trim().toLowerCase();
+  const statusVerified = verificationStatus === "approved" || verificationStatus === "verified";
   return {
     userId: asStr(d.user_id),
     sellerType: asStr(d.seller_type),
     region: asStr(d.region),
     // The public seller contract has used all three names across versions;
     // treat them consistently for the seller's own marketplace visibility.
-    isVerified: d.is_verified === true || d.lexgo_verified === true || d.verified === true || badge.visible === true,
-    verificationStatus: asStr(d.verification_status),
+    isVerified: d.is_verified === true || d.lexgo_verified === true || d.verified === true || badge.visible === true || statusVerified,
+    verificationStatus,
     name: asStr(d.lawyer_name),
   };
 }
