@@ -144,11 +144,14 @@ function normSeller(v: unknown): ServiceSeller {
 
 function normProfile(v: unknown): ServiceSellerProfile {
   const d = asDict(v);
+  const badge = asDict(d.verification_badge);
   return {
     userId: asStr(d.user_id),
     sellerType: asStr(d.seller_type),
     region: asStr(d.region),
-    isVerified: d.is_verified === true,
+    // The public seller contract has used all three names across versions;
+    // treat them consistently for the seller's own marketplace visibility.
+    isVerified: d.is_verified === true || d.lexgo_verified === true || d.verified === true || badge.visible === true,
     verificationStatus: asStr(d.verification_status),
     name: asStr(d.lawyer_name),
   };
