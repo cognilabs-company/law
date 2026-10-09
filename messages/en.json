@@ -1021,7 +1021,8 @@
       "optional": "Optional",
       "none": "None",
       "all": "All",
-      "search": "Search"
+      "search": "Search",
+      "clear": "Clear"
     },
     "error": {
       "kind": {

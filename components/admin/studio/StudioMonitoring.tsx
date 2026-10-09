@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type SVGProps } from "react";
 import { Link } from "@/i18n/navigation";
+import DatePicker from "@/components/DatePicker";
 import FilterBar from "@/components/filters/FilterBar";
 import { aiId } from "@/lib/ai/ids";
 import { asDict, parseServerTime } from "@/lib/http";
@@ -259,8 +260,28 @@ function MonitoringBody() {
           />
         ) : null}
         <div className="stu-mon__dates">
-          <label><span>{t("monitoring.dateFrom")}</span><input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label>
-          <label><span>{t("monitoring.dateTo")}</span><input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label>
+          <div className="stu-mon__date">
+            <span>{t("monitoring.dateFrom")}</span>
+            <DatePicker
+              value={dateFrom}
+              onChange={setDateFrom}
+              placeholder={t("monitoring.dateFrom")}
+              ariaLabel={t("monitoring.dateFrom")}
+              max={dateTo || undefined}
+              clearLabel={t("common.clear")}
+            />
+          </div>
+          <div className="stu-mon__date">
+            <span>{t("monitoring.dateTo")}</span>
+            <DatePicker
+              value={dateTo}
+              onChange={setDateTo}
+              placeholder={t("monitoring.dateTo")}
+              ariaLabel={t("monitoring.dateTo")}
+              min={dateFrom || undefined}
+              clearLabel={t("common.clear")}
+            />
+          </div>
         </div>
 
         {!rows.length ? (

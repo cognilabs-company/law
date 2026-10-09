@@ -18,6 +18,7 @@ import {
   type InternalRecord,
 } from "@/lib/services/internalHrm";
 import { IconCheck, IconRefresh, IconSearch, IconSend, IconUser, IconUsers } from "@/components/icons";
+import DatePicker from "@/components/DatePicker";
 import InternalPagination from "@/components/internal/InternalPagination";
 import InternalField from "@/components/internal/InternalField";
 
@@ -48,6 +49,7 @@ function SelfTable({ rows, mode, empty }: { rows: InternalRecord[]; mode: Exclud
 
 export default function InternalSelfPages({ mode }: { mode: Mode }) {
   const t = useTranslations("internal.pages");
+  const common = useTranslations("common");
   const [profile, setProfile] = useState<InternalRecord | null>(null);
   const [page, setPage] = useState<InternalPage<InternalRecord>>({ items: [], total: 0, offset: 0, limit: 25, hasMore: false });
   const [query, setQuery] = useState("");
@@ -107,7 +109,7 @@ export default function InternalSelfPages({ mode }: { mode: Mode }) {
       <div className="internal-panel internal-profile-kpis"><div className="internal-panel__head"><h3>{t("myKpis")}</h3><IconUsers /></div>{Array.isArray(profile?.kpis) && profile.kpis.length ? profile.kpis.map((kpi, index) => <div className="internal-kv" key={asStr(asDict(kpi).id, String(index))}><span>{recordName(asDict(kpi))}</span><b>{value(asDict(kpi), "value", "score", "target")}</b></div>) : <p className="internal-empty">{t("noKpis")}</p>}</div>
     </div> : <>
       {mode === "tasks" && <><div className="internal-toolbar"><InternalField label={t("searchTasks")}><div className="internal-search"><IconSearch /><input value={query} onChange={(event) => { setQuery(event.target.value); setOffset(0); }} placeholder={t("searchTasks")} maxLength={120} /></div></InternalField><span className="pill pill--gray">{page.total} {t("total")}</span></div><div className="internal-tabs" role="tablist" aria-label={t("taskStatusLabel")}><button type="button" className={`internal-tab${!taskStatus ? " on" : ""}`} onClick={() => { setTaskStatus(""); setOffset(0); }} role="tab" aria-selected={!taskStatus}>{t("allStatuses")}</button>{TASK_STATUSES.map((status) => <button type="button" className={`internal-tab${taskStatus === status ? " on" : ""}`} key={status} onClick={() => { setTaskStatus(status); setOffset(0); }} role="tab" aria-selected={taskStatus === status}>{t(`taskStatuses.${status}`)}</button>)}</div></>}
-      {mode === "attendance" && <div className="internal-toolbar internal-filter-row"><InternalField label={t("from")}><input type="date" value={dates.from} onChange={(event) => { setDates((current) => ({ ...current, from: event.target.value })); setOffset(0); }} /></InternalField><InternalField label={t("to")}><input type="date" value={dates.to} onChange={(event) => { setDates((current) => ({ ...current, to: event.target.value })); setOffset(0); }} /></InternalField><span className="pill pill--gray">{page.total} {t("total")}</span></div>}
+      {mode === "attendance" && <div className="internal-toolbar internal-filter-row"><InternalField label={t("from")}><DatePicker value={dates.from} onChange={(value) => { setDates((current) => ({ ...current, from: value })); setOffset(0); }} placeholder={t("from")} ariaLabel={t("from")} max={dates.to || undefined} clearLabel={common("clear")} /></InternalField><InternalField label={t("to")}><DatePicker value={dates.to} onChange={(value) => { setDates((current) => ({ ...current, to: value })); setOffset(0); }} placeholder={t("to")} ariaLabel={t("to")} min={dates.from || undefined} clearLabel={common("clear")} /></InternalField><span className="pill pill--gray">{page.total} {t("total")}</span></div>}
       <div className="internal-panel">{loading ? <div className="internal-loading" aria-busy="true" /> : <SelfTable rows={rows} mode={mode} empty={t(`empty.${mode}`)} />}<InternalPagination page={page} onChange={setOffset} /></div>
       {mode === "messages" && <form className="internal-panel internal-message-form" onSubmit={submitMessage}><div className="internal-panel__head"><h3>{t("newMessage")}</h3><IconSend /></div><InternalField label={t("recipientUserId")}><input value={message.recipientUserId} onChange={(event) => setMessage((current) => ({ ...current, recipientUserId: event.target.value }))} placeholder={t("recipientUserId")} maxLength={80} required /></InternalField><InternalField label={t("subject")}><input value={message.subject} onChange={(event) => setMessage((current) => ({ ...current, subject: event.target.value }))} placeholder={t("subject")} maxLength={160} required /></InternalField><InternalField label={t("messageBody")}><textarea value={message.body} onChange={(event) => setMessage((current) => ({ ...current, body: event.target.value }))} placeholder={t("messageBody")} maxLength={4000} rows={4} required /></InternalField><button className="btn btn--pri btn--sm" type="submit" disabled={saving}><IconSend />{saving ? t("sending") : t("send")}</button></form>}
     </>}

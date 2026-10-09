@@ -1021,7 +1021,8 @@
       "optional": "Ixtiyoriy",
       "none": "Yo'q",
       "all": "Hammasi",
-      "search": "Qidirish"
+      "search": "Qidirish",
+      "clear": "Tozalash"
     },
     "error": {
       "kind": {
