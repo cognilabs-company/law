@@ -7204,10 +7204,10 @@ export type RegisterRequestDetail = {
 export type RegisterFourStep = "phone" | "identity" | "practice" | "rules";
 
 const FOUR_STEP_ALIASES: Record<RegisterFourStep, string[]> = {
-  phone: ["phone", "sms", "otp"],
-  identity: ["identity", "kyc", "passport", "id", "document"],
-  practice: ["practice", "professional", "profile", "qualification", "license", "licence"],
-  rules: ["rules", "rule", "policy", "terms", "agreement", "consent"],
+  phone: ["phone", "sms", "otp", "telefon", "телефон", "nomer", "номер"],
+  identity: ["identity", "kyc", "passport", "id", "document", "shaxs", "личност", "паспорт", "hujjat", "документ"],
+  practice: ["practice", "professional", "profile", "qualification", "license", "licence", "kasbiy", "профил", "квалиф", "лиценз", "malaka"],
+  rules: ["rules", "rule", "policy", "terms", "agreement", "consent", "qoida", "qoid", "правил", "соглас"],
 };
 
 function verificationItemDone(status: string): boolean {
@@ -7220,7 +7220,7 @@ function verificationItemMatches(entry: VerificationItem, aliases: string[]): bo
   // Backends may expose the machine name as key/code, while some versions
   // only expose a human label. Use both, but keep the short `id` alias token
   // based so it cannot match unrelated words such as `middle_name`.
-  const text = `${entry.key} ${entry.label}`.toLowerCase().replace(/[^a-z0-9]+/g, " ");
+  const text = `${entry.key} ${entry.label}`.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ");
   const tokens = new Set(text.split(" ").filter(Boolean));
   return aliases.some((alias) => alias.length <= 2 ? tokens.has(alias) : text.includes(alias));
 }
