@@ -246,7 +246,11 @@ export async function aiSearchMarketplace(
     const d = asDict(await http("/marketplace/ai-search", { method: "POST", body: JSON.stringify(body), signal: opts.signal }));
     const list = asArr(d.items ?? d.matches ?? d.results ?? d.lawyers);
     const seen = new Set<string>();
-    const matches = list.map(normAiMatch).filter((m) => m.userId && !seen.has(m.userId) && (seen.add(m.userId), true));
+    // AI search can return a hydrated seller that did not come from the
+    // verified-only catalogue list. Keep id-only matches so an existing
+    // catalogue row can still be ranked, but never let an unverified
+    // hydrated seller enter the public marketplace through the AI path.
+    const matches = list.map(normAiMatch).filter((m) => m.userId && (!m.seller || m.seller.verified) && !seen.has(m.userId) && (seen.add(m.userId), true));
     return {
       matches,
       summary: asStr(d.summary ?? d.explanation ?? d.message),

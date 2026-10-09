@@ -201,7 +201,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     const maxP = Number(priceMax) || 0;
     const rank = new Map((aiHit?.matches ?? []).map((m, i) => [m.userId, i]));
     const known = new Set(items.map((s) => s.userId));
-    const extra = (aiHit?.matches ?? []).map((m) => m.seller).filter((x): x is MarketSeller => Boolean(x && !known.has(x.userId)));
+    const extra = (aiHit?.matches ?? []).map((m) => m.seller).filter((x): x is MarketSeller => Boolean(x && x.verified && !known.has(x.userId)));
     const hayOf = (s: MarketSeller) => [s.name, s.organizationName, regionLabel(te, s.region), s.district, ...s.specializations.map((x) => specLabel(te, x)), ...s.serviceTitles, ...s.services.map((x) => x.title), ...s.categories.map((c) => c.title)].join(" ");
     const pool = items.concat(extra).filter((s) => {
       if (region && (regionKeyOf(te, s.region) || s.region.toLowerCase()) !== region) return false;
