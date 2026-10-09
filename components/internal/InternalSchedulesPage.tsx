@@ -16,10 +16,13 @@ function field(row: Dict, ...keys: string[]): string {
   return "—";
 }
 
+type WeeklyDay = { day: number; enabled: boolean; start: string; end: string };
+const defaultWeekly = (): WeeklyDay[] => Array.from({ length: 7 }, (_, index) => ({ day: index + 1, enabled: index < 5, start: "09:00", end: "18:00" }));
+
 export default function InternalSchedulesPage() {
   const t = useTranslations("internal.schedules");
   const [page, setPage] = useState<InternalPage<InternalRecord>>({ items: [], total: 0, offset: 0, limit: 25, hasMore: false });
-  const [form, setForm] = useState({ title: "", employee_id: "", org_unit_id: "", start: "09:00", end: "18:00" });
+  const [form, setForm] = useState({ title: "", employee_id: "", org_unit_id: "", weekly: defaultWeekly() });
   const [filters, setFilters] = useState({ employeeId: "", orgUnitId: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,10 +60,10 @@ export default function InternalSchedulesPage() {
         org_unit_id: form.org_unit_id.trim() || null,
         schedule_type: "weekly",
         timezone: "Asia/Tashkent",
-        weekly: [{ day: 1, start: form.start, end: form.end, enabled: true }],
+        weekly: form.weekly.filter((day) => day.enabled),
         status: "active",
       });
-      setForm({ title: "", employee_id: "", org_unit_id: "", start: "09:00", end: "18:00" });
+      setForm({ title: "", employee_id: "", org_unit_id: "", weekly: defaultWeekly() });
       await load();
     } catch {
       setError(true);
@@ -73,6 +76,6 @@ export default function InternalSchedulesPage() {
     <div className="internal-section-head"><div><span className="internal-kicker">{t("kicker")}</span><h2>{t("title")}</h2><p>{t("lead")}</p></div><button className="btn btn--line btn--sm" type="button" onClick={() => void load()} disabled={loading}><IconRefresh />{t("refresh")}</button></div>
     {error ? <div className="internal-notice internal-notice--error" role="alert">{t("error")}</div> : null}
     <div className="internal-panel"><div className="internal-panel__head"><h3>{t("list")}</h3><IconCalendar /></div><div className="internal-toolbar internal-toolbar--filters"><input value={filters.employeeId} onChange={(event) => { setFilters((current) => ({ ...current, employeeId: event.target.value })); setOffset(0); }} placeholder={t("employeeId")} aria-label={t("employeeId")} maxLength={80} /><input value={filters.orgUnitId} onChange={(event) => { setFilters((current) => ({ ...current, orgUnitId: event.target.value })); setOffset(0); }} placeholder={t("unitId")} aria-label={t("unitId")} maxLength={80} /></div>{loading ? <div className="internal-loading" aria-busy="true" /> : page.items.length ? <div className="internal-table-wrap"><table className="internal-table"><thead><tr><th>{t("columns.name")}</th><th>{t("columns.scope")}</th><th>{t("columns.time")}</th><th>{t("columns.status")}</th></tr></thead><tbody>{page.items.map((row, index) => <tr key={String(row.id ?? index)}><td><b>{recordName(row)}</b><small>{field(row, "schedule_type", "timezone")}</small></td><td>{field(row, "employee_name", "employee_id", "org_unit_name", "org_unit_id")}</td><td>{field(row, "start", "start_time")} – {field(row, "end", "end_time")}</td><td><span className="pill pill--gray">{recordStatus(row)}</span></td></tr>)}</tbody></table></div> : <p className="internal-empty">{t("empty")}</p>}<InternalPagination page={page} onChange={setOffset} /></div>
-    <form className="internal-panel internal-form" onSubmit={submit}><div className="internal-panel__head"><h3>{t("new")}</h3><IconPlus /></div><div className="internal-form-grid"><input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={t("name")} aria-label={t("name")} maxLength={160} required /><input value={form.employee_id} onChange={(event) => setForm((current) => ({ ...current, employee_id: event.target.value }))} placeholder={t("employeeId")} aria-label={t("employeeId")} maxLength={80} /><input value={form.org_unit_id} onChange={(event) => setForm((current) => ({ ...current, org_unit_id: event.target.value }))} placeholder={t("unitId")} aria-label={t("unitId")} maxLength={80} /><label>{t("start")}<input type="time" value={form.start} onChange={(event) => setForm((current) => ({ ...current, start: event.target.value }))} /></label><label>{t("end")}<input type="time" value={form.end} onChange={(event) => setForm((current) => ({ ...current, end: event.target.value }))} /></label></div><button className="btn btn--pri btn--sm" type="submit" disabled={saving}><IconPlus />{saving ? t("saving") : t("create")}</button></form>
+    <form className="internal-panel internal-form" onSubmit={submit}><div className="internal-panel__head"><h3>{t("new")}</h3><IconPlus /></div><div className="internal-form-grid"><input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={t("name")} aria-label={t("name")} maxLength={160} required /><input value={form.employee_id} onChange={(event) => setForm((current) => ({ ...current, employee_id: event.target.value }))} placeholder={t("employeeId")} aria-label={t("employeeId")} maxLength={80} /><input value={form.org_unit_id} onChange={(event) => setForm((current) => ({ ...current, org_unit_id: event.target.value }))} placeholder={t("unitId")} aria-label={t("unitId")} maxLength={80} /></div><div className="internal-schedule-week" aria-label={t("weeklyLabel")}>{form.weekly.map((day, index) => <div className={`internal-schedule-day${day.enabled ? " is-on" : ""}`} key={day.day}><label className="internal-schedule-day__toggle"><input type="checkbox" checked={day.enabled} onChange={(event) => setForm((current) => ({ ...current, weekly: current.weekly.map((item, itemIndex) => itemIndex === index ? { ...item, enabled: event.target.checked } : item) }))} /><b>{t(`days.${day.day}`)}</b></label><div className="internal-schedule-day__times"><label>{t("start")}<input type="time" value={day.start} onChange={(event) => setForm((current) => ({ ...current, weekly: current.weekly.map((item, itemIndex) => itemIndex === index ? { ...item, start: event.target.value } : item) }))} disabled={!day.enabled} /></label><label>{t("end")}<input type="time" value={day.end} onChange={(event) => setForm((current) => ({ ...current, weekly: current.weekly.map((item, itemIndex) => itemIndex === index ? { ...item, end: event.target.value } : item) }))} disabled={!day.enabled} /></label></div></div>)}</div><button className="btn btn--pri btn--sm" type="submit" disabled={saving || !form.weekly.some((day) => day.enabled)}><IconPlus />{saving ? t("saving") : t("create")}</button></form>
   </section>;
 }
