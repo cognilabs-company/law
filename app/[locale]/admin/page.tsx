@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { useAuth } from "@/lib/auth";
+import { isCallCenterUser, sessionRoles, useAuth, type Session } from "@/lib/auth";
 import { fmtDate, fmtInt } from "@/lib/date";
 import { seedDemoData } from "@/lib/services/backend";
 import {
@@ -69,6 +69,30 @@ const MODULES = [
   { href: "/admin/call-center", key: "callCenter", ai: "call-center", Icon: IconPhone },
 ];
 
+const MODULE_PERMISSIONS: Record<string, string> = {
+  pipeline: "leads.manage",
+  payouts: "payments.manage",
+  b2b: "b2b.manage",
+  retention: "leads.manage",
+};
+
+function canSeeModule(key: string, session: Session | null): boolean {
+  const roles = sessionRoles(session);
+  if (roles.includes("superadmin") || roles.includes("admin")) return true;
+  if (key === "callCenter") return isCallCenterUser(session);
+  const permission = MODULE_PERMISSIONS[key];
+  return Boolean(permission && session?.permissions?.includes(permission));
+}
+
+function adminLinkFor(
+  key: string,
+  href: string,
+  label: string,
+  session: Session | null,
+): { href: string; label: string } | undefined {
+  return canSeeModule(key, session) ? { href, label } : undefined;
+}
+
 // Admin overview: KPI tiles (each opens a drill-down with the breakdown
 // behind the number), region/date filter bar, and a demo-data fallback
 // labelled as such while the platform has no real activity.
@@ -82,6 +106,7 @@ export default function AdminOverview() {
   const te = useTranslations("enums.regions");
   const locale = useLocale();
   const { session } = useAuth();
+  const visibleModules = MODULES.filter(({ key }) => canSeeModule(key, session));
   const { filter, setFilter, demoForced, setDemoForced } = useDashFilter();
   const fkey = `${filter.region}|${filter.from}|${filter.to}`;
   const ceo = useResourceOne(() => getCeoDashboardFull(filter), [fkey]);
@@ -179,7 +204,7 @@ export default function AdminOverview() {
       ] },
       { kind: "bars", title: td("drill.channels"), rows: (c?.channels ?? []).map((ch) => ({ label: ch.name, value: money(ch.revenue), n: ch.revenue, sub: `${fmt(ch.leads)} · ${ch.pct}%` })) },
     ],
-    link: { href: "/admin/ceo", label: td("drill.goCeo") },
+    link: adminLinkFor("ceo", "/admin/ceo", td("drill.goCeo"), session),
   });
   const drillMrr = () => open({
     title: tc("mrr"), value: money(c?.mrr), note: td("drill.mrrNote"),
@@ -187,7 +212,7 @@ export default function AdminOverview() {
       { label: td("drill.arr"), value: money(c?.arr) }, { label: td("drill.arpu"), value: money(c?.arpu) }, { label: td("drill.gmv"), value: money(c?.gmv) },
       { label: td("drill.takeRate"), value: pct(c?.takeRate) }, { label: td("drill.ltv"), value: money(c?.ltv) }, { label: td("drill.cac"), value: money(c?.cac) },
     ] }],
-    link: { href: "/admin/ceo", label: td("drill.goCeo") },
+    link: adminLinkFor("ceo", "/admin/ceo", td("drill.goCeo"), session),
   });
   const drillUsers = () => withDetail("users", {
     title: tc("users"), value: c ? fmt(c.users) : DASH, sub: c ? `${td("drill.activeUsers")}: ${fmt(c.activeUsers)}` : undefined,
@@ -205,7 +230,7 @@ export default function AdminOverview() {
       { kind: "bars", title: td("drill.funnel"), rows: funnel.map((f2) => ({ label: label("stage", f2.label), value: fmt(f2.value), n: f2.value })) },
       { kind: "bars", title: td("drill.byScore"), rows: byScore.map((x) => ({ label: label("score", x.label), value: fmt(x.value), n: x.value })) },
     ],
-    link: { href: "/admin/pipeline", label: td("drill.goPipeline") },
+    link: adminLinkFor("pipeline", "/admin/pipeline", td("drill.goPipeline"), session),
   });
   const drillRetained = () => open({
     title: tc("retained"), value: pct(r?.retainedPct),
@@ -213,7 +238,7 @@ export default function AdminOverview() {
       { label: td("drill.prevActive"), value: fmt(r?.previousPeriodActive ?? 0) }, { label: td("drill.curActive"), value: fmt(r?.currentPeriodActive ?? 0) },
       { label: td("drill.retainedClients"), value: fmt(r?.retainedClients ?? 0) }, { label: td("drill.churned"), value: fmt(r?.churnedThisMonth ?? 0), tone: "bad" },
     ] }],
-    link: { href: "/admin/retention", label: td("drill.goRetention") },
+    link: adminLinkFor("retention", "/admin/retention", td("drill.goRetention"), session),
   });
   const drillRating = () => open({
     title: tc("rating"), value: q?.avgRating ? fmtRating(q.avgRating, locale) : DASH, note: td("drill.constNote"),
@@ -229,7 +254,7 @@ export default function AdminOverview() {
   const drillAtRisk = () => open({
     title: tc("atRisk"), value: r ? fmt(r.atRisk) : DASH, sub: r ? `${td("drill.atRiskLeads")}: ${fmt(r.atRiskLeads)}` : undefined,
     sections: [{ kind: "list", rows: (r?.atRiskClients ?? []).map((x) => ({ label: x.name || x.phone, value: x.lastPaidAt ? fmtDate(x.lastPaidAt, locale) : "", sub: x.reasons.map((k) => (tr.has(`reason.${k}`) ? tr(`reason.${k}`) : humanizeSlug(k))).join(", "), tone: "bad" })) }],
-    link: { href: "/admin/retention", label: td("drill.goRetention") },
+    link: adminLinkFor("retention", "/admin/retention", td("drill.goRetention"), session),
   });
   const drillPayments = (k: "paid" | "pending") => withDetail("payments", {
     title: k === "paid" ? tc("paidAmount") : tc("pendingAmount"), value: money(stat(`${k}_amount`)), sub: `${fmt(stat(`${k}_count`) ?? 0)} ${td("drill.payments").toLowerCase()}`,
@@ -241,7 +266,7 @@ export default function AdminOverview() {
       { kind: "bars", title: td("drill.byScore"), rows: byScore.map((x) => ({ label: label("score", x.label), value: fmt(x.value), n: x.value })) },
       { kind: "bars", title: td("drill.byRegion"), rows: byRegion.map((x) => ({ label: regionName(x.label), value: fmt(x.value), n: x.value })), empty: td("drill.regionUnknown") },
     ],
-    link: { href: "/admin/pipeline", label: td("drill.goLeads") },
+    link: adminLinkFor("pipeline", "/admin/pipeline", td("drill.goLeads"), session),
   });
   const drillOrders = () => withDetail("orders", {
     title: tc("ordersByStatus"), value: fmt(byStatus.reduce((s, x) => s + x.value, 0)),
@@ -379,7 +404,7 @@ export default function AdminOverview() {
       <div className="ppanel" data-ai-target="overview:modules" data-ai-id="admin.dashboard.modules" data-ai-label={tc("modules")}>
         <div className="ppanel__h"><b>{tc("modules")}</b></div>
         <div className="kmods">
-          {MODULES.map(({ href, key, ai, Icon }) => (
+          {visibleModules.map(({ href, key, ai, Icon }) => (
             <Link href={href} key={key} className="kmod" data-ai-id={`admin.dashboard.modules.${ai}`}>
               <span className="kmod__i"><Icon /></span>
               <span className="kmod__t">{tn(`nav.${key}`)}</span>
