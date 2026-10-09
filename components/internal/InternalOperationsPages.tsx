@@ -30,6 +30,8 @@ import InternalPagination from "@/components/internal/InternalPagination";
 
 type Mode = "execution" | "time" | "kpi" | "payroll" | "analytics";
 const EXECUTION_STATUSES = ["new", "accepted", "in_progress", "in_review", "done", "returned", "paused", "cancelled"] as const;
+const KPI_SOURCES = ["execution", "attendance", "sales", "manual"] as const;
+const PAYROLL_ENTRY_TYPES = ["salary", "kpi_bonus", "sales_bonus", "one_time_bonus", "penalty", "advance", "deduction", "adjustment"] as const;
 
 function value(row: Dict, ...keys: string[]) {
   for (const key of keys) { const v = asStr(row[key]).trim(); if (v) return v; }
@@ -40,7 +42,7 @@ export default function InternalOperationsPages({ mode }: { mode: Mode }) {
   const t = useTranslations("internal.operations");
   const [page, setPage] = useState<InternalPage<InternalRecord>>({ items: [], total: 0, offset: 0, limit: 25, hasMore: false });
   const [summary, setSummary] = useState<Dict>({});
-  const [form, setForm] = useState({ title: "", description: "", due_at: "", priority: "normal", project: "", unit_id: "", name: "", target: "", period: "", employee_id: "", amount: "", note: "" });
+  const [form, setForm] = useState({ title: "", description: "", due_at: "", priority: "normal", project: "", unit_id: "", name: "", target: "", actual: "", weight: "100", source: "manual", period: "", employee_id: "", entryType: "salary", amount: "", note: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
@@ -77,9 +79,9 @@ export default function InternalOperationsPages({ mode }: { mode: Mode }) {
     event.preventDefault(); if (saving) return; setSaving(true); setError(false);
     try {
       if (mode === "execution") await createExecutionTask({ title: form.title.trim(), description: form.description.trim(), project: form.project.trim() || "internal", responsible_employee_id: form.employee_id.trim() || null, org_unit_id: form.unit_id.trim() || null, priority: form.priority, deadline_at: form.due_at ? `${form.due_at}T18:00:00+05:00` : null, checklist: [], participants: [], attachments: [], meta: {} });
-      if (mode === "kpi") await createKpiMetric({ employee_id: form.employee_id.trim(), period: form.period.trim(), metric_code: form.name.trim().toLowerCase().replace(/\s+/g, "_"), title: form.name.trim(), target_value: Number(form.target) || 0, actual_value: 0, score: 0, weight: 100, source: "manual", status: "active", meta: {} });
-      if (mode === "payroll") await createPayrollEntry({ employee_id: form.employee_id.trim(), period: form.period.trim(), entry_type: "salary", title: form.note.trim() || "Salary", amount: Number(form.amount) || 0, currency: "UZS", status: "draft", paid_at: null, meta: {} });
-      setForm({ title: "", description: "", due_at: "", priority: "normal", project: "", unit_id: "", name: "", target: "", period: "", employee_id: "", amount: "", note: "" }); await load();
+      if (mode === "kpi") await createKpiMetric({ employee_id: form.employee_id.trim(), period: form.period.trim(), metric_code: form.name.trim().toLowerCase().replace(/\s+/g, "_"), title: form.name.trim(), target_value: Number(form.target) || 0, actual_value: Number(form.actual) || 0, score: 0, weight: Number(form.weight) || 100, source: form.source, status: "active", meta: {} });
+      if (mode === "payroll") await createPayrollEntry({ employee_id: form.employee_id.trim(), period: form.period.trim(), entry_type: form.entryType, title: form.note.trim() || form.entryType, amount: Number(form.amount) || 0, currency: "UZS", status: "draft", paid_at: null, meta: {} });
+      setForm({ title: "", description: "", due_at: "", priority: "normal", project: "", unit_id: "", name: "", target: "", actual: "", weight: "100", source: "manual", period: "", employee_id: "", entryType: "salary", amount: "", note: "" }); await load();
     } catch { setError(true); } finally { setSaving(false); }
   }
 
@@ -129,13 +131,13 @@ function OperationsTable({ mode, rows, empty, onStatus, statusBusy, onComment }:
   </tr>)}</tbody></table></div>;
 }
 
-type OpsForm = { title: string; description: string; due_at: string; priority: string; project: string; unit_id: string; name: string; target: string; period: string; employee_id: string; amount: string; note: string };
+type OpsForm = { title: string; description: string; due_at: string; priority: string; project: string; unit_id: string; name: string; target: string; actual: string; weight: string; source: string; period: string; employee_id: string; entryType: string; amount: string; note: string };
 type FormProps = { mode: "execution" | "kpi" | "payroll"; form: OpsForm; setForm: Dispatch<SetStateAction<OpsForm>>; submit: (event: FormEvent<HTMLFormElement>) => void; saving: boolean; t: ReturnType<typeof useTranslations> };
 function OperationsForm({ mode, form, setForm, submit, saving, t }: FormProps) {
   const set = (key: string) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
   return <form className="internal-panel internal-form" onSubmit={submit}><div className="internal-panel__head"><h3>{t(`new.${mode}`)}</h3><IconPlus /></div><div className="internal-form-grid">
     {mode === "execution" && <><input value={form.title} onChange={set("title")} placeholder={t("title")} aria-label={t("title")} maxLength={160} required /><input value={form.description} onChange={set("description")} placeholder={t("description")} aria-label={t("description")} maxLength={1000} /><input value={form.project} onChange={set("project")} placeholder={t("project")} aria-label={t("project")} maxLength={80} /><input value={form.employee_id} onChange={set("employee_id")} placeholder={t("employeeId")} aria-label={t("employeeId")} maxLength={80} /><input value={form.unit_id} onChange={set("unit_id")} placeholder={t("unitId")} aria-label={t("unitId")} maxLength={80} /><input value={form.due_at} onChange={set("due_at")} type="date" aria-label={t("due")} /><select value={form.priority} onChange={set("priority")} aria-label={t("priority")}><option value="low">{t("low")}</option><option value="normal">{t("normal")}</option><option value="high">{t("high")}</option></select></>}
-    {mode === "kpi" && <><input value={form.name} onChange={set("name")} placeholder={t("metricName")} aria-label={t("metricName")} maxLength={120} required /><input value={form.target} onChange={set("target")} placeholder={t("target")} aria-label={t("target")} maxLength={40} /><input value={form.period} onChange={set("period")} placeholder={t("period")} aria-label={t("period")} maxLength={30} /><input value={form.employee_id} onChange={set("employee_id")} placeholder={t("employeeId")} aria-label={t("employeeId")} maxLength={80} /></>}
-    {mode === "payroll" && <><input value={form.employee_id} onChange={set("employee_id")} placeholder={t("employeeId")} aria-label={t("employeeId")} maxLength={80} required /><input value={form.period} onChange={set("period")} placeholder={t("period")} aria-label={t("period")} maxLength={30} required /><input value={form.amount} onChange={set("amount")} placeholder={t("amount")} aria-label={t("amount")} inputMode="decimal" maxLength={30} required /><input value={form.note} onChange={set("note")} placeholder={t("note")} aria-label={t("note")} maxLength={300} /></>}
+    {mode === "kpi" && <><input value={form.name} onChange={set("name")} placeholder={t("metricName")} aria-label={t("metricName")} maxLength={120} required /><input value={form.target} onChange={set("target")} placeholder={t("target")} aria-label={t("target")} inputMode="decimal" maxLength={40} /><input value={form.actual} onChange={set("actual")} placeholder={t("actual")} aria-label={t("actual")} inputMode="decimal" maxLength={40} /><input value={form.weight} onChange={set("weight")} placeholder={t("weight")} aria-label={t("weight")} inputMode="decimal" maxLength={40} /><select value={form.source} onChange={set("source")} aria-label={t("source")}>{KPI_SOURCES.map((source) => <option value={source} key={source}>{t(`sources.${source}`)}</option>)}</select><input value={form.period} onChange={set("period")} placeholder={t("period")} aria-label={t("period")} maxLength={30} /><input value={form.employee_id} onChange={set("employee_id")} placeholder={t("employeeId")} aria-label={t("employeeId")} maxLength={80} /></>}
+    {mode === "payroll" && <><input value={form.employee_id} onChange={set("employee_id")} placeholder={t("employeeId")} aria-label={t("employeeId")} maxLength={80} required /><input value={form.period} onChange={set("period")} placeholder={t("period")} aria-label={t("period")} maxLength={30} required /><select value={form.entryType} onChange={set("entryType")} aria-label={t("entryType")}>{PAYROLL_ENTRY_TYPES.map((entryType) => <option value={entryType} key={entryType}>{t(`entryTypes.${entryType}`)}</option>)}</select><input value={form.amount} onChange={set("amount")} placeholder={t("amount")} aria-label={t("amount")} inputMode="decimal" maxLength={30} required /><input value={form.note} onChange={set("note")} placeholder={t("note")} aria-label={t("note")} maxLength={300} /></>}
   </div><button className="btn btn--pri btn--sm" type="submit" disabled={saving}><IconPlus />{saving ? t("saving") : t("create")}</button></form>;
 }
