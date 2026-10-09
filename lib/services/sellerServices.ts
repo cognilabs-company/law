@@ -249,16 +249,27 @@ async function fetchPriceBand(serviceId: string, sellerId: string, region: strin
   const q = asDict(raw);
   const total = uzs(q, "total_amount");
   if (!total) return null;
+  // Backend limits are authoritative; the public policy is only a compatibility fallback.
+  const limits = asDict(q.pricing_limits);
+  const recommended = uzsOpt(limits, "recommended_price", "recommended", "max_allowed")
+    ?? uzsOpt(q, "recommended_price", "recommended")
+    ?? total;
+  const backendMin = uzsOpt(limits, "min_allowed", "min_price") ?? uzsOpt(q, "min_allowed", "min_price");
+  const backendMax = uzsOpt(limits, "max_allowed", "max_price");
   const custom = policy && policy.minPercent > 0 && policy.minPercent <= policy.maxPercent;
   const lo = custom ? policy.minPercent : 70;
   const hi = custom ? policy.maxPercent : 100;
   return {
-    recommended: total,
-    min: Math.floor((total * lo) / 100),
-    max: Math.floor((total * hi) / 100),
-    base: uzsOpt(q, "base_amount", "base_price") ?? null,
-    currency: asStr(q.currency) || "UZS",
-    modifiers: Array.isArray(q.modifiers) ? readPriceModifiers(q.modifiers) : null,
+    recommended,
+    min: backendMin ?? Math.floor((total * lo) / 100),
+    max: backendMax ?? Math.floor((total * hi) / 100),
+    base: uzsOpt(limits, "base_price", "base_amount") ?? uzsOpt(q, "base_amount", "base_price") ?? null,
+    currency: asStr(limits.currency) || asStr(q.currency) || "UZS",
+    modifiers: Array.isArray(limits.modifiers)
+      ? readPriceModifiers(limits.modifiers)
+      : Array.isArray(q.modifiers)
+        ? readPriceModifiers(q.modifiers)
+        : null,
   };
 }
 
