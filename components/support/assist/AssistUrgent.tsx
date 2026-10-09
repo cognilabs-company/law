@@ -264,6 +264,7 @@ export default function AssistUrgent({ ticketId, client, clientName, onDone, onB
   const basePhase: AssistPayPhase = sent ? urgentPayPhase(sent) : "";
   const phase: AssistPayPhase = sent ? pickPayPhase(live?.phase ?? "", basePhase) : "";
   const urgentStatus = sent ? live?.status || sent.status : "";
+  const telegramSent = live?.telegramSent ?? sent?.telegramSent ?? false;
   const sentRows: InfoRow[] = sent
     ? [
         sent.workId
@@ -273,7 +274,7 @@ export default function AssistUrgent({ ticketId, client, clientName, onDone, onB
         ...(urgentStatus ? [{ key: "status", label: t("result.status"), value: <StatusChip status={urgentStatus} /> }] : []),
         ...(sent.lawyerName ? [{ key: "lawyer", label: t("urgent.lawyer"), value: sent.lawyerName }] : []),
         ...(!phase && sent.amount > 0 ? [{ key: "amount", label: t("urgent.price"), value: sumText(t, sent.amount, sent.currency) }] : []),
-        { key: "tg", label: t("result.telegram"), value: sent.telegramSent ? t("result.telegramSent") : t("result.telegramFailed") },
+        { key: "tg", label: t("result.telegram"), value: telegramSent ? t("result.telegramSent") : t("result.telegramFailed") },
       ]
     : [];
 
@@ -302,7 +303,7 @@ export default function AssistUrgent({ ticketId, client, clientName, onDone, onB
         <ResultCard
           title={t("urgent.sentTitle")}
           rows={sentRows}
-          warn={phase === "rejected" || !sent.telegramSent}
+          warn={phase === "rejected" || !telegramSent}
           onDismiss={() => setSent(null)}
           note={
             <>
