@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { ApiError, asArr, asDict, asStr, type Dict } from "@/lib/http";
 import { saveBlob } from "@/lib/download";
 import { subscribeUserEvents } from "@/lib/userSocket";
+import { subscribeInternalEvents } from "@/lib/internalSocket";
 import {
   createAttendanceEvent,
   createExecutionTask,
@@ -74,6 +75,12 @@ export default function InternalOperationsPages({ mode }: { mode: Mode }) {
 
   useEffect(() => { const controller = new AbortController(); void Promise.resolve().then(() => load(controller.signal)); return () => controller.abort(); }, [load]);
   useEffect(() => subscribeUserEvents((event) => { if (event.event.startsWith("internal.")) void load(); }), [load]);
+  useEffect(() => {
+    if (!commentTaskId) return;
+    return subscribeInternalEvents(`task:${commentTaskId}`, (event) => {
+      if (event.event.startsWith("internal.")) void load();
+    });
+  }, [commentTaskId, load]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (saving) return; setSaving(true); setError(false);
