@@ -263,8 +263,11 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
 
   const aiTicket = current?.id ?? "";
   const ticketCaps = caps && aiTicket && caps.id === aiTicket ? caps : null;
-  const transferOff = ticketCaps ? !ticketCaps.transfer : false;
-  const callOff = ticketCaps ? !ticketCaps.call : false;
+  // Capability data is the authority for assist actions. Until the context
+  // arrives, keep both actions closed so a stale ticket cannot briefly expose
+  // call/transfer controls that the backend would reject.
+  const transferOff = !ticketCaps?.transfer;
+  const callOff = !ticketCaps?.call;
   const onCaps = (id: string, c: AssistCapabilities) =>
     setCaps((cur) => (cur && cur.id === id && cur.transfer === c.operatorTransfer && cur.call === c.supportCall ? cur : { id, transfer: c.operatorTransfer, call: c.supportCall }));
   const ownOpen = (tk: SupportTicket | null) => Boolean(tk && tk.status && tk.operatorUserId && tk.operatorUserId === meId && isActiveTicket(tk));
