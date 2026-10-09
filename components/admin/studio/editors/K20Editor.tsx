@@ -70,7 +70,7 @@ export default function K20Editor({ payload, onChange, errors, readOnly }: Studi
   const freeSelected = Boolean(code) && isApprovalFree(code, reg.items.find((c) => c.code === code) ?? null);
 
   return (
-    <EdShell code={CODE} icon={IconShieldCheck} title={ctorName(CODE)} lead={e("k20.lead")} payload={payload} errors={errs} known={["constructor_code", "title", "steps", "status"]}>
+    <EdShell code={CODE} icon={IconShieldCheck} title={ctorName(CODE)} lead={e("k20.lead")} errors={errs} known={["constructor_code", "title", "steps", "status"]}>
       <div className="stu-fe-grid">
         <Fld label={e("k20.ctor")} required error={errs.constructor_code} hint={freeSelected ? e("k20.freeWarn") : e("k20.ctorHint")}>
           <SelectIn value={code} onChange={(v) => set("constructor_code", v)} options={ctorOpts} readOnly={readOnly} label={e("k20.ctor")} ai={edAi(CODE, "constructor_code")} invalid={Boolean(errs.constructor_code)} placeholder={e("k20.pickCtor")} />

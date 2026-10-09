@@ -70,7 +70,7 @@ export default function K05Editor({ payload, onChange, errors, readOnly }: Studi
   const fieldCount = names.length;
 
   return (
-    <EdShell code={CODE} icon={IconClipboardList} title={ctorName(CODE)} lead={e("k05.lead")} payload={payload} errors={errs} known={["service_id", "sections", "conditional_rules"]}>
+    <EdShell code={CODE} icon={IconClipboardList} title={ctorName(CODE)} lead={e("k05.lead")} errors={errs} known={["service_id", "sections", "conditional_rules"]}>
       <div className="stu-fe-grid">
         <Fld id={`${uid}-svc`} label={e("common.serviceId")} error={errs.service_id} hint={e("common.serviceIdHint")}>
           <TextIn id={`${uid}-svc`} value={str(payload.service_id)} onChange={(v) => set("service_id", v)} readOnly={readOnly} invalid={Boolean(errs.service_id)} placeholder={e("common.serviceIdPh")} label={e("common.serviceId")} ai={edAi(CODE, "service_id")} mono />

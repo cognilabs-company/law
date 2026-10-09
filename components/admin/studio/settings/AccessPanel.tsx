@@ -249,7 +249,7 @@ export default function AccessPanel() {
                 </span>
                 <div>
                   <b>
-                    {role(r)} <code>{r}</code>
+                    {role(r)}
                   </b>
                   <p>{t(`settings.roleInfo.${r}.text`)}</p>
                 </div>

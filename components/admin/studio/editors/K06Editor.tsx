@@ -89,7 +89,6 @@ export default function K06Editor({ payload, onChange, errors, readOnly, file, o
       icon={IconFileText}
       title={ctorName(CODE)}
       lead={e("k06.lead")}
-      payload={payload}
       errors={errs}
       known={["mode", "title", "language", "template_id", "service_id", "fields", "template_text", "clauses", "source_file_required", "file", "source_file"]}
     >

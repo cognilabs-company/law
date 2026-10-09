@@ -65,7 +65,6 @@ export default function K16Editor({ payload, onChange, errors, readOnly }: Studi
       icon={IconFolder}
       title={ctorName(CODE)}
       lead={e("k16.lead")}
-      payload={payload}
       errors={errs}
       known={["directory_key", "language", "items"]}
       note={

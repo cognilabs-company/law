@@ -54,7 +54,6 @@ function CtorMeta({ code, ctor }: { code: string; ctor: StudioConstructor | null
         <li title={t("list.meta.runtimeHint")}>
           <IconLayers aria-hidden />
           {t("list.meta.runtime")}
-          <code>{ctor.runtimeTarget}</code>
         </li>
       ) : null}
       <li className={free ? "stu-olm__free" : undefined}>

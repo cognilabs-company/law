@@ -3,6 +3,7 @@
 import { useRef, useState, type ChangeEvent, type ComponentType, type KeyboardEvent, type ReactNode, type SVGProps } from "react";
 import { useTranslations } from "next-intl";
 import Select from "@/components/Select";
+import { humanize } from "@/lib/labels";
 import { aiId } from "@/lib/ai/ids";
 import { STUDIO_FILE_ACCEPT, STUDIO_FILE_EXT, downloadStudioVersionFile, type StudioFieldErrors } from "@/lib/services/studio";
 import { useStudioErrorText, useStudioText } from "../../bits";
@@ -12,10 +13,8 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconClose,
-  IconDocLines,
   IconDownload,
   IconFileText,
-  IconList,
   IconPlus,
   IconRefresh,
   IconUpload,
@@ -148,7 +147,6 @@ export function EdShell({
   icon: Glyph,
   title,
   lead,
-  payload,
   errors,
   known,
   note,
@@ -158,21 +156,13 @@ export function EdShell({
   icon: Icon;
   title: string;
   lead: string;
-  payload: Dict;
   errors: StudioFieldErrors;
   known: string[];
   note?: ReactNode;
   children: ReactNode;
 }) {
-  const { t, e, ferr } = useEd();
-  const [view, setView] = useState<"form" | "json">("form");
+  const { t, ferr } = useEd();
   const orphan = orphanErrors(errors, known);
-  let json = "";
-  try {
-    json = JSON.stringify(payload, null, 2);
-  } catch {
-    json = "";
-  }
   return (
     <div className="stu-fe" data-ai-id={edAi(code)} data-ai-type="editor" data-ai-label={title}>
       <div className="stu-fe__top">
@@ -183,16 +173,6 @@ export function EdShell({
           <b>{title}</b>
           <p>{lead}</p>
         </div>
-        <div className="stu-seg" role="tablist" aria-label={t("generic.view")}>
-          <button type="button" role="tab" aria-selected={view === "form"} className="stu-seg__b" onClick={() => setView("form")} data-ai-id={edAi(code, "view", "form")} data-ai-type="tab" data-ai-label={t("actions.formView")}>
-            <IconList aria-hidden />
-            {t("actions.formView")}
-          </button>
-          <button type="button" role="tab" aria-selected={view === "json"} className="stu-seg__b" onClick={() => setView("json")} data-ai-id={edAi(code, "view", "json")} data-ai-type="tab" data-ai-label={t("actions.jsonView")}>
-            <IconDocLines aria-hidden />
-            {t("actions.jsonView")}
-          </button>
-        </div>
       </div>
       {note}
       {orphan.length ? (
@@ -201,23 +181,14 @@ export function EdShell({
             <li key={k}>
               <IconAlert aria-hidden />
               <span>
-                {k !== "_" ? <code>{k}</code> : null}
+                {k !== "_" ? <span>{t.has(`field.${k}`) ? t(`field.${k}`) : humanize(k)}</span> : null}
                 {ferr(v)}
               </span>
             </li>
           ))}
         </ul>
       ) : null}
-      {view === "json" ? (
-        <div className="stu-fe__peek">
-          <pre className="stu-json" tabIndex={0} aria-label={e("jsonPeek")}>
-            {json}
-          </pre>
-          <p className="stu-hint">{e("jsonPeekHint")}</p>
-        </div>
-      ) : (
-        children
-      )}
+      {children}
     </div>
   );
 }

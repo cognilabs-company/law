@@ -138,7 +138,7 @@ export default function K14Editor({ payload, onChange, errors, readOnly }: Studi
   const lErr = errs[`messages.${lang}`] ?? "";
 
   return (
-    <EdShell code={CODE} icon={IconBell} title={ctorName(CODE)} lead={e("k14.lead")} payload={payload} errors={errs} known={["event", "channels", "audience_roles", "variables", "messages"]}>
+    <EdShell code={CODE} icon={IconBell} title={ctorName(CODE)} lead={e("k14.lead")} errors={errs} known={["event", "channels", "audience_roles", "variables", "messages"]}>
       <div className="stu-fe-grid">
         <Fld id={`${uid}-ev`} label={e("k14.event")} required error={errs.event} hint={e("k14.eventHint")} wide>
           <TextIn id={`${uid}-ev`} value={str(payload.event)} onChange={(v) => set("event", v.trim())} readOnly={readOnly} invalid={Boolean(errs.event)} placeholder="order.created" label={e("k14.event")} ai={edAi(CODE, "event")} mono list={readOnly ? undefined : `${uid}-evs`} />

@@ -7,6 +7,7 @@ import { ApiError, asStr, type Dict } from "@/lib/http";
 import { decideApproval, getMyApprovals, recordName, recordStatus, type InternalPage, type InternalRecord } from "@/lib/services/internalHrm";
 import { IconCheck, IconClose, IconRefresh, IconShieldCheck } from "@/components/icons";
 import InternalPagination from "@/components/internal/InternalPagination";
+import InternalField from "@/components/internal/InternalField";
 
 function field(row: Dict, ...keys: string[]): string {
   for (const key of keys) {
@@ -79,6 +80,6 @@ export default function InternalApprovalsPage() {
         </tbody></table></div>
       ) : <p className="internal-empty">{t("empty")}</p>}
     </div>
-    {selected ? <div className="internal-panel internal-approval-review"><div className="internal-panel__head"><h3>{recordName(selected)}</h3><button className="btn btn--line btn--sm" type="button" onClick={() => setSelected(null)}><IconClose />{t("close")}</button></div><p>{field(selected, "description", "note", "body", "reason")}</p><form className="internal-form" onSubmit={(event) => void decide(event, "approved")}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder={t("comment")} aria-label={t("comment")} maxLength={2000} rows={3} /><div className="internal-action-row"><button className="btn btn--pri btn--sm" type="submit" disabled={saving}><IconCheck />{t("approve")}</button><button className="btn btn--line btn--sm" type="button" onClick={() => void decide(null, "rejected")} disabled={saving}><IconClose />{t("reject")}</button></div></form></div> : null}
+    {selected ? <div className="internal-panel internal-approval-review"><div className="internal-panel__head"><h3>{recordName(selected)}</h3><button className="btn btn--line btn--sm" type="button" onClick={() => setSelected(null)}><IconClose />{t("close")}</button></div><p>{field(selected, "description", "note", "body", "reason")}</p><form className="internal-form" onSubmit={(event) => void decide(event, "approved")}><InternalField label={t("comment")}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder={t("comment")} maxLength={2000} rows={3} /></InternalField><div className="internal-action-row"><button className="btn btn--pri btn--sm" type="submit" disabled={saving}><IconCheck />{t("approve")}</button><button className="btn btn--line btn--sm" type="button" onClick={() => void decide(null, "rejected")} disabled={saving}><IconClose />{t("reject")}</button></div></form></div> : null}
   </section>;
 }

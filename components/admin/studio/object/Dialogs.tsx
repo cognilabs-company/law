@@ -6,6 +6,7 @@ import type { StudioVersion } from "@/lib/services/studio";
 import { StudioStatusPill, useStudioText } from "../bits";
 import { VersionBadge } from "./ui";
 import { IconAlert } from "@/components/icons";
+import { PayloadSummary } from "../PayloadSummary";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -151,19 +152,13 @@ export function VersionLine({ version }: { version: StudioVersion }) {
 
 export function PayloadPreview({ open, version, onClose }: { open: boolean; version: StudioVersion | null; onClose: () => void }) {
   const { t } = useStudioText();
-  let text = "";
-  try {
-    text = JSON.stringify(version?.payload ?? {}, null, 2);
-  } catch {
-    text = "";
-  }
   const empty = !version || Object.keys(version.payload).length === 0;
   return (
     <Modal open={open && Boolean(version)} onClose={onClose} title={t("editor.preview.title", { v: version?.version || "—" })} aiId="admin.studio.editor.preview" wide>
       {version ? (
         <div className="stu-odlg">
           <VersionLine version={version} />
-          {empty ? <p className="stu-hint">{t("editor.preview.empty")}</p> : <pre className="stu-opre" tabIndex={0}>{text}</pre>}
+          {empty ? <p className="stu-hint">{t("editor.preview.empty")}</p> : <PayloadSummary payload={version.payload} />}
         </div>
       ) : null}
     </Modal>

@@ -35,7 +35,6 @@ function person(v: unknown): string {
   const full = [text(d.first_name), text(d.last_name)].filter(Boolean).join(" ");
   return text(d.full_name) || text(d.name) || full || text(d.phone) || text(d.email);
 }
-
 export function normRole(r: string): string {
   const k = r.trim().toLowerCase();
   return ROLE_ALIAS[k] ?? k;
@@ -128,12 +127,4 @@ export function mergeDetail(base: StudioDetail, fresh: StudioDetail | null): Stu
     hasFile: fresh.hasFile || base.hasFile,
     raw: { ...base.raw, ...fresh.raw },
   };
-}
-
-export function prettyJson(v: unknown): string {
-  try {
-    return JSON.stringify(v ?? {}, null, 2);
-  } catch {
-    return "";
-  }
 }

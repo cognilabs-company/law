@@ -1,11 +1,12 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId } from "react";
 import { humanize } from "@/lib/labels";
 import type { StudioConstructor, StudioFieldErrors } from "@/lib/services/studio";
 import { useStudioText } from "../bits";
-import { STUDIO_ERR, errorFor, requiredErrors, type StudioEditorProps, type StudioPayload } from "./types";
-import { IconAlert, IconDocLines, IconList } from "@/components/icons";
+import { errorFor, requiredErrors, type StudioEditorProps, type StudioPayload } from "./types";
+import { IconAlert } from "@/components/icons";
+import { PayloadSummary } from "../PayloadSummary";
 
 type Kind = "text" | "textarea" | "json" | "bool" | "number";
 
@@ -66,22 +67,11 @@ export function genericValidate(payload: StudioPayload, constructor: StudioConst
   return requiredErrors(payload, constructor?.schema.required ?? []);
 }
 
-const pretty = (v: unknown) => {
-  try {
-    return JSON.stringify(v ?? null, null, 2);
-  } catch {
-    return "";
-  }
-};
-
 function JsonBox({
   id,
   value,
   onChange,
   readOnly,
-  expect,
-  invalid,
-  rows = 6,
   label,
   aiId,
 }: {
@@ -89,66 +79,29 @@ function JsonBox({
   value: unknown;
   onChange: (v: unknown) => void;
   readOnly: boolean;
-  expect: "any" | "object";
-  invalid?: boolean;
-  rows?: number;
   label: string;
   aiId?: string;
 }) {
-  const { fieldErr } = useStudioText();
-  const shown = pretty(value);
-  const [text, setText] = useState(shown);
-  const [synced, setSynced] = useState(shown);
-  const [bad, setBad] = useState("");
-  if (shown !== synced) {
-    setSynced(shown);
-    setText(shown);
-    setBad("");
-  }
-  function edit(next: string) {
-    setText(next);
-    if (!next.trim()) {
-      const blank = expect === "object" ? {} : null;
-      setBad("");
-      setSynced(pretty(blank));
-      onChange(blank);
-      return;
-    }
-    try {
-      const parsed: unknown = JSON.parse(next);
-      if (expect === "object" && (!parsed || typeof parsed !== "object" || Array.isArray(parsed))) {
-        setBad(STUDIO_ERR.object);
-        return;
-      }
-      setBad("");
-      setSynced(pretty(parsed));
-      onChange(parsed);
-    } catch {
-      setBad(STUDIO_ERR.json);
-    }
-  }
+  const { t } = useStudioText();
+  const object = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  const list = Array.isArray(value) ? value : null;
+  const scalar = (item: unknown) => item === null || item === undefined ? "" : typeof item === "string" || typeof item === "number" ? String(item) : "";
+  const updateObject = (key: string, next: string) => onChange({ ...(object || {}), [key]: next });
+  const updateList = (index: number, next: string) => onChange((list || []).map((item, itemIndex) => itemIndex === index ? next : item));
   return (
-    <>
-      <textarea
-        id={id}
-        className="stu-json"
-        value={text}
-        onChange={(e) => edit(e.target.value)}
-        readOnly={readOnly}
-        rows={rows}
-        spellCheck={false}
-        aria-invalid={Boolean(bad) || invalid}
-        aria-label={label}
-        data-ai-id={aiId}
-        data-ai-type={aiId ? "textarea" : undefined}
-        data-ai-label={label}
-      />
-      {bad ? (
-        <p className="stu-ferr" role="alert">
-          {fieldErr(bad)}
-        </p>
-      ) : null}
-    </>
+    <div id={id} className="stu-structured" aria-label={label} data-ai-id={aiId} data-ai-type="group" data-ai-label={label}>
+      {object ? Object.entries(object).map(([key, item]) => (
+        <label className="stu-structured__row" key={key}>
+          <span>{t.has(`field.${key}`) ? t(`field.${key}`) : humanize(key)}</span>
+          {item && typeof item === "object" ? <PayloadSummary payload={item as Record<string, unknown>} compact /> : <input value={scalar(item)} onChange={(event) => updateObject(key, event.target.value)} readOnly={readOnly} />}
+        </label>
+      )) : list ? list.map((item, index) => (
+        <label className="stu-structured__row" key={index}>
+          <span>{t("generic.item", { n: index + 1 })}</span>
+          {item && typeof item === "object" ? <PayloadSummary payload={item as Record<string, unknown>} compact /> : <input value={scalar(item)} onChange={(event) => updateList(index, event.target.value)} readOnly={readOnly} />}
+        </label>
+      )) : <p className="stu-hint">{t("generic.noData")}</p>}
+    </div>
   );
 }
 
@@ -192,7 +145,6 @@ function Field({
             {label}
             {required ? <i className="stu-req" aria-hidden>*</i> : null}
           </span>
-          <code>{name}</code>
         </label>
       ) : (
         <>
@@ -201,10 +153,9 @@ function Field({
               {label}
               {required ? <i className="stu-req" aria-hidden>*</i> : null}
             </span>
-            <code>{name}</code>
           </label>
           {kind === "json" ? (
-            <JsonBox id={id} value={value ?? emptyFor(name)} onChange={onChange} readOnly={readOnly} expect="any" invalid={bad} label={label} aiId={aiId} />
+            <JsonBox id={id} value={value ?? emptyFor(name)} onChange={onChange} readOnly={readOnly} label={label} aiId={aiId} />
           ) : kind === "textarea" ? (
             <textarea
               id={id}
@@ -252,12 +203,10 @@ function Field({
 
 export default function GenericEditor({ constructor, payload, onChange, errors, readOnly }: StudioEditorProps) {
   const { t, fieldErr } = useStudioText();
-  const uid = useId();
   const schemaFields = constructor?.schema.fields ?? [];
+  const noSchema = schemaFields.length === 0;
   const required = new Set(constructor?.schema.required ?? []);
   const extra = Object.keys(payload).filter((k) => !schemaFields.includes(k));
-  const noSchema = schemaFields.length === 0;
-  const [mode, setMode] = useState<"form" | "json">(noSchema && extra.length === 0 ? "json" : "form");
   const known = new Set([...schemaFields, ...extra]);
   const orphan = Object.entries(errors).filter(([k]) => {
     const root = k.split(/[.[]/)[0];
@@ -268,16 +217,6 @@ export default function GenericEditor({ constructor, payload, onChange, errors, 
   return (
     <div className="stu-gen" data-ai-id="admin.studio.editor.generic" data-ai-type="editor" data-ai-label={t("generic.title")}>
       <div className="stu-gen__bar">
-        <div className="stu-seg" role="tablist" aria-label={t("generic.view")}>
-          <button type="button" role="tab" aria-selected={mode === "form"} className="stu-seg__b" onClick={() => setMode("form")} data-ai-id="admin.studio.editor.view.form" data-ai-type="tab" data-ai-label={t("actions.formView")}>
-            <IconList aria-hidden />
-            {t("actions.formView")}
-          </button>
-          <button type="button" role="tab" aria-selected={mode === "json"} className="stu-seg__b" onClick={() => setMode("json")} data-ai-id="admin.studio.editor.view.json" data-ai-type="tab" data-ai-label={t("actions.jsonView")}>
-            <IconDocLines aria-hidden />
-            {t("actions.jsonView")}
-          </button>
-        </div>
         {required.size ? (
           <small className="stu-gen__req">
             <i className="stu-req" aria-hidden>*</i> {t("generic.requiredHint")}
@@ -291,7 +230,7 @@ export default function GenericEditor({ constructor, payload, onChange, errors, 
             <li key={k}>
               <IconAlert aria-hidden />
               <span>
-                {k !== "_" ? <code>{k}</code> : null}
+                {k !== "_" ? <span>{t.has(`field.${k}`) ? t(`field.${k}`) : humanize(k)}</span> : null}
                 {fieldErr(v)}
               </span>
             </li>
@@ -299,16 +238,7 @@ export default function GenericEditor({ constructor, payload, onChange, errors, 
         </ul>
       ) : null}
 
-      {mode === "json" ? (
-        <div className="stu-fld">
-          <label className="stu-fld__l" htmlFor={`${uid}-all`}>
-            <span>{t("generic.wholePayload")}</span>
-          </label>
-          <JsonBox id={`${uid}-all`} value={payload} onChange={(v) => onChange((v && typeof v === "object" && !Array.isArray(v) ? v : {}) as StudioPayload)} readOnly={readOnly} expect="object" rows={18} label={t("generic.wholePayload")} aiId="admin.studio.editor.json" />
-          <p className="stu-hint">{noSchema ? t("generic.noSchema") : t("generic.jsonHint")}</p>
-        </div>
-      ) : (
-        <>
+      <>
           {schemaFields.length ? (
             <div className="stu-gen__grid">
               {schemaFields.map((f) => (
@@ -326,9 +256,8 @@ export default function GenericEditor({ constructor, payload, onChange, errors, 
               </div>
             </section>
           ) : null}
-          {!schemaFields.length && !extra.length ? <p className="stu-hint">{t("generic.noSchema")}</p> : null}
+          {noSchema && !extra.length ? <><p className="stu-hint">{t("generic.noSchema")}</p><PayloadSummary payload={payload} /></> : null}
         </>
-      )}
     </div>
   );
 }
