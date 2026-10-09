@@ -102,7 +102,10 @@ export type StudioActivity = {
   raw: Dict;
 };
 
-export type StudioMonitoring = { items: StudioActivity[]; online: number; total: number; raw: Dict };
+export type StudioMonitoringSummary = { online: number; sessions: number; users: number; objectsCreated: number; submittedForApproval: number; saveCount: number; durationSeconds: number };
+export type StudioMonitoringUser = { id: string; name: string; sessions: number };
+export type StudioMonitoring = { items: StudioActivity[]; online: number; total: number; summary: StudioMonitoringSummary; users: StudioMonitoringUser[]; raw: Dict };
+export type StudioReferenceItem = { id: string; label: string; value: string; raw: Dict };
 
 export type StudioRouteStep = { role: string; title: string };
 export type StudioRoute = {
@@ -797,18 +800,51 @@ export async function listStudioApprovals(q: { constructorCode?: string; status?
   return { items, total: totalOf(res, items.length) };
 }
 
-export async function getStudioMonitoring(): Promise<StudioMonitoring> {
-  const res = await http("/admin/studio/monitoring");
+export async function getStudioMonitoring(params: { constructorCode?: string; userId?: string; date?: string; dateFrom?: string; dateTo?: string } = {}): Promise<StudioMonitoring> {
+  const query = new URLSearchParams();
+  if (params.constructorCode) query.set("constructor_code", params.constructorCode);
+  if (params.userId) query.set("user_id", params.userId);
+  if (params.date) query.set("date", params.date);
+  if (params.dateFrom) query.set("date_from", params.dateFrom);
+  if (params.dateTo) query.set("date_to", params.dateTo);
+  const qs = query.toString();
+  const res = await http(`/admin/studio/monitoring${qs ? `?${qs}` : ""}`);
   const d = asDict(res);
+  const rawSummary = asDict(d.summary);
   const now = Date.now();
   const items = listOf(res, ["items", "sessions", "activity", "activities", "active", "data", "results"]).map((r) => normStudioActivity(r, now));
-  const onlineRaw = d.online ?? d.online_count ?? asDict(d.summary).online;
+  const onlineRaw = d.online ?? d.online_count ?? rawSummary.online;
+  const online = typeof onlineRaw === "number" ? onlineRaw : items.filter((a) => a.online).length;
+  const users = listOf(d.users, ["items", "users", "data", "results"]).map((value) => {
+    const row = asDict(value);
+    return { id: first(row.id, row.user_id), name: first(row.name, row.full_name, personOf(row.user)), sessions: asNum(row.sessions ?? row.session_count) };
+  }).filter((row) => row.id || row.name);
   return {
     items,
-    online: typeof onlineRaw === "number" ? onlineRaw : items.filter((a) => a.online).length,
+    online,
     total: totalOf(res, items.length),
+    summary: {
+      online,
+      sessions: asNum(rawSummary.sessions ?? rawSummary.session_count, items.length),
+      users: asNum(rawSummary.users ?? rawSummary.user_count, users.length || new Set(items.map((item) => item.userId).filter(Boolean)).size),
+      objectsCreated: asNum(rawSummary.objects_created ?? rawSummary.objectsCreated),
+      submittedForApproval: asNum(rawSummary.submitted_for_approval ?? rawSummary.submittedForApproval),
+      saveCount: asNum(rawSummary.save_count ?? rawSummary.saves, items.reduce((sum, item) => sum + item.saveCount, 0)),
+      durationSeconds: asNum(rawSummary.duration_seconds ?? rawSummary.worked_seconds, items.reduce((sum, item) => sum + item.durationSec, 0)),
+    },
+    users,
     raw: d,
   };
+}
+
+export async function getStudioReference(key: string, q = "", limit = 50, signal?: AbortSignal): Promise<StudioReferenceItem[]> {
+  const params = new URLSearchParams({ q, limit: String(Math.min(100, Math.max(1, limit))) });
+  const raw = await http(`/studio/reference/${encodeURIComponent(key)}?${params}`, { signal });
+  return listOf(raw, ["items", "data", "results", "options"]).map((value) => {
+    const row = asDict(value);
+    const valueOf = first(row.value, row.id, row.code, row.key);
+    return { id: first(row.id, valueOf), value: valueOf, label: first(row.label, row.title, row.name, row.full_name, valueOf), raw: row };
+  }).filter((item) => item.value);
 }
 
 export async function listStudioAccess(): Promise<StudioList<StudioAccessGrant> & { raw: unknown }> {

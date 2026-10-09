@@ -5,6 +5,7 @@ import K06Editor, { emptyPayload as k06Empty, validate as k06Validate } from "./
 import K14Editor, { emptyPayload as k14Empty, validate as k14Validate } from "./K14Editor";
 import K16Editor, { emptyPayload as k16Empty, validate as k16Validate } from "./K16Editor";
 import K20Editor, { emptyPayload as k20Empty, validate as k20Validate } from "./K20Editor";
+import K12PromoEditor, { emptyPayload as k12PromoEmpty, validate as k12PromoValidate } from "./K12PromoEditor";
 import type { StudioEditorEntry, StudioPayload } from "./types";
 
 export const GENERIC_EDITOR: StudioEditorEntry = {
@@ -19,6 +20,7 @@ const CUSTOM: Partial<Record<string, StudioEditorEntry>> = {
   K14: { Editor: K14Editor, validate: (p) => k14Validate(p), emptyPayload: () => k14Empty() },
   K16: { Editor: K16Editor, validate: (p) => k16Validate(p), emptyPayload: () => k16Empty() },
   K20: { Editor: K20Editor, validate: (p) => k20Validate(p), emptyPayload: () => k20Empty() },
+  "K12-PROMO": { Editor: K12PromoEditor, validate: (p) => k12PromoValidate(p), emptyPayload: () => k12PromoEmpty() },
 };
 
 export function hasCustomEditor(code: string): boolean {

@@ -58,6 +58,9 @@ export type InternalTask = InternalRecord & {
   assignee_name?: string;
 };
 export type InternalMessage = InternalRecord & { subject?: string; body?: string; created_at?: string; unread?: boolean };
+export type OrgBoardNode = { id: string; entityId: string; type: "department" | "employee" | string; label: string; subtitle: string; parentId: string; peopleCount: number; positionCount: number; level: number; raw: InternalRecord };
+export type OrgBoardEdge = { id: string; source: string; target: string; raw: InternalRecord };
+export type OrgBoard = { nodes: OrgBoardNode[]; edges: OrgBoardEdge[]; stats: InternalRecord; layout: InternalRecord; raw: InternalRecord };
 
 const body = (value: unknown): RequestInit => ({
   method: "POST",
@@ -106,6 +109,7 @@ export const getPositions = (params: { q?: string; status?: string; limit?: numb
 export const createPosition = (payload: Dict) => http<InternalRecord>("/internal/org/positions", body(payload));
 export const updatePosition = (id: string, payload: Dict) => http<InternalRecord>(`/internal/org/positions/${encodeURIComponent(id)}`, patchBody(payload));
 export const getOrgBoard = (include = "people", signal?: AbortSignal) => http<InternalRecord>(`/internal/org/board${query({ include })}`, { signal });
+export const getOrgUnitDetail = (unitId: string, signal?: AbortSignal) => http<InternalRecord>(`/internal/org/units/${encodeURIComponent(unitId)}`, { signal });
 export const createOrgUnit = (payload: Dict) => http<InternalRecord>("/internal/org/units", body(payload));
 export const updateOrgUnit = (id: string, payload: Dict) => http<InternalRecord>(`/internal/org/units/${encodeURIComponent(id)}`, patchBody(payload));
 
@@ -148,4 +152,43 @@ export function recordName(row: InternalRecord): string {
 
 export function recordStatus(row: InternalRecord): string {
   return asStr(row.status ?? row.state ?? row.attendance_status, "—");
+}
+
+function boardNode(value: unknown, index: number, parentId = "", level = 0, typeHint = "department"): OrgBoardNode {
+  const row = asDict(value) as InternalRecord;
+  const type = asStr(row.type ?? row.node_type ?? row.entity_type, typeHint) || typeHint;
+  const id = asStr(row.id ?? row.node_id ?? row.entity_id, `${type}-${index}`);
+  const people = asArr(row.people ?? row.employees);
+  return {
+    id,
+    entityId: asStr(row.entity_id ?? row.unit_id ?? row.employee_id ?? row.id),
+    type,
+    label: asStr(row.label ?? row.name ?? row.title ?? row.full_name, "—"),
+    subtitle: asStr(row.subtitle ?? row.code ?? row.position_name ?? row.role),
+    parentId: asStr(row.parent_id ?? row.parentId, parentId),
+    peopleCount: asNum(row.people_count ?? row.employee_count, people.length),
+    positionCount: asNum(row.position_count ?? row.positions_count, asArr(row.positions).length),
+    level: asNum(row.level, level),
+    raw: row,
+  };
+}
+
+export function normOrgBoard(raw: unknown): OrgBoard {
+  const root = asDict(raw);
+  const source = asDict(root.board ?? raw);
+  const direct = asArr(source.nodes);
+  const nodes: OrgBoardNode[] = direct.length ? direct.map((value, index) => boardNode(value, index)) : [];
+  const walk = (value: unknown, parentId = "", level = 0) => {
+    const row = asDict(value);
+    const node = boardNode(row, nodes.length, parentId, level, "department");
+    nodes.push(node);
+    for (const person of asArr(row.people ?? row.employees)) nodes.push(boardNode(person, nodes.length, node.id, level + 1, "employee"));
+    for (const child of asArr(row.children ?? row.units ?? row.departments)) walk(child, node.id, level + 1);
+  };
+  if (!nodes.length) for (const unit of asArr(source.roots ?? source.units ?? source.departments ?? root.roots ?? root.units ?? root.departments)) walk(unit);
+  const edges = asArr(source.edges).map((value, index) => {
+    const row = asDict(value) as InternalRecord;
+    return { id: asStr(row.id, `edge-${index}`), source: asStr(row.source ?? row.from ?? row.parent_id), target: asStr(row.target ?? row.to ?? row.child_id), raw: row };
+  }).filter((edge) => edge.source && edge.target);
+  return { nodes, edges, stats: asDict(source.stats) as InternalRecord, layout: asDict(source.layout) as InternalRecord, raw: source as InternalRecord };
 }

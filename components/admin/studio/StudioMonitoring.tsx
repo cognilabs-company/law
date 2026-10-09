@@ -20,7 +20,7 @@ const IconPulse = (p: SVGProps<SVGSVGElement>) => (
 );
 
 type Row = { a: StudioActivity; at: number };
-type State = { phase: Phase; rows: Row[]; serverOnline: number; error: unknown };
+type State = { phase: Phase; rows: Row[]; serverOnline: number; summary: { online: number; sessions: number; users: number; objectsCreated: number; submittedForApproval: number; saveCount: number; durationSeconds: number }; users: { id: string; name: string; sessions: number }[]; error: unknown };
 
 const AI = "admin.studio.monitoring";
 
@@ -86,10 +86,13 @@ export default function StudioMonitoring() {
 function MonitoringBody() {
   const { t, ctorName, role, duration, ago, num } = useStudioText();
   const now = useNow(30_000);
-  const [st, setSt] = useState<State>({ phase: "loading", rows: [], serverOnline: 0, error: null });
+  const [st, setSt] = useState<State>({ phase: "loading", rows: [], serverOnline: 0, summary: { online: 0, sessions: 0, users: 0, objectsCreated: 0, submittedForApproval: 0, saveCount: 0, durationSeconds: 0 }, users: [], error: null });
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
   const [code, setCode] = useState("");
+  const [userId, setUserId] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [state, setState] = useState("");
   const seq = useRef(0);
   const liveRows = useRef<Row[]>([]);
@@ -98,15 +101,15 @@ function MonitoringBody() {
   const load = useCallback(async () => {
     const my = ++seq.current;
     try {
-      const m = await getStudioMonitoring();
+      const m = await getStudioMonitoring({ constructorCode: code, userId, dateFrom, dateTo });
       if (my !== seq.current) return;
       const at = Date.now();
-      setSt({ phase: "ready", rows: sortRows(m.items.map((a) => ({ a, at }))), serverOnline: m.online, error: null });
+      setSt({ phase: "ready", rows: sortRows(m.items.map((a) => ({ a, at }))), serverOnline: m.online, summary: m.summary, users: m.users, error: null });
     } catch (e) {
       if (my !== seq.current) return;
-      setSt((cur) => (cur.phase === "ready" ? { ...cur, error: e } : { phase: "error", rows: [], serverOnline: 0, error: e }));
+      setSt((cur) => (cur.phase === "ready" ? { ...cur, error: e } : { phase: "error", rows: [], serverOnline: 0, summary: cur.summary, users: cur.users, error: e }));
     }
-  }, []);
+  }, [code, userId, dateFrom, dateTo]);
 
   useEffect(() => {
     void load();
@@ -162,7 +165,7 @@ function MonitoringBody() {
   }
 
   const rows = st.rows;
-  const online = rows.length ? rows.filter((r) => r.a.online).length : st.serverOnline;
+  const online = st.summary.online || (rows.length ? rows.filter((r) => r.a.online).length : st.serverOnline);
   const today = rows.filter((r) => sameDay(r.a.startedAt || r.a.lastSeenAt, now));
   const todaySaves = today.reduce((n, r) => n + r.a.saveCount, 0);
   const todayTime = today.reduce((n, r) => n + liveSeconds(r, now), 0);
@@ -178,6 +181,10 @@ function MonitoringBody() {
     { value: "online", label: `${t("monitoring.online")} (${num(online)})` },
     { value: "offline", label: `${t("monitoring.offline")} (${num(rows.length - online)})` },
   ];
+  const userOpts = [
+    { value: "", label: t("common.all") },
+    ...st.users.map((user) => ({ value: user.id, label: `${user.name || t("monitoring.unknownUser")} (${num(user.sessions)})` })),
+  ];
   const shown = rows.filter((r) => {
     if (code && r.a.constructorCode !== code) return false;
     if (state === "online" && !r.a.online) return false;
@@ -188,13 +195,16 @@ function MonitoringBody() {
   const kpis = (
     <div className="stu-mkpis" data-ai-id={`${AI}.summary`} data-ai-type="section" data-ai-label={t("monitoring.summary")}>
       <StudioKpi icon={IconPulse} value={st.phase === "ready" ? num(online) : "—"} label={t("monitoring.kpi.online")} tone={online > 0 ? "ok" : undefined} />
-      <StudioKpi icon={IconUsers} value={st.phase === "ready" && now ? num(today.length) : "—"} label={t("monitoring.kpi.sessions")} />
+      <StudioKpi icon={IconUsers} value={st.phase === "ready" ? num(st.summary.sessions || today.length) : "—"} label={t("monitoring.kpi.sessions")} />
+      <StudioKpi icon={IconUsers} value={st.phase === "ready" ? num(st.summary.users) : "—"} label={t("monitoring.kpi.users")} />
       <StudioKpi
         icon={IconEdit}
-        value={st.phase === "ready" && now ? num(todaySaves) : "—"}
+        value={st.phase === "ready" ? num(st.summary.saveCount || todaySaves) : "—"}
         label={t("monitoring.kpi.saves")}
-        hint={st.phase === "ready" && now && todayTime > 0 ? t("monitoring.kpi.time", { v: duration(todayTime) }) : undefined}
+        hint={st.phase === "ready" && (st.summary.durationSeconds || todayTime) > 0 ? t("monitoring.kpi.time", { v: duration(st.summary.durationSeconds || todayTime) }) : undefined}
       />
+      <StudioKpi icon={IconEdit} value={st.phase === "ready" ? num(st.summary.objectsCreated) : "—"} label={t("monitoring.kpi.objects")} />
+      <StudioKpi icon={IconEdit} value={st.phase === "ready" ? num(st.summary.submittedForApproval) : "—"} label={t("monitoring.kpi.submitted")} />
     </div>
   );
 
@@ -235,11 +245,12 @@ function MonitoringBody() {
         <p className="stu-hint">{t("monitoring.privacy")}</p>
         {st.error ? <LoadProblem error={st.error} onRetry={() => void refresh()} busy={busy} /> : null}
 
-        {rows.length ? (
+        {rows.length || st.users.length ? (
           <FilterBar
             search={{ value: q, onChange: setQ, placeholder: t("monitoring.searchPh"), aiId: `${AI}.search.input`, aiLabel: t("monitoring.searchPh") }}
             fields={[
               { key: "code", label: t("monitoring.filterCtor"), value: code, onChange: setCode, options: codeOpts, aiId: `${AI}.filter.constructor` },
+              { key: "user", label: t("monitoring.filterUser"), value: userId, onChange: setUserId, options: userOpts, aiId: `${AI}.filter.user` },
               { key: "state", label: t("monitoring.filterState"), value: state, onChange: setState, options: stateOpts, aiId: `${AI}.filter.state` },
             ]}
             count={shown.length}
@@ -247,6 +258,10 @@ function MonitoringBody() {
             aiLabel={t("monitoring.filterTitle")}
           />
         ) : null}
+        <div className="stu-mon__dates">
+          <label><span>{t("monitoring.dateFrom")}</span><input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label>
+          <label><span>{t("monitoring.dateTo")}</span><input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label>
+        </div>
 
         {!rows.length ? (
           <StudioEmpty icon={IconChartBar} title={t("screens.monitoring.emptyTitle")} text={t("screens.monitoring.emptyText")} />

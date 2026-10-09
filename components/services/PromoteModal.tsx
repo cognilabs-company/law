@@ -4,21 +4,19 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import {
-  listAdPackages,
   pendingPromoKey,
-  promoteManagedService,
   savePendingPromo,
   serviceErrorOf,
-  type AdPackage,
   type ManagedService,
   type PromotionRequest,
   type ServiceError,
   type ServiceScope,
 } from "@/lib/services/sellerServices";
+import { checkoutMarketplacePromotion, listPromotionPackages, uploadPromotionBanner, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
 import { IconAlert, IconCheck, IconClock, IconCrown, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp } from "@/components/icons";
 import { InBody, som, usePackageName } from "./bits";
 
-type Packs = { status: "loading" | "ready" | "error"; items: AdPackage[] };
+type Packs = { status: "loading" | "ready" | "error"; items: PromotionPackage[]; placements: PromotionPlacementOption[] };
 const TIER_ICON = [IconRocket, IconGem, IconCrown];
 
 export default function PromoteModal({
@@ -43,24 +41,35 @@ export default function PromoteModal({
   const t = useTranslations("sellerServices.promote");
   const tc = useTranslations("sellerServices");
   const packName = usePackageName();
-  const [packs, setPacks] = useState<Packs>({ status: "loading", items: [] });
+  const [packs, setPacks] = useState<Packs>({ status: "loading", items: [], placements: [] });
   const [tick, setTick] = useState(0);
+  const [placement, setPlacement] = useState<PromotionPlacement>("service_boost");
   const [picked, setPicked] = useState("");
+  const [bannerImageUrl, setBannerImageUrl] = useState("");
+  const [bannerFileUrl, setBannerFileUrl] = useState("");
+  const [bannerTitle, setBannerTitle] = useState("");
+  const [bannerSubtitle, setBannerSubtitle] = useState("");
+  const [ctaLabel, setCtaLabel] = useState("");
+  const [ctaUrl, setCtaUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState<PromotionRequest | null>(null);
 
   useEffect(() => {
     const c = new AbortController();
-    listAdPackages(c.signal)
-      .then((items) => {
-        if (!c.signal.aborted) setPacks({ status: "ready", items });
+    listPromotionPackages(placement, c.signal)
+      .then((catalog) => {
+        if (!c.signal.aborted) {
+          setPacks({ status: "ready", items: catalog.items, placements: catalog.placements });
+          setPicked("");
+        }
       })
       .catch(() => {
-        if (!c.signal.aborted) setPacks({ status: "error", items: [] });
+        if (!c.signal.aborted) setPacks({ status: "error", items: [], placements: [] });
       });
     return () => c.abort();
-  }, [tick]);
+  }, [tick, placement]);
 
   const items = packs.items;
   const feat = items.length >= 3 ? items[1].id : items.length ? items[items.length - 1].id : "";
@@ -75,11 +84,27 @@ export default function PromoteModal({
   };
 
   const send = async () => {
-    if (!chosen || busy) return;
+    if (!chosen || busy || (chosen.requiresBanner && !bannerImageUrl && !bannerFileUrl)) return;
     setBusy(true);
     setErr("");
     try {
-      const req = await promoteManagedService(scope, item.id, chosen);
+      const req = await checkoutMarketplacePromotion(
+        {
+          packageId: chosen.id,
+          days: chosen.days,
+          placement,
+          serviceId: placement === "service_boost" ? item.id : undefined,
+          bannerImageUrl,
+          bannerFileUrl,
+          title: bannerTitle,
+          subtitle: bannerSubtitle,
+          ctaLabel,
+          ctaUrl,
+          previewContext: { service_title: item.service.name, placement },
+        },
+        scope,
+        uid,
+      );
       if (req.telegramSent) {
         savePendingPromo(uid, pendingPromoKey(scope, item.id), {
           requestId: req.requestId,
@@ -105,6 +130,26 @@ export default function PromoteModal({
   };
 
   const sent = Boolean(done?.telegramSent);
+  const selectedPlacement = packs.placements.find((p) => p.value === placement);
+
+  async function onBannerFile(file: File | undefined) {
+    if (!file || uploading) return;
+    const allowed = /\.(jpe?g|png|webp|heic)$/i.test(file.name);
+    if (!allowed) {
+      setErr(t("bannerType"));
+      return;
+    }
+    setUploading(true);
+    setErr("");
+    try {
+      setBannerFileUrl(await uploadPromotionBanner(file));
+      setBannerImageUrl("");
+    } catch (e) {
+      setErr(serviceErrorOf(e).detail || t("bannerUploadError"));
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <InBody>
@@ -171,6 +216,19 @@ export default function PromoteModal({
             </div>
             <p className="svprom__lead">{t("lead")}</p>
 
+            <div className="svprom__placements" role="radiogroup" aria-label={t("placementTitle")}>
+              {(packs.placements.length ? packs.placements : [
+                { value: "service_boost" as const, label: t("placementService"), requiresService: true, requiresBanner: false },
+                { value: "profile_boost" as const, label: t("placementProfile"), requiresService: false, requiresBanner: false },
+                { value: "banner" as const, label: t("placementBanner"), requiresService: false, requiresBanner: true },
+              ]).map((option) => (
+                <button key={option.value} type="button" role="radio" aria-checked={placement === option.value} className={`svplace${placement === option.value ? " is-on" : ""}`} onClick={() => setPlacement(option.value)}>
+                  <b>{option.label}</b>
+                  <small>{option.requiresBanner ? t("placementBannerHint") : option.requiresService ? t("placementServiceHint") : t("placementProfileHint")}</small>
+                </button>
+              ))}
+            </div>
+
             {packs.status === "loading" ? (
               <div className="svprom__grid" aria-hidden="true">
                 {[0, 1, 2].map((i) => (
@@ -229,6 +287,28 @@ export default function PromoteModal({
               </div>
             )}
 
+            {selectedPlacement?.requiresBanner || placement === "banner" ? (
+              <div className="svprom__bannerform">
+                <label><span>{t("bannerImageUrl")}</span><input value={bannerImageUrl} onChange={(e) => { setBannerImageUrl(e.target.value); setBannerFileUrl(""); }} placeholder="https://..." /></label>
+                <label><span>{t("bannerFile")}</span><input type="file" accept=".jpg,.jpeg,.png,.webp,.heic" onChange={(e) => void onBannerFile(e.target.files?.[0])} disabled={uploading} /></label>
+                <div className="svprom__fields">
+                  <label><span>{t("bannerTitle")}</span><input value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} /></label>
+                  <label><span>{t("bannerSubtitle")}</span><input value={bannerSubtitle} onChange={(e) => setBannerSubtitle(e.target.value)} /></label>
+                  <label><span>{t("ctaLabel")}</span><input value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} /></label>
+                  <label><span>{t("ctaUrl")}</span><input value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} placeholder="https://..." /></label>
+                </div>
+              </div>
+            ) : null}
+
+            {chosen ? (
+              <div className="svprom__preview" aria-label={t("previewTitle")}>
+                <div className="svprom__previewhead"><span>{t("previewTitle")}</span><small>{selectedPlacement?.label ?? t(`placement${placement === "banner" ? "Banner" : placement === "profile_boost" ? "Profile" : "Service"}`)}</small></div>
+                <div className={`svprom__previewbody${bannerImageUrl || bannerFileUrl ? " has-image" : ""}`} style={bannerImageUrl ? { backgroundImage: `url(${bannerImageUrl})` } : undefined}>
+                  <div><b>{bannerTitle || item.service.name}</b><span>{bannerSubtitle || item.service.name}</span>{ctaLabel ? <em>{ctaLabel}</em> : null}</div>
+                </div>
+              </div>
+            ) : null}
+
             {chosen ? (
               <div className="svprom__sum">
                 <span>{t("package")}</span>
@@ -258,7 +338,7 @@ export default function PromoteModal({
               <button type="button" className="btn btn--line" onClick={close} disabled={busy}>
                 {tc("form.cancel")}
               </button>
-              <button type="button" className="btn btn--grad" onClick={() => void send()} disabled={busy || !chosen} data-ai-id={aiId ? `${aiId}.submit` : undefined}>
+              <button type="button" className="btn btn--grad" onClick={() => void send()} disabled={busy || uploading || !chosen || Boolean(chosen.requiresBanner && !bannerImageUrl && !bannerFileUrl)} data-ai-id={aiId ? `${aiId}.submit` : undefined}>
                 <IconMegaphone aria-hidden="true" />
                 {busy ? t("sending") : t("submit")}
               </button>

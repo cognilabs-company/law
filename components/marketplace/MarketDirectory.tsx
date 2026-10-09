@@ -7,7 +7,7 @@ import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconHeadset, IconLayers, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUser, IconUsers } from "@/components/icons";
 import HeroShowcase from "./HeroShowcase";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { aiSearchMarketplace, listMarketplace, marketAiAvailable, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketSeller } from "@/lib/services/marketplace";
+import { aiSearchMarketplace, listMarketplace, marketAiAvailable, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketPromotionSurface, type MarketSeller } from "@/lib/services/marketplace";
 import { matchesSearch, normalizeSearchText, searchTerms } from "@/lib/searchText";
 import { regionKeyOf, regionLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
@@ -15,6 +15,7 @@ import { fmtRating } from "@/lib/date";
 import { Monogram, hasRating, hasSuccess, sellerTypeLabel, specLabel } from "./bits";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
+import PromotionSurfaces from "./PromotionSurfaces";
 
 type Status = "loading" | "ready" | "error";
 
@@ -85,6 +86,8 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [items, setItems] = useState<MarketSeller[]>([]);
   const [total, setTotal] = useState(0);
   const [meta, setMeta] = useState<MarketMeta | null>(null);
+  const [sponsored, setSponsored] = useState<MarketPromotionSurface[]>([]);
+  const [banners, setBanners] = useState<MarketPromotionSurface[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [moreBusy, setMoreBusy] = useState(false);
   const [reload, setReload] = useState(0);
@@ -102,7 +105,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [priceMax, setPriceMax] = useState("");
   const [minExp, setMinExp] = useState("");
   const [sellerType, setSellerType] = useState("");
-  const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string; disclaimer: string } | null>(null);
+  const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string; disclaimer: string; sponsored: MarketPromotionSurface[]; banners: MarketPromotionSurface[] } | null>(null);
   const aiCtrl = useRef<AbortController | null>(null);
   const [aiPending, setAiPending] = useState("");
   const aiSeq = useRef(0);
@@ -119,6 +122,8 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
           metaRef.current = r.meta;
           setMeta(r.meta);
         }
+        setSponsored(r.sponsored);
+        setBanners(r.banners);
         setStatus("ready");
       })
       .catch(() => {
@@ -250,7 +255,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       }
       if (my !== aiSeq.current || c.signal.aborted) return;
       setAiPending("");
-      setAi(r ? { q: wanted, matches: r.matches, summary: r.summary, disclaimer: r.disclaimer } : null);
+      setAi(r ? { q: wanted, matches: r.matches, summary: r.summary, disclaimer: r.disclaimer, sponsored: r.sponsored, banners: r.banners } : null);
     },
     [regionRaw, sellerType],
   );
@@ -547,6 +552,8 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         aiId="marketplace.filters"
         aiTarget="marketplace:filters"
       />
+
+      <PromotionSurfaces banners={aiHit?.banners.length ? aiHit.banners : banners} sponsored={aiHit?.sponsored.length ? aiHit.sponsored : sponsored} base={base} />
 
       <div className="mk-count" ref={resultsRef} aria-live="polite">
         {status === "ready" ? t("count", { n: list.length }) : null}

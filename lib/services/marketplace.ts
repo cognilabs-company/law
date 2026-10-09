@@ -22,6 +22,22 @@ export type MarketService = {
 
 export type MarketPromotion = { active: boolean; packageTitle: string; daysLeft: number; boostScore: number; serviceId: string; serviceTitle: string };
 
+export type MarketPromotionSurface = {
+  id: string;
+  placement: "banner" | "profile_boost" | "service_boost" | string;
+  sellerUserId: string;
+  sellerName: string;
+  serviceId: string;
+  serviceTitle: string;
+  title: string;
+  subtitle: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  imageUrl: string;
+  boostScore: number;
+  isSponsored: boolean;
+};
+
 export type MarketSeller = {
   id: string;
   userId: string;
@@ -63,6 +79,7 @@ export type MarketSeller = {
   barAssociation: string;
   organizationName: string;
   createdAt: string;
+  isSponsored: boolean;
 };
 
 export type MarketReview = { id: string; rating: number; comment: string; author: string; createdAt: string; reply: string };
@@ -78,7 +95,7 @@ export type MarketMeta = {
   sortOptions: string[];
 };
 
-export type MarketList = { items: MarketSeller[]; total: number; meta: MarketMeta | null };
+export type MarketList = { items: MarketSeller[]; total: number; meta: MarketMeta | null; sponsored: MarketPromotionSurface[]; banners: MarketPromotionSurface[] };
 
 const strList = (v: unknown) => asArr(v).map((x) => asStr(x).trim()).filter(Boolean);
 
@@ -116,6 +133,27 @@ function normPromotion(v: unknown): MarketPromotion | null {
     boostScore: asNum(d.boost_score),
     serviceId: asStr(d.service_id),
     serviceTitle: asStr(d.service_title),
+  };
+}
+
+function normPromotionSurface(v: unknown): MarketPromotionSurface {
+  const d = asDict(v);
+  const seller = asDict(d.seller);
+  const service = asDict(d.service);
+  return {
+    id: asStr(d.id ?? d.promotion_id),
+    placement: asStr(d.placement),
+    sellerUserId: asStr(d.seller_user_id ?? d.user_id ?? seller.user_id ?? seller.id),
+    sellerName: asStr(d.seller_name ?? seller.name ?? seller.lawyer_name),
+    serviceId: asStr(d.service_id ?? service.id),
+    serviceTitle: cleanDocTitle(asStr(d.service_title ?? service.title ?? service.name)),
+    title: asStr(d.title),
+    subtitle: asStr(d.subtitle),
+    ctaLabel: asStr(d.cta_label),
+    ctaUrl: asStr(d.cta_url),
+    imageUrl: asStr(d.image_url ?? d.banner_image_url),
+    boostScore: asNum(d.boost_score),
+    isSponsored: d.is_sponsored !== false,
   };
 }
 
@@ -162,6 +200,7 @@ export function normMarketSeller(v: unknown): MarketSeller {
     responseRate: asNum(d.response_rate),
     trustScore: asNum(d.trust_score),
     promotion: normPromotion(d.promotion),
+    isSponsored: d.is_sponsored === true || asDict(d.promotion).is_sponsored === true,
     onlineNow: d.online_now === true,
     available: asStr(avail.status, "available") !== "offline",
     services,
@@ -214,11 +253,13 @@ export async function listMarketplace(opts: { sort?: string; offset?: number; in
   // Public marketplace results must contain only LexGo-approved professionals.
   // Admin monitoring uses its own endpoint and is intentionally unaffected.
   const items = asArr(d.items).map(normMarketSeller).filter((s) => s.userId && s.verified);
-  return { items, total: asNum(d.total, items.length), meta: normMeta(d.meta) };
+  const sponsored = asArr(d.sponsored).map(normPromotionSurface).filter((item) => item.id || item.sellerUserId || item.serviceId);
+  const banners = asArr(d.banners).map(normPromotionSurface).filter((item) => item.id || item.imageUrl || item.title);
+  return { items, total: asNum(d.total, items.length), meta: normMeta(d.meta), sponsored, banners };
 }
 
 export type MarketAiMatch = { userId: string; score: number; reasons: string[]; seller: MarketSeller | null };
-export type MarketAiResult = { matches: MarketAiMatch[]; summary: string; disclaimer: string; total: number; hasMore: boolean };
+export type MarketAiResult = { matches: MarketAiMatch[]; summary: string; disclaimer: string; total: number; hasMore: boolean; sponsored: MarketPromotionSurface[]; banners: MarketPromotionSurface[]; suggestedServices: MarketMeta["services"] };
 
 export const marketAiAvailable = () => !featureMissing("marketAiSearch");
 
@@ -257,6 +298,12 @@ export async function aiSearchMarketplace(
       disclaimer: asStr(d.disclaimer).trim(),
       total: asNum(d.total, matches.length),
       hasMore: d.has_more === true,
+      sponsored: asArr(asDict(d.meta).sponsored ?? d.sponsored).map(normPromotionSurface).filter((item) => item.id || item.sellerUserId || item.serviceId),
+      banners: asArr(asDict(d.meta).banners ?? d.banners).map(normPromotionSurface).filter((item) => item.id || item.imageUrl || item.title),
+      suggestedServices: asArr(asDict(d.meta).suggested_services).map((x) => {
+        const s = asDict(x);
+        return { id: asStr(s.id ?? s.service_id), title: cleanDocTitle(asStr(s.title ?? s.name)), categoryId: asStr(s.category_id), basePrice: uzs(s, "base_price") };
+      }).filter((item) => item.id),
     };
   } catch (e) {
     if (isAborted(e)) throw e;

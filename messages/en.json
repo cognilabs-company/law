@@ -229,6 +229,29 @@
         "start": "Editor submits",
         "end": "Published",
         "preview": "Route preview"
+      },
+      "k12promo": {
+        "lead": "Manage a marketplace promotion package with a clear form and a visual preview.",
+        "title": "Package title",
+        "titlePh": "For example: 7-day service boost",
+        "placement": "Promotion placement",
+        "placements": { "banner": "Top banner", "profile": "Feature profile", "service": "Service search" },
+        "price": "Price",
+        "priceHint": "Package price in UZS.",
+        "days": "Duration (days)",
+        "boostScore": "Boost score",
+        "boostHint": "Priority in results.",
+        "statusLabel": "Status",
+        "status": { "active": "Active", "inactive": "Inactive" },
+        "requiresService": "Service selection required",
+        "requiresBanner": "Banner image required",
+        "preview": "Promotion preview",
+        "previewHint": "Enter the text a client will see.",
+        "previewTitle": "Title",
+        "previewSubtitle": "Short description",
+        "previewCta": "Button text",
+        "previewEmpty": "Package title",
+        "previewSubtitleEmpty": "A package for selecting and promoting a service."
       }
     },
     "editor": {
@@ -582,8 +605,11 @@
       "kpi": {
         "online": "Online now",
         "sessions": "Sessions today",
+        "users": "Users",
         "saves": "Saves today",
-        "time": "Total work time: {v}"
+        "time": "Total work time: {v}",
+        "objects": "Objects created",
+        "submitted": "Sent for approval"
       },
       "listTitle": "Active and recent sessions",
       "liveHint": "Updates live",
@@ -592,7 +618,10 @@
       "searchPh": "Name, constructor or object title",
       "filterTitle": "Monitoring filters",
       "filterCtor": "Constructor",
+      "filterUser": "User",
       "filterState": "Status",
+      "dateFrom": "Start date",
+      "dateTo": "End date",
       "online": "Online",
       "offline": "Offline",
       "now": "Now",
@@ -888,6 +917,10 @@
         "name": "Partner lawyer selection",
         "desc": "Rules for picking a lawyer for an order."
       },
+      "k12promo": {
+        "name": "Marketplace promotion packages",
+        "desc": "Manage banner, profile and service boost packages."
+      },
       "k13": {
         "name": "Quality, rating & sanctions",
         "desc": "Quality criteria, scoring and sanctions."
@@ -1071,7 +1104,11 @@
       "noData": "No data entered",
       "noItems": "No items",
       "moreItems": "{n} more items",
-      "item": "Item {n}"
+      "item": "Item {n}",
+      "referenceLoading": "Loading options…",
+      "referenceError": "Couldn't load options",
+      "referencePick": "Choose",
+      "referenceSelected": "Previously selected value"
     },
     "fmt": {
       "hm": "{h} h {m} min",
@@ -1397,7 +1434,23 @@
       "request": "Request",
       "telegramOk": "Sent to Telegram",
       "telegramFail": "Not sent to Telegram — contact support",
-      "close": "Close"
+      "close": "Close",
+      "placementTitle": "Promotion placement",
+      "placementService": "Service search",
+      "placementProfile": "Feature profile",
+      "placementBanner": "Top banner",
+      "placementServiceHint": "Higher in category and service search results.",
+      "placementProfileHint": "Make the specialist profile more visible in the list.",
+      "placementBannerHint": "Show a banner at the top of the marketplace.",
+      "bannerImageUrl": "Banner image URL",
+      "bannerFile": "Banner file",
+      "bannerTitle": "Banner title",
+      "bannerSubtitle": "Short description",
+      "ctaLabel": "Button text",
+      "ctaUrl": "Button URL",
+      "previewTitle": "Preview",
+      "bannerType": "The banner must be JPG, PNG, WEBP or HEIC.",
+      "bannerUploadError": "Couldn't upload the banner. Please try again."
     },
     "packages": {
       "top": "Top of search",
@@ -2848,6 +2901,7 @@
       "price_asc": "Cheapest first"
     },
     "count": "{n} specialists",
+    "promotions": { "label": "Marketplace promotions", "sponsored": "Sponsored", "bannerFallback": "A special LexGo marketplace offer", "featuredTitle": "Featured services", "previous": "Previous banner", "next": "Next banner" },
     "empty": "No matching specialists",
     "emptyText": "Change or clear the filters.",
     "error": "Could not load the list.",
@@ -12131,7 +12185,7 @@
     "nav": { "dashboard": "Dashboard", "me": "Me", "tasks": "My tasks", "attendance": "Attendance", "approvals": "Approvals", "messages": "Messages", "employees": "Employees", "org": "Organization", "execution": "Execution", "time": "Time", "schedules": "Schedules", "kpi": "KPI", "payroll": "Payroll", "analytics": "Analytics" },
     "dashboard": { "kicker": "Internal workspace", "title": "Your workday", "lead": "Your tasks, attendance and messages in one place.", "refresh": "Refresh", "error": "Some internal data could not be loaded.", "stats": { "tasks": "Open tasks", "attendance": "Today", "messages": "Unread messages" }, "tasksTitle": "My tasks", "messagesTitle": "Unread messages", "untitled": "Untitled task", "noDueDate": "No due date", "messageFallback": "Internal message", "noTasks": "No tasks assigned.", "noMessages": "No unread messages." },
     "pages": { "kicker": "Internal workspace", "refresh": "Refresh", "error": "Could not load this section.", "titles": { "me": "My profile", "tasks": "My tasks", "attendance": "My attendance", "messages": "Messages" }, "subtitles": { "me": "Your employee profile, today and KPI snapshot.", "tasks": "Tasks assigned to you by the organization.", "attendance": "Your schedule and attendance history.", "messages": "Internal messages and updates." }, "columns": { "task": "Task", "status": "Status", "due": "Due", "date": "Date", "checkIn": "Check in", "checkOut": "Check out", "subject": "Subject" }, "today": "Today", "department": "Department", "manager": "Manager", "myKpis": "My KPIs", "noKpis": "No KPI data yet.", "searchTasks": "Search my tasks", "taskStatusLabel": "Task status", "allStatuses": "All", "taskStatuses": { "new": "New", "accepted": "Accepted", "in_progress": "In progress", "in_review": "In review", "done": "Done", "returned": "Returned", "paused": "Paused", "cancelled": "Cancelled" }, "from": "From", "to": "To", "total": "total", "empty": { "tasks": "No tasks assigned.", "attendance": "No attendance records.", "messages": "No messages yet." }, "newMessage": "Send a message", "recipientUserId": "Recipient user ID", "subject": "Subject", "messageBody": "Write your message", "sending": "Sending…", "send": "Send" },
-    "people": { "kicker": "People and organization", "refresh": "Refresh", "error": "Could not load this section.", "titles": { "employees": "Employees", "org": "Organization" }, "subtitles": { "employees": "Internal employees only, with work codes and assignments.", "org": "Organization board, units and positions." }, "searchEmployees": "Search employees", "statusFilter": "Employee status", "allStatuses": "All statuses", "active": "Active", "inactive": "Inactive", "total": "total", "columns": { "employee": "Employee", "position": "Position", "unit": "Unit", "status": "Status", "code": "Code", "action": "Action" }, "emptyEmployees": "No employees found.", "emptyPositions": "No positions found.", "newEmployee": "Add employee", "newPosition": "Add position", "editPosition": "Edit position", "fullName": "Full name", "phone": "Phone", "positionId": "Position ID", "unitId": "Unit ID", "positionName": "Position name", "positionCode": "Position code", "saving": "Saving…", "create": "Create", "save": "Save", "cancelEdit": "Cancel editing", "organizationBoard": "Organization board", "peopleInBoard": "People in board", "unitsInBoard": "Units in board", "positions": "Positions", "tree": "Organization tree", "emptyUnits": "No units found.", "peopleShort": "people", "detail": "360 view", "employee360": "Employee 360", "employee": "Employee", "editProfile": "Edit profile", "saveProfile": "Save profile", "tasksCount": "Recent tasks", "attendanceCount": "Attendance records", "kpiCount": "KPI records", "payrollCount": "Payroll records", "assignment": "Assignment", "managerId": "Manager employee ID", "salary": "Salary amount", "saveAssignment": "Save assignment", "close": "Close", "newUnit": "Add unit", "editUnit": "Edit unit", "unitName": "Unit name", "unitCode": "Unit code", "parentId": "Parent unit ID" },
+    "people": { "kicker": "People and organization", "refresh": "Refresh", "error": "Could not load this section.", "titles": { "employees": "Employees", "org": "Organization" }, "subtitles": { "employees": "Internal employees only, with work codes and assignments.", "org": "Organization board, units and positions." }, "searchEmployees": "Search employees", "statusFilter": "Employee status", "allStatuses": "All statuses", "active": "Active", "inactive": "Inactive", "total": "total", "columns": { "employee": "Employee", "position": "Position", "unit": "Unit", "status": "Status", "code": "Code", "action": "Action" }, "emptyEmployees": "No employees found.", "emptyPositions": "No positions found.", "newEmployee": "Add employee", "newPosition": "Add position", "editPosition": "Edit position", "fullName": "Full name", "phone": "Phone", "positionId": "Position ID", "unitId": "Unit ID", "positionName": "Position name", "positionCode": "Position code", "saving": "Saving…", "create": "Create", "save": "Save", "cancelEdit": "Cancel editing", "organizationBoard": "Organization board", "peopleInBoard": "People in board", "unitsInBoard": "Units in board", "positions": "Positions", "tree": "Organization tree", "emptyUnits": "No units found.", "peopleShort": "people", "detail": "360 view", "employee360": "Employee 360", "employee": "Employee", "editProfile": "Edit profile", "saveProfile": "Save profile", "tasksCount": "Recent tasks", "attendanceCount": "Attendance records", "kpiCount": "KPI records", "payrollCount": "Payroll records", "assignment": "Assignment", "managerId": "Manager employee ID", "salary": "Salary amount", "saveAssignment": "Save assignment", "close": "Close", "newUnit": "Add unit", "editUnit": "Edit unit", "unitName": "Unit name", "unitCode": "Unit code", "parentId": "Parent unit ID", "board": {"search":"Search the organization board","type":"Node type","allTypes":"All types","department":"Department","employee":"Employee","views":"View","viewBoard":"Board","viewList":"List","viewStats":"Stats","zoomIn":"Zoom in","zoomOut":"Zoom out","zoomReset":"Reset to 100%","minimap":"Board map","nodesCount":"{n} items","code":"Code or position","selectTitle":"Select an item","selectText":"Click a department or employee to see details here.","detailLoaded":"Selected department","detailLoading":"Loading details…","noDetail":"No additional description."} },
     "operations": { "kicker": "Operations", "refresh": "Refresh", "export": "Export XLSX", "error": "Could not load this section.", "titles": { "execution": "Execution", "time": "Time and attendance", "kpi": "KPI", "payroll": "Payroll", "analytics": "Analytics" }, "subtitles": { "execution": "Create and track internal work tasks.", "time": "Record attendance events and review working days.", "kpi": "Track employee metrics and targets.", "payroll": "Review payroll entries and periods.", "analytics": "Organization-level performance overview." }, "attendanceActions": "Attendance action", "attendanceHint": "The server records the event with the current employee and time.", "checkIn": "Check in", "checkOut": "Check out", "breakStart": "Start break", "breakEnd": "End break", "filters": { "search": "Search", "project": "Project", "employeeId": "Employee ID", "status": "Status", "allStatuses": "All statuses", "dateFrom": "From date", "dateTo": "To date", "period": "Period" }, "emptyAnalytics": "No analytics data yet.", "columns": { "task": "Task", "assignee": "Assignee", "status": "Status", "due": "Due", "date": "Date", "employee": "Employee", "hours": "Hours", "metric": "Metric", "value": "Value", "period": "Period", "amount": "Amount", "actions": "Actions" }, "status": { "new": "New", "accepted": "Accepted", "todo": "To do", "in_progress": "In progress", "in_review": "In review", "blocked": "Blocked", "done": "Done", "returned": "Returned", "paused": "Paused", "cancelled": "Cancelled" }, "comment": "Comment", "commentTitle": "Add comment", "commentPlaceholder": "Write a task comment", "sendComment": "Send comment", "cancel": "Cancel", "empty": { "execution": "No execution tasks.", "time": "No attendance days.", "kpi": "No KPI metrics.", "payroll": "No payroll entries." }, "new": { "execution": "Create execution task", "kpi": "Add KPI metric", "payroll": "Add payroll entry" }, "title": "Task title", "description": "Description", "project": "Project", "unitId": "Unit ID", "due": "Due date", "priority": "Priority", "low": "Low", "normal": "Normal", "high": "High", "metricName": "Metric name", "target": "Target", "actual": "Actual value", "weight": "Weight", "source": "Source", "sources": { "execution": "Execution", "attendance": "Attendance", "sales": "Sales", "manual": "Manual" }, "entryType": "Entry type", "entryTypes": { "salary": "Salary", "kpi_bonus": "KPI bonus", "sales_bonus": "Sales bonus", "one_time_bonus": "One-time bonus", "penalty": "Penalty", "advance": "Advance", "deduction": "Deduction", "adjustment": "Adjustment" }, "period": "Period", "employeeId": "Employee ID", "amount": "Amount", "note": "Note", "saving": "Saving…", "create": "Create" },
     "approvals": { "kicker": "Internal control", "title": "Approvals", "lead": "Review decisions assigned to you.", "refresh": "Refresh", "error": "Approvals could not be loaded.", "empty": "No pending approvals.", "review": "Review", "close": "Close", "approve": "Approve", "reject": "Reject", "comment": "Comment", "columns": { "item": "Request", "requester": "Requester", "status": "Status", "action": "Action" } },
     "schedules": { "kicker": "Time management", "title": "Work schedules", "lead": "Manage schedules for employees and units.", "refresh": "Refresh", "error": "Schedules could not be loaded.", "list": "Existing schedules", "empty": "No schedules yet.", "new": "Add work schedule", "name": "Schedule name", "employeeId": "Employee ID", "unitId": "Unit ID", "weeklyLabel": "Weekly workdays", "days": { "1": "Mon", "2": "Tue", "3": "Wed", "4": "Thu", "5": "Fri", "6": "Sat", "7": "Sun" }, "start": "Start", "end": "End", "saving": "Saving…", "create": "Create", "columns": { "name": "Schedule", "scope": "Scope", "time": "Time", "status": "Status" } },

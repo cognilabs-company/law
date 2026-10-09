@@ -1,8 +1,8 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 import { humanize } from "@/lib/labels";
-import type { StudioConstructor, StudioFieldErrors } from "@/lib/services/studio";
+import { getStudioReference, type StudioConstructor, type StudioFieldErrors, type StudioReferenceItem } from "@/lib/services/studio";
 import { useStudioText } from "../bits";
 import { errorFor, requiredErrors, type StudioEditorProps, type StudioPayload } from "./types";
 import { IconAlert } from "@/components/icons";
@@ -55,6 +55,32 @@ function emptyFor(name: string): unknown {
   if (kind === "json") return OBJECT_NAMES.has(name.toLowerCase()) ? {} : [];
   if (kind === "bool") return false;
   return "";
+}
+
+function referenceKey(name: string): string {
+  const map: Record<string, string> = { service_id: "services", category_id: "service-categories", template_id: "document-templates", package_id: "promotion-packages", user_id: "users", constructor_code: "studio-constructors" };
+  return map[name.toLowerCase()] ?? "";
+}
+
+function ReferenceSelect({ value, source, onChange, readOnly, label, required, bad, aiId }: { value: unknown; source: string; onChange: (v: unknown) => void; readOnly: boolean; label: string; required: boolean; bad: boolean; aiId: string }) {
+  const { t } = useStudioText();
+  const [state, setState] = useState<{ phase: "loading" | "ready" | "error"; items: StudioReferenceItem[] }>({ phase: "loading", items: [] });
+  useEffect(() => {
+    const controller = new AbortController();
+    getStudioReference(source, "", 50, controller.signal).then((items) => setState({ phase: "ready", items })).catch(() => {
+      if (!controller.signal.aborted) setState({ phase: "error", items: [] });
+    });
+    return () => controller.abort();
+  }, [source]);
+  const current = value == null ? "" : String(value);
+  const hasCurrent = state.items.some((item) => item.value === current);
+  return (
+    <select value={current} onChange={(event) => onChange(event.target.value)} disabled={readOnly || state.phase !== "ready"} aria-invalid={bad} aria-required={required} data-ai-id={aiId} data-ai-type="select" data-ai-label={label}>
+      <option value="">{state.phase === "loading" ? t("generic.referenceLoading") : state.phase === "error" ? t("generic.referenceError") : t("generic.referencePick")}</option>
+      {current && !hasCurrent ? <option value={current}>{t("generic.referenceSelected")}</option> : null}
+      {state.items.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+    </select>
+  );
 }
 
 export function genericEmptyPayload(constructor: StudioConstructor | null): StudioPayload {
@@ -127,6 +153,7 @@ function Field({
   const label = t.has(`field.${name}`) ? t(`field.${name}`) : humanize(name);
   const aiId = `admin.studio.editor.field.${name.replace(/[^A-Za-z0-9_-]+/g, "-")}`;
   const bad = Boolean(error);
+  const reference = referenceKey(name);
   return (
     <div className={`stu-fld stu-fld--${kind}`}>
       {kind === "bool" ? (
@@ -154,7 +181,9 @@ function Field({
               {required ? <i className="stu-req" aria-hidden>*</i> : null}
             </span>
           </label>
-          {kind === "json" ? (
+          {reference ? (
+            <ReferenceSelect value={value} source={reference} onChange={onChange} readOnly={readOnly} label={label} required={required} bad={bad} aiId={aiId} />
+          ) : kind === "json" ? (
             <JsonBox id={id} value={value ?? emptyFor(name)} onChange={onChange} readOnly={readOnly} label={label} aiId={aiId} />
           ) : kind === "textarea" ? (
             <textarea
