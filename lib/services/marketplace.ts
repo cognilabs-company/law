@@ -305,13 +305,15 @@ export async function requestMarketplacePurchase(
   const order = asDict(d.order);
   const payment = asDict(d.payment);
   const req = asDict(d.purchase_request);
+  const gate = asDict(d.payment_gate);
   return {
     workId: asStr(d.work_id) || asStr(req.work_id) || asStr(asDict(order.details).work_id) || asStr(order.work_id),
     orderId: asStr(order.id ?? d.order_id),
     status: asStr(order.status ?? d.status),
     amount: uzs(payment, "amount") || uzs(order, "price"),
     currency: asStr(payment.currency ?? order.currency, "UZS") || "UZS",
-    telegramSent: d.telegram_sent !== false,
+    // Omitted delivery metadata is unknown, not proof that Telegram sent it.
+    telegramSent: d.telegram_sent === true || payment.telegram_sent === true || gate.telegram_sent === true,
   };
 }
 
