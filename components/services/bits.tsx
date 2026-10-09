@@ -89,8 +89,8 @@ export function StatusSwitch({
 
 export function usePackageName() {
   const t = useTranslations("sellerServices.packages");
-  return (title: string) => {
-    const k = adPackageKey(title);
+  return (title: string, placement = "") => {
+    const k = adPackageKey(title, placement);
     return k ? t(k) : title;
   };
 }

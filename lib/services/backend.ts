@@ -386,6 +386,7 @@ export type BackendLawyer = {
   // "this list does not know", never "not promoted".
   promotion?: PromotionInfo | null;
   promotionBoostScore?: number;
+  isSponsored?: boolean;
 };
 // The paid boost on a marketplace listing. Live shape, read 2026-09-29:
 // {active, id, package_id, package_title, specialization, days_left,
@@ -450,6 +451,7 @@ function normLawyer(v: unknown): BackendLawyer {
     barAssociation: asStr(d.bar_association) || undefined,
     organizationName: asStr(d.organization_name) || undefined,
     promotion: normPromotionInfo(d.promotion),
+    isSponsored: d.is_sponsored === true || asDict(d.promotion).is_sponsored === true,
     promotionBoostScore: d.promotion_boost_score === undefined ? undefined : asNum(d.promotion_boost_score),
   };
 }

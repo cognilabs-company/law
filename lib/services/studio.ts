@@ -20,7 +20,7 @@ export type StudioConstructor = {
   code: string;
   title: string;
   runtimeTarget: string;
-  schema: { required: string[]; fields: string[] };
+  schema: { required: string[]; fields: string[]; selectSources: Record<string, string> };
   approvalRequired: boolean;
   raw: Dict;
 };
@@ -277,7 +277,7 @@ export function normStudioConstructor(raw: unknown): StudioConstructor {
     code,
     title: first(r.title, r.name, r.label, code),
     runtimeTarget: first(r.runtime_target, r.runtimeTarget, r.target),
-    schema: { required, fields },
+    schema: { required, fields, selectSources: selectSourcesOf(schema.select_sources ?? r.select_sources) },
     approvalRequired: approval ?? !STUDIO_APPROVAL_FREE.includes(code),
     raw: r,
   };
@@ -835,6 +835,16 @@ export async function getStudioMonitoring(params: { constructorCode?: string; us
     users,
     raw: d,
   };
+}
+
+function selectSourcesOf(v: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!v || typeof v !== "object" || Array.isArray(v)) return out;
+  for (const [field, src] of Object.entries(v as Record<string, unknown>)) {
+    const key = String(src ?? "").split("?")[0].replace(/\/+$/, "").split("/").pop() ?? "";
+    if (key) out[field] = key;
+  }
+  return out;
 }
 
 export async function getStudioReference(key: string, q = "", limit = 50, signal?: AbortSignal): Promise<StudioReferenceItem[]> {

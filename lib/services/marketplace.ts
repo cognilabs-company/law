@@ -18,6 +18,7 @@ export type MarketService = {
   deliveryMinutes: number;
   experienceNote: string;
   advokatRequired: boolean;
+  isSponsored: boolean;
 };
 
 export type MarketPromotion = { active: boolean; packageTitle: string; daysLeft: number; boostScore: number; serviceId: string; serviceTitle: string };
@@ -120,6 +121,7 @@ export function normMarketService(v: unknown): MarketService {
     deliveryMinutes: asNum(d.delivery_minutes),
     experienceNote: asStr(d.experience_note),
     advokatRequired: d.advokat_required === true,
+    isSponsored: d.is_sponsored === true || asDict(d.promotion).is_sponsored === true || asDict(d.promotion).active === true,
   };
 }
 
@@ -136,7 +138,7 @@ function normPromotion(v: unknown): MarketPromotion | null {
   };
 }
 
-function normPromotionSurface(v: unknown): MarketPromotionSurface {
+export function normPromotionSurface(v: unknown): MarketPromotionSurface {
   const d = asDict(v);
   const seller = asDict(d.seller);
   const service = asDict(d.service);

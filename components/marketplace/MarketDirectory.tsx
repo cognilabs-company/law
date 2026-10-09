@@ -615,9 +615,11 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
   const rated = hasRating(s);
-  const titles = s.serviceTitles.length ? s.serviceTitles : s.services.map((x) => x.title);
+  const topTitles = new Set(s.services.filter((x) => x.isSponsored).map((x) => x.title));
+  const baseTitles = s.serviceTitles.length ? s.serviceTitles : s.services.map((x) => x.title);
+  const titles = [...baseTitles.filter((x) => topTitles.has(x)), ...baseTitles.filter((x) => !topTitles.has(x))];
   const shown = titles.slice(0, 2);
-  const promoted = s.promotion?.active === true;
+  const promoted = s.promotion?.active === true || s.isSponsored || topTitles.size > 0;
   const cardAiId = aiId("marketplace.seller", s.userId);
   const cardAiLabel = [sellerTypeLabel(t, s.sellerType), s.region ? regionLabel(te, s.region) : ""].filter(Boolean).join(" · ");
   return (
@@ -703,7 +705,7 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
       {shown.length ? (
         <ul className="mk-card__svc">
           {shown.map((x) => (
-            <li key={x}>{x}</li>
+            <li key={x} className={topTitles.has(x) ? "mk-card__svc--top" : undefined}>{topTitles.has(x) ? <em className="mk-svc__top">{t("card.promoted")}</em> : null}{x}</li>
           ))}
           {titles.length > shown.length ? <li className="mk-card__svcmore">{t("card.servicesMore", { n: titles.length - shown.length })}</li> : null}
         </ul>

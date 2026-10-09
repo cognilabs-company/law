@@ -231,27 +231,27 @@
         "preview": "Yo'nalish ko'rinishi"
       },
       "k12promo": {
-        "lead": "Marketplace reklama paketini tushunarli forma va ko'rinish namunasi bilan boshqaring.",
+        "lead": "Marketplace targ'ib paketini tushunarli forma va ko'rinish namunasi bilan boshqaring.",
         "title": "Paket nomi",
-        "titlePh": "Masalan: 7 kunlik xizmat boost",
-        "placement": "Reklama joyi",
+        "titlePh": "Masalan: xizmatni 7 kun Topda ko'rsatish",
+        "placement": "Targ'ib joyi",
         "placements": { "banner": "Yuqori banner", "profile": "Profilni ajratish", "service": "Xizmat qidiruvi" },
         "price": "Narx",
         "priceHint": "Paket narxi so'mda.",
         "days": "Amal qilish muddati (kun)",
-        "boostScore": "Boost darajasi",
+        "boostScore": "Yuqoriga ko'tarish darajasi",
         "boostHint": "Natijalardagi ustuvorlik darajasi.",
         "statusLabel": "Holat",
         "status": { "active": "Faol", "inactive": "O'chirilgan" },
         "requiresService": "Xizmat tanlash majburiy",
         "requiresBanner": "Banner rasmi majburiy",
-        "preview": "Reklama ko'rinishi",
+        "preview": "Targ'ib ko'rinishi",
         "previewHint": "Mijoz ko'radigan matnni kiriting.",
         "previewTitle": "Sarlavha",
         "previewSubtitle": "Qisqa izoh",
         "previewCta": "Tugma matni",
         "previewEmpty": "Paket sarlavhasi",
-        "previewSubtitleEmpty": "Xizmatni tanlash va reklama berish uchun paket."
+        "previewSubtitleEmpty": "Xizmatni tanlab targ'ib qilish uchun paket."
       }
     },
     "editor": {
@@ -918,8 +918,8 @@
         "desc": "Buyurtmaga yurist tanlash qoidalari."
       },
       "k12promo": {
-        "name": "Marketplace reklama paketlari",
-        "desc": "Banner, profil va xizmat boost paketlarini boshqaring."
+        "name": "Marketplace targ'ib paketlari",
+        "desc": "Banner, profil va xizmatni Topga chiqarish paketlarini boshqaring."
       },
       "k13": {
         "name": "Sifat, reyting va jarimalar",
@@ -1254,11 +1254,11 @@
     "kicker": "Marketplace xizmatlari",
     "title": "Mening xizmatlarim",
     "titleOwner": "{name} xizmatlari",
-    "lead": "Xizmat qo'shing, narx va tajribangizni yozing, holatini boshqaring va reklama qiling — hammasi bir joyda.",
-    "leadOwner": "Mutaxassis nomidan xizmat qo'shing, narx va izohni yangilang, holatini boshqaring va reklama qiling.",
+    "lead": "Xizmat qo'shing, narx va tajribangizni yozing, holatini boshqaring va targ'ib qiling — hammasi bir joyda.",
+    "leadOwner": "Mutaxassis nomidan xizmat qo'shing, narx va izohni yangilang, holatini boshqaring va targ'ib qiling.",
     "add": "Xizmat qo'shish",
     "addFirst": "Birinchi xizmatni qo'shish",
-    "promoteProfile": "Profilni reklama qilish",
+    "promoteProfile": "Profilni targ'ib qilish",
     "refresh": "Yangilash",
     "retry": "Qayta urinish",
     "error": "Xizmatlarni yuklab bo'lmadi",
@@ -1268,7 +1268,7 @@
       "active": "Faol",
       "paused": "Pauzada",
       "inactive": "Nofaol",
-      "promoted": "Reklamada",
+      "promoted": "Targ'ibda",
       "waiting": "{n} ta kutilmoqda"
     },
     "filters": {
@@ -1292,7 +1292,7 @@
       "action": "Profilga o'tish"
     },
     "boost": {
-      "title": "Profil boost faol",
+      "title": "Profilingiz Topda",
       "text": "Yana {days} kun — barcha xizmatlaringiz marketplace ro'yxatida yuqoriroq chiqadi."
     },
     "blocked": {
@@ -1328,13 +1328,13 @@
       "visible": "Marketplace'da ko'rinadi",
       "hidden": "Ko'rinmaydi: {reasons}",
       "edit": "Tahrirlash",
-      "promote": "Reklama qilish",
-      "promoted": "Reklamada · {days} kun",
-      "promotedShort": "Reklamada",
-      "promotedHint": "Reklama faol, yana {days} kun",
+      "promote": "Targ'ib qilish",
+      "promoted": "Targ'ibda · {days} kun",
+      "promotedShort": "Targ'ibda",
+      "promotedHint": "Targ'ib faol, yana {days} kun",
       "pending": "Tasdiq kutilmoqda",
-      "pendingHint": "Reklama so'rovi Telegram orqali admin tasdig'ini kutmoqda",
-      "promoteInactive": "Reklama faqat faol xizmat uchun yoqiladi",
+      "pendingHint": "Targ'ib so'rovi Telegram orqali admin tasdig'ini kutmoqda",
+      "promoteInactive": "Targ'ib faqat faol xizmat uchun yoqiladi",
       "remove": "Xizmatni o'chirish"
     },
     "reasons": {
@@ -1391,35 +1391,39 @@
       "forbidden": "Bu amal uchun ruxsat yo'q.",
       "forbiddenOwner": "Faqat tashkilot egasi a'zolar xizmatlarini boshqara oladi.",
       "notFound": "Xizmat yoki mutaxassis topilmadi. Ro'yxat yangilandi.",
-      "inactivePromo": "Reklama faqat faol xizmat uchun yoqiladi.",
+      "inactivePromo": "Targ'ib faqat faol xizmat uchun yoqiladi.",
       "invalid": "Ma'lumot noto'g'ri. Maydonlarni tekshiring.",
       "offline": "Internet aloqasi yo'q. Qayta urinib ko'ring.",
       "unknown": "Xatolik yuz berdi. Qayta urinib ko'ring."
     },
     "toast": {
-      "profileRejected": "Profil reklamasi so'rovi rad etildi",
-      "profileApproved": "Profil reklamasi tasdiqlandi",
+      "profileRejected": "Profilni targ'ib qilish so'rovi rad etildi",
+      "profileApproved": "Profilni targ'ib qilish tasdiqlandi",
       "added": "Xizmat qo'shildi",
       "saved": "O'zgarishlar saqlandi",
       "removed": "Xizmat olib tashlandi",
-      "approved": "Reklama tasdiqlandi — xizmat ro'yxatda yuqoriroq chiqadi",
-      "rejected": "Reklama so'rovi bekor qilindi",
-      "promoSent": "Reklama so'rovi tasdiqlashga yuborildi"
+      "approved": "Targ'ib tasdiqlandi — xizmat ro'yxatda yuqoriroq chiqadi",
+      "rejected": "Targ'ib so'rovi bekor qilindi",
+      "promoSent": "Targ'ib so'rovi tasdiqlashga yuborildi"
     },
     "remove": {
       "title": "Xizmatni o'chirish",
       "text": "«{title}» ro'yxatdan olib tashlanadi. Katalogdagi xizmat o'chmaydi — istalgan vaqtda qayta qo'shish mumkin.",
-      "promoWarn": "Bu xizmat reklamada — qolgan reklama muddati qaytarilmaydi.",
+      "promoWarn": "Bu xizmat targ'ibda — qolgan targ'ib muddati qaytarilmaydi.",
       "confirm": "O'chirish",
       "removing": "O'chirilmoqda…"
     },
     "promote": {
+      "bannerUploaded": "Rasm yuklandi",
+      "bannerNoFile": "Fayl tanlanmagan · JPG, PNG, WEBP, HEIC",
+      "bannerUploading": "Yuklanmoqda…",
+      "bannerPick": "Rasm tanlash",
       "retry": "Qayta yuborish",
       "failText": "Admin so'rovni ko'rmaydi. Birozdan so'ng qayta yuboring yoki qo'llab-quvvatlashga yozing.",
       "failTitle": "Telegram'ga yuborilmadi",
-      "title": "Xizmatni reklama qilish",
+      "title": "Xizmatni targ'ib qilish",
       "lead": "Paketni tanlang — tasdiqlangach xizmat marketplace ro'yxatida yuqoriroq chiqadi.",
-      "packages": "Reklama paketlari",
+      "packages": "Targ'ib paketlari",
       "days": "{d} kun",
       "reach": "{x}x gacha qamrov",
       "popular": "Eng foydali",
@@ -1427,21 +1431,21 @@
       "package": "Paket",
       "duration": "Muddat",
       "amount": "Summa",
-      "note": "To'lov so'rovi Telegram orqali admin tasdig'iga yuboriladi. Tasdiqlanmaguncha reklama yoqilmaydi.",
+      "note": "To'lov so'rovi Telegram orqali admin tasdig'iga yuboriladi. Tasdiqlanmaguncha targ'ib yoqilmaydi.",
       "noteOwner": "So'rov siz (tashkilot egasi) nomingizdan yuboriladi, mutaxassisga bildirishnoma boradi.",
       "submit": "Tasdiqlashga yuborish",
       "sending": "Yuborilmoqda…",
-      "empty": "Faol reklama paketlari yo'q",
+      "empty": "Faol targ'ib paketlari yo'q",
       "emptyText": "Admin paket qo'shgach ular shu yerda chiqadi.",
       "loadError": "Paketlarni yuklab bo'lmadi",
       "notFound": "Paket yoki xizmat topilmadi. Sahifani yangilang.",
       "doneTitle": "Telegram orqali tasdiqlash kutilmoqda",
-      "doneText": "Admin tasdiqlagach reklama avtomatik yoqiladi va sizga bildirishnoma keladi.",
+      "doneText": "Admin tasdiqlagach targ'ib avtomatik yoqiladi va sizga bildirishnoma keladi.",
       "request": "So'rov",
       "telegramOk": "Telegram'ga yuborildi",
       "telegramFail": "Telegram'ga yuborilmadi — qo'llab-quvvatlash bilan bog'laning",
       "close": "Yopish",
-      "placementTitle": "Reklama joyi",
+      "placementTitle": "Targ'ib joyi",
       "placementService": "Xizmat qidiruvida",
       "placementProfile": "Profilni ajratish",
       "placementBanner": "Yuqori banner",
@@ -1459,13 +1463,16 @@
       "bannerUploadError": "Banner faylini yuklab bo'lmadi. Qayta urinib ko'ring."
     },
     "packages": {
+      "banner": "Yuqori banner",
+      "service": "Xizmatni Topga chiqarish",
+      "profile": "Profilni Topga chiqarish",
       "top": "Qidiruvda yuqorida",
       "featured": "Tavsiya etilgan profil",
-      "regional": "Hududiy boost"
+      "regional": "Hududda Topga chiqarish"
     },
     "pending": {
       "title": "Profilingiz tasdiq kutmoqda",
-      "text": "Admin tasdig'idan keyin xizmatlarni to'liq boshqarish — izoh, holat va reklama — ochiladi.",
+      "text": "Admin tasdig'idan keyin xizmatlarni to'liq boshqarish — izoh, holat va targ'ib — ochiladi.",
       "action": "Profilga o'tish",
       "legacyNote": "Hozircha ko'rsatadigan xizmatlaringizni tanlab qo'ying — tasdiqlangach ularni shu sahifada to'liq boshqarasiz."
     }
@@ -1496,17 +1503,17 @@
         "tabs": "«Xizmatlar» va «Ish yuki» bo'limlari orasida o'ting.",
         "add": "Mutaxassis nomidan katalogdan xizmat qo'shasiz.",
         "card": "Narxi, izohi va holatini shu kartadan boshqarasiz.",
-        "promote": "A'zo xizmatini reklama qiling — to'lov siz nomingizdan Telegram orqali tasdiqlanadi.",
+        "promote": "A'zo xizmatini targ'ib qiling — to'lov siz nomingizdan Telegram orqali tasdiqlanadi.",
         "workload": "A'zoning buyurtmalari va ishlari ro'yxati."
       },
       "seller_services": {
-        "title": "Xizmatlaringiz: narx, holat va reklama — bir joyda.",
-        "summary": "Faol, pauzadagi, nofaol va reklamadagi xizmatlar soni.",
+        "title": "Xizmatlaringiz: narx, holat va targ'ib — bir joyda.",
+        "summary": "Faol, pauzadagi, nofaol va targ'ibdagi xizmatlar soni.",
         "add": "Katalogdan yangi xizmat qo'shasiz: narx, tajriba izohi va holat bilan.",
         "filters": "Xizmatlarni holat bo'yicha saralang yoki nomi bilan qidiring.",
         "card": "Har bir kartada narx, ruxsat etilgan oraliq va marketplace'da ko'rinish holati.",
         "status": "Bir bosishda: Faol, Pauza yoki Nofaol.",
-        "promote": "Faol xizmatni reklama qiling — so'rov Telegram orqali tasdiqlanadi.",
+        "promote": "Faol xizmatni targ'ib qiling — so'rov Telegram orqali tasdiqlanadi.",
         "catalog": "Profil tasdiqlangunga qadar ko'rsatadigan xizmatlaringizni shu yerdan belgilang.",
         "policy": "Saqlashdan oldin narx siyosatiga rozilik bildiring.",
         "save": "Tanlangan xizmatlar va narxlarni shu tugma bilan saqlaysiz."
@@ -1556,7 +1563,7 @@
         "buy": "Tarifni tanlash uchun shu tugmani o'zingiz bosasiz — to'lov faqat sizning tasdig'ingiz bilan."
       },
       "seller_promotion": {
-        "services": "Alohida xizmatni reklama qilish — xizmat o'z yo'nalishida yuqoriroq chiqadi.",
+        "services": "Alohida xizmatni targ'ib qilish — xizmat o'z yo'nalishida yuqoriroq chiqadi.",
         "title": "Targ'ibot — profilingizni ko'proq mijozga ko'rsatasiz.",
         "analytics": "Ko'rishlar, qidiruvda chiqish, profilga o'tish va murojaatlar soni.",
         "packages": "Paketni tanlab, «Targ'ib qilish» tugmasini o'zingiz bosasiz."
@@ -2907,7 +2914,7 @@
       "price_asc": "Arzonidan boshlab"
     },
     "count": "{n} ta mutaxassis",
-    "promotions": { "label": "Marketplace reklamalari", "sponsored": "Reklama", "bannerFallback": "LexGo marketplace maxsus taklifi", "featuredTitle": "Tavsiya etilgan xizmatlar", "previous": "Oldingi banner", "next": "Keyingi banner" },
+    "promotions": { "label": "Top takliflar", "sponsored": "Top", "bannerFallback": "LexGo marketplace maxsus taklifi", "featuredTitle": "Tavsiya etilgan xizmatlar", "previous": "Oldingi banner", "next": "Keyingi banner" },
     "empty": "Mos mutaxassis topilmadi",
     "emptyText": "Filtrlarni o'zgartirib ko'ring yoki tozalang.",
     "error": "Ro'yxatni yuklab bo'lmadi.",
@@ -2921,8 +2928,8 @@
       "en": "English"
     },
     "card": {
-      "promotedService": "Reklama · {service}",
-      "promoted": "Reklama",
+      "promotedService": "Top · {service}",
+      "promoted": "Top",
       "verified": "Tasdiqlangan",
       "newSeller": "Hali baholanmagan",
       "reviews": "{count} ta baho",
@@ -3848,9 +3855,9 @@
     "roleAdvocates": "Advokatlar",
     "roleLawyers": "Yuristlar",
     "card": {
-      "promotedService": "Reklama · {service}",
+      "promotedService": "Top · {service}",
       "unrated": "Hali baholanmagan",
-      "promoted": "Reklama",
+      "promoted": "Top",
       "kindAdvocate": "Advokat",
       "kindLawyer": "Yurist",
       "fullWin": "To'liq g'alaba",
@@ -9165,10 +9172,10 @@
     }
   },
   "promotion": {
-    "servicesEmpty": "Reklama qilish uchun faol xizmat yo'q.",
-    "servicesLead": "Alohida xizmatni reklama qiling — u o'z yo'nalishida marketplace ro'yxatida yuqoriroq chiqadi.",
+    "servicesEmpty": "Targ'ib qilish uchun faol xizmat yo'q.",
+    "servicesLead": "Alohida xizmatni targ'ib qiling — u o'z yo'nalishida marketplace ro'yxatida yuqoriroq chiqadi.",
     "servicesManage": "Xizmatlarni boshqarish",
-    "servicesTitle": "Xizmatlarni reklama qilish",
+    "servicesTitle": "Xizmatlarni targ'ib qilish",
     "kicker": "Ko'rinuvchanlik vositasi",
     "title": "Profilingizni targ'ib qiling",
     "intro": "Ko'rinuvchanligingizni oshiring va ko'proq potensial mijozlar sizni topsin.",

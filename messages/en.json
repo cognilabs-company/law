@@ -233,13 +233,13 @@
       "k12promo": {
         "lead": "Manage a marketplace promotion package with a clear form and a visual preview.",
         "title": "Package title",
-        "titlePh": "For example: 7-day service boost",
+        "titlePh": "For example: service in Top for 7 days",
         "placement": "Promotion placement",
         "placements": { "banner": "Top banner", "profile": "Feature profile", "service": "Service search" },
         "price": "Price",
         "priceHint": "Package price in UZS.",
         "days": "Duration (days)",
-        "boostScore": "Boost score",
+        "boostScore": "Ranking lift",
         "boostHint": "Priority in results.",
         "statusLabel": "Status",
         "status": { "active": "Active", "inactive": "Inactive" },
@@ -919,7 +919,7 @@
       },
       "k12promo": {
         "name": "Marketplace promotion packages",
-        "desc": "Manage banner, profile and service boost packages."
+        "desc": "Manage banner, profile and service Top packages."
       },
       "k13": {
         "name": "Quality, rating & sanctions",
@@ -1292,7 +1292,7 @@
       "action": "Go to profile"
     },
     "boost": {
-      "title": "Profile boost is on",
+      "title": "Your profile is in Top",
       "text": "{days} more days — all your services rank higher on the marketplace."
     },
     "blocked": {
@@ -1414,6 +1414,10 @@
       "removing": "Removing…"
     },
     "promote": {
+      "bannerUploaded": "Image uploaded",
+      "bannerNoFile": "No file chosen · JPG, PNG, WEBP, HEIC",
+      "bannerUploading": "Uploading…",
+      "bannerPick": "Choose image",
       "retry": "Send again",
       "failText": "An admin won't see the request. Send it again a bit later or contact support.",
       "failTitle": "Not sent to Telegram",
@@ -1459,9 +1463,12 @@
       "bannerUploadError": "Couldn't upload the banner. Please try again."
     },
     "packages": {
+      "banner": "Top banner",
+      "service": "Service in Top",
+      "profile": "Profile in Top",
       "top": "Top of search",
       "featured": "Featured profile",
-      "regional": "Regional boost"
+      "regional": "Top in your region"
     },
     "pending": {
       "title": "Your profile is awaiting verification",
@@ -2907,7 +2914,7 @@
       "price_asc": "Cheapest first"
     },
     "count": "{n} specialists",
-    "promotions": { "label": "Marketplace promotions", "sponsored": "Sponsored", "bannerFallback": "A special LexGo marketplace offer", "featuredTitle": "Featured services", "previous": "Previous banner", "next": "Next banner" },
+    "promotions": { "label": "Top offers", "sponsored": "Top", "bannerFallback": "A special LexGo marketplace offer", "featuredTitle": "Featured services", "previous": "Previous banner", "next": "Next banner" },
     "empty": "No matching specialists",
     "emptyText": "Change or clear the filters.",
     "error": "Could not load the list.",
@@ -2921,8 +2928,8 @@
       "en": "English"
     },
     "card": {
-      "promotedService": "Promoted · {service}",
-      "promoted": "Promoted",
+      "promotedService": "Top · {service}",
+      "promoted": "Top",
       "verified": "Verified",
       "newSeller": "Not rated yet",
       "reviews": "{count} ratings",
@@ -3842,9 +3849,9 @@
     "roleAdvocates": "Advocates",
     "roleLawyers": "Lawyers",
     "card": {
-      "promotedService": "Promoted · {service}",
+      "promotedService": "Top · {service}",
       "unrated": "Not rated yet",
-      "promoted": "Promoted",
+      "promoted": "Top",
       "kindAdvocate": "Advocate",
       "kindLawyer": "Lawyer",
       "fullWin": "Full win",

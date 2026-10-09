@@ -15406,3 +15406,17 @@ textarea.stu-json{min-height:140px;font-family:ui-monospace,SFMono-Regular,Menlo
 @container (max-width:640px){.mdc__sl b{overflow-wrap:normal;word-break:normal}}
 @container (max-width:330px){.mdc__flow{padding:10px 4px}.mdc__dot{width:30px;height:30px}.mdc__dot svg{width:16px;height:16px}.mdc__step:not(:last-child)::after{left:calc(50% + 17px);right:calc(-50% + 17px);top:15px}.mdc__sl b{font-size:.6rem;line-height:1.2}.mdc__step--now .mdc__sl small{font-size:.56rem}.mdc__meta{font-size:.72rem}.mdc__pt b{white-space:normal}}
 .mdc__st{flex:0 1 auto;max-width:100%;white-space:normal}
+.mk-svc__top{display:inline-flex;align-items:center;margin-left:8px;padding:2px 8px;border-radius:var(--pill);vertical-align:2px;background:linear-gradient(135deg,var(--mk-gold, #F7C948),var(--mk-gold2, #E8A317));color:#3A2500;font-style:normal;font-size:.62rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.mk-svc--top{box-shadow:inset 0 0 0 1.5px var(--mk-gold, #F7C948)}
+.mk-card__svc li.mk-card__svc--top{font-weight:700;color:var(--ink)}
+.mk-card__svc li.mk-card__svc--top .mk-svc__top{margin:0 6px 0 0}
+.svfile{position:relative;display:grid;gap:6px}
+.svfile__in{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.svfile__box{display:flex;align-items:center;gap:12px;min-height:46px;padding:6px 8px 6px 6px;border-radius:12px;border:1px dashed var(--dk-bd-neutral, #CBD5E1);background:var(--dk-surface, #fff);cursor:pointer;transition:border-color .15s,background .15s}
+.svfile__box:hover{border-color:var(--b400, #4F8DF7)}
+.svfile__box.is-on{border-style:solid;border-color:var(--dk-txt-ok, #10B981);background:var(--dk-tint-ok, #ECFDF5)}
+.svfile__btn{pointer-events:none;flex:none}
+.svfile__btn svg{width:16px;height:16px}
+.svfile__box small{min-width:0;font-size:.78rem;color:var(--gray);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.svfile__in:focus-visible + .svfile__box{outline:3px solid var(--b400, #4F8DF7);outline-offset:2px}
+.svfile__in:disabled + .svfile__box{opacity:.6;cursor:progress}

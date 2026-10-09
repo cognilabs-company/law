@@ -133,6 +133,7 @@ function JsonBox({
 
 function Field({
   name,
+  source,
   value,
   required,
   error,
@@ -140,6 +141,7 @@ function Field({
   onChange,
 }: {
   name: string;
+  source: string;
   value: unknown;
   required: boolean;
   error: string;
@@ -153,7 +155,7 @@ function Field({
   const label = t.has(`field.${name}`) ? t(`field.${name}`) : humanize(name);
   const aiId = `admin.studio.editor.field.${name.replace(/[^A-Za-z0-9_-]+/g, "-")}`;
   const bad = Boolean(error);
-  const reference = referenceKey(name);
+  const reference = source || referenceKey(name);
   return (
     <div className={`stu-fld stu-fld--${kind}`}>
       {kind === "bool" ? (
@@ -271,7 +273,7 @@ export default function GenericEditor({ constructor, payload, onChange, errors, 
           {schemaFields.length ? (
             <div className="stu-gen__grid">
               {schemaFields.map((f) => (
-                <Field key={f} name={f} value={payload[f]} required={required.has(f)} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
+                <Field key={f} name={f} source={constructor?.schema.selectSources?.[f] ?? ""} value={payload[f]} required={required.has(f)} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
               ))}
             </div>
           ) : null}
@@ -280,7 +282,7 @@ export default function GenericEditor({ constructor, payload, onChange, errors, 
               <h4>{t("generic.extra")}</h4>
               <div className="stu-gen__grid">
                 {extra.map((f) => (
-                  <Field key={f} name={f} value={payload[f]} required={false} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
+                  <Field key={f} name={f} source={constructor?.schema.selectSources?.[f] ?? ""} value={payload[f]} required={false} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
                 ))}
               </div>
             </section>

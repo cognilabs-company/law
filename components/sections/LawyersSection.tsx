@@ -60,7 +60,7 @@ function toLawyer(b: BackendLawyer): Lawyer {
     isNew: b.reviews < 5 && b.totalCases < 5 && !!b.createdAt && Date.now() - new Date(b.createdAt).getTime() < 30 * 86400000,
     // Only /marketplace/lawyers knows this; from /lawyers it is undefined and
     // the badge simply never appears.
-    promoted: b.promotion?.active === true,
+    promoted: b.promotion?.active === true || b.isSponsored === true,
     promotedService: b.promotion?.active ? (b.promotion.serviceTitle ?? "") : "",
     boost: b.promotionBoostScore ?? 0,
   };

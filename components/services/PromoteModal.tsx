@@ -13,7 +13,7 @@ import {
   type ServiceScope,
 } from "@/lib/services/sellerServices";
 import { checkoutMarketplacePromotion, listPromotionPackages, uploadPromotionBanner, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
-import { IconAlert, IconCheck, IconClock, IconCrown, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp } from "@/components/icons";
+import { IconAlert, IconCheck, IconClock, IconCrown, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp, IconUpload } from "@/components/icons";
 import { InBody, som, usePackageName } from "./bits";
 
 type Packs = { status: "loading" | "ready" | "error"; items: PromotionPackage[]; placements: PromotionPlacementOption[] };
@@ -41,6 +41,7 @@ export default function PromoteModal({
   const t = useTranslations("sellerServices.promote");
   const tc = useTranslations("sellerServices");
   const packName = usePackageName();
+  const placementName = (value: PromotionPlacement) => t(value === "banner" ? "placementBanner" : value === "profile_boost" ? "placementProfile" : "placementService");
   const [packs, setPacks] = useState<Packs>({ status: "loading", items: [], placements: [] });
   const [tick, setTick] = useState(0);
   const [placement, setPlacement] = useState<PromotionPlacement>("service_boost");
@@ -52,6 +53,7 @@ export default function PromoteModal({
   const [ctaLabel, setCtaLabel] = useState("");
   const [ctaUrl, setCtaUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [bannerFileName, setBannerFileName] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState<PromotionRequest | null>(null);
@@ -100,7 +102,11 @@ export default function PromoteModal({
           subtitle: bannerSubtitle,
           ctaLabel,
           ctaUrl,
-          previewContext: { service_title: item.service.name, placement },
+          previewContext: {
+            surface: placement === "banner" ? "marketplace_top_banner" : placement === "profile_boost" ? "marketplace_list_card" : "category_search_sponsored_service",
+            service_title: item.service.name,
+            placement,
+          },
         },
         scope,
         uid,
@@ -108,7 +114,7 @@ export default function PromoteModal({
       if (req.telegramSent) {
         savePendingPromo(uid, pendingPromoKey(scope, item.id), {
           requestId: req.requestId,
-          packageTitle: packName(chosen.title),
+          packageTitle: packName(chosen.title, chosen.placement),
           amount: req.amount,
           currency: req.currency,
           telegramSent: req.telegramSent,
@@ -143,6 +149,7 @@ export default function PromoteModal({
     setErr("");
     try {
       setBannerFileUrl(await uploadPromotionBanner(file));
+      setBannerFileName(file.name);
       setBannerImageUrl("");
     } catch (e) {
       setErr(serviceErrorOf(e).detail || t("bannerUploadError"));
@@ -167,7 +174,7 @@ export default function PromoteModal({
               {chosen ? (
                 <>
                   <span>{t("package")}</span>
-                  <b>{packName(chosen.title)}</b>
+                  <b>{packName(chosen.title, chosen.placement)}</b>
                 </>
               ) : null}
               <span>{t("amount")}</span>
@@ -223,7 +230,7 @@ export default function PromoteModal({
                 { value: "banner" as const, label: t("placementBanner"), requiresService: false, requiresBanner: true },
               ]).map((option) => (
                 <button key={option.value} type="button" role="radio" aria-checked={placement === option.value} className={`svplace${placement === option.value ? " is-on" : ""}`} onClick={() => setPlacement(option.value)}>
-                  <b>{option.label}</b>
+                  <b>{placementName(option.value)}</b>
                   <small>{option.requiresBanner ? t("placementBannerHint") : option.requiresService ? t("placementServiceHint") : t("placementProfileHint")}</small>
                 </button>
               ))}
@@ -267,7 +274,7 @@ export default function PromoteModal({
                       <span className="svpk__ic" aria-hidden="true">
                         <Icon />
                       </span>
-                      <b className="svpk__name">{packName(p.title)}</b>
+                      <b className="svpk__name">{packName(p.title, p.placement)}</b>
                       <span className="svpk__days">{t("days", { d: p.days })}</span>
                       {p.reach ? (
                         <span className="svpk__reach">
@@ -290,7 +297,17 @@ export default function PromoteModal({
             {selectedPlacement?.requiresBanner || placement === "banner" ? (
               <div className="svprom__bannerform">
                 <label><span>{t("bannerImageUrl")}</span><input value={bannerImageUrl} onChange={(e) => { setBannerImageUrl(e.target.value); setBannerFileUrl(""); }} placeholder="https://..." /></label>
-                <label><span>{t("bannerFile")}</span><input type="file" accept=".jpg,.jpeg,.png,.webp,.heic" onChange={(e) => void onBannerFile(e.target.files?.[0])} disabled={uploading} /></label>
+                <label className="svfile">
+                  <span>{t("bannerFile")}</span>
+                  <input className="svfile__in" type="file" accept=".jpg,.jpeg,.png,.webp,.heic" onChange={(e) => void onBannerFile(e.target.files?.[0])} disabled={uploading} />
+                  <span className={`svfile__box${bannerFileUrl ? " is-on" : ""}`}>
+                    <span className="btn btn--line btn--sm svfile__btn">
+                      <IconUpload aria-hidden="true" />
+                      {uploading ? t("bannerUploading") : t("bannerPick")}
+                    </span>
+                    <small>{bannerFileUrl ? bannerFileName || t("bannerUploaded") : t("bannerNoFile")}</small>
+                  </span>
+                </label>
                 <div className="svprom__fields">
                   <label><span>{t("bannerTitle")}</span><input value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} /></label>
                   <label><span>{t("bannerSubtitle")}</span><input value={bannerSubtitle} onChange={(e) => setBannerSubtitle(e.target.value)} /></label>
@@ -302,7 +319,7 @@ export default function PromoteModal({
 
             {chosen ? (
               <div className="svprom__preview" aria-label={t("previewTitle")}>
-                <div className="svprom__previewhead"><span>{t("previewTitle")}</span><small>{selectedPlacement?.label ?? t(`placement${placement === "banner" ? "Banner" : placement === "profile_boost" ? "Profile" : "Service"}`)}</small></div>
+                <div className="svprom__previewhead"><span>{t("previewTitle")}</span><small>{placementName(placement)}</small></div>
                 <div className={`svprom__previewbody${bannerImageUrl || bannerFileUrl ? " has-image" : ""}`} style={bannerImageUrl ? { backgroundImage: `url(${bannerImageUrl})` } : undefined}>
                   <div><b>{bannerTitle || item.service.name}</b><span>{bannerSubtitle || item.service.name}</span>{ctaLabel ? <em>{ctaLabel}</em> : null}</div>
                 </div>
@@ -312,7 +329,7 @@ export default function PromoteModal({
             {chosen ? (
               <div className="svprom__sum">
                 <span>{t("package")}</span>
-                <b>{packName(chosen.title)}</b>
+                <b>{packName(chosen.title, chosen.placement)}</b>
                 <span>{t("duration")}</span>
                 <b>{t("days", { d: chosen.days })}</b>
                 <span>{t("amount")}</span>

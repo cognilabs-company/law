@@ -1,6 +1,7 @@
 import { asArr, asDict, asNum, asStr, http, type Dict } from "@/lib/http";
 import { uzs } from "@/lib/money";
 import type { AdPackage, PromotionRequest, ServiceScope } from "@/lib/services/sellerServices";
+import { normPromotionSurface, type MarketPromotionSurface } from "@/lib/services/marketplace";
 
 export const PROMOTION_PLACEMENTS = ["banner", "profile_boost", "service_boost"] as const;
 export type PromotionPlacement = (typeof PROMOTION_PLACEMENTS)[number];
@@ -112,10 +113,10 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
   if (scope.kind === "org") body.organization_id = scope.orgId;
   if (input.bannerImageUrl) body.banner_image_url = input.bannerImageUrl;
   if (input.bannerFileUrl) body.banner_file_url = input.bannerFileUrl;
-  if (input.title?.trim()) body.title = input.title.trim();
-  if (input.subtitle?.trim()) body.subtitle = input.subtitle.trim();
-  if (input.ctaLabel?.trim()) body.cta_label = input.ctaLabel.trim();
-  if (input.ctaUrl?.trim()) body.cta_url = input.ctaUrl.trim();
+  if (input.title?.trim()) body.banner_title = body.title = input.title.trim();
+  if (input.subtitle?.trim()) body.banner_subtitle = body.subtitle = input.subtitle.trim();
+  if (input.ctaLabel?.trim()) body.banner_cta_label = body.cta_label = input.ctaLabel.trim();
+  if (input.ctaUrl?.trim()) body.banner_cta_url = body.cta_url = input.ctaUrl.trim();
   if (input.previewContext) body.preview_context = input.previewContext;
   const raw = asDict(await http("/promotions/checkout", { method: "POST", body: JSON.stringify(body) }));
   const gate = asDict(raw.payment_gate ?? raw.payment);
@@ -125,4 +126,20 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
     currency: asStr(gate.currency ?? raw.currency, "UZS") || "UZS",
     telegramSent: gate.telegram_sent === true || raw.telegram_sent === true,
   };
+}
+
+export async function listActivePromotions(
+  filter: { placement?: PromotionPlacement; serviceId?: string; sellerUserId?: string; limit?: number },
+  signal?: AbortSignal,
+): Promise<MarketPromotionSurface[]> {
+  const qs = new URLSearchParams();
+  if (filter.placement) qs.set("placement", filter.placement);
+  if (filter.serviceId) qs.set("service_id", filter.serviceId);
+  if (filter.sellerUserId) qs.set("seller_user_id", filter.sellerUserId);
+  qs.set("limit", String(filter.limit ?? 5));
+  const raw = await http(`/promotions/active?${qs}`, { signal });
+  const d = asDict(raw);
+  return asArr(Array.isArray(raw) ? raw : d.items ?? d.data ?? d.promotions)
+    .map(normPromotionSurface)
+    .filter((p) => p.id || p.sellerUserId || p.serviceId);
 }

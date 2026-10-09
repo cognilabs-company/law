@@ -234,15 +234,20 @@ export async function listAdPackages(signal?: AbortSignal): Promise<AdPackage[]>
     .sort((a, b) => a.price - b.price || a.days - b.days);
 }
 
-const PACKAGE_KEYS: [RegExp, "top" | "featured" | "regional"][] = [
+export type AdPackageKey = "top" | "featured" | "regional" | "profile" | "service" | "banner";
+const PACKAGE_KEYS: [RegExp, AdPackageKey][] = [
   [/^top of search\b/i, "top"],
   [/^featured profile\b/i, "featured"],
   [/^regional boost\b/i, "regional"],
+  [/^profile (boost|top)\b/i, "profile"],
+  [/^service (top|boost)\b/i, "service"],
+  [/^(marketplace )?banner\b/i, "banner"],
 ];
+const PLACEMENT_PACKAGE_KEY: Record<string, AdPackageKey> = { profile_boost: "profile", service_boost: "service", banner: "banner" };
 
-export function adPackageKey(title: string): "top" | "featured" | "regional" | "" {
+export function adPackageKey(title: string, placement = ""): AdPackageKey | "" {
   const t = title.trim();
-  return PACKAGE_KEYS.find(([re]) => re.test(t))?.[1] ?? "";
+  return PACKAGE_KEYS.find(([re]) => re.test(t))?.[1] ?? PLACEMENT_PACKAGE_KEY[placement] ?? "";
 }
 
 const BAND_TTL = 10 * 60 * 1000;

@@ -13,9 +13,11 @@ import {
   getMarketplaceSeller,
   getMarketplaceSellerServices,
   peekSeller,
+  type MarketPromotionSurface,
   type MarketSellerDetail,
   type MarketService,
 } from "@/lib/services/marketplace";
+import { listActivePromotions } from "@/lib/services/promotions";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { IconArrowRight, IconChevronLeft, IconClock, IconGlobe, IconLock, IconMapPin, IconRefresh, IconShieldCheck, IconStar, IconBriefcase } from "@/components/icons";
 import PurchaseDialog from "./PurchaseDialog";
@@ -67,6 +69,17 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
       alive = false;
     };
   }, [userId, reload]);
+
+  const [activePromos, setActivePromos] = useState<MarketPromotionSurface[]>([]);
+  useEffect(() => {
+    const ctl = new AbortController();
+    listActivePromotions({ sellerUserId: userId, limit: 5 }, ctl.signal)
+      .then((list) => setActivePromos(list.filter((p) => !p.sellerUserId || p.sellerUserId === userId)))
+      .catch(() => {});
+    return () => ctl.abort();
+  }, [userId]);
+  const topServiceIds = useMemo(() => new Set(activePromos.filter((p) => p.serviceId).map((p) => p.serviceId)), [activePromos]);
+  const profileTop = activePromos.some((p) => p.placement === "profile_boost" || p.placement === "banner");
 
   const refreshServices = useCallback(() => {
     getMarketplaceSellerServices(userId)
@@ -227,9 +240,9 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
             <div className="mk-prof__tags">
               <span className={`mk-type mk-type--${seller.sellerType || "yurist"}`}>{sellerTypeLabel(t, seller.sellerType)}</span>
               {seller.verified ? <VerifiedBadge name={seller.name} subtitle={sellerTypeLabel(t, seller.sellerType)} text={seller.badgeLabel} tone="glass" size="md" /> : null}
-              {seller.promotion?.active ? (
+              {seller.promotion?.active || seller.isSponsored || profileTop ? (
                 <span className="mk-card__ad mk-card__ad--inline">
-                  {seller.promotion.serviceTitle ? t("card.promotedService", { service: seller.promotion.serviceTitle }) : t("card.promoted")}
+                  {seller.promotion?.active && seller.promotion.serviceTitle ? t("card.promotedService", { service: seller.promotion.serviceTitle }) : t("card.promoted")}
                 </span>
               ) : null}
             </div>
@@ -279,12 +292,13 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
               <div className="mk-svcs" role="radiogroup" aria-label={t("detail.services")}>
                 {services.map((svc) => {
                   const on = selected?.id === svc.id;
+                  const top = svc.isSponsored || topServiceIds.has(svc.id);
                   const eta = deliveryLabel(t, svc.deliveryMinutes);
                   const svcAiId = aiId(`${sellerAiId}.service`, svc.id);
                   return (
                     <div
                       key={svc.id}
-                      className={`mk-svc${on ? " is-on" : ""}`}
+                      className={`mk-svc${on ? " is-on" : ""}${top ? " mk-svc--top" : ""}`}
                       data-ai-target={`marketplace:service-card:${svc.id}`}
                       data-ai-id={svcAiId}
                       data-ai-type="card"
@@ -294,7 +308,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
                       <button type="button" role="radio" aria-checked={on} className="mk-svc__pick" onClick={() => setPicked(svc.id)}>
                         <span className="mk-svc__radio" aria-hidden="true" />
                         <span className="mk-svc__txt">
-                          <b>{svc.title}</b>
+                          <b>{svc.title}{top ? <em className="mk-svc__top">{t("card.promoted")}</em> : null}</b>
                           <span>
                             {svc.categoryTitle ? specLabel(te, svc.categoryTitle) : null}
                             {svc.categoryTitle && eta ? " · " : null}
