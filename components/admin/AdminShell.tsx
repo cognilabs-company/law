@@ -238,10 +238,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // Clicking your own name goes to your own profile. Lawyers have no profile
   // route yet, so they land on their portal instead.
   const role = session?.role ?? "client";
+  // Backend staff roles map to the UI's client role for shared auth storage,
+  // but they must never be sent to client-only pages from this shell.
+  const staffSession = Boolean(session && role === "client" && adminAccess);
   // Staff see their own role on the badge, not "Admin" for everyone.
   const badgeKey = BADGE_ORDER.find((r) => roles.includes(r));
   const roleBadge = badgeKey && t.has(`roleBadges.${badgeKey}`) ? t(`roleBadges.${badgeKey}`) : t("badge");
-  const profileHref = role === "lawyer" ? "/portal/lawyer" : `/portal/${role}/profile`;
+  const profileHref = staffSession ? "/admin" : role === "lawyer" ? "/portal/lawyer" : `/portal/${role}/profile`;
 
   return (
     <div className="portal">
@@ -279,10 +282,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="psb__foot">
-          <Link href={session ? `/portal/${session.role}` : "/portal/client"} className="psb__link">
-            <IconGrid />
-            {t("backToPortal")}
-          </Link>
+          {staffSession ? null : (
+            <Link href={session ? `/portal/${session.role}` : "/portal/client"} className="psb__link">
+              <IconGrid />
+              {t("backToPortal")}
+            </Link>
+          )}
           <button className="psb__link" type="button" onClick={logout}>
             <IconLogout />
             {t("logout")}
