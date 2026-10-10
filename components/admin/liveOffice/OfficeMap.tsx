@@ -2,16 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ROOMS, type OfficePerson, type OfficeRoom } from "@/lib/liveOffice/model";
-import { QUEUE, SEATS, U, VIEW, pathLength, project, queueSpot, route, seatOf } from "@/lib/liveOffice/iso";
+import { QUEUE, SEATS, VIEW, pathLength, project, queueSpot, route, seatOf } from "@/lib/liveOffice/iso";
 import Character from "./Character";
-import IsoBuilding from "./IsoBuilding";
+import IsoBuilding, { FIG_FOOT, FIG_H, FIG_W } from "./IsoBuilding";
 import { VERB_ICON, firstName, useOfficeText } from "./text";
 
 // The office as a building seen from above at an angle: rooms with walls and
 // furniture, and people at their desks. Someone who starts other work gets
 // up, walks out through the hallway and sits down in the other room.
-const FIG_W = 3.3 * U;
-const FIG_H = (FIG_W * 76) / 64;
 
 type Spot = { p: OfficePerson; room: OfficeRoom; wx: number; wy: number; queued: boolean };
 
@@ -71,12 +69,13 @@ export default function OfficeMap({
   }
   const labels = Object.fromEntries(ROOMS.map((r) => [r, room(r)])) as Record<OfficeRoom, string>;
   const counts = Object.fromEntries(ROOMS.map((r) => [r, byRoom.get(r)?.length ?? 0])) as Record<OfficeRoom, number>;
+  const seated = Object.fromEntries(ROOMS.map((r) => [r, Math.min(SEATS, byRoom.get(r)?.length ?? 0)])) as Record<OfficeRoom, number>;
 
   return (
     <div className="lo-mapwrap" ref={outer}>
       <div className={`lo-map${scale && scale < 0.8 ? " is-compact" : ""}`} ref={wrap}>
         <svg className="lo-map__svg" viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} role="img" aria-label={t("title")}>
-          <IsoBuilding labels={labels} counts={counts} />
+          <IsoBuilding labels={labels} counts={counts} seated={seated} />
         </svg>
         {scale ? (
           <div className="lo-map__people">
@@ -101,7 +100,7 @@ export default function OfficeMap({
 function screen(wx: number, wy: number, scale: number): [number, number] {
   const [sx, sy] = project(wx, wy);
   // top-left of the figure box, feet on the spot
-  return [(sx - VIEW.x - FIG_W / 2) * scale, (sy - VIEW.y - FIG_H * 0.88) * scale];
+  return [(sx - VIEW.x - FIG_W / 2) * scale, (sy - VIEW.y - FIG_H * FIG_FOOT) * scale];
 }
 
 function Person({ s, scale, selected, onPick, fresh }: { s: Spot; scale: number; selected: boolean; onPick: (id: string) => void; fresh: boolean }) {
@@ -150,12 +149,12 @@ function Person({ s, scale, selected, onPick, fresh }: { s: Spot; scale: number;
       data-room={p.room}
     >
       <span className="lo-mp__fig lo-mp__seat">
-        <Character id={p.id} kind={p.kind} pose={s.queued ? "walk" : p.status === "idle" ? "idle" : "work"} />
+        <Character id={p.id} kind={p.kind} pose={s.queued || s.room === "lobby" ? "stand" : p.status === "idle" ? "idle" : "work"} />
       </span>
       <span className="lo-mp__fig lo-mp__walk">
         <Character id={p.id} kind={p.kind} pose="walk" />
       </span>
-      {p.status === "working" && Verb && !s.queued ? (
+      {p.status === "working" && Verb && !s.queued && s.room !== "lobby" ? (
         <span className="lo-mp__badge" aria-hidden>
           <Verb />
         </span>

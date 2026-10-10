@@ -43,16 +43,18 @@ export function roomOrigin(r: OfficeRoom): [number, number] {
 export const WORLD_X = 3 * ROOM_W + 3 * HALL;
 export const WORLD_Y = 3 * ROOM_D + 3 * HALL;
 
-// Seats form two screen-level rows (x + y constant), the back row staggered
-// against the front one, clear of the furniture along the back walls.
+// Seats form two screen-level rows (x + y constant), staggered, clear of the
+// furniture along the back walls. The front row fills first, so a quiet room
+// keeps its back wall — name, poster, furniture — in view.
 const LOCAL_SEATS: [number, number][] = [
+  [8, 6],
+  [10, 4],
+  [6, 8],
   [6.5, 2.5],
   [4.5, 4.5],
   [2.5, 6.5],
-  [10, 4],
-  [8, 6],
-  [6, 8],
 ];
+export const FRONT_ROW = 3;
 
 export function seatOf(r: OfficeRoom, i: number): [number, number] {
   const [x0, y0] = roomOrigin(r);
@@ -79,10 +81,13 @@ export function route(from: OfficeRoom, a: [number, number], to: OfficeRoom, b: 
   if (from === to) return [a, b];
   const da = doorOf(from);
   const db = doorOf(to);
-  if (da[1] === db[1]) return [a, da, db, b];
+  // just inside each door, so the walk goes through the doorway itself
+  const ia: [number, number] = [da[0], da[1] - HALL / 2 - 0.7];
+  const ib: [number, number] = [db[0], db[1] - HALL / 2 - 0.7];
+  if (da[1] === db[1]) return [a, ia, da, db, ib, b];
   const [x0] = roomOrigin(from);
   const side = x0 + ROOM_W + HALL / 2;
-  return [a, da, [side, da[1]], [side, db[1]], db, b];
+  return [a, ia, da, [side, da[1]], [side, db[1]], db, ib, b];
 }
 
 export function pathLength(p: [number, number][]): number {

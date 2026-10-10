@@ -42,7 +42,7 @@ export default function PersonPanel({ person, now, onClose }: { person: OfficePe
     >
       <div className={`lo-pp__now lo-pp__now--${p.status}`}>
         <span className="lo-pp__fig" aria-hidden>
-          <Character id={p.id} kind={p.kind} pose={p.status === "away" ? "walk" : p.status === "idle" ? "idle" : "work"} />
+          <Character id={p.id} kind={p.kind} pose={p.status === "away" ? "stand" : p.status === "idle" ? "idle" : "work"} />
         </span>
         <div className="lo-pp__nowt">
           <span className={`lo-pp__st lo-pp__st--${p.status}`}>
