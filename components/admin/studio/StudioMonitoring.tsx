@@ -7,7 +7,8 @@ import FilterBar from "@/components/filters/FilterBar";
 import { aiId } from "@/lib/ai/ids";
 import { asDict, parseServerTime } from "@/lib/http";
 import type { UserEvent } from "@/lib/userSocket";
-import { getStudioMonitoring, normStudioActivity, type StudioActivity } from "@/lib/services/studio";
+import { subscribeInternalEvents, type InternalEvent } from "@/lib/internalSocket";
+import { getStudioMonitoring, isStudioEvent, normStudioActivity, type StudioActivity, type StudioMonitoringUser } from "@/lib/services/studio";
 import { ctorOrder } from "@/lib/studio/constructors";
 import StudioShell from "./StudioShell";
 import { ConstructorIcon, StudioCodeChip, StudioEmpty, StudioLoading, useNow, useStudioLive, useStudioText } from "./bits";
@@ -21,7 +22,7 @@ const IconPulse = (p: SVGProps<SVGSVGElement>) => (
 );
 
 type Row = { a: StudioActivity; at: number };
-type State = { phase: Phase; rows: Row[]; serverOnline: number; summary: { online: number; sessions: number; users: number; objectsCreated: number; submittedForApproval: number; saveCount: number; durationSeconds: number }; users: { id: string; name: string; sessions: number }[]; error: unknown };
+type State = { phase: Phase; rows: Row[]; serverOnline: number; summary: { online: number; sessions: number; users: number; objectsCreated: number; submittedForApproval: number; saveCount: number; durationSeconds: number }; users: StudioMonitoringUser[]; error: unknown };
 
 const AI = "admin.studio.monitoring";
 
@@ -35,6 +36,15 @@ function eventRaw(e: UserEvent): Record<string, unknown> {
 function sessionKey(raw: Record<string, unknown>): string {
   const v = raw.session_id ?? raw.sessionId ?? raw.id;
   return typeof v === "string" || typeof v === "number" ? String(v) : "";
+}
+
+// The studio:activity channel on the internal hub carries the same activity
+// payload as the user socket; its event names may come without the "studio."
+// prefix. Frames without a session are not activity and are dropped.
+function channelEvent(e: InternalEvent): UserEvent | null {
+  if (isStudioEvent(e.event)) return e;
+  if (!sessionKey(eventRaw(e))) return null;
+  return { ...e, event: /end|close|stop|offline/i.test(e.event) ? "studio.activity_ended" : "studio.activity" };
 }
 
 function sortRows(rows: Row[]): Row[] {
@@ -126,7 +136,7 @@ function MonitoringBody() {
     soon.current = setTimeout(() => void load(), 400);
   }, [load]);
 
-  useStudioLive((e) => {
+  const onLive = (e: UserEvent) => {
     if (e.event === "studio.resync") {
       refetchSoon();
       return;
@@ -157,7 +167,21 @@ function MonitoringBody() {
       next[idx] = { a: normStudioActivity(merged, at), at };
       return { ...cur, rows: sortRows(next) };
     });
+  };
+  useStudioLive(onLive);
+
+  const liveRef = useRef(onLive);
+  useEffect(() => {
+    liveRef.current = onLive;
   });
+  useEffect(
+    () =>
+      subscribeInternalEvents("studio:activity", (e) => {
+        const ev = channelEvent(e);
+        if (ev) liveRef.current(ev);
+      }),
+    [],
+  );
 
   async function refresh() {
     setBusy(true);
@@ -226,9 +250,63 @@ function MonitoringBody() {
     );
   }
 
+  // The per-user totals the backend already worked out for the period.
+  const people = [...st.users].sort((x, y) => Number(y.online) - Number(x.online) || y.durationSeconds - x.durationSeconds);
+
   return (
     <>
       {kpis}
+      {people.length ? (
+        <section className="stu-card stu-mon" data-ai-id={`${AI}.users`} data-ai-type="section" data-ai-label={t("monitoring.usersTitle")}>
+          <div className="stu-card__h">
+            <h3>{t("monitoring.usersTitle")}</h3>
+          </div>
+          <div className="stu-mon__table stu-mon__table--users">
+            <div className="stu-mon__row stu-mon__row--head" aria-hidden="true">
+              <span>{t("monitoring.col.user")}</span>
+              <span>{t("monitoring.col.sessions")}</span>
+              <span>{t("monitoring.col.time")}</span>
+              <span>{t("monitoring.col.saves")}</span>
+              <span>{t("monitoring.col.objects")}</span>
+              <span>{t("monitoring.col.submitted")}</span>
+              <span>{t("monitoring.col.seen")}</span>
+            </div>
+            {people.map((u) => {
+              const name = u.name || t("monitoring.unknownUser");
+              return (
+                <button
+                  type="button"
+                  key={u.id || name}
+                  className={`stu-mon__row stu-mon__row--user${u.online ? " is-on" : ""}${userId && userId === u.id ? " is-sel" : ""}`}
+                  onClick={() => setUserId(userId === u.id ? "" : u.id)}
+                  aria-pressed={userId === u.id}
+                  title={t("monitoring.filterUser")}
+                >
+                  <span className="stu-mon__who">
+                    <span className="stu-sava" aria-hidden>
+                      {initialsOf(name)}
+                      <span className={`stu-mdot stu-mdot--abs${u.online ? " stu-mdot--on" : ""}`} />
+                    </span>
+                    <span className="stu-mon__wt">
+                      <b>{name}</b>
+                      <small>
+                        <span className={`stu-mon__state${u.online ? " is-on" : ""}`}>{u.online ? t("monitoring.online") : t("monitoring.offline")}</span>
+                        {u.role ? ` · ${role(u.role)}` : ""}
+                      </small>
+                    </span>
+                  </span>
+                  <span className="stu-mon__num"><em className="stu-mon__lbl">{t("monitoring.col.sessions")}</em>{num(u.sessions)}</span>
+                  <span className="stu-mon__num"><em className="stu-mon__lbl">{t("monitoring.col.time")}</em><IconClock aria-hidden />{duration(u.durationSeconds)}</span>
+                  <span className="stu-mon__num"><em className="stu-mon__lbl">{t("monitoring.col.saves")}</em><IconEdit aria-hidden />{num(u.saveCount)}</span>
+                  <span className="stu-mon__num"><em className="stu-mon__lbl">{t("monitoring.col.objects")}</em>{num(u.objects)}</span>
+                  <span className="stu-mon__num"><em className="stu-mon__lbl">{t("monitoring.col.submitted")}</em>{num(u.submitted)}</span>
+                  <span className="stu-mon__seen"><em className="stu-mon__lbl">{t("monitoring.col.seen")}</em>{u.online ? t("monitoring.now") : ago(u.lastSeenAt, now) || "—"}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
       <section className="stu-card stu-mon" data-ai-id={`${AI}.list`} data-ai-type="section" data-ai-label={t("monitoring.listTitle")}>
         <div className="stu-card__h">
           <h3>{t("monitoring.listTitle")}</h3>

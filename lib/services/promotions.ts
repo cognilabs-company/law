@@ -11,6 +11,12 @@ export type PromotionPlacementOption = {
   label: string;
   requiresService: boolean;
   requiresBanner: boolean;
+  // The placement takes a banner picture without insisting on one: a banner
+  // with no image is shown as the seller's profile card (banner_mode).
+  acceptsBanner: boolean;
+  // Where the backend says this placement appears — sent back in
+  // preview_context so the two sides name the surface the same way.
+  previewSurface: string;
 };
 
 export type PromotionPackage = AdPackage & {
@@ -18,6 +24,7 @@ export type PromotionPackage = AdPackage & {
   boostScore: number;
   requiresService: boolean;
   requiresBanner: boolean;
+  acceptsBanner: boolean;
   preview: Dict;
 };
 
@@ -44,14 +51,29 @@ function placementOf(value: unknown): PromotionPlacement {
   return PROMOTION_PLACEMENTS.includes(v as PromotionPlacement) ? (v as PromotionPlacement) : "service_boost";
 }
 
+const DEFAULT_SURFACE: Record<PromotionPlacement, string> = {
+  banner: "marketplace_top_banner",
+  profile_boost: "marketplace_list_card",
+  service_boost: "category_search_sponsored_service",
+};
+
+// requires_* are the backend's to state. Production says requires_banner:false
+// for the banner placement and runs banners with no picture at all, so forcing
+// one here blocked a checkout the backend accepts. Only an answer that carries
+// no flag falls back to the placement's usual rule.
+const flag = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
+
 function normPlacement(value: unknown): PromotionPlacementOption {
   const d = asDict(value);
   const placement = placementOf(d.value ?? d.key ?? d.placement ?? d.code);
+  const requiresBanner = flag(d.requires_banner, false);
   return {
     value: placement,
     label: asStr(d.label ?? d.title ?? d.name, placement),
-    requiresService: d.requires_service === true || placement === "service_boost",
-    requiresBanner: d.requires_banner === true || placement === "banner",
+    requiresService: flag(d.requires_service, placement === "service_boost"),
+    requiresBanner,
+    acceptsBanner: requiresBanner || flag(d.accepts_banner_asset, placement === "banner"),
+    previewSurface: asStr(d.preview_surface) || DEFAULT_SURFACE[placement],
   };
 }
 
@@ -68,8 +90,9 @@ function normPackage(value: unknown): PromotionPackage {
     reach: asNum(d.reach ?? payload.reach),
     placement,
     boostScore: asNum(d.boost_score ?? payload.boost_score),
-    requiresService: d.requires_service === true || payload.requires_service === true || placement === "service_boost",
-    requiresBanner: d.requires_banner === true || payload.requires_banner === true || placement === "banner",
+    requiresService: flag(d.requires_service ?? payload.requires_service, placement === "service_boost"),
+    requiresBanner: flag(d.requires_banner ?? payload.requires_banner, false),
+    acceptsBanner: flag(d.requires_banner ?? payload.requires_banner, false) || flag(d.accepts_banner_asset ?? payload.accepts_banner_asset, placement === "banner"),
     preview: asDict(d.preview ?? payload.preview),
   };
 }
@@ -88,8 +111,8 @@ export async function listPromotionPackages(placement?: PromotionPlacement, sign
     const { listAdPackages } = await import("@/lib/services/sellerServices");
     const legacy = await listAdPackages(signal);
     return {
-      items: legacy.map((item) => ({ ...item, placement: placement ?? "service_boost", boostScore: 0, requiresService: placement !== "profile_boost", requiresBanner: placement === "banner", preview: {} })),
-      placements: PROMOTION_PLACEMENTS.map((value) => ({ value, label: value, requiresService: value === "service_boost", requiresBanner: value === "banner" })),
+      items: legacy.map((item) => ({ ...item, placement: placement ?? "service_boost", boostScore: 0, requiresService: placement !== "profile_boost", requiresBanner: false, acceptsBanner: placement === "banner", preview: {} })),
+      placements: PROMOTION_PLACEMENTS.map((value) => normPlacement({ key: value, label: value })),
     };
   }
 }
@@ -120,11 +143,22 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
   if (input.previewContext) body.preview_context = input.previewContext;
   const raw = asDict(await http("/promotions/checkout", { method: "POST", body: JSON.stringify(body) }));
   const gate = asDict(raw.payment_gate ?? raw.payment);
+  const pack = asDict(raw.package);
+  const requestId = asStr(raw.checkout_request_id ?? raw.request_id ?? gate.id);
+  const status = asStr(raw.promotion_status ?? raw.status).toLowerCase();
   return {
-    requestId: asStr(raw.checkout_request_id ?? raw.request_id ?? gate.id),
-    amount: uzs(gate, "amount") || uzs(raw, "amount"),
-    currency: asStr(gate.currency ?? raw.currency, "UZS") || "UZS",
-    telegramSent: gate.telegram_sent === true || raw.telegram_sent === true,
+    requestId,
+    // The documented answer carries the package, not an amount of its own.
+    amount: uzs(gate, "amount") || uzs(raw, "amount") || uzs(pack, "price"),
+    currency: asStr(gate.currency ?? raw.currency ?? pack.currency, "UZS") || "UZS",
+    // The 10-09 answer has no telegram_sent: a request that is waiting for the
+    // Telegram approval says so with promotion_status and a checkout_request_id.
+    // Reading only the older flag showed every successful checkout as failed.
+    telegramSent:
+      gate.telegram_sent === true ||
+      raw.telegram_sent === true ||
+      status.startsWith("pending") ||
+      (raw.payment_required === true && !!requestId && gate.telegram_sent !== false && raw.telegram_sent !== false),
   };
 }
 

@@ -103,7 +103,9 @@ export type StudioActivity = {
 };
 
 export type StudioMonitoringSummary = { online: number; sessions: number; users: number; objectsCreated: number; submittedForApproval: number; saveCount: number; durationSeconds: number };
-export type StudioMonitoringUser = { id: string; name: string; sessions: number };
+// One row of the monitoring answer's `users` (10-09 §9): who worked in Studio
+// over the chosen period, and how much.
+export type StudioMonitoringUser = { id: string; name: string; role: string; online: boolean; sessions: number; durationSeconds: number; saveCount: number; objects: number; submitted: number; lastSeenAt: string };
 export type StudioMonitoring = { items: StudioActivity[]; online: number; total: number; summary: StudioMonitoringSummary; users: StudioMonitoringUser[]; raw: Dict };
 export type StudioReferenceItem = { id: string; label: string; value: string; raw: Dict };
 
@@ -817,7 +819,21 @@ export async function getStudioMonitoring(params: { constructorCode?: string; us
   const online = typeof onlineRaw === "number" ? onlineRaw : items.filter((a) => a.online).length;
   const users = listOf(d.users, ["items", "users", "data", "results"]).map((value) => {
     const row = asDict(value);
-    return { id: first(row.id, row.user_id), name: first(row.name, row.full_name, personOf(row.user)), sessions: asNum(row.sessions ?? row.session_count) };
+    // The backend spells these user_name / sessions_count / objects_count /
+    // submitted_count. Reading only name / session_count left every entry of
+    // the user filter as "unknown user (0)".
+    return {
+      id: first(row.user_id, row.id),
+      name: first(row.user_name, row.name, row.full_name, personOf(row.user)),
+      role: first(row.role),
+      online: row.online === true,
+      sessions: asNum(row.sessions_count ?? row.sessions ?? row.session_count),
+      durationSeconds: asNum(row.duration_seconds ?? row.worked_seconds),
+      saveCount: asNum(row.save_count ?? row.saves),
+      objects: asNum(row.objects_count ?? row.objects),
+      submitted: asNum(row.submitted_count ?? row.submitted),
+      lastSeenAt: first(row.last_seen_at, row.lastSeenAt),
+    };
   }).filter((row) => row.id || row.name);
   return {
     items,

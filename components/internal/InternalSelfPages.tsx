@@ -3,115 +3,460 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { ApiError, asDict, asStr, type Dict } from "@/lib/http";
+import { ApiError, asDict } from "@/lib/http";
 import {
   getMyAttendance,
-  getMyKpis,
+  getMyKpiSummary,
   getMyMessages,
   getMyProfile,
   getMyTasks,
+  normAttendance,
+  normEmployee,
+  normMessage,
+  normTask,
   sendInternalMessage,
-  recordLabel,
-  recordName,
-  recordStatus,
+  type HrmAttendance,
+  type HrmEmployee,
+  type HrmKpi,
+  type HrmMessage,
+  type HrmTask,
   type InternalPage,
-  type InternalRecord,
 } from "@/lib/services/internalHrm";
-import { IconCheck, IconRefresh, IconSearch, IconSend, IconUser, IconUsers } from "@/components/icons";
+import { IconBriefcase, IconCalendar, IconChartBar, IconChat, IconCheck, IconClock, IconMail, IconMapPin, IconPhone, IconRefresh, IconSend, IconUser } from "@/components/icons";
 import DatePicker from "@/components/DatePicker";
+import FilterBar from "@/components/filters/FilterBar";
 import InternalPagination from "@/components/internal/InternalPagination";
 import InternalField from "@/components/internal/InternalField";
+import TaskDrawer, { TASK_STATUSES } from "@/components/internal/TaskDrawer";
+import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
+import {
+  EntitySelect,
+  HrmAvatar,
+  HrmBar,
+  HrmEmpty,
+  HrmError,
+  HrmHead,
+  HrmKv,
+  HrmLoading,
+  HrmPanel,
+  HrmPriority,
+  HrmStat,
+  HrmStatus,
+  isOverdue,
+  useHrmFormat,
+  useNow,
+  useStatusLabel,
+} from "@/components/internal/HrmUi";
 
 type Mode = "me" | "tasks" | "attendance" | "messages";
-const TASK_STATUSES = ["new", "accepted", "in_progress", "in_review", "done", "returned", "paused", "cancelled"] as const;
-
-function value(row: Dict, ...keys: string[]): string {
-  for (const key of keys) {
-    const v = asStr(row[key]).trim();
-    if (v) return v;
-  }
-  return "—";
-}
-
-function SelfTable({ rows, mode, empty }: { rows: InternalRecord[]; mode: Exclude<Mode, "me">; empty: string }) {
-  const t = useTranslations("internal.pages");
-  const columns = mode === "tasks"
-    ? [t("columns.task"), t("columns.status"), t("columns.due")]
-    : mode === "attendance"
-      ? [t("columns.date"), t("columns.status"), t("columns.checkIn"), t("columns.checkOut")]
-      : [t("columns.subject"), t("columns.date"), t("columns.status")];
-  return rows.length ? <div className="internal-table-wrap"><table className="internal-table"><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={asStr(row.id, `${recordLabel(row)}-${index}`)}>
-    {mode === "tasks" && <><td><b>{recordName(row)}</b><small>{value(row, "description", "assignee_name")}</small></td><td><span className="pill pill--gray">{recordStatus(row)}</span></td><td>{value(row, "due_at", "due_date")}</td></>}
-    {mode === "attendance" && <><td><b>{value(row, "date", "day")}</b></td><td><span className="pill pill--gray">{recordStatus(row)}</span></td><td>{value(row, "check_in", "started_at")}</td><td>{value(row, "check_out", "ended_at")}</td></>}
-    {mode === "messages" && <><td><b>{recordName(row)}</b><small>{value(row, "body", "preview")}</small></td><td>{value(row, "created_at", "date")}</td><td><span className="pill pill--gray">{value(row, "status", "unread")}</span></td></>}
-  </tr>)}</tbody></table></div> : <p className="internal-empty">{empty}</p>;
-}
+const EMPTY_PAGE = { items: [], total: 0, offset: 0, limit: 25, hasMore: false };
 
 export default function InternalSelfPages({ mode }: { mode: Mode }) {
+  if (mode === "me") return <ProfilePage />;
+  if (mode === "tasks") return <MyTasksPage />;
+  if (mode === "attendance") return <MyAttendancePage />;
+  return <MessagesPage />;
+}
+
+function useReload(load: () => void) {
+  useEffect(() => subscribeUserEvents((event) => { if (event.event.startsWith("internal.")) load(); }), [load]);
+}
+
+const aborted = (e: unknown) => e instanceof ApiError && e.detail === "aborted";
+
+// ── Profile ────────────────────────────────────────────────────────────────
+
+function ProfilePage() {
   const t = useTranslations("internal.pages");
-  const common = useTranslations("common");
-  const [profile, setProfile] = useState<InternalRecord | null>(null);
-  const [page, setPage] = useState<InternalPage<InternalRecord>>({ items: [], total: 0, offset: 0, limit: 25, hasMore: false });
-  const [query, setQuery] = useState("");
-  const [taskStatus, setTaskStatus] = useState("");
-  const [dates, setDates] = useState({ from: "", to: "" });
-  const [message, setMessage] = useState({ recipientUserId: "", subject: "", body: "" });
+  const f = useHrmFormat();
+  const dir = useHrmDirectory();
+  const [me, setMe] = useState<{ employee: HrmEmployee; role: string } | null>(null);
+  const [kpi, setKpi] = useState<{ period: string; score: number | null; items: HrmKpi[] }>({ period: "", score: null, items: [] });
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
-  const [offset, setOffset] = useState(0);
 
   const load = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true); setError(false);
+    setLoading(true);
+    setError(false);
     try {
-      if (mode === "me") {
-        const [raw, kpis] = await Promise.all([getMyProfile(signal), getMyKpis({ limit: 6 }, signal)]);
-        setProfile({ ...asDict(raw), kpis: kpis.items });
-      } else if (mode === "tasks") setPage(await getMyTasks({ q: query, status: taskStatus || undefined, limit: 25, offset }, signal));
-      else if (mode === "attendance") setPage(await getMyAttendance({ date_from: dates.from || undefined, date_to: dates.to || undefined, limit: 25, offset }, signal));
-      else setPage(await getMyMessages({ limit: 25, offset }, signal));
+      const [raw, kpis] = await Promise.all([getMyProfile(signal), getMyKpiSummary({}, signal).catch(() => null)]);
+      const d = asDict(raw);
+      setMe({ employee: normEmployee(d.employee ?? d), role: String(asDict(d.user).role ?? "") });
+      setKpi(kpis ?? { period: "", score: null, items: [] });
     } catch (cause) {
-      if (!(cause instanceof ApiError && cause.detail === "aborted")) setError(true);
+      if (!aborted(cause)) setError(true);
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [mode, query, taskStatus, dates, offset]);
-
+  }, []);
   useEffect(() => {
-    const controller = new AbortController();
-    void Promise.resolve().then(() => load(controller.signal));
-    return () => controller.abort();
+    const c = new AbortController();
+    void Promise.resolve().then(() => load(c.signal));
+    return () => c.abort();
   }, [load]);
-  useEffect(() => subscribeUserEvents((event) => { if (event.event.startsWith("internal.")) void load(); }), [load]);
+  useReload(load);
 
-  async function submitMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!message.recipientUserId.trim() || !message.subject.trim() || !message.body.trim() || saving) return;
-    setSaving(true); setError(false);
+  const e = me?.employee;
+  const position = e ? dir.positionTitle(e.positionId) : "";
+  const unit = e ? dir.unitName(e.unitId) : "";
+  const manager = e ? dir.employeeName(e.managerId) : "";
+  // The backend's own weighted score when it has one; otherwise the same
+  // weighting worked out from the metrics shown below it.
+  const weighted = useMemo(() => {
+    if (kpi.score) return kpi.score;
+    const w = kpi.items.reduce((s, k) => s + (k.weight || 0), 0);
+    return w ? kpi.items.reduce((s, k) => s + k.score * (k.weight || 0), 0) / w : kpi.items.length ? kpi.items.reduce((s, k) => s + k.score, 0) / kpi.items.length : 0;
+  }, [kpi.items, kpi.score]);
+
+  return (
+    <section className="hrm-page">
+      <HrmHead kicker={t("kicker")} title={t("titles.me")} lead={t("subtitles.me")} actions={<button className="btn btn--line btn--sm" type="button" onClick={() => void load()} disabled={loading}><IconRefresh />{t("refresh")}</button>} />
+      {error ? <HrmError text={t("error")} onRetry={() => void load()} retryLabel={t("refresh")} /> : null}
+      {loading && !e ? <HrmPanel><HrmLoading rows={4} /></HrmPanel> : e ? (
+        <div className="hrm-grid hrm-grid--side">
+          <div className="hrm-grid">
+            <HrmPanel className="hrm-profile">
+              <div className="hrm-profile__top">
+                <HrmAvatar name={e.name} size="lg" />
+                <div className="hrm-profile__id">
+                  <h3>{e.name || "—"}</h3>
+                  <p>{[position, unit].filter(Boolean).join(" · ") || t("noAssignment")}</p>
+                  <div className="hrm-chips">
+                    {e.code ? <span className="hrm-code">{e.code}</span> : null}
+                    <HrmStatus value={e.status} />
+                  </div>
+                </div>
+              </div>
+              <div className="hrm-profile__contacts">
+                {e.phone ? <a href={`tel:${e.phone.replace(/[^+\d]/g, "")}`}><IconPhone />{e.phone}</a> : null}
+                {e.email ? <a href={`mailto:${e.email}`}><IconMail />{e.email}</a> : null}
+                {e.region ? <span><IconMapPin />{e.region}</span> : null}
+              </div>
+            </HrmPanel>
+            <HrmPanel title={t("work")} icon={IconBriefcase}>
+              <HrmKv
+                rows={[
+                  { label: t("position"), value: position || "—" },
+                  { label: t("department"), value: unit || "—" },
+                  { label: t("manager"), value: manager || "—" },
+                  { label: t("hireDate"), value: f.date(e.hireDate) },
+                  ...(e.salary !== null ? [{ label: t("salary"), value: f.money(e.salary) }] : []),
+                ]}
+              />
+              {e.skills.length ? <div className="hrm-chips" style={{ marginTop: 12 }}>{e.skills.map((s) => <span className="hrm-chip" key={s}>{s}</span>)}</div> : null}
+            </HrmPanel>
+          </div>
+          <HrmPanel title={t("myKpis")} icon={IconChartBar} count={kpi.items.length || undefined}>
+            {kpi.items.length ? (
+              <div className="hrm-form">
+                <div className="hrm-score">
+                  <b>{f.num(weighted)}</b>
+                  <span>{kpi.period ? `${t("kpiScore")} · ${f.period(kpi.period)}` : t("kpiScore")}</span>
+                  <HrmBar value={weighted} />
+                </div>
+                <ul className="hrm-list">
+                  {kpi.items.map((k) => (
+                    <li key={k.id || k.code}>
+                      <span className="hrm-list__t"><b>{k.title}</b><small>{t("kpiTarget", { actual: f.num(k.actual), target: f.num(k.target) })}{k.unit === "percent" ? " %" : ""}</small></span>
+                      <span className="hrm-list__a"><b className="hrm-num">{f.num(k.score)}</b></span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : <HrmEmpty icon={IconChartBar} title={t("noKpis")} text={t("noKpisLead")} />}
+          </HrmPanel>
+        </div>
+      ) : <HrmPanel><HrmEmpty icon={IconUser} title={t("noProfile")} /></HrmPanel>}
+    </section>
+  );
+}
+
+// ── My tasks ───────────────────────────────────────────────────────────────
+
+function MyTasksPage() {
+  const t = useTranslations("internal.pages");
+  const label = useStatusLabel();
+  const f = useHrmFormat();
+  const now = useNow();
+  const dir = useHrmDirectory();
+  const [page, setPage] = useState<InternalPage<HrmTask>>(EMPTY_PAGE);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [openId, setOpenId] = useState("");
+
+  const load = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    setError(false);
     try {
-      await sendInternalMessage({ recipient_user_id: message.recipientUserId.trim(), thread_type: "direct", thread_id: null, subject: message.subject.trim(), body: message.body.trim(), attachments: [] });
-      setMessage({ recipientUserId: "", subject: "", body: "" }); await load();
+      const res = await getMyTasks({ q: q || undefined, status: status || undefined, limit: 25, offset }, signal);
+      setPage({ ...res, items: res.items.map(normTask) });
+    } catch (cause) {
+      if (!aborted(cause)) setError(true);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
     }
-    catch { setError(true); }
-    finally { setSaving(false); }
+  }, [q, status, offset]);
+  useEffect(() => {
+    const c = new AbortController();
+    void Promise.resolve().then(() => load(c.signal));
+    return () => c.abort();
+  }, [load]);
+  const reload = useCallback(() => void load(), [load]);
+  useReload(reload);
+
+  const open = page.items.find((x) => x.id === openId) ?? null;
+
+  return (
+    <section className="hrm-page">
+      <HrmHead kicker={t("kicker")} title={t("titles.tasks")} lead={t("subtitles.tasks")} actions={<button className="btn btn--line btn--sm" type="button" onClick={reload} disabled={loading}><IconRefresh />{t("refresh")}</button>} />
+      <FilterBar
+        search={{ value: q, onChange: (v) => { setQ(v); setOffset(0); }, placeholder: t("searchTasks"), maxLength: 120 }}
+        fields={[{ key: "status", label: t("taskStatusLabel"), value: status, onChange: (v) => { setStatus(v); setOffset(0); }, options: [{ value: "", label: t("allStatuses") }, ...TASK_STATUSES.map((s) => ({ value: s, label: label(s) }))], empty: "" }]}
+        count={page.total}
+        onReset={() => { setQ(""); setStatus(""); setOffset(0); }}
+      />
+      {error ? <HrmError text={t("error")} onRetry={reload} retryLabel={t("refresh")} /> : null}
+      <HrmPanel flush>
+        {loading ? <div style={{ padding: 16 }}><HrmLoading /></div> : page.items.length ? (
+          <div className="hrm-table-wrap">
+            <table className="hrm-table">
+              <thead><tr><th>{t("columns.task")}</th><th>{t("columns.priority")}</th><th>{t("columns.status")}</th><th>{t("columns.due")}</th><th>{t("columns.project")}</th></tr></thead>
+              <tbody>
+                {page.items.map((task) => {
+                  const late = isOverdue(task.deadline, task.status, now);
+                  return (
+                    <tr key={task.id} className="is-click" tabIndex={0} onClick={() => setOpenId(task.id)} onKeyDown={(e) => { if (e.key === "Enter") setOpenId(task.id); }}>
+                      <td><b>{task.title || "—"}</b><small>{task.code}</small></td>
+                      <td><HrmPriority value={task.priority} /></td>
+                      <td><HrmStatus value={task.status} /></td>
+                      <td>{task.deadline ? <span className={late ? "hrm-late" : undefined}>{f.dateTime(task.deadline)}</span> : "—"}</td>
+                      <td className="hrm-muted">{task.project || "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : <HrmEmpty icon={IconBriefcase} title={t("empty.tasks")} text={status || q ? t("emptyFiltered") : t("emptyTasksLead")} />}
+        <InternalPagination page={page} onChange={setOffset} />
+      </HrmPanel>
+      <TaskDrawer task={open} onClose={() => setOpenId("")} onChanged={reload} unitName={open ? dir.unitName(open.unitId) : ""} />
+    </section>
+  );
+}
+
+// ── My attendance ──────────────────────────────────────────────────────────
+
+function MyAttendancePage() {
+  const t = useTranslations("internal.pages");
+  const tu = useTranslations("internal.ui");
+  const f = useHrmFormat();
+  const [rows, setRows] = useState<InternalPage<HrmAttendance>>(EMPTY_PAGE);
+  const [dates, setDates] = useState({ from: "", to: "" });
+  const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await getMyAttendance({ date_from: dates.from || undefined, date_to: dates.to || undefined, limit: 31, offset }, signal);
+      setRows({ ...res, items: res.items.map(normAttendance) });
+    } catch (cause) {
+      if (!aborted(cause)) setError(true);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, [dates, offset]);
+  useEffect(() => {
+    const c = new AbortController();
+    void Promise.resolve().then(() => load(c.signal));
+    return () => c.abort();
+  }, [load]);
+  const reload = useCallback(() => void load(), [load]);
+  useReload(reload);
+
+  const sum = useMemo(() => {
+    const items = rows.items;
+    return {
+      present: items.filter((r) => r.workedMinutes > 0 || r.status === "present").length,
+      worked: items.reduce((s, r) => s + r.workedMinutes, 0),
+      late: items.filter((r) => r.lateMinutes > 0).length,
+      overtime: items.reduce((s, r) => s + r.overtimeMinutes, 0),
+    };
+  }, [rows.items]);
+
+  return (
+    <section className="hrm-page">
+      <HrmHead kicker={t("kicker")} title={t("titles.attendance")} lead={t("subtitles.attendance")} actions={<button className="btn btn--line btn--sm" type="button" onClick={reload} disabled={loading}><IconRefresh />{t("refresh")}</button>} />
+      <FilterBar
+        fields={[
+          { key: "from", label: t("from"), icon: IconCalendar, node: <DatePicker value={dates.from} onChange={(v) => { setDates((d) => ({ ...d, from: v })); setOffset(0); }} placeholder={t("from")} ariaLabel={t("from")} max={dates.to || undefined} clearLabel={tu("clear")} />, active: !!dates.from, chip: dates.from ? `${t("from")}: ${f.date(dates.from)}` : null, clear: () => setDates((d) => ({ ...d, from: "" })) },
+          { key: "to", label: t("to"), icon: IconCalendar, node: <DatePicker value={dates.to} onChange={(v) => { setDates((d) => ({ ...d, to: v })); setOffset(0); }} placeholder={t("to")} ariaLabel={t("to")} min={dates.from || undefined} clearLabel={tu("clear")} />, active: !!dates.to, chip: dates.to ? `${t("to")}: ${f.date(dates.to)}` : null, clear: () => setDates((d) => ({ ...d, to: "" })) },
+        ]}
+        count={rows.total}
+        onReset={() => { setDates({ from: "", to: "" }); setOffset(0); }}
+      />
+      {error ? <HrmError text={t("error")} onRetry={reload} retryLabel={t("refresh")} /> : null}
+      <div className="hrm-stats">
+        <HrmStat icon={IconCheck} tone="ok" label={t("att.present")} value={loading ? "…" : sum.present} />
+        <HrmStat icon={IconClock} tone="blue" label={t("att.worked")} value={loading ? "…" : f.minutes(sum.worked)} />
+        <HrmStat icon={IconCalendar} tone="warn" label={t("att.late")} value={loading ? "…" : sum.late} />
+        <HrmStat icon={IconChartBar} tone="violet" label={t("att.overtime")} value={loading ? "…" : f.minutes(sum.overtime)} />
+      </div>
+      <HrmPanel flush>
+        {loading ? <div style={{ padding: 16 }}><HrmLoading /></div> : rows.items.length ? <AttendanceTable rows={rows.items} /> : <HrmEmpty icon={IconCalendar} title={t("empty.attendance")} text={t("emptyAttendanceLead")} />}
+        <InternalPagination page={rows} onChange={setOffset} />
+      </HrmPanel>
+    </section>
+  );
+}
+
+export function AttendanceTable({ rows, nameOf }: { rows: HrmAttendance[]; nameOf?: (r: HrmAttendance) => { name: string; sub: string } }) {
+  const t = useTranslations("internal.pages");
+  const f = useHrmFormat();
+  return (
+    <div className="hrm-table-wrap">
+      <table className="hrm-table">
+        <thead>
+          <tr>
+            <th>{t("columns.date")}</th>
+            {nameOf ? <th>{t("columns.employee")}</th> : null}
+            <th>{t("columns.status")}</th>
+            <th>{t("columns.checkIn")}</th>
+            <th>{t("columns.checkOut")}</th>
+            <th className="hrm-num">{t("columns.worked")}</th>
+            <th className="hrm-num">{t("columns.late")}</th>
+            <th className="hrm-num">{t("columns.overtime")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const who = nameOf?.(r);
+            return (
+              <tr key={r.id || `${r.employeeId}-${r.date}`}>
+                <td><b>{f.date(r.date)}</b></td>
+                {who ? <td><b>{who.name}</b>{who.sub ? <small>{who.sub}</small> : null}</td> : null}
+                <td><HrmStatus value={r.status} /></td>
+                <td>{f.time(r.firstIn)}</td>
+                <td>{f.time(r.lastOut)}</td>
+                <td className="hrm-num">{f.minutes(r.workedMinutes)}</td>
+                <td className="hrm-num">{r.lateMinutes ? <span className="hrm-late">{f.minutes(r.lateMinutes)}</span> : "—"}</td>
+                <td className="hrm-num">{f.minutes(r.overtimeMinutes)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Messages ───────────────────────────────────────────────────────────────
+
+function MessagesPage() {
+  const t = useTranslations("internal.pages");
+  const tu = useTranslations("internal.ui");
+  const f = useHrmFormat();
+  const dir = useHrmDirectory();
+  const [page, setPage] = useState<InternalPage<HrmMessage>>(EMPTY_PAGE);
+  const [offset, setOffset] = useState(0);
+  const [form, setForm] = useState({ to: "", subject: "", body: "" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const load = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await getMyMessages({ limit: 25, offset }, signal);
+      setPage({ ...res, items: res.items.map(normMessage) });
+    } catch (cause) {
+      if (!aborted(cause)) setError(true);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, [offset]);
+  useEffect(() => {
+    const c = new AbortController();
+    void Promise.resolve().then(() => load(c.signal));
+    return () => c.abort();
+  }, [load]);
+  const reload = useCallback(() => void load(), [load]);
+  useReload(reload);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!form.to || !form.body.trim() || saving) return;
+    setSaving(true);
+    setError(false);
+    setSent(false);
+    try {
+      await sendInternalMessage({ recipient_user_id: form.to, thread_type: "direct", thread_id: null, subject: form.subject.trim(), body: form.body.trim(), attachments: [] });
+      setForm({ to: "", subject: "", body: "" });
+      setSent(true);
+      await load();
+    } catch {
+      setError(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
-  const title = t(`titles.${mode}`);
-  const subtitle = t(`subtitles.${mode}`);
-  const rows = useMemo(() => page.items as InternalRecord[], [page.items]);
+  const unread = page.items.filter((m) => m.unread).length;
 
-  return <section className="internal-page">
-    <div className="internal-section-head"><div><span className="internal-kicker">{t("kicker")}</span><h2>{title}</h2><p>{subtitle}</p></div><button className="btn btn--line btn--sm" type="button" onClick={() => void load()} disabled={loading}><IconRefresh />{t("refresh")}</button></div>
-    {error && <div className="internal-notice internal-notice--error" role="alert">{t("error")}</div>}
-    {mode === "me" ? <div className="internal-profile-grid">
-      <div className="internal-panel internal-profile-card"><span className="internal-profile-avatar"><IconUser /></span><div><h3>{recordName(profile ?? {})}</h3><p>{value(profile ?? {}, "position_name", "position", "job_title")}</p><small>{value(profile ?? {}, "employee_code", "work_code")}</small></div></div>
-      <div className="internal-panel"><div className="internal-panel__head"><h3>{t("today")}</h3><span className="pill pill--ok"><IconCheck />{value(profile ?? {}, "today_status", "attendance_status")}</span></div><div className="internal-kv"><span>{t("department")}</span><b>{value(profile ?? {}, "unit_name", "department")}</b></div><div className="internal-kv"><span>{t("manager")}</span><b>{value(profile ?? {}, "manager_name", "manager")}</b></div></div>
-      <div className="internal-panel internal-profile-kpis"><div className="internal-panel__head"><h3>{t("myKpis")}</h3><IconUsers /></div>{Array.isArray(profile?.kpis) && profile.kpis.length ? profile.kpis.map((kpi, index) => <div className="internal-kv" key={asStr(asDict(kpi).id, String(index))}><span>{recordName(asDict(kpi))}</span><b>{value(asDict(kpi), "value", "score", "target")}</b></div>) : <p className="internal-empty">{t("noKpis")}</p>}</div>
-    </div> : <>
-      {mode === "tasks" && <><div className="internal-toolbar"><InternalField label={t("searchTasks")}><div className="internal-search"><IconSearch /><input value={query} onChange={(event) => { setQuery(event.target.value); setOffset(0); }} placeholder={t("searchTasks")} maxLength={120} /></div></InternalField><span className="pill pill--gray">{page.total} {t("total")}</span></div><div className="internal-tabs" role="tablist" aria-label={t("taskStatusLabel")}><button type="button" className={`internal-tab${!taskStatus ? " on" : ""}`} onClick={() => { setTaskStatus(""); setOffset(0); }} role="tab" aria-selected={!taskStatus}>{t("allStatuses")}</button>{TASK_STATUSES.map((status) => <button type="button" className={`internal-tab${taskStatus === status ? " on" : ""}`} key={status} onClick={() => { setTaskStatus(status); setOffset(0); }} role="tab" aria-selected={taskStatus === status}>{t(`taskStatuses.${status}`)}</button>)}</div></>}
-      {mode === "attendance" && <div className="internal-toolbar internal-filter-row"><InternalField label={t("from")}><DatePicker value={dates.from} onChange={(value) => { setDates((current) => ({ ...current, from: value })); setOffset(0); }} placeholder={t("from")} ariaLabel={t("from")} max={dates.to || undefined} clearLabel={common("clear")} /></InternalField><InternalField label={t("to")}><DatePicker value={dates.to} onChange={(value) => { setDates((current) => ({ ...current, to: value })); setOffset(0); }} placeholder={t("to")} ariaLabel={t("to")} min={dates.from || undefined} clearLabel={common("clear")} /></InternalField><span className="pill pill--gray">{page.total} {t("total")}</span></div>}
-      <div className="internal-panel">{loading ? <div className="internal-loading" aria-busy="true" /> : <SelfTable rows={rows} mode={mode} empty={t(`empty.${mode}`)} />}<InternalPagination page={page} onChange={setOffset} /></div>
-      {mode === "messages" && <form className="internal-panel internal-message-form" onSubmit={submitMessage}><div className="internal-panel__head"><h3>{t("newMessage")}</h3><IconSend /></div><InternalField label={t("recipientUserId")}><input value={message.recipientUserId} onChange={(event) => setMessage((current) => ({ ...current, recipientUserId: event.target.value }))} placeholder={t("recipientUserId")} maxLength={80} required /></InternalField><InternalField label={t("subject")}><input value={message.subject} onChange={(event) => setMessage((current) => ({ ...current, subject: event.target.value }))} placeholder={t("subject")} maxLength={160} required /></InternalField><InternalField label={t("messageBody")}><textarea value={message.body} onChange={(event) => setMessage((current) => ({ ...current, body: event.target.value }))} placeholder={t("messageBody")} maxLength={4000} rows={4} required /></InternalField><button className="btn btn--pri btn--sm" type="submit" disabled={saving}><IconSend />{saving ? t("sending") : t("send")}</button></form>}
-    </>}
-  </section>;
+  return (
+    <section className="hrm-page">
+      <HrmHead kicker={t("kicker")} title={t("titles.messages")} lead={t("subtitles.messages")} actions={<button className="btn btn--line btn--sm" type="button" onClick={reload} disabled={loading}><IconRefresh />{t("refresh")}</button>} />
+      {error ? <HrmError text={t("error")} onRetry={reload} retryLabel={t("refresh")} /> : null}
+      <div className="hrm-grid hrm-grid--side">
+        <HrmPanel title={t("inbox")} icon={IconChat} count={unread ? `${unread} / ${page.total}` : page.total}>
+          {loading ? <HrmLoading rows={3} /> : page.items.length ? (
+            <ul className="hrm-list hrm-msgs">
+              {page.items.map((m) => {
+                // Messages name their sender by login id only; the directory
+                // turns that into the colleague's name.
+                const from = m.senderName || dir.userName(m.senderUserId) || t("unknownSender");
+                return (
+                  <li key={m.id || m.createdAt} className={m.unread ? "is-unread" : undefined}>
+                    <HrmAvatar name={from} size="sm" />
+                    <span className="hrm-list__t">
+                      <b>{m.subject ? `${from} · ${m.subject}` : from}</b>
+                      <small>{m.body || t("messageFallback")}</small>
+                    </span>
+                    <span className="hrm-list__a hrm-muted">{f.dateTime(m.createdAt)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : <HrmEmpty icon={IconChat} title={t("empty.messages")} text={t("emptyMessagesLead")} />}
+          <InternalPagination page={page} onChange={setOffset} />
+        </HrmPanel>
+        <HrmPanel title={t("newMessage")} icon={IconSend}>
+          <form className="hrm-form" onSubmit={submit}>
+            <InternalField label={t("recipientUserId")}>
+              <EntitySelect value={form.to} onChange={(v) => setForm((c) => ({ ...c, to: v }))} options={dir.userOptions} placeholder={tu("choose.recipient")} ariaLabel={t("recipientUserId")} />
+            </InternalField>
+            {dir.ready && !dir.userOptions.length ? <p className="hrm-form__note">{t("noRecipients")}</p> : null}
+            <InternalField label={t("subject")}>
+              <input value={form.subject} onChange={(e) => setForm((c) => ({ ...c, subject: e.target.value }))} placeholder={t("subject")} maxLength={160} />
+            </InternalField>
+            <InternalField label={t("messageBody")}>
+              <textarea value={form.body} onChange={(e) => setForm((c) => ({ ...c, body: e.target.value }))} placeholder={t("messageBody")} maxLength={4000} rows={5} required />
+            </InternalField>
+            {sent ? <div className="hrm-ok"><IconCheck />{t("sent")}</div> : null}
+            <div className="hrm-form__foot">
+              <button className="btn btn--pri btn--sm" type="submit" disabled={saving || !form.to || !form.body.trim()}><IconSend />{saving ? t("sending") : t("send")}</button>
+            </div>
+          </form>
+        </HrmPanel>
+      </div>
+    </section>
+  );
 }

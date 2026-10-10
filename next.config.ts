@@ -65,6 +65,9 @@ const nextConfig: NextConfig = {
       { source: "/:locale(uz|ru|en)/portal/yurist/:path*", destination: "/:locale/portal/lawyer/:path*", permanent: false },
       { source: "/:locale(uz|ru|en)/marketplace/lawyers", destination: "/:locale/lawyers", permanent: false },
       { source: "/:locale(uz|ru|en)/marketplace/lawyers/:id", destination: "/:locale/lawyers/:id", permanent: false },
+      // Promotion CTA links are written by the backend as
+      // /portal/client/marketplace/lawyers/{id}; the profile page is /portal/client/lawyers/{id}.
+      { source: "/:locale(uz|ru|en)/portal/client/marketplace/lawyers/:id", destination: "/:locale/portal/client/lawyers/:id", permanent: false },
     ];
   },
 };

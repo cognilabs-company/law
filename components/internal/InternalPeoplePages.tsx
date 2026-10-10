@@ -1,143 +1,129 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { ApiError, asArr, asDict, asStr, type Dict } from "@/lib/http";
-import { assignEmployee, createEmployee, createOrgUnit, createPosition, getEmployee360, getEmployees, getOrgBoard, getPositions, recordLabel, recordName, recordStatus, updateEmployee, updateOrgUnit, updatePosition, type InternalPage, type InternalRecord } from "@/lib/services/internalHrm";
-import { IconEdit, IconPlus, IconRefresh, IconSearch } from "@/components/icons";
+import { ApiError } from "@/lib/http";
+import { getEmployees, normEmployee, type HrmEmployee, type InternalPage } from "@/lib/services/internalHrm";
+import { IconBriefcase, IconBuilding, IconCheck, IconPlus, IconRefresh, IconUsers } from "@/components/icons";
+import FilterBar from "@/components/filters/FilterBar";
 import InternalPagination from "@/components/internal/InternalPagination";
-import InternalField from "@/components/internal/InternalField";
-import InternalOrgBoard from "@/components/internal/InternalOrgBoard";
+import InternalOrgPage from "@/components/internal/InternalOrgPage";
+import { Employee360, EmployeeCreate, EMPLOYMENT_STATUSES } from "@/components/internal/EmployeeDrawers";
+import { refreshHrmDirectory, useHrmDirectory } from "@/components/internal/useHrmDirectory";
+import { HrmEmpty, HrmError, HrmHead, HrmLoading, HrmPanel, HrmPerson, HrmStat, HrmStatus, useStatusLabel } from "@/components/internal/HrmUi";
 
 type Mode = "employees" | "org";
-
-function field(row: Dict, ...keys: string[]): string {
-  for (const key of keys) { const value = asStr(row[key]).trim(); if (value) return value; }
-  return "—";
-}
+const EMPTY_PAGE = { items: [], total: 0, offset: 0, limit: 25, hasMore: false };
 
 export default function InternalPeoplePages({ mode }: { mode: Mode }) {
+  return mode === "org" ? <InternalOrgPage /> : <EmployeesPage />;
+}
+
+function EmployeesPage() {
   const t = useTranslations("internal.people");
-  const [employees, setEmployees] = useState<InternalPage<InternalRecord>>({ items: [], total: 0, offset: 0, limit: 25, hasMore: false });
-  const [positions, setPositions] = useState<InternalPage<InternalRecord>>({ items: [], total: 0, offset: 0, limit: 25, hasMore: false });
-  const [board, setBoard] = useState<Dict | null>(null);
+  const tu = useTranslations("internal.ui");
+  const label = useStatusLabel();
+  const dir = useHrmDirectory();
+  const [page, setPage] = useState<InternalPage<HrmEmployee>>(EMPTY_PAGE);
   const [q, setQ] = useState("");
-  const [employeeFilters, setEmployeeFilters] = useState({ status: "", orgUnitId: "" });
-  const [form, setForm] = useState({ full_name: "", phone: "", position_id: "", unit_id: "" });
-  const [positionForm, setPositionForm] = useState({ name: "", code: "", unit_id: "" });
-  const [unitForm, setUnitForm] = useState({ name: "", code: "", parent_id: "" });
-  const [editingPositionId, setEditingPositionId] = useState("");
-  const [editingUnitId, setEditingUnitId] = useState("");
-  const [employeeId, setEmployeeId] = useState("");
-  const [employeeDetail, setEmployeeDetail] = useState<Dict | null>(null);
-  const [assignment, setAssignment] = useState({ org_unit_id: "", position_id: "", manager_employee_id: "", salary_amount: "" });
-  const [profileForm, setProfileForm] = useState({ full_name: "", phone: "" });
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(false);
+  const [status, setStatus] = useState("");
+  const [unitId, setUnitId] = useState("");
   const [offset, setOffset] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [openId, setOpenId] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true); setError(false);
+    setLoading(true);
+    setError(false);
     try {
-      if (mode === "employees") setEmployees(await getEmployees({ q, status: employeeFilters.status || undefined, org_unit_id: employeeFilters.orgUnitId || undefined, limit: 25, offset }, signal));
-      else {
-        const [raw, rows] = await Promise.all([getOrgBoard("people", signal), getPositions({ limit: 50, offset: 0 }, signal)]);
-        setBoard(asDict(raw)); setPositions(rows);
-      }
+      const res = await getEmployees({ q: q || undefined, status: status || undefined, org_unit_id: unitId || undefined, limit: 50, offset }, signal);
+      setPage({ ...res, items: res.items.map(normEmployee) });
     } catch (cause) {
       if (!(cause instanceof ApiError && cause.detail === "aborted")) setError(true);
-    } finally { if (!signal?.aborted) setLoading(false); }
-  }, [employeeFilters, mode, q, offset]);
-
-  useEffect(() => { const controller = new AbortController(); void Promise.resolve().then(() => load(controller.signal)); return () => controller.abort(); }, [load]);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, [q, status, unitId, offset]);
+  useEffect(() => {
+    const c = new AbortController();
+    void Promise.resolve().then(() => load(c.signal));
+    return () => c.abort();
+  }, [load]);
+  const reload = useCallback(() => {
+    refreshHrmDirectory();
+    void load();
+  }, [load]);
   useEffect(() => subscribeUserEvents((event) => { if (event.event.startsWith("internal.")) void load(); }), [load]);
 
-  async function saveEmployee(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!form.full_name.trim() || saving) return;
-    setSaving(true); setError(false);
-    try {
-      const names = form.full_name.trim().split(/\s+/);
-      const created = await createEmployee({ first_name: names[0] || "", last_name: names.slice(1).join(" "), display_name: form.full_name.trim(), phone: form.phone.trim(), employment_status: "active", profile: {} });
-      const id = asStr(created.id).trim();
-      if (id && (form.position_id.trim() || form.unit_id.trim())) await assignEmployee(id, { org_unit_id: form.unit_id.trim() || null, position_id: form.position_id.trim() || null, manager_employee_id: null, employment_type: "full_time", rate: 100, currency: "UZS", status: "active", meta: {} });
-      setForm({ full_name: "", phone: "", position_id: "", unit_id: "" }); await load();
-    } catch { setError(true); } finally { setSaving(false); }
-  }
+  const stats = useMemo(() => {
+    const all = dir.employees.length ? dir.employees : page.items;
+    return {
+      total: all.length,
+      active: all.filter((e) => e.status === "active").length,
+      assigned: all.filter((e) => e.unitId || e.positionId).length,
+      units: dir.units.length,
+    };
+  }, [dir.employees, dir.units.length, page.items]);
 
-  async function savePosition(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!positionForm.name.trim() || saving) return;
-    setSaving(true); setError(false);
-    try {
-      const payload = { title: positionForm.name.trim(), name: positionForm.name.trim(), code: positionForm.code.trim(), unit_id: positionForm.unit_id.trim() || null, status: "active" };
-      if (editingPositionId) await updatePosition(editingPositionId, payload); else await createPosition(payload);
-      setPositionForm({ name: "", code: "", unit_id: "" }); setEditingPositionId(""); await load();
-    } catch { setError(true); } finally { setSaving(false); }
-  }
+  const open = page.items.find((e) => e.id === openId) ?? dir.employee(openId) ?? null;
 
-  async function saveUnit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!unitForm.name.trim() || saving) return;
-    setSaving(true); setError(false);
-    try {
-      const payload = { name: unitForm.name.trim(), code: unitForm.code.trim(), parent_id: unitForm.parent_id.trim() || null, status: "active" };
-      if (editingUnitId) await updateOrgUnit(editingUnitId, payload); else await createOrgUnit(payload);
-      setUnitForm({ name: "", code: "", parent_id: "" }); setEditingUnitId(""); await load();
-    } catch { setError(true); } finally { setSaving(false); }
-  }
+  return (
+    <section className="hrm-page">
+      <HrmHead
+        kicker={t("kicker")}
+        title={t("titles.employees")}
+        lead={t("subtitles.employees")}
+        actions={
+          <>
+            <button className="btn btn--line btn--sm" type="button" onClick={reload} disabled={loading}><IconRefresh />{t("refresh")}</button>
+            <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("newEmployee")}</button>
+          </>
+        }
+      />
+      <div className="hrm-stats">
+        <HrmStat icon={IconUsers} tone="blue" label={t("stat.total")} value={stats.total} />
+        <HrmStat icon={IconCheck} tone="ok" label={t("stat.active")} value={stats.active} />
+        <HrmStat icon={IconBriefcase} tone="violet" label={t("stat.assigned")} value={stats.assigned} />
+        <HrmStat icon={IconBuilding} tone="cyan" label={t("stat.units")} value={stats.units} />
+      </div>
+      <FilterBar
+        search={{ value: q, onChange: (v) => { setQ(v); setOffset(0); }, placeholder: t("searchEmployees"), maxLength: 120 }}
+        fields={[
+          { key: "status", label: t("statusFilter"), value: status, onChange: (v) => { setStatus(v); setOffset(0); }, options: [{ value: "", label: t("allStatuses") }, ...EMPLOYMENT_STATUSES.map((s) => ({ value: s, label: label(s) }))], empty: "" },
+          { key: "unit", label: t("unitId"), value: unitId, onChange: (v) => { setUnitId(v); setOffset(0); }, options: [{ value: "", label: tu("all") }, ...dir.units.map((u) => ({ value: u.id, label: u.name }))], empty: "", hidden: !dir.units.length },
+        ]}
+        count={page.total}
+        onReset={() => { setQ(""); setStatus(""); setUnitId(""); setOffset(0); }}
+      />
+      {error ? <HrmError text={t("error")} onRetry={reload} retryLabel={t("refresh")} /> : null}
+      <HrmPanel flush>
+        {loading ? <div style={{ padding: 16 }}><HrmLoading rows={6} /></div> : page.items.length ? (
+          <div className="hrm-table-wrap">
+            <table className="hrm-table">
+              <thead><tr><th>{t("columns.employee")}</th><th>{t("columns.position")}</th><th>{t("columns.unit")}</th><th>{t("columns.manager")}</th><th>{t("columns.region")}</th><th>{t("columns.status")}</th></tr></thead>
+              <tbody>
+                {page.items.map((e) => (
+                  <tr key={e.id} className="is-click" tabIndex={0} onClick={() => setOpenId(e.id)} onKeyDown={(ev) => { if (ev.key === "Enter") setOpenId(e.id); }}>
+                    <td><HrmPerson name={e.name || e.code} sub={[e.code, e.phone].filter(Boolean).join(" · ")} /></td>
+                    <td>{dir.positionTitle(e.positionId) || <span className="hrm-muted">—</span>}</td>
+                    <td>{dir.unitName(e.unitId) || <span className="hrm-muted">—</span>}</td>
+                    <td className="hrm-muted">{dir.employeeName(e.managerId) || "—"}</td>
+                    <td className="hrm-muted">{e.region || "—"}</td>
+                    <td><HrmStatus value={e.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <HrmEmpty icon={IconUsers} title={t("emptyEmployees")} text={q || status || unitId ? t("emptyFiltered") : t("emptyEmployeesLead")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("newEmployee")}</button>} />}
+        <InternalPagination page={page} onChange={setOffset} />
+      </HrmPanel>
 
-  async function openEmployee(row: InternalRecord) {
-    const id = asStr(row.id).trim();
-    if (!id) return;
-    setEmployeeId(id); setEmployeeDetail(null); setDetailLoading(true); setError(false);
-    try {
-      const detail = asDict(await getEmployee360(id));
-      const employee = asDict(detail.employee ?? detail);
-      setEmployeeDetail(detail);
-      setProfileForm({ full_name: recordName(employee) === "—" ? "" : recordName(employee), phone: field(employee, "phone") === "—" ? "" : field(employee, "phone") });
-    } catch { setError(true); } finally { setDetailLoading(false); }
-  }
-
-  async function saveEmployeeProfile(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!employeeId || !profileForm.full_name.trim() || saving) return;
-    setSaving(true); setError(false);
-    try {
-      const names = profileForm.full_name.trim().split(/\s+/);
-      await updateEmployee(employeeId, { first_name: names[0] || "", last_name: names.slice(1).join(" "), display_name: profileForm.full_name.trim(), phone: profileForm.phone.trim(), status: "active", meta: {} });
-      setEmployeeDetail(asDict(await getEmployee360(employeeId))); await load();
-    } catch { setError(true); } finally { setSaving(false); }
-  }
-
-  async function saveAssignment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!employeeId || saving) return;
-    setSaving(true); setError(false);
-    try { await assignEmployee(employeeId, { org_unit_id: assignment.org_unit_id.trim() || null, position_id: assignment.position_id.trim() || null, manager_employee_id: assignment.manager_employee_id.trim() || null, employment_type: "full_time", rate: 100, salary_amount: assignment.salary_amount ? Number(assignment.salary_amount) : null, currency: "UZS", status: "active", meta: {} }); setEmployeeDetail(asDict(await getEmployee360(employeeId))); await load(); } catch { setError(true); } finally { setSaving(false); }
-  }
-
-  function editUnit(node: Dict) {
-    setEditingUnitId(asStr(node.id));
-    setUnitForm({ name: field(node, "name", "title") === "—" ? "" : field(node, "name", "title"), code: field(node, "code") === "—" ? "" : field(node, "code"), parent_id: asStr(node.parent_id) });
-  }
-
-  function editPosition(row: InternalRecord) {
-    setEditingPositionId(asStr(row.id));
-    setPositionForm({ name: recordName(row) === "—" ? "" : recordName(row), code: field(row, "code", "work_code") === "—" ? "" : field(row, "code", "work_code"), unit_id: asStr(row.unit_id) });
-  }
-
-  return <section className="internal-page">
-    <div className="internal-section-head"><div><span className="internal-kicker">{t("kicker")}</span><h2>{t(`titles.${mode}`)}</h2><p>{t(`subtitles.${mode}`)}</p></div><button className="btn btn--line btn--sm" type="button" onClick={() => void load()} disabled={loading}><IconRefresh />{t("refresh")}</button></div>
-    {error && <div className="internal-notice internal-notice--error" role="alert">{t("error")}</div>}
-    {mode === "employees" ? <>
-      <div className="internal-toolbar"><InternalField label={t("searchEmployees")}><div className="internal-search"><IconSearch /><input value={q} onChange={(event) => { setQ(event.target.value); setOffset(0); }} placeholder={t("searchEmployees")} maxLength={120} /></div></InternalField><InternalField label={t("statusFilter")}><select value={employeeFilters.status} onChange={(event) => { setEmployeeFilters((current) => ({ ...current, status: event.target.value })); setOffset(0); }}><option value="">{t("allStatuses")}</option><option value="active">{t("active")}</option><option value="inactive">{t("inactive")}</option></select></InternalField><InternalField label={t("unitId")}><input value={employeeFilters.orgUnitId} onChange={(event) => { setEmployeeFilters((current) => ({ ...current, orgUnitId: event.target.value })); setOffset(0); }} placeholder={t("unitId")} maxLength={80} /></InternalField><span className="pill pill--gray">{employees.total} {t("total")}</span></div>
-      <div className="internal-panel">{loading ? <div className="internal-loading" aria-busy="true" /> : employees.items.length ? <div className="internal-table-wrap"><table className="internal-table"><thead><tr><th>{t("columns.employee")}</th><th>{t("columns.position")}</th><th>{t("columns.unit")}</th><th>{t("columns.status")}</th><th>{t("columns.action")}</th></tr></thead><tbody>{employees.items.map((row, index) => <tr key={asStr(row.id, `${recordLabel(row)}-${index}`)}><td><b>{recordName(row)}</b><small>{recordLabel(row)} · {field(row, "phone")}</small></td><td>{field(row, "position_name", "position")}</td><td>{field(row, "unit_name", "department")}</td><td><span className="pill pill--gray">{recordStatus(row)}</span></td><td><button className="btn btn--line btn--sm" type="button" onClick={() => void openEmployee(row)}>{t("detail")}</button></td></tr>)}</tbody></table></div> : <p className="internal-empty">{t("emptyEmployees")}</p>}<InternalPagination page={employees} onChange={setOffset} /></div>
-      <form className="internal-panel internal-form" onSubmit={saveEmployee}><div className="internal-panel__head"><h3>{t("newEmployee")}</h3><IconPlus /></div><div className="internal-form-grid"><InternalField label={t("fullName")}><input value={form.full_name} onChange={(event) => setForm((current) => ({ ...current, full_name: event.target.value }))} placeholder={t("fullName")} maxLength={160} required /></InternalField><InternalField label={t("phone")}><input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} placeholder={t("phone")} inputMode="tel" maxLength={30} /></InternalField><InternalField label={t("positionId")}><input value={form.position_id} onChange={(event) => setForm((current) => ({ ...current, position_id: event.target.value }))} placeholder={t("positionId")} maxLength={80} /></InternalField><InternalField label={t("unitId")}><input value={form.unit_id} onChange={(event) => setForm((current) => ({ ...current, unit_id: event.target.value }))} placeholder={t("unitId")} maxLength={80} /></InternalField></div><button className="btn btn--pri btn--sm" type="submit" disabled={saving}><IconPlus />{saving ? t("saving") : t("create")}</button></form>
-    </> : <>
-      <InternalOrgBoard raw={board} loading={loading} onEditUnit={editUnit} />
-      <div className="internal-panel"><div className="internal-panel__head"><h3>{t("positions")}</h3><span className="pill pill--gray">{positions.total}</span></div>{loading ? <div className="internal-loading" aria-busy="true" /> : positions.items.length ? <div className="internal-table-wrap"><table className="internal-table"><thead><tr><th>{t("columns.position")}</th><th>{t("columns.code")}</th><th>{t("columns.unit")}</th><th>{t("columns.status")}</th><th>{t("columns.action")}</th></tr></thead><tbody>{positions.items.map((row, index) => <tr key={asStr(row.id, `${recordLabel(row)}-${index}`)}><td><b>{recordName(row)}</b></td><td>{field(row, "code", "work_code")}</td><td>{field(row, "unit_name", "department")}</td><td><span className="pill pill--gray">{recordStatus(row)}</span></td><td><button className="internal-link-button" type="button" onClick={() => editPosition(row)} title={t("editPosition")} aria-label={t("editPosition")}><IconEdit /></button></td></tr>)}</tbody></table></div> : <p className="internal-empty">{t("emptyPositions")}</p>}</div>
-      <form className="internal-panel internal-form" onSubmit={savePosition}><div className="internal-panel__head"><h3>{editingPositionId ? t("editPosition") : t("newPosition")}</h3><IconPlus /></div><div className="internal-form-grid"><InternalField label={t("positionName")}><input value={positionForm.name} onChange={(event) => setPositionForm((current) => ({ ...current, name: event.target.value }))} placeholder={t("positionName")} maxLength={160} required /></InternalField><InternalField label={t("positionCode")}><input value={positionForm.code} onChange={(event) => setPositionForm((current) => ({ ...current, code: event.target.value }))} placeholder={t("positionCode")} maxLength={50} /></InternalField><InternalField label={t("unitId")}><input value={positionForm.unit_id} onChange={(event) => setPositionForm((current) => ({ ...current, unit_id: event.target.value }))} placeholder={t("unitId")} maxLength={80} /></InternalField></div><div className="internal-action-row"><button className="btn btn--pri btn--sm" type="submit" disabled={saving}><IconPlus />{saving ? t("saving") : editingPositionId ? t("save") : t("create")}</button>{editingPositionId ? <button className="btn btn--line btn--sm" type="button" onClick={() => { setEditingPositionId(""); setPositionForm({ name: "", code: "", unit_id: "" }); }}>{t("cancelEdit")}</button> : null}</div></form>
-      <form className="internal-panel internal-form" onSubmit={saveUnit}><div className="internal-panel__head"><h3>{editingUnitId ? t("editUnit") : t("newUnit")}</h3><IconPlus /></div><div className="internal-form-grid"><InternalField label={t("unitName")}><input value={unitForm.name} onChange={(event) => setUnitForm((current) => ({ ...current, name: event.target.value }))} placeholder={t("unitName")} maxLength={160} required /></InternalField><InternalField label={t("unitCode")}><input value={unitForm.code} onChange={(event) => setUnitForm((current) => ({ ...current, code: event.target.value }))} placeholder={t("unitCode")} maxLength={50} /></InternalField><InternalField label={t("parentId")}><input value={unitForm.parent_id} onChange={(event) => setUnitForm((current) => ({ ...current, parent_id: event.target.value }))} placeholder={t("parentId")} maxLength={80} /></InternalField></div><div className="internal-action-row"><button className="btn btn--pri btn--sm" type="submit" disabled={saving}><IconPlus />{saving ? t("saving") : editingUnitId ? t("save") : t("create")}</button>{editingUnitId ? <button className="btn btn--line btn--sm" type="button" onClick={() => { setEditingUnitId(""); setUnitForm({ name: "", code: "", parent_id: "" }); }}>{t("cancelEdit")}</button> : null}</div></form>
-      {employeeId ? <div className="internal-panel internal-detail"><div className="internal-panel__head"><h3>{t("employee360")}</h3><button className="btn btn--line btn--sm" type="button" onClick={() => { setEmployeeId(""); setEmployeeDetail(null); }}>{t("close")}</button></div>{detailLoading ? <div className="internal-loading" aria-busy="true" /> : employeeDetail ? <><form className="internal-form" onSubmit={saveEmployeeProfile}><div className="internal-panel__head"><h4>{t("editProfile")}</h4></div><div className="internal-form-grid"><input value={profileForm.full_name} onChange={(event) => setProfileForm((current) => ({ ...current, full_name: event.target.value }))} placeholder={t("fullName")} aria-label={t("fullName")} maxLength={160} required /><input value={profileForm.phone} onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))} placeholder={t("phone")} aria-label={t("phone")} maxLength={30} inputMode="tel" /></div><button className="btn btn--pri btn--sm" type="submit" disabled={saving}>{saving ? t("saving") : t("saveProfile")}</button></form><div className="internal-kv"><span>{t("employee")}</span><b>{recordName(asDict(employeeDetail.employee ?? employeeDetail))}</b></div><div className="internal-kv"><span>{t("tasksCount")}</span><b>{asArr(employeeDetail.tasks).length}</b></div><div className="internal-kv"><span>{t("attendanceCount")}</span><b>{asArr(employeeDetail.attendance).length}</b></div><div className="internal-kv"><span>{t("kpiCount")}</span><b>{asArr(employeeDetail.kpis).length}</b></div><div className="internal-kv"><span>{t("payrollCount")}</span><b>{asArr(employeeDetail.payroll ?? employeeDetail.payroll_entries).length}</b></div><form className="internal-form" onSubmit={saveAssignment}><div className="internal-panel__head"><h4>{t("assignment")}</h4></div><div className="internal-form-grid"><input value={assignment.org_unit_id} onChange={(event) => setAssignment((current) => ({ ...current, org_unit_id: event.target.value }))} placeholder={t("unitId")} aria-label={t("unitId")} /><input value={assignment.position_id} onChange={(event) => setAssignment((current) => ({ ...current, position_id: event.target.value }))} placeholder={t("positionId")} aria-label={t("positionId")} /><input value={assignment.manager_employee_id} onChange={(event) => setAssignment((current) => ({ ...current, manager_employee_id: event.target.value }))} placeholder={t("managerId")} aria-label={t("managerId")} /><input value={assignment.salary_amount} onChange={(event) => setAssignment((current) => ({ ...current, salary_amount: event.target.value }))} placeholder={t("salary")} aria-label={t("salary")} inputMode="numeric" /></div><button className="btn btn--pri btn--sm" type="submit" disabled={saving}>{saving ? t("saving") : t("saveAssignment")}</button></form></> : null}</div> : null}
-    </>}
-  </section>;
+      <Employee360 employee={open} onClose={() => setOpenId("")} onSaved={reload} />
+      <EmployeeCreate open={creating} onClose={() => setCreating(false)} onCreated={(id) => { setCreating(false); reload(); setOpenId(id); }} />
+    </section>
+  );
 }

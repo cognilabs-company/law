@@ -13,7 +13,9 @@ import {
   type ServiceScope,
 } from "@/lib/services/sellerServices";
 import { checkoutMarketplacePromotion, listPromotionPackages, uploadPromotionBanner, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
-import { IconAlert, IconCheck, IconClock, IconCrown, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp, IconUpload } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconCheck, IconClock, IconCrown, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconStar, IconTrendingUp, IconUpload } from "@/components/icons";
+import { useAuth } from "@/lib/auth";
+import { initials } from "@/lib/lawyers";
 import { InBody, som, usePackageName } from "./bits";
 
 type Packs = { status: "loading" | "ready" | "error"; items: PromotionPackage[]; placements: PromotionPlacementOption[] };
@@ -54,6 +56,10 @@ export default function PromoteModal({
   const [ctaUrl, setCtaUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [bannerFileName, setBannerFileName] = useState("");
+  // The uploaded picture, shown from the browser's own copy: the preview must
+  // not depend on the stored file being readable yet.
+  const [bannerLocal, setBannerLocal] = useState("");
+  const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState<PromotionRequest | null>(null);
@@ -85,8 +91,18 @@ export default function PromoteModal({
     return tc(`errors.${e.kind}`);
   };
 
+  const selectedPlacement = packs.placements.find((p) => p.value === placement);
+  // Whether a picture may be given, and whether one must be, are the
+  // backend's flags (package first, then placement) — not a rule of ours.
+  const acceptsBanner = Boolean(chosen?.acceptsBanner ?? selectedPlacement?.acceptsBanner ?? placement === "banner");
+  const needsBanner = Boolean(chosen?.requiresBanner || selectedPlacement?.requiresBanner);
+  const needsService = Boolean(chosen?.requiresService || placement === "service_boost");
+  const missingBanner = needsBanner && !bannerImageUrl && !bannerFileUrl;
+
+  useEffect(() => () => { if (bannerLocal) URL.revokeObjectURL(bannerLocal); }, [bannerLocal]);
+
   const send = async () => {
-    if (!chosen || busy || (chosen.requiresBanner && !bannerImageUrl && !bannerFileUrl)) return;
+    if (!chosen || busy || missingBanner) return;
     setBusy(true);
     setErr("");
     try {
@@ -95,15 +111,15 @@ export default function PromoteModal({
           packageId: chosen.id,
           days: chosen.days,
           placement,
-          serviceId: placement === "service_boost" ? item.id : undefined,
-          bannerImageUrl,
-          bannerFileUrl,
-          title: bannerTitle,
-          subtitle: bannerSubtitle,
-          ctaLabel,
-          ctaUrl,
+          serviceId: needsService ? item.id : undefined,
+          bannerImageUrl: acceptsBanner ? bannerImageUrl : "",
+          bannerFileUrl: acceptsBanner ? bannerFileUrl : "",
+          title: acceptsBanner ? bannerTitle : "",
+          subtitle: acceptsBanner ? bannerSubtitle : "",
+          ctaLabel: acceptsBanner ? ctaLabel : "",
+          ctaUrl: acceptsBanner ? ctaUrl : "",
           previewContext: {
-            surface: placement === "banner" ? "marketplace_top_banner" : placement === "profile_boost" ? "marketplace_list_card" : "category_search_sponsored_service",
+            surface: selectedPlacement?.previewSurface || (placement === "banner" ? "marketplace_top_banner" : placement === "profile_boost" ? "marketplace_list_card" : "category_search_sponsored_service"),
             service_title: item.service.name,
             placement,
           },
@@ -136,7 +152,8 @@ export default function PromoteModal({
   };
 
   const sent = Boolean(done?.telegramSent);
-  const selectedPlacement = packs.placements.find((p) => p.value === placement);
+  const sellerName = session?.name || t("previewSeller");
+  const previewImage = bannerLocal || bannerImageUrl;
 
   async function onBannerFile(file: File | undefined) {
     if (!file || uploading) return;
@@ -151,6 +168,7 @@ export default function PromoteModal({
       setBannerFileUrl(await uploadPromotionBanner(file));
       setBannerFileName(file.name);
       setBannerImageUrl("");
+      setBannerLocal(URL.createObjectURL(file));
     } catch (e) {
       setErr(serviceErrorOf(e).detail || t("bannerUploadError"));
     } finally {
@@ -179,7 +197,7 @@ export default function PromoteModal({
               ) : null}
               <span>{t("amount")}</span>
               <b>
-                {som(done.amount)} {done.currency === "UZS" ? tc("card.som") : done.currency}
+                {som(done.amount || chosen?.price || 0)} {done.currency === "UZS" ? tc("card.som") : done.currency}
               </b>
               {done.requestId ? (
                 <>
@@ -225,13 +243,13 @@ export default function PromoteModal({
 
             <div className="svprom__placements" role="radiogroup" aria-label={t("placementTitle")}>
               {(packs.placements.length ? packs.placements : [
-                { value: "service_boost" as const, label: t("placementService"), requiresService: true, requiresBanner: false },
-                { value: "profile_boost" as const, label: t("placementProfile"), requiresService: false, requiresBanner: false },
-                { value: "banner" as const, label: t("placementBanner"), requiresService: false, requiresBanner: true },
+                { value: "service_boost" as const, label: t("placementService"), requiresService: true, requiresBanner: false, acceptsBanner: false },
+                { value: "profile_boost" as const, label: t("placementProfile"), requiresService: false, requiresBanner: false, acceptsBanner: false },
+                { value: "banner" as const, label: t("placementBanner"), requiresService: false, requiresBanner: false, acceptsBanner: true },
               ]).map((option) => (
                 <button key={option.value} type="button" role="radio" aria-checked={placement === option.value} className={`svplace${placement === option.value ? " is-on" : ""}`} onClick={() => setPlacement(option.value)}>
                   <b>{placementName(option.value)}</b>
-                  <small>{option.requiresBanner ? t("placementBannerHint") : option.requiresService ? t("placementServiceHint") : t("placementProfileHint")}</small>
+                  <small>{option.acceptsBanner || option.requiresBanner ? t("placementBannerHint") : option.requiresService ? t("placementServiceHint") : t("placementProfileHint")}</small>
                 </button>
               ))}
             </div>
@@ -294,9 +312,9 @@ export default function PromoteModal({
               </div>
             )}
 
-            {selectedPlacement?.requiresBanner || placement === "banner" ? (
+            {acceptsBanner ? (
               <div className="svprom__bannerform">
-                <label><span>{t("bannerImageUrl")}</span><input value={bannerImageUrl} onChange={(e) => { setBannerImageUrl(e.target.value); setBannerFileUrl(""); }} placeholder="https://..." /></label>
+                <label><span>{t("bannerImageUrl")}{needsBanner ? "" : ` · ${t("optional")}`}</span><input value={bannerImageUrl} onChange={(e) => { setBannerImageUrl(e.target.value); setBannerFileUrl(""); setBannerLocal(""); setBannerFileName(""); }} placeholder="https://..." inputMode="url" /></label>
                 <label className="svfile">
                   <span>{t("bannerFile")}</span>
                   <input className="svfile__in" type="file" accept=".jpg,.jpeg,.png,.webp,.heic" onChange={(e) => void onBannerFile(e.target.files?.[0])} disabled={uploading} />
@@ -320,9 +338,45 @@ export default function PromoteModal({
             {chosen ? (
               <div className="svprom__preview" aria-label={t("previewTitle")}>
                 <div className="svprom__previewhead"><span>{t("previewTitle")}</span><small>{placementName(placement)}</small></div>
-                <div className={`svprom__previewbody${bannerImageUrl || bannerFileUrl ? " has-image" : ""}`} style={bannerImageUrl ? { backgroundImage: `url(${bannerImageUrl})` } : undefined}>
-                  <div><b>{bannerTitle || item.service.name}</b><span>{bannerSubtitle || item.service.name}</span>{ctaLabel ? <em>{ctaLabel}</em> : null}</div>
-                </div>
+                {/* What a client will actually see, per placement (10-09 §11):
+                    the page-top carousel, the seller card at the head of the
+                    list, or the sponsored service block above the results —
+                    drawn with the marketplace's own markup. */}
+                {placement === "banner" ? (
+                  <div className="svprom__pv">
+                    <section className="mk-promo-banner svprom__pvbanner" style={previewImage ? { backgroundImage: `linear-gradient(90deg, rgba(7,29,67,.9), rgba(7,29,67,.28)), url(${JSON.stringify(previewImage)})` } : undefined}>
+                      <div className="mk-promo-banner__copy">
+                        <span className="mk-promo-banner__eyebrow"><IconMegaphone /> {t("previewTop")}</span>
+                        <h2>{bannerTitle || sellerName}</h2>
+                        <p>{bannerSubtitle || item.service.name}</p>
+                        <span className="mk-promo-banner__cta">{ctaLabel || t("previewCta")}<IconArrowRight /></span>
+                      </div>
+                    </section>
+                    <p className="svprom__pvnote">{previewImage ? t("previewBannerNote") : t("previewBannerNoImage")}</p>
+                  </div>
+                ) : placement === "profile_boost" ? (
+                  <div className="svprom__pv">
+                    <div className="svprom__pvcard is-top">
+                      <span className="svprom__pvav">{initials(sellerName)}</span>
+                      <span className="svprom__pvt"><b>{sellerName}</b><small>{item.service.name}</small></span>
+                      <span className="svprom__pvbadge"><IconStar />{t("previewTop")}</span>
+                    </div>
+                    <div className="svprom__pvcard is-ghost" aria-hidden="true"><span className="svprom__pvav" /><span className="svprom__pvt"><i /><i /></span></div>
+                    <div className="svprom__pvcard is-ghost" aria-hidden="true"><span className="svprom__pvav" /><span className="svprom__pvt"><i /><i /></span></div>
+                    <p className="svprom__pvnote">{t("previewProfileNote")}</p>
+                  </div>
+                ) : (
+                  <div className="svprom__pv">
+                    <div className="mk-promo-tile svprom__pvtile">
+                      <span className="mk-promo-tile__tag"><IconMegaphone /> {t("previewTop")}</span>
+                      <b>{item.service.name}</b>
+                      <small>{sellerName}</small>
+                      <span className="mk-promo-tile__go"><IconArrowRight /></span>
+                    </div>
+                    <div className="svprom__pvcard is-ghost" aria-hidden="true"><span className="svprom__pvav" /><span className="svprom__pvt"><i /><i /></span></div>
+                    <p className="svprom__pvnote">{t("previewServiceNote")}</p>
+                  </div>
+                )}
               </div>
             ) : null}
 
@@ -355,7 +409,7 @@ export default function PromoteModal({
               <button type="button" className="btn btn--line" onClick={close} disabled={busy}>
                 {tc("form.cancel")}
               </button>
-              <button type="button" className="btn btn--grad" onClick={() => void send()} disabled={busy || uploading || !chosen || Boolean(chosen.requiresBanner && !bannerImageUrl && !bannerFileUrl)} data-ai-id={aiId ? `${aiId}.submit` : undefined}>
+              <button type="button" className="btn btn--grad" onClick={() => void send()} disabled={busy || uploading || !chosen || missingBanner} data-ai-id={aiId ? `${aiId}.submit` : undefined}>
                 <IconMegaphone aria-hidden="true" />
                 {busy ? t("sending") : t("submit")}
               </button>

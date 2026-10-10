@@ -151,7 +151,7 @@ export function recordName(row: InternalRecord): string {
 }
 
 export function recordStatus(row: InternalRecord): string {
-  return asStr(row.status ?? row.state ?? row.attendance_status, "—");
+  return asStr(row.status ?? row.employment_status ?? row.state ?? row.attendance_status, "—");
 }
 
 function boardNode(value: unknown, index: number, parentId = "", level = 0, typeHint = "department"): OrgBoardNode {
@@ -191,4 +191,279 @@ export function normOrgBoard(raw: unknown): OrgBoard {
     return { id: asStr(row.id, `edge-${index}`), source: asStr(row.source ?? row.from ?? row.parent_id), target: asStr(row.target ?? row.to ?? row.child_id), raw: row };
   }).filter((edge) => edge.source && edge.target);
   return { nodes, edges, stats: asDict(source.stats) as InternalRecord, layout: asDict(source.layout) as InternalRecord, raw: source as InternalRecord };
+}
+
+// ── Normalised records ──────────────────────────────────────────────────────
+// The list endpoints return the backend's own rows — display_name,
+// employment_status, deadline_at, work_date, worked_minutes, an embedded
+// responsible_employee, an assignment that only carries ids — not the
+// pre-joined *_name fields the pages used to look for. Read that way, every
+// table showed a bare code where a name belonged and "—" in most columns.
+// These read the real fields once, here, so a page never guesses at a row.
+
+const str = (v: unknown) => asStr(v).trim();
+const optNum = (v: unknown): number | null => (v === null || v === undefined || v === "" ? null : asNum(v));
+
+// A person's name the way the backend spells it: display_name first, then the
+// name parts, and only then a code — never the UUID.
+export function personName(raw: unknown): string {
+  const d = asDict(raw);
+  const parts = [str(d.last_name), str(d.first_name), str(d.middle_name)].filter(Boolean).join(" ");
+  return str(d.display_name) || str(d.full_name) || parts || str(d.name) || str(d.employee_code) || "";
+}
+
+export type HrmEmployee = {
+  id: string;
+  userId: string;
+  code: string;
+  name: string;
+  phone: string;
+  email: string;
+  region: string;
+  status: string;
+  hireDate: string;
+  unitId: string;
+  positionId: string;
+  managerId: string;
+  salary: number | null;
+  currency: string;
+  employmentType: string;
+  skills: string[];
+  raw: InternalRecord;
+};
+export function normEmployee(value: unknown): HrmEmployee {
+  const d = asDict(value) as InternalRecord;
+  const a = asDict(d.assignment);
+  const profile = asDict(d.profile);
+  return {
+    id: str(d.id),
+    userId: str(d.user_id),
+    code: str(d.employee_code),
+    name: personName(d),
+    phone: str(d.phone),
+    email: str(d.email),
+    region: str(d.region),
+    status: str(d.employment_status ?? d.status),
+    hireDate: str(d.hire_date),
+    unitId: str(a.org_unit_id ?? d.org_unit_id),
+    positionId: str(a.position_id ?? d.position_id),
+    managerId: str(a.manager_employee_id),
+    salary: optNum(a.salary_amount),
+    currency: str(a.currency) || "UZS",
+    employmentType: str(a.employment_type),
+    skills: asArr(profile.skills).map((s) => asStr(s)).filter(Boolean),
+    raw: d,
+  };
+}
+
+export type HrmUnit = { id: string; code: string; name: string; type: string; parentId: string; headId: string; status: string; order: number; raw: InternalRecord };
+export function normUnit(value: unknown): HrmUnit {
+  const d = asDict(value) as InternalRecord;
+  return {
+    id: str(d.id),
+    code: str(d.code),
+    name: str(d.name ?? d.title),
+    type: str(d.unit_type ?? d.type),
+    parentId: str(d.parent_id),
+    headId: str(d.head_employee_id),
+    status: str(d.status),
+    order: asNum(d.order_index ?? d.order),
+    raw: d,
+  };
+}
+
+export type HrmPosition = { id: string; code: string; title: string; category: string; grade: string; roleCode: string; description: string; status: string; raw: InternalRecord };
+export function normPosition(value: unknown): HrmPosition {
+  const d = asDict(value) as InternalRecord;
+  return {
+    id: str(d.id),
+    code: str(d.code),
+    title: str(d.title ?? d.name),
+    category: str(d.category),
+    grade: str(d.grade),
+    roleCode: str(d.default_role_code),
+    description: str(d.description),
+    status: str(d.status),
+    raw: d,
+  };
+}
+
+export type HrmChecklistItem = { title: string; done: boolean };
+export type HrmTask = {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  project: string;
+  responsibleId: string;
+  responsibleName: string;
+  responsibleCode: string;
+  creatorName: string;
+  unitId: string;
+  priority: string;
+  status: string;
+  deadline: string;
+  createdAt: string;
+  completedAt: string;
+  checklist: HrmChecklistItem[];
+  raw: InternalRecord;
+};
+export function normTask(value: unknown): HrmTask {
+  const d = asDict(value) as InternalRecord;
+  const responsible = asDict(d.responsible_employee ?? d.assignee);
+  return {
+    id: str(d.id),
+    code: str(d.work_code),
+    title: str(d.title),
+    description: str(d.description),
+    project: str(d.project),
+    responsibleId: str(d.responsible_employee_id ?? responsible.id),
+    responsibleName: personName(responsible) || str(d.assignee_name ?? d.responsible_name),
+    responsibleCode: str(responsible.employee_code),
+    creatorName: personName(d.creator),
+    unitId: str(d.org_unit_id),
+    priority: str(d.priority) || "normal",
+    status: str(d.status) || "new",
+    deadline: str(d.deadline_at ?? d.due_at ?? d.due_date),
+    createdAt: str(d.created_at),
+    completedAt: str(d.completed_at),
+    checklist: asArr(d.checklist).map((c) => { const x = asDict(c); return { title: str(x.title ?? x.text), done: x.done === true }; }).filter((c) => c.title),
+    raw: d,
+  };
+}
+
+export type HrmAttendance = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  status: string;
+  plannedMinutes: number;
+  workedMinutes: number;
+  lateMinutes: number;
+  earlyLeaveMinutes: number;
+  overtimeMinutes: number;
+  firstIn: string;
+  lastOut: string;
+  raw: InternalRecord;
+};
+export function normAttendance(value: unknown): HrmAttendance {
+  const d = asDict(value) as InternalRecord;
+  return {
+    id: str(d.id),
+    employeeId: str(d.employee_id),
+    employeeName: personName(d.employee) || str(d.employee_name),
+    date: str(d.work_date ?? d.date ?? d.day),
+    status: str(d.status ?? d.attendance_status),
+    plannedMinutes: asNum(d.planned_minutes),
+    workedMinutes: asNum(d.worked_minutes),
+    lateMinutes: asNum(d.late_minutes),
+    earlyLeaveMinutes: asNum(d.early_leave_minutes),
+    overtimeMinutes: asNum(d.overtime_minutes),
+    firstIn: str(d.first_in_at ?? d.check_in),
+    lastOut: str(d.last_out_at ?? d.check_out),
+    raw: d,
+  };
+}
+
+export type HrmKpi = { id: string; employeeId: string; period: string; code: string; title: string; target: number; actual: number; score: number; weight: number; source: string; status: string; unit: string; raw: InternalRecord };
+export function normKpi(value: unknown): HrmKpi {
+  const d = asDict(value) as InternalRecord;
+  return {
+    id: str(d.id),
+    employeeId: str(d.employee_id),
+    period: str(d.period),
+    code: str(d.metric_code),
+    title: str(d.title) || str(d.metric_code),
+    target: asNum(d.target_value),
+    actual: asNum(d.actual_value),
+    score: asNum(d.score),
+    weight: asNum(d.weight),
+    source: str(d.source),
+    status: str(d.status),
+    unit: str(asDict(d.meta).unit),
+    raw: d,
+  };
+}
+
+export type HrmPayroll = { id: string; employeeId: string; period: string; type: string; title: string; amount: number; currency: string; status: string; paidAt: string; raw: InternalRecord };
+export function normPayroll(value: unknown): HrmPayroll {
+  const d = asDict(value) as InternalRecord;
+  return {
+    id: str(d.id),
+    employeeId: str(d.employee_id),
+    period: str(d.period),
+    type: str(d.entry_type),
+    title: str(d.title),
+    amount: asNum(d.amount),
+    currency: str(d.currency) || "UZS",
+    status: str(d.status),
+    paidAt: str(d.paid_at),
+    raw: d,
+  };
+}
+
+// Stored schedules spell the day out ("monday"); the create body the 10-08
+// guide documents numbers it (1 = Monday). Both read as 1..7.
+const WEEKDAY_NUM: Record<string, number> = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 7 };
+export type HrmScheduleDay = { day: number; start: string; end: string; breakMinutes: number };
+export type HrmSchedule = { id: string; employeeId: string; unitId: string; title: string; type: string; timezone: string; days: HrmScheduleDay[]; status: string; raw: InternalRecord };
+export function normSchedule(value: unknown): HrmSchedule {
+  const d = asDict(value) as InternalRecord;
+  const days = asArr(d.weekly)
+    .map((w) => {
+      const x = asDict(w);
+      const raw = x.day;
+      const day = typeof raw === "number" ? raw : WEEKDAY_NUM[str(raw).toLowerCase()] ?? asNum(raw);
+      return { day, start: str(x.start), end: str(x.end), breakMinutes: asNum(x.break_minutes), enabled: x.enabled !== false };
+    })
+    .filter((x) => x.day >= 1 && x.day <= 7 && x.enabled)
+    .map(({ day, start, end, breakMinutes }) => ({ day, start, end, breakMinutes }))
+    .sort((a, b) => a.day - b.day);
+  return { id: str(d.id), employeeId: str(d.employee_id), unitId: str(d.org_unit_id), title: str(d.title ?? d.name), type: str(d.schedule_type), timezone: str(d.timezone), days, status: str(d.status), raw: d };
+}
+
+export type HrmMessage = { id: string; subject: string; body: string; senderName: string; senderUserId: string; createdAt: string; unread: boolean; raw: InternalRecord };
+export function normMessage(value: unknown): HrmMessage {
+  const d = asDict(value) as InternalRecord;
+  return {
+    id: str(d.id),
+    subject: str(d.subject ?? d.title),
+    body: str(d.body ?? d.preview ?? d.text),
+    senderName: personName(d.sender) || str(d.sender_name ?? d.from_name),
+    senderUserId: str(d.sender_user_id ?? asDict(d.sender).id),
+    createdAt: str(d.created_at ?? d.sent_at),
+    unread: d.unread === true || (d.read_at === null && d.is_read !== true && "read_at" in d),
+    raw: d,
+  };
+}
+
+export type HrmApproval = { id: string; title: string; type: string; targetType: string; requesterName: string; requesterUserId: string; status: string; description: string; amount: number | null; createdAt: string; payload: InternalRecord; raw: InternalRecord };
+export function normApproval(value: unknown): HrmApproval {
+  const d = asDict(value) as InternalRecord;
+  const payload = asDict(d.payload ?? d.data);
+  return {
+    id: str(d.id ?? d.approval_id),
+    title: str(d.title ?? d.subject) || str(payload.title),
+    type: str(d.approval_type ?? d.type ?? d.entity_type),
+    targetType: str(d.target_type),
+    requesterName: personName(d.requester ?? d.requested_by) || str(d.requester_name ?? d.employee_name),
+    requesterUserId: str(d.requester_user_id ?? asDict(d.requester).id),
+    status: str(d.status),
+    description: str(d.description ?? d.note ?? d.reason ?? d.comment),
+    amount: optNum(d.amount ?? payload.amount),
+    createdAt: str(d.created_at),
+    payload: payload as InternalRecord,
+    raw: d,
+  };
+}
+
+export const getOrgUnits = (params: { q?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal) => list<InternalRecord>("/internal/org/units", params, "items", signal);
+
+// /internal/me/kpis answers {period, employee_id, score, items}: the weighted
+// score and its period are part of the answer, not only the metric list.
+export async function getMyKpiSummary(params: { period?: string } = {}, signal?: AbortSignal): Promise<{ period: string; score: number | null; items: HrmKpi[] }> {
+  const d = asDict(await http(`/internal/me/kpis${query({ ...params, limit: 50 })}`, { signal }));
+  const items = asArr(d.items ?? d.metrics ?? d.data).map(normKpi);
+  return { period: str(d.period), score: d.score === null || d.score === undefined ? null : asNum(d.score), items };
 }

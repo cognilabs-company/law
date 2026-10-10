@@ -4,6 +4,7 @@ import { useId, useRef } from "react";
 import type { StudioFieldErrors } from "@/lib/services/studio";
 import { STUDIO_ERR, type StudioEditorProps, type StudioPayload } from "./types";
 import FieldRows, { fieldNames, fieldRowsOf, validateFieldRows } from "./parts/FieldRows";
+import RefSelect from "./parts/RefSelect";
 import { AddBtn, ED_ERR, EdSection, EdShell, ErrLine, FileBox, Fld, RowTools, SelectIn, TextIn, edAi, insertAt, moveItem, normErrors, placeCaret, recList, str, useEd, type Dict } from "./parts/kit";
 import { IconAlert, IconBriefcase, IconDocLines, IconEdit, IconFileText, IconLayers, IconList, IconUpload } from "@/components/icons";
 
@@ -115,10 +116,10 @@ export default function K06Editor({ payload, onChange, errors, readOnly, file, o
           <SelectIn value={str(payload.language)} onChange={(v) => set("language", v)} options={langOpts} readOnly={readOnly} label={e("common.language")} ai={edAi(CODE, "language")} invalid={Boolean(errs.language)} />
         </Fld>
         <Fld id={`${uid}-tpl`} label={e("k06.templateId")} error={errs.template_id} hint={e("common.optional")}>
-          <TextIn id={`${uid}-tpl`} value={str(payload.template_id)} onChange={(v) => set("template_id", v)} readOnly={readOnly} invalid={Boolean(errs.template_id)} placeholder="template-id" label={e("k06.templateId")} ai={edAi(CODE, "template_id")} mono />
+          <RefSelect source="document-templates" value={str(payload.template_id)} onChange={(v) => set("template_id", v)} readOnly={readOnly} label={e("k06.templateId")} />
         </Fld>
         <Fld id={`${uid}-svc`} label={e("common.serviceId")} error={errs.service_id} hint={e("common.optional")}>
-          <TextIn id={`${uid}-svc`} value={str(payload.service_id)} onChange={(v) => set("service_id", v)} readOnly={readOnly} invalid={Boolean(errs.service_id)} placeholder={e("common.serviceIdPh")} label={e("common.serviceId")} ai={edAi(CODE, "service_id")} mono />
+          <RefSelect source="services" value={str(payload.service_id)} onChange={(v) => set("service_id", v)} readOnly={readOnly} label={e("common.serviceId")} />
         </Fld>
       </div>
 

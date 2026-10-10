@@ -97,9 +97,9 @@ export default function InternalShell({ children }: { children: ReactNode }) {
           {GROUPS.map((group) => {
             const items = group.items.filter((item) => visible.includes(item));
             if (!items.length) return null;
-            return <div className="internal-nav-group" key={group.key}>
-              <span className="internal-nav-group__label">{t(`groups.${group.key}`)}</span>
-              {items.map(({ href, key, Icon }) => <Link key={href} href={href} className={`psb__link${matches(pathname, { href, key, Icon }) ? " on" : ""}`}>
+            return <div className="psb__group" key={group.key}>
+              <span className="psb__glabel">{t(`groups.${group.key}`)}</span>
+              {items.map(({ href, key, Icon }) => <Link key={href} href={href} className={`psb__link${active.href === href ? " on" : ""}`} aria-current={active.href === href ? "page" : undefined}>
                 <Icon />{t(`nav.${key}`)}
               </Link>)}
             </div>;

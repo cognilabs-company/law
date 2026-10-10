@@ -126,6 +126,19 @@ export const IconChevronRight = (p: P) => (
   </svg>
 );
 
+export const IconChevronDown = (p: P) => (
+  <svg {...base} strokeWidth={2.4} {...p}>
+    <path d="M5 9l7 7 7-7" />
+  </svg>
+);
+
+// Fit-to-screen: four corners pulled outwards.
+export const IconExpand = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+  </svg>
+);
+
 export const IconChat = (p: P) => (
   <svg {...base} {...p}>
     <path d="M21 12a8 8 0 01-8 8H4l2.3-2.3A8 8 0 1121 12z" />

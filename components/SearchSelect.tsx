@@ -146,7 +146,10 @@ export default function SearchSelect({
   }, [q, hasSearch]);
 
   const shown = useMemo(() => {
-    if (onSearch) return remote;
+    // With a starting list as well as a server search, an empty query shows
+    // that list instead of nothing — a reference select opens on its first
+    // page and narrows on the server as the user types.
+    if (onSearch) return q.trim() ? remote : options;
     const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (!terms.length) return options;
     return options.filter((o) => {

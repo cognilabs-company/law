@@ -16,6 +16,7 @@ import { Monogram, hasRating, hasSuccess, sellerTypeLabel, specLabel } from "./b
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import PromotionSurfaces from "./PromotionSurfaces";
+import { listActivePromotions } from "@/lib/services/promotions";
 
 type Status = "loading" | "ready" | "error";
 
@@ -105,7 +106,11 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [priceMax, setPriceMax] = useState("");
   const [minExp, setMinExp] = useState("");
   const [sellerType, setSellerType] = useState("");
-  const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string; disclaimer: string; sponsored: MarketPromotionSurface[]; banners: MarketPromotionSurface[] } | null>(null);
+  const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string; disclaimer: string; sponsored: MarketPromotionSurface[]; banners: MarketPromotionSurface[]; suggested: { id: string; title: string }[] } | null>(null);
+  // GET /promotions/active (10-09 §5): the page-top banners, and — once a
+  // service is picked — the promotions bought for exactly that service.
+  const [activeBanners, setActiveBanners] = useState<MarketPromotionSurface[]>([]);
+  const [serviceBoost, setServiceBoost] = useState<{ serviceId: string; items: MarketPromotionSurface[] } | null>(null);
   const aiCtrl = useRef<AbortController | null>(null);
   const [aiPending, setAiPending] = useState("");
   const aiSeq = useRef(0);
@@ -131,6 +136,21 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         setStatus((s) => (s === "ready" ? s : "error"));
       });
   }, [reload]);
+
+  useEffect(() => {
+    const c = new AbortController();
+    listActivePromotions({ placement: "banner", limit: 5 }, c.signal).then((rows) => { if (!c.signal.aborted) setActiveBanners(rows); }).catch(() => {});
+    return () => c.abort();
+  }, [reload]);
+
+  useEffect(() => {
+    if (!service) return;
+    const c = new AbortController();
+    listActivePromotions({ placement: "service_boost", serviceId: service, limit: 5 }, c.signal)
+      .then((rows) => { if (!c.signal.aborted) setServiceBoost({ serviceId: service, items: rows }); })
+      .catch(() => { if (!c.signal.aborted) setServiceBoost({ serviceId: service, items: [] }); });
+    return () => c.abort();
+  }, [service]);
 
   const retry = () => {
     setStatus("loading");
@@ -234,6 +254,16 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       .map((x) => x.s);
   }, [items, region, sellerType, effSpec, category, service, minRating, priceMax, minExp, q, te, aiHit, aiThinking]);
 
+  // Banners: the AI answer's, else the list's, else the active ones asked for
+  // directly — whichever the backend filled. Sponsored: a picked service shows
+  // only what was bought for that service, never an unrelated promotion.
+  const shownBanners = aiHit?.banners.length ? aiHit.banners : banners.length ? banners : activeBanners;
+  const shownSponsored = aiHit?.sponsored.length
+    ? aiHit.sponsored
+    : service
+      ? serviceBoost?.serviceId === service ? serviceBoost.items : []
+      : sponsored;
+
   const aiMatchOf = useMemo(() => new Map((aiHit?.matches ?? []).map((m) => [m.userId, m])), [aiHit]);
 
   const regionRaw = useMemo(() => (region ? items.find((s) => (regionKeyOf(te, s.region) || s.region.toLowerCase()) === region)?.region ?? "" : ""), [region, items, te]);
@@ -255,7 +285,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       }
       if (my !== aiSeq.current || c.signal.aborted) return;
       setAiPending("");
-      setAi(r ? { q: wanted, matches: r.matches, summary: r.summary, disclaimer: r.disclaimer, sponsored: r.sponsored, banners: r.banners } : null);
+      setAi(r ? { q: wanted, matches: r.matches, summary: r.summary, disclaimer: r.disclaimer, sponsored: r.sponsored, banners: r.banners, suggested: r.suggestedServices.map((x) => ({ id: x.id, title: x.title })).filter((x) => x.id && x.title) } : null);
     },
     [regionRaw, sellerType],
   );
@@ -493,6 +523,19 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
               </span>
             ) : null}
             {(aiHit || aiEmpty) && !aiThinking ? <small className="mk-aistate__note">{ai?.disclaimer && locale === "uz" ? ai.disclaimer : t("aiDisclaimer")}</small> : null}
+            {/* meta.suggested_services (10-09 §6): the services the AI read
+                the request as — one tap narrows the list to that service. */}
+            {aiHit?.suggested.length && !aiThinking ? (
+              <div className="mk-aisuggest">
+                <span>{t("aiSuggested")}</span>
+                {aiHit.suggested.slice(0, 5).map((x) => (
+                  <button key={x.id} type="button" className={service === x.id ? "on" : undefined} onClick={() => setService(service === x.id ? "" : x.id)}>
+                    <IconBriefcase />
+                    {x.title}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
           {examples.length ? (
             <div className="mk-hero__ex">
@@ -543,6 +586,9 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         <HeroShowcase items={items} base={base} locale={locale} />
       </div>
 
+      {/* Page top (10-09 §6): the banner carousel sits above the filters. */}
+      <PromotionSurfaces part="banner" banners={shownBanners} sponsored={[]} base={base} />
+
       <FilterBar
         variant="market"
         fields={filterFields}
@@ -553,7 +599,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         aiTarget="marketplace:filters"
       />
 
-      <PromotionSurfaces banners={aiHit?.banners.length ? aiHit.banners : banners} sponsored={aiHit?.sponsored.length ? aiHit.sponsored : sponsored} base={base} />
+      <PromotionSurfaces part="sponsored" banners={[]} sponsored={shownSponsored} base={base} />
 
       <div className="mk-count" ref={resultsRef} aria-live="polite">
         {status === "ready" ? t("count", { n: list.length }) : null}

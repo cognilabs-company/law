@@ -4,6 +4,7 @@ import { useId } from "react";
 import type { StudioFieldErrors } from "@/lib/services/studio";
 import { STUDIO_ERR, type StudioEditorProps, type StudioPayload } from "./types";
 import FieldRows, { fieldNames, fieldRowsOf, validateFieldRows } from "./parts/FieldRows";
+import RefSelect from "./parts/RefSelect";
 import { AddBtn, ChipPick, ED_ERR, EdSection, EdShell, ErrLine, Fld, RowTools, SelectIn, TextIn, edAi, moveItem, normErrors, recList, str, strList, useEd, type Dict } from "./parts/kit";
 import { IconClipboardList, IconFolder, IconSliders } from "@/components/icons";
 
@@ -73,7 +74,7 @@ export default function K05Editor({ payload, onChange, errors, readOnly }: Studi
     <EdShell code={CODE} icon={IconClipboardList} title={ctorName(CODE)} lead={e("k05.lead")} errors={errs} known={["service_id", "sections", "conditional_rules"]}>
       <div className="stu-fe-grid">
         <Fld id={`${uid}-svc`} label={e("common.serviceId")} error={errs.service_id} hint={e("common.serviceIdHint")}>
-          <TextIn id={`${uid}-svc`} value={str(payload.service_id)} onChange={(v) => set("service_id", v)} readOnly={readOnly} invalid={Boolean(errs.service_id)} placeholder={e("common.serviceIdPh")} label={e("common.serviceId")} ai={edAi(CODE, "service_id")} mono />
+          <RefSelect source="services" value={str(payload.service_id)} onChange={(v) => set("service_id", v)} readOnly={readOnly} label={e("common.serviceId")} />
         </Fld>
         <div className="stu-fe-stats" aria-live="polite">
           <span>
