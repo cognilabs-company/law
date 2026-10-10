@@ -11,7 +11,7 @@ import { DARK_MQ, THEME_KEY } from "./themeScript";
 export type ThemePref = "light" | "dark" | "system";
 const CHANGE = "lexgo-theme-change";
 
-function readPref(): ThemePref {
+export function readThemePref(): ThemePref {
   try {
     const v = localStorage.getItem(THEME_KEY);
     return v === "light" || v === "dark" ? v : "system";
@@ -57,12 +57,12 @@ export function setThemePref(pref: ThemePref) {
 export function subscribeTheme(cb: () => void): () => void {
   const mq = window.matchMedia(DARK_MQ);
   const onSystem = () => {
-    applyTheme(readPref(), true);
+    applyTheme(readThemePref(), true);
     cb();
   };
   const onStorage = (e: StorageEvent) => {
     if (e.key !== null && e.key !== THEME_KEY) return;
-    applyTheme(readPref(), true);
+    applyTheme(readThemePref(), true);
     cb();
   };
   mq.addEventListener("change", onSystem);
@@ -77,5 +77,5 @@ export function subscribeTheme(cb: () => void): () => void {
 
 // Current preference; "system" on the server and during hydration.
 export function useThemePref(): ThemePref {
-  return useSyncExternalStore(subscribeTheme, readPref, () => "system");
+  return useSyncExternalStore(subscribeTheme, readThemePref, () => "system");
 }
