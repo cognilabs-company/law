@@ -177,7 +177,7 @@ export function stepDemo(st: DemoState, now: number, rnd: Rnd): RawEvent[] {
   // Whoever waited longest gets the next step, so every figure stays alive.
   const queue = [...active].sort((a, b) => a.lastAt - b.lastAt).slice(0, 4);
   const who = pick(queue, rnd);
-  const room = rnd() < 0.4 ? nextRoom(who, rnd) : who.room;
+  const room = rnd() < 0.5 ? nextRoom(who, rnd) : who.room;
   out.push(event(st, who, room, now, rnd));
   return out;
 }

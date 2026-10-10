@@ -7,7 +7,7 @@ import { HrmError, HrmHead, HrmLoading, HrmStat, useNow } from "@/components/int
 import { IconClock, IconRefresh, IconSearch, IconUsers, IconBolt, IconHistory } from "@/components/icons";
 import Character, { CharacterDefs } from "./Character";
 import { AwayPanel, FeedPanel } from "./Feed";
-import OfficeFloor from "./OfficeFloor";
+import OfficeMap from "./OfficeMap";
 import PersonPanel from "./PersonPanel";
 import { useDemoOffice } from "./useDemoOffice";
 import { useOffice } from "./useOffice";
@@ -37,6 +37,7 @@ export default function LiveOffice() {
     const next = !demo;
     setDemo(next);
     setPicked("");
+    setFreshSince(0);
     try {
       localStorage.setItem(DEMO_KEY, next ? "1" : "0");
     } catch {
@@ -49,6 +50,14 @@ export default function LiveOffice() {
   const [kinds, setKinds] = useState<PersonKind[]>([]);
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState("");
+  // Speech bubbles are for what happens while the page is open, not for
+  // everything the first read brings in.
+  const [freshSince, setFreshSince] = useState(0);
+  useEffect(() => {
+    if (office.phase !== "ready" || freshSince) return;
+    const h = setTimeout(() => setFreshSince(Date.now()), 0);
+    return () => clearTimeout(h);
+  }, [office.phase, freshSince]);
 
   const needle = q.trim().toLowerCase();
   const shown = people.filter((p) => (!kinds.length || kinds.includes(p.kind)) && (!needle || p.name.toLowerCase().includes(needle)));
@@ -135,7 +144,7 @@ export default function LiveOffice() {
             <span className="lo-legend__walk"><Character id="legend" kind="lead" pose="walk" />{t("moving")}</span>
           </div>
 
-          <OfficeFloor people={inOffice} selected={picked} onPick={setPicked} />
+          <OfficeMap people={inOffice} selected={picked} onPick={setPicked} now={now} freshSince={freshSince || Number.MAX_SAFE_INTEGER} />
 
           <div className="lo-below">
             <FeedPanel people={shown} now={now} onPick={setPicked} />
