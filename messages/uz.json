@@ -9239,6 +9239,182 @@
     "stat3l": "o‘rtacha reyting"
   },
   "admin": {
+    "liveOffice": {
+      "moving": "Yuryapti — boshqa ishga o'tmoqda",
+      "kicker": "Boshqaruv",
+      "title": "Jonli ofis",
+      "lead": "Kim hozir qayerda va qanday ish qilayotgani — bir qarashda.",
+      "refresh": "Yangilash",
+      "live": "Jonli",
+      "updated": "Yangilandi: {ago}",
+      "stats": {
+        "inOffice": "Ofisda",
+        "working": "Ishlayapti",
+        "idle": "Kutyapti",
+        "today": "Bugun kelganlar",
+        "inOfficeHint": "hozir tizimda",
+        "workingHint": "oxirgi 5 daqiqada ish qildi",
+        "idleHint": "5–30 daqiqa jim",
+        "todayHint": "bugun tizimga kirdi"
+      },
+      "status": {
+        "working": "Ishlayapti",
+        "idle": "Kutyapti",
+        "away": "Ofisda yo'q"
+      },
+      "kind": {
+        "lead": "Rahbariyat",
+        "operator": "Operator",
+        "lawyer": "Advokat",
+        "jurist": "Yurist",
+        "client": "Mijoz"
+      },
+      "rooms": {
+        "lobby": {
+          "name": "Qabulxona",
+          "desc": "Kirish, chiqish va sozlamalar"
+        },
+        "talk": {
+          "name": "Muloqot",
+          "desc": "Chatlar, murojaatlar, qo'ng'iroqlar"
+        },
+        "urgent": {
+          "name": "Shoshilinch yordam",
+          "desc": "Tezkor advokat so'rovlari"
+        },
+        "documents": {
+          "name": "Hujjatlar",
+          "desc": "Hujjatlar, shartnomalar, shablonlar"
+        },
+        "desk": {
+          "name": "Ish stoli",
+          "desc": "Vazifalar, ishlar, kalendar"
+        },
+        "ai": {
+          "name": "AI xonasi",
+          "desc": "AI yordamchi va AI qidiruv"
+        },
+        "market": {
+          "name": "Marketplace",
+          "desc": "Buyurtmalar, to'lovlar, paketlar"
+        },
+        "studio": {
+          "name": "Studio",
+          "desc": "Konstruktorlar va obyektlar"
+        },
+        "admin": {
+          "name": "Boshqaruv",
+          "desc": "Foydalanuvchilar, qoidalar, tashkilotlar"
+        }
+      },
+      "verbs": {
+        "login": "Kirdi",
+        "logout": "Chiqdi",
+        "view": "Ko'rdi",
+        "create": "Yaratdi",
+        "update": "Tahrirladi",
+        "remove": "O'chirdi",
+        "download": "Yuklab oldi",
+        "upload": "Yukladi",
+        "submit": "Yubordi",
+        "publish": "Tasdiqladi",
+        "claim": "Qabul qildi",
+        "generate": "Tayyorladi",
+        "message": "Yozdi",
+        "call": "Qo'ng'iroq",
+        "search": "Qidirdi",
+        "complete": "Yakunladi",
+        "accept": "Rozi bo'ldi",
+        "work": "Ishladi"
+      },
+      "objects": {
+        "account": "Akkaunt",
+        "urgent": "Shoshilinch so'rov",
+        "studio": "Studio obyekti",
+        "file": "Fayl",
+        "chat": "Chat",
+        "ticket": "Murojaat",
+        "complaint": "Shikoyat",
+        "queue": "Qo'ng'iroqlar navbati",
+        "call": "Qo'ng'iroq",
+        "analysis": "Hujjat tahlili",
+        "contract": "Shartnoma",
+        "template": "Shablon",
+        "lawyerRequest": "Advokat so'rovi",
+        "document": "Hujjat",
+        "corpus": "Huquqiy baza",
+        "aiSearch": "AI qidiruv",
+        "assistant": "AI yordamchi",
+        "task": "Vazifa",
+        "case": "Ish",
+        "calendar": "Kalendar",
+        "conflict": "Manfaatlar tekshiruvi",
+        "client": "Mijoz",
+        "matching": "Mutaxassis tanlash",
+        "order": "Buyurtma",
+        "payment": "To'lov",
+        "package": "Paket",
+        "ad": "Reklama",
+        "service": "Xizmat",
+        "marketplace": "Marketplace",
+        "profile": "Profil",
+        "subscription": "Obuna",
+        "user": "Foydalanuvchi",
+        "policy": "Qoidalar",
+        "organization": "Tashkilot",
+        "course": "Kurs",
+        "b2b": "B2B mijoz",
+        "verification": "Tekshiruv",
+        "approval": "Tasdiqlash",
+        "audit": "Audit",
+        "other": "Harakat"
+      },
+      "room": {
+        "empty": "Hozir bo'sh",
+        "people": "{n} kishi",
+        "more": "yana {n}"
+      },
+      "feed": {
+        "title": "Oxirgi harakatlar",
+        "moved": "{room} xonasiga o'tdi",
+        "empty": "Hali harakat yo'q"
+      },
+      "away": {
+        "title": "Bugun ofisdan ketganlar",
+        "left": "{time} da chiqdi",
+        "none": "Hali hech kim ketmagan"
+      },
+      "search": "Ism bo'yicha qidirish",
+      "all": "Hammasi",
+      "legend": "Kimlar",
+      "ago": {
+        "now": "hozirgina",
+        "min": "{n} daq oldin",
+        "hour": "{n} soat oldin"
+      },
+      "person": {
+        "now": "Hozir",
+        "arrived": "Kelgan vaqti",
+        "time": "Ofisda",
+        "actions": "Harakatlar",
+        "rooms": "Xonalar",
+        "path": "Bugungi yo'l",
+        "earlier": "Oldingi {n} ta qadam",
+        "out": "Tizimdan chiqdi",
+        "away": "Faol emas",
+        "count": "{n} ta harakat",
+        "here": "shu yerda",
+        "lastSeen": "Oxirgi faollik",
+        "open": "Batafsil"
+      },
+      "emptyOffice": "Hozir ofisda hech kim yo'q",
+      "emptyOfficeText": "Kimdir tizimda ish boshlashi bilan shu yerda paydo bo'ladi.",
+      "error": "Ma'lumotni yuklab bo'lmadi",
+      "forbidden": "Bu sahifani ko'rish uchun foydalanuvchilarni boshqarish ruxsati kerak.",
+      "retry": "Qayta urinish",
+      "minutes": "{n} daq",
+      "hm": "{h} soat {m} daq"
+    },
     "aiReglaments": {
       "eyebrow": "AI instruktor · Support",
       "title": "AI reglamentlari",
@@ -9894,6 +10070,7 @@
       "system": "Tizim"
     },
     "nav": {
+      "liveOffice": "Jonli ofis",
       "studio": "Studio",
       "aiReglaments": "AI reglamentlari",
       "internal": "Internal HRM",

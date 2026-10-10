@@ -9233,6 +9233,182 @@
     "stat3l": "avg. rating"
   },
   "admin": {
+    "liveOffice": {
+      "moving": "Walking — switching to other work",
+      "kicker": "Command",
+      "title": "Live office",
+      "lead": "Who is where and doing what — at a glance.",
+      "refresh": "Refresh",
+      "live": "Live",
+      "updated": "Updated {ago}",
+      "stats": {
+        "inOffice": "In the office",
+        "working": "Working",
+        "idle": "Waiting",
+        "today": "Came in today",
+        "inOfficeHint": "in the system now",
+        "workingHint": "acted in the last 5 minutes",
+        "idleHint": "quiet for 5–30 minutes",
+        "todayHint": "signed in today"
+      },
+      "status": {
+        "working": "Working",
+        "idle": "Waiting",
+        "away": "Not in"
+      },
+      "kind": {
+        "lead": "Leadership",
+        "operator": "Operator",
+        "lawyer": "Advocate",
+        "jurist": "Lawyer",
+        "client": "Client"
+      },
+      "rooms": {
+        "lobby": {
+          "name": "Reception",
+          "desc": "Sign-in, sign-out and settings"
+        },
+        "talk": {
+          "name": "Conversations",
+          "desc": "Chats, tickets, calls"
+        },
+        "urgent": {
+          "name": "Urgent help",
+          "desc": "Urgent advocate requests"
+        },
+        "documents": {
+          "name": "Documents",
+          "desc": "Documents, contracts, templates"
+        },
+        "desk": {
+          "name": "Work desk",
+          "desc": "Tasks, cases, calendar"
+        },
+        "ai": {
+          "name": "AI room",
+          "desc": "AI assistant and AI search"
+        },
+        "market": {
+          "name": "Marketplace",
+          "desc": "Orders, payments, packages"
+        },
+        "studio": {
+          "name": "Studio",
+          "desc": "Constructors and objects"
+        },
+        "admin": {
+          "name": "Administration",
+          "desc": "Users, policies, organizations"
+        }
+      },
+      "verbs": {
+        "login": "Signed in",
+        "logout": "Signed out",
+        "view": "Viewed",
+        "create": "Created",
+        "update": "Edited",
+        "remove": "Removed",
+        "download": "Downloaded",
+        "upload": "Uploaded",
+        "submit": "Sent",
+        "publish": "Approved",
+        "claim": "Took",
+        "generate": "Prepared",
+        "message": "Wrote",
+        "call": "Call",
+        "search": "Searched",
+        "complete": "Finished",
+        "accept": "Accepted",
+        "work": "Worked on"
+      },
+      "objects": {
+        "account": "Account",
+        "urgent": "Urgent request",
+        "studio": "Studio object",
+        "file": "File",
+        "chat": "Chat",
+        "ticket": "Ticket",
+        "complaint": "Complaint",
+        "queue": "Call queue",
+        "call": "Call",
+        "analysis": "Document analysis",
+        "contract": "Contract",
+        "template": "Template",
+        "lawyerRequest": "Lawyer request",
+        "document": "Document",
+        "corpus": "Legal library",
+        "aiSearch": "AI search",
+        "assistant": "AI assistant",
+        "task": "Task",
+        "case": "Case",
+        "calendar": "Calendar",
+        "conflict": "Conflict check",
+        "client": "Client",
+        "matching": "Specialist match",
+        "order": "Order",
+        "payment": "Payment",
+        "package": "Package",
+        "ad": "Ad",
+        "service": "Service",
+        "marketplace": "Marketplace",
+        "profile": "Profile",
+        "subscription": "Subscription",
+        "user": "User",
+        "policy": "Policies",
+        "organization": "Organization",
+        "course": "Course",
+        "b2b": "B2B client",
+        "verification": "Verification",
+        "approval": "Approval",
+        "audit": "Audit",
+        "other": "Action"
+      },
+      "room": {
+        "empty": "Empty now",
+        "people": "{n, plural, one {# person} other {# people}}",
+        "more": "{n} more"
+      },
+      "feed": {
+        "title": "Latest actions",
+        "moved": "moved to {room}",
+        "empty": "No actions yet"
+      },
+      "away": {
+        "title": "Left today",
+        "left": "left at {time}",
+        "none": "Nobody has left yet"
+      },
+      "search": "Search by name",
+      "all": "All",
+      "legend": "Who is who",
+      "ago": {
+        "now": "just now",
+        "min": "{n} min ago",
+        "hour": "{n} h ago"
+      },
+      "person": {
+        "now": "Now",
+        "arrived": "Came in",
+        "time": "In the office",
+        "actions": "Actions",
+        "rooms": "Rooms",
+        "path": "Today's path",
+        "earlier": "{n, plural, one {# earlier step} other {# earlier steps}}",
+        "out": "Signed out",
+        "away": "Inactive",
+        "count": "{n, plural, one {# action} other {# actions}}",
+        "here": "here",
+        "lastSeen": "Last active",
+        "open": "Details"
+      },
+      "emptyOffice": "Nobody is in the office right now",
+      "emptyOfficeText": "As soon as someone starts working in the system, they show up here.",
+      "error": "Could not load the data",
+      "forbidden": "This page needs the user management permission.",
+      "retry": "Try again",
+      "minutes": "{n} min",
+      "hm": "{h} h {m} min"
+    },
     "aiReglaments": {
       "eyebrow": "AI instructor · Support",
       "title": "AI regulations",
@@ -9888,6 +10064,7 @@
       "system": "System"
     },
     "nav": {
+      "liveOffice": "Live office",
       "studio": "Studio",
       "aiReglaments": "AI regulations",
       "internal": "Internal HRM",

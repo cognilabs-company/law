@@ -32,6 +32,7 @@ import {
   IconScale,
   IconTrendingUp,
   IconTarget,
+  IconMonitor,
   IconBuilding,
   IconCard,
   IconPhone,
@@ -62,6 +63,7 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin", key: "overview", Icon: IconGrid },
       { href: "/admin/ceo", key: "ceo", Icon: IconTarget },
+      { href: "/admin/live-office", key: "liveOffice", Icon: IconMonitor, perm: "users.manage" },
     ],
   },
   {
