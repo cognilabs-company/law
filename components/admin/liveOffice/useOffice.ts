@@ -25,7 +25,7 @@ function studioEvent(e: InternalEvent, seq: number): RawEvent | null {
   return { id: `live-${seq}`, userId, action: `studio_object_${step}`, targetType: "studio_object", detail: asStr(d.object_name ?? d.constructor_code), title: "", at: Date.now() };
 }
 
-export function useOffice() {
+export function useOffice(enabled = true) {
   const [rows, setRows] = useState<RawEvent[]>([]);
   const [dir, setDir] = useState<Map<string, DirectoryUser>>(() => new Map());
   const [phase, setPhase] = useState<Phase>("loading");
@@ -62,6 +62,7 @@ export function useOffice() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     const first = setTimeout(() => void load(), 0);
     const tick = setInterval(() => {
       if (document.visibilityState === "visible") void load();
@@ -75,15 +76,16 @@ export function useOffice() {
       clearInterval(tick);
       document.removeEventListener("visibilitychange", onShow);
     };
-  }, [load]);
+  }, [load, enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     let seq = 0;
     return subscribeInternalEvents("studio:activity", (e) => {
       const ev = studioEvent(e, ++seq);
       if (ev) setLive((cur) => [...cur.slice(-200), ev]);
     });
-  }, []);
+  }, [enabled]);
 
   const all = live.length ? [...rows, ...live] : rows;
   return { rows: all, dir, phase, error, updatedAt, busy, reload: load };

@@ -9240,6 +9240,7 @@
   },
   "admin": {
     "liveOffice": {
+      "demo": {"label": "Demo", "title": "Demo rejim", "text": "Bu sinov xodimlar: ular faqat brauzeringizda yaratiladi va har 5–6 soniyada nimadir qiladi. Haqiqiy ma'lumot emas.", "off": "Haqiqiy ma'lumotga o'tish"},
       "moving": "Yuryapti — boshqa ishga o'tmoqda",
       "kicker": "Boshqaruv",
       "title": "Jonli ofis",

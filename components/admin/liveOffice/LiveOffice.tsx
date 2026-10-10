@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/http";
 import { buildPeople, KINDS, type PersonKind } from "@/lib/liveOffice/model";
 import { HrmError, HrmHead, HrmLoading, HrmStat, useNow } from "@/components/internal/HrmUi";
@@ -9,12 +9,40 @@ import Character, { CharacterDefs } from "./Character";
 import { AwayPanel, FeedPanel } from "./Feed";
 import OfficeFloor from "./OfficeFloor";
 import PersonPanel from "./PersonPanel";
+import { useDemoOffice } from "./useDemoOffice";
 import { useOffice } from "./useOffice";
 import { useOfficeText } from "./text";
 
+// Demo staff stay on until real traffic is there to watch; the choice is the
+// viewer's own and survives a reload.
+const DEMO_KEY = "lexgo_live_office_demo";
+
 export default function LiveOffice() {
   const { t, kind, ago } = useOfficeText();
-  const office = useOffice();
+  const [demo, setDemo] = useState(true);
+  useEffect(() => {
+    const h = setTimeout(() => {
+      try {
+        if (localStorage.getItem(DEMO_KEY) === "0") setDemo(false);
+      } catch {
+        /* storage blocked: keep the default */
+      }
+    }, 0);
+    return () => clearTimeout(h);
+  }, []);
+  const real = useOffice(!demo);
+  const fake = useDemoOffice(demo);
+  const office = demo ? fake : real;
+  const switchDemo = () => {
+    const next = !demo;
+    setDemo(next);
+    setPicked("");
+    try {
+      localStorage.setItem(DEMO_KEY, next ? "1" : "0");
+    } catch {
+      /* storage blocked: the switch still works for this visit */
+    }
+  };
   const tick = useNow(15_000);
   const now = Math.max(tick, office.updatedAt);
   const people = useMemo(() => (now ? buildPeople(office.rows, office.dir, now) : []), [office.rows, office.dir, now]);
@@ -45,6 +73,10 @@ export default function LiveOffice() {
               {t("live")}
               {office.updatedAt ? <small>{t("updated", { ago: ago(office.updatedAt, now) })}</small> : null}
             </span>
+            <button type="button" className={`lo-demo-sw${demo ? " is-on" : ""}`} role="switch" aria-checked={demo} onClick={switchDemo}>
+              <i aria-hidden />
+              {t("demo.label")}
+            </button>
             <button type="button" className="btn btn--line btn--sm" onClick={() => void office.reload()} disabled={office.busy}>
               <IconRefresh className={office.busy ? "lo-spin" : undefined} />
               {t("refresh")}
@@ -52,6 +84,16 @@ export default function LiveOffice() {
           </>
         }
       />
+
+      {demo ? (
+        <div className="lo-demo" role="note">
+          <b>{t("demo.title")}</b>
+          <span>{t("demo.text")}</span>
+          <button type="button" className="btn btn--line btn--sm" onClick={switchDemo}>
+            {t("demo.off")}
+          </button>
+        </div>
+      ) : null}
 
       {office.phase === "error" ? (
         <HrmError text={forbidden ? t("forbidden") : t("error")} onRetry={forbidden ? undefined : () => void office.reload()} retryLabel={t("retry")} />

@@ -9234,6 +9234,7 @@
   },
   "admin": {
     "liveOffice": {
+      "demo": {"label": "Demo", "title": "Demo mode", "text": "These are test staff: they exist only in your browser and do something every 5–6 seconds. This is not real data.", "off": "Switch to real data"},
       "moving": "Walking — switching to other work",
       "kicker": "Command",
       "title": "Live office",
