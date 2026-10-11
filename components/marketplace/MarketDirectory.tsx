@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
-import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconHeadset, IconLayers, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUser, IconUsers } from "@/components/icons";
+import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconHeadset, IconLayers, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconStarRate, IconTrendingUp, IconUser, IconUsers } from "@/components/icons";
 import HeroShowcase from "./HeroShowcase";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { aiSearchMarketplace, listMarketplace, marketAiAvailable, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketPromotionSurface, type MarketSeller } from "@/lib/services/marketplace";
@@ -676,7 +676,7 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
   const topTitles = new Set(s.services.filter((x) => x.isSponsored).map((x) => x.title));
   const baseTitles = s.serviceTitles.length ? s.serviceTitles : s.services.map((x) => x.title);
   const titles = [...baseTitles.filter((x) => topTitles.has(x)), ...baseTitles.filter((x) => !topTitles.has(x))];
-  const shown = titles.slice(0, 2);
+  const shown = titles.slice(0, 1);
   const promoted = s.promotion?.active === true || s.isSponsored || topTitles.size > 0;
   const promoId = promoted ? s.promotion?.id ?? "" : "";
   const promoSeen = usePromoImpression(promoId, "marketplace_list", index + 1);
@@ -705,19 +705,21 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
       <div className="mk-card__head">
         <Monogram name={s.name} rating={s.rating} showRing={rated} />
         <div className="mk-card__who">
-          <Link href={href} className="mk-card__name" onClick={onPromoGo}>
-            {s.name}
-          </Link>
-          <div className="mk-card__meta">
-            <span className={`mk-type mk-type--${s.sellerType || "yurist"}`}>{sellerTypeLabel(t, s.sellerType)}</span>
-            {s.verified ? <VerifiedBadge name={s.name} subtitle={sellerTypeLabel(t, s.sellerType)} text={s.badgeLabel} /> : null}
-          </div>
-          {s.region ? (
-            <div className="mk-card__place">
-              <IconMapPin />
-              {[regionLabel(te, s.region), s.district && s.district.toLowerCase() !== "demo" ? s.district : ""].filter(Boolean).join(", ")}
-            </div>
-          ) : null}
+          <span className="mk-card__title">
+            <Link href={href} className="mk-card__name" onClick={onPromoGo}>
+              {s.name}
+            </Link>
+            {s.verified ? <VerifiedBadge label={false} name={s.name} subtitle={sellerTypeLabel(t, s.sellerType)} text={s.badgeLabel} /> : null}
+          </span>
+          <span className="mk-card__sub">
+            <span className={`mk-card__role mk-card__role--${s.sellerType || "yurist"}`}>{sellerTypeLabel(t, s.sellerType)}</span>
+            {s.region ? (
+              <>
+                <i aria-hidden="true">·</i>
+                {[regionLabel(te, s.region), s.district && s.district.toLowerCase() !== "demo" ? s.district : ""].filter(Boolean).join(", ")}
+              </>
+            ) : null}
+          </span>
         </div>
       </div>
 
@@ -744,24 +746,30 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
           ) : null}
         </div>
       ) : null}
-      <div className="mk-card__kpis">
-        <div className="mk-kpi">
+      <div className="mk-card__stats">
+        <div className="mk-stat">
           {rated ? (
             <b>
-              <IconStar />
+              <IconStarRate />
               {fmtRating(s.rating, locale)}
             </b>
           ) : (
-            <b className="mk-kpi__new">{t("card.newSeller")}</b>
+            <b className="mk-stat__new">{t("card.newSeller")}</b>
           )}
           <span>{rated ? t("card.reviews", { count: s.reviewsCount }) : t("card.newHint")}</span>
         </div>
-        <div className="mk-kpi">
-          <b>{s.experienceYears || "—"}</b>
+        <div className="mk-stat">
+          <b>
+            <IconBriefcase />
+            {s.experienceYears || "—"}
+          </b>
           <span>{t("card.experience")}</span>
         </div>
-        <div className="mk-kpi">
-          <b>{hasSuccess(s) ? `${Math.round(s.successRate)}%` : "—"}</b>
+        <div className="mk-stat">
+          <b>
+            <IconTrendingUp />
+            {hasSuccess(s) ? `${Math.round(s.successRate)}%` : "—"}
+          </b>
           <span>{hasSuccess(s) ? t("card.success") : `${t("card.success")} · ${t("card.gathering")}`}</span>
         </div>
       </div>

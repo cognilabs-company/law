@@ -4,9 +4,17 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { IconClose } from "@/components/icons";
+import { IconBriefcase, IconCheck, IconCircleCheck, IconClipboardCheck, IconClose, IconPhone, IconShieldCheck } from "@/components/icons";
 
 const SRC = "/img/tasdiqlovchi-badge.webp";
+
+const CHECKS = [
+  { k: "c1", Icon: IconPhone },
+  { k: "c2", Icon: IconShieldCheck },
+  { k: "c3", Icon: IconBriefcase },
+  { k: "c4", Icon: IconClipboardCheck },
+] as const;
+const MEANS = ["m1", "m2", "m3"] as const;
 
 type Props = {
   name?: string;
@@ -38,13 +46,13 @@ export default function VerifiedBadge({ name, subtitle, label = true, text, size
   const tipOn = tip !== null;
   useEffect(() => {
     if (!tipOn) return;
-    window.addEventListener("scroll", showTip, true);
-    window.addEventListener("resize", showTip);
+    window.addEventListener("scroll", hideTip, true);
+    window.addEventListener("resize", hideTip);
     return () => {
-      window.removeEventListener("scroll", showTip, true);
-      window.removeEventListener("resize", showTip);
+      window.removeEventListener("scroll", hideTip, true);
+      window.removeEventListener("resize", hideTip);
     };
-  }, [tipOn, showTip]);
+  }, [tipOn, hideTip]);
 
   const cls = `vbadge vbadge--${size} vbadge--${tone}${label ? "" : " vbadge--icon"}${className ? ` ${className}` : ""}`;
   const body = (
@@ -145,6 +153,31 @@ function VerifiedModal({ name, subtitle, onClose }: { name?: string; subtitle?: 
           ) : null}
         </div>
         <p className="vmodal__desc">{t("description")}</p>
+        <div className="vmodal__sect">
+          <b className="vmodal__h">{t("checkedTitle")}</b>
+          <ul className="vmodal__list">
+            {CHECKS.map(({ k, Icon }) => (
+              <li key={k}>
+                <i>
+                  <Icon />
+                </i>
+                <span>{t(k)}</span>
+                <IconCheck className="vmodal__ok" />
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="vmodal__sect">
+          <b className="vmodal__h">{t("meansTitle")}</b>
+          <ul className="vmodal__means">
+            {MEANS.map((k) => (
+              <li key={k}>
+                <IconCircleCheck />
+                {t(k)}
+              </li>
+            ))}
+          </ul>
+        </div>
         <div className="vmodal__foot">
           <button ref={okRef} type="button" className="btn btn--pri vmodal__okbtn" onClick={onClose}>
             {t("ok")}
