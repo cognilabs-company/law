@@ -239,17 +239,25 @@ function Person({ x, scale, selected, onPick, fresh }: { x: Placed; scale: numbe
       timers.push(setTimeout(() => (el.dataset.face = face), (acc / total) * duration));
       acc += len;
     }
-    el.classList.add("is-walking");
+    // Walking is marked with a data attribute React does not own: a class
+    // would be wiped whenever the button's className changes mid-walk (a new
+    // status, a label shift), and the person would carry their desk along.
+    el.dataset.walking = "1";
     const anim = el.animate(frames, { duration, easing: "linear" });
     const done = () => {
-      el.classList.remove("is-walking");
+      delete el.dataset.walking;
       delete el.dataset.face;
     };
     anim.onfinish = done;
     anim.oncancel = done;
     return () => {
+      // A cancel event arrives later, after the next walk may have started:
+      // unhook it first so it cannot clear the new walk's marks.
       timers.forEach(clearTimeout);
+      anim.onfinish = null;
+      anim.oncancel = null;
       anim.cancel();
+      done();
     };
   }, [key, scale]);
 
