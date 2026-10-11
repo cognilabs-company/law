@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess, sessionRoles, canMakeCalls, isCallCenterUser, type AdminPermission } from "@/lib/auth";
@@ -14,39 +14,40 @@ import { fuzzyContains } from "@/lib/searchMatch";
 import { hasStudioAccess, useStudioRegistry } from "@/lib/services/studio";
 import { hasInternalAccess } from "@/lib/services/internalHrm";
 import dynamic from "next/dynamic";
-
 import {
-  IconLogo,
-  IconGrid,
-  IconBriefcase,
-  IconStar,
-  IconDocLines,
-  IconFileText,
-  IconShield,
-  IconHeadset,
-  IconShieldCheck,
-  IconChat,
-  IconUsers,
-  IconUserPlus,
-  IconRocket,
-  IconBolt,
-  IconScale,
-  IconTrendingUp,
-  IconTarget,
-  IconMonitor,
-  IconBuilding,
-  IconCard,
-  IconPhone,
-  IconVideo,
-  IconLogout,
-  IconMenu,
-  IconClose,
-  IconChartBar,
-  IconAiAnswer,
-  IconLayers,
-  IconSearch,
-  IconChevronRight,
-} from "../icons";
+  NavOverview,
+  NavCeo,
+  NavLiveOffice,
+  NavPipeline,
+  NavCallCenter,
+  NavMeetings,
+  NavCallAnalytics,
+  NavRetention,
+  NavB2b,
+  NavMarketplace,
+  NavServices,
+  NavPlans,
+  NavTemplates,
+  NavAds,
+  NavStudio,
+  NavRegisterRequests,
+  NavReviews,
+  NavPayouts,
+  NavApprovals,
+  NavSupport,
+  NavLegalAid,
+  NavNotifications,
+  NavInternal,
+  NavIntegrations,
+  NavTestOtps,
+  NavRoles,
+  NavAudit,
+  NavLegal,
+  NavPolicies,
+  NavAiReglaments,
+  NavChevron,
+} from "./navIcons";
+import { IconLogo, IconGrid, IconLogout, IconMenu, IconClose, IconSearch } from "../icons";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
 
@@ -64,37 +65,37 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   {
     group: "command",
     items: [
-      { href: "/admin", key: "overview", Icon: IconGrid },
-      { href: "/admin/ceo", key: "ceo", Icon: IconTarget },
-      { href: "/admin/live-office", key: "liveOffice", Icon: IconMonitor, perm: "users.manage" },
+      { href: "/admin", key: "overview", Icon: NavOverview },
+      { href: "/admin/ceo", key: "ceo", Icon: NavCeo },
+      { href: "/admin/live-office", key: "liveOffice", Icon: NavLiveOffice, perm: "users.manage" },
     ],
   },
   {
     group: "sales",
     items: [
-      { href: "/admin/pipeline", key: "pipeline", Icon: IconTrendingUp, perm: "leads.manage" },
-      { href: "/admin/call-center", key: "callCenter", Icon: IconPhone, perm: ["leads.manage", "callcenter.access"] },
+      { href: "/admin/pipeline", key: "pipeline", Icon: NavPipeline, perm: "leads.manage" },
+      { href: "/admin/call-center", key: "callCenter", Icon: NavCallCenter, perm: ["leads.manage", "callcenter.access"] },
       // Platform-wide meeting history (GET /admin/calls — who created it,
       // participants, duration) is a tab inside this same page now, not a
       // separate nav entry — MeetingLauncher shows it to superadmin/
       // leads.manage on top of the personal "my meetings" launcher.
-      { href: "/admin/meetings", key: "meetings", Icon: IconVideo, perm: ["leads.manage", "callcenter.access"] },
-      { href: "/admin/call-analytics", key: "callAnalytics", Icon: IconChat, perm: "leads.manage" },
+      { href: "/admin/meetings", key: "meetings", Icon: NavMeetings, perm: ["leads.manage", "callcenter.access"] },
+      { href: "/admin/call-analytics", key: "callAnalytics", Icon: NavCallAnalytics, perm: "leads.manage" },
       // The backend answers retention_removed: the page stays reachable by
       // URL and keeps its permission, but has no menu entry.
-      { href: "/admin/retention", key: "retention", Icon: IconUsers, perm: "leads.manage", hidden: true },
-      { href: "/admin/b2b", key: "b2b", Icon: IconBuilding, perm: "b2b.manage" },
+      { href: "/admin/retention", key: "retention", Icon: NavRetention, perm: "leads.manage", hidden: true },
+      { href: "/admin/b2b", key: "b2b", Icon: NavB2b, perm: "b2b.manage" },
     ],
   },
   {
     group: "catalog",
     items: [
-      { href: "/admin/marketplace", key: "marketplace", Icon: IconChartBar, perm: "orders.manage" },
-      { href: "/admin/services", key: "services", Icon: IconBriefcase, perm: "services.manage" },
-      { href: "/admin/plans", key: "plans", Icon: IconStar, perm: "subscriptions.manage" },
-      { href: "/admin/templates", key: "templates", Icon: IconDocLines, perm: "templates.manage" },
-      { href: "/admin/ads", key: "ads", Icon: IconRocket, perm: "ads.manage" },
-      { href: "/admin/studio", key: "studio", Icon: IconLayers },
+      { href: "/admin/marketplace", key: "marketplace", Icon: NavMarketplace, perm: "orders.manage" },
+      { href: "/admin/services", key: "services", Icon: NavServices, perm: "services.manage" },
+      { href: "/admin/plans", key: "plans", Icon: NavPlans, perm: "subscriptions.manage" },
+      { href: "/admin/templates", key: "templates", Icon: NavTemplates, perm: "templates.manage" },
+      { href: "/admin/ads", key: "ads", Icon: NavAds, perm: "ads.manage" },
+      { href: "/admin/studio", key: "studio", Icon: NavStudio },
     ],
   },
   {
@@ -103,10 +104,10 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       // 2026-09-19 backend: GET /admin/seller-requests unifies register
       // requests and advocate/lawyer approval into one page (role tabs +
       // date filter + stats) — no separate "verifications" nav entry.
-      { href: "/admin/register-requests", key: "registerRequests", Icon: IconUserPlus, perm: "users.manage" },
-      { href: "/admin/reviews", key: "reviews", Icon: IconStar, perm: "lawyers.verify" },
-      { href: "/admin/payouts", key: "payouts", Icon: IconCard, perm: "payments.manage" },
-      { href: "/admin/approvals", key: "approvals", Icon: IconShieldCheck, perm: "approvals.manage" },
+      { href: "/admin/register-requests", key: "registerRequests", Icon: NavRegisterRequests, perm: "users.manage" },
+      { href: "/admin/reviews", key: "reviews", Icon: NavReviews, perm: "lawyers.verify" },
+      { href: "/admin/payouts", key: "payouts", Icon: NavPayouts, perm: "payments.manage" },
+      { href: "/admin/approvals", key: "approvals", Icon: NavApprovals, perm: "approvals.manage" },
     ],
   },
   {
@@ -114,22 +115,22 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
     items: [
       // The support queue backend checks callcenter.access specifically.
       // leads.manage alone must not expose a link that will return 403.
-      { href: "/admin/call-center/support", key: "supportTickets", Icon: IconHeadset, perm: "callcenter.access" },
-      { href: "/admin/legal-aid", key: "legalAid", Icon: IconScale, perm: "legal_aid.manage" },
-      { href: "/admin/notifications", key: "notifications", Icon: IconChat, perm: "notifications.manage" },
+      { href: "/admin/call-center/support", key: "supportTickets", Icon: NavSupport, perm: "callcenter.access" },
+      { href: "/admin/legal-aid", key: "legalAid", Icon: NavLegalAid, perm: "legal_aid.manage" },
+      { href: "/admin/notifications", key: "notifications", Icon: NavNotifications, perm: "notifications.manage" },
     ],
   },
   {
     group: "system",
     items: [
-      { href: "/internal", key: "internal", Icon: IconUsers },
-      { href: "/admin/integrations", key: "integrations", Icon: IconBolt },
-      { href: "/admin/test-otps", key: "testOtps", Icon: IconShieldCheck },
-      { href: "/admin/roles", key: "roles", Icon: IconShield, perm: "roles.manage" },
-      { href: "/admin/audit-trail", key: "audit", Icon: IconShieldCheck, perm: "users.manage" },
-      { href: "/admin/legal", key: "legal", Icon: IconFileText, perm: "users.manage" },
-      { href: "/admin/policies", key: "policies", Icon: IconShield },
-      { href: "/admin/ai-reglaments", key: "aiReglaments", Icon: IconAiAnswer },
+      { href: "/internal", key: "internal", Icon: NavInternal },
+      { href: "/admin/integrations", key: "integrations", Icon: NavIntegrations },
+      { href: "/admin/test-otps", key: "testOtps", Icon: NavTestOtps },
+      { href: "/admin/roles", key: "roles", Icon: NavRoles, perm: "roles.manage" },
+      { href: "/admin/audit-trail", key: "audit", Icon: NavAudit, perm: "users.manage" },
+      { href: "/admin/legal", key: "legal", Icon: NavLegal, perm: "users.manage" },
+      { href: "/admin/policies", key: "policies", Icon: NavPolicies },
+      { href: "/admin/ai-reglaments", key: "aiReglaments", Icon: NavAiReglaments },
       // Not in the visible nav on purpose: one-time first-superadmin setup
       // (bootstrap_key), not a page anyone uses day to day. Still reachable
       // by URL — isBootstrap/bootstrapOk below gate it independently of NAV,
@@ -342,10 +343,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             const items = g.items.filter((n) => !n.hidden && canSee(n) && matches(n));
             if (!items.length) return null;
             const holdsCurrent = g.group === currentGroup;
-            const expanded = Boolean(q) || g.group === revealed || (navState[g.group] ?? holdsCurrent);
+            const expanded = Boolean(q) || g.group === revealed || (navState[g.group] ?? (holdsCurrent || g.group === "command"));
             const id = `psb-g-${g.group}`;
             return (
-              <div className={`psb__group${expanded ? " is-open" : ""}`} key={g.group}>
+              <div className={`psb__group${expanded ? " is-open" : ""}${holdsCurrent ? " has-current" : ""}`} key={g.group}>
                 <button
                   type="button"
                   className="psb__gbtn"
@@ -357,22 +358,24 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                     writeNav({ ...navState, [g.group]: !expanded });
                   }}
                 >
-                  <IconChevronRight className="psb__gchev" aria-hidden="true" />
-                  <span>{t(`groups.${g.group}`)}</span>
-                  {!expanded && holdsCurrent ? <i className="psb__gdot" aria-hidden="true" /> : null}
+                  <span className="psb__glabel2">{t(`groups.${g.group}`)}</span>
+                  {holdsCurrent ? <i className="psb__gdot" aria-hidden="true" /> : null}
                   <small>{items.length}</small>
+                  <NavChevron className="psb__gchev" />
                 </button>
                 <div className="psb__gitems" id={id} inert={!expanded}>
-                  <div>
-                    {items.map(({ href, key, Icon }) => {
-                      const on = active?.href === href;
-                      return (
-                        <Link key={href} href={href} className={`psb__link${on ? " on" : ""}${firstMatch?.href === href ? " is-first" : ""}`} aria-current={on ? "page" : undefined} data-ai-target={`nav:${key}`} onClick={() => setQuery("")}>
-                          <Icon />
-                          {t(`nav.${key}`)}
-                        </Link>
-                      );
-                    })}
+                  <div className="psb__gwrap">
+                    <div className="psb__glist">
+                      {items.map(({ href, key, Icon }, i) => {
+                        const on = active?.href === href;
+                        return (
+                          <Link key={href} href={href} style={{ "--i": i } as CSSProperties} className={`psb__link${on ? " on" : ""}${firstMatch?.href === href ? " is-first" : ""}`} aria-current={on ? "page" : undefined} data-ai-target={`nav:${key}`} onClick={() => setQuery("")}>
+                            <span className="psb__ic"><Icon /></span>
+                            <span className="psb__lt" title={t(`nav.${key}`)}>{t(`nav.${key}`)}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
