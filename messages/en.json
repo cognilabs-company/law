@@ -11320,6 +11320,7 @@
         "won": "Won",
         "lost": "Lost"
       },
+      "age": {"now":"just now","min":"{n} min ago","hour":"{n} h ago","day":"{n, plural, one {# day} other {# days}} ago"},
       "untitledLead": "Unnamed lead",
       "categories": {
         "family": "Family",

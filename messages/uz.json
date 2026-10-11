@@ -11326,6 +11326,7 @@
         "won": "Yutildi",
         "lost": "Yo‘qotildi"
       },
+      "age": {"now":"hozirgina","min":"{n} daq oldin","hour":"{n} soat oldin","day":"{n} kun oldin"},
       "untitledLead": "Nomsiz lid",
       "categories": {
         "family": "Oila",

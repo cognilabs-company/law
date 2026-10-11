@@ -64,6 +64,7 @@ export default function LeadFilterBar({
   count,
   searchPlaceholder,
   aiId,
+  className,
 }: {
   value: LeadFilter;
   onChange: (next: LeadFilter) => void;
@@ -78,6 +79,7 @@ export default function LeadFilterBar({
   count?: number;
   searchPlaceholder?: string;
   aiId?: string;
+  className?: string;
 }) {
   const t = useTranslations("admin.pipeline");
   const te = useTranslations("enums");
@@ -229,7 +231,7 @@ export default function LeadFilterBar({
 
   return (
     <FilterBar
-      className="uf--tray"
+      className={className ? `uf--tray ${className}` : "uf--tray"}
       fields={fields}
       search={{ value: value.q, onChange: (q) => set({ q }), placeholder: searchPlaceholder ?? t("f.search"), aiId: fid("search") }}
       count={count}

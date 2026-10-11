@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState, type CSSProperties } from "react";
+import { Fragment, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { moveLeadKanban, adminCreateLead, adminDeleteLead, adminUpdateLead, saveLeadKanbanColumns, deleteLeadKanbanColumn } from "@/lib/services/backend";
 import {
@@ -34,7 +34,15 @@ import Select from "@/components/Select";
 import LeadDrawer from "@/components/admin/LeadDrawer";
 import LeadFilterBar from "@/components/admin/LeadFilterBar";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { IconTrendingUp, IconChevronLeft, IconChevronRight, IconUsers, IconGrid, IconDocLines, IconPlus, IconEdit, IconTrash, IconUser, IconBolt, IconTarget, IconPhone, IconAward } from "@/components/icons";
+import { IconTrendingUp, IconChevronLeft, IconChevronRight, IconUsers, IconGrid, IconDocLines, IconPlus, IconEdit, IconTrash, IconUser, IconBolt, IconPhone, IconMapPin } from "@/components/icons";
+import { initials } from "@/lib/lawyers";
+
+// Whole minutes since the epoch, refreshed once a minute, for the card ages.
+function subscribeMinute(cb: () => void) {
+  const id = window.setInterval(cb, 60000);
+  return () => window.clearInterval(id);
+}
+const readMinute = () => Math.floor(Date.now() / 60000);
 
 const STATUS_COLORS = ["#2563eb", "#7c3aed", "#0891b2", "#059669", "#d97706", "#dc2626", "#db2777", "#6b7280"];
 
@@ -80,6 +88,7 @@ export default function AdminPipeline() {
   const [dropInstant, setDropInstant] = useState(false);
   const [selId, setSelId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const minute = useSyncExternalStore(subscribeMinute, readMinute, () => 0);
 
   // Add / rename a kanban status (column).
   const [statusModal, setStatusModal] = useState<{ mode: "add" | "rename"; col?: KanbanColumnX } | null>(null);
@@ -301,74 +310,74 @@ export default function AdminPipeline() {
     }
   }
 
-  // Assignee chip shown on every card / row.
-  const assigneeChip = (lead: LeadX) => (
-    <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`} title={t("assign.title")}>
-      <IconUser />
-      <span>{assigneeLabel(t, ops.ops, lead.assignedTo, meId)}</span>
-    </span>
-  );
-
   // Auto-assign preview (only while the modal is open — the plan is pure).
   const autoPlan = autoOpen ? autoAssign(allLeads, ops.ops, autoStrategy) : [];
   const autoPerOp = autoPlan.reduce<Map<string, number>>((m, a) => m.set(a.operator.id, (m.get(a.operator.id) ?? 0) + 1), new Map());
 
+  const jump = (key: string) => {
+    if (view === "table") {
+      setF((cur) => ({ ...cur, stage: cur.stage === key ? "" : key }));
+      return;
+    }
+    document.getElementById(`lpipe-col-${key}`)?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+  };
+  const ageOf = (iso: string) => {
+    const at = Date.parse(iso);
+    if (!minute || !Number.isFinite(at)) return "";
+    const mins = Math.max(0, minute - Math.floor(at / 60000));
+    if (mins < 2) return t("age.now");
+    if (mins < 60) return t("age.min", { n: mins });
+    if (mins < 60 * 24) return t("age.hour", { n: Math.floor(mins / 60) });
+    return t("age.day", { n: Math.floor(mins / 1440) });
+  };
+  const nameOf = (l: LeadX) => l.name || l.phone || leadCategoryLabel(t, l.category) || t("untitledLead");
+  const who = (l: LeadX) => assigneeLabel(t, ops.ops, l.assignedTo, meId);
+
   return (
-    <div className="ppanel">
-      {/* The banner the design opens on: what this page is on the left, the
-          artwork beside it, the board's own progress on the right. The mockup
-          draws a monthly "goal" in that last slot, but no target is stored
-          anywhere, so it carries the two real numbers — won against total —
-          that fill the same shape rather than inventing a quota. */}
-      <div className="pipehero">
-        <div className="pipehero__m">
-          <span className="pipehero__i"><IconTrendingUp /></span>
-          <div className="pipehero__t">
-            <b>{t("title")}</b>
-            <p>{t("lead")}</p>
-          </div>
+    <div className="lpipe">
+      <header className="lpipe-top">
+        <div className="lpipe-top__t">
+          <h2>{t("title")}</h2>
+          <p>{t("lead")}</p>
         </div>
-        {/* After the words and before the numbers, as the design has it. */}
-        <span className="pipehero__art" aria-hidden />
-        {cols.length ? (
-          <div className="pipehero__goal">
-            <span className="pipehero__gi"><IconTarget /></span>
-            <div className="pipehero__gt">
-              <b>{t("kpi.won")}</b>
-              <div className="pipehero__bar"><i style={{ width: `${Math.min(100, conv)}%` }} /></div>
-              <span>{wonCount} / {total}</span>
-            </div>
-            <em className="pipehero__pct">{conv}%</em>
-          </div>
-        ) : null}
-      </div>
-
-      {cols.length ? (
-        <div className="lkpi" data-ai-target="pipeline:kpis">
-          <div className="lkpi__c"><span className="lkpi__i lkpi__i--total"><IconUsers /></span><div><b>{total}</b><span>{t("kpi.total")}</span></div></div>
-          <div className="lkpi__c"><span className="lkpi__i lkpi__i--active"><IconPhone /></span><div><b>{active}</b><span>{t("kpi.active")}</span></div></div>
-          <div className="lkpi__c"><span className="lkpi__i lkpi__i--won"><IconAward /></span><div><b>{wonCount}</b><span>{t("kpi.won")}</span></div></div>
-          <div className="lkpi__c"><span className="lkpi__i lkpi__i--conv"><IconTrendingUp /></span><div><b>{conv}%</b><span>{t("kpi.conv")}</span></div></div>
-        </div>
-      ) : null}
-
-      <div className="pipebar">
-        {cols.length ? (
-          <span className="segtab" data-ai-target="pipeline:view-toggle">
-            <button type="button" className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")} aria-label={t("viewKanban")}><IconGrid />{t("viewKanban")}</button>
-            <button type="button" className={view === "table" ? "on" : ""} onClick={() => setView("table")} aria-label={t("viewTable")}><IconDocLines />{t("viewTable")}</button>
-          </span>
-        ) : null}
-        <div className="pipebar__act">
+        <div className="lpipe-top__act">
+          {cols.length ? (
+            <span className="lpipe-views" role="group" aria-label={t("title")} data-ai-target="pipeline:view-toggle">
+              <button type="button" aria-pressed={view === "kanban"} onClick={() => setView("kanban")}><IconGrid />{t("viewKanban")}</button>
+              <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}><IconDocLines />{t("viewTable")}</button>
+            </span>
+          ) : null}
           <button className="btn btn--soft btn--sm" type="button" onClick={openAuto} disabled={!cols.length} data-ai-target="button:auto-assign"><IconBolt />{t("auto.btn")}{unassigned.length ? ` · ${unassigned.length}` : ""}</button>
           <button className="btn btn--line btn--sm" type="button" onClick={openAddStatus} data-ai-target="button:add-status"><IconPlus />{t("addStatus")}</button>
           <button className="btn btn--pri btn--sm" type="button" onClick={() => setAddOpen(true)} data-ai-target="button:new-lead"><IconPlus />{ta("form.add")}</button>
         </div>
-      </div>
+      </header>
+
+      {cols.length ? (
+        <section className="lpipe-strip" aria-label={t("kpi.total")} data-ai-target="pipeline:kpis">
+          <ol className="lpipe-strip__bar">
+            {cols.map((c) => (
+              <li key={c.key} style={{ flexGrow: c.count + Math.max(1, total * 0.2), "--c": c.color || "#6b7280" } as CSSProperties}>
+                <button type="button" onClick={() => jump(c.key)} aria-pressed={view === "table" ? f.stage === c.key : undefined} title={colName(c)}>
+                  <span className="lpipe-strip__n">{c.count}</span>
+                  <span className="lpipe-strip__l">{colName(c)}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+          <dl className="lpipe-strip__sum">
+            <div><dt>{t("kpi.total")}</dt><dd>{total}</dd></div>
+            <div><dt>{t("kpi.active")}</dt><dd>{active}</dd></div>
+            <div><dt>{t("kpi.won")}</dt><dd>{wonCount}</dd></div>
+            <div className="is-conv"><dt>{t("kpi.conv")}</dt><dd>{conv}%</dd></div>
+          </dl>
+        </section>
+      ) : null}
 
       {cols.length ? (
         <>
           <LeadFilterBar
+            className="uf--fold"
             value={f}
             onChange={setF}
             items={filterItems}
@@ -382,54 +391,61 @@ export default function AdminPipeline() {
             count={view === "table" ? rows.length : shown}
             aiId="admin.pipeline.filters"
           />
-          {ops.status === "forbidden" ? <p className="advmuted" style={{ marginTop: -8, marginBottom: 12 }}>{t("assign.opsForbidden")}</p> : null}
+          {ops.status === "forbidden" ? <p className="lpipe-note">{t("assign.opsForbidden")}</p> : null}
         </>
       ) : null}
 
       {moveErr ? <Notice ok={false} msg={t("moveError")} /> : null}
       {autoMsg ? <Notice ok={autoMsg.ok} msg={autoMsg.msg} /> : null}
       {res.status === "loading" ? (
-        <Skeleton rows={4} />
+        <div className="lpipe-skel" aria-busy="true">{[0, 1, 2, 3].map((i) => <span key={i} />)}</div>
       ) : !cols.length ? (
         <EmptyState icon={<IconTrendingUp />} title={t("empty")} text={t("emptyText")} />
       ) : view === "kanban" ? (
-        <div className="pipe" data-ai-target="pipeline:board" data-ai-label={t("title")}>
+        <div className="lpipe-board" data-ai-target="pipeline:board" data-ai-label={t("title")}>
           {viewCols.map((col, ci) => (
-            <div
-              className={`pipe__col${overCol === col.key ? " pipe__col--over" : ""}`}
+            <section
+              id={`lpipe-col-${col.key}`}
+              className={`lpipe-col${overCol === col.key ? " is-over" : ""}`}
               key={col.key}
-              style={col.color ? ({ "--pipe-col": col.color } as CSSProperties) : undefined}
+              aria-label={colName(col)}
+              style={{ "--c": col.color || "#6b7280" } as CSSProperties}
               onDragOver={(e) => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropInstant(false); setOverCol(col.key); setOverIndex(col.cards.length); } }}
               onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverCol((cur) => (cur === col.key ? null : cur)); }}
               onDrop={(e) => { e.preventDefault(); if (dragId) moveTo(dragId, col.key, overIndex); setDragId(null); setDropInstant(true); setOverCol(null); }}
             >
-              <div className="pipe__head">
-                <span className="pipe__dot" style={col.color ? { background: col.color } : undefined} />
-                <b>{colName(col)}</b>
-                <span className="pipe__count">{filtered ? col.cards.length : col.count}</span>
-                <button type="button" className="pipe__edit" aria-label={t("editStatus")} title={t("renameStatus")} onClick={() => openRenameStatus(col)}>
-                  <IconEdit />
-                </button>
-                {!col.isFinal ? (
-                  <button type="button" className="pipe__edit pipe__edit--danger" aria-label={t("deleteStatus")} title={t("deleteStatus")} onClick={() => openDeleteStatus(col)}>
-                    <IconTrash />
+              <header className="lpipe-col__h">
+                <i aria-hidden="true" />
+                <h3>{colName(col)}</h3>
+                <span className="lpipe-col__n">{filtered ? `${col.cards.length}/${col.count}` : col.count}</span>
+                <span className="lpipe-col__tools">
+                  <button type="button" aria-label={`${t("renameStatus")}: ${colName(col)}`} title={t("renameStatus")} onClick={() => openRenameStatus(col)}>
+                    <IconEdit />
                   </button>
-                ) : null}
-              </div>
-              <div className="pipe__cards">
+                  {!col.isFinal ? (
+                    <button type="button" className="is-danger" aria-label={`${t("deleteStatus")}: ${colName(col)}`} title={t("deleteStatus")} onClick={() => openDeleteStatus(col)}>
+                      <IconTrash />
+                    </button>
+                  ) : null}
+                </span>
+              </header>
+              <div className="lpipe-col__body">
                 {col.cards.length === 0 ? (
                   <>
                     <div className={`pipe__slot${overCol === col.key && dragId ? " on" : ""}${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden />
-                    <div className="pipe__empty">{filtered ? t("f.noMatch") : t("noneHere")}</div>
+                    <p className="lpipe-col__empty">{filtered ? t("f.noMatch") : t("noneHere")}</p>
                   </>
                 ) : (
                   col.cards.map(({ lead: l }, ii) => (
                     <Fragment key={l.id}>
                       {overCol === col.key && dragId && overIndex === ii ? <div className={`pipe__slot on${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden /> : null}
-                      <div
-                        className={`pipe__card${dragId === l.id ? " pipe__card--drag" : ""}`}
+                      <article
+                        className={`lpipe-card${dragId === l.id ? " is-drag" : ""}${busy === l.id ? " is-busy" : ""}`}
                         draggable
+                        tabIndex={0}
+                        aria-label={nameOf(l)}
                         onClick={() => setSelId(l.id)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelId(l.id); } }}
                         onDragStart={(e) => { setDragId(l.id); e.dataTransfer.effectAllowed = "move"; }}
                         onDragEnd={() => { setDragId(null); setOverCol(null); }}
                         onDragOver={(e) => {
@@ -443,44 +459,59 @@ export default function AdminPipeline() {
                           setOverIndex(e.clientY < r.top + r.height / 2 ? ii : ii + 1);
                         }}
                       >
-                        <div className="pipe__ctop">
-                          <b>{l.name || l.phone || leadCategoryLabel(t, l.category) || t("untitledLead")}</b>
-                          {l.scoreKey ? <span className={`lscore lscore--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : null}
+                        <div className="lpipe-card__top">
+                          <b>{nameOf(l)}</b>
+                          {l.scoreKey ? <span className={`lpipe-score lpipe-score--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : null}
                         </div>
-                        <span className="pipe__meta">{[l.phone, leadCategoryLabel(t, l.category), leadRegionLabel(te, l.region)].filter(Boolean).join(" · ") || t("noInfo")}</span>
-                        {l.note ? <span className="pipe__note">{l.note}</span> : null}
-                        {assigneeChip(l)}
-                        <div className="pipe__actions" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" className="pipe__mv" disabled={ci === 0 || busy === l.id} onClick={() => shift(l.id, col.key, -1)} aria-label={t("moveBack")}><IconChevronLeft /></button>
-                          <span className="pipe__src">{l.source ? leadSourceLabel(t, l.source) : <IconUsers />}</span>
-                          <button type="button" className="pipe__mv" disabled={ci === cols.length - 1 || busy === l.id} onClick={() => shift(l.id, col.key, 1)} aria-label={t("moveFwd")}><IconChevronRight /></button>
+                        {l.phone && l.phone !== nameOf(l) ? <span className="lpipe-card__phone"><IconPhone aria-hidden="true" />{l.phone}</span> : null}
+                        {l.category || l.region ? (
+                          <span className="lpipe-card__tags">
+                            {l.category ? <span>{leadCategoryLabel(t, l.category)}</span> : null}
+                            {l.region ? <span><IconMapPin aria-hidden="true" />{leadRegionLabel(te, l.region)}</span> : null}
+                          </span>
+                        ) : null}
+                        {l.note ? <p className="lpipe-card__note">{l.note}</p> : null}
+                        <footer className="lpipe-card__f">
+                          <span className={`lpipe-who${!l.assignedTo ? " is-none" : l.assignedTo === meId ? " is-me" : ""}`} title={t("assign.title")}>
+                            <span className="lpipe-who__av" aria-hidden="true">{l.assignedTo ? initials(who(l)) : <IconUser />}</span>
+                            <span className="lpipe-who__n">{who(l)}</span>
+                          </span>
+                          <span className="lpipe-card__meta">
+                            {l.source ? <span>{leadSourceLabel(t, l.source)}</span> : null}
+                            {ageOf(l.createdAt) ? <time dateTime={l.createdAt}>{ageOf(l.createdAt)}</time> : null}
+                          </span>
+                        </footer>
+                        <div className="lpipe-card__mv" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                          <button type="button" disabled={ci === 0 || busy === l.id} onClick={() => shift(l.id, col.key, -1)} aria-label={t("moveBack")} title={t("moveBack")}><IconChevronLeft /></button>
+                          <button type="button" disabled={ci === cols.length - 1 || busy === l.id} onClick={() => shift(l.id, col.key, 1)} aria-label={t("moveFwd")} title={t("moveFwd")}><IconChevronRight /></button>
                         </div>
-                      </div>
+                      </article>
                     </Fragment>
                   ))
                 )}
                 {overCol === col.key && dragId && overIndex === col.cards.length && col.cards.length > 0 ? <div className={`pipe__slot on${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden /> : null}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       ) : (
-        <div className="alist" data-ai-target="pipeline:board" data-ai-label={t("title")}>
+        <div className="lpipe-table" data-ai-target="pipeline:board" data-ai-label={t("title")}>
           {rows.length === 0 ? (
             <EmptyState icon={<IconUsers />} title={filtered ? t("f.noMatch") : t("empty")} text={filtered ? "" : t("emptyText")} />
           ) : (
-            rows.map(({ lead: l, colKey }, i) => (
-              <button type="button" className="aitem aitem--link" key={l.id} onClick={() => setSelId(l.id)}>
-                <span className="aitem__n">{i + 1}</span>
-                <div className="aitem__m">
-                  <b>{l.name || l.phone || leadCategoryLabel(t, l.category) || t("untitledLead")}</b>
-                  <span className="aitem__meta">{[l.phone, leadCategoryLabel(t, l.category), leadRegionLabel(te, l.region)].filter(Boolean).join(" · ")}</span>
-                  <span className="pipe__tags">
-                    {l.scoreKey ? <span className={`lscore lscore--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : null}
-                    {assigneeChip(l)}
-                  </span>
-                </div>
-                <span className="lstage" style={colColor(colKey) ? ({ "--c": colColor(colKey) } as CSSProperties) : undefined}>{colTitle(colKey)}</span>
+            rows.map(({ lead: l, colKey }) => (
+              <button type="button" className="lpipe-row" key={l.id} onClick={() => setSelId(l.id)} style={{ "--c": colColor(colKey) || "#6b7280" } as CSSProperties}>
+                <span className="lpipe-row__stage">{colTitle(colKey)}</span>
+                <span className="lpipe-row__m">
+                  <b>{nameOf(l)}</b>
+                  <small>{[l.phone !== nameOf(l) ? l.phone : "", leadCategoryLabel(t, l.category), leadRegionLabel(te, l.region)].filter(Boolean).join(" · ")}</small>
+                </span>
+                {l.scoreKey ? <span className={`lpipe-score lpipe-score--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : <span />}
+                <span className={`lpipe-who${!l.assignedTo ? " is-none" : l.assignedTo === meId ? " is-me" : ""}`}>
+                  <span className="lpipe-who__av" aria-hidden="true">{l.assignedTo ? initials(who(l)) : <IconUser />}</span>
+                  <span className="lpipe-who__n">{who(l)}</span>
+                </span>
+                <time className="lpipe-row__age" dateTime={l.createdAt}>{ageOf(l.createdAt)}</time>
               </button>
             ))
           )}
