@@ -21,7 +21,7 @@ export type MarketService = {
   isSponsored: boolean;
 };
 
-export type MarketPromotion = { active: boolean; packageTitle: string; daysLeft: number; boostScore: number; serviceId: string; serviceTitle: string };
+export type MarketPromotion = { id: string; active: boolean; packageTitle: string; daysLeft: number; boostScore: number; serviceId: string; serviceTitle: string };
 
 export type MarketPromotionSurface = {
   id: string;
@@ -103,7 +103,7 @@ export type MarketMeta = {
   sortOptions: string[];
 };
 
-export type MarketList = { items: MarketSeller[]; total: number; meta: MarketMeta | null; sponsored: MarketPromotionSurface[]; banners: MarketPromotionSurface[] };
+export type MarketList = { items: MarketSeller[]; total: number; meta: MarketMeta | null; sponsored: MarketPromotionSurface[]; sponsoredProfiles: MarketPromotionSurface[]; banners: MarketPromotionSurface[] };
 
 const strList = (v: unknown) => asArr(v).map((x) => asStr(x).trim()).filter(Boolean);
 
@@ -136,6 +136,7 @@ function normPromotion(v: unknown): MarketPromotion | null {
   if (v === undefined || v === null) return null;
   const d = asDict(v);
   return {
+    id: asStr(d.id ?? d.promotion_id),
     active: d.active === true,
     packageTitle: asStr(d.package_title),
     daysLeft: asNum(d.days_left),
@@ -285,11 +286,12 @@ export async function listMarketplace(opts: { sort?: string; offset?: number; in
   const items = asArr(d.items).map(normMarketSeller).filter((s) => s.userId && s.verified);
   const sponsored = asArr(d.sponsored).map(normPromotionSurface).filter((item) => item.id || item.sellerUserId || item.serviceId);
   const banners = asArr(d.banners).map(normPromotionSurface).filter((item) => item.id || item.imageUrl || item.title);
-  return { items, total: asNum(d.total, items.length), meta: normMeta(d.meta), sponsored, banners };
+  const sponsoredProfiles = asArr(d.sponsored_profiles).map(normPromotionSurface).filter((item) => item.id || item.sellerUserId);
+  return { items, total: asNum(d.total, items.length), meta: normMeta(d.meta), sponsored, sponsoredProfiles, banners };
 }
 
 export type MarketAiMatch = { userId: string; score: number; reasons: string[]; seller: MarketSeller | null };
-export type MarketAiResult = { matches: MarketAiMatch[]; summary: string; disclaimer: string; total: number; hasMore: boolean; sponsored: MarketPromotionSurface[]; banners: MarketPromotionSurface[]; suggestedServices: MarketMeta["services"] };
+export type MarketAiResult = { matches: MarketAiMatch[]; summary: string; disclaimer: string; total: number; hasMore: boolean; sponsored: MarketPromotionSurface[]; sponsoredProfiles: MarketPromotionSurface[]; banners: MarketPromotionSurface[]; suggestedServices: MarketMeta["services"] };
 
 export const marketAiAvailable = () => !featureMissing("marketAiSearch");
 
@@ -328,9 +330,10 @@ export async function aiSearchMarketplace(
       disclaimer: asStr(d.disclaimer).trim(),
       total: asNum(d.total, matches.length),
       hasMore: d.has_more === true,
-      sponsored: asArr(asDict(d.meta).sponsored ?? d.sponsored).map(normPromotionSurface).filter((item) => item.id || item.sellerUserId || item.serviceId),
+      sponsored: asArr(d.sponsored ?? asDict(d.meta).sponsored).map(normPromotionSurface).filter((item) => item.id || item.sellerUserId || item.serviceId),
+      sponsoredProfiles: asArr(d.sponsored_profiles ?? asDict(d.meta).sponsored_profiles).map(normPromotionSurface).filter((item) => item.id || item.sellerUserId),
       banners: asArr(asDict(d.meta).banners ?? d.banners).map(normPromotionSurface).filter((item) => item.id || item.imageUrl || item.title),
-      suggestedServices: asArr(asDict(d.meta).suggested_services).map((x) => {
+      suggestedServices: asArr(d.suggested_services ?? asDict(d.meta).suggested_services).map((x) => {
         const s = asDict(x);
         return { id: asStr(s.id ?? s.service_id), title: cleanDocTitle(asStr(s.title ?? s.name)), categoryId: asStr(s.category_id), basePrice: uzs(s, "base_price") };
       }).filter((item) => item.id),

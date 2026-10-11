@@ -480,6 +480,11 @@ export function subscribePendingPromos(fn: () => void): () => void {
 export type PromoSignal = { kind: "approved" | "rejected" | "pending"; requestId: string; serviceId: string };
 
 export function promoSignalOf(ev: UserEvent): PromoSignal | null {
+  if (ev.event.startsWith("promotion.checkout_")) {
+    const d = asDict(ev.data ?? ev.payload ?? ev);
+    const kind = ev.event.endsWith("approved") ? "approved" : ev.event.endsWith("rejected") ? "rejected" : "pending";
+    return { kind, requestId: asStr(d.request_id ?? d.checkout_request_id ?? ev.request_id), serviceId: asStr(d.service_id ?? ev.service_id) };
+  }
   if (ev.event !== "notification.created") return null;
   const data = asDict(asDict(ev.notification).data);
   const name = asStr(data.event);

@@ -16,6 +16,7 @@ import { Monogram, hasRating, hasSuccess, sellerTypeLabel, specLabel } from "./b
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import PromotionSurfaces from "./PromotionSurfaces";
+import { promoClick, usePromoImpression } from "@/lib/services/promoEvents";
 import { listActivePromotions } from "@/lib/services/promotions";
 
 type Status = "loading" | "ready" | "error";
@@ -89,6 +90,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [meta, setMeta] = useState<MarketMeta | null>(null);
   const [sponsored, setSponsored] = useState<MarketPromotionSurface[]>([]);
   const [banners, setBanners] = useState<MarketPromotionSurface[]>([]);
+  const [sponsoredProfiles, setSponsoredProfiles] = useState<MarketPromotionSurface[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [moreBusy, setMoreBusy] = useState(false);
   const [reload, setReload] = useState(0);
@@ -106,7 +108,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [priceMax, setPriceMax] = useState("");
   const [minExp, setMinExp] = useState("");
   const [sellerType, setSellerType] = useState("");
-  const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string; disclaimer: string; sponsored: MarketPromotionSurface[]; banners: MarketPromotionSurface[]; suggested: { id: string; title: string }[] } | null>(null);
+  const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string; disclaimer: string; sponsored: MarketPromotionSurface[]; sponsoredProfiles: MarketPromotionSurface[]; banners: MarketPromotionSurface[]; suggested: { id: string; title: string }[] } | null>(null);
   // GET /promotions/active (10-09 §5): the page-top banners, and — once a
   // service is picked — the promotions bought for exactly that service.
   const [activeBanners, setActiveBanners] = useState<MarketPromotionSurface[]>([]);
@@ -129,6 +131,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         }
         setSponsored(r.sponsored);
         setBanners(r.banners);
+        setSponsoredProfiles(r.sponsoredProfiles);
         setStatus("ready");
       })
       .catch(() => {
@@ -272,6 +275,9 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         ? sponsored.filter((p) => p.serviceId && categoryServiceIds.has(p.serviceId))
         : sponsored;
 
+  const shownProfiles = aiHit?.sponsoredProfiles.length ? aiHit.sponsoredProfiles : sponsoredProfiles;
+  const promoSearchKey = [aiHit ? `ai:${aiHit.q}` : query, category, service].filter(Boolean).join("|");
+
   const aiMatchOf = useMemo(() => new Map((aiHit?.matches ?? []).map((m) => [m.userId, m])), [aiHit]);
 
   const regionRaw = useMemo(() => (region ? items.find((s) => (regionKeyOf(te, s.region) || s.region.toLowerCase()) === region)?.region ?? "" : ""), [region, items, te]);
@@ -293,7 +299,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       }
       if (my !== aiSeq.current || c.signal.aborted) return;
       setAiPending("");
-      setAi(r ? { q: wanted, matches: r.matches, summary: r.summary, disclaimer: r.disclaimer, sponsored: r.sponsored, banners: r.banners, suggested: r.suggestedServices.map((x) => ({ id: x.id, title: x.title })).filter((x) => x.id && x.title) } : null);
+      setAi(r ? { q: wanted, matches: r.matches, summary: r.summary, disclaimer: r.disclaimer, sponsored: r.sponsored, sponsoredProfiles: r.sponsoredProfiles, banners: r.banners, suggested: r.suggestedServices.map((x) => ({ id: x.id, title: x.title })).filter((x) => x.id && x.title) } : null);
     },
     [regionRaw, sellerType],
   );
@@ -607,7 +613,8 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         aiTarget="marketplace:filters"
       />
 
-      <PromotionSurfaces part="sponsored" banners={[]} sponsored={shownSponsored} base={base} />
+      <PromotionSurfaces part="profiles" profiles={shownProfiles} base={base} searchKey={promoSearchKey} />
+      <PromotionSurfaces part="sponsored" sponsored={shownSponsored} base={base} searchKey={promoSearchKey} />
 
       <div className="mk-count" ref={resultsRef} aria-live="polite">
         {status === "ready" ? t("count", { n: list.length }) : null}
@@ -674,10 +681,16 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
   const titles = [...baseTitles.filter((x) => topTitles.has(x)), ...baseTitles.filter((x) => !topTitles.has(x))];
   const shown = titles.slice(0, 2);
   const promoted = s.promotion?.active === true || s.isSponsored || topTitles.size > 0;
+  const promoId = promoted ? s.promotion?.id ?? "" : "";
+  const promoSeen = usePromoImpression(promoId, "marketplace_list", index + 1);
+  const onPromoGo = () => {
+    if (promoId) promoClick(promoId, s.userId, "marketplace_list", index + 1);
+  };
   const cardAiId = aiId("marketplace.seller", s.userId);
   const cardAiLabel = [sellerTypeLabel(t, s.sellerType), s.region ? regionLabel(te, s.region) : ""].filter(Boolean).join(" · ");
   return (
     <article
+      ref={promoSeen}
       className={`mk-card${promoted ? " mk-card--promo" : ""}`}
       style={{ ["--mk-i" as string]: String(Math.min(index, 11)) }}
       data-ai-target={`marketplace:lawyer-card:${s.userId}`}
@@ -695,7 +708,7 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
       <div className="mk-card__head">
         <Monogram name={s.name} rating={s.rating} showRing={rated} />
         <div className="mk-card__who">
-          <Link href={href} className="mk-card__name">
+          <Link href={href} className="mk-card__name" onClick={onPromoGo}>
             {s.name}
           </Link>
           <div className="mk-card__meta">
@@ -770,7 +783,7 @@ function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: 
           {s.priceFrom > 0 ? <b>{t("card.priceFrom", { price: fmtUzs(s.priceFrom) })}</b> : <b className="mk-card__ask">{t("card.priceAsk")}</b>}
           {!s.available ? <span className="mk-card__busy">{t("card.busy")}</span> : null}
         </div>
-        <Link href={href} className="mk-card__go" aria-label={`${t("card.details")}: ${s.name}`} data-ai-id={`${cardAiId}.detail`} data-ai-label={t("card.details")} data-ai-entity-type="seller" data-ai-entity-id={s.userId}>
+        <Link href={href} onClick={onPromoGo} className="mk-card__go" aria-label={`${t("card.details")}: ${s.name}`} data-ai-id={`${cardAiId}.detail`} data-ai-label={t("card.details")} data-ai-entity-type="seller" data-ai-entity-id={s.userId}>
           {t("card.details")}
           <IconArrowRight />
         </Link>

@@ -44,7 +44,30 @@ export type PromotionCheckoutInput = {
   ctaLabel?: string;
   ctaUrl?: string;
   previewContext?: Dict;
+  idempotencyKey?: string;
 };
+
+export const PROMOTION_ERROR_CODES = [
+  "promotion_already_exists",
+  "promotion_package_placement_mismatch",
+  "service_id_required",
+  "service_id_not_allowed",
+  "promotion_days_invalid",
+  "promotion_seller_not_verified",
+  "promotion_placement_invalid",
+] as const;
+export type PromotionErrorCode = (typeof PROMOTION_ERROR_CODES)[number];
+
+export function promotionErrorCode(error: unknown): PromotionErrorCode | "" {
+  if (!(error instanceof ApiError)) return "";
+  const detail = asDict(error.data?.detail);
+  const raw = asStr(error.code ?? detail.code ?? detail.error ?? error.detail).trim();
+  return (PROMOTION_ERROR_CODES as readonly string[]).includes(raw) ? (raw as PromotionErrorCode) : "";
+}
+
+export function promotionErrorRetryable(error: unknown): boolean {
+  return !(error instanceof ApiError) || error.status >= 500 || error.status === 408 || error.status === 429;
+}
 
 function placementOf(value: unknown): PromotionPlacement {
   const v = asStr(value).trim().toLowerCase();
@@ -98,10 +121,10 @@ function normPackage(value: unknown): PromotionPackage {
 }
 
 export async function listPromotionPackages(placement?: PromotionPlacement, signal?: AbortSignal): Promise<PromotionCatalog> {
-  const qs = placement ? `?placement=${encodeURIComponent(placement)}` : "";
+  const qs = `?status=active${placement ? `&placement=${encodeURIComponent(placement)}` : ""}`;
   try {
     const raw = asDict(await http(`/promotions/packages${qs}`, { signal }));
-    const items = asArr(raw.items ?? raw.packages).map(normPackage).filter((item) => item.id && (!placement || item.placement === placement));
+    const items = asArr(raw.items ?? raw.packages).filter((x) => { const st = asStr(asDict(x).status).toLowerCase(); return !st || st === "active"; }).map(normPackage).filter((item) => item.id && (!placement || item.placement === placement));
     const placements = asArr(raw.placements).map(normPlacement);
     return { items, placements: placements.length ? placements : PROMOTION_PLACEMENTS.map(normPlacement) };
   } catch (error) {
@@ -142,6 +165,7 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
   if (input.ctaLabel?.trim()) body.banner_cta_label = input.ctaLabel.trim();
   if (input.ctaUrl?.trim()) body.banner_cta_url = input.ctaUrl.trim();
   if (input.previewContext) body.preview_context = input.previewContext;
+  if (input.idempotencyKey) body.idempotency_key = input.idempotencyKey;
   const raw = asDict(await http("/promotions/checkout", { method: "POST", body: JSON.stringify(body) }));
   const gate = asDict(raw.payment_gate ?? raw.payment);
   const pack = asDict(raw.package);

@@ -1783,6 +1783,15 @@
       "previewTitle": "Ko'rinish namunasi",
       "bannerType": "Banner JPG, PNG, WEBP yoki HEIC bo'lishi kerak.",
       "bannerUploadError": "Banner faylini yuklab bo'lmadi. Qayta urinib ko'ring.",
+      "errors": {
+        "promotion_already_exists": "Bu joy uchun faol yoki tasdiq kutilayotgan targ'ib allaqachon bor. Holat yangilandi.",
+        "promotion_package_placement_mismatch": "Tanlangan paket bu targ'ib turiga mos emas. Boshqa paket tanlang.",
+        "service_id_required": "Xizmat qidiruvidagi targ'ib uchun xizmatni tanlang.",
+        "service_id_not_allowed": "Profil yoki banner targ'ibiga xizmat biriktirib bo'lmaydi.",
+        "promotion_days_invalid": "Targ'ib muddati paket qoidasiga mos emas.",
+        "promotion_seller_not_verified": "Targ'ib faqat faol va tasdiqlangan mutaxassis uchun ochiladi.",
+        "promotion_placement_invalid": "Targ'ib turi noto'g'ri. Sahifani yangilab, qayta urinib ko'ring."
+      },
       "previewSeller": "Sizning profilingiz",
       "previewTop": "Top",
       "previewCta": "Profilni ko'rish",
@@ -3441,7 +3450,7 @@
       "price_asc": "Arzonidan boshlab"
     },
     "count": "{n} ta mutaxassis",
-    "promotions": { "label": "Top takliflar", "sponsored": "Top", "bannerFallback": "LexGo marketplace maxsus taklifi", "featuredTitle": "Tavsiya etilgan xizmatlar", "previous": "Oldingi banner", "next": "Keyingi banner", "viewProfile": "Profilni ko'rish", "daysLeft": "{n} kun qoldi", "lastDay": "Bugun oxirgi kun", "slide": "{n}-banner, jami {total}" },
+    "promotions": { "label": "Top takliflar", "sponsored": "Top", "bannerFallback": "LexGo marketplace maxsus taklifi", "featuredTitle": "Tavsiya etilgan xizmatlar", "previous": "Oldingi banner", "next": "Keyingi banner", "viewProfile": "Profilni ko'rish", "daysLeft": "{n} kun qoldi", "lastDay": "Bugun oxirgi kun", "slide": "{n}-banner, jami {total}", "profilesTitle": "Top mutaxassislar", "profileSub": "Profilni ko'rish", "openProfile": "Profilni ko'rish" },
     "empty": "Mos mutaxassis topilmadi",
     "emptyText": "Filtrlarni o'zgartirib ko'ring yoki tozalang.",
     "error": "Ro'yxatni yuklab bo'lmadi.",
@@ -9699,6 +9708,16 @@
     }
   },
   "promotion": {
+    "filterLong": "Sana oralig'i 90 kundan oshmasin.",
+    "filterOrder": "Boshlanish sanasi tugash sanasidan keyin bo'lmasin.",
+    "filterTo": "Tugash sanasi",
+    "filterFrom": "Boshlanish sanasi",
+    "filterAll": "Hammasi",
+    "filterService": "Xizmat",
+    "filterPlacement": "Targ'ib turi",
+    "placeOff": "Faol emas",
+    "placePending": "Tasdiq kutilmoqda",
+    "placeActive": "Faol · yana {days} kun",
     "servicesEmpty": "Targ'ib qilish uchun faol xizmat yo'q.",
     "servicesLead": "Alohida xizmatni targ'ib qiling — u o'z yo'nalishida marketplace ro'yxatida yuqoriroq chiqadi.",
     "servicesManage": "Xizmatlarni boshqarish",

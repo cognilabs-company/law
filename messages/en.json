@@ -1783,6 +1783,15 @@
       "previewTitle": "Preview",
       "bannerType": "The banner must be JPG, PNG, WEBP or HEIC.",
       "bannerUploadError": "Couldn't upload the banner. Please try again.",
+      "errors": {
+        "promotion_already_exists": "There is already an active or pending promotion for this placement. Status refreshed.",
+        "promotion_package_placement_mismatch": "This package doesn't fit this promotion type. Pick another one.",
+        "service_id_required": "Pick a service for a service search promotion.",
+        "service_id_not_allowed": "A service can't be attached to a profile or banner promotion.",
+        "promotion_days_invalid": "The promotion length doesn't match the package rules.",
+        "promotion_seller_not_verified": "Promotion is only available to active, verified specialists.",
+        "promotion_placement_invalid": "Invalid promotion type. Refresh the page and try again."
+      },
       "previewSeller": "Your profile",
       "previewTop": "Top",
       "previewCta": "View profile",
@@ -3441,7 +3450,7 @@
       "price_asc": "Cheapest first"
     },
     "count": "{n} specialists",
-    "promotions": { "label": "Top offers", "sponsored": "Top", "bannerFallback": "A special LexGo marketplace offer", "featuredTitle": "Featured services", "previous": "Previous banner", "next": "Next banner", "viewProfile": "View profile", "daysLeft": "{n} days left", "lastDay": "Last day", "slide": "Banner {n} of {total}" },
+    "promotions": { "label": "Top offers", "sponsored": "Top", "bannerFallback": "A special LexGo marketplace offer", "featuredTitle": "Featured services", "previous": "Previous banner", "next": "Next banner", "viewProfile": "View profile", "daysLeft": "{n} days left", "lastDay": "Last day", "slide": "Banner {n} of {total}", "profilesTitle": "Top specialists", "profileSub": "Open profile", "openProfile": "Open profile" },
     "empty": "No matching specialists",
     "emptyText": "Change or clear the filters.",
     "error": "Could not load the list.",
@@ -9693,6 +9702,16 @@
     }
   },
   "promotion": {
+    "filterLong": "The date range can't exceed 90 days.",
+    "filterOrder": "The start date can't be after the end date.",
+    "filterTo": "End date",
+    "filterFrom": "Start date",
+    "filterAll": "All",
+    "filterService": "Service",
+    "filterPlacement": "Promotion type",
+    "placeOff": "Not active",
+    "placePending": "Awaiting approval",
+    "placeActive": "Active · {days} days left",
     "servicesEmpty": "No active services to promote.",
     "servicesLead": "Promote a single service — it ranks higher on the marketplace in its own category.",
     "servicesManage": "Manage services",

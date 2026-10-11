@@ -12,6 +12,7 @@ import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconChat } from "@/components/icons";
 import { setReturnTo } from "@/lib/returnTo";
+import { trackPromoContact } from "@/lib/services/promoEvents";
 
 export default function PrivateChatButton({ sellerUserId, returnPath }: { sellerUserId: string; returnPath: string }) {
   const t = useTranslations("marketplace.detail");
@@ -41,6 +42,7 @@ export default function PrivateChatButton({ sellerUserId, returnPath }: { seller
     setBusy(true);
     setErr("");
     let leaving = false;
+    trackPromoContact(sellerUserId, "chat");
     try {
       const existing = await getLawyerPrivateChat(sellerUserId);
       if (existing) {

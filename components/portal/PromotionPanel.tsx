@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
-import { getPromotionStatus, getPromotionAnalytics, type PromotionAnalytics } from "@/lib/services/backend";
-import { parseServerTime } from "@/lib/http";
+import { getPromotionStatus, getPromotionAnalytics, type PromotionAnalytics, type PromotionAnalyticsFilter, type PromotionPlacementKey } from "@/lib/services/backend";
+import Select from "@/components/Select";
+import DatePicker from "@/components/DatePicker";
 import { useAuth } from "@/lib/auth";
 import { toast } from "@/lib/toast";
 import { subscribeUserEvents } from "@/lib/userSocket";
@@ -35,13 +36,26 @@ const PLACES: { value: PromotionPlacement; Icon: typeof IconMegaphone; title: st
 ];
 
 const som = (n: number) => (n ? fmtUzs(n) : "0");
+const EMPTY_ANALYTICS: PromotionAnalytics = { impressions: 0, searchAppearances: 0, profileClicks: 0, contactRequests: 0, series: [] };
+const dayMs = 86400000;
+function rangeProblem(from?: string, to?: string): "" | "order" | "long" {
+  if (!from || !to) return "";
+  const a = Date.parse(from);
+  const b = Date.parse(to);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return "";
+  if (a > b) return "order";
+  return (b - a) / dayMs > 90 ? "long" : "";
+}
 
 export default function PromotionPanel() {
   const t = useTranslations("promotion");
   const ts = useTranslations("sellerServices");
   const [reloadKey, setReloadKey] = useState(0);
   const status = useResourceOne(getPromotionStatus, [reloadKey]);
-  const analytics = useResourceOne<PromotionAnalytics>(getPromotionAnalytics, [reloadKey]);
+  const [filter, setFilter] = useState<PromotionAnalyticsFilter>({});
+  const filterKey = JSON.stringify(filter);
+  const rangeBad = rangeProblem(filter.dateFrom, filter.dateTo);
+  const analytics = useResourceOne<PromotionAnalytics>(() => (rangeBad ? Promise.resolve(EMPTY_ANALYTICS) : getPromotionAnalytics(filter)), [reloadKey, filterKey]);
   const [open, setOpen] = useState<PromotionPlacement | null>(null);
   const { session } = useAuth();
   const uid = session?.id ?? "";
@@ -84,9 +98,13 @@ export default function PromotionPanel() {
     : [];
   const st = status.data;
   const boost = svc?.items.find((x) => x.profileBoost)?.profileBoost ?? null;
-  const stAt = st?.endsAt ? parseServerTime(st.endsAt) : NaN;
-  const stIsService = Boolean(st?.active && svc?.items.some((x) => x.ownPromotion && parseServerTime(x.ownPromotion.endsAt) === stAt));
-  const profileDays = boost ? boost.daysLeft : st?.active && !stIsService ? st.daysLeft : null;
+  const profileLive = st?.byPlacement.profile_boost;
+  const profileDays = boost ? boost.daysLeft : profileLive && profileLive.active > 0 ? profileLive.daysLeft : null;
+  const placeState = (key: PromotionPlacementKey) => (st?.byPlacement[key].active ? " is-on" : st?.byPlacement[key].pending ? " is-wait" : "");
+  const placeLine = (key: PromotionPlacementKey) => {
+    const p = st?.byPlacement[key];
+    return p?.active ? t("placeActive", { days: p.daysLeft, n: p.active }) : p?.pending ? t("placePending") : t("placeOff");
+  };
 
   return (
     <div className="promo">
@@ -118,6 +136,37 @@ export default function PromotionPanel() {
         <div className="ppanel__h">
           <b>{t("analyticsTitle")}</b>
         </div>
+        <div className="promo__filters">
+          <label>
+            <span>{t("filterPlacement")}</span>
+            <Select
+              value={filter.placement ?? ""}
+              onChange={(v) => setFilter((f) => ({ ...f, placement: v as PromotionPlacementKey | "", serviceId: v === "service_boost" ? f.serviceId : "" }))}
+              options={[{ value: "", label: t("filterAll") }, ...PLACES.map((p) => ({ value: p.value, label: ts(`promote.${p.title}`) }))]}
+              ariaLabel={t("filterPlacement")}
+            />
+          </label>
+          {filter.placement === "service_boost" && svc?.items.length ? (
+            <label>
+              <span>{t("filterService")}</span>
+              <Select
+                value={filter.serviceId ?? ""}
+                onChange={(v) => setFilter((f) => ({ ...f, serviceId: v }))}
+                options={[{ value: "", label: t("filterAll") }, ...svc.items.map((x) => ({ value: x.id, label: x.service.name }))]}
+                ariaLabel={t("filterService")}
+              />
+            </label>
+          ) : null}
+          <label>
+            <span>{t("filterFrom")}</span>
+            <DatePicker value={filter.dateFrom ?? ""} onChange={(v) => setFilter((f) => ({ ...f, dateFrom: v }))} placeholder={t("filterFrom")} ariaLabel={t("filterFrom")} max={filter.dateTo || undefined} />
+          </label>
+          <label>
+            <span>{t("filterTo")}</span>
+            <DatePicker value={filter.dateTo ?? ""} onChange={(v) => setFilter((f) => ({ ...f, dateTo: v }))} placeholder={t("filterTo")} ariaLabel={t("filterTo")} min={filter.dateFrom || undefined} />
+          </label>
+        </div>
+        {rangeBad ? <p className="promo__ferr" role="alert">{t(rangeBad === "order" ? "filterOrder" : "filterLong")}</p> : null}
         {analytics.status === "loading" ? (
           <Skeleton rows={2} />
         ) : (
@@ -156,12 +205,13 @@ export default function PromotionPanel() {
 
         <div className="promo__places">
           {PLACES.map((p) => (
-            <button key={p.value} type="button" className="promo__place" onClick={() => setOpen(p.value)} data-ai-id={`promotion.place.${p.value}`} data-ai-type="button" data-ai-label={ts(`promote.${p.title}`)}>
+            <button key={p.value} type="button" className={`promo__place${placeState(p.value)}`} onClick={() => setOpen(p.value)} data-ai-id={`promotion.place.${p.value}`} data-ai-type="button" data-ai-label={ts(`promote.${p.title}`)}>
               <span className="promo__placeic" aria-hidden="true">
                 <p.Icon />
               </span>
               <b>{ts(`promote.${p.title}`)}</b>
               <span>{ts(`promote.${p.hint}`)}</span>
+              {st ? <small className="promo__placest">{placeLine(p.value)}</small> : null}
               <span className="promo__placego">
                 {t("placeStart")}
                 <IconArrowRight aria-hidden="true" />

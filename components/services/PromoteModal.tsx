@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import SearchSelect from "@/components/SearchSelect";
@@ -14,7 +14,7 @@ import {
   type ServiceScope,
   type ServiceSellerProfile,
 } from "@/lib/services/sellerServices";
-import { checkoutMarketplacePromotion, listPromotionPackages, uploadPromotionBanner, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
+import { checkoutMarketplacePromotion, listPromotionPackages, promotionErrorCode, promotionErrorRetryable, uploadPromotionBanner, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
 import type { MarketPromotionSurface } from "@/lib/services/marketplace";
 import { IconAlert, IconArrowRight, IconCheck, IconCircleCheck, IconClock, IconCrown, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconStar, IconTrendingUp, IconUpload, IconUser } from "@/components/icons";
 import { useAuth } from "@/lib/auth";
@@ -22,6 +22,7 @@ import { regionLabel } from "@/lib/labels";
 import { Monogram, sellerTypeLabel } from "@/components/marketplace/bits";
 import { PromoBanner } from "@/components/marketplace/PromotionSurfaces";
 import { InBody, som, usePackageName } from "./bits";
+import { newIdempotencyKey } from "@/lib/services/promoEvents";
 
 type Packs = { status: "loading" | "ready" | "error"; items: PromotionPackage[]; placements: PromotionPlacementOption[] };
 const TIER_ICON = [IconRocket, IconGem, IconCrown];
@@ -92,6 +93,10 @@ export default function PromoteModal({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState<PromotionRequest | null>(null);
+  const attemptKey = useRef("");
+  useEffect(() => {
+    attemptKey.current = "";
+  }, [picked, placement, item?.id]);
 
   useEffect(() => {
     const c = new AbortController();
@@ -150,6 +155,7 @@ export default function PromoteModal({
     if (!chosen || busy || blocked) return;
     setBusy(true);
     setErr("");
+    if (!attemptKey.current) attemptKey.current = newIdempotencyKey();
     try {
       const req = await checkoutMarketplacePromotion(
         {
@@ -163,6 +169,7 @@ export default function PromoteModal({
           subtitle: acceptsBanner ? bannerSubtitle : "",
           ctaLabel: acceptsBanner ? ctaLabel : "",
           ctaUrl: acceptsBanner ? ctaUrl.trim() : "",
+          idempotencyKey: attemptKey.current,
           previewContext: {
             surface: selectedPlacement?.previewSurface || FALLBACK_PLACEMENTS.find((p) => p.value === placement)?.previewSurface,
             ...(needsService && svc ? { service_title: svc.service.name } : {}),
@@ -181,9 +188,17 @@ export default function PromoteModal({
           telegramSent: req.telegramSent,
         });
       }
+      attemptKey.current = "";
       setDone(req);
       onSent(req);
     } catch (e) {
+      if (!promotionErrorRetryable(e)) attemptKey.current = "";
+      const code = promotionErrorCode(e);
+      if (code) {
+        setErr(t(`errors.${code}`));
+        if (code === "promotion_already_exists") onStale?.();
+        return;
+      }
       const se = serviceErrorOf(e);
       setErr(errLine(se));
       if (se.kind === "notFound" || se.kind === "inactivePromo") onStale?.();

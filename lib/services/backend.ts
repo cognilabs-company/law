@@ -4401,16 +4401,42 @@ export async function getBusinessHours(): Promise<BusinessHours> {
 }
 
 // ── Promotions ────────────────────────────────────────────────────
-export type PromotionStatus = { active: boolean; packageId?: string; daysLeft: number; endsAt?: string };
+export type PromotionPlacementKey = "banner" | "profile_boost" | "service_boost";
+export type PromotionPlacementState = { active: number; pending: number; daysLeft: number; endsAt?: string };
+export type PromotionStatus = {
+  active: boolean;
+  packageId?: string;
+  daysLeft: number;
+  endsAt?: string;
+  count: number;
+  byPlacement: Record<PromotionPlacementKey, PromotionPlacementState>;
+};
+const PROMO_PLACEMENT_KEYS: PromotionPlacementKey[] = ["banner", "profile_boost", "service_boost"];
 export async function getPromotionStatus(): Promise<PromotionStatus> {
   const d = asDict(await http("/promotions/me"));
+  const by = asDict(d.by_placement);
+  const all = asArr(d.items).map(asDict);
+  const byPlacement = Object.fromEntries(
+    PROMO_PLACEMENT_KEYS.map((key) => {
+      const rows = (Array.isArray(by[key]) ? asArr(by[key]).map(asDict) : all.filter((x) => asStr(x.placement) === key)).filter((x) => Object.keys(x).length);
+      const isPending = (x: Dict) => /pending/.test(asStr(x.status ?? x.promotion_status).toLowerCase());
+      const live = rows.filter((x) => !isPending(x));
+      const longest = live.reduce<Dict | null>((m, x) => (!m || asNum(x.days_left) > asNum(m.days_left) ? x : m), null);
+      return [key, { active: live.length, pending: rows.length - live.length, daysLeft: longest ? asNum(longest.days_left) : 0, endsAt: longest ? asStr(longest.ends_at) || undefined : undefined }];
+    }),
+  ) as Record<PromotionPlacementKey, PromotionPlacementState>;
+  const profile = byPlacement.profile_boost;
+  const anyLive = PROMO_PLACEMENT_KEYS.some((k) => byPlacement[k].active > 0);
   return {
-    active: Boolean(d.active),
+    active: Boolean(d.active) || anyLive,
     packageId: asStr(d.package_id) || undefined,
-    daysLeft: asNum(d.days_left),
-    endsAt: asStr(d.ends_at) || undefined,
+    daysLeft: asNum(d.days_left) || profile.daysLeft,
+    endsAt: asStr(d.ends_at) || profile.endsAt,
+    count: asNum(d.count, all.length),
+    byPlacement,
   };
 }
+export type PromotionAnalyticsFilter = { placement?: PromotionPlacementKey | ""; serviceId?: string; dateFrom?: string; dateTo?: string };
 export type PromotionAnalytics = {
   impressions: number;
   searchAppearances: number;
@@ -4418,8 +4444,13 @@ export type PromotionAnalytics = {
   contactRequests: number;
   series: { date: string; impressions: number }[];
 };
-export async function getPromotionAnalytics(): Promise<PromotionAnalytics> {
-  const d = asDict(await http("/promotions/analytics"));
+export async function getPromotionAnalytics(filter: PromotionAnalyticsFilter = {}): Promise<PromotionAnalytics> {
+  const qs = new URLSearchParams();
+  if (filter.placement) qs.set("placement", filter.placement);
+  if (filter.serviceId) qs.set("service_id", filter.serviceId);
+  if (filter.dateFrom) qs.set("date_from", filter.dateFrom);
+  if (filter.dateTo) qs.set("date_to", filter.dateTo);
+  const d = asDict(await http(`/promotions/analytics${qs.toString() ? `?${qs}` : ""}`));
   return {
     impressions: asNum(d.impressions),
     searchAppearances: asNum(d.search_appearances),

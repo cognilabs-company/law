@@ -24,6 +24,7 @@ import {
 import { useMarketOrderTracker } from "@/lib/useMarketOrderTracker";
 import { deliveryLabel } from "./bits";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
+import { trackPromoContact } from "@/lib/services/promoEvents";
 
 const CHANNEL_ICON = { chat: IconChat, audio: IconPhone, video: IconVideo, meeting: IconUsers } as const;
 const NOTE_MAX = 1000;
@@ -122,6 +123,7 @@ export default function PurchaseDialog({
     try {
       const r = await requestMarketplacePurchase(sellerUserId, service.id, { note, preferredChannel: channel, preferredTime: time });
       setDone(r);
+      trackPromoContact(sellerUserId, "purchase");
     } catch (e) {
       const act = activePurchaseOf(e);
       if (act) {

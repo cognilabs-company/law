@@ -7,16 +7,12 @@ import type { MarketPromotionSurface } from "@/lib/services/marketplace";
 import { absUrl } from "@/lib/http";
 import { regionLabel } from "@/lib/labels";
 import { useTranslations } from "next-intl";
+import { promoClick, usePromoImpression, useSearchAppearances } from "@/lib/services/promoEvents";
 import { Monogram, sellerTypeLabel, specLabel } from "./bits";
 
 const ROTATE_MS = 5500;
 const DEFAULT_CTA = /^profilni ko['‘’ʻ`]?rish$/i;
 
-// Where a promotion's button leads. The backend writes seller links as
-// /portal/client/marketplace/lawyers/{id} — a route this app does not have
-// (the profile lives under `base`), so that shape is mapped onto it; anything
-// else internal goes through the locale-aware Link, and only a full URL leaves
-// the site.
 function targetOf(value: string, base: string, fallback: string): { href: string; external: boolean } {
   if (!value) return { href: fallback, external: false };
   if (/^https?:\/\//i.test(value)) return { href: value, external: true };
@@ -24,6 +20,8 @@ function targetOf(value: string, base: string, fallback: string): { href: string
   if (seller) return { href: `${base}/${seller[1]}`, external: false };
   return value.startsWith("/") ? { href: value, external: false } : { href: fallback, external: false };
 }
+
+const sellerHref = (base: string, item: MarketPromotionSurface) => (item.sellerUserId ? `${base}/${encodeURIComponent(item.sellerUserId)}` : base);
 
 function useSellerLine() {
   const t = useTranslations("marketplace");
@@ -114,17 +112,46 @@ export function PromoBanner({ banner, base, preview, eyebrow, children }: { bann
   );
 }
 
-// `part` lets the page put the two surfaces where the 10-09 guide wants them:
-// the banner carousel at the top of the page, the sponsored block right above
-// the results. Without it both render together, as before.
-export default function PromotionSurfaces({ banners, sponsored, base, part }: { banners: MarketPromotionSurface[]; sponsored: MarketPromotionSurface[]; base: string; part?: "banner" | "sponsored" }) {
+type Part = "banner" | "profiles" | "sponsored";
+
+// `part` lets the page put each surface where the guides want it: the banner
+// carousel at the top of the page, the Top specialists and Top services blocks
+// right above the results. Without it all of them render together.
+export default function PromotionSurfaces({
+  banners = [],
+  sponsored = [],
+  profiles = [],
+  base,
+  part,
+  searchKey = "",
+}: {
+  banners?: MarketPromotionSurface[];
+  sponsored?: MarketPromotionSurface[];
+  profiles?: MarketPromotionSurface[];
+  base: string;
+  part?: Part;
+  searchKey?: string;
+}) {
   const t = useTranslations("marketplace");
-  const line = useSellerLine();
+  const show = (p: Part) => !part || part === p;
+  const slides = show("banner") ? banners : [];
+  const people = show("profiles") ? profiles : [];
+  const tiles = show("sponsored") ? sponsored : [];
+  if (!slides.length && !people.length && !tiles.length) return null;
+  return (
+    <div className="mk-promo-surfaces" aria-label={t("promotions.label")}>
+      {slides.length ? <BannerCarousel slides={slides} base={base} /> : null}
+      {people.length ? <ProfilesSurface items={people} base={base} searchKey={searchKey} /> : null}
+      {tiles.length ? <ServicesSurface items={tiles} base={base} searchKey={searchKey} /> : null}
+    </div>
+  );
+}
+
+function BannerCarousel({ slides, base }: { slides: MarketPromotionSurface[]; base: string }) {
+  const t = useTranslations("marketplace");
   const [active, setActive] = useState(0);
   const [hold, setHold] = useState(false);
   const swipe = useRef<number | null>(null);
-  const slides = part === "sponsored" ? [] : banners;
-  const tiles = part === "banner" ? [] : sponsored;
   const count = slides.length;
   // Rotates only while nobody is reading it: not under the pointer or focus,
   // not in a hidden tab, and never for someone who asked for less motion.
@@ -135,90 +162,146 @@ export default function PromotionSurfaces({ banners, sponsored, base, part }: { 
     }, ROTATE_MS);
     return () => window.clearInterval(id);
   }, [count, hold]);
-  if (!count && !tiles.length) return null;
   const at = active % Math.max(1, count);
   const banner = slides[at];
+  const seen = usePromoImpression(banner?.id ?? "", "marketplace_top_banner", at + 1);
   const go = (step: number) => setActive((value) => (value + step + count) % count);
+  if (!banner) return null;
   return (
-    <div className="mk-promo-surfaces" aria-label={t("promotions.label")}>
-      {banner ? (
-        <div
-          className="mk-promo-carousel"
-          role="region"
-          aria-roledescription="carousel"
-          aria-label={t("promotions.label")}
-          onMouseEnter={() => setHold(true)}
-          onMouseLeave={() => setHold(false)}
-          onFocus={() => setHold(true)}
-          onBlur={() => setHold(false)}
-          onPointerDown={(e) => {
-            swipe.current = e.clientX;
-          }}
-          onPointerUp={(e) => {
-            const from = swipe.current;
-            swipe.current = null;
-            if (from === null || count < 2) return;
-            const dx = e.clientX - from;
-            if (Math.abs(dx) > 48) go(dx < 0 ? 1 : -1);
-          }}
-        >
-          <div className="mk-promo-carousel__slide" key={banner.id || at} aria-live={hold ? "polite" : "off"}>
-            <PromoBanner banner={banner} base={base}>
-              {count > 1 ? (
-                <div className="mk-promo-banner__nav">
-                  <button type="button" onClick={() => go(-1)} aria-label={t("promotions.previous")}>
-                    <IconChevronLeft />
-                  </button>
-                  <span className="mk-promo-banner__dots">
-                    {slides.map((s, i) => (
-                      <button key={s.id || i} type="button" className={i === at ? "on" : undefined} aria-label={t("promotions.slide", { n: i + 1, total: count })} aria-current={i === at || undefined} onClick={() => setActive(i)} />
-                    ))}
-                  </span>
-                  <button type="button" onClick={() => go(1)} aria-label={t("promotions.next")}>
-                    <IconChevronRight />
-                  </button>
-                </div>
-              ) : null}
-            </PromoBanner>
-          </div>
-        </div>
-      ) : null}
-      {tiles.length ? (
-        <section className="mk-promo-sponsored">
-          <div className="mk-promo-sponsored__head">
-            <div>
-              <span>{t("promotions.sponsored")}</span>
-              <h2>{t("promotions.featuredTitle")}</h2>
+    <div
+      className="mk-promo-carousel"
+      role="region"
+      aria-roledescription="carousel"
+      aria-label={t("promotions.label")}
+      data-ai-id="marketplace.promotions.banner"
+      onMouseEnter={() => setHold(true)}
+      onMouseLeave={() => setHold(false)}
+      onFocus={() => setHold(true)}
+      onBlur={() => setHold(false)}
+      onPointerDown={(e) => {
+        swipe.current = e.clientX;
+      }}
+      onPointerUp={(e) => {
+        const from = swipe.current;
+        swipe.current = null;
+        if (from === null || count < 2) return;
+        const dx = e.clientX - from;
+        if (Math.abs(dx) > 48) go(dx < 0 ? 1 : -1);
+      }}
+    >
+      <div
+        className="mk-promo-carousel__slide"
+        key={banner.id || at}
+        ref={seen}
+        aria-live={hold ? "polite" : "off"}
+        onClickCapture={(e) => {
+          if ((e.target as HTMLElement).closest(".mk-promo-banner__cta")) promoClick(banner.id, banner.sellerUserId, "marketplace_top_banner", at + 1);
+        }}
+      >
+        <PromoBanner banner={banner} base={base}>
+          {count > 1 ? (
+            <div className="mk-promo-banner__nav">
+              <button type="button" onClick={() => go(-1)} aria-label={t("promotions.previous")}>
+                <IconChevronLeft />
+              </button>
+              <span className="mk-promo-banner__dots">
+                {slides.map((s, i) => (
+                  <button key={s.id || i} type="button" className={i === at ? "on" : undefined} aria-label={t("promotions.slide", { n: i + 1, total: count })} aria-current={i === at || undefined} onClick={() => setActive(i)} />
+                ))}
+              </span>
+              <button type="button" onClick={() => go(1)} aria-label={t("promotions.next")}>
+                <IconChevronRight />
+              </button>
             </div>
-          </div>
-          <div className="mk-promo-sponsored__grid">
-            {tiles.slice(0, 4).map((item) => {
-              const to = targetOf(item.ctaUrl, base, item.sellerUserId ? `${base}/${encodeURIComponent(item.sellerUserId)}` : base);
-              // A tile is one link; a promotion that points off-site still
-              // opens the seller here rather than leaving mid-search.
-              const href = to.external ? (item.sellerUserId ? `${base}/${encodeURIComponent(item.sellerUserId)}` : base) : to.href;
-              const who = item.seller && (!item.subtitle || item.subtitle === item.seller.headline) ? [item.sellerName, line(item.seller)].filter(Boolean).join(" · ") : item.subtitle || item.sellerName;
-              return (
-                <Link className="mk-promo-tile" href={href} key={item.id || `${item.sellerUserId}-${item.serviceId}`}>
-                  <span className="mk-promo-tile__tag">
-                    <IconMegaphone /> {t("promotions.sponsored")}
-                  </span>
-                  <b>{item.serviceTitle || item.title || item.sellerName}</b>
-                  <small>{who}</small>
-                  {item.seller && item.seller.rating > 0 ? (
-                    <span className="mk-promo-tile__rate">
-                      <IconStar /> {item.seller.rating.toFixed(1)}
-                    </span>
-                  ) : null}
-                  <span className="mk-promo-tile__go">
-                    <IconArrowRight />
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
+          ) : null}
+        </PromoBanner>
+      </div>
     </div>
+  );
+}
+
+function ProfilesSurface({ items, base, searchKey }: { items: MarketPromotionSurface[]; base: string; searchKey: string }) {
+  const t = useTranslations("marketplace");
+  const line = useSellerLine();
+  const shown = items.slice(0, 4);
+  useSearchAppearances(shown.map((item) => item.id).filter(Boolean), "marketplace_profiles", searchKey);
+  return (
+    <section className="mk-promo-sponsored mk-promo-sponsored--profiles" data-ai-id="marketplace.promotions.profiles" aria-labelledby="mk-promo-profiles">
+      <div className="mk-promo-sponsored__head">
+        <div>
+          <span>{t("promotions.sponsored")}</span>
+          <h2 id="mk-promo-profiles">{t("promotions.profilesTitle")}</h2>
+        </div>
+      </div>
+      <div className="mk-promo-sponsored__grid">
+        {shown.map((item, i) => (
+          <PromoTile
+            key={item.id || item.sellerUserId}
+            item={item}
+            base={base}
+            position={i + 1}
+            source="marketplace_profiles"
+            title={item.sellerName || item.title}
+            sub={item.seller ? line(item.seller) : item.subtitle || item.serviceTitle || t("promotions.profileSub")}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ServicesSurface({ items, base, searchKey }: { items: MarketPromotionSurface[]; base: string; searchKey: string }) {
+  const t = useTranslations("marketplace");
+  const line = useSellerLine();
+  const shown = items.slice(0, 4);
+  useSearchAppearances(shown.map((item) => item.id).filter(Boolean), "service_search", searchKey);
+  return (
+    <section className="mk-promo-sponsored" data-ai-id="marketplace.promotions.services" aria-labelledby="mk-promo-services">
+      <div className="mk-promo-sponsored__head">
+        <div>
+          <span>{t("promotions.sponsored")}</span>
+          <h2 id="mk-promo-services">{t("promotions.featuredTitle")}</h2>
+        </div>
+      </div>
+      <div className="mk-promo-sponsored__grid">
+        {shown.map((item, i) => (
+          <PromoTile
+            key={item.id || `${item.sellerUserId}-${item.serviceId}`}
+            item={item}
+            base={base}
+            position={i + 1}
+            source="service_search"
+            title={item.serviceTitle || item.title || item.sellerName}
+            sub={item.seller && (!item.subtitle || item.subtitle === item.seller.headline) ? [item.sellerName, line(item.seller)].filter(Boolean).join(" · ") : item.subtitle || item.sellerName}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// A tile is one link; a promotion that points off-site still opens the seller
+// here rather than leaving mid-search.
+function PromoTile({ item, base, position, source, title, sub }: { item: MarketPromotionSurface; base: string; position: number; source: string; title: string; sub: string }) {
+  const t = useTranslations("marketplace");
+  const seen = usePromoImpression(item.id, source, position);
+  const to = targetOf(item.ctaUrl, base, sellerHref(base, item));
+  const href = to.external ? sellerHref(base, item) : to.href;
+  return (
+    <Link ref={seen} className="mk-promo-tile" href={href} onClick={() => promoClick(item.id, item.sellerUserId, source, position)}>
+      <span className="mk-promo-tile__tag">
+        <IconMegaphone /> {t("promotions.sponsored")}
+      </span>
+      <b>{title}</b>
+      {sub ? <small>{sub}</small> : null}
+      {item.seller && item.seller.rating > 0 ? (
+        <span className="mk-promo-tile__rate">
+          <IconStar /> {item.seller.rating.toFixed(1)}
+        </span>
+      ) : null}
+      <span className="mk-promo-tile__go">
+        <IconArrowRight />
+      </span>
+    </Link>
   );
 }
