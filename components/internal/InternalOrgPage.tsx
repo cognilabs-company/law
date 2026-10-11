@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { ApiError } from "@/lib/http";
+import { ApiError, asDict } from "@/lib/http";
 import {
   createOrgUnit,
   createPosition,
   getOrgBoard,
   getPositions,
+  normEmployee,
   normOrgBoard,
   normPosition,
   updateOrgUnit,
@@ -41,13 +42,16 @@ export default function InternalOrgPage() {
   const [employeeId, setEmployeeId] = useState("");
   const [newEmployeeUnit, setNewEmployeeUnit] = useState<string | null>(null);
 
-  const load = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true);
+  // `quiet`: a live update re-reads in place — the board keeps its zoom,
+  // scroll and open panel instead of dropping back to a skeleton.
+  const load = useCallback(async (signal?: AbortSignal, quiet = false) => {
+    if (!quiet) setLoading(true);
     setError(false);
     try {
-      const [raw, rows] = await Promise.all([getOrgBoard("people", signal), getPositions({ limit: 100 }, signal)]);
+      // The positions table is a second list: if it fails, the board still shows.
+      const [raw, rows] = await Promise.all([getOrgBoard("people", signal), getPositions({ limit: 100 }, signal).catch((cause: unknown) => (cause instanceof ApiError && cause.detail === "aborted" ? Promise.reject(cause) : null))]);
       setBoard(normOrgBoard(raw));
-      setPositions(rows.items.map(normPosition));
+      if (rows) setPositions(rows.items.map(normPosition));
     } catch (cause) {
       if (!(cause instanceof ApiError && cause.detail === "aborted")) setError(true);
     } finally {
@@ -63,9 +67,26 @@ export default function InternalOrgPage() {
     refreshHrmDirectory();
     void load();
   }, [load]);
-  useEffect(() => subscribeUserEvents((event) => { if (event.event.startsWith("internal.")) void load(); }), [load]);
+  // Only changes to the org structure itself redraw the board (a task or a
+  // schedule event does not).
+  useEffect(
+    () =>
+      subscribeUserEvents((event) => {
+        if (/^internal\.(org|unit|units|position|positions|employee|employees|assignment|assignments)\b/.test(event.event)) void load(undefined, true);
+      }),
+    [load],
+  );
 
-  const employee = employeeId ? dir.employee(employeeId) ?? null : null;
+  // Open 360 works for anyone on the board, also when the directory did not
+  // load them (it reads the first 100, and only with employees access).
+  const employee = useMemo(() => {
+    if (!employeeId) return null;
+    const known = dir.employee(employeeId);
+    if (known) return known;
+    const node = board.nodes.find((n) => n.id === `employee:${employeeId}`);
+    if (!node) return null;
+    return normEmployee({ ...asDict(node.raw.employee), id: employeeId, display_name: node.label, employee_code: node.raw.employee_code, assignment: node.raw.assignment });
+  }, [employeeId, dir, board.nodes]);
 
   return (
     <section className="hrm-page">
@@ -86,6 +107,7 @@ export default function InternalOrgPage() {
       <InternalOrgBoard
         board={board}
         loading={loading}
+        failed={error}
         onEditUnit={(id) => setUnitForm({ id, parentId: "" })}
         onAddUnit={(parentId) => setUnitForm({ id: "", parentId })}
         onAddEmployee={(unitId) => setNewEmployeeUnit(unitId)}
@@ -227,7 +249,7 @@ function PositionDrawer({ value, onClose, onSaved }: { value: HrmPosition | "new
           <InternalField label={t("positionName")}><input value={form.title} onChange={(e) => setForm((c) => ({ ...c, title: e.target.value }))} maxLength={160} required /></InternalField>
           <InternalField label={t("positionCode")}><input value={form.code} onChange={(e) => setForm((c) => ({ ...c, code: e.target.value.toUpperCase() }))} maxLength={50} placeholder="POS-001" /></InternalField>
           <InternalField label={t("columns.category")}><Select value={form.category} onChange={(v) => setForm((c) => ({ ...c, category: v }))} options={POSITION_CATEGORIES.map((x) => ({ value: x, label: t(`categories.${x}`) }))} ariaLabel={t("columns.category")} /></InternalField>
-          <InternalField label={t("columns.grade")}><input value={form.grade} onChange={(e) => setForm((c) => ({ ...c, grade: e.target.value }))} maxLength={40} placeholder="Middle" /></InternalField>
+          <InternalField label={t("columns.grade")}><input value={form.grade} onChange={(e) => setForm((c) => ({ ...c, grade: e.target.value }))} maxLength={40} placeholder={t("gradePh")} /></InternalField>
           <InternalField label={t("statusFilter")}><Select value={form.status} onChange={(v) => setForm((c) => ({ ...c, status: v }))} options={STATUSES.map((s) => ({ value: s, label: label(s) }))} ariaLabel={t("statusFilter")} /></InternalField>
           <InternalField label={t("description")}><textarea value={form.description} onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))} maxLength={1000} rows={3} /></InternalField>
         </div>

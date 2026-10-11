@@ -1,4 +1,4 @@
-import { asArr, asDict, asNum, asStr, http, type Dict } from "@/lib/http";
+import { ApiError, asArr, asDict, asNum, asStr, http, type Dict } from "@/lib/http";
 import { uzs } from "@/lib/money";
 import type { AdPackage, PromotionRequest, ServiceScope } from "@/lib/services/sellerServices";
 import { normPromotionSurface, type MarketPromotionSurface } from "@/lib/services/marketplace";
@@ -105,9 +105,10 @@ export async function listPromotionPackages(placement?: PromotionPlacement, sign
     const placements = asArr(raw.placements).map(normPlacement);
     return { items, placements: placements.length ? placements : PROMOTION_PLACEMENTS.map(normPlacement) };
   } catch (error) {
-    if (signal?.aborted) throw error;
+    if (signal?.aborted || !(error instanceof ApiError && (error.status === 404 || error.status === 405))) throw error;
     // Older deployments expose the same active products through /ads/products.
-    // Keep the UI usable while the promotion contract rolls out server-side.
+    // Keep the UI usable while the promotion contract rolls out server-side;
+    // any other failure is a real error and is shown as one.
     const { listAdPackages } = await import("@/lib/services/sellerServices");
     const legacy = await listAdPackages(signal);
     return {
@@ -136,17 +137,19 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
   if (scope.kind === "org") body.organization_id = scope.orgId;
   if (input.bannerImageUrl) body.banner_image_url = input.bannerImageUrl;
   if (input.bannerFileUrl) body.banner_file_url = input.bannerFileUrl;
-  if (input.title?.trim()) body.banner_title = body.title = input.title.trim();
-  if (input.subtitle?.trim()) body.banner_subtitle = body.subtitle = input.subtitle.trim();
-  if (input.ctaLabel?.trim()) body.banner_cta_label = body.cta_label = input.ctaLabel.trim();
-  if (input.ctaUrl?.trim()) body.banner_cta_url = body.cta_url = input.ctaUrl.trim();
+  if (input.title?.trim()) body.banner_title = input.title.trim();
+  if (input.subtitle?.trim()) body.banner_subtitle = input.subtitle.trim();
+  if (input.ctaLabel?.trim()) body.banner_cta_label = input.ctaLabel.trim();
+  if (input.ctaUrl?.trim()) body.banner_cta_url = input.ctaUrl.trim();
   if (input.previewContext) body.preview_context = input.previewContext;
   const raw = asDict(await http("/promotions/checkout", { method: "POST", body: JSON.stringify(body) }));
   const gate = asDict(raw.payment_gate ?? raw.payment);
   const pack = asDict(raw.package);
   const requestId = asStr(raw.checkout_request_id ?? raw.request_id ?? gate.id);
   const status = asStr(raw.promotion_status ?? raw.status).toLowerCase();
+  const activated = raw.payment_required === false || /^(active|activated|approved|paid)$/.test(status);
   return {
+    activated,
     requestId,
     // The documented answer carries the package, not an amount of its own.
     amount: uzs(gate, "amount") || uzs(raw, "amount") || uzs(pack, "price"),
@@ -155,10 +158,11 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
     // Telegram approval says so with promotion_status and a checkout_request_id.
     // Reading only the older flag showed every successful checkout as failed.
     telegramSent:
-      gate.telegram_sent === true ||
+      !activated &&
+      (gate.telegram_sent === true ||
       raw.telegram_sent === true ||
       status.startsWith("pending") ||
-      (raw.payment_required === true && !!requestId && gate.telegram_sent !== false && raw.telegram_sent !== false),
+      (raw.payment_required === true && !!requestId && gate.telegram_sent !== false && raw.telegram_sent !== false)),
   };
 }
 

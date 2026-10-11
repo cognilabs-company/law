@@ -521,6 +521,7 @@ export default function ServiceManager({
         <PromoteModal
           aiId={`${aiBase}.promote-modal`}
           item={dialog.item}
+          profile={data?.profile ?? null}
           scope={sc}
           uid={uid}
           owner={owner}

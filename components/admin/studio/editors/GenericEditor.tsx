@@ -64,26 +64,56 @@ function emptyFor(name: string): unknown {
   return "";
 }
 
-function referenceKey(name: string): string {
-  const map: Record<string, string> = {
-    service_id: "services",
-    category_id: "service-categories",
-    service_category_id: "service-categories",
-    template_id: "document-templates",
-    document_template_id: "document-templates",
-    package_id: "promotion-packages",
-    promotion_package_id: "promotion-packages",
-    placement: "promotion-placements",
-    user_id: "users",
-    seller_user_id: "users",
-    target_user_id: "users",
-    owner_user_id: "users",
-    constructor_code: "studio-constructors",
-  };
-  return map[name.toLowerCase()] ?? "";
+// The reference list behind an id field the schema gives no source for.
+// Most names mean the same list everywhere; a few depend on the constructor
+// (K12-PROMO's package is a promotion package, K03-M's a service package).
+// The local: lists are ids the backend has no reference key for yet.
+const REFERENCE_BY_NAME: Record<string, string> = {
+  service_id: "services",
+  category_id: "service-categories",
+  service_category_id: "service-categories",
+  template_id: "document-templates",
+  document_template_id: "document-templates",
+  promotion_package_id: "promotion-packages",
+  placement: "promotion-placements",
+  user_id: "users",
+  seller_user_id: "users",
+  target_user_id: "users",
+  owner_user_id: "users",
+  assigned_user_id: "users",
+  accepted_by: "users",
+  constructor_code: "studio-constructors",
+  constructor_codes: "studio-constructors",
+  plan_id: "subscription-plans",
+  plan_ids: "subscription-plans",
+  plans: "subscription-plans",
+  organization_unit_id: "organization-units",
+  role: "roles",
+  roles: "roles",
+  target_roles: "roles",
+  audience_roles: "roles",
+  permissions: "permissions",
+};
+const REFERENCE_BY_CODE: Record<string, Record<string, string>> = {
+  "K12-PROMO": { package_id: "promotion-packages" },
+  "K03-M": { package_id: "local:service-packages" },
+  K07: { document_id: "local:consent-documents" },
+  M2: { object_id: "local:studio-objects" },
+  K01: { parent_id: "service-categories" },
+};
+// Fields whose value is a list of ids rather than one.
+const LIST_REFERENCE = /(_ids|_codes|^roles|^target_roles|^audience_roles|^plans|^permissions)$/;
+
+function referenceKey(name: string, code: string): string {
+  const n = name.toLowerCase();
+  return REFERENCE_BY_CODE[code]?.[n] ?? REFERENCE_BY_NAME[n] ?? "";
 }
 
-function ReferenceSelect({ value, source, onChange, readOnly, label }: { value: unknown; source: string; onChange: (v: unknown) => void; readOnly: boolean; label: string; required: boolean; bad: boolean; aiId: string }) {
+function ReferenceSelect({ value, source, onChange, readOnly, label, many }: { value: unknown; source: string; onChange: (v: unknown) => void; readOnly: boolean; label: string; many: boolean }) {
+  if (many) {
+    const list = Array.isArray(value) ? value.map(String) : typeof value === "string" && value ? value.split(",").map((x) => x.trim()).filter(Boolean) : [];
+    return <RefSelect multiple source={source} value={list} onChange={onChange} readOnly={readOnly} label={label} />;
+  }
   return <RefSelect source={source} value={value == null ? "" : String(value)} onChange={onChange} readOnly={readOnly} label={label} />;
 }
 
@@ -144,8 +174,10 @@ function Field({
   readOnly,
   onChange,
   meta,
+  code,
 }: {
   name: string;
+  code: string;
   source: string;
   value: unknown;
   required: boolean;
@@ -164,7 +196,9 @@ function Field({
   const many = meta?.type === "multiselect" || Array.isArray(value);
   const aiId = `admin.studio.editor.field.${name.replace(/[^A-Za-z0-9_-]+/g, "-")}`;
   const bad = Boolean(error);
-  const reference = source || referenceKey(name);
+  // An object-typed field ("permissions" as a map) is never a reference.
+  const reference = meta?.type === "object" ? "" : source || referenceKey(name, code);
+  const manyRef = Boolean(reference) && (meta?.type === "multiselect" || meta?.type === "list" || Array.isArray(value) || (!meta?.type && LIST_REFERENCE.test(name)) || (meta?.type === "text" && LIST_REFERENCE.test(name)));
   return (
     <div className={`stu-fld stu-fld--${kind}`}>
       {kind === "bool" ? (
@@ -193,7 +227,7 @@ function Field({
             </span>
           </label>
           {reference ? (
-            <ReferenceSelect value={value} source={reference} onChange={onChange} readOnly={readOnly} label={label} required={required} bad={bad} aiId={aiId} />
+            <ReferenceSelect value={value} source={reference} onChange={onChange} readOnly={readOnly} label={label} many={manyRef} />
           ) : options.length && many ? (
             <ChipPick options={options} value={Array.isArray(value) ? value.map(String) : []} onChange={onChange} readOnly={readOnly} label={label} ai={aiId} invalid={bad} />
           ) : options.length ? (
@@ -301,7 +335,7 @@ export default function GenericEditor({ code, constructor, payload, onChange, er
           {schemaFields.length ? (
             <div className="stu-gen__grid">
               {schemaFields.map((f) => (
-                <Field key={f} name={f} source={sources[f] ?? ""} meta={meta[f]} value={payload[f]} required={required.has(f)} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
+                <Field key={f} name={f} code={ctorCode} source={sources[f] ?? ""} meta={meta[f]} value={payload[f]} required={required.has(f)} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
               ))}
             </div>
           ) : null}
@@ -310,7 +344,7 @@ export default function GenericEditor({ code, constructor, payload, onChange, er
               <h4>{t("generic.extra")}</h4>
               <div className="stu-gen__grid">
                 {extra.map((f) => (
-                  <Field key={f} name={f} source={sources[f] ?? ""} meta={meta[f]} value={payload[f]} required={false} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
+                  <Field key={f} name={f} code={ctorCode} source={sources[f] ?? ""} meta={meta[f]} value={payload[f]} required={false} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
                 ))}
               </div>
             </section>

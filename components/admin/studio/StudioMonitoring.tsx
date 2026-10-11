@@ -13,7 +13,7 @@ import { ctorOrder } from "@/lib/studio/constructors";
 import StudioShell from "./StudioShell";
 import { ConstructorIcon, StudioCodeChip, StudioEmpty, StudioLoading, useNow, useStudioLive, useStudioText } from "./bits";
 import { StudioKpi, LoadProblem, initialsOf, matchesTerms, type Phase } from "./settings/ui";
-import { IconChartBar, IconClock, IconEdit, IconRefresh, IconUsers } from "@/components/icons";
+import { IconChartBar, IconClock, IconEdit, IconPlus, IconRefresh, IconSend, IconUsers } from "@/components/icons";
 
 const IconPulse = (p: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}>
@@ -23,8 +23,37 @@ const IconPulse = (p: SVGProps<SVGSVGElement>) => (
 
 type Row = { a: StudioActivity; at: number };
 type State = { phase: Phase; rows: Row[]; serverOnline: number; summary: { online: number; sessions: number; users: number; objectsCreated: number; submittedForApproval: number; saveCount: number; durationSeconds: number }; users: StudioMonitoringUser[]; error: unknown };
+// The period the numbers cover (10-09 §9: date, or date_from / date_to).
+type Period = "today" | "yesterday" | "week" | "month" | "all" | "custom";
+const PERIODS: Period[] = ["today", "yesterday", "week", "month", "all"];
 
 const AI = "admin.studio.monitoring";
+const FALLBACK_MS = 60_000;
+
+// YYYY-MM-DD in the viewer's own calendar, `back` days ago.
+function dayIso(back = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() - back);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function rangeOf(period: Period, from: string, to: string): { date?: string; dateFrom?: string; dateTo?: string } {
+  if (period === "today") return { date: dayIso(0) };
+  if (period === "yesterday") return { date: dayIso(1) };
+  if (period === "week") return { dateFrom: dayIso(6), dateTo: dayIso(0) };
+  if (period === "month") return { dateFrom: dayIso(29), dateTo: dayIso(0) };
+  if (period === "custom") return { dateFrom: from || undefined, dateTo: to || undefined };
+  return {};
+}
+
+// Whether new activity can still land in the period: a past day or range
+// is closed, so live events for it are not ours to refetch.
+function periodIsOpen(period: Period, to: string): boolean {
+  if (period === "yesterday") return false;
+  if (period === "custom" && to) return to >= dayIso(0);
+  return true;
+}
 
 function eventRaw(e: UserEvent): Record<string, unknown> {
   const d = asDict(e.data ?? e.payload ?? e.activity ?? e.session);
@@ -70,12 +99,6 @@ function clock(sec: number): string {
   return h > 0 ? `${h}:${p(m)}:${p(ss)}` : `${p(m)}:${p(ss)}`;
 }
 
-function sameDay(iso: string, now: number): boolean {
-  const at = parseServerTime(iso);
-  if (!Number.isFinite(at) || !now) return false;
-  return new Date(at).toDateString() === new Date(now).toDateString();
-}
-
 function LiveClock({ row }: { row: Row }) {
   const now = useNow(1000);
   return (
@@ -96,15 +119,31 @@ export default function StudioMonitoring() {
 
 function MonitoringBody() {
   const { t, ctorName, role, duration, ago, num } = useStudioText();
+  // "k02-editor" → "Tahrirlash"; "save" → "Saqlash". Unknown words stay as sent.
+  const screenName = (v: string) => {
+    const k = v.trim().toLowerCase();
+    if (!k) return "";
+    if (/-editor$|^editor$/.test(k)) return t("monitoring.screen.editor");
+    return t.has(`monitoring.screen.${k}`) ? t(`monitoring.screen.${k}`) : "";
+  };
+  const actionName = (v: string) => {
+    const k = v.trim().toLowerCase();
+    if (!k || /-editor$/.test(k)) return "";
+    return t.has(`monitoring.action.${k}`) ? t(`monitoring.action.${k}`) : "";
+  };
   const now = useNow(30_000);
   const [st, setSt] = useState<State>({ phase: "loading", rows: [], serverOnline: 0, summary: { online: 0, sessions: 0, users: 0, objectsCreated: 0, submittedForApproval: 0, saveCount: 0, durationSeconds: 0 }, users: [], error: null });
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
   const [code, setCode] = useState("");
   const [userId, setUserId] = useState("");
+  const [period, setPeriod] = useState<Period>("today");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [state, setState] = useState("");
+  // Everyone and every constructor seen in any answer: a filtered answer
+  // holds only the filtered user, and the filter must not shrink to it.
+  const [seen, setSeen] = useState<{ users: StudioMonitoringUser[]; codes: string[] }>({ users: [], codes: [] });
   const seq = useRef(0);
   const liveRows = useRef<Row[]>([]);
   const soon = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -112,20 +151,38 @@ function MonitoringBody() {
   const load = useCallback(async () => {
     const my = ++seq.current;
     try {
-      const m = await getStudioMonitoring({ constructorCode: code, userId, dateFrom, dateTo });
+      const m = await getStudioMonitoring({ constructorCode: code, userId, ...rangeOf(period, dateFrom, dateTo) });
       if (my !== seq.current) return;
       const at = Date.now();
       setSt({ phase: "ready", rows: sortRows(m.items.map((a) => ({ a, at }))), serverOnline: m.online, summary: m.summary, users: m.users, error: null });
+      setSeen((cur) => {
+        const users = new Map(cur.users.map((u) => [u.id, u]));
+        for (const u of m.users) if (u.id) users.set(u.id, u);
+        const codes = new Set([...cur.codes, ...m.items.map((a) => a.constructorCode).filter(Boolean)]);
+        return { users: [...users.values()], codes: [...codes] };
+      });
     } catch (e) {
       if (my !== seq.current) return;
       setSt((cur) => (cur.phase === "ready" ? { ...cur, error: e } : { phase: "error", rows: [], serverOnline: 0, summary: cur.summary, users: cur.users, error: e }));
     }
-  }, [code, userId, dateFrom, dateTo]);
+  }, [code, userId, period, dateFrom, dateTo]);
 
   useEffect(() => {
     void load();
     return () => clearTimeout(soon.current);
   }, [load]);
+
+  // The live channel is the main signal; a quiet re-read once a minute (only
+  // while the tab is visible and the period can still change) covers a
+  // missed frame or a channel that is not open for this account.
+  const open = periodIsOpen(period, dateTo);
+  useEffect(() => {
+    if (!open) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, FALLBACK_MS);
+    return () => clearInterval(id);
+  }, [load, open]);
 
   useEffect(() => {
     liveRows.current = st.phase === "ready" ? st.rows : [];
@@ -146,6 +203,11 @@ function MonitoringBody() {
     const key = sessionKey(raw);
     const ended = e.event === "studio.activity_ended";
     if (!key || !liveRows.current.some((r) => r.a.sessionId === key)) {
+      // A session we do not show yet: re-read only if it can belong to the
+      // current view — the period is still open and it passes the filters.
+      const who = String(raw.user_id ?? raw.userId ?? "");
+      const ctor = String(raw.constructor_code ?? raw.constructorCode ?? "");
+      if (!open || (userId && who && who !== userId) || (code && ctor && ctor !== code)) return;
       refetchSoon();
       return;
     }
@@ -165,7 +227,11 @@ function MonitoringBody() {
       }
       const next = [...cur.rows];
       next[idx] = { a: normStudioActivity(merged, at), at };
-      return { ...cur, rows: sortRows(next) };
+      // Who is online follows the sessions: the per-user rows and the
+      // summary card change with the event, not with the next read.
+      const liveUsers = new Set(next.filter((r) => r.a.online).map((r) => r.a.userId));
+      const users = cur.users.map((u) => (u.online === liveUsers.has(u.id) ? u : { ...u, online: liveUsers.has(u.id) }));
+      return { ...cur, rows: sortRows(next), users, summary: { ...cur.summary, online: liveUsers.size } };
     });
   };
   useStudioLive(onLive);
@@ -190,12 +256,11 @@ function MonitoringBody() {
   }
 
   const rows = st.rows;
-  const online = st.summary.online || (rows.length ? rows.filter((r) => r.a.online).length : st.serverOnline);
-  const today = rows.filter((r) => sameDay(r.a.startedAt || r.a.lastSeenAt, now));
-  const todaySaves = today.reduce((n, r) => n + r.a.saveCount, 0);
-  const todayTime = today.reduce((n, r) => n + liveSeconds(r, now), 0);
+  const online = st.summary.online;
+  // Time worked in the period, with the open sessions still counting.
+  const liveExtra = rows.reduce((n, r) => n + (r.a.online ? liveSeconds(r, now) - r.a.durationSec : 0), 0);
 
-  const codes = [...new Set(rows.map((r) => r.a.constructorCode).filter(Boolean))].sort((x, y) => ctorOrder(x) - ctorOrder(y));
+  const codes = [...new Set([...seen.codes, ...rows.map((r) => r.a.constructorCode).filter(Boolean)])].sort((x, y) => ctorOrder(x) - ctorOrder(y));
   if (code && !codes.includes(code)) codes.push(code);
   const codeOpts = [
     { value: "", label: t("common.all") },
@@ -208,8 +273,11 @@ function MonitoringBody() {
   ];
   const userOpts = [
     { value: "", label: t("common.all") },
-    ...st.users.map((user) => ({ value: user.id, label: `${user.name || t("monitoring.unknownUser")} (${num(user.sessions)})` })),
+    ...[...seen.users].sort((x, y) => (x.name || "").localeCompare(y.name || "")).map((user) => ({ value: user.id, label: user.name || t("monitoring.unknownUser") })),
   ];
+  // The base role of a staff account is often "client": not worth saying.
+  const roleNote = (r: string) => (r && r !== "client" ? ` · ${role(r)}` : "");
+  const whatOf = (a: StudioActivity) => [screenName(a.screen), actionName(a.lastAction)].filter((x, i, all) => x && all.indexOf(x) === i).join(" · ");
   const shown = rows.filter((r) => {
     if (code && r.a.constructorCode !== code) return false;
     if (state === "online" && !r.a.online) return false;
@@ -217,25 +285,72 @@ function MonitoringBody() {
     return matchesTerms([r.a.userName, r.a.role, role(r.a.role), r.a.constructorCode, ctorName(r.a.constructorCode), r.a.objectName], q);
   });
 
+  const ready = st.phase === "ready";
+  const periodBar = (
+    <div className="stu-mon__period" role="group" aria-label={t("monitoring.periodTitle")} data-ai-id={`${AI}.period`} data-ai-type="group" data-ai-label={t("monitoring.periodTitle")}>
+      {PERIODS.map((p) => (
+        <button
+          key={p}
+          type="button"
+          className={period === p ? "on" : undefined}
+          aria-pressed={period === p}
+          onClick={() => {
+            setPeriod(p);
+            setDateFrom("");
+            setDateTo("");
+          }}
+        >
+          {t(`monitoring.period.${p}`)}
+        </button>
+      ))}
+      <div className="stu-mon__dates">
+        <div className="stu-mon__date">
+          <span>{t("monitoring.dateFrom")}</span>
+          <DatePicker
+            value={dateFrom}
+            onChange={(v) => {
+              setDateFrom(v);
+              setPeriod(v || dateTo ? "custom" : "all");
+            }}
+            placeholder={t("monitoring.dateFrom")}
+            ariaLabel={t("monitoring.dateFrom")}
+            max={dateTo || undefined}
+            clearLabel={t("common.clear")}
+          />
+        </div>
+        <div className="stu-mon__date">
+          <span>{t("monitoring.dateTo")}</span>
+          <DatePicker
+            value={dateTo}
+            onChange={(v) => {
+              setDateTo(v);
+              setPeriod(v || dateFrom ? "custom" : "all");
+            }}
+            placeholder={t("monitoring.dateTo")}
+            ariaLabel={t("monitoring.dateTo")}
+            min={dateFrom || undefined}
+            clearLabel={t("common.clear")}
+          />
+        </div>
+      </div>
+    </div>
+  );
   const kpis = (
-    <div className="stu-mkpis" data-ai-id={`${AI}.summary`} data-ai-type="section" data-ai-label={t("monitoring.summary")}>
-      <StudioKpi icon={IconPulse} value={st.phase === "ready" ? num(online) : "—"} label={t("monitoring.kpi.online")} tone={online > 0 ? "ok" : undefined} />
-      <StudioKpi icon={IconUsers} value={st.phase === "ready" ? num(st.summary.sessions || today.length) : "—"} label={t("monitoring.kpi.sessions")} />
-      <StudioKpi icon={IconUsers} value={st.phase === "ready" ? num(st.summary.users) : "—"} label={t("monitoring.kpi.users")} />
-      <StudioKpi
-        icon={IconEdit}
-        value={st.phase === "ready" ? num(st.summary.saveCount || todaySaves) : "—"}
-        label={t("monitoring.kpi.saves")}
-        hint={st.phase === "ready" && (st.summary.durationSeconds || todayTime) > 0 ? t("monitoring.kpi.time", { v: duration(st.summary.durationSeconds || todayTime) }) : undefined}
-      />
-      <StudioKpi icon={IconEdit} value={st.phase === "ready" ? num(st.summary.objectsCreated) : "—"} label={t("monitoring.kpi.objects")} />
-      <StudioKpi icon={IconEdit} value={st.phase === "ready" ? num(st.summary.submittedForApproval) : "—"} label={t("monitoring.kpi.submitted")} />
+    <div className="stu-mkpis stu-mkpis--mon" data-ai-id={`${AI}.summary`} data-ai-type="section" data-ai-label={t("monitoring.summary")}>
+      <StudioKpi icon={IconPulse} value={ready ? num(online) : "—"} label={t("monitoring.kpi.online")} hint={ready ? t("monitoring.kpi.onlineHint") : undefined} tone={online > 0 ? "ok" : undefined} />
+      <StudioKpi icon={IconUsers} value={ready ? num(st.summary.users) : "—"} label={t("monitoring.kpi.users")} />
+      <StudioKpi icon={IconChartBar} value={ready ? num(st.summary.sessions) : "—"} label={t("monitoring.kpi.sessions")} />
+      <StudioKpi icon={IconClock} value={ready ? duration(st.summary.durationSeconds + liveExtra) || "0" : "—"} label={t("monitoring.kpi.duration")} />
+      <StudioKpi icon={IconEdit} value={ready ? num(st.summary.saveCount) : "—"} label={t("monitoring.kpi.saves")} />
+      <StudioKpi icon={IconPlus} value={ready ? num(st.summary.objectsCreated) : "—"} label={t("monitoring.kpi.objects")} />
+      <StudioKpi icon={IconSend} value={ready ? num(st.summary.submittedForApproval) : "—"} label={t("monitoring.kpi.submitted")} />
     </div>
   );
 
   if (st.phase === "loading") {
     return (
       <>
+        {periodBar}
         {kpis}
         <StudioLoading rows={4} />
       </>
@@ -244,6 +359,7 @@ function MonitoringBody() {
   if (st.phase === "error") {
     return (
       <>
+        {periodBar}
         {kpis}
         <LoadProblem error={st.error} onRetry={() => void refresh()} busy={busy} missingText={t("monitoring.missing")} />
       </>
@@ -255,6 +371,7 @@ function MonitoringBody() {
 
   return (
     <>
+      {periodBar}
       {kpis}
       {people.length ? (
         <section className="stu-card stu-mon" data-ai-id={`${AI}.users`} data-ai-type="section" data-ai-label={t("monitoring.usersTitle")}>
@@ -291,7 +408,7 @@ function MonitoringBody() {
                       <b>{name}</b>
                       <small>
                         <span className={`stu-mon__state${u.online ? " is-on" : ""}`}>{u.online ? t("monitoring.online") : t("monitoring.offline")}</span>
-                        {u.role ? ` · ${role(u.role)}` : ""}
+                        {roleNote(u.role)}
                       </small>
                     </span>
                   </span>
@@ -337,30 +454,6 @@ function MonitoringBody() {
             aiLabel={t("monitoring.filterTitle")}
           />
         ) : null}
-        <div className="stu-mon__dates">
-          <div className="stu-mon__date">
-            <span>{t("monitoring.dateFrom")}</span>
-            <DatePicker
-              value={dateFrom}
-              onChange={setDateFrom}
-              placeholder={t("monitoring.dateFrom")}
-              ariaLabel={t("monitoring.dateFrom")}
-              max={dateTo || undefined}
-              clearLabel={t("common.clear")}
-            />
-          </div>
-          <div className="stu-mon__date">
-            <span>{t("monitoring.dateTo")}</span>
-            <DatePicker
-              value={dateTo}
-              onChange={setDateTo}
-              placeholder={t("monitoring.dateTo")}
-              ariaLabel={t("monitoring.dateTo")}
-              min={dateFrom || undefined}
-              clearLabel={t("common.clear")}
-            />
-          </div>
-        </div>
 
         {!rows.length ? (
           <StudioEmpty icon={IconChartBar} title={t("screens.monitoring.emptyTitle")} text={t("screens.monitoring.emptyText")} />
@@ -397,7 +490,7 @@ function MonitoringBody() {
                       <b>{name}</b>
                       <small>
                         <span className={`stu-mon__state${a.online ? " is-on" : ""}`}>{a.online ? t("monitoring.online") : t("monitoring.offline")}</span>
-                        {a.role ? ` · ${role(a.role)}` : ""}
+                        {roleNote(a.role)}
                       </small>
                     </span>
                   </span>
@@ -415,6 +508,7 @@ function MonitoringBody() {
                         <StudioCodeChip code={a.constructorCode} />
                         {a.constructorCode ? ctorName(a.constructorCode) : ""}
                       </small>
+                      {whatOf(a) ? <small className="stu-mon__act">{whatOf(a)}</small> : null}
                     </span>
                   </span>
                   <span className="stu-mon__num" role="cell">

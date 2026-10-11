@@ -97,6 +97,7 @@ export type StudioActivity = {
   objectName: string;
   versionId: string;
   screen: string;
+  lastAction: string;
   online: boolean;
   startedAt: string;
   lastSeenAt: string;
@@ -446,6 +447,7 @@ export function normStudioActivity(raw: unknown, now = 0): StudioActivity {
     objectName: first(r.object_name, meta.object_name, r.object_title, r.title),
     versionId: first(r.version_id, r.versionId),
     screen: first(r.screen, meta.screen),
+    lastAction: first(r.last_action, r.action, meta.last_action),
     online,
     startedAt,
     lastSeenAt,
@@ -908,6 +910,40 @@ export async function getStudioReference(key: string, q = "", limit = 50, signal
     const valueOf = first(row.value, row.id, row.code, row.key);
     return { id: first(row.id, valueOf), value: valueOf, label: first(row.label, row.title, row.name, row.full_name, valueOf), raw: row };
   }).filter((item) => item.value);
+}
+
+// Ids the backend schema leaves as a plain text field but that still name a
+// known record — an existing service package (K03-M), a consent document
+// (K07), a Studio object (M2). They are picked from that record's own list
+// instead of being typed (10-09 §11). Loaded once per page and searched here.
+const LOCAL_REFERENCES: Record<string, () => Promise<StudioReferenceItem[]>> = {
+  "local:service-packages": async () => {
+    const { getServicePackages } = await import("@/lib/services/backend");
+    return (await getServicePackages()).map((p) => ({ id: p.id, value: p.id, label: p.title || p.code, raw: { code: p.code, category_title: p.categoryTitle } }));
+  },
+  "local:consent-documents": async () => {
+    const { listAdminConsentDocs } = await import("@/lib/services/backend");
+    return (await listAdminConsentDocs()).map((d) => ({ id: d.id, value: d.id, label: d.title || d.slug, raw: { code: [d.slug, d.version].filter(Boolean).join(" · ") } }));
+  },
+  "local:studio-objects": async () =>
+    (await listStudioObjects({ limit: 200 })).items.map((o) => ({ id: o.id, value: o.id, label: o.title || o.id, raw: { code: o.code } })),
+};
+const localCache = new Map<string, Promise<StudioReferenceItem[]>>();
+
+export const isLocalStudioReference = (source: string) => source in LOCAL_REFERENCES;
+
+export async function loadStudioReference(source: string, q = "", limit = 50, signal?: AbortSignal): Promise<StudioReferenceItem[]> {
+  const load = LOCAL_REFERENCES[source];
+  if (!load) return getStudioReference(source, q, limit, signal);
+  let all = localCache.get(source);
+  if (!all) {
+    all = load();
+    localCache.set(source, all);
+    all.catch(() => localCache.delete(source));
+  }
+  const rows = await all;
+  const needle = q.trim().toLowerCase();
+  return (needle ? rows.filter((r) => `${r.label} ${r.value} ${asStr(r.raw.code)}`.toLowerCase().includes(needle)) : rows).slice(0, limit);
 }
 
 export async function listStudioAccess(): Promise<StudioList<StudioAccessGrant> & { raw: unknown }> {

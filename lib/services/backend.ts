@@ -3947,7 +3947,6 @@ function createModule(path: string, input: ModuleInput): Promise<ModuleRecord> {
 export const listCourses = () => listModule("/academy/courses");
 export const listB2bProducts = () => listModule("/b2b/products");
 export const listAds = () => listModule("/ads/products");
-export const listActiveAds = () => listModule("/ads/products?status=active").then((rows) => rows.filter((r) => !r.status || r.status === "active"));
 export const createAd = (i: ModuleInput) => createModule("/ads/products", i);
 // PATCH/DELETE /ads/products/{id} (2026-09-19 backend). Delete is a soft
 // delete (status → "deleted"); edit is a plain partial patch.
@@ -4432,48 +4431,6 @@ export async function getPromotionAnalytics(): Promise<PromotionAnalytics> {
     }),
   };
 }
-// LEXGO_PROMOTION_CHECKOUT_NAV_AI_UPDATE_2026-09-29.md S1. The checkout no
-// longer goes through a payment provider at all: the backend raises a
-// `telegram_manual` payment and an admin approves it with an inline button,
-// so there is no URL to send the seller to and the package is NOT active
-// when this returns. The provider is named explicitly rather than left to
-// CHECKOUT_PROVIDER (which is "payme" in this build): the MD only promises
-// to coerce the older `demo_payme`, so sending anything else is a gamble
-// this does not need to take.
-const PROMOTION_PROVIDER = "telegram_manual";
-export type PromotionCheckout = PurchaseResult & {
-  // PROMO-XXXXX (LEXGO_PUBLIC_WORK_IDS_FRONTEND.md) — what the seller sees
-  // while the request waits on Telegram.
-  promotionWorkId: string;
-  // "pending_telegram_approval" while an admin has not answered yet.
-  promotionStatus: string;
-  checkoutRequestId: string;
-  // Whether the Telegram message was actually dispatched. False means the
-  // seller is waiting on something nobody was asked to approve.
-  telegramSent: boolean;
-  amount: number;
-  currency: string;
-};
-export const PROMOTION_PENDING = "pending_telegram_approval";
-export async function checkoutPromotion(packageId: string, days: number): Promise<PromotionCheckout> {
-  const raw = await http("/promotions/checkout", {
-    method: "POST",
-    body: JSON.stringify({ package_id: packageId, days, provider: PROMOTION_PROVIDER }),
-  });
-  const d = asDict(raw);
-  const gate = asDict(d.payment_gate);
-  const pay = asDict(d.payment);
-  return {
-    ...normPurchase(raw),
-    promotionWorkId: asStr(d.work_id ?? gate.work_id),
-    promotionStatus: asStr(d.promotion_status),
-    checkoutRequestId: asStr(d.checkout_request_id ?? gate.id),
-    telegramSent: gate.telegram_sent === true,
-    amount: asNum(gate.amount ?? pay.amount),
-    currency: asStr(gate.currency ?? pay.currency, "UZS"),
-  };
-}
-
 // ── Gifts ─────────────────────────────────────────────────────────
 export type Gift = {
   id: string;

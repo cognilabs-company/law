@@ -22,7 +22,7 @@ import {
 export type Dict = Record<string, unknown>;
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
-export const ED_ERR = { snake: "@snake", options: "@options", fileMode: "@fileMode", minOne: "@minOne", unknownVar: "@unknownVar" } as const;
+export const ED_ERR = { snake: "@snake", options: "@options", fileMode: "@fileMode", minOne: "@minOne", unknownVar: "@unknownVar", code: "@code" } as const;
 const ED_TOKENS = new Set<string>(Object.values(ED_ERR));
 
 export const SNAKE_RE = /^[a-z][a-z0-9_]*$/;

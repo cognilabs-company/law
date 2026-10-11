@@ -37,6 +37,13 @@ export type MarketPromotionSurface = {
   imageUrl: string;
   boostScore: number;
   isSponsored: boolean;
+  // banner_mode "profile_card": a banner bought without a picture is drawn as
+  // the seller's own card, from seller_profile.
+  bannerMode: string;
+  // Whole days until ends_at, counted when the answer arrived (0 = ends today,
+  // -1 = no end given).
+  daysLeft: number;
+  seller: { rating: number; reviews: number; verified: boolean; type: string; specialization: string; region: string; experience: number; headline: string } | null;
 };
 
 export type MarketSeller = {
@@ -138,10 +145,17 @@ function normPromotion(v: unknown): MarketPromotion | null {
   };
 }
 
+function daysUntil(iso: string): number {
+  const end = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(end)) return -1;
+  return Math.max(0, Math.floor((end - Date.now()) / 86_400_000));
+}
+
 export function normPromotionSurface(v: unknown): MarketPromotionSurface {
   const d = asDict(v);
   const seller = asDict(d.seller);
   const service = asDict(d.service);
+  const profile = asDict(d.seller_profile);
   return {
     id: asStr(d.id ?? d.promotion_id),
     placement: asStr(d.placement),
@@ -156,6 +170,20 @@ export function normPromotionSurface(v: unknown): MarketPromotionSurface {
     imageUrl: asStr(d.image_url ?? d.banner_image_url),
     boostScore: asNum(d.boost_score),
     isSponsored: d.is_sponsored !== false,
+    bannerMode: asStr(d.banner_mode),
+    daysLeft: daysUntil(asStr(d.ends_at)),
+    seller: Object.keys(profile).length
+      ? {
+          rating: asNum(profile.rating),
+          reviews: asNum(profile.reviews_count),
+          verified: profile.is_verified === true || asStr(profile.verification_status) === "approved",
+          type: asStr(profile.seller_type ?? profile.role ?? seller.role),
+          specialization: asStr(profile.specialization ?? asArr(profile.specializations)[0]),
+          region: asStr(profile.region),
+          experience: asNum(profile.experience_years) || asNum(profile.lawyer_experience_years),
+          headline: asStr(profile.headline),
+        }
+      : null,
   };
 }
 

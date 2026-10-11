@@ -65,7 +65,9 @@ export type PriceBand = {
 
 export type AdPackage = { id: string; title: string; price: number; currency: string; days: number; reach: number };
 
-export type PromotionRequest = { requestId: string; amount: number; currency: string; telegramSent: boolean };
+// activated: the backend switched the promotion on at once (no payment step),
+// so there is nothing to wait for.
+export type PromotionRequest = { requestId: string; amount: number; currency: string; telegramSent: boolean; activated?: boolean };
 
 export const NOTE_MAX = 2000;
 

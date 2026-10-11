@@ -74,7 +74,9 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
   useEffect(() => {
     const ctl = new AbortController();
     listActivePromotions({ sellerUserId: userId, limit: 5 }, ctl.signal)
-      .then((list) => setActivePromos(list.filter((p) => !p.sellerUserId || p.sellerUserId === userId)))
+      .then((list) => {
+        if (!ctl.signal.aborted) setActivePromos(list.filter((p) => !p.sellerUserId || p.sellerUserId === userId));
+      })
       .catch(() => {});
     return () => ctl.abort();
   }, [userId]);

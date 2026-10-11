@@ -6,7 +6,8 @@ import { asArr, asDict, asNum, asStr } from "@/lib/http";
 import { getOrgUnitDetail, normEmployee, personName, type OrgBoard, type OrgBoardNode } from "@/lib/services/internalHrm";
 import { IconBriefcase, IconBuilding, IconChevronDown, IconEdit, IconExpand, IconList, IconMinus, IconPlus, IconSearch, IconUser, IconUsers } from "@/components/icons";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
-import { HrmAvatar, HrmBar, HrmEmpty, HrmKv, HrmLoading, HrmPerson, HrmSection, HrmStat, HrmStatus, useHrmFormat } from "@/components/internal/HrmUi";
+import { HrmAvatar, HrmBar, HrmEmpty, HrmError, HrmKv, HrmLoading, HrmPerson, HrmSection, HrmStat, HrmStatus, useHrmFormat } from "@/components/internal/HrmUi";
+import Select from "@/components/Select";
 
 // HRM org chart (10-09 guide §10). The board answers flat nodes + edges; this
 // turns them back into the tree they describe — units branching sideways,
@@ -52,6 +53,29 @@ function buildTree(board: OrgBoard): Tree[] {
   return units.filter((u) => !parentOf.get(u.id) || !byId.has(parentOf.get(u.id)!)).sort(order).map((r) => make(r, 0, seen));
 }
 
+const positionIdOf = (n: OrgBoardNode) => asStr(asDict(n.raw.position).id) || asStr(asDict(n.raw.assignment).position_id);
+
+// One unit and everything under it.
+function subtreeOf(trees: Tree[], id: string): Tree[] {
+  for (const t of trees) {
+    if (t.node.id === id) return [t];
+    const hit = subtreeOf(t.units, id);
+    if (hit.length) return hit;
+  }
+  return [];
+}
+
+// Only the people holding one position, and the units on the way to them.
+function byPosition(trees: Tree[], positionId: string): Tree[] {
+  const out: Tree[] = [];
+  for (const t of trees) {
+    const units = byPosition(t.units, positionId);
+    const people = t.people.filter((p) => positionIdOf(p) === positionId);
+    if (units.length || people.length) out.push({ ...t, units, people });
+  }
+  return out;
+}
+
 // Keep a unit when it, one of its people or anything below it matches.
 function filterTree(trees: Tree[], needle: string): Tree[] {
   if (!needle) return trees;
@@ -74,9 +98,12 @@ export default function InternalOrgBoard({
   onAddUnit,
   onAddEmployee,
   onOpenEmployee,
+  failed,
 }: {
   board: OrgBoard;
   loading: boolean;
+  // The board could not be read: the page says so; no "no units yet" here.
+  failed?: boolean;
   onEditUnit: (unitId: string) => void;
   onAddUnit: (parentId: string) => void;
   onAddEmployee: (unitId: string) => void;
@@ -89,10 +116,29 @@ export default function InternalOrgBoard({
   const [view, setView] = useState<View>("board");
   const [selectedId, setSelectedId] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [unitF, setUnitF] = useState("");
+  const [positionF, setPositionF] = useState("");
 
   const trees = useMemo(() => buildTree(board), [board]);
   const needle = query.trim().toLocaleLowerCase();
-  const shown = useMemo(() => filterTree(trees, needle), [trees, needle]);
+  const shown = useMemo(() => {
+    let out = unitF ? subtreeOf(trees, unitF) : trees;
+    if (positionF) out = byPosition(out, positionF);
+    return filterTree(out, needle);
+  }, [trees, needle, unitF, positionF]);
+  const unitOpts = useMemo(
+    () => [{ value: "", label: tb("allUnits") }, ...flatten(trees).map((u) => ({ value: u.node.id, label: `${"\u00a0".repeat(u.depth * 3)}${u.node.label}` }))],
+    [trees, tb],
+  );
+  const positionOpts = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const n of board.nodes) if (n.type === "employee" && positionIdOf(n)) m.set(positionIdOf(n), asStr(asDict(n.raw.position).title) || n.subtitle);
+    return [{ value: "", label: tb("allPositions") }, ...[...m.entries()].sort((x, y) => x[1].localeCompare(y[1])).map(([value, label]) => ({ value, label }))];
+  }, [board.nodes, tb]);
+  // The backend says which board controls it supports (10-09 §10 layout).
+  const layout = asDict(board.layout);
+  const canZoom = layout.supports_zoom !== false;
+  const canMinimap = layout.supports_minimap !== false;
   const selected = board.nodes.find((n) => n.id === selectedId) ?? null;
   const toggle = useCallback((id: string) => setCollapsed((cur) => { const next = new Set(cur); if (next.has(id)) next.delete(id); else next.add(id); return next; }), []);
 
@@ -102,6 +148,12 @@ export default function InternalOrgBoard({
         <div className="uf-search org__search">
           <IconSearch aria-hidden="true" />
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tb("search")} aria-label={tb("search")} maxLength={120} />
+        </div>
+        <div className="org__filter">
+          <Select value={unitF} onChange={setUnitF} options={unitOpts} ariaLabel={tb("filterUnit")} />
+        </div>
+        <div className="org__filter">
+          <Select value={positionF} onChange={setPositionF} options={positionOpts} ariaLabel={tb("filterPosition")} />
         </div>
         <label className="org__toggle">
           <input type="checkbox" checked={showPeople} onChange={(e) => setShowPeople(e.target.checked)} />
@@ -117,7 +169,7 @@ export default function InternalOrgBoard({
         </div>
       </div>
 
-      {loading ? <div className="hrm-panel"><HrmLoading rows={5} /></div> : !trees.length ? (
+      {loading ? <div className="hrm-panel"><HrmLoading rows={5} /></div> : failed && !trees.length ? null : !trees.length ? (
         <div className="hrm-panel"><HrmEmpty icon={IconBuilding} title={t("emptyUnits")} text={tb("emptyLead")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => onAddUnit("")}><IconPlus />{t("newUnit")}</button>} /></div>
       ) : view === "stats" ? (
         <OrgStats board={board} trees={trees} />
@@ -125,9 +177,9 @@ export default function InternalOrgBoard({
         <div className="org__work">
           <div className="org__main">
             {view === "board" ? (
-              <BoardCanvas trees={shown} showPeople={showPeople} selectedId={selectedId} onSelect={setSelectedId} collapsed={collapsed} onToggle={toggle} needle={needle} />
+              <BoardCanvas trees={shown} showPeople={showPeople} selectedId={selectedId} onSelect={setSelectedId} collapsed={collapsed} onToggle={toggle} needle={needle} canZoom={canZoom} canMinimap={canMinimap} />
             ) : (
-              <OrgList trees={shown} showPeople={showPeople} selectedId={selectedId} onSelect={setSelectedId} />
+              <OrgList trees={shown} showPeople={showPeople} selectedId={selectedId} onSelect={setSelectedId} filtered={Boolean(needle || unitF || positionF)} />
             )}
           </div>
           <aside className="org__aside">
@@ -216,7 +268,7 @@ function TreeView({ trees, showPeople, selectedId, onSelect, collapsed, onToggle
 
 // ── Board canvas: zoom, pan, minimap ───────────────────────────────────────
 
-function BoardCanvas(props: { trees: Tree[]; showPeople: boolean; selectedId: string; onSelect: (id: string) => void; collapsed: Set<string>; onToggle: (id: string) => void; needle: string }) {
+function BoardCanvas({ canZoom, canMinimap, ...props }: { trees: Tree[]; showPeople: boolean; selectedId: string; onSelect: (id: string) => void; collapsed: Set<string>; onToggle: (id: string) => void; needle: string; canZoom: boolean; canMinimap: boolean }) {
   const tb = useTranslations("internal.people.board");
   const canvas = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
@@ -307,12 +359,14 @@ function BoardCanvas(props: { trees: Tree[]; showPeople: boolean; selectedId: st
 
   return (
     <div className="org-board">
+      {canZoom ? (
       <div className="org-zoom" role="group" aria-label={tb("zoom")}>
         <button type="button" onClick={() => step(-0.1)} disabled={zoom <= ZOOM_MIN} aria-label={tb("zoomOut")} title={tb("zoomOut")}><IconMinus /></button>
         <output>{Math.round(zoom * 100)}%</output>
         <button type="button" onClick={() => step(0.1)} disabled={zoom >= ZOOM_MAX} aria-label={tb("zoomIn")} title={tb("zoomIn")}><IconPlus /></button>
         <button type="button" onClick={fit} aria-label={tb("fit")} title={tb("fit")}><IconExpand /></button>
       </div>
+      ) : null}
       <div className="org-canvas" ref={canvas} onScroll={onScroll} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <div className="org-canvas__frame" style={{ width: sw || undefined, height: sh || undefined }}>
           <div className="org-canvas__inner" ref={inner} style={{ transform: `scale(${zoom})` }}>
@@ -320,7 +374,7 @@ function BoardCanvas(props: { trees: Tree[]; showPeople: boolean; selectedId: st
           </div>
         </div>
       </div>
-      {k ? (
+      {k && canMinimap ? (
         <div className="org-minimap" aria-label={tb("minimap")} role="img" onPointerDown={jump} style={{ width: size.w * k + 12, height: size.h * k + 12 }}>
           <div className="org-minimap__in" style={{ width: size.w, transform: `scale(${k})` }} aria-hidden>
             <TreeView {...props} mini />
@@ -334,7 +388,7 @@ function BoardCanvas(props: { trees: Tree[]; showPeople: boolean; selectedId: st
 
 // ── List view ──────────────────────────────────────────────────────────────
 
-function OrgList({ trees, showPeople, selectedId, onSelect }: { trees: Tree[]; showPeople: boolean; selectedId: string; onSelect: (id: string) => void }) {
+function OrgList({ trees, showPeople, selectedId, onSelect, filtered }: { trees: Tree[]; showPeople: boolean; selectedId: string; onSelect: (id: string) => void; filtered: boolean }) {
   const t = useTranslations("internal.people");
   const tb = useTranslations("internal.people.board");
   const rows = flatten(trees);
@@ -360,7 +414,7 @@ function OrgList({ trees, showPeople, selectedId, onSelect }: { trees: Tree[]; s
           ))}
         </tbody>
       </table>
-      {!rows.length ? <p className="hrm-muted" style={{ padding: 16 }}>{t("emptyUnits")}</p> : null}
+      {!rows.length ? <p className="hrm-muted" style={{ padding: 16 }}>{filtered ? tb("noMatch") : t("emptyUnits")}</p> : null}
     </div>
   );
 }
@@ -409,16 +463,22 @@ function NodeDetail({ node, board, onSelect, onEditUnit, onAddUnit, onAddEmploye
   const tu = useTranslations("internal.ui");
   const f = useHrmFormat();
   const dir = useHrmDirectory();
-  const [detail, setDetail] = useState<{ id: string; data: Record<string, unknown> } | null>(null);
+  const [detail, setDetail] = useState<{ id: string; data: Record<string, unknown>; failed?: boolean } | null>(null);
+  const [retry, setRetry] = useState(0);
   const unitId = node.type !== "employee" ? node.entityId : "";
 
-  // Department detail: GET /internal/org/units/{unit_id} (§10).
+  // Department detail: GET /internal/org/units/{unit_id} (§10). A failed read
+  // says so, with a retry — not an endless skeleton.
   useEffect(() => {
     if (!unitId) return;
     const c = new AbortController();
-    getOrgUnitDetail(unitId, c.signal).then((d) => setDetail({ id: unitId, data: asDict(d) })).catch(() => {});
+    getOrgUnitDetail(unitId, c.signal)
+      .then((d) => setDetail({ id: unitId, data: asDict(d) }))
+      .catch(() => {
+        if (!c.signal.aborted) setDetail({ id: unitId, data: {}, failed: true });
+      });
     return () => c.abort();
-  }, [unitId]);
+  }, [unitId, retry]);
 
   if (node.type === "employee") {
     const a = asDict(node.raw.assignment);
@@ -443,7 +503,7 @@ function NodeDetail({ node, board, onSelect, onEditUnit, onAddUnit, onAddEmploye
           rows={[
             { label: tb("department"), value: unitNode ? <button type="button" className="org-link" onClick={() => onSelect(unitNode.id)}>{unitNode.label}</button> : "—" },
             { label: t("columns.manager"), value: dir.employeeName(asStr(a.manager_employee_id)) || "—" },
-            { label: t("employmentType"), value: asStr(a.employment_type) ? t(`types.${asStr(a.employment_type)}`) : "—" },
+            { label: t("employmentType"), value: asStr(a.employment_type) ? (t.has(`types.${asStr(a.employment_type)}`) ? t(`types.${asStr(a.employment_type)}`) : asStr(a.employment_type)) : "—" },
             { label: t("salary"), value: a.salary_amount !== undefined && a.salary_amount !== null ? f.money(asNum(a.salary_amount)) : "—" },
             { label: t("phone"), value: emp?.phone || asStr(asDict(node.raw.employee).phone) || "—" },
           ]}
@@ -455,11 +515,13 @@ function NodeDetail({ node, board, onSelect, onEditUnit, onAddUnit, onAddEmploye
     );
   }
 
-  const d = detail?.id === unitId ? detail.data : null;
+  const failedDetail = detail?.id === unitId && detail.failed;
+  const d = detail?.id === unitId && !detail.failed ? detail.data : null;
   const people = d ? asArr(d.people).map((p) => ({ employee: normEmployee(asDict(p).employee), assignment: asDict(asDict(p).assignment) })) : [];
   const children = d ? asArr(d.children).map((c) => asDict(c)) : [];
   const stats = d ? asDict(d.stats) : {};
   const head = personName(node.raw.head);
+  const headId = asStr(asDict(node.raw.head).id) || asStr(node.raw.head_employee_id);
   const type = asStr(node.raw.unit_type);
 
   return (
@@ -478,9 +540,19 @@ function NodeDetail({ node, board, onSelect, onEditUnit, onAddUnit, onAddEmploye
         <div className="hrm-mini"><b>{node.positionCount}</b><span>{tb("positions")}</span></div>
         <div className="hrm-mini"><b>{asNum(stats.children_count, asNum(node.raw.children_count))}</b><span>{tb("subUnits")}</span></div>
       </div>
-      {head ? <HrmSection label={tb("head")}><HrmPerson name={head} sub={asStr(asDict(node.raw.head).employee_code)} /></HrmSection> : null}
+      {head ? (
+        <HrmSection label={tb("head")}>
+          {headId && board.nodes.some((n) => n.id === `employee:${headId}`) ? (
+            <button type="button" className="org-row" onClick={() => onSelect(`employee:${headId}`)}>
+              <HrmPerson name={head} sub={asStr(asDict(node.raw.head).employee_code)} />
+            </button>
+          ) : (
+            <HrmPerson name={head} sub={asStr(asDict(node.raw.head).employee_code)} />
+          )}
+        </HrmSection>
+      ) : null}
       <HrmSection label={tb("peopleIn")} aside={<span className="hrm-count">{people.length}</span>}>
-        {!d ? <HrmLoading rows={2} /> : people.length ? (
+        {failedDetail ? <HrmError text={tb("detailError")} onRetry={() => setRetry((n) => n + 1)} retryLabel={tb("retry")} /> : !d ? <HrmLoading rows={2} /> : people.length ? (
           <ul className="hrm-list">
             {people.map(({ employee, assignment }) => (
               <li key={employee.id}>

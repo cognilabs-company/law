@@ -257,12 +257,20 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   // Banners: the AI answer's, else the list's, else the active ones asked for
   // directly — whichever the backend filled. Sponsored: a picked service shows
   // only what was bought for that service, never an unrelated promotion.
-  const shownBanners = aiHit?.banners.length ? aiHit.banners : banners.length ? banners : activeBanners;
-  const shownSponsored = aiHit?.sponsored.length
-    ? aiHit.sponsored
+  // The AI answer's meta counts even when it matched nobody: the request still
+  // names a service, and its promotions are still the relevant ones.
+  const aiMeta = ai && ai.q === query && !aiThinking ? ai : null;
+  const shownBanners = aiMeta?.banners.length ? aiMeta.banners : banners.length ? banners : activeBanners;
+  // A picked category without a service shows only what was bought for one of
+  // that category's services.
+  const categoryServiceIds = useMemo(() => new Set(services.map((x) => x.value)), [services]);
+  const shownSponsored = aiMeta?.sponsored.length
+    ? aiMeta.sponsored
     : service
       ? serviceBoost?.serviceId === service ? serviceBoost.items : []
-      : sponsored;
+      : category
+        ? sponsored.filter((p) => p.serviceId && categoryServiceIds.has(p.serviceId))
+        : sponsored;
 
   const aiMatchOf = useMemo(() => new Map((aiHit?.matches ?? []).map((m) => [m.userId, m])), [aiHit]);
 
@@ -455,6 +463,9 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
 
   return (
     <section className={`mk mk--${variant}`}>
+      {/* Page top (10-09 §6): the banner carousel opens the page. */}
+      <PromotionSurfaces part="banner" banners={shownBanners} sponsored={[]} base={base} />
+
       <div className="mk-hero">
         <div className="mk-hero__glow" aria-hidden="true" />
         <div className="mk-hero__in">
@@ -525,10 +536,10 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
             {(aiHit || aiEmpty) && !aiThinking ? <small className="mk-aistate__note">{ai?.disclaimer && locale === "uz" ? ai.disclaimer : t("aiDisclaimer")}</small> : null}
             {/* meta.suggested_services (10-09 §6): the services the AI read
                 the request as — one tap narrows the list to that service. */}
-            {aiHit?.suggested.length && !aiThinking ? (
+            {aiMeta?.suggested.length ? (
               <div className="mk-aisuggest">
                 <span>{t("aiSuggested")}</span>
-                {aiHit.suggested.slice(0, 5).map((x) => (
+                {aiMeta.suggested.slice(0, 5).map((x) => (
                   <button key={x.id} type="button" className={service === x.id ? "on" : undefined} onClick={() => setService(service === x.id ? "" : x.id)}>
                     <IconBriefcase />
                     {x.title}
@@ -585,9 +596,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         </div>
         <HeroShowcase items={items} base={base} locale={locale} />
       </div>
-
-      {/* Page top (10-09 §6): the banner carousel sits above the filters. */}
-      <PromotionSurfaces part="banner" banners={shownBanners} sponsored={[]} base={base} />
 
       <FilterBar
         variant="market"

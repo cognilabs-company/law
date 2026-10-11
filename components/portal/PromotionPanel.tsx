@@ -2,16 +2,8 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
-import {
-  listActiveAds,
-  checkoutPromotion,
-  PROMOTION_PENDING,
-  getPromotionStatus,
-  getPromotionAnalytics,
-  type ModuleRecord,
-  type PromotionAnalytics,
-} from "@/lib/services/backend";
-import { isDemoUnavailable, isProviderUnavailable, parseServerTime } from "@/lib/http";
+import { getPromotionStatus, getPromotionAnalytics, type PromotionAnalytics } from "@/lib/services/backend";
+import { parseServerTime } from "@/lib/http";
 import { useAuth } from "@/lib/auth";
 import { toast } from "@/lib/toast";
 import { subscribeUserEvents } from "@/lib/userSocket";
@@ -21,39 +13,39 @@ import {
   pendingPromoKey,
   pendingPromosRaw,
   promoSignalOf,
-  savePendingPromo,
   subscribePendingPromos,
   type ManagedServices,
+  type ServiceScope,
 } from "@/lib/services/sellerServices";
-import { useResource, useResourceOne } from "@/lib/useResource";
+import type { PromotionPlacement } from "@/lib/services/promotions";
+import { useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import PromoteServicesSection from "@/components/services/PromoteServicesSection";
-import { usePackageName } from "@/components/services/bits";
-import { Skeleton, EmptyState } from "./DataState";
-import { IconRocket, IconTrendingUp, IconEye, IconSearch, IconTarget, IconChat, IconClock } from "@/components/icons";
+import PromoteModal from "@/components/services/PromoteModal";
+import { Skeleton } from "./DataState";
+import { IconRocket, IconEye, IconSearch, IconTarget, IconChat, IconClock, IconMegaphone, IconStar, IconBriefcase, IconArrowRight } from "@/components/icons";
 
 const PROFILE_KEY = pendingPromoKey("profile");
+const ME: ServiceScope = { kind: "me" };
+// The three placements of 10-09 §1, each opening the promote dialog on it.
+const PLACES: { value: PromotionPlacement; Icon: typeof IconMegaphone; title: string; hint: string }[] = [
+  { value: "banner", Icon: IconMegaphone, title: "placementBanner", hint: "placementBannerHint" },
+  { value: "profile_boost", Icon: IconStar, title: "placementProfile", hint: "placementProfileHint" },
+  { value: "service_boost", Icon: IconBriefcase, title: "placementService", hint: "placementServiceHint" },
+];
 
 const som = (n: number) => (n ? fmtUzs(n) : "0");
-const numOf = (v: unknown, fallback: number) => {
-  const n = typeof v === "number" ? v : parseInt(String(v ?? ""), 10);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-};
 
 export default function PromotionPanel() {
   const t = useTranslations("promotion");
-  const tcommon = useTranslations("common");
   const ts = useTranslations("sellerServices");
   const [reloadKey, setReloadKey] = useState(0);
-  const packages = useResource(() => listActiveAds(), [reloadKey]);
   const status = useResourceOne(getPromotionStatus, [reloadKey]);
   const analytics = useResourceOne<PromotionAnalytics>(getPromotionAnalytics, [reloadKey]);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [open, setOpen] = useState<PromotionPlacement | null>(null);
   const { session } = useAuth();
   const uid = session?.id ?? "";
   const role = session?.role === "lawyer" ? "lawyer" : "advocate";
-  const packName = usePackageName();
   const [svc, setSvc] = useState<ManagedServices | null>(null);
   const pendingRaw = useSyncExternalStore(subscribePendingPromos, () => pendingPromosRaw(uid), () => "");
   const pending = useMemo(() => parsePendingPromos(pendingRaw)[PROFILE_KEY] ?? null, [pendingRaw]);
@@ -80,51 +72,6 @@ export default function PromotionPanel() {
       had = has;
     });
   }, [uid]);
-
-  // Back from the checkout page may restore this page from the bfcache with the
-  // button still busy (it stays busy while the browser navigates away).
-  useEffect(() => {
-    const onShow = (e: PageTransitionEvent) => {
-      if (e.persisted) setBusy(null);
-    };
-    window.addEventListener("pageshow", onShow);
-    return () => window.removeEventListener("pageshow", onShow);
-  }, []);
-
-  async function buy(pkg: ModuleRecord, days: number) {
-    if (busy) return;
-    setBusy(pkg.id);
-    setErr(null);
-    let leaving = false; // stay busy while the browser opens the checkout
-    try {
-      const r = await checkoutPromotion(pkg.id, days);
-      if (r.paymentUrl) {
-        // Real checkout: same-tab navigation (a popup after an await is blocked).
-        leaving = true;
-        window.location.assign(r.paymentUrl);
-        return;
-      }
-      // LEXGO_PROMOTION_CHECKOUT_NAV_AI_UPDATE_2026-09-29.md S1: there is no
-      // URL any more — the backend raised a telegram_manual payment and an
-      // admin has to press Tasdiqlash. Until this branch existed the button
-      // simply stopped spinning and the seller was told nothing at all,
-      // while their package sat inactive.
-      if (r.promotionStatus === PROMOTION_PENDING || !r.paymentUrl) {
-        savePendingPromo(uid, PROFILE_KEY, {
-          requestId: r.checkoutRequestId || r.promotionWorkId,
-          packageTitle: packName(pkg.title),
-          amount: r.amount,
-          currency: r.currency,
-          telegramSent: r.telegramSent,
-        });
-      }
-      setReloadKey((k) => k + 1);
-    } catch (e) {
-      setErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("checkoutError"));
-    } finally {
-      if (!leaving) setBusy(null);
-    }
-  }
 
   const a = analytics.data;
   const cards = a
@@ -188,7 +135,7 @@ export default function PromotionPanel() {
 
       <div className="ppanel" style={{ marginTop: 18 }} data-ai-target="promotion:packages">
         <div className="ppanel__h">
-          <b>{t("packagesTitle")}</b>
+          <b>{t("placesTitle")}</b>
         </div>
 
         {/* S1. The checkout no longer hands back a payment URL — an admin
@@ -207,46 +154,40 @@ export default function PromotionPanel() {
           </div>
         ) : null}
 
-        {packages.status === "loading" ? (
-          <Skeleton rows={3} />
-        ) : !packages.data.length ? (
-          <EmptyState icon={<IconRocket />} title={t("empty")} text={t("emptyText")} />
-        ) : (
-          <>
-            <div className="promo__packs">
-              {packages.data.map((pkg, i) => {
-                const days = numOf(pkg.payload.days, 7);
-                const reach = numOf(pkg.payload.reach, i + 2);
-                const feat = i === 1 || packages.data.length === 1;
-                return (
-                  <div key={pkg.id} className={`ppack${feat ? " ppack--feat" : ""}`}>
-                    {feat ? <span className="ppack__ribbon">{t("popular")}</span> : null}
-                    <b>{packName(pkg.title)}</b>
-                    <span className="ppack__days">{t("days", { d: days })}</span>
-                    <span className="ppack__reach">
-                      <IconTrendingUp />
-                      {t("reach", { x: reach })}
-                    </span>
-                    <span className="ppack__price">
-                      {som(pkg.price)} <span>{t("som")}</span>
-                    </span>
-                    <button
-                      type="button"
-                      className={`btn ${feat ? "btn--grad" : "btn--line"} btn--full`}
-                      disabled={busy === pkg.id}
-                      onClick={() => buy(pkg, days)}
-                    >
-                      {busy === pkg.id ? t("processing") : t("buy")}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            {err ? <p className="disc" style={{ color: "var(--dk-txt-err, #C0392B)" }}>{err}</p> : null}
-            <p className="promo__note">{t("boostNote")}</p>
-          </>
-        )}
+        <div className="promo__places">
+          {PLACES.map((p) => (
+            <button key={p.value} type="button" className="promo__place" onClick={() => setOpen(p.value)} data-ai-id={`promotion.place.${p.value}`} data-ai-type="button" data-ai-label={ts(`promote.${p.title}`)}>
+              <span className="promo__placeic" aria-hidden="true">
+                <p.Icon />
+              </span>
+              <b>{ts(`promote.${p.title}`)}</b>
+              <span>{ts(`promote.${p.hint}`)}</span>
+              <span className="promo__placego">
+                {t("placeStart")}
+                <IconArrowRight aria-hidden="true" />
+              </span>
+            </button>
+          ))}
+        </div>
+        <p className="promo__note">{t("boostNote")}</p>
       </div>
+
+      {open ? (
+        <PromoteModal
+          aiId="advocate.promotion.place-modal"
+          startPlacement={open}
+          services={(svc?.items ?? []).filter((x) => x.status === "active" && x.service.isActive && !x.ownPromotion)}
+          profile={svc?.profile ?? null}
+          scope={ME}
+          uid={uid}
+          owner={false}
+          onClose={() => setOpen(null)}
+          onSent={(req) => {
+            if (req.telegramSent) toast(ts("toast.promoSent"), { tone: "ok" });
+            setReloadKey((n) => n + 1);
+          }}
+        />
+      ) : null}
 
       <PromoteServicesSection role={role} onData={setSvc} />
     </div>

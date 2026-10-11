@@ -67,15 +67,17 @@
       "service_id": "Qoida qo‘llanadigan xizmat"
     },
     "monitoring": {
-      "summary": "Bugungi faollik",
+      "summary": "Davr bo'yicha faollik",
       "kpi": {
         "online": "Hozir onlayn",
-        "sessions": "Bugungi sessiyalar",
+        "sessions": "Sessiyalar",
         "users": "Foydalanuvchilar",
-        "saves": "Bugungi saqlashlar",
+        "saves": "Saqlashlar",
         "time": "Jami ish vaqti: {v}",
         "objects": "Yaratilgan obyektlar",
-        "submitted": "Tasdiqqa yuborilganlar"
+        "submitted": "Tasdiqqa yuborilganlar",
+        "duration": "Ish vaqti",
+        "onlineHint": "Hozir Studio'da ishlayotganlar"
       },
       "listTitle": "Faol va oxirgi sessiyalar",
       "liveHint": "Jonli yangilanadi",
@@ -106,7 +108,11 @@
         "objects": "Obyektlar",
         "submitted": "Tasdiqqa yuborilgan"
       },
-      "usersTitle": "Foydalanuvchilar bo'yicha"
+      "usersTitle": "Foydalanuvchilar bo'yicha",
+      "periodTitle": "Davr",
+      "period": {"today": "Bugun", "yesterday": "Kecha", "week": "7 kun", "month": "30 kun", "all": "Butun davr"},
+      "screen": {"editor": "Tahrirlash", "list": "Ro'yxat", "dashboard": "Bosh sahifa", "approvals": "Tasdiqlash", "view": "Ko'rish"},
+      "action": {"save": "Saqlash", "autosave": "Avtosaqlash", "submit": "Tasdiqqa yuborish", "approve": "Tasdiqlash", "reject": "Rad etish", "publish": "E'lon qilish", "open": "Ochish", "view": "Ko'rish", "edit": "Tahrirlash", "create": "Yaratish", "upload": "Fayl yuklash", "heartbeat": "Faol"}
     },
     "generic": {
       "title": "Ma'lumotlar",
@@ -125,7 +131,10 @@
       "referencePick": "Tanlang",
       "referenceSelected": "Avval tanlangan qiymat",
       "referenceSearch": "Nomi bo'yicha qidiring…",
-      "referenceEmpty": "Hech narsa topilmadi"
+      "referenceEmpty": "Hech narsa topilmadi",
+      "refDays": "{n} kun",
+      "refMonthly": "oyiga {price} so'm",
+      "referencePickMany": "Bir nechtasini tanlang"
     },
     "editors": {
       "k06": {
@@ -187,7 +196,8 @@
         "options": "Tanlov uchun kamida bitta variant kiriting",
         "fileMode": "Fayl rejimida fayl majburiy",
         "minOne": "Kamida bittasini qo'shing",
-        "unknownVar": "Noma'lum o'zgaruvchi"
+        "unknownVar": "Noma'lum o'zgaruvchi",
+        "code": "Faqat kichik lotin harflari, raqam, - va _ (masalan: service-top-7)"
       },
       "lang": {
         "uz": "O'zbekcha (lotin)",
@@ -369,7 +379,7 @@
         "boostScore": "Yuqoriga ko'tarish darajasi",
         "boostHint": "Natijalardagi ustuvorlik darajasi.",
         "statusLabel": "Holat",
-        "status": { "active": "Faol", "inactive": "O'chirilgan" },
+        "status": {"archived": "Arxivlangan", "active": "Faol", "inactive": "O'chirilgan"},
         "requiresService": "Xizmat tanlash majburiy",
         "requiresBanner": "Banner rasmi majburiy",
         "preview": "Targ'ib ko'rinishi",
@@ -378,7 +388,18 @@
         "previewSubtitle": "Qisqa izoh",
         "previewCta": "Tugma matni",
         "previewEmpty": "Paket sarlavhasi",
-        "previewSubtitleEmpty": "Xizmatni tanlab targ'ib qilish uchun paket."
+        "previewSubtitleEmpty": "Xizmatni tanlab targ'ib qilish uchun paket.",
+        "package": "Mavjud paket",
+        "packageHint": "Bo'sh qoldirilsa — yangi paket yaratiladi. Tanlansa, uning qiymatlari formaga yuklanadi va e'lon qilinganda yangilanadi.",
+        "code": "Paket kodi",
+        "codeHint": "Nomidan avtomatik olinadi; o'zgartirish mumkin.",
+        "previewLabel": "Belgi matni",
+        "previewLabelHint": "Kartadagi belgi, masalan: Top yoki Tavsiya etiladi.",
+        "previewBadge": "Top",
+        "previewSeller": "Advokat Karimov",
+        "previewCtaDefault": "Profilni ko'rish",
+        "previewDays": "{n} kun",
+        "som": "so'm"
       }
     },
     "editor": {
@@ -1125,7 +1146,21 @@
       "sales": "Sotuv bo'limi",
       "manager": "Menejer",
       "staff": "Xodim",
-      "system": "Tizim"
+      "system": "Tizim",
+      "b2b_manager": "B2B menejer",
+      "call_center_lawyer": "Navbatchi yurist",
+      "ceo_viewer": "Rahbar (ko'rish)",
+      "content_manager": "Kontent menejer",
+      "executive": "Rahbariyat",
+      "finance": "Moliya",
+      "marketing": "Marketing",
+      "moderator": "Moderator",
+      "organization_owner": "Tashkilot egasi",
+      "provider": "Ijrochi",
+      "quality_control": "Sifat nazorati",
+      "sales_head": "Sotuv rahbari",
+      "sales_operator": "Sotuv operatori",
+      "super_admin": "Superadmin"
     },
     "actions": {
       "save": "Saqlash",
@@ -1702,7 +1737,7 @@
   "sellerServices": {
     "promote": {
       "bannerUploaded": "Rasm yuklandi",
-      "bannerNoFile": "Fayl tanlanmagan · JPG, PNG, WEBP, HEIC",
+      "bannerNoFile": "Fayl tanlanmagan · JPG, PNG, WEBP, HEIC · {mb} MB gacha",
       "bannerUploading": "Yuklanmoqda…",
       "bannerPick": "Rasm tanlash",
       "retry": "Qayta yuborish",
@@ -1755,7 +1790,28 @@
       "previewBannerNote": "Banner marketplace sahifasining yuqorisida, boshqa bannerlar bilan navbatma-navbat ko'rsatiladi.",
       "previewBannerNoImage": "Rasm qo'shilmasa, banner profilingiz kartasi ko'rinishida chiqadi.",
       "previewProfileNote": "Profilingiz ro'yxatning yuqorisida, \"Top\" belgisi bilan ajralib turadi.",
-      "previewServiceNote": "Mijoz shu xizmatni tanlaganda yoki qidirganda, natijalardan oldin alohida blokda chiqadi."
+      "previewServiceNote": "Mijoz shu xizmatni tanlaganda yoki qidirganda, natijalardan oldin alohida blokda chiqadi.",
+      "titleAny": "Reklama berish",
+      "leadAny": "Reklama joyini va paketni tanlang. To'lov tasdiqlangach reklama avtomatik yoqiladi.",
+      "step1": "1. Reklama joyi",
+      "step2": "2. Paket",
+      "seller": "Mutaxassis",
+      "pickService": "Qaysi xizmat reklama qilinadi",
+      "pickServicePh": "Xizmatni tanlang",
+      "pickServiceSearch": "Xizmat nomi bo'yicha qidirish",
+      "pickServiceNone": "Reklama qilish mumkin bo'lgan faol xizmat yo'q",
+      "pickServiceFirst": "Davom etish uchun xizmatni tanlang.",
+      "bannerRequired": "Banner rasmi (majburiy)",
+      "bannerOptional": "Banner rasmi (ixtiyoriy)",
+      "or": "yoki",
+      "bannerTooBig": "Fayl {mb} MB dan katta bo'lmasligi kerak.",
+      "badUrl": "Havola https:// bilan boshlanishi kerak.",
+      "badCta": "Havola https:// yoki / bilan boshlanishi kerak.",
+      "ctaUrlPh": "Bo'sh qolsa — profilingiz",
+      "bannerNeeded": "Bu paket uchun banner rasmi kerak: fayl yuklang yoki havola kiriting.",
+      "previewHeic": "HEIC rasm brauzerda ko'rsatilmaydi, lekin saqlandi — marketplace'da odatdagidek chiqadi.",
+      "activeTitle": "Reklama yoqildi",
+      "activeText": "To'lov talab qilinmadi — reklama hozirdan ko'rinmoqda."
     },
     "limits": {
       "title": "Narx qanday chiqdi",
@@ -3385,7 +3441,7 @@
       "price_asc": "Arzonidan boshlab"
     },
     "count": "{n} ta mutaxassis",
-    "promotions": { "label": "Top takliflar", "sponsored": "Top", "bannerFallback": "LexGo marketplace maxsus taklifi", "featuredTitle": "Tavsiya etilgan xizmatlar", "previous": "Oldingi banner", "next": "Keyingi banner" },
+    "promotions": { "label": "Top takliflar", "sponsored": "Top", "bannerFallback": "LexGo marketplace maxsus taklifi", "featuredTitle": "Tavsiya etilgan xizmatlar", "previous": "Oldingi banner", "next": "Keyingi banner", "viewProfile": "Profilni ko'rish", "daysLeft": "{n} kun qoldi", "lastDay": "Bugun oxirgi kun", "slide": "{n}-banner, jami {total}" },
     "empty": "Mos mutaxassis topilmadi",
     "emptyText": "Filtrlarni o'zgartirib ko'ring yoki tozalang.",
     "error": "Ro'yxatni yuklab bo'lmadi.",
@@ -9674,7 +9730,9 @@
     "boostNote": "Targ'ibot faqat ko'rinuvchanlikni oshiradi. Yuridik natijaga ta'sir qilmaydi.",
     "empty": "Targ'ibot tez orada",
     "emptyText": "Ko'rinuvchanlik paketlari va qamrov tahlili shu yerda ko'rinadi.",
-    "checkoutError": "To'lovni amalga oshirib bo'lmadi. Qayta urining."
+    "checkoutError": "To'lovni amalga oshirib bo'lmadi. Qayta urining.",
+    "placesTitle": "Reklama turini tanlang",
+    "placeStart": "Boshlash"
   },
   "auth": {
     "headline": "Yuridik yordam — yangicha.",
@@ -13172,7 +13230,13 @@
         "noPeople": "Bu bo'limda hali xodim yo'q.",
         "addEmployee": "Xodim qo'shish",
         "addSubUnit": "Ichki bo'lim",
-        "open360": "Xodim 360°"
+        "open360": "Xodim 360°",
+        "allUnits": "Barcha bo'limlar",
+        "allPositions": "Barcha lavozimlar",
+        "filterUnit": "Bo'lim bo'yicha",
+        "filterPosition": "Lavozim bo'yicha",
+        "detailError": "Bo'lim ma'lumotini yuklab bo'lmadi",
+        "retry": "Qayta urinish"
       },
       "stat": {
         "total": "Jami xodimlar",
@@ -13225,7 +13289,8 @@
         "finance": "Moliya",
         "hr": "HR",
         "quality": "Sifat nazorati"
-      }
+      },
+      "gradePh": "Masalan: Middle"
     },
     "approvals": {
       "kicker": "Ichki boshqaruv",

@@ -67,15 +67,17 @@
       "service_id": "The service this rule applies to"
     },
     "monitoring": {
-      "summary": "Today's activity",
+      "summary": "Activity for the period",
       "kpi": {
         "online": "Online now",
-        "sessions": "Sessions today",
+        "sessions": "Sessions",
         "users": "Users",
-        "saves": "Saves today",
+        "saves": "Saves",
         "time": "Total work time: {v}",
         "objects": "Objects created",
-        "submitted": "Sent for approval"
+        "submitted": "Sent for approval",
+        "duration": "Time worked",
+        "onlineHint": "Working in Studio right now"
       },
       "listTitle": "Active and recent sessions",
       "liveHint": "Updates live",
@@ -106,7 +108,11 @@
         "objects": "Objects",
         "submitted": "Submitted"
       },
-      "usersTitle": "By user"
+      "usersTitle": "By user",
+      "periodTitle": "Period",
+      "period": {"today": "Today", "yesterday": "Yesterday", "week": "7 days", "month": "30 days", "all": "All time"},
+      "screen": {"editor": "Editing", "list": "List", "dashboard": "Home", "approvals": "Approvals", "view": "Viewing"},
+      "action": {"save": "Save", "autosave": "Autosave", "submit": "Submit for approval", "approve": "Approve", "reject": "Reject", "publish": "Publish", "open": "Open", "view": "View", "edit": "Edit", "create": "Create", "upload": "File upload", "heartbeat": "Active"}
     },
     "generic": {
       "title": "Content",
@@ -125,7 +131,10 @@
       "referencePick": "Choose",
       "referenceSelected": "Previously selected value",
       "referenceSearch": "Search by name…",
-      "referenceEmpty": "Nothing found"
+      "referenceEmpty": "Nothing found",
+      "refDays": "{n} days",
+      "refMonthly": "{price} UZS/month",
+      "referencePickMany": "Choose one or more"
     },
     "editors": {
       "k06": {
@@ -187,7 +196,8 @@
         "options": "Add at least one option",
         "fileMode": "A file is required in upload mode",
         "minOne": "Add at least one",
-        "unknownVar": "Unknown variable"
+        "unknownVar": "Unknown variable",
+        "code": "Lowercase Latin letters, digits, - and _ only (e.g. service-top-7)"
       },
       "lang": {
         "uz": "Uzbek (Latin)",
@@ -369,7 +379,7 @@
         "boostScore": "Ranking lift",
         "boostHint": "Priority in results.",
         "statusLabel": "Status",
-        "status": { "active": "Active", "inactive": "Inactive" },
+        "status": {"archived": "Archived", "active": "Active", "inactive": "Inactive"},
         "requiresService": "Service selection required",
         "requiresBanner": "Banner image required",
         "preview": "Promotion preview",
@@ -378,7 +388,18 @@
         "previewSubtitle": "Short description",
         "previewCta": "Button text",
         "previewEmpty": "Package title",
-        "previewSubtitleEmpty": "A package for selecting and promoting a service."
+        "previewSubtitleEmpty": "A package for selecting and promoting a service.",
+        "package": "Existing package",
+        "packageHint": "Leave empty to create a new package. Pick one to load its values and update it on publish.",
+        "code": "Package code",
+        "codeHint": "Taken from the name; you can change it.",
+        "previewLabel": "Badge text",
+        "previewLabelHint": "The badge on the card, e.g. Top or Recommended.",
+        "previewBadge": "Top",
+        "previewSeller": "Advocate Karimov",
+        "previewCtaDefault": "View profile",
+        "previewDays": "{n} days",
+        "som": "UZS"
       }
     },
     "editor": {
@@ -1125,7 +1146,21 @@
       "sales": "Sales",
       "manager": "Manager",
       "staff": "Staff",
-      "system": "System"
+      "system": "System",
+      "b2b_manager": "B2B manager",
+      "call_center_lawyer": "Duty lawyer",
+      "ceo_viewer": "CEO (view only)",
+      "content_manager": "Content manager",
+      "executive": "Executive",
+      "finance": "Finance",
+      "marketing": "Marketing",
+      "moderator": "Moderator",
+      "organization_owner": "Organization owner",
+      "provider": "Provider",
+      "quality_control": "Quality control",
+      "sales_head": "Head of sales",
+      "sales_operator": "Sales operator",
+      "super_admin": "Super admin"
     },
     "actions": {
       "save": "Save",
@@ -1702,7 +1737,7 @@
   "sellerServices": {
     "promote": {
       "bannerUploaded": "Image uploaded",
-      "bannerNoFile": "No file chosen · JPG, PNG, WEBP, HEIC",
+      "bannerNoFile": "No file chosen · JPG, PNG, WEBP, HEIC · up to {mb} MB",
       "bannerUploading": "Uploading…",
       "bannerPick": "Choose image",
       "retry": "Send again",
@@ -1755,7 +1790,28 @@
       "previewBannerNote": "The banner is shown at the top of the marketplace page, rotating with other banners.",
       "previewBannerNoImage": "Without a picture the banner is shown as your profile card.",
       "previewProfileNote": "Your profile moves to the top of the list and stands out with a Top badge.",
-      "previewServiceNote": "When a client picks or searches for this service, it appears in its own block above the results."
+      "previewServiceNote": "When a client picks or searches for this service, it appears in its own block above the results.",
+      "titleAny": "Start a promotion",
+      "leadAny": "Pick where to appear and a package. Once the payment is approved the promotion switches on by itself.",
+      "step1": "1. Placement",
+      "step2": "2. Package",
+      "seller": "Specialist",
+      "pickService": "Which service to promote",
+      "pickServicePh": "Choose a service",
+      "pickServiceSearch": "Search by service name",
+      "pickServiceNone": "No active services that can be promoted",
+      "pickServiceFirst": "Choose a service to continue.",
+      "bannerRequired": "Banner image (required)",
+      "bannerOptional": "Banner image (optional)",
+      "or": "or",
+      "bannerTooBig": "The file must be {mb} MB or smaller.",
+      "badUrl": "The link must start with https://.",
+      "badCta": "The link must start with https:// or /.",
+      "ctaUrlPh": "Leave empty for your profile",
+      "bannerNeeded": "This package needs a banner image: upload a file or paste a link.",
+      "previewHeic": "HEIC images can't be shown in the browser, but the file is saved and will appear on the marketplace as usual.",
+      "activeTitle": "Promotion is live",
+      "activeText": "No payment was needed — the promotion is showing now."
     },
     "limits": {
       "title": "How the price is built",
@@ -3385,7 +3441,7 @@
       "price_asc": "Cheapest first"
     },
     "count": "{n} specialists",
-    "promotions": { "label": "Top offers", "sponsored": "Top", "bannerFallback": "A special LexGo marketplace offer", "featuredTitle": "Featured services", "previous": "Previous banner", "next": "Next banner" },
+    "promotions": { "label": "Top offers", "sponsored": "Top", "bannerFallback": "A special LexGo marketplace offer", "featuredTitle": "Featured services", "previous": "Previous banner", "next": "Next banner", "viewProfile": "View profile", "daysLeft": "{n} days left", "lastDay": "Last day", "slide": "Banner {n} of {total}" },
     "empty": "No matching specialists",
     "emptyText": "Change or clear the filters.",
     "error": "Could not load the list.",
@@ -9668,7 +9724,9 @@
     "boostNote": "Promotion increases visibility only. It does not affect legal outcomes.",
     "empty": "Promotion coming soon",
     "emptyText": "Visibility packages and reach analytics will appear here.",
-    "checkoutError": "Couldn't complete the payment. Please try again."
+    "checkoutError": "Couldn't complete the payment. Please try again.",
+    "placesTitle": "Choose a promotion type",
+    "placeStart": "Start"
   },
   "auth": {
     "headline": "Legal help, reimagined.",
@@ -13166,7 +13224,13 @@
         "noPeople": "No one is in this unit yet.",
         "addEmployee": "Add employee",
         "addSubUnit": "Sub-unit",
-        "open360": "Employee 360°"
+        "open360": "Employee 360°",
+        "allUnits": "All departments",
+        "allPositions": "All positions",
+        "filterUnit": "By department",
+        "filterPosition": "By position",
+        "detailError": "Couldn't load the department",
+        "retry": "Try again"
       },
       "stat": {
         "total": "Total employees",
@@ -13219,7 +13283,8 @@
         "finance": "Finance",
         "hr": "HR",
         "quality": "Quality control"
-      }
+      },
+      "gradePh": "e.g. Middle"
     },
     "approvals": {
       "kicker": "Internal control",

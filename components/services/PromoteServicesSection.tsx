@@ -188,6 +188,7 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
         <PromoteModal
           aiId="advocate.promotion.promote-modal"
           item={promote}
+          profile={data?.profile ?? null}
           scope={ME}
           uid={uid}
           owner={false}
