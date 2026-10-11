@@ -469,8 +469,9 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
 
   return (
     <section className={`mk mk--${variant}`}>
-      {/* Page top (10-09 §6): the banner carousel opens the page. */}
-      <PromotionSurfaces part="banner" banners={shownBanners} sponsored={[]} base={base} />
+      <div className="mk-adslot">
+        <PromotionSurfaces part="banner" banners={shownBanners} sponsored={[]} base={base} />
+      </div>
 
       <div className="mk-hero">
         <div className="mk-hero__glow" aria-hidden="true" />
@@ -600,7 +601,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
             </div>
           </div>
         </div>
-        <HeroShowcase items={items} base={base} locale={locale} />
+        <HeroShowcase items={items} promos={shownBanners} base={base} locale={locale} />
       </div>
 
       <FilterBar

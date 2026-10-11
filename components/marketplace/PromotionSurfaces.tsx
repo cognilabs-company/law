@@ -13,7 +13,7 @@ import { Monogram, sellerTypeLabel, specLabel } from "./bits";
 const ROTATE_MS = 5500;
 const DEFAULT_CTA = /^profilni ko['‘’ʻ`]?rish$/i;
 
-function targetOf(value: string, base: string, fallback: string): { href: string; external: boolean } {
+export function targetOf(value: string, base: string, fallback: string): { href: string; external: boolean } {
   if (!value) return { href: fallback, external: false };
   if (/^https?:\/\//i.test(value)) return { href: value, external: true };
   const seller = /^\/(?:portal\/client\/)?marketplace\/lawyers\/([^/?#]+)/.exec(value);
