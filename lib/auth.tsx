@@ -11,6 +11,7 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 import { setToken } from "./client";
+import { endLiveOfficeSession } from "./liveOfficeSession";
 import { ApiError, setRefreshHandler } from "./http";
 import { normUzPhone } from "./phone";
 import type { PlanTier, ProfessionalProfile, RegistrationDraft } from "./types";
@@ -489,6 +490,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // in the background with the captured tokens (apiLogout refreshes once
     // itself when the access token has already expired; it never throws).
     const cur = readStoredSession();
+    // Close this tab's Live Office presence while the token still works.
+    endLiveOfficeSession(cur?.token ?? null);
     setAuthNotice(null);
     localStorage.removeItem(EXPIRED_AT_KEY);
     persist(null);

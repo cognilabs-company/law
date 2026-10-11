@@ -21,11 +21,13 @@ import {
   type InternalPermission,
 } from "@/lib/services/internalHrm";
 import { HrmEmpty, HrmError, HrmLoading, HrmPanel, HrmPriority, HrmStat, HrmStatus, isOverdue, useHrmFormat, useNow } from "@/components/internal/HrmUi";
-import { IconBriefcase, IconBuilding, IconCalendar, IconChartBar, IconChat, IconCheck, IconClock, IconRefresh, IconShieldCheck, IconUsers } from "@/components/icons";
+import { IconBriefcase, IconBuilding, IconCalendar, IconChartBar, IconChat, IconCheck, IconClock, IconFolder, IconMonitor, IconRefresh, IconShieldCheck, IconUsers } from "@/components/icons";
 
 type Today = { name: string; code: string; date: string; attendance: HrmAttendance | null; tasks: HrmTask[]; approvals: number; messages: HrmMessage[] };
 
-const SHORTCUTS: { href: string; key: string; Icon: typeof IconUsers; permission: InternalPermission }[] = [
+const SHORTCUTS: { href: string; key: string; Icon: typeof IconUsers; permission?: InternalPermission }[] = [
+  { href: "/internal/live-office", key: "liveOffice", Icon: IconMonitor },
+  { href: "/internal/hr", key: "hr", Icon: IconFolder },
   { href: "/internal/employees", key: "employees", Icon: IconUsers, permission: "internal_hr.manage" },
   { href: "/internal/org", key: "org", Icon: IconBuilding, permission: "internal_org.manage" },
   { href: "/internal/execution", key: "execution", Icon: IconBriefcase, permission: "internal_execution.manage" },
@@ -100,7 +102,7 @@ export default function InternalDashboard() {
   const checkedIn = !!att?.firstIn;
   const checkedOut = !!att?.lastOut;
   const openTasks = (data?.tasks ?? []).filter((task) => !["done", "cancelled"].includes(task.status));
-  const shortcuts = SHORTCUTS.filter((s) => canInternal(session, s.permission));
+  const shortcuts = SHORTCUTS.filter((s) => !s.permission || canInternal(session, s.permission));
 
   return (
     <section className="hrm-page">

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { useTranslations } from "next-intl";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { ApiError, asDict } from "@/lib/http";
+import { apiMessage } from "@/components/internal/live/bits";
 import {
   createOrgUnit,
   createPosition,
@@ -149,39 +150,54 @@ function UnitDrawer({ state, board, onClose, onSaved }: { state: { id: string; p
   const tu = useTranslations("internal.ui");
   const label = useStatusLabel();
   const dir = useHrmDirectory();
-  const blank = { name: "", code: "", unit_type: "department", parent_id: "", head_employee_id: "", status: "active" };
+  const blank = { name: "", code: "", unit_type: "department", parent_id: "", head_employee_id: "", status: "active", order: "" };
   const [form, setForm] = useState(blank);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
   const [prev, setPrev] = useState<typeof state>(null);
   if (state !== prev) {
     setPrev(state);
-    setError(false);
+    setError("");
     if (state) {
       const u = state.id ? dir.unit(state.id) : undefined;
       const node = state.id ? board.nodes.find((n) => n.entityId === state.id && n.type !== "employee") : undefined;
       setForm(u
-        ? { name: u.name, code: u.code, unit_type: u.type || "department", parent_id: u.parentId, head_employee_id: u.headId, status: u.status || "active" }
+        ? { name: u.name, code: u.code, unit_type: u.type || "department", parent_id: u.parentId, head_employee_id: u.headId, status: u.status || "active", order: String(u.order || "") }
         : node
           ? { ...blank, name: node.label, code: node.subtitle, parent_id: node.parentId.replace(/^unit:/, ""), head_employee_id: String(node.raw.head && (node.raw.head as Record<string, unknown>).id || "") }
           : { ...blank, parent_id: state.parentId });
     }
   }
-  // A unit can't be its own parent; the rest are fair game.
-  const parents = useMemo(() => dir.unitOptions.filter((o) => o.value !== state?.id), [dir.unitOptions, state?.id]);
+  // A unit can't be its own parent, nor sit under one of its own sub-units
+  // (that would be a cycle); the backend checks again and says why.
+  const parents = useMemo(() => {
+    const id = state?.id;
+    if (!id) return dir.unitOptions;
+    const below = new Set([id]);
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const u of dir.units) if (u.parentId && below.has(u.parentId) && !below.has(u.id)) {
+        below.add(u.id);
+        grew = true;
+      }
+    }
+    return dir.unitOptions.filter((o) => !below.has(o.value));
+  }, [dir.unitOptions, dir.units, state?.id]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!state || busy || !form.name.trim()) return;
     setBusy(true);
-    setError(false);
+    setError("");
     try {
-      const payload = { name: form.name.trim(), code: form.code.trim(), unit_type: form.unit_type, parent_id: form.parent_id || null, head_employee_id: form.head_employee_id || null, status: form.status };
+      const payload = { name: form.name.trim(), code: form.code.trim(), unit_type: form.unit_type, parent_id: form.parent_id || null, head_employee_id: form.head_employee_id || null, status: form.status, ...(form.order ? { order_index: Number(form.order) } : {}) };
       if (state.id) await updateOrgUnit(state.id, payload);
       else await createOrgUnit({ ...payload, meta: {} });
       onSaved();
-    } catch {
-      setError(true);
+    } catch (cause) {
+      // The backend's own reason (a cycle, a duplicate code, no right to
+      // this branch) rather than a generic failure.
+      setError(apiMessage(cause, t("saveError")));
     } finally {
       setBusy(false);
     }
@@ -190,7 +206,7 @@ function UnitDrawer({ state, board, onClose, onSaved }: { state: { id: string; p
   return (
     <HrmDrawer open={!!state} onClose={onClose} title={state?.id ? t("editUnit") : t("newUnit")} sub={state?.id ? form.name : t("newUnitLead")}>
       <form className="hrm-form" onSubmit={submit}>
-        {error ? <HrmError text={t("saveError")} /> : null}
+        {error ? <HrmError text={error} /> : null}
         <div className="hrm-form__grid">
           <InternalField label={t("unitName")}><input value={form.name} onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))} maxLength={160} required /></InternalField>
           <InternalField label={t("unitCode")}><input value={form.code} onChange={(e) => setForm((c) => ({ ...c, code: e.target.value.toUpperCase() }))} maxLength={50} placeholder="DEP-001" /></InternalField>
@@ -198,6 +214,7 @@ function UnitDrawer({ state, board, onClose, onSaved }: { state: { id: string; p
           <InternalField label={t("parentId")}><EntitySelect value={form.parent_id} onChange={(v) => setForm((c) => ({ ...c, parent_id: v }))} options={parents} placeholder={tu("choose.parent")} ariaLabel={t("parentId")} /></InternalField>
           <InternalField label={t("unitHead")}><EntitySelect value={form.head_employee_id} onChange={(v) => setForm((c) => ({ ...c, head_employee_id: v }))} options={dir.employeeOptions} placeholder={tu("choose.head")} ariaLabel={t("unitHead")} /></InternalField>
           <InternalField label={t("statusFilter")}><Select value={form.status} onChange={(v) => setForm((c) => ({ ...c, status: v }))} options={STATUSES.map((s) => ({ value: s, label: label(s) }))} ariaLabel={t("statusFilter")} /></InternalField>
+          <InternalField label={t("unitOrder")} hint={t("unitOrderHint")}><input value={form.order} onChange={(e) => setForm((c) => ({ ...c, order: e.target.value.replace(/\D/g, "") }))} inputMode="numeric" maxLength={4} placeholder="10" /></InternalField>
         </div>
         <div className="hrm-form__foot">
           <button className="btn btn--pri btn--sm" type="submit" disabled={busy}>{state?.id ? <IconCheck /> : <IconBuilding />}{busy ? t("saving") : state?.id ? t("save") : t("create")}</button>
@@ -214,11 +231,11 @@ function PositionDrawer({ value, onClose, onSaved }: { value: HrmPosition | "new
   const blank = { title: "", code: "", category: "operations", grade: "", default_role_code: "", description: "", status: "active" };
   const [form, setForm] = useState(blank);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
   const [prev, setPrev] = useState<typeof value>(null);
   if (value !== prev) {
     setPrev(value);
-    setError(false);
+    setError("");
     if (value && value !== "new") setForm({ title: value.title, code: value.code, category: value.category || "operations", grade: value.grade, default_role_code: value.roleCode, description: value.description, status: value.status || "active" });
     else if (value === "new") setForm(blank);
   }
@@ -228,14 +245,14 @@ function PositionDrawer({ value, onClose, onSaved }: { value: HrmPosition | "new
     event.preventDefault();
     if (!value || busy || !form.title.trim()) return;
     setBusy(true);
-    setError(false);
+    setError("");
     try {
       const payload = { title: form.title.trim(), code: form.code.trim(), category: form.category, grade: form.grade.trim(), default_role_code: form.default_role_code.trim(), description: form.description.trim(), status: form.status };
       if (editing) await updatePosition(editing.id, payload);
       else await createPosition({ ...payload, requirements: {} });
       onSaved();
-    } catch {
-      setError(true);
+    } catch (cause) {
+      setError(apiMessage(cause, t("saveError")));
     } finally {
       setBusy(false);
     }
@@ -244,7 +261,7 @@ function PositionDrawer({ value, onClose, onSaved }: { value: HrmPosition | "new
   return (
     <HrmDrawer open={!!value} onClose={onClose} title={editing ? t("editPosition") : t("newPosition")} sub={editing ? editing.title : t("newPositionLead")}>
       <form className="hrm-form" onSubmit={submit}>
-        {error ? <HrmError text={t("saveError")} /> : null}
+        {error ? <HrmError text={error} /> : null}
         <div className="hrm-form__grid">
           <InternalField label={t("positionName")}><input value={form.title} onChange={(e) => setForm((c) => ({ ...c, title: e.target.value }))} maxLength={160} required /></InternalField>
           <InternalField label={t("positionCode")}><input value={form.code} onChange={(e) => setForm((c) => ({ ...c, code: e.target.value.toUpperCase() }))} maxLength={50} placeholder="POS-001" /></InternalField>

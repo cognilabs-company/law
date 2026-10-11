@@ -12,7 +12,6 @@ import {
   createKpiMetric,
   createPayrollEntry,
   getAnalyticsDashboard,
-  getAnalyticsExport,
   getAttendanceDays,
   getExecutionTasks,
   getKpiMetrics,
@@ -28,6 +27,7 @@ import {
   type HrmTask,
   type InternalPage,
 } from "@/lib/services/internalHrm";
+import { calculatePayroll, exportInternalAnalytics, setPayrollStatus, type PayrollCalc } from "@/lib/services/internalLive";
 import { IconAlert, IconBriefcase, IconCalendar, IconCard, IconChartBar, IconChat, IconCheck, IconClock, IconDownload, IconPlus, IconRefresh, IconTrash, IconTrendingUp, IconUsers } from "@/components/icons";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import DatePicker from "@/components/DatePicker";
@@ -62,6 +62,15 @@ const PRIORITIES = ["low", "normal", "high", "urgent"] as const;
 const KPI_SOURCES = ["execution", "attendance", "sales", "manual", "system"] as const;
 const PAYROLL_ENTRY_TYPES = ["salary", "kpi_bonus", "sales_bonus", "one_time_bonus", "penalty", "advance", "deduction", "adjustment"] as const;
 const PAYROLL_STATUSES = ["draft", "approved", "paid", "cancelled"] as const;
+// Where an entry can go from its status (POST /internal/payroll/entries/{id}/status).
+const PAYROLL_NEXT: Record<string, string[]> = { draft: ["approved", "cancelled"], approved: ["paid", "cancelled"], calculated: ["approved", "cancelled"], pending: ["approved", "cancelled"] };
+// No calculator glyph in the set: a plain one, drawn like the others.
+const IconCalculator = (p: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden {...p}>
+    <rect x="5" y="3" width="14" height="18" rx="2.5" />
+    <path d="M8.5 7h7M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5v3M8.5 17.5h.01M12 17.5h.01" />
+  </svg>
+);
 const EMPTY_PAGE = { items: [], total: 0, offset: 0, limit: 25, hasMore: false };
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 const aborted = (e: unknown) => e instanceof ApiError && e.detail === "aborted";
@@ -519,6 +528,9 @@ function PayrollPage() {
   const [offset, setOffset] = useState(0);
   const [summary, setSummary] = useState<{ total: number; count: number; byType: [string, number][]; period: string } | null>(null);
   const [creating, setCreating] = useState(false);
+  const [calculating, setCalculating] = useState(false);
+  const [statusBusy, setStatusBusy] = useState("");
+  const [statusErr, setStatusErr] = useState("");
   const set = (k: keyof typeof filters) => (v: string) => { setFilters((c) => ({ ...c, [k]: v })); setOffset(0); };
 
   const { page, loading, error, reload } = usePaged<HrmPayroll>(
@@ -536,7 +548,7 @@ function PayrollPage() {
 
   return (
     <section className="hrm-page">
-      <HrmHead kicker={t("kicker")} title={t("titles.payroll")} lead={t("subtitles.payroll")} actions={<><RefreshButton onClick={reload} busy={loading} label={t("refresh")} /><button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.payroll")}</button></>} />
+      <HrmHead kicker={t("kicker")} title={t("titles.payroll")} lead={t("subtitles.payroll")} actions={<><RefreshButton onClick={reload} busy={loading} label={t("refresh")} /><button className="btn btn--line btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.payroll")}</button><button className="btn btn--pri btn--sm" type="button" onClick={() => setCalculating(true)}><IconCalculator />{t("calc.open")}</button></>} />
       {summary ? (
         <div className="hrm-grid hrm-grid--side">
           <div className="hrm-payroll-total">
@@ -568,11 +580,12 @@ function PayrollPage() {
         onReset={() => { setFilters({ employee: "", period: "", status: "" }); setOffset(0); }}
       />
       {error ? <HrmError text={t("error")} onRetry={reload} retryLabel={t("refresh")} /> : null}
+      {statusErr ? <HrmError text={statusErr} /> : null}
       <HrmPanel flush>
         {loading ? <div style={{ padding: 16 }}><HrmLoading rows={5} /></div> : page.items.length ? (
           <div className="hrm-table-wrap">
             <table className="hrm-table">
-              <thead><tr><th>{t("columns.employee")}</th><th>{t("entryType")}</th><th>{t("columns.period")}</th><th className="hrm-num">{t("columns.amount")}</th><th>{t("columns.status")}</th></tr></thead>
+              <thead><tr><th>{t("columns.employee")}</th><th>{t("entryType")}</th><th>{t("columns.period")}</th><th className="hrm-num">{t("columns.amount")}</th><th>{t("columns.status")}</th><th>{t("calc.changeStatus")}</th></tr></thead>
               <tbody>
                 {page.items.map((p) => {
                   const who = personOf(dir, p.employeeId);
@@ -584,6 +597,28 @@ function PayrollPage() {
                       <td className="hrm-muted">{f.period(p.period)}</td>
                       <td className={`hrm-num${negative ? " hrm-late" : ""}`}>{negative ? "−" : ""}{f.money(p.amount)}</td>
                       <td><HrmStatus value={p.status} /></td>
+                      <td className="hrm-pay-st">
+                        {PAYROLL_NEXT[p.status]?.length ? (
+                          <Select
+                            value=""
+                            onChange={async (v) => {
+                              if (!v || statusBusy) return;
+                              setStatusBusy(p.id);
+                              setStatusErr("");
+                              try {
+                                await setPayrollStatus(p.id, v);
+                                reload();
+                              } catch (cause) {
+                                setStatusErr(cause instanceof ApiError && cause.detail && !/^\d{3}$|aborted|network_error/.test(cause.detail) ? cause.detail : t("error"));
+                              } finally {
+                                setStatusBusy("");
+                              }
+                            }}
+                            options={[{ value: "", label: statusBusy === p.id ? t("saving") : t("calc.moveTo") }, ...PAYROLL_NEXT[p.status].map((x) => ({ value: x, label: label(x) }))]}
+                            ariaLabel={t("calc.changeStatus")}
+                          />
+                        ) : <span className="hrm-muted">—</span>}
+                      </td>
                     </tr>
                   );
                 })}
@@ -594,7 +629,94 @@ function PayrollPage() {
         <InternalPagination page={page} onChange={setOffset} />
       </HrmPanel>
       <PayrollCreate open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); reload(); }} typeLabel={typeLabel} />
+      <PayrollCalculate open={calculating} onClose={() => setCalculating(false)} onDone={reload} />
     </section>
+  );
+}
+
+// POST /internal/payroll/calculate (guide §18): the backend works the month
+// out from the active assignment and the attendance; the result is shown
+// part by part — base salary, planned and worked time, the attendance
+// coefficient, bonus, penalty, advance and what is finally paid.
+function PayrollCalculate({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+  const t = useTranslations("internal.operations");
+  const tu = useTranslations("internal.ui");
+  const f = useHrmFormat();
+  const dir = useHrmDirectory();
+  const blank = { employee: "", period: thisMonth(), bonus: "", penalty: "", advance: "", note: "" };
+  const [form, setForm] = useState(blank);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [result, setResult] = useState<PayrollCalc | null>(null);
+  const set = (k: keyof typeof blank) => (v: string) => setForm((c) => ({ ...c, [k]: v }));
+  const money = (v: string) => Number(v.replace(/\s/g, "")) || 0;
+  const digits = (v: string) => v.replace(/[^\d\s]/g, "");
+  const close = () => {
+    if (busy) return;
+    setResult(null);
+    setErr("");
+    setForm(blank);
+    onClose();
+  };
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || !form.employee || !form.period) return;
+    setBusy(true);
+    setErr("");
+    try {
+      setResult(await calculatePayroll({ employee_id: form.employee, period: form.period, bonus_amount: money(form.bonus), penalty_amount: money(form.penalty), advance_amount: money(form.advance), note: form.note.trim() }));
+      onDone();
+    } catch (cause) {
+      setErr(cause instanceof ApiError && cause.detail && !/^\d{3}$|aborted|network_error/.test(cause.detail) ? cause.detail : t("error"));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const who = dir.employee(form.employee);
+  return (
+    <HrmDrawer open={open} onClose={close} title={t("calc.title")} sub={t("calc.lead")}>
+      {result ? (
+        <div className="hrm-calc">
+          <div className="hrm-calc__head">
+            <span className="hrm-kicker">{[who?.name, f.period(form.period)].filter(Boolean).join(" · ")}</span>
+            <b>{f.money(result.payable)}</b>
+            <small>{t("calc.payable")}</small>
+          </div>
+          <ul className="hrm-calc__rows">
+            <li><span>{t("calc.base")}</span><b>{f.money(result.baseSalary)}</b></li>
+            <li><span>{t("calc.planned")}</span><b>{f.minutes(result.plannedMinutes)}</b></li>
+            <li><span>{t("calc.worked")}</span><b>{f.minutes(result.workedMinutes)}</b></li>
+            <li><span>{t("calc.coefficient")}</span><b>{result.coefficient ? (result.coefficient > 1.5 ? `${f.num(result.coefficient)}%` : f.num(result.coefficient)) : "—"}</b></li>
+            <li className="is-plus"><span>{t("calc.bonus")}</span><b>+{f.money(result.bonus)}</b></li>
+            <li className="is-minus"><span>{t("calc.penalty")}</span><b>−{f.money(result.penalty)}</b></li>
+            <li className="is-minus"><span>{t("calc.advance")}</span><b>−{f.money(result.advance)}</b></li>
+            <li className="is-total"><span>{t("calc.payable")}</span><b>{f.money(result.payable)}</b></li>
+          </ul>
+          {result.status ? <p className="hrm-form__note">{t("calc.saved")} · <HrmStatus value={result.status} /></p> : null}
+          <div className="hrm-form__foot">
+            <button className="btn btn--pri btn--sm" type="button" onClick={() => setResult(null)}><IconCalculator />{t("calc.again")}</button>
+            <button className="btn btn--line btn--sm" type="button" onClick={close}>{t("cancel")}</button>
+          </div>
+        </div>
+      ) : (
+        <form className="hrm-form" onSubmit={submit}>
+          {err ? <HrmError text={err} /> : null}
+          <div className="hrm-form__grid">
+            <InternalField label={t("employeeId")}><EntitySelect value={form.employee} onChange={set("employee")} options={dir.employeeOptions} placeholder={tu("choose.employee")} ariaLabel={t("employeeId")} /></InternalField>
+            <InternalField label={t("period")}><MonthPicker value={form.period} onChange={set("period")} placeholder={tu("choose.period")} ariaLabel={t("period")} /></InternalField>
+            <InternalField label={t("calc.bonus")}><input value={form.bonus} onChange={(e) => set("bonus")(digits(e.target.value))} inputMode="numeric" maxLength={16} placeholder="0" /></InternalField>
+            <InternalField label={t("calc.penalty")}><input value={form.penalty} onChange={(e) => set("penalty")(digits(e.target.value))} inputMode="numeric" maxLength={16} placeholder="0" /></InternalField>
+            <InternalField label={t("calc.advance")}><input value={form.advance} onChange={(e) => set("advance")(digits(e.target.value))} inputMode="numeric" maxLength={16} placeholder="0" /></InternalField>
+            <InternalField label={t("note")}><input value={form.note} onChange={(e) => set("note")(e.target.value)} maxLength={200} placeholder={t("calc.notePh")} /></InternalField>
+          </div>
+          {who?.salary ? <p className="hrm-form__note">{t("calc.baseHint", { amount: f.money(who.salary) })}</p> : null}
+          <div className="hrm-form__foot">
+            <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !form.employee || !form.period}><IconCalculator />{busy ? t("calc.running") : t("calc.run")}</button>
+            <button className="btn btn--line btn--sm" type="button" onClick={close}>{t("cancel")}</button>
+          </div>
+        </form>
+      )}
+    </HrmDrawer>
   );
 }
 
@@ -683,7 +805,9 @@ function AnalyticsPage() {
     if (exporting) return;
     setExporting(true);
     try {
-      saveBlob(await getAnalyticsExport({ date_from: dates.from || undefined, date_to: dates.to || undefined }), `lexgo-internal-analytics${dates.from ? `-${dates.from}` : ""}.xlsx`);
+      // The file keeps the name the server gave it (Content-Disposition).
+      const { blob, name } = await exportInternalAnalytics({ date_from: dates.from || undefined, date_to: dates.to || undefined });
+      saveBlob(blob, name || `lexgo-internal-analytics${dates.from ? `-${dates.from}` : ""}${dates.to ? `-${dates.to}` : ""}.xlsx`);
     } catch {
       setError(true);
     } finally {

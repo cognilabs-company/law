@@ -8,6 +8,7 @@ import { initials } from "@/lib/lawyers";
 import { useDemoTools } from "@/lib/demoTools";
 import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
+import FeedbackButton from "@/components/internal/feedback/FeedbackButton";
 import IncomingCallWatcher from "../portal/IncomingCallWatcher";
 import { useAiReveal } from "@/lib/guide/targets";
 import { fuzzyContains } from "@/lib/searchMatch";
@@ -404,6 +405,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </button>
           <h1 data-ai-target="ai-help:current-page">{title}</h1>
           <div className="ptop__sp">
+            <FeedbackButton />
             <ThemeToggle variant="square" />
             <LanguageSwitcher />
             <Link className="ptop__user" href={profileHref} title={session?.name || t("badge")} data-ai-target="header:profile">

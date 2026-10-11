@@ -8,6 +8,7 @@ import { hasInternalAccess, canInternal, internalRoles, type InternalPermission 
 import { initials } from "@/lib/lawyers";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
+import FeedbackButton from "@/components/internal/feedback/FeedbackButton";
 import IncomingCallWatcher from "@/components/portal/IncomingCallWatcher";
 import {
   IconLogo,
@@ -25,12 +26,19 @@ import {
   IconMenu,
   IconClose,
   IconLogout,
+  IconMonitor,
+  IconFolder,
+  IconLightbulb,
 } from "@/components/icons";
 
 type Icon = ComponentType<{ className?: string }>;
 type Item = { href: string; key: string; Icon: Icon; permission?: InternalPermission };
 type Group = { key: string; items: Item[] };
 
+// The order of the guide's menu (§4): Men, Live Office, Tashkilot, Xodimlar,
+// Vaqt va davomat, Ijro, HR jarayonlari, Ish haqi, Tahlil, murojaatlar.
+// A section the account has no permission for is not shown. KPI is out of
+// the new scope and has no entry.
 const GROUPS: Group[] = [
   { key: "workspace", items: [
     { href: "/internal", key: "dashboard", Icon: IconHome },
@@ -39,18 +47,22 @@ const GROUPS: Group[] = [
     { href: "/internal/me/attendance", key: "attendance", Icon: IconCalendar },
     { href: "/internal/me/approvals", key: "approvals", Icon: IconShieldCheck },
     { href: "/internal/me/messages", key: "messages", Icon: IconChat },
+    { href: "/internal/live-office", key: "liveOffice", Icon: IconMonitor },
   ] },
   { key: "people", items: [
-    { href: "/internal/employees", key: "employees", Icon: IconUsers, permission: "internal_hr.manage" },
     { href: "/internal/org", key: "org", Icon: IconBuilding, permission: "internal_org.manage" },
+    { href: "/internal/employees", key: "employees", Icon: IconUsers, permission: "internal_hr.manage" },
   ] },
   { key: "operations", items: [
-    { href: "/internal/execution", key: "execution", Icon: IconBriefcase, permission: "internal_execution.manage" },
     { href: "/internal/time", key: "time", Icon: IconClock, permission: "internal_time.manage" },
     { href: "/internal/schedules", key: "schedules", Icon: IconCalendar, permission: "internal_time.manage" },
-    { href: "/internal/kpi", key: "kpi", Icon: IconChartBar, permission: "internal_kpi.manage" },
+    { href: "/internal/execution", key: "execution", Icon: IconBriefcase, permission: "internal_execution.manage" },
+    { href: "/internal/hr", key: "hr", Icon: IconFolder },
     { href: "/internal/payroll", key: "payroll", Icon: IconCard, permission: "internal_payroll.manage" },
     { href: "/internal/analytics", key: "analytics", Icon: IconChartBar, permission: "internal_analytics.view" },
+  ] },
+  { key: "support", items: [
+    { href: "/internal/feedback", key: "feedback", Icon: IconLightbulb },
   ] },
 ];
 
@@ -114,7 +126,7 @@ export default function InternalShell({ children }: { children: ReactNode }) {
         <header className="ptop">
           <button className="ptop__burger" type="button" aria-label={t("menu")} onClick={() => setOpenPath(open ? null : pathname)}>{open ? <IconClose /> : <IconMenu />}</button>
           <h1>{t(`nav.${active.key}`)}</h1>
-          <div className="ptop__sp"><ThemeToggle variant="square" /><LanguageSwitcher />
+          <div className="ptop__sp"><FeedbackButton /><ThemeToggle variant="square" /><LanguageSwitcher />
             <Link className="ptop__user" href={session ? `/portal/${session.role}/profile` : "/login"} title={session?.name || ""}>
               <span className="ptop__av">{initials(session?.name || "I")}</span><span>{session?.name || t("staff")}</span>
             </Link>

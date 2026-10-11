@@ -6,7 +6,6 @@ import { subscribeUserEvents } from "@/lib/userSocket";
 import { ApiError, asDict } from "@/lib/http";
 import {
   getMyAttendance,
-  getMyKpiSummary,
   getMyMessages,
   getMyProfile,
   getMyTasks,
@@ -17,12 +16,13 @@ import {
   sendInternalMessage,
   type HrmAttendance,
   type HrmEmployee,
-  type HrmKpi,
   type HrmMessage,
   type HrmTask,
   type InternalPage,
 } from "@/lib/services/internalHrm";
-import { IconBriefcase, IconCalendar, IconChartBar, IconChat, IconCheck, IconClock, IconMail, IconMapPin, IconPhone, IconRefresh, IconSend, IconUser } from "@/components/icons";
+import { IconBriefcase, IconBuilding, IconCalendar, IconChartBar, IconChat, IconCheck, IconClock, IconMail, IconMapPin, IconMonitor, IconPhone, IconRefresh, IconSend, IconUser } from "@/components/icons";
+import { Link } from "@/i18n/navigation";
+import { getMemberships, type LiveMembership } from "@/lib/services/internalLive";
 import DatePicker from "@/components/DatePicker";
 import FilterBar from "@/components/filters/FilterBar";
 import InternalPagination from "@/components/internal/InternalPagination";
@@ -32,7 +32,6 @@ import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import {
   EntitySelect,
   HrmAvatar,
-  HrmBar,
   HrmEmpty,
   HrmError,
   HrmHead,
@@ -71,7 +70,7 @@ function ProfilePage() {
   const f = useHrmFormat();
   const dir = useHrmDirectory();
   const [me, setMe] = useState<{ employee: HrmEmployee; role: string } | null>(null);
-  const [kpi, setKpi] = useState<{ period: string; score: number | null; items: HrmKpi[] }>({ period: "", score: null, items: [] });
+  const [units, setUnits] = useState<LiveMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -79,10 +78,11 @@ function ProfilePage() {
     setLoading(true);
     setError(false);
     try {
-      const [raw, kpis] = await Promise.all([getMyProfile(signal), getMyKpiSummary({}, signal).catch(() => null)]);
-      const d = asDict(raw);
-      setMe({ employee: normEmployee(d.employee ?? d), role: String(asDict(d.user).role ?? "") });
-      setKpi(kpis ?? { period: "", score: null, items: [] });
+      const d = asDict(await getMyProfile(signal));
+      const employee = normEmployee(d.employee ?? d);
+      setMe({ employee, role: String(asDict(d.user).role ?? "") });
+      // Primary and additional departments (guide §8); optional.
+      setUnits(employee.id ? await getMemberships(employee.id, signal).catch(() => []) : []);
     } catch (cause) {
       if (!aborted(cause)) setError(true);
     } finally {
@@ -100,13 +100,6 @@ function ProfilePage() {
   const position = e ? dir.positionTitle(e.positionId) : "";
   const unit = e ? dir.unitName(e.unitId) : "";
   const manager = e ? dir.employeeName(e.managerId) : "";
-  // The backend's own weighted score when it has one; otherwise the same
-  // weighting worked out from the metrics shown below it.
-  const weighted = useMemo(() => {
-    if (kpi.score) return kpi.score;
-    const w = kpi.items.reduce((s, k) => s + (k.weight || 0), 0);
-    return w ? kpi.items.reduce((s, k) => s + k.score * (k.weight || 0), 0) / w : kpi.items.length ? kpi.items.reduce((s, k) => s + k.score, 0) / kpi.items.length : 0;
-  }, [kpi.items, kpi.score]);
 
   return (
     <section className="hrm-page">
@@ -146,25 +139,35 @@ function ProfilePage() {
               {e.skills.length ? <div className="hrm-chips" style={{ marginTop: 12 }}>{e.skills.map((s) => <span className="hrm-chip" key={s}>{s}</span>)}</div> : null}
             </HrmPanel>
           </div>
-          <HrmPanel title={t("myKpis")} icon={IconChartBar} count={kpi.items.length || undefined}>
-            {kpi.items.length ? (
-              <div className="hrm-form">
-                <div className="hrm-score">
-                  <b>{f.num(weighted)}</b>
-                  <span>{kpi.period ? `${t("kpiScore")} · ${f.period(kpi.period)}` : t("kpiScore")}</span>
-                  <HrmBar value={weighted} />
-                </div>
-                <ul className="hrm-list">
-                  {kpi.items.map((k) => (
-                    <li key={k.id || k.code}>
-                      <span className="hrm-list__t"><b>{k.title}</b><small>{t("kpiTarget", { actual: f.num(k.actual), target: f.num(k.target) })}{k.unit === "percent" ? " %" : ""}</small></span>
-                      <span className="hrm-list__a"><b className="hrm-num">{f.num(k.score)}</b></span>
+          <div className="hrm-grid">
+            <HrmPanel title={t("myUnits")} icon={IconBuilding} count={units.filter((m) => m.status === "active").length || undefined}>
+              {units.length ? (
+                <ul className="lv-mem">
+                  {units.map((m) => (
+                    <li key={m.id || `${m.unitId}-${m.type}`} className={m.status !== "active" ? "is-off" : ""}>
+                      <span className={`lv-mtype lv-mtype--${m.type}`}>{t(m.type === "additional" ? "unitAdditional" : "unitPrimary")}</span>
+                      <b>{dir.unitName(m.unitId) || "—"}</b>
+                      <small>{[m.from ? f.date(m.from) : "", m.to ? f.date(m.to) : ""].filter(Boolean).join(" — ")}</small>
                     </li>
                   ))}
                 </ul>
-              </div>
-            ) : <HrmEmpty icon={IconChartBar} title={t("noKpis")} text={t("noKpisLead")} />}
-          </HrmPanel>
+              ) : unit ? (
+                <ul className="lv-mem">
+                  <li>
+                    <span className="lv-mtype lv-mtype--primary">{t("unitPrimary")}</span>
+                    <b>{unit}</b>
+                  </li>
+                </ul>
+              ) : <HrmEmpty icon={IconBuilding} title={t("noAssignment")} />}
+            </HrmPanel>
+            <HrmPanel title={t("liveOffice")} icon={IconMonitor}>
+              <p className="hrm-muted">{t("liveOfficeLead")}</p>
+              <Link className="btn btn--pri btn--sm" href="/internal/live-office">
+                <IconMonitor />
+                {t("openLiveOffice")}
+              </Link>
+            </HrmPanel>
+          </div>
         </div>
       ) : <HrmPanel><HrmEmpty icon={IconUser} title={t("noProfile")} /></HrmPanel>}
     </section>

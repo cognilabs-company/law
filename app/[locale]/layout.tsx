@@ -23,6 +23,7 @@ import AIChatDock from "@/components/AIChatDock";
 import ScrollProgress from "@/components/ScrollProgress";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import ThemeSync from "@/components/ThemeSync";
+import LiveOfficeHeartbeat from "@/components/live/LiveOfficeHeartbeat";
 import ReferralCapture from "@/components/ReferralCapture";
 import Toaster from "@/components/Toaster";
 import GuideHost from "@/components/guide/GuideHost";
@@ -91,6 +92,7 @@ export default async function LocaleLayout({ children, params }: Props) {
           <ReferralCapture />
           <AuthProvider>
             <SessionExpiryWatcher />
+            <LiveOfficeHeartbeat />
             <ConsentGate />
             <ScrollProgress />
             <Navbar />

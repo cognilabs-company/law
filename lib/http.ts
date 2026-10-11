@@ -364,6 +364,22 @@ export async function httpBlob(path: string, init?: RequestInit): Promise<Blob> 
   return res.blob();
 }
 
+// The same, plus the file name the server gave in Content-Disposition
+// (filename*=UTF-8''… first, then filename="…"); '' when it gave none.
+export async function httpBlobNamed(path: string, init?: RequestInit): Promise<{ blob: Blob; name: string }> {
+  const res = await authedFetch(path, init, "*/*");
+  const disp = res.headers.get("content-disposition") || "";
+  const star = /filename\*\s*=\s*(?:UTF-8'')?([^;]+)/i.exec(disp);
+  const plain = /filename\s*=\s*"?([^";]+)"?/i.exec(disp);
+  let name = "";
+  try {
+    name = star ? decodeURIComponent(star[1].trim().replace(/^"|"$/g, "")) : plain ? plain[1].trim() : "";
+  } catch {
+    name = plain ? plain[1].trim() : "";
+  }
+  return { blob: await res.blob(), name };
+}
+
 async function authedFetch(path: string, init: RequestInit | undefined, accept: string): Promise<Response> {
   const send = async (token: string | null): Promise<Response> => {
     try {

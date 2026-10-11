@@ -8,14 +8,18 @@ import {
   assignEmployee,
   createEmployee,
   getEmployee360,
+  getSchedules,
   normAttendance,
-  normKpi,
   normPayroll,
+  normSchedule,
   normTask,
   updateEmployee,
   type HrmEmployee,
+  type HrmSchedule,
 } from "@/lib/services/internalHrm";
-import { IconChartBar, IconCheck, IconEdit, IconMail, IconMapPin, IconPhone, IconPlus } from "@/components/icons";
+import { IconChartBar, IconCheck, IconEdit, IconMail, IconMapPin, IconMonitor, IconPhone, IconPlus } from "@/components/icons";
+import { Link } from "@/i18n/navigation";
+import { getMemberships, type LiveMembership } from "@/lib/services/internalLive";
 import DatePicker from "@/components/DatePicker";
 import Select from "@/components/Select";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
@@ -36,7 +40,7 @@ const EMPLOYMENT_TYPES = ["full_time", "part_time", "contract", "intern"] as con
 
 // ── Employee 360 ───────────────────────────────────────────────────────────
 
-type Detail = { tasks: ReturnType<typeof normTask>[]; attendance: ReturnType<typeof normAttendance>[]; kpis: ReturnType<typeof normKpi>[]; payroll: ReturnType<typeof normPayroll>[] };
+type Detail = { tasks: ReturnType<typeof normTask>[]; attendance: ReturnType<typeof normAttendance>[]; payroll: ReturnType<typeof normPayroll>[]; memberships: LiveMembership[]; schedule: HrmSchedule | null };
 
 export function Employee360({ employee, onClose, onSaved }: { employee: HrmEmployee | null; onClose: () => void; onSaved: () => void }) {
   const t = useTranslations("internal.people");
@@ -61,12 +65,21 @@ export function Employee360({ employee, onClose, onSaved }: { employee: HrmEmplo
     void Promise.resolve().then(async () => {
       setLoading(true);
       try {
-        const d = asDict(await getEmployee360(id, c.signal));
+        // The 360 answer, plus the person's departments (primary and
+        // additional, guide §7–§8) and work schedule; the last two are
+        // optional — a list the viewer may not read is simply left out.
+        const [raw, memberships, schedules] = await Promise.all([
+          getEmployee360(id, c.signal),
+          getMemberships(id, c.signal).catch(() => [] as LiveMembership[]),
+          getSchedules({ employee_id: id, limit: 5 }, c.signal).catch(() => null),
+        ]);
+        const d = asDict(raw);
         setDetail({
           tasks: asArr(d.tasks).map(normTask),
           attendance: asArr(d.attendance).map(normAttendance),
-          kpis: asArr(d.kpis).map(normKpi),
           payroll: asArr(d.payroll ?? d.payroll_entries).map(normPayroll),
+          memberships,
+          schedule: schedules?.items.map(normSchedule).find((x) => x.status !== "inactive") ?? null,
         });
       } catch (cause) {
         if (!(cause instanceof ApiError && cause.detail === "aborted")) setError(true);
@@ -98,9 +111,13 @@ export function Employee360({ employee, onClose, onSaved }: { employee: HrmEmplo
           <div className="hrm-minis">
             <div className="hrm-mini"><b>{detail ? detail.tasks.length : "…"}</b><span>{t("tasksCount")}</span></div>
             <div className="hrm-mini"><b>{detail ? detail.attendance.length : "…"}</b><span>{t("attendanceCount")}</span></div>
-            <div className="hrm-mini"><b>{detail ? detail.kpis.length : "…"}</b><span>{t("kpiCount")}</span></div>
+            <div className="hrm-mini"><b>{detail ? detail.memberships.filter((m) => m.status === "active").length || (e.unitId ? 1 : 0) : "…"}</b><span>{t("unitsCount")}</span></div>
             <div className="hrm-mini"><b>{detail ? detail.payroll.length : "…"}</b><span>{t("payrollCount")}</span></div>
           </div>
+          <Link className="btn btn--line btn--sm hrm-lo-link" href={`/internal/live-office?employee=${encodeURIComponent(e.id)}`}>
+            <IconMonitor />
+            {t("liveOfficeLink")}
+          </Link>
           <HrmSection label={t("assignment")}>
             <HrmKv
               rows={[
@@ -124,6 +141,33 @@ export function Employee360({ employee, onClose, onSaved }: { employee: HrmEmplo
           </HrmSection>
           {loading && !detail ? <HrmLoading rows={3} /> : detail ? (
             <>
+              <HrmSection label={t("departments")}>
+                {detail.memberships.length ? (
+                  <ul className="lv-mem">
+                    {detail.memberships.map((m) => (
+                      <li key={m.id || `${m.unitId}-${m.type}`} className={m.status !== "active" ? "is-off" : ""}>
+                        <span className={`lv-mtype lv-mtype--${m.type}`}>{t(m.type === "additional" ? "membershipAdditional" : "membershipPrimary")}</span>
+                        <b>{dir.unitName(m.unitId) || "—"}</b>
+                        <small>{[m.from ? f.date(m.from) : "", m.to ? f.date(m.to) : ""].filter(Boolean).join(" — ")}</small>
+                      </li>
+                    ))}
+                  </ul>
+                ) : e.unitId ? (
+                  <ul className="lv-mem">
+                    <li>
+                      <span className="lv-mtype lv-mtype--primary">{t("membershipPrimary")}</span>
+                      <b>{dir.unitName(e.unitId) || "—"}</b>
+                    </li>
+                  </ul>
+                ) : <p className="hrm-muted">{t("noneYet")}</p>}
+              </HrmSection>
+              <HrmSection label={t("schedule")}>
+                {detail.schedule ? (
+                  <ul className="hrm-list">
+                    <li><span className="hrm-list__t"><b>{detail.schedule.title || t("schedule")}</b><small>{detail.schedule.days.map((d) => `${f.weekday(d.day)} ${d.start}–${d.end}`).join(" · ") || "—"}</small></span></li>
+                  </ul>
+                ) : <p className="hrm-muted">{t("noSchedule")}</p>}
+              </HrmSection>
               <HrmSection label={t("recentTasks")} aside={<span className="hrm-count">{detail.tasks.length}</span>}>
                 {detail.tasks.length ? (
                   <ul className="hrm-list">
@@ -142,13 +186,6 @@ export function Employee360({ employee, onClose, onSaved }: { employee: HrmEmplo
                   </ul>
                 ) : <p className="hrm-muted">{t("noneYet")}</p>}
               </HrmSection>
-              {detail.kpis.length ? (
-                <HrmSection label={t("kpiCount")}>
-                  <ul className="hrm-list">
-                    {detail.kpis.map((k) => <li key={k.id}><span className="hrm-list__t"><b>{k.title}</b><small>{`${f.num(k.actual)} / ${f.num(k.target)} · ${f.period(k.period)}`}</small></span><b className="hrm-num">{f.num(k.score)}</b></li>)}
-                  </ul>
-                </HrmSection>
-              ) : null}
               {detail.payroll.length ? (
                 <HrmSection label={t("payrollCount")}>
                   <ul className="hrm-list">
