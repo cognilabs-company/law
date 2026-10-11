@@ -215,7 +215,6 @@ export default function PortalShell({
   // nothing. `.portal--full .pbody__in{height:100%}` is what gives it a real
   // viewport-height chain to fill.
   const fullscreen = /\/services\/document\//.test(pathname) || /\/document-requests\/[^/]+\/editor$/.test(pathname);
-  const marketplace = /\/portal\/client\/lawyers(\/|$)/.test(pathname);
   const [peek, setPeek] = useState(false);
 
   // Desktop collapse (icon-only rail) — a per-device convenience, remembered
@@ -438,7 +437,7 @@ export default function PortalShell({
               </div>
             ) : role !== "client" ? (
               <GrowthBanner role={role} completeness={session.completeness} />
-            ) : marketplace ? null : (
+            ) : (
               <GiftNudge />
             )}
             <CabinetProvider value={cabinet}>{hideBody ? <div className="portal--gated" aria-busy="true"><span className="rf__spinner" /></div> : children}</CabinetProvider>

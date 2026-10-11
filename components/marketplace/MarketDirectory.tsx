@@ -88,7 +88,9 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const [items, setItems] = useState<MarketSeller[]>([]);
   const [total, setTotal] = useState(0);
   const [meta, setMeta] = useState<MarketMeta | null>(null);
+  const [sponsored, setSponsored] = useState<MarketPromotionSurface[]>([]);
   const [banners, setBanners] = useState<MarketPromotionSurface[]>([]);
+  const [sponsoredProfiles, setSponsoredProfiles] = useState<MarketPromotionSurface[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [moreBusy, setMoreBusy] = useState(false);
   const [reload, setReload] = useState(0);
@@ -110,6 +112,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   // GET /promotions/active (10-09 §5): the page-top banners, and — once a
   // service is picked — the promotions bought for exactly that service.
   const [activeBanners, setActiveBanners] = useState<MarketPromotionSurface[]>([]);
+  const [serviceBoost, setServiceBoost] = useState<{ serviceId: string; items: MarketPromotionSurface[] } | null>(null);
   const aiCtrl = useRef<AbortController | null>(null);
   const [aiPending, setAiPending] = useState("");
   const aiSeq = useRef(0);
@@ -126,7 +129,9 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
           metaRef.current = r.meta;
           setMeta(r.meta);
         }
+        setSponsored(r.sponsored);
         setBanners(r.banners);
+        setSponsoredProfiles(r.sponsoredProfiles);
         setStatus("ready");
       })
       .catch(() => {
@@ -140,6 +145,15 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
     listActivePromotions({ placement: "banner", limit: 5 }, c.signal).then((rows) => { if (!c.signal.aborted) setActiveBanners(rows); }).catch(() => {});
     return () => c.abort();
   }, [reload]);
+
+  useEffect(() => {
+    if (!service) return;
+    const c = new AbortController();
+    listActivePromotions({ placement: "service_boost", serviceId: service, limit: 5 }, c.signal)
+      .then((rows) => { if (!c.signal.aborted) setServiceBoost({ serviceId: service, items: rows }); })
+      .catch(() => { if (!c.signal.aborted) setServiceBoost({ serviceId: service, items: [] }); });
+    return () => c.abort();
+  }, [service]);
 
   const retry = () => {
     setStatus("loading");
@@ -250,6 +264,20 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   // names a service, and its promotions are still the relevant ones.
   const aiMeta = ai && ai.q === query && !aiThinking ? ai : null;
   const shownBanners = aiMeta?.banners.length ? aiMeta.banners : banners.length ? banners : activeBanners;
+  // A picked category without a service shows only what was bought for one of
+  // that category's services.
+  const categoryServiceIds = useMemo(() => new Set(services.map((x) => x.value)), [services]);
+  const shownSponsored = aiMeta?.sponsored.length
+    ? aiMeta.sponsored
+    : service
+      ? serviceBoost?.serviceId === service ? serviceBoost.items : []
+      : category
+        ? sponsored.filter((p) => p.serviceId && categoryServiceIds.has(p.serviceId))
+        : sponsored;
+
+  const shownProfiles = aiHit?.sponsoredProfiles.length ? aiHit.sponsoredProfiles : sponsoredProfiles;
+  const promoSearchKey = [aiHit ? `ai:${aiHit.q}` : query, category, service].filter(Boolean).join("|");
+
   const aiMatchOf = useMemo(() => new Map((aiHit?.matches ?? []).map((m) => [m.userId, m])), [aiHit]);
 
   const regionRaw = useMemo(() => (region ? items.find((s) => (regionKeyOf(te, s.region) || s.region.toLowerCase()) === region)?.region ?? "" : ""), [region, items, te]);
@@ -444,79 +472,6 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       {/* Page top (10-09 §6): the banner carousel opens the page. */}
       <PromotionSurfaces part="banner" banners={shownBanners} sponsored={[]} base={base} />
 
-      <FilterBar
-        variant="market"
-        fields={filterFields}
-        count={list.length}
-        onReset={resetFilters}
-        title={t("filters.toggle")}
-        aiId="marketplace.filters"
-        aiTarget="marketplace:filters"
-        search={{
-          value: q,
-          onChange: setQ,
-          placeholder: t("searchPh"),
-          label: t("searchLabel"),
-          onEnter: showResults,
-          aiId: "marketplace.filters.search",
-          aiTarget: "marketplace:filters-search",
-        }}
-      />
-
-
-      <div className="mk-count" ref={resultsRef} aria-live="polite">
-        {status === "ready" ? t("count", { n: list.length }) : null}
-      </div>
-
-      {status === "loading" ? (
-        <div className="mk-grid">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="mk-card mk-card--ghost" aria-hidden="true" />
-          ))}
-        </div>
-      ) : status === "error" ? (
-        <div className="mk-empty">
-          <b>{t("error")}</b>
-          <button type="button" className="btn btn--line btn--sm" onClick={retry}>
-            <IconRefresh />
-            {t("retry")}
-          </button>
-        </div>
-      ) : !list.length ? (
-        <div className="mk-empty" data-ai-target="marketplace:lawyer-list" data-ai-id="marketplace.results">
-          <IconSparkle />
-          <b>{t("empty")}</b>
-          <span>{q ? t("emptyTextAi") : t("emptyText")}</span>
-          <div className="mk-empty__acts">
-            {activeFilters || q ? (
-              <button type="button" className="btn btn--line btn--sm" onClick={resetFilters} data-ai-id="marketplace.results.reset">
-                {t("filters.reset")}
-              </button>
-            ) : null}
-            {q ? (
-              <Link href="/portal/client/support?topic=marketplace" className="btn btn--pri btn--sm" data-ai-target="button:operator-support" data-ai-id="marketplace.results.ask-support">
-                <IconHeadset />
-                {t("askSupport")}
-              </Link>
-            ) : null}
-          </div>
-        </div>
-      ) : (
-        <div className={`mk-grid${aiThinking ? " is-busy" : ""}`} data-ai-target="marketplace:lawyer-list" data-ai-id="marketplace.results" data-ai-type="list">
-          {list.map((s, i) => (
-            <SellerCard key={s.userId} s={s} href={`${base}/${encodeURIComponent(s.userId)}`} index={i} locale={locale} match={aiMatchOf.get(s.userId)} />
-          ))}
-        </div>
-      )}
-
-      {status === "ready" && items.length < total ? (
-        <div className="mk-more">
-          <button type="button" className="btn btn--line" disabled={moreBusy} onClick={() => void loadMore()} data-ai-id="marketplace.results.load-more">
-            {t("loadMore")}
-          </button>
-        </div>
-      ) : null}
-
       <div className="mk-hero">
         <div className="mk-hero__glow" aria-hidden="true" />
         <div className="mk-hero__in">
@@ -647,6 +602,72 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
         </div>
         <HeroShowcase items={items} base={base} locale={locale} />
       </div>
+
+      <FilterBar
+        variant="market"
+        fields={filterFields}
+        count={list.length}
+        onReset={resetFilters}
+        title={t("filters.toggle")}
+        aiId="marketplace.filters"
+        aiTarget="marketplace:filters"
+      />
+
+      <PromotionSurfaces part="profiles" profiles={shownProfiles} base={base} searchKey={promoSearchKey} />
+      <PromotionSurfaces part="sponsored" sponsored={shownSponsored} base={base} searchKey={promoSearchKey} />
+
+      <div className="mk-count" ref={resultsRef} aria-live="polite">
+        {status === "ready" ? t("count", { n: list.length }) : null}
+      </div>
+
+      {status === "loading" ? (
+        <div className="mk-grid">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="mk-card mk-card--ghost" aria-hidden="true" />
+          ))}
+        </div>
+      ) : status === "error" ? (
+        <div className="mk-empty">
+          <b>{t("error")}</b>
+          <button type="button" className="btn btn--line btn--sm" onClick={retry}>
+            <IconRefresh />
+            {t("retry")}
+          </button>
+        </div>
+      ) : !list.length ? (
+        <div className="mk-empty" data-ai-target="marketplace:lawyer-list" data-ai-id="marketplace.results">
+          <IconSparkle />
+          <b>{t("empty")}</b>
+          <span>{q ? t("emptyTextAi") : t("emptyText")}</span>
+          <div className="mk-empty__acts">
+            {activeFilters || q ? (
+              <button type="button" className="btn btn--line btn--sm" onClick={resetFilters} data-ai-id="marketplace.results.reset">
+                {t("filters.reset")}
+              </button>
+            ) : null}
+            {q ? (
+              <Link href="/portal/client/support?topic=marketplace" className="btn btn--pri btn--sm" data-ai-target="button:operator-support" data-ai-id="marketplace.results.ask-support">
+                <IconHeadset />
+                {t("askSupport")}
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <div className={`mk-grid${aiThinking ? " is-busy" : ""}`} data-ai-target="marketplace:lawyer-list" data-ai-id="marketplace.results" data-ai-type="list">
+          {list.map((s, i) => (
+            <SellerCard key={s.userId} s={s} href={`${base}/${encodeURIComponent(s.userId)}`} index={i} locale={locale} match={aiMatchOf.get(s.userId)} />
+          ))}
+        </div>
+      )}
+
+      {status === "ready" && items.length < total ? (
+        <div className="mk-more">
+          <button type="button" className="btn btn--line" disabled={moreBusy} onClick={() => void loadMore()} data-ai-id="marketplace.results.load-more">
+            {t("loadMore")}
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }
