@@ -39,7 +39,7 @@ export default function Modal({
     // own — Escape there means "leave the call", which its own end button
     // owns. Closing the modal underneath would tear the call down instead.
     const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !isCallRoomMounted()) onClose();
+      if (e.key === "Escape" && !e.defaultPrevented && !isCallRoomMounted()) onClose();
     };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);

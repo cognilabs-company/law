@@ -11209,6 +11209,7 @@
       "durationMin": "{n} daq"
     },
     "callHistory": {
+      "participantCount": "{n} ishtirokchi",
       "title": "Uchrashuvlar tarixi",
       "lead": "Platformadagi barcha video/audio uchrashuvlar — kim yaratgan, qancha davom etgan, kimlar qatnashgan.",
       "from": "Sanadan",

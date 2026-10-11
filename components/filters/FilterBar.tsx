@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type ComponentType, type ReactNode, type SVGProps } from "react";
+import { useEffect, useId, useRef, useState, type ComponentType, type ReactNode, type SVGProps } from "react";
 import { useTranslations } from "next-intl";
 import Select, { type Option } from "@/components/Select";
 import { IconClose, IconSearch, IconSliders } from "@/components/icons";
@@ -134,6 +134,7 @@ export default function FilterBar({
   const t = useTranslations("filterBar");
   const uid = useId();
   const [open, setOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const shown = fields.filter((f) => !f.hidden);
   const chips = filterChips(fields);
   const searching = Boolean(search?.value.trim());
@@ -142,7 +143,10 @@ export default function FilterBar({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape" && !e.defaultPrevented) {
+        setOpen(false);
+        toggleRef.current?.focus();
+      }
     };
     const mq = window.matchMedia("(max-width: 900px)");
     const onMq = () => {
@@ -179,7 +183,7 @@ export default function FilterBar({
         <div className={`uf-bar${search ? "" : " uf-bar--solo"}`}>
           {search ? <SearchBox search={search} /> : null}
           {shown.length ? (
-            <button type="button" className="uf-toggle" aria-expanded={open} aria-controls={sheetId} onClick={() => setOpen((v) => !v)} data-ai-id={sub("toggle")}>
+            <button ref={toggleRef} type="button" className="uf-toggle" aria-expanded={open} aria-controls={sheetId} onClick={() => setOpen((v) => !v)} data-ai-id={sub("toggle")}>
               <IconSliders aria-hidden="true" />
               <span>{title || t("title")}</span>
               {chips.length ? <span className="uf-toggle__n">{chips.length}</span> : null}

@@ -99,10 +99,14 @@ export default function DatePicker({
       if (popRef.current?.contains(t)) return;
       setOpen(false);
     };
-    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setOpen(false);
+    };
     document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onEsc);
-    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onEsc); };
+    document.addEventListener("keydown", onEsc, true);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onEsc, true); };
   }, [open]);
 
   // Rendered via a portal with inline position:fixed coordinates computed

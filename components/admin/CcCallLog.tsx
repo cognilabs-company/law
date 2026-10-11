@@ -76,7 +76,7 @@ export default function CcCallLog({ reloadKey = 0 }: { reloadKey?: number }) {
             <div className="creq" key={c.id}>
               <span className={`creq__st${c.status === "missed" ? " creq__st--matching" : c.direction === "incoming" ? " creq__st--consultation" : ""}`} />
               <div className="creq__m">
-                <b><IconPhone style={{ width: 13, height: 13, verticalAlign: "-2px", marginRight: 6 }} />{c.phone || "—"}{c.topic ? ` — ${c.topic}` : ""}</b>
+                <b><span style={{ whiteSpace: "nowrap" }}><IconPhone style={{ display: "inline-block", width: 13, height: 13, verticalAlign: "-2px", marginRight: 6 }} />{c.phone || "—"}</span>{c.topic ? ` — ${c.topic}` : ""}</b>
                 <span>{[t.has(`dir.${c.direction}`) ? t(`dir.${c.direction}`) : c.direction, resultLabel(c.result), dur(c.durationSec), shortDateTime(c.createdAt, locale)].filter(Boolean).join(" · ")}</span>
                 {c.nextAction ? <em className="creq__next">{tl("next")}: {c.nextAction}</em> : null}
               </div>

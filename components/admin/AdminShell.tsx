@@ -304,7 +304,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const profileHref = staffSession ? "/admin" : role === "lawyer" ? "/portal/lawyer" : `/portal/${role}/profile`;
 
   return (
-    <div className="portal">
+    <div className="portal portal--admin">
       {/* Meeting invites reach staff on admin pages too (T4-01). */}
       <IncomingCallWatcher />
       <div className={`psb__scrim${open ? " on" : ""}`} onClick={() => setOpenPath(null)} />

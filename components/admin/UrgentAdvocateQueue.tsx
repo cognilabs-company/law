@@ -73,7 +73,6 @@ import {
   IconClipboardCheck,
   IconBriefcase,
   IconChatDots,
-  IconMegaphone,
 } from "@/components/icons";
 
 // LEXGO_URGENT_ADVOKAT_FRONTEND_UPDATE.md — the call-center side of "Tezkor
@@ -415,17 +414,6 @@ export default function UrgentAdvocateQueue() {
           { key: "status", label: t("fStatus"), icon: IconClipboardCheck, value: status, onChange: setStatus, options: statusOpts, aiId: "call_center.urgent-advokat.tabs", aiTarget: "callcenter:urgent-tabs" },
           { key: "kind", label: t("fKind"), icon: IconBriefcase, value: kind, onChange: setKind, options: kindOpts, aiId: "call_center.urgent-advokat.filters.kind" },
           { key: "channel", label: t("fChannel"), icon: IconChatDots, value: channel, onChange: setChannel, options: channelOpts, aiId: "call_center.urgent-advokat.filters.channel" },
-          {
-            key: "source",
-            label: t("fSource"),
-            icon: IconMegaphone,
-            node: (
-              <span className="uaq__src">
-                <IconBolt aria-hidden="true" />
-                {t("sourceValue")}
-              </span>
-            ),
-          },
         ]}
         count={state.status === "ready" ? state.items.length : undefined}
         onReset={() => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useAuth, canMakeCalls } from "@/lib/auth";
 import { createSecureChat, startCall, searchUsers, type LiveKitJoin } from "@/lib/services/backend";
@@ -96,17 +97,20 @@ export default function CcMeetingButton({ clientUserId, phone, clientName, title
         <IconVideo />
       </button>
       {err ? <span className="ccmeet__err" role="alert">{err}</span> : null}
-      {active ? (
-        <CallRoom
-          roomId={active.roomId}
-          callId={active.callId}
-          callType="video"
-          isCaller
-          title={meetTitle}
-          lk={active.lk}
-          onEnd={() => setActive(null)}
-        />
-      ) : null}
+      {active
+        ? createPortal(
+            <CallRoom
+              roomId={active.roomId}
+              callId={active.callId}
+              callType="video"
+              isCaller
+              title={meetTitle}
+              lk={active.lk}
+              onEnd={() => setActive(null)}
+            />,
+            document.body,
+          )
+        : null}
     </>
   );
 }

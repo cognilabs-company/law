@@ -11203,6 +11203,7 @@
       "durationMin": "{n} min"
     },
     "callHistory": {
+      "participantCount": "{n, plural, one {# participant} other {# participants}}",
       "title": "Meeting history",
       "lead": "Every video/audio meeting on the platform — who created it, how long it ran, who joined.",
       "from": "From",

@@ -495,7 +495,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
                       index={i + 1}
                       title={c.title || tch("untitled")}
                       meta={[c.creatorName, shortDateTime(c.startedAt, locale), c.durationSeconds ? mmss(c.durationSeconds) : ""].filter(Boolean).join(" · ")}
-                      right={<span className="atag atag--muted"><IconUsers style={{ width: 13, height: 13 }} />{c.participantCount}</span>}
+                      right={<span className="atag atag--muted atag--count"><IconUsers aria-hidden="true" style={{ width: 13, height: 13 }} />{tch("participantCount", { n: c.participantCount })}</span>}
                       tags={[{ label: tch.has(`status.${c.status}`) ? tch(`status.${c.status}`) : c.status, tone: c.status === "ended" ? undefined : "ok" }]}
                       actions={<button type="button" className="aitem__act" aria-label={tch("detailTitle")} title={tch("detailTitle")} onClick={() => setPlatDetail(c.id)}><IconEye /></button>}
                     />

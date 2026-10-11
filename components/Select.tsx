@@ -112,6 +112,9 @@ export default function Select({
       return;
     }
     if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      e.nativeEvent.stopImmediatePropagation();
       setOpen(false);
       btn.current?.focus();
     } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -150,12 +153,14 @@ export default function Select({
               style={{ position: "fixed", top: menuPos.top, left: menuPos.left, width: menuPos.width, maxHeight: menuPos.maxHeight }}
             >
               {options.map((o, i) => (
-                <li key={o.value} role="option" aria-selected={o.value === value}>
+                <li key={o.value} role="presentation">
                   <button
                     ref={(el) => {
                       optRefs.current[i] = el;
                     }}
                     type="button"
+                    role="option"
+                    aria-selected={o.value === value}
                     className="dsel__opt"
                     onClick={() => pick(o.value)}
                   >
