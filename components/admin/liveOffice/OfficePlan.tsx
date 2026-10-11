@@ -1,8 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { ROOMS, type OfficeRoom } from "@/lib/liveOffice/model";
-import { CAP, DOOR_W, FACE, HALL, PLAN_H, PLAN_W, SEATS, SIDE, T, hallY, roomBox, seatOf } from "@/lib/liveOffice/plan";
+import { CAP, DOOR_W, FACE, HALL, PLAN_H, PLAN_W, SEATS, SIDE, T, VIEW, hallY, roomBox, seatOf } from "@/lib/liveOffice/plan";
 import { DeskDown, DeskUp, FIG_VIEW } from "./Character";
 import { ROOM_ART } from "./text";
 
@@ -326,7 +326,7 @@ function Furniture({ r }: { r: OfficeRoom }) {
           <text x={u(X(4.3))} y={u(F(0.98))} textAnchor="middle" className="lo-sos">
             SOS
           </text>
-          <circle className="lo-siren" cx={u(X(6.3))} cy={u(F(0.5))} r="7" fill="#EF4444" />
+          <circle cx={u(X(6.3))} cy={u(F(0.5))} r="7" fill="#EF4444" />
           <Clock x={X(7.4)} y={F(0.72)} />
           <Blk x={X(0.15)} y={Y(0.2)} w={0.95} d={0.55} h={1.35} top="#FFFFFF" front="#E2E8F0">
             <rect x={u(X(0.62)) - 2.5} y={u(Y(0.75 - 1.35)) + 9} width="5" height="15" fill="#EF4444" />
@@ -387,7 +387,7 @@ function Furniture({ r }: { r: OfficeRoom }) {
           {[0, 1, 2].map((i) => (
             <Blk key={i} x={X(0.15 + i * 1.1)} y={Y(0.1)} w={1.0} d={0.7} h={2.0} top="#334155" front="#111827">
               {[0, 1, 2, 3, 4].map((k) => (
-                <rect key={k} className="lo-led" style={{ animationDelay: `${(i * 5 + k) * 0.21}s` }} x={u(X(0.15 + i * 1.1)) + 5} y={u(Y(0.8 - 2.0)) + 7 + k * 11} width={u(1.0) - 10} height="3" rx="1.5" fill={k % 2 ? "#22D3EE" : "#60A5FA"} />
+                <rect key={k} x={u(X(0.15 + i * 1.1)) + 5} y={u(Y(0.8 - 2.0)) + 7 + k * 11} width={u(1.0) - 10} height="3" rx="1.5" fill={k % 2 ? "#22D3EE" : "#60A5FA"} opacity=".55" />
               ))}
             </Blk>
           ))}
@@ -469,18 +469,18 @@ function Furniture({ r }: { r: OfficeRoom }) {
   }
 }
 
-function Room({ r, seated }: { r: OfficeRoom; seated: number }) {
+function Room({ r }: { r: OfficeRoom }) {
   const b = roomBox(r);
   const exterior = b.row === 0;
+  // Every desk is drawn free; a seated person's sprite brings their own desk,
+  // chair and lit screen on top, so the plan never has to change.
   const desks = [];
   if (r !== "lobby") {
     for (let i = 0; i < SEATS; i++) {
       const s = seatOf(r, i);
-      const occupied = i < seated;
-      if (s.kind === "down" && occupied) continue;
       desks.push(
-        <svg key={i} x={u(s.x) - FIG_VIEW.ax} y={u(s.y) - FIG_VIEW.ay} width={FIG_VIEW.w} height={FIG_VIEW.h} viewBox={`0 0 ${FIG_VIEW.w} ${FIG_VIEW.h}`} className={occupied ? undefined : "lo-free"}>
-          {s.kind === "down" ? <DeskDown empty extra={i + r.length} /> : <DeskUp empty={!occupied} on={occupied} />}
+        <svg key={i} x={u(s.x) - FIG_VIEW.ax} y={u(s.y) - FIG_VIEW.ay} width={FIG_VIEW.w} height={FIG_VIEW.h} viewBox={`0 0 ${FIG_VIEW.w} ${FIG_VIEW.h}`} className="lo-free">
+          {s.kind === "down" ? <DeskDown empty extra={i + r.length} /> : <DeskUp empty />}
         </svg>,
       );
     }
@@ -592,7 +592,26 @@ function HallDecor() {
   return <g className="lo-furn">{items}</g>;
 }
 
-export default function OfficePlan({ labels, counts, seated }: { labels: Record<OfficeRoom, string>; counts: Record<OfficeRoom, number>; seated: Record<OfficeRoom, number> }) {
+// The plan is thousands of SVG nodes and never changes while the page is
+// open: it renders once. What moves (people, counts) lives in layers above.
+export default memo(function OfficePlan() {
+  return <PlanBody />;
+});
+
+// Room name plates with head counts: a small layer of their own, so a count
+// changing repaints a plate, not the office.
+export const RoomSigns = memo(function RoomSigns({ labels, counts }: { labels: Record<OfficeRoom, string>; counts: Record<OfficeRoom, number> }) {
+  return (
+    <>
+      {ROOMS.map((r) => {
+        const b = roomBox(r);
+        return <Sign key={r} r={r} x={b.x + 0.15} y={b.top - SIDE - 0.62} label={labels[r]} count={counts[r]} />;
+      })}
+    </>
+  );
+});
+
+function PlanBody() {
   const W = u(PLAN_W);
   const H = u(PLAN_H);
   const runners = [];
@@ -672,7 +691,7 @@ export default function OfficePlan({ labels, counts, seated }: { labels: Record<
       })()}
       <HallDecor />
       {ROOMS.map((r) => (
-        <Room key={r} r={r} seated={seated[r]} />
+        <Room key={r} r={r} />
       ))}
       <Walls />
       <WallFronts />
@@ -682,10 +701,7 @@ export default function OfficePlan({ labels, counts, seated }: { labels: Record<
         <rect x={W - u(CAP)} y="0" width={u(CAP)} height={H} />
         <rect x="0" y={H - u(CAP)} width={W} height={u(CAP)} />
       </g>
-      {ROOMS.map((r) => {
-        const b = roomBox(r);
-        return <Sign key={r} r={r} x={b.x + 0.15} y={b.top - SIDE - 0.62} label={labels[r]} count={counts[r]} />;
-      })}
+      <rect className="lo-night" x={VIEW.x} y={VIEW.y} width={VIEW.w} height={VIEW.h} />
     </>
   );
 }

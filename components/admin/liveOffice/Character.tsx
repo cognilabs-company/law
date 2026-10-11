@@ -309,6 +309,7 @@ export function DeskDown({ empty = false, children, over, extra = 0 }: { empty?:
       <g className="lo-dk">
         <rect x="27" y="25" width="23" height="21" rx="7" fill={CHAIR} />
         {empty ? <rect x="29" y="42" width="19" height="9" rx="3" fill="#2F384A" /> : null}
+        {empty ? null : <rect className="lo-night" x="27" y="25" width="23" height="21" rx="7" />}
       </g>
       {children}
       <g className="lo-dk">
@@ -341,6 +342,7 @@ export function DeskDown({ empty = false, children, over, extra = 0 }: { empty?:
         <rect x="9.7" y="77" width="57.6" height="8" rx="1.5" fill={WOOD_FRONT} />
         <rect x="11.5" y="85" width="3" height="3" fill="#6B4A2B" />
         <rect x="62.5" y="85" width="3" height="3" fill="#6B4A2B" />
+        {empty ? null : <rect className="lo-night" x="9.7" y="62" width="57.6" height="26" rx="2.5" />}
       </g>
     </g>
   );
@@ -462,6 +464,13 @@ export default function Character({ id, kind, pose, title }: { id: string; kind:
 
       {p === "back" ? (
         <g className="lo-ch__body">
+          <g className="lo-dk">
+            <rect x="27.3" y="6.8" width="22.4" height="15.6" rx="1.2" className="lo-screen is-on" />
+            <rect x="29" y="8.6" width="8" height="2" rx="1" fill="#93C5FD" />
+            <rect x="29" y="12.2" width="18.6" height="1.6" rx=".8" fill="#E0F2FE" opacity=".85" />
+            <rect x="29" y="15.2" width="14" height="1.6" rx=".8" fill="#E0F2FE" opacity=".6" />
+            <rect x="29" y="18.2" width="9" height="2.4" rx="1" fill="#34D399" />
+          </g>
           <BodyBack x={x} top={55} />
           <path d="M31.4 58.5 27 51.5l.8-6.5" fill="none" stroke={x.c2} strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M45.6 58.5 50 51.5l-.8-6.5" fill="none" stroke={x.c2} strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -472,6 +481,7 @@ export default function Character({ id, kind, pose, title }: { id: string; kind:
             <rect x="27" y="63" width="23" height="15" rx="6" fill={CHAIR} />
             <rect x="37" y="78" width="3" height="4" fill="#475569" />
             <ellipse cx="38.5" cy="85" rx="8" ry="2.2" fill="#475569" />
+            <rect className="lo-night" x="27" y="63" width="23" height="24" rx="6" />
           </g>
         </g>
       ) : null}

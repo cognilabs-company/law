@@ -15807,13 +15807,10 @@ html[data-theme="dark"]{--lo-desk-1:#2A3B5C;--lo-desk-2:#1B2840;--lo-floor:#0B14
 .lo-desk__logo.is-off{fill:#94A3B8;filter:none}
 .lo-screen{fill:#334155}
 .lo-screen.is-on{fill:#1E3A8A;filter:drop-shadow(0 0 4px rgba(96,165,250,.55))}
-.lo-ch__eyes{transform-box:fill-box;transform-origin:center;animation:lo-blink 4.6s var(--lo-blink,0s) infinite}
-.lo-ch--work .lo-ch__head{transform-box:fill-box;transform-origin:50% 100%;animation:lo-nod 2.8s ease-in-out infinite}
-.lo-ch--work .lo-ch__hand--l,.lo-ch--back .lo-ch__hand--l{animation:lo-type .26s ease-in-out infinite alternate}
-.lo-ch--work .lo-ch__hand--r,.lo-ch--back .lo-ch__hand--r{animation:lo-type .26s .13s ease-in-out infinite alternate}
-.lo-ch__sip{transform-box:fill-box;transform-origin:30% 100%;animation:lo-sip 4.2s ease-in-out infinite}
-.lo-ch__steam{animation:lo-steam 2.4s ease-in-out infinite}
-.lo-ch--mug .lo-ch__body,.lo-ch--sofa .lo-ch__body,.lo-ch--stand .lo-ch__body{transform-box:fill-box;transform-origin:50% 100%;animation:lo-breathe 3.6s ease-in-out infinite}
+/* Typing ticks a few times a second (steps), not every frame: dozens of
+   people typing at 60 fps kept the main thread busy and made scrolling stutter. */
+.lo-ch--work .lo-ch__hand--l,.lo-ch--back .lo-ch__hand--l{animation:lo-type .6s steps(2,jump-none) infinite}
+.lo-ch--work .lo-ch__hand--r,.lo-ch--back .lo-ch__hand--r{animation:lo-type .6s .3s steps(2,jump-none) infinite}
 .lo-ch__leg,.lo-ch__arm{transform-box:fill-box;transform-origin:50% 6%}
 .lo-ch--walk .lo-f{display:none}
 .lo-ch--walk .lo-f--down{display:inline}
@@ -15829,12 +15826,7 @@ html[data-theme="dark"]{--lo-desk-1:#2A3B5C;--lo-desk-2:#1B2840;--lo-floor:#0B14
 .lo-ch--walk .lo-f--side .lo-ch__leg--l{animation:lo-step .3s ease-in-out infinite alternate}
 .lo-ch--walk .lo-f--side .lo-ch__leg--r{animation:lo-step .3s ease-in-out infinite alternate-reverse}
 .lo-ch--walk .lo-f--side .lo-ch__arm--r{animation:lo-swing .3s ease-in-out infinite alternate-reverse}
-@keyframes lo-blink{0%,94%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
 @keyframes lo-type{from{transform:translateY(0)}to{transform:translateY(-1.6px)}}
-@keyframes lo-nod{0%,100%{transform:rotate(0)}50%{transform:rotate(-2.5deg)}}
-@keyframes lo-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.015)}}
-@keyframes lo-sip{0%,60%,100%{transform:rotate(0)}70%,85%{transform:rotate(-12deg) translateY(-1.5px)}}
-@keyframes lo-steam{0%{opacity:0;transform:translateY(1px)}40%{opacity:.9}100%{opacity:0;transform:translateY(-3px)}}
 @keyframes lo-bob{from{transform:translateY(0)}to{transform:translateY(-1.6px)}}
 @keyframes lo-lift{from{transform:translateY(0)}to{transform:translateY(-2.4px)}}
 @keyframes lo-step{from{transform:rotate(24deg)}to{transform:rotate(-24deg)}}
@@ -15843,11 +15835,13 @@ html[data-theme="dark"]{--lo-desk-1:#2A3B5C;--lo-desk-2:#1B2840;--lo-floor:#0B14
 .lo-page{--lo-k-lead:#1668F0;--lo-k-operator:#0891B2;--lo-k-lawyer:#0B7A57;--lo-k-jurist:#6A4BE8;--lo-k-client:#D97706}
 html[data-theme="dark"] .lo-page{--lo-k-lead:#6EA8FF;--lo-k-operator:#22D3EE;--lo-k-lawyer:#3DDC97;--lo-k-jurist:#BBA9FF;--lo-k-client:#FBBF4D}
 .lo-live{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:var(--pill);background:var(--dk-tint-ok,#E6F8F1);color:var(--dk-txt-ok,#047857);font-size:.8rem;font-weight:800}
-.lo-live i{width:8px;height:8px;border-radius:50%;background:var(--lo-work);box-shadow:0 0 0 0 rgba(0,168,112,.5);animation:lo-pulse 1.8s ease-out infinite}
+.lo-live i{position:relative;width:8px;height:8px;border-radius:50%;background:var(--lo-work)}
+.lo-live i::after{content:"";position:absolute;inset:-4px;border-radius:50%;background:rgba(0,168,112,.35);animation:lo-pulse 1.8s ease-out infinite;will-change:transform,opacity}
 .lo-live small{font-weight:600;color:var(--gray);font-size:.74rem}
 .lo-live--off{background:var(--dk-surface-2,#F1F4F9);color:var(--gray)}
-.lo-live--off i{background:var(--lo-away);animation:none}
-@keyframes lo-pulse{0%{box-shadow:0 0 0 0 rgba(0,168,112,.5)}80%,100%{box-shadow:0 0 0 8px rgba(0,168,112,0)}}
+.lo-live--off i{background:var(--lo-away)}
+.lo-live--off i::after{display:none}
+@keyframes lo-pulse{0%{transform:scale(.4);opacity:.9}80%,100%{transform:scale(1.6);opacity:0}}
 .lo-spin{animation:lo-rot 1s linear infinite}
 @keyframes lo-rot{to{transform:rotate(360deg)}}
 .lo-bar{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
@@ -15951,8 +15945,7 @@ html[data-theme="dark"] .lo-page{--lo-k-lead:#6EA8FF;--lo-k-operator:#22D3EE;--l
 .lo-demo span{flex:1 1 320px;color:var(--gray)}
 .lo-mapwrap{overflow-x:auto;overflow-y:hidden;border-radius:var(--rl);background:var(--lo-sky);box-shadow:inset 0 0 0 1px var(--line);-webkit-overflow-scrolling:touch}
 .lo-map{position:relative;min-width:920px}
-.lo-map__svg{display:block;width:100%;height:auto}
-html[data-theme="dark"] .lo-map__svg{filter:brightness(.68) saturate(.9) contrast(1.05)}
+.lo-map__svg{display:block;width:100%;height:auto;contain:paint;will-change:transform}
 .lo-walls rect,.lo-walls{fill:#2B3550}
 .lo-wallfront{fill:#3D4866}
 .lo-doorpost{fill:#8C5A33}
@@ -15971,12 +15964,8 @@ html[data-theme="dark"] .lo-map__svg{filter:brightness(.68) saturate(.9) contras
 .lo-sale{font:900 22px var(--fd);fill:#fff}
 .lo-wall-ai{font:900 26px var(--fd);fill:#fff;letter-spacing:.06em}
 .lo-core{filter:drop-shadow(0 0 10px rgba(34,211,238,.75))}
-.lo-siren{filter:drop-shadow(0 0 6px rgba(239,68,68,.9));animation:lo-siren 1.2s ease-in-out infinite}
-@keyframes lo-siren{50%{opacity:.35}}
-.lo-led{animation:lo-led 1.4s steps(2,jump-none) infinite}
-@keyframes lo-led{50%{opacity:.25}}
 .lo-map__people{position:absolute;inset:0;pointer-events:none}
-.lo-mp{position:absolute;top:0;left:0;padding:0;border:0;background:none;cursor:pointer;pointer-events:auto;color:var(--ink);font:inherit}
+.lo-mp{position:absolute;top:0;left:0;padding:0;border:0;background:none;cursor:pointer;pointer-events:auto;color:var(--ink);font:inherit;will-change:transform;contain:layout style}
 .lo-mp:focus-visible{outline:2px solid var(--b500);outline-offset:2px;border-radius:10px}
 .lo-mp__fig{position:absolute;inset:0}
 .lo-mp__walk{display:none}
@@ -15996,7 +15985,7 @@ html[data-theme="dark"] .lo-mp__name{background:rgba(18,28,49,.9)}
 .lo-mp__say::after{content:"";position:absolute;left:50%;bottom:-3px;width:7px;height:7px;margin-left:-3.5px;background:inherit;transform:rotate(45deg)}
 @keyframes lo-say{0%{opacity:0;transform:translate(-50%,6px) scale(.9)}8%{opacity:1;transform:translate(-50%,0) scale(1)}85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-4px)}}
 .lo-map__more{position:absolute;top:0;left:0;margin:-12px 0 0 -16px;padding:2px 8px;border-radius:var(--pill);background:var(--b600);color:#fff;font-size:11px;font-weight:800}
-@media (prefers-reduced-motion:reduce){.lo-siren,.lo-led{animation:none}.lo-mp__say{animation:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.lo-mp__say{animation:none;opacity:1}}
 .lo-map.is-compact .lo-mp__name{opacity:0;transition:opacity .15s}
 .lo-map.is-compact .lo-mp:hover .lo-mp__name,.lo-map.is-compact .lo-mp:focus-visible .lo-mp__name,.lo-map.is-compact .lo-mp.is-sel .lo-mp__name{opacity:1;z-index:2}
 .lo-mapbox{position:relative}
@@ -16011,7 +16000,23 @@ html[data-theme="dark"] .lo-mp__name{background:rgba(18,28,49,.9)}
 .lo-mp.is-low .lo-mp__name{top:calc(100% + 14px)}
 .lo-floorlogo__t{font:900 15px var(--fd);fill:#fff;letter-spacing:.02em}
 .lo-zoom{top:auto;left:auto;right:10px;bottom:10px;grid-auto-flow:column}
-html[data-theme="dark"] .lo-mp .lo-dk{filter:brightness(.68) saturate(.9) contrast(1.05)}
-html[data-theme="dark"] .lo-mp__fig{filter:brightness(.92)}
 .lo-mp[data-spot="queue"] .lo-mp__name{opacity:0;transition:opacity .15s}
 .lo-mp[data-spot="queue"]:hover .lo-mp__name,.lo-mp[data-spot="queue"]:focus-visible .lo-mp__name,.lo-mp[data-spot="queue"].is-sel .lo-mp__name{opacity:1;z-index:2}
+
+/* Nothing moves while the office is scrolled out of view. */
+.lo-map.is-off *{animation-play-state:paused!important}
+
+.lo-blink{position:absolute;inset:0;pointer-events:none}
+.lo-blink span{position:absolute;display:block;will-change:opacity}
+.lo-blink__siren{transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,120,120,.95) 0 30%,rgba(239,68,68,.45) 55%,rgba(239,68,68,0) 72%);animation:lo-fade 1.2s steps(2,jump-none) infinite}
+.lo-blink__led{border-radius:2px;background:repeating-linear-gradient(180deg,rgba(165,243,252,.95) 0 3px,transparent 3px 22px);animation:lo-fade 1.6s steps(2,jump-none) infinite}
+@keyframes lo-fade{0%{opacity:1}100%{opacity:.15}}
+.lo-map.is-off .lo-blink span{animation-play-state:paused}
+html[data-theme="dark"] .lo-blink span{filter:none}
+@media (prefers-reduced-motion:reduce){.lo-blink span,.lo-live i::after{animation:none}}
+.lo-map__signs{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;will-change:transform}
+
+/* Night: a plain dark wash instead of CSS filters, which made every repaint
+   and every scrolled frame of the office re-filter thousands of nodes. */
+.lo-night{fill:#070D24;opacity:0;pointer-events:none}
+html[data-theme="dark"] .lo-night{opacity:.36}

@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ROOMS, type OfficePerson, type OfficeRoom } from "@/lib/liveOffice/model";
-import { LOUNGE, QUEUE, SEATS, T, VIEW, faceOf, loungeSpot, pathLength, queueSpot, receptionSpot, route, seatOf, type Spot } from "@/lib/liveOffice/plan";
+import { LOUNGE, QUEUE, SEATS, T, VIEW, faceOf, loungeSpot, pathLength, queueSpot, receptionSpot, roomBox, route, seatOf, type Spot } from "@/lib/liveOffice/plan";
 import { IconExpand, IconMinus, IconPlus } from "@/components/icons";
 import Character, { FIG_VIEW, type Pose } from "./Character";
-import OfficePlan from "./OfficePlan";
+import OfficePlan, { RoomSigns } from "./OfficePlan";
 import { VERB_ICON, firstName, useOfficeText } from "./text";
 
 // The office from above: people work at desks in their rooms, whoever is
@@ -71,6 +71,16 @@ export default function OfficeMap({
   const outer = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
   const [zoom, setZoom] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  // Pause every animation while the office is scrolled out of view.
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { rootMargin: "120px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   // Zoom keeps the middle of the view where it was.
   const zoomTo = (next: number) => {
@@ -120,7 +130,7 @@ export default function OfficeMap({
     return () => ro.disconnect();
   }, []);
 
-  const { placed, extra, counts, seated } = placePeople(people);
+  const { placed, extra, counts } = placePeople(people);
   const labels = Object.fromEntries(ROOMS.map((r) => [r, room(r)])) as Record<OfficeRoom, string>;
 
   const z = ZOOMS[zoom];
@@ -138,10 +148,14 @@ export default function OfficeMap({
         </button>
       </div>
     <div className={`lo-mapwrap${zoom ? " is-zoomed" : ""}`} ref={outer} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>
-      <div className={`lo-map${scale && scale < 0.72 ? " is-compact" : ""}`} ref={wrap} style={{ width: `${z * 100}%`, minWidth: 920 * z }}>
+      <div className={`lo-map${scale && scale < 0.72 ? " is-compact" : ""}${visible ? "" : " is-off"}`} ref={wrap} style={{ width: `${z * 100}%`, minWidth: 920 * z }}>
         <svg className="lo-map__svg" viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} role="img" aria-label={t("title")}>
-          <OfficePlan labels={labels} counts={counts} seated={seated} />
+          <OfficePlan />
         </svg>
+        <svg className="lo-map__signs" viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} aria-hidden>
+          <RoomSigns labels={labels} counts={counts} />
+        </svg>
+        {scale ? <Blinkers scale={scale} /> : null}
         {scale ? (
           <div className="lo-map__people">
             {placed.map((x) => (
@@ -159,6 +173,25 @@ export default function OfficeMap({
         ) : null}
       </div>
     </div>
+    </div>
+  );
+}
+
+// The blinking bits (the urgent room's alarm, the AI room's server lights)
+// live outside the plan SVG as small HTML layers that only fade, so the
+// browser never has to repaint the whole office for them.
+function Blinkers({ scale }: { scale: number }) {
+  const ur = roomBox("urgent");
+  const ai = roomBox("ai");
+  const px = (x: number, y: number) => ({ left: (x * T - VIEW.x) * scale, top: (y * T - VIEW.y) * scale });
+  const siren = px(ur.x + 6.3, ur.top + 0.5);
+  return (
+    <div className="lo-blink" aria-hidden>
+      <span className="lo-blink__siren" style={{ left: siren.left, top: siren.top, width: 26 * scale, height: 26 * scale }} />
+      {[0, 1, 2].map((i) => {
+        const p = px(ai.x + 0.15 + i * 1.1, ai.y + 0.1 + 0.7 - 2.0);
+        return <span key={i} className="lo-blink__led" style={{ left: p.left + 5 * scale, top: p.top + 7 * scale, width: (T - 10) * scale, height: 48 * scale, animationDelay: `${i * 0.45}s` }} />;
+      })}
     </div>
   );
 }
