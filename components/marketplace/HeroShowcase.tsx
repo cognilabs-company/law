@@ -87,7 +87,8 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
-function ShowcaseCard({ card, index, on, prev, base, locale }: { card: ShowCard; index: number; on: boolean; prev: boolean; base: string; locale: string }) {
+function ShowcaseCard({ card, index, depth, base, locale }: { card: ShowCard; index: number; depth: number; base: string; locale: string }) {
+  const on = depth === 0;
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
   const { s, spec, promo } = card;
@@ -109,7 +110,8 @@ function ShowcaseCard({ card, index, on, prev, base, locale }: { card: ShowCard;
   return (
     <article
       ref={seen}
-      className={`mk-show__card${on ? " is-on" : ""}${prev ? " is-prev" : ""}`}
+      className={`mk-show__card${on ? " is-on" : ""}`}
+      data-depth={depth}
       inert={!on}
       data-ai-id={featuredAiId}
       data-ai-type="card"
@@ -224,12 +226,11 @@ export default function HeroShowcase({
 
   if (!cards.length) return null;
   const active = at % cards.length;
-  const prev = (active - 1 + cards.length) % cards.length;
 
   return (
     <div className="mk-show" role="group" aria-roledescription={t("show.carousel")} aria-label={t("show.label")} data-ai-target="marketplace:featured" data-ai-id="marketplace.featured" data-ai-type="section">
       {cards.map((card, i) => (
-        <ShowcaseCard key={card.key} card={card} index={i} on={i === active} prev={cards.length > 1 && i === prev} base={base} locale={locale} />
+        <ShowcaseCard key={card.key} card={card} index={i} depth={(active - i + cards.length) % cards.length} base={base} locale={locale} />
       ))}
       {cards.length > 1 ? (
         <div className="mk-show__dots" role="group" aria-label={t("show.switch")}>
