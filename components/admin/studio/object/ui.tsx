@@ -1,7 +1,6 @@
 "use client";
 
 import type { ComponentType, ReactNode, SVGProps } from "react";
-import { humanize } from "@/lib/labels";
 import type { StudioFieldErrors } from "@/lib/services/studio";
 import { useStudioText } from "../bits";
 import { fieldRoot } from "./model";
@@ -74,11 +73,11 @@ export function VersionBadge({ version }: { version: string }) {
 }
 
 export function useFieldLabel() {
-  const { t } = useStudioText();
+  const { t, field } = useStudioText();
   return (key: string) => {
     if (key === "_") return t("editor.errors.general");
     const root = fieldRoot(key);
-    const label = root && t.has(`field.${root}`) ? t(`field.${root}`) : humanize(root);
+    const label = field(root);
     return key === root ? label : `${label} · ${key.slice(root.length).replace(/^\./, "")}`;
   };
 }

@@ -15212,6 +15212,7 @@ textarea.stu-json{min-height:140px;font-family:ui-monospace,SFMono-Regular,Menlo
 .stu-sreg__ctor small{font-size:.74rem;color:var(--gray2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stu-sreg__cell{display:flex;flex-wrap:wrap;align-items:center;gap:5px;min-width:0}
 .stu-sreg__code,.stu-sreg__f{padding:2px 7px;border-radius:7px;background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1px var(--line);font-size:.72rem;color:var(--ink);overflow-wrap:anywhere}
+.stu-sreg__tgt{font-size:.82rem;color:var(--ink);line-height:1.35}
 .stu-sreg__all{width:100%;font-size:.7rem;color:var(--gray2)}
 .stu-sreg__lbl{display:none}
 .stu-sexp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
@@ -16020,3 +16021,4 @@ html[data-theme="dark"] .lo-blink span{filter:none}
    and every scrolled frame of the office re-filter thousands of nodes. */
 .lo-night{fill:#070D24;opacity:0;pointer-events:none}
 html[data-theme="dark"] .lo-night{opacity:.36}
+.stu-fld__help{display:block;margin-top:4px;font-size:.74rem;color:var(--gray);line-height:1.4}

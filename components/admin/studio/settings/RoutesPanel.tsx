@@ -16,7 +16,7 @@ type State = { phase: Phase; items: StudioRoute[]; error: unknown };
 const AI = "admin.studio.settings.routes";
 
 export default function RoutesPanel() {
-  const { t, role, ctorName, num, day } = useStudioText();
+  const { t, role, option, ctorName, num, day } = useStudioText();
   const reg = useStudioRegistry();
   const [st, setSt] = useState<State>({ phase: "loading", items: [], error: null });
   const [busy, setBusy] = useState(false);
@@ -58,7 +58,7 @@ export default function RoutesPanel() {
     await load();
   }
 
-  const statusLabel = (s: string) => (t.has(`settings.routes.status_${s}`) ? t(`settings.routes.status_${s}`) : s);
+  const statusLabel = (s: string) => (t.has(`settings.routes.status_${s}`) ? t(`settings.routes.status_${s}`) : option(s));
 
   const ctors = reg.items.length
     ? reg.items.map((c) => ({ code: c.code, title: c.title, approvalFree: !c.approvalRequired }))
@@ -200,7 +200,7 @@ export default function RoutesPanel() {
 }
 
 function StepChain({ steps }: { steps: { role: string; title: string }[] }) {
-  const { role } = useStudioText();
+  const { role, stepTitle } = useStudioText();
   return (
     <ol className="stu-schain">
       {steps.map((s, i) => (
@@ -209,8 +209,8 @@ function StepChain({ steps }: { steps: { role: string; title: string }[] }) {
           <span className="stu-schain__s">
             <em>{i + 1}</em>
             <span>
-              <b>{s.title || role(s.role)}</b>
-              {s.title && s.role ? <small>{role(s.role)}</small> : null}
+              <b>{stepTitle(s.title, s.role)}</b>
+              {s.role && stepTitle(s.title, s.role) !== role(s.role) ? <small>{role(s.role)}</small> : null}
             </span>
           </span>
         </li>

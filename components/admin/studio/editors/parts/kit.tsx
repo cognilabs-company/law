@@ -3,7 +3,6 @@
 import { useRef, useState, type ChangeEvent, type ComponentType, type KeyboardEvent, type ReactNode, type SVGProps } from "react";
 import { useTranslations } from "next-intl";
 import Select from "@/components/Select";
-import { humanize } from "@/lib/labels";
 import { aiId } from "@/lib/ai/ids";
 import { STUDIO_FILE_ACCEPT, STUDIO_FILE_EXT, downloadStudioVersionFile, type StudioFieldErrors } from "@/lib/services/studio";
 import { useStudioErrorText, useStudioText } from "../../bits";
@@ -161,7 +160,7 @@ export function EdShell({
   note?: ReactNode;
   children: ReactNode;
 }) {
-  const { t, ferr } = useEd();
+  const { ferr, field } = useEd();
   const orphan = orphanErrors(errors, known);
   return (
     <div className="stu-fe" data-ai-id={edAi(code)} data-ai-type="editor" data-ai-label={title}>
@@ -181,7 +180,7 @@ export function EdShell({
             <li key={k}>
               <IconAlert aria-hidden />
               <span>
-                {k !== "_" ? <span>{t.has(`field.${k}`) ? t(`field.${k}`) : humanize(k)}</span> : null}
+                {k !== "_" ? <span>{field(k)}</span> : null}
                 {ferr(v)}
               </span>
             </li>

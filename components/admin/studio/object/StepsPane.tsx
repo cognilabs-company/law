@@ -14,7 +14,7 @@ function toneOf(status: string): "ok" | "warn" | "err" | "wait" {
 const GLYPH = { ok: IconCheck, warn: IconRefresh, err: IconCircleX, wait: IconHourglass };
 
 export default function StepsPane({ steps, approvalFree, submitted }: { steps: StudioStep[]; approvalFree: boolean; submitted: boolean }) {
-  const { t, role, stepStatus, when } = useStudioText();
+  const { t, role, stepTitle, stepStatus, when } = useStudioText();
 
   if (approvalFree) {
     return (
@@ -41,7 +41,7 @@ export default function StepsPane({ steps, approvalFree, submitted }: { steps: S
                 </span>
                 <div className="stu-osteps__m">
                   <div className="stu-osteps__top">
-                    <b>{s.title || role(s.role) || t("editor.steps.step", { n: s.order || i + 1 })}</b>
+                    <b>{stepTitle(s.title, s.role) || t("editor.steps.step", { n: s.order || i + 1 })}</b>
                     <span className={`stu-osteps__st stu-osteps__st--${tone}`}>{stepStatus(s.status)}</span>
                   </div>
                   <small>

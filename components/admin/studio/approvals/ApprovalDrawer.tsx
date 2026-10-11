@@ -76,7 +76,7 @@ function DrawerPanel({
   onClose: () => void;
   onChanged: () => void;
 }) {
-  const { t, ctorName, role, stepStatus, when } = useStudioText();
+  const { t, ctorName, role, stepTitle, stepStatus, when } = useStudioText();
   const errText = useStudioErrorText();
   const uid = useId();
   const panel = useRef<HTMLElement>(null);
@@ -145,7 +145,7 @@ function DrawerPanel({
   const canAct = canActOnStep(d, access);
   const canPub = canPublishItem(d, access, ctor);
   const reviewable = isReviewable(d);
-  const stepName = at ? at.step.title || role(at.step.role) : "";
+  const stepName = at ? stepTitle(at.step.title, at.step.role) : "";
   const fileName = cur?.fileName || "";
   const fileVersionId = cur?.id || d.currentVersionId;
   const hasFile = d.hasFile || Boolean(cur?.hasFile);
@@ -370,8 +370,8 @@ function DrawerPanel({
                       </span>
                       <div className="stu-aps__m">
                         <span className="stu-aps__top">
-                          <b>{s.title || role(normRole(s.role)) || t("approvals.drawer.stepN", { n: i + 1 })}</b>
-                          {s.role && s.title ? <em>{role(normRole(s.role))}</em> : null}
+                          <b>{stepTitle(s.title, normRole(s.role)) || t("approvals.drawer.stepN", { n: i + 1 })}</b>
+                          {s.role && stepTitle(s.title, normRole(s.role)) !== role(normRole(s.role)) ? <em>{role(normRole(s.role))}</em> : null}
                           <span className="stu-aps__st">{stepStatus(s.status)}</span>
                         </span>
                         {s.decidedBy || s.decidedAt ? <small>{[s.decidedBy, when(s.decidedAt)].filter(Boolean).join(" · ")}</small> : null}

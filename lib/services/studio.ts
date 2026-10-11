@@ -16,11 +16,15 @@ export const STUDIO_FILE_EXT = [".docx", ".doc", ".pdf", ".xlsx", ".xls", ".txt"
 export const STUDIO_FILE_ACCEPT = STUDIO_FILE_EXT.join(",");
 export const STUDIO_HEARTBEAT_MS = 25_000;
 
+// What the full constructor schema says about one field: its type, the
+// values a select may take, and a short help text.
+export type StudioFieldMeta = { type: string; options: string[]; help: string };
+
 export type StudioConstructor = {
   code: string;
   title: string;
   runtimeTarget: string;
-  schema: { required: string[]; fields: string[]; selectSources: Record<string, string> };
+  schema: { required: string[]; fields: string[]; selectSources: Record<string, string>; meta: Record<string, StudioFieldMeta> };
   approvalRequired: boolean;
   raw: Dict;
 };
@@ -275,11 +279,25 @@ export function normStudioConstructor(raw: unknown): StudioConstructor {
   const required = strings(schema.required ?? r.required_fields ?? r.required);
   for (const f of required) if (!fields.includes(f)) fields.push(f);
   const approval = boolOf(r.approval_required ?? r.approvalRequired ?? r.requires_approval);
+  const meta: Record<string, StudioFieldMeta> = {};
+  const sources = selectSourcesOf(schema.select_sources ?? r.select_sources);
+  for (const item of asArr(schema.fields ?? r.fields)) {
+    const f = asDict(item);
+    const key = first(f.key, f.name, f.field);
+    if (!key) continue;
+    meta[key] = {
+      type: asStr(f.type).toLowerCase(),
+      options: asArr(f.options).map((o) => (typeof o === "string" || typeof o === "number" ? String(o) : first(asDict(o).value, asDict(o).key, asDict(o).code))).filter(Boolean),
+      help: asStr(f.help_text ?? f.help),
+    };
+    const src = asStr(f.source).split("?")[0].replace(/\/+$/, "").split("/").pop() ?? "";
+    if (src && !sources[key]) sources[key] = src;
+  }
   return {
     code,
     title: first(r.title, r.name, r.label, code),
     runtimeTarget: first(r.runtime_target, r.runtimeTarget, r.target),
-    schema: { required, fields, selectSources: selectSourcesOf(schema.select_sources ?? r.select_sources) },
+    schema: { required, fields, selectSources: sources, meta },
     approvalRequired: approval ?? !STUDIO_APPROVAL_FREE.includes(code),
     raw: r,
   };
@@ -861,6 +879,25 @@ function selectSourcesOf(v: unknown): Record<string, string> {
     if (key) out[field] = key;
   }
   return out;
+}
+
+// The registry list carries no schema; the editor reads each constructor's
+// full schema once for its fields' types, options and help.
+const fieldMetaCache = new Map<string, Promise<StudioConstructor | null>>();
+export function getStudioConstructorDetail(code: string): Promise<StudioConstructor | null> {
+  const key = code.trim();
+  if (!key) return Promise.resolve(null);
+  let p = fieldMetaCache.get(key);
+  if (!p) {
+    p = http(`/studio/constructors/${enc(key)}`)
+      .then((raw) => normStudioConstructor(raw))
+      .catch(() => {
+        fieldMetaCache.delete(key);
+        return null;
+      });
+    fieldMetaCache.set(key, p);
+  }
+  return p;
 }
 
 export async function getStudioReference(key: string, q = "", limit = 50, signal?: AbortSignal): Promise<StudioReferenceItem[]> {

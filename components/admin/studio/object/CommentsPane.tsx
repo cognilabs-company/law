@@ -24,7 +24,7 @@ export default function CommentsPane({
   onRetry: () => void;
   onAdd: (text: string) => Promise<boolean>;
 }) {
-  const { t, when, role } = useStudioText();
+  const { t, when, role, stepStatus } = useStudioText();
   const uid = useId();
   const [text, setText] = useState("");
 
@@ -97,7 +97,7 @@ export default function CommentsPane({
                     {c.authorRole ? <span className="stu-ocmt__role">{role(c.authorRole)}</span> : null}
                     {ver ? <VersionBadge version={ver} /> : null}
                   </div>
-                  <p>{c.text}</p>
+                  <p>{/^(approve|approved|reject|rejected|changes_requested|request_changes|publish|published)$/i.test(c.text.trim()) ? stepStatus(c.text) : c.text}</p>
                   {c.createdAt ? <small>{when(c.createdAt)}</small> : null}
                 </div>
               </li>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useId } from "react";
-import { humanize } from "@/lib/labels";
-import type { StudioConstructor, StudioFieldErrors } from "@/lib/services/studio";
+import { useEffect, useId, useState } from "react";
+import { getStudioConstructorDetail, type StudioConstructor, type StudioFieldErrors, type StudioFieldMeta } from "@/lib/services/studio";
 import RefSelect from "./parts/RefSelect";
+import { ChipPick, SelectIn } from "./parts/kit";
 import { useStudioText } from "../bits";
 import { errorFor, requiredErrors, type StudioEditorProps, type StudioPayload } from "./types";
 import { IconAlert } from "@/components/icons";
@@ -39,10 +39,16 @@ const LONG_RE = /(text|description|body|content|summary|notes?|answer|instructio
 const BOOL_RE = /^(is_|has_|allow_|enable|enabled$|active$|required$)|_required$|_enabled$|_allowed$/;
 const NUM_RE = /(_count|_days|_hours|_minutes|_seconds|_price|_amount|_percent|_limit|_min|_max|^price|^amount|^order$|^priority$|^weight$)/;
 
-export function fieldKind(name: string, value: unknown): Kind {
+export function fieldKind(name: string, value: unknown, type = ""): Kind {
   if (Array.isArray(value) || (value && typeof value === "object")) return "json";
   if (typeof value === "boolean") return "bool";
   if (typeof value === "number") return "number";
+  // An empty value says nothing; the schema's own type does.
+  if (type === "boolean") return "bool";
+  if (type === "number" || type === "money") return "number";
+  if (type === "textarea" || type === "richtext") return "textarea";
+  if (type === "list" || type === "object") return "json";
+  if (type === "text" || type === "select" || type === "datetime") return "text";
   const n = name.toLowerCase();
   if (LIST_NAMES.has(n) || OBJECT_NAMES.has(n)) return "json";
   if (BOOL_RE.test(n)) return "bool";
@@ -106,7 +112,7 @@ function JsonBox({
   label: string;
   aiId?: string;
 }) {
-  const { t } = useStudioText();
+  const { t, field } = useStudioText();
   const object = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
   const list = Array.isArray(value) ? value : null;
   const scalar = (item: unknown) => item === null || item === undefined ? "" : typeof item === "string" || typeof item === "number" ? String(item) : "";
@@ -116,7 +122,7 @@ function JsonBox({
     <div id={id} className="stu-structured" aria-label={label} data-ai-id={aiId} data-ai-type="group" data-ai-label={label}>
       {object ? Object.entries(object).map(([key, item]) => (
         <label className="stu-structured__row" key={key}>
-          <span>{t.has(`field.${key}`) ? t(`field.${key}`) : humanize(key)}</span>
+          <span>{field(key)}</span>
           {item && typeof item === "object" ? <PayloadSummary payload={item as Record<string, unknown>} compact /> : <input value={scalar(item)} onChange={(event) => updateObject(key, event.target.value)} readOnly={readOnly} />}
         </label>
       )) : list ? list.map((item, index) => (
@@ -137,6 +143,7 @@ function Field({
   error,
   readOnly,
   onChange,
+  meta,
 }: {
   name: string;
   source: string;
@@ -145,12 +152,16 @@ function Field({
   error: string;
   readOnly: boolean;
   onChange: (v: unknown) => void;
+  meta?: StudioFieldMeta;
 }) {
-  const { t, fieldErr } = useStudioText();
+  const { field, option, fieldHelp, fieldErr } = useStudioText();
   const uid = useId();
   const id = `${uid}-${name}`;
-  const kind = fieldKind(name, value);
-  const label = t.has(`field.${name}`) ? t(`field.${name}`) : humanize(name);
+  const kind = fieldKind(name, value, meta?.type);
+  const label = field(name);
+  const help = fieldHelp(name);
+  const options = (meta?.options ?? []).map((v) => ({ value: v, label: option(v) }));
+  const many = meta?.type === "multiselect" || Array.isArray(value);
   const aiId = `admin.studio.editor.field.${name.replace(/[^A-Za-z0-9_-]+/g, "-")}`;
   const bad = Boolean(error);
   const reference = source || referenceKey(name);
@@ -183,6 +194,10 @@ function Field({
           </label>
           {reference ? (
             <ReferenceSelect value={value} source={reference} onChange={onChange} readOnly={readOnly} label={label} required={required} bad={bad} aiId={aiId} />
+          ) : options.length && many ? (
+            <ChipPick options={options} value={Array.isArray(value) ? value.map(String) : []} onChange={onChange} readOnly={readOnly} label={label} ai={aiId} invalid={bad} />
+          ) : options.length ? (
+            <SelectIn value={value == null ? "" : String(value)} onChange={onChange} options={options} readOnly={readOnly} label={label} ai={aiId} invalid={bad} />
           ) : kind === "json" ? (
             <JsonBox id={id} value={value ?? emptyFor(name)} onChange={onChange} readOnly={readOnly} label={label} aiId={aiId} />
           ) : kind === "textarea" ? (
@@ -221,6 +236,7 @@ function Field({
           )}
         </>
       )}
+      {help && !error ? <small className="stu-fld__help">{help}</small> : null}
       {error ? (
         <p className="stu-ferr" role="alert">
           {fieldErr(error)}
@@ -230,11 +246,25 @@ function Field({
   );
 }
 
-export default function GenericEditor({ constructor, payload, onChange, errors, readOnly }: StudioEditorProps) {
-  const { t, fieldErr } = useStudioText();
-  const schemaFields = constructor?.schema.fields ?? [];
+export default function GenericEditor({ code, constructor, payload, onChange, errors, readOnly }: StudioEditorProps) {
+  const { t, field, fieldErr } = useStudioText();
+  const [detail, setDetail] = useState<StudioConstructor | null>(null);
+  const ctorCode = constructor?.code || code;
+  useEffect(() => {
+    let alive = true;
+    void getStudioConstructorDetail(ctorCode).then((d) => {
+      if (alive) setDetail(d);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [ctorCode]);
+  const meta = { ...(detail?.schema.meta ?? {}), ...(constructor?.schema.meta ?? {}) };
+  const sources = { ...(detail?.schema.selectSources ?? {}), ...(constructor?.schema.selectSources ?? {}) };
+  // The registry list only names the required fields; the full schema has them all.
+  const schemaFields = detail?.schema.fields.length ? detail.schema.fields : (constructor?.schema.fields ?? []);
   const noSchema = schemaFields.length === 0;
-  const required = new Set(constructor?.schema.required ?? []);
+  const required = new Set([...(constructor?.schema.required ?? []), ...(detail?.schema.required ?? [])]);
   const extra = Object.keys(payload).filter((k) => !schemaFields.includes(k));
   const known = new Set([...schemaFields, ...extra]);
   const orphan = Object.entries(errors).filter(([k]) => {
@@ -259,7 +289,7 @@ export default function GenericEditor({ constructor, payload, onChange, errors, 
             <li key={k}>
               <IconAlert aria-hidden />
               <span>
-                {k !== "_" ? <span>{t.has(`field.${k}`) ? t(`field.${k}`) : humanize(k)}</span> : null}
+                {k !== "_" ? <span>{field(k)}</span> : null}
                 {fieldErr(v)}
               </span>
             </li>
@@ -271,7 +301,7 @@ export default function GenericEditor({ constructor, payload, onChange, errors, 
           {schemaFields.length ? (
             <div className="stu-gen__grid">
               {schemaFields.map((f) => (
-                <Field key={f} name={f} source={constructor?.schema.selectSources?.[f] ?? ""} value={payload[f]} required={required.has(f)} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
+                <Field key={f} name={f} source={sources[f] ?? ""} meta={meta[f]} value={payload[f]} required={required.has(f)} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
               ))}
             </div>
           ) : null}
@@ -280,7 +310,7 @@ export default function GenericEditor({ constructor, payload, onChange, errors, 
               <h4>{t("generic.extra")}</h4>
               <div className="stu-gen__grid">
                 {extra.map((f) => (
-                  <Field key={f} name={f} source={constructor?.schema.selectSources?.[f] ?? ""} value={payload[f]} required={false} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
+                  <Field key={f} name={f} source={sources[f] ?? ""} meta={meta[f]} value={payload[f]} required={false} error={errorFor(errors, f)} readOnly={readOnly} onChange={(v) => set(f, v)} />
                 ))}
               </div>
             </section>

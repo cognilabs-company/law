@@ -21,12 +21,12 @@ export default function ApprovalCard({
   active: boolean;
   onOpen: (item: StudioDetail) => void;
 }) {
-  const { t, ctorName, role, ago, num } = useStudioText();
+  const { t, ctorName, stepTitle, ago, num } = useStudioText();
   const sub = submittedOf(item);
   const ver = versionLabelOf(item);
   const step = currentStepOf(item);
   const comments = commentsCountOf(item);
-  const stepName = step ? step.step.title || role(step.step.role) : "";
+  const stepName = step ? stepTitle(step.step.title, step.step.role) : "";
   return (
     <li
       className={`stu-apc${active ? " is-on" : ""}${mine ? " is-mine" : ""}`}

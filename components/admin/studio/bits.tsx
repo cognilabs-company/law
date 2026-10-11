@@ -38,6 +38,11 @@ const STATUS_ICON: Record<StudioStatus, Icon> = {
 
 const ERR_TOKENS = new Set<string>(Object.values(STUDIO_ERR));
 
+// The Studio role names in uz / ru / en (messages studio.roles), lower-cased.
+const DEFAULT_ROLE_NAMES = new Set(
+  ["Muharrir", "Tekshiruvchi", "Nashr etuvchi", "Studio admini", "Редактор", "Проверяющий", "Публикатор", "Админ Studio", "Editor", "Reviewer", "Publisher", "Studio admin"].map((s) => s.toLowerCase()),
+);
+
 export function useStudioText() {
   const t = useTranslations("studio");
   const locale = useLocale();
@@ -56,8 +61,30 @@ export function useStudioText() {
     return k && t.has(`ctor.${k}.desc`) ? t(`ctor.${k}.desc`) : "";
   };
   const group = (g: StudioGroup | string) => (g && t.has(`groups.${g}`) ? t(`groups.${g}`) : humanize(g));
-  const role = (r: string) => (r && t.has(`roles.${r}`) ? t(`roles.${r}`) : humanize(r));
-  const stepStatus = (s: string) => (s && t.has(`stepStatus.${s}`) ? t(`stepStatus.${s}`) : humanize(s));
+  // Grants may name a Studio role with or without its "studio_" prefix.
+  const role = (r: string) => {
+    const k = r.trim().toLowerCase();
+    if (k && t.has(`roles.${k}`)) return t(`roles.${k}`);
+    if (k && t.has(`roles.studio_${k}`)) return t(`roles.studio_${k}`);
+    return humanize(r);
+  };
+  const stepStatus = (s: string) => {
+    const k = s.trim().toLowerCase();
+    return k && t.has(`stepStatus.${k}`) ? t(`stepStatus.${k}`) : humanize(s);
+  };
+  // A route step named after its role in some language (saved that way by an
+  // older form) is not a custom name: show the role in the reader's language.
+  const stepTitle = (title: string, r: string) => {
+    const k = title.trim();
+    if (!k || DEFAULT_ROLE_NAMES.has(k.toLowerCase()) || k.toLowerCase() === humanize(r).toLowerCase() || k.toLowerCase() === r.trim().toLowerCase()) return r ? role(r) : k;
+    if (/^studio_[a-z_]+$/.test(k)) return role(k);
+    return k;
+  };
+  // A constructor field's label and a select option's label: the Studio
+  // dictionary first, the key made readable only as a last resort.
+  const field = (k: string) => (k && t.has(`field.${k}`) ? t(`field.${k}`) : humanize(k));
+  const option = (v: string) => (v && t.has(`option.${v}`) ? t(`option.${v}`) : humanize(v));
+  const fieldHelp = (k: string) => (k && t.has(`fieldHelp.${k}`) ? t(`fieldHelp.${k}`) : "");
   const when = (iso: string) => (iso ? dateTimeFull(iso, locale) : "");
   const day = (iso: string) => (iso ? dateOnly(iso, locale) : "");
   const num = (n: number) => fmtInt(n, locale);
@@ -84,7 +111,7 @@ export function useStudioText() {
     if (/^@[A-Za-z]+$/.test(msg) && t.has(`editors.err.${msg.slice(1)}`)) return t(`editors.err.${msg.slice(1)}`);
     return msg;
   };
-  return { t, locale, status, ctorName, ctorDesc, group, role, stepStatus, when, day, num, duration, ago, fieldErr };
+  return { t, locale, status, ctorName, ctorDesc, group, role, stepTitle, stepStatus, field, option, fieldHelp, when, day, num, duration, ago, fieldErr };
 }
 
 export function StudioStatusPill({ status, raw = "", small }: { status: StudioStatus; raw?: string; small?: boolean }) {

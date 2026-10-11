@@ -15,7 +15,7 @@ const AI = "admin.studio.settings.registry";
 const SHOW_REQ = 4;
 
 export default function RegistryPanel() {
-  const { t, ctorName, group, num } = useStudioText();
+  const { t, ctorName, group, num, field } = useStudioText();
   const errText = useStudioErrorText();
   const reg = useStudioRegistry();
   const [ask, setAsk] = useState(false);
@@ -54,7 +54,7 @@ export default function RegistryPanel() {
     if (groupF && ctorMeta(c.code).group !== groupF) return false;
     if (apprF === "yes" && !c.approvalRequired) return false;
     if (apprF === "no" && c.approvalRequired) return false;
-    return matchesTerms([c.code, c.title, ctorName(c.code, c.title), c.runtimeTarget, ...c.schema.required], q);
+    return matchesTerms([c.code, c.title, ctorName(c.code, c.title), c.runtimeTarget, t.has(`settings.registry.target.${c.runtimeTarget}`) ? t(`settings.registry.target.${c.runtimeTarget}`) : "", ...c.schema.required, ...c.schema.required.map(field)], q);
   });
 
   return (
@@ -112,12 +112,17 @@ export default function RegistryPanel() {
                             <StudioCodeChip code={c.code} />
                             <b>{name}</b>
                           </span>
-                          {c.title && c.title !== name ? <small>{c.title}</small> : null}
                         </span>
                       </span>
                       <span role="cell" className="stu-sreg__cell">
                         <em className="stu-sreg__lbl">{t("settings.registry.col.target")}</em>
-                        {c.runtimeTarget ? <code className="stu-sreg__code">{c.runtimeTarget}</code> : <span className="stu-hint">—</span>}
+                        {!c.runtimeTarget ? (
+                          <span className="stu-hint">—</span>
+                        ) : t.has(`settings.registry.target.${c.runtimeTarget}`) ? (
+                          <span className="stu-sreg__tgt" title={c.runtimeTarget}>{t(`settings.registry.target.${c.runtimeTarget}`)}</span>
+                        ) : (
+                          <code className="stu-sreg__code">{c.runtimeTarget}</code>
+                        )}
                       </span>
                       <span role="cell" className="stu-sreg__cell">
                         <em className="stu-sreg__lbl">{t("settings.registry.col.approval")}</em>
@@ -138,11 +143,11 @@ export default function RegistryPanel() {
                         {req.length ? (
                           <>
                             {req.slice(0, SHOW_REQ).map((f) => (
-                              <code key={f} className="stu-sreg__f">
-                                {f}
-                              </code>
+                              <span key={f} className="stu-sreg__f" title={f}>
+                                {field(f)}
+                              </span>
                             ))}
-                            {req.length > SHOW_REQ ? <span className="stu-hint" title={req.slice(SHOW_REQ).join(", ")}>+{num(req.length - SHOW_REQ)}</span> : null}
+                            {req.length > SHOW_REQ ? <span className="stu-hint" title={req.slice(SHOW_REQ).map(field).join(", ")}>+{num(req.length - SHOW_REQ)}</span> : null}
                           </>
                         ) : (
                           <span className="stu-hint">{t("common.none")}</span>
