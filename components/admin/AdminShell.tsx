@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess, sessionRoles, canMakeCalls, isCallCenterUser, type AdminPermission } from "@/lib/auth";
@@ -10,6 +10,7 @@ import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
 import IncomingCallWatcher from "../portal/IncomingCallWatcher";
 import { useAiReveal } from "@/lib/guide/targets";
+import { fuzzyContains } from "@/lib/searchMatch";
 import { hasStudioAccess, useStudioRegistry } from "@/lib/services/studio";
 import { hasInternalAccess } from "@/lib/services/internalHrm";
 import dynamic from "next/dynamic";
@@ -43,6 +44,8 @@ import {
   IconChartBar,
   IconAiAnswer,
   IconLayers,
+  IconSearch,
+  IconChevronRight,
 } from "../icons";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
@@ -53,7 +56,7 @@ type SvgC = ComponentType<{ className?: string }>;
 // ADMIN_PERMISSIONS (b2b.manage, meetings.manage) only gate the item; they
 // don't grant admin access on their own.
 type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage";
-type NavItem = { href: string; key: string; Icon: SvgC; perm?: NavPerm | NavPerm[] };
+type NavItem = { href: string; key: string; Icon: SvgC; perm?: NavPerm | NavPerm[]; hidden?: boolean };
 // CRM modules grouped per the platform plan. `perm` = the backend permission a
 // page needs; items without a perm (overview, ceo, bootstrap…) are full-admin
 // only. Superadmin/admin see everything.
@@ -77,7 +80,9 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       // leads.manage on top of the personal "my meetings" launcher.
       { href: "/admin/meetings", key: "meetings", Icon: IconVideo, perm: ["leads.manage", "callcenter.access"] },
       { href: "/admin/call-analytics", key: "callAnalytics", Icon: IconChat, perm: "leads.manage" },
-      { href: "/admin/retention", key: "retention", Icon: IconUsers, perm: "leads.manage" },
+      // The backend answers retention_removed: the page stays reachable by
+      // URL and keeps its permission, but has no menu entry.
+      { href: "/admin/retention", key: "retention", Icon: IconUsers, perm: "leads.manage", hidden: true },
       { href: "/admin/b2b", key: "b2b", Icon: IconBuilding, perm: "b2b.manage" },
     ],
   },
@@ -89,25 +94,17 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/plans", key: "plans", Icon: IconStar, perm: "subscriptions.manage" },
       { href: "/admin/templates", key: "templates", Icon: IconDocLines, perm: "templates.manage" },
       { href: "/admin/ads", key: "ads", Icon: IconRocket, perm: "ads.manage" },
+      { href: "/admin/studio", key: "studio", Icon: IconLayers },
     ],
   },
   {
-    group: "studio",
-    items: [{ href: "/admin/studio", key: "studio", Icon: IconLayers }],
-  },
-  {
-    group: "sellers",
+    group: "sellersFinance",
     items: [
       // 2026-09-19 backend: GET /admin/seller-requests unifies register
       // requests and advocate/lawyer approval into one page (role tabs +
       // date filter + stats) — no separate "verifications" nav entry.
       { href: "/admin/register-requests", key: "registerRequests", Icon: IconUserPlus, perm: "users.manage" },
       { href: "/admin/reviews", key: "reviews", Icon: IconStar, perm: "lawyers.verify" },
-    ],
-  },
-  {
-    group: "finance",
-    items: [
       { href: "/admin/payouts", key: "payouts", Icon: IconCard, perm: "payments.manage" },
       { href: "/admin/approvals", key: "approvals", Icon: IconShieldCheck, perm: "approvals.manage" },
     ],
@@ -141,6 +138,41 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   },
 ];
 const NAV: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
+const groupOfKey = (key: string) => NAV_GROUPS.find((g) => g.items.some((n) => n.key === key))?.group ?? "";
+
+// Which nav groups the user opened or closed by hand ("sales:1,system:0"),
+// kept per browser. A group without an entry is open only while it holds
+// the current page.
+const NAV_KEY = "lexgo_admin_nav";
+const navListeners = new Set<() => void>();
+function subscribeNav(cb: () => void) {
+  navListeners.add(cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    navListeners.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+function readNav(): string {
+  try {
+    return localStorage.getItem(NAV_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+function writeNav(state: Record<string, boolean>) {
+  try {
+    localStorage.setItem(NAV_KEY, Object.entries(state).map(([k, v]) => `${k}:${v ? 1 : 0}`).join(","));
+  } catch {}
+  navListeners.forEach((f) => f());
+}
+const parseNav = (v: string): Record<string, boolean> => Object.fromEntries(v.split(",").filter(Boolean).map((x) => { const [k, b] = x.split(":"); return [k, b === "1"]; }));
+const MOBILE = "(max-width: 900px)";
+function subscribeMobile(cb: () => void) {
+  const mq = window.matchMedia(MOBILE);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
 // The overview (/admin) matches only itself; other items also cover their
 // sub-pages. A prefix match on /admin would let any page through by URL.
 const EXACT_NAV = new Set(["/admin/call-center"]);
@@ -157,10 +189,31 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // The mobile sidebar is open only on the path it was opened on, so navigating closes it.
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
-  useAiReveal(/^nav:/, () => {
-    if (window.matchMedia("(max-width: 900px)").matches) setOpenPath(pathname);
+  const [revealed, setRevealed] = useState("");
+  useAiReveal(/^nav:/, (id) => {
+    setRevealed(groupOfKey(String(id).replace(/^nav:/, "")));
+    if (window.matchMedia(MOBILE).matches) setOpenPath(pathname);
   });
   const open = openPath === pathname;
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const navRaw = useSyncExternalStore(subscribeNav, readNav, () => "");
+  const navState = useMemo(() => parseNav(navRaw), [navRaw]);
+  const mobile = useSyncExternalStore(subscribeMobile, () => window.matchMedia(MOBILE).matches, () => false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  const current = NAV.slice()
+    .sort((a, b) => b.href.length - a.href.length)
+    .find((n) => onItem(pathname, n));
+  const currentGroup = current ? groupOfKey(current.key) : "";
 
   const isBootstrap = pathname === "/admin/bootstrap";
   const isStudioPath = pathname === "/admin/studio" || pathname.startsWith("/admin/studio/");
@@ -198,6 +251,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           ? isSuper || (Array.isArray(n.perm) ? n.perm : [n.perm]).some((p) => perms.includes(p))
           : isFullAdmin;
   const visibleNav = NAV.filter(canSee);
+  const q = query.trim();
+  const matches = (n: NavItem) => !q || fuzzyContains(q, t(`nav.${n.key}`));
+  const firstMatch = q ? visibleNav.find((n) => !n.hidden && matches(n)) : undefined;
   // The bootstrap page (needs the bootstrap key) serves first-time setup:
   // signed-out users, non-staff and full admins. Limited staff (sales,
   // call-center…) must not open it by URL.
@@ -221,7 +277,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       const onAllowed = visibleNav.some(
         (n) => onItem(pathname, n),
       );
-      if (!onAllowed) router.replace(visibleNav[0]?.href ?? `/portal/${session.role}`);
+      if (!onAllowed) router.replace(visibleNav.find((n) => !n.hidden)?.href ?? `/portal/${session.role}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, session, router, isBootstrap, bootstrapOk, pathname, studioUser, studioPending, isStudioPath]);
@@ -233,9 +289,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // calls would only answer 403) while the effect above redirects away.
   if (session && !isSuper && !bootstrapOk && !visibleNav.some((n) => onItem(pathname, n))) return placeholder;
 
-  const active = NAV.slice()
-    .sort((a, b) => b.href.length - a.href.length)
-    .find((n) => onItem(pathname, n));
+  const active = current;
   const title = active ? t(`nav.${active.key}`) : t("title");
   // Clicking your own name goes to your own profile. Lawyers have no profile
   // route yet, so they land on their portal instead.
@@ -253,7 +307,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       {/* Meeting invites reach staff on admin pages too (T4-01). */}
       <IncomingCallWatcher />
       <div className={`psb__scrim${open ? " on" : ""}`} onClick={() => setOpenPath(null)} />
-      <aside className={`psb${open ? " on" : ""}`}>
+      <aside className={`psb psb--admin${open ? " on" : ""}`} inert={mobile && !open}>
         <div className="psb__brand">
           <div className="psb__logo">
             <span className="logo__m">
@@ -263,25 +317,68 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </div>
           <span className="psb__role">{roleBadge}</span>
         </div>
-        <nav className="psb__nav">
+        <div className="psb__search">
+          <IconSearch aria-hidden="true" />
+          <input
+            ref={searchRef}
+            type="search"
+            value={query}
+            placeholder={t("navSearch")}
+            aria-label={t("navSearch")}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setQuery("");
+              if (e.key === "Enter" && firstMatch) {
+                setQuery("");
+                router.push(firstMatch.href);
+              }
+            }}
+            data-ai-id="admin.nav.search"
+          />
+          <kbd aria-hidden="true">Ctrl K</kbd>
+        </div>
+        <nav className="psb__nav" aria-label={t("menu")}>
           {NAV_GROUPS.map((g) => {
-            const items = g.items.filter(canSee);
+            const items = g.items.filter((n) => !n.hidden && canSee(n) && matches(n));
             if (!items.length) return null;
+            const holdsCurrent = g.group === currentGroup;
+            const expanded = Boolean(q) || g.group === revealed || (navState[g.group] ?? holdsCurrent);
+            const id = `psb-g-${g.group}`;
             return (
-              <div className="psb__group" key={g.group}>
-                <span className="psb__glabel">{t(`groups.${g.group}`)}</span>
-                {items.map(({ href, key, Icon }) => {
-                  const on = active?.href === href;
-                  return (
-                    <Link key={href} href={href} className={`psb__link${on ? " on" : ""}`} data-ai-target={`nav:${key}`}>
-                      <Icon />
-                      {t(`nav.${key}`)}
-                    </Link>
-                  );
-                })}
+              <div className={`psb__group${expanded ? " is-open" : ""}`} key={g.group}>
+                <button
+                  type="button"
+                  className="psb__gbtn"
+                  aria-expanded={expanded}
+                  aria-controls={id}
+                  disabled={Boolean(q)}
+                  onClick={() => {
+                    if (g.group === revealed) setRevealed("");
+                    writeNav({ ...navState, [g.group]: !expanded });
+                  }}
+                >
+                  <IconChevronRight className="psb__gchev" aria-hidden="true" />
+                  <span>{t(`groups.${g.group}`)}</span>
+                  {!expanded && holdsCurrent ? <i className="psb__gdot" aria-hidden="true" /> : null}
+                  <small>{items.length}</small>
+                </button>
+                <div className="psb__gitems" id={id} inert={!expanded}>
+                  <div>
+                    {items.map(({ href, key, Icon }) => {
+                      const on = active?.href === href;
+                      return (
+                        <Link key={href} href={href} className={`psb__link${on ? " on" : ""}${firstMatch?.href === href ? " is-first" : ""}`} aria-current={on ? "page" : undefined} data-ai-target={`nav:${key}`} onClick={() => setQuery("")}>
+                          <Icon />
+                          {t(`nav.${key}`)}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             );
           })}
+          {q && !firstMatch ? <p className="psb__none">{t("navEmpty")}</p> : null}
         </nav>
         <div className="psb__foot">
           {staffSession ? null : (

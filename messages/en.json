@@ -10588,7 +10588,10 @@
     "backToPortal": "Back to portal",
     "logout": "Log out",
     "menu": "Menu",
+    "navSearch": "Find a page",
+    "navEmpty": "No page matches",
     "groups": {
+      "sellersFinance": "Sellers & finance",
       "studio": "Constructors",
       "command": "Command",
       "sales": "Clients & sales",
@@ -11395,6 +11398,7 @@
       "noAgents": "The per-agent breakdown is not on the backend yet."
     },
     "ceo": {
+      "report": {"na":"not tracked","asOf":"as of {date}","custom":"Custom range","allRegions":"All regions","failed":"Couldn't load the CEO figures.","retry":"Try again","summary":"In this period the platform earned <b>{revenue}</b>, took <b>{payments}</b> payments, and <b>{conv}</b> of leads became orders. Users in total: <b>{users}</b>.","deltaUp":"That is <b>{n}%</b> more than the previous period.","deltaDown":"That is <b>{n}%</b> less than the previous period.","revNote":"Daily revenue for the selected period.","figTotal":"Period total","figAvg":"Daily average","figBest":"Best day","figActive":"Days with revenue","daysOf":"{n} of {total} days","unit":"Unit economics","unitNote":"What each figure means and where it stands now.","colMetric":"Metric","colValue":"Value","colNote":"Note","payback":"Payback period","months":"{n, plural, one {# month} other {# months}}","health":{"good":"Healthy","watch":"Worth a look","bad":"At risk","na":"Not tracked"},"notes":{"gmv":"Total value of all payments through the platform.","gmvEq":"Currently computed the same as total revenue.","mrr":"Monthly recurring revenue from subscriptions.","mrrEq":"The backend currently returns MRR equal to total revenue.","arr":"Annual recurring revenue (MRR × 12).","arpu":"Average revenue per paying user.","take":"Platform commission — the share of GMV the platform keeps.","cacNa":"No marketing spend has been entered, so this can't be computed.","ltv":"Revenue expected from one client over their lifetime.","ltvCac":"3× or higher is a healthy ratio.","payback":"How many months it takes to earn back acquisition cost."},"funnelNote":"How many leads make it to an order.","kept":"{pct}% passed · {lost} lost","entry":"Entry point","paidNote":"Paid payments: <b>{n}</b>. This includes subscriptions and other payments besides orders, so it is kept out of the funnel.","channelsNote":"Click a column heading to change the sort order.","testNote":"Test and demo channels ({n}, {amount}) are hidden from the table but counted in total revenue.","showTest":"Show test channels","testTag":"test","audience":"Audience","audienceNote":"Activity, newcomers and satisfaction.","stickiness":"DAU / MAU","giftNote":"Gift subscriptions: from purchase to paying client."},
       "title": "CEO dashboard",
       "revenue": "Revenue",
       "mrr": "MRR (monthly recurring)",

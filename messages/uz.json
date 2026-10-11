@@ -10594,7 +10594,10 @@
     "backToPortal": "Portalga qaytish",
     "logout": "Chiqish",
     "menu": "Menyu",
+    "navSearch": "Sahifa qidirish",
+    "navEmpty": "Bunday sahifa topilmadi",
     "groups": {
+      "sellersFinance": "Sotuvchilar va moliya",
       "studio": "Konstruktorlar",
       "command": "Boshqaruv",
       "sales": "Mijozlar va sotuv",
@@ -11401,6 +11404,7 @@
       "noAgents": "Operatorlar bo'yicha kesim hali backendda yo'q."
     },
     "ceo": {
+      "report": {"na":"hisoblanmaydi","asOf":"{date} holatiga","custom":"Tanlangan davr","allRegions":"Barcha hududlar","failed":"CEO ma'lumotlarini yuklab bo'lmadi.","retry":"Qayta urinish","summary":"Shu davrda platforma <b>{revenue}</b> daromad qildi, <b>{payments}</b> ta to'lov qabul qilindi va lidlarning <b>{conv}</b> qismi buyurtmaga aylandi. Jami foydalanuvchilar — <b>{users}</b>.","deltaUp":"Bu o'tgan davrdan <b>{n}%</b> ko'p.","deltaDown":"Bu o'tgan davrdan <b>{n}%</b> kam.","revNote":"Tanlangan davrdagi kunlik tushum.","figTotal":"Davr jami","figAvg":"Kunlik o'rtacha","figBest":"Eng yaxshi kun","figActive":"Tushumli kunlar","daysOf":"{n} / {total} kun","unit":"Unit-iqtisodiyot","unitNote":"Har bir ko'rsatkich nimani anglatadi va hozir qanday holatda.","colMetric":"Ko'rsatkich","colValue":"Qiymat","colNote":"Izoh","payback":"Qoplash muddati","months":"{n} oy","health":{"good":"Sog'lom","watch":"E'tibor bering","bad":"Xavfli","na":"Hisoblanmaydi"},"notes":{"gmv":"Platformadan o'tgan barcha to'lovlar hajmi.","gmvEq":"Hozircha umumiy daromad bilan bir xil hisoblanadi.","mrr":"Obunalardan keladigan oylik takroriy tushum.","mrrEq":"Backend hozircha MRR ni umumiy daromadga teng qaytaradi.","arr":"Yillik takroriy tushum (MRR × 12).","arpu":"Bitta to'lovchi foydalanuvchiga o'rtacha tushum.","take":"Platforma komissiyasi — GMV dan platformada qoladigan ulush.","cacNa":"Marketing xarajatlari kiritilmagan, shuning uchun hisoblab bo'lmaydi.","ltv":"Bitta mijozdan butun davr davomida kutiladigan tushum.","ltvCac":"3× va undan yuqori — sog'lom nisbat.","payback":"Jalb qilish xarajati necha oyda qaytadi."},"funnelNote":"Lidlar buyurtmaga aylanguncha qanchasi qoladi.","kept":"{pct}% o'tdi · {lost} ta yo'qoldi","entry":"Kirish nuqtasi","paidNote":"To'langan to'lovlar — <b>{n}</b> ta. Bu son buyurtmalardan tashqari obuna va boshqa to'lovlarni ham o'z ichiga oladi, shuning uchun voronkaga qo'shilmagan.","channelsNote":"Ustun sarlavhasini bosib saralash tartibini o'zgartiring.","testNote":"Test va demo kanallar ({n} ta, {amount}) jadvalda yashirilgan, lekin umumiy daromadga kiritilgan.","showTest":"Test kanallarini ko'rsatish","testTag":"test","audience":"Auditoriya","audienceNote":"Faollik, yangi kelganlar va mamnunlik.","stickiness":"DAU / MAU","giftNote":"Sovg'a obunasi: xariddan to'lovli mijozgacha."},
       "title": "CEO paneli",
       "revenue": "Daromad",
       "mrr": "Oylik takroriy daromad",
