@@ -2477,10 +2477,10 @@
         "kpiSystem": "KPI tizimi: MAU, GMV, ARR va ARPU, pastroqda CAC, LTV va NPS."
       },
       "admin_overview": {
-        "title": "Bu CRM boshqaruv paneli — platformaning asosiy ko'rsatkichlari bir joyda.",
-        "kpis": "Asosiy ko'rsatkichlar. Kartani bossangiz, raqam ortidagi tafsilot ochiladi.",
-        "charts": "Tushum dinamikasi va sotuv voronkasi: pul qayerdan kelyapti, lidlar qayerda to'xtayapti.",
-        "modules": "CRM modullariga tezkor o'tish: voronka, to'lovlar, B2B, ushlab qolish va navbatchi xizmat."
+        "title": "Bu boshqaruv paneli — platformaning asosiy ko'rsatkichlari bir joyda.",
+        "kpis": "Diqqat talab qiladigan navbatlar: kutilayotgan to'lovlar, arizalar, payoutlar, muddati o'tgan vazifalar. Bossangiz, tegishli ro'yxat ochiladi.",
+        "charts": "Daromad, to'lov oqimi va foydalanuvchilar tarkibi. Har bir panelning «Batafsil» tugmasi raqam ortidagi tafsilotni ochadi.",
+        "activity": "So'nggi vazifalar, sharhlar va B2B mijozlar — muddati o'tganlari birinchi."
       },
       "common": {
         "statsFilters": "Hudud va sana oralig'ini tanlang — sahifadagi barcha ko'rsatkichlar shu filtr bo'yicha yangilanadi.",
@@ -10651,9 +10651,9 @@
       "kicker": "Admin konsoli",
       "hi": "Xush kelibsiz, {name}",
       "sub": "LexGo katalogi, paket tariflar, ruxsatlar va boshqalarni boshqaring.",
+      "board": {"asOf":"Ma'lumot {time} holatiga","refresh":"Yangilash","failed":"Ma'lumot yuklanmadi","retry":"Qayta urinish","attention":"Diqqat talab","attn":{"payments":"Kutilayotgan to'lovlar","sellers":"Sotuvchi arizalari","sellersSub":"Tasdiqni kutmoqda","payouts":"To'lanmagan payoutlar","tasks":"Muddati o'tgan vazifalar","tasksSub":"{n} ta ochiq vazifadan","quality":"Shikoyatlar darajasi","qualitySub":"Belgilangan: {n} · hal qilingan: {resolved}","clear":"Navbat bo'sh"},"up":"O'sish","down":"Pasayish","vsPrev":"o'tgan davrga nisbatan","flow":"To'lov oqimi","flowPending":"{amount} kutilmoqda","people":{"total":"jami","advokats":"Advokatlar","yurists":"Yuristlar","other":"Boshqa"},"stickiness":"Faollik darajasi (DAU/MAU)","dauMau":"Kunlik {dau} · oylik {mau}","convLabel":"Lidlardan buyurtmaga konversiya {pct}","paidPayments":"Jami to'langan to'lovlar: {n}","leadTemp":"Lidlar harorati","allLeads":"Lidlar","orders":{"new":"Yangi","pay":"To'lov kutilmoqda","work":"Ishda","done":"Bajarilgan","lost":"Bekor qilingan"},"ordersTotal":"ta buyurtma","services":"Xizmatlar","of5":"5 balldan","lowerBetter":"qanchalik past — shuncha yaxshi","flags":"belgilangan muammolar: {n}","noFlags":"Belgilangan muammo yo'q","channels":"Daromad kanallari","channelSub":"{leads} lid · {payments} to'lov · {share}%","noChannels":"Real kanallardan daromad hali yo'q","testChannels":"Test va demo kanallar ({n} ta, {amount}) ro'yxatdan chiqarildi, lekin umumiy daromadga kiritilgan.","testTag":"test","activity":"So'nggi faollik","late":"Muddati o'tgan","due":"Muddat","inclTest":"Shundan test va demo kanallar: {amount}"},
       "crm": {
-        "kicker": "CRM boshqaruv paneli",
-        "sub": "Platformaning asosiy ko'rsatkichlari — o'sish, monetizatsiya, ushlab qolish va sifat bir joyda.",
+        "sub": "Platformaning asosiy ko'rsatkichlari — navbatlar, daromad, buyurtmalar va sifat bir joyda.",
         "som": "so'm",
         "growth": "O'sish",
         "users": "Foydalanuvchilar",
@@ -10693,6 +10693,19 @@
           "cold": "Sovuq"
         },
         "status": {
+          "pending_payment": "To'lov tekshirilmoqda",
+          "open": "Ochiq",
+          "active": "Faol",
+          "archived": "Arxivlangan",
+          "rejected": "Rad etildi",
+          "refunded": "Qaytarildi",
+          "proposal": "Taklif",
+          "published": "Chop etilgan",
+          "pending": "Kutilmoqda",
+          "claimed": "Olingan",
+          "done": "Bajarildi",
+          "todo": "Bajarilishi kerak",
+          "closed": "Yopilgan",
           "new": "Yangi",
           "waiting_info": "Ma'lumot kutilmoqda",
           "waiting_docs": "Hujjat kutilmoqda",
@@ -12377,7 +12390,7 @@
       "demo": {
         "badge": "Demo ma'lumot",
         "banner": "Hozircha real faoliyat yo'q — namunaviy ko'rsatkichlar ko'rsatilmoqda. Birinchi lid, buyurtma yoki to'lov paydo bo'lishi bilan real ma'lumotlar avtomatik chiqadi.",
-        "forced": "Demo rejim yoqilgan: real ma'lumotlar o'rniga namunaviy ko'rsatkichlar ko'rsatilmoqda. O'chirish uchun «Demo yoqilgan» tugmasini bosing.",
+        "forced": "Demo rejim yoqilgan: real ma'lumotlar o'rniga namunaviy ko'rsatkichlar ko'rsatilmoqda. O'chirish uchun «Demo ko'rsatish» kalitini o'chiring.",
         "noAction": "Demo yozuv — amallar bajarilmaydi",
         "sellerBanner": "Kabinetda hali real faoliyat yo'q — namunaviy ko'rsatkichlar ko'rsatilmoqda. Birinchi buyurtma yoki to'lov bilan real raqamlar avtomatik chiqadi."
       },

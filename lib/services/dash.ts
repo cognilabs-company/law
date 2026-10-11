@@ -62,7 +62,7 @@ export const todayIso = () => {
 };
 
 // ── Admin dashboard (GET /admin/dashboard) ────────────────────────
-export type DashListItem = { id: string; title: string; status: string; meta: string; amount?: number; date: string };
+export type DashListItem = { id: string; title: string; status: string; meta: string; amount?: number; date: string; due?: string };
 export type AdminDashboardFull = AdminDashboard & {
   fetchedAt: string;
   // The grouped maps the totals were flattened from.
@@ -86,11 +86,12 @@ function listItem(v: unknown): DashListItem {
   const amount = uzsOpt(d, "value", "amount", "price");
   return {
     id: asStr(d.id),
-    title: asStr(d.title ?? d.name ?? d.subject),
+    title: asStr(d.title ?? d.name ?? d.subject) || asStr(d.comment) || asStr(d.lawyer_name),
     status: asStr(d.status ?? d.stage),
     meta: asStr(d.industry ?? d.contact ?? p.industry ?? d.gift_code ?? d.rating ?? d.assignee_name ?? ""),
     amount: amount == null ? undefined : amount,
     date: asStr(d.updated_at ?? d.created_at),
+    due: asStr(d.due_date ?? d.due_at ?? "") || undefined,
   };
 }
 export async function getAdminDashboardFull(f?: DashFilter): Promise<AdminDashboardFull> {

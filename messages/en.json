@@ -2477,10 +2477,10 @@
         "kpiSystem": "The KPI system: MAU, GMV, ARR and ARPU, with CAC, LTV and NPS below."
       },
       "admin_overview": {
-        "title": "This is the CRM command center — the platform's key numbers in one place.",
-        "kpis": "The headline metrics. Click a card to see the breakdown behind the number.",
-        "charts": "The revenue trend and sales funnel: where the money comes from and where leads stall.",
-        "modules": "Shortcuts to the CRM modules: pipeline, payouts, B2B, retention and the duty desk."
+        "title": "This is the admin dashboard — the platform's key numbers in one place.",
+        "kpis": "Queues that need attention: pending payments, applications, payouts, overdue tasks. Click one to open its list.",
+        "charts": "Revenue, payment flow and who your users are. Each panel's Details button opens the breakdown behind the number.",
+        "activity": "Latest tasks, reviews and B2B clients — overdue ones first."
       },
       "common": {
         "statsFilters": "Pick a region and a date range — every figure on the page updates to this filter.",
@@ -10645,9 +10645,9 @@
       "kicker": "Admin console",
       "hi": "Welcome, {name}",
       "sub": "Manage the LexGo catalog, package tariffs, access and more.",
+      "board": {"asOf":"Data as of {time}","refresh":"Refresh","failed":"Couldn't load this data","retry":"Try again","attention":"Needs attention","attn":{"payments":"Pending payments","sellers":"Seller applications","sellersSub":"Waiting for approval","payouts":"Unpaid payouts","tasks":"Overdue tasks","tasksSub":"of {n} open tasks","quality":"Complaint rate","qualitySub":"Flagged: {n} · resolved: {resolved}","clear":"Queue is clear"},"up":"Up","down":"Down","vsPrev":"vs previous period","flow":"Payment flow","flowPending":"{amount} pending","people":{"total":"total","advokats":"Advocates","yurists":"Lawyers","other":"Other"},"stickiness":"Activity level (DAU/MAU)","dauMau":"Daily {dau} · monthly {mau}","convLabel":"Lead to order conversion {pct}","paidPayments":"Paid payments in total: {n}","leadTemp":"Lead temperature","allLeads":"Leads","orders":{"new":"New","pay":"Awaiting payment","work":"In progress","done":"Completed","lost":"Cancelled"},"ordersTotal":"orders","services":"Services","of5":"out of 5","lowerBetter":"lower is better","flags":"flagged issues: {n}","noFlags":"No flagged issues","channels":"Revenue channels","channelSub":"{leads, plural, one {# lead} other {# leads}} · {payments, plural, one {# payment} other {# payments}} · {share}%","noChannels":"No revenue from real channels yet","testChannels":"Test and demo channels ({n}, {amount}) are left out of this list but counted in total revenue.","testTag":"test","activity":"Latest activity","late":"Overdue","due":"Due","inclTest":"Includes test and demo channels: {amount}"},
       "crm": {
-        "kicker": "CRM command center",
-        "sub": "The platform's key metrics — growth, monetization, retention and quality in one place.",
+        "sub": "The platform's key numbers — queues, revenue, orders and quality in one place.",
         "som": "UZS",
         "growth": "Growth",
         "users": "Users",
@@ -10687,6 +10687,19 @@
           "cold": "Cold"
         },
         "status": {
+          "pending_payment": "Payment being verified",
+          "open": "Open",
+          "active": "Active",
+          "archived": "Archived",
+          "rejected": "Rejected",
+          "refunded": "Refunded",
+          "proposal": "Proposal",
+          "published": "Published",
+          "pending": "Pending",
+          "claimed": "Claimed",
+          "done": "Done",
+          "todo": "To do",
+          "closed": "Closed",
           "new": "New",
           "waiting_info": "Waiting for info",
           "waiting_docs": "Waiting for documents",
@@ -12371,7 +12384,7 @@
       "demo": {
         "badge": "Demo data",
         "banner": "No real activity yet — demo figures are shown. Real data appears automatically once the first lead, order or payment exists.",
-        "forced": "Demo mode is on: demo figures are shown instead of real data. Click \"Demo on\" to turn it off.",
+        "forced": "Demo mode is on: demo figures are shown instead of real data. Turn off the \"Show demo\" switch to leave it.",
         "noAction": "Demo record — actions are disabled",
         "sellerBanner": "No real activity in the cabinet yet — sample metrics are shown. Real numbers appear automatically with the first order or payment."
       },

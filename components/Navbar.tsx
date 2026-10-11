@@ -100,6 +100,7 @@ export default function Navbar() {
       <div
         className={`sheet${sheet ? " on" : ""}`}
         id="sheet"
+        inert={!sheet}
         onClick={(e) => {
           if (e.target === e.currentTarget) setSheetPath(null);
         }}

@@ -10,7 +10,7 @@ export const ADMIN_PAGES: GuidePage[] = [
       { target: "stats:filters", text: "tours.common.statsFilters" },
       { target: "overview:kpis", text: "tours.admin_overview.kpis" },
       { target: "overview:charts", text: "tours.admin_overview.charts" },
-      { target: "overview:modules", text: "tours.admin_overview.modules" },
+      { target: "overview:activity", text: "tours.admin_overview.activity" },
     ],
     suggestions: ["suggest.staff.revenueMonth", "suggest.staff.metricsRegion"],
   },
