@@ -232,6 +232,7 @@ export default function PromotionPanel() {
           uid={uid}
           owner={false}
           onClose={() => setOpen(null)}
+          onStale={() => setReloadKey((n) => n + 1)}
           onSent={(req) => {
             if (req.telegramSent) toast(ts("toast.promoSent"), { tone: "ok" });
             setReloadKey((n) => n + 1);
