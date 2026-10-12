@@ -12416,7 +12416,6 @@ a.ag-card__hd:hover .ag-card__doc{color:var(--dk-acc, var(--b600))}
 @keyframes vbIn{from{opacity:0;transform:translateY(10px) scale(.97)}}
 @keyframes vbSeal{0%{opacity:0;transform:scale(.6) rotate(-12deg)}60%{opacity:1;transform:scale(1.06) rotate(2deg)}100%{transform:none}}
 @keyframes vbRing{0%{opacity:.55;transform:scale(.8)}100%{opacity:0;transform:scale(1.6)}}
-@keyframes vbItem{from{opacity:0;transform:translateX(-8px)}}
 @keyframes vbTip{from{opacity:0;transform:translate(-50%,calc(-100% + 4px))}}
 @keyframes vbTipB{from{opacity:0;transform:translate(-50%,-4px)}}
 .vbadge{position:relative;z-index:2;display:inline-flex;align-items:center;gap:5px;flex:none;padding:0;border:0;background:none;font:inherit;font-size:.72rem;font-weight:700;line-height:1;color:var(--dk-acc-strong, var(--b700));white-space:nowrap;cursor:default;vertical-align:middle}
@@ -12440,7 +12439,7 @@ button.vbadge:not(.vbadge--icon):hover{box-shadow:inset 0 0 0 1px var(--dk-acc, 
 .vbadge-tip img{flex:none;width:16px;height:16px}
 
 .vmodal{position:fixed;inset:0;z-index:260;display:grid;place-items:center;padding:20px;background:rgba(3,16,43,.55);backdrop-filter:blur(4px);animation:vbFade .2s ease both}
-.vmodal__box{position:relative;width:min(480px,100%);max-height:calc(100dvh - 40px);overflow:auto;border-radius:24px;background:var(--dk-surface, #fff);color:var(--ink);box-shadow:var(--s3);animation:vbIn .32s cubic-bezier(.2,.8,.2,1) both}
+.vmodal__box{position:relative;width:min(420px,100%);max-height:calc(100dvh - 40px);overflow:auto;border-radius:24px;background:var(--dk-surface, #fff);color:var(--ink);box-shadow:var(--s3);animation:vbIn .32s cubic-bezier(.2,.8,.2,1) both}
 .vmodal__x{position:absolute;top:12px;right:12px;z-index:2;display:grid;place-items:center;width:34px;height:34px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;transition:background .15s}
 .vmodal__x:hover{background:rgba(255,255,255,.26)}
 .vmodal__x svg{width:16px;height:16px}
@@ -12453,24 +12452,11 @@ button.vbadge:not(.vbadge--icon):hover{box-shadow:inset 0 0 0 1px var(--dk-acc, 
 .vmodal__hero h2{position:relative;margin:0;font-family:var(--fd);font-size:1.32rem;line-height:1.2;letter-spacing:-.02em}
 .vmodal__who{position:relative;display:flex;flex-wrap:wrap;justify-content:center;gap:4px 8px;margin:4px 0 0;padding:6px 14px;border-radius:var(--pill);background:rgba(255,255,255,.1);font-size:.84rem}
 .vmodal__who span{color:rgba(255,255,255,.72)}
-.vmodal__desc{margin:0;padding:24px 24px 4px;text-align:center;font-size:.98rem;line-height:1.55;color:var(--ink)}
-.vmodal__sect{padding:18px 22px 0}
-.vmodal__h{display:block;margin-bottom:10px;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--gray)}
-.vmodal__list,.vmodal__means{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
-.vmodal__list li{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--dk-surface-2, #F5F9FF);box-shadow:inset 0 0 0 1px var(--line);font-size:.86rem;line-height:1.35;animation:vbItem .35s ease both}
-.vmodal__list i{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:10px;background:var(--b100);color:var(--dk-acc, var(--b600))}
-.vmodal__list i svg{width:17px;height:17px}
-.vmodal__list span{flex:1;min-width:0}
-.vmodal__ok{flex:none;width:18px;height:18px;padding:3px;border-radius:50%;background:var(--ok);color:#fff}
-.vmodal__means li{display:flex;align-items:flex-start;gap:10px;font-size:.86rem;line-height:1.4;color:var(--gray);animation:vbItem .35s ease both}
-.vmodal__means svg{flex:none;width:18px;height:18px;margin-top:1px;color:var(--dk-acc, var(--b600))}
-.vmodal__foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:20px 22px 22px}
-.vmodal__more{display:inline-flex;align-items:center;gap:6px;font-size:.86rem;font-weight:700;color:var(--dk-acc, var(--b600));text-decoration:none;transition:gap .15s}
-.vmodal__more:hover{gap:9px}
-.vmodal__more svg{width:15px;height:15px}
-.vmodal__okbtn{padding:11px 22px}
-@media (max-width:480px){.vmodal{align-items:end;padding:0}.vmodal__box{width:100%;max-height:92dvh;border-radius:24px 24px 0 0}.vmodal__foot{flex-direction:column-reverse;align-items:stretch;text-align:center}.vmodal__more{justify-content:center}}
-@media (prefers-reduced-motion:reduce){.vbadge__img::after,.vmodal__ring{animation:none;display:none}.vmodal__box,.vmodal__seal,.vmodal__list li,.vmodal__means li,.vbadge-tip{animation:none}}
+.vmodal__desc{margin:0;padding:22px 24px 0;text-align:center;font-size:.98rem;line-height:1.55;color:var(--ink)}
+.vmodal__foot{display:flex;align-items:center;justify-content:center;padding:18px 22px 24px}
+.vmodal__okbtn{min-width:150px;padding:12px 26px}
+@media (max-width:480px){.vmodal{align-items:end;padding:0}.vmodal__box{width:100%;max-height:92dvh;border-radius:24px 24px 0 0}}
+@media (prefers-reduced-motion:reduce){.vbadge__img::after,.vmodal__ring{animation:none;display:none}.vmodal__box,.vmodal__seal,.vbadge-tip{animation:none}}
 @keyframes ntfIn{from{opacity:0;translate:0 calc(-100% - 24px)}}
 @keyframes ntfFade{from{opacity:0}}
 @keyframes ntfBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
