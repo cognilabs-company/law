@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { toast } from "@/lib/toast";
 import { logApiError } from "@/lib/http";
@@ -8,6 +8,7 @@ import {
   addStudioComment,
   archiveStudioObject,
   createStudioObject,
+  getStudioConstructorDetail,
   getStudioObject,
   isApprovalFree,
   listStudioComments,
@@ -20,6 +21,7 @@ import {
   useStudioAccess,
   useStudioHeartbeat,
   useStudioRegistry,
+  validateStudioDraft,
   type StudioComment,
   type StudioDetail,
   type StudioFieldErrors,
@@ -40,7 +42,9 @@ import {
   useStudioLive,
   useStudioText,
 } from "./bits";
-import { editorFor, validateStudioPayload } from "./editors";
+import { cleanStudioPayload, editorFor, validateStudioPayload } from "./editors";
+import { changedRoots, normErrorPaths, normPath, rootOf } from "@/lib/studioSchema";
+import ImpactPreview from "./object/ImpactPreview";
 import { STUDIO_ERR, type StudioPayload } from "./editors/types";
 import { useLeaveGuard } from "./object/useLeaveGuard";
 import {
@@ -108,7 +112,7 @@ export default function StudioObjectEditor({ id, newCode }: { id: string; newCod
   );
 }
 
-type Dialog = null | "publish" | "archive" | "submitFree" | "rollback";
+type Dialog = null | "publish" | "archive" | "submit" | "submitFree" | "rollback";
 
 function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCode: (id: string, code: string) => void }) {
   const st = useStudioText();
@@ -128,6 +132,7 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
   const [loadErr, setLoadErr] = useState<unknown>(null);
   const [draft, setDraft] = useState<Draft | null>(() => (seed ? draftOf(seed) : creating ? { title: "", payload: editorFor(newCode).emptyPayload(startCtor) } : null));
   const [base, setBase] = useState(() => draftKey(seed ? draftOf(seed) : creating ? { title: "", payload: editorFor(newCode).emptyPayload(startCtor) } : null));
+  const [startKey] = useState(base);
   const [remote, setRemote] = useState(false);
   const [errors, setErrors] = useState<StudioFieldErrors>({});
   const [errTitle, setErrTitle] = useState("");
@@ -143,6 +148,11 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
   const [rollTo, setRollTo] = useState<StudioVersion | null>(null);
   const [preview, setPreview] = useState<StudioVersion | null>(null);
   const [publishFail, setPublishFail] = useState<{ text: string } | null>(null);
+  // The backend's live check of the draft (spec §9) and the fields the user
+  // has changed since it was loaded: a live error is shown only for those, so
+  // a fresh form is not covered in "required" before anyone typed.
+  const [live, setLive] = useState<{ key: string; errors: StudioFieldErrors; checking: boolean }>({ key: "", errors: {}, checking: false });
+  const [touched, setTouched] = useState<string[]>([]);
 
   const code = detail?.code || newCode;
   const ctor = reg.items.find((c) => c.code === code) ?? null;
@@ -158,6 +168,45 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
   const curVer = currentVersionOf(detail);
   const hasFile = Boolean(detail?.hasFile || curVer?.hasFile);
   const uploadMode = code === "K06" && draft?.payload.mode === "upload";
+
+  // A new object starts from the constructor's default payload and its
+  // fields' defaults (spec §8), once the full schema has arrived.
+  useEffect(() => {
+    if (!creating || !newCode) return;
+    let alive = true;
+    void getStudioConstructorDetail(newCode).then((full) => {
+      if (!alive || !full?.typed.length) return;
+      const fresh = editorFor(newCode).emptyPayload(full);
+      // Only while nothing has been typed: the draft is still the first one.
+      setDraft((cur) => (cur && draftKey(cur) === startKey ? { ...cur, payload: fresh } : cur));
+      setBase((b) => (b === startKey ? draftKey({ title: "", payload: fresh }) : b));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [creating, newCode, startKey]);
+
+  // Debounced server check while the user edits.
+  const liveKey = draft && !readOnly && code && touched.length ? JSON.stringify(draft.payload) : "";
+  useEffect(() => {
+    if (!liveKey) return;
+    const c = new AbortController();
+    const h = setTimeout(() => {
+      setLive((cur) => ({ ...cur, checking: true }));
+      validateStudioDraft(code, cleanStudioPayload(code, JSON.parse(liveKey) as StudioPayload), c.signal)
+        .then((r) => !c.signal.aborted && setLive({ key: liveKey, errors: normErrorPaths(r.errors), checking: false }))
+        .catch(() => !c.signal.aborted && setLive((cur) => ({ ...cur, checking: false })));
+    }, 800);
+    return () => {
+      clearTimeout(h);
+      c.abort();
+    };
+  }, [liveKey, code]);
+  const liveErrors = useMemo(() => {
+    if (!liveKey || live.key !== liveKey) return {};
+    return Object.fromEntries(Object.entries(live.errors).filter(([k]) => touched.includes(rootOf(k))));
+  }, [live, liveKey, touched]);
+  const shownErrors = useMemo(() => ({ ...liveErrors, ...errors }), [liveErrors, errors]);
 
   const guard = useLeaveGuard(dirty && !readOnly);
   const hb = useStudioHeartbeat({
@@ -290,6 +339,8 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
 
   function setPayload(next: StudioPayload) {
     if (!draft) return;
+    const roots = changedRoots(draft.payload, next);
+    if (roots.some((r) => !touched.includes(r))) setTouched((cur) => [...new Set([...cur, ...roots])]);
     setErrors((errs) => pruneErrors(errs, draft.payload, next));
     setDraft({ ...draft, payload: next });
   }
@@ -311,20 +362,31 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
     setActErr(null);
     setPublishFail(null);
     try {
+      const payload = cleanStudioPayload(code, draft.payload);
       if (!id) {
-        const created = await createStudioObject({ constructorCode: code, title, payload: draft.payload });
+        const created = await createStudioObject({ constructorCode: code, title, payload });
         if (!created.id) {
           toast(t("editor.toast.noId"), { tone: "err" });
           return "";
         }
         hb.markSaved();
-        seedDetail({ ...created, code: created.code || code, title: created.title || title, payload: Object.keys(created.payload).length ? created.payload : draft.payload });
+        seedDetail({ ...created, code: created.code || code, title: created.title || title, payload: Object.keys(created.payload).length ? created.payload : payload });
         return created.id;
       }
-      await saveStudioObject(id, { title, payload: draft.payload, summary: meta.summary, version: meta.version });
+      await saveStudioObject(id, { title, payload, summary: meta.summary, version: meta.version, expectedLockVersion: detail?.lockVersion ?? null });
       hb.markSaved();
+      setTouched([]);
       return id;
     } catch (e) {
+      // Someone saved this object first (spec §10): read theirs, keep ours
+      // on screen and say so — the "newer version" banner offers to load it.
+      if (studioErrorOf(e).kind === "edit_conflict") {
+        logApiError("studio.object.save", e);
+        setActErr(e);
+        await refresh(false);
+        scrollTop();
+        return "";
+      }
       fail("studio.object.save", e);
       return "";
     }
@@ -370,12 +432,9 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
       scrollTop();
       return;
     }
-    if (approvalFree) {
-      setDlgErr(null);
-      setDialog("submitFree");
-      return;
-    }
-    void submit();
+    // Both kinds of submit are confirmed with what the change will touch.
+    setDlgErr(null);
+    setDialog(approvalFree ? "submitFree" : "submit");
   }
 
   async function submit() {
@@ -537,6 +596,13 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
       return;
     }
     const scope = document.getElementById(`${uid}-main`);
+    // A nested field first: the exact path the error is about.
+    const exact = scope?.querySelector<HTMLElement>(`[data-path="${normPath(k)}"]`);
+    if (exact) {
+      exact.scrollIntoView({ behavior: "smooth", block: "center" });
+      exact.querySelector<HTMLElement>("input, textarea, button, [tabindex]")?.focus({ preventScroll: true });
+      return;
+    }
     const el =
       scope?.querySelector<HTMLElement>(`[data-ai-id="admin.studio.editor.field.${root}"]`) ??
       scope?.querySelector<HTMLElement>(`[data-ai-id$=".${root}"]`) ??
@@ -752,7 +818,13 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
         </Banner>
       ) : null}
 
-      {errCount ? <ErrorSummary errors={errors} title={errTitle || t("error.kind.validation")} onPick={pickError} /> : null}
+      {errCount ? <ErrorSummary errors={errors} title={errTitle || t("error.kind.validation")} onPick={pickError} code={code} /> : null}
+      {!readOnly && touched.length ? (
+        <p className={`stu-live${live.checking ? " is-busy" : Object.keys(liveErrors).length ? " is-bad" : " is-ok"}`} role="status">
+          <i aria-hidden />
+          {live.checking ? t("schema.checking") : Object.keys(liveErrors).length ? t("schema.liveBad", { n: Object.keys(liveErrors).length }) : live.key === liveKey ? t("schema.liveOk") : t("schema.livePending")}
+        </p>
+      ) : null}
       {actErr ? <StudioErrorNote error={actErr} /> : null}
 
       <div className="stu-ed__grid">
@@ -774,7 +846,7 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
               constructor={ctor}
               payload={draft.payload}
               onChange={setPayload}
-              errors={errors}
+              errors={shownErrors}
               readOnly={readOnly}
               file={curVer || hasFile ? { hasFile, fileName: curVer?.fileName ?? "", fileUrl: curVer?.fileUrl ?? "", versionId: curVer?.id ?? "" } : null}
               onUploadFile={!readOnly && id ? uploadFromEditor : null}
@@ -935,7 +1007,12 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
         title={t("editor.publish.title")}
         onClose={() => setDialog(null)}
         aiId="admin.studio.editor.publish-modal"
-        lead={<p>{t("editor.publish.lead")}</p>}
+        lead={
+          <>
+            <p>{t("editor.publish.lead")}</p>
+            {dialog === "publish" ? <ImpactPreview code={code} payload={cleanStudioPayload(code, draft.payload)} runtimeTargetId={String(detail?.raw.runtime_target_id ?? "")} /> : null}
+          </>
+        }
         note={{ label: t("editor.publish.note"), placeholder: t("editor.publish.notePh") }}
         confirmLabel={t("actions.publish")}
         confirmIcon={IconRocket}
@@ -995,10 +1072,31 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
           <>
             <p>{t("editor.submit.freeLead")}</p>
             {dirty || creating ? <p className="stu-hint">{t("editor.submit.freeSave")}</p> : null}
+            {dialog === "submitFree" ? <ImpactPreview code={code} payload={cleanStudioPayload(code, draft.payload)} runtimeTargetId={String(detail?.raw.runtime_target_id ?? "")} /> : null}
           </>
         }
         confirmLabel={t("editor.submit.free")}
         confirmIcon={IconRocket}
+        tone="grad"
+        busy={busy === "submit" || busy === "save"}
+        error={dlgErr}
+        onConfirm={() => void submit()}
+      />
+
+      <NoteDialog
+        open={dialog === "submit"}
+        title={t("editor.submit.title")}
+        onClose={() => setDialog(null)}
+        aiId="admin.studio.editor.submit-review-modal"
+        lead={
+          <>
+            <p>{t("editor.submit.lead")}</p>
+            {dirty || creating ? <p className="stu-hint">{t("editor.submit.freeSave")}</p> : null}
+            {dialog === "submit" ? <ImpactPreview code={code} payload={cleanStudioPayload(code, draft.payload)} runtimeTargetId={String(detail?.raw.runtime_target_id ?? "")} /> : null}
+          </>
+        }
+        confirmLabel={t("editor.submit.confirm")}
+        confirmIcon={IconSend}
         tone="grad"
         busy={busy === "submit" || busy === "save"}
         error={dlgErr}

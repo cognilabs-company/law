@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType, ReactNode, SVGProps } from "react";
-import type { StudioFieldErrors } from "@/lib/services/studio";
+import { studioDetailSnapshot, type StudioFieldErrors, type StudioSchemaField } from "@/lib/services/studio";
 import { useStudioText } from "../bits";
 import { fieldRoot } from "./model";
 import { IconAlert, IconChevronRight } from "@/components/icons";
@@ -72,19 +72,32 @@ export function VersionBadge({ version }: { version: string }) {
   return <span className="stu-ovbadge">v{version.replace(/^v/i, "")}</span>;
 }
 
-export function useFieldLabel() {
-  const { t, field } = useStudioText();
+export function useFieldLabel(code = "") {
+  const { t, field, locale } = useStudioText();
   return (key: string) => {
     if (key === "_") return t("editor.errors.general");
-    const root = fieldRoot(key);
-    const label = field(root);
-    return key === root ? label : `${label} · ${key.slice(root.length).replace(/^\./, "")}`;
+    // A nested path is named field by field from the typed schema:
+    // "Fonlar · 3 · Kalit" rather than "backgrounds.2.key".
+    const typed = code ? studioDetailSnapshot(code)?.typed ?? [] : [];
+    const parts = key.replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean);
+    let level: StudioSchemaField[] = typed;
+    const names: string[] = [];
+    for (const part of parts) {
+      if (/^\d+$/.test(part)) {
+        names.push(`#${Number(part) + 1}`);
+        continue;
+      }
+      const f = level.find((x) => x.key === part);
+      names.push(f ? (locale === "uz" || !t.has(`field.${part}`) ? f.label || field(part) : field(part)) : field(part));
+      level = f ? (f.type === "list" ? (f.item?.properties ?? []) : f.properties) : [];
+    }
+    return names.join(" · ") || field(fieldRoot(key));
   };
 }
 
-export function ErrorSummary({ errors, title, onPick }: { errors: StudioFieldErrors; title: string; onPick: (key: string) => void }) {
+export function ErrorSummary({ errors, title, onPick, code = "" }: { errors: StudioFieldErrors; title: string; onPick: (key: string) => void; code?: string }) {
   const { t, fieldErr } = useStudioText();
-  const label = useFieldLabel();
+  const label = useFieldLabel(code);
   const list = Object.entries(errors).filter(([, v]) => v);
   if (!list.length) return null;
   return (

@@ -39,14 +39,18 @@ const same = (a: unknown, b: unknown) => {
   }
 };
 
+// An error goes away once the value it is about changes: the exact nested
+// value for a nested error ("prices.monthly", "items[2].key"), the whole
+// field for an error about the field itself.
 export function pruneErrors(errors: StudioFieldErrors, prev: StudioPayload, next: StudioPayload): StudioFieldErrors {
   const keys = Object.keys(errors);
   if (!keys.length) return errors;
+  const at = (obj: unknown, parts: string[]): unknown => parts.reduce<unknown>((cur, p) => (cur && typeof cur === "object" ? (cur as Record<string, unknown>)[p] : undefined), obj);
   const out: StudioFieldErrors = {};
   let changed = false;
   for (const k of keys) {
-    const root = k.split(/[.[]/)[0];
-    if (root in prev || root in next ? !same(prev[root], next[root]) : false) {
+    const parts = k.replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean);
+    if (!same(at(prev, parts), at(next, parts))) {
       changed = true;
       continue;
     }

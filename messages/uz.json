@@ -197,7 +197,11 @@
         "fileMode": "Fayl rejimida fayl majburiy",
         "minOne": "Kamida bittasini qo'shing",
         "unknownVar": "Noma'lum o'zgaruvchi",
-        "code": "Faqat kichik lotin harflari, raqam, - va _ (masalan: service-top-7)"
+        "code": "Faqat kichik lotin harflari, raqam, - va _ (masalan: service-top-7)",
+        "min": "Qiymat ruxsat etilgan minimumdan kichik",
+        "max": "Qiymat ruxsat etilgan maksimumdan katta",
+        "option": "Ro'yxatdagi qiymatlardan birini tanlang",
+        "minItems": "Elementlar soni yetarli emas"
       },
       "lang": {
         "uz": "O'zbekcha (lotin)",
@@ -473,7 +477,10 @@
         "freeHint": "Yuborilgach darhol e'lon qilinadi.",
         "freeTitle": "Darhol e'lon qilinadi",
         "freeLead": "Bu tur tasdiqsiz ishlaydi. Yuborilgach darhol e'lon qilinadi va tizimda ishlay boshlaydi.",
-        "freeSave": "Avval o'zgarishlar saqlanadi."
+        "freeSave": "Avval o'zgarishlar saqlanadi.",
+        "title": "Tasdiqlashga yuborish",
+        "lead": "Obyekt ko'rib chiquvchilarga yuboriladi. Quyida o'zgarish nimalarga ta'sir qilishi ko'rsatilgan.",
+        "confirm": "Yuborish"
       },
       "publish": {
         "title": "E'lon qilish",
@@ -1228,7 +1235,8 @@
         "conflict": "Holat o'zgargan",
         "validation": "Maydonlarni tekshiring",
         "network": "Server bilan aloqa yo'q",
-        "other": "Xatolik yuz berdi"
+        "other": "Xatolik yuz berdi",
+        "edit_conflict": "Boshqa foydalanuvchi o'zgartirgan"
       },
       "hint": {
         "payload_invalid": "Belgilangan maydonlarni tuzating.",
@@ -1241,7 +1249,8 @@
         "conflict": "Sahifani yangilang va qayta urinib ko'ring.",
         "validation": "Maydonlardagi xatolarni tuzating.",
         "network": "Internetni tekshirib, qayta urinib ko'ring.",
-        "other": "Birozdan keyin qayta urinib ko'ring."
+        "other": "Birozdan keyin qayta urinib ko'ring.",
+        "edit_conflict": "Siz tahrirlayotgan paytda obyekt boshqa joyda saqlandi. Serverdagi yangi versiyani yuklang va o'zgarishlaringizni qaytadan kiriting."
       }
     },
     "fieldErr": {
@@ -1663,6 +1672,45 @@
         "emptyTitle": "Sozlamalar yo'q",
         "emptyText": "Ruxsatlar va yo'nalishlar shu yerda boshqariladi."
       }
+    },
+    "schema": {
+      "sections": "Bo'limlar",
+      "fieldCount": "{n} ta maydon",
+      "extraHint": "Bu kalitlar konstruktor sxemasida yo'q. Kerak bo'lmasa o'chiring.",
+      "removeKey": "«{key}» kalitini o'chirish",
+      "clear": "Tozalash",
+      "time": "Vaqt",
+      "currency": "so'm",
+      "preview": "Ko'rish",
+      "edit": "Tahrirlash",
+      "rt": {"0": "Qalin", "1": "Kursiv", "2": "Tagiga chizilgan", "3": "Ro'yxat", "4": "Sarlavha", "5": "Havola"},
+      "extraKeys": "Qo'shimcha kalitlar",
+      "droppedKeys": "Sxemada yo'q kalitlar yuborilmaydi: {keys}",
+      "keyPh": "kalit",
+      "valuePh": "qiymat",
+      "noKeys": "Kalit qo'shilmagan",
+      "dupKey": "Kalitlar takrorlanmasligi kerak",
+      "addKey": "Kalit qo'shish",
+      "item": "element",
+      "drag": "Tartibni o'zgartirish uchun sudrang",
+      "add": "{what} qo'shish",
+      "minItems": "kamida {n} ta",
+      "uniqueBy": "«{key}» takrorlanmaydi",
+      "count": "{n} ta",
+      "checking": "Server tekshirmoqda…",
+      "liveBad": "Server tekshiruvi: {n} ta xato",
+      "liveOk": "Server tekshiruvi: xato yo'q",
+      "livePending": "O'zgarishlar tekshiriladi"
+    },
+    "impact": {
+      "title": "O'zgarish ta'siri",
+      "loading": "Ta'sir hisoblanmoqda…",
+      "failed": "Ta'sirni oldindan ko'rib bo'lmadi. Yuborishingiz mumkin — backend baribir tekshiradi.",
+      "changed": "O'zgargan maydonlar",
+      "capabilities": "Ta'sir qiladigan imkoniyatlar",
+      "none": "Yo'q",
+      "clean": "Ogohlantirish yo'q",
+      "cap": {"draft": "Qoralama", "validate": "Tekshiruv", "preview": "Oldindan ko'rish", "submit": "Yuborish", "approve": "Tasdiqlash", "publish": "E'lon qilish", "rollback": "Orqaga qaytarish"}
     }
   },
   "marketPricing": {

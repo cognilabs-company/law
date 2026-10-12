@@ -197,7 +197,11 @@
         "fileMode": "A file is required in upload mode",
         "minOne": "Add at least one",
         "unknownVar": "Unknown variable",
-        "code": "Lowercase Latin letters, digits, - and _ only (e.g. service-top-7)"
+        "code": "Lowercase Latin letters, digits, - and _ only (e.g. service-top-7)",
+        "min": "The value is below the allowed minimum",
+        "max": "The value is above the allowed maximum",
+        "option": "Pick one of the listed values",
+        "minItems": "Not enough items"
       },
       "lang": {
         "uz": "Uzbek (Latin)",
@@ -473,7 +477,10 @@
         "freeHint": "Publishes right after you submit.",
         "freeTitle": "Publishes right away",
         "freeLead": "This type needs no approval. Once submitted it is published and goes live at once.",
-        "freeSave": "Your changes will be saved first."
+        "freeSave": "Your changes will be saved first.",
+        "title": "Send for approval",
+        "lead": "The object goes to the reviewers. Below is what the change will touch.",
+        "confirm": "Send"
       },
       "publish": {
         "title": "Publish",
@@ -1228,7 +1235,8 @@
         "conflict": "The status has changed",
         "validation": "Check the fields",
         "network": "Can't reach the server",
-        "other": "Something went wrong"
+        "other": "Something went wrong",
+        "edit_conflict": "Changed by someone else"
       },
       "hint": {
         "payload_invalid": "Fix the highlighted fields.",
@@ -1241,7 +1249,8 @@
         "conflict": "Reload and try again.",
         "validation": "Fix the errors in the fields.",
         "network": "Check your connection and try again.",
-        "other": "Please try again shortly."
+        "other": "Please try again shortly.",
+        "edit_conflict": "The object was saved elsewhere while you were editing. Load the newer version from the server and make your changes again."
       }
     },
     "fieldErr": {
@@ -1663,6 +1672,45 @@
         "emptyTitle": "No settings yet",
         "emptyText": "Access and routes are managed here."
       }
+    },
+    "schema": {
+      "sections": "Sections",
+      "fieldCount": "{n} fields",
+      "extraHint": "These keys are not in the constructor's schema. Remove them if they are not needed.",
+      "removeKey": "Remove key “{key}”",
+      "clear": "Clear",
+      "time": "Time",
+      "currency": "UZS",
+      "preview": "Preview",
+      "edit": "Edit",
+      "rt": {"0": "Bold", "1": "Italic", "2": "Underline", "3": "List", "4": "Heading", "5": "Link"},
+      "extraKeys": "Extra keys",
+      "droppedKeys": "Keys outside the schema are not sent: {keys}",
+      "keyPh": "key",
+      "valuePh": "value",
+      "noKeys": "No keys yet",
+      "dupKey": "Keys must not repeat",
+      "addKey": "Add key",
+      "item": "item",
+      "drag": "Drag to reorder",
+      "add": "Add {what}",
+      "minItems": "at least {n}",
+      "uniqueBy": "“{key}” must be unique",
+      "count": "{n} total",
+      "checking": "Server is checking…",
+      "liveBad": "Server check: {n} errors",
+      "liveOk": "Server check: no errors",
+      "livePending": "Changes will be checked"
+    },
+    "impact": {
+      "title": "Impact of the change",
+      "loading": "Working out the impact…",
+      "failed": "Could not preview the impact. You can still send it — the backend checks it anyway.",
+      "changed": "Changed fields",
+      "capabilities": "Capabilities affected",
+      "none": "None",
+      "clean": "No warnings",
+      "cap": {"draft": "Draft", "validate": "Validate", "preview": "Preview", "submit": "Submit", "approve": "Approve", "publish": "Publish", "rollback": "Rollback"}
     }
   },
   "marketPricing": {

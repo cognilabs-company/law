@@ -1,5 +1,7 @@
-import type { StudioConstructor } from "@/lib/services/studio";
-import GenericEditor, { genericEmptyPayload, genericValidate } from "./GenericEditor";
+import { studioDefaults, studioDetailSnapshot, type StudioConstructor } from "@/lib/services/studio";
+import { cleanPayload, schemaValidate } from "@/lib/studioSchema";
+import SchemaEditor from "./SchemaForm";
+import { genericEmptyPayload, genericValidate } from "./GenericEditor";
 import K05Editor, { emptyPayload as k05Empty, validate as k05Validate } from "./K05Editor";
 import K06Editor, { emptyPayload as k06Empty, validate as k06Validate } from "./K06Editor";
 import K14Editor, { emptyPayload as k14Empty, validate as k14Validate } from "./K14Editor";
@@ -8,11 +10,33 @@ import K20Editor, { emptyPayload as k20Empty, validate as k20Validate } from "./
 import K12PromoEditor, { emptyPayload as k12PromoEmpty, validate as k12PromoValidate } from "./K12PromoEditor";
 import type { StudioEditorEntry, StudioPayload } from "./types";
 
+// The typed schema of a constructor once the editor has loaded it.
+const typedOf = (code: string, ctor: StudioConstructor | null) => (ctor?.typed.length ? ctor : studioDetailSnapshot(code || ctor?.code || ""));
+
+// Constructors without an editor of their own are drawn from their typed
+// schema; one without a typed schema falls back to the plain field list.
 export const GENERIC_EDITOR: StudioEditorEntry = {
-  Editor: GenericEditor,
-  validate: genericValidate,
-  emptyPayload: genericEmptyPayload,
+  Editor: SchemaEditor,
+  validate: (payload, ctor) => {
+    const typed = typedOf(ctor?.code ?? "", ctor);
+    if (!typed?.typed.length) return genericValidate(payload, ctor);
+    return schemaValidate(typed.typed, payload, typed.schema.required);
+  },
+  emptyPayload: (ctor) => {
+    const typed = typedOf(ctor?.code ?? "", ctor);
+    return typed?.typed.length ? studioDefaults(typed) : genericEmptyPayload(ctor);
+  },
 };
+
+// What is sent for a constructor drawn from its schema: no undefined, no
+// keys an object's schema does not admit (spec §7). Hand-made editors keep
+// their own payload as they built it.
+export function cleanStudioPayload(code: string, payload: StudioPayload): StudioPayload {
+  if (CUSTOM[code]) return payload;
+  const typed = studioDetailSnapshot(code);
+  return typed?.typed.length ? cleanPayload(typed.typed, payload) : payload;
+}
+
 
 const CUSTOM: Partial<Record<string, StudioEditorEntry>> = {
   K05: { Editor: K05Editor, validate: (p) => k05Validate(p), emptyPayload: () => k05Empty() },
@@ -32,8 +56,9 @@ export function editorFor(code: string): StudioEditorEntry {
 }
 
 export function validateStudioPayload(code: string, payload: StudioPayload, constructor: StudioConstructor | null, file?: { hasFile: boolean } | null, objectTitle?: string) {
-  const own = code === "K06" && file !== undefined ? k06Validate(payload, file) : editorFor(code).validate(payload, constructor);
-  const out = { ...genericValidate(payload, constructor), ...own };
+  const ctor = constructor ?? studioDetailSnapshot(code);
+  const own = code === "K06" && file !== undefined ? k06Validate(payload, file) : editorFor(code).validate(payload, ctor);
+  const out = { ...genericValidate(payload, ctor), ...own };
   const payloadTitle = typeof payload.title === "string" ? payload.title.trim() : payload.title;
   if (!payloadTitle && objectTitle && objectTitle.trim() && out.title) delete out.title;
   return out;

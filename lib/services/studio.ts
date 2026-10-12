@@ -20,11 +20,48 @@ export const STUDIO_HEARTBEAT_MS = 25_000;
 // values a select may take, and a short help text.
 export type StudioFieldMeta = { type: string; options: string[]; help: string };
 
+// One field of a constructor's typed schema (definition version 3): its
+// type, where it sits in the form (section, order), what it may hold
+// (options, a reference source, min/max), and for a list or an object the
+// schema of what is inside it.
+export type StudioSchemaField = {
+  key: string;
+  label: string;
+  type: string;
+  component: string;
+  required: boolean;
+  section: string;
+  order: number;
+  help: string;
+  options: string[];
+  source: string;
+  default: unknown;
+  min: number | null;
+  max: number | null;
+  // An object: its fields, which of them are required, whether other keys
+  // may be added (a key/value editor).
+  properties: StudioSchemaField[];
+  requiredFields: string[];
+  additional: boolean;
+  // A list: what one item is, how few items are allowed, which key keeps
+  // items unique.
+  item: StudioSchemaField | null;
+  minItems: number;
+  uniqueBy: string;
+};
+export type StudioSection = { key: string; title: string; order: number };
+
 export type StudioConstructor = {
   code: string;
   title: string;
   runtimeTarget: string;
   schema: { required: string[]; fields: string[]; selectSources: Record<string, string>; meta: Record<string, StudioFieldMeta> };
+  // The typed schema; empty in the registry list, which carries no schema.
+  typed: StudioSchemaField[];
+  sections: StudioSection[];
+  defaultPayload: Dict;
+  capabilities: string[];
+  definitionVersion: number;
   approvalRequired: boolean;
   raw: Dict;
 };
@@ -43,6 +80,8 @@ export type StudioObject = {
   updatedAt: string;
   createdAt: string;
   hasFile: boolean;
+  // Optimistic lock: a save names the version it was made from.
+  lockVersion: number | null;
   raw: Dict;
 };
 
@@ -142,7 +181,7 @@ export type StudioAccessInput = { userId: string; roles: string[]; constructorCo
 export type StudioList<T> = { items: T[]; total: number };
 export type StudioRegistry = { items: StudioConstructor[]; userRoles: string[] };
 export type StudioListQuery = { constructorCode?: string; status?: string; assignedToMe?: boolean; limit?: number; offset?: number };
-export type StudioSaveInput = { title?: string; payload?: Dict; summary?: string; version?: string };
+export type StudioSaveInput = { title?: string; payload?: Dict; summary?: string; version?: string; expectedLockVersion?: number | null };
 export type StudioCreateInput = { constructorCode: string; title: string; payload: Dict };
 export type StudioUploadResult = { versionId: string; hasFile: boolean; fileUrl: string; fileName: string };
 export type StudioHeartbeatInput = {
@@ -163,6 +202,7 @@ export type StudioErrorKind =
   | "missing"
   | "not_found"
   | "conflict"
+  | "edit_conflict"
   | "validation"
   | "network"
   | "other";
@@ -270,6 +310,75 @@ export function normStudioStatus(v: unknown): StudioStatus {
   }
 }
 
+const numOrNull = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() && Number.isFinite(Number(v)) ? Number(v) : null);
+const optionValues = (v: unknown): string[] =>
+  asArr(v)
+    .map((o) => (typeof o === "string" || typeof o === "number" ? String(o) : first(asDict(o).value, asDict(o).key, asDict(o).code)))
+    .filter(Boolean);
+
+export function normSchemaField(raw: unknown, index = 0): StudioSchemaField {
+  const f = asDict(raw);
+  const ui = asDict(f.ui);
+  const type = asStr(f.type).toLowerCase() || "text";
+  const itemRaw = f.item_schema ?? f.items;
+  const props = asArr(f.properties);
+  return {
+    key: first(f.key, f.name),
+    label: first(f.label, f.title, f.key, f.name),
+    type,
+    component: asStr(ui.component ?? f.component),
+    required: f.required === true,
+    section: asStr(f.section),
+    order: numOrNull(ui.order ?? f.order) ?? 1000 + index,
+    help: asStr(f.help_text ?? f.help),
+    options: optionValues(f.options),
+    source: asStr(f.source),
+    default: f.default,
+    min: numOrNull(f.min),
+    max: numOrNull(f.max),
+    properties: props.map((p, i) => normSchemaField(p, i)).filter((p) => p.key),
+    requiredFields: strings(f.required_fields),
+    additional: f.additional_properties === true || (type === "object" && !props.length && f.additional_properties !== false),
+    item: itemRaw && typeof itemRaw === "object" && !Array.isArray(itemRaw) ? normSchemaField(itemRaw) : null,
+    minItems: numOrNull(f.min_items) ?? 0,
+    uniqueBy: asStr(f.unique_by),
+  };
+}
+
+// Sections in the order the constructor gives them; fields inside each by
+// their ui.order. A field with no section belongs to the first one.
+export function studioSectionsOf(ctor: StudioConstructor): { section: StudioSection; fields: StudioSchemaField[] }[] {
+  const known = [...ctor.sections];
+  for (const f of ctor.typed) {
+    const title = f.section || known[0]?.title || "";
+    if (!known.some((s) => s.title === title)) known.push({ key: title.toLowerCase().replace(/[^a-z0-9]+/g, "_") || "main", title, order: known.length + 1 });
+  }
+  return known
+    .sort((a, b) => a.order - b.order)
+    .map((section, i) => ({
+      section,
+      fields: ctor.typed.filter((f) => (f.section || known[0]?.title || "") === section.title || (!f.section && i === 0 && !section.title)).sort((a, b) => a.order - b.order),
+    }))
+    .filter((g) => g.fields.length);
+}
+
+const clone = <T,>(v: T): T => (v === undefined ? v : (JSON.parse(JSON.stringify(v)) as T));
+
+// What a new object starts with: the constructor's default payload, then
+// every field's own default where that payload has nothing, nested objects
+// included. A null default is no value and is not sent.
+export function studioDefaults(ctor: StudioConstructor): Dict {
+  const fill = (fields: StudioSchemaField[], base: Dict): Dict => {
+    const out: Dict = { ...base };
+    for (const f of fields) {
+      if (out[f.key] === undefined && f.default !== undefined && f.default !== null) out[f.key] = clone(f.default);
+      if (f.type === "object" && f.properties.length && out[f.key] && typeof out[f.key] === "object" && !Array.isArray(out[f.key])) out[f.key] = fill(f.properties, out[f.key] as Dict);
+    }
+    return out;
+  };
+  return fill(ctor.typed, clone(ctor.defaultPayload) ?? {});
+}
+
 export function normStudioConstructor(raw: unknown): StudioConstructor {
   const r = asDict(raw);
   const schema = asDict(r.schema ?? r.payload_schema ?? r.json_schema);
@@ -294,11 +403,23 @@ export function normStudioConstructor(raw: unknown): StudioConstructor {
     const src = asStr(f.source).split("?")[0].replace(/\/+$/, "").split("/").pop() ?? "";
     if (src && !sources[key]) sources[key] = src;
   }
+  const typed = asArr(schema.fields).filter((x) => x && typeof x === "object").map((x, i) => normSchemaField(x, i)).filter((x) => x.key);
+  const sections = asArr(asDict(r.ui_schema).sections)
+    .map((x, i) => {
+      const d = asDict(x);
+      return { key: first(d.key, d.title) || `s${i}`, title: first(d.title, d.key), order: numOrNull(d.order) ?? i + 1 };
+    })
+    .filter((x) => x.title);
   return {
     code,
     title: first(r.title, r.name, r.label, code),
     runtimeTarget: first(r.runtime_target, r.runtimeTarget, r.target),
     schema: { required, fields, selectSources: sources, meta },
+    typed,
+    sections,
+    defaultPayload: asDict(r.default_payload),
+    capabilities: strings(r.capabilities),
+    definitionVersion: numOrNull(r.definition_version ?? schema.version) ?? 0,
     approvalRequired: approval ?? !STUDIO_APPROVAL_FREE.includes(code),
     raw: r,
   };
@@ -366,8 +487,14 @@ export function normStudioObject(raw: unknown): StudioObject {
     updatedAt: timeOf(r.updated_at, r.updatedAt, r.last_saved_at, r.created_at),
     createdAt: timeOf(r.created_at, r.createdAt),
     hasFile: has ?? Boolean(first(cur.file_url, cur.file_name, r.file_url, r.file_name)),
+    lockVersion: lockOf(r.lock_version ?? asDict(r.object).lock_version),
     raw: r,
   };
+}
+
+function lockOf(v: unknown): number | null {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN;
+  return Number.isFinite(n) ? n : null;
 }
 
 function sortVersions(list: StudioVersion[]): StudioVersion[] {
@@ -726,7 +853,42 @@ export async function saveStudioObject(id: string, input: StudioSaveInput): Prom
   if (input.payload !== undefined) body.payload = input.payload;
   if (input.summary) body.summary = input.summary;
   if (input.version) body.version = input.version;
+  if (typeof input.expectedLockVersion === "number") body.expected_lock_version = input.expectedLockVersion;
   return normStudioDetail(await http(`/studio/objects/${enc(id)}/save`, { method: "POST", body: JSON.stringify(body) }));
+}
+
+export type StudioCheck = { ok: boolean; errors: StudioFieldErrors; raw: Dict };
+export type StudioPreview = { changedFields: string[]; affectedCapabilities: string[]; warnings: string[]; requiresApproval: boolean | null; check: StudioCheck | null; raw: Dict };
+
+const checkOf = (raw: unknown): StudioCheck => {
+  const d = asDict(raw);
+  const errors = errorsListOf(d);
+  return { ok: d.ok === true || (d.ok === undefined && !Object.keys(errors).length), errors, raw: d };
+};
+
+// The backend's own check of a draft payload (spec §9): the final word, the
+// form's own checks only spare it obvious mistakes.
+export async function validateStudioDraft(code: string, payload: Dict, signal?: AbortSignal): Promise<StudioCheck> {
+  return checkOf(await http(`/studio/constructors/${enc(code)}/validate`, { method: "POST", body: JSON.stringify(payload), signal }));
+}
+
+// What publishing this payload would change: the fields, the capabilities
+// it touches and any warnings, shown before the user confirms.
+export async function previewStudioDraft(code: string, payload: Dict, runtimeTargetId = "", signal?: AbortSignal): Promise<StudioPreview> {
+  const q = runtimeTargetId ? `?runtime_target_id=${enc(runtimeTargetId)}` : "";
+  const d = asDict(await http(`/studio/constructors/${enc(code)}/preview${q}`, { method: "POST", body: JSON.stringify(payload), signal }));
+  const diff = asDict(d.diff);
+  const impact = asDict(d.impact);
+  const warnings = asArr(impact.warnings ?? d.warnings).map((w) => (typeof w === "string" ? w : first(asDict(w).message, asDict(w).text, asDict(w).code))).filter(Boolean);
+  const validation = d.validation ?? d.check;
+  return {
+    changedFields: strings(diff.changed_fields ?? impact.changed_fields ?? d.changed_fields),
+    affectedCapabilities: strings(impact.affected_capabilities ?? d.affected_capabilities),
+    warnings,
+    requiresApproval: typeof impact.requires_approval === "boolean" ? impact.requires_approval : null,
+    check: validation && typeof validation === "object" ? checkOf(validation) : null,
+    raw: d,
+  };
 }
 
 export async function submitStudioObject(id: string): Promise<StudioDetail> {
@@ -886,13 +1048,21 @@ function selectSourcesOf(v: unknown): Record<string, string> {
 // The registry list carries no schema; the editor reads each constructor's
 // full schema once for its fields' types, options and help.
 const fieldMetaCache = new Map<string, Promise<StudioConstructor | null>>();
+// The loaded details, readable without waiting (the form's own checks run
+// synchronously, after the editor has loaded the schema it draws).
+const typedSnapshot = new Map<string, StudioConstructor>();
+export const studioDetailSnapshot = (code: string): StudioConstructor | null => typedSnapshot.get(code.trim()) ?? null;
 export function getStudioConstructorDetail(code: string): Promise<StudioConstructor | null> {
   const key = code.trim();
   if (!key) return Promise.resolve(null);
   let p = fieldMetaCache.get(key);
   if (!p) {
     p = http(`/studio/constructors/${enc(key)}`)
-      .then((raw) => normStudioConstructor(raw))
+      .then((raw) => {
+        const c = normStudioConstructor(raw);
+        typedSnapshot.set(key, c);
+        return c;
+      })
       .catch(() => {
         fieldMetaCache.delete(key);
         return null;
@@ -1032,6 +1202,7 @@ export function studioErrorOf(e: unknown): StudioError {
   else if (e.status === 403) kind = "forbidden";
   else if (isRouteMissing(e)) kind = "missing";
   else if (e.status === 404) kind = "not_found";
+  else if (code === "studio_edit_conflict") kind = "edit_conflict";
   else if (e.status === 409) kind = "conflict";
   else if (e.status === 422) kind = "validation";
   return { status: e.status, code, kind, message, fieldErrors };
