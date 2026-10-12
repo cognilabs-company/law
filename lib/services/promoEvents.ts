@@ -83,8 +83,14 @@ async function flush(): Promise<void> {
   }
 }
 
+let muted = false;
+
+export function mutePromoTracking(): void {
+  muted = true;
+}
+
 export function trackPromoEvent(promotionId: string, type: PromoEventType, source: string, opts: { metadata?: Record<string, unknown>; dedupe?: string } = {}): void {
-  if (typeof window === "undefined" || !promotionId) return;
+  if (typeof window === "undefined" || !promotionId || muted) return;
   const session = promoSessionKey();
   const key = [type, promotionId, session, opts.dedupe ?? ""].join(":").slice(0, 190);
   if (sent.has(key)) return;

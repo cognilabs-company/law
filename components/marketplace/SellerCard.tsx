@@ -12,14 +12,14 @@ import { Monogram, hasRating, hasSuccess, sellerTypeLabel } from "./bits";
 import { aiId } from "@/lib/ai/ids";
 import { promoClick, usePromoImpression } from "@/lib/services/promoEvents";
 
-export default function SellerCard({ s, href, index, locale, match }: { s: MarketSeller; href: string; index: number; locale: string; match?: MarketAiMatch }) {
+export default function SellerCard({ s, href, index, locale, match, phService }: { s: MarketSeller; href: string; index: number; locale: string; match?: MarketAiMatch; phService?: string }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
   const rated = hasRating(s);
   const topTitles = new Set(s.services.filter((x) => x.isSponsored).map((x) => x.title));
   const baseTitles = s.serviceTitles.length ? s.serviceTitles : s.services.map((x) => x.title);
   const titles = [...baseTitles.filter((x) => topTitles.has(x)), ...baseTitles.filter((x) => !topTitles.has(x))];
-  const shown = titles.slice(0, 1);
+  const shown = phService ? [] : titles.slice(0, 1);
   const promoted = s.promotion?.active === true || s.isSponsored || topTitles.size > 0;
   const promoId = promoted ? s.promotion?.id ?? "" : "";
   const promoSeen = usePromoImpression(promoId, "marketplace_list", index + 1);
@@ -117,8 +117,14 @@ export default function SellerCard({ s, href, index, locale, match }: { s: Marke
         </div>
       </div>
 
-      {shown.length ? (
+      {shown.length || phService ? (
         <ul className="mk-card__svc">
+          {phService ? (
+            <li className="mk-card__svc--top">
+              <em className="mk-svc__top">{t("card.promoted")}</em>
+              <span className="mk-ph">{phService}</span>
+            </li>
+          ) : null}
           {shown.map((x) => (
             <li key={x} className={topTitles.has(x) ? "mk-card__svc--top" : undefined}>{topTitles.has(x) ? <em className="mk-svc__top">{t("card.promoted")}</em> : null}{x}</li>
           ))}

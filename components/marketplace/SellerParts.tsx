@@ -94,6 +94,7 @@ export function SellerServiceRow({
   buyDisabled,
   onPick,
   onBuy,
+  ph,
 }: {
   svc: MarketService;
   sellerUserId: string;
@@ -102,6 +103,7 @@ export function SellerServiceRow({
   buyDisabled: boolean;
   onPick: () => void;
   onBuy: () => void;
+  ph?: { title: string; category: string; price: string };
 }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
@@ -119,8 +121,12 @@ export function SellerServiceRow({
       <button type="button" role="radio" aria-checked={on} className="mk-svc__pick" onClick={onPick}>
         <span className="mk-svc__radio" aria-hidden="true" />
         <span className="mk-svc__txt">
-          <b>{svc.title}{top ? <em className="mk-svc__top">{t("card.promoted")}</em> : null}</b>
+          <b>
+            {ph ? <span className="mk-ph">{ph.title}</span> : svc.title}
+            {top ? <em className="mk-svc__top">{t("card.promoted")}</em> : null}
+          </b>
           <span>
+            {ph ? <span className="mk-ph">{ph.category}</span> : null}
             {svc.categoryTitle ? specLabel(te, svc.categoryTitle) : null}
             {svc.categoryTitle && eta ? " · " : null}
             {eta ? (
@@ -134,7 +140,7 @@ export function SellerServiceRow({
         </span>
       </button>
       <div className="mk-svc__end">
-        <b>{svc.price > 0 ? fmtUzs(svc.price) : t("card.priceAsk")}</b>
+        <b>{ph ? <span className="mk-ph">{ph.price}</span> : svc.price > 0 ? fmtUzs(svc.price) : t("card.priceAsk")}</b>
         <button
           type="button"
           className="btn btn--pri btn--sm"

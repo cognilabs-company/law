@@ -15,6 +15,7 @@ import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import PromotionSurfaces from "./PromotionSurfaces";
 import SellerCard from "./SellerCard";
 import { listActivePromotions } from "@/lib/services/promotions";
+import type { DirectoryPreview } from "@/lib/marketPreview";
 
 type Status = "loading" | "ready" | "error";
 
@@ -76,7 +77,7 @@ function chipIcon(label: string) {
   return IconScale;
 }
 
-export default function MarketDirectory({ variant, initialArea = "" }: { variant: "public" | "portal"; initialArea?: string }) {
+export default function MarketDirectory({ variant, initialArea = "", preview }: { variant: "public" | "portal"; initialArea?: string; preview?: DirectoryPreview }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
   const locale = useLocale();
@@ -219,14 +220,22 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   const aiEmpty = Boolean(ai && ai.q === query && !ai.matches.length);
   const aiThinking = Boolean(query) && aiPending === query;
 
+  const shownItems = useMemo(() => {
+    if (!preview) return items;
+    const id = preview.seller.userId;
+    const at = items.findIndex((x) => x.userId === id);
+    const rest = items.filter((x) => x.userId !== id);
+    return preview.first || at < 0 ? [preview.seller, ...rest] : [...rest.slice(0, at), preview.seller, ...rest.slice(at)];
+  }, [items, preview]);
+
   const list = useMemo(() => {
     const minR = Number(minRating) || 0;
     const maxP = Number(priceMax) || 0;
     const rank = new Map((aiHit?.matches ?? []).map((m, i) => [m.userId, i]));
-    const known = new Set(items.map((s) => s.userId));
+    const known = new Set(shownItems.map((s) => s.userId));
     const extra = (aiHit?.matches ?? []).map((m) => m.seller).filter((x): x is MarketSeller => Boolean(x && x.verified && !known.has(x.userId)));
     const hayOf = (s: MarketSeller) => [s.name, s.organizationName, regionLabel(te, s.region), s.district, ...s.specializations.map((x) => specLabel(te, x)), ...s.serviceTitles, ...s.services.map((x) => x.title), ...s.categories.map((c) => c.title)].join(" ");
-    const pool = items.concat(extra).filter((s) => {
+    const pool = shownItems.concat(extra).filter((s) => {
       if (region && (regionKeyOf(te, s.region) || s.region.toLowerCase()) !== region) return false;
       if (sellerType && s.sellerType !== sellerType) return false;
       if (effSpec && !s.specializations.some((x) => x.toLowerCase() === effSpec)) return false;
@@ -250,7 +259,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       .filter((x) => x.hits > 0)
       .sort((a, b) => b.hits - a.hits)
       .map((x) => x.s);
-  }, [items, region, sellerType, effSpec, category, service, minRating, priceMax, minExp, q, te, aiHit, aiThinking]);
+  }, [shownItems, region, sellerType, effSpec, category, service, minRating, priceMax, minExp, q, te, aiHit, aiThinking]);
 
   // Banners: the AI answer's, else the list's, else the active ones asked for
   // directly — whichever the backend filled. Sponsored: a picked service shows
@@ -258,17 +267,18 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
   // The AI answer's meta counts even when it matched nobody: the request still
   // names a service, and its promotions are still the relevant ones.
   const aiMeta = ai && ai.q === query && !aiThinking ? ai : null;
-  const shownBanners = aiMeta?.banners.length ? aiMeta.banners : banners.length ? banners : activeBanners;
+  const shownBanners = preview?.banner ? [preview.banner] : aiMeta?.banners.length ? aiMeta.banners : banners.length ? banners : activeBanners;
   // A picked category without a service shows only what was bought for one of
   // that category's services.
   const categoryServiceIds = useMemo(() => new Set(services.map((x) => x.value)), [services]);
-  const shownSponsored = aiMeta?.sponsored.length
+  const liveSponsored = aiMeta?.sponsored.length
     ? aiMeta.sponsored
     : service
       ? serviceBoost?.serviceId === service ? serviceBoost.items : []
       : category
         ? sponsored.filter((p) => p.serviceId && categoryServiceIds.has(p.serviceId))
         : sponsored;
+  const shownSponsored = preview?.tile ? [preview.tile, ...liveSponsored.filter((p) => p.sellerUserId !== preview.seller.userId)].slice(0, 4) : liveSponsored;
 
   const promoSearchKey = [aiHit ? `ai:${aiHit.q}` : query, category, service].filter(Boolean).join("|");
 
@@ -595,7 +605,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
             </div>
           </div>
         </div>
-        <HeroShowcase items={items} promos={shownBanners} base={base} locale={locale} />
+        <HeroShowcase items={shownItems} promos={shownBanners} base={base} locale={locale} />
       </div>
 
       <FilterBar
@@ -650,7 +660,7 @@ export default function MarketDirectory({ variant, initialArea = "" }: { variant
       ) : (
         <div className={`mk-grid${aiThinking ? " is-busy" : ""}`} data-ai-target="marketplace:lawyer-list" data-ai-id="marketplace.results" data-ai-type="list">
           {list.map((s, i) => (
-            <SellerCard key={s.userId} s={s} href={`${base}/${encodeURIComponent(s.userId)}`} index={i} locale={locale} match={aiMatchOf.get(s.userId)} />
+            <SellerCard key={s.userId} s={s} href={`${base}/${encodeURIComponent(s.userId)}`} index={i} locale={locale} match={aiMatchOf.get(s.userId)} phService={preview && s.userId === preview.seller.userId && preview.phService ? preview.phService : undefined} />
           ))}
         </div>
       )}

@@ -51,6 +51,9 @@ export function PromoBanner({ banner, base, preview, eyebrow, children }: { bann
   // is ours to translate, a seller's own wording is not.
   const own = banner.ctaLabel.trim();
   const label = own && !DEFAULT_CTA.test(own) ? own : own || card ? t("promotions.viewProfile") : "";
+  const auto = banner.draft?.auto ?? [];
+  const mark = (k: "title" | "subtitle" | "cta") => (auto.includes(k) ? "mk-auto" : undefined);
+  const ctaClass = `mk-promo-banner__cta${auto.includes("cta") ? " mk-auto" : ""}`;
   return (
     <section
       className={`mk-promo-banner${card || !image ? " mk-promo-banner--card" : ""}`}
@@ -60,8 +63,8 @@ export function PromoBanner({ banner, base, preview, eyebrow, children }: { bann
         <span className="mk-promo-banner__eyebrow">
           <IconMegaphone /> {eyebrow || t("promotions.sponsored")}
         </span>
-        <h2>{name}</h2>
-        {sub ? <p>{sub}</p> : null}
+        <h2 className={mark("title")}>{name}</h2>
+        {sub ? <p className={mark("subtitle")}>{sub}</p> : null}
         {card && (card.rating > 0 || card.experience > 0) ? (
           <span className="mk-promo-banner__facts">
             {card.rating > 0 ? (
@@ -79,17 +82,17 @@ export function PromoBanner({ banner, base, preview, eyebrow, children }: { bann
         ) : null}
         {label ? (
           preview ? (
-            <span className="mk-promo-banner__cta">
+            <span className={ctaClass}>
               {label}
               <IconArrowRight />
             </span>
           ) : cta.external ? (
-            <a className="mk-promo-banner__cta" href={cta.href} target="_blank" rel="noopener noreferrer">
+            <a className={ctaClass} href={cta.href} target="_blank" rel="noopener noreferrer">
               {label}
               <IconArrowRight />
             </a>
           ) : (
-            <Link className="mk-promo-banner__cta" href={cta.href}>
+            <Link className={ctaClass} href={cta.href}>
               {label}
               <IconArrowRight />
             </Link>
@@ -292,7 +295,7 @@ function PromoTile({ item, base, position, source, title, sub }: { item: MarketP
       <span className="mk-promo-tile__tag">
         <IconMegaphone /> {t("promotions.sponsored")}
       </span>
-      <b>{title}</b>
+      <b>{item.draft?.ph ? <span className="mk-ph">{item.draft.ph}</span> : title}</b>
       {sub ? <small>{sub}</small> : null}
       {item.seller && item.seller.rating > 0 ? (
         <span className="mk-promo-tile__rate">

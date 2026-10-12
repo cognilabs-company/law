@@ -24,6 +24,7 @@ import AIChatDock from "@/components/AIChatDock";
 import ScrollProgress from "@/components/ScrollProgress";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import ThemeSync from "@/components/ThemeSync";
+import ChromeGate from "@/components/ChromeGate";
 import LiveOfficeHeartbeat from "@/components/live/LiveOfficeHeartbeat";
 import ReferralCapture from "@/components/ReferralCapture";
 import Toaster from "@/components/Toaster";
@@ -90,24 +91,32 @@ export default async function LocaleLayout({ children, params }: Props) {
         <NextIntlClientProvider locale={locale} messages={messages}>
         <IntlProvider>
           <ThemeSync />
-          <VersionWatch labels={{ newVersion: tCommon("newVersion"), reload: tCommon("reload") }} />
-          <ReferralCapture />
+          <ChromeGate>
+            <VersionWatch labels={{ newVersion: tCommon("newVersion"), reload: tCommon("reload") }} />
+            <ReferralCapture />
+          </ChromeGate>
           <AuthProvider>
-            <SessionExpiryWatcher />
-            <IncomingCallWatcher />
-            <LiveOfficeHeartbeat />
-            <ConsentGate />
-            <ScrollProgress />
-            <Navbar />
+            <ChromeGate>
+              <SessionExpiryWatcher />
+              <IncomingCallWatcher />
+              <LiveOfficeHeartbeat />
+              <ConsentGate />
+              <ScrollProgress />
+              <Navbar />
+            </ChromeGate>
             <main>{children}</main>
-            <Footer />
-            <MobileTabBar />
-            <AIChatDock />
+            <ChromeGate>
+              <Footer />
+              <MobileTabBar />
+              <AIChatDock />
+            </ChromeGate>
             <RevealOnScroll />
             <Toaster />
             <ConfirmHost />
-            <GuideHost />
-            <AiRuntimeHost />
+            <ChromeGate>
+              <GuideHost />
+              <AiRuntimeHost />
+            </ChromeGate>
           </AuthProvider>
         </IntlProvider>
         </NextIntlClientProvider>

@@ -24,15 +24,16 @@ import { fmtUzs } from "@/lib/money";
 import PromoteServicesSection from "@/components/services/PromoteServicesSection";
 import PromoteModal from "@/components/services/PromoteModal";
 import { Skeleton } from "./DataState";
-import { IconRocket, IconEye, IconSearch, IconTarget, IconChat, IconClock, IconMegaphone, IconStar, IconBriefcase, IconArrowRight } from "@/components/icons";
+import { IconRocket, IconEye, IconSearch, IconTarget, IconChat, IconClock, IconArrowRight } from "@/components/icons";
+import { PlacementSketch } from "@/components/services/bits";
 
 const PROFILE_KEY = pendingPromoKey("profile");
 const ME: ServiceScope = { kind: "me" };
 // The three placements of 10-09 §1, each opening the promote dialog on it.
-const PLACES: { value: PromotionPlacement; Icon: typeof IconMegaphone; title: string; hint: string }[] = [
-  { value: "banner", Icon: IconMegaphone, title: "placementBanner", hint: "placementBannerHint" },
-  { value: "profile_boost", Icon: IconStar, title: "placementProfile", hint: "placementProfileHint" },
-  { value: "service_boost", Icon: IconBriefcase, title: "placementService", hint: "placementServiceHint" },
+const PLACES: { value: PromotionPlacement; title: string; hint: string }[] = [
+  { value: "banner", title: "placementBanner", hint: "placementBannerHint" },
+  { value: "profile_boost", title: "placementProfile", hint: "placementProfileHint" },
+  { value: "service_boost", title: "placementService", hint: "placementServiceHint" },
 ];
 
 const som = (n: number) => (n ? fmtUzs(n) : "0");
@@ -206,9 +207,7 @@ export default function PromotionPanel() {
         <div className="promo__places">
           {PLACES.map((p) => (
             <button key={p.value} type="button" className={`promo__place${placeState(p.value)}`} onClick={() => setOpen(p.value)} data-ai-id={`promotion.place.${p.value}`} data-ai-type="button" data-ai-label={ts(`promote.${p.title}`)}>
-              <span className="promo__placeic" aria-hidden="true">
-                <p.Icon />
-              </span>
+              <PlacementSketch placement={p.value} />
               <b>{ts(`promote.${p.title}`)}</b>
               <span>{ts(`promote.${p.hint}`)}</span>
               {st ? <small className="promo__placest">{placeLine(p.value)}</small> : null}

@@ -44,6 +44,7 @@ export type MarketPromotionSurface = {
   // -1 = no end given).
   daysLeft: number;
   seller: { rating: number; reviews: number; verified: boolean; type: string; specialization: string; region: string; experience: number; headline: string } | null;
+  draft?: { auto?: ("title" | "subtitle" | "cta")[]; ph?: string };
 };
 
 export type MarketSeller = {

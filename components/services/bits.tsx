@@ -87,6 +87,42 @@ export function StatusSwitch({
   );
 }
 
+export function PlacementSketch({ placement }: { placement: string }) {
+  const cells = (n: number, hot: number) => Array.from({ length: n }, (_, i) => <i key={i} className={i === hot ? "is-hot" : undefined} />);
+  if (placement === "banner") {
+    return (
+      <span className="psk psk--banner" aria-hidden="true">
+        <span className="psk__hero">
+          <span className="psk__lines">
+            <i />
+            <i />
+          </span>
+          <span className="psk__deck">
+            <i />
+            <i className="is-hot" />
+          </span>
+        </span>
+        <span className="psk__grid">{cells(3, -1)}</span>
+      </span>
+    );
+  }
+  if (placement === "profile_boost") {
+    return (
+      <span className="psk psk--profile" aria-hidden="true">
+        <span className="psk__bar" />
+        <span className="psk__grid psk__grid--tall">{cells(6, 0)}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="psk psk--service" aria-hidden="true">
+      <span className="psk__bar" />
+      <span className="psk__tiles">{cells(4, 0)}</span>
+      <span className="psk__grid">{cells(3, -1)}</span>
+    </span>
+  );
+}
+
 export function usePackageName() {
   const t = useTranslations("sellerServices.packages");
   return (title: string, placement = "") => {

@@ -23,30 +23,39 @@ import PricingExplainer from "./PricingExplainer";
 import { Stars, deliveryLabel } from "./bits";
 import { SellerAbout, SellerHero, SellerServiceRow } from "./SellerParts";
 import { aiId } from "@/lib/ai/ids";
+import { PH_SERVICE_ID, type ProfilePreview } from "@/lib/marketPreview";
 import { useAiModal, useAiSelection } from "@/lib/ai/registry";
 
 type Status = "loading" | "ready" | "notfound" | "error";
 
-export default function SellerProfile({ userId, variant }: { userId: string; variant: "public" | "portal" }) {
+export default function SellerProfile({ userId, variant, preview }: { userId: string; variant: "public" | "portal"; preview?: ProfilePreview }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
   const locale = useLocale();
   const router = useRouter();
-  const { session, ready } = useAuth();
+  const { session: signedIn, ready } = useAuth();
+  const session = preview ? null : signedIn;
+  const live = !preview;
   const listHref = variant === "portal" ? "/portal/client/lawyers" : "/lawyers";
 
-  const [seller, setSeller] = useState<MarketSellerDetail | null>(() => {
+  const [loadedSeller, setSeller] = useState<MarketSellerDetail | null>(() => {
     const s = peekSeller(userId);
     return s ? { ...s, reviews: [] } : null;
   });
-  const [status, setStatus] = useState<Status>(() => (peekSeller(userId) ? "ready" : "loading"));
-  const [reviewsReady, setReviewsReady] = useState(false);
-  const [services, setServices] = useState<MarketService[]>(() => peekSeller(userId)?.services ?? []);
-  const [picked, setPicked] = useState("");
+  const [loadStatus, setStatus] = useState<Status>(() => (peekSeller(userId) ? "ready" : "loading"));
+  const [loadedReviews, setReviewsReady] = useState(false);
+  const [loadedServices, setServices] = useState<MarketService[]>(() => peekSeller(userId)?.services ?? []);
+  const [chosen, setPicked] = useState("");
+  const seller = preview ? preview.seller : loadedSeller;
+  const status: Status = preview ? "ready" : loadStatus;
+  const reviewsReady = preview ? true : loadedReviews;
+  const services = preview ? preview.services : loadedServices;
+  const picked = preview ? preview.picked : chosen;
   const [buying, setBuying] = useState<MarketService | null>(null);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
+    if (!live) return;
     let alive = true;
     getMarketplaceSeller(userId)
       .then((d) => {
@@ -67,10 +76,11 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
     return () => {
       alive = false;
     };
-  }, [userId, reload]);
+  }, [userId, reload, live]);
 
   const [activePromos, setActivePromos] = useState<MarketPromotionSurface[]>([]);
   useEffect(() => {
+    if (!live) return;
     const ctl = new AbortController();
     listActivePromotions({ sellerUserId: userId, limit: 5 }, ctl.signal)
       .then((list) => {
@@ -78,9 +88,12 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
       })
       .catch(() => {});
     return () => ctl.abort();
-  }, [userId]);
-  const topServiceIds = useMemo(() => new Set(activePromos.filter((p) => p.serviceId).map((p) => p.serviceId)), [activePromos]);
-  const profileTop = activePromos.some((p) => p.placement === "profile_boost" || p.placement === "banner");
+  }, [userId, live]);
+  const topServiceIds = useMemo(
+    () => new Set(preview ? [preview.topServiceId].filter(Boolean) : activePromos.filter((p) => p.serviceId).map((p) => p.serviceId)),
+    [activePromos, preview],
+  );
+  const profileTop = preview ? preview.top : activePromos.some((p) => p.placement === "profile_boost" || p.placement === "banner");
 
   const refreshServices = useCallback(() => {
     getMarketplaceSellerServices(userId)
@@ -94,8 +107,8 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
   }, [userId]);
 
   useEffect(() => {
-    refreshServices();
-  }, [refreshServices]);
+    if (live) refreshServices();
+  }, [refreshServices, live]);
 
   const isStaff = !!session && hasAdminAccess(session);
   const isSeller = !!session && session.role !== "client";
@@ -214,7 +227,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
           <section className="mk-panel" data-ai-target="marketplace:seller-services" data-ai-id={`${sellerAiId}.services`} data-ai-type="list">
             <div className="mkpx-row">
               <h2 className="mk-panel__t">{t("detail.services")}</h2>
-              {services.length ? <PricingExplainer service={selected} aiId={`${sellerAiId}.price-info`} /> : null}
+              {services.length && selected?.id !== PH_SERVICE_ID ? <PricingExplainer service={selected} aiId={`${sellerAiId}.price-info`} /> : null}
             </div>
             <p className="mk-panel__l">{t("detail.servicesLead")}</p>
             {services.length ? (
@@ -228,6 +241,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
                     top={svc.isSponsored || topServiceIds.has(svc.id)}
                     buyDisabled={!!blocked || svc.price <= 0}
                     onPick={() => setPicked(svc.id)}
+                    ph={preview?.ph && svc.id === PH_SERVICE_ID ? preview.ph : undefined}
                     onBuy={() => startBuy(svc)}
                   />
                 ))}

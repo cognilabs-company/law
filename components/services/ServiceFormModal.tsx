@@ -9,6 +9,7 @@ import {
   SERVICE_STATUSES,
   addManagedService,
   priceBandFor,
+  profileVerified,
   serviceErrorOf,
   updateManagedService,
   type ManagedService,
@@ -18,11 +19,12 @@ import {
   type ServiceSellerProfile,
   type ServiceStatus,
 } from "@/lib/services/sellerServices";
-import { IconAlert, IconCheck, IconCoins, IconEdit, IconLayers, IconPause, IconPlay, IconPower } from "@/components/icons";
+import { IconAlert, IconCheck, IconCoins, IconEdit, IconEye, IconLayers, IconPause, IconPlay, IconPower } from "@/components/icons";
 import { InBody, som } from "./bits";
 import ServicePicker from "./ServicePicker";
 import PriceField, { bandPercents, digitsOf, priceOutOfBand } from "./PriceField";
-import { ServiceLivePreview } from "./PreviewScenes";
+import MarketPreviewModal from "./MarketPreviewModal";
+import type { PreviewDraft } from "@/lib/marketPreview";
 
 const POLICY_KEY = (uid: string) => `lexgo_price_policy_${uid}`;
 
@@ -80,6 +82,8 @@ export default function ServiceFormModal({
   aiId?: string;
 }) {
   const t = useTranslations("sellerServices");
+  const tv = useTranslations("sellerServices.preview");
+  const tr = useTranslations("sellerServices.reasons");
   const locale = useLocale();
   const ids = useId();
   const editing = Boolean(item);
@@ -94,6 +98,7 @@ export default function ServiceFormModal({
   const [policyErr, setPolicyErr] = useState(false);
   const [bandLoad, setBandLoad] = useState<BandLoad | null>(null);
   const [serverBand, setServerBand] = useState<{ key: string; band: PriceBand } | null>(null);
+  const [live, setLive] = useState(false);
 
   const region = profile.region;
   const serviceId = service?.id ?? "";
@@ -160,13 +165,27 @@ export default function ServiceFormModal({
     if (!busy) onClose();
   };
   const priceErr = err?.kind === "range" ? errText(err) : "";
+  const draft: PreviewDraft = {
+    kind: "service",
+    sellerId,
+    seed: { name: profile.name, sellerType: profile.sellerType, region: profile.region, verified: profileVerified(profile) },
+    service: service
+      ? { id: service.id, title: service.name, categoryId: service.categoryId ?? "", categoryTitle: service.categoryTitle ?? "", basePrice: service.price ?? 0, price: n, note, advokatRequired: service.advokatRequired }
+      : null,
+    ad: null,
+    profile: null,
+  };
+  const hidden = service
+    ? [!service.isActive ? "catalogOff" : "", status !== "active" ? status : "", !(n || service.price) ? "noPrice" : "", !profileVerified(profile) ? "unverified" : ""].filter(Boolean)
+    : [];
+  const liveNotes = service ? (hidden.length ? [tv("hidden", { reasons: hidden.map((r) => tr(r)).join(", ") })] : []) : [tv("noteNoService")];
   const formErr = err && err.kind !== "range" && err.kind !== "advocateOnly" ? errText(err) : "";
 
   return (
     <InBody>
-      <Modal open onClose={close} title={editing ? t("form.editTitle") : t("form.addTitle")} wide>
+      <Modal open onClose={close} title={editing ? t("form.editTitle") : t("form.addTitle")}>
         <form
-          className="svform svlive"
+          className="svform"
           onSubmit={(e) => {
             e.preventDefault();
             void save();
@@ -176,156 +195,154 @@ export default function ServiceFormModal({
           data-ai-type={aiId ? "modal" : undefined}
           data-ai-label={aiId ? (editing ? t("form.editTitle") : t("form.addTitle")) : undefined}
         >
-          <div className="svlive__fields">
-            <section className="svform__sec">
-              <label className="svform__lbl" htmlFor={`${ids}-svc`}>
-                <span className="svform__n" aria-hidden="true">
-                  <IconLayers />
-                </span>
-                {t("form.service")}
-              </label>
-              {editing && item ? (
-                <div className="svpick__sel svpick__sel--fixed">
-                  <span className="svpick__ic" aria-hidden="true">
-                    <IconEdit />
-                  </span>
-                  <span className="svpick__selm">
-                    <b>{item.service.name}</b>
-                    <small>{[item.service.categoryTitle, item.service.subcategory].filter(Boolean).join(" · ")}</small>
-                  </span>
-                </div>
-              ) : (
-                <ServicePicker
-                  inputId={`${ids}-svc`}
-                  value={service}
-                  onChange={(s) => {
-                    setService(s);
-                    setErr(null);
-                  }}
-                  taken={taken}
-                  lawyer={lawyer}
-                  invalid={advocateBlocked ? t("errors.advocateOnly") : undefined}
-                />
-              )}
-              {advocateBlocked ? (
-                <p className="svform__bad" role="alert">
-                  <IconAlert aria-hidden="true" />
-                  {t("errors.advocateOnly")}
-                </p>
-              ) : null}
-            </section>
-
-            <section className={`svform__sec${service ? "" : " is-dim"}`}>
-              <label className="svform__lbl" htmlFor={`${ids}-price`}>
-                <span className="svform__n" aria-hidden="true">
-                  <IconCoins />
-                </span>
-                {t("form.price")}
-              </label>
-              <PriceField
-                id={`${ids}-price`}
-                value={price}
-                onChange={(v) => {
-                  setPrice(digitsOf(v));
-                  if (err?.kind === "range") setErr(null);
-                }}
-                band={band}
-                bandState={bandState}
-                basePrice={service?.price ?? 0}
-                error={priceErr}
-              />
-            </section>
-
-            <section className="svform__sec">
-              <label className="svform__lbl" htmlFor={`${ids}-note`}>
-                <span className="svform__n" aria-hidden="true">
+          <section className="svform__sec">
+            <label className="svform__lbl" htmlFor={`${ids}-svc`}>
+              <span className="svform__n" aria-hidden="true">
+                <IconLayers />
+              </span>
+              {t("form.service")}
+            </label>
+            {editing && item ? (
+              <div className="svpick__sel svpick__sel--fixed">
+                <span className="svpick__ic" aria-hidden="true">
                   <IconEdit />
                 </span>
-                {t("form.note")}
-                <span className="svform__cnt">
-                  {note.length}/{NOTE_MAX}
+                <span className="svpick__selm">
+                  <b>{item.service.name}</b>
+                  <small>{[item.service.categoryTitle, item.service.subcategory].filter(Boolean).join(" · ")}</small>
                 </span>
-              </label>
-              <textarea
-                id={`${ids}-note`}
-                className="svform__ta"
-                value={note}
-                maxLength={NOTE_MAX}
-                rows={4}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={t("form.notePh")}
-                aria-describedby={`${ids}-note-h`}
-              />
-              <p id={`${ids}-note-h`} className="svform__hint">
-                {t("form.noteHint")}
-              </p>
-            </section>
-
-            <section className="svform__sec">
-              <span className="svform__lbl" id={`${ids}-st`}>
-                <span className="svform__n" aria-hidden="true">
-                  <IconPlay />
-                </span>
-                {t("form.status")}
-              </span>
-              <div className="svform__st" role="radiogroup" aria-labelledby={`${ids}-st`}>
-                {SERVICE_STATUSES.map((s) => {
-                  const Icon = STATUS_ICON[s];
-                  const on = status === s;
-                  return (
-                    <button
-                      key={s}
-                      type="button"
-                      role="radio"
-                      aria-checked={on}
-                      className={`svform__sto svform__sto--${s}${on ? " is-on" : ""}`}
-                      onClick={() => setStatus(s)}
-                    >
-                      <span className="svform__stic" aria-hidden="true">
-                        <Icon />
-                      </span>
-                      <b>{t(`status.${s}`)}</b>
-                      <small>{t(`statusHint.${s}`)}</small>
-                    </button>
-                  );
-                })}
               </div>
-            </section>
-
-            {askPolicy ? (
-              <label className={`svform__policy${agreed ? " is-on" : ""}${policyErr && !agreed ? " is-bad" : ""}`}>
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => {
-                    setAgreed(e.target.checked);
-                    setPolicyErr(false);
-                  }}
-                />
-                <span className="svform__box" aria-hidden="true">
-                  <IconCheck />
-                </span>
-                <span>{pct ? t("limits.policy", pct) : t("limits.policyPlain")}</span>
-              </label>
-            ) : null}
-            {policyErr && !agreed ? (
+            ) : (
+              <ServicePicker
+                inputId={`${ids}-svc`}
+                value={service}
+                onChange={(s) => {
+                  setService(s);
+                  setErr(null);
+                }}
+                taken={taken}
+                lawyer={lawyer}
+                invalid={advocateBlocked ? t("errors.advocateOnly") : undefined}
+              />
+            )}
+            {advocateBlocked ? (
               <p className="svform__bad" role="alert">
                 <IconAlert aria-hidden="true" />
-                {t("form.policyRequired")}
+                {t("errors.advocateOnly")}
               </p>
             ) : null}
-            {formErr ? (
-              <p className="svm__err" role="alert">
-                {formErr}
-              </p>
-            ) : null}
-          </div>
+          </section>
 
-          <aside className="svlive__pv">
-            <ServiceLivePreview sellerId={sellerId} profile={profile} service={service} price={n} note={note} status={status} promoted={Boolean(item?.ownPromotion)} />
-          </aside>
+          <section className={`svform__sec${service ? "" : " is-dim"}`}>
+            <label className="svform__lbl" htmlFor={`${ids}-price`}>
+              <span className="svform__n" aria-hidden="true">
+                <IconCoins />
+              </span>
+              {t("form.price")}
+            </label>
+            <PriceField
+              id={`${ids}-price`}
+              value={price}
+              onChange={(v) => {
+                setPrice(digitsOf(v));
+                if (err?.kind === "range") setErr(null);
+              }}
+              band={band}
+              bandState={bandState}
+              basePrice={service?.price ?? 0}
+              error={priceErr}
+            />
+          </section>
 
-          <div className="svform__acts svlive__acts">
+          <section className="svform__sec">
+            <label className="svform__lbl" htmlFor={`${ids}-note`}>
+              <span className="svform__n" aria-hidden="true">
+                <IconEdit />
+              </span>
+              {t("form.note")}
+              <span className="svform__cnt">
+                {note.length}/{NOTE_MAX}
+              </span>
+            </label>
+            <textarea
+              id={`${ids}-note`}
+              className="svform__ta"
+              value={note}
+              maxLength={NOTE_MAX}
+              rows={4}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={t("form.notePh")}
+              aria-describedby={`${ids}-note-h`}
+            />
+            <p id={`${ids}-note-h`} className="svform__hint">
+              {t("form.noteHint")}
+            </p>
+          </section>
+
+          <section className="svform__sec">
+            <span className="svform__lbl" id={`${ids}-st`}>
+              <span className="svform__n" aria-hidden="true">
+                <IconPlay />
+              </span>
+              {t("form.status")}
+            </span>
+            <div className="svform__st" role="radiogroup" aria-labelledby={`${ids}-st`}>
+              {SERVICE_STATUSES.map((s) => {
+                const Icon = STATUS_ICON[s];
+                const on = status === s;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    className={`svform__sto svform__sto--${s}${on ? " is-on" : ""}`}
+                    onClick={() => setStatus(s)}
+                  >
+                    <span className="svform__stic" aria-hidden="true">
+                      <Icon />
+                    </span>
+                    <b>{t(`status.${s}`)}</b>
+                    <small>{t(`statusHint.${s}`)}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {askPolicy ? (
+            <label className={`svform__policy${agreed ? " is-on" : ""}${policyErr && !agreed ? " is-bad" : ""}`}>
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => {
+                  setAgreed(e.target.checked);
+                  setPolicyErr(false);
+                }}
+              />
+              <span className="svform__box" aria-hidden="true">
+                <IconCheck />
+              </span>
+              <span>{pct ? t("limits.policy", pct) : t("limits.policyPlain")}</span>
+            </label>
+          ) : null}
+          {policyErr && !agreed ? (
+            <p className="svform__bad" role="alert">
+              <IconAlert aria-hidden="true" />
+              {t("form.policyRequired")}
+            </p>
+          ) : null}
+          {formErr ? (
+            <p className="svm__err" role="alert">
+              {formErr}
+            </p>
+          ) : null}
+
+          <div className="svform__acts">
+            <button type="button" className="btn btn--line svform__live" onClick={() => setLive(true)}>
+              <IconEye aria-hidden="true" />
+              {tv("open")}
+            </button>
             <button type="button" className="btn btn--line" onClick={close} disabled={busy}>
               {t("form.cancel")}
             </button>
@@ -336,6 +353,16 @@ export default function ServiceFormModal({
           </div>
         </form>
       </Modal>
+      {live ? (
+        <MarketPreviewModal
+          draft={draft}
+          views={["profile", "market"]}
+          subtitle={service ? service.name : t("form.addTitle")}
+          notes={liveNotes}
+          legend={{ ph: !service }}
+          onClose={() => setLive(false)}
+        />
+      ) : null}
     </InBody>
   );
 }

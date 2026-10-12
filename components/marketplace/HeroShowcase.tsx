@@ -99,6 +99,7 @@ function ShowcaseCard({ card, index, depth, base, locale }: { card: ShowCard; in
   const featuredAiId = aiId("marketplace.featured", s.userId);
   const won = s.winsCount > 0;
   const label = promo?.ctaLabel || t("show.cta");
+  const goClass = promo?.draft?.auto?.includes("cta") ? "mk-show__go mk-auto" : "mk-show__go";
   const onGo = () => {
     if (promo) promoClick(promo.id, promo.sellerUserId, PROMO_SOURCE, index + 1);
   };
@@ -172,12 +173,12 @@ function ShowcaseCard({ card, index, depth, base, locale }: { card: ShowCard; in
             <b>{s.priceFrom > 0 ? t("card.priceFrom", { price: fmtUzs(s.priceFrom) }) : t("card.priceAsk")}</b>
           </span>
           {cta.external ? (
-            <a href={cta.href} className="mk-show__go" target="_blank" rel="noopener noreferrer" aria-label={`${label}: ${s.name}`} onClick={onGo} data-ai-id={`${featuredAiId}.detail`} data-ai-label={label}>
+            <a href={cta.href} className={goClass} target="_blank" rel="noopener noreferrer" aria-label={`${label}: ${s.name}`} onClick={onGo} data-ai-id={`${featuredAiId}.detail`} data-ai-label={label}>
               {label}
               <IconArrowRight />
             </a>
           ) : (
-            <Link href={cta.href} className="mk-show__go" aria-label={`${label}: ${s.name}`} onClick={onGo} data-ai-id={`${featuredAiId}.detail`} data-ai-label={label}>
+            <Link href={cta.href} className={goClass} aria-label={`${label}: ${s.name}`} onClick={onGo} data-ai-id={`${featuredAiId}.detail`} data-ai-label={label}>
               {label}
               <IconArrowRight />
             </Link>

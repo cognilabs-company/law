@@ -7,6 +7,7 @@ import SearchSelect from "@/components/SearchSelect";
 import {
   pendingPromoKey,
   savePendingPromo,
+  profileVerified,
   serviceErrorOf,
   type ManagedService,
   type PromotionRequest,
@@ -15,10 +16,11 @@ import {
   type ServiceSellerProfile,
 } from "@/lib/services/sellerServices";
 import { checkoutMarketplacePromotion, listPromotionPackages, promotionErrorCode, promotionErrorRetryable, uploadPromotionBanner, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
-import { IconAlert, IconCheck, IconCircleCheck, IconClock, IconCrown, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp, IconUpload, IconUser } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconCheck, IconCircleCheck, IconClock, IconCrown, IconEye, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp, IconUpload, IconUser } from "@/components/icons";
 import { useAuth } from "@/lib/auth";
-import { InBody, som, usePackageName } from "./bits";
-import { PromoLivePreview } from "./PreviewScenes";
+import { InBody, PlacementSketch, som, usePackageName } from "./bits";
+import MarketPreviewModal from "./MarketPreviewModal";
+import { previewServiceOf, type PreviewDraft } from "@/lib/marketPreview";
 import { newIdempotencyKey } from "@/lib/services/promoEvents";
 
 type Packs = { status: "loading" | "ready" | "error"; items: PromotionPackage[]; placements: PromotionPlacementOption[] };
@@ -66,6 +68,7 @@ export default function PromoteModal({
 }) {
   const t = useTranslations("sellerServices.promote");
   const tc = useTranslations("sellerServices");
+  const tv = useTranslations("sellerServices.preview");
   const packName = usePackageName();
   const placementName = (value: PromotionPlacement) => t(value === "banner" ? "placementBanner" : value === "profile_boost" ? "placementProfile" : "placementService");
   const [packs, setPacks] = useState<Packs>({ status: "loading", items: [], placements: [] });
@@ -89,6 +92,7 @@ export default function PromoteModal({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState<PromotionRequest | null>(null);
+  const [live, setLive] = useState(false);
   const attemptKey = useRef("");
   useEffect(() => {
     attemptKey.current = "";
@@ -225,6 +229,20 @@ export default function PromoteModal({
   const sellerName = profile?.name || session?.name || t("previewSeller");
   const previewImage = bannerLocal || (HTTP_URL.test(bannerImageUrl.trim()) ? bannerImageUrl.trim() : "");
   const heic = /\.heic$/i.test(bannerFileName);
+  const draft: PreviewDraft = {
+    kind: "ad",
+    sellerId: profile?.userId || (scope.kind === "org" ? scope.memberId : uid),
+    seed: { name: sellerName, sellerType: profile?.sellerType ?? "", region: profile?.region ?? "", verified: profile ? profileVerified(profile) : false },
+    service: needsService && svc ? previewServiceOf(svc) : null,
+    ad: { placement, title: acceptsBanner ? bannerTitle : "", subtitle: acceptsBanner ? bannerSubtitle : "", ctaLabel: acceptsBanner ? ctaLabel : "", imageUrl: acceptsBanner ? previewImage : "" },
+    profile: null,
+  };
+  const liveNotes =
+    placement === "banner"
+      ? [tv("noteBanner"), ...(heic ? [t("previewHeic")] : [])]
+      : placement === "profile_boost"
+        ? [tv("noteRank")]
+        : [svc ? tv("noteSearch") : tv("noteNoService")];
 
   function onBannerFile(file: File | undefined) {
     if (!file || uploading || busy) return;
@@ -249,7 +267,7 @@ export default function PromoteModal({
 
   return (
     <InBody>
-      <Modal open onClose={close} title={title} wide={!done}>
+      <Modal open onClose={close} title={title}>
         {done ? (
           <div className="svpdone" role="status" data-ai-id={aiId} data-ai-type={aiId ? "modal" : undefined} data-ai-label={aiId ? title : undefined}>
             <span className={`svpdone__ic${sent ? (activated ? " is-ok" : "") : " is-bad"}`} aria-hidden="true">
@@ -308,221 +326,218 @@ export default function PromoteModal({
             )}
           </div>
         ) : (
-          <div className="svprom svlive" data-ai-id={aiId} data-ai-type={aiId ? "modal" : undefined} data-ai-label={aiId ? title : undefined}>
-            <div className="svlive__fields">
-              <p className="svprom__lead">{item ? t("lead") : t("leadAny")}</p>
+          <div className="svprom" data-ai-id={aiId} data-ai-type={aiId ? "modal" : undefined} data-ai-label={aiId ? title : undefined}>
+            <p className="svprom__lead">{item ? t("lead") : t("leadAny")}</p>
 
-              <span className="svprom__step">{t("step1")}</span>
-              <div className="svprom__placements" role="radiogroup" aria-label={t("placementTitle")}>
-                {(packs.placements.length ? packs.placements : FALLBACK_PLACEMENTS).map((option) => (
-                  <button key={option.value} type="button" role="radio" aria-checked={placement === option.value} className={`svplace${placement === option.value ? " is-on" : ""}`} onClick={() => pickPlacement(option.value)}>
-                    <b>{placementName(option.value)}</b>
-                    <small>{option.value === "banner" ? t("placementBannerHint") : option.value === "service_boost" ? t("placementServiceHint") : t("placementProfileHint")}</small>
-                  </button>
-                ))}
-              </div>
+            <span className="svprom__step">{t("step1")}</span>
+            <div className="svprom__placements" role="radiogroup" aria-label={t("placementTitle")}>
+              {(packs.placements.length ? packs.placements : FALLBACK_PLACEMENTS).map((option) => (
+                <button key={option.value} type="button" role="radio" aria-checked={placement === option.value} className={`svplace${placement === option.value ? " is-on" : ""}`} onClick={() => pickPlacement(option.value)}>
+                  <PlacementSketch placement={option.value} />
+                  <b>{placementName(option.value)}</b>
+                  <small>{option.value === "banner" ? t("placementBannerHint") : option.value === "service_boost" ? t("placementServiceHint") : t("placementProfileHint")}</small>
+                </button>
+              ))}
+            </div>
+            <button type="button" className="svprom__live" onClick={() => setLive(true)} data-ai-id={aiId ? `${aiId}.live` : undefined}>
+              <span className="svprom__liveic" aria-hidden="true">
+                <IconEye />
+              </span>
+              <span className="svprom__livet">
+                <b>{tv("open")}</b>
+                <small>{tv("openHint")}</small>
+              </span>
+              <IconArrowRight aria-hidden="true" />
+            </button>
 
-              {needsService ? (
-                item && svcOptions.length < 2 ? (
-                  <div className="svprom__svc">
-                    <span className="svprom__svcic" aria-hidden="true">
-                      <IconMegaphone />
-                    </span>
-                    <span>
-                      <small>{t("service")}</small>
-                      <b>{item.service.name}</b>
-                    </span>
-                  </div>
-                ) : (
-                  <div className="svprom__pick">
-                    <span>{t("pickService")}</span>
-                    {svcOptions.length ? (
-                      <SearchSelect
-                        single
-                        value={svcId ? [svcId] : []}
-                        onChange={(v) => setSvcId(v[0] ?? "")}
-                        options={svcOptions.map((s) => ({ value: s.id, label: s.service.name, sub: s.effectivePrice ? `${som(s.effectivePrice)} ${tc("card.som")}` : undefined }))}
-                        placeholder={t("pickServicePh")}
-                        searchPlaceholder={t("pickServiceSearch")}
-                        emptyText={t("pickServiceNone")}
-                        ariaLabel={t("pickService")}
-                      />
-                    ) : (
-                      <small className="svprom__warn">{t("pickServiceNone")}</small>
-                    )}
-                  </div>
-                )
-              ) : (
+            {needsService ? (
+              item && svcOptions.length < 2 ? (
                 <div className="svprom__svc">
                   <span className="svprom__svcic" aria-hidden="true">
-                    <IconUser />
+                    <IconMegaphone />
                   </span>
                   <span>
-                    <small>{t("seller")}</small>
-                    <b>{sellerName}</b>
+                    <small>{t("service")}</small>
+                    <b>{item.service.name}</b>
                   </span>
                 </div>
-              )}
-
-              <span className="svprom__step">{t("step2")}</span>
-              {packs.status === "loading" ? (
-                <div className="svprom__grid" aria-hidden="true">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="svpk is-skel" />
-                  ))}
-                </div>
-              ) : packs.status === "error" ? (
-                <div className="svprom__empty">
-                  <IconAlert aria-hidden="true" />
-                  <b>{t("loadError")}</b>
-                  <button type="button" className="btn btn--line btn--sm" onClick={() => setTick((n) => n + 1)}>
-                    {tc("retry")}
-                  </button>
-                </div>
-              ) : !items.length ? (
-                <div className="svprom__empty">
-                  <IconRocket aria-hidden="true" />
-                  <b>{t("empty")}</b>
-                  <p>{t("emptyText")}</p>
-                </div>
               ) : (
-                <div className="svprom__grid" role="radiogroup" aria-label={t("packages")} data-ai-id={aiId ? `${aiId}.packages` : undefined} data-ai-type={aiId ? "select" : undefined}>
-                  {items.map((p, i) => {
-                    const Icon = TIER_ICON[Math.min(i, TIER_ICON.length - 1)];
-                    const on = chosen?.id === p.id;
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={on}
-                        className={`svpk${on ? " is-on" : ""}${p.id === feat ? " svpk--feat" : ""}`}
-                        onClick={() => setPicked(p.id)}
-                      >
-                        {p.id === feat ? <span className="svpk__rib">{t("popular")}</span> : null}
-                        <span className="svpk__ic" aria-hidden="true">
-                          <Icon />
-                        </span>
-                        <b className="svpk__name">{packName(p.title, p.placement)}</b>
-                        <span className="svpk__days">{t("days", { d: p.days })}</span>
-                        {p.reach ? (
-                          <span className="svpk__reach">
-                            <IconTrendingUp aria-hidden="true" />
-                            {t("reach", { x: p.reach })}
-                          </span>
-                        ) : null}
-                        <span className="svpk__price">
-                          {som(p.price)} <small>{p.currency === "UZS" ? tc("card.som") : p.currency}</small>
-                        </span>
-                        <span className="svpk__check" aria-hidden="true">
-                          <IconCheck />
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {acceptsBanner ? (
-                <div className="svprom__bannerform">
-                  <b className="svprom__formt">{needsBanner ? t("bannerRequired") : t("bannerOptional")}</b>
-                  <label className="svfile">
-                    <span>{t("bannerFile")}</span>
-                    <input className="svfile__in" type="file" accept=".jpg,.jpeg,.png,.webp,.heic" onChange={(e) => onBannerFile(e.target.files?.[0])} disabled={uploading || busy} />
-                    <span className={`svfile__box${bannerFile ? " is-on" : ""}`}>
-                      <span className="btn btn--line btn--sm svfile__btn">
-                        <IconUpload aria-hidden="true" />
-                        {uploading ? t("bannerUploading") : t("bannerPick")}
-                      </span>
-                      <small>{bannerFile ? bannerFileName : t("bannerNoFile", { mb: MAX_BANNER_MB })}</small>
-                    </span>
-                  </label>
-                  <span className="svprom__or">{t("or")}</span>
-                  <label className={badImage ? "is-bad" : undefined}>
-                    <span>{t("bannerImageUrl")}</span>
-                    <input
-                      value={bannerImageUrl}
-                      onChange={(e) => {
-                        setBannerImageUrl(e.target.value);
-                        setBannerFile(null);
-                        setBannerFileUrl("");
-                        setBannerLocal("");
-                        setBannerFileName("");
-                      }}
-                      placeholder="https://"
-                      inputMode="url"
-                      aria-invalid={badImage || undefined}
+                <div className="svprom__pick">
+                  <span>{t("pickService")}</span>
+                  {svcOptions.length ? (
+                    <SearchSelect
+                      single
+                      value={svcId ? [svcId] : []}
+                      onChange={(v) => setSvcId(v[0] ?? "")}
+                      options={svcOptions.map((s) => ({ value: s.id, label: s.service.name, sub: s.effectivePrice ? `${som(s.effectivePrice)} ${tc("card.som")}` : undefined }))}
+                      placeholder={t("pickServicePh")}
+                      searchPlaceholder={t("pickServiceSearch")}
+                      emptyText={t("pickServiceNone")}
+                      ariaLabel={t("pickService")}
                     />
-                    {badImage ? <small className="svprom__ferr">{t("badUrl")}</small> : null}
-                  </label>
-                  <div className="svprom__fields">
-                    <label>
-                      <span>{t("bannerTitle")}</span>
-                      <input value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} placeholder={sellerName} maxLength={80} />
-                    </label>
-                    <label>
-                      <span>{t("bannerSubtitle")}</span>
-                      <input value={bannerSubtitle} onChange={(e) => setBannerSubtitle(e.target.value)} maxLength={140} />
-                    </label>
-                    <label>
-                      <span>{t("ctaLabel")}</span>
-                      <input value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder={t("previewCta")} maxLength={32} />
-                    </label>
-                    <label className={badCta ? "is-bad" : undefined}>
-                      <span>{t("ctaUrl")}</span>
-                      <input value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} placeholder={t("ctaUrlPh")} aria-invalid={badCta || undefined} />
-                      {badCta ? <small className="svprom__ferr">{t("badCta")}</small> : null}
-                    </label>
-                  </div>
+                  ) : (
+                    <small className="svprom__warn">{t("pickServiceNone")}</small>
+                  )}
                 </div>
-              ) : null}
-
-              {chosen ? (
-                <div className="svprom__sum">
-                  <span>{t("placementTitle")}</span>
-                  <b>{placementName(placement)}</b>
-                  <span>{t("package")}</span>
-                  <b>{packName(chosen.title, chosen.placement)}</b>
-                  <span>{t("duration")}</span>
-                  <b>{t("days", { d: chosen.days })}</b>
-                  <span>{t("amount")}</span>
-                  <b className="svprom__total">
-                    {som(chosen.price)} {chosen.currency === "UZS" ? tc("card.som") : chosen.currency}
-                  </b>
-                </div>
-              ) : null}
-
-              <p className="svprom__note">
-                <IconInfo aria-hidden="true" />
-                <span>
-                  {t("note")}
-                  {owner ? ` ${t("noteOwner")}` : ""}
+              )
+            ) : (
+              <div className="svprom__svc">
+                <span className="svprom__svcic" aria-hidden="true">
+                  <IconUser />
                 </span>
+                <span>
+                  <small>{t("seller")}</small>
+                  <b>{sellerName}</b>
+                </span>
+              </div>
+            )}
+
+            <span className="svprom__step">{t("step2")}</span>
+            {packs.status === "loading" ? (
+              <div className="svprom__grid" aria-hidden="true">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="svpk is-skel" />
+                ))}
+              </div>
+            ) : packs.status === "error" ? (
+              <div className="svprom__empty">
+                <IconAlert aria-hidden="true" />
+                <b>{t("loadError")}</b>
+                <button type="button" className="btn btn--line btn--sm" onClick={() => setTick((n) => n + 1)}>
+                  {tc("retry")}
+                </button>
+              </div>
+            ) : !items.length ? (
+              <div className="svprom__empty">
+                <IconRocket aria-hidden="true" />
+                <b>{t("empty")}</b>
+                <p>{t("emptyText")}</p>
+              </div>
+            ) : (
+              <div className="svprom__grid" role="radiogroup" aria-label={t("packages")} data-ai-id={aiId ? `${aiId}.packages` : undefined} data-ai-type={aiId ? "select" : undefined}>
+                {items.map((p, i) => {
+                  const Icon = TIER_ICON[Math.min(i, TIER_ICON.length - 1)];
+                  const on = chosen?.id === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      className={`svpk${on ? " is-on" : ""}${p.id === feat ? " svpk--feat" : ""}`}
+                      onClick={() => setPicked(p.id)}
+                    >
+                      {p.id === feat ? <span className="svpk__rib">{t("popular")}</span> : null}
+                      <span className="svpk__ic" aria-hidden="true">
+                        <Icon />
+                      </span>
+                      <b className="svpk__name">{packName(p.title, p.placement)}</b>
+                      <span className="svpk__days">{t("days", { d: p.days })}</span>
+                      {p.reach ? (
+                        <span className="svpk__reach">
+                          <IconTrendingUp aria-hidden="true" />
+                          {t("reach", { x: p.reach })}
+                        </span>
+                      ) : null}
+                      <span className="svpk__price">
+                        {som(p.price)} <small>{p.currency === "UZS" ? tc("card.som") : p.currency}</small>
+                      </span>
+                      <span className="svpk__check" aria-hidden="true">
+                        <IconCheck />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {acceptsBanner ? (
+              <div className="svprom__bannerform">
+                <b className="svprom__formt">{needsBanner ? t("bannerRequired") : t("bannerOptional")}</b>
+                <label className="svfile">
+                  <span>{t("bannerFile")}</span>
+                  <input className="svfile__in" type="file" accept=".jpg,.jpeg,.png,.webp,.heic" onChange={(e) => onBannerFile(e.target.files?.[0])} disabled={uploading || busy} />
+                  <span className={`svfile__box${bannerFile ? " is-on" : ""}`}>
+                    <span className="btn btn--line btn--sm svfile__btn">
+                      <IconUpload aria-hidden="true" />
+                      {uploading ? t("bannerUploading") : t("bannerPick")}
+                    </span>
+                    <small>{bannerFile ? bannerFileName : t("bannerNoFile", { mb: MAX_BANNER_MB })}</small>
+                  </span>
+                </label>
+                <span className="svprom__or">{t("or")}</span>
+                <label className={badImage ? "is-bad" : undefined}>
+                  <span>{t("bannerImageUrl")}</span>
+                  <input
+                    value={bannerImageUrl}
+                    onChange={(e) => {
+                      setBannerImageUrl(e.target.value);
+                      setBannerFile(null);
+                      setBannerFileUrl("");
+                      setBannerLocal("");
+                      setBannerFileName("");
+                    }}
+                    placeholder="https://"
+                    inputMode="url"
+                    aria-invalid={badImage || undefined}
+                  />
+                  {badImage ? <small className="svprom__ferr">{t("badUrl")}</small> : null}
+                </label>
+                <div className="svprom__fields">
+                  <label>
+                    <span>{t("bannerTitle")}</span>
+                    <input value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} placeholder={sellerName} maxLength={80} />
+                  </label>
+                  <label>
+                    <span>{t("bannerSubtitle")}</span>
+                    <input value={bannerSubtitle} onChange={(e) => setBannerSubtitle(e.target.value)} maxLength={140} />
+                  </label>
+                  <label>
+                    <span>{t("ctaLabel")}</span>
+                    <input value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder={t("previewCta")} maxLength={32} />
+                  </label>
+                  <label className={badCta ? "is-bad" : undefined}>
+                    <span>{t("ctaUrl")}</span>
+                    <input value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} placeholder={t("ctaUrlPh")} aria-invalid={badCta || undefined} />
+                    {badCta ? <small className="svprom__ferr">{t("badCta")}</small> : null}
+                  </label>
+                </div>
+              </div>
+            ) : null}
+
+            {chosen ? (
+              <div className="svprom__sum">
+                <span>{t("placementTitle")}</span>
+                <b>{placementName(placement)}</b>
+                <span>{t("package")}</span>
+                <b>{packName(chosen.title, chosen.placement)}</b>
+                <span>{t("duration")}</span>
+                <b>{t("days", { d: chosen.days })}</b>
+                <span>{t("amount")}</span>
+                <b className="svprom__total">
+                  {som(chosen.price)} {chosen.currency === "UZS" ? tc("card.som") : chosen.currency}
+                </b>
+              </div>
+            ) : null}
+
+            <p className="svprom__note">
+              <IconInfo aria-hidden="true" />
+              <span>
+                {t("note")}
+                {owner ? ` ${t("noteOwner")}` : ""}
+              </span>
+            </p>
+            {err ? (
+              <p className="svm__err" role="alert">
+                {err}
               </p>
-              {err ? (
-                <p className="svm__err" role="alert">
-                  {err}
-                </p>
-              ) : missingService && chosen ? (
-                <p className="svprom__hint">{t("pickServiceFirst")}</p>
-              ) : missingBanner && chosen ? (
-                <p className="svprom__hint">{t("bannerNeeded")}</p>
-              ) : null}
-            </div>
+            ) : missingService && chosen ? (
+              <p className="svprom__hint">{t("pickServiceFirst")}</p>
+            ) : missingBanner && chosen ? (
+              <p className="svprom__hint">{t("bannerNeeded")}</p>
+            ) : null}
 
-            <aside className="svlive__pv">
-              <PromoLivePreview
-                placement={placement}
-                sellerId={profile?.userId || (scope.kind === "org" ? scope.memberId : uid)}
-                profile={profile ?? null}
-                fallbackName={sellerName}
-                service={needsService ? svc : null}
-                banner={{ title: bannerTitle, subtitle: bannerSubtitle, ctaLabel, imageUrl: previewImage }}
-                bannerNote={heic ? t("previewHeic") : undefined}
-              />
-            </aside>
-
-            <div className="svform__acts svlive__acts">
+            <div className="svform__acts">
               <button type="button" className="btn btn--line" onClick={close} disabled={busy}>
                 {tc("form.cancel")}
               </button>
@@ -534,6 +549,16 @@ export default function PromoteModal({
           </div>
         )}
       </Modal>
+      {live ? (
+        <MarketPreviewModal
+          draft={draft}
+          views={["market", "profile"]}
+          subtitle={[placementName(placement), needsService && svc ? svc.service.name : ""].filter(Boolean).join(" · ")}
+          notes={liveNotes}
+          legend={{ auto: placement === "banner" && (!bannerTitle.trim() || !bannerSubtitle.trim() || !ctaLabel.trim()), ph: needsService && !svc }}
+          onClose={() => setLive(false)}
+        />
+      ) : null}
     </InBody>
   );
 }
