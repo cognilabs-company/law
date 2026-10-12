@@ -11,7 +11,6 @@ import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
 import NotificationBell from "./NotificationBell";
 import SupportMenu from "./SupportMenu";
-import IncomingCallWatcher from "./IncomingCallWatcher";
 import MarketWatcher from "../marketplace/MarketWatcher";
 import GrowthBanner from "./GrowthBanner";
 import GiftNudge from "./GiftNudge";
@@ -303,7 +302,6 @@ export default function PortalShell({
 
   return (
     <div className={`portal${collapsed ? " psb-collapsed" : ""}${fullscreen ? " portal--full" : ""}`}>
-      <IncomingCallWatcher />
       <MarketWatcher role={role} />
       {/* LEXGO_AI_SYSTEM_ASSISTANT_FRONTEND_BACKEND_2026-09-29.md asks for a
           floating assistant at the bottom right on desktop. That corner is

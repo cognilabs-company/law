@@ -12,7 +12,6 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 import FeedbackButton from "@/components/internal/feedback/FeedbackButton";
 import CommandPalette from "@/components/internal/CommandPalette";
-import IncomingCallWatcher from "@/components/portal/IncomingCallWatcher";
 import { IconChevronDown, IconChevronLeft, IconClose, IconHome, IconLogo, IconLogout, IconMenu, IconMoreHorizontal } from "@/components/icons";
 import { NAV_GROUPS, activeNav, navMatches, type NavBadge, type NavItem } from "./nav";
 
@@ -131,7 +130,6 @@ export default function InternalShell({ children }: { children: ReactNode }) {
 
   return (
     <div className={`portal internal-shell hn-shell${rail ? " psb-collapsed is-rail" : ""}`}>
-      <IncomingCallWatcher />
       <div className={`psb__scrim${drawer ? " on" : ""}`} onClick={() => setDrawerPath(null)} />
       <aside className={`psb hn${drawer ? " on" : ""}`}>
         <div className="hn__brand">

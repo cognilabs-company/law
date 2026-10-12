@@ -15,6 +15,7 @@ import "../globals.css";
 
 import { AuthProvider } from "@/lib/auth";
 import SessionExpiryWatcher from "@/components/auth/SessionExpiryWatcher";
+import IncomingCallWatcher from "@/components/portal/IncomingCallWatcher";
 import ConsentGate from "@/components/legal/ConsentGate";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -93,6 +94,7 @@ export default async function LocaleLayout({ children, params }: Props) {
           <ReferralCapture />
           <AuthProvider>
             <SessionExpiryWatcher />
+            <IncomingCallWatcher />
             <LiveOfficeHeartbeat />
             <ConsentGate />
             <ScrollProgress />

@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { listInvitedCalls, listLawyers, getCall, updateCallParticipant } from "@/lib/services/backend";
 import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
-import { subscribeRoomCallEvents } from "@/lib/callEvents";
+import { CALLROOM_EVENT, subscribeRoomCallEvents } from "@/lib/callEvents";
 import { playRingtone, primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
-import CallRoom, { isCallRoomMounted, CALLROOM_EVENT } from "@/components/chat/CallRoom";
 import { IconPhone, IconVideo, IconClose } from "@/components/icons";
+
+const CallRoom = dynamic(() => import("@/components/chat/CallRoom"), { ssr: false });
 
 type Incoming = { kind: "chat" | "meet"; roomId: string; callId: string; callType: "audio" | "video"; callerName: string; resume?: boolean };
 
@@ -172,11 +174,11 @@ export default function IncomingCallWatcher() {
       const caller = String(e.caller_user_id ?? "");
       if (!roomId || !callId || caller === me || dismissed.current.has(callId)) return;
       if (String(call.status || "active") !== "active") return;
-      // A meeting (title / invited participant) opens inline; a room call opens the chat.
+      // A meeting (an invited participant) opens inline; a room call opens the chat.
       const parts = Array.isArray(call.participants) ? (call.participants as Record<string, unknown>[]) : [];
       // My own call (host / already joined) must never ring me, even if the event has no caller id.
       if (parts.some((p) => String(p.user_id ?? p.id) === me && ["host", "joined", "left", "declined", "removed"].includes(String(p.status)))) return;
-      const isMeet = !!call.title || parts.some((p) => String(p.user_id ?? p.id) === me && String(p.status) === "invited");
+      const isMeet = parts.some((p) => String(p.user_id ?? p.id) === me && String(p.status) === "invited");
       // Inside that very chat the chat's own card handles it.
       if (!isMeet && onChatPageRef.current) return;
       const name = String(e.caller_name ?? call.caller_name ?? "").trim() || (await callerNameOf(parts, caller, roomId, callId)) || t("someone");
@@ -209,6 +211,14 @@ export default function IncomingCallWatcher() {
       void onEvent(e);
     });
 
+    async function inviteKind(roomId: string, callId: string): Promise<"chat" | "meet"> {
+      try {
+        const c = await getCall(roomId, callId);
+        return c.participants.some((p) => p.userId === me && p.status === "invited") ? "meet" : "chat";
+      } catch {
+        return "meet";
+      }
+    }
     // Fallback: pending invites via REST on mount, on focus, while the socket
     // is down, and on a timer — /calls/invited lists chat calls too.
     async function pollInvites() {
@@ -217,12 +227,15 @@ export default function IncomingCallWatcher() {
         const invited = await listInvitedCalls();
         const inv = invited.find((c) => c.callStatus === "active" && c.status === "invited" && !dismissed.current.has(c.callId));
         if (!alive || !inv) return;
+        if (incRef.current && incRef.current.callId === inv.callId) return;
+        const kind = await inviteKind(inv.roomId, inv.callId);
+        if (!alive) return;
         // Same object while it is the same call, so the ringtone effect does
         // not restart on every tick.
         setInc((cur) =>
           cur && cur.callId === inv.callId
             ? cur
-            : { kind: "meet", roomId: inv.roomId, callId: inv.callId, callType: inv.callType, callerName: inv.callerName || t("someone") },
+            : { kind, roomId: inv.roomId, callId: inv.callId, callType: inv.callType, callerName: inv.callerName || t("someone") },
         );
       } catch { /* ignore */ }
     }
@@ -265,14 +278,15 @@ export default function IncomingCallWatcher() {
     if (!stored?.roomId || !stored?.callId) return;
     let alive = true;
     listInvitedCalls()
-      .then((list) => {
+      .then(async (list) => {
         if (!alive) return;
         const c = list.find((x) => x.callId === stored!.callId);
         if (c && c.callStatus === "active" && c.status !== "removed" && c.status !== "left" && c.status !== "declined") {
           // Offer to rejoin (ring card) — never open a meeting by itself. A
           // launcher (admin/seller meetings page) that already resumed it as
           // host has a CallRoom on screen: nothing to offer then.
-          if (isCallRoomMounted()) return;
+          const { isCallRoomMounted } = await import("@/components/chat/CallRoom");
+          if (!alive || isCallRoomMounted()) return;
           setInc({ kind: "meet", roomId: stored!.roomId!, callId: stored!.callId!, callType: stored!.callType === "audio" ? "audio" : "video", callerName: c.callerName || t("someone"), resume: true });
         } else {
           try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ }

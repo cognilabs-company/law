@@ -9,7 +9,6 @@ import { useDemoTools } from "@/lib/demoTools";
 import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
 import FeedbackButton from "@/components/internal/feedback/FeedbackButton";
-import IncomingCallWatcher from "../portal/IncomingCallWatcher";
 import { useAiReveal } from "@/lib/guide/targets";
 import { fuzzyContains } from "@/lib/searchMatch";
 import { hasStudioAccess, useStudioRegistry } from "@/lib/services/studio";
@@ -306,8 +305,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="portal portal--admin">
-      {/* Meeting invites reach staff on admin pages too (T4-01). */}
-      <IncomingCallWatcher />
       <div className={`psb__scrim${open ? " on" : ""}`} onClick={() => setOpenPath(null)} />
       <aside className={`psb psb--admin${open ? " on" : ""}`} inert={mobile && !open}>
         <div className="psb__brand">
