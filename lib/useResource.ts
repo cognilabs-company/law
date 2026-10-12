@@ -6,6 +6,7 @@ export type ResStatus = "loading" | "ready" | "error";
 export type Resource<T> = {
   status: ResStatus;
   data: T[];
+  error?: unknown;
   // Refetch in the background: the current data stays on screen (no skeleton)
   // and is swapped once the new list arrives. Errors keep the old data.
   refresh: () => Promise<void>;
@@ -23,7 +24,7 @@ export function useResource<T>(
   fetcher: () => Promise<T[]>,
   deps: unknown[] = [],
 ): Resource<T> {
-  const [res, setRes] = useState<{ status: ResStatus; data: T[] }>({ status: "loading", data: [] });
+  const [res, setRes] = useState<{ status: ResStatus; data: T[]; error?: unknown }>({ status: "loading", data: [] });
   // Back to "loading" as soon as the deps change (during render, not in the
   // effect, so there is no extra cascading render).
   const [prevDeps, setPrevDeps] = useState(deps);
@@ -46,7 +47,7 @@ export function useResource<T>(
     let current = true;
     fetcher()
       .then((d) => current && alive.current && setRes({ status: "ready", data: d }))
-      .catch(() => current && alive.current && setRes({ status: "error", data: [] }));
+      .catch((e: unknown) => current && alive.current && setRes({ status: "error", data: [], error: e }));
     return () => {
       current = false;
     };
@@ -59,8 +60,8 @@ export function useResource<T>(
         .then((d) => {
           if (alive.current) setRes({ status: "ready", data: d });
         })
-        .catch(() => {
-          /* keep what is on screen */
+        .catch((e: unknown) => {
+          if (alive.current) setRes((r) => (r.status === "error" ? { ...r, error: e } : r));
         }),
     [],
   );

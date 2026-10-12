@@ -216,7 +216,7 @@ export function autoAssign(leads: LeadX[], operators: AdminUser[], strategy: Ass
   return out;
 }
 
-export type ApplyResult = { done: number; failed: number; forbidden: boolean };
+export type ApplyResult = { done: number; failed: number; forbidden: boolean; lastError?: unknown };
 
 // Save a plan lead by lead (there is no bulk endpoint). Stops at the first 403
 // — the account can't assign at all — and reports how far it got. `onEach`
@@ -231,6 +231,7 @@ export async function applyAssignments(plan: Assignment[], byUserId: string, onE
       res.done += 1;
       onEach?.(a, at);
     } catch (e) {
+      res.lastError = e;
       if (isForbiddenErr(e)) {
         res.forbidden = true;
         break;

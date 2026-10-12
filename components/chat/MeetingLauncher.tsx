@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth, canMakeCalls, sessionRoles } from "@/lib/auth";
 import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type AdminCallDetail, type LiveKitJoin } from "@/lib/services/backend";
 import { http, asArr, asDict, asStr, ApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import { useResource } from "@/lib/useResource";
 import { shortDate, shortDateTime } from "@/lib/date";
 import { makeInviteSearch } from "@/lib/inviteSearch";
@@ -15,7 +16,8 @@ import CallRoom from "@/components/chat/CallRoom";
 import { Notice, AdminItem } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import DatePicker from "@/components/DatePicker";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
+import FieldError from "@/components/ui/FieldError";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
 import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconEye } from "@/components/icons";
 import { regionLabel, humanize } from "@/lib/labels";
@@ -33,21 +35,22 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
   const t = useTranslations("admin.callHistory");
   const locale = useLocale();
   const [d, setD] = useState<AdminCallDetail | null>(null);
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState<{ error: unknown } | null>(null);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     if (!id) return;
     let alive = true;
-    const h = setTimeout(() => { setD(null); setErr(false); }, 0);
-    getAdminCallDetail(id).then((x) => alive && setD(x)).catch(() => alive && setErr(true));
+    const h = setTimeout(() => { setD(null); setErr(null); }, 0);
+    getAdminCallDetail(id).then((x) => alive && setD(x)).catch((e: unknown) => alive && setErr({ error: e }));
     return () => { alive = false; clearTimeout(h); };
-  }, [id]);
+  }, [id, tick]);
   const row = (k: string, v?: string | number | null) => (v === undefined || v === null || v === "" ? null : (
     <div className="dkv__row" key={k}><span>{k}</span><b>{String(v)}</b></div>
   ));
 
   return (
     <Modal open={!!id} onClose={onClose} title={d?.call.title || t("detailTitle")}>
-      {err ? <Notice ok={false} msg={t("detailError")} /> : !d ? <Skeleton rows={3} /> : (
+      {err ? <ErrorState compact title={t("detailError")} error={err.error} onRetry={() => setTick((n) => n + 1)} /> : !d ? <Skeleton rows={3} /> : (
         <div className="dkv">
           <div className="dkv__sect">
             <b>{t("detail.meeting")}</b>
@@ -100,6 +103,10 @@ type HistoryItem = {
 };
 const LIVE = new Set(["active", "scheduled"]);
 const OUT = new Set(["removed", "declined"]);
+const START_ID = "meeting-start";
+const REFRESH_ID = "meetings-refresh";
+const isMissing = (e: unknown) => e instanceof ApiError && [404, 405, 501].includes(e.status);
+const isTransient = (e: unknown) => !(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 501);
 
 async function loadHistory(): Promise<HistoryItem[]> {
   const raw = await http("/calls/invited");
@@ -134,6 +141,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const t = useTranslations("admin.meetings");
   const tch = useTranslations("admin.callHistory");
   const tc = useTranslations("call");
+  const tn = useTranslations("common.notify");
   const te = useTranslations("enums");
   const locale = useLocale();
   const { session } = useAuth();
@@ -141,11 +149,15 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const [title, setTitle] = useState("");
   const [picks, setPicks] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [pickErr, setPickErr] = useState("");
+  const pickErrId = useId();
+  const pickBox = useRef<HTMLDivElement>(null);
+  const startRef = useRef<() => void>(() => undefined);
   const [active, setActive] = useState<Active | null>(null);
   const [history, setHistory] = useState<HistoryItem[] | null>(null);
-  const [histErr, setHistErr] = useState<"" | "error" | "missing">("");
+  const [histErr, setHistErr] = useState<{ missing: boolean; error: unknown } | null>(null);
   const [histTick, setHistTick] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   // The former standalone /admin/call-history page — every meeting on the
   // platform, not just this account's own — folded in as a second tab here
@@ -175,6 +187,17 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   // itself is only in memory); a meeting I merely joined is offered again by
   // IncomingCallWatcher's resume card instead.
   const resumedRef = useRef(false);
+  const shownRef = useRef(false);
+  const takeHistory = useCallback((list: HistoryItem[]) => {
+    shownRef.current = true;
+    setHistory(list);
+    setHistErr(null);
+  }, []);
+  const failHistory = useCallback((e: unknown) => {
+    shownRef.current = false;
+    setHistory([]);
+    setHistErr({ missing: isMissing(e), error: e });
+  }, []);
   useEffect(() => {
     if (!session || active) return;
     let alive = true;
@@ -182,8 +205,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     loadHistory()
       .then((list) => {
         if (!alive) return;
-        setHistory(list);
-        setHistErr("");
+        takeHistory(list);
         if (resumedRef.current) return;
         resumedRef.current = true;
         let raw: string | null = null;
@@ -200,12 +222,37 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         if (c.callerUserId === me) setActive({ roomId: stored.roomId, callId: stored.callId, isCaller: true, title: c.title || undefined, lk: null });
       })
       .catch((e) => {
-        if (!alive) return;
-        setHistory([]);
-        setHistErr(e instanceof ApiError && [404, 405, 501].includes(e.status) ? "missing" : "error");
+        if (!alive || (shownRef.current && !isMissing(e))) return;
+        failHistory(e);
       });
     return () => { alive = false; };
-  }, [session, active, histTick]);
+  }, [session, active, histTick, takeHistory, failHistory]);
+
+  useEffect(() => () => {
+    notify.dismiss(START_ID);
+    notify.dismiss(REFRESH_ID);
+  }, []);
+
+  async function reloadHistory() {
+    if (refreshing) return;
+    notify.dismiss(REFRESH_ID);
+    setRefreshing(true);
+    try {
+      takeHistory(await loadHistory());
+    } catch (e) {
+      if (shownRef.current && !isMissing(e)) {
+        notify.error(t("refreshFailed"), {
+          id: REFRESH_ID,
+          error: e,
+          action: isTransient(e) ? { label: tn("retry"), onClick: () => void reloadHistory() } : undefined,
+        });
+      } else {
+        failHistory(e);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   // Staff search any platform user; sellers (no /users/search) get lawyers +
   // their own clients — see lib/inviteSearch.
@@ -219,10 +266,11 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     // Backend allows a meeting with any count (even host-only); require at least
     // one invitee so the room has a counterpart.
     if (picks.length < 1) {
-      setErr(t("needParticipants"));
+      setPickErr(t("needParticipants"));
+      pickBox.current?.querySelector<HTMLElement>("button")?.focus();
       return;
     }
-    setErr(null);
+    notify.dismiss(START_ID);
     setBusy(true);
     try {
       // A meeting lives under a secure-chat room (no payment for staff/sellers).
@@ -245,12 +293,20 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         lk: call.livekitToken ? { url: call.livekitUrl, room: call.livekitRoom, token: call.livekitToken, hints: call.hints, quality: call.quality } : null,
       });
     } catch (e) {
-      const s = e instanceof ApiError ? e.status : 0;
-      setErr(s === 402 || s === 403 ? t("noPermission") : s === 404 || s === 405 || s === 501 ? t("backendMissing") : t("error"));
+      notify.error(t("startFailed"), {
+        id: START_ID,
+        error: e,
+        map: { 402: t("planLimit"), 403: t("noPermission"), 405: t("backendMissing"), 501: t("backendMissing") },
+        action: isTransient(e) ? { label: tn("retry"), onClick: () => startRef.current() } : undefined,
+      });
     } finally {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    startRef.current = () => void start();
+  });
 
   function rejoin(c: HistoryItem) {
     setActive({ roomId: c.roomId, callId: c.callId, isCaller: c.callerUserId === session?.id, title: c.title || undefined, lk: null });
@@ -282,7 +338,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   // else. Always callStatus "ended" — never joinable, so the (very real)
   // Join/Rejoin button never appears on a sample row.
   const sampleHistory: HistoryItem[] =
-    history && history.length === 0
+    history && history.length === 0 && !histErr
       ? (t.raw("sample") as { title: string; callerName?: string; mine: boolean; daysAgo: number; minutes: number; callType: "audio" | "video" }[]).map(
           (s, i) => {
             const started = new Date(new Date().getTime() - s.daysAgo * 86_400_000);
@@ -366,27 +422,32 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           <label>{t("titleLabel")}</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} />
         </div>
-        <div>
+        <div ref={pickBox} data-invalid={pickErr ? "true" : undefined}>
           <label>{t("participants")}</label>
           <SearchSelect
             value={picks}
-            onChange={setPicks}
+            onChange={(v) => {
+              setPicks(v);
+              if (v.length) setPickErr("");
+            }}
             onSearch={searchOptions}
             placeholder={t("participantsPh")}
             searchPlaceholder={t("participantsSearch")}
             emptyText={t("participantsEmpty")}
             ariaLabel={t("participants")}
+            invalid={!!pickErr}
+            describedBy={pickErr ? pickErrId : undefined}
           />
+          <FieldError id={pickErrId} msg={pickErr} />
         </div>
         <p className="advmuted" style={{ fontSize: ".82rem", margin: 0 }}>{seller ? t("sellerHint") : t("hint")}</p>
-        {err ? <Notice ok={false} msg={err} /> : null}
         <div style={{ display: "flex", gap: 10 }}>
           <button className="btn btn--pri" type="button" onClick={start} disabled={busy || !canHost}>
             <IconVideo />
             {busy ? t("starting") : t("start")}
           </button>
           {rich && (title || picks.length) ? (
-            <button className="btn btn--line" type="button" onClick={() => { setTitle(""); setPicks([]); }}>
+            <button className="btn btn--line" type="button" onClick={() => { setTitle(""); setPicks([]); setPickErr(""); }}>
               <IconRefresh />
               {t("clear")}
             </button>
@@ -399,10 +460,10 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const historyBody =
     history === null ? (
       <Skeleton rows={3} />
-    ) : histErr === "missing" ? (
+    ) : histErr?.missing ? (
       <Notice ok={false} msg={t("backendMissing")} />
-    ) : histErr === "error" ? (
-      <Notice ok={false} msg={t("historyError")} />
+    ) : histErr ? (
+      <ErrorState title={t("historyLoadFailed")} error={histErr.error} onRetry={reloadHistory} />
     ) : null;
 
   if (!rich) {
@@ -416,7 +477,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           <div className="ppanel__h">
             <b className="ppanel__t"><span className="pico"><IconClock /></span>{canSeeAllHistory ? tch("title") : t("history")}</b>
             {showMine ? (
-              <button type="button" className="btn btn--line btn--sm" onClick={refreshHistory} disabled={history === null}>
+              <button type="button" className="btn btn--line btn--sm" onClick={reloadHistory} disabled={history === null} aria-disabled={refreshing || undefined} aria-busy={refreshing || undefined}>
                 <IconRefresh />{t("refresh")}
               </button>
             ) : null}
@@ -485,6 +546,8 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
               <p className="advmuted" style={{ marginBottom: 16 }}>{tch("lead")}</p>
               {platRes.status === "loading" ? (
                 <Skeleton rows={4} />
+              ) : platRes.status === "error" ? (
+                <ErrorState title={t("historyLoadFailed")} error={platRes.error} onRetry={platRes.refresh} />
               ) : !platRes.data.length ? (
                 <EmptyState icon={<IconVideo />} title={tch("empty")} text={tch("emptyText")} />
               ) : (
@@ -596,6 +659,8 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           </div>
           {history === null ? (
             <Skeleton rows={2} />
+          ) : histErr ? (
+            <ErrorState compact error={histErr.error} />
           ) : !todayItems.length ? (
             <p className="advmuted">{t("todayEmpty")}</p>
           ) : (
@@ -624,7 +689,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
       <div className="ppanel" data-ai-target="seller:meeting-list">
         <div className="ppanel__h">
           <b className="ppanel__t"><span className="pico"><IconClock /></span>{t("history")}</b>
-          <button type="button" className="btn btn--line btn--sm" onClick={refreshHistory} disabled={history === null}>
+          <button type="button" className="btn btn--line btn--sm" onClick={reloadHistory} disabled={history === null} aria-disabled={refreshing || undefined} aria-busy={refreshing || undefined}>
             <IconRefresh />{t("refresh")}
           </button>
         </div>

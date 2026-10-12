@@ -10,8 +10,9 @@ import {
 } from "@/lib/services/admin";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
+import { notify } from "@/lib/toast";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { AdminForm, AdminItem, Notice, useReload, type Field } from "@/components/admin/AdminBits";
+import { AdminForm, AdminItem, useReload, type Field } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import TemplateImport from "@/components/admin/TemplateImport";
 import FilterBar from "@/components/filters/FilterBar";
@@ -35,7 +36,6 @@ export default function AdminTemplates() {
   const [del, setDel] = useState<BackendTemplate | null>(null);
   const [q, setQ] = useState("");
   const [delBusy, setDelBusy] = useState(false);
-  const [delNote, setDelNote] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // Full field set (with the template body). Used by both create and edit; the
   // edit form is prefilled from the single-template GET so the body can be
@@ -87,14 +87,13 @@ export default function AdminTemplates() {
   async function confirmDelete() {
     if (!del || delBusy) return;
     setDelBusy(true);
-    setDelNote(null);
     try {
       await deleteDocumentTemplate(del.id);
       setDel(null);
       reload();
+      notify.success(t("form.deleted"), { id: `tpl-del-${del.id}`, body: del.name });
     } catch (e) {
-      const detail = e && typeof e === "object" && "detail" in e ? String((e as { detail?: string }).detail) : "";
-      setDelNote({ ok: false, msg: detail || t("form.deleteError") });
+      notify.error(t("form.deleteError"), { id: `tpl-del-${del.id}`, error: e });
     } finally {
       setDelBusy(false);
     }
@@ -153,7 +152,7 @@ export default function AdminTemplates() {
                     <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => openEdit(d)} data-ai-id={d.id ? aiId("admin.templates.item", d.id, "edit") : undefined}>
                       <IconEdit />
                     </button>
-                    <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => { setDelNote(null); setDel(d); }}>
+                    <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => setDel(d)}>
                       <IconTrash />
                     </button>
                   </>
@@ -186,7 +185,7 @@ export default function AdminTemplates() {
             submitLabel={t("form.save")}
             busyLabel={t("form.saving")}
             okMsg={t("form.created")}
-            errMsg={t("form.error")}
+            errMsg={t("form.saveFailed")}
             onDone={() => {
               reload();
               setOpen(false);
@@ -248,7 +247,6 @@ export default function AdminTemplates() {
               <b>{del.name}</b>
             </p>
             <p className="advmuted" style={{ margin: 0 }}>{t("form.deleteConfirmText")}</p>
-            {delNote ? <Notice ok={delNote.ok} msg={delNote.msg} /> : null}
             <div style={{ display: "flex", gap: 10 }}>
               <button className="btn btn--ghost" type="button" onClick={() => setDel(null)}>
                 {t("form.cancel")}

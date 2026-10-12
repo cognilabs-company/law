@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { assigneeLabel, leadCategoryLabel, leadRegionLabel, leadScoreLabel } from "@/lib/leadLabels";
 import { moveCallCenterLead, adminUpdateLead } from "@/lib/services/backend";
@@ -12,7 +12,6 @@ import {
   patchLeadInColumns,
   withAssignment,
   assignLead,
-  isForbiddenErr,
   useOperators,
   EMPTY_LEAD_FILTER,
   filterActive,
@@ -27,14 +26,14 @@ import LeadFilterBar from "@/components/admin/LeadFilterBar";
 
 const LOST_REASONS = ["price", "solved_self", "competitor", "no_answer", "no_service", "spam"] as const;
 const isLostKey = (k: string) => /lost|rejected|yoqotil|rad/i.test(k);
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import Select from "@/components/Select";
-import { Skeleton } from "@/components/portal/DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import { IconRefresh, IconPhone } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
 
-type State = { status: "loading" | "ready" | "error" | "forbidden"; columns: KanbanColumnX[] };
+type State = { status: "loading" | "ready" | "error" | "forbidden"; columns: KanbanColumnX[]; error?: unknown };
 
 // T1A-05 call-center lead board (GET /call-center/leads/kanban, PATCH …/move).
 // Compact columns with counts; each card moves through a select, which also
@@ -46,23 +45,33 @@ export default function CallCenterBoard() {
   const tq = useTranslations("admin.callCenter.queue");
   const te = useTranslations("enums");
   const tp = useTranslations("admin.pipeline");
+  const tn = useTranslations("common.notify");
   const { session } = useAuth();
   const meId = session?.id ?? "";
   const ops = useOperators();
   const [state, setState] = useState<State>({ status: "loading", columns: [] });
   const [busyId, setBusyId] = useState("");
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [f, setF] = useState<LeadFilter>(EMPTY_LEAD_FILTER);
+  const hasCols = useRef(false);
+  const cols = useRef<KanbanColumnX[]>([]);
+  const again = useRef<() => void>(() => undefined);
 
   const load = useCallback(
     () =>
       getCallCenterKanbanX()
-        .then((columns) => setState({ status: "ready", columns }))
-        .catch((e) => {
+        .then((columns) => {
+          hasCols.current = columns.length > 0;
+          setState({ status: "ready", columns });
+        })
+        .catch((e: unknown) => {
           const forbidden = e instanceof ApiError && (e.status === 403 || e.status === 401);
-          setState((s) => ({ status: forbidden ? "forbidden" : "error", columns: s.columns }));
+          if (!forbidden && hasCols.current) {
+            notify.error(t("refreshFailed"), { id: "cc-board-refresh", error: e, action: { label: tn("retry"), onClick: () => again.current() } });
+            return;
+          }
+          setState((s) => ({ status: forbidden ? "forbidden" : "error", columns: s.columns, error: e }));
         }),
-    [],
+    [t, tn],
   );
 
   // Lost reason is asked before the card lands in a "lost" column (T4-02 §7).
@@ -72,6 +81,12 @@ export default function CallCenterBoard() {
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    again.current = () => void load();
+  }, [load]);
+  useEffect(() => {
+    cols.current = state.columns;
+  }, [state.columns]);
 
   const allLeads = useMemo(() => leadsOf(state.columns), [state.columns]);
   const filterItems = useMemo(() => state.columns.flatMap((c) => c.cards.map((x) => ({ lead: leadFilterable(x.lead), stage: c.key }))), [state.columns]);
@@ -86,9 +101,38 @@ export default function CallCenterBoard() {
   );
   const shown = viewCols.reduce((n, c) => n + c.cards.length, 0);
 
+  const moveRef = useRef(move);
+  useEffect(() => {
+    moveRef.current = move;
+  });
   if (state.status === "forbidden") return null;
 
   const colTitle = (c: KanbanColumnX) => (tq.has(`stages.${c.key}`) ? tq(`stages.${c.key}`) : c.title || c.key);
+  const leadTitle = (lead: LeadX) => lead.name || lead.phone || leadCategoryLabel(tp, lead.category) || tp("untitledLead");
+  const canAssign = ops.status === "ready" && ops.ops.length > 0;
+  const assigneeOpts = [{ value: "", label: tp("assign.none") }, ...ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${o.name || o.phone} (${tp("assign.me")})` : o.name || o.phone || o.lexgoId }))];
+
+  function lostSaveFailed(leadId: string, fields: Record<string, string>, fallback: Record<string, unknown>, e: unknown) {
+    notify.warning(t("lostReasonFailed"), {
+      id: "cc-lead-lost-reason",
+      error: e,
+      action: isForbidden(e)
+        ? undefined
+        : {
+            label: tn("retry"),
+            onClick: () => {
+              const details = leadsOf(cols.current).find((l) => l.id === leadId)?.details ?? fallback;
+              void adminUpdateLead(leadId, { details: { ...details, ...fields } }).then(
+                () => {
+                  notify.success(t("lostReasonSaved"), { id: "cc-lead-lost-reason" });
+                  void load();
+                },
+                (err: unknown) => lostSaveFailed(leadId, fields, fallback, err),
+              );
+            },
+          },
+    });
+  }
 
   // Optimistic: the card moves at once; the board is refetched in the
   // background (the fetch takes seconds) and a rejected move is reverted.
@@ -98,9 +142,10 @@ export default function CallCenterBoard() {
     const before = state.columns;
     const from = before.find((c) => c.cards.some((x) => x.lead.id === leadId));
     const card = from?.cards.find((x) => x.lead.id === leadId);
+    const to = before.find((c) => c.key === key);
     if (!from || !card || from.key === key) return;
+    const lostFields = lost ? { lost_reason: lost.reason, lost_note: lost.note, lost_at: new Date().toISOString() } : null;
     setBusyId(leadId);
-    setNote(null);
     setState((s) => ({
       ...s,
       columns: s.columns.map((c) => {
@@ -112,12 +157,25 @@ export default function CallCenterBoard() {
     try {
       // Details are replaced by the PATCH, so the existing ones are merged in. Best effort: a
       // call-center account without leads.manage still moves the card.
-      if (lost) await adminUpdateLead(leadId, { details: { ...(card.lead.details ?? {}), lost_reason: lost.reason, lost_note: lost.note, lost_at: new Date().toISOString() } }).catch(() => {});
+      const lostFail = lostFields
+        ? await adminUpdateLead(leadId, { details: { ...(card.lead.details ?? {}), ...lostFields } }).then(
+            () => null,
+            (e: unknown) => ({ e }),
+          )
+        : null;
       await moveCallCenterLead(leadId, key, 0);
+      notify.dismiss(`cc-lead-move:${leadId}`);
+      notify.success(tp("notify.moved", { stage: to ? colTitle(to) : key }), { id: "cc-lead-move" });
+      if (lostFail && lostFields) lostSaveFailed(leadId, lostFields, card.lead.details ?? {}, lostFail.e);
       void load();
     } catch (e) {
       setState((s) => ({ ...s, columns: before }));
-      setNote({ ok: false, msg: e instanceof ApiError && e.status === 403 ? tq("noPermission") : tq("actionError") });
+      notify.error(tq("moveFailed"), {
+        id: `cc-lead-move:${leadId}`,
+        error: e,
+        map: { 403: tq("noPermission") },
+        action: isForbidden(e) ? undefined : { label: tn("retry"), onClick: () => void moveRef.current(leadId, key, lost) },
+      });
     } finally {
       setBusyId("");
     }
@@ -129,22 +187,19 @@ export default function CallCenterBoard() {
     if (busyId || userId === lead.assignedTo) return;
     const before = state.columns;
     const at = new Date().toISOString();
+    const who = assigneeOpts.find((o) => o.value === userId)?.label ?? "";
     setBusyId(lead.id);
-    setNote(null);
     setState((s) => ({ ...s, columns: patchLeadInColumns(s.columns, lead.id, (l) => withAssignment(l, userId, meId, at)) }));
     try {
       await assignLead(lead, userId, meId);
-      setNote({ ok: true, msg: userId ? tp("assign.done") : tp("assign.removed") });
+      notify.success(userId ? tp("notify.assigned") : tp("notify.unassigned"), { id: `cc-assign-${lead.id}`, body: userId ? `${leadTitle(lead)} → ${who}` : leadTitle(lead) });
     } catch (e) {
       setState((s) => ({ ...s, columns: before }));
-      setNote({ ok: false, msg: isForbiddenErr(e) ? tp("assign.noPermission") : tp("assign.err") });
+      notify.error(t("assignFailed"), { id: `cc-assign-${lead.id}`, error: e, map: { 403: tp("assign.noPermission") } });
     } finally {
       setBusyId("");
     }
   }
-
-  const canAssign = ops.status === "ready" && ops.ops.length > 0;
-  const assigneeOpts = [{ value: "", label: tp("assign.none") }, ...ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${o.name || o.phone} (${tp("assign.me")})` : o.name || o.phone || o.lexgoId }))];
 
   return (
     <div className="ppanel" data-ai-target="callcenter:board">
@@ -182,11 +237,10 @@ export default function CallCenterBoard() {
           aiId="call_center.board.filters"
         />
       ) : null}
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {state.status === "loading" ? (
         <Skeleton rows={3} />
       ) : state.status === "error" ? (
-        <p className="advmuted">{tq("loadError")}</p>
+        <ErrorState error={state.error} onRetry={load} title={t("loadError")} compact />
       ) : !state.columns.length ? (
         <p className="advmuted">{t("empty")}</p>
       ) : (
@@ -205,7 +259,7 @@ export default function CallCenterBoard() {
                   const titledByCategory = !lead.name && !lead.phone;
                   return (
                   <div className="ccb__card" key={lead.id}>
-                    <b>{lead.name || lead.phone || leadCategoryLabel(tp, lead.category) || tp("untitledLead")}</b>
+                    <b>{leadTitle(lead)}</b>
                     <span className="ccb__meta">
                       {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: LEAD-DX36K — what
                           an operator reads out on the phone. */}

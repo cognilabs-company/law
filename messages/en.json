@@ -3674,6 +3674,19 @@
     }
   },
   "common": {
+    "notify": {
+      "region": "Notifications",
+      "close": "Close",
+      "retry": "Retry",
+      "undo": "Undo",
+      "open": "Open",
+      "more": "{n, plural, one {# more notification} other {# more notifications}}"
+    },
+    "confirm": {
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
+    "required": "Fill in this field",
     "requestId": "Request ID: {id}",
     "loadMore": "Load more",
     "retry": "Retry",
@@ -8538,6 +8551,7 @@
       }
     },
     "org": {
+      "createFailed": "Couldn't create the organization",
       "memberServices": "Services",
       "manage": "Dashboard",
       "statusMap": {
@@ -10412,6 +10426,10 @@
       }
     },
     "qualityComplaints": {
+      "loadError": "Couldn't load the complaints",
+      "detailLoadError": "Couldn't load the complaint details",
+      "resolveFailed": "Couldn't save the ruling",
+      "refreshFailed": "Couldn't refresh complaints",
       "title": "Quality complaints",
       "lead": "A complaint lands here when a client rates the work one or two stars.",
       "all": "All",
@@ -10454,6 +10472,9 @@
       }
     },
     "urgent": {
+      "loadError": "Couldn't load the requests",
+      "detailLoadError": "Couldn't load the request",
+      "notify": {"claimed":"Request claimed","chatOpened":"A private chat with the client is open.","claimFailed":"Couldn't claim the request","meetingFailed":"Couldn't start the meeting","completeFailed":"Couldn't complete the request","transferFailed":"Couldn't hand the work over","transferredTo":"Now handled by {name}.","cancelFailed":"Couldn't cancel the request","statusFailed":"Couldn't change the status","groupAssigned":"{n, plural, one {# advocate assigned} other {# advocates assigned}}","groupFailed":"Couldn't assign the panel","listFailed":"Couldn't refresh the request list","listRefreshed":"Request list refreshed","detailFailed":"Couldn't refresh the request details","detailRefreshed":"Request details refreshed"},
       "movedTo": "The list switched to “{status}”.",
       "sourceValue": "Urgent advocate",
       "fSource": "Source",
@@ -10487,7 +10508,7 @@
       "overrideCountHint": "Different from the number the client asked for.",
       "overrideCount": "Assign this many anyway",
       "directionMismatch": "{n} advocates do not match the request's practice area.",
-      "countMismatch": "The client asked for {want} advocates; {got} are selected.",
+      "countMismatch": "The client asked for {want, plural, one {# advocate} other {# advocates}}; {got} selected.",
       "timeOptional": "Leave the time empty and the request moves to “in progress” instead.",
       "pickedOf": "{n} of {want} chosen",
       "offDirectionLead": "These advocates do not cover the request's practice area — assigning one needs a deliberate override.",
@@ -10639,6 +10660,9 @@
       "policies": "Platform policies"
     },
     "overview": {
+      "seedDone": "Demo data seeded",
+      "seedRerun": "Running it again won't create duplicates.",
+      "seedFailed": "Couldn't seed demo data",
       "severity": {
         "high": "High",
         "medium": "Medium",
@@ -10754,12 +10778,13 @@
       "seedError": "Seed failed."
     },
     "form": {
+      "saveFailed": "Couldn't save",
       "title": "Title",
       "slug": "Slug",
       "description": "Description",
       "save": "Save",
       "saving": "Saving…",
-      "created": "Created successfully.",
+      "created": "Created successfully",
       "error": "Something went wrong. Check the fields.",
       "active": "Active",
       "category": "Category",
@@ -10805,8 +10830,8 @@
       "localOnly": "This device only",
       "forget": "Remove from list",
       "reactivate": "Reactivate",
-      "reactivated": "Service reactivated.",
-      "reactivateError": "Could not reactivate.",
+      "reactivated": "Service reactivated",
+      "reactivateError": "Could not reactivate",
       "tagCatalog": "Catalogue",
       "tagCustom": "Added manually",
       "catLimitNote": "Editing/deleting categories is not available in the backend yet (create only).",
@@ -10818,14 +10843,14 @@
         "text": "The service is hidden from the catalogue (deactivated); order history is kept.",
         "cta": "Delete",
         "busy": "Deleting…",
-        "done": "Service deleted (inactive)."
+        "done": "Service deleted (inactive)"
       },
       "edit": {
         "title": "Edit service",
         "titleRequired": "Title is required.",
         "badNumber": "A numeric field is invalid.",
-        "noChanges": "No changes.",
-        "saved": "Service saved.",
+        "noChanges": "No changes",
+        "saved": "Service saved",
         "errValidation": "Validation failed — check the fields.",
         "errNotFound": "Service not found (it may be deleted).",
         "errForbidden": "Not allowed for this account (services.manage).",
@@ -10868,26 +10893,27 @@
         "upload": "Upload",
         "replace": "Replace",
         "uploading": "Uploading…",
-        "done": "Uploaded — {n} fields found.",
-        "error": "Could not upload.",
+        "done": "Uploaded — {n, plural, one {# field} other {# fields}} found",
+        "error": "Could not upload",
         "onlyDocx": "Only .docx files are accepted.",
         "tooBig": "The file is larger than allowed.",
         "forbidden": "Not permitted."
       },
       "cat": {
+        "overlaySaved": "Saved in platform settings",
         "visibleChip": "Visible ({n})",
         "view": "Show",
         "editTitle": "Edit category",
-        "overlayNote": "The backend cannot edit categories yet — the change is stored in the platform settings and applied in the catalogue.",
+        "overlayNote": "The server cannot edit categories yet — the change is stored in the platform settings and applied in the catalogue.",
         "deleteText": "The category is hidden from the catalogue (client and admin lists). Its services are kept; it can be restored.",
-        "deleted": "Category hidden.",
+        "deleted": "Category hidden",
         "hiddenChip": "Hidden ({n})",
         "hiddenTag": "Hidden",
         "overridden": "Edited",
         "restore": "Restore to list",
-        "restored": "Category restored to the list.",
+        "restored": "Category restored to the list",
         "reset": "Reset to backend name",
-        "resetDone": "Admin change removed."
+        "resetDone": "Admin change removed"
       }
     },
     "plans": {
@@ -11129,6 +11155,11 @@
       }
     },
     "meetings": {
+      "ccFailed": "Couldn't open the meeting",
+      "startFailed": "Meeting didn't start",
+      "planLimit": "Your plan doesn't include meetings or the limit is used up.",
+      "historyLoadFailed": "Couldn't load the meeting history",
+      "refreshFailed": "Couldn't refresh",
       "scopeAll": "All meetings",
       "scope": "Show",
       "title": "Meetings",
@@ -11146,7 +11177,7 @@
       "hint": "You'll be the host. The selected users will be invited.",
       "sellerHint": "You will be the host. Search your clients and advocates/lawyers by name or phone.",
       "noPermission": "You are not allowed to start meetings. Contact an administrator.",
-      "backendMissing": "This feature is waiting for the backend.",
+      "backendMissing": "This feature isn't enabled on the server yet.",
       "history": "My meetings",
       "refresh": "Refresh",
       "activeGroup": "Active",
@@ -11240,6 +11271,7 @@
       "stagingOnlyText": "Test OTP codes are kept only on the staging/demo server. Production has no such list — codes are sent by SMS or Telegram."
     },
     "pipeline": {
+      "notify": {"moved":"Lead moved to “{stage}”","reordered":"Lead order changed","moveUndone":"Move undone","moveFailed":"Couldn't move the lead","lostFailed":"Couldn't save the lost reason","added":"Lead added","addFailed":"Couldn't add the lead","deleteAsk":"Delete the lead “{name}”?","deleted":"Lead deleted","deleteFailed":"Couldn't delete the lead","stageAdded":"Stage added","stageSaved":"Stage saved","stageAddFailed":"Couldn't add the stage","stageSaveFailed":"Couldn't save the stage","stageDeleted":"Stage deleted","stageLeadsMoved":"{n, plural, one {# lead moved} other {# leads moved}} to “{stage}”","stageDeleteFailed":"Couldn't delete the stage","stageDeleteConflict":"A system stage, or a stage that still has leads, can't be deleted.","autoDone":"{n, plural, one {# lead assigned} other {# leads assigned}}","autoPartial":"Leads partly assigned","autoFailed":"Couldn't assign the leads","assigned":"Operator assigned","unassigned":"Assignment removed","assignFailed":"Couldn't assign the operator","unassignFailed":"Couldn't remove the assignment","noteSaved":"Note saved","noteFailed":"Couldn't save the note","callFailed":"Couldn't log the call","reminderFailed":"Couldn't create the reminder"},
       "periodPick": {
         "label": "Period",
         "all": "All time",
@@ -11258,16 +11290,16 @@
         "cold": "Cold"
       },
       "title": "Sales pipeline",
-      "addStatus": "Add status",
-      "renameStatus": "Rename status",
-      "statusName": "Status name",
+      "addStatus": "Add stage",
+      "renameStatus": "Rename stage",
+      "statusName": "Stage name",
       "statusNamePh": "e.g. Pending",
       "statusColor": "Color",
       "statusFinal": "Final stage",
       "editStatus": "Edit",
-      "deleteStatus": "Delete status",
-      "deleteStatusText": "Delete this status?",
-      "reassignLeads": "This status has {count, plural, one {# lead} other {# leads}} — move them to:",
+      "deleteStatus": "Delete stage",
+      "deleteStatusText": "Delete this stage?",
+      "reassignLeads": "This stage has {count, plural, one {# lead} other {# leads}} — move them to:",
       "moveAndDelete": "Move & delete",
       "lead": "Move leads through the stages: new → contacted → qualified → won/lost.",
       "empty": "No leads",
@@ -11356,6 +11388,7 @@
         }
       },
       "assign": {
+        "unknown": "Unknown operator",
         "title": "Operator",
         "select": "Choose an operator",
         "none": "Unassigned",
@@ -11364,10 +11397,10 @@
         "done": "Lead assigned to the operator.",
         "removed": "Assignment removed.",
         "err": "Could not assign. Try again.",
-        "noPermission": "Assignment is for managers/admins only (leads.manage).",
-        "opsForbidden": "Not allowed to view the operator list (users.manage).",
+        "noPermission": "Only a manager or administrator can do this.",
+        "opsForbidden": "Not allowed to view the operator list.",
         "noOps": "No active duty operators found.",
-        "localNote": "The assignment is stored in the lead details (no dedicated backend field yet)."
+        "localNote": "The assignment is stored in the lead details."
       },
       "auto": {
         "btn": "Auto-assign",
@@ -11379,11 +11412,11 @@
         "preview": "Planned distribution",
         "confirm": "Start distribution",
         "running": "Assigning: {done}/{total}",
-        "done": "{n} leads assigned.",
-        "partial": "{n} leads assigned, {failed} failed.",
+        "done": "{n, plural, one {# lead assigned} other {# leads assigned}}.",
+        "partial": "{n, plural, one {# lead assigned} other {# leads assigned}}, {failed} failed.",
         "nothing": "No unassigned leads.",
         "noOps": "No active operators — add a duty desk member first.",
-        "backendPending": "The backend has no auto-assign endpoint yet — the distribution is written into lead details and shown here."
+        "backendPending": "The server has no auto-assign function yet — the distribution is written into lead details and shown here."
       }
     },
     "callAnalytics": {
@@ -11400,7 +11433,7 @@
       "noAgents": "The per-agent breakdown is not on the backend yet."
     },
     "ceo": {
-      "report": {"na":"not tracked","asOf":"as of {date}","custom":"Custom range","allRegions":"All regions","failed":"Couldn't load the CEO figures.","retry":"Try again","summary":"In this period the platform earned <b>{revenue}</b>, took <b>{payments}</b> payments, and <b>{conv}</b> of leads became orders. Users in total: <b>{users}</b>.","deltaUp":"That is <b>{n}%</b> more than the previous period.","deltaDown":"That is <b>{n}%</b> less than the previous period.","revNote":"Daily revenue for the selected period.","figTotal":"Period total","figAvg":"Daily average","figBest":"Best day","figActive":"Days with revenue","daysOf":"{n} of {total} days","unit":"Unit economics","unitNote":"What each figure means and where it stands now.","colMetric":"Metric","colValue":"Value","colNote":"Note","payback":"Payback period","months":"{n, plural, one {# month} other {# months}}","health":{"good":"Healthy","watch":"Worth a look","bad":"At risk","na":"Not tracked"},"notes":{"gmv":"Total value of all payments through the platform.","gmvEq":"Currently computed the same as total revenue.","mrr":"Monthly recurring revenue from subscriptions.","mrrEq":"The backend currently returns MRR equal to total revenue.","arr":"Annual recurring revenue (MRR × 12).","arpu":"Average revenue per paying user.","take":"Platform commission — the share of GMV the platform keeps.","cacNa":"No marketing spend has been entered, so this can't be computed.","ltv":"Revenue expected from one client over their lifetime.","ltvCac":"3× or higher is a healthy ratio.","payback":"How many months it takes to earn back acquisition cost."},"funnelNote":"How many leads make it to an order.","kept":"{pct}% passed · {lost} lost","entry":"Entry point","paidNote":"Paid payments: <b>{n}</b>. This includes subscriptions and other payments besides orders, so it is kept out of the funnel.","channelsNote":"Click a column heading to change the sort order.","testNote":"Test and demo channels ({n}, {amount}) are hidden from the table but counted in total revenue.","showTest":"Show test channels","testTag":"test","audience":"Audience","audienceNote":"Activity, newcomers and satisfaction.","stickiness":"DAU / MAU","giftNote":"Gift subscriptions: from purchase to paying client."},
+      "report": {"na":"not tracked","asOf":"as of {date}","custom":"Custom range","allRegions":"All regions","failed":"Couldn't load the CEO figures.","retry":"Try again","summary":"In this period the platform earned <b>{revenue}</b>, took <b>{payments}</b> payments, and <b>{conv}</b> of leads became orders. Users in total: <b>{users}</b>.","deltaUp":"That is <b>{n}%</b> more than the previous period.","deltaDown":"That is <b>{n}%</b> less than the previous period.","revNote":"Daily revenue for the selected period.","figTotal":"Period total","figAvg":"Daily average","figBest":"Best day","figActive":"Days with revenue","daysOf":"{n} of {total} days","unit":"Unit economics","unitNote":"What each figure means and where it stands now.","colMetric":"Metric","colValue":"Value","colNote":"Note","payback":"Payback period","months":"{n, plural, one {# month} other {# months}}","health":{"good":"Healthy","watch":"Worth a look","bad":"At risk","na":"Not tracked"},"notes":{"gmv":"Total value of all payments through the platform.","gmvEq":"Currently computed the same as total revenue.","mrr":"Monthly recurring revenue from subscriptions.","mrrEq":"The server currently returns MRR equal to total revenue.","arr":"Annual recurring revenue (MRR × 12).","arpu":"Average revenue per paying user.","take":"Platform commission — the share of GMV the platform keeps.","cacNa":"No marketing spend has been entered, so this can't be computed.","ltv":"Revenue expected from one client over their lifetime.","ltvCac":"3× or higher is a healthy ratio.","payback":"How many months it takes to earn back acquisition cost."},"funnelNote":"How many leads make it to an order.","kept":"{pct}% passed · {lost} lost","entry":"Entry point","paidNote":"Paid payments: <b>{n}</b>. This includes subscriptions and other payments besides orders, so it is kept out of the funnel.","channelsNote":"Click a column heading to change the sort order.","testNote":"Test and demo channels ({n}, {amount}) are hidden from the table but counted in total revenue.","showTest":"Show test channels","testTag":"test","audience":"Audience","audienceNote":"Activity, newcomers and satisfaction.","stickiness":"DAU / MAU","giftNote":"Gift subscriptions: from purchase to paying client."},
       "title": "CEO dashboard",
       "revenue": "Revenue",
       "mrr": "MRR (monthly recurring)",
@@ -11482,6 +11515,7 @@
       "byStatus": "Complaint statuses"
     },
     "b2b": {
+      "docFailed": "Couldn't generate the document",
       "title": "B2B clients",
       "lead": "Corporate clients and deals.",
       "empty": "No B2B clients",
@@ -11513,7 +11547,7 @@
       "docReady": "Document ready",
       "reportTasks": "{n} tasks this month",
       "download": "Download PDF",
-      "downloadError": "Could not download the file.",
+      "downloadError": "Could not download the file",
       "generate": "Generate",
       "generating": "Generating…",
       "forbidden": "No access (b2b.manage required).",
@@ -11664,6 +11698,7 @@
       }
     },
     "callCenter": {
+      "searchFailed": "Couldn't run the search",
       "search": "Find a client",
       "searchPh": "Name or phone…",
       "searchHint": "Enter a name or phone to find a client.",
@@ -11674,13 +11709,17 @@
       "dir": { "incoming": "Incoming", "outgoing": "Outgoing" },
       "status": { "active": "Active", "inactive": "Inactive", "lead": "Lead", "completed": "Completed", "missed": "Missed", "no_answer": "No answer", "busy": "Busy", "failed": "Failed", "answered": "Answered" },
       "queue": {
+        "assignDone": "Order sent to the next matching advocate",
+        "refreshFailed": "Couldn't refresh the queue",
+        "assignFailed": "Couldn't send the order",
+        "moveFailed": "Couldn't move the lead",
         "openUrgentBoard": "Tezkor Advokat board",
         "urgentClaimed": "Claimed",
         "lawyersN": "{n} advocates",
         "title": "Queue",
         "lead": "Leads and orders without a performer: SLA breaches first, then urgent ones. Refreshes every minute.",
         "refresh": "Refresh",
-        "loadError": "Couldn't load the queue.",
+        "loadError": "Couldn't load the queue",
         "empty": "The queue is empty.",
         "breachedN": "SLA breached: {n}",
         "hot": "Urgent",
@@ -11721,6 +11760,11 @@
         }
       },
       "board": {
+        "lostReasonSaved": "Loss reason saved",
+        "refreshFailed": "Couldn't refresh the board",
+        "loadError": "Couldn't load the lead board",
+        "assignFailed": "Couldn't save the assignment",
+        "lostReasonFailed": "Loss reason wasn't saved",
         "title": "Lead board",
         "empty": "The board has no columns.",
         "noneHere": "Empty"
@@ -11734,7 +11778,7 @@
         "call": "Call",
         "logged": "Call logged.",
         "noAccess": "Your role can't open the full client card (orders, payments, history).",
-        "loadError": "Couldn't load the client card.",
+        "loadError": "Couldn't load the client card",
         "sumOrders": "Orders",
         "sumSpent": "Total paid",
         "sumLeads": "Leads",
@@ -11772,6 +11816,9 @@
         }
       },
       "calls": {
+        "saveFailed": "Couldn't save the call",
+        "refreshFailed": "Couldn't refresh the calls",
+        "loadError": "Couldn't load the calls",
         "all": "All",
         "next": "Next step",
         "min": "{n} min",
@@ -12366,6 +12413,8 @@
       "error": "Error. Try again."
     },
     "dash": {
+      "staleHint": "Couldn't refresh — showing the last loaded data.",
+      "notUpdated": "Data wasn't updated",
       "filter": {
         "custom": "Custom",
         "today": "Today",
@@ -12384,10 +12433,12 @@
         "demo": "Show demo",
         "demoOn": "Demo on",
         "demoTitle": "Preview demo figures even when real data exists",
-        "regionNote": "Region and dates are sent to the backend, but the server does not apply them yet — the filter only affects lists and trends (in the browser).",
+        "regionNote": "Region and dates are sent to the server, but it doesn't apply them yet — the filter only affects lists and trends (in the browser).",
         "sellerNote": "The filter applies to the new orders list; counters cover the whole cabinet."
       },
       "demo": {
+        "enabled": "Demo mode turned on",
+        "disabled": "Demo mode turned off",
         "badge": "Demo data",
         "banner": "No real activity yet — demo figures are shown. Real data appears automatically once the first lead, order or payment exists.",
         "forced": "Demo mode is on: demo figures are shown instead of real data. Turn off the \"Show demo\" switch to leave it.",
@@ -12467,7 +12518,7 @@
         "orders": "Orders",
         "cases": "Cases",
         "services": "Services",
-        "leadsLoadFailed": "The leads list for the region breakdown could not be loaded (permission or backend).",
+        "leadsLoadFailed": "The leads list for the region breakdown could not be loaded (permission or server).",
         "sellersLoadFailed": "The sellers list for the region breakdown could not be loaded.",
         "regionUnknown": "Region not set",
         "goRetention": "Open retention",
@@ -12476,9 +12527,9 @@
         "goLeads": "Open leads",
         "goCallCenter": "Open duty desk",
         "goCeo": "Open CEO dashboard",
-        "mrrNote": "The backend currently returns the total paid amount as MRR.",
-        "constNote": "Rating and SLA are backend constants for now — real calculation pending.",
-        "backendWait": "This breakdown is waiting for the backend.",
+        "mrrNote": "The server currently returns the total paid amount as MRR.",
+        "constNote": "Rating and SLA are fixed server values for now — real calculation pending.",
+        "backendWait": "This breakdown isn't available on the server yet.",
         "loading": "Loading…",
         "workload": "Workload",
         "finance": "Finance",

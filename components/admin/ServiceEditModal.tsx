@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
-import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
 import { getServicePassport, type BackendCategory, type ServicePassport } from "@/lib/services/backend";
 import { updateService, uploadServiceDocumentTemplate, type AdminService, type ServiceMetadataInput, type ServiceUpdateInput } from "@/lib/services/admin";
-import { ApiError, errDetail } from "@/lib/http";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
 import { firstFieldError } from "@/lib/formErrors";
 import { IconUpload, IconCheck } from "@/components/icons";
 
@@ -119,15 +119,19 @@ function DocTemplateSection({ service }: { service: AdminService }) {
   const [slug, setSlug] = useState(service.slug);
   const [title, setTitle] = useState(service.title || service.name);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [fieldCount, setFieldCount] = useState<number | null>(null);
   const [attached, setAttached] = useState(!!service.documentTemplateId);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  async function submit(e: FormEvent) {
+  function onEnter(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== "Enter" || !(e.target instanceof HTMLInputElement) || e.target.type === "file") return;
     e.preventDefault();
+    void upload();
+  }
+
+  async function upload() {
     if (!file || busy) return;
     setBusy(true);
-    setNote(null);
     try {
       const r = await uploadServiceDocumentTemplate(service.id, {
         file,
@@ -138,10 +142,10 @@ function DocTemplateSection({ service }: { service: AdminService }) {
       setFieldCount(r.fieldCount);
       setAttached(true);
       setFile(null);
-      setNote({ ok: true, msg: t("done", { n: r.fieldCount }) });
+      if (fileRef.current) fileRef.current.value = "";
+      notify.success(t("done", { n: r.fieldCount }), { id: `svc-tpl-${service.id}` });
     } catch (err) {
-      const status = err instanceof ApiError ? err.status : 0;
-      setNote({ ok: false, msg: status === 415 ? t("onlyDocx") : status === 413 ? t("tooBig") : status === 403 ? t("forbidden") : errDetail(err) || t("error") });
+      notify.error(t("error"), { id: `svc-tpl-${service.id}`, error: err, map: { 415: t("onlyDocx"), 413: t("tooBig"), 403: t("forbidden") } });
     } finally {
       setBusy(false);
     }
@@ -152,10 +156,10 @@ function DocTemplateSection({ service }: { service: AdminService }) {
       <div className="svced__sec">{t("title")}</div>
       <p className="svced__hint">{t("lead")}</p>
       {attached ? <p className="svced__hint" style={{ color: "var(--ok)" }}><IconCheck style={{ width: 13, height: 13 }} /> {t("attached")}</p> : null}
-      <form onSubmit={submit} className="cform" style={{ maxWidth: "none" }}>
+      <div className="cform" style={{ maxWidth: "none" }} onKeyDown={onEnter}>
         <div>
           <label>{t("file")}</label>
-          <input type="file" accept=".docx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <input ref={fileRef} type="file" accept=".docx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           <p className="rf__hint">{t("fileHint")}</p>
         </div>
         <div className="svced__row">
@@ -163,12 +167,11 @@ function DocTemplateSection({ service }: { service: AdminService }) {
           <div><label>{t("titleLabel")}</label><input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
         </div>
         {fieldCount != null ? <p className="svced__hint">{t("fieldsFound", { n: fieldCount })}</p> : null}
-        {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-        <button className="btn btn--soft btn--full" type="submit" disabled={busy || !file}>
+        <button className="btn btn--soft btn--full" type="button" onClick={() => void upload()} disabled={busy || !file}>
           <IconUpload />
           {busy ? t("uploading") : attached ? t("replace") : t("upload")}
         </button>
-      </form>
+      </div>
     </div>
   );
 }
@@ -225,46 +228,41 @@ function EditForm({
   const locale = useLocale();
   const [v, setV] = useState<FormVals>(initial);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [titleErr, setTitleErr] = useState("");
+  const titleRef = useRef<HTMLInputElement>(null);
+  const titleId = useId();
   const set = <K extends keyof FormVals>(k: K, val: FormVals[K]) => setV((s) => ({ ...s, [k]: val }));
-
-  function errMsg(e: unknown): string {
-    if (e instanceof ApiError) {
-      if (e.status === 422) {
-        const f = firstFieldError(e);
-        return `${t("edit.errValidation")}${f ? ` ${f}` : ""}`;
-      }
-      if (e.status >= 500) return t("edit.errServer");
-      if (e.status === 404) return t("edit.errNotFound");
-      if (e.status === 403) return t("edit.errForbidden");
-    }
-    return errDetail(e) || tf("updateError");
-  }
+  const nid = `svc-edit-${service.id}`;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
     if (!v.title.trim()) {
-      setNote({ ok: false, msg: t("edit.titleRequired") });
+      setTitleErr(t("edit.titleRequired"));
+      titleRef.current?.focus();
       return;
     }
     const payload = diff(initial, v, service.hasMetadata);
     if (payload === "bad-number") {
-      setNote({ ok: false, msg: t("edit.badNumber") });
+      notify.error(tf("updateError"), { id: nid, body: t("edit.badNumber") });
       return;
     }
     if (!Object.keys(payload).length) {
-      setNote({ ok: false, msg: t("edit.noChanges") });
+      notify.info(t("edit.noChanges"), { id: nid });
       return;
     }
     setBusy(true);
-    setNote(null);
     try {
       const updated = await updateService(service.id, payload, locale);
-      setNote({ ok: true, msg: t("edit.saved") });
+      notify.success(t("edit.saved"), { id: nid });
       onSaved(updated);
     } catch (err) {
-      setNote({ ok: false, msg: errMsg(err) });
+      const f = firstFieldError(err);
+      notify.error(tf("updateError"), {
+        id: nid,
+        error: err,
+        map: { 404: t("edit.errNotFound"), 403: t("edit.errForbidden"), 422: `${t("edit.errValidation")}${f ? ` ${f}` : ""}` },
+      });
     } finally {
       setBusy(false);
     }
@@ -295,7 +293,22 @@ function EditForm({
       {passport ? <PassportContext p={passport} /> : passportOff ? <p className="svced__hint">{t("edit.passportOff")}</p> : null}
 
       <div className="svced__sec">{t("edit.base")}</div>
-      {text("title", tf("title"))}
+      <div>
+        <label htmlFor={titleId}>{tf("title")}</label>
+        <input
+          ref={titleRef}
+          id={titleId}
+          type="text"
+          value={v.title}
+          onChange={(e) => {
+            set("title", e.target.value);
+            if (titleErr) setTitleErr("");
+          }}
+          aria-invalid={titleErr ? true : undefined}
+          aria-describedby={titleErr ? `${titleId}-err` : undefined}
+        />
+        <FieldError id={`${titleId}-err`} msg={titleErr} />
+      </div>
       <div>
         <label>{tf("category")}</label>
         <Select value={v.category_id} onChange={(val) => set("category_id", val)} options={catOpts} ariaLabel={tf("category")} placeholder={tf("selectCategory")} />
@@ -341,7 +354,6 @@ function EditForm({
 
       <DocTemplateSection service={service} />
 
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       <div className="svced__acts">
         <button className="btn btn--ghost" type="button" onClick={onClose} disabled={busy}>
           {tf("cancel")}

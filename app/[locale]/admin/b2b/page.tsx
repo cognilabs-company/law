@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import {
   listB2bClients,
@@ -12,11 +12,12 @@ import {
   type B2bClient,
   type B2bDocument,
 } from "@/lib/services/backend";
-import { httpBlob, ApiError, errDetail } from "@/lib/http";
+import { httpBlob } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import { saveBlob } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
-import { useReload, AdminForm, Notice } from "@/components/admin/AdminBits";
+import { useReload, AdminForm } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import MonthPicker from "@/components/MonthPicker";
@@ -53,31 +54,7 @@ export default function AdminB2b() {
       </div>
       <p className="ppanel__note">{t("lead")}</p>
       <Modal open={open} onClose={() => setOpen(false)} title={t("add")}>
-        <AdminForm
-          fields={[
-            { name: "name", label: t("cName"), required: true },
-            { name: "inn", label: t("cInn"), placeholder: "123456789" },
-            { name: "director", label: t("cDirector") },
-            { name: "industry", label: t("cIndustry") },
-            { name: "contact", label: t("cContact"), placeholder: "+998 __ ___ __ __" },
-            { name: "monthly_payment", label: t("cMonthly"), type: "number", placeholder: "0" },
-            { name: "sla", label: t("cSla"), placeholder: t("cSlaPh") },
-          ]}
-          onSubmit={async (v) => {
-            const c = await createB2bClient({ name: String(v.name), industry: String(v.industry), contact: String(v.contact), inn: String(v.inn) });
-            // Director / monthly payment / SLA are stored through the update endpoint.
-            const patch: Record<string, unknown> = {};
-            if (String(v.director).trim()) patch.director = String(v.director).trim();
-            if (String(v.monthly_payment).trim()) patch.monthly_payment = parseInt(String(v.monthly_payment), 10) || 0;
-            if (String(v.sla).trim()) patch.sla = String(v.sla).trim();
-            if (Object.keys(patch).length) await updateB2bClient(c.id, patch);
-          }}
-          submitLabel={t("save")}
-          busyLabel={t("saving")}
-          okMsg={t("created")}
-          errMsg={t("error")}
-          onDone={() => { reload(); setOpen(false); }}
-        />
+        <ClientForm onCreated={() => void res.refresh()} onDone={() => { reload(); setOpen(false); }} />
       </Modal>
       {res.status === "loading" ? (
         <Skeleton rows={4} />
@@ -110,13 +87,50 @@ export default function AdminB2b() {
   );
 }
 
+function ClientForm({ onCreated, onDone }: { onCreated: () => void; onDone: () => void }) {
+  const t = useTranslations("admin.b2b");
+  const tf = useTranslations("admin.form");
+  const created = useRef("");
+  return (
+    <AdminForm
+      fields={[
+        { name: "name", label: t("cName"), required: true },
+        { name: "inn", label: t("cInn"), placeholder: "123456789" },
+        { name: "director", label: t("cDirector") },
+        { name: "industry", label: t("cIndustry") },
+        { name: "contact", label: t("cContact"), placeholder: "+998 __ ___ __ __" },
+        { name: "monthly_payment", label: t("cMonthly"), type: "number", placeholder: "0" },
+        { name: "sla", label: t("cSla"), placeholder: t("cSlaPh") },
+      ]}
+      onSubmit={async (v) => {
+        const base = { name: String(v.name), industry: String(v.industry), contact: String(v.contact), inn: String(v.inn) };
+        const retry = created.current !== "";
+        if (!retry) {
+          created.current = (await createB2bClient(base)).id;
+          onCreated();
+        }
+        // Director / monthly payment / SLA are stored through the update endpoint.
+        const patch: Record<string, unknown> = retry ? { ...base } : {};
+        if (String(v.director).trim()) patch.director = String(v.director).trim();
+        if (String(v.monthly_payment).trim()) patch.monthly_payment = parseInt(String(v.monthly_payment), 10) || 0;
+        if (String(v.sla).trim()) patch.sla = String(v.sla).trim();
+        if (Object.keys(patch).length) await updateB2bClient(created.current, patch);
+      }}
+      submitLabel={t("save")}
+      busyLabel={t("saving")}
+      okMsg={t("created")}
+      errMsg={tf("saveFailed")}
+      onDone={onDone}
+    />
+  );
+}
+
 function DocModal({ target, onClose }: { target: { kind: "invoice" | "contract" | "report"; client: B2bClient } | null; onClose: () => void }) {
   const t = useTranslations("admin.b2b");
   const [amount, setAmount] = useState("");
   const [desc, setDesc] = useState("");
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [out, setOut] = useState<B2bDocument | null>(null);
   const base = parseInt(amount.replace(/\D/g, "") || "0", 10) || 0;
   const vat = Math.round((base * VAT) / 100);
@@ -124,8 +138,8 @@ function DocModal({ target, onClose }: { target: { kind: "invoice" | "contract" 
   async function run(e: FormEvent) {
     e.preventDefault();
     if (!target || busy) return;
+    const id = `b2b-doc-${target.kind}-${target.client.id}`;
     setBusy(true);
-    setNote(null);
     try {
       const r = target.kind === "invoice"
         ? await createB2bInvoice(target.client.id, { amountWithoutVat: base, vatPercent: VAT, description: desc.trim() || undefined })
@@ -133,22 +147,23 @@ function DocModal({ target, onClose }: { target: { kind: "invoice" | "contract" 
           ? await createB2bContract(target.client.id, {})
           : await getB2bMonthlyReport(target.client.id, month);
       setOut(r);
-      setNote({ ok: true, msg: t("docReady") });
+      notify.success(t("docReady"), { id });
     } catch (err) {
-      setNote({ ok: false, msg: err instanceof ApiError && err.status === 403 ? t("forbidden") : errDetail(err) || t("error") });
+      notify.error(t("docFailed"), { id, error: err, map: { 403: t("forbidden") } });
     } finally {
       setBusy(false);
     }
   }
   async function download() {
     if (!out?.fileUrl) return;
-    try { saveBlob(await httpBlob(out.fileUrl), `${target?.kind ?? "b2b"}-${target?.client.name ?? ""}.pdf`); }
-    catch { setNote({ ok: false, msg: t("downloadError") }); }
+    const id = `b2b-dl-${out.fileUrl}`;
+    try { saveBlob(await httpBlob(out.fileUrl), `${target?.kind ?? "b2b"}-${target?.client.name ?? ""}.pdf`); notify.dismiss(id); }
+    catch (err) { notify.error(t("downloadError"), { id, error: err }); }
   }
   const title = target ? `${t(target.kind)} — ${target.client.name}` : "";
 
   return (
-    <Modal open={!!target} onClose={() => { setOut(null); setNote(null); onClose(); }} title={title}>
+    <Modal open={!!target} onClose={() => { setOut(null); onClose(); }} title={title}>
       <form className="cform" style={{ maxWidth: "none" }} onSubmit={run}>
         {target?.kind === "invoice" ? (
           <>
@@ -173,7 +188,6 @@ function DocModal({ target, onClose }: { target: { kind: "invoice" | "contract" 
             <button type="button" className="btn btn--pri btn--sm" onClick={download} style={{ marginTop: 6 }}><IconDownload />{t("download")}</button>
           </div>
         ) : null}
-        {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
         <button className="btn btn--pri btn--full" type="submit" disabled={busy || (target?.kind === "invoice" && !base)}>{busy ? t("generating") : t("generate")}</button>
       </form>
     </Modal>

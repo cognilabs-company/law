@@ -28,7 +28,7 @@ export default function AdminBootstrap() {
         submitLabel={t("bootstrap.submit")}
         busyLabel={t("form.saving")}
         okMsg={t("bootstrap.done")}
-        errMsg={t("form.error")}
+        errMsg={t("form.saveFailed")}
       />
       <p className="advmuted" style={{ marginTop: 14 }}>{t("bootstrap.note")}</p>
     </div>

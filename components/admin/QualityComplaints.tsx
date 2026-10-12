@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   listQualityComplaints,
@@ -12,15 +12,17 @@ import {
   type QcAction,
 } from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { asDict, asStr, errDetail, logApiError } from "@/lib/http";
+import { asDict, asStr, logApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import { shortDateTime } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import FilterBar from "@/components/filters/FilterBar";
+import FieldError from "@/components/ui/FieldError";
 import { useAiSelection } from "@/lib/ai/registry";
 import { Notice } from "@/components/admin/AdminBits";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, IconBolt, IconClipboardCheck } from "@/components/icons";
 
 // LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §5.
@@ -41,6 +43,7 @@ import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, 
 export default function QualityComplaints() {
   const t = useTranslations("admin.qualityComplaints");
   const tcm = useTranslations("portal.common");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
 
   const [status, setStatus] = useState("");
@@ -48,9 +51,11 @@ export default function QualityComplaints() {
   const [statuses, setStatuses] = useState<string[]>([]);
   const [count, setCount] = useState(0);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [failure, setFailure] = useState<unknown>(undefined);
   const [reloadKey, setReloadKey] = useState(0);
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
   const [openId, setOpenId] = useState("");
+  const listedFor = useRef<string | null>(null);
 
   const [prevStatus, setPrevStatus] = useState(status);
   if (prevStatus !== status) { setPrevStatus(status); setState("loading"); }
@@ -60,14 +65,24 @@ export default function QualityComplaints() {
     listQualityComplaints(status || undefined)
       .then((q) => {
         if (!alive) return;
+        listedFor.current = q.items.length ? status : null;
         setRows(q.items);
         setCount(q.count);
         if (q.statuses.length) setStatuses(q.statuses);
         setState("ready");
       })
-      .catch(() => alive && setState("error"));
+      .catch((e: unknown) => {
+        if (!alive) return;
+        if (listedFor.current === status) {
+          setState("ready");
+          notify.error(t("refreshFailed"), { id: "cc-complaints-refresh", error: e, action: { label: tn("retry"), onClick: refresh } });
+          return;
+        }
+        setFailure(e);
+        setState("error");
+      });
     return () => { alive = false; };
-  }, [status, reloadKey]);
+  }, [status, reloadKey, refresh, t, tn]);
 
   // §6: the operator must see a new complaint arrive without reloading.
   useEffect(() => subscribeUserEvents((ev) => { if (isQualityComplaintEvent(ev.event)) refresh(); }), [refresh]);
@@ -104,7 +119,7 @@ export default function QualityComplaints() {
       {state === "loading" ? (
         <Skeleton rows={3} />
       ) : state === "error" ? (
-        <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
+        <ErrorState error={failure} onRetry={() => { setState("loading"); refresh(); }} title={t("loadError")} />
       ) : !rows.length ? (
         <EmptyState icon={<IconAlert />} title={t("empty")} text={t("emptyText")} />
       ) : (
@@ -143,20 +158,25 @@ function QcDetail({ row, label, onDone }: { row: QualityComplaintRow; label: (s:
   const t = useTranslations("admin.qualityComplaints");
   const tcm = useTranslations("portal.common");
   const locale = useLocale();
+  const uid = useId();
+  const noteErrId = `${uid}-note-err`;
+  const noteBox = useRef<HTMLTextAreaElement>(null);
   const [blocks, setBlocks] = useState<Record<string, unknown>>({});
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [failure, setFailure] = useState<unknown>(undefined);
+  const [attempt, setAttempt] = useState(0);
   const [action, setAction] = useState<QcAction>("rework_required");
   const [note, setNote] = useState("");
+  const [noteErr, setNoteErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     let alive = true;
     getQualityComplaint(row.id)
       .then((d) => { if (alive) { setBlocks(d.blocks); setState("ready"); } })
-      .catch(() => alive && setState("error"));
+      .catch((e: unknown) => { if (alive) { setFailure(e); setState("error"); } });
     return () => { alive = false; };
-  }, [row.id]);
+  }, [row.id, attempt]);
 
   const doc = asDict(blocks.document ?? blocks.document_request);
   const lr = asDict(blocks.lawyer_request);
@@ -182,16 +202,19 @@ function QcDetail({ row, label, onDone }: { row: QualityComplaintRow; label: (s:
 
   async function submit() {
     if (busy) return;
-    if (!note.trim()) { setMsg({ ok: false, text: t("noteRequired") }); return; }
+    if (!note.trim()) {
+      setNoteErr(t("noteRequired"));
+      noteBox.current?.focus();
+      return;
+    }
     setBusy(true);
-    setMsg(null);
     try {
       await resolveQualityComplaint(row.id, action, note.trim());
-      setMsg({ ok: true, text: t("resolved") });
-      setTimeout(onDone, 800);
+      notify.success(t("resolved"), { id: `qc-resolve-${row.id}`, body: [label(action), row.workId || row.title].filter(Boolean).join(" · ") });
+      onDone();
     } catch (e) {
       logApiError("quality complaint resolve", e);
-      setMsg({ ok: false, text: errDetail(e) || tcm("loadErrorText") });
+      notify.error(t("resolveFailed"), { id: `qc-resolve-${row.id}`, error: e });
     } finally {
       setBusy(false);
     }
@@ -216,6 +239,7 @@ function QcDetail({ row, label, onDone }: { row: QualityComplaintRow; label: (s:
       ) : null}
 
       {state === "loading" ? <Skeleton rows={2} /> : null}
+      {state === "error" ? <ErrorState error={failure} onRetry={() => { setState("loading"); setAttempt((n) => n + 1); }} title={t("detailLoadError")} compact /> : null}
 
       {state === "ready" && asStr(review.comment ?? review.text) ? (
         <section className="qcdet__b">
@@ -266,17 +290,20 @@ function QcDetail({ row, label, onDone }: { row: QualityComplaintRow; label: (s:
               a blind pick. */}
           <p className="advmuted">{t(`actionHint.${action}`)}</p>
           <textarea
+            ref={noteBox}
             rows={3}
             className="qcdet__note"
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={(e) => { setNote(e.target.value); setNoteErr(""); }}
             placeholder={t("notePh")}
             aria-label={t("noteLabel")}
+            aria-invalid={noteErr ? true : undefined}
+            aria-describedby={noteErr ? noteErrId : undefined}
             maxLength={2000}
             disabled={busy}
           />
-          {msg ? <Notice ok={msg.ok} msg={msg.text} /> : null}
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => void submit()} disabled={busy}>
+          <FieldError id={noteErrId} msg={noteErr} />
+          <button type="button" className="btn btn--pri btn--sm" onClick={() => void submit()} aria-disabled={busy || undefined} aria-busy={busy || undefined}>
             {busy ? tcm("processingShort") : t("resolveSubmit")}
           </button>
         </section>

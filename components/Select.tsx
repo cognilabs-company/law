@@ -11,12 +11,16 @@ export default function Select({
   options,
   ariaLabel,
   placeholder,
+  invalid,
+  describedBy,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: Option[];
   ariaLabel?: string;
   placeholder?: string;
+  invalid?: boolean;
+  describedBy?: string;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -128,7 +132,7 @@ export default function Select({
   }
 
   return (
-    <div className="dsel" ref={root} data-open={open} onKeyDown={onKey}>
+    <div className="dsel" ref={root} data-open={open} data-invalid={invalid ? "true" : undefined} onKeyDown={onKey}>
       <button
         ref={btn}
         type="button"
@@ -136,6 +140,7 @@ export default function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
+        aria-describedby={describedBy}
         onClick={() => setOpen((v) => !v)}
       >
         <span className={`dsel__val${selected ? "" : " dsel__val--ph"}`}>

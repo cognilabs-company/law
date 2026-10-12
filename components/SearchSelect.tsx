@@ -21,6 +21,8 @@ export default function SearchSelect({
   ariaLabel,
   removeLabel,
   single,
+  invalid,
+  describedBy,
 }: {
   value: string[];
   onChange: (v: string[]) => void;
@@ -34,6 +36,8 @@ export default function SearchSelect({
   // One value at a time: picking an option replaces it and closes the menu
   // (a plain label + clear button instead of removable chips).
   single?: boolean;
+  invalid?: boolean;
+  describedBy?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -175,8 +179,8 @@ export default function SearchSelect({
   };
 
   return (
-    <div className="ssel" ref={wrapRef}>
-      <button ref={ctrlRef} type="button" className="ssel__ctrl" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel}>
+    <div className="ssel" ref={wrapRef} data-invalid={invalid ? "true" : undefined}>
+      <button ref={ctrlRef} type="button" className="ssel__ctrl" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel} aria-describedby={describedBy}>
         {single && value.length ? (
           <span className="ssel__single">
             <b>{labelOf(value[0])}</b>

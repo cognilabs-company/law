@@ -3674,6 +3674,19 @@
     }
   },
   "common": {
+    "notify": {
+      "region": "Bildirishnomalar",
+      "close": "Yopish",
+      "retry": "Qayta urinish",
+      "undo": "Bekor qilish",
+      "open": "Ochish",
+      "more": "Yana {n} ta"
+    },
+    "confirm": {
+      "cancel": "Bekor qilish",
+      "confirm": "Tasdiqlash"
+    },
+    "required": "Bu maydonni to'ldiring",
     "requestId": "So'rov ID: {id}",
     "loadMore": "Ko'proq yuklash",
     "retry": "Qayta urinish",
@@ -8544,6 +8557,7 @@
       }
     },
     "org": {
+      "createFailed": "Tashkilot yaratilmadi",
       "memberServices": "Xizmatlar",
       "manage": "Boshqaruv paneli",
       "statusMap": {
@@ -10418,6 +10432,10 @@
       }
     },
     "qualityComplaints": {
+      "loadError": "Shikoyatlarni yuklab bo'lmadi",
+      "detailLoadError": "Shikoyat ma'lumotlarini yuklab bo'lmadi",
+      "resolveFailed": "Xulosani saqlab bo'lmadi",
+      "refreshFailed": "Shikoyatlar yangilanmadi",
       "title": "Sifat shikoyatlari",
       "lead": "Mijoz ishni 1 yoki 2 yulduz bilan baholaganda shikoyat shu yerga tushadi.",
       "all": "Barchasi",
@@ -10460,6 +10478,9 @@
       }
     },
     "urgent": {
+      "loadError": "So'rovlarni yuklab bo'lmadi",
+      "detailLoadError": "So'rovni yuklab bo'lmadi",
+      "notify": {"claimed":"So'rov olindi","chatOpened":"Mijoz bilan maxfiy chat ochildi.","claimFailed":"So'rovni olib bo'lmadi","meetingFailed":"Uchrashuvni boshlab bo'lmadi","completeFailed":"So'rovni yakunlab bo'lmadi","transferFailed":"Ishni o'tkazib bo'lmadi","transferredTo":"Yangi mas'ul: {name}.","cancelFailed":"So'rovni bekor qilib bo'lmadi","statusFailed":"Statusni o'zgartirib bo'lmadi","groupAssigned":"{n} ta advokat belgilandi","groupFailed":"Guruhni belgilab bo'lmadi","listFailed":"So'rovlar ro'yxati yangilanmadi","listRefreshed":"So'rovlar ro'yxati yangilandi","detailFailed":"So'rov ma'lumotlari yangilanmadi","detailRefreshed":"So'rov ma'lumotlari yangilandi"},
       "movedTo": "Ro'yxat «{status}» holatiga o'tkazildi.",
       "sourceValue": "Tezkor Advokat",
       "fSource": "Manba",
@@ -10645,6 +10666,9 @@
       "policies": "Platforma qoidalari"
     },
     "overview": {
+      "seedDone": "Demo ma'lumotlar yuklandi",
+      "seedRerun": "Qayta ishga tushirish dublikat yaratmaydi.",
+      "seedFailed": "Demo ma'lumotlar yuklanmadi",
       "severity": {
         "high": "Yuqori",
         "medium": "O'rta",
@@ -10760,12 +10784,13 @@
       "seedError": "Xatolik yuz berdi."
     },
     "form": {
+      "saveFailed": "Saqlanmadi",
       "title": "Nomi",
       "slug": "Slug",
       "description": "Tavsif",
       "save": "Saqlash",
       "saving": "Saqlanmoqda…",
-      "created": "Muvaffaqiyatli yaratildi.",
+      "created": "Muvaffaqiyatli yaratildi",
       "error": "Xatolik yuz berdi. Maydonlarni tekshiring.",
       "active": "Faol",
       "category": "Kategoriya",
@@ -10811,8 +10836,8 @@
       "localOnly": "Faqat shu qurilmada",
       "forget": "Ro'yxatdan olib tashlash",
       "reactivate": "Qayta faollashtirish",
-      "reactivated": "Xizmat qayta faollashtirildi.",
-      "reactivateError": "Qayta faollashtirib bo'lmadi.",
+      "reactivated": "Xizmat qayta faollashtirildi",
+      "reactivateError": "Qayta faollashtirib bo'lmadi",
       "tagCatalog": "Katalog",
       "tagCustom": "Qo'lda qo'shilgan",
       "catLimitNote": "Yo'nalishlarni tahrirlash/o'chirish backend'da hali yo'q (faqat qo'shish).",
@@ -10824,14 +10849,14 @@
         "text": "Xizmat katalogdan yashiriladi (nofaol bo'ladi); buyurtmalar tarixi saqlanib qoladi.",
         "cta": "O'chirish",
         "busy": "O'chirilmoqda…",
-        "done": "Xizmat o'chirildi (nofaol)."
+        "done": "Xizmat o'chirildi (nofaol)"
       },
       "edit": {
         "title": "Xizmatni tahrirlash",
         "titleRequired": "Nomi majburiy.",
         "badNumber": "Raqamli maydon noto'g'ri.",
-        "noChanges": "O'zgarish yo'q.",
-        "saved": "Xizmat saqlandi.",
+        "noChanges": "O'zgarish yo'q",
+        "saved": "Xizmat saqlandi",
         "errValidation": "Ma'lumotlar tekshiruvdan o'tmadi — maydonlarni tekshiring.",
         "errNotFound": "Xizmat topilmadi (o'chirilgan bo'lishi mumkin).",
         "errForbidden": "Bu amal uchun ruxsat yo'q (services.manage).",
@@ -10874,26 +10899,27 @@
         "upload": "Yuklash",
         "replace": "Almashtirish",
         "uploading": "Yuklanmoqda…",
-        "done": "Yuklandi — {n} ta maydon topildi.",
-        "error": "Yuklab bo'lmadi.",
+        "done": "Yuklandi — {n} ta maydon topildi",
+        "error": "Yuklab bo'lmadi",
         "onlyDocx": "Faqat .docx fayl qabul qilinadi.",
         "tooBig": "Fayl hajmi ruxsat etilgandan katta.",
         "forbidden": "Ruxsat yo'q."
       },
       "cat": {
+        "overlaySaved": "Platforma sozlamasida saqlandi",
         "visibleChip": "Ko'rinadigan ({n})",
         "view": "Ko'rinish",
         "editTitle": "Kategoriyani tahrirlash",
-        "overlayNote": "Backend hali kategoriya tahririni qo'llab-quvvatlamaydi — o'zgarish platforma sozlamasida saqlandi va katalogda qo'llanadi.",
+        "overlayNote": "Server hali kategoriya tahririni qo'llab-quvvatlamaydi — o'zgarish platforma sozlamasida saqlandi va katalogda qo'llanadi.",
         "deleteText": "Kategoriya katalogdan yashiriladi (mijoz va admin ro'yxatlari). Undagi xizmatlar o'chmaydi; keyin qaytarish mumkin.",
-        "deleted": "Kategoriya yashirildi.",
+        "deleted": "Kategoriya yashirildi",
         "hiddenChip": "Yashirilgan ({n})",
         "hiddenTag": "Yashirilgan",
         "overridden": "O'zgartirilgan",
         "restore": "Ro'yxatga qaytarish",
-        "restored": "Kategoriya ro'yxatga qaytarildi.",
+        "restored": "Kategoriya ro'yxatga qaytarildi",
         "reset": "Backend nomiga qaytarish",
-        "resetDone": "Admin o'zgarishi olib tashlandi."
+        "resetDone": "Admin o'zgarishi olib tashlandi"
       }
     },
     "plans": {
@@ -11135,6 +11161,11 @@
       }
     },
     "meetings": {
+      "ccFailed": "Uchrashuv ochilmadi",
+      "startFailed": "Uchrashuv boshlanmadi",
+      "planLimit": "Uchrashuvlar tarifingizga kirmaydi yoki limit tugagan.",
+      "historyLoadFailed": "Uchrashuvlar tarixi yuklanmadi",
+      "refreshFailed": "Yangilab bo'lmadi",
       "scopeAll": "Barcha uchrashuvlar",
       "scope": "Ko'rinish",
       "title": "Uchrashuvlar",
@@ -11152,7 +11183,7 @@
       "hint": "Siz tashkilotchi (host) bo'lasiz. Tanlangan foydalanuvchilar taklif qilinadi.",
       "sellerHint": "Siz tashkilotchi (host) bo'lasiz. Mijozlaringiz va advokatlar/yuristlar orasidan ism yoki telefon bo'yicha qidiring.",
       "noPermission": "Uchrashuv ochish uchun ruxsat yo'q. Administratorga murojaat qiling.",
-      "backendMissing": "Bu funksiya uchun backend kutilmoqda.",
+      "backendMissing": "Bu funksiya serverda hali yoqilmagan.",
       "history": "Mening uchrashuvlarim",
       "refresh": "Yangilash",
       "activeGroup": "Faol",
@@ -11181,7 +11212,7 @@
       "ccStartWith": "{name} bilan video uchrashuv",
       "ccTitle": "Video uchrashuv · {name}",
       "ccError": "Uchrashuvni ochib bo'lmadi. Qayta urining.",
-      "ccNoUser": "Bu telefon raqami bilan platformada foydalanuvchi topilmadi — mijoz avval ro'yxatdan o'tishi kerak.",
+      "ccNoUser": "Bu raqam platformada topilmadi — mijoz avval ro'yxatdan o'tishi kerak.",
       "ccSelf": "O'zingiz bilan uchrashuv ochib bo'lmaydi.",
       "createTitle": "Yangi uchrashuv yaratish",
       "clear": "Tozalash",
@@ -11246,6 +11277,7 @@
       "stagingOnlyText": "Test OTP kodlari faqat staging/demo serverda saqlanadi. Production serverda bu ro'yxat yo'q — kodlar SMS yoki Telegram orqali yuboriladi."
     },
     "pipeline": {
+      "notify": {"moved":"Lid «{stage}» bosqichiga o'tkazildi","reordered":"Lidlar tartibi o'zgartirildi","moveUndone":"Ko'chirish bekor qilindi","moveFailed":"Lid ko'chirilmadi","lostFailed":"Yo'qotish sababi saqlanmadi","added":"Lid qo'shildi","addFailed":"Lid qo'shilmadi","deleteAsk":"«{name}» lidini o'chirasizmi?","deleted":"Lid o'chirildi","deleteFailed":"Lid o'chirilmadi","stageAdded":"Bosqich qo'shildi","stageSaved":"Bosqich saqlandi","stageAddFailed":"Bosqich qo'shilmadi","stageSaveFailed":"Bosqich saqlanmadi","stageDeleted":"Bosqich o'chirildi","stageLeadsMoved":"{n} ta lid «{stage}» bosqichiga o'tdi","stageDeleteFailed":"Bosqich o'chirilmadi","stageDeleteConflict":"Tizim bosqichini yoki ichida lidlar bor bosqichni o'chirib bo'lmaydi.","autoDone":"{n} ta lid taqsimlandi","autoPartial":"Lidlar qisman taqsimlandi","autoFailed":"Lidlar taqsimlanmadi","assigned":"Operator biriktirildi","unassigned":"Biriktirish olib tashlandi","assignFailed":"Operator biriktirilmadi","unassignFailed":"Biriktirish olib tashlanmadi","noteSaved":"Izoh saqlandi","noteFailed":"Izoh saqlanmadi","callFailed":"Qo'ng'iroq qayd etilmadi","reminderFailed":"Eslatma qo'yilmadi"},
       "periodPick": {
         "label": "Davr",
         "all": "Barcha vaqt",
@@ -11264,16 +11296,16 @@
         "cold": "Sovuq"
       },
       "title": "Sotuv voronkasi",
-      "addStatus": "Status qo'shish",
-      "renameStatus": "Statusni qayta nomlash",
-      "statusName": "Status nomi",
+      "addStatus": "Bosqich qo'shish",
+      "renameStatus": "Bosqichni qayta nomlash",
+      "statusName": "Bosqich nomi",
       "statusNamePh": "masalan, Kutilmoqda",
       "statusColor": "Rang",
       "statusFinal": "Yakuniy bosqich",
       "editStatus": "Tahrirlash",
-      "deleteStatus": "Statusni o'chirish",
-      "deleteStatusText": "Bu statusni o'chirmoqchimisiz?",
-      "reassignLeads": "Bu statusda {count} ta lead bor — ularni boshqasiga ko'chiring:",
+      "deleteStatus": "Bosqichni o'chirish",
+      "deleteStatusText": "Bu bosqichni o'chirmoqchimisiz?",
+      "reassignLeads": "Bu bosqichda {count} ta lid bor — ularni boshqasiga ko'chiring:",
       "moveAndDelete": "Ko'chirish va o'chirish",
       "lead": "Lidlarni bosqichma-bosqich yuriting: yangi → aloqa → malakali → yutildi/yo‘qotildi.",
       "empty": "Lidlar yo‘q",
@@ -11362,6 +11394,7 @@
         }
       },
       "assign": {
+        "unknown": "Noma'lum operator",
         "title": "Operator",
         "select": "Operatorni tanlang",
         "none": "Taqsimlanmagan",
@@ -11370,10 +11403,10 @@
         "done": "Lid operatorga biriktirildi.",
         "removed": "Biriktirish olib tashlandi.",
         "err": "Biriktirib bo'lmadi. Qayta urining.",
-        "noPermission": "Taqsimlash faqat menejer/admin uchun (leads.manage).",
-        "opsForbidden": "Operatorlar ro'yxatini ko'rish uchun ruxsat yo'q (users.manage).",
+        "noPermission": "Bu amal faqat menejer yoki administrator uchun.",
+        "opsForbidden": "Operatorlar ro'yxatini ko'rish uchun ruxsat yo'q.",
         "noOps": "Faol navbatchi operator topilmadi.",
-        "localNote": "Biriktirish lid tafsilotlarida saqlanadi (backend'da alohida maydon hali yo'q)."
+        "localNote": "Biriktirish lid tafsilotlarida saqlanadi."
       },
       "auto": {
         "btn": "Avto-taqsimlash",
@@ -11389,7 +11422,7 @@
         "partial": "{n} ta lid taqsimlandi, {failed} tasi o'tmadi.",
         "nothing": "Taqsimlanmagan lid yo'q.",
         "noOps": "Faol operator yo'q — avval navbatchi xizmatga xodim qo'shing.",
-        "backendPending": "Backend'da avto-taqsimlash endpoint'i hali yo'q — taqsimot lid tafsilotlariga yoziladi va shu yerda ko'rinadi."
+        "backendPending": "Serverda avto-taqsimlash funksiyasi hali yo'q — taqsimot lid tafsilotlariga yoziladi va shu yerda ko'rinadi."
       }
     },
     "callAnalytics": {
@@ -11406,7 +11439,7 @@
       "noAgents": "Operatorlar bo'yicha kesim hali backendda yo'q."
     },
     "ceo": {
-      "report": {"na":"hisoblanmaydi","asOf":"{date} holatiga","custom":"Tanlangan davr","allRegions":"Barcha hududlar","failed":"CEO ma'lumotlarini yuklab bo'lmadi.","retry":"Qayta urinish","summary":"Shu davrda platforma <b>{revenue}</b> daromad qildi, <b>{payments}</b> ta to'lov qabul qilindi va lidlarning <b>{conv}</b> qismi buyurtmaga aylandi. Jami foydalanuvchilar — <b>{users}</b>.","deltaUp":"Bu o'tgan davrdan <b>{n}%</b> ko'p.","deltaDown":"Bu o'tgan davrdan <b>{n}%</b> kam.","revNote":"Tanlangan davrdagi kunlik tushum.","figTotal":"Davr jami","figAvg":"Kunlik o'rtacha","figBest":"Eng yaxshi kun","figActive":"Tushumli kunlar","daysOf":"{n} / {total} kun","unit":"Unit-iqtisodiyot","unitNote":"Har bir ko'rsatkich nimani anglatadi va hozir qanday holatda.","colMetric":"Ko'rsatkich","colValue":"Qiymat","colNote":"Izoh","payback":"Qoplash muddati","months":"{n} oy","health":{"good":"Sog'lom","watch":"E'tibor bering","bad":"Xavfli","na":"Hisoblanmaydi"},"notes":{"gmv":"Platformadan o'tgan barcha to'lovlar hajmi.","gmvEq":"Hozircha umumiy daromad bilan bir xil hisoblanadi.","mrr":"Obunalardan keladigan oylik takroriy tushum.","mrrEq":"Backend hozircha MRR ni umumiy daromadga teng qaytaradi.","arr":"Yillik takroriy tushum (MRR × 12).","arpu":"Bitta to'lovchi foydalanuvchiga o'rtacha tushum.","take":"Platforma komissiyasi — GMV dan platformada qoladigan ulush.","cacNa":"Marketing xarajatlari kiritilmagan, shuning uchun hisoblab bo'lmaydi.","ltv":"Bitta mijozdan butun davr davomida kutiladigan tushum.","ltvCac":"3× va undan yuqori — sog'lom nisbat.","payback":"Jalb qilish xarajati necha oyda qaytadi."},"funnelNote":"Lidlar buyurtmaga aylanguncha qanchasi qoladi.","kept":"{pct}% o'tdi · {lost} ta yo'qoldi","entry":"Kirish nuqtasi","paidNote":"To'langan to'lovlar — <b>{n}</b> ta. Bu son buyurtmalardan tashqari obuna va boshqa to'lovlarni ham o'z ichiga oladi, shuning uchun voronkaga qo'shilmagan.","channelsNote":"Ustun sarlavhasini bosib saralash tartibini o'zgartiring.","testNote":"Test va demo kanallar ({n} ta, {amount}) jadvalda yashirilgan, lekin umumiy daromadga kiritilgan.","showTest":"Test kanallarini ko'rsatish","testTag":"test","audience":"Auditoriya","audienceNote":"Faollik, yangi kelganlar va mamnunlik.","stickiness":"DAU / MAU","giftNote":"Sovg'a obunasi: xariddan to'lovli mijozgacha."},
+      "report": {"na":"hisoblanmaydi","asOf":"{date} holatiga","custom":"Tanlangan davr","allRegions":"Barcha hududlar","failed":"CEO ma'lumotlarini yuklab bo'lmadi.","retry":"Qayta urinish","summary":"Shu davrda platforma <b>{revenue}</b> daromad qildi, <b>{payments}</b> ta to'lov qabul qilindi va lidlarning <b>{conv}</b> qismi buyurtmaga aylandi. Jami foydalanuvchilar — <b>{users}</b>.","deltaUp":"Bu o'tgan davrdan <b>{n}%</b> ko'p.","deltaDown":"Bu o'tgan davrdan <b>{n}%</b> kam.","revNote":"Tanlangan davrdagi kunlik tushum.","figTotal":"Davr jami","figAvg":"Kunlik o'rtacha","figBest":"Eng yaxshi kun","figActive":"Tushumli kunlar","daysOf":"{n} / {total} kun","unit":"Unit-iqtisodiyot","unitNote":"Har bir ko'rsatkich nimani anglatadi va hozir qanday holatda.","colMetric":"Ko'rsatkich","colValue":"Qiymat","colNote":"Izoh","payback":"Qoplash muddati","months":"{n} oy","health":{"good":"Sog'lom","watch":"E'tibor bering","bad":"Xavfli","na":"Hisoblanmaydi"},"notes":{"gmv":"Platformadan o'tgan barcha to'lovlar hajmi.","gmvEq":"Hozircha umumiy daromad bilan bir xil hisoblanadi.","mrr":"Obunalardan keladigan oylik takroriy tushum.","mrrEq":"Server hozircha MRR ni umumiy daromadga teng qaytaradi.","arr":"Yillik takroriy tushum (MRR × 12).","arpu":"Bitta to'lovchi foydalanuvchiga o'rtacha tushum.","take":"Platforma komissiyasi — GMV dan platformada qoladigan ulush.","cacNa":"Marketing xarajatlari kiritilmagan, shuning uchun hisoblab bo'lmaydi.","ltv":"Bitta mijozdan butun davr davomida kutiladigan tushum.","ltvCac":"3× va undan yuqori — sog'lom nisbat.","payback":"Jalb qilish xarajati necha oyda qaytadi."},"funnelNote":"Lidlar buyurtmaga aylanguncha qanchasi qoladi.","kept":"{pct}% o'tdi · {lost} ta yo'qoldi","entry":"Kirish nuqtasi","paidNote":"To'langan to'lovlar — <b>{n}</b> ta. Bu son buyurtmalardan tashqari obuna va boshqa to'lovlarni ham o'z ichiga oladi, shuning uchun voronkaga qo'shilmagan.","channelsNote":"Ustun sarlavhasini bosib saralash tartibini o'zgartiring.","testNote":"Test va demo kanallar ({n} ta, {amount}) jadvalda yashirilgan, lekin umumiy daromadga kiritilgan.","showTest":"Test kanallarini ko'rsatish","testTag":"test","audience":"Auditoriya","audienceNote":"Faollik, yangi kelganlar va mamnunlik.","stickiness":"DAU / MAU","giftNote":"Sovg'a obunasi: xariddan to'lovli mijozgacha."},
       "title": "CEO paneli",
       "revenue": "Daromad",
       "mrr": "Oylik takroriy daromad",
@@ -11415,7 +11448,7 @@
       "conversion": "Konversiya",
       "revenueTrend": "Daromad dinamikasi",
       "funnel": "Voronka",
-      "channels": "Kanallar (attribution)",
+      "channels": "Kanallar (manbalar bo'yicha)",
       "noData": "Ma'lumot yo'q",
       "kpi": {
         "title": "KPI ko'rsatkichlari",
@@ -11424,7 +11457,7 @@
         "gmv": "GMV (umumiy hajm)",
         "arr": "ARR (yillik daromad)",
         "arpu": "ARPU (obunachi daromadi)",
-        "takeRate": "Take rate (komissiya)",
+        "takeRate": "Komissiya ulushi",
         "cac": "CAC (jalb narxi)",
         "ltv": "LTV (umr qiymati)",
         "ltvCac": "LTV : CAC",
@@ -11488,6 +11521,7 @@
       "byStatus": "Shikoyatlar holati"
     },
     "b2b": {
+      "docFailed": "Hujjat yaratilmadi",
       "title": "B2B mijozlar",
       "lead": "Korporativ mijozlar va bitimlar.",
       "empty": "B2B mijoz yo'q",
@@ -11519,7 +11553,7 @@
       "docReady": "Hujjat tayyor",
       "reportTasks": "Oy davomida {n} ta vazifa",
       "download": "PDF yuklab olish",
-      "downloadError": "Faylni yuklab bo'lmadi.",
+      "downloadError": "Faylni yuklab bo'lmadi",
       "generate": "Yaratish",
       "generating": "Yaratilmoqda…",
       "forbidden": "Ruxsat yo'q (b2b.manage kerak).",
@@ -11670,6 +11704,7 @@
       }
     },
     "callCenter": {
+      "searchFailed": "Qidiruvni bajarib bo'lmadi",
       "search": "Mijoz qidirish",
       "searchPh": "Ism yoki telefon…",
       "searchHint": "Mijozni qidirish uchun ism yoki telefon kiriting.",
@@ -11680,13 +11715,17 @@
       "dir": { "incoming": "Kiruvchi", "outgoing": "Chiquvchi" },
       "status": { "active": "Faol", "inactive": "Nofaol", "lead": "Lid", "completed": "Yakunlandi", "missed": "O'tkazib yuborilgan", "no_answer": "Javob yo'q", "busy": "Band", "failed": "Amalga oshmadi", "answered": "Javob berilgan" },
       "queue": {
+        "assignDone": "Buyurtma keyingi mos advokatga yuborildi",
+        "refreshFailed": "Navbat yangilanmadi",
+        "assignFailed": "Buyurtmani yuborib bo'lmadi",
+        "moveFailed": "Lidni o'tkazib bo'lmadi",
         "openUrgentBoard": "Tezkor Advokat doskasi",
         "urgentClaimed": "Qabul qilingan",
         "lawyersN": "{n} ta advokat",
         "title": "Navbat",
         "lead": "Lidlar va advokat biriktirilmagan buyurtmalar: SLA buzilganlari birinchi, keyin shoshilinchlari. Har daqiqada yangilanadi.",
         "refresh": "Yangilash",
-        "loadError": "Navbatni yuklab bo'lmadi.",
+        "loadError": "Navbatni yuklab bo'lmadi",
         "empty": "Navbat bo'sh.",
         "breachedN": "SLA buzilgan: {n}",
         "hot": "Shoshilinch",
@@ -11727,6 +11766,11 @@
         }
       },
       "board": {
+        "lostReasonSaved": "Yo'qotish sababi saqlandi",
+        "refreshFailed": "Lidlar doskasi yangilanmadi",
+        "loadError": "Lidlar doskasini yuklab bo'lmadi",
+        "assignFailed": "Biriktirishni saqlab bo'lmadi",
+        "lostReasonFailed": "Yo'qotish sababi saqlanmadi",
         "title": "Lidlar doskasi",
         "empty": "Doskada ustun yo'q.",
         "noneHere": "Bo'sh"
@@ -11740,7 +11784,7 @@
         "call": "Qo'ng'iroq qilish",
         "logged": "Qo'ng'iroq yozib qo'yildi.",
         "noAccess": "Mijozning to'liq kartasi (buyurtmalar, to'lovlar, tarix) uchun sizning rolingizda ruxsat yo'q.",
-        "loadError": "Mijoz kartasini yuklab bo'lmadi.",
+        "loadError": "Mijoz kartasini yuklab bo'lmadi",
         "sumOrders": "Buyurtmalar",
         "sumSpent": "Jami to'lagan",
         "sumLeads": "Lidlar",
@@ -11778,6 +11822,9 @@
         }
       },
       "calls": {
+        "saveFailed": "Qo'ng'iroqni saqlab bo'lmadi",
+        "refreshFailed": "Qo'ng'iroqlar yangilanmadi",
+        "loadError": "Qo'ng'iroqlarni yuklab bo'lmadi",
         "all": "Barchasi",
         "next": "Keyingi qadam",
         "min": "{n} daqiqa",
@@ -12372,6 +12419,8 @@
       "error": "Xatolik. Qayta urining."
     },
     "dash": {
+      "staleHint": "Yangilab bo'lmadi — oxirgi yuklangan ma'lumot ko'rsatilmoqda.",
+      "notUpdated": "Ma'lumot yangilanmadi",
       "filter": {
         "custom": "Boshqa",
         "today": "Bugun",
@@ -12390,10 +12439,12 @@
         "demo": "Demo ko'rsatish",
         "demoOn": "Demo yoqilgan",
         "demoTitle": "Real ma'lumot bo'lsa ham namunaviy ko'rsatkichlarni ko'rish",
-        "regionNote": "Hudud va sana filtri backendga yuboriladi, lekin server hali ularni qo'llamaydi — filtr faqat ro'yxat va dinamikaga (brauzerda) qo'llanadi.",
+        "regionNote": "Hudud va sana filtri serverga yuboriladi, lekin server hali ularni qo'llamaydi — filtr faqat ro'yxat va dinamikaga (brauzerda) qo'llanadi.",
         "sellerNote": "Filtr yangi buyurtmalar ro'yxatiga qo'llanadi; hisoblagichlar butun kabinet bo'yicha."
       },
       "demo": {
+        "enabled": "Demo rejim yoqildi",
+        "disabled": "Demo rejim o'chirildi",
         "badge": "Demo ma'lumot",
         "banner": "Hozircha real faoliyat yo'q — namunaviy ko'rsatkichlar ko'rsatilmoqda. Birinchi lid, buyurtma yoki to'lov paydo bo'lishi bilan real ma'lumotlar avtomatik chiqadi.",
         "forced": "Demo rejim yoqilgan: real ma'lumotlar o'rniga namunaviy ko'rsatkichlar ko'rsatilmoqda. O'chirish uchun «Demo ko'rsatish» kalitini o'chiring.",
@@ -12473,7 +12524,7 @@
         "orders": "Buyurtmalar",
         "cases": "Ishlar",
         "services": "Xizmatlar",
-        "leadsLoadFailed": "Hudud kesimi uchun lidlar ro'yxati yuklanmadi (ruxsat yoki backend).",
+        "leadsLoadFailed": "Hudud kesimi uchun lidlar ro'yxati yuklanmadi (ruxsat yoki server).",
         "sellersLoadFailed": "Hudud kesimi uchun advokatlar ro'yxati yuklanmadi.",
         "regionUnknown": "Hudud ko'rsatilmagan",
         "goRetention": "Ushlab qolish paneliga o'tish",
@@ -12482,9 +12533,9 @@
         "goLeads": "Lidlarga o'tish",
         "goCallCenter": "Navbatchi xizmatga o'tish",
         "goCeo": "CEO paneliga o'tish",
-        "mrrNote": "Backend MRR sifatida hozircha umumiy to'langan summani qaytaradi.",
-        "constNote": "Reyting va SLA hozircha backendda doimiy qiymat — real hisob-kitob kutilmoqda.",
-        "backendWait": "Bu tafsilot uchun backend kutilmoqda.",
+        "mrrNote": "Server MRR sifatida hozircha umumiy to'langan summani qaytaradi.",
+        "constNote": "Reyting va SLA hozircha serverda doimiy qiymat — real hisob-kitob kutilmoqda.",
+        "backendWait": "Bu tafsilot serverda hali mavjud emas.",
         "loading": "Yuklanmoqda…",
         "workload": "Ish yuki",
         "finance": "Moliya",

@@ -14,10 +14,11 @@ import {
 } from "@/lib/services/admin";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
-import { ApiError, errDetail } from "@/lib/http";
+import { ApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import { matchesSearch } from "@/lib/searchText";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { AdminForm, AdminItem, Notice, useReload } from "@/components/admin/AdminBits";
+import { AdminForm, AdminItem, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import FilterBar from "@/components/filters/FilterBar";
 import ServiceEditModal from "@/components/admin/ServiceEditModal";
@@ -51,19 +52,17 @@ export default function AdminServices() {
   const [catEdit, setCatEdit] = useState<OverlaidCategory | null>(null);
   const [catDel, setCatDel] = useState<OverlaidCategory | null>(null);
   const [catBusy, setCatBusy] = useState("");
-  const [catNote, setCatNote] = useState<{ ok: boolean; msg: string } | null>(null);
-  async function catOp(c: BackendCategory, op: () => Promise<{ via: "backend" | "overlay" } | void>, msg: string) {
+  async function catOp(c: BackendCategory, kind: "restore" | "reset" | "del", op: () => Promise<{ via: "backend" | "overlay" } | void>, msg: string, failMsg: string) {
     if (catBusy) return;
     setCatBusy(c.id);
-    setCatNote(null);
+    const id = `svc-cat-${kind}-${c.id}`;
     try {
       const r = await op();
-      setCatNote({ ok: true, msg: r && r.via === "overlay" ? `${msg} ${ts("cat.overlayNote")}` : msg });
-      setCatEdit(null);
+      notify.success(msg, { id, body: r && r.via === "overlay" ? ts("cat.overlayNote") : c.name });
       setCatDel(null);
       reloadCats();
     } catch (e) {
-      setCatNote({ ok: false, msg: errDetail(e) || t("form.error") });
+      notify.error(failMsg, { id, error: e });
     } finally {
       setCatBusy("");
     }
@@ -73,8 +72,6 @@ export default function AdminServices() {
   const [edit, setEdit] = useState<AdminService | null>(null);
   const [del, setDel] = useState<AdminService | null>(null);
   const [delBusy, setDelBusy] = useState(false);
-  const [delNote, setDelNote] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [rowNote, setRowNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [reactivating, setReactivating] = useState("");
 
   // Filters
@@ -139,15 +136,6 @@ export default function AdminServices() {
   const viewHiddenCats = showHiddenCats && hiddenCats.length > 0;
   useAiSelection("admin_services_state", state === "all" ? "" : state);
 
-  function noteFor(e: unknown, fallback: string, ns: "edit" | "del"): string {
-    if (e instanceof ApiError) {
-      if (e.status === 404) return ts(`${ns}.errNotFound`);
-      if (e.status === 403) return ts(`${ns}.errForbidden`);
-      if (e.status >= 500) return ts(`${ns}.errServer`);
-    }
-    return errDetail(e) || fallback;
-  }
-
   // GET /admin/services lists inactive rows too, so a PATCH just replaces the
   // row in place — no separate "local" bookkeeping needed any more.
   function onSaved(updated: AdminService) {
@@ -159,14 +147,13 @@ export default function AdminServices() {
   async function confirmDelete() {
     if (!del || delBusy) return;
     setDelBusy(true);
-    setDelNote(null);
     try {
       await deleteService(del.id);
       svcs.setData((cur) => cur.map((s) => (s.id === del.id ? { ...s, isActive: false } : s)));
       setDel(null);
-      setRowNote({ ok: true, msg: ts("del.done") });
+      notify.success(ts("del.done"), { id: `svc-del-${del.id}`, body: del.name });
     } catch (e) {
-      setDelNote({ ok: false, msg: noteFor(e, t("form.deleteError"), "del") });
+      notify.error(t("form.deleteError"), { id: `svc-del-${del.id}`, error: e, map: { 404: ts("del.errNotFound"), 403: ts("del.errForbidden") } });
     } finally {
       setDelBusy(false);
     }
@@ -175,13 +162,12 @@ export default function AdminServices() {
   async function reactivate(s: AdminService) {
     if (reactivating) return;
     setReactivating(s.id);
-    setRowNote(null);
     try {
       const updated = await updateService(s.id, { is_active: true }, locale);
       svcs.setData((cur) => (cur.some((x) => x.id === updated.id) ? cur.map((x) => (x.id === updated.id ? updated : x)) : [...cur, updated]));
-      setRowNote({ ok: true, msg: ts("reactivated") });
+      notify.success(ts("reactivated"), { id: `svc-react-${s.id}`, body: s.name });
     } catch (e) {
-      setRowNote({ ok: false, msg: noteFor(e, ts("reactivateError"), "edit") });
+      notify.error(ts("reactivateError"), { id: `svc-react-${s.id}`, error: e, map: { 404: ts("edit.errNotFound"), 403: ts("edit.errForbidden") } });
     } finally {
       setReactivating("");
     }
@@ -209,7 +195,6 @@ export default function AdminServices() {
             </button>
           </span>
         </div>
-        {catNote ? <Notice ok={catNote.ok} msg={catNote.msg} /> : null}
         {hiddenCats.length ? (
           <FilterBar
             className="uf--tray uf--solo"
@@ -246,20 +231,20 @@ export default function AdminServices() {
                 actions={
                   <>
                     {c.hidden ? (
-                      <button className="aitem__act" type="button" aria-label={ts("cat.restore")} title={ts("cat.restore")} disabled={catBusy === c.id} onClick={() => void catOp(c, () => restoreCategory(c.id), ts("cat.restored"))}>
+                      <button className="aitem__act" type="button" aria-label={ts("cat.restore")} title={ts("cat.restore")} disabled={catBusy === c.id} onClick={() => void catOp(c, "restore", () => restoreCategory(c.id), ts("cat.restored"), t("form.updateError"))}>
                         <IconEye />
                       </button>
                     ) : null}
                     {c.overridden ? (
-                      <button className="aitem__act" type="button" aria-label={ts("cat.reset")} title={ts("cat.reset")} disabled={catBusy === c.id} onClick={() => void catOp(c, () => resetCategory(c.id), ts("cat.resetDone"))}>
+                      <button className="aitem__act" type="button" aria-label={ts("cat.reset")} title={ts("cat.reset")} disabled={catBusy === c.id} onClick={() => void catOp(c, "reset", () => resetCategory(c.id), ts("cat.resetDone"), t("form.updateError"))}>
                         <IconRefresh />
                       </button>
                     ) : null}
-                    <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => { setCatNote(null); setCatEdit(c); }}>
+                    <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => setCatEdit(c)}>
                       <IconEdit />
                     </button>
                     {!c.hidden ? (
-                      <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => { setCatNote(null); setCatDel(c); }}>
+                      <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => setCatDel(c)}>
                         <IconTrash />
                       </button>
                     ) : null}
@@ -311,7 +296,6 @@ export default function AdminServices() {
             <span>{ts("inactiveNote")}</span>
           </p>
         ) : null}
-        {rowNote ? <Notice ok={rowNote.ok} msg={rowNote.msg} /> : null}
 
         {svcs.status === "loading" ? (
           <Skeleton rows={3} />
@@ -355,10 +339,7 @@ export default function AdminServices() {
                         type="button"
                         aria-label={t("form.delete")}
                         title={t("form.delete")}
-                        onClick={() => {
-                          setDelNote(null);
-                          setDel(s);
-                        }}
+                        onClick={() => setDel(s)}
                       >
                         <IconTrash />
                       </button>
@@ -384,7 +365,7 @@ export default function AdminServices() {
           submitLabel={t("form.save")}
           busyLabel={t("form.saving")}
           okMsg={t("form.created")}
-          errMsg={t("form.error")}
+          errMsg={t("form.saveFailed")}
           onDone={() => {
             reloadCats();
             setCatOpen(false);
@@ -425,7 +406,7 @@ export default function AdminServices() {
           submitLabel={t("form.save")}
           busyLabel={t("form.saving")}
           okMsg={t("form.created")}
-          errMsg={t("form.error")}
+          errMsg={t("form.saveFailed")}
           onDone={() => {
             reloadSvcs();
             setSvcOpen(false);
@@ -443,12 +424,18 @@ export default function AdminServices() {
             fields={[{ name: "title", label: t("form.title"), required: true, placeholder: catEdit.slug }]}
             initialValues={{ title: catEdit.name }}
             resetOnDone={false}
-            onSubmit={async (v) => void (await catOp(catEdit, () => saveCategory(catEdit.id, { title: String(v.title).trim() }), t("form.updated")))}
+            onSubmit={async (v) => {
+              const r = await saveCategory(catEdit.id, { title: String(v.title).trim() });
+              if (r.via === "overlay") notify.info(ts("cat.overlaySaved"), { body: ts("cat.overlayNote") });
+            }}
             submitLabel={t("form.update")}
             busyLabel={t("form.saving")}
             okMsg={t("form.updated")}
-            errMsg={t("form.error")}
-            onDone={() => setCatEdit(null)}
+            errMsg={t("form.saveFailed")}
+            onDone={() => {
+              reloadCats();
+              setCatEdit(null);
+            }}
           />
         ) : null}
       </Modal>
@@ -465,7 +452,7 @@ export default function AdminServices() {
               <button className="btn btn--ghost" type="button" onClick={() => setCatDel(null)} disabled={catBusy === catDel.id}>
                 {t("form.cancel")}
               </button>
-              <button className="btn btn--danger" type="button" disabled={catBusy === catDel.id} onClick={() => void catOp(catDel, () => removeCategory(catDel.id), ts("cat.deleted"))}>
+              <button className="btn btn--danger" type="button" disabled={catBusy === catDel.id} onClick={() => void catOp(catDel, "del", () => removeCategory(catDel.id), ts("cat.deleted"), t("form.deleteError"))}>
                 {catBusy === catDel.id ? t("form.saving") : t("form.delete")}
               </button>
             </div>
@@ -482,7 +469,6 @@ export default function AdminServices() {
               {del.slug ? <span className="advmuted"> · {del.slug}</span> : null}
             </p>
             <p className="advmuted" style={{ margin: 0 }}>{ts("del.text")}</p>
-            {delNote ? <Notice ok={delNote.ok} msg={delNote.msg} /> : null}
             <div className="svced__acts">
               <button className="btn btn--ghost" type="button" onClick={() => setDel(null)} disabled={delBusy}>
                 {t("form.cancel")}

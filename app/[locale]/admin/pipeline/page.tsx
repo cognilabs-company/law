@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { moveLeadKanban, adminCreateLead, adminDeleteLead, adminUpdateLead, saveLeadKanbanColumns, deleteLeadKanbanColumn } from "@/lib/services/backend";
 import {
@@ -24,18 +24,23 @@ import {
 
 const LOST_REASONS = ["price", "solved_self", "competitor", "no_answer", "no_service", "spam"] as const;
 const isLostKey = (k: string) => /lost|rejected|yoqotil|rad/i.test(k);
-import { errDetail } from "@/lib/http";
 import { useAuth } from "@/lib/auth";
+import { notify } from "@/lib/toast";
 import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadSourceLabel } from "@/lib/leadLabels";
 import { useResource } from "@/lib/useResource";
 import { AdminForm, Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import FieldError from "@/components/ui/FieldError";
 import Select from "@/components/Select";
 import LeadDrawer from "@/components/admin/LeadDrawer";
 import LeadFilterBar from "@/components/admin/LeadFilterBar";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import { IconTrendingUp, IconChevronLeft, IconChevronRight, IconUsers, IconGrid, IconDocLines, IconPlus, IconEdit, IconTrash, IconUser, IconBolt, IconPhone, IconMapPin } from "@/components/icons";
 import { initials } from "@/lib/lawyers";
+
+type Lost = { reason: string; note: string };
+type MoveOpts = { lost?: Lost; undo?: boolean };
 
 // Whole minutes since the epoch, refreshed once a minute, for the card ages.
 function subscribeMinute(cb: () => void) {
@@ -52,6 +57,8 @@ export default function AdminPipeline() {
   const te = useTranslations("enums");
   const colName = (c: { key: string; title: string }) => kanbanColumnTitle(tStages, c);
   const ta = useTranslations("admin");
+  const tc = useTranslations("common");
+  const tn = useTranslations("common.notify");
   const { session } = useAuth();
   const meId = session?.id ?? "";
   // Call-center operators for assignment (GET /admin/users — users.manage).
@@ -62,7 +69,8 @@ export default function AdminPipeline() {
   const res = useResource<KanbanColumnX>(getLeadKanbanX, []);
   const cols = res.data;
   const refresh = res.refresh;
-  const [moveErr, setMoveErr] = useState(false);
+  const moveRef = useRef<(leadId: string, columnKey: string, position: number, opts?: MoveOpts) => Promise<void>>(async () => {});
+  const autoRef = useRef<() => Promise<void>>(async () => {});
   // Lost reason is asked before the card lands in a "lost" column (T4-02 §7).
   const [lostAsk, setLostAsk] = useState<{ leadId: string; columnKey: string; position: number } | null>(null);
   const [lostReason, setLostReason] = useState<string>("price");
@@ -95,19 +103,19 @@ export default function AdminPipeline() {
   const [sName, setSName] = useState("");
   const [sColor, setSColor] = useState("#2563eb");
   const [sBusy, setSBusy] = useState(false);
-  const [sErr, setSErr] = useState(false);
+  const [sTouched, setSTouched] = useState(false);
+  const sNameId = useId();
+  const sNameErr = sTouched && !sName.trim() ? tc("required") : "";
 
   // Delete a status (column), reassigning its leads if any.
   const [delCol, setDelCol] = useState<KanbanColumnX | null>(null);
   const [delReassign, setDelReassign] = useState("");
   const [delColBusy, setDelColBusy] = useState(false);
-  const [delColErr, setDelColErr] = useState<string | null>(null);
 
   // Auto-assignment of unassigned leads (client-side plan, saved lead by lead).
   const [autoOpen, setAutoOpen] = useState(false);
   const [autoStrategy, setAutoStrategy] = useState<AssignStrategy>("round_robin");
   const [autoRun, setAutoRun] = useState<{ done: number; total: number } | null>(null);
-  const [autoMsg, setAutoMsg] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const total = useMemo(() => cols.reduce((n, c) => n + c.count, 0), [cols]);
   const allCards = useMemo(
@@ -123,6 +131,7 @@ export default function AdminPipeline() {
   };
   const colColor = (k: string) => cols.find((c) => c.key === k)?.color || "";
   const orderOf = (k: string) => cols.findIndex((c) => c.key === k);
+  const nameOf = (l: LeadX) => l.name || l.phone || leadCategoryLabel(t, l.category) || t("untitledLead");
 
   // Filters (client-side over the loaded board).
   const [f, setF] = useState<LeadFilter>(EMPTY_LEAD_FILTER);
@@ -143,14 +152,15 @@ export default function AdminPipeline() {
 
   // Optimistic: the card jumps at once, the server call follows, then the
   // board is refetched silently. A rejected move puts the card back.
-  async function moveTo(leadId: string, columnKey: string, position: number, lost?: { reason: string; note: string }) {
+  async function moveTo(leadId: string, columnKey: string, position: number, opts: MoveOpts = {}) {
     if (busy) return;
+    const { lost, undo } = opts;
     const from = cols.find((c) => c.cards.some((x) => x.lead.id === leadId));
     if (!from) return;
     const sameColumn = from.key === columnKey;
     // The lost-reason prompt is for a card newly entering a lost column, not
     // for reordering cards that are already sitting in one.
-    if (!sameColumn && isLostKey(columnKey) && !lost) { setLostAsk({ leadId, columnKey, position }); return; }
+    if (!sameColumn && isLostKey(columnKey) && !lost && !undo) { setLostAsk({ leadId, columnKey, position }); return; }
     const card = from.cards.find((x) => x.lead.id === leadId);
     if (!card) return;
     const curIdx = from.cards.findIndex((x) => x.lead.id === leadId);
@@ -158,11 +168,13 @@ export default function AdminPipeline() {
     // later index down by one, so a target position after its own current
     // slot needs that same adjustment — otherwise the card lands one place
     // further than where it was actually dropped.
-    const finalPosition = sameColumn && position > curIdx ? position - 1 : position;
+    const finalPosition = !undo && sameColumn && position > curIdx ? position - 1 : position;
     if (sameColumn && finalPosition === curIdx) return; // dropped back where it started
     const before = cols;
+    const body = nameOf(card.lead);
+    const retry = { label: tn("retry"), onClick: () => void moveRef.current(leadId, columnKey, position, opts) };
+    const failId = `lead-move:${leadId}`;
     setBusy(leadId);
-    setMoveErr(false);
     res.setData((cur) =>
       cur.map((c) => {
         if (sameColumn) {
@@ -180,13 +192,30 @@ export default function AdminPipeline() {
         return c;
       }),
     );
+    if (lost) {
+      try {
+        await adminUpdateLead(leadId, { details: { ...(card.lead.details ?? {}), lost_reason: lost.reason, lost_note: lost.note, lost_at: new Date().toISOString() } });
+      } catch (e) {
+        res.setData(before);
+        setBusy(null);
+        notify.error(t("notify.lostFailed"), { id: failId, error: e, action: retry });
+        return;
+      }
+    }
     try {
-      if (lost) await adminUpdateLead(leadId, { details: { ...(card.lead.details ?? {}), lost_reason: lost.reason, lost_note: lost.note, lost_at: new Date().toISOString() } }).catch(() => {});
       await moveLeadKanban(leadId, columnKey, finalPosition);
       void refresh();
-    } catch {
+      notify.dismiss(failId);
+      if (undo) notify.success(t("notify.moveUndone"), { id: "lead-move", body });
+      else
+        notify.success(sameColumn ? t("notify.reordered") : t("notify.moved", { stage: colTitle(columnKey) }), {
+          id: "lead-move",
+          body,
+          action: { label: tn("undo"), onClick: () => void moveRef.current(leadId, from.key, curIdx, { undo: true }) },
+        });
+    } catch (e) {
       res.setData(before);
-      setMoveErr(true);
+      notify.error(t("notify.moveFailed"), { id: failId, error: e, action: retry });
     } finally {
       setBusy(null);
     }
@@ -200,18 +229,16 @@ export default function AdminPipeline() {
   // once; a rejected write (403 without leads.manage) puts it back and the
   // drawer shows the reason.
   async function assign(lead: LeadX, userId: string) {
-    const before = cols;
     const at = new Date().toISOString();
     res.setData((cur) => patchLeadInColumns(cur, lead.id, (l) => withAssignment(l, userId, meId, at)));
     try {
       await assignLead(lead, userId, meId);
     } catch (e) {
-      res.setData(before);
+      res.setData((cur) => patchLeadInColumns(cur, lead.id, () => lead));
       throw e;
     }
   }
   function openAuto() {
-    setAutoMsg(null);
     setAutoRun(null);
     setAutoOpen(true);
   }
@@ -219,29 +246,35 @@ export default function AdminPipeline() {
     if (autoRun) return;
     const plan = autoAssign(allLeads, ops.ops, autoStrategy);
     if (!plan.length) { setAutoOpen(false); return; }
-    setAutoMsg(null);
     setAutoRun({ done: 0, total: plan.length });
-    const r = await applyAssignments(plan, meId, (a, at) => {
-      res.setData((cur) => patchLeadInColumns(cur, a.lead.id, (l) => withAssignment(l, a.operator.id, meId, at)));
-      setAutoRun((cur) => (cur ? { ...cur, done: cur.done + 1 } : cur));
-    });
-    setAutoRun(null);
-    setAutoOpen(false);
-    if (r.forbidden && !r.done) setAutoMsg({ ok: false, msg: t("assign.noPermission") });
-    else if (r.failed || r.forbidden) setAutoMsg({ ok: r.done > 0, msg: t("auto.partial", { n: r.done, failed: r.failed + (r.forbidden ? plan.length - r.done - r.failed : 0) }) });
-    else setAutoMsg({ ok: true, msg: t("auto.done", { n: r.done }) });
-    void refresh();
+    const retry = { label: tn("retry"), onClick: () => { setAutoOpen(true); void autoRef.current(); } };
+    try {
+      const r = await applyAssignments(plan, meId, (a, at) => {
+        res.setData((cur) => patchLeadInColumns(cur, a.lead.id, (l) => withAssignment(l, a.operator.id, meId, at)));
+        setAutoRun((cur) => (cur ? { ...cur, done: cur.done + 1 } : cur));
+      });
+      const failed = plan.length - r.done;
+      if (!r.done) notify.error(t("notify.autoFailed"), { id: "lead-auto", body: r.forbidden ? t("assign.noPermission") : undefined, error: r.lastError, action: r.forbidden ? undefined : retry });
+      else if (failed) notify.warning(t("notify.autoPartial"), { id: "lead-auto", body: t("auto.partial", { n: r.done, failed }), action: r.forbidden ? undefined : retry });
+      else notify.success(t("notify.autoDone", { n: r.done }), { id: "lead-auto" });
+    } catch (e) {
+      notify.error(t("notify.autoFailed"), { id: "lead-auto", error: e, action: retry });
+    } finally {
+      setAutoRun(null);
+      setAutoOpen(false);
+      void refresh();
+    }
   }
   function openAddStatus() {
     setSName("");
     setSColor(STATUS_COLORS[0]);
-    setSErr(false);
+    setSTouched(false);
     setStatusModal({ mode: "add" });
   }
   function openRenameStatus(col: KanbanColumnX) {
-    setSName(col.title);
+    setSName(colName(col));
     setSColor(col.color || "#6b7280");
-    setSErr(false);
+    setSTouched(false);
     setStatusModal({ mode: "rename", col });
   }
   // Build a unique column key from the typed name (falls back for non-latin).
@@ -257,58 +290,69 @@ export default function AdminPipeline() {
   async function submitStatus() {
     const name = sName.trim();
     if (!name || sBusy || !statusModal) return;
+    const adding = statusModal.mode === "add";
     setSBusy(true);
-    setSErr(false);
     try {
-      if (statusModal.mode === "add") {
+      if (adding) {
         const order = cols.reduce((m, c) => Math.max(m, c.order), 0) + 10;
         await saveLeadKanbanColumns([{ key: statusKey(name), title: name, color: sColor, order }]);
       } else if (statusModal.col) {
         const c = statusModal.col;
-        await saveLeadKanbanColumns([{ key: c.key, title: name, color: sColor, order: c.order, isFinal: c.isFinal }]);
+        await saveLeadKanbanColumns([{ key: c.key, title: name === colName(c) ? c.title : name, color: sColor, order: c.order, isFinal: c.isFinal }]);
       }
       setStatusModal(null);
       void refresh();
-    } catch {
-      setSErr(true);
+      notify.success(adding ? t("notify.stageAdded") : t("notify.stageSaved"), { body: name });
+    } catch (e) {
+      notify.error(adding ? t("notify.stageAddFailed") : t("notify.stageSaveFailed"), { error: e });
     } finally {
       setSBusy(false);
     }
   }
   function openDeleteStatus(col: KanbanColumnX) {
     setDelCol(col);
-    setDelColErr(null);
     // Default reassignment target: the first other column.
     setDelReassign(cols.find((c) => c.key !== col.key)?.key ?? "");
   }
   async function confirmDeleteStatus() {
     if (!delCol || delColBusy) return;
+    const col = delCol;
+    const target = col.count > 0 ? cols.find((c) => c.key === delReassign) : undefined;
     setDelColBusy(true);
-    setDelColErr(null);
     try {
-      await deleteLeadKanbanColumn(delCol.key, delCol.count > 0 ? delReassign || undefined : undefined);
+      await deleteLeadKanbanColumn(col.key, col.count > 0 ? delReassign || undefined : undefined);
       setDelCol(null);
       void refresh();
+      notify.success(t("notify.stageDeleted"), { body: target ? t("notify.stageLeadsMoved", { n: col.count, stage: colName(target) }) : colName(col) });
     } catch (e) {
-      setDelColErr(errDetail(e) || ta("form.deleteError"));
+      notify.error(t("notify.stageDeleteFailed"), { error: e, map: { 409: t("notify.stageDeleteConflict") } });
     } finally {
       setDelColBusy(false);
     }
   }
-  async function remove(leadId: string) {
-    if (typeof window !== "undefined" && !window.confirm(t("d.deleteConfirm"))) return;
+  async function remove(leadId: string, confirmed = false) {
+    const lead = allLeads.find((l) => l.id === leadId);
+    const name = lead ? nameOf(lead) : t("untitledLead");
+    if (!confirmed && !(await confirmDialog({ tone: "danger", title: t("notify.deleteAsk", { name }), text: ta("form.deleteConfirmText"), confirmLabel: ta("form.delete") }))) return;
     setBusy(leadId);
     try {
       await adminDeleteLead(leadId);
-      setSelId(null);
+      setSelId((cur) => (cur === leadId ? null : cur));
       res.setData((cur) => cur.map((c) => (c.cards.some((x) => x.lead.id === leadId) ? { ...c, count: Math.max(0, c.count - 1), cards: c.cards.filter((x) => x.lead.id !== leadId) } : c)));
       void refresh();
-    } catch {
-      /* ignore */
+      notify.dismiss(`lead-delete:${leadId}`);
+      notify.success(t("notify.deleted"), { body: name });
+    } catch (e) {
+      notify.error(t("notify.deleteFailed"), { id: `lead-delete:${leadId}`, error: e, action: { label: tn("retry"), onClick: () => void remove(leadId, true) } });
     } finally {
       setBusy(null);
     }
   }
+
+  useEffect(() => {
+    moveRef.current = moveTo;
+    autoRef.current = runAuto;
+  });
 
   // Auto-assign preview (only while the modal is open — the plan is pure).
   const autoPlan = autoOpen ? autoAssign(allLeads, ops.ops, autoStrategy) : [];
@@ -330,7 +374,6 @@ export default function AdminPipeline() {
     if (mins < 60 * 24) return t("age.hour", { n: Math.floor(mins / 60) });
     return t("age.day", { n: Math.floor(mins / 1440) });
   };
-  const nameOf = (l: LeadX) => l.name || l.phone || leadCategoryLabel(t, l.category) || t("untitledLead");
   const who = (l: LeadX) => assigneeLabel(t, ops.ops, l.assignedTo, meId);
 
   return (
@@ -395,10 +438,10 @@ export default function AdminPipeline() {
         </>
       ) : null}
 
-      {moveErr ? <Notice ok={false} msg={t("moveError")} /> : null}
-      {autoMsg ? <Notice ok={autoMsg.ok} msg={autoMsg.msg} /> : null}
       {res.status === "loading" ? (
         <div className="lpipe-skel" aria-busy="true">{[0, 1, 2, 3].map((i) => <span key={i} />)}</div>
+      ) : res.status === "error" ? (
+        <ErrorState error={res.error} onRetry={refresh} />
       ) : !cols.length ? (
         <EmptyState icon={<IconTrendingUp />} title={t("empty")} text={t("emptyText")} />
       ) : view === "kanban" ? (
@@ -563,8 +606,8 @@ export default function AdminPipeline() {
           }
           submitLabel={ta("form.save")}
           busyLabel={ta("form.saving")}
-          okMsg={ta("form.created")}
-          errMsg={ta("form.error")}
+          okMsg={t("notify.added")}
+          errMsg={t("notify.addFailed")}
           onDone={() => { void refresh(); setAddOpen(false); }}
         />
       </Modal>
@@ -642,7 +685,7 @@ export default function AdminPipeline() {
             <label>{t("lost.note")}</label>
             <textarea rows={2} value={lostNote} onChange={(e) => setLostNote(e.target.value)} />
           </div>
-          <button className="btn btn--pri btn--full" type="button" onClick={() => { const a = lostAsk; setLostAsk(null); if (a) void moveTo(a.leadId, a.columnKey, a.position, { reason: lostReason, note: lostNote.trim() }); setLostNote(""); }}>{t("lost.confirm")}</button>
+          <button className="btn btn--pri btn--full" type="button" onClick={() => { const a = lostAsk; setLostAsk(null); if (a) void moveTo(a.leadId, a.columnKey, a.position, { lost: { reason: lostReason, note: lostNote.trim() } }); setLostNote(""); }}>{t("lost.confirm")}</button>
         </div>
       </Modal>
 
@@ -650,8 +693,18 @@ export default function AdminPipeline() {
       <Modal open={statusModal !== null} onClose={() => setStatusModal(null)} title={statusModal?.mode === "rename" ? t("renameStatus") : t("addStatus")}>
         <div className="cform" style={{ maxWidth: "none" }}>
           <div>
-            <label>{t("statusName")}</label>
-            <input value={sName} onChange={(e) => setSName(e.target.value)} placeholder={t("statusNamePh")} autoFocus />
+            <label htmlFor={sNameId}>{t("statusName")}</label>
+            <input
+              id={sNameId}
+              value={sName}
+              onChange={(e) => { setSName(e.target.value); setSTouched(true); }}
+              placeholder={t("statusNamePh")}
+              autoFocus
+              aria-required
+              aria-invalid={sNameErr ? true : undefined}
+              aria-describedby={sNameErr ? `${sNameId}-err` : undefined}
+            />
+            <FieldError id={`${sNameId}-err`} msg={sNameErr} />
           </div>
           <div>
             <label>{t("statusColor")}</label>
@@ -662,10 +715,9 @@ export default function AdminPipeline() {
               <input type="color" className="clrpick__native" value={sColor} onChange={(e) => setSColor(e.target.value)} aria-label={t("statusColor")} />
             </div>
           </div>
-          {sErr ? <Notice ok={false} msg={ta("form.error")} /> : null}
           <div style={{ display: "flex", gap: 10 }}>
             <button className="btn btn--ghost" type="button" onClick={() => setStatusModal(null)}>{ta("form.cancel")}</button>
-            <button className="btn btn--pri" type="button" onClick={submitStatus} disabled={sBusy}>{sBusy ? ta("form.saving") : ta("form.save")}</button>
+            <button className="btn btn--pri" type="button" onClick={submitStatus} disabled={sBusy || !sName.trim()}>{sBusy ? ta("form.saving") : ta("form.save")}</button>
           </div>
         </div>
       </Modal>
@@ -674,7 +726,7 @@ export default function AdminPipeline() {
       <Modal open={delCol !== null} onClose={() => setDelCol(null)} title={t("deleteStatus")}>
         {delCol ? (
           <div className="cform" style={{ maxWidth: "none" }}>
-            <p style={{ margin: 0 }}><b>{delCol.title}</b></p>
+            <p style={{ margin: 0 }}><b>{colName(delCol)}</b></p>
             {delCol.count > 0 ? (
               <div>
                 <label>{t("reassignLeads", { count: delCol.count })}</label>
@@ -688,7 +740,6 @@ export default function AdminPipeline() {
             ) : (
               <p className="advmuted" style={{ margin: 0 }}>{t("deleteStatusText")}</p>
             )}
-            {delColErr ? <Notice ok={false} msg={delColErr} /> : null}
             <div style={{ display: "flex", gap: 10 }}>
               <button className="btn btn--ghost" type="button" onClick={() => setDelCol(null)}>{ta("form.cancel")}</button>
               <button className="btn btn--danger" type="button" onClick={confirmDeleteStatus} disabled={delColBusy || (delCol.count > 0 && !delReassign)}>

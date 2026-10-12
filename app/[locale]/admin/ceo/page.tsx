@@ -1,19 +1,21 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getCeoDashboardFull, isCeoEmpty, trimSeries, isFiltered, todayIso, EMPTY_FILTER, type CeoDashboardFull } from "@/lib/services/dash";
+import { getCeoDashboardFull, isCeoEmpty, trimSeries, isFiltered, todayIso, EMPTY_FILTER, type CeoDashboardFull, type DashFilter } from "@/lib/services/dash";
 import { demoCeo, dayBefore } from "@/lib/demoStats";
 import { useResourceOne } from "@/lib/useResource";
 import { fmtUzs, fmtUzsShort } from "@/lib/money";
 import { fmtDate, fmtInt } from "@/lib/date";
 import { humanizeSlug, REGION_KEYS } from "@/lib/lawyers";
 import { useAiSelection } from "@/lib/ai/registry";
+import { notify } from "@/lib/toast";
 import LineChart from "@/components/admin/LineChart";
 import Select from "@/components/Select";
 import StatDrillModal, { type Drill, type DrillRow } from "@/components/admin/StatDrillModal";
 import { useDashFilter } from "@/components/admin/DashFilterBar";
-import { IconAlert, IconArrowRight, IconBolt, IconInfo, IconRefresh } from "@/components/icons";
+import { ErrorState } from "@/components/portal/DataState";
+import { IconAlert, IconArrowRight, IconBolt, IconInfo } from "@/components/icons";
 
 const GIFT0 = { giftPurchases: 0, giftActivationRate: 0, recipientConversion: 0, giftToPaidConversion: 0, averageGiftValue: 0, referralRate: 0, giftCac: 0, giftLtv: 0 };
 const EMPTY: CeoDashboardFull = {
@@ -32,6 +34,9 @@ const PERIODS: { key: "" | "d7" | "d30" | "d90"; days: number }[] = [
 const TEST_CHANNEL = /(^|[_-])(demo|test|auto_test|fixture|qa|sandbox)([_-]|$)/i;
 type Health = "good" | "watch" | "bad" | "na" | "info";
 type SortKey = "revenue" | "leads" | "payments" | "pct";
+type Kept = { data: CeoDashboardFull; filter: DashFilter };
+type Got = ({ ok: true } & Kept) | { ok: false; error: unknown };
+const STALE_ID = "ceo-stale";
 
 function Section({ id, ai, title, note, action, children }: { id: string; ai: string; title: string; note?: string; action?: ReactNode; children: ReactNode }) {
   return (
@@ -59,18 +64,37 @@ export default function AdminCeo() {
   const tf = useTranslations("admin.dash.filter");
   const tc = useTranslations("admin.overview.crm");
   const te = useTranslations("enums.regions");
+  const tnf = useTranslations("common.notify");
   const { filter, setFilter, demoForced, setDemoForced } = useDashFilter();
   const [tick, setTick] = useState(0);
   const fkey = `${filter.region}|${filter.from}|${filter.to}|${tick}`;
-  const res = useResourceOne(() => getCeoDashboardFull(filter), [fkey]);
+  const res = useResourceOne(() => getCeoDashboardFull(filter).then((data): Got => ({ ok: true, data, filter }), (error: unknown): Got => ({ ok: false, error })), [fkey]);
+  const [kept, setKept] = useState<Kept | null>(null);
+  const got = res.data;
+  if (got?.ok && got !== kept) setKept(got);
   const [drill, setDrill] = useState<Drill | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "revenue", dir: -1 });
   const [showTest, setShowTest] = useState(false);
   const loaded = res.status !== "loading";
-  const failed = res.status === "error" && !demoForced;
-  const demo = demoForced || (res.status === "ready" && (!res.data || isCeoEmpty(res.data)));
-  const d = useMemo(() => (demo ? demoCeo(todayIso()) : res.data ?? EMPTY), [demo, res.data]);
-  const trend = trimSeries(d.revenueTrend, filter);
+  const report = got?.ok ? got.data : kept?.data ?? null;
+  const loadError = got && !got.ok ? got.error : undefined;
+  const failed = loaded && !report && !demoForced;
+  const demo = demoForced || (loaded && report !== null && isCeoEmpty(report));
+  const d = useMemo(() => (demo ? demoCeo(todayIso()) : report ?? EMPTY), [demo, report]);
+  const old = !demo && got && !got.ok ? kept : null;
+  const shown = old ? old.filter : filter;
+  const raised = useRef<Got | null>(null);
+
+  useEffect(() => {
+    if (got?.ok) notify.dismiss(STALE_ID);
+    else if (got && kept && !demoForced && got !== raised.current) {
+      raised.current = got;
+      notify.error(td("notUpdated"), { id: STALE_ID, error: got.error, action: { label: tnf("retry"), onClick: () => setTick((n) => n + 1) } });
+    }
+  }, [got, kept, demoForced, td, tnf]);
+  useEffect(() => () => notify.dismiss(STALE_ID), []);
+
+  const trend = trimSeries(d.revenueTrend, shown);
   const stage = (k: string) => (t.has(`stage.${k}`) ? t(`stage.${k}`) : humanizeSlug(k));
   const source = (k: string) => (k ? (t.has(`source.${k}`) ? t(`source.${k}`) : humanizeSlug(k)) : "—");
   const units = { mln: td("units.mln"), mlrd: td("units.mlrd") };
@@ -91,6 +115,10 @@ export default function AdminCeo() {
     }
     const today = todayIso();
     setFilter({ ...filter, from: dayBefore(today, p.days - 1), to: today, preset: p.key });
+  };
+  const toggleDemo = () => {
+    setDemoForced(!demoForced);
+    notify.info(td(demoForced ? "demo.disabled" : "demo.enabled"), { id: "ceo-demo" });
   };
 
   const open = (drl: Omit<Drill, "demo">) => setDrill({ ...drl, demo });
@@ -171,7 +199,7 @@ export default function AdminCeo() {
   );
 
   const asOfDay = d.fetchedAt ? fmtDate(d.fetchedAt, locale) : "";
-  const periodLabel = filter.preset ? tf(filter.preset) : filter.from || filter.to ? tr("custom") : tf("allTime");
+  const periodLabel = shown.preset ? tf(shown.preset) : shown.from || shown.to ? tr("custom") : tf("allTime");
   const B = (chunks: ReactNode) => <b>{chunks}</b>;
 
   return (
@@ -190,7 +218,7 @@ export default function AdminCeo() {
         {isFiltered(filter) ? (
           <button type="button" className="ceo-bar__reset" onClick={() => setFilter(EMPTY_FILTER)}>{tf("reset")}</button>
         ) : null}
-        <button type="button" role="switch" aria-checked={demoForced} className="ceo-demo" onClick={() => setDemoForced(!demoForced)} title={tf("demoTitle")}>
+        <button type="button" role="switch" aria-checked={demoForced} className="ceo-demo" onClick={toggleDemo} title={tf("demoTitle")}>
           <IconBolt aria-hidden="true" />
           {tf("demo")}
           <i aria-hidden="true" />
@@ -203,11 +231,7 @@ export default function AdminCeo() {
         {!loaded ? (
           <div className="ceo-skel" aria-hidden="true"><span /><span /><span /><span /></div>
         ) : failed ? (
-          <div className="ceo-fail" role="alert">
-            <IconAlert aria-hidden="true" />
-            <span>{tr("failed")}</span>
-            <button type="button" className="btn btn--line btn--sm" onClick={() => setTick((n) => n + 1)}><IconRefresh />{tr("retry")}</button>
-          </div>
+          <ErrorState title={tr("failed")} error={loadError} onRetry={() => setTick((n) => n + 1)} />
         ) : (
           <>
             <header className="ceo-head" data-ai-target="ceo:kpis">
@@ -216,8 +240,9 @@ export default function AdminCeo() {
                 {d.revenueDeltaPct ? <> {tr.rich(d.revenueDeltaPct > 0 ? "deltaUp" : "deltaDown", { n: Math.abs(d.revenueDeltaPct), b: B })}</> : null}
               </p>
               <p className="ceo-head__meta">
-                {[t("title"), `${periodLabel}${filter.region ? ` · ${te.has(filter.region) ? te(filter.region) : humanizeSlug(filter.region)}` : ""}`, asOfDay ? tr("asOf", { date: asOfDay }) : ""].filter(Boolean).join("  ·  ")}
+                {[t("title"), `${periodLabel}${shown.region ? ` · ${te.has(shown.region) ? te(shown.region) : humanizeSlug(shown.region)}` : ""}`, asOfDay ? tr("asOf", { date: asOfDay }) : ""].filter(Boolean).join("  ·  ")}
               </p>
+              {old ? <p className="ceo-hint"><IconAlert aria-hidden="true" />{td("staleHint")}</p> : null}
             </header>
 
             <Section id="rev" ai="ceo:revenue-trend" title={t("revenueTrend")} note={tr("revNote")} action={more(drillRevenue, t("revenue"))}>

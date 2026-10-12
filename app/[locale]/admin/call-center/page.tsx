@@ -17,8 +17,8 @@ import CcCallLog from "@/components/admin/CcCallLog";
 export default function AdminCallCenter() {
   const { session } = useAuth();
   const cc = isCallCenterUser(session);
-  const [callsKey, setCallsKey] = useState(0);
-  const onLogged = () => setCallsKey((k) => k + 1);
+  const [logged, setLogged] = useState({ key: 0, phone: "" });
+  const onLogged = (phone = "") => setLogged((s) => ({ key: s.key + 1, phone }));
 
   return (
     <>
@@ -34,7 +34,7 @@ export default function AdminCallCenter() {
       <CallCenterBoard />
       <div className="pgrid2">
         <CcClientSearch canLog={cc} onLogged={onLogged} />
-        {cc ? <CcCallLog reloadKey={callsKey} /> : null}
+        {cc ? <CcCallLog reloadKey={logged.key} loggedPhone={logged.phone} /> : null}
       </div>
     </>
   );

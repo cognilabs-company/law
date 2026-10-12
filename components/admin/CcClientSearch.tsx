@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ccSearchClients, type CcClient } from "@/lib/services/backend";
 import { isForbidden } from "@/lib/http";
-import { Skeleton } from "@/components/portal/DataState";
+import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
 import Modal from "@/components/admin/Modal";
 import CcClientCard from "./CcClientCard";
@@ -13,17 +13,19 @@ import { IconSearch, IconUser, IconChevronRight } from "@/components/icons";
 // Client lookup for the call-center console (GET /call-center/clients/search):
 // searches as you type (name or phone, from 2 characters), Enter/button also
 // work; a result opens the client card. 403 = this role has no lookup right.
-export default function CcClientSearch({ canLog, onLogged }: { canLog: boolean; onLogged: () => void }) {
+export default function CcClientSearch({ canLog, onLogged }: { canLog: boolean; onLogged: (phone: string) => void }) {
   const t = useTranslations("admin.callCenter");
   const [q, setQ] = useState("");
   const [results, setResults] = useState<CcClient[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [forbidden, setForbidden] = useState(false);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
   const [open, setOpen] = useState<CcClient | null>(null);
   const seq = useRef(0);
 
   async function run(term: string) {
     const my = ++seq.current;
+    setFailure(null);
     if (term.length < 2) { setResults(null); setSearching(false); return; }
     setSearching(true);
     try {
@@ -31,8 +33,13 @@ export default function CcClientSearch({ canLog, onLogged }: { canLog: boolean; 
       if (my === seq.current) setResults(r);
     } catch (e) {
       if (my !== seq.current) return;
-      setResults([]);
-      if (isForbidden(e)) setForbidden(true);
+      if (isForbidden(e)) {
+        setResults([]);
+        setForbidden(true);
+      } else {
+        setResults(null);
+        setFailure({ error: e });
+      }
     } finally {
       if (my === seq.current) setSearching(false);
     }
@@ -54,6 +61,8 @@ export default function CcClientSearch({ canLog, onLogged }: { canLog: boolean; 
       </form>
       {forbidden ? (
         <p className="advmuted">{t("searchNoAccess")}</p>
+      ) : failure ? (
+        <ErrorState error={failure.error} onRetry={() => run(q.trim())} title={t("searchFailed")} compact />
       ) : searching && results === null ? (
         <Skeleton rows={2} />
       ) : results === null ? (

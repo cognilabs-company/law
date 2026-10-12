@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { logCcCall, type CcCallInput } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import Select from "@/components/Select";
-import { Notice } from "@/components/admin/AdminBits";
+import FieldError from "@/components/ui/FieldError";
 
 const RESULTS = ["answered", "no_answer", "busy", "callback", "wrong_number"];
 
@@ -20,12 +21,16 @@ export default function CcCallForm({
 }: {
   phone?: string;
   clientUserId?: string;
-  onDone: () => void;
+  onDone: (call: CcCallInput) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations("admin.callCenter.calls");
   const tc = useTranslations("admin.callCenter");
   const ta = useTranslations("admin.form");
+  const tp = useTranslations("admin.pipeline");
+  const uid = useId();
+  const phoneErrId = `${uid}-phone-err`;
+  const phoneBox = useRef<HTMLInputElement>(null);
   const [direction, setDirection] = useState("outgoing");
   const [phone, setPhone] = useState(initialPhone);
   const [topic, setTopic] = useState("");
@@ -33,23 +38,31 @@ export default function CcCallForm({
   const [next, setNext] = useState("");
   const [minutes, setMinutes] = useState("");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [phoneErr, setPhoneErr] = useState("");
 
   async function submit() {
     if (busy) return;
     const p = phone.trim();
-    if (!p) { setErr(t("phoneRequired")); return; }
+    if (!p) {
+      setPhoneErr(t("phoneRequired"));
+      phoneBox.current?.focus();
+      return;
+    }
     setBusy(true);
-    setErr(null);
     // A call nobody answered is a "missed" record; the rest complete.
     const status = result === "no_answer" || result === "busy" ? "missed" : "completed";
     const input: CcCallInput = { phone: p, direction, status, topic: topic.trim(), result, next_action: next.trim(), duration_sec: Math.max(0, Math.round(Number(minutes) || 0) * 60) };
     if (clientUserId) input.client_user_id = clientUserId;
     try {
       await logCcCall(input);
-      onDone();
+      notify.success(tp("d.callLogged"), { id: `cc-call-save-${uid}`, body: [p, input.topic].filter(Boolean).join(" · ") });
+      onDone(input);
     } catch (e) {
-      setErr(e instanceof ApiError && e.status === 403 ? tc("queue.noPermission") : ta("error"));
+      notify.error(t("saveFailed"), { id: `cc-call-save-${uid}`, error: e, map: { 403: tc("queue.noPermission") } });
+      if (e instanceof ApiError && e.status === 422 && e.fieldErrors.phone) {
+        setPhoneErr(e.fieldErrors.phone);
+        phoneBox.current?.focus();
+      }
     } finally {
       setBusy(false);
     }
@@ -64,7 +77,16 @@ export default function CcCallForm({
         </div>
         <div>
           <label>{t("phone")}</label>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+998 __ ___ __ __" inputMode="tel" />
+          <input
+            ref={phoneBox}
+            value={phone}
+            onChange={(e) => { setPhone(e.target.value); setPhoneErr(""); }}
+            placeholder="+998 __ ___ __ __"
+            inputMode="tel"
+            aria-invalid={phoneErr ? true : undefined}
+            aria-describedby={phoneErr ? phoneErrId : undefined}
+          />
+          <FieldError id={phoneErrId} msg={phoneErr} />
         </div>
       </div>
       <div>
@@ -85,10 +107,9 @@ export default function CcCallForm({
         <label>{t("nextAction")}</label>
         <input value={next} onChange={(e) => setNext(e.target.value)} placeholder={t("nextActionPh")} />
       </div>
-      {err ? <Notice ok={false} msg={err} /> : null}
       <div style={{ display: "flex", gap: 10 }}>
         <button className="btn btn--ghost" type="button" onClick={onCancel}>{ta("cancel")}</button>
-        <button className="btn btn--pri" type="button" onClick={submit} disabled={busy}>{busy ? ta("saving") : t("save")}</button>
+        <button className="btn btn--pri" type="button" onClick={submit} aria-disabled={busy || undefined} aria-busy={busy || undefined}>{busy ? ta("saving") : t("save")}</button>
       </div>
     </div>
   );

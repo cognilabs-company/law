@@ -6,12 +6,13 @@ import { getLeadTimeline, reengageLead, logCcCall, createTask, type KanbanColumn
 import { isForbiddenErr, leadUserId, type LeadX, type OpsStatus } from "@/lib/services/leads";
 import type { AdminUser } from "@/lib/services/users";
 import { useResource } from "@/lib/useResource";
-import { Notice, useReload } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import { useReload } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
 import Select from "@/components/Select";
 import { fmtDate, shortDateTime } from "@/lib/date";
 import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadUrgencyLabel } from "@/lib/leadLabels";
-import { Skeleton } from "@/components/portal/DataState";
+import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import { IconClose, IconClock, IconPhone, IconSend } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
 
@@ -51,42 +52,47 @@ export default function LeadDrawer({
   // still carrying the backend's default English name ("New") gets
   // localized; a stage an admin renamed keeps its custom title either way.
   const tStages = useTranslations("admin.callCenter.queue");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const [tlKey, bumpTl] = useReload();
   const tl = useResource(() => getLeadTimeline(lead.id), [lead.id, tlKey]);
   const [note, setNote] = useState("");
   const [remind, setRemind] = useState("");
   const [act, setAct] = useState<string | null>(null);
-  const [msg, setMsg] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [asgMsg, setAsgMsg] = useState<{ ok: boolean; msg: string } | null>(null);
+  const leadName = lead.name || lead.phone;
+  const opName = (id: string) => {
+    const o = operators.find((x) => x.id === id);
+    return o ? o.name || o.phone || o.lexgoId : assigneeLabel(t, operators, id, meId);
+  };
 
-  async function addNote() {
-    if (!note.trim() || act) return;
-    setAct("note"); setMsg(null);
-    try { await reengageLead(lead.id, note.trim()); setNote(""); setMsg({ ok: true, msg: t("d.done") }); bumpTl(); }
-    catch { setMsg({ ok: false, msg: t("d.err") }); }
+  async function addNote(text = note.trim()) {
+    if (!text || act) return;
+    setAct("note");
+    try { await reengageLead(lead.id, text); setNote((cur) => (cur.trim() === text ? "" : cur)); notify.dismiss(`lead-note:${lead.id}`); notify.success(t("notify.noteSaved"), { body: leadName }); bumpTl(); }
+    catch (e) { notify.error(t("notify.noteFailed"), { id: `lead-note:${lead.id}`, error: e, action: { label: tn("retry"), onClick: () => void addNote(text) } }); }
     finally { setAct(null); }
   }
   async function logCall() {
     if (act || !lead.phone) return;
-    setAct("call"); setMsg(null);
-    try { await logCcCall({ phone: lead.phone, note: `Lead: ${lead.name || lead.phone}` }); setMsg({ ok: true, msg: t("d.callLogged") }); bumpTl(); }
-    catch { setMsg({ ok: false, msg: t("d.err") }); }
+    setAct("call");
+    try { await logCcCall({ phone: lead.phone, note: `Lead: ${lead.name || lead.phone}` }); notify.dismiss(`lead-call:${lead.id}`); notify.success(t("d.callLogged"), { body: leadName }); bumpTl(); }
+    catch (e) { notify.error(t("notify.callFailed"), { id: `lead-call:${lead.id}`, error: e, action: { label: tn("retry"), onClick: () => void logCall() } }); }
     finally { setAct(null); }
   }
-  async function setReminder() {
-    if (!remind || act) return;
-    setAct("rem"); setMsg(null);
-    try { await createTask({ title: `${t("d.reminderTitle")}: ${lead.name || lead.phone}`, priority: "medium", due_date: remind }); setRemind(""); setMsg({ ok: true, msg: t("d.reminderSet") }); }
-    catch { setMsg({ ok: false, msg: t("d.err") }); }
+  async function setReminder(due = remind) {
+    if (!due || act) return;
+    setAct("rem");
+    try { await createTask({ title: `${t("d.reminderTitle")}: ${lead.name || lead.phone}`, priority: "medium", due_date: due }); setRemind((cur) => (cur === due ? "" : cur)); notify.dismiss(`lead-reminder:${lead.id}`); notify.success(t("d.reminderSet"), { body: [fmtDate(due, locale), leadName].filter(Boolean).join(" · ") }); }
+    catch (e) { notify.error(t("notify.reminderFailed"), { id: `lead-reminder:${lead.id}`, error: e, action: { label: tn("retry"), onClick: () => void setReminder(due) } }); }
     finally { setAct(null); }
   }
   // Operators without leads.manage get a 403 from PATCH /admin/leads/{id}.
   async function assign(userId: string) {
     if (!onAssign || act || userId === lead.assignedTo) return;
-    setAct("assign"); setAsgMsg(null);
-    try { await onAssign(userId); setAsgMsg({ ok: true, msg: userId ? t("assign.done") : t("assign.removed") }); }
-    catch (e) { setAsgMsg({ ok: false, msg: isForbiddenErr(e) ? t("assign.noPermission") : t("assign.err") }); }
+    const prev = lead.assignedTo;
+    setAct("assign");
+    try { await onAssign(userId); notify.dismiss(`lead-assign:${lead.id}`); notify.success(userId ? t("notify.assigned") : t("notify.unassigned"), { id: "lead-assign", body: opName(userId || prev) }); }
+    catch (e) { notify.error(userId ? t("notify.assignFailed") : t("notify.unassignFailed"), { id: `lead-assign:${lead.id}`, error: e, map: { 403: t("assign.noPermission") }, action: isForbiddenErr(e) ? undefined : { label: tn("retry"), onClick: () => void assign(userId) } }); }
     finally { setAct(null); }
   }
 
@@ -160,7 +166,6 @@ export default function LeadDrawer({
             {opsStatus === "forbidden" ? <p className="lasgn__hint">{t("assign.opsForbidden")}</p> : null}
             {opsStatus === "ready" && !operators.length ? <p className="lasgn__hint">{t("assign.noOps")}</p> : null}
             <p className="lasgn__hint">{t("assign.localNote")}</p>
-            {asgMsg ? <Notice ok={asgMsg.ok} msg={asgMsg.msg} /> : null}
           </div>
 
           {/* Client info */}
@@ -184,13 +189,12 @@ export default function LeadDrawer({
             </div>
             <div className="ldrw__noteadd">
               <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("d.notePh")} />
-              <button className="btn btn--pri btn--sm" type="button" disabled={!note.trim() || act === "note"} onClick={addNote}><IconSend />{act === "note" ? t("d.saving") : t("d.addNote")}</button>
+              <button className="btn btn--pri btn--sm" type="button" disabled={!note.trim() || act === "note"} onClick={() => void addNote()}><IconSend />{act === "note" ? t("d.saving") : t("d.addNote")}</button>
             </div>
             <div className="ldrw__remind">
               <DatePicker value={remind} onChange={setRemind} placeholder={t("d.reminder")} ariaLabel={t("d.reminder")} />
-              <button className="btn btn--line btn--sm" type="button" disabled={!remind || act === "rem"} onClick={setReminder}>{act === "rem" ? t("d.saving") : t("d.setReminder")}</button>
+              <button className="btn btn--line btn--sm" type="button" disabled={!remind || act === "rem"} onClick={() => void setReminder()}>{act === "rem" ? t("d.saving") : t("d.setReminder")}</button>
             </div>
-            {msg ? <Notice ok={msg.ok} msg={msg.msg} /> : null}
           </div>
 
           {/* Timeline */}
@@ -198,6 +202,8 @@ export default function LeadDrawer({
             <span className="ldrw__lbl">{t("d.timeline")}</span>
             {tl.status === "loading" ? (
               <Skeleton rows={3} />
+            ) : tl.status === "error" ? (
+              <ErrorState compact error={tl.error} onRetry={tl.refresh} />
             ) : !tl.data.length ? (
               <p className="ldrw__empty"><IconClock />{t("d.noTimeline")}</p>
             ) : (

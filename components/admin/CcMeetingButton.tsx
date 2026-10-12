@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useAuth, canMakeCalls } from "@/lib/auth";
 import { createSecureChat, startCall, searchUsers, type LiveKitJoin } from "@/lib/services/backend";
-import { ApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import CallRoom from "@/components/chat/CallRoom";
 import { IconVideo } from "@/components/icons";
 
@@ -58,7 +58,6 @@ export default function CcMeetingButton({ clientUserId, phone, clientName, title
   const t = useTranslations("admin.meetings");
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   const [active, setActive] = useState<Active | null>(null);
   if (!session || !canMakeCalls(session) || (!clientUserId && !phone) || clientUserId === session.id) return null;
 
@@ -68,17 +67,17 @@ export default function CcMeetingButton({ clientUserId, phone, clientName, title
   async function start() {
     if (busy || active) return;
     setBusy(true);
-    setErr(null);
     try {
       const uid = clientUserId || (await findUserByPhone(phone || ""));
-      if (!uid) { setErr(t("ccNoUser")); return; }
-      if (uid === session?.id) { setErr(t("ccSelf")); return; }
+      if (!uid) { notify.error(t("ccFailed"), { id: "cc-meet", body: t("ccNoUser") }); return; }
+      if (uid === session?.id) { notify.error(t("ccFailed"), { id: "cc-meet", body: t("ccSelf") }); return; }
       const ids = await startClientMeeting(uid, meetTitle);
       onStarted?.({ roomId: ids.roomId, callId: ids.callId });
       setActive(ids);
     } catch (e) {
-      const s = e instanceof ApiError ? e.status : 0;
-      setErr(s === 402 || s === 403 ? t("noPermission") : s === 404 || s === 405 || s === 501 ? t("backendMissing") : t("ccError"));
+      const denied = t("noPermission");
+      const missing = t("backendMissing");
+      notify.error(t("ccFailed"), { id: "cc-meet", error: e, map: { 402: denied, 403: denied, 404: missing, 405: missing, 501: missing } });
     } finally {
       setBusy(false);
     }
@@ -96,7 +95,6 @@ export default function CcMeetingButton({ clientUserId, phone, clientName, title
       >
         <IconVideo />
       </button>
-      {err ? <span className="ccmeet__err" role="alert">{err}</span> : null}
       {active
         ? createPortal(
             <CallRoom

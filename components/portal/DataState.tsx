@@ -1,9 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { Resource, ResStatus } from "@/lib/useResource";
-import { IconInfo } from "../icons";
+import { errorText } from "@/lib/errorText";
+import { IconAlert, IconInfo, IconRefresh } from "../icons";
 
 // Skeleton shown while a backend list is loading.
 export function Skeleton({ rows = 3 }: { rows?: number }) {
@@ -35,6 +36,46 @@ export function EmptyState({
   );
 }
 
+export function ErrorState({
+  error,
+  onRetry,
+  title,
+  compact,
+}: {
+  error?: unknown;
+  onRetry?: () => unknown;
+  title?: string;
+  compact?: boolean;
+}) {
+  const t = useTranslations("portal.common");
+  const tc = useTranslations("common");
+  const [busy, setBusy] = useState(false);
+  const reason = (error === undefined ? "" : errorText(error, tc)) || t("loadErrorText");
+
+  function retry() {
+    if (!onRetry || busy) return;
+    setBusy(true);
+    Promise.resolve()
+      .then(onRetry)
+      .catch(() => undefined)
+      .finally(() => setBusy(false));
+  }
+
+  return (
+    <div className={`pempty pempty--err${compact ? " pempty--compact" : ""}`} role="alert">
+      <IconAlert aria-hidden="true" />
+      <b>{title || t("loadError")}</b>
+      <p>{reason}</p>
+      {onRetry ? (
+        <button type="button" className="btn btn--line btn--sm" onClick={retry} aria-disabled={busy || undefined} aria-busy={busy || undefined}>
+          <IconRefresh aria-hidden="true" />
+          {tc("retry")}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 // Convenience: render loading / error / empty around a ready list.
 export function ResourceView<T>({
   res,
@@ -51,10 +92,9 @@ export function ResourceView<T>({
   children: (data: T[]) => ReactNode;
   skeletonRows?: number;
 }) {
-  const t = useTranslations("portal.common");
   if (res.status === "loading") return <Skeleton rows={skeletonRows} />;
   if (res.status === "error")
-    return <EmptyState icon={icon} title={t("loadError")} text={t("loadErrorText")} />;
+    return <ErrorState error={res.error} onRetry={typeof res.refresh === "function" ? res.refresh : undefined} />;
   if (!res.data.length)
     return <EmptyState icon={icon} title={emptyTitle} text={emptyText} />;
   return <>{children(res.data)}</>;

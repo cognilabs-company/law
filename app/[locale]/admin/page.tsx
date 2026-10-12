@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { sessionRoles, useAuth, type Session } from "@/lib/auth";
@@ -18,6 +18,7 @@ import {
   isFiltered,
   type AdminDashboardFull,
   type CeoDashboardFull,
+  type DashFilter,
   type DrilldownMetric,
   type DashListItem,
   todayIso,
@@ -25,9 +26,10 @@ import {
 } from "@/lib/services/dash";
 import { demoAdminDashboard, demoCeo, demoQuality } from "@/lib/demoStats";
 import { humanizeSlug } from "@/lib/lawyers";
-import { isDemoUnavailable } from "@/lib/http";
-import { useResourceOne } from "@/lib/useResource";
+import { ApiError, isDemoUnavailable } from "@/lib/http";
+import { useResourceOne, type ResStatus } from "@/lib/useResource";
 import { useDemoTools } from "@/lib/demoTools";
+import { notify } from "@/lib/toast";
 import { fmtUzs, fmtUzsShort } from "@/lib/money";
 import LineChart from "@/components/admin/LineChart";
 import Modal from "@/components/admin/Modal";
@@ -124,8 +126,24 @@ function Panel({ id, ai, Icon, tone, title, action, state, className, text, onRe
   );
 }
 
-type Stamp<T> = { data: T; at: string; today: string };
-const stamp = <T,>(p: Promise<T>): Promise<Stamp<T>> => p.then((data) => ({ data, at: new Date().toISOString(), today: todayIso() }));
+type Stamp<T> = { data: T; filter: DashFilter; at: string; today: string };
+const stamp = <T,>(p: Promise<T>, filter: DashFilter): Promise<Stamp<T>> => p.then((data) => ({ data, filter, at: new Date().toISOString(), today: todayIso() }));
+
+type Fail = { ok: false; error: unknown };
+type Got<T> = { ok: true; data: T } | Fail;
+const settle = <T,>(p: Promise<T>): Promise<Got<T>> => p.then((data): Got<T> => ({ ok: true, data }), (error: unknown): Got<T> => ({ ok: false, error }));
+const STALE_ID = "aov-stale";
+
+function useKeptOne<T>(fetcher: () => Promise<T>, deps: unknown[], scope?: unknown): { status: ResStatus; data: T | null; stale: Fail | null } {
+  const res = useResourceOne(() => settle(fetcher()), deps);
+  const [kept, setKept] = useState<{ data: T; scope: unknown } | null>(null);
+  const got = res.data;
+  if (got?.ok && kept?.data !== got.data) setKept({ data: got.data, scope });
+  const prev = kept && kept.scope === scope ? kept : null;
+  if (res.status === "loading") return { status: "loading", data: null, stale: null };
+  if (got?.ok) return { status: "ready", data: got.data, stale: null };
+  return prev && got ? { status: "ready", data: prev.data, stale: got } : { status: "error", data: null, stale: null };
+}
 
 // Admin overview: what needs attention first, then revenue, people, the
 // order pipeline, quality, channels and the latest activity. Every panel
@@ -137,34 +155,35 @@ export default function AdminOverview() {
   const tn = useTranslations("admin");
   const td = useTranslations("admin.dash");
   const te = useTranslations("enums.regions");
+  const tnf = useTranslations("common.notify");
   const locale = useLocale();
   const { session } = useAuth();
   const { filter, setFilter, demoForced, setDemoForced } = useDashFilter();
   const [tick, setTick] = useState(0);
   const fkey = `${filter.region}|${filter.from}|${filter.to}|${tick}`;
-  const ceo = useResourceOne(() => stamp(getCeoDashboardFull(filter)), [fkey]);
-  const qual = useResourceOne(() => stamp(getQualityFull(filter)), [fkey]);
-  const dash = useResourceOne(() => stamp(getAdminDashboardFull(filter)), [fkey]);
+  const ceo = useKeptOne(() => stamp(getCeoDashboardFull(filter), filter), [fkey]);
+  const qual = useKeptOne(() => stamp(getQualityFull(filter), filter), [fkey]);
+  const dash = useKeptOne(() => stamp(getAdminDashboardFull(filter), filter), [fkey]);
   const seeRegs = can("registerRequests", session);
   const seePayouts = can("payouts", session);
-  const regs = useResourceOne(() => (seeRegs ? listRegisterRequests("pending") : Promise.resolve([])), [seeRegs, tick]);
-  const payouts = useResourceOne(() => (seePayouts ? listAdminPayouts() : Promise.resolve([])), [seePayouts, tick]);
+  const regs = useKeptOne(() => (seeRegs ? listRegisterRequests("pending") : Promise.resolve([])), [seeRegs, tick], seeRegs);
+  const payouts = useKeptOne(() => (seePayouts ? listAdminPayouts() : Promise.resolve([])), [seePayouts, tick], seePayouts);
   const [drill, setDrill] = useState<Drill | null>(null);
   const [tab, setTab] = useState<"tasks" | "reviews" | "b2b">("tasks");
   const [seedBusy, setSeedBusy] = useState(false);
-  const [seedMsg, setSeedMsg] = useState<string | null>(null);
   const [seedAsk, setSeedAsk] = useState(false);
   const demoTools = useDemoTools();
 
   async function seed() {
     if (seedBusy) return;
     setSeedBusy(true);
-    setSeedMsg(null);
+    notify.dismiss("aov-seed");
     try {
       const r = await seedDemoData();
-      setSeedMsg([t("seedReady"), r.removed > 0 ? t("seedRemoved", { n: r.removed }) : ""].filter(Boolean).join(" "));
+      notify.success(t("seedDone"), { id: "aov-seed", body: [r.removed > 0 ? t("seedRemoved", { n: r.removed }) : "", t("seedRerun")].filter(Boolean).join(" ") });
     } catch (e) {
-      setSeedMsg(isDemoUnavailable(e) ? t("seedUnavailable") : t("seedError"));
+      if (isDemoUnavailable(e)) notify.warning(t("seedUnavailable"), { id: "aov-seed" });
+      else notify.error(t("seedFailed"), { id: "aov-seed", error: e, action: !(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 501) ? { label: tnf("retry"), onClick: () => void seed() } : undefined });
     } finally {
       setSeedBusy(false);
     }
@@ -183,6 +202,17 @@ export default function AdminOverview() {
   const asOf = dash.data?.at ?? ceo.data?.at ?? "";
   const stateOf = (r: { status: string }) => (demo ? "ready" : r.status);
   const retry = () => setTick((n) => n + 1);
+  const stale = ceo.stale ?? qual.stale ?? dash.stale ?? regs.stale ?? payouts.stale;
+  const fresh = [ceo, qual, dash, regs, payouts].every((r) => r.status === "ready" && !r.stale);
+  const raised = useRef(new WeakSet<Fail>());
+
+  useEffect(() => {
+    if (stale && !demoForced) {
+      if (!raised.current.has(stale)) notify.error(td("notUpdated"), { id: STALE_ID, error: stale.error, action: { label: tnf("retry"), onClick: () => setTick((n) => n + 1) } });
+      for (const f of [ceo.stale, qual.stale, dash.stale, regs.stale, payouts.stale]) if (f) raised.current.add(f);
+    } else if (fresh) notify.dismiss(STALE_ID);
+  }, [stale, fresh, demoForced, td, tnf, ceo.stale, qual.stale, dash.stale, regs.stale, payouts.stale]);
+  useEffect(() => () => notify.dismiss(STALE_ID), []);
 
   const som = tc("som");
   const money = (n?: number) => (n ? `${fmtUzs(n)} ${som}` : DASH);
@@ -192,7 +222,7 @@ export default function AdminOverview() {
   const pct = (n?: number) => (n || n === 0 ? `${Math.round(n)}%` : DASH);
   const num = (n: number) => fmt(n, locale);
   const funnel = c?.funnel ?? [];
-  const trend = trimSeries(c?.revenueTrend ?? [], filter);
+  const trend = trimSeries(c?.revenueTrend ?? [], !demo && ceo.data ? ceo.data.filter : filter);
   const stat = (k: string) => d?.totals.find((x) => x.label === k)?.value;
   const total = (k: string) => Number(d?.groups.totals[k] ?? stat(k) ?? 0);
   const chart = (k: string) => (d?.charts.find((x) => x.key === k)?.points ?? []).filter((x) => x.label);
@@ -402,7 +432,7 @@ export default function AdminOverview() {
             </button>
           ) : null}
         </div>
-        {seedMsg ? <p className="aov-top__msg" role="status">{seedMsg}</p> : null}
+        {stale && !demo ? <p className="aov-top__msg">{td("staleHint")}</p> : null}
       </div>
 
       <Modal open={seedAsk} onClose={() => setSeedAsk(false)} title={t("seedConfirmTitle")}>
@@ -415,7 +445,7 @@ export default function AdminOverview() {
         </div>
       </Modal>
 
-      <DashFilterBar value={filter} onChange={setFilter} demoForced={demoForced} onDemoForced={setDemoForced} note={isFiltered(filter) ? td("filter.regionNote") : undefined} />
+      <DashFilterBar value={filter} onChange={setFilter} demoForced={demoForced} onDemoForced={(on) => { setDemoForced(on); notify.info(td(on ? "demo.enabled" : "demo.disabled"), { id: "aov-demo" }); }} note={isFiltered(filter) ? td("filter.regionNote") : undefined} />
       {demo && loaded ? (
         <p className="bhnote" role="status"><IconInfo />{demoForced ? td("demo.forced") : td("demo.banner")}</p>
       ) : null}

@@ -5,8 +5,9 @@ import { useTranslations } from "next-intl";
 import { listAds, createAd, updateAd, deleteAd, type ModuleRecord } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
+import { notify } from "@/lib/toast";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { AdminForm, AdminItem, Notice, useReload } from "@/components/admin/AdminBits";
+import { AdminForm, AdminItem, useReload } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import { IconRocket, IconPlus, IconEdit, IconTrash } from "@/components/icons";
 
@@ -21,19 +22,17 @@ export default function AdminAds() {
   const [edit, setEdit] = useState<ModuleRecord | null>(null);
   const [del, setDel] = useState<ModuleRecord | null>(null);
   const [delBusy, setDelBusy] = useState(false);
-  const [delNote, setDelNote] = useState<{ ok: boolean; msg: string } | null>(null);
 
   async function confirmDelete() {
     if (!del || delBusy) return;
     setDelBusy(true);
-    setDelNote(null);
     try {
       await deleteAd(del.id);
       setDel(null);
       reload();
+      notify.success(t("form.deleted"), { id: `ad-del-${del.id}`, body: del.title });
     } catch (e) {
-      const detail = e && typeof e === "object" && "detail" in e ? String((e as { detail?: string }).detail) : "";
-      setDelNote({ ok: false, msg: detail || t("form.deleteError") });
+      notify.error(t("form.deleteError"), { id: `ad-del-${del.id}`, error: e });
     } finally {
       setDelBusy(false);
     }
@@ -72,7 +71,7 @@ export default function AdminAds() {
                   <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => setEdit(a)}>
                     <IconEdit />
                   </button>
-                  <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => { setDelNote(null); setDel(a); }}>
+                  <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => setDel(a)}>
                     <IconTrash />
                   </button>
                 </>
@@ -99,7 +98,7 @@ export default function AdminAds() {
           submitLabel={t("form.save")}
           busyLabel={t("form.saving")}
           okMsg={t("form.created")}
-          errMsg={t("form.error")}
+          errMsg={t("form.saveFailed")}
           onDone={() => {
             reload();
             setOpen(false);
@@ -153,7 +152,6 @@ export default function AdminAds() {
               <b>{del.title}</b>
             </p>
             <p className="advmuted" style={{ margin: 0 }}>{t("form.deleteConfirmText")}</p>
-            {delNote ? <Notice ok={delNote.ok} msg={delNote.msg} /> : null}
             <div style={{ display: "flex", gap: 10 }}>
               <button className="btn btn--ghost" type="button" onClick={() => setDel(null)}>
                 {t("form.cancel")}

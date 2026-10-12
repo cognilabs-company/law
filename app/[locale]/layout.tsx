@@ -26,6 +26,7 @@ import ThemeSync from "@/components/ThemeSync";
 import LiveOfficeHeartbeat from "@/components/live/LiveOfficeHeartbeat";
 import ReferralCapture from "@/components/ReferralCapture";
 import Toaster from "@/components/Toaster";
+import ConfirmHost from "@/components/ui/ConfirmDialog";
 import GuideHost from "@/components/guide/GuideHost";
 import AiRuntimeHost from "@/components/guide/AiRuntimeHost";
 import { THEME_SCRIPT } from "@/lib/themeScript";
@@ -102,6 +103,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <AIChatDock />
             <RevealOnScroll />
             <Toaster />
+            <ConfirmHost />
             <GuideHost />
             <AiRuntimeHost />
           </AuthProvider>

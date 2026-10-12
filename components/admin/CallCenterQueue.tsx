@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { leadCategoryLabel } from "@/lib/leadLabels";
 import { getCallCenterQueue, assignNextSeller, moveCallCenterLead, type QueueItem } from "@/lib/services/backend";
-import { ApiError } from "@/lib/http";
+import { ApiError, isForbidden } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import { aiId } from "@/lib/ai/ids";
 import Select from "@/components/Select";
-import { Skeleton } from "@/components/portal/DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import { IconClock, IconRefresh, IconArrowRight } from "@/components/icons";
 
 const REFRESH_MS = 60_000;
@@ -16,7 +16,7 @@ const REFRESH_MS = 60_000;
 const LEAD_STAGES = ["contacted", "qualified", "proposal", "won", "lost"] as const;
 const AI_ENTITY: Record<string, string> = { lead: "lead", order: "order", urgent_advokat: "urgent_advokat_request" };
 
-type State = { status: "loading" | "ready" | "error" | "forbidden"; items: QueueItem[] };
+type State = { status: "loading" | "ready" | "error" | "forbidden"; items: QueueItem[]; error?: unknown };
 
 // T1-12 call-center queue (GET /call-center/queue, callcenter.access): leads and
 // unassigned orders, SLA-breached first. Refreshes every minute while the tab
@@ -27,20 +27,34 @@ export default function CallCenterQueue() {
   const tp = useTranslations("admin.pipeline");
   // Tezkor Advokat rows name their service in the client's own vocabulary.
   const tk = useTranslations("portal.client.urgent");
+  const tn = useTranslations("common.notify");
   const [state, setState] = useState<State>({ status: "loading", items: [] });
   const [busyId, setBusyId] = useState("");
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const shown = useRef(false);
+  const warned = useRef(false);
+  const again = useRef<() => void>(() => undefined);
 
   const load = useCallback(
-    () =>
+    (manual = false) =>
       getCallCenterQueue()
-        .then((items) => setState({ status: "ready", items }))
-        .catch((e) => {
+        .then((items) => {
+          shown.current = items.length > 0;
+          warned.current = false;
+          setState({ status: "ready", items });
+        })
+        .catch((e: unknown) => {
           const forbidden = e instanceof ApiError && (e.status === 403 || e.status === 401);
-          setState((s) => ({ status: forbidden ? "forbidden" : s.items.length ? "ready" : "error", items: s.items }));
+          setState((s) => ({ status: forbidden ? "forbidden" : s.items.length ? "ready" : "error", items: s.items, error: e }));
+          if (forbidden || !shown.current || (warned.current && !manual)) return;
+          warned.current = true;
+          notify.error(t("refreshFailed"), { id: "cc-queue-refresh", error: e, action: { label: tn("retry"), onClick: () => again.current() } });
         }),
-    [],
+    [t, tn],
   );
+
+  useEffect(() => {
+    again.current = () => void load(true);
+  }, [load]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
@@ -67,13 +81,17 @@ export default function CallCenterQueue() {
   async function assignNext(item: QueueItem) {
     if (busyId) return;
     setBusyId(item.id);
-    setNote(null);
     try {
       await assignNextSeller(item.id);
-      setNote({ ok: true, msg: t("assigned") });
+      notify.success(t("assignDone"), { id: `cc-queue-assign-${item.id}` });
       await load();
     } catch (e) {
-      setNote({ ok: false, msg: e instanceof ApiError && e.status === 403 ? t("noPermission") : t("actionError") });
+      notify.error(t("assignFailed"), {
+        id: `cc-queue-assign-${item.id}`,
+        error: e,
+        map: { 403: t("noPermission") },
+        action: isForbidden(e) ? undefined : { label: tn("retry"), onClick: () => void assignNext(item) },
+      });
     } finally {
       setBusyId("");
     }
@@ -82,13 +100,18 @@ export default function CallCenterQueue() {
   async function moveLead(item: QueueItem, stage: string) {
     if (busyId || !stage) return;
     setBusyId(item.id);
-    setNote(null);
     try {
       await moveCallCenterLead(item.id, stage, 0);
-      setNote({ ok: true, msg: t("moved", { stage: t(`stages.${stage}`) }) });
+      notify.dismiss(`cc-lead-move:${item.id}`);
+      notify.success(tp("notify.moved", { stage: t(`stages.${stage}`) }), { id: "cc-lead-move" });
       await load();
     } catch (e) {
-      setNote({ ok: false, msg: e instanceof ApiError && e.status === 403 ? t("noPermission") : t("actionError") });
+      notify.error(t("moveFailed"), {
+        id: `cc-lead-move:${item.id}`,
+        error: e,
+        map: { 403: t("noPermission") },
+        action: isForbidden(e) ? undefined : { label: tn("retry"), onClick: () => void moveLead(item, stage) },
+      });
     } finally {
       setBusyId("");
     }
@@ -104,18 +127,17 @@ export default function CallCenterQueue() {
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
           {breached ? <span className="ccq__breach">{t("breachedN", { n: breached })}</span> : null}
           <span className="advmuted">{state.items.length}</span>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => void load()} aria-label={t("refresh")}>
+          <button type="button" className="btn btn--line btn--sm" onClick={() => void load(true)} aria-label={t("refresh")}>
             <IconRefresh />
           </button>
         </span>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
 
       {state.status === "loading" ? (
         <Skeleton rows={3} />
       ) : state.status === "error" ? (
-        <p className="advmuted">{t("loadError")}</p>
+        <ErrorState error={state.error} onRetry={() => load(true)} title={t("loadError")} compact />
       ) : !state.items.length ? (
         <p className="advmuted">{t("empty")}</p>
       ) : (

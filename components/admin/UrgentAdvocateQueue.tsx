@@ -25,6 +25,7 @@ import {
 } from "@/lib/services/backend";
 import { subscribeUserEvents, subscribeUserSocketState, onUserSocketResync } from "@/lib/userSocket";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import { useAuth, sessionRoles } from "@/lib/auth";
 import { dateTimeFull } from "@/lib/date";
 import { statusLabel, regionLabel, humanize } from "@/lib/labels";
@@ -39,8 +40,8 @@ import DatePicker from "@/components/DatePicker";
 import TimePicker from "@/components/TimePicker";
 import CheckBox from "@/components/CheckBox";
 import Modal from "@/components/admin/Modal";
-import { Notice } from "@/components/admin/AdminBits";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import FieldError from "@/components/ui/FieldError";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import CallRoom from "@/components/chat/CallRoom";
 import {
   IconBolt,
@@ -172,8 +173,13 @@ const KIND_ICON: Record<string, typeof IconVideo> = {
   second_opinion_group: IconOpinionPanel,
 };
 
-type State = { status: "loading" | "ready" | "error" | "forbidden" | "missing"; items: UrgentRequest[] };
+type State = { status: "loading" | "ready" | "error" | "forbidden" | "missing"; items: UrgentRequest[]; error?: unknown };
 type Meeting = { roomId: string; callId: string; title: string; lk: LiveKitJoin | null };
+type Outcome = { title: string; body?: string };
+type Change = Outcome & { id: string; status?: string };
+type Msgs = { ok: (r: UrgentRequest) => Outcome; fail: string; map?: Partial<Record<number, string>> };
+
+const ntfId = (id: string) => `urgent-${id}`;
 
 const AI_ITEM = "call_center.urgent-advokat.item";
 const AI_DRAWER_ONLY = new Set(["detail-modal", "complete", "transfer", "cancel", "status", "assign-group"]);
@@ -191,6 +197,7 @@ export default function UrgentAdvocateQueue() {
   const t = useTranslations("admin.urgent");
   const tk = useTranslations("portal.client.urgent");
   const tcm = useTranslations("portal.common");
+  const tn = useTranslations("common.notify");
   const te = useTranslations("enums");
   const locale = useLocale();
 
@@ -200,7 +207,6 @@ export default function UrgentAdvocateQueue() {
   const [state, setState] = useState<State>({ status: "loading", items: [] });
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [busyId, setBusyId] = useState("");
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [openId, setOpenId] = useState("");
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [live, setLive] = useState(true);
@@ -217,26 +223,53 @@ export default function UrgentAdvocateQueue() {
     setCounts({});
   }
 
-  const load = useCallback(
-    () =>
-      listCcUrgentRequests({ status: status || undefined, serviceKind: kind || undefined, channel: channel || undefined })
-        .then((items) => {
-          setState({ status: "ready", items });
-          setCounts((c) => ({ ...c, [status]: items.length }));
-        })
-        .catch((e) => {
-          // A module the backend has not enabled yet, and a role without
-          // call-center access, are both "nothing to show here" rather than
-          // an error banner on an otherwise working console.
-          const forbidden = e instanceof ApiError && (e.status === 401 || e.status === 403);
-          logApiError("urgent queue", e);
-          setState((s) => ({
-            status: isMissingRoute(e) ? "missing" : forbidden ? "forbidden" : s.items.length ? "ready" : "error",
-            items: s.items,
-          }));
-        }),
-    [status, kind, channel],
-  );
+  const query = `${status}|${comboKey}`;
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) {
+    setPrevQuery(query);
+    setState({ status: "loading", items: [] });
+  }
+  const seen = useRef({ query, items: 0 });
+  const itemsFor = useRef<string | null>(null);
+  useEffect(() => { seen.current = { query, items: state.items.length }; }, [query, state.items.length]);
+
+  const load = useCallback(function loadList(): Promise<boolean> {
+    const asked = `${status}|${kind}|${channel}`;
+    return listCcUrgentRequests({ status: status || undefined, serviceKind: kind || undefined, channel: channel || undefined })
+      .then((items) => {
+        if (seen.current.query !== asked) return false;
+        itemsFor.current = asked;
+        setState({ status: "ready", items });
+        setCounts((c) => ({ ...c, [status]: items.length }));
+        return true;
+      })
+      .catch((e) => {
+        // A module the backend has not enabled yet, and a role without
+        // call-center access, are both "nothing to show here" rather than
+        // an error banner on an otherwise working console.
+        const forbidden = e instanceof ApiError && (e.status === 401 || e.status === 403);
+        const missing = isMissingRoute(e);
+        logApiError("urgent queue", e);
+        if (seen.current.query !== asked) return false;
+        const own = itemsFor.current === asked;
+        if (!missing && !forbidden && own && seen.current.items) {
+          notify.error(t("notify.listFailed"), {
+            id: "urgent-queue-load",
+            error: e,
+            action: {
+              label: tn("retry"),
+              onClick: () => void loadList().then((ok) => { if (ok) notify.success(t("notify.listRefreshed"), { id: "urgent-queue-load" }); }),
+            },
+          });
+        }
+        setState((s) => ({
+          status: missing ? "missing" : forbidden ? "forbidden" : own && s.items.length ? "ready" : "error",
+          items: own ? s.items : [],
+          error: e,
+        }));
+        return false;
+      });
+  }, [status, kind, channel, t, tn]);
 
   useEffect(() => {
     void load();
@@ -278,33 +311,37 @@ export default function UrgentAdvocateQueue() {
   // never fired twice; an unknown status (or the same tab, or Barchasi, where
   // the row is visible either way) just reloads in place.
   const follow = useCallback(
-    (next: string) => {
+    (next: string): string => {
       const tab = TABS.find((x) => x.value === next);
       if (tab && next && status && next !== status) {
         setStatus(next);
-        const moved = t("movedTo", { status: t(tab.key) });
-        setNote((n) => ({ ok: n?.ok ?? true, msg: n?.msg ? `${n.msg} ${moved}` : moved }));
-      } else void load();
+        return t("movedTo", { status: t(tab.key) });
+      }
+      void load();
+      return "";
     },
     [status, load, t],
   );
 
+  function report(c: Change) {
+    const moved = follow(c.status || "");
+    notify.success(c.title, { id: ntfId(c.id), body: [c.body, moved].filter(Boolean).join(" ") || undefined });
+  }
+
   async function claim(r: UrgentRequest) {
     if (busyId) return;
     setBusyId(r.id);
-    setNote(null);
     try {
       const out = await claimUrgentRequest(r.id);
-      setNote({ ok: true, msg: out.secureChatRoomId ? t("claimedWithChat") : t("claimed") });
       // Taking the work IS the decision to start on it, so the operator lands
       // in the same detail drawer that "Batafsil" opens rather than being
       // left on the board to find the row again — the candidates, the
       // meeting, the chat and the result are all in there.
       setOpenId(r.id);
-      follow(out.status);
+      report({ id: r.id, title: t("notify.claimed"), body: out.secureChatRoomId ? t("notify.chatOpened") : undefined, status: out.status });
     } catch (e) {
       logApiError("urgent claim", e);
-      setNote({ ok: false, msg: errDetail(e) || (e instanceof ApiError && e.status === 409 ? t("alreadyTaken") : t("claimError")) });
+      notify.error(t("notify.claimFailed"), { id: ntfId(r.id), error: e, map: errDetail(e) ? undefined : { 409: t("alreadyTaken") } });
     } finally {
       setBusyId("");
     }
@@ -325,16 +362,15 @@ export default function UrgentAdvocateQueue() {
   async function meet(r: UrgentRequest) {
     if (busyId) return;
     setBusyId(r.id);
-    setNote(null);
     try {
       openMeeting(await createUrgentMeeting(r.id), r);
       // POST /meeting answers with the call session, not the record, so the
       // status it moved to is read back rather than assumed; if that read
       // fails the board just reloads the tab it is on.
-      follow((await getCcUrgentRequest(r.id).catch(() => null))?.status || "");
+      report({ id: r.id, title: t("meetingStarted"), status: (await getCcUrgentRequest(r.id).catch(() => null))?.status || "" });
     } catch (e) {
       logApiError("urgent meeting", e);
-      setNote({ ok: false, msg: errDetail(e) || t("meetingError") });
+      notify.error(t("notify.meetingFailed"), { id: ntfId(r.id), error: e });
     } finally {
       setBusyId("");
     }
@@ -350,7 +386,6 @@ export default function UrgentAdvocateQueue() {
     const r = state.items.find((x) => aiSeg(x.id) === seg);
     if (AI_DRAWER_ONLY.has(action)) {
       setOpenId(r?.id ?? seg);
-      setNote(null);
       return;
     }
     if (!r && status) setStatus("");
@@ -425,12 +460,10 @@ export default function UrgentAdvocateQueue() {
         aiTarget="callcenter:urgent-filters"
       />
 
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-
       {state.status === "loading" ? (
         <Skeleton rows={3} />
       ) : state.status === "error" ? (
-        <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
+        <ErrorState error={state.error} onRetry={load} title={t("loadError")} />
       ) : !state.items.length ? (
         <EmptyState icon={<IconBolt />} title={t("empty")} text={t("emptyText")} />
       ) : (
@@ -527,7 +560,7 @@ export default function UrgentAdvocateQueue() {
                         <IconChat />{t("openChat")}
                       </Link>
                     ) : null}
-                    <button type="button" className="btn btn--soft btn--sm" onClick={() => { setOpenId(r.id); setNote(null); }} data-ai-id={aiId(AI_ITEM, r.id, "detail")}>
+                    <button type="button" className="btn btn--soft btn--sm" onClick={() => setOpenId(r.id)} data-ai-id={aiId(AI_ITEM, r.id, "detail")}>
                       <IconList />{t("openDetail")}<IconChevronRight />
                     </button>
                   </div>
@@ -542,7 +575,7 @@ export default function UrgentAdvocateQueue() {
       <UrgentDetailDrawer
         id={openId}
         onClose={() => setOpenId("")}
-        onChanged={(msg, moved) => { setNote({ ok: true, msg }); follow(moved || ""); }}
+        onChanged={report}
         onMeeting={openMeeting}
       />
 
@@ -575,32 +608,58 @@ function UrgentDetailDrawer({
   onClose: () => void;
   // The status the record landed on, so the board can follow it to that tab
   // rather than losing the row behind this drawer.
-  onChanged: (msg: string, movedTo?: string) => void;
+  onChanged: (c: Change) => void;
   onMeeting: (call: CallSession, r: UrgentRequest) => void;
 }) {
   const t = useTranslations("admin.urgent");
   const tk = useTranslations("portal.client.urgent");
   const tcm = useTranslations("portal.common");
+  const tn = useTranslations("common.notify");
   const te = useTranslations("enums");
   const locale = useLocale();
 
   const [req, setReq] = useState<UrgentRequest | null>(null);
   const [load2, setLoad2] = useState<"loading" | "ready" | "error">("loading");
+  const [loadErr, setLoadErr] = useState<unknown>(undefined);
   const [busy, setBusy] = useState("");
-  const [err, setErr] = useState("");
   const [panel, setPanel] = useState<"" | "candidates" | "complete" | "cancel" | "transfer">("");
   const { session } = useAuth();
   const me = session?.id ?? "";
   const isAdmin = sessionRoles(session).some((x) => x === "superadmin" || x === "admin");
 
+  const view = useRef({ id, ready: false });
+  useEffect(() => { view.current = { id, ready: load2 === "ready" }; }, [id, load2]);
+
   // Answers with the record so a caller that has to know where it went (the
   // meeting, whose own response is only the call session) need not guess.
-  const fetchOne = useCallback((): Promise<UrgentRequest | null> => {
+  const fetchOne = useCallback(function fetchRecord(): Promise<UrgentRequest | null> {
     if (!id) return Promise.resolve(null);
     return getCcUrgentRequest(id)
-      .then((r) => { setReq(r); setLoad2("ready"); return r; })
-      .catch((e) => { logApiError("urgent detail", e); setLoad2("error"); return null; });
-  }, [id]);
+      .then((r) => {
+        if (view.current.id !== id) return null;
+        setReq(r);
+        setLoad2("ready");
+        return r;
+      })
+      .catch((e) => {
+        logApiError("urgent detail", e);
+        if (view.current.id !== id) return null;
+        if (view.current.ready) {
+          notify.error(t("notify.detailFailed"), {
+            id: "urgent-detail-load",
+            error: e,
+            action: {
+              label: tn("retry"),
+              onClick: () => void fetchRecord().then((r) => { if (r) notify.success(t("notify.detailRefreshed"), { id: "urgent-detail-load" }); }),
+            },
+          });
+        } else {
+          setLoadErr(e);
+          setLoad2("error");
+        }
+        return null;
+      });
+  }, [id, t, tn]);
 
   // Opening a different record (or closing the drawer) resets the view during
   // render rather than in an effect: an effect would paint the previous
@@ -611,7 +670,7 @@ function UrgentDetailDrawer({
     setReq(null);
     setLoad2("loading");
     setPanel("");
-    setErr("");
+    setLoadErr(undefined);
   }
 
   useEffect(() => {
@@ -636,18 +695,17 @@ function UrgentDetailDrawer({
   // Answers whether it worked, so the caller can keep a half-written summary
   // on screen when it did not — closing the form on a failed request threw
   // away everything the operator had typed.
-  async function run(key: string, fn: () => Promise<UrgentRequest>, msg: string): Promise<boolean> {
+  async function run(key: string, fn: () => Promise<UrgentRequest>, msgs: Msgs): Promise<boolean> {
     if (busy) return false;
     setBusy(key);
-    setErr("");
     try {
       const moved = await fn();
       setReq(moved);
-      onChanged(msg, moved.status);
+      onChanged({ id, ...msgs.ok(moved), status: moved.status });
       return true;
     } catch (e) {
       logApiError("urgent " + key, e);
-      setErr(errDetail(e) || t("actionError"));
+      notify.error(msgs.fail, { id: ntfId(id), error: e, map: errDetail(e) ? undefined : msgs.map });
       return false;
     } finally {
       setBusy("");
@@ -657,15 +715,14 @@ function UrgentDetailDrawer({
   async function meet() {
     if (!req || busy) return;
     setBusy("meeting");
-    setErr("");
     try {
       const call = await createUrgentMeeting(req.id);
       onMeeting(call, req);
       const moved = await fetchOne();
-      onChanged(t("meetingStarted"), moved?.status);
+      onChanged({ id: req.id, title: t("meetingStarted"), status: moved?.status });
     } catch (e) {
       logApiError("urgent meeting", e);
-      setErr(errDetail(e) || t("meetingError"));
+      notify.error(t("notify.meetingFailed"), { id: ntfId(req.id), error: e });
     } finally {
       setBusy("");
     }
@@ -678,13 +735,18 @@ function UrgentDetailDrawer({
   const claimOpen = !!req && (req.status === "open_pool" || req.nextStatuses.includes("claimed"));
   const takeOver = claimOpen && !!req?.claimedByUserId && req.claimedByUserId !== me && isAdmin;
   const canClaim = (claimOpen && !req?.claimedByUserId) || takeOver;
+  const claimMsgs: Msgs = {
+    ok: (r) => ({ title: t("notify.claimed"), body: r.secureChatRoomId ? t("notify.chatOpened") : undefined }),
+    fail: t("notify.claimFailed"),
+    map: { 409: t("alreadyTaken") },
+  };
 
   return (
     <Modal open={!!id} onClose={onClose} title={kindLabel || t("openDetail")} wide>
       {load2 === "loading" ? (
         <Skeleton rows={5} />
       ) : load2 === "error" || !req ? (
-        <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
+        <ErrorState error={loadErr} onRetry={fetchOne} title={t("detailLoadError")} />
       ) : (
         <div
           className="uad"
@@ -789,7 +851,7 @@ function UrgentDetailDrawer({
                 <CandidatePanel
                   req={req}
                   onClose={() => setPanel("")}
-                  onDone={(r, msg) => { setReq(r); setPanel(""); onChanged(msg, r.status); }}
+                  onDone={(r, msg) => { setReq(r); setPanel(""); onChanged({ id, title: msg, status: r.status }); }}
                 />
               ) : null}
 
@@ -856,8 +918,6 @@ function UrgentDetailDrawer({
             </div>
           </div>
 
-          {err ? <Notice ok={false} msg={err} /> : null}
-
           {/* ── Everything the lifecycle still allows ───────────────── */}
           <div className="uad__acts">
             {canClaim ? (
@@ -866,7 +926,7 @@ function UrgentDetailDrawer({
                 className="btn btn--pri"
                 disabled={!!busy}
                 title={takeOver ? t("takeOverTitle") : undefined}
-                onClick={() => void run("claim", () => claimUrgentRequest(req.id), t("claimed"))}
+                onClick={() => void run("claim", () => claimUrgentRequest(req.id), claimMsgs)}
                 data-ai-id={aiId(AI_ITEM, req.id, "claim")}
               >
                 <IconCheck />{busy === "claim" ? t("claiming") : takeOver ? t("takeOver") : t("claim")}
@@ -908,7 +968,11 @@ function UrgentDetailDrawer({
               busy={!!busy}
               skip={req.claimedByUserId && req.claimedByUserId === me ? [] : ["claimed"]}
               onMove={(s, n) =>
-                void run("status", () => (s === "claimed" ? claimUrgentRequest(req.id) : setUrgentStatus(req.id, s, n)), s === "claimed" ? t("claimed") : t("statusMoved", { status: statusLabel(tcm, s) }))
+                void run(
+                  "status",
+                  () => (s === "claimed" ? claimUrgentRequest(req.id) : setUrgentStatus(req.id, s, n)),
+                  s === "claimed" ? claimMsgs : { ok: () => ({ title: t("statusMoved", { status: statusLabel(tcm, s) }) }), fail: t("notify.statusFailed") },
+                )
               }
             />
           </div>
@@ -918,7 +982,8 @@ function UrgentDetailDrawer({
               busy={!!busy}
               onCancel={() => setPanel("")}
               onSubmit={(summary, nextAction) => {
-                void run("complete", () => completeUrgentRequest(req.id, { summary, nextAction }), t("completed")).then((ok) => { if (ok) setPanel(""); });
+                void run("complete", () => completeUrgentRequest(req.id, { summary, nextAction }), { ok: () => ({ title: t("completed") }), fail: t("notify.completeFailed") })
+                  .then((ok) => { if (ok) setPanel(""); });
               }}
             />
           ) : null}
@@ -927,9 +992,11 @@ function UrgentDetailDrawer({
               req={req}
               busy={!!busy}
               onCancel={() => setPanel("")}
-              onSubmit={(uid, reason) => {
-                void run("transfer", () => transferUrgentRequest(req.id, { targetLawyerUserId: uid, reason }), t("transferred"))
-                  .then((ok) => { if (ok) setPanel(""); });
+              onSubmit={(uid, reason, name) => {
+                void run("transfer", () => transferUrgentRequest(req.id, { targetLawyerUserId: uid, reason }), {
+                  ok: () => ({ title: t("transferred"), body: name ? t("notify.transferredTo", { name }) : undefined }),
+                  fail: t("notify.transferFailed"),
+                }).then((ok) => { if (ok) setPanel(""); });
               }}
             />
           ) : null}
@@ -938,7 +1005,8 @@ function UrgentDetailDrawer({
               busy={!!busy}
               onCancel={() => setPanel("")}
               onSubmit={(reason) => {
-                void run("cancel", () => cancelUrgentRequest(req.id, reason), t("cancelDone")).then((ok) => { if (ok) setPanel(""); });
+                void run("cancel", () => cancelUrgentRequest(req.id, reason), { ok: () => ({ title: t("cancelDone") }), fail: t("notify.cancelFailed") })
+                  .then((ok) => { if (ok) setPanel(""); });
               }}
             />
           ) : null}
@@ -1047,12 +1115,14 @@ function TransferPanel({
   req: UrgentRequest;
   busy: boolean;
   onCancel: () => void;
-  onSubmit: (targetUserId: string, reason: string) => void;
+  onSubmit: (targetUserId: string, reason: string, name: string) => void;
 }) {
   const t = useTranslations("admin.urgent");
   const te = useTranslations("enums");
   const [list, setList] = useState<UrgentCandidate[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [fail, setFail] = useState<unknown>(undefined);
+  const [tries, setTries] = useState(0);
   const [pick, setPick] = useState("");
   const [reason, setReason] = useState("");
 
@@ -1060,9 +1130,9 @@ function TransferPanel({
     let alive = true;
     listUrgentCandidates(req.id, { limit: 50 })
       .then((c) => { if (alive) { setList(c); setState("ready"); } })
-      .catch((e) => { if (alive) { logApiError("urgent transfer candidates", e); setState("error"); } });
+      .catch((e) => { if (alive) { logApiError("urgent transfer candidates", e); setFail(e); setState("error"); } });
     return () => { alive = false; };
-  }, [req.id]);
+  }, [req.id, tries]);
 
   // Whoever holds it now cannot be the target.
   const holder = req.assignedLawyerUserId || req.claimedByUserId;
@@ -1077,7 +1147,15 @@ function TransferPanel({
       {state === "loading" ? (
         <Skeleton rows={2} />
       ) : state === "error" ? (
-        <Notice ok={false} msg={t("candidatesError")} />
+        <ErrorState
+          compact
+          title={t("candidatesError")}
+          error={fail}
+          onRetry={() => {
+            setState("loading");
+            setTries((n) => n + 1);
+          }}
+        />
       ) : !options.length ? (
         <p className="advmuted">{t("noAdvocates")}</p>
       ) : (
@@ -1108,7 +1186,7 @@ function TransferPanel({
       </div>
       <div className="uad__formacts">
         <button type="button" className="btn btn--soft btn--sm" onClick={onCancel}>{t("back")}</button>
-        <button type="button" className="btn btn--grad btn--sm" disabled={!pick || busy} onClick={() => onSubmit(pick, reason.trim())}>
+        <button type="button" className="btn btn--grad btn--sm" disabled={!pick || busy} onClick={() => onSubmit(pick, reason.trim(), list.find((c) => c.userId === pick)?.name ?? "")}>
           <IconUsers />{t("transferSubmit")}
         </button>
       </div>
@@ -1134,6 +1212,7 @@ function CandidatePanel({
   const te = useTranslations("enums");
   const [list, setList] = useState<UrgentCandidate[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [fail, setFail] = useState<unknown>(undefined);
   const [ids, setIds] = useState<string[]>(req.groupLawyerUserIds);
   const [date, setDate] = useState("");
   // Empty, not a prefilled 16:00: the copy under these fields says the time is
@@ -1176,7 +1255,7 @@ function CandidatePanel({
       : listUrgentCandidates(req.id, { includeExternal: external, includeCallcenter: callcenter, limit: 50 });
     load
       .then((c) => { if (alive) { setList(c); setState("ready"); } })
-      .catch((e) => { if (alive) { logApiError("urgent candidates", e); setState("error"); } });
+      .catch((e) => { if (alive) { logApiError("urgent candidates", e); setFail(e); setState("error"); } });
     return () => { alive = false; };
     // wideDirs / wideRegion are read on apply, not per keystroke — `applied`
     // is what re-runs the wide search.
@@ -1200,12 +1279,14 @@ function CandidatePanel({
   // reaches that refusal by submitting FEWER than asked, and from then on may
   // deliberately go over.
   const full = !okCount && ids.length >= want;
-  const toggle = (uid: string) =>
+  const toggle = (uid: string) => {
+    setErr("");
     setIds((cur) => {
       if (cur.includes(uid)) return cur.filter((x) => x !== uid);
       if (!okCount && cur.length >= want) return cur;
       return [...cur, uid];
     });
+  };
 
   async function submit() {
     if (!ids.length || busy) return;
@@ -1224,7 +1305,7 @@ function CandidatePanel({
         allowCountOverride: okCount,
         allowDirectionMismatch: okDirection,
       });
-      onDone(out, t("groupAssigned", { n: ids.length }));
+      onDone(out, t("notify.groupAssigned", { n: ids.length }));
     } catch (e) {
       const refusal = urgentAssignRefusal(e);
       // A panel below the service minimum is a real validation error, not a
@@ -1240,7 +1321,7 @@ function CandidatePanel({
         setErr(t("directionMismatch", { n: refusal.userIds.length }));
       } else {
         logApiError("urgent assign-group", e);
-        setErr(errDetail(e) || t("groupError"));
+        notify.error(t("notify.groupFailed"), { id: ntfId(req.id), error: e });
       }
     } finally {
       setBusy(false);
@@ -1344,7 +1425,7 @@ function CandidatePanel({
       {state === "loading" ? (
         <Skeleton rows={3} />
       ) : state === "error" ? (
-        <Notice ok={false} msg={t("candidatesError")} />
+        <ErrorState compact title={t("candidatesError")} error={fail} onRetry={() => setApplied((n) => n + 1)} />
       ) : !list.length ? (
         <p className="advmuted">{t("noAdvocates")}</p>
       ) : (
@@ -1380,7 +1461,7 @@ function CandidatePanel({
         <textarea id="uaq-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("notePh")} />
       </div>
 
-      {err ? <Notice ok={false} msg={err} /> : null}
+      <FieldError id="ucand-err" msg={err} />
       {offer === "count" ? (
         <CheckBox id="uad-ovc" checked={okCount} onChange={setOkCount} hint={t("overrideCountHint")}>{t("overrideCount")}</CheckBox>
       ) : null}
@@ -1390,7 +1471,7 @@ function CandidatePanel({
 
       <div className="uad__formacts">
         <button type="button" className="btn btn--soft btn--sm" onClick={onClose}>{t("back")}</button>
-        <button type="button" className="btn btn--grad btn--sm" disabled={!ids.length || busy} onClick={() => void submit()}>
+        <button type="button" className="btn btn--grad btn--sm" disabled={!ids.length || busy} onClick={() => void submit()} aria-describedby={err ? "ucand-err" : undefined}>
           <IconUsers />{busy ? t("assigning") : t("assignSubmit")}
         </button>
       </div>

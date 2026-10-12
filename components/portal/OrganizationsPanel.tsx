@@ -162,7 +162,7 @@ export default function OrganizationsPanel() {
             submitLabel={t("save")}
             busyLabel={t("saving")}
             okMsg={t("created")}
-            errMsg={t("error")}
+            errMsg={t("createFailed")}
             onDone={() => {
               reload();
               setCreateOpen(false);

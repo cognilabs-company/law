@@ -9,7 +9,7 @@ import { shortDateTime } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import { leadCategoryLabel, leadSourceLabel } from "@/lib/leadLabels";
 import { useOrderStatusLabel } from "@/lib/orderStatus";
-import { Skeleton } from "@/components/portal/DataState";
+import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import CcCallForm from "./CcCallForm";
 import { IconPhone, IconPlus } from "@/components/icons";
 
@@ -17,7 +17,7 @@ import { IconPhone, IconPlus } from "@/components/icons";
 // sales consoles: who the client is, what they ordered and paid, their leads
 // and last actions — plus a one-click call log. Without the 360 permission
 // (403) the card still shows what the search result knows.
-export default function CcClientCard({ client, canLog, onLogged }: { client: CcClient; canLog: boolean; onLogged: () => void }) {
+export default function CcClientCard({ client, canLog, onLogged }: { client: CcClient; canLog: boolean; onLogged: (phone: string) => void }) {
   const t = useTranslations("admin.callCenter.card");
   const tc = useTranslations("admin.callCenter");
   const tp = useTranslations("admin.pipeline");
@@ -26,13 +26,14 @@ export default function CcClientCard({ client, canLog, onLogged }: { client: CcC
   const locale = useLocale();
   const orderStatus = useOrderStatusLabel();
   const [forbidden, setForbidden] = useState(false);
+  const [failure, setFailure] = useState<unknown>(undefined);
+  const [attempt, setAttempt] = useState(0);
   const res = useResourceOne<Card | null>(
-    () => getCcClientCard(client.id).catch((e) => { if (isForbidden(e)) { setForbidden(true); return null; } throw e; }),
-    [client.id],
+    () => getCcClientCard(client.id).catch((e) => { if (isForbidden(e)) { setForbidden(true); return null; } setFailure(e); throw e; }),
+    [client.id, attempt],
   );
   const [tab, setTab] = useState<"orders" | "payments" | "leads" | "activity">("orders");
   const [logOpen, setLogOpen] = useState(false);
-  const [logged, setLogged] = useState(false);
   const d = res.data;
   const when = (v: string) => shortDateTime(v, locale);
   const tel = client.phone.replace(/[^+\d]/g, "");
@@ -57,17 +58,16 @@ export default function CcClientCard({ client, canLog, onLogged }: { client: CcC
 
       {logOpen ? (
         <div className="ccc__form">
-          <CcCallForm phone={client.phone} clientUserId={client.id} onCancel={() => setLogOpen(false)} onDone={() => { setLogOpen(false); setLogged(true); onLogged(); }} />
+          <CcCallForm phone={client.phone} clientUserId={client.id} onCancel={() => setLogOpen(false)} onDone={(call) => { setLogOpen(false); onLogged(call.phone); }} />
         </div>
       ) : null}
-      {logged && !logOpen ? <p className="anote anote--ok">{t("logged")}</p> : null}
 
       {res.status === "loading" ? (
         <Skeleton rows={3} />
       ) : forbidden ? (
         <p className="advmuted">{t("noAccess")}</p>
       ) : !d ? (
-        <p className="advmuted">{t("loadError")}</p>
+        <ErrorState error={failure} onRetry={() => setAttempt((n) => n + 1)} title={t("loadError")} compact />
       ) : (
         <>
           <div className="ccc__sum">
