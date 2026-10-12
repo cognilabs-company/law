@@ -20,7 +20,6 @@ export const ADMIN_PAGES: GuidePage[] = [
     roles: ["staff"],
     tour: [
       { target: "ai-help:current-page", text: "tours.admin_ceo.title" },
-      { target: "stats:filters", text: "tours.common.statsFilters" },
       { target: "ceo:kpis", text: "tours.admin_ceo.kpis" },
       { target: "ceo:revenue-trend", text: "tours.admin_ceo.trend" },
       { target: "ceo:funnel", text: "tours.admin_ceo.funnel" },

@@ -5461,7 +5461,7 @@ export async function listAuditTrail(range?: AuditFilters): Promise<ActivityEntr
 
 // ── Dedicated lead re-engage ──────────────────────────────────────
 export async function reengageLead(leadId: string, note?: string): Promise<void> {
-  await http(`/admin/leads/${leadId}/re-engage`, { method: "POST", body: JSON.stringify({ note: note ?? "" }) });
+  await http(`/admin/leads/${leadId}/re-engage`, { method: "POST", body: JSON.stringify({ reason: note ?? "" }) });
 }
 
 // ── Create task / B2B client ──────────────────────────────────────
@@ -5738,11 +5738,12 @@ export async function getTestOtps(): Promise<TestOtp[]> {
 
 // ── Call-center CRM console ───────────────────────────────────────
 export type CcClient = { id: string; lexgoId: string; name: string; phone: string; status: string };
+const CC_CLOSED_ACCOUNTS = new Set(["deleted", "suspended", "blocked", "disabled", "deactivated", "banned", "rejected", "archived"]);
 export async function ccSearchClients(q: string): Promise<CcClient[]> {
-  return listFrom(await http(`/call-center/clients/search?q=${encodeURIComponent(q)}`), "items", "data").map((x) => {
-    const d = asDict(x);
-    return { id: asStr(d.id), lexgoId: asStr(d.lexgo_id), name: asStr(d.name), phone: asStr(d.phone), status: asStr(d.account_status, "active") };
-  });
+  return listFrom(await http(`/call-center/clients/search?q=${encodeURIComponent(q)}`), "items", "data")
+    .map((x) => asDict(x))
+    .filter((d) => d.is_active !== false && !asStr(d.deleted_at).trim() && !CC_CLOSED_ACCOUNTS.has(asStr(d.account_status).trim().toLowerCase()) && !asStr(d.account_status).trim().toLowerCase().endsWith("deleted"))
+    .map((d) => ({ id: asStr(d.id), lexgoId: asStr(d.lexgo_id), name: asStr(d.name), phone: asStr(d.phone), status: asStr(d.account_status, "active") }));
 }
 // A logged call (MarketplaceRecord module "call_center_call"): the direction is
 // the record type, the phone the title, the rest lives in the payload.

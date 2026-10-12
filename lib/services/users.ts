@@ -1,6 +1,7 @@
 // Admin user directory (GET /admin/users — users.manage). Shared by the
 // call-center assignment UI and the admin notifications recipient picker.
 import { http, asDict, asStr, asArr } from "@/lib/http";
+import { personName } from "@/lib/labels";
 
 export type AdminUser = {
   id: string;
@@ -46,3 +47,7 @@ export async function listOperators(): Promise<AdminUser[]> {
   const all = await listAdminUsers({ status: "active" });
   return all.filter(isOperator);
 }
+
+export const isLeadOperator = (u: AdminUser): boolean => (u.role === "call_center" || u.role === "sales") && u.accountStatus === "active";
+
+export const operatorName = (u: { name: string; phone: string; lexgoId?: string }): string => personName(u.name) || u.phone || u.lexgoId || "";

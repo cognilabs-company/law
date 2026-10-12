@@ -12,10 +12,10 @@
 // backend.ts's normLead reads the score as a number, but the backend stores
 // "hot" | "warm" | "cold" — so the boards are re-read raw here and normalised
 // with the score kept (`scoreKey`). Everything else mirrors normLead.
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { http, asDict, asStr, asNum, asArr, ApiError, parseServerTime } from "@/lib/http";
 import { adminUpdateLead, type Lead, type KanbanColumn } from "@/lib/services/backend";
-import { listOperators, type AdminUser } from "@/lib/services/users";
+import { listAdminUsers, isLeadOperator, type AdminUser } from "@/lib/services/users";
 import { sessionRoles, type Session } from "@/lib/auth";
 
 export type LeadScore = "hot" | "warm" | "cold";
@@ -26,9 +26,10 @@ export type LeadX = Lead & {
   assignedTo: string; // user id ("" = unassigned)
   assignedAt: string;
   assignedBy: string;
+  clientUserId: string;
 };
 export type KanbanCardX = { lead: LeadX; position: number };
-export type KanbanColumnX = Omit<KanbanColumn, "cards"> & { cards: KanbanCardX[] };
+export type KanbanColumnX = Omit<KanbanColumn, "cards"> & { cards: KanbanCardX[]; isLost?: boolean };
 
 const normScore = (v: unknown): LeadScore | "" => {
   const s = asStr(v).trim().toLowerCase();
@@ -36,9 +37,19 @@ const normScore = (v: unknown): LeadScore | "" => {
 };
 
 // Assignee id carried in the details (works for a plain Lead too).
-export const assigneeOf = (lead: Lead): string => asStr(asDict(lead.details).assigned_to_user_id);
+export function assigneeOf(lead: unknown): string {
+  const d = asDict(lead);
+  if (d.assigned_operator_user_id != null) return asStr(d.assigned_operator_user_id);
+  if (typeof d.assignedTo === "string") return d.assignedTo;
+  return asStr(asDict(d.details).assigned_to_user_id);
+}
+
+function assignInfo(assignee: string, det: Record<string, unknown>): Pick<LeadX, "assignedTo" | "assignedAt" | "assignedBy"> {
+  const own = !!assignee && asStr(det.assigned_to_user_id) === assignee;
+  return { assignedTo: assignee, assignedAt: own ? asStr(det.assigned_at) : "", assignedBy: own ? asStr(det.assigned_by) : "" };
+}
 // Platform user behind the lead, when the backend recorded one.
-export const leadUserId = (lead: Lead): string => { const d = asDict(lead.details); return asStr(d.user_id ?? d.client_user_id ?? d.created_by_user_id); };
+export const leadUserId = (lead: Lead): string => { const d = asDict(lead.details); return asStr(asDict(lead).clientUserId) || asStr(d.user_id ?? d.client_user_id ?? d.created_by_user_id); };
 
 export function normLeadX(v: unknown): LeadX {
   const d = asDict(v);
@@ -58,9 +69,8 @@ export function normLeadX(v: unknown): LeadX {
     createdAt: asStr(d.created_at ?? d.createdAt),
     details: det,
     scoreKey: normScore(d.score ?? det.score),
-    assignedTo: asStr(det.assigned_to_user_id),
-    assignedAt: asStr(det.assigned_at),
-    assignedBy: asStr(det.assigned_by),
+    ...assignInfo(assigneeOf(d), det),
+    clientUserId: asStr(d.client_user_id),
   };
 }
 
@@ -81,6 +91,7 @@ function normKanbanX(data: unknown): KanbanColumnX[] {
         color: asStr(d.color),
         order: asNum(d.order),
         isFinal: Boolean(d.is_final),
+        isLost: d.is_lost === true,
         count: asNum(d.count),
         cards: asArr(d.leads).map((x) => {
           const l = asDict(x);
@@ -139,39 +150,42 @@ export function canManageLeads(s: Session | null): boolean {
 // ── Assignment ───────────────────────────────────────────────────
 export const isForbiddenErr = (e: unknown): boolean => e instanceof ApiError && e.status === 403;
 
-// Details with the assignment set (userId "") or cleared.
-function assignedDetails(details: Record<string, unknown>, userId: string, byUserId: string, at: string): Record<string, unknown> {
-  const next: Record<string, unknown> = { ...(details ?? {}) };
-  if (userId) {
-    next.assigned_to_user_id = userId;
-    next.assigned_at = at;
-    next.assigned_by = byUserId;
-  } else {
-    delete next.assigned_to_user_id;
-    delete next.assigned_at;
-    delete next.assigned_by;
-  }
+const ASSIGN_KEYS = ["assigned_to_user_id", "assigned_at", "assigned_by"] as const;
+const hasAssignKeys = (det: Record<string, unknown>): boolean => ASSIGN_KEYS.some((k) => k in det);
+function withoutAssignKeys(det: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...det };
+  for (const k of ASSIGN_KEYS) delete next[k];
   return next;
 }
 
+export function detailsPatch(details: Record<string, unknown>, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...(details ?? {}), ...extra };
+  delete next.kanban;
+  return next;
+}
+
+function assignmentPatch(lead: Lead, userId: string): Record<string, unknown> {
+  const det = asDict(lead.details) as Record<string, unknown>;
+  if (userId || !hasAssignKeys(det)) return { assigned_operator_user_id: userId };
+  return { assigned_operator_user_id: "", details: detailsPatch(withoutAssignKeys(det)) };
+}
+
 // The lead as it will look once the assignment is saved.
-export function withAssignment(lead: LeadX, userId: string, byUserId: string, at: string): LeadX {
-  return {
-    ...lead,
-    details: assignedDetails(lead.details, userId, byUserId, at),
-    assignedTo: userId,
-    assignedAt: userId ? at : "",
-    assignedBy: userId ? byUserId : "",
-  };
+export function withAssignment(lead: LeadX, userId: string): LeadX {
+  const details = !userId && hasAssignKeys(lead.details) ? withoutAssignKeys(lead.details) : lead.details;
+  return { ...lead, details, ...assignInfo(userId, details) };
 }
 
 // (Re)assign one lead; userId "" removes the assignment. Throws ApiError
 // (403 for accounts without leads.manage).
-export async function assignLead(lead: Lead, userId: string, byUserId = ""): Promise<Lead> {
-  const at = new Date().toISOString();
-  const saved = await adminUpdateLead(lead.id, { details: assignedDetails(asDict(lead.details) as Record<string, unknown>, userId, byUserId, at) });
+export async function assignLead(lead: Lead, userId: string): Promise<Lead> {
+  const saved = await adminUpdateLead(lead.id, assignmentPatch(lead, userId));
   rememberAssignee(lead.id, userId);
   return saved;
+}
+
+export async function ccUpdateLead(leadId: string, patch: Record<string, unknown>): Promise<LeadX> {
+  return normLeadX(await http(`/call-center/leads/${encodeURIComponent(leadId)}`, { method: "PATCH", body: JSON.stringify(patch) }));
 }
 
 export type AssignStrategy = "round_robin" | "least_loaded";
@@ -221,15 +235,14 @@ export type ApplyResult = { done: number; failed: number; forbidden: boolean; la
 // Save a plan lead by lead (there is no bulk endpoint). Stops at the first 403
 // — the account can't assign at all — and reports how far it got. `onEach`
 // runs after every successful save so the board can update as it goes.
-export async function applyAssignments(plan: Assignment[], byUserId: string, onEach?: (a: Assignment, at: string) => void): Promise<ApplyResult> {
+export async function applyAssignments(plan: Assignment[], onEach?: (a: Assignment) => void): Promise<ApplyResult> {
   const res: ApplyResult = { done: 0, failed: 0, forbidden: false };
   for (const a of plan) {
-    const at = new Date().toISOString();
     try {
-      await adminUpdateLead(a.lead.id, { details: assignedDetails(a.lead.details, a.operator.id, byUserId, at) });
+      await adminUpdateLead(a.lead.id, assignmentPatch(a.lead, a.operator.id));
       rememberAssignee(a.lead.id, a.operator.id);
       res.done += 1;
-      onEach?.(a, at);
+      onEach?.(a);
     } catch (e) {
       res.lastError = e;
       if (isForbiddenErr(e)) {
@@ -360,32 +373,53 @@ export function ensureAssignees(maxAgeMs = 60_000): Promise<void> {
 // GET /admin/users needs users.manage, which call-center operators lack —
 // they get status "forbidden" and the UI falls back to "you" / "operator".
 export type OpsStatus = "loading" | "ready" | "forbidden" | "error";
-let opsCache: { ops: AdminUser[]; at: number } | null = null;
-let opsInflight: Promise<AdminUser[]> | null = null;
+export type OperatorDirectory = { ops: AdminUser[]; people: ReadonlyMap<string, AdminUser> };
+export type OperatorsState = OperatorDirectory & { status: OpsStatus; error?: unknown; retry: () => Promise<void> };
+const EMPTY_DIR: OperatorDirectory = { ops: [], people: new Map() };
+let opsCache: { dir: OperatorDirectory; at: number } | null = null;
+let opsInflight: Promise<OperatorDirectory> | null = null;
 const OPS_TTL = 5 * 60_000;
-export function loadOperators(): Promise<AdminUser[]> {
-  if (opsCache && Date.now() - opsCache.at < OPS_TTL) return Promise.resolve(opsCache.ops);
+export function loadOperators(): Promise<OperatorDirectory> {
+  if (opsCache && Date.now() - opsCache.at < OPS_TTL) return Promise.resolve(opsCache.dir);
   if (opsInflight) return opsInflight;
-  opsInflight = listOperators()
-    .then((ops) => {
-      opsCache = { ops, at: Date.now() };
-      return ops;
+  opsInflight = listAdminUsers()
+    .then((all) => {
+      const staff = all.filter((u) => u.id && (u.role !== "client" || u.roles.length > 0));
+      const dir: OperatorDirectory = { ops: staff.filter(isLeadOperator), people: new Map(staff.map((u) => [u.id, u])) };
+      opsCache = { dir, at: Date.now() };
+      return dir;
     })
     .finally(() => {
       opsInflight = null;
     });
   return opsInflight;
 }
-export function useOperators(): { ops: AdminUser[]; status: OpsStatus } {
-  const [st, setSt] = useState<{ ops: AdminUser[]; status: OpsStatus }>({ ops: [], status: "loading" });
+type OpsLoad = { dir: OperatorDirectory; status: OpsStatus; error?: unknown };
+const opsLoaded = (dir: OperatorDirectory): OpsLoad => ({ dir, status: "ready" });
+const opsFailed = (e: unknown): OpsLoad => ({ dir: EMPTY_DIR, status: isForbiddenErr(e) ? "forbidden" : "error", error: e });
+export function useOperators(): OperatorsState {
+  const [st, setSt] = useState<OpsLoad>({ dir: EMPTY_DIR, status: "loading" });
   useEffect(() => {
     let alive = true;
-    loadOperators()
-      .then((ops) => alive && setSt({ ops, status: "ready" }))
-      .catch((e) => alive && setSt({ ops: [], status: isForbiddenErr(e) ? "forbidden" : "error" }));
+    loadOperators().then(
+      (dir) => {
+        if (alive) setSt(opsLoaded(dir));
+      },
+      (e: unknown) => {
+        if (alive) setSt(opsFailed(e));
+      },
+    );
     return () => {
       alive = false;
     };
   }, []);
-  return st;
+  const retry = useCallback(
+    () =>
+      loadOperators().then(
+        (dir) => setSt(opsLoaded(dir)),
+        (e: unknown) => setSt(opsFailed(e)),
+      ),
+    [],
+  );
+  return { ...st.dir, status: st.status, error: st.error, retry };
 }

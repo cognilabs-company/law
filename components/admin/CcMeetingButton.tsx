@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useAuth, canMakeCalls } from "@/lib/auth";
 import { createSecureChat, startCall, searchUsers, type LiveKitJoin } from "@/lib/services/backend";
 import { notify } from "@/lib/toast";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import CallRoom from "@/components/chat/CallRoom";
 import { IconVideo } from "@/components/icons";
 
@@ -59,13 +60,23 @@ export default function CcMeetingButton({ clientUserId, phone, clientName, title
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState<Active | null>(null);
+  const asking = useRef(false);
   if (!session || !canMakeCalls(session) || (!clientUserId && !phone) || clientUserId === session.id) return null;
 
   const name = clientName?.trim() || "";
   const meetTitle = title?.trim() || (name ? t("ccTitle", { name }) : t("ccStart"));
 
   async function start() {
-    if (busy || active) return;
+    if (busy || active || asking.current) return;
+    asking.current = true;
+    const ok = await confirmDialog({
+      title: name ? t("ccConfirmTitle", { name }) : t("ccConfirmTitleNoName"),
+      text: t("ccConfirmText"),
+      confirmLabel: t("ccConfirmOk"),
+      tone: "primary",
+    });
+    asking.current = false;
+    if (!ok) return;
     setBusy(true);
     try {
       const uid = clientUserId || (await findUserByPhone(phone || ""));

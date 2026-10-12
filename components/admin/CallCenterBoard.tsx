@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { assigneeLabel, leadCategoryLabel, leadRegionLabel, leadScoreLabel } from "@/lib/leadLabels";
-import { moveCallCenterLead, adminUpdateLead } from "@/lib/services/backend";
+import { assigneeLabel, isLostStage, leadCategoryLabel, leadRegionLabel, leadScoreLabel, LOST_REASONS } from "@/lib/leadLabels";
+import { moveCallCenterLead } from "@/lib/services/backend";
 import {
   getCallCenterKanbanX,
   leadsOf,
@@ -12,6 +12,8 @@ import {
   patchLeadInColumns,
   withAssignment,
   assignLead,
+  ccUpdateLead,
+  detailsPatch,
   useOperators,
   EMPTY_LEAD_FILTER,
   filterActive,
@@ -20,12 +22,10 @@ import {
   leadUserId,
   type LeadX,
 } from "@/lib/services/leads";
+import { operatorName } from "@/lib/services/users";
 import { useAuth } from "@/lib/auth";
 import Modal from "@/components/admin/Modal";
 import LeadFilterBar from "@/components/admin/LeadFilterBar";
-
-const LOST_REASONS = ["price", "solved_self", "competitor", "no_answer", "no_service", "spam"] as const;
-const isLostKey = (k: string) => /lost|rejected|yoqotil|rad/i.test(k);
 import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import Select from "@/components/Select";
@@ -110,7 +110,10 @@ export default function CallCenterBoard() {
   const colTitle = (c: KanbanColumnX) => (tq.has(`stages.${c.key}`) ? tq(`stages.${c.key}`) : c.title || c.key);
   const leadTitle = (lead: LeadX) => lead.name || lead.phone || leadCategoryLabel(tp, lead.category) || tp("untitledLead");
   const canAssign = ops.status === "ready" && ops.ops.length > 0;
-  const assigneeOpts = [{ value: "", label: tp("assign.none") }, ...ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${o.name || o.phone} (${tp("assign.me")})` : o.name || o.phone || o.lexgoId }))];
+  const opLabel = (o: { name: string; phone: string; lexgoId: string }) => operatorName(o) || tp("assign.unknown");
+  const assigneeOpts = [{ value: "", label: tp("assign.none") }, ...ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${opLabel(o)} (${tp("assign.me")})` : opLabel(o) }))];
+  const assigneeOptsFor = (lead: LeadX) =>
+    lead.assignedTo && !ops.ops.some((o) => o.id === lead.assignedTo) ? [...assigneeOpts, { value: lead.assignedTo, label: assigneeLabel(tp, ops.people, lead.assignedTo, meId, ops.status === "ready") }] : assigneeOpts;
 
   function lostSaveFailed(leadId: string, fields: Record<string, string>, fallback: Record<string, unknown>, e: unknown) {
     notify.warning(t("lostReasonFailed"), {
@@ -122,7 +125,7 @@ export default function CallCenterBoard() {
             label: tn("retry"),
             onClick: () => {
               const details = leadsOf(cols.current).find((l) => l.id === leadId)?.details ?? fallback;
-              void adminUpdateLead(leadId, { details: { ...details, ...fields } }).then(
+              void ccUpdateLead(leadId, { details: detailsPatch(details, fields) }).then(
                 () => {
                   notify.success(t("lostReasonSaved"), { id: "cc-lead-lost-reason" });
                   void load();
@@ -138,7 +141,7 @@ export default function CallCenterBoard() {
   // background (the fetch takes seconds) and a rejected move is reverted.
   async function move(leadId: string, key: string, lost?: { reason: string; note: string }) {
     if (busyId || !key) return;
-    if (isLostKey(key) && !lost) { setLostAsk({ leadId, key }); return; }
+    if (isLostStage(key, state.columns) && !lost) { setLostAsk({ leadId, key }); return; }
     const before = state.columns;
     const from = before.find((c) => c.cards.some((x) => x.lead.id === leadId));
     const card = from?.cards.find((x) => x.lead.id === leadId);
@@ -158,7 +161,7 @@ export default function CallCenterBoard() {
       // Details are replaced by the PATCH, so the existing ones are merged in. Best effort: a
       // call-center account without leads.manage still moves the card.
       const lostFail = lostFields
-        ? await adminUpdateLead(leadId, { details: { ...(card.lead.details ?? {}), ...lostFields } }).then(
+        ? await ccUpdateLead(leadId, { details: detailsPatch(card.lead.details ?? {}, lostFields) }).then(
             () => null,
             (e: unknown) => ({ e }),
           )
@@ -186,12 +189,11 @@ export default function CallCenterBoard() {
   async function assign(lead: LeadX, userId: string) {
     if (busyId || userId === lead.assignedTo) return;
     const before = state.columns;
-    const at = new Date().toISOString();
     const who = assigneeOpts.find((o) => o.value === userId)?.label ?? "";
     setBusyId(lead.id);
-    setState((s) => ({ ...s, columns: patchLeadInColumns(s.columns, lead.id, (l) => withAssignment(l, userId, meId, at)) }));
+    setState((s) => ({ ...s, columns: patchLeadInColumns(s.columns, lead.id, (l) => withAssignment(l, userId)) }));
     try {
-      await assignLead(lead, userId, meId);
+      await assignLead(lead, userId);
       notify.success(userId ? tp("notify.assigned") : tp("notify.unassigned"), { id: `cc-assign-${lead.id}`, body: userId ? `${leadTitle(lead)} → ${who}` : leadTitle(lead) });
     } catch (e) {
       setState((s) => ({ ...s, columns: before }));
@@ -237,6 +239,7 @@ export default function CallCenterBoard() {
           aiId="call_center.board.filters"
         />
       ) : null}
+      {state.status === "ready" && ops.status === "error" ? <ErrorState compact error={ops.error} onRetry={ops.retry} title={tp("assign.opsError")} /> : null}
       {state.status === "loading" ? (
         <Skeleton rows={3} />
       ) : state.status === "error" ? (
@@ -269,7 +272,7 @@ export default function CallCenterBoard() {
                     <span className="pipe__tags">
                       {lead.scoreKey ? <span className={`lscore lscore--${lead.scoreKey}`}>{leadScoreLabel(tp, lead.scoreKey)}</span> : null}
                       <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`} title={tp("assign.title")}>
-                        <span>{assigneeLabel(tp, ops.ops, lead.assignedTo, meId)}</span>
+                        <span>{assigneeLabel(tp, ops.people, lead.assignedTo, meId, ops.status === "ready")}</span>
                       </span>
                     </span>
                     {lead.phone ? (
@@ -283,7 +286,7 @@ export default function CallCenterBoard() {
                     ) : null}
                     <div className="ccb__sels">
                       {canAssign ? (
-                        <Select value={lead.assignedTo} onChange={(v) => void assign(lead, v)} options={assigneeOpts} ariaLabel={tp("assign.select")} placeholder={busyId === lead.id ? tq("working") : tp("assign.select")} />
+                        <Select value={lead.assignedTo} onChange={(v) => void assign(lead, v)} options={assigneeOptsFor(lead)} ariaLabel={tp("assign.select")} placeholder={busyId === lead.id ? tq("working") : tp("assign.select")} />
                       ) : null}
                       <Select
                         value=""

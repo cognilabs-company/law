@@ -2471,7 +2471,7 @@
       "admin_ceo": {
         "title": "The CEO dashboard — revenue, growth and unit economics on one page.",
         "kpis": "Revenue, MRR, users and conversion. Click a card to open the details.",
-        "trend": "The revenue trend — this chart shows growth or a dip.",
+        "trend": "Revenue trend — pick the last 7 or 14 days with the switch above the chart.",
         "funnel": "The sales funnel shows the stage where leads get stuck.",
         "channels": "Which channels bring in leads — use it to split the ad budget.",
         "kpiSystem": "The KPI system: MAU, GMV, ARR and ARPU, with CAC, LTV and NPS below."
@@ -10426,6 +10426,11 @@
       }
     },
     "qualityComplaints": {
+      "fPhone": "Phone",
+      "fPriority": "Priority",
+      "fReason": "Reason",
+      "priority": {"urgent":"Urgent","high":"High","medium":"Medium","normal":"Normal","low":"Low"},
+      "reason": {"low_rating":"Low rating"},
       "loadError": "Couldn't load the complaints",
       "detailLoadError": "Couldn't load the complaint details",
       "resolveFailed": "Couldn't save the ruling",
@@ -10472,6 +10477,10 @@
       }
     },
     "urgent": {
+      "viewActive": "Active",
+      "viewArchive": "Archive",
+      "showMore": "Show more ({n})",
+      "movedToArchive": "The request moved to Archive.",
       "loadError": "Couldn't load the requests",
       "detailLoadError": "Couldn't load the request",
       "notify": {"claimed":"Request claimed","chatOpened":"A private chat with the client is open.","claimFailed":"Couldn't claim the request","meetingFailed":"Couldn't start the meeting","completeFailed":"Couldn't complete the request","transferFailed":"Couldn't hand the work over","transferredTo":"Now handled by {name}.","cancelFailed":"Couldn't cancel the request","statusFailed":"Couldn't change the status","groupAssigned":"{n, plural, one {# advocate assigned} other {# advocates assigned}}","groupFailed":"Couldn't assign the panel","listFailed":"Couldn't refresh the request list","listRefreshed":"Request list refreshed","detailFailed":"Couldn't refresh the request details","detailRefreshed":"Request details refreshed"},
@@ -10520,7 +10529,7 @@
       "includeCallcenter": "Advocates on duty",
       "includeExternal": "External advocates",
       "candidatesError": "The advocate list could not be loaded",
-      "candidatesLead": "Ranked by the backend. The client asked for {n} advocates.",
+      "candidatesLead": "Ranked by the system. The client asked for {n, plural, one {# advocate} other {# advocates}}.",
       "pickedFullHint": "The client asked for {n} — that is how many can be picked. Deselect one to choose someone else.",
       "candidates": "Matching advocates",
       "statusMoved": "Status: {status}",
@@ -11155,6 +11164,12 @@
       }
     },
     "meetings": {
+      "ccConfirmTitle": "Start a video meeting with {name}?",
+      "ccConfirmTitleNoName": "Start a video meeting?",
+      "ccConfirmText": "The client will get a call.",
+      "ccConfirmOk": "Call",
+      "newMeeting": "New meeting",
+      "showMore": "Show more ({n})",
       "ccFailed": "Couldn't open the meeting",
       "startFailed": "Meeting didn't start",
       "planLimit": "Your plan doesn't include meetings or the limit is used up.",
@@ -11181,7 +11196,7 @@
       "history": "My meetings",
       "refresh": "Refresh",
       "activeGroup": "Active",
-      "endedGroup": "Ended",
+      "endedGroup": "Past meetings",
       "historyEmpty": "No meetings yet",
       "historyEmptyText": "Meetings you start or get invited to will show up here.",
       "sample": [
@@ -11234,6 +11249,9 @@
       "durationMin": "{n} min"
     },
     "callHistory": {
+      "searchPh": "Search by title or creator",
+      "noMatch": "No matching meetings",
+      "noMatchText": "Change the filter or clear the search.",
       "participantCount": "{n, plural, one {# participant} other {# participants}}",
       "title": "Meeting history",
       "lead": "Every video/audio meeting on the platform — who created it, how long it ran, who joined.",
@@ -11271,6 +11289,7 @@
       "stagingOnlyText": "Test OTP codes are kept only on the staging/demo server. Production has no such list — codes are sent by SMS or Telegram."
     },
     "pipeline": {
+      "history": {"created":"Lead created","createdDuplicate":"Created as a duplicate","stage":"Stage: {from} → {to}","stageTo":"Stage: {to}","reorder":"Reordered within “{stage}”","updated":"Details updated","reengage":"Lead re-engaged","cleanup":"Removed as a test lead","other":"Other change","today":"Today","yesterday":"Yesterday","you":"You","stageRemoved":"Deleted stage","loadError":"Couldn't load the history"},
       "notify": {"moved":"Lead moved to “{stage}”","reordered":"Lead order changed","moveUndone":"Move undone","moveFailed":"Couldn't move the lead","lostFailed":"Couldn't save the lost reason","added":"Lead added","addFailed":"Couldn't add the lead","deleteAsk":"Delete the lead “{name}”?","deleted":"Lead deleted","deleteFailed":"Couldn't delete the lead","stageAdded":"Stage added","stageSaved":"Stage saved","stageAddFailed":"Couldn't add the stage","stageSaveFailed":"Couldn't save the stage","stageDeleted":"Stage deleted","stageLeadsMoved":"{n, plural, one {# lead moved} other {# leads moved}} to “{stage}”","stageDeleteFailed":"Couldn't delete the stage","stageDeleteConflict":"A system stage, or a stage that still has leads, can't be deleted.","autoDone":"{n, plural, one {# lead assigned} other {# leads assigned}}","autoPartial":"Leads partly assigned","autoFailed":"Couldn't assign the leads","assigned":"Operator assigned","unassigned":"Assignment removed","assignFailed":"Couldn't assign the operator","unassignFailed":"Couldn't remove the assignment","noteSaved":"Note saved","noteFailed":"Couldn't save the note","callFailed":"Couldn't log the call","reminderFailed":"Couldn't create the reminder"},
       "periodPick": {
         "label": "Period",
@@ -11388,6 +11407,7 @@
         }
       },
       "assign": {
+        "opsError": "Couldn't load the operator list",
         "unknown": "Unknown operator",
         "title": "Operator",
         "select": "Choose an operator",
@@ -11416,7 +11436,7 @@
         "partial": "{n, plural, one {# lead assigned} other {# leads assigned}}, {failed} failed.",
         "nothing": "No unassigned leads.",
         "noOps": "No active operators — add a duty desk member first.",
-        "backendPending": "The server has no auto-assign function yet — the distribution is written into lead details and shown here."
+        "backendPending": "When a lead is created, the system assigns it to the least loaded operator. This only distributes the leads that were left without one."
       }
     },
     "callAnalytics": {
@@ -11433,7 +11453,7 @@
       "noAgents": "The per-agent breakdown is not on the backend yet."
     },
     "ceo": {
-      "report": {"na":"not tracked","asOf":"as of {date}","custom":"Custom range","allRegions":"All regions","failed":"Couldn't load the CEO figures.","retry":"Try again","summary":"In this period the platform earned <b>{revenue}</b>, took <b>{payments}</b> payments, and <b>{conv}</b> of leads became orders. Users in total: <b>{users}</b>.","deltaUp":"That is <b>{n}%</b> more than the previous period.","deltaDown":"That is <b>{n}%</b> less than the previous period.","revNote":"Daily revenue for the selected period.","figTotal":"Period total","figAvg":"Daily average","figBest":"Best day","figActive":"Days with revenue","daysOf":"{n} of {total} days","unit":"Unit economics","unitNote":"What each figure means and where it stands now.","colMetric":"Metric","colValue":"Value","colNote":"Note","payback":"Payback period","months":"{n, plural, one {# month} other {# months}}","health":{"good":"Healthy","watch":"Worth a look","bad":"At risk","na":"Not tracked"},"notes":{"gmv":"Total value of all payments through the platform.","gmvEq":"Currently computed the same as total revenue.","mrr":"Monthly recurring revenue from subscriptions.","mrrEq":"The server currently returns MRR equal to total revenue.","arr":"Annual recurring revenue (MRR × 12).","arpu":"Average revenue per paying user.","take":"Platform commission — the share of GMV the platform keeps.","cacNa":"No marketing spend has been entered, so this can't be computed.","ltv":"Revenue expected from one client over their lifetime.","ltvCac":"3× or higher is a healthy ratio.","payback":"How many months it takes to earn back acquisition cost."},"funnelNote":"How many leads make it to an order.","kept":"{pct}% passed · {lost} lost","entry":"Entry point","paidNote":"Paid payments: <b>{n}</b>. This includes subscriptions and other payments besides orders, so it is kept out of the funnel.","channelsNote":"Click a column heading to change the sort order.","testNote":"Test and demo channels ({n}, {amount}) are hidden from the table but counted in total revenue.","showTest":"Show test channels","testTag":"test","audience":"Audience","audienceNote":"Activity, newcomers and satisfaction.","stickiness":"DAU / MAU","giftNote":"Gift subscriptions: from purchase to paying client."},
+      "report": {"allTime": "All time", "allTimeAsOf": "All time · as of {date}", "realFailed": "Real data didn't load", "testExcluded": "Test and demo payments are left out: {amount}, {n, plural, one {# payment} other {# payments}}.", "testIncluded": "Of which test/demo: {amount}, {n, plural, one {# payment} other {# payments}}.", "testNoteShown": "Test and demo channels ({n}, {amount}) are shown in grey and included in total revenue.", "withTest": "includes test/demo", "spanDays": "{n, plural, one {# day} other {# days}}", "spanAria": "Chart period", "figTotalDays": "{n, plural, one {Last day total} other {Last # days total}}", "perMonth": "this month", "perToday": "today", "demoPill": "Demo", "bySubs": "from subscriptions", "na":"not tracked","asOf":"as of {date}","custom":"Custom range","allRegions":"All regions","failed":"Couldn't load the CEO figures.","retry":"Try again","summary":"To date, the platform has earned <b>{revenue}</b>, taken <b>{payments}</b> {count, plural, one {payment} other {payments}}, and <b>{conv}</b> of leads became orders. Users in total: <b>{users}</b>.","deltaUp":"That is <b>{n}%</b> more than the previous period.","deltaDown":"That is <b>{n}%</b> less than the previous period.","revNote":"Daily revenue for the last 7 or 14 days.","figTotal":"Period total","figAvg":"Daily average","figBest":"Best day","figActive":"Days with revenue","daysOf":"{n} of {total} days","unit":"Unit economics","unitNote":"What each figure means and where it stands now.","colMetric":"Metric","colValue":"Value","colNote":"Note","payback":"Payback period","months":"{n, plural, one {# month} other {# months}}","health":{"good":"Healthy","watch":"Worth a look","bad":"At risk","na":"Not tracked"},"notes":{"mrrSubs": "From subscriptions: the monthly prices of active subscriptions added up (ARR ÷ 12).", "mrrNa": "No active paid subscriptions.", "arrSubs": "Annual recurring revenue from active subscriptions.", "gmv":"Total value of all payments through the platform.","gmvEq":"Currently computed the same as total revenue.","mrr":"Monthly recurring revenue from subscriptions.","mrrEq":"The server currently returns MRR equal to total revenue.","arr":"Annual recurring revenue (MRR × 12).","arpu":"Average revenue per paying user.","take":"Platform commission — the share of GMV the platform keeps.","cacNa":"No marketing spend has been entered, so this can't be computed.","ltv":"Revenue expected from one client over their lifetime.","ltvCac":"3× or higher is a healthy ratio.","payback":"How many months it takes to earn back acquisition cost."},"funnelNote":"How many leads make it to an order.","kept":"{pct}% passed · {lost} lost","entry":"Entry point","paidNote":"Paid payments: <b>{n}</b>. This includes subscriptions and other payments besides orders, so it is kept out of the funnel.","channelsNote":"Click a column heading to change the sort order.","testNote":"Test and demo channels ({n}, {amount}) are hidden and left out of total revenue.","showTest":"Show test channels","testTag":"test","audience":"Audience","audienceNote":"Activity, newcomers and satisfaction.","stickiness":"DAU / MAU","giftNote":"Gift subscriptions: from purchase to paying client."},
       "title": "CEO dashboard",
       "revenue": "Revenue",
       "mrr": "MRR (monthly recurring)",
@@ -11698,6 +11718,7 @@
       }
     },
     "callCenter": {
+      "console": {"tabsAria":"Duty desk sections","tabs":{"queue":"Queue","urgent":"Urgent advocate","complaints":"Complaints","leads":"Leads","clients":"Clients and calls"},"newUrgent":"{n} new","newComplaints":"{n} new","searchPh":"Find a client: name or phone"},
       "searchFailed": "Couldn't run the search",
       "search": "Find a client",
       "searchPh": "Name or phone…",

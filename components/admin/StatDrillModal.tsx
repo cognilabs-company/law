@@ -20,7 +20,7 @@ export type DrillSection =
   | { kind: "bars"; title?: string; rows: DrillRow[]; empty?: string }
   | { kind: "list"; title?: string; rows: DrillRow[]; empty?: string }
   | { kind: "kv"; title?: string; rows: DrillRow[] }
-  | { kind: "series"; title?: string; points: { label: string; value: number }[]; format?: (n: number) => string; empty?: string };
+  | { kind: "series"; title?: string; points: { label: string; value: number }[]; format?: (n: number) => string; empty?: string; controls?: boolean };
 export type Drill = {
   title: string;
   value?: string;
@@ -66,7 +66,7 @@ function Section({ s, empty }: { s: DrillSection; empty: string }) {
     return (
       <div className="drill__sec">
         {title}
-        {s.points.length ? <LineChart points={s.points} format={s.format} /> : <p className="advmuted">{s.empty ?? empty}</p>}
+        {s.points.length ? <LineChart points={s.points} format={s.format} controls={s.controls ?? true} /> : <p className="advmuted">{s.empty ?? empty}</p>}
       </div>
     );
   }

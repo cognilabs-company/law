@@ -17,16 +17,15 @@ import {
   EMPTY_LEAD_FILTER,
   filterActive,
   type AssignStrategy,
+  detailsPatch,
   type KanbanColumnX,
   type LeadFilter,
   type LeadX,
 } from "@/lib/services/leads";
-
-const LOST_REASONS = ["price", "solved_self", "competitor", "no_answer", "no_service", "spam"] as const;
-const isLostKey = (k: string) => /lost|rejected|yoqotil|rad/i.test(k);
+import { operatorName } from "@/lib/services/users";
 import { useAuth } from "@/lib/auth";
 import { notify } from "@/lib/toast";
-import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadSourceLabel } from "@/lib/leadLabels";
+import { assigneeLabel, isLostStage, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadSourceLabel, LOST_REASONS, personLabel } from "@/lib/leadLabels";
 import { useResource } from "@/lib/useResource";
 import { AdminForm, Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -160,7 +159,7 @@ export default function AdminPipeline() {
     const sameColumn = from.key === columnKey;
     // The lost-reason prompt is for a card newly entering a lost column, not
     // for reordering cards that are already sitting in one.
-    if (!sameColumn && isLostKey(columnKey) && !lost && !undo) { setLostAsk({ leadId, columnKey, position }); return; }
+    if (!sameColumn && isLostStage(columnKey, cols) && !lost && !undo) { setLostAsk({ leadId, columnKey, position }); return; }
     const card = from.cards.find((x) => x.lead.id === leadId);
     if (!card) return;
     const curIdx = from.cards.findIndex((x) => x.lead.id === leadId);
@@ -194,7 +193,7 @@ export default function AdminPipeline() {
     );
     if (lost) {
       try {
-        await adminUpdateLead(leadId, { details: { ...(card.lead.details ?? {}), lost_reason: lost.reason, lost_note: lost.note, lost_at: new Date().toISOString() } });
+        await adminUpdateLead(leadId, { details: detailsPatch(card.lead.details ?? {}, { lost_reason: lost.reason, lost_note: lost.note, lost_at: new Date().toISOString() }) });
       } catch (e) {
         res.setData(before);
         setBusy(null);
@@ -229,10 +228,9 @@ export default function AdminPipeline() {
   // once; a rejected write (403 without leads.manage) puts it back and the
   // drawer shows the reason.
   async function assign(lead: LeadX, userId: string) {
-    const at = new Date().toISOString();
-    res.setData((cur) => patchLeadInColumns(cur, lead.id, (l) => withAssignment(l, userId, meId, at)));
+    res.setData((cur) => patchLeadInColumns(cur, lead.id, (l) => withAssignment(l, userId)));
     try {
-      await assignLead(lead, userId, meId);
+      await assignLead(lead, userId);
     } catch (e) {
       res.setData((cur) => patchLeadInColumns(cur, lead.id, () => lead));
       throw e;
@@ -249,8 +247,8 @@ export default function AdminPipeline() {
     setAutoRun({ done: 0, total: plan.length });
     const retry = { label: tn("retry"), onClick: () => { setAutoOpen(true); void autoRef.current(); } };
     try {
-      const r = await applyAssignments(plan, meId, (a, at) => {
-        res.setData((cur) => patchLeadInColumns(cur, a.lead.id, (l) => withAssignment(l, a.operator.id, meId, at)));
+      const r = await applyAssignments(plan, (a) => {
+        res.setData((cur) => patchLeadInColumns(cur, a.lead.id, (l) => withAssignment(l, a.operator.id)));
         setAutoRun((cur) => (cur ? { ...cur, done: cur.done + 1 } : cur));
       });
       const failed = plan.length - r.done;
@@ -374,7 +372,8 @@ export default function AdminPipeline() {
     if (mins < 60 * 24) return t("age.hour", { n: Math.floor(mins / 60) });
     return t("age.day", { n: Math.floor(mins / 1440) });
   };
-  const who = (l: LeadX) => assigneeLabel(t, ops.ops, l.assignedTo, meId);
+  const who = (l: LeadX) => assigneeLabel(t, ops.people, l.assignedTo, meId, ops.status === "ready");
+  const whoName = (l: LeadX) => (l.assignedTo ? personLabel(ops.people.get(l.assignedTo)) : "");
 
   return (
     <div className="lpipe">
@@ -516,7 +515,7 @@ export default function AdminPipeline() {
                         {l.note ? <p className="lpipe-card__note">{l.note}</p> : null}
                         <footer className="lpipe-card__f">
                           <span className={`lpipe-who${!l.assignedTo ? " is-none" : l.assignedTo === meId ? " is-me" : ""}`} title={t("assign.title")}>
-                            <span className="lpipe-who__av" aria-hidden="true">{l.assignedTo ? initials(who(l)) : <IconUser />}</span>
+                            <span className="lpipe-who__av" aria-hidden="true">{whoName(l) ? initials(whoName(l)) : <IconUser />}</span>
                             <span className="lpipe-who__n">{who(l)}</span>
                           </span>
                           <span className="lpipe-card__meta">
@@ -551,7 +550,7 @@ export default function AdminPipeline() {
                 </span>
                 {l.scoreKey ? <span className={`lpipe-score lpipe-score--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : <span />}
                 <span className={`lpipe-who${!l.assignedTo ? " is-none" : l.assignedTo === meId ? " is-me" : ""}`}>
-                  <span className="lpipe-who__av" aria-hidden="true">{l.assignedTo ? initials(who(l)) : <IconUser />}</span>
+                  <span className="lpipe-who__av" aria-hidden="true">{whoName(l) ? initials(whoName(l)) : <IconUser />}</span>
                   <span className="lpipe-who__n">{who(l)}</span>
                 </span>
                 <time className="lpipe-row__age" dateTime={l.createdAt}>{ageOf(l.createdAt)}</time>
@@ -567,8 +566,7 @@ export default function AdminPipeline() {
           colKey={selected.colKey}
           columns={cols}
           busy={busy === selected.lead.id}
-          operators={ops.ops}
-          opsStatus={ops.status}
+          ops={ops}
           meId={meId}
           onAssign={(userId) => assign(selected.lead, userId)}
           onMove={(ck) => moveTo(selected.lead.id, ck, 0)}
@@ -590,7 +588,7 @@ export default function AdminPipeline() {
               label: ta("leads.operator"),
               type: "select",
               placeholder: ta("leads.operatorAuto"),
-              options: ops.ops.map((o) => ({ value: o.id, label: o.name || o.phone || o.id })),
+              options: ops.ops.map((o) => ({ value: o.id, label: operatorName(o) || t("assign.unknown") })),
             },
           ]}
           onSubmit={async (v) =>
@@ -623,6 +621,8 @@ export default function AdminPipeline() {
             <Skeleton rows={2} />
           ) : ops.status === "forbidden" ? (
             <Notice ok={false} msg={t("assign.opsForbidden")} />
+          ) : ops.status === "error" ? (
+            <ErrorState compact error={ops.error} onRetry={ops.retry} title={t("assign.opsError")} />
           ) : !ops.ops.length ? (
             <Notice ok={false} msg={t("auto.noOps")} />
           ) : !unassigned.length ? (
@@ -649,7 +649,7 @@ export default function AdminPipeline() {
                 <ul className="lauto__list" style={{ marginTop: 8 }}>
                   {ops.ops.filter((o) => autoPerOp.has(o.id)).map((o) => (
                     <li key={o.id}>
-                      <span>{o.name || o.phone || o.lexgoId}{o.region ? ` · ${leadRegionLabel(te, o.region)}` : ""}</span>
+                      <span>{operatorName(o) || t("assign.unknown")}{o.region ? ` · ${leadRegionLabel(te, o.region)}` : ""}</span>
                       <b>+{autoPerOp.get(o.id) ?? 0}</b>
                     </li>
                   ))}

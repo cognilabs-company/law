@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth, canMakeCalls, sessionRoles } from "@/lib/auth";
-import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type AdminCallDetail, type LiveKitJoin } from "@/lib/services/backend";
+import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type AdminCallDetail, type AdminCallRow, type LiveKitJoin } from "@/lib/services/backend";
 import { http, asArr, asDict, asStr, ApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { useResource } from "@/lib/useResource";
 import { shortDate, shortDateTime } from "@/lib/date";
 import { makeInviteSearch } from "@/lib/inviteSearch";
+import { matchesSearch } from "@/lib/searchText";
 import { useAiSelection } from "@/lib/ai/registry";
 import SearchSelect from "@/components/SearchSelect";
 import FilterBar from "@/components/filters/FilterBar";
@@ -19,7 +20,7 @@ import DatePicker from "@/components/DatePicker";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import FieldError from "@/components/ui/FieldError";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
-import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconEye } from "@/components/icons";
+import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconEye, IconClipboardCheck, IconSearch } from "@/components/icons";
 import { regionLabel, humanize } from "@/lib/labels";
 import { subscribeUserEvents } from "@/lib/userSocket";
 
@@ -33,6 +34,7 @@ function mmss(total: number): string {
 // user's meeting, not just this account's own. GET /admin/calls/:id.
 function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => void }) {
   const t = useTranslations("admin.callHistory");
+  const tm = useTranslations("admin.meetings");
   const locale = useLocale();
   const [d, setD] = useState<AdminCallDetail | null>(null);
   const [err, setErr] = useState<{ error: unknown } | null>(null);
@@ -57,7 +59,7 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
             {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: CALL-83JVE. */}
             {row(t("detail.workId"), d.call.workId)}
             {row(t("detail.status"), t.has(`status.${d.call.status}`) ? t(`status.${d.call.status}`) : d.call.status)}
-            {row(t("detail.type"), t(`formatLabel.${d.call.callType}`))}
+            {row(t("detail.type"), tm.has(`formatLabel.${d.call.callType}`) ? tm(`formatLabel.${d.call.callType}`) : humanize(d.call.callType))}
             {row(t("detail.room"), d.room?.title || d.call.roomId)}
             {row(t("detail.started"), shortDateTime(d.call.startedAt, locale))}
             {row(t("detail.ended"), shortDateTime(d.call.endedAt, locale))}
@@ -105,8 +107,31 @@ const LIVE = new Set(["active", "scheduled"]);
 const OUT = new Set(["removed", "declined"]);
 const START_ID = "meeting-start";
 const REFRESH_ID = "meetings-refresh";
+const PLAT_REFRESH_ID = "meetings-all-refresh";
+const PAGE = 20;
+const ENDED_ORDER = ["ended", "expired", "cancelled"];
+const STATUS_ORDER = ["active", "scheduled", "ended", "expired", "cancelled"];
 const isMissing = (e: unknown) => e instanceof ApiError && [404, 405, 501].includes(e.status);
 const isTransient = (e: unknown) => !(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 501);
+
+function localDay(value: string, shift = 0): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + shift).getTime() : null;
+}
+const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+function countBy<T>(list: T[], key: (x: T) => string): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const x of list) {
+    const k = key(x);
+    if (k) out.set(k, (out.get(k) ?? 0) + 1);
+  }
+  return out;
+}
+const ordered = (counts: Map<string, number>, order: string[]) => [
+  ...order.filter((s) => counts.has(s)),
+  ...[...counts.keys()].filter((s) => !order.includes(s)),
+];
 
 async function loadHistory(): Promise<HistoryItem[]> {
   const raw = await http("/calls/invited");
@@ -142,9 +167,12 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const tch = useTranslations("admin.callHistory");
   const tc = useTranslations("call");
   const tn = useTranslations("common.notify");
+  const tpc = useTranslations("portal.common");
   const te = useTranslations("enums");
   const locale = useLocale();
   const { session } = useAuth();
+  const sessionId = session?.id ?? "";
+  const sessionKey = session ? session.id || session.phone || "-" : "";
   const seller = session?.role === "advocate" || session?.role === "lawyer";
   const [title, setTitle] = useState("");
   const [picks, setPicks] = useState<string[]>([]);
@@ -158,6 +186,8 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const [histErr, setHistErr] = useState<{ missing: boolean; error: unknown } | null>(null);
   const [histTick, setHistTick] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [minePage, setMinePage] = useState(PAGE);
+  const titleRef = useRef<HTMLInputElement>(null);
 
   // The former standalone /admin/call-history page — every meeting on the
   // platform, not just this account's own — folded in as a second tab here
@@ -165,9 +195,24 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   // used to be (superadmin, or the leads.manage permission).
   const canSeeAllHistory = !rich && (sessionRoles(session).includes("superadmin") || (session?.permissions ?? []).includes("leads.manage"));
   const [histTab, setHistTab] = useState<"mine" | "all">("mine");
+  const [platOn, setPlatOn] = useState(false);
   const [platFrom, setPlatFrom] = useState("");
   const [platTo, setPlatTo] = useState("");
-  const platRes = useResource(() => listAdminCalls({ from: platFrom || undefined, to: platTo || undefined }), [platFrom, platTo]);
+  const [platQuery, setPlatQuery] = useState("");
+  const [platStatus, setPlatStatus] = useState("");
+  const [platPage, setPlatPage] = useState({ key: "", n: PAGE });
+  const [platBusy, setPlatBusy] = useState(false);
+  const fromStart = localDay(platFrom);
+  const toEnd = localDay(platTo, 1);
+  const apiFrom = fromStart === null ? undefined : utcDay(fromStart);
+  const apiTo = toEnd === null ? undefined : utcDay(toEnd - 1);
+  const platKey = `${apiFrom ?? ""}|${apiTo ?? ""}`;
+  const platKeyRef = useRef(platKey);
+  const platReloadRef = useRef<() => void>(() => undefined);
+  const platRes = useResource(
+    () => (platOn ? listAdminCalls({ from: apiFrom, to: apiTo }) : Promise.resolve<AdminCallRow[]>([])),
+    [platOn, apiFrom, apiTo],
+  );
   const [platDetail, setPlatDetail] = useState<string | null>(null);
   useAiSelection("admin_meetings_scope", canSeeAllHistory ? histTab : "");
   const searchRef = useRef<ReturnType<typeof makeInviteSearch> | null>(null);
@@ -175,10 +220,16 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
 
   const refreshHistory = useCallback(() => setHistTick((n) => n + 1), []);
   useEffect(() => {
-    return subscribeUserEvents((e) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const off = subscribeUserEvents((e) => {
       if (!e.event.startsWith("call.")) return;
-      refreshHistory();
+      clearTimeout(timer);
+      timer = setTimeout(refreshHistory, 400);
     });
+    return () => {
+      clearTimeout(timer);
+      off();
+    };
   }, [refreshHistory]);
 
   // History: reloaded on mount, after every meeting and on demand. A backend
@@ -199,9 +250,9 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     setHistErr({ missing: isMissing(e), error: e });
   }, []);
   useEffect(() => {
-    if (!session || active) return;
+    if (!sessionKey || active) return;
     let alive = true;
-    const me = session.id;
+    const me = sessionId;
     loadHistory()
       .then((list) => {
         if (!alive) return;
@@ -226,11 +277,12 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         failHistory(e);
       });
     return () => { alive = false; };
-  }, [session, active, histTick, takeHistory, failHistory]);
+  }, [sessionKey, sessionId, active, histTick, takeHistory, failHistory]);
 
   useEffect(() => () => {
     notify.dismiss(START_ID);
     notify.dismiss(REFRESH_ID);
+    notify.dismiss(PLAT_REFRESH_ID);
   }, []);
 
   async function reloadHistory() {
@@ -253,6 +305,35 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
       setRefreshing(false);
     }
   }
+
+  async function reloadPlat() {
+    if (platBusy || platRes.status === "loading") return;
+    notify.dismiss(PLAT_REFRESH_ID);
+    setPlatBusy(true);
+    const key = platKey;
+    try {
+      if (platRes.status === "error") {
+        await platRes.refresh();
+        return;
+      }
+      const rows = await listAdminCalls({ from: apiFrom, to: apiTo });
+      if (platKeyRef.current === key) platRes.setData(rows);
+    } catch (e) {
+      if (platKeyRef.current !== key) return;
+      notify.error(t("refreshFailed"), {
+        id: PLAT_REFRESH_ID,
+        error: e,
+        action: isTransient(e) ? { label: tn("retry"), onClick: () => platReloadRef.current() } : undefined,
+      });
+    } finally {
+      setPlatBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    platKeyRef.current = platKey;
+    platReloadRef.current = () => void reloadPlat();
+  });
 
   // Staff search any platform user; sellers (no /users/search) get lawyers +
   // their own clients — see lib/inviteSearch.
@@ -332,37 +413,46 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   }
 
   const canHost = canMakeCalls(session);
-  // No real history yet: fall back to a handful of past, already-ended sample
-  // meetings so the stat tiles, agenda, calendar and table agree with each
-  // other instead of showing a populated-looking list next to "0" everywhere
-  // else. Always callStatus "ended" — never joinable, so the (very real)
-  // Join/Rejoin button never appears on a sample row.
-  const sampleHistory: HistoryItem[] =
-    history && history.length === 0 && !histErr
-      ? (t.raw("sample") as { title: string; callerName?: string; mine: boolean; daysAgo: number; minutes: number; callType: "audio" | "video" }[]).map(
-          (s, i) => {
-            const started = new Date(new Date().getTime() - s.daysAgo * 86_400_000);
-            const ended = new Date(started.getTime() + s.minutes * 60_000);
-            return {
-              roomId: `sample-${i}`,
-              callId: `sample-${i}`,
-              callType: s.callType,
-              title: s.title,
-              callerName: s.mine ? session?.name || "" : s.callerName || "",
-              callerUserId: s.mine ? session?.id || `sample-me` : `sample-caller-${i}`,
-              status: "left",
-              callStatus: "ended",
-              startedAt: started.toISOString(),
-              autoEndAt: ended.toISOString(),
-            };
-          },
-        )
-      : [];
-  const effectiveHistory = sampleHistory.length ? sampleHistory : history ?? [];
+  const effectiveHistory = history ?? [];
   const live = effectiveHistory.filter((c) => LIVE.has(c.callStatus));
   const ended = effectiveHistory.filter((c) => !LIVE.has(c.callStatus));
+  const endedShown = ended.slice(0, minePage);
+  const endedLeft = ended.length - endedShown.length;
   const statusOf = (s: string) => (t.has(`callStatus.${s}`) ? t(`callStatus.${s}`) : humanize(s));
   const mineOf = (s: string) => (tc.has(`pstatus.${s}`) ? tc(`pstatus.${s}`) : humanize(s));
+  const endedCounts = countBy(ended, (c) => c.callStatus);
+  const endedSummary = ordered(endedCounts, ENDED_ORDER)
+    .map((s) => `${statusOf(s)} ${endedCounts.get(s)}`)
+    .join(" · ");
+
+  function goCreate() {
+    const el = titleRef.current;
+    if (!el) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
+    el.focus({ preventScroll: true });
+  }
+
+  const moreButton = (left: number, onMore: () => void) =>
+    left > 0 ? (
+      <div className="mmore">
+        <button type="button" className="btn btn--line btn--sm" onClick={onMore}>
+          {t("showMore", { n: left })}
+        </button>
+      </div>
+    ) : null;
+
+  const emptyHistory = (
+    <div className="mempty">
+      <EmptyState icon={<IconVideo />} title={t("historyEmpty")} text={t("historyEmptyText")} />
+      {canHost ? (
+        <button type="button" className="btn btn--pri btn--sm" onClick={goCreate}>
+          <IconPlus />
+          {t("newMeeting")}
+        </button>
+      ) : null}
+    </div>
+  );
 
   // Local calendar day on both sides of the comparison: toISOString() is UTC,
   // and in UTC+5 that makes everything after 19:00 count as tomorrow.
@@ -420,7 +510,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
       <div className="cform" style={{ maxWidth: rich ? "none" : 560 }}>
         <div>
           <label>{t("titleLabel")}</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} />
+          <input ref={titleRef} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} />
         </div>
         <div ref={pickBox} data-invalid={pickErr ? "true" : undefined}>
           <label>{t("participants")}</label>
@@ -470,17 +560,40 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     const showMine = !canSeeAllHistory || histTab === "mine";
     const day = (iso: string) => (iso ? shortDate(iso, locale) : "…");
     const platChip = platFrom || platTo ? (platFrom && platFrom === platTo ? day(platFrom) : `${day(platFrom)} – ${day(platTo)}`) : null;
+    const platStatusOf = (s: string) => (tch.has(`status.${s}`) ? tch(`status.${s}`) : humanize(s));
+    const platInRange =
+      fromStart === null && toEnd === null
+        ? platRes.data
+        : platRes.data.filter((c) => {
+            const ts = new Date(c.startedAt || c.createdAt).getTime();
+            return Number.isNaN(ts) || ((fromStart === null || ts >= fromStart) && (toEnd === null || ts < toEnd));
+          });
+    const platMatched = platQuery.trim() ? platInRange.filter((c) => matchesSearch(`${c.title} ${c.creatorName}`, platQuery)) : platInRange;
+    const platCounts = countBy(platMatched, (c) => c.status);
+    const platFound = ordered(platCounts, STATUS_ORDER);
+    const platStatuses = platStatus && !platFound.includes(platStatus) ? [...platFound, platStatus] : platFound;
+    const platList = platStatus ? platMatched.filter((c) => c.status === platStatus) : platMatched;
+    const platFilterKey = [platQuery.trim(), platStatus, platFrom, platTo].join("|");
+    const platLimit = platPage.key === platFilterKey ? platPage.n : PAGE;
+    const platShown = platList.slice(0, platLimit);
+    const platFiltered = Boolean(platQuery.trim() || platStatus || platFrom || platTo);
+    const refreshBusy = showMine ? refreshing : platBusy;
     return (
       <div className="mlaunch">
         {createForm}
         <div className="ppanel">
           <div className="ppanel__h">
             <b className="ppanel__t"><span className="pico"><IconClock /></span>{canSeeAllHistory ? tch("title") : t("history")}</b>
-            {showMine ? (
-              <button type="button" className="btn btn--line btn--sm" onClick={reloadHistory} disabled={history === null} aria-disabled={refreshing || undefined} aria-busy={refreshing || undefined}>
-                <IconRefresh />{t("refresh")}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="btn btn--line btn--sm"
+              onClick={showMine ? reloadHistory : () => void reloadPlat()}
+              disabled={showMine ? history === null : platRes.status === "loading"}
+              aria-disabled={refreshBusy || undefined}
+              aria-busy={refreshBusy || undefined}
+            >
+              <IconRefresh />{t("refresh")}
+            </button>
           </div>
           {canSeeAllHistory ? (
             <FilterBar
@@ -492,12 +605,30 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
                   icon: IconUsers,
                   value: histTab,
                   empty: "mine",
-                  onChange: (v) => setHistTab(v === "all" ? "all" : "mine"),
+                  onChange: (v) => {
+                    const next = v === "all" ? "all" : "mine";
+                    setHistTab(next);
+                    if (next === "all") setPlatOn(true);
+                  },
                   options: [
                     { value: "mine", label: t("history") },
                     { value: "all", label: t("scopeAll") },
                   ],
                   chip: null,
+                },
+                {
+                  key: "status",
+                  label: tpc("filterStatus"),
+                  icon: IconClipboardCheck,
+                  hidden: histTab !== "all",
+                  value: platStatus,
+                  empty: "",
+                  onChange: setPlatStatus,
+                  options: [
+                    { value: "", label: tpc("filterAllStatuses") },
+                    ...platStatuses.map((s) => ({ value: s, label: `${platStatusOf(s)} (${platCounts.get(s) ?? 0})` })),
+                  ],
+                  chip: histTab === "all" ? undefined : null,
                 },
                 {
                   key: "from",
@@ -521,12 +652,14 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
                   node: <DatePicker value={platTo} onChange={setPlatTo} placeholder={tch("to")} ariaLabel={tch("to")} min={platFrom || undefined} clearLabel={tch("clearDates")} />,
                 },
               ]}
-              count={histTab === "all" && platRes.status === "ready" ? platRes.data.length : undefined}
+              search={histTab === "all" ? { value: platQuery, onChange: setPlatQuery, placeholder: tch("searchPh") } : undefined}
+              count={histTab === "all" && platRes.status === "ready" ? platList.length : undefined}
             />
           ) : null}
           {showMine ? (
             historyBody ?? (
               <div className="mlist" data-ai-target="seller:meeting-list">
+                {!effectiveHistory.length ? emptyHistory : null}
                 {live.length ? (
                   <div className="mlist__grp">
                     <span className="mlist__gl"><i className="mlist__dot" />{t("activeGroup")} · {live.length}</span>
@@ -535,8 +668,12 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
                 ) : null}
                 {ended.length ? (
                   <div className="mlist__grp">
-                    <span className="mlist__gl">{t("endedGroup")} · {ended.length}</span>
-                    {ended.slice(0, 30).map(row)}
+                    <div className="mlist__gh">
+                      <span className="mlist__gl">{t("endedGroup")}</span>
+                      <span className="mlist__sum">{endedSummary}</span>
+                    </div>
+                    {endedShown.map(row)}
+                    {moreButton(endedLeft, () => setMinePage((n) => n + PAGE))}
                   </div>
                 ) : null}
               </div>
@@ -548,22 +685,28 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
                 <Skeleton rows={4} />
               ) : platRes.status === "error" ? (
                 <ErrorState title={t("historyLoadFailed")} error={platRes.error} onRetry={platRes.refresh} />
-              ) : !platRes.data.length ? (
-                <EmptyState icon={<IconVideo />} title={tch("empty")} text={tch("emptyText")} />
+              ) : !platList.length ? (
+                platFiltered ? (
+                  <EmptyState icon={<IconSearch />} title={tch("noMatch")} text={tch("noMatchText")} />
+                ) : (
+                  <EmptyState icon={<IconVideo />} title={tch("empty")} text={tch("emptyText")} />
+                )
               ) : (
-                <div className="alist">
-                  {platRes.data.map((c, i) => (
-                    <AdminItem
-                      key={c.id || i}
-                      index={i + 1}
-                      title={c.title || tch("untitled")}
-                      meta={[c.creatorName, shortDateTime(c.startedAt, locale), c.durationSeconds ? mmss(c.durationSeconds) : ""].filter(Boolean).join(" · ")}
-                      right={<span className="atag atag--muted atag--count"><IconUsers aria-hidden="true" style={{ width: 13, height: 13 }} />{tch("participantCount", { n: c.participantCount })}</span>}
-                      tags={[{ label: tch.has(`status.${c.status}`) ? tch(`status.${c.status}`) : c.status, tone: c.status === "ended" ? undefined : "ok" }]}
-                      actions={<button type="button" className="aitem__act" aria-label={tch("detailTitle")} title={tch("detailTitle")} onClick={() => setPlatDetail(c.id)}><IconEye /></button>}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="alist">
+                    {platShown.map((c, i) => (
+                      <AdminItem
+                        key={c.id || i}
+                        title={c.title || tch("untitled")}
+                        meta={[c.creatorName, shortDateTime(c.startedAt, locale), c.durationSeconds ? mmss(c.durationSeconds) : ""].filter(Boolean).join(" · ")}
+                        right={<span className="atag atag--muted atag--count"><IconUsers aria-hidden="true" style={{ width: 13, height: 13 }} />{tch("participantCount", { n: c.participantCount })}</span>}
+                        tags={[{ label: tch.has(`status.${c.status}`) ? tch(`status.${c.status}`) : c.status, tone: c.status === "ended" ? undefined : "ok" }]}
+                        actions={<button type="button" className="aitem__act" aria-label={tch("detailTitle")} title={tch("detailTitle")} onClick={() => setPlatDetail(c.id)}><IconEye /></button>}
+                      />
+                    ))}
+                  </div>
+                  {moreButton(platList.length - platShown.length, () => setPlatPage({ key: platFilterKey, n: platLimit + PAGE }))}
+                </>
               )}
               <CallDetailModal id={platDetail} onClose={() => setPlatDetail(null)} />
             </>
@@ -682,7 +825,13 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           <div className="ppanel__h">
             <b className="ppanel__t"><span className="pico"><IconCalendar /></span>{t("calendar")}</b>
           </div>
-          <MiniCalendar events={calEvents} />
+          {history === null ? (
+            <Skeleton rows={3} />
+          ) : histErr ? (
+            <ErrorState compact error={histErr.error} />
+          ) : (
+            <MiniCalendar events={calEvents} />
+          )}
         </div>
       </div>
 
@@ -693,27 +842,33 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
             <IconRefresh />{t("refresh")}
           </button>
         </div>
-        {historyBody ?? (
-          <div className="ptable__wrap">
-            <table className="ptable">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>{t("col.name")}</th>
-                  <th>{t("col.participants")}</th>
-                  <th>{t("col.date")}</th>
-                  <th>{t("col.duration")}</th>
-                  <th>{t("col.format")}</th>
-                  <th>{t("col.status")}</th>
-                  <th>{t("col.actions")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...live, ...ended.slice(0, 30)].map((c, i) => tableRow(c, i))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {historyBody ??
+          (effectiveHistory.length ? (
+            <>
+              <div className="ptable__wrap">
+                <table className="ptable">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>{t("col.name")}</th>
+                      <th>{t("col.participants")}</th>
+                      <th>{t("col.date")}</th>
+                      <th>{t("col.duration")}</th>
+                      <th>{t("col.format")}</th>
+                      <th>{t("col.status")}</th>
+                      <th>{t("col.actions")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...live, ...endedShown].map((c, i) => tableRow(c, i))}
+                  </tbody>
+                </table>
+              </div>
+              {moreButton(endedLeft, () => setMinePage((n) => n + PAGE))}
+            </>
+          ) : (
+            emptyHistory
+          ))}
       </div>
     </div>
   );

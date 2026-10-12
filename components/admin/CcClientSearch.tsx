@@ -13,7 +13,15 @@ import { IconSearch, IconUser, IconChevronRight } from "@/components/icons";
 // Client lookup for the call-center console (GET /call-center/clients/search):
 // searches as you type (name or phone, from 2 characters), Enter/button also
 // work; a result opens the client card. 403 = this role has no lookup right.
-export default function CcClientSearch({ canLog, onLogged }: { canLog: boolean; onLogged: (phone: string) => void }) {
+export default function CcClientSearch({
+  canLog,
+  onLogged,
+  request,
+}: {
+  canLog: boolean;
+  onLogged: (phone: string) => void;
+  request?: { q: string; n: number };
+}) {
   const t = useTranslations("admin.callCenter");
   const [q, setQ] = useState("");
   const [results, setResults] = useState<CcClient[] | null>(null);
@@ -21,7 +29,14 @@ export default function CcClientSearch({ canLog, onLogged }: { canLog: boolean; 
   const [forbidden, setForbidden] = useState(false);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
   const [open, setOpen] = useState<CcClient | null>(null);
+  const [asked, setAsked] = useState({ q: "", n: request?.n ?? 0 });
   const seq = useRef(0);
+  const input = useRef<HTMLInputElement>(null);
+
+  if (request && request.n !== asked.n) {
+    setAsked({ q: request.q, n: request.n });
+    setQ(request.q);
+  }
 
   async function run(term: string) {
     const my = ++seq.current;
@@ -47,16 +62,20 @@ export default function CcClientSearch({ canLog, onLogged }: { canLog: boolean; 
   // Debounced live search; a short term clears the list (no request).
   useEffect(() => {
     const term = q.trim();
-    const h = setTimeout(() => void run(term), term.length < 2 ? 0 : 350);
+    const h = setTimeout(() => void run(term), term.length < 2 || (asked.n && asked.q === q) ? 0 : 350);
     return () => clearTimeout(h);
-  }, [q]);
+  }, [q, asked]);
+
+  useEffect(() => {
+    if (asked.n) input.current?.focus();
+  }, [asked.n]);
 
   return (
     <div className="ppanel">
       <div className="ppanel__h"><b>{t("search")}</b><BusinessHoursBadge showHolidayNote /></div>
       <form className="lsp__search" onSubmit={(e) => { e.preventDefault(); void run(q.trim()); }} style={{ marginBottom: 12 }} data-ai-target="callcenter:client-search">
         <IconSearch />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("search")} autoComplete="off" />
+        <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("search")} autoComplete="off" />
         <button type="submit" className="btn btn--pri btn--sm" disabled={q.trim().length < 2 || searching}>{searching ? t("searching") : t("searchBtn")}</button>
       </form>
       {forbidden ? (

@@ -186,6 +186,12 @@ export async function getCeoDashboardFull(f?: DashFilter): Promise<CeoDashboardF
 export function isCeoEmpty(d: CeoDashboard): boolean {
   return !d.revenue && !d.users && !d.mau && d.funnel.every((x) => !x.value) && !d.channels.length && d.revenueTrend.every((p) => !p.value);
 }
+const TEST_CHANNEL = /(^|[_-])(demo|test|auto_test|fixture|qa|sandbox)([_-]|$)/i;
+export const isTestChannel = (name: string) => TEST_CHANNEL.test(name);
+export function ceoTestSplit(d: Pick<CeoDashboard, "channels">): { revenue: number; payments: number; count: number } {
+  const test = d.channels.filter((c) => isTestChannel(c.name));
+  return { revenue: test.reduce((s, c) => s + c.revenue, 0), payments: test.reduce((s, c) => s + c.payments, 0), count: test.length };
+}
 
 // ── Call analytics (GET /calls/analytics) ─────────────────────────
 export type CallAnalyticsFull = CallAnalytics & { fetchedAt: string };

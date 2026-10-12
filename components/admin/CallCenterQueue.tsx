@@ -21,7 +21,7 @@ type State = { status: "loading" | "ready" | "error" | "forbidden"; items: Queue
 // T1-12 call-center queue (GET /call-center/queue, callcenter.access): leads and
 // unassigned orders, SLA-breached first. Refreshes every minute while the tab
 // is visible; hidden entirely for users without call-center access (403).
-export default function CallCenterQueue() {
+export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => void }) {
   const t = useTranslations("admin.callCenter.queue");
   const te = useTranslations("enums");
   const tp = useTranslations("admin.pipeline");
@@ -75,6 +75,16 @@ export default function CallCenterQueue() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [load]);
+
+  const countRef = useRef(onCount);
+  useEffect(() => {
+    countRef.current = onCount;
+  });
+  const itemCount = state.status === "forbidden" ? 0 : state.items.length;
+  const settled = state.status === "ready" || state.status === "forbidden";
+  useEffect(() => {
+    if (settled) countRef.current?.(itemCount);
+  }, [settled, itemCount]);
 
   if (state.status === "forbidden") return null;
 

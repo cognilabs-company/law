@@ -6,7 +6,7 @@ import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import DatePicker from "@/components/DatePicker";
 import { leadRegionLabel, leadScoreLabel, leadSourceLabel, leadUrgencyLabel } from "@/lib/leadLabels";
 import { EMPTY_LEAD_FILTER, LEAD_SCORES, leadMatches, type LeadFilter, type LeadFilterable } from "@/lib/services/leads";
-import type { AdminUser } from "@/lib/services/users";
+import { operatorName, type AdminUser } from "@/lib/services/users";
 import { shortDate } from "@/lib/date";
 import { IconCalendar, IconClock, IconFlag, IconHeadset, IconLayers, IconMapPin, IconMegaphone } from "@/components/icons";
 
@@ -184,7 +184,7 @@ export default function LeadFilterBar({
         { value: "", label: t("f.allAssignee") },
         { value: "mine", label: withN(t("f.mine"), meId ? tally.assignee(meId) : 0) },
         { value: "unassigned", label: withN(t("f.unassigned"), tally.assignee("")) },
-        ...(operators ?? []).map((o) => ({ value: o.id, label: withN(o.name || o.phone || o.lexgoId, tally.assignee(o.id)) })),
+        ...(operators ?? []).map((o) => ({ value: o.id, label: withN(operatorName(o) || t("assign.unknown"), tally.assignee(o.id)) })),
       ],
       aiId: fid("assignee"),
     },

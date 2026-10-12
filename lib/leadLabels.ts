@@ -1,6 +1,21 @@
 import { humanizeSlug } from "@/lib/lawyers";
+import { operatorName } from "@/lib/services/users";
 
 type T = { has: (key: string) => boolean; (key: string): string };
+
+export const LOST_REASONS = ["price", "solved_self", "competitor", "no_answer", "no_service", "spam"] as const;
+
+const LOST_KEYS: ReadonlySet<string> = new Set(["lost", "rejected"]);
+
+export const isLostKey = (key: string): boolean => LOST_KEYS.has(key);
+
+export function isLostStage(key: string, columns?: readonly { key: string; isLost?: boolean }[]): boolean {
+  return columns?.find((c) => c.key === key)?.isLost === true || isLostKey(key);
+}
+
+export type PersonLike = { name: string; phone: string; lexgoId?: string };
+
+export const personLabel = (p: PersonLike | undefined): string => (p ? operatorName(p) : "");
 
 // Lead category ("family", "court", "housing") → label; unknown keys humanized.
 export function leadCategoryLabel(t: T, category: string): string {
@@ -46,9 +61,8 @@ export function leadUrgencyLabel(t: T, urgency: string): string {
 
 // Assignee chip text: "you" for the signed-in user, the operator's name from
 // the directory, or a plain "operator" when the directory isn't readable.
-export function assigneeLabel(t: T, ops: { id: string; name: string; phone: string }[], userId: string, meId: string): string {
+export function assigneeLabel(t: T, people: ReadonlyMap<string, PersonLike>, userId: string, meId: string, ready = true): string {
   if (!userId) return t("assign.none");
   if (meId && userId === meId) return t("assign.me");
-  const op = ops.find((o) => o.id === userId);
-  return op ? op.name || op.phone || t("assign.unknown") : t("assign.unknown");
+  return personLabel(people.get(userId)) || (ready ? t("assign.unknown") : t("assign.title"));
 }

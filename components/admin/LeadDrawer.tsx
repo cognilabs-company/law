@@ -1,20 +1,31 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getLeadTimeline, reengageLead, logCcCall, createTask, type KanbanColumn } from "@/lib/services/backend";
-import { isForbiddenErr, leadUserId, type LeadX, type OpsStatus } from "@/lib/services/leads";
-import type { AdminUser } from "@/lib/services/users";
+import { reengageLead, logCcCall, createTask, type KanbanColumn } from "@/lib/services/backend";
+import { isForbiddenErr, leadUserId, type LeadX, type OperatorsState } from "@/lib/services/leads";
+import { dayKeyOf, getLeadHistory, groupLeadEvents, prevDayKey, type LeadEvent, type LeadEventRun } from "@/lib/services/leadTimeline";
+import { operatorName, type AdminUser } from "@/lib/services/users";
 import { useResource } from "@/lib/useResource";
 import { notify } from "@/lib/toast";
 import { useReload } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
 import Select from "@/components/Select";
-import { fmtDate, shortDateTime } from "@/lib/date";
-import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadUrgencyLabel } from "@/lib/leadLabels";
+import { dateOnly, fmtDate, shortDateTime, timeOnly } from "@/lib/date";
+import { humanizeSlug } from "@/lib/lawyers";
+import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadUrgencyLabel, personLabel } from "@/lib/leadLabels";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import { IconClose, IconClock, IconPhone, IconSend } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
+
+const NO_OPS: OperatorsState = { ops: [], people: new Map<string, AdminUser>(), status: "ready", retry: () => Promise.resolve() };
+
+function subscribeMinute(cb: () => void) {
+  const id = window.setInterval(cb, 60000);
+  return () => window.clearInterval(id);
+}
+const readToday = () => dayKeyOf(Date.now());
+const GENERATED_STAGE = /^col_[a-z0-9]+(?:_\d+)?$/;
 
 // Lead detail drawer for the sales workspace: client info, stage switch,
 // operator assignment and a timeline of everything that happened to the lead.
@@ -23,8 +34,7 @@ export default function LeadDrawer({
   colKey,
   columns,
   busy,
-  operators = [],
-  opsStatus = "ready",
+  ops = NO_OPS,
   meId = "",
   onAssign,
   onMove,
@@ -37,8 +47,7 @@ export default function LeadDrawer({
   busy: boolean;
   // Call-center operators for the "Operator" select; opsStatus "forbidden"
   // (no users.manage) shows the current assignee read-only.
-  operators?: AdminUser[];
-  opsStatus?: OpsStatus;
+  ops?: OperatorsState;
   meId?: string;
   // (Re)assign the lead ("" = unassign); rejects with ApiError on failure.
   onAssign?: (userId: string) => Promise<void>;
@@ -55,15 +64,14 @@ export default function LeadDrawer({
   const tn = useTranslations("common.notify");
   const locale = useLocale();
   const [tlKey, bumpTl] = useReload();
-  const tl = useResource(() => getLeadTimeline(lead.id), [lead.id, tlKey]);
+  const tl = useResource(() => getLeadHistory(lead.id), [lead.id, tlKey]);
+  const history = useMemo(() => groupLeadEvents(tl.data), [tl.data]);
+  const today = useSyncExternalStore(subscribeMinute, readToday, () => "");
   const [note, setNote] = useState("");
   const [remind, setRemind] = useState("");
   const [act, setAct] = useState<string | null>(null);
   const leadName = lead.name || lead.phone;
-  const opName = (id: string) => {
-    const o = operators.find((x) => x.id === id);
-    return o ? o.name || o.phone || o.lexgoId : assigneeLabel(t, operators, id, meId);
-  };
+  const opName = (id: string) => personLabel(ops.people.get(id)) || assigneeLabel(t, ops.people, id, meId, ops.status === "ready");
 
   async function addNote(text = note.trim()) {
     if (!text || act) return;
@@ -112,13 +120,46 @@ export default function LeadDrawer({
     [t("d.created"), lead.createdAt ? fmtDate(lead.createdAt.slice(0, 10), locale) : ""],
     [t("assign.at"), lead.assignedTo && lead.assignedAt ? shortDateTime(lead.assignedAt, locale) : ""],
   ];
-  const canPick = !!onAssign && opsStatus === "ready";
+  const canPick = !!onAssign && ops.status === "ready";
+  const opLabel = (o: AdminUser) => operatorName(o) || t("assign.unknown");
   const assigneeOpts = [
     { value: "", label: t("assign.none") },
-    ...operators.map((o) => ({ value: o.id, label: o.id === meId ? `${o.name || o.phone} (${t("assign.me")})` : o.name || o.phone || o.lexgoId })),
+    ...ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${opLabel(o)} (${t("assign.me")})` : opLabel(o) })),
   ];
   // An assignee that is no longer in the directory still shows up as chosen.
-  if (lead.assignedTo && !operators.some((o) => o.id === lead.assignedTo)) assigneeOpts.push({ value: lead.assignedTo, label: assigneeLabel(t, operators, lead.assignedTo, meId) });
+  if (lead.assignedTo && !ops.ops.some((o) => o.id === lead.assignedTo)) assigneeOpts.push({ value: lead.assignedTo, label: assigneeLabel(t, ops.people, lead.assignedTo, meId, ops.status === "ready") });
+
+  const stageName = (key: string) => {
+    const col = columns.find((c) => c.key === key);
+    if (col) return kanbanColumnTitle(tStages, col);
+    if (tStages.has(`stages.${key}`)) return tStages(`stages.${key}`);
+    return GENERATED_STAGE.test(key) ? t("history.stageRemoved") : humanizeSlug(key);
+  };
+  const eventTitle = (e: LeadEvent) => {
+    if (e.kind === "created") return e.duplicate ? t("history.createdDuplicate") : t("history.created");
+    if (e.kind === "stage") return e.from ? t("history.stage", { from: stageName(e.from), to: stageName(e.to) }) : t("history.stageTo", { to: stageName(e.to) });
+    if (e.kind === "reorder") return t("history.reorder", { stage: stageName(e.to) });
+    if (e.kind === "updated") return t("history.updated");
+    if (e.kind === "reengage") return t("history.reengage");
+    if (e.kind === "cleanup") return t("history.cleanup");
+    return t("history.other");
+  };
+  const personOf = (id: string) => (!id ? "" : id === meId ? t("history.you") : personLabel(ops.people.get(id)));
+  const eventDetail = (e: LeadEvent) => {
+    if (e.kind === "reengage") return e.reason;
+    const who = e.kind === "created" ? personOf(e.operatorId) : "";
+    return who ? `${t("assign.title")}: ${who}` : "";
+  };
+  const runTime = (r: LeadEventRun) => {
+    const last = timeOnly(r.newest.at, locale);
+    const first = r.count > 1 ? timeOnly(r.oldest.at, locale) : last;
+    return first && first !== last ? `${first}–${last}` : last;
+  };
+  const dayLabel = (day: string, at: string) => {
+    if (today && day === today) return t("history.today");
+    if (today && day === prevDayKey(today)) return t("history.yesterday");
+    return dateOnly(at, locale);
+  };
 
   return (
     <>
@@ -157,15 +198,15 @@ export default function LeadDrawer({
             <span className="ldrw__lbl">{t("assign.title")}</span>
             <div className="lasgn__row">
               <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`}>
-                <span>{assigneeLabel(t, operators, lead.assignedTo, meId)}</span>
+                <span>{assigneeLabel(t, ops.people, lead.assignedTo, meId, ops.status === "ready")}</span>
               </span>
               {canPick ? (
                 <Select value={lead.assignedTo} onChange={(v) => void assign(v)} options={assigneeOpts} ariaLabel={t("assign.select")} placeholder={act === "assign" ? t("d.saving") : t("assign.select")} />
               ) : null}
             </div>
-            {opsStatus === "forbidden" ? <p className="lasgn__hint">{t("assign.opsForbidden")}</p> : null}
-            {opsStatus === "ready" && !operators.length ? <p className="lasgn__hint">{t("assign.noOps")}</p> : null}
-            <p className="lasgn__hint">{t("assign.localNote")}</p>
+            {ops.status === "error" ? <ErrorState compact error={ops.error} onRetry={ops.retry} title={t("assign.opsError")} /> : null}
+            {ops.status === "forbidden" ? <p className="lasgn__hint">{t("assign.opsForbidden")}</p> : null}
+            {ops.status === "ready" && !ops.ops.length ? <p className="lasgn__hint">{t("assign.noOps")}</p> : null}
           </div>
 
           {/* Client info */}
@@ -203,22 +244,36 @@ export default function LeadDrawer({
             {tl.status === "loading" ? (
               <Skeleton rows={3} />
             ) : tl.status === "error" ? (
-              <ErrorState compact error={tl.error} onRetry={tl.refresh} />
-            ) : !tl.data.length ? (
+              <ErrorState compact error={tl.error} onRetry={tl.refresh} title={t("history.loadError")} />
+            ) : !history.length ? (
               <p className="ldrw__empty"><IconClock />{t("d.noTimeline")}</p>
             ) : (
-              <ol className="ldrw__tl">
-                {tl.data.map((a) => (
-                  <li key={a.id}>
-                    <span className="ldrw__dot" />
-                    <div>
-                      <b>{a.action || a.detail || "—"}</b>
-                      {a.detail && a.action ? <span>{a.detail}</span> : null}
-                      <em>{a.createdAt ? fmtDate(a.createdAt.slice(0, 10), locale) : ""}</em>
-                    </div>
-                  </li>
+              <div className="lhist">
+                {history.map((g) => (
+                  <div className="lhist__day" key={g.day || "undated"}>
+                    {g.day ? <p className="lhist__date">{dayLabel(g.day, g.at)}</p> : null}
+                    <ol className="ldrw__tl">
+                      {g.runs.map((r) => {
+                        const detail = eventDetail(r.newest);
+                        const meta = [runTime(r), personOf(r.newest.by)].filter(Boolean).join(" · ");
+                        return (
+                          <li key={r.key}>
+                            <span className="ldrw__dot" />
+                            <div>
+                              <b>
+                                {eventTitle(r.newest)}
+                                {r.count > 1 ? <small className="lhist__x">×{r.count}</small> : null}
+                              </b>
+                              {detail ? <span>{detail}</span> : null}
+                              {meta ? <em>{meta}</em> : null}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </div>
                 ))}
-              </ol>
+              </div>
             )}
           </div>
         </div>

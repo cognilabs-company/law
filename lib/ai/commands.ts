@@ -588,6 +588,10 @@ type Prepared = { aiId: string; label: string; value: string; apply: () => void;
 async function fillForm(c: AiCommand, ctx: RunCtx, signal: AbortSignal): Promise<Step> {
   const rows: Prepared[] = [];
   const skipped: { id: string; reason: string }[] = [];
+  const hiddenId = Object.keys(c.fields)
+    .slice(0, 10)
+    .find((id) => !strictTarget(id) && document.querySelector(`[data-ai-id="${CSS.escape(id)}"]`));
+  if (hiddenId && (await revealTarget(hiddenId))) await waitFor(() => !!strictTarget(hiddenId), 1500, signal);
   for (const [aiId, value] of Object.entries(c.fields).slice(0, 10)) {
     if (!value.trim() || value.length > 500) {
       skipped.push({ id: aiId, reason: "invalid_value" });

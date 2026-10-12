@@ -12,10 +12,10 @@ import {
   type QcAction,
 } from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { asDict, asStr, logApiError } from "@/lib/http";
+import { ApiError, asDict, asNum, asStr, logApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { shortDateTime } from "@/lib/date";
-import { statusLabel } from "@/lib/labels";
+import { humanize, statusLabel } from "@/lib/labels";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import FilterBar from "@/components/filters/FilterBar";
@@ -23,7 +23,7 @@ import FieldError from "@/components/ui/FieldError";
 import { useAiSelection } from "@/lib/ai/registry";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
-import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, IconBolt, IconClipboardCheck } from "@/components/icons";
+import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, IconBolt, IconClipboardCheck, IconPhone } from "@/components/icons";
 
 // LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §5.
 //
@@ -40,7 +40,9 @@ import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, 
 // off the list response (`statuses`, `realtime.events`) rather than hardcoded
 // — live they are new / under_review / rework_required / rejected / resolved.
 
-export default function QualityComplaints() {
+const SETTLED = new Set(["resolved", "rejected", "rework_required"]);
+
+export default function QualityComplaints({ onCount }: { onCount?: (n: number) => void }) {
   const t = useTranslations("admin.qualityComplaints");
   const tcm = useTranslations("portal.common");
   const tn = useTranslations("common.notify");
@@ -49,31 +51,32 @@ export default function QualityComplaints() {
   const [status, setStatus] = useState("");
   const [rows, setRows] = useState<QualityComplaintRow[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
-  const [count, setCount] = useState(0);
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [state, setState] = useState<"loading" | "ready" | "error" | "forbidden">("loading");
   const [failure, setFailure] = useState<unknown>(undefined);
   const [reloadKey, setReloadKey] = useState(0);
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
   const [openId, setOpenId] = useState("");
-  const listedFor = useRef<string | null>(null);
-
-  const [prevStatus, setPrevStatus] = useState(status);
-  if (prevStatus !== status) { setPrevStatus(status); setState("loading"); }
+  const listed = useRef(false);
 
   useEffect(() => {
     let alive = true;
-    listQualityComplaints(status || undefined)
+    listQualityComplaints()
       .then((q) => {
         if (!alive) return;
-        listedFor.current = q.items.length ? status : null;
+        listed.current = q.items.length > 0;
         setRows(q.items);
-        setCount(q.count);
         if (q.statuses.length) setStatuses(q.statuses);
         setState("ready");
       })
       .catch((e: unknown) => {
         if (!alive) return;
-        if (listedFor.current === status) {
+        logApiError("quality complaints", e);
+        if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
+          listed.current = false;
+          setState("forbidden");
+          return;
+        }
+        if (listed.current) {
           setState("ready");
           notify.error(t("refreshFailed"), { id: "cc-complaints-refresh", error: e, action: { label: tn("retry"), onClick: refresh } });
           return;
@@ -82,20 +85,33 @@ export default function QualityComplaints() {
         setState("error");
       });
     return () => { alive = false; };
-  }, [status, reloadKey, refresh, t, tn]);
+  }, [reloadKey, refresh, t, tn]);
 
   // §6: the operator must see a new complaint arrive without reloading.
   useEffect(() => subscribeUserEvents((ev) => { if (isQualityComplaintEvent(ev.event)) refresh(); }), [refresh]);
 
+  const countRef = useRef(onCount);
+  useEffect(() => {
+    countRef.current = onCount;
+  });
+  const unresolved = state === "ready" ? rows.filter((r) => !SETTLED.has(r.status)).length : null;
+  useEffect(() => {
+    if (unresolved !== null) countRef.current?.(unresolved);
+  }, [unresolved]);
+
+  const shown = useMemo(() => (status ? rows.filter((r) => r.status === status) : rows), [rows, status]);
   const openRow = useMemo(() => rows.find((r) => r.id === openId) ?? null, [rows, openId]);
   const label = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : statusLabel(tcm, s));
+  const tally = (s: string) => (state === "ready" ? ` (${rows.filter((r) => r.status === s).length})` : "");
   useAiSelection("quality_complaints_status", status);
+
+  if (state === "forbidden") return null;
 
   return (
     <section className="ppanel" data-ai-target="callcenter:complaints">
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconAlert /></span>{t("title")}</b>
-        <span className="advmuted">{count}</span>
+        <span className="advmuted">{shown.length}</span>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
 
@@ -108,7 +124,7 @@ export default function QualityComplaints() {
             icon: IconClipboardCheck,
             value: status,
             onChange: setStatus,
-            options: [{ value: "", label: t("all") }, ...statuses.map((s) => ({ value: s, label: label(s) }))],
+            options: [{ value: "", label: `${t("all")}${state === "ready" ? ` (${rows.length})` : ""}` }, ...statuses.map((s) => ({ value: s, label: `${label(s)}${tally(s)}` }))],
             chip: null,
             aiId: "call_center.complaints.filters.status",
           },
@@ -120,11 +136,11 @@ export default function QualityComplaints() {
         <Skeleton rows={3} />
       ) : state === "error" ? (
         <ErrorState error={failure} onRetry={() => { setState("loading"); refresh(); }} title={t("loadError")} />
-      ) : !rows.length ? (
+      ) : !shown.length ? (
         <EmptyState icon={<IconAlert />} title={t("empty")} text={t("emptyText")} />
       ) : (
         <div className="alist">
-          {rows.map((r) => (
+          {shown.map((r) => (
             <button type="button" className="qcrow" key={r.id} onClick={() => setOpenId(r.id)}>
               <span className={`qcrow__st qcrow__st--${r.status}`} aria-hidden />
               <span className="qcrow__m">
@@ -181,6 +197,14 @@ function QcDetail({ row, label, onDone }: { row: QualityComplaintRow; label: (s:
   const doc = asDict(blocks.document ?? blocks.document_request);
   const lr = asDict(blocks.lawyer_request);
   const review = asDict(blocks.review ?? blocks.rating);
+  const cmp = asDict(asDict(blocks.complaint).payload);
+  const clientName = row.clientName || asStr(cmp.client_name).trim();
+  const clientPhone = asStr(cmp.client_phone).trim();
+  const rating = row.rating || asNum(cmp.rating) || asNum(review.rating);
+  const priority = asStr(cmp.priority).trim();
+  const reason = asStr(cmp.reason).trim();
+  const comment = row.complaint || asStr(cmp.comment).trim();
+  const reviewText = asStr(review.comment ?? review.text).trim();
   const fileUrl = asStr(doc.file_url ?? doc.download_url ?? lr.fulfill_file_url ?? lr.source_file_url);
   // The other half of the queue. A complaint is opened by a 1-2 star rating
   // on a document request OR on a Tezkor advocate record, and the detail
@@ -222,29 +246,37 @@ function QcDetail({ row, label, onDone }: { row: QualityComplaintRow; label: (s:
 
   return (
     <div className="qcdet">
-      <dl className="qcdet__facts">
+      <dl className="qcdet__facts" data-ai-private>
         {row.workId ? (<><dt>{t("fWorkId")}</dt><dd className="qcdet__wid">{row.workId}</dd></>) : null}
         <dt>{t("fStatus")}</dt><dd>{row.statusLabel || label(row.status)}</dd>
-        {row.rating ? (<><dt>{t("fRating")}</dt><dd className="qcdet__rate"><IconStarRate />{row.rating}</dd></>) : null}
-        {row.clientName ? (<><dt>{t("fClient")}</dt><dd>{row.clientName}</dd></>) : null}
+        {rating ? (<><dt>{t("fRating")}</dt><dd><span className="qcdet__chip qcdet__chip--rate"><IconStarRate aria-hidden="true" />{rating}</span></dd></>) : null}
+        {priority ? (
+          <>
+            <dt>{t("fPriority")}</dt>
+            <dd><span className={`qcdet__chip qcdet__chip--${priority === "high" || priority === "urgent" ? "hot" : "calm"}`}>{t.has(`priority.${priority}`) ? t(`priority.${priority}`) : humanize(priority)}</span></dd>
+          </>
+        ) : null}
+        {reason ? (<><dt>{t("fReason")}</dt><dd>{t.has(`reason.${reason}`) ? t(`reason.${reason}`) : humanize(reason)}</dd></>) : null}
+        {clientName ? (<><dt>{t("fClient")}</dt><dd>{clientName}</dd></>) : null}
+        {clientPhone ? (<><dt>{t("fPhone")}</dt><dd><a className="qcdet__tel" href={`tel:${clientPhone.replace(/[^+\d]/g, "")}`}><IconPhone aria-hidden="true" />{clientPhone}</a></dd></>) : null}
         {row.lawyerName ? (<><dt>{t("fLawyer")}</dt><dd>{row.lawyerName}</dd></>) : null}
         {row.createdAt ? (<><dt>{t("fCreated")}</dt><dd>{shortDateTime(row.createdAt, locale)}</dd></>) : null}
       </dl>
 
-      {row.complaint ? (
+      {comment ? (
         <section className="qcdet__b qcdet__b--err">
           <b><IconAlert />{t("bComplaint")}</b>
-          <p>{row.complaint}</p>
+          <p>{comment}</p>
         </section>
       ) : null}
 
       {state === "loading" ? <Skeleton rows={2} /> : null}
       {state === "error" ? <ErrorState error={failure} onRetry={() => { setState("loading"); setAttempt((n) => n + 1); }} title={t("detailLoadError")} compact /> : null}
 
-      {state === "ready" && asStr(review.comment ?? review.text) ? (
+      {state === "ready" && reviewText && reviewText !== comment ? (
         <section className="qcdet__b">
           <b><IconStarRate />{t("bReview")}</b>
-          <p>{asStr(review.comment ?? review.text)}</p>
+          <p>{reviewText}</p>
         </section>
       ) : null}
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import {
   listCcUrgentRequests,
@@ -71,7 +72,6 @@ import {
   IconChatConsult,
   IconSecondOpinion,
   IconOpinionPanel,
-  IconClipboardCheck,
   IconBriefcase,
   IconChatDots,
 } from "@/components/icons";
@@ -98,22 +98,37 @@ const KINDS = [
   "second_opinion_single",
   "second_opinion_group",
 ] as const;
-// The status filter, in the order an operator walks a record through it. The
-// vocabulary is the lifecycle's own (active_statuses + final_statuses) minus
-// `expired`, which no record in the live queue currently holds and which
-// "Barchasi" shows anyway. `""` is Barchasi — the default, because the filter
-// really does run server-side (?status= narrows the list) and defaulting to
-// open_pool hid the operator's own claimed work the moment they claimed it.
-const TABS: { value: string; key: string }[] = [
-  { value: "open_pool", key: "tabOpenPool" },
-  { value: "claimed", key: "tabClaimed" },
-  { value: "scheduled", key: "tabScheduled" },
-  { value: "in_progress", key: "tabInProgress" },
-  { value: "meeting_active", key: "tabMeetingActive" },
-  { value: "completed", key: "tabCompleted" },
-  { value: "cancelled", key: "tabCancelled" },
-  { value: "", key: "tabAll" },
+const VIEWS: { value: string; key: string; archive: boolean }[] = [
+  { value: "active", key: "viewActive", archive: false },
+  { value: "open_pool", key: "tabOpenPool", archive: false },
+  { value: "claimed", key: "tabClaimed", archive: false },
+  { value: "scheduled", key: "tabScheduled", archive: false },
+  { value: "in_progress", key: "tabInProgress", archive: false },
+  { value: "meeting_active", key: "tabMeetingActive", archive: false },
+  { value: "archive", key: "viewArchive", archive: true },
+  { value: "completed", key: "tabCompleted", archive: true },
+  { value: "cancelled", key: "tabCancelled", archive: true },
 ];
+const FINAL = new Set(["completed", "cancelled", "expired"]);
+const PAGE = 20;
+const statusOf = (r: UrgentRequest) => r.status || "open_pool";
+const isFinal = (r: UrgentRequest) => (r.finalStatuses.length ? r.finalStatuses.includes(statusOf(r)) : FINAL.has(statusOf(r)));
+const inView = (r: UrgentRequest, view: string) => (view === "active" ? !isFinal(r) : view === "archive" ? isFinal(r) : statusOf(r) === view);
+const stamp = (v: string, none: number) => {
+  const n = v ? Date.parse(v) : NaN;
+  return Number.isFinite(n) ? n : none;
+};
+const dueAt = (r: UrgentRequest) => (r.slaBreached ? 0 : stamp(r.scheduledAt, Infinity));
+const byUrgency = (a: UrgentRequest, b: UrgentRequest) => {
+  const pool = Number(statusOf(a) !== "open_pool") - Number(statusOf(b) !== "open_pool");
+  if (pool) return pool;
+  const due = dueAt(a) - dueAt(b);
+  if (due) return due;
+  return stamp(a.createdAt, Infinity) - stamp(b.createdAt, Infinity) || 0;
+};
+const byRecent = (a: UrgentRequest, b: UrgentRequest) =>
+  stamp(b.completedAt || b.cancelledAt || b.updatedAt || b.createdAt, 0) - stamp(a.completedAt || a.cancelledAt || a.updatedAt || a.createdAt, 0);
+const sorterFor = (view: string) => (VIEWS.find((x) => x.value === view)?.archive ? byRecent : byUrgency);
 const GROUP = "second_opinion_group";
 // The practice-area slugs the client form sends (see UrgentAdvocatePanel) —
 // what GET /call-center/urgent-advokat/candidates?directions= expects.
@@ -193,7 +208,7 @@ function aiPick(opts: { value: string; label: string }[], raw: string): string |
   return hit ? hit.value : null;
 }
 
-export default function UrgentAdvocateQueue() {
+export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number) => void }) {
   const t = useTranslations("admin.urgent");
   const tk = useTranslations("portal.client.urgent");
   const tcm = useTranslations("portal.common");
@@ -203,44 +218,28 @@ export default function UrgentAdvocateQueue() {
 
   const [kind, setKind] = useState("");
   const [channel, setChannel] = useState("");
-  const [status, setStatus] = useState("");
+  const [view, setView] = useState("active");
   const [state, setState] = useState<State>({ status: "loading", items: [] });
-  const [counts, setCounts] = useState<Record<string, number>>({});
   const [busyId, setBusyId] = useState("");
   const [openId, setOpenId] = useState("");
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [live, setLive] = useState(true);
+  const listKey = `${view}|${kind}|${channel}`;
+  const [page, setPage] = useState({ key: listKey, n: PAGE });
+  const limit = page.key === listKey ? page.n : PAGE;
 
-  // A tab shows the number it had when it was last actually fetched — eight
-  // requests on mount to fill the strip is not worth it. The numbers only hold
-  // for one kind/channel combination, so they are dropped during render when
-  // either changes; an effect would flash the previous combination's numbers
-  // against the new filter first.
-  const comboKey = `${kind}|${channel}`;
-  const [prevCombo, setPrevCombo] = useState(comboKey);
-  if (comboKey !== prevCombo) {
-    setPrevCombo(comboKey);
-    setCounts({});
-  }
-
-  const query = `${status}|${comboKey}`;
-  const [prevQuery, setPrevQuery] = useState(query);
-  if (prevQuery !== query) {
-    setPrevQuery(query);
-    setState({ status: "loading", items: [] });
-  }
-  const seen = useRef({ query, items: 0 });
-  const itemsFor = useRef<string | null>(null);
-  useEffect(() => { seen.current = { query, items: state.items.length }; }, [query, state.items.length]);
+  const seq = useRef(0);
+  const held = useRef(0);
+  useEffect(() => {
+    held.current = state.status === "ready" ? state.items.length : 0;
+  }, [state]);
 
   const load = useCallback(function loadList(): Promise<boolean> {
-    const asked = `${status}|${kind}|${channel}`;
-    return listCcUrgentRequests({ status: status || undefined, serviceKind: kind || undefined, channel: channel || undefined })
+    const my = ++seq.current;
+    return listCcUrgentRequests()
       .then((items) => {
-        if (seen.current.query !== asked) return false;
-        itemsFor.current = asked;
+        if (my !== seq.current) return false;
         setState({ status: "ready", items });
-        setCounts((c) => ({ ...c, [status]: items.length }));
         return true;
       })
       .catch((e) => {
@@ -250,9 +249,9 @@ export default function UrgentAdvocateQueue() {
         const forbidden = e instanceof ApiError && (e.status === 401 || e.status === 403);
         const missing = isMissingRoute(e);
         logApiError("urgent queue", e);
-        if (seen.current.query !== asked) return false;
-        const own = itemsFor.current === asked;
-        if (!missing && !forbidden && own && seen.current.items) {
+        if (my !== seq.current) return false;
+        const keep = !missing && !forbidden && held.current > 0;
+        if (keep) {
           notify.error(t("notify.listFailed"), {
             id: "urgent-queue-load",
             error: e,
@@ -263,13 +262,13 @@ export default function UrgentAdvocateQueue() {
           });
         }
         setState((s) => ({
-          status: missing ? "missing" : forbidden ? "forbidden" : own && s.items.length ? "ready" : "error",
-          items: own ? s.items : [],
+          status: missing ? "missing" : forbidden ? "forbidden" : keep ? "ready" : "error",
+          items: keep ? s.items : [],
           error: e,
         }));
         return false;
       });
-  }, [status, kind, channel, t, tn]);
+  }, [t, tn]);
 
   useEffect(() => {
     void load();
@@ -303,24 +302,19 @@ export default function UrgentAdvocateQueue() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
-  // Every action here moves the record to another status, and the board is
-  // filtered by status server-side — so a claim used to drop the row out of
-  // "Yangi" and an assign-group out of "Olingan", behind the open drawer, with
-  // no way back to it. Follow the record to the tab it landed on instead.
-  // Switching tabs re-creates `load`, whose effect refetches, so the reload is
-  // never fired twice; an unknown status (or the same tab, or Barchasi, where
-  // the row is visible either way) just reloads in place.
   const follow = useCallback(
     (next: string): string => {
-      const tab = TABS.find((x) => x.value === next);
-      if (tab && next && status && next !== status) {
-        setStatus(next);
-        return t("movedTo", { status: t(tab.key) });
-      }
       void load();
-      return "";
+      if (!next || next === view) return "";
+      const final = FINAL.has(next);
+      if (view === "active") return final ? t("movedToArchive") : "";
+      if (view === "archive" && final) return "";
+      const to = VIEWS.find((x) => x.value === next) ?? VIEWS.find((x) => x.value === (final ? "archive" : "active"));
+      if (!to || to.value === view) return "";
+      setView(to.value);
+      return t("movedTo", { status: t(to.key) });
     },
-    [status, load, t],
+    [view, load, t],
   );
 
   function report(c: Change) {
@@ -376,7 +370,37 @@ export default function UrgentAdvocateQueue() {
     }
   }
 
-  useAiSelection("urgent_queue_tab", status || "all");
+  const ready = state.status === "ready";
+  const fresh = ready ? state.items.filter((r) => statusOf(r) === "open_pool").length : null;
+  const countRef = useRef(onCount);
+  useEffect(() => {
+    countRef.current = onCount;
+  });
+  useEffect(() => {
+    if (fresh !== null) countRef.current?.(fresh);
+  }, [fresh]);
+
+  const scoped = useMemo(
+    () => state.items.filter((r) => (!kind || r.serviceKind === kind) && (!channel || r.channel === channel)),
+    [state.items, kind, channel],
+  );
+  const counts = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.value, scoped.filter((r) => inView(r, v.value)).length])), [scoped]);
+  const rows = useMemo(() => scoped.filter((r) => inView(r, view)).sort(sorterFor(view)), [scoped, view]);
+  const visible = rows.slice(0, limit);
+  const rest = rows.length - visible.length;
+
+  const viewsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = viewsRef.current;
+    const el = box?.querySelector<HTMLElement>("[aria-pressed=true]");
+    if (!box || !el || box.scrollWidth <= box.clientWidth) return;
+    const outer = box.getBoundingClientRect();
+    const at = el.getBoundingClientRect();
+    if (at.left < outer.left + 32) box.scrollLeft -= outer.left + 32 - at.left;
+    else if (at.right > outer.right - 32) box.scrollLeft += at.right - outer.right + 32;
+  }, [view]);
+
+  useAiSelection("urgent_queue_tab", view);
   useAiSelection("urgent_filter_kind", kind);
   useAiSelection("urgent_filter_channel", channel);
   useAiReveal(/^call_center\.urgent-advokat\.item\.[^.]+(\.[a-z-]+)?$/, (id) => {
@@ -388,13 +412,21 @@ export default function UrgentAdvocateQueue() {
       setOpenId(r?.id ?? seg);
       return;
     }
-    if (!r && status) setStatus("");
+    if (!r) return;
+    const k = kind && r.serviceKind !== kind ? "" : kind;
+    const c = channel && r.channel !== channel ? "" : channel;
+    const v = inView(r, view) ? view : isFinal(r) ? "archive" : "active";
+    const list = state.items.filter((x) => (!k || x.serviceKind === k) && (!c || x.channel === c) && inView(x, v)).sort(sorterFor(v));
+    const at = list.findIndex((x) => x.id === r.id);
+    const need = at < 0 ? PAGE : Math.ceil((at + 1) / PAGE) * PAGE;
+    const key = `${v}|${k}|${c}`;
+    setKind(k);
+    setChannel(c);
+    setView(v);
+    setPage({ key, n: key === listKey ? Math.max(limit, need) : need });
   });
 
-  const statusOpts = [...TABS.filter((x) => !x.value), ...TABS.filter((x) => x.value)].map((x) => ({
-    value: x.value,
-    label: counts[x.value] !== undefined ? `${t(x.key)} (${counts[x.value]})` : t(x.key),
-  }));
+  const viewOpts = VIEWS.map((x) => ({ value: x.value, label: ready ? `${t(x.key)} (${counts[x.value] ?? 0})` : t(x.key) }));
   const kindOpts = [{ value: "", label: t("allKinds") }, ...KINDS.map((k) => ({ value: k, label: tk.has(`kinds.${k}`) ? tk(`kinds.${k}`) : k }))];
   const channelOpts = [
     { value: "", label: t("allChannels") },
@@ -402,10 +434,10 @@ export default function UrgentAdvocateQueue() {
     { value: "chat", label: tk("chChat") },
   ];
   useAiField("call_center.urgent-advokat.tabs", {
-    get: () => status || "all",
+    get: () => view,
     set: (raw) => {
-      const v = aiPick(statusOpts, raw);
-      if (v !== null) setStatus(v);
+      const v = aiPick(viewOpts, raw);
+      if (v !== null) setView(v || "active");
     },
   });
   useAiField("call_center.urgent-advokat.filters.kind", {
@@ -424,8 +456,8 @@ export default function UrgentAdvocateQueue() {
   });
   useAiReveal(/^call_center\.urgent-advokat\.tab\.[a-z_]+$/, (id) => {
     const seg = id.split(".")[3] ?? "";
-    const next = seg === "all" ? "" : seg;
-    if (TABS.some((x) => x.value === next)) setStatus(next);
+    const next = seg === "all" ? "active" : seg;
+    if (VIEWS.some((x) => x.value === next)) setView(next);
   });
 
   if (state.status === "forbidden" || state.status === "missing") return null;
@@ -443,19 +475,42 @@ export default function UrgentAdvocateQueue() {
       </div>
       <p className="advmuted uaq__lead">{t("lead")}</p>
 
+      <div
+        ref={viewsRef}
+        className="uaq__views"
+        role="group"
+        aria-label={t("fStatus")}
+        data-ai-id="call_center.urgent-advokat.tabs"
+        data-ai-target="callcenter:urgent-tabs"
+        data-ai-type="select"
+        data-ai-label={t("fStatus")}
+      >
+        {VIEWS.map((v, i) => (
+          <Fragment key={v.value}>
+            {i > 0 && v.archive !== VIEWS[i - 1].archive ? <i className="uaq__vsep" aria-hidden="true" /> : null}
+            <button
+              type="button"
+              className={`uaq__view${v.value === "active" || v.value === "archive" ? " uaq__view--main" : ""}`}
+              aria-pressed={view === v.value}
+              onClick={() => setView(v.value)}
+              data-ai-id={`call_center.urgent-advokat.tab.${v.value}`}
+              data-ai-type="tab"
+              data-ai-label={t(v.key)}
+            >
+              {t(v.key)}
+              {ready ? <em>{counts[v.value] ?? 0}</em> : null}
+            </button>
+          </Fragment>
+        ))}
+      </div>
+
       <FilterBar
         className="uf--tray"
         fields={[
-          { key: "status", label: t("fStatus"), icon: IconClipboardCheck, value: status, onChange: setStatus, options: statusOpts, aiId: "call_center.urgent-advokat.tabs", aiTarget: "callcenter:urgent-tabs" },
           { key: "kind", label: t("fKind"), icon: IconBriefcase, value: kind, onChange: setKind, options: kindOpts, aiId: "call_center.urgent-advokat.filters.kind" },
           { key: "channel", label: t("fChannel"), icon: IconChatDots, value: channel, onChange: setChannel, options: channelOpts, aiId: "call_center.urgent-advokat.filters.channel" },
         ]}
-        count={state.status === "ready" ? state.items.length : undefined}
-        onReset={() => {
-          setStatus("");
-          setKind("");
-          setChannel("");
-        }}
+        count={ready ? rows.length : undefined}
         aiId="call_center.urgent-advokat.filters"
         aiTarget="callcenter:urgent-filters"
       />
@@ -464,11 +519,11 @@ export default function UrgentAdvocateQueue() {
         <Skeleton rows={3} />
       ) : state.status === "error" ? (
         <ErrorState error={state.error} onRetry={load} title={t("loadError")} />
-      ) : !state.items.length ? (
+      ) : !rows.length ? (
         <EmptyState icon={<IconBolt />} title={t("empty")} text={t("emptyText")} />
       ) : (
         <ul className="uaq__list" data-ai-target="callcenter:urgent-list">
-          {state.items.map((r) => {
+          {visible.map((r) => {
             const Icon = KIND_ICON[r.serviceKind] ?? IconScale;
             const open = (r.status || "open_pool") === "open_pool";
             const isGroup = r.serviceKind === GROUP;
@@ -571,6 +626,11 @@ export default function UrgentAdvocateQueue() {
           })}
         </ul>
       )}
+      {ready && rest > 0 ? (
+        <button type="button" className="btn btn--line btn--sm uaq__more" onClick={() => setPage({ key: listKey, n: limit + PAGE })} data-ai-id="call_center.urgent-advokat.more">
+          {t("showMore", { n: rest })}
+        </button>
+      ) : null}
 
       <UrgentDetailDrawer
         id={openId}
@@ -579,17 +639,20 @@ export default function UrgentAdvocateQueue() {
         onMeeting={openMeeting}
       />
 
-      {meeting ? (
-        <CallRoom
-          roomId={meeting.roomId}
-          callId={meeting.callId}
-          callType="video"
-          isCaller
-          title={meeting.title}
-          lk={meeting.lk}
-          onEnd={() => setMeeting(null)}
-        />
-      ) : null}
+      {meeting
+        ? createPortal(
+            <CallRoom
+              roomId={meeting.roomId}
+              callId={meeting.callId}
+              callType="video"
+              isCaller
+              title={meeting.title}
+              lk={meeting.lk}
+              onEnd={() => setMeeting(null)}
+            />,
+            document.body,
+          )
+        : null}
     </section>
   );
 }
