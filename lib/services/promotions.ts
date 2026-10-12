@@ -126,7 +126,7 @@ export async function listPromotionPackages(placement?: PromotionPlacement, sign
     const raw = asDict(await http(`/promotions/packages${qs}`, { signal }));
     const items = asArr(raw.items ?? raw.packages).filter((x) => { const st = asStr(asDict(x).status).toLowerCase(); return !st || st === "active"; }).map(normPackage).filter((item) => item.id && (!placement || item.placement === placement));
     const placements = asArr(raw.placements).map(normPlacement);
-    return { items, placements: placements.length ? placements : PROMOTION_PLACEMENTS.map(normPlacement) };
+    return { items, placements: placements.length ? placements : PROMOTION_PLACEMENTS.map((value) => normPlacement({ key: value })) };
   } catch (error) {
     if (signal?.aborted || !(error instanceof ApiError && (error.status === 404 || error.status === 405))) throw error;
     // Older deployments expose the same active products through /ads/products.

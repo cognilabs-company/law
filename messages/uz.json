@@ -1736,7 +1736,6 @@
   },
   "sellerServices": {
     "promote": {
-      "bannerUploaded": "Rasm yuklandi",
       "bannerNoFile": "Fayl tanlanmagan · JPG, PNG, WEBP, HEIC · {mb} MB gacha",
       "bannerUploading": "Yuklanmoqda…",
       "bannerPick": "Rasm tanlash",
@@ -1780,7 +1779,6 @@
       "bannerSubtitle": "Qisqa izoh",
       "ctaLabel": "Tugma matni",
       "ctaUrl": "Tugma havolasi",
-      "previewTitle": "Ko'rinish namunasi",
       "bannerType": "Banner JPG, PNG, WEBP yoki HEIC bo'lishi kerak.",
       "bannerUploadError": "Banner faylini yuklab bo'lmadi. Qayta urinib ko'ring.",
       "errors": {
@@ -1796,10 +1794,7 @@
       "previewTop": "Top",
       "previewCta": "Profilni ko'rish",
       "optional": "ixtiyoriy",
-      "previewBannerNote": "Banner marketplace sahifasining yuqorisida, boshqa bannerlar bilan navbatma-navbat ko'rsatiladi.",
       "previewBannerNoImage": "Rasm qo'shilmasa, banner profilingiz kartasi ko'rinishida chiqadi.",
-      "previewProfileNote": "Profilingiz ro'yxatning yuqorisida, \"Top\" belgisi bilan ajralib turadi.",
-      "previewServiceNote": "Mijoz shu xizmatni tanlaganda yoki qidirganda, natijalardan oldin alohida blokda chiqadi.",
       "titleAny": "Reklama berish",
       "leadAny": "Reklama joyini va paketni tanlang. To'lov tasdiqlangach reklama avtomatik yoqiladi.",
       "step1": "1. Reklama joyi",
@@ -1818,7 +1813,7 @@
       "badCta": "Havola https:// yoki / bilan boshlanishi kerak.",
       "ctaUrlPh": "Bo'sh qolsa — profilingiz",
       "bannerNeeded": "Bu paket uchun banner rasmi kerak: fayl yuklang yoki havola kiriting.",
-      "previewHeic": "HEIC rasm brauzerda ko'rsatilmaydi, lekin saqlandi — marketplace'da odatdagidek chiqadi.",
+      "previewHeic": "HEIC rasm brauzerda ko'rsatilmaydi, lekin yuborilganda saqlanadi — marketplace'da odatdagidek chiqadi.",
       "activeTitle": "Reklama yoqildi",
       "activeText": "To'lov talab qilinmadi — reklama hozirdan ko'rinmoqda."
     },
@@ -2004,6 +1999,24 @@
       "top": "Qidiruvda yuqorida",
       "featured": "Tavsiya etilgan profil",
       "regional": "Hududda Topga chiqarish"
+    },
+    "preview": {
+      "title": "Mijozlar shunday ko'radi",
+      "device": "Ko'rinish qurilmasi",
+      "desktop": "Kompyuter",
+      "mobile": "Telefon",
+      "foot": "Bu faqat ko'rinish. «Saqlash»ni bosmaguningizcha mijozlar avvalgi ma'lumotni ko'radi.",
+      "footPromo": "Bu faqat ko'rinish. Reklama admin tasdig'idan keyin yoqiladi.",
+      "pickFirst": "Xizmatni tanlang — mijozlar uni qanday ko'rishi shu yerda chiqadi.",
+      "hidden": "Hozir mijozlarga ko'rinmaydi: {reasons}. Quyida u ochilgandagi ko'rinishi.",
+      "notListed": "Profilingiz hali marketplace'da chiqmayapti — tasdiqlangach mijozlar uni shunday ko'radi.",
+      "onProfile": "Profilingiz sahifasida — xizmatlar ro'yxati",
+      "onProfileHead": "Profilingiz sahifasi — yuqori qism",
+      "onProfileAbout": "Profilingiz sahifasi — «Mutaxassis haqida»",
+      "inList": "Advokat va yuristlar ro'yxatida",
+      "inListTop": "Ro'yxat boshida — «Top» belgisi bilan",
+      "onTop": "Marketplace sahifasi tepasida — boshqa bannerlar bilan navbatma-navbat",
+      "inSearch": "Xizmat qidirilganda — natijalardan oldin"
     },
     "pending": {
       "title": "Profilingiz tasdiq kutmoqda",

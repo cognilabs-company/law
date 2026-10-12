@@ -1736,7 +1736,6 @@
   },
   "sellerServices": {
     "promote": {
-      "bannerUploaded": "Image uploaded",
       "bannerNoFile": "No file chosen · JPG, PNG, WEBP, HEIC · up to {mb} MB",
       "bannerUploading": "Uploading…",
       "bannerPick": "Choose image",
@@ -1780,7 +1779,6 @@
       "bannerSubtitle": "Short description",
       "ctaLabel": "Button text",
       "ctaUrl": "Button URL",
-      "previewTitle": "Preview",
       "bannerType": "The banner must be JPG, PNG, WEBP or HEIC.",
       "bannerUploadError": "Couldn't upload the banner. Please try again.",
       "errors": {
@@ -1796,10 +1794,7 @@
       "previewTop": "Top",
       "previewCta": "View profile",
       "optional": "optional",
-      "previewBannerNote": "The banner is shown at the top of the marketplace page, rotating with other banners.",
       "previewBannerNoImage": "Without a picture the banner is shown as your profile card.",
-      "previewProfileNote": "Your profile moves to the top of the list and stands out with a Top badge.",
-      "previewServiceNote": "When a client picks or searches for this service, it appears in its own block above the results.",
       "titleAny": "Start a promotion",
       "leadAny": "Pick where to appear and a package. Once the payment is approved the promotion switches on by itself.",
       "step1": "1. Placement",
@@ -1818,7 +1813,7 @@
       "badCta": "The link must start with https:// or /.",
       "ctaUrlPh": "Leave empty for your profile",
       "bannerNeeded": "This package needs a banner image: upload a file or paste a link.",
-      "previewHeic": "HEIC images can't be shown in the browser, but the file is saved and will appear on the marketplace as usual.",
+      "previewHeic": "HEIC images can't be shown in the browser, but the file is saved when you send the request and will appear on the marketplace as usual.",
       "activeTitle": "Promotion is live",
       "activeText": "No payment was needed — the promotion is showing now."
     },
@@ -2004,6 +1999,24 @@
       "top": "Top of search",
       "featured": "Featured profile",
       "regional": "Top in your region"
+    },
+    "preview": {
+      "title": "What clients see",
+      "device": "Preview device",
+      "desktop": "Desktop",
+      "mobile": "Mobile",
+      "foot": "Preview only. Clients keep seeing the current version until you press Save.",
+      "footPromo": "Preview only. The promotion goes live after an admin approves it.",
+      "pickFirst": "Pick a service to see how clients will find it.",
+      "hidden": "Clients can't see it right now: {reasons}. Below is how it will look once it's live.",
+      "notListed": "Your profile isn't on the marketplace yet. Once it's verified, clients will see it like this.",
+      "onProfile": "Your profile page, services list",
+      "onProfileHead": "Your profile page, header",
+      "onProfileAbout": "Your profile page, About section",
+      "inList": "In the lawyers directory",
+      "inListTop": "At the top of the directory, marked Top",
+      "onTop": "Top of the marketplace page, rotating with other banners",
+      "inSearch": "When clients search for the service, above the results"
     },
     "pending": {
       "title": "Your profile is awaiting verification",

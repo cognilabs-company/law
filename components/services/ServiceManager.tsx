@@ -46,7 +46,6 @@ import {
   IconRocket,
   IconSearch,
   IconShieldCheck,
-  IconStore,
   IconUsers,
 } from "@/components/icons";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
@@ -356,10 +355,6 @@ export default function ServiceManager({
     <div className="svm">
       <section className="svm__hero" data-ai-target="services:summary" data-ai-id={`${aiBase}.summary`} data-ai-type="section" data-ai-label={t("kicker")}>
         <div className="svm__hero-t">
-          <span className="kick svm__kick">
-            <IconStore aria-hidden="true" />
-            {t("kicker")}
-          </span>
           <h2 className="svm__title">{title ?? t("title")}</h2>
           <p className="svm__lead">{owner ? t("leadOwner") : t("lead")}</p>
         </div>
@@ -378,9 +373,7 @@ export default function ServiceManager({
         <ul className="svm__stats">
           {stats.map(({ k, Icon, v }) => (
             <li key={k} className={`svm__stat svm__stat--${k}`}>
-              <span className="svm__sic" aria-hidden="true">
-                <Icon />
-              </span>
+              <Icon aria-hidden="true" />
               <b>{v}</b>
               <span>{t(`stats.${k}`)}</span>
               {k === "promoted" && waiting ? (
@@ -503,7 +496,7 @@ export default function ServiceManager({
           scope={sc}
           uid={uid}
           sellerId={sellerId}
-          region={data.profile.region}
+          profile={data.profile}
           lawyer={lawyer}
           owner={owner}
           taken={taken}

@@ -6,8 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess } from "@/lib/auth";
 import { ApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
-import { fmtRating, dateOnly } from "@/lib/date";
-import { regionLabel } from "@/lib/labels";
+import { dateOnly } from "@/lib/date";
 import { setReturnTo } from "@/lib/returnTo";
 import {
   getMarketplaceSeller,
@@ -18,11 +17,11 @@ import {
   type MarketService,
 } from "@/lib/services/marketplace";
 import { listActivePromotions } from "@/lib/services/promotions";
-import VerifiedBadge from "@/components/VerifiedBadge";
-import { IconArrowRight, IconChevronLeft, IconClock, IconGlobe, IconLock, IconMapPin, IconRefresh, IconShieldCheck, IconStar, IconBriefcase } from "@/components/icons";
+import { IconArrowRight, IconChevronLeft, IconClock, IconLock, IconRefresh, IconShieldCheck, IconStar, IconBriefcase } from "@/components/icons";
 import PurchaseDialog from "./PurchaseDialog";
 import PricingExplainer from "./PricingExplainer";
-import { Monogram, Stars, deliveryLabel, hasRating, hasSuccess, langLabel, sellerTypeLabel, specLabel } from "./bits";
+import { Stars, deliveryLabel } from "./bits";
+import { SellerAbout, SellerHero, SellerServiceRow } from "./SellerParts";
 import { aiId } from "@/lib/ai/ids";
 import { useAiModal, useAiSelection } from "@/lib/ai/registry";
 
@@ -199,24 +198,6 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
 
   if (!seller) return null;
 
-  const rated = hasRating(seller);
-  const success = hasSuccess(seller);
-  const place = [regionLabel(te, seller.region), seller.district && seller.district.toLowerCase() !== "demo" ? seller.district : ""].filter(Boolean).join(", ");
-  const langs = Array.from(new Set(seller.languages.map((l) => langLabel(t, l))));
-  const tiles: { k: string; v: string; sub?: string }[] = [
-    { k: t("detail.stats.rating"), v: rated ? fmtRating(seller.rating, locale) : t("detail.newRating") },
-    { k: t("detail.stats.reviews"), v: String(seller.reviewsCount) },
-    { k: t("detail.stats.experience"), v: seller.experienceYears ? String(seller.experienceYears) : "—" },
-    { k: t("detail.stats.cases"), v: seller.totalCases ? String(seller.totalCases) : "—" },
-    { k: t("detail.stats.success"), v: success ? `${Math.round(seller.successRate)}%` : "—", sub: success ? undefined : t("detail.gathering") },
-    { k: t("detail.stats.completed"), v: String(seller.completedOrders) },
-  ];
-  const facts: [string, string][] = [
-    [t("detail.education"), seller.education],
-    [t("detail.organization"), seller.organizationName],
-    [t("detail.bar"), seller.barAssociation],
-    [t("detail.license"), seller.licenseNumber],
-  ].filter((f): f is [string, string] => !!f[1]);
   const sellerAiId = aiId("marketplace.seller", seller.userId);
 
   return (
@@ -226,61 +207,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
         {t("detail.back")}
       </Link>
 
-      <header
-        className="mk-prof__hero"
-        data-ai-target="marketplace:seller-summary"
-        data-ai-id={sellerAiId}
-        data-ai-type="section"
-        data-ai-label={[sellerTypeLabel(t, seller.sellerType), place].filter(Boolean).join(" · ")}
-        data-ai-entity-type="seller"
-        data-ai-entity-id={seller.userId}
-      >
-        <div className="mk-hero__glow" aria-hidden="true" />
-        <div className="mk-prof__id">
-          <Monogram name={seller.name} rating={seller.rating} showRing={rated} size="lg" />
-          <div className="mk-prof__who">
-            <div className="mk-prof__tags">
-              <span className={`mk-type mk-type--${seller.sellerType || "yurist"}`}>{sellerTypeLabel(t, seller.sellerType)}</span>
-              {seller.verified ? <VerifiedBadge name={seller.name} subtitle={sellerTypeLabel(t, seller.sellerType)} text={seller.badgeLabel} tone="glass" size="md" /> : null}
-              {seller.promotion?.active || seller.isSponsored || profileTop ? (
-                <span className="mk-card__ad mk-card__ad--inline">
-                  {seller.promotion?.active && seller.promotion.serviceTitle ? t("card.promotedService", { service: seller.promotion.serviceTitle }) : t("card.promoted")}
-                </span>
-              ) : null}
-            </div>
-            <h1 className="mk-prof__name">{seller.name}</h1>
-            <div className="mk-prof__line">
-              {place ? (
-                <span>
-                  <IconMapPin />
-                  {place}
-                </span>
-              ) : null}
-              {langs.length ? (
-                <span>
-                  <IconGlobe />
-                  {langs.join(" · ")}
-                </span>
-              ) : null}
-              {rated ? (
-                <span>
-                  <IconStar />
-                  {fmtRating(seller.rating, locale)} · {t("card.reviews", { count: seller.reviewsCount })}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        </div>
-        <div className="mk-prof__tiles">
-          {tiles.map((x) => (
-            <div key={x.k} className="mk-tile">
-              <b>{x.v}</b>
-              <span>{x.k}</span>
-              {x.sub ? <em>{x.sub}</em> : null}
-            </div>
-          ))}
-        </div>
-      </header>
+      <SellerHero seller={seller} top={profileTop} />
 
       <div className="mk-prof__body">
         <div className="mk-prof__main">
@@ -292,56 +219,18 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
             <p className="mk-panel__l">{t("detail.servicesLead")}</p>
             {services.length ? (
               <div className="mk-svcs" role="radiogroup" aria-label={t("detail.services")}>
-                {services.map((svc) => {
-                  const on = selected?.id === svc.id;
-                  const top = svc.isSponsored || topServiceIds.has(svc.id);
-                  const eta = deliveryLabel(t, svc.deliveryMinutes);
-                  const svcAiId = aiId(`${sellerAiId}.service`, svc.id);
-                  return (
-                    <div
-                      key={svc.id}
-                      className={`mk-svc${on ? " is-on" : ""}${top ? " mk-svc--top" : ""}`}
-                      data-ai-target={`marketplace:service-card:${svc.id}`}
-                      data-ai-id={svcAiId}
-                      data-ai-type="card"
-                      data-ai-entity-type="marketplace_service"
-                      data-ai-entity-id={svc.id}
-                    >
-                      <button type="button" role="radio" aria-checked={on} className="mk-svc__pick" onClick={() => setPicked(svc.id)}>
-                        <span className="mk-svc__radio" aria-hidden="true" />
-                        <span className="mk-svc__txt">
-                          <b>{svc.title}{top ? <em className="mk-svc__top">{t("card.promoted")}</em> : null}</b>
-                          <span>
-                            {svc.categoryTitle ? specLabel(te, svc.categoryTitle) : null}
-                            {svc.categoryTitle && eta ? " · " : null}
-                            {eta ? (
-                              <span className="mk-eta">
-                                <IconClock />
-                                {eta}
-                              </span>
-                            ) : null}
-                          </span>
-                          {svc.experienceNote ? <i>{svc.experienceNote}</i> : null}
-                        </span>
-                      </button>
-                      <div className="mk-svc__end">
-                        <b>{svc.price > 0 ? fmtUzs(svc.price) : t("card.priceAsk")}</b>
-                        <button
-                          type="button"
-                          className="btn btn--pri btn--sm"
-                          onClick={() => startBuy(svc)}
-                          disabled={!!blocked || svc.price <= 0}
-                          data-ai-target={`button:marketplace-purchase:${seller.userId}:${svc.id}`}
-                          data-ai-id={`${svcAiId}.buy`}
-                          data-ai-entity-type="marketplace_service"
-                          data-ai-entity-id={svc.id}
-                        >
-                          {t("detail.buy")}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                {services.map((svc) => (
+                  <SellerServiceRow
+                    key={svc.id}
+                    svc={svc}
+                    sellerUserId={seller.userId}
+                    on={selected?.id === svc.id}
+                    top={svc.isSponsored || topServiceIds.has(svc.id)}
+                    buyDisabled={!!blocked || svc.price <= 0}
+                    onPick={() => setPicked(svc.id)}
+                    onBuy={() => startBuy(svc)}
+                  />
+                ))}
               </div>
             ) : (
               <div className="mk-empty mk-empty--flat">
@@ -351,32 +240,7 @@ export default function SellerProfile({ userId, variant }: { userId: string; var
             )}
           </section>
 
-          <section className="mk-panel" data-ai-target="marketplace:seller-about" data-ai-id={`${sellerAiId}.about`} data-ai-type="section">
-            <h2 className="mk-panel__t">{t("detail.about")}</h2>
-            <p className="mk-prof__bio">{seller.bio || t("detail.noBio")}</p>
-            {seller.specializations.length ? (
-              <>
-                <h3 className="mk-panel__st">{t("detail.specializations")}</h3>
-                <div className="mk-tags">
-                  {seller.specializations.map((s) => (
-                    <span key={s} className="mk-tag">
-                      {specLabel(te, s)}
-                    </span>
-                  ))}
-                </div>
-              </>
-            ) : null}
-            {facts.length ? (
-              <dl className="mk-facts">
-                {facts.map(([k, v]) => (
-                  <div key={k}>
-                    <dt>{k}</dt>
-                    <dd>{v}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : null}
-          </section>
+          <SellerAbout seller={seller} />
 
           <section className="mk-panel" data-ai-target="marketplace:seller-reviews" data-ai-id={`${sellerAiId}.reviews`} data-ai-type="list">
             <h2 className="mk-panel__t">{t("detail.reviews")}</h2>

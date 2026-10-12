@@ -470,6 +470,13 @@ export const IconMonitor = (p: P) => (
   </svg>
 );
 
+export const IconSmartphone = (p: P) => (
+  <svg {...base} {...p}>
+    <rect x="6" y="2" width="12" height="20" rx="2.5" />
+    <path d="M11 18h2" />
+  </svg>
+);
+
 export const IconBell = (p: P) => (
   <svg {...base} {...p}>
     <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
