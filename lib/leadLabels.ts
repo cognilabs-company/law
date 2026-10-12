@@ -13,6 +13,20 @@ export function isLostStage(key: string, columns?: readonly { key: string; isLos
   return columns?.find((c) => c.key === key)?.isLost === true || isLostKey(key);
 }
 
+const STAGE_ICONS: Readonly<Record<string, string>> = {
+  new: "/img/yangi.png",
+  contacted: "/img/boglanildi.png",
+  qualified: "/img/malakali.png",
+  proposal: "/img/taklif.png",
+  won: "/img/yutildi.png",
+  lost: "/img/yoqotildi.png",
+  duplicate: "/img/dublikat.png",
+};
+
+export function leadStageIcon(key: string): string | null {
+  return STAGE_ICONS[String(key || "").trim().toLowerCase()] ?? null;
+}
+
 export type PersonLike = { name: string; phone: string; lexgoId?: string };
 
 export const personLabel = (p: PersonLike | undefined): string => (p ? operatorName(p) : "");

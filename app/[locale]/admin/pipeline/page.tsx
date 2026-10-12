@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import { moveLeadKanban, adminCreateLead, adminDeleteLead, adminUpdateLead, saveLeadKanbanColumns, deleteLeadKanbanColumn } from "@/lib/services/backend";
 import {
   getLeadKanbanX,
@@ -28,7 +29,7 @@ import { notify } from "@/lib/toast";
 import { ApiError } from "@/lib/http";
 import { formatUzPhone, isValidUzPhone, normUzPhone, uzSubscriber } from "@/lib/phone";
 import { REGION_KEYS } from "@/lib/lawyers";
-import { assigneeLabel, isLostStage, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadSourceLabel, personLabel } from "@/lib/leadLabels";
+import { assigneeLabel, isLostStage, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadSourceLabel, leadStageIcon, personLabel } from "@/lib/leadLabels";
 import { useResource } from "@/lib/useResource";
 import { AdminForm, Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
@@ -538,6 +539,7 @@ export default function AdminPipeline() {
             {cols.map((c) => (
               <li key={c.key} style={{ flexGrow: c.count + Math.max(1, total * 0.2), "--c": c.color || "#6b7280" } as CSSProperties}>
                 <button type="button" onClick={() => jump(c.key)} aria-pressed={view === "table" ? f.stage === c.key : undefined} title={colName(c)}>
+                  {leadStageIcon(c.key) ? <Image className="lpipe-strip__ic" src={leadStageIcon(c.key)!} alt="" width={20} height={20} /> : null}
                   <span className="lpipe-strip__n">{c.count}</span>
                   <span className="lpipe-strip__l">{colName(c)}</span>
                 </button>
@@ -595,6 +597,7 @@ export default function AdminPipeline() {
             >
               <header className="lpipe-col__h">
                 <i aria-hidden="true" />
+                {leadStageIcon(col.key) ? <Image className="lpipe-col__ic" src={leadStageIcon(col.key)!} alt="" width={22} height={22} /> : null}
                 <h3>{colName(col)}</h3>
                 <span className="lpipe-col__n">{filtered ? `${col.cards.length}/${col.count}` : col.count}</span>
                 <span className="lpipe-col__tools">
@@ -680,7 +683,10 @@ export default function AdminPipeline() {
           ) : (
             rows.map(({ lead: l, colKey }) => (
               <button type="button" className="lpipe-row" key={l.id} onClick={() => setSelId(l.id)} style={{ "--c": colColor(colKey) || "#6b7280" } as CSSProperties}>
-                <span className="lpipe-row__stage">{colTitle(colKey)}</span>
+                <span className="lpipe-row__stage">
+                  {leadStageIcon(colKey) ? <Image src={leadStageIcon(colKey)!} alt="" width={16} height={16} /> : null}
+                  {colTitle(colKey)}
+                </span>
                 <span className="lpipe-row__m">
                   <b>{nameOf(l)}</b>
                   <small>{[l.phone !== nameOf(l) ? l.phone : "", leadCategoryLabel(t, l.category), leadRegionLabel(te, l.region)].filter(Boolean).join(" · ")}</small>
