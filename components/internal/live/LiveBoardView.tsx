@@ -6,7 +6,7 @@ import { IconBuilding, IconClock, IconUsers } from "@/components/icons";
 import { HrmAvatar, HrmEmpty, useHrmFormat } from "@/components/internal/HrmUi";
 import { LiveStatus, ObjectLink, STATUS_TONE, shownStatus, useLiveText } from "./bits";
 
-type Group = { unit: LiveUnit | null; depth: number; rooms: { room: LiveRoom | null; people: LivePerson[] }[]; total: number; on: number };
+export type Group = { unit: LiveUnit | null; depth: number; rooms: { room: LiveRoom | null; people: LivePerson[] }[]; total: number; on: number };
 
 const ONLINE = new Set(["online", "working", "busy", "break"]);
 // Who is at work first, then by name.
@@ -14,7 +14,7 @@ const RANK: Record<string, number> = { working: 0, busy: 1, online: 2, break: 3,
 
 // Units in tree order (parent before its children), each with its rooms and
 // the people seated in them; people without a room sit in the unit itself.
-function groupBoard(board: LiveBoard, statusOf: (p: LivePerson) => string): Group[] {
+export function groupBoard(board: LiveBoard, statusOf: (p: LivePerson) => string): Group[] {
   const byParent = new Map<string, LiveUnit[]>();
   const ids = new Set(board.units.map((u) => u.id));
   for (const u of board.units) {

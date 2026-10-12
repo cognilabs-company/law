@@ -13762,7 +13762,22 @@
       "rooms": {"new": "New room", "edit": "Edit room", "name": "Name", "namePh": "e.g. Studio main room", "code": "Code", "unit": "Department", "type": "Type", "capacity": "Capacity", "order": "Order", "status": "Status", "empty": "No rooms yet", "emptyText": "Add a virtual, physical or hybrid room for each department.", "typeNote": "Virtual — an online team; physical — a room in the office; hybrid — both."},
       "memberships": {"employee": "Employee", "pickEmployee": "Choose an employee", "pickTitle": "Choose an employee", "pickText": "Their primary and additional departments show here.", "new": "Add to a department", "type": "Membership type", "room": "Room", "roomHint": "Optional", "from": "From", "to": "To", "toHint": "Empty — no end date", "primaryNote": "A new primary department closes the previous primary membership automatically."},
       "grants": {"new": "Grant access", "lead": "View-only access to a department or an employee for a set time.", "grantee": "To whom", "pickUser": "Choose a user", "scopeType": "What they see", "scope": {"org_unit": "Department", "employee": "Employee"}, "pickScope": "Choose", "from": "Starts", "until": "Ends", "reason": "Reason", "reasonPh": "e.g. For today's review", "give": "Grant access", "viewOnly": "View only; it closes by itself when the time is up.", "badRange": "The end must be after the start.", "empty": "Access granted in this session shows here", "revoke": "Revoke", "revokeTitle": "Revoke access", "revokeReason": "Reason", "revokePh": "e.g. Access no longer needed", "expired": "Expired", "leftH": "{h} h {m} min left", "leftM": "{m} min left", "viewing": "Temporary access: {scope} — until {until}"},
-      "registry": {"new": "New rule", "lead": "A readable activity name and a real link instead of a technical request.", "search": "Search by path, name or module", "request": "Request", "label": "Activity name", "labelPh": "e.g. Object sent for approval", "module": "Module", "link": "Link pattern", "linkHint": "e.g. /module/items/{id}", "code": "Action code", "entity": "Object type", "method": "Method", "path": "Path pattern", "pathHint": "{id} — the variable part", "anyUnit": "Any department", "active": "Active", "empty": "No rules found"}
+      "registry": {"new": "New rule", "lead": "A readable activity name and a real link instead of a technical request.", "search": "Search by path, name or module", "request": "Request", "label": "Activity name", "labelPh": "e.g. Object sent for approval", "module": "Module", "link": "Link pattern", "linkHint": "e.g. /module/items/{id}", "code": "Action code", "entity": "Object type", "method": "Method", "path": "Path pattern", "pathHint": "{id} — the variable part", "anyUnit": "Any department", "active": "Active", "empty": "No rules found"},
+      "floor": {
+        "title": "Office map",
+        "view": "View",
+        "viewFloor": "Map",
+        "viewList": "List",
+        "hint": "Click a room to zoom in",
+        "back": "Whole office",
+        "enter": "{name}: zoom in, {n} at their desks",
+        "openSpace": "Open space",
+        "atDesks": "{n} at their desks",
+        "zoom": "Zoom",
+        "fit": "Show the whole office",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out"
+      }
     },
     "feedback": {
       "kicker": "Help",

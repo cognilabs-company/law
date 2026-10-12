@@ -13768,7 +13768,22 @@
       "rooms": {"new": "Yangi xona", "edit": "Xonani tahrirlash", "name": "Nomi", "namePh": "Masalan: Studio asosiy xona", "code": "Kod", "unit": "Bo'lim", "type": "Turi", "capacity": "Sig'imi", "order": "Tartib", "status": "Holati", "empty": "Hali xona yo'q", "emptyText": "Har bir bo'lim uchun virtual, jismoniy yoki gibrid xona qo'shing.", "typeNote": "Virtual — onlayn jamoa; jismoniy — ofisdagi xona; gibrid — ikkalasi."},
       "memberships": {"employee": "Xodim", "pickEmployee": "Xodimni tanlang", "pickTitle": "Xodimni tanlang", "pickText": "Uning asosiy va qo'shimcha bo'limlari shu yerda ko'rinadi.", "new": "Bo'limga biriktirish", "type": "A'zolik turi", "room": "Xona", "roomHint": "Ixtiyoriy", "from": "Boshlanish", "to": "Tugash", "toHint": "Bo'sh qolsa — muddatsiz", "primaryNote": "Yangi asosiy bo'lim berilsa, oldingi asosiy a'zolik avtomatik yopiladi."},
       "grants": {"new": "Ruxsat berish", "lead": "Muayyan bo'lim yoki xodimni belgilangan muddatda faqat ko'rish uchun ruxsat.", "grantee": "Kimga", "pickUser": "Foydalanuvchini tanlang", "scopeType": "Nimani ko'radi", "scope": {"org_unit": "Bo'lim", "employee": "Xodim"}, "pickScope": "Tanlang", "from": "Boshlanishi", "until": "Tugashi", "reason": "Sabab", "reasonPh": "Masalan: Bugungi nazorat uchun", "give": "Ruxsat berish", "viewOnly": "Ruxsat faqat ko'rish uchun; muddat tugagach avtomatik yopiladi.", "badRange": "Tugash vaqti boshlanishidan keyin bo'lishi kerak.", "empty": "Bu sessiyada berilgan ruxsatlar shu yerda ko'rinadi", "revoke": "Bekor qilish", "revokeTitle": "Ruxsatni bekor qilish", "revokeReason": "Sabab", "revokePh": "Masalan: Ruxsat zarurati tugadi", "expired": "Muddati tugagan", "leftH": "{h} soat {m} daq qoldi", "leftM": "{m} daq qoldi", "viewing": "Vaqtinchalik ruxsat: {scope} — {until} gacha"},
-      "registry": {"new": "Yangi qoida", "lead": "Texnik so'rov o'rniga odam tushunadigan faoliyat nomi va real havola.", "search": "Yo'l, nom yoki modul bo'yicha qidirish", "request": "So'rov", "label": "Faoliyat nomi", "labelPh": "Masalan: Obyekt tasdiqlashga yuborildi", "module": "Modul", "link": "Havola shabloni", "linkHint": "Masalan: /module/items/{id}", "code": "Amal kodi", "entity": "Obyekt turi", "method": "Metod", "path": "Yo'l shabloni", "pathHint": "{id} — o'zgaruvchan qism", "anyUnit": "Har qanday bo'lim", "active": "Faol", "empty": "Qoida topilmadi"}
+      "registry": {"new": "Yangi qoida", "lead": "Texnik so'rov o'rniga odam tushunadigan faoliyat nomi va real havola.", "search": "Yo'l, nom yoki modul bo'yicha qidirish", "request": "So'rov", "label": "Faoliyat nomi", "labelPh": "Masalan: Obyekt tasdiqlashga yuborildi", "module": "Modul", "link": "Havola shabloni", "linkHint": "Masalan: /module/items/{id}", "code": "Amal kodi", "entity": "Obyekt turi", "method": "Metod", "path": "Yo'l shabloni", "pathHint": "{id} — o'zgaruvchan qism", "anyUnit": "Har qanday bo'lim", "active": "Faol", "empty": "Qoida topilmadi"},
+      "floor": {
+        "title": "Ofis xaritasi",
+        "view": "Ko'rinish",
+        "viewFloor": "Xarita",
+        "viewList": "Ro'yxat",
+        "hint": "Xonani bosing — yaqinlashadi",
+        "back": "Butun ofis",
+        "enter": "{name}: yaqinlashtirish, ish joyida {n} kishi",
+        "openSpace": "Ochiq zona",
+        "atDesks": "ish joyida {n} kishi",
+        "zoom": "Masshtab",
+        "fit": "Butun ofisni ko'rsatish",
+        "zoomIn": "Yaqinlashtirish",
+        "zoomOut": "Uzoqlashtirish"
+      }
     },
     "feedback": {
       "kicker": "Yordam",

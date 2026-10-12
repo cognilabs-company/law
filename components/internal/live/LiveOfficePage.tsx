@@ -6,11 +6,12 @@ import { asDict, asStr } from "@/lib/http";
 import { canInternal, getMyProfile } from "@/lib/services/internalHrm";
 import { LIVE_STATUSES, startBusy, stopBusy, type LiveActivity, type LiveBusy, type LivePerson } from "@/lib/services/internalLive";
 import Select from "@/components/Select";
-import { IconChartBar, IconFlag, IconGrid, IconHourglass, IconLock, IconRefresh, IconSearch, IconSliders } from "@/components/icons";
+import { IconChartBar, IconFlag, IconGrid, IconHourglass, IconList, IconLock, IconMapPin, IconRefresh, IconSearch, IconSliders } from "@/components/icons";
 import { EntitySelect, HrmError, HrmHead, HrmLoading, HrmPanel, useHrmFormat, useNow } from "@/components/internal/HrmUi";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { useLiveBoard } from "./useLiveBoard";
 import LiveBoardView from "./LiveBoardView";
+import LiveFloor from "./LiveFloor";
 import LiveEmployeeDrawer, { type CorrectionTarget } from "./LiveEmployeeDrawer";
 import LiveAnalytics from "./LiveAnalytics";
 import LiveCorrections, { CorrectionForm } from "./LiveCorrections";
@@ -38,6 +39,7 @@ export default function LiveOfficePage() {
   const [unitId, setUnitId] = useState("");
   const [roomId, setRoomId] = useState("");
   const [status, setStatus] = useState("");
+  const [view, setView] = useState<"floor" | "list">("floor");
   const [openId, setOpenId] = useState("");
   const [events, setEvents] = useState<{ id: string; list: LiveActivity[] }>({ id: "", list: [] });
   const [analyticsFor, setAnalyticsFor] = useState("");
@@ -201,6 +203,16 @@ export default function LiveOfficePage() {
             <div className="lv-filters__sel">
               <Select value={status} onChange={setStatus} options={[{ value: "", label: t("filters.allStatuses") }, ...LIVE_STATUSES.map((s) => ({ value: s, label: t(`status.${s}`) }))]} ariaLabel={t("filters.status")} />
             </div>
+            <div className="lv-view" role="group" aria-label={t("floor.view")}>
+              <button type="button" className={view === "floor" ? "on" : ""} aria-pressed={view === "floor"} onClick={() => setView("floor")}>
+                <IconMapPin />
+                {t("floor.viewFloor")}
+              </button>
+              <button type="button" className={view === "list" ? "on" : ""} aria-pressed={view === "list"} onClick={() => setView("list")}>
+                <IconList />
+                {t("floor.viewList")}
+              </button>
+            </div>
             <span className="lv-live" title={t("live")}>
               <i aria-hidden />
               {t("live")}
@@ -213,6 +225,8 @@ export default function LiveOfficePage() {
             </HrmPanel>
           ) : phase === "error" ? (
             <HrmError text={apiMessage(error, t("errors.load"))} onRetry={reload} retryLabel={t("retry")} />
+          ) : view === "floor" ? (
+            <LiveFloor board={board} now={now} inactiveAfter={INACTIVE_AFTER} onOpen={openPerson} filtered={filtered} />
           ) : (
             <LiveBoardView board={board} now={now} inactiveAfter={INACTIVE_AFTER} onOpen={openPerson} filtered={filtered} />
           )}
