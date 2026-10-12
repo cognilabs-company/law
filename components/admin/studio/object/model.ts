@@ -3,7 +3,7 @@ import type { StudioComment, StudioDetail, StudioFieldErrors, StudioStatus, Stud
 import type { StudioPayload } from "../editors/types";
 
 export type Draft = { title: string; payload: StudioPayload };
-export type Busy = "" | "save" | "submit" | "archive" | "publish" | "rollback" | "upload" | "comment";
+export type Busy = "" | "save" | "check" | "submit" | "archive" | "publish" | "rollback" | "upload" | "comment";
 export type SideTab = "versions" | "comments" | "file" | "steps";
 
 export const LOCKED: StudioStatus[] = ["submitted", "in_review", "archived"];

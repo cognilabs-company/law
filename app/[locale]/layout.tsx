@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Inter, Onest } from "next/font/google";
+import { Inter, Onest, Poppins } from "next/font/google";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import IntlProvider from "@/components/IntlProvider";
 import VersionWatch from "@/components/VersionWatch";
@@ -43,6 +43,15 @@ const onest = Onest({
   variable: "--font-onest",
   display: "swap",
 });
+// The HRM workspace wears MedControl's headings; only its pages use it, so
+// it is not preloaded everywhere else.
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-poppins",
+  display: "swap",
+  preload: false,
+});
 
 type Props = {
   children: ReactNode;
@@ -83,7 +92,7 @@ export default async function LocaleLayout({ children, params }: Props) {
   return (
     // The theme script sets data-theme / color-scheme on <html> before React
     // hydrates, so the attribute difference is expected.
-    <html lang={locale} className={`${inter.variable} ${onest.variable}`} suppressHydrationWarning>
+    <html lang={locale} className={`${inter.variable} ${onest.variable} ${poppins.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>

@@ -23,6 +23,7 @@ import {
   useStudioRegistry,
   validateStudioDraft,
   type StudioComment,
+  type StudioConstructor,
   type StudioDetail,
   type StudioFieldErrors,
   type StudioVersion,
@@ -45,6 +46,8 @@ import {
 import { cleanStudioPayload, editorFor, validateStudioPayload } from "./editors";
 import { changedRoots, normErrorPaths, normPath, rootOf } from "@/lib/studioSchema";
 import ImpactPreview from "./object/ImpactPreview";
+import LivePreview, { useLivePreview } from "./object/LivePreview";
+import { ConstructorGuide } from "./guide";
 import { STUDIO_ERR, type StudioPayload } from "./editors/types";
 import { useLeaveGuard } from "./object/useLeaveGuard";
 import {
@@ -148,10 +151,9 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
   const [rollTo, setRollTo] = useState<StudioVersion | null>(null);
   const [preview, setPreview] = useState<StudioVersion | null>(null);
   const [publishFail, setPublishFail] = useState<{ text: string } | null>(null);
-  // The backend's live check of the draft (spec §9) and the fields the user
-  // has changed since it was loaded: a live error is shown only for those, so
-  // a fresh form is not covered in "required" before anyone typed.
-  const [live, setLive] = useState<{ key: string; errors: StudioFieldErrors; checking: boolean }>({ key: "", errors: {}, checking: false });
+  // The fields the user has changed since the object was loaded: a live
+  // error is shown only for those, so a fresh form is not covered in
+  // "required" before anyone typed.
   const [touched, setTouched] = useState<string[]>([]);
 
   const code = detail?.code || newCode;
@@ -186,27 +188,29 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
     };
   }, [creating, newCode, startKey]);
 
-  // Debounced server check while the user edits.
-  const liveKey = draft && !readOnly && code && touched.length ? JSON.stringify(draft.payload) : "";
+  // The full constructor (its UX metadata and schema), read once.
+  const [full, setFull] = useState<StudioConstructor | null>(null);
   useEffect(() => {
-    if (!liveKey) return;
-    const c = new AbortController();
-    const h = setTimeout(() => {
-      setLive((cur) => ({ ...cur, checking: true }));
-      validateStudioDraft(code, cleanStudioPayload(code, JSON.parse(liveKey) as StudioPayload), c.signal)
-        .then((r) => !c.signal.aborted && setLive({ key: liveKey, errors: normErrorPaths(r.errors), checking: false }))
-        .catch(() => !c.signal.aborted && setLive((cur) => ({ ...cur, checking: false })));
-    }, 800);
+    if (!code) return;
+    let alive = true;
+    void getStudioConstructorDetail(code).then((d) => alive && setFull(d));
     return () => {
-      clearTimeout(h);
-      c.abort();
+      alive = false;
     };
-  }, [liveKey, code]);
+  }, [code]);
+  const meta = full ?? ctor;
+
+  // The live preview (spec §7) is also the live check: its errors land on
+  // the fields the user has touched.
+  const runtimeTargetId = String(detail?.raw.runtime_target_id ?? "");
+  const previewBody = draft && code ? JSON.stringify(cleanStudioPayload(code, draft.payload)) : "";
+  const live = useLivePreview(code, previewBody, runtimeTargetId, Boolean(draft && code && !unknownCode));
   const liveErrors = useMemo(() => {
-    if (!liveKey || live.key !== liveKey) return {};
-    return Object.fromEntries(Object.entries(live.errors).filter(([k]) => touched.includes(rootOf(k))));
-  }, [live, liveKey, touched]);
+    if (!live.fresh || !live.data || readOnly) return {};
+    return Object.fromEntries(Object.entries(normErrorPaths(live.data.errors)).filter(([k]) => touched.includes(rootOf(k))));
+  }, [live.fresh, live.data, touched, readOnly]);
   const shownErrors = useMemo(() => ({ ...liveErrors, ...errors }), [liveErrors, errors]);
+  const [pane, setPane] = useState<"form" | "preview">("form");
 
   const guard = useLeaveGuard(dirty && !readOnly);
   const hb = useStudioHeartbeat({
@@ -432,9 +436,22 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
       scrollTop();
       return;
     }
-    // Both kinds of submit are confirmed with what the change will touch.
-    setDlgErr(null);
-    setDialog(approvalFree ? "submitFree" : "submit");
+    // The backend's validation is never skipped before review (spec §2).
+    setBusy("check");
+    void validateStudioDraft(code, cleanStudioPayload(code, draft.payload), undefined, runtimeTargetId)
+      .then((check) => {
+        if (!check.ok && Object.keys(check.errors).length) {
+          setErrors(normErrorPaths(check.errors));
+          setErrTitle(t("editor.errors.beforeSubmit"));
+          scrollTop();
+          return;
+        }
+        // Both kinds of submit are confirmed with what the change will touch.
+        setDlgErr(null);
+        setDialog(approvalFree ? "submitFree" : "submit");
+      })
+      .catch((e: unknown) => fail("studio.object.validate", e))
+      .finally(() => setBusy(""));
   }
 
   async function submit() {
@@ -820,14 +837,24 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
 
       {errCount ? <ErrorSummary errors={errors} title={errTitle || t("error.kind.validation")} onPick={pickError} code={code} /> : null}
       {!readOnly && touched.length ? (
-        <p className={`stu-live${live.checking ? " is-busy" : Object.keys(liveErrors).length ? " is-bad" : " is-ok"}`} role="status">
+        <p className={`stu-live${live.loading ? " is-busy" : Object.keys(liveErrors).length ? " is-bad" : " is-ok"}`} role="status">
           <i aria-hidden />
-          {live.checking ? t("schema.checking") : Object.keys(liveErrors).length ? t("schema.liveBad", { n: Object.keys(liveErrors).length }) : live.key === liveKey ? t("schema.liveOk") : t("schema.livePending")}
+          {live.loading ? t("schema.checking") : Object.keys(liveErrors).length ? t("schema.liveBad", { n: Object.keys(liveErrors).length }) : live.fresh ? t("schema.liveOk") : t("schema.livePending")}
         </p>
       ) : null}
       {actErr ? <StudioErrorNote error={actErr} /> : null}
 
-      <div className="stu-ed__grid">
+      {meta ? <ConstructorGuide ctor={meta} /> : null}
+
+      <div className="stu-ed__panes hrm-tabs" role="tablist" aria-label={t("ux.panes")}>
+        <button type="button" role="tab" aria-selected={pane === "form"} className={pane === "form" ? "on" : ""} onClick={() => setPane("form")}>{t("ux.paneForm")}</button>
+        <button type="button" role="tab" aria-selected={pane === "preview"} className={pane === "preview" ? "on" : ""} onClick={() => setPane("preview")}>
+          {t("ux.panePreview")}
+          {live.data && Object.keys(live.data.errors).length ? <span className="hrm-count is-bad">{Object.keys(live.data.errors).length}</span> : null}
+        </button>
+      </div>
+
+      <div className={`stu-ed__grid is-${pane}`}>
         <div className="stu-ed__main">
           <section className="stu-card stu-ed__card" id={`${uid}-main`} aria-label={t("editor.contentLabel")}>
             <div className="stu-card__h">
@@ -925,6 +952,8 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
           ) : null}
         </div>
 
+        <div className="stu-ed__right">
+        <LivePreview preview={live} fields={meta?.typed ?? []} editing={Boolean(id)} onPickError={(k) => { setPane("form"); pickError(k); }} />
         <aside className="stu-card stu-oside" id={`${uid}-side`} aria-label={t("editor.sideLabel")}>
           {creating ? (
             <div className="stu-opane__none stu-oside__new">
@@ -1000,6 +1029,7 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
             </>
           )}
         </aside>
+        </div>
       </div>
 
       <NoteDialog

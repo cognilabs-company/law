@@ -17,6 +17,7 @@ import {
   type StudioObject,
 } from "@/lib/services/studio";
 import { ctorMeta } from "@/lib/studio/constructors";
+import { RiskBadge, SurfaceList } from "./guide";
 import StudioShell from "./StudioShell";
 import { ConstructorIcon, StudioCodeChip, StudioEmpty, StudioErrorNote, StudioLoading, useStudioText } from "./bits";
 import ObjectRows from "./dash/ObjectRows";
@@ -50,10 +51,10 @@ function CtorMeta({ code, ctor }: { code: string; ctor: StudioConstructor | null
       <li>
         <StudioCodeChip code={code} />
       </li>
-      {ctor?.runtimeTarget ? (
+      {ctor?.experience.whereUsed.length ? (
         <li title={t("list.meta.runtimeHint")}>
           <IconLayers aria-hidden />
-          {t("list.meta.runtime")}
+          {t("list.meta.runtime")} {ctor.experience.whereUsed.map((w) => w.title).join(", ")}
         </li>
       ) : null}
       <li className={free ? "stu-olm__free" : undefined}>
@@ -66,7 +67,34 @@ function CtorMeta({ code, ctor }: { code: string; ctor: StudioConstructor | null
           {t("list.meta.required", { n: num(req) })}
         </li>
       ) : null}
+      {ctor ? (
+        <li className="stu-olm__risk">
+          <RiskBadge risk={ctor.experience.risk} compact />
+        </li>
+      ) : null}
     </ul>
+  );
+}
+
+// What the constructor does and where its result shows — readable before
+// any object of it is opened (spec 10-12 §4).
+function CtorAbout({ ctor }: { ctor: StudioConstructor | null }) {
+  const { t } = useStudioText();
+  if (!ctor || (!ctor.experience.plainLanguage && !ctor.experience.whereUsed.length)) return null;
+  return (
+    <section className="stu-about" aria-label={t("ux.whatTitle")}>
+      <div>
+        <h3>{t("ux.whatTitle")}</h3>
+        <p>{ctor.experience.plainLanguage}</p>
+        {ctor.experience.whenToUse ? <small>{ctor.experience.whenToUse}</small> : null}
+      </div>
+      {ctor.experience.whereUsed.length ? (
+        <div>
+          <h3>{t("ux.whereTitle")}</h3>
+          <SurfaceList surfaces={ctor.experience.whereUsed} />
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -238,6 +266,7 @@ function ListBody({ code, ctor, canEdit, canArchive }: { code: string; ctor: Stu
   return (
     <>
       <CtorMeta code={code} ctor={ctor} />
+      <CtorAbout ctor={ctor} />
       <FilterBar
         className="uf--tray"
         fields={[

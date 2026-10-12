@@ -48,8 +48,85 @@ export type StudioSchemaField = {
   item: StudioSchemaField | null;
   minItems: number;
   uniqueBy: string;
+  // What the backend says to show the person filling it in.
+  example: unknown;
+  optionLabels: Record<string, string>;
+  // Filled from the page the object is opened from, never typed.
+  hidden: boolean;
+  readOnly: boolean;
 };
 export type StudioSection = { key: string; title: string; order: number };
+
+// What a constructor is for, in words a newcomer understands (spec 10-12 UX
+// metadata): where its result shows, who runs it, the order to work in, the
+// checks before publishing, how risky it is.
+export type StudioRisk = "low" | "medium" | "high";
+export type StudioSurface = { key: string; title: string; route: string; placement: string };
+export type StudioPreviewType = "document" | "kanban" | "marketplace_card" | "pricing" | "communication" | "workflow" | "dashboard" | "table" | "security_matrix" | "integration" | "summary";
+export type StudioExperience = {
+  purpose: string;
+  plainLanguage: string;
+  whenToUse: string;
+  managedBy: string[];
+  whereUsed: StudioSurface[];
+  result: string;
+  workflow: { step: number; title: string; description: string }[];
+  notes: string[];
+  checklist: string[];
+  risk: StudioRisk;
+  warnings: string[];
+  preview: { type: StudioPreviewType; title: string; description: string; surfaceKeys: string[] };
+};
+export type StudioNavigation = { groupKey: string; groupTitle: string; groupOrder: number; step: number; steps: number; requiredBefore: string[]; recommendedBefore: string[]; nextSteps: string[]; reason: string };
+
+const surfaceOf = (raw: unknown): StudioSurface => {
+  const d = asDict(raw);
+  return { key: first(d.surface_key, d.key), title: first(d.title, d.surface_key), route: asStr(d.route), placement: asStr(d.placement) };
+};
+const RISKS: StudioRisk[] = ["low", "medium", "high"];
+const PREVIEW_TYPES: StudioPreviewType[] = ["document", "kanban", "marketplace_card", "pricing", "communication", "workflow", "dashboard", "table", "security_matrix", "integration", "summary"];
+export const previewTypeOf = (v: unknown): StudioPreviewType => (PREVIEW_TYPES.includes(v as StudioPreviewType) ? (v as StudioPreviewType) : "summary");
+
+// Missing metadata (an older backend, a stale cache) never breaks the editor:
+// the description stands in for the plain words, the preview falls back to
+// a summary, and no technical runtime target is shown where a page would be.
+function experienceOf(r: Dict): StudioExperience {
+  const e = asDict(r.experience);
+  const vp = asDict(r.visual_preview ?? e.visual_preview);
+  const risk = asStr(e.risk_level) as StudioRisk;
+  return {
+    purpose: asStr(e.purpose),
+    plainLanguage: first(e.plain_language, r.description, e.purpose),
+    whenToUse: asStr(e.when_to_use),
+    managedBy: strings(e.managed_by),
+    whereUsed: asArr(e.where_used).map(surfaceOf).filter((s) => s.title),
+    result: asStr(e.result),
+    workflow: asArr(e.workflow)
+      .map((w, i) => ({ step: numOrNull(asDict(w).step) ?? i + 1, title: asStr(asDict(w).title), description: asStr(asDict(w).description) }))
+      .filter((w) => w.title)
+      .sort((a, b) => a.step - b.step),
+    notes: strings(e.novice_notes),
+    checklist: strings(e.publish_checklist),
+    risk: RISKS.includes(risk) ? risk : "medium",
+    warnings: strings(e.warnings),
+    preview: { type: previewTypeOf(vp.type), title: asStr(vp.title), description: asStr(vp.description), surfaceKeys: strings(vp.surface_keys) },
+  };
+}
+function navigationOf(r: Dict): StudioNavigation | null {
+  const n = asDict(r.navigation);
+  if (!Object.keys(n).length) return null;
+  return {
+    groupKey: asStr(n.group_key),
+    groupTitle: asStr(n.group_title),
+    groupOrder: numOrNull(n.group_order) ?? 99,
+    step: numOrNull(n.step_number) ?? 0,
+    steps: numOrNull(n.step_count) ?? 0,
+    requiredBefore: strings(n.required_before),
+    recommendedBefore: strings(n.recommended_before),
+    nextSteps: strings(n.next_steps),
+    reason: asStr(n.sequence_reason),
+  };
+}
 
 export type StudioConstructor = {
   code: string;
@@ -63,6 +140,16 @@ export type StudioConstructor = {
   capabilities: string[];
   definitionVersion: number;
   approvalRequired: boolean;
+  description: string;
+  experience: StudioExperience;
+  navigation: StudioNavigation | null;
+  // Where the constructor stands: set up already, ready to start, or waiting
+  // on others that must come first.
+  completed: boolean;
+  availability: string;
+  missingRequired: string[];
+  missingRecommended: string[];
+  recordCount: number | null;
   raw: Dict;
 };
 
@@ -334,14 +421,18 @@ export function normSchemaField(raw: unknown, index = 0): StudioSchemaField {
     options: optionValues(f.options),
     source: asStr(f.source),
     default: f.default,
-    min: numOrNull(f.min),
-    max: numOrNull(f.max),
+    min: numOrNull(f.min ?? f.minimum),
+    max: numOrNull(f.max ?? f.maximum),
     properties: props.map((p, i) => normSchemaField(p, i)).filter((p) => p.key),
     requiredFields: strings(f.required_fields),
     additional: f.additional_properties === true || (type === "object" && !props.length && f.additional_properties !== false),
     item: itemRaw && typeof itemRaw === "object" && !Array.isArray(itemRaw) ? normSchemaField(itemRaw) : null,
     minItems: numOrNull(f.min_items) ?? 0,
     uniqueBy: asStr(f.unique_by),
+    example: f.example,
+    optionLabels: Object.fromEntries(asArr(f.options).filter((o) => o && typeof o === "object").map((o) => [first(asDict(o).value, asDict(o).key), first(asDict(o).label, asDict(o).title)]).filter(([v, l]) => v && l)),
+    hidden: asDict(f.ui).hidden === true || f.context_managed === true,
+    readOnly: f.read_only === true,
   };
 }
 
@@ -421,6 +512,14 @@ export function normStudioConstructor(raw: unknown): StudioConstructor {
     capabilities: strings(r.capabilities),
     definitionVersion: numOrNull(r.definition_version ?? schema.version) ?? 0,
     approvalRequired: approval ?? !STUDIO_APPROVAL_FREE.includes(code),
+    description: asStr(r.description),
+    experience: experienceOf(r),
+    navigation: navigationOf(r),
+    completed: r.completed === true,
+    availability: asStr(r.availability),
+    missingRequired: strings(r.missing_required),
+    missingRecommended: strings(r.missing_recommended),
+    recordCount: numOrNull(r.record_count),
     raw: r,
   };
 }
@@ -858,8 +957,28 @@ export async function saveStudioObject(id: string, input: StudioSaveInput): Prom
 }
 
 export type StudioCheck = { ok: boolean; errors: StudioFieldErrors; raw: Dict };
-export type StudioPreview = { changedFields: string[]; affectedCapabilities: string[]; warnings: string[]; requiresApproval: boolean | null; check: StudioCheck | null; raw: Dict };
+export type StudioPreviewItem = { key: string; label: string; value: unknown; masked: boolean };
+export type StudioVisualPreview = { type: StudioPreviewType; title: string; description: string; state: "empty" | "ready"; items: StudioPreviewItem[]; itemCount: number; surfaces: StudioSurface[]; emptyState: string; warnings: string[] };
+export type StudioPreview = {
+  ok: boolean;
+  dryRun: boolean;
+  errors: StudioFieldErrors;
+  payloadHash: string;
+  changedFields: string[];
+  before: Dict | null;
+  after: Dict | null;
+  affectedCapabilities: string[];
+  whereUsed: StudioSurface[];
+  risk: StudioRisk | null;
+  warnings: string[];
+  checklist: string[];
+  requiresApproval: boolean | null;
+  visual: StudioVisualPreview | null;
+  check: StudioCheck | null;
+  raw: Dict;
+};
 
+export const MASK = "••••••••";
 const checkOf = (raw: unknown): StudioCheck => {
   const d = asDict(raw);
   const errors = errorsListOf(d);
@@ -868,24 +987,61 @@ const checkOf = (raw: unknown): StudioCheck => {
 
 // The backend's own check of a draft payload (spec §9): the final word, the
 // form's own checks only spare it obvious mistakes.
-export async function validateStudioDraft(code: string, payload: Dict, signal?: AbortSignal): Promise<StudioCheck> {
-  return checkOf(await http(`/studio/constructors/${enc(code)}/validate`, { method: "POST", body: JSON.stringify(payload), signal }));
+export async function validateStudioDraft(code: string, payload: Dict, signal?: AbortSignal, runtimeTargetId = ""): Promise<StudioCheck> {
+  const q = runtimeTargetId ? `?runtime_target_id=${enc(runtimeTargetId)}` : "";
+  return checkOf(await http(`/studio/constructors/${enc(code)}/validate${q}`, { method: "POST", body: JSON.stringify(payload), signal }));
 }
 
-// What publishing this payload would change: the fields, the capabilities
-// it touches and any warnings, shown before the user confirms.
+function visualOf(raw: unknown): StudioVisualPreview | null {
+  const v = asDict(raw);
+  if (!Object.keys(v).length) return null;
+  const items = asArr(v.items).map((x) => {
+    const d = asDict(x);
+    // A masked value stays masked: whatever came, only the mask is kept.
+    const masked = d.masked === true || d.value === MASK;
+    return { key: first(d.key, d.label), label: first(d.label, d.key), value: masked ? MASK : d.value, masked };
+  });
+  return {
+    type: previewTypeOf(v.type),
+    title: asStr(v.title),
+    description: asStr(v.description),
+    state: asStr(v.state) === "empty" || (!items.length && asStr(v.state) !== "ready") ? "empty" : "ready",
+    items,
+    itemCount: numOrNull(v.item_count) ?? items.length,
+    surfaces: asArr(v.surfaces).map(surfaceOf).filter((s) => s.title),
+    emptyState: asStr(v.empty_state),
+    warnings: strings(v.warnings),
+  };
+}
+
+// What publishing this payload would show and change (spec §7, §10): the
+// visual preview, the fields that differ from what runs now, where it shows,
+// the capabilities it touches, the risk, the warnings and the backend's own
+// checklist. Nothing is saved (dry run).
 export async function previewStudioDraft(code: string, payload: Dict, runtimeTargetId = "", signal?: AbortSignal): Promise<StudioPreview> {
   const q = runtimeTargetId ? `?runtime_target_id=${enc(runtimeTargetId)}` : "";
   const d = asDict(await http(`/studio/constructors/${enc(code)}/preview${q}`, { method: "POST", body: JSON.stringify(payload), signal }));
   const diff = asDict(d.diff);
   const impact = asDict(d.impact);
-  const warnings = asArr(impact.warnings ?? d.warnings).map((w) => (typeof w === "string" ? w : first(asDict(w).message, asDict(w).text, asDict(w).code))).filter(Boolean);
+  const words = (v: unknown) => asArr(v).map((w) => (typeof w === "string" ? w : first(asDict(w).message, asDict(w).text, asDict(w).code))).filter(Boolean);
   const validation = d.validation ?? d.check;
+  const risk = asStr(impact.risk_level) as StudioRisk;
+  const errors = errorsListOf(d);
   return {
+    ok: d.ok === true || (d.ok === undefined && !Object.keys(errors).length),
+    dryRun: d.dry_run !== false,
+    errors,
+    payloadHash: first(d.payload_hash, impact.payload_hash),
     changedFields: strings(diff.changed_fields ?? impact.changed_fields ?? d.changed_fields),
+    before: diff.before && typeof diff.before === "object" ? asDict(diff.before) : null,
+    after: diff.after && typeof diff.after === "object" ? asDict(diff.after) : null,
     affectedCapabilities: strings(impact.affected_capabilities ?? d.affected_capabilities),
-    warnings,
+    whereUsed: asArr(impact.where_used).map(surfaceOf).filter((s) => s.title),
+    risk: RISKS.includes(risk) ? risk : null,
+    warnings: words(impact.warnings ?? d.warnings),
+    checklist: strings(impact.publish_checklist),
     requiresApproval: typeof impact.requires_approval === "boolean" ? impact.requires_approval : null,
+    visual: visualOf(d.visual_preview),
     check: validation && typeof validation === "object" ? checkOf(validation) : null,
     raw: d,
   };

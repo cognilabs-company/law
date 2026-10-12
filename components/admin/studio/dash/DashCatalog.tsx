@@ -6,9 +6,14 @@ import FilterBar from "@/components/filters/FilterBar";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField } from "@/lib/ai/registry";
 import { isApprovalFree, type StudioConstructor } from "@/lib/services/studio";
-import { ctorMeta, ctorOrder, STUDIO_GROUPS } from "@/lib/studio/constructors";
+import { ctorMeta, ctorOrder } from "@/lib/studio/constructors";
 import { ConstructorIcon, StudioCodeChip, StudioEmpty, useStudioText } from "../bits";
-import { IconBolt, IconChevronRight, IconFolder, IconGrid, IconLayers, IconRefresh, IconSearch } from "@/components/icons";
+import { RiskBadge } from "../guide";
+import { IconAlert, IconBolt, IconChevronRight, IconCircleCheck, IconFolder, IconGrid, IconLayers, IconMapPin, IconRefresh, IconSearch, IconShieldCheck } from "@/components/icons";
+
+// A constructor's group as the backend arranges the work (navigation), the
+// frontend's own grouping only for an older backend that sends none.
+const groupOf = (c: StudioConstructor) => (c.navigation?.groupKey ? { key: c.navigation.groupKey, title: c.navigation.groupTitle, order: c.navigation.groupOrder } : { key: ctorMeta(c.code).group, title: "", order: 100 });
 
 export default function DashCatalog({
   items,
@@ -39,19 +44,21 @@ export default function DashCatalog({
     );
   }
 
-  const sorted = [...items].sort((a, b) => ctorOrder(a.code) - ctorOrder(b.code) || a.code.localeCompare(b.code));
+  const sorted = [...items].sort((a, b) => groupOf(a).order - groupOf(b).order || (a.navigation?.step ?? 99) - (b.navigation?.step ?? 99) || ctorOrder(a.code) - ctorOrder(b.code) || a.code.localeCompare(b.code));
   const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const shown = sorted.filter((c) => {
-    if (grp && ctorMeta(c.code).group !== grp) return false;
+    if (grp && groupOf(c).key !== grp) return false;
     if (!terms.length) return true;
-    const hay = [c.code, c.title, c.runtimeTarget, ctorName(c.code, c.title), ctorDesc(c.code)].join(" ").toLowerCase();
+    const hay = [c.code, c.title, ctorName(c.code, c.title), c.experience.plainLanguage, ...c.experience.whereUsed.map((w) => `${w.title} ${w.placement}`)].join(" ").toLowerCase();
     return terms.every((w) => hay.includes(w));
   });
-  const groups = STUDIO_GROUPS.map((g) => ({ g, list: shown.filter((c) => ctorMeta(c.code).group === g) })).filter((x) => x.list.length);
-  const grpOpts = [
-    { value: "", label: t("common.all") },
-    ...STUDIO_GROUPS.map((g) => ({ value: g, label: `${groupLabel(g)} (${num(sorted.filter((c) => ctorMeta(c.code).group === g).length)})` })),
-  ];
+  const groupKeys: { key: string; title: string }[] = [];
+  for (const c of sorted) {
+    const g = groupOf(c);
+    if (!groupKeys.some((x) => x.key === g.key)) groupKeys.push({ key: g.key, title: g.title || groupLabel(g.key) });
+  }
+  const groups = groupKeys.map((g) => ({ g, list: shown.filter((c) => groupOf(c).key === g.key) })).filter((x) => x.list.length);
+  const grpOpts = [{ value: "", label: t("common.all") }, ...groupKeys.map((g) => ({ value: g.key, label: `${g.title} (${num(sorted.filter((c) => groupOf(c).key === g.key).length)})` }))];
 
   return (
     <section className="stu-cat" data-ai-id="admin.studio.dash.catalog" data-ai-type="section" data-ai-label={t("dash.catalog.title")}>
@@ -95,17 +102,18 @@ export default function DashCatalog({
         </StudioEmpty>
       ) : (
         groups.map(({ g, list }) => (
-          <div key={g} className="stu-cat__grp">
+          <div key={g.key} className="stu-cat__grp">
             <h4 className="stu-cat__gh">
-              <span className={`stu-cat__dot stu-cat__dot--${g}`} aria-hidden />
-              {groupLabel(g)}
+              <span className={`stu-cat__dot stu-cat__dot--${g.key}`} aria-hidden />
+              {g.title}
               <small>{num(list.length)}</small>
             </h4>
             <ul className="stu-cat__grid">
               {list.map((c) => {
                 const name = ctorName(c.code, c.title);
-                const desc = ctorDesc(c.code) || (c.title && c.title !== name ? c.title : "");
+                const desc = c.experience.plainLanguage || ctorDesc(c.code) || (c.title && c.title !== name ? c.title : "");
                 const free = isApprovalFree(c.code, c);
+                const where = c.experience.whereUsed;
                 const n = perCode ? perCode[c.code] ?? 0 : null;
                 return (
                   <li key={c.code}>
@@ -127,7 +135,36 @@ export default function DashCatalog({
                         <IconChevronRight className="stu-cat__go" aria-hidden />
                       </span>
                       {desc ? <span className="stu-cat__desc">{desc}</span> : null}
+                      {where.length ? (
+                        <span className="stu-cat__where">
+                          {where.slice(0, 2).map((w) => (
+                            <span key={`${w.key}-${w.route}`} title={w.placement}>
+                              <IconMapPin aria-hidden />
+                              <b>{w.title}</b>
+                              {w.placement ? <small>{w.placement}</small> : null}
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
                       <span className="stu-cat__foot">
+                        <RiskBadge risk={c.experience.risk} compact />
+                        {c.completed ? (
+                          <span className="stu-cat__badge stu-cat__badge--done">
+                            <IconCircleCheck aria-hidden />
+                            {t("ux.completed")}
+                          </span>
+                        ) : c.missingRequired.length ? (
+                          <span className="stu-cat__badge stu-cat__badge--wait" title={c.missingRequired.map((x) => ctorName(x)).join(", ")}>
+                            <IconAlert aria-hidden />
+                            {t("ux.needsFirst", { list: c.missingRequired.join(", ") })}
+                          </span>
+                        ) : null}
+                        {!free ? (
+                          <span className="stu-cat__badge">
+                            <IconShieldCheck aria-hidden />
+                            {t("ux.approvalShort")}
+                          </span>
+                        ) : null}
                         {free ? (
                           <span className="stu-cat__badge stu-cat__badge--free">
                             <IconBolt aria-hidden />

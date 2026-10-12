@@ -57,9 +57,12 @@ function useLabels() {
   const st = useStudioText();
   // The backend names fields in Uzbek; other languages use our dictionary
   // where it has the key and the backend's words otherwise.
-  const label = (f: StudioSchemaField) => (st.locale === "uz" || !f.key || !st.t.has(`field.${f.key}`) ? f.label || st.field(f.key) : st.field(f.key));
-  const help = (f: StudioSchemaField) => (st.locale === "uz" ? f.help : st.fieldHelp(f.key) || f.help);
-  return { ...st, label, help };
+  // The backend's label, help and example are the field's words (spec 10-12
+  // §6); a key is never shown in a label's place.
+  const label = (f: StudioSchemaField) => f.label && f.label !== f.key ? f.label : st.field(f.key);
+  const help = (f: StudioSchemaField) => f.help || st.fieldHelp(f.key);
+  const optionLabel = (f: StudioSchemaField, v: string) => f.optionLabels[v] || st.option(v);
+  return { ...st, label, help, optionLabel };
 }
 
 function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorProps & { ctor: StudioConstructor }) {
@@ -110,10 +113,10 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
         <section key={g.section.key} id={`${uid}-${g.section.key}`} className="stu-sf__sec" aria-label={g.section.title}>
           <header className="stu-sf__sech">
             <h4>{g.section.title}</h4>
-            <small>{t("schema.fieldCount", { n: g.fields.length })}</small>
+            <small>{t("schema.fieldCount", { n: g.fields.filter((f) => !f.hidden).length })}</small>
           </header>
           <div className="stu-sf__grid">
-            {g.fields.map((f) => (
+            {g.fields.filter((f) => !f.hidden).map((f) => (
               <FieldBlock key={f.key} f={f} value={payload[f.key]} onChange={(v) => set(f.key, v)} path={f.key} errs={errs} ro={readOnly} required={f.required || required.has(f.key)} code={ctor.code} />
             ))}
           </div>
@@ -177,15 +180,35 @@ type BlockProps = {
 };
 
 // A field with its label, help, control and error.
-function FieldBlock(props: BlockProps) {
+// The example as the person reads it: a short value goes into the empty
+// input; a list or an object is written out under it.
+export function exampleText(v: unknown): string {
+  if (v === undefined || v === null || v === "") return "";
+  if (typeof v === "string") return /^<.+>$/.test(v.trim()) ? "" : v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (typeof v === "object" && !Object.keys(v).length) return "";
+  const s = JSON.stringify(v);
+  return s.length > 140 ? `${s.slice(0, 139)}…` : s;
+}
+const inlineExample = (f: StudioSchemaField) => ["text", "textarea", "number", "money", "url", "email", "code", "richtext"].includes(f.type) && typeof f.example !== "object";
+
+function FieldBlock(raw: BlockProps) {
+  // A field the backend marks read-only stays on screen but cannot change.
+  const props = raw.f.readOnly ? { ...raw, ro: true } : raw;
   const { f, path, errs, required, bare } = props;
-  const { label, help } = useLabels();
+  const { label, help, t } = useLabels();
   const uid = useId();
   const id = `${uid}-f`;
   const own = errs[path] ?? "";
   const wide = f.type === "object" || f.type === "list" || f.type === "textarea" || f.type === "richtext" || f.type === "code" || f.type === "multiselect";
   const h = help(f);
   const range = f.min !== null || f.max !== null ? rangeHint(f) : "";
+  const ex = exampleText(f.example);
+  const exLine = ex && !inlineExample(f) && f.type !== "boolean" && !bare ? (
+    <small className="stu-sf__ex">
+      <b>{t("ux.example")}</b> <code>{ex}</code>
+    </small>
+  ) : null;
   if (f.type === "boolean") {
     return (
       <div className={`stu-sf__f stu-sf__f--bool${own ? " is-bad" : ""}`}>
@@ -195,6 +218,7 @@ function FieldBlock(props: BlockProps) {
       </div>
     );
   }
+  const placeholder = ex && inlineExample(f) ? ex : undefined;
   return (
     <div className={`stu-sf__f${wide ? " stu-sf__f--wide" : ""}${own ? " is-bad" : ""}${bare ? " is-bare" : ""}`} data-path={path}>
       {bare ? null : (
@@ -208,10 +232,12 @@ function FieldBlock(props: BlockProps) {
             ) : null}
           </span>
           {range ? <small className="stu-sf__range">{range}</small> : null}
+          {f.readOnly ? <small className="stu-sf__range">{t("ux.readOnly")}</small> : null}
         </label>
       )}
-      <Control {...props} id={id} invalid={Boolean(own)} />
-      {h && !own && !bare ? <small className="stu-fld__help">{h}</small> : null}
+      {h && !bare ? <small className="stu-fld__help stu-sf__help">{h}</small> : null}
+      <Control {...props} id={id} invalid={Boolean(own)} placeholder={placeholder} />
+      {exLine}
       <ErrLineAt msg={own} />
     </div>
   );
@@ -224,11 +250,11 @@ function rangeHint(f: StudioSchemaField): string {
   return `≤ ${f.max}${unit}`;
 }
 
-function Control({ f, value, onChange, path, errs, ro, code, id, invalid }: BlockProps & { id: string; invalid: boolean }) {
-  const { label, option, t } = useLabels();
+function Control({ f, value, onChange, path, errs, ro, code, id, invalid, placeholder }: BlockProps & { id: string; invalid: boolean; placeholder?: string }) {
+  const { label, optionLabel, t } = useLabels();
   const name = label(f);
   const ai = edAi(code, "field", path);
-  const options = f.options.map((v) => ({ value: v, label: option(v) }));
+  const options = f.options.map((v) => ({ value: v, label: optionLabel(f, v) }));
   switch (f.type) {
     case "object":
       return <ObjectField f={f} value={value} onChange={onChange} path={path} errs={errs} ro={ro} code={code} />;
@@ -238,7 +264,7 @@ function Control({ f, value, onChange, path, errs, ro, code, id, invalid }: Bloc
         return <RefSelect multiple source={f.source || f.item!.source} value={ids} onChange={onChange} readOnly={ro} label={name} />;
       }
       if (f.item && f.item.type === "select" && f.item.options.length) {
-        return <ChipPick options={f.item.options.map((v) => ({ value: v, label: option(v) }))} value={Array.isArray(value) ? value.map(text) : []} onChange={onChange} readOnly={ro} label={name} ai={ai} invalid={invalid} />;
+        return <ChipPick options={f.item.options.map((v) => ({ value: v, label: optionLabel(f.item!, v) }))} value={Array.isArray(value) ? value.map(text) : []} onChange={onChange} readOnly={ro} label={name} ai={ai} invalid={invalid} />;
       }
       return <ListField f={f} value={value} onChange={onChange} path={path} errs={errs} ro={ro} code={code} />;
     case "multiselect":
@@ -251,13 +277,13 @@ function Control({ f, value, onChange, path, errs, ro, code, id, invalid }: Bloc
       return <Switch id={id} on={value === true} onChange={onChange} ro={ro} label={name} ai={ai} />;
     case "number":
     case "money":
-      return <NumberIn id={id} f={f} value={value} onChange={onChange} ro={ro} invalid={invalid} ai={ai} label={name} />;
+      return <NumberIn id={id} f={f} value={value} onChange={onChange} ro={ro} invalid={invalid} ai={ai} label={name} placeholder={placeholder} />;
     case "date":
       return ro ? <span className="stu-fe-sel is-ro">{text(value) || "—"}</span> : <DatePicker value={text(value).slice(0, 10)} onChange={(v) => onChange(v || undefined)} placeholder={name} ariaLabel={name} clearLabel={t("schema.clear")} />;
     case "datetime":
       return <DateTimeIn value={text(value)} onChange={onChange} ro={ro} label={name} />;
     case "textarea":
-      return <textarea id={id} value={text(value)} onChange={(e) => onChange(e.target.value)} readOnly={ro} rows={4} aria-invalid={invalid || undefined} data-ai-id={ai} data-ai-type="textarea" data-ai-label={name} />;
+      return <textarea id={id} value={text(value)} onChange={(e) => onChange(e.target.value)} readOnly={ro} rows={4} placeholder={placeholder} aria-invalid={invalid || undefined} data-ai-id={ai} data-ai-type="textarea" data-ai-label={name} />;
     case "richtext":
       return <RichText id={id} value={text(value)} onChange={onChange} ro={ro} label={name} invalid={invalid} ai={ai} />;
     case "code":
@@ -271,6 +297,7 @@ function Control({ f, value, onChange, path, errs, ro, code, id, invalid }: Bloc
           value={text(value)}
           onChange={(e) => onChange(e.target.value)}
           readOnly={ro}
+          placeholder={placeholder}
           autoComplete="off"
           aria-invalid={invalid || undefined}
           data-ai-id={ai}
@@ -290,7 +317,7 @@ function Switch({ id, on, onChange, ro, label, ai }: { id: string; on: boolean; 
   );
 }
 
-function NumberIn({ id, f, value, onChange, ro, invalid, ai, label }: { id: string; f: StudioSchemaField; value: unknown; onChange: (v: unknown) => void; ro: boolean; invalid: boolean; ai: string; label: string }) {
+function NumberIn({ id, f, value, onChange, ro, invalid, ai, label, placeholder }: { id: string; f: StudioSchemaField; value: unknown; onChange: (v: unknown) => void; ro: boolean; invalid: boolean; ai: string; label: string; placeholder?: string }) {
   const { t, num } = useLabels();
   const money = f.type === "money";
   const [draft, setDraft] = useState<string | null>(null);
@@ -312,6 +339,7 @@ function NumberIn({ id, f, value, onChange, ro, invalid, ai, label }: { id: stri
         }}
         onBlur={() => setDraft(null)}
         readOnly={ro}
+        placeholder={placeholder}
         autoComplete="off"
         aria-invalid={invalid || undefined}
         data-ai-id={ai}
@@ -450,7 +478,7 @@ function ObjectField({ f, value, onChange, path, errs, ro, code }: Omit<BlockPro
     <div className={`stu-sf__obj${errs[path] ? " is-bad" : ""}`}>
       {f.properties.length ? (
         <div className="stu-sf__grid">
-          {f.properties.map((p) => (
+          {f.properties.filter((p) => !p.hidden).map((p) => (
             <FieldBlock key={p.key} f={p} value={obj[p.key]} onChange={(v) => set(p.key, v)} path={joinPath(path, p.key)} errs={errs} ro={ro} required={p.required || need.has(p.key)} code={code} />
           ))}
         </div>
@@ -566,6 +594,16 @@ function ListField({ f, value, onChange, path, errs, ro, code }: Omit<BlockProps
 
   return (
     <div className={`stu-sf__list${errs[path] ? " is-bad" : ""}`}>
+      {item && (item.help || exampleText(item.example)) ? (
+        <p className="stu-sf__itemhelp">
+          {item.help ? <span>{item.help}</span> : null}
+          {exampleText(item.example) ? (
+            <small>
+              <b>{t("ux.itemExample")}</b> <code>{exampleText(item.example)}</code>
+            </small>
+          ) : null}
+        </p>
+      ) : null}
       {items.length ? (
         <ol className={objectItems ? "is-cards" : "is-rows"}>
           {items.map((v, i) => {

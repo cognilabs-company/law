@@ -2,19 +2,14 @@ import { studioDefaults, studioDetailSnapshot, type StudioConstructor } from "@/
 import { cleanPayload, schemaValidate } from "@/lib/studioSchema";
 import SchemaEditor from "./SchemaForm";
 import { genericEmptyPayload, genericValidate } from "./GenericEditor";
-import K05Editor, { emptyPayload as k05Empty, validate as k05Validate } from "./K05Editor";
-import K06Editor, { emptyPayload as k06Empty, validate as k06Validate } from "./K06Editor";
-import K14Editor, { emptyPayload as k14Empty, validate as k14Validate } from "./K14Editor";
-import K16Editor, { emptyPayload as k16Empty, validate as k16Validate } from "./K16Editor";
-import K20Editor, { emptyPayload as k20Empty, validate as k20Validate } from "./K20Editor";
-import K12PromoEditor, { emptyPayload as k12PromoEmpty, validate as k12PromoValidate } from "./K12PromoEditor";
 import type { StudioEditorEntry, StudioPayload } from "./types";
 
 // The typed schema of a constructor once the editor has loaded it.
 const typedOf = (code: string, ctor: StudioConstructor | null) => (ctor?.typed.length ? ctor : studioDetailSnapshot(code || ctor?.code || ""));
 
-// Constructors without an editor of their own are drawn from their typed
-// schema; one without a typed schema falls back to the plain field list.
+// Every constructor — all 61 — is drawn by one universal renderer from its
+// typed schema (spec 10-12 §13); one without a typed schema falls back to the
+// plain field list. Nothing about any one constructor is written here.
 export const GENERIC_EDITOR: StudioEditorEntry = {
   Editor: SchemaEditor,
   validate: (payload, ctor) => {
@@ -28,37 +23,21 @@ export const GENERIC_EDITOR: StudioEditorEntry = {
   },
 };
 
-// What is sent for a constructor drawn from its schema: no undefined, no
-// keys an object's schema does not admit (spec §7). Hand-made editors keep
-// their own payload as they built it.
+// What is sent: no undefined, no keys an object's schema does not admit.
 export function cleanStudioPayload(code: string, payload: StudioPayload): StudioPayload {
-  if (CUSTOM[code]) return payload;
   const typed = studioDetailSnapshot(code);
   return typed?.typed.length ? cleanPayload(typed.typed, payload) : payload;
 }
 
-
-const CUSTOM: Partial<Record<string, StudioEditorEntry>> = {
-  K05: { Editor: K05Editor, validate: (p) => k05Validate(p), emptyPayload: () => k05Empty() },
-  K06: { Editor: K06Editor, validate: (p) => k06Validate(p), emptyPayload: () => k06Empty() },
-  K14: { Editor: K14Editor, validate: (p) => k14Validate(p), emptyPayload: () => k14Empty() },
-  K16: { Editor: K16Editor, validate: (p) => k16Validate(p), emptyPayload: () => k16Empty() },
-  K20: { Editor: K20Editor, validate: (p) => k20Validate(p), emptyPayload: () => k20Empty() },
-  "K12-PROMO": { Editor: K12PromoEditor, validate: (p) => k12PromoValidate(p), emptyPayload: () => k12PromoEmpty() },
-};
-
-export function hasCustomEditor(code: string): boolean {
-  return Boolean(CUSTOM[code]);
-}
-
 export function editorFor(code: string): StudioEditorEntry {
-  return CUSTOM[code] ?? GENERIC_EDITOR;
+  void code;
+  return GENERIC_EDITOR;
 }
 
-export function validateStudioPayload(code: string, payload: StudioPayload, constructor: StudioConstructor | null, file?: { hasFile: boolean } | null, objectTitle?: string) {
+export function validateStudioPayload(code: string, payload: StudioPayload, constructor: StudioConstructor | null, _file?: { hasFile: boolean } | null, objectTitle?: string) {
+  void _file;
   const ctor = constructor ?? studioDetailSnapshot(code);
-  const own = code === "K06" && file !== undefined ? k06Validate(payload, file) : editorFor(code).validate(payload, ctor);
-  const out = { ...genericValidate(payload, ctor), ...own };
+  const out = { ...genericValidate(payload, ctor), ...GENERIC_EDITOR.validate(payload, ctor) };
   const payloadTitle = typeof payload.title === "string" ? payload.title.trim() : payload.title;
   if (!payloadTitle && objectTitle && objectTitle.trim() && out.title) delete out.title;
   return out;
