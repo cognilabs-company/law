@@ -7,7 +7,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth, canMakeCalls, sessionRoles, type Session } from "@/lib/auth";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
-import { CALL_LINK_RE, maskContacts } from "@/lib/chatFilter";
+import { CALL_LINK_RE, isMachineFileName, maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
 import { backoffMs, contactBlockedOf, errDetail, isConflict, logApiError, refreshAccessToken } from "@/lib/http";
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
@@ -356,7 +356,7 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
           </span>
         )}
         <span className="sattach__cap">
-          <small>{name}</small>
+          {isMachineFileName(name) ? <small aria-hidden="true" /> : <small>{name}</small>}
           <button type="button" className="sattach__dlbtn" onClick={download} disabled={busy || msg.pending} aria-label={t("attachDownload")} title={t("attachDownload")}>
             {busy ? <IconClock /> : <IconDownload />}
           </button>
@@ -364,7 +364,7 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
         {open && url ? (
           <ImageLightbox
             url={url}
-            name={name}
+            name={isMachineFileName(name) ? "" : name}
             onClose={() => setOpen(false)}
             onDownload={() => void download()}
             closeLabel={t("close")}

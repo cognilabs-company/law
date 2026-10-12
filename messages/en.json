@@ -12645,6 +12645,7 @@
     "voiceHint": "Recording",
     "voiceNote": "Voice message",
     "fileGeneric": "File",
+    "imageGeneric": "Photo",
     "micDenied": "Microphone access was denied.",
     "blocked": "This message was blocked.",
     "loginRequired": "Log in to open this private chat.",

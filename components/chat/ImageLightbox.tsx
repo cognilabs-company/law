@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconClose, IconDownload } from "@/components/icons";
+
+const CLOSE_MS = 200;
 
 // Full-size viewer for a photo sent into a secure chat.
 //
@@ -26,23 +28,46 @@ export default function ImageLightbox({
   closeLabel: string;
   downloadLabel: string;
 }) {
+  const [on, setOn] = useState(false);
+  const leaving = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setOn(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+      clearTimeout(timer.current);
+    };
+  }, []);
+
+  const close = useCallback(() => {
+    if (leaving.current) return;
+    leaving.current = true;
+    setOn(false);
+    timer.current = setTimeout(onClose, CLOSE_MS);
+  }, [onClose]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        close();
       }
     };
     // Capture phase: a CallRoom or a Modal further up also listens for Escape,
     // and the viewer is the topmost thing on screen, so it answers first.
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
+  }, [close]);
 
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="slight" role="dialog" aria-modal="true" aria-label={name} onClick={onClose}>
+    <div className={`slight${on ? " slight--on" : ""}`} role="dialog" aria-modal="true" aria-label={name || closeLabel} onClick={close}>
       <div className="slight__bar" onClick={(e) => e.stopPropagation()}>
         <b className="slight__name">{name}</b>
         {onDownload ? (
@@ -50,7 +75,7 @@ export default function ImageLightbox({
             <IconDownload />
           </button>
         ) : null}
-        <button type="button" className="slight__btn" onClick={onClose} aria-label={closeLabel} title={closeLabel}>
+        <button type="button" className="slight__btn" onClick={close} aria-label={closeLabel} title={closeLabel}>
           <IconClose />
         </button>
       </div>

@@ -6728,7 +6728,16 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 .sattach--img{display:flex;flex-direction:column;gap:5px;min-width:0;max-width:100%}
 .sattach__thumb{display:block;position:relative;padding:0;border:0;background:none;cursor:zoom-in;border-radius:12px;overflow:hidden;line-height:0;
   box-shadow:0 0 0 1px var(--line)}
-.sattach__thumb img{display:block;width:100%;height:auto;max-height:320px;object-fit:cover;border-radius:12px}
+.sattach__thumb img{display:block;width:100%;height:auto;max-height:320px;object-fit:cover;border-radius:12px;animation:sattachImgIn .32s cubic-bezier(.2,.8,.2,1) both}
+@keyframes sattachImgIn{from{opacity:0;transform:scale(1.03)}to{opacity:1;transform:none}}
+.sattach__thumb,.sattach__dlbtn,.sattach__open,.slight__btn{transition:transform .14s cubic-bezier(.2,.8,.2,1)}
+.sattach__thumb:active,.sattach__dlbtn:active,.sattach__open:active,.slight__btn:active{transform:scale(.96)}
+@media (prefers-reduced-motion:reduce){
+  .sattach__thumb img{animation:none}
+  .slight,.slight__img{transition:none}
+  .sattach__thumb,.sattach__dlbtn,.sattach__open,.slight__btn{transition:none}
+  .sattach__thumb:active,.sattach__dlbtn:active,.sattach__open:active,.slight__btn:active{transform:none}
+}
 .sattach__zoom{position:absolute;right:8px;bottom:8px;width:26px;height:26px;border-radius:9px;display:grid;place-items:center;
   background:rgba(3,16,43,.55);color:#fff;opacity:0;transition:opacity .16s}
 .sattach__zoom svg{width:14px;height:14px}
@@ -6752,9 +6761,11 @@ html[data-theme="dark"] .auth__amb-orb{background:radial-gradient(circle,rgba(46
 /* The viewer. Portaled to <body>, so the scrolling message list, the 360px
    panel and the modal above it can none of them clip it. */
 .slight{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:56px 16px 16px;
-  background:rgba(3,10,26,.88);backdrop-filter:blur(6px);animation:fade .18s ease both;cursor:zoom-out}
+  background:rgba(3,10,26,.88);backdrop-filter:blur(6px);opacity:0;transition:opacity .2s ease;cursor:zoom-out}
+.slight--on{opacity:1}
 .slight__img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:var(--s3);cursor:default;
-  animation:pop .22s cubic-bezier(.2,.8,.3,1) both}
+  opacity:0;transform:scale(.96);transition:opacity .2s ease,transform .24s cubic-bezier(.2,.8,.3,1)}
+.slight--on .slight__img{opacity:1;transform:none}
 .slight__bar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;gap:10px;padding:0 14px;color:#fff}
 .slight__name{flex:1;min-width:0;font-size:.86rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.9)}
 .slight__btn{flex:none;width:34px;height:34px;border-radius:11px;border:0;cursor:pointer;display:grid;place-items:center;

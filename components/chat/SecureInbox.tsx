@@ -20,7 +20,7 @@ import { subscribeUserEvents } from "@/lib/userSocket";
 import { dateTimeFull } from "@/lib/date";
 import { initials } from "@/lib/lawyers";
 import { statusLabel } from "@/lib/labels";
-import { CALL_LINK_RE } from "@/lib/chatFilter";
+import { CALL_LINK_RE, isMachineFileName } from "@/lib/chatFilter";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import FilterBar from "@/components/filters/FilterBar";
 import { IconShieldCheck, IconArrowRight, IconLock, IconSearch, IconChat, IconClock, IconUsers, IconBolt, IconTag } from "@/components/icons";
@@ -188,7 +188,11 @@ export default function SecureInbox() {
         ? ts("voiceNote")
         : kind === "call" || kind === "meeting" || CALL_LINK_RE.test(raw)
           ? ts("joinZoom")
-          : raw || (kind === "file" ? ts("fileGeneric") : "");
+          : raw && isMachineFileName(raw)
+            ? /\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(raw)
+              ? ts("imageGeneric")
+              : ts("fileGeneric")
+            : raw || (kind === "file" ? ts("fileGeneric") : "");
     return message.isMine ? t("minePrefix", { text: content }) : content;
   };
   const svcOf = (req: UrgentRequest) => (tk.has(`kinds.${req.serviceKind}`) ? tk(`kinds.${req.serviceKind}`) : req.serviceTitle || req.serviceKind);

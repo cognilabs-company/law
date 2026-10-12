@@ -12,6 +12,14 @@ const MASK = "•••";
 // Zoom meeting links are allowed (calls happen through them).
 const ALLOWED = /zoom\.us|zoom\.com/i;
 
+const MACHINE_NAME_RE = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{16,}|\d{10,})$/i;
+
+export function isMachineFileName(name: string): boolean {
+  const base = String(name || "").replace(/\.[^.]+$/, "").trim();
+  if (!base) return true;
+  return MACHINE_NAME_RE.test(base) || /^(?:voice|file|image|photo)[-_]\d{8,}$/i.test(base);
+}
+
 export const CALL_LINK_RE = /(https?:\/\/(?:[a-z0-9-]+\.)?zoom\.(?:us|com)\/\S+|\/secure-chats\/\S+\/join)/i;
 
 export function maskContacts(input: string): string {
