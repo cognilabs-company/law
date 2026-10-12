@@ -79,6 +79,7 @@ const TONE: Record<string, Tone> = {
   returned: "err", rejected: "err", absent: "err", terminated: "err",
   cancelled: "gray", inactive: "gray", archived: "gray",
   resolved: "ok", triaged: "info", calculated: "info", closed: "gray", revoked: "gray", expired: "gray",
+  assigned: "info", open: "info", screening: "info", interview: "info", offer: "warn", hired: "ok", effective: "ok", review: "warn", blocked: "err", on_hold: "gray",
 };
 
 export function useStatusLabel() {

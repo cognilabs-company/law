@@ -17944,3 +17944,66 @@ html[data-theme="dark"] .amodal{--mkm-active:#3987e5}
 .stu-impact__ok{display:flex;align-items:center;gap:7px;margin:0;color:var(--dk-txt-ok,#047857);font-size:.8rem;font-weight:700}
 @media (max-width:760px){.stu-sf__grid{grid-template-columns:minmax(0,1fr)}.stu-sf__nav{position:static}.stu-sf__kv li{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 32px}.stu-impact dl{grid-template-columns:minmax(0,1fr)}}
 @media (prefers-reduced-motion:reduce){.stu-sf__sk,.stu-live.is-busy i{animation:none}.stu-sw i,.stu-sw i::after,.stu-sf__list li{transition:none}}
+
+/* ═══════════════ HRM catalog screens (hrm/HrmModuleScreen, HrmHub) ═══════════════ */
+.hrmc-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:stretch}
+.hrmc-stats{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.hrmc-donut{min-width:260px}
+.hrmc-donut .hrm-donut{padding:4px 0}
+.hrmc-types{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:thin}
+.hrmc-types button{display:inline-flex;align-items:center;gap:8px;flex:none;height:36px;padding:0 8px 0 13px;border:0;border-radius:var(--pill);background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink);font:inherit;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.hrmc-types button span{min-width:22px;padding:2px 7px;border-radius:var(--pill);background:var(--dk-surface-2,#F1F4F9);color:var(--gray);font-size:.7rem;text-align:center}
+.hrmc-types button:hover{box-shadow:inset 0 0 0 1px var(--b300)}
+.hrmc-types button.on{background:var(--dk-tint-blue,#EEF5FF);box-shadow:inset 0 0 0 1.5px var(--b500,#2f7cf6);color:var(--dk-acc,var(--b700))}
+.hrmc-types button.on span{background:var(--b500,#2f7cf6);color:#fff}
+.hrmc-filters{flex-wrap:wrap}
+.hrmc-filters__st{flex:0 1 240px;min-width:180px}
+.hrmc-filters__dates{display:flex;gap:6px;flex:0 1 300px;min-width:240px}
+.hrmc-filters__dates>*{flex:1;min-width:0}
+.hrmc-table td b{display:block}
+.hrmc-code{display:inline-block;margin-top:2px;padding:1px 7px;border-radius:6px;background:var(--dk-surface-2,#F1F4F9);color:var(--gray);font:600 .7rem/1.5 var(--fm,ui-monospace,monospace);letter-spacing:.01em}
+.hrmc-pager{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--line);font-size:.8rem;color:var(--gray)}
+.hrmc-pager__nav{display:flex;align-items:center;gap:8px}
+.hrmc-pager__nav .btn{width:34px;padding:0;justify-content:center}
+.hrmc-pager__size{width:140px}
+.hrmc-form .is-bad .stu-sf__num input,.hrmc-form .is-bad>.iffield input,.hrmc-form .is-bad textarea{box-shadow:inset 0 0 0 1.5px var(--dk-bd-err,#F0A8A8)}
+.hrmc-form__note{margin:2px 0 0;font-size:.76rem}
+.hrmf-chips{display:flex;flex-wrap:wrap;gap:6px}
+.hrmf-chips button{padding:6px 11px;border:0;border-radius:var(--pill);background:var(--dk-surface-2,#F1F4F9);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink);font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+.hrmf-chips button.on{background:var(--dk-tint-blue,#EEF5FF);box-shadow:inset 0 0 0 1.5px var(--b500,#2f7cf6);color:var(--dk-acc,var(--b700))}
+.hrmf-list{display:grid;gap:8px}
+.hrmf-list ol{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.hrmf-list li{display:flex;align-items:center;gap:8px}
+.hrmf-list li>input{flex:1;min-width:0}
+.hrmf-list__tools{display:flex;gap:2px;flex:none}
+.hrmf-list__tools button{display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:8px;background:none;color:var(--gray);cursor:pointer}
+.hrmf-list__tools button:hover:not(:disabled){background:var(--dk-surface-2,#F1F4F9);color:var(--ink)}
+.hrmf-list__tools button:disabled{opacity:.35}
+.hrmf-list__tools svg{width:14px;height:14px}
+.hrmf-done{display:inline-flex;align-items:center;gap:5px;flex:none;font-size:.78rem;color:var(--gray)}
+.hrmf-files ul{display:grid;gap:6px;margin:0 0 8px;padding:0;list-style:none}
+.hrmf-files li{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--dk-surface-2,#F7FAFE);font-size:.84rem}
+.hrmf-files li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hrmf-files li svg{width:15px;height:15px;flex:none}
+.hrmf-files li button{display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:8px;background:none;color:var(--gray);cursor:pointer}
+.hrmf-files .stu-fe-add{cursor:pointer}
+.hrmf-files .stu-fe-add.is-busy{opacity:.6}
+.hrmf-color{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px}
+.hrmf-color input[type=color]{width:44px;height:42px;padding:3px;border:0;border-radius:10px;background:var(--dk-surface-2,#F7FAFE);box-shadow:inset 0 0 0 1px var(--line)}
+.hrmf-code{font-family:var(--fm,ui-monospace,monospace);font-size:.84rem}
+.hrmc-group{display:grid;gap:10px}
+.hrmc-group>h3{margin:6px 0 0;font-family:var(--fd);font-size:1rem}
+.hrmc-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));gap:10px}
+.hrmc-card{display:grid;gap:6px;padding:14px;border-radius:16px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink);text-decoration:none;transition:box-shadow .15s,transform .15s}
+.hrmc-card:hover{transform:translateY(-1px);box-shadow:inset 0 0 0 1.5px var(--b300),var(--s2)}
+.hrmc-card__h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.hrmc-card__h b{font-size:.92rem}
+.hrmc-card__n{flex:none;min-width:30px;padding:2px 9px;border-radius:var(--pill);background:var(--dk-tint-blue,#EEF5FF);color:var(--dk-acc,var(--b600));font-family:var(--fd);font-size:.9rem;font-weight:800;text-align:center}
+.hrmc-card>small{color:var(--gray);font-size:.78rem;line-height:1.4}
+.hrmc-card__f{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:2px}
+.hrmc-card__types,.hrmc-card__st{padding:2px 8px;border-radius:var(--pill);background:var(--dk-surface-2,#F1F4F9);color:var(--gray);font-size:.7rem;font-weight:700}
+.hrmc-card__go{width:16px;height:16px;margin-left:auto;color:var(--gray2)}
+.hrmc-card:hover .hrmc-card__go{color:var(--dk-acc,var(--b600))}
+@media (max-width:900px){.hrmc-top{grid-template-columns:minmax(0,1fr)}.hrmc-donut{min-width:0}}
+@media (max-width:640px){.hrmc-filters__dates,.hrmc-filters__st{flex:1 1 100%}.hrmc-pager{justify-content:center}}
+@media (max-width:640px){.hrmc-filters .hrm-toolbar__sel{flex:1 1 100%}}

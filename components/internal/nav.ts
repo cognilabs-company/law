@@ -70,7 +70,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { href: "/internal/offboarding", key: "offboarding", Icon: IconLogout, permission: "internal_hr.manage" },
     { href: "/internal/documents", key: "documents", Icon: IconFileText },
     { href: "/internal/skills", key: "skills", Icon: IconAward },
-    { href: "/internal/hr", key: "hr", Icon: IconFolder },
+    { href: "/internal/hrm", key: "hr", Icon: IconFolder },
   ] },
   { key: "pay", Icon: IconCard, items: [
     { href: "/internal/payroll", key: "payroll", Icon: IconCard, permission: "internal_payroll.manage" },

@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { getCorrections, getFeedback, getHrmRecords } from "@/lib/services/internalLive";
+import { getCorrections, getFeedback } from "@/lib/services/internalLive";
+import { getHrmOverview } from "@/lib/services/hrm";
 import { IconAlert, IconArrowRight, IconChat, IconCheck, IconClock, IconFlag, IconFolder, IconLightbulb, IconShieldCheck } from "@/components/icons";
 import type { NavIcon } from "./nav";
 
 type Tone = "err" | "warn" | "info";
 type Source = { key: string; count: number; href: string; Icon: NavIcon; tone: Tone };
-// HR processes whose pending requests wait on a manager.
-const PENDING_DOMAINS = ["leave", "travel", "recruiting", "movements", "onboarding", "offboarding"];
 
 // "What needs me today": each thing that is waiting is a tile with its count
 // and a link straight to it; everything with nothing waiting collapses into
@@ -24,12 +23,13 @@ export default function AttentionTiles({ overdue, approvals, unread, notCheckedI
     const c = new AbortController();
     void (async () => {
       // Each list is optional: one the account may not read counts as zero.
-      const [cor, fb, ...hr] = await Promise.all([
+      // HR records waiting on a decision, across every module, in one read.
+      const [cor, fb, hr] = await Promise.all([
         getCorrections({ status: "pending" }, c.signal).then((r) => r.length).catch(() => 0),
         getFeedback({ status: "new" }, c.signal).then((r) => r.length).catch(() => 0),
-        ...PENDING_DOMAINS.map((d) => getHrmRecords(d, { status: "pending", limit: 1 }, c.signal).then((r) => r.total).catch(() => 0)),
+        getHrmOverview({}, c.signal).then((o) => o.pending).catch(() => 0),
       ]);
-      if (!c.signal.aborted) setTeam({ corrections: cor, feedback: fb, hr: hr.reduce((a, b) => a + b, 0) });
+      if (!c.signal.aborted) setTeam({ corrections: cor, feedback: fb, hr });
     })();
     return () => c.abort();
   }, [manager]);
@@ -41,7 +41,7 @@ export default function AttentionTiles({ overdue, approvals, unread, notCheckedI
     { key: "messages", count: unread, href: "/internal/me/messages", Icon: IconChat, tone: "info" },
     ...(manager
       ? [
-          { key: "hr", count: team?.hr ?? 0, href: "/internal/hr", Icon: IconFolder, tone: "warn" as Tone },
+          { key: "hr", count: team?.hr ?? 0, href: "/internal/hrm", Icon: IconFolder, tone: "warn" as Tone },
           { key: "corrections", count: team?.corrections ?? 0, href: "/internal/live-office", Icon: IconFlag, tone: "info" as Tone },
           { key: "feedback", count: team?.feedback ?? 0, href: "/internal/feedback", Icon: IconLightbulb, tone: "info" as Tone },
         ]

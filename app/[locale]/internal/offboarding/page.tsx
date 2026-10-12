@@ -1,4 +1,5 @@
-"use client";
-import HrModulePage from "@/components/internal/hr/HrModulePage";
-import { hrModule } from "@/components/internal/hr/modules";
-export default function Page() { return <HrModulePage def={hrModule("offboarding")} />; }
+import HrmModuleScreen from "@/components/internal/hrm/HrmModuleScreen";
+
+export default function Page() {
+  return <HrmModuleScreen domain="offboarding" />;
+}

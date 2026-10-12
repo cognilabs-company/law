@@ -1,4 +1,4 @@
-// Internal HRM — Live Office, corrections, product feedback, HR processes and
+// Internal HRM — Live Office, corrections, product feedback and
 // payroll calculation (FRONTEND_INTERNAL_HRM_LIVE_OFFICE_2026_10_11.md).
 // Every reader is lenient about field names: the guide names the endpoints
 // and payloads, the rows are read under the spellings the backend has used.
@@ -44,25 +44,6 @@ export const CORRECTION_DECISIONS = ["approved", "rejected", "returned", "resolv
 export const FEEDBACK_TYPES = ["bug", "suggestion", "usability", "data_issue", "other"] as const;
 export const FEEDBACK_SEVERITIES = ["low", "normal", "high", "critical"] as const;
 export const FEEDBACK_STATUSES = ["new", "triaged", "in_progress", "resolved", "rejected", "closed"] as const;
-export const HRM_DOMAINS = [
-  "people", "employment", "documents", "skills", "scheduling", "attendance", "timesheet", "leave", "travel", "tasks",
-  "workflow", "payroll", "recruiting", "onboarding", "offboarding", "movements", "policies", "lms", "notifications", "analytics",
-] as const;
-export type HrmDomain = (typeof HRM_DOMAINS)[number];
-
-// The status flow of every HRM record (§19). The backend checks it again; this
-// only offers the moves that can succeed.
-export const HRM_FLOW: Record<string, string[]> = {
-  draft: ["pending", "archived"],
-  pending: ["approved", "rejected", "returned", "cancelled"],
-  returned: ["pending", "cancelled"],
-  approved: ["active", "completed", "cancelled", "archived"],
-  active: ["completed", "cancelled", "archived"],
-  rejected: ["draft", "archived"],
-  completed: ["archived"],
-  cancelled: ["archived"],
-  archived: [],
-};
 
 export type LiveCatalog = { heartbeatSeconds: number; inactiveAfterSeconds: number; retentionDays: number; domains: string[] };
 
@@ -550,64 +531,6 @@ export async function getActivityRegistry(signal?: AbortSignal): Promise<Registr
   });
 }
 export const createRegistryRule = (payload: Dict) => http("/internal/activity-registry", send("POST", payload));
-
-// ── HR processes ────────────────────────────────────────────────────────────
-
-export type HrmTransition = { from: string; to: string; reason: string; at: string; by: string };
-export type HrmRecord = {
-  id: string;
-  domain: string;
-  type: string;
-  employeeId: string;
-  unitId: string;
-  parentId: string;
-  title: string;
-  status: string;
-  from: string;
-  to: string;
-  payload: Dict;
-  transitions: HrmTransition[];
-  createdAt: string;
-  updatedAt: string;
-  author: string;
-};
-
-export function normRecord(raw: unknown, domain = ""): HrmRecord {
-  const d = asDict(raw);
-  const payload = asDict(d.payload);
-  return {
-    id: str(d.id, d.record_id),
-    domain: str(d.domain) || domain,
-    type: str(d.record_type, d.type),
-    employeeId: str(d.employee_id),
-    unitId: str(d.org_unit_id),
-    parentId: str(d.parent_id),
-    title: str(d.title),
-    status: str(d.status) || "draft",
-    from: str(d.effective_from),
-    to: str(d.effective_to),
-    payload,
-    transitions: asArr(payload.transitions ?? d.transitions).map((x) => {
-      const t = asDict(x);
-      return { from: str(t.from, t.from_status), to: str(t.to, t.to_status, t.status), reason: str(t.reason), at: str(t.at, t.created_at, t.changed_at), by: personName(t.by ?? t.actor) || str(t.by_name, t.actor_name) };
-    }),
-    createdAt: str(d.created_at),
-    updatedAt: str(d.updated_at),
-    author: personName(d.created_by_user ?? d.author) || str(d.created_by_name),
-  };
-}
-
-export async function getHrmRecords(domain: string, filter: { status?: string; employeeId?: string; unitId?: string; q?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal): Promise<{ items: HrmRecord[]; total: number }> {
-  const raw = await http(`/internal/hrm/${enc(domain)}/records${qs({ status: filter.status, employee_id: filter.employeeId, org_unit_id: filter.unitId, q: filter.q, limit: filter.limit ?? 50, offset: filter.offset ?? 0 })}`, { signal });
-  const items = rows(raw).map((x) => normRecord(x, domain)).filter((r) => r.id);
-  return { items, total: asNum(asDict(raw).total, items.length) };
-}
-export async function getHrmRecord(domain: string, id: string, signal?: AbortSignal): Promise<HrmRecord> {
-  return normRecord(await http(`/internal/hrm/${enc(domain)}/records/${enc(id)}`, { signal }), domain);
-}
-export const createHrmRecord = (domain: string, payload: Dict) => http(`/internal/hrm/${enc(domain)}/records`, send("POST", payload));
-export const updateHrmRecord = (domain: string, id: string, payload: Dict) => http(`/internal/hrm/${enc(domain)}/records/${enc(id)}`, send("PATCH", payload));
-export const transitionHrmRecord = (domain: string, id: string, status: string, reason: string) => http(`/internal/hrm/${enc(domain)}/records/${enc(id)}/transition`, send("POST", { status, reason }));
 
 // ── Payroll calculation ─────────────────────────────────────────────────────
 

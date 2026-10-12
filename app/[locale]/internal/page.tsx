@@ -22,13 +22,15 @@ import {
 } from "@/lib/services/internalHrm";
 import { HrmEmpty, HrmError, HrmLoading, HrmPanel, HrmPriority, HrmStatus, isOverdue, useHrmFormat, useNow } from "@/components/internal/HrmUi";
 import AttentionTiles from "@/components/internal/AttentionTiles";
+import { MyRecords } from "@/components/internal/hrm/HrmHub";
+import { useHrmCatalog } from "@/lib/services/hrm";
 import { IconBriefcase, IconBuilding, IconCalendar, IconChartBar, IconChat, IconCheck, IconClock, IconFolder, IconMonitor, IconRefresh, IconUsers } from "@/components/icons";
 
 type Today = { name: string; code: string; date: string; attendance: HrmAttendance | null; tasks: HrmTask[]; approvals: number; messages: HrmMessage[]; unread: number };
 
 const SHORTCUTS: { href: string; key: string; Icon: typeof IconUsers; permission?: InternalPermission }[] = [
   { href: "/internal/live-office", key: "liveOffice", Icon: IconMonitor },
-  { href: "/internal/hr", key: "hr", Icon: IconFolder },
+  { href: "/internal/hrm", key: "hr", Icon: IconFolder },
   { href: "/internal/employees", key: "employees", Icon: IconUsers, permission: "internal_hr.manage" },
   { href: "/internal/org", key: "org", Icon: IconBuilding, permission: "internal_org.manage" },
   { href: "/internal/execution", key: "execution", Icon: IconBriefcase, permission: "internal_execution.manage" },
@@ -48,6 +50,7 @@ export default function InternalDashboard() {
   const [clockNote, setClockNote] = useState<"" | "ok" | "err">("");
   const sessionName = session?.name ?? "";
   const now = useNow();
+  const catalog = useHrmCatalog();
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -183,6 +186,8 @@ export default function InternalDashboard() {
               </ul>
             ) : <HrmEmpty icon={IconChat} title={t("noMessages")} />}
           </HrmPanel>
+
+          <MyRecords cat={catalog.data} />
 
           {shortcuts.length ? (
             <HrmPanel title={t("quickTitle")}>
