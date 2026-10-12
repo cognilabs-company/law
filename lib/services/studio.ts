@@ -128,6 +128,15 @@ function navigationOf(r: Dict): StudioNavigation | null {
   };
 }
 
+// How a constructor's objects are worked on (spec 10-12 grouped workflows
+// §10): the backend names the endpoints, the frontend never builds them.
+export type StudioOperations = { supported: string[]; listEndpoint: string; formContextEndpoint: string };
+
+function operationsOf(r: Dict): StudioOperations {
+  const o = asDict(r.operations);
+  return { supported: strings(o.supported), listEndpoint: asStr(o.list_endpoint), formContextEndpoint: asStr(o.form_context_endpoint) };
+}
+
 export type StudioConstructor = {
   code: string;
   title: string;
@@ -150,8 +159,74 @@ export type StudioConstructor = {
   missingRequired: string[];
   missingRecommended: string[];
   recordCount: number | null;
+  operations: StudioOperations;
   raw: Dict;
 };
+
+// One of the catalog's business groups, in the backend's order, with its
+// constructors in the order they are done (§3–4).
+export type StudioGroup = {
+  key: string;
+  title: string;
+  description: string;
+  order: number;
+  codes: string[];
+  count: number;
+  completed: number;
+  available: number;
+  progress: number;
+  nextCode: string;
+};
+
+// A business goal that runs through constructors of several groups (§6).
+export type StudioJourneyStep = { step: number; code: string; title: string; completed: boolean; blocked: boolean; missingRequired: string[] };
+export type StudioJourney = { key: string; title: string; description: string; codes: string[]; steps: StudioJourneyStep[]; completed: number; progress: number };
+
+const pct = (v: unknown, done: number, all: number) => Math.max(0, Math.min(100, numOrNull(v) ?? (all ? Math.round((done / all) * 100) : 0)));
+
+export function normStudioGroup(raw: unknown, i = 0): StudioGroup {
+  const d = asDict(raw);
+  const codes = strings(d.codes).length ? strings(d.codes) : asArr(d.constructors).map((c) => first(asDict(c).code)).filter(Boolean);
+  const count = numOrNull(d.visible_constructor_count) ?? numOrNull(d.constructor_count) ?? codes.length;
+  const completed = numOrNull(d.completed_count) ?? 0;
+  return {
+    key: first(d.key, d.id) || `g${i}`,
+    title: first(d.title, d.key),
+    description: asStr(d.description),
+    order: numOrNull(d.order) ?? i + 1,
+    codes,
+    count,
+    completed,
+    available: numOrNull(d.available_count) ?? 0,
+    progress: pct(d.progress_percent, completed, count),
+    nextCode: asStr(d.next_constructor_code),
+  };
+}
+
+export function normStudioJourney(raw: unknown, i = 0): StudioJourney {
+  const d = asDict(raw);
+  const steps = asArr(d.steps).map((x, j) => {
+    const s = asDict(x);
+    return {
+      step: numOrNull(s.step) ?? j + 1,
+      code: first(s.constructor_code, s.code),
+      title: asStr(s.title),
+      completed: s.completed === true,
+      blocked: asStr(s.availability) === "blocked",
+      missingRequired: strings(s.missing_required),
+    };
+  });
+  const completed = numOrNull(d.completed_count) ?? steps.filter((s) => s.completed).length;
+  return {
+    key: first(d.key, d.id) || `j${i}`,
+    title: first(d.title, d.key),
+    description: asStr(d.description),
+    codes: strings(d.codes).length ? strings(d.codes) : steps.map((s) => s.code),
+    steps,
+    completed,
+    progress: pct(d.progress_percent, completed, numOrNull(d.step_count) ?? steps.length),
+  };
+}
 
 export type StudioObject = {
   id: string;
@@ -266,10 +341,10 @@ export type StudioAccessGrant = {
 export type StudioAccessInput = { userId: string; roles: string[]; constructorCodes?: string[]; active?: boolean; id?: string };
 
 export type StudioList<T> = { items: T[]; total: number };
-export type StudioRegistry = { items: StudioConstructor[]; userRoles: string[] };
+export type StudioRegistry = { items: StudioConstructor[]; userRoles: string[]; groups: StudioGroup[]; journeys: StudioJourney[] };
 export type StudioListQuery = { constructorCode?: string; status?: string; assignedToMe?: boolean; limit?: number; offset?: number };
 export type StudioSaveInput = { title?: string; payload?: Dict; summary?: string; version?: string; expectedLockVersion?: number | null };
-export type StudioCreateInput = { constructorCode: string; title: string; payload: Dict };
+export type StudioCreateInput = { constructorCode: string; title: string; payload: Dict; runtimeTargetId?: string; runtimeTargetType?: string };
 export type StudioUploadResult = { versionId: string; hasFile: boolean; fileUrl: string; fileName: string };
 export type StudioHeartbeatInput = {
   sessionId?: string | null;
@@ -520,6 +595,7 @@ export function normStudioConstructor(raw: unknown): StudioConstructor {
     missingRequired: strings(r.missing_required),
     missingRecommended: strings(r.missing_recommended),
     recordCount: numOrNull(r.record_count),
+    operations: operationsOf(r),
     raw: r,
   };
 }
@@ -728,11 +804,13 @@ type RegState = {
   owner: string;
   items: StudioConstructor[];
   userRoles: string[];
+  groups: StudioGroup[];
+  journeys: StudioJourney[];
   error: unknown;
   at: number;
 };
 
-let reg: RegState = { avail: "checking", owner: "", items: [], userRoles: [], error: null, at: 0 };
+let reg: RegState = { avail: "checking", owner: "", items: [], userRoles: [], groups: [], journeys: [], error: null, at: 0 };
 let inflight: Promise<StudioRegistry | null> | null = null;
 let offTimer: ReturnType<typeof setTimeout> | undefined;
 const listeners = new Set<() => void>();
@@ -748,7 +826,7 @@ function ownerMatches(): boolean {
 
 function snapshot(): RegState {
   if (!ownerMatches() && reg.avail !== "checking") {
-    reg = { avail: "checking", owner: currentTokenOwner(), items: [], userRoles: [], error: null, at: 0 };
+    reg = { avail: "checking", owner: currentTokenOwner(), items: [], userRoles: [], groups: [], journeys: [], error: null, at: 0 };
   }
   return reg;
 }
@@ -766,7 +844,7 @@ export function studioAvailable(): StudioAvailability {
 
 export function studioRegistrySnapshot(): StudioRegistry & { avail: StudioAvailability; error: unknown } {
   const s = snapshot();
-  return { avail: s.avail, items: s.items, userRoles: s.userRoles, error: s.error };
+  return { avail: s.avail, items: s.items, userRoles: s.userRoles, groups: s.groups, journeys: s.journeys, error: s.error };
 }
 
 function markOff(owner: string): void {
@@ -774,14 +852,22 @@ function markOff(owner: string): void {
   offTimer = setTimeout(() => {
     if (reg.avail === "off") setReg({ avail: "checking", at: 0 });
   }, OFF_TTL);
-  setReg({ avail: "off", owner, items: [], userRoles: [], error: null, at: Date.now() });
+  setReg({ avail: "off", owner, items: [], userRoles: [], groups: [], journeys: [], error: null, at: Date.now() });
 }
 
 function parseRegistry(res: unknown): StudioRegistry {
   const d = asDict(res);
   const items = listOf(res, ["items", "constructors", "data", "results"]).map(normStudioConstructor).filter((c) => c.code);
   const userRoles = strings(d.user_roles ?? d.roles ?? d.userRoles).map((r) => r.toLowerCase());
-  return { items, userRoles };
+  const groups = asArr(d.groups).map(normStudioGroup).filter((g) => g.codes.length).sort((a, b) => a.order - b.order);
+  const journeys = asArr(d.journeys).map(normStudioJourney).filter((j) => j.steps.length);
+  // A constructor the flat list lacks but a group carries is still listed.
+  for (const g of asArr(d.groups))
+    for (const c of asArr(asDict(g).constructors)) {
+      const n = normStudioConstructor(c);
+      if (n.code && !items.some((x) => x.code === n.code)) items.push(n);
+    }
+  return { items, userRoles, groups, journeys };
 }
 
 export async function listStudioConstructors(): Promise<StudioRegistry> {
@@ -789,11 +875,11 @@ export async function listStudioConstructors(): Promise<StudioRegistry> {
   try {
     const out = parseRegistry(await http("/studio/constructors"));
     clearTimeout(offTimer);
-    setReg({ avail: "on", owner, items: out.items, userRoles: out.userRoles, error: null, at: Date.now() });
+    setReg({ avail: "on", owner, items: out.items, userRoles: out.userRoles, groups: out.groups, journeys: out.journeys, error: null, at: Date.now() });
     return out;
   } catch (e) {
     if (isRouteMissing(e)) markOff(owner);
-    else if (isForbidden(e)) setReg({ avail: "on", owner, items: [], userRoles: [], error: e, at: Date.now() });
+    else if (isForbidden(e)) setReg({ avail: "on", owner, items: [], userRoles: [], groups: [], journeys: [], error: e, at: Date.now() });
     else setReg({ avail: reg.avail === "checking" ? "on" : reg.avail, owner, error: e, at: Date.now() });
     throw e;
   }
@@ -802,7 +888,7 @@ export async function listStudioConstructors(): Promise<StudioRegistry> {
 export function ensureStudioRegistry(force = false): Promise<StudioRegistry | null> {
   const s = snapshot();
   if (!force && s.avail === "off") return Promise.resolve(null);
-  if (!force && s.avail === "on" && !s.error && Date.now() - s.at < FRESH_MS) return Promise.resolve({ items: s.items, userRoles: s.userRoles });
+  if (!force && s.avail === "on" && !s.error && Date.now() - s.at < FRESH_MS) return Promise.resolve({ items: s.items, userRoles: s.userRoles, groups: s.groups, journeys: s.journeys });
   if (inflight) return inflight;
   inflight = listStudioConstructors()
     .then((r) => r as StudioRegistry | null)
@@ -819,7 +905,7 @@ export function recheckStudio(): Promise<StudioRegistry | null> {
   return ensureStudioRegistry(true);
 }
 
-const serverReg: RegState = { avail: "checking", owner: "", items: [], userRoles: [], error: null, at: 0 };
+const serverReg: RegState = { avail: "checking", owner: "", items: [], userRoles: [], groups: [], journeys: [], error: null, at: 0 };
 
 export function useStudioRegistry(enabled = true): RegState & { reload: () => Promise<StudioRegistry | null> } {
   const s = useSyncExternalStore(subscribeStudio, snapshot, () => serverReg);
@@ -941,7 +1027,13 @@ export async function getStudioObject(id: string): Promise<StudioDetail> {
 export async function createStudioObject(input: StudioCreateInput): Promise<StudioDetail> {
   const res = await http("/studio/objects", {
     method: "POST",
-    body: JSON.stringify({ constructor_code: input.constructorCode, title: input.title, payload: input.payload }),
+    body: JSON.stringify({
+      constructor_code: input.constructorCode,
+      title: input.title,
+      runtime_target_type: input.runtimeTargetType ?? "",
+      runtime_target_id: input.runtimeTargetId ?? "",
+      payload: input.payload,
+    }),
   });
   return normStudioDetail(res);
 }
@@ -1074,6 +1166,134 @@ export async function rollbackStudioObject(id: string, input: { versionId: strin
     }),
   );
 }
+
+// ── Records and form context (spec 10-12 grouped workflows §8–15) ──────────
+
+export type StudioRecordSource = "runtime" | "studio";
+export type StudioRecordActions = { view: string; edit: string; clone: string; archive: string };
+export type StudioRecord = {
+  id: string;
+  recordId: string;
+  code: string;
+  title: string;
+  status: string;
+  source: StudioRecordSource;
+  runtimeTargetId: string;
+  runtimeTargetType: string;
+  studioObjectId: string;
+  updatedAt: string;
+  owner: string;
+  version: string;
+  actions: StudioRecordActions;
+};
+export type StudioRecords = { items: StudioRecord[]; total: number; runtimeTotal: number; studioTotal: number; createUrl: string };
+export type StudioRecordQuery = { q?: string; status?: string; source?: "" | StudioRecordSource; limit?: number; offset?: number };
+
+// Only the backend's own Studio paths are ever followed from a response.
+const studioPath = (url: string, prefix = "/studio/"): string => {
+  const u = (url || "").trim();
+  return u.startsWith(prefix) && !u.includes("..") && !/^\/\//.test(u) ? u : "";
+};
+
+export function normStudioRecord(raw: unknown): StudioRecord {
+  const d = asDict(raw);
+  const a = asDict(d.actions);
+  const source: StudioRecordSource = asStr(d.source) === "runtime" ? "runtime" : "studio";
+  const ver = asDict(d.current_version);
+  return {
+    id: first(d.id, d.record_id),
+    recordId: first(d.record_id, d.id),
+    code: first(d.constructor_code, d.code),
+    title: first(d.title, d.name),
+    status: asStr(d.status).toLowerCase(),
+    source,
+    runtimeTargetId: asStr(d.runtime_target_id),
+    runtimeTargetType: asStr(d.runtime_target_type),
+    studioObjectId: first(d.studio_object_id, source === "studio" ? d.id : ""),
+    updatedAt: timeOf(d.updated_at, d.created_at),
+    owner: first(d.owner_name, personOf(d.created_by)),
+    version: first(d.current_version_label, ver.version, ver.label),
+    actions: { view: studioPath(asStr(a.view)), edit: studioPath(asStr(a.edit)), clone: studioPath(asStr(a.clone)), archive: studioPath(asStr(a.archive)) },
+  };
+}
+
+export async function listStudioRecords(code: string, q: StudioRecordQuery = {}, signal?: AbortSignal): Promise<StudioRecords> {
+  const p = new URLSearchParams();
+  if (q.q?.trim()) p.set("q", q.q.trim());
+  if (q.status) p.set("status", q.status);
+  p.set("source", q.source || "all");
+  p.set("limit", String(q.limit ?? 50));
+  p.set("offset", String(q.offset ?? 0));
+  const d = asDict(await http(`/studio/constructors/${enc(code)}/records?${p}`, { signal }));
+  const items = asArr(d.items).map(normStudioRecord).filter((r) => r.id);
+  return {
+    items,
+    total: numOrNull(d.total) ?? items.length,
+    runtimeTotal: numOrNull(d.runtime_total) ?? 0,
+    studioTotal: numOrNull(d.studio_total) ?? 0,
+    createUrl: studioPath(asStr(d.create_url), `/studio/constructors/`),
+  };
+}
+
+export type StudioFormMode = "create" | "view" | "edit" | "clone";
+export type StudioFormContext = {
+  mode: StudioFormMode;
+  code: string;
+  constructorTitle: string;
+  title: string;
+  ctor: StudioConstructor;
+  initialPayload: Dict;
+  recordId: string;
+  source: StudioRecordSource | "";
+  runtimeTargetId: string;
+  runtimeTargetType: string;
+  studioObjectId: string;
+  saveUrl: string;
+};
+
+// The form for one object as the backend prepares it: its cleaned schema,
+// the payload to start from and the object it stands for (route context).
+export async function getStudioFormContext(url: string, signal?: AbortSignal): Promise<StudioFormContext> {
+  const path = studioPath(url, "/studio/constructors/");
+  if (!path || !path.includes("/form-context")) throw new Error("studio_form_context_url");
+  const d = asDict(await http(path, { signal }));
+  const ctx = asDict(d.context);
+  const sub = asDict(d.submit);
+  const code = first(d.constructor_code, sub.constructor_code);
+  const mode = (["create", "view", "edit", "clone"].includes(asStr(d.mode)) ? asStr(d.mode) : "create") as StudioFormMode;
+  const ctor = normStudioConstructor({ ...d, code, title: first(d.constructor_title, code), ui_schema: { sections: asArr(d.sections) } });
+  const src = asStr(ctx.source);
+  return {
+    mode,
+    code,
+    constructorTitle: first(d.constructor_title, code),
+    title: asStr(d.title),
+    ctor,
+    initialPayload: asDict(d.initial_payload),
+    recordId: asStr(ctx.record_id),
+    source: src === "runtime" || src === "studio" ? src : "",
+    runtimeTargetId: first(sub.runtime_target_id, ctx.runtime_target_id),
+    runtimeTargetType: first(sub.runtime_target_type, ctx.runtime_target_type),
+    studioObjectId: asStr(ctx.studio_object_id),
+    saveUrl: studioPath(asStr(sub.save_object_url), "/studio/objects/"),
+  };
+}
+
+// A Studio object's copy under a new title; the original is not touched.
+export async function cloneStudioObject(url: string, title: string): Promise<StudioDetail> {
+  const path = studioPath(url, "/studio/objects/");
+  if (!path || !/\/clone$/.test(path)) throw new Error("studio_clone_url");
+  return normStudioDetail(await http(path, { method: "POST", body: JSON.stringify({ title }) }));
+}
+
+export async function archiveStudioRecord(url: string): Promise<StudioDetail> {
+  const path = studioPath(url, "/studio/objects/");
+  if (!path || !/\/archive$/.test(path)) throw new Error("studio_archive_url");
+  return normStudioDetail(await http(path, { method: "POST" }));
+}
+
+// The object a "/studio/objects/{id}" action stands for.
+export const studioObjectIdOf = (url: string): string => /^\/studio\/objects\/([^/?#]+)\/?$/.exec(studioPath(url, "/studio/objects/"))?.[1] ?? "";
 
 export async function archiveStudioObject(id: string): Promise<StudioDetail> {
   return normStudioDetail(await http(`/studio/objects/${enc(id)}/archive`, { method: "POST" }));

@@ -116,7 +116,8 @@ function checkField(f: StudioSchemaField, value: unknown, path: string, required
 export function schemaValidate(fields: StudioSchemaField[], payload: Dict, required: string[] = []): StudioFieldErrors {
   const out: StudioFieldErrors = {};
   const need = new Set(required);
-  for (const f of fields) checkField(f, payload[f.key], f.key, f.required || need.has(f.key), out);
+  // A field the backend fills from the route context is not the user's to fill.
+  for (const f of fields) if (!f.hidden) checkField(f, payload[f.key], f.key, f.required || need.has(f.key), out);
   return out;
 }
 

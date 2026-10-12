@@ -5,11 +5,12 @@ import { Link } from "@/i18n/navigation";
 import FilterBar from "@/components/filters/FilterBar";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField } from "@/lib/ai/registry";
-import { isApprovalFree, type StudioConstructor } from "@/lib/services/studio";
+import { isApprovalFree, type StudioConstructor, type StudioGroup } from "@/lib/services/studio";
 import { ctorMeta, ctorOrder } from "@/lib/studio/constructors";
 import { ConstructorIcon, StudioCodeChip, StudioEmpty, useStudioText } from "../bits";
 import { RiskBadge } from "../guide";
-import { IconAlert, IconBolt, IconChevronRight, IconCircleCheck, IconFolder, IconGrid, IconLayers, IconMapPin, IconRefresh, IconSearch, IconShieldCheck } from "@/components/icons";
+import { CtorState } from "../GroupFlow";
+import { IconBolt, IconChevronRight, IconFolder, IconGrid, IconLayers, IconMapPin, IconRefresh, IconSearch, IconShieldCheck } from "@/components/icons";
 
 // A constructor's group as the backend arranges the work (navigation), the
 // frontend's own grouping only for an older backend that sends none.
@@ -17,11 +18,13 @@ const groupOf = (c: StudioConstructor) => (c.navigation?.groupKey ? { key: c.nav
 
 export default function DashCatalog({
   items,
+  groups: backendGroups = [],
   perCode,
   canSync,
   onSync,
 }: {
   items: StudioConstructor[];
+  groups?: StudioGroup[];
   perCode: Record<string, number> | null;
   canSync: boolean;
   onSync: () => void;
@@ -44,21 +47,30 @@ export default function DashCatalog({
     );
   }
 
-  const sorted = [...items].sort((a, b) => groupOf(a).order - groupOf(b).order || (a.navigation?.step ?? 99) - (b.navigation?.step ?? 99) || ctorOrder(a.code) - ctorOrder(b.code) || a.code.localeCompare(b.code));
   const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const shown = sorted.filter((c) => {
-    if (grp && groupOf(c).key !== grp) return false;
+  const matches = (c: StudioConstructor) => {
     if (!terms.length) return true;
     const hay = [c.code, c.title, ctorName(c.code, c.title), c.experience.plainLanguage, ...c.experience.whereUsed.map((w) => `${w.title} ${w.placement}`)].join(" ").toLowerCase();
     return terms.every((w) => hay.includes(w));
-  });
-  const groupKeys: { key: string; title: string }[] = [];
-  for (const c of sorted) {
-    const g = groupOf(c);
-    if (!groupKeys.some((x) => x.key === g.key)) groupKeys.push({ key: g.key, title: g.title || groupLabel(g.key) });
+  };
+  // The backend's groups and their order as given (§3–4); the frontend's
+  // own grouping only for an older backend that sends none.
+  let all: { g: { key: string; title: string }; list: StudioConstructor[] }[];
+  if (backendGroups.length) {
+    all = backendGroups.map((bg) => ({ g: { key: bg.key, title: bg.title }, list: bg.codes.map((c) => items.find((x) => x.code === c)).filter((x): x is StudioConstructor => Boolean(x)) }));
+  } else {
+    const sorted = [...items].sort((a, b) => groupOf(a).order - groupOf(b).order || (a.navigation?.step ?? 99) - (b.navigation?.step ?? 99) || ctorOrder(a.code) - ctorOrder(b.code) || a.code.localeCompare(b.code));
+    all = [];
+    for (const c of sorted) {
+      const g = groupOf(c);
+      let row = all.find((x) => x.g.key === g.key);
+      if (!row) all.push((row = { g: { key: g.key, title: g.title || groupLabel(g.key) }, list: [] }));
+      row.list.push(c);
+    }
   }
-  const groups = groupKeys.map((g) => ({ g, list: shown.filter((c) => groupOf(c).key === g.key) })).filter((x) => x.list.length);
-  const grpOpts = [{ value: "", label: t("common.all") }, ...groupKeys.map((g) => ({ value: g.key, label: `${g.title} (${num(sorted.filter((c) => groupOf(c).key === g.key).length)})` }))];
+  const groups = all.filter((x) => !grp || x.g.key === grp).map((x) => ({ g: x.g, list: x.list.filter(matches) })).filter((x) => x.list.length);
+  const shown = groups.flatMap((x) => x.list);
+  const grpOpts = [{ value: "", label: t("common.all") }, ...all.map((x) => ({ value: x.g.key, label: `${x.g.title} (${num(x.list.length)})` }))];
 
   return (
     <section className="stu-cat" data-ai-id="admin.studio.dash.catalog" data-ai-type="section" data-ai-label={t("dash.catalog.title")}>
@@ -127,6 +139,7 @@ export default function DashCatalog({
                       data-ai-label={name}
                     >
                       <span className="stu-cat__row">
+                        {c.navigation?.step ? <span className="stu-cat__step" title={t("flow.stepOf", { n: c.navigation.step, of: c.navigation.steps })}>{c.navigation.step}</span> : null}
                         <ConstructorIcon code={c.code} />
                         <span className="stu-cat__name">
                           <b>{name}</b>
@@ -148,17 +161,7 @@ export default function DashCatalog({
                       ) : null}
                       <span className="stu-cat__foot">
                         <RiskBadge risk={c.experience.risk} compact />
-                        {c.completed ? (
-                          <span className="stu-cat__badge stu-cat__badge--done">
-                            <IconCircleCheck aria-hidden />
-                            {t("ux.completed")}
-                          </span>
-                        ) : c.missingRequired.length ? (
-                          <span className="stu-cat__badge stu-cat__badge--wait" title={c.missingRequired.map((x) => ctorName(x)).join(", ")}>
-                            <IconAlert aria-hidden />
-                            {t("ux.needsFirst", { list: c.missingRequired.join(", ") })}
-                          </span>
-                        ) : null}
+                        <CtorState ctor={c} />
                         {!free ? (
                           <span className="stu-cat__badge">
                             <IconShieldCheck aria-hidden />

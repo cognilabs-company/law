@@ -10,5 +10,7 @@ export default async function AdminStudioObjectPage({ params, searchParams }: Pr
   const sp = await searchParams;
   const raw = sp.new;
   const newCode = (Array.isArray(raw) ? raw[0] : raw) ?? "";
-  return <StudioObjectEditor id={decodeURIComponent(id)} newCode={newCode} />;
+  const rawCtx = sp.ctx;
+  const ctx = (Array.isArray(rawCtx) ? rawCtx[0] : rawCtx) ?? "";
+  return <StudioObjectEditor id={decodeURIComponent(id)} newCode={newCode} ctx={ctx} />;
 }

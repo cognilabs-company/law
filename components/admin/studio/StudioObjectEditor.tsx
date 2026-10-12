@@ -9,6 +9,7 @@ import {
   archiveStudioObject,
   createStudioObject,
   getStudioConstructorDetail,
+  getStudioFormContext,
   getStudioObject,
   isApprovalFree,
   listStudioComments,
@@ -24,6 +25,7 @@ import {
   validateStudioDraft,
   type StudioComment,
   type StudioConstructor,
+  type StudioFormContext,
   type StudioDetail,
   type StudioFieldErrors,
   type StudioVersion,
@@ -48,6 +50,7 @@ import { changedRoots, normErrorPaths, normPath, rootOf } from "@/lib/studioSche
 import ImpactPreview from "./object/ImpactPreview";
 import LivePreview, { useLivePreview } from "./object/LivePreview";
 import { ConstructorGuide } from "./guide";
+import { CtorSequence } from "./GroupFlow";
 import { STUDIO_ERR, type StudioPayload } from "./editors/types";
 import { useLeaveGuard } from "./object/useLeaveGuard";
 import {
@@ -90,7 +93,7 @@ import {
   IconShieldCheck,
 } from "@/components/icons";
 
-export default function StudioObjectEditor({ id, newCode }: { id: string; newCode: string }) {
+export default function StudioObjectEditor({ id, newCode, ctx = "" }: { id: string; newCode: string; ctx?: string }) {
   const { t, ctorName } = useStudioText();
   const creating = Boolean(newCode);
   const [codes, setCodes] = useState<Record<string, string>>({});
@@ -99,7 +102,7 @@ export default function StudioObjectEditor({ id, newCode }: { id: string; newCod
     setCodes((m) => (m[oid] === code ? m : { ...m, [oid]: code }));
   }, []);
   const code = creating ? newCode : codes[id] || peekSeed(id)?.code || "";
-  const key = creating ? `new:${newCode}` : `id:${id}`;
+  const key = creating ? `new:${newCode}:${ctx}` : `id:${id}`;
 
   return (
     <StudioShell
@@ -110,14 +113,14 @@ export default function StudioObjectEditor({ id, newCode }: { id: string; newCod
       need={creating ? "edit" : "any"}
       tabs={false}
     >
-      <Workspace key={key} id={creating ? "" : id} newCode={newCode} onCode={onCode} />
+      <Workspace key={key} id={creating ? "" : id} newCode={newCode} ctx={creating ? ctx : ""} onCode={onCode} />
     </StudioShell>
   );
 }
 
 type Dialog = null | "publish" | "archive" | "submit" | "submitFree" | "rollback";
 
-function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCode: (id: string, code: string) => void }) {
+function Workspace({ id, newCode, ctx, onCode }: { id: string; newCode: string; ctx: string; onCode: (id: string, code: string) => void }) {
   const st = useStudioText();
   const { t, ctorName, fieldErr, ago } = st;
   const errText = useStudioErrorText();
@@ -133,7 +136,11 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
 
   const [detail, setDetail] = useState<StudioDetail | null>(seed);
   const [loadErr, setLoadErr] = useState<unknown>(null);
-  const [draft, setDraft] = useState<Draft | null>(() => (seed ? draftOf(seed) : creating ? { title: "", payload: editorFor(newCode).emptyPayload(startCtor) } : null));
+  // A runtime record's view, edit or clone waits for the backend's form;
+  // a new object starts at once from the defaults.
+  const ctxMode = /[?&]mode=(view|edit|clone)\b/.exec(ctx)?.[1] ?? (ctx ? "create" : "");
+  const waitCtx = ctxMode !== "" && ctxMode !== "create";
+  const [draft, setDraft] = useState<Draft | null>(() => (seed ? draftOf(seed) : creating && !waitCtx ? { title: "", payload: editorFor(newCode).emptyPayload(startCtor) } : null));
   const [base, setBase] = useState(() => draftKey(seed ? draftOf(seed) : creating ? { title: "", payload: editorFor(newCode).emptyPayload(startCtor) } : null));
   const [startKey] = useState(base);
   const [remote, setRemote] = useState(false);
@@ -155,6 +162,10 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
   // error is shown only for those, so a fresh form is not covered in
   // "required" before anyone typed.
   const [touched, setTouched] = useState<string[]>([]);
+  // The backend's form for this object (spec 10-12 grouped workflows §15):
+  // which record it stands for and how it is submitted.
+  const [fc, setFc] = useState<StudioFormContext | null>(null);
+  const [fcErr, setFcErr] = useState<unknown>(null);
 
   const code = detail?.code || newCode;
   const ctor = reg.items.find((c) => c.code === code) ?? null;
@@ -166,7 +177,8 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
   const unknownCode = creating && reg.items.length > 0 && !ctor;
   const dirty = draft !== null && draftKey(draft) !== base;
   const locked = LOCKED.includes(status);
-  const readOnly = !acc.canEdit || locked;
+  const ctorBlocked = creating && Boolean(ctor && (ctor.availability === "blocked" || ctor.missingRequired.length));
+  const readOnly = !acc.canEdit || locked || fc?.mode === "view" || ctxMode === "view" || ctorBlocked;
   const curVer = currentVersionOf(detail);
   const hasFile = Boolean(detail?.hasFile || curVer?.hasFile);
   const uploadMode = code === "K06" && draft?.payload.mode === "upload";
@@ -174,7 +186,37 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
   // A new object starts from the constructor's default payload and its
   // fields' defaults (spec §8), once the full schema has arrived.
   useEffect(() => {
-    if (!creating || !newCode) return;
+    if (!creating || !newCode || !ctx) return;
+    let alive = true;
+    const c = new AbortController();
+    Promise.all([getStudioFormContext(ctx, c.signal), getStudioConstructorDetail(newCode)])
+      .then(([form, full]) => {
+        if (!alive) return;
+        // A record that already has a Studio draft is edited in that draft.
+        if (form.studioObjectId && form.mode !== "clone") {
+          router.replace(`/admin/studio/o/${encodeURIComponent(form.studioObjectId)}`);
+          return;
+        }
+        setFc(form);
+        const start = form.mode === "create" ? { ...(full?.typed.length ? editorFor(newCode).emptyPayload(full) : {}), ...form.initialPayload } : form.initialPayload;
+        const next = { title: form.title, payload: start };
+        setDraft((cur) => (!cur || draftKey(cur) === startKey ? next : cur));
+        // An edit or a clone is a change to save even before anyone types.
+        setBase((b) => (b === startKey && form.mode === "create" ? draftKey(next) : b));
+      })
+      .catch((e: unknown) => {
+        if (!alive) return;
+        logApiError("studio.form_context", e);
+        setFcErr(e);
+      });
+    return () => {
+      alive = false;
+      c.abort();
+    };
+  }, [creating, newCode, ctx, startKey, router]);
+
+  useEffect(() => {
+    if (!creating || !newCode || ctx) return;
     let alive = true;
     void getStudioConstructorDetail(newCode).then((full) => {
       if (!alive || !full?.typed.length) return;
@@ -186,7 +228,7 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
     return () => {
       alive = false;
     };
-  }, [creating, newCode, startKey]);
+  }, [creating, newCode, ctx, startKey]);
 
   // The full constructor (its UX metadata and schema), read once.
   const [full, setFull] = useState<StudioConstructor | null>(null);
@@ -202,7 +244,7 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
 
   // The live preview (spec §7) is also the live check: its errors land on
   // the fields the user has touched.
-  const runtimeTargetId = String(detail?.raw.runtime_target_id ?? "");
+  const runtimeTargetId = fc?.mode === "edit" ? fc.runtimeTargetId : String(detail?.raw.runtime_target_id ?? "");
   const previewBody = draft && code ? JSON.stringify(cleanStudioPayload(code, draft.payload)) : "";
   const live = useLivePreview(code, previewBody, runtimeTargetId, Boolean(draft && code && !unknownCode));
   const liveErrors = useMemo(() => {
@@ -366,9 +408,12 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
     setActErr(null);
     setPublishFail(null);
     try {
+      // Keys the form does not draw (a record's import source, say) pass
+      // through as the backend gave them.
       const payload = cleanStudioPayload(code, draft.payload);
       if (!id) {
-        const created = await createStudioObject({ constructorCode: code, title, payload });
+        const target = fc?.mode === "edit" ? { runtimeTargetId: fc.runtimeTargetId, runtimeTargetType: fc.runtimeTargetType } : {};
+        const created = await createStudioObject({ constructorCode: code, title, payload, ...target });
         if (!created.id) {
           toast(t("editor.toast.noId"), { tone: "err" });
           return "";
@@ -674,6 +719,7 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
     return <StudioErrorNote error={loadErr} onRetry={() => void refresh(true)} />;
   }
 
+  if (!draft && fcErr) return <StudioErrorNote error={fcErr} />;
   if (!draft) return <StudioLoading rows={4} label={t("editor.loading")} />;
 
   const reviewNote = status === "changes_requested" ? reviewNoteOf(detail, comments) : null;
@@ -814,6 +860,13 @@ function Workspace({ id, newCode, onCode }: { id: string; newCode: string; onCod
           <p>{t("editor.banner.reviewText")}</p>
         </Banner>
       ) : null}
+      {fc && fc.mode !== "create" ? (
+        <Banner tone={fc.mode === "view" ? "info" : "warn"} icon={fc.mode === "view" ? IconLock : fc.mode === "clone" ? IconLayers : IconEdit} title={t(`flow.mode.${fc.mode}.title`, { title: fc.title || ctorName(code) })}>
+          <p>{t(`flow.mode.${fc.mode}.text`)}</p>
+          {fc.source ? <small className="stu-src-line">{t("flow.from", { source: t(`flow.source.${fc.source}`) })}</small> : null}
+        </Banner>
+      ) : null}
+      {ctorBlocked && ctor ? <CtorSequence ctor={ctor} /> : null}
       {!acc.canEdit && status !== "archived" ? (
         <Banner tone="info" icon={IconLock} title={t("editor.banner.viewOnly")}>
           <p>{t("editor.banner.viewOnlyText")}</p>

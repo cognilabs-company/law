@@ -1,45 +1,55 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import { aiId } from "@/lib/ai/ids";
 import { toast } from "@/lib/toast";
 import { logApiError } from "@/lib/http";
 import { useAiField } from "@/lib/ai/registry";
 import FilterBar from "@/components/filters/FilterBar";
 import {
-  archiveStudioObject,
+  archiveStudioRecord,
+  cloneStudioObject,
   isApprovalFree,
-  listStudioObjects,
+  listStudioRecords,
   STUDIO_STATUSES,
+  studioObjectIdOf,
   useStudioAccess,
   useStudioRegistry,
   type StudioConstructor,
-  type StudioObject,
+  type StudioRecord,
+  type StudioRecordSource,
+  type StudioRecords,
+  type StudioStatus,
 } from "@/lib/services/studio";
 import { ctorMeta } from "@/lib/studio/constructors";
 import { RiskBadge, SurfaceList } from "./guide";
 import StudioShell from "./StudioShell";
-import { ConstructorIcon, StudioCodeChip, StudioEmpty, StudioErrorNote, StudioLoading, useStudioText } from "./bits";
-import ObjectRows from "./dash/ObjectRows";
+import { ConstructorIcon, StudioCodeChip, StudioEmpty, StudioErrorNote, StudioLoading, StudioStatusPill, useStudioText } from "./bits";
+import { CtorSequence } from "./GroupFlow";
 import { IconArchive, StudioConfirm, studioEventCode, useStudioRefetch } from "./dash/shared";
-import { IconBolt, IconCircleCheck, IconClipboardCheck, IconLayers, IconPlus, IconSearch, IconShieldCheck, IconUser } from "@/components/icons";
+import { IconBolt, IconCircleCheck, IconClipboardCheck, IconClock, IconCopy, IconEdit, IconEye, IconHistory, IconLayers, IconLock, IconPlus, IconSearch, IconShieldCheck, IconUser } from "@/components/icons";
 
-const PAGE = 20;
+const PAGE = 50;
+const RUNTIME_STATUSES = ["active", "inactive"];
 
 type ListState = {
   key: string;
   phase: "ready" | "error";
-  items: StudioObject[];
-  total: number;
-  more: boolean;
+  data: StudioRecords | null;
   error: unknown;
 };
 
-const NONE: ListState = { key: "", phase: "ready", items: [], total: 0, more: false, error: null };
+const NONE: ListState = { key: "", phase: "ready", data: null, error: null };
 
-function mergeById(a: StudioObject[], b: StudioObject[]): StudioObject[] {
-  const seen = new Set(a.map((o) => o.id));
-  return [...a, ...b.filter((o) => !seen.has(o.id))];
+// Where a record's action leads: a Studio object opens in its editor; a
+// form context (view, edit or clone of a runtime record) opens the editor on
+// the backend's prepared form. The URL itself is the backend's (§8).
+export function recordHref(code: string, url: string): string {
+  const oid = studioObjectIdOf(url);
+  if (oid) return `/admin/studio/o/${encodeURIComponent(oid)}`;
+  if (url.includes("/form-context")) return `/admin/studio/o/new?new=${encodeURIComponent(code)}&ctx=${encodeURIComponent(url)}`;
+  return "";
 }
 
 function CtorMeta({ code, ctor }: { code: string; ctor: StudioConstructor | null }) {
@@ -80,13 +90,16 @@ function CtorMeta({ code, ctor }: { code: string; ctor: StudioConstructor | null
 // any object of it is opened (spec 10-12 §4).
 function CtorAbout({ ctor }: { ctor: StudioConstructor | null }) {
   const { t } = useStudioText();
-  if (!ctor || (!ctor.experience.plainLanguage && !ctor.experience.whereUsed.length)) return null;
+  // What it does is the page's lead; here: when to use it, what comes out,
+  // and where that shows.
+  const x = ctor?.experience;
+  if (!ctor || !x || (!x.whenToUse && !x.result && !x.whereUsed.length)) return null;
   return (
     <section className="stu-about" aria-label={t("ux.whatTitle")}>
       <div>
-        <h3>{t("ux.whatTitle")}</h3>
-        <p>{ctor.experience.plainLanguage}</p>
-        {ctor.experience.whenToUse ? <small>{ctor.experience.whenToUse}</small> : null}
+        <h3>{t("ux.when")}</h3>
+        <p>{x.whenToUse || x.plainLanguage}</p>
+        {x.result ? <small>{x.result}</small> : null}
       </div>
       {ctor.experience.whereUsed.length ? (
         <div>
@@ -98,103 +111,104 @@ function CtorAbout({ ctor }: { ctor: StudioConstructor | null }) {
   );
 }
 
+function RecordStatus({ r }: { r: StudioRecord }) {
+  const { t } = useStudioText();
+  if (r.source === "studio" && (STUDIO_STATUSES as string[]).includes(r.status)) return <StudioStatusPill status={r.status as StudioStatus} raw={r.status} />;
+  const k = RUNTIME_STATUSES.includes(r.status) ? r.status : "";
+  return <span className={`stu-st stu-st--rt-${k || "other"}`}>{k ? t(`flow.rstatus.${k}`) : r.status || "—"}</span>;
+}
+
 function ListBody({ code, ctor, canEdit, canArchive }: { code: string; ctor: StudioConstructor | null; canEdit: boolean; canArchive: boolean }) {
-  const { t, num, ctorName } = useStudioText();
+  const { t, num, ctorName, when } = useStudioText();
+  const router = useRouter();
   const [status, setStatus] = useState("");
-  const [mine, setMine] = useState(false);
+  const [source, setSource] = useState<"" | StudioRecordSource>("");
   const [q, setQ] = useState("");
+  const [term, setTerm] = useState("");
+  const [offset, setOffset] = useState(0);
   const [list, setList] = useState<ListState>(NONE);
-  const [moreBusy, setMoreBusy] = useState(false);
   const [retryBusy, setRetryBusy] = useState(false);
-  const [target, setTarget] = useState<StudioObject | null>(null);
+  const [target, setTarget] = useState<StudioRecord | null>(null);
   const [archBusy, setArchBusy] = useState(false);
   const [archErr, setArchErr] = useState<unknown>(null);
+  const [cloneOf, setCloneOf] = useState<StudioRecord | null>(null);
+  const [cloneTitle, setCloneTitle] = useState("");
+  const [cloneBusy, setCloneBusy] = useState(false);
+  const [cloneErr, setCloneErr] = useState<unknown>(null);
   const [flashId, setFlashId] = useState("");
   const seq = useRef(0);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useAiField("admin.studio.list.search.input", { get: () => q, set: setQ });
 
-  const key = `${code}|${status}|${mine ? 1 : 0}`;
+  // The search goes to the backend a moment after the last key.
+  useEffect(() => {
+    const h = setTimeout(() => {
+      setTerm(q.trim());
+      setOffset(0);
+    }, 350);
+    return () => clearTimeout(h);
+  }, [q]);
 
-  const fetchRows = useCallback(
-    async (offset: number, limit: number, append: boolean): Promise<boolean> => {
-      const k = `${code}|${status}|${mine ? 1 : 0}`;
-      const my = ++seq.current;
-      try {
-        const res = await listStudioObjects({ constructorCode: code, status: status || undefined, assignedToMe: mine || undefined, limit, offset });
-        if (my !== seq.current) return true;
-        const page = res.items.filter((o) => !o.code || o.code === code);
-        setList((cur) => {
-          const items = append && cur.key === k ? mergeById(cur.items, page) : page;
-          const total = Math.max(res.total, items.length);
-          const more = items.length < total || (res.items.length >= limit && res.total <= offset + res.items.length);
-          return { key: k, phase: "ready", items, total, more: more && res.items.length > 0, error: null };
-        });
-        return true;
-      } catch (e) {
-        if (my !== seq.current) return true;
-        logApiError("studio.objects", e);
-        setList((cur) => (cur.key === k && cur.phase === "ready" && (append || cur.items.length) ? { ...cur, error: append ? null : e } : { ...NONE, key: k, phase: "error", error: e }));
-        return false;
-      }
-    },
-    [code, status, mine],
-  );
+  const key = `${code}|${status}|${source}|${term}|${offset}`;
+  const blocked = Boolean(ctor && (ctor.availability === "blocked" || ctor.missingRequired.length));
+  const mayWrite = canEdit && !blocked;
+
+  const fetchRows = useCallback(async (): Promise<boolean> => {
+    const k = `${code}|${status}|${source}|${term}|${offset}`;
+    const my = ++seq.current;
+    try {
+      const data = await listStudioRecords(code, { q: term, status, source, limit: PAGE, offset });
+      if (my !== seq.current) return true;
+      setList({ key: k, phase: "ready", data, error: null });
+      return true;
+    } catch (e) {
+      if (my !== seq.current) return true;
+      logApiError("studio.records", e);
+      setList((cur) => (cur.key === k && cur.data ? { ...cur, error: e } : { ...NONE, key: k, phase: "error", error: e }));
+      return false;
+    }
+  }, [code, status, source, term, offset]);
 
   useEffect(() => {
-    void fetchRows(0, PAGE, false);
+    void fetchRows();
   }, [fetchRows]);
 
   useEffect(() => () => clearTimeout(flashTimer.current), []);
 
-  const current = list.key === key;
-  const loaded = current ? list.items.length : 0;
   useStudioRefetch(
-    () => void fetchRows(0, Math.max(PAGE, loaded), false),
+    () => void fetchRows(),
     (e) => {
       const c = studioEventCode(e);
       return !c || c === code;
     },
   );
 
-  async function loadMore() {
-    setMoreBusy(true);
-    try {
-      const ok = await fetchRows(loaded, PAGE, true);
-      if (!ok) toast(t("list.moreFail"), { tone: "err" });
-    } finally {
-      setMoreBusy(false);
-    }
-  }
-
   async function retry() {
     setRetryBusy(true);
     try {
-      await fetchRows(0, Math.max(PAGE, loaded), false);
+      await fetchRows();
     } finally {
       setRetryBusy(false);
     }
   }
 
-  function askArchive(o: StudioObject) {
-    setArchErr(null);
-    setTarget(o);
+  function flash(id: string) {
+    setFlashId(id);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlashId(""), 2400);
   }
 
   async function doArchive() {
     if (!target) return;
-    const o = target;
+    const r = target;
     setArchBusy(true);
     setArchErr(null);
     try {
-      await archiveStudioObject(o.id);
+      await archiveStudioRecord(r.actions.archive);
       setTarget(null);
-      setList((cur) => ({ ...cur, items: cur.items.map((x) => (x.id === o.id ? { ...x, status: "archived", statusRaw: "archived" } : x)) }));
-      toast(t("list.archived", { title: o.title || t("list.untitled") }), { tone: "ok" });
-      setFlashId(o.id);
-      clearTimeout(flashTimer.current);
-      flashTimer.current = setTimeout(() => setFlashId(""), 2400);
-      void fetchRows(0, Math.max(PAGE, loaded), false);
+      toast(t("list.archived", { title: r.title || t("list.untitled") }), { tone: "ok" });
+      flash(r.id);
+      void fetchRows();
     } catch (e) {
       logApiError("studio.archive", e);
       setArchErr(e);
@@ -203,92 +217,247 @@ function ListBody({ code, ctor, canEdit, canArchive }: { code: string; ctor: Stu
     }
   }
 
-  const statusOpts = [{ value: "", label: t("common.all") }, ...STUDIO_STATUSES.map((s) => ({ value: s, label: t(`status.${s}`) }))];
-  const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const rows = current ? list.items : [];
-  const shown = terms.length
-    ? rows.filter((o) => {
-        const hay = [o.title, o.currentVersion, o.createdBy, o.assignedTo].join(" ").toLowerCase();
-        return terms.every((w) => hay.includes(w));
-      })
-    : rows;
-  const filtered = Boolean(status) || mine;
+  function askClone(r: StudioRecord) {
+    // A runtime record is copied through the backend's clone form.
+    const href = recordHref(code, r.actions.clone);
+    if (href && !studioObjectIdOf(r.actions.clone) && r.actions.clone.includes("/form-context")) {
+      router.push(href);
+      return;
+    }
+    setCloneErr(null);
+    setCloneTitle(t("flow.cloneName", { title: r.title || t("list.untitled") }).slice(0, 200));
+    setCloneOf(r);
+  }
+
+  async function doClone() {
+    if (!cloneOf || !cloneTitle.trim()) return;
+    setCloneBusy(true);
+    setCloneErr(null);
+    try {
+      const made = await cloneStudioObject(cloneOf.actions.clone, cloneTitle.trim());
+      setCloneOf(null);
+      toast(t("flow.cloned"), { tone: "ok" });
+      if (made.id) router.push(`/admin/studio/o/${encodeURIComponent(made.id)}`);
+      else void fetchRows();
+    } catch (e) {
+      logApiError("studio.clone", e);
+      setCloneErr(e);
+    } finally {
+      setCloneBusy(false);
+    }
+  }
+
+  const statusOpts = [
+    { value: "", label: t("common.all") },
+    ...RUNTIME_STATUSES.map((s) => ({ value: s, label: t(`flow.rstatus.${s}`) })),
+    ...STUDIO_STATUSES.map((s) => ({ value: s, label: t(`status.${s}`) })),
+  ];
+  const sourceOpts = [
+    { value: "", label: t("flow.source.all") },
+    { value: "runtime", label: t("flow.source.runtime") },
+    { value: "studio", label: t("flow.source.studio") },
+  ];
+  const current = list.key === key;
+  const data = current ? list.data : null;
+  const rows = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const filtered = Boolean(status || source || term);
   const resetAll = () => {
     setStatus("");
-    setMine(false);
+    setSource("");
     setQ("");
+    setTerm("");
+    setOffset(0);
   };
-
-  const newHref = `/admin/studio/o/new?new=${encodeURIComponent(code)}`;
-  const newBtn = canEdit ? (
-    <Link href={newHref} className="btn btn--pri btn--sm" data-ai-id="admin.studio.list.empty.create" data-ai-type="link" data-ai-label={t("list.new")}>
+  const createHref = `/admin/studio/o/new?new=${encodeURIComponent(code)}${data?.createUrl ? `&ctx=${encodeURIComponent(data.createUrl)}` : ""}`;
+  const newBtn = mayWrite ? (
+    <Link href={createHref} className="btn btn--pri btn--sm" data-ai-id="admin.studio.list.empty.create" data-ai-type="link" data-ai-label={t("flow.create")}>
       <IconPlus aria-hidden />
-      {t("list.new")}
+      {t("flow.create")}
     </Link>
   ) : null;
 
   let content;
-  if (!current) content = <StudioLoading rows={4} />;
-  else if (list.phase === "error") content = <StudioErrorNote error={list.error} onRetry={() => void retry()} busy={retryBusy} />;
-  else if (!rows.length && !filtered)
+  if (!current && !list.data) content = <StudioLoading rows={4} />;
+  else if (list.phase === "error" && current) content = <StudioErrorNote error={list.error} onRetry={() => void retry()} busy={retryBusy} />;
+  else if (current && !rows.length && !filtered && offset === 0)
     content = (
       <StudioEmpty icon={ctorMeta(code).icon} tone="brand" title={t("list.emptyTitle")} text={canEdit ? t("list.emptyText", { name: ctorName(code, ctor?.title) }) : t("list.emptyRead")}>
         {newBtn}
       </StudioEmpty>
     );
-  else if (!shown.length)
+  else if (current && !rows.length)
     content = (
-      <StudioEmpty icon={IconSearch} title={t("list.noResults")} text={terms.length && list.more ? t("list.searchLoaded", { n: num(rows.length) }) : t("list.noResultsText")}>
+      <StudioEmpty icon={IconSearch} title={t("list.noResults")} text={t("list.noResultsText")}>
         <button type="button" className="btn btn--line btn--sm" onClick={resetAll} data-ai-id="admin.studio.list.reset" data-ai-type="button" data-ai-label={t("list.reset")}>
           {t("list.reset")}
         </button>
       </StudioEmpty>
     );
-  else
+  else {
+    const shown = rows.length ? rows : list.data?.items ?? [];
     content = (
       <>
         {list.error ? <StudioErrorNote error={list.error} onRetry={() => void retry()} busy={retryBusy} compact /> : null}
-        <ObjectRows items={shown} canArchive={canArchive} archivingId={archBusy && target ? target.id : ""} flashId={flashId} onArchive={askArchive} />
+        <div className={`stu-ol stu-rl${!current ? " is-loading" : ""}`} data-ai-id="admin.studio.list.table" data-ai-type="table" data-ai-label={t("list.title")} aria-busy={!current}>
+          <div className="stu-ol__hd stu-rl__hd" aria-hidden>
+            <span>{t("list.col.title")}</span>
+            <span>{t("flow.col.source")}</span>
+            <span>{t("list.col.status")}</span>
+            <span>{t("list.col.updated")}</span>
+            <span />
+          </div>
+          <ul className="stu-ol__list">
+            {shown.map((r) => {
+              const title = r.title || t("list.untitled");
+              const view = recordHref(code, r.actions.view);
+              const edit = recordHref(code, r.actions.edit);
+              return (
+                <li
+                  key={`${r.source}-${r.id}`}
+                  className={`stu-orow stu-rl__row${r.status === "archived" ? " is-archived" : ""}${flashId === r.id ? " is-flash" : ""}`}
+                  data-ai-id={aiId("admin.studio.list.item", r.id)}
+                  data-ai-type="list_item"
+                  data-ai-entity-type={r.source === "studio" ? "studio_object" : "studio_runtime_record"}
+                  data-ai-entity-id={r.id}
+                  data-ai-label={title}
+                >
+                  <div className="stu-orow__main">
+                    {view ? (
+                      <Link href={view} className="stu-orow__t" tabIndex={-1}>
+                        {title}
+                      </Link>
+                    ) : (
+                      <span className="stu-orow__t">{title}</span>
+                    )}
+                    <span className="stu-orow__meta">
+                      {r.version ? (
+                        <span>
+                          <IconHistory aria-hidden />
+                          {t("list.version", { v: r.version })}
+                        </span>
+                      ) : null}
+                      {r.owner ? (
+                        <span>
+                          <IconUser aria-hidden />
+                          {r.owner}
+                        </span>
+                      ) : null}
+                      {r.source === "runtime" && r.studioObjectId ? <span className="stu-rl__linked">{t("flow.hasDraft")}</span> : null}
+                    </span>
+                  </div>
+                  <span>
+                    <span className={`stu-src stu-src--${r.source}`}>{t(`flow.source.${r.source}`)}</span>
+                  </span>
+                  <span className="stu-orow__st">
+                    <RecordStatus r={r} />
+                  </span>
+                  <span className="stu-orow__time">
+                    {r.updatedAt ? (
+                      <>
+                        <IconClock aria-hidden />
+                        {when(r.updatedAt)}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </span>
+                  <span className="stu-orow__acts">
+                    {view ? (
+                      <Link href={view} className="stu-orow__icon" aria-label={t("flow.viewAria", { title })} title={t("flow.view")} data-ai-id={aiId("admin.studio.list.item", r.id, "view")} data-ai-type="link" data-ai-label={t("flow.view")}>
+                        <IconEye aria-hidden />
+                      </Link>
+                    ) : null}
+                    {edit && mayWrite ? (
+                      <Link href={edit} className="btn btn--soft btn--sm" aria-label={t("flow.editAria", { title })} data-ai-id={aiId("admin.studio.list.item", r.id, "edit")} data-ai-type="link" data-ai-label={t("flow.edit")}>
+                        <IconEdit aria-hidden />
+                        {t("flow.edit")}
+                      </Link>
+                    ) : null}
+                    {r.actions.clone && mayWrite ? (
+                      <button type="button" className="stu-orow__icon" onClick={() => askClone(r)} aria-label={t("flow.cloneAria", { title })} title={t("flow.clone")} data-ai-id={aiId("admin.studio.list.item", r.id, "clone")} data-ai-type="button" data-ai-label={t("flow.clone")}>
+                        <IconCopy aria-hidden />
+                      </button>
+                    ) : null}
+                    {r.actions.archive && canArchive && r.status !== "archived" ? (
+                      <button
+                        type="button"
+                        className="stu-orow__icon"
+                        onClick={() => {
+                          setArchErr(null);
+                          setTarget(r);
+                        }}
+                        disabled={archBusy}
+                        aria-label={t("list.archiveAria", { title })}
+                        title={t("actions.archive")}
+                        data-ai-id={aiId("admin.studio.list.item", r.id, "archive")}
+                        data-ai-type="button"
+                        data-ai-label={t("actions.archive")}
+                      >
+                        {archBusy && target?.id === r.id ? <span className="stu-spin" aria-hidden /> : <IconArchive aria-hidden />}
+                      </button>
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
         <div className="stu-ol__foot">
           <span className="stu-ol__count">
-            {terms.length ? t("list.countSearch", { n: num(shown.length), all: num(rows.length) }) : t("list.count", { n: num(rows.length), total: num(Math.max(list.total, rows.length)) })}
+            {t("flow.range", { from: num(total ? offset + 1 : 0), to: num(offset + shown.length), total: num(total) })}
+            {data && (data.runtimeTotal || data.studioTotal) ? <small> · {t("flow.split", { runtime: num(data.runtimeTotal), studio: num(data.studioTotal) })}</small> : null}
           </span>
-          {list.more ? (
-            <button type="button" className="btn btn--line btn--sm" onClick={() => void loadMore()} disabled={moreBusy} data-ai-id="admin.studio.list.more" data-ai-type="button" data-ai-label={t("list.more")}>
-              {moreBusy ? <span className="stu-spin" aria-hidden /> : null}
-              {t("list.more")}
+          <span className="stu-rl__pager">
+            <button type="button" className="btn btn--line btn--sm" onClick={() => setOffset((o) => Math.max(0, o - PAGE))} disabled={offset === 0 || !current} data-ai-id="admin.studio.list.prev" data-ai-type="button" data-ai-label={t("flow.prev")}>
+              {t("flow.prev")}
             </button>
-          ) : null}
+            <button type="button" className="btn btn--line btn--sm" onClick={() => setOffset((o) => o + PAGE)} disabled={offset + PAGE >= total || !current} data-ai-id="admin.studio.list.next" data-ai-type="button" data-ai-label={t("flow.next")}>
+              {t("flow.next")}
+            </button>
+          </span>
         </div>
       </>
     );
+  }
 
   return (
     <>
       <CtorMeta code={code} ctor={ctor} />
+      {ctor ? <CtorSequence ctor={ctor} /> : null}
       <CtorAbout ctor={ctor} />
       <FilterBar
         className="uf--tray"
         fields={[
-          { key: "status", label: t("list.filter.status"), icon: IconCircleCheck, value: status, empty: "", onChange: setStatus, options: statusOpts, aiId: "admin.studio.list.filters.status" },
           {
-            key: "mine",
-            label: t("list.filter.mine"),
-            icon: IconUser,
-            active: mine,
-            clear: () => setMine(false),
-            aiId: "admin.studio.list.filters.mine",
-            aiType: "input",
-            node: (
-              <label className="stu-check">
-                <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} />
-                <span>{t("list.filter.mineText")}</span>
-              </label>
-            ),
+            key: "status",
+            label: t("list.filter.status"),
+            icon: IconCircleCheck,
+            value: status,
+            empty: "",
+            onChange: (v: string) => {
+              setStatus(v);
+              setOffset(0);
+            },
+            options: statusOpts,
+            aiId: "admin.studio.list.filters.status",
+          },
+          {
+            key: "source",
+            label: t("flow.col.source"),
+            icon: IconLayers,
+            value: source,
+            empty: "",
+            onChange: (v: string) => {
+              setSource(v as "" | StudioRecordSource);
+              setOffset(0);
+            },
+            options: sourceOpts,
+            aiId: "admin.studio.list.filters.source",
           },
         ]}
         search={{ value: q, onChange: setQ, placeholder: t("list.filter.searchPh"), label: t("common.search"), aiId: "admin.studio.list.search.input" }}
-        count={current && list.phase === "ready" ? shown.length : undefined}
+        count={data ? total : undefined}
         onReset={resetAll}
         aiId="admin.studio.list.filters"
         aiLabel={t("list.filter.title")}
@@ -306,6 +475,24 @@ function ListBody({ code, ctor, canEdit, canArchive }: { code: string; ctor: Stu
         onClose={() => setTarget(null)}
         aiId="admin.studio.list.archive-modal"
       />
+      <StudioConfirm
+        open={cloneOf !== null}
+        title={t("flow.cloneTitle")}
+        text={t("flow.cloneText")}
+        icon={IconCopy}
+        tone="brand"
+        confirmLabel={t("flow.clone")}
+        busy={cloneBusy}
+        error={cloneErr}
+        onConfirm={() => void doClone()}
+        onClose={() => setCloneOf(null)}
+        aiId="admin.studio.list.clone-modal"
+      >
+        <label className="stu-fld">
+          <span className="stu-fld__l">{t("flow.cloneLabel")}</span>
+          <input value={cloneTitle} onChange={(e) => setCloneTitle(e.target.value.slice(0, 200))} maxLength={200} autoFocus />
+        </label>
+      </StudioConfirm>
     </>
   );
 }
@@ -318,20 +505,30 @@ export default function ObjectList({ code }: { code: string }) {
   const realCode = ctor?.code ?? code;
   const missing = reg.avail === "on" && reg.items.length > 0 && !ctor;
   const name = ctorName(realCode, ctor?.title);
+  const blocked = Boolean(ctor && (ctor.availability === "blocked" || ctor.missingRequired.length));
+  // The create form as the backend prepares it (form-context?mode=create).
+  const createHref = `/admin/studio/o/new?new=${encodeURIComponent(realCode)}${ctor?.operations.formContextEndpoint ? `&ctx=${encodeURIComponent(`${ctor.operations.formContextEndpoint}?mode=create`)}` : ""}`;
 
   return (
     <StudioShell
       title={missing ? t("list.missingTitle") : name}
-      lead={missing ? "" : ctorDesc(realCode) || t("list.lead")}
+      lead={missing ? "" : ctor?.experience.plainLanguage || ctorDesc(realCode) || t("list.lead")}
       eyebrow={realCode}
       icon={<ConstructorIcon code={realCode} size="lg" />}
       back={{ href: "/admin/studio", label: t("actions.backHome") }}
       actions={
         acc.canEdit && !missing ? (
-          <Link href={`/admin/studio/o/new?new=${encodeURIComponent(realCode)}`} className="btn btn--pri btn--sm" data-ai-id="admin.studio.list.create" data-ai-type="link" data-ai-label={t("list.new")}>
-            <IconPlus aria-hidden />
-            {t("list.new")}
-          </Link>
+          blocked ? (
+            <span className="btn btn--line btn--sm is-disabled" aria-disabled="true" title={t("flow.blockedTitle")}>
+              <IconLock aria-hidden />
+              {t("flow.create")}
+            </span>
+          ) : (
+            <Link href={createHref} className="btn btn--pri btn--sm" data-ai-id="admin.studio.list.create" data-ai-type="link" data-ai-label={t("flow.create")}>
+              <IconPlus aria-hidden />
+              {t("flow.create")}
+            </Link>
+          )
         ) : null
       }
     >
