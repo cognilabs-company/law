@@ -356,9 +356,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                     writeNav({ ...navState, [g.group]: !expanded });
                   }}
                 >
-                  <span className="psb__glabel2">{t(`groups.${g.group}`)}</span>
+                  <span className="psb__glabel2" title={t(`groups.${g.group}`)}>{t(`groups.${g.group}`)}</span>
                   {holdsCurrent ? <i className="psb__gdot" aria-hidden="true" /> : null}
-                  <small>{items.length}</small>
+                  <span className="psb__gpeek" aria-hidden="true">
+                    {items.slice(0, 3).map(({ key, Icon }) => (
+                      <Icon key={key} />
+                    ))}
+                  </span>
                   <NavChevron className="psb__gchev" />
                 </button>
                 <div className="psb__gitems" id={id} inert={!expanded}>

@@ -16419,7 +16419,10 @@ html[data-theme="dark"] .aov-conv__arrow{--c:#38C6F4}
 .psb__glabel2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .psb__gdot{width:7px;height:7px;flex:none;border-radius:50%;background:var(--dk-acc, var(--b600));box-shadow:0 0 0 3px color-mix(in srgb,var(--b600) 18%,transparent);transition:opacity .2s ease}
 .psb__group.is-open .psb__gdot{opacity:0}
-.psb__gbtn small{flex:none;min-width:22px;padding:1px 6px;border-radius:999px;background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1px var(--line);font-size:.7rem;font-weight:700;text-align:center;color:var(--gray)}
+.psb__gpeek{display:inline-flex;flex:none;align-items:center;gap:4px;color:var(--gray2);transition:opacity .2s ease,transform .25s ease}
+.psb__gpeek svg{width:14px;height:14px;flex:none}
+.psb__gbtn:hover .psb__gpeek{color:var(--gray)}
+.psb__group.is-open .psb__gpeek{opacity:0;transform:translateX(6px);pointer-events:none}
 .psb__gchev{width:16px;height:16px;flex:none;color:var(--gray);transform:rotate(-90deg);transition:transform .32s cubic-bezier(.22,1,.36,1)}
 .psb__group.is-open .psb__gchev{transform:none;color:var(--ink)}
 
