@@ -13726,8 +13726,8 @@
     "backToPortal": "Back to portal",
     "logout": "Sign out",
     "roles": { "superadmin": "Superadmin", "admin": "Admin", "manager": "Manager", "call_center": "Call center", "call_center_lawyer": "Call center lawyer", "staff": "Internal staff" },
-    "groups": { "workspace": "Workspace", "people": "People", "operations": "Operations", "support": "Help", "self": "Me", "org": "Organization", "time": "Time", "work": "Work & HR", "pay": "Pay", "insight": "Insight & help" },
-    "nav": { "dashboard": "Today", "me": "Me", "tasks": "My tasks", "attendance": "Attendance", "approvals": "Approvals", "messages": "Messages", "employees": "Employees", "org": "Organization", "execution": "Execution", "time": "Time & attendance", "schedules": "Schedules", "kpi": "KPI", "payroll": "Payroll", "analytics": "Analytics", "liveOffice": "Live Office", "hr": "HR processes", "feedback": "Feedback" },
+    "groups": { "workspace": "Workspace", "people": "People", "operations": "Operations", "support": "Help", "self": "Me", "org": "Organization", "time": "Time", "work": "Work & HR", "pay": "Pay", "insight": "Insight & help", "talent": "People lifecycle" },
+    "nav": { "dashboard": "Today", "me": "Me", "tasks": "My tasks", "attendance": "Attendance", "approvals": "Approvals", "messages": "Messages", "employees": "Employees", "org": "Organization", "execution": "Execution", "time": "Time & attendance", "schedules": "Schedules", "kpi": "KPI", "payroll": "Payroll", "analytics": "Analytics", "liveOffice": "Live Office", "hr": "Other processes", "feedback": "Feedback", "leave": "Leave", "travel": "Business travel", "policies": "Policies", "learning": "Learning", "recruiting": "Recruiting", "onboarding": "Onboarding", "movements": "Moves", "offboarding": "Offboarding", "documents": "Documents", "skills": "Skills" },
     "pagination": { "label": "Pagination", "previous": "Previous", "next": "Next", "page": "{current} / {total}" },
     "live": {
       "kicker": "Internal staff",
@@ -13891,6 +13891,329 @@
       "none": "Nothing found",
       "move": "move",
       "go": "open"
+    },
+    "hrm": {
+      "loadError": "Couldn't load records",
+      "saveError": "Couldn't save",
+      "refresh": "Refresh",
+      "newRecord": "New record",
+      "search": "Search",
+      "allStatuses": "All statuses",
+      "status": "Status",
+      "record": "Record",
+      "employee": "Employee",
+      "unit": "Department",
+      "period": "Period",
+      "checklist": "Checklist",
+      "noMatch": "Nothing matches the filter",
+      "emptyText": "Create the first record — it starts as a draft and goes through approval.",
+      "soonTitle": "Works once the server side is ready",
+      "edit": "Edit",
+      "type": "Type",
+      "pickParent": "Choose",
+      "pickEmployee": "Choose an employee",
+      "pickUnit": "Choose a department",
+      "titleLabel": "Title",
+      "titleAuto": "Left empty, it is built from the type and the name",
+      "from": "From",
+      "to": "To",
+      "date": "Date",
+      "clear": "Clear",
+      "daysAuto": "Counted from the dates",
+      "badRange": "The end can't be before the start.",
+      "submitNow": "Send for approval right after creating",
+      "autoSubmit": "Sent for approval on creation",
+      "saving": "Saving…",
+      "save": "Save",
+      "create": "Create",
+      "cancel": "Cancel",
+      "belongsTo": "Belongs to",
+      "created": "Created",
+      "acks": "Acknowledged by",
+      "acked": "You have acknowledged this document.",
+      "ack": "I have read it",
+      "boardEmpty": "Empty",
+      "moveNotAllowed": "Can't move from \"{from}\" to \"{to}\".",
+      "stat": {
+        "total": "Total",
+        "pending": "Awaiting approval",
+        "approved": "Approved",
+        "draft": "Drafts"
+      },
+      "views": {
+        "label": "View",
+        "list": "List",
+        "board": "Board",
+        "calendar": "Calendar"
+      },
+      "calendar": {
+        "count": "{n} people"
+      },
+      "modules": {
+        "leave": {
+          "title": "Leave",
+          "lead": "Leave requests and the team calendar."
+        },
+        "travel": {
+          "title": "Business travel",
+          "lead": "Trip requests: destination, purpose, dates and budget."
+        },
+        "recruiting": {
+          "title": "Recruiting",
+          "lead": "Vacancies and candidates, stage by stage."
+        },
+        "onboarding": {
+          "title": "Onboarding",
+          "lead": "A new hire's plan and checklist."
+        },
+        "offboarding": {
+          "title": "Offboarding",
+          "lead": "Resignations and the handover checklist."
+        },
+        "movements": {
+          "title": "Moves",
+          "lead": "Transfer, promotion and demotion orders."
+        },
+        "policies": {
+          "title": "Policies",
+          "lead": "Internal rules and who has read them."
+        },
+        "learning": {
+          "title": "Learning",
+          "lead": "The course catalogue and assignments."
+        },
+        "documents": {
+          "title": "Employee documents",
+          "lead": "Personal documents, certificates and validity dates."
+        },
+        "skills": {
+          "title": "Skills",
+          "lead": "Employees' skills and levels."
+        }
+      },
+      "empty": {
+        "leave": "No leave requests",
+        "travel": "No trips",
+        "recruiting": "No records yet",
+        "onboarding": "No onboarding plans",
+        "offboarding": "No offboarding cases",
+        "movements": "No orders",
+        "policies": "No policies",
+        "learning": "No records yet",
+        "documents": "No documents",
+        "skills": "No skills recorded"
+      },
+      "tabs": {
+        "leave": {
+          "requests": "Requests"
+        },
+        "travel": {
+          "trips": "Trips"
+        },
+        "recruiting": {
+          "vacancies": "Vacancies",
+          "candidates": "Candidates"
+        },
+        "onboarding": {
+          "plans": "Plans"
+        },
+        "offboarding": {
+          "cases": "Cases"
+        },
+        "movements": {
+          "orders": "Orders"
+        },
+        "policies": {
+          "documents": "Documents"
+        },
+        "learning": {
+          "courses": "Courses",
+          "assignments": "Assignments"
+        },
+        "documents": {
+          "papers": "Documents"
+        },
+        "skills": {
+          "skills": "Skills"
+        }
+      },
+      "new": {
+        "leave": {
+          "requests": "Request leave"
+        },
+        "travel": {
+          "trips": "New trip"
+        },
+        "recruiting": {
+          "vacancies": "New vacancy",
+          "candidates": "Add candidate"
+        },
+        "onboarding": {
+          "plans": "Start onboarding"
+        },
+        "offboarding": {
+          "cases": "New case"
+        },
+        "movements": {
+          "orders": "New order"
+        },
+        "policies": {
+          "documents": "New policy"
+        },
+        "learning": {
+          "courses": "New course",
+          "assignments": "Assign a course"
+        },
+        "documents": {
+          "papers": "Add document"
+        },
+        "skills": {
+          "skills": "Add skill"
+        }
+      },
+      "titleFor": {
+        "recruiting": {
+          "vacancies": "Vacancy title",
+          "candidates": "Candidate name"
+        },
+        "policies": {
+          "documents": "Document title"
+        },
+        "learning": {
+          "courses": "Course title"
+        },
+        "documents": {
+          "papers": "Document name"
+        },
+        "skills": {
+          "skills": "Skill"
+        }
+      },
+      "fields": {
+        "days": "Days",
+        "replacement_employee_id": "Replacement",
+        "reason": "Reason",
+        "destination": "Destination",
+        "purpose": "Purpose",
+        "transport": "Transport",
+        "budget": "Budget",
+        "comment": "Comment",
+        "position": "Position",
+        "headcount": "Headcount",
+        "salary_from": "Salary from",
+        "salary_to": "Salary to",
+        "employment_type": "Employment type",
+        "requirements": "Requirements",
+        "stage": "Stage",
+        "phone": "Phone",
+        "email": "Email",
+        "source": "Source",
+        "expected_salary": "Expected salary",
+        "interview_date": "Interview date",
+        "mentor_employee_id": "Mentor",
+        "probation_until": "Probation ends",
+        "termination_reason": "Reason for leaving",
+        "last_day": "Last working day",
+        "handover_employee_id": "Handover to",
+        "order_number": "Order number",
+        "to_unit_id": "New department",
+        "new_position": "New position",
+        "new_salary": "New salary",
+        "basis": "Basis",
+        "category": "Category",
+        "version": "Version",
+        "body": "Text",
+        "duration_hours": "Duration (hours)",
+        "link": "Link",
+        "description": "Description",
+        "progress": "Progress, %",
+        "score": "Score",
+        "doc_number": "Document number",
+        "issued_by": "Issued by",
+        "level": "Level"
+      },
+      "options": {
+        "court": "Court",
+        "client_meeting": "Client meeting",
+        "training": "Training",
+        "audit": "Audit",
+        "other": "Other",
+        "car": "Car",
+        "train": "Train",
+        "plane": "Plane",
+        "full_time": "Full time",
+        "part_time": "Part time",
+        "contract": "Contract",
+        "intern": "Intern",
+        "new": "New",
+        "screening": "Screening",
+        "interview": "Interview",
+        "offer": "Offer",
+        "hired": "Hired",
+        "rejected": "Rejected",
+        "referral": "Referral",
+        "job_site": "Job site",
+        "social": "Social media",
+        "agency": "Agency",
+        "own_wish": "Own wish",
+        "agreement": "Mutual agreement",
+        "contract_end": "Contract end",
+        "discipline": "Disciplinary",
+        "internal_rule": "Internal rule",
+        "job_description": "Job description",
+        "sop": "SOP",
+        "safety": "Safety",
+        "regulation": "Regulation",
+        "legal": "Legal",
+        "product": "Product",
+        "soft_skills": "Soft skills",
+        "compliance": "Compliance",
+        "tools": "Tools",
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced",
+        "expert": "Expert"
+      },
+      "checklists": {
+        "contract": "Employment contract signed",
+        "accounts": "Accounts created",
+        "workplace": "Workplace and equipment ready",
+        "intro": "Introduced to the team",
+        "policies": "Read the internal rules",
+        "training": "Intro training done",
+        "firstTasks": "First tasks assigned",
+        "handover": "Work handed over",
+        "equipment": "Equipment returned",
+        "accesses": "Access revoked",
+        "documents": "Paperwork completed",
+        "settlement": "Final settlement paid",
+        "exitTalk": "Exit talk held"
+      },
+      "soon": {
+        "leaveBalance": "Leave balance and days left",
+        "leaveCertificate": "Attaching a certificate",
+        "leaveStaffing": "Minimum staffing check",
+        "travelExpenses": "Expense report and advance",
+        "travelOrder": "Trip order (PDF)",
+        "recruitingCv": "CV upload",
+        "recruitingOffer": "Offer document",
+        "recruitingConvert": "Convert candidate to employee",
+        "onboardingProbation": "Probation evaluation",
+        "onboardingProofs": "Proof of completion (file, signature)",
+        "offboardingClearance": "Clearance by department",
+        "offboardingExit": "Exit questionnaire and turnover analysis",
+        "movementsOrder": "Order PDF and signature",
+        "movementsApply": "Auto-apply to the assignment",
+        "policiesFile": "Attachments and versions",
+        "policiesQuiz": "Acknowledgement quiz",
+        "policiesCompliance": "Compliance report by department",
+        "learningPlayer": "Lesson player",
+        "learningQuiz": "Quizzes and grading",
+        "learningCertificate": "Certificates",
+        "documentsFile": "File upload",
+        "documentsVerify": "Document verification",
+        "skillsGap": "Gap against position requirements"
+      }
     }
   }
 }

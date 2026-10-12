@@ -13726,8 +13726,8 @@
     "backToPortal": "Вернуться в портал",
     "logout": "Выйти",
     "roles": { "superadmin": "Суперадмин", "admin": "Администратор", "manager": "Менеджер", "call_center": "Колл-центр", "call_center_lawyer": "Юрист колл-центра", "staff": "Внутренний сотрудник" },
-    "groups": { "workspace": "Рабочее место", "people": "Сотрудники", "operations": "Процессы", "support": "Помощь", "self": "Я", "org": "Организация", "time": "Время", "work": "Работа и HR", "pay": "Зарплата", "insight": "Аналитика и помощь" },
-    "nav": { "dashboard": "Сегодня", "me": "Я", "tasks": "Мои задачи", "attendance": "Посещаемость", "approvals": "Согласования", "messages": "Сообщения", "employees": "Сотрудники", "org": "Организация", "execution": "Исполнение", "time": "Время и посещаемость", "schedules": "Графики", "kpi": "KPI", "payroll": "Зарплата", "analytics": "Аналитика", "liveOffice": "Live Office", "hr": "HR-процессы", "feedback": "Обращения" },
+    "groups": { "workspace": "Рабочее место", "people": "Сотрудники", "operations": "Процессы", "support": "Помощь", "self": "Я", "org": "Организация", "time": "Время", "work": "Работа и HR", "pay": "Зарплата", "insight": "Аналитика и помощь", "talent": "Кадровый цикл" },
+    "nav": { "dashboard": "Сегодня", "me": "Я", "tasks": "Мои задачи", "attendance": "Посещаемость", "approvals": "Согласования", "messages": "Сообщения", "employees": "Сотрудники", "org": "Организация", "execution": "Исполнение", "time": "Время и посещаемость", "schedules": "Графики", "kpi": "KPI", "payroll": "Зарплата", "analytics": "Аналитика", "liveOffice": "Live Office", "hr": "Другие процессы", "feedback": "Обращения", "leave": "Отпуска", "travel": "Командировки", "policies": "Политики", "learning": "Обучение", "recruiting": "Найм", "onboarding": "Онбординг", "movements": "Переводы", "offboarding": "Увольнение", "documents": "Документы", "skills": "Навыки" },
     "pagination": { "label": "Пагинация", "previous": "Назад", "next": "Далее", "page": "{current} / {total}" },
     "live": {
       "kicker": "Внутренние сотрудники",
@@ -13891,6 +13891,329 @@
       "none": "Ничего не найдено",
       "move": "выбор",
       "go": "открыть"
+    },
+    "hrm": {
+      "loadError": "Не удалось загрузить записи",
+      "saveError": "Не удалось сохранить",
+      "refresh": "Обновить",
+      "newRecord": "Новая запись",
+      "search": "Поиск",
+      "allStatuses": "Все статусы",
+      "status": "Статус",
+      "record": "Запись",
+      "employee": "Сотрудник",
+      "unit": "Отдел",
+      "period": "Период",
+      "checklist": "Чек-лист",
+      "noMatch": "По фильтру ничего не найдено",
+      "emptyText": "Создайте первую запись — она начнётся с черновика и пройдёт согласование.",
+      "soonTitle": "Заработает, когда будет готова серверная часть",
+      "edit": "Изменить",
+      "type": "Тип",
+      "pickParent": "Выберите",
+      "pickEmployee": "Выберите сотрудника",
+      "pickUnit": "Выберите отдел",
+      "titleLabel": "Заголовок",
+      "titleAuto": "Если пусто — составится из типа и имени",
+      "from": "Начало",
+      "to": "Окончание",
+      "date": "Дата",
+      "clear": "Очистить",
+      "daysAuto": "Считается по датам",
+      "badRange": "Окончание не может быть раньше начала.",
+      "submitNow": "Сразу отправить на согласование",
+      "autoSubmit": "Отправлено на согласование при создании",
+      "saving": "Сохранение…",
+      "save": "Сохранить",
+      "create": "Создать",
+      "cancel": "Отмена",
+      "belongsTo": "Относится к",
+      "created": "Создано",
+      "acks": "Ознакомились",
+      "acked": "Вы ознакомились с этим документом.",
+      "ack": "Ознакомлен(а)",
+      "boardEmpty": "Пусто",
+      "moveNotAllowed": "Из статуса «{from}» нельзя перейти в «{to}».",
+      "stat": {
+        "total": "Всего",
+        "pending": "Ждут согласования",
+        "approved": "Согласовано",
+        "draft": "Черновики"
+      },
+      "views": {
+        "label": "Вид",
+        "list": "Список",
+        "board": "Доска",
+        "calendar": "Календарь"
+      },
+      "calendar": {
+        "count": "{n} чел."
+      },
+      "modules": {
+        "leave": {
+          "title": "Отпуска",
+          "lead": "Заявки на отпуск и календарь команды."
+        },
+        "travel": {
+          "title": "Командировки",
+          "lead": "Заявки на командировки: место, цель, сроки и бюджет."
+        },
+        "recruiting": {
+          "title": "Найм",
+          "lead": "Вакансии и кандидаты по этапам."
+        },
+        "onboarding": {
+          "title": "Онбординг",
+          "lead": "План адаптации нового сотрудника и чек-лист."
+        },
+        "offboarding": {
+          "title": "Увольнение",
+          "lead": "Заявления об уходе и чек-лист передачи дел."
+        },
+        "movements": {
+          "title": "Переводы",
+          "lead": "Приказы о переводе, повышении и понижении."
+        },
+        "policies": {
+          "title": "Политики",
+          "lead": "Внутренние правила и отметка об ознакомлении."
+        },
+        "learning": {
+          "title": "Обучение",
+          "lead": "Каталог курсов и назначения сотрудникам."
+        },
+        "documents": {
+          "title": "Документы сотрудников",
+          "lead": "Личные документы, сертификаты и сроки действия."
+        },
+        "skills": {
+          "title": "Навыки",
+          "lead": "Навыки сотрудников и их уровни."
+        }
+      },
+      "empty": {
+        "leave": "Заявок на отпуск нет",
+        "travel": "Командировок нет",
+        "recruiting": "Записей пока нет",
+        "onboarding": "Планов онбординга нет",
+        "offboarding": "Заявлений об уходе нет",
+        "movements": "Приказов нет",
+        "policies": "Политик нет",
+        "learning": "Записей пока нет",
+        "documents": "Документов нет",
+        "skills": "Навыки не внесены"
+      },
+      "tabs": {
+        "leave": {
+          "requests": "Заявки"
+        },
+        "travel": {
+          "trips": "Командировки"
+        },
+        "recruiting": {
+          "vacancies": "Вакансии",
+          "candidates": "Кандидаты"
+        },
+        "onboarding": {
+          "plans": "Планы"
+        },
+        "offboarding": {
+          "cases": "Заявления"
+        },
+        "movements": {
+          "orders": "Приказы"
+        },
+        "policies": {
+          "documents": "Документы"
+        },
+        "learning": {
+          "courses": "Курсы",
+          "assignments": "Назначения"
+        },
+        "documents": {
+          "papers": "Документы"
+        },
+        "skills": {
+          "skills": "Навыки"
+        }
+      },
+      "new": {
+        "leave": {
+          "requests": "Заявка на отпуск"
+        },
+        "travel": {
+          "trips": "Заявка на командировку"
+        },
+        "recruiting": {
+          "vacancies": "Новая вакансия",
+          "candidates": "Добавить кандидата"
+        },
+        "onboarding": {
+          "plans": "Начать онбординг"
+        },
+        "offboarding": {
+          "cases": "Заявление об уходе"
+        },
+        "movements": {
+          "orders": "Новый приказ"
+        },
+        "policies": {
+          "documents": "Новая политика"
+        },
+        "learning": {
+          "courses": "Новый курс",
+          "assignments": "Назначить курс"
+        },
+        "documents": {
+          "papers": "Добавить документ"
+        },
+        "skills": {
+          "skills": "Добавить навык"
+        }
+      },
+      "titleFor": {
+        "recruiting": {
+          "vacancies": "Название вакансии",
+          "candidates": "ФИО кандидата"
+        },
+        "policies": {
+          "documents": "Название документа"
+        },
+        "learning": {
+          "courses": "Название курса"
+        },
+        "documents": {
+          "papers": "Название документа"
+        },
+        "skills": {
+          "skills": "Навык"
+        }
+      },
+      "fields": {
+        "days": "Дни",
+        "replacement_employee_id": "Замещающий",
+        "reason": "Причина",
+        "destination": "Место назначения",
+        "purpose": "Цель",
+        "transport": "Транспорт",
+        "budget": "Бюджет",
+        "comment": "Комментарий",
+        "position": "Должность",
+        "headcount": "Количество мест",
+        "salary_from": "Зарплата от",
+        "salary_to": "Зарплата до",
+        "employment_type": "Тип занятости",
+        "requirements": "Требования",
+        "stage": "Этап",
+        "phone": "Телефон",
+        "email": "Email",
+        "source": "Источник",
+        "expected_salary": "Ожидаемая зарплата",
+        "interview_date": "Дата собеседования",
+        "mentor_employee_id": "Наставник",
+        "probation_until": "Конец испытательного срока",
+        "termination_reason": "Причина ухода",
+        "last_day": "Последний рабочий день",
+        "handover_employee_id": "Кому передаются дела",
+        "order_number": "Номер приказа",
+        "to_unit_id": "Новый отдел",
+        "new_position": "Новая должность",
+        "new_salary": "Новая зарплата",
+        "basis": "Основание",
+        "category": "Категория",
+        "version": "Версия",
+        "body": "Текст",
+        "duration_hours": "Длительность (ч)",
+        "link": "Ссылка",
+        "description": "Описание",
+        "progress": "Прогресс, %",
+        "score": "Оценка",
+        "doc_number": "Номер документа",
+        "issued_by": "Кем выдан",
+        "level": "Уровень"
+      },
+      "options": {
+        "court": "Суд",
+        "client_meeting": "Встреча с клиентом",
+        "training": "Обучение",
+        "audit": "Аудит",
+        "other": "Другое",
+        "car": "Автомобиль",
+        "train": "Поезд",
+        "plane": "Самолёт",
+        "full_time": "Полная занятость",
+        "part_time": "Частичная занятость",
+        "contract": "По договору",
+        "intern": "Стажёр",
+        "new": "Новый",
+        "screening": "Отбор",
+        "interview": "Собеседование",
+        "offer": "Оффер",
+        "hired": "Принят",
+        "rejected": "Отказ",
+        "referral": "Рекомендация",
+        "job_site": "Сайт вакансий",
+        "social": "Соцсети",
+        "agency": "Агентство",
+        "own_wish": "По собственному желанию",
+        "agreement": "По соглашению сторон",
+        "contract_end": "Окончание договора",
+        "discipline": "Дисциплинарное",
+        "internal_rule": "Внутреннее правило",
+        "job_description": "Должностная инструкция",
+        "sop": "Регламент (SOP)",
+        "safety": "Безопасность",
+        "regulation": "Положение",
+        "legal": "Юридические",
+        "product": "Продукт",
+        "soft_skills": "Soft skills",
+        "compliance": "Комплаенс",
+        "tools": "Инструменты",
+        "beginner": "Начальный",
+        "intermediate": "Средний",
+        "advanced": "Продвинутый",
+        "expert": "Эксперт"
+      },
+      "checklists": {
+        "contract": "Подписан трудовой договор",
+        "accounts": "Созданы учётные записи",
+        "workplace": "Рабочее место и оборудование готовы",
+        "intro": "Знакомство с командой",
+        "policies": "Ознакомлен с правилами",
+        "training": "Пройдено вводное обучение",
+        "firstTasks": "Выданы первые задачи",
+        "handover": "Дела переданы",
+        "equipment": "Оборудование возвращено",
+        "accesses": "Доступы закрыты",
+        "documents": "Документы оформлены",
+        "settlement": "Произведён окончательный расчёт",
+        "exitTalk": "Проведена выходная беседа"
+      },
+      "soon": {
+        "leaveBalance": "Баланс отпуска и остаток дней",
+        "leaveCertificate": "Прикрепление справки",
+        "leaveStaffing": "Проверка минимального состава",
+        "travelExpenses": "Отчёт о расходах и аванс",
+        "travelOrder": "Приказ о командировке (PDF)",
+        "recruitingCv": "Загрузка резюме",
+        "recruitingOffer": "Документ оффера",
+        "recruitingConvert": "Перевод кандидата в сотрудники",
+        "onboardingProbation": "Оценка испытательного срока",
+        "onboardingProofs": "Подтверждения (файл, подпись)",
+        "offboardingClearance": "Обходной лист по отделам",
+        "offboardingExit": "Анкета при уходе и анализ текучести",
+        "movementsOrder": "PDF приказа и подпись",
+        "movementsApply": "Автоприменение к назначению",
+        "policiesFile": "Вложения и версии",
+        "policiesQuiz": "Тест на ознакомление",
+        "policiesCompliance": "Отчёт об ознакомлении по отделам",
+        "learningPlayer": "Плеер уроков",
+        "learningQuiz": "Тесты и оценивание",
+        "learningCertificate": "Сертификаты",
+        "documentsFile": "Загрузка файла",
+        "documentsVerify": "Проверка документа",
+        "skillsGap": "Сравнение с требованиями должности"
+      }
     }
   }
 }

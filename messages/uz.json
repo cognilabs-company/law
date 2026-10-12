@@ -13732,8 +13732,8 @@
     "backToPortal": "Portalga qaytish",
     "logout": "Chiqish",
     "roles": { "superadmin": "Superadmin", "admin": "Admin", "manager": "Menejer", "call_center": "Call-markaz", "call_center_lawyer": "Call-markaz yuristi", "staff": "Ichki xodim" },
-    "groups": { "workspace": "Ish maydoni", "people": "Xodimlar", "operations": "Jarayonlar", "support": "Yordam", "self": "Men", "org": "Tashkilot", "time": "Vaqt", "work": "Ish va HR", "pay": "Ish haqi", "insight": "Tahlil va yordam" },
-    "nav": { "dashboard": "Bugun", "me": "Men", "tasks": "Vazifalarim", "attendance": "Davomat", "approvals": "Tasdiqlashlar", "messages": "Xabarlar", "employees": "Xodimlar", "org": "Tashkilot", "execution": "Ijro", "time": "Vaqt va davomat", "schedules": "Ish grafigi", "kpi": "KPI", "payroll": "Ish haqi", "analytics": "Tahlil", "liveOffice": "Live Office", "hr": "HR jarayonlari", "feedback": "Murojaatlar" },
+    "groups": { "workspace": "Ish maydoni", "people": "Xodimlar", "operations": "Jarayonlar", "support": "Yordam", "self": "Men", "org": "Tashkilot", "time": "Vaqt", "work": "Ish va HR", "pay": "Ish haqi", "insight": "Tahlil va yordam", "talent": "Xodimlar hayot sikli" },
+    "nav": { "dashboard": "Bugun", "me": "Men", "tasks": "Vazifalarim", "attendance": "Davomat", "approvals": "Tasdiqlashlar", "messages": "Xabarlar", "employees": "Xodimlar", "org": "Tashkilot", "execution": "Ijro", "time": "Vaqt va davomat", "schedules": "Ish grafigi", "kpi": "KPI", "payroll": "Ish haqi", "analytics": "Tahlil", "liveOffice": "Live Office", "hr": "Boshqa jarayonlar", "feedback": "Murojaatlar", "leave": "Ta'til", "travel": "Xizmat safari", "policies": "Siyosatlar", "learning": "O'qitish", "recruiting": "Ishga qabul", "onboarding": "Onboarding", "movements": "Ko'chirishlar", "offboarding": "Ishdan bo'shash", "documents": "Hujjatlar", "skills": "Ko'nikmalar" },
     "pagination": { "label": "Sahifalar", "previous": "Oldingi", "next": "Keyingi", "page": "{current} / {total}" },
     "live": {
       "kicker": "Ichki xodimlar",
@@ -13897,6 +13897,329 @@
       "none": "Hech narsa topilmadi",
       "move": "tanlash",
       "go": "ochish"
+    },
+    "hrm": {
+      "loadError": "Yozuvlarni yuklab bo'lmadi",
+      "saveError": "Saqlab bo'lmadi",
+      "refresh": "Yangilash",
+      "newRecord": "Yangi yozuv",
+      "search": "Qidirish",
+      "allStatuses": "Barcha holatlar",
+      "status": "Holat",
+      "record": "Yozuv",
+      "employee": "Xodim",
+      "unit": "Bo'lim",
+      "period": "Davr",
+      "checklist": "Checklist",
+      "noMatch": "Filtr bo'yicha hech narsa topilmadi",
+      "emptyText": "Birinchi yozuvni yarating — u qoralamadan boshlanadi va tasdiqlash oqimidan o'tadi.",
+      "soonTitle": "Server tomoni tayyor bo'lgach ishlaydi",
+      "edit": "Tahrirlash",
+      "type": "Turi",
+      "pickParent": "Tanlang",
+      "pickEmployee": "Xodimni tanlang",
+      "pickUnit": "Bo'limni tanlang",
+      "titleLabel": "Sarlavha",
+      "titleAuto": "Bo'sh qolsa — tur va xodim nomidan tuziladi",
+      "from": "Boshlanish",
+      "to": "Tugash",
+      "date": "Sana",
+      "clear": "Tozalash",
+      "daysAuto": "Sanalardan hisoblanadi",
+      "badRange": "Tugash sanasi boshlanishdan oldin bo'lmasligi kerak.",
+      "submitNow": "Yaratilgach darhol tasdiqlashga yuborish",
+      "autoSubmit": "Yaratilganda tasdiqlashga yuborildi",
+      "saving": "Saqlanmoqda…",
+      "save": "Saqlash",
+      "create": "Yaratish",
+      "cancel": "Bekor qilish",
+      "belongsTo": "Tegishli",
+      "created": "Yaratilgan",
+      "acks": "Tanishganlar",
+      "acked": "Siz bu hujjat bilan tanishgansiz.",
+      "ack": "Tanishdim",
+      "boardEmpty": "Bo'sh",
+      "moveNotAllowed": "\"{from}\" holatidan \"{to}\" holatiga o'tkazib bo'lmaydi.",
+      "stat": {
+        "total": "Jami",
+        "pending": "Tasdiq kutmoqda",
+        "approved": "Tasdiqlangan",
+        "draft": "Qoralamalar"
+      },
+      "views": {
+        "label": "Ko'rinish",
+        "list": "Ro'yxat",
+        "board": "Doska",
+        "calendar": "Kalendar"
+      },
+      "calendar": {
+        "count": "{n} kishi"
+      },
+      "modules": {
+        "leave": {
+          "title": "Ta'til",
+          "lead": "Ta'til so'rovlari va jamoa kalendari."
+        },
+        "travel": {
+          "title": "Xizmat safari",
+          "lead": "Safar so'rovlari: manzil, maqsad, muddat va byudjet."
+        },
+        "recruiting": {
+          "title": "Ishga qabul",
+          "lead": "Vakansiyalar va nomzodlar bosqichma-bosqich."
+        },
+        "onboarding": {
+          "title": "Onboarding",
+          "lead": "Yangi xodimni ishga kiritish rejasi va checklist."
+        },
+        "offboarding": {
+          "title": "Ishdan bo'shash",
+          "lead": "Bo'shash arizalari va topshirish checklisti."
+        },
+        "movements": {
+          "title": "Ko'chirishlar",
+          "lead": "Boshqa bo'limga o'tkazish, lavozim ko'tarish va pasaytirish buyruqlari."
+        },
+        "policies": {
+          "title": "Siyosatlar",
+          "lead": "Ichki qoidalar va ular bilan tanishish belgisi."
+        },
+        "learning": {
+          "title": "O'qitish",
+          "lead": "Kurslar katalogi va xodimlarga biriktirish."
+        },
+        "documents": {
+          "title": "Xodim hujjatlari",
+          "lead": "Shaxsiy hujjatlar, sertifikatlar va amal qilish muddatlari."
+        },
+        "skills": {
+          "title": "Ko'nikmalar",
+          "lead": "Xodimlarning ko'nikmalari va darajalari."
+        }
+      },
+      "empty": {
+        "leave": "Ta'til so'rovlari yo'q",
+        "travel": "Safar so'rovlari yo'q",
+        "recruiting": "Hali yozuv yo'q",
+        "onboarding": "Onboarding rejalari yo'q",
+        "offboarding": "Bo'shash arizalari yo'q",
+        "movements": "Buyruqlar yo'q",
+        "policies": "Siyosatlar yo'q",
+        "learning": "Hali yozuv yo'q",
+        "documents": "Hujjatlar yo'q",
+        "skills": "Ko'nikmalar kiritilmagan"
+      },
+      "tabs": {
+        "leave": {
+          "requests": "So'rovlar"
+        },
+        "travel": {
+          "trips": "Safarlar"
+        },
+        "recruiting": {
+          "vacancies": "Vakansiyalar",
+          "candidates": "Nomzodlar"
+        },
+        "onboarding": {
+          "plans": "Rejalar"
+        },
+        "offboarding": {
+          "cases": "Arizalar"
+        },
+        "movements": {
+          "orders": "Buyruqlar"
+        },
+        "policies": {
+          "documents": "Hujjatlar"
+        },
+        "learning": {
+          "courses": "Kurslar",
+          "assignments": "Biriktirishlar"
+        },
+        "documents": {
+          "papers": "Hujjatlar"
+        },
+        "skills": {
+          "skills": "Ko'nikmalar"
+        }
+      },
+      "new": {
+        "leave": {
+          "requests": "Ta'til so'rash"
+        },
+        "travel": {
+          "trips": "Safar so'rovi"
+        },
+        "recruiting": {
+          "vacancies": "Yangi vakansiya",
+          "candidates": "Nomzod qo'shish"
+        },
+        "onboarding": {
+          "plans": "Onboarding boshlash"
+        },
+        "offboarding": {
+          "cases": "Bo'shash arizasi"
+        },
+        "movements": {
+          "orders": "Yangi buyruq"
+        },
+        "policies": {
+          "documents": "Yangi siyosat"
+        },
+        "learning": {
+          "courses": "Yangi kurs",
+          "assignments": "Kursga biriktirish"
+        },
+        "documents": {
+          "papers": "Hujjat qo'shish"
+        },
+        "skills": {
+          "skills": "Ko'nikma qo'shish"
+        }
+      },
+      "titleFor": {
+        "recruiting": {
+          "vacancies": "Vakansiya nomi",
+          "candidates": "Nomzod F.I.O"
+        },
+        "policies": {
+          "documents": "Hujjat nomi"
+        },
+        "learning": {
+          "courses": "Kurs nomi"
+        },
+        "documents": {
+          "papers": "Hujjat nomi"
+        },
+        "skills": {
+          "skills": "Ko'nikma"
+        }
+      },
+      "fields": {
+        "days": "Kunlar",
+        "replacement_employee_id": "O'rnini bosuvchi",
+        "reason": "Sabab",
+        "destination": "Manzil",
+        "purpose": "Maqsad",
+        "transport": "Transport",
+        "budget": "Byudjet",
+        "comment": "Izoh",
+        "position": "Lavozim",
+        "headcount": "O'rinlar soni",
+        "salary_from": "Maosh (dan)",
+        "salary_to": "Maosh (gacha)",
+        "employment_type": "Bandlik turi",
+        "requirements": "Talablar",
+        "stage": "Bosqich",
+        "phone": "Telefon",
+        "email": "Email",
+        "source": "Manba",
+        "expected_salary": "Kutilgan maosh",
+        "interview_date": "Suhbat sanasi",
+        "mentor_employee_id": "Murabbiy",
+        "probation_until": "Sinov muddati tugashi",
+        "termination_reason": "Bo'shash sababi",
+        "last_day": "Oxirgi ish kuni",
+        "handover_employee_id": "Ishni qabul qiluvchi",
+        "order_number": "Buyruq raqami",
+        "to_unit_id": "Yangi bo'lim",
+        "new_position": "Yangi lavozim",
+        "new_salary": "Yangi maosh",
+        "basis": "Asos",
+        "category": "Toifa",
+        "version": "Versiya",
+        "body": "Matn",
+        "duration_hours": "Davomiyligi (soat)",
+        "link": "Havola",
+        "description": "Tavsif",
+        "progress": "Bajarilishi, %",
+        "score": "Baho",
+        "doc_number": "Hujjat raqami",
+        "issued_by": "Kim bergan",
+        "level": "Daraja"
+      },
+      "options": {
+        "court": "Sud",
+        "client_meeting": "Mijoz bilan uchrashuv",
+        "training": "O'qitish",
+        "audit": "Audit",
+        "other": "Boshqa",
+        "car": "Avtomobil",
+        "train": "Poyezd",
+        "plane": "Samolyot",
+        "full_time": "To'liq stavka",
+        "part_time": "Yarim stavka",
+        "contract": "Shartnoma asosida",
+        "intern": "Stajyor",
+        "new": "Yangi",
+        "screening": "Saralash",
+        "interview": "Suhbat",
+        "offer": "Taklif",
+        "hired": "Qabul qilindi",
+        "rejected": "Rad etildi",
+        "referral": "Tavsiya",
+        "job_site": "Ish sayti",
+        "social": "Ijtimoiy tarmoq",
+        "agency": "Agentlik",
+        "own_wish": "O'z xohishi",
+        "agreement": "Tomonlar kelishuvi",
+        "contract_end": "Shartnoma muddati tugashi",
+        "discipline": "Intizomiy",
+        "internal_rule": "Ichki qoida",
+        "job_description": "Lavozim yo'riqnomasi",
+        "sop": "Ish tartibi (SOP)",
+        "safety": "Xavfsizlik",
+        "regulation": "Nizom",
+        "legal": "Huquqiy",
+        "product": "Mahsulot",
+        "soft_skills": "Muloqot ko'nikmalari",
+        "compliance": "Komplayens",
+        "tools": "Vositalar",
+        "beginner": "Boshlang'ich",
+        "intermediate": "O'rta",
+        "advanced": "Yuqori",
+        "expert": "Ekspert"
+      },
+      "checklists": {
+        "contract": "Mehnat shartnomasi imzolandi",
+        "accounts": "Tizim akkauntlari ochildi",
+        "workplace": "Ish joyi va jihozlar tayyor",
+        "intro": "Jamoa bilan tanishtirildi",
+        "policies": "Ichki qoidalar bilan tanishdi",
+        "training": "Kirish o'qitishidan o'tdi",
+        "firstTasks": "Birinchi vazifalar berildi",
+        "handover": "Ishlar topshirildi",
+        "equipment": "Jihozlar qaytarildi",
+        "accesses": "Ruxsatlar yopildi",
+        "documents": "Hujjatlar rasmiylashtirildi",
+        "settlement": "Yakuniy hisob-kitob qilindi",
+        "exitTalk": "Chiqish suhbati o'tkazildi"
+      },
+      "soon": {
+        "leaveBalance": "Ta'til balansi va qolgan kunlar",
+        "leaveCertificate": "Ma'lumotnoma biriktirish",
+        "leaveStaffing": "Minimal xodimlar soni tekshiruvi",
+        "travelExpenses": "Xarajatlar hisoboti va avans",
+        "travelOrder": "Safar buyrug'i (PDF)",
+        "recruitingCv": "Rezyume yuklash",
+        "recruitingOffer": "Offer hujjati",
+        "recruitingConvert": "Nomzodni xodimga aylantirish",
+        "onboardingProbation": "Sinov muddati bahosi",
+        "onboardingProofs": "Bajarilganlik isboti (fayl, imzo)",
+        "offboardingClearance": "Bo'limlar bo'yicha obxodnoy varaqa",
+        "offboardingExit": "Chiqish so'rovnomasi va aylanma tahlili",
+        "movementsOrder": "Buyruq PDF va imzo",
+        "movementsApply": "Tayinlovga avtomatik qo'llash",
+        "policiesFile": "Fayl biriktirish va versiyalar",
+        "policiesQuiz": "Tanishuv testi",
+        "policiesCompliance": "Bo'limlar bo'yicha tanishuv hisoboti",
+        "learningPlayer": "Darslar pleyeri",
+        "learningQuiz": "Testlar va baholash",
+        "learningCertificate": "Sertifikatlar",
+        "documentsFile": "Fayl yuklash",
+        "documentsVerify": "Hujjatni tasdiqlash",
+        "skillsGap": "Lavozim talablari bilan taqqoslash"
+      }
     }
   }
 }

@@ -15,6 +15,16 @@ import {
   IconShieldCheck,
   IconUser,
   IconUsers,
+  IconSun,
+  IconMapPin,
+  IconShield,
+  IconGraduation,
+  IconUserPlus,
+  IconRocket,
+  IconTrendingUp,
+  IconLogout,
+  IconFileText,
+  IconAward,
 } from "@/components/icons";
 
 // The HRM workspace's navigation, in one place: the sidebar, the command
@@ -45,9 +55,21 @@ export const NAV_GROUPS: NavGroup[] = [
   { key: "time", Icon: IconClock, items: [
     { href: "/internal/time", key: "time", Icon: IconClock, permission: "internal_time.manage" },
     { href: "/internal/schedules", key: "schedules", Icon: IconCalendar, permission: "internal_time.manage" },
+    { href: "/internal/leave", key: "leave", Icon: IconSun },
+    { href: "/internal/travel", key: "travel", Icon: IconMapPin },
   ] },
   { key: "work", Icon: IconBriefcase, items: [
     { href: "/internal/execution", key: "execution", Icon: IconBriefcase, permission: "internal_execution.manage" },
+    { href: "/internal/policies", key: "policies", Icon: IconShield },
+    { href: "/internal/learning", key: "learning", Icon: IconGraduation },
+  ] },
+  { key: "talent", Icon: IconUserPlus, items: [
+    { href: "/internal/recruiting", key: "recruiting", Icon: IconUserPlus, permission: "internal_hr.manage" },
+    { href: "/internal/onboarding", key: "onboarding", Icon: IconRocket, permission: "internal_hr.manage" },
+    { href: "/internal/movements", key: "movements", Icon: IconTrendingUp, permission: "internal_hr.manage" },
+    { href: "/internal/offboarding", key: "offboarding", Icon: IconLogout, permission: "internal_hr.manage" },
+    { href: "/internal/documents", key: "documents", Icon: IconFileText },
+    { href: "/internal/skills", key: "skills", Icon: IconAward },
     { href: "/internal/hr", key: "hr", Icon: IconFolder },
   ] },
   { key: "pay", Icon: IconCard, items: [
