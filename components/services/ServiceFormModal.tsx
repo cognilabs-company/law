@@ -83,7 +83,6 @@ export default function ServiceFormModal({
 }) {
   const t = useTranslations("sellerServices");
   const tv = useTranslations("sellerServices.preview");
-  const tr = useTranslations("sellerServices.reasons");
   const locale = useLocale();
   const ids = useId();
   const editing = Boolean(item);
@@ -99,6 +98,7 @@ export default function ServiceFormModal({
   const [bandLoad, setBandLoad] = useState<BandLoad | null>(null);
   const [serverBand, setServerBand] = useState<{ key: string; band: PriceBand } | null>(null);
   const [live, setLive] = useState(false);
+  const [warm, setWarm] = useState(false);
 
   const region = profile.region;
   const serviceId = service?.id ?? "";
@@ -175,10 +175,6 @@ export default function ServiceFormModal({
     ad: null,
     profile: null,
   };
-  const hidden = service
-    ? [!service.isActive ? "catalogOff" : "", status !== "active" ? status : "", !(n || service.price) ? "noPrice" : "", !profileVerified(profile) ? "unverified" : ""].filter(Boolean)
-    : [];
-  const liveNotes = service ? (hidden.length ? [tv("hidden", { reasons: hidden.map((r) => tr(r)).join(", ") })] : []) : [tv("noteNoService")];
   const formErr = err && err.kind !== "range" && err.kind !== "advocateOnly" ? errText(err) : "";
 
   return (
@@ -339,7 +335,7 @@ export default function ServiceFormModal({
           ) : null}
 
           <div className="svform__acts">
-            <button type="button" className="btn btn--line svform__live" onClick={() => setLive(true)}>
+            <button type="button" className="btn btn--line svform__live" onPointerEnter={() => setWarm(true)} onFocus={() => setWarm(true)} onClick={() => setLive(true)}>
               <IconEye aria-hidden="true" />
               {tv("open")}
             </button>
@@ -353,15 +349,8 @@ export default function ServiceFormModal({
           </div>
         </form>
       </Modal>
-      {live ? (
-        <MarketPreviewModal
-          draft={draft}
-          views={["profile", "market"]}
-          subtitle={service ? service.name : t("form.addTitle")}
-          notes={liveNotes}
-          legend={{ ph: !service }}
-          onClose={() => setLive(false)}
-        />
+      {warm || live ? (
+        <MarketPreviewModal open={live} draft={draft} views={["profile", "market"]} subtitle={service ? service.name : t("form.addTitle")} onClose={() => setLive(false)} />
       ) : null}
     </InBody>
   );

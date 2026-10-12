@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { IconClose, IconEye, IconInfo, IconLock, IconMonitor, IconSmartphone, IconTablet } from "@/components/icons";
+import { IconClose, IconEye, IconMonitor, IconSmartphone, IconTablet } from "@/components/icons";
 import { PREVIEW_DRAFT, PREVIEW_META, PREVIEW_PATH, PREVIEW_READY, type PreviewDraft, type PreviewView } from "@/lib/marketPreview";
 import { useLayer } from "@/lib/layers";
 import { InBody } from "./bits";
@@ -14,7 +14,7 @@ const DEVICES: { value: Device; width: number; Icon: typeof IconMonitor }[] = [
   { value: "tablet", width: 820, Icon: IconTablet },
   { value: "mobile", width: 390, Icon: IconSmartphone },
 ];
-const GUTTER = 48;
+const GUTTER = 40;
 const FOCUSABLE = 'button:not([disabled]),[href],input,select,textarea,[tabindex]:not([tabindex="-1"])';
 
 function startDevice(): Device {
@@ -23,18 +23,16 @@ function startDevice(): Device {
 }
 
 export default function MarketPreviewModal({
+  open,
   draft,
   views,
   subtitle,
-  notes = [],
-  legend = {},
   onClose,
 }: {
+  open: boolean;
   draft: PreviewDraft;
   views: PreviewView[];
   subtitle?: string;
-  notes?: string[];
-  legend?: { auto?: boolean; ph?: boolean };
   onClose: () => void;
 }) {
   const t = useTranslations("sellerServices.preview");
@@ -44,43 +42,47 @@ export default function MarketPreviewModal({
   const frame = useRef<HTMLIFrameElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
+  const sent = useRef("");
   const [view, setView] = useState<PreviewView>(views[0] ?? "market");
   const [device, setDevice] = useState<Device>(startDevice);
   const [ready, setReady] = useState(false);
-  const [listed, setListed] = useState<boolean | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const payload = JSON.stringify({ draft, view });
 
   useEffect(() => {
     closeRef.current = onClose;
   });
-  const z = useLayer(true, { kind: "overlay", el: panel, backdrop: root, onEscape: () => closeRef.current() });
+  const z = useLayer(open, { kind: "overlay", el: panel, backdrop: root, onEscape: () => closeRef.current() });
 
   useEffect(() => {
+    if (!open) return;
     const before = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     panel.current?.querySelector<HTMLElement>(".mpv__x")?.focus();
     return () => {
       document.body.style.overflow = overflow;
-      before?.focus?.();
+      if (before?.isConnected) before.focus?.();
     };
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.source !== frame.current?.contentWindow) return;
-      const data = e.data as { type?: string; listed?: boolean } | null;
+      const data = e.data as { type?: string } | null;
       if (data?.type === PREVIEW_READY) setReady(true);
-      if (data?.type === PREVIEW_META) setListed(Boolean(data.listed));
+      if (data?.type === PREVIEW_META) setLoaded(true);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
   useEffect(() => {
-    if (ready) frame.current?.contentWindow?.postMessage({ type: PREVIEW_DRAFT, ...JSON.parse(payload) }, window.location.origin);
-  }, [ready, payload]);
+    if (!ready || sent.current === payload || (!open && sent.current)) return;
+    sent.current = payload;
+    frame.current?.contentWindow?.postMessage({ type: PREVIEW_DRAFT, ...JSON.parse(payload) }, window.location.origin);
+  }, [ready, payload, open]);
 
   useEffect(() => {
     const el = stage.current;
@@ -111,7 +113,7 @@ export default function MarketPreviewModal({
 
   return (
     <InBody>
-      <div className="mpv" ref={root} role="presentation" style={{ zIndex: z }}>
+      <div className={`mpv${open ? "" : " is-off"}`} ref={root} role="presentation" style={{ zIndex: z }} aria-hidden={open ? undefined : true}>
         <div className="mpv__panel" ref={panel} role="dialog" aria-modal="true" aria-labelledby="mpv-title" onKeyDown={trap}>
           <header className="mpv__head">
             <div className="mpv__t">
@@ -145,52 +147,22 @@ export default function MarketPreviewModal({
             </button>
           </header>
 
-          <div className="mpv__info">
-            <p className="mpv__safe">
-              <IconLock aria-hidden="true" />
-              <span>{t("safe")}</span>
-            </p>
-            {[...(listed === false ? [t("notListed")] : []), ...notes].map((n) => (
-              <p key={n} className="mpv__note">
-                <IconInfo aria-hidden="true" />
-                <span>{n}</span>
-              </p>
-            ))}
-            <ul className="mpv__legend">
-              <li>
-                <i className="mpv__key mpv__key--mine" aria-hidden="true" />
-                {t("legendMine")}
-              </li>
-              {legend.auto ? (
-                <li>
-                  <i className="mpv__key mpv__key--auto" aria-hidden="true" />
-                  {t("legendAuto")}
-                </li>
-              ) : null}
-              {legend.ph ? (
-                <li>
-                  <i className="mpv__key mpv__key--ph" aria-hidden="true" />
-                  {t("legendPh")}
-                </li>
-              ) : null}
-            </ul>
-          </div>
-
           <div className="mpv__stage" ref={stage}>
             <div className={`mpv__device mpv__device--${device}`} style={{ width: dev.width * k, height: height * k }}>
               <iframe
                 ref={frame}
                 src={`/${locale}${PREVIEW_PATH}`}
                 title={t("frameTitle")}
+                tabIndex={open ? undefined : -1}
                 style={{ width: dev.width, height, transform: k < 1 ? `scale(${k})` : undefined }}
               />
             </div>
-            {listed === null ? (
+            {loaded ? null : (
               <div className="mpv__load" role="status">
                 <span className="mpv__spin" aria-hidden="true" />
                 {t("loading")}
               </div>
-            ) : null}
+            )}
           </div>
         </div>
       </div>

@@ -93,6 +93,7 @@ export default function PromoteModal({
   const [err, setErr] = useState("");
   const [done, setDone] = useState<PromotionRequest | null>(null);
   const [live, setLive] = useState(false);
+  const [warm, setWarm] = useState(false);
   const attemptKey = useRef("");
   useEffect(() => {
     attemptKey.current = "";
@@ -228,7 +229,6 @@ export default function PromoteModal({
   const sent = Boolean(done?.telegramSent) || activated;
   const sellerName = profile?.name || session?.name || t("previewSeller");
   const previewImage = bannerLocal || (HTTP_URL.test(bannerImageUrl.trim()) ? bannerImageUrl.trim() : "");
-  const heic = /\.heic$/i.test(bannerFileName);
   const draft: PreviewDraft = {
     kind: "ad",
     sellerId: profile?.userId || (scope.kind === "org" ? scope.memberId : uid),
@@ -237,12 +237,6 @@ export default function PromoteModal({
     ad: { placement, title: acceptsBanner ? bannerTitle : "", subtitle: acceptsBanner ? bannerSubtitle : "", ctaLabel: acceptsBanner ? ctaLabel : "", imageUrl: acceptsBanner ? previewImage : "" },
     profile: null,
   };
-  const liveNotes =
-    placement === "banner"
-      ? [tv("noteBanner"), ...(heic ? [t("previewHeic")] : [])]
-      : placement === "profile_boost"
-        ? [tv("noteRank")]
-        : [svc ? tv("noteSearch") : tv("noteNoService")];
 
   function onBannerFile(file: File | undefined) {
     if (!file || uploading || busy) return;
@@ -339,7 +333,7 @@ export default function PromoteModal({
                 </button>
               ))}
             </div>
-            <button type="button" className="svprom__live" onClick={() => setLive(true)} data-ai-id={aiId ? `${aiId}.live` : undefined}>
+            <button type="button" className="svprom__live" onPointerEnter={() => setWarm(true)} onFocus={() => setWarm(true)} onClick={() => setLive(true)} data-ai-id={aiId ? `${aiId}.live` : undefined}>
               <span className="svprom__liveic" aria-hidden="true">
                 <IconEye />
               </span>
@@ -549,13 +543,12 @@ export default function PromoteModal({
           </div>
         )}
       </Modal>
-      {live ? (
+      {warm || live ? (
         <MarketPreviewModal
+          open={live}
           draft={draft}
           views={["market", "profile"]}
           subtitle={[placementName(placement), needsService && svc ? svc.service.name : ""].filter(Boolean).join(" · ")}
-          notes={liveNotes}
-          legend={{ auto: placement === "banner" && (!bannerTitle.trim() || !bannerSubtitle.trim() || !ctaLabel.trim()), ph: needsService && !svc }}
           onClose={() => setLive(false)}
         />
       ) : null}

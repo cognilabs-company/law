@@ -145,6 +145,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
   }, [uid]);
   const [section, setSection] = useState<string | null>(null); // the panel in edit mode
   const [live, setLive] = useState(false);
+  const [warm, setWarm] = useState(false);
   const tl = useTranslations("sellerServices.preview");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -250,7 +251,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
             <div className="pverify" style={{ marginTop: 16 }}>
               {note ? <Notice ok={note.ok} msg={note.msg} /> : <span />}
               <span className="pverify__acts">
-                <button className="btn btn--line btn--sm" type="button" onClick={() => setLive(true)}><IconEye />{tl("open")}</button>
+                <button className="btn btn--line btn--sm" type="button" onPointerEnter={() => setWarm(true)} onFocus={() => setWarm(true)} onClick={() => setLive(true)}><IconEye />{tl("open")}</button>
                 <button className="btn btn--grad btn--sm" type="button" onClick={save} disabled={busy}><IconShieldCheck />{busy ? t("saving") : t("save")}</button>
               </span>
             </div>
@@ -282,7 +283,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         <div className="meter" style={{ marginBottom: 6 }}><span style={{ width: `${livePct}%` }} /></div>
         <div className="pprev">
           <p className="advmuted" style={{ display: "flex", gap: 8, alignItems: "center", margin: 0 }}><IconInfo style={{ width: 16, height: 16, flex: "none" }} />{t("previewNote")}</p>
-          <button className="btn btn--line btn--sm" type="button" onClick={() => setLive(true)}><IconEye />{tl("open")}</button>
+          <button className="btn btn--line btn--sm" type="button" onPointerEnter={() => setWarm(true)} onFocus={() => setWarm(true)} onClick={() => setLive(true)}><IconEye />{tl("open")}</button>
         </div>
         {missing.length ? <p className="advmuted" style={{ fontSize: ".82rem" }}>{tp("missing")}: {missing.join(", ")}</p> : null}
         <div className="pverify">
@@ -467,8 +468,9 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       </div>
       <NotificationPrefsCard />
       <AccountAudit />
-      {live ? (
+      {warm || live ? (
         <MarketPreviewModal
+          open={live}
           draft={{
             kind: "profile",
             sellerId: uid,

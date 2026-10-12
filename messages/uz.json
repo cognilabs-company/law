@@ -1862,7 +1862,6 @@
       "badCta": "Havola https:// yoki / bilan boshlanishi kerak.",
       "ctaUrlPh": "Bo'sh qolsa — profilingiz",
       "bannerNeeded": "Bu paket uchun banner rasmi kerak: fayl yuklang yoki havola kiriting.",
-      "previewHeic": "HEIC rasm brauzerda ko'rsatilmaydi, lekin yuborilganda saqlanadi — marketplace'da odatdagidek chiqadi.",
       "activeTitle": "Reklama yoqildi",
       "activeText": "To'lov talab qilinmadi — reklama hozirdan ko'rinmoqda."
     },
@@ -2063,23 +2062,13 @@
       "close": "Yopish",
       "frameTitle": "Marketplace ko'rinishi",
       "loading": "Marketplace yuklanmoqda…",
-      "safe": "Bu faqat ko'rinish: hech narsa saqlanmaydi, e'lon qilinmaydi va to'lanmaydi.",
-      "legendMine": "Ko'k ramka — siz",
-      "legendAuto": "Chiziqli — to'ldirmagansiz, profildan olinadi",
-      "legendPh": "Kulrang — hali tanlanmagan",
       "mineAd": "Sizning reklamangiz",
       "mineCard": "Sizning kartangiz",
       "mineService": "Sizning xizmatingiz",
       "mineProfile": "Sizning profilingiz",
       "phService": "Xizmat nomi",
       "phCategory": "Kategoriya",
-      "phPrice": "Narx",
-      "noteBanner": "Kompyuterda reklamangiz hero'dagi kartalar qatorida birinchi chiqadi (rasm o'rnida umumiy foto). Yuklagan banner rasmingiz planshet va telefonda ko'rinadi.",
-      "noteRank": "TOP kartangizni ro'yxatda yuqoriroq ko'taradi; aniq o'rin reyting va mijoz tanlagan filtrlarga bog'liq.",
-      "noteSearch": "Plitka mijoz shu xizmatni yoki uning kategoriyasini tanlaganda ham chiqadi.",
-      "noteNoService": "Xizmat tanlanmagan — tanlaganingizda nomi kulrang joyda chiqadi.",
-      "hidden": "Hozir mijozlarga ko'rinmaydi: {reasons}. Ko'rinishi esa shunday bo'ladi.",
-      "notListed": "Profilingiz hali marketplace'da yo'q — tasdiqlangach shunday ko'rinadi."
+      "phPrice": "Narx"
     },
     "pending": {
       "title": "Profilingiz tasdiq kutmoqda",

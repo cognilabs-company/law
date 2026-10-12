@@ -1862,7 +1862,6 @@
       "badCta": "The link must start with https:// or /.",
       "ctaUrlPh": "Leave empty for your profile",
       "bannerNeeded": "This package needs a banner image: upload a file or paste a link.",
-      "previewHeic": "HEIC images can't be shown in the browser, but the file is saved when you send the request and will appear on the marketplace as usual.",
       "activeTitle": "Promotion is live",
       "activeText": "No payment was needed — the promotion is showing now."
     },
@@ -2063,23 +2062,13 @@
       "close": "Close",
       "frameTitle": "Marketplace preview",
       "loading": "Loading the marketplace…",
-      "safe": "Preview only: nothing is saved, published or paid.",
-      "legendMine": "Blue frame: you",
-      "legendAuto": "Dashed: left empty, taken from your profile",
-      "legendPh": "Grey: not chosen yet",
       "mineAd": "Your ad",
       "mineCard": "Your card",
       "mineService": "Your service",
       "mineProfile": "Your profile",
       "phService": "Service name",
       "phCategory": "Category",
-      "phPrice": "Price",
-      "noteBanner": "On desktop your ad is the first card in the showcase at the top (with a stock photo instead of your picture). Your uploaded banner image shows on tablets and phones.",
-      "noteRank": "TOP moves your card up the list; the exact spot depends on rating and the client's filters.",
-      "noteSearch": "The tile also shows when a client picks this service or its category.",
-      "noteNoService": "No service chosen yet. Its name will appear in the grey spot once you pick one.",
-      "hidden": "Clients can't see it right now: {reasons}. This is how it will look.",
-      "notListed": "Your profile isn't on the marketplace yet. Once it's verified, it will look like this."
+      "phPrice": "Price"
     },
     "pending": {
       "title": "Your profile is awaiting verification",
