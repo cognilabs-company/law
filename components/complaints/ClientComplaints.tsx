@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import type { Option } from "@/components/Select";
 import { Skeleton } from "@/components/portal/DataState";
+import { dateTimeFull } from "@/lib/date";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
 import {
@@ -29,7 +30,9 @@ import {
   IconArrowRight,
   IconChat,
   IconCircleCheck,
+  IconFileText,
   IconClipboardCheck,
+  IconClock,
   IconClose,
   IconHeadset,
   IconInfo,
@@ -83,6 +86,7 @@ function pickOption(options: Option[], raw: string): string | null {
 
 export default function ClientComplaints() {
   const t = useTranslations("portal.client.complaints");
+  const locale = useLocale();
   const tc = useTranslations("common");
   const tcm = useTranslations("portal.common");
   const L = useComplaintLabels();
@@ -504,7 +508,32 @@ export default function ClientComplaints() {
         </div>
       </section>
 
-      <Modal open={!!openItem} onClose={closeDetail} title={openItem ? openItem.subject || L.kind(openItem.kind) : ""}>
+      <Modal
+        open={!!openItem}
+        onClose={closeDetail}
+        size="lg"
+        title={t("detailTitle")}
+        icon={<IconFileText />}
+        description={openItem?.workId ? <span className="wid">{openItem.workId}</span> : undefined}
+        footer={
+          openItem ? (
+            <div className="shkd__foot">
+              {openItem.updatedAt ? (
+                <span className="shkd__footm">
+                  <IconClock aria-hidden />
+                  {t("updatedShort", { date: dateTimeFull(openItem.updatedAt, locale) })}
+                </span>
+              ) : (
+                <span />
+              )}
+              <Link href="/portal/client/support" className="btn btn--pri">
+                <IconChat aria-hidden />
+                {t("chatShort")}
+              </Link>
+            </div>
+          ) : null
+        }
+      >
         {openItem ? <ComplaintDetail key={openItem.key} item={openItem} /> : null}
       </Modal>
       <Modal open={formOpen} onClose={closeForm} title={t("new")} aiId="complaints.new-modal">

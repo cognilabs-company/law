@@ -7142,15 +7142,23 @@
         }
       },
       "complaints": {
+        "detailTitle": "Shikoyat tafsilotlari",
+        "process": "Jarayon",
+        "ratingTitle": "Sizning bahoyingiz",
+        "ratingOf": "{n} / 5",
+        "commentTitle": "Izohingiz",
+        "noCommentShort": "Izoh yozilmagan",
+        "updatedShort": "Yangilangan: {date}",
         "sentNext": "Mas'ul xodim ko'rib chiqadi — har bir o'zgarish haqida bildirishnoma olasiz.",
         "sentRef": "Raqami:",
         "updatedAt": "Oxirgi o'zgarish: {date}",
         "escalate": "Qarorga rozi bo'lmasangiz, operator bilan chatda yozing.",
         "reply": {
-          "title": "Xodim javobi",
+          "title": "Operator javobi",
           "staff": "Mas'ul xodim"
         },
         "step": {
+          "reviewed": "Ko'rib chiqildi",
           "received": "Qabul qilindi",
           "review": "Ko'rib chiqilmoqda",
           "decision": "Qaror",

@@ -4,6 +4,7 @@ import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { dateTimeFull } from "@/lib/date";
+import { initials } from "@/lib/lawyers";
 import { humanize, personName } from "@/lib/labels";
 import {
   complaintStage,
@@ -20,7 +21,6 @@ import {
   IconArrowRight,
   IconBolt,
   IconBriefcase,
-  IconChat,
   IconCheck,
   IconClose,
   IconEdit,
@@ -136,7 +136,7 @@ export default function ComplaintDetail({ item }: { item: ComplaintItem }) {
   const decisionMeta = [operatorName && !operatorNote ? t("decisionBy", { name: operatorName }) : "", decidedAt ? dateTimeFull(decidedAt, locale) : ""]
     .filter(Boolean)
     .join(" · ");
-  const replyAt = decided ? "" : changedAt;
+  const replyAt = decided ? decidedAt : changedAt;
   const finalTone: StepTone = stage === "resolved" ? "ok" : stage === "rejected" ? "bad" : stage === "closed" ? "end" : stage === "rework" ? "rework" : "todo";
   const workType = (type: string) => (type && tw.has(`type.${type}`) ? tw(`type.${type}`) : humanize(type));
 
@@ -161,134 +161,158 @@ export default function ComplaintDetail({ item }: { item: ComplaintItem }) {
     } else related = { Icon: IconBriefcase, title: t("relatedId", { id: item.relatedRef }), workId: "", href: "" };
   }
 
+  const stepThreeSub = decided
+    ? decidedAt
+      ? dateTimeFull(decidedAt, locale)
+      : ""
+    : stage === "rework" && updatedAt
+      ? dateTimeFull(updatedAt, locale)
+      : "";
+
   return (
     <div className="shkd">
-      <div className="shkd__id">
-        <CategoryTile item={item} />
-        <span className="shkd__idtx">
-          <b>{headLabel}</b>
-          {item.workId ? <span className="wid">{item.workId}</span> : null}
-        </span>
-        <StatusPill status={status} label={tag} />
-      </div>
-
-      <ol className="shks" aria-label={t("timeline")}>
-        <Step tone="done" label={t("step.received")} sub={item.createdAt ? dateTimeFull(item.createdAt, locale) : ""} />
-        <Step
-          tone={reviewed ? "done" : "now"}
-          label={t("step.review")}
-          sub={reviewed ? "" : stage === "new" ? t("step.queued") : t("step.active")}
-          current={!reviewed}
-        />
-        <Step
-          tone={finalTone}
-          label={t("step.decision")}
-          sub={decided ? tag : stage === "rework" ? L.stage("rework") : ""}
-          current={reviewed}
-        />
-      </ol>
-
-      <div className={`shkd__state shkd__state--${stage}`}>
-        <StateIcon aria-hidden />
-        <div className="shkd__statetx">
-          {decided || stage === "rework" ? <b>{tag}</b> : null}
-          <p>{hint}</p>
-          {stage === "rejected" ? <p className="shkd__esc">{t("escalate")}</p> : null}
-          {decided && decisionMeta ? <small>{decisionMeta}</small> : null}
-          {!decided && changedAt ? <small>{t("updatedAt", { date: dateTimeFull(changedAt, locale) })}</small> : null}
-        </div>
-      </div>
-
-      {operatorNote ? (
-        <article className="shkd__reply" aria-label={t("reply.title")}>
-          <span className="shkd__av" aria-hidden>
-            <IconHeadset />
+      <aside className="shkd__rail">
+        <div className="shkd__id">
+          <CategoryTile item={item} />
+          <span className="shkd__idtx">
+            <b>{headLabel}</b>
           </span>
-          <div className="shkd__bubble" data-ai-private>
-            <span className="shkd__bubbleh">
-              <b>{operatorName || t("reply.staff")}</b>
-              {replyAt ? <small>{dateTimeFull(replyAt, locale)}</small> : null}
-            </span>
-            <p>{operatorNote}</p>
-          </div>
-        </article>
-      ) : null}
+        </div>
 
-      {quality ? (
         <section className="shkd__sec">
-          <h3 className="shkd__h">
-            <IconStarRate aria-hidden />
-            {t("comment")}
-          </h3>
-          {detail.status === "loading" ? (
-            <Skeleton rows={1} />
-          ) : detail.status === "error" ? (
-            <div className="shkd__err" role="alert">
-              <span>{t("detailError")}</span>
-              <button type="button" className="btn btn--line btn--sm" onClick={retryDetail}>
-                <IconRefresh aria-hidden />
-                {tc("retry")}
-              </button>
-            </div>
-          ) : (
-            <div className="shkd__mine" data-ai-private>
-              {rating > 0 ? <Stars n={rating} label={t("ratingAria", { n: rating })} /> : null}
-              {d?.comment ? <p>{d.comment}</p> : <p className="shkd__muted">{t("noComment")}</p>}
-            </div>
-          )}
+          <h3 className="shkd__h">{t("process")}</h3>
+          <ol className="shks" aria-label={t("timeline")}>
+            <Step tone="done" label={t("step.received")} sub={item.createdAt ? dateTimeFull(item.createdAt, locale) : ""} />
+            <Step
+              tone={reviewed ? "done" : "now"}
+              label={reviewed ? t("step.reviewed") : t("step.review")}
+              sub={reviewed ? "" : stage === "new" ? t("step.queued") : t("step.active")}
+              current={!reviewed}
+            />
+            <Step
+              tone={finalTone}
+              label={decided || stage === "rework" ? tag : t("step.decision")}
+              sub={stepThreeSub}
+              current={reviewed}
+            />
+          </ol>
         </section>
-      ) : item.description ? (
-        <section className="shkd__sec">
-          <h3 className="shkd__h">
-            <IconEdit aria-hidden />
-            {t("text")}
-          </h3>
-          <div className="shkd__mine" data-ai-private>
-            <p>{item.description}</p>
-          </div>
-        </section>
-      ) : null}
 
-      {related ? (
-        <section className="shkd__sec">
-          <h3 className="shkd__h">
-            <IconBriefcase aria-hidden />
-            {t("related")}
-          </h3>
-          {related === "loading" ? (
-            <Skeleton rows={1} />
-          ) : (
-            <div className="shkd__rel">
-              <span className="shkd__relm">
-                <span className="shkd__relic" aria-hidden>
-                  <related.Icon />
+        {related ? (
+          <section className="shkd__sec">
+            <h3 className="shkd__h">
+              <IconBriefcase aria-hidden />
+              {t("related")}
+            </h3>
+            {related === "loading" ? (
+              <Skeleton rows={1} />
+            ) : (
+              <div className="shkd__rel">
+                <span className="shkd__relm">
+                  <span className="shkd__relic" aria-hidden>
+                    <related.Icon />
+                  </span>
+                  <span className="shkd__relt">
+                    <b>{related.title}</b>
+                    {related.workId ? <small className="wid">{related.workId}</small> : null}
+                    {lawyerName ? <small className="shkd__who">{t("f.lawyer")}: {lawyerName}</small> : null}
+                  </span>
                 </span>
-                <span className="shkd__relt">
-                  <b>{related.title}</b>
-                  {related.workId ? <small className="wid">{related.workId}</small> : null}
-                  {lawyerName ? <small className="shkd__who">{t("f.lawyer")}: {lawyerName}</small> : null}
-                </span>
+                {related.href ? (
+                  <Link href={related.href} className="shkd__relgo">
+                    {t("relatedOpen")}
+                    <IconArrowRight aria-hidden />
+                  </Link>
+                ) : null}
+              </div>
+            )}
+          </section>
+        ) : lawyerName ? (
+          <p className="shkd__who">
+            {t("f.lawyer")}: {lawyerName}
+          </p>
+        ) : null}
+      </aside>
+
+      <div className="shkd__main">
+        <div className={`shkd__state shkd__state--${stage}`}>
+          <StateIcon aria-hidden />
+          <div className="shkd__statetx">
+            <p>{hint}</p>
+            {stage === "rejected" ? <p className="shkd__esc">{t("escalate")}</p> : null}
+            {decided && decisionMeta ? <small>{decisionMeta}</small> : null}
+          </div>
+          <StatusPill status={status} label={tag} />
+        </div>
+
+        {operatorNote ? (
+          <section className="shkd__sec">
+            <h3 className="shkd__h">
+              <IconHeadset aria-hidden />
+              {t("reply.title")}
+            </h3>
+            <article className="shkd__reply">
+              <span className="shkd__av" aria-hidden>
+                {operatorName ? initials(operatorName) : <IconHeadset />}
               </span>
-              {related.href ? (
-                <Link href={related.href} className="btn btn--line btn--sm">
-                  {t("relatedOpen")}
-                  <IconArrowRight aria-hidden />
-                </Link>
-              ) : null}
-            </div>
-          )}
-        </section>
-      ) : lawyerName ? (
-        <p className="shkd__who">
-          {t("f.lawyer")}: {lawyerName}
-        </p>
-      ) : null}
+              <div className="shkd__bubble" data-ai-private>
+                <span className="shkd__bubbleh">
+                  <b>{operatorName || t("reply.staff")}</b>
+                  {replyAt ? <small>{dateTimeFull(replyAt, locale)}</small> : null}
+                </span>
+                <p>{operatorNote}</p>
+              </div>
+            </article>
+          </section>
+        ) : null}
 
-      <div className="shkd__acts">
-        <Link href="/portal/client/support" className="btn btn--line btn--sm">
-          <IconChat aria-hidden />
-          {t("chatShort")}
-        </Link>
+        {quality ? (
+          <>
+            <section className="shkd__sec">
+              <h3 className="shkd__h">
+                <IconStarRate aria-hidden />
+                {t("ratingTitle")}
+              </h3>
+              {detail.status === "loading" ? (
+                <Skeleton rows={1} />
+              ) : detail.status === "error" ? (
+                <div className="shkd__err" role="alert">
+                  <span>{t("detailError")}</span>
+                  <button type="button" className="btn btn--line btn--sm" onClick={retryDetail}>
+                    <IconRefresh aria-hidden />
+                    {tc("retry")}
+                  </button>
+                </div>
+              ) : (
+                <div className="shkd__rate" data-ai-private>
+                  <Stars n={rating} label={t("ratingAria", { n: rating })} />
+                  <span>{t("ratingOf", { n: rating })}</span>
+                </div>
+              )}
+            </section>
+            {detail.status === "ready" ? (
+              <section className="shkd__sec">
+                <h3 className="shkd__h">
+                  <IconEdit aria-hidden />
+                  {t("commentTitle")}
+                </h3>
+                <div className="shkd__mine" data-ai-private>
+                  {d?.comment ? <p>{d.comment}</p> : <p className="shkd__muted">{t("noCommentShort")}</p>}
+                </div>
+              </section>
+            ) : null}
+          </>
+        ) : item.description ? (
+          <section className="shkd__sec">
+            <h3 className="shkd__h">
+              <IconEdit aria-hidden />
+              {t("text")}
+            </h3>
+            <div className="shkd__mine" data-ai-private>
+              <p>{item.description}</p>
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
   );

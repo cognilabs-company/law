@@ -84,6 +84,7 @@ export default function Modal({
   open,
   onClose,
   title,
+  icon,
   children,
   wide,
   aiId,
@@ -100,6 +101,7 @@ export default function Modal({
   open: boolean;
   onClose: () => void;
   title: string;
+  icon?: ReactNode;
   children: ReactNode;
   // A form-and-live-preview flow (document generation) needs real room for
   // the two side by side; every other modal keeps the normal narrow width.
@@ -363,6 +365,7 @@ export default function Modal({
       >
         <div ref={grip} className="amodal__grip" aria-hidden="true" />
         <div ref={head} className="amodal__h">
+          {icon ? <span className="amodal__ic" aria-hidden="true">{icon}</span> : null}
           <div className="amodal__hd">
             <h2 ref={heading} id={titleId} className="amodal__t" tabIndex={-1}>
               <b>{title}</b>

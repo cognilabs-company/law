@@ -7136,15 +7136,23 @@
         }
       },
       "complaints": {
+        "detailTitle": "Complaint details",
+        "process": "Process",
+        "ratingTitle": "Your rating",
+        "ratingOf": "{n} / 5",
+        "commentTitle": "Your comment",
+        "noCommentShort": "No comment left",
+        "updatedShort": "Updated: {date}",
         "sentNext": "A staff member will review it — you'll be notified of every change.",
         "sentRef": "Reference:",
         "updatedAt": "Last change: {date}",
         "escalate": "Disagree with the decision? Write to an operator in chat.",
         "reply": {
-          "title": "Staff reply",
+          "title": "Operator reply",
           "staff": "Staff member"
         },
         "step": {
+          "reviewed": "Reviewed",
           "received": "Received",
           "review": "Under review",
           "decision": "Decision",
