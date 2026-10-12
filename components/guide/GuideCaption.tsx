@@ -30,7 +30,7 @@ export default function GuideCaption({
   const last = index >= total - 1;
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className={`gcap${busy ? " is-busy" : ""}${missing ? " is-missing" : ""}`} role="region" aria-label={t("narrator")} id="guide-caption">
+    <div className={`gcap${busy ? " is-busy" : ""}${missing ? " is-missing" : ""}`} role="region" aria-label={t("narrator")} id="guide-caption" data-layer-ignore="">
       <div className="gcap__in">
         <RobotAvatar size={44} mood={busy ? "think" : "talk"} className="gcap__av" />
         <div className="gcap__body">

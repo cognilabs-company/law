@@ -87,7 +87,6 @@ export default function DocTypePicker({
         value={pick}
         onChange={choose}
         ariaLabel={t("label")}
-        placeholder={t("none")}
         options={[
           { value: "", label: t("none") },
           ...opts.items.map((x) => ({ value: x, label: x })),

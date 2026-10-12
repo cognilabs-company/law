@@ -28,7 +28,7 @@ import Modal from "@/components/admin/Modal";
 import LeadFilterBar from "@/components/admin/LeadFilterBar";
 import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
-import Select from "@/components/Select";
+import Select, { rankOptions } from "@/components/Select";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import { IconRefresh, IconPhone } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
@@ -89,6 +89,11 @@ export default function CallCenterBoard() {
   }, [state.columns]);
 
   const allLeads = useMemo(() => leadsOf(state.columns), [state.columns]);
+  const opLoad = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of allLeads) if (l.assignedTo) m.set(l.assignedTo, (m.get(l.assignedTo) ?? 0) + 1);
+    return m;
+  }, [allLeads]);
   const filterItems = useMemo(() => state.columns.flatMap((c) => c.cards.map((x) => ({ lead: leadFilterable(x.lead), stage: c.key }))), [state.columns]);
   const regions = useMemo(() => [...new Set(allLeads.map((l) => l.region).filter(Boolean))], [allLeads]);
   const filtered = filterActive(f);
@@ -111,9 +116,16 @@ export default function CallCenterBoard() {
   const leadTitle = (lead: LeadX) => lead.name || lead.phone || leadCategoryLabel(tp, lead.category) || tp("untitledLead");
   const canAssign = ops.status === "ready" && ops.ops.length > 0;
   const opLabel = (o: { name: string; phone: string; lexgoId: string }) => operatorName(o) || tp("assign.unknown");
-  const assigneeOpts = [{ value: "", label: tp("assign.none") }, ...ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${opLabel(o)} (${tp("assign.me")})` : opLabel(o) }))];
+  const noneOpt = { value: "", label: tp("assign.none") };
+  const rankedOps = rankOptions(
+    ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${opLabel(o)} (${tp("assign.me")})` : opLabel(o) })),
+    opLoad,
+    tp("assign.others"),
+    (n) => tp("assign.leadCount", { n }),
+  );
+  const assigneeOpts = [noneOpt, ...rankedOps];
   const assigneeOptsFor = (lead: LeadX) =>
-    lead.assignedTo && !ops.ops.some((o) => o.id === lead.assignedTo) ? [...assigneeOpts, { value: lead.assignedTo, label: assigneeLabel(tp, ops.people, lead.assignedTo, meId, ops.status === "ready") }] : assigneeOpts;
+    lead.assignedTo && !ops.ops.some((o) => o.id === lead.assignedTo) ? [noneOpt, { value: lead.assignedTo, label: assigneeLabel(tp, ops.people, lead.assignedTo, meId, ops.status === "ready") }, ...rankedOps] : assigneeOpts;
 
   function lostSaveFailed(leadId: string, fields: Record<string, string>, fallback: Record<string, unknown>, e: unknown) {
     notify.warning(t("lostReasonFailed"), {

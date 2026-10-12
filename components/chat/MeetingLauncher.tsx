@@ -338,7 +338,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   // Staff search any platform user; sellers (no /users/search) get lawyers +
   // their own clients — see lib/inviteSearch.
   function searchOptions(q: string) {
-    if (!searchRef.current) searchRef.current = makeInviteSearch({ clientLabel, regionLabel: (v) => regionLabel(te, v), exclude: () => (session?.id ? [session.id] : []) });
+    if (!searchRef.current) searchRef.current = makeInviteSearch({ clientLabel, regionLabel: (v) => regionLabel(te, v), exclude: () => (session?.id ? [session.id] : []), roleLabel: (r) => t(`role.${r}`) });
     return searchRef.current(q);
   }
 
@@ -348,7 +348,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     // one invitee so the room has a counterpart.
     if (picks.length < 1) {
       setPickErr(t("needParticipants"));
-      pickBox.current?.querySelector<HTMLElement>("button")?.focus();
+      pickBox.current?.querySelector<HTMLElement>("input")?.focus();
       return;
     }
     notify.dismiss(START_ID);
@@ -524,6 +524,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
             placeholder={t("participantsPh")}
             searchPlaceholder={t("participantsSearch")}
             emptyText={t("participantsEmpty")}
+            hint={t("participantsHint")}
             ariaLabel={t("participants")}
             invalid={!!pickErr}
             describedBy={pickErr ? pickErrId : undefined}

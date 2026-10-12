@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
-import { monthTitle, weekdays } from "@/lib/date";
+import { fmtDate, monthTitle, weekdays } from "@/lib/date";
+import { focusField, isCoarsePointer, useCoarsePointer, usePopover } from "@/lib/usePopover";
 import { IconCalendar, IconChevronLeft, IconChevronRight, IconClose } from "./icons";
 
 type Parsed = { y: number; m: number; d: number };
+type FocusReq = "none" | "grid" | "field";
+
+const CONTENTS: CSSProperties = { display: "contents" };
+const TABBABLE = 'button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 function parse(value: string): Parsed | null {
   if (!/^\d{4}-\d{2}-\d{2}/.test(value)) return null;
@@ -40,6 +45,46 @@ function parseTyped(text: string): string | null {
   return iso(y, mo - 1, d);
 }
 
+function shiftDays(s: string, n: number): string {
+  const p = parse(s);
+  if (!p) return s;
+  const dt = new Date(p.y, p.m, p.d + n);
+  return iso(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+
+function shiftMonths(s: string, n: number): string {
+  const p = parse(s);
+  if (!p) return s;
+  const total = p.y * 12 + p.m + n;
+  const y = Math.floor(total / 12);
+  const m = total - y * 12;
+  return iso(y, m, Math.min(p.d, new Date(y, m + 1, 0).getDate()));
+}
+
+function dowOf(s: string): number {
+  const p = parse(s);
+  return p ? (new Date(p.y, p.m, p.d).getDay() + 6) % 7 : 0;
+}
+
+function clampIso(s: string, lo?: string, hi?: string): string {
+  if (lo && s < lo) return lo;
+  if (hi && s > hi) return hi;
+  return s;
+}
+
+function dayOnly(v?: string): string | undefined {
+  return v && parse(v) ? v.slice(0, 10) : undefined;
+}
+
+function atEdge(root: HTMLElement, back: boolean): boolean {
+  const at = document.activeElement;
+  if (!(at instanceof HTMLElement) || !root.contains(at)) return false;
+  const bit = back ? Node.DOCUMENT_POSITION_PRECEDING : Node.DOCUMENT_POSITION_FOLLOWING;
+  return !Array.from(root.querySelectorAll<HTMLElement>(TABBABLE)).some(
+    (el) => el !== at && el.tabIndex >= 0 && (at.compareDocumentPosition(el) & bit) !== 0,
+  );
+}
+
 // Handmade day-level date picker (no native <input type=date>). Value is
 // "YYYY-MM-DD". min/max (also ISO) disable out-of-range days. The trigger is
 // a real text input so a date can be typed (dd.mm.yyyy) as well as picked
@@ -65,17 +110,25 @@ export default function DatePicker({
 }) {
   const locale = useLocale();
   const ta = useTranslations("common.a11y");
+  const tc = useTranslations("common");
   const wd = weekdays(locale);
   const parsed = parse(value);
   const today = new Date();
+  const todayIso = iso(today.getFullYear(), today.getMonth(), today.getDate());
+  const lo = dayOnly(min);
+  const hi = dayOnly(max);
+  const label = ariaLabel || placeholder;
   const [open, setOpen] = useState(false);
   const [vy, setVy] = useState(parsed ? parsed.y : today.getFullYear());
   const [vm, setVm] = useState(parsed ? parsed.m : today.getMonth());
   const [typed, setTyped] = useState(() => (parsed ? toTyped(parsed) : ""));
-  const root = useRef<HTMLDivElement>(null);
+  const [cursor, setCursor] = useState("");
+  const fieldRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
+  const focusReq = useRef<FocusReq>("none");
+  const popId = useId();
+  const coarse = useCoarsePointer();
 
   // Jump the calendar view (and the typed text) to a new value — during
   // render, not in an effect, so an externally loaded draft never flashes
@@ -86,78 +139,70 @@ export default function DatePicker({
     setPrevValue(value);
     if (parsed) { setVy(parsed.y); setVm(parsed.m); }
     setTyped(parsed ? toTyped(parsed) : "");
+    setCursor(parsed ? iso(parsed.y, parsed.m, parsed.d) : "");
   }
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node;
-      // Popup is portaled to document.body (see render), so it's not a DOM
-      // descendant of root — check it separately, or clicks inside it would
-      // look "outside" and close the popup before its own onClick runs.
-      if (root.current?.contains(t)) return;
-      if (popRef.current?.contains(t)) return;
-      setOpen(false);
-    };
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.preventDefault();
-      setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onEsc, true);
-    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onEsc, true); };
-  }, [open]);
 
   // Rendered via a portal with inline position:fixed coordinates computed
   // from the trigger's live rect, so the popup can't be clipped by an
   // ancestor Modal's overflow-y:auto/max-height:90vh (same fix as
   // SearchSelect.tsx / Select.tsx).
-  const updatePos = () => {
-    const el = root.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const gap = 6;
-    const margin = 8;
-    const spaceBelow = window.innerHeight - r.bottom - gap;
-    const spaceAbove = r.top - gap;
-    // spaceAbove alone being bigger than spaceBelow isn't enough reason to
-    // flip up — a trigger near the top of the screen can have "more room
-    // above than below" while both are tiny, which used to flip the popup
-    // upward into a cramped spot that then got clamped to the very top of
-    // the screen, looking like it opened in the wrong place entirely.
-    const openUp = spaceBelow < 320 && spaceAbove > spaceBelow && spaceAbove >= 160;
-    // A floor here used to be a flat 280 regardless of how little room the
-    // chosen side actually had — for a trigger near the very top of the
-    // screen that forced `top` negative and pushed the whole popup off the
-    // top of the viewport. Cap the floor at what's really available; the
-    // popup already scrolls internally (.mpick__pop) so a shorter box beats
-    // one that isn't on screen at all.
-    const room = openUp ? spaceAbove : spaceBelow;
-    const maxHeight = Math.min(Math.max(200, room), window.innerHeight - margin * 2);
-    // Popup width comes from its own CSS (min-width, or .dpick's 264px), not
-    // the trigger's — but still clamp so it can't render off the right edge.
-    const left = Math.min(r.left, window.innerWidth - 280 - margin);
-    const top = openUp ? r.top - gap - maxHeight : r.bottom + gap;
-    setPos({
-      left: Math.max(margin, left),
-      // Final safety net, independent of the calculation above: whatever it
-      // produced, never let the popup actually render off either edge.
-      top: Math.min(Math.max(margin, top), window.innerHeight - margin),
-      maxHeight,
-    });
-  };
-  useLayoutEffect(() => {
-    if (!open) return;
-    updatePos();
-  }, [open]);
+  const pop = usePopover({
+    open,
+    onClose: () => setOpen(false),
+    trigger: inputRef,
+    anchor: fieldRef,
+    popup: popRef,
+    fit: "content",
+    minWidth: 264,
+    maxWidth: 320,
+    returnFocus: true,
+  });
+
   useEffect(() => {
     if (!open) return;
-    const onMove = () => updatePos();
-    window.addEventListener("scroll", onMove, true);
-    window.addEventListener("resize", onMove);
-    return () => { window.removeEventListener("scroll", onMove, true); window.removeEventListener("resize", onMove); };
-  }, [open]);
+    const req = focusReq.current;
+    focusReq.current = "none";
+    const p = popRef.current;
+    if (!p || req === "none") return;
+    const target =
+      req === "field"
+        ? p.querySelector<HTMLElement>(".mpick__sheetval")
+        : (cursor ? p.querySelector<HTMLElement>(`.dpick__d[data-iso="${cursor}"]:not(:disabled)`) : null) ??
+          p.querySelector<HTMLElement>('.dpick__d[tabindex="0"]');
+    (target ?? p).focus({ preventScroll: true });
+  }, [open, cursor, vy, vm]);
+
+  function openCal(focus: FocusReq) {
+    if (disabled) return;
+    const now = new Date();
+    const sel = parsed ? iso(parsed.y, parsed.m, parsed.d) : "";
+    const start = clampIso(sel || iso(now.getFullYear(), now.getMonth(), now.getDate()), lo, hi);
+    const p = parse(start);
+    if (p) { setVy(p.y); setVm(p.m); }
+    setCursor(start);
+    focusReq.current = focus;
+    setOpen(true);
+  }
+
+  function focusGrid() {
+    popRef.current?.querySelector<HTMLElement>('.dpick__d[tabindex="0"]')?.focus({ preventScroll: true });
+  }
+
+  function inRange(s: string | null): s is string {
+    return !!s && (!lo || s >= lo) && (!hi || s <= hi);
+  }
+
+  function typeText(raw: string) {
+    const t = maskTyped(raw);
+    setTyped(t);
+    if (t === "") { onChange(""); return; }
+    const outIso = parseTyped(t);
+    if (inRange(outIso)) onChange(outIso);
+  }
+
+  function settleTyped() {
+    if (typed && !inRange(parseTyped(typed))) setTyped(parsed ? toTyped(parsed) : "");
+  }
 
   function step(delta: number) {
     let m = vm + delta, y = vy;
@@ -168,92 +213,218 @@ export default function DatePicker({
   function pick(d: number) {
     onChange(iso(vy, vm, d));
     setTyped(toTyped({ y: vy, m: vm, d }));
-    setOpen(false);
+    pop.close();
+  }
+
+  function onInputKey(e: ReactKeyboardEvent<HTMLInputElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!open) openCal(e.altKey ? "none" : "grid");
+      else if (!e.altKey) focusGrid();
+      return;
+    }
+    if (!open) return;
+    if ((e.key === "ArrowUp" && e.altKey) || e.key === "Enter") {
+      e.preventDefault();
+      pop.close();
+    }
+  }
+
+  function onSheetKey(e: ReactKeyboardEvent<HTMLInputElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      focusGrid();
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (inRange(parseTyped(typed))) pop.close();
+    }
+  }
+
+  function onGridKey(e: ReactKeyboardEvent<HTMLDivElement>) {
+    const from = e.target instanceof HTMLElement ? e.target.dataset.iso : undefined;
+    if (!from) return;
+    let next: string;
+    switch (e.key) {
+      case "ArrowLeft": next = shiftDays(from, -1); break;
+      case "ArrowRight": next = shiftDays(from, 1); break;
+      case "ArrowUp": next = shiftDays(from, -7); break;
+      case "ArrowDown": next = shiftDays(from, 7); break;
+      case "Home": next = shiftDays(from, -dowOf(from)); break;
+      case "End": next = shiftDays(from, 6 - dowOf(from)); break;
+      case "PageUp": next = shiftMonths(from, e.shiftKey ? -12 : -1); break;
+      case "PageDown": next = shiftMonths(from, e.shiftKey ? 12 : 1); break;
+      default: return;
+    }
+    e.preventDefault();
+    const target = clampIso(next, lo, hi);
+    const p = parse(target);
+    if (!p) return;
+    const cell = popRef.current?.querySelector<HTMLElement>(`.dpick__d[data-iso="${target}"]`);
+    setCursor(target);
+    if (cell) {
+      cell.focus({ preventScroll: true });
+      return;
+    }
+    focusReq.current = "grid";
+    setVy(p.y);
+    setVm(p.m);
+  }
+
+  function onPopKey(e: ReactKeyboardEvent<HTMLDivElement>) {
+    const p = popRef.current;
+    if (e.key !== "Tab" || !p || !atEdge(p, e.shiftKey)) return;
+    if (e.shiftKey) e.preventDefault();
+    focusField(inputRef.current);
+    pop.close("blur");
   }
 
   const firstDow = (new Date(vy, vm, 1).getDay() + 6) % 7; // Monday-first offset
   const daysIn = new Date(vy, vm + 1, 0).getDate();
   const cells: (number | null)[] = [...Array(firstDow).fill(null), ...Array.from({ length: daysIn }, (_, i) => i + 1)];
+  const weeks = Array.from({ length: Math.ceil(cells.length / 7) }, (_, w) => cells.slice(w * 7, w * 7 + 7));
+  const ym = `${vy}-${String(vm + 1).padStart(2, "0")}`;
+  const usable = (s: string) => s.startsWith(ym) && !(lo && s < lo) && !(hi && s > hi);
+  const selIso = parsed ? iso(parsed.y, parsed.m, parsed.d) : "";
+  const tabIso =
+    [cursor, selIso, todayIso].find((s) => s && usable(s)) ??
+    Array.from({ length: daysIn }, (_, i) => iso(vy, vm, i + 1)).find(usable) ??
+    "";
 
   return (
-    <div className="mpick dpick" ref={root} data-open={open}>
+    <div className="mpick dpick" data-open={open}>
       <div
+        ref={fieldRef}
         className={`mpick__btn${parsed ? "" : " mpick__btn--ph"}`}
         onMouseDown={(e) => {
-          if (disabled || e.target === inputRef.current) return;
+          if (disabled || e.button !== 0) return;
+          if (pop.isSheet) {
+            e.preventDefault();
+            if (!open) openCal(isCoarsePointer() ? "grid" : "field");
+            return;
+          }
+          if (e.target === inputRef.current) {
+            if (!open) openCal("none");
+            return;
+          }
           // An icon/caret click shouldn't steal focus from the text input.
           e.preventDefault();
-          setOpen((v) => !v);
+          if (open) { pop.close(); return; }
+          openCal("none");
+          focusField(inputRef.current);
+        }}
+        onClick={(e) => {
+          if (pop.isSheet) e.preventDefault();
         }}
       >
         <IconCalendar />
         <input
           ref={inputRef}
           type="text"
-          inputMode="numeric"
+          inputMode={coarse ? "none" : "numeric"}
           autoComplete="off"
           maxLength={10}
           className="mpick__val"
           placeholder={placeholder}
           aria-label={ariaLabel}
+          role="combobox"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-controls={open ? popId : undefined}
           disabled={disabled}
           value={typed}
-          onFocus={() => setOpen(true)}
-          onChange={(e) => {
-            const t = maskTyped(e.target.value);
-            setTyped(t);
-            if (t === "") { onChange(""); return; }
-            const outIso = parseTyped(t);
-            if (outIso && (!min || outIso >= min) && (!max || outIso <= max)) onChange(outIso);
-          }}
-          onBlur={() => {
-            if (typed && !parseTyped(typed)) setTyped(parsed ? toTyped(parsed) : "");
-          }}
+          onKeyDown={onInputKey}
+          onChange={(e) => typeText(e.target.value)}
+          onBlur={settleTyped}
         />
         <span className="mpick__cv" />
       </div>
-      {open && pos ? createPortal(
-        <div
-          className="mpick__pop"
-          role="dialog"
-          aria-label={ariaLabel}
-          ref={popRef}
-          style={{ position: "fixed", top: pos.top, left: pos.left, maxHeight: pos.maxHeight }}
-        >
-          <div className="mpick__nav">
-            <button type="button" aria-label={ta("prev")} onClick={() => step(-1)}><IconChevronLeft /></button>
-            <b>{monthTitle(vy, vm, locale)}</b>
-            <button type="button" aria-label={ta("next")} onClick={() => step(1)}><IconChevronRight /></button>
-          </div>
-          <div className="dpick__wd">
-            {wd.map((w, i) => <span key={i}>{w}</span>)}
-          </div>
-          <div className="dpick__grid">
-            {cells.map((d, i) => {
-              if (d == null) return <span key={i} className="dpick__blank" />;
-              const cellIso = iso(vy, vm, d);
-              const off = (min && cellIso < min) || (max && cellIso > max);
-              const on = !!parsed && parsed.y === vy && parsed.m === vm && parsed.d === d;
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  className={`dpick__d${on ? " on" : ""}`}
-                  disabled={!!off}
-                  onClick={() => pick(d)}
-                >
-                  {d}
+      {open ? createPortal(
+        <>
+          {pop.isSheet ? <div className="mpick__scrim" style={{ zIndex: pop.z - 1 }} aria-hidden="true" /> : null}
+          <div
+            id={popId}
+            className={`mpick__pop${pop.isSheet ? " mpick__pop--sheet" : ""}`}
+            role="dialog"
+            aria-label={label}
+            ref={popRef}
+            tabIndex={-1}
+            data-placement={pop.placement}
+            style={pop.style}
+            onMouseDown={(e) => {
+              if (!pop.isSheet && document.activeElement === inputRef.current) e.preventDefault();
+            }}
+            onKeyDown={onPopKey}
+          >
+            {pop.isSheet ? (
+              <div className="mpick__sheethead">
+                <span className="mpick__grip" aria-hidden="true" />
+                <b className="mpick__title">{label}</b>
+                <button type="button" className="mpick__x" aria-label={ta("close")} onClick={() => pop.close()}>
+                  <IconClose />
                 </button>
-              );
-            })}
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={10}
+                  className="mpick__sheetval"
+                  placeholder={tc("dateFormat")}
+                  aria-label={label}
+                  disabled={disabled}
+                  value={typed}
+                  onKeyDown={onSheetKey}
+                  onChange={(e) => typeText(e.target.value)}
+                  onBlur={settleTyped}
+                />
+              </div>
+            ) : null}
+            <div className="mpick__nav">
+              <button type="button" aria-label={ta("prev")} onClick={() => step(-1)}><IconChevronLeft /></button>
+              <b>{monthTitle(vy, vm, locale)}</b>
+              <button type="button" aria-label={ta("next")} onClick={() => step(1)}><IconChevronRight /></button>
+            </div>
+            <div className="dpick__wd" aria-hidden="true">
+              {wd.map((w, i) => <span key={i}>{w}</span>)}
+            </div>
+            <div className="dpick__grid" role="grid" aria-label={monthTitle(vy, vm, locale)} onKeyDown={onGridKey}>
+              {weeks.map((week, wi) => (
+                <div key={wi} role="row" style={CONTENTS}>
+                  {week.map((d, i) => {
+                    if (d == null) return <span key={`b${i}`} role="gridcell" className="dpick__blank" />;
+                    const cellIso = iso(vy, vm, d);
+                    const off = (lo && cellIso < lo) || (hi && cellIso > hi);
+                    const on = cellIso === selIso;
+                    const now = cellIso === todayIso;
+                    return (
+                      <span key={cellIso} role="gridcell" aria-selected={on} style={CONTENTS}>
+                        <button
+                          type="button"
+                          className={`dpick__d${on ? " on" : ""}${now ? " is-today" : ""}`}
+                          data-iso={cellIso}
+                          tabIndex={cellIso === tabIso ? 0 : -1}
+                          aria-label={fmtDate(cellIso, locale)}
+                          aria-current={now ? "date" : undefined}
+                          disabled={!!off}
+                          onClick={() => pick(d)}
+                        >
+                          {d}
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            {value && clearLabel ? (
+              <button type="button" className="mpick__clear" onClick={() => { onChange(""); setTyped(""); pop.close(); }}>
+                <IconClose />
+                {clearLabel}
+              </button>
+            ) : null}
           </div>
-          {value && clearLabel ? (
-            <button type="button" className="mpick__clear" onClick={() => { onChange(""); setTyped(""); setOpen(false); }}>
-              <IconClose />
-              {clearLabel}
-            </button>
-          ) : null}
-        </div>,
+        </>,
         document.body
       ) : null}
     </div>

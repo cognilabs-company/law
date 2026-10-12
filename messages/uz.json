@@ -1722,6 +1722,7 @@
     }
   },
   "filterBar": {
+    "more": "Ko'proq filtr",
     "title": "Filtrlar",
     "search": "Qidirish",
     "reset": "Tozalash",
@@ -3687,6 +3688,9 @@
     }
   },
   "common": {
+    "select": {"search":"Qidirish","empty":"Hech narsa topilmadi"},
+    "searchSelect": {"typeToSearch":"Qidirish uchun yozing","searching":"Qidirilmoqda…","failed":"Qidirib bo'lmadi. Qaytadan yozib ko'ring.","results":"{n} ta natija","remove":"Olib tashlash: {name}","chosen":"Tanlanganlar","clear":"Tozalash"},
+    "dateFormat": "kk.oo.yyyy",
     "notify": {
       "region": "Bildirishnomalar",
       "close": "Yopish",
@@ -3710,8 +3714,8 @@
     "featureSoon": "Bu imkoniyat tez orada ishga tushadi.",
     "contactBlocked": "Platformadan tashqarida bog'lanish ma'lumotini yozish mumkin emas. Muloqotni tizim ichida davom ettiring.",
     "kb": "KB",
-    "minuteShort": "DD",
-    "hourShort": "SS",
+    "minuteShort": "Daqiqa",
+    "hourShort": "Soat",
     "a11y": {
       "close": "Yopish",
       "prev": "Oldingi",
@@ -11183,6 +11187,8 @@
       }
     },
     "meetings": {
+      "participantsHint": "Ism, telefon yoki LexGo ID yozing",
+      "role": {"client":"Mijoz","advokat":"Advokat","yurist":"Yurist","operator":"Operator"},
       "ccConfirmTitle": "{name} bilan video uchrashuv boshlansinmi?",
       "ccConfirmTitleNoName": "Video uchrashuv boshlansinmi?",
       "ccConfirmText": "Mijozga qo'ng'iroq yuboriladi.",
@@ -11313,7 +11319,7 @@
       "periodPick": {
         "label": "Davr",
         "all": "Barcha vaqt",
-        "custom": "Boshqa"
+        "custom": "Sana oralig'i"
       },
       "urgency": {
         "low": "Past",
@@ -11352,7 +11358,7 @@
       "viewTable": "Jadval",
       "kpi": { "total": "Jami lid", "active": "Faol", "won": "Yutildi", "conv": "Konversiya" },
       "period": { "today": "Bugun", "week": "Bu hafta", "month": "Bu oy" },
-      "f": { "search": "Ism yoki telefon…", "allSource": "Barcha manba", "allRegion": "Barcha hudud", "allStage": "Barcha bosqich", "assignee": "Operator", "allAssignee": "Barcha operatorlar", "unassigned": "Taqsimlanmagan", "mine": "Mening lidlarim", "from": "Sanadan", "to": "Sanagacha", "clear": "Tozalash", "reset": "Filtrlarni tiklash", "shown": "{n} / {total} ta lid", "noMatch": "Filtrga mos lid topilmadi." },
+      "f": {"score": "Lid darajasi",  "search": "Ism yoki telefon…", "allSource": "Barcha manba", "allRegion": "Barcha hudud", "allStage": "Barcha bosqich", "assignee": "Operator", "allAssignee": "Barcha operatorlar", "unassigned": "Taqsimlanmagan", "mine": "Mening lidlarim", "from": "Sanadan", "to": "Sanagacha", "clear": "Tozalash", "reset": "Filtrlarni tiklash", "shown": "{n} / {total} ta lid", "noMatch": "Filtrga mos lid topilmadi." },
       "d": {
         "workId": "Ish ID",
         "close": "Yopish",
@@ -11426,6 +11432,8 @@
         }
       },
       "assign": {
+        "others": "Boshqalar",
+        "leadCount": "{n} ta lid",
         "opsError": "Operatorlar ro'yxati yuklanmadi",
         "unknown": "Noma'lum operator",
         "title": "Operator",
@@ -12803,6 +12811,8 @@
     }
   },
   "call": {
+    "role": {"client":"Mijoz","advokat":"Advokat","yurist":"Yurist","operator":"Operator"},
+    "inviteHint": "Ism, telefon yoki LexGo ID yozing",
     "bg": {
       "button": "Fon",
       "title": "Fon effektlari",

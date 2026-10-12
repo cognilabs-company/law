@@ -371,6 +371,7 @@ export default function Toaster() {
       className="ntf"
       aria-label={t("region")}
       data-ai-ignore=""
+      data-layer-ignore=""
       data-paused={snap.paused ? "" : undefined}
       data-open={expanded ? "" : undefined}
       data-kbd={kbdOn ? "" : undefined}

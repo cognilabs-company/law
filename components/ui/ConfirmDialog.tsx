@@ -94,14 +94,6 @@ export default function ConfirmHost() {
   useEffect(() => {
     if (!key) return;
     (danger ? cancelRef.current : okRef.current)?.focus({ preventScroll: true });
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || (e.target instanceof Element && e.target.closest(".ntf"))) return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      settle(key, false);
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
   }, [key, danger]);
 
   useEffect(() => {

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { isCallRoomMounted } from "@/components/chat/CallRoom";
+import { useLayer } from "@/lib/layers";
 import { IconClose } from "../icons";
 
 const FOCUSABLE =
@@ -32,18 +33,27 @@ export default function Modal({
   // used to throw away everything typed so far.
   const ta = useTranslations("common.a11y");
   const downOnScrim = useRef(false);
+  const scrim = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
+  const z = useLayer(open, {
+    kind: "overlay",
+    el: panel,
+    backdrop: scrim,
     // A CallRoom mounted inside this modal is a full-screen overlay of its
     // own — Escape there means "leave the call", which its own end button
     // owns. Closing the modal underneath would tear the call down instead.
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !e.defaultPrevented && !isCallRoomMounted()) onClose();
-    };
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [open, onClose]);
+    onEscape: () => {
+      if (!isCallRoomMounted() || !document.querySelector(".mtg:not(.mtg--float)")) onClose();
+    },
+  });
+
+  useLayoutEffect(() => {
+    const el = scrim.current;
+    if (!open || !el) return;
+    el.style.zIndex = "";
+    const css = Number.parseInt(getComputedStyle(el).zIndex, 10);
+    if (!(css >= z)) el.style.zIndex = String(z);
+  }, [open, z]);
 
   // Focus handling is keyed on `open` alone. Callers almost always pass an
   // inline arrow as onClose, so a combined effect re-ran on every parent
@@ -86,6 +96,7 @@ export default function Modal({
 
   return (
     <div
+      ref={scrim}
       className="amodal"
       onMouseDown={(e) => {
         downOnScrim.current = e.target === e.currentTarget;

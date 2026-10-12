@@ -6666,7 +6666,7 @@ export async function listInvitedCalls(): Promise<InvitedCall[]> {
 
 // Search any platform user (staff/callcenter) to invite to a meeting, or for
 // any admin "pick a user" field instead of typing an id by hand.
-export type UserSearchResult = { id: string; name: string; phone: string; role: string; lexgoId: string };
+export type UserSearchResult = { id: string; name: string; phone: string; role: string; lexgoId: string; accountStatus: string };
 export async function searchUsers(q: string, opts?: { role?: string; limit?: number }): Promise<UserSearchResult[]> {
   const query = q.trim();
   if (!query) return [];
@@ -6678,10 +6678,11 @@ export async function searchUsers(q: string, opts?: { role?: string; limit?: num
     const u = asDict(d.user);
     return {
       id: asStr(d.id ?? d.user_id ?? u.id),
-      name: asStr(d.name ?? d.full_name ?? u.name),
+      name: asStr(d.name ?? d.full_name ?? u.name) || [asStr(d.first_name ?? u.first_name), asStr(d.last_name ?? u.last_name)].filter(Boolean).join(" "),
       phone: asStr(d.phone ?? u.phone),
       role: asStr(d.role ?? d.seller_type),
       lexgoId: asStr(d.lexgo_id ?? d.lexgoId),
+      accountStatus: asStr(d.account_status ?? u.account_status),
     };
   });
 }

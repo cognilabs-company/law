@@ -141,7 +141,7 @@ export default function Spotlight({ targetId, stepKey, variant, strict = false }
   if (typeof document === "undefined") return null;
   return createPortal(
     <>
-      {soft ? null : <div className="gscrim" ref={scrim} aria-hidden="true" />}
+      {soft ? null : <div className="gscrim" ref={scrim} aria-hidden="true" data-layer-ignore="" />}
       <div className={`gring${variant === "pulse" ? " gring--pulse" : soft ? " gring--soft" : ""}`} ref={ring} aria-hidden="true">
         <i className="gring__glow" />
       </div>

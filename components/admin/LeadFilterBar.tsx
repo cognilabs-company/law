@@ -136,12 +136,14 @@ export default function LeadFilterBar({
   );
   const withN = (label: string, n: number) => `${label} (${n})`;
   const fid = (key: string) => (aiId ? `${aiId}.${key}` : undefined);
+  const compact = !(className ?? "").split(/\s+/).includes("uf--fold");
 
   const fields: FilterField[] = [
     {
       key: "period",
       label: t("periodPick.label"),
       icon: IconClock,
+      more: compact,
       value: period,
       onChange: pickPeriod,
       options: [{ value: "", label: t("periodPick.all") }, ...QUICK.map((q) => ({ value: q, label: t(`period.${q}`) })), { value: "custom", label: t("periodPick.custom") }],
@@ -149,20 +151,19 @@ export default function LeadFilterBar({
       aiId: fid("period"),
     },
     {
-      key: "from",
-      label: t("f.from"),
+      key: "range",
+      label: t("periodPick.custom"),
       icon: IconCalendar,
       hidden: period !== "custom",
+      wide: true,
+      more: compact,
       chip: null,
-      node: <DatePicker value={value.from} onChange={(from) => setDate({ from })} placeholder={t("f.from")} ariaLabel={t("f.from")} max={value.to || undefined} clearLabel={t("f.clear")} />,
-    },
-    {
-      key: "to",
-      label: t("f.to"),
-      icon: IconCalendar,
-      hidden: period !== "custom",
-      chip: null,
-      node: <DatePicker value={value.to} onChange={(to) => setDate({ to })} placeholder={t("f.to")} ariaLabel={t("f.to")} min={value.from || undefined} clearLabel={t("f.clear")} />,
+      node: (
+        <div className="lfb-range">
+          <DatePicker value={value.from} onChange={(from) => setDate({ from })} placeholder={t("f.from")} ariaLabel={t("f.from")} max={value.to || undefined} clearLabel={t("f.clear")} />
+          <DatePicker value={value.to} onChange={(to) => setDate({ to })} placeholder={t("f.to")} ariaLabel={t("f.to")} min={value.from || undefined} clearLabel={t("f.clear")} />
+        </div>
+      ),
     },
     {
       key: "stage",
@@ -190,9 +191,10 @@ export default function LeadFilterBar({
     },
     {
       key: "score",
-      label: t("d.score"),
+      label: t("f.score"),
       icon: IconFlame,
       hidden: !scores,
+      more: compact,
       value: value.score,
       onChange: (score) => set({ score }),
       options: [{ value: "", label: tf("all") }, ...LEAD_SCORES.map((s) => ({ value: s, label: withN(leadScoreLabel(t, s), tally.score(s)) }))],
@@ -203,6 +205,7 @@ export default function LeadFilterBar({
       label: t("d.urgency"),
       icon: IconFlag,
       hidden: !urgencies?.length,
+      more: compact,
       value: value.urgency,
       onChange: (urgency) => set({ urgency }),
       options: [{ value: "", label: tf("all") }, ...(urgencies ?? []).map((u) => ({ value: u, label: withN(leadUrgencyLabel(t, u), tally.urgency(u)) }))],
@@ -213,6 +216,7 @@ export default function LeadFilterBar({
       label: t("d.source"),
       icon: IconMegaphone,
       hidden: !sources,
+      more: compact,
       value: value.source,
       onChange: (source) => set({ source }),
       options: [{ value: "", label: t("f.allSource") }, ...(sources ?? []).map((s) => ({ value: s, label: withN(leadSourceLabel(t, s), tally.source(s)) }))],
@@ -222,6 +226,7 @@ export default function LeadFilterBar({
       key: "region",
       label: t("d.region"),
       icon: IconMapPin,
+      more: compact,
       value: value.region,
       onChange: (region) => set({ region }),
       options: [{ value: "", label: t("f.allRegion") }, ...regions.map((r) => ({ value: r, label: withN(leadRegionLabel(te, r), tally.region(r)) }))],

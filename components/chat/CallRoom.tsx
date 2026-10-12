@@ -1740,6 +1740,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         clientLabel: t("inviteClient"),
         regionLabel: (v) => regionLabel(te, v),
         exclude: () => [...rosterRef.current.map((p) => p.userId), ...(session?.id ? [session.id] : [])],
+        roleLabel: (r) => (t.has(`role.${r}`) ? t(`role.${r}`) : ""),
       });
     }
     return inviteSearchRef.current(q);
@@ -1949,6 +1950,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     <div
       className={`mtg${panel ? " mtg--panel" : ""}${floating ? " mtg--float" : ""}${floating && fmin ? " mtg--fmin" : ""}`}
       data-tick={tick}
+      data-layer-ignore=""
       style={floating ? { right: fbox.right, bottom: fbox.bottom, width: fbox.w, height: fmin ? undefined : fbox.h } : undefined}
       data-ai-id={aiAt()}
       data-ai-type={aiScope ? "section" : undefined}
@@ -2247,6 +2249,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
                       searchPlaceholder={t("invitePick")}
                       emptyText={t("inviteEmpty")}
                       ariaLabel={t("invite")}
+                      hint={t("inviteHint")}
                     />
                     <button type="button" className="btn btn--pri btn--sm" onClick={sendInvites} disabled={inviteBusy || !invitePicks.length}>
                       <IconUserPlus />{inviteBusy ? t("inviteSending") : t("inviteSend")}

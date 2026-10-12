@@ -957,7 +957,7 @@ export default function AiSystemAssistant({
           </button>
         )
       ) : (
-        <div className="ains" role="dialog" aria-label={tp("fullName")} data-ai-ignore="" ref={panelRef} tabIndex={-1}>
+        <div className="ains" role="dialog" aria-label={tp("fullName")} data-ai-ignore="" data-layer-soft="" ref={panelRef} tabIndex={-1}>
           <div className="ains__h">
             <RobotAvatar size={38} mood={busy ? "think" : "idle"} className="ains__av" />
             <div className="ains__id">

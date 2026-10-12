@@ -1722,6 +1722,7 @@
     }
   },
   "filterBar": {
+    "more": "More filters",
     "title": "Filters",
     "search": "Search",
     "reset": "Clear all",
@@ -3687,6 +3688,9 @@
     }
   },
   "common": {
+    "select": {"search":"Search","empty":"Nothing found"},
+    "searchSelect": {"typeToSearch":"Start typing to search","searching":"Searching…","failed":"Search failed. Try typing again.","results":"{n, plural, one {# result} other {# results}}","remove":"Remove: {name}","chosen":"Selected","clear":"Clear"},
+    "dateFormat": "dd.mm.yyyy",
     "notify": {
       "region": "Notifications",
       "close": "Close",
@@ -3710,8 +3714,8 @@
     "featureSoon": "This feature is coming soon.",
     "contactBlocked": "You can't share contact details outside the platform. Please keep the conversation here.",
     "kb": "KB",
-    "minuteShort": "MM",
-    "hourShort": "HH",
+    "minuteShort": "Minute",
+    "hourShort": "Hour",
     "a11y": {
       "close": "Close",
       "prev": "Previous",
@@ -11177,6 +11181,8 @@
       }
     },
     "meetings": {
+      "participantsHint": "Type a name, phone or LexGo ID",
+      "role": {"client":"Client","advokat":"Advocate","yurist":"Lawyer","operator":"Operator"},
       "ccConfirmTitle": "Start a video meeting with {name}?",
       "ccConfirmTitleNoName": "Start a video meeting?",
       "ccConfirmText": "The client will get a call.",
@@ -11307,7 +11313,7 @@
       "periodPick": {
         "label": "Period",
         "all": "All time",
-        "custom": "Custom"
+        "custom": "Date range"
       },
       "urgency": {
         "low": "Low",
@@ -11346,7 +11352,7 @@
       "viewTable": "Table",
       "kpi": { "total": "Total leads", "active": "Active", "won": "Won", "conv": "Conversion" },
       "period": { "today": "Today", "week": "This week", "month": "This month" },
-      "f": { "search": "Name or phone…", "allSource": "All sources", "allRegion": "All regions", "allStage": "All stages", "assignee": "Operator", "allAssignee": "All operators", "unassigned": "Unassigned", "mine": "My leads", "from": "From date", "to": "To date", "clear": "Clear", "reset": "Reset filters", "shown": "{n} / {total} leads", "noMatch": "No leads match the filters." },
+      "f": {"score": "Lead level",  "search": "Name or phone…", "allSource": "All sources", "allRegion": "All regions", "allStage": "All stages", "assignee": "Operator", "allAssignee": "All operators", "unassigned": "Unassigned", "mine": "My leads", "from": "From date", "to": "To date", "clear": "Clear", "reset": "Reset filters", "shown": "{n} / {total} leads", "noMatch": "No leads match the filters." },
       "d": {
         "workId": "Work ID",
         "close": "Close",
@@ -11420,6 +11426,8 @@
         }
       },
       "assign": {
+        "others": "Others",
+        "leadCount": "{n, plural, one {# lead} other {# leads}}",
         "opsError": "Couldn't load the operator list",
         "unknown": "Unknown operator",
         "title": "Operator",
@@ -12797,6 +12805,8 @@
     }
   },
   "call": {
+    "role": {"client":"Client","advokat":"Advocate","yurist":"Lawyer","operator":"Operator"},
+    "inviteHint": "Type a name, phone or LexGo ID",
     "bg": {
       "button": "Background",
       "title": "Background effects",

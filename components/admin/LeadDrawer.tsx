@@ -10,7 +10,7 @@ import { useResource } from "@/lib/useResource";
 import { notify } from "@/lib/toast";
 import { useReload } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
-import Select from "@/components/Select";
+import Select, { rankOptions } from "@/components/Select";
 import { dateOnly, fmtDate, shortDateTime, timeOnly } from "@/lib/date";
 import { humanizeSlug } from "@/lib/lawyers";
 import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadUrgencyLabel, personLabel } from "@/lib/leadLabels";
@@ -19,6 +19,7 @@ import { IconClose, IconClock, IconPhone, IconSend } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
 
 const NO_OPS: OperatorsState = { ops: [], people: new Map<string, AdminUser>(), status: "ready", retry: () => Promise.resolve() };
+const NO_LOAD: ReadonlyMap<string, number> = new Map();
 
 function subscribeMinute(cb: () => void) {
   const id = window.setInterval(cb, 60000);
@@ -35,6 +36,7 @@ export default function LeadDrawer({
   columns,
   busy,
   ops = NO_OPS,
+  load = NO_LOAD,
   meId = "",
   onAssign,
   onMove,
@@ -48,6 +50,7 @@ export default function LeadDrawer({
   // Call-center operators for the "Operator" select; opsStatus "forbidden"
   // (no users.manage) shows the current assignee read-only.
   ops?: OperatorsState;
+  load?: ReadonlyMap<string, number>;
   meId?: string;
   // (Re)assign the lead ("" = unassign); rejects with ApiError on failure.
   onAssign?: (userId: string) => Promise<void>;
@@ -122,12 +125,15 @@ export default function LeadDrawer({
   ];
   const canPick = !!onAssign && ops.status === "ready";
   const opLabel = (o: AdminUser) => operatorName(o) || t("assign.unknown");
-  const assigneeOpts = [
-    { value: "", label: t("assign.none") },
-    ...ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${opLabel(o)} (${t("assign.me")})` : opLabel(o) })),
-  ];
+  const ranked = rankOptions(
+    ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${opLabel(o)} (${t("assign.me")})` : opLabel(o) })),
+    load,
+    t("assign.others"),
+    (n) => t("assign.leadCount", { n }),
+  );
   // An assignee that is no longer in the directory still shows up as chosen.
-  if (lead.assignedTo && !ops.ops.some((o) => o.id === lead.assignedTo)) assigneeOpts.push({ value: lead.assignedTo, label: assigneeLabel(t, ops.people, lead.assignedTo, meId, ops.status === "ready") });
+  const orphan = lead.assignedTo && !ops.ops.some((o) => o.id === lead.assignedTo) ? [{ value: lead.assignedTo, label: assigneeLabel(t, ops.people, lead.assignedTo, meId, ops.status === "ready") }] : [];
+  const assigneeOpts = [{ value: "", label: t("assign.none") }, ...orphan, ...ranked];
 
   const stageName = (key: string) => {
     const col = columns.find((c) => c.key === key);
@@ -233,7 +239,7 @@ export default function LeadDrawer({
               <button className="btn btn--pri btn--sm" type="button" disabled={!note.trim() || act === "note"} onClick={() => void addNote()}><IconSend />{act === "note" ? t("d.saving") : t("d.addNote")}</button>
             </div>
             <div className="ldrw__remind">
-              <DatePicker value={remind} onChange={setRemind} placeholder={t("d.reminder")} ariaLabel={t("d.reminder")} />
+              <DatePicker value={remind} onChange={setRemind} min={today || undefined} placeholder={t("d.reminder")} ariaLabel={t("d.reminder")} />
               <button className="btn btn--line btn--sm" type="button" disabled={!remind || act === "rem"} onClick={() => void setReminder()}>{act === "rem" ? t("d.saving") : t("d.setReminder")}</button>
             </div>
           </div>

@@ -1,16 +1,34 @@
 import { searchUsers, listLawyers, getLawyerClients } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
+import { personName } from "@/lib/labels";
 import type { SearchOption } from "@/components/SearchSelect";
 
-export type InviteUser = { id: string; name: string; phone: string; lexgoId?: string; sub?: string };
+export type InviteUser = { id: string; name: string; phone: string; lexgoId?: string; sub?: string; role?: string; status?: string };
 export type InviteSearch = (q: string) => Promise<SearchOption[]>;
+export type InviteRole = "client" | "advokat" | "yurist" | "operator";
+
+const CLOSED_ACCOUNTS = new Set(["deleted", "suspended", "blocked", "disabled", "deactivated", "banned", "rejected", "archived"]);
+const STAFF_ROLES = new Set(["admin", "superadmin", "manager", "call_center", "callcenter", "operator", "sales"]);
+
+export function inviteRole(role?: string): InviteRole | "" {
+  const r = (role || "").trim().toLowerCase();
+  if (r === "client") return "client";
+  if (r === "advokat" || r === "advokat_tashkiloti" || r === "advocate") return "advokat";
+  if (r === "yurist" || r === "lawyer") return "yurist";
+  return STAFF_ROLES.has(r) ? "operator" : "";
+}
+
+function closedAccount(status?: string): boolean {
+  const s = (status || "").trim().toLowerCase();
+  return CLOSED_ACCOUNTS.has(s) || s.endsWith("deleted");
+}
 
 // Who a meeting host can invite. /users/search covers every platform user but
 // is staff-only (401/403 for sellers and clients): the first refusal switches
 // this searcher to a cached directory of the people the account can actually
 // reach — lawyers/advocates (incl. unverified) and, for sellers, their own
 // clients — filtered client-side by name, phone or LexGo ID.
-export function makeInviteSearch(opts: { clientLabel: string; regionLabel?: (v: string) => string; exclude?: () => Iterable<string> }): InviteSearch {
+export function makeInviteSearch(opts: { clientLabel: string; regionLabel?: (v: string) => string; exclude?: () => Iterable<string>; roleLabel?: (role: InviteRole) => string }): InviteSearch {
   let dir: Promise<InviteUser[]> | null = null;
   let staffSearch = true;
   const directory = () => {
@@ -22,8 +40,8 @@ export function makeInviteSearch(opts: { clientLabel: string; regionLabel?: (v: 
         ]);
         const seen = new Set<string>();
         const out: InviteUser[] = [];
-        for (const l of lawyers) if (l.userId && !seen.has(l.userId)) { seen.add(l.userId); out.push({ id: l.userId, name: l.name, phone: l.phone, lexgoId: l.publicId, sub: opts.regionLabel ? opts.regionLabel(l.region) : l.region }); }
-        for (const c of clients) if (c.id && !seen.has(c.id)) { seen.add(c.id); out.push({ id: c.id, name: c.name, phone: c.phone, sub: opts.clientLabel }); }
+        for (const l of lawyers) if (l.userId && !seen.has(l.userId)) { seen.add(l.userId); out.push({ id: l.userId, name: l.name, phone: l.phone, lexgoId: l.publicId, sub: opts.regionLabel ? opts.regionLabel(l.region) : l.region, role: l.sellerType }); }
+        for (const c of clients) if (c.id && !seen.has(c.id)) { seen.add(c.id); out.push({ id: c.id, name: c.name, phone: c.phone, sub: opts.roleLabel ? undefined : opts.clientLabel, role: "client" }); }
         return out;
       })();
     }
@@ -36,7 +54,7 @@ export function makeInviteSearch(opts: { clientLabel: string; regionLabel?: (v: 
     let users: InviteUser[] = [];
     if (staffSearch) {
       try {
-        users = (await searchUsers(q)).map((u) => ({ id: u.id, name: u.name, phone: u.phone, lexgoId: u.lexgoId }));
+        users = (await searchUsers(q)).map((u) => ({ id: u.id, name: u.name, phone: u.phone, lexgoId: u.lexgoId, role: u.role, status: u.accountStatus }));
       } catch (e) {
         if (!(e instanceof ApiError && (e.status === 403 || e.status === 401 || e.status === 404))) throw e;
         staffSearch = false;
@@ -52,7 +70,15 @@ export function makeInviteSearch(opts: { clientLabel: string; regionLabel?: (v: 
     }
     const skip = new Set(opts.exclude ? opts.exclude() : []);
     return users
-      .filter((u) => u.id && !skip.has(u.id))
-      .map((u) => ({ value: u.id, label: u.name || u.phone || "—", sub: [u.phone, u.lexgoId, u.sub].filter(Boolean).join(" · ") || undefined }));
+      .filter((u) => u.id && !skip.has(u.id) && !closedAccount(u.status))
+      .map((u) => {
+        const role = inviteRole(u.role);
+        return {
+          value: u.id,
+          label: personName(u.name) || u.phone || "—",
+          sub: [u.phone, u.lexgoId, u.sub].filter(Boolean).join(" · ") || undefined,
+          tag: role && opts.roleLabel ? opts.roleLabel(role) : undefined,
+        };
+      });
   };
 }

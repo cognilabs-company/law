@@ -31,7 +31,7 @@ import { AdminForm, Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import FieldError from "@/components/ui/FieldError";
-import Select from "@/components/Select";
+import Select, { rankOptions } from "@/components/Select";
 import LeadDrawer from "@/components/admin/LeadDrawer";
 import LeadFilterBar from "@/components/admin/LeadFilterBar";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
@@ -123,6 +123,11 @@ export default function AdminPipeline() {
   );
   const allLeads = useMemo(() => leadsOf(cols), [cols]);
   const unassigned = useMemo(() => allLeads.filter((l) => !l.assignedTo), [allLeads]);
+  const opLoad = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of allLeads) if (l.assignedTo) m.set(l.assignedTo, (m.get(l.assignedTo) ?? 0) + 1);
+    return m;
+  }, [allLeads]);
   const selected = allCards.find((x) => x.lead.id === selId) || null;
   const colTitle = (k: string) => {
     const c = cols.find((x) => x.key === k);
@@ -567,6 +572,7 @@ export default function AdminPipeline() {
           columns={cols}
           busy={busy === selected.lead.id}
           ops={ops}
+          load={opLoad}
           meId={meId}
           onAssign={(userId) => assign(selected.lead, userId)}
           onMove={(ck) => moveTo(selected.lead.id, ck, 0)}
@@ -588,7 +594,12 @@ export default function AdminPipeline() {
               label: ta("leads.operator"),
               type: "select",
               placeholder: ta("leads.operatorAuto"),
-              options: ops.ops.map((o) => ({ value: o.id, label: operatorName(o) || t("assign.unknown") })),
+              options: rankOptions(
+                ops.ops.map((o) => ({ value: o.id, label: operatorName(o) || t("assign.unknown") })),
+                opLoad,
+                t("assign.others"),
+                (n) => t("assign.leadCount", { n }),
+              ),
             },
           ]}
           onSubmit={async (v) =>
