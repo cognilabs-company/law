@@ -96,6 +96,15 @@ export default function InternalShell({ children }: { children: ReactNode }) {
   const activeGroup = groups.find((g) => active && g.items.includes(active));
   const role = roles.find((item) => ["superadmin", "admin", "manager", "call_center", "call_center_lawyer"].includes(item)) ?? "staff";
   const badges = useBadges(ready && allowed, pathname);
+  // The phone menu closes with Esc, like every other layer of the workspace.
+  useEffect(() => {
+    if (!drawer) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrawerPath(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawer]);
 
   useEffect(() => {
     if (!ready) return;

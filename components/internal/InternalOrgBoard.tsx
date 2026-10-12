@@ -1,99 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { asArr, asDict, asNum, asStr } from "@/lib/http";
 import { getOrgUnitDetail, normEmployee, personName, type OrgBoard, type OrgBoardNode } from "@/lib/services/internalHrm";
-import { IconBriefcase, IconBuilding, IconChevronDown, IconEdit, IconExpand, IconList, IconMinus, IconPlus, IconSearch, IconUser, IconUsers } from "@/components/icons";
+import { IconBriefcase, IconBuilding, IconEdit, IconList, IconPlus, IconSearch, IconUser, IconUsers } from "@/components/icons";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { HrmAvatar, HrmBar, HrmEmpty, HrmError, HrmKv, HrmLoading, HrmPerson, HrmSection, HrmStat, HrmStatus, useHrmFormat } from "@/components/internal/HrmUi";
 import Select from "@/components/Select";
+import OrgWhiteboard from "./OrgWhiteboard";
+import { buildTree, byPosition, filterTree, flatten, positionIdOf, subtreeOf, type Tree } from "./orgTree";
 
-// HRM org chart (10-09 guide §10). The board answers flat nodes + edges; this
-// turns them back into the tree they describe — units branching sideways,
-// each unit's people stacked under its card — and draws it as an org chart
-// with real connector lines. A node opens its detail in the side panel, never
-// a different page.
+// HRM org chart (10-09 guide §10): the whiteboard (OrgWhiteboard), the same
+// tree as a table with a detail panel, and the numbers.
 
-type View = "board" | "list" | "stats";
-type Tree = { node: OrgBoardNode; units: Tree[]; people: OrgBoardNode[]; depth: number };
-
-const ZOOM_MIN = 0.4;
-const ZOOM_MAX = 1.6;
-
-function buildTree(board: OrgBoard): Tree[] {
-  const units = board.nodes.filter((n) => n.type !== "employee");
-  const people = board.nodes.filter((n) => n.type === "employee");
-  const byId = new Map(units.map((n) => [n.id, n]));
-  // Edges are the authority when present; a node's own parent_id otherwise.
-  const parentOf = new Map<string, string>();
-  for (const n of board.nodes) if (n.parentId) parentOf.set(n.id, n.parentId);
-  for (const e of board.edges) parentOf.set(e.target, e.source);
-  const kids = new Map<string, OrgBoardNode[]>();
-  const staff = new Map<string, OrgBoardNode[]>();
-  for (const u of units) {
-    const p = parentOf.get(u.id);
-    if (p && byId.has(p)) kids.set(p, [...(kids.get(p) ?? []), u]);
-  }
-  for (const person of people) {
-    const p = parentOf.get(person.id);
-    if (p) staff.set(p, [...(staff.get(p) ?? []), person]);
-  }
-  const order = (a: OrgBoardNode, b: OrgBoardNode) => asNum(a.raw.order) - asNum(b.raw.order) || a.label.localeCompare(b.label);
-  const make = (n: OrgBoardNode, depth: number, seen: Set<string>): Tree => {
-    seen.add(n.id);
-    return {
-      node: n,
-      depth,
-      units: (kids.get(n.id) ?? []).filter((c) => !seen.has(c.id)).sort(order).map((c) => make(c, depth + 1, seen)),
-      people: (staff.get(n.id) ?? []).sort((a, b) => a.label.localeCompare(b.label)),
-    };
-  };
-  const seen = new Set<string>();
-  return units.filter((u) => !parentOf.get(u.id) || !byId.has(parentOf.get(u.id)!)).sort(order).map((r) => make(r, 0, seen));
-}
-
-const positionIdOf = (n: OrgBoardNode) => asStr(asDict(n.raw.position).id) || asStr(asDict(n.raw.assignment).position_id);
-
-// One unit and everything under it.
-function subtreeOf(trees: Tree[], id: string): Tree[] {
-  for (const t of trees) {
-    if (t.node.id === id) return [t];
-    const hit = subtreeOf(t.units, id);
-    if (hit.length) return hit;
-  }
-  return [];
-}
-
-// Only the people holding one position, and the units on the way to them.
-function byPosition(trees: Tree[], positionId: string): Tree[] {
-  const out: Tree[] = [];
-  for (const t of trees) {
-    const units = byPosition(t.units, positionId);
-    const people = t.people.filter((p) => positionIdOf(p) === positionId);
-    if (units.length || people.length) out.push({ ...t, units, people });
-  }
-  return out;
-}
-
-// Keep a unit when it, one of its people or anything below it matches.
-function filterTree(trees: Tree[], needle: string): Tree[] {
-  if (!needle) return trees;
-  const hit = (n: OrgBoardNode) => `${n.label} ${n.subtitle} ${asStr(n.raw.employee_code)}`.toLocaleLowerCase().includes(needle);
-  const out: Tree[] = [];
-  for (const t of trees) {
-    const units = filterTree(t.units, needle);
-    const people = t.people.filter(hit);
-    if (hit(t.node) || units.length || people.length) out.push({ ...t, units, people: hit(t.node) ? t.people : people });
-  }
-  return out;
-}
-
-const flatten = (trees: Tree[]): Tree[] => trees.flatMap((t) => [t, ...flatten(t.units)]);
+export type OrgView = "board" | "list" | "stats";
 
 export default function InternalOrgBoard({
   board,
   loading,
+  view,
   onEditUnit,
   onAddUnit,
   onAddEmployee,
@@ -102,6 +28,7 @@ export default function InternalOrgBoard({
 }: {
   board: OrgBoard;
   loading: boolean;
+  view: OrgView;
   // The board could not be read: the page says so; no "no units yet" here.
   failed?: boolean;
   onEditUnit: (unitId: string) => void;
@@ -113,9 +40,7 @@ export default function InternalOrgBoard({
   const tb = useTranslations("internal.people.board");
   const [query, setQuery] = useState("");
   const [showPeople, setShowPeople] = useState(true);
-  const [view, setView] = useState<View>("board");
   const [selectedId, setSelectedId] = useState("");
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [unitF, setUnitF] = useState("");
   const [positionF, setPositionF] = useState("");
 
@@ -135,12 +60,15 @@ export default function InternalOrgBoard({
     for (const n of board.nodes) if (n.type === "employee" && positionIdOf(n)) m.set(positionIdOf(n), asStr(asDict(n.raw.position).title) || n.subtitle);
     return [{ value: "", label: tb("allPositions") }, ...[...m.entries()].sort((x, y) => x[1].localeCompare(y[1])).map(([value, label]) => ({ value, label }))];
   }, [board.nodes, tb]);
-  // The backend says which board controls it supports (10-09 §10 layout).
-  const layout = asDict(board.layout);
-  const canZoom = layout.supports_zoom !== false;
-  const canMinimap = layout.supports_minimap !== false;
   const selected = board.nodes.find((n) => n.id === selectedId) ?? null;
-  const toggle = useCallback((id: string) => setCollapsed((cur) => { const next = new Set(cur); if (next.has(id)) next.delete(id); else next.add(id); return next; }), []);
+
+  if (loading) return <div className="hrm-panel"><HrmLoading rows={6} /></div>;
+  if (failed && !trees.length) return null;
+  if (!trees.length) {
+    return <div className="hrm-panel"><HrmEmpty icon={IconBuilding} title={t("emptyUnits")} text={tb("emptyLead")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => onAddUnit("")}><IconPlus />{t("newUnit")}</button>} /></div>;
+  }
+  if (view === "board") return <OrgWhiteboard trees={trees} onEditUnit={onEditUnit} onAddUnit={onAddUnit} onAddEmployee={onAddEmployee} onOpenEmployee={onOpenEmployee} />;
+  if (view === "stats") return <OrgStats board={board} trees={trees} />;
 
   return (
     <section className="org">
@@ -159,230 +87,20 @@ export default function InternalOrgBoard({
           <input type="checkbox" checked={showPeople} onChange={(e) => setShowPeople(e.target.checked)} />
           <span>{tb("showPeople")}</span>
         </label>
-        <div className="hrm-tabs" role="tablist" aria-label={tb("views")}>
-          {(["board", "list", "stats"] as View[]).map((v) => (
-            <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}>
-              {v === "board" ? <IconBuilding /> : v === "list" ? <IconList /> : <IconUsers />}
-              {v === "board" ? tb("viewBoard") : v === "list" ? tb("viewList") : tb("viewStats")}
-            </button>
-          ))}
-        </div>
       </div>
-
-      {loading ? <div className="hrm-panel"><HrmLoading rows={5} /></div> : failed && !trees.length ? null : !trees.length ? (
-        <div className="hrm-panel"><HrmEmpty icon={IconBuilding} title={t("emptyUnits")} text={tb("emptyLead")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => onAddUnit("")}><IconPlus />{t("newUnit")}</button>} /></div>
-      ) : view === "stats" ? (
-        <OrgStats board={board} trees={trees} />
-      ) : (
-        <div className="org__work">
-          <div className="org__main">
-            {view === "board" ? (
-              <BoardCanvas trees={shown} showPeople={showPeople} selectedId={selectedId} onSelect={setSelectedId} collapsed={collapsed} onToggle={toggle} needle={needle} canZoom={canZoom} canMinimap={canMinimap} />
-            ) : (
-              <OrgList trees={shown} showPeople={showPeople} selectedId={selectedId} onSelect={setSelectedId} filtered={Boolean(needle || unitF || positionF)} />
-            )}
-          </div>
-          <aside className="org__aside">
-            {selected ? (
-              <NodeDetail node={selected} board={board} onSelect={setSelectedId} onEditUnit={onEditUnit} onAddUnit={onAddUnit} onAddEmployee={onAddEmployee} onOpenEmployee={onOpenEmployee} />
-            ) : (
-              <HrmEmpty icon={IconUsers} title={tb("selectTitle")} text={tb("selectText")} />
-            )}
-          </aside>
+      <div className="org__work">
+        <div className="org__main">
+          <OrgList trees={shown} showPeople={showPeople} selectedId={selectedId} onSelect={setSelectedId} filtered={Boolean(needle || unitF || positionF)} />
         </div>
-      )}
+        <aside className="org__aside">
+          {selected ? (
+            <NodeDetail node={selected} board={board} onSelect={setSelectedId} onEditUnit={onEditUnit} onAddUnit={onAddUnit} onAddEmployee={onAddEmployee} onOpenEmployee={onOpenEmployee} />
+          ) : (
+            <HrmEmpty icon={IconUsers} title={tb("selectTitle")} text={tb("selectText")} />
+          )}
+        </aside>
+      </div>
     </section>
-  );
-}
-
-// ── Cards ──────────────────────────────────────────────────────────────────
-
-function UnitCard({ node, selected, onSelect, collapsible, collapsed, onToggle, dim }: { node: OrgBoardNode; selected: boolean; onSelect: () => void; collapsible: boolean; collapsed: boolean; onToggle: () => void; dim?: boolean }) {
-  const tu = useTranslations("internal.ui");
-  const tb = useTranslations("internal.people.board");
-  const head = personName(node.raw.head);
-  const type = asStr(node.raw.unit_type);
-  const color = asStr(asDict(node.raw.meta).board_color);
-  return (
-    <div className={`org-card org-card--unit${selected ? " is-on" : ""}${dim ? " is-dim" : ""}`} style={color ? ({ "--org-c": color } as CSSProperties) : undefined}>
-      <button type="button" className="org-card__hit" onClick={onSelect} aria-pressed={selected}>
-        <span className="org-card__top">
-          <span className="org-card__i"><IconBuilding /></span>
-          <span className="org-card__t">
-            <b>{node.label}</b>
-            <small>{[node.subtitle, type && tu.has(`unitType.${type}`) ? tu(`unitType.${type}`) : ""].filter(Boolean).join(" · ")}</small>
-          </span>
-        </span>
-        {head ? <span className="org-card__head"><HrmAvatar name={head} size="sm" /><span><small>{tb("head")}</small><b>{head}</b></span></span> : null}
-        <span className="org-card__nums">
-          <span title={tb("people")}><IconUsers />{node.peopleCount}</span>
-          <span title={tb("positions")}><IconBriefcase />{node.positionCount}</span>
-          {asNum(node.raw.children_count) ? <span title={tb("subUnits")}><IconBuilding />{asNum(node.raw.children_count)}</span> : null}
-        </span>
-      </button>
-      {collapsible ? (
-        <button type="button" className={`org-card__fold${collapsed ? " is-closed" : ""}`} onClick={onToggle} aria-label={collapsed ? tb("expand") : tb("collapse")} title={collapsed ? tb("expand") : tb("collapse")}>
-          <IconChevronDown />
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function PersonCard({ node, selected, onSelect, dim }: { node: OrgBoardNode; selected: boolean; onSelect: () => void; dim?: boolean }) {
-  const code = asStr(node.raw.employee_code);
-  return (
-    <button type="button" className={`org-card org-card--person${selected ? " is-on" : ""}${dim ? " is-dim" : ""}`} onClick={onSelect} aria-pressed={selected}>
-      <HrmAvatar name={node.label} size="sm" />
-      <span className="org-card__t">
-        <b>{node.label}</b>
-        <small>{node.subtitle || "—"}</small>
-        {code ? <em>{code}</em> : null}
-      </span>
-    </button>
-  );
-}
-
-function TreeView({ trees, showPeople, selectedId, onSelect, collapsed, onToggle, needle, mini }: { trees: Tree[]; showPeople: boolean; selectedId: string; onSelect: (id: string) => void; collapsed: Set<string>; onToggle: (id: string) => void; needle: string; mini?: boolean }) {
-  const match = (n: OrgBoardNode) => !needle || `${n.label} ${n.subtitle} ${asStr(n.raw.employee_code)}`.toLocaleLowerCase().includes(needle);
-  const render = (tree: Tree): ReactNode => {
-    const closed = collapsed.has(tree.node.id);
-    const people = showPeople && !closed ? tree.people : [];
-    const units = closed ? [] : tree.units;
-    return (
-      <li key={tree.node.id}>
-        {mini ? <span className="org-mini org-mini--unit" /> : (
-          <UnitCard node={tree.node} selected={selectedId === tree.node.id} onSelect={() => onSelect(tree.node.id)} collapsible={tree.units.length + tree.people.length > 0} collapsed={closed} onToggle={() => onToggle(tree.node.id)} dim={!!needle && !match(tree.node)} />
-        )}
-        {people.length ? (
-          <div className="org-people">
-            {people.map((p) => mini ? <span key={p.id} className="org-mini org-mini--person" /> : <PersonCard key={p.id} node={p} selected={selectedId === p.id} onSelect={() => onSelect(p.id)} dim={!!needle && !match(p)} />)}
-          </div>
-        ) : null}
-        {units.length ? <ul>{units.map(render)}</ul> : null}
-      </li>
-    );
-  };
-  return <ul className={`org-tree${mini ? " org-tree--mini" : ""}`}>{trees.map(render)}</ul>;
-}
-
-// ── Board canvas: zoom, pan, minimap ───────────────────────────────────────
-
-function BoardCanvas({ canZoom, canMinimap, ...props }: { trees: Tree[]; showPeople: boolean; selectedId: string; onSelect: (id: string) => void; collapsed: Set<string>; onToggle: (id: string) => void; needle: string; canZoom: boolean; canMinimap: boolean }) {
-  const tb = useTranslations("internal.people.board");
-  const canvas = useRef<HTMLDivElement>(null);
-  const inner = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  const [view, setView] = useState({ w: 0, h: 0, x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [fitted, setFitted] = useState(false);
-  const drag = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
-
-  useLayoutEffect(() => {
-    const el = inner.current;
-    const box = canvas.current;
-    if (!el || !box) return;
-    const ro = new ResizeObserver(() => {
-      setSize({ w: el.offsetWidth, h: el.offsetHeight });
-      setView((v) => ({ ...v, w: box.clientWidth, h: box.clientHeight }));
-    });
-    ro.observe(el);
-    ro.observe(box);
-    return () => ro.disconnect();
-  }, []);
-
-  // The first time the chart has a size, scale it to fit the canvas width —
-  // a wide company should open whole, not cropped to its left corner.
-  useEffect(() => {
-    if (fitted || !size.w || !view.w) return;
-    const h = setTimeout(() => {
-      // …but never so small the cards can't be read: past that, scroll —
-      // starting from the middle, where the top of the company sits.
-      const z = Math.max(0.75, Math.min(1, (view.w - 32) / size.w));
-      setZoom(z);
-      setFitted(true);
-      requestAnimationFrame(() => {
-        const box = canvas.current;
-        if (box) box.scrollLeft = Math.max(0, (size.w * z - box.clientWidth) / 2);
-      });
-    }, 0);
-    return () => clearTimeout(h);
-  }, [fitted, size.w, view.w]);
-
-  const onScroll = () => {
-    const box = canvas.current;
-    if (box) setView({ w: box.clientWidth, h: box.clientHeight, x: box.scrollLeft, y: box.scrollTop });
-  };
-
-  // Drag the empty canvas to pan, like any board; cards keep their clicks.
-  const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest("button") || e.button !== 0) return;
-    const box = canvas.current;
-    if (!box) return;
-    drag.current = { x: e.clientX, y: e.clientY, sl: box.scrollLeft, st: box.scrollTop };
-    box.setPointerCapture(e.pointerId);
-  };
-  const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const d = drag.current;
-    const box = canvas.current;
-    if (!d || !box) return;
-    box.scrollLeft = d.sl - (e.clientX - d.x);
-    box.scrollTop = d.st - (e.clientY - d.y);
-  };
-  const onUp = () => { drag.current = null; };
-
-  const fit = () => setZoom(Math.max(ZOOM_MIN, Math.min(1, (view.w - 32) / Math.max(1, size.w), (view.h - 32) / Math.max(1, size.h))));
-  const step = (d: number) => setZoom((z) => Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z + d)) * 100) / 100);
-
-  // Minimap: the same tree, drawn as blocks, scaled into a fixed box, with the
-  // visible part of the canvas outlined. Click or drag in it to move there.
-  const MM_W = 200;
-  const MM_H = 120;
-  const sw = size.w * zoom;
-  const sh = size.h * zoom;
-  const k = size.w && size.h ? Math.min(MM_W / size.w, MM_H / size.h) : 0;
-  const rect = sw && sh ? {
-    left: (view.x / sw) * size.w * k,
-    top: (view.y / sh) * size.h * k,
-    width: Math.min(1, view.w / sw) * size.w * k,
-    height: Math.min(1, view.h / sh) * size.h * k,
-  } : null;
-  const jump = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const box = canvas.current;
-    if (!box || !k) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const fx = (e.clientX - r.left) / (size.w * k);
-    const fy = (e.clientY - r.top) / (size.h * k);
-    box.scrollLeft = fx * sw - view.w / 2;
-    box.scrollTop = fy * sh - view.h / 2;
-  };
-
-  return (
-    <div className="org-board">
-      {canZoom ? (
-      <div className="org-zoom" role="group" aria-label={tb("zoom")}>
-        <button type="button" onClick={() => step(-0.1)} disabled={zoom <= ZOOM_MIN} aria-label={tb("zoomOut")} title={tb("zoomOut")}><IconMinus /></button>
-        <output>{Math.round(zoom * 100)}%</output>
-        <button type="button" onClick={() => step(0.1)} disabled={zoom >= ZOOM_MAX} aria-label={tb("zoomIn")} title={tb("zoomIn")}><IconPlus /></button>
-        <button type="button" onClick={fit} aria-label={tb("fit")} title={tb("fit")}><IconExpand /></button>
-      </div>
-      ) : null}
-      <div className="org-canvas" ref={canvas} onScroll={onScroll} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
-        <div className="org-canvas__frame" style={{ width: sw || undefined, height: sh || undefined }}>
-          <div className="org-canvas__inner" ref={inner} style={{ transform: `scale(${zoom})` }}>
-            {props.trees.length ? <TreeView {...props} /> : <p className="hrm-muted">{tb("noMatch")}</p>}
-          </div>
-        </div>
-      </div>
-      {k && canMinimap ? (
-        <div className="org-minimap" aria-label={tb("minimap")} role="img" onPointerDown={jump} style={{ width: size.w * k + 12, height: size.h * k + 12 }}>
-          <div className="org-minimap__in" style={{ width: size.w, transform: `scale(${k})` }} aria-hidden>
-            <TreeView {...props} mini />
-          </div>
-          {rect ? <span className="org-minimap__view" style={{ left: rect.left + 6, top: rect.top + 6, width: rect.width, height: rect.height }} /> : null}
-        </div>
-      ) : null}
-    </div>
   );
 }
 

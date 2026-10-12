@@ -18,10 +18,10 @@ import {
   type HrmPosition,
   type OrgBoard,
 } from "@/lib/services/internalHrm";
-import { IconBriefcase, IconBuilding, IconCheck, IconEdit, IconPlus, IconRefresh } from "@/components/icons";
+import { IconBriefcase, IconBuilding, IconChartBar, IconCheck, IconEdit, IconList, IconPlus, IconRefresh } from "@/components/icons";
 import Select from "@/components/Select";
 import InternalField from "@/components/internal/InternalField";
-import InternalOrgBoard from "@/components/internal/InternalOrgBoard";
+import InternalOrgBoard, { type OrgView } from "@/components/internal/InternalOrgBoard";
 import { Employee360, EmployeeCreate } from "@/components/internal/EmployeeDrawers";
 import { refreshHrmDirectory, useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { EntitySelect, HrmDrawer, HrmEmpty, HrmError, HrmHead, HrmLoading, HrmPanel, HrmStatus, useStatusLabel } from "@/components/internal/HrmUi";
@@ -42,6 +42,7 @@ export default function InternalOrgPage() {
   const [positionForm, setPositionForm] = useState<HrmPosition | "new" | null>(null);
   const [employeeId, setEmployeeId] = useState("");
   const [newEmployeeUnit, setNewEmployeeUnit] = useState<string | null>(null);
+  const [view, setView] = useState<OrgView>("board");
 
   // `quiet`: a live update re-reads in place — the board keeps its zoom,
   // scroll and open panel instead of dropping back to a skeleton.
@@ -97,7 +98,15 @@ export default function InternalOrgPage() {
         lead={t("subtitles.org")}
         actions={
           <>
-            <button className="btn btn--line btn--sm" type="button" onClick={reload} disabled={loading}><IconRefresh />{t("refresh")}</button>
+            <div className="hrm-tabs org-views" role="tablist" aria-label={t("board.views")}>
+              {(["board", "list", "stats"] as OrgView[]).map((v) => (
+                <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}>
+                  {v === "board" ? <IconBuilding /> : v === "list" ? <IconList /> : <IconChartBar />}
+                  {v === "board" ? t("board.viewBoard") : v === "list" ? t("board.viewList") : t("board.viewStats")}
+                </button>
+              ))}
+            </div>
+            <button className="btn btn--line btn--sm" type="button" onClick={reload} disabled={loading} aria-label={t("refresh")} title={t("refresh")}><IconRefresh /></button>
             <button className="btn btn--line btn--sm" type="button" onClick={() => setPositionForm("new")}><IconPlus />{t("newPosition")}</button>
             <button className="btn btn--pri btn--sm" type="button" onClick={() => setUnitForm({ id: "", parentId: "" })}><IconPlus />{t("newUnit")}</button>
           </>
@@ -108,6 +117,7 @@ export default function InternalOrgPage() {
       <InternalOrgBoard
         board={board}
         loading={loading}
+        view={view}
         failed={error}
         onEditUnit={(id) => setUnitForm({ id, parentId: "" })}
         onAddUnit={(parentId) => setUnitForm({ id: "", parentId })}
