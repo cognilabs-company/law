@@ -27,7 +27,6 @@ type Packs = { status: "loading" | "ready" | "error"; items: PromotionPackage[];
 const TIER_ICON = [IconRocket, IconGem, IconCrown];
 const MAX_BANNER_MB = 10;
 const HTTP_URL = /^https?:\/\/\S+\.\S+/i;
-const CTA_URL = /^(https?:\/\/\S+\.\S+|\/\S*)$/i;
 const FALLBACK_PLACEMENTS: PromotionPlacementOption[] = [
   { value: "service_boost", label: "", requiresService: true, requiresBanner: false, acceptsBanner: false, previewSurface: "category_search_sponsored_service" },
   { value: "profile_boost", label: "", requiresService: false, requiresBanner: false, acceptsBanner: false, previewSurface: "marketplace_list_card" },
@@ -79,10 +78,6 @@ export default function PromoteModal({
   const [bannerImageUrl, setBannerImageUrl] = useState("");
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerFileUrl, setBannerFileUrl] = useState("");
-  const [bannerTitle, setBannerTitle] = useState("");
-  const [bannerSubtitle, setBannerSubtitle] = useState("");
-  const [ctaLabel, setCtaLabel] = useState("");
-  const [ctaUrl, setCtaUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [bannerFileName, setBannerFileName] = useState("");
   // The uploaded picture, shown from the browser's own copy: the preview must
@@ -147,8 +142,7 @@ export default function PromoteModal({
   const missingBanner = needsBanner && !bannerImageUrl && !bannerFile;
   const missingService = needsService && !svc;
   const badImage = Boolean(bannerImageUrl.trim()) && !HTTP_URL.test(bannerImageUrl.trim());
-  const badCta = Boolean(ctaUrl.trim()) && !CTA_URL.test(ctaUrl.trim());
-  const blocked = !chosen || chosen.placement !== placement || missingBanner || missingService || (acceptsBanner && (badImage || badCta));
+  const blocked = !chosen || chosen.placement !== placement || missingBanner || missingService || (acceptsBanner && badImage);
 
   useEffect(() => () => { if (bannerLocal) URL.revokeObjectURL(bannerLocal); }, [bannerLocal]);
 
@@ -179,10 +173,6 @@ export default function PromoteModal({
           serviceId: needsService && svc ? svc.id : undefined,
           bannerImageUrl: acceptsBanner ? bannerImageUrl.trim() : "",
           bannerFileUrl: fileUrl,
-          title: acceptsBanner ? bannerTitle : "",
-          subtitle: acceptsBanner ? bannerSubtitle : "",
-          ctaLabel: acceptsBanner ? ctaLabel : "",
-          ctaUrl: acceptsBanner ? ctaUrl.trim() : "",
           idempotencyKey: attemptKey.current,
           previewContext: {
             surface: selectedPlacement?.previewSurface || FALLBACK_PLACEMENTS.find((p) => p.value === placement)?.previewSurface,
@@ -234,7 +224,7 @@ export default function PromoteModal({
     sellerId: profile?.userId || (scope.kind === "org" ? scope.memberId : uid),
     seed: { name: sellerName, sellerType: profile?.sellerType ?? "", region: profile?.region ?? "", verified: profile ? profileVerified(profile) : false },
     service: needsService && svc ? previewServiceOf(svc) : null,
-    ad: { placement, title: acceptsBanner ? bannerTitle : "", subtitle: acceptsBanner ? bannerSubtitle : "", ctaLabel: acceptsBanner ? ctaLabel : "", imageUrl: acceptsBanner ? previewImage : "" },
+    ad: { placement, title: sellerName, subtitle: "", ctaLabel: t("previewCta"), imageUrl: acceptsBanner ? previewImage : "" },
     profile: null,
   };
 
@@ -477,25 +467,6 @@ export default function PromoteModal({
                   />
                   {badImage ? <small className="svprom__ferr">{t("badUrl")}</small> : null}
                 </label>
-                <div className="svprom__fields">
-                  <label>
-                    <span>{t("bannerTitle")}</span>
-                    <input value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} placeholder={sellerName} maxLength={80} />
-                  </label>
-                  <label>
-                    <span>{t("bannerSubtitle")}</span>
-                    <input value={bannerSubtitle} onChange={(e) => setBannerSubtitle(e.target.value)} maxLength={140} />
-                  </label>
-                  <label>
-                    <span>{t("ctaLabel")}</span>
-                    <input value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder={t("previewCta")} maxLength={32} />
-                  </label>
-                  <label className={badCta ? "is-bad" : undefined}>
-                    <span>{t("ctaUrl")}</span>
-                    <input value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} placeholder={t("ctaUrlPh")} aria-invalid={badCta || undefined} />
-                    {badCta ? <small className="svprom__ferr">{t("badCta")}</small> : null}
-                  </label>
-                </div>
               </div>
             ) : null}
 

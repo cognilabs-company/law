@@ -13989,9 +13989,8 @@ body[data-guide-dock="top"] .gcap{top:max(80px,env(safe-area-inset-top));bottom:
 .svplace.is-on{border-color:var(--b600);box-shadow:inset 0 0 0 1px var(--b600);background:var(--dk-tint-blue,var(--b50,#f5f9ff))}
 .svplace b{font-size:.82rem;line-height:1.2}.svplace small{font-size:.7rem;line-height:1.35;color:var(--gray)}
 .svprom__bannerform{display:grid;gap:10px;width:100%;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--dk-surface-2,#f7f9fc)}
-.svprom__bannerform label,.svprom__fields label{display:grid;gap:5px;min-width:0}.svprom__bannerform label>span,.svprom__fields label>span{font-size:.72rem;font-weight:800;color:var(--gray2)}
+.svprom__bannerform label{display:grid;gap:5px;min-width:0}.svprom__bannerform label>span{font-size:.72rem;font-weight:800;color:var(--gray2)}
 .svprom__bannerform input{width:100%;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--dk-surface,#fff);color:var(--ink);font:inherit;font-size:.82rem}
-.svprom__fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
 .svprom__step{display:block;margin:6px 0 -4px;font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--dk-acc,var(--b600))}
 .svprom__pick{display:grid;gap:6px}.svprom__pick>span{font-size:.72rem;font-weight:800;color:var(--gray2)}
 .svprom__warn,.svprom__hint{margin:0;font-size:.78rem;color:var(--dk-txt-warn,#A86B00)}
@@ -14067,7 +14066,7 @@ body[data-guide-dock="top"] .gcap{top:max(80px,env(safe-area-inset-top));bottom:
 .pprev{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:6px 0}
 .pverify__acts{display:inline-flex;flex-wrap:wrap;gap:8px}
 .svpdone__ic.is-ok{background:var(--dk-tint-ok,#E6F7EE);color:var(--dk-txt-ok,#13804B);box-shadow:none}
-@media (max-width:560px){.svprom__placements{grid-template-columns:1fr}.svprom__fields{grid-template-columns:1fr}}
+@media (max-width:560px){.svprom__placements{grid-template-columns:1fr}}
 .gring--pulse{outline-color:var(--dk-txt-err, #E5484D);box-shadow:0 0 0 4px var(--dk-bd-err, rgba(229,72,77,.32)),0 0 0 5px rgba(3,16,43,.18)}
 .gring--pulse .gring__glow{box-shadow:0 0 30px 8px var(--dk-bd-err, rgba(229,72,77,.5))}
 .gring--pulse.is-in .gring__glow{animation:gdPop .45s cubic-bezier(.2,.8,.2,1) both,gdBreath 1.2s ease-in-out .45s infinite}

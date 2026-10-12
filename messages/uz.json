@@ -1824,10 +1824,6 @@
       "placementBannerHint": "Kompyuterda hero'dagi kartalar qatorida birinchi; telefon va planshetda sahifa tepasida keng karta.",
       "bannerImageUrl": "Banner rasmi havolasi",
       "bannerFile": "Banner fayli",
-      "bannerTitle": "Banner sarlavhasi",
-      "bannerSubtitle": "Qisqa izoh",
-      "ctaLabel": "Tugma matni",
-      "ctaUrl": "Tugma havolasi",
       "bannerType": "Banner JPG, PNG, WEBP yoki HEIC bo'lishi kerak.",
       "bannerUploadError": "Banner faylini yuklab bo'lmadi. Qayta urinib ko'ring.",
       "errors": {
@@ -1859,8 +1855,6 @@
       "or": "yoki",
       "bannerTooBig": "Fayl {mb} MB dan katta bo'lmasligi kerak.",
       "badUrl": "Havola https:// bilan boshlanishi kerak.",
-      "badCta": "Havola https:// yoki / bilan boshlanishi kerak.",
-      "ctaUrlPh": "Bo'sh qolsa — profilingiz",
       "bannerNeeded": "Bu paket uchun banner rasmi kerak: fayl yuklang yoki havola kiriting.",
       "activeTitle": "Reklama yoqildi",
       "activeText": "To'lov talab qilinmadi — reklama hozirdan ko'rinmoqda."

@@ -1824,10 +1824,6 @@
       "placementBannerHint": "First card in the showcase at the top on desktop; a wide card at the top of the page on phones and tablets.",
       "bannerImageUrl": "Banner image URL",
       "bannerFile": "Banner file",
-      "bannerTitle": "Banner title",
-      "bannerSubtitle": "Short description",
-      "ctaLabel": "Button text",
-      "ctaUrl": "Button URL",
       "bannerType": "The banner must be JPG, PNG, WEBP or HEIC.",
       "bannerUploadError": "Couldn't upload the banner. Please try again.",
       "errors": {
@@ -1859,8 +1855,6 @@
       "or": "or",
       "bannerTooBig": "The file must be {mb} MB or smaller.",
       "badUrl": "The link must start with https://.",
-      "badCta": "The link must start with https:// or /.",
-      "ctaUrlPh": "Leave empty for your profile",
       "bannerNeeded": "This package needs a banner image: upload a file or paste a link.",
       "activeTitle": "Promotion is live",
       "activeText": "No payment was needed — the promotion is showing now."

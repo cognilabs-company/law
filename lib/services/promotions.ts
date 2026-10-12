@@ -39,10 +39,6 @@ export type PromotionCheckoutInput = {
   organizationId?: string;
   bannerImageUrl?: string;
   bannerFileUrl?: string;
-  title?: string;
-  subtitle?: string;
-  ctaLabel?: string;
-  ctaUrl?: string;
   previewContext?: Dict;
   idempotencyKey?: string;
 };
@@ -160,10 +156,6 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
   if (scope.kind === "org") body.organization_id = scope.orgId;
   if (input.bannerImageUrl) body.banner_image_url = input.bannerImageUrl;
   if (input.bannerFileUrl) body.banner_file_url = input.bannerFileUrl;
-  if (input.title?.trim()) body.banner_title = input.title.trim();
-  if (input.subtitle?.trim()) body.banner_subtitle = input.subtitle.trim();
-  if (input.ctaLabel?.trim()) body.banner_cta_label = input.ctaLabel.trim();
-  if (input.ctaUrl?.trim()) body.banner_cta_url = input.ctaUrl.trim();
   if (input.previewContext) body.preview_context = input.previewContext;
   if (input.idempotencyKey) body.idempotency_key = input.idempotencyKey;
   const raw = asDict(await http("/promotions/checkout", { method: "POST", body: JSON.stringify(body) }));
