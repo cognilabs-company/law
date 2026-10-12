@@ -5,7 +5,8 @@ import type { LiveBoard, LivePerson, LiveRoom, LiveUnit } from "@/lib/services/i
 import { initials } from "@/lib/lawyers";
 import { IconChevronLeft, IconExpand, IconMinus, IconPlus, IconUsers } from "@/components/icons";
 import { HrmEmpty } from "@/components/internal/HrmUi";
-import { Block, U, boxOf, pt, pts, useFloorCamera, type Rect } from "@/components/live/floorKit";
+import { Block, U, boxOf, onFloor, pt, useFloorCamera, type Rect } from "@/components/live/floorKit";
+import { BENCH, Bench, FloorDefs, Partition, Plant, SeatMark, Whiteboard, benchSeats } from "@/components/live/floorArt";
 import { groupBoard } from "./LiveBoardView";
 import { STATUS_TONE, shownStatus, useLiveText } from "./bits";
 
@@ -33,10 +34,11 @@ type Plan = {
 };
 
 const WALL = 1.3;
-const CELL_W = 3.4;
-const CELL_D = 3.2;
-const PAD = 0.6;
-const GAP = 1.6;
+// A bench for four with the room it needs around it.
+const CELL_W = BENCH.w + 1.5;
+const CELL_D = BENCH.d + 3;
+const PAD = 0.7;
+const GAP = 1.8;
 // People at a desk; the rest are away and wait in the trays.
 const SEATED = new Set(["working", "busy", "online", "inactive"]);
 const TRAYS = ["break", "offline"] as const;
@@ -58,8 +60,8 @@ function layout(board: LiveBoard, statusOf: (p: LivePerson) => string, filtered:
       for (let i = 0; i < deskCount; i++) {
         const cx = PAD + (i % cols) * CELL_W;
         const cy = PAD + Math.floor(i / cols) * CELL_D;
-        desks.push({ x: cx + 0.7, y: cy + 1.1 });
-        for (const [sx, sy] of [[0.95, 0.35], [1.95, 0.35], [0.95, 2.35], [1.95, 2.35]]) seats.push({ x: cx + sx, y: cy + sy, person: null });
+        desks.push({ x: cx + 0.75, y: cy + 1.6 });
+        for (const b of benchSeats(cx + 0.75, cy + 1.6)) seats.push({ x: b.x, y: b.y, person: null });
       }
       seated.forEach((p, i) => (seats[i].person = p));
       plans.push({ key: room?.id || `open:${g.unit?.id ?? "none"}`, room, unit: g.unit, tint: gi % 6, x: 0, y: 0, w: cols * CELL_W + PAD * 2, d: rowsN * CELL_D + PAD * 2, desks, seats, here: seated.length, total: people.length });
@@ -115,8 +117,8 @@ export default function LiveFloor({ board, now, inactiveAfter, onOpen, filtered 
   // trays that lie over the drawing.
   const goal = useMemo<Rect>(() => {
     if (target.kind === "box") return target.box;
-    if (focused) return boxOf(focused.x, focused.y, focused.w, focused.d, U * 1.6);
-    const all = boxOf(slab.x, slab.y, slab.w, slab.d, U);
+    if (focused) return boxOf(focused.x - 0.5, focused.y - 0.6, focused.w + 1, focused.d + 1, U * 0.7);
+    const all = boxOf(slab.x, slab.y, slab.w, slab.d, U, 2.2);
     return away.length ? { ...all, h: all.h * 1.18 } : all;
   }, [target, focused, slab, away.length]);
 
@@ -165,10 +167,13 @@ export default function LiveFloor({ board, now, inactiveAfter, onOpen, filtered 
           if (e.key === "Escape" && target.kind !== "all") fit();
         }}
       >
-        <Block x={slab.x} y={slab.y} w={slab.w} d={slab.d} h={0.35} z={-0.35} cls="lf-slab" />
+        <FloorDefs />
+        <Block x={slab.x} y={slab.y} w={slab.w} d={slab.d} h={0.45} z={-0.45} cls="lf-m-slab" />
+        <g transform={onFloor()} className="lf-ground">
+          <rect className="lf-carpet" x={slab.x + 0.3} y={slab.y + 0.3} width={slab.w - 0.6} height={slab.d - 0.6} />
+        </g>
         {plans.map((p) => {
           const on = focused?.key === p.key;
-          const solid = p.room && p.room.type !== "virtual";
           return (
             <g
               key={p.key}
@@ -185,28 +190,26 @@ export default function LiveFloor({ board, now, inactiveAfter, onOpen, filtered 
                 if (pressed(e)) enter(p.key);
               }}
             >
-              <polygon className="lf-floor" points={pts([p.x, p.y, 0], [p.x + p.w, p.y, 0], [p.x + p.w, p.y + p.d, 0], [p.x, p.y + p.d, 0])} />
+              <g transform={onFloor()}>
+                <rect className="lf-zone lf-zone--tint" x={p.x} y={p.y} width={p.w} height={p.d} rx="0.25" />
+              </g>
               {p.room ? (
                 <>
-                  <polygon className="lf-wall lf-wall--a" points={pts([p.x, p.y, 0], [p.x + p.w, p.y, 0], [p.x + p.w, p.y, WALL], [p.x, p.y, WALL])} />
-                  <polygon className="lf-wall lf-wall--b" points={pts([p.x, p.y, 0], [p.x, p.y + p.d, 0], [p.x, p.y + p.d, WALL], [p.x, p.y, WALL])} />
-                  {solid ? <polygon className="lf-glass" points={pts([p.x + 0.4, p.y, 0.5], [p.x + p.w - 0.4, p.y, 0.5], [p.x + p.w - 0.4, p.y, 1.05], [p.x + 0.4, p.y, 1.05])} /> : null}
+                  <Partition x={p.x} y={p.y} len={p.w} along="x" glass={p.room.type === "virtual"} />
+                  <Partition x={p.x} y={p.y} len={p.d - 1.4} along="y" glass />
+                  {p.room.type !== "virtual" && p.w > 4 ? <Whiteboard x={p.x + 0.9} y={p.y + 0.07} w={Math.min(2.6, p.w - 1.8)} /> : null}
                 </>
               ) : null}
               {p.desks.map((d, i) => (
-                <g key={i}>
-                  {p.seats.slice(i * 4, i * 4 + 2).map((s, j) => (
-                    <Block key={j} x={s.x} y={s.y} w={0.5} d={0.5} h={0.45} cls={`lf-chair${s.person ? " is-taken" : ""}`} />
-                  ))}
-                  <Block x={d.x} y={d.y} w={2} d={1} h={0.7} cls="lf-desk" />
-                  {p.seats.slice(i * 4 + 2, i * 4 + 4).map((s, j) => (
-                    <Block key={j} x={s.x} y={s.y} w={0.5} d={0.5} h={0.45} cls={`lf-chair${s.person ? " is-taken" : ""}`} />
-                  ))}
-                </g>
+                <Bench key={i} x={d.x} y={d.y} taken={p.seats.slice(i * 4, i * 4 + 4).map((s) => !!s.person)} />
               ))}
+              <Plant x={p.x + p.w - 0.6} y={p.y + p.d - 0.7} />
             </g>
           );
         })}
+        <g className={focused ? "lf-marks" : "lf-marks is-far"} aria-hidden>
+          {plans.flatMap((p) => p.seats.map((s, i) => (s.person ? null : <g key={`${p.key}${i}`} className={focused && focused.key !== p.key ? "lf-dim" : undefined}><SeatMark x={s.x} y={s.y} /></g>)))}
+        </g>
         {plans.map((p) => {
           const on = focused?.key === p.key;
           return (
@@ -214,7 +217,7 @@ export default function LiveFloor({ board, now, inactiveAfter, onOpen, filtered 
               {p.seats.map((s) => {
                 const who = s.person;
                 if (!who) return null;
-                const [x, y] = pt(s.x + 0.25, s.y + 0.25, 1.25);
+                const [x, y] = pt(s.x, s.y, 1.45);
                 return (
                   <g
                     key={who.id}
@@ -234,8 +237,10 @@ export default function LiveFloor({ board, now, inactiveAfter, onOpen, filtered 
                     }}
                   >
                     <title>{`${who.name} — ${status(statusOf(who))}`}</title>
-                    <circle r={13} />
-                    <text className="lf-av__i" y={3.6}>{initials(who.name || "?")}</text>
+                    <circle className="lf-av__rim" r={13.4} />
+                    <circle className="lf-av__bg" r={10.4} />
+                    <text className="lf-av__i" y={3.4}>{initials(who.name || "?")}</text>
+                    <circle className="lf-av__ring" r={11.6} />
                   </g>
                 );
               })}
@@ -245,7 +250,7 @@ export default function LiveFloor({ board, now, inactiveAfter, onOpen, filtered 
         {focused
           ? focused.seats.map((s) => {
               if (!s.person) return null;
-              const [x, y] = pt(s.x + 0.25, s.y + 0.25, 1.25);
+              const [x, y] = pt(s.x, s.y, 1.45);
               return (
                 <text key={s.person.id} className="lf-name" x={x.toFixed(1)} y={(y + 23).toFixed(1)} aria-hidden>
                   {first(s.person.name)}
@@ -254,9 +259,9 @@ export default function LiveFloor({ board, now, inactiveAfter, onOpen, filtered 
             })
           : null}
         {plans.map((p) => {
-          const [x, y] = pt(p.x, p.y, p.room ? WALL : 0);
+          const [x, y] = pt(p.x + p.w / 2, p.y + 0.1, p.room ? WALL + 0.75 : 0.9);
           return (
-            <text key={p.key} className={`lf-label${focused && focused.key !== p.key ? " lf-dim" : ""}`} x={x.toFixed(1)} y={y.toFixed(1)} dy="-0.7em" aria-hidden>
+            <text key={p.key} className={`lf-label${focused && focused.key !== p.key ? " lf-dim" : ""}`} x={x.toFixed(1)} y={y.toFixed(1)} aria-hidden>
               {planName(p)}
               <tspan className="lf-label__n" dx="0.5em">{p.room?.capacity ? `${p.here}/${p.room.capacity}` : p.here}</tspan>
             </text>

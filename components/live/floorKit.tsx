@@ -9,20 +9,35 @@ import { useCallback, useEffect, useLayoutEffect, useRef, type MouseEvent, type 
 
 export type Rect = { x: number; y: number; w: number; h: number };
 
-// One floor unit in pixels of the drawing, and the two axes of the projection.
+// The projection. The floor is seen from the front, a little from the right
+// and from above: its width runs across the screen and dips slightly, its
+// depth comes toward the viewer and to the left, height goes straight up.
+// A box therefore shows its top, its front and its right side.
 export const U = 24;
-const AX = U * 0.866;
-const AY = U * 0.5;
+const XX = 23.6;
+const XY = 3.9;
+const YX = -10.6;
+const YY = 19.2;
+const ZU = 22;
 
-export const pt = (x: number, y: number, z = 0): [number, number] => [(x - y) * AX, (x + y) * AY - z * U];
+export const pt = (x: number, y: number, z = 0): [number, number] => [x * XX + y * YX, x * XY + y * YY - z * ZU];
 export const pts = (...p: [number, number, number][]) => p.map(([x, y, z]) => pt(x, y, z).map((n) => n.toFixed(1)).join(",")).join(" ");
+// What is nearer the viewer is drawn later.
+export const nearness = (x: number, y: number) => 0.47 * x + 1.05 * y;
+
+// Three planes to draw flat things in, in floor units: the floor at a height
+// (x, y), a wall across the view at a depth (x, height) and a wall that runs
+// away from the viewer at an x (y, height).
+export const onFloor = (z = 0) => `matrix(${XX} ${XY} ${YX} ${YY} 0 ${(-z * ZU).toFixed(2)})`;
+export const onWallX = (y: number) => `matrix(${XX} ${XY} 0 ${-ZU} ${(y * YX).toFixed(2)} ${(y * YY).toFixed(2)})`;
+export const onWallY = (x: number) => `matrix(${YX} ${YY} 0 ${-ZU} ${(x * XX).toFixed(2)} ${(x * XY).toFixed(2)})`;
 
 export function Block({ x, y, w, d, h, z = 0, cls }: { x: number; y: number; w: number; d: number; h: number; z?: number; cls: string }) {
   const t = z + h;
   return (
     <g className={cls}>
-      <polygon className="lf-f1" points={pts([x, y + d, z], [x + w, y + d, z], [x + w, y + d, t], [x, y + d, t])} />
       <polygon className="lf-f2" points={pts([x + w, y, z], [x + w, y + d, z], [x + w, y + d, t], [x + w, y, t])} />
+      <polygon className="lf-f1" points={pts([x, y + d, z], [x + w, y + d, z], [x + w, y + d, t], [x, y + d, t])} />
       <polygon className="lf-f0" points={pts([x, y, t], [x + w, y, t], [x + w, y + d, t], [x, y + d, t])} />
     </g>
   );
@@ -30,8 +45,8 @@ export function Block({ x, y, w, d, h, z = 0, cls }: { x: number; y: number; w: 
 
 // The screen box of a floor rectangle with everything that stands on it up
 // to `top` floor units high.
-export function boxOf(x: number, y: number, w: number, d: number, pad: number, top = 2.9): Rect {
-  const c = [pt(x, y, top), pt(x + w, y), pt(x, y + d), pt(x + w, y + d), pt(x + w, y, top), pt(x, y + d, top)];
+export function boxOf(x: number, y: number, w: number, d: number, pad: number, top = 2.4): Rect {
+  const c = [0, top].flatMap((z) => [pt(x, y, z), pt(x + w, y, z), pt(x, y + d, z), pt(x + w, y + d, z)]);
   const xs = c.map((p) => p[0]);
   const ys = c.map((p) => p[1]);
   const x0 = Math.min(...xs) - pad;
