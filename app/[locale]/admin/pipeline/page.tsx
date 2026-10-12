@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { moveLeadKanban, adminCreateLead, adminDeleteLead, adminUpdateLead, saveLeadKanbanColumns, deleteLeadKanbanColumn } from "@/lib/services/backend";
@@ -36,6 +36,8 @@ import Modal from "@/components/admin/Modal";
 import LostReasonDialog from "@/components/admin/LostReasonDialog";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import FieldError from "@/components/ui/FieldError";
+import ScrollArrows from "@/components/ui/ScrollArrows";
+import { useScrollEdges } from "@/lib/useScrollEdges";
 import Select, { rankOptions } from "@/components/Select";
 import LeadDrawer from "@/components/admin/LeadDrawer";
 import LeadFilterBar from "@/components/admin/LeadFilterBar";
@@ -98,6 +100,72 @@ function phoneKeyboard(box: HTMLDivElement | null) {
 
 const sameColor = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
+function sidewaysWheel(board: HTMLElement): () => void {
+  const host = board.parentElement ?? board;
+  const page = board.closest<HTMLElement>(".pbody");
+  const onWheel = (e: WheelEvent) => {
+    if (e.defaultPrevented || !e.cancelable || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const dy = e.deltaY;
+    if (!dy || Math.abs(e.deltaX) >= Math.abs(dy)) return;
+    const max = board.scrollWidth - board.clientWidth;
+    if (max <= 2) return;
+    const list = e.target instanceof Element ? e.target.closest(".lpipe-col__body") : null;
+    if (list && board.contains(list) && list.scrollHeight - list.clientHeight > 2) return;
+    if (dy > 0 && page && page.scrollTop < page.scrollHeight - page.clientHeight - 1) return;
+    const x = board.scrollLeft;
+    if ((dy < 0 && x <= 1) || (dy > 0 && x >= max - 1)) return;
+    e.preventDefault();
+    const unit = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? board.clientWidth : 1;
+    board.scrollBy({ left: dy * unit, behavior: "auto" });
+  };
+  host.addEventListener("wheel", onWheel, { passive: false });
+  return () => host.removeEventListener("wheel", onWheel);
+}
+
+function followStages(board: HTMLElement, bar: HTMLElement): () => void {
+  const cols = Array.from(board.children).filter((el): el is HTMLElement => el instanceof HTMLElement && el.classList.contains("lpipe-col"));
+  const tiles = Array.from(bar.children).filter((el): el is HTMLElement => el instanceof HTMLElement);
+  const seen = new Set<number>();
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const en of entries) {
+        const i = cols.indexOf(en.target as HTMLElement);
+        if (i < 0) continue;
+        if (en.isIntersecting && en.intersectionRatio >= 0.5) seen.add(i);
+        else seen.delete(i);
+      }
+      tiles.forEach((li, i) => li.toggleAttribute("data-inview", seen.has(i)));
+      if (!seen.size || bar.scrollWidth - bar.clientWidth <= 2) return;
+      const first = tiles[Math.min(...seen)];
+      const last = tiles[Math.max(...seen)];
+      if (!first || !last) return;
+      const box = bar.getBoundingClientRect();
+      const lead = first.getBoundingClientRect().left - box.left;
+      const tail = last.getBoundingClientRect().right - box.right;
+      const by = lead < 0 ? lead - 28 : tail > 0 ? Math.min(tail + 28, lead) : 0;
+      if (Math.abs(by) < 2) return;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      bar.scrollBy({ left: by, behavior: reduce ? "auto" : "smooth" });
+    },
+    { root: board, threshold: [0, 0.5, 1] },
+  );
+  cols.forEach((c) => io.observe(c));
+  return () => {
+    io.disconnect();
+    tiles.forEach((li) => li.removeAttribute("data-inview"));
+  };
+}
+
+function ColList({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollEdges(ref, { silent: true });
+  return (
+    <div ref={ref} className="lpipe-col__body scue-y">
+      {children}
+    </div>
+  );
+}
+
 export default function AdminPipeline() {
   const t = useTranslations("admin.pipeline");
   const tStages = useTranslations("admin.callCenter.queue");
@@ -147,6 +215,10 @@ export default function AdminPipeline() {
   const [selId, setSelId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const minute = useSyncExternalStore(subscribeMinute, readMinute, () => 0);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLOListElement>(null);
+  const boardEdges = useScrollEdges(boardRef);
+  const stripEdges = useScrollEdges(stripRef);
 
   // Add / rename a kanban status (column).
   const [statusModal, setStatusModal] = useState<{ mode: "add" | "rename"; col?: KanbanColumnX; name0: string; color0: string } | null>(null);
@@ -199,6 +271,8 @@ export default function AdminPipeline() {
   const urgencies = useMemo(() => [...new Set(allLeads.map((l) => l.urgency.trim().toLowerCase()).filter(Boolean))], [allLeads]);
   const viewCols = useMemo(() => cols.map((c) => ({ ...c, cards: c.cards.filter((x) => leadMatches(leadFilterable(x.lead), f, meId)) })), [cols, f, meId]);
   const filtered = filterActive(f);
+  const boardOn = res.status === "ready" && cols.length > 0 && view === "kanban";
+  const colKeys = viewCols.map((c) => c.key).join("|");
   const shown = viewCols.reduce((n, c) => n + c.cards.length, 0);
   const rows = allCards.filter((x) => leadMatches(leadFilterable(x.lead), f, meId) && (!f.stage || x.colKey === f.stage));
 
@@ -467,6 +541,19 @@ export default function AdminPipeline() {
     lostRef.current = markLost;
   });
 
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!boardOn || !board) return;
+    return sidewaysWheel(board);
+  }, [boardOn]);
+
+  useEffect(() => {
+    const board = boardRef.current;
+    const bar = stripRef.current;
+    if (!boardOn || !board || !bar || !colKeys || typeof IntersectionObserver === "undefined") return;
+    return followStages(board, bar);
+  }, [boardOn, colKeys]);
+
   // Auto-assign preview (only while the modal is open — the plan is pure).
   const autoPlan = autoOpen ? autoAssign(allLeads, ops.ops, autoStrategy) : [];
   const autoPerOp = autoPlan.reduce<Map<string, number>>((m, a) => m.set(a.operator.id, (m.get(a.operator.id) ?? 0) + 1), new Map());
@@ -514,7 +601,7 @@ export default function AdminPipeline() {
       <header className="lpipe-top">
         <div className="lpipe-top__t">
           <h2>{t("title")}</h2>
-          <p>{t("lead")}</p>
+          <p title={t("lead")}>{t("lead")}</p>
         </div>
         <div className="lpipe-top__act">
           {cols.length ? (
@@ -535,17 +622,20 @@ export default function AdminPipeline() {
 
       {cols.length ? (
         <section className="lpipe-strip" aria-label={t("kpi.total")} data-ai-target="pipeline:kpis">
-          <ol className="lpipe-strip__bar">
-            {cols.map((c) => (
-              <li key={c.key} style={{ flexGrow: c.count + Math.max(1, total * 0.2), "--c": c.color || "#6b7280" } as CSSProperties}>
-                <button type="button" onClick={() => jump(c.key)} aria-pressed={view === "table" ? f.stage === c.key : undefined} title={colName(c)}>
-                  {leadStageIcon(c.key) ? <Image className="lpipe-strip__ic" src={leadStageIcon(c.key)!} alt="" width={20} height={20} /> : null}
-                  <span className="lpipe-strip__n">{c.count}</span>
-                  <span className="lpipe-strip__l">{colName(c)}</span>
-                </button>
-              </li>
-            ))}
-          </ol>
+          <div className="lpipe-strip__nav sarr-host">
+            <ol ref={stripRef} className="lpipe-strip__bar scue-x">
+              {cols.map((c) => (
+                <li key={c.key} style={{ flexGrow: c.count + Math.max(1, total * 0.2), "--c": c.color || "#6b7280" } as CSSProperties}>
+                  <button type="button" onClick={() => jump(c.key)} aria-pressed={view === "table" ? f.stage === c.key : undefined} title={colName(c)}>
+                    {leadStageIcon(c.key) ? <Image className="lpipe-strip__ic" src={leadStageIcon(c.key)!} alt="" width={20} height={20} /> : null}
+                    <span className="lpipe-strip__n">{c.count}</span>
+                    <span className="lpipe-strip__l">{colName(c)}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+            <ScrollArrows target={stripRef} edges={stripEdges} />
+          </div>
           <dl className="lpipe-strip__sum">
             <div><dt>{t("kpi.total")}</dt><dd>{total}</dd></div>
             <div><dt>{t("kpi.active")}</dt><dd>{active}</dd></div>
@@ -583,98 +673,101 @@ export default function AdminPipeline() {
       ) : !cols.length ? (
         <EmptyState icon={<IconTrendingUp />} title={t("empty")} text={t("emptyText")} />
       ) : view === "kanban" ? (
-        <div className="lpipe-board" data-ai-target="pipeline:board" data-ai-label={t("title")}>
-          {viewCols.map((col, ci) => (
-            <section
-              id={`lpipe-col-${col.key}`}
-              className={`lpipe-col${overCol === col.key ? " is-over" : ""}`}
-              key={col.key}
-              aria-label={colName(col)}
-              style={{ "--c": col.color || "#6b7280" } as CSSProperties}
-              onDragOver={(e) => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropInstant(false); setOverCol(col.key); setOverIndex(col.cards.length); } }}
-              onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverCol((cur) => (cur === col.key ? null : cur)); }}
-              onDrop={(e) => { e.preventDefault(); if (dragId) moveTo(dragId, col.key, overIndex); setDragId(null); setDropInstant(true); setOverCol(null); }}
-            >
-              <header className="lpipe-col__h">
-                <i aria-hidden="true" />
-                {leadStageIcon(col.key) ? <Image className="lpipe-col__ic" src={leadStageIcon(col.key)!} alt="" width={22} height={22} /> : null}
-                <h3>{colName(col)}</h3>
-                <span className="lpipe-col__n">{filtered ? `${col.cards.length}/${col.count}` : col.count}</span>
-                <span className="lpipe-col__tools">
-                  <button type="button" aria-label={`${t("renameStatus")}: ${colName(col)}`} title={t("renameStatus")} onClick={() => openRenameStatus(col)}>
-                    <IconEdit />
-                  </button>
-                  {!col.isFinal ? (
-                    <button type="button" className="is-danger" aria-label={`${t("deleteStatus")}: ${colName(col)}`} title={t("deleteStatus")} onClick={() => openDeleteStatus(col)}>
-                      <IconTrash />
+        <div className="lpipe-boardhost sarr-host">
+          <div ref={boardRef} className="lpipe-board scue-x" data-ai-target="pipeline:board" data-ai-label={t("title")}>
+            {viewCols.map((col, ci) => (
+              <section
+                id={`lpipe-col-${col.key}`}
+                className={`lpipe-col${overCol === col.key ? " is-over" : ""}`}
+                key={col.key}
+                aria-label={colName(col)}
+                style={{ "--c": col.color || "#6b7280" } as CSSProperties}
+                onDragOver={(e) => { if (dragId) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropInstant(false); setOverCol(col.key); setOverIndex(col.cards.length); } }}
+                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverCol((cur) => (cur === col.key ? null : cur)); }}
+                onDrop={(e) => { e.preventDefault(); if (dragId) moveTo(dragId, col.key, overIndex); setDragId(null); setDropInstant(true); setOverCol(null); }}
+              >
+                <header className="lpipe-col__h">
+                  <i aria-hidden="true" />
+                  {leadStageIcon(col.key) ? <Image className="lpipe-col__ic" src={leadStageIcon(col.key)!} alt="" width={22} height={22} /> : null}
+                  <h3>{colName(col)}</h3>
+                  <span className="lpipe-col__n">{filtered ? `${col.cards.length}/${col.count}` : col.count}</span>
+                  <span className="lpipe-col__tools">
+                    <button type="button" aria-label={`${t("renameStatus")}: ${colName(col)}`} title={t("renameStatus")} onClick={() => openRenameStatus(col)}>
+                      <IconEdit />
                     </button>
-                  ) : null}
-                </span>
-              </header>
-              <div className="lpipe-col__body">
-                {col.cards.length === 0 ? (
-                  <>
-                    <div className={`pipe__slot${overCol === col.key && dragId ? " on" : ""}${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden />
-                    <p className="lpipe-col__empty">{filtered ? t("f.noMatch") : t("noneHere")}</p>
-                  </>
-                ) : (
-                  col.cards.map(({ lead: l }, ii) => (
-                    <Fragment key={l.id}>
-                      {overCol === col.key && dragId && overIndex === ii ? <div className={`pipe__slot on${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden /> : null}
-                      <article
-                        className={`lpipe-card${dragId === l.id ? " is-drag" : ""}${busy === l.id ? " is-busy" : ""}`}
-                        draggable
-                        tabIndex={0}
-                        aria-label={nameOf(l)}
-                        onClick={() => setSelId(l.id)}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelId(l.id); } }}
-                        onDragStart={(e) => { setDragId(l.id); e.dataTransfer.effectAllowed = "move"; }}
-                        onDragEnd={() => { setDragId(null); setOverCol(null); }}
-                        onDragOver={(e) => {
-                          if (!dragId) return;
-                          e.preventDefault();
-                          e.stopPropagation();
-                          e.dataTransfer.dropEffect = "move";
-                          const r = e.currentTarget.getBoundingClientRect();
-                          setDropInstant(false);
-                          setOverCol(col.key);
-                          setOverIndex(e.clientY < r.top + r.height / 2 ? ii : ii + 1);
-                        }}
-                      >
-                        <div className="lpipe-card__top">
-                          <b>{nameOf(l)}</b>
-                          {l.scoreKey ? <span className={`lpipe-score lpipe-score--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : null}
-                        </div>
-                        {l.phone && l.phone !== nameOf(l) ? <span className="lpipe-card__phone"><IconPhone aria-hidden="true" />{l.phone}</span> : null}
-                        {l.category || l.region ? (
-                          <span className="lpipe-card__tags">
-                            {l.category ? <span>{leadCategoryLabel(t, l.category)}</span> : null}
-                            {l.region ? <span><IconMapPin aria-hidden="true" />{leadRegionLabel(te, l.region)}</span> : null}
-                          </span>
-                        ) : null}
-                        {l.note ? <p className="lpipe-card__note">{l.note}</p> : null}
-                        <footer className="lpipe-card__f">
-                          <span className={`lpipe-who${!l.assignedTo ? " is-none" : l.assignedTo === meId ? " is-me" : ""}`} title={t("assign.title")}>
-                            <span className="lpipe-who__av" aria-hidden="true">{whoName(l) ? initials(whoName(l)) : <IconUser />}</span>
-                            <span className="lpipe-who__n">{who(l)}</span>
-                          </span>
-                          <span className="lpipe-card__meta">
-                            {l.source ? <span>{leadSourceLabel(t, l.source)}</span> : null}
-                            {ageOf(l.createdAt) ? <time dateTime={l.createdAt}>{ageOf(l.createdAt)}</time> : null}
-                          </span>
-                        </footer>
-                        <div className="lpipe-card__mv" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                          <button type="button" disabled={ci === 0 || busy === l.id} onClick={() => shift(l.id, col.key, -1)} aria-label={t("moveBack")} title={t("moveBack")}><IconChevronLeft /></button>
-                          <button type="button" disabled={ci === cols.length - 1 || busy === l.id} onClick={() => shift(l.id, col.key, 1)} aria-label={t("moveFwd")} title={t("moveFwd")}><IconChevronRight /></button>
-                        </div>
-                      </article>
-                    </Fragment>
-                  ))
-                )}
-                {overCol === col.key && dragId && overIndex === col.cards.length && col.cards.length > 0 ? <div className={`pipe__slot on${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden /> : null}
-              </div>
-            </section>
-          ))}
+                    {!col.isFinal ? (
+                      <button type="button" className="is-danger" aria-label={`${t("deleteStatus")}: ${colName(col)}`} title={t("deleteStatus")} onClick={() => openDeleteStatus(col)}>
+                        <IconTrash />
+                      </button>
+                    ) : null}
+                  </span>
+                </header>
+                <ColList>
+                  {col.cards.length === 0 ? (
+                    <>
+                      <div className={`pipe__slot${overCol === col.key && dragId ? " on" : ""}${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden />
+                      <p className="lpipe-col__empty">{filtered ? t("f.noMatch") : t("noneHere")}</p>
+                    </>
+                  ) : (
+                    col.cards.map(({ lead: l }, ii) => (
+                      <Fragment key={l.id}>
+                        {overCol === col.key && dragId && overIndex === ii ? <div className={`pipe__slot on${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden /> : null}
+                        <article
+                          className={`lpipe-card${dragId === l.id ? " is-drag" : ""}${busy === l.id ? " is-busy" : ""}`}
+                          draggable
+                          tabIndex={0}
+                          aria-label={nameOf(l)}
+                          onClick={() => setSelId(l.id)}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelId(l.id); } }}
+                          onDragStart={(e) => { setDragId(l.id); e.dataTransfer.effectAllowed = "move"; }}
+                          onDragEnd={() => { setDragId(null); setOverCol(null); }}
+                          onDragOver={(e) => {
+                            if (!dragId) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            e.dataTransfer.dropEffect = "move";
+                            const r = e.currentTarget.getBoundingClientRect();
+                            setDropInstant(false);
+                            setOverCol(col.key);
+                            setOverIndex(e.clientY < r.top + r.height / 2 ? ii : ii + 1);
+                          }}
+                        >
+                          <div className="lpipe-card__top">
+                            <b>{nameOf(l)}</b>
+                            {l.scoreKey ? <span className={`lpipe-score lpipe-score--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : null}
+                          </div>
+                          {l.phone && l.phone !== nameOf(l) ? <span className="lpipe-card__phone"><IconPhone aria-hidden="true" />{l.phone}</span> : null}
+                          {l.category || l.region ? (
+                            <span className="lpipe-card__tags">
+                              {l.category ? <span>{leadCategoryLabel(t, l.category)}</span> : null}
+                              {l.region ? <span><IconMapPin aria-hidden="true" />{leadRegionLabel(te, l.region)}</span> : null}
+                            </span>
+                          ) : null}
+                          {l.note ? <p className="lpipe-card__note">{l.note}</p> : null}
+                          <footer className="lpipe-card__f">
+                            <span className={`lpipe-who${!l.assignedTo ? " is-none" : l.assignedTo === meId ? " is-me" : ""}`} title={t("assign.title")}>
+                              <span className="lpipe-who__av" aria-hidden="true">{whoName(l) ? initials(whoName(l)) : <IconUser />}</span>
+                              <span className="lpipe-who__n">{who(l)}</span>
+                            </span>
+                            <span className="lpipe-card__meta">
+                              {l.source ? <span>{leadSourceLabel(t, l.source)}</span> : null}
+                              {ageOf(l.createdAt) ? <time dateTime={l.createdAt}>{ageOf(l.createdAt)}</time> : null}
+                            </span>
+                          </footer>
+                          <div className="lpipe-card__mv" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                            <button type="button" disabled={ci === 0 || busy === l.id} onClick={() => shift(l.id, col.key, -1)} aria-label={t("moveBack")} title={t("moveBack")}><IconChevronLeft /></button>
+                            <button type="button" disabled={ci === cols.length - 1 || busy === l.id} onClick={() => shift(l.id, col.key, 1)} aria-label={t("moveFwd")} title={t("moveFwd")}><IconChevronRight /></button>
+                          </div>
+                        </article>
+                      </Fragment>
+                    ))
+                  )}
+                  {overCol === col.key && dragId && overIndex === col.cards.length && col.cards.length > 0 ? <div className={`pipe__slot on${dropInstant ? " pipe__slot--instant" : ""}`} aria-hidden /> : null}
+                </ColList>
+              </section>
+            ))}
+          </div>
+          <ScrollArrows target={boardRef} edges={boardEdges} />
         </div>
       ) : (
         <div className="lpipe-table" data-ai-target="pipeline:board" data-ai-label={t("title")}>

@@ -6,8 +6,10 @@ import { leadCategoryLabel } from "@/lib/leadLabels";
 import { getCallCenterQueue, assignNextSeller, moveCallCenterLead, type QueueItem } from "@/lib/services/backend";
 import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
-import { aiId } from "@/lib/ai/ids";
+import { aiId, aiSeg } from "@/lib/ai/ids";
+import { useAiReveal } from "@/lib/guide/targets";
 import Select from "@/components/Select";
+import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import { IconClock, IconRefresh, IconArrowRight } from "@/components/icons";
 
@@ -86,6 +88,12 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
     if (settled) countRef.current?.(itemCount);
   }, [settled, itemCount]);
 
+  const pager = usePaged(state.items, PAGE_STEP, "queue");
+  useAiReveal(/^call_center\.leads\.item\.[^.]+\.[^.]+$/, (id) => {
+    const [, , , type = "", seg = ""] = id.split(".");
+    pager.reveal((i) => aiSeg(i.type) === type && aiSeg(i.id) === seg);
+  });
+
   if (state.status === "forbidden") return null;
 
   async function assignNext(item: QueueItem) {
@@ -151,75 +159,78 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
       ) : !state.items.length ? (
         <p className="advmuted">{t("empty")}</p>
       ) : (
-        <div className="alist">
-          {state.items.map((item) => {
-            const left = item.slaMinutes - item.ageMinutes;
-            const region = item.region ? (te.has(`regions.${item.region}`) ? te(`regions.${item.region}`) : item.region) : "";
-            const hot = item.score === "hot" || item.urgency === "urgent";
-            // A Tezkor Advokat request is a third row type with a 15-minute
-            // SLA and its own board. It is NOT a lead: dropping it into the
-            // else-branch below offered the lead-stage mover, which would have
-            // called /call-center/leads/{id}/move on a record that is not one.
-            const urgent = item.type === "urgent_advokat";
-            const typeLabel = t.has(`type.${item.type}`) ? t(`type.${item.type}`) : item.type;
-            const statusText = item.status ? (t.has(`status.${item.status}`) ? t(`status.${item.status}`) : item.status) : "";
-            return (
-              <div
-                className={`ccq${item.slaBreached ? " ccq--breach" : ""}`}
-                key={`${item.type}-${item.id}`}
-                data-ai-id={aiId("call_center.leads.item", item.type, item.id)}
-                data-ai-type="list_item"
-                data-ai-label={[typeLabel, statusText].filter(Boolean).join(" · ")}
-                data-ai-entity-type={AI_ENTITY[item.type] ?? item.type}
-                data-ai-entity-id={item.id}
-                data-ai-private
-              >
-                <div className="ccq__top">
-                  <span className={`tprio tprio--${urgent ? "high" : item.type === "order" ? "medium" : "low"}`}>{t.has(`type.${item.type}`) ? t(`type.${item.type}`) : item.type}</span>
-                  {hot ? <span className="tprio tprio--high">{t("hot")}</span> : null}
-                  <b className="ccq__t">{(item.type === "lead" ? leadCategoryLabel(tp, item.title) : item.title) || "—"}</b>
+        <>
+          <div className="alist alist--flow">
+            {pager.visible.map((item) => {
+              const left = item.slaMinutes - item.ageMinutes;
+              const region = item.region ? (te.has(`regions.${item.region}`) ? te(`regions.${item.region}`) : item.region) : "";
+              const hot = item.score === "hot" || item.urgency === "urgent";
+              // A Tezkor Advokat request is a third row type with a 15-minute
+              // SLA and its own board. It is NOT a lead: dropping it into the
+              // else-branch below offered the lead-stage mover, which would have
+              // called /call-center/leads/{id}/move on a record that is not one.
+              const urgent = item.type === "urgent_advokat";
+              const typeLabel = t.has(`type.${item.type}`) ? t(`type.${item.type}`) : item.type;
+              const statusText = item.status ? (t.has(`status.${item.status}`) ? t(`status.${item.status}`) : item.status) : "";
+              return (
+                <div
+                  className={`ccq${item.slaBreached ? " ccq--breach" : ""}`}
+                  key={`${item.type}-${item.id}`}
+                  data-ai-id={aiId("call_center.leads.item", item.type, item.id)}
+                  data-ai-type="list_item"
+                  data-ai-label={[typeLabel, statusText].filter(Boolean).join(" · ")}
+                  data-ai-entity-type={AI_ENTITY[item.type] ?? item.type}
+                  data-ai-entity-id={item.id}
+                  data-ai-private
+                >
+                  <div className="ccq__top">
+                    <span className={`tprio tprio--${urgent ? "high" : item.type === "order" ? "medium" : "low"}`}>{t.has(`type.${item.type}`) ? t(`type.${item.type}`) : item.type}</span>
+                    {hot ? <span className="tprio tprio--high">{t("hot")}</span> : null}
+                    <b className="ccq__t">{(item.type === "lead" ? leadCategoryLabel(tp, item.title) : item.title) || "—"}</b>
+                  </div>
+                  <div className="ccq__meta">
+                    <span className={`ccq__sla${item.slaBreached ? " on" : ""}`}>
+                      <IconClock />
+                      {item.slaBreached ? t("slaBreached", { age: age(item.ageMinutes) }) : t("slaLeft", { n: Math.max(0, left), age: age(item.ageMinutes) })}
+                    </span>
+                    {region ? <span>{region}</span> : null}
+                    {item.status ? <span>{t.has(`status.${item.status}`) ? t(`status.${item.status}`) : item.status}</span> : null}
+                    {item.recommendedSellerLoad != null && !urgent ? <span>{t("sellerLoad", { n: item.recommendedSellerLoad })}</span> : null}
+                    {urgent && item.serviceKind ? <span>{tk.has(`kinds.${item.serviceKind}`) ? tk(`kinds.${item.serviceKind}`) : item.serviceKind}</span> : null}
+                    {urgent && item.channel ? <span>{item.channel === "chat" ? tk("chChat") : tk("chVideo")}</span> : null}
+                    {urgent && item.directions?.length ? <span>{item.directions.join(", ")}</span> : null}
+                    {urgent && item.requestedLawyerCount ? <span>{t("lawyersN", { n: item.requestedLawyerCount })}</span> : null}
+                    {urgent && item.claimedByUserId ? <span>{t("urgentClaimed")}</span> : null}
+                  </div>
+                  <div className="ccq__act">
+                    {urgent ? (
+                      // The claim / candidates / meeting / result actions all
+                      // live on the Tezkor Advokat board further down this page.
+                      <a className="btn btn--line btn--sm" href="#cc-urgent">
+                        {t("openUrgentBoard")}
+                        <IconArrowRight />
+                      </a>
+                    ) : item.type === "order" ? (
+                      <button type="button" className="btn btn--pri btn--sm" disabled={busyId === item.id} onClick={() => assignNext(item)}>
+                        {busyId === item.id ? t("working") : t("assignNext")}
+                        <IconArrowRight />
+                      </button>
+                    ) : (
+                      <Select
+                        value=""
+                        onChange={(v) => moveLead(item, v)}
+                        options={LEAD_STAGES.filter((s) => s !== item.status).map((s) => ({ value: s, label: t(`stages.${s}`) }))}
+                        ariaLabel={t("moveTo")}
+                        placeholder={busyId === item.id ? t("working") : t("moveTo")}
+                      />
+                    )}
+                  </div>
                 </div>
-                <div className="ccq__meta">
-                  <span className={`ccq__sla${item.slaBreached ? " on" : ""}`}>
-                    <IconClock />
-                    {item.slaBreached ? t("slaBreached", { age: age(item.ageMinutes) }) : t("slaLeft", { n: Math.max(0, left), age: age(item.ageMinutes) })}
-                  </span>
-                  {region ? <span>{region}</span> : null}
-                  {item.status ? <span>{t.has(`status.${item.status}`) ? t(`status.${item.status}`) : item.status}</span> : null}
-                  {item.recommendedSellerLoad != null && !urgent ? <span>{t("sellerLoad", { n: item.recommendedSellerLoad })}</span> : null}
-                  {urgent && item.serviceKind ? <span>{tk.has(`kinds.${item.serviceKind}`) ? tk(`kinds.${item.serviceKind}`) : item.serviceKind}</span> : null}
-                  {urgent && item.channel ? <span>{item.channel === "chat" ? tk("chChat") : tk("chVideo")}</span> : null}
-                  {urgent && item.directions?.length ? <span>{item.directions.join(", ")}</span> : null}
-                  {urgent && item.requestedLawyerCount ? <span>{t("lawyersN", { n: item.requestedLawyerCount })}</span> : null}
-                  {urgent && item.claimedByUserId ? <span>{t("urgentClaimed")}</span> : null}
-                </div>
-                <div className="ccq__act">
-                  {urgent ? (
-                    // The claim / candidates / meeting / result actions all
-                    // live on the Tezkor Advokat board further down this page.
-                    <a className="btn btn--line btn--sm" href="#cc-urgent">
-                      {t("openUrgentBoard")}
-                      <IconArrowRight />
-                    </a>
-                  ) : item.type === "order" ? (
-                    <button type="button" className="btn btn--pri btn--sm" disabled={busyId === item.id} onClick={() => assignNext(item)}>
-                      {busyId === item.id ? t("working") : t("assignNext")}
-                      <IconArrowRight />
-                    </button>
-                  ) : (
-                    <Select
-                      value=""
-                      onChange={(v) => moveLead(item, v)}
-                      options={LEAD_STAGES.filter((s) => s !== item.status).map((s) => ({ value: s, label: t(`stages.${s}`) }))}
-                      ariaLabel={t("moveTo")}
-                      placeholder={busyId === item.id ? t("working") : t("moveTo")}
-                    />
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+          <ListPager {...pager.bind} less aiId="call_center.leads.queue.more" />
+        </>
       )}
     </div>
   );

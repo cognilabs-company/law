@@ -10,6 +10,7 @@ import { useAiSelection } from "@/lib/ai/registry";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
 import FilterBar from "@/components/filters/FilterBar";
+import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
 import CcCallForm from "./CcCallForm";
 import { IconPhone, IconPlus, IconRefresh } from "@/components/icons";
 
@@ -38,6 +39,7 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
   const freshRow = useRef<HTMLDivElement>(null);
   const seenKey = useRef(reloadKey);
   const calls = res.data.filter((c) => matchDir(c, dir));
+  const pager = usePaged(calls, PAGE_STEP, dir);
   const dur = (s: number) => (s >= 60 ? tl("min", { n: Math.round(s / 60) }) : s > 0 ? tl("sec", { n: s }) : "");
   const resultLabel = (r: string) => (r ? (tl.has(`results.${r}`) ? tl(`results.${r}`) : r) : "");
   const statusLabel = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
@@ -80,7 +82,9 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
     const list = await reload();
     const added = list ? list.filter((c) => !known.has(c.id)) : [];
     const hit = added.find((c) => digits(c.phone) === digits(phone)) ?? added[0];
-    if (hit) setFreshId(hit.id);
+    if (!hit || !list) return;
+    setFreshId(hit.id);
+    pager.revealIndex(list.filter((c) => matchDir(c, dir)).findIndex((c) => c.id === hit.id));
   }
 
   const logged = useRef(afterLog);
@@ -126,19 +130,22 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
       ) : !calls.length ? (
         <p className="advmuted">{t("noCalls")}</p>
       ) : (
-        <div className="alist">
-          {calls.slice(0, 50).map((c) => (
-            <div className="creq" key={c.id} ref={c.id === freshId ? freshRow : undefined}>
-              <span className={`creq__st${c.status === "missed" ? " creq__st--matching" : c.direction === "incoming" ? " creq__st--consultation" : ""}`} />
-              <div className="creq__m">
-                <b><span style={{ whiteSpace: "nowrap" }}><IconPhone style={{ display: "inline-block", width: 13, height: 13, verticalAlign: "-2px", marginRight: 6 }} />{c.phone || "—"}</span>{c.topic ? ` — ${c.topic}` : ""}</b>
-                <span>{[t.has(`dir.${c.direction}`) ? t(`dir.${c.direction}`) : c.direction, resultLabel(c.result), dur(c.durationSec), shortDateTime(c.createdAt, locale)].filter(Boolean).join(" · ")}</span>
-                {c.nextAction ? <em className="creq__next">{tl("next")}: {c.nextAction}</em> : null}
+        <>
+          <div className="alist alist--flow">
+            {pager.visible.map((c) => (
+              <div className="creq" key={c.id} ref={c.id === freshId ? freshRow : undefined}>
+                <span className={`creq__st${c.status === "missed" ? " creq__st--matching" : c.direction === "incoming" ? " creq__st--consultation" : ""}`} />
+                <div className="creq__m">
+                  <b><span style={{ whiteSpace: "nowrap" }}><IconPhone style={{ display: "inline-block", width: 13, height: 13, verticalAlign: "-2px", marginRight: 6 }} />{c.phone || "—"}</span>{c.topic ? ` — ${c.topic}` : ""}</b>
+                  <span>{[t.has(`dir.${c.direction}`) ? t(`dir.${c.direction}`) : c.direction, resultLabel(c.result), dur(c.durationSec), shortDateTime(c.createdAt, locale)].filter(Boolean).join(" · ")}</span>
+                  {c.nextAction ? <em className="creq__next">{tl("next")}: {c.nextAction}</em> : null}
+                </div>
+                <span className="creq__badge">{statusLabel(c.status)}</span>
               </div>
-              <span className="creq__badge">{statusLabel(c.status)}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          <ListPager {...pager.bind} less aiId="call_center.calls.more" />
+        </>
       )}
       <Modal
         open={formOpen}

@@ -3739,6 +3739,8 @@
     }
   },
   "common": {
+    "pager": {"more":"Yana {n} ta ko'rsatish","less":"Kamroq ko'rsatish","count":"{shown} / {total}","status":"{total} tadan {shown} tasi ko'rsatilmoqda","all":"Hammasi ko'rsatildi: {total} ta","loading":"Yuklanmoqda…"},
+    "scroll": {"prev":"Chapga surish","next":"O'ngga surish"},
     "modal": {"discardTitle":"O'zgarishlar saqlanmasinmi?","discardText":"Kiritgan ma'lumotlaringiz saqlanmaydi.","discardConfirm":"Saqlamasdan yopish","discardCancel":"Davom etish"},
     "select": {"search":"Qidirish","empty":"Hech narsa topilmadi"},
     "searchSelect": {"typeToSearch":"Qidirish uchun yozing","searching":"Qidirilmoqda…","failed":"Qidirib bo'lmadi. Qaytadan yozib ko'ring.","results":"{n} ta natija","remove":"Olib tashlash: {name}","chosen":"Tanlanganlar","clear":"Tozalash"},

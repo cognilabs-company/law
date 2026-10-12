@@ -19,6 +19,7 @@ import { humanize, statusLabel } from "@/lib/labels";
 import Modal from "@/components/admin/Modal";
 import FilterBar from "@/components/filters/FilterBar";
 import FieldError from "@/components/ui/FieldError";
+import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
 import { useAiSelection } from "@/lib/ai/registry";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
@@ -99,6 +100,7 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
   }, [unresolved]);
 
   const shown = useMemo(() => (status ? rows.filter((r) => r.status === status) : rows), [rows, status]);
+  const pager = usePaged(shown, PAGE_STEP, status);
   const openRow = useMemo(() => rows.find((r) => r.id === openId) ?? null, [rows, openId]);
   const label = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : statusLabel(tcm, s));
   const tally = (s: string) => (state === "ready" ? ` (${rows.filter((r) => r.status === s).length})` : "");
@@ -138,25 +140,28 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
       ) : !shown.length ? (
         <EmptyState icon={<IconAlert />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="alist">
-          {shown.map((r) => (
-            <button type="button" className="qcrow" key={r.id} onClick={() => setOpenId(r.id)}>
-              <span className={`qcrow__st qcrow__st--${r.status}`} aria-hidden />
-              <span className="qcrow__m">
-                <b>{r.title || r.workId || t("title")}</b>
-                <span className="qcrow__meta">
-                  {r.workId ? <small className="qcrow__wid">{r.workId}</small> : null}
-                  {r.rating ? <small className="qcrow__rate"><IconStarRate />{r.rating}</small> : null}
-                  {r.clientName ? <small><IconUser />{r.clientName}</small> : null}
-                  {r.lawyerName ? <small><IconScale />{r.lawyerName}</small> : null}
-                  {r.createdAt ? <small><IconClock />{shortDateTime(r.createdAt, locale)}</small> : null}
+        <>
+          <div className="alist alist--flow">
+            {pager.visible.map((r) => (
+              <button type="button" className="qcrow" key={r.id} onClick={() => setOpenId(r.id)}>
+                <span className={`qcrow__st qcrow__st--${r.status}`} aria-hidden />
+                <span className="qcrow__m">
+                  <b>{r.title || r.workId || t("title")}</b>
+                  <span className="qcrow__meta">
+                    {r.workId ? <small className="qcrow__wid">{r.workId}</small> : null}
+                    {r.rating ? <small className="qcrow__rate"><IconStarRate />{r.rating}</small> : null}
+                    {r.clientName ? <small><IconUser />{r.clientName}</small> : null}
+                    {r.lawyerName ? <small><IconScale />{r.lawyerName}</small> : null}
+                    {r.createdAt ? <small><IconClock />{shortDateTime(r.createdAt, locale)}</small> : null}
+                  </span>
+                  {r.complaint ? <span className="qcrow__txt">{r.complaint}</span> : null}
                 </span>
-                {r.complaint ? <span className="qcrow__txt">{r.complaint}</span> : null}
-              </span>
-              <span className="qcrow__badge">{r.statusLabel || label(r.status)}</span>
-            </button>
-          ))}
-        </div>
+                <span className="qcrow__badge">{r.statusLabel || label(r.status)}</span>
+              </button>
+            ))}
+          </div>
+          <ListPager {...pager.bind} less aiId="call_center.complaints.more" />
+        </>
       )}
 
       {openRow ? (

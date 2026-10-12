@@ -43,6 +43,8 @@ import TimePicker from "@/components/TimePicker";
 import CheckBox from "@/components/CheckBox";
 import Modal from "@/components/admin/Modal";
 import FieldError from "@/components/ui/FieldError";
+import ListPager, { usePaged } from "@/components/ui/ListPager";
+import { useScrollEdges } from "@/lib/useScrollEdges";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { isCoarsePointer, usePopover } from "@/lib/usePopover";
 import { VoiceNotePlayer } from "@/components/portal/AttachmentPreview";
@@ -276,8 +278,6 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [live, setLive] = useState(true);
   const listKey = `${view}|${kind}|${channel}`;
-  const [page, setPage] = useState({ key: listKey, n: PAGE });
-  const limit = page.key === listKey ? page.n : PAGE;
 
   const seq = useRef(0);
   const held = useRef(0);
@@ -437,10 +437,10 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
   );
   const counts = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.value, scoped.filter((r) => inView(r, v.value)).length])), [scoped]);
   const rows = useMemo(() => scoped.filter((r) => inView(r, view)).sort(sorterFor(view)), [scoped, view]);
-  const visible = rows.slice(0, limit);
-  const rest = rows.length - visible.length;
+  const pager = usePaged(rows, PAGE, listKey);
 
   const viewsRef = useRef<HTMLDivElement>(null);
+  useScrollEdges(viewsRef, { silent: true });
   useEffect(() => {
     const box = viewsRef.current;
     const el = box?.querySelector<HTMLElement>("[aria-pressed=true]");
@@ -470,12 +470,10 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
     const v = inView(r, view) ? view : isFinal(r) ? "archive" : "active";
     const list = state.items.filter((x) => (!k || x.serviceKind === k) && (!c || x.channel === c) && inView(x, v)).sort(sorterFor(v));
     const at = list.findIndex((x) => x.id === r.id);
-    const need = at < 0 ? PAGE : Math.ceil((at + 1) / PAGE) * PAGE;
-    const key = `${v}|${k}|${c}`;
     setKind(k);
     setChannel(c);
     setView(v);
-    setPage({ key, n: key === listKey ? Math.max(limit, need) : need });
+    pager.revealIndex(at, `${v}|${k}|${c}`);
   });
 
   const viewOpts = VIEWS.map((x) => ({ value: x.value, label: ready ? `${t(x.key)} (${counts[x.value] ?? 0})` : t(x.key) }));
@@ -529,7 +527,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
 
       <div
         ref={viewsRef}
-        className="uaq__views"
+        className="uaq__views scue-x"
         role="group"
         aria-label={t("fStatus")}
         data-ai-id="call_center.urgent-advokat.tabs"
@@ -575,7 +573,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
         <EmptyState icon={<IconBolt />} title={t("empty")} text={t("emptyText")} />
       ) : (
         <ul className="uaq__list" data-ai-target="callcenter:urgent-list">
-          {visible.map((r) => {
+          {pager.visible.map((r) => {
             const Icon = KIND_ICON[r.serviceKind] ?? IconScale;
             const open = (r.status || "open_pool") === "open_pool";
             const isGroup = r.serviceKind === GROUP;
@@ -678,11 +676,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
           })}
         </ul>
       )}
-      {ready && rest > 0 ? (
-        <button type="button" className="btn btn--line btn--sm uaq__more" onClick={() => setPage({ key: listKey, n: limit + PAGE })} data-ai-id="call_center.urgent-advokat.more">
-          {t("showMore", { n: rest })}
-        </button>
-      ) : null}
+      {ready && rows.length ? <ListPager {...pager.bind} less aiId="call_center.urgent-advokat.more" /> : null}
 
       <UrgentDetailDrawer
         id={openId}

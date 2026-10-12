@@ -20,6 +20,7 @@ import Modal from "@/components/admin/Modal";
 import DatePicker from "@/components/DatePicker";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import FieldError from "@/components/ui/FieldError";
+import ListPager, { usePaged } from "@/components/ui/ListPager";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
 import { IconVideo, IconClock, IconRefresh, IconUsers, IconUser, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconEye, IconClipboardCheck, IconSearch } from "@/components/icons";
 import { regionLabel, humanize } from "@/lib/labels";
@@ -265,7 +266,6 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const [histErr, setHistErr] = useState<{ missing: boolean; error: unknown } | null>(null);
   const [histTick, setHistTick] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [minePage, setMinePage] = useState(PAGE);
   const titleRef = useRef<HTMLInputElement>(null);
 
   // The former standalone /admin/call-history page — every meeting on the
@@ -279,7 +279,6 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const [platTo, setPlatTo] = useState("");
   const [platQuery, setPlatQuery] = useState("");
   const [platStatus, setPlatStatus] = useState("");
-  const [platPage, setPlatPage] = useState({ key: "", n: PAGE });
   const [platBusy, setPlatBusy] = useState(false);
   const fromStart = localDay(platFrom);
   const toEnd = localDay(platTo, 1);
@@ -472,6 +471,25 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     setActive({ roomId: c.roomId, callId: c.callId, isCaller: c.callerUserId === session?.id, title: c.title || undefined, lk: null });
   }
 
+  const effectiveHistory = history ?? [];
+  const live = effectiveHistory.filter((c) => LIVE.has(c.callStatus));
+  const ended = effectiveHistory.filter((c) => !LIVE.has(c.callStatus));
+  const minePager = usePaged(ended, PAGE, sessionKey);
+  const platInRange =
+    fromStart === null && toEnd === null
+      ? platRes.data
+      : platRes.data.filter((c) => {
+          const ts = new Date(c.startedAt || c.createdAt).getTime();
+          return Number.isNaN(ts) || ((fromStart === null || ts >= fromStart) && (toEnd === null || ts < toEnd));
+        });
+  const platMatched = platQuery.trim() ? platInRange.filter((c) => matchesSearch(`${c.title} ${c.creatorName}`, platQuery)) : platInRange;
+  const platCounts = countBy(platMatched, (c) => c.status);
+  const platFound = ordered(platCounts, STATUS_ORDER);
+  const platStatuses = platStatus && !platFound.includes(platStatus) ? [...platFound, platStatus] : platFound;
+  const platList = platStatus ? platMatched.filter((c) => c.status === platStatus) : platMatched;
+  const platFilterKey = [platQuery.trim(), platStatus, platFrom, platTo].join("|");
+  const platPager = usePaged(platList, PAGE, platFilterKey);
+
   if (active) {
     return (
       <CallRoom
@@ -492,11 +510,6 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   }
 
   const canHost = canMakeCalls(session);
-  const effectiveHistory = history ?? [];
-  const live = effectiveHistory.filter((c) => LIVE.has(c.callStatus));
-  const ended = effectiveHistory.filter((c) => !LIVE.has(c.callStatus));
-  const endedShown = ended.slice(0, minePage);
-  const endedLeft = ended.length - endedShown.length;
   const statusOf = (s: string) => (t.has(`callStatus.${s}`) ? t(`callStatus.${s}`) : humanize(s));
   const mineOf = (s: string) => (tc.has(`pstatus.${s}`) ? tc(`pstatus.${s}`) : humanize(s));
   const endedCounts = countBy(ended, (c) => c.callStatus);
@@ -641,21 +654,6 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     const day = (iso: string) => (iso ? shortDate(iso, locale) : "…");
     const platChip = platFrom || platTo ? (platFrom && platFrom === platTo ? day(platFrom) : `${day(platFrom)} – ${day(platTo)}`) : null;
     const platStatusOf = (s: string) => (tch.has(`status.${s}`) ? tch(`status.${s}`) : humanize(s));
-    const platInRange =
-      fromStart === null && toEnd === null
-        ? platRes.data
-        : platRes.data.filter((c) => {
-            const ts = new Date(c.startedAt || c.createdAt).getTime();
-            return Number.isNaN(ts) || ((fromStart === null || ts >= fromStart) && (toEnd === null || ts < toEnd));
-          });
-    const platMatched = platQuery.trim() ? platInRange.filter((c) => matchesSearch(`${c.title} ${c.creatorName}`, platQuery)) : platInRange;
-    const platCounts = countBy(platMatched, (c) => c.status);
-    const platFound = ordered(platCounts, STATUS_ORDER);
-    const platStatuses = platStatus && !platFound.includes(platStatus) ? [...platFound, platStatus] : platFound;
-    const platList = platStatus ? platMatched.filter((c) => c.status === platStatus) : platMatched;
-    const platFilterKey = [platQuery.trim(), platStatus, platFrom, platTo].join("|");
-    const platLimit = platPage.key === platFilterKey ? platPage.n : PAGE;
-    const platShown = platList.slice(0, platLimit);
     const platFiltered = Boolean(platQuery.trim() || platStatus || platFrom || platTo);
     const refreshBusy = showMine ? refreshing : platBusy;
     return (
@@ -752,8 +750,8 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
                       <span className="mlist__gl">{t("endedGroup")}</span>
                       <span className="mlist__sum">{endedSummary}</span>
                     </div>
-                    {endedShown.map(row)}
-                    {moreButton(endedLeft, () => setMinePage((n) => n + PAGE))}
+                    {minePager.visible.map(row)}
+                    <ListPager {...minePager.bind} less />
                   </div>
                 ) : null}
               </div>
@@ -773,8 +771,8 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
                 )
               ) : (
                 <>
-                  <div className="alist">
-                    {platShown.map((c, i) => (
+                  <div className="alist alist--flow">
+                    {platPager.visible.map((c, i) => (
                       <AdminItem
                         key={c.id || i}
                         title={c.title || tch("untitled")}
@@ -785,7 +783,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
                       />
                     ))}
                   </div>
-                  {moreButton(platList.length - platShown.length, () => setPlatPage({ key: platFilterKey, n: platLimit + PAGE }))}
+                  <ListPager {...platPager.bind} less />
                 </>
               )}
               <CallDetailModal id={platDetail} onClose={() => setPlatDetail(null)} />
@@ -940,11 +938,11 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...live, ...endedShown].map((c, i) => tableRow(c, i))}
+                    {[...live, ...minePager.visible].map((c, i) => tableRow(c, i))}
                   </tbody>
                 </table>
               </div>
-              {moreButton(endedLeft, () => setMinePage((n) => n + PAGE))}
+              {moreButton(minePager.rest, minePager.more)}
             </>
           ) : (
             emptyHistory

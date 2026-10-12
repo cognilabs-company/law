@@ -212,6 +212,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+  const [bodyEl, setBodyEl] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!bodyEl) return;
+    const at = document.activeElement;
+    if (at && at !== document.body && at !== document.documentElement && !at.closest(".psb")) return;
+    bodyEl.focus({ preventScroll: true });
+  }, [pathname, bodyEl]);
   const current = NAV.slice()
     .sort((a, b) => b.href.length - a.href.length)
     .find((n) => onItem(pathname, n));
@@ -416,7 +423,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
-        <div className="pbody">
+        <div className="pbody" ref={setBodyEl} tabIndex={-1}>
           <div className="pbody__in">{children}</div>
         </div>
       </div>

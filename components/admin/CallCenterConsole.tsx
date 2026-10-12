@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, 
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { registerReveal, revealTarget } from "@/lib/guide/targets";
+import { useScrollEdges } from "@/lib/useScrollEdges";
 import { IconArrowRight, IconBolt, IconFlag, IconHeadset, IconInbox, IconSearch, IconUsers } from "@/components/icons";
 
 export type CcTab = "queue" | "urgent" | "complaints" | "leads" | "clients";
@@ -211,6 +212,7 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
   const tc = useTranslations("admin.callCenter");
   const [q, setQ] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
+  useScrollEdges(listRef, { silent: true });
   const { active, tabs, counts, select, find, attach } = con;
 
   useEffect(() => {
@@ -244,7 +246,7 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
   return (
     <div className="ccon" ref={attach}>
       <div className="ccon__bar">
-        <div className="ccon__tabs" role="tablist" aria-label={t("tabsAria")} ref={listRef}>
+        <div className="ccon__tabs scue-x" role="tablist" aria-label={t("tabsAria")} ref={listRef}>
           {tabs.map((k) => {
             const Icon = ICON[k];
             const on = active === k;

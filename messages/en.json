@@ -3739,6 +3739,8 @@
     }
   },
   "common": {
+    "pager": {"more":"{n, plural, one {Show # more item} other {Show # more items}}","less":"Show less","count":"{shown} / {total}","status":"Showing {shown} of {total}","all":"{total, plural, one {# item shown} other {All # items shown}}","loading":"Loading…"},
+    "scroll": {"prev":"Scroll left","next":"Scroll right"},
     "modal": {"discardTitle":"Discard changes?","discardText":"What you entered will not be saved.","discardConfirm":"Close without saving","discardCancel":"Keep editing"},
     "select": {"search":"Search","empty":"Nothing found"},
     "searchSelect": {"typeToSearch":"Start typing to search","searching":"Searching…","failed":"Search failed. Try typing again.","results":"{n, plural, one {# result} other {# results}}","remove":"Remove: {name}","chosen":"Selected","clear":"Clear"},

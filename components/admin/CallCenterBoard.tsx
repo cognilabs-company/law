@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { assigneeLabel, isLostStage, leadCategoryLabel, leadRegionLabel, leadScoreLabel } from "@/lib/leadLabels";
 import { moveCallCenterLead } from "@/lib/services/backend";
@@ -30,10 +30,58 @@ import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import Select, { rankOptions } from "@/components/Select";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
+import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
+import ScrollArrows from "@/components/ui/ScrollArrows";
+import { useScrollEdges } from "@/lib/useScrollEdges";
 import { IconRefresh, IconPhone } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
 
 type State = { status: "loading" | "ready" | "error" | "forbidden"; columns: KanbanColumnX[]; error?: unknown };
+
+const WHEEL_LINE = 16;
+
+function pageStuck(el: HTMLElement, dy: number): boolean {
+  const pane = el.closest<HTMLElement>(".pbody");
+  if (!pane) return true;
+  return dy < 0 ? pane.scrollTop <= 1 : pane.scrollTop >= pane.scrollHeight - pane.clientHeight - 1;
+}
+
+function inHeadBand(el: HTMLElement, y: number): boolean {
+  const head = el.querySelector<HTMLElement>(".ccb__h");
+  return head ? y <= head.getBoundingClientRect().bottom + 10 : false;
+}
+
+function useSidewaysWheel(el: HTMLElement | null) {
+  useEffect(() => {
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.defaultPrevented || !e.cancelable || e.ctrlKey || e.metaKey || e.shiftKey || !e.deltaY || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+      const room = el.scrollWidth - el.clientWidth;
+      const at = e.target instanceof Element ? e.target : null;
+      if (room <= 2 || !at) return;
+      const dx = e.deltaMode === 1 ? e.deltaY * WHEEL_LINE : e.deltaMode === 2 ? e.deltaY * el.clientWidth : e.deltaY;
+      const x = Math.abs(el.scrollLeft);
+      if (dx < 0 ? x <= 1 : x >= room - 1) return;
+      const head = Boolean(at.closest(".ccb__h"));
+      const open = at === el || at.matches(".ccb__col,.ccb__none");
+      if (!head && !(open && (inHeadBand(el, e.clientY) || pageStuck(el, dx)))) return;
+      e.preventDefault();
+      el.scrollLeft += dx;
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [el]);
+}
+
+function PagedCards<T>({ items, pageKey, children }: { items: readonly T[]; pageKey: string; children: (item: T) => ReactNode }) {
+  const pager = usePaged(items, PAGE_STEP, pageKey);
+  return (
+    <>
+      {pager.visible.map((item) => children(item))}
+      <ListPager {...pager.bind} className="ccb__pager" />
+    </>
+  );
+}
 
 // T1A-05 call-center lead board (GET /call-center/leads/kanban, PATCH …/move).
 // Compact columns with counts; each card moves through a select, which also
@@ -104,6 +152,15 @@ export default function CallCenterBoard() {
     [state.columns, f, meId],
   );
   const shown = viewCols.reduce((n, c) => n + c.cards.length, 0);
+  const pageSig = Object.values(f).join("|");
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const [boardEl, setBoardEl] = useState<HTMLDivElement | null>(null);
+  const bindBoard = useCallback((el: HTMLDivElement | null) => {
+    boardRef.current = el;
+    setBoardEl(el);
+  }, []);
+  const edges = useScrollEdges(boardEl);
+  useSidewaysWheel(boardEl);
 
   const moveRef = useRef(move);
   useEffect(() => {
@@ -254,64 +311,68 @@ export default function CallCenterBoard() {
       ) : !state.columns.length ? (
         <p className="advmuted">{t("empty")}</p>
       ) : (
-        <div className="ccb">
-          {viewCols.map((c) => (
-            <div className="ccb__col" key={c.key}>
-              <div className="ccb__h">
-                <span className="ccb__dot" style={{ background: c.color || "#94a3b8" }} />
-                <b>{colTitle(c)}</b>
-                <span className="advmuted">{filtered ? c.cards.length : c.count || c.cards.length}</span>
+        <ScrollArrows target={boardRef} edges={edges} className="ccb-host">
+          <div ref={bindBoard} className="ccb scue-x">
+            {viewCols.map((c) => (
+              <div className="ccb__col" key={c.key}>
+                <div className="ccb__h">
+                  <span className="ccb__dot" style={{ background: c.color || "#94a3b8" }} />
+                  <b>{colTitle(c)}</b>
+                  <span className="advmuted">{filtered ? c.cards.length : c.count || c.cards.length}</span>
+                </div>
+                {c.cards.length ? (
+                  <PagedCards items={c.cards} pageKey={`${c.key}|${pageSig}`}>
+                    {({ lead }) => {
+                      // The category label is already the card title when the lead
+                      // has neither a name nor a phone — don't repeat it in the meta line.
+                      const titledByCategory = !lead.name && !lead.phone;
+                      return (
+                        <div className="ccb__card" key={lead.id}>
+                          <b>{leadTitle(lead)}</b>
+                          <span className="ccb__meta">
+                            {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: LEAD-DX36K — what
+                                an operator reads out on the phone. */}
+                            {lead.workId ? <em className="wid">{lead.workId}</em> : null}
+                            {[titledByCategory ? "" : leadCategoryLabel(tp, lead.category), leadRegionLabel(te, lead.region)].filter(Boolean).join(" · ")}
+                          </span>
+                          <span className="pipe__tags">
+                            {lead.scoreKey ? <span className={`lscore lscore--${lead.scoreKey}`}>{leadScoreLabel(tp, lead.scoreKey)}</span> : null}
+                            <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`} title={tp("assign.title")}>
+                              <span>{assigneeLabel(tp, ops.people, lead.assignedTo, meId, ops.status === "ready")}</span>
+                            </span>
+                          </span>
+                          {lead.phone ? (
+                            <span className="ccb__contact">
+                              <a className="ccb__tel" href={`tel:${lead.phone.replace(/[^+\d]/g, "")}`}>
+                                <IconPhone />
+                                {lead.phone}
+                              </a>
+                              <CcMeetingButton clientUserId={leadUserId(lead)} phone={lead.phone} clientName={lead.name} className="ccmeet--sm" />
+                            </span>
+                          ) : null}
+                          <div className="ccb__sels">
+                            {canAssign ? (
+                              <Select value={lead.assignedTo} onChange={(v) => void assign(lead, v)} options={assigneeOptsFor(lead)} ariaLabel={tp("assign.select")} placeholder={busyId === lead.id ? tq("working") : tp("assign.select")} />
+                            ) : null}
+                            <Select
+                              value=""
+                              onChange={(v) => move(lead.id, v)}
+                              options={state.columns.filter((o) => o.key !== c.key).map((o) => ({ value: o.key, label: colTitle(o) }))}
+                              ariaLabel={tq("moveTo")}
+                              placeholder={busyId === lead.id ? tq("working") : tq("moveTo")}
+                            />
+                          </div>
+                        </div>
+                      );
+                    }}
+                  </PagedCards>
+                ) : (
+                  <p className="ccb__none">{filtered ? tp("f.noMatch") : t("noneHere")}</p>
+                )}
               </div>
-              {c.cards.length ? (
-                c.cards.map(({ lead }) => {
-                  // The category label is already the card title when the lead
-                  // has neither a name nor a phone — don't repeat it in the meta line.
-                  const titledByCategory = !lead.name && !lead.phone;
-                  return (
-                  <div className="ccb__card" key={lead.id}>
-                    <b>{leadTitle(lead)}</b>
-                    <span className="ccb__meta">
-                      {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: LEAD-DX36K — what
-                          an operator reads out on the phone. */}
-                      {lead.workId ? <em className="wid">{lead.workId}</em> : null}
-                      {[titledByCategory ? "" : leadCategoryLabel(tp, lead.category), leadRegionLabel(te, lead.region)].filter(Boolean).join(" · ")}
-                    </span>
-                    <span className="pipe__tags">
-                      {lead.scoreKey ? <span className={`lscore lscore--${lead.scoreKey}`}>{leadScoreLabel(tp, lead.scoreKey)}</span> : null}
-                      <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`} title={tp("assign.title")}>
-                        <span>{assigneeLabel(tp, ops.people, lead.assignedTo, meId, ops.status === "ready")}</span>
-                      </span>
-                    </span>
-                    {lead.phone ? (
-                      <span className="ccb__contact">
-                        <a className="ccb__tel" href={`tel:${lead.phone.replace(/[^+\d]/g, "")}`}>
-                          <IconPhone />
-                          {lead.phone}
-                        </a>
-                        <CcMeetingButton clientUserId={leadUserId(lead)} phone={lead.phone} clientName={lead.name} className="ccmeet--sm" />
-                      </span>
-                    ) : null}
-                    <div className="ccb__sels">
-                      {canAssign ? (
-                        <Select value={lead.assignedTo} onChange={(v) => void assign(lead, v)} options={assigneeOptsFor(lead)} ariaLabel={tp("assign.select")} placeholder={busyId === lead.id ? tq("working") : tp("assign.select")} />
-                      ) : null}
-                      <Select
-                        value=""
-                        onChange={(v) => move(lead.id, v)}
-                        options={state.columns.filter((o) => o.key !== c.key).map((o) => ({ value: o.key, label: colTitle(o) }))}
-                        ariaLabel={tq("moveTo")}
-                        placeholder={busyId === lead.id ? tq("working") : tq("moveTo")}
-                      />
-                    </div>
-                  </div>
-                  );
-                })
-              ) : (
-                <p className="ccb__none">{filtered ? tp("f.noMatch") : t("noneHere")}</p>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </ScrollArrows>
       )}
     </div>
   );
