@@ -26,6 +26,7 @@ import {
 } from "@/lib/services/dash";
 import { demoAdminDashboard, demoCeo, demoQuality } from "@/lib/demoStats";
 import { humanizeSlug } from "@/lib/lawyers";
+import { leadSourceInfo, leadSourceLabel } from "@/lib/leadLabels";
 import { ApiError, isDemoUnavailable } from "@/lib/http";
 import { useResourceOne, type ResStatus } from "@/lib/useResource";
 import { useDemoTools } from "@/lib/demoTools";
@@ -155,6 +156,7 @@ export default function AdminOverview() {
   const tn = useTranslations("admin");
   const td = useTranslations("admin.dash");
   const te = useTranslations("enums.regions");
+  const tsrc = useTranslations("enums");
   const tnf = useTranslations("common.notify");
   const locale = useLocale();
   const { session } = useAuth();
@@ -271,7 +273,7 @@ export default function AdminOverview() {
         { label: td("drill.paidCount"), value: num(stat("paid_count") ?? 0) },
         { label: td("drill.pendingCount"), value: num(stat("pending_count") ?? 0) },
       ] },
-      { kind: "bars", title: td("drill.channels"), rows: channels.map((ch) => ({ label: TEST_CHANNEL.test(ch.name) ? `${humanizeSlug(ch.name)} · ${tb("testTag")}` : humanizeSlug(ch.name), value: money(ch.revenue), short: `${short(ch.revenue)} ${som}`, n: ch.revenue, sub: `${num(ch.leads)} · ${ch.pct}%`, tone: TEST_CHANNEL.test(ch.name) ? "muted" : undefined })) },
+      { kind: "bars", title: td("drill.channels"), rows: channels.map((ch) => ({ label: TEST_CHANNEL.test(ch.name) ? `${leadSourceLabel(tsrc, ch.name)} · ${tb("testTag")}` : leadSourceLabel(tsrc, ch.name), title: leadSourceInfo(tsrc, ch.name).title || undefined, value: money(ch.revenue), short: `${short(ch.revenue)} ${som}`, n: ch.revenue, tone: TEST_CHANNEL.test(ch.name) ? "muted" : undefined })) },
     ],
     link: adminLinkFor("ceo", "/admin/ceo", td("drill.goCeo"), session),
   });
@@ -610,7 +612,7 @@ export default function AdminOverview() {
             <ol className="aov-rank">
               {realChannels.slice(0, 5).map((ch) => (
                 <li key={ch.name}>
-                  <span className="aov-rank__n">{humanizeSlug(ch.name)}</span>
+                  <span className="aov-rank__n" title={leadSourceInfo(tsrc, ch.name).title || undefined}>{leadSourceLabel(tsrc, ch.name)}</span>
                   <b>{moneyShort(ch.revenue)}</b>
                   <Meter pct={(ch.revenue / realSum) * 100} tone="blue" />
                   <small>{tb("channelSub", { leads: ch.leads, payments: ch.payments, share: Math.round((ch.revenue / realSum) * 100) })}</small>

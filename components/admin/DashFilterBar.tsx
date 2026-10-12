@@ -7,7 +7,7 @@ import DatePicker from "@/components/DatePicker";
 import { REGION_KEYS } from "@/lib/lawyers";
 import { EMPTY_FILTER, todayIso, type DashFilter } from "@/lib/services/dash";
 import { dayBefore, useDemoForced } from "@/lib/demoStats";
-import { shortDate } from "@/lib/date";
+import { fmtDateTime } from "@/lib/date";
 import { useAiSelection } from "@/lib/ai/registry";
 import { IconBolt, IconCalendar, IconClock, IconMapPin } from "@/components/icons";
 
@@ -55,7 +55,7 @@ export default function DashFilterBar({
 
   const dated = Boolean(value.from || value.to);
   const period = value.preset || (mode === "today" && dated ? "today" : mode === "custom" || dated ? "custom" : "");
-  const day = (iso: string) => shortDate(iso, locale);
+  const day = (iso: string) => fmtDateTime(iso, locale, false);
   const range =
     value.from && value.to
       ? value.from === value.to

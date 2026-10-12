@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useId, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { reengageLead, logCcCall, createTask, type KanbanColumn } from "@/lib/services/backend";
 import { isForbiddenErr, leadUserId, type LeadX, type OperatorsState } from "@/lib/services/leads";
@@ -11,10 +11,13 @@ import { notify } from "@/lib/toast";
 import { useReload } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
 import Select, { rankOptions } from "@/components/Select";
-import { dateOnly, dateTimeFull, fmtDate, shortDate, timeOnly } from "@/lib/date";
+import { fmtDate, fmtDateTime, timeOnly } from "@/lib/date";
+import { parseServerTime } from "@/lib/http";
 import { humanizeSlug } from "@/lib/lawyers";
-import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadUrgencyLabel, personLabel } from "@/lib/leadLabels";
+import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadSourceInfo, leadUrgencyLabel, personLabel } from "@/lib/leadLabels";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
+import { ScoreChip, WorkId } from "@/components/ui/Badge";
+import InlineAlert from "@/components/ui/InlineAlert";
 import { IconClock, IconPhone, IconSend, IconTrash } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
 import Modal from "./Modal";
@@ -119,21 +122,26 @@ export default function LeadDrawer({
     finally { setAct(null); }
   }
 
-  const info: [string, string][] = [
+  const when = (value: string) => {
+    const at = parseServerTime(value);
+    return Number.isFinite(at) ? fmtDateTime(at, locale) : "";
+  };
+  const source = leadSourceInfo(te, lead.source);
+  const info: [string, ReactNode, string?][] = [
     // LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: LEAD-DX36K. First, because it is what
     // an operator quotes when the same lead comes up on another channel.
-    [t("d.workId"), lead.workId],
+    [t("d.workId"), lead.workId ? <WorkId id={lead.workId} copy /> : ""],
     // The board card beside this drawer resolves the very same slug through
     // leadCategoryLabel; d.cat.* was never written, so the drawer showed the
     // raw backend value while the card showed the translated one.
     [t("d.category"), leadCategoryLabel(t, lead.category)],
     [t("d.region"), leadRegionLabel(te, lead.region)],
-    [t("d.source"), lead.source && (t.has(`source.${lead.source}`) ? t(`source.${lead.source}`) : lead.source)],
+    [t("d.source"), source.label, source.title],
     [t("d.urgency"), leadUrgencyLabel(t, lead.urgency)],
-    [t("d.score"), lead.scoreKey ? leadScoreLabel(t, lead.scoreKey) : lead.score ? String(lead.score) : ""],
-    [t("d.created"), dateTimeFull(lead.createdAt, locale)],
+    [t("d.score"), lead.scoreKey ? <ScoreChip score={lead.scoreKey} /> : lead.score ? String(lead.score) : ""],
+    [t("d.created"), when(lead.createdAt)],
   ];
-  const assignedAt = lead.assignedTo && lead.assignedAt ? dateTimeFull(lead.assignedAt, locale) : "";
+  const assignedAt = lead.assignedTo && lead.assignedAt ? when(lead.assignedAt) : "";
   const tel = (lead.phone || "").replace(/[^+\d]/g, "");
   const quick = today ? QUICK_DAYS.map((q) => ({ day: shiftDay(today, q.days), label: t(q.key) })) : [];
   const canPick = !!onAssign && ops.status === "ready";
@@ -174,10 +182,10 @@ export default function LeadDrawer({
     const first = r.count > 1 ? timeOnly(r.oldest.at, locale) : last;
     return first && first !== last ? `${first}–${last}` : last;
   };
-  const dayLabel = (day: string, at: string) => {
+  const dayLabel = (day: string) => {
     if (today && day === today) return t("history.today");
     if (today && day === prevDayKey(today)) return t("history.yesterday");
-    return dateOnly(at, locale);
+    return fmtDate(day, locale);
   };
 
   return (
@@ -190,7 +198,7 @@ export default function LeadDrawer({
       closeLabel={t("d.close")}
       dirty={!!note.trim()}
       footer={
-        <button className="btn btn--sm ldrw__del" type="button" disabled={busy} onClick={onDelete}>
+        <button className="btn btn--sm btn--danger-ghost ldrw__del" type="button" disabled={busy} onClick={onDelete}>
           <IconTrash aria-hidden="true" />
           {t("d.delete")}
         </button>
@@ -230,16 +238,16 @@ export default function LeadDrawer({
             </div>
             {assignedAt ? <p className="lasgn__hint">{t("assign.at")}: {assignedAt}</p> : null}
             {ops.status === "error" ? <ErrorState compact error={ops.error} onRetry={ops.retry} title={t("assign.opsError")} /> : null}
-            {ops.status === "forbidden" ? <p className="lasgn__hint">{t("assign.opsForbidden")}</p> : null}
-            {ops.status === "ready" && !ops.ops.length ? <p className="lasgn__hint">{t("assign.noOps")}</p> : null}
+            {ops.status === "forbidden" ? <InlineAlert tone="locked" compact>{t("assign.opsForbidden")}</InlineAlert> : null}
+            {ops.status === "ready" && !ops.ops.length ? <InlineAlert tone="warn" compact>{t("assign.noOps")}</InlineAlert> : null}
           </div>
 
           {/* Client info */}
           <div className="ldrw__sec">
             <span className="ldrw__lbl">{t("d.info")}</span>
             <div className="ldrw__kv">
-              {info.filter(([, v]) => v).map(([k, v]) => (
-                <div key={k}><span>{k}</span><b>{v}</b></div>
+              {info.filter(([, v]) => v).map(([k, v, title]) => (
+                <div key={k}><span>{k}</span><b title={title || undefined}>{v}</b></div>
               ))}
             </div>
             {lead.note ? <p className="ldrw__note">{lead.note}</p> : null}
@@ -250,12 +258,12 @@ export default function LeadDrawer({
             <span className="ldrw__lbl">{t("d.actions")}</span>
             <div className="ldrw__acts">
               {tel ? (
-                <a className="btn btn--soft btn--sm" href={`tel:${tel}`}><IconPhone />{t("d.call")}</a>
+                <a className="btn btn--line btn--sm" href={`tel:${tel}`}><IconPhone />{t("d.call")}</a>
               ) : (
-                <button className="btn btn--soft btn--sm" type="button" disabled aria-describedby={noPhoneId}><IconPhone />{t("d.call")}</button>
+                <button className="btn btn--line btn--sm" type="button" disabled aria-describedby={noPhoneId}><IconPhone />{t("d.call")}</button>
               )}
               {lead.phone ? <CcMeetingButton clientUserId={leadUserId(lead)} phone={lead.phone} clientName={lead.name} /> : null}
-              <button className="btn btn--soft btn--sm" type="button" disabled={act === "call" || !lead.phone} onClick={logCall}>{act === "call" ? t("d.saving") : t("d.logCall")}</button>
+              <button className="btn btn--line btn--sm" type="button" disabled={act === "call" || !lead.phone} onClick={logCall}>{act === "call" ? t("d.saving") : t("d.logCall")}</button>
             </div>
             {!tel ? <p className="lasgn__hint" id={noPhoneId}>{t("d.noPhone")}</p> : null}
             <div className="ldrw__noteadd">
@@ -281,7 +289,7 @@ export default function LeadDrawer({
                 {quick.map((q) => (
                   <button key={q.day} type="button" className={`ldrw__qp${remind === q.day ? " on" : ""}`} aria-pressed={remind === q.day} disabled={act === "rem"} onClick={() => setRemind(q.day)}>
                     {q.label}
-                    <span>{shortDate(q.day, locale)}</span>
+                    <span>{fmtDateTime(q.day, locale, false)}</span>
                   </button>
                 ))}
               </div>
@@ -305,7 +313,7 @@ export default function LeadDrawer({
               <div className="lhist">
                 {history.map((g) => (
                   <div className="lhist__day" key={g.day || "undated"}>
-                    {g.day ? <p className="lhist__date">{dayLabel(g.day, g.at)}</p> : null}
+                    {g.day ? <p className="lhist__date">{dayLabel(g.day)}</p> : null}
                     <ol className="ldrw__tl">
                       {g.runs.map((r) => {
                         const detail = eventDetail(r.newest);

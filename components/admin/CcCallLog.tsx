@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { listCcCalls, type CcCall } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { notify } from "@/lib/toast";
-import { shortDateTime } from "@/lib/date";
+import { fmtDuration, shortDateTime } from "@/lib/date";
+import { humanize, labelOf, statusMap, type StatusToneRule } from "@/lib/labels";
 import { useAiSelection } from "@/lib/ai/registry";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
 import FilterBar from "@/components/filters/FilterBar";
 import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
+import { CountBadge, StatusBadge } from "@/components/ui/Badge";
+import IconButton from "@/components/ui/IconButton";
 import CcCallForm from "./CcCallForm";
 import { IconPhone, IconPlus, IconRefresh } from "@/components/icons";
 
@@ -19,6 +22,15 @@ type Dir = "" | "incoming" | "outgoing" | "missed";
 const DIRS: Dir[] = ["", "incoming", "outgoing", "missed"];
 
 const matchDir = (c: CcCall, d: Dir) => (d === "missed" ? c.status === "missed" : !d || c.direction === d);
+
+const CALL_TONES: Readonly<Record<string, StatusToneRule>> = {
+  completed: "ok",
+  answered: "ok",
+  missed: "err",
+  no_answer: "warn",
+  busy: "warn",
+  failed: "err",
+};
 const digits = (s: string) => s.replace(/\D/g, "");
 
 // Recent calls of the call-center (GET /call-center/calls): direction, phone,
@@ -36,13 +48,14 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
   const [formBusy, setFormBusy] = useState(false);
   const [formSlot, setFormSlot] = useState<HTMLDivElement | null>(null);
   const [freshId, setFreshId] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const freshRow = useRef<HTMLDivElement>(null);
   const seenKey = useRef(reloadKey);
   const calls = res.data.filter((c) => matchDir(c, dir));
   const pager = usePaged(calls, PAGE_STEP, dir);
-  const dur = (s: number) => (s >= 60 ? tl("min", { n: Math.round(s / 60) }) : s > 0 ? tl("sec", { n: s }) : "");
-  const resultLabel = (r: string) => (r ? (tl.has(`results.${r}`) ? tl(`results.${r}`) : r) : "");
-  const statusLabel = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
+  const dur = (s: number) => fmtDuration(s, locale);
+  const resultLabel = (r: string) => (!r ? "" : tl.has(`results.${r}`) ? tl(`results.${r}`) : labelOf(t, "status", r));
+  const callStatuses = useMemo(() => statusMap(t, "status", CALL_TONES), [t]);
   const dirLabel = (d: Dir) => (d === "" ? tl("all") : d === "missed" ? t("status.missed") : t(`dir.${d}`));
   const dirOpts = DIRS.map((d) => ({
     value: d,
@@ -65,6 +78,12 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
     );
     return () => anim.cancel();
   }, [freshId]);
+
+  function refreshNow() {
+    if (refreshing) return;
+    setRefreshing(true);
+    void reload().finally(() => setRefreshing(false));
+  }
 
   async function reload(): Promise<CcCall[] | null> {
     try {
@@ -99,12 +118,12 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
 
   return (
     <div className="ppanel" data-ai-target="callcenter:call-log">
-      <div className="ppanel__h">
-        <b>{t("recent")}</b>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span className="advmuted">{calls.length}</span>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => void reload()} aria-label={t("queue.refresh")}><IconRefresh /></button>
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => setFormOpen(true)} data-ai-target="button:log-call"><IconPlus />{t("logCall")}</button>
+      <div className="ppanel__h cch">
+        <h2 className="cch__t"><span className="cch__tt">{t("recent")}</span></h2>
+        <div className="cch__a">
+          {res.status === "ready" ? <CountBadge n={calls.length} /> : null}
+          <IconButton label={t("queue.refresh")} icon={<IconRefresh />} onClick={refreshNow} busy={refreshing} aiId="call_center.calls.refresh" />
+          <button type="button" className="btn btn--pri btn--sm cch__btn" onClick={() => setFormOpen(true)} aria-label={t("logCall")} data-ai-target="button:log-call"><IconPlus /><span className="cch__bt">{t("logCall")}</span></button>
         </div>
       </div>
       <FilterBar
@@ -137,10 +156,10 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
                 <span className={`creq__st${c.status === "missed" ? " creq__st--matching" : c.direction === "incoming" ? " creq__st--consultation" : ""}`} />
                 <div className="creq__m">
                   <b><span style={{ whiteSpace: "nowrap" }}><IconPhone style={{ display: "inline-block", width: 13, height: 13, verticalAlign: "-2px", marginRight: 6 }} />{c.phone || "—"}</span>{c.topic ? ` — ${c.topic}` : ""}</b>
-                  <span>{[t.has(`dir.${c.direction}`) ? t(`dir.${c.direction}`) : c.direction, resultLabel(c.result), dur(c.durationSec), shortDateTime(c.createdAt, locale)].filter(Boolean).join(" · ")}</span>
+                  <span>{[t.has(`dir.${c.direction}`) ? t(`dir.${c.direction}`) : humanize(c.direction), resultLabel(c.result), dur(c.durationSec), shortDateTime(c.createdAt, locale)].filter(Boolean).join(" · ")}</span>
                   {c.nextAction ? <em className="creq__next">{tl("next")}: {c.nextAction}</em> : null}
                 </div>
-                <span className="creq__badge">{statusLabel(c.status)}</span>
+                <StatusBadge status={c.status} map={callStatuses} fallback={c.status ? labelOf(t, "status", c.status) : ""} size="sm" />
               </div>
             ))}
           </div>

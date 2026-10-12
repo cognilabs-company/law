@@ -15,15 +15,18 @@ import { subscribeUserEvents } from "@/lib/userSocket";
 import { ApiError, asDict, asNum, asStr, logApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { shortDateTime } from "@/lib/date";
-import { humanize, statusLabel } from "@/lib/labels";
+import { humanize, labelOf, statusLabel, statusMap, type StatusMap, type StatusToneRule } from "@/lib/labels";
 import Modal from "@/components/admin/Modal";
 import FilterBar from "@/components/filters/FilterBar";
 import FieldError from "@/components/ui/FieldError";
 import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
 import { useAiSelection } from "@/lib/ai/registry";
-import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
-import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, IconBolt, IconClipboardCheck, IconPhone } from "@/components/icons";
+import { CountBadge, StatusBadge } from "@/components/ui/Badge";
+import IconButton from "@/components/ui/IconButton";
+import InlineAlert from "@/components/ui/InlineAlert";
+import { useUrgentStatuses } from "./UrgentAdvocateQueue";
+import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, IconBolt, IconClipboardCheck, IconPhone, IconRefresh } from "@/components/icons";
 
 // LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §5.
 //
@@ -42,6 +45,16 @@ import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, 
 
 const SETTLED = new Set(["resolved", "rejected", "rework_required"]);
 
+const QC_TONES: Readonly<Record<string, StatusToneRule>> = {
+  new: { tone: "err", dot: true },
+  under_review: "warn",
+  rework_required: "info",
+  rejected: "neutral",
+  resolved: "ok",
+};
+
+const UUID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default function QualityComplaints({ onCount }: { onCount?: (n: number) => void }) {
   const t = useTranslations("admin.qualityComplaints");
   const tcm = useTranslations("portal.common");
@@ -54,6 +67,7 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
   const [state, setState] = useState<"loading" | "ready" | "error" | "forbidden">("loading");
   const [failure, setFailure] = useState<unknown>(undefined);
   const [reloadKey, setReloadKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
   const [openId, setOpenId] = useState("");
   const listed = useRef(false);
@@ -67,9 +81,11 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
         setRows(q.items);
         if (q.statuses.length) setStatuses(q.statuses);
         setState("ready");
+        setRefreshing(false);
       })
       .catch((e: unknown) => {
         if (!alive) return;
+        setRefreshing(false);
         logApiError("quality complaints", e);
         if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
           listed.current = false;
@@ -102,17 +118,27 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
   const shown = useMemo(() => (status ? rows.filter((r) => r.status === status) : rows), [rows, status]);
   const pager = usePaged(shown, PAGE_STEP, status);
   const openRow = useMemo(() => rows.find((r) => r.id === openId) ?? null, [rows, openId]);
-  const label = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : statusLabel(tcm, s));
+  const qcMap: StatusMap = useMemo(() => statusMap(t, "status", QC_TONES), [t]);
+  const label = (s: string, fallback?: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : statusLabel(tcm, s, undefined, fallback));
   const tally = (s: string) => (state === "ready" ? ` (${rows.filter((r) => r.status === s).length})` : "");
   useAiSelection("quality_complaints_status", status);
 
   if (state === "forbidden") return null;
 
+  function refreshNow() {
+    if (refreshing) return;
+    setRefreshing(true);
+    refresh();
+  }
+
   return (
     <section className="ppanel" data-ai-target="callcenter:complaints">
-      <div className="ppanel__h">
-        <b className="ppanel__t"><span className="pico"><IconAlert /></span>{t("title")}</b>
-        <span className="advmuted">{shown.length}</span>
+      <div className="ppanel__h cch">
+        <h2 className="ppanel__t cch__t"><span className="pico"><IconAlert /></span><span className="cch__tt">{t("title")}</span></h2>
+        <div className="cch__a">
+          {state === "ready" ? <CountBadge n={shown.length} /> : null}
+          <IconButton label={t("refresh")} icon={<IconRefresh />} onClick={refreshNow} busy={refreshing} tipAlign="end" aiId="call_center.complaints.refresh" />
+        </div>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
 
@@ -156,7 +182,7 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
                   </span>
                   {r.complaint ? <span className="qcrow__txt">{r.complaint}</span> : null}
                 </span>
-                <span className="qcrow__badge">{r.statusLabel || label(r.status)}</span>
+                <StatusBadge status={r.status} map={qcMap} fallback={label(r.status, r.statusLabel)} size="sm" className="qcrow__badge" />
               </button>
             ))}
           </div>
@@ -165,7 +191,7 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
       )}
 
       {openRow ? (
-        <QcDetail key={openRow.id} row={openRow} label={label} onClose={() => setOpenId("")} onDone={() => { setOpenId(""); refresh(); }} />
+        <QcDetail key={openRow.id} row={openRow} label={label} statuses={qcMap} onClose={() => setOpenId("")} onDone={() => { setOpenId(""); refresh(); }} />
       ) : null}
     </section>
   );
@@ -174,10 +200,25 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
 // One complaint, with everything the MD says the operator has to see before
 // ruling: the complaint text, the client, the advocate, the document behind
 // it and the rating the client left.
-function QcDetail({ row, label, onClose, onDone }: { row: QualityComplaintRow; label: (s: string) => string; onClose: () => void; onDone: () => void }) {
+function QcDetail({
+  row,
+  label,
+  statuses,
+  onClose,
+  onDone,
+}: {
+  row: QualityComplaintRow;
+  label: (s: string, fallback?: string) => string;
+  statuses: StatusMap;
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const t = useTranslations("admin.qualityComplaints");
   const tcm = useTranslations("portal.common");
   const tc = useTranslations("common.confirm");
+  const tu = useTranslations("admin.urgent");
+  const tk = useTranslations("portal.client.urgent");
+  const urgMap = useUrgentStatuses();
   const locale = useLocale();
   const uid = useId();
   const noteId = `${uid}-note`;
@@ -226,10 +267,12 @@ function QcDetail({ row, label, onClose, onDone }: { row: QualityComplaintRow; l
   const urg = asDict(blocks.urgent_request ?? blocks.urgent_advokat_request);
   const urgPayload = asDict(urg.payload);
   const urgPick = (k: string) => asStr(urg[k] === undefined || urg[k] === null ? urgPayload[k] : urg[k]);
-  const urgTitle = urgPick("title") || urgPick("service_title") || urgPick("service_kind");
+  const urgKind = urgPick("service_kind");
+  const urgTitle = (urgKind && tk.has(`kinds.${urgKind}`) ? tk(`kinds.${urgKind}`) : "") || urgPick("title") || urgPick("service_title") || (urgKind ? humanize(urgKind) : "");
   const urgNeed = urgPick("need") || urgPick("description");
-  const urgStatus = urgPick("status_label") || (urgPick("status") ? label(urgPick("status")) : "");
-  const urgWorkId = urgPick("work_id") || row.urgentRequestId;
+  const urgRaw = urgPick("status");
+  const urgStatus = urgRaw ? urgMap[urgRaw]?.label ?? labelOf(tu, "st", urgRaw, urgPick("status_label")) : urgPick("status_label");
+  const urgWorkId = urgPick("work_id") || (UUID_LIKE.test(row.urgentRequestId) ? "" : row.urgentRequestId);
   // A ruling is only final once: the form disappears rather than inviting a
   // second POST the backend would refuse.
   const settled = row.status === "resolved" || row.status === "rejected" || row.status === "rework_required";
@@ -287,7 +330,7 @@ function QcDetail({ row, label, onClose, onDone }: { row: QualityComplaintRow; l
       <div className="qcdet">
         <dl className="qcdet__facts" data-ai-private>
           {row.workId ? (<><dt>{t("fWorkId")}</dt><dd className="qcdet__wid">{row.workId}</dd></>) : null}
-          <dt>{t("fStatus")}</dt><dd>{row.statusLabel || label(row.status)}</dd>
+          <dt>{t("fStatus")}</dt><dd><StatusBadge status={row.status} map={statuses} fallback={label(row.status, row.statusLabel)} size="sm" /></dd>
           {rating ? (<><dt>{t("fRating")}</dt><dd><span className="qcdet__chip qcdet__chip--rate"><IconStarRate aria-hidden="true" />{rating}</span></dd></>) : null}
           {priority ? (
             <>
@@ -346,7 +389,7 @@ function QcDetail({ row, label, onClose, onDone }: { row: QualityComplaintRow; l
         ) : null}
 
         {settled ? (
-          <Notice ok msg={t("alreadySettled", { action: t.has(`status.${row.status}`) ? t(`status.${row.status}`) : row.status })} />
+          <InlineAlert tone="success">{t("alreadySettled", { action: label(row.status, row.statusLabel) })}</InlineAlert>
         ) : (
           <section className="qcdet__resolve" aria-labelledby={actLblId}>
             <b id={actLblId}>{t("resolveTitle")}</b>

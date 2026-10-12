@@ -159,6 +159,8 @@ const REWRITES: [RegExp, string][] = [
   [/^(marketplace\.orders|advocate\.marketplace-orders)\.tab\.[a-z]+$/, "$1.tabs"],
   [/^support\.tickets\.tab\.(active|closed)$/, "support.tickets.tabs"],
   [/^admin\.register-requests\.tab\.[a-z-]+$/, "admin.register-requests.role-tabs"],
+  [/^admin\.meetings\.(?:filters\.)?scope$/, "admin.meetings.scope.tabs"],
+  [/^admin\.meetings\.(?:filters\.)?scope\.(mine|all)$/, "admin.meetings.scope.tab.$1"],
   [/^(advocate|organization\.member\.[^.]+)\.services\.filter\.(all|active|paused|inactive)$/, "$1.services.filters.status"],
 ];
 

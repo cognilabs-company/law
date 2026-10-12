@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { leadCategoryLabel } from "@/lib/leadLabels";
+import { fmtAgeMin } from "@/lib/date";
+import { humanize, labelOf, regionLabel, statusSpecOf } from "@/lib/labels";
 import { getCallCenterQueue, assignNextSeller, moveCallCenterLead, type QueueItem } from "@/lib/services/backend";
 import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
@@ -11,6 +13,9 @@ import { useAiReveal } from "@/lib/guide/targets";
 import Select from "@/components/Select";
 import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
+import { Badge, CountBadge } from "@/components/ui/Badge";
+import IconButton from "@/components/ui/IconButton";
+import { directionLabel, useUrgentStatuses } from "./UrgentAdvocateQueue";
 import { IconClock, IconRefresh, IconArrowRight } from "@/components/icons";
 
 const REFRESH_MS = 60_000;
@@ -29,9 +34,13 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
   const tp = useTranslations("admin.pipeline");
   // Tezkor Advokat rows name their service in the client's own vocabulary.
   const tk = useTranslations("portal.client.urgent");
+  const tu = useTranslations("admin.urgent");
   const tn = useTranslations("common.notify");
+  const locale = useLocale();
+  const urg = useUrgentStatuses();
   const [state, setState] = useState<State>({ status: "loading", items: [] });
   const [busyId, setBusyId] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const shown = useRef(false);
   const warned = useRef(false);
   const again = useRef<() => void>(() => undefined);
@@ -96,6 +105,12 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
 
   if (state.status === "forbidden") return null;
 
+  function refreshNow() {
+    if (refreshing) return;
+    setRefreshing(true);
+    void load(true).finally(() => setRefreshing(false));
+  }
+
   async function assignNext(item: QueueItem) {
     if (busyId) return;
     setBusyId(item.id);
@@ -135,20 +150,19 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
     }
   }
 
-  const age = (min: number) => (min >= 60 ? t("ageHours", { h: Math.floor(min / 60), m: min % 60 }) : t("ageMin", { n: Math.max(0, min) }));
+  const age = (min: number) => fmtAgeMin(min, locale);
   const breached = state.items.filter((i) => i.slaBreached).length;
+  const ready = state.status === "ready";
 
   return (
     <div className="ppanel" data-ai-target="callcenter:queue" data-ai-id="call_center.leads.queue" data-ai-type="section" data-ai-label={t("title")}>
-      <div className="ppanel__h">
-        <b>{t("title")}</b>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          {breached ? <span className="ccq__breach">{t("breachedN", { n: breached })}</span> : null}
-          <span className="advmuted">{state.items.length}</span>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => void load(true)} aria-label={t("refresh")}>
-            <IconRefresh />
-          </button>
-        </span>
+      <div className="ppanel__h cch">
+        <h2 className="cch__t"><span className="cch__tt">{t("title")}</span></h2>
+        <div className="cch__a">
+          {breached ? <Badge tone="err" size="sm">{t("breachedN", { n: breached })}</Badge> : null}
+          {ready ? <CountBadge n={state.items.length} /> : null}
+          <IconButton label={t("refresh")} icon={<IconRefresh />} onClick={refreshNow} busy={refreshing} tipAlign="end" aiId="call_center.leads.queue.refresh" />
+        </div>
       </div>
       <p className="ppanel__note">{t("lead")}</p>
 
@@ -163,15 +177,15 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
           <div className="alist alist--flow">
             {pager.visible.map((item) => {
               const left = item.slaMinutes - item.ageMinutes;
-              const region = item.region ? (te.has(`regions.${item.region}`) ? te(`regions.${item.region}`) : item.region) : "";
+              const region = item.region ? regionLabel(te, item.region) : "";
               const hot = item.score === "hot" || item.urgency === "urgent";
               // A Tezkor Advokat request is a third row type with a 15-minute
               // SLA and its own board. It is NOT a lead: dropping it into the
               // else-branch below offered the lead-stage mover, which would have
               // called /call-center/leads/{id}/move on a record that is not one.
               const urgent = item.type === "urgent_advokat";
-              const typeLabel = t.has(`type.${item.type}`) ? t(`type.${item.type}`) : item.type;
-              const statusText = item.status ? (t.has(`status.${item.status}`) ? t(`status.${item.status}`) : item.status) : "";
+              const typeLabel = labelOf(t, "type", item.type);
+              const statusText = !item.status ? "" : urgent ? (statusSpecOf(urg, item.status)?.label ?? "") : labelOf(t, "status", item.status);
               return (
                 <div
                   className={`ccq${item.slaBreached ? " ccq--breach" : ""}`}
@@ -184,23 +198,22 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
                   data-ai-private
                 >
                   <div className="ccq__top">
-                    <span className={`tprio tprio--${urgent ? "high" : item.type === "order" ? "medium" : "low"}`}>{t.has(`type.${item.type}`) ? t(`type.${item.type}`) : item.type}</span>
+                    <span className={`tprio tprio--${urgent ? "high" : item.type === "order" ? "medium" : "low"}`}>{typeLabel}</span>
                     {hot ? <span className="tprio tprio--high">{t("hot")}</span> : null}
                     <b className="ccq__t">{(item.type === "lead" ? leadCategoryLabel(tp, item.title) : item.title) || "—"}</b>
                   </div>
                   <div className="ccq__meta">
                     <span className={`ccq__sla${item.slaBreached ? " on" : ""}`}>
                       <IconClock />
-                      {item.slaBreached ? t("slaBreached", { age: age(item.ageMinutes) }) : t("slaLeft", { n: Math.max(0, left), age: age(item.ageMinutes) })}
+                      {item.slaBreached ? t("slaBreached", { age: age(item.ageMinutes) }) : t("slaLeftAge", { left: age(Math.max(1, left)), age: age(item.ageMinutes) })}
                     </span>
                     {region ? <span>{region}</span> : null}
-                    {item.status ? <span>{t.has(`status.${item.status}`) ? t(`status.${item.status}`) : item.status}</span> : null}
-                    {item.recommendedSellerLoad != null && !urgent ? <span>{t("sellerLoad", { n: item.recommendedSellerLoad })}</span> : null}
-                    {urgent && item.serviceKind ? <span>{tk.has(`kinds.${item.serviceKind}`) ? tk(`kinds.${item.serviceKind}`) : item.serviceKind}</span> : null}
+                    {statusText ? <span>{statusText}</span> : null}
+                    {item.recommendedSellerLoad != null && item.recommendedSellerLoad > 0 && !urgent ? <span>{t("sellerLoad", { n: item.recommendedSellerLoad })}</span> : null}
+                    {urgent && item.serviceKind ? <span>{tk.has(`kinds.${item.serviceKind}`) ? tk(`kinds.${item.serviceKind}`) : humanize(item.serviceKind)}</span> : null}
                     {urgent && item.channel ? <span>{item.channel === "chat" ? tk("chChat") : tk("chVideo")}</span> : null}
-                    {urgent && item.directions?.length ? <span>{item.directions.join(", ")}</span> : null}
+                    {urgent && item.directions?.length ? <span>{item.directions.map((d) => directionLabel(te, d, tu)).join(", ")}</span> : null}
                     {urgent && item.requestedLawyerCount ? <span>{t("lawyersN", { n: item.requestedLawyerCount })}</span> : null}
-                    {urgent && item.claimedByUserId ? <span>{t("urgentClaimed")}</span> : null}
                   </div>
                   <div className="ccq__act">
                     {urgent ? (
@@ -211,7 +224,7 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
                         <IconArrowRight />
                       </a>
                     ) : item.type === "order" ? (
-                      <button type="button" className="btn btn--pri btn--sm" disabled={busyId === item.id} onClick={() => assignNext(item)}>
+                      <button type="button" className="btn btn--line btn--sm" disabled={busyId === item.id} onClick={() => assignNext(item)}>
                         {busyId === item.id ? t("working") : t("assignNext")}
                         <IconArrowRight />
                       </button>

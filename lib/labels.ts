@@ -22,14 +22,49 @@ export type StatusNamespace = (typeof STATUS_NAMESPACES)[number];
 // "Advokat kutilmoqda" — the difference between describing a queue and telling
 // the client what is happening to their document. Those screens pass
 // "docStatus"; every other call site keeps the order it has always had.
-export function statusLabel(tc: T, value?: string | null, prefer?: StatusNamespace): string {
+export function statusLabel(tc: T, value?: string | null, prefer?: StatusNamespace, fallback?: string | null): string {
   const v = (value || "").trim();
-  if (!v) return "";
+  if (!v) return (fallback || "").trim();
   if (prefer && tc.has(`${prefer}.${v}`)) return tc(`${prefer}.${v}`);
   for (const ns of STATUS_NAMESPACES) {
     if (tc.has(`${ns}.${v}`)) return tc(`${ns}.${v}`);
   }
-  return humanize(v);
+  return (fallback || "").trim() || humanize(v);
+}
+
+export function labelOf(t: T, prefix: string, value?: string | null, fallback?: string | null): string {
+  const v = (value || "").trim();
+  if (!v) return (fallback || "").trim();
+  const key = prefix ? `${prefix}.${v}` : v;
+  if (t.has(key)) return t(key);
+  const low = v.toLowerCase();
+  const lowKey = prefix ? `${prefix}.${low}` : low;
+  if (low !== v && t.has(lowKey)) return t(lowKey);
+  return (fallback || "").trim() || humanize(v);
+}
+
+export type StatusTone = "neutral" | "info" | "ok" | "warn" | "err";
+export type StatusSpec = { label: string; tone: StatusTone; dot?: boolean | "live" };
+export type StatusMap = Readonly<Record<string, StatusSpec>>;
+export type StatusToneRule = StatusTone | { tone: StatusTone; dot?: boolean | "live"; key?: string };
+
+export function statusMap(t: T, prefix: string, rules: Readonly<Record<string, StatusToneRule>>): StatusMap {
+  const out: Record<string, StatusSpec> = {};
+  for (const [status, rule] of Object.entries(rules)) {
+    const r = typeof rule === "string" ? { tone: rule } : rule;
+    const spec: StatusSpec = { label: labelOf(t, prefix, r.key || status), tone: r.tone };
+    if (typeof rule !== "string" && rule.dot) spec.dot = rule.dot;
+    out[status] = spec;
+  }
+  return out;
+}
+
+export function statusSpecOf(map: StatusMap, status?: string | null, fallback?: string | null): StatusSpec | null {
+  const v = (status || "").trim();
+  if (!v) return null;
+  const hit = map[v] ?? map[v.toLowerCase()];
+  if (hit) return hit;
+  return { label: (fallback || "").trim() || humanize(v), tone: "neutral" };
 }
 
 // te = useTranslations("enums"): backend region may be a key ("tashkent") or

@@ -7,7 +7,7 @@ import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type A
 import { http, asArr, asDict, asStr, ApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { useResource } from "@/lib/useResource";
-import { shortDate, shortDateTime, dateOnly, dateTimeFull, timeOnly } from "@/lib/date";
+import { fmtDate, fmtDateTime, fmtDuration, localDay as localDayKey, timeOnly } from "@/lib/date";
 import { initials } from "@/lib/lawyers";
 import { makeInviteSearch } from "@/lib/inviteSearch";
 import { matchesSearch } from "@/lib/searchText";
@@ -15,28 +15,40 @@ import { useAiSelection } from "@/lib/ai/registry";
 import SearchSelect from "@/components/SearchSelect";
 import FilterBar from "@/components/filters/FilterBar";
 import CallRoom from "@/components/chat/CallRoom";
-import { Notice, AdminItem } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import DatePicker from "@/components/DatePicker";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import FieldError from "@/components/ui/FieldError";
 import ListPager, { usePaged } from "@/components/ui/ListPager";
+import Tabs, { tabDomId, useTabMemory } from "@/components/ui/Tabs";
+import IconButton from "@/components/ui/IconButton";
+import InlineAlert from "@/components/ui/InlineAlert";
+import { CountBadge, StatusBadge } from "@/components/ui/Badge";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
 import { IconVideo, IconClock, IconRefresh, IconUsers, IconUser, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconEye, IconClipboardCheck, IconSearch } from "@/components/icons";
-import { regionLabel, humanize } from "@/lib/labels";
+import { regionLabel, humanize, statusMap, statusSpecOf, type StatusMap, type StatusTone, type StatusToneRule } from "@/lib/labels";
 import { subscribeUserEvents } from "@/lib/userSocket";
-
-function mmss(total: number): string {
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
 
 const DETAIL_SHOWN = 8;
 const PART_JOINED = new Set(["joined", "left"]);
 const PART_ORDER: Record<string, number> = { joined: 1, left: 2, invited: 3 };
-const PART_TONE: Record<string, string> = { joined: "ok", left: "neutral", invited: "info", declined: "bad", removed: "bad", kicked: "bad" };
-const CALL_TONE: Record<string, string> = { active: "live", scheduled: "info", ended: "neutral", expired: "warn", cancelled: "bad" };
+const PART_TONE: Record<string, StatusTone> = { joined: "ok", left: "neutral", invited: "info", declined: "err", removed: "err", kicked: "err" };
+const CALL_TONES: Readonly<Record<string, StatusToneRule>> = {
+  active: { tone: "ok", dot: "live" },
+  scheduled: "info",
+  ended: "neutral",
+  expired: "warn",
+  cancelled: "err",
+};
+const SCOPES = ["mine", "all"] as const;
+type Scope = (typeof SCOPES)[number];
+const SCOPE_STORE = "admin-meetings-scope";
+
+function useCallStatusMap(): StatusMap {
+  const t = useTranslations("admin.meetings");
+  return statusMap(t, "callStatus", CALL_TONES);
+}
+
 const partRank = (p: { role: string; status: string }) => (p.role === "host" ? 0 : PART_ORDER[p.status] ?? 4);
 const avatarText = (name: string) => initials(name.split(/\s+/).filter((w) => /^\p{L}/u.test(w)).join(" "));
 
@@ -53,6 +65,7 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
   const tm = useTranslations("admin.meetings");
   const tc = useTranslations("call");
   const locale = useLocale();
+  const callMap = useCallStatusMap();
   const [d, setD] = useState<AdminCallDetail | null>(null);
   const [err, setErr] = useState<{ error: unknown } | null>(null);
   const [tick, setTick] = useState(0);
@@ -73,16 +86,8 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
     setErr(null);
     onClose();
   };
-  const dur = (sec: number) => {
-    const s = Math.max(0, Math.round(sec));
-    if (s < 60) return t("detail.dur.sec", { n: s });
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    if (h) return m ? t("detail.dur.hourMin", { h, m }) : t("detail.dur.hour", { h });
-    return s % 60 ? t("detail.dur.minSec", { m, s: s % 60 }) : t("detail.dur.min", { m });
-  };
-  const callStatus = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : humanize(s));
   const partStatus = (s: string) => (t.has(`detail.pstatus.${s}`) ? t(`detail.pstatus.${s}`) : tc.has(`pstatus.${s}`) ? tc(`pstatus.${s}`) : humanize(s));
+  const partMap: StatusMap = Object.fromEntries(Object.entries(PART_TONE).map(([s, tone]) => [s, { label: partStatus(s), tone }]));
   const partRole = (r: string) =>
     r === "host" ? tc("hostLabel") : t.has(`detail.role.${r}`) ? t(`detail.role.${r}`) : tc.has(`role.${r}`) ? tc(`role.${r}`) : t("detail.role.participant");
 
@@ -98,8 +103,8 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
     const secs = d.durationSeconds || Math.round(d.durationMinutes * 60) || c.durationSeconds;
     const start = c.startedAt || c.createdAt;
     const facts = [
-      start ? dateOnly(start, locale) : "",
-      secs > 0 && c.status !== "scheduled" ? dur(secs) : "",
+      start ? fmtDate(start, locale) : "",
+      c.status !== "scheduled" ? fmtDuration(secs, locale) : "",
       guests.length ? t("detail.joinedOf", { joined, invited: guests.length }) : "",
     ].filter(Boolean);
     const all = allFor === id;
@@ -109,7 +114,7 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
       <div className="dkv">
         {c.status || facts.length ? (
           <div className="mdet__sum" aria-label={t("detail.summary")} role="group">
-            {c.status ? <span className={`mdet__st mdet__st--${CALL_TONE[c.status] ?? "neutral"}`}>{callStatus(c.status)}</span> : null}
+            <StatusBadge status={c.status} map={callMap} />
             {facts.length ? (
               <ul className="mdet__facts">
                 {facts.map((f, i) => <li key={i}>{f}</li>)}
@@ -123,8 +128,8 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
           {row(t("detail.workId"), c.workId)}
           {row(t("detail.type"), tm.has(`formatLabel.${c.callType}`) ? tm(`formatLabel.${c.callType}`) : humanize(c.callType))}
           {d.room?.title ? row(t("detail.room"), d.room.title) : null}
-          {row(t("detail.started"), dateTimeFull(c.startedAt, locale))}
-          {row(t("detail.endedAt"), c.endedAt && c.startedAt && sameDay(c.startedAt, c.endedAt) ? timeOnly(c.endedAt, locale) : dateTimeFull(c.endedAt, locale))}
+          {row(t("detail.started"), fmtDateTime(c.startedAt, locale))}
+          {row(t("detail.endedAt"), c.endedAt && c.startedAt && sameDay(c.startedAt, c.endedAt) ? timeOnly(c.endedAt, locale) : fmtDateTime(c.endedAt, locale))}
         </div>
         <div className="dkv__sect">
           <b>{t("detail.creator")}</b>
@@ -143,7 +148,7 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
                       <b>{p.name.trim() || t("detail.noName")}</b>
                       <small>{partRole(p.role)}</small>
                     </span>
-                    {p.status ? <span className={`mdet__st mdet__st--${PART_TONE[p.status] ?? "neutral"}`}>{partStatus(p.status)}</span> : null}
+                    <StatusBadge status={p.status} map={partMap} fallback={p.status ? partStatus(p.status) : undefined} className="mdet__pst" />
                   </li>
                 ))}
               </ul>
@@ -259,6 +264,8 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [pickErr, setPickErr] = useState("");
   const pickErrId = useId();
+  const scopeIds = `mhist${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const callMap = useCallStatusMap();
   const pickBox = useRef<HTMLDivElement>(null);
   const startRef = useRef<() => void>(() => undefined);
   const [active, setActive] = useState<Active | null>(null);
@@ -273,8 +280,10 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   // instead of a separate nav entry, gated the same way that page's nav link
   // used to be (superadmin, or the leads.manage permission).
   const canSeeAllHistory = !rich && (sessionRoles(session).includes("superadmin") || (session?.permissions ?? []).includes("leads.manage"));
-  const [histTab, setHistTab] = useState<"mine" | "all">("mine");
+  const [scopeMemo, pickScope] = useTabMemory<Scope>(canSeeAllHistory ? SCOPE_STORE : undefined, SCOPES, "mine");
+  const histTab: Scope = canSeeAllHistory && scopeMemo === "all" ? "all" : "mine";
   const [platOn, setPlatOn] = useState(false);
+  if (histTab === "all" && !platOn) setPlatOn(true);
   const [platFrom, setPlatFrom] = useState("");
   const [platTo, setPlatTo] = useState("");
   const [platQuery, setPlatQuery] = useState("");
@@ -510,7 +519,9 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   }
 
   const canHost = canMakeCalls(session);
-  const statusOf = (s: string) => (t.has(`callStatus.${s}`) ? t(`callStatus.${s}`) : humanize(s));
+  const statusOf = (s: string) => statusSpecOf(callMap, s)?.label ?? "";
+  const thisYear = localDayKey(new Date()).slice(0, 4);
+  const when = (iso: string) => fmtDateTime(iso, locale, localDayKey(iso).slice(0, 4) !== thisYear);
   const mineOf = (s: string) => (tc.has(`pstatus.${s}`) ? tc(`pstatus.${s}`) : humanize(s));
   const endedCounts = countBy(ended, (c) => c.callStatus);
   const endedSummary = ordered(endedCounts, ENDED_ORDER)
@@ -561,9 +572,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const durationOf = (c: HistoryItem) => {
     if (!c.startedAt || !c.autoEndAt) return "";
     const ms = new Date(c.autoEndAt).getTime() - new Date(c.startedAt).getTime();
-    if (!Number.isFinite(ms) || ms <= 0) return "";
-    const mins = Math.round(ms / 60000);
-    return mins >= 60 ? t("durationHour", { n: (mins / 60).toFixed(1) }) : t("durationMin", { n: mins });
+    return fmtDuration(ms / 1000, locale);
   };
 
   const row = (c: HistoryItem) => {
@@ -577,11 +586,11 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           <b>{c.title || t("untitled")}</b>
           <span>
             {mine ? t("hostedByYou") : t("hostedBy", { name: c.callerName || tc("someone") })}
-            {c.startedAt ? ` · ${shortDateTime(c.startedAt, locale)}` : ""}
+            {c.startedAt ? ` · ${when(c.startedAt)}` : ""}
             {!mine && c.status && !isLive ? ` · ${mineOf(c.status)}` : ""}
           </span>
         </div>
-        <em className={`atag${isLive ? " atag--ok" : " atag--muted"}`}>{statusOf(c.callStatus)}</em>
+        <StatusBadge status={c.callStatus} map={callMap} size="sm" />
         {canJoin ? (
           <button type="button" className="btn btn--pri btn--sm" onClick={() => rejoin(c)}>
             <IconVideo />{c.status === "joined" || mine ? t("rejoin") : t("join")}
@@ -598,7 +607,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
       </div>
       <p className="advmuted" style={{ marginBottom: 16 }}>{t("subtitle")}</p>
 
-      {!canHost ? <Notice ok={false} msg={t("noPermission")} /> : null}
+      {!canHost ? <InlineAlert tone="locked" className="mcreate__lock">{t("noPermission")}</InlineAlert> : null}
       <div className="cform" style={{ maxWidth: rich ? "none" : 560 }}>
         <div>
           <label>{t("titleLabel")}</label>
@@ -644,151 +653,174 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
     history === null ? (
       <Skeleton rows={3} />
     ) : histErr?.missing ? (
-      <Notice ok={false} msg={t("backendMissing")} />
+      <InlineAlert title={t("historyUnavailable")} action={{ label: tn("retry"), onClick: reloadHistory }}>
+        {t("historyUnavailableText")}
+      </InlineAlert>
     ) : histErr ? (
       <ErrorState title={t("historyLoadFailed")} error={histErr.error} onRetry={reloadHistory} />
     ) : null;
 
   if (!rich) {
-    const showMine = !canSeeAllHistory || histTab === "mine";
-    const day = (iso: string) => (iso ? shortDate(iso, locale) : "…");
-    const platChip = platFrom || platTo ? (platFrom && platFrom === platTo ? day(platFrom) : `${day(platFrom)} – ${day(platTo)}`) : null;
-    const platStatusOf = (s: string) => (tch.has(`status.${s}`) ? tch(`status.${s}`) : humanize(s));
+    const showMine = histTab === "mine";
+    const dayLabel = (iso: string) => (iso ? fmtDateTime(iso, locale, iso.slice(0, 4) !== thisYear) : "…");
+    const platChip = platFrom || platTo ? (platFrom && platFrom === platTo ? dayLabel(platFrom) : `${dayLabel(platFrom)} – ${dayLabel(platTo)}`) : null;
     const platFiltered = Boolean(platQuery.trim() || platStatus || platFrom || platTo);
-    const refreshBusy = showMine ? refreshing : platBusy;
+    const refreshBusy = showMine ? refreshing || history === null : platBusy || platRes.status === "loading";
+    const mineCount = history !== null && !histErr ? history.length : null;
+    const allCount = platOn && platRes.status === "ready" ? platInRange.length : null;
+    const bodyId = `${scopeIds}-body`;
+    const refreshButton = (
+      <IconButton
+        label={t("refresh")}
+        icon={<IconRefresh />}
+        onClick={showMine ? () => void reloadHistory() : () => void reloadPlat()}
+        busy={refreshBusy}
+        tipAlign="end"
+        aiId="admin.meetings.refresh"
+      />
+    );
     return (
       <div className="mlaunch">
         {createForm}
-        <div className="ppanel">
-          <div className="ppanel__h">
-            <b className="ppanel__t"><span className="pico"><IconClock /></span>{canSeeAllHistory ? tch("title") : t("history")}</b>
-            <button
-              type="button"
-              className="btn btn--line btn--sm"
-              onClick={showMine ? reloadHistory : () => void reloadPlat()}
-              disabled={showMine ? history === null : platRes.status === "loading"}
-              aria-disabled={refreshBusy || undefined}
-              aria-busy={refreshBusy || undefined}
-            >
-              <IconRefresh />{t("refresh")}
-            </button>
-          </div>
-          {canSeeAllHistory ? (
-            <FilterBar
-              className="uf--tray"
-              fields={[
-                {
-                  key: "scope",
-                  label: t("scope"),
-                  icon: IconUsers,
-                  value: histTab,
-                  empty: "mine",
-                  onChange: (v) => {
-                    const next = v === "all" ? "all" : "mine";
-                    setHistTab(next);
-                    if (next === "all") setPlatOn(true);
-                  },
-                  options: [
-                    { value: "mine", label: t("history") },
-                    { value: "all", label: t("scopeAll") },
-                  ],
-                  chip: null,
-                },
-                {
-                  key: "status",
-                  label: tpc("filterStatus"),
-                  icon: IconClipboardCheck,
-                  hidden: histTab !== "all",
-                  value: platStatus,
-                  empty: "",
-                  onChange: setPlatStatus,
-                  options: [
-                    { value: "", label: tpc("filterAllStatuses") },
-                    ...platStatuses.map((s) => ({ value: s, label: `${platStatusOf(s)} (${platCounts.get(s) ?? 0})` })),
-                  ],
-                  chip: histTab === "all" ? undefined : null,
-                },
-                {
-                  key: "from",
-                  label: tch("from"),
-                  icon: IconCalendar,
-                  hidden: histTab !== "all",
-                  active: histTab === "all" && Boolean(platFrom || platTo),
-                  chip: platChip,
-                  clear: () => {
-                    setPlatFrom("");
-                    setPlatTo("");
-                  },
-                  node: <DatePicker value={platFrom} onChange={setPlatFrom} placeholder={tch("from")} ariaLabel={tch("from")} max={platTo || undefined} clearLabel={tch("clearDates")} />,
-                },
-                {
-                  key: "to",
-                  label: tch("to"),
-                  icon: IconCalendar,
-                  hidden: histTab !== "all",
-                  chip: null,
-                  node: <DatePicker value={platTo} onChange={setPlatTo} placeholder={tch("to")} ariaLabel={tch("to")} min={platFrom || undefined} clearLabel={tch("clearDates")} />,
-                },
-              ]}
-              search={histTab === "all" ? { value: platQuery, onChange: setPlatQuery, placeholder: tch("searchPh") } : undefined}
-              count={histTab === "all" && platRes.status === "ready" ? platList.length : undefined}
-            />
-          ) : null}
-          {showMine ? (
-            historyBody ?? (
-              <div className="mlist" data-ai-target="seller:meeting-list">
-                {!effectiveHistory.length ? emptyHistory : null}
-                {live.length ? (
-                  <div className="mlist__grp">
-                    <span className="mlist__gl"><i className="mlist__dot" />{t("activeGroup")} · {live.length}</span>
-                    {live.map(row)}
-                  </div>
-                ) : null}
-                {ended.length ? (
-                  <div className="mlist__grp">
-                    <div className="mlist__gh">
-                      <span className="mlist__gl">{t("endedGroup")}</span>
-                      <span className="mlist__sum">{endedSummary}</span>
-                    </div>
-                    {minePager.visible.map(row)}
-                    <ListPager {...minePager.bind} less />
-                  </div>
-                ) : null}
+        <div className="ppanel mhist">
+          <div className="ppanel__h mhist__h">
+            <h2 className="ppanel__t"><span className="pico"><IconClock /></span>{canSeeAllHistory ? tch("title") : t("history")}</h2>
+            {canSeeAllHistory ? (
+              <Tabs<Scope>
+                idPrefix={scopeIds}
+                items={[
+                  { key: "mine", label: t("scopeTab.mine"), count: mineCount },
+                  { key: "all", label: t("scopeTab.all"), count: allCount },
+                ]}
+                value={histTab}
+                onChange={pickScope}
+                controls={bodyId}
+                label={t("scopeTabs")}
+                aiId="admin.meetings.scope"
+                reveal={{ mine: "seller:meeting-list" }}
+                end={refreshButton}
+                className="mhist__tabs"
+              />
+            ) : (
+              <div className="mhist__end">
+                {mineCount !== null ? <CountBadge n={mineCount} /> : null}
+                {refreshButton}
               </div>
-            )
-          ) : (
-            <>
-              <p className="advmuted" style={{ marginBottom: 16 }}>{tch("lead")}</p>
-              {platRes.status === "loading" ? (
-                <Skeleton rows={4} />
-              ) : platRes.status === "error" ? (
-                <ErrorState title={t("historyLoadFailed")} error={platRes.error} onRetry={platRes.refresh} />
-              ) : !platList.length ? (
-                platFiltered ? (
-                  <EmptyState icon={<IconSearch />} title={tch("noMatch")} text={tch("noMatchText")} />
-                ) : (
-                  <EmptyState icon={<IconVideo />} title={tch("empty")} text={tch("emptyText")} />
-                )
-              ) : (
-                <>
-                  <div className="alist alist--flow">
-                    {platPager.visible.map((c, i) => (
-                      <AdminItem
-                        key={c.id || i}
-                        title={c.title || tch("untitled")}
-                        meta={[c.creatorName, shortDateTime(c.startedAt, locale), c.durationSeconds ? mmss(c.durationSeconds) : ""].filter(Boolean).join(" · ")}
-                        right={<span className="atag atag--muted atag--count"><IconUsers aria-hidden="true" style={{ width: 13, height: 13 }} />{tch("participantCount", { n: c.participantCount })}</span>}
-                        tags={[{ label: tch.has(`status.${c.status}`) ? tch(`status.${c.status}`) : c.status, tone: c.status === "ended" ? undefined : "ok" }]}
-                        actions={<button type="button" className="aitem__act" aria-label={tch("detailTitle")} title={tch("detailTitle")} onClick={() => setPlatDetail(c.id)}><IconEye /></button>}
-                      />
-                    ))}
-                  </div>
-                  <ListPager {...platPager.bind} less />
-                </>
+            )}
+          </div>
+          <div
+            id={canSeeAllHistory ? bodyId : undefined}
+            role={canSeeAllHistory ? "tabpanel" : undefined}
+            aria-labelledby={canSeeAllHistory ? tabDomId(scopeIds, histTab) : undefined}
+            className="mhist__body"
+          >
+            <div hidden={!showMine} data-ai-target="seller:meeting-list">
+              {historyBody ?? (
+                <div className="mlist">
+                  {!effectiveHistory.length ? emptyHistory : null}
+                  {live.length ? (
+                    <div className="mlist__grp">
+                      <span className="mlist__gl"><i className="mlist__dot" />{t("activeGroup")} · {live.length}</span>
+                      {live.map(row)}
+                    </div>
+                  ) : null}
+                  {ended.length ? (
+                    <div className="mlist__grp">
+                      <div className="mlist__gh">
+                        <span className="mlist__gl">{t("endedGroup")}</span>
+                        <span className="mlist__sum">{endedSummary}</span>
+                      </div>
+                      {minePager.visible.map(row)}
+                      <ListPager {...minePager.bind} less />
+                    </div>
+                  ) : null}
+                </div>
               )}
-              <CallDetailModal id={platDetail} onClose={() => setPlatDetail(null)} />
-            </>
-          )}
+            </div>
+            {canSeeAllHistory && platOn ? (
+              <div hidden={showMine}>
+                <FilterBar
+                  className="uf--tray"
+                  fields={[
+                    {
+                      key: "status",
+                      label: tpc("filterStatus"),
+                      icon: IconClipboardCheck,
+                      value: platStatus,
+                      empty: "",
+                      onChange: setPlatStatus,
+                      options: [
+                        { value: "", label: tpc("filterAllStatuses") },
+                        ...platStatuses.map((s) => ({ value: s, label: `${statusOf(s)} (${platCounts.get(s) ?? 0})` })),
+                      ],
+                    },
+                    {
+                      key: "from",
+                      label: tch("from"),
+                      icon: IconCalendar,
+                      active: Boolean(platFrom || platTo),
+                      chip: platChip,
+                      clear: () => {
+                        setPlatFrom("");
+                        setPlatTo("");
+                      },
+                      node: <DatePicker value={platFrom} onChange={setPlatFrom} placeholder={tch("from")} ariaLabel={tch("from")} max={platTo || undefined} clearLabel={tch("clearDates")} />,
+                    },
+                    {
+                      key: "to",
+                      label: tch("to"),
+                      icon: IconCalendar,
+                      chip: null,
+                      node: <DatePicker value={platTo} onChange={setPlatTo} placeholder={tch("to")} ariaLabel={tch("to")} min={platFrom || undefined} clearLabel={tch("clearDates")} />,
+                    },
+                  ]}
+                  search={{ value: platQuery, onChange: setPlatQuery, placeholder: tch("searchPh") }}
+                  count={platRes.status === "ready" ? platList.length : undefined}
+                />
+                <p className="advmuted" style={{ marginBottom: 16 }}>{tch("lead")}</p>
+                {platRes.status === "loading" ? (
+                  <Skeleton rows={4} />
+                ) : platRes.status === "error" ? (
+                  <ErrorState title={t("historyLoadFailed")} error={platRes.error} onRetry={platRes.refresh} />
+                ) : !platList.length ? (
+                  platFiltered ? (
+                    <EmptyState icon={<IconSearch />} title={tch("noMatch")} text={tch("noMatchText")} />
+                  ) : (
+                    <EmptyState icon={<IconVideo />} title={tch("empty")} text={tch("emptyText")} />
+                  )
+                ) : (
+                  <>
+                    <div className="alist alist--flow">
+                      {platPager.visible.map((c, i) => {
+                        const meta = [c.creatorName, when(c.startedAt), fmtDuration(c.durationSeconds, locale)].filter(Boolean).join(" · ");
+                        return (
+                          <div className="aitem" key={c.id || i}>
+                            <div className="aitem__m">
+                              <b>{c.title || tch("untitled")}</b>
+                              {meta ? <span className="aitem__meta">{meta}</span> : null}
+                              {c.status ? (
+                                <div className="aitem__tags">
+                                  <StatusBadge status={c.status} map={callMap} size="sm" />
+                                </div>
+                              ) : null}
+                            </div>
+                            <div className="aitem__r">
+                              <span className="atag atag--muted atag--count"><IconUsers aria-hidden="true" style={{ width: 13, height: 13 }} />{tch("participantCount", { n: c.participantCount })}</span>
+                            </div>
+                            <div className="aitem__acts">
+                              <button type="button" className="aitem__act" aria-label={tch("detailTitle")} title={tch("detailTitle")} onClick={() => setPlatDetail(c.id)}><IconEye /></button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <ListPager {...platPager.bind} less />
+                  </>
+                )}
+              </div>
+            ) : null}
+          </div>
+          {canSeeAllHistory ? <CallDetailModal id={platDetail} onClose={() => setPlatDetail(null)} /> : null}
         </div>
       </div>
     );
@@ -810,7 +842,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
             <span className="tavatar" style={{ background: "var(--grad)" }}>{(c.callerName || "?").slice(0, 2).toUpperCase()}</span>
           </span>
         </td>
-        <td>{c.startedAt ? shortDateTime(c.startedAt, locale) : "—"}</td>
+        <td>{c.startedAt ? when(c.startedAt) : "—"}</td>
         <td>{durationOf(c) || "—"}</td>
         <td>
           <span className="fmticon">
@@ -818,7 +850,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
             {t(`formatLabel.${c.callType}`)}
           </span>
         </td>
-        <td><em className={`atag${isLive ? " atag--ok" : " atag--muted"}`}>{statusOf(c.callStatus)}</em></td>
+        <td><StatusBadge status={c.callStatus} map={callMap} size="sm" /></td>
         <td>
           {canJoin ? (
             <button type="button" className="btn btn--pri btn--sm" onClick={() => rejoin(c)}>
@@ -888,7 +920,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
             <div className="magenda">
               {todayItems.map((c) => (
                 <div className="magenda__row" key={c.callId}>
-                  <span className="magenda__t">{c.startedAt ? new Date(c.startedAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : ""}</span>
+                  <span className="magenda__t">{timeOnly(c.startedAt, locale)}</span>
                   <div className="magenda__m">
                     <b>{c.title || t("untitled")}</b>
                     <span>{statusOf(c.callStatus)}</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Image from "next/image";
 import { moveLeadKanban, adminCreateLead, adminDeleteLead, adminUpdateLead, saveLeadKanbanColumns, deleteLeadKanbanColumn } from "@/lib/services/backend";
 import {
@@ -21,17 +21,21 @@ import {
   detailsPatch,
   type KanbanColumnX,
   type LeadFilter,
+  type LeadFilterable,
   type LeadX,
 } from "@/lib/services/leads";
 import { isLeadOperator, operatorName } from "@/lib/services/users";
 import { useAuth } from "@/lib/auth";
 import { notify } from "@/lib/toast";
-import { ApiError } from "@/lib/http";
+import { ApiError, parseServerTime } from "@/lib/http";
 import { formatUzPhone, isValidUzPhone, normUzPhone, uzSubscriber } from "@/lib/phone";
 import { REGION_KEYS } from "@/lib/lawyers";
-import { assigneeLabel, isLostStage, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadSourceLabel, leadStageIcon, personLabel } from "@/lib/leadLabels";
+import { fmtAgeMin, fmtDateTime } from "@/lib/date";
+import { assigneeLabel, isLostStage, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadSourceInfo, leadStageIcon, personLabel } from "@/lib/leadLabels";
 import { useResource } from "@/lib/useResource";
-import { AdminForm, Notice } from "@/components/admin/AdminBits";
+import { AdminForm } from "@/components/admin/AdminBits";
+import { ScoreChip } from "@/components/ui/Badge";
+import InlineAlert from "@/components/ui/InlineAlert";
 import Modal from "@/components/admin/Modal";
 import LostReasonDialog from "@/components/admin/LostReasonDialog";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
@@ -99,6 +103,24 @@ function phoneKeyboard(box: HTMLDivElement | null) {
 }
 
 const sameColor = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+type SourceTr = Parameters<typeof leadSourceInfo>[0];
+
+function sourceFacet(te: SourceTr, source: string): string {
+  const s = leadSourceInfo(te, source);
+  return s.known ? s.key : s.key ? "other" : "";
+}
+
+function filterableOf(te: SourceTr, lead: LeadX): LeadFilterable {
+  return { ...leadFilterable(lead), source: sourceFacet(te, lead.source) };
+}
+
+function SourceTag({ source }: { source: string }) {
+  const te = useTranslations("enums");
+  const s = leadSourceInfo(te, source);
+  if (!s.label) return null;
+  return <span title={s.title || undefined}>{s.label}</span>;
+}
 
 function sidewaysWheel(board: HTMLElement): () => void {
   const host = board.parentElement ?? board;
@@ -175,6 +197,7 @@ export default function AdminPipeline() {
   const tc = useTranslations("common");
   const tn = useTranslations("common.notify");
   const tm = useTranslations("common.modal");
+  const locale = useLocale();
   const { session } = useAuth();
   const meId = session?.id ?? "";
   // Call-center operators for assignment (GET /admin/users — users.manage).
@@ -265,16 +288,19 @@ export default function AdminPipeline() {
 
   // Filters (client-side over the loaded board).
   const [f, setF] = useState<LeadFilter>(EMPTY_LEAD_FILTER);
-  const filterItems = useMemo(() => allCards.map((x) => ({ lead: leadFilterable(x.lead), stage: x.colKey })), [allCards]);
-  const sources = useMemo(() => [...new Set(allLeads.map((l) => l.source).filter(Boolean))], [allLeads]);
+  const filterItems = useMemo(() => allCards.map((x) => ({ lead: filterableOf(te, x.lead), stage: x.colKey })), [allCards, te]);
+  const sources = useMemo(
+    () => [...new Set(allLeads.map((l) => sourceFacet(te, l.source)).filter(Boolean))].sort((a, b) => Number(a === "other") - Number(b === "other")),
+    [allLeads, te],
+  );
   const regions = useMemo(() => [...new Set(allLeads.map((l) => l.region).filter(Boolean))], [allLeads]);
   const urgencies = useMemo(() => [...new Set(allLeads.map((l) => l.urgency.trim().toLowerCase()).filter(Boolean))], [allLeads]);
-  const viewCols = useMemo(() => cols.map((c) => ({ ...c, cards: c.cards.filter((x) => leadMatches(leadFilterable(x.lead), f, meId)) })), [cols, f, meId]);
+  const viewCols = useMemo(() => cols.map((c) => ({ ...c, cards: c.cards.filter((x) => leadMatches(filterableOf(te, x.lead), f, meId)) })), [cols, f, meId, te]);
   const filtered = filterActive(f);
   const boardOn = res.status === "ready" && cols.length > 0 && view === "kanban";
   const colKeys = viewCols.map((c) => c.key).join("|");
   const shown = viewCols.reduce((n, c) => n + c.cards.length, 0);
-  const rows = allCards.filter((x) => leadMatches(leadFilterable(x.lead), f, meId) && (!f.stage || x.colKey === f.stage));
+  const rows = allCards.filter((x) => leadMatches(filterableOf(te, x.lead), f, meId) && (!f.stage || x.colKey === f.stage));
 
   // KPI (from the full board, not the filtered view).
   const finalTotal = cols.filter((c) => c.isFinal).reduce((n, c) => n + c.count, 0);
@@ -585,13 +611,14 @@ export default function AdminPipeline() {
     document.getElementById(`lpipe-col-${key}`)?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
   };
   const ageOf = (iso: string) => {
-    const at = Date.parse(iso);
+    const at = parseServerTime(iso);
     if (!minute || !Number.isFinite(at)) return "";
-    const mins = Math.max(0, minute - Math.floor(at / 60000));
-    if (mins < 2) return t("age.now");
-    if (mins < 60) return t("age.min", { n: mins });
-    if (mins < 60 * 24) return t("age.hour", { n: Math.floor(mins / 60) });
-    return t("age.day", { n: Math.floor(mins / 1440) });
+    const mins = minute - Math.floor(at / 60000);
+    return mins < 2 ? t("age.now") : fmtAgeMin(mins, locale);
+  };
+  const createdOf = (iso: string) => {
+    const at = parseServerTime(iso);
+    return Number.isFinite(at) ? fmtDateTime(at, locale) : "";
   };
   const who = (l: LeadX) => assigneeLabel(t, ops.people, l.assignedTo, meId, ops.status === "ready");
   const whoName = (l: LeadX) => (l.assignedTo ? personLabel(ops.people.get(l.assignedTo)) : "");
@@ -610,13 +637,13 @@ export default function AdminPipeline() {
               <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}><IconDocLines />{t("viewTable")}</button>
             </span>
           ) : null}
-          <button className="btn btn--soft btn--sm lpipe-autobtn" type="button" onClick={openAuto} disabled={!cols.length} data-ai-target="button:auto-assign">
+          <button className="btn btn--line btn--sm lpipe-autobtn" type="button" onClick={openAuto} disabled={!cols.length} data-ai-target="button:auto-assign">
             <IconBolt />
             {t("auto.btn")}
             {unassigned.length ? <span className="lpipe-badge">{t("auto.badge", { n: unassigned.length })}</span> : null}
           </button>
           <button className="btn btn--line btn--sm" type="button" onClick={openAddStatus} data-ai-target="button:add-status"><IconPlus />{t("addStatus")}</button>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setAddOpen(true)} data-ai-target="button:new-lead"><IconPlus />{ta("form.add")}</button>
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => setAddOpen(true)} data-ai-target="button:new-lead"><IconPlus />{ta("leads.create")}</button>
         </div>
       </header>
 
@@ -662,7 +689,7 @@ export default function AdminPipeline() {
             count={view === "table" ? rows.length : shown}
             aiId="admin.pipeline.filters"
           />
-          {ops.status === "forbidden" ? <p className="lpipe-note">{t("assign.opsForbidden")}</p> : null}
+          {ops.status === "forbidden" ? <InlineAlert tone="locked" compact className="lpipe-lock">{t("assign.opsForbidden")}</InlineAlert> : null}
         </>
       ) : null}
 
@@ -734,7 +761,7 @@ export default function AdminPipeline() {
                         >
                           <div className="lpipe-card__top">
                             <b>{nameOf(l)}</b>
-                            {l.scoreKey ? <span className={`lpipe-score lpipe-score--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : null}
+                            <ScoreChip score={l.scoreKey} />
                           </div>
                           {l.phone && l.phone !== nameOf(l) ? <span className="lpipe-card__phone"><IconPhone aria-hidden="true" />{l.phone}</span> : null}
                           {l.category || l.region ? (
@@ -750,8 +777,8 @@ export default function AdminPipeline() {
                               <span className="lpipe-who__n">{who(l)}</span>
                             </span>
                             <span className="lpipe-card__meta">
-                              {l.source ? <span>{leadSourceLabel(t, l.source)}</span> : null}
-                              {ageOf(l.createdAt) ? <time dateTime={l.createdAt}>{ageOf(l.createdAt)}</time> : null}
+                              {l.source ? <SourceTag source={l.source} /> : null}
+                              {ageOf(l.createdAt) ? <time dateTime={l.createdAt} title={createdOf(l.createdAt) || undefined}>{ageOf(l.createdAt)}</time> : null}
                             </span>
                           </footer>
                           <div className="lpipe-card__mv" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
@@ -784,12 +811,12 @@ export default function AdminPipeline() {
                   <b>{nameOf(l)}</b>
                   <small>{[l.phone !== nameOf(l) ? l.phone : "", leadCategoryLabel(t, l.category), leadRegionLabel(te, l.region)].filter(Boolean).join(" · ")}</small>
                 </span>
-                {l.scoreKey ? <span className={`lpipe-score lpipe-score--${l.scoreKey}`}>{leadScoreLabel(t, l.scoreKey)}</span> : <span />}
+                {l.scoreKey ? <ScoreChip score={l.scoreKey} /> : <span />}
                 <span className={`lpipe-who${!l.assignedTo ? " is-none" : l.assignedTo === meId ? " is-me" : ""}`}>
                   <span className="lpipe-who__av" aria-hidden="true">{whoName(l) ? initials(whoName(l)) : <IconUser />}</span>
                   <span className="lpipe-who__n">{who(l)}</span>
                 </span>
-                <time className="lpipe-row__age" dateTime={l.createdAt}>{ageOf(l.createdAt)}</time>
+                <time className="lpipe-row__age" dateTime={l.createdAt} title={createdOf(l.createdAt) || undefined}>{ageOf(l.createdAt)}</time>
               </button>
             ))
           )}
@@ -902,13 +929,13 @@ export default function AdminPipeline() {
           ) : ops.status === "loading" ? (
             <Skeleton rows={2} />
           ) : ops.status === "forbidden" ? (
-            <Notice ok={false} msg={t("assign.opsForbidden")} />
+            <InlineAlert tone="locked">{t("assign.opsForbidden")}</InlineAlert>
           ) : ops.status === "error" ? (
             <ErrorState compact error={ops.error} onRetry={ops.retry} title={t("assign.opsError")} />
           ) : !ops.ops.length ? (
-            <Notice ok={false} msg={t("auto.noOps")} />
+            <InlineAlert tone="warn">{t("auto.noOps")}</InlineAlert>
           ) : !unassigned.length ? (
-            <Notice ok msg={t("auto.nothing")} />
+            <InlineAlert tone="success">{t("auto.nothing")}</InlineAlert>
           ) : (
             <>
               <div className="cform" style={{ maxWidth: "none" }}>

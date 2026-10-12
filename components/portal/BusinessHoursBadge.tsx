@@ -24,7 +24,7 @@ const subscribeClock = (cb: () => void) => {
 const readMinute = () => Math.floor(Date.now() / 60_000);
 const serverMinute = () => null;
 
-export default function BusinessHoursBadge({ note, showHolidayNote = false }: { note?: string; showHolidayNote?: boolean }) {
+export default function BusinessHoursBadge({ note, showHolidayNote = false, holidayTitle = true }: { note?: string; showHolidayNote?: boolean; holidayTitle?: boolean }) {
   const t = useTranslations("common.businessHours");
   const locale = useLocale();
   const { session } = useAuth();
@@ -76,7 +76,7 @@ export default function BusinessHoursBadge({ note, showHolidayNote = false }: { 
 
   // Spans only: `.ppanel__h b` would restyle a <b>.
   return (
-    <span className={`bhours bhours--${state}`} title={t("holidayNote")}>
+    <span className={`bhours bhours--${state}`} title={holidayTitle ? t("holidayNote") : undefined}>
       <i className="bhours__dot" aria-hidden />
       <span className="bhours__st">{t(state)}</span>
       <span className="bhours__sch">{t("schedule", { days, start: bh.start, end: bh.end })}</span>

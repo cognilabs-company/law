@@ -896,6 +896,12 @@ export const IconHistory = (p: P) => (
   </svg>
 );
 
+export const IconFlame = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M12 3c.6 2.9 2.4 4.6 3.9 6.3C17.1 10.7 18 12.2 18 14.2A6 6 0 016 14.2c0-2.3 1.1-3.9 2.6-5 .2 1.8.9 2.9 2.2 3.3C10.3 9.4 10.6 5.9 12 3z" />
+  </svg>
+);
+
 // Name → component registry so data files can reference icons by string.
 const ICON_MAP: Record<string, ComponentType<P>> = {
   IconChatDots,

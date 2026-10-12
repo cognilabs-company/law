@@ -8,9 +8,11 @@ import { useResourceOne } from "@/lib/useResource";
 import { shortDateTime } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import { leadCategoryLabel, leadSourceLabel } from "@/lib/leadLabels";
+import { humanize, labelOf, regionLabel } from "@/lib/labels";
 import { useOrderStatusLabel } from "@/lib/orderStatus";
 import { isCoarsePointer } from "@/lib/usePopover";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
+import InlineAlert from "@/components/ui/InlineAlert";
 import Modal from "@/components/admin/Modal";
 import CcCallForm from "./CcCallForm";
 import { IconInfo, IconPhone, IconPlus } from "@/components/icons";
@@ -19,6 +21,46 @@ type Tab = "orders" | "payments" | "leads" | "activity";
 
 const TABS: Tab[] = ["orders", "payments", "leads", "activity"];
 const ACTIVITY_SHOWN = 15;
+
+type Tr = ((key: string) => string) & { has: (key: string) => boolean };
+
+const ACTIVITY_GROUPS: readonly [RegExp, string][] = [
+  [/^marketplace_/, "marketplace"],
+  [/^(document_|service_document_|custom_document|existing_document)/, "document"],
+  [/^urgent_advokat_/, "urgent"],
+  [/^(payment_|milestone_|upsell_)/, "payment"],
+  [/^subscription/, "subscription"],
+  [/^secure_chat_/, "chat"],
+  [/^ai(_|$)/, "ai"],
+  [/^call_/, "call"],
+  [/^contract_/, "contract"],
+  [/^support_/, "support"],
+  [/^(login|logout|session_|totp_|password_|telegram_|identity_|notification_)/, "account"],
+  [/^order_/, "order"],
+];
+
+function activityLabel(t: Tr, action: string): string {
+  const a = action.trim().toLowerCase();
+  if (!a) return "";
+  if (t.has(`actions.${a}`)) return t(`actions.${a}`);
+  const group = ACTIVITY_GROUPS.find(([re]) => re.test(a))?.[1] ?? "other";
+  return t.has(`actionGroups.${group}`) ? t(`actionGroups.${group}`) : humanize(a);
+}
+
+const UUID_RE = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+const HEX_ID_RE = /\b[0-9a-f]{24,}\b/gi;
+const BOILERPLATE = new Set(["user logged in", "logged in", "order", "lead", "call-center call"]);
+
+function activityDetail(detail: string): string {
+  const s = detail
+    .replace(UUID_RE, "")
+    .replace(HEX_ID_RE, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s:#·,;-]+|[\s:#·,;-]+$/g, "")
+    .trim();
+  if (!s || /^[a-z][a-z0-9_]*$/.test(s) || BOILERPLATE.has(s.toLowerCase())) return "";
+  return s;
+}
 
 // T4-02 client 360 (GET /call-center/clients/{id}) for the call-center and
 // sales consoles: who the client is, what they ordered and paid, their leads
@@ -38,6 +80,7 @@ export default function CcClientCard({
   const t = useTranslations("admin.callCenter.card");
   const tc = useTranslations("admin.callCenter");
   const tp = useTranslations("admin.pipeline");
+  const te = useTranslations("enums");
   const tpay = useTranslations("portal.client.payments");
   const tsom = useTranslations("portal.payment");
   const locale = useLocale();
@@ -98,7 +141,7 @@ export default function CcClientCard({
     document.getElementById(`${uid}-tab-${to}`)?.focus();
   }
 
-  const meta = [client.lexgoId, client.name ? client.phone : "", client.status ? (tc.has(`status.${client.status}`) ? tc(`status.${client.status}`) : client.status) : ""].filter(Boolean).join(" · ");
+  const meta = [client.lexgoId, client.name ? client.phone : "", client.status ? labelOf(tc, "status", client.status) : ""].filter(Boolean).join(" · ");
 
   const footer = logging ? (
     <div className="ccslot" ref={setSlot} />
@@ -146,7 +189,7 @@ export default function CcClientCard({
             {res.status === "loading" ? (
               <Skeleton rows={3} />
             ) : forbidden ? (
-              <p className="advmuted">{t("noAccess")}</p>
+              <InlineAlert tone="locked" compact>{t("noAccess")}</InlineAlert>
             ) : !d ? (
               <ErrorState error={failure} onRetry={() => setAttempt((n) => n + 1)} title={t("loadError")} compact />
             ) : (
@@ -197,23 +240,23 @@ export default function CcClientCard({
                     d.payments.length ? d.payments.map((p) => (
                       <div className="creq" key={p.id}>
                         <span className={`creq__st${p.status === "paid" ? " creq__st--resolved" : ""}`} />
-                        <div className="creq__m"><b>{fmtUzs(p.amount)} {tsom("som")}</b><span>{[tpay.has(`kinds.${p.kind}`) ? tpay(`kinds.${p.kind}`) : p.description || p.kind, when(p.createdAt)].filter(Boolean).join(" · ")}</span></div>
-                        <span className="creq__badge">{tpay.has(`statuses.${p.status}`) ? tpay(`statuses.${p.status}`) : p.status}</span>
+                        <div className="creq__m"><b>{fmtUzs(p.amount)} {tsom("som")}</b><span>{[tpay.has(`kinds.${p.kind}`) ? tpay(`kinds.${p.kind}`) : p.description || humanize(p.kind), when(p.createdAt)].filter(Boolean).join(" · ")}</span></div>
+                        <span className="creq__badge">{labelOf(tpay, "statuses", p.status)}</span>
                       </div>
                     )) : <p className="advmuted">{t("noPayments")}</p>
                   ) : tab === "leads" ? (
                     d.leads.length ? d.leads.map((l) => (
                       <div className="creq" key={l.id}>
                         <span className="creq__st" />
-                        <div className="creq__m"><b>{leadCategoryLabel(tp, l.category) || tp("untitledLead")}</b><span>{[l.source ? leadSourceLabel(tp, l.source) : "", l.region, when(l.createdAt)].filter(Boolean).join(" · ")}</span></div>
-                        <span className="creq__badge">{tc.has(`queue.stages.${l.status}`) ? tc(`queue.stages.${l.status}`) : l.status}</span>
+                        <div className="creq__m"><b>{leadCategoryLabel(tp, l.category) || tp("untitledLead")}</b><span>{[l.source ? leadSourceLabel(te, l.source) : "", l.region ? regionLabel(te, l.region) : "", when(l.createdAt)].filter(Boolean).join(" · ")}</span></div>
+                        <span className="creq__badge">{labelOf(tc, "queue.stages", l.status)}</span>
                       </div>
                     )) : <p className="advmuted">{t("noLeads")}</p>
                   ) : (
                     d.activities.length ? d.activities.slice(0, ACTIVITY_SHOWN).map((a) => (
                       <div className="creq" key={a.id}>
                         <span className="creq__st" />
-                        <div className="creq__m"><b>{t.has(`actions.${a.action}`) ? t(`actions.${a.action}`) : a.action.replace(/_/g, " ")}</b><span>{[a.detail, when(a.createdAt)].filter(Boolean).join(" · ")}</span></div>
+                        <div className="creq__m"><b>{activityLabel(t, a.action)}</b><span>{[activityDetail(a.detail), when(a.createdAt)].filter(Boolean).join(" · ")}</span></div>
                       </div>
                     )) : <p className="advmuted">{t("noActivity")}</p>
                   )}

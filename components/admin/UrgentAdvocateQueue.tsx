@@ -30,7 +30,7 @@ import { ApiError, errDetail, logApiError } from "@/lib/http";
 import { notify, notifyStore } from "@/lib/toast";
 import { useAuth, sessionRoles } from "@/lib/auth";
 import { dateTimeFull } from "@/lib/date";
-import { statusLabel, regionLabel, regionKeyOf, humanize } from "@/lib/labels";
+import { statusLabel, regionLabel, regionKeyOf, humanize, labelOf, statusMap, statusSpecOf, type StatusMap, type StatusToneRule } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
@@ -44,6 +44,8 @@ import CheckBox from "@/components/CheckBox";
 import Modal from "@/components/admin/Modal";
 import FieldError from "@/components/ui/FieldError";
 import ListPager, { usePaged } from "@/components/ui/ListPager";
+import { Badge, CountBadge, StatusBadge, WorkId } from "@/components/ui/Badge";
+import IconButton from "@/components/ui/IconButton";
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { isCoarsePointer, usePopover } from "@/lib/usePopover";
@@ -66,7 +68,6 @@ import {
   IconMapPin,
   IconFileText,
   IconMic,
-  IconList,
   IconStar,
   IconShieldCheck,
   IconHeadset,
@@ -158,13 +159,36 @@ const DIRECTION_AREA: Record<string, string> = {
 type Te = ((key: string) => string) & { has: (key: string) => boolean };
 // Production writes the same slug two ways ("mamuriy" and "ma'muriy"), so the
 // apostrophe is dropped before the lookup.
-function directionLabel(te: Te, slug: string): string {
+export function directionLabel(te: Te, slug: string, tx?: Te): string {
   const key = slug.trim().toLowerCase().replace(/[‘’'`]/g, "");
   const area = DIRECTION_AREA[key];
   if (area && te.has(`areas.${area}`)) return te(`areas.${area}`);
   if (te.has(`areas.${key}`)) return te(`areas.${key}`);
+  const extra = key.replace(/[\s-]+/g, "_");
+  if (tx && extra && tx.has(`dirs.${extra}`)) return tx(`dirs.${extra}`);
   return humanize(slug);
 }
+
+const URGENT_TONES: Readonly<Record<string, StatusToneRule>> = {
+  open_pool: { tone: "warn", dot: true },
+  claimed: "info",
+  scheduled: "info",
+  in_progress: "info",
+  meeting_active: { tone: "ok", dot: "live" },
+  completed: "ok",
+  cancelled: "err",
+  expired: "warn",
+};
+
+export function useUrgentStatuses(): StatusMap {
+  const t = useTranslations("admin.urgent");
+  return useMemo(() => statusMap(t, "st", URGENT_TONES), [t]);
+}
+
+const candidateMeta = (t: Te, te: Te, c: UrgentCandidate): string[] => [
+  c.sellerType || c.role ? labelOf(t, "roles", c.sellerType || c.role) : "",
+  c.region ? regionLabel(te, c.region) : "",
+];
 
 // A chat opened from the board carries the record it belongs to, so the
 // chat screen can offer the end-chat action the backend only allows staff.
@@ -267,12 +291,14 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
   const tn = useTranslations("common.notify");
   const te = useTranslations("enums");
   const locale = useLocale();
+  const urg = useUrgentStatuses();
 
   const [kind, setKind] = useState("");
   const [channel, setChannel] = useState("");
   const [view, setView] = useState("active");
   const [state, setState] = useState<State>({ status: "loading", items: [] });
   const [busyId, setBusyId] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const [openId, setOpenId] = useState("");
   const [ask, setAsk] = useState<Ask>({ act: "", n: 0 });
   const [meeting, setMeeting] = useState<Meeting | null>(null);
@@ -363,10 +389,16 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
       const to = VIEWS.find((x) => x.value === next) ?? VIEWS.find((x) => x.value === (final ? "archive" : "active"));
       if (!to || to.value === view) return "";
       setView(to.value);
-      return t("movedTo", { status: t(to.key) });
+      return t("movedTo", { status: urg[to.value]?.label ?? t(to.key) });
     },
-    [view, load, t],
+    [view, load, t, urg],
   );
+
+  function refreshNow() {
+    if (refreshing) return;
+    setRefreshing(true);
+    void load().finally(() => setRefreshing(false));
+  }
 
   function report(c: Change) {
     const moved = follow(c.status || "");
@@ -476,7 +508,9 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
     pager.revealIndex(at, `${v}|${k}|${c}`);
   });
 
-  const viewOpts = VIEWS.map((x) => ({ value: x.value, label: ready ? `${t(x.key)} (${counts[x.value] ?? 0})` : t(x.key) }));
+  const viewLabel = (x: (typeof VIEWS)[number]) => urg[x.value]?.label ?? t(x.key);
+  const activeAll = ready ? state.items.filter((r) => !isFinal(r)).length : 0;
+  const viewOpts = VIEWS.map((x) => ({ value: x.value, label: ready ? `${viewLabel(x)} (${counts[x.value] ?? 0})` : viewLabel(x) }));
   const kindOpts = [{ value: "", label: t("allKinds") }, ...KINDS.map((k) => ({ value: k, label: tk.has(`kinds.${k}`) ? tk(`kinds.${k}`) : k }))];
   const channelOpts = [
     { value: "", label: t("allChannels") },
@@ -514,14 +548,15 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
 
   return (
     <section className="ppanel uaq" id="cc-urgent" data-ai-target="callcenter:urgent" data-ai-id="call_center.urgent-advokat.queue" data-ai-label={t("title")}>
-      <div className="ppanel__h">
-        <b className="ppanel__t"><span className="pico"><IconBolt /></span>{t("title")}</b>
-        <span className={`uaq__live${live ? " on" : ""}`} title={live ? t("liveOn") : t("liveOff")}>
-          <i aria-hidden />{live ? t("liveOn") : t("liveOff")}
-        </span>
-        <button type="button" className="btn btn--line btn--sm" onClick={() => void load()} aria-label={t("refresh")} title={t("refresh")}>
-          <IconRefresh />
-        </button>
+      <div className="ppanel__h cch">
+        <h2 className="ppanel__t cch__t"><span className="pico"><IconBolt /></span><span className="cch__tt">{t("title")}</span></h2>
+        <div className="cch__a">
+          <span className={`uaq__live${live ? " on" : ""}`}>
+            <i aria-hidden />{live ? t("liveOn") : t("liveOff")}
+          </span>
+          {ready ? <CountBadge n={activeAll} label={t("activeCount", { n: activeAll })} /> : null}
+          <IconButton label={t("refresh")} icon={<IconRefresh />} onClick={refreshNow} busy={refreshing} tipAlign="end" aiId="call_center.urgent-advokat.refresh" />
+        </div>
       </div>
       <p className="advmuted uaq__lead">{t("lead")}</p>
 
@@ -545,9 +580,9 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
               onClick={() => setView(v.value)}
               data-ai-id={`call_center.urgent-advokat.tab.${v.value}`}
               data-ai-type="tab"
-              data-ai-label={t(v.key)}
+              data-ai-label={viewLabel(v)}
             >
-              {t(v.key)}
+              {viewLabel(v)}
               {ready ? <em>{counts[v.value] ?? 0}</em> : null}
             </button>
           </Fragment>
@@ -579,7 +614,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
             const isGroup = r.serviceKind === GROUP;
             const final = r.nextStatuses.length === 0 && !open;
             const claimable = open || (r.nextStatuses.includes("claimed") && !r.claimedByUserId);
-            const kindName = tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind;
+            const kindName = tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || humanize(r.serviceKind);
             return (
               <li
                 key={r.id}
@@ -595,7 +630,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
                   <b>
                     {kindName}
                     {r.channel ? <em className="uaq__ch">{r.channel === "chat" ? <IconChat /> : <IconVideo />}{r.channel === "chat" ? tk("chChat") : tk("chVideo")}</em> : null}
-                    {r.workId ? <em className="ua__wid" title={tk("workId")}>{r.workId}</em> : null}
+                    <WorkId id={r.workId} label={tk("workId")} className="ua__wid" />
                     {/* on_duty_pool: nobody has to pick this out of the pool. */}
                     {r.immediateCall ? <em className="uaq__ch uaq__ch--now"><IconBolt />{t("onDuty")}</em> : null}
                   </b>
@@ -619,7 +654,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
                       {/* Keyed by position: the same area reaches the row
                           spelled two ways ("mamuriy", "ma'muriy"), and a
                           record can carry both. */}
-                      {r.directions.map((d, i) => <em key={`${d}-${i}`} className="uaq__dir">{directionLabel(te, d)}</em>)}
+                      {r.directions.map((d, i) => <Badge key={`${d}-${i}`} tone="info" size="sm">{directionLabel(te, d, t)}</Badge>)}
                     </span>
                   ) : null}
                   {r.scheduledAt ? (
@@ -630,7 +665,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
                   ) : null}
                 </div>
                 <div className="uaq__r">
-                  <em className={`creq__badge uaq__st uaq__st--${r.status || "open_pool"}`}>{statusLabel(tcm, r.status || "open_pool")}</em>
+                  <StatusBadge status={statusOf(r)} map={urg} fallback={statusLabel(tcm, statusOf(r))} size="sm" className="uaq__st" />
                   <div className="uaq__acts">
                     {claimable ? (
                       <button type="button" className="btn btn--pri btn--sm" disabled={busyId === r.id} onClick={() => void claim(r)} data-ai-target="button:urgent-claim" data-ai-id={aiId(AI_ITEM, r.id, "claim")}>
@@ -665,8 +700,8 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
                         <IconChat />{t("openChat")}
                       </Link>
                     ) : null}
-                    <button type="button" className="btn btn--soft btn--sm" onClick={() => setOpenId(r.id)} data-ai-id={aiId(AI_ITEM, r.id, "detail")}>
-                      <IconList />{t("openDetail")}<IconChevronRight />
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => setOpenId(r.id)} data-ai-id={aiId(AI_ITEM, r.id, "detail")}>
+                      {t("openDetail")}<IconChevronRight />
                     </button>
                   </div>
                   {!open && !final && r.channel !== "chat" ? <span className="uaq__hint"><IconClock />{t("meetingHint")}</span> : null}
@@ -731,6 +766,8 @@ function UrgentDetailDrawer({
   const tv = useTranslations("secureChat");
   const locale = useLocale();
   const histId = useId();
+  const urg = useUrgentStatuses();
+  const urgLabel = (s: string) => statusSpecOf(urg, s, statusLabel(tcm, s))?.label ?? "";
 
   const [req, setReq] = useState<UrgentRequest | null>(null);
   const [load2, setLoad2] = useState<"loading" | "ready" | "error">("loading");
@@ -877,7 +914,7 @@ function UrgentDetailDrawer({
     if (!open) setWanted("");
   }
 
-  const kindLabel = req ? (tk.has(`kinds.${req.serviceKind}`) ? tk(`kinds.${req.serviceKind}`) : req.serviceTitle || req.serviceKind) : "";
+  const kindLabel = req ? (tk.has(`kinds.${req.serviceKind}`) ? tk(`kinds.${req.serviceKind}`) : req.serviceTitle || humanize(req.serviceKind)) : "";
   const isGroup = req?.serviceKind === GROUP;
   const isSecond = !!req && (req.serviceKind === GROUP || req.serviceKind === "second_opinion_single");
   const finished = !!req && req.nextStatuses.length === 0;
@@ -1121,7 +1158,7 @@ function UrgentDetailDrawer({
                 void run(
                   "status",
                   () => (s === "claimed" ? claimUrgentRequest(req.id) : setUrgentStatus(req.id, s, n)),
-                  s === "claimed" ? claimMsgs : { ok: () => ({ title: t("statusMoved", { status: statusLabel(tcm, s) }) }), fail: t("notify.statusFailed") },
+                  s === "claimed" ? claimMsgs : { ok: () => ({ title: t("statusMoved", { status: urgLabel(s) }) }), fail: t("notify.statusFailed") },
                 ).then((ok) => { if (ok) finishStep(); });
               }}
             />
@@ -1129,8 +1166,8 @@ function UrgentDetailDrawer({
             <>
               {/* ── Header line: status, channel, price, SLA ───────────── */}
               <div className="uad__top">
-                <em className={`creq__badge uaq__st uaq__st--${req.status}`}>{statusLabel(tcm, req.status)}</em>
-                {req.workId ? <span className="ua__wid" title={tk("workId")}>{req.workId}</span> : null}
+                <StatusBadge status={statusOf(req)} map={urg} fallback={statusLabel(tcm, statusOf(req))} className="uaq__st" />
+                <WorkId id={req.workId} label={tk("workId")} copy tipSide="bottom" className="ua__wid" />
                 {req.channel ? (
                   <span className="uad__chip">{req.channel === "chat" ? <IconChat /> : <IconVideo />}{req.channel === "chat" ? tk("chChat") : tk("chVideo")}</span>
                 ) : null}
@@ -1157,9 +1194,9 @@ function UrgentDetailDrawer({
                     <h4><IconFileText />{t("need")}</h4>
                     <p className="uad__need">{req.need || t("noNeed")}</p>
                     {req.directions.length ? (
-                      <div className="chiprow" style={{ margin: "8px 0 0" }}>
-                        {req.directions.map((d) => (
-                          <span key={d} className="fchip" aria-hidden={false}>{directionLabel(te, d)}</span>
+                      <div className="uaq__dirs uad__dirs">
+                        {req.directions.map((d, i) => (
+                          <Badge key={`${d}-${i}`} tone="info" size="sm">{directionLabel(te, d, t)}</Badge>
                         ))}
                       </div>
                     ) : null}
@@ -1268,7 +1305,7 @@ function UrgentDetailDrawer({
                       <ul className="uad__sources">
                         {(allSources ? sources : sources.slice(0, SOURCES_SHOWN)).map((s, i) => (
                           <li key={`${s.type}-${s.id}-${i}`}>
-                            <b>{s.title || s.serviceKind || s.type}</b>
+                            <b>{s.title || (s.serviceKind && tk.has(`kinds.${s.serviceKind}`) ? tk(`kinds.${s.serviceKind}`) : humanize(s.serviceKind || s.type))}</b>
                             <span className="advmuted">{[statusLabel(tcm, s.status), s.createdAt ? dateTimeFull(s.createdAt, locale) : ""].filter(Boolean).join(" · ")}</span>
                           </li>
                         ))}
@@ -1295,7 +1332,7 @@ function UrgentDetailDrawer({
                       <ol id={histId} className="uad__hist" hidden={!histOpen}>
                         {req.statusHistory.map((h, i) => (
                           <li key={i}>
-                            <b>{statusLabel(tcm, h.to)}</b>
+                            <b>{urgLabel(h.to)}</b>
                             <span className="advmuted">{h.at ? dateTimeFull(h.at, locale) : ""}</span>
                           </li>
                         ))}
@@ -1504,6 +1541,8 @@ function StatusStep({
 }) {
   const t = useTranslations("admin.urgent");
   const tcm = useTranslations("portal.common");
+  const urg = useUrgentStatuses();
+  const urgLabel = (s: string) => statusSpecOf(urg, s, statusLabel(tcm, s))?.label ?? "";
   const uid = useId();
   const [next, setNext] = useState("");
   const [note, setNote] = useState("");
@@ -1513,7 +1552,7 @@ function StatusStep({
   useAiField(aiId(AI_ITEM, req.id, "status"), {
     get: () => sel,
     set: (raw) => {
-      const v = aiPick(choices.map((s) => ({ value: s, label: statusLabel(tcm, s) })), raw);
+      const v = aiPick(choices.map((s) => ({ value: s, label: urgLabel(s) })), raw);
       if (v) setNext(v);
     },
     disabled: busy,
@@ -1526,7 +1565,7 @@ function StatusStep({
 
   return (
     <div className="uad__form uad__form--flat" data-ai-id={aiId(AI_ITEM, req.id, "status")} data-ai-type="select" data-ai-label={t("moveTo")} data-ai-private>
-      <p className="advmuted uad__lead">{t("statusNow", { status: statusLabel(tcm, req.status) })}</p>
+      <p className="advmuted uad__lead">{t("statusNow", { status: urgLabel(statusOf(req)) })}</p>
       <div className="uad__field">
         <span className="uad__lbl" id={`${uid}-l`}>{t("statusPick")}</span>
         <div className="ccpick" role="radiogroup" aria-labelledby={`${uid}-l`} aria-required="true">
@@ -1534,7 +1573,7 @@ function StatusStep({
             <label key={s} className={`ccpick__o${sel === s ? " on" : ""}`}>
               <input className="ccpick__in" type="radio" name={`${uid}-s`} value={s} checked={sel === s} onChange={() => setNext(s)} />
               <span className="ccpick__dot" aria-hidden="true" />
-              <span className="ccpick__m"><b>{statusLabel(tcm, s)}</b></span>
+              <span className="ccpick__m"><b>{urgLabel(s)}</b></span>
             </label>
           ))}
         </div>
@@ -1763,9 +1802,9 @@ function TransferPanel({
                     <span className="ucand__score" aria-hidden>{c.score}</span>
                     <span className="ucand__m">
                       <b>{c.name}</b>
-                      <span className="ucand__meta">{[c.sellerType || c.role, c.region, t("workloadN", { n: c.workload })].filter(Boolean).join(" · ")}</span>
+                      <span className="ucand__meta">{[...candidateMeta(t, te, c), t("workloadN", { n: c.workload })].filter(Boolean).join(" · ")}</span>
                       {c.specializations.length ? (
-                        <span className="ucand__spec">{c.specializations.map((x) => directionLabel(te, x)).join(", ")}</span>
+                        <span className="ucand__spec">{c.specializations.map((x) => directionLabel(te, x, t)).join(", ")}</span>
                       ) : null}
                     </span>
                     <span className="ucand__tags">
@@ -1998,15 +2037,14 @@ function CandidatePanel({
           <b>{c.name}</b>
           <span className="ucand__meta">
             {[
-              c.sellerType || c.role,
-              c.region,
+              ...candidateMeta(t, te, c),
               c.rating ? `${c.rating.toFixed(1)}★ (${c.reviewsCount})` : "",
               c.successRate ? t("successRate", { n: Math.round(c.successRate) }) : "",
               t("workloadN", { n: c.workload }),
             ].filter(Boolean).join(" · ")}
           </span>
           {c.specializations.length ? (
-            <span className="ucand__spec">{c.specializations.map((s) => directionLabel(te, s)).join(", ")}</span>
+            <span className="ucand__spec">{c.specializations.map((s) => directionLabel(te, s, t)).join(", ")}</span>
           ) : null}
         </span>
         <span className="ucand__tags">
@@ -2032,7 +2070,7 @@ function CandidatePanel({
       <div className="ucand__filters">
         <CheckBox id="ucand-ext" checked={external} onChange={setExternal} disabled={wide}>{t("includeExternal")}</CheckBox>
         <CheckBox id="ucand-cc" checked={callcenter} onChange={setCallcenter} disabled={wide}>{t("includeCallcenter")}</CheckBox>
-        <button type="button" className="btn btn--soft btn--sm" aria-pressed={wide} onClick={() => setWide((v) => !v)}>
+        <button type="button" className="btn btn--line btn--sm" aria-pressed={wide} onClick={() => setWide((v) => !v)}>
           <IconStar />{wide ? t("searchNarrow") : t("searchWide")}
         </button>
       </div>
@@ -2050,7 +2088,7 @@ function CandidatePanel({
                 aria-pressed={wideDirs.includes(d)}
                 onClick={() => setWideDirs((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]))}
               >
-                {directionLabel(te, d)}
+                {directionLabel(te, d, t)}
               </button>
             ))}
           </div>

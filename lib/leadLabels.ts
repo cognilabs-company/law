@@ -37,10 +37,82 @@ export function leadCategoryLabel(t: T, category: string): string {
   return t.has(`categories.${category}`) ? t(`categories.${category}`) : humanizeSlug(category);
 }
 
-// Lead source ("web", "ai_classify", "telegram") → label; unknown keys humanized.
+export const SOURCE_KEYS = [
+  "web",
+  "website",
+  "telegram",
+  "telegram_manual",
+  "client",
+  "mobile",
+  "google",
+  "lexgo_ai",
+  "upsell",
+  "manual",
+  "manual_admin",
+  "seller_register_request",
+  "register_start",
+  "registration",
+  "login",
+  "callcenter",
+  "call_center",
+  "referral",
+  "organic",
+  "ads",
+  "ad",
+  "ai_classify",
+  "ai",
+  "phone",
+  "call",
+  "chat",
+  "social",
+  "seo",
+  "gift",
+  "sos",
+  "notify_me",
+  "template",
+  "onboarding",
+  "payme",
+  "click",
+  "atmos",
+  "demo_payme",
+  "demo_click",
+  "auto_test",
+  "test",
+  "unknown",
+] as const;
+
+export type SourceGroup = "channel" | "payment";
+
+const PAYMENT_SOURCES: ReadonlySet<string> = new Set(["payme", "click", "atmos", "demo_payme", "demo_click"]);
+
+const SOURCE_ALIAS: Readonly<Record<string, string>> = { website: "web", call_center: "callcenter", ad: "ads", registration: "register_start" };
+
+export const sourceKey = (source: string): string => {
+  const k = String(source || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  return SOURCE_ALIAS[k] ?? k;
+};
+
+export const sourceGroup = (source: string): SourceGroup => (PAYMENT_SOURCES.has(sourceKey(source)) ? "payment" : "channel");
+
+export type SourceInfo = { key: string; label: string; title: string; known: boolean; group: SourceGroup };
+
+export function leadSourceInfo(t: T, source: string): SourceInfo {
+  const raw = String(source || "").trim();
+  const key = sourceKey(raw);
+  const group = sourceGroup(key);
+  if (!key) return { key: "", label: "", title: "", known: false, group };
+  if (t.has(`sources.${key}`)) return { key, label: t(`sources.${key}`), title: "", known: true, group };
+  if (t.has(`source.${key}`)) return { key, label: t(`source.${key}`), title: "", known: true, group };
+  if (t.has(`source.${raw}`)) return { key, label: t(`source.${raw}`), title: "", known: true, group };
+  if (t.has("sources.other")) return { key, label: t("sources.other"), title: raw, known: false, group };
+  return { key, label: humanizeSlug(raw), title: raw, known: false, group };
+}
+
 export function leadSourceLabel(t: T, source: string): string {
-  if (!source) return "";
-  return t.has(`source.${source}`) ? t(`source.${source}`) : humanizeSlug(source);
+  return leadSourceInfo(t, source).label;
 }
 
 // Kanban column title: a column still carrying the backend's default English
@@ -65,6 +137,10 @@ export function leadScoreLabel(t: T, score: string): string {
   if (!score) return "";
   return t.has(`score.${score}`) ? t(`score.${score}`) : humanizeSlug(score);
 }
+
+const SCORE_TONE: Readonly<Record<string, "err" | "warn" | "neutral">> = { hot: "err", warm: "warn", cold: "neutral" };
+
+export const leadScoreTone = (score: string): "err" | "warn" | "neutral" => SCORE_TONE[String(score || "").trim().toLowerCase()] ?? "neutral";
 
 // Urgency ("urgent", "normal", …) → admin.pipeline.urgency.* label.
 export function leadUrgencyLabel(t: T, urgency: string): string {

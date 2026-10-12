@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ccSearchClients, type CcClient } from "@/lib/services/backend";
 import { isForbidden } from "@/lib/http";
+import { labelOf } from "@/lib/labels";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
+import InlineAlert from "@/components/ui/InlineAlert";
 import CcClientCard from "./CcClientCard";
 import { IconSearch, IconUser, IconChevronRight } from "@/components/icons";
 
@@ -71,14 +73,17 @@ export default function CcClientSearch({
 
   return (
     <div className="ppanel">
-      <div className="ppanel__h"><b>{t("search")}</b><BusinessHoursBadge showHolidayNote /></div>
+      <div className="ppanel__h cch cch--wrap">
+        <h2 className="cch__t"><span className="cch__tt">{t("search")}</span></h2>
+        <BusinessHoursBadge holidayTitle={false} />
+      </div>
       <form className="lsp__search" onSubmit={(e) => { e.preventDefault(); void run(q.trim()); }} style={{ marginBottom: 12 }} data-ai-target="callcenter:client-search">
         <IconSearch />
         <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPh")} aria-label={t("search")} autoComplete="off" />
         <button type="submit" className="btn btn--pri btn--sm" disabled={q.trim().length < 2 || searching}>{searching ? t("searching") : t("searchBtn")}</button>
       </form>
       {forbidden ? (
-        <p className="advmuted">{t("searchNoAccess")}</p>
+        <InlineAlert tone="locked" compact>{t("searchNoAccess")}</InlineAlert>
       ) : failure ? (
         <ErrorState error={failure.error} onRetry={() => run(q.trim())} title={t("searchFailed")} compact />
       ) : searching && results === null ? (
@@ -94,7 +99,7 @@ export default function CcClientSearch({
               <span className="aitem__n"><IconUser /></span>
               <div className="aitem__m">
                 <b>{c.name || c.phone}</b>
-                <span className="aitem__meta">{[c.lexgoId, c.phone, c.status ? (t.has(`status.${c.status}`) ? t(`status.${c.status}`) : c.status) : ""].filter(Boolean).join(" · ")}</span>
+                <span className="aitem__meta">{[c.lexgoId, c.phone, c.status ? labelOf(t, "status", c.status) : ""].filter(Boolean).join(" · ")}</span>
               </div>
               <IconChevronRight />
             </button>

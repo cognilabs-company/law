@@ -14,6 +14,7 @@ export type DrillRow = {
   short?: string;
   n?: number; // raw number for bar widths / shares
   sub?: string;
+  title?: string;
   tone?: "ok" | "bad" | "muted";
   href?: string;
 };
@@ -113,7 +114,10 @@ function Section({ s, empty }: { s: DrillSection; empty: string }) {
             const fill = (r.n ?? 0) > 0 ? Math.max(2, ((r.n ?? 0) / max) * 100) : 0;
             return (
               <div className={`kfunnel__row${r.short ? " kfunnel__row--short" : ""}${r.tone === "muted" ? " kfunnel__row--muted" : ""}`} key={i}>
-                <span className="kfunnel__lbl">{r.label}</span>
+                <span className="kfunnel__lbl" title={r.title}>
+                  {r.label}
+                  {r.sub ? <small className="kfunnel__sub">{r.sub}</small> : null}
+                </span>
                 <span className="kfunnel__bar">{fill ? <span style={{ width: `${Math.min(100, fill)}%` }} /> : null}</span>
                 <b className="kfunnel__v">
                   <span className="kfunnel__full">{r.value}</span>

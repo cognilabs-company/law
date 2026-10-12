@@ -1,14 +1,14 @@
 "use client";
 
-import { useMemo, useState, type SVGProps } from "react";
+import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import DatePicker from "@/components/DatePicker";
 import { leadRegionLabel, leadScoreLabel, leadSourceLabel, leadUrgencyLabel } from "@/lib/leadLabels";
 import { EMPTY_LEAD_FILTER, LEAD_SCORES, leadMatches, type LeadFilter, type LeadFilterable } from "@/lib/services/leads";
 import { operatorName, type AdminUser } from "@/lib/services/users";
-import { shortDate } from "@/lib/date";
-import { IconCalendar, IconClock, IconFlag, IconHeadset, IconLayers, IconMapPin, IconMegaphone } from "@/components/icons";
+import { fmtDateTime } from "@/lib/date";
+import { IconCalendar, IconClock, IconFlag, IconFlame, IconHeadset, IconLayers, IconMapPin, IconMegaphone } from "@/components/icons";
 
 export type LeadItem = { lead: LeadFilterable; stage: string };
 
@@ -16,14 +16,6 @@ type Quick = "today" | "week" | "month";
 type FacetKey = "region" | "source" | "stage" | "score" | "urgency" | "assignee";
 
 const QUICK: Quick[] = ["today", "week", "month"];
-
-function IconFlame(p: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <path d="M12 3c.6 2.9 2.4 4.6 3.9 6.3C17.1 10.7 18 12.2 18 14.2A6 6 0 016 14.2c0-2.3 1.1-3.9 2.6-5 .2 1.8.9 2.9 2.2 3.3C10.3 9.4 10.6 5.9 12 3z" />
-    </svg>
-  );
-}
 
 const dayOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -90,7 +82,7 @@ export default function LeadFilterBar({
 
   const dated = Boolean(value.from || value.to);
   const period = mode && mode !== "custom" ? (dated ? mode : "") : dated || mode === "custom" ? "custom" : "";
-  const day = (iso: string) => shortDate(iso, locale);
+  const day = (iso: string) => fmtDateTime(iso, locale, false);
   const range =
     value.from && value.to
       ? value.from === value.to
@@ -219,7 +211,7 @@ export default function LeadFilterBar({
       more: compact,
       value: value.source,
       onChange: (source) => set({ source }),
-      options: [{ value: "", label: t("f.allSource") }, ...(sources ?? []).map((s) => ({ value: s, label: withN(leadSourceLabel(t, s), tally.source(s)) }))],
+      options: [{ value: "", label: t("f.allSource") }, ...(sources ?? []).map((s) => ({ value: s, label: withN(leadSourceLabel(te, s), tally.source(s)) }))],
       aiId: fid("source"),
     },
     {

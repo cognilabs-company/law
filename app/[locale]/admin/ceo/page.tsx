@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getCeoDashboardFull, isCeoEmpty, ceoTestSplit, isTestChannel, todayIso, type CeoDashboardFull } from "@/lib/services/dash";
 import { demoCeo, useDemoForced } from "@/lib/demoStats";
 import { useResourceOne } from "@/lib/useResource";
-import { fmtUzs, fmtUzsShort } from "@/lib/money";
-import { fmtDate, fmtInt } from "@/lib/date";
+import { fmtUzsShort } from "@/lib/money";
+import { fmtDate, fmtNum, fmtPct, monthNames } from "@/lib/date";
 import { humanizeSlug } from "@/lib/lawyers";
+import { leadSourceInfo, sourceGroup, type SourceGroup } from "@/lib/leadLabels";
 import { useAiSelection } from "@/lib/ai/registry";
 import { notify } from "@/lib/toast";
 import LineChart from "@/components/admin/LineChart";
 import StatDrillModal, { type Drill, type DrillRow } from "@/components/admin/StatDrillModal";
 import { ErrorState } from "@/components/portal/DataState";
+import Segmented from "@/components/ui/Segmented";
 import { IconAlert, IconArrowRight, IconBolt, IconInfo } from "@/components/icons";
 
 const GIFT0 = { giftPurchases: 0, giftActivationRate: 0, recipientConversion: 0, giftToPaidConversion: 0, averageGiftValue: 0, referralRate: 0, giftCac: 0, giftLtv: 0 };
@@ -25,9 +27,11 @@ const EMPTY: CeoDashboardFull = {
 };
 const SPANS = [7, 14] as const;
 type Span = (typeof SPANS)[number];
-const ARROWS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
+const GROUPS: readonly SourceGroup[] = ["channel", "payment"];
+const SORT_NONE = "↕︎";
 type Health = "good" | "watch" | "bad" | "na" | "info";
 type SortKey = "revenue" | "leads" | "payments" | "pct";
+type Channel = CeoDashboardFull["channels"][number];
 type Got = { ok: true; data: CeoDashboardFull } | { ok: false; error: unknown; at: string };
 type Seen = { got: Got; kept: CeoDashboardFull | null };
 const STALE_ID = "ceo-stale";
@@ -63,6 +67,7 @@ export default function AdminCeo() {
   const td = useTranslations("admin.dash");
   const tf = useTranslations("admin.dash.filter");
   const tc = useTranslations("admin.overview.crm");
+  const te = useTranslations("enums");
   const tnf = useTranslations("common.notify");
   const [demoForced, setDemoForced] = useDemoForced();
   const [tick, setTick] = useState(0);
@@ -100,14 +105,16 @@ export default function AdminCeo() {
   useEffect(() => () => notify.dismiss(STALE_ID), []);
 
   const stage = (k: string) => (t.has(`stage.${k}`) ? t(`stage.${k}`) : humanizeSlug(k));
-  const source = (k: string) => (k ? (t.has(`source.${k}`) ? t(`source.${k}`) : humanizeSlug(k)) : "—");
+  const sourceName = (k: string) => leadSourceInfo(te, k).label || "—";
   const units = { mln: td("units.mln"), mlrd: td("units.mlrd") };
   const som = tc("som");
-  const money = (n: number) => `${fmtUzs(n)} ${som}`;
-  const short = (n: number) => `${fmtUzsShort(n, units, locale)} ${som}`;
-  const num = (n: number) => (Math.abs(n) >= 1000 ? fmtInt(n, locale) : String(Math.round(n)));
-  const pct = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1).replace(".", locale === "en" ? "." : ",")}%`;
+  const money = (n: number) => `${fmtNum(n, locale)} ${som}`;
+  const short = (n: number) => `${Math.abs(n) >= 1e6 ? fmtUzsShort(n, units, locale) : fmtNum(n, locale)} ${som}`;
+  const num = (n: number) => fmtNum(n, locale);
+  const pct = (n: number, digits = 1) => fmtPct(n, locale, digits);
   const NA = tr("na");
+  const na = (value: string) => (value === NA ? "is-na" : undefined);
+  const row = (label: string, value: string, sub?: string): DrillRow => ({ label, value, sub, tone: value === NA ? "muted" : undefined });
 
   useAiSelection("dashboard_period", tr("allTime"));
   useAiSelection("revenue_chart_period", tr("spanDays", { n: span }));
@@ -135,10 +142,58 @@ export default function AdminCeo() {
   const paidSame = paidRaw === d.paidPayments;
   const paid = paidSame ? headPayments : paidRaw;
   const paidTag = paidSame && cut ? undefined : tagged(paid);
+  const ltvCac = Math.round(d.ltvCac * 10) / 10;
+  const ltvCacText = d.ltvCac ? `${fmtNum(ltvCac, locale, 1)}×` : NA;
+  const payback = Math.round(d.paybackMonths * 10) / 10;
 
+  const ledger = [
+    { key: "gmv", label: t("kpi.gmv"), value: gmv ? money(gmv) : NA, note: gmv && gmvSame ? tr("notes.gmvEq") : tr("notes.gmv"), tag: gmvTag },
+    { key: "mrr", label: t("mrr"), value: mrr ? money(mrr) : NA, note: mrrNote, tag: tagged(mrr) },
+    { key: "arr", label: t("kpi.arr"), value: d.arr ? money(d.arr) : NA, note: arrNote, tag: tagged(d.arr) },
+    { key: "arpu", label: t("kpi.arpu"), value: d.arpu ? money(d.arpu) : NA, note: tr("notes.arpu"), tag: tagged(d.arpu) },
+    { key: "take", label: t("kpi.takeRate"), value: d.takeRate ? pct(d.takeRate) : NA, note: tr("notes.take"), tag: tagged(d.takeRate) },
+    { key: "cac", label: t("kpi.cac"), value: d.cac ? money(d.cac) : NA, note: d.cac ? t("kpi.cacSplit", { client: money(d.cacClient), advocate: money(d.cacAdvocate) }) : tr("notes.cacNa") },
+    { key: "ltv", label: t("kpi.ltv"), value: d.ltv ? money(d.ltv) : NA, note: tr("notes.ltv"), tag: tagged(d.ltv) },
+    { key: "ltvCac", label: t("kpi.ltvCac"), value: ltvCacText, note: d.ltvCac ? tr("notes.ltvCac") : tr("notes.cacNa") },
+    { key: "payback", label: tr("payback"), value: d.paybackMonths ? tr("months", { n: fmtNum(payback, locale, 1), count: payback }) : NA, note: d.paybackMonths ? tr("notes.payback") : tr("notes.cacNa") },
+  ];
+
+  const month = Number(d.fetchedAt.slice(5, 7));
+  const monthWord = month >= 1 && month <= 12 ? monthNames(locale)[month - 1] : "";
+  const aud = {
+    mau: monthWord ? tr("aud.mau", { month: locale === "en" ? monthWord : monthWord.toLowerCase() }) : t("kpi.mau"),
+    dau: tr("aud.dau"),
+    newClients: tr("aud.newClients"),
+    newAdvocates: tr("aud.newAdvocates"),
+    newLawyers: tr("aud.newLawyers"),
+  };
+  const stickiness = d.mau ? pct((d.dau / d.mau) * 100, 0) : NA;
+  const npsClient = d.npsClient ? num(d.npsClient) : NA;
+  const npsAdvocate = d.npsAdvocate ? num(d.npsAdvocate) : NA;
+  const g = d.giftKpis;
+  const giftAvg = g.averageGiftValue ? short(g.averageGiftValue) : NA;
+  const giftLtv = g.giftLtv ? short(g.giftLtv) : NA;
+  const giftCac = g.giftCac ? short(g.giftCac) : NA;
+
+  const channelSub = (c: Channel) =>
+    [tr("chLeads", { n: num(c.leads), count: c.leads }), tr("chPayments", { n: num(c.payments), count: c.payments }), c.leads && c.pct <= 100 ? tr("chConv", { pct: pct(c.pct) }) : ""].filter(Boolean).join(" · ");
   const open = (drl: Omit<Drill, "demo">) => setDrill({ ...drl, demo });
   const kv = (title: string, rows: DrillRow[]): Drill["sections"][number] => ({ kind: "kv", title, rows });
-  const channelBars = (): Drill["sections"][number] => ({ kind: "bars", title: t("channels"), rows: d.channels.filter((c) => showTest || !isTestChannel(c.name)).map((c) => ({ label: isTestChannel(c.name) ? `${source(c.name)} · ${tr("testTag")}` : source(c.name), value: money(c.revenue), short: short(c.revenue), n: c.revenue, sub: `${c.leads} · ${c.payments} · ${c.pct}%`, tone: isTestChannel(c.name) ? "muted" : undefined })) });
+  const channelBars = (): Drill["sections"][number] => {
+    const list = d.channels.filter((c) => showTest || !isTestChannel(c.name));
+    const ordered = GROUPS.flatMap((key) => list.filter((c) => sourceGroup(c.name) === key));
+    const mixed = GROUPS.every((key) => list.some((c) => sourceGroup(c.name) === key));
+    return {
+      kind: "bars",
+      title: t("channels"),
+      rows: ordered.map((c): DrillRow => {
+        const test = isTestChannel(c.name);
+        const tag = test ? tr("testTag") : mixed && sourceGroup(c.name) === "payment" ? tr("paymentTag") : "";
+        const name = sourceName(c.name);
+        return { label: tag ? `${name} · ${tag}` : name, title: leadSourceInfo(te, c.name).title || undefined, value: money(c.revenue), short: short(c.revenue), n: c.revenue, sub: channelSub(c), tone: test ? "muted" : undefined };
+      }),
+    };
+  };
   const funnelBars = (): Drill["sections"][number] => ({
     kind: "bars",
     title: t("funnel"),
@@ -148,24 +203,18 @@ export default function AdminCeo() {
       return { label: isPaid && paidTag ? `${stage(x.label)} · ${paidTag}` : stage(x.label), value: num(v), n: v };
     }),
   });
-  const unitEcon = () => kv(t("kpi.title"), [
-    { label: t("kpi.gmv"), value: money(gmv), sub: gmvTag },
-    { label: t("mrr"), value: mrr ? money(mrr) : NA, sub: [mrrStub && mrr ? tr("bySubs") : "", tagged(mrr) ?? ""].filter(Boolean).join(" · ") || undefined },
-    { label: t("kpi.arr"), value: money(d.arr), sub: tagged(d.arr) }, { label: t("kpi.arpu"), value: money(d.arpu), sub: tagged(d.arpu) }, { label: t("kpi.takeRate"), value: pct(d.takeRate), sub: tagged(d.takeRate) },
-    { label: t("kpi.cac"), value: d.cac ? money(d.cac) : NA }, { label: t("kpi.ltv"), value: money(d.ltv), sub: tagged(d.ltv) }, { label: t("kpi.ltvCac"), value: d.ltvCac ? `${d.ltvCac}×` : NA },
-  ]);
+  const unitEcon = () => kv(t("kpi.title"), ledger.filter((r) => r.key !== "payback").map((r) => row(r.label, r.value, r.key === "mrr" ? [mrrStub && mrr ? tr("bySubs") : "", r.tag ?? ""].filter(Boolean).join(" · ") || undefined : r.tag)));
   const drillRevenue = () => open({ title: t("revenue"), value: money(headRevenue), note: testLine || undefined, sections: [{ kind: "series", title: withTest ? `${t("revenueTrend")} · ${withTest}` : t("revenueTrend"), points: d.revenueTrend, format: money, controls: false }, channelBars()] });
-  const drillUnit = () => open({ title: tr("unit"), sections: [unitEcon(), kv(td("drill.cac"), [{ label: td("drill.cacClient"), value: d.cacClient ? money(d.cacClient) : NA }, { label: td("drill.cacAdvocate"), value: d.cacAdvocate ? money(d.cacAdvocate) : NA }])] });
+  const drillUnit = () => open({ title: tr("unit"), sections: [unitEcon(), kv(td("drill.cac"), [row(td("drill.cacClient"), d.cacClient ? money(d.cacClient) : NA), row(td("drill.cacAdvocate"), d.cacAdvocate ? money(d.cacAdvocate) : NA)])] });
   const drillFunnel = () => open({ title: t("conversion"), value: pct(d.conversionPct), sections: [funnelBars(), channelBars()], link: { href: "/admin/pipeline", label: td("drill.goPipeline") } });
   const drillAudience = () => open({ title: t("users"), value: num(d.users), sections: [
-    kv(t("kpi.title"), [{ label: t("kpi.mau"), value: num(d.mau), sub: tr("perMonth") }, { label: t("kpi.dau"), value: num(d.dau), sub: tr("perToday") }]),
-    kv(td("drill.newUsers"), [{ label: t("kpi.newClients"), value: num(d.newClients) }, { label: td("drill.newAdvocates"), value: num(d.newAdvocates) }, { label: td("drill.newLawyers"), value: num(d.newLawyers) }]),
-    kv(td("drill.nps"), [{ label: t("kpi.npsClient"), value: d.npsClient ? String(d.npsClient) : NA }, { label: t("kpi.npsAdvocate"), value: d.npsAdvocate ? String(d.npsAdvocate) : NA }]),
+    kv(t("kpi.title"), [row(aud.mau, num(d.mau), tr("aud.mauDef")), row(aud.dau, num(d.dau), tr("aud.dauDef")), row(tr("stickiness"), stickiness, tr("aud.stickDef"))]),
+    kv(tr("aud.newcomers"), [row(aud.newClients, num(d.newClients)), row(aud.newAdvocates, num(d.newAdvocates)), row(aud.newLawyers, num(d.newLawyers))]),
+    kv(td("drill.nps"), [row(t("kpi.npsClient"), npsClient, tr("aud.npsDef")), row(t("kpi.npsAdvocate"), npsAdvocate, tr("aud.npsDef"))]),
   ] });
-  const g = d.giftKpis;
   const drillGifts = () => open({ title: t("kpi.giftTitle"), value: num(g.giftPurchases), sections: [kv(td("drill.gifts"), [
-    { label: t("kpi.giftActivation"), value: pct(g.giftActivationRate) }, { label: t("kpi.giftToPaid"), value: pct(g.giftToPaidConversion) }, { label: t("kpi.avgGift"), value: money(g.averageGiftValue) },
-    { label: t("kpi.recipientConversion"), value: pct(g.recipientConversion) }, { label: t("kpi.giftReferralRate"), value: pct(g.referralRate) }, { label: t("kpi.giftCac"), value: g.giftCac ? money(g.giftCac) : NA }, { label: t("kpi.giftLtv"), value: money(g.giftLtv) },
+    row(t("kpi.giftActivation"), pct(g.giftActivationRate)), row(t("kpi.giftToPaid"), pct(g.giftToPaidConversion)), row(t("kpi.avgGift"), g.averageGiftValue ? money(g.averageGiftValue) : NA),
+    row(t("kpi.recipientConversion"), pct(g.recipientConversion)), row(t("kpi.giftReferralRate"), pct(g.referralRate)), row(t("kpi.giftCac"), g.giftCac ? money(g.giftCac) : NA), row(t("kpi.giftLtv"), g.giftLtv ? money(g.giftLtv) : NA),
   ])] });
   const more = (onClick: () => void, label: string) => (
     <button type="button" className="ceo-more" onClick={onClick} aria-label={`${td("drill.details")}: ${label}`}>
@@ -179,21 +228,18 @@ export default function AdminCeo() {
   const days = trend.length;
   const best = trend.reduce<{ label: string; value: number } | null>((m, p) => (!m || p.value > m.value ? p : m), null);
   const activeDays = trend.filter((p) => p.value > 0).length;
-  const spanKey = (e: KeyboardEvent<HTMLButtonElement>) => {
-    if (!ARROWS.includes(e.key)) return;
-    e.preventDefault();
-    const j = (SPANS.indexOf(span) + (e.key === "ArrowLeft" || e.key === "ArrowUp" ? SPANS.length - 1 : 1)) % SPANS.length;
-    setSpan(SPANS[j]);
-    e.currentTarget.parentElement?.querySelectorAll("button")[j]?.focus();
-  };
+  const dayAvg = days ? short(total / days) : NA;
+  const dayBest = best && best.value ? short(best.value) : NA;
   const spanSwitch = (
-    <div className="ceo-span" role="radiogroup" aria-label={tr("spanAria")}>
-      {SPANS.map((n) => (
-        <button key={n} type="button" role="radio" aria-checked={span === n} tabIndex={span === n ? 0 : -1} onClick={() => setSpan(n)} onKeyDown={spanKey}>
-          {tr("spanDays", { n })}
-        </button>
-      ))}
-    </div>
+    <Segmented
+      value={String(span)}
+      onChange={(v) => setSpan(SPANS.find((n) => String(n) === v) ?? 14)}
+      options={SPANS.map((n) => ({ value: String(n), label: tr("spanDays", { n }) }))}
+      label={tr("spanAria")}
+      look="soft"
+      className="ceo-span"
+      aiId="admin.ceo.revenue-span"
+    />
   );
 
   const leads = d.funnel.find((x) => x.label === "leads")?.value ?? 0;
@@ -205,37 +251,28 @@ export default function AdminCeo() {
   const stepMax = Math.max(1, leads, orders);
 
   const health = (key: string): Health => {
-    if (key === "ltvCac") return !d.ltvCac ? "na" : d.ltvCac >= 3 ? "good" : d.ltvCac >= 1 ? "watch" : "bad";
+    if (key === "ltvCac") return !d.ltvCac ? "na" : ltvCac >= 3 ? "good" : ltvCac >= 1 ? "watch" : "bad";
     if (key === "cac" || key === "payback") return (key === "cac" ? d.cac : d.paybackMonths) ? "info" : "na";
     return "info";
   };
-  const ledger = [
-    { key: "gmv", label: t("kpi.gmv"), value: gmv ? money(gmv) : NA, note: gmv && gmvSame ? tr("notes.gmvEq") : tr("notes.gmv"), tag: gmvTag },
-    { key: "mrr", label: t("mrr"), value: mrr ? money(mrr) : NA, note: mrrNote, tag: tagged(mrr) },
-    { key: "arr", label: t("kpi.arr"), value: d.arr ? money(d.arr) : NA, note: arrNote, tag: tagged(d.arr) },
-    { key: "arpu", label: t("kpi.arpu"), value: d.arpu ? money(d.arpu) : NA, note: tr("notes.arpu"), tag: tagged(d.arpu) },
-    { key: "take", label: t("kpi.takeRate"), value: d.takeRate ? pct(d.takeRate) : NA, note: tr("notes.take"), tag: tagged(d.takeRate) },
-    { key: "cac", label: t("kpi.cac"), value: d.cac ? money(d.cac) : NA, note: d.cac ? t("kpi.cacSplit", { client: money(d.cacClient), advocate: money(d.cacAdvocate) }) : tr("notes.cacNa") },
-    { key: "ltv", label: t("kpi.ltv"), value: d.ltv ? money(d.ltv) : NA, note: tr("notes.ltv"), tag: tagged(d.ltv) },
-    { key: "ltvCac", label: t("kpi.ltvCac"), value: d.ltvCac ? `${d.ltvCac}×` : NA, note: d.ltvCac ? tr("notes.ltvCac") : tr("notes.cacNa") },
-    { key: "payback", label: tr("payback"), value: d.paybackMonths ? tr("months", { n: d.paybackMonths }) : NA, note: d.paybackMonths ? tr("notes.payback") : tr("notes.cacNa") },
-  ];
 
-  const rows = d.channels.filter((c) => showTest || !isTestChannel(c.name)).slice().sort((a, b) => {
-    const k = sort.key === "pct" ? "pct" : sort.key;
-    return (a[k] - b[k]) * sort.dir;
-  });
+  const rows = d.channels.filter((c) => showTest || !isTestChannel(c.name)).slice().sort((a, b) => (a[sort.key] - b[sort.key]) * sort.dir);
+  const groups = GROUPS.map((key) => ({ key, rows: rows.filter((c) => sourceGroup(c.name) === key) })).filter((grp) => grp.rows.length);
+  const grouped = groups.some((grp) => grp.key === "payment");
   const rowsMax = Math.max(1, ...rows.map((c) => c.revenue));
   const shownRevenue = rows.reduce((s, c) => s + c.revenue, 0) || 1;
   const sortBy = (key: SortKey) => setSort((cur) => ({ key, dir: cur.key === key ? (cur.dir === 1 ? -1 : 1) : -1 }));
-  const th = (key: SortKey, label: string) => (
-    <th scope="col" aria-sort={sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
-      <button type="button" onClick={() => sortBy(key)}>
-        {label}
-        <span className={`ceo-sort${sort.key === key ? (sort.dir === 1 ? " is-up" : " is-down") : ""}`} aria-hidden="true" />
-      </button>
-    </th>
-  );
+  const th = (key: SortKey, label: string) => {
+    const on = sort.key === key;
+    return (
+      <th scope="col" aria-sort={on ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+        <button type="button" onClick={() => sortBy(key)}>
+          {label}
+          <span className="ceo-sortic" aria-hidden="true">{on ? (sort.dir === 1 ? "▲" : "▼") : SORT_NONE}</span>
+        </button>
+      </th>
+    );
+  };
 
   const asOfDay = d.fetchedAt ? fmtDate(d.fetchedAt, locale) : "";
   const scopeAll = asOfDay ? tr("allTimeAsOf", { date: asOfDay }) : tr("allTime");
@@ -280,8 +317,8 @@ export default function AdminCeo() {
               {trend.length ? <LineChart points={trend} format={money} controls={false} /> : <p className="ceo-empty">{t("noData")}</p>}
               <dl className="ceo-figs">
                 <div><dt>{tr("figTotalDays", { n: days || span })}</dt><dd>{short(total)}</dd></div>
-                <div><dt>{tr("figAvg")}</dt><dd>{days ? short(total / days) : NA}</dd></div>
-                <div><dt>{tr("figBest")}</dt><dd>{best && best.value ? short(best.value) : NA}{best && best.value ? <small>{fmtDate(best.label.slice(0, 10), locale)}</small> : null}</dd></div>
+                <div><dt>{tr("figAvg")}</dt><dd className={na(dayAvg)}>{dayAvg}</dd></div>
+                <div><dt>{tr("figBest")}</dt><dd className={na(dayBest)}>{dayBest}{best && best.value ? <small>{fmtDate(best.label.slice(0, 10), locale)}</small> : null}</dd></div>
                 <div><dt>{tr("figActive")}</dt><dd>{tr("daysOf", { n: activeDays, total: days })}</dd></div>
               </dl>
             </Section>
@@ -296,16 +333,16 @@ export default function AdminCeo() {
                   </tr>
                 </thead>
                 <tbody>
-                  {ledger.map((row) => {
-                    const h = health(row.key);
+                  {ledger.map((line) => {
+                    const h = health(line.key);
                     return (
-                      <tr key={row.key} className={row.value === NA ? "is-na" : undefined}>
-                        <th scope="row">{row.label}</th>
-                        <td className="is-num">{row.value}</td>
+                      <tr key={line.key} className={na(line.value)}>
+                        <th scope="row">{line.label}</th>
+                        <td className="is-num">{line.value}</td>
                         <td>
                           {h !== "info" && h !== "na" ? <span className={`ceo-chip ceo-chip--${h}`}>{tr(`health.${h}`)}</span> : null}
-                          {row.tag ? <span className="ceo-chip ceo-chip--na">{row.tag}</span> : null}
-                          <span className="ceo-ledger__note">{row.note}</span>
+                          {line.tag ? <span className="ceo-chip ceo-chip--na">{line.tag}</span> : null}
+                          <span className="ceo-ledger__note">{line.note}</span>
                         </td>
                       </tr>
                     );
@@ -362,21 +399,35 @@ export default function AdminCeo() {
                         {th("pct", t("channelTable.conversion"))}
                       </tr>
                     </thead>
-                    <tbody>
-                      {rows.map((c, i) => (
-                        <tr key={`${c.name}-${i}`} className={isTestChannel(c.name) ? "is-test" : undefined}>
-                          <th scope="row">{source(c.name)}{isTestChannel(c.name) ? <em>{tr("testTag")}</em> : null}</th>
-                          <td className="is-num">{num(c.leads)}</td>
-                          <td className="is-num">{num(c.payments)}</td>
-                          <td className="is-num ceo-table__rev">
-                            <span>{short(c.revenue)}</span>
-                            <i aria-hidden="true"><span style={{ width: `${(c.revenue / rowsMax) * 100}%` }} /></i>
-                            <small>{Math.round((c.revenue / shownRevenue) * 100)}%</small>
-                          </td>
-                          <td className="is-num">{c.leads && c.pct <= 100 ? pct(c.pct) : "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
+                    {groups.map((grp) => (
+                      <tbody key={grp.key}>
+                        {grouped ? (
+                          <tr className="ceo-table__grp">
+                            <th scope="rowgroup" colSpan={5}>
+                              {tr(grp.key === "payment" ? "groupPayments" : "groupChannels")}
+                              {grp.key === "payment" ? <small>{tr("groupPaymentsNote")}</small> : null}
+                            </th>
+                          </tr>
+                        ) : null}
+                        {grp.rows.map((c, i) => {
+                          const src = leadSourceInfo(te, c.name);
+                          const test = isTestChannel(c.name);
+                          return (
+                            <tr key={`${c.name}-${i}`} className={test ? "is-test" : undefined}>
+                              <th scope="row" title={src.title || undefined}>{src.label || "—"}{test ? <em>{tr("testTag")}</em> : null}</th>
+                              <td className="is-num">{num(c.leads)}</td>
+                              <td className="is-num">{num(c.payments)}</td>
+                              <td className="is-num ceo-table__rev">
+                                <span>{short(c.revenue)}</span>
+                                <i aria-hidden="true"><span style={{ width: `${(c.revenue / rowsMax) * 100}%` }} /></i>
+                                <small>{pct((c.revenue / shownRevenue) * 100, 0)}</small>
+                              </td>
+                              <td className="is-num">{c.leads && c.pct <= 100 ? pct(c.pct) : "—"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    ))}
                   </table>
                 </div>
               ) : (
@@ -388,19 +439,22 @@ export default function AdminCeo() {
               <div className="ceo-cols">
                 <dl>
                   <div><dt>{t("users")}</dt><dd>{num(d.users)}</dd></div>
-                  <div><dt>{t("kpi.mau")} <small className="ceo-per">{tr("perMonth")}</small></dt><dd>{num(d.mau)}</dd></div>
-                  <div><dt>{t("kpi.dau")} <small className="ceo-per">{tr("perToday")}</small></dt><dd>{num(d.dau)}</dd></div>
-                  <div><dt>{tr("stickiness")}</dt><dd>{d.mau ? `${Math.round((d.dau / d.mau) * 100)}%` : NA}</dd></div>
+                  <div><dt>{aud.mau} <small className="ceo-def">{tr("aud.mauDef")}</small></dt><dd>{num(d.mau)}</dd></div>
+                  <div><dt>{aud.dau} <small className="ceo-def">{tr("aud.dauDef")}</small></dt><dd>{num(d.dau)}</dd></div>
+                  <div><dt>{tr("stickiness")} <small className="ceo-def">{tr("aud.stickDef")}</small></dt><dd className={na(stickiness)}>{stickiness}</dd></div>
                 </dl>
                 <dl>
-                  <div><dt>{t("kpi.newClients")} <small className="ceo-per">{tr("perMonth")}</small></dt><dd>{num(d.newClients)}</dd></div>
-                  <div><dt>{td("drill.newAdvocates")} <small className="ceo-per">{tr("perMonth")}</small></dt><dd>{num(d.newAdvocates)}</dd></div>
-                  <div><dt>{td("drill.newLawyers")} <small className="ceo-per">{tr("perMonth")}</small></dt><dd>{num(d.newLawyers)}</dd></div>
+                  <div><dt>{aud.newClients}</dt><dd>{num(d.newClients)}</dd></div>
+                  <div><dt>{aud.newAdvocates}</dt><dd>{num(d.newAdvocates)}</dd></div>
+                  <div><dt>{aud.newLawyers}</dt><dd>{num(d.newLawyers)}</dd></div>
                 </dl>
-                <dl>
-                  <div><dt>{t("kpi.npsClient")}</dt><dd className={d.npsClient ? undefined : "is-na"}>{d.npsClient ? d.npsClient : NA}</dd></div>
-                  <div><dt>{t("kpi.npsAdvocate")}</dt><dd className={d.npsAdvocate ? undefined : "is-na"}>{d.npsAdvocate ? d.npsAdvocate : NA}</dd></div>
-                </dl>
+                <div className="ceo-cols__grp">
+                  <dl>
+                    <div><dt>{t("kpi.npsClient")}</dt><dd className={na(npsClient)}>{npsClient}</dd></div>
+                    <div><dt>{t("kpi.npsAdvocate")}</dt><dd className={na(npsAdvocate)}>{npsAdvocate}</dd></div>
+                  </dl>
+                  <p className="ceo-def">{tr("aud.npsDef")}</p>
+                </div>
               </div>
             </Section>
 
@@ -411,10 +465,10 @@ export default function AdminCeo() {
                 <li><b>{pct(g.giftToPaidConversion)}</b><span>{t("kpi.giftToPaid")}</span></li>
               </ol>
               <dl className="ceo-figs">
-                <div><dt>{t("kpi.avgGift")}</dt><dd>{g.averageGiftValue ? short(g.averageGiftValue) : NA}</dd></div>
-                <div><dt>{t("kpi.giftLtv")}</dt><dd>{g.giftLtv ? short(g.giftLtv) : NA}</dd></div>
+                <div><dt>{t("kpi.avgGift")}</dt><dd className={na(giftAvg)}>{giftAvg}</dd></div>
+                <div><dt>{t("kpi.giftLtv")}</dt><dd className={na(giftLtv)}>{giftLtv}</dd></div>
                 <div><dt>{t("kpi.giftReferralRate")}</dt><dd>{pct(g.referralRate)}</dd></div>
-                <div><dt>{t("kpi.giftCac")}</dt><dd>{g.giftCac ? short(g.giftCac) : NA}</dd></div>
+                <div><dt>{t("kpi.giftCac")}</dt><dd className={na(giftCac)}>{giftCac}</dd></div>
               </dl>
             </Section>
           </>

@@ -91,7 +91,7 @@ export default function CcCallForm({
   const actions = (
     <>
       <button className="btn btn--line" type="button" onClick={onCancel} disabled={busy}>{cancelLabel || ta("cancel")}</button>
-      <button className="btn btn--pri" type="submit" form={formId} aria-disabled={busy || undefined} aria-busy={busy || undefined}>{busy ? ta("saving") : t("save")}</button>
+      <button className="btn btn--pri" type="submit" form={formId} aria-disabled={busy || undefined} aria-busy={busy || undefined}>{busy ? ta("saving") : t("submit")}</button>
     </>
   );
 

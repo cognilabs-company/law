@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { assigneeLabel, isLostStage, leadCategoryLabel, leadRegionLabel, leadScoreLabel } from "@/lib/leadLabels";
+import { assigneeLabel, isLostStage, leadCategoryLabel, leadRegionLabel } from "@/lib/leadLabels";
 import { moveCallCenterLead } from "@/lib/services/backend";
 import {
   getCallCenterKanbanX,
@@ -32,6 +32,8 @@ import Select, { rankOptions } from "@/components/Select";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
 import ScrollArrows from "@/components/ui/ScrollArrows";
+import { CountBadge, ScoreChip } from "@/components/ui/Badge";
+import IconButton from "@/components/ui/IconButton";
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import { IconRefresh, IconPhone } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
@@ -99,6 +101,7 @@ export default function CallCenterBoard() {
   const ops = useOperators();
   const [state, setState] = useState<State>({ status: "loading", columns: [] });
   const [busyId, setBusyId] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const [f, setF] = useState<LeadFilter>(EMPTY_LEAD_FILTER);
   const hasCols = useRef(false);
   const cols = useRef<KanbanColumnX[]>([]);
@@ -167,6 +170,12 @@ export default function CallCenterBoard() {
     moveRef.current = move;
   });
   if (state.status === "forbidden") return null;
+
+  function refreshNow() {
+    if (refreshing) return;
+    setRefreshing(true);
+    void load().finally(() => setRefreshing(false));
+  }
 
   const colTitle = (c: KanbanColumnX) => (tq.has(`stages.${c.key}`) ? tq(`stages.${c.key}`) : c.title || c.key);
   const leadTitle = (lead: LeadX) => lead.name || lead.phone || leadCategoryLabel(tp, lead.category) || tp("untitledLead");
@@ -283,11 +292,12 @@ export default function CallCenterBoard() {
           if (a) void move(a.leadId, a.key, { reason, note });
         }}
       />
-      <div className="ppanel__h">
-        <b>{t("title")}</b>
-        <button type="button" className="btn btn--line btn--sm" onClick={() => void load()} aria-label={tq("refresh")}>
-          <IconRefresh />
-        </button>
+      <div className="ppanel__h cch">
+        <h2 className="cch__t"><span className="cch__tt">{t("title")}</span></h2>
+        <div className="cch__a">
+          {state.status === "ready" && state.columns.length ? <CountBadge n={shown} /> : null}
+          <IconButton label={tq("refresh")} icon={<IconRefresh />} onClick={refreshNow} busy={refreshing} tipAlign="end" aiId="call_center.board.refresh" />
+        </div>
       </div>
       {state.columns.length ? (
         <LeadFilterBar
@@ -336,7 +346,7 @@ export default function CallCenterBoard() {
                             {[titledByCategory ? "" : leadCategoryLabel(tp, lead.category), leadRegionLabel(te, lead.region)].filter(Boolean).join(" · ")}
                           </span>
                           <span className="pipe__tags">
-                            {lead.scoreKey ? <span className={`lscore lscore--${lead.scoreKey}`}>{leadScoreLabel(tp, lead.scoreKey)}</span> : null}
+                            <ScoreChip score={lead.scoreKey} />
                             <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`} title={tp("assign.title")}>
                               <span>{assigneeLabel(tp, ops.people, lead.assignedTo, meId, ops.status === "ready")}</span>
                             </span>
