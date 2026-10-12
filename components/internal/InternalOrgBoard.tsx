@@ -24,11 +24,14 @@ export default function InternalOrgBoard({
   onAddUnit,
   onAddEmployee,
   onOpenEmployee,
+  actions,
   failed,
 }: {
   board: OrgBoard;
   loading: boolean;
   view: OrgView;
+  // What the whiteboard's right-click menu and keys do to a unit.
+  actions: Pick<Parameters<typeof OrgWhiteboard>[0], "onRename" | "onDuplicate" | "onAddAbove" | "onCloseUnit">;
   // The board could not be read: the page says so; no "no units yet" here.
   failed?: boolean;
   onEditUnit: (unitId: string) => void;
@@ -62,12 +65,13 @@ export default function InternalOrgBoard({
   }, [board.nodes, tb]);
   const selected = board.nodes.find((n) => n.id === selectedId) ?? null;
 
-  if (loading) return <div className="hrm-panel"><HrmLoading rows={6} /></div>;
+  // A re-read keeps the board on screen (and its zoom and place).
+  if (loading && !board.nodes.length) return <div className="hrm-panel"><HrmLoading rows={6} /></div>;
   if (failed && !trees.length) return null;
   if (!trees.length) {
     return <div className="hrm-panel"><HrmEmpty icon={IconBuilding} title={t("emptyUnits")} text={tb("emptyLead")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => onAddUnit("")}><IconPlus />{t("newUnit")}</button>} /></div>;
   }
-  if (view === "board") return <OrgWhiteboard trees={trees} onEditUnit={onEditUnit} onAddUnit={onAddUnit} onAddEmployee={onAddEmployee} onOpenEmployee={onOpenEmployee} />;
+  if (view === "board") return <OrgWhiteboard trees={trees} {...actions} onEditUnit={onEditUnit} onAddUnit={onAddUnit} onAddEmployee={onAddEmployee} onOpenEmployee={onOpenEmployee} />;
   if (view === "stats") return <OrgStats board={board} trees={trees} />;
 
   return (

@@ -7,23 +7,30 @@ import { getOrgUnitDetail, normEmployee, personName, type OrgBoardNode } from "@
 import {
   IconBriefcase,
   IconBuilding,
+  IconArrowRight,
   IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
+  IconCircleX,
   IconClose,
+  IconDocLines,
   IconDownload,
   IconEdit,
   IconExpand,
+  IconExternal,
+  IconEye,
   IconLayers,
   IconMinus,
   IconPlus,
   IconSearch,
+  IconTarget,
   IconUser,
   IconUserPlus,
   IconUsers,
 } from "@/components/icons";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { HrmEmpty, HrmError, HrmKv, HrmLoading, HrmPerson, HrmStatus, useHrmFormat } from "@/components/internal/HrmUi";
+import OrgContextMenu, { type OrgMenuItem } from "./OrgContextMenu";
 import { flatten, positionIdOf, type Tree } from "./orgTree";
 
 // The organisation as a whiteboard: every unit a card with its type's colour
@@ -122,18 +129,31 @@ function edgePath(b: Box): string {
   return `M${px} ${p.y + CH}V${mid - r}Q${px} ${mid} ${px + dir * r} ${mid}H${cx - dir * r}Q${cx} ${mid} ${cx} ${mid + r}V${b.y}`;
 }
 
+type Menu = { kind: "node"; id: string; x: number; y: number } | { kind: "edge"; id: string; x: number; y: number } | { kind: "pane"; x: number; y: number };
+const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
+
 export default function OrgWhiteboard({
   trees,
   onEditUnit,
   onAddUnit,
   onAddEmployee,
   onOpenEmployee,
+  onRename,
+  onDuplicate,
+  onAddAbove,
+  onCloseUnit,
 }: {
   trees: Tree[];
   onEditUnit: (unitId: string) => void;
   onAddUnit: (parentId: string) => void;
   onAddEmployee: (unitId: string) => void;
   onOpenEmployee: (employeeId: string) => void;
+  // Right-click (and keyboard) actions on a unit.
+  onRename: (unitId: string, name: string) => Promise<void>;
+  onDuplicate: (unitId: string) => void;
+  // A new unit between this one and its parent (or above the top).
+  onAddAbove: (unitId: string) => void;
+  onCloseUnit: (unitId: string) => void;
 }) {
   const tb = useTranslations("internal.people.board");
   const tu = useTranslations("internal.ui");
@@ -147,6 +167,10 @@ export default function OrgWhiteboard({
   const [full, setFull] = useState(false);
   const [mini, setMini] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
+  const [menu, setMenu] = useState<Menu | null>(null);
+  const [editing, setEditing] = useState("");
+  const [chainOf, setChainOf] = useState("");
+  const [copied, setCopied] = useState("");
   const [cam, setCam] = useState<Cam>({ x: 0, y: 0, k: 1 });
   const [size, setSize] = useState({ w: 0, h: 0 });
   const fitted = useRef(false);
@@ -335,17 +359,124 @@ export default function OrgWhiteboard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, viewW]);
 
+  // ── The right-click menu ───────────────────────────────────────────────
+  const at = (clientX: number, clientY: number) => {
+    const r = shell.current?.getBoundingClientRect();
+    return { x: clientX - (r?.left ?? 0), y: clientY - (r?.top ?? 0) };
+  };
+  const boxOfId = (id: string) => boxes.find((b) => b.tree.node.id === id) ?? null;
+  // Show one branch whole: the camera fits the unit and everything under it.
+  const showBranch = (id: string) => {
+    const root = boxOfId(id);
+    if (!root) return;
+    const inside = boxes.filter((b) => {
+      for (let p: Box | null = b; p; p = p.parent) if (p === root) return true;
+      return false;
+    });
+    const x0 = Math.min(...inside.map((b) => b.x));
+    const y0 = Math.min(...inside.map((b) => b.y));
+    fitTo({ x: x0, y: y0, w: Math.max(...inside.map((b) => b.x + CW)) - x0, h: Math.max(...inside.map((b) => b.y + CH)) - y0 }, 1.1);
+  };
+  const copyText = (text: string, what: string) => {
+    void navigator.clipboard?.writeText(text).then(() => {
+      setCopied(what);
+      setTimeout(() => setCopied(""), 1800);
+    });
+  };
+  const unitLink = (b: Box) => `${window.location.origin}${window.location.pathname}?unit=${encodeURIComponent(b.tree.node.entityId)}`;
+  const menuItems = (m: Menu): OrgMenuItem[] => {
+    if (m.kind === "node") {
+      const b = boxOfId(m.id);
+      if (!b) return [];
+      const n = b.tree.node;
+      const hasKids = b.tree.units.length > 0;
+      return [
+        { label: tb("menu.open"), icon: IconEye, kbd: "Enter", onSelect: () => setSelected(n.id) },
+        { label: tb("menu.rename"), icon: IconEdit, kbd: "F2", onSelect: () => setEditing(n.id) },
+        { label: tb("menu.edit"), icon: IconDocLines, onSelect: () => onEditUnit(n.entityId) },
+        { kind: "separator" },
+        { label: tb("addChild"), icon: IconPlus, kbd: "Tab", onSelect: () => onAddUnit(n.entityId) },
+        { label: tb("addSibling"), icon: IconPlus, hidden: !b.parent, onSelect: () => b.parent && onAddUnit(b.parent.tree.node.entityId) },
+        { label: tb("menu.addAbove"), icon: IconPlus, onSelect: () => onAddAbove(n.entityId) },
+        { label: tb("addEmployee"), icon: IconUserPlus, onSelect: () => onAddEmployee(n.entityId) },
+        { kind: "separator" },
+        { label: tb("menu.duplicate"), icon: IconLayers, kbd: `${MOD}D`, onSelect: () => onDuplicate(n.entityId) },
+        { label: tb("menu.copyName"), icon: IconDocLines, onSelect: () => copyText(n.label, tb("menu.copiedName")) },
+        { label: tb("menu.copyLink"), icon: IconExternal, onSelect: () => copyText(unitLink(b), tb("menu.copiedLink")) },
+        { kind: "separator" },
+        { label: collapsed.has(n.id) ? tb("expand") : tb("collapse"), icon: IconChevronDown, hidden: !hasKids, onSelect: () => toggle(n.id) },
+        { label: tb("menu.chain"), icon: IconTarget, checked: chainOf === n.id, onSelect: () => setChainOf(chainOf === n.id ? "" : n.id) },
+        { label: tb("menu.branch"), icon: IconExpand, hidden: !hasKids, onSelect: () => showBranch(n.id) },
+        { kind: "separator" },
+        { label: tb("menu.close"), icon: IconCircleX, kbd: "Del", danger: true, onSelect: () => onCloseUnit(n.entityId) },
+      ];
+    }
+    if (m.kind === "edge") {
+      const child = boxOfId(m.id);
+      if (!child?.parent) return [];
+      return [
+        { label: tb("menu.insertBetween"), icon: IconPlus, onSelect: () => onAddAbove(child.tree.node.entityId) },
+        { kind: "separator" },
+        { label: tb("menu.goParent", { name: child.parent.tree.node.label }), icon: IconArrowRight, onSelect: () => { setSelected(child.parent!.tree.node.id); focusBox(child.parent!); } },
+        { label: tb("menu.goChild", { name: child.tree.node.label }), icon: IconArrowRight, onSelect: () => { setSelected(child.tree.node.id); focusBox(child); } },
+      ];
+    }
+    return [
+      { label: tb("menu.addRoot"), icon: IconPlus, onSelect: () => onAddUnit("") },
+      { kind: "separator" },
+      { label: tb("fit"), icon: IconExpand, kbd: "0", onSelect: fit },
+      { label: tb("expandAll"), icon: IconChevronDown, disabled: !collapsed.size, onSelect: expandAll },
+      { label: tb("collapseAll"), icon: IconLayers, onSelect: collapseAll },
+      { label: tb("menu.clearChain"), icon: IconTarget, hidden: !chainOf, onSelect: () => setChainOf("") },
+      { kind: "separator" },
+      { kind: "header", label: tb("cardMode") },
+      ...(["structure", "people", "positions"] as BoardMode[]).map((mo) => ({ label: tb(`mode.${mo}`), checked: mode === mo, onSelect: () => setMode(mo) })),
+      { kind: "separator" },
+      { label: tb("minimap"), checked: mini, onSelect: () => setMini(!mini) },
+      { label: full ? tb("exitFull") : tb("full"), checked: full, onSelect: () => setFull(!full) },
+      { kind: "separator" },
+      { label: tb("exportPng"), icon: IconDownload, onSelect: () => download("png") },
+      { label: tb("exportSvg"), icon: IconDownload, onSelect: () => download("svg") },
+    ];
+  };
+  // The chain asked for: that unit, everything above it and below it.
+  const chainSet = useMemo(() => {
+    if (!chainOf) return null;
+    const root = boxes.find((b) => b.tree.node.id === chainOf);
+    if (!root) return null;
+    const out = new Set<string>();
+    for (let p: Box | null = root; p; p = p.parent) out.add(p.tree.node.id);
+    for (const b of boxes) for (let p: Box | null = b; p; p = p.parent) if (p === root) out.add(b.tree.node.id);
+    return out;
+  }, [boxes, chainOf]);
+
+  // A unit link (?unit=…) opens on that unit.
+  const linked = useRef(false);
+  useEffect(() => {
+    if (linked.current || !boxes.length || !viewW) return;
+    linked.current = true;
+    const id = new URLSearchParams(window.location.search).get("unit");
+    const b = id ? boxes.find((x) => x.tree.node.entityId === id) : null;
+    if (!b) return;
+    const h = setTimeout(() => {
+      setSelected(b.tree.node.id);
+      focusBox(b);
+    }, 60);
+    return () => clearTimeout(h);
+  }, [boxes, viewW, focusBox]);
+
   // Esc closes the panel, then leaves full screen — unless a dialog is open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || document.querySelector(".ldrw, .amodal, .hn-pal")) return;
       if (exportOpen) setExportOpen(false);
+      else if (chainOf) setChainOf("");
       else if (selected) setSelected("");
       else if (full) setFull(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected, full, exportOpen]);
+  }, [selected, full, exportOpen, chainOf]);
 
   const download = (kind: "svg" | "png") => {
     setExportOpen(false);
@@ -384,6 +515,17 @@ export default function OrgWhiteboard({
       onClick={(e) => {
         if (!moved.current && e.target === e.currentTarget) setSelected("");
       }}
+      // The board never scrolls: focusing a card half off screen would shift
+      // the whole board (toolbar and all) sideways. The camera moves instead.
+      onScroll={(e) => {
+        e.currentTarget.scrollLeft = 0;
+        e.currentTarget.scrollTop = 0;
+      }}
+      onContextMenu={(e) => {
+        if ((e.target as HTMLElement).closest(".ob-panel, .ob-tools, .ob-legend, .ob-zoom, .ob-mini, .ob-menu, input")) return;
+        e.preventDefault();
+        setMenu({ kind: "pane", ...at(e.clientX, e.clientY) });
+      }}
       tabIndex={0}
       aria-label={tb("boardLabel")}
       onKeyDown={(e) => {
@@ -398,7 +540,22 @@ export default function OrgWhiteboard({
           {boxes
             .filter((b) => b.parent)
             .map((b) => (
-              <path key={b.tree.node.id} d={edgePath(b)} className={`${chain.has(b.tree.node.id) && chain.has(b.parent!.tree.node.id) ? "is-chain" : ""}${needle && !matchIds.has(b.tree.node.id) ? " is-dim" : ""}`} />
+              <path key={b.tree.node.id} d={edgePath(b)} className={`${chain.has(b.tree.node.id) && chain.has(b.parent!.tree.node.id) ? "is-chain" : ""}${(needle && !matchIds.has(b.tree.node.id)) || (chainSet && !chainSet.has(b.tree.node.id)) ? " is-dim" : ""}${menu?.kind === "edge" && menu.id === b.tree.node.id ? " is-menu" : ""}`} />
+            ))}
+          {/* Wide invisible twins of the lines: what a right-click on a line hits. */}
+          {boxes
+            .filter((b) => b.parent)
+            .map((b) => (
+              <path
+                key={`hit-${b.tree.node.id}`}
+                d={edgePath(b)}
+                className="ob-edge-hit"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setMenu({ kind: "edge", id: b.tree.node.id, ...at(e.clientX, e.clientY) });
+                }}
+              />
             ))}
         </svg>
         {boxes.map((b) => (
@@ -407,7 +564,7 @@ export default function OrgWhiteboard({
             box={b}
             mode={mode}
             selected={selected === b.tree.node.id}
-            dim={(needle && !matchIds.has(b.tree.node.id)) || (types.size > 0 && !types.has(asStr(b.tree.node.raw.unit_type) || "department"))}
+            dim={(needle && !matchIds.has(b.tree.node.id)) || (types.size > 0 && !types.has(asStr(b.tree.node.raw.unit_type) || "department")) || (!!chainSet && !chainSet.has(b.tree.node.id))}
             match={!!needle && matchIds.has(b.tree.node.id)}
             chain={chain.has(b.tree.node.id) && selected !== b.tree.node.id}
             collapsed={collapsed.has(b.tree.node.id)}
@@ -417,9 +574,47 @@ export default function OrgWhiteboard({
             onAddChild={() => onAddUnit(b.tree.node.entityId)}
             onAddSibling={b.parent ? () => onAddUnit(b.parent!.tree.node.entityId) : undefined}
             onOpenEmployee={onOpenEmployee}
+            menuOn={menu?.kind === "node" && menu.id === b.tree.node.id}
+            onFocusCard={() => {
+              const x = b.x * cam.k + cam.x;
+              const y = b.y * cam.k + cam.y;
+              if (x < 0 || y < 0 || x + CW * cam.k > viewW || y + CH * cam.k > size.h) focusBox(b);
+            }}
+            editing={editing === b.tree.node.id}
+            onMenu={(x, y) => setMenu({ kind: "node", id: b.tree.node.id, ...at(x, y) })}
+            onRename={async (name) => {
+              setEditing("");
+              shell.current?.focus({ preventScroll: true });
+              if (name && name !== b.tree.node.label) await onRename(b.tree.node.entityId, name);
+            }}
+            onShortcut={(key) => {
+              const id = b.tree.node.entityId;
+              if (key === "rename") setEditing(b.tree.node.id);
+              else if (key === "child") onAddUnit(id);
+              else if (key === "duplicate") onDuplicate(id);
+              else if (key === "close") onCloseUnit(id);
+            }}
           />
         ))}
       </div>
+
+      {menu ? (
+        <OrgContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={menuItems(menu)}
+          label={tb("menu.label")}
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
+      {copied ? <span className="ob-toast" role="status">{copied}</span> : null}
+      {chainSet && chainOf ? (
+        <button type="button" className="ob-chip" onClick={() => setChainOf("")}>
+          <IconTarget aria-hidden />
+          {tb("menu.chainOf", { name: boxOfId(chainOf)?.tree.node.label ?? "" })}
+          <IconClose aria-hidden />
+        </button>
+      ) : null}
 
       <div className="ob-tools" role="toolbar" aria-label={tb("toolbar")}>
         <div className="ob-seg" role="radiogroup" aria-label={tb("cardMode")}>
@@ -582,6 +777,12 @@ function Card({
   onAddChild,
   onAddSibling,
   onOpenEmployee,
+  menuOn,
+  onFocusCard,
+  editing,
+  onMenu,
+  onRename,
+  onShortcut,
 }: {
   box: Box;
   mode: BoardMode;
@@ -596,8 +797,20 @@ function Card({
   onAddChild: () => void;
   onAddSibling?: () => void;
   onOpenEmployee: (id: string) => void;
+  menuOn: boolean;
+  onFocusCard: () => void;
+  editing: boolean;
+  onMenu: (clientX: number, clientY: number) => void;
+  onRename: (name: string) => void;
+  onShortcut: (key: "rename" | "child" | "duplicate" | "close") => void;
 }) {
   const tb = useTranslations("internal.people.board");
+  // A long press on a touch screen opens the same menu as a right-click.
+  const press = useRef<{ t: ReturnType<typeof setTimeout>; x: number; y: number } | null>(null);
+  const cancelPress = () => {
+    if (press.current) clearTimeout(press.current.t);
+    press.current = null;
+  };
   const tu = useTranslations("internal.ui");
   const n = box.tree.node;
   const people = box.tree.people;
@@ -618,7 +831,7 @@ function Card({
   const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
   return (
     <div
-      className={`obc${selected ? " is-sel" : ""}${dim ? " is-dim" : ""}${match ? " is-match" : ""}${chain ? " is-chain" : ""}`}
+      className={`obc${selected ? " is-sel" : ""}${dim ? " is-dim" : ""}${match ? " is-match" : ""}${chain ? " is-chain" : ""}${menuOn ? " is-menu" : ""}`}
       style={style}
       data-unit={n.entityId}
       role="button"
@@ -633,10 +846,44 @@ function Card({
         e.stopPropagation();
         onEdit();
       }}
+      onFocus={(e) => e.target === e.currentTarget && onFocusCard()}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelPress();
+        onMenu(e.clientX, e.clientY);
+      }}
+      onPointerDown={(e) => {
+        if (e.pointerType !== "touch") return;
+        const { clientX, clientY } = e;
+        press.current = { t: setTimeout(() => onMenu(clientX, clientY), 550), x: clientX, y: clientY };
+      }}
+      onPointerMove={(e) => {
+        if (press.current && Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 8) cancelPress();
+      }}
+      onPointerUp={cancelPress}
+      onPointerCancel={cancelPress}
       onKeyDown={(e) => {
+        if (editing) return;
+        const r = e.currentTarget.getBoundingClientRect();
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onSelect();
+        } else if (e.key === "F2") {
+          e.preventDefault();
+          onShortcut("rename");
+        } else if (e.key === "Tab" && !e.shiftKey && !e.altKey) {
+          e.preventDefault();
+          onShortcut("child");
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
+          e.preventDefault();
+          onShortcut("duplicate");
+        } else if (e.key === "Delete") {
+          e.preventDefault();
+          onShortcut("close");
+        } else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+          e.preventDefault();
+          onMenu(r.left + 24, r.top + 30);
         }
       }}
       title={tb("dblEdit")}
@@ -650,7 +897,7 @@ function Card({
         <span className="obc__sp" />
         {status && status !== "active" ? <span className="obc__st">{status}</span> : null}
       </div>
-      <div className="obc__title">{n.label}</div>
+      {editing ? <RenameInput initial={n.label} label={tb("menu.rename")} onDone={onRename} /> : <div className="obc__title">{n.label}</div>}
       <div className="obc__body">
         {mode === "positions" ? (
           positions.length ? (
@@ -755,6 +1002,37 @@ function Card({
         </button>
       ) : null}
     </div>
+  );
+}
+
+// The name typed on the card itself: Enter keeps it, Esc drops it.
+function RenameInput({ initial, label, onDone }: { initial: string; label: string; onDone: (v: string) => void }) {
+  const [v, setV] = useState(initial);
+  const done = useRef(false);
+  const finish = (value: string) => {
+    if (done.current) return;
+    done.current = true;
+    onDone(value);
+  };
+  return (
+    <input
+      className="obc__rename"
+      value={v}
+      maxLength={160}
+      aria-label={label}
+      autoFocus
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => setV(e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") finish(v.trim());
+        if (e.key === "Escape") finish("");
+      }}
+      onBlur={() => finish(v.trim())}
+    />
   );
 }
 

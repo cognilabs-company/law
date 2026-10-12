@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { ApiError, asDict } from "@/lib/http";
+import { ApiError, asDict, asStr } from "@/lib/http";
+import { toast } from "@/lib/toast";
+import Modal from "@/components/admin/Modal";
 import { apiMessage } from "@/components/internal/live/bits";
 import {
   createOrgUnit,
@@ -38,7 +40,10 @@ export default function InternalOrgPage() {
   const [positions, setPositions] = useState<HrmPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [unitForm, setUnitForm] = useState<{ id: string; parentId: string } | null>(null);
+  const [unitForm, setUnitForm] = useState<UnitFormState | null>(null);
+  const [closing, setClosing] = useState<{ id: string; name: string } | null>(null);
+  const [closeBusy, setCloseBusy] = useState(false);
+  const [closeErr, setCloseErr] = useState("");
   const [positionForm, setPositionForm] = useState<HrmPosition | "new" | null>(null);
   const [employeeId, setEmployeeId] = useState("");
   const [newEmployeeUnit, setNewEmployeeUnit] = useState<string | null>(null);
@@ -119,6 +124,22 @@ export default function InternalOrgPage() {
         loading={loading}
         view={view}
         failed={error}
+        actions={{
+          onRename: async (id, name) => {
+            try {
+              await updateOrgUnit(id, { name });
+              void load(undefined, true);
+            } catch (cause) {
+              toast(apiMessage(cause, t("saveError")), { tone: "err" });
+            }
+          },
+          onDuplicate: (id) => setUnitForm({ id: "", parentId: "", copyOf: id }),
+          onAddAbove: (id) => setUnitForm({ id: "", parentId: dir.unit(id)?.parentId ?? (board.nodes.find((n) => n.entityId === id && n.type !== "employee")?.parentId.replace(/^unit:/, "") ?? ""), above: id }),
+          onCloseUnit: (id) => {
+            setCloseErr("");
+            setClosing({ id, name: dir.unitName(id) || board.nodes.find((n) => n.entityId === id)?.label || "" });
+          },
+        }}
         onEditUnit={(id) => setUnitForm({ id, parentId: "" })}
         onAddUnit={(parentId) => setUnitForm({ id: "", parentId })}
         onAddEmployee={(unitId) => setNewEmployeeUnit(unitId)}
@@ -147,7 +168,43 @@ export default function InternalOrgPage() {
         ) : <HrmEmpty icon={IconBriefcase} title={t("emptyPositions")} />}
       </HrmPanel>
 
-      <UnitDrawer state={unitForm} board={board} onClose={() => setUnitForm(null)} onSaved={() => { setUnitForm(null); reload(); }} />
+      <UnitDrawer state={unitForm} board={board} onClose={() => setUnitForm(null)} onSaved={() => { setUnitForm(null); refreshHrmDirectory(); void load(undefined, true); }} />
+      <Modal
+        open={!!closing}
+        onClose={() => !closeBusy && setClosing(null)}
+        title={t("board.menu.closeTitle", { name: closing?.name ?? "" })}
+        aiId="internal.org.close-unit"
+        footer={
+          <>
+            <button type="button" className="btn btn--line btn--sm" onClick={() => setClosing(null)} disabled={closeBusy}>{t("cancelEdit")}</button>
+            <button
+              type="button"
+              className="btn btn--sm btn--danger"
+              disabled={closeBusy}
+              onClick={async () => {
+                if (!closing) return;
+                setCloseBusy(true);
+                setCloseErr("");
+                try {
+                  await updateOrgUnit(closing.id, { status: "inactive" });
+                  setClosing(null);
+                  refreshHrmDirectory();
+                  void load(undefined, true);
+                } catch (cause) {
+                  setCloseErr(apiMessage(cause, t("saveError")));
+                } finally {
+                  setCloseBusy(false);
+                }
+              }}
+            >
+              {closeBusy ? t("saving") : t("board.menu.closeConfirm")}
+            </button>
+          </>
+        }
+      >
+        <p>{t("board.menu.closeLead")}</p>
+        {closeErr ? <HrmError text={closeErr} /> : null}
+      </Modal>
       <PositionDrawer value={positionForm} onClose={() => setPositionForm(null)} onSaved={() => { setPositionForm(null); reload(); }} />
       <Employee360 employee={employee} onClose={() => setEmployeeId("")} onSaved={reload} />
       <EmployeeCreate open={newEmployeeUnit !== null} unitId={newEmployeeUnit ?? ""} onClose={() => setNewEmployeeUnit(null)} onCreated={(id) => { setNewEmployeeUnit(null); reload(); setEmployeeId(id); }} />
@@ -155,7 +212,11 @@ export default function InternalOrgPage() {
   );
 }
 
-function UnitDrawer({ state, board, onClose, onSaved }: { state: { id: string; parentId: string } | null; board: OrgBoard; onClose: () => void; onSaved: () => void }) {
+// A unit to edit (id), a new one (under parentId), a copy of one (copyOf), or
+// a new one put in between a unit and its parent (above).
+type UnitFormState = { id: string; parentId: string; copyOf?: string; above?: string };
+
+function UnitDrawer({ state, board, onClose, onSaved }: { state: UnitFormState | null; board: OrgBoard; onClose: () => void; onSaved: () => void }) {
   const t = useTranslations("internal.people");
   const tu = useTranslations("internal.ui");
   const label = useStatusLabel();
@@ -169,9 +230,13 @@ function UnitDrawer({ state, board, onClose, onSaved }: { state: { id: string; p
     setPrev(state);
     setError("");
     if (state) {
-      const u = state.id ? dir.unit(state.id) : undefined;
-      const node = state.id ? board.nodes.find((n) => n.entityId === state.id && n.type !== "employee") : undefined;
-      setForm(u
+      const src = state.id || state.copyOf || "";
+      const u = src ? dir.unit(src) : undefined;
+      const node = src ? board.nodes.find((n) => n.entityId === src && n.type !== "employee") : undefined;
+      if (state.copyOf) {
+        const name = u?.name || node?.label || "";
+        setForm({ ...blank, name: name ? t("board.menu.copyNamed", { name }) : "", unit_type: u?.type || asStr(node?.raw.unit_type) || "department", parent_id: u?.parentId || node?.parentId.replace(/^unit:/, "") || "", status: "active" });
+      } else setForm(u
         ? { name: u.name, code: u.code, unit_type: u.type || "department", parent_id: u.parentId, head_employee_id: u.headId, status: u.status || "active", order: String(u.order || "") }
         : node
           ? { ...blank, name: node.label, code: node.subtitle, parent_id: node.parentId.replace(/^unit:/, ""), head_employee_id: String(node.raw.head && (node.raw.head as Record<string, unknown>).id || "") }
@@ -202,7 +267,12 @@ function UnitDrawer({ state, board, onClose, onSaved }: { state: { id: string; p
     try {
       const payload = { name: form.name.trim(), code: form.code.trim(), unit_type: form.unit_type, parent_id: form.parent_id || null, head_employee_id: form.head_employee_id || null, status: form.status, ...(form.order ? { order_index: Number(form.order) } : {}) };
       if (state.id) await updateOrgUnit(state.id, payload);
-      else await createOrgUnit({ ...payload, meta: {} });
+      else {
+        const created = asDict(await createOrgUnit({ ...payload, meta: {} }));
+        const newId = asStr(created.id) || asStr(asDict(created.unit).id);
+        // In between: the unit it was put above now hangs under it.
+        if (state.above && newId) await updateOrgUnit(state.above, { parent_id: newId });
+      }
       onSaved();
     } catch (cause) {
       // The backend's own reason (a cycle, a duplicate code, no right to
@@ -214,7 +284,12 @@ function UnitDrawer({ state, board, onClose, onSaved }: { state: { id: string; p
   }
 
   return (
-    <HrmDrawer open={!!state} onClose={onClose} title={state?.id ? t("editUnit") : t("newUnit")} sub={state?.id ? form.name : t("newUnitLead")}>
+    <HrmDrawer
+      open={!!state}
+      onClose={onClose}
+      title={state?.id ? t("editUnit") : state?.above ? t("board.menu.addAbove") : state?.copyOf ? t("board.menu.duplicate") : t("newUnit")}
+      sub={state?.id ? form.name : state?.above ? t("board.menu.aboveLead", { name: dir.unitName(state.above) || board.nodes.find((n) => n.entityId === state.above)?.label || "" }) : t("newUnitLead")}
+    >
       <form className="hrm-form" onSubmit={submit}>
         {error ? <HrmError text={error} /> : null}
         <div className="hrm-form__grid">
