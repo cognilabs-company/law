@@ -83,6 +83,8 @@ export default function AdminAds() {
 
       <Modal open={open} onClose={() => setOpen(false)} title={t("ads.create")}>
         <AdminForm
+          onCancel={() => setOpen(false)}
+          cancelLabel={t("form.cancel")}
           fields={[
             { name: "title", label: t("form.title"), required: true },
             { name: "description", label: t("form.description"), type: "textarea" },
@@ -111,6 +113,8 @@ export default function AdminAds() {
         {edit ? (
           <AdminForm
             key={edit.id}
+            onCancel={() => setEdit(null)}
+            cancelLabel={t("form.cancel")}
             fields={[
               { name: "title", label: t("form.title"), required: true },
               { name: "description", label: t("form.description"), type: "textarea" },

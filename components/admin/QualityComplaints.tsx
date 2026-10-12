@@ -237,7 +237,7 @@ function QcDetail({ row, label, onClose, onDone }: { row: QualityComplaintRow; l
     if (!action) {
       const first = pickBox.current?.querySelector<HTMLInputElement>("input[type=radio]");
       first?.focus({ preventScroll: true });
-      pickBox.current?.scrollIntoView({ block: "nearest" });
+      requestAnimationFrame(() => document.getElementById(actErrId)?.scrollIntoView({ block: "nearest" }));
       return;
     }
     if (noNote) {

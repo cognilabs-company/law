@@ -271,7 +271,7 @@ export default function AdminOverview() {
         { label: td("drill.paidCount"), value: num(stat("paid_count") ?? 0) },
         { label: td("drill.pendingCount"), value: num(stat("pending_count") ?? 0) },
       ] },
-      { kind: "bars", title: td("drill.channels"), rows: channels.map((ch) => ({ label: TEST_CHANNEL.test(ch.name) ? `${humanizeSlug(ch.name)} · ${tb("testTag")}` : humanizeSlug(ch.name), value: money(ch.revenue), n: ch.revenue, sub: `${num(ch.leads)} · ${ch.pct}%`, tone: TEST_CHANNEL.test(ch.name) ? "muted" : undefined })) },
+      { kind: "bars", title: td("drill.channels"), rows: channels.map((ch) => ({ label: TEST_CHANNEL.test(ch.name) ? `${humanizeSlug(ch.name)} · ${tb("testTag")}` : humanizeSlug(ch.name), value: money(ch.revenue), short: `${short(ch.revenue)} ${som}`, n: ch.revenue, sub: `${num(ch.leads)} · ${ch.pct}%`, tone: TEST_CHANNEL.test(ch.name) ? "muted" : undefined })) },
     ],
     link: adminLinkFor("ceo", "/admin/ceo", td("drill.goCeo"), session),
   });

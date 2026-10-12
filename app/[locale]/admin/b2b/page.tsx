@@ -54,7 +54,7 @@ export default function AdminB2b() {
       </div>
       <p className="ppanel__note">{t("lead")}</p>
       <Modal open={open} onClose={() => setOpen(false)} title={t("add")}>
-        <ClientForm onCreated={() => void res.refresh()} onDone={() => { reload(); setOpen(false); }} />
+        <ClientForm onCreated={() => void res.refresh()} onDone={() => { reload(); setOpen(false); }} onCancel={() => setOpen(false)} />
       </Modal>
       {res.status === "loading" ? (
         <Skeleton rows={4} />
@@ -87,12 +87,14 @@ export default function AdminB2b() {
   );
 }
 
-function ClientForm({ onCreated, onDone }: { onCreated: () => void; onDone: () => void }) {
+function ClientForm({ onCreated, onDone, onCancel }: { onCreated: () => void; onDone: () => void; onCancel: () => void }) {
   const t = useTranslations("admin.b2b");
   const tf = useTranslations("admin.form");
   const created = useRef("");
   return (
     <AdminForm
+      onCancel={onCancel}
+      cancelLabel={tf("cancel")}
       fields={[
         { name: "name", label: t("cName"), required: true },
         { name: "inn", label: t("cInn"), placeholder: "123456789" },

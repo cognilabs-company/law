@@ -11388,7 +11388,7 @@
         "more": "Yana {n} ta",
         "less": "Kamroq ko'rsatish",
         "noName": "Ismsiz foydalanuvchi",
-        "role": {"participant":"Ishtirokchi","client":"Mijoz","lawyer":"Huquqshunos"},
+        "role": {"participant":"Ishtirokchi","client":"Mijoz","lawyer":"Yurist"},
         "pstatus": {"kicked":"Chiqarib yuborilgan"},
         "dur": {"sec":"{n} soniya","min":"{m} daq","minSec":"{m} daq {s} son","hour":"{h} soat","hourMin":"{h} soat {m} daq"},
         "workId": "Ish ID",

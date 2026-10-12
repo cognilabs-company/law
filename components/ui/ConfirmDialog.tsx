@@ -110,9 +110,13 @@ export default function ConfirmHost() {
     setBusyKey(key);
     try {
       const r = await run();
-      if (r === false) return;
+      if (r === false) {
+        requestAnimationFrame(() => okRef.current?.focus({ preventScroll: true }));
+        return;
+      }
       settle(key, true);
     } catch {
+      requestAnimationFrame(() => okRef.current?.focus({ preventScroll: true }));
       return;
     } finally {
       setBusyKey((k) => (k === key ? 0 : k));
