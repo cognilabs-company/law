@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, type MouseEvent, type PointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
 
 // What the two office floors (the admin Live Office and the HRM one) share:
 // the projection that turns a floor plan into a view from above and to the
@@ -32,10 +32,10 @@ export const onFloor = (z = 0) => `matrix(${XX} ${XY} ${YX} ${YY} 0 ${(-z * ZU).
 export const onWallX = (y: number) => `matrix(${XX} ${XY} 0 ${-ZU} ${(y * YX).toFixed(2)} ${(y * YY).toFixed(2)})`;
 export const onWallY = (x: number) => `matrix(${YX} ${YY} 0 ${-ZU} ${(x * XX).toFixed(2)} ${(x * XY).toFixed(2)})`;
 
-export function Block({ x, y, w, d, h, z = 0, cls }: { x: number; y: number; w: number; d: number; h: number; z?: number; cls: string }) {
+export function Block({ x, y, w, d, h, z = 0, cls, style }: { x: number; y: number; w: number; d: number; h: number; z?: number; cls: string; style?: CSSProperties }) {
   const t = z + h;
   return (
-    <g className={cls}>
+    <g className={cls} style={style}>
       <polygon className="lf-f2" points={pts([x + w, y, z], [x + w, y + d, z], [x + w, y + d, t], [x + w, y, t])} />
       <polygon className="lf-f1" points={pts([x, y + d, z], [x + w, y + d, z], [x + w, y + d, t], [x, y + d, t])} />
       <polygon className="lf-f0" points={pts([x, y, t], [x + w, y, t], [x + w, y + d, t], [x, y + d, t])} />

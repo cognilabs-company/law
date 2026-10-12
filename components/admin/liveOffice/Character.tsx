@@ -14,7 +14,7 @@ import type { PersonKind } from "@/lib/liveOffice/model";
 //   client   — amber hoodie, jeans, sneakers
 // Every pose sits in the same 77×90 box with its anchor at (38.5, 88): the
 // bottom of the desk, the chair, the sofa, or the feet.
-export type Pose = "work" | "back" | "sofa" | "mug" | "idle" | "walk" | "stand" | "head";
+export type Pose = "work" | "back" | "sofa" | "mug" | "idle" | "walk" | "stand" | "head" | "headBack";
 
 export const FIG_VIEW = { w: 77, h: 90, ax: 38.5, ay: 88 };
 
@@ -28,6 +28,9 @@ const OUTFIT: Record<PersonKind, { top: [string, string]; legs: string; shoes: s
   client: { top: ["#FBBF4D", "#E08A12"], legs: "#3B5B8C", shoes: "#F8FAFC" },
 };
 const CHAIR = "#3F4A5F";
+
+// The outfit colours of a role, for figures drawn outside this sprite.
+export const outfitOf = (kind: PersonKind) => OUTFIT[kind];
 
 function hash(s: string): number {
   let h = 2166136261;
@@ -390,7 +393,7 @@ export default function Character({ id, kind, pose, title }: { id: string; kind:
   const o = OUTFIT[kind];
   const x: Ctx = { look, kind, c1: o.top[0], c2: o.top[1], legs: o.legs, shoes: o.shoes, uid };
   const p = pose === "idle" ? "mug" : pose;
-  const head = p === "head";
+  const head = p === "head" || p === "headBack";
   return (
     <svg
       className={`lo-ch lo-ch--${p}`}
@@ -416,6 +419,12 @@ export default function Character({ id, kind, pose, title }: { id: string; kind:
         <g>
           <BodyFront x={x} top={49.5} />
           <HeadFront x={x} cy={41} />
+        </g>
+      ) : null}
+      {p === "headBack" ? (
+        <g>
+          <BodyBack x={x} top={49.5} />
+          <HeadBack x={x} cy={41} />
         </g>
       ) : null}
 
