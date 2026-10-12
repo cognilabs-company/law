@@ -2020,6 +2020,7 @@
       "notFound": "Service or specialist not found. The list was refreshed.",
       "inactivePromo": "Only active services can be promoted.",
       "invalid": "Invalid data. Check the fields.",
+      "priceRequired": "Enter a price — 0 is not allowed.",
       "offline": "No internet connection. Try again.",
       "unknown": "Something went wrong. Try again."
     },

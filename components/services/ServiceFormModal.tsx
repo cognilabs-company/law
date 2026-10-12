@@ -95,6 +95,7 @@ export default function ServiceFormModal({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<ServiceError | null>(null);
   const [policyErr, setPolicyErr] = useState(false);
+  const [priceReq, setPriceReq] = useState(false);
   const [bandLoad, setBandLoad] = useState<BandLoad | null>(null);
   const [serverBand, setServerBand] = useState<{ key: string; band: PriceBand } | null>(null);
   const [live, setLive] = useState(false);
@@ -132,6 +133,7 @@ export default function ServiceFormModal({
 
   const errText = (e: ServiceError) => {
     if (e.kind === "range") return t("limits.serverRange", { min: som(e.min), max: som(e.max) });
+    if (e.kind === "invalid" && e.detail) return e.detail;
     if (e.kind === "forbidden" && owner) return t("errors.forbiddenOwner");
     if (e.kind === "pendingAccount" && owner) return t("errors.pendingAccountOwner");
     return t(`errors.${e.kind}`);
@@ -141,6 +143,10 @@ export default function ServiceFormModal({
     if (busy || !service) return;
     if (askPolicy && !agreed) {
       setPolicyErr(true);
+      return;
+    }
+    if (n <= 0) {
+      setPriceReq(true);
       return;
     }
     if (off || advocateBlocked) return;
@@ -164,7 +170,7 @@ export default function ServiceFormModal({
   const close = () => {
     if (!busy) onClose();
   };
-  const priceErr = err?.kind === "range" ? errText(err) : "";
+  const priceErr = err?.kind === "range" ? errText(err) : priceReq ? t("errors.priceRequired") : "";
   const draft: PreviewDraft = {
     kind: "service",
     sellerId,
@@ -241,6 +247,7 @@ export default function ServiceFormModal({
               value={price}
               onChange={(v) => {
                 setPrice(digitsOf(v));
+                setPriceReq(false);
                 if (err?.kind === "range") setErr(null);
               }}
               band={band}

@@ -2020,6 +2020,7 @@
       "notFound": "Xizmat yoki mutaxassis topilmadi. Ro'yxat yangilandi.",
       "inactivePromo": "Targ'ib faqat faol xizmat uchun yoqiladi.",
       "invalid": "Ma'lumot noto'g'ri. Maydonlarni tekshiring.",
+      "priceRequired": "Narx kiriting — 0 bo'lishi mumkin emas.",
       "offline": "Internet aloqasi yo'q. Qayta urinib ko'ring.",
       "unknown": "Xatolik yuz berdi. Qayta urinib ko'ring."
     },

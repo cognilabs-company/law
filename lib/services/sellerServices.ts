@@ -1,5 +1,6 @@
 import { http, asDict, asStr, asNum, asArr, ApiError, isOffline } from "@/lib/http";
 import { uzs, uzsOpt } from "@/lib/money";
+import { firstFieldError } from "@/lib/formErrors";
 import { normService, type BackendService } from "@/lib/services/backend";
 import { getPublicPricingPolicy, readPriceModifiers, type PriceModifier } from "@/lib/services/marketplacePricing";
 import { listNotificationsRich } from "@/lib/services/notify";
@@ -347,7 +348,7 @@ export function serviceErrorOf(e: unknown, locale = "uz"): ServiceError {
   if (e.status === 422) {
     const limits = normLimits(detail.pricing_limits ?? detail.limits ?? asDict(e.data).pricing_limits ?? detail, locale);
     if (limits) return out("range", { min: limits.min, max: limits.max, limits });
-    return out("invalid", { detail: text });
+    return out("invalid", { detail: text || firstFieldError(e) });
   }
   if (e.status === 400 && Array.isArray(detail.advokat_only_services)) return out("advocateOnly");
   if (e.status === 403) return out(detail.account_status ? "pendingAccount" : "forbidden", { detail: text });
