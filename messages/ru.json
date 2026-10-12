@@ -13693,15 +13693,20 @@
         "team": "Команда",
         "branch": "Филиал",
         "division": "Подразделение"
-      }
+      },
+      "soon": "Скоро",
+      "soonHint": "Для этой функции серверная часть ещё не готова",
+      "unsaved": "Есть несохранённые изменения.",
+      "keepEditing": "Продолжить",
+      "discard": "Закрыть"
     },
     "staff": "Сотрудник",
     "menu": "Открыть внутреннюю навигацию",
     "backToPortal": "Вернуться в портал",
     "logout": "Выйти",
     "roles": { "superadmin": "Суперадмин", "admin": "Администратор", "manager": "Менеджер", "call_center": "Колл-центр", "call_center_lawyer": "Юрист колл-центра", "staff": "Внутренний сотрудник" },
-    "groups": { "workspace": "Рабочее место", "people": "Сотрудники", "operations": "Процессы", "support": "Помощь" },
-    "nav": { "dashboard": "Обзор", "me": "Я", "tasks": "Мои задачи", "attendance": "Посещаемость", "approvals": "Согласования", "messages": "Сообщения", "employees": "Сотрудники", "org": "Организация", "execution": "Исполнение", "time": "Время и посещаемость", "schedules": "Графики", "kpi": "KPI", "payroll": "Зарплата", "analytics": "Аналитика", "liveOffice": "Live Office", "hr": "HR-процессы", "feedback": "Обращения" },
+    "groups": { "workspace": "Рабочее место", "people": "Сотрудники", "operations": "Процессы", "support": "Помощь", "self": "Я", "org": "Организация", "time": "Время", "work": "Работа и HR", "pay": "Зарплата", "insight": "Аналитика и помощь" },
+    "nav": { "dashboard": "Сегодня", "me": "Я", "tasks": "Мои задачи", "attendance": "Посещаемость", "approvals": "Согласования", "messages": "Сообщения", "employees": "Сотрудники", "org": "Организация", "execution": "Исполнение", "time": "Время и посещаемость", "schedules": "Графики", "kpi": "KPI", "payroll": "Зарплата", "analytics": "Аналитика", "liveOffice": "Live Office", "hr": "HR-процессы", "feedback": "Обращения" },
     "pagination": { "label": "Пагинация", "previous": "Назад", "next": "Далее", "page": "{current} / {total}" },
     "live": {
       "kicker": "Внутренние сотрудники",
@@ -13853,6 +13858,18 @@
       "moveLead": "Каждый переход сохраняется в аудите вместе с причиной.",
       "reason": "Причина",
       "reasonPh": "Например: Отправлено на согласование"
+    },
+    "collapseMenu": "Свернуть меню",
+    "expandMenu": "Развернуть меню",
+    "more": "Ещё",
+    "palette": {
+      "open": "Поиск",
+      "placeholder": "Найти страницу или сотрудника",
+      "pages": "Страницы",
+      "people": "Сотрудники",
+      "none": "Ничего не найдено",
+      "move": "выбор",
+      "go": "открыть"
     }
   }
 }

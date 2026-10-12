@@ -13693,15 +13693,20 @@
         "team": "Team",
         "branch": "Branch",
         "division": "Division"
-      }
+      },
+      "soon": "Soon",
+      "soonHint": "The server side of this feature isn't ready yet",
+      "unsaved": "You have unsaved changes.",
+      "keepEditing": "Keep editing",
+      "discard": "Discard"
     },
     "staff": "Staff",
     "menu": "Open internal navigation",
     "backToPortal": "Back to portal",
     "logout": "Sign out",
     "roles": { "superadmin": "Superadmin", "admin": "Admin", "manager": "Manager", "call_center": "Call center", "call_center_lawyer": "Call center lawyer", "staff": "Internal staff" },
-    "groups": { "workspace": "Workspace", "people": "People", "operations": "Operations", "support": "Help" },
-    "nav": { "dashboard": "Dashboard", "me": "Me", "tasks": "My tasks", "attendance": "Attendance", "approvals": "Approvals", "messages": "Messages", "employees": "Employees", "org": "Organization", "execution": "Execution", "time": "Time & attendance", "schedules": "Schedules", "kpi": "KPI", "payroll": "Payroll", "analytics": "Analytics", "liveOffice": "Live Office", "hr": "HR processes", "feedback": "Feedback" },
+    "groups": { "workspace": "Workspace", "people": "People", "operations": "Operations", "support": "Help", "self": "Me", "org": "Organization", "time": "Time", "work": "Work & HR", "pay": "Pay", "insight": "Insight & help" },
+    "nav": { "dashboard": "Today", "me": "Me", "tasks": "My tasks", "attendance": "Attendance", "approvals": "Approvals", "messages": "Messages", "employees": "Employees", "org": "Organization", "execution": "Execution", "time": "Time & attendance", "schedules": "Schedules", "kpi": "KPI", "payroll": "Payroll", "analytics": "Analytics", "liveOffice": "Live Office", "hr": "HR processes", "feedback": "Feedback" },
     "pagination": { "label": "Pagination", "previous": "Previous", "next": "Next", "page": "{current} / {total}" },
     "live": {
       "kicker": "Internal staff",
@@ -13853,6 +13858,18 @@
       "moveLead": "Every transition is kept in the audit log with its reason.",
       "reason": "Reason",
       "reasonPh": "e.g. Sent for approval"
+    },
+    "collapseMenu": "Collapse menu",
+    "expandMenu": "Expand menu",
+    "more": "More",
+    "palette": {
+      "open": "Search",
+      "placeholder": "Find a page or a person",
+      "pages": "Pages",
+      "people": "People",
+      "none": "Nothing found",
+      "move": "move",
+      "go": "open"
     }
   }
 }

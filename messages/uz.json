@@ -13699,15 +13699,20 @@
         "team": "Jamoa",
         "branch": "Filial",
         "division": "Bo'linma"
-      }
+      },
+      "soon": "Tez orada",
+      "soonHint": "Bu funksiya uchun server tomoni hali tayyor emas",
+      "unsaved": "Saqlanmagan o'zgarishlar bor.",
+      "keepEditing": "Davom etish",
+      "discard": "Yopish"
     },
     "staff": "Xodim",
     "menu": "Ichki navigatsiyani ochish",
     "backToPortal": "Portalga qaytish",
     "logout": "Chiqish",
     "roles": { "superadmin": "Superadmin", "admin": "Admin", "manager": "Menejer", "call_center": "Call-markaz", "call_center_lawyer": "Call-markaz yuristi", "staff": "Ichki xodim" },
-    "groups": { "workspace": "Ish maydoni", "people": "Xodimlar", "operations": "Jarayonlar", "support": "Yordam" },
-    "nav": { "dashboard": "Boshqaruv", "me": "Men", "tasks": "Vazifalarim", "attendance": "Davomat", "approvals": "Tasdiqlashlar", "messages": "Xabarlar", "employees": "Xodimlar", "org": "Tashkilot", "execution": "Ijro", "time": "Vaqt va davomat", "schedules": "Ish grafigi", "kpi": "KPI", "payroll": "Ish haqi", "analytics": "Tahlil", "liveOffice": "Live Office", "hr": "HR jarayonlari", "feedback": "Murojaatlar" },
+    "groups": { "workspace": "Ish maydoni", "people": "Xodimlar", "operations": "Jarayonlar", "support": "Yordam", "self": "Men", "org": "Tashkilot", "time": "Vaqt", "work": "Ish va HR", "pay": "Ish haqi", "insight": "Tahlil va yordam" },
+    "nav": { "dashboard": "Bugun", "me": "Men", "tasks": "Vazifalarim", "attendance": "Davomat", "approvals": "Tasdiqlashlar", "messages": "Xabarlar", "employees": "Xodimlar", "org": "Tashkilot", "execution": "Ijro", "time": "Vaqt va davomat", "schedules": "Ish grafigi", "kpi": "KPI", "payroll": "Ish haqi", "analytics": "Tahlil", "liveOffice": "Live Office", "hr": "HR jarayonlari", "feedback": "Murojaatlar" },
     "pagination": { "label": "Sahifalar", "previous": "Oldingi", "next": "Keyingi", "page": "{current} / {total}" },
     "live": {
       "kicker": "Ichki xodimlar",
@@ -13859,6 +13864,18 @@
       "moveLead": "Har bir o'tish sababi bilan auditda saqlanadi.",
       "reason": "Sabab",
       "reasonPh": "Masalan: Tasdiqlashga yuborildi"
+    },
+    "collapseMenu": "Menyuni yig'ish",
+    "expandMenu": "Menyuni yoyish",
+    "more": "Yana",
+    "palette": {
+      "open": "Qidiruv",
+      "placeholder": "Sahifa yoki xodimni qidiring",
+      "pages": "Sahifalar",
+      "people": "Xodimlar",
+      "none": "Hech narsa topilmadi",
+      "move": "tanlash",
+      "go": "ochish"
     }
   }
 }

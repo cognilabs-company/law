@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import { dateOnly, dateTimeFull, monthTitle, timeOnly, weekdays } from "@/lib/date";
@@ -8,7 +8,9 @@ import { fmtUzs, fmtUzsShort } from "@/lib/money";
 import { initials } from "@/lib/lawyers";
 import { humanize } from "@/lib/labels";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
-import { IconAlert, IconClose, IconRefresh } from "@/components/icons";
+import { IconAlert, IconClose, IconInfo, IconRefresh } from "@/components/icons";
+import { usePathname } from "@/i18n/navigation";
+import { NAV_GROUPS, activeNav } from "@/components/internal/nav";
 
 // Shared building blocks of the internal HRM pages. They follow the portal's
 // own surfaces (ppanel's inset ring and large radius, ptable's header row,
@@ -126,16 +128,52 @@ export function HrmPerson({ name, sub, size = "md" }: { name: string; sub?: stri
 
 // ── Layout ──────────────────────────────────────────────────────────────────
 
-export function HrmHead({ kicker, title, lead, actions }: { kicker?: string; title: string; lead?: string; actions?: ReactNode }) {
+// The page header: the section's own icon (from the navigation), the title,
+// one line of facts under it and the page's actions on the right. The group
+// the page belongs to is already named in the top bar, so there is no kicker.
+export function HrmHead({ title, lead, actions, meta }: { kicker?: string; title: string; lead?: ReactNode; actions?: ReactNode; meta?: ReactNode }) {
+  const pathname = usePathname();
+  const Ico = activeNav(pathname, NAV_GROUPS.flatMap((g) => g.items))?.Icon;
   return (
     <header className="hrm-head">
+      {Ico ? <span className="hrm-head__i" aria-hidden><Ico /></span> : null}
       <div className="hrm-head__t">
-        {kicker ? <span className="hrm-kicker">{kicker}</span> : null}
-        <h2>{title}</h2>
+        <div className="hrm-head__row">
+          <h2>{title}</h2>
+          {meta}
+        </div>
         {lead ? <p>{lead}</p> : null}
       </div>
       {actions ? <div className="hrm-head__a">{actions}</div> : null}
     </header>
+  );
+}
+
+// A note inside a page: something to know (info), to watch (warn), or a
+// feature the screen shows but the backend does not serve yet (soon).
+export function HrmCallout({ tone = "info", title, children, action }: { tone?: "info" | "warn" | "ok" | "soon"; title?: string; children?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className={`hrm-callout hrm-callout--${tone}`} role="note">
+      <IconInfo />
+      <div className="hrm-callout__t">
+        {title ? <b>{title}</b> : null}
+        {children ? <span>{children}</span> : null}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+// A control for something the product will do but the backend cannot serve
+// yet: shown, labelled, and not clickable — so nobody waits on a dead button.
+export function HrmSoon({ children, icon: Ico }: { children: ReactNode; icon?: Icon }) {
+  const t = useTranslations("internal.ui");
+  return (
+    <span className="hrm-soon" title={t("soonHint")} aria-disabled="true">
+      {Ico ? <Ico /> : null}
+      {children}
+      <em>{t("soon")}</em>
+    </span>
   );
 }
 
@@ -173,15 +211,19 @@ export function HrmPanel({
   );
 }
 
-export function HrmStat({ icon: Ico, label, value, hint, tone = "blue" }: { icon: Icon; label: string; value: ReactNode; hint?: ReactNode; tone?: "blue" | "ok" | "warn" | "violet" | "err" | "cyan" }) {
-  return (
-    <div className={`hrm-stat hrm-stat--${tone}`}>
+// A number with its name. Given onClick it is also a filter: pressing it
+// narrows the list below to what the number counts, pressing again clears.
+export function HrmStat({ icon: Ico, label, value, hint, tone = "blue", onClick, active }: { icon: Icon; label: string; value: ReactNode; hint?: ReactNode; tone?: "blue" | "ok" | "warn" | "violet" | "err" | "cyan"; onClick?: () => void; active?: boolean }) {
+  const body = (
+    <>
       <span className="hrm-stat__i"><Ico /></span>
       <b className="hrm-stat__v">{value}</b>
       <span className="hrm-stat__l">{label}</span>
       {hint ? <small className="hrm-stat__h">{hint}</small> : null}
-    </div>
+    </>
   );
+  if (onClick) return <button type="button" className={`hrm-stat hrm-stat--${tone} hrm-stat--btn${active ? " is-on" : ""}`} onClick={onClick} aria-pressed={!!active}>{body}</button>;
+  return <div className={`hrm-stat hrm-stat--${tone}`}>{body}</div>;
 }
 
 export function HrmEmpty({ icon: Ico, title, text, action }: { icon?: Icon; title: string; text?: string; action?: ReactNode }) {
@@ -289,22 +331,49 @@ export function HrmDrawer({
 }) {
   const t = useTranslations("internal.ui");
   const panel = useRef<HTMLElement>(null);
+  // Something was typed: the X, the scrim and Esc ask before throwing it
+  // away. A form's own Cancel and a successful save close without asking.
+  const dirty = useRef(false);
+  const [asking, setAsking] = useState(false);
+  const requestClose = useCallback(() => {
+    if (dirty.current) setAsking(true);
+    else onClose();
+  }, [onClose]);
   useEffect(() => {
     if (!open) return;
+    dirty.current = false;
     const prev = document.activeElement as HTMLElement | null;
     panel.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && requestClose();
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
       prev?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open, requestClose]);
   if (!open || typeof document === "undefined") return null;
   return createPortal(
     <>
-      <div className="ldrw__scrim" onClick={onClose} />
-      <aside className="ldrw hrm-drawer" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={panel}>
+      <div className="ldrw__scrim" onClick={requestClose} />
+      <aside
+        className="ldrw hrm-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        ref={panel}
+        onInput={(e) => {
+          const el = e.target as HTMLElement;
+          if (el.matches("input:not([type=search]),textarea")) dirty.current = true;
+        }}
+      >
+        {asking ? (
+          <div className="hrm-guard" role="alertdialog" aria-label={t("unsaved")}>
+            <span>{t("unsaved")}</span>
+            <button type="button" className="btn btn--line btn--sm" onClick={() => setAsking(false)}>{t("keepEditing")}</button>
+            <button type="button" className="btn btn--pri btn--sm" onClick={() => { setAsking(false); onClose(); }}>{t("discard")}</button>
+          </div>
+        ) : null}
         <div className="ldrw__head">
           <div className="hrm-drawer__head">
             {head}
@@ -313,7 +382,7 @@ export function HrmDrawer({
               {sub ? <small className="hrm-drawer__sub">{sub}</small> : null}
             </span>
           </div>
-          <button className="ldrw__x" type="button" onClick={onClose} aria-label={t("close")}><IconClose /></button>
+          <button className="ldrw__x" type="button" onClick={requestClose} aria-label={t("close")}><IconClose /></button>
         </div>
         <div className="ldrw__body">{children}</div>
         {footer ? <div className="hrm-drawer__foot">{footer}</div> : null}
