@@ -12,6 +12,8 @@ const MASK = "•••";
 // Zoom meeting links are allowed (calls happen through them).
 const ALLOWED = /zoom\.us|zoom\.com/i;
 
+export const CALL_LINK_RE = /(https?:\/\/(?:[a-z0-9-]+\.)?zoom\.(?:us|com)\/\S+|\/secure-chats\/\S+\/join)/i;
+
 export function maskContacts(input: string): string {
   if (!input) return input;
   return input

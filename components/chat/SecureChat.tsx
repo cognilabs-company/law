@@ -7,7 +7,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth, canMakeCalls, sessionRoles, type Session } from "@/lib/auth";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
-import { maskContacts } from "@/lib/chatFilter";
+import { CALL_LINK_RE, maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
 import { backoffMs, contactBlockedOf, errDetail, isConflict, logApiError, refreshAccessToken } from "@/lib/http";
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
@@ -109,11 +109,16 @@ function isFreshIncomingCall(call: CallSession, userId: string): boolean {
 // in-app /secure-chats/.../join path). The real call happens through the
 // incoming-call banner (LiveKit), and the posted zoom.us links are demo/invalid,
 // so show a plain "call" note instead of a broken external link.
-const CALL_LINK_RE = /(https?:\/\/(?:[a-z0-9-]+\.)?zoom\.(?:us|com)\/\S+|\/secure-chats\/\S+\/join)/i;
 const METADATA_ONLY = "[metadata_only]";
 // Everything below renders `text` as a JSX text child, so emoji reach the DOM
 // as the characters the sender typed: nothing here escapes or transliterates
 // them, and maskContacts only matches links, @handles and digit runs.
+function bodyTextOf(m: { filteredContent?: string; messageType?: string; file?: { fileName?: string } | null }): string {
+  const text = m.filteredContent || "";
+  if (!text || m.messageType === "voice") return "";
+  return text.trim() === (m.file?.fileName || "").trim() ? "" : text;
+}
+
 function MsgBody({ text, label }: { text: string; label: string }) {
   if (text === METADATA_ONLY) return <em className="sbub__hidden">🔒</em>;
   const m = text.match(CALL_LINK_RE);
@@ -1631,7 +1636,7 @@ export default function SecureChat({
                       {m.messageType === "voice" || m.messageType === "file" || m.file ? (
                         <Attachment roomId={roomId} msg={m} t={t} />
                       ) : null}
-                      {m.filteredContent ? <MsgBody text={maskContacts(m.filteredContent)} label={t("joinZoom")} /> : null}
+                      {bodyTextOf(m) ? <MsgBody text={maskContacts(bodyTextOf(m))} label={t("joinZoom")} /> : null}
                     </div>
                     {m.isBlocked ? (
                       <div className="sbub__blocked">

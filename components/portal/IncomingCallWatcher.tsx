@@ -18,6 +18,11 @@ const CALL_OVER = new Set(["ended", "cancelled", "expired", "completed", "missed
 const OUT_OF_CALL = new Set(["left", "declined", "removed", "kicked"]);
 const SELF_STATUS: Record<string, string> = { "call.participant_joined": "joined", "call.participant_left": "left", "call.participant_removed": "removed" };
 const RECHECK_MS = [2500, 7000];
+// The room socket tells a chat page about a call it is already sitting in.
+// Everywhere else the ring depends on the user socket, so /calls/invited is
+// also asked on a timer: without it a call that starts while the tab is open
+// and the socket quiet never surfaces outside the chat.
+const INVITE_POLL_MS = 15000;
 
 function cardDone(callStatus: string, mine: string, resume: boolean): boolean {
   if (CALL_OVER.has(callStatus.trim().toLowerCase())) return true;
@@ -154,10 +159,11 @@ export default function IncomingCallWatcher() {
     return () => { /* kept open across navigation; closed when the token goes */ };
   }, [token]);
 
+  const sid = session?.id ?? "";
   useEffect(() => {
-    if (!session) return;
+    if (!sid) return;
     let alive = true;
-    const me = session.id;
+    const me = sid;
     async function onEvent(e: UserEvent) {
       if (!RING_EVENTS.has(e.event) || inMeetRef.current) return;
       const call = (e.call && typeof e.call === "object" ? e.call : {}) as Record<string, unknown>;
@@ -203,27 +209,36 @@ export default function IncomingCallWatcher() {
       void onEvent(e);
     });
 
-    // Fallback: pending meeting invites via REST on mount, on focus, and while the socket is down.
+    // Fallback: pending invites via REST on mount, on focus, while the socket
+    // is down, and on a timer — /calls/invited lists chat calls too.
     async function pollInvites() {
       if (document.visibilityState === "hidden" || inMeetRef.current) return;
       try {
         const invited = await listInvitedCalls();
         const inv = invited.find((c) => c.callStatus === "active" && c.status === "invited" && !dismissed.current.has(c.callId));
-        if (!alive) return;
-        if (inv) setInc({ kind: "meet", roomId: inv.roomId, callId: inv.callId, callType: inv.callType, callerName: inv.callerName || t("someone") });
+        if (!alive || !inv) return;
+        // Same object while it is the same call, so the ringtone effect does
+        // not restart on every tick.
+        setInc((cur) =>
+          cur && cur.callId === inv.callId
+            ? cur
+            : { kind: "meet", roomId: inv.roomId, callId: inv.callId, callType: inv.callType, callerName: inv.callerName || t("someone") },
+        );
       } catch { /* ignore */ }
     }
     void pollInvites();
     const onVis = () => { if (document.visibilityState === "visible") void pollInvites(); };
     document.addEventListener("visibilitychange", onVis);
     const unsubState = subscribeUserSocketState((s) => { if (s === "online") void pollInvites(); });
+    const timer = window.setInterval(() => { void pollInvites(); }, INVITE_POLL_MS);
     return () => {
       alive = false;
       unsub();
       unsubState();
+      window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [session, t]);
+  }, [sid, t]);
 
   // Ring while an incoming call is pending.
   useEffect(() => {
