@@ -1937,6 +1937,7 @@
       "inactive": "Service deactivated"
     },
     "card": {
+      "bandNone": "No catalog price — hidden from clients",
       "editLocked": "Inactive in the catalogue — can't be edited",
       "service": "Service",
       "som": "UZS",
@@ -1967,6 +1968,9 @@
       "other": "marketplace conditions not met"
     },
     "form": {
+      "noCatalogPrice": "This service has no catalog price, so you can't set one. You can add it without a price, but clients won't see it until a price is set.",
+      "noPricePh": "No catalog price",
+      "noPriceTag": "No price set",
       "addTitle": "Add service",
       "editTitle": "Edit service",
       "service": "Service",
@@ -2005,6 +2009,7 @@
       "saving": "Saving…"
     },
     "errors": {
+      "noPrice": "This service has no catalog price, so a price can't be set. Leave the price empty.",
       "pendingAccountOwner": "This specialist's profile hasn't been approved by an admin yet.",
       "range": "The price must be between {min} and {max} UZS.",
       "advocateOnly": "Only advocates can add this service.",

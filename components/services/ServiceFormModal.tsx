@@ -8,6 +8,7 @@ import {
   NOTE_MAX,
   SERVICE_STATUSES,
   addManagedService,
+  isZeroBand,
   priceBandFor,
   profileVerified,
   serviceErrorOf,
@@ -126,7 +127,8 @@ export default function ServiceFormModal({
   const fromServer = serverBand && serverBand.key === serviceId ? serverBand.band : null;
   const band = withDetails(fromServer, withDetails(savedBand, loaded?.band ?? null));
   const bandState = !serviceId ? "idle" : band ? "ready" : loaded ? "failed" : "loading";
-  const n = Number(price || "0");
+  const noPrice = isZeroBand(band);
+  const n = noPrice ? 0 : Number(price || "0");
   const off = priceOutOfBand(n, band);
   const advocateBlocked = Boolean(loaded?.advocate) || err?.kind === "advocateOnly";
   const pct = bandPercents(band);
@@ -145,7 +147,7 @@ export default function ServiceFormModal({
       setPolicyErr(true);
       return;
     }
-    if (n <= 0) {
+    if (n <= 0 && !noPrice) {
       setPriceReq(true);
       return;
     }
@@ -160,7 +162,7 @@ export default function ServiceFormModal({
     } catch (e) {
       const se = serviceErrorOf(e, locale);
       setErr(se);
-      if (se.kind === "range" && se.limits) setServerBand({ key: service.id, band: se.limits });
+      if ((se.kind === "range" || se.kind === "noPrice") && se.limits) setServerBand({ key: service.id, band: se.limits });
       if (se.kind === "notFound") onStale?.();
     } finally {
       setBusy(false);
@@ -181,7 +183,7 @@ export default function ServiceFormModal({
     ad: null,
     profile: null,
   };
-  const formErr = err && err.kind !== "range" && err.kind !== "advocateOnly" ? errText(err) : "";
+  const formErr = err && err.kind !== "range" && err.kind !== "noPrice" && err.kind !== "advocateOnly" ? errText(err) : "";
 
   return (
     <InBody>

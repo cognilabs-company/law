@@ -98,7 +98,7 @@ export default function ServicePicker({
           <b>{value.name}</b>
           <small>
             {[value.categoryTitle, value.subcategory].filter(Boolean).join(" · ")}
-            {value.price ? ` · ${t("fromPrice", { price: som(value.price) })}` : ""}
+            {value.price ? ` · ${t("fromPrice", { price: som(value.price) })}` : ` · ${t("noPriceTag")}`}
           </small>
         </span>
         <button
@@ -178,7 +178,9 @@ export default function ServicePicker({
                     </em>
                   ) : h.service.price ? (
                     <span className="svpick__price">{t("fromPrice", { price: som(h.service.price) })}</span>
-                  ) : null}
+                  ) : (
+                    <em className="svpick__tag svpick__tag--none">{t("noPriceTag")}</em>
+                  )}
                 </span>
               </li>
             ))

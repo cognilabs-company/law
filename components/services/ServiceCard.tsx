@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   hiddenReasons,
+  isZeroBand,
   priceBandFor,
   type ManagedService,
   type PendingPromo,
@@ -131,7 +132,9 @@ export default function ServiceCard({
         <span>
           {!known
             ? t("card.bandLoading")
-            : band
+            : isZeroBand(band)
+              ? t("card.bandNone")
+              : band
               ? off
                 ? t("card.bandOff", { min: som(band.min), max: som(band.max) })
                 : t("card.band", { min: som(band.min), max: som(band.max) })

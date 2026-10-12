@@ -105,10 +105,19 @@ function normPromotion(v: unknown): ServicePromotion | null {
   };
 }
 
+export function zeroBand(currency = "UZS"): PriceBand {
+  return { recommended: 0, min: 0, max: 0, base: 0, currency, modifiers: null };
+}
+
+export function isZeroBand(band: PriceBand | null): boolean {
+  return Boolean(band && band.max <= 0);
+}
+
 function normLimits(v: unknown, locale = "uz"): PriceBand | null {
   const d = asDict(v);
   const max = uzs(d, "max_allowed", "max_price", "recommended_price");
   const min = uzs(d, "min_allowed", "min_price");
+  if (!max && ["max_allowed", "max_price", "recommended_price"].some((k) => k in d)) return zeroBand(asStr(d.currency) || "UZS");
   if (!max || min > max) return null;
   return {
     recommended: uzs(d, "recommended_price", "recommended", "max_allowed"),
@@ -262,7 +271,7 @@ async function fetchPriceBand(serviceId: string, sellerId: string, region: strin
   const [raw, policy] = await Promise.all([http(`/pricing/quote?${qs}`), getPublicPricingPolicy().catch(() => null)]);
   const q = asDict(raw);
   const total = uzs(q, "total_amount");
-  if (!total) return null;
+  if (!total) return zeroBand(asStr(q.currency) || "UZS");
   // Backend limits are authoritative; the public policy is only a compatibility fallback.
   const limits = asDict(q.pricing_limits);
   const recommended = uzsOpt(limits, "recommended_price", "recommended", "max_allowed")
@@ -329,6 +338,7 @@ export function hiddenReasons(item: ManagedService, profile: ServiceSellerProfil
 
 export type ServiceErrorKind =
   | "range"
+  | "noPrice"
   | "advocateOnly"
   | "pendingAccount"
   | "forbidden"
@@ -347,7 +357,7 @@ export function serviceErrorOf(e: unknown, locale = "uz"): ServiceError {
   const text = e.detail ?? "";
   if (e.status === 422) {
     const limits = normLimits(detail.pricing_limits ?? detail.limits ?? asDict(e.data).pricing_limits ?? detail, locale);
-    if (limits) return out("range", { min: limits.min, max: limits.max, limits });
+    if (limits) return out(isZeroBand(limits) ? "noPrice" : "range", { min: limits.min, max: limits.max, limits });
     return out("invalid", { detail: text || firstFieldError(e) });
   }
   if (e.status === 400 && Array.isArray(detail.advokat_only_services)) return out("advocateOnly");

@@ -1937,6 +1937,7 @@
       "inactive": "Xizmat nofaol qilindi"
     },
     "card": {
+      "bandNone": "Katalogda narx yo'q — mijozlarga ko'rinmaydi",
       "editLocked": "Katalogda nofaol — tahrirlab bo'lmaydi",
       "service": "Xizmat",
       "som": "so'm",
@@ -1967,6 +1968,9 @@
       "other": "marketplace shartlari bajarilmagan"
     },
     "form": {
+      "noCatalogPrice": "Bu xizmatga katalogda narx qo'yilmagan — narx kiritib bo'lmaydi. Xizmatni narxsiz qo'shishingiz mumkin, lekin narx belgilanmaguncha u mijozlarga ko'rinmaydi.",
+      "noPricePh": "Katalogda narx yo'q",
+      "noPriceTag": "Narx belgilanmagan",
       "addTitle": "Xizmat qo'shish",
       "editTitle": "Xizmatni tahrirlash",
       "service": "Xizmat",
@@ -2005,6 +2009,7 @@
       "saving": "Saqlanmoqda…"
     },
     "errors": {
+      "noPrice": "Bu xizmatga katalogda narx qo'yilmagan, shuning uchun narx kiritib bo'lmaydi. Narx maydonini bo'sh qoldiring.",
       "pendingAccountOwner": "Mutaxassis profili hali admin tasdig'idan o'tmagan.",
       "range": "Narx {min} – {max} so'm oralig'ida bo'lishi kerak.",
       "advocateOnly": "Bu xizmatni faqat advokatlar qo'sha oladi.",

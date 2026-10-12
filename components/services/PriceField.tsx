@@ -2,7 +2,7 @@
 
 import type { ComponentType, SVGProps } from "react";
 import { useTranslations } from "next-intl";
-import type { PriceBand } from "@/lib/services/sellerServices";
+import { isZeroBand, type PriceBand } from "@/lib/services/sellerServices";
 import { isNeutralModifier, modifierEffect, modifierLabel, type PriceModifier } from "@/lib/services/marketplacePricing";
 import { IconAward, IconBriefcase, IconCoins, IconMapPin, IconShieldCheck, IconSliders, IconStar, IconTag, IconTrendingUp } from "@/components/icons";
 import { som } from "./bits";
@@ -83,9 +83,23 @@ export default function PriceField({
 }) {
   const t = useTranslations("sellerServices.form");
   const tl = useTranslations("sellerServices.limits");
+  const hintId = `${id}-hint`;
+  if (isZeroBand(band)) {
+    return (
+      <div className="svprice2 is-none">
+        <div className="svprice2__field">
+          <IconCoins aria-hidden="true" />
+          <input id={id} value="" disabled placeholder={t("noPricePh")} aria-describedby={hintId} />
+          <span className="svprice2__cur">{t("som")}</span>
+        </div>
+        <p id={hintId} className="svprice2__hint svprice2__hint--none" role="note">
+          {t("noCatalogPrice")}
+        </p>
+      </div>
+    );
+  }
   const n = Number(value || "0");
   const off = priceOutOfBand(n, band);
-  const hintId = `${id}-hint`;
   const limId = `${id}-lim`;
   const lo = band ? band.min * 0.86 : 0;
   const hi = band ? band.max * 1.1 : 1;
