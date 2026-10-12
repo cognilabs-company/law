@@ -14,6 +14,7 @@ import {
   getAnalyticsDashboard,
   getAttendanceDays,
   getExecutionTasks,
+  updateExecutionTask,
   getKpiMetrics,
   getPayrollEntries,
   getPayrollSummary,
@@ -28,12 +29,14 @@ import {
   type InternalPage,
 } from "@/lib/services/internalHrm";
 import { calculatePayroll, exportInternalAnalytics, setPayrollStatus, type PayrollCalc } from "@/lib/services/internalLive";
-import { IconAlert, IconBriefcase, IconCalendar, IconCard, IconChartBar, IconChat, IconCheck, IconClock, IconDownload, IconPlus, IconRefresh, IconTrash, IconTrendingUp, IconUsers } from "@/components/icons";
+import { IconGrid, IconList, IconAlert, IconBriefcase, IconCalendar, IconCard, IconChartBar, IconChat, IconCheck, IconClock, IconDownload, IconPlus, IconRefresh, IconTrash, IconTrendingUp, IconUsers } from "@/components/icons";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import DatePicker from "@/components/DatePicker";
 import MonthPicker from "@/components/MonthPicker";
 import Select from "@/components/Select";
 import InternalPagination from "@/components/internal/InternalPagination";
+import HrmKanban from "@/components/internal/HrmKanban";
+import { HrmDonut } from "@/components/internal/HrmCharts";
 import InternalField from "@/components/internal/InternalField";
 import TaskDrawer, { TASK_STATUSES } from "@/components/internal/TaskDrawer";
 import { AttendanceTable } from "@/components/internal/InternalSelfPages";
@@ -143,14 +146,27 @@ function ExecutionPage() {
   const [offset, setOffset] = useState(0);
   const [openId, setOpenId] = useState("");
   const [creating, setCreating] = useState(false);
+  const [view, setView] = useState<"list" | "board">("list");
+  const [moveErr, setMoveErr] = useState(false);
   const set = (k: keyof typeof filters) => (v: string) => { setFilters((c) => ({ ...c, [k]: v })); setOffset(0); };
 
   const { page, loading, error, reload } = usePaged<HrmTask>(
     useCallback(async (signal?: AbortSignal) => {
-      const res = await getExecutionTasks({ q: filters.q || undefined, status: filters.status || undefined, responsible_employee_id: filters.responsible || undefined, date_from: filters.dateFrom || undefined, date_to: filters.dateTo || undefined, limit: 50, offset }, signal);
+      // The board shows every status side by side, so it reads one larger page.
+      const res = await getExecutionTasks({ q: filters.q || undefined, status: view === "board" ? undefined : filters.status || undefined, responsible_employee_id: filters.responsible || undefined, date_from: filters.dateFrom || undefined, date_to: filters.dateTo || undefined, limit: view === "board" ? 100 : 50, offset: view === "board" ? 0 : offset }, signal);
       return { ...res, items: res.items.map(normTask) };
-    }, [filters, offset]),
+    }, [filters, offset, view]),
   );
+  // Dragging a card to another column is a status change.
+  const moveTask = async (task: HrmTask, to: string) => {
+    setMoveErr(false);
+    try {
+      await updateExecutionTask(task.id, { status: to, comment: "", checklist: task.checklist });
+      reload();
+    } catch {
+      setMoveErr(true);
+    }
+  };
 
   const stats = useMemo(() => ({
     open: page.items.filter((x) => !["done", "cancelled"].includes(x.status)).length,
@@ -181,6 +197,38 @@ function ExecutionPage() {
         onReset={() => { setFilters({ q: "", status: "", responsible: "", dateFrom: "", dateTo: "" }); setOffset(0); }}
       />
       {error ? <HrmError text={t("error")} onRetry={reload} retryLabel={t("refresh")} /> : null}
+      {moveErr ? <HrmError text={t("moveError")} /> : null}
+      <div className="hrm-tabs hrm-viewtabs" role="tablist" aria-label={t("view.label")}>
+        {(["list", "board"] as const).map((v) => (
+          <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}>{v === "list" ? <IconList /> : <IconGrid />}{t(`view.${v}`)}</button>
+        ))}
+      </div>
+      {view === "board" ? (
+        loading && !page.items.length ? <HrmPanel><HrmLoading rows={5} /></HrmPanel> : (
+          <HrmKanban
+            columns={TASK_STATUSES.map((s) => ({ key: s, label: label(s), tone: s === "done" ? "ok" : s === "returned" ? "err" : s === "in_review" || s === "paused" ? "warn" : s === "cancelled" ? "gray" : "info" }))}
+            items={page.items}
+            columnOf={(x) => x.status}
+            idOf={(x) => x.id}
+            onMove={(x, to) => void moveTask(x, to)}
+            onOpen={(x) => setOpenId(x.id)}
+            emptyText={t("view.none")}
+            renderCard={(x) => {
+              const late = isOverdue(x.deadline, x.status, now);
+              const done = x.checklist.filter((c) => c.done).length;
+              return (
+                <>
+                  <b>{x.title}</b>
+                  <small>{[x.code, x.project].filter(Boolean).join(" · ")}</small>
+                  <span className="hrm-kb__meta"><HrmPriority value={x.priority} />{x.deadline ? <span className={late ? "hrm-late" : undefined}>{f.date(x.deadline)}</span> : null}</span>
+                  {x.checklist.length ? <span className="hrm-check-mini"><HrmBar value={(done / x.checklist.length) * 100} /><small>{done}/{x.checklist.length}</small></span> : null}
+                  {x.responsibleName ? <HrmPerson name={x.responsibleName} size="sm" /> : null}
+                </>
+              );
+            }}
+          />
+        )
+      ) : (
       <HrmPanel flush>
         {loading ? <div style={{ padding: 16 }}><HrmLoading rows={5} /></div> : page.items.length ? (
           <div className="hrm-table-wrap">
@@ -207,6 +255,7 @@ function ExecutionPage() {
         ) : <HrmEmpty icon={IconBriefcase} title={t("empty.execution")} text={t("emptyExecutionLead")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.execution")}</button>} />}
         <InternalPagination page={page} onChange={setOffset} />
       </HrmPanel>
+      )}
       <TaskDrawer task={open} manage onClose={() => setOpenId("")} onChanged={reload} unitName={open ? dir.unitName(open.unitId) : ""} />
       <TaskCreate open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); reload(); }} />
     </section>
@@ -843,6 +892,12 @@ function AnalyticsPage() {
             <HrmStat icon={IconChat} tone="cyan" label={t("a.tickets")} value={n("support", "tickets")} />
           </div>
           <div className="hrm-grid hrm-grid--2">
+            <HrmPanel title={t("a.attendanceToday")} icon={IconCheck} count={present + absent}>
+              <HrmDonut center={present + absent ? `${Math.round((present / (present + absent)) * 100)}%` : "—"} slices={[{ label: t("a.present"), value: present, color: "#10b981" }, { label: t("a.absent"), value: absent, color: "#e5484d" }]} />
+            </HrmPanel>
+            <HrmPanel title={t("a.executionSplit")} icon={IconBriefcase} count={asNum(ex.total)}>
+              <HrmDonut center={String(asNum(ex.total))} slices={[{ label: t("a.open"), value: Math.max(0, asNum(ex.open) - asNum(ex.overdue)), color: "var(--b500)" }, { label: t("a.overdue"), value: asNum(ex.overdue), color: "#e5484d" }, { label: t("a.done"), value: asNum(ex.done), color: "#10b981" }]} />
+            </HrmPanel>
             <HrmPanel title={t("a.execution")} icon={IconBriefcase} count={asNum(ex.total)}>
               <AnalyticsBars rows={[
                 { label: t("a.open"), value: asNum(ex.open), total: asNum(ex.total), tone: "blue" },

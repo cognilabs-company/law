@@ -7,6 +7,7 @@ import { IconCheck, IconChartBar, IconClock, IconHourglass, IconPause, IconTrend
 import { EntitySelect, HrmBar, HrmEmpty, HrmError, HrmLoading, HrmPanel, HrmPerson, HrmStat, useHrmFormat } from "@/components/internal/HrmUi";
 import type { SearchOption } from "@/components/SearchSelect";
 import { apiMessage, dayIso, hms, useLiveText } from "./bits";
+import { HrmBars } from "@/components/internal/HrmCharts";
 
 const MAX_DAYS = 367;
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000) + 1;
@@ -102,6 +103,7 @@ export default function LiveAnalytics({ employeeId, onEmployee, unitOptions, emp
               )}
             </HrmPanel>
             <HrmPanel title={t("analytics.byDay")} icon={IconClock} count={d.days.length}>
+              {d.days.length > 1 ? <HrmBars data={d.days.slice(-31).map((x) => ({ label: x.date.slice(8), value: Math.round(x.active / 60) }))} format={(n) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`} /> : null}
               {d.days.length ? (
                 <div className="hrm-table-wrap">
                   <table className="hrm-table lv-days">

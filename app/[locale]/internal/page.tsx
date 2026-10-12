@@ -20,10 +20,11 @@ import {
   type HrmTask,
   type InternalPermission,
 } from "@/lib/services/internalHrm";
-import { HrmEmpty, HrmError, HrmLoading, HrmPanel, HrmPriority, HrmStat, HrmStatus, isOverdue, useHrmFormat, useNow } from "@/components/internal/HrmUi";
-import { IconBriefcase, IconBuilding, IconCalendar, IconChartBar, IconChat, IconCheck, IconClock, IconFolder, IconMonitor, IconRefresh, IconShieldCheck, IconUsers } from "@/components/icons";
+import { HrmEmpty, HrmError, HrmLoading, HrmPanel, HrmPriority, HrmStatus, isOverdue, useHrmFormat, useNow } from "@/components/internal/HrmUi";
+import AttentionTiles from "@/components/internal/AttentionTiles";
+import { IconBriefcase, IconBuilding, IconCalendar, IconChartBar, IconChat, IconCheck, IconClock, IconFolder, IconMonitor, IconRefresh, IconUsers } from "@/components/icons";
 
-type Today = { name: string; code: string; date: string; attendance: HrmAttendance | null; tasks: HrmTask[]; approvals: number; messages: HrmMessage[] };
+type Today = { name: string; code: string; date: string; attendance: HrmAttendance | null; tasks: HrmTask[]; approvals: number; messages: HrmMessage[]; unread: number };
 
 const SHORTCUTS: { href: string; key: string; Icon: typeof IconUsers; permission?: InternalPermission }[] = [
   { href: "/internal/live-office", key: "liveOffice", Icon: IconMonitor },
@@ -68,6 +69,7 @@ export default function InternalDashboard() {
         tasks: asArr(d.tasks).map(normTask),
         approvals: asNum(d.pending_approvals),
         messages: (messages?.items ?? []).map(normMessage),
+        unread: messages?.total ?? 0,
       });
     } catch (cause) {
       if (!(cause instanceof ApiError && cause.detail === "aborted")) setError(true);
@@ -121,18 +123,14 @@ export default function InternalDashboard() {
 
       {error ? <HrmError text={t("error")} onRetry={() => void load()} retryLabel={t("refresh")} /> : null}
 
-      <div className="hrm-stats">
-        <HrmStat icon={IconBriefcase} tone="blue" label={t("stats.tasks")} value={loading ? "…" : openTasks.length} />
-        <HrmStat
-          icon={IconClock}
-          tone={checkedIn ? "ok" : "warn"}
-          label={t("stats.attendance")}
-          value={loading ? "…" : checkedIn ? f.time(att!.firstIn) : t("notCheckedIn")}
-          hint={att?.workedMinutes ? t("workedToday", { time: f.minutes(att.workedMinutes) }) : undefined}
-        />
-        <HrmStat icon={IconShieldCheck} tone="violet" label={t("stats.approvals")} value={loading ? "…" : data?.approvals ?? 0} />
-        <HrmStat icon={IconChat} tone="cyan" label={t("stats.messages")} value={loading ? "…" : data?.messages.length ?? 0} />
-      </div>
+      <AttentionTiles
+        loading={loading && !data}
+        overdue={openTasks.filter((task) => isOverdue(task.deadline, task.status, now)).length}
+        approvals={data?.approvals ?? 0}
+        unread={data?.unread ?? 0}
+        notCheckedIn={!!data && !checkedIn}
+        manager={canInternal(session, "internal_hr.manage") || canInternal(session, "internal_org.manage")}
+      />
 
       <div className="hrm-grid hrm-grid--side">
         <HrmPanel title={t("tasksTitle")} icon={IconBriefcase} count={openTasks.length} actions={<Link className="btn btn--line btn--sm" href="/internal/me/tasks">{t("openAll")}</Link>}>

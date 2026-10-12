@@ -13236,7 +13236,11 @@
         "finance": "Moliya va qo'llab-quvvatlash",
         "paymentsCount": "To'lovlar",
         "orders": "Buyurtmalar",
-        "queued": "Navbatdagi bildirishnomalar"
+        "queued": "Navbatdagi bildirishnomalar",
+        "attendanceToday": "Bugungi davomat",
+        "present": "Kelgan",
+        "absent": "Kelmagan",
+        "executionSplit": "Topshiriqlar holati"
       },
       "calc": {
         "open": "Oylikni hisoblash",
@@ -13258,7 +13262,9 @@
         "again": "Yana hisoblash",
         "changeStatus": "Holatni o'zgartirish",
         "moveTo": "O'tkazish…"
-      }
+      },
+      "moveError": "Holatni o'zgartirib bo'lmadi",
+      "view": {"label": "Ko'rinish", "list": "Ro'yxat", "board": "Doska", "none": "Bo'sh"}
     },
     "people": {
       "kicker": "Xodimlar va tashkilot",
@@ -13555,7 +13561,8 @@
         "present": "Ishga kelgan kunlar",
         "worked": "Jami ishlangan vaqt",
         "late": "Kechikkan kunlar",
-        "overtime": "Qo'shimcha ish"
+        "overtime": "Qo'shimcha ish",
+        "calendar": "Oy kalendari"
       },
       "inbox": "Kiruvchi xabarlar",
       "messageFallback": "Xabar",
@@ -13626,7 +13633,18 @@
       "clockError": "Davomatni belgilab bo'lmadi. Birozdan so'ng qayta urinib ko'ring.",
       "quickTitle": "Tezkor o'tish",
       "arrived": "Kelgan vaqt",
-      "left": "Ketgan vaqt"
+      "left": "Ketgan vaqt",
+      "attention": {
+        "allClear": "Hammasi joyida",
+        "restClear": "Qolgani joyida",
+        "overdue": {"title": "Muddati o'tgan vazifalar", "hint": "Avval shularni yoping"},
+        "approvals": {"title": "Tasdiqlash kutmoqda", "hint": "Sizning qaroringiz kerak"},
+        "checkIn": {"title": "Bugun kelish belgilanmagan", "hint": "Davomatni belgilang"},
+        "messages": {"title": "O'qilmagan xabarlar", "hint": "Ichki xabarlar"},
+        "hr": {"title": "HR so'rovlari kutmoqda", "hint": "Ta'til, safar, ishga qabul va boshqalar"},
+        "corrections": {"title": "Tuzatish so'rovlari", "hint": "Live Office bo'yicha"},
+        "feedback": {"title": "Yangi murojaatlar", "hint": "Xato va takliflar"}
+      }
     },
     "ui": {
       "som": "so'm",
@@ -13704,7 +13722,10 @@
       "soonHint": "Bu funksiya uchun server tomoni hali tayyor emas",
       "unsaved": "Saqlanmagan o'zgarishlar bor.",
       "keepEditing": "Davom etish",
-      "discard": "Yopish"
+      "discard": "Yopish",
+      "prevMonth": "Oldingi oy",
+      "nextMonth": "Keyingi oy",
+      "thisMonth": "Shu oy"
     },
     "staff": "Xodim",
     "menu": "Ichki navigatsiyani ochish",

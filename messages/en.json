@@ -13230,7 +13230,11 @@
         "finance": "Finance and support",
         "paymentsCount": "Payments",
         "orders": "Orders",
-        "queued": "Queued notifications"
+        "queued": "Queued notifications",
+        "attendanceToday": "Attendance today",
+        "present": "Present",
+        "absent": "Absent",
+        "executionSplit": "Tasks by state"
       },
       "calc": {
         "open": "Calculate pay",
@@ -13252,7 +13256,9 @@
         "again": "Calculate again",
         "changeStatus": "Change status",
         "moveTo": "Move to…"
-      }
+      },
+      "moveError": "Couldn't change the status",
+      "view": {"label": "View", "list": "List", "board": "Board", "none": "Empty"}
     },
     "people": {
       "kicker": "People and organization",
@@ -13549,7 +13555,8 @@
         "present": "Days present",
         "worked": "Total worked",
         "late": "Days late",
-        "overtime": "Overtime"
+        "overtime": "Overtime",
+        "calendar": "Month calendar"
       },
       "inbox": "Inbox",
       "messageFallback": "Message",
@@ -13620,7 +13627,18 @@
       "clockError": "Couldn't record attendance. Try again shortly.",
       "quickTitle": "Quick access",
       "arrived": "Arrived",
-      "left": "Left"
+      "left": "Left",
+      "attention": {
+        "allClear": "All clear",
+        "restClear": "The rest is clear",
+        "overdue": {"title": "Overdue tasks", "hint": "Close these first"},
+        "approvals": {"title": "Waiting for approval", "hint": "Your decision is needed"},
+        "checkIn": {"title": "Not checked in today", "hint": "Mark your attendance"},
+        "messages": {"title": "Unread messages", "hint": "Internal messages"},
+        "hr": {"title": "HR requests waiting", "hint": "Leave, travel, hiring and more"},
+        "corrections": {"title": "Correction requests", "hint": "From the Live Office"},
+        "feedback": {"title": "New feedback", "hint": "Bugs and suggestions"}
+      }
     },
     "ui": {
       "som": "UZS",
@@ -13698,7 +13716,10 @@
       "soonHint": "The server side of this feature isn't ready yet",
       "unsaved": "You have unsaved changes.",
       "keepEditing": "Keep editing",
-      "discard": "Discard"
+      "discard": "Discard",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "thisMonth": "This month"
     },
     "staff": "Staff",
     "menu": "Open internal navigation",

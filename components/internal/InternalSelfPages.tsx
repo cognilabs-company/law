@@ -28,6 +28,7 @@ import FilterBar from "@/components/filters/FilterBar";
 import InternalPagination from "@/components/internal/InternalPagination";
 import InternalField from "@/components/internal/InternalField";
 import TaskDrawer, { TASK_STATUSES } from "@/components/internal/TaskDrawer";
+import HrmCalendar, { monthOf, monthRange, type CalDay } from "@/components/internal/HrmCalendar";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import {
   EntitySelect,
@@ -311,11 +312,51 @@ function MyAttendancePage() {
         <HrmStat icon={IconCalendar} tone="warn" label={t("att.late")} value={loading ? "…" : sum.late} />
         <HrmStat icon={IconChartBar} tone="violet" label={t("att.overtime")} value={loading ? "…" : f.minutes(sum.overtime)} />
       </div>
+      <HrmPanel title={t("att.calendar")} icon={IconCalendar}>
+        <AttendanceMonth />
+      </HrmPanel>
       <HrmPanel flush>
         {loading ? <div style={{ padding: 16 }}><HrmLoading /></div> : rows.items.length ? <AttendanceTable rows={rows.items} /> : <HrmEmpty icon={IconCalendar} title={t("empty.attendance")} text={t("emptyAttendanceLead")} />}
         <InternalPagination page={rows} onChange={setOffset} />
       </HrmPanel>
     </section>
+  );
+}
+
+// The month at a glance: each day coloured by how it went, with arrival and
+// time worked. It reads its own month, independent of the table's filter.
+function AttendanceMonth() {
+  const label = useStatusLabel();
+  const f = useHrmFormat();
+  const now = useNow();
+  const [month, setMonth] = useState("");
+  const [data, setData] = useState<{ month: string; rows: HrmAttendance[] } | null>(null);
+  const shown = month || (now ? monthOf(new Date(now)) : "");
+  useEffect(() => {
+    if (!shown) return;
+    const c = new AbortController();
+    const r = monthRange(shown);
+    getMyAttendance({ date_from: r.from, date_to: r.to, limit: 31, offset: 0 }, c.signal)
+      .then((res) => !c.signal.aborted && setData({ month: shown, rows: res.items.map(normAttendance) }))
+      .catch(() => !c.signal.aborted && setData({ month: shown, rows: [] }));
+    return () => c.abort();
+  }, [shown]);
+  if (!shown) return <HrmLoading rows={3} />;
+  const TONES: Record<string, CalDay["tone"]> = { present: "ok", remote: "info", late: "warn", absent: "err", on_leave: "violet", vacation: "violet", sick: "violet" };
+  const days: Record<string, CalDay> = {};
+  for (const r of data?.month === shown ? data.rows : []) {
+    const status = r.lateMinutes > 0 && r.status === "present" ? "late" : r.status;
+    days[r.date.slice(0, 10)] = { tone: TONES[status] ?? "gray", label: label(status), sub: [r.firstIn ? f.time(r.firstIn) : "", r.workedMinutes ? f.minutes(r.workedMinutes) : ""].filter(Boolean).join(" · ") };
+  }
+  const today = monthOf(new Date(now)) + "-" + String(new Date(now).getDate()).padStart(2, "0");
+  return (
+    <HrmCalendar
+      month={shown}
+      onMonth={setMonth}
+      days={days}
+      today={today}
+      legend={(["present", "late", "remote", "absent", "on_leave"] as const).map((s) => <span key={s}><i className={`hrm-cal__cell--${TONES[s]}`} />{label(s)}</span>)}
+    />
   );
 }
 
