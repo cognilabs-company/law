@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -21,15 +21,16 @@ import {
   isMissingRoute,
   type UrgentRequest,
   type UrgentCandidate,
+  type UrgentEligibleSource,
   type CallSession,
   type LiveKitJoin,
 } from "@/lib/services/backend";
 import { subscribeUserEvents, subscribeUserSocketState, onUserSocketResync } from "@/lib/userSocket";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
-import { notify } from "@/lib/toast";
+import { notify, notifyStore } from "@/lib/toast";
 import { useAuth, sessionRoles } from "@/lib/auth";
 import { dateTimeFull } from "@/lib/date";
-import { statusLabel, regionLabel, humanize } from "@/lib/labels";
+import { statusLabel, regionLabel, regionKeyOf, humanize } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
@@ -42,6 +43,9 @@ import TimePicker from "@/components/TimePicker";
 import CheckBox from "@/components/CheckBox";
 import Modal from "@/components/admin/Modal";
 import FieldError from "@/components/ui/FieldError";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import { isCoarsePointer, usePopover } from "@/lib/usePopover";
+import { VoiceNotePlayer } from "@/components/portal/AttachmentPreview";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import CallRoom from "@/components/chat/CallRoom";
 import {
@@ -74,6 +78,8 @@ import {
   IconOpinionPanel,
   IconBriefcase,
   IconChatDots,
+  IconChevronDown,
+  IconMoreHorizontal,
 } from "@/components/icons";
 
 // LEXGO_URGENT_ADVOKAT_FRONTEND_UPDATE.md — the call-center side of "Tezkor
@@ -196,8 +202,52 @@ type Msgs = { ok: (r: UrgentRequest) => Outcome; fail: string; map?: Partial<Rec
 
 const ntfId = (id: string) => `urgent-${id}`;
 
+type Step = "" | "complete" | "transfer" | "cancel" | "candidates" | "status";
+type Ask = { act: string; n: number };
+type MenuItem = {
+  key: string;
+  label: string;
+  icon: ReactNode;
+  group: number;
+  danger?: boolean;
+  href?: string;
+  title?: string;
+  aiId?: string;
+  onSelect?: () => void;
+};
+
+const STATUS_SKIP = new Set(["completed", "cancelled", "expired"]);
+const MIN_SUMMARY = 5;
+const MIN_REASON = 3;
+const CAND_PAGE = 8;
+const SOURCES_SHOWN = 3;
+const STEP_FIELD = 'input:not([type="hidden"]):not([disabled]),select:not([disabled]),textarea:not([disabled])';
+
+function dropStepError(nid: string) {
+  if (notifyStore.getSnapshot().items.some((x) => x.id === nid && x.tone === "error" && !x.leaving)) notify.dismiss(nid);
+}
+
+function useReportDirty(dirty: boolean, report: (dirty: boolean) => void) {
+  const sent = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (sent.current === dirty) return;
+    sent.current = dirty;
+    report(dirty);
+  }, [dirty, report]);
+}
+
+function dedupeSources(list: UrgentEligibleSource[]): UrgentEligibleSource[] {
+  const by = new Map<string, UrgentEligibleSource>();
+  for (const s of list) {
+    const k = s.id || `${s.type}|${s.title}|${s.createdAt}`;
+    const had = by.get(k);
+    if (!had || stamp(s.createdAt, 0) > stamp(had.createdAt, 0)) by.set(k, s);
+  }
+  return [...by.values()].sort((a, b) => stamp(b.createdAt, 0) - stamp(a.createdAt, 0));
+}
+
 const AI_ITEM = "call_center.urgent-advokat.item";
-const AI_DRAWER_ONLY = new Set(["detail-modal", "complete", "transfer", "cancel", "status", "assign-group"]);
+const AI_DRAWER_ONLY = new Set(["detail-modal", "complete", "transfer", "cancel", "status", "assign-group", "more"]);
 
 const aiNorm = (s: string) => s.toLowerCase().replace(/\(\d+\)/g, "").replace(/[ʻʼ'‘’`]/g, "").replace(/[\s_-]+/g, " ").trim();
 
@@ -222,6 +272,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
   const [state, setState] = useState<State>({ status: "loading", items: [] });
   const [busyId, setBusyId] = useState("");
   const [openId, setOpenId] = useState("");
+  const [ask, setAsk] = useState<Ask>({ act: "", n: 0 });
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [live, setLive] = useState(true);
   const listKey = `${view}|${kind}|${channel}`;
@@ -410,6 +461,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
     const r = state.items.find((x) => aiSeg(x.id) === seg);
     if (AI_DRAWER_ONLY.has(action)) {
       setOpenId(r?.id ?? seg);
+      setAsk((a) => ({ act: action, n: a.n + 1 }));
       return;
     }
     if (!r) return;
@@ -634,6 +686,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
 
       <UrgentDetailDrawer
         id={openId}
+        ask={ask}
         onClose={() => setOpenId("")}
         onChanged={report}
         onMeeting={openMeeting}
@@ -663,11 +716,13 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
 // every action the record's own lifecycle still allows.
 function UrgentDetailDrawer({
   id,
+  ask,
   onClose,
   onChanged,
   onMeeting,
 }: {
   id: string;
+  ask: Ask;
   onClose: () => void;
   // The status the record landed on, so the board can follow it to that tab
   // rather than losing the row behind this drawer.
@@ -679,13 +734,23 @@ function UrgentDetailDrawer({
   const tcm = useTranslations("portal.common");
   const tn = useTranslations("common.notify");
   const te = useTranslations("enums");
+  const tv = useTranslations("secureChat");
   const locale = useLocale();
+  const histId = useId();
 
   const [req, setReq] = useState<UrgentRequest | null>(null);
   const [load2, setLoad2] = useState<"loading" | "ready" | "error">("loading");
   const [loadErr, setLoadErr] = useState<unknown>(undefined);
   const [busy, setBusy] = useState("");
-  const [panel, setPanel] = useState<"" | "candidates" | "complete" | "cancel" | "transfer">("");
+  const [step, setStep] = useState<Step>("");
+  const [stepDirty, setStepDirty] = useState(false);
+  const [stepBusy, setStepBusy] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [wanted, setWanted] = useState("");
+  const [allSources, setAllSources] = useState(false);
+  const [histOpen, setHistOpen] = useState(false);
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+  const root = useRef<HTMLDivElement>(null);
   const { session } = useAuth();
   const me = session?.id ?? "";
   const isAdmin = sessionRoles(session).some((x) => x === "superadmin" || x === "admin");
@@ -728,13 +793,22 @@ function UrgentDetailDrawer({
   // render rather than in an effect: an effect would paint the previous
   // record's detail for one frame under the new title.
   const [prevId, setPrevId] = useState(id);
-  if (id !== prevId) {
+  const switched = id !== prevId;
+  if (switched) {
     setPrevId(id);
     setReq(null);
     setLoad2("loading");
-    setPanel("");
+    setStep("");
+    setStepDirty(false);
+    setStepBusy(false);
+    setMenu(false);
+    setWanted("");
+    setAllSources(false);
+    setHistOpen(false);
     setLoadErr(undefined);
   }
+
+  const [seenAsk, setSeenAsk] = useState(ask);
 
   useEffect(() => {
     if (!id) return;
@@ -791,6 +865,24 @@ function UrgentDetailDrawer({
     }
   }
 
+  function go(next: Step) {
+    dropStepError(ntfId(id));
+    setStep(next);
+    setStepDirty(false);
+    setMenu(false);
+    setWanted("");
+  }
+
+  function finishStep() {
+    setStep("");
+    setStepDirty(false);
+  }
+
+  function openMenu(open: boolean) {
+    setMenu(open);
+    if (!open) setWanted("");
+  }
+
   const kindLabel = req ? (tk.has(`kinds.${req.serviceKind}`) ? tk(`kinds.${req.serviceKind}`) : req.serviceTitle || req.serviceKind) : "";
   const isGroup = req?.serviceKind === GROUP;
   const isSecond = !!req && (req.serviceKind === GROUP || req.serviceKind === "second_opinion_single");
@@ -804,274 +896,438 @@ function UrgentDetailDrawer({
     map: { 409: t("alreadyTaken") },
   };
 
+  const statusChoices = req
+    ? req.nextStatuses.filter((s) => !STATUS_SKIP.has(s) && (s !== "claimed" || (!!req.claimedByUserId && req.claimedByUserId === me)))
+    : [];
+  const working = !!req && !finished && req.status !== "open_pool";
+  const can = {
+    meeting: working && req?.channel !== "chat",
+    chat: !!req?.secureChatRoomId,
+    complete: working,
+    transfer: working,
+    status: statusChoices.length > 0,
+    cancel: !!req && !finished,
+    group: !!req && isGroup && !finished,
+  };
+  const primary = !req
+    ? ""
+    : canClaim
+      ? "claim"
+      : finished
+        ? can.chat ? "chat" : ""
+        : req.channel === "chat" && can.chat && working
+          ? "chat"
+          : can.group && !req.groupLawyers.length
+            ? "group"
+            : can.meeting && (req.status === "claimed" || req.status === "scheduled")
+              ? "meeting"
+              : can.complete
+                ? "complete"
+                : can.meeting
+                  ? "meeting"
+                  : "";
+  const allowed: Record<Step, boolean> = {
+    "": true,
+    complete: can.complete,
+    transfer: can.transfer,
+    cancel: can.cancel,
+    candidates: can.group,
+    status: can.status,
+  };
+  const ready = load2 === "ready" && !!req;
+  const shownStep: Step = ready && allowed[step] ? step : "";
+
+  if (ask !== seenAsk) {
+    setSeenAsk(ask);
+    const keep = !switched && shownStep !== "" && (stepDirty || ask.act === "detail-modal" || ask.act === shownStep);
+    if (ask.act && !keep) {
+      setStep("");
+      setStepDirty(false);
+      setMenu(false);
+      setWanted(ask.act);
+    }
+  }
+
+  const items: MenuItem[] = [];
+  if (req) {
+    if (can.meeting && primary !== "meeting") {
+      items.push({ key: "meeting", group: 0, label: t("startMeeting"), icon: <IconVideo />, aiId: aiId(AI_ITEM, req.id, "meeting"), onSelect: () => void meet() });
+    }
+    if (can.chat && primary !== "chat") {
+      items.push({ key: "chat", group: 0, label: t("openChat"), icon: <IconChat />, href: chatHref(req, kindLabel), title: t("openChatTitle"), aiId: aiId(AI_ITEM, req.id, "chat") });
+    }
+    if (can.complete && primary !== "complete") {
+      items.push({ key: "complete", group: 0, label: t("complete"), icon: <IconCheck />, aiId: aiId(AI_ITEM, req.id, "complete"), onSelect: () => go("complete") });
+    }
+    if (can.transfer) {
+      items.push({ key: "transfer", group: 1, label: t("transfer"), icon: <IconUsers />, aiId: aiId(AI_ITEM, req.id, "transfer"), onSelect: () => go("transfer") });
+    }
+    if (can.status) {
+      items.push({ key: "status", group: 1, label: t("moveTo"), icon: <IconClock />, aiId: aiId(AI_ITEM, req.id, "status"), onSelect: () => go("status") });
+    }
+    if (can.cancel) {
+      items.push({ key: "cancel", group: 2, label: t("cancelAsk"), icon: <IconClose />, danger: true, aiId: aiId(AI_ITEM, req.id, "cancel"), onSelect: () => go("cancel") });
+    }
+  }
+  const wantedHere = !!wanted && shownStep === "" && items.some((x) => x.key === wanted);
+  if (wanted && ready && shownStep === "" && !wantedHere) setWanted("");
+  const menuOpen = menu || wantedHere;
+
+  const seenStep = useRef<Step>("");
+  useEffect(() => {
+    if (seenStep.current === shownStep) return;
+    seenStep.current = shownStep;
+    const el = root.current;
+    if (!el) return;
+    el.closest<HTMLElement>(".amodal__b")?.scrollTo({ top: 0 });
+    const title = el.closest(".amodal__c")?.querySelector<HTMLElement>(".amodal__t") ?? null;
+    const field = shownStep && shownStep !== "transfer" && shownStep !== "candidates" && !isCoarsePointer() ? el.querySelector<HTMLElement>(STEP_FIELD) : null;
+    (field ?? title)?.focus({ preventScroll: true });
+  }, [shownStep]);
+
+  function cancelNow(reason: string) {
+    if (!req) return;
+    const rid = req.id;
+    void confirmDialog({
+      tone: "danger",
+      title: t("cancelConfirmTitle"),
+      text: t("cancelConfirmText"),
+      confirmLabel: t("cancelYes"),
+      cancelLabel: t("back"),
+      busyLabel: tcm("processingShort"),
+      onConfirm: () => run("cancel", () => cancelUrgentRequest(rid, reason), { ok: () => ({ title: t("cancelDone") }), fail: t("notify.cancelFailed") }),
+    }).then((ok) => {
+      if (ok) finishStep();
+    });
+  }
+
+  const sources = req && isSecond ? dedupeSources(req.eligibleSources) : [];
+  const stepTitle: Record<Step, string> = {
+    "": kindLabel || t("openDetail"),
+    complete: t("stepComplete"),
+    transfer: t("stepTransfer"),
+    cancel: t("stepCancel"),
+    candidates: req?.groupLawyers.length ? t("regroup") : t("assignGroup"),
+    status: t("moveTo"),
+  };
+  const hasFoot = ready && (shownStep !== "" || !!primary || items.length > 0);
+
+  // ── Everything the lifecycle still allows ───────────────────────
+  const primaryBtn = !req ? null : primary === "claim" ? (
+    <button
+      type="button"
+      className="btn btn--pri"
+      disabled={!!busy}
+      title={takeOver ? t("takeOverTitle") : undefined}
+      onClick={() => void run("claim", () => claimUrgentRequest(req.id), claimMsgs)}
+      data-ai-id={aiId(AI_ITEM, req.id, "claim")}
+    >
+      <IconCheck />{busy === "claim" ? t("claiming") : takeOver ? t("takeOver") : t("claim")}
+    </button>
+  ) : primary === "chat" ? (
+    // The private room the claim created. It is where the client is
+    // already being answered, so it stays reachable on a finished
+    // record too — that is where the conversation lives.
+    <Link href={chatHref(req, kindLabel)} className="btn btn--pri" title={t("openChatTitle")} data-ai-id={aiId(AI_ITEM, req.id, "chat")}>
+      <IconChat />{t("openChat")}
+    </Link>
+  ) : primary === "meeting" ? (
+    <button type="button" className="btn btn--pri" disabled={!!busy} onClick={() => void meet()} data-ai-id={aiId(AI_ITEM, req.id, "meeting")}>
+      <IconVideo />{busy === "meeting" ? t("starting") : t("startMeeting")}
+    </button>
+  ) : primary === "complete" ? (
+    <button type="button" className="btn btn--pri" disabled={!!busy} onClick={() => go("complete")} data-ai-id={aiId(AI_ITEM, req.id, "complete")}>
+      <IconCheck />{t("complete")}
+    </button>
+  ) : primary === "group" ? (
+    <button
+      type="button"
+      className="btn btn--pri"
+      disabled={!!busy}
+      onClick={() => go("candidates")}
+      data-ai-id={aiId(AI_ITEM, req.id, "assign-group")}
+      data-ai-label={t("assignGroup")}
+    >
+      <IconUsers />{t("assignGroup")}
+    </button>
+  ) : null;
+
   return (
-    <Modal open={!!id} onClose={onClose} title={kindLabel || t("openDetail")} wide>
+    <Modal
+      open={!!id}
+      onClose={onClose}
+      title={ready ? stepTitle[shownStep] : kindLabel || t("openDetail")}
+      description={req && shownStep ? [kindLabel, req.workId].filter(Boolean).join(" · ") : undefined}
+      wide
+      initialFocus="title"
+      busy={!!busy || stepBusy}
+      dirty={shownStep !== "" && stepDirty}
+      footer={hasFoot ? <div className="ccslot uadf" ref={setSlot} /> : undefined}
+    >
       {load2 === "loading" ? (
         <Skeleton rows={5} />
       ) : load2 === "error" || !req ? (
         <ErrorState error={loadErr} onRetry={fetchOne} title={t("detailLoadError")} />
       ) : (
         <div
-          className="uad"
+          ref={root}
+          className={`uad${shownStep ? " uad--step" : ""}`}
           data-ai-id={aiId(AI_ITEM, req.id, "detail-modal")}
           data-ai-type="modal"
           data-ai-label={kindLabel || t("openDetail")}
           data-ai-entity-type="urgent_advokat_request"
           data-ai-entity-id={req.id}
         >
-          {/* ── Header line: status, channel, price, SLA ───────────── */}
-          <div className="uad__top">
-            <em className={`creq__badge uaq__st uaq__st--${req.status}`}>{statusLabel(tcm, req.status)}</em>
-            {req.workId ? <span className="ua__wid" title={tk("workId")}>{req.workId}</span> : null}
-            {req.channel ? (
-              <span className="uad__chip">{req.channel === "chat" ? <IconChat /> : <IconVideo />}{req.channel === "chat" ? tk("chChat") : tk("chVideo")}</span>
-            ) : null}
-            {req.meetingMinutes ? <span className="uad__chip"><IconClock />{tk("minutesN", { n: req.meetingMinutes })}</span> : null}
-            {req.amount ? <span className="uad__chip"><IconCheck />{fmtUzs(req.amount)} {te("currency")}</span> : null}
-            {req.slaBreached ? <span className="uad__chip uad__chip--warn"><IconAlert />{t("slaBreached")}</span> : null}
-          </div>
-
-          <div className="uad__cols" data-ai-private>
-            <div className="uad__main">
-              {/* ── Who asked ───────────────────────────────────────── */}
-              <section className="uad__sec">
-                <h4><IconUser />{t("client")}</h4>
-                <p className="uad__who">
-                  <b>{req.clientName || t("unknownClient")}</b>
-                  {req.clientPhone ? <a href={`tel:${req.clientPhone}`}><IconPhone />{req.clientPhone}</a> : null}
-                  {req.client?.lexgoId ? <span className="advmuted">{req.client.lexgoId}</span> : null}
-                  {req.region ? <span className="advmuted"><IconMapPin />{regionLabel(te, req.region)}</span> : null}
-                </p>
-              </section>
-
-              {/* ── What for ────────────────────────────────────────── */}
-              <section className="uad__sec">
-                <h4><IconFileText />{t("need")}</h4>
-                <p className="uad__need">{req.need || t("noNeed")}</p>
-                {req.directions.length ? (
-                  <div className="chiprow" style={{ margin: "8px 0 0" }}>
-                    {req.directions.map((d) => (
-                      <span key={d} className="fchip" aria-hidden={false}>{directionLabel(te, d)}</span>
-                    ))}
-                  </div>
-                ) : null}
-                {isGroup ? <p className="advmuted uad__note">{t("requestedN", { n: req.lawyerCount || 0 })}</p> : null}
-              </section>
-
-              {/* ── What they attached ──────────────────────────────── */}
-              {req.files.length || req.voiceMessages.length ? (
-                <section className="uad__sec">
-                  <h4><IconFileText />{t("attachments")}</h4>
-                  <ul className="uad__files">
-                    {req.files.map((f, i) => (
-                      <li key={`f${i}`}>
-                        <IconFileText />
-                        {f.url ? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.name}</a> : <span>{f.name}</span>}
-                      </li>
-                    ))}
-                    {req.voiceMessages.map((v, i) => (
-                      <li key={`v${i}`}>
-                        <IconMic />
-                        {v.url ? <audio src={v.url} controls preload="none" /> : <span>{v.name}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              {/* ── The panel, for a group second opinion ───────────── */}
-              {isGroup ? (
-                <section className="uad__sec">
-                  <h4><IconUsers />{t("panel")}</h4>
-                  {req.groupLawyers.length ? (
-                    <ul className="uad__people">
-                      {req.groupLawyers.map((g) => (
-                        <li key={g.id}><b>{g.name}</b><span className="advmuted">{g.phone}</span></li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="advmuted">{t("panelEmpty")}</p>
-                  )}
-                  {req.scheduledAt ? (
-                    <p className="uad__when"><IconCalendar />{t("scheduledFor", { when: dateTimeFull(req.scheduledAt, locale) })}</p>
-                  ) : null}
-                  {req.meetingNote ? <p className="advmuted uad__note">{req.meetingNote}</p> : null}
-                  {!finished ? (
-                    <button
-                      type="button"
-                      className="btn btn--line btn--sm"
-                      onClick={() => setPanel(panel === "candidates" ? "" : "candidates")}
-                      data-ai-id={aiId(AI_ITEM, req.id, "assign-group")}
-                      data-ai-label={req.groupLawyers.length ? t("regroup") : t("assignGroup")}
-                    >
-                      <IconUsers />{req.groupLawyers.length ? t("regroup") : t("assignGroup")}
-                    </button>
-                  ) : null}
-                </section>
-              ) : null}
-
-              {panel === "candidates" ? (
-                <CandidatePanel
-                  req={req}
-                  onClose={() => setPanel("")}
-                  onDone={(r, msg) => { setReq(r); setPanel(""); onChanged({ id, title: msg, status: r.status }); }}
-                />
-              ) : null}
-
-              {/* ── The result, once there is one ───────────────────── */}
-              {req.resultSummary || req.nextAction ? (
-                <section className="uad__sec uad__sec--ok">
-                  <h4><IconCheck />{t("result")}</h4>
-                  {req.resultSummary ? <p className="uad__need">{req.resultSummary}</p> : null}
-                  {req.nextAction ? <p className="advmuted uad__note">{t("nextAction")}: {req.nextAction}</p> : null}
-                  {req.completedAt ? <p className="advmuted uad__note">{dateTimeFull(req.completedAt, locale)}</p> : null}
-                </section>
-              ) : null}
-              {req.cancelReason ? (
-                <section className="uad__sec uad__sec--warn">
-                  <h4><IconClose />{t("cancelled")}</h4>
-                  <p className="uad__need">{req.cancelReason}</p>
-                  {req.cancelledAt ? <p className="advmuted uad__note">{dateTimeFull(req.cancelledAt, locale)}</p> : null}
-                </section>
-              ) : null}
-            </div>
-
-            <div className="uad__side">
-              {/* ── Who is on it ────────────────────────────────────── */}
-              <section className="uad__sec">
-                <h4><IconHeadset />{t("assignment")}</h4>
-                <dl className="uad__dl">
-                  <div><dt>{t("claimedBy")}</dt><dd>{req.claimedBy?.name || "—"}</dd></div>
-                  <div><dt>{t("operator")}</dt><dd>{req.operator?.name || "—"}</dd></div>
-                  <div><dt>{t("assignedLawyer")}</dt><dd>{req.assignedLawyer?.name || "—"}</dd></div>
-                  <div><dt>{t("created")}</dt><dd>{req.createdAt ? dateTimeFull(req.createdAt, locale) : "—"}</dd></div>
-                </dl>
-              </section>
-
-              {/* ── Why this client may order a second opinion ──────── */}
-              {isSecond && req.eligibleSources.length ? (
-                <section className="uad__sec">
-                  <h4><IconShieldCheck />{t("eligibleSources")}</h4>
-                  <p className="advmuted uad__note">{t("eligibleSourcesLead")}</p>
-                  <ul className="uad__sources">
-                    {req.eligibleSources.map((s) => (
-                      <li key={`${s.type}-${s.id}`}>
-                        <b>{s.title || s.serviceKind || s.type}</b>
-                        <span className="advmuted">{[statusLabel(tcm, s.status), s.createdAt ? dateTimeFull(s.createdAt, locale) : ""].filter(Boolean).join(" · ")}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              {/* ── Where it has been ───────────────────────────────── */}
-              {req.statusHistory.length ? (
-                <section className="uad__sec">
-                  <h4><IconClock />{t("history")}</h4>
-                  <ol className="uad__hist">
-                    {req.statusHistory.map((h, i) => (
-                      <li key={i}>
-                        <b>{statusLabel(tcm, h.to)}</b>
-                        <span className="advmuted">{h.at ? dateTimeFull(h.at, locale) : ""}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </section>
-              ) : null}
-            </div>
-          </div>
-
-          {/* ── Everything the lifecycle still allows ───────────────── */}
-          <div className="uad__acts">
-            {canClaim ? (
-              <button
-                type="button"
-                className="btn btn--pri"
-                disabled={!!busy}
-                title={takeOver ? t("takeOverTitle") : undefined}
-                onClick={() => void run("claim", () => claimUrgentRequest(req.id), claimMsgs)}
-                data-ai-id={aiId(AI_ITEM, req.id, "claim")}
-              >
-                <IconCheck />{busy === "claim" ? t("claiming") : takeOver ? t("takeOver") : t("claim")}
-              </button>
-            ) : null}
-            {!finished && req.status !== "open_pool" && req.channel !== "chat" ? (
-              <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => void meet()} data-ai-id={aiId(AI_ITEM, req.id, "meeting")}>
-                <IconVideo />{busy === "meeting" ? t("starting") : t("startMeeting")}
-              </button>
-            ) : null}
-            {/* The private room the claim created. It is where the client is
-                already being answered, so it stays reachable on a finished
-                record too — that is where the conversation lives. */}
-            {req.secureChatRoomId ? (
-              <Link href={chatHref(req, kindLabel)} className="btn btn--line" title={t("openChatTitle")} data-ai-id={aiId(AI_ITEM, req.id, "chat")}>
-                <IconChat />{t("openChat")}
-              </Link>
-            ) : null}
-            {!finished && req.status !== "open_pool" ? (
-              <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => setPanel(panel === "complete" ? "" : "complete")} data-ai-id={aiId(AI_ITEM, req.id, "complete")}>
-                <IconCheck />{t("complete")}
-              </button>
-            ) : null}
-            {/* Hand it to someone who fits better. Only once it is claimed:
-                an open_pool record has nobody to transfer FROM. */}
-            {!finished && req.status !== "open_pool" ? (
-              <button type="button" className="btn btn--line" disabled={!!busy} onClick={() => setPanel(panel === "transfer" ? "" : "transfer")} data-ai-id={aiId(AI_ITEM, req.id, "transfer")}>
-                <IconUsers />{t("transfer")}
-              </button>
-            ) : null}
-            {!finished ? (
-              <button type="button" className="btn btn--soft" disabled={!!busy} onClick={() => setPanel(panel === "cancel" ? "" : "cancel")} data-ai-id={aiId(AI_ITEM, req.id, "cancel")}>
-                <IconClose />{t("cancel")}
-              </button>
-            ) : null}
-            <StatusMover
-              key={`${req.status}|${req.claimedByUserId}`}
-              req={req}
-              busy={!!busy}
-              skip={req.claimedByUserId && req.claimedByUserId === me ? [] : ["claimed"]}
-              onMove={(s, n) =>
-                void run(
-                  "status",
-                  () => (s === "claimed" ? claimUrgentRequest(req.id) : setUrgentStatus(req.id, s, n)),
-                  s === "claimed" ? claimMsgs : { ok: () => ({ title: t("statusMoved", { status: statusLabel(tcm, s) }) }), fail: t("notify.statusFailed") },
-                )
-              }
-            />
-          </div>
-
-          {panel === "complete" ? (
+          {shownStep === "complete" ? (
             <CompleteForm
+              slot={slot}
               busy={!!busy}
-              onCancel={() => setPanel("")}
+              onBack={() => go("")}
+              onDirty={setStepDirty}
               onSubmit={(summary, nextAction) => {
                 void run("complete", () => completeUrgentRequest(req.id, { summary, nextAction }), { ok: () => ({ title: t("completed") }), fail: t("notify.completeFailed") })
-                  .then((ok) => { if (ok) setPanel(""); });
+                  .then((ok) => { if (ok) finishStep(); });
               }}
             />
-          ) : null}
-          {panel === "transfer" ? (
+          ) : shownStep === "transfer" ? (
             <TransferPanel
               req={req}
+              slot={slot}
               busy={!!busy}
-              onCancel={() => setPanel("")}
+              onBack={() => go("")}
+              onDirty={setStepDirty}
               onSubmit={(uid, reason, name) => {
                 void run("transfer", () => transferUrgentRequest(req.id, { targetLawyerUserId: uid, reason }), {
                   ok: () => ({ title: t("transferred"), body: name ? t("notify.transferredTo", { name }) : undefined }),
                   fail: t("notify.transferFailed"),
-                }).then((ok) => { if (ok) setPanel(""); });
+                }).then((ok) => { if (ok) finishStep(); });
               }}
             />
-          ) : null}
-          {panel === "cancel" ? (
-            <CancelForm
+          ) : shownStep === "cancel" ? (
+            <CancelForm slot={slot} busy={!!busy} onBack={() => go("")} onDirty={setStepDirty} onSubmit={cancelNow} />
+          ) : shownStep === "candidates" ? (
+            <CandidatePanel
+              req={req}
+              slot={slot}
+              onBack={() => go("")}
+              onDirty={setStepDirty}
+              onBusy={setStepBusy}
+              onDone={(r, msg) => { setReq(r); finishStep(); onChanged({ id, title: msg, status: r.status }); }}
+            />
+          ) : shownStep === "status" ? (
+            <StatusStep
+              key={`${req.status}|${req.claimedByUserId}`}
+              req={req}
+              choices={statusChoices}
+              slot={slot}
               busy={!!busy}
-              onCancel={() => setPanel("")}
-              onSubmit={(reason) => {
-                void run("cancel", () => cancelUrgentRequest(req.id, reason), { ok: () => ({ title: t("cancelDone") }), fail: t("notify.cancelFailed") })
-                  .then((ok) => { if (ok) setPanel(""); });
+              onBack={() => go("")}
+              onDirty={setStepDirty}
+              onMove={(s, n) => {
+                void run(
+                  "status",
+                  () => (s === "claimed" ? claimUrgentRequest(req.id) : setUrgentStatus(req.id, s, n)),
+                  s === "claimed" ? claimMsgs : { ok: () => ({ title: t("statusMoved", { status: statusLabel(tcm, s) }) }), fail: t("notify.statusFailed") },
+                ).then((ok) => { if (ok) finishStep(); });
               }}
             />
+          ) : (
+            <>
+              {/* ── Header line: status, channel, price, SLA ───────────── */}
+              <div className="uad__top">
+                <em className={`creq__badge uaq__st uaq__st--${req.status}`}>{statusLabel(tcm, req.status)}</em>
+                {req.workId ? <span className="ua__wid" title={tk("workId")}>{req.workId}</span> : null}
+                {req.channel ? (
+                  <span className="uad__chip">{req.channel === "chat" ? <IconChat /> : <IconVideo />}{req.channel === "chat" ? tk("chChat") : tk("chVideo")}</span>
+                ) : null}
+                {req.meetingMinutes ? <span className="uad__chip"><IconClock />{tk("minutesN", { n: req.meetingMinutes })}</span> : null}
+                {req.amount ? <span className="uad__chip"><IconCheck />{fmtUzs(req.amount)} {te("currency")}</span> : null}
+                {req.slaBreached ? <span className="uad__chip uad__chip--warn"><IconAlert />{t("slaBreached")}</span> : null}
+              </div>
+
+              <div className="uad__cols" data-ai-private>
+                <div className="uad__main">
+                  {/* ── Who asked ───────────────────────────────────────── */}
+                  <section className="uad__sec">
+                    <h4><IconUser />{t("client")}</h4>
+                    <p className="uad__who">
+                      <b>{req.clientName || t("unknownClient")}</b>
+                      {req.clientPhone ? <a href={`tel:${req.clientPhone}`}><IconPhone />{req.clientPhone}</a> : null}
+                      {req.client?.lexgoId ? <span className="advmuted">{req.client.lexgoId}</span> : null}
+                      {req.region ? <span className="advmuted"><IconMapPin />{regionLabel(te, req.region)}</span> : null}
+                    </p>
+                  </section>
+
+                  {/* ── What for ────────────────────────────────────────── */}
+                  <section className="uad__sec">
+                    <h4><IconFileText />{t("need")}</h4>
+                    <p className="uad__need">{req.need || t("noNeed")}</p>
+                    {req.directions.length ? (
+                      <div className="chiprow" style={{ margin: "8px 0 0" }}>
+                        {req.directions.map((d) => (
+                          <span key={d} className="fchip" aria-hidden={false}>{directionLabel(te, d)}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {isGroup ? <p className="advmuted uad__note">{t("requestedN", { n: req.lawyerCount || 0 })}</p> : null}
+                  </section>
+
+                  {/* ── What they attached ──────────────────────────────── */}
+                  {req.files.length || req.voiceMessages.length ? (
+                    <section className="uad__sec">
+                      <h4><IconFileText />{t("attachments")}</h4>
+                      <ul className="uad__files">
+                        {req.files.map((f, i) => (
+                          <li key={`f${i}`}>
+                            <IconFileText />
+                            {f.url ? <a href={f.url} target="_blank" rel="noopener noreferrer">{f.name}</a> : <span>{f.name}</span>}
+                          </li>
+                        ))}
+                        {req.voiceMessages.map((v, i) => (
+                          <li key={`v${i}`}>
+                            <IconMic />
+                            {v.url ? (
+                              <VoiceNotePlayer
+                                src={v.url}
+                                className="uad__vnote"
+                                playLabel={tv("voicePlay")}
+                                pauseLabel={tv("voicePause")}
+                                seekLabel={tv("voiceSeek")}
+                                seed={v.url || v.name || String(i)}
+                              />
+                            ) : (
+                              <span>{v.name}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ) : null}
+
+                  {/* ── The panel, for a group second opinion ───────────── */}
+                  {isGroup ? (
+                    <section className="uad__sec">
+                      <h4><IconUsers />{t("panel")}</h4>
+                      {req.groupLawyers.length ? (
+                        <ul className="uad__people">
+                          {req.groupLawyers.map((g) => (
+                            <li key={g.id}><b>{g.name}</b><span className="advmuted">{g.phone}</span></li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="advmuted">{t("panelEmpty")}</p>
+                      )}
+                      {req.scheduledAt ? (
+                        <p className="uad__when"><IconCalendar />{t("scheduledFor", { when: dateTimeFull(req.scheduledAt, locale) })}</p>
+                      ) : null}
+                      {req.meetingNote ? <p className="advmuted uad__note">{req.meetingNote}</p> : null}
+                      {can.group && primary !== "group" ? (
+                        <button
+                          type="button"
+                          className="btn btn--line btn--sm uad__regroup"
+                          disabled={!!busy}
+                          onClick={() => go("candidates")}
+                          data-ai-id={aiId(AI_ITEM, req.id, "assign-group")}
+                          data-ai-label={req.groupLawyers.length ? t("regroup") : t("assignGroup")}
+                        >
+                          <IconUsers />{req.groupLawyers.length ? t("regroup") : t("assignGroup")}
+                        </button>
+                      ) : null}
+                    </section>
+                  ) : null}
+
+                  {/* ── The result, once there is one ───────────────────── */}
+                  {req.resultSummary || req.nextAction ? (
+                    <section className="uad__sec uad__sec--ok">
+                      <h4><IconCheck />{t("result")}</h4>
+                      {req.resultSummary ? <p className="uad__need">{req.resultSummary}</p> : null}
+                      {req.nextAction ? <p className="advmuted uad__note">{t("nextAction")}: {req.nextAction}</p> : null}
+                      {req.completedAt ? <p className="advmuted uad__note">{dateTimeFull(req.completedAt, locale)}</p> : null}
+                    </section>
+                  ) : null}
+                  {req.cancelReason ? (
+                    <section className="uad__sec uad__sec--warn">
+                      <h4><IconClose />{t("cancelled")}</h4>
+                      <p className="uad__need">{req.cancelReason}</p>
+                      {req.cancelledAt ? <p className="advmuted uad__note">{dateTimeFull(req.cancelledAt, locale)}</p> : null}
+                    </section>
+                  ) : null}
+                </div>
+
+                <div className="uad__side">
+                  {/* ── Who is on it ────────────────────────────────────── */}
+                  <section className="uad__sec">
+                    <h4><IconHeadset />{t("assignment")}</h4>
+                    <dl className="uad__dl">
+                      <div><dt>{t("claimedBy")}</dt><dd>{req.claimedBy?.name || "—"}</dd></div>
+                      <div><dt>{t("operator")}</dt><dd>{req.operator?.name || "—"}</dd></div>
+                      <div><dt>{t("assignedLawyer")}</dt><dd>{req.assignedLawyer?.name || "—"}</dd></div>
+                      <div><dt>{t("created")}</dt><dd>{req.createdAt ? dateTimeFull(req.createdAt, locale) : "—"}</dd></div>
+                    </dl>
+                  </section>
+
+                  {/* ── Why this client may order a second opinion ──────── */}
+                  {sources.length ? (
+                    <section className="uad__sec">
+                      <h4><IconShieldCheck />{t("eligibleSources")}</h4>
+                      <p className="advmuted uad__note">{t("eligibleSourcesLead")}</p>
+                      <ul className="uad__sources">
+                        {(allSources ? sources : sources.slice(0, SOURCES_SHOWN)).map((s, i) => (
+                          <li key={`${s.type}-${s.id}-${i}`}>
+                            <b>{s.title || s.serviceKind || s.type}</b>
+                            <span className="advmuted">{[statusLabel(tcm, s.status), s.createdAt ? dateTimeFull(s.createdAt, locale) : ""].filter(Boolean).join(" · ")}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {sources.length > SOURCES_SHOWN ? (
+                        <button type="button" className="uad__more" aria-expanded={allSources} onClick={() => setAllSources((v) => !v)}>
+                          {allSources ? t("sourcesLess") : t("sourcesAll", { n: sources.length })}
+                        </button>
+                      ) : null}
+                    </section>
+                  ) : null}
+
+                  {/* ── Where it has been ───────────────────────────────── */}
+                  {req.statusHistory.length ? (
+                    <section className="uad__sec">
+                      <h4>
+                        <button type="button" className="uad__htog" aria-expanded={histOpen} aria-controls={histId} onClick={() => setHistOpen((v) => !v)}>
+                          <IconClock />
+                          {t("history")}
+                          <em className="uad__hn">{req.statusHistory.length}</em>
+                          <IconChevronDown className="uad__hcv" />
+                        </button>
+                      </h4>
+                      <ol id={histId} className="uad__hist" hidden={!histOpen}>
+                        {req.statusHistory.map((h, i) => (
+                          <li key={i}>
+                            <b>{statusLabel(tcm, h.to)}</b>
+                            <span className="advmuted">{h.at ? dateTimeFull(h.at, locale) : ""}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </section>
+                  ) : null}
+                </div>
+              </div>
+            </>
+          )}
+          {slot && shownStep === "" ? createPortal(
+            <>
+              {items.length ? (
+                <MoreMenu
+                  open={menuOpen}
+                  onOpenChange={openMenu}
+                  items={items}
+                  label={t("more")}
+                  title={t("moreTitle")}
+                  disabled={!!busy}
+                  aiId={aiId(AI_ITEM, req.id, "more")}
+                />
+              ) : null}
+              {primaryBtn}
+            </>,
+            slot,
           ) : null}
         </div>
       )}
@@ -1079,88 +1335,360 @@ function UrgentDetailDrawer({
   );
 }
 
+function MoreMenu({
+  open,
+  onOpenChange,
+  items,
+  label,
+  title,
+  disabled,
+  aiId: triggerAiId,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  items: MenuItem[];
+  label: string;
+  title: string;
+  disabled?: boolean;
+  aiId?: string;
+}) {
+  const btn = useRef<HTMLButtonElement>(null);
+  const pane = useRef<HTMLElement | null>(null);
+  const list = useRef<HTMLElement | null>(null);
+  const menuId = useId();
+  const pop = usePopover({ open, onClose: () => onOpenChange(false), trigger: btn, popup: pane });
+
+  useEffect(() => {
+    if (!open) return;
+    const raf = requestAnimationFrame(() => {
+      list.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
+
+  function onKey(e: ReactKeyboardEvent<HTMLElement>) {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      pop.close("select");
+      return;
+    }
+    const all = Array.from(list.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    if (!all.length) return;
+    const at = all.findIndex((x) => x === document.activeElement);
+    const to =
+      e.key === "ArrowDown" ? (at + 1) % all.length
+        : e.key === "ArrowUp" ? (at <= 0 ? all.length - 1 : at - 1)
+          : e.key === "Home" ? 0
+            : e.key === "End" ? all.length - 1
+              : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    all[to].focus({ preventScroll: true });
+  }
+
+  function pick(item: MenuItem) {
+    pop.close("select");
+    item.onSelect?.();
+  }
+
+  const bindPane = (el: HTMLDivElement | null) => {
+    pane.current = el;
+  };
+  const bindList = (el: HTMLDivElement | null) => {
+    list.current = el;
+  };
+  const bindBoth = (el: HTMLDivElement | null) => {
+    pane.current = el;
+    list.current = el;
+  };
+
+  const rows = items.map((it, i) => (
+    <Fragment key={it.key}>
+      {i > 0 && it.group !== items[i - 1].group ? <div role="separator" className="uamenu__sep" /> : null}
+      {it.href ? (
+        <Link
+          href={it.href}
+          role="menuitem"
+          tabIndex={-1}
+          className="dsel__opt uamenu__i"
+          title={it.title}
+          data-ai-id={it.aiId}
+          onClick={() => pop.close("select")}
+        >
+          {it.icon}
+          <span>{it.label}</span>
+        </Link>
+      ) : (
+        <button
+          type="button"
+          role="menuitem"
+          tabIndex={-1}
+          className={`dsel__opt uamenu__i${it.danger ? " uamenu__i--danger" : ""}`}
+          data-ai-id={it.aiId}
+          onClick={() => pick(it)}
+        >
+          {it.icon}
+          <span>{it.label}</span>
+        </button>
+      )}
+    </Fragment>
+  ));
+
+  const popup: ReactNode = !open ? null : pop.isSheet ? (
+    <>
+      <div className="dsel__scrim" style={{ zIndex: pop.z - 1 }} aria-hidden="true" />
+      <div ref={bindPane} className="dsel__sheet uamenu__sheet" role="dialog" aria-label={title} tabIndex={-1} data-placement="sheet" style={pop.style} onKeyDown={onKey}>
+        <div className="dsel__shead">
+          <span className="dsel__grip" aria-hidden="true" />
+          <b className="dsel__stitle">{title}</b>
+        </div>
+        <div ref={bindList} id={menuId} role="menu" aria-label={title} className="dsel__menu uamenu">
+          {rows}
+        </div>
+      </div>
+    </>
+  ) : (
+    <div
+      ref={bindBoth}
+      id={menuId}
+      role="menu"
+      aria-label={title}
+      tabIndex={-1}
+      className="dsel__menu uamenu"
+      data-placement={pop.placement}
+      style={pop.style}
+      onKeyDown={onKey}
+    >
+      {rows}
+    </div>
+  );
+
+  return (
+    <>
+      <button
+        ref={btn}
+        type="button"
+        className="btn btn--line uadf__more"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        disabled={disabled}
+        onClick={() => onOpenChange(!open)}
+        data-ai-id={triggerAiId}
+        data-ai-label={title}
+        data-ai-description={triggerAiId ? items.map((x) => x.label).join(", ") : undefined}
+      >
+        <IconMoreHorizontal aria-hidden="true" />
+        {label}
+      </button>
+      {popup ? createPortal(popup, document.body) : null}
+    </>
+  );
+}
 
 // ── Status, by the record's own rules ──────────────────────────────
 // lifecycle.next_statuses is the whole permitted set — a status outside it is
 // answered 409 ("in_progress holatidan open_pool holatiga o'tkazib
 // bo'lmaydi") — so the control offers exactly that and disappears on a final
 // status, where the list is empty.
-function StatusMover({ req, busy, skip = [], onMove }: { req: UrgentRequest; busy: boolean; skip?: string[]; onMove: (status: string, note: string) => void }) {
+function StatusStep({
+  req,
+  choices,
+  slot,
+  busy,
+  onBack,
+  onDirty,
+  onMove,
+}: {
+  req: UrgentRequest;
+  choices: string[];
+  slot: HTMLElement | null;
+  busy: boolean;
+  onBack: () => void;
+  onDirty: (dirty: boolean) => void;
+  onMove: (status: string, note: string) => void;
+}) {
   const t = useTranslations("admin.urgent");
   const tcm = useTranslations("portal.common");
+  const uid = useId();
   const [next, setNext] = useState("");
   const [note, setNote] = useState("");
-
-  // completed / cancelled have their own dedicated buttons above, with the
-  // summary and the reason those endpoints require.
-  const choices = req.nextStatuses.filter((s) => s !== "completed" && s !== "cancelled" && !skip.includes(s));
-  if (!choices.length) return null;
   const sel = choices.includes(next) ? next : "";
+  const withNote = !!sel && sel !== "claimed";
+  useReportDirty(!!sel || !!note.trim(), onDirty);
+  useAiField(aiId(AI_ITEM, req.id, "status"), {
+    get: () => sel,
+    set: (raw) => {
+      const v = aiPick(choices.map((s) => ({ value: s, label: statusLabel(tcm, s) })), raw);
+      if (v) setNext(v);
+    },
+    disabled: busy,
+  });
+
+  function submit() {
+    if (!sel || busy) return;
+    onMove(sel, withNote ? note.trim() : "");
+  }
 
   return (
-    <div className="uad__move" data-ai-id={aiId(AI_ITEM, req.id, "status")} data-ai-type="select" data-ai-label={t("moveTo")} data-ai-private>
-      <Select
-        value={sel}
-        onChange={setNext}
-        ariaLabel={t("moveTo")}
-        options={[{ value: "", label: t("moveTo") }, ...choices.map((s) => ({ value: s, label: statusLabel(tcm, s) }))]}
-      />
-      <input
-        type="text"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        placeholder={t("statusNotePh")}
-        aria-label={t("statusNotePh")}
-        disabled={sel === "claimed"}
-      />
-      <button type="button" className="btn btn--line btn--sm" disabled={!sel || busy} onClick={() => onMove(sel, sel === "claimed" ? "" : note.trim())}>
-        {t("move")}
-      </button>
+    <div className="uad__form uad__form--flat" data-ai-id={aiId(AI_ITEM, req.id, "status")} data-ai-type="select" data-ai-label={t("moveTo")} data-ai-private>
+      <p className="advmuted uad__lead">{t("statusNow", { status: statusLabel(tcm, req.status) })}</p>
+      <div className="uad__field">
+        <span className="uad__lbl" id={`${uid}-l`}>{t("statusPick")}</span>
+        <div className="ccpick" role="radiogroup" aria-labelledby={`${uid}-l`} aria-required="true">
+          {choices.map((s) => (
+            <label key={s} className={`ccpick__o${sel === s ? " on" : ""}`}>
+              <input className="ccpick__in" type="radio" name={`${uid}-s`} value={s} checked={sel === s} onChange={() => setNext(s)} />
+              <span className="ccpick__dot" aria-hidden="true" />
+              <span className="ccpick__m"><b>{statusLabel(tcm, s)}</b></span>
+            </label>
+          ))}
+        </div>
+      </div>
+      {withNote ? (
+        <div>
+          <label htmlFor={`${uid}-n`}>{t("statusNotePh")}</label>
+          <textarea id={`${uid}-n`} rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+        </div>
+      ) : null}
+      {slot
+        ? createPortal(
+            <>
+              <button type="button" className="btn btn--line" disabled={busy} onClick={onBack}>{t("back")}</button>
+              <button type="button" className="btn btn--pri" disabled={!sel || busy} onClick={submit}>
+                {busy ? tcm("processingShort") : t("statusSave")}
+              </button>
+            </>,
+            slot,
+          )
+        : null}
     </div>
   );
 }
 
-function CompleteForm({ busy, onCancel, onSubmit }: { busy: boolean; onCancel: () => void; onSubmit: (summary: string, nextAction: string) => void }) {
+function CompleteForm({
+  slot,
+  busy,
+  onBack,
+  onDirty,
+  onSubmit,
+}: {
+  slot: HTMLElement | null;
+  busy: boolean;
+  onBack: () => void;
+  onDirty: (dirty: boolean) => void;
+  onSubmit: (summary: string, nextAction: string) => void;
+}) {
   const t = useTranslations("admin.urgent");
+  const tcm = useTranslations("portal.common");
   const [summary, setSummary] = useState("");
   const [next, setNext] = useState("");
+  const short = summary.trim().length < MIN_SUMMARY;
+  useReportDirty(!!summary.trim() || !!next.trim(), onDirty);
+
+  function submit() {
+    if (short || busy) return;
+    onSubmit(summary.trim(), next.trim());
+  }
+
   return (
-    <div className="uad__form" data-ai-private>
-      <p className="advmuted" style={{ margin: 0 }}>{t("completeLead")}</p>
+    <div className="uad__form uad__form--flat" data-ai-private>
+      <p className="advmuted uad__lead">{t("completeLead")}</p>
       <div>
         <label htmlFor="uad-sum">{t("summary")}</label>
-        <textarea id="uad-sum" rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} placeholder={t("summaryPh")} />
+        <textarea
+          id="uad-sum"
+          rows={3}
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          placeholder={t("summaryPh")}
+          aria-required="true"
+          aria-describedby="uad-sum-min"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+        />
+        <p id="uad-sum-min" className={`uad__hint${short ? "" : " ok"}`}>{t("minChars", { n: MIN_SUMMARY })}</p>
       </div>
       <div>
         <label htmlFor="uad-next">{t("nextAction")}</label>
         <input id="uad-next" type="text" value={next} onChange={(e) => setNext(e.target.value)} placeholder={t("nextActionPh")} />
       </div>
-      <div className="uad__formacts">
-        <button type="button" className="btn btn--soft btn--sm" onClick={onCancel}>{t("back")}</button>
-        <button type="button" className="btn btn--grad btn--sm" disabled={summary.trim().length < 5 || busy} onClick={() => onSubmit(summary.trim(), next.trim())}>
-          <IconCheck />{t("completeSubmit")}
-        </button>
-      </div>
+      {slot
+        ? createPortal(
+            <>
+              <button type="button" className="btn btn--line" disabled={busy} onClick={onBack}>{t("back")}</button>
+              <button type="button" className="btn btn--pri" disabled={short || busy} onClick={submit}>
+                <IconCheck />{busy ? tcm("processingShort") : t("completeSubmit")}
+              </button>
+            </>,
+            slot,
+          )
+        : null}
     </div>
   );
 }
 
-function CancelForm({ busy, onCancel, onSubmit }: { busy: boolean; onCancel: () => void; onSubmit: (reason: string) => void }) {
+function CancelForm({
+  slot,
+  busy,
+  onBack,
+  onDirty,
+  onSubmit,
+}: {
+  slot: HTMLElement | null;
+  busy: boolean;
+  onBack: () => void;
+  onDirty: (dirty: boolean) => void;
+  onSubmit: (reason: string) => void;
+}) {
   const t = useTranslations("admin.urgent");
+  const tcm = useTranslations("portal.common");
   const [reason, setReason] = useState("");
+  const short = reason.trim().length < MIN_REASON;
+  useReportDirty(!!reason.trim(), onDirty);
+
+  function submit() {
+    if (short || busy) return;
+    onSubmit(reason.trim());
+  }
+
   return (
-    <div className="uad__form" data-ai-private>
-      <p className="advmuted" style={{ margin: 0 }}>{t("cancelLead")}</p>
+    <div className="uad__form uad__form--flat" data-ai-private>
+      <p className="advmuted uad__lead">{t("cancelLead")}</p>
       <div>
         <label htmlFor="uad-reason">{t("reason")}</label>
-        <input id="uad-reason" type="text" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("reasonPh")} />
+        <input
+          id="uad-reason"
+          type="text"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder={t("reasonPh")}
+          aria-required="true"
+          aria-describedby="uad-reason-min"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              submit();
+            }
+          }}
+        />
+        <p id="uad-reason-min" className={`uad__hint${short ? "" : " ok"}`}>{t("minChars", { n: MIN_REASON })}</p>
       </div>
-      <div className="uad__formacts">
-        <button type="button" className="btn btn--soft btn--sm" onClick={onCancel}>{t("back")}</button>
-        <button type="button" className="btn btn--danger btn--sm" disabled={reason.trim().length < 3 || busy} onClick={() => onSubmit(reason.trim())}>
-          <IconClose />{t("cancelSubmit")}
-        </button>
-      </div>
+      {slot
+        ? createPortal(
+            <>
+              <button type="button" className="btn btn--line" disabled={busy} onClick={onBack}>{t("back")}</button>
+              <button type="button" className="btn btn--danger" disabled={short || busy} onClick={submit}>
+                <IconClose />{busy ? tcm("processingShort") : t("cancelRequest")}
+              </button>
+            </>,
+            slot,
+          )
+        : null}
     </div>
   );
 }
@@ -1171,16 +1699,21 @@ function CancelForm({ busy, onCancel, onSubmit }: { busy: boolean; onCancel: () 
 // in payload.transfer_history (verified against production).
 function TransferPanel({
   req,
+  slot,
   busy,
-  onCancel,
+  onBack,
+  onDirty,
   onSubmit,
 }: {
   req: UrgentRequest;
+  slot: HTMLElement | null;
   busy: boolean;
-  onCancel: () => void;
+  onBack: () => void;
+  onDirty: (dirty: boolean) => void;
   onSubmit: (targetUserId: string, reason: string, name: string) => void;
 }) {
   const t = useTranslations("admin.urgent");
+  const tcm = useTranslations("portal.common");
   const te = useTranslations("enums");
   const [list, setList] = useState<UrgentCandidate[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -1188,6 +1721,8 @@ function TransferPanel({
   const [tries, setTries] = useState(0);
   const [pick, setPick] = useState("");
   const [reason, setReason] = useState("");
+  const [shown, setShown] = useState(CAND_PAGE);
+  useReportDirty(!!pick || !!reason.trim(), onDirty);
 
   useEffect(() => {
     let alive = true;
@@ -1203,56 +1738,78 @@ function TransferPanel({
     () => [...list].filter((c) => c.userId !== holder).sort((a, b) => b.score - a.score),
     [list, holder],
   );
+  const visible = options.slice(0, shown);
+  const rest = options.length - visible.length;
 
   return (
-    <section className="uad__form" data-ai-private>
-      <p className="advmuted" style={{ margin: 0 }}>{t("transferLead")}</p>
-      {state === "loading" ? (
-        <Skeleton rows={2} />
-      ) : state === "error" ? (
-        <ErrorState
-          compact
-          title={t("candidatesError")}
-          error={fail}
-          onRetry={() => {
-            setState("loading");
-            setTries((n) => n + 1);
-          }}
-        />
-      ) : !options.length ? (
-        <p className="advmuted">{t("noAdvocates")}</p>
-      ) : (
-        <ul className="ucand__list">
-          {options.map((c) => (
-            <li key={c.userId}>
-              <button type="button" className={`ucand${pick === c.userId ? " on" : ""}`} aria-pressed={pick === c.userId} onClick={() => setPick(c.userId)}>
-                <span className="ucand__score" aria-hidden>{c.score}</span>
-                <span className="ucand__m">
-                  <b>{c.name}</b>
-                  <span className="ucand__meta">{[c.sellerType || c.role, c.region, t("workloadN", { n: c.workload })].filter(Boolean).join(" · ")}</span>
-                  {c.specializations.length ? (
-                    <span className="ucand__spec">{c.specializations.map((x) => directionLabel(te, x)).join(", ")}</span>
-                  ) : null}
-                </span>
-                <span className="ucand__tags">
-                  {!c.directionMatch ? <em className="ucand__tag ucand__tag--warn"><IconAlert />{t("tagOffDirection")}</em> : null}
-                </span>
-                {pick === c.userId ? <IconCheck className="ucand__ck" /> : null}
+    <section className="uad__form uad__form--flat" data-ai-private>
+      <p className="advmuted uad__lead">{t("transferLead")}</p>
+      <div className="uad__field">
+        <span className="uad__lbl" id="uad-tpick">{t("transferPick")}</span>
+        {state === "loading" ? (
+          <Skeleton rows={2} />
+        ) : state === "error" ? (
+          <ErrorState
+            compact
+            title={t("candidatesError")}
+            error={fail}
+            onRetry={() => {
+              setState("loading");
+              setTries((n) => n + 1);
+            }}
+          />
+        ) : !options.length ? (
+          <p className="advmuted">{t("noAdvocates")}</p>
+        ) : (
+          <>
+            <ul className="ucand__list ucand__list--paged" aria-labelledby="uad-tpick">
+              {visible.map((c) => (
+                <li key={c.userId}>
+                  <button type="button" className={`ucand${pick === c.userId ? " on" : ""}`} aria-pressed={pick === c.userId} onClick={() => setPick(c.userId)}>
+                    <span className="ucand__score" aria-hidden>{c.score}</span>
+                    <span className="ucand__m">
+                      <b>{c.name}</b>
+                      <span className="ucand__meta">{[c.sellerType || c.role, c.region, t("workloadN", { n: c.workload })].filter(Boolean).join(" · ")}</span>
+                      {c.specializations.length ? (
+                        <span className="ucand__spec">{c.specializations.map((x) => directionLabel(te, x)).join(", ")}</span>
+                      ) : null}
+                    </span>
+                    <span className="ucand__tags">
+                      {!c.directionMatch ? <em className="ucand__tag ucand__tag--warn"><IconAlert />{t("tagOffDirection")}</em> : null}
+                    </span>
+                    {pick === c.userId ? <IconCheck className="ucand__ck" /> : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {rest > 0 ? (
+              <button type="button" className="btn btn--line btn--sm ucand__page" onClick={() => setShown((n) => n + CAND_PAGE)}>
+                {t("showMore", { n: rest })}
               </button>
-            </li>
-          ))}
-        </ul>
-      )}
+            ) : null}
+          </>
+        )}
+      </div>
       <div>
         <label htmlFor="uad-treason">{t("reason")}</label>
         <input id="uad-treason" type="text" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("transferReasonPh")} />
       </div>
-      <div className="uad__formacts">
-        <button type="button" className="btn btn--soft btn--sm" onClick={onCancel}>{t("back")}</button>
-        <button type="button" className="btn btn--grad btn--sm" disabled={!pick || busy} onClick={() => onSubmit(pick, reason.trim(), list.find((c) => c.userId === pick)?.name ?? "")}>
-          <IconUsers />{t("transferSubmit")}
-        </button>
-      </div>
+      {slot
+        ? createPortal(
+            <>
+              <button type="button" className="btn btn--line" disabled={busy} onClick={onBack}>{t("back")}</button>
+              <button
+                type="button"
+                className="btn btn--pri"
+                disabled={!pick || busy}
+                onClick={() => onSubmit(pick, reason.trim(), list.find((c) => c.userId === pick)?.name ?? "")}
+              >
+                <IconUsers />{busy ? tcm("processingShort") : t("transferSubmit")}
+              </button>
+            </>,
+            slot,
+          )
+        : null}
     </section>
   );
 }
@@ -1264,15 +1821,23 @@ function TransferPanel({
 // unless the operator says so on purpose.
 function CandidatePanel({
   req,
-  onClose,
+  slot,
+  onBack,
+  onDirty,
+  onBusy,
   onDone,
 }: {
   req: UrgentRequest;
-  onClose: () => void;
+  slot: HTMLElement | null;
+  onBack: () => void;
+  onDirty: (dirty: boolean) => void;
+  onBusy: (busy: boolean) => void;
   onDone: (r: UrgentRequest, msg: string) => void;
 }) {
   const t = useTranslations("admin.urgent");
   const te = useTranslations("enums");
+  const errId = "ucand-err";
+  const errBox = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<UrgentCandidate[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [fail, setFail] = useState<unknown>(undefined);
@@ -1300,6 +1865,7 @@ function CandidatePanel({
   const [wideDirs, setWideDirs] = useState<string[]>(req.directions);
   const [wideRegion, setWideRegion] = useState(req.region);
   const [applied, setApplied] = useState(0);
+  const [shown, setShown] = useState(CAND_PAGE);
 
   // Back to the skeleton the moment the source changes, during render — doing
   // it in the effect would leave the previous list on screen for a frame while
@@ -1309,6 +1875,7 @@ function CandidatePanel({
   if (fetchKey !== prevKey) {
     setPrevKey(fetchKey);
     setState("loading");
+    setShown(CAND_PAGE);
   }
 
   useEffect(() => {
@@ -1325,10 +1892,30 @@ function CandidatePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [req.id, external, callcenter, wide, applied]);
 
+  useEffect(() => {
+    if (err) errBox.current?.scrollIntoView({ block: "nearest" });
+  }, [err]);
+
   const [matched, mismatched] = useMemo(() => {
     const sorted = [...list].sort((a, b) => b.score - a.score);
     return [sorted.filter((c) => c.directionMatch), sorted.filter((c) => !c.directionMatch)];
   }, [list]);
+  const shownMatched = matched.slice(0, shown);
+  const shownOff = mismatched.slice(0, Math.max(0, shown - matched.length));
+  const rest = matched.length + mismatched.length - shownMatched.length - shownOff.length;
+
+  const startIds = req.groupLawyerUserIds;
+  const changed = ids.length !== startIds.length || ids.some((x) => !startIds.includes(x));
+  useReportDirty(changed || !!date || !!time || !!note.trim(), onDirty);
+
+  const regionSeen = new Map<string, string>();
+  for (const v of [wideRegion, req.region, ...list.map((c) => c.region)]) {
+    const raw = (v || "").trim();
+    if (!raw) continue;
+    const k = regionKeyOf(te, raw) || raw.toLowerCase();
+    if (!regionSeen.has(k)) regionSeen.set(k, raw);
+  }
+  const regionOpts = [{ value: "", label: te("regions.all") }, ...[...regionSeen.values()].map((v) => ({ value: v, label: regionLabel(te, v) }))];
 
   const want = req.lawyerCount || 2;
   // The client asked for `want` advocates, so `want` is what can be ticked.
@@ -1354,6 +1941,7 @@ function CandidatePanel({
   async function submit() {
     if (!ids.length || busy) return;
     setBusy(true);
+    onBusy(true);
     setErr("");
     try {
       // The operator picks a local wall clock, so the offset comes from the
@@ -1388,6 +1976,7 @@ function CandidatePanel({
       }
     } finally {
       setBusy(false);
+      onBusy(false);
     }
   }
 
@@ -1437,7 +2026,7 @@ function CandidatePanel({
   );
 
   return (
-    <section className="uad__sec ucand__wrap">
+    <section className="uad__sec uad__sec--flat ucand__wrap">
       <h4>
         <IconStar />{t("candidates")}
         {/* How many of the asked-for places are taken, next to the heading:
@@ -1457,7 +2046,8 @@ function CandidatePanel({
       {wide ? (
         <div className="ucand__wide">
           <p className="advmuted uad__note">{t("searchWideLead")}</p>
-          <div className="chiprow" style={{ margin: 0 }}>
+          <span className="uad__lbl" id="ucand-dirs">{t("directions")}</span>
+          <div className="chiprow" style={{ margin: 0 }} role="group" aria-labelledby="ucand-dirs">
             {DIRECTION_SLUGS.map((d) => (
               <button
                 key={d}
@@ -1470,14 +2060,9 @@ function CandidatePanel({
               </button>
             ))}
           </div>
+          <span className="uad__lbl" id="ucand-reg">{t("region")}</span>
           <div className="ucand__widerow">
-            <input
-              type="text"
-              value={wideRegion}
-              onChange={(e) => setWideRegion(e.target.value)}
-              placeholder={t("regionPh")}
-              aria-label={t("regionPh")}
-            />
+            <Select value={wideRegion} onChange={setWideRegion} options={regionOpts} labelId="ucand-reg" />
             <button type="button" className="btn btn--line btn--sm" onClick={() => setApplied((n) => n + 1)}>
               {t("searchApply")}
             </button>
@@ -1493,12 +2078,17 @@ function CandidatePanel({
         <p className="advmuted">{t("noAdvocates")}</p>
       ) : (
         <>
-          <ul className="ucand__list">{matched.map(row)}</ul>
-          {mismatched.length ? (
+          {shownMatched.length ? <ul className="ucand__list ucand__list--paged">{shownMatched.map(row)}</ul> : null}
+          {shownOff.length ? (
             <>
               <p className="ucand__warn"><IconAlert />{t("offDirectionLead")}</p>
-              <ul className="ucand__list ucand__list--off">{mismatched.map(row)}</ul>
+              <ul className="ucand__list ucand__list--paged ucand__list--off">{shownOff.map(row)}</ul>
             </>
+          ) : null}
+          {rest > 0 ? (
+            <button type="button" className="btn btn--line btn--sm ucand__page" onClick={() => setShown((n) => n + CAND_PAGE)}>
+              {t("showMore", { n: rest })}
+            </button>
           ) : null}
         </>
       )}
@@ -1509,35 +2099,42 @@ function CandidatePanel({
 
       <div className="uaq__when2">
         <div>
-          <label>{t("date")}</label>
+          <span className="uad__lbl">{t("date")}</span>
           <DatePicker value={date} onChange={setDate} placeholder={t("datePh")} ariaLabel={t("date")} min={today} />
         </div>
         <div>
-          <label>{t("time")}</label>
+          <span className="uad__lbl">{t("time")}</span>
           <TimePicker value={time} onChange={setTime} placeholder={t("timePh")} ariaLabel={t("time")} />
         </div>
       </div>
       <p className="advmuted uad__note">{t("timeOptional")}</p>
 
       <div>
-        <label htmlFor="uaq-note">{t("note")}</label>
+        <label className="uad__lbl" htmlFor="uaq-note">{t("note")}</label>
         <textarea id="uaq-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("notePh")} />
       </div>
 
-      <FieldError id="ucand-err" msg={err} />
-      {offer === "count" ? (
-        <CheckBox id="uad-ovc" checked={okCount} onChange={setOkCount} hint={t("overrideCountHint")}>{t("overrideCount")}</CheckBox>
-      ) : null}
-      {offer === "direction" ? (
-        <CheckBox id="uad-ovd" checked={okDirection} onChange={setOkDirection} hint={t("overrideDirectionHint")}>{t("overrideDirection")}</CheckBox>
-      ) : null}
-
-      <div className="uad__formacts">
-        <button type="button" className="btn btn--soft btn--sm" onClick={onClose}>{t("back")}</button>
-        <button type="button" className="btn btn--grad btn--sm" disabled={!ids.length || busy} onClick={() => void submit()} aria-describedby={err ? "ucand-err" : undefined}>
-          <IconUsers />{busy ? t("assigning") : t("assignSubmit")}
-        </button>
+      <div ref={errBox} className="ucand__errs">
+        <FieldError id={errId} msg={err} />
+        {offer === "count" ? (
+          <CheckBox id="uad-ovc" checked={okCount} onChange={setOkCount} hint={t("overrideCountHint")}>{t("overrideCount")}</CheckBox>
+        ) : null}
+        {offer === "direction" ? (
+          <CheckBox id="uad-ovd" checked={okDirection} onChange={setOkDirection} hint={t("overrideDirectionHint")}>{t("overrideDirection")}</CheckBox>
+        ) : null}
       </div>
+
+      {slot
+        ? createPortal(
+            <>
+              <button type="button" className="btn btn--line" disabled={busy} onClick={onBack}>{t("back")}</button>
+              <button type="button" className="btn btn--pri" disabled={!ids.length || busy} onClick={() => void submit()} aria-describedby={err ? errId : undefined}>
+                <IconUsers />{busy ? t("assigning") : t("assignSubmit")}
+              </button>
+            </>,
+            slot,
+          )
+        : null}
     </section>
   );
 }

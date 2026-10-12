@@ -3702,6 +3702,7 @@
     }
   },
   "common": {
+    "modal": {"discardTitle":"Discard changes?","discardText":"What you entered will not be saved.","discardConfirm":"Close without saving","discardCancel":"Keep editing"},
     "select": {"search":"Search","empty":"Nothing found"},
     "searchSelect": {"typeToSearch":"Start typing to search","searching":"Searching…","failed":"Search failed. Try typing again.","results":"{n, plural, one {# result} other {# results}}","remove":"Remove: {name}","chosen":"Selected","clear":"Clear"},
     "dateFormat": "dd.mm.yyyy",
@@ -10467,6 +10468,7 @@
       }
     },
     "qualityComplaints": {
+      "actionRequired": "Choose a decision.",
       "fPhone": "Phone",
       "fPriority": "Priority",
       "fReason": "Reason",
@@ -10518,6 +10520,25 @@
       }
     },
     "urgent": {
+      "more": "More",
+      "moreTitle": "More actions",
+      "cancelAsk": "Cancel request…",
+      "cancelRequest": "Cancel request",
+      "cancelConfirmTitle": "Cancel this request?",
+      "cancelConfirmText": "The client is notified with the reason. This cannot be undone.",
+      "cancelYes": "Yes, cancel it",
+      "stepComplete": "Complete the request",
+      "stepTransfer": "Hand over to another advocate",
+      "stepCancel": "Cancel the request",
+      "minChars": "At least {n, plural, one {# character} other {# characters}}",
+      "sourcesAll": "Show all ({n})",
+      "sourcesLess": "Show less",
+      "statusNow": "Current status: {status}",
+      "statusPick": "New status",
+      "statusSave": "Save status",
+      "transferPick": "Choose an advocate",
+      "region": "Region",
+      "directions": "Practice areas",
       "viewActive": "Active",
       "viewArchive": "Archive",
       "showMore": "Show more ({n})",
@@ -11308,6 +11329,15 @@
       "detailError": "Could not load the details.",
       "status": { "active": "Active", "scheduled": "Scheduled", "ended": "Ended", "cancelled": "Cancelled", "expired": "Expired" },
       "detail": {
+        "summary": "Summary",
+        "endedAt": "Ended at",
+        "joinedOf": "joined {joined} / invited {invited}",
+        "more": "{n} more",
+        "less": "Show less",
+        "noName": "Unnamed user",
+        "role": {"participant":"Participant","client":"Client","lawyer":"Lawyer"},
+        "pstatus": {"kicked":"Kicked out"},
+        "dur": {"sec":"{n, plural, one {# second} other {# seconds}}","min":"{m} min","minSec":"{m} min {s} s","hour":"{h} h","hourMin":"{h} h {m} min"},
         "workId": "Work ID",
         "meeting": "Meeting",
         "status": "Status",
@@ -11332,6 +11362,9 @@
       "stagingOnlyText": "Test OTP codes are kept only on the staging/demo server. Production has no such list — codes are sent by SMS or Telegram."
     },
     "pipeline": {
+      "add": {"notSet":"Not specified","phoneInvalid":"Enter the full number: 9 digits after +998."},
+      "del": {"titleFor":"Delete the “{stage}” stage","leadsText":"This stage has {n, plural, one {# lead} other {# leads}}. Before it is deleted, {n, plural, one {it moves} other {they move}} to another stage.","target":"Move to","lostHint":"Moving to a lost stage asks for a reason.","lostName":"{stage}: {n, plural, one {# lead} other {# leads}}"},
+      "colors": {"blue":"Blue","violet":"Violet","cyan":"Teal","green":"Green","amber":"Orange","red":"Red","pink":"Pink","gray":"Gray","current":"Current color"},
       "history": {"created":"Lead created","createdDuplicate":"Created as a duplicate","stage":"Stage: {from} → {to}","stageTo":"Stage: {to}","reorder":"Reordered within “{stage}”","updated":"Details updated","reengage":"Lead re-engaged","cleanup":"Removed as a test lead","other":"Other change","today":"Today","yesterday":"Yesterday","you":"You","stageRemoved":"Deleted stage","loadError":"Couldn't load the history"},
       "notify": {"moved":"Lead moved to “{stage}”","reordered":"Lead order changed","moveUndone":"Move undone","moveFailed":"Couldn't move the lead","lostFailed":"Couldn't save the lost reason","added":"Lead added","addFailed":"Couldn't add the lead","deleteAsk":"Delete the lead “{name}”?","deleted":"Lead deleted","deleteFailed":"Couldn't delete the lead","stageAdded":"Stage added","stageSaved":"Stage saved","stageAddFailed":"Couldn't add the stage","stageSaveFailed":"Couldn't save the stage","stageDeleted":"Stage deleted","stageLeadsMoved":"{n, plural, one {# lead moved} other {# leads moved}} to “{stage}”","stageDeleteFailed":"Couldn't delete the stage","stageDeleteConflict":"A system stage, or a stage that still has leads, can't be deleted.","autoDone":"{n, plural, one {# lead assigned} other {# leads assigned}}","autoPartial":"Leads partly assigned","autoFailed":"Couldn't assign the leads","assigned":"Operator assigned","unassigned":"Assignment removed","assignFailed":"Couldn't assign the operator","unassignFailed":"Couldn't remove the assignment","noteSaved":"Note saved","noteFailed":"Couldn't save the note","callFailed":"Couldn't log the call","reminderFailed":"Couldn't create the reminder"},
       "periodPick": {
@@ -11378,6 +11411,12 @@
       "period": { "today": "Today", "week": "This week", "month": "This month" },
       "f": {"score": "Lead level",  "search": "Name or phone…", "allSource": "All sources", "allRegion": "All regions", "allStage": "All stages", "assignee": "Operator", "allAssignee": "All operators", "unassigned": "Unassigned", "mine": "My leads", "from": "From date", "to": "To date", "clear": "Clear", "reset": "Reset filters", "shown": "{n} / {total} leads", "noMatch": "No leads match the filters." },
       "d": {
+        "callLogNote": "Lead: {name}",
+        "remTomorrow": "Tomorrow",
+        "remIn3": "In 3 days",
+        "quickPicks": "Quick picks",
+        "deleting": "Deleting…",
+        "noPhone": "No phone number — calling is not possible.",
         "workId": "Work ID",
         "close": "Close",
         "stage": "Stage",
@@ -11435,6 +11474,8 @@
         "kanban": "Kanban"
       },
       "lost": {
+        "titleFor": "“{name}” — mark as lost",
+        "mark": "Mark as lost",
         "title": "Close the lead as lost",
         "lead": "A reason is required — the statistics reveal pricing or catalogue problems.",
         "reason": "Reason",
@@ -11468,11 +11509,15 @@
         "localNote": "The assignment is stored in the lead details."
       },
       "auto": {
+        "badge": "{n} unassigned",
+        "lead": "Only leads without an operator are distributed. A matching region goes first, otherwise the chosen strategy.",
+        "moreOps": "{n, plural, one {# more operator} other {# more operators}}",
+        "busy": "Assigning…",
         "btn": "Auto-assign",
         "title": "Automatic lead distribution",
         "text": "{n, plural, one {# unassigned lead} other {# unassigned leads}} will be split among {m, plural, one {# operator} other {# operators}}. Region match first, then round-robin.",
         "strategy": "Strategy",
-        "roundRobin": "Round-robin",
+        "roundRobin": "In turn",
         "leastLoaded": "Least loaded operator",
         "preview": "Planned distribution",
         "confirm": "Start distribution",
@@ -11839,6 +11884,9 @@
       "searching": "Searching…",
       "searchNoAccess": "Client lookup is open to duty desk staff only. Ask a superadmin if you need access.",
       "card": {
+        "tabsAria": "Client details",
+        "logFor": "The call will be saved to {name}'s card.",
+        "back": "Back",
         "title": "Client card",
         "since": "Registered: {date}",
         "call": "Call",

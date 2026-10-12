@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { moveLeadKanban, adminCreateLead, adminDeleteLead, adminUpdateLead, saveLeadKanbanColumns, deleteLeadKanbanColumn } from "@/lib/services/backend";
 import {
@@ -22,13 +22,17 @@ import {
   type LeadFilter,
   type LeadX,
 } from "@/lib/services/leads";
-import { operatorName } from "@/lib/services/users";
+import { isLeadOperator, operatorName } from "@/lib/services/users";
 import { useAuth } from "@/lib/auth";
 import { notify } from "@/lib/toast";
-import { assigneeLabel, isLostStage, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadSourceLabel, LOST_REASONS, personLabel } from "@/lib/leadLabels";
+import { ApiError } from "@/lib/http";
+import { formatUzPhone, isValidUzPhone, normUzPhone, uzSubscriber } from "@/lib/phone";
+import { REGION_KEYS } from "@/lib/lawyers";
+import { assigneeLabel, isLostStage, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadSourceLabel, personLabel } from "@/lib/leadLabels";
 import { useResource } from "@/lib/useResource";
 import { AdminForm, Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
+import LostReasonDialog from "@/components/admin/LostReasonDialog";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import FieldError from "@/components/ui/FieldError";
 import Select, { rankOptions } from "@/components/Select";
@@ -49,6 +53,49 @@ function subscribeMinute(cb: () => void) {
 const readMinute = () => Math.floor(Date.now() / 60000);
 
 const STATUS_COLORS = ["#2563eb", "#7c3aed", "#0891b2", "#059669", "#d97706", "#dc2626", "#db2777", "#6b7280"];
+const COLOR_NAMES = ["blue", "violet", "cyan", "green", "amber", "red", "pink", "gray"] as const;
+const LEAD_CATEGORIES = ["family", "contract", "court", "criminal", "administrative", "housing", "tax", "labor", "business", "debt", "documents", "general"] as const;
+const LOST_BATCH = 6;
+const PHONE_PREFIX = /^\s*(?:\+\d{0,3}|998)\s+/;
+const PHONE_PARTIAL = /^\s*\+(?:9(?:98?)?)?\s*$/;
+
+function phoneSub(raw: string): string {
+  const m = raw.match(PHONE_PREFIX);
+  return uzSubscriber(m ? raw.slice(m[0].length).replace(/\D/g, "") : raw);
+}
+
+function maskPhone(e: FormEvent<HTMLDivElement>) {
+  const el = e.target;
+  if (!(el instanceof HTMLInputElement) || !el.closest('[data-field="phone"]')) return;
+  const raw = el.value;
+  if (PHONE_PARTIAL.test(raw)) return;
+  const sub = phoneSub(raw);
+  const next = sub ? formatUzPhone(`+998${sub}`) : "";
+  if (next === raw) return;
+  const before = Math.min(sub.length, phoneSub(raw.slice(0, el.selectionStart ?? raw.length)).length);
+  el.value = next;
+  let pos = next.length;
+  if (before < sub.length) {
+    pos = 5;
+    let seen = 0;
+    for (let i = 5; i < next.length && seen < before; i++) {
+      if (next[i] >= "0" && next[i] <= "9") {
+        seen++;
+        pos = i + 1;
+      }
+    }
+  }
+  el.setSelectionRange(pos, pos);
+}
+
+function phoneKeyboard(box: HTMLDivElement | null) {
+  const el = box?.querySelector<HTMLInputElement>('[data-field="phone"] input');
+  if (!el) return;
+  el.inputMode = "tel";
+  el.autocomplete = "tel";
+}
+
+const sameColor = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 export default function AdminPipeline() {
   const t = useTranslations("admin.pipeline");
@@ -58,6 +105,7 @@ export default function AdminPipeline() {
   const ta = useTranslations("admin");
   const tc = useTranslations("common");
   const tn = useTranslations("common.notify");
+  const tm = useTranslations("common.modal");
   const { session } = useAuth();
   const meId = session?.id ?? "";
   // Call-center operators for assignment (GET /admin/users — users.manage).
@@ -70,10 +118,12 @@ export default function AdminPipeline() {
   const refresh = res.refresh;
   const moveRef = useRef<(leadId: string, columnKey: string, position: number, opts?: MoveOpts) => Promise<void>>(async () => {});
   const autoRef = useRef<() => Promise<void>>(async () => {});
+  const lostRef = useRef<(leadId: string, columnKey: string, position: number, lost: Lost) => Promise<boolean>>(async () => false);
+  const lostInflight = useRef(false);
   // Lost reason is asked before the card lands in a "lost" column (T4-02 §7).
   const [lostAsk, setLostAsk] = useState<{ leadId: string; columnKey: string; position: number } | null>(null);
-  const [lostReason, setLostReason] = useState<string>("price");
-  const [lostNote, setLostNote] = useState("");
+  const [lostSaving, setLostSaving] = useState(false);
+  const [addDirty, setAddDirty] = useState(false);
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [busy, setBusy] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -98,18 +148,21 @@ export default function AdminPipeline() {
   const minute = useSyncExternalStore(subscribeMinute, readMinute, () => 0);
 
   // Add / rename a kanban status (column).
-  const [statusModal, setStatusModal] = useState<{ mode: "add" | "rename"; col?: KanbanColumnX } | null>(null);
+  const [statusModal, setStatusModal] = useState<{ mode: "add" | "rename"; col?: KanbanColumnX; name0: string; color0: string } | null>(null);
   const [sName, setSName] = useState("");
   const [sColor, setSColor] = useState("#2563eb");
   const [sBusy, setSBusy] = useState(false);
   const [sTouched, setSTouched] = useState(false);
   const sNameId = useId();
+  const sColorId = useId();
   const sNameErr = sTouched && !sName.trim() ? tc("required") : "";
 
   // Delete a status (column), reassigning its leads if any.
   const [delCol, setDelCol] = useState<KanbanColumnX | null>(null);
   const [delReassign, setDelReassign] = useState("");
   const [delColBusy, setDelColBusy] = useState(false);
+  const [delLost, setDelLost] = useState(false);
+  const delTargetId = useId();
 
   // Auto-assignment of unassigned leads (client-side plan, saved lead by lead).
   const [autoOpen, setAutoOpen] = useState(false);
@@ -196,16 +249,6 @@ export default function AdminPipeline() {
         return c;
       }),
     );
-    if (lost) {
-      try {
-        await adminUpdateLead(leadId, { details: detailsPatch(card.lead.details ?? {}, { lost_reason: lost.reason, lost_note: lost.note, lost_at: new Date().toISOString() }) });
-      } catch (e) {
-        res.setData(before);
-        setBusy(null);
-        notify.error(t("notify.lostFailed"), { id: failId, error: e, action: retry });
-        return;
-      }
-    }
     try {
       await moveLeadKanban(leadId, columnKey, finalPosition);
       void refresh();
@@ -223,6 +266,30 @@ export default function AdminPipeline() {
     } finally {
       setBusy(null);
     }
+  }
+  async function markLost(leadId: string, columnKey: string, position: number, lost: Lost): Promise<boolean> {
+    const lead = allLeads.find((l) => l.id === leadId);
+    if (!lead) {
+      setLostAsk(null);
+      return false;
+    }
+    if (lostInflight.current) return false;
+    lostInflight.current = true;
+    setLostSaving(true);
+    const failId = `lead-move:${leadId}`;
+    try {
+      await adminUpdateLead(leadId, { details: detailsPatch(lead.details ?? {}, { lost_reason: lost.reason, lost_note: lost.note, lost_at: new Date().toISOString() }) });
+    } catch (e) {
+      notify.error(t("notify.lostFailed"), { id: failId, error: e, action: { label: tn("retry"), onClick: () => void lostRef.current(leadId, columnKey, position, lost) } });
+      return false;
+    } finally {
+      lostInflight.current = false;
+      setLostSaving(false);
+    }
+    notify.dismiss(failId);
+    setLostAsk((cur) => (cur?.leadId === leadId ? null : cur));
+    void moveRef.current(leadId, columnKey, position, { lost });
+    return true;
   }
   function shift(leadId: string, fromKey: string, dir: number) {
     const i = orderOf(fromKey);
@@ -272,13 +339,15 @@ export default function AdminPipeline() {
     setSName("");
     setSColor(STATUS_COLORS[0]);
     setSTouched(false);
-    setStatusModal({ mode: "add" });
+    setStatusModal({ mode: "add", name0: "", color0: STATUS_COLORS[0] });
   }
   function openRenameStatus(col: KanbanColumnX) {
-    setSName(colName(col));
-    setSColor(col.color || "#6b7280");
+    const name0 = colName(col);
+    const color0 = col.color || "#6b7280";
+    setSName(name0);
+    setSColor(color0);
     setSTouched(false);
-    setStatusModal({ mode: "rename", col });
+    setStatusModal({ mode: "rename", col, name0, color0 });
   }
   // Build a unique column key from the typed name (falls back for non-latin).
   function statusKey(name: string): string {
@@ -292,6 +361,7 @@ export default function AdminPipeline() {
   }
   async function submitStatus() {
     const name = sName.trim();
+    if (!name) setSTouched(true);
     if (!name || sBusy || !statusModal) return;
     const adding = statusModal.mode === "add";
     setSBusy(true);
@@ -312,17 +382,44 @@ export default function AdminPipeline() {
       setSBusy(false);
     }
   }
-  function openDeleteStatus(col: KanbanColumnX) {
+  const delTargets = (col: KanbanColumnX) => cols.filter((c) => c.key !== col.key && (!c.isFinal || isLostStage(c.key, cols)));
+  function openDeleteStatus(shownCol: KanbanColumnX) {
+    const col = cols.find((c) => c.key === shownCol.key) ?? shownCol;
     setDelCol(col);
+    setDelLost(false);
     // Default reassignment target: the first other column.
-    setDelReassign(cols.find((c) => c.key !== col.key)?.key ?? "");
+    const targets = delTargets(col);
+    setDelReassign((targets.find((c) => !isLostStage(c.key, cols)) ?? targets[0])?.key ?? "");
   }
-  async function confirmDeleteStatus() {
+  async function saveLostAll(cards: KanbanColumnX["cards"], lost: Lost): Promise<boolean> {
+    const at = new Date().toISOString();
+    for (let i = 0; i < cards.length; i += LOST_BATCH) {
+      const part = await Promise.allSettled(
+        cards.slice(i, i + LOST_BATCH).map((x) => adminUpdateLead(x.lead.id, { details: detailsPatch(x.lead.details ?? {}, { lost_reason: lost.reason, lost_note: lost.note, lost_at: at }) })),
+      );
+      const bad = part.find((r): r is PromiseRejectedResult => r.status === "rejected");
+      if (bad) {
+        notify.error(t("notify.lostFailed"), { id: "lead-stage-lost", error: bad.reason });
+        return false;
+      }
+    }
+    notify.dismiss("lead-stage-lost");
+    return true;
+  }
+  async function confirmDeleteStatus(lost?: Lost) {
     if (!delCol || delColBusy) return;
     const col = delCol;
     const target = col.count > 0 ? cols.find((c) => c.key === delReassign) : undefined;
+    if (target && !lost && isLostStage(target.key, cols)) {
+      setDelLost(true);
+      return;
+    }
     setDelColBusy(true);
     try {
+      if (target && lost) {
+        if (!(await saveLostAll(col.cards, lost))) return;
+        setDelLost(false);
+      }
       await deleteLeadKanbanColumn(col.key, col.count > 0 ? delReassign || undefined : undefined);
       setDelCol(null);
       void refresh();
@@ -333,33 +430,64 @@ export default function AdminPipeline() {
       setDelColBusy(false);
     }
   }
-  async function remove(leadId: string, confirmed = false) {
+  async function remove(leadId: string) {
     const lead = allLeads.find((l) => l.id === leadId);
     const name = lead ? nameOf(lead) : t("untitledLead");
-    if (!confirmed && !(await confirmDialog({ tone: "danger", title: t("notify.deleteAsk", { name }), text: ta("form.deleteConfirmText"), confirmLabel: ta("form.delete") }))) return;
-    setBusy(leadId);
-    try {
-      await adminDeleteLead(leadId);
-      setSelId((cur) => (cur === leadId ? null : cur));
-      res.setData((cur) => cur.map((c) => (c.cards.some((x) => x.lead.id === leadId) ? { ...c, count: Math.max(0, c.count - 1), cards: c.cards.filter((x) => x.lead.id !== leadId) } : c)));
-      void refresh();
-      notify.dismiss(`lead-delete:${leadId}`);
-      notify.success(t("notify.deleted"), { body: name });
-    } catch (e) {
-      notify.error(t("notify.deleteFailed"), { id: `lead-delete:${leadId}`, error: e, action: { label: tn("retry"), onClick: () => void remove(leadId, true) } });
-    } finally {
-      setBusy(null);
-    }
+    const failId = `lead-delete:${leadId}`;
+    await confirmDialog({
+      tone: "danger",
+      title: t("notify.deleteAsk", { name }),
+      text: ta("form.deleteConfirmText"),
+      confirmLabel: ta("form.delete"),
+      busyLabel: t("d.deleting"),
+      onConfirm: async () => {
+        setBusy(leadId);
+        try {
+          await adminDeleteLead(leadId);
+        } catch (e) {
+          notify.error(t("notify.deleteFailed"), { id: failId, error: e });
+          return false;
+        } finally {
+          setBusy(null);
+        }
+        setSelId((cur) => (cur === leadId ? null : cur));
+        res.setData((cur) => cur.map((c) => (c.cards.some((x) => x.lead.id === leadId) ? { ...c, count: Math.max(0, c.count - 1), cards: c.cards.filter((x) => x.lead.id !== leadId) } : c)));
+        void refresh();
+        notify.dismiss(failId);
+        notify.success(t("notify.deleted"), { body: name });
+        return true;
+      },
+    });
   }
 
   useEffect(() => {
     moveRef.current = moveTo;
     autoRef.current = runAuto;
+    lostRef.current = markLost;
   });
 
   // Auto-assign preview (only while the modal is open — the plan is pure).
   const autoPlan = autoOpen ? autoAssign(allLeads, ops.ops, autoStrategy) : [];
   const autoPerOp = autoPlan.reduce<Map<string, number>>((m, a) => m.set(a.operator.id, (m.get(a.operator.id) ?? 0) + 1), new Map());
+  const autoOps = ops.ops.filter((o) => autoPerOp.has(o.id)).sort((a, b) => (autoPerOp.get(b.id) ?? 0) - (autoPerOp.get(a.id) ?? 0));
+  const autoRestLeads = autoOps.slice(5).reduce((n, o) => n + (autoPerOp.get(o.id) ?? 0), 0);
+  const autoReady = ops.status === "ready" && ops.ops.length > 0 && unassigned.length > 0;
+
+  const closeAdd = () => {
+    setAddOpen(false);
+    setAddDirty(false);
+  };
+  const cancelAdd = async () => {
+    if (addDirty && !(await confirmDialog({ tone: "danger", title: tm("discardTitle"), text: tm("discardText"), confirmLabel: tm("discardConfirm"), cancelLabel: tm("discardCancel") }))) return;
+    closeAdd();
+  };
+  const lostLead = lostAsk ? allLeads.find((l) => l.id === lostAsk.leadId) : undefined;
+  const delOptions = delCol ? delTargets(delCol) : [];
+  const delToLost = !!delCol && delCol.count > 0 && !!delReassign && isLostStage(delReassign, cols);
+  const swatches = STATUS_COLORS.map((hex, i) => ({ hex, name: t(`colors.${COLOR_NAMES[i]}`) }));
+  const palette = statusModal && !STATUS_COLORS.some((c) => sameColor(c, statusModal.color0)) ? [{ hex: statusModal.color0, name: t("colors.current") }, ...swatches] : swatches;
+  const pickedColor = palette.find((c) => sameColor(c.hex, sColor));
+  const statusDirty = !!statusModal && (sName !== statusModal.name0 || !sameColor(sColor, statusModal.color0));
 
   const jump = (key: string) => {
     if (view === "table") {
@@ -394,7 +522,11 @@ export default function AdminPipeline() {
               <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}><IconDocLines />{t("viewTable")}</button>
             </span>
           ) : null}
-          <button className="btn btn--soft btn--sm" type="button" onClick={openAuto} disabled={!cols.length} data-ai-target="button:auto-assign"><IconBolt />{t("auto.btn")}{unassigned.length ? ` · ${unassigned.length}` : ""}</button>
+          <button className="btn btn--soft btn--sm lpipe-autobtn" type="button" onClick={openAuto} disabled={!cols.length} data-ai-target="button:auto-assign">
+            <IconBolt />
+            {t("auto.btn")}
+            {unassigned.length ? <span className="lpipe-badge">{t("auto.badge", { n: unassigned.length })}</span> : null}
+          </button>
           <button className="btn btn--line btn--sm" type="button" onClick={openAddStatus} data-ai-target="button:add-status"><IconPlus />{t("addStatus")}</button>
           <button className="btn btn--pri btn--sm" type="button" onClick={() => setAddOpen(true)} data-ai-target="button:new-lead"><IconPlus />{ta("form.add")}</button>
         </div>
@@ -581,54 +713,94 @@ export default function AdminPipeline() {
         />
       ) : null}
 
-      <Modal open={addOpen} onClose={() => setAddOpen(false)} title={ta("leads.create")}>
-        <AdminForm
-          fields={[
-            { name: "name", label: ta("leads.name"), required: true },
-            { name: "phone", label: ta("leads.phone"), required: true, placeholder: "+998 __ ___ __ __" },
-            { name: "category", label: ta("form.category") },
-            { name: "region", label: ta("leads.region") },
-            { name: "note", label: ta("leads.note"), type: "textarea" },
-            {
-              name: "assignedOperatorUserId",
-              label: ta("leads.operator"),
-              type: "select",
-              placeholder: ta("leads.operatorAuto"),
-              options: rankOptions(
-                ops.ops.map((o) => ({ value: o.id, label: operatorName(o) || t("assign.unknown") })),
-                opLoad,
-                t("assign.others"),
-                (n) => t("assign.leadCount", { n }),
-              ),
-            },
-          ]}
-          onSubmit={async (v) =>
-            void (await adminCreateLead({
-              name: String(v.name),
-              phone: String(v.phone),
-              category: String(v.category),
-              region: String(v.region),
-              note: String(v.note),
-              source: "manual",
-              assignedOperatorUserId: String(v.assignedOperatorUserId || "") || undefined,
-            }))
-          }
-          submitLabel={ta("form.save")}
-          busyLabel={ta("form.saving")}
-          okMsg={t("notify.added")}
-          errMsg={t("notify.addFailed")}
-          onDone={() => { void refresh(); setAddOpen(false); }}
-        />
+      <Modal open={addOpen} onClose={closeAdd} title={ta("leads.create")} size="lg" dirty={addDirty}>
+        <div className="lpadd" ref={phoneKeyboard} onChangeCapture={maskPhone}>
+          <AdminForm
+            fields={[
+              { name: "name", label: ta("leads.name"), required: true },
+              { name: "phone", label: ta("leads.phone"), required: true, placeholder: "+998 __ ___ __ __" },
+              {
+                name: "category",
+                label: t("d.category"),
+                type: "select",
+                options: [{ value: "", label: t("add.notSet") }, ...LEAD_CATEGORIES.map((k) => ({ value: k, label: leadCategoryLabel(t, k) }))],
+              },
+              {
+                name: "region",
+                label: t("d.region"),
+                type: "select",
+                options: [{ value: "", label: t("add.notSet") }, ...REGION_KEYS.map((k) => ({ value: k, label: leadRegionLabel(te, k) }))],
+              },
+              {
+                name: "assignedOperatorUserId",
+                label: ta("leads.operator"),
+                type: "select",
+                options: [
+                  { value: "", label: ta("leads.operatorAuto") },
+                  ...rankOptions(
+                    ops.ops.filter(isLeadOperator).map((o) => ({ value: o.id, label: operatorName(o) || t("assign.unknown") })),
+                    opLoad,
+                    t("assign.others"),
+                    (n) => t("assign.leadCount", { n }),
+                  ),
+                ],
+              },
+              { name: "note", label: ta("leads.note"), type: "textarea" },
+            ]}
+            onSubmit={async (v) => {
+              const phone = String(v.phone ?? "");
+              if (!isValidUzPhone(phone)) {
+                const msg = t("add.phoneInvalid");
+                throw new ApiError(422, msg, undefined, { fieldErrors: { phone: msg } });
+              }
+              await adminCreateLead({
+                name: String(v.name).trim(),
+                phone: normUzPhone(phone),
+                category: String(v.category),
+                region: String(v.region),
+                note: String(v.note).trim(),
+                source: "manual",
+                assignedOperatorUserId: String(v.assignedOperatorUserId || "") || undefined,
+              });
+            }}
+            submitLabel={ta("leads.create")}
+            busyLabel={ta("form.saving")}
+            okMsg={t("notify.added")}
+            errMsg={t("notify.addFailed")}
+            onDone={() => { void refresh(); closeAdd(); }}
+            onCancel={() => void cancelAdd()}
+            onDirtyChange={setAddDirty}
+          />
+        </div>
       </Modal>
 
       {/* Auto-assign unassigned leads to call-center operators */}
-      <Modal open={autoOpen} onClose={() => { if (!autoRun) setAutoOpen(false); }} title={t("auto.title")}>
+      <Modal
+        open={autoOpen}
+        onClose={() => { if (!autoRun) setAutoOpen(false); }}
+        title={t("auto.title")}
+        description={t("auto.lead")}
+        busy={!!autoRun}
+        footer={
+          <>
+            <button className="btn btn--line" type="button" onClick={() => setAutoOpen(false)} disabled={!!autoRun}>{ta("form.cancel")}</button>
+            <button className="btn btn--pri" type="button" onClick={runAuto} disabled={!!autoRun || !autoReady} aria-busy={autoRun ? true : undefined}>
+              {autoRun ? t("auto.busy") : t("auto.confirm")}
+            </button>
+          </>
+        }
+      >
         <div className="lauto">
           <div className="lauto__stats">
             <div className="lauto__stat"><b>{unassigned.length}</b><span>{t("f.unassigned")}</span></div>
             <div className="lauto__stat"><b>{ops.ops.length}</b><span>{t("assign.title")}</span></div>
           </div>
-          {ops.status === "loading" ? (
+          {autoRun ? (
+            <div className="lauto__run" role="status">
+              <p className="advmuted">{t("auto.running", { done: autoRun.done, total: autoRun.total })}</p>
+              <div className="lauto__bar"><i style={{ width: `${Math.round((autoRun.done / Math.max(1, autoRun.total)) * 100)}%` }} /></div>
+            </div>
+          ) : ops.status === "loading" ? (
             <Skeleton rows={2} />
           ) : ops.status === "forbidden" ? (
             <Notice ok={false} msg={t("assign.opsForbidden")} />
@@ -640,7 +812,6 @@ export default function AdminPipeline() {
             <Notice ok msg={t("auto.nothing")} />
           ) : (
             <>
-              <p className="advmuted" style={{ margin: 0 }}>{t("auto.text", { n: unassigned.length, m: ops.ops.length })}</p>
               <div className="cform" style={{ maxWidth: "none" }}>
                 <div>
                   <label>{t("auto.strategy")}</label>
@@ -658,59 +829,73 @@ export default function AdminPipeline() {
               <div>
                 <span className="ldrw__lbl">{t("auto.preview")}</span>
                 <ul className="lauto__list" style={{ marginTop: 8 }}>
-                  {ops.ops.filter((o) => autoPerOp.has(o.id)).map((o) => (
+                  {autoOps.slice(0, 5).map((o) => (
                     <li key={o.id}>
                       <span>{operatorName(o) || t("assign.unknown")}{o.region ? ` · ${leadRegionLabel(te, o.region)}` : ""}</span>
                       <b>+{autoPerOp.get(o.id) ?? 0}</b>
                     </li>
                   ))}
+                  {autoOps.length > 5 ? (
+                    <li className="lauto__more">
+                      <span>{t("auto.moreOps", { n: autoOps.length - 5 })}</span>
+                      <b>+{autoRestLeads}</b>
+                    </li>
+                  ) : null}
                 </ul>
               </div>
-              {autoRun ? (
-                <div>
-                  <p className="advmuted" style={{ marginBottom: 6 }}>{t("auto.running", { done: autoRun.done, total: autoRun.total })}</p>
-                  <div className="lauto__bar"><i style={{ width: `${Math.round((autoRun.done / Math.max(1, autoRun.total)) * 100)}%` }} /></div>
-                </div>
-              ) : null}
             </>
           )}
-          <p className="lauto__note">{t("auto.backendPending")}</p>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn btn--ghost" type="button" onClick={() => setAutoOpen(false)} disabled={!!autoRun}>{ta("form.cancel")}</button>
-            <button className="btn btn--pri" type="button" onClick={runAuto} disabled={!!autoRun || ops.status !== "ready" || !ops.ops.length || !unassigned.length}>
-              {autoRun ? t("auto.running", { done: autoRun.done, total: autoRun.total }) : t("auto.confirm")}
-            </button>
-          </div>
         </div>
       </Modal>
 
       {/* Lost reason before a card lands in a "lost" column */}
-      <Modal open={!!lostAsk} onClose={() => setLostAsk(null)} title={t("lost.title")}>
-        <div className="cform" style={{ maxWidth: "none" }}>
-          <p className="advmuted">{t("lost.lead")}</p>
-          <div>
-            <label>{t("lost.reason")}</label>
-            <Select value={lostReason} onChange={setLostReason} options={LOST_REASONS.map((r) => ({ value: r, label: t(`lost.reasons.${r}`) }))} ariaLabel={t("lost.reason")} />
-          </div>
-          <div>
-            <label>{t("lost.note")}</label>
-            <textarea rows={2} value={lostNote} onChange={(e) => setLostNote(e.target.value)} />
-          </div>
-          <button className="btn btn--pri btn--full" type="button" onClick={() => { const a = lostAsk; setLostAsk(null); if (a) void moveTo(a.leadId, a.columnKey, a.position, { lost: { reason: lostReason, note: lostNote.trim() } }); setLostNote(""); }}>{t("lost.confirm")}</button>
-        </div>
-      </Modal>
+      <LostReasonDialog
+        open={!!lostAsk}
+        leadName={lostLead ? nameOf(lostLead) : ""}
+        busy={lostSaving}
+        onCancel={() => {
+          if (lostAsk) notify.dismiss(`lead-move:${lostAsk.leadId}`);
+          setLostAsk(null);
+        }}
+        onConfirm={(reason, note) => {
+          const a = lostAsk;
+          if (a) void markLost(a.leadId, a.columnKey, a.position, { reason, note });
+        }}
+      />
 
       {/* Add / rename a status (kanban column) */}
-      <Modal open={statusModal !== null} onClose={() => setStatusModal(null)} title={statusModal?.mode === "rename" ? t("renameStatus") : t("addStatus")}>
-        <div className="cform" style={{ maxWidth: "none" }}>
+      <Modal
+        open={statusModal !== null}
+        onClose={() => setStatusModal(null)}
+        title={statusModal?.mode === "rename" ? t("renameStatus") : t("addStatus")}
+        size="sm"
+        busy={sBusy}
+        dirty={statusDirty}
+        footer={
+          <>
+            <button className="btn btn--line" type="button" onClick={() => setStatusModal(null)} disabled={sBusy}>{ta("form.cancel")}</button>
+            <button className="btn btn--pri" type="button" onClick={() => void submitStatus()} disabled={sBusy || !sName.trim()} aria-busy={sBusy || undefined}>
+              {sBusy ? ta("form.saving") : ta("form.save")}
+            </button>
+          </>
+        }
+      >
+        <div className="cform lstg" style={{ maxWidth: "none" }}>
           <div>
             <label htmlFor={sNameId}>{t("statusName")}</label>
             <input
               id={sNameId}
               value={sName}
               onChange={(e) => { setSName(e.target.value); setSTouched(true); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  void submitStatus();
+                }
+              }}
               placeholder={t("statusNamePh")}
-              autoFocus
+              maxLength={60}
+              disabled={sBusy}
               aria-required
               aria-invalid={sNameErr ? true : undefined}
               aria-describedby={sNameErr ? `${sNameId}-err` : undefined}
@@ -718,48 +903,69 @@ export default function AdminPipeline() {
             <FieldError id={`${sNameId}-err`} msg={sNameErr} />
           </div>
           <div>
-            <label>{t("statusColor")}</label>
-            <div className="clrpick">
-              {STATUS_COLORS.map((c) => (
-                <button key={c} type="button" className={`clrpick__sw${sColor === c ? " on" : ""}`} style={{ background: c }} onClick={() => setSColor(c)} aria-label={c} />
+            <span className="lstg-clr__lbl" id={sColorId}>
+              {t("statusColor")}
+              {pickedColor ? <em>{pickedColor.name}</em> : null}
+            </span>
+            <div className="lstg-clr" role="radiogroup" aria-labelledby={sColorId}>
+              {palette.map((c) => (
+                <span key={c.hex} className={`lstg-clr__sw${sameColor(c.hex, sColor) ? " on" : ""}`} style={{ "--sw": c.hex } as CSSProperties}>
+                  <input type="radio" name={sColorId} value={c.hex} checked={sameColor(c.hex, sColor)} disabled={sBusy} onChange={() => setSColor(c.hex)} aria-label={c.name} />
+                </span>
               ))}
-              <input type="color" className="clrpick__native" value={sColor} onChange={(e) => setSColor(e.target.value)} aria-label={t("statusColor")} />
             </div>
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn btn--ghost" type="button" onClick={() => setStatusModal(null)}>{ta("form.cancel")}</button>
-            <button className="btn btn--pri" type="button" onClick={submitStatus} disabled={sBusy || !sName.trim()}>{sBusy ? ta("form.saving") : ta("form.save")}</button>
           </div>
         </div>
       </Modal>
 
       {/* Delete a status (column) */}
-      <Modal open={delCol !== null} onClose={() => setDelCol(null)} title={t("deleteStatus")}>
-        {delCol ? (
-          <div className="cform" style={{ maxWidth: "none" }}>
-            <p style={{ margin: 0 }}><b>{colName(delCol)}</b></p>
-            {delCol.count > 0 ? (
-              <div>
-                <label>{t("reassignLeads", { count: delCol.count })}</label>
-                <Select
-                  value={delReassign}
-                  onChange={setDelReassign}
-                  ariaLabel={t("reassignLeads", { count: delCol.count })}
-                  options={cols.filter((c) => c.key !== delCol.key).map((c) => ({ value: c.key, label: colName(c) }))}
-                />
-              </div>
-            ) : (
-              <p className="advmuted" style={{ margin: 0 }}>{t("deleteStatusText")}</p>
-            )}
-            <div style={{ display: "flex", gap: 10 }}>
-              <button className="btn btn--ghost" type="button" onClick={() => setDelCol(null)}>{ta("form.cancel")}</button>
-              <button className="btn btn--danger" type="button" onClick={confirmDeleteStatus} disabled={delColBusy || (delCol.count > 0 && !delReassign)}>
+      <Modal
+        open={delCol !== null}
+        onClose={() => setDelCol(null)}
+        title={delCol ? t("del.titleFor", { stage: colName(delCol) }) : t("deleteStatus")}
+        size="sm"
+        busy={delColBusy}
+        footer={
+          delCol ? (
+            <>
+              <button className="btn btn--line" type="button" onClick={() => setDelCol(null)} disabled={delColBusy}>{ta("form.cancel")}</button>
+              <button className="btn btn--danger" type="button" onClick={() => void confirmDeleteStatus()} disabled={delColBusy || (delCol.count > 0 && !delReassign)} aria-busy={delColBusy || undefined}>
                 {delColBusy ? ta("form.saving") : delCol.count > 0 ? t("moveAndDelete") : ta("form.delete")}
               </button>
-            </div>
+            </>
+          ) : undefined
+        }
+      >
+        {delCol ? (
+          <div className="cform lstg" style={{ maxWidth: "none" }}>
+            {delCol.count > 0 ? (
+              <>
+                <p className="lstg-hint">{t("del.leadsText", { n: delCol.count })}</p>
+                <div>
+                  <label id={delTargetId}>{t("del.target")}</label>
+                  <Select
+                    value={delReassign}
+                    onChange={setDelReassign}
+                    ariaLabel={t("del.target")}
+                    labelId={delTargetId}
+                    options={delOptions.map((c) => ({ value: c.key, label: colName(c) }))}
+                  />
+                  {delToLost ? <p className="lstg-hint lstg-hint--sub">{t("del.lostHint")}</p> : null}
+                </div>
+              </>
+            ) : (
+              <p className="lstg-hint">{t("deleteStatusText")}</p>
+            )}
           </div>
         ) : null}
       </Modal>
+      <LostReasonDialog
+        open={delLost && delCol !== null}
+        leadName={delCol ? t("del.lostName", { stage: colName(delCol), n: delCol.count }) : ""}
+        busy={delColBusy}
+        onCancel={() => setDelLost(false)}
+        onConfirm={(reason, note) => void confirmDeleteStatus({ reason, note })}
+      />
     </div>
   );
 }

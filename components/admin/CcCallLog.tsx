@@ -31,6 +31,9 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
   const res = useResource<CcCall>(listCcCalls, []);
   const [dir, setDir] = useState<Dir>("");
   const [formOpen, setFormOpen] = useState(false);
+  const [formDirty, setFormDirty] = useState(false);
+  const [formBusy, setFormBusy] = useState(false);
+  const [formSlot, setFormSlot] = useState<HTMLDivElement | null>(null);
   const [freshId, setFreshId] = useState("");
   const freshRow = useRef<HTMLDivElement>(null);
   const seenKey = useRef(reloadKey);
@@ -137,8 +140,21 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
           ))}
         </div>
       )}
-      <Modal open={formOpen} onClose={() => setFormOpen(false)} title={t("logCall")}>
-        <CcCallForm onCancel={() => setFormOpen(false)} onDone={(call) => { setFormOpen(false); void afterLog(call.phone); }} />
+      <Modal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        title={t("logCall")}
+        busy={formBusy}
+        dirty={formDirty}
+        footer={<div className="ccslot" ref={setFormSlot} />}
+      >
+        <CcCallForm
+          footSlot={formSlot}
+          onDirtyChange={setFormDirty}
+          onBusyChange={setFormBusy}
+          onCancel={() => setFormOpen(false)}
+          onDone={(call) => { setFormOpen(false); void afterLog(call.phone); }}
+        />
       </Modal>
     </div>
   );

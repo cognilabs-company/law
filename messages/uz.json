@@ -3702,6 +3702,7 @@
     }
   },
   "common": {
+    "modal": {"discardTitle":"O'zgarishlar saqlanmasinmi?","discardText":"Kiritgan ma'lumotlaringiz saqlanmaydi.","discardConfirm":"Saqlamasdan yopish","discardCancel":"Davom etish"},
     "select": {"search":"Qidirish","empty":"Hech narsa topilmadi"},
     "searchSelect": {"typeToSearch":"Qidirish uchun yozing","searching":"Qidirilmoqda…","failed":"Qidirib bo'lmadi. Qaytadan yozib ko'ring.","results":"{n} ta natija","remove":"Olib tashlash: {name}","chosen":"Tanlanganlar","clear":"Tozalash"},
     "dateFormat": "kk.oo.yyyy",
@@ -10473,6 +10474,7 @@
       }
     },
     "qualityComplaints": {
+      "actionRequired": "Qarorni tanlang.",
       "fPhone": "Telefon",
       "fPriority": "Muhimlik",
       "fReason": "Sabab",
@@ -10524,6 +10526,25 @@
       }
     },
     "urgent": {
+      "more": "Yana",
+      "moreTitle": "Boshqa amallar",
+      "cancelAsk": "So'rovni bekor qilish…",
+      "cancelRequest": "So'rovni bekor qilish",
+      "cancelConfirmTitle": "So'rov bekor qilinsinmi?",
+      "cancelConfirmText": "Mijozga sabab bilan bildirishnoma boradi. Bu amalni ortga qaytarib bo'lmaydi.",
+      "cancelYes": "Ha, bekor qilish",
+      "stepComplete": "So'rovni yakunlash",
+      "stepTransfer": "Boshqa advokatga o'tkazish",
+      "stepCancel": "So'rovni bekor qilish",
+      "minChars": "Kamida {n} belgi",
+      "sourcesAll": "Hammasini ko'rsatish ({n})",
+      "sourcesLess": "Kamroq ko'rsatish",
+      "statusNow": "Hozirgi holat: {status}",
+      "statusPick": "Yangi holat",
+      "statusSave": "Statusni saqlash",
+      "transferPick": "Advokatni tanlang",
+      "region": "Viloyat",
+      "directions": "Yo'nalishlar",
       "viewActive": "Faol",
       "viewArchive": "Arxiv",
       "showMore": "Yana ko'rsatish ({n})",
@@ -11314,6 +11335,15 @@
       "detailError": "Tafsilotlarni yuklab bo'lmadi.",
       "status": { "active": "Faol", "scheduled": "Rejalashtirilgan", "ended": "Tugagan", "cancelled": "Bekor qilingan", "expired": "Muddati o'tgan" },
       "detail": {
+        "summary": "Qisqacha",
+        "endedAt": "Tugash vaqti",
+        "joinedOf": "qo'shildi {joined} / taklif {invited}",
+        "more": "Yana {n} ta",
+        "less": "Kamroq ko'rsatish",
+        "noName": "Ismsiz foydalanuvchi",
+        "role": {"participant":"Ishtirokchi","client":"Mijoz","lawyer":"Huquqshunos"},
+        "pstatus": {"kicked":"Chiqarib yuborilgan"},
+        "dur": {"sec":"{n} soniya","min":"{m} daq","minSec":"{m} daq {s} son","hour":"{h} soat","hourMin":"{h} soat {m} daq"},
         "workId": "Ish ID",
         "meeting": "Uchrashuv",
         "status": "Holat",
@@ -11338,6 +11368,9 @@
       "stagingOnlyText": "Test OTP kodlari faqat staging/demo serverda saqlanadi. Production serverda bu ro'yxat yo'q — kodlar SMS yoki Telegram orqali yuboriladi."
     },
     "pipeline": {
+      "add": {"notSet":"Ko'rsatilmagan","phoneInvalid":"Telefon raqamini to'liq kiriting: +998 dan keyin 9 ta raqam."},
+      "del": {"titleFor":"«{stage}» bosqichini o'chirish","leadsText":"Bu bosqichda {n} ta lid bor. O'chirishdan oldin ular boshqa bosqichga o'tkaziladi.","target":"Qaysi bosqichga o'tkazilsin","lostHint":"Yo'qotilgan bosqichga o'tkazishda sabab so'raladi.","lostName":"{stage}: {n} ta lid"},
+      "colors": {"blue":"Ko'k","violet":"Binafsha","cyan":"Feruza","green":"Yashil","amber":"To'q sariq","red":"Qizil","pink":"Pushti","gray":"Kulrang","current":"Joriy rang"},
       "history": {"created":"Lid yaratildi","createdDuplicate":"Takroriy lid sifatida yaratildi","stage":"Bosqich: {from} → {to}","stageTo":"Bosqich: {to}","reorder":"«{stage}» bosqichida tartib o'zgardi","updated":"Ma'lumotlar yangilandi","reengage":"Lid qayta jalb qilindi","cleanup":"Sinov lidi sifatida tozalandi","other":"Boshqa o'zgarish","today":"Bugun","yesterday":"Kecha","you":"Siz","stageRemoved":"O'chirilgan bosqich","loadError":"Tarix yuklanmadi"},
       "notify": {"moved":"Lid «{stage}» bosqichiga o'tkazildi","reordered":"Lidlar tartibi o'zgartirildi","moveUndone":"Ko'chirish bekor qilindi","moveFailed":"Lid ko'chirilmadi","lostFailed":"Yo'qotish sababi saqlanmadi","added":"Lid qo'shildi","addFailed":"Lid qo'shilmadi","deleteAsk":"«{name}» lidini o'chirasizmi?","deleted":"Lid o'chirildi","deleteFailed":"Lid o'chirilmadi","stageAdded":"Bosqich qo'shildi","stageSaved":"Bosqich saqlandi","stageAddFailed":"Bosqich qo'shilmadi","stageSaveFailed":"Bosqich saqlanmadi","stageDeleted":"Bosqich o'chirildi","stageLeadsMoved":"{n} ta lid «{stage}» bosqichiga o'tdi","stageDeleteFailed":"Bosqich o'chirilmadi","stageDeleteConflict":"Tizim bosqichini yoki ichida lidlar bor bosqichni o'chirib bo'lmaydi.","autoDone":"{n} ta lid taqsimlandi","autoPartial":"Lidlar qisman taqsimlandi","autoFailed":"Lidlar taqsimlanmadi","assigned":"Operator biriktirildi","unassigned":"Biriktirish olib tashlandi","assignFailed":"Operator biriktirilmadi","unassignFailed":"Biriktirish olib tashlanmadi","noteSaved":"Izoh saqlandi","noteFailed":"Izoh saqlanmadi","callFailed":"Qo'ng'iroq qayd etilmadi","reminderFailed":"Eslatma qo'yilmadi"},
       "periodPick": {
@@ -11384,6 +11417,12 @@
       "period": { "today": "Bugun", "week": "Bu hafta", "month": "Bu oy" },
       "f": {"score": "Lid darajasi",  "search": "Ism yoki telefon…", "allSource": "Barcha manba", "allRegion": "Barcha hudud", "allStage": "Barcha bosqich", "assignee": "Operator", "allAssignee": "Barcha operatorlar", "unassigned": "Taqsimlanmagan", "mine": "Mening lidlarim", "from": "Sanadan", "to": "Sanagacha", "clear": "Tozalash", "reset": "Filtrlarni tiklash", "shown": "{n} / {total} ta lid", "noMatch": "Filtrga mos lid topilmadi." },
       "d": {
+        "callLogNote": "Lid: {name}",
+        "remTomorrow": "Ertaga",
+        "remIn3": "3 kundan keyin",
+        "quickPicks": "Tez tanlash",
+        "deleting": "O'chirilmoqda…",
+        "noPhone": "Telefon raqami yo'q — qo'ng'iroq qilib bo'lmaydi.",
         "workId": "Ish ID",
         "close": "Yopish",
         "stage": "Bosqich",
@@ -11441,6 +11480,8 @@
         "kanban": "Kanban"
       },
       "lost": {
+        "titleFor": "«{name}» — yo'qotilgan deb belgilash",
+        "mark": "Yo'qotilgan deb belgilash",
         "title": "Lidni yo'qotilgan deb yopish",
         "lead": "Sabab majburiy — statistika narx yoki katalogdagi muammoni ko'rsatadi.",
         "reason": "Sabab",
@@ -11474,11 +11515,15 @@
         "localNote": "Biriktirish lid tafsilotlarida saqlanadi."
       },
       "auto": {
+        "badge": "{n} ta taqsimlanmagan",
+        "lead": "Faqat operatorsiz qolgan lidlar taqsimlanadi. Hudud mos kelsa — o'sha hudud operatoriga, aks holda tanlangan usul bo'yicha.",
+        "moreOps": "Yana {n} ta operator",
+        "busy": "Taqsimlanmoqda…",
         "btn": "Avto-taqsimlash",
         "title": "Lidlarni avtomatik taqsimlash",
         "text": "{n} ta taqsimlanmagan lid {m} ta operator o'rtasida bo'linadi. Hudud mos kelsa — o'sha hudud operatoriga, aks holda navbat bilan.",
         "strategy": "Usul",
-        "roundRobin": "Navbat bilan (round-robin)",
+        "roundRobin": "Navbat bilan",
         "leastLoaded": "Eng kam yuklangan operatorga",
         "preview": "Rejalashtirilgan taqsimot",
         "confirm": "Taqsimlashni boshlash",
@@ -11845,6 +11890,9 @@
       "searching": "Qidirilmoqda…",
       "searchNoAccess": "Mijoz qidirish faqat navbatchi xizmat xodimlari uchun ochiq. Ruxsat kerak bo'lsa, superadminga murojaat qiling.",
       "card": {
+        "tabsAria": "Mijoz ma'lumotlari",
+        "logFor": "Qo'ng'iroq {name} kartasiga yoziladi.",
+        "back": "Orqaga",
         "title": "Mijoz kartasi",
         "since": "Ro'yxatdan o'tgan: {date}",
         "call": "Qo'ng'iroq qilish",

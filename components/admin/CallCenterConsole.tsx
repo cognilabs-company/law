@@ -144,7 +144,7 @@ export function useCcConsole(cc: boolean): CcConsole {
       offs.forEach((off) => off());
       offs = hidden.map((k) =>
         registerReveal(REVEAL[k], async (id) => {
-          if (rootRef.current?.querySelector(`#ccon-panel-${activeRef.current} .amodal`)) return;
+          if (document.querySelector(".amodal")) return;
           select(k);
           if (await until(() => activeRef.current === k)) await revealTarget(id);
         }),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 
@@ -11,15 +11,14 @@ export type ConfirmOptions = {
   confirmLabel?: string;
   cancelLabel?: string;
   tone?: ConfirmTone;
+  busyLabel?: string;
+  onConfirm?: () => unknown;
 };
 
 type Ask = { key: number; opts: ConfirmOptions; done: Promise<boolean>; resolve: (ok: boolean) => void };
 
-const OVERLAYS = '.amodal, [role="dialog"], [aria-modal="true"]';
-
 let current: Ask | null = null;
 let seq = 0;
-let savedOverflow: string | null = null;
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -59,18 +58,20 @@ function settle(key: number, ok: boolean): void {
   ask.resolve(ok);
 }
 
-function restoreOverflow(): void {
-  const saved = savedOverflow;
-  savedOverflow = null;
-  if (saved && document.querySelector(OVERLAYS)) document.body.style.overflow = saved;
-}
-
 export function confirmDialog(opts: ConfirmOptions): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
-  if (!listeners.size) return Promise.resolve(window.confirm(opts.text ? `${opts.title}\n\n${opts.text}` : opts.title));
+  if (!listeners.size) {
+    const ok = window.confirm(opts.text ? `${opts.title}\n\n${opts.text}` : opts.title);
+    if (!ok || !opts.onConfirm) return Promise.resolve(ok);
+    return Promise.resolve()
+      .then(() => opts.onConfirm?.())
+      .then(
+        (r) => r !== false,
+        () => false,
+      );
+  }
   if (current && same(current.opts, opts)) return current.done;
   const prev = current;
-  if (!prev) savedOverflow = document.body.style.overflow;
   let resolve: (ok: boolean) => void = () => undefined;
   const done = new Promise<boolean>((r) => {
     resolve = r;
@@ -87,36 +88,55 @@ export default function ConfirmHost() {
   const textId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
   const okRef = useRef<HTMLButtonElement>(null);
+  const [busyKey, setBusyKey] = useState(0);
   const key = ask?.key ?? 0;
   const open = key > 0;
   const danger = ask?.opts.tone === "danger";
+  const busy = open && busyKey === key;
 
   useEffect(() => {
     if (!key) return;
     (danger ? cancelRef.current : okRef.current)?.focus({ preventScroll: true });
   }, [key, danger]);
 
-  useEffect(() => {
-    if (!open) restoreOverflow();
-  }, [open]);
+  async function confirm() {
+    const run = ask?.opts.onConfirm;
+    if (!run) {
+      settle(key, true);
+      return;
+    }
+    if (busy) return;
+    setBusyKey(key);
+    try {
+      const r = await run();
+      if (r === false) return;
+      settle(key, true);
+    } catch {
+      return;
+    } finally {
+      setBusyKey((k) => (k === key ? 0 : k));
+    }
+  }
 
   const opts = ask?.opts;
   const described = opts?.text ? textId : undefined;
   return (
-    <Modal open={open} onClose={() => settle(key, false)} title={opts?.title ?? ""}>
-      {opts ? (
-        <div className="cdlg">
-          {opts.text ? (
-            <p className="cdlg__text" id={textId}>
-              {opts.text}
-            </p>
-          ) : null}
+    <Modal
+      open={open}
+      onClose={() => settle(key, false)}
+      title={opts?.title ?? ""}
+      size="sm"
+      busy={busy}
+      initialFocus={danger ? cancelRef : okRef}
+      footer={
+        opts ? (
           <div className="cdlg__acts">
             <button
               ref={cancelRef}
               type="button"
               className="btn btn--line"
               aria-describedby={described}
+              disabled={busy}
               onClick={() => settle(key, false)}
             >
               {opts.cancelLabel || t("cancel")}
@@ -124,13 +144,26 @@ export default function ConfirmHost() {
             <button
               ref={okRef}
               type="button"
-              className={`btn ${danger ? "btn--danger" : "btn--pri"}`}
+              className={`btn ${danger ? "btn--danger" : "btn--pri"}${busy ? " is-busy" : ""}`}
               aria-describedby={described}
-              onClick={() => settle(key, true)}
+              aria-busy={busy || undefined}
+              disabled={busy}
+              onClick={() => void confirm()}
             >
-              {opts.confirmLabel || t("confirm")}
+              {busy ? <span className="cdlg__spin" aria-hidden="true" /> : null}
+              {busy && opts.busyLabel ? opts.busyLabel : opts.confirmLabel || t("confirm")}
             </button>
           </div>
+        ) : null
+      }
+    >
+      {opts ? (
+        <div className="cdlg">
+          {opts.text ? (
+            <p className="cdlg__text" id={textId}>
+              {opts.text}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </Modal>

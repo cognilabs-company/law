@@ -7,7 +7,8 @@ import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type A
 import { http, asArr, asDict, asStr, ApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { useResource } from "@/lib/useResource";
-import { shortDate, shortDateTime } from "@/lib/date";
+import { shortDate, shortDateTime, dateOnly, dateTimeFull, timeOnly } from "@/lib/date";
+import { initials } from "@/lib/lawyers";
 import { makeInviteSearch } from "@/lib/inviteSearch";
 import { matchesSearch } from "@/lib/searchText";
 import { useAiSelection } from "@/lib/ai/registry";
@@ -20,7 +21,7 @@ import DatePicker from "@/components/DatePicker";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import FieldError from "@/components/ui/FieldError";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
-import { IconVideo, IconClock, IconRefresh, IconUsers, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconEye, IconClipboardCheck, IconSearch } from "@/components/icons";
+import { IconVideo, IconClock, IconRefresh, IconUsers, IconUser, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconEye, IconClipboardCheck, IconSearch } from "@/components/icons";
 import { regionLabel, humanize } from "@/lib/labels";
 import { subscribeUserEvents } from "@/lib/userSocket";
 
@@ -30,15 +31,31 @@ function mmss(total: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+const DETAIL_SHOWN = 8;
+const PART_JOINED = new Set(["joined", "left"]);
+const PART_ORDER: Record<string, number> = { joined: 1, left: 2, invited: 3 };
+const PART_TONE: Record<string, string> = { joined: "ok", left: "neutral", invited: "info", declined: "bad", removed: "bad", kicked: "bad" };
+const CALL_TONE: Record<string, string> = { active: "live", scheduled: "info", ended: "neutral", expired: "warn", cancelled: "bad" };
+const partRank = (p: { role: string; status: string }) => (p.role === "host" ? 0 : PART_ORDER[p.status] ?? 4);
+const avatarText = (name: string) => initials(name.split(/\s+/).filter((w) => /^\p{L}/u.test(w)).join(" "));
+
+function sameDay(a: string, b: string): boolean {
+  const x = new Date(a);
+  const y = new Date(b);
+  return !Number.isNaN(x.getTime()) && !Number.isNaN(y.getTime()) && x.toDateString() === y.toDateString();
+}
+
 // Platform-wide meeting detail (superadmin/leads.manage tab only) — any
 // user's meeting, not just this account's own. GET /admin/calls/:id.
 function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => void }) {
   const t = useTranslations("admin.callHistory");
   const tm = useTranslations("admin.meetings");
+  const tc = useTranslations("call");
   const locale = useLocale();
   const [d, setD] = useState<AdminCallDetail | null>(null);
   const [err, setErr] = useState<{ error: unknown } | null>(null);
   const [tick, setTick] = useState(0);
+  const [allFor, setAllFor] = useState<string | null>(null);
   useEffect(() => {
     if (!id) return;
     let alive = true;
@@ -49,39 +66,101 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
   const row = (k: string, v?: string | number | null) => (v === undefined || v === null || v === "" ? null : (
     <div className="dkv__row" key={k}><span>{k}</span><b>{String(v)}</b></div>
   ));
+  const close = () => {
+    setAllFor(null);
+    setD(null);
+    setErr(null);
+    onClose();
+  };
+  const dur = (sec: number) => {
+    const s = Math.max(0, Math.round(sec));
+    if (s < 60) return t("detail.dur.sec", { n: s });
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (h) return m ? t("detail.dur.hourMin", { h, m }) : t("detail.dur.hour", { h });
+    return s % 60 ? t("detail.dur.minSec", { m, s: s % 60 }) : t("detail.dur.min", { m });
+  };
+  const callStatus = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : humanize(s));
+  const partStatus = (s: string) => (t.has(`detail.pstatus.${s}`) ? t(`detail.pstatus.${s}`) : tc.has(`pstatus.${s}`) ? tc(`pstatus.${s}`) : humanize(s));
+  const partRole = (r: string) =>
+    r === "host" ? tc("hostLabel") : t.has(`detail.role.${r}`) ? t(`detail.role.${r}`) : tc.has(`role.${r}`) ? tc(`role.${r}`) : t("detail.role.participant");
 
-  return (
-    <Modal open={!!id} onClose={onClose} title={d?.call.title || t("detailTitle")}>
-      {err ? <ErrorState compact title={t("detailError")} error={err.error} onRetry={() => setTick((n) => n + 1)} /> : !d ? <Skeleton rows={3} /> : (
-        <div className="dkv">
-          <div className="dkv__sect">
-            <b>{t("detail.meeting")}</b>
-            {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: CALL-83JVE. */}
-            {row(t("detail.workId"), d.call.workId)}
-            {row(t("detail.status"), t.has(`status.${d.call.status}`) ? t(`status.${d.call.status}`) : d.call.status)}
-            {row(t("detail.type"), tm.has(`formatLabel.${d.call.callType}`) ? tm(`formatLabel.${d.call.callType}`) : humanize(d.call.callType))}
-            {row(t("detail.room"), d.room?.title || d.call.roomId)}
-            {row(t("detail.started"), shortDateTime(d.call.startedAt, locale))}
-            {row(t("detail.ended"), shortDateTime(d.call.endedAt, locale))}
-            {row(t("detail.duration"), d.durationMinutes ? t("detail.minutes", { n: d.durationMinutes }) : mmss(d.durationSeconds))}
+  const body = () => {
+    if (!d) return null;
+    const c = d.call;
+    const people = d.participants
+      .map((p, i) => ({ p, i }))
+      .sort((a, b) => partRank(a.p) - partRank(b.p) || a.i - b.i)
+      .map((x) => x.p);
+    const guests = d.participants.some((p) => p.role === "host") ? d.participants.filter((p) => p.role !== "host") : d.participants;
+    const joined = guests.filter((p) => PART_JOINED.has(p.status)).length;
+    const secs = d.durationSeconds || Math.round(d.durationMinutes * 60) || c.durationSeconds;
+    const start = c.startedAt || c.createdAt;
+    const facts = [
+      start ? dateOnly(start, locale) : "",
+      secs > 0 && c.status !== "scheduled" ? dur(secs) : "",
+      guests.length ? t("detail.joinedOf", { joined, invited: guests.length }) : "",
+    ].filter(Boolean);
+    const all = allFor === id;
+    const shown = all ? people : people.slice(0, DETAIL_SHOWN);
+    const hidden = people.length - DETAIL_SHOWN;
+    return (
+      <div className="dkv">
+        {c.status || facts.length ? (
+          <div className="mdet__sum" aria-label={t("detail.summary")} role="group">
+            {c.status ? <span className={`mdet__st mdet__st--${CALL_TONE[c.status] ?? "neutral"}`}>{callStatus(c.status)}</span> : null}
+            {facts.length ? (
+              <ul className="mdet__facts">
+                {facts.map((f, i) => <li key={i}>{f}</li>)}
+              </ul>
+            ) : null}
           </div>
-          <div className="dkv__sect">
-            <b>{t("detail.creator")}</b>
-            {row(t("detail.name"), d.creator?.name || d.call.creatorName)}
-            {row(t("detail.phone"), d.creator?.phone)}
-          </div>
-          <div className="dkv__sect">
-            <b>{t("detail.participants")} ({d.participants.length})</b>
-            {d.participants.length ? (
-              <ul className="dkv__list">
-                {d.participants.map((p) => (
-                  <li key={p.userId}><b>{p.name || p.userId}</b><span>{[p.role, p.status].filter(Boolean).join(" · ")}</span></li>
+        ) : null}
+        <div className="dkv__sect">
+          <b>{t("detail.meeting")}</b>
+          {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: CALL-83JVE. */}
+          {row(t("detail.workId"), c.workId)}
+          {row(t("detail.type"), tm.has(`formatLabel.${c.callType}`) ? tm(`formatLabel.${c.callType}`) : humanize(c.callType))}
+          {d.room?.title ? row(t("detail.room"), d.room.title) : null}
+          {row(t("detail.started"), dateTimeFull(c.startedAt, locale))}
+          {row(t("detail.endedAt"), c.endedAt && c.startedAt && sameDay(c.startedAt, c.endedAt) ? timeOnly(c.endedAt, locale) : dateTimeFull(c.endedAt, locale))}
+        </div>
+        <div className="dkv__sect">
+          <b>{t("detail.creator")}</b>
+          {row(t("detail.name"), d.creator?.name || c.creatorName)}
+          {row(t("detail.phone"), d.creator?.phone)}
+        </div>
+        <div className="dkv__sect">
+          <b>{t("detail.participants")} ({people.length})</b>
+          {people.length ? (
+            <>
+              <ul className="mdet__ppl">
+                {shown.map((p, i) => (
+                  <li key={p.userId || `p${i}`} className="mdet__p">
+                    <span className="mdet__av" aria-hidden="true">{avatarText(p.name) || <IconUser style={{ width: 16, height: 16 }} />}</span>
+                    <span className="mdet__pm">
+                      <b>{p.name.trim() || t("detail.noName")}</b>
+                      <small>{partRole(p.role)}</small>
+                    </span>
+                    {p.status ? <span className={`mdet__st mdet__st--${PART_TONE[p.status] ?? "neutral"}`}>{partStatus(p.status)}</span> : null}
+                  </li>
                 ))}
               </ul>
-            ) : <p className="advmuted">{t("detail.noParticipants")}</p>}
-          </div>
+              {hidden > 0 ? (
+                <button type="button" className="btn btn--line btn--sm mdet__more" aria-expanded={all} onClick={() => setAllFor(all ? null : id)}>
+                  {all ? t("detail.less") : t("detail.more", { n: hidden })}
+                </button>
+              ) : null}
+            </>
+          ) : <p className="advmuted">{t("detail.noParticipants")}</p>}
         </div>
-      )}
+      </div>
+    );
+  };
+
+  return (
+    <Modal open={!!id} onClose={close} title={d?.call.title || t("detailTitle")}>
+      {err ? <ErrorState compact title={t("detailError")} error={err.error} onRetry={() => setTick((n) => n + 1)} /> : !d ? <Skeleton rows={3} /> : body()}
     </Modal>
   );
 }

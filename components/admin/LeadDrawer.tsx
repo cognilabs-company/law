@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useId, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { reengageLead, logCcCall, createTask, type KanbanColumn } from "@/lib/services/backend";
 import { isForbiddenErr, leadUserId, type LeadX, type OperatorsState } from "@/lib/services/leads";
@@ -11,12 +11,13 @@ import { notify } from "@/lib/toast";
 import { useReload } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
 import Select, { rankOptions } from "@/components/Select";
-import { dateOnly, fmtDate, shortDateTime, timeOnly } from "@/lib/date";
+import { dateOnly, dateTimeFull, fmtDate, shortDate, timeOnly } from "@/lib/date";
 import { humanizeSlug } from "@/lib/lawyers";
 import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadScoreLabel, leadUrgencyLabel, personLabel } from "@/lib/leadLabels";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
-import { IconClose, IconClock, IconPhone, IconSend } from "@/components/icons";
+import { IconClock, IconPhone, IconSend, IconTrash } from "@/components/icons";
 import CcMeetingButton from "./CcMeetingButton";
+import Modal from "./Modal";
 
 const NO_OPS: OperatorsState = { ops: [], people: new Map<string, AdminUser>(), status: "ready", retry: () => Promise.resolve() };
 const NO_LOAD: ReadonlyMap<string, number> = new Map();
@@ -27,6 +28,16 @@ function subscribeMinute(cb: () => void) {
 }
 const readToday = () => dayKeyOf(Date.now());
 const GENERATED_STAGE = /^col_[a-z0-9]+(?:_\d+)?$/;
+const QUICK_DAYS = [
+  { days: 1, key: "d.remTomorrow" },
+  { days: 3, key: "d.remIn3" },
+] as const;
+
+function shiftDay(day: string, days: number): string {
+  const [y, m, d] = day.split("-").map((n) => parseInt(n, 10));
+  if (!y || !m || !d) return "";
+  return dayKeyOf(new Date(y, m - 1, d + days).getTime());
+}
 
 // Lead detail drawer for the sales workspace: client info, stage switch,
 // operator assignment and a timeline of everything that happened to the lead.
@@ -73,6 +84,7 @@ export default function LeadDrawer({
   const [note, setNote] = useState("");
   const [remind, setRemind] = useState("");
   const [act, setAct] = useState<string | null>(null);
+  const noPhoneId = useId();
   const leadName = lead.name || lead.phone;
   const opName = (id: string) => personLabel(ops.people.get(id)) || assigneeLabel(t, ops.people, id, meId, ops.status === "ready");
 
@@ -86,7 +98,7 @@ export default function LeadDrawer({
   async function logCall() {
     if (act || !lead.phone) return;
     setAct("call");
-    try { await logCcCall({ phone: lead.phone, note: `Lead: ${lead.name || lead.phone}` }); notify.dismiss(`lead-call:${lead.id}`); notify.success(t("d.callLogged"), { body: leadName }); bumpTl(); }
+    try { await logCcCall({ phone: lead.phone, note: t("d.callLogNote", { name: lead.name || lead.phone }) }); notify.dismiss(`lead-call:${lead.id}`); notify.success(t("d.callLogged"), { body: leadName }); bumpTl(); }
     catch (e) { notify.error(t("notify.callFailed"), { id: `lead-call:${lead.id}`, error: e, action: { label: tn("retry"), onClick: () => void logCall() } }); }
     finally { setAct(null); }
   }
@@ -111,7 +123,6 @@ export default function LeadDrawer({
     // LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: LEAD-DX36K. First, because it is what
     // an operator quotes when the same lead comes up on another channel.
     [t("d.workId"), lead.workId],
-    [t("d.phone"), lead.phone],
     // The board card beside this drawer resolves the very same slug through
     // leadCategoryLabel; d.cat.* was never written, so the drawer showed the
     // raw backend value while the card showed the translated one.
@@ -120,9 +131,11 @@ export default function LeadDrawer({
     [t("d.source"), lead.source && (t.has(`source.${lead.source}`) ? t(`source.${lead.source}`) : lead.source)],
     [t("d.urgency"), leadUrgencyLabel(t, lead.urgency)],
     [t("d.score"), lead.scoreKey ? leadScoreLabel(t, lead.scoreKey) : lead.score ? String(lead.score) : ""],
-    [t("d.created"), lead.createdAt ? fmtDate(lead.createdAt.slice(0, 10), locale) : ""],
-    [t("assign.at"), lead.assignedTo && lead.assignedAt ? shortDateTime(lead.assignedAt, locale) : ""],
+    [t("d.created"), dateTimeFull(lead.createdAt, locale)],
   ];
+  const assignedAt = lead.assignedTo && lead.assignedAt ? dateTimeFull(lead.assignedAt, locale) : "";
+  const tel = (lead.phone || "").replace(/[^+\d]/g, "");
+  const quick = today ? QUICK_DAYS.map((q) => ({ day: shiftDay(today, q.days), label: t(q.key) })) : [];
   const canPick = !!onAssign && ops.status === "ready";
   const opLabel = (o: AdminUser) => operatorName(o) || t("assign.unknown");
   const ranked = rankOptions(
@@ -168,17 +181,21 @@ export default function LeadDrawer({
   };
 
   return (
-    <>
-      <div className="ldrw__scrim" onClick={onClose} />
-      <aside className="ldrw" role="dialog" aria-label={lead.name || lead.phone}>
-        <div className="ldrw__head">
-          <div>
-            <b className="ldrw__name">{lead.name || lead.phone || "—"}</b>
-            {lead.phone ? <a className="ldrw__tel" href={`tel:${lead.phone.replace(/[^+\d]/g, "")}`}>{lead.phone}</a> : null}
-          </div>
-          <button className="ldrw__x" type="button" onClick={onClose} aria-label={t("d.close")}><IconClose /></button>
-        </div>
-
+    <Modal
+      open
+      variant="drawer"
+      onClose={onClose}
+      title={lead.name || lead.phone || "—"}
+      description={lead.name && lead.phone ? <span className="ldrw__ph">{lead.phone}</span> : undefined}
+      closeLabel={t("d.close")}
+      dirty={!!note.trim()}
+      footer={
+        <button className="btn btn--sm ldrw__del" type="button" disabled={busy} onClick={onDelete}>
+          <IconTrash aria-hidden="true" />
+          {t("d.delete")}
+        </button>
+      }
+    >
         <div className="ldrw__body">
           {/* Stage switcher */}
           <div className="ldrw__sec">
@@ -203,13 +220,15 @@ export default function LeadDrawer({
           <div className="ldrw__sec lasgn">
             <span className="ldrw__lbl">{t("assign.title")}</span>
             <div className="lasgn__row">
-              <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`}>
-                <span>{assigneeLabel(t, ops.people, lead.assignedTo, meId, ops.status === "ready")}</span>
-              </span>
               {canPick ? (
                 <Select value={lead.assignedTo} onChange={(v) => void assign(v)} options={assigneeOpts} ariaLabel={t("assign.select")} placeholder={act === "assign" ? t("d.saving") : t("assign.select")} />
-              ) : null}
+              ) : (
+                <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`}>
+                  <span>{assigneeLabel(t, ops.people, lead.assignedTo, meId, ops.status === "ready")}</span>
+                </span>
+              )}
             </div>
+            {assignedAt ? <p className="lasgn__hint">{t("assign.at")}: {assignedAt}</p> : null}
             {ops.status === "error" ? <ErrorState compact error={ops.error} onRetry={ops.retry} title={t("assign.opsError")} /> : null}
             {ops.status === "forbidden" ? <p className="lasgn__hint">{t("assign.opsForbidden")}</p> : null}
             {ops.status === "ready" && !ops.ops.length ? <p className="lasgn__hint">{t("assign.noOps")}</p> : null}
@@ -230,14 +249,43 @@ export default function LeadDrawer({
           <div className="ldrw__sec">
             <span className="ldrw__lbl">{t("d.actions")}</span>
             <div className="ldrw__acts">
-              <a className="btn btn--soft btn--sm" href={`tel:${(lead.phone || "").replace(/[^+\d]/g, "")}`}><IconPhone />{t("d.call")}</a>
+              {tel ? (
+                <a className="btn btn--soft btn--sm" href={`tel:${tel}`}><IconPhone />{t("d.call")}</a>
+              ) : (
+                <button className="btn btn--soft btn--sm" type="button" disabled aria-describedby={noPhoneId}><IconPhone />{t("d.call")}</button>
+              )}
               {lead.phone ? <CcMeetingButton clientUserId={leadUserId(lead)} phone={lead.phone} clientName={lead.name} /> : null}
               <button className="btn btn--soft btn--sm" type="button" disabled={act === "call" || !lead.phone} onClick={logCall}>{act === "call" ? t("d.saving") : t("d.logCall")}</button>
             </div>
+            {!tel ? <p className="lasgn__hint" id={noPhoneId}>{t("d.noPhone")}</p> : null}
             <div className="ldrw__noteadd">
-              <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("d.notePh")} />
+              <textarea
+                className="ldrw__notefield"
+                rows={2}
+                maxLength={2000}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    void addNote();
+                  }
+                }}
+                placeholder={t("d.notePh")}
+                aria-label={t("d.addNote")}
+              />
               <button className="btn btn--pri btn--sm" type="button" disabled={!note.trim() || act === "note"} onClick={() => void addNote()}><IconSend />{act === "note" ? t("d.saving") : t("d.addNote")}</button>
             </div>
+            {quick.length ? (
+              <div className="ldrw__quick" role="group" aria-label={t("d.quickPicks")}>
+                {quick.map((q) => (
+                  <button key={q.day} type="button" className={`ldrw__qp${remind === q.day ? " on" : ""}`} aria-pressed={remind === q.day} disabled={act === "rem"} onClick={() => setRemind(q.day)}>
+                    {q.label}
+                    <span>{shortDate(q.day, locale)}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <div className="ldrw__remind">
               <DatePicker value={remind} onChange={setRemind} min={today || undefined} placeholder={t("d.reminder")} ariaLabel={t("d.reminder")} />
               <button className="btn btn--line btn--sm" type="button" disabled={!remind || act === "rem"} onClick={() => void setReminder()}>{act === "rem" ? t("d.saving") : t("d.setReminder")}</button>
@@ -283,11 +331,6 @@ export default function LeadDrawer({
             )}
           </div>
         </div>
-
-        <div className="ldrw__foot">
-          <button className="btn btn--line btn--sm" type="button" disabled={busy} onClick={onDelete}>{t("d.delete")}</button>
-        </div>
-      </aside>
-    </>
+    </Modal>
   );
 }

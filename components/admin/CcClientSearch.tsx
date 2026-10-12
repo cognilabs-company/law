@@ -6,7 +6,6 @@ import { ccSearchClients, type CcClient } from "@/lib/services/backend";
 import { isForbidden } from "@/lib/http";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
-import Modal from "@/components/admin/Modal";
 import CcClientCard from "./CcClientCard";
 import { IconSearch, IconUser, IconChevronRight } from "@/components/icons";
 
@@ -103,9 +102,7 @@ export default function CcClientSearch({
         </div>
       )}
 
-      <Modal open={open !== null} onClose={() => setOpen(null)} title={open?.name || open?.phone || t("card.title")}>
-        {open ? <CcClientCard client={open} canLog={canLog} onLogged={onLogged} /> : null}
-      </Modal>
+      {open ? <CcClientCard key={open.id} client={open} canLog={canLog} onLogged={onLogged} onClose={() => setOpen(null)} /> : null}
     </div>
   );
 }

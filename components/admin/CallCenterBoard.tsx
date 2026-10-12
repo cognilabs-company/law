@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { assigneeLabel, isLostStage, leadCategoryLabel, leadRegionLabel, leadScoreLabel, LOST_REASONS } from "@/lib/leadLabels";
+import { assigneeLabel, isLostStage, leadCategoryLabel, leadRegionLabel, leadScoreLabel } from "@/lib/leadLabels";
 import { moveCallCenterLead } from "@/lib/services/backend";
 import {
   getCallCenterKanbanX,
@@ -24,7 +24,7 @@ import {
 } from "@/lib/services/leads";
 import { operatorName } from "@/lib/services/users";
 import { useAuth } from "@/lib/auth";
-import Modal from "@/components/admin/Modal";
+import LostReasonDialog from "@/components/admin/LostReasonDialog";
 import LeadFilterBar from "@/components/admin/LeadFilterBar";
 import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
@@ -76,8 +76,6 @@ export default function CallCenterBoard() {
 
   // Lost reason is asked before the card lands in a "lost" column (T4-02 §7).
   const [lostAsk, setLostAsk] = useState<{ leadId: string; key: string } | null>(null);
-  const [lostReason, setLostReason] = useState<string>("price");
-  const [lostNote, setLostNote] = useState("");
   useEffect(() => {
     void load();
   }, [load]);
@@ -89,6 +87,7 @@ export default function CallCenterBoard() {
   }, [state.columns]);
 
   const allLeads = useMemo(() => leadsOf(state.columns), [state.columns]);
+  const lostLead = lostAsk ? allLeads.find((l) => l.id === lostAsk.leadId) ?? null : null;
   const opLoad = useMemo(() => {
     const m = new Map<string, number>();
     for (const l of allLeads) if (l.assignedTo) m.set(l.assignedTo, (m.get(l.assignedTo) ?? 0) + 1);
@@ -217,20 +216,16 @@ export default function CallCenterBoard() {
 
   return (
     <div className="ppanel" data-ai-target="callcenter:board">
-      <Modal open={!!lostAsk} onClose={() => setLostAsk(null)} title={tp("lost.title")}>
-        <div className="cform" style={{ maxWidth: "none" }}>
-          <p className="advmuted">{tp("lost.lead")}</p>
-          <div>
-            <label>{tp("lost.reason")}</label>
-            <Select value={lostReason} onChange={setLostReason} options={LOST_REASONS.map((r) => ({ value: r, label: tp(`lost.reasons.${r}`) }))} ariaLabel={tp("lost.reason")} />
-          </div>
-          <div>
-            <label>{tp("lost.note")}</label>
-            <textarea rows={2} value={lostNote} onChange={(e) => setLostNote(e.target.value)} />
-          </div>
-          <button className="btn btn--pri btn--full" type="button" onClick={() => { const a = lostAsk; setLostAsk(null); if (a) void move(a.leadId, a.key, { reason: lostReason, note: lostNote.trim() }); setLostNote(""); }}>{tp("lost.confirm")}</button>
-        </div>
-      </Modal>
+      <LostReasonDialog
+        open={!!lostAsk}
+        leadName={lostLead ? leadTitle(lostLead) : ""}
+        onCancel={() => setLostAsk(null)}
+        onConfirm={(reason, note) => {
+          const a = lostAsk;
+          setLostAsk(null);
+          if (a) void move(a.leadId, a.key, { reason, note });
+        }}
+      />
       <div className="ppanel__h">
         <b>{t("title")}</b>
         <button type="button" className="btn btn--line btn--sm" onClick={() => void load()} aria-label={tq("refresh")}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { ApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
@@ -141,6 +141,9 @@ export function AdminForm({
   onDone,
   initialValues,
   resetOnDone = true,
+  onCancel,
+  cancelLabel,
+  onDirtyChange,
 }: {
   fields: Field[];
   onSubmit: (values: Vals) => Promise<void>;
@@ -151,14 +154,26 @@ export function AdminForm({
   onDone?: () => void;
   initialValues?: Vals;
   resetOnDone?: boolean;
+  onCancel?: () => void;
+  cancelLabel?: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const tc = useTranslations("common");
   const uid = useId();
   const nid = `admin-form-${uid}`;
   const form = useRef<HTMLFormElement>(null);
   const [vals, setVals] = useState<Vals>(() => initial(fields, initialValues));
+  const [base, setBase] = useState<Vals>(() => initial(fields, initialValues));
   const [busy, setBusy] = useState(false);
   const [bad, setBad] = useState<Record<string, string>>({});
+  const dirty = fields.some((f) => String(vals[f.name] ?? "") !== String(base[f.name] ?? ""));
+  const reported = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    if (!onDirtyChange || reported.current === dirty) return;
+    reported.current = dirty;
+    onDirtyChange(dirty);
+  }, [dirty, onDirtyChange]);
 
   function set(name: string, v: string | boolean) {
     setVals((s) => ({ ...s, [name]: v }));
@@ -193,7 +208,13 @@ export function AdminForm({
     try {
       await onSubmit(vals);
       notify.success(okMsg, { id: nid });
-      if (resetOnDone) setVals(initial(fields, initialValues));
+      if (resetOnDone) {
+        const fresh = initial(fields, initialValues);
+        setVals(fresh);
+        setBase(fresh);
+      } else {
+        setBase(vals);
+      }
       onDone?.();
     } catch (err) {
       notify.error(errMsg, { id: nid, error: err });
@@ -284,9 +305,20 @@ export function AdminForm({
           </div>
         );
       })}
-      <button className="btn btn--pri" type="submit" disabled={busy}>
-        {busy ? busyLabel : submitLabel}
-      </button>
+      {onCancel ? (
+        <div className="cform__foot">
+          <button className="btn btn--line" type="button" disabled={busy} onClick={onCancel}>
+            {cancelLabel || tc("confirm.cancel")}
+          </button>
+          <button className="btn btn--pri" type="submit" disabled={busy} aria-busy={busy || undefined}>
+            {busy ? busyLabel : submitLabel}
+          </button>
+        </div>
+      ) : (
+        <button className="btn btn--pri" type="submit" disabled={busy}>
+          {busy ? busyLabel : submitLabel}
+        </button>
+      )}
     </form>
   );
 }

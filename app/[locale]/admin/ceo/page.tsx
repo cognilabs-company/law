@@ -138,7 +138,7 @@ export default function AdminCeo() {
 
   const open = (drl: Omit<Drill, "demo">) => setDrill({ ...drl, demo });
   const kv = (title: string, rows: DrillRow[]): Drill["sections"][number] => ({ kind: "kv", title, rows });
-  const channelBars = (): Drill["sections"][number] => ({ kind: "bars", title: t("channels"), rows: d.channels.filter((c) => showTest || !isTestChannel(c.name)).map((c) => ({ label: isTestChannel(c.name) ? `${source(c.name)} · ${tr("testTag")}` : source(c.name), value: money(c.revenue), n: c.revenue, sub: `${c.leads} · ${c.payments} · ${c.pct}%`, tone: isTestChannel(c.name) ? "muted" : undefined })) });
+  const channelBars = (): Drill["sections"][number] => ({ kind: "bars", title: t("channels"), rows: d.channels.filter((c) => showTest || !isTestChannel(c.name)).map((c) => ({ label: isTestChannel(c.name) ? `${source(c.name)} · ${tr("testTag")}` : source(c.name), value: money(c.revenue), short: short(c.revenue), n: c.revenue, sub: `${c.leads} · ${c.payments} · ${c.pct}%`, tone: isTestChannel(c.name) ? "muted" : undefined })) });
   const funnelBars = (): Drill["sections"][number] => ({
     kind: "bars",
     title: t("funnel"),

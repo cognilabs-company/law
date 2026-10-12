@@ -11,6 +11,7 @@ import { IconArrowRight } from "@/components/icons";
 export type DrillRow = {
   label: string;
   value: string; // already formatted
+  short?: string;
   n?: number; // raw number for bar widths / shares
   sub?: string;
   tone?: "ok" | "bad" | "muted";
@@ -34,7 +35,20 @@ export type Drill = {
 export default function StatDrillModal({ drill, onClose }: { drill: Drill | null; onClose: () => void }) {
   const t = useTranslations("admin.dash");
   return (
-    <Modal open={!!drill} onClose={onClose} title={drill?.title ?? ""}>
+    <Modal
+      open={!!drill}
+      onClose={onClose}
+      title={drill?.title ?? ""}
+      size="lg"
+      footer={
+        drill?.link ? (
+          <Link href={drill.link.href} className="btn btn--soft">
+            {drill.link.label}
+            <IconArrowRight />
+          </Link>
+        ) : undefined
+      }
+    >
       {drill ? (
         <div className="drill">
           {drill.value ? (
@@ -48,12 +62,6 @@ export default function StatDrillModal({ drill, onClose }: { drill: Drill | null
           {drill.sections.map((s, i) => (
             <Section key={i} s={s} empty={t("drill.empty")} />
           ))}
-          {drill.link ? (
-            <Link href={drill.link.href} className="btn btn--soft btn--sm" style={{ marginTop: 4 }}>
-              {drill.link.label}
-              <IconArrowRight />
-            </Link>
-          ) : null}
         </div>
       ) : null}
     </Modal>
@@ -101,16 +109,20 @@ function Section({ s, empty }: { s: DrillSection; empty: string }) {
       <div className="drill__sec">
         {title}
         <div className="kfunnel">
-          {s.rows.map((r, i) => (
-            <div className="kfunnel__row" key={i}>
-              <span className="kfunnel__lbl">{r.label}</span>
-              <span className="kfunnel__bar"><span style={{ width: `${Math.max(3, ((r.n ?? 0) / max) * 100)}%` }} /></span>
-              <b className="kfunnel__v">
-                {r.value}
-                {total > 0 && r.n != null ? <small className="drill__pct">{Math.round((r.n / total) * 100)}%</small> : null}
-              </b>
-            </div>
-          ))}
+          {s.rows.map((r, i) => {
+            const fill = (r.n ?? 0) > 0 ? Math.max(2, ((r.n ?? 0) / max) * 100) : 0;
+            return (
+              <div className={`kfunnel__row${r.short ? " kfunnel__row--short" : ""}${r.tone === "muted" ? " kfunnel__row--muted" : ""}`} key={i}>
+                <span className="kfunnel__lbl">{r.label}</span>
+                <span className="kfunnel__bar">{fill ? <span style={{ width: `${Math.min(100, fill)}%` }} /> : null}</span>
+                <b className="kfunnel__v">
+                  <span className="kfunnel__full">{r.value}</span>
+                  {r.short ? <span className="kfunnel__short">{r.short}</span> : null}
+                  {total > 0 && r.n != null ? <small className="drill__pct">{Math.round((r.n / total) * 100)}%</small> : null}
+                </b>
+              </div>
+            );
+          })}
         </div>
       </div>
     );

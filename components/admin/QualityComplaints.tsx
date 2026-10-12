@@ -17,7 +17,6 @@ import { notify } from "@/lib/toast";
 import { shortDateTime } from "@/lib/date";
 import { humanize, statusLabel } from "@/lib/labels";
 import Modal from "@/components/admin/Modal";
-import Select from "@/components/Select";
 import FilterBar from "@/components/filters/FilterBar";
 import FieldError from "@/components/ui/FieldError";
 import { useAiSelection } from "@/lib/ai/registry";
@@ -160,9 +159,9 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
         </div>
       )}
 
-      <Modal open={!!openRow} onClose={() => setOpenId("")} title={openRow ? openRow.title || t("title") : ""} wide>
-        {openRow ? <QcDetail row={openRow} label={label} onDone={() => { setOpenId(""); refresh(); }} /> : null}
-      </Modal>
+      {openRow ? (
+        <QcDetail key={openRow.id} row={openRow} label={label} onClose={() => setOpenId("")} onDone={() => { setOpenId(""); refresh(); }} />
+      ) : null}
     </section>
   );
 }
@@ -170,18 +169,24 @@ export default function QualityComplaints({ onCount }: { onCount?: (n: number) =
 // One complaint, with everything the MD says the operator has to see before
 // ruling: the complaint text, the client, the advocate, the document behind
 // it and the rating the client left.
-function QcDetail({ row, label, onDone }: { row: QualityComplaintRow; label: (s: string) => string; onDone: () => void }) {
+function QcDetail({ row, label, onClose, onDone }: { row: QualityComplaintRow; label: (s: string) => string; onClose: () => void; onDone: () => void }) {
   const t = useTranslations("admin.qualityComplaints");
   const tcm = useTranslations("portal.common");
+  const tc = useTranslations("common.confirm");
   const locale = useLocale();
   const uid = useId();
+  const noteId = `${uid}-note`;
   const noteErrId = `${uid}-note-err`;
+  const actLblId = `${uid}-act`;
+  const actErrId = `${uid}-act-err`;
   const noteBox = useRef<HTMLTextAreaElement>(null);
+  const pickBox = useRef<HTMLDivElement>(null);
   const [blocks, setBlocks] = useState<Record<string, unknown>>({});
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [failure, setFailure] = useState<unknown>(undefined);
   const [attempt, setAttempt] = useState(0);
-  const [action, setAction] = useState<QcAction>("rework_required");
+  const [action, setAction] = useState<QcAction | "">("");
+  const [actionErr, setActionErr] = useState("");
   const [note, setNote] = useState("");
   const [noteErr, setNoteErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -226,8 +231,16 @@ function QcDetail({ row, label, onDone }: { row: QualityComplaintRow; label: (s:
 
   async function submit() {
     if (busy) return;
-    if (!note.trim()) {
-      setNoteErr(t("noteRequired"));
+    const noNote = !note.trim();
+    setActionErr(action ? "" : t("actionRequired"));
+    setNoteErr(noNote ? t("noteRequired") : "");
+    if (!action) {
+      const first = pickBox.current?.querySelector<HTMLInputElement>("input[type=radio]");
+      first?.focus({ preventScroll: true });
+      pickBox.current?.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    if (noNote) {
       noteBox.current?.focus();
       return;
     }
@@ -245,101 +258,146 @@ function QcDetail({ row, label, onDone }: { row: QualityComplaintRow; label: (s:
   }
 
   return (
-    <div className="qcdet">
-      <dl className="qcdet__facts" data-ai-private>
-        {row.workId ? (<><dt>{t("fWorkId")}</dt><dd className="qcdet__wid">{row.workId}</dd></>) : null}
-        <dt>{t("fStatus")}</dt><dd>{row.statusLabel || label(row.status)}</dd>
-        {rating ? (<><dt>{t("fRating")}</dt><dd><span className="qcdet__chip qcdet__chip--rate"><IconStarRate aria-hidden="true" />{rating}</span></dd></>) : null}
-        {priority ? (
+    <Modal
+      open
+      onClose={onClose}
+      title={row.title || t("title")}
+      size="lg"
+      initialFocus="title"
+      busy={busy}
+      dirty={!settled && (!!action || !!note.trim())}
+      footer={
+        settled ? undefined : (
           <>
-            <dt>{t("fPriority")}</dt>
-            <dd><span className={`qcdet__chip qcdet__chip--${priority === "high" || priority === "urgent" ? "hot" : "calm"}`}>{t.has(`priority.${priority}`) ? t(`priority.${priority}`) : humanize(priority)}</span></dd>
+            <button type="button" className="btn btn--line" disabled={busy} onClick={onClose}>
+              {tc("cancel")}
+            </button>
+            <button type="button" className="btn btn--pri" onClick={() => void submit()} aria-disabled={busy || undefined} aria-busy={busy || undefined}>
+              {busy ? tcm("processingShort") : t("resolveSubmit")}
+            </button>
           </>
+        )
+      }
+    >
+      <div className="qcdet">
+        <dl className="qcdet__facts" data-ai-private>
+          {row.workId ? (<><dt>{t("fWorkId")}</dt><dd className="qcdet__wid">{row.workId}</dd></>) : null}
+          <dt>{t("fStatus")}</dt><dd>{row.statusLabel || label(row.status)}</dd>
+          {rating ? (<><dt>{t("fRating")}</dt><dd><span className="qcdet__chip qcdet__chip--rate"><IconStarRate aria-hidden="true" />{rating}</span></dd></>) : null}
+          {priority ? (
+            <>
+              <dt>{t("fPriority")}</dt>
+              <dd><span className={`qcdet__chip qcdet__chip--${priority === "high" || priority === "urgent" ? "hot" : "calm"}`}>{t.has(`priority.${priority}`) ? t(`priority.${priority}`) : humanize(priority)}</span></dd>
+            </>
+          ) : null}
+          {reason ? (<><dt>{t("fReason")}</dt><dd>{t.has(`reason.${reason}`) ? t(`reason.${reason}`) : humanize(reason)}</dd></>) : null}
+          {clientName ? (<><dt>{t("fClient")}</dt><dd>{clientName}</dd></>) : null}
+          {clientPhone ? (<><dt>{t("fPhone")}</dt><dd><a className="qcdet__tel" href={`tel:${clientPhone.replace(/[^+\d]/g, "")}`}><IconPhone aria-hidden="true" />{clientPhone}</a></dd></>) : null}
+          {row.lawyerName ? (<><dt>{t("fLawyer")}</dt><dd>{row.lawyerName}</dd></>) : null}
+          {row.createdAt ? (<><dt>{t("fCreated")}</dt><dd>{shortDateTime(row.createdAt, locale)}</dd></>) : null}
+        </dl>
+
+        {comment ? (
+          <section className="qcdet__b qcdet__b--err">
+            <b><IconAlert />{t("bComplaint")}</b>
+            <p>{comment}</p>
+          </section>
         ) : null}
-        {reason ? (<><dt>{t("fReason")}</dt><dd>{t.has(`reason.${reason}`) ? t(`reason.${reason}`) : humanize(reason)}</dd></>) : null}
-        {clientName ? (<><dt>{t("fClient")}</dt><dd>{clientName}</dd></>) : null}
-        {clientPhone ? (<><dt>{t("fPhone")}</dt><dd><a className="qcdet__tel" href={`tel:${clientPhone.replace(/[^+\d]/g, "")}`}><IconPhone aria-hidden="true" />{clientPhone}</a></dd></>) : null}
-        {row.lawyerName ? (<><dt>{t("fLawyer")}</dt><dd>{row.lawyerName}</dd></>) : null}
-        {row.createdAt ? (<><dt>{t("fCreated")}</dt><dd>{shortDateTime(row.createdAt, locale)}</dd></>) : null}
-      </dl>
 
-      {comment ? (
-        <section className="qcdet__b qcdet__b--err">
-          <b><IconAlert />{t("bComplaint")}</b>
-          <p>{comment}</p>
-        </section>
-      ) : null}
+        {state === "loading" ? <Skeleton rows={2} /> : null}
+        {state === "error" ? <ErrorState error={failure} onRetry={() => { setState("loading"); setAttempt((n) => n + 1); }} title={t("detailLoadError")} compact /> : null}
 
-      {state === "loading" ? <Skeleton rows={2} /> : null}
-      {state === "error" ? <ErrorState error={failure} onRetry={() => { setState("loading"); setAttempt((n) => n + 1); }} title={t("detailLoadError")} compact /> : null}
+        {state === "ready" && reviewText && reviewText !== comment ? (
+          <section className="qcdet__b">
+            <b><IconStarRate />{t("bReview")}</b>
+            <p>{reviewText}</p>
+          </section>
+        ) : null}
 
-      {state === "ready" && reviewText && reviewText !== comment ? (
-        <section className="qcdet__b">
-          <b><IconStarRate />{t("bReview")}</b>
-          <p>{reviewText}</p>
-        </section>
-      ) : null}
+        {state === "ready" && (asStr(doc.title) || fileUrl) ? (
+          <section className="qcdet__b">
+            <b><IconFileText />{t("bDocument")}</b>
+            {asStr(doc.title) ? <p>{asStr(doc.title)}</p> : null}
+            {fileUrl ? (
+              <a className="btn btn--line btn--sm" href={fileUrl} target="_blank" rel="noopener noreferrer">
+                {t("openFile")}
+              </a>
+            ) : null}
+          </section>
+        ) : null}
 
-      {state === "ready" && (asStr(doc.title) || fileUrl) ? (
-        <section className="qcdet__b">
-          <b><IconFileText />{t("bDocument")}</b>
-          {asStr(doc.title) ? <p>{asStr(doc.title)}</p> : null}
-          {fileUrl ? (
-            <a className="btn btn--line btn--sm" href={fileUrl} target="_blank" rel="noopener noreferrer">
-              {t("openFile")}
-            </a>
-          ) : null}
-        </section>
-      ) : null}
+        {state === "ready" && (urgTitle || urgNeed) ? (
+          <section className="qcdet__b">
+            <b><IconBolt />{t("bUrgent")}</b>
+            {urgTitle ? <p>{urgTitle}</p> : null}
+            {urgNeed ? <p className="advmuted">{urgNeed}</p> : null}
+            {urgWorkId || urgStatus ? (
+              <p className="qcdet__urgmeta">
+                {urgWorkId ? <em className="qcdet__wid">{urgWorkId}</em> : null}
+                {urgStatus ? <span>{urgStatus}</span> : null}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
-      {state === "ready" && (urgTitle || urgNeed) ? (
-        <section className="qcdet__b">
-          <b><IconBolt />{t("bUrgent")}</b>
-          {urgTitle ? <p>{urgTitle}</p> : null}
-          {urgNeed ? <p className="advmuted">{urgNeed}</p> : null}
-          {urgWorkId || urgStatus ? (
-            <p className="qcdet__urgmeta">
-              {urgWorkId ? <em className="qcdet__wid">{urgWorkId}</em> : null}
-              {urgStatus ? <span>{urgStatus}</span> : null}
-            </p>
-          ) : null}
-        </section>
-      ) : null}
-
-      {settled ? (
-        <Notice ok msg={t("alreadySettled", { action: t.has(`status.${row.status}`) ? t(`status.${row.status}`) : row.status })} />
-      ) : (
-        <section className="qcdet__resolve">
-          <b>{t("resolveTitle")}</b>
-          <Select
-            value={action}
-            onChange={(v) => setAction((QC_ACTIONS as string[]).includes(v) ? (v as QcAction) : "rework_required")}
-            options={QC_ACTIONS.map((a) => ({ value: a, label: t(`action.${a}`) }))}
-            ariaLabel={t("resolveTitle")}
-          />
-          {/* Says what the chosen action actually does before it is done —
-              rework_required is free work for the advocate, so it must not be
-              a blind pick. */}
-          <p className="advmuted">{t(`actionHint.${action}`)}</p>
-          <textarea
-            ref={noteBox}
-            rows={3}
-            className="qcdet__note"
-            value={note}
-            onChange={(e) => { setNote(e.target.value); setNoteErr(""); }}
-            placeholder={t("notePh")}
-            aria-label={t("noteLabel")}
-            aria-invalid={noteErr ? true : undefined}
-            aria-describedby={noteErr ? noteErrId : undefined}
-            maxLength={2000}
-            disabled={busy}
-          />
-          <FieldError id={noteErrId} msg={noteErr} />
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => void submit()} aria-disabled={busy || undefined} aria-busy={busy || undefined}>
-            {busy ? tcm("processingShort") : t("resolveSubmit")}
-          </button>
-        </section>
-      )}
-    </div>
+        {settled ? (
+          <Notice ok msg={t("alreadySettled", { action: t.has(`status.${row.status}`) ? t(`status.${row.status}`) : row.status })} />
+        ) : (
+          <section className="qcdet__resolve" aria-labelledby={actLblId}>
+            <b id={actLblId}>{t("resolveTitle")}</b>
+            {/* Says what the chosen action actually does before it is done —
+                rework_required is free work for the advocate, so it must not be
+                a blind pick. */}
+            <div
+              ref={pickBox}
+              className="ccpick"
+              role="radiogroup"
+              aria-labelledby={actLblId}
+              aria-required="true"
+              aria-invalid={actionErr ? true : undefined}
+              aria-describedby={actionErr ? actErrId : undefined}
+            >
+              {QC_ACTIONS.map((a) => (
+                <label key={a} className={`ccpick__o${action === a ? " on" : ""}`}>
+                  <input
+                    className="ccpick__in"
+                    type="radio"
+                    name={`${uid}-action`}
+                    value={a}
+                    checked={action === a}
+                    disabled={busy}
+                    onChange={() => {
+                      setAction(a);
+                      setActionErr("");
+                    }}
+                  />
+                  <span className="ccpick__dot" aria-hidden="true" />
+                  <span className="ccpick__m">
+                    <b>{t(`action.${a}`)}</b>
+                    <small>{t(`actionHint.${a}`)}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <FieldError id={actErrId} msg={actionErr} />
+            <label className="qcdet__lbl" htmlFor={noteId}>{t("noteLabel")}</label>
+            <textarea
+              id={noteId}
+              ref={noteBox}
+              rows={3}
+              className="qcdet__note"
+              value={note}
+              onChange={(e) => { setNote(e.target.value); setNoteErr(""); }}
+              placeholder={t("notePh")}
+              aria-required="true"
+              aria-invalid={noteErr ? true : undefined}
+              aria-describedby={noteErr ? noteErrId : undefined}
+              maxLength={2000}
+            />
+            <FieldError id={noteErrId} msg={noteErr} />
+          </section>
+        )}
+      </div>
+    </Modal>
   );
 }
