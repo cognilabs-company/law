@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/http";
 import { buildPeople, KINDS, type PersonKind } from "@/lib/liveOffice/model";
 import { HrmError, HrmHead, HrmLoading, HrmStat, useNow } from "@/components/internal/HrmUi";
-import { IconClock, IconRefresh, IconSearch, IconUsers, IconBolt, IconHistory } from "@/components/icons";
+import { IconClock, IconGrid, IconMapPin, IconRefresh, IconSearch, IconUsers, IconBolt, IconHistory } from "@/components/icons";
 import Character, { CharacterDefs } from "./Character";
 import { AwayPanel, FeedPanel } from "./Feed";
+import OfficeFloor from "./OfficeFloor";
 import OfficeMap from "./OfficeMap";
 import PersonPanel from "./PersonPanel";
 import { useDemoOffice } from "./useDemoOffice";
@@ -16,14 +17,19 @@ import { useOfficeText } from "./text";
 // Demo staff stay on until real traffic is there to watch; the choice is the
 // viewer's own and survives a reload.
 const DEMO_KEY = "lexgo_live_office_demo";
+// Two drawings of the same office: the floor seen from the side, and the
+// earlier one with people walking the hallways.
+const VIEW_KEY = "lexgo_live_office_view";
 
 export default function LiveOffice() {
   const { t, kind, ago } = useOfficeText();
   const [demo, setDemo] = useState(true);
+  const [view, setView] = useState<"floor" | "classic">("floor");
   useEffect(() => {
     const h = setTimeout(() => {
       try {
         if (localStorage.getItem(DEMO_KEY) === "0") setDemo(false);
+        if (localStorage.getItem(VIEW_KEY) === "classic") setView("classic");
       } catch {
         /* storage blocked: keep the default */
       }
@@ -42,6 +48,14 @@ export default function LiveOffice() {
       localStorage.setItem(DEMO_KEY, next ? "1" : "0");
     } catch {
       /* storage blocked: the switch still works for this visit */
+    }
+  };
+  const switchView = (next: "floor" | "classic") => {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      /* storage blocked: the choice lasts for this visit */
     }
   };
   const tick = useNow(15_000);
@@ -138,13 +152,29 @@ export default function LiveOffice() {
             </div>
           </div>
 
-          <div className="lo-legend" aria-hidden>
-            <span><i className="lo-legend__dot" />{t("status.working")}</span>
-            <span><i className="lo-legend__dot lo-legend__dot--idle" />{t("status.idle")}</span>
-            <span className="lo-legend__walk"><Character id="legend" kind="lead" pose="walk" />{t("moving")}</span>
+          <div className="lo-viewrow">
+            <div className="lo-legend" aria-hidden>
+              <span><i className="lo-legend__dot" />{t("status.working")}</span>
+              <span><i className="lo-legend__dot lo-legend__dot--idle" />{t("status.idle")}</span>
+              {view === "classic" ? <span className="lo-legend__walk"><Character id="legend" kind="lead" pose="walk" />{t("moving")}</span> : null}
+            </div>
+            <div className="lv-view" role="group" aria-label={t("floor.view")}>
+              <button type="button" className={view === "floor" ? "on" : ""} aria-pressed={view === "floor"} onClick={() => switchView("floor")}>
+                <IconMapPin />
+                {t("floor.viewFloor")}
+              </button>
+              <button type="button" className={view === "classic" ? "on" : ""} aria-pressed={view === "classic"} onClick={() => switchView("classic")}>
+                <IconGrid />
+                {t("floor.viewClassic")}
+              </button>
+            </div>
           </div>
 
-          <OfficeMap people={inOffice} selected={picked} onPick={setPicked} now={now} freshSince={freshSince || Number.MAX_SAFE_INTEGER} />
+          {view === "floor" ? (
+            <OfficeFloor people={inOffice} away={shown.filter((p) => p.status === "away")} selected={picked} onPick={setPicked} now={now} freshSince={freshSince || Number.MAX_SAFE_INTEGER} />
+          ) : (
+            <OfficeMap people={inOffice} selected={picked} onPick={setPicked} now={now} freshSince={freshSince || Number.MAX_SAFE_INTEGER} />
+          )}
 
           <div className="lo-below">
             <FeedPanel people={shown} now={now} onPick={setPicked} />

@@ -9973,7 +9973,17 @@
       "forbidden": "This page needs the user management permission.",
       "retry": "Try again",
       "minutes": "{n} min",
-      "hm": "{h} h {m} min"
+      "hm": "{h} h {m} min",
+      "floor": {
+        "hint": "Click a room to zoom in",
+        "enter": "{name}: zoom in, {n} in the room",
+        "here": "{n} in the room",
+        "zoom": "Zoom",
+        "nobody": "Nobody is in this room right now",
+        "view": "Office view",
+        "viewFloor": "New (3D)",
+        "viewClassic": "Classic"
+      }
     },
     "aiReglaments": {
       "eyebrow": "AI instructor · Support",

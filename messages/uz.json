@@ -9979,7 +9979,17 @@
       "forbidden": "Bu sahifani ko'rish uchun foydalanuvchilarni boshqarish ruxsati kerak.",
       "retry": "Qayta urinish",
       "minutes": "{n} daq",
-      "hm": "{h} soat {m} daq"
+      "hm": "{h} soat {m} daq",
+      "floor": {
+        "hint": "Xonani bosing — yaqinlashadi",
+        "enter": "{name}: yaqinlashtirish, xonada {n} kishi",
+        "here": "xonada {n} kishi",
+        "zoom": "Masshtab",
+        "nobody": "Xonada hozir hech kim yo'q",
+        "view": "Ofis ko'rinishi",
+        "viewFloor": "Yangi (3D)",
+        "viewClassic": "Eski"
+      }
     },
     "aiReglaments": {
       "eyebrow": "AI instruktor · Support",

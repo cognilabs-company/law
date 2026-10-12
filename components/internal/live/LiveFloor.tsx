@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { LiveBoard, LivePerson, LiveRoom, LiveUnit } from "@/lib/services/internalLive";
 import { initials } from "@/lib/lawyers";
 import { IconChevronLeft, IconExpand, IconMinus, IconPlus, IconUsers } from "@/components/icons";
 import { HrmEmpty } from "@/components/internal/HrmUi";
+import { Block, U, boxOf, pt, pts, useFloorCamera, type Rect } from "@/components/live/floorKit";
 import { groupBoard } from "./LiveBoardView";
 import { STATUS_TONE, shownStatus, useLiveText } from "./bits";
 
@@ -15,7 +16,6 @@ import { STATUS_TONE, shownStatus, useLiveText } from "./bits";
 // Seats are laid out here — the backend knows rooms and who is in them, not
 // where a desk stands.
 
-type Rect = { x: number; y: number; w: number; h: number };
 type Seat = { x: number; y: number; person: LivePerson | null };
 type Plan = {
   key: string;
@@ -32,10 +32,6 @@ type Plan = {
   total: number;
 };
 
-// One floor unit in pixels of the drawing, and the two axes of the projection.
-const U = 24;
-const AX = U * 0.866;
-const AY = U * 0.5;
 const WALL = 1.3;
 const CELL_W = 3.4;
 const CELL_D = 3.2;
@@ -45,30 +41,6 @@ const GAP = 1.6;
 const SEATED = new Set(["working", "busy", "online", "inactive"]);
 const TRAYS = ["break", "offline"] as const;
 const TRAY_MAX = 14;
-
-const pt = (x: number, y: number, z = 0): [number, number] => [(x - y) * AX, (x + y) * AY - z * U];
-const pts = (...p: [number, number, number][]) => p.map(([x, y, z]) => pt(x, y, z).map((n) => n.toFixed(1)).join(",")).join(" ");
-
-function Block({ x, y, w, d, h, z = 0, cls }: { x: number; y: number; w: number; d: number; h: number; z?: number; cls: string }) {
-  const t = z + h;
-  return (
-    <g className={cls}>
-      <polygon className="lf-f1" points={pts([x, y + d, z], [x + w, y + d, z], [x + w, y + d, t], [x, y + d, t])} />
-      <polygon className="lf-f2" points={pts([x + w, y, z], [x + w, y + d, z], [x + w, y + d, t], [x + w, y, t])} />
-      <polygon className="lf-f0" points={pts([x, y, t], [x + w, y, t], [x + w, y + d, t], [x, y + d, t])} />
-    </g>
-  );
-}
-
-// The screen box of a floor rectangle, walls and labels included.
-function boxOf(x: number, y: number, w: number, d: number, pad: number): Rect {
-  const c = [pt(x, y, WALL + 1.6), pt(x + w, y), pt(x, y + d), pt(x + w, y + d), pt(x + w, y, WALL), pt(x, y + d, WALL)];
-  const xs = c.map((p) => p[0]);
-  const ys = c.map((p) => p[1]);
-  const x0 = Math.min(...xs) - pad;
-  const y0 = Math.min(...ys) - pad;
-  return { x: x0, y: y0, w: Math.max(...xs) + pad - x0, h: Math.max(...ys) + pad - y0 };
-}
 
 function layout(board: LiveBoard, statusOf: (p: LivePerson) => string, filtered: boolean, openSpaces: boolean): Plan[] {
   const plans: Plan[] = [];
@@ -129,10 +101,6 @@ export default function LiveFloor({ board, now, inactiveAfter, onOpen, filtered 
   const plans = useMemo(() => layout(board, statusOf, filtered, true), [board, statusOf, filtered]);
   const [target, setTarget] = useState<Target>({ kind: "all" });
   const rootRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const view = useRef<Rect | null>(null);
-  const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
-  const swallow = useRef(false);
 
   const focused = target.kind === "room" ? (plans.find((p) => p.key === target.key) ?? null) : null;
   const slab = useMemo(() => {
@@ -152,53 +120,8 @@ export default function LiveFloor({ board, now, inactiveAfter, onOpen, filtered 
     return away.length ? { ...all, h: all.h * 1.18 } : all;
   }, [target, focused, slab, away.length]);
 
-  const apply = useCallback((b: Rect) => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    view.current = b;
-    svg.setAttribute("viewBox", `${b.x.toFixed(2)} ${b.y.toFixed(2)} ${b.w.toFixed(2)} ${b.h.toFixed(2)}`);
-    // Drawing units per screen pixel: labels are sized by it so that a room's
-    // name reads the same from far and from near.
-    const k = Math.max(b.w / (svg.clientWidth || 1), b.h / (svg.clientHeight || 1));
-    svg.style.setProperty("--lf-k", k.toFixed(4));
-  }, []);
-
-  const { x: gx, y: gy, w: gw, h: gh } = goal;
-  useLayoutEffect(() => {
-    const to = { x: gx, y: gy, w: gw, h: gh };
-    const from = view.current;
-    if (!from || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      apply(to);
-      return;
-    }
-    let raf = 0;
-    const start = performance.now();
-    const step = (at: number) => {
-      const p = Math.min(1, (at - start) / 520);
-      const e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-      apply({ x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, w: from.w + (to.w - from.w) * e, h: from.h + (to.h - from.h) * e });
-      if (p < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [gx, gy, gw, gh, apply]);
-
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => {
-      if (view.current) apply(view.current);
-    });
-    ro.observe(svg);
-    return () => ro.disconnect();
-  }, [apply]);
-
-  const zoomBy = (f: number) => {
-    const b = view.current ?? goal;
-    const w = b.w * f;
-    const h = b.h * f;
-    setTarget({ kind: "box", box: { x: b.x + (b.w - w) / 2, y: b.y + (b.h - h) / 2, w, h } });
-  };
+  const { svgRef, scaled, onPointerDown, onPointerMove, onPointerUp, onClickCapture } = useFloorCamera(goal);
+  const zoomBy = (f: number) => setTarget({ kind: "box", box: scaled(f) });
   const fit = () => setTarget({ kind: "all" });
   const enter = (key: string) => {
     setTarget({ kind: "room", key });
@@ -211,30 +134,6 @@ export default function LiveFloor({ board, now, inactiveAfter, onOpen, filtered 
     e.preventDefault();
     e.stopPropagation();
     return true;
-  };
-
-  // Dragging moves the floor; a drag must not also count as a press.
-  const onDown = (e: PointerEvent<SVGSVGElement>) => {
-    if (e.button === 0) drag.current = { x: e.clientX, y: e.clientY, moved: false };
-  };
-  const onMove = (e: PointerEvent<SVGSVGElement>) => {
-    const d = drag.current;
-    const b = view.current;
-    const svg = svgRef.current;
-    if (!d || !b || !svg) return;
-    const dx = e.clientX - d.x;
-    const dy = e.clientY - d.y;
-    if (!d.moved && Math.hypot(dx, dy) < 5) return;
-    if (!d.moved) svg.setPointerCapture(e.pointerId);
-    d.moved = true;
-    d.x = e.clientX;
-    d.y = e.clientY;
-    const k = Math.max(b.w / (svg.clientWidth || 1), b.h / (svg.clientHeight || 1));
-    apply({ ...b, x: b.x - dx * k, y: b.y - dy * k });
-  };
-  const onUp = () => {
-    swallow.current = !!drag.current?.moved;
-    drag.current = null;
   };
 
   if (!plans.length) {
@@ -254,15 +153,11 @@ export default function LiveFloor({ board, now, inactiveAfter, onOpen, filtered 
         role="group"
         aria-label={t("floor.title")}
         preserveAspectRatio="xMidYMid meet"
-        onPointerDown={onDown}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onPointerCancel={onUp}
-        onClickCapture={(e) => {
-          if (!swallow.current) return;
-          swallow.current = false;
-          e.stopPropagation();
-        }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onClickCapture={onClickCapture}
         onClick={() => {
           if (target.kind !== "all") fit();
         }}
