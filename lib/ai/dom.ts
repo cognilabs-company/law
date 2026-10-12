@@ -12,7 +12,9 @@ export function isShown(el: Element): boolean {
 
 export function openModalRoot(): Element | null {
   if (typeof document === "undefined") return null;
-  const all = Array.from(document.querySelectorAll(".amodal, [role=dialog][aria-modal=true], dialog[open]")).filter((el) => !el.closest(OVERLAY));
+  const all = Array.from(document.querySelectorAll(".amodal, [role=dialog][aria-modal=true], dialog[open]")).filter(
+    (el) => !el.closest(OVERLAY) && !(el.matches(".amodal--drawer") && !el.querySelector("[data-ai-id],[data-ai-target]")),
+  );
   return all.length ? all[all.length - 1] : null;
 }
 

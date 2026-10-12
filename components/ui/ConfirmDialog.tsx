@@ -106,6 +106,7 @@ export default function ConfirmHost() {
       return;
     }
     if (busy) return;
+    okRef.current?.closest<HTMLElement>("[role=dialog]")?.focus({ preventScroll: true });
     setBusyKey(key);
     try {
       const r = await run();
