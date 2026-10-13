@@ -4221,7 +4221,11 @@
     "codeSlots": {
       "entered": "Введено {n} из {total} цифр кода",
       "complete": "Код введён полностью"
-    }
+    },
+    "loginRequired": "Войдите в систему, чтобы продолжить.",
+    "fileTooBig": "Файл больше допустимого размера.",
+    "unsupportedFile": "Тип файла не поддерживается или файл повреждён.",
+    "serviceUnavailable": "Сервис временно недоступен. Повторите попытку чуть позже."
   },
   "a11y": {
     "showPassword": "Показать пароль",
@@ -10656,7 +10660,11 @@
       "upload": {
         "tooBig": "Файл больше 20 МБ.",
         "onlyDocx": "Принимается только файл DOCX.",
-        "failed": "Не удалось заменить файл"
+        "failed": "Не удалось заменить файл",
+        "tooBigN": "Файл больше {mb} МБ.",
+        "onlyTypes": "Принимаются только файлы: {types}",
+        "badFile": "Тип файла не поддерживается или DOCX повреждён.",
+        "converterDown": "Конвертер старых DOC сейчас недоступен. Сохраните файл как DOCX и загрузите снова."
       },
       "file": {
         "error": "Не удалось открыть файл"
@@ -10736,7 +10744,21 @@
         "creating": "Создаём…",
         "submit": "Создать и открыть",
         "titlePh": "Договор оказания услуг",
-        "draftNote": "После создания откроется редактор Word."
+        "draftNote": "После создания откроется редактор Word.",
+        "modeLabel": "Как начать шаблон",
+        "mode": {
+          "blank": "Пустой документ",
+          "blankHint": "Текст пишется в редакторе с нуля",
+          "device_upload": "Загрузить с устройства",
+          "device_uploadHint": "Загрузите готовый DOCX и отредактируйте"
+        },
+        "file": "Файл DOCX",
+        "filePick": "Выберите файл",
+        "fileHint": "{types} · до {mb} МБ",
+        "fileSize": "{mb} МБ",
+        "fileRequired": "Выберите файл для загрузки.",
+        "uploadNote": "Файл откроется в редакторе как черновик. В каталоге клиента он появится только после публикации.",
+        "forbidden": "У вас нет прав создавать шаблоны."
       },
       "list": {
         "newWord": "Новый шаблон Word",
@@ -12067,6 +12089,33 @@
         "restored": "Категория возвращена в список",
         "reset": "Вернуть название бэкенда",
         "resetDone": "Изменение администратора убрано"
+      },
+      "scope": {
+        "label": "Каталог",
+        "marketplace": "Профессиональные услуги",
+        "documents": "Услуги по документам",
+        "all": "Все",
+        "marketplaceHint": "Профессиональные услуги адвокатов и юристов в маркетплейсе. Шаблонов документов здесь нет.",
+        "documentsHint": "Услуги, привязанные к шаблону документа — клиент видит их в конструкторе документов.",
+        "allHint": "Для администратора: все услуги, профессиональные и по документам вместе.",
+        "archive": "Архив",
+        "marketCats": "Категории маркетплейса",
+        "marketCatsNote": "Эти категории управляются вместе с профессиональным каталогом; категории документов — отдельно.",
+        "servicesN": "услуг: {n}",
+        "showServices": "Показать услуги категории",
+        "replace": "Заменить каталог",
+        "replaceTitle": "Замена профессионального каталога",
+        "replaceText": "Профессиональный каталог маркетплейса будет заменён текущим стандартным списком. Повторное нажатие не создаёт дубликатов.",
+        "replaceCta": "Заменить",
+        "replaceDone": "Профессиональный каталог обновлён",
+        "replaceError": "Каталог не заменён",
+        "rule": {
+          "archive": "Старые профессиональные услуги архивируются.",
+          "orders": "Исторические заказы не удаляются.",
+          "templates": "Шаблоны документов не удаляются.",
+          "docServices": "Услуги, привязанные к шаблонам, остаются активными.",
+          "flows": "Дежурный адвокат и конструктор документов продолжают работать отдельно."
+        }
       }
     },
     "plans": {
@@ -12154,7 +12203,11 @@
           "application": "Заявление",
           "power_of_attorney": "Доверенность",
           "corporate": "Корпоративный",
-          "other": "Другое"
+          "other": "Другое",
+          "legal-doc-civil": "Гражданские документы",
+          "legal-doc-economic": "Экономические документы",
+          "legal-doc-criminal": "Документы по уголовным делам",
+          "legal-doc-administrative": "Административные документы"
         },
         "langs": {
           "uz-latn": "Узбекский (латиница)",
@@ -15658,7 +15711,44 @@
       "workflows": "Процессы согласования",
       "delegations": "Делегирование",
       "notifTemplates": "Шаблоны уведомлений",
-      "sections": "Разделы"
+      "sections": "Разделы",
+      "staffing": "Штатные единицы",
+      "grades": "Грейды",
+      "orgPlans": "Планы структуры",
+      "licences": "Лицензии",
+      "unitTypes": "Типы подразделений",
+      "dataIssues": "Проблемы в данных",
+      "conduct": "Дисциплина",
+      "timesheetFix": "Корректировки табеля",
+      "rosterPeriods": "Периоды графика",
+      "rotations": "Шаблоны ротации",
+      "payPolicy": "Политика оплаты",
+      "adjustments": "Корректировки",
+      "payslips": "Расчётные листки",
+      "reliability": "Надёжность",
+      "projects": "Проекты",
+      "workItems": "Работы",
+      "timeEntries": "Учёт времени",
+      "kpiDefs": "Показатели KPI",
+      "kpiPeriods": "Периоды KPI",
+      "kpiResults": "Результаты KPI",
+      "reviews": "Оценка 360",
+      "oneOnOne": "Встречи 1-на-1",
+      "idp": "Планы развития",
+      "nineBox": "9-box",
+      "offers": "Офферы",
+      "pipeline": "Этапы воронки",
+      "articles": "База знаний",
+      "reportRuns": "Запуски отчётов",
+      "reportSchedules": "Расписания отчётов",
+      "roles": "Роли",
+      "roleGrants": "Назначение ролей",
+      "devices": "Устройства",
+      "audit": "Журнал аудита",
+      "reasonCodes": "Коды причин",
+      "biometrics": "Биометрия",
+      "integrations": "Интеграции",
+      "aiOversight": "Контроль ИИ"
     },
     "pagination": {
       "label": "Пагинация",
@@ -16554,7 +16644,23 @@
           "education": "Образование",
           "equipment": "Закреплённое оборудование",
           "change_request": "Изменение данных сотрудника",
-          "conduct": "Дисциплина и поощрения"
+          "conduct": "Дисциплина и поощрения",
+          "employee": "Сотрудник",
+          "status_change": "Изменение статуса",
+          "employment": "Занятость",
+          "availability_period": "Период доступности",
+          "room_assignment": "Закрепление кабинета",
+          "professional_profile": "Профессиональный профиль",
+          "education_record": "Запись об образовании",
+          "service_permission": "Допуск к услуге",
+          "equipment_authorization": "Допуск к оборудованию",
+          "employee_document": "Документ сотрудника",
+          "skill": "Навык",
+          "employee_skill": "Навык сотрудника",
+          "position_skill_requirement": "Требование к навыкам должности",
+          "employee_data_issue": "Проблема в данных",
+          "profile_change_request": "Запрос на изменение профиля",
+          "conduct_record": "Запись о дисциплине"
         },
         "employment": {
           "contract": "Трудовой договор",
@@ -16574,7 +16680,12 @@
           "schedule": "График работы",
           "roster": "График сотрудника",
           "staffing_requirement": "Потребность в смене",
-          "calendar": "Рабочий календарь"
+          "calendar": "Рабочий календарь",
+          "work_schedule": "Рабочий график",
+          "roster_period": "Период графика",
+          "schedule_batch": "Пакет графиков",
+          "schedule_day": "День графика",
+          "schedule_acknowledgement": "Ознакомление с графиком"
         },
         "attendance": {
           "event": "Событие посещаемости",
@@ -16582,37 +16693,69 @@
           "explanation": "Объяснительная",
           "overtime": "Сверхурочная работа",
           "incident": "Нарушение посещаемости",
-          "terminal": "Терминал учёта"
+          "terminal": "Терминал учёта",
+          "attendance_terminal": "Терминал посещаемости",
+          "attendance_event": "Событие посещаемости",
+          "attendance_incident": "Нарушение посещаемости",
+          "attendance_day": "День посещаемости",
+          "attendance_explanation": "Объяснительная",
+          "overtime_approval": "Согласование сверхурочных",
+          "attendance_alert": "Оповещение о посещаемости"
         },
         "timesheet": {
           "code": "Код табеля",
           "day": "День табеля",
-          "period": "Период табеля"
+          "period": "Период табеля",
+          "timesheet_code": "Код табеля",
+          "timesheet": "Табель",
+          "timesheet_day": "День табеля",
+          "timesheet_correction": "Корректировка табеля",
+          "retro_correction": "Ретро-корректировка",
+          "timesheet_escalation": "Эскалация табеля"
         },
         "leave": {
           "leave_type": "Вид отпуска",
           "request": "Заявка на отпуск",
           "annual_leave": "Ежегодный отпуск",
           "balance": "Баланс отпуска",
-          "staffing_rule": "Правило штата в отпуске"
+          "staffing_rule": "Правило штата в отпуске",
+          "leave_balance": "Баланс отпусков",
+          "leave_request": "Заявка на отпуск",
+          "minimum_staffing_rule": "Правило минимального штата"
         },
         "travel": {
           "request": "Заявка на командировку",
           "expense": "Расход командировки",
-          "report": "Отчёт о командировке"
+          "report": "Отчёт о командировке",
+          "business_trip": "Командировка",
+          "branch_distance": "Расстояние между филиалами",
+          "rotation_template": "Шаблон ротации",
+          "rotation_template_day": "День шаблона ротации",
+          "reschedule_task": "Задача на перенос",
+          "empty_trip_alert": "Оповещение о пустой поездке"
         },
         "tasks": {
           "template": "Шаблон поручения",
           "task": "Поручение",
           "proof": "Подтверждение",
           "spot_check": "Выборочная проверка",
-          "escalation": "Эскалация"
+          "escalation": "Эскалация",
+          "escalation_rule": "Правило эскалации",
+          "proof_point": "Точка подтверждения",
+          "task_template": "Шаблон задания",
+          "task_instance": "Задание",
+          "task_proof": "Подтверждение задания",
+          "reliability_score": "Балл надёжности",
+          "reliability_event": "Событие надёжности"
         },
         "workflow": {
           "definition": "Описание процесса",
           "instance": "Экземпляр процесса",
           "delegation": "Делегирование полномочий",
-          "decision": "Решение по согласованию"
+          "decision": "Решение по согласованию",
+          "process_definition": "Определение процесса",
+          "process_instance": "Экземпляр процесса",
+          "approval_task": "Задача согласования"
         },
         "payroll": {
           "component": "Компонент расчёта",
@@ -16624,7 +16767,21 @@
           "penalty": "Штраф",
           "bonus": "Бонус",
           "objection": "Возражение по расчёту",
-          "payment_detail": "Платёжные реквизиты"
+          "payment_detail": "Платёжные реквизиты",
+          "formula_version": "Версия формулы",
+          "compensation_component": "Компонент оплаты",
+          "payroll_policy": "Политика оплаты труда",
+          "payroll_run": "Расчётный период",
+          "payroll_calculation": "Расчёт зарплаты",
+          "payroll_line": "Строка расчёта",
+          "payroll_summary": "Сводка по зарплате",
+          "manual_adjustment": "Ручная корректировка",
+          "retro_adjustment": "Ретро-корректировка",
+          "penalty_objection": "Возражение на штраф",
+          "advance_run": "Расчёт аванса",
+          "advance_payment": "Выплата аванса",
+          "payslip_acknowledgement": "Ознакомление с расчётным листком",
+          "payment_details": "Платёжные реквизиты"
         },
         "recruiting": {
           "vacancy": "Вакансия",
@@ -16632,31 +16789,62 @@
           "application": "Отклик на вакансию",
           "interview": "Интервью",
           "offer": "Предложение о работе",
-          "talent_pool": "Кадровый резерв"
+          "talent_pool": "Кадровый резерв",
+          "vacancy_escalation": "Эскалация вакансии",
+          "pipeline_stage": "Этап воронки",
+          "candidate_document": "Документ кандидата",
+          "stage_history": "История этапов",
+          "scorecard_criterion": "Критерий оценки",
+          "interview_feedback": "Отзыв об интервью",
+          "offer_template": "Шаблон оффера",
+          "recruiting_cost": "Затраты на подбор"
         },
         "onboarding": {
           "template": "Шаблон адаптации",
           "case": "Процесс адаптации",
           "checklist": "Чек-лист адаптации",
-          "probation_review": "Оценка испытательного срока"
+          "probation_review": "Оценка испытательного срока",
+          "onboarding_program": "Программа адаптации",
+          "onboarding_stage": "Этап адаптации",
+          "onboarding_item": "Пункт адаптации",
+          "onboarding_instance": "Процесс адаптации",
+          "onboarding_task": "Задача адаптации",
+          "probation_criterion": "Критерий испытательного срока",
+          "probation_evaluation": "Оценка испытательного срока"
         },
         "offboarding": {
           "template": "Шаблон увольнения",
           "case": "Процесс увольнения",
           "clearance": "Обходной лист",
-          "exit_interview": "Выходное интервью"
+          "exit_interview": "Выходное интервью",
+          "termination_case": "Дело об увольнении",
+          "clearance_template": "Шаблон обходного листа",
+          "clearance_template_item": "Пункт шаблона",
+          "clearance_item": "Пункт обходного листа",
+          "exit_questionnaire": "Выходная анкета"
         },
         "movements": {
           "movement_type": "Вид перемещения",
           "request": "Заявка на перемещение",
           "order_template": "Шаблон приказа",
-          "order": "Кадровый приказ"
+          "order": "Кадровый приказ",
+          "order_type": "Тип приказа",
+          "personnel_order": "Кадровый приказ",
+          "order_line": "Строка приказа"
         },
         "policies": {
           "folder": "Папка регламентов",
           "document": "Регламент",
           "version": "Версия регламента",
-          "acknowledgement": "Ознакомление с регламентом"
+          "acknowledgement": "Ознакомление с регламентом",
+          "policy_folder": "Папка регламентов",
+          "policy_template_file": "Файл шаблона регламента",
+          "policy_document": "Регламент",
+          "policy_version": "Версия регламента",
+          "policy_attachment": "Приложение к регламенту",
+          "policy_source_file": "Исходный файл регламента",
+          "ack_requirement": "Требование ознакомления",
+          "quiz_attempt": "Попытка теста"
         },
         "lms": {
           "course": "Курс",
@@ -16664,17 +16852,121 @@
           "enrollment": "Назначение на курс",
           "assessment": "Тест",
           "attempt": "Попытка теста",
-          "certificate": "Сертификат"
+          "certificate": "Сертификат",
+          "course_module": "Модуль курса",
+          "lesson": "Урок",
+          "quiz": "Тест",
+          "question": "Вопрос",
+          "training_rule": "Правило обучения",
+          "lesson_progress": "Прогресс урока",
+          "quiz_attempt": "Попытка теста",
+          "article_category": "Категория статей",
+          "article": "Статья"
         },
         "notifications": {
           "template": "Шаблон уведомления",
           "delivery": "Рассылка уведомления",
-          "preference": "Настройка уведомлений"
+          "preference": "Настройка уведомлений",
+          "notification_template": "Шаблон уведомления",
+          "notification": "Уведомление"
         },
         "analytics": {
           "report_definition": "Описание отчёта",
           "saved_report": "Сохранённый отчёт",
-          "dashboard": "Аналитическая панель"
+          "dashboard": "Аналитическая панель",
+          "report_run": "Запуск отчёта",
+          "report_schedule": "Расписание отчёта",
+          "report_delivery": "Доставка отчёта"
+        },
+        "ai": {
+          "ai_feature": "Функция ИИ",
+          "ai_decision_log": "Журнал решений ИИ"
+        },
+        "biometrics": {
+          "biometric_blob": "Биометрические данные",
+          "biometric_enrollment": "Биометрическая регистрация",
+          "face_challenge": "Запрос проверки лица",
+          "face_capture": "Снимок лица",
+          "face_frame": "Кадр лица",
+          "signature_capture": "Образец подписи",
+          "sign_staff_nonce": "Одноразовый ключ подписи",
+          "face_verification": "Верификация лица"
+        },
+        "core": {
+          "audit_log": "Журнал аудита",
+          "number_sequence": "Последовательность номеров",
+          "job_state": "Состояние фоновой задачи",
+          "domain_event": "Системное событие",
+          "webhook_subscription": "Подписка на вебхук",
+          "idempotency_record": "Запись идемпотентности",
+          "reason_code": "Код причины"
+        },
+        "hamkor": {
+          "request_nonce": "Одноразовый ключ запроса",
+          "inbound_event": "Входящее событие",
+          "day_evidence": "Подтверждение дня",
+          "candidate_ref": "Ссылка на кандидата"
+        },
+        "iam": {
+          "user": "Пользователь",
+          "external_identity": "Внешняя учётная запись",
+          "otp_challenge": "Одноразовый код",
+          "device": "Устройство",
+          "device_credential": "Ключ устройства",
+          "role": "Роль",
+          "role_permission": "Право роли",
+          "role_grant": "Назначение роли",
+          "sensitive_access_grant": "Доступ к чувствительным данным",
+          "auth_session": "Сессия входа",
+          "usage_session": "Сессия использования",
+          "sso_token_use": "Использование SSO-токена"
+        },
+        "integrations": {
+          "telegram_link_code": "Код привязки Telegram",
+          "telegram_pending_action": "Ожидающее действие Telegram"
+        },
+        "kpi": {
+          "kpi_definition": "Показатель KPI",
+          "kpi_template": "Шаблон KPI",
+          "kpi_template_item": "Пункт шаблона KPI",
+          "kpi_period": "Период KPI",
+          "kpi_target": "Цель KPI",
+          "kpi_manual_value": "Ручное значение",
+          "kpi_result": "Результат KPI",
+          "kpi_scorecard": "Карта KPI",
+          "review_cycle": "Цикл оценки",
+          "review": "Оценка",
+          "review_form": "Форма оценки",
+          "one_on_one_meeting": "Встреча один на один",
+          "development_plan": "План развития",
+          "development_goal": "Цель развития",
+          "nine_box_placement": "Матрица 9 клеток"
+        },
+        "org": {
+          "org_unit_type": "Тип подразделения",
+          "work_calendar": "Рабочий календарь",
+          "calendar_day": "День календаря",
+          "org_unit": "Подразделение",
+          "org_unit_version": "Версия подразделения",
+          "grade": "Грейд",
+          "position": "Должность",
+          "staff_unit": "Штатная единица",
+          "org_change_plan": "План изменения структуры",
+          "org_change_item": "Пункт плана",
+          "branch_template": "Шаблон филиала",
+          "org_board_position": "Позиция на доске",
+          "org_unit_link": "Связь подразделений",
+          "branch_licence": "Лицензия филиала",
+          "branch_licence_file": "Файл лицензии",
+          "branch_licence_reminder": "Напоминание о лицензии"
+        },
+        "workitems": {
+          "project": "Проект",
+          "automation_rule": "Правило автоматизации",
+          "work_item": "Рабочий элемент",
+          "work_item_comment": "Комментарий к работе",
+          "work_item_attachment": "Вложение к работе",
+          "time_entry": "Запись времени"
         }
       },
       "allTypes": "Все",
@@ -16794,20 +17086,29 @@
       },
       "hub": {
         "title": "HR-модули",
-        "lead": "20 модулей и 92 типа записей из каталога: каждая форма строится по схеме бэкенда.",
+        "lead": "{m} модулей и {t} типов записей из каталога: каждая форма строится по схеме бэкенда.",
         "modules": "Модули",
         "types": "Типы записей",
         "records": "Всего записей",
         "pending": "Ждут решения",
         "byModule": "Записи по модулям",
-        "typesOf": "Типов: {n}"
+        "typesOf": "Типов: {n}",
+        "parity": "Модели MedControl: {covered} из {expected}",
+        "parityFull": "Все модели есть в каталоге. Это покрытие схемы — не значит, что все эндпоинты MedControl совпадают.",
+        "parityMissing": "Не хватает: {list}",
+        "guard": {
+          "effective_period_overlap": "Пересечение периодов блокируется",
+          "leave_balance": "Проверяется баланс отпусков",
+          "leave_balance_debit": "При согласовании баланс уменьшается"
+        }
       },
       "groups": {
         "people": "Сотрудники и документы",
         "time": "Время и доступность",
         "work": "Работа, процессы и зарплата",
         "lifecycle": "Жизненный цикл сотрудника",
-        "company": "Знания компании и отчёты"
+        "company": "Знания компании и отчёты",
+        "system": "Система и интеграции"
       },
       "me": {
         "title": "Мои HR-записи",
@@ -16900,6 +17201,42 @@
         "analytics": {
           "title": "Аналитика и отчёты",
           "lead": "Описания отчётов, сохранённые отчёты и панели."
+        },
+        "ai": {
+          "title": "Контроль HR-ИИ",
+          "lead": "Функции ИИ и журнал их решений."
+        },
+        "biometrics": {
+          "title": "Биометрия",
+          "lead": "Образцы лица и подписи, регистрация и верификация."
+        },
+        "core": {
+          "title": "Ядро системы",
+          "lead": "Журнал аудита, нумерация, коды причин и системные события."
+        },
+        "hamkor": {
+          "title": "Интеграция Hamkor",
+          "lead": "События и подтверждения из системы Hamkor."
+        },
+        "iam": {
+          "title": "Доступ и права",
+          "lead": "Пользователи, роли, права, устройства и сессии."
+        },
+        "integrations": {
+          "title": "Интеграции",
+          "lead": "Привязка Telegram и ожидающие действия."
+        },
+        "kpi": {
+          "title": "KPI и развитие",
+          "lead": "Показатели, периоды, результаты, циклы оценки и планы развития."
+        },
+        "org": {
+          "title": "Оргструктура",
+          "lead": "Типы подразделений, грейды, штатные единицы, планы изменений и лицензии."
+        },
+        "workitems": {
+          "title": "Проекты и работы",
+          "lead": "Проекты, рабочие элементы, комментарии и учёт времени."
         }
       },
       "fields": {
@@ -17157,7 +17494,11 @@
         "worked_minutes": "Отработано минут",
         "workflow_codes": "Процессы",
         "workload_percent": "Нагрузка, %",
-        "year": "Год"
+        "year": "Год",
+        "effective_from": "Действует с",
+        "effective_to": "Действует до",
+        "data": "Дополнительные данные",
+        "files": "Файлы"
       },
       "options": {
         "absence": "Отсутствие",
@@ -17237,7 +17578,8 @@
         "web": "Веб",
         "xlsx": "Excel"
       },
-      "typesLabel": "Типы записей"
+      "typesLabel": "Типы записей",
+      "noEdit": "В этом статусе редактировать нельзя — только черновик или возвращённую запись."
     },
     "shell": {
       "apps": {

@@ -7,6 +7,7 @@ import { subscribeUserEvents } from "@/lib/userSocket";
 import {
   createHrm,
   getHrm,
+  getHrmSchema,
   getHrmSummary,
   hrmErrorOf,
   listHrm,
@@ -44,6 +45,7 @@ type View = "list" | "board" | "calendar";
 type Filters = { q: string; statuses: string[]; employeeId: string; unitId: string; dateFrom: string; dateTo: string };
 const NO_FILTERS: Filters = { q: "", statuses: [], employeeId: "", unitId: "", dateFrom: "", dateTo: "" };
 const PAGE_SIZES = [25, 50, 100];
+const EDITABLE = ["draft", "returned"];
 const LONG = new Set(["textarea", "richtext", "code", "list", "object", "files", "file", "references"]);
 const TONES = ["#1668F0", "#19C3B1", "#F5A623", "#8B5CF6", "#E5484D", "#0EA5E9", "#64748B", "#22C55E"];
 // Date fields a record's span is read from, for the month view.
@@ -140,7 +142,17 @@ function useFormatValue() {
 // built from the record type's fields; only the moves the record allows.
 export default function HrmModuleScreen({ domain }: { domain: string }) {
   const cat = useHrmCatalog();
-  const mod = moduleOf(cat.data, domain);
+  // The module's own schema is what its forms are built from (spec 10-13
+  // §4); the catalog's copy shows until it arrives, and stays if it fails.
+  const [schema, setSchema] = useState<{ domain: string; mod: HrmModule | null } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void getHrmSchema(domain).then((mod) => alive && setSchema({ domain, mod }));
+    return () => {
+      alive = false;
+    };
+  }, [domain]);
+  const mod = (schema?.domain === domain ? schema.mod : null) ?? moduleOf(cat.data, domain);
   const { t } = useHrmText();
   if (!cat.data) {
     if (cat.state === "error") return <HrmError text={t("catalogError")} onRetry={() => void cat.reload()} retryLabel={t("retry")} />;
@@ -635,19 +647,24 @@ function RecordForm({ mod, type, row, parentId, onType, onClose, onSaved }: { mo
     const b = body();
     try {
       // The backend's own check first (spec §13): errors under their fields.
-      const check = await validateHrm(mod.key, b).catch((err: unknown) => {
-        if (err instanceof ApiError && err.status !== 404 && err.status !== 405) {
-          const he = hrmErrorOf(err);
-          return { ok: false, errors: he.fields, message: he.message };
-        }
-        return null;
-      });
+      // Only for a new record: /validate has no way to be told which record
+      // is being edited, so a period check finds the record itself and
+      // refuses every edit. The PATCH runs the same checks, itself left out.
+      const check = row
+        ? null
+        : await validateHrm(mod.key, b).catch((err: unknown) => {
+            if (err instanceof ApiError && err.status !== 404 && err.status !== 405) {
+              const he = hrmErrorOf(err);
+              return { ok: false, errors: he.fields, message: he.message };
+            }
+            return null;
+          });
       if (check && !check.ok) {
         setErrors(check.errors);
         setGeneral(check.message || (Object.keys(check.errors).some((k) => !type.fields.some((fd) => fd.key === k)) ? Object.entries(check.errors).filter(([k]) => !type.fields.some((fd) => fd.key === k)).map(([, v]) => v).join("; ") : ""));
         return;
       }
-      const saved = row ? await patchHrm(mod.key, row.id, { title: b.title, employee_id: b.employee_id, org_unit_id: b.org_unit_id, payload: b.payload }) : await createHrm(mod.key, b);
+      const saved = row ? await patchHrm(mod.key, row.id, { record_type: b.record_type, title: b.title, employee_id: b.employee_id, org_unit_id: b.org_unit_id, payload: b.payload }) : await createHrm(mod.key, b);
       onSaved(saved);
     } catch (err) {
       const he = hrmErrorOf(err);
@@ -759,7 +776,13 @@ function RecordDrawer({
       sub={[r.code, typeName(type, mod.key, r.type)].filter(Boolean).join(" · ")}
       footer={
         <>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => onEdit(r)}>{t("edit")}</button>
+          {/* The backend takes an edit only while a record is a draft or
+              was sent back; in any other state it is changed by moving it. */}
+          {EDITABLE.includes(r.status) ? (
+            <button type="button" className="btn btn--line btn--sm" onClick={() => onEdit(r)}>{t("edit")}</button>
+          ) : (
+            <small className="hrm-muted hrmc-noedit">{t("noEdit")}</small>
+          )}
           {type?.allowChildren ? <button type="button" className="btn btn--line btn--sm" onClick={() => onChild(r)}><IconPlus />{t("addChild")}</button> : null}
         </>
       }

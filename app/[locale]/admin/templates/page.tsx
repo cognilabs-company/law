@@ -183,6 +183,7 @@ export default function AdminTemplates() {
       <TemplateImport open={importOpen} onClose={() => setImportOpen(false)} onDone={reload} />
 
       <CreateDraftModal
+        contractFrom={tpls.data[0]?.id ?? ""}
         open={open}
         onClose={() => setOpen(false)}
         onCreated={(s) => {

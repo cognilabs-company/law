@@ -14,6 +14,7 @@ import { timeOnly } from "@/lib/date";
 import {
   buildDraftPayload,
   checkDocx,
+  uiContractOf,
   editorSaveRequiredOf,
   getEditorFile,
   openTemplateEditor,
@@ -197,6 +198,9 @@ function Workspace({
   const [docError, setDocError] = useState(false);
   const [docVer, setDocVer] = useState(0);
   const [sourceName, setSourceName] = useState(session.template.sourceFileName);
+  // Which files the editor takes, how large and where they go: the
+  // backend's contract (10-13 spec §3), not values written here.
+  const contract = useMemo(() => uiContractOf(session.uiContract), [session.uiContract]);
   const [selection, setSelection] = useState<Selection>(null);
   const [validation, setValidation] = useState<ValidationState | null>(null);
   const [validating, setValidating] = useState(false);
@@ -465,15 +469,15 @@ function Workspace({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || uploading) return;
-    const bad = checkDocx(file);
+    const bad = checkDocx(file, contract);
     if (bad) {
-      notify.error(bad.code === "too_big" ? t("upload.tooBig") : t("upload.onlyDocx"), { id: "tpe-upload", body: file.name });
+      notify.error(bad.code === "too_big" ? t("upload.tooBigN", { mb: Math.round(contract.maxUploadBytes / 1048576) }) : t("upload.onlyTypes", { types: contract.acceptedExtensions.join(", ") }), { id: "tpe-upload", body: file.name });
       return;
     }
     setUploading(true);
     try {
       while (inFlight.current) await inFlight.current;
-      const r = await uploadEditorSource(templateId, file);
+      const r = await uploadEditorSource(templateId, file, contract);
       let next = r.oo;
       if (Number.isFinite(r.revision)) {
         revRef.current = Math.max(revRef.current, r.revision);
@@ -491,7 +495,7 @@ function Workspace({
       setSourceName(r.sourceFileName);
       setBanner({ kind: "source", text: r.sourceFileName });
     } catch (err) {
-      notify.error(t("upload.failed"), { id: "tpe-upload", error: err, map: { 413: t("upload.tooBig"), 415: t("upload.onlyDocx") } });
+      notify.error(t("upload.failed"), { id: "tpe-upload", error: err, map: { 413: t("upload.tooBigN", { mb: Math.round(contract.maxUploadBytes / 1048576) }), 415: t("upload.badFile"), 503: t("upload.converterDown") } });
     } finally {
       setUploading(false);
     }
@@ -650,7 +654,7 @@ function Workspace({
           </div>
         </div>
         <div className="tpe-bar__acts">
-          <input ref={fileRef} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden onChange={onPickFile} />
+          <input ref={fileRef} type="file" accept={contract.acceptedExtensions.join(",")} hidden onChange={onPickFile} />
           <button type="button" className={`btn btn--line btn--sm${uploading ? " is-busy" : ""}`} onClick={() => fileRef.current?.click()} disabled={uploading || Boolean(conflict)}>
             <IconUpload />
             {uploading ? t("actions.uploading") : t("actions.replace")}

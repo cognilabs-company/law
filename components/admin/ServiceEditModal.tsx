@@ -212,6 +212,7 @@ function EditForm({
   passport,
   passportOff,
   categories,
+  professional,
   onClose,
   onSaved,
 }: {
@@ -220,6 +221,9 @@ function EditForm({
   passport: ServicePassport | null;
   passportOff: boolean;
   categories: BackendCategory[];
+  // A professional marketplace service carries no document template
+  // (10-13 spec §5): the attach section is not offered for it.
+  professional?: boolean;
   onClose: () => void;
   onSaved: (updated: AdminService) => void;
 }) {
@@ -352,7 +356,7 @@ function EditForm({
         </label>
       </fieldset>
 
-      <DocTemplateSection service={service} />
+      {professional ? null : <DocTemplateSection service={service} />}
 
       <div className="svced__acts">
         <button className="btn btn--ghost" type="button" onClick={onClose} disabled={busy}>
@@ -370,6 +374,9 @@ function EditForm({
 function EditLoader(props: {
   service: AdminService;
   categories: BackendCategory[];
+  // A professional marketplace service carries no document template
+  // (10-13 spec §5): the attach section is not offered for it.
+  professional?: boolean;
   onClose: () => void;
   onSaved: (updated: AdminService) => void;
 }) {
@@ -397,18 +404,22 @@ function EditLoader(props: {
 export default function ServiceEditModal({
   service,
   categories,
+  professional,
   onClose,
   onSaved,
 }: {
   service: AdminService | null;
   categories: BackendCategory[];
+  // A professional marketplace service carries no document template
+  // (10-13 spec §5): the attach section is not offered for it.
+  professional?: boolean;
   onClose: () => void;
   onSaved: (updated: AdminService) => void;
 }) {
   const t = useTranslations("admin.services");
   return (
     <Modal open={service !== null} onClose={onClose} title={t("edit.title")}>
-      {service ? <EditLoader key={service.id} service={service} categories={categories} onClose={onClose} onSaved={onSaved} /> : null}
+      {service ? <EditLoader key={service.id} service={service} categories={categories} professional={professional} onClose={onClose} onSaved={onSaved} /> : null}
     </Modal>
   );
 }

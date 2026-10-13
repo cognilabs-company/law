@@ -2,15 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getServiceCategories, searchServices, type BackendCategory } from "@/lib/services/backend";
+import { getMarketplaceServiceCategories, getServiceCategories, searchServices, type BackendCategory, type MarketServiceCategory } from "@/lib/services/backend";
+import { sessionRoles, useAuth } from "@/lib/auth";
 import { saveCategory, removeCategory, restoreCategory, resetCategory, type OverlaidCategory } from "@/lib/services/catalogOverrides";
 import {
   createServiceCategory,
   createService,
   listAdminServices,
   deleteService,
+  replaceProfessionalCatalog,
   updateService,
   type AdminService,
+  type AdminServiceScope,
 } from "@/lib/services/admin";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
@@ -32,6 +35,11 @@ function num(v: string | boolean): number {
 const som = (n?: number) => (n ? fmtUzs(n) : "—");
 
 type StateFilter = "all" | "active" | "inactive";
+// Which catalog the page is looking at (10-13 spec §1, §5): the professional
+// marketplace services, the services tied to a document template, or — for
+// an administrator — everything.
+type Scope = AdminServiceScope | "all";
+const SCOPES: Scope[] = ["marketplace", "documents", "all"];
 
 const hayOf = (s: AdminService) =>
   [s.name, s.title, s.titleUzLatn, s.titleUzCyrl, s.titleRu, s.slug, s.catalogCode, s.categoryTitle].filter(Boolean).join(" ");
@@ -42,7 +50,15 @@ export default function AdminServices() {
   const t = useTranslations("admin");
   const ts = useTranslations("admin.services");
   const locale = useLocale();
+  const { session } = useAuth();
+  const roles = sessionRoles(session);
+  const canManage = roles.includes("superadmin") || roles.includes("admin") || Boolean(session?.permissions?.includes("services.manage"));
+  const [scope, setScope] = useState<Scope>("marketplace");
+  const [replaceOpen, setReplaceOpen] = useState(false);
+  const [replaceBusy, setReplaceBusy] = useState(false);
   const [catKey, reloadCats] = useReload();
+  // The marketplace's own categories: never the document-template tree.
+  const mcats = useResource(() => getMarketplaceServiceCategories().catch(() => [] as MarketServiceCategory[]), [catKey]);
   const [svcKey, reloadSvcs] = useReload();
   // Admin sees hidden ("deleted") categories too, behind a toggle.
   const cats = useResource(() => getServiceCategories({ includeHidden: true }) as Promise<OverlaidCategory[]>, [catKey]);
@@ -77,14 +93,16 @@ export default function AdminServices() {
   // Filters
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("");
-  const [state, setState] = useState<StateFilter>("all");
+  // The professional catalog is always asked for by is_active: the live
+  // list by default, the archive on request.
+  const [state, setState] = useState<StateFilter>("active");
   // category_id and is_active are real server-side filters (2026-09-19
   // backend); free-text stays client-side (matchesSearch below, merged with
   // the debounced /services/search remote hits) — no reason to run three
   // separate search paths for the same "q".
   const svcs = useResource(
-    () => listAdminServices(locale, { categoryId: cat || undefined, isActive: state === "all" ? undefined : state === "active" }),
-    [svcKey, locale, cat, state],
+    () => listAdminServices(locale, { categoryId: cat || undefined, isActive: state === "all" ? undefined : state === "active", scope: scope === "all" ? undefined : scope }),
+    [svcKey, locale, cat, state, scope],
   );
   // Categories and services used to pop in separately — whichever request
   // resolved first showed its panel while the other still sat on its own
@@ -131,8 +149,38 @@ export default function AdminServices() {
     });
   }, [all, state, cat, term, remoteIds]);
 
-  const catOpts = [{ value: "", label: ts("allCats") }, ...cats.data.map((c) => ({ value: c.id, label: c.name }))];
-  const stateOpts = (["all", "active", "inactive"] as StateFilter[]).map((k) => ({ value: k, label: ts(`state.${k}`) }));
+  const scopeCats = [
+    ...(scope !== "documents" ? mcats.data.map((c) => ({ value: c.id, label: c.title })) : []),
+    ...(scope !== "marketplace" ? cats.data.map((c) => ({ value: c.id, label: c.name })) : []),
+  ];
+  const catOpts = [{ value: "", label: ts("allCats") }, ...scopeCats];
+  const stateOpts = ((scope === "marketplace" ? ["active", "inactive"] : ["all", "active", "inactive"]) as StateFilter[]).map((k) => ({ value: k, label: scope === "marketplace" && k === "inactive" ? ts("scope.archive") : ts(`state.${k}`) }));
+  // A service keeps to its own catalog's categories when edited.
+  const marketAsCats = mcats.data.map((c) => ({ id: c.id, name: c.title, slug: c.slug, description: c.description, subcategoriesCount: c.subcategories.length, servicesCount: c.servicesCount, subcategories: [] }) as BackendCategory);
+  const editCats = edit && mcats.data.some((c) => c.id === edit.categoryId) ? marketAsCats : visibleCats;
+  const pickScope = (next: Scope) => {
+    setScope(next);
+    setCat("");
+    if (next === "marketplace" && state === "all") setState("active");
+  };
+
+  // One press, one request: the endpoint is idempotent, but nothing here
+  // repeats it on its own.
+  async function replaceCatalog() {
+    if (replaceBusy) return;
+    setReplaceBusy(true);
+    try {
+      await replaceProfessionalCatalog();
+      setReplaceOpen(false);
+      notify.success(ts("scope.replaceDone"), { id: "svc-replace" });
+      reloadCats();
+      reloadSvcs();
+    } catch (e) {
+      notify.error(ts("scope.replaceError"), { id: "svc-replace", error: e, map: { 403: ts("edit.errForbidden") } });
+    } finally {
+      setReplaceBusy(false);
+    }
+  }
   const viewHiddenCats = showHiddenCats && hiddenCats.length > 0;
   useAiSelection("admin_services_state", state === "all" ? "" : state);
 
@@ -182,8 +230,58 @@ export default function AdminServices() {
   }
 
   return (
+    <>
+    <div className="svcadm__scope">
+      <div className="hrm-tabs" role="tablist" aria-label={ts("scope.label")}>
+        {SCOPES.map((k) => (
+          <button key={k} type="button" role="tab" aria-selected={scope === k} className={scope === k ? "on" : ""} onClick={() => pickScope(k)} data-ai-target={`services:scope-${k}`}>
+            {ts(`scope.${k}`)}
+          </button>
+        ))}
+      </div>
+      <p className="svcadm__scopehint">{ts(`scope.${scope}Hint`)}</p>
+      {scope === "marketplace" && canManage ? (
+        <button type="button" className="btn btn--line btn--sm" onClick={() => setReplaceOpen(true)} data-ai-target="button:replace-professional">
+          <IconRefresh />
+          {ts("scope.replace")}
+        </button>
+      ) : null}
+    </div>
     <div className="agrid svcadm__grid">
-      {/* Categories */}
+      {scope === "marketplace" ? (
+        <div className="ppanel" data-ai-target="services:market-categories">
+          <div className="ppanel__h">
+            <b>{ts("scope.marketCats")}</b>
+            <span className="ahdr"><span className="advmuted">{mcats.data.length}</span></span>
+          </div>
+          {mcats.status === "loading" ? (
+            <Skeleton rows={3} />
+          ) : !mcats.data.length ? (
+            <EmptyState icon={<IconBriefcase />} title={t("services.catEmpty")} />
+          ) : (
+            <div className="alist">
+              {mcats.data.map((c, i) => (
+                <AdminItem
+                  key={c.id}
+                  index={i + 1}
+                  title={c.title}
+                  meta={[c.slug, ts("scope.servicesN", { n: c.servicesCount })].join(" · ")}
+                  tags={c.subcategories.slice(0, 3).map((x) => ({ label: x.title, tone: "muted" as const }))}
+                  actions={
+                    <button className="aitem__act" type="button" aria-label={ts("scope.showServices")} title={ts("scope.showServices")} onClick={() => setCat(cat === c.id ? "" : c.id)} aria-pressed={cat === c.id}>
+                      <IconEye />
+                    </button>
+                  }
+                />
+              ))}
+            </div>
+          )}
+          <p className="svcadm__hint">
+            <IconInfo />
+            <span>{ts("scope.marketCatsNote")}</span>
+          </p>
+        </div>
+      ) : (
       <div className="ppanel" data-ai-target="services:categories">
         <div className="ppanel__h">
           <b>{t("services.catTitle")}</b>
@@ -259,6 +357,7 @@ export default function AdminServices() {
           <span>{ts("catLimitNote")}</span>
         </p>
       </div>
+      )}
 
       {/* Services */}
       <div className="ppanel svcadm">
@@ -382,7 +481,8 @@ export default function AdminServices() {
               type: "select",
               required: true,
               placeholder: t("form.selectCategory"),
-              options: visibleCats.map((c) => ({ value: c.id, label: c.name })),
+              // A new service is created in the catalog on screen.
+              options: scope === "marketplace" ? mcats.data.map((c) => ({ value: c.id, label: c.title })) : scope === "documents" ? visibleCats.map((c) => ({ value: c.id, label: c.name })) : scopeCats,
             },
             { name: "title", label: t("form.title"), required: true },
             { name: "slug", label: t("form.slug"), required: true },
@@ -414,7 +514,7 @@ export default function AdminServices() {
         />
       </Modal>
 
-      <ServiceEditModal service={edit} categories={visibleCats} onClose={() => setEdit(null)} onSaved={onSaved} />
+      <ServiceEditModal service={edit} categories={editCats} professional={Boolean(edit && !edit.documentTemplateId && mcats.data.some((c) => c.id === edit.categoryId))} onClose={() => setEdit(null)} onSaved={onSaved} />
 
       {/* Category edit */}
       <Modal open={catEdit !== null} onClose={() => setCatEdit(null)} title={ts("cat.editTitle")}>
@@ -480,6 +580,27 @@ export default function AdminServices() {
           </div>
         ) : null}
       </Modal>
+
+      {/* Replace the professional catalog */}
+      <Modal open={replaceOpen} onClose={() => !replaceBusy && setReplaceOpen(false)} title={ts("scope.replaceTitle")}>
+        <div className="cform" style={{ maxWidth: "none" }}>
+          <p style={{ margin: 0 }}>{ts("scope.replaceText")}</p>
+          <ul className="svcadm__rules">
+            {(["archive", "orders", "templates", "docServices", "flows"] as const).map((k) => (
+              <li key={k}>{ts(`scope.rule.${k}`)}</li>
+            ))}
+          </ul>
+          <div className="svced__acts">
+            <button className="btn btn--ghost" type="button" onClick={() => setReplaceOpen(false)} disabled={replaceBusy}>
+              {t("form.cancel")}
+            </button>
+            <button className="btn btn--pri" type="button" onClick={() => void replaceCatalog()} disabled={replaceBusy}>
+              {replaceBusy ? t("form.saving") : ts("scope.replaceCta")}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
+    </>
   );
 }

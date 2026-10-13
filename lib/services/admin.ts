@@ -165,18 +165,30 @@ export function normAdminService(v: unknown, locale = "uz"): AdminService {
 // GET /admin/services (2026-09-19 backend): the real admin listing, unlike
 // GET /services it includes inactive rows too — no more client-side
 // "remembered locally" workaround for a deactivated service disappearing.
-export type AdminServiceFilter = { categoryId?: string; q?: string; isActive?: boolean; executorType?: string };
+// scope (10-13 spec §1): "marketplace" — the professional advocate/lawyer
+// services; "documents" — services tied to a document template; none — all.
+export type AdminServiceScope = "marketplace" | "documents";
+export type AdminServiceFilter = { categoryId?: string; q?: string; isActive?: boolean; executorType?: string; scope?: AdminServiceScope };
 export async function listAdminServices(locale = "uz", f?: AdminServiceFilter): Promise<AdminService[]> {
   const qs = new URLSearchParams();
   if (f?.categoryId) qs.set("category_id", f.categoryId);
   if (f?.q) qs.set("q", f.q);
   if (f?.isActive != null) qs.set("is_active", String(f.isActive));
   if (f?.executorType) qs.set("executor_type", f.executorType);
+  if (f?.scope) qs.set("scope", f.scope);
   const q = qs.toString();
   const data = await http(`/admin/services${q ? `?${q}` : ""}`);
   const d = asDict(data);
   const list = Array.isArray(data) ? data : asArr(d.services ?? d.items ?? d.data);
   return list.map((v) => normAdminService(v, locale));
+}
+
+// POST /admin/services/catalog/replace-professional (services.manage):
+// the old professional marketplace services are archived and the current
+// professional catalog put in their place. Idempotent — a second press makes
+// no duplicates; orders, document templates and their services are kept.
+export async function replaceProfessionalCatalog(): Promise<Dict> {
+  return asDict(await http("/admin/services/catalog/replace-professional", { method: "POST" }));
 }
 
 // PATCH /admin/services/{id}. Every key is optional; the backend ignores keys

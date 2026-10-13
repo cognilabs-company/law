@@ -28,7 +28,8 @@ export default function LegacyServicePicker() {
   const ts = useTranslations("sellerServices.pending");
   const { session } = useAuth();
   const uid = session?.id ?? "";
-  const catalog = useResource(() => getAllServices(), []);
+  // Only the professional marketplace services are a seller's to offer.
+  const catalog = useResource(() => getAllServices().then((rows) => rows.filter((s) => !s.documentTemplateId)), []);
   const [sel, setSel] = useState<string[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [agreed, setAgreed] = useState(false);

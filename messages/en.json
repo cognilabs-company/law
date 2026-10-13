@@ -4221,7 +4221,11 @@
     "codeSlots": {
       "entered": "{n} of {total} digits entered",
       "complete": "Code entered in full"
-    }
+    },
+    "loginRequired": "Sign in to continue.",
+    "fileTooBig": "The file is larger than allowed.",
+    "unsupportedFile": "The file type is not supported, or the file is damaged.",
+    "serviceUnavailable": "The service is temporarily unavailable. Try again shortly."
   },
   "a11y": {
     "showPassword": "Show password",
@@ -10656,7 +10660,11 @@
       "upload": {
         "tooBig": "The file is larger than 20 MB.",
         "onlyDocx": "Only DOCX files are accepted.",
-        "failed": "Couldn't replace the file"
+        "failed": "Couldn't replace the file",
+        "tooBigN": "The file is larger than {mb} MB.",
+        "onlyTypes": "Only these file types are accepted: {types}",
+        "badFile": "The file type is not supported, or the DOCX is damaged.",
+        "converterDown": "The old DOC converter is not available right now. Save the file as DOCX and upload it again."
       },
       "file": {
         "error": "Couldn't open the file"
@@ -10736,7 +10744,21 @@
         "creating": "Creating…",
         "submit": "Create and open",
         "titlePh": "Service agreement",
-        "draftNote": "The Word editor opens once it's created."
+        "draftNote": "The Word editor opens once it's created.",
+        "modeLabel": "How to start the template",
+        "mode": {
+          "blank": "Blank document",
+          "blankHint": "Write the text in the editor from scratch",
+          "device_upload": "Upload from device",
+          "device_uploadHint": "Upload a ready DOCX and edit it"
+        },
+        "file": "DOCX file",
+        "filePick": "Choose a file",
+        "fileHint": "{types} · up to {mb} MB",
+        "fileSize": "{mb} MB",
+        "fileRequired": "Choose a file to upload.",
+        "uploadNote": "The file opens in the editor as a draft. It shows in the client catalogue only after it is published.",
+        "forbidden": "You may not create templates."
       },
       "list": {
         "newWord": "New Word template",
@@ -12067,6 +12089,33 @@
         "restored": "Category restored to the list",
         "reset": "Reset to backend name",
         "resetDone": "Admin change removed"
+      },
+      "scope": {
+        "label": "Catalogue",
+        "marketplace": "Professional services",
+        "documents": "Document services",
+        "all": "All",
+        "marketplaceHint": "The professional services advocates and lawyers offer in the marketplace. No document templates here.",
+        "documentsHint": "Services tied to a document template — what a client sees in the document builder.",
+        "allHint": "For an administrator: every service, professional and document ones together.",
+        "archive": "Archive",
+        "marketCats": "Marketplace categories",
+        "marketCatsNote": "These categories are managed with the professional catalogue; document categories are separate.",
+        "servicesN": "{n} services",
+        "showServices": "Show this category's services",
+        "replace": "Replace the catalogue",
+        "replaceTitle": "Replace the professional catalogue",
+        "replaceText": "The marketplace's professional catalogue is replaced with the current standard list. Pressing again creates no duplicates.",
+        "replaceCta": "Replace",
+        "replaceDone": "The professional catalogue was updated",
+        "replaceError": "The catalogue was not replaced",
+        "rule": {
+          "archive": "The old professional services are archived.",
+          "orders": "Past orders are not deleted.",
+          "templates": "Document templates are not deleted.",
+          "docServices": "Services tied to a document template stay active.",
+          "flows": "The on-duty advocate and the document builder keep working separately."
+        }
       }
     },
     "plans": {
@@ -12154,7 +12203,11 @@
           "application": "Application",
           "power_of_attorney": "Power of attorney",
           "corporate": "Corporate",
-          "other": "Other"
+          "other": "Other",
+          "legal-doc-civil": "Civil documents",
+          "legal-doc-economic": "Economic documents",
+          "legal-doc-criminal": "Criminal case documents",
+          "legal-doc-administrative": "Administrative documents"
         },
         "langs": {
           "uz-latn": "Uzbek (Latin)",
@@ -15658,7 +15711,44 @@
       "workflows": "Approval workflows",
       "delegations": "Delegations",
       "notifTemplates": "Notification templates",
-      "sections": "Sections"
+      "sections": "Sections",
+      "staffing": "Staff units",
+      "grades": "Grades",
+      "orgPlans": "Structure plans",
+      "licences": "Licences",
+      "unitTypes": "Unit types",
+      "dataIssues": "Data issues",
+      "conduct": "Conduct",
+      "timesheetFix": "Timesheet corrections",
+      "rosterPeriods": "Roster periods",
+      "rotations": "Rotation templates",
+      "payPolicy": "Pay policy",
+      "adjustments": "Adjustments",
+      "payslips": "Payslips",
+      "reliability": "Reliability",
+      "projects": "Projects",
+      "workItems": "Work items",
+      "timeEntries": "Time entries",
+      "kpiDefs": "KPI definitions",
+      "kpiPeriods": "KPI periods",
+      "kpiResults": "KPI results",
+      "reviews": "360 reviews",
+      "oneOnOne": "One-on-ones",
+      "idp": "Development plans",
+      "nineBox": "9-box",
+      "offers": "Offers",
+      "pipeline": "Pipeline stages",
+      "articles": "Knowledge base",
+      "reportRuns": "Report runs",
+      "reportSchedules": "Report schedules",
+      "roles": "Roles",
+      "roleGrants": "Role grants",
+      "devices": "Devices",
+      "audit": "Audit log",
+      "reasonCodes": "Reason codes",
+      "biometrics": "Biometrics",
+      "integrations": "Integrations",
+      "aiOversight": "AI oversight"
     },
     "pagination": {
       "label": "Pagination",
@@ -16554,7 +16644,23 @@
           "education": "Education",
           "equipment": "Assigned equipment",
           "change_request": "Profile change request",
-          "conduct": "Conduct and recognition"
+          "conduct": "Conduct and recognition",
+          "employee": "Employee",
+          "status_change": "Status change",
+          "employment": "Employment",
+          "availability_period": "Availability period",
+          "room_assignment": "Room assignment",
+          "professional_profile": "Professional profile",
+          "education_record": "Education record",
+          "service_permission": "Service permission",
+          "equipment_authorization": "Equipment authorization",
+          "employee_document": "Employee document",
+          "skill": "Skill",
+          "employee_skill": "Employee skill",
+          "position_skill_requirement": "Position skill requirement",
+          "employee_data_issue": "Data issue",
+          "profile_change_request": "Profile change request",
+          "conduct_record": "Conduct record"
         },
         "employment": {
           "contract": "Employment contract",
@@ -16574,7 +16680,12 @@
           "schedule": "Work schedule",
           "roster": "Roster",
           "staffing_requirement": "Staffing requirement",
-          "calendar": "Work calendar"
+          "calendar": "Work calendar",
+          "work_schedule": "Work schedule",
+          "roster_period": "Roster period",
+          "schedule_batch": "Schedule batch",
+          "schedule_day": "Schedule day",
+          "schedule_acknowledgement": "Schedule acknowledgement"
         },
         "attendance": {
           "event": "Attendance event",
@@ -16582,37 +16693,69 @@
           "explanation": "Explanation",
           "overtime": "Overtime",
           "incident": "Attendance incident",
-          "terminal": "Attendance terminal"
+          "terminal": "Attendance terminal",
+          "attendance_terminal": "Attendance terminal",
+          "attendance_event": "Attendance event",
+          "attendance_incident": "Attendance incident",
+          "attendance_day": "Attendance day",
+          "attendance_explanation": "Attendance explanation",
+          "overtime_approval": "Overtime approval",
+          "attendance_alert": "Attendance alert"
         },
         "timesheet": {
           "code": "Timesheet code",
           "day": "Timesheet day",
-          "period": "Timesheet period"
+          "period": "Timesheet period",
+          "timesheet_code": "Timesheet code",
+          "timesheet": "Timesheet",
+          "timesheet_day": "Timesheet day",
+          "timesheet_correction": "Timesheet correction",
+          "retro_correction": "Retro correction",
+          "timesheet_escalation": "Timesheet escalation"
         },
         "leave": {
           "leave_type": "Leave type",
           "request": "Leave request",
           "annual_leave": "Annual leave",
           "balance": "Leave balance",
-          "staffing_rule": "Staffing rule"
+          "staffing_rule": "Staffing rule",
+          "leave_balance": "Leave balance",
+          "leave_request": "Leave request",
+          "minimum_staffing_rule": "Minimum staffing rule"
         },
         "travel": {
           "request": "Trip request",
           "expense": "Trip expense",
-          "report": "Trip report"
+          "report": "Trip report",
+          "business_trip": "Business trip",
+          "branch_distance": "Branch distance",
+          "rotation_template": "Rotation template",
+          "rotation_template_day": "Rotation template day",
+          "reschedule_task": "Reschedule task",
+          "empty_trip_alert": "Empty trip alert"
         },
         "tasks": {
           "template": "Task template",
           "task": "Task",
           "proof": "Task proof",
           "spot_check": "Spot check",
-          "escalation": "Escalation"
+          "escalation": "Escalation",
+          "escalation_rule": "Escalation rule",
+          "proof_point": "Proof point",
+          "task_template": "Task template",
+          "task_instance": "Task instance",
+          "task_proof": "Task proof",
+          "reliability_score": "Reliability score",
+          "reliability_event": "Reliability event"
         },
         "workflow": {
           "definition": "Workflow definition",
           "instance": "Workflow instance",
           "delegation": "Delegation",
-          "decision": "Approval decision"
+          "decision": "Approval decision",
+          "process_definition": "Process definition",
+          "process_instance": "Process instance",
+          "approval_task": "Approval task"
         },
         "payroll": {
           "component": "Pay component",
@@ -16624,7 +16767,21 @@
           "penalty": "Penalty",
           "bonus": "Bonus",
           "objection": "Payroll objection",
-          "payment_detail": "Payment details"
+          "payment_detail": "Payment details",
+          "formula_version": "Formula version",
+          "compensation_component": "Compensation component",
+          "payroll_policy": "Payroll policy",
+          "payroll_run": "Payroll run",
+          "payroll_calculation": "Payroll calculation",
+          "payroll_line": "Payroll line",
+          "payroll_summary": "Payroll summary",
+          "manual_adjustment": "Manual adjustment",
+          "retro_adjustment": "Retro adjustment",
+          "penalty_objection": "Penalty objection",
+          "advance_run": "Advance run",
+          "advance_payment": "Advance payment",
+          "payslip_acknowledgement": "Payslip acknowledgement",
+          "payment_details": "Payment details"
         },
         "recruiting": {
           "vacancy": "Vacancy",
@@ -16632,31 +16789,62 @@
           "application": "Application",
           "interview": "Interview",
           "offer": "Job offer",
-          "talent_pool": "Talent pool"
+          "talent_pool": "Talent pool",
+          "vacancy_escalation": "Vacancy escalation",
+          "pipeline_stage": "Pipeline stage",
+          "candidate_document": "Candidate document",
+          "stage_history": "Stage history",
+          "scorecard_criterion": "Scorecard criterion",
+          "interview_feedback": "Interview feedback",
+          "offer_template": "Offer template",
+          "recruiting_cost": "Recruiting cost"
         },
         "onboarding": {
           "template": "Onboarding template",
           "case": "Onboarding case",
           "checklist": "Onboarding checklist",
-          "probation_review": "Probation review"
+          "probation_review": "Probation review",
+          "onboarding_program": "Onboarding programme",
+          "onboarding_stage": "Onboarding stage",
+          "onboarding_item": "Onboarding item",
+          "onboarding_instance": "Onboarding instance",
+          "onboarding_task": "Onboarding task",
+          "probation_criterion": "Probation criterion",
+          "probation_evaluation": "Probation evaluation"
         },
         "offboarding": {
           "template": "Offboarding template",
           "case": "Offboarding case",
           "clearance": "Clearance",
-          "exit_interview": "Exit interview"
+          "exit_interview": "Exit interview",
+          "termination_case": "Termination case",
+          "clearance_template": "Clearance template",
+          "clearance_template_item": "Clearance template item",
+          "clearance_item": "Clearance item",
+          "exit_questionnaire": "Exit questionnaire"
         },
         "movements": {
           "movement_type": "Movement type",
           "request": "Movement request",
           "order_template": "Order template",
-          "order": "HR order"
+          "order": "HR order",
+          "order_type": "Order type",
+          "personnel_order": "Personnel order",
+          "order_line": "Order line"
         },
         "policies": {
           "folder": "Policy folder",
           "document": "Policy",
           "version": "Policy version",
-          "acknowledgement": "Acknowledgement"
+          "acknowledgement": "Acknowledgement",
+          "policy_folder": "Policy folder",
+          "policy_template_file": "Policy template file",
+          "policy_document": "Policy document",
+          "policy_version": "Policy version",
+          "policy_attachment": "Policy attachment",
+          "policy_source_file": "Policy source file",
+          "ack_requirement": "Acknowledgement requirement",
+          "quiz_attempt": "Quiz attempt"
         },
         "lms": {
           "course": "Course",
@@ -16664,17 +16852,121 @@
           "enrollment": "Enrolment",
           "assessment": "Assessment",
           "attempt": "Attempt",
-          "certificate": "Certificate"
+          "certificate": "Certificate",
+          "course_module": "Course module",
+          "lesson": "Lesson",
+          "quiz": "Quiz",
+          "question": "Question",
+          "training_rule": "Training rule",
+          "lesson_progress": "Lesson progress",
+          "quiz_attempt": "Quiz attempt",
+          "article_category": "Article category",
+          "article": "Article"
         },
         "notifications": {
           "template": "Notification template",
           "delivery": "Delivery",
-          "preference": "Preference"
+          "preference": "Preference",
+          "notification_template": "Notification template",
+          "notification": "Notification"
         },
         "analytics": {
           "report_definition": "Report definition",
           "saved_report": "Saved report",
-          "dashboard": "Dashboard"
+          "dashboard": "Dashboard",
+          "report_run": "Report run",
+          "report_schedule": "Report schedule",
+          "report_delivery": "Report delivery"
+        },
+        "ai": {
+          "ai_feature": "AI feature",
+          "ai_decision_log": "AI decision log"
+        },
+        "biometrics": {
+          "biometric_blob": "Biometric blob",
+          "biometric_enrollment": "Biometric enrolment",
+          "face_challenge": "Face challenge",
+          "face_capture": "Face capture",
+          "face_frame": "Face frame",
+          "signature_capture": "Signature capture",
+          "sign_staff_nonce": "Signing nonce",
+          "face_verification": "Face verification"
+        },
+        "core": {
+          "audit_log": "Audit log",
+          "number_sequence": "Number sequence",
+          "job_state": "Job state",
+          "domain_event": "Domain event",
+          "webhook_subscription": "Webhook subscription",
+          "idempotency_record": "Idempotency record",
+          "reason_code": "Reason code"
+        },
+        "hamkor": {
+          "request_nonce": "Request nonce",
+          "inbound_event": "Inbound event",
+          "day_evidence": "Day evidence",
+          "candidate_ref": "Candidate reference"
+        },
+        "iam": {
+          "user": "User",
+          "external_identity": "External identity",
+          "otp_challenge": "OTP challenge",
+          "device": "Device",
+          "device_credential": "Device credential",
+          "role": "Role",
+          "role_permission": "Role permission",
+          "role_grant": "Role grant",
+          "sensitive_access_grant": "Sensitive access grant",
+          "auth_session": "Sign-in session",
+          "usage_session": "Usage session",
+          "sso_token_use": "SSO token use"
+        },
+        "integrations": {
+          "telegram_link_code": "Telegram link code",
+          "telegram_pending_action": "Telegram pending action"
+        },
+        "kpi": {
+          "kpi_definition": "KPI definition",
+          "kpi_template": "KPI template",
+          "kpi_template_item": "KPI template item",
+          "kpi_period": "KPI period",
+          "kpi_target": "KPI target",
+          "kpi_manual_value": "Manual KPI value",
+          "kpi_result": "KPI result",
+          "kpi_scorecard": "KPI scorecard",
+          "review_cycle": "Review cycle",
+          "review": "Review",
+          "review_form": "Review form",
+          "one_on_one_meeting": "One-on-one meeting",
+          "development_plan": "Development plan",
+          "development_goal": "Development goal",
+          "nine_box_placement": "Nine-box placement"
+        },
+        "org": {
+          "org_unit_type": "Unit type",
+          "work_calendar": "Work calendar",
+          "calendar_day": "Calendar day",
+          "org_unit": "Org unit",
+          "org_unit_version": "Org unit version",
+          "grade": "Grade",
+          "position": "Position",
+          "staff_unit": "Staff unit",
+          "org_change_plan": "Org change plan",
+          "org_change_item": "Org change item",
+          "branch_template": "Branch template",
+          "org_board_position": "Board position",
+          "org_unit_link": "Org unit link",
+          "branch_licence": "Branch licence",
+          "branch_licence_file": "Licence file",
+          "branch_licence_reminder": "Licence reminder"
+        },
+        "workitems": {
+          "project": "Project",
+          "automation_rule": "Automation rule",
+          "work_item": "Work item",
+          "work_item_comment": "Work item comment",
+          "work_item_attachment": "Work item attachment",
+          "time_entry": "Time entry"
         }
       },
       "allTypes": "All",
@@ -16794,20 +17086,29 @@
       },
       "hub": {
         "title": "HR modules",
-        "lead": "The catalogue's 20 modules and 92 record types: every form is built from the backend's schema.",
+        "lead": "The catalogue's {m} modules and {t} record types: every form is built from the backend's schema.",
         "modules": "Modules",
         "types": "Record types",
         "records": "Total records",
         "pending": "Awaiting a decision",
         "byModule": "Records by module",
-        "typesOf": "{n} types"
+        "typesOf": "{n} types",
+        "parity": "MedControl models: {covered} of {expected}",
+        "parityFull": "Every model is in the catalogue. This is schema coverage — it does not mean every MedControl endpoint is the same.",
+        "parityMissing": "Missing: {list}",
+        "guard": {
+          "effective_period_overlap": "Overlapping periods are blocked",
+          "leave_balance": "Leave balance is checked",
+          "leave_balance_debit": "Approval debits the balance"
+        }
       },
       "groups": {
         "people": "People and documents",
         "time": "Time and availability",
         "work": "Work, workflows and pay",
         "lifecycle": "Employee lifecycle",
-        "company": "Company knowledge and reports"
+        "company": "Company knowledge and reports",
+        "system": "System and integrations"
       },
       "me": {
         "title": "My HR records",
@@ -16900,6 +17201,42 @@
         "analytics": {
           "title": "Analytics",
           "lead": "Report definitions, saved reports and dashboards."
+        },
+        "ai": {
+          "title": "HR AI oversight",
+          "lead": "AI features and the log of their decisions."
+        },
+        "biometrics": {
+          "title": "Biometrics",
+          "lead": "Face and signature samples, enrolment and verification."
+        },
+        "core": {
+          "title": "System core",
+          "lead": "Audit log, numbering, reason codes and system events."
+        },
+        "hamkor": {
+          "title": "Hamkor integration",
+          "lead": "Events and evidence from the Hamkor system."
+        },
+        "iam": {
+          "title": "Access and permissions",
+          "lead": "Users, roles, permissions, devices and sessions."
+        },
+        "integrations": {
+          "title": "Integrations",
+          "lead": "Telegram linking and pending actions."
+        },
+        "kpi": {
+          "title": "KPI and development",
+          "lead": "Definitions, periods, results, review cycles and development plans."
+        },
+        "org": {
+          "title": "Organisation structure",
+          "lead": "Unit types, grades, staff units, change plans and licences."
+        },
+        "workitems": {
+          "title": "Projects and work items",
+          "lead": "Projects, work items, comments and time entries."
         }
       },
       "fields": {
@@ -17157,7 +17494,11 @@
         "worked_minutes": "Worked minutes",
         "workflow_codes": "Workflows",
         "workload_percent": "Workload, %",
-        "year": "Year"
+        "year": "Year",
+        "effective_from": "Effective from",
+        "effective_to": "Effective to",
+        "data": "Additional data",
+        "files": "Files"
       },
       "options": {
         "absence": "Absence",
@@ -17237,7 +17578,8 @@
         "web": "Web",
         "xlsx": "Excel"
       },
-      "typesLabel": "Record types"
+      "typesLabel": "Record types",
+      "noEdit": "This state cannot be edited — only a draft or a returned record can."
     },
     "shell": {
       "apps": {

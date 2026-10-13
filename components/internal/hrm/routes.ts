@@ -1,20 +1,7 @@
-// Where each catalog module lives in the workspace: a module with a page of
-// its own opens there, the rest in the generic module screen.
-const OWN: Record<string, string> = {
-  leave: "/internal/leave",
-  travel: "/internal/travel",
-  recruiting: "/internal/recruiting",
-  onboarding: "/internal/onboarding",
-  offboarding: "/internal/offboarding",
-  movements: "/internal/movements",
-  policies: "/internal/policies",
-  lms: "/internal/learning",
-  documents: "/internal/documents",
-  skills: "/internal/skills",
-};
+import { hrmRoute } from "./text";
 
 export const domainHref = (domain: string, type = "", open = "") => {
-  const base = OWN[domain] ?? `/internal/hrm/${encodeURIComponent(domain)}`;
+  const base = hrmRoute(domain);
   const q = new URLSearchParams();
   if (type) q.set("type", type);
   if (open) q.set("open", open);

@@ -66,22 +66,14 @@ function normField(raw: unknown): HrmField {
   };
 }
 
-export function normCatalog(raw: unknown): HrmCatalog {
-  const d = asDict(raw);
-  const workflows: Record<string, HrmWorkflow> = {};
-  for (const [key, w] of Object.entries(asDict(d.workflows))) {
-    const wd = asDict(w);
-    const transitions: Record<string, string[]> = {};
-    for (const [from, to] of Object.entries(asDict(wd.transitions))) transitions[from] = asArr(to).map((x) => str(x)).filter(Boolean);
-    workflows[key] = { key, initial: str(wd.initial) || "draft", transitions };
-  }
-  const modules = asArr(d.domains ?? d.modules).map((m) => {
-    const md = asDict(m);
-    const key = str(md.key, md.domain);
-    return {
-      key,
-      title: str(md.title, key),
-      types: asArr(md.record_types ?? md.types).map((t) => {
+function normModule(m: unknown): HrmModule {
+  const md = asDict(m);
+  const key = str(md.key, md.domain);
+  return {
+    key,
+    title: str(md.title, key),
+    types: asArr(md.record_types ?? md.types)
+      .map((t) => {
         const td = asDict(t);
         return {
           key: str(td.key),
@@ -92,9 +84,21 @@ export function normCatalog(raw: unknown): HrmCatalog {
           allowChildren: td.allow_children === true,
           initialStatus: str(td.initial_status),
         };
-      }).filter((t) => t.key),
-    };
-  }).filter((m) => m.key);
+      })
+      .filter((t) => t.key),
+  };
+}
+
+export function normCatalog(raw: unknown): HrmCatalog {
+  const d = asDict(raw);
+  const workflows: Record<string, HrmWorkflow> = {};
+  for (const [key, w] of Object.entries(asDict(d.workflows))) {
+    const wd = asDict(w);
+    const transitions: Record<string, string[]> = {};
+    for (const [from, to] of Object.entries(asDict(wd.transitions))) transitions[from] = asArr(to).map((x) => str(x)).filter(Boolean);
+    workflows[key] = { key, initial: str(wd.initial) || "draft", transitions };
+  }
+  const modules = asArr(d.domains ?? d.modules).map(normModule).filter((m) => m.key);
   return { version: asNum(d.schema_version, 1), modules, workflows };
 }
 
@@ -269,6 +273,38 @@ export function hrmErrorOf(e: unknown): { fields: Record<string, string>; messag
   const general = fields._ ?? "";
   delete fields._;
   return { fields, message: general || str(detail.message, typeof e.data.detail === "string" ? e.data.detail : ""), code };
+}
+
+// One module's own schema (GET /internal/hrm/{domain}/schema): the forms of
+// a module are built from it, so a field the backend adds shows without a
+// reload of the whole catalog. Read once per module and page load.
+const schemas = new Map<string, Promise<HrmModule | null>>();
+export function getHrmSchema(domain: string): Promise<HrmModule | null> {
+  let p = schemas.get(domain);
+  if (!p) {
+    p = http(`/internal/hrm/${enc(domain)}/schema`)
+      .then((raw) => {
+        const m = normModule(raw);
+        return m.key && m.types.length ? m : null;
+      })
+      .catch(() => {
+        schemas.delete(domain);
+        return null;
+      });
+    schemas.set(domain, p);
+  }
+  return p;
+}
+
+// How much of MedControl HR's model registry the catalog covers, and the
+// business rules the backend enforces on top (GET /internal/hrm/parity).
+export type HrmParity = { expected: number; covered: number; percent: number; missing: string[]; guards: string[] };
+export async function getHrmParity(signal?: AbortSignal): Promise<HrmParity> {
+  const d = asDict(await http("/internal/hrm/parity", { signal }));
+  const names = (v: unknown) => asArr(v).map((x) => (typeof x === "string" ? x : str(asDict(x).model, asDict(x).key, asDict(x).name))).filter(Boolean);
+  const expected = asNum(d.expected_models);
+  const covered = asNum(d.covered_models);
+  return { expected, covered, percent: asNum(d.catalog_coverage_percent, expected ? Math.round((covered / expected) * 100) : 0), missing: names(d.missing), guards: names(d.behavioral_guards) };
 }
 
 // ── Dashboards ──────────────────────────────────────────────────────────────

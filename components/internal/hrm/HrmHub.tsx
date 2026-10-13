@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "@/i18n/navigation";
-import { getHrmMe, getHrmOverview, moduleOf, useHrmCatalog, type HrmCatalog, type HrmRow, type HrmSummary } from "@/lib/services/hrm";
+import { getHrmMe, getHrmOverview, getHrmParity, moduleOf, useHrmCatalog, type HrmCatalog, type HrmParity, type HrmRow, type HrmSummary } from "@/lib/services/hrm";
 import DatePicker from "@/components/DatePicker";
 import { HrmBars } from "@/components/internal/HrmCharts";
 import { IconArrowRight, IconFolder, IconHistory, IconLayers, IconList, IconRefresh, IconUser } from "@/components/icons";
 import { EntitySelect, HrmEmpty, HrmError, HrmHead, HrmLoading, HrmPanel, HrmStat, HrmStatus, useHrmFormat, useStatusLabel } from "@/components/internal/HrmUi";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { apiMessage } from "@/components/internal/live/bits";
-import { HRM_GROUPS, hrmRoute, useHrmText } from "./text";
+import { hrmGroups, hrmRoute, useHrmText } from "./text";
 
 // Every HRM module of the catalog in one place (spec §11, §15): the whole
 // organisation's numbers, the module cards grouped as HR thinks of them,
@@ -32,6 +32,14 @@ export default function HrmHub() {
       .catch((e) => !c.signal.aborted && setOv({ key, total: 0, pending: 0, domains: [], err: apiMessage(e, t("loadError")) }));
     return () => c.abort();
   }, [key, range, t]);
+  const [parity, setParity] = useState<HrmParity | null>(null);
+  useEffect(() => {
+    const c = new AbortController();
+    getHrmParity(c.signal)
+      .then((p) => !c.signal.aborted && setParity(p))
+      .catch(() => undefined);
+    return () => c.abort();
+  }, []);
   const data = cat.data;
   const typeCount = data?.modules.reduce((n, m) => n + m.types.length, 0) ?? 0;
   const of = (domain: string) => ov?.domains.find((d) => d.domain === domain) ?? null;
@@ -40,7 +48,7 @@ export default function HrmHub() {
     <section className="hrm-page hrmc">
       <HrmHead
         title={t("hub.title")}
-        lead={t("hub.lead")}
+        lead={data ? t("hub.lead", { m: data.modules.length, t: typeCount }) : ""}
         actions={
           <button className="btn btn--line btn--sm" type="button" onClick={() => setTick((n) => n + 1)}>
             <IconRefresh />
@@ -79,8 +87,22 @@ export default function HrmHub() {
         <MyRecords cat={data} />
       </div>
 
+      {parity && parity.expected ? (
+        <div className={`hrmc-parity${parity.missing.length ? " is-gap" : ""}`} role="status">
+          <span className="hrmc-parity__n">{parity.percent}%</span>
+          <div>
+            <b>{t("hub.parity", { covered: parity.covered, expected: parity.expected })}</b>
+            <small>{parity.missing.length ? t("hub.parityMissing", { list: parity.missing.slice(0, 8).join(", ") }) : t("hub.parityFull")}</small>
+            {parity.guards.length ? (
+              <span className="hrmc-parity__guards">
+                {parity.guards.map((g) => <i key={g}>{t.has(`hub.guard.${g}`) ? t(`hub.guard.${g}`) : g.replace(/_/g, " ")}</i>)}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       {data ? (
-        HRM_GROUPS.map((g) => (
+        hrmGroups(data.modules.map((m) => m.key)).map((g) => (
           <section key={g.key} className="hrmc-group">
             <h3>{t(`groups.${g.key}`)}</h3>
             <div className="hrmc-cards">

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { getMarketplaceCategoryServices, getMarketplaceServiceCategories, type MarketServiceCategory } from "@/lib/services/backend";
 import { Link } from "@/i18n/navigation";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconHeadset, IconLayers, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUser, IconUsers } from "@/components/icons";
@@ -201,19 +202,45 @@ export default function MarketDirectory({ variant, initialArea = "", preview }: 
     return (["advokat", "yurist"] as const).filter((v) => seen.has(v)).map((value) => ({ value, label: sellerTypeLabel(t, value) }));
   }, [meta, items, t]);
 
+  // The marketplace's own catalog (GET /marketplace/service-categories):
+  // the professional services only, never the document-template tree. Until
+  // it answers, the categories the sellers themselves carry stand in.
+  const [proCats, setProCats] = useState<MarketServiceCategory[] | null>(null);
+  const [proServices, setProServices] = useState<{ categoryId: string; items: { value: string; label: string; categoryId: string }[] } | null>(null);
+  useEffect(() => {
+    const c = new AbortController();
+    getMarketplaceServiceCategories(c.signal)
+      .then((rows) => !c.signal.aborted && setProCats(rows))
+      .catch(() => undefined);
+    return () => c.abort();
+  }, [reload]);
+  useEffect(() => {
+    const cat = proCats?.find((x) => x.id === category);
+    if (!cat) return;
+    const c = new AbortController();
+    getMarketplaceCategoryServices(cat, locale, c.signal)
+      .then((rows) => !c.signal.aborted && setProServices({ categoryId: cat.id, items: rows.map((x) => ({ value: x.id, label: x.name, categoryId: cat.id })) }))
+      .catch(() => undefined);
+    return () => c.abort();
+  }, [proCats, category, locale]);
+
   const categories = useMemo(() => {
+    if (proCats?.length) return proCats.map((c) => ({ value: c.id, label: `${specLabel(te, c.title)} (${c.servicesCount})` }));
     const src = meta?.categories.length ? meta.categories : items.flatMap((s) => s.categories);
     const m = new Map<string, string>();
     for (const c of src) if (c.id && !m.has(c.id)) m.set(c.id, specLabel(te, c.title || c.slug));
     return [...m.entries()].map(([value, label]) => ({ value, label }));
-  }, [meta, items, te]);
+  }, [proCats, meta, items, te]);
 
   const services = useMemo(() => {
     const src = meta?.services.length ? meta.services : items.flatMap((s) => s.services.map((x) => ({ id: x.id, title: x.title, categoryId: x.categoryId, basePrice: x.basePrice })));
     const m = new Map<string, { value: string; label: string; categoryId: string }>();
-    for (const x of src) if (x.id && !m.has(x.id)) m.set(x.id, { value: x.id, label: x.title, categoryId: x.categoryId });
+    if (category && proServices?.categoryId === category) return proServices.items;
+    // Only what belongs to a marketplace category is a marketplace service.
+    const pro = proCats?.length ? new Set(proCats.map((c) => c.id)) : null;
+    for (const x of src) if (x.id && !m.has(x.id) && (!pro || pro.has(x.categoryId))) m.set(x.id, { value: x.id, label: x.title, categoryId: x.categoryId });
     return [...m.values()].filter((x) => !category || x.categoryId === category);
-  }, [meta, items, category]);
+  }, [meta, items, category, proCats, proServices]);
 
   const query = q.trim();
   const aiHit = ai && ai.q === query && ai.matches.length ? ai : null;

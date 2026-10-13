@@ -19879,3 +19879,29 @@ a.hn-app:hover{background:color-mix(in srgb,var(--b600) 7%,transparent)}
 .ob-undo{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:0;border-radius:10px;background:var(--b100);color:var(--b700);font:inherit;font-size:.76rem;font-weight:700;cursor:pointer;max-width:260px}
 .ob-undo span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ob-undo svg{width:15px;height:15px;flex:none}
+.hrmc-parity{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:18px;background:var(--dk-tint-ok,#e8f7ee);color:var(--dk-txt-ok,#15803d);box-shadow:inset 0 0 0 1px color-mix(in srgb,#16a34a 28%,transparent)}
+.hrmc-parity.is-gap{background:var(--dk-tint-warn,#fff4e2);color:var(--dk-txt-warn,#b45309);box-shadow:inset 0 0 0 1px color-mix(in srgb,#f5a623 35%,transparent)}
+.hrmc-parity__n{font-family:var(--fd);font-size:1.5rem;font-weight:700;min-width:64px;text-align:center}
+.hrmc-parity>div{display:grid;gap:3px;min-width:0}
+.hrmc-parity b{font-size:.92rem}.hrmc-parity small{font-size:.8rem;line-height:1.4;opacity:.9}
+.hrmc-parity__guards{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.hrmc-parity__guards i{padding:2px 9px;border-radius:999px;background:color-mix(in srgb,currentColor 12%,transparent);font-style:normal;font-size:.72rem;font-weight:700}
+.svcadm__scope{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;margin-bottom:14px}
+.svcadm__scopehint{flex:1;min-width:220px;margin:0;font-size:.84rem;line-height:1.45;color:var(--gray)}
+.svcadm__rules{display:grid;gap:5px;margin:0;padding-left:18px;font-size:.86rem;line-height:1.45;color:var(--gray)}
+/* Template editor: how a new template starts, and the file to start from */
+.tpe-mode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tpe-mode button{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:0;border-radius:14px;background:var(--dk-surface-2,#F7FAFE);box-shadow:inset 0 0 0 1.5px var(--line);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:box-shadow .15s,background .15s}
+.tpe-mode button svg{width:20px;height:20px;flex:none;margin-top:2px;color:var(--gray)}
+.tpe-mode button span{display:grid;gap:2px;min-width:0}.tpe-mode button b{font-size:.9rem}.tpe-mode button small{font-size:.76rem;line-height:1.4;color:var(--gray)}
+.tpe-mode button.on{background:var(--dk-tint-blue,#EEF5FF);box-shadow:inset 0 0 0 2px var(--b500)}
+.tpe-mode button.on svg{color:var(--dk-acc,var(--b600))}
+.tpe-drop{position:relative;display:flex;align-items:center;gap:12px;padding:16px;border-radius:14px;background:var(--dk-surface-2,#F7FAFE);box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .15s}
+.tpe-drop:hover,.tpe-drop:focus-within{box-shadow:inset 0 0 0 2px var(--b400)}
+.tpe-drop.has-file{background:var(--dk-tint-blue,#EEF5FF)}
+.tpe-drop.is-bad{box-shadow:inset 0 0 0 2px #E5484D}
+.tpe-drop input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.tpe-drop svg{width:22px;height:22px;flex:none;color:var(--dk-acc,var(--b600))}
+.tpe-drop span{display:grid;gap:2px;min-width:0}.tpe-drop b{font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tpe-drop small{font-size:.76rem;color:var(--gray)}
+@media (max-width:560px){.tpe-mode{grid-template-columns:minmax(0,1fr)}}
+.hrmc-noedit{max-width:320px;font-size:.76rem;line-height:1.4}

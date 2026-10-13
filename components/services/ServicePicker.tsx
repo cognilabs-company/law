@@ -41,7 +41,9 @@ export default function ServicePicker({
     const h = window.setTimeout(() => {
       searchServices(query, { limit: 20 }, locale)
         .then((rows) => {
-          if (alive) setRes({ q: query, hits: rows.map((r) => r.service).filter((s) => s.id && s.isActive), failed: false });
+          if (alive) // A seller offers professional marketplace services; a service
+          // tied to a document template belongs to the document catalog.
+          setRes({ q: query, hits: rows.map((r) => r.service).filter((s) => s.id && s.isActive && !s.documentTemplateId), failed: false });
         })
         .catch(() => {
           if (alive) setRes({ q: query, hits: [], failed: true });

@@ -426,6 +426,32 @@ export async function saveEditorDraft(id: string, expectedRevision: number, body
   return { revision, draft, savedAt: firstStr(raw?.editor_last_saved_at, raw?.updated_at) };
 }
 
+// What the editor can do, as the backend states it (GET …/editor/ui-contract,
+// also carried inside an editor session): the ways a template may be
+// created, which files it takes and how large, and where they are sent. The
+// values below stand in only until a contract has been read.
+export type EditorUiContract = { createModes: string[]; acceptedExtensions: string[]; maxUploadBytes: number; uploadCreateUrl: string; sourceUploadUrl: string };
+export const DEFAULT_UI_CONTRACT: EditorUiContract = { createModes: ["blank"], acceptedExtensions: [".docx"], maxUploadBytes: DOCX_MAX_BYTES, uploadCreateUrl: "", sourceUploadUrl: "" };
+const editorPath = (url: string): string => {
+  const u = (url || "").trim();
+  return u.startsWith("/admin/document-templates/") && !u.includes("..") ? u : "";
+};
+export function uiContractOf(raw: unknown): EditorUiContract {
+  const d = asDict(raw);
+  const ext = asArr(d.accepted_upload_extensions).map((x) => asStr(x).toLowerCase()).filter((x) => /^\.[a-z0-9]+$/.test(x));
+  const modes = asArr(d.create_modes).map((x) => asStr(x)).filter(Boolean);
+  return {
+    createModes: modes.length ? modes : DEFAULT_UI_CONTRACT.createModes,
+    acceptedExtensions: ext.length ? ext : DEFAULT_UI_CONTRACT.acceptedExtensions,
+    maxUploadBytes: numOr(d.maximum_upload_bytes, DOCX_MAX_BYTES),
+    uploadCreateUrl: editorPath(asStr(d.device_upload_create_url)),
+    sourceUploadUrl: editorPath(asStr(d.source_upload_url)),
+  };
+}
+export async function getEditorUiContract(id: string, signal?: AbortSignal): Promise<EditorUiContract> {
+  return uiContractOf(await http(`${base(id)}/editor/ui-contract`, { signal }));
+}
+
 export class LocalFileError extends Error {
   code: "not_docx" | "too_big";
   constructor(code: "not_docx" | "too_big") {
@@ -435,20 +461,40 @@ export class LocalFileError extends Error {
   }
 }
 
-export function checkDocx(file: File): LocalFileError | null {
-  if (!/\.docx$/i.test(file.name)) return new LocalFileError("not_docx");
-  if (file.size > DOCX_MAX_BYTES) return new LocalFileError("too_big");
+export function checkDocx(file: File, contract: Pick<EditorUiContract, "acceptedExtensions" | "maxUploadBytes"> = DEFAULT_UI_CONTRACT): LocalFileError | null {
+  const name = file.name.toLowerCase();
+  if (!contract.acceptedExtensions.some((ext) => name.endsWith(ext))) return new LocalFileError("not_docx");
+  if (file.size > contract.maxUploadBytes) return new LocalFileError("too_big");
   return null;
+}
+
+// A new template started from a file on the device
+// (POST /admin/document-templates/editor-drafts/upload, multipart): the
+// answer is the same editor session a blank draft gives. Sent once — a
+// failed upload is never repeated on its own, so no duplicate drafts.
+export async function uploadEditorDraft(input: CreateDraftInput, file: File, contract: EditorUiContract = DEFAULT_UI_CONTRACT): Promise<EditorSession> {
+  const bad = checkDocx(file, contract);
+  if (bad) throw bad;
+  const form = new FormData();
+  form.append("slug", input.slug);
+  form.append("title", input.title);
+  form.append("category", input.category);
+  form.append("language", input.language || "uz-latn");
+  if (input.description) form.append("description", input.description);
+  form.append("price", String(input.price || 0));
+  form.append("visibility", input.visibility || "client");
+  form.append("file", file);
+  return normEditorSession(await http(contract.uploadCreateUrl || "/admin/document-templates/editor-drafts/upload", { method: "POST", body: form }));
 }
 
 export type SourceUploadResult = { oo: OnlyOfficeState | null; revision: number; sourceFileName: string };
 
-export async function uploadEditorSource(id: string, file: File): Promise<SourceUploadResult> {
-  const bad = checkDocx(file);
+export async function uploadEditorSource(id: string, file: File, contract: EditorUiContract = DEFAULT_UI_CONTRACT): Promise<SourceUploadResult> {
+  const bad = checkDocx(file, contract);
   if (bad) throw bad;
   const form = new FormData();
   form.append("file", file);
-  const res = asDict(await http(`${base(id)}/editor/source-file`, { method: "POST", body: form }));
+  const res = asDict(await http(contract.sourceUploadUrl || `${base(id)}/editor/source-file`, { method: "POST", body: form }));
   const draft = asDict(res.draft);
   return {
     oo: res.onlyoffice ? normOnlyOffice(res.onlyoffice, firstStr(res.session_id)) : null,

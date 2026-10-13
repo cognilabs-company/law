@@ -705,6 +705,80 @@ export async function getServiceCategories(opts?: { includeHidden?: boolean }): 
   return applyCategoryOverrides(cats, ov, opts?.includeHidden);
 }
 
+// ── The three catalogs (FRONTEND_MARKETPLACE_EDITOR_HRM_2026_10_13 §1, §2, §5) ──
+// Professional marketplace services, document templates and the on-duty
+// advocate flow are separate catalogs: an item of one is never shown in, or
+// used as a fallback for, another.
+
+// The marketplace's professional services by category
+// (GET /marketplace/service-categories, public). Only what advocates and
+// lawyers may offer through the marketplace; no document templates here.
+export type MarketServiceCategory = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  servicesCount: number;
+  subcategories: { title: string; servicesCount: number }[];
+  // Where the category's services are read; the backend's own URL.
+  servicesUrl: string;
+};
+
+// Only the backend's own catalog paths are followed from a response.
+const catalogPath = (url: string, prefix: string): string => {
+  const u = (url || "").trim();
+  return u.startsWith(prefix) && !u.includes("..") && !u.startsWith("//") ? u : "";
+};
+
+export async function getMarketplaceServiceCategories(signal?: AbortSignal): Promise<MarketServiceCategory[]> {
+  const data = await http("/marketplace/service-categories", { signal });
+  return listFrom(data, "categories", "items", "data")
+    .map((v) => {
+      const d = asDict(v);
+      return {
+        id: asStr(d.id),
+        slug: asStr(d.slug),
+        title: asStr(d.title ?? d.name),
+        description: asStr(d.description),
+        servicesCount: asNum(d.services_count),
+        subcategories: asArr(d.subcategories)
+          .map((x) => ({ title: asStr(asDict(x).title ?? asDict(x).name), servicesCount: asNum(asDict(x).services_count) }))
+          .filter((x) => x.title),
+        servicesUrl: catalogPath(asStr(d.services_url), "/services?"),
+      };
+    })
+    .filter((c) => c.id);
+}
+
+// A marketplace category's services, through the URL the backend gave. A
+// row tied to a document template is not a professional service: left out.
+export async function getMarketplaceCategoryServices(cat: Pick<MarketServiceCategory, "id" | "servicesUrl">, locale = "uz", signal?: AbortSignal): Promise<BackendService[]> {
+  const url = cat.servicesUrl || `/services?category_id=${encodeURIComponent(cat.id)}&catalog_only=true&summary=true`;
+  const data = await http(url, { signal });
+  return listFrom(data, "services", "items", "data")
+    .map((v) => normService(v, locale))
+    .filter((x) => x.id && !x.documentTemplateId);
+}
+
+// The document templates a client picks from, by category
+// (GET /document-template-categories, public). Not marketplace services.
+export type DocTemplateCategory = { key: string; title: string; templatesCount: number; languages: string[]; listUrl: string };
+export async function getDocumentTemplateCategories(signal?: AbortSignal): Promise<DocTemplateCategory[]> {
+  const data = await http("/document-template-categories", { signal });
+  return listFrom(data, "categories", "items", "data")
+    .map((v) => {
+      const d = asDict(v);
+      return {
+        key: asStr(d.key ?? d.slug),
+        title: asStr(d.title ?? d.name),
+        templatesCount: asNum(d.templates_count),
+        languages: asArr(d.languages).map((x) => asStr(x)).filter(Boolean),
+        listUrl: catalogPath(asStr(d.list_url), "/document-templates"),
+      };
+    })
+    .filter((c) => c.key);
+}
+
 export async function getServices(filters?: ServiceFilters, locale = "uz"): Promise<BackendService[]> {
   const qs = new URLSearchParams();
   if (filters?.category_id) qs.set("category_id", filters.category_id);

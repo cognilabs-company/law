@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   getServiceCategories,
+  getDocumentTemplateCategories,
   getServices,
   searchServices,
   getServicePassport,
@@ -247,7 +248,6 @@ const DIRSIZE_VALUES = ["all", "big", "mid", "small"] as const;
 const SUBSORT_VALUES = ["count", "countAsc", "name"] as const;
 // The i18n key each option's label comes from, kept beside the values so the
 // row below is a list of controls rather than a wall of ternaries.
-const DOC_LABEL: Record<DocFilter, string> = { all: "filterAll", template: "filterHasDoc", lawyer: "filterNoDoc" };
 const PRICE_LABEL: Record<PriceFilter, string> = { all: "filterAll", free: "filterFree", low: "priceBandLow", mid: "priceBandMid", high: "priceBandHigh" };
 const EXEC_LABEL: Record<ExecFilter, string> = { all: "filterAll", ai: "execAi", yurist: "execYurist", advokat: "execAdvokat" };
 const SVCSORT_LABEL: Record<SvcSort, string> = { rel: "sortRelevance", az: "sortByName", cheap: "sortCheapFirst", doc: "sortDocFirst" };
@@ -311,7 +311,15 @@ export default function ClientServices() {
   // (including a change made by another effect in the same tick), where a
   // one-off `window.location.search` snapshot can drift.
   const searchParams = useSearchParams();
-  const cats = useResource(getServiceCategories, []);
+  // This page is the document-template catalog (10-13 spec §2, §5): its
+  // categories are the ones GET /document-template-categories names, and
+  // only services with a template are listed — professional marketplace
+  // services live in the marketplace and never show here.
+  const cats = useResource(async () => {
+    const [tree, docCats] = await Promise.all([getServiceCategories(), getDocumentTemplateCategories().catch(() => [])]);
+    const keys = new Set(docCats.map((c) => c.key));
+    return keys.size ? tree.filter((c) => keys.has(c.slug)) : tree;
+  }, []);
 
   // T0-20 §4: outside working hours the client is told right away when the
   // advocate's 30-minute response window starts (next working day 09:00).
@@ -413,7 +421,7 @@ export default function ClientServices() {
       for (;;) {
         const page = await getServices({ category_id: cat, catalog_only: true, limit: SERVICES_PAGE_LIMIT, offset }, locale);
         if (!alive) return;
-        all.push(...page);
+        all.push(...page.filter((s) => s.documentTemplateId));
         if (page.length < SERVICES_PAGE_LIMIT) break;
         offset += page.length;
       }
@@ -689,7 +697,8 @@ export default function ClientServices() {
           if (filtered.status === "fulfilled") {
             for (const s of filtered.value) if (s.id && !seen.has(s.id)) { seen.add(s.id); list.push(s); }
           }
-          setRemote({ q: term, list });
+          // A search here finds documents, not marketplace services.
+          setRemote({ q: term, list: list.filter((s) => s.documentTemplateId) });
         })
         .catch(() => alive && setRemote({ q: term, list: [] }));
     }, 300);
@@ -1034,16 +1043,6 @@ export default function ClientServices() {
   const withCount = (label: string, n: number) => `${label} (${n})`;
   const filterFields: FilterField[] = svcScreen
     ? [
-        {
-          key: "doc",
-          label: t("filterDoc"),
-          icon: IconFileText,
-          value: docFilter,
-          empty: "all",
-          onChange: (v) => setDocFilter(pick(DOC_VALUES, v, "all")),
-          options: DOC_VALUES.map((v) => ({ value: v, label: withCount(t(DOC_LABEL[v]), fCounts.doc[v]) })),
-          aiId: "documents.filters.doc",
-        },
         {
           key: "executor",
           label: t("filterExec"),

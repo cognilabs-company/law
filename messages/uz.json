@@ -4221,7 +4221,11 @@
     "codeSlots": {
       "entered": "{total} xonali koddan {n} ta raqam kiritildi",
       "complete": "Kod to'liq kiritildi"
-    }
+    },
+    "loginRequired": "Davom etish uchun tizimga kiring.",
+    "fileTooBig": "Fayl ruxsat etilgan hajmdan katta.",
+    "unsupportedFile": "Fayl turi qo'llab-quvvatlanmaydi yoki fayl buzilgan.",
+    "serviceUnavailable": "Xizmat vaqtincha ishlamayapti. Birozdan keyin qayta urinib ko'ring."
   },
   "a11y": {
     "showPassword": "Parolni ko'rsatish",
@@ -10662,7 +10666,11 @@
       "upload": {
         "tooBig": "Fayl 20 MB dan katta.",
         "onlyDocx": "Faqat DOCX fayl qabul qilinadi.",
-        "failed": "Faylni almashtirib bo'lmadi"
+        "failed": "Faylni almashtirib bo'lmadi",
+        "tooBigN": "Fayl {mb} MB dan katta.",
+        "onlyTypes": "Faqat shu turdagi fayl qabul qilinadi: {types}",
+        "badFile": "Fayl turi qo'llab-quvvatlanmaydi yoki DOCX buzilgan.",
+        "converterDown": "Eski DOC konvertori hozir ishlamayapti. Faylni DOCX qilib saqlab, qayta yuklang."
       },
       "file": {
         "error": "Faylni ochib bo'lmadi"
@@ -10742,7 +10750,21 @@
         "creating": "Yaratilmoqda…",
         "submit": "Yaratish va ochish",
         "titlePh": "Xizmat ko'rsatish shartnomasi",
-        "draftNote": "Yaratilgandan so'ng Word muharriri ochiladi."
+        "draftNote": "Yaratilgandan so'ng Word muharriri ochiladi.",
+        "modeLabel": "Shablonni qanday boshlash",
+        "mode": {
+          "blank": "Bo'sh hujjat",
+          "blankHint": "Matnni muharrirda noldan yozasiz",
+          "device_upload": "Qurilmadan yuklash",
+          "device_uploadHint": "Tayyor DOCX faylni yuklab, tahrirlaysiz"
+        },
+        "file": "DOCX fayl",
+        "filePick": "Faylni tanlang",
+        "fileHint": "{types} · {mb} MB gacha",
+        "fileSize": "{mb} MB",
+        "fileRequired": "Yuklash uchun faylni tanlang.",
+        "uploadNote": "Fayl qoralama sifatida muharrirda ochiladi. E'lon qilingandan keyingina mijoz katalogida ko'rinadi.",
+        "forbidden": "Shablon yaratishga ruxsatingiz yo'q."
       },
       "list": {
         "newWord": "Yangi Word shablon",
@@ -12073,6 +12095,33 @@
         "restored": "Kategoriya ro'yxatga qaytarildi",
         "reset": "Backend nomiga qaytarish",
         "resetDone": "Admin o'zgarishi olib tashlandi"
+      },
+      "scope": {
+        "label": "Katalog",
+        "marketplace": "Professional xizmatlar",
+        "documents": "Hujjat xizmatlari",
+        "all": "Hammasi",
+        "marketplaceHint": "Marketplace'da advokat va yuristlar ko'rsatadigan professional xizmatlar. Hujjat shablonlari bu yerda yo'q.",
+        "documentsHint": "Hujjat shabloniga bog'langan xizmatlar — mijoz hujjat konstruktorida ko'radi.",
+        "allHint": "Administrator uchun barcha xizmatlar: professional va hujjat xizmatlari birga.",
+        "archive": "Arxiv",
+        "marketCats": "Marketplace kategoriyalari",
+        "marketCatsNote": "Bu kategoriyalar professional katalog bilan birga boshqariladi; hujjat kategoriyalari alohida.",
+        "servicesN": "{n} ta xizmat",
+        "showServices": "Shu kategoriya xizmatlarini ko'rsatish",
+        "replace": "Katalogni almashtirish",
+        "replaceTitle": "Professional katalogni almashtirish",
+        "replaceText": "Professional marketplace katalogi joriy standart ro'yxat bilan almashtiriladi. Qayta bosilsa dublikat yaratilmaydi.",
+        "replaceCta": "Almashtirish",
+        "replaceDone": "Professional katalog yangilandi",
+        "replaceError": "Katalog almashtirilmadi",
+        "rule": {
+          "archive": "Eski professional xizmatlar arxivlanadi.",
+          "orders": "Tarixiy buyurtmalar o'chirilmaydi.",
+          "templates": "Hujjat shablonlari o'chirilmaydi.",
+          "docServices": "Hujjat shabloniga bog'langan xizmatlar faol qoladi.",
+          "flows": "Navbatchi advokat va hujjat konstruktori alohida ishlashda davom etadi."
+        }
       }
     },
     "plans": {
@@ -12160,7 +12209,11 @@
           "application": "Ariza",
           "power_of_attorney": "Ishonchnoma",
           "corporate": "Korporativ",
-          "other": "Boshqa"
+          "other": "Boshqa",
+          "legal-doc-civil": "Fuqarolik hujjatlari",
+          "legal-doc-economic": "Iqtisodiy hujjatlar",
+          "legal-doc-criminal": "Jinoiy ish hujjatlari",
+          "legal-doc-administrative": "Ma'muriy hujjatlar"
         },
         "langs": {
           "uz-latn": "O'zbek (lotin)",
@@ -15664,7 +15717,44 @@
       "workflows": "Tasdiqlash jarayonlari",
       "delegations": "Vakolat berish",
       "notifTemplates": "Bildirishnoma shablonlari",
-      "sections": "Bo'limlar"
+      "sections": "Bo'limlar",
+      "staffing": "Shtat birliklari",
+      "grades": "Darajalar",
+      "orgPlans": "Tuzilma rejalari",
+      "licences": "Litsenziyalar",
+      "unitTypes": "Bo'lim turlari",
+      "dataIssues": "Ma'lumot kamchiliklari",
+      "conduct": "Intizom",
+      "timesheetFix": "Tabel tuzatishlari",
+      "rosterPeriods": "Grafik davrlari",
+      "rotations": "Rotatsiya shablonlari",
+      "payPolicy": "Ish haqi siyosati",
+      "adjustments": "Tuzatishlar",
+      "payslips": "Hisob varaqalari",
+      "reliability": "Ishonchlilik",
+      "projects": "Loyihalar",
+      "workItems": "Ishlar",
+      "timeEntries": "Vaqt yozuvlari",
+      "kpiDefs": "KPI ko'rsatkichlari",
+      "kpiPeriods": "KPI davrlari",
+      "kpiResults": "KPI natijalari",
+      "reviews": "360 baholash",
+      "oneOnOne": "1-on-1 uchrashuvlar",
+      "idp": "Rivojlanish rejalari",
+      "nineBox": "9-box",
+      "offers": "Ish takliflari",
+      "pipeline": "Voronka bosqichlari",
+      "articles": "Bilimlar bazasi",
+      "reportRuns": "Hisobot ishga tushirishlar",
+      "reportSchedules": "Hisobot jadvallari",
+      "roles": "Rollar",
+      "roleGrants": "Rol berish",
+      "devices": "Qurilmalar",
+      "audit": "Audit jurnali",
+      "reasonCodes": "Sabab kodlari",
+      "biometrics": "Biometrika",
+      "integrations": "Integratsiyalar",
+      "aiOversight": "AI nazorati"
     },
     "pagination": {
       "label": "Sahifalar",
@@ -16560,7 +16650,23 @@
           "education": "Ta’lim",
           "equipment": "Biriktirilgan jihoz",
           "change_request": "Xodim ma’lumotini o‘zgartirish",
-          "conduct": "Intizom va e’tirof"
+          "conduct": "Intizom va e’tirof",
+          "employee": "Xodim",
+          "status_change": "Holat o'zgarishi",
+          "employment": "Bandlik",
+          "availability_period": "Mavjudlik davri",
+          "room_assignment": "Xona biriktirish",
+          "professional_profile": "Kasbiy profil",
+          "education_record": "Ta'lim yozuvi",
+          "service_permission": "Xizmatga ruxsat",
+          "equipment_authorization": "Jihozga ruxsat",
+          "employee_document": "Xodim hujjati",
+          "skill": "Ko'nikma",
+          "employee_skill": "Xodim ko'nikmasi",
+          "position_skill_requirement": "Lavozim ko'nikma talabi",
+          "employee_data_issue": "Ma'lumotdagi kamchilik",
+          "profile_change_request": "Profilni o'zgartirish so'rovi",
+          "conduct_record": "Intizom yozuvi"
         },
         "employment": {
           "contract": "Mehnat shartnomasi",
@@ -16580,7 +16686,12 @@
           "schedule": "Ish grafigi",
           "roster": "Xodim grafigi",
           "staffing_requirement": "Smenadagi ehtiyoj",
-          "calendar": "Ish kalendari"
+          "calendar": "Ish kalendari",
+          "work_schedule": "Ish grafigi",
+          "roster_period": "Grafik davri",
+          "schedule_batch": "Grafik to'plami",
+          "schedule_day": "Grafik kuni",
+          "schedule_acknowledgement": "Grafik bilan tanishish"
         },
         "attendance": {
           "event": "Davomat hodisasi",
@@ -16588,37 +16699,69 @@
           "explanation": "Davomat izohi",
           "overtime": "Qo‘shimcha ish",
           "incident": "Davomat buzilishi",
-          "terminal": "Davomat terminali"
+          "terminal": "Davomat terminali",
+          "attendance_terminal": "Davomat terminali",
+          "attendance_event": "Davomat hodisasi",
+          "attendance_incident": "Davomat buzilishi",
+          "attendance_day": "Davomat kuni",
+          "attendance_explanation": "Davomat izohi",
+          "overtime_approval": "Qo'shimcha ishni tasdiqlash",
+          "attendance_alert": "Davomat ogohlantirishi"
         },
         "timesheet": {
           "code": "Tabel kodi",
           "day": "Tabel kuni",
-          "period": "Tabel davri"
+          "period": "Tabel davri",
+          "timesheet_code": "Tabel kodi",
+          "timesheet": "Tabel",
+          "timesheet_day": "Tabel kuni",
+          "timesheet_correction": "Tabel tuzatishi",
+          "retro_correction": "Orqaga qaytib tuzatish",
+          "timesheet_escalation": "Tabel eskalatsiyasi"
         },
         "leave": {
           "leave_type": "Ta’til turi",
           "request": "Ta’til so‘rovi",
           "annual_leave": "Yillik ta’til",
           "balance": "Ta’til balansi",
-          "staffing_rule": "Ta’tildagi shtat qoidasi"
+          "staffing_rule": "Ta’tildagi shtat qoidasi",
+          "leave_balance": "Ta'til balansi",
+          "leave_request": "Ta'til so'rovi",
+          "minimum_staffing_rule": "Minimal shtat qoidasi"
         },
         "travel": {
           "request": "Xizmat safari so‘rovi",
           "expense": "Safar xarajati",
-          "report": "Safar hisoboti"
+          "report": "Safar hisoboti",
+          "business_trip": "Xizmat safari",
+          "branch_distance": "Filiallar orasidagi masofa",
+          "rotation_template": "Rotatsiya shabloni",
+          "rotation_template_day": "Rotatsiya shabloni kuni",
+          "reschedule_task": "Qayta rejalashtirish vazifasi",
+          "empty_trip_alert": "Bo'sh safar ogohlantirishi"
         },
         "tasks": {
           "template": "Topshiriq shabloni",
           "task": "Topshiriq",
           "proof": "Topshiriq dalili",
           "spot_check": "Tasodifiy tekshiruv",
-          "escalation": "Topshiriq eskalatsiyasi"
+          "escalation": "Topshiriq eskalatsiyasi",
+          "escalation_rule": "Eskalatsiya qoidasi",
+          "proof_point": "Dalil nuqtasi",
+          "task_template": "Topshiriq shabloni",
+          "task_instance": "Topshiriq",
+          "task_proof": "Topshiriq dalili",
+          "reliability_score": "Ishonchlilik bali",
+          "reliability_event": "Ishonchlilik hodisasi"
         },
         "workflow": {
           "definition": "Workflow ta’rifi",
           "instance": "Workflow nusxasi",
           "delegation": "Tasdiqlash vakolati",
-          "decision": "Tasdiqlash qarori"
+          "decision": "Tasdiqlash qarori",
+          "process_definition": "Jarayon ta'rifi",
+          "process_instance": "Jarayon nusxasi",
+          "approval_task": "Tasdiqlash vazifasi"
         },
         "payroll": {
           "component": "Hisob komponenti",
@@ -16630,7 +16773,21 @@
           "penalty": "Jarima",
           "bonus": "Bonus",
           "objection": "Hisob-kitob e’tirozi",
-          "payment_detail": "To‘lov rekviziti"
+          "payment_detail": "To‘lov rekviziti",
+          "formula_version": "Formula versiyasi",
+          "compensation_component": "To'lov komponenti",
+          "payroll_policy": "Ish haqi siyosati",
+          "payroll_run": "Hisoblash davri",
+          "payroll_calculation": "Ish haqi hisobi",
+          "payroll_line": "Hisob qatori",
+          "payroll_summary": "Ish haqi yig'masi",
+          "manual_adjustment": "Qo'lda tuzatish",
+          "retro_adjustment": "Orqaga qaytib tuzatish",
+          "penalty_objection": "Jarimaga e'tiroz",
+          "advance_run": "Avans hisobi",
+          "advance_payment": "Avans to'lovi",
+          "payslip_acknowledgement": "Hisob varaqasi bilan tanishish",
+          "payment_details": "To'lov rekvizitlari"
         },
         "recruiting": {
           "vacancy": "Vakansiya",
@@ -16638,31 +16795,62 @@
           "application": "Vakansiyaga ariza",
           "interview": "Suhbat",
           "offer": "Ish taklifi",
-          "talent_pool": "Nomzodlar zaxirasi"
+          "talent_pool": "Nomzodlar zaxirasi",
+          "vacancy_escalation": "Vakansiya eskalatsiyasi",
+          "pipeline_stage": "Voronka bosqichi",
+          "candidate_document": "Nomzod hujjati",
+          "stage_history": "Bosqichlar tarixi",
+          "scorecard_criterion": "Baholash mezoni",
+          "interview_feedback": "Suhbat xulosasi",
+          "offer_template": "Taklif shabloni",
+          "recruiting_cost": "Rekruting xarajati"
         },
         "onboarding": {
           "template": "Onboarding shabloni",
           "case": "Onboarding jarayoni",
           "checklist": "Onboarding checklist",
-          "probation_review": "Sinov muddati bahosi"
+          "probation_review": "Sinov muddati bahosi",
+          "onboarding_program": "Moslashuv dasturi",
+          "onboarding_stage": "Moslashuv bosqichi",
+          "onboarding_item": "Moslashuv bandi",
+          "onboarding_instance": "Moslashuv jarayoni",
+          "onboarding_task": "Moslashuv vazifasi",
+          "probation_criterion": "Sinov muddati mezoni",
+          "probation_evaluation": "Sinov muddati bahosi"
         },
         "offboarding": {
           "template": "Offboarding shabloni",
           "case": "Offboarding jarayoni",
           "clearance": "Topshirish varaqasi",
-          "exit_interview": "Yakuniy suhbat"
+          "exit_interview": "Yakuniy suhbat",
+          "termination_case": "Ishdan bo'shatish ishi",
+          "clearance_template": "Topshirish varaqasi shabloni",
+          "clearance_template_item": "Shablon bandi",
+          "clearance_item": "Topshirish varaqasi bandi",
+          "exit_questionnaire": "Yakuniy so'rovnoma"
         },
         "movements": {
           "movement_type": "Harakat turi",
           "request": "Kadrlar harakati so‘rovi",
           "order_template": "Buyruq shabloni",
-          "order": "Kadrlar buyrug‘i"
+          "order": "Kadrlar buyrug‘i",
+          "order_type": "Buyruq turi",
+          "personnel_order": "Kadrlar buyrug'i",
+          "order_line": "Buyruq qatori"
         },
         "policies": {
           "folder": "Reglament papkasi",
           "document": "Reglament",
           "version": "Reglament versiyasi",
-          "acknowledgement": "Reglament bilan tanishish"
+          "acknowledgement": "Reglament bilan tanishish",
+          "policy_folder": "Reglament papkasi",
+          "policy_template_file": "Reglament shablon fayli",
+          "policy_document": "Reglament",
+          "policy_version": "Reglament versiyasi",
+          "policy_attachment": "Reglament ilovasi",
+          "policy_source_file": "Reglament manba fayli",
+          "ack_requirement": "Tanishish talabi",
+          "quiz_attempt": "Test urinishi"
         },
         "lms": {
           "course": "Kurs",
@@ -16670,17 +16858,121 @@
           "enrollment": "Kursga biriktirish",
           "assessment": "Test",
           "attempt": "Test urinishi",
-          "certificate": "Sertifikat"
+          "certificate": "Sertifikat",
+          "course_module": "Kurs moduli",
+          "lesson": "Dars",
+          "quiz": "Test",
+          "question": "Savol",
+          "training_rule": "O'qitish qoidasi",
+          "lesson_progress": "Dars jarayoni",
+          "quiz_attempt": "Test urinishi",
+          "article_category": "Maqola turkumi",
+          "article": "Maqola"
         },
         "notifications": {
           "template": "Bildirishnoma shabloni",
           "delivery": "Bildirishnoma jo‘natmasi",
-          "preference": "Bildirishnoma sozlamasi"
+          "preference": "Bildirishnoma sozlamasi",
+          "notification_template": "Bildirishnoma shabloni",
+          "notification": "Bildirishnoma"
         },
         "analytics": {
           "report_definition": "Hisobot ta’rifi",
           "saved_report": "Saqlangan hisobot",
-          "dashboard": "Tahlil paneli"
+          "dashboard": "Tahlil paneli",
+          "report_run": "Hisobot ishga tushirilishi",
+          "report_schedule": "Hisobot jadvali",
+          "report_delivery": "Hisobot yetkazilishi"
+        },
+        "ai": {
+          "ai_feature": "AI funksiyasi",
+          "ai_decision_log": "AI qarorlari jurnali"
+        },
+        "biometrics": {
+          "biometric_blob": "Biometrik ma'lumot",
+          "biometric_enrollment": "Biometrik ro'yxatga olish",
+          "face_challenge": "Yuz tekshiruvi so'rovi",
+          "face_capture": "Yuz surati",
+          "face_frame": "Yuz kadri",
+          "signature_capture": "Imzo namunasi",
+          "sign_staff_nonce": "Imzolash kaliti",
+          "face_verification": "Yuzni tasdiqlash"
+        },
+        "core": {
+          "audit_log": "Audit jurnali",
+          "number_sequence": "Raqamlash ketma-ketligi",
+          "job_state": "Fon vazifasi holati",
+          "domain_event": "Tizim hodisasi",
+          "webhook_subscription": "Webhook obunasi",
+          "idempotency_record": "Takrorlanmaslik yozuvi",
+          "reason_code": "Sabab kodi"
+        },
+        "hamkor": {
+          "request_nonce": "So'rov kaliti",
+          "inbound_event": "Kiruvchi hodisa",
+          "day_evidence": "Kun dalili",
+          "candidate_ref": "Nomzod havolasi"
+        },
+        "iam": {
+          "user": "Foydalanuvchi",
+          "external_identity": "Tashqi identifikator",
+          "otp_challenge": "Bir martalik kod",
+          "device": "Qurilma",
+          "device_credential": "Qurilma kaliti",
+          "role": "Rol",
+          "role_permission": "Rol ruxsati",
+          "role_grant": "Rol berish",
+          "sensitive_access_grant": "Maxfiy ma'lumotga ruxsat",
+          "auth_session": "Kirish sessiyasi",
+          "usage_session": "Foydalanish sessiyasi",
+          "sso_token_use": "SSO token ishlatilishi"
+        },
+        "integrations": {
+          "telegram_link_code": "Telegram ulash kodi",
+          "telegram_pending_action": "Telegram kutilayotgan amal"
+        },
+        "kpi": {
+          "kpi_definition": "KPI ko'rsatkichi",
+          "kpi_template": "KPI shabloni",
+          "kpi_template_item": "KPI shabloni bandi",
+          "kpi_period": "KPI davri",
+          "kpi_target": "KPI maqsadi",
+          "kpi_manual_value": "Qo'lda kiritilgan qiymat",
+          "kpi_result": "KPI natijasi",
+          "kpi_scorecard": "KPI baholash kartasi",
+          "review_cycle": "Baholash sikli",
+          "review": "Baholash",
+          "review_form": "Baholash shakli",
+          "one_on_one_meeting": "Yakkama-yakka uchrashuv",
+          "development_plan": "Rivojlanish rejasi",
+          "development_goal": "Rivojlanish maqsadi",
+          "nine_box_placement": "9 katakli matritsa"
+        },
+        "org": {
+          "org_unit_type": "Bo'lim turi",
+          "work_calendar": "Ish kalendari",
+          "calendar_day": "Kalendar kuni",
+          "org_unit": "Bo'lim",
+          "org_unit_version": "Bo'lim versiyasi",
+          "grade": "Daraja (grade)",
+          "position": "Lavozim",
+          "staff_unit": "Shtat birligi",
+          "org_change_plan": "Tuzilma o'zgarishi rejasi",
+          "org_change_item": "Reja bandi",
+          "branch_template": "Filial shabloni",
+          "org_board_position": "Boarddagi joylashuv",
+          "org_unit_link": "Bo'limlar aloqasi",
+          "branch_licence": "Filial litsenziyasi",
+          "branch_licence_file": "Litsenziya fayli",
+          "branch_licence_reminder": "Litsenziya eslatmasi"
+        },
+        "workitems": {
+          "project": "Loyiha",
+          "automation_rule": "Avtomatlashtirish qoidasi",
+          "work_item": "Ish",
+          "work_item_comment": "Ish izohi",
+          "work_item_attachment": "Ish ilovasi",
+          "time_entry": "Vaqt yozuvi"
         }
       },
       "allTypes": "Barchasi",
@@ -16800,20 +17092,29 @@
       },
       "hub": {
         "title": "HR modullari",
-        "lead": "Katalogdagi 20 modul va 92 yozuv turi: har bir forma backend sxemasidan tuziladi.",
+        "lead": "Katalogdagi {m} modul va {t} yozuv turi: har bir forma backend sxemasidan tuziladi.",
         "modules": "Modullar",
         "types": "Yozuv turlari",
         "records": "Jami yozuvlar",
         "pending": "Qaror kutmoqda",
         "byModule": "Modullar bo'yicha yozuvlar",
-        "typesOf": "{n} tur"
+        "typesOf": "{n} tur",
+        "parity": "MedControl modellari: {covered} / {expected}",
+        "parityFull": "Barcha modellar katalogda bor. Bu sxema qamrovi — hamma MedControl endpointlari bir xil degani emas.",
+        "parityMissing": "Yetishmayapti: {list}",
+        "guard": {
+          "effective_period_overlap": "Davrlar ustma-ust tushishi bloklanadi",
+          "leave_balance": "Ta'til balansi tekshiriladi",
+          "leave_balance_debit": "Tasdiqlanganda balans kamayadi"
+        }
       },
       "groups": {
         "people": "Xodimlar va hujjatlar",
         "time": "Vaqt va mavjudlik",
         "work": "Ish, jarayon va ish haqi",
         "lifecycle": "Xodim hayot sikli",
-        "company": "Kompaniya bilimi va hisobotlar"
+        "company": "Kompaniya bilimi va hisobotlar",
+        "system": "Tizim va integratsiyalar"
       },
       "me": {
         "title": "Mening HR yozuvlarim",
@@ -16906,6 +17207,42 @@
         "analytics": {
           "title": "Tahlil va hisobot",
           "lead": "Hisobot ta’riflari, saqlangan hisobotlar va panellar."
+        },
+        "ai": {
+          "title": "HR AI nazorati",
+          "lead": "AI funksiyalari va ularning qarorlari jurnali."
+        },
+        "biometrics": {
+          "title": "Biometrika",
+          "lead": "Yuz va imzo namunalari, ro'yxatga olish va tasdiqlash."
+        },
+        "core": {
+          "title": "Tizim yadrosi",
+          "lead": "Audit jurnali, raqamlash, sabab kodlari va tizim hodisalari."
+        },
+        "hamkor": {
+          "title": "Hamkor integratsiyasi",
+          "lead": "Hamkor tizimdan kelgan hodisalar va dalillar."
+        },
+        "iam": {
+          "title": "Kirish va ruxsatlar",
+          "lead": "Foydalanuvchilar, rollar, ruxsatlar, qurilmalar va sessiyalar."
+        },
+        "integrations": {
+          "title": "Integratsiyalar",
+          "lead": "Telegram ulanishi va kutilayotgan amallar."
+        },
+        "kpi": {
+          "title": "KPI va rivojlanish",
+          "lead": "Ko'rsatkichlar, davrlar, natijalar, baholash sikllari va rivojlanish rejalari."
+        },
+        "org": {
+          "title": "Tashkiliy tuzilma",
+          "lead": "Bo'lim turlari, darajalar, shtat birliklari, o'zgarish rejalari va litsenziyalar."
+        },
+        "workitems": {
+          "title": "Loyihalar va ishlar",
+          "lead": "Loyihalar, ishlar, izohlar va sarflangan vaqt."
         }
       },
       "fields": {
@@ -17163,7 +17500,11 @@
         "worked_minutes": "Ishlangan daqiqa",
         "workflow_codes": "Workflowlar",
         "workload_percent": "Yuklama foizi",
-        "year": "Yil"
+        "year": "Yil",
+        "effective_from": "Kuchga kirish sanasi",
+        "effective_to": "Amal qilish tugashi",
+        "data": "Qo'shimcha ma'lumotlar",
+        "files": "Fayllar"
       },
       "options": {
         "absence": "Yo‘qlik",
@@ -17243,7 +17584,8 @@
         "web": "Veb",
         "xlsx": "Excel"
       },
-      "typesLabel": "Yozuv turlari"
+      "typesLabel": "Yozuv turlari",
+      "noEdit": "Bu holatda tahrirlab bo'lmaydi — faqat qoralama yoki qaytarilgan yozuv tahrirlanadi."
     },
     "shell": {
       "apps": {
