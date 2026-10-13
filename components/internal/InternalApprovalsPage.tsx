@@ -30,6 +30,9 @@ export default function InternalApprovalsPage() {
   const [error, setError] = useState(false);
   const [done, setDone] = useState<"" | "approved" | "rejected">("");
   const [offset, setOffset] = useState(0);
+  const [proc, setProc] = useState("");
+  const [needComment, setNeedComment] = useState(false);
+  const [quick, setQuick] = useState("");
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -55,6 +58,12 @@ export default function InternalApprovalsPage() {
 
   async function decide(decision: "approved" | "rejected") {
     if (!open || saving) return;
+    // Turning a request down says why (MedControl's inbox): the requester
+    // reads it.
+    if (decision === "rejected" && !comment.trim()) {
+      setNeedComment(true);
+      return;
+    }
     setSaving(true);
     setError(false);
     try {
@@ -70,36 +79,71 @@ export default function InternalApprovalsPage() {
     }
   }
 
+  // Approve straight from the card; anything else opens it.
+  async function approveQuick(a: HrmApproval) {
+    if (quick) return;
+    setQuick(a.id);
+    setError(false);
+    try {
+      await decideApproval(a.id, { decision: "approved", comment: "" });
+      setDone("approved");
+      await load();
+    } catch {
+      setError(true);
+    } finally {
+      setQuick("");
+    }
+  }
+  const procs = [...new Set(page.items.map((a) => a.type).filter(Boolean))];
+  const shown = proc ? page.items.filter((a) => a.type === proc) : page.items;
+  const facts = (a: HrmApproval) =>
+    Object.entries(a.payload)
+      .filter(([k, v]) => !HIDDEN_PAYLOAD.has(k) && (typeof v === "string" || typeof v === "number") && String(v).length < 40)
+      .slice(0, 3);
+
   return (
     <section className="hrm-page">
       <HrmHead kicker={t("kicker")} title={t("title")} lead={t("lead")} actions={<button className="btn btn--line btn--sm" type="button" onClick={() => void load()} disabled={loading}><IconRefresh />{t("refresh")}</button>} />
       {error && !open ? <HrmError text={t("error")} onRetry={() => void load()} retryLabel={t("refresh")} /> : null}
       {done ? <div className="hrm-ok"><IconCheck />{done === "approved" ? t("approvedNote") : t("rejectedNote")}</div> : null}
-      <HrmPanel flush title={t("pending")} icon={IconShieldCheck} count={page.total}>
-        {loading ? <div style={{ padding: 16 }}><HrmLoading /></div> : page.items.length ? (
-          <div className="hrm-table-wrap">
-            <table className="hrm-table">
-              <thead><tr><th>{t("columns.item")}</th><th>{t("columns.requester")}</th><th>{t("columns.date")}</th><th className="hrm-num">{t("columns.amount")}</th><th>{t("columns.status")}</th></tr></thead>
-              <tbody>
-                {page.items.map((a) => (
-                  <tr key={a.id} className="is-click" tabIndex={0} onClick={() => { setOpenId(a.id); setDone(""); }} onKeyDown={(e) => { if (e.key === "Enter") { setOpenId(a.id); setDone(""); } }}>
-                    <td><b>{a.title || humanize(a.type) || "—"}</b>{a.type ? <small>{humanize(a.type)}</small> : null}</td>
-                    <td>{who(a) ? <HrmPerson name={who(a)} size="sm" /> : "—"}</td>
-                    <td className="hrm-muted">{f.dateTime(a.createdAt)}</td>
-                    <td className="hrm-num">{a.amount !== null ? f.money(a.amount) : "—"}</td>
-                    <td><HrmStatus value={a.status} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : <HrmEmpty icon={IconShieldCheck} title={t("empty")} text={t("emptyLead")} />}
-        <InternalPagination page={page} onChange={setOffset} />
-      </HrmPanel>
+      {procs.length > 1 ? (
+        <div className="hrm-chips" role="tablist" aria-label={t("process")}>
+          <button type="button" role="tab" aria-selected={!proc} className={!proc ? "on" : ""} onClick={() => setProc("")}>{t("allProcesses")}<span>{page.items.length}</span></button>
+          {procs.map((p) => (
+            <button key={p} type="button" role="tab" aria-selected={proc === p} className={proc === p ? "on" : ""} onClick={() => setProc(p)}>{humanize(p)}<span>{page.items.filter((a) => a.type === p).length}</span></button>
+          ))}
+        </div>
+      ) : null}
+      {loading ? <HrmPanel><HrmLoading /></HrmPanel> : shown.length ? (
+        <ul className="hrm-inbox" aria-label={t("pending")}>
+          {shown.map((a) => (
+            <li key={a.id} className="hrm-inbox__card">
+              <button type="button" className="hrm-inbox__main" onClick={() => { setOpenId(a.id); setDone(""); setNeedComment(false); }}>
+                <span className="hrm-inbox__top">
+                  <span className="hrm-inbox__proc">{humanize(a.type) || t("title")}</span>
+                  <small>{f.dateTime(a.createdAt)}</small>
+                </span>
+                <b>{a.title || humanize(a.type) || "—"}</b>
+                {a.description ? <p>{a.description}</p> : null}
+                <span className="hrm-inbox__facts">
+                  {who(a) ? <HrmPerson name={who(a)} size="sm" /> : null}
+                  {a.amount !== null ? <span className="hrm-inbox__amt">{f.money(a.amount)}</span> : null}
+                  {facts(a).map(([k, v]) => <span key={k} className="hrm-inbox__fact">{humanize(k)}: {typeof v === "string" ? humanize(v) : String(v)}</span>)}
+                </span>
+              </button>
+              <span className="hrm-inbox__acts">
+                <button type="button" className="btn btn--pri btn--sm" onClick={() => void approveQuick(a)} disabled={!!quick}>{quick === a.id ? <span className="stu-spin" aria-hidden /> : <IconCheck />}{t("approve")}</button>
+                <button type="button" className="btn btn--line btn--sm" onClick={() => { setOpenId(a.id); setDone(""); setNeedComment(false); }}>{t("openDecide")}</button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : <HrmPanel><HrmEmpty icon={IconShieldCheck} title={t("empty")} text={t("emptyLead")} /></HrmPanel>}
+      <InternalPagination page={page} onChange={setOffset} />
 
       <HrmDrawer
         open={!!open}
-        onClose={() => { setOpenId(""); setComment(""); setError(false); }}
+        onClose={() => { setOpenId(""); setComment(""); setError(false); setNeedComment(false); }}
         title={open?.title || humanize(open?.type ?? "") || t("title")}
         sub={open ? humanize(open.type) : undefined}
         footer={
@@ -133,8 +177,9 @@ export default function InternalApprovalsPage() {
               </HrmSection>
             ) : null}
             <InternalField label={t("comment")}>
-              <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("commentPlaceholder")} maxLength={2000} rows={3} />
+              <textarea value={comment} onChange={(e) => { setComment(e.target.value); if (e.target.value.trim()) setNeedComment(false); }} placeholder={t("commentPlaceholder")} maxLength={2000} rows={3} aria-invalid={needComment || undefined} />
             </InternalField>
+            {needComment ? <p className="hrm-ferr" role="alert">{t("commentRequired")}</p> : null}
           </>
         ) : null}
       </HrmDrawer>

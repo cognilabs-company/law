@@ -29,13 +29,15 @@ import {
   type InternalPage,
 } from "@/lib/services/internalHrm";
 import { calculatePayroll, exportInternalAnalytics, setPayrollStatus, type PayrollCalc } from "@/lib/services/internalLive";
-import { IconGrid, IconList, IconAlert, IconBriefcase, IconCalendar, IconCard, IconChartBar, IconChat, IconCheck, IconClock, IconDownload, IconPlus, IconRefresh, IconTrash, IconTrendingUp, IconUsers } from "@/components/icons";
+import { IconGrid, IconList, IconAlert, IconBriefcase, IconCalendar, IconCard, IconChartBar, IconChat, IconCheck, IconClock, IconDownload, IconFolder, IconPlus, IconRefresh, IconTrash, IconTrendingUp, IconUsers } from "@/components/icons";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import DatePicker from "@/components/DatePicker";
 import MonthPicker from "@/components/MonthPicker";
 import Select from "@/components/Select";
 import InternalPagination from "@/components/internal/InternalPagination";
 import HrmKanban from "@/components/internal/HrmKanban";
+import { ProjectsView, TaskCalendar, TaskGantt, TeamLoad } from "@/components/internal/WorkViews";
+import HrDashboard from "@/components/internal/HrDashboard";
 import { HrmDonut } from "@/components/internal/HrmCharts";
 import InternalField from "@/components/internal/InternalField";
 import TaskDrawer, { TASK_STATUSES } from "@/components/internal/TaskDrawer";
@@ -135,8 +137,19 @@ function RefreshButton({ onClick, busy, label }: { onClick: () => void; busy: bo
 
 // ── Execution ──────────────────────────────────────────────────────────────
 
+type WorkView = "list" | "board" | "calendar" | "gantt" | "load" | "projects";
+const WORK_VIEWS: [WorkView, typeof IconList][] = [
+  ["list", IconList],
+  ["board", IconGrid],
+  ["calendar", IconCalendar],
+  ["gantt", IconChartBar],
+  ["load", IconUsers],
+  ["projects", IconFolder],
+];
+
 function ExecutionPage() {
   const t = useTranslations("internal.operations");
+  const tw = useTranslations("internal.work");
   const tu = useTranslations("internal.ui");
   const label = useStatusLabel();
   const f = useHrmFormat();
@@ -146,14 +159,16 @@ function ExecutionPage() {
   const [offset, setOffset] = useState(0);
   const [openId, setOpenId] = useState("");
   const [creating, setCreating] = useState(false);
-  const [view, setView] = useState<"list" | "board">("list");
+  const [view, setView] = useState<WorkView>("list");
   const [moveErr, setMoveErr] = useState(false);
   const set = (k: keyof typeof filters) => (v: string) => { setFilters((c) => ({ ...c, [k]: v })); setOffset(0); };
 
   const { page, loading, error, reload } = usePaged<HrmTask>(
     useCallback(async (signal?: AbortSignal) => {
-      // The board shows every status side by side, so it reads one larger page.
-      const res = await getExecutionTasks({ q: filters.q || undefined, status: view === "board" ? undefined : filters.status || undefined, responsible_employee_id: filters.responsible || undefined, date_from: filters.dateFrom || undefined, date_to: filters.dateTo || undefined, limit: view === "board" ? 100 : 50, offset: view === "board" ? 0 : offset }, signal);
+      // Every view but the list shows a whole set side by side, so it reads
+      // one larger page (the board shows every status at once).
+      const wide = view !== "list";
+      const res = await getExecutionTasks({ q: filters.q || undefined, status: view === "board" ? undefined : filters.status || undefined, responsible_employee_id: filters.responsible || undefined, date_from: filters.dateFrom || undefined, date_to: filters.dateTo || undefined, limit: wide ? 200 : 50, offset: wide ? 0 : offset }, signal);
       return { ...res, items: res.items.map(normTask) };
     }, [filters, offset, view]),
   );
@@ -199,11 +214,21 @@ function ExecutionPage() {
       {error ? <HrmError text={t("error")} onRetry={reload} retryLabel={t("refresh")} /> : null}
       {moveErr ? <HrmError text={t("moveError")} /> : null}
       <div className="hrm-tabs hrm-viewtabs" role="tablist" aria-label={t("view.label")}>
-        {(["list", "board"] as const).map((v) => (
-          <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}>{v === "list" ? <IconList /> : <IconGrid />}{t(`view.${v}`)}</button>
+        {WORK_VIEWS.map(([v, I]) => (
+          <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}><I />{tw(`view.${v}`)}</button>
         ))}
       </div>
-      {view === "board" ? (
+      {view !== "list" && view !== "board" && ((loading && !page.items.length) || !now) ? (
+        <HrmPanel><HrmLoading rows={5} /></HrmPanel>
+      ) : view === "calendar" ? (
+        <TaskCalendar items={page.items} now={now} onOpen={(x) => setOpenId(x.id)} />
+      ) : view === "gantt" ? (
+        <TaskGantt items={page.items} now={now} onOpen={(x) => setOpenId(x.id)} />
+      ) : view === "load" ? (
+        <TeamLoad items={page.items} now={now} />
+      ) : view === "projects" ? (
+        <ProjectsView items={page.items} now={now} onOpen={(x) => setOpenId(x.id)} />
+      ) : view === "board" ? (
         loading && !page.items.length ? <HrmPanel><HrmLoading rows={5} /></HrmPanel> : (
           <HrmKanban
             columns={TASK_STATUSES.map((s) => ({ key: s, label: label(s), tone: s === "done" ? "ok" : s === "returned" ? "err" : s === "in_review" || s === "paused" ? "warn" : s === "cancelled" ? "gray" : "info" }))}
@@ -823,6 +848,8 @@ function PayrollCreate({ open, onClose, onCreated, typeLabel }: { open: boolean;
 
 function AnalyticsPage() {
   const t = useTranslations("internal.operations");
+  const th = useTranslations("internal.hrdash");
+  const [dashTab, setDashTab] = useState<"overview" | "hr">("overview");
   const tu = useTranslations("internal.ui");
   const f = useHrmFormat();
   const [dates, setDates] = useState({ from: "", to: "" });
@@ -875,6 +902,13 @@ function AnalyticsPage() {
   return (
     <section className="hrm-page">
       <HrmHead kicker={t("kicker")} title={t("titles.analytics")} lead={t("subtitles.analytics")} actions={<><RefreshButton onClick={() => void load()} busy={loading} label={t("refresh")} /><button className="btn btn--pri btn--sm" type="button" onClick={() => void exportXlsx()} disabled={exporting}><IconDownload />{exporting ? t("exporting") : t("export")}</button></>} />
+      <div className="hrm-tabs hrm-viewtabs" role="tablist" aria-label={t("titles.analytics")}>
+        {(["overview", "hr"] as const).map((k) => (
+          <button key={k} type="button" role="tab" aria-selected={dashTab === k} className={dashTab === k ? "on" : ""} onClick={() => setDashTab(k)}>{k === "overview" ? <IconChartBar /> : <IconUsers />}{th(`tab.${k}`)}</button>
+        ))}
+      </div>
+      {dashTab === "hr" ? <HrDashboard /> : (
+      <>
       <FilterBar
         fields={[
           { key: "from", label: t("filters.dateFrom"), icon: IconCalendar, node: <DatePicker value={dates.from} onChange={(v) => setDates((d) => ({ ...d, from: v }))} placeholder={t("filters.dateFrom")} ariaLabel={t("filters.dateFrom")} max={dates.to || undefined} clearLabel={tu("clear")} />, active: !!dates.from, chip: dates.from ? `${t("filters.dateFrom")}: ${f.date(dates.from)}` : null, clear: () => setDates((d) => ({ ...d, from: "" })) },
@@ -927,6 +961,8 @@ function AnalyticsPage() {
             </div>
           ) : null}
         </>
+      )}
+      </>
       )}
     </section>
   );

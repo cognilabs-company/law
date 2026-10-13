@@ -4,11 +4,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { IconSearch, IconUser } from "@/components/icons";
+import { IconFileText, IconGraduation, IconSearch, IconUser, IconUserPlus } from "@/components/icons";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
-import type { NavGroup, NavIcon } from "./nav";
+import { listHrm } from "@/lib/services/hrm";
+import { navHref, type NavGroup, type NavIcon } from "./nav";
 
-type Hit = { id: string; label: string; sub: string; href: string; Icon: NavIcon; group: "pages" | "people" };
+type HitGroup = "pages" | "people" | "candidates" | "courses" | "policies";
+type Hit = { id: string; label: string; sub: string; href: string; Icon: NavIcon; group: HitGroup };
+
+// What the server is asked besides the pages and people (MedControl's
+// search providers): candidates, courses and policy documents.
+const REMOTE: { group: HitGroup; domain: string; type: string; route: string; Icon: NavIcon }[] = [
+  { group: "candidates", domain: "recruiting", type: "candidate", route: "/internal/recruiting", Icon: IconUserPlus },
+  { group: "courses", domain: "lms", type: "course", route: "/internal/learning", Icon: IconGraduation },
+  { group: "policies", domain: "policies", type: "document", route: "/internal/policies", Icon: IconFileText },
+];
 
 // Ctrl/⌘+K (or "/"): jump to any page of the workspace or to a person,
 // without the mouse. Matching ignores case and diacritics (o' = o).
@@ -21,7 +31,29 @@ export default function CommandPalette({ groups }: { groups: NavGroup[] }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [at, setAt] = useState(0);
+  const [remote, setRemote] = useState<{ q: string; hits: Hit[] }>({ q: "", hits: [] });
   const input = useRef<HTMLInputElement>(null);
+  const term = q.trim();
+
+  // Two letters or more, 200 ms after the last key; a newer query cancels
+  // the one still on its way; a module the account may not read is skipped.
+  useEffect(() => {
+    if (!open || term.length < 2) return;
+    const c = new AbortController();
+    const h = setTimeout(() => {
+      void Promise.all(
+        REMOTE.map((r) =>
+          listHrm(r.domain, { type: r.type, q: term, limit: 6, offset: 0 }, c.signal)
+            .then((page) => page.items.slice(0, 6).map<Hit>((row) => ({ id: `${r.group}-${row.id}`, label: row.title || row.code, sub: [row.code, row.status].filter(Boolean).join(" · "), href: `${r.route}?type=${r.type}&open=${encodeURIComponent(row.id)}`, Icon: r.Icon, group: r.group })))
+            .catch(() => [] as Hit[]),
+        ),
+      ).then((lists) => !c.signal.aborted && setRemote({ q: term, hits: lists.flat() }));
+    }, 200);
+    return () => {
+      clearTimeout(h);
+      c.abort();
+    };
+  }, [open, term]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -30,7 +62,7 @@ export default function CommandPalette({ groups }: { groups: NavGroup[] }) {
       if ((e.key === "k" || e.key === "K") && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         setOpen((v) => !v);
-      } else if (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      } else if (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey && !document.querySelector("[data-overlay]")) {
         e.preventDefault();
         setOpen(true);
       }
@@ -46,11 +78,18 @@ export default function CommandPalette({ groups }: { groups: NavGroup[] }) {
 
   const hits = useMemo<Hit[]>(() => {
     const needle = fold(q.trim());
-    const pages: Hit[] = groups.flatMap((g) => g.items.map((i) => ({ id: i.href, label: t(`nav.${i.key}`), sub: t(`groups.${g.key}`), href: i.href, Icon: i.Icon, group: "pages" as const })));
-    const people: Hit[] = needle.length < 2 ? [] : dir.employees.map((e) => ({ id: `e-${e.id}`, label: e.name || e.code, sub: [e.code, dir.positionTitle(e.positionId)].filter(Boolean).join(" · "), href: `/internal/live-office?employee=${encodeURIComponent(e.id)}`, Icon: IconUser, group: "people" as const }));
-    const match = (h: Hit) => !needle || fold(`${h.label} ${h.sub}`).includes(needle);
-    return [...pages.filter(match), ...people.filter(match).slice(0, 6)];
-  }, [q, groups, dir, t]);
+    const words = new Map<string, string>();
+    const pages: Hit[] = groups.flatMap((g) =>
+      g.items.map((i) => {
+        words.set(navHref(i), i.keywords ?? "");
+        return { id: navHref(i), label: t(`nav.${i.key}`), sub: t(`groups.${g.key}`), href: navHref(i), Icon: i.Icon, group: "pages" as const };
+      }),
+    );
+    const people: Hit[] = needle.length < 2 ? [] : dir.employees.map((e) => ({ id: `e-${e.id}`, label: e.name || e.code, sub: [e.code, dir.positionTitle(e.positionId)].filter(Boolean).join(" · "), href: `/internal/employees/${encodeURIComponent(e.id)}`, Icon: IconUser, group: "people" as const }));
+    const match = (h: Hit) => !needle || fold(`${h.label} ${h.sub} ${words.get(h.href) ?? ""}`).includes(needle);
+    const server = remote.q === q.trim() ? remote.hits : [];
+    return [...pages.filter(match).slice(0, needle ? 8 : 12), ...people.filter(match).slice(0, 6), ...server];
+  }, [q, groups, dir, t, remote]);
 
   if (!open) {
     return (
@@ -65,6 +104,7 @@ export default function CommandPalette({ groups }: { groups: NavGroup[] }) {
     setOpen(false);
     setQ("");
     setAt(0);
+    setRemote({ q: "", hits: [] });
   };
   const go = (h: Hit | undefined) => {
     if (!h) return;
@@ -81,7 +121,7 @@ export default function CommandPalette({ groups }: { groups: NavGroup[] }) {
       </button>
       {createPortal(
         <div className="hn-pal" role="dialog" aria-modal="true" aria-label={t("palette.open")} onMouseDown={(e) => e.target === e.currentTarget && close()}>
-          <div className="hn-pal__box">
+          <div className="hn-pal__box" data-overlay>
             <label className="hn-pal__in">
               <IconSearch />
               <input

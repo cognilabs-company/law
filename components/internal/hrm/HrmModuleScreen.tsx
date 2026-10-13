@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { ApiError } from "@/lib/http";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import {
@@ -52,18 +53,46 @@ const isDict = (v: unknown): v is Dict => !!v && typeof v === "object" && !Array
 const empty = (v: unknown) => v === undefined || v === null || (typeof v === "string" && !v.trim()) || (Array.isArray(v) && !v.length) || (isDict(v) && !Object.keys(v).length);
 const day = (iso: string) => iso.slice(0, 10);
 
-function readQuery(): { type: string; open: string } {
-  if (typeof window === "undefined") return { type: "", open: "" };
+// The list's state lives in the address bar (MedControl's useListState):
+// a view can be shared, and comes back on Back and on reload.
+type ListQuery = { type: string; open: string; filters: Filters; view: View; offset: number; limit: number };
+function readQuery(): ListQuery {
+  const none: ListQuery = { type: "", open: "", filters: NO_FILTERS, view: "list", offset: 0, limit: 25 };
+  if (typeof window === "undefined") return none;
   const q = new URLSearchParams(window.location.search);
-  return { type: q.get("type") ?? "", open: q.get("open") ?? "" };
+  const view = q.get("view");
+  const limit = Number(q.get("size"));
+  return {
+    type: q.get("type") ?? "",
+    open: q.get("open") ?? "",
+    filters: {
+      q: q.get("q") ?? "",
+      statuses: (q.get("status") ?? "").split(",").filter(Boolean),
+      employeeId: q.get("employee") ?? "",
+      unitId: q.get("unit") ?? "",
+      dateFrom: q.get("from") ?? "",
+      dateTo: q.get("to") ?? "",
+    },
+    view: view === "board" || view === "calendar" ? view : "list",
+    offset: Math.max(0, Number(q.get("offset")) || 0),
+    limit: PAGE_SIZES.includes(limit) ? limit : 25,
+  };
 }
-function writeQuery(type: string, open: string) {
+function writeQuery(s: ListQuery) {
   const u = new URL(window.location.href);
-  if (type) u.searchParams.set("type", type);
-  else u.searchParams.delete("type");
-  if (open) u.searchParams.set("open", open);
-  else u.searchParams.delete("open");
-  window.history.replaceState(window.history.state, "", u.toString());
+  const put = (k: string, v: string) => (v ? u.searchParams.set(k, v) : u.searchParams.delete(k));
+  put("type", s.type);
+  put("open", s.open);
+  put("q", s.filters.q);
+  put("status", s.filters.statuses.join(","));
+  put("employee", s.filters.employeeId);
+  put("unit", s.filters.unitId);
+  put("from", s.filters.dateFrom);
+  put("to", s.filters.dateTo);
+  put("view", s.view === "list" ? "" : s.view);
+  put("offset", s.offset ? String(s.offset) : "");
+  put("size", s.limit === 25 ? "" : String(s.limit));
+  if (u.toString() !== window.location.href) window.history.replaceState(window.history.state, "", u.toString());
 }
 
 // The value of a field as a person reads it.
@@ -124,7 +153,11 @@ export default function HrmModuleScreen({ domain }: { domain: string }) {
     );
   }
   if (!mod) return <HrmEmpty title={t("unknownModule")} text={domain} />;
-  return <ModuleView key={domain} cat={cat.data} mod={mod} />;
+  return (
+    <Suspense fallback={<HrmPanel><HrmLoading rows={6} /></HrmPanel>}>
+      <ModuleView key={domain} cat={cat.data} mod={mod} />
+    </Suspense>
+  );
 }
 
 function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
@@ -134,15 +167,22 @@ function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
   const dir = useHrmDirectory();
   const now = useNow();
   const fmt = useFormatValue();
-  const [typeKey, setTypeKey] = useState(() => {
-    const q = readQuery().type;
-    return mod.types.some((x) => x.key === q) ? q : "";
-  });
+  const validType = (q: string) => (mod.types.some((x) => x.key === q) ? q : "");
+  const [typeKey, setTypeKey] = useState(() => validType(readQuery().type));
+  // The menu links straight to a record type (?type=): a new one in the
+  // address bar is the tab on screen.
+  const urlType = useSearchParams().get("type") ?? "";
+  const [seenType, setSeenType] = useState(urlType);
+  if (urlType !== seenType) {
+    setSeenType(urlType);
+    if (validType(urlType) !== typeKey) setTypeKey(validType(urlType));
+  }
   const type = mod.types.find((x) => x.key === typeKey) ?? null;
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
-  const [q, setQ] = useState("");
-  const [paging, setPaging] = useState({ offset: 0, limit: 25 });
-  const [view, setView] = useState<View>("list");
+  const [start] = useState(readQuery);
+  const [filters, setFilters] = useState<Filters>(start.filters);
+  const [q, setQ] = useState(start.filters.q);
+  const [paging, setPaging] = useState({ offset: start.offset, limit: start.limit });
+  const [view, setView] = useState<View>(start.view);
   const [tick, setTick] = useState(0);
   const [page, setPage] = useState<{ key: string; data: HrmPage | null; err: string } | null>(null);
   const [summary, setSummary] = useState<HrmSummary | null>(null);
@@ -160,7 +200,7 @@ function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
     }, 350);
     return () => clearTimeout(h);
   }, [q]);
-  useEffect(() => writeQuery(typeKey, openId), [typeKey, openId]);
+  useEffect(() => writeQuery({ type: typeKey, open: openId, filters, view, offset: paging.offset, limit: paging.limit }), [typeKey, openId, filters, view, paging]);
 
   // The board and the month show a whole set, not one page of it.
   const wide = view !== "list";

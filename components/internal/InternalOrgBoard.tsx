@@ -31,7 +31,7 @@ export default function InternalOrgBoard({
   loading: boolean;
   view: OrgView;
   // What the whiteboard's right-click menu and keys do to a unit.
-  actions: Pick<Parameters<typeof OrgWhiteboard>[0], "onRename" | "onDuplicate" | "onAddAbove" | "onCloseUnit">;
+  actions: Pick<Parameters<typeof OrgWhiteboard>[0], "onRename" | "onDuplicate" | "onAddAbove" | "onCloseUnit" | "onMoveUnit" | "onUndo" | "undoLabel">;
   // The board could not be read: the page says so; no "no units yet" here.
   failed?: boolean;
   onEditUnit: (unitId: string) => void;

@@ -10,6 +10,7 @@ import {
   getEmployee360,
   getSchedules,
   normAttendance,
+  normEmployee,
   normPayroll,
   normSchedule,
   normTask,
@@ -17,7 +18,7 @@ import {
   type HrmEmployee,
   type HrmSchedule,
 } from "@/lib/services/internalHrm";
-import { IconChartBar, IconCheck, IconEdit, IconMail, IconMapPin, IconMonitor, IconPhone, IconPlus } from "@/components/icons";
+import { IconChartBar, IconCheck, IconEdit, IconExternal, IconMail, IconMapPin, IconMonitor, IconPhone, IconPlus } from "@/components/icons";
 import { Link } from "@/i18n/navigation";
 import { getMemberships, type LiveMembership } from "@/lib/services/internalLive";
 import DatePicker from "@/components/DatePicker";
@@ -40,74 +41,53 @@ const EMPLOYMENT_TYPES = ["full_time", "part_time", "contract", "intern"] as con
 
 // ── Employee 360 ───────────────────────────────────────────────────────────
 
-type Detail = { tasks: ReturnType<typeof normTask>[]; attendance: ReturnType<typeof normAttendance>[]; payroll: ReturnType<typeof normPayroll>[]; memberships: LiveMembership[]; schedule: HrmSchedule | null };
+export type Detail = { tasks: ReturnType<typeof normTask>[]; attendance: ReturnType<typeof normAttendance>[]; payroll: ReturnType<typeof normPayroll>[]; memberships: LiveMembership[]; schedule: HrmSchedule | null };
 
-export function Employee360({ employee, onClose, onSaved }: { employee: HrmEmployee | null; onClose: () => void; onSaved: () => void }) {
-  const t = useTranslations("internal.people");
-  const f = useHrmFormat();
-  const dir = useHrmDirectory();
-  const [detail, setDetail] = useState<Detail | null>(null);
-  const [tab, setTab] = useState<"overview" | "edit">("overview");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  const [prevId, setPrevId] = useState("");
-  const id = employee?.id ?? "";
-  if (id !== prevId) {
-    setPrevId(id);
-    setDetail(null);
-    setTab("overview");
-    setError(false);
-  }
-
+// The 360 answer, plus the person's departments (primary and additional,
+// guide §7–§8) and work schedule; the last two are optional — a list the
+// viewer may not read is simply left out.
+export function useEmployee360(id: string): { detail: Detail | null; loading: boolean; error: boolean; employee: HrmEmployee | null } {
+  const [state, setState] = useState<{ id: string; detail: Detail | null; employee: HrmEmployee | null; error: boolean }>({ id: "", detail: null, employee: null, error: false });
   useEffect(() => {
     if (!id) return;
     const c = new AbortController();
-    void Promise.resolve().then(async () => {
-      setLoading(true);
-      try {
-        // The 360 answer, plus the person's departments (primary and
-        // additional, guide §7–§8) and work schedule; the last two are
-        // optional — a list the viewer may not read is simply left out.
-        const [raw, memberships, schedules] = await Promise.all([
-          getEmployee360(id, c.signal),
-          getMemberships(id, c.signal).catch(() => [] as LiveMembership[]),
-          getSchedules({ employee_id: id, limit: 5 }, c.signal).catch(() => null),
-        ]);
+    void Promise.all([
+      getEmployee360(id, c.signal),
+      getMemberships(id, c.signal).catch(() => [] as LiveMembership[]),
+      getSchedules({ employee_id: id, limit: 5 }, c.signal).catch(() => null),
+    ])
+      .then(([raw, memberships, schedules]) => {
         const d = asDict(raw);
-        setDetail({
-          tasks: asArr(d.tasks).map(normTask),
-          attendance: asArr(d.attendance).map(normAttendance),
-          payroll: asArr(d.payroll ?? d.payroll_entries).map(normPayroll),
-          memberships,
-          schedule: schedules?.items.map(normSchedule).find((x) => x.status !== "inactive") ?? null,
+        setState({
+          id,
+          employee: Object.keys(asDict(d.employee)).length ? normEmployee(d.employee) : null,
+          error: false,
+          detail: {
+            tasks: asArr(d.tasks).map(normTask),
+            attendance: asArr(d.attendance).map(normAttendance),
+            payroll: asArr(d.payroll ?? d.payroll_entries).map(normPayroll),
+            memberships,
+            schedule: schedules?.items.map(normSchedule).find((x) => x.status !== "inactive") ?? null,
+          },
         });
-      } catch (cause) {
-        if (!(cause instanceof ApiError && cause.detail === "aborted")) setError(true);
-      } finally {
-        if (!c.signal.aborted) setLoading(false);
-      }
-    });
+      })
+      .catch((cause) => {
+        if (!(cause instanceof ApiError && cause.detail === "aborted") && !c.signal.aborted) setState({ id, detail: null, employee: null, error: true });
+      });
     return () => c.abort();
   }, [id]);
+  const cur = state.id === id ? state : null;
+  return { detail: cur?.detail ?? null, employee: cur?.employee ?? null, loading: Boolean(id) && !cur, error: cur?.error ?? false };
+}
 
-  if (!employee) return null;
-  const e = employee;
-
+// What the 360 says about a person: counts, assignment, contacts,
+// departments, schedule, recent tasks, attendance and pay.
+export function EmployeeOverview({ employee: e, detail, loading }: { employee: HrmEmployee; detail: Detail | null; loading: boolean }) {
+  const t = useTranslations("internal.people");
+  const f = useHrmFormat();
+  const dir = useHrmDirectory();
   return (
-    <HrmDrawer
-      open
-      onClose={onClose}
-      title={e.name || e.code}
-      sub={[e.code, dir.positionTitle(e.positionId)].filter(Boolean).join(" · ")}
-      head={<HrmAvatar name={e.name || e.code} size="lg" />}
-    >
-      <div className="hrm-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "overview"} className={tab === "overview" ? "on" : ""} onClick={() => setTab("overview")}><IconChartBar />{t("tabOverview")}</button>
-        <button type="button" role="tab" aria-selected={tab === "edit"} className={tab === "edit" ? "on" : ""} onClick={() => setTab("edit")}><IconEdit />{t("tabEdit")}</button>
-      </div>
-      {error ? <HrmError text={t("error")} /> : null}
-      {tab === "overview" ? (
-        <>
+    <>
           <div className="hrm-minis">
             <div className="hrm-mini"><b>{detail ? detail.tasks.length : "…"}</b><span>{t("tasksCount")}</span></div>
             <div className="hrm-mini"><b>{detail ? detail.attendance.length : "…"}</b><span>{t("attendanceCount")}</span></div>
@@ -195,15 +175,45 @@ export function Employee360({ employee, onClose, onSaved }: { employee: HrmEmplo
               ) : null}
             </>
           ) : null}
-        </>
-      ) : (
-        <EmployeeEdit employee={e} onSaved={onSaved} />
-      )}
+    </>
+  );
+}
+
+export function Employee360({ employee, onClose, onSaved }: { employee: HrmEmployee | null; onClose: () => void; onSaved: () => void }) {
+  const t = useTranslations("internal.people");
+  const dir = useHrmDirectory();
+  const [tab, setTab] = useState<"overview" | "edit">("overview");
+  const [prevId, setPrevId] = useState("");
+  const id = employee?.id ?? "";
+  if (id !== prevId) {
+    setPrevId(id);
+    setTab("overview");
+  }
+  const { detail, loading, error } = useEmployee360(id);
+
+  if (!employee) return null;
+  const e = employee;
+
+  return (
+    <HrmDrawer
+      open
+      onClose={onClose}
+      title={e.name || e.code}
+      sub={[e.code, dir.positionTitle(e.positionId)].filter(Boolean).join(" · ")}
+      head={<HrmAvatar name={e.name || e.code} size="lg" />}
+    >
+      <div className="hrm-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === "overview"} className={tab === "overview" ? "on" : ""} onClick={() => setTab("overview")}><IconChartBar />{t("tabOverview")}</button>
+        <button type="button" role="tab" aria-selected={tab === "edit"} className={tab === "edit" ? "on" : ""} onClick={() => setTab("edit")}><IconEdit />{t("tabEdit")}</button>
+        <Link role="tab" aria-selected={false} href={`/internal/employees/${encodeURIComponent(e.id)}`}><IconExternal />{t("openCard")}</Link>
+      </div>
+      {error ? <HrmError text={t("error")} /> : null}
+      {tab === "overview" ? <EmployeeOverview employee={e} detail={detail} loading={loading} /> : <EmployeeEdit employee={e} onSaved={onSaved} />}
     </HrmDrawer>
   );
 }
 
-function EmployeeEdit({ employee: e, onSaved }: { employee: HrmEmployee; onSaved: () => void }) {
+export function EmployeeEdit({ employee: e, onSaved }: { employee: HrmEmployee; onSaved: () => void }) {
   const t = useTranslations("internal.people");
   const tu = useTranslations("internal.ui");
   const label = useStatusLabel();

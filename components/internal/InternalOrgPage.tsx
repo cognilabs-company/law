@@ -33,6 +33,8 @@ const POSITION_CATEGORIES = ["management", "operations", "support", "legal", "do
 const STATUSES = ["active", "inactive"] as const;
 const EMPTY_BOARD: OrgBoard = { nodes: [], edges: [], stats: {}, layout: {}, raw: {} };
 
+type UndoStep = { kind: "move" | "rename" | "close"; id: string; prev: string; label: string };
+
 export default function InternalOrgPage() {
   const t = useTranslations("internal.people");
   const dir = useHrmDirectory();
@@ -42,6 +44,7 @@ export default function InternalOrgPage() {
   const [error, setError] = useState(false);
   const [unitForm, setUnitForm] = useState<UnitFormState | null>(null);
   const [closing, setClosing] = useState<{ id: string; name: string } | null>(null);
+  const [undo, setUndo] = useState<UndoStep[]>([]);
   const [closeBusy, setCloseBusy] = useState(false);
   const [closeErr, setCloseErr] = useState("");
   const [positionForm, setPositionForm] = useState<HrmPosition | "new" | null>(null);
@@ -95,6 +98,27 @@ export default function InternalOrgPage() {
     return normEmployee({ ...asDict(node.raw.employee), id: employeeId, display_name: node.label, employee_code: node.raw.employee_code, assignment: node.raw.assignment });
   }, [employeeId, dir, board.nodes]);
 
+  // The board's own changes, newest last: Ctrl+Z (or the toolbar) turns the
+  // last one back — a move, a rename or a closed unit.
+  const parentOf = (id: string) => dir.unit(id)?.parentId ?? board.nodes.find((n) => n.entityId === id && n.type !== "employee")?.parentId.replace(/^unit:/, "") ?? "";
+  const unitLabel = (id: string) => dir.unitName(id) || board.nodes.find((n) => n.entityId === id && n.type !== "employee")?.label || "";
+  const pushUndo = (step: UndoStep) => setUndo((u) => [...u.slice(-19), step]);
+  async function undoLast() {
+    const step = undo[undo.length - 1];
+    if (!step) return;
+    try {
+      if (step.kind === "move") await updateOrgUnit(step.id, { parent_id: step.prev || null });
+      else if (step.kind === "rename") await updateOrgUnit(step.id, { name: step.prev });
+      else await updateOrgUnit(step.id, { status: step.prev });
+      setUndo((u) => u.slice(0, -1));
+      toast(t("board.undone"), { tone: "ok" });
+      refreshHrmDirectory();
+      void load(undefined, true);
+    } catch (cause) {
+      toast(apiMessage(cause, t("saveError")), { tone: "err" });
+    }
+  }
+
   return (
     <section className="hrm-page">
       <HrmHead
@@ -126,13 +150,29 @@ export default function InternalOrgPage() {
         failed={error}
         actions={{
           onRename: async (id, name) => {
+            const prev = unitLabel(id);
             try {
               await updateOrgUnit(id, { name });
+              pushUndo({ kind: "rename", id, prev, label: t("board.undoRename", { name: prev }) });
               void load(undefined, true);
             } catch (cause) {
               toast(apiMessage(cause, t("saveError")), { tone: "err" });
             }
           },
+          onMoveUnit: async (id, parentId) => {
+            const prev = parentOf(id);
+            try {
+              await updateOrgUnit(id, { parent_id: parentId || null });
+              pushUndo({ kind: "move", id, prev, label: t("board.undoMove", { name: unitLabel(id) }) });
+              toast(t("board.moved", { name: unitLabel(id), to: unitLabel(parentId) }), { tone: "ok" });
+              refreshHrmDirectory();
+              void load(undefined, true);
+            } catch (cause) {
+              toast(apiMessage(cause, t("saveError")), { tone: "err" });
+            }
+          },
+          onUndo: () => void undoLast(),
+          undoLabel: undo.length ? undo[undo.length - 1].label : "",
           onDuplicate: (id) => setUnitForm({ id: "", parentId: "", copyOf: id }),
           onAddAbove: (id) => setUnitForm({ id: "", parentId: dir.unit(id)?.parentId ?? (board.nodes.find((n) => n.entityId === id && n.type !== "employee")?.parentId.replace(/^unit:/, "") ?? ""), above: id }),
           onCloseUnit: (id) => {
@@ -187,6 +227,7 @@ export default function InternalOrgPage() {
                 setCloseErr("");
                 try {
                   await updateOrgUnit(closing.id, { status: "inactive" });
+                  pushUndo({ kind: "close", id: closing.id, prev: "active", label: t("board.undoClose", { name: closing.name }) });
                   setClosing(null);
                   refreshHrmDirectory();
                   void load(undefined, true);

@@ -27,6 +27,7 @@ import {
   IconUser,
   IconUserPlus,
   IconUsers,
+  IconHistory,
 } from "@/components/icons";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { HrmEmpty, HrmError, HrmKv, HrmLoading, HrmPerson, HrmStatus, useHrmFormat } from "@/components/internal/HrmUi";
@@ -142,6 +143,9 @@ export default function OrgWhiteboard({
   onDuplicate,
   onAddAbove,
   onCloseUnit,
+  onMoveUnit,
+  onUndo,
+  undoLabel,
 }: {
   trees: Tree[];
   onEditUnit: (unitId: string) => void;
@@ -154,8 +158,14 @@ export default function OrgWhiteboard({
   // A new unit between this one and its parent (or above the top).
   onAddAbove: (unitId: string) => void;
   onCloseUnit: (unitId: string) => void;
+  // A card dropped on another one moves under it (MedControl's re-parent).
+  onMoveUnit?: (unitId: string, parentId: string) => Promise<void>;
+  // The last change on the board, undone (Ctrl+Z).
+  onUndo?: () => void;
+  undoLabel?: string;
 }) {
   const tb = useTranslations("internal.people.board");
+  const [drag, setDrag] = useState<{ id: string; over: string } | null>(null);
   const tu = useTranslations("internal.ui");
   const shell = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<BoardMode>("structure");
@@ -249,6 +259,9 @@ export default function OrgWhiteboard({
   const moved = useRef(false);
   const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest("button, input, .ob-panel, .ob-tools, .ob-legend, .ob-mini, a")) return;
+    // With a mouse, pressing on a card starts dragging the card; the board
+    // pans from the empty space around the cards.
+    if (onMoveUnit && e.pointerType === "mouse" && (e.target as HTMLElement).closest(".obc")) return;
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     moved.current = false;
     // The pointer is captured only once it moves: a plain press still
@@ -365,6 +378,15 @@ export default function OrgWhiteboard({
     return { x: clientX - (r?.left ?? 0), y: clientY - (r?.top ?? 0) };
   };
   const boxOfId = (id: string) => boxes.find((b) => b.tree.node.id === id) ?? null;
+  // Where a dragged unit may go: not onto itself, its own branch or the
+  // parent it already has.
+  const canDrop = (from: string, to: string) => {
+    if (!from || !to || from === to) return false;
+    const src = boxOfId(from);
+    if (src?.parent?.tree.node.id === to) return false;
+    for (let b = boxOfId(to); b; b = b.parent) if (b.tree.node.id === from) return false;
+    return true;
+  };
   // Show one branch whole: the camera fits the unit and everything under it.
   const showBranch = (id: string) => {
     const root = boxOfId(id);
@@ -533,6 +555,10 @@ export default function OrgWhiteboard({
         if (e.key === "+" || e.key === "=") zoomAt(1.2, viewW / 2, size.h / 2);
         if (e.key === "-") zoomAt(1 / 1.2, viewW / 2, size.h / 2);
         if (e.key === "0") fit();
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && onUndo && undoLabel) {
+          e.preventDefault();
+          onUndo();
+        }
       }}
     >
       <div className="ob-world" style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.k})` }} onClick={(e) => e.target === e.currentTarget && !moved.current && setSelected("")}>
@@ -587,6 +613,23 @@ export default function OrgWhiteboard({
               shell.current?.focus({ preventScroll: true });
               if (name && name !== b.tree.node.label) await onRename(b.tree.node.entityId, name);
             }}
+            drag={
+              onMoveUnit
+                ? {
+                    dragging: drag?.id === b.tree.node.id,
+                    over: drag?.over === b.tree.node.id,
+                    start: () => setDrag({ id: b.tree.node.id, over: "" }),
+                    end: () => setDrag(null),
+                    enter: () => setDrag((d) => (d && canDrop(d.id, b.tree.node.id) ? { ...d, over: b.tree.node.id } : d)),
+                    ok: () => !!drag && canDrop(drag.id, b.tree.node.id),
+                    drop: () => {
+                      const src = drag ? boxOfId(drag.id) : null;
+                      setDrag(null);
+                      if (src && canDrop(src.tree.node.id, b.tree.node.id)) void onMoveUnit(src.tree.node.entityId, b.tree.node.entityId);
+                    },
+                  }
+                : undefined
+            }
             onShortcut={(key) => {
               const id = b.tree.node.entityId;
               if (key === "rename") setEditing(b.tree.node.id);
@@ -617,6 +660,12 @@ export default function OrgWhiteboard({
       ) : null}
 
       <div className="ob-tools" role="toolbar" aria-label={tb("toolbar")}>
+        {onUndo && undoLabel ? (
+          <button type="button" className="ob-undo" onClick={onUndo} title={`${tb("undo")} (Ctrl+Z)`}>
+            <IconHistory aria-hidden />
+            <span>{tb("undoWhat", { what: undoLabel })}</span>
+          </button>
+        ) : null}
         <div className="ob-seg" role="radiogroup" aria-label={tb("cardMode")}>
           {(["structure", "people", "positions"] as BoardMode[]).map((m) => (
             <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? "on" : ""} onClick={() => setMode(m)} title={tb(`mode.${m}`)}>
@@ -783,6 +832,7 @@ function Card({
   onMenu,
   onRename,
   onShortcut,
+  drag,
 }: {
   box: Box;
   mode: BoardMode;
@@ -803,6 +853,7 @@ function Card({
   onMenu: (clientX: number, clientY: number) => void;
   onRename: (name: string) => void;
   onShortcut: (key: "rename" | "child" | "duplicate" | "close") => void;
+  drag?: { dragging: boolean; over: boolean; start: () => void; end: () => void; enter: () => void; ok: () => boolean; drop: () => void };
 }) {
   const tb = useTranslations("internal.people.board");
   // A long press on a touch screen opens the same menu as a right-click.
@@ -831,9 +882,28 @@ function Card({
   const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
   return (
     <div
-      className={`obc${selected ? " is-sel" : ""}${dim ? " is-dim" : ""}${match ? " is-match" : ""}${chain ? " is-chain" : ""}${menuOn ? " is-menu" : ""}`}
+      className={`obc${selected ? " is-sel" : ""}${dim ? " is-dim" : ""}${match ? " is-match" : ""}${chain ? " is-chain" : ""}${menuOn ? " is-menu" : ""}${drag?.dragging ? " is-dragging" : ""}${drag?.over ? " is-drop" : ""}`}
       style={style}
       data-unit={n.entityId}
+      draggable={!!drag && !editing}
+      onDragStart={(e) => {
+        if (!drag) return;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", n.label);
+        drag.start();
+      }}
+      onDragEnd={() => drag?.end()}
+      onDragEnter={() => drag?.enter()}
+      onDragOver={(e) => {
+        if (drag?.ok()) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        }
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        drag?.drop();
+      }}
       role="button"
       tabIndex={0}
       aria-pressed={selected}
