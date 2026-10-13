@@ -57,6 +57,7 @@ import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
 import AccountAudit from "@/components/portal/AccountAudit";
 import ClientPayments from "@/components/portal/ClientPayments";
 import ClientComplaints from "@/components/complaints/ClientComplaints";
+import ClientWarranty from "@/components/portal/ClientWarranty";
 import { statusLabel } from "@/lib/labels";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -73,7 +74,7 @@ const TAB_ICON: Record<ProfileTab, typeof IconUser> = {
 const TAB_REVEAL: Record<ProfileTab, RegExp> = {
   personal: /^profile[.:](family|identity)/,
   payments: /^(payments|profile[.:](cards|subscription))/,
-  complaints: /^(complaints|button:new-complaint)/,
+  complaints: /^(complaints|warranty|button:new-complaint)/,
   security: /^profile[.:](two-factor|telegram|sessions|security-events|account-audit)/,
   notifications: /^profile[.:]notification-prefs/,
 };
@@ -136,7 +137,12 @@ function ClientProfile() {
   const panels: Record<ProfileTab, React.ReactNode> = {
     personal: <PersonalTab reloadKey={key} onChanged={reload} />,
     payments: <PaymentsTab reloadKey={key} sub={p?.subscription} loading={prof.status === "loading"} />,
-    complaints: <ClientComplaints />,
+    complaints: (
+      <div className="cprofile__stack">
+        <ClientComplaints />
+        <ClientWarranty />
+      </div>
+    ),
     security: <SecurityTab />,
     notifications: <NotificationPrefsCard />,
   };

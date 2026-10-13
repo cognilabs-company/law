@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { rateDocumentRequest, isRatingClosed, ratingOpen, opensComplaint, type QualityComplaint, type UrgentRating } from "@/lib/services/backend";
 import { contactBlockedOf, errDetail, logApiError } from "@/lib/http";
+import { profileTabHref } from "@/lib/profileTabs";
 import { Link } from "@/i18n/navigation";
 import { IconStarRate, IconClock, IconAlert, IconArrowRight } from "@/components/icons";
 
@@ -128,7 +129,7 @@ export default function DocRatingBox({
         <div className="drate drate--qc" role="status">
           <b><IconAlert />{tr("complaintSent")}</b>
           {qc.workId ? <em className="drate__qcid">{qc.workId}</em> : null}
-          <Link href={qc.workId ? `/portal/client/complaints?work=${encodeURIComponent(qc.workId)}` : "/portal/client/complaints"} className="drate__qclink">
+          <Link href={profileTabHref("complaints", qc.workId ? { work: qc.workId } : {})} className="drate__qclink">
             {tr("complaintOpen")}
             <IconArrowRight />
           </Link>

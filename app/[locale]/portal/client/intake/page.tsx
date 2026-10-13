@@ -19,6 +19,7 @@ import { fmtUzs } from "@/lib/money";
 import { HOTLINE, HOTLINE_TEL } from "@/lib/contact";
 import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
 import { PassportView } from "@/components/portal/ServicePassport";
+import LawyerProfileModal from "@/components/portal/LawyerProfileModal";
 import {
   IconSparkle,
   IconArrowRight,
@@ -38,14 +39,14 @@ const URGENT = new Set(["urgent", "high", "critical"]);
 
 export default function ClientIntake() {
   const t = useTranslations("portal.client.intake");
-  const te = useTranslations("enums");
-  const locale = useLocale();
   const router = useRouter();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AiClassification | null>(null);
   const [matches, setMatches] = useState<LawyerMatch[]>([]);
   const [failed, setFailed] = useState(false);
+  const [viewId, setViewId] = useState<string | null>(null);
+  const prev = useResource(() => getMyMatches(), []);
   // Official sources the AI relies on (T1-04), shown before the first analysis.
   const corpus = useResource(getLegalCorpus, []);
 
@@ -60,7 +61,7 @@ export default function ClientIntake() {
       setResult(cls);
       // The classification created a lead; the backend matches advocates to it.
       getMyMatches()
-        .then((m) => setMatches(m.slice(0, 4)))
+        .then((m) => setMatches(m))
         .catch(() => setMatches([]));
     } catch {
       setFailed(true);
@@ -93,6 +94,12 @@ export default function ClientIntake() {
         <p className="intake__hint">{t("hint")}</p>
         <div className="intake__bh"><BusinessHoursBadge note={t("operatorHours")} /></div>
       </div>
+
+      {!result && prev.data.length ? (
+        <div className="ppanel">
+          <MatchPicks items={prev.data} title={t("prevMatchesTitle")} onView={setViewId} />
+        </div>
+      ) : null}
 
       {result ? (
         <>
@@ -152,32 +159,7 @@ export default function ClientIntake() {
               </button>
             ) : null}
 
-            {matches.length ? (
-              <div className="intake__matches">
-                <div className="intake__resh" style={{ marginTop: 14 }}>
-                  <b>{t("matchesTitle")}</b>
-                  <button className="rf__link" type="button" onClick={() => router.push("/portal/client/matches")}>
-                    {t("viewAllMatches")}
-                  </button>
-                </div>
-                <div className="advpick">
-                  {matches.map((m) => (
-                    <button key={m.id} type="button" className="advpick__c" onClick={() => router.push("/portal/client/matches")}>
-                      <span className="advpick__av">{initials(m.name || "A")}</span>
-                      <span className="advpick__m">
-                        <b>{m.name || "—"}</b>
-                        <span className="advpick__stats">
-                          <i><IconStar />{m.rating ? fmtRating(m.rating, locale) : "—"}</i>
-                          {m.region ? <i><IconMapPin />{te.has(`regions.${m.region}`) ? te(`regions.${m.region}`) : humanizeSlug(m.region)}</i> : null}
-                          {m.area ? <i>{m.area.split(",").map((a) => humanizeSlug(a.trim())).filter(Boolean).join(", ")}</i> : null}
-                        </span>
-                      </span>
-                      <span className="advpick__price">{t("matchPct", { n: Math.min(m.matchPct, 100) })}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+            {matches.length ? <MatchPicks items={matches} title={t("matchesTitle")} spaced onView={setViewId} /> : null}
 
             <SourceList sources={result.sources} title={t("sourcesTitle")} />
             {result.answerStatus === "reliable_source_required" ? (
@@ -210,6 +192,45 @@ export default function ClientIntake() {
           <SourceList sources={sources} title={t("corpusTitle")} lead={t("corpusLead")} />
         </div>
       ) : null}
+
+      <LawyerProfileModal userId={viewId} open={viewId !== null} onClose={() => setViewId(null)} />
+    </div>
+  );
+}
+
+function MatchPicks({ items, title, spaced, onView }: { items: LawyerMatch[]; title: string; spaced?: boolean; onView: (id: string) => void }) {
+  const t = useTranslations("portal.client.intake");
+  const te = useTranslations("enums");
+  const locale = useLocale();
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, 4);
+  return (
+    <div className="intake__matches">
+      <div className="intake__resh" style={spaced ? { marginTop: 14 } : undefined}>
+        <b>{title}</b>
+        {items.length > 4 ? (
+          <button className="rf__link" type="button" aria-expanded={all} onClick={() => setAll((v) => !v)}>
+            {all ? t("fewerMatches") : t("viewAllMatches")}
+          </button>
+        ) : null}
+      </div>
+      <div className="advpick">
+        {shown.map((m) => (
+          <button key={m.id} type="button" className="advpick__c" onClick={() => onView(m.lawyerUserId || m.id)}>
+            <span className="advpick__av">{initials(m.name || "A")}</span>
+            <span className="advpick__m">
+              <b>{m.name || "—"}</b>
+              <span className="advpick__stats">
+                <i><IconStar />{m.rating ? fmtRating(m.rating, locale) : "—"}</i>
+                {m.region ? <i><IconMapPin />{te.has(`regions.${m.region}`) ? te(`regions.${m.region}`) : humanizeSlug(m.region)}</i> : null}
+                {m.area ? <i>{m.area.split(",").map((a) => humanizeSlug(a.trim())).filter(Boolean).join(", ")}</i> : null}
+              </span>
+              {m.reason ? <span className="mtchcard__reason">{m.reason}</span> : null}
+            </span>
+            <span className="advpick__price">{t("matchPct", { n: Math.min(m.matchPct, 100) })}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -7435,6 +7435,8 @@
         "matchPct": "{n}% match",
         "orderRecommended": "Order this service",
         "viewAllMatches": "See all",
+        "prevMatchesTitle": "Matches from your last analysis",
+        "fewerMatches": "Show fewer",
         "orSos": "Urgent — SOS",
         "urgency": {
           "low": "Low",
@@ -7811,6 +7813,7 @@
         "p2": "Every case supervised by LexGo",
         "p3": "Guarantee of a fair resolution",
         "requestTitle": "Replace the lawyer",
+        "sendFailed": "Couldn't send the request",
         "requestLead": "Describe the reason — we'll review it.",
         "caseLabel": "Case (optional)",
         "casePh": "Case name or number",
@@ -7931,6 +7934,7 @@
       },
       "reviews": {
         "pendingTitle": "Cases to review",
+        "sendFailed": "Couldn't send the rating",
         "pendingLead": "Rate your completed cases.",
         "noPending": "Nothing to review",
         "noPendingText": "Completed cases will appear here.",

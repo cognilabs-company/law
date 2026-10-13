@@ -37,6 +37,7 @@ import {
   IconSearch,
 } from "@/components/icons";
 import { useAiReveal } from "@/lib/guide/targets";
+import { profileTabHref } from "@/lib/profileTabs";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 
@@ -68,9 +69,9 @@ const TYPE_ICON: Record<string, typeof IconBriefcase> = {
 const TYPE_HREF: Record<string, string> = {
   document_lawyer_work: "/portal/client/documents",
   urgent_advokat: "/portal/client/urgent",
-  quality_complaint: "/portal/client/complaints",
-  complaint: "/portal/client/complaints",
-  service_order: "/portal/client/payments",
+  quality_complaint: profileTabHref("complaints"),
+  complaint: profileTabHref("complaints"),
+  service_order: profileTabHref("payments"),
   legal_case: "/portal/client/cases",
 };
 
@@ -462,7 +463,7 @@ function WorkDetail({ row, typeName }: { row: ClientWork; typeName: (k: string) 
   })();
 
   const base = TYPE_HREF[row.type] || "";
-  const href = base && (row.type === "quality_complaint" || row.type === "complaint") && row.workId ? `${base}?work=${encodeURIComponent(row.workId)}` : base;
+  const href = base && (row.type === "quality_complaint" || row.type === "complaint") && row.workId ? profileTabHref("complaints", { work: row.workId }) : base;
 
   return (
     <div className="cwdet">

@@ -16,6 +16,7 @@ import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { aiSessionId, subscribeAiSession } from "@/lib/ai/session";
 import type { AiHandoffTurn } from "@/lib/ai/commands";
 import { initials } from "@/lib/lawyers";
+import { profileTabHref } from "@/lib/profileTabs";
 import {
   SUPPORT_CATEGORIES,
   createSupportTicket,
@@ -781,7 +782,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
             </li>
             {client ? (
               <li>
-                <Link href="/portal/client/complaints" className="supalt__row" data-ai-target="support:complaints" data-ai-id="support.channels.complaint">
+                <Link href={profileTabHref("complaints")} className="supalt__row" data-ai-target="support:complaints" data-ai-id="support.channels.complaint">
                   <span className="supalt__ic supalt__ic--case" aria-hidden="true">
                     <IconAlert />
                   </span>

@@ -37,6 +37,7 @@ import CallRoom from "@/components/chat/CallRoom";
 import { useAiReveal } from "@/lib/guide/targets";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
+import { profileTabHref } from "@/lib/profileTabs";
 import { Skeleton, EmptyState } from "./DataState";
 // The five-point star the rating rows draw. It is not in components/icons.tsx
 // because it carries pathLength="360" for the dashed idle animation, and that
@@ -1475,7 +1476,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
         <div className="uamore__block uamore__block--warn" role="status">
           <b><IconAlert />{tr("complaintSent")}</b>
           {rQc.workId ? <span className="advmuted">{rQc.workId}</span> : null}
-          <Link href={rQc.workId ? `/portal/client/complaints?work=${encodeURIComponent(rQc.workId)}` : "/portal/client/complaints"} className="uamore__qclink" data-ai-id="urgent_advokat.rating.complaint-link">
+          <Link href={profileTabHref("complaints", rQc.workId ? { work: rQc.workId } : {})} className="uamore__qclink" data-ai-id="urgent_advokat.rating.complaint-link">
             {tr("complaintOpen")}
             <IconArrowRight />
           </Link>

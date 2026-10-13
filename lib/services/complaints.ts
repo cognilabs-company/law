@@ -1,4 +1,5 @@
 import { http, asDict, asStr, asNum, asArr, parseServerTime, type Dict } from "@/lib/http";
+import { profileTabHref } from "@/lib/profileTabs";
 
 export const COMPLAINT_CATEGORIES = ["service", "lawyer", "payment", "quality", "sla", "other"] as const;
 export type ComplaintCategory = (typeof COMPLAINT_CATEGORIES)[number];
@@ -289,7 +290,7 @@ export function workHref(type: string): string {
   if (type === "document_lawyer_work") return "/portal/client/documents";
   if (type === "urgent_advokat") return "/portal/client/urgent";
   if (type === "legal_case") return "/portal/client/cases";
-  if (type === "service_order") return "/portal/client/payments";
+  if (type === "service_order") return profileTabHref("payments");
   return "/portal/client/works";
 }
 

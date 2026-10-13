@@ -8,6 +8,7 @@
 // all, so the title is the only hint for those — hence the title heuristics.
 import { asNum, asStr, type Dict } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
+import { profileTabHref } from "@/lib/profileTabs";
 
 export const NOTIF_CATEGORIES = ["all", "orders", "payments", "chat", "documents", "system", "marketing"] as const;
 export type NotifTab = (typeof NOTIF_CATEGORIES)[number];
@@ -183,7 +184,7 @@ export function notifLink(event: string, category: NotifCategory, data: Dict, ro
   if (event.startsWith("quality_complaint.") && (staff || role === "client")) {
     if (staff) return "/admin/call-center";
     const ref = asStr(data.complaint_id).trim() || asStr(data.work_id).trim();
-    return ref ? `/portal/client/complaints?work=${encodeURIComponent(ref)}` : "/portal/client/complaints";
+    return profileTabHref("complaints", ref ? { work: ref } : {});
   }
   if (event.startsWith("marketplace_")) {
     if (role !== "client") return `/portal/${role}/marketplace-orders`;
@@ -224,7 +225,7 @@ export function notifLink(event: string, category: NotifCategory, data: Dict, ro
   }
   if (event.startsWith("calendar_event") && role !== "client") return `/portal/${role}/calendar`;
   if (category === "orders") return `/portal/${role}/cases`;
-  if (category === "payments") return role === "client" ? "/portal/client/payments" : `/portal/${role}/cases`;
+  if (category === "payments") return role === "client" ? profileTabHref("payments") : `/portal/${role}/cases`;
   if (category === "documents") return role === "client" ? "/portal/client/cases" : `/portal/${role}/document-requests`;
   if (category === "chat") return role === "client" ? "/portal/client/messages" : role === "lawyer" ? "/portal/lawyer/chat" : "/portal/advocate/messages";
   if (event === "upsell_redeemed" && role !== "client") return `/portal/${role}/promotion`;

@@ -37,6 +37,7 @@ import { primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
 import { dateOnly, dateTimeFull, timeOnly } from "@/lib/date";
 import { initials } from "@/lib/lawyers";
+import { profileTabHref } from "@/lib/profileTabs";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField } from "@/lib/ai/registry";
 import ContactBlockedNote from "@/components/ContactBlockedNote";
@@ -75,7 +76,7 @@ type AssistCard = { key: string; info: SupportAssistInfo; at: string };
 type Row = { kind: "msg"; m: SupportMessage; at: number } | { kind: "card"; c: AssistCard; at: number };
 
 const ASSIST_HREF: Partial<Record<SupportAssistKind, string>> = {
-  subscription_checkout: "/portal/client/payments",
+  subscription_checkout: profileTabHref("payments"),
   document_request: "/portal/client/documents",
   marketplace_purchase: "/portal/client/marketplace-orders",
   urgent_advokat: "/portal/client/urgent",

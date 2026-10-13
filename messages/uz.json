@@ -7441,6 +7441,8 @@
         "matchPct": "{n}% mos",
         "orderRecommended": "Bu xizmatni buyurtma qilish",
         "viewAllMatches": "Barchasini ko'rish",
+        "prevMatchesTitle": "Oldingi tahlil bo'yicha mos advokatlar",
+        "fewerMatches": "Kamroq ko'rsatish",
         "orSos": "Shoshilinch bo'lsa — SOS",
         "urgency": {
           "low": "Past",
@@ -7817,6 +7819,7 @@
         "p2": "Har bir ish LexGo nazoratida",
         "p3": "Adolatli yechim kafolati",
         "requestTitle": "Advokatni almashtirish",
+        "sendFailed": "So'rovni yuborib bo'lmadi",
         "requestLead": "Sababini yozing — biz ko'rib chiqamiz.",
         "caseLabel": "Ish (ixtiyoriy)",
         "casePh": "Ish nomi yoki raqami",
@@ -7937,6 +7940,7 @@
       },
       "reviews": {
         "pendingTitle": "Baholanmagan ishlar",
+        "sendFailed": "Bahoni yuborib bo'lmadi",
         "pendingLead": "Yakunlangan ishlaringizni baholang.",
         "noPending": "Baholanmagan ish yo'q",
         "noPendingText": "Ish yakunlangach shu yerda ko'rinadi.",

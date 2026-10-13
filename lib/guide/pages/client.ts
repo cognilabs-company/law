@@ -174,16 +174,6 @@ export const CLIENT_PAGES: GuidePage[] = [
     suggestions: ["suggest.client.buyService", "suggest.client.safeDeal"],
   },
   {
-    id: "client_matches",
-    match: ["/portal/client/matches"],
-    roles: ["client"],
-    tour: [
-      { target: "ai-help:current-page", text: "tours.client_matches.title" },
-      { target: "matches:list", text: "tours.client_matches.list" },
-    ],
-    suggestions: ["suggest.client.matchWhy", "suggest.client.lawyer"],
-  },
-  {
     id: "client_messages",
     match: ["/portal/client/messages"],
     roles: ["client"],
@@ -237,6 +227,7 @@ export const CLIENT_PAGES: GuidePage[] = [
       { target: "profile:identity", text: "tours.client_profile.identity" },
       { target: "payments:history", text: "tours.client_payments.history" },
       { target: "button:new-complaint", text: "tours.client_complaints.new" },
+      { target: "warranty:form", text: "tours.client_warranty.form" },
       { target: "profile:two-factor", text: "tours.client_profile.twoFactor" },
       { target: "profile:telegram", text: "tours.client_profile.telegram" },
       { target: "profile:notification-prefs", text: "tours.client_profile.notifications" },
@@ -255,17 +246,6 @@ export const CLIENT_PAGES: GuidePage[] = [
       { target: "referrals:invites", text: "tours.client_referrals.invites" },
     ],
     suggestions: ["suggest.client.referralShare", "suggest.client.referralBonus"],
-  },
-  {
-    id: "client_reviews",
-    match: ["/portal/client/reviews"],
-    roles: ["client"],
-    tour: [
-      { target: "ai-help:current-page", text: "tours.client_reviews.title" },
-      { target: "reviews:pending", text: "tours.client_reviews.pending" },
-      { target: "reviews:mine", text: "tours.client_reviews.mine" },
-    ],
-    suggestions: ["suggest.client.reviewLeave", "suggest.client.unhappy"],
   },
   {
     id: "client_service_document",
@@ -300,18 +280,6 @@ export const CLIENT_PAGES: GuidePage[] = [
     suggestions: ["suggest.client.urgent", "suggest.client.sosHow"],
   },
   {
-    id: "client_warranty",
-    match: ["/portal/client/warranty"],
-    roles: ["client"],
-    tour: [
-      { target: "ai-help:current-page", text: "tours.client_warranty.title" },
-      { target: "warranty:points", text: "tours.client_warranty.points" },
-      { target: "warranty:form", text: "tours.client_warranty.form" },
-      { target: "warranty:claims", text: "tours.client_warranty.claims" },
-    ],
-    suggestions: ["suggest.client.lawyerChange", "suggest.client.unhappy"],
-  },
-  {
     id: "client_works",
     match: ["/portal/client/works"],
     roles: ["client"],
@@ -319,6 +287,7 @@ export const CLIENT_PAGES: GuidePage[] = [
       { target: "ai-help:current-page", text: "tours.client_works.title" },
       { target: "works:filters", text: "tours.client_works.filters" },
       { target: "works:list", text: "tours.client_works.list" },
+      { target: "reviews:pending", text: "tours.client_reviews.pending" },
     ],
     suggestions: ["suggest.client.workStatus", "suggest.client.docsWhere"],
   },

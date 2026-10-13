@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent }
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { Role } from "@/lib/auth";
+import { profileTabHref } from "@/lib/profileTabs";
 import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
 import { SUPPORT_PHONE, SUPPORT_TEL } from "@/components/support/contact";
 import { IconAlert, IconArrowRight, IconHeadset, IconPhone } from "@/components/icons";
@@ -82,7 +83,7 @@ export default function SupportMenu({ role }: { role: Role }) {
             </span>
           </Link>
           {client ? (
-            <Link role="menuitem" href="/portal/client/complaints?new=1" className="psup__it" onClick={done} data-ai-id="support.menu.complaint">
+            <Link role="menuitem" href={profileTabHref("complaints", { new: "1" })} className="psup__it" onClick={done} data-ai-id="support.menu.complaint">
               <span className="psup__ic psup__ic--case" aria-hidden="true">
                 <IconAlert />
               </span>

@@ -5,17 +5,35 @@ export type ProfileTab = (typeof PROFILE_TABS)[number];
 
 export const isProfileTab = (v: string | null | undefined): v is ProfileTab => !!v && (PROFILE_TABS as readonly string[]).includes(v);
 
+export function profileTabHref(tab: ProfileTab, query: Record<string, string> = {}): string {
+  const sp = new URLSearchParams(tab === "personal" ? {} : { tab });
+  for (const [k, v] of Object.entries(query)) if (k !== "tab") sp.set(k, v);
+  const qs = sp.toString();
+  return `/portal/client/profile${qs ? `?${qs}` : ""}`;
+}
+
 type Query = Record<string, string | string[] | undefined>;
 
-export async function redirectToProfileTab(tab: ProfileTab, params: Promise<{ locale: string }>, searchParams: Promise<Query>): Promise<never> {
+export async function redirectKeepingQuery(
+  pathname: string,
+  params: Promise<{ locale: string }>,
+  searchParams: Promise<Query>,
+  set: Record<string, string> = {},
+  hash = "",
+): Promise<never> {
   const { locale } = await params;
   const sp = await searchParams;
-  const query: Record<string, string> = {};
+  const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
-    if (k === "tab") continue;
+    if (k in set) continue;
     const one = Array.isArray(v) ? v[0] : v;
-    if (one !== undefined) query[k] = one;
+    if (one !== undefined) qs.set(k, one);
   }
-  query.tab = tab;
-  return redirect({ href: { pathname: "/portal/client/profile", query }, locale });
+  for (const [k, v] of Object.entries(set)) qs.set(k, v);
+  const q = qs.toString();
+  return redirect({ href: `${pathname}${q ? `?${q}` : ""}${hash ? `#${hash}` : ""}`, locale });
+}
+
+export function redirectToProfileTab(tab: ProfileTab, params: Promise<{ locale: string }>, searchParams: Promise<Query>, hash = ""): Promise<never> {
+  return redirectKeepingQuery("/portal/client/profile", params, searchParams, { tab }, hash);
 }
