@@ -8036,6 +8036,47 @@
         "noBiometrics": "No biometric data (photo, video) is stored — only the fact of verification, its date and the provider."
       },
       "profile": {
+        "notify": {
+          "saveFailed": "Couldn't save",
+          "removeFailed": "Couldn't remove",
+          "shareFailed": "Couldn't change access",
+          "revokeFailed": "Couldn't end the session"
+        },
+        "last4Invalid": "Enter the last 4 digits of the card",
+        "tabs": {
+          "personal": "Personal",
+          "payments": "Payments",
+          "complaints": "Complaints",
+          "security": "Security",
+          "notifications": "Notifications"
+        },
+        "tabsLabel": "Profile sections",
+        "loadError": "Couldn't load your profile",
+        "emailMissing": "No email added",
+        "noFamilyText": "Add family members to share your active plan with them.",
+        "noCardsText": "Save a card to pay faster.",
+        "confirmFamilyTitle": "Remove this family member?",
+        "confirmFamilyText": "{name} will be removed and lose access to your plan.",
+        "confirmCardTitle": "Remove this card?",
+        "confirmCardText": "{card} will be removed from your saved cards.",
+        "subManage": "Manage",
+        "subPlan": "Plan",
+        "subStatus": "Status",
+        "subRenews": "Next payment",
+        "subAuto": "Auto-renew",
+        "subAutoOn": "On",
+        "subAutoOff": "Off",
+        "noSub": "No active subscription",
+        "noSubText": "Choose a plan to keep a lawyer at hand.",
+        "subChoose": "Choose a plan",
+        "thisDevice": "This device",
+        "errors": {
+          "nameShort": "Enter at least 2 letters",
+          "emailInvalid": "Invalid email, for example name@mail.uz",
+          "phoneInvalid": "Enter the phone as +998 XX XXX XX XX",
+          "expiresFormat": "Enter the expiry as MM/YY, for example 08/28",
+          "expiresPast": "This card has expired"
+        },
         "cardFallback": "Card",
         "title": "Profile",
         "personal": "Personal info",
@@ -8046,7 +8087,6 @@
         "name": "Name",
         "phone": "Phone",
         "email": "Email",
-        "card": "Bank card",
         "addFamily": "Add family member",
         "noFamily": "No family members added",
         "familyShareNote": "If you have an active plan, allowed family members can use it.",
@@ -8083,7 +8123,6 @@
           "document": "Document",
           "chat": "Chat"
         },
-        "subActive": "Standard · active",
         "edit": "Edit",
         "notSet": "Not set",
         "cards": "Payment methods",

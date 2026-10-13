@@ -1,17 +1,7 @@
-import { Suspense } from "react";
-import ClientComplaints from "@/components/complaints/ClientComplaints";
-import { Skeleton } from "@/components/portal/DataState";
+import { redirectToProfileTab } from "@/lib/profileTabs";
 
-export default function Page() {
-  return (
-    <Suspense
-      fallback={
-        <div className="ppanel">
-          <Skeleton rows={3} />
-        </div>
-      }
-    >
-      <ClientComplaints />
-    </Suspense>
-  );
+type Props = { params: Promise<{ locale: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+export default async function ClientComplaintsPage({ params, searchParams }: Props) {
+  return redirectToProfileTab("complaints", params, searchParams);
 }

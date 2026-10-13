@@ -8042,6 +8042,47 @@
         "noBiometrics": "Biometrik ma'lumotlar (rasm, video) saqlanmaydi — faqat tasdiq fakti, sanasi va provayder nomi."
       },
       "profile": {
+        "notify": {
+          "saveFailed": "Saqlab bo'lmadi",
+          "removeFailed": "O'chirib bo'lmadi",
+          "shareFailed": "Ruxsatni o'zgartirib bo'lmadi",
+          "revokeFailed": "Sessiyani yakunlab bo'lmadi"
+        },
+        "last4Invalid": "Kartaning oxirgi 4 raqamini kiriting",
+        "tabs": {
+          "personal": "Shaxsiy",
+          "payments": "To'lovlar",
+          "complaints": "Shikoyatlar",
+          "security": "Xavfsizlik",
+          "notifications": "Bildirishnomalar"
+        },
+        "tabsLabel": "Profil bo'limlari",
+        "loadError": "Profilni yuklab bo'lmadi",
+        "emailMissing": "Email kiritilmagan",
+        "noFamilyText": "Oila a'zosini qo'shsangiz, faol tarifingizdan birga foydalanishingiz mumkin.",
+        "noCardsText": "Karta saqlasangiz, to'lovlar tezroq amalga oshadi.",
+        "confirmFamilyTitle": "Oila a'zosini o'chirasizmi?",
+        "confirmFamilyText": "{name} ro'yxatdan olib tashlanadi va tarifingizdan foydalana olmaydi.",
+        "confirmCardTitle": "Kartani o'chirasizmi?",
+        "confirmCardText": "{card} saqlangan kartalar ro'yxatidan olib tashlanadi.",
+        "subManage": "Boshqarish",
+        "subPlan": "Tarif",
+        "subStatus": "Holat",
+        "subRenews": "Keyingi to'lov",
+        "subAuto": "Avtoyangilanish",
+        "subAutoOn": "Yoqilgan",
+        "subAutoOff": "O'chirilgan",
+        "noSub": "Faol obuna yo'q",
+        "noSubText": "Tarif tanlang — yurist yordami doim yoningizda bo'ladi.",
+        "subChoose": "Tarif tanlash",
+        "thisDevice": "Shu qurilma",
+        "errors": {
+          "nameShort": "Kamida 2 ta harf kiriting",
+          "emailInvalid": "Email noto'g'ri, masalan: ism@mail.uz",
+          "phoneInvalid": "Telefonni +998 XX XXX XX XX ko'rinishida kiriting",
+          "expiresFormat": "Muddatni MM/YY ko'rinishida kiriting, masalan 08/28",
+          "expiresPast": "Bu kartaning muddati o'tib ketgan"
+        },
         "cardFallback": "Karta",
         "title": "Profil",
         "personal": "Shaxsiy ma'lumotlar",
@@ -8052,7 +8093,6 @@
         "name": "Ism",
         "phone": "Telefon",
         "email": "Email",
-        "card": "Bank kartasi",
         "addFamily": "Oila a'zosini qo'shish",
         "noFamily": "Oila a'zolari qo'shilmagan",
         "familyShareNote": "Faol tarifingiz bo'lsa, ruxsat berilgan oila a'zolari undan foydalanishi mumkin.",
@@ -8089,7 +8129,6 @@
           "document": "Hujjat",
           "chat": "Chat"
         },
-        "subActive": "Standard · faol",
         "edit": "Tahrirlash",
         "notSet": "Kiritilmagan",
         "cards": "To‘lov usullari",
