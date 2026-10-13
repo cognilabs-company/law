@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import DatePicker from "@/components/DatePicker";
+import { rankOptions } from "@/components/Select";
 import { leadRegionLabel, leadScoreLabel, leadSourceLabel, leadUrgencyLabel } from "@/lib/leadLabels";
 import { EMPTY_LEAD_FILTER, LEAD_SCORES, leadMatches, type LeadFilter, type LeadFilterable } from "@/lib/services/leads";
 import { operatorName, type AdminUser } from "@/lib/services/users";
@@ -177,7 +178,11 @@ export default function LeadFilterBar({
         { value: "", label: t("f.allAssignee") },
         { value: "mine", label: withN(t("f.mine"), meId ? tally.assignee(meId) : 0) },
         { value: "unassigned", label: withN(t("f.unassigned"), tally.assignee("")) },
-        ...(operators ?? []).map((o) => ({ value: o.id, label: withN(operatorName(o) || t("assign.unknown"), tally.assignee(o.id)) })),
+        ...rankOptions(
+          (operators ?? []).map((o) => ({ value: o.id, label: withN(operatorName(o) || t("assign.unknown"), tally.assignee(o.id)) })),
+          new Map((operators ?? []).map((o) => [o.id, tally.assignee(o.id)])),
+          t("assign.others"),
+        ),
       ],
       aiId: fid("assignee"),
     },

@@ -19,6 +19,7 @@ import {
   isUrgentEvent,
   urgentEventInfo,
   isMissingRoute,
+  joinCall,
   type UrgentRequest,
   type UrgentCandidate,
   type UrgentEligibleSource,
@@ -29,7 +30,7 @@ import { subscribeUserEvents, subscribeUserSocketState, onUserSocketResync } fro
 import { ApiError, errDetail, logApiError } from "@/lib/http";
 import { notify, notifyStore } from "@/lib/toast";
 import { useAuth, sessionRoles } from "@/lib/auth";
-import { dateTimeFull } from "@/lib/date";
+import { dateTimeFull, shortDateTime } from "@/lib/date";
 import { statusLabel, regionLabel, regionKeyOf, humanize, labelOf, statusMap, statusSpecOf, type StatusMap, type StatusToneRule } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { aiId, aiSeg } from "@/lib/ai/ids";
@@ -46,7 +47,8 @@ import FieldError from "@/components/ui/FieldError";
 import ListPager, { usePaged } from "@/components/ui/ListPager";
 import { Badge, CountBadge, StatusBadge, WorkId } from "@/components/ui/Badge";
 import IconButton from "@/components/ui/IconButton";
-import { useScrollEdges } from "@/lib/useScrollEdges";
+import Segmented from "@/components/ui/Segmented";
+import Menu, { isMenuItem, menuSeparator, type MenuEntry } from "@/components/ui/Menu";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { isCoarsePointer, usePopover } from "@/lib/usePopover";
 import { VoiceNotePlayer } from "@/components/portal/AttachmentPreview";
@@ -83,6 +85,8 @@ import {
   IconChatDots,
   IconChevronDown,
   IconMoreHorizontal,
+  IconExternal,
+  IconInfo,
 } from "@/components/icons";
 
 // LEXGO_URGENT_ADVOKAT_FRONTEND_UPDATE.md — the call-center side of "Tezkor
@@ -115,10 +119,12 @@ const VIEWS: { value: string; key: string; archive: boolean }[] = [
   { value: "in_progress", key: "tabInProgress", archive: false },
   { value: "meeting_active", key: "tabMeetingActive", archive: false },
   { value: "archive", key: "viewArchive", archive: true },
-  { value: "completed", key: "tabCompleted", archive: true },
-  { value: "cancelled", key: "tabCancelled", archive: true },
 ];
 const FINAL = new Set(["completed", "cancelled", "expired"]);
+type RowAct = "claim" | "join" | "chat" | "meeting" | "detail";
+const ROW_AI: Record<RowAct, string> = { claim: "claim", join: "meeting", chat: "chat", meeting: "meeting", detail: "detail" };
+const ROW_MENU = new Set(["detail", "chat", "meeting"]);
+const ASK_STEP: Readonly<Record<string, "complete" | "transfer" | "cancel" | "status">> = { complete: "complete", transfer: "transfer", cancel: "cancel", status: "status" };
 const PAGE = 20;
 const statusOf = (r: UrgentRequest) => r.status || "open_pool";
 const isFinal = (r: UrgentRequest) => (r.finalStatuses.length ? r.finalStatuses.includes(statusOf(r)) : FINAL.has(statusOf(r)));
@@ -209,6 +215,20 @@ function chatHref(r: Pick<UrgentRequest, "secureChatRoomId" | "id" | "workId" | 
   return `/portal/chat/${r.secureChatRoomId}?${q.toString()}`;
 }
 
+function rowAction(r: UrgentRequest): RowAct {
+  const st = statusOf(r);
+  if (st === "open_pool" || (r.nextStatuses.includes("claimed") && !r.claimedByUserId)) return "claim";
+  if (!r.nextStatuses.length) return "detail";
+  if (r.channel === "chat") return r.secureChatRoomId ? "chat" : "detail";
+  if (st === "meeting_active") return "join";
+  if (r.serviceKind === GROUP && !r.groupLawyers.length) return "detail";
+  return st === "claimed" || st === "scheduled" ? "meeting" : "detail";
+}
+
+function statusChoicesOf(r: UrgentRequest, me: string): string[] {
+  return r.nextStatuses.filter((s) => !STATUS_SKIP.has(s) && (s !== "claimed" || (!!r.claimedByUserId && r.claimedByUserId === me)));
+}
+
 // The same six icons the client's own Tezkor advokat grid uses — one
 // service, one icon, wherever it is shown. See components/icons.tsx.
 const KIND_ICON: Record<string, typeof IconVideo> = {
@@ -221,7 +241,7 @@ const KIND_ICON: Record<string, typeof IconVideo> = {
 };
 
 type State = { status: "loading" | "ready" | "error" | "forbidden" | "missing"; items: UrgentRequest[]; error?: unknown };
-type Meeting = { roomId: string; callId: string; title: string; lk: LiveKitJoin | null };
+type Meeting = { roomId: string; callId: string; title: string; lk: LiveKitJoin | null; caller: boolean };
 type Outcome = { title: string; body?: string };
 type Change = Outcome & { id: string; status?: string };
 type Msgs = { ok: (r: UrgentRequest) => Outcome; fail: string; map?: Partial<Record<number, string>> };
@@ -229,7 +249,7 @@ type Msgs = { ok: (r: UrgentRequest) => Outcome; fail: string; map?: Partial<Rec
 const ntfId = (id: string) => `urgent-${id}`;
 
 type Step = "" | "complete" | "transfer" | "cancel" | "candidates" | "status";
-type Ask = { act: string; n: number };
+type Ask = { act: string; n: number; step?: boolean };
 type MenuItem = {
   key: string;
   label: string;
@@ -303,6 +323,9 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
   const [ask, setAsk] = useState<Ask>({ act: "", n: 0 });
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [live, setLive] = useState(true);
+  const [menuFor, setMenuFor] = useState("");
+  const { session } = useAuth();
+  const me = session?.id ?? "";
   const listKey = `${view}|${kind}|${channel}`;
 
   const seq = useRef(0);
@@ -431,10 +454,46 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
         callId: call.id,
         title: tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind,
         lk: call.livekitToken ? { url: call.livekitUrl, room: call.livekitRoom, token: call.livekitToken, hints: call.hints, quality: call.quality } : null,
+        caller: true,
       });
     },
     [tk],
   );
+
+  async function join(r: UrgentRequest) {
+    if (busyId) return;
+    if (!r.callId || !r.secureChatRoomId) {
+      void meet(r);
+      return;
+    }
+    setBusyId(r.id);
+    try {
+      const lk = await joinCall(r.secureChatRoomId, r.callId);
+      setMeeting({ roomId: r.secureChatRoomId, callId: r.callId, title: tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind, lk, caller: false });
+    } catch (e) {
+      logApiError("urgent meeting join", e);
+      const ended = e instanceof ApiError && e.status === 409 && !/pause/i.test(e.detail ?? "");
+      notify.error(t("notify.joinFailed"), {
+        id: ntfId(r.id),
+        error: e,
+        map: ended ? { 409: t("notify.meetingEnded") } : undefined,
+        action: ended && r.channel !== "chat" ? { label: t("startMeeting"), onClick: () => void meetRef.current(r) } : undefined,
+      });
+      if (ended) void load();
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  const meetRef = useRef(meet);
+  useEffect(() => {
+    meetRef.current = meet;
+  });
+
+  function openStep(id: string, act: string) {
+    setOpenId(id);
+    setAsk((a) => ({ act, n: a.n + 1, step: true }));
+  }
 
   async function meet(r: UrgentRequest) {
     if (busyId) return;
@@ -470,12 +529,12 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
   const counts = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.value, scoped.filter((r) => inView(r, v.value)).length])), [scoped]);
   const rows = useMemo(() => scoped.filter((r) => inView(r, view)).sort(sorterFor(view)), [scoped, view]);
   const pager = usePaged(rows, PAGE, listKey);
+  if (menuFor && ready && !pager.visible.some((x) => x.id === menuFor)) setMenuFor("");
 
   const viewsRef = useRef<HTMLDivElement>(null);
-  useScrollEdges(viewsRef, { silent: true });
   useEffect(() => {
-    const box = viewsRef.current;
-    const el = box?.querySelector<HTMLElement>("[aria-pressed=true]");
+    const box = viewsRef.current?.querySelector<HTMLElement>("[role=radiogroup]");
+    const el = box?.querySelector<HTMLElement>("[aria-checked=true]");
     if (!box || !el || box.scrollWidth <= box.clientWidth) return;
     const outer = box.getBoundingClientRect();
     const at = el.getBoundingClientRect();
@@ -497,6 +556,10 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
       return;
     }
     if (!r) return;
+    if (openId === r.id && action && action !== "detail") {
+      setAsk((a) => ({ act: action, n: a.n + 1 }));
+      return;
+    }
     const k = kind && r.serviceKind !== kind ? "" : kind;
     const c = channel && r.channel !== channel ? "" : channel;
     const v = inView(r, view) ? view : isFinal(r) ? "archive" : "active";
@@ -506,6 +569,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
     setChannel(c);
     setView(v);
     pager.revealIndex(at, `${v}|${k}|${c}`);
+    setMenuFor(!openId && ROW_MENU.has(action) && ROW_AI[rowAction(r)] !== action ? r.id : "");
   });
 
   const viewLabel = (x: (typeof VIEWS)[number]) => urg[x.value]?.label ?? t(x.key);
@@ -520,7 +584,8 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
   useAiField("call_center.urgent-advokat.tabs", {
     get: () => view,
     set: (raw) => {
-      const v = aiPick(viewOpts, raw);
+      const w = aiNorm(raw);
+      const v = aiPick(viewOpts, raw) ?? ([...FINAL].some((s) => aiNorm(s) === w || aiNorm(urg[s]?.label ?? "") === w) ? "archive" : null);
       if (v !== null) setView(v || "active");
     },
   });
@@ -540,7 +605,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
   });
   useAiReveal(/^call_center\.urgent-advokat\.tab\.[a-z_]+$/, (id) => {
     const seg = id.split(".")[3] ?? "";
-    const next = seg === "all" ? "active" : seg;
+    const next = seg === "all" ? "active" : FINAL.has(seg) ? "archive" : seg;
     if (VIEWS.some((x) => x.value === next)) setView(next);
   });
 
@@ -560,33 +625,23 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
       </div>
       <p className="advmuted uaq__lead">{t("lead")}</p>
 
-      <div
-        ref={viewsRef}
-        className="uaq__views scue-x"
-        role="group"
-        aria-label={t("fStatus")}
-        data-ai-id="call_center.urgent-advokat.tabs"
-        data-ai-target="callcenter:urgent-tabs"
-        data-ai-type="select"
-        data-ai-label={t("fStatus")}
-      >
-        {VIEWS.map((v, i) => (
-          <Fragment key={v.value}>
-            {i > 0 && v.archive !== VIEWS[i - 1].archive ? <i className="uaq__vsep" aria-hidden="true" /> : null}
-            <button
-              type="button"
-              className={`uaq__view${v.value === "active" || v.value === "archive" ? " uaq__view--main" : ""}`}
-              aria-pressed={view === v.value}
-              onClick={() => setView(v.value)}
-              data-ai-id={`call_center.urgent-advokat.tab.${v.value}`}
-              data-ai-type="tab"
-              data-ai-label={viewLabel(v)}
-            >
-              {viewLabel(v)}
-              {ready ? <em>{counts[v.value] ?? 0}</em> : null}
-            </button>
-          </Fragment>
-        ))}
+      <div ref={viewsRef} className="uaq__vbar">
+        <Segmented
+          className="uaq__seg"
+          size="sm"
+          value={view}
+          onChange={setView}
+          label={t("fStatus")}
+          aiId="call_center.urgent-advokat.tabs"
+          aiTarget="callcenter:urgent-tabs"
+          options={VIEWS.map((v) => ({
+            value: v.value,
+            label: viewLabel(v),
+            count: ready ? (counts[v.value] ?? 0) : null,
+            aiId: `call_center.urgent-advokat.tab.${v.value}`,
+            aiLabel: viewLabel(v),
+          }))}
+        />
       </div>
 
       <FilterBar
@@ -610,101 +665,133 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
         <ul className="uaq__list" data-ai-target="callcenter:urgent-list">
           {pager.visible.map((r) => {
             const Icon = KIND_ICON[r.serviceKind] ?? IconScale;
-            const open = (r.status || "open_pool") === "open_pool";
-            const isGroup = r.serviceKind === GROUP;
-            const final = r.nextStatuses.length === 0 && !open;
-            const claimable = open || (r.nextStatuses.includes("claimed") && !r.claimedByUserId);
+            const st = statusOf(r);
+            const open = st === "open_pool";
+            const finished = !r.nextStatuses.length && !open;
+            const working = !finished && !open;
+            const act = rowAction(r);
+            const busy = busyId === r.id;
             const kindName = tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || humanize(r.serviceKind);
+            const dirs = r.directions.map((d) => directionLabel(te, d, t)).filter((d, i, all) => d && all.indexOf(d) === i).join(", ");
+            const needText = [dirs, r.need].filter(Boolean).join(" — ");
+            const timed = !!r.scheduledAt && !finished;
+            const whenAt = timed ? r.scheduledAt : r.createdAt;
+            const whenText = whenAt ? (timed ? t("scheduledFor", { when: shortDateTime(whenAt, locale) }) : shortDateTime(whenAt, locale)) : "";
+            const meta: { key: string; node: ReactNode; text: string }[] = [];
+            if (r.clientName) meta.push({ key: "n", node: <b>{r.clientName}</b>, text: r.clientName });
+            if (r.clientPhone) meta.push({ key: "p", node: <a href={`tel:${r.clientPhone.replace(/[^+\d]/g, "")}`} className="uaq__tel">{r.clientPhone}</a>, text: r.clientPhone });
+            if (whenText && whenAt) {
+              const whenNode = timed ? (
+                <>
+                  <span className="uaq__whenk">{`${t("scheduledFor", { when: "" }).trim()} `}</span>
+                  {shortDateTime(whenAt, locale)}
+                </>
+              ) : (
+                whenText
+              );
+              meta.push({ key: "w", node: <time dateTime={whenAt} title={dateTimeFull(whenAt, locale)}>{whenNode}</time>, text: whenText });
+            }
+            if (r.region) meta.push({ key: "r", node: <span className="uaq__reg">{regionLabel(te, r.region)}</span>, text: regionLabel(te, r.region) });
+            const choices = statusChoicesOf(r, me);
+            const entries: MenuEntry[] = [];
+            if (act !== "detail") entries.push({ key: "detail", label: t("openDetail"), icon: <IconInfo />, onSelect: () => setOpenId(r.id), aiId: aiId(AI_ITEM, r.id, "detail") });
+            if (r.secureChatRoomId && act !== "chat") entries.push({ key: "chat", label: t("openChat"), description: t("newTab"), icon: <IconChat />, href: chatHref(r, kindName), newTab: true, aiId: aiId(AI_ITEM, r.id, "chat") });
+            if (working && r.channel !== "chat" && act !== "meeting" && act !== "join") entries.push({ key: "meeting", label: t("startMeeting"), icon: <IconVideo />, onSelect: () => void meet(r), aiId: aiId(AI_ITEM, r.id, "meeting") });
+            entries.push(menuSeparator("work"));
+            if (working) entries.push({ key: "transfer", label: `${t("transfer")}…`, icon: <IconUsers />, onSelect: () => openStep(r.id, "transfer"), aiId: aiId(AI_ITEM, r.id, "transfer") });
+            if (choices.length) entries.push({ key: "status", label: `${t("moveTo")}…`, icon: <IconClock />, onSelect: () => openStep(r.id, "status"), aiId: aiId(AI_ITEM, r.id, "status") });
+            entries.push(menuSeparator("end"));
+            if (!finished) entries.push({ key: "cancel", label: t("cancelAsk"), icon: <IconClose />, danger: true, onSelect: () => openStep(r.id, "cancel"), aiId: aiId(AI_ITEM, r.id, "cancel") });
+            const main =
+              act === "claim" ? (
+                <button type="button" className="btn btn--line btn--sm uaq__go" disabled={busy} onClick={() => void claim(r)} data-ai-target="button:urgent-claim" data-ai-id={aiId(AI_ITEM, r.id, "claim")}>
+                  <IconCheck />
+                  {busy ? t("claiming") : t("claim")}
+                </button>
+              ) : act === "chat" ? (
+                <Link
+                  href={chatHref(r, kindName)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn--line btn--sm uaq__go"
+                  title={t("openChatTitle")}
+                  data-ai-id={aiId(AI_ITEM, r.id, "chat")}
+                >
+                  <IconChat />
+                  {t("openChat")}
+                  <span className="sr-only">{` (${t("newTab")})`}</span>
+                  <IconExternal className="uaq__ext" aria-hidden="true" />
+                </Link>
+              ) : act === "join" ? (
+                <button type="button" className="btn btn--line btn--sm uaq__go" disabled={busy} onClick={() => void join(r)} data-ai-id={aiId(AI_ITEM, r.id, "meeting")}>
+                  <IconVideo />
+                  {busy ? t("joining") : t("join")}
+                </button>
+              ) : act === "meeting" ? (
+                <button type="button" className="btn btn--line btn--sm uaq__go" disabled={busy} onClick={() => void meet(r)} data-ai-id={aiId(AI_ITEM, r.id, "meeting")}>
+                  <IconVideo />
+                  {busy ? t("starting") : t("startMeeting")}
+                </button>
+              ) : (
+                <button type="button" className="btn btn--line btn--sm uaq__go" onClick={() => setOpenId(r.id)} data-ai-id={aiId(AI_ITEM, r.id, "detail")}>
+                  {t("openDetail")}
+                  <IconChevronRight />
+                </button>
+              );
             return (
               <li
                 key={r.id}
-                className={`uaq__row${open ? " uaq__row--open" : ""}${r.slaBreached ? " uaq__row--sla" : ""}`}
+                className={`uaq__row uaq__row--x${open ? " uaq__row--open" : ""}${r.slaBreached ? " uaq__row--sla" : ""}`}
                 data-ai-id={aiId(AI_ITEM, r.id)}
                 data-ai-type="list_item"
                 data-ai-label={[kindName, r.workId].filter(Boolean).join(" · ")}
                 data-ai-entity-type="urgent_advokat_request"
                 data-ai-entity-id={r.id}
               >
-                <span className={`uaq__i uaq__i--${r.channel || "video"}`}><Icon /></span>
+                <span className={`uaq__i uaq__i--${r.channel || "video"}`} aria-hidden="true"><Icon /></span>
                 <div className="uaq__m" data-ai-private>
-                  <b>
-                    {kindName}
+                  <div className="uaq__l1">
+                    <b className="uaq__tt">{kindName}</b>
+                    <StatusBadge status={st} map={urg} fallback={statusLabel(tcm, st)} size="sm" className={`uaq__st${open ? " uaq__st--new" : ""}`} />
                     {r.channel ? <em className="uaq__ch">{r.channel === "chat" ? <IconChat /> : <IconVideo />}{r.channel === "chat" ? tk("chChat") : tk("chVideo")}</em> : null}
-                    <WorkId id={r.workId} label={tk("workId")} className="ua__wid" />
-                    {/* on_duty_pool: nobody has to pick this out of the pool. */}
                     {r.immediateCall ? <em className="uaq__ch uaq__ch--now"><IconBolt />{t("onDuty")}</em> : null}
-                  </b>
-                  {r.need ? <span className="uaq__need">{r.need}</span> : null}
-                  <span className="uaq__sub">
-                    {/* Name AND number: the row used to drop the phone as soon
-                        as a name existed, so ringing the client back meant
-                        opening the drawer for a number the row already had. */}
-                    {r.clientName ? <b>{r.clientName}</b> : null}
-                    {r.clientPhone ? (
-                      <a href={`tel:${r.clientPhone}`} className="uaq__tel"><IconPhone />{r.clientPhone}</a>
-                    ) : null}
-                    {[
-                      r.region ? regionLabel(te, r.region) : "",
-                      isGroup && r.lawyerCount ? t("lawyersN", { n: r.lawyerCount }) : "",
-                      r.createdAt ? dateTimeFull(r.createdAt, locale) : "",
-                    ].filter(Boolean).join(" · ")}
-                  </span>
-                  {r.directions.length ? (
-                    <span className="uaq__dirs">
-                      {/* Keyed by position: the same area reaches the row
-                          spelled two ways ("mamuriy", "ma'muriy"), and a
-                          record can carry both. */}
-                      {r.directions.map((d, i) => <Badge key={`${d}-${i}`} tone="info" size="sm">{directionLabel(te, d, t)}</Badge>)}
+                    <WorkId id={r.workId} label={tk("workId")} className="ua__wid" />
+                  </div>
+                  {needText ? <span className="uaq__need" title={needText}>{needText}</span> : null}
+                  {meta.length ? (
+                    <span className="uaq__meta" title={meta.map((x) => x.text).join(" · ")}>
+                      {meta.map((x, i) => (
+                        <Fragment key={x.key}>
+                          {i ? <span className={x.key === "r" ? "uaq__dot uaq__reg" : "uaq__dot"} aria-hidden="true">{" · "}</span> : null}
+                          {x.node}
+                        </Fragment>
+                      ))}
                     </span>
                   ) : null}
-                  {r.scheduledAt ? (
-                    <span className="uaq__when"><IconCalendar />{t("scheduledFor", { when: dateTimeFull(r.scheduledAt, locale) })}</span>
-                  ) : null}
-                  {r.groupLawyers.length ? (
-                    <span className="uaq__when"><IconUsers />{r.groupLawyers.map((g) => g.name).join(", ")}</span>
-                  ) : null}
                 </div>
-                <div className="uaq__r">
-                  <StatusBadge status={statusOf(r)} map={urg} fallback={statusLabel(tcm, statusOf(r))} size="sm" className="uaq__st" />
-                  <div className="uaq__acts">
-                    {claimable ? (
-                      <button type="button" className="btn btn--pri btn--sm" disabled={busyId === r.id} onClick={() => void claim(r)} data-ai-target="button:urgent-claim" data-ai-id={aiId(AI_ITEM, r.id, "claim")}>
-                        <IconCheck />{busyId === r.id ? t("claiming") : t("claim")}
-                      </button>
-                    ) : null}
-                    {/* Reachable from every non-final, non-chat row, so a
-                        record sitting on the Rejalashtirilgan tab can be
-                        started without opening the drawer — `scheduled`
-                        really does list meeting_active in next_statuses. */}
-                    {!open && !final && r.channel !== "chat" ? (
-                      <button type="button" className="btn btn--line btn--sm" disabled={busyId === r.id} onClick={() => void meet(r)} data-ai-id={aiId(AI_ITEM, r.id, "meeting")}>
-                        <IconVideo />{t("startMeeting")}
-                      </button>
-                    ) : null}
-                    {/* The claim opened this room and notified the client, but
-                        until now nothing on the board led into it.
-
-                        On a `channel=chat` record the room IS the
-                        consultation — there is no meeting to start, and
-                        R3/R32 (MD L16, L260-262) put the operator in it
-                        alongside the selected advocates with the "Chatni
-                        yakunlash" action — so on those rows it is the primary
-                        action rather than one outline button among four. */}
-                    {r.secureChatRoomId ? (
-                      <Link
-                        href={chatHref(r, kindName)}
-                        className={`btn btn--sm ${!open && r.channel === "chat" ? "btn--pri" : "btn--line"}`}
-                        title={t("openChatTitle")}
-                        data-ai-id={aiId(AI_ITEM, r.id, "chat")}
-                      >
-                        <IconChat />{t("openChat")}
-                      </Link>
-                    ) : null}
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => setOpenId(r.id)} data-ai-id={aiId(AI_ITEM, r.id, "detail")}>
-                      {t("openDetail")}<IconChevronRight />
-                    </button>
-                  </div>
-                  {!open && !final && r.channel !== "chat" ? <span className="uaq__hint"><IconClock />{t("meetingHint")}</span> : null}
+                <div className="uaq__acts uaq__acts--x">
+                  {main}
+                  {entries.some(isMenuItem) ? (
+                    <Menu
+                      items={entries}
+                      label={t("moreTitle")}
+                      title={[kindName, r.workId.replace(/-/g, "\u2011")].filter(Boolean).join(" · ")}
+                      triggerLabel={`${t("moreTitle")}: ${[kindName, r.workId].filter(Boolean).join(" · ")}`}
+                      tip={t("moreTitle")}
+                      size="sm"
+                      variant="line"
+                      tipAlign="end"
+                      tipSide="bottom"
+                      triggerClassName="uaq__kebab"
+                      busy={busy}
+                      reveal={false}
+                      open={menuFor === r.id}
+                      onOpenChange={(v) => setMenuFor(v ? r.id : "")}
+                      aiId={aiId(AI_ITEM, r.id, "menu")}
+                    />
+                  ) : (
+                    <span className="uaq__ksp" aria-hidden="true" />
+                  )}
                 </div>
               </li>
             );
@@ -727,7 +814,7 @@ export default function UrgentAdvocateQueue({ onCount }: { onCount?: (n: number)
               roomId={meeting.roomId}
               callId={meeting.callId}
               callType="video"
-              isCaller
+              isCaller={meeting.caller}
               title={meeting.title}
               lk={meeting.lk}
               onEnd={() => setMeeting(null)}
@@ -972,10 +1059,11 @@ function UrgentDetailDrawer({
     setSeenAsk(ask);
     const keep = !switched && shownStep !== "" && (stepDirty || ask.act === "detail-modal" || ask.act === shownStep);
     if (ask.act && !keep) {
-      setStep("");
+      const to = ask.step ? ASK_STEP[ask.act] : undefined;
+      setStep(to ?? "");
       setStepDirty(false);
       setMenu(false);
-      setWanted(ask.act);
+      setWanted(to ? "" : ask.act);
     }
   }
 
@@ -1059,8 +1147,8 @@ function UrgentDetailDrawer({
     // The private room the claim created. It is where the client is
     // already being answered, so it stays reachable on a finished
     // record too — that is where the conversation lives.
-    <Link href={chatHref(req, kindLabel)} className="btn btn--pri" title={t("openChatTitle")} data-ai-id={aiId(AI_ITEM, req.id, "chat")}>
-      <IconChat />{t("openChat")}
+    <Link href={chatHref(req, kindLabel)} target="_blank" rel="noopener noreferrer" className="btn btn--pri" title={t("openChatTitle")} data-ai-id={aiId(AI_ITEM, req.id, "chat")}>
+      <IconChat />{t("openChat")}<span className="sr-only">{` (${t("newTab")})`}</span><IconExternal className="uaq__ext" aria-hidden="true" />
     </Link>
   ) : primary === "meeting" ? (
     <button type="button" className="btn btn--pri" disabled={!!busy} onClick={() => void meet()} data-ai-id={aiId(AI_ITEM, req.id, "meeting")}>
@@ -1439,6 +1527,8 @@ function MoreMenu({
       {it.href ? (
         <Link
           href={it.href}
+          target="_blank"
+          rel="noopener noreferrer"
           role="menuitem"
           tabIndex={-1}
           className="dsel__opt uamenu__i"

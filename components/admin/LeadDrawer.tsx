@@ -1,25 +1,24 @@
 "use client";
 
-import { useId, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { useId, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { reengageLead, logCcCall, createTask, type KanbanColumn } from "@/lib/services/backend";
-import { isForbiddenErr, leadUserId, type LeadX, type OperatorsState } from "@/lib/services/leads";
+import { isForbiddenErr, type LeadX, type OperatorsState } from "@/lib/services/leads";
 import { dayKeyOf, getLeadHistory, groupLeadEvents, prevDayKey, type LeadEvent, type LeadEventRun } from "@/lib/services/leadTimeline";
-import { operatorName, type AdminUser } from "@/lib/services/users";
+import type { AdminUser } from "@/lib/services/users";
 import { useResource } from "@/lib/useResource";
 import { notify } from "@/lib/toast";
 import { useReload } from "@/components/admin/AdminBits";
 import DatePicker from "@/components/DatePicker";
-import Select, { rankOptions } from "@/components/Select";
 import { fmtDate, fmtDateTime, timeOnly } from "@/lib/date";
 import { parseServerTime } from "@/lib/http";
 import { humanizeSlug } from "@/lib/lawyers";
-import { assigneeLabel, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadSourceInfo, leadUrgencyLabel, personLabel } from "@/lib/leadLabels";
+import { assigneeLabel, isLostStage, kanbanColumnTitle, leadCategoryLabel, leadRegionLabel, leadSourceInfo, leadUrgencyLabel, personLabel } from "@/lib/leadLabels";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import { ScoreChip, WorkId } from "@/components/ui/Badge";
 import InlineAlert from "@/components/ui/InlineAlert";
-import { IconClock, IconPhone, IconSend, IconTrash } from "@/components/icons";
-import CcMeetingButton from "./CcMeetingButton";
+import { IconClock, IconPhone, IconSend, IconTrash, IconVideo } from "@/components/icons";
+import { LeadOperatorMenu, LeadStageMenu, leadPhoneText, type LeadStage } from "./leads/LeadMenu";
 import Modal from "./Modal";
 
 const NO_OPS: OperatorsState = { ops: [], people: new Map<string, AdminUser>(), status: "ready", retry: () => Promise.resolve() };
@@ -55,6 +54,9 @@ export default function LeadDrawer({
   onAssign,
   onMove,
   onDelete,
+  onVideo,
+  canVideo = false,
+  videoBusy = false,
   onClose,
 }: {
   lead: LeadX;
@@ -70,9 +72,13 @@ export default function LeadDrawer({
   onAssign?: (userId: string) => Promise<void>;
   onMove: (columnKey: string) => void;
   onDelete: () => void;
+  onVideo?: () => void;
+  canVideo?: boolean;
+  videoBusy?: boolean;
   onClose: () => void;
 }) {
   const t = useTranslations("admin.pipeline");
+  const tc = useTranslations("admin.leadCard");
   const te = useTranslations("enums");
   // Same translator AdminPipeline's board uses for column titles — a stage
   // still carrying the backend's default English name ("New") gets
@@ -89,6 +95,7 @@ export default function LeadDrawer({
   const [act, setAct] = useState<string | null>(null);
   const noPhoneId = useId();
   const leadName = lead.name || lead.phone;
+  const scoreKey = lead.scoreKey;
   const opName = (id: string) => personLabel(ops.people.get(id)) || assigneeLabel(t, ops.people, id, meId, ops.status === "ready");
 
   async function addNote(text = note.trim()) {
@@ -144,17 +151,9 @@ export default function LeadDrawer({
   const assignedAt = lead.assignedTo && lead.assignedAt ? when(lead.assignedAt) : "";
   const tel = (lead.phone || "").replace(/[^+\d]/g, "");
   const quick = today ? QUICK_DAYS.map((q) => ({ day: shiftDay(today, q.days), label: t(q.key) })) : [];
-  const canPick = !!onAssign && ops.status === "ready";
-  const opLabel = (o: AdminUser) => operatorName(o) || t("assign.unknown");
-  const ranked = rankOptions(
-    ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${opLabel(o)} (${t("assign.me")})` : opLabel(o) })),
-    load,
-    t("assign.others"),
-    (n) => t("assign.leadCount", { n }),
-  );
-  // An assignee that is no longer in the directory still shows up as chosen.
-  const orphan = lead.assignedTo && !ops.ops.some((o) => o.id === lead.assignedTo) ? [{ value: lead.assignedTo, label: assigneeLabel(t, ops.people, lead.assignedTo, meId, ops.status === "ready") }] : [];
-  const assigneeOpts = [{ value: "", label: t("assign.none") }, ...orphan, ...ranked];
+  const canPick = !!onAssign && ops.status !== "forbidden";
+  const assignee = assigneeLabel(t, ops.people, lead.assignedTo, meId, ops.status === "ready");
+  const stages: LeadStage[] = columns.map((c) => ({ key: c.key, label: kanbanColumnTitle(tStages, c), color: c.color || undefined, lost: isLostStage(c.key, columns) }));
 
   const stageName = (key: string) => {
     const col = columns.find((c) => c.key === key);
@@ -194,7 +193,14 @@ export default function LeadDrawer({
       variant="drawer"
       onClose={onClose}
       title={lead.name || lead.phone || "—"}
-      description={lead.name && lead.phone ? <span className="ldrw__ph">{lead.phone}</span> : undefined}
+      description={
+        scoreKey || (lead.name && lead.phone) ? (
+          <>
+            {scoreKey ? <ScoreChip score={scoreKey} className="ldrw__sc" /> : null}
+            {lead.name && lead.phone ? <span className="ldrw__ph">{leadPhoneText(lead.phone)}</span> : null}
+          </>
+        ) : undefined
+      }
       closeLabel={t("d.close")}
       dirty={!!note.trim()}
       footer={
@@ -205,34 +211,14 @@ export default function LeadDrawer({
       }
     >
         <div className="ldrw__body">
-          {/* Stage switcher */}
-          <div className="ldrw__sec">
-            <span className="ldrw__lbl">{t("d.stage")}</span>
-            <div className="ldrw__stages">
-              {columns.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  className={`ldrw__stage${c.key === colKey ? " on" : ""}`}
-                  style={c.color ? ({ "--c": c.color } as CSSProperties) : undefined}
-                  disabled={busy || c.key === colKey}
-                  onClick={() => onMove(c.key)}
-                >
-                  {kanbanColumnTitle(tStages, c)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Operator assignment (kept in lead.details until the backend has a column) */}
           <div className="ldrw__sec lasgn">
-            <span className="ldrw__lbl">{t("assign.title")}</span>
-            <div className="lasgn__row">
+            <div className="lasgn__row ldrw__menus">
+              <LeadStageMenu lead={lead} stage={colKey} stages={stages} onMove={(_, k) => onMove(k)} busy={busy} aiId="admin.pipeline.drawer.stage" />
               {canPick ? (
-                <Select value={lead.assignedTo} onChange={(v) => void assign(v)} options={assigneeOpts} ariaLabel={t("assign.select")} placeholder={act === "assign" ? t("d.saving") : t("assign.select")} />
+                <LeadOperatorMenu lead={lead} ops={ops} load={load} meId={meId} onAssign={(_, u) => void assign(u)} busy={act === "assign"} aiId="admin.pipeline.drawer.operator" />
               ) : (
-                <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`}>
-                  <span>{assigneeLabel(t, ops.people, lead.assignedTo, meId, ops.status === "ready")}</span>
+                <span className={`lasg ldrw__opro${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`}>
+                  <span>{tc("operatorButton", { name: assignee })}</span>
                 </span>
               )}
             </div>
@@ -258,11 +244,16 @@ export default function LeadDrawer({
             <span className="ldrw__lbl">{t("d.actions")}</span>
             <div className="ldrw__acts">
               {tel ? (
-                <a className="btn btn--line btn--sm" href={`tel:${tel}`}><IconPhone />{t("d.call")}</a>
+                <a className="btn btn--line btn--sm" href={`tel:${tel}`} data-ai-id="admin.pipeline.drawer.call" data-ai-type="call_button"><IconPhone />{t("d.call")}</a>
               ) : (
                 <button className="btn btn--line btn--sm" type="button" disabled aria-describedby={noPhoneId}><IconPhone />{t("d.call")}</button>
               )}
-              {lead.phone ? <CcMeetingButton clientUserId={leadUserId(lead)} phone={lead.phone} clientName={lead.name} /> : null}
+              {onVideo && canVideo ? (
+                <button className="btn btn--line btn--sm" type="button" onClick={onVideo} disabled={videoBusy} aria-busy={videoBusy || undefined} data-ai-id="admin.pipeline.drawer.video" data-ai-type="call_button">
+                  <IconVideo />
+                  {tc("video")}
+                </button>
+              ) : null}
               <button className="btn btn--line btn--sm" type="button" disabled={act === "call" || !lead.phone} onClick={logCall}>{act === "call" ? t("d.saving") : t("d.logCall")}</button>
             </div>
             {!tel ? <p className="lasgn__hint" id={noPhoneId}>{t("d.noPhone")}</p> : null}

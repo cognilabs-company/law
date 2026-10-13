@@ -6,6 +6,7 @@ import { insideLayer, useLayer } from "./layers";
 export type PopoverCloseReason = "escape" | "outside" | "blur" | "hidden" | "select";
 export type PopoverPlacement = "below" | "above" | "sheet";
 export type PopoverFit = "list" | "content";
+export type PopoverAlign = "start" | "end";
 
 export type PopoverOptions = {
   open: boolean;
@@ -14,6 +15,7 @@ export type PopoverOptions = {
   popup: RefObject<HTMLElement | null>;
   anchor?: RefObject<HTMLElement | null>;
   fit?: PopoverFit;
+  align?: PopoverAlign;
   maxHeight?: number;
   minWidth?: number;
   maxWidth?: number;
@@ -46,6 +48,8 @@ const TEXT_ENTRY =
   'input:not([type]),input[type="text"],input[type="search"],input[type="email"],input[type="tel"],input[type="url"],input[type="number"],input[type="password"],textarea,[contenteditable=""],[contenteditable="true"]';
 const FOCUSABLE =
   'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])';
+const TABBABLE = `${FOCUSABLE},summary,[contenteditable=""],[contenteditable="true"]`;
+const TAB_SCOPE = '[role="dialog"],[aria-modal="true"]';
 
 type Geo = { side: PopoverPlacement; top: number; bottom: number; left: number; width: number; maxHeight: number };
 type Size = { w: number; h: number; fw: number; room: number };
@@ -117,6 +121,30 @@ export function focusField(el: HTMLElement | null): void {
   target?.focus({ preventScroll: true });
 }
 
+function canTab(el: HTMLElement): boolean {
+  if (el.tabIndex < 0 || el.closest("[inert]") || el.matches(":disabled")) return false;
+  if (el instanceof HTMLInputElement && el.type === "hidden") return false;
+  if (!el.getClientRects().length) return false;
+  return getComputedStyle(el).visibility !== "hidden";
+}
+
+export function nextTabbable(from: HTMLElement, back: boolean, skip?: Element | null): HTMLElement | null {
+  if (typeof document === "undefined" || !from.isConnected) return null;
+  const scope = from.closest<HTMLElement>(TAB_SCOPE);
+  const all = Array.from((scope ?? document).querySelectorAll<HTMLElement>(TABBABLE));
+  const ok = (el: HTMLElement) => !from.contains(el) && !skip?.contains(el) && canTab(el);
+  let split = all.findIndex((el) => !(el.compareDocumentPosition(from) & Node.DOCUMENT_POSITION_FOLLOWING));
+  if (split < 0) split = all.length;
+  if (back) {
+    for (let i = split - 1; i >= 0; i--) if (ok(all[i])) return all[i];
+    if (scope) for (let i = all.length - 1; i >= split; i--) if (ok(all[i])) return all[i];
+  } else {
+    for (let i = split; i < all.length; i++) if (ok(all[i])) return all[i];
+    if (scope) for (let i = 0; i < split; i++) if (ok(all[i])) return all[i];
+  }
+  return null;
+}
+
 function viewport() {
   const vv = window.visualViewport;
   const de = document.documentElement;
@@ -152,7 +180,7 @@ function measure(p: HTMLElement, fieldW: number, fit: PopoverFit, minW: number, 
   return { w, h, fw: fieldW, room };
 }
 
-function anchorGeo(r: DOMRect, size: Size, cap: number, gap: number, prev: PopoverPlacement | undefined): Geo {
+function anchorGeo(r: DOMRect, size: Size, cap: number, gap: number, prev: PopoverPlacement | undefined, align: PopoverAlign): Geo {
   const v = viewport();
   const need = Math.min(size.h, cap);
   const below = v.top + v.height - r.bottom - gap - PAD;
@@ -169,7 +197,7 @@ function anchorGeo(r: DOMRect, size: Size, cap: number, gap: number, prev: Popov
     side,
     top: Math.round(r.bottom + gap),
     bottom: Math.round(v.layoutH - r.top + gap),
-    left: Math.round(Math.max(lo, Math.min(r.left, hi))),
+    left: Math.round(Math.max(lo, Math.min(align === "end" ? r.right - size.w : r.left, hi))),
     width: size.w,
     maxHeight,
   };
@@ -200,6 +228,7 @@ function styleOf(g: Geo | null, sheet: boolean, z: number): CSSProperties {
 export function usePopover(o: PopoverOptions): PopoverState {
   const { open, trigger, popup, anchor } = o;
   const fit = o.fit ?? "list";
+  const align = o.align ?? "start";
   const cap = fit === "list" ? (o.maxHeight ?? LIST_MAX_HEIGHT) : Number.POSITIVE_INFINITY;
   const minW = o.minWidth ?? POPOVER_MIN_WIDTH;
   const maxW = o.maxWidth ?? POPOVER_MAX_WIDTH;
@@ -262,7 +291,7 @@ export function usePopover(o: PopoverOptions): PopoverState {
         if (size && Math.abs(size.fw - r.width) <= 0.5) next.w = Math.min(Math.max(next.w, size.w), next.room);
         size = next;
       }
-      const g = anchorGeo(r, size, cap, gap, side);
+      const g = anchorGeo(r, size, cap, gap, side, align);
       side = g.side;
       box.set(g);
     };
@@ -343,7 +372,7 @@ export function usePopover(o: PopoverOptions): PopoverState {
       runRef.current = null;
       box.set(null);
     };
-  }, [open, isSheet, fit, cap, minW, maxW, gap, blur, box, id, field, trigger, popup]);
+  }, [open, isSheet, fit, align, cap, minW, maxW, gap, blur, box, id, field, trigger, popup]);
 
   const placed = geo && (isSheet ? geo.side === "sheet" : geo.side !== "sheet") ? geo : null;
   return {

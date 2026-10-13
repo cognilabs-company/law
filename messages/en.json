@@ -2620,9 +2620,9 @@
         "agents": "Operators ranked by number of calls."
       },
       "admin_meetings": {
-        "create": "Type a meeting name, pick the participants and start the video meeting here.",
+        "create": "Type a meeting name, pick the participants and start the video meeting here. You can also join live meetings from here.",
         "title": "Meetings — start a video meeting, rejoin active ones and see the history.",
-        "list": "Your meetings: rejoin active ones; the ended ones are listed below."
+        "list": "Your meeting history: scheduled ones on top, ended ones below."
       },
       "admin_call_center": {
         "title": "The duty desk — the call-center operator's main workspace.",
@@ -2634,11 +2634,11 @@
       },
       "admin_pipeline": {
         "title": "The sales pipeline — every lead by stage, from new to won.",
-        "kpis": "Total leads, active ones, won deals and the conversion rate.",
+        "kpis": "Total leads, active ones and the win rate (won / all leads).",
         "newLead": "Add a lead from a call or a meeting by hand with this button.",
-        "autoAssign": "Spreads unassigned leads across operators automatically.",
+        "autoAssign": "In the Manage menu: spreads unassigned leads across operators automatically.",
         "filters": "Filter by search, source, region, operator, date and lead level.",
-        "board": "Leads by stage. Click a card for details; drag it or use the arrows to move it."
+        "board": "Leads by stage. Click a card for details; drag it or use its ⋯ menu to move it."
       },
       "admin_ceo": {
         "title": "The CEO dashboard — revenue, growth and unit economics on one page.",
@@ -3846,6 +3846,7 @@
     }
   },
   "common": {
+    "menu": {"back":"Back"},
     "ui": {"count":"{n}","workId":"Work ID","copy":"Copy","copyId":"Copy work ID {id}","copied":"Copied","copyFailed":"Couldn't copy"},
     "pager": {"more":"{n, plural, one {Show # more item} other {Show # more items}}","less":"Show less","count":"{shown} / {total}","status":"Showing {shown} of {total}","all":"{total, plural, one {# item shown} other {All # items shown}}","loading":"Loading…"},
     "scroll": {"prev":"Scroll left","next":"Scroll right"},
@@ -9968,6 +9969,7 @@
     "stat3l": "avg. rating"
   },
   "admin": {
+    "leadCard": {"actionsFor":"Lead actions: {name}","open":"Open","move":"Move to stage","assign":"Assign to operator","call":"Call","callTo":"Call {phone}","video":"Video meeting","lost":"Mark as lost…","delete":"Delete lead","noPhone":"No phone number","idle":"Free","unassign":"Remove assignment","opsLoading":"Loading operators…","opsUnavailable":"Operator list unavailable","operatorChange":"Change operator: {name}","operatorButton":"Operator: {name}","stageButton":"Stage: {stage}","stages":"Stages","meetChecking":"Checking the client's platform account…","meetNoUser":"This number isn't registered on the platform","meetCheckFailed":"Couldn't check the account"},
     "templateEditor": {"back":"Template list","untitled":"Untitled template","loading":"Opening the editor…","loadError":"Couldn't open the template editor","dismiss":"Dismiss","status":{"draft":"Draft","active":"Active","inactive":"Inactive","published":"Published","snapshot":"Snapshot","restored":"Restored","archived":"Archived"},"vis":{"client":"Clients","staff":"Staff only"},"types":{"text":"Text","textarea":"Multi-line text","number":"Number","date":"Date","phone":"Phone","email":"Email","select":"Pick from a list","checkbox":"Checkbox (yes/no)"},"chip":{"conflict":"Version conflict","saving":"Saving…","saveError":"Not saved","pending":"Unsaved changes","saved":"Saved","savedAt":"Saved · {time}","revision":"#{n}","retry":"Save again","skipped":"{n, plural, one {# field not saved} other {# fields not saved}}","docError":"Word file error","docPending":"Waiting for Word autosave"},"actions":{"replace":"Replace DOCX","uploading":"Uploading…","viewFile":"View file","preview":"Preview","versions":"Versions","validate":"Validate","validating":"Validating…","publish":"Publish"},"flash":{"publishedActive":"Template published and enabled for clients (version #{n}).","published":"Template published but left inactive (version #{n}).","restored":"Version #{n} restored. The editor has been reloaded."},"conflict":{"title":"This template was changed in another tab","text":"You are editing draft #{mine}, but the server already has #{server}. Autosave is paused — choose which state to keep.","loading":"Fetching the server draft…","loadError":"Couldn't fetch the server draft. “Use the server version” reloads the editor.","takeServer":"Use the server version","keepMine":"Save my changes"},"saveRequired":{"title":"The Word file isn't saved on the server yet","text":"The Word editor hasn't sent its changes yet. Wait a few seconds and try again.","retry":"Try again"},"banner":{"source":"Word file replaced: {name}. The editor reopened with the new file.","copied":"Copied — paste it into the document with Ctrl+V.","copyFailed":"Couldn't copy — move the placeholder by hand."},"validate":{"summaryOk":"Validation passed","summaryErr":"{n, plural, one {# error found} other {# errors found}}","warnings":"{n, plural, one {# warning} other {# warnings}}","stale":"validate again after your changes","sections":"{n, plural, one {# section} other {# sections}}","fields":"{n, plural, one {# field} other {# fields}}","required":"{n} required","placeholders":"{n, plural, one {# placeholder in the document} other {# placeholders in the document}}","ok":"The template passed validation","failed":"{n, plural, one {Validation found # error} other {Validation found # errors}}","error":"Couldn't validate","saveFirst":"Your changes need to be saved first"},"tabs":{"label":"Editor panels","nav":"Sections and fields","field":"Field settings","section":"Section settings","meta":"Template settings"},"nav":{"title":"Sections and fields","counts":"{s, plural, one {# section} other {# sections}} · {f, plural, one {# field} other {# fields}}","missingTitle":"The document has placeholders without fields","missingText":"These placeholders are in the Word file, but no field exists for them.","createField":"Create field","empty":"No sections yet. Add a section first, then attach fields to it.","errors":"{n, plural, one {# error} other {# errors}}","warnings":"{n, plural, one {# warning} other {# warnings}}","notSaved":"Not saved","notSavedHint":"The name or key is incomplete (or the key is a duplicate) — it won't be saved until that is fixed.","insert":"Insert into document","insertWait":"The placeholder appears once saved","moveUp":"Move up","moveDown":"Move down","unnamedField":"Untitled field","unnamedSection":"Untitled section","fieldCount":"{n, plural, one {# field} other {# fields}}","rename":"Rename","sectionEmpty":"No fields in this section","addField":"Add field","dropEnd":"Drop here to move to the end","orphans":"Fields without a section","orphansHint":"These fields point to a section that doesn't exist. Drag them into a section or pick one in the settings.","newSectionPh":"Section name, e.g. Parties","addSection":"Add section","defaultSection":"Main details"},"field":{"required":"Required","delete":"Delete field","deleteTitle":"Delete the “{name}” field?","deleteText":"The field will be removed from the draft.","deleteTextPlaced":"The {ph} placeholder stays in the document — remove it from the Word file too, or validation will fail.","label":"Name","key":"Key","keyHint":"Latin letters, digits and underscores only: client_name, contract_date.","keyRequired":"Enter a key","keyInvalid":"Use lowercase Latin letters and digits, with words separated by underscores.","keyDuplicate":"Another field already uses this key","labelRequired":"Enter the field name","keyChanged":"The key changed: replace {old} in the document with the new placeholder.","type":"Type","section":"Section","pickSection":"Pick a section","help":"Help text","options":"Options","optValue":"Value","optLabel":"Display name","optRemove":"Remove option","optAdd":"Add option","optsRequired":"A pick-from-a-list field needs at least one option.","default":"Default value","defaultChecked":"Checked","noDefault":"None","minLength":"Min length","maxLength":"Max length","min":"Min value","max":"Max value","placeholder":"Document placeholder","placeholderWait":"The placeholder appears here once the draft is saved.","ready":"Placeholder ready — you can insert it into the document"},"section":{"title":"Section name","description":"Description","id":"Identifier","fields":"Fields","idHint":"The identifier stays the same when you rename the section.","delete":"Delete section","deleteTitle":"Delete the “{name}” section?","deleteEmptyText":"The section is empty and will be removed from the draft.","deleteMoveLead":"{n, plural, one {This section has # field} other {This section has # fields}}. Choose where to move them before deleting it.","moveAndDelete":"Move and delete","moveTo":"Move fields to","needOther":"There is no other section. Add a new section first."},"meta":{"lead":"Nothing is selected — these are the template's general settings.","title":"Title","titleRequired":"Enter a title","slug":"Slug","slugRequired":"Enter a slug","slugHint":"Latin letters, digits and hyphens: service-agreement","category":"Category","language":"Language","pick":"Choose","price":"Price (UZS, 0 = free)","visibility":"Visible to","description":"Description"},"insp":{"label":"Settings","field":"Field","section":"Section","meta":"Template","toMeta":"Template settings"},"doc":{"label":"Word document","loading":"Loading the Word editor…","error":"The Word editor didn't open","errorText":"The document server didn't respond. Try again.","retry":"Try again","notConfigured":"The Word editor isn't configured","notConfiguredText":"No document server is connected. You can still edit sections and fields, and download the file to look at it."},"insert":{"done":"Placeholder inserted into the document"},"upload":{"tooBig":"The file is larger than 20 MB.","onlyDocx":"Only DOCX files are accepted.","failed":"Couldn't replace the file"},"file":{"error":"Couldn't open the file"},"publish":{"needValidate":"Press “Validate” first","stale":"Validate again after your changes","fixErrors":"Fix the validation errors first","waitSave":"Wait for saving to finish","conflict":"Resolve the version conflict first","skipped":"Fix the unsaved fields first","done":"Template published","invalid":"{n, plural, one {Not published: # error} other {Not published: # errors}}","error":"Couldn't publish","title":"Publish the template","lead":"Draft #{n} will be written to the main template. The previous state is kept in the history.","cancel":"Cancel","publishing":"Publishing…","confirm":"Publish","activate":"Enable for clients right away","activateHint":"Clients will see the template once it's published.","keepInactiveHint":"The template is updated but stays hidden from clients."},"issues":{"duplicate_section_id":"The section identifier is duplicated","duplicate_field_key":"The {key} key is used by more than one field","unknown_section":"The field points to a section that doesn't exist","select_options_required":"The pick-from-a-list field has no options","placeholder_missing":"The {key} placeholder isn't in the document — use “Insert into document”","field_missing":"The {key} placeholder in the document has no field","document_empty":"The Word document is empty","empty_section":"The section has no fields","unknown":"Unknown error"},"versions":{"title":"Version history","lead":"The state before every publish and restore is kept here.","refresh":"Refresh","empty":"No saved versions yet","restore":"Restore","restoring":"Restoring…","restoreTitle":"Restore version #{rev}?","restoreText":"The current state is saved too, so you can return to it. Unsaved changes will be lost.","restoreError":"Couldn't restore the version","restored":"Version restored","blocked":"Wait for saving or publishing to finish."},"preview":{"title":"Preview","lead":"Test values are only for checking and are never saved to the template.","saveFirst":"Your changes need to be saved first","error":"Couldn't build the preview","none":"None","noFields":"No fields — the empty template will be shown.","loading":"Preparing…","run":"Show preview","reset":"Clear","completion":"{n}% filled in","canGenerate":"The document can be generated","cannotGenerate":"Required fields are missing","missing":"{n, plural, one {# required field is empty} other {# required fields are empty}}","previewText":"With markers","finalText":"Final text","emptyText":"The text is empty","hint":"Enter values and press “Show preview”."},"create":{"title":"New Word template","lead":"An empty Word document and a draft are created. Clients won't see the template until it's published.","titleRequired":"Enter a title","slugRequired":"Enter a slug","slugInvalid":"Lowercase Latin letters, digits and hyphens only","done":"Draft created","slugTaken":"This slug is taken — choose another","error":"Couldn't create the template","cancel":"Cancel","creating":"Creating…","submit":"Create and open","titlePh":"Service agreement","draftNote":"The Word editor opens once it's created."},"list":{"newWord":"New Word template","activated":"Template enabled","deactivated":"Template disabled","counts":"{s, plural, one {# section} other {# sections}} · {f, plural, one {# field} other {# fields}}","revision":"Version #{n}","sourceNamed":"File: {name}","source":"Has a Word file","noSource":"No file","edit":"Edit","activate":"Enable","deactivate":"Disable"}},
     "liveOffice": {
       "zoom": {"in": "Zoom in", "out": "Zoom out", "fit": "Whole office"},
@@ -10678,6 +10680,9 @@
       }
     },
     "urgent": {
+      "join": "Join meeting",
+      "joining": "Joining…",
+      "newTab": "Opens in a new tab",
       "st": {"open_pool":"New","claimed":"Claimed","scheduled":"Scheduled","in_progress":"In progress","meeting_active":"In meeting","completed":"Completed","cancelled":"Cancelled","expired":"Expired"},
       "activeCount": "{n} active",
       "dirs": {"shartnoma":"Contracts","ytx":"Road accident","avtoavariya":"Road accident","yol_transport_hodisasi":"Road accident"},
@@ -10707,7 +10712,7 @@
       "movedToArchive": "The request moved to Archive.",
       "loadError": "Couldn't load the requests",
       "detailLoadError": "Couldn't load the request",
-      "notify": {"claimed":"Request claimed","chatOpened":"A private chat with the client is open.","claimFailed":"Couldn't claim the request","meetingFailed":"Couldn't start the meeting","completeFailed":"Couldn't complete the request","transferFailed":"Couldn't hand the work over","transferredTo":"Now handled by {name}.","cancelFailed":"Couldn't cancel the request","statusFailed":"Couldn't change the status","groupAssigned":"{n, plural, one {# advocate assigned} other {# advocates assigned}}","groupFailed":"Couldn't assign the panel","listFailed":"Couldn't refresh the request list","listRefreshed":"Request list refreshed","detailFailed":"Couldn't refresh the request details","detailRefreshed":"Request details refreshed"},
+      "notify": {"joinFailed": "Couldn't join the meeting", "meetingEnded": "The meeting has already ended. The list was refreshed.", "claimed":"Request claimed","chatOpened":"A private chat with the client is open.","claimFailed":"Couldn't claim the request","meetingFailed":"Couldn't start the meeting","completeFailed":"Couldn't complete the request","transferFailed":"Couldn't hand the work over","transferredTo":"Now handled by {name}.","cancelFailed":"Couldn't cancel the request","statusFailed":"Couldn't change the status","groupAssigned":"{n, plural, one {# advocate assigned} other {# advocates assigned}}","groupFailed":"Couldn't assign the panel","listFailed":"Couldn't refresh the request list","listRefreshed":"Request list refreshed","detailFailed":"Couldn't refresh the request details","detailRefreshed":"Request details refreshed"},
       "movedTo": "The list switched to “{status}”.",
       "sourceValue": "Urgent advocate",
       "fSource": "Source",
@@ -11389,6 +11394,28 @@
       }
     },
     "meetings": {
+      "opensOn": "Opens {date}",
+      "scheduledGroup": "Scheduled",
+      "liveEmpty": "No meetings are live right now.",
+      "liveUnavailable": "Couldn't show live meetings.",
+      "pastEmpty": "Finished meetings will show up here.",
+      "since": "since {time}",
+      "startsAt": "Starts: {time}",
+      "startsInMin": "(in {n} min)",
+      "startsInHour": "(in {n} h)",
+      "startsInDay": "(in {n, plural, one {# day} other {# days}})",
+      "opensAt": "Opens at {time}",
+      "joinClosed": "You can't join right now",
+      "youDeclined": "You declined",
+      "youRemoved": "You were removed",
+      "defaultTitle": "Video meeting with {name}",
+      "defaultTitleMore": "Video meeting with {name} and {n, plural, one {# other} other {# others}}",
+      "defaultTitleNoName": "Video meeting",
+      "enterHint": "Enter works too",
+      "howTitle": "How it works",
+      "how1": "Find participants by name or phone.",
+      "how2": "Press Start meeting and they get a call.",
+      "how3": "Finished meetings stay in the history below.",
       "scopeTabs": "Which meetings to show",
       "scopeTab": {"mine":"Mine","all":"All"},
       "historyUnavailable": "The meeting list isn't available yet",
@@ -11426,8 +11453,8 @@
       "backendMissing": "Video meetings aren't turned on yet. Contact an administrator.",
       "history": "My meetings",
       "refresh": "Refresh",
-      "activeGroup": "Active",
-      "endedGroup": "Past meetings",
+      "activeGroup": "Live now",
+      "endedGroup": "Past",
       "historyEmpty": "No meetings yet",
       "historyEmptyText": "Meetings you start or get invited to will show up here.",
       "sample": [
@@ -11529,6 +11556,12 @@
       "stagingOnlyText": "Test OTP codes are kept only on the staging/demo server. Production has no such list — codes are sent by SMS or Telegram."
     },
     "pipeline": {
+      "manage": "Manage",
+      "manageCount": "Manage, {n, plural, one {# unassigned lead} other {# unassigned leads}}",
+      "view": "View",
+      "sum": {"line":"{n, plural, one {<b>#</b> lead} other {<b>#</b> leads}} · <b>{active}</b> active · Win rate <b>{rate}%</b>","rateInfo":"How the win rate is counted","rateHint":"Won leads ÷ all leads","rateHelp":"Win rate: {won} won ÷ {total, plural, one {# lead} other {# leads}} in total"},
+      "col": {"menu":"Stage actions","rename":"Rename","color":"Color","delete":"Delete","finalReason":"A final stage can't be deleted"},
+      "table": {"client":"Client","score":"Level"},
       "add": {"notSet":"Not specified","phoneInvalid":"Enter the full number: 9 digits after +998."},
       "del": {"titleFor":"Delete the “{stage}” stage","leadsText":"This stage has {n, plural, one {# lead} other {# leads}}. Before it is deleted, {n, plural, one {it moves} other {they move}} to another stage.","target":"Move to","lostHint":"Moving to a lost stage asks for a reason.","lostName":"{stage}: {n, plural, one {# lead} other {# leads}}"},
       "colors": {"blue":"Blue","violet":"Violet","cyan":"Teal","green":"Green","amber":"Orange","red":"Red","pink":"Pink","gray":"Gray","current":"Current color"},
@@ -11563,7 +11596,7 @@
       "deleteStatusText": "Delete this stage?",
       "reassignLeads": "This stage has {count, plural, one {# lead} other {# leads}} — move them to:",
       "moveAndDelete": "Move & delete",
-      "lead": "Move leads through the stages: new → contacted → qualified → won/lost.",
+      "lead": "Move leads through the stages",
       "empty": "No leads",
       "emptyText": "New leads will appear here.",
       "noneHere": "Empty",
@@ -11710,7 +11743,7 @@
       "noAgents": "The per-agent breakdown is not on the backend yet."
     },
     "ceo": {
-      "report": {"aud": {"mau":"MAU ({month})","dau":"DAU (today)","newClients":"New clients (this month)","newAdvocates":"New advocates (this month)","newLawyers":"New lawyers (this month)","newcomers":"Newcomers","mauDef":"Users active at least once this month","dauDef":"Users active today","stickDef":"Share of this month's active users who are active today","npsDef":"NPS — likelihood to recommend, from −100 to +100"}, "groupChannels": "Marketing channels", "groupPayments": "Payment systems", "groupPaymentsNote": "payments with no source recorded", "paymentTag": "payment system", "chLeads": "{n} {count, plural, one {lead} other {leads}}", "chPayments": "{n} {count, plural, one {payment} other {payments}}", "chConv": "conversion {pct}", "allTime": "All time", "allTimeAsOf": "All time · as of {date}", "realFailed": "Real data didn't load", "testExcluded": "Test and demo payments are left out: {amount}, {n, plural, one {# payment} other {# payments}}.", "testIncluded": "Of which test/demo: {amount}, {n, plural, one {# payment} other {# payments}}.", "testNoteShown": "Test and demo channels ({n}, {amount}) are shown in grey and included in total revenue.", "withTest": "includes test/demo", "spanDays": "{n, plural, one {# day} other {# days}}", "spanAria": "Chart period", "figTotalDays": "{n, plural, one {Last day total} other {Last # days total}}", "perMonth": "this month", "perToday": "today", "demoPill": "Demo", "bySubs": "from subscriptions", "na":"not tracked","asOf":"as of {date}","custom":"Custom range","allRegions":"All regions","failed":"Couldn't load the CEO figures.","retry":"Try again","summary":"To date, the platform has earned <b>{revenue}</b>, taken <b>{payments}</b> {count, plural, one {payment} other {payments}}, and <b>{conv}</b> of leads became orders. Users in total: <b>{users}</b>.","deltaUp":"That is <b>{n}%</b> more than the previous period.","deltaDown":"That is <b>{n}%</b> less than the previous period.","revNote":"Daily revenue for the last 7 or 14 days.","figTotal":"Period total","figAvg":"Daily average","figBest":"Best day","figActive":"Days with revenue","daysOf":"{n} of {total, plural, one {# day} other {# days}}","unit":"Unit economics","unitNote":"What each figure means and where it stands now.","colMetric":"Metric","colValue":"Value","colNote":"Note","payback":"Payback period","months":"{n} {count, plural, one {month} other {months}}","health":{"good":"Healthy","watch":"Worth a look","bad":"At risk","na":"Not tracked"},"notes":{"mrrSubs": "From subscriptions: the monthly prices of active subscriptions added up (ARR ÷ 12).", "mrrNa": "No active paid subscriptions.", "arrSubs": "Annual recurring revenue from active subscriptions.", "gmv":"Total value of all payments through the platform.","gmvEq":"Currently computed the same as total revenue.","mrr":"Monthly recurring revenue from subscriptions.","mrrEq":"The server currently returns MRR equal to total revenue.","arr":"Annual recurring revenue (MRR × 12).","arpu":"Total revenue divided by the number of active subscribers.","take":"Platform commission — the share of GMV the platform keeps.","cacNa":"No marketing spend has been entered, so this can't be computed.","ltv":"Revenue expected from one client over their lifetime.","ltvCac":"3× or higher is a healthy ratio.","payback":"How many months it takes to earn back acquisition cost."},"funnelNote":"How many leads make it to an order.","kept":"{pct}% passed · {lost} lost","entry":"Entry point","paidNote":"Paid payments: <b>{n}</b>. This includes subscriptions and other payments besides orders, so it is kept out of the funnel.","channelsNote":"Click a column heading to change the sort order.","testNote":"Test and demo channels ({n}, {amount}) are hidden and left out of total revenue.","showTest":"Show test channels","testTag":"test","audience":"Audience","audienceNote":"Activity, newcomers and satisfaction.","stickiness":"DAU / MAU","giftNote":"Gift subscriptions: from purchase to paying client."},
+      "report": {"failedServer": "Couldn't load the CEO figures — the server didn't respond ({status})", "failedOffline": "Couldn't load the CEO figures — no internet connection", "actions": "Page actions", "demoAuto": "Demo (automatic)", "demoAutoWhy": "There is no real data yet, so sample figures are shown automatically. Real figures appear with the first lead or payment.", "demoHelp": "Shows sample figures even when real data exists. Every section is then marked “Demo”.", "demoForcedNote": "Demo mode is on: sample figures are shown instead of real data. To turn it off, open the “⋯” menu above.", "refresh": "Refresh data", "jumpAria": "Report sections", "fig": {"revenueClean":"excluding test/demo","revenue":"sum of payments","payments":"paid","conv":"lead to order","users":"total","mau":"monthly active"}, "lastDays": "{n, plural, one {Last day} other {Last # days}}", "kShort": "{n}K", "chartAria": "Daily revenue chart", "chartHint": "Use the left and right arrow keys to move between days.", "chartMax": "max {value}", "tableView": "Table view", "colDay": "Date", "byDay": "Revenue by day", "all": "All ({n})", "less": "Show less", "zeroRow": "Channels without revenue ({n})", "steps": "Steps", "paidLine": "Paid payments: {n}. Subscriptions are included too, so they are not added to the funnel.", "gift": {"bought":"{count, plural, one {gift bought} other {gifts bought}}","activated":"activated","paid":"{count, plural, one {became a paying client} other {became paying clients}}","ofBought":"of purchases","ofActivated":"of activated gifts"}, "aud": {"mau":"MAU ({month})","dau":"DAU (today)","newClients":"New clients (this month)","newAdvocates":"New advocates (this month)","newLawyers":"New lawyers (this month)","newcomers":"Newcomers","mauDef":"Users active at least once this month","dauDef":"Users active today","stickDef":"Share of this month's active users who are active today","npsDef":"NPS — likelihood to recommend, from −100 to +100"}, "groupChannels": "Marketing channels", "groupPayments": "Payment systems", "groupPaymentsNote": "payments with no source recorded", "paymentTag": "payment system", "chLeads": "{n} {count, plural, one {lead} other {leads}}", "chPayments": "{n} {count, plural, one {payment} other {payments}}", "chConv": "conversion {pct}", "allTime": "All time", "allTimeAsOf": "All time · as of {date}", "realFailed": "Real data didn't load", "testExcluded": "Test and demo payments are left out: {amount}, {n, plural, one {# payment} other {# payments}}.", "testIncluded": "Of which test/demo: {amount}, {n, plural, one {# payment} other {# payments}}.", "testNoteShown": "Test and demo channels ({n}, {amount}) are shown in grey and included in total revenue.", "withTest": "includes test/demo", "spanDays": "{n, plural, one {# day} other {# days}}", "spanAria": "Chart period", "figTotalDays": "{n, plural, one {Last day total} other {Last # days total}}", "perMonth": "this month", "perToday": "today", "demoPill": "Demo", "bySubs": "from subscriptions", "na":"not tracked","asOf":"as of {date}","custom":"Custom range","allRegions":"All regions","failed":"Couldn't load the CEO figures.","retry":"Try again","summary":"To date, the platform has earned <b>{revenue}</b>, taken <b>{payments}</b> {count, plural, one {payment} other {payments}}, and <b>{conv}</b> of leads became orders. Users in total: <b>{users}</b>.","deltaUp":"That is <b>{n}%</b> more than the previous period.","deltaDown":"That is <b>{n}%</b> less than the previous period.","revNote":"Daily revenue for the last 7 or 14 days.","figTotal":"Period total","figAvg":"Daily average","figBest":"Best day","figActive":"Days with revenue","daysOf":"{n} of {total, plural, one {# day} other {# days}}","unit":"Unit economics","unitNote":"What each figure means and where it stands now.","colMetric":"Metric","colValue":"Value","colNote":"Note","payback":"Payback period","months":"{n} {count, plural, one {month} other {months}}","health":{"good":"Healthy","watch":"Worth a look","bad":"At risk","na":"Not tracked"},"notes":{"mrrSubs": "From subscriptions: the monthly prices of active subscriptions added up (ARR ÷ 12).", "mrrNa": "No active paid subscriptions.", "arrSubs": "Annual recurring revenue from active subscriptions.", "gmv":"Total value of all payments through the platform.","gmvEq":"Currently computed the same as total revenue.","mrr":"Monthly recurring revenue from subscriptions.","mrrEq":"The server currently returns MRR equal to total revenue.","arr":"Annual recurring revenue (MRR × 12).","arpu":"Total revenue divided by the number of active subscribers.","take":"Platform commission — the share of GMV the platform keeps.","cacNa":"No marketing spend has been entered, so this can't be computed.","ltv":"Revenue expected from one client over their lifetime.","ltvCac":"3× or higher is a healthy ratio.","payback":"How many months it takes to earn back acquisition cost."},"funnelNote":"How many leads make it to an order.","kept":"{pct}% passed · {lost} lost","entry":"Entry point","paidNote":"Paid payments: <b>{n}</b>. This includes subscriptions and other payments besides orders, so it is kept out of the funnel.","channelsNote":"Click a column heading to change the sort order.","testNote":"Test and demo channels ({n}, {amount}) are hidden and left out of total revenue.","showTest":"Show test channels","testTag":"test","audience":"Audience","audienceNote":"Activity, newcomers and satisfaction.","stickiness":"DAU / MAU","giftNote":"Gift subscriptions: from purchase to paying client."},
       "title": "CEO dashboard",
       "revenue": "Revenue",
       "mrr": "MRR (monthly recurring)",
@@ -12052,6 +12085,12 @@
       "searching": "Searching…",
       "searchNoAccess": "Client lookup is open to duty desk staff only. Ask an administrator if you need access.",
       "card": {
+        "sumCalls": "Calls",
+        "sumSince": "Joined",
+        "role": "Client",
+        "subActive": "Active subscription",
+        "lexgoId": "LexGo ID: {id}",
+        "noCalls": "No calls logged yet.",
         "actionGroups": {"marketplace":"Service purchase activity","document":"Document activity","urgent":"Urgent advocate activity","payment":"Payment activity","subscription":"Subscription activity","chat":"Secure chat activity","ai":"AI assistant","call":"Call activity","contract":"Contract activity","support":"Support request","account":"Account settings","order":"Order activity","other":"Other activity"},
         "tabsAria": "Client details",
         "logFor": "The call will be saved to {name}'s card.",
@@ -12069,10 +12108,11 @@
         "sumComplaints": "Complaints",
         "sumSubs": "Active subscription",
         "tabs": {
+          "calls": "Calls",
           "orders": "Orders",
           "payments": "Payments",
           "leads": "Leads",
-          "activity": "Recent activity"
+          "activity": "Activity"
         },
         "noOrders": "No orders.",
         "noPayments": "No payments.",

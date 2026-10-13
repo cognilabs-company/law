@@ -2620,9 +2620,9 @@
         "agents": "Eng ko'p qo'ng'iroq qilgan operatorlar reytingi."
       },
       "admin_meetings": {
-        "create": "Uchrashuv nomini yozib, ishtirokchilarni tanlang va video uchrashuvni shu yerdan boshlang.",
+        "create": "Uchrashuv nomini yozib, ishtirokchilarni tanlang va video uchrashuvni shu yerdan boshlang. Hozir faol uchrashuvlarga ham shu yerdan qo'shilasiz.",
         "title": "Uchrashuvlar — video uchrashuv boshlaysiz, faollariga qaytasiz va tarixni ko'rasiz.",
-        "list": "Sizning uchrashuvlaringiz: faollariga qayta qo'shilasiz, tugaganlari pastda."
+        "list": "Uchrashuvlaringiz tarixi: rejalashtirilganlari tepada, tugaganlari pastda."
       },
       "admin_call_center": {
         "title": "Navbatchi xizmat — qo'ng'iroq markazi operatorining asosiy ish joyi.",
@@ -2634,11 +2634,11 @@
       },
       "admin_pipeline": {
         "title": "Sotuv voronkasi — barcha lidlar bosqichlar bo'yicha, yangidan yutilgangacha.",
-        "kpis": "Jami lidlar, faollari, yutilganlari va konversiya foizi.",
+        "kpis": "Jami lidlar, faollari va yutish ulushi (yutilgan / jami lid).",
         "newLead": "Telefon yoki uchrashuvdan kelgan lidni shu tugma bilan qo'lda qo'shasiz.",
-        "autoAssign": "Biriktirilmagan lidlarni operatorlarga avtomatik taqsimlaydi.",
+        "autoAssign": "«Boshqaruv» menyusida: biriktirilmagan lidlarni operatorlarga avtomatik taqsimlaydi.",
         "filters": "Qidiruv, manba, hudud, operator, sana va lid darajasi bo'yicha saralang.",
-        "board": "Lidlar bosqichlar bo'yicha. Kartani bossangiz, tafsilot ochiladi; uni sudrab yoki strelka bilan surasiz."
+        "board": "Lidlar bosqichlar bo'yicha. Kartani bossangiz, tafsilot ochiladi; uni sudrab yoki «⋯» menyusi orqali boshqa bosqichga o'tkazasiz."
       },
       "admin_ceo": {
         "title": "CEO paneli — tushum, o'sish va unit-iqtisodiyot bitta sahifada.",
@@ -3846,6 +3846,7 @@
     }
   },
   "common": {
+    "menu": {"back":"Orqaga"},
     "ui": {"count":"{n} ta","workId":"Ish raqami","copy":"Nusxa olish","copyId":"Ish raqamidan nusxa olish: {id}","copied":"Nusxa olindi","copyFailed":"Nusxa olib bo'lmadi"},
     "pager": {"more":"Yana {n} ta ko'rsatish","less":"Kamroq ko'rsatish","count":"{shown} / {total}","status":"{total} tadan {shown} tasi ko'rsatilmoqda","all":"Hammasi ko'rsatildi: {total} ta","loading":"Yuklanmoqda…"},
     "scroll": {"prev":"Chapga surish","next":"O'ngga surish"},
@@ -9974,6 +9975,7 @@
     "stat3l": "o‘rtacha reyting"
   },
   "admin": {
+    "leadCard": {"actionsFor":"Lid amallari: {name}","open":"Ochish","move":"Bosqichga ko'chirish","assign":"Operatorga biriktirish","call":"Qo'ng'iroq qilish","callTo":"{phone} raqamiga qo'ng'iroq qilish","video":"Video uchrashuv","lost":"Yo'qotilgan deb belgilash…","delete":"Lidni o'chirish","noPhone":"Telefon raqami yo'q","idle":"Bo'sh","unassign":"Biriktirishni olib tashlash","opsLoading":"Operatorlar yuklanmoqda…","opsUnavailable":"Operatorlar ro'yxati mavjud emas","operatorChange":"Operatorni o'zgartirish: {name}","operatorButton":"Operator: {name}","stageButton":"Bosqich: {stage}","stages":"Bosqichlar","meetChecking":"Mijozning platformadagi akkaunti tekshirilmoqda…","meetNoUser":"Bu raqam platformada ro'yxatdan o'tmagan","meetCheckFailed":"Akkauntni tekshirib bo'lmadi"},
     "templateEditor": {"back":"Shablonlar ro'yxati","untitled":"Nomsiz shablon","loading":"Muharrir ochilmoqda…","loadError":"Shablon muharriri ochilmadi","dismiss":"Yopish","status":{"draft":"Qoralama","active":"Faol","inactive":"Nofaol","published":"E'lon qilingan","snapshot":"Nusxa","restored":"Tiklangan","archived":"Arxivda"},"vis":{"client":"Mijozlar","staff":"Faqat xodimlar"},"types":{"text":"Matn","textarea":"Ko'p qatorli matn","number":"Son","date":"Sana","phone":"Telefon","email":"Elektron pochta","select":"Ro'yxatdan tanlash","checkbox":"Belgi (ha/yo'q)"},"chip":{"conflict":"Versiyalar to'qnashuvi","saving":"Saqlanmoqda…","saveError":"Saqlanmadi","pending":"Saqlanmagan o'zgarishlar","saved":"Saqlandi","savedAt":"Saqlandi · {time}","revision":"№{n}","retry":"Qayta saqlash","skipped":"{n} ta maydon saqlanmadi","docError":"Word faylida xato","docPending":"Word avtosaqlash kutilmoqda"},"actions":{"replace":"DOCX almashtirish","uploading":"Yuklanmoqda…","viewFile":"Faylni ko'rish","preview":"Oldindan ko'rish","versions":"Versiyalar","validate":"Tekshirish","validating":"Tekshirilmoqda…","publish":"E'lon qilish"},"flash":{"publishedActive":"Shablon e'lon qilindi va mijozlar uchun faollashtirildi (versiya №{n}).","published":"Shablon e'lon qilindi, lekin nofaol qoldi (versiya №{n}).","restored":"Versiya №{n} tiklandi. Muharrir yangilandi."},"conflict":{"title":"Bu shablon boshqa oynada o'zgartirilgan","text":"Siz №{mine} qoralama asosida ishlayapsiz, serverda esa №{server} bor. Avtosaqlash to'xtatildi — qaysi holat qolishini tanlang.","loading":"Serverdagi qoralama olinmoqda…","loadError":"Serverdagi qoralamani olib bo'lmadi. «Serverdagi versiyani olish» sahifani qayta yuklaydi.","takeServer":"Serverdagi versiyani olish","keepMine":"O'zgarishlarimni saqlash"},"saveRequired":{"title":"Word fayli hali serverga saqlanmagan","text":"Word muharriri o'zgarishlarni hali yubormadi. Bir necha soniya kutib, qayta urinib ko'ring.","retry":"Qayta urinish"},"banner":{"source":"Word fayli almashtirildi: {name}. Muharrir yangi fayl bilan qayta ochildi.","copied":"Nusxalandi — hujjatga Ctrl+V bilan qo'ying.","copyFailed":"Nusxa olib bo'lmadi — belgini qo'lda ko'chiring."},"validate":{"summaryOk":"Tekshiruvdan o'tdi","summaryErr":"{n} ta xato topildi","warnings":"{n} ta ogohlantirish","stale":"o'zgarishlardan keyin qayta tekshiring","sections":"{n} ta bo'lim","fields":"{n} ta maydon","required":"{n} ta majburiy","placeholders":"hujjatda {n} ta belgi","ok":"Shablon tekshiruvdan o'tdi","failed":"Tekshiruvda {n} ta xato topildi","error":"Tekshirib bo'lmadi","saveFirst":"Avval o'zgarishlar saqlanishi kerak"},"tabs":{"label":"Muharrir panellari","nav":"Bo'limlar va maydonlar","field":"Maydon sozlamalari","section":"Bo'lim sozlamalari","meta":"Shablon sozlamalari"},"nav":{"title":"Bo'limlar va maydonlar","counts":"{s} bo'lim · {f} maydon","missingTitle":"Hujjatda maydonsiz belgilar bor","missingText":"Bu belgilar Word faylida bor, lekin ular uchun maydon yo'q.","createField":"Maydon yaratish","empty":"Hali bo'lim yo'q. Avval bo'lim qo'shing, keyin unga maydonlar biriktiring.","errors":"{n} ta xato","warnings":"{n} ta ogohlantirish","notSaved":"Saqlanmagan","notSavedHint":"Nomi yoki kaliti to'liq emas (yoki kalit takrorlangan) — tuzatilmaguncha saqlanmaydi.","insert":"Hujjatga qo'yish","insertWait":"Belgi saqlangandan keyin paydo bo'ladi","moveUp":"Yuqoriga","moveDown":"Pastga","unnamedField":"Nomsiz maydon","unnamedSection":"Nomsiz bo'lim","fieldCount":"{n} ta maydon","rename":"Nomini o'zgartirish","sectionEmpty":"Bo'limda maydon yo'q","addField":"Maydon qo'shish","dropEnd":"Oxiriga qo'yish uchun shu yerga tashlang","orphans":"Bo'limsiz maydonlar","orphansHint":"Bu maydonlar mavjud bo'lmagan bo'limga bog'langan. Ularni bo'limga sudrab o'tkazing yoki sozlamalarda bo'lim tanlang.","newSectionPh":"Bo'lim nomi, masalan: Tomonlar","addSection":"Bo'lim qo'shish","defaultSection":"Asosiy ma'lumotlar"},"field":{"required":"Majburiy","delete":"Maydonni o'chirish","deleteTitle":"«{name}» maydoni o'chirilsinmi?","deleteText":"Maydon qoralamadan olib tashlanadi.","deleteTextPlaced":"Hujjatdagi {ph} belgisi o'z-o'zidan o'chmaydi — uni Word faylidan ham olib tashlang, aks holda tekshiruv xato beradi.","label":"Nomi","key":"Kalit","keyHint":"Faqat lotin harflari, raqamlar va pastki chiziq: client_name, contract_date.","keyRequired":"Kalitni kiriting","keyInvalid":"Kalit kichik lotin harflari va raqamlardan iborat bo'lsin, so'zlar pastki chiziq bilan ajratiladi.","keyDuplicate":"Bu kalit boshqa maydonda ishlatilgan","labelRequired":"Maydon nomini kiriting","keyChanged":"Kalit o'zgardi: hujjatdagi {old} belgisini yangisiga almashtiring.","type":"Turi","section":"Bo'lim","pickSection":"Bo'limni tanlang","help":"Yordam matni","options":"Tanlov variantlari","optValue":"Qiymat","optLabel":"Ko'rinadigan nomi","optRemove":"Variantni o'chirish","optAdd":"Variant qo'shish","optsRequired":"Ro'yxatdan tanlash turida kamida bitta variant bo'lishi shart.","default":"Boshlang'ich qiymat","defaultChecked":"Belgilangan holda","noDefault":"Tanlanmagan","minLength":"Eng kam uzunlik","maxLength":"Eng ko'p uzunlik","min":"Eng kichik qiymat","max":"Eng katta qiymat","placeholder":"Hujjatdagi belgi","placeholderWait":"Belgi qoralama saqlangandan keyin shu yerda chiqadi.","ready":"Belgi tayyor — hujjatga qo'yish mumkin"},"section":{"title":"Bo'lim nomi","description":"Tavsif","id":"Identifikator","fields":"Maydonlar","idHint":"Identifikator nom o'zgarganda ham o'zgarmaydi.","delete":"Bo'limni o'chirish","deleteTitle":"«{name}» bo'limi o'chirilsinmi?","deleteEmptyText":"Bo'lim bo'sh, u qoralamadan olib tashlanadi.","deleteMoveLead":"Bo'limda {n} ta maydon bor. O'chirishdan oldin ularni qaysi bo'limga ko'chirishni tanlang.","moveAndDelete":"Ko'chirish va o'chirish","moveTo":"Maydonlarni ko'chirish","needOther":"Boshqa bo'lim yo'q. Avval yangi bo'lim qo'shing."},"meta":{"lead":"Hech narsa tanlanmagan — bu shablonning umumiy sozlamalari.","title":"Sarlavha","titleRequired":"Sarlavhani kiriting","slug":"Manzil nomi","slugRequired":"Manzil nomini kiriting","slugHint":"Lotin harflari, raqamlar va chiziqcha: service-agreement","category":"Turkum","language":"Til","pick":"Tanlang","price":"Narx (so'm, 0 = bepul)","visibility":"Kimga ko'rinadi","description":"Tavsif"},"insp":{"label":"Sozlamalar","field":"Maydon","section":"Bo'lim","meta":"Shablon","toMeta":"Shablon sozlamalari"},"doc":{"label":"Word hujjati","loading":"Word muharriri yuklanmoqda…","error":"Word muharriri ochilmadi","errorText":"Hujjat serveri javob bermadi. Qayta urinib ko'ring.","retry":"Qayta urinish","notConfigured":"Word muharriri sozlanmagan","notConfiguredText":"Hujjat serveri ulanmagan. Bo'lim va maydonlarni tahrirlash mumkin, faylni esa yuklab ko'ring."},"insert":{"done":"Belgi hujjatga qo'yildi"},"upload":{"tooBig":"Fayl 20 MB dan katta.","onlyDocx":"Faqat DOCX fayl qabul qilinadi.","failed":"Faylni almashtirib bo'lmadi"},"file":{"error":"Faylni ochib bo'lmadi"},"publish":{"needValidate":"Avval «Tekshirish» tugmasini bosing","stale":"O'zgarishlardan keyin qayta tekshiring","fixErrors":"Avval tekshiruv xatolarini tuzating","waitSave":"Saqlash tugashini kuting","conflict":"Avval versiyalar to'qnashuvini hal qiling","skipped":"Avval saqlanmagan maydonlarni tuzating","done":"Shablon e'lon qilindi","invalid":"E'lon qilinmadi: {n} ta xato","error":"E'lon qilib bo'lmadi","title":"Shablonni e'lon qilish","lead":"№{n} qoralama asosiy shablonga yoziladi. Oldingi holat tarixda saqlanadi.","cancel":"Bekor qilish","publishing":"E'lon qilinmoqda…","confirm":"E'lon qilish","activate":"Darhol mijozlar uchun faollashtirish","activateHint":"Shablon e'londan so'ng mijozlarga ko'rinadi.","keepInactiveHint":"Shablon yangilanadi, lekin mijozlarga ko'rinmaydi."},"issues":{"duplicate_section_id":"Bo'lim identifikatori takrorlangan","duplicate_field_key":"{key} kaliti bir necha maydonda ishlatilgan","unknown_section":"Maydon mavjud bo'lmagan bo'limga bog'langan","select_options_required":"Ro'yxatdan tanlash maydonida variantlar yo'q","placeholder_missing":"{key} belgisi hujjatda yo'q — «Hujjatga qo'yish» bilan joylang","field_missing":"Hujjatdagi {key} belgisi uchun maydon yo'q","document_empty":"Word hujjati bo'sh","empty_section":"Bo'limda maydon yo'q","unknown":"Noma'lum xato"},"versions":{"title":"Versiyalar tarixi","lead":"Har bir e'lon va tiklashdan oldingi holat shu yerda saqlanadi.","refresh":"Yangilash","empty":"Hali saqlangan versiya yo'q","restore":"Tiklash","restoring":"Tiklanmoqda…","restoreTitle":"№{rev} versiya tiklansinmi?","restoreText":"Hozirgi holat ham saqlanadi — keyin unga qaytish mumkin. Saqlanmagan o'zgarishlar yo'qoladi.","restoreError":"Versiyani tiklab bo'lmadi","restored":"Versiya tiklandi","blocked":"Saqlash yoki e'lon tugashini kuting."},"preview":{"title":"Oldindan ko'rish","lead":"Sinov qiymatlari faqat tekshiruv uchun, shablonga saqlanmaydi.","saveFirst":"Avval o'zgarishlar saqlanishi kerak","error":"Oldindan ko'rib bo'lmadi","none":"Tanlanmagan","noFields":"Maydonlar yo'q — bo'sh shablon ko'rsatiladi.","loading":"Tayyorlanmoqda…","run":"Ko'rish","reset":"Tozalash","completion":"{n}% to'ldirildi","canGenerate":"Hujjat yaratish mumkin","cannotGenerate":"Majburiy maydonlar to'ldirilmagan","missing":"To'ldirilmagan majburiy maydonlar: {n}","previewText":"Belgilangan ko'rinish","finalText":"Yakuniy matn","emptyText":"Matn bo'sh","hint":"Qiymatlarni kiriting va «Ko'rish» tugmasini bosing."},"create":{"title":"Yangi Word shablon","lead":"Bo'sh Word hujjati va qoralama yaratiladi. Shablon e'lon qilinmaguncha mijozlarga ko'rinmaydi.","titleRequired":"Sarlavhani kiriting","slugRequired":"Manzil nomini kiriting","slugInvalid":"Faqat kichik lotin harflari, raqamlar va chiziqcha","done":"Qoralama yaratildi","slugTaken":"Bu manzil nomi band — boshqasini yozing","error":"Shablon yaratilmadi","cancel":"Bekor qilish","creating":"Yaratilmoqda…","submit":"Yaratish va ochish","titlePh":"Xizmat ko'rsatish shartnomasi","draftNote":"Yaratilgandan so'ng Word muharriri ochiladi."},"list":{"newWord":"Yangi Word shablon","activated":"Shablon faollashtirildi","deactivated":"Shablon nofaol qilindi","counts":"{s} bo'lim · {f} maydon","revision":"Versiya №{n}","sourceNamed":"Fayl: {name}","source":"Word fayli bor","noSource":"Faylsiz","edit":"Tahrirlash","activate":"Faollashtirish","deactivate":"Nofaol qilish"}},
     "liveOffice": {
       "zoom": {"in": "Yaqinlashtirish", "out": "Uzoqlashtirish", "fit": "Butun ofis"},
@@ -10684,6 +10686,9 @@
       }
     },
     "urgent": {
+      "join": "Uchrashuvga qo'shilish",
+      "joining": "Ulanmoqda…",
+      "newTab": "Yangi oynada ochiladi",
       "st": {"open_pool":"Yangi","claimed":"Olingan","scheduled":"Rejalashtirilgan","in_progress":"Jarayonda","meeting_active":"Uchrashuvda","completed":"Yakunlangan","cancelled":"Bekor qilingan","expired":"Muddati o'tgan"},
       "activeCount": "{n} ta faol",
       "dirs": {"shartnoma":"Shartnomalar","ytx":"Yo'l-transport hodisasi","avtoavariya":"Yo'l-transport hodisasi","yol_transport_hodisasi":"Yo'l-transport hodisasi"},
@@ -10713,7 +10718,7 @@
       "movedToArchive": "So'rov «Arxiv» bo'limiga o'tdi.",
       "loadError": "So'rovlarni yuklab bo'lmadi",
       "detailLoadError": "So'rovni yuklab bo'lmadi",
-      "notify": {"claimed":"So'rov olindi","chatOpened":"Mijoz bilan maxfiy chat ochildi.","claimFailed":"So'rovni olib bo'lmadi","meetingFailed":"Uchrashuvni boshlab bo'lmadi","completeFailed":"So'rovni yakunlab bo'lmadi","transferFailed":"Ishni boshqa advokatga berib bo'lmadi","transferredTo":"Yangi mas'ul: {name}.","cancelFailed":"So'rovni bekor qilib bo'lmadi","statusFailed":"Statusni o'zgartirib bo'lmadi","groupAssigned":"{n} ta advokat belgilandi","groupFailed":"Guruhni belgilab bo'lmadi","listFailed":"So'rovlar ro'yxati yangilanmadi","listRefreshed":"So'rovlar ro'yxati yangilandi","detailFailed":"So'rov ma'lumotlari yangilanmadi","detailRefreshed":"So'rov ma'lumotlari yangilandi"},
+      "notify": {"joinFailed": "Uchrashuvga qo'shilib bo'lmadi", "meetingEnded": "Uchrashuv allaqachon tugagan. Ro'yxat yangilandi.", "claimed":"So'rov olindi","chatOpened":"Mijoz bilan maxfiy chat ochildi.","claimFailed":"So'rovni olib bo'lmadi","meetingFailed":"Uchrashuvni boshlab bo'lmadi","completeFailed":"So'rovni yakunlab bo'lmadi","transferFailed":"Ishni boshqa advokatga berib bo'lmadi","transferredTo":"Yangi mas'ul: {name}.","cancelFailed":"So'rovni bekor qilib bo'lmadi","statusFailed":"Statusni o'zgartirib bo'lmadi","groupAssigned":"{n} ta advokat belgilandi","groupFailed":"Guruhni belgilab bo'lmadi","listFailed":"So'rovlar ro'yxati yangilanmadi","listRefreshed":"So'rovlar ro'yxati yangilandi","detailFailed":"So'rov ma'lumotlari yangilanmadi","detailRefreshed":"So'rov ma'lumotlari yangilandi"},
       "movedTo": "Ro'yxat «{status}» holatiga o'tkazildi.",
       "sourceValue": "Tezkor Advokat",
       "fSource": "Manba",
@@ -11373,7 +11378,7 @@
       "lead": "Veb-shakllar, Sun'iy intellekt va reklamalardan kelgan lidlar.",
       "empty": "Hozircha lid yo‘q",
       "emptyText": "Yangi lidlar shu yerda ko‘rinadi.",
-      "create": "Lid qo‘shish",
+      "create": "Lid qo'shish",
       "name": "Ism",
       "phone": "Telefon",
       "note": "Izoh",
@@ -11395,6 +11400,28 @@
       }
     },
     "meetings": {
+      "opensOn": "{date} da ochiladi",
+      "scheduledGroup": "Rejalashtirilgan",
+      "liveEmpty": "Hozir faol uchrashuv yo'q.",
+      "liveUnavailable": "Faol uchrashuvlarni ko'rsatib bo'lmadi.",
+      "pastEmpty": "Tugagan uchrashuvlar shu yerda ko'rinadi.",
+      "since": "{time} dan beri",
+      "startsAt": "Boshlanishi: {time}",
+      "startsInMin": "({n} daqiqadan keyin)",
+      "startsInHour": "({n} soatdan keyin)",
+      "startsInDay": "({n} kundan keyin)",
+      "opensAt": "{time} da ochiladi",
+      "joinClosed": "Hozir qo'shilib bo'lmaydi",
+      "youDeclined": "Rad etdingiz",
+      "youRemoved": "Chiqarildingiz",
+      "defaultTitle": "{name} bilan video uchrashuv",
+      "defaultTitleMore": "{name} va yana {n} kishi bilan video uchrashuv",
+      "defaultTitleNoName": "Video uchrashuv",
+      "enterHint": "Enter ham ishlaydi",
+      "howTitle": "Qanday ishlaydi",
+      "how1": "Ishtirokchilarni ism yoki telefon bo'yicha toping.",
+      "how2": "«Uchrashuvni boshlash» — ularga qo'ng'iroq boradi.",
+      "how3": "Tugagan uchrashuv pastdagi tarixda qoladi.",
       "scopeTabs": "Qaysi uchrashuvlar ko'rsatilsin",
       "scopeTab": {"mine":"Mening","all":"Barcha"},
       "historyUnavailable": "Uchrashuvlar ro'yxati hozircha mavjud emas",
@@ -11432,8 +11459,8 @@
       "backendMissing": "Video uchrashuvlar hozircha yoqilmagan. Administratorga murojaat qiling.",
       "history": "Mening uchrashuvlarim",
       "refresh": "Yangilash",
-      "activeGroup": "Faol",
-      "endedGroup": "O'tgan uchrashuvlar",
+      "activeGroup": "Hozir faol",
+      "endedGroup": "O'tgan",
       "historyEmpty": "Hali uchrashuv yo'q",
       "historyEmptyText": "Boshlagan yoki taklif qilingan uchrashuvlaringiz shu yerda ko'rinadi.",
       "sample": [
@@ -11446,7 +11473,7 @@
       "hostedByYou": "Siz tashkilotchisiz",
       "hostedBy": "Tashkilotchi: {name}",
       "rejoin": "Qayta kirish",
-      "join": "Kirish",
+      "join": "Qo'shilish",
       "callStatus": {
         "active": "Faol",
         "scheduled": "Rejalashtirilgan",
@@ -11535,6 +11562,12 @@
       "stagingOnlyText": "Test OTP kodlari faqat staging/demo serverda saqlanadi. Production serverda bu ro'yxat yo'q — kodlar SMS yoki Telegram orqali yuboriladi."
     },
     "pipeline": {
+      "manage": "Boshqaruv",
+      "manageCount": "Boshqaruv, {n} ta taqsimlanmagan lid",
+      "view": "Ko'rinish",
+      "sum": {"line":"<b>{n}</b> lid · <b>{active}</b> faol · Yutish ulushi <b>{rate}%</b>","rateInfo":"Yutish ulushi qanday hisoblanadi","rateHint":"Yutilgan lidlar ÷ jami lidlar","rateHelp":"Yutish ulushi: yutilgan {won} ta lid ÷ jami {total} ta lid"},
+      "col": {"menu":"Bosqich amallari","rename":"Nomini o'zgartirish","color":"Rang","delete":"O'chirish","finalReason":"Yakuniy bosqichni o'chirib bo'lmaydi"},
+      "table": {"client":"Mijoz","score":"Daraja"},
       "add": {"notSet":"Ko'rsatilmagan","phoneInvalid":"Telefon raqamini to'liq kiriting: +998 dan keyin 9 ta raqam."},
       "del": {"titleFor":"«{stage}» bosqichini o'chirish","leadsText":"Bu bosqichda {n} ta lid bor. O'chirishdan oldin ular boshqa bosqichga o'tkaziladi.","target":"Qaysi bosqichga o'tkazilsin","lostHint":"Yo'qotilgan bosqichga o'tkazishda sabab so'raladi.","lostName":"{stage}: {n} ta lid"},
       "colors": {"blue":"Ko'k","violet":"Binafsha","cyan":"Feruza","green":"Yashil","amber":"To'q sariq","red":"Qizil","pink":"Pushti","gray":"Kulrang","current":"Joriy rang"},
@@ -11569,10 +11602,10 @@
       "deleteStatusText": "Bu bosqichni o'chirmoqchimisiz?",
       "reassignLeads": "Bu bosqichda {count} ta lid bor — ularni boshqasiga ko'chiring:",
       "moveAndDelete": "Ko'chirish va o'chirish",
-      "lead": "Lidlarni bosqichma-bosqich yuriting: yangi → aloqa → malakali → yutildi/yo‘qotildi.",
+      "lead": "Lidlarni bosqichma-bosqich yuriting",
       "empty": "Lidlar yo‘q",
       "emptyText": "Yangi lidlar bu yerda paydo bo‘ladi.",
-      "noneHere": "Bo‘sh",
+      "noneHere": "Bo'sh",
       "noInfo": "Ma'lumot yo‘q",
       "moveBack": "Orqaga",
       "moveFwd": "Oldinga",
@@ -11716,7 +11749,7 @@
       "noAgents": "Operatorlar bo'yicha kesim hali backendda yo'q."
     },
     "ceo": {
-      "report": {"aud": {"mau":"MAU ({month})","dau":"DAU (bugun)","newClients":"Yangi mijozlar (bu oy)","newAdvocates":"Yangi advokatlar (bu oy)","newLawyers":"Yangi yuristlar (bu oy)","newcomers":"Yangi kelganlar","mauDef":"Bu oy kamida bir marta faol bo'lgan foydalanuvchilar","dauDef":"Bugun faol bo'lgan foydalanuvchilar","stickDef":"Bu oy faol bo'lganlarning bugun ham faol bo'lgan ulushi","npsDef":"NPS — tavsiya qilishga tayyorlik, −100 dan +100 gacha"}, "groupChannels": "Marketing kanallari", "groupPayments": "To'lov tizimlari", "groupPaymentsNote": "manbasi yozilmagan to'lovlar", "paymentTag": "to'lov tizimi", "chLeads": "{n} ta lid", "chPayments": "{n} ta to'lov", "chConv": "konversiya {pct}", "allTime": "Barcha vaqt bo'yicha", "allTimeAsOf": "Barcha vaqt bo'yicha · {date} holatiga", "realFailed": "Real ma'lumotlar yuklanmadi", "testExcluded": "Test/demo to'lovlar hisobga olinmagan: {amount}, {n} ta to'lov.", "testIncluded": "Shundan test/demo: {amount}, {n} ta to'lov.", "testNoteShown": "Test va demo kanallar ({n} ta, {amount}) kulrangda ko'rsatilgan va umumiy daromadga qo'shilgan.", "withTest": "test/demo bilan", "spanDays": "{n} kun", "spanAria": "Grafik davri", "figTotalDays": "So'nggi {n} kun jami", "perMonth": "shu oy", "perToday": "bugun", "demoPill": "Demo", "bySubs": "obunalar bo'yicha", "na":"hisoblanmaydi","asOf":"{date} holatiga","custom":"Tanlangan davr","allRegions":"Barcha hududlar","failed":"CEO ma'lumotlarini yuklab bo'lmadi.","retry":"Qayta urinish","summary":"Hozirgacha platforma <b>{revenue}</b> daromad qildi, <b>{payments}</b> ta to'lov qabul qilindi va lidlarning <b>{conv}</b> qismi buyurtmaga aylandi. Jami foydalanuvchilar — <b>{users}</b>.","deltaUp":"Bu o'tgan davrdan <b>{n}%</b> ko'p.","deltaDown":"Bu o'tgan davrdan <b>{n}%</b> kam.","revNote":"Kunlik tushum — so'nggi 7 yoki 14 kun.","figTotal":"Davr jami","figAvg":"Kunlik o'rtacha","figBest":"Eng yaxshi kun","figActive":"Tushumli kunlar","daysOf":"{n} / {total} kun","unit":"Unit-iqtisodiyot","unitNote":"Har bir ko'rsatkich nimani anglatadi va hozir qanday holatda.","colMetric":"Ko'rsatkich","colValue":"Qiymat","colNote":"Izoh","payback":"Qoplash muddati","months":"{n} oy","health":{"good":"Sog'lom","watch":"E'tibor bering","bad":"Xavfli","na":"Hisoblanmaydi"},"notes":{"mrrSubs": "Obunalar bo'yicha: faol obunalarning oylik narxlari yig'indisi (ARR ÷ 12).", "mrrNa": "Faol pullik obunalar yo'q.", "arrSubs": "Faol obunalar bo'yicha yillik takroriy tushum.", "gmv":"Platformadan o'tgan barcha to'lovlar hajmi.","gmvEq":"Hozircha umumiy daromad bilan bir xil hisoblanadi.","mrr":"Obunalardan keladigan oylik takroriy tushum.","mrrEq":"Server hozircha MRR ni umumiy daromadga teng qaytaradi.","arr":"Yillik takroriy tushum (MRR × 12).","arpu":"Jami daromad faol obunachilar soniga bo'lingan.","take":"Platforma komissiyasi — GMV dan platformada qoladigan ulush.","cacNa":"Marketing xarajatlari kiritilmagan, shuning uchun hisoblab bo'lmaydi.","ltv":"Bitta mijozdan butun davr davomida kutiladigan tushum.","ltvCac":"3× va undan yuqori — sog'lom nisbat.","payback":"Jalb qilish xarajati necha oyda qaytadi."},"funnelNote":"Lidlar buyurtmaga aylanguncha qanchasi qoladi.","kept":"{pct}% o'tdi · {lost} ta yo'qoldi","entry":"Kirish nuqtasi","paidNote":"To'langan to'lovlar — <b>{n}</b> ta. Bu son buyurtmalardan tashqari obuna va boshqa to'lovlarni ham o'z ichiga oladi, shuning uchun voronkaga qo'shilmagan.","channelsNote":"Ustun sarlavhasini bosib saralash tartibini o'zgartiring.","testNote":"Test va demo kanallar ({n} ta, {amount}) yashirilgan va umumiy daromadga kiritilmagan.","showTest":"Test kanallarini ko'rsatish","testTag":"test","audience":"Auditoriya","audienceNote":"Faollik, yangi kelganlar va mamnunlik.","stickiness":"DAU / MAU","giftNote":"Sovg'a obunasi: xariddan to'lovli mijozgacha."},
+      "report": {"failedServer": "CEO ma'lumotlarini yuklab bo'lmadi — server javob bermadi ({status})", "failedOffline": "CEO ma'lumotlarini yuklab bo'lmadi — internet aloqasi yo'q", "actions": "Sahifa amallari", "demoAuto": "Demo (avtomatik)", "demoAutoWhy": "Haqiqiy ma'lumot hali yo'q, shuning uchun namunaviy raqamlar avtomatik ko'rsatilmoqda. Birinchi lid yoki to'lov paydo bo'lishi bilan haqiqiy raqamlar chiqadi.", "demoHelp": "Haqiqiy ma'lumot bo'lsa ham namunaviy raqamlarni ko'rsatadi. Har bo'limda «Demo» belgisi chiqadi.", "demoForcedNote": "Demo rejim yoqilgan: haqiqiy ma'lumot o'rniga namunaviy raqamlar ko'rsatilmoqda. O'chirish uchun yuqoridagi «⋯» menyusini oching.", "refresh": "Ma'lumotni yangilash", "jumpAria": "Hisobot bo'limlari", "fig": {"revenueClean":"test/demo'siz","revenue":"to'lovlar yig'indisi","payments":"to'langan","conv":"liddan buyurtmaga","users":"jami","mau":"oylik faol"}, "lastDays": "So'nggi {n} kun", "kShort": "{n} ming", "chartAria": "Kunlik daromad grafigi", "chartHint": "Kunlar bo'yicha yurish uchun chap va o'ng strelka tugmalaridan foydalaning.", "chartMax": "maks {value}", "tableView": "Jadval ko'rinishi", "colDay": "Sana", "byDay": "Kunlik daromad", "all": "Barchasi ({n})", "less": "Kamroq ko'rsatish", "zeroRow": "Daromadsiz kanallar ({n} ta)", "steps": "Qadamlar", "paidLine": "To'langan to'lovlar — {n} ta. Obunalar ham kiradi, shuning uchun voronkaga qo'shilmagan.", "gift": {"bought":"sovg'a xarid qilindi","activated":"faollashtirildi","paid":"pullik mijozga aylandi","ofBought":"xaridlardan","ofActivated":"faollashtirilganlardan"}, "aud": {"mau":"MAU ({month})","dau":"DAU (bugun)","newClients":"Yangi mijozlar (bu oy)","newAdvocates":"Yangi advokatlar (bu oy)","newLawyers":"Yangi yuristlar (bu oy)","newcomers":"Yangi kelganlar","mauDef":"Bu oy kamida bir marta faol bo'lgan foydalanuvchilar","dauDef":"Bugun faol bo'lgan foydalanuvchilar","stickDef":"Bu oy faol bo'lganlarning bugun ham faol bo'lgan ulushi","npsDef":"NPS — tavsiya qilishga tayyorlik, −100 dan +100 gacha"}, "groupChannels": "Marketing kanallari", "groupPayments": "To'lov tizimlari", "groupPaymentsNote": "manbasi yozilmagan to'lovlar", "paymentTag": "to'lov tizimi", "chLeads": "{n} ta lid", "chPayments": "{n} ta to'lov", "chConv": "konversiya {pct}", "allTime": "Barcha vaqt bo'yicha", "allTimeAsOf": "Barcha vaqt bo'yicha · {date} holatiga", "realFailed": "Real ma'lumotlar yuklanmadi", "testExcluded": "Test/demo to'lovlar hisobga olinmagan: {amount}, {n} ta to'lov.", "testIncluded": "Shundan test/demo: {amount}, {n} ta to'lov.", "testNoteShown": "Test va demo kanallar ({n} ta, {amount}) kulrangda ko'rsatilgan va umumiy daromadga qo'shilgan.", "withTest": "test/demo bilan", "spanDays": "{n} kun", "spanAria": "Grafik davri", "figTotalDays": "So'nggi {n} kun jami", "perMonth": "shu oy", "perToday": "bugun", "demoPill": "Demo", "bySubs": "obunalar bo'yicha", "na":"hisoblanmaydi","asOf":"{date} holatiga","custom":"Tanlangan davr","allRegions":"Barcha hududlar","failed":"CEO ma'lumotlarini yuklab bo'lmadi.","retry":"Qayta urinish","summary":"Hozirgacha platforma <b>{revenue}</b> daromad qildi, <b>{payments}</b> ta to'lov qabul qilindi va lidlarning <b>{conv}</b> qismi buyurtmaga aylandi. Jami foydalanuvchilar — <b>{users}</b>.","deltaUp":"Bu o'tgan davrdan <b>{n}%</b> ko'p.","deltaDown":"Bu o'tgan davrdan <b>{n}%</b> kam.","revNote":"Kunlik tushum — so'nggi 7 yoki 14 kun.","figTotal":"Davr jami","figAvg":"Kunlik o'rtacha","figBest":"Eng yaxshi kun","figActive":"Tushumli kunlar","daysOf":"{n} / {total} kun","unit":"Unit-iqtisodiyot","unitNote":"Har bir ko'rsatkich nimani anglatadi va hozir qanday holatda.","colMetric":"Ko'rsatkich","colValue":"Qiymat","colNote":"Izoh","payback":"Qoplash muddati","months":"{n} oy","health":{"good":"Sog'lom","watch":"E'tibor bering","bad":"Xavfli","na":"Hisoblanmaydi"},"notes":{"mrrSubs": "Obunalar bo'yicha: faol obunalarning oylik narxlari yig'indisi (ARR ÷ 12).", "mrrNa": "Faol pullik obunalar yo'q.", "arrSubs": "Faol obunalar bo'yicha yillik takroriy tushum.", "gmv":"Platformadan o'tgan barcha to'lovlar hajmi.","gmvEq":"Hozircha umumiy daromad bilan bir xil hisoblanadi.","mrr":"Obunalardan keladigan oylik takroriy tushum.","mrrEq":"Server hozircha MRR ni umumiy daromadga teng qaytaradi.","arr":"Yillik takroriy tushum (MRR × 12).","arpu":"Jami daromad faol obunachilar soniga bo'lingan.","take":"Platforma komissiyasi — GMV dan platformada qoladigan ulush.","cacNa":"Marketing xarajatlari kiritilmagan, shuning uchun hisoblab bo'lmaydi.","ltv":"Bitta mijozdan butun davr davomida kutiladigan tushum.","ltvCac":"3× va undan yuqori — sog'lom nisbat.","payback":"Jalb qilish xarajati necha oyda qaytadi."},"funnelNote":"Lidlar buyurtmaga aylanguncha qanchasi qoladi.","kept":"{pct}% o'tdi · {lost} ta yo'qoldi","entry":"Kirish nuqtasi","paidNote":"To'langan to'lovlar — <b>{n}</b> ta. Bu son buyurtmalardan tashqari obuna va boshqa to'lovlarni ham o'z ichiga oladi, shuning uchun voronkaga qo'shilmagan.","channelsNote":"Ustun sarlavhasini bosib saralash tartibini o'zgartiring.","testNote":"Test va demo kanallar ({n} ta, {amount}) yashirilgan va umumiy daromadga kiritilmagan.","showTest":"Test kanallarini ko'rsatish","testTag":"test","audience":"Auditoriya","audienceNote":"Faollik, yangi kelganlar va mamnunlik.","stickiness":"DAU / MAU","giftNote":"Sovg'a obunasi: xariddan to'lovli mijozgacha."},
       "title": "CEO paneli",
       "revenue": "Daromad",
       "mrr": "Oylik takroriy daromad",
@@ -12058,6 +12091,12 @@
       "searching": "Qidirilmoqda…",
       "searchNoAccess": "Mijoz qidirish faqat navbatchi xizmat xodimlari uchun ochiq. Ruxsat kerak bo'lsa, administratorga murojaat qiling.",
       "card": {
+        "sumCalls": "Qo'ng'iroqlar",
+        "sumSince": "Ro'yxatdan o'tgan",
+        "role": "Mijoz",
+        "subActive": "Obuna faol",
+        "lexgoId": "LexGo ID: {id}",
+        "noCalls": "Qo'ng'iroqlar hali qayd etilmagan.",
         "actionGroups": {"marketplace":"Xizmat xaridi bo'yicha amal","document":"Hujjat bo'yicha amal","urgent":"Tezkor advokat bo'yicha amal","payment":"To'lov bo'yicha amal","subscription":"Obuna bo'yicha amal","chat":"Xavfsiz chatdagi amal","ai":"Sun'iy intellekt yordamchisi","call":"Qo'ng'iroq bo'yicha amal","contract":"Shartnoma bo'yicha amal","support":"Yordam xizmatiga murojaat","account":"Hisob sozlamalari","order":"Buyurtma bo'yicha amal","other":"Boshqa harakat"},
         "tabsAria": "Mijoz ma'lumotlari",
         "logFor": "Qo'ng'iroq {name} kartasiga qayd etiladi.",
@@ -12075,10 +12114,11 @@
         "sumComplaints": "Shikoyatlar",
         "sumSubs": "Faol obuna",
         "tabs": {
+          "calls": "Qo'ng'iroqlar",
           "orders": "Buyurtmalar",
           "payments": "To'lovlar",
           "leads": "Lidlar",
-          "activity": "So'nggi harakatlar"
+          "activity": "Faollik"
         },
         "noOrders": "Buyurtmalar yo'q.",
         "noPayments": "To'lovlar yo'q.",

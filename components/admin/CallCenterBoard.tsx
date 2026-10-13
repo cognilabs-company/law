@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { assigneeLabel, isLostStage, leadCategoryLabel, leadRegionLabel } from "@/lib/leadLabels";
+import { isLostStage, kanbanColumnTitle, leadCategoryLabel } from "@/lib/leadLabels";
+import { leadLoadOf } from "@/lib/leadOperators";
 import { moveCallCenterLead } from "@/lib/services/backend";
 import {
   getCallCenterKanbanX,
@@ -19,28 +20,35 @@ import {
   filterActive,
   type KanbanColumnX,
   type LeadFilter,
-  leadUserId,
   type LeadX,
 } from "@/lib/services/leads";
 import { operatorName } from "@/lib/services/users";
 import { useAuth } from "@/lib/auth";
+import { aiId } from "@/lib/ai/ids";
 import LostReasonDialog from "@/components/admin/LostReasonDialog";
 import LeadFilterBar from "@/components/admin/LeadFilterBar";
+import LeadCard from "@/components/admin/leads/LeadCard";
+import StageTabs, { useLeadReveal, usePhoneBoard, useStageTab } from "@/components/admin/leads/StageTabs";
+import { useLeadMeeting } from "@/components/admin/leads/useLeadMeeting";
+import type { LeadCan, LeadStage } from "@/components/admin/leads/LeadMenu";
 import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
-import Select, { rankOptions } from "@/components/Select";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
-import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
+import ListPager, { PAGE_STEP } from "@/components/ui/ListPager";
 import ScrollArrows from "@/components/ui/ScrollArrows";
-import { CountBadge, ScoreChip } from "@/components/ui/Badge";
+import { CountBadge } from "@/components/ui/Badge";
 import IconButton from "@/components/ui/IconButton";
 import { useScrollEdges } from "@/lib/useScrollEdges";
-import { IconRefresh, IconPhone } from "@/components/icons";
-import CcMeetingButton from "./CcMeetingButton";
+import { IconRefresh } from "@/components/icons";
 
 type State = { status: "loading" | "ready" | "error" | "forbidden"; columns: KanbanColumnX[]; error?: unknown };
+type Pages = { sig: string; n: Readonly<Record<string, number>> };
 
 const WHEEL_LINE = 16;
+const LEAD_AI = "call_center.board.lead";
+const NO_PAGES: Readonly<Record<string, number>> = {};
+const sigOf = (f: LeadFilter) => Object.values(f).join("|");
+const EMPTY_SIG = sigOf(EMPTY_LEAD_FILTER);
 
 function pageStuck(el: HTMLElement, dy: number): boolean {
   const pane = el.closest<HTMLElement>(".pbody");
@@ -75,34 +83,21 @@ function useSidewaysWheel(el: HTMLElement | null) {
   }, [el]);
 }
 
-function PagedCards<T>({ items, pageKey, children }: { items: readonly T[]; pageKey: string; children: (item: T) => ReactNode }) {
-  const pager = usePaged(items, PAGE_STEP, pageKey);
-  return (
-    <>
-      {pager.visible.map((item) => children(item))}
-      <ListPager {...pager.bind} className="ccb__pager" />
-    </>
-  );
-}
-
-// T1A-05 call-center lead board (GET /call-center/leads/kanban, PATCH …/move).
-// Compact columns with counts; each card moves through a select, which also
-// works on phones where drag and drop doesn't. Hidden on 403. Filters (search,
-// region, stage, date range, "my leads", score) are client-side; the assignee
-// lives in lead.details (see lib/services/leads.ts).
 export default function CallCenterBoard() {
   const t = useTranslations("admin.callCenter.board");
   const tq = useTranslations("admin.callCenter.queue");
-  const te = useTranslations("enums");
   const tp = useTranslations("admin.pipeline");
   const tn = useTranslations("common.notify");
   const { session } = useAuth();
   const meId = session?.id ?? "";
   const ops = useOperators();
+  const meeting = useLeadMeeting();
+  const phone = usePhoneBoard();
   const [state, setState] = useState<State>({ status: "loading", columns: [] });
   const [busyId, setBusyId] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [f, setF] = useState<LeadFilter>(EMPTY_LEAD_FILTER);
+  const [pages, setPages] = useState<Pages>({ sig: EMPTY_SIG, n: NO_PAGES });
   const hasCols = useRef(false);
   const cols = useRef<KanbanColumnX[]>([]);
   const again = useRef<() => void>(() => undefined);
@@ -125,7 +120,6 @@ export default function CallCenterBoard() {
     [t, tn],
   );
 
-  // Lost reason is asked before the card lands in a "lost" column (T4-02 §7).
   const [lostAsk, setLostAsk] = useState<{ leadId: string; key: string } | null>(null);
   useEffect(() => {
     void load();
@@ -137,13 +131,10 @@ export default function CallCenterBoard() {
     cols.current = state.columns;
   }, [state.columns]);
 
+  const colTitle = (c: KanbanColumnX) => kanbanColumnTitle(tq, c);
   const allLeads = useMemo(() => leadsOf(state.columns), [state.columns]);
   const lostLead = lostAsk ? allLeads.find((l) => l.id === lostAsk.leadId) ?? null : null;
-  const opLoad = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const l of allLeads) if (l.assignedTo) m.set(l.assignedTo, (m.get(l.assignedTo) ?? 0) + 1);
-    return m;
-  }, [allLeads]);
+  const opLoad = useMemo(() => leadLoadOf(allLeads), [allLeads]);
   const filterItems = useMemo(() => state.columns.flatMap((c) => c.cards.map((x) => ({ lead: leadFilterable(x.lead), stage: c.key }))), [state.columns]);
   const regions = useMemo(() => [...new Set(allLeads.map((l) => l.region).filter(Boolean))], [allLeads]);
   const filtered = filterActive(f);
@@ -155,7 +146,39 @@ export default function CallCenterBoard() {
     [state.columns, f, meId],
   );
   const shown = viewCols.reduce((n, c) => n + c.cards.length, 0);
-  const pageSig = Object.values(f).join("|");
+  const pageSig = sigOf(f);
+  const pageN = pages.sig === pageSig ? pages.n : NO_PAGES;
+  const shownOf = (key: string) => Math.max(PAGE_STEP, pageN[key] ?? 0);
+  const setShown = (key: string, n: number, sig: string = pageSig) => setPages((p) => ({ sig, n: { ...(p.sig === sig ? p.n : NO_PAGES), [key]: n } }));
+
+  const stageTabs = viewCols.map((c) => ({ key: c.key, label: colTitle(c), count: filtered ? c.cards.length : c.count || c.cards.length }));
+  const [stageKey, setStageKey] = useStageTab("callcenter", stageTabs);
+  const phoneCol = viewCols.find((c) => c.key === stageKey) ?? viewCols[0];
+
+  const hiddenIds: string[] = [];
+  const inView = new Set<string>();
+  for (const c of viewCols) {
+    const lim = phone && c.key !== phoneCol?.key ? 0 : shownOf(c.key);
+    c.cards.forEach((x, i) => {
+      inView.add(x.lead.id);
+      if (i >= lim) hiddenIds.push(x.lead.id);
+    });
+  }
+  for (const l of allLeads) if (!inView.has(l.id)) hiddenIds.push(l.id);
+
+  useLeadReveal(LEAD_AI, hiddenIds, (leadId) => {
+    const here = viewCols.some((c) => c.cards.some((x) => x.lead.id === leadId));
+    const list = here ? viewCols : state.columns;
+    const sig = here ? pageSig : EMPTY_SIG;
+    if (!here) setF(EMPTY_LEAD_FILTER);
+    const col = list.find((c) => c.cards.some((x) => x.lead.id === leadId));
+    if (!col) return;
+    const at = col.cards.findIndex((x) => x.lead.id === leadId);
+    if (phone) setStageKey(col.key);
+    const have = here ? shownOf(col.key) : PAGE_STEP;
+    if (at >= have) setShown(col.key, Math.ceil((at + 1) / PAGE_STEP) * PAGE_STEP, sig);
+  });
+
   const boardRef = useRef<HTMLDivElement | null>(null);
   const [boardEl, setBoardEl] = useState<HTMLDivElement | null>(null);
   const bindBoard = useCallback((el: HTMLDivElement | null) => {
@@ -177,20 +200,10 @@ export default function CallCenterBoard() {
     void load().finally(() => setRefreshing(false));
   }
 
-  const colTitle = (c: KanbanColumnX) => (tq.has(`stages.${c.key}`) ? tq(`stages.${c.key}`) : c.title || c.key);
   const leadTitle = (lead: LeadX) => lead.name || lead.phone || leadCategoryLabel(tp, lead.category) || tp("untitledLead");
-  const canAssign = ops.status === "ready" && ops.ops.length > 0;
-  const opLabel = (o: { name: string; phone: string; lexgoId: string }) => operatorName(o) || tp("assign.unknown");
-  const noneOpt = { value: "", label: tp("assign.none") };
-  const rankedOps = rankOptions(
-    ops.ops.map((o) => ({ value: o.id, label: o.id === meId ? `${opLabel(o)} (${tp("assign.me")})` : opLabel(o) })),
-    opLoad,
-    tp("assign.others"),
-    (n) => tp("assign.leadCount", { n }),
-  );
-  const assigneeOpts = [noneOpt, ...rankedOps];
-  const assigneeOptsFor = (lead: LeadX) =>
-    lead.assignedTo && !ops.ops.some((o) => o.id === lead.assignedTo) ? [noneOpt, { value: lead.assignedTo, label: assigneeLabel(tp, ops.people, lead.assignedTo, meId, ops.status === "ready") }, ...rankedOps] : assigneeOpts;
+  const stageList: LeadStage[] = state.columns.map((c) => ({ key: c.key, label: colTitle(c), color: c.color, lost: isLostStage(c.key, state.columns) }));
+  const canPickOp: LeadCan =
+    ops.status === "forbidden" ? tp("assign.noPermission") : ops.status === "error" ? tp("assign.opsError") : ops.status === "loading" || ops.ops.length > 0;
 
   function lostSaveFailed(leadId: string, fields: Record<string, string>, fallback: Record<string, unknown>, e: unknown) {
     notify.warning(t("lostReasonFailed"), {
@@ -214,11 +227,12 @@ export default function CallCenterBoard() {
     });
   }
 
-  // Optimistic: the card moves at once; the board is refetched in the
-  // background (the fetch takes seconds) and a rejected move is reverted.
   async function move(leadId: string, key: string, lost?: { reason: string; note: string }) {
     if (busyId || !key) return;
-    if (isLostStage(key, state.columns) && !lost) { setLostAsk({ leadId, key }); return; }
+    if (isLostStage(key, state.columns) && !lost) {
+      setLostAsk({ leadId, key });
+      return;
+    }
     const before = state.columns;
     const from = before.find((c) => c.cards.some((x) => x.lead.id === leadId));
     const card = from?.cards.find((x) => x.lead.id === leadId);
@@ -235,8 +249,6 @@ export default function CallCenterBoard() {
       }),
     }));
     try {
-      // Details are replaced by the PATCH, so the existing ones are merged in. Best effort: a
-      // call-center account without leads.manage still moves the card.
       const lostFail = lostFields
         ? await ccUpdateLead(leadId, { details: detailsPatch(card.lead.details ?? {}, lostFields) }).then(
             () => null,
@@ -261,17 +273,17 @@ export default function CallCenterBoard() {
     }
   }
 
-  // (Re)assign a card to an operator. PATCH /admin/leads/{id} needs
-  // leads.manage — a call-center operator gets 403 and a clear notice.
   async function assign(lead: LeadX, userId: string) {
     if (busyId || userId === lead.assignedTo) return;
     const before = state.columns;
-    const who = assigneeOpts.find((o) => o.value === userId)?.label ?? "";
+    const op = ops.ops.find((o) => o.id === userId);
+    const name = op ? operatorName(op) || tp("assign.unknown") : "";
+    const who = name && userId === meId ? `${name} (${tp("assign.me")})` : name;
     setBusyId(lead.id);
     setState((s) => ({ ...s, columns: patchLeadInColumns(s.columns, lead.id, (l) => withAssignment(l, userId)) }));
     try {
       await assignLead(lead, userId);
-      notify.success(userId ? tp("notify.assigned") : tp("notify.unassigned"), { id: `cc-assign-${lead.id}`, body: userId ? `${leadTitle(lead)} → ${who}` : leadTitle(lead) });
+      notify.success(userId ? tp("notify.assigned") : tp("notify.unassigned"), { id: `cc-assign-${lead.id}`, body: userId && who ? `${leadTitle(lead)} → ${who}` : leadTitle(lead) });
     } catch (e) {
       setState((s) => ({ ...s, columns: before }));
       notify.error(t("assignFailed"), { id: `cc-assign-${lead.id}`, error: e, map: { 403: tp("assign.noPermission") } });
@@ -279,6 +291,41 @@ export default function CallCenterBoard() {
       setBusyId("");
     }
   }
+
+  const pagerFor = (key: string, total: number) => {
+    const count = Math.min(total, shownOf(key));
+    return {
+      count,
+      total,
+      step: PAGE_STEP,
+      next: Math.min(PAGE_STEP, Math.max(0, total - count)),
+      onMore: () => setShown(key, count + PAGE_STEP),
+      onLess: () => setShown(key, PAGE_STEP),
+    };
+  };
+
+  const card = (lead: LeadX, colKey: string) => (
+    <LeadCard
+      key={lead.id}
+      variant="callcenter"
+      lead={lead}
+      stage={colKey}
+      stages={stageList}
+      ops={ops}
+      load={opLoad}
+      meId={meId}
+      busy={busyId === lead.id}
+      onMove={(l, k) => void move(l.id, k)}
+      onLost={(l, k) => setLostAsk({ leadId: l.id, key: k })}
+      onAssign={(l, u) => void assign(l, u)}
+      canAssign={canPickOp}
+      onVideo={meeting.start}
+      canVideo={meeting.can(lead)}
+      aiId={aiId(LEAD_AI, lead.id)}
+    />
+  );
+
+  const emptyText = filtered ? tp("f.noMatch") : t("noneHere");
 
   return (
     <div className="ppanel" data-ai-target="callcenter:board">
@@ -320,6 +367,18 @@ export default function CallCenterBoard() {
         <ErrorState error={state.error} onRetry={load} title={t("loadError")} compact />
       ) : !state.columns.length ? (
         <p className="advmuted">{t("empty")}</p>
+      ) : phone ? (
+        <div className="ccb-phone">
+          <StageTabs stages={stageTabs} value={phoneCol?.key} onChange={setStageKey} level={2} className="ccb-stages" aiId="call_center.board.stages" />
+          {phoneCol && phoneCol.cards.length ? (
+            <>
+              <div className="ldc-list ccb-list">{phoneCol.cards.slice(0, shownOf(phoneCol.key)).map(({ lead }) => card(lead, phoneCol.key))}</div>
+              <ListPager {...pagerFor(phoneCol.key, phoneCol.cards.length)} aiId="call_center.board.more" />
+            </>
+          ) : (
+            <p className="ccb__none ccb-phone__none">{emptyText}</p>
+          )}
+        </div>
       ) : (
         <ScrollArrows target={boardRef} edges={edges} className="ccb-host">
           <div ref={bindBoard} className="ccb scue-x">
@@ -331,59 +390,19 @@ export default function CallCenterBoard() {
                   <span className="advmuted">{filtered ? c.cards.length : c.count || c.cards.length}</span>
                 </div>
                 {c.cards.length ? (
-                  <PagedCards items={c.cards} pageKey={`${c.key}|${pageSig}`}>
-                    {({ lead }) => {
-                      // The category label is already the card title when the lead
-                      // has neither a name nor a phone — don't repeat it in the meta line.
-                      const titledByCategory = !lead.name && !lead.phone;
-                      return (
-                        <div className="ccb__card" key={lead.id}>
-                          <b>{leadTitle(lead)}</b>
-                          <span className="ccb__meta">
-                            {/* LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: LEAD-DX36K — what
-                                an operator reads out on the phone. */}
-                            {lead.workId ? <em className="wid">{lead.workId}</em> : null}
-                            {[titledByCategory ? "" : leadCategoryLabel(tp, lead.category), leadRegionLabel(te, lead.region)].filter(Boolean).join(" · ")}
-                          </span>
-                          <span className="pipe__tags">
-                            <ScoreChip score={lead.scoreKey} />
-                            <span className={`lasg${!lead.assignedTo ? " lasg--none" : lead.assignedTo === meId ? " lasg--me" : ""}`} title={tp("assign.title")}>
-                              <span>{assigneeLabel(tp, ops.people, lead.assignedTo, meId, ops.status === "ready")}</span>
-                            </span>
-                          </span>
-                          {lead.phone ? (
-                            <span className="ccb__contact">
-                              <a className="ccb__tel" href={`tel:${lead.phone.replace(/[^+\d]/g, "")}`}>
-                                <IconPhone />
-                                {lead.phone}
-                              </a>
-                              <CcMeetingButton clientUserId={leadUserId(lead)} phone={lead.phone} clientName={lead.name} className="ccmeet--sm" />
-                            </span>
-                          ) : null}
-                          <div className="ccb__sels">
-                            {canAssign ? (
-                              <Select value={lead.assignedTo} onChange={(v) => void assign(lead, v)} options={assigneeOptsFor(lead)} ariaLabel={tp("assign.select")} placeholder={busyId === lead.id ? tq("working") : tp("assign.select")} />
-                            ) : null}
-                            <Select
-                              value=""
-                              onChange={(v) => move(lead.id, v)}
-                              options={state.columns.filter((o) => o.key !== c.key).map((o) => ({ value: o.key, label: colTitle(o) }))}
-                              ariaLabel={tq("moveTo")}
-                              placeholder={busyId === lead.id ? tq("working") : tq("moveTo")}
-                            />
-                          </div>
-                        </div>
-                      );
-                    }}
-                  </PagedCards>
+                  <>
+                    {c.cards.slice(0, shownOf(c.key)).map(({ lead }) => card(lead, c.key))}
+                    <ListPager {...pagerFor(c.key, c.cards.length)} className="ccb__pager" />
+                  </>
                 ) : (
-                  <p className="ccb__none">{filtered ? tp("f.noMatch") : t("noneHere")}</p>
+                  <p className="ccb__none">{emptyText}</p>
                 )}
               </div>
             ))}
           </div>
         </ScrollArrows>
       )}
+      {meeting.node}
     </div>
   );
 }

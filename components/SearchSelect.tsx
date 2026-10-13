@@ -322,14 +322,19 @@ export default function SearchSelect({
 
       {!single && value.length ? (
         <ul className="ssel__chips" aria-label={t("chosen")}>
-          {value.map((v) => (
-            <li key={v}>
-              <button type="button" className="ssel__chip" aria-label={t("remove", { name: labelOf(v) })} title={labelOf(v)} onClick={(e) => drop(v, e)}>
-                <span>{labelOf(v)}</span>
-                <IconClose aria-hidden="true" />
-              </button>
-            </li>
-          ))}
+          {value.map((v) => {
+            const label = labelOf(v);
+            const tag = optionOf(v)?.tag;
+            return (
+              <li key={v}>
+                <button type="button" className="ssel__chip" aria-label={t("remove", { name: tag ? `${label}, ${tag}` : label })} title={tag ? `${label} · ${tag}` : label} onClick={(e) => drop(v, e)}>
+                  <span>{label}</span>
+                  {tag ? <em className="ssel__chip-tag">{`· ${tag}`}</em> : null}
+                  <IconClose aria-hidden="true" />
+                </button>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 

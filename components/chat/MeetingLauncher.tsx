@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth, canMakeCalls, sessionRoles } from "@/lib/auth";
 import { createSecureChat, startCall, listAdminCalls, getAdminCallDetail, type AdminCallDetail, type AdminCallRow, type LiveKitJoin } from "@/lib/services/backend";
-import { http, asArr, asDict, asStr, ApiError } from "@/lib/http";
+import { http, asArr, asDict, asNum, asStr, ApiError, parseServerTime } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { useResource } from "@/lib/useResource";
-import { fmtDate, fmtDateTime, fmtDuration, localDay as localDayKey, timeOnly } from "@/lib/date";
+import { dateTimeFull, fmtDate, fmtDateTime, fmtDuration, localDay as localDayKey, shortDateTime, timeOnly } from "@/lib/date";
 import { initials } from "@/lib/lawyers";
 import { makeInviteSearch } from "@/lib/inviteSearch";
 import { matchesSearch } from "@/lib/searchText";
@@ -25,7 +25,7 @@ import IconButton from "@/components/ui/IconButton";
 import InlineAlert from "@/components/ui/InlineAlert";
 import { CountBadge, StatusBadge } from "@/components/ui/Badge";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
-import { IconVideo, IconClock, IconRefresh, IconUsers, IconUser, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconEye, IconClipboardCheck, IconSearch } from "@/components/icons";
+import { IconVideo, IconClock, IconRefresh, IconUsers, IconUser, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconClipboardCheck, IconSearch, IconChevronRight, IconChevronDown } from "@/components/icons";
 import { regionLabel, humanize, statusMap, statusSpecOf, type StatusMap, type StatusTone, type StatusToneRule } from "@/lib/labels";
 import { subscribeUserEvents } from "@/lib/userSocket";
 
@@ -43,6 +43,30 @@ const CALL_TONES: Readonly<Record<string, StatusToneRule>> = {
 const SCOPES = ["mine", "all"] as const;
 type Scope = (typeof SCOPES)[number];
 const SCOPE_STORE = "admin-meetings-scope";
+
+const minuteSubs = new Set<() => void>();
+let minuteTimer: ReturnType<typeof setInterval> | undefined;
+function subscribeMinute(cb: () => void) {
+  minuteSubs.add(cb);
+  if (minuteSubs.size === 1) minuteTimer = setInterval(() => minuteSubs.forEach((fn) => fn()), 15000);
+  return () => {
+    minuteSubs.delete(cb);
+    if (!minuteSubs.size) clearInterval(minuteTimer);
+  };
+}
+const readMinute = () => Math.floor(Date.now() / 60000);
+const serverMinute = () => 0;
+
+const PHONE_QUERY = "(max-width: 640px)";
+function subscribePhone(cb: () => void) {
+  const mq = window.matchMedia(PHONE_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+const readPhone = () => window.matchMedia(PHONE_QUERY).matches;
+const serverPhone = () => false;
+
+const domSafe = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, "");
 
 function useCallStatusMap(): StatusMap {
   const t = useTranslations("admin.meetings");
@@ -171,7 +195,7 @@ function CallDetailModal({ id, onClose }: { id: string | null; onClose: () => vo
   );
 }
 
-type Active = { roomId: string; callId: string; isCaller: boolean; title?: string; lk: LiveKitJoin | null };
+type Active = { roomId: string; callId: string; callType: "audio" | "video"; isCaller: boolean; title?: string; lk: LiveKitJoin | null };
 
 // One row of GET /calls/invited — every meeting this account hosted or was
 // invited to (the host also has a participant record). Read raw so the list
@@ -187,9 +211,17 @@ type HistoryItem = {
   callStatus: string; // active | scheduled | ended | cancelled | expired
   startedAt: string;
   autoEndAt: string;
+  endedAt: string;
+  durationSeconds: number;
+  participantCount: number;
+  canStartNow: boolean | null;
 };
+type MineGroup = "live" | "scheduled" | "past";
+type JoinState = { show: boolean; ok: boolean; why: string };
 const LIVE = new Set(["active", "scheduled"]);
-const OUT = new Set(["removed", "declined"]);
+const OUT = new Set(["removed", "kicked", "declined"]);
+const RECHECK_WINDOW = 86400000;
+const RECHECK_DELAY = 1500;
 const START_ID = "meeting-start";
 const REFRESH_ID = "meetings-refresh";
 const PLAT_REFRESH_ID = "meetings-all-refresh";
@@ -235,10 +267,26 @@ async function loadHistory(): Promise<HistoryItem[]> {
         callStatus: asStr(d.call_status ?? d.status),
         startedAt: asStr(d.started_at),
         autoEndAt: asStr(d.auto_end_at),
+        endedAt: asStr(d.ended_at),
+        durationSeconds: asNum(d.duration_seconds),
+        participantCount: asNum(d.participant_count) || asArr(d.participants).length,
+        canStartNow: typeof d.can_start_now === "boolean" ? d.can_start_now : null,
       };
     })
     .filter((c) => c.roomId && c.callId);
 }
+
+function secondsOf(c: HistoryItem): number {
+  if (c.durationSeconds > 0) return c.durationSeconds;
+  const a = parseServerTime(c.startedAt);
+  const b = parseServerTime(c.endedAt);
+  return Number.isFinite(a) && Number.isFinite(b) && b > a ? (b - a) / 1000 : 0;
+}
+
+const startMs = (c: HistoryItem) => {
+  const at = parseServerTime(c.startedAt);
+  return Number.isFinite(at) ? at : Number.POSITIVE_INFINITY;
+};
 
 // Meeting launcher shared by /admin/meetings (call-center, managers) and the
 // seller portals: name the meeting, pick invitees, start → the LiveKit room
@@ -261,10 +309,16 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const seller = session?.role === "advocate" || session?.role === "lawyer";
   const [title, setTitle] = useState("");
   const [picks, setPicks] = useState<string[]>([]);
+  const [pickNames, setPickNames] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [pickErr, setPickErr] = useState("");
+  const [howOpen, setHowOpen] = useState(false);
   const pickErrId = useId();
   const scopeIds = `mhist${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const uid = `ml${domSafe(useId())}`;
+  const minute = useSyncExternalStore(subscribeMinute, readMinute, serverMinute);
+  const phone = useSyncExternalStore(subscribePhone, readPhone, serverPhone);
+  const labelCache = useRef(new Map<string, string>());
   const callMap = useCallStatusMap();
   const pickBox = useRef<HTMLDivElement>(null);
   const startRef = useRef<() => void>(() => undefined);
@@ -357,7 +411,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           try { sessionStorage.removeItem("lexgo_active_call"); } catch { /* ignore */ }
           return;
         }
-        if (c.callerUserId === me) setActive({ roomId: stored.roomId, callId: stored.callId, isCaller: true, title: c.title || undefined, lk: null });
+        if (c.callerUserId === me) setActive({ roomId: stored.roomId, callId: stored.callId, callType: c.callType, isCaller: true, title: c.title || undefined, lk: null });
       })
       .catch((e) => {
         if (!alive || (shownRef.current && !isMissing(e))) return;
@@ -426,8 +480,31 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   // their own clients — see lib/inviteSearch.
   function searchOptions(q: string) {
     if (!searchRef.current) searchRef.current = makeInviteSearch({ clientLabel, regionLabel: (v) => regionLabel(te, v), exclude: () => (session?.id ? [session.id] : []), roleLabel: (r) => t(`role.${r}`) });
-    return searchRef.current(q);
+    return searchRef.current(q).then((list) => {
+      for (const o of list) labelCache.current.set(o.value, o.label === "—" ? "" : o.label);
+      return list;
+    });
   }
+
+  function changePicks(v: string[]) {
+    setPicks(v);
+    setPickNames(Object.fromEntries(v.map((id) => [id, labelCache.current.get(id) ?? ""])));
+    if (v.length) setPickErr("");
+  }
+
+  function resetForm() {
+    setTitle("");
+    setPicks([]);
+    setPickNames({});
+    setPickErr("");
+  }
+
+  const firstName = picks.length ? (pickNames[picks[0]] ?? "").trim() : "";
+  const autoTitle = firstName
+    ? picks.length > 1
+      ? t("defaultTitleMore", { name: firstName, n: picks.length - 1 })
+      : t("defaultTitle", { name: firstName })
+    : t("defaultTitleNoName");
 
   async function start() {
     if (busy || !session) return;
@@ -449,15 +526,17 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           ? { client_user_id: picks[0], seller_user_id: session.id }
           : { client_user_id: session.id || picks[0], seller_user_id: picks[0] },
       );
-      const call = await startCall(room.id, "video", title.trim() || t("title"), {
+      const name = title.trim() || autoTitle;
+      const call = await startCall(room.id, "video", name, {
         participantUserIds: picks,
         maxDurationMinutes: 60,
       });
       setActive({
         roomId: room.id,
         callId: call.id,
+        callType: "video",
         isCaller: true,
-        title: title.trim() || undefined,
+        title: name,
         lk: call.livekitToken ? { url: call.livekitUrl, room: call.livekitRoom, token: call.livekitToken, hints: call.hints, quality: call.quality } : null,
       });
     } catch (e) {
@@ -477,11 +556,13 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   });
 
   function rejoin(c: HistoryItem) {
-    setActive({ roomId: c.roomId, callId: c.callId, isCaller: c.callerUserId === session?.id, title: c.title || undefined, lk: null });
+    setActive({ roomId: c.roomId, callId: c.callId, callType: c.callType, isCaller: c.callerUserId === session?.id, title: c.title || undefined, lk: null });
   }
 
   const effectiveHistory = history ?? [];
   const live = effectiveHistory.filter((c) => LIVE.has(c.callStatus));
+  const liveNow = effectiveHistory.filter((c) => c.callStatus === "active");
+  const scheduled = effectiveHistory.filter((c) => c.callStatus === "scheduled").sort((a, b) => startMs(a) - startMs(b));
   const ended = effectiveHistory.filter((c) => !LIVE.has(c.callStatus));
   const minePager = usePaged(ended, PAGE, sessionKey);
   const platInRange =
@@ -498,35 +579,92 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const platList = platStatus ? platMatched.filter((c) => c.status === platStatus) : platMatched;
   const platFilterKey = [platQuery.trim(), platStatus, platFrom, platTo].join("|");
   const platPager = usePaged(platList, PAGE, platFilterKey);
+  const nowMs = minute * 60000;
+  const nextStart = scheduled.map(startMs).find((ms) => ms >= nowMs) ?? Number.POSITIVE_INFINITY;
+  const recheckAt = minute > 0 && nextStart - nowMs <= RECHECK_WINDOW ? nextStart : 0;
+  useEffect(() => {
+    if (!recheckAt) return;
+    const h = setTimeout(refreshHistory, Math.max(0, recheckAt - Date.now()) + RECHECK_DELAY);
+    return () => clearTimeout(h);
+  }, [recheckAt, refreshHistory]);
 
   if (active) {
     return (
       <CallRoom
         roomId={active.roomId}
         callId={active.callId}
-        callType="video"
+        callType={active.callType}
         isCaller={active.isCaller}
         title={active.title}
         lk={active.lk}
         onEnd={() => {
-          // Leaving `active` reloads the history (effect above).
           setActive(null);
-          setPicks([]);
-          setTitle("");
+          resetForm();
         }}
       />
     );
   }
 
   const canHost = canMakeCalls(session);
+  const canDetail = canSeeAllHistory;
   const statusOf = (s: string) => statusSpecOf(callMap, s)?.label ?? "";
   const thisYear = localDayKey(new Date()).slice(0, 4);
   const when = (iso: string) => fmtDateTime(iso, locale, localDayKey(iso).slice(0, 4) !== thisYear);
-  const mineOf = (s: string) => (tc.has(`pstatus.${s}`) ? tc(`pstatus.${s}`) : humanize(s));
+  const shortWhen = (iso: string) => {
+    const s = localDayKey(iso).slice(0, 4) !== thisYear ? dateTimeFull(iso, locale) : shortDateTime(iso, locale);
+    return locale === "ru" || locale === "en" ? s : s.replace(/^(\d{1,2}) (\p{L}+)/u, (_m, d: string, mon: string) => `${d}-${mon.toLowerCase()}`);
+  };
+  const rowWhen = (iso: string) => (phone ? shortWhen(iso) : when(iso));
+  const today = minute ? localDayKey(nowMs) : "";
+  const isToday = (iso: string) => Boolean(today) && localDayKey(iso) === today;
+  const clock = (iso: string) => (isToday(iso) ? timeOnly(iso, locale) : when(iso));
   const endedCounts = countBy(ended, (c) => c.callStatus);
-  const endedSummary = ordered(endedCounts, ENDED_ORDER)
-    .map((s) => `${statusOf(s)} ${endedCounts.get(s)}`)
-    .join(" · ");
+  const endedSummary = endedCounts.size > 1
+    ? ordered(endedCounts, ENDED_ORDER)
+        .map((s) => `${statusOf(s)} ${endedCounts.get(s)}`)
+        .join(" · ")
+    : "";
+
+  const startsIn = (iso: string) => {
+    const at = parseServerTime(iso);
+    if (!minute || !Number.isFinite(at)) return "";
+    if (Math.floor(at / 60000) <= minute) return "";
+    const mins = Math.ceil((at - nowMs) / 60000);
+    if (mins <= 0) return "";
+    if (mins < 60) return t("startsInMin", { n: mins });
+    const hours = Math.floor(mins / 60);
+    if (hours < 48) return t("startsInHour", { n: hours });
+    return t("startsInDay", { n: Math.floor(hours / 24) });
+  };
+
+  const joinState = (c: HistoryItem): JoinState => {
+    if (!LIVE.has(c.callStatus) || OUT.has(c.status)) return { show: false, ok: false, why: "" };
+    const at = parseServerTime(c.startedAt);
+    if (c.callStatus === "scheduled" && Number.isFinite(at) && Math.floor(at / 60000) > minute) {
+      return {
+        show: true,
+        ok: false,
+        why: isToday(c.startedAt) ? t("opensAt", { time: timeOnly(c.startedAt, locale) }) : t("opensOn", { date: when(c.startedAt) }),
+      };
+    }
+    if (c.canStartNow === false) return { show: true, ok: false, why: t("joinClosed") };
+    return { show: true, ok: true, why: "" };
+  };
+  const whyId = (c: HistoryItem) => `${uid}-why-${domSafe(c.callId)}`;
+
+  const joinControl = (c: HistoryItem, label: string) => {
+    const js = joinState(c);
+    if (!js.show) return null;
+    return (
+      <div className="mjoin">
+        <button type="button" className="btn btn--line btn--sm" onClick={() => rejoin(c)} disabled={!js.ok} aria-describedby={js.why ? whyId(c) : undefined}>
+          {c.callType === "audio" ? <IconPhone /> : <IconVideo />}
+          {label}
+        </button>
+        {js.why ? <span id={whyId(c)} className="mjoin__why">{js.why}</span> : null}
+      </div>
+    );
+  };
 
   function goCreate() {
     const el = titleRef.current;
@@ -569,58 +707,145 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const calEvents: MiniCalEvent[] = effectiveHistory
     .filter((c) => c.startedAt)
     .map((c) => ({ id: c.callId, date: c.startedAt, label: c.title || t("untitled"), sub: c.callerName || undefined }));
-  const durationOf = (c: HistoryItem) => {
-    if (!c.startedAt || !c.autoEndAt) return "";
-    const ms = new Date(c.autoEndAt).getTime() - new Date(c.startedAt).getTime();
-    return fmtDuration(ms / 1000, locale);
-  };
+  const durationOf = (c: HistoryItem) => fmtDuration(secondsOf(c), locale);
 
-  const row = (c: HistoryItem) => {
-    const isLive = LIVE.has(c.callStatus);
-    const mine = c.callerUserId === session?.id;
-    const canJoin = isLive && !OUT.has(c.status);
+  const metaItem = (key: string, node: ReactNode, cls?: string) => (
+    <span key={key} className={cls}>{node}</span>
+  );
+  const peopleItem = (n: number) =>
+    n > 0
+      ? metaItem(
+          "ppl",
+          <span className="mrow__chip"><IconUsers aria-hidden="true" />{tch("participantCount", { n })}</span>,
+        )
+      : null;
+
+  const rowView = (o: {
+    key: string;
+    icon: ReactNode;
+    on?: boolean;
+    live?: boolean;
+    out?: boolean;
+    title: string;
+    meta: ReactNode[];
+    act?: ReactNode;
+    open?: () => void;
+  }) => {
+    const cls = ["mrow", o.live ? "mrow--live" : "", o.out ? "mrow--out" : "", o.act ? "mrow--act" : "", o.open ? "mrow--open" : ""].filter(Boolean).join(" ");
+    const body = (
+      <>
+        <span className={`mlist__ic${o.on ? " on" : ""}`} aria-hidden="true">{o.icon}</span>
+        <span className="mrow__m">
+          <span className="mrow__t" title={o.title}>{o.title}</span>
+          {o.meta.length ? <span className="mrow__meta">{o.meta}</span> : null}
+        </span>
+        {o.act ?? null}
+        {o.open ? <IconChevronRight className="mrow__go" aria-hidden="true" /> : null}
+      </>
+    );
     return (
-      <div className={`aitem mlist__row${isLive ? " mlist__row--live" : ""}`} key={c.callId}>
-        <span className={`mlist__ic${isLive ? " on" : ""}`}><IconVideo /></span>
-        <div className="mlist__m">
-          <b>{c.title || t("untitled")}</b>
-          <span>
-            {mine ? t("hostedByYou") : t("hostedBy", { name: c.callerName || tc("someone") })}
-            {c.startedAt ? ` · ${when(c.startedAt)}` : ""}
-            {!mine && c.status && !isLive ? ` · ${mineOf(c.status)}` : ""}
-          </span>
-        </div>
-        <StatusBadge status={c.callStatus} map={callMap} size="sm" />
-        {canJoin ? (
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => rejoin(c)}>
-            <IconVideo />{c.status === "joined" || mine ? t("rejoin") : t("join")}
-          </button>
-        ) : null}
-      </div>
+      <li key={o.key}>
+        {o.open ? (
+          <button type="button" className={cls} onClick={o.open} aria-haspopup="dialog">{body}</button>
+        ) : (
+          <div className={cls}>{body}</div>
+        )}
+      </li>
     );
   };
 
-  const createForm = (
-    <div className="ppanel" data-ai-target="meetings:create">
-      <div className="ppanel__h">
-        <b className="ppanel__t"><span className="pico">{rich ? <IconPlus /> : <IconVideo />}</span>{rich ? t("createTitle") : t("title")}</b>
-      </div>
-      <p className="advmuted" style={{ marginBottom: 16 }}>{t("subtitle")}</p>
+  const mineRow = (c: HistoryItem, group: MineGroup) => {
+    const mine = c.callerUserId === sessionId;
+    const out = OUT.has(c.status);
+    const audio = c.callType === "audio";
+    const meta: ReactNode[] = [];
+    if (group === "live" && c.startedAt) meta.push(metaItem("when", t("since", { time: clock(c.startedAt) })));
+    if (group === "scheduled" && c.startedAt) {
+      const left = startsIn(c.startedAt);
+      meta.push(
+        metaItem(
+          "when",
+          <>
+            <span className="mrow__nw">{t("startsAt", { time: clock(c.startedAt) })}</span>
+            {left ? <span className="mrow__nw">{left}</span> : null}
+          </>,
+          "mrow__wrap",
+        ),
+      );
+    }
+    if (group === "past") {
+      if (c.startedAt) meta.push(metaItem("when", rowWhen(c.startedAt)));
+      const dur = fmtDuration(secondsOf(c), locale);
+      if (dur) meta.push(metaItem("dur", dur));
+    }
+    const ppl = peopleItem(c.participantCount);
+    if (ppl) meta.push(ppl);
+    if (!mine) meta.push(metaItem("host", t("hostedBy", { name: c.callerName || tc("someone") }), "mrow__wrap mrow__host"));
+    if (out) meta.push(metaItem("out", c.status === "declined" ? t("youDeclined") : t("youRemoved"), "mrow__out"));
+    if (group === "past" && c.callStatus && c.callStatus !== "ended") {
+      meta.push(metaItem("st", <StatusBadge status={c.callStatus} map={callMap} size="sm" />, "mrow__st"));
+    }
+    const act = group === "past" ? null : joinControl(c, t("join"));
+    return rowView({
+      key: c.callId,
+      icon: audio ? <IconPhone /> : group === "scheduled" ? <IconCalendar /> : <IconVideo />,
+      on: group === "live" && !out,
+      live: group === "live" && !out,
+      out,
+      title: c.title || t("untitled"),
+      meta,
+      act,
+      open: !act && canDetail ? () => setPlatDetail(c.callId) : undefined,
+    });
+  };
 
-      {!canHost ? <InlineAlert tone="locked" className="mcreate__lock">{t("noPermission")}</InlineAlert> : null}
-      <div className="cform" style={{ maxWidth: rich ? "none" : 560 }}>
+  const platRow = (c: AdminCallRow, i: number) => {
+    const start = c.startedAt || c.createdAt;
+    const meta: ReactNode[] = [];
+    if (start) meta.push(metaItem("when", rowWhen(start)));
+    const dur = fmtDuration(c.durationSeconds, locale);
+    if (dur) meta.push(metaItem("dur", dur));
+    const ppl = peopleItem(c.participantCount);
+    if (ppl) meta.push(ppl);
+    if (c.creatorName) meta.push(metaItem("host", c.creatorName, "mrow__wrap"));
+    if (c.status && c.status !== platStatus) meta.push(metaItem("st", <StatusBadge status={c.status} map={callMap} size="sm" />, "mrow__st"));
+    return rowView({
+      key: c.id || `p${i}`,
+      icon: c.callType === "audio" ? <IconPhone /> : c.status === "scheduled" ? <IconCalendar /> : <IconVideo />,
+      on: c.status === "active",
+      title: c.title || tch("untitled"),
+      meta,
+      open: c.id ? () => setPlatDetail(c.id) : undefined,
+    });
+  };
+
+  const formBody = (wide: boolean) =>
+    canHost ? (
+      <form
+        className={`cform mform${wide ? " mform--wide" : ""}`}
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void start();
+        }}
+      >
         <div>
-          <label>{t("titleLabel")}</label>
-          <input ref={titleRef} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} />
+          <label htmlFor={`${uid}-title`}>{t("titleLabel")}</label>
+          <input
+            id={`${uid}-title`}
+            ref={titleRef}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={picks.length ? autoTitle : t("titlePh")}
+            autoComplete="off"
+            enterKeyHint="go"
+          />
         </div>
         <div ref={pickBox} data-invalid={pickErr ? "true" : undefined}>
           <label>{t("participants")}</label>
           <SearchSelect
             value={picks}
-            onChange={(v) => {
-              setPicks(v);
-              if (v.length) setPickErr("");
-            }}
+            onChange={changePicks}
             onSearch={searchOptions}
             placeholder={t("participantsPh")}
             searchPlaceholder={t("participantsSearch")}
@@ -632,22 +857,24 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
           />
           <FieldError id={pickErrId} msg={pickErr} />
         </div>
-        <p className="advmuted" style={{ fontSize: ".82rem", margin: 0 }}>{seller ? t("sellerHint") : t("hint")}</p>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="btn btn--pri" type="button" onClick={start} disabled={busy || !canHost}>
+        <p className="advmuted mform__hint">{seller ? t("sellerHint") : t("hint")}</p>
+        <div className="mform__acts">
+          <button className="btn btn--pri" type="submit" disabled={busy} aria-busy={busy || undefined}>
             <IconVideo />
             {busy ? t("starting") : t("start")}
           </button>
           {rich && (title || picks.length) ? (
-            <button className="btn btn--line" type="button" onClick={() => { setTitle(""); setPicks([]); setPickErr(""); }}>
+            <button className="btn btn--line" type="button" onClick={resetForm}>
               <IconRefresh />
               {t("clear")}
             </button>
           ) : null}
+          {!rich ? <span className="mform__enter">{t("enterHint")}</span> : null}
         </div>
-      </div>
-    </div>
-  );
+      </form>
+    ) : (
+      <InlineAlert tone="locked" className="mcreate__lock">{t("noPermission")}</InlineAlert>
+    );
 
   const historyBody =
     history === null ? (
@@ -679,9 +906,57 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         aiId="admin.meetings.refresh"
       />
     );
+    const liveBlock = (
+      <section className="mlive" aria-labelledby={`${uid}-live`} data-ai-id="admin.meetings.live" data-ai-type="section" data-ai-label={t("activeGroup")}>
+        <h3 id={`${uid}-live`} className="mgrp__h">
+          <i className={`mlist__dot${liveNow.length ? "" : " mlist__dot--off"}`} aria-hidden="true" />
+          {t("activeGroup")}
+          {liveNow.length ? <CountBadge n={liveNow.length} /> : null}
+        </h3>
+        {history === null ? (
+          <Skeleton rows={1} />
+        ) : histErr ? (
+          <p className="advmuted mlive__note">{t("liveUnavailable")}</p>
+        ) : liveNow.length ? (
+          <ul className="mrows">{liveNow.map((c) => mineRow(c, "live"))}</ul>
+        ) : (
+          <p className="advmuted mlive__note">{t("liveEmpty")}</p>
+        )}
+      </section>
+    );
+    const howId = `${uid}-how`;
+    const howTo = (
+      <div className={`mhow${phone ? " mhow--fold" : ""}`}>
+        {phone ? (
+          <button type="button" className="mhow__toggle" aria-expanded={howOpen} aria-controls={howId} onClick={() => setHowOpen((v) => !v)}>
+            <span>{t("howTitle")}</span>
+            <IconChevronDown aria-hidden="true" />
+          </button>
+        ) : (
+          <h3 className="mhow__h">{t("howTitle")}</h3>
+        )}
+        <ol id={howId} className="mhow__list" hidden={phone && !howOpen}>
+          <li>{t("how1")}</li>
+          <li>{t("how2")}</li>
+          <li>{t("how3")}</li>
+        </ol>
+      </div>
+    );
     return (
       <div className="mlaunch">
-        {createForm}
+        <section className="ppanel mnew" data-ai-target="meetings:create" aria-labelledby={`${uid}-new`}>
+          <div className="mnew__head">
+            <h2 id={`${uid}-new`} className="ppanel__t mnew__t"><span className="pico"><IconPlus /></span>{t("newMeeting")}</h2>
+            <p className="advmuted">{t("subtitle")}</p>
+          </div>
+          <div className="mnew__grid">
+            <div className="mnew__main">{formBody(false)}</div>
+            <div className="mnew__side">
+              {liveBlock}
+              {canHost ? howTo : null}
+            </div>
+          </div>
+        </section>
         <div className="ppanel mhist">
           <div className="ppanel__h mhist__h">
             <h2 className="ppanel__t"><span className="pico"><IconClock /></span>{canSeeAllHistory ? tch("title") : t("history")}</h2>
@@ -715,27 +990,37 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
             className="mhist__body"
           >
             <div hidden={!showMine} data-ai-target="seller:meeting-list">
-              {historyBody ?? (
-                <div className="mlist">
-                  {!effectiveHistory.length ? emptyHistory : null}
-                  {live.length ? (
-                    <div className="mlist__grp">
-                      <span className="mlist__gl"><i className="mlist__dot" />{t("activeGroup")} · {live.length}</span>
-                      {live.map(row)}
-                    </div>
-                  ) : null}
-                  {ended.length ? (
-                    <div className="mlist__grp">
-                      <div className="mlist__gh">
-                        <span className="mlist__gl">{t("endedGroup")}</span>
-                        <span className="mlist__sum">{endedSummary}</span>
-                      </div>
-                      {minePager.visible.map(row)}
-                      <ListPager {...minePager.bind} less />
-                    </div>
-                  ) : null}
-                </div>
-              )}
+              {historyBody ??
+                (!effectiveHistory.length ? (
+                  emptyHistory
+                ) : (
+                  <div className="mlist">
+                    {scheduled.length ? (
+                      <section className="mlist__grp" aria-labelledby={`${uid}-sch`}>
+                        <h3 id={`${uid}-sch`} className="mgrp__h">
+                          <IconCalendar aria-hidden="true" />
+                          {t("scheduledGroup")}
+                          <CountBadge n={scheduled.length} />
+                        </h3>
+                        <ul className="mrows">{scheduled.map((c) => mineRow(c, "scheduled"))}</ul>
+                      </section>
+                    ) : null}
+                    {ended.length ? (
+                      <section className="mlist__grp" aria-labelledby={`${uid}-past`}>
+                        <div className="mlist__gh">
+                          <h3 id={`${uid}-past`} className="mgrp__h">
+                            {t("endedGroup")}
+                            <CountBadge n={ended.length} />
+                          </h3>
+                          {endedSummary ? <span className="mlist__sum">{endedSummary}</span> : null}
+                        </div>
+                        <ul className="mrows">{minePager.visible.map((c) => mineRow(c, "past"))}</ul>
+                        <ListPager {...minePager.bind} less />
+                      </section>
+                    ) : null}
+                    {!scheduled.length && !ended.length ? <p className="advmuted">{t("pastEmpty")}</p> : null}
+                  </div>
+                ))}
             </div>
             {canSeeAllHistory && platOn ? (
               <div hidden={showMine}>
@@ -790,46 +1075,32 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
                   )
                 ) : (
                   <>
-                    <div className="alist alist--flow">
-                      {platPager.visible.map((c, i) => {
-                        const meta = [c.creatorName, when(c.startedAt), fmtDuration(c.durationSeconds, locale)].filter(Boolean).join(" · ");
-                        return (
-                          <div className="aitem" key={c.id || i}>
-                            <div className="aitem__m">
-                              <b>{c.title || tch("untitled")}</b>
-                              {meta ? <span className="aitem__meta">{meta}</span> : null}
-                              {c.status ? (
-                                <div className="aitem__tags">
-                                  <StatusBadge status={c.status} map={callMap} size="sm" />
-                                </div>
-                              ) : null}
-                            </div>
-                            <div className="aitem__r">
-                              <span className="atag atag--muted atag--count"><IconUsers aria-hidden="true" style={{ width: 13, height: 13 }} />{tch("participantCount", { n: c.participantCount })}</span>
-                            </div>
-                            <div className="aitem__acts">
-                              <button type="button" className="aitem__act" aria-label={tch("detailTitle")} title={tch("detailTitle")} onClick={() => setPlatDetail(c.id)}><IconEye /></button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <ul className="mrows">{platPager.visible.map(platRow)}</ul>
                     <ListPager {...platPager.bind} less />
                   </>
                 )}
               </div>
             ) : null}
           </div>
-          {canSeeAllHistory ? <CallDetailModal id={platDetail} onClose={() => setPlatDetail(null)} /> : null}
         </div>
+        {canSeeAllHistory ? <CallDetailModal id={platDetail} onClose={() => setPlatDetail(null)} /> : null}
       </div>
     );
   }
 
+  const createForm = (
+    <div className="ppanel" data-ai-target="meetings:create">
+      <div className="ppanel__h">
+        <b className="ppanel__t"><span className="pico"><IconPlus /></span>{t("createTitle")}</b>
+      </div>
+      <p className="advmuted" style={{ marginBottom: 16 }}>{t("subtitle")}</p>
+      {formBody(true)}
+    </div>
+  );
+
   const tableRow = (c: HistoryItem, i: number) => {
-    const isLive = LIVE.has(c.callStatus);
     const mine = c.callerUserId === session?.id;
-    const canJoin = isLive && !OUT.has(c.status);
+    const join = joinControl(c, c.status === "joined" || mine ? t("rejoin") : t("join"));
     return (
       <tr key={c.callId}>
         <td>{i + 1}</td>
@@ -852,11 +1123,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         </td>
         <td><StatusBadge status={c.callStatus} map={callMap} size="sm" /></td>
         <td>
-          {canJoin ? (
-            <button type="button" className="btn btn--pri btn--sm" onClick={() => rejoin(c)}>
-              <IconVideo />{c.status === "joined" || mine ? t("rejoin") : t("join")}
-            </button>
-          ) : (
+          {join ?? (
             <span style={{ display: "inline-flex", color: "var(--gray2)" }}><IconMoreHorizontal /></span>
           )}
         </td>
