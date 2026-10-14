@@ -3746,7 +3746,8 @@
         "title": "This is your dashboard — every service starts here.",
         "describe": "Describe your problem in plain words — AI picks the right service and lawyer.",
         "urgent": "In an emergency, reach an urgent advocate from here.",
-        "findSpecialist": "Find verified advocates and lawyers here."
+        "findSpecialist": "Find verified advocates and lawyers here.",
+        "search": "Search for an advocate, lawyer or legal service here by name or by your problem."
       },
       "client_subscription": {
         "billing": "The history of your plan payments is here.",
@@ -8131,7 +8132,54 @@
         "lawyerAdTitle": "A lawyer for your problem",
         "lawyerAdText": "Verified advocates and lawyers — prices up front, private contact.",
         "lawyerAdCta": "Browse advocates",
-        "lawyerAdClose": "Close"
+        "lawyerAdClose": "Close",
+        "search": {
+          "label": "Search specialists and services",
+          "placeholder": "Find an advocate, lawyer or service",
+          "clear": "Clear",
+          "filterLabel": "Search in",
+          "filters": {
+            "all": "All",
+            "advokat": "Advocates",
+            "yurist": "Lawyers",
+            "services": "Services"
+          },
+          "try": "Try:",
+          "suggest": {
+            "divorce": "Divorce",
+            "inheritance": "Inheritance",
+            "labor": "Labour dispute",
+            "contract": "Contract"
+          },
+          "minChars": "Type at least {n} characters",
+          "loading": "Searching…",
+          "found": "{n, plural, one {# result} other {# results}}",
+          "emptyTitle": "Nothing found",
+          "emptyText": "No specialists or services match “{q}”. Try other words or describe your situation to the AI.",
+          "askAi": "Ask the AI",
+          "peopleCatalog": "Browse advocates",
+          "servicesCatalog": "Browse services",
+          "errorTitle": "Search failed",
+          "groupError": "Couldn't load this section.",
+          "retry": "Retry",
+          "groups": {
+            "people": "Specialists",
+            "advokat": "Advocates",
+            "yurist": "Lawyers",
+            "services": "Services"
+          },
+          "viewAll": "View all",
+          "verified": "Verified",
+          "from": "from {price} UZS",
+          "price": "{price} UZS",
+          "byRequest": "Price on request",
+          "kind": {
+            "doc": "Document",
+            "service": "Service"
+          },
+          "noPeople": "No specialists for this search",
+          "noServices": "No services for this search"
+        }
       },
       "cases": {
         "title": "My requests",

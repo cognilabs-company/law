@@ -3746,7 +3746,8 @@
         "title": "Bu sizning boshqaruv panelingiz — barcha xizmatlarga shu yerdan kirasiz.",
         "describe": "Muammoingizni oddiy so'zlar bilan yozing — AI mos xizmat va advokatni tanlab beradi.",
         "urgent": "Shoshilinch holatda shu yerdan tezkor advokat bilan bog'lanasiz.",
-        "findSpecialist": "Tasdiqlangan advokat va yuristlarni shu yerdan topasiz."
+        "findSpecialist": "Tasdiqlangan advokat va yuristlarni shu yerdan topasiz.",
+        "search": "Advokat, yurist yoki yuridik xizmatni shu yerdan nomi yoki muammo bo'yicha qidirasiz."
       },
       "client_subscription": {
         "billing": "Tarif uchun qilgan to'lovlaringiz tarixi shu yerda.",
@@ -8137,7 +8138,54 @@
         "lawyerAdTitle": "Muammoingizga mos advokat",
         "lawyerAdText": "Tasdiqlangan advokat va yuristlar — narxi oldindan ma'lum, aloqa maxfiy.",
         "lawyerAdCta": "Advokatlarni ko'rish",
-        "lawyerAdClose": "Yopish"
+        "lawyerAdClose": "Yopish",
+        "search": {
+          "label": "Mutaxassis va xizmatlarni qidirish",
+          "placeholder": "Advokat, yurist yoki xizmat qidiring",
+          "clear": "Tozalash",
+          "filterLabel": "Nimani qidiramiz",
+          "filters": {
+            "all": "Hammasi",
+            "advokat": "Advokatlar",
+            "yurist": "Yuristlar",
+            "services": "Xizmatlar"
+          },
+          "try": "Masalan:",
+          "suggest": {
+            "divorce": "Ajrashish",
+            "inheritance": "Meros",
+            "labor": "Mehnat nizosi",
+            "contract": "Shartnoma"
+          },
+          "minChars": "Kamida {n} ta harf yozing",
+          "loading": "Qidirilmoqda…",
+          "found": "{n} ta natija",
+          "emptyTitle": "Hech narsa topilmadi",
+          "emptyText": "«{q}» bo'yicha mutaxassis yoki xizmat topilmadi. Boshqa so'z bilan urinib ko'ring yoki vaziyatingizni AI'ga yozing.",
+          "askAi": "AI'dan so'rash",
+          "peopleCatalog": "Advokatlar katalogi",
+          "servicesCatalog": "Xizmatlar katalogi",
+          "errorTitle": "Qidiruv ishlamadi",
+          "groupError": "Bu bo'limni yuklab bo'lmadi.",
+          "retry": "Qayta urinish",
+          "groups": {
+            "people": "Mutaxassislar",
+            "advokat": "Advokatlar",
+            "yurist": "Yuristlar",
+            "services": "Xizmatlar"
+          },
+          "viewAll": "Barchasini ko'rish",
+          "verified": "Tasdiqlangan",
+          "from": "{price} so'mdan",
+          "price": "{price} so'm",
+          "byRequest": "Kelishilgan narx",
+          "kind": {
+            "doc": "Hujjat",
+            "service": "Xizmat"
+          },
+          "noPeople": "Bu so'rov bo'yicha mutaxassis topilmadi",
+          "noServices": "Bu so'rov bo'yicha xizmat topilmadi"
+        }
       },
       "cases": {
         "title": "So'rovlarim",

@@ -7,6 +7,7 @@ export const CLIENT_PAGES: GuidePage[] = [
     roles: ["client"],
     tour: [
       { target: "ai-help:current-page", text: "tours.client_dashboard.title" },
+      { target: "dashboard:search", text: "tours.client_dashboard.search" },
       { target: "dashboard:describe", text: "tours.client_dashboard.describe" },
       { target: "dashboard:urgent", text: "tours.client_dashboard.urgent" },
       { target: "dashboard:findSpecialist", text: "tours.client_dashboard.findSpecialist" },

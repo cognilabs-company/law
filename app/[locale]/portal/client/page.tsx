@@ -2,7 +2,7 @@
 
 import { statusLabel } from "@/lib/labels";
 
-import { useMemo, useState, type ComponentType, type CSSProperties, type SVGProps } from "react";
+import { Suspense, useMemo, useState, type ComponentType, type CSSProperties, type SVGProps } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -14,6 +14,7 @@ import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import HeroCarousel from "@/components/portal/HeroCarousel";
 import ReferralProgress from "@/components/portal/ReferralProgress";
 import LawyerPromo from "@/components/portal/LawyerPromo";
+import DashboardSearch, { DashboardSearchShell } from "@/components/portal/DashboardSearch";
 import Modal from "@/components/admin/Modal";
 import {
   IconSparkle,
@@ -157,6 +158,10 @@ export default function ClientDashboard() {
         </div>
         <HeroCarousel />
       </div>
+
+      <Suspense fallback={<DashboardSearchShell />}>
+        <DashboardSearch />
+      </Suspense>
 
       <LawyerPromo />
 

@@ -840,13 +840,13 @@ export function clampServiceQuery(q: string): string {
 export type ServiceSearchHit = { service: BackendService; score: number };
 export async function searchServices(
   q: string,
-  opts?: { limit?: number; executorType?: string },
+  opts?: { limit?: number; executorType?: string; signal?: AbortSignal },
   locale = "uz",
 ): Promise<ServiceSearchHit[]> {
   const qs = new URLSearchParams({ q: clampServiceQuery(q) });
   qs.set("limit", String(Math.max(1, Math.min(opts?.limit ?? 50, 50))));
   if (opts?.executorType) qs.set("executor_type", opts.executorType);
-  return asArr(await http(`/services/search?${qs}`)).map((v) => {
+  return asArr(await http(`/services/search?${qs}`, { signal: opts?.signal })).map((v) => {
     const d = asDict(v);
     return { service: normService(d.service, locale), score: asNum(d.score) };
   });

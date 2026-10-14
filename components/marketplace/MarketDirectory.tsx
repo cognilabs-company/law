@@ -78,7 +78,19 @@ function chipIcon(label: string) {
   return IconScale;
 }
 
-export default function MarketDirectory({ variant, initialArea = "", preview }: { variant: "public" | "portal"; initialArea?: string; preview?: DirectoryPreview }) {
+export default function MarketDirectory({
+  variant,
+  initialArea = "",
+  initialQuery = "",
+  initialSellerType = "",
+  preview,
+}: {
+  variant: "public" | "portal";
+  initialArea?: string;
+  initialQuery?: string;
+  initialSellerType?: string;
+  preview?: DirectoryPreview;
+}) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
   const locale = useLocale();
@@ -97,7 +109,7 @@ export default function MarketDirectory({ variant, initialArea = "", preview }: 
   const resultsRef = useRef<HTMLDivElement>(null);
   const typedRef = useRef(false);
 
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialQuery);
   const [region, setRegion] = useState("");
   const [spec, setSpec] = useState<string | null>(null);
   const [category, setCategory] = useState("");
@@ -105,7 +117,7 @@ export default function MarketDirectory({ variant, initialArea = "", preview }: 
   const [minRating, setMinRating] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [minExp, setMinExp] = useState("");
-  const [sellerType, setSellerType] = useState("");
+  const [sellerType, setSellerType] = useState(initialSellerType === "advokat" || initialSellerType === "yurist" ? initialSellerType : "");
   const [ai, setAi] = useState<{ q: string; matches: MarketAiMatch[]; summary: string; disclaimer: string; sponsored: MarketPromotionSurface[]; banners: MarketPromotionSurface[]; suggested: { id: string; title: string }[] } | null>(null);
   // GET /promotions/active (10-09 §5): the page-top banners, and — once a
   // service is picked — the promotions bought for exactly that service.

@@ -296,6 +296,17 @@ export async function listMarketplace(opts: { sort?: string; offset?: number; in
   return { items, total: asNum(d.total, items.length), meta: normMeta(d.meta), sponsored, sponsoredProfiles, banners };
 }
 
+export async function searchMarketplaceSellers(
+  q: string,
+  opts: { sellerType?: string; limit?: number; signal?: AbortSignal } = {},
+): Promise<{ items: MarketSeller[]; total: number }> {
+  const qs = new URLSearchParams({ q: q.trim(), limit: String(Math.max(1, Math.min(opts.limit ?? 5, 100))) });
+  if (opts.sellerType === "advokat" || opts.sellerType === "yurist") qs.set("seller_type", opts.sellerType);
+  const d = asDict(await http(`/marketplace/lawyers?${qs}`, { signal: opts.signal }));
+  const items = asArr(d.items).map(normMarketSeller).filter((s) => s.userId && s.verified);
+  return { items, total: Math.max(asNum(d.total, items.length), items.length) };
+}
+
 export type MarketAiMatch = { userId: string; score: number; reasons: string[]; seller: MarketSeller | null };
 export type MarketAiResult = { matches: MarketAiMatch[]; summary: string; disclaimer: string; total: number; hasMore: boolean; sponsored: MarketPromotionSurface[]; sponsoredProfiles: MarketPromotionSurface[]; banners: MarketPromotionSurface[]; suggestedServices: MarketMeta["services"] };
 
