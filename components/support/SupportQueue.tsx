@@ -304,7 +304,10 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
     try {
       const next = await claimSupportTicket(tk.id);
       const base = next.id ? next : tk;
-      place({ ...base, operatorUserId: next.operatorUserId || meId, status: next.status || "claimed" }, false);
+      const mine = { ...base, operatorUserId: next.operatorUserId || meId, status: next.status || "claimed" };
+      place(mine, false);
+      setTab("mine");
+      open(mine);
       notify.success(t("claimedOk"), { id: `sup-claim-${tk.id}` });
     } catch (e) {
       if (isConflict(e)) {
