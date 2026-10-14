@@ -4188,6 +4188,8 @@ body:has(.schat) .fab{display:none}
 .legal__meta:empty{display:none}
 .legal__note{margin:18px 0 0;padding:11px 14px;border-radius:12px;background:var(--b50);font-size:.86rem;color:var(--gray)}
 .legal__body{margin-top:26px;font-size:1rem;line-height:1.7}
+.legal__act{margin:20px 0 26px}
+.legal__act .btn{text-decoration:none}
 .legal__body p{margin:0 0 14px;white-space:pre-line;overflow-wrap:anywhere}
 .legal__list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
 .legal__list a{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:16px 18px;border-radius:var(--r);box-shadow:inset 0 0 0 1.5px var(--line)}

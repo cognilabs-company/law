@@ -100,6 +100,7 @@ export default function Footer() {
             <Link href="/legal/terms">{t("terms")}</Link>
             <Link href="/legal/privacy">{t("privacy")}</Link>
             <Link href="/legal/disclaimer">{t("disclaimer")}</Link>
+            <Link href="/legal/account-deletion">{t("accountDeletion")}</Link>
           </nav>
         </div>
       </div>
