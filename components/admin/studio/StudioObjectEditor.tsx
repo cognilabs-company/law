@@ -288,6 +288,11 @@ function Workspace({ id, newCode, ctx, onCode }: { id: string; newCode: string; 
     [id, onCode],
   );
 
+  // The action bar docks at the bottom of a phone screen; the assistant's
+  // button, fixed in the same corner, is told how tall the bar is and sits
+  // above it (see .stu-ed__bar in globals.css).
+  const barRef = useBarHeight();
+
   const refresh = useCallback(
     async (force = false): Promise<StudioDetail | null> => {
       if (!id) return null;
@@ -933,7 +938,7 @@ function Workspace({ id, newCode, ctx, onCode }: { id: string; newCode: string; 
           </section>
 
           {canSave || archiveShown || publishShown ? (
-            <div className="stu-ed__bar" role="toolbar" aria-label={t("editor.actionsLabel")}>
+            <div ref={barRef} className="stu-ed__bar" role="toolbar" aria-label={t("editor.actionsLabel")}>
               <div className="stu-ed__state">
                 {dirty && !readOnly ? (
                   <span className="stu-odirty">
@@ -1201,4 +1206,32 @@ function Workspace({ id, newCode, ctx, onCode }: { id: string; newCode: string; 
       />
     </div>
   );
+}
+
+function useBarHeight() {
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!el) return;
+    const root = document.documentElement;
+    let seen = false;
+    const set = () => (seen ? root.style.setProperty("--stu-bar-lift", `${Math.round(el.getBoundingClientRect().height) + 8}px`) : root.style.removeProperty("--stu-bar-lift"));
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    // "On screen" means docked: in the lower part of the screen, where the
+    // button lives. At the end of the page the bar rests higher up.
+    const io = new IntersectionObserver(
+      ([e]) => {
+        seen = e.isIntersecting;
+        set();
+      },
+      { rootMargin: "-60% 0px 0px 0px" },
+    );
+    io.observe(el);
+    return () => {
+      ro.disconnect();
+      io.disconnect();
+      root.style.removeProperty("--stu-bar-lift");
+    };
+  }, [el]);
+  return setEl;
 }
