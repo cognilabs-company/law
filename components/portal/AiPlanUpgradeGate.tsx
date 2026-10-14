@@ -8,8 +8,8 @@ import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { CheckoutIntent } from "./OrderMilestones";
 import { useResource } from "@/lib/useResource";
 import Modal from "@/components/admin/Modal";
-import { Skeleton } from "./DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { Skeleton, ErrorState } from "./DataState";
+import { notify } from "@/lib/toast";
 import { fmtUzs } from "@/lib/money";
 import { IconCheck, IconCrown } from "@/components/icons";
 import PlanCard from "./PlanCard";
@@ -76,7 +76,6 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
   const [planId, setPlanId] = useState("");
   const [period, setPeriod] = useState<Period>("monthly");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
 
   const [prevOpen, setPrevOpen] = useState(open);
@@ -85,7 +84,6 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
     if (open) {
       setPlanId("");
       setPeriod("monthly");
-      setMsg(null);
       setIntent(null);
     }
   }
@@ -94,7 +92,6 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
     const plan = qualifying.find((p) => p.id === planId);
     if (!plan || busy) return;
     setBusy(true);
-    setMsg(null);
     setIntent(null);
     let leaving = false;
     try {
@@ -102,17 +99,18 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
         const r = await purchasePlan(plan.id, { billing_period: period });
         if (r.paymentUrl) {
           leaving = true;
-          setMsg({ ok: true, text: t("payRedirect") });
+          notify.info(t("payRedirect"), { id: "ai-plan-gate" });
           window.location.assign(r.paymentUrl);
         } else {
-          setMsg({ ok: true, text: t("activated", { plan: plan.name }) });
+          notify.success(t("activated", { plan: plan.name }), { id: "ai-plan-gate" });
+          onClose();
         }
         return;
       }
       if (!isDemoCheckout()) {
         const total = priceFor(plan, period);
         if (!total) {
-          setMsg({ ok: false, text: t("purchaseError") });
+          notify.error(t("purchaseError"), { id: "ai-plan-gate" });
           return;
         }
         setIntent(await createCheckout({ kind: "subscription_plan", planId: plan.id, amount: total, payload: { billing_period: period, title: plan.name } }));
@@ -121,13 +119,15 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
       const r = await demoPlanPurchase(plan.id, { billing_period: period });
       if (r.paymentUrl) {
         leaving = true;
-        setMsg({ ok: true, text: t("payRedirect") });
+        notify.info(t("payRedirect"), { id: "ai-plan-gate" });
         window.location.assign(r.paymentUrl);
       } else {
-        setMsg({ ok: true, text: t("activated", { plan: plan.name }) });
+        notify.success(t("activated", { plan: plan.name }), { id: "ai-plan-gate" });
+        onClose();
       }
     } catch (e) {
-      setMsg({ ok: false, text: isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e) ? tc("paymentUnavailable") : t("purchaseError") });
+      const unavailable = isProviderUnavailable(e) || isProviderUnsupported(e) || isDemoUnavailable(e);
+      notify.error(t("purchaseError"), { id: "ai-plan-gate", body: unavailable ? tc("paymentUnavailable") : undefined, error: unavailable ? undefined : e });
     } finally {
       if (!leaving) setBusy(false);
     }
@@ -138,14 +138,12 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
       <div className="cform pgate" style={{ maxWidth: "none" }}>
         <p className="advmuted" style={{ margin: 0 }}>{ts("aiPlanGateLead")}</p>
 
-        {intent ? (
-          <CheckoutIntent intent={intent} onCancel={() => setIntent(null)} untitled />
-        ) : msg ? (
-          <Notice ok={msg.ok} msg={msg.text} />
-        ) : null}
+        {intent ? <CheckoutIntent intent={intent} onCancel={() => setIntent(null)} untitled /> : null}
 
-        {intent || (msg && msg.ok) ? null : plans.status === "loading" ? (
+        {intent ? null : plans.status === "loading" ? (
           <Skeleton rows={3} />
+        ) : plans.status === "error" ? (
+          <ErrorState compact error={plans.error} onRetry={plans.refresh} />
         ) : !qualifying.length ? (
           <p className="advmuted">{ts("noQualifyingAiPlans")}</p>
         ) : (

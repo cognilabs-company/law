@@ -2,6 +2,7 @@
 
 import { useState, type ComponentType } from "react";
 import { useTranslations } from "next-intl";
+import ScrollCue from "@/components/ui/ScrollCue";
 import {
   IconBolt,
   IconVideo,
@@ -92,7 +93,7 @@ export default function ServicesSection() {
           <p className="lead">{t("lead")}</p>
         </div>
 
-        <div className="tabs" role="tablist">
+        <ScrollCue className="tabs" role="tablist">
           <button
             className="tab"
             role="tab"
@@ -117,7 +118,7 @@ export default function ServicesSection() {
           >
             {t("tabs.docReview")}
           </button>
-        </div>
+        </ScrollCue>
 
         {tab === "consultation" ? (
           <div className="pane on">

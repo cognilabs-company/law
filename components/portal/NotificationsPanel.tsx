@@ -14,8 +14,8 @@ import { useOrderStatusLabel } from "@/lib/orderStatus";
 import { humanizeSlug } from "@/lib/lawyers";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
-import { Notice } from "@/components/admin/AdminBits";
-import { Skeleton, EmptyState } from "./DataState";
+import { notify } from "@/lib/toast";
+import { Skeleton, EmptyState, ErrorState } from "./DataState";
 import { IconBell, IconChat, IconCheckDouble, IconLayers, IconRefresh, IconSearch } from "@/components/icons";
 
 // Fired whenever notifications are read so the header bell can refresh its
@@ -217,9 +217,11 @@ export default function NotificationsPanel() {
       setItems(d);
       setMore(d.length >= NOTIF_PAGE);
       setStatus("ready");
+      notify.dismiss("notif-refresh");
       loadCounts();
-    } catch {
+    } catch (e) {
       if (!items.length) setStatus("error");
+      else notify.error(t("loadError"), { id: "notif-refresh", error: e });
     } finally {
       setRefreshing(false);
     }
@@ -363,7 +365,7 @@ export default function NotificationsPanel() {
       {status === "loading" ? (
         <Skeleton rows={4} />
       ) : status === "error" ? (
-        <Notice ok={false} msg={t("loadError")} />
+        <ErrorState title={t("loadError")} onRetry={refresh} />
       ) : !items.length && !narrowed ? (
         <div className="ntlist" data-ai-target="notifications:list">
           {(t.raw("sample") as SampleNotif[]).map((s, i) => (

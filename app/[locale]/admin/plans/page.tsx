@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useId, useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   listSubscriptionPlansAdmin,
@@ -18,11 +18,13 @@ import {
   type BillingPeriod,
 } from "@/lib/services/plans";
 import { savePlan, removePlan, restorePlan, resetPlan, type OverlaidPlan } from "@/lib/services/catalogOverrides";
-import { errDetail } from "@/lib/http";
+import { ApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import { useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { Notice, useReload } from "@/components/admin/AdminBits";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
+import { useReload } from "@/components/admin/AdminBits";
+import FieldError from "@/components/ui/FieldError";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import FilterBar from "@/components/filters/FilterBar";
@@ -37,6 +39,7 @@ const toList = (v: string) =>
     .map((s) => s.trim())
     .filter(Boolean);
 const num = (v: string) => parseInt(String(v || "0"), 10) || 0;
+const transient = (e: unknown) => !(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 501);
 
 // The admin form's audience choices (GM: Mijoz / Yurist / Advokat); the
 // backend keeps whatever string we send, but may normalize it by slug — see
@@ -71,8 +74,6 @@ function pickOption(opts: { value: string; label: string }[], raw: string): stri
     .sort((a, b) => aiNorm(b.label).length - aiNorm(a.label).length);
   return near.length ? near[0].value : null;
 }
-
-type Note = { ok: boolean; msg: string; tone?: "warn" };
 
 // target_roles is the precise 2026-09-19 list (client/yurist/advokat only —
 // no "business"), distinct from the older free-text `audience` field above.
@@ -141,10 +142,15 @@ function PlanForm({
   aiId?: string;
 }) {
   const t = useTranslations("admin");
+  const tc = useTranslations("common");
+  const uid = useId();
   const [v, setV] = useState<FormVals>(() => seedVals(plan));
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<Note | null>(null);
-  const set = <K extends keyof FormVals>(k: K, val: FormVals[K]) => setV((s) => ({ ...s, [k]: val }));
+  const [bad, setBad] = useState<{ title?: boolean; slug?: boolean }>({});
+  const set = <K extends keyof FormVals>(k: K, val: FormVals[K]) => {
+    setV((s) => ({ ...s, [k]: val }));
+    if (k === "title" || k === "slug") setBad((b) => (b[k as "title" | "slug"] ? { ...b, [k]: false } : b));
+  };
 
   const audienceOpts = FORM_AUDIENCES.map((a) => ({ value: a, label: a === "seller" ? t("plans.audienceSeller") : t(`plans.audiences.${a}`) }));
   const periodOpts = BILLING_PERIODS.map((p) => ({ value: p, label: t(`plans.periods.${p}`) }));
@@ -152,12 +158,13 @@ function PlanForm({
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
-    if (!v.title.trim() || !v.slug.trim()) {
-      setNote({ ok: false, msg: t("form.error") });
+    const miss = { title: !v.title.trim(), slug: !v.slug.trim() };
+    if (miss.title || miss.slug) {
+      setBad(miss);
+      document.getElementById(`${uid}-${miss.title ? "title" : "slug"}`)?.focus();
       return;
     }
     setBusy(true);
-    setNote(null);
     const body = {
       slug: v.slug.trim(),
       title: v.title.trim(),
@@ -176,15 +183,15 @@ function PlanForm({
     try {
       if (!plan) {
         await createPlanAdmin(body);
-        setNote({ ok: true, msg: t("form.created") });
+        notify.success(t("plans.notify.created"), { id: "plan-save", body: body.title });
         onDone();
         return;
       }
       await savePlan(plan, body);
-      setNote({ ok: true, msg: t("form.updated") });
+      notify.success(t("plans.notify.saved"), { id: "plan-save", body: body.title });
       onDone();
     } catch (e) {
-      setNote({ ok: false, msg: errDetail(e) || t("form.error") });
+      notify.error(plan ? t("plans.notify.saveFailed") : t("plans.notify.createFailed"), { id: "plan-save", error: e });
     } finally {
       setBusy(false);
     }
@@ -193,12 +200,14 @@ function PlanForm({
   return (
     <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} data-ai-id={formAiId} data-ai-type={formAiId ? "modal" : undefined} data-ai-label={formAiId ? t(plan ? "plans.editTitle" : "plans.create") : undefined}>
       <div>
-        <label>{t("form.title")}</label>
-        <input value={v.title} onChange={(e) => set("title", e.target.value)} required />
+        <label htmlFor={`${uid}-title`}>{t("form.title")}</label>
+        <input id={`${uid}-title`} value={v.title} onChange={(e) => set("title", e.target.value)} required aria-invalid={bad.title || undefined} aria-describedby={bad.title ? `${uid}-title-err` : undefined} />
+        <FieldError id={`${uid}-title-err`} msg={bad.title ? tc("required") : null} />
       </div>
       <div>
-        <label>{t("form.slug")}</label>
-        <input value={v.slug} onChange={(e) => set("slug", e.target.value)} placeholder="premium" required />
+        <label htmlFor={`${uid}-slug`}>{t("form.slug")}</label>
+        <input id={`${uid}-slug`} value={v.slug} onChange={(e) => set("slug", e.target.value)} placeholder="premium" required aria-invalid={bad.slug || undefined} aria-describedby={bad.slug ? `${uid}-slug-err` : undefined} />
+        <FieldError id={`${uid}-slug-err`} msg={bad.slug ? tc("required") : null} />
       </div>
       <div>
         <label>{t("plans.audience")}</label>
@@ -283,7 +292,6 @@ function PlanForm({
           {t("form.active")}
         </label>
       </div>
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       <button className="btn btn--pri" type="submit" disabled={busy}>
         {busy ? t("form.saving") : plan ? t("form.update") : t("form.save")}
       </button>
@@ -293,7 +301,7 @@ function PlanForm({
 
 export default function AdminPlans() {
   const t = useTranslations("admin");
-  const tp = useTranslations("portal.common");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const [key, reload] = useReload();
   const res = useResourceOne(() => listSubscriptionPlansAdmin(locale), [key, locale]);
@@ -306,9 +314,7 @@ export default function AdminPlans() {
   const [showHidden, setShowHidden] = useState(false);
   const hiddenCount = plans.filter((p) => p.hidden).length;
   const viewHidden = showHidden && hiddenCount > 0;
-  const [pageNote, setPageNote] = useState<Note | null>(null);
   const [delBusy, setDelBusy] = useState(false);
-  const [delNote, setDelNote] = useState<Note | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
 
   const inView = useMemo(() => {
@@ -348,7 +354,6 @@ export default function AdminPlans() {
     },
   });
   useAiModal("admin.plans.create-modal", () => {
-    setPageNote(null);
     setOpen(true);
   });
 
@@ -356,38 +361,41 @@ export default function AdminPlans() {
   // can't reach it falls back to a local overlay (see lib/services/
   // catalogOverrides.ts) as a resilience net, but that's not something the
   // admin needs to be told about — it reads the same as a normal save.
-  function saved(msg: string) {
-    setPageNote({ ok: true, msg });
+  function saved(msg: string, p: OverlaidPlan) {
+    notify.success(msg, { id: `plan-op-${p.id}`, body: p.name });
     reload();
   }
 
-  async function run(p: OverlaidPlan, op: () => Promise<{ via: "backend" | "overlay" } | void>, msg: string) {
+  async function run(p: OverlaidPlan, op: () => Promise<{ via: "backend" | "overlay" } | void>, msg: string, failMsg: string) {
     if (toggling) return;
     setToggling(p.id);
-    setPageNote(null);
     try {
       await op();
-      saved(msg);
+      saved(msg, p);
     } catch (e) {
-      setPageNote({ ok: false, msg: errDetail(e) || t("form.updateError") });
+      notify.error(failMsg, {
+        id: `plan-op-${p.id}`,
+        error: e,
+        action: transient(e) ? { label: tn("retry"), onClick: () => void run(p, op, msg, failMsg) } : undefined,
+      });
     } finally {
       setToggling(null);
     }
   }
-  const toggleActive = (p: OverlaidPlan) => run(p, () => savePlan(p, { is_active: !p.isActive }), t("form.updated"));
-  const restore = (p: OverlaidPlan) => run(p, () => restorePlan(p.slug), t("plans.restored"));
-  const reset = (p: OverlaidPlan) => run(p, () => resetPlan(p.slug), t("plans.resetDone"));
+  const toggleActive = (p: OverlaidPlan) =>
+    run(p, () => savePlan(p, { is_active: !p.isActive }), p.isActive ? t("plans.notify.deactivated") : t("plans.notify.activated"), t("plans.notify.toggleFailed"));
+  const restore = (p: OverlaidPlan) => run(p, () => restorePlan(p.slug), t("plans.restored"), t("plans.notify.restoreFailed"));
+  const reset = (p: OverlaidPlan) => run(p, () => resetPlan(p.slug), t("plans.notify.reset"), t("plans.notify.resetFailed"));
 
   async function confirmDelete() {
     if (!del || delBusy) return;
     setDelBusy(true);
-    setDelNote(null);
     try {
       await removePlan(del);
       setDel(null);
-      saved(t("form.deleted"));
+      saved(t("plans.notify.deleted"), del);
     } catch (e) {
-      setDelNote({ ok: false, msg: errDetail(e) || t("form.deleteError") });
+      notify.error(t("plans.notify.deleteFailed"), { id: `plan-op-${del.id}`, error: e });
     } finally {
       setDelBusy(false);
     }
@@ -405,7 +413,7 @@ export default function AdminPlans() {
         <b>{t("plans.listTitle")}</b>
         <span className="ahdr">
           <span className="advmuted">{plans.length - hiddenCount}</span>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => { setPageNote(null); setOpen(true); }} data-ai-target="button:new-plan" data-ai-id="admin.plans.create">
+          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-plan" data-ai-id="admin.plans.create">
             <IconPlus />
             {t("form.add")}
           </button>
@@ -435,14 +443,13 @@ export default function AdminPlans() {
         aiLabel={t("plans.audience")}
       />
 
-      {pageNote ? <div className={`anote anote--${pageNote.tone === "warn" ? "warn" : pageNote.ok ? "ok" : "err"}`} style={{ marginBottom: 12 }}>{pageNote.msg}</div> : null}
       {res.data?.activeOnly ? <p className="advmuted aplan__only">{t("plans.activeOnly")}</p> : null}
       {viewHidden ? <p className="advmuted aplan__only">{t("plans.hiddenNote")}</p> : null}
 
       {res.status === "loading" ? (
         <Skeleton rows={3} />
       ) : res.status === "error" ? (
-        <EmptyState icon={<IconStar />} title={tp("loadError")} text={tp("loadErrorText")} />
+        <ErrorState onRetry={reload} />
       ) : !plans.length ? (
         <EmptyState icon={<IconStar />} title={t("plans.empty")} />
       ) : !list.length ? (
@@ -485,7 +492,7 @@ export default function AdminPlans() {
                     <IconRefresh />
                   </button>
                 ) : null}
-                <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => { setPageNote(null); setEdit(p); }} data-ai-id={p.slug || p.id ? aiId("admin.plans.item", p.slug || p.id, "edit") : undefined}>
+                <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => setEdit(p)} data-ai-id={p.slug || p.id ? aiId("admin.plans.item", p.slug || p.id, "edit") : undefined}>
                   <IconEdit />
                 </button>
                 <button
@@ -499,7 +506,7 @@ export default function AdminPlans() {
                   {p.isActive ? <IconEyeOff /> : <IconEye />}
                 </button>
                 {!p.hidden ? (
-                  <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => { setPageNote(null); setDelNote(null); setDel(p); }}>
+                  <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => setDel(p)}>
                     <IconTrash />
                   </button>
                 ) : null}
@@ -530,7 +537,7 @@ export default function AdminPlans() {
             plan={edit}
             onDone={() => {
               setEdit(null);
-              saved(t("form.updated"));
+              reload();
             }}
           />
         ) : null}
@@ -544,7 +551,6 @@ export default function AdminPlans() {
               <b>{del.name}</b> <span className="advmuted">{del.slug}</span>
             </p>
             <p className="advmuted" style={{ margin: 0 }}>{t("plans.deleteText")}</p>
-            {delNote ? <Notice ok={delNote.ok} msg={delNote.msg} /> : null}
             <div style={{ display: "flex", gap: 10 }}>
               <button className="btn btn--ghost" type="button" onClick={() => setDel(null)}>
                 {t("form.cancel")}

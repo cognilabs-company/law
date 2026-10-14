@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { getSellerOnboardingProgress, submitOnboarding, uploadOnboardingDocument, type OnboardingProgress as Progress } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
 import { useResourceOne } from "@/lib/useResource";
 import type { Role } from "@/lib/auth";
 import IdentityVerify from "./IdentityVerify";
@@ -25,37 +25,45 @@ function hrefFor(key: string, role: Role): string | null {
 // done and the cabinet is fully open.
 export default function OnboardingProgress({ role, limited }: { role: Role; limited: boolean }) {
   const t = useTranslations("portal.onboarding");
+  const tn = useTranslations("common.notify");
   const [reloadKey, setReloadKey] = useState(0);
   const res = useResourceOne<Progress>(getSellerOnboardingProgress, [reloadKey]);
   const [idOpen, setIdOpen] = useState(false);
   const [busy, setBusy] = useState<"" | "upload" | "submit">("");
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const uploadRef = useRef<(file: File | null) => Promise<void>>(async () => {});
 
   // PDF/JPG/PNG up to 15 MB (license, diploma, other proof).
   async function upload(file: File | null) {
     if (!file || busy) return;
-    setNote(null);
-    if (file.size > 15 * 1024 * 1024) { setNote({ ok: false, msg: t("docTooBig") }); return; }
+    if (file.size > 15 * 1024 * 1024) { notify.error(t("docTooBig"), { id: "onb-doc", body: t("docType") }); return; }
     setBusy("upload");
     try {
       await uploadOnboardingDocument(file, role === "advocate" ? "license" : "diploma");
-      setNote({ ok: true, msg: t("docUploaded") });
+      notify.success(t("docUploaded"), { id: "onb-doc" });
       setReloadKey((k) => k + 1);
     } catch (e) {
-      setNote({ ok: false, msg: e instanceof ApiError && (e.status === 413 || e.status === 415) ? t("docType") : t("docError") });
+      const badFile = e instanceof ApiError && (e.status === 413 || e.status === 415);
+      notify.error(t("docError"), {
+        id: "onb-doc",
+        error: e,
+        map: { 413: t("docType"), 415: t("docType") },
+        action: badFile ? undefined : { label: tn("retry"), onClick: () => void uploadRef.current(file) },
+      });
     } finally {
       setBusy("");
     }
   }
+  useEffect(() => {
+    uploadRef.current = upload;
+  });
   async function submit() {
     if (busy) return;
     setBusy("submit");
-    setNote(null);
     try {
       await submitOnboarding();
-      setNote({ ok: true, msg: t("submitted") });
+      notify.success(t("submitted"), { id: "onb-submit" });
     } catch (e) {
-      setNote({ ok: false, msg: e instanceof ApiError && e.status === 422 ? t("submitIncomplete") : t("submitError") });
+      notify.error(t("submitError"), { id: "onb-submit", error: e, map: { 422: t("submitIncomplete") } });
     } finally {
       setBusy("");
     }
@@ -106,7 +114,6 @@ export default function OnboardingProgress({ role, limited }: { role: Role; limi
           );
         })}
       </ol>
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {done ? (
         <button type="button" className="btn btn--pri btn--sm" style={{ marginTop: 12 }} disabled={!!busy} onClick={submit}>
           {busy === "submit" ? t("submitting") : t("submit")}

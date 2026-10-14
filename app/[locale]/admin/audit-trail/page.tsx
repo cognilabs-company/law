@@ -7,8 +7,8 @@ import { useResource } from "@/lib/useResource";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { ApiError, parseServerTime } from "@/lib/http";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
+import { notify } from "@/lib/toast";
 import DatePicker from "@/components/DatePicker";
 import { IconShieldCheck, IconLock, IconCheck, IconClipboardCheck, IconDownload, IconSearch, IconCalendar, IconUser, IconClipboardList, IconLayers, IconTag } from "@/components/icons";
 import { dateTimeFull, shortDate } from "@/lib/date";
@@ -22,6 +22,7 @@ const NO_TEXT: TextFilters = { userId: "", action: "", targetType: "", targetId:
 const TEXT_KEYS = ["action", "targetType", "targetId"] as const;
 const TEXT_ICONS = { action: IconClipboardList, targetType: IconLayers, targetId: IconTag };
 const isForbidden = (e: unknown) => e instanceof ApiError && e.status === 403;
+const transient = (e: unknown) => !(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 501);
 
 function fmt(s: string, locale: string) {
   const d = new Date(s);
@@ -105,7 +106,7 @@ function Anomalies({ onReady }: { onReady?: () => void }) {
       {res.status === "loading" ? (
         <Skeleton rows={2} />
       ) : res.status === "error" ? (
-        <Notice ok={false} msg={t("error")} />
+        <ErrorState compact title={t("error")} error={res.error} onRetry={res.refresh} />
       ) : !rows.length ? (
         <EmptyState icon={<IconShieldCheck />} title={t("empty")} text={t("emptyText")} />
       ) : (
@@ -133,7 +134,7 @@ export default function AdminAuditTrail() {
   const t = useTranslations("admin.audit");
   const locale = useLocale();
   const tc = useTranslations("chart");
-  const tp = useTranslations("portal.common");
+  const tn = useTranslations("common.notify");
   // Date range (YYYY-MM-DD) applies at once; the text filters (user, action,
   // target type/id) apply on submit → GET /admin/audit-trail?…
   const [from, setFrom] = useState("");
@@ -142,22 +143,28 @@ export default function AdminAuditTrail() {
   const [applied, setApplied] = useState<TextFilters>(NO_TEXT);
   const filters: AuditFilters = { dateFrom: from, dateTo: to, ...applied };
   const filterKey = JSON.stringify(filters);
-  const [res, setRes] = useState<{ key: string; status: "ready" | "error" | "forbidden"; data: ActivityEntry[] } | null>(null);
+  const [res, setRes] = useState<{ key: string; status: "ready" | "error" | "forbidden"; data: ActivityEntry[]; error?: unknown } | null>(null);
   const current = res && res.key === filterKey ? res : null;
   useEffect(() => {
     let alive = true;
     const f = JSON.parse(filterKey) as AuditFilters;
     listAuditTrail(f)
       .then((data) => alive && setRes({ key: filterKey, status: "ready", data }))
-      .catch((e) => alive && setRes({ key: filterKey, status: isForbidden(e) ? "forbidden" : "error", data: [] }));
+      .catch((e) => alive && setRes({ key: filterKey, status: isForbidden(e) ? "forbidden" : "error", data: [], error: e }));
     return () => {
       alive = false;
     };
   }, [filterKey]);
+  const retryList = () => {
+    const k = filterKey;
+    return listAuditTrail(JSON.parse(k) as AuditFilters).then(
+      (data) => setRes((cur) => (cur && cur.key !== k ? cur : { key: k, status: "ready", data })),
+      (e: unknown) => setRes((cur) => (cur && cur.key !== k ? cur : { key: k, status: isForbidden(e) ? "forbidden" : "error", data: [], error: e })),
+    );
+  };
   const rows = useMemo(() => current?.data ?? [], [current]);
   const chain = useMemo(() => chainStates(rows), [rows]);
   const [exporting, setExporting] = useState(false);
-  const [exportNote, setExportNote] = useState<string | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   const dirty = draft.userId.trim() !== applied.userId || TEXT_KEYS.some((k) => draft[k].trim() !== applied[k]);
 
@@ -252,7 +259,6 @@ export default function AdminAuditTrail() {
   async function exportCsv() {
     if (exporting) return;
     setExporting(true);
-    setExportNote(null);
     try {
       const blob = await exportAuditTrailCsv(filters);
       const url = URL.createObjectURL(blob);
@@ -263,8 +269,14 @@ export default function AdminAuditTrail() {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
+      notify.dismiss("audit-export");
     } catch (e) {
-      setExportNote(isForbidden(e) ? t("forbiddenText") : t("exportError"));
+      notify.error(t("exportFailed"), {
+        id: "audit-export",
+        error: e,
+        map: { 403: t("forbiddenText") },
+        action: transient(e) ? { label: tn("retry"), onClick: () => void exportCsv() } : undefined,
+      });
     } finally {
       setExporting(false);
     }
@@ -325,13 +337,12 @@ export default function AdminAuditTrail() {
           }
         />
       </form>
-      {exportNote ? <Notice ok={false} msg={exportNote} /> : null}
       {!current ? (
         <Skeleton rows={5} />
       ) : current.status === "forbidden" ? (
         <EmptyState icon={<IconLock />} title={t("forbidden")} text={t("forbiddenText")} />
       ) : current.status === "error" ? (
-        <EmptyState icon={<IconShieldCheck />} title={tp("loadError")} text={tp("loadErrorText")} />
+        <ErrorState error={current.error} onRetry={retryList} />
       ) : !rows.length ? (
         <EmptyState icon={<IconShieldCheck />} title={t("empty")} text={t("emptyText")} />
       ) : (

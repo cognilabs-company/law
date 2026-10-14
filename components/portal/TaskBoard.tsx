@@ -4,14 +4,15 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { listMyTasks, updateTaskStatus, createTask, updateTask, deleteTask, type WorkTask } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import ScrollCue from "@/components/ui/ScrollCue";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import DatePicker from "@/components/DatePicker";
 import FilterBar from "@/components/filters/FilterBar";
-import { ApiError } from "@/lib/http";
 import { useAiField } from "@/lib/ai/registry";
-import { Skeleton, EmptyState } from "./DataState";
+import { Skeleton, EmptyState, ErrorState } from "./DataState";
 import { IconClipboardCheck, IconChevronLeft, IconChevronRight, IconPlus, IconEdit, IconTrash, IconEye, IconAlert } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 
@@ -38,6 +39,7 @@ const EMPTY: Form = { title: "", priority: "medium", due: "", description: "", c
 export default function TaskBoard() {
   const t = useTranslations("portal.tasks");
   const tfb = useTranslations("filterBar");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const res = useResource(() => listMyTasks(), []);
   const [busy, setBusy] = useState<string | null>(null);
@@ -56,8 +58,6 @@ export default function TaskBoard() {
   const [q, setQ] = useState("");
   const [hideDone, setHideDone] = useState(false);
   const [editing, setEditing] = useState<WorkTask | null | "new">(null);
-  const [del, setDel] = useState<WorkTask | null>(null);
-  const [err, setErr] = useState<string | null>(null);
 
   const cols = useMemo(() => {
     const by: Record<Stage, WorkTask[]> = { todo: [], doing: [], review: [], done: [] };
@@ -84,20 +84,21 @@ export default function TaskBoard() {
       if (v === "" || v === "open") setHideDone(v === "open");
     },
   });
-  const failMsg = (e: unknown) => (e instanceof ApiError && e.status === 403 ? t("forbidden") : e instanceof ApiError && e.detail ? e.detail : t("errorCreate"));
+  const denied = { 403: t("forbidden") };
+  const nid = (x: WorkTask) => `task-${x.id}`;
 
   async function moveTo(x: WorkTask, stage: Stage) {
     if (stageOf(x.status) === stage || busy) return;
     const before = res.data;
     setBusy(x.id);
-    setErr(null);
     res.setData((cur) => cur.map((y) => (y.id === x.id ? { ...y, status: stage } : y)));
     try {
       await updateTaskStatus(x.id, stage);
+      notify.dismiss(nid(x));
       void res.refresh();
     } catch (e) {
       res.setData(before);
-      setErr(failMsg(e));
+      notify.error(t("moveFailed"), { id: nid(x), error: e, map: denied, action: { label: tn("retry"), onClick: () => void moveTo(x, stage) } });
     } finally {
       setBusy(null);
     }
@@ -110,30 +111,41 @@ export default function TaskBoard() {
   async function toggleBlocked(x: WorkTask) {
     if (busy) return;
     setBusy(x.id);
-    setErr(null);
     const next = x.status === "blocked" ? "todo" : "blocked";
     try {
       await updateTaskStatus(x.id, next);
+      notify.dismiss(nid(x));
       res.setData((cur) => cur.map((y) => (y.id === x.id ? { ...y, status: next } : y)));
     } catch (e) {
-      setErr(failMsg(e));
+      notify.error(t("statusFailed"), { id: nid(x), error: e, map: denied, action: { label: tn("retry"), onClick: () => void toggleBlocked(x) } });
     } finally {
       setBusy(null);
     }
   }
-  async function confirmDelete() {
-    if (!del || busy) return;
-    setBusy(del.id);
-    setErr(null);
-    try {
-      await deleteTask(del.id);
-      res.setData((cur) => cur.filter((y) => y.id !== del.id));
-      setDel(null);
-    } catch (e) {
-      setErr(failMsg(e));
-    } finally {
-      setBusy(null);
-    }
+  async function askDelete(x: WorkTask) {
+    if (busy) return;
+    const ok = await confirmDialog({
+      tone: "danger",
+      title: t("deleteTitle"),
+      text: t("deleteText", { title: x.title || "" }),
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      onConfirm: async () => {
+        setBusy(x.id);
+        try {
+          await deleteTask(x.id);
+          return true;
+        } catch (e) {
+          notify.error(t("deleteFailed"), { id: nid(x), error: e, map: denied });
+          return false;
+        } finally {
+          setBusy(null);
+        }
+      },
+    });
+    if (!ok) return;
+    res.setData((cur) => cur.filter((y) => y.id !== x.id));
+    notify.success(t("deleted"), { id: nid(x), body: x.title || undefined });
   }
 
   return (
@@ -168,16 +180,14 @@ export default function TaskBoard() {
         aiTarget="tasks:filters"
         aiLabel={tfb("title")}
       />
-      {err ? <Notice ok={false} msg={err} /> : null}
-
       {res.status === "loading" ? (
         <Skeleton rows={4} />
       ) : res.status === "error" ? (
-        <Notice ok={false} msg={t("loadError")} />
+        <ErrorState error={res.error} title={t("loadError")} onRetry={() => res.refresh()} />
       ) : !res.data.length ? (
         <EmptyState icon={<IconClipboardCheck />} title={t("empty")} text={t("emptyText")} />
       ) : (
-        <div className="pipe pipe--tasks" data-ai-target="tasks:board" data-ai-label={t("title")}>
+        <ScrollCue arrows hostClassName="pipe-host" className="pipe pipe--tasks" data-ai-target="tasks:board" data-ai-label={t("title")}>
           {shownStages.map((s) => {
             const si = STAGES.indexOf(s);
             return (
@@ -226,7 +236,7 @@ export default function TaskBoard() {
                             <span className="task__tools">
                               <button type="button" className="aitem__act" onClick={() => setEditing(x)} aria-label={t("edit")} title={t("edit")}><IconEdit /></button>
                               <button type="button" className={`aitem__act${blocked ? " on" : ""}`} onClick={() => void toggleBlocked(x)} aria-label={t("toggleBlocked")} title={t("toggleBlocked")} disabled={busy === x.id}><IconAlert /></button>
-                              <button type="button" className="aitem__act aitem__act--danger" onClick={() => setDel(x)} aria-label={t("delete")} title={t("delete")}><IconTrash /></button>
+                              <button type="button" className="aitem__act aitem__act--danger" onClick={() => void askDelete(x)} aria-label={t("delete")} title={t("delete")} disabled={busy === x.id}><IconTrash /></button>
                             </span>
                             <button className="pipe__mv" disabled={si === STAGES.length - 1 || busy === x.id} onClick={() => move(x, 1)} aria-label={t("fwd")}><IconChevronRight /></button>
                           </div>
@@ -238,7 +248,7 @@ export default function TaskBoard() {
               </div>
             );
           })}
-        </div>
+        </ScrollCue>
       )}
 
       <TaskModal
@@ -250,13 +260,6 @@ export default function TaskBoard() {
           void res.refresh();
         }}
       />
-      <Modal open={!!del} onClose={() => setDel(null)} title={t("deleteTitle")}>
-        <p className="advmuted">{t("deleteText", { title: del?.title ?? "" })}</p>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => setDel(null)}>{t("cancel")}</button>
-          <button type="button" className="btn btn--pri btn--sm" style={{ background: "#e5484d", boxShadow: "none" }} onClick={() => void confirmDelete()} disabled={!!busy}>{t("delete")}</button>
-        </div>
-      </Modal>
     </div>
   );
 }
@@ -271,7 +274,6 @@ function TaskModal({ target, onClose, onSaved }: { target: WorkTask | "new" | nu
     setForm(isNew ? { ...EMPTY, key } : { key, title: target.title, priority: target.priority || "medium", due: (target.dueDate ?? "").slice(0, 10), description: target.description ?? "", caseTitle: target.caseTitle ?? "", checklist: (target.checklist ?? []).map((c) => `${c.done ? "[x] " : ""}${c.text}`).join("\n") });
   }
   const [saving, setSaving] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const set = (p: Partial<Form>) => setForm((f) => ({ ...f, ...p }));
   const checklist = form.checklist.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => ({ text: l.replace(/^\[(x| )\]\s*/i, ""), done: /^\[x\]/i.test(l) }));
 
@@ -279,13 +281,14 @@ function TaskModal({ target, onClose, onSaved }: { target: WorkTask | "new" | nu
     e.preventDefault();
     if (saving || !form.title.trim()) return;
     setSaving(true);
-    setNote(null);
+    const nid = isNew ? "task-new" : `task-${(target as WorkTask).id}`;
     try {
       const body = { title: form.title.trim(), priority: form.priority, due_date: form.due || undefined, description: form.description.trim() || undefined, case_title: form.caseTitle.trim() || undefined, checklist };
       const x = isNew ? await createTask(body) : await updateTask((target as WorkTask).id, body);
+      notify.success(isNew ? t("created") : t("saved"), { id: nid, body: x.title || body.title });
       onSaved(x, isNew);
     } catch (err) {
-      setNote({ ok: false, msg: err instanceof ApiError && err.detail ? err.detail : t("errorCreate") });
+      notify.error(isNew ? t("createFailed") : t("saveFailed"), { id: nid, error: err, map: { 403: t("forbidden") } });
     } finally {
       setSaving(false);
     }
@@ -321,7 +324,6 @@ function TaskModal({ target, onClose, onSaved }: { target: WorkTask | "new" | nu
           <textarea rows={3} value={form.checklist} onChange={(e) => set({ checklist: e.target.value })} placeholder={t("checklistPh")} />
           <p className="rf__hint">{t("checklistHint")}</p>
         </div>
-        {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
         <button className="btn btn--pri btn--full" type="submit" disabled={saving || !form.title.trim()}>{saving ? t("saving") : t("save")}</button>
       </form>
     </Modal>

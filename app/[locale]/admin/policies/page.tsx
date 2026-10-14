@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   getAdminPolicies,
@@ -15,9 +15,11 @@ import {
   type UnverifiedSellersMode,
 } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
-import { ApiError, errDetail } from "@/lib/http";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { ApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
+import { useReload } from "@/components/admin/AdminBits";
+import FieldError from "@/components/ui/FieldError";
 import Modal from "@/components/admin/Modal";
 import BusinessCalendarCard from "@/components/admin/BusinessCalendarCard";
 import MarketplacePricingCard from "@/components/admin/policies/MarketplacePricingCard";
@@ -28,6 +30,7 @@ import { humanize } from "@/lib/labels";
 type Val = unknown;
 const isPlain = (v: Val) => v !== null && typeof v === "object" && !Array.isArray(v);
 const isStrList = (v: Val) => Array.isArray(v) && v.every((x) => typeof x === "string");
+const transient = (e: unknown) => !(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 501);
 
 function fmt(s: string, locale: string) {
   const d = new Date(s);
@@ -40,15 +43,16 @@ function fmt(s: string, locale: string) {
 // readiness checklist (GET /admin/compliance/readiness).
 export default function AdminPolicies() {
   const t = useTranslations("admin.policies");
+  const tn = useTranslations("common.notify");
   const [key, setKey] = useState(0);
+  const [readyKey, reloadReady] = useReload();
   const res = useResourceOne(getAdminPolicies, [key]);
-  const ready = useResourceOne(getComplianceReadiness, [key]);
+  const ready = useResourceOne(getComplianceReadiness, [key, readyKey]);
   const [edit, setEdit] = useState<PolicySection | null>(null);
   const [history, setHistory] = useState<PolicySection | null>(null);
   // T0-10 §5: unverified sellers in the catalogue — badge or hidden.
   const [unvMode, setUnvMode] = useState<UnverifiedSellersMode | null>(null);
   const [unvBusy, setUnvBusy] = useState(false);
-  const [unvNote, setUnvNote] = useState<{ ok: boolean; msg: string } | null>(null);
   useEffect(() => {
     let alive = true;
     getUnverifiedSellersMode().then((m) => { if (alive) setUnvMode(m); });
@@ -57,13 +61,16 @@ export default function AdminPolicies() {
   async function saveUnv(mode: UnverifiedSellersMode) {
     if (unvBusy || mode === unvMode) return;
     setUnvBusy(true);
-    setUnvNote(null);
     try {
       await setUnverifiedSellersMode(mode);
       setUnvMode(mode);
-      setUnvNote({ ok: true, msg: t("saved") });
-    } catch {
-      setUnvNote({ ok: false, msg: t("saveError") });
+      notify.success(t("unverified.saved"), { id: "policy-unverified", body: t(`unverified.${mode}`) });
+    } catch (e) {
+      notify.error(t("unverified.saveFailed"), {
+        id: "policy-unverified",
+        error: e,
+        action: transient(e) ? { label: tn("retry"), onClick: () => void saveUnv(mode) } : undefined,
+      });
     } finally {
       setUnvBusy(false);
     }
@@ -79,7 +86,7 @@ export default function AdminPolicies() {
         </div>
         <p className="ppanel__note">{t("readyLead")}</p>
         {ready.status === "loading" ? <Skeleton rows={3} /> : ready.status === "error" || !ready.data ? (
-          <Notice ok={false} msg={t("loadError")} />
+          <ErrorState compact title={t("loadError")} onRetry={reloadReady} />
         ) : !ready.data.items.length ? (
           <pre className="legaldoc__body">{JSON.stringify(ready.data.raw, null, 2)}</pre>
         ) : (
@@ -154,7 +161,6 @@ export default function AdminPolicies() {
             ))}
           </div>
         )}
-        {unvNote ? <Notice ok={unvNote.ok} msg={unvNote.msg} /> : null}
       </div>
 
       <BusinessCalendarCard />
@@ -169,36 +175,54 @@ export default function AdminPolicies() {
 // list (comma-separated) or JSON (nested objects / object lists).
 function EditModal({ section, data, onClose, onSaved }: { section: PolicySection | null; data: Record<string, unknown>; onClose: () => void; onSaved: () => void }) {
   const t = useTranslations("admin.policies");
+  const uid = useId();
   const [form, setForm] = useState<{ sec: string; values: Record<string, string> }>({ sec: "", values: {} });
+  const [badJson, setBadJson] = useState<string[]>([]);
   const toText = (v: unknown) => (isPlain(v) || (Array.isArray(v) && !isStrList(v)) ? JSON.stringify(v, null, 2) : isStrList(v) ? (v as string[]).join(", ") : String(v ?? ""));
-  if (section && form.sec !== section) setForm({ sec: section, values: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, toText(v)])) });
+  if (section && form.sec !== section) {
+    setForm({ sec: section, values: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, toText(v)])) });
+    setBadJson([]);
+  }
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const fid = (k: string) => `${uid}-${k.replace(/[^\w-]/g, "_")}`;
 
   async function save() {
     if (!section || busy) return;
+    const out: Record<string, unknown> = {};
+    const broken: string[] = [];
+    for (const [k, v] of Object.entries(data)) {
+      const raw = form.values[k] ?? "";
+      if (typeof v === "number") out[k] = Number(raw.replace(/\s/g, "")) || 0;
+      else if (typeof v === "boolean") out[k] = raw === "true";
+      else if (isStrList(v)) out[k] = raw.split(",").map((x) => x.trim()).filter(Boolean);
+      else if (isPlain(v) || Array.isArray(v)) {
+        try {
+          out[k] = JSON.parse(raw);
+        } catch {
+          broken.push(k);
+        }
+      } else out[k] = raw;
+    }
+    setBadJson(broken);
+    if (broken.length) {
+      document.getElementById(fid(broken[0]))?.focus();
+      return;
+    }
     setBusy(true);
-    setNote(null);
     try {
-      const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(data)) {
-        const raw = form.values[k] ?? "";
-        if (typeof v === "number") out[k] = Number(raw.replace(/\s/g, "")) || 0;
-        else if (typeof v === "boolean") out[k] = raw === "true";
-        else if (isStrList(v)) out[k] = raw.split(",").map((x) => x.trim()).filter(Boolean);
-        else if (isPlain(v) || Array.isArray(v)) out[k] = JSON.parse(raw);
-        else out[k] = raw;
-      }
       await putAdminPolicy(section, out);
-      setNote({ ok: true, msg: t("saved") });
+      notify.success(t("saved"), { id: "policy-save", body: t(`sections.${section}`) });
       onSaved();
     } catch (e) {
-      setNote({ ok: false, msg: e instanceof SyntaxError ? t("badJson") : e instanceof ApiError && e.status === 403 ? t("forbidden") : errDetail(e) || t("saveError") });
+      notify.error(t("saveFailed"), { id: "policy-save", error: e });
     } finally {
       setBusy(false);
     }
   }
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, values: { ...f.values, [k]: v } }));
+  const set = (k: string, v: string) => {
+    setForm((f) => ({ ...f, values: { ...f.values, [k]: v } }));
+    setBadJson((b) => (b.includes(k) ? b.filter((x) => x !== k) : b));
+  };
 
   return (
     <Modal open={!!section} onClose={onClose} title={section ? t("editTitle", { section: t(`sections.${section}`) }) : ""}>
@@ -213,11 +237,19 @@ function EditModal({ section, data, onClose, onSaved }: { section: PolicySection
             </label>
           );
           if (typeof v === "number") return <div key={k}><label>{label}</label><input inputMode="decimal" value={val} onChange={(e) => set(k, e.target.value)} /></div>;
-          if (isPlain(v) || (Array.isArray(v) && !isStrList(v))) return <div key={k}><label>{label} <span className="rf__opt">JSON</span></label><textarea rows={Math.min(14, val.split("\n").length + 1)} value={val} onChange={(e) => set(k, e.target.value)} style={{ fontFamily: "monospace", fontSize: ".8rem" }} /></div>;
+          if (isPlain(v) || (Array.isArray(v) && !isStrList(v))) {
+            const bad = badJson.includes(k);
+            return (
+              <div key={k}>
+                <label htmlFor={fid(k)}>{label} <span className="rf__opt">JSON</span></label>
+                <textarea id={fid(k)} rows={Math.min(14, val.split("\n").length + 1)} value={val} onChange={(e) => set(k, e.target.value)} style={{ fontFamily: "monospace", fontSize: ".8rem" }} aria-invalid={bad || undefined} aria-describedby={bad ? `${fid(k)}-err` : undefined} />
+                <FieldError id={`${fid(k)}-err`} msg={bad ? t("badJson") : null} />
+              </div>
+            );
+          }
           if (isStrList(v)) return <div key={k}><label>{label} <span className="rf__opt">{t("listHint")}</span></label><input value={val} onChange={(e) => set(k, e.target.value)} /></div>;
           return <div key={k}><label>{label}</label><input value={val} onChange={(e) => set(k, e.target.value)} /></div>;
         })}
-        {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
         <button type="button" className="btn btn--pri btn--full" onClick={save} disabled={busy}>{busy ? t("saving") : t("save")}</button>
         <p className="rf__hint">{t("saveHint")}</p>
       </div>
@@ -228,10 +260,11 @@ function EditModal({ section, data, onClose, onSaved }: { section: PolicySection
 function HistoryModal({ section, onClose }: { section: PolicySection | null; onClose: () => void }) {
   const locale = useLocale();
   const t = useTranslations("admin.policies");
-  const res = useResourceOne(() => (section ? getPolicyHistory(section) : Promise.resolve([] as PolicyHistoryEntry[])), [section]);
+  const [tick, retry] = useReload();
+  const res = useResourceOne(() => (section ? getPolicyHistory(section) : Promise.resolve([] as PolicyHistoryEntry[])), [section, tick]);
   return (
     <Modal open={!!section} onClose={onClose} title={section ? t("historyTitle", { section: t(`sections.${section}`) }) : ""}>
-      {res.status === "loading" ? <Skeleton rows={3} /> : !res.data?.length ? <p className="advmuted">{t("historyEmpty")}</p> : (
+      {res.status === "loading" ? <Skeleton rows={3} /> : res.status === "error" ? <ErrorState compact onRetry={retry} /> : !res.data?.length ? <p className="advmuted">{t("historyEmpty")}</p> : (
         <div className="alist">
           {res.data.map((h, i) => (
             <details className="consent__body" key={`${h.version}-${i}`}>

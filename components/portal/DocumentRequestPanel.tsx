@@ -34,7 +34,8 @@ import DocTypePicker from "./DocTypePicker";
 import Modal from "@/components/admin/Modal";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import InlineAlert from "@/components/ui/InlineAlert";
 import { Link, useRouter } from "@/i18n/navigation";
 import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset, IconCard, IconAlert, IconEdit, IconCircleCheck, IconCircleX } from "@/components/icons";
 import { useAiField } from "@/lib/ai/registry";
@@ -274,7 +275,7 @@ export default function DocumentRequestPanel({
   const [answers, setAnswers] = useState<Record<string, string>>(() => answersFrom(initialReq));
   const [stage, setStage] = useState<Stage>(stageFor(initialReq));
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [pollStopped, setPollStopped] = useState(false);
   // The ask the product owner described: the moment the work reaches an
   // advocate, say so and offer the constructor anyway. Raised here rather
   // than in each of the three forms that mount this panel, so every one of
@@ -335,7 +336,7 @@ export default function DocumentRequestPanel({
     setReq(initialReq);
     setAnswers(answersFrom(initialReq));
     setStage(stageFor(initialReq));
-    setNote(null);
+    setPollStopped(false);
     setFatal("");
     // A different request means a different gate — including none.
     setGate(initialGate ?? null);
@@ -372,9 +373,10 @@ export default function DocumentRequestPanel({
       // payment is normally pre-confirmed, "pay" only in the rare case it
       // genuinely isn't.
       setStage(stageFor(r) === "answers" ? (isDocPaymentSkipped(r) ? "generating" : "pay") : stageFor(r));
+      notify.dismiss(`docreq-answers:${req.id}`);
       bump();
-    } catch {
-      setNote({ ok: false, msg: t("error") });
+    } catch (e) {
+      notify.error(t("answersFailed"), { id: `docreq-answers:${req.id}`, error: e });
     } finally {
       setBusy(false);
     }
@@ -418,7 +420,6 @@ export default function DocumentRequestPanel({
   async function pay() {
     if (busy) return;
     setBusy(true);
-    setNote(null);
     let leaving = false;
     try {
       let r = await payDocumentRequest(req.id, "payme", req.price);
@@ -432,7 +433,8 @@ export default function DocumentRequestPanel({
       setStage(r.status === "file_ready" ? "done" : "pending");
       bump();
     } catch (e) {
-      setNote({ ok: false, msg: isProviderUnavailable(e) ? tcommon("paymentUnavailable") : t("error") });
+      if (isProviderUnavailable(e)) notify.warning(t("payFailed"), { id: `docreq-pay:${req.id}`, body: tcommon("paymentUnavailable") });
+      else notify.error(t("payFailed"), { id: `docreq-pay:${req.id}`, error: e });
     } finally {
       if (!leaving) setBusy(false);
     }
@@ -440,7 +442,6 @@ export default function DocumentRequestPanel({
 
   async function refresh() {
     setBusy(true);
-    setNote(null);
     try {
       let r = await getDocumentRequest(req.id);
       r = (await unlock(r)) ?? r;
@@ -452,22 +453,25 @@ export default function DocumentRequestPanel({
       bump();
       if (r.status === "file_ready") {
         setStage("done");
-        setNote({ ok: true, msg: t("readyToast") });
+        notify.success(t("readyToast"), { id: `docreq-status:${r.id}` });
       } else {
         const next = stageFor(r);
-        if (next !== stage) setStage(next);
-        else if (stage === "pending" || stage === "generating") setNote({ ok: false, msg: t("stillPending") });
+        if (next !== stage) {
+          setStage(next);
+          notify.dismiss(`docreq-status:${r.id}`);
+        } else if (stage === "pending" || stage === "generating") notify.info(t("stillPending"), { id: `docreq-status:${r.id}` });
+        else notify.dismiss(`docreq-status:${r.id}`);
       }
     } catch (e) {
       const s = statusOf(e);
       if (s === 403 || s === 404) {
         setFatal(s === 403 ? "noAccess" : "notFound");
-        setNote(null);
+        notify.dismiss(`docreq-status:${req.id}`);
       } else {
         // MD: a 500 is "qisqa toast + console/network log saqlasin", not a
         // modal — the detail goes to the console for whoever debugs it.
         if (s >= 500) logApiError("document-request refresh", e);
-        setNote({ ok: false, msg: t("error") });
+        notify.error(t("statusFailed"), { id: `docreq-status:${req.id}`, error: e });
       }
     } finally {
       setBusy(false);
@@ -491,6 +495,12 @@ export default function DocumentRequestPanel({
   const humanWait = stage === "lawyerReview" || stage === "claimed" || stage === "payGate";
   const gateWait = stage === "payGate";
   const pendingId = !fatal && (stage === "pending" || stage === "generating" || humanWait) ? req.id : undefined;
+  const pollKey = `${pendingId ?? ""}|${humanWait}|${gateWait}`;
+  const [prevPollKey, setPrevPollKey] = useState(pollKey);
+  if (prevPollKey !== pollKey) {
+    setPrevPollKey(pollKey);
+    setPollStopped(false);
+  }
   useEffect(() => {
     if (!pendingId) return;
     let alive = true;
@@ -522,7 +532,7 @@ export default function DocumentRequestPanel({
           setStage("done");
           // MD §"Client tayyor file ko'rishi": "Hujjatingiz tayyor. Yuklab
           // olishingiz mumkin." — said right where the client was waiting.
-          setNote({ ok: true, msg: t("readyToast") });
+          notify.success(t("readyToast"), { id: `docreq-status:${pendingId}` });
           bump();
         } else {
           // open_pool → claimed mid-wait moves the screen forward, and so do
@@ -537,7 +547,7 @@ export default function DocumentRequestPanel({
         if (s === 403 || s === 404) {
           if (alive) {
             setFatal(s === 403 ? "noAccess" : "notFound");
-            setNote(null);
+            notify.dismiss(`docreq-status:${pendingId}`);
           }
           stop();
         } else if (s >= 500) {
@@ -561,11 +571,11 @@ export default function DocumentRequestPanel({
       if (!rt || rt.kind === "created" || (rt.kind === "changed" && !WATCHED_CHANGES.test(rt.name))) return;
       const mine = rt.ids.includes(pendingId);
       if (rt.ids.length && !mine) return;
-      if (rt.name === "document_request.meeting_created") setNote({ ok: true, msg: t("meetingStarted") });
+      if (rt.name === "document_request.meeting_created") notify.info(t("meetingStarted"), { id: `docreq-meeting:${pendingId}` });
       if (gateWait && mine && (rt.kind === "pooled" || rt.kind === "rejected")) {
         settled.current = { id: pendingId, kind: rt.kind };
         setStage(rt.kind === "pooled" ? "lawyerReview" : "payCancelled");
-        setNote(rt.kind === "pooled" ? { ok: true, msg: t("gatePooled") } : null);
+        if (rt.kind === "pooled") notify.success(t("gatePooled"), { id: `docreq-gate:${pendingId}` });
         return;
       }
       if (mine && rt.kind === "required" && rt.gate) setGate(rt.gate);
@@ -581,7 +591,7 @@ export default function DocumentRequestPanel({
           return;
         }
         stop();
-        if (alive) setNote({ ok: false, msg: t("stillPending") });
+        if (alive) setPollStopped(true);
       }, intervalMs);
     }
     return () => {
@@ -607,7 +617,6 @@ export default function DocumentRequestPanel({
     if (pdfBusy) return;
     const win = download ? null : preopenTab();
     setPdfBusy(true);
-    setNote(null);
     function deliver(blob: Blob, name: string) {
       if (!download && isDocxFile(blob, name)) {
         closeTab(win);
@@ -627,6 +636,7 @@ export default function DocumentRequestPanel({
       }
       const name = req.contractFile?.fileName || `lexgo-${req.id}.${extFromMime(blob.type) || "pdf"}`;
       deliver(blob, name);
+      notify.dismiss(`docreq-file:${req.id}`);
     } catch (e) {
       const inline = inlineBlob(req.contractFile);
       if (inline && statusOf(e) !== 402) {
@@ -636,9 +646,9 @@ export default function DocumentRequestPanel({
         closeTab(win);
         if (statusOf(e) === 402) {
           setStage("pay");
-          setNote({ ok: false, msg: t("payFirst") });
+          notify.warning(t("payFirst"), { id: `docreq-file:${req.id}` });
         } else {
-          setNote({ ok: false, msg: t("fileError") });
+          notify.error(t("fileError"), { id: `docreq-file:${req.id}`, error: e });
         }
       }
     } finally {
@@ -653,7 +663,6 @@ export default function DocumentRequestPanel({
     // leaves it alone, so an empty box is a complete answer and gating it
     // would invent a requirement the backend does not have.
     setReviewBusy(true);
-    setNote(null);
     try {
       // MD §3 (POST /document-requests/{id}/lawyer-review): page_count is
       // not sent at all now that the client is no longer asked for it, which
@@ -667,6 +676,7 @@ export default function DocumentRequestPanel({
         reviewType || undefined,
       );
       setReviewOpen(false);
+      notify.dismiss(`docreq-review:${req.id}`);
       if (!r.canSendLawyerRequest || r.alreadyExists) {
         // Nothing new was created; say what the backend said.
         setReviewRefused(r.message || t("lawyerPendingLead"));
@@ -690,7 +700,7 @@ export default function DocumentRequestPanel({
       // full gate screen from there.
     } catch (e) {
       if (statusOf(e) >= 500) logApiError("document-request lawyer-review", e);
-      setNote({ ok: false, msg: t("error") });
+      notify.error(t("reviewFailed"), { id: `docreq-review:${req.id}`, error: e });
     } finally {
       setReviewBusy(false);
     }
@@ -739,9 +749,19 @@ export default function DocumentRequestPanel({
     setAskCtor(true);
   }, [req.id, req.constructorAction, stage, inConstructor]);
 
+  const stoppedNote = pollStopped ? (
+    <InlineAlert tone="info" compact role="status">
+      {t("stillPending")}
+    </InlineAlert>
+  ) : null;
+
   return (
     <div className={`cform${shown === "answers" ? " cform--doc" : ""}`} style={{ maxWidth: "none" }}>
-      {fatal ? <Notice ok={false} msg={t(fatal)} /> : null}
+      {fatal ? (
+        <InlineAlert tone={fatal === "noAccess" ? "locked" : "error"} role="alert">
+          {t(fatal)}
+        </InlineAlert>
+      ) : null}
       {shown === "answers" ? (
         <>
           <DocFill
@@ -756,7 +776,6 @@ export default function DocumentRequestPanel({
             submitLabel={t("generate")}
             lawyerHeldNote={lawyerHeldNote}
           />
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
         </>
       ) : null}
 
@@ -768,7 +787,6 @@ export default function DocumentRequestPanel({
           </div>
           <p className="advmuted">{t("payLead")}</p>
           <p className="dwiz__policy">{t("downloadPolicy", { n: monthDownloads, limit: 3 })}</p>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <button className="btn btn--grad btn--full btn--lg" type="button" onClick={pay} disabled={busy} data-ai-target="button:document-pay" data-ai-id="documents.constructor.pay">
             {busy ? t("processingShort") : t("pay")}
           </button>
@@ -803,7 +821,7 @@ export default function DocumentRequestPanel({
           <b>{t("generatingTitle")}</b>
           <span className="docpend__sub">{t("generatingSub")}</span>
           <span className="docpend__badge docpend__badge--ai">{t("generatingStatus")}</span>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+          {stoppedNote}
           <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
             {busy ? t("processingShort") : t("checkStatus")}
           </button>
@@ -823,7 +841,7 @@ export default function DocumentRequestPanel({
             <span className="docpend__dot" />
             {t("lawyerReviewStatus")}
           </span>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+          {stoppedNote}
           <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
             {busy ? t("processingShort") : t("checkStatus")}
           </button>
@@ -858,7 +876,7 @@ export default function DocumentRequestPanel({
             {t("claimedStatus")}
           </span>
           {req.assignedLawyerName ? <small className="advmuted">{t("assignedLawyer", { name: req.assignedLawyerName })}</small> : null}
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+          {stoppedNote}
           <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
             {busy ? t("processingShort") : t("checkStatus")}
           </button>
@@ -895,7 +913,6 @@ export default function DocumentRequestPanel({
             {t("gateStatus")}
           </span>
           {shownGate ? <DocGateFacts gate={shownGate} telegram={!!knownGate} /> : <p className="pgate__none">{t("gateNoFacts")}</p>}
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
             {busy ? t("processingShort") : t("checkStatus")}
           </button>
@@ -914,7 +931,6 @@ export default function DocumentRequestPanel({
           <span className="docpend__sub">{t("cancelledSub")}</span>
           <span className="docpend__badge docpend__badge--off">{t("cancelledStatus")}</span>
           {knownGate ? <DocGateFacts gate={knownGate} telegram={false} /> : null}
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           {onRetry ? (
             <button className="btn btn--grad btn--full" type="button" onClick={onRetry}>
               {t("gateRetry")}
@@ -935,7 +951,7 @@ export default function DocumentRequestPanel({
             <span className="docpend__dot" />
             {t("pendingStatus")}
           </span>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+          {stoppedNote}
           <button className="btn btn--soft btn--full" type="button" onClick={refresh} disabled={busy}>
             {busy ? t("processingShort") : t("checkStatus")}
           </button>
@@ -952,7 +968,7 @@ export default function DocumentRequestPanel({
               over" rather than burying it under the download buttons. */}
           {isStale ? (
             <>
-              <Notice ok={false} msg={t("staleNotice")} />
+              <InlineAlert tone="warn">{t("staleNotice")}</InlineAlert>
               {onStartNew ? (
                 <button className="btn btn--pri btn--full" type="button" onClick={onStartNew}>
                   {t("startNew")}
@@ -1003,7 +1019,7 @@ export default function DocumentRequestPanel({
               </button>
             </div>
           ) : reviewSent ? (
-            <Notice ok msg={t("reviewSent")} />
+            <InlineAlert tone="success">{t("reviewSent")}</InlineAlert>
           ) : reviewOpen ? (
             <div className="docreview" data-ai-private>
               {/* GM 2026-09-29: "agar Hujjat turi mavjud bo'lsa, u hujjat
@@ -1057,7 +1073,6 @@ export default function DocumentRequestPanel({
               <Link href="/portal/client/services?q=shablon" className="btn btn--line btn--sm">{t("offerHelp", { price: fmtUzs(399000) })}</Link>
             </div>
           </div>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           {/* T1-13: the generated document is a contract to sign with a Telegram code. */}
           {req.contractId ? <ContractSign contractId={req.contractId} /> : null}
         </div>

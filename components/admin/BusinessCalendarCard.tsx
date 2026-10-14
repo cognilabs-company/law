@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getBusinessHours, simulateBusinessHours, addBusinessHoliday, removeBusinessHoliday, type BusinessSim } from "@/lib/services/backend";
 import { useResourceOne } from "@/lib/useResource";
-import { ApiError, errDetail } from "@/lib/http";
+import { ApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import { fmtDate } from "@/lib/date";
 import DatePicker from "@/components/DatePicker";
 import TimePicker from "@/components/TimePicker";
-import { Notice } from "@/components/admin/AdminBits";
-import { Skeleton } from "@/components/portal/DataState";
+import { Skeleton, ErrorState } from "@/components/portal/DataState";
 import { IconCalendar, IconClock, IconPlus, IconClose } from "@/components/icons";
 
 // Tashkent wall-clock "DD.MM.YYYY, HH:MM (Du)" for an ISO timestamp.
@@ -27,37 +27,39 @@ function tashkent(iso: string, locale: string): string {
 }
 // Local Tashkent date + time → ISO with the +05:00 offset the backend expects.
 const toIso = (day: string, hm: string) => `${day}T${hm || "09:00"}:00+05:00`;
+const transient = (e: unknown) => !(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 501);
 
 // T0-20: the working-hours service as the tester sees it — schedule, public
 // holidays (add / remove) and a "what if it were …" simulator that asks the
 // backend for the advocate's 30-minute deadline at any moment.
 export default function BusinessCalendarCard() {
   const t = useTranslations("admin.businessCalendar");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const [key, setKey] = useState(0);
   const bh = useResourceOne(getBusinessHours, [key]);
   const [day, setDay] = useState("");
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [simDay, setSimDay] = useState("");
   const [simTime, setSimTime] = useState("20:00");
   const [sim, setSim] = useState<BusinessSim | null>(null);
   const [simBusy, setSimBusy] = useState(false);
-  const failMsg = (e: unknown) => (e instanceof ApiError && e.status === 403 ? t("forbidden") : errDetail(e) || t("error"));
+  const fail = (head: string, id: string, e: unknown, again: () => void) =>
+    notify.error(head, { id, error: e, map: { 403: t("forbidden") }, action: transient(e) ? { label: tn("retry"), onClick: again } : undefined });
 
   async function add() {
     if (busy || !day) return;
     setBusy(true);
-    setNote(null);
+    const name = title.trim() || t("holidayDefault");
     try {
-      await addBusinessHoliday(day, title.trim() || t("holidayDefault"));
+      await addBusinessHoliday(day, name);
+      notify.success(t("added"), { id: "bcal-holiday", body: `${fmtDate(day, locale)} · ${name}` });
       setDay("");
       setTitle("");
-      setNote({ ok: true, msg: t("added") });
       setKey((k) => k + 1);
     } catch (e) {
-      setNote({ ok: false, msg: failMsg(e) });
+      fail(t("addFailed"), "bcal-holiday", e, () => void add());
     } finally {
       setBusy(false);
     }
@@ -65,12 +67,12 @@ export default function BusinessCalendarCard() {
   async function remove(d: string) {
     if (busy) return;
     setBusy(true);
-    setNote(null);
     try {
       await removeBusinessHoliday(d);
+      notify.success(t("removed"), { id: "bcal-holiday", body: fmtDate(d, locale) });
       setKey((k) => k + 1);
     } catch (e) {
-      setNote({ ok: false, msg: failMsg(e) });
+      fail(t("removeFailed"), "bcal-holiday", e, () => void remove(d));
     } finally {
       setBusy(false);
     }
@@ -78,12 +80,12 @@ export default function BusinessCalendarCard() {
   async function simulate() {
     if (simBusy || !simDay) return;
     setSimBusy(true);
-    setNote(null);
     try {
       setSim(await simulateBusinessHours(toIso(simDay, simTime)));
+      notify.dismiss("bcal-sim");
     } catch (e) {
       setSim(null);
-      setNote({ ok: false, msg: failMsg(e) });
+      fail(t("simFailed"), "bcal-sim", e, () => void simulate());
     } finally {
       setSimBusy(false);
     }
@@ -95,7 +97,7 @@ export default function BusinessCalendarCard() {
     <div className="ppanel">
       <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconCalendar /></span>{t("title")}</b></div>
       <p className="ppanel__note">{t("lead")}</p>
-      {bh.status === "loading" ? <Skeleton rows={2} /> : !h ? <Notice ok={false} msg={t("error")} /> : (
+      {bh.status === "loading" ? <Skeleton rows={2} /> : !h ? <ErrorState compact onRetry={() => setKey((k) => k + 1)} /> : (
         <div className="bcal">
           <div className="bcal__sched" data-ai-target="policies:business-hours">
             <span className="bcal__k">{t("schedule")}</span>
@@ -139,7 +141,6 @@ export default function BusinessCalendarCard() {
               </div>
             ) : null}
           </div>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
         </div>
       )}
     </div>

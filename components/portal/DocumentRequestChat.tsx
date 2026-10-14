@@ -10,7 +10,8 @@ import {
 import { ApiError, logApiError } from "@/lib/http";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import CallRoom from "@/components/chat/CallRoom";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import { ErrorState } from "./DataState";
 import { Link } from "@/i18n/navigation";
 import { IconChat, IconPhone, IconClock, IconArrowRight } from "@/components/icons";
 
@@ -28,10 +29,10 @@ export default function DocumentRequestChat({ requestId }: { requestId: string }
   const t = useTranslations("portal.client.documents");
   const [chat, setChat] = useState<Chat | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [loadErr, setLoadErr] = useState<unknown>(null);
 
   const [call, setCall] = useState<{ roomId: string; callId: string } | null>(null);
   const [callBusy, setCallBusy] = useState(false);
-  const [callErr, setCallErr] = useState("");
   const [usage, setUsage] = useState<CallUsage | null>(null);
 
   const [reloadKey, setReloadKey] = useState(0);
@@ -46,6 +47,7 @@ export default function DocumentRequestChat({ requestId }: { requestId: string }
       .catch((e) => {
         if (!alive) return;
         logApiError("document-request chat", e);
+        setLoadErr(e);
         setStatus("error");
       });
     return () => {
@@ -64,23 +66,26 @@ export default function DocumentRequestChat({ requestId }: { requestId: string }
   async function ring() {
     if (callBusy || call) return;
     setCallBusy(true);
-    setCallErr("");
     try {
       const c = await startDocumentRequestAudioCall(requestId);
       setUsage(c.clientCallUsage);
       setCall({ roomId: c.roomId, callId: c.id });
+      notify.dismiss(`docchat-call:${requestId}`);
     } catch (e) {
       // 429 is the documented "you have used all three calls" answer; every
       // other failure is worth retrying, so they read differently.
-      setCallErr(e instanceof ApiError && e.status === 429 ? t("callLimitReached") : t("callFailed"));
-      if (!(e instanceof ApiError && e.status === 429)) logApiError("document-request audio call", e);
+      if (e instanceof ApiError && e.status === 429) notify.warning(t("callLimitTitle"), { id: `docchat-call:${requestId}`, body: t("callLimitReached") });
+      else {
+        logApiError("document-request audio call", e);
+        notify.error(t("callFailed"), { id: `docchat-call:${requestId}`, error: e });
+      }
     } finally {
       setCallBusy(false);
     }
   }
 
   if (status === "loading") return null;
-  if (status === "error") return <Notice ok={false} msg={t("chatLoadError")} />;
+  if (status === "error") return <ErrorState compact title={t("chatLoadError")} error={loadErr} onRetry={() => setReloadKey((k) => k + 1)} />;
 
   // Nobody has taken the work yet — say so rather than offering a chat that
   // would open onto an empty room.
@@ -107,7 +112,6 @@ export default function DocumentRequestChat({ requestId }: { requestId: string }
           </button>
           {usage ? <small className="advmuted">{t("callsLeft", { n: usage.remaining })}</small> : null}
         </div>
-        {callErr ? <Notice ok={false} msg={callErr} /> : null}
       </div>
 
       {/* Outside the panel so closing the chat can never tear down a live

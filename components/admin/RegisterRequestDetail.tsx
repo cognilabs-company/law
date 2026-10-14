@@ -5,8 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import Image from "next/image";
 import { getRegisterRequestDetail, getProofDocumentBlob, registerRequestFourStepState, type RegisterRequestDetail as Detail, type ProofDocument, type RegisterFourStep } from "@/lib/services/backend";
 import Modal from "@/components/admin/Modal";
-import { Notice } from "@/components/admin/AdminBits";
-import { Skeleton } from "@/components/portal/DataState";
+import { useReload } from "@/components/admin/AdminBits";
+import { Skeleton, ErrorState } from "@/components/portal/DataState";
 import { IconEye, IconClose, IconFileText } from "@/components/icons";
 import { IconCheck, IconClock, IconShieldCheck } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
@@ -49,8 +49,20 @@ function ProofDocPreview({ doc }: { doc: ProofDocument }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [mime, setMime] = useState("");
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState<{ error: unknown } | null>(null);
   const [loading, setLoading] = useState(false);
+
+  function load() {
+    setLoading(true);
+    setErr(null);
+    return getProofDocumentBlob(doc.id)
+      .then((blob) => {
+        setUrl(URL.createObjectURL(blob));
+        setMime(blob.type);
+      })
+      .catch((error: unknown) => setErr({ error }))
+      .finally(() => setLoading(false));
+  }
 
   function toggle() {
     if (open) {
@@ -59,15 +71,7 @@ function ProofDocPreview({ doc }: { doc: ProofDocument }) {
     }
     setOpen(true);
     if (url || loading) return;
-    setLoading(true);
-    setErr(false);
-    getProofDocumentBlob(doc.id)
-      .then((blob) => {
-        setUrl(URL.createObjectURL(blob));
-        setMime(blob.type);
-      })
-      .catch(() => setErr(true))
-      .finally(() => setLoading(false));
+    void load();
   }
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
 
@@ -82,7 +86,7 @@ function ProofDocPreview({ doc }: { doc: ProofDocument }) {
         loading ? (
           <Skeleton rows={1} />
         ) : err ? (
-          <Notice ok={false} msg={t("detail.fileError")} />
+          <ErrorState compact title={t("detail.fileError")} error={err.error} onRetry={load} />
         ) : url ? (
           mime.startsWith("image/") ? (
             <Image src={url} alt="" width={1200} height={900} unoptimized className="dkv__doc-img" />
@@ -102,15 +106,16 @@ export default function RegisterRequestDetail({ id, onClose }: { id: string | nu
   const t = useTranslations("admin.registerRequests");
   const locale = useLocale();
   const [d, setD] = useState<Detail | null>(null);
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState<{ error: unknown } | null>(null);
   const [now, setNow] = useState(0);
+  const [tick, retry] = useReload();
   useEffect(() => {
     if (!id) return;
     let alive = true;
-    const h = setTimeout(() => { setD(null); setErr(false); }, 0);
-    getRegisterRequestDetail(id).then((x) => { if (alive) { setD(x); setNow(Date.now()); } }).catch(() => { if (alive) setErr(true); });
+    const h = setTimeout(() => { setD(null); setErr(null); }, 0);
+    getRegisterRequestDetail(id).then((x) => { if (alive) { setD(x); setNow(Date.now()); } }).catch((error: unknown) => { if (alive) setErr({ error }); });
     return () => { alive = false; clearTimeout(h); };
-  }, [id]);
+  }, [id, tick]);
   const roleLabel = (r: string) => (r ? (t.has(`role.${r}`) ? t(`role.${r}`) : r) : "—");
   const statusLabel = (s: string) => (s ? (t.has(`status.${s}`) ? t(`status.${s}`) : s) : "—");
   const row = (k: string, v?: string | number | null) => (v === undefined || v === null || v === "" ? null : (
@@ -121,7 +126,7 @@ export default function RegisterRequestDetail({ id, onClose }: { id: string | nu
 
   return (
     <Modal open={!!id} onClose={onClose} title={d?.request.name || d?.pending?.name || t("detailTitle")}>
-      {err ? <Notice ok={false} msg={t("detailError")} /> : !d ? <Skeleton rows={3} /> : (
+      {err ? <ErrorState title={t("detailError")} error={err.error} onRetry={retry} /> : !d ? <Skeleton rows={3} /> : (
         <div className="dkv">
           <div className="dkv__sect">
             <b>{t("detail.request")}</b>

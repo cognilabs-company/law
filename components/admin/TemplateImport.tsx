@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { importTemplateDocx, importTemplatesZip, previewTemplate, type TemplateField } from "@/lib/services/backend";
-import { ApiError, errDetail } from "@/lib/http";
-import { Notice } from "@/components/admin/AdminBits";
+import { ApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
+import ScrollCue from "@/components/ui/ScrollCue";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconUpload, IconCheck } from "@/components/icons";
@@ -18,6 +20,7 @@ const VIS = ["staff", "clients", "public"];
 // created inactive (draft) for review. ZIP uploads import many at once.
 export default function TemplateImport({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
   const t = useTranslations("admin.templates.import");
+  const uid = useId();
   const [mode, setMode] = useState<"docx" | "zip">("docx");
   const [file, setFile] = useState<File | null>(null);
   const [slug, setSlug] = useState("");
@@ -27,12 +30,14 @@ export default function TemplateImport({ open, onClose, onDone }: { open: boolea
   const [visibility, setVisibility] = useState("clients");
   const [price, setPrice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [fileErr, setFileErr] = useState("");
+  const [slugErr, setSlugErr] = useState("");
   const [fields, setFields] = useState<TemplateField[] | null>(null);
   const [preview, setPreview] = useState("");
 
   function pick(f: File | null) {
     setFile(f);
+    setFileErr("");
     setFields(null);
     setPreview("");
     if (f && !title) setTitle(f.name.replace(/\.(docx|zip)$/i, ""));
@@ -43,23 +48,32 @@ export default function TemplateImport({ open, onClose, onDone }: { open: boolea
     e.preventDefault();
     if (!file || busy) return;
     setBusy(true);
-    setNote(null);
+    setFileErr("");
+    setSlugErr("");
     try {
       if (mode === "zip") {
         const r = await importTemplatesZip({ file, category, language, visibility });
-        setNote({ ok: true, msg: t("zipDone", { n: r.created }) });
+        notify.success(t("zipDone", { n: r.created }), { id: "tpl-import" });
         onDone();
       } else {
         const tpl = await importTemplateDocx({ file, slug: slug.trim(), title: title.trim(), category, language, visibility, price: parseInt(price || "0", 10) || 0 });
         const p = await previewTemplate({ templateId: tpl.id }).catch(() => null);
         setFields(p?.fields ?? []);
         setPreview(p?.previewText ?? "");
-        setNote({ ok: true, msg: t("docxDone", { n: p?.fields.length ?? 0 }) });
+        notify.success(t("docxDone", { n: p?.fields.length ?? 0 }), { id: "tpl-import", body: title.trim() });
         onDone();
       }
     } catch (err) {
       const status = err instanceof ApiError ? err.status : 0;
-      setNote({ ok: false, msg: status === 409 ? t("slugTaken") : status === 415 ? t("onlyDocx") : status === 413 ? t("tooBig") : status === 403 ? t("forbidden") : errDetail(err) || t("error") });
+      if (status === 409 && mode === "docx") {
+        setSlugErr(t("slugTaken"));
+        document.getElementById(`${uid}-slug`)?.focus();
+      } else if (status === 415 || status === 413) {
+        setFileErr(status === 415 ? t("onlyDocx") : t("tooBig"));
+        document.getElementById(`${uid}-file`)?.focus();
+      } else {
+        notify.error(t("error"), { id: "tpl-import", error: err, map: { 403: t("forbidden"), 409: t("slugTaken") } });
+      }
     } finally {
       setBusy(false);
     }
@@ -71,20 +85,42 @@ export default function TemplateImport({ open, onClose, onDone }: { open: boolea
     <Modal open={open} onClose={onClose} title={t("title")}>
       <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit}>
         <p className="advmuted">{t("lead")}</p>
-        <div className="tabs" role="tablist" style={{ marginBottom: 0 }}>
+        <ScrollCue className="tabs" role="tablist" style={{ marginBottom: 0 }}>
           <button type="button" role="tab" className="tab" aria-selected={mode === "docx"} onClick={() => { setMode("docx"); pick(null); }}>{t("modeDocx")}</button>
           <button type="button" role="tab" className="tab" aria-selected={mode === "zip"} onClick={() => { setMode("zip"); pick(null); }}>{t("modeZip")}</button>
-        </div>
+        </ScrollCue>
         <div>
-          <label>{mode === "zip" ? t("zipFile") : t("docxFile")}</label>
-          <input type="file" accept={mode === "zip" ? ".zip" : ".docx"} onChange={(e) => pick(e.target.files?.[0] ?? null)} />
+          <label htmlFor={`${uid}-file`}>{mode === "zip" ? t("zipFile") : t("docxFile")}</label>
+          <input
+            id={`${uid}-file`}
+            type="file"
+            accept={mode === "zip" ? ".zip" : ".docx"}
+            onChange={(e) => pick(e.target.files?.[0] ?? null)}
+            aria-invalid={fileErr ? true : undefined}
+            aria-describedby={fileErr ? `${uid}-file-err` : undefined}
+          />
+          <FieldError id={`${uid}-file-err`} msg={fileErr} />
           <p className="rf__hint">{mode === "zip" ? t("zipHint") : t("docxHint")}</p>
         </div>
         {mode === "docx" ? (
           <>
             <div className="cform__row2">
               <div><label>{t("titleLabel")}</label><input value={title} onChange={(e) => setTitle(e.target.value)} required /></div>
-              <div><label>{t("slug")}</label><input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} required /></div>
+              <div>
+                <label htmlFor={`${uid}-slug`}>{t("slug")}</label>
+                <input
+                  id={`${uid}-slug`}
+                  value={slug}
+                  onChange={(e) => {
+                    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"));
+                    setSlugErr("");
+                  }}
+                  required
+                  aria-invalid={slugErr ? true : undefined}
+                  aria-describedby={slugErr ? `${uid}-slug-err` : undefined}
+                />
+                <FieldError id={`${uid}-slug-err`} msg={slugErr} />
+              </div>
             </div>
           </>
         ) : null}
@@ -108,7 +144,6 @@ export default function TemplateImport({ open, onClose, onDone }: { open: boolea
             <p style={{ marginTop: 8, fontSize: ".8rem" }}><IconCheck style={{ width: 13, height: 13 }} /> {t("draftNote")}</p>
           </div>
         ) : null}
-        {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
         <button className="btn btn--pri btn--full" type="submit" disabled={busy || !file || (mode === "docx" && (!slug || !title))}><IconUpload />{busy ? t("uploading") : t("upload")}</button>
       </form>
     </Modal>

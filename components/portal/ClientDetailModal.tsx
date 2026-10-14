@@ -7,9 +7,9 @@ import { ApiError } from "@/lib/http";
 import { shortDateTime, fmtInt } from "@/lib/date";
 import { useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
-import { Notice } from "@/components/admin/AdminBits";
-import { Skeleton } from "@/components/portal/DataState";
-import { IconBriefcase, IconFileText, IconChat, IconCard, IconClock } from "@/components/icons";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
+import ScrollCue from "@/components/ui/ScrollCue";
+import { IconBriefcase, IconFileText, IconChat, IconCard, IconClock, IconUsers } from "@/components/icons";
 import { statusLabel, regionLabel } from "@/lib/labels";
 
 const fmtNum = (n: number, locale: string) => fmtInt(n, locale);
@@ -24,17 +24,18 @@ export default function ClientDetailModal({ id, onClose }: { id: string | null; 
   const locale = useLocale();
   const router = useRouter();
   const [d, setD] = useState<LawyerClientDetail | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [fail, setFail] = useState<{ error: unknown; missing: boolean } | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [tab, setTab] = useState<"timeline" | "cases" | "orders" | "payments" | "documents">("timeline");
   useEffect(() => {
     if (!id) return;
     let alive = true;
-    const h = setTimeout(() => { setD(null); setErr(null); setTab("timeline"); }, 0);
+    const h = setTimeout(() => { setD(null); setFail(null); setTab("timeline"); }, 0);
     getLawyerClientDetail(id)
       .then((x) => { if (alive) setD(x); })
-      .catch((e) => { if (alive) setErr(e instanceof ApiError && e.status === 404 ? t("notFound") : t("error")); });
+      .catch((e) => { if (alive) setFail({ error: e, missing: e instanceof ApiError && e.status === 404 }); });
     return () => { alive = false; clearTimeout(h); };
-  }, [id, t]);
+  }, [id, attempt]);
   const fmt = (v?: string) => (v ? shortDateTime(v, locale) : "");
   const tabs = d ? ([
     ["timeline", d.timeline.length],
@@ -46,7 +47,13 @@ export default function ClientDetailModal({ id, onClose }: { id: string | null; 
 
   return (
     <Modal open={!!id} onClose={onClose} title={d?.client.name || t("title")}>
-      {err ? <Notice ok={false} msg={err} /> : !d ? <Skeleton rows={3} /> : (
+      {fail ? (
+        fail.missing ? (
+          <EmptyState icon={<IconUsers />} title={t("notFound")} size="sm" />
+        ) : (
+          <ErrorState error={fail.error} title={t("error")} onRetry={() => setAttempt((n) => n + 1)} compact />
+        )
+      ) : !d ? <Skeleton rows={3} /> : (
         <div className="cdet" data-ai-id="advocate.clients.detail-modal" data-ai-type="modal" data-ai-label={t("title")} data-ai-private>
           <div className="cdet__head">
             <span className="pclient__av">{(d.client.name || "?").split(/\s+/).map((s) => s[0]).join("").slice(0, 2).toUpperCase()}</span>
@@ -72,11 +79,11 @@ export default function ClientDetailModal({ id, onClose }: { id: string | null; 
               ))}
             </div>
           ) : null}
-          <div className="segs segs--sm" role="tablist" data-ai-target="client-detail:tabs">
+          <ScrollCue arrows className="segs segs--sm" role="tablist" data-ai-target="client-detail:tabs">
             {tabs.map(([k, n]) => (
               <button key={k} type="button" role="tab" className="seg" aria-selected={tab === k} onClick={() => setTab(k)}>{t(`tabs.${k}`)}{n ? ` (${n})` : ""}</button>
             ))}
-          </div>
+          </ScrollCue>
           {tab === "timeline" ? (
             d.timeline.length ? (
               <ul className="dkv__list">

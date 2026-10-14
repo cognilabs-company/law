@@ -77,6 +77,9 @@ import {
 } from "../icons";
 import { timeOnly, dateOnly } from "@/lib/date";
 import { localizeApiDetail } from "@/lib/apiMessage";
+import { notify } from "@/lib/toast";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import { ErrorState } from "@/components/portal/DataState";
 import InstructorButton from "@/components/guide/InstructorButton";
 
 type LocalMsg = SecureMessage & { pending?: boolean; failed?: boolean };
@@ -662,6 +665,7 @@ export default function SecureChat({
   // portal.client.rate's five words) rather than duplicating it here.
   const tu = useTranslations("portal.client.urgent");
   const tr = useTranslations("portal.client.rate");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const { session, ready } = useAuth();
   const router = useRouter();
@@ -674,13 +678,13 @@ export default function SecureChat({
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [loadErr, setLoadErr] = useState<unknown>(undefined);
   const [conn, setConn] = useState<Conn>("connecting");
   const [activeCall, setActiveCall] = useState<{ callId: string; callType: "audio" | "video"; isCaller: boolean; lk?: LiveKitJoin | null } | null>(null);
   const [incoming, setIncoming] = useState<{ callId: string; callType: "audio" | "video" } | null>(null);
   const [callBusy, setCallBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [ttl, setTtl] = useState(0); // auto-delete window in hours (0 = off)
-  const [callErr, setCallErr] = useState<string | null>(null);
   // The message being answered. The whole bubble is kept, not just its id, so
   // the preview strip can show the same name and excerpt the quote will.
   const [replyTo, setReplyTo] = useState<LocalMsg | null>(null);
@@ -704,7 +708,6 @@ export default function SecureChat({
   // Both travel as multipart over HTTP — the socket carries JSON only — so
   // neither can use send()'s WebSocket fast path.
   const [attachBusy, setAttachBusy] = useState(false);
-  const [attachErr, setAttachErr] = useState("");
   const [recOn, setRecOn] = useState(false);
   const [recSec, setRecSec] = useState(0);
   const recRef = useRef<VoiceRecorder | null>(null);
@@ -723,7 +726,8 @@ export default function SecureChat({
   // Bumped to re-read the history from scratch. The only caller was the
   // content-reveal bar, which no longer renders; the key stays because the
   // effect below keys on it and a future re-read will need it.
-  const [reloadKey] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
+  const again = useRef<{ call: (kind: "audio" | "video") => void; ttl: (hours: number) => void }>({ call: () => undefined, ttl: () => undefined });
   const bodyRef = useRef<HTMLDivElement>(null);
   const seen = useRef<Set<string>>(new Set());
   const dismissedCalls = useRef<Set<string>>(new Set());
@@ -848,14 +852,14 @@ export default function SecureChat({
       setAskSummary(false);
       setFinished(true);
       setReplyTo(null);
-      setCallErr(null);
+      notify.success(t("completedOk"), { id: `schat-complete-${roomId}` });
     } catch (e) {
       // Someone else completed it first — the end state is the one we wanted,
       // so the form closes on it rather than showing a failure.
       if (isConflict(e)) {
         setAskSummary(false);
         setFinished(true);
-      } else setCallErr(t("completeFailed"));
+      } else notify.error(t("completeFailed"), { id: `schat-complete-${roomId}`, error: e });
     } finally {
       setCompleting(false);
     }
@@ -866,7 +870,7 @@ export default function SecureChat({
     primeCallAudio(); // user gesture → tones allowed in the room
     if (callBusy || activeCall) return;
     setCallBusy(true);
-    setCallErr(null);
+    notify.dismiss(`schat-call-${roomId}`);
     try {
       const calls = await listCalls(roomId);
       const live = calls.find((c) => c.status === "active" || c.status === "ringing");
@@ -883,8 +887,8 @@ export default function SecureChat({
         });
       }
       setIncoming(null);
-    } catch {
-      setCallErr(t("callFailed"));
+    } catch (e) {
+      notify.error(t("callFailed"), { id: `schat-call-${roomId}`, error: e, action: { label: tn("retry"), onClick: () => again.current.call(kind) } });
     } finally {
       setCallBusy(false);
     }
@@ -903,20 +907,33 @@ export default function SecureChat({
     setMenuOpen(false);
     try {
       await setChatAutoDelete(roomId, hours);
-    } catch {
+    } catch (e) {
       setTtl(prev); // revert — the change did not persist
-      setCallErr(t("settingsFailed"));
+      notify.error(t("settingsFailed"), { id: `schat-ttl-${roomId}`, error: e, action: { label: tn("retry"), onClick: () => again.current.ttl(hours) } });
     }
   }
   async function removeChat() {
     setMenuOpen(false);
-    if (typeof window !== "undefined" && !window.confirm(t("deleteConfirm"))) return;
-    try {
-      await deleteSecureChat(roomId);
-      close();
-    } catch {
-      setCallErr(t("deleteFailed"));
-    }
+    const id = `schat-del-${roomId}`;
+    const ok = await confirmDialog({
+      tone: "danger",
+      title: t("deleteAsk"),
+      text: t("archiveNote"),
+      confirmLabel: t("deleteChat"),
+      busyLabel: t("deleting"),
+      onConfirm: async () => {
+        try {
+          await deleteSecureChat(roomId);
+          return true;
+        } catch (e) {
+          notify.error(t("deleteFailed"), { id, error: e });
+          return false;
+        }
+      },
+    });
+    if (!ok) return;
+    notify.success(t("deleted"), { id });
+    close();
   }
   const TTL_OPTS: { h: number; key: string }[] = [
     { h: 0, key: "ttlOff" },
@@ -1016,8 +1033,10 @@ export default function SecureChat({
         if (!alive) return;
         push(m); // dedupes via the `seen` set
         setStatus("ready");
-      } catch {
-        if (alive) setStatus((s) => (s === "ready" ? s : "error"));
+      } catch (e) {
+        if (!alive) return;
+        setLoadErr(e);
+        setStatus((s) => (s === "ready" ? s : "error"));
       }
     }
 
@@ -1030,10 +1049,10 @@ export default function SecureChat({
     }
 
     // Optimistic bubbles still waiting for their echo.
-    function failPending(reason?: string) {
+    function failPending(reason?: string, warn = false) {
       setSending(false);
       setMsgs((prev) => prev.map((x) => (x.pending ? { ...x, pending: false, failed: true } : x)));
-      if (reason) setCallErr(reason);
+      if (reason) (warn ? notify.warning : notify.error)(reason, { id: `schat-send-${roomId}` });
     }
 
     // The socket answers auth problems with {event:"error", status_code} frames
@@ -1113,7 +1132,7 @@ export default function SecureChat({
             // completed, so this is the end state, not a retryable failure.
             else if (code === 409) {
               setFinished(true);
-              failPending(t("chatFinished"));
+              failPending(t("chatFinished"), true);
             } else failPending(code === 403 ? detail || t("wsForbidden") : detail || t("wsSendFailed"));
             return;
           }
@@ -1215,7 +1234,6 @@ export default function SecureChat({
   async function sendAttachment(file: File | Blob, messageType: "file" | "voice", fileName?: string) {
     if (attachBusy || finished) return;
     setAttachBusy(true);
-    setAttachErr("");
     const quoted = replyTo;
     setReplyTo(null);
     const tempId = `tmp-${Date.now()}`;
@@ -1245,7 +1263,7 @@ export default function SecureChat({
       // The completed-room 409 is not the "try again" the generic notice
       // promises — the finished banner says so instead.
       if (isConflict(e)) setFinished(true);
-      else setAttachErr(t("attachFailed"));
+      else notify.error(t("attachFailed"), { id: `schat-attach-${roomId}`, error: e });
     } finally {
       setAttachBusy(false);
     }
@@ -1258,7 +1276,7 @@ export default function SecureChat({
     // 25 MB — past this the upload reliably times out on a phone connection
     // and the failure arrives long after the user has moved on.
     if (f.size > 25 * 1024 * 1024) {
-      setAttachErr(t("attachTooBig"));
+      notify.error(t("attachTooBig"), { id: `schat-attach-${roomId}`, body: f.name });
       return;
     }
     void sendAttachment(f, "file");
@@ -1279,7 +1297,6 @@ export default function SecureChat({
     // Only the start is blocked once the room is completed: a recording that
     // was already running still has to be stoppable, or the mic stays lit.
     if (finished) return;
-    setAttachErr("");
     const next = new VoiceRecorder();
     // Stored before the await — see AttachmentPicker for why.
     recRef.current = next;
@@ -1287,7 +1304,7 @@ export default function SecureChat({
       await next.start();
     } catch {
       recRef.current = null;
-      setAttachErr(t("micDenied"));
+      notify.error(t("micDenied"), { id: `schat-attach-${roomId}` });
       return;
     }
     if (!next.active) return;
@@ -1350,9 +1367,23 @@ export default function SecureChat({
       // A completed room refuses every send with 409, and will keep doing so —
       // the finished banner explains it instead of a "try again" that can't.
       if (isConflict(e)) setFinished(true);
+      else notify.error(t("wsSendFailed"), { id: `schat-send-${roomId}`, error: e });
     } finally {
       setSending(false);
     }
+  }
+
+  useEffect(() => {
+    again.current = {
+      call: (kind) => void beginCall(kind),
+      ttl: (hours) => void applyTtl(hours),
+    };
+  });
+
+  function reloadHistory() {
+    setStatus("loading");
+    setLoadErr(undefined);
+    setReloadKey((k) => k + 1);
   }
 
   if (ready && !session) {
@@ -1503,14 +1534,6 @@ export default function SecureChat({
         </div>
       </div>
 
-      {callErr ? (
-        <div className="schat__err" role="alert">
-          <IconAlert />
-          {callErr}
-          <button type="button" className="schat__errx" aria-label={t("close")} onClick={() => setCallErr(null)}><IconClose /></button>
-        </div>
-      ) : null}
-
       {incoming && !activeCall ? (
         <div className="schat__callbar">
           <span className="schat__callbar-l">
@@ -1560,10 +1583,7 @@ export default function SecureChat({
             <span className="sskel sskel--them" />
           </div>
         ) : status === "error" ? (
-          <div className="schat__empty">
-            <span className="schat__halo"><IconAlert /></span>
-            <p>{t("errorLoad")}</p>
-          </div>
+          <ErrorState title={t("errorLoad")} error={loadErr} onRetry={reloadHistory} />
         ) : msgs.length === 0 ? (
           <div className="schat__empty">
             <span className="schat__halo"><IconShieldCheck /></span>
@@ -1689,8 +1709,6 @@ export default function SecureChat({
         <IconLock />
         {t("safetyNote")}
       </div>
-
-      {attachErr ? <div className="schat__attacherr" role="alert">{attachErr}</div> : null}
 
       {finished ? (
         <div className="schat__fin" role="status">

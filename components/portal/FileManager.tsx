@@ -28,8 +28,9 @@ import {
   type WorkspaceFile,
 } from "@/lib/services/backend";
 import Modal from "@/components/admin/Modal";
-import { Notice } from "@/components/admin/AdminBits";
-import { Skeleton } from "@/components/portal/DataState";
+import { notify } from "@/lib/toast";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import {
   IconFolder,
   IconFileText,
@@ -113,8 +114,10 @@ export default function FileManager() {
   const t = useTranslations("portal.files");
   const tfb = useTranslations("filterBar");
   const ta = useTranslations("common.a11y");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const [status, setStatus] = useState<"loading" | "ready" | "forbidden" | "error">("loading");
+  const [loadErr, setLoadErr] = useState<unknown>(null);
   const [folders, setFolders] = useState<WorkspaceFolder[]>([]);
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
   const [quota, setQuota] = useState<{ usedBytes: number; quotaBytes: number; limitGb: number } | null>(null);
@@ -133,6 +136,7 @@ export default function FileManager() {
       })
       .catch((e) => {
         if (!alive) return;
+        setLoadErr(e);
         setStatus(errStatus(e) === 403 ? "forbidden" : "error");
       });
     return () => {
@@ -150,7 +154,6 @@ export default function FileManager() {
   const [renameItem, setRenameItem] = useState<FMItem | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -218,27 +221,38 @@ export default function FileManager() {
 
   async function toggleStar(item: FMItem) {
     setMenuFor(null);
-    setNote(null);
+    const nid = `fm-star:${item.id}`;
     try {
       if (item.type === "folder") await updateFolder(item.id, { starred: !item.starred });
       else await updateFile(item.id, { starred: !item.starred });
+      notify.dismiss(nid);
       reload();
-    } catch {
-      setNote({ ok: false, msg: t("actionError") });
+    } catch (e) {
+      notify.error(t("starFailed"), { id: nid, error: e, action: { label: tn("retry"), onClick: () => void toggleStar(item) } });
     }
   }
 
   async function removeItem(item: FMItem) {
     setMenuFor(null);
-    if (!window.confirm(t("deleteConfirm", { name: item.name }))) return;
-    setNote(null);
-    try {
-      if (item.type === "folder") await deleteFolder(item.id);
-      else await deleteFile(item.id);
-      reload();
-    } catch {
-      setNote({ ok: false, msg: t("actionError") });
-    }
+    const nid = `fm-delete:${item.id}`;
+    await confirmDialog({
+      tone: "danger",
+      title: t("deleteConfirm", { name: item.name }),
+      confirmLabel: t("menuDelete"),
+      busyLabel: t("deleting"),
+      onConfirm: async () => {
+        try {
+          if (item.type === "folder") await deleteFolder(item.id);
+          else await deleteFile(item.id);
+        } catch (e) {
+          notify.error(t("deleteFailed"), { id: nid, error: e });
+          return false;
+        }
+        notify.success(t("deleted"), { id: nid, body: item.name });
+        reload();
+        return true;
+      },
+    });
   }
 
   function startRename(item: FMItem) {
@@ -250,14 +264,14 @@ export default function FileManager() {
     e.preventDefault();
     if (!renameItem || !renameValue.trim() || busy) return;
     setBusy(true);
-    setNote(null);
     try {
       if (renameItem.type === "folder") await updateFolder(renameItem.id, { name: renameValue.trim() });
       else await updateFile(renameItem.id, { file_name: renameValue.trim() });
+      notify.dismiss("fm-rename");
       setRenameItem(null);
       reload();
-    } catch {
-      setNote({ ok: false, msg: t("actionError") });
+    } catch (e) {
+      notify.error(t("renameFailed"), { id: "fm-rename", error: e });
     } finally {
       setBusy(false);
     }
@@ -267,34 +281,38 @@ export default function FileManager() {
     e.preventDefault();
     if (!newFolderName.trim() || busy) return;
     setBusy(true);
-    setNote(null);
     try {
       await createFolder({ name: newFolderName.trim(), parent_id: currentFolderId ?? undefined });
+      notify.dismiss("fm-folder");
       setNewFolderName("");
       setNewFolderOpen(false);
       setFilter("all");
       reload();
-    } catch {
-      setNote({ ok: false, msg: t("actionError") });
+    } catch (e) {
+      notify.error(t("folderFailed"), { id: "fm-folder", error: e });
     } finally {
       setBusy(false);
     }
   }
 
-  async function onUpload(list: FileList | null) {
+  async function onUpload(list: FileList | File[] | null) {
     if (!list || !list.length || busy) return;
     setBusy(true);
-    setNote(null);
-    let failed = 0;
+    const failed: File[] = [];
+    let overQuota = false;
+    let lastErr: unknown;
     for (const file of Array.from(list)) {
       try {
         await uploadWorkspaceFile(file, { folderId: currentFolderId ?? undefined });
       } catch (e) {
-        failed += 1;
-        if (errStatus(e) === 413) setNote({ ok: false, msg: t("quotaExceeded") });
+        failed.push(file);
+        lastErr = e;
+        if (errStatus(e) === 413) overQuota = true;
       }
     }
-    if (failed && !note) setNote({ ok: false, msg: t("uploadError", { n: failed }) });
+    if (!failed.length) notify.dismiss("fm-upload");
+    else if (overQuota) notify.error(t("uploadError", { n: failed.length }), { id: "fm-upload", body: t("quotaExceeded") });
+    else notify.error(t("uploadError", { n: failed.length }), { id: "fm-upload", error: lastErr, action: { label: tn("retry"), onClick: () => void onUpload(failed) } });
     setFilter("all");
     if (fileInputRef.current) fileInputRef.current.value = "";
     setBusy(false);
@@ -307,24 +325,26 @@ export default function FileManager() {
   // regardless of which of these two the frontend meant.
   async function openFile(item: FMItem) {
     setMenuFor(null);
-    setNote(null);
     const win = preopenTab();
+    const nid = `fm-file:${item.id}`;
     try {
       const blob = await getWorkspaceFileBlob(item.id);
       showBlob(blob, item.name, win);
-    } catch {
+      notify.dismiss(nid);
+    } catch (e) {
       closeTab(win);
-      setNote({ ok: false, msg: t("actionError") });
+      notify.error(t("openFailed"), { id: nid, error: e, action: { label: tn("retry"), onClick: () => void openFile(item) } });
     }
   }
   async function downloadFile(item: FMItem) {
     setMenuFor(null);
-    setNote(null);
+    const nid = `fm-file:${item.id}`;
     try {
       const blob = await getWorkspaceFileBlob(item.id);
       saveBlob(blob, item.name);
-    } catch {
-      setNote({ ok: false, msg: t("actionError") });
+      notify.dismiss(nid);
+    } catch (e) {
+      notify.error(t("downloadFailed"), { id: nid, error: e, action: { label: tn("retry"), onClick: () => void downloadFile(item) } });
     }
   }
 
@@ -371,7 +391,14 @@ export default function FileManager() {
           <h2>{t("title")}</h2>
           <p>{t("subtitle")}</p>
         </div>
-        <Notice ok={false} msg={t("loadError")} />
+        <ErrorState
+          title={t("loadError")}
+          error={loadErr}
+          onRetry={() => {
+            setStatus("loading");
+            reload();
+          }}
+        />
       </div>
     );
   }
@@ -382,7 +409,6 @@ export default function FileManager() {
         <h2>{t("title")}</h2>
         <p>{t("subtitle")}</p>
       </div>
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
 
       <div className="fmgr">
         <aside className="fmgr__side">

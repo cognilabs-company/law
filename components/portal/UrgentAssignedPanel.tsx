@@ -11,9 +11,10 @@ import {
   type UrgentRequest,
 } from "@/lib/services/backend";
 import { subscribeUserEvents, onUserSocketResync } from "@/lib/userSocket";
-import { ApiError, errDetail, logApiError } from "@/lib/http";
+import { ApiError, logApiError } from "@/lib/http";
 import { dateTimeFull } from "@/lib/date";
-import { statusLabel, regionLabel, humanize } from "@/lib/labels";
+import { statusLabel, statusSpecOf, regionLabel, humanize } from "@/lib/labels";
+import { notify } from "@/lib/toast";
 import { fmtUzs } from "@/lib/money";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -22,8 +23,11 @@ import { matchesSearch } from "@/lib/searchText";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiReveal } from "@/lib/guide/targets";
 import CallRoom from "@/components/chat/CallRoom";
-import { Skeleton, EmptyState } from "./DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { Skeleton, EmptyState, ErrorState } from "./DataState";
+import IconButton from "@/components/ui/IconButton";
+import ScrollCue from "@/components/ui/ScrollCue";
+import { StatusBadge } from "@/components/ui/Badge";
+import { useUrgentStatuses } from "@/components/admin/UrgentAdvocateQueue";
 import {
   IconBolt,
   IconVideo,
@@ -32,7 +36,6 @@ import {
   IconScale,
   IconClock,
   IconCheck,
-  IconAlert,
   IconCalendar,
   IconUser,
   IconPhone,
@@ -171,6 +174,9 @@ export default function UrgentAssignedPanel() {
   const tk = useTranslations("portal.client.urgent");
   const tcm = useTranslations("portal.common");
   const te = useTranslations("enums");
+  const tq = useTranslations("admin.urgent");
+  const tn = useTranslations("common.notify");
+  const urg = useUrgentStatuses();
   const locale = useLocale();
   const { session } = useAuth();
   // The advocate cabinet calls it "messages", the lawyer one "chat".
@@ -180,6 +186,7 @@ export default function UrgentAssignedPanel() {
   const [f, setF, resetF] = useStoredFilters("urgent", { q: "", owner: "", stage: "active", kind: "", period: "", sort: "attention" });
   const [state, setState] = useState<State>({ status: "loading", items: [] });
   const [openId, setOpenId] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   // The meeting this advocate has walked into, if any. Opened from the row's
   // own join button — see the button for why it carries no LiveKit creds.
   const [meeting, setMeeting] = useState<{ roomId: string; callId: string; callType: "audio" | "video"; title: string } | null>(null);
@@ -187,8 +194,11 @@ export default function UrgentAssignedPanel() {
   const load = useCallback(
     () =>
       listAssignedUrgentRequests({})
-        .then((items) => setState({ status: "ready", items }))
-        .catch((e) => {
+        .then((items): unknown => {
+          setState({ status: "ready", items });
+          return null;
+        })
+        .catch((e: unknown): unknown => {
           logApiError("urgent assigned", e);
           // A backend without the endpoint, and a role it does not apply to,
           // are both "nothing here" rather than a broken page.
@@ -197,9 +207,21 @@ export default function UrgentAssignedPanel() {
             status: isMissingRoute(e) || denied ? "missing" : s.items.length ? "ready" : "error",
             items: s.items,
           }));
+          return isMissingRoute(e) || denied ? null : e;
         }),
     [],
   );
+
+  async function refresh() {
+    if (refreshing) return;
+    const had = state.items.length > 0;
+    setRefreshing(true);
+    const e = await load();
+    setRefreshing(false);
+    if (e && had) notify.error(tq("notify.listFailed"), { id: "urgent-assigned-refresh", error: e, action: { label: tn("retry"), onClick: () => void refresh() } });
+    else if (!e) notify.dismiss("urgent-assigned-refresh");
+  }
+  const stLabel = (s: string) => statusSpecOf(urg, s, statusLabel(tcm, s))?.label ?? "";
 
   useEffect(() => {
     void load();
@@ -284,9 +306,7 @@ export default function UrgentAssignedPanel() {
     >
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconBolt /></span>{t("title")}</b>
-        <button type="button" className="btn btn--line btn--sm" onClick={() => void load()} aria-label={tcm("open")} title={tcm("open")}>
-          <IconRefresh />
-        </button>
+        <IconButton variant="line" label={tq("refresh")} icon={<IconRefresh />} busy={refreshing} onClick={() => void refresh()} tipAlign="end" />
       </div>
       <p className="advmuted uasg__lead">{t("lead")}</p>
 
@@ -337,7 +357,7 @@ export default function UrgentAssignedPanel() {
       {state.status === "loading" ? (
         <Skeleton rows={3} />
       ) : state.status === "error" ? (
-        <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
+        <ErrorState onRetry={() => load()} />
       ) : !state.items.length ? (
         <EmptyState icon={<IconBolt />} title={t("empty")} text={t("emptyText")} />
       ) : !shown.length ? (
@@ -365,7 +385,7 @@ export default function UrgentAssignedPanel() {
                 data-ai-type="list_item"
                 data-ai-entity-type="urgent_advokat_request"
                 data-ai-entity-id={r.id || undefined}
-                data-ai-label={[tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind, r.workId, statusLabel(tcm, r.status)].filter(Boolean).join(" · ")}
+                data-ai-label={[tk.has(`kinds.${r.serviceKind}`) ? tk(`kinds.${r.serviceKind}`) : r.serviceTitle || r.serviceKind, r.workId, stLabel(r.status)].filter(Boolean).join(" · ")}
                 data-ai-private
               >
                 <span className={`uaq__i uaq__i--${r.channel || "video"}`}><Icon /></span>
@@ -418,7 +438,7 @@ export default function UrgentAssignedPanel() {
                   ) : null}
                 </div>
                 <div className="uasg__r">
-                  <em className={`creq__badge uaq__st uaq__st--${r.status || "claimed"}`}>{statusLabel(tcm, r.status)}</em>
+                  <StatusBadge status={r.status} map={urg} fallback={statusLabel(tcm, r.status)} className="uaq__st" />
                   <div className="uaq__acts">
                     {/* "`Meetingga kirish` buttoni meeting yaratilgandan
                         keyin aktiv bo'ladi" — SECOND_OPINION MD L342, and the
@@ -519,17 +539,19 @@ function AssignedDetail({ id, recordId, fallback }: { id: string; recordId: stri
   const t = useTranslations("portal.seller.urgent");
   const tcm = useTranslations("portal.common");
   const te = useTranslations("enums");
+  const urg = useUrgentStatuses();
   const locale = useLocale();
   const [req, setReq] = useState<UrgentRequest>(fallback);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
     getUrgentRequest(recordId)
-      .then((r) => { if (alive) setReq(r); })
-      .catch((e) => { if (alive) { logApiError("urgent participant detail", e); setErr(errDetail(e) || tcm("loadError")); } });
+      .then((r) => { if (alive) { setReq(r); setErr(null); } })
+      .catch((e) => { if (alive) { logApiError("urgent participant detail", e); setErr(e); } });
     return () => { alive = false; };
-  }, [recordId, tcm]);
+  }, [recordId, attempt]);
 
   // Somebody else moving the record while it is open on screen.
   useEffect(() => {
@@ -537,7 +559,7 @@ function AssignedDetail({ id, recordId, fallback }: { id: string; recordId: stri
       if (!isUrgentEvent(e.event)) return;
       const info = urgentEventInfo(e);
       if (info.recordId && info.recordId !== recordId) return;
-      getUrgentRequest(recordId).then(setReq).catch(() => { /* the list refetch covers it */ });
+      getUrgentRequest(recordId).then((r) => { setReq(r); setErr(null); }).catch(() => { /* the list refetch covers it */ });
     });
   }, [recordId]);
 
@@ -560,11 +582,11 @@ function AssignedDetail({ id, recordId, fallback }: { id: string; recordId: stri
         <b><IconFileText />{t("need")}</b>
         <p>{req.need || t("noNeed")}</p>
         {req.directions.length ? (
-          <div className="chiprow" style={{ margin: "6px 0 0" }}>
+          <ScrollCue className="chiprow" style={{ margin: "6px 0 0" }}>
             {req.directions.map((d) => (
               <span key={d} className="fchip">{directionLabel(te, d)}</span>
             ))}
-          </div>
+          </ScrollCue>
         ) : null}
       </div>
 
@@ -639,7 +661,7 @@ function AssignedDetail({ id, recordId, fallback }: { id: string; recordId: stri
           <ol className="uamore__hist">
             {req.statusHistory.map((h, i) => (
               <li key={i}>
-                <span>{statusLabel(tcm, h.to)}</span>
+                <span>{statusSpecOf(urg, h.to, statusLabel(tcm, h.to))?.label ?? ""}</span>
                 <em>{h.at ? dateTimeFull(h.at, locale) : ""}</em>
               </li>
             ))}
@@ -647,7 +669,7 @@ function AssignedDetail({ id, recordId, fallback }: { id: string; recordId: stri
         </div>
       ) : null}
 
-      {err ? <Notice ok={false} msg={err} /> : null}
+      {err ? <ErrorState error={err} onRetry={() => setAttempt((n) => n + 1)} compact /> : null}
     </div>
   );
 }

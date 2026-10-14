@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { MKM_PAGE, type MkmOrder, type MkmPage } from "@/lib/services/adminMarketplace";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { IconChevronRight, IconLayers, IconRefresh } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import type { Live } from "./useLive";
@@ -72,7 +73,7 @@ export default function MkmOrders({
       ) : (
         <>
           {live.failed ? <RefreshFailed /> : null}
-          <div className="mkm-tablewrap">
+          <ScrollCue className="mkm-tablewrap">
             <table className="mkm-table mkm-table--orders">
               <thead>
                 <tr>
@@ -150,7 +151,7 @@ export default function MkmOrders({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollCue>
         </>
       )}
 

@@ -11,10 +11,12 @@ import {
   type EditorSource,
   type EditorSources,
 } from "@/lib/services/backend";
-import { errDetail, logApiError } from "@/lib/http";
+import { logApiError } from "@/lib/http";
 import Modal from "@/components/admin/Modal";
-import { Notice } from "@/components/admin/AdminBits";
-import { Skeleton } from "./DataState";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
+import InlineAlert from "@/components/ui/InlineAlert";
+import { ErrorState, Skeleton } from "./DataState";
 import { IconFileText, IconEdit, IconSparkle, IconPaperclip, IconCheck, IconUpload, IconLock } from "@/components/icons";
 
 // LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §7-8.
@@ -57,7 +59,10 @@ export default function EditorSourcePicker({
   const t = useTranslations("portal.lawyer.editorSource");
   const [data, setData] = useState<EditorSources | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error" | "claim">("loading");
-  const [err, setErr] = useState("");
+  const [claimMsg, setClaimMsg] = useState("");
+  const [loadErr, setLoadErr] = useState<unknown>(null);
+  const [loadKey, setLoadKey] = useState(0);
+  const [fileErr, setFileErr] = useState("");
   const [busy, setBusy] = useState("");
   const file = useRef<HTMLInputElement>(null);
 
@@ -66,7 +71,7 @@ export default function EditorSourcePicker({
   const [prevOpen, setPrevOpen] = useState(open);
   if (prevOpen !== open) {
     setPrevOpen(open);
-    if (open) { setState("loading"); setErr(""); }
+    if (open) { setState("loading"); setClaimMsg(""); setLoadErr(null); setFileErr(""); }
   }
 
   useEffect(() => {
@@ -79,26 +84,27 @@ export default function EditorSourcePicker({
         // The record is still in the pool. Said in the backend's own words;
         // the workspace behind this dialog already offers the claim.
         const claim = editorClaimNeeded(e);
-        if (claim) { setErr(claim.message); setState("claim"); return; }
+        if (claim) { setClaimMsg(claim.message); setState("claim"); return; }
         logApiError("editor sources", e);
-        setErr(errDetail(e));
+        setLoadErr(e);
         setState("error");
       });
     return () => { alive = false; };
-  }, [recordId, open]);
+  }, [recordId, open, loadKey]);
 
   async function pick(o: EditorSource) {
     if (busy || !o.available) return;
     const key = o.sourceType + (o.attachmentId || "");
     setBusy(key);
-    setErr("");
+    setFileErr("");
     try {
       await setEditorSource(recordId, { sourceType: o.sourceType, attachmentId: o.attachmentId || undefined });
+      notify.dismiss(`esrc:${recordId}`);
       onPicked();
       onClose();
     } catch (e) {
       logApiError("editor source", e);
-      setErr(errDetail(e) || t("error"));
+      notify.error(t("error"), { id: `esrc:${recordId}`, error: e });
     } finally {
       setBusy("");
     }
@@ -106,16 +112,17 @@ export default function EditorSourcePicker({
 
   async function upload(f: File) {
     if (busy) return;
-    if (!isDocxFile(f)) { setErr(t("docxOnly")); return; }
+    if (!isDocxFile(f)) { setFileErr(t("docxOnly")); return; }
     setBusy("upload");
-    setErr("");
+    setFileErr("");
     try {
       await uploadEditorSource(recordId, f);
+      notify.dismiss(`esrc:${recordId}`);
       onPicked();
       onClose();
     } catch (e) {
       logApiError("editor source upload", e);
-      setErr(errDetail(e) || t("error"));
+      notify.error(t("error"), { id: `esrc:${recordId}`, error: e });
     } finally {
       setBusy("");
       if (file.current) file.current.value = "";
@@ -130,9 +137,16 @@ export default function EditorSourcePicker({
         {state === "loading" ? (
           <Skeleton rows={3} />
         ) : state === "claim" ? (
-          <Notice ok={false} msg={err || t("claimFirst")} />
+          <InlineAlert tone="locked">{claimMsg || t("claimFirst")}</InlineAlert>
         ) : state === "error" ? (
-          <Notice ok={false} msg={err || t("error")} />
+          <ErrorState
+            compact
+            error={loadErr}
+            onRetry={() => {
+              setState("loading");
+              setLoadKey((k) => k + 1);
+            }}
+          />
         ) : (
           <div className="esrc__list" data-ai-target="doc-editor:sources" data-ai-label={t("title")}>
             {(data?.options ?? []).map((o) => {
@@ -177,12 +191,13 @@ export default function EditorSourcePicker({
                 hidden
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }}
                 disabled={!!busy}
+                aria-invalid={fileErr ? true : undefined}
+                aria-describedby={fileErr ? "esrc-file-err" : undefined}
               />
             </label>
+            <FieldError id="esrc-file-err" msg={fileErr} />
           </div>
         )}
-
-        {err && state === "ready" ? <Notice ok={false} msg={err} /> : null}
       </div>
     </Modal>
   );

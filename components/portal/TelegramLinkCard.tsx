@@ -6,7 +6,8 @@ import { useAuth } from "@/lib/auth";
 import { apiMe, startTelegramLink } from "@/lib/services/backend";
 import { ApiError, errDetail, isProviderUnavailable, isRateLimited, retryAfterSec } from "@/lib/http";
 import { fmtClock, useDeadline } from "@/lib/useOtpTimer";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import InlineAlert from "@/components/ui/InlineAlert";
 import { IconSend, IconExternal, IconCheck, IconRefresh } from "@/components/icons";
 
 // Telegram account link (T0-15): POST /telegram/link/start gives a one-time
@@ -16,6 +17,7 @@ import { IconSend, IconExternal, IconCheck, IconRefresh } from "@/components/ico
 // after, so such a link can't be confirmed and ends with Done or at expiry.
 type ActiveLink = { uid: string; url: string; expiresMs: number; opened?: boolean; relink?: boolean };
 const STORE = "lexgo_tg_link";
+const NID = "tg-link";
 const POLL_MS = 5000;
 
 // The active link survives a reload (mobile browsers may reload the tab on
@@ -61,7 +63,6 @@ export default function TelegramLinkCard() {
   const [finalFor, setFinalFor] = useState(""); // url of the link whose post-expiry check is back
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const reqRef = useRef(0); // bumped by cancel() so a late start response is ignored
   const openedRef = useRef(false);
 
@@ -71,6 +72,10 @@ export default function TelegramLinkCard() {
   useEffect(() => {
     if (stale) storeLink(null);
   }, [stale]);
+  const justLinked = !!mine && finished && !mine.relink;
+  useEffect(() => {
+    if (justLinked) notify.success(t("linkedMsg"), { id: NID });
+  }, [justLinked, t]);
 
   useEffect(() => {
     openedRef.current = !!link?.opened;
@@ -94,7 +99,6 @@ export default function TelegramLinkCard() {
     if (busy || !session || waitLeft > 0) return;
     const req = ++reqRef.current;
     setBusy(true);
-    setNote(null);
     setCanPoll(true);
     try {
       const r = await startTelegramLink();
@@ -102,19 +106,20 @@ export default function TelegramLinkCard() {
       if (r.url) {
         // A usable link wins over a linked/already_linked flag: that's a relink.
         if (r.linked) update({ telegramLinked: true });
+        notify.dismiss(NID);
         setActive({ uid: session.id, url: r.url, expiresMs: r.expiresAt, relink: linked || r.linked });
       } else if (r.linked) {
         update({ telegramLinked: true });
         setActive(null);
-        setNote({ ok: true, msg: t("linkedMsg") });
+        notify.success(t("linkedMsg"), { id: NID });
       } else {
-        setNote({ ok: false, msg: t("errStart") });
+        notify.error(t("errStart"), { id: NID });
       }
     } catch (e) {
       // Wait only as long as the server says; no hint → no local lock.
       const sec = isRateLimited(e) ? retryAfterSec(e, 0) : 0;
       if (sec > 0) setWaitUntil(Date.now() + sec * 1000);
-      if (req === reqRef.current) setNote({ ok: false, msg: startError(e) });
+      if (req === reqRef.current) notify.error(startError(e), { id: NID });
     } finally {
       setBusy(false);
     }
@@ -140,7 +145,6 @@ export default function TelegramLinkCard() {
   function cancel() {
     reqRef.current++;
     setActive(null);
-    setNote(null);
   }
 
   // While a (non-relink) link is shown, poll /auth/me until the webhook has
@@ -172,7 +176,7 @@ export default function TelegramLinkCard() {
             update({ telegramLinked: true });
             storeLink(null);
             setStored(null);
-            setNote({ ok: true, msg: t("linkedMsg") });
+            notify.success(t("linkedMsg"), { id: NID });
           }
         })
         .catch((e) => {
@@ -221,7 +225,6 @@ export default function TelegramLinkCard() {
 
   // An opened link says "expired" only once the last /auth/me check is back.
   const showExpired = !!link && expired && (!link.opened || !canPoll || finalFor === link.url);
-  const shownNote = note ?? (mine && finished && !mine.relink ? { ok: true, msg: t("linkedMsg") } : null);
   const busyOrWaiting = busy || waitLeft > 0;
 
   return (
@@ -235,7 +238,7 @@ export default function TelegramLinkCard() {
       {link ? (
         <div className="cform" style={{ maxWidth: "none" }} data-ai-private>
           {showExpired ? (
-            <Notice ok={false} msg={t("expired")} />
+            <InlineAlert tone="warn" compact>{t("expired")}</InlineAlert>
           ) : (
             <>
               <p className="advmuted">{t("hint")}</p>
@@ -272,7 +275,6 @@ export default function TelegramLinkCard() {
               {link.opened && !link.relink && canPoll ? <p className="advmuted">{t("waiting")}</p> : null}
             </>
           )}
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <div className="tglink__acts">
             {showExpired ? (
               <button className="btn btn--pri btn--sm" type="button" onClick={generate} disabled={busyOrWaiting}>
@@ -294,20 +296,19 @@ export default function TelegramLinkCard() {
               <span>{t("linkedText")}</span>
             </div>
           </div>
-          {shownNote ? <div style={{ marginTop: 12 }}><Notice ok={shownNote.ok} msg={shownNote.msg} /></div> : null}
           <button className="btn btn--line btn--sm" type="button" style={{ marginTop: 12 }} onClick={generate} disabled={busyOrWaiting} data-ai-id="profile.telegram.connect">
             {busy ? t("generating") : t("relink")}
           </button>
         </>
       ) : (
         <>
-          {note ? <div style={{ marginBottom: 12 }}><Notice ok={note.ok} msg={note.msg} /></div> : null}
           <button className="btn btn--pri btn--sm" type="button" onClick={generate} disabled={busyOrWaiting || !session} data-ai-id="profile.telegram.connect">
             <IconSend />
             {busy ? t("generating") : t("connect")}
           </button>
         </>
       )}
+      {waitLeft > 0 ? <p className="advmuted tglink__wait">{t("retryIn", { time: fmtClock(waitLeft) })}</p> : null}
     </div>
   );
 }

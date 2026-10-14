@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth, requiresTwoFactor } from "@/lib/auth";
 import { start2fa, verify2fa, disable2fa, setupTotp, enableTotp, type TotpSetup } from "@/lib/services/backend";
 import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfterSec } from "@/lib/http";
 import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import { IconShield, IconShieldCheck, IconChevronLeft, IconLock, IconSend } from "@/components/icons";
 
@@ -20,6 +21,8 @@ export default function TwoFactorCard() {
   const tc = useTranslations("common");
   const tOtp = useTranslations("register.otp");
   const { session, update } = useAuth();
+  const uid = useId();
+  const nid = "twofa";
   const storeKey = `lexgo_2fa_${session?.id || "anon"}`;
   // Prefer the real backend flag; fall back to the local one offline.
   const on =
@@ -33,7 +36,7 @@ export default function TwoFactorCard() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [resending, setResending] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [codeErr, setCodeErr] = useState("");
   const otp = useOtpTimer();
   const rateMsg = (e: unknown) => errDetail(e) || tc("rateLimited");
   // 503 = the Telegram (or SMS) code channel is not connected.
@@ -44,27 +47,28 @@ export default function TwoFactorCard() {
     setCode("");
     setVid("");
     setTotp(null);
-    setNote(null);
+    setCodeErr("");
     otp.clear();
   }
 
   async function enableSms() {
     if (busy || otp.resendIn > 0) return;
     setBusy(true);
-    setNote(null);
+    setCodeErr("");
     try {
       const r = await start2fa();
       if (!r.verificationId) {
-        setNote({ ok: false, msg: t("errStart") });
+        notify.error(t("errStart"), { id: nid });
         return;
       }
+      notify.dismiss(nid);
       setVid(r.verificationId);
       setCode("");
       otp.issue(r.expiresAt);
       setStage("sms");
     } catch (e) {
       if (isRateLimited(e)) otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
-      setNote({ ok: false, msg: isRateLimited(e) ? rateMsg(e) : channelDown(e) ? tc("otpChannelUnavailable") : t("errStart") });
+      notify.error(isRateLimited(e) ? rateMsg(e) : channelDown(e) ? tc("otpChannelUnavailable") : t("errStart"), { id: nid });
     } finally {
       setBusy(false);
     }
@@ -73,20 +77,20 @@ export default function TwoFactorCard() {
   async function resendSms() {
     if (busy || resending || otp.resendIn > 0) return;
     setResending(true);
-    setNote(null);
+    setCodeErr("");
     try {
       const r = await start2fa();
       if (!r.verificationId) {
-        setNote({ ok: false, msg: tOtp("resendError") });
+        notify.error(tOtp("resendError"), { id: nid });
         return;
       }
       setVid(r.verificationId);
       setCode("");
       otp.issue(r.expiresAt);
-      setNote({ ok: true, msg: tOtp("resent") });
+      notify.success(tOtp("resent"), { id: nid });
     } catch (e) {
       if (isRateLimited(e)) otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
-      setNote({ ok: false, msg: isRateLimited(e) ? rateMsg(e) : channelDown(e) ? tc("otpChannelUnavailable") : tOtp("resendError") });
+      notify.error(isRateLimited(e) ? rateMsg(e) : channelDown(e) ? tc("otpChannelUnavailable") : tOtp("resendError"), { id: nid });
     } finally {
       setResending(false);
     }
@@ -94,19 +98,20 @@ export default function TwoFactorCard() {
   async function startTotp() {
     if (busy) return;
     setBusy(true);
-    setNote(null);
+    setCodeErr("");
     try {
       const s = await setupTotp();
       // Nothing to scan or type → the setup can't be completed.
       if (!s.setupId || (!s.qrCode && !s.secret && !s.otpauthUrl)) {
-        setNote({ ok: false, msg: t("errStart") });
+        notify.error(t("errStart"), { id: nid });
         return;
       }
+      notify.dismiss(nid);
       setTotp(s);
       setCode("");
       setStage("totp");
     } catch (e) {
-      setNote({ ok: false, msg: isRateLimited(e) ? rateMsg(e) : t("errStart") });
+      notify.error(isRateLimited(e) ? rateMsg(e) : t("errStart"), { id: nid });
     } finally {
       setBusy(false);
     }
@@ -115,12 +120,12 @@ export default function TwoFactorCard() {
     localStorage.setItem(storeKey, "1");
     update({ twoFactorEnabled: true, twoFactorMethod: method });
     reset();
-    setNote({ ok: true, msg: t("enabled") });
+    notify.success(t("enabled"), { id: nid });
   }
   async function verifySms() {
     if (busy || resending || code.length !== 6 || otp.expired || otp.blockedIn > 0) return;
     setBusy(true);
-    setNote(null);
+    setCodeErr("");
     try {
       await verify2fa(vid, code);
       // The backend records "telegram" when the account has a linked bot chat.
@@ -128,17 +133,16 @@ export default function TwoFactorCard() {
     } catch (e) {
       if (isRateLimited(e)) {
         otp.block(retryAfterSec(e, OTP_RESEND_SEC));
-        setNote({ ok: false, msg: rateMsg(e) });
+        setCodeErr(rateMsg(e));
       } else if (isOtpExpired(e)) {
         otp.expire();
-      } else {
+      } else if (isOffline(e)) {
         // Unreachable (network / proxy 502) or a server failure is not a wrong code.
-        const msg = isOffline(e)
-          ? tc("offline")
-          : e instanceof ApiError && e.status >= 500
-            ? t("errStart")
-            : t("errVerify");
-        setNote({ ok: false, msg });
+        notify.error(tc("offline"), { id: nid });
+      } else if (e instanceof ApiError && e.status >= 500) {
+        notify.error(t("errStart"), { id: nid });
+      } else {
+        setCodeErr(t("errVerify"));
       }
     } finally {
       setBusy(false);
@@ -147,21 +151,17 @@ export default function TwoFactorCard() {
   async function verifyTotp() {
     if (busy || !totp || code.length !== 6) return;
     setBusy(true);
-    setNote(null);
+    setCodeErr("");
     try {
       await enableTotp(totp.setupId, code);
       await finishEnable("totp");
     } catch (e) {
       // As verifySms: unreachable (network / proxy 502) or a server failure is
       // not a wrong code.
-      const msg = isRateLimited(e)
-        ? rateMsg(e)
-        : isOffline(e)
-          ? tc("offline")
-          : e instanceof ApiError && e.status >= 500
-            ? t("errStart")
-            : t("errVerify");
-      setNote({ ok: false, msg });
+      if (isRateLimited(e)) setCodeErr(rateMsg(e));
+      else if (isOffline(e)) notify.error(tc("offline"), { id: nid });
+      else if (e instanceof ApiError && e.status >= 500) notify.error(t("errStart"), { id: nid });
+      else setCodeErr(t("errVerify"));
     } finally {
       setBusy(false);
     }
@@ -169,17 +169,16 @@ export default function TwoFactorCard() {
   async function disable() {
     if (busy) return;
     setBusy(true);
-    setNote(null);
     try {
       await disable2fa();
       localStorage.removeItem(storeKey);
       update({ twoFactorEnabled: false, twoFactorMethod: "" });
       reset();
-      setNote({ ok: true, msg: t("disabledMsg") });
+      notify.success(t("disabledMsg"), { id: nid });
     } catch (e) {
       const msg =
         e instanceof ApiError && e.status === 403 ? t("mandatory") : isRateLimited(e) ? rateMsg(e) : t("errStart");
-      setNote({ ok: false, msg });
+      notify.error(msg, { id: nid });
     } finally {
       setBusy(false);
     }
@@ -199,15 +198,20 @@ export default function TwoFactorCard() {
             <label>{t("codeLabel")}</label>
             <input
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(e) => {
+                setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                if (codeErr) setCodeErr("");
+              }}
               inputMode="numeric"
               autoComplete="one-time-code"
               placeholder={t("codePh")}
               autoFocus
+              aria-invalid={codeErr ? true : undefined}
+              aria-describedby={codeErr ? `${uid}-code` : undefined}
             />
+            <FieldError id={`${uid}-code`} msg={codeErr} />
           </div>
           <OtpCountdown timer={otp} showExpiry={false} />
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button className="btn btn--line btn--sm" type="button" onClick={reset}><IconChevronLeft />{t("back")}</button>
             <button
@@ -246,14 +250,19 @@ export default function TwoFactorCard() {
             <label>{t("totpCodeLabel")}</label>
             <input
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(e) => {
+                setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                if (codeErr) setCodeErr("");
+              }}
               inputMode="numeric"
               autoComplete="one-time-code"
               placeholder={t("codePh")}
               autoFocus
+              aria-invalid={codeErr ? true : undefined}
+              aria-describedby={codeErr ? `${uid}-code` : undefined}
             />
+            <FieldError id={`${uid}-code`} msg={codeErr} />
           </div>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <div style={{ display: "flex", gap: 10 }}>
             <button className="btn btn--line btn--sm" type="button" onClick={reset}><IconChevronLeft />{t("back")}</button>
             <button className="btn btn--grad" type="button" onClick={verifyTotp} disabled={busy || code.length !== 6}>
@@ -263,7 +272,6 @@ export default function TwoFactorCard() {
         </div>
       ) : (
         <>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           {on ? (
             <div className={`tfa__method tfa__method--${session?.twoFactorMethod === "totp" ? "totp" : "tg"}`}>
               <span className="tfa__method-ic">{session?.twoFactorMethod === "totp" ? <IconShield /> : <IconSend />}</span>

@@ -9,15 +9,14 @@ import type { DocTree } from "@/lib/docTemplate";
 import { renderDocTree } from "@/lib/docTreeRender";
 import { useCatalogBackHref } from "@/lib/catalogNav";
 import ManualDocPlanGate from "./ManualDocPlanGate";
-import { Skeleton } from "./DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { EmptyState, ErrorState, Skeleton } from "./DataState";
 import { ApiError, errDetail } from "@/lib/http";
 // The preview guard lives next to the other viewer rather than in a file of
 // its own so there is exactly one implementation of it: both screens render
 // the same sheet from the same DOCX pipeline, and two copies of a security
 // rule is how one of them quietly stops matching the other.
 import { DocCloak, DocGuardNote, DocPrintNotice, DocWatermark, useDocGuard } from "./DocTemplateViewer";
-import { IconChevronLeft, IconEye, IconLock } from "@/components/icons";
+import { IconChevronLeft, IconEye, IconFileText, IconLock } from "@/components/icons";
 import InstructorButton from "@/components/guide/InstructorButton";
 import { aiId } from "@/lib/ai/ids";
 
@@ -43,6 +42,8 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [planRequired, setPlanRequired] = useState("");
   const [planGateOpen, setPlanGateOpen] = useState(false);
+  const [loadErr, setLoadErr] = useState<unknown>(null);
+  const [loadKey, setLoadKey] = useState(0);
   // Only while a document is actually on screen: the plan gate below is a
   // form, and swallowing Ctrl+A there would break choosing a tariff.
   const guard = useDocGuard(status === "ready");
@@ -78,6 +79,7 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
           setPlanRequired(errDetail(e) || td("planRequired"));
           setStatus("error");
         } else {
+          setLoadErr(e);
           setStatus("error");
         }
       }
@@ -86,7 +88,7 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceId]);
+  }, [serviceId, loadKey]);
 
   const viewAi = fields?.templateId ? aiId("documents.template", fields.templateId, "view") : "";
 
@@ -124,9 +126,9 @@ export default function ServiceDocumentView({ serviceId }: { serviceId: string }
           <ManualDocPlanGate open={planGateOpen} onClose={() => setPlanGateOpen(false)} message={planRequired} />
         </div>
       ) : status === "error" ? (
-        <Notice ok={false} msg={t("docViewError")} />
+        <ErrorState title={t("docViewError")} error={loadErr} onRetry={() => setLoadKey((k) => k + 1)} />
       ) : status === "empty" ? (
-        <Notice ok={false} msg={t("docViewNoFile")} />
+        <EmptyState icon={<IconFileText />} title={t("docViewNoFile")} />
       ) : (
         <>
           <p className="docview__hint">

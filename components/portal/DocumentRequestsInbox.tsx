@@ -13,13 +13,15 @@ import {
   type DocumentRequestPoolItem,
   type ClaimDocumentRequestResult,
 } from "@/lib/services/backend";
-import { isConflict, logApiError, errDetail } from "@/lib/http";
+import { isConflict, logApiError } from "@/lib/http";
 import { fetchAndDeliver } from "@/lib/download";
 import { useResource } from "@/lib/useResource";
 import { humanizeSlug } from "@/lib/lawyers";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
+import InlineAlert from "@/components/ui/InlineAlert";
 import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
 import { statusLabel } from "@/lib/labels";
@@ -189,6 +191,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
   const activeRows = tab === "assigned" ? assignedShown : tab === "progress" ? progressShown : tab === "done" ? doneShown : [];
   const listEmpty = !(tab === "pool" ? poolShown.length : activeRows.length);
   const activeStatus = tab === "assigned" ? assigned.status : tab === "progress" ? progress.status : tab === "done" ? done.status : pool.status;
+  const activeRes = tab === "assigned" ? assigned : tab === "progress" ? progress : done;
   const tabSource: Filterable[] = tab === "pool" ? poolVisible : tab === "assigned" ? assignedList : tab === "progress" ? progress.data : done.data;
   const tabTotal = tabSource.length;
   const noRecords = !tabTotal && (tab === "assigned" || !assignedList.length);
@@ -293,7 +296,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
         pool.status === "loading" ? (
           <Skeleton rows={3} />
         ) : pool.status === "error" ? (
-          <Notice ok={false} msg={t("loadError")} />
+          <ErrorState title={t("loadError")} error={pool.error} onRetry={pool.refresh} />
         ) : !poolVisible.length ? (
           <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
         ) : !poolShown.length ? (
@@ -308,7 +311,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
       ) : activeStatus === "loading" ? (
         <Skeleton rows={3} />
       ) : activeStatus === "error" ? (
-        <Notice ok={false} msg={t("loadError")} />
+        <ErrorState title={t("loadError")} error={activeRes.error} onRetry={activeRes.refresh} />
       ) : noRecords ? (
         <EmptyState icon={<IconFileText />} title={t("empty")} text={t("emptyText")} />
       ) : !activeRows.length ? (
@@ -401,10 +404,10 @@ function PoolCard({
   onTaken: () => void;
 }) {
   const t = useTranslations(ns);
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"" | "claimed" | "taken">("");
-  const [err, setErr] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const ago = useAgo();
   const tfw = useTranslations("portal.workFilters");
@@ -414,18 +417,19 @@ function PoolCard({
   async function claim() {
     if (busy || done) return;
     setBusy(true);
-    setErr(false);
     try {
       const result = await claimDocumentRequest(item.claimUrl);
+      notify.dismiss(`docreq-claim:${item.id}`);
       setDone("claimed");
       onClaimed(result);
     } catch (e) {
       if (isConflict(e)) {
+        notify.dismiss(`docreq-claim:${item.id}`);
         setDone("taken");
         onTaken();
       } else {
         logApiError("document-request claim", e);
-        setErr(true);
+        notify.error(t("claimError"), { id: `docreq-claim:${item.id}`, error: e, action: { label: tn("retry"), onClick: () => void claim() } });
       }
     } finally {
       setBusy(false);
@@ -494,7 +498,6 @@ function PoolCard({
           <button className="btn btn--grad btn--sm" type="button" onClick={claim} disabled={busy || !item.canClaim} data-ai-id={item.id ? aiId(`${AI}.item`, item.id, "claim") : undefined} data-ai-label={t("claim")}>
             {busy ? t("claiming") : t("claim")}
           </button>
-          {err ? <span className="pcase__err" role="alert">{t("claimError")}</span> : null}
         </div>
       )}
     </div>
@@ -520,10 +523,11 @@ export function FulfillModal({
 }) {
   const t = useTranslations(ns);
   const tf = useTranslations("portal.client.documents.fields");
+  const tn = useTranslations("common.notify");
   const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [fileErr, setFileErr] = useState("");
   const [done, setDone] = useState<FulfillResult | null>(null);
   const [dlBusy, setDlBusy] = useState(false);
   // Which file the inline-preview modal is showing, if any — the template
@@ -538,18 +542,18 @@ export function FulfillModal({
     setPrevId(target?.id);
     setFile(null);
     setNotes("");
-    setNote(null);
+    setFileErr("");
     setDone(null);
     setPreview("");
   }
 
   function pickFile(f: File | null) {
-    setNote(null);
     if (f && !/\.docx$/i.test(f.name)) {
       setFile(null);
-      setNote({ ok: false, msg: t("invalidFileType") });
+      setFileErr(t("invalidFileType"));
       return;
     }
+    setFileErr("");
     setFile(f);
   }
 
@@ -562,20 +566,21 @@ export function FulfillModal({
     if (!tpl?.hasFile || dlBusy) return;
     setDlBusy(true);
     const ok = await fetchAndDeliver(() => getServiceTemplateSourceFile(tpl.downloadUrl || tpl.inlineUrl), tpl.fileName || "shablon.docx", true);
-    if (!ok) setNote({ ok: false, msg: t("templateError") });
+    if (ok) notify.dismiss(`docreq-tpl:${target?.id ?? ""}`);
+    else notify.error(t("templateError"), { id: `docreq-tpl:${target?.id ?? ""}`, action: { label: tn("retry"), onClick: () => void downloadTemplate() } });
     setDlBusy(false);
   }
 
   async function submit() {
     if (!target || !file || busy) return;
     setBusy(true);
-    setNote(null);
     try {
       const result = await fulfillLawyerDocumentRequestFile(target.fulfillFileUrl, file, notes.trim() || undefined);
+      notify.dismiss(`docreq-fulfill:${target.id}`);
       setDone(result);
       onDone();
     } catch (e) {
-      setNote({ ok: false, msg: errDetail(e) || t("fulfillError") });
+      notify.error(t("fulfillError"), { id: `docreq-fulfill:${target.id}`, error: e });
     } finally {
       setBusy(false);
     }
@@ -628,9 +633,7 @@ export function FulfillModal({
 
           {done ? (
             <section className="docassist__sec">
-              <p className="cform__ok" style={{ margin: 0 }}>
-                <IconCheck style={{ width: 16, height: 16 }} /> {t("fulfilled")}
-              </p>
+              <InlineAlert tone="success" role="status">{t("fulfilled")}</InlineAlert>
               {done.file ? (
                 <button type="button" className="btn btn--line btn--full" style={{ marginTop: 10 }} onClick={() => setPreview("result")}>
                   <IconEye /> {t("viewResult")}
@@ -640,10 +643,10 @@ export function FulfillModal({
           ) : (
             <section className="docassist__sec">
               <label>{t("fileLabel")}</label>
-              <FilePicker id="fulfill-file" file={file} onPick={pickFile} placeholder={t("filePlaceholder")} chooseLabel={t("chooseFile")} />
+              <FilePicker id="fulfill-file" file={file} onPick={pickFile} placeholder={t("filePlaceholder")} chooseLabel={t("chooseFile")} errId={fileErr ? "fulfill-file-err" : undefined} />
+              <FieldError id="fulfill-file-err" msg={fileErr} />
               <label htmlFor="fulfill-notes" style={{ marginTop: 4 }}>{t("notesLabel")}</label>
               <textarea id="fulfill-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-              {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
               <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy || !file}>
                 {busy ? t("processingShort") : t("fulfillSubmit")}
               </button>
@@ -681,16 +684,18 @@ function FilePicker({
   onPick,
   placeholder,
   chooseLabel,
+  errId,
 }: {
   id: string;
   file: File | null;
   onPick: (f: File | null) => void;
   placeholder: string;
   chooseLabel: string;
+  errId?: string;
 }) {
   return (
     <label htmlFor={id} className="filepick">
-      <input id={id} type="file" accept=".docx" onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
+      <input id={id} type="file" accept=".docx" aria-invalid={errId ? true : undefined} aria-describedby={errId} onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
       <span className="filepick__btn">
         <IconUpload />
         {chooseLabel}

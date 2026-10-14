@@ -24,10 +24,10 @@ import { useDocRatings } from "@/lib/useDocRatings";
 import { ctorPromptAsked, markCtorPromptAsked } from "@/lib/docCtorPrompt";
 import DocRatingBox, { DocRatedStars } from "./DocRatingBox";
 import { fetchAndDeliver } from "@/lib/download";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
 import Modal from "@/components/admin/Modal";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
-import { EmptyState } from "./DataState";
+import { EmptyState, ErrorState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
 import { docNextActionKey, statusLabel } from "@/lib/labels";
 import { matchesSearch } from "@/lib/searchText";
@@ -154,6 +154,7 @@ export default function ClientDocumentRequests() {
   const t = useTranslations("portal.client.documentRequests");
   const tcommon = useTranslations("portal.client.documents");
   const tcm = useTranslations("portal.common");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const router = useRouter();
   const params = useSearchParams();
@@ -171,6 +172,7 @@ export default function ClientDocumentRequests() {
   // hook has nowhere to put.
   const [rows, setRows] = useState<ClientDocFlowItem[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [loadErr, setLoadErr] = useState<unknown>(null);
   const [more, setMore] = useState(false);
   const [moreBusy, setMoreBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -209,7 +211,11 @@ export default function ClientDocumentRequests() {
         }
         setStatus("ready");
       })
-      .catch(() => alive && setStatus("error"));
+      .catch((e: unknown) => {
+        if (!alive) return;
+        setLoadErr(e);
+        setStatus("error");
+      });
     return () => { alive = false; };
   }, [tab, pick, reloadKey]);
 
@@ -255,7 +261,6 @@ export default function ClientDocumentRequests() {
   // Filters what is loaded. There is no query parameter on this endpoint.
   const [q, setQ] = useState("");
   const [dlBusy, setDlBusy] = useState("");
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // LEXGO_DOCUMENT_TITLE_CONSTRUCTOR_PROMPT_UPDATE_2026-09-29.md §3 L74 /
   // §6 L158: the row whose "Ishingiz Navbatchi advokatga berildi" prompt is
@@ -314,18 +319,16 @@ export default function ClientDocumentRequests() {
     if (openBusy) return;
     if (item.service?.id) {
       setPromptId("");
-      setNote(null);
       router.push(`/portal/client/services/document/${item.service.id}`);
       return;
     }
     setOpenBusy(item.id);
-    setNote(null);
     try {
       const req = await getDocumentRequest(item.id);
       const hits = await searchServices(item.title || req.title, { limit: 50 }, locale);
       const svc = hits.map((h) => h.service).find((s) => !!s.documentTemplateId && s.documentTemplateId === req.templateId);
       if (!svc) {
-        setNote({ ok: false, msg: t("constructorOpenError") });
+        notify.error(t("ctorFailed"), { id: `mydocs-ctor:${item.id}`, body: t("constructorOpenError") });
         setPromptId("");
         return;
       }
@@ -334,7 +337,7 @@ export default function ClientDocumentRequests() {
     } catch {
       // The notice lives at the top of the list, which is behind this
       // dialog — leaving it open would have shown the client nothing at all.
-      setNote({ ok: false, msg: t("constructorOpenError") });
+      notify.error(t("ctorFailed"), { id: `mydocs-ctor:${item.id}`, body: t("constructorOpenError") });
       setPromptId("");
     } finally {
       setOpenBusy("");
@@ -350,7 +353,7 @@ export default function ClientDocumentRequests() {
   async function sendToLawyer(item: ClientDocFlowItem) {
     if (sendBusy) return;
     setSendBusy(true);
-    setNote(null);
+    const nid = `mydocs-review:${item.id}`;
     try {
       const r = await requestDocumentLawyerReviewGated(item.id, sendNeed.trim() || tcommon("reviewNeedDefault"));
       setSendId("");
@@ -360,14 +363,14 @@ export default function ClientDocumentRequests() {
         delete next[item.id];
         return next;
       });
-      if (r.alreadyExists || !r.canSendLawyerRequest) setNote({ ok: false, msg: r.message || item.lawyerRequestBlockReason || tcommon("lawyerPendingLead") });
+      if (r.alreadyExists || !r.canSendLawyerRequest) notify.warning(tcommon("lawyerSendFailed"), { id: nid, body: r.message || item.lawyerRequestBlockReason || tcommon("lawyerPendingLead") });
       // The fee gate of the lawyer-review endpoint: the request exists but it
       // has not reached the advocates, so it is not reported as sent either.
-      else if (r.paymentRequired) setNote({ ok: false, msg: r.message || t("lawyerPayRequired") });
-      else setNote({ ok: true, msg: r.message || tcommon("reviewSent") });
+      else if (r.paymentRequired) notify.warning(tcommon("gateTitle"), { id: nid, body: r.message || t("lawyerPayRequired") });
+      else notify.success(tcommon("reviewSentTitle"), { id: nid, body: r.message || undefined });
       refresh();
-    } catch {
-      setNote({ ok: false, msg: tcommon("error") });
+    } catch (e) {
+      notify.error(tcommon("reviewFailed"), { id: nid, error: e });
     } finally {
       setSendBusy(false);
     }
@@ -388,7 +391,7 @@ export default function ClientDocumentRequests() {
       const rt = docRealtimeOf(ev);
       if (!rt) return;
       // MD §"Client tayyor file ko'rishi" — the exact notice the client gets.
-      if (rt.name === "document_request.ready" || rt.name === "document_request.completed") setNote({ ok: true, msg: t("readyToast") });
+      if (rt.name === "document_request.ready" || rt.name === "document_request.completed") notify.success(t("readyToast"), { id: "mydocs-ready" });
       if (rt.ids.length && rt.kind !== "changed") {
         const mark = rt.kind === "pooled" || rt.kind === "rejected" ? rt.kind : "";
         setFlash((cur) => {
@@ -401,7 +404,7 @@ export default function ClientDocumentRequests() {
         });
       }
       if (rt.kind === "created") {
-        setNote({ ok: true, msg: t("opCreated") });
+        notify.info(t("opCreated"), { id: "mydocs-created" });
         if (rt.ids.length) setFresh(rt.ids);
       }
       later();
@@ -492,9 +495,9 @@ export default function ClientDocumentRequests() {
   async function download(item: ClientDocFlowItem) {
     if (!item.file.ready || dlBusy) return;
     setDlBusy(item.id);
-    setNote(null);
     const ok = await fetchAndDeliver(() => getDocumentRequestFile(item.id), `${item.title || t("title")}.${item.file.format || "docx"}`, true);
-    if (!ok) setNote({ ok: false, msg: t("downloadError") });
+    if (ok) notify.dismiss(`mydocs-dl:${item.id}`);
+    else notify.error(t("downloadError"), { id: `mydocs-dl:${item.id}`, body: item.title || undefined, action: { label: tn("retry"), onClick: () => void download(item) } });
     setDlBusy("");
   }
 
@@ -839,8 +842,6 @@ export default function ClientDocumentRequests() {
         aiTarget="documents:my-filters"
       />
 
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
-
       {status === "loading" ? (
         <div className="mydocs" aria-busy="true" aria-label={tcm("loadingMore")}>
           {[0, 1, 2].map((i) => (
@@ -856,11 +857,8 @@ export default function ClientDocumentRequests() {
           ))}
         </div>
       ) : status === "error" ? (
-        <div className="mydocs__fail" role="alert">
-          <Notice ok={false} msg={t("loadError")} />
-          <button type="button" className="btn btn--line btn--sm" onClick={retry} data-ai-id="documents.my.retry">
-            {t("retry")}
-          </button>
+        <div data-ai-id="documents.my.retry" data-ai-label={t("retry")}>
+          <ErrorState title={t("loadError")} error={loadErr} onRetry={retry} />
         </div>
       ) : !shown.length ? (
         rows.length ? (

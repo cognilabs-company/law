@@ -19,9 +19,10 @@ import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocumentLawyerAssist from "./DocumentLawyerAssist";
 import ManualDocPlanGate from "./ManualDocPlanGate";
 import { lawyerPendingNote } from "./DocFill";
-import { Skeleton } from "./DataState";
+import { ErrorState, Skeleton } from "./DataState";
 import Modal from "@/components/admin/Modal";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import InlineAlert from "@/components/ui/InlineAlert";
 import { ApiError, errDetail } from "@/lib/http";
 import { statusLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
@@ -121,6 +122,8 @@ export default function ServiceDocumentRequest({
   useEffect(() => { onDraftIdRef.current = onDraftId; }, [onDraftId]);
   useEffect(() => { onDraftIdRef.current?.(req?.id ?? ""); }, [req?.id]);
   const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState<unknown>(null);
+  const [loadKey, setLoadKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
   // "Has the resume lookup finished?" — auto-start must wait for it, or a
@@ -153,6 +156,7 @@ export default function ServiceDocumentRequest({
     setHeldGate(null);
     setGateOpen(false);
     setLoading(true);
+    setLoadErr(null);
     setErr(false);
     setResumed(false);
     setMode(initialMode ?? "manual");
@@ -192,14 +196,17 @@ export default function ServiceDocumentRequest({
       .catch((e) => {
         if (!alive) return;
         if (e instanceof ApiError && e.status === 402 && e.code === "manual_document_plan_required") setPlanRequired(errDetail(e) || t("planRequired"));
-        else setErr(true);
+        else {
+          setLoadErr(e);
+          setErr(true);
+        }
       })
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceId]);
+  }, [serviceId, loadKey]);
 
   // Resume an existing request for this template rather than creating a new
   // (re-payable) one, same as the standalone template list.
@@ -287,9 +294,11 @@ export default function ServiceDocumentRequest({
       // could only overwrite the authoritative list with ours. The template's
       // fields are passed to the panel below as a local fallback instead.
       setReq(await createServiceDocumentRequest(serviceId, { title: tpl.name, document_type: tpl.category || undefined }));
-    } catch {
+      notify.dismiss(`docsvc-start:${serviceId}`);
+    } catch (e) {
       setErr(true);
       starting.current = false;
+      notify.error(t("startFailed"), { id: `docsvc-start:${serviceId}`, error: e });
     } finally {
       setBusy(false);
     }
@@ -384,7 +393,18 @@ export default function ServiceDocumentRequest({
       </div>
     );
 
-  if (!tpl) return <Notice ok={false} msg={t("error")} />;
+  if (!tpl)
+    return (
+      <ErrorState
+        error={loadErr}
+        onRetry={() => {
+          setLoading(true);
+          setLoadErr(null);
+          setErr(false);
+          setLoadKey((k) => k + 1);
+        }}
+      />
+    );
 
   const tplKey = sourceFile?.templateId || tpl.id;
   const tplAi = tplKey ? aiId("documents.template", tplKey) : "";
@@ -513,7 +533,7 @@ export default function ServiceDocumentRequest({
   if (initialMode === "lawyer" && !sourceFile?.lawyerFlow)
     return (
       <div className="cform" style={{ maxWidth: "none" }}>
-        <Notice ok={false} msg={t("lawyerNotAvailable")} />
+        <InlineAlert tone="info">{t("lawyerNotAvailable")}</InlineAlert>
       </div>
     );
 
@@ -552,7 +572,6 @@ export default function ServiceDocumentRequest({
         <span>{t("price")}</span>
         <b>{tpl.price ? `${som(tpl.price)} ${t("som")}` : t("free")}</b>
       </div>
-      {err ? <Notice ok={false} msg={t("error")} /> : null}
       {/* Live only once the resume lookup has answered: clicking before then
           creates a second, separately-payable request for a template this
           client had already started. */}

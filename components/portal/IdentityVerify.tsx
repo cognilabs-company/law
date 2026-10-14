@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   getIdentity,
@@ -14,10 +14,12 @@ import { errDetail, isDemoUnavailable, isProviderUnavailable, isRateLimited, ret
 import { fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { useResourceOne } from "@/lib/useResource";
 import { Skeleton } from "./DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
 import { IconShieldCheck } from "@/components/icons";
 
 const provName = (p: IdentityProvider | null) => (p === "myid" ? "MyID" : "OneID");
+const NID = "identity-verify";
 
 // OneID / MyID identity verification through the backend provider interface.
 // Start either returns a provider URL (followed in the same tab) or, on a
@@ -26,6 +28,7 @@ const provName = (p: IdentityProvider | null) => (p === "myid" ? "MyID" : "OneID
 export default function IdentityVerify() {
   const t = useTranslations("portal.client.identity");
   const tcommon = useTranslations("common");
+  const uid = useId();
   const [key, setKey] = useState(0);
   const res = useResourceOne(getIdentity, [key]);
   const [id, setId] = useState<IdentityStatus | null>(null);
@@ -34,7 +37,7 @@ export default function IdentityVerify() {
   const [flow, setFlow] = useState<{ state: string; provider: IdentityProvider } | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [codeErr, setCodeErr] = useState("");
   const redirectedRef = useRef(false);
   // 429 → count down the server's wait; the provider buttons stay disabled.
   const wait = useOtpTimer();
@@ -49,7 +52,7 @@ export default function IdentityVerify() {
       redirectedRef.current = false;
       setBusy(false);
       setProv(null);
-      setNote(null);
+      notify.dismiss(NID);
       setId(null);
       setKey((k) => k + 1);
     };
@@ -63,17 +66,19 @@ export default function IdentityVerify() {
       : isRateLimited(e)
         ? errDetail(e) || tcommon("rateLimited")
         : t("error");
+  const fail = (e: unknown) => {
+    const plain = !(isProviderUnavailable(e) || isDemoUnavailable(e) || isRateLimited(e));
+    notify.error(errMsg(e), { id: NID, error: plain ? e : undefined });
+  };
 
   function refresh() {
     setId(null);
-    setNote(null);
     setKey((k) => k + 1);
   }
 
   async function start(p: IdentityProvider) {
     if (busy) return;
     setBusy(true);
-    setNote(null);
     setProv(p);
     let leaving = false;
     try {
@@ -82,20 +87,22 @@ export default function IdentityVerify() {
         // The provider page returns to the app; /identity/me shows the result.
         leaving = true;
         redirectedRef.current = true;
-        setNote({ ok: true, msg: t("redirecting", { provider: provName(p) }) });
+        notify.info(t("redirecting", { provider: provName(p) }), { id: NID });
         window.location.assign(r.authUrl);
         return;
       }
       if (!r.state) {
-        setNote({ ok: false, msg: t("error") });
+        notify.error(t("error"), { id: NID });
         setProv(null);
         return;
       }
+      notify.dismiss(NID);
       setFlow({ state: r.state, provider: p });
       setCode("");
+      setCodeErr("");
     } catch (e) {
       if (isRateLimited(e)) wait.cooldown(retryAfterSec(e, 60));
-      setNote({ ok: false, msg: errMsg(e) });
+      fail(e);
       setProv(null);
     } finally {
       if (!leaving) setBusy(false);
@@ -104,19 +111,19 @@ export default function IdentityVerify() {
   async function verify() {
     if (!flow || busy || !code.trim()) return;
     setBusy(true);
-    setNote(null);
+    setCodeErr("");
     try {
       const r = await identityVerifyDemo(flow.provider, flow.state, code.trim());
       setId(r);
       if (r.verified) {
         setFlow(null);
-        setNote({ ok: true, msg: t("done") });
+        notify.success(t("done"), { id: NID });
       } else {
-        setNote({ ok: false, msg: t("failed") });
+        setCodeErr(t("failed"));
       }
     } catch (e) {
       if (isRateLimited(e)) wait.cooldown(retryAfterSec(e, 60));
-      setNote({ ok: false, msg: errMsg(e) });
+      fail(e);
     } finally {
       setBusy(false);
     }
@@ -124,7 +131,6 @@ export default function IdentityVerify() {
 
   const providers = (
     <div className="idv__providers">
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {waiting ? <p className="advmuted" role="status">{t("retryIn", { time: fmtClock(wait.resendIn) })}</p> : null}
       <button className="idv__prov idv__prov--main" type="button" disabled={busy || waiting} onClick={() => start("myid")} data-ai-id="profile.identity.myid">
         <b>MyID <em className="idv__tag">{t("primary")}</em></b>
@@ -160,17 +166,22 @@ export default function IdentityVerify() {
             <label>{t("codeLabel")}</label>
             <input
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => {
+                setCode(e.target.value);
+                if (codeErr) setCodeErr("");
+              }}
               inputMode="numeric"
               autoComplete="one-time-code"
+              aria-invalid={codeErr ? true : undefined}
+              aria-describedby={codeErr ? `${uid}-code` : undefined}
             />
+            <FieldError id={`${uid}-code`} msg={codeErr} />
           </div>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           {waiting ? <p className="advmuted" role="status">{t("retryIn", { time: fmtClock(wait.resendIn) })}</p> : null}
           <button className="btn btn--pri btn--full" type="button" disabled={busy || waiting || !code.trim()} onClick={verify}>
             {busy ? t("verifying") : t("verify")}
           </button>
-          <button className="rf__link rf__link--muted" type="button" onClick={() => { setFlow(null); setProv(null); setNote(null); }}>
+          <button className="rf__link rf__link--muted" type="button" onClick={() => { setFlow(null); setProv(null); setCodeErr(""); }}>
             {t("cancel")}
           </button>
         </div>

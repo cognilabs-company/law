@@ -15,8 +15,9 @@ import {
 } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { useAiReveal } from "@/lib/guide/targets";
-import { Skeleton, EmptyState } from "./DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { Skeleton, EmptyState, ErrorState } from "./DataState";
+import { notify } from "@/lib/toast";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import DatePicker from "@/components/DatePicker";
@@ -63,6 +64,7 @@ export default function CalendarPanel({ ns }: { ns: string }) {
   const wd = weekdays(locale);
   const fmt = (ts: string) => shortDateTime(ts, locale);
   const tr = useTranslations("portal.common.reminder");
+  const tn = useTranslations("common.notify");
   const [reloadKey, setReloadKey] = useState(0);
   const res = useResource<CalendarEvent>(() => listCalendarEvents(), [reloadKey]);
   const reload = () => setReloadKey((k) => k + 1);
@@ -84,7 +86,6 @@ export default function CalendarPanel({ ns }: { ns: string }) {
   const [location, setLocation] = useState("");
   const [reminder, setReminder] = useState<string>("30");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   // T1B-04 deadline calculator
   const td = useTranslations("portal.common.deadlineCalc");
   const [calcOpen, setCalcOpen] = useState(false);
@@ -94,9 +95,7 @@ export default function CalendarPanel({ ns }: { ns: string }) {
   const [addEvent, setAddEvent] = useState(true);
   const [calcBusy, setCalcBusy] = useState(false);
   const [calcRes, setCalcRes] = useState<DeadlineResult | null>(null);
-  const [calcErr, setCalcErr] = useState<string | null>(null);
   const [icalBusy, setIcalBusy] = useState<string | null>(null);
-  const [del, setDel] = useState<CalendarEvent | null>(null);
 
   // Events grouped by local day, sorted by time.
   const byDay = useMemo(() => {
@@ -129,7 +128,6 @@ export default function CalendarPanel({ ns }: { ns: string }) {
   }
   function goToday() { setVy(now.getFullYear()); setVm(now.getMonth()); setSel(todayKey); }
   function openAdd(day?: string) {
-    setNote(null);
     if (day) setDate(day);
     else if (!date) setDate(sel);
     setOpen(true);
@@ -139,13 +137,14 @@ export default function CalendarPanel({ ns }: { ns: string }) {
     e.preventDefault();
     if (calcBusy || !baseDate) return;
     setCalcBusy(true);
-    setCalcErr(null);
     try {
       const r = await calculateDeadline({ kind, baseDate, createEvent: addEvent, title: calcTitle.trim() || td(`kinds.${kind}`) });
+      notify.dismiss("calendar-calc");
       setCalcRes(r);
       if (r.event) reload();
-    } catch {
-      setCalcErr(td("error"));
+    } catch (err) {
+      setCalcRes(null);
+      notify.error(td("error"), { id: "calendar-calc", error: err });
     } finally {
       setCalcBusy(false);
     }
@@ -155,8 +154,9 @@ export default function CalendarPanel({ ns }: { ns: string }) {
     setIcalBusy(ev.id);
     try {
       saveBlob(await downloadEventIcal(ev.id), `${ev.title.replace(/[^\w\d-]+/g, "_").slice(0, 40) || "event"}.ics`);
-    } catch {
-      setNote({ ok: false, msg: td("icalError") });
+      notify.dismiss(`calendar-ical-${ev.id}`);
+    } catch (err) {
+      notify.error(td("icalError"), { id: `calendar-ical-${ev.id}`, error: err, action: { label: tn("retry"), onClick: () => void ical(ev) } });
     } finally {
       setIcalBusy(null);
     }
@@ -166,16 +166,17 @@ export default function CalendarPanel({ ns }: { ns: string }) {
     e.preventDefault();
     if (busy || !title.trim() || !date) return;
     setBusy(true);
-    setNote(null);
+    const name = title.trim();
+    const when = fmtDate(date, locale);
     try {
       await createCalendarEvent({
         type,
-        title: title.trim(),
+        title: name,
         starts_at: new Date(`${date}T${time || "09:00"}`).toISOString(),
         location: location.trim() || undefined,
         ...(reminder ? { reminder_minutes_before: parseInt(reminder, 10) } : {}),
       });
-      setNote({ ok: true, msg: t("created") });
+      notify.success(t("created"), { id: "calendar-add", body: [name, time ? `${when}, ${time}` : when].filter(Boolean).join(" · ") });
       setSel(date);
       const [y, m] = date.split("-").map((x) => parseInt(x, 10));
       if (y && m) { setVy(y); setVm(m - 1); }
@@ -184,24 +185,35 @@ export default function CalendarPanel({ ns }: { ns: string }) {
       setTime("");
       setLocation("");
       reload();
-      setTimeout(() => setOpen(false), 900);
-    } catch {
-      setNote({ ok: false, msg: t("error") });
+      setOpen(false);
+    } catch (err) {
+      notify.error(tc("createFailed"), { id: "calendar-add", error: err });
     } finally {
       setBusy(false);
     }
   }
 
-  async function confirmRemove() {
-    if (!del) return;
-    const id = del.id;
-    setDel(null);
-    try {
-      await deleteCalendarEvent(id);
-      res.setData((cur) => cur.filter((e) => e.id !== id));
-    } catch {
-      setNote({ ok: false, msg: t("error") });
-    }
+  async function askRemove(ev: CalendarEvent) {
+    const nid = `calendar-del-${ev.id}`;
+    const ok = await confirmDialog({
+      tone: "danger",
+      title: t("remove"),
+      text: tc("removeText", { title: ev.title }),
+      confirmLabel: t("remove"),
+      cancelLabel: tc("cancel"),
+      onConfirm: async () => {
+        try {
+          await deleteCalendarEvent(ev.id);
+          return true;
+        } catch (err) {
+          notify.error(tc("deleteFailed"), { id: nid, error: err });
+          return false;
+        }
+      },
+    });
+    if (!ok) return;
+    res.setData((cur) => cur.filter((e) => e.id !== ev.id));
+    notify.success(tc("deleted"), { id: nid, body: ev.title || undefined });
   }
 
   const typeOpts = TYPES.map((v) => ({ value: v, label: t(v) }));
@@ -231,7 +243,7 @@ export default function CalendarPanel({ ns }: { ns: string }) {
       <button className="calev__ical" type="button" title={td("ical")} aria-label={td("ical")} disabled={icalBusy === ev.id} onClick={() => ical(ev)}>
         <IconDownload />
       </button>
-      <button className="calev__x" type="button" aria-label={t("remove")} onClick={() => setDel(ev)}>
+      <button className="calev__x" type="button" aria-label={t("remove")} onClick={() => void askRemove(ev)}>
         <IconClose />
       </button>
     </div>
@@ -246,7 +258,7 @@ export default function CalendarPanel({ ns }: { ns: string }) {
             <button type="button" role="tab" className="seg" aria-selected={mode === "month"} onClick={() => setMode("month")}>{tc("month")}</button>
             <button type="button" role="tab" className="seg" aria-selected={mode === "list"} onClick={() => setMode("list")}>{tc("list")}</button>
           </div>
-          <button className="btn btn--soft btn--sm" type="button" onClick={() => { setCalcRes(null); setCalcErr(null); setCalcOpen(true); }} data-ai-target="button:deadline-calculator">
+          <button className="btn btn--soft btn--sm" type="button" onClick={() => { setCalcRes(null); setCalcOpen(true); }} data-ai-target="button:deadline-calculator">
             <IconClock />
             {td("open")}
           </button>
@@ -256,10 +268,10 @@ export default function CalendarPanel({ ns }: { ns: string }) {
           </button>
         </div>
       </div>
-      {note && !open ? <Notice ok={note.ok} msg={note.msg} /> : null}
-
       {res.status === "loading" ? (
         <Skeleton rows={3} />
+      ) : res.status === "error" ? (
+        <ErrorState error={res.error} onRetry={() => res.refresh()} />
       ) : mode === "list" ? (
         !res.data.length ? (
           <EmptyState icon={<IconCalendar />} title={t("empty")} text={t("emptyText")} />
@@ -359,7 +371,6 @@ export default function CalendarPanel({ ns }: { ns: string }) {
               <p>{calcRes.event ? td("eventAdded") : td("notAdded")}</p>
             </div>
           ) : null}
-          {calcErr ? <Notice ok={false} msg={calcErr} /> : null}
           <button className="btn btn--pri btn--full" type="submit" disabled={calcBusy || !baseDate}>
             {calcBusy ? td("calculating") : td("calculate")}
           </button>
@@ -391,19 +402,10 @@ export default function CalendarPanel({ ns }: { ns: string }) {
             <label>{tr("label")}</label>
             <Select value={reminder} onChange={setReminder} options={reminderOpts} ariaLabel={tr("label")} />
           </div>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <button className="btn btn--pri btn--full" type="submit" disabled={busy || !title.trim() || !date}>
             {busy ? t("saving") : t("save")}
           </button>
         </form>
-      </Modal>
-
-      <Modal open={!!del} onClose={() => setDel(null)} title={t("remove")}>
-        <p className="advmuted">{tc("removeText", { title: del?.title ?? "" })}</p>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => setDel(null)}>{tc("cancel")}</button>
-          <button type="button" className="btn btn--pri btn--sm" style={{ background: "#e5484d", boxShadow: "none" }} onClick={() => void confirmRemove()}>{t("remove")}</button>
-        </div>
       </Modal>
     </div>
   );

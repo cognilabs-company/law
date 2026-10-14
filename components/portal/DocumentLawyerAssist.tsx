@@ -10,8 +10,10 @@ import {
   type DocLawyerSubmitResult,
   type ServiceDocumentFields,
 } from "@/lib/services/backend";
-import { ApiError, isConflict, isPaymentRequired, logApiError, errDetail } from "@/lib/http";
-import { Notice } from "@/components/admin/AdminBits";
+import { isConflict, isPaymentRequired, logApiError, errDetail } from "@/lib/http";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
+import InlineAlert from "@/components/ui/InlineAlert";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocTemplateViewer from "./DocTemplateViewer";
 import ManualDocPlanGate from "./ManualDocPlanGate";
@@ -25,7 +27,7 @@ import DocTypePicker from "./DocTypePicker";
 import { defaultDocLang, docLangOptions, WaitClock } from "./NewDocumentOrder";
 import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
-import { IconChevronLeft, IconCheck, IconEye, IconHeadset, IconLock, IconShieldCheck } from "@/components/icons";
+import { IconChevronLeft, IconEye, IconHeadset, IconLock, IconShieldCheck } from "@/components/icons";
 import { useAiField } from "@/lib/ai/registry";
 
 type LawyerRequestBody = {
@@ -92,13 +94,12 @@ export default function DocumentLawyerAssist({
   // without a word and quote the advocate a different document.
   const [missing, setMissing] = useState<"" | "need" | "consent">("");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+  const [attachErr, setAttachErr] = useState("");
   // The whole answer, not only the request row: past the free allowance the
   // backend opens a payment gate and the request has NOT reached the
   // advocates (LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md L124),
   // and only `payment_required` in the answer says so.
   const [result, setResult] = useState<DocLawyerSubmitResult | null>(null);
-  const [sent, setSent] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   // The request only opens the form once the client's plan allows it
   // ("Agar plan/entitlement bo'lmasa, tarif sotib olish flow chiqadi") —
@@ -138,7 +139,6 @@ export default function DocumentLawyerAssist({
     }
     setMissing("");
     setBusy(true);
-    setErr("");
     try {
       // The multipart endpoint is used only when there is something to
       // attach: the plain JSON one is the long-proven path, and keeping it
@@ -160,10 +160,12 @@ export default function DocumentLawyerAssist({
         language: lang,
         requestedDocumentType: docType || undefined,
       });
-      setSent(true);
+      notify.dismiss("doclawyer-send");
+      if (!r.paymentRequired && !r.alreadyExists && r.canSendLawyerRequest) notify.success(t("lawyerSubmitted"), { id: "doclawyer-send" });
       setResult(r);
     } catch (e) {
       if (isPaymentRequired(e)) {
+        notify.dismiss("doclawyer-send");
         setPlanRequired(errDetail(e) || t("planRequired"));
       } else if (isConflict(e)) {
         // ServiceDocumentRequest keeps this form off screen entirely while an
@@ -172,10 +174,10 @@ export default function DocumentLawyerAssist({
         // template were found in production on 2026-09-28). If it grows one,
         // a 409 here means exactly what the gate upstream says, and the
         // client should read that rather than "something went wrong".
-        setErr(t("lawyerPendingLead"));
+        notify.error(t("lawyerSendFailed"), { id: "doclawyer-send", body: t("lawyerPendingLead") });
       } else {
         logApiError("document-lawyer request", e);
-        setErr(e instanceof ApiError && e.status === 422 ? t("aiNeedRequired") : e instanceof ApiError && e.status === 404 ? t("lawyerNotAvailable") : t("error"));
+        notify.error(t("lawyerSendFailed"), { id: "doclawyer-send", error: e, map: { 404: t("lawyerNotAvailable"), 422: t("aiNeedRequired") } });
       }
     } finally {
       setBusy(false);
@@ -195,13 +197,8 @@ export default function DocumentLawyerAssist({
             request comes back `payment_required`, MD L112-114), carrying the
             amount and page breakdown from the answer — nothing else on the
             client can produce them, since no GET returns a gate. */}
-        {sent && !result.paymentRequired ? (
-          <p className="cform__ok" style={{ margin: "0 0 12px" }}>
-            <IconCheck style={{ width: 16, height: 16 }} /> {t("lawyerSubmitted")}
-          </p>
-        ) : null}
         {result.alreadyExists || !result.canSendLawyerRequest ? (
-          <Notice ok={false} msg={result.message || t("lawyerPendingLead")} />
+          <InlineAlert tone="warn" className="docres__note">{result.message || t("lawyerPendingLead")}</InlineAlert>
         ) : null}
         <DocumentRequestPanel
           key={result.request.id}
@@ -209,7 +206,7 @@ export default function DocumentLawyerAssist({
           initialGate={result.gate}
           fields={[]}
           sourceFile={sourceFile}
-          onRetry={() => { setResult(null); setSent(false); }}
+          onRetry={() => setResult(null)}
         />
       </>
     );
@@ -294,6 +291,7 @@ export default function DocumentLawyerAssist({
           onChange={(e) => { setNeed(e.target.value); if (e.target.value.trim()) setMissing((m) => (m === "need" ? "" : m)); }}
           placeholder={tn("needPlaceholder")}
           aria-invalid={missing === "need" || undefined}
+          aria-describedby={missing === "need" ? "lawyer-need-bad" : undefined}
           className={missing === "need" ? "is-bad" : undefined}
           data-ai-id="documents.lawyer.need"
           data-ai-label={t("lawyerNeedLabel")}
@@ -303,7 +301,7 @@ export default function DocumentLawyerAssist({
             moved focus into it, and the client was never told in words what
             was wrong — while the consent tick two cards down has had a
             sentence since it was written. One vocabulary for both. */}
-        {missing === "need" ? <p className="cform__bad" role="alert">{t("lawyerNeedRequired")}</p> : null}
+        <FieldError id="lawyer-need-bad" msg={missing === "need" ? t("lawyerNeedRequired") : ""} />
 
         {/* The marginTop:10 that used to sit inline on each of the labels
             below is gone: label→control and group→group were then the same
@@ -322,7 +320,8 @@ export default function DocumentLawyerAssist({
         />
 
         <label>{tn("extrasLabel")}</label>
-        <AttachmentPicker files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onError={setErr} />
+        <AttachmentPicker files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onError={setAttachErr} />
+        <FieldError id="lawyer-attach-err" msg={attachErr} />
 
 
         <label>{t("langLabel")}</label>
@@ -352,8 +351,6 @@ export default function DocumentLawyerAssist({
         </CheckBox>
       </div>
 
-      {err ? <Notice ok={false} msg={err} /> : null}
-
       {/* This is literally the "ariza berish" the clock was asked for: the
           document, the attachments and the voice notes all leave here for the
           Navbatchi advokat in one multipart POST, which is the longest wait
@@ -361,7 +358,7 @@ export default function DocumentLawyerAssist({
           request text, a bad page count and an unticked consent all let the
           press through and are answered by the marks above, because a
           disabled button that is pressed says nothing at all. */}
-      {missing === "consent" ? <p className="cform__bad" role="alert">{t("consentRequired")}</p> : null}
+      <FieldError id="lawyer-consent-bad" msg={missing === "consent" ? t("consentRequired") : ""} />
 
       <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={busy} aria-busy={busy || undefined} data-ai-id="documents.lawyer.submit">
         {busy ? <WaitClock /> : null}

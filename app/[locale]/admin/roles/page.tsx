@@ -1,25 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getRoles, getPermissions, createRole, assignRole } from "@/lib/services/admin";
 import { getPermissionMatrix } from "@/lib/services/backend";
 import { listAdminUsers } from "@/lib/services/users";
 import { useResource, useResourceOne } from "@/lib/useResource";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { Notice, useReload, AdminItem, UserSelect } from "@/components/admin/AdminBits";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
+import { useReload, AdminItem, UserSelect } from "@/components/admin/AdminBits";
+import FieldError from "@/components/ui/FieldError";
+import ScrollCue from "@/components/ui/ScrollCue";
 import Modal from "@/components/admin/Modal";
 import ChipMulti from "@/components/register/ChipMulti";
 import Select from "@/components/Select";
 import { IconShield, IconPlus, IconCheck } from "@/components/icons";
-import { errDetail } from "@/lib/http";
+import { notify } from "@/lib/toast";
 
 export default function AdminRoles() {
   const t = useTranslations("admin");
+  const tc = useTranslations("common");
+  const uid = useId();
   const [key, reload] = useReload();
+  const [mxKey, reloadMatrix] = useReload();
   const roles = useResource(getRoles, [key]);
   const perms = useResource(getPermissions, []);
-  const matrix = useResourceOne(getPermissionMatrix, []);
+  const matrix = useResourceOne(getPermissionMatrix, [mxKey]);
   const permLabel = (code: string) => perms.data.find((p) => p.code === code)?.title || code;
   // Three independent fetches used to mean the page visibly assembled in
   // steps — whichever resolved first popped its panel in while the others
@@ -39,27 +44,28 @@ export default function AdminRoles() {
   const [desc, setDesc] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [cBusy, setCBusy] = useState(false);
-  const [cNote, setCNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [cBad, setCBad] = useState<{ name?: boolean; title?: boolean }>({});
 
   // assign form
   const [userId, setUserId] = useState("");
   const [roleId, setRoleId] = useState("");
   const [aBusy, setABusy] = useState(false);
-  const [aNote, setANote] = useState<{ ok: boolean; msg: string } | null>(null);
-
-  const detailOf = errDetail;
+  const [aBad, setABad] = useState<{ user?: boolean; role?: boolean }>({});
+  const fid = (k: string) => `${uid}-${k}`;
 
   async function submitRole(e: React.FormEvent) {
     e.preventDefault();
     if (cBusy) return;
-    if (!name.trim() || !title.trim()) {
-      setCNote({ ok: false, msg: t("form.error") });
+    const miss = { name: !name.trim(), title: !title.trim() };
+    if (miss.name || miss.title) {
+      setCBad(miss);
+      document.getElementById(fid(miss.name ? "name" : "title"))?.focus();
       return;
     }
     setCBusy(true);
-    setCNote(null);
     try {
       await createRole({ name: name.trim(), title: title.trim(), description: desc.trim(), permissions: picked });
+      notify.success(t("roles.created"), { id: "role-create", body: title.trim() });
       setName("");
       setTitle("");
       setDesc("");
@@ -67,7 +73,7 @@ export default function AdminRoles() {
       reload();
       setOpen(false);
     } catch (err) {
-      setCNote({ ok: false, msg: detailOf(err) || t("form.error") });
+      notify.error(t("roles.createFailed"), { id: "role-create", error: err });
     } finally {
       setCBusy(false);
     }
@@ -77,18 +83,18 @@ export default function AdminRoles() {
     e.preventDefault();
     if (aBusy) return;
     if (!userId || !roleId) {
-      setANote({ ok: false, msg: t("form.error") });
+      setABad({ user: !userId, role: !roleId });
       return;
     }
     setABusy(true);
-    setANote(null);
+    const role = roles.data.find((r) => r.id === roleId);
     try {
       await assignRole(userId, roleId);
-      setANote({ ok: true, msg: t("roles.assigned") });
+      notify.success(t("roles.assigned"), { id: "role-assign", body: role ? role.title || role.name : undefined });
       setUserId("");
       setRoleId("");
     } catch (err) {
-      setANote({ ok: false, msg: detailOf(err) || t("form.error") });
+      notify.error(t("roles.assignFailed"), { id: "role-assign", error: err });
     } finally {
       setABusy(false);
     }
@@ -118,6 +124,8 @@ export default function AdminRoles() {
         </div>
         {roles.status === "loading" ? (
           <Skeleton rows={3} />
+        ) : roles.status === "error" ? (
+          <ErrorState error={roles.error} onRetry={roles.refresh} />
         ) : !roles.data.length ? (
           <EmptyState icon={<IconShield />} title={t("roles.empty")} />
         ) : (
@@ -140,24 +148,37 @@ export default function AdminRoles() {
         <div className="ppanel__h"><b>{t("roles.assignTitle")}</b></div>
         <p className="advmuted" style={{ marginBottom: 16 }}>{t("roles.assignLead")}</p>
         <form className="cform" style={{ maxWidth: "none" }} onSubmit={submitAssign}>
-          <UserSelect
-            value={userId}
-            onChange={setUserId}
-            label={t("roles.user")}
-            placeholder={t("roles.selectUser")}
-            search={(q) => listAdminUsers({ q }).then((users) => users.map((u) => ({ value: u.id, label: u.name || u.phone || u.lexgoId, sub: [u.phone, u.lexgoId].filter(Boolean).join(" · ") })))}
-          />
-          <div>
+          <div data-invalid={aBad.user ? "true" : undefined}>
+            <UserSelect
+              value={userId}
+              onChange={(v) => {
+                setUserId(v);
+                setABad((b) => (b.user ? { ...b, user: false } : b));
+              }}
+              label={t("roles.user")}
+              placeholder={t("roles.selectUser")}
+              search={(q) => listAdminUsers({ q }).then((users) => users.map((u) => ({ value: u.id, label: u.name || u.phone || u.lexgoId, sub: [u.phone, u.lexgoId].filter(Boolean).join(" · ") })))}
+              invalid={aBad.user}
+              describedBy={aBad.user ? fid("user-err") : undefined}
+            />
+            <FieldError id={fid("user-err")} msg={aBad.user ? t("roles.selectUser") : null} />
+          </div>
+          <div data-invalid={aBad.role ? "true" : undefined}>
             <label>{t("roles.role")}</label>
             <Select
               value={roleId}
-              onChange={setRoleId}
+              onChange={(v) => {
+                setRoleId(v);
+                setABad((b) => (b.role ? { ...b, role: false } : b));
+              }}
               options={roles.data.map((r) => ({ value: r.id, label: r.title || r.name }))}
               ariaLabel={t("roles.role")}
               placeholder={t("roles.selectRole")}
+              invalid={aBad.role}
+              describedBy={aBad.role ? fid("role-err") : undefined}
             />
+            <FieldError id={fid("role-err")} msg={aBad.role ? t("roles.selectRole") : null} />
           </div>
-          {aNote ? <Notice ok={aNote.ok} msg={aNote.msg} /> : null}
           <button className="btn btn--pri" type="submit" disabled={aBusy}>
             {aBusy ? t("form.saving") : t("roles.assign")}
           </button>
@@ -169,11 +190,13 @@ export default function AdminRoles() {
         <div className="ppanel__h"><b>{t("roles.matrixTitle")}</b></div>
         {matrix.status === "loading" ? (
           <Skeleton rows={4} />
+        ) : matrix.status === "error" ? (
+          <ErrorState onRetry={reloadMatrix} />
         ) : !matrix.data || !matrix.data.roles.length ? (
           <EmptyState icon={<IconShield />} title={t("roles.empty")} />
         ) : (
           <>
-            <div className="pmx__wrap">
+            <ScrollCue className="pmx__wrap">
               <table className="pmx">
                 <thead>
                   <tr>
@@ -196,7 +219,7 @@ export default function AdminRoles() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollCue>
             {matrix.data.sellerRules.map((sr) => (
               <p className="advmuted pmx__rule" key={sr.sellerType}>
                 <b>{t.has(`roles.sellerType.${sr.sellerType}`) ? t(`roles.sellerType.${sr.sellerType}`) : sr.sellerType}:</b> {sr.rule}
@@ -209,12 +232,33 @@ export default function AdminRoles() {
       <Modal open={open} onClose={() => setOpen(false)} title={t("roles.create")}>
         <form className="cform" style={{ maxWidth: "none" }} onSubmit={submitRole}>
           <div>
-            <label>{t("roles.name")}</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="content_manager" />
+            <label htmlFor={fid("name")}>{t("roles.name")}</label>
+            <input
+              id={fid("name")}
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setCBad((b) => (b.name ? { ...b, name: false } : b));
+              }}
+              placeholder="content_manager"
+              aria-invalid={cBad.name || undefined}
+              aria-describedby={cBad.name ? fid("name-err") : undefined}
+            />
+            <FieldError id={fid("name-err")} msg={cBad.name ? tc("required") : null} />
           </div>
           <div>
-            <label>{t("form.title")}</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} />
+            <label htmlFor={fid("title")}>{t("form.title")}</label>
+            <input
+              id={fid("title")}
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setCBad((b) => (b.title ? { ...b, title: false } : b));
+              }}
+              aria-invalid={cBad.title || undefined}
+              aria-describedby={cBad.title ? fid("title-err") : undefined}
+            />
+            <FieldError id={fid("title-err")} msg={cBad.title ? tc("required") : null} />
           </div>
           <div>
             <label>{t("form.description")}</label>
@@ -232,7 +276,6 @@ export default function AdminRoles() {
               />
             )}
           </div>
-          {cNote ? <Notice ok={cNote.ok} msg={cNote.msg} /> : null}
           <button className="btn btn--pri" type="submit" disabled={cBusy}>
             {cBusy ? t("form.saving") : t("form.save")}
           </button>

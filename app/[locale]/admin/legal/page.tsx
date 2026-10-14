@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   listAdminConsentDocs,
@@ -13,13 +13,14 @@ import {
 } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { useAiReveal } from "@/lib/guide/targets";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import { useScrollEdges } from "@/lib/useScrollEdges";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
 import FilterBar from "@/components/filters/FilterBar";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { ApiError, errDetail } from "@/lib/http";
+import ScrollCue from "@/components/ui/ScrollCue";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import { IconFileText, IconShieldCheck, IconPlus, IconEye, IconUser } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
 
@@ -45,8 +46,6 @@ function fmt(s: string, locale: string) {
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? s || "—" : dateTimeFull(s, locale);
 }
-const isForbidden = (e: unknown) => e instanceof ApiError && e.status === 403;
-const isMissingRoute = (e: unknown) => e instanceof ApiError && (e.status === 404 || e.status === 405 || e.status === 501);
 
 export default function AdminLegal() {
   const t = useTranslations("admin.legal");
@@ -78,10 +77,10 @@ export default function AdminLegal() {
           <span className="advmuted">{t("readiness", { n: published, total: REQUIRED_SLUGS.length })}</span>
         </div>
         <p className="ppanel__note">{t("lead")}</p>
-        <div className="tabs" role="tablist" style={{ marginBottom: 0 }} data-ai-target="legal:tabs">
+        <ScrollCue className="tabs" role="tablist" style={{ marginBottom: 0 }} data-ai-target="legal:tabs">
           <button type="button" role="tab" aria-selected={tab === "docs"} className="tab" onClick={() => setTab("docs")}><IconFileText />{t("tabDocs")}</button>
           <button type="button" role="tab" aria-selected={tab === "journal"} className="tab" onClick={() => setTab("journal")}><IconShieldCheck />{t("tabJournal")}</button>
-        </div>
+        </ScrollCue>
       </div>
 
       {tab === "docs" ? (
@@ -93,7 +92,7 @@ export default function AdminLegal() {
           {docs.status === "loading" ? (
             <Skeleton rows={5} />
           ) : docs.status === "error" ? (
-            <Notice ok={false} msg={t("loadError")} />
+            <ErrorState title={t("loadError")} error={docs.error} onRetry={docs.refresh} />
           ) : (
             <div className="alist" data-ai-target="legal:docs-list">
               {slugs.map((slug) => {
@@ -156,20 +155,20 @@ function EditModal({ doc, onClose, onSaved }: { doc: Partial<ConsentDoc> | null;
   const key = doc ? `${doc.slug}|${doc.version}|${doc.id ?? ""}` : "";
   if (doc && form.key !== key) setForm({ slug: doc.slug ?? "", version: doc.version ?? "1.0", title: doc.title ?? "", body: doc.body ?? "", active: doc.active ?? true, major: true, key });
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const set = (p: Partial<typeof form>) => setForm((f) => ({ ...f, ...p }));
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
     setBusy(true);
-    setNote(null);
+    const head = `${form.title.trim()} · v${form.version.trim()}`;
     try {
       await saveConsentDoc({ slug: form.slug.trim(), version: form.version.trim(), title: form.title.trim(), body: form.body, active: form.active, major: form.major });
-      setNote({ ok: true, msg: t("saved") });
+      notify.success(t("saved"), { id: "legal-save", body: head });
       onSaved();
     } catch (err) {
-      setNote({ ok: false, msg: isMissingRoute(err) ? t("noWriteApi") : isForbidden(err) ? t("forbidden") : errDetail(err) || t("saveError") });
+      const soon = t("noWriteApiShort");
+      notify.error(t("saveFailed"), { id: "legal-save", error: err, map: { 403: t("forbidden"), 404: soon, 405: soon, 501: soon } });
     } finally {
       setBusy(false);
     }
@@ -211,7 +210,6 @@ function EditModal({ doc, onClose, onSaved }: { doc: Partial<ConsentDoc> | null;
             </label>
           </div>
         </div>
-        {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
         <button type="submit" className="btn btn--pri btn--full" disabled={busy || !form.slug || !form.version || !form.title || !form.body.trim()}>
           {busy ? t("saving") : t("publish")}
         </button>
@@ -240,6 +238,8 @@ function Journal() {
     ];
   }, [rows.data, slug, t]);
   const list: UserConsentRow[] = slug === "all" ? rows.data : rows.data.filter((r) => r.slug === slug);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useScrollEdges(wrapRef, { silent: true });
   const findUsers = (q: string) =>
     searchUsers(q).then((found) => {
       const opts: SearchOption[] = found.map((u) => ({ value: u.id, label: u.name || u.lexgoId || u.id, sub: u.phone }));
@@ -291,11 +291,11 @@ function Journal() {
       {rows.status === "loading" ? (
         <Skeleton rows={5} />
       ) : rows.status === "error" ? (
-        <Notice ok={false} msg={t("loadError")} />
+        <ErrorState title={t("loadError")} error={rows.error} onRetry={rows.refresh} />
       ) : !list.length ? (
         <EmptyState icon={<IconShieldCheck />} title={t("journalEmpty")} text={t("journalEmptyText")} />
       ) : (
-        <div style={{ overflowX: "auto" }}>
+        <div ref={wrapRef} className="scue-x" style={{ overflowX: "auto" }}>
           <table className="ptable">
             <thead>
               <tr><th>{t("when")}</th><th>{t("user")}</th><th>{t("doc")}</th><th>{t("version")}</th><th>IP</th></tr>

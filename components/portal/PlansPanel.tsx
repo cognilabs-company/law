@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { useEffect, useId, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
@@ -25,7 +25,7 @@ import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
 import { useSellerCabinet } from "./SellerCabinet";
-import { errDetail, isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
+import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { CheckoutIntent } from "./OrderMilestones";
 import { useResource } from "@/lib/useResource";
@@ -33,7 +33,10 @@ import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "./DataState";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import InlineAlert from "@/components/ui/InlineAlert";
+import FieldError from "@/components/ui/FieldError";
+import ScrollCue from "@/components/ui/ScrollCue";
 import {
   IconCheck,
   IconCard,
@@ -169,7 +172,6 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const [term, setTerm] = useState<6 | 12>(6);
   const [upfront, setUpfront] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
   // Set when a purchase falls through to the Telegram approval flow.
   const [tgPlan, setTgPlan] = useState<{ plan: BackendPlan; period: ManualDocBillingPeriod } | null>(null);
@@ -275,7 +277,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
     const onShow = (e: PageTransitionEvent) => {
       if (!e.persisted) return;
       setBusy(null);
-      setMsg(null);
+      notify.dismiss("plans-buy");
     };
     window.addEventListener("pageshow", onShow);
     return () => window.removeEventListener("pageshow", onShow);
@@ -284,7 +286,6 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   async function choose(plan: BackendPlan, total: number, period: string) {
     if (busy) return;
     setBusy(plan.id);
-    setMsg(null);
     setIntent(null);
     let leaving = false; // stay busy while the browser opens the checkout
     try {
@@ -292,16 +293,16 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         const r = await purchasePlan(plan.id, { billing_period: period });
         if (r.paymentUrl) {
           leaving = true;
-          setMsg({ ok: true, text: t("payRedirect") });
+          notify.info(t("payRedirect"), { id: "plans-buy" });
           window.location.assign(r.paymentUrl);
         } else {
-          setMsg({ ok: true, text: t("activated", { plan: planName(plan) }) });
+          notify.success(t("activated", { plan: planName(plan) }), { id: "plans-buy" });
         }
         return;
       }
       if (!isDemoCheckout()) {
         if (!total) {
-          setMsg({ ok: false, text: t("purchaseError") });
+          notify.error(t("purchaseError"), { id: "plans-buy" });
           return;
         }
         setIntent(await createCheckout({ kind: "subscription_plan", planId: plan.id, amount: total, payload: { billing_period: period, title: planName(plan) } }));
@@ -310,10 +311,10 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       const r = await demoPlanPurchase(plan.id, { billing_period: period });
       if (r.paymentUrl) {
         leaving = true;
-        setMsg({ ok: true, text: t("payRedirect") });
+        notify.info(t("payRedirect"), { id: "plans-buy" });
         window.location.assign(r.paymentUrl);
       } else {
-        setMsg({ ok: true, text: t("activated", { plan: planName(plan) }) });
+        notify.success(t("activated", { plan: planName(plan) }), { id: "plans-buy" });
       }
     } catch (e) {
       // No provider to pay through — Payme and Click both answer 503
@@ -326,7 +327,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         setTgPlan({ plan, period: asBillingPeriod(period) });
         return;
       }
-      setMsg({ ok: false, text: t("purchaseError") });
+      notify.error(t("purchaseError"), { id: "plans-buy", error: e });
     } finally {
       if (!leaving) setBusy(null);
     }
@@ -337,7 +338,6 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
 
   return (
     <div className="subs">
-      {msg ? <div className={`plans__toast${msg.ok ? "" : " plans__toast--err"}`}>{msg.text}</div> : null}
       {intent ? <div className="ppanel" style={{ marginBottom: 16 }}><CheckoutIntent intent={intent} onCancel={() => setIntent(null)} /></div> : null}
 
       <TelegramPlanRequest
@@ -476,7 +476,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
             <div className="ppanel__h">
               <b className="ppanel__t"><span className="pico"><IconChartBar /></span>{t("compare.title")}</b>
             </div>
-            <div className="ptable__wrap">
+            <ScrollCue className="ptable__wrap">
               <table className="ptable">
                 <thead>
                   <tr>
@@ -499,7 +499,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                   </tr>
                 </tbody>
               </table>
-            </div>
+            </ScrollCue>
           </div>
           <div className="ppanel">
             <div className="ppanel__h">
@@ -685,7 +685,6 @@ function AutopayCard({
   const tc = useTranslations("portal.client.profile");
   const cards = useResource(listPaymentMethods, [uid]);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [bind, setBind] = useState(false);
   const setState = onStateChange;
   useAiModal("pricing.autopay.bind-card-modal", () => setBind(true));
@@ -694,15 +693,14 @@ function AutopayCard({
     if (!state || busy) return;
     const next = !state.enabled;
     setBusy(true);
-    setNote(null);
     setState({ ...state, enabled: next });
     try {
       const source = await saveAutopay(uid, next, state.subscription?.id);
       setState((s) => (s ? { ...s, enabled: next, source } : s));
-      setNote({ ok: true, text: t("saved") });
-    } catch {
+      notify.success(t("saved"), { id: "plans-autopay" });
+    } catch (e) {
       setState((s) => (s ? { ...s, enabled: !next } : s));
-      setNote({ ok: false, text: t("saveError") });
+      notify.error(t("saveError"), { id: "plans-autopay", error: e });
     } finally {
       setBusy(false);
     }
@@ -759,7 +757,6 @@ function AutopayCard({
               {t("bindCard")}
             </button>
           </div>
-          {note ? <div className={`plans__toast${note.ok ? "" : " plans__toast--err"}`} style={{ marginTop: 12, marginBottom: 0 }}>{note.text}</div> : null}
           {state.source === "local" ? (
             <p className="apay__note"><IconInfo />{t("pendingNote")}</p>
           ) : null}
@@ -769,10 +766,10 @@ function AutopayCard({
       <Modal open={bind} onClose={() => setBind(false)} title={t("bindTitle")}>
         <BindCardForm
           note={t("bindNote")}
-          labels={{ title: t("bindTitle"), brand: tc("cardBrand"), last4: tc("cardLast4"), expires: tc("cardExpires"), save: tc("save"), saving: tc("saving"), saved: tc("saved"), error: tc("error") }}
+          labels={{ title: t("bindTitle"), brand: tc("cardBrand"), last4: tc("cardLast4"), expires: tc("cardExpires"), save: tc("save"), saving: tc("saving"), saved: tc("saved"), error: tc("notify.saveFailed"), last4Invalid: tc("last4Invalid") }}
           onSaved={() => {
             void cards.refresh();
-            setTimeout(() => setBind(false), 800);
+            setBind(false);
           }}
         />
       </Modal>
@@ -788,14 +785,15 @@ function BindCardForm({
   onSaved,
 }: {
   note: string;
-  labels: { title: string; brand: string; last4: string; expires: string; save: string; saving: string; saved: string; error: string };
+  labels: { title: string; brand: string; last4: string; expires: string; save: string; saving: string; saved: string; error: string; last4Invalid: string };
   onSaved: () => void;
 }) {
+  const uid = useId();
   const [brand, setBrand] = useState("uzcard");
   const [last4, setLast4] = useState("");
   const [expires, setExpires] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [last4Err, setLast4Err] = useState("");
   const brandOpts = ["uzcard", "humo", "visa", "mastercard"].map((v) => ({ value: v, label: v.toUpperCase() }));
 
   async function submit(e: FormEvent) {
@@ -803,19 +801,19 @@ function BindCardForm({
     const l4 = last4.replace(/\D/g, "").slice(-4);
     if (busy) return;
     if (l4.length !== 4) {
-      setMsg({ ok: false, text: labels.error });
+      setLast4Err(labels.last4Invalid);
       return;
     }
     setBusy(true);
-    setMsg(null);
+    setLast4Err("");
     try {
       await addPaymentMethod({ brand, last4: l4, expires: expires.trim() || undefined, is_default: true });
-      setMsg({ ok: true, text: labels.saved });
+      notify.success(labels.saved, { id: "plans-card" });
       setLast4("");
       setExpires("");
       onSaved();
-    } catch {
-      setMsg({ ok: false, text: labels.error });
+    } catch (e) {
+      notify.error(labels.error, { id: "plans-card", error: e });
     } finally {
       setBusy(false);
     }
@@ -831,14 +829,25 @@ function BindCardForm({
       <div className="cform__row2">
         <div>
           <label>{labels.last4}</label>
-          <input value={last4} onChange={(e) => setLast4(e.target.value)} placeholder="1234" inputMode="numeric" maxLength={4} />
+          <input
+            value={last4}
+            onChange={(e) => {
+              setLast4(e.target.value);
+              if (last4Err) setLast4Err("");
+            }}
+            placeholder="1234"
+            inputMode="numeric"
+            maxLength={4}
+            aria-invalid={last4Err ? true : undefined}
+            aria-describedby={last4Err ? `${uid}-last4` : undefined}
+          />
+          <FieldError id={`${uid}-last4`} msg={last4Err} />
         </div>
         <div>
           <label>{labels.expires}</label>
           <input value={expires} onChange={(e) => setExpires(e.target.value)} placeholder="MM/YY" maxLength={5} />
         </div>
       </div>
-      {msg ? <Notice ok={msg.ok} msg={msg.text} /> : null}
       <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
         {busy ? labels.saving : labels.save}
       </button>
@@ -872,7 +881,7 @@ function TelegramPlanRequest({
   // receipt so the client has something to name when they chase the
   // approval. Empty when the backend did not send one; nothing is printed.
   const [sentWorkId, setSentWorkId] = useState("");
-  const [err, setErr] = useState("");
+  const [warn, setWarn] = useState("");
 
   // The plan the caller was on when the provider failed, and the period they
   // had already chosen there. Reset during render so a second attempt never
@@ -884,7 +893,7 @@ function TelegramPlanRequest({
     setPeriod(target?.period ?? "monthly");
     setOnly(null);
     setSent(false);
-    setErr("");
+    setWarn("");
   }
 
   if (!target) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
@@ -908,25 +917,26 @@ function TelegramPlanRequest({
   async function submit() {
     if (busy) return;
     setBusy(true);
-    setErr("");
+    setWarn("");
     try {
       const r = await requestPlanTelegramPurchase(plan.id, eff);
       // status "pending" is the documented success; anything else still means
       // the request exists, so the receipt is shown either way.
       setSentWorkId(r.workId);
       setSent(true);
+      notify.dismiss("plans-tg");
       onSent();
       if (r.telegramSent === false || (r.telegramDelivered === 0 && r.telegramFailed > 0)) {
-        setErr(ttg("notDelivered"));
+        setWarn(ttg("notDelivered"));
       }
     } catch (e) {
       const refused = refusedBillingPeriods(e);
       if (refused.length) {
         setOnly(refused);
         setPeriod(refused[0]);
-        setErr(ttg("periodRefused"));
+        setWarn(ttg("periodRefused"));
       } else {
-        setErr(errDetail(e) || ttg("error"));
+        notify.error(ttg("error"), { id: "plans-tg", error: e });
       }
     } finally {
       setBusy(false);
@@ -950,7 +960,7 @@ function TelegramPlanRequest({
             <p className="cform__ok"><IconCheck style={{ width: 16, height: 16 }} /> {ttg("sent")}</p>
             <p className="advmuted">{ttg("sentLead")}</p>
             {sentWorkId ? <p><span className="wid">{sentWorkId}</span></p> : null}
-            {err ? <Notice ok={false} msg={err} /> : null}
+            {warn ? <InlineAlert tone="warn" compact>{warn}</InlineAlert> : null}
             <button type="button" className="btn btn--line btn--full" onClick={onClose} data-ai-id="pricing.telegram-request-modal.close">{ttg("close")}</button>
           </>
         ) : (
@@ -958,19 +968,19 @@ function TelegramPlanRequest({
             <p className="advmuted" style={{ margin: 0 }}>{ttg("lead", { plan: plan.name })}</p>
             <div>
               <label>{ttg("period")}</label>
-              <div className="chiprow" style={{ margin: "4px 0 0" }} data-ai-id="pricing.telegram-request-modal.period" data-ai-type="select">
+              <ScrollCue arrows className="chiprow" style={{ margin: "4px 0 0" }} data-ai-id="pricing.telegram-request-modal.period" data-ai-type="select">
                 {periods.map((p) => (
                   <button key={p} type="button" className="fchip" aria-pressed={eff === p} onClick={() => setPeriod(p)} data-ai-id={aiId("pricing.telegram-request-modal.period", PERIOD_SEG[p])}>
                     {tdoc.has(`period_${p}`) ? tdoc(`period_${p}`) : p}
                   </button>
                 ))}
-              </div>
+              </ScrollCue>
             </div>
             <div className="tgbuy__sum">
               <span>{ttg("amount")}</span>
               <b>{fmtUzs(priceFor(eff))}</b>
             </div>
-            {err ? <Notice ok={false} msg={err} /> : null}
+            {warn ? <InlineAlert tone="warn" compact>{warn}</InlineAlert> : null}
             <button type="button" className="btn btn--grad btn--full btn--lg" disabled={busy} onClick={() => void submit()} data-ai-id="pricing.telegram-request-modal.confirm">
               {busy ? ttg("sending") : ttg("submit")}
             </button>

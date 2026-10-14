@@ -17,6 +17,7 @@ import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/servic
 import { CheckoutIntent } from "../portal/OrderMilestones";
 import Modal from "../admin/Modal";
 import { useResource } from "@/lib/useResource";
+import { useScrollEdges } from "@/lib/useScrollEdges";
 import { fmtUzs } from "@/lib/money";
 import { useAuth } from "@/lib/auth";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -182,6 +183,7 @@ export default function LawyersSection({
   }
   const scroller = useRef<HTMLDivElement>(null);
   const advbox = useRef<HTMLDivElement>(null);
+  useScrollEdges(scroller, { silent: true });
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
 
@@ -439,7 +441,7 @@ export default function LawyersSection({
           // every width and the tail has to centre itself instead.
           <div className="advgrid rvseq" ref={advbox}>{list.map((l, i) => card(l, compact && i === 0))}</div>
         ) : (
-          <div className="scroller rvseq" ref={scroller} onScroll={syncNav}>
+          <div className="scroller rvseq scue-x" ref={scroller} onScroll={syncNav}>
             {list.map((l) => card(l, false))}
           </div>
         )}

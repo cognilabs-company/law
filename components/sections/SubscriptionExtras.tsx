@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { initials } from "@/lib/lawyers";
 
 export default function SubscriptionExtras() {
@@ -20,7 +21,7 @@ export default function SubscriptionExtras() {
         <div className="head">
           <h2 className="h2">{c.title}</h2>
         </div>
-        <div className="ctable__wrap">
+        <ScrollCue className="ctable__wrap">
           <table className="ctable">
             <thead>
               <tr>
@@ -39,7 +40,7 @@ export default function SubscriptionExtras() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollCue>
 
         <div className="head" style={{ marginTop: 44 }}>
           <h2 className="h2">{t("testimonialsTitle")}</h2>

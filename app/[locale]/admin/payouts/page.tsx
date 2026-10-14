@@ -5,32 +5,38 @@ import { useTranslations } from "next-intl";
 import { listAdminPayouts, updatePayout, getReconciliation } from "@/lib/services/backend";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
-import { useReload, Notice } from "@/components/admin/AdminBits";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { errDetail } from "@/lib/http";
+import { useReload } from "@/components/admin/AdminBits";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
+import { ApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import { IconCard, IconCheck } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 
 const som = (n: number) => fmtUzs(n);
+const transient = (e: unknown) => !(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 501);
 const REC0 = { paymentsCount: 0, paidCount: 0, gross: 0, platformFee: 0, providerFee: 0, sellerShare: 0, payoutStatuses: {}, byProvider: [] };
 
 export default function AdminPayouts() {
   const t = useTranslations("admin.payouts");
+  const tn = useTranslations("common.notify");
   const [key, reload] = useReload();
   const rec = useResourceOne(getReconciliation, [key]);
   const list = useResource(() => listAdminPayouts(), [key]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
   const r = rec.data ?? REC0;
 
-  async function mark(id: string, status: string) {
+  async function mark(id: string, status: string, label: string) {
     setBusy(id);
-    setErr(null);
     try {
       await updatePayout(id, status);
+      notify.success(t("markedPaid"), { id: `payout-${id}`, body: label });
       reload();
     } catch (e) {
-      setErr(errDetail(e) || t("error"));
+      notify.error(t("markFailed"), {
+        id: `payout-${id}`,
+        error: e,
+        action: transient(e) ? { label: tn("retry"), onClick: () => void mark(id, status, label) } : undefined,
+      });
     } finally {
       setBusy(null);
     }
@@ -42,6 +48,8 @@ export default function AdminPayouts() {
         <div className="ppanel__h"><b>{t("title")}</b></div>
         {rec.status === "loading" ? (
           <Skeleton rows={2} />
+        ) : rec.status === "error" ? (
+          <ErrorState compact onRetry={reload} />
         ) : (
           <div className="castat" data-ai-target="payouts:reconciliation" data-ai-id="admin.payouts.reconciliation" data-ai-type="section" data-ai-label={t("title")}>
             <div className="castat__c"><span className="castat__i"><IconCard /></span><b>{som(r.gross)}</b><span>{t("gross")}</span></div>
@@ -55,9 +63,10 @@ export default function AdminPayouts() {
 
       <div className="ppanel">
         <div className="ppanel__h"><b>{t("listTitle")}</b><span className="advmuted">{list.data.length}</span></div>
-        {err ? <Notice ok={false} msg={err} /> : null}
         {list.status === "loading" ? (
           <Skeleton rows={3} />
+        ) : list.status === "error" ? (
+          <ErrorState error={list.error} onRetry={list.refresh} />
         ) : !list.data.length ? (
           <EmptyState icon={<IconCard />} title={t("empty")} text={t("emptyText")} />
         ) : (
@@ -79,7 +88,7 @@ export default function AdminPayouts() {
                 <div className="aitem__r" style={{ display: "flex", gap: 8, alignItems: "center" }} data-ai-target="payouts:item-actions">
                   <span className={`creq__badge payout__st payout__st--${p.status}`}>{t.has(`status.${p.status}`) ? t(`status.${p.status}`) : p.status}</span>
                   {p.status !== "paid" ? (
-                    <button className="btn btn--pri btn--sm" type="button" disabled={busy === p.id} onClick={() => mark(p.id, "paid")} data-ai-target="button:mark-paid" data-ai-id={p.id ? aiId("admin.payouts.item", p.id, "mark-paid") : undefined}>{t("markPaid")}</button>
+                    <button className="btn btn--pri btn--sm" type="button" disabled={busy === p.id} onClick={() => mark(p.id, "paid", `${som(p.sellerShare)} ${p.currency}`)} data-ai-target="button:mark-paid" data-ai-id={p.id ? aiId("admin.payouts.item", p.id, "mark-paid") : undefined}>{t("markPaid")}</button>
                   ) : null}
                 </div>
               </div>

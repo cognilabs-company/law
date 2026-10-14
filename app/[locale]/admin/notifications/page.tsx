@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { listAdminUsers, type AdminUser } from "@/lib/services/users";
 import { useResource } from "@/lib/useResource";
@@ -12,7 +12,11 @@ import { useAiReveal } from "@/lib/guide/targets";
 import { useAiSelection } from "@/lib/ai/registry";
 import Select from "@/components/Select";
 import FilterBar from "@/components/filters/FilterBar";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import FieldError from "@/components/ui/FieldError";
+import InlineAlert from "@/components/ui/InlineAlert";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { Skeleton } from "@/components/portal/DataState";
 import { DeliveryChips } from "@/components/portal/NotificationsPanel";
 import { IconBell, IconCheck, IconSend, IconUsers } from "@/components/icons";
@@ -34,6 +38,8 @@ export default function AdminNotifications() {
   const t = useTranslations("admin");
   const tn = useTranslations("admin.notifications");
   const tp = useTranslations("portal.notifications");
+  const tc = useTranslations("common");
+  const uid = useId();
 
   const [mode, setMode] = useState<SendMode>("individual");
   useAiReveal("notifications:recipients", () => setMode("individual"));
@@ -60,10 +66,11 @@ export default function AdminNotifications() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
 
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [bad, setBad] = useState<{ title?: boolean; body?: boolean; recipients?: boolean }>({});
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [summary, setSummary] = useState<SendSummary | null>(null);
   const stopRef = useRef(false);
+  const askRef = useRef(false);
 
   const selectedInRole = (r: RoleTab) => [...selected.values()].filter((u) => r === "all" || u.role === r).length;
   const roleOpts = ROLE_TABS.map((r) => {
@@ -92,9 +99,10 @@ export default function AdminNotifications() {
 
   async function send(e: FormEvent) {
     e.preventDefault();
-    if (progress) return;
+    if (progress || askRef.current) return;
     if (!title.trim() || !body.trim()) {
-      setNote({ ok: false, msg: t("form.error") });
+      setBad((b) => ({ ...b, title: !title.trim(), body: !body.trim() }));
+      document.getElementById(`${uid}-${title.trim() ? "body" : "title"}`)?.focus();
       return;
     }
     // A broadcast reaches an entire role in one shot — a much bigger blast
@@ -102,9 +110,16 @@ export default function AdminNotifications() {
     // instead of firing on the same single click.
     if (mode === "broadcast") {
       const roleName = tn(`roles.${broadcastRole}`);
-      if (typeof window !== "undefined" && !window.confirm(tn("broadcastConfirm", { role: roleName }))) return;
+      askRef.current = true;
+      const ok = await confirmDialog({
+        title: tn("broadcastAsk", { role: roleName }),
+        text: tn("broadcastAskText", { role: roleName }),
+        confirmLabel: tn("broadcastAskOk"),
+      }).finally(() => {
+        askRef.current = false;
+      });
+      if (!ok) return;
     }
-    setNote(null);
     setSummary(null);
     stopRef.current = false;
 
@@ -116,13 +131,13 @@ export default function AdminNotifications() {
         const r = await sendAdminNotification({ audienceRole: broadcastRole, channel, title: title.trim(), body: body.trim(), category });
         setProgress(null);
         setSummary({ results: [{ id: broadcastRole, name: roleName, ok: true, deliveries: r.deliveries }], stopped: false });
-        setNote({ ok: true, msg: tn("resultOk", { n: 1 }) });
+        notify.success(tn("broadcastSent", { role: roleName }), { id: "admin-notif-send" });
         setTitle("");
         setBody("");
-      } catch {
+      } catch (err) {
         setProgress(null);
         setSummary({ results: [{ id: broadcastRole, name: roleName, ok: false, deliveries: [] }], stopped: false });
-        setNote({ ok: false, msg: t("form.error") });
+        notify.error(tn("broadcastFailed", { role: roleName }), { id: "admin-notif-send", error: err });
       }
       return;
     }
@@ -131,14 +146,17 @@ export default function AdminNotifications() {
     const manual = manualId.trim();
     if (manual && !recipients.some((r) => r.id === manual)) recipients.push({ id: manual, name: manual });
     if (!recipients.length) {
-      setNote({ ok: false, msg: tn("noRecipients") });
+      setBad((b) => ({ ...b, recipients: true }));
+      document.getElementById(`${uid}-recipients`)?.scrollIntoView({ block: "nearest" });
       return;
     }
+    setBad((b) => (b.recipients ? { ...b, recipients: false } : b));
     const total = recipients.length;
     setProgress({ done: 0, total });
     const results: RecipientResult[] = [];
     let done = 0;
     let idx = 0;
+    let lastError: unknown;
     // Fan out one POST per recipient (the endpoint takes a single user_id),
     // keeping every recipient's own outcome — not just whichever request
     // happened to resolve last — so the result list below can show exactly
@@ -151,7 +169,8 @@ export default function AdminNotifications() {
         try {
           const res = await sendAdminNotification({ userId: r.id, channel, title: title.trim(), body: body.trim(), category });
           results.push({ id: r.id, name: r.name, ok: true, deliveries: res.deliveries });
-        } catch {
+        } catch (err) {
+          lastError = err;
           results.push({ id: r.id, name: r.name, ok: false, deliveries: [] });
         }
         done += 1;
@@ -164,9 +183,10 @@ export default function AdminNotifications() {
     const failCount = results.length - okCount;
     setProgress(null);
     setSummary({ results, stopped });
-    if (stopped) setNote({ ok: failCount === 0, msg: tn("stopped", { done, total }) });
-    else if (!failCount) setNote({ ok: true, msg: tn("resultOk", { n: okCount }) });
-    else setNote({ ok: false, msg: tn("resultPartial", { ok: okCount, fail: failCount }) });
+    if (stopped) (failCount ? notify.warning : notify.info)(tn("stopped", { done, total }), { id: "admin-notif-send" });
+    else if (!failCount) notify.success(tn("resultOk", { n: okCount }), { id: "admin-notif-send" });
+    else if (!okCount) notify.error(tn("resultNone"), { id: "admin-notif-send", error: lastError });
+    else notify.warning(tn("resultPartial", { ok: okCount, fail: failCount }), { id: "admin-notif-send", body: tn("resultPartialBody") });
     if (okCount && !stopped && !failCount) {
       setTitle("");
       setBody("");
@@ -179,20 +199,22 @@ export default function AdminNotifications() {
   const chOpts = CHANNELS.map((c) => ({ value: c, label: t(`notifications.${c}`) }));
   const broadcastRoleOpts = BROADCAST_ROLES.map((r) => ({ value: r, label: tn(`roles.${r}`) }));
   const pct = progress ? Math.round((progress.done / Math.max(1, progress.total)) * 100) : 0;
+  const noRecipients = Boolean(bad.recipients) && !selected.size && !manualId.trim();
+  const recErrId = `${uid}-recipients-err`;
 
   return (
     <div className="ppanel" style={{ maxWidth: 760 }}>
       <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconBell /></span>{t("notifications.title")}</b></div>
       <p className="ppanel__note">{t("notifications.lead")}</p>
 
-      <div className="segs segs--sm" role="tablist" aria-label={tn("mode")} style={{ marginBottom: 14 }} data-ai-target="notifications:mode">
+      <ScrollCue className="segs segs--sm" role="tablist" aria-label={tn("mode")} style={{ marginBottom: 14 }} data-ai-target="notifications:mode">
         <button type="button" role="tab" className="seg" aria-selected={mode === "individual"} onClick={() => setMode("individual")}>
           {tn("modeIndividual")}
         </button>
         <button type="button" role="tab" className="seg" aria-selected={mode === "broadcast"} onClick={() => setMode("broadcast")}>
           {tn("modeBroadcast")}
         </button>
-      </div>
+      </ScrollCue>
 
       {mode === "broadcast" ? (
         <section className="nrcp" aria-label={tn("broadcastRole")} data-ai-target="notifications:broadcast-role">
@@ -202,7 +224,7 @@ export default function AdminNotifications() {
         </section>
       ) : (
       /* Recipients: role tabs → searchable checkbox list (GET /admin/users?role=). */
-      <section className="nrcp" aria-label={tn("recipients")} data-ai-target="notifications:recipients">
+      <section id={`${uid}-recipients`} className="nrcp" aria-label={tn("recipients")} data-ai-target="notifications:recipients">
         <div className="nrcp__lbl">{tn("recipients")}</div>
         <p className="nrcp__hint">{tn("recipientsHint")}</p>
         <FilterBar
@@ -223,11 +245,13 @@ export default function AdminNotifications() {
         {users.status === "loading" ? (
           <Skeleton rows={3} />
         ) : users.status === "error" ? (
-          <Notice ok={false} msg={tn("usersError")} />
+          <InlineAlert tone="error" compact action={{ label: tc("retry"), onClick: users.refresh }}>
+            {tn("usersError")}
+          </InlineAlert>
         ) : !users.data.length ? (
           <p className="advmuted">{tn("noUsers")}</p>
         ) : (
-          <div className="nrcp__list" role="group" aria-label={tn("recipients")}>
+          <div className="nrcp__list" role="group" aria-label={tn("recipients")} aria-describedby={noRecipients ? recErrId : undefined}>
             {users.data.map((u) => {
               const on = selected.has(u.id);
               return (
@@ -253,8 +277,9 @@ export default function AdminNotifications() {
             or you may already know their id. */}
         <details className="nrcp__manual">
           <summary>{tn("manualId")}</summary>
-          <input value={manualId} onChange={(e) => setManualId(e.target.value)} placeholder={tn("manualIdPh")} aria-label={tn("manualId")} />
+          <input value={manualId} onChange={(e) => setManualId(e.target.value)} placeholder={tn("manualIdPh")} aria-label={tn("manualId")} aria-invalid={noRecipients || undefined} aria-describedby={noRecipients ? recErrId : undefined} />
         </details>
+        <FieldError id={recErrId} msg={noRecipients ? tn("noRecipients") : null} />
       </section>
       )}
 
@@ -271,14 +296,34 @@ export default function AdminNotifications() {
         </div>
         <p className="advmuted nrcp__catnote">{tn("categoryNote")}</p>
         <div>
-          <label>{t("form.title")}</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} />
+          <label htmlFor={`${uid}-title`}>{t("form.title")}</label>
+          <input
+            id={`${uid}-title`}
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setBad((b) => (b.title ? { ...b, title: false } : b));
+            }}
+            aria-invalid={bad.title || undefined}
+            aria-describedby={bad.title ? `${uid}-title-err` : undefined}
+          />
+          <FieldError id={`${uid}-title-err`} msg={bad.title ? tc("required") : null} />
         </div>
         <div>
-          <label>{t("notifications.body")}</label>
-          <textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} />
+          <label htmlFor={`${uid}-body`}>{t("notifications.body")}</label>
+          <textarea
+            id={`${uid}-body`}
+            rows={3}
+            value={body}
+            onChange={(e) => {
+              setBody(e.target.value);
+              setBad((b) => (b.body ? { ...b, body: false } : b));
+            }}
+            aria-invalid={bad.body || undefined}
+            aria-describedby={bad.body ? `${uid}-body-err` : undefined}
+          />
+          <FieldError id={`${uid}-body-err`} msg={bad.body ? tc("required") : null} />
         </div>
-        {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
         {progress ? (
           <div className="nsend" role="status">
             <span className="nsend__bar"><i style={{ width: `${pct}%` }} /></span>

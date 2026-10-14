@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentType, type SVGProps, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -41,11 +41,12 @@ import { normalizeSearchText } from "@/lib/searchText";
 import { useIsFreeAiTier } from "@/lib/useAiTier";
 import { fmtUzs } from "@/lib/money";
 import { initials, humanizeSlug } from "@/lib/lawyers";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import Select from "@/components/Select";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import Modal from "@/components/admin/Modal";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
 import { evalBusinessHours, responseDeadline, deadlineLabel } from "@/lib/businessHours";
 import { getBusinessHours, DEFAULT_BUSINESS_HOURS } from "@/lib/services/backend";
 import {
@@ -304,7 +305,7 @@ export default function ClientServices() {
   const te = useTranslations("enums");
   const locale = useLocale();
   const router = useRouter();
-  const tc = useTranslations("portal.common");
+  const tn = useTranslations("common.notify");
   // Next.js's own query-param hook, not a hand-rolled `window.location.search`
   // read: this page only ever mounts client-side (PortalShell withholds
   // `children` until auth is ready — see its own `!ready || !session` guard),
@@ -408,6 +409,7 @@ export default function ClientServices() {
   const SERVICES_PAGE_LIMIT = 500;
   const [svcPages, setSvcPages] = useState<BackendService[]>([]);
   const [svcStatus, setSvcStatus] = useState<"loading" | "ready" | "error">("ready");
+  const [svcTry, setSvcTry] = useState(0);
   const [prevPageCat, setPrevPageCat] = useState(cat);
   if (cat !== prevPageCat) {
     setPrevPageCat(cat);
@@ -435,7 +437,7 @@ export default function ClientServices() {
     return () => {
       alive = false;
     };
-  }, [cat, locale]);
+  }, [cat, locale, svcTry]);
   const services = { status: svcStatus, data: svcPages };
   // Deep link from the AI intake ("order this service") pre-fills the search.
   // Rendered only client-side (inside the portal shell, after auth is ready).
@@ -469,7 +471,6 @@ export default function ClientServices() {
   // and was told nothing at all. The press is allowed now and the gate lives
   // in buy() below, which marks the list and moves focus into it.
   const [missing, setMissing] = useState<"" | "seller">("");
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [quote, setQuote] = useState<PriceQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
@@ -498,7 +499,7 @@ export default function ClientServices() {
   // download it, Lite/Pro download freely (GM).
   const isFreeTier = useIsFreeAiTier();
   const [dlBusy, setDlBusy] = useState("");
-  const [dlErr, setDlErr] = useState<{ id: string; msg: string } | null>(null);
+  const dlRef = useRef<(s: BackendService) => Promise<void>>(async () => {});
   // LEXGO_MANUAL_DOCUMENT_PLAN_FRONTEND.md: a real, separate entitlement
   // (manual_documents.template_download) from `isFreeTier` above — a client
   // can clear the AI-tier gate and still lack this one. Reacted to as it
@@ -514,7 +515,8 @@ export default function ClientServices() {
   async function handleDownload(s: BackendService) {
     if (isFreeTier) { setAiPlanGateOpen(true); return; }
     if (dlBusy) return;
-    setDlErr(null);
+    const nid = `svc-dl-${s.id}`;
+    const retry = { label: tn("retry"), onClick: () => void dlRef.current(s) };
     setDlBusy(s.id);
     let fields: ServiceDocumentFields | null = null;
     try {
@@ -526,7 +528,7 @@ export default function ClientServices() {
         setPlanGateOpen(true);
         return;
       }
-      setDlErr({ id: s.id, msg: t("downloadError") });
+      notify.error(t("downloadError"), { id: nid, error: e, action: retry });
       return;
     }
     // LEXGO_CLEAN_TEMPLATE_DOWNLOAD_FRONTEND.md: never the marked-up
@@ -536,15 +538,19 @@ export default function ClientServices() {
     // backend hasn't wired the clean file for yet.
     const src = fields.cleanSourceFileUrl || fields.cleanSourceFileInlineUrl || fields.sourceFileUrl || fields.sourceFileInlineUrl;
     if (!fields.hasSourceFile || !src) {
-      setDlErr({ id: s.id, msg: t("downloadError") });
+      notify.error(t("downloadError"), { id: nid });
       setDlBusy("");
       return;
     }
     const name = templateFileName(fields.sourceFileName || "", s.name, fields.sourceMimeType, t("docViewTitle"));
     const ok = await fetchAndDeliver(() => getServiceTemplateSourceFile(src), name, true);
-    if (!ok) setDlErr({ id: s.id, msg: t("downloadError") });
+    if (ok) notify.dismiss(nid);
+    else notify.error(t("downloadError"), { id: nid, action: retry });
     setDlBusy("");
   }
+  useEffect(() => {
+    dlRef.current = handleDownload;
+  });
 
   // ONE search threshold, for both the "are we searching" predicate here and
   // the debounced fetch below. While they were separate the page had a real
@@ -815,7 +821,6 @@ export default function ClientServices() {
       setSellersLoading(true);
       setCands(new Map());
       setSellerId("");
-      setNote(null);
       setQuote(null);
       setPayOrderId(null);
       setMissing("");
@@ -938,7 +943,6 @@ export default function ClientServices() {
     }
     setMissing("");
     setBuying(true);
-    setNote(null);
     try {
       const o = await createOrder({
         service_id: order.id,
@@ -953,7 +957,7 @@ export default function ClientServices() {
       // The backend says why a package order was refused; the client reads
       // that reason, and the list is asked for again since it has changed.
       const code = e instanceof ApiError ? e.code ?? "" : "";
-      setNote({ ok: false, msg: code && t.has(`packageErrors.${code}`) ? t(`packageErrors.${code}`) : t("orderError") });
+      notify.error(code && t.has(`packageErrors.${code}`) ? t(`packageErrors.${code}`) : t("orderError"), { id: `svc-order-${order.id}`, error: e });
       if (packageId && e instanceof ApiError && (e.status === 409 || t.has(`packageErrors.${code}`))) {
         setSellerId("");
         setSellersLoading(true);
@@ -1265,7 +1269,15 @@ export default function ClientServices() {
           // break — reported specifically after a hard refresh, e.g.
           // /services?cat=<id>). Now it says so, same as every other
           // resource load failure in the portal (portal.common.loadError).
-          <EmptyState icon={<IconAlert />} title={tc("loadError")} text={tc("loadErrorText")} />
+          <ErrorState
+            onRetry={() => {
+              if (cats.status === "error") void cats.refresh();
+              if (cat && services.status === "error") {
+                setSvcStatus("loading");
+                setSvcTry((n) => n + 1);
+              }
+            }}
+          />
         ) : showFamilies && allSubcats.length ? (
           // One list of every direction, with the four categories as a filter
           // above it instead of a screen before it.
@@ -1600,7 +1612,6 @@ export default function ClientServices() {
                       </button>
                     ) : null}
                   </div>
-                  {dlErr?.id === s.id ? <p className="svc__err">{dlErr.msg}</p> : null}
                 </div>
               );
             })}
@@ -1745,7 +1756,7 @@ export default function ClientServices() {
                     list and moves focus into it, and the client is never told in
                     words what was wrong. Same sentence-beside-the-control shape
                     as DocumentLawyerAssist. */}
-                {missing === "seller" ? <p className="cform__bad" role="alert">{t("sellerRequired")}</p> : null}
+                <FieldError id="advpick-err" msg={missing === "seller" ? t("sellerRequired") : null} />
               </div>
 
               {afterHours ? (
@@ -1753,7 +1764,6 @@ export default function ClientServices() {
               ) : sellerId ? (
                 <p className="bhnote bhnote--ok" role="status"><IconClock />{t("respondBy", { when: respondBy })}</p>
               ) : null}
-              {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
               {/* Not disabled while the advocate is unpicked: buy() answers the
                   press instead — see `missing`. Only the in-flight request
                   disables it, which is the one state a second press would

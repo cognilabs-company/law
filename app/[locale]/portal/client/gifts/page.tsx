@@ -14,8 +14,8 @@ import {
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
+import { notify } from "@/lib/toast";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconGift, IconPlus, IconCheck, IconArrowRight } from "@/components/icons";
@@ -49,7 +49,6 @@ export default function ClientGifts() {
   const t = useTranslations("portal.client.gifts");
   const tg = useTranslations("portal.client.gifts.statusMap");
   const tcommon = useTranslations("common");
-  const tp = useTranslations("portal.common");
   const locale = useLocale();
   const [reloadKey, setReloadKey] = useState(0);
   const gifts = useResource(() => listGifts(), [reloadKey]);
@@ -67,7 +66,6 @@ export default function ClientGifts() {
   const [hint, setHint] = useState("");
   const [termPick, setTermPick] = useState(6);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [created, setCreated] = useState<GiftResult | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -93,7 +91,6 @@ export default function ClientGifts() {
     setCreated(null);
     setCopied(false);
     setHint("");
-    setNote(null);
     setKind("plan");
     setPlanId("");
     setServiceId("");
@@ -103,12 +100,12 @@ export default function ClientGifts() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const isService = kind === "service";
-    if (busy || (isService ? !chosenService : !chosenPlan)) {
-      setNote({ ok: false, msg: t("error") });
+    if (busy) return;
+    if (isService ? !chosenService : !chosenPlan) {
+      notify.error(t("error"), { id: "gift-create" });
       return;
     }
     setBusy(true);
-    setNote(null);
     let leaving = false; // stay busy while the browser opens the checkout
     try {
       const r = await createGift(
@@ -125,10 +122,8 @@ export default function ClientGifts() {
         window.location.assign(r.paymentUrl);
       }
     } catch (e) {
-      setNote({
-        ok: false,
-        msg: isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("error"),
-      });
+      const unavailable = isProviderUnavailable(e) || isDemoUnavailable(e);
+      notify.error(t("createFailed"), { id: "gift-create", body: unavailable ? tcommon("paymentUnavailable") : undefined, error: unavailable ? undefined : e });
     } finally {
       if (!leaving) setBusy(false);
     }
@@ -240,7 +235,7 @@ export default function ClientGifts() {
 
             {kind === "plan" ? (
               plans.status === "error" ? (
-                <p className="rf__hint">{tp("loadError")}. {tp("loadErrorText")}</p>
+                <ErrorState compact error={plans.error} onRetry={plans.refresh} />
               ) : !giftable.length && plans.status !== "loading" ? (
                 <p className="gift__none">{t("noPlans")}</p>
               ) : (
@@ -298,7 +293,6 @@ export default function ClientGifts() {
               </div>
             ) : null}
 
-            {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
             <button
               className="btn btn--pri btn--full"
               type="submit"

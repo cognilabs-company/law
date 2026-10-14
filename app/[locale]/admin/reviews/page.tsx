@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { listAdminReviews, moderateReview, getAdminReviewDetail, type AdminReviewDetail } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
-import { useReload, Notice } from "@/components/admin/AdminBits";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import { useReload } from "@/components/admin/AdminBits";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
-import { errDetail } from "@/lib/http";
+import { ApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import FilterBar from "@/components/filters/FilterBar";
 import { useAiSelection } from "@/lib/ai/registry";
 import { IconStar, IconCheck, IconClose, IconEye, IconScale } from "@/components/icons";
@@ -22,29 +23,32 @@ function Stars({ n }: { n: number }) {
   );
 }
 
+const transient = (e: unknown) => !(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 501);
+
 type SellerTab = "all" | "advokat" | "yurist";
 const SELLER_TABS: SellerTab[] = ["all", "advokat", "yurist"];
 
 function ReviewDetail({ id, onClose }: { id: string | null; onClose: () => void }) {
   const t = useTranslations("admin.reviews");
   const [d, setD] = useState<AdminReviewDetail | null>(null);
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState<{ error: unknown } | null>(null);
+  const [tick, retry] = useReload();
   useEffect(() => {
     if (!id) return;
     let alive = true;
-    const h = setTimeout(() => { setD(null); setErr(false); }, 0);
+    const h = setTimeout(() => { setD(null); setErr(null); }, 0);
     getAdminReviewDetail(id)
       .then((x) => alive && setD(x))
-      .catch(() => alive && setErr(true));
+      .catch((error: unknown) => alive && setErr({ error }));
     return () => { alive = false; clearTimeout(h); };
-  }, [id]);
+  }, [id, tick]);
   const row = (k: string, v?: string | number | null) => (v === undefined || v === null || v === "" ? null : (
     <div className="dkv__row" key={k}><span>{k}</span><b>{String(v)}</b></div>
   ));
 
   return (
     <Modal open={!!id} onClose={onClose} title={t("detailTitle")}>
-      {err ? <Notice ok={false} msg={t("detailError")} /> : !d ? <Skeleton rows={3} /> : (
+      {err ? <ErrorState title={t("detailError")} error={err.error} onRetry={retry} /> : !d ? <Skeleton rows={3} /> : (
         <div className="dkv">
           <div className="dkv__sect">
             <b>{t("detail.review")}</b>
@@ -84,22 +88,27 @@ function ReviewDetail({ id, onClose }: { id: string | null; onClose: () => void 
 
 export default function AdminReviews() {
   const t = useTranslations("admin.reviews");
+  const tn = useTranslations("common.notify");
   const [key, reload] = useReload();
   const [tab, setTab] = useState<SellerTab>("all");
   const res = useResource(() => listAdminReviews({ sellerType: tab === "all" ? undefined : tab }), [key, tab]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
   useAiSelection("admin_reviews_seller_type", tab === "all" ? "" : tab);
 
-  async function moderate(id: string, status: string) {
+  async function moderate(id: string, status: "approved" | "rejected", name?: string) {
     setBusy(id);
-    setErr(null);
+    const ok = status === "approved";
     try {
       await moderateReview(id, status);
+      notify.success(ok ? t("notify.approved") : t("notify.rejected"), { id: `review-${id}`, body: name || undefined });
       reload();
     } catch (e) {
-      setErr(errDetail(e) || t("error"));
+      notify.error(ok ? t("notify.approveFailed") : t("notify.rejectFailed"), {
+        id: `review-${id}`,
+        error: e,
+        action: transient(e) ? { label: tn("retry"), onClick: () => void moderate(id, status, name) } : undefined,
+      });
     } finally {
       setBusy(null);
     }
@@ -127,9 +136,10 @@ export default function AdminReviews() {
         ]}
       />
 
-      {err ? <Notice ok={false} msg={err} /> : null}
       {res.status === "loading" ? (
         <Skeleton rows={4} />
+      ) : res.status === "error" ? (
+        <ErrorState error={res.error} onRetry={res.refresh} />
       ) : !res.data.length ? (
         <EmptyState icon={<IconStar />} title={t("empty")} text={t("emptyText")} />
       ) : (
@@ -150,8 +160,8 @@ export default function AdminReviews() {
               {r.comment ? <p className="rvw__c">{r.comment}</p> : null}
               {r.status === "pending" ? (
                 <div className="rvw__acts" data-ai-target="reviews:moderation">
-                  <button className="btn btn--pri btn--sm" type="button" disabled={busy === r.id} onClick={() => moderate(r.id, "approved")}><IconCheck />{t("approve")}</button>
-                  <button className="btn btn--line btn--sm" type="button" disabled={busy === r.id} onClick={() => moderate(r.id, "rejected")}><IconClose />{t("reject")}</button>
+                  <button className="btn btn--pri btn--sm" type="button" disabled={busy === r.id} onClick={() => moderate(r.id, "approved", r.lawyerName)}><IconCheck />{t("approve")}</button>
+                  <button className="btn btn--line btn--sm" type="button" disabled={busy === r.id} onClick={() => moderate(r.id, "rejected", r.lawyerName)}><IconClose />{t("reject")}</button>
                 </div>
               ) : null}
             </div>

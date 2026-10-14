@@ -13,7 +13,8 @@ import { isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { isConflict, isForbidden, isProviderUnavailable } from "@/lib/http";
 import { humanizeSlug } from "@/lib/lawyers";
 import { fmtUzs } from "@/lib/money";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import InlineAlert from "@/components/ui/InlineAlert";
 import { IconCheck, IconCard } from "@/components/icons";
 
 // The invoice a checkout just created: amount and status first, then the user
@@ -51,7 +52,7 @@ export function CheckoutIntent({
           {t("proceed")}
         </button>
       ) : (
-        <Notice ok={false} msg={t("noLink")} />
+        <InlineAlert tone="error" compact>{t("noLink")}</InlineAlert>
       )}
       {onCancel ? (
         <button className="rf__link rf__link--muted" type="button" onClick={onCancel} data-ai-id={`${aiId}.cancel`}>{t("cancel")}</button>
@@ -73,7 +74,7 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
   const [busy, setBusy] = useState("");
   const [confirmId, setConfirmId] = useState("");
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const nid = `milestones-${orderId}`;
 
   useEffect(() => {
     let alive = true;
@@ -94,19 +95,19 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
   function fail(e: unknown, fallback: string) {
     if (isForbidden(e)) {
       setReadOnly(true);
-      setNote({ ok: false, msg: t("forbidden") });
+      notify.error(t("forbidden"), { id: nid });
     } else if (isConflict(e)) {
       reload();
-      setNote({ ok: false, msg: t("conflict") });
+      notify.warning(t("conflict"), { id: nid });
     } else {
-      setNote({ ok: false, msg: isProviderUnavailable(e) ? tcommon("paymentUnavailable") : fallback });
+      const unavailable = isProviderUnavailable(e);
+      notify.error(fallback, { id: nid, body: unavailable ? tcommon("paymentUnavailable") : undefined, error: unavailable ? undefined : e });
     }
   }
 
   async function pay(m: OrderMilestone) {
     if (busy) return;
     setBusy(m.id);
-    setNote(null);
     setIntent(null);
     try {
       const r = await payOrderMilestone(orderId, m.id);
@@ -114,7 +115,7 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
         // Staging: the demo provider settles instantly.
         await demoConfirmPayment(r.paymentId).catch(() => null);
         reload();
-        setNote({ ok: true, msg: t("paidDemo") });
+        notify.success(t("paidDemo"), { id: nid });
       } else if (!r.paymentId) {
         // Already paid or released on the server.
         reload();
@@ -131,12 +132,11 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
   async function release(m: OrderMilestone) {
     if (busy) return;
     setBusy(m.id);
-    setNote(null);
     try {
       const next = await releaseOrderMilestone(orderId, m.id);
       setRows((list) => list.map((x) => (x.id === m.id ? { ...x, ...next, id: x.id } : x)));
       setConfirmId("");
-      setNote({ ok: true, msg: t("releasedMsg") });
+      notify.success(t("releasedMsg"), { id: nid });
     } catch (e) {
       setConfirmId("");
       fail(e, t("error"));
@@ -191,7 +191,6 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
         })}
       </ol>
       {confirmId ? <p className="omile__hint">{t("releaseConfirm")}</p> : null}
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {intent ? <CheckoutIntent intent={intent} onCancel={() => { setIntent(null); reload(); }} /> : null}
     </div>
   );

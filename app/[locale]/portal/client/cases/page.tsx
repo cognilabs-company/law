@@ -25,7 +25,7 @@ import { IconClock } from "@/components/icons";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import OrderMilestones from "@/components/portal/OrderMilestones";
 import OrderStatusPanel from "@/components/portal/OrderStatusPanel";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconFileText, IconArrowRight, IconDocLines } from "@/components/icons";
@@ -77,7 +77,6 @@ export default function ClientCases() {
   const [kind, setKind] = useState("refund");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   // Bumped after a replacement request so its status line re-reads the stored id.
   const [replVersion, setReplVersion] = useState(0);
   const [openMilestones, setOpenMilestones] = useState("");
@@ -110,7 +109,7 @@ export default function ClientCases() {
     e.preventDefault();
     if (!target || busy) return;
     setBusy(true);
-    setNote(null);
+    const nid = `case-request-${target.id}`;
     try {
       const payload = { case_id: target.id, order_id: target.orderId, reason: reason.trim() };
       const title = `${target.caseType || target.caseNumber} — ${kind}`;
@@ -127,12 +126,11 @@ export default function ClientCases() {
           setReplVersion((v) => v + 1);
         }
       }
-      setNote({ ok: true, msg: t("requestSent") });
+      notify.success(t("requestSent"), { id: nid });
       setReason("");
-      setTimeout(() => setTarget(null), 1200);
+      setTarget(null);
     } catch (err) {
-      const d = err && typeof err === "object" && "detail" in err ? String((err as { detail?: string }).detail) : "";
-      setNote({ ok: false, msg: d || t("requestError") });
+      notify.error(t("requestError"), { id: nid, error: err });
     } finally {
       setBusy(false);
     }
@@ -221,7 +219,6 @@ export default function ClientCases() {
                         setTarget(c);
                         setKind("refund");
                         setReason("");
-                        setNote(null);
                       }}
                     >
                       {t("requestCta")}
@@ -245,7 +242,6 @@ export default function ClientCases() {
             <label>{t("requestReason")}</label>
             <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("requestReasonPh")} />
           </div>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
             {busy ? t("requestSending") : t("requestSubmit")}
           </button>
@@ -321,20 +317,19 @@ function CaseDocsModal({ target, onClose }: { target: BackendCase | null; onClos
 
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim() || busy || !caseId) return;
     setBusy(true);
-    setNote(null);
+    const nid = `case-doc-${caseId}`;
     try {
       await createCaseDocument({ title: title.trim(), payload: { case_id: caseId } });
       setTitle("");
-      setNote({ ok: true, msg: t("docsAdded") });
+      notify.success(t("docsAdded"), { id: nid });
       setReloadKey((k) => k + 1);
-    } catch {
-      setNote({ ok: false, msg: t("requestError") });
+    } catch (err) {
+      notify.error(t("requestError"), { id: nid, error: err });
     } finally {
       setBusy(false);
     }
@@ -363,7 +358,6 @@ function CaseDocsModal({ target, onClose }: { target: BackendCase | null; onClos
         <form onSubmit={add} style={{ display: "grid", gap: 8, marginTop: 4 }}>
           <label>{t("docsAdd")}</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("docsAddPh")} />
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
             {busy ? t("requestSending") : t("docsAdd")}
           </button>

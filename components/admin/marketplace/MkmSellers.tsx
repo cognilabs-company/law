@@ -5,6 +5,7 @@ import { MKM_PAGE, type MkmPage, type MkmSeller } from "@/lib/services/adminMark
 import { dateOnly, fmtRating } from "@/lib/date";
 import { humanize, regionLabel } from "@/lib/labels";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { IconAlert, IconChevronRight, IconClock, IconClose, IconShieldCheck, IconStar, IconUsers } from "@/components/icons";
 import type { Live } from "./useLive";
 import { Avatar, LoadFailed, Pager, RefreshFailed, useCount, useMoney, useTypeLabel } from "./bits";
@@ -97,7 +98,7 @@ export default function MkmSellers({
       ) : (
         <>
           {live.failed ? <RefreshFailed /> : null}
-          <div className="mkm-tablewrap">
+          <ScrollCue className="mkm-tablewrap">
             <table className="mkm-table mkm-table--sellers">
               <thead>
                 <tr>
@@ -192,7 +193,7 @@ export default function MkmSellers({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollCue>
         </>
       )}
 

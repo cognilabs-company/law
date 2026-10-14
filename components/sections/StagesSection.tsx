@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import ScrollCue from "@/components/ui/ScrollCue";
 
 const KEYS = [
   "preInvestigation",
@@ -30,7 +31,7 @@ export default function StagesSection() {
           <h2 className="h2">{t("title")}</h2>
           <p className="lead">{t("lead")}</p>
         </div>
-        <div className="steps">
+        <ScrollCue arrows className="steps">
           {KEYS.map((k) => (
             <div className="step hit" key={k}>
               <div className="step__l" />
@@ -39,7 +40,7 @@ export default function StagesSection() {
               <p>{te(`stages.${k}.desc`)}</p>
             </div>
           ))}
-        </div>
+        </ScrollCue>
       </div>
     </section>
   );

@@ -9,7 +9,9 @@ import {
   type DocumentRequest,
 } from "@/lib/services/backend";
 import { ApiError, isPaymentRequired, logApiError, errDetail } from "@/lib/http";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
+import InlineAlert from "@/components/ui/InlineAlert";
 import { Link } from "@/i18n/navigation";
 import Select from "@/components/Select";
 import DocumentRequestPanel from "./DocumentRequestPanel";
@@ -155,7 +157,8 @@ export default function NewDocumentOrder({
   const [files, setFiles] = useState<File[]>([]);
   const [voices, setVoices] = useState<VoiceNoteItem[]>([]);
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+  const [mainErr, setMainErr] = useState("");
+  const [attachErr, setAttachErr] = useState("");
   const [planRequired, setPlanRequired] = useState("");
   const [planGateOpen, setPlanGateOpen] = useState(false);
   // The whole answer of the send, not only the request row — past the free
@@ -200,10 +203,10 @@ export default function NewDocumentOrder({
     if (mainRef.current) mainRef.current.value = "";
     if (!f) return;
     if (f.size > MAX_FILE_MB * 1024 * 1024) {
-      setErr(t("fileTooBig", { mb: MAX_FILE_MB }));
+      setMainErr(t("fileTooBig", { mb: MAX_FILE_MB }));
       return;
     }
-    setErr("");
+    setMainErr("");
     setMainFile(f);
     setMissing((m) => (m === "main" ? "" : m));
   }
@@ -243,7 +246,6 @@ export default function NewDocumentOrder({
     }
     setMissing("");
     setBusy(true);
-    setErr("");
     const payload = { need: need.trim(), language: lang, files, voiceFiles: voices.map((v) => v.blob) };
     const title = draftTitle(docType, need);
     try {
@@ -260,13 +262,21 @@ export default function NewDocumentOrder({
             // normDocLawyerSubmit reads a RAW backend dict and would mangle
             // an already-normalised request.
             ungated(await requestCustomDraft({ ...payload, title: title || undefined, requestedDocumentType: docType || undefined }));
+      notify.dismiss("newdoc-send");
+      if (!r.paymentRequired && !r.alreadyExists && r.canSendLawyerRequest) notify.success(t("submitted"), { id: "newdoc-send" });
       setResult(r);
     } catch (e) {
       if (isPaymentRequired(e)) {
+        notify.dismiss("newdoc-send");
         setPlanRequired(errDetail(e) || td("planRequired"));
+      } else if (e instanceof ApiError && e.status === 422) {
+        logApiError(`document-services ${flow}`, e);
+        notify.dismiss("newdoc-send");
+        setMissing("need");
+        document.getElementById("newdoc-need")?.focus();
       } else {
         logApiError(`document-services ${flow}`, e);
-        setErr(e instanceof ApiError && e.status === 422 ? t("needRequired") : t("error"));
+        notify.error(t("sendFailed"), { id: "newdoc-send", error: e });
       }
     } finally {
       setBusy(false);
@@ -278,20 +288,12 @@ export default function NewDocumentOrder({
   if (result)
     return (
       <>
-        {/* MD L124: while the fee is unapproved the request has NOT reached
-            the advocates, so the green "yuborildi" line is withheld and the
-            panel below shows the wait instead — the request itself comes back
-            `payment_required` (MD L112-114) and carries the amount and page
-            breakdown the answer gave, which no later GET can produce. */}
-        {result.paymentRequired || result.alreadyExists || !result.canSendLawyerRequest ? null : (
-          <p className="cform__ok" style={{ margin: "0 0 12px" }}>{t("submitted")}</p>
-        )}
         {/* `already_exists` is the constructor endpoint's own refusal, but it
             travels in the shape all four answers share — and if this one ever
             starts sending it, "yuborildi" above would be a lie. Shown in the
             backend's words rather than invented here. */}
         {result.alreadyExists || !result.canSendLawyerRequest ? (
-          <Notice ok={false} msg={result.message || td("lawyerPendingLead")} />
+          <InlineAlert tone="warn" className="docres__note">{result.message || td("lawyerPendingLead")}</InlineAlert>
         ) : null}
         <DocumentRequestPanel
           key={result.request.id}
@@ -396,8 +398,8 @@ export default function NewDocumentOrder({
           <button
             id="newdoc-main-btn"
             type="button"
-            className={`docpick${missing === "main" ? " is-bad" : ""}`}
-            aria-describedby={missing === "main" ? "newdoc-main-bad" : undefined}
+            className={`docpick${missing === "main" || mainErr ? " is-bad" : ""}`}
+            aria-describedby={missing === "main" || mainErr ? "newdoc-main-bad" : undefined}
             onClick={() => mainRef.current?.click()}
             data-ai-id="documents.create.main-file"
             data-ai-type="file_dropzone"
@@ -410,9 +412,7 @@ export default function NewDocumentOrder({
               <small>{mainFile ? t("mainFileChange") : t("mainFileHint", { mb: MAX_FILE_MB })}</small>
             </span>
           </button>
-          {missing === "main" ? (
-            <p className="cform__bad" role="alert" id="newdoc-main-bad">{t("mainFileRequired")}</p>
-          ) : null}
+          <FieldError id="newdoc-main-bad" msg={missing === "main" ? t("mainFileRequired") : mainErr} />
         </section>
       ) : null}
 
@@ -439,6 +439,7 @@ export default function NewDocumentOrder({
           onChange={(e) => { setNeed(e.target.value); if (e.target.value.trim()) setMissing((m) => (m === "need" ? "" : m)); }}
           placeholder={t("needPlaceholder")}
           aria-invalid={missing === "need" || undefined}
+          aria-describedby={missing === "need" ? "newdoc-need-bad" : undefined}
           className={missing === "need" ? "is-bad" : undefined}
           data-ai-id="documents.create.need"
           data-ai-label={t("needLabel")}
@@ -447,7 +448,7 @@ export default function NewDocumentOrder({
         {/* "described" is satisfied by an attachment or a voice note as well
             as by typing, so the sentence names all three ways out rather than
             only the box it is standing under. */}
-        {missing === "need" ? <p className="cform__bad" role="alert">{t("needRequired")}</p> : null}
+        <FieldError id="newdoc-need-bad" msg={missing === "need" ? t("needRequired") : ""} />
       </section>
 
       <section className="docassist__sec">
@@ -461,10 +462,11 @@ export default function NewDocumentOrder({
           voices={voices}
           onFiles={(f) => { setFiles(f); if (f.length) setMissing((m) => (m === "need" ? "" : m)); }}
           onVoices={(v) => { setVoices(v); if (v.length) setMissing((m) => (m === "need" ? "" : m)); }}
-          onError={setErr}
+          onError={setAttachErr}
           maxFileMb={MAX_FILE_MB}
           maxFiles={MAX_FILES}
         />
+        <FieldError id="newdoc-attach-err" msg={attachErr} />
       </section>
 
       <section className="docassist__sec" data-ai-id="documents.create.language" data-ai-type="select" data-ai-label={t("langHint")}>
@@ -476,8 +478,6 @@ export default function NewDocumentOrder({
           ariaLabel={t("langHint")}
         />
       </section>
-
-      {err ? <Notice ok={false} msg={err} /> : null}
 
       {/* `disabled` used to cover two different things — a form that is not
           filled in yet, and a request that is out. Only the second is a wait

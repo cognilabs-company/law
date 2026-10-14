@@ -5,9 +5,8 @@ import { useTranslations, useLocale } from "next-intl";
 import { getOrderStatusHistory, updateOrderStatus, type OrderStatusEntry } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { nextStatusesFor, useOrderStatusLabel, type OrderSide } from "@/lib/orderStatus";
-import { ApiError } from "@/lib/http";
-import { Skeleton } from "@/components/portal/DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { Skeleton, ErrorState } from "@/components/portal/DataState";
+import { notify } from "@/lib/toast";
 import { IconCheck, IconClock } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
 
@@ -31,21 +30,19 @@ export default function OrderStatusPanel({ orderId, side, status, onChanged }: {
   const next = nextStatusesFor(side, current);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function move(to: string) {
     if (busy) return;
     setBusy(to);
-    setMsg(null);
+    const nid = `order-status-${orderId}`;
     try {
       await updateOrderStatus(orderId, to, note.trim() || undefined);
       setNote("");
-      setMsg({ ok: true, text: t("moved", { status: label(to) }) });
+      notify.success(t("moved", { status: label(to) }), { id: nid });
       setKey((k) => k + 1);
       onChanged?.(to);
     } catch (e) {
-      const conflict = e instanceof ApiError && e.status === 409;
-      setMsg({ ok: false, text: conflict ? t("conflict") : e instanceof ApiError && e.status === 403 ? t("forbidden") : t("error") });
+      notify.error(t("error"), { id: nid, error: e, map: { 409: t("conflict"), 403: t("forbidden") } });
     } finally {
       setBusy(null);
     }
@@ -60,7 +57,7 @@ export default function OrderStatusPanel({ orderId, side, status, onChanged }: {
       {hist.status === "loading" ? (
         <Skeleton rows={2} />
       ) : hist.status === "error" ? (
-        <Notice ok={false} msg={t("loadError")} />
+        <ErrorState compact title={t("loadError")} error={hist.error} onRetry={hist.refresh} />
       ) : !rows.length ? (
         <p className="advmuted">{t("empty")}</p>
       ) : (
@@ -89,7 +86,6 @@ export default function OrderStatusPanel({ orderId, side, status, onChanged }: {
           </div>
         </div>
       ) : null}
-      {msg ? <Notice ok={msg.ok} msg={msg.text} /> : null}
     </div>
   );
 }

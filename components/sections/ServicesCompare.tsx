@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import ScrollCue from "@/components/ui/ScrollCue";
 
 export default function ServicesCompare() {
   const t = useTranslations("servicesPage");
@@ -16,7 +17,7 @@ export default function ServicesCompare() {
           <h2 className="h2">{c.title}</h2>
           <p className="lead">{c.lead}</p>
         </div>
-        <div className="ctable__wrap">
+        <ScrollCue className="ctable__wrap">
           <table className="ctable">
             <thead>
               <tr>
@@ -35,7 +36,7 @@ export default function ServicesCompare() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollCue>
       </div>
     </section>
   );

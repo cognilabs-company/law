@@ -7,7 +7,10 @@ import { useResource } from "@/lib/useResource";
 import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Skeleton } from "./DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
+import InlineAlert from "@/components/ui/InlineAlert";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { fmtUzs } from "@/lib/money";
 import { IconCheck } from "@/components/icons";
 import PlanCard from "./PlanCard";
@@ -55,7 +58,7 @@ export default function ManualDocPlanGate({
   const [planId, setPlanId] = useState("");
   const [period, setPeriod] = useState<ManualDocBillingPeriod>("monthly");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [periodErr, setPeriodErr] = useState("");
   const [sent, setSent] = useState(false);
   // Narrowed by a 422 that named the periods this plan really sells.
   const [only, setOnly] = useState<ManualDocBillingPeriod[] | null>(null);
@@ -76,7 +79,7 @@ export default function ManualDocPlanGate({
     if (open) {
       setPlanId("");
       setPeriod("monthly");
-      setNote(null);
+      setPeriodErr("");
       setSent(false);
       setOnly(null);
     }
@@ -90,9 +93,10 @@ export default function ManualDocPlanGate({
   async function submit() {
     if (!planId || busy) return;
     setBusy(true);
-    setNote(null);
+    setPeriodErr("");
     try {
       await requestPlanTelegramPurchase(planId, effPeriod);
+      notify.dismiss("mdpg-request");
       setSent(true);
     } catch (e) {
       // The plan refused that billing period and named the ones it takes:
@@ -102,9 +106,10 @@ export default function ManualDocPlanGate({
       if (allowed.length) {
         setOnly(allowed);
         setPeriod(allowed[0]);
-        setNote({ ok: false, msg: t("planPeriodRefused") });
+        setPeriodErr(t("planPeriodRefused"));
+        notify.dismiss("mdpg-request");
       } else {
-        setNote({ ok: false, msg: t("planRequestError") });
+        notify.error(t("planRequestError"), { id: "mdpg-request", error: e });
       }
     } finally {
       setBusy(false);
@@ -117,9 +122,7 @@ export default function ManualDocPlanGate({
         <p className="advmuted" style={{ margin: 0 }}>{message || t("planGateLead")}</p>
 
         {sent ? (
-          <p className="cform__ok">
-            <IconCheck style={{ width: 16, height: 16 }} /> {t("planRequestSent")}
-          </p>
+          <InlineAlert tone="success" role="status">{t("planRequestSent")}</InlineAlert>
         ) : plans.status === "loading" ? (
           <Skeleton rows={3} />
         ) : !qualifying.length ? (
@@ -167,16 +170,16 @@ export default function ManualDocPlanGate({
 
             <div>
               <label>{t("choosePeriod")}</label>
-              <div className="chiprow" style={{ margin: "4px 0 0" }}>
+              <ScrollCue arrows className="chiprow" style={{ margin: "4px 0 0" }} role="group" aria-label={t("choosePeriod")} aria-describedby={periodErr ? "mdpg-period-err" : undefined}>
                 {periods.map((pr) => (
                   <button key={pr} type="button" className="fchip" aria-pressed={effPeriod === pr} onClick={() => setPeriod(pr)}>
                     {t(`period_${pr}`)}
                   </button>
                 ))}
-              </div>
+              </ScrollCue>
+              <FieldError id="mdpg-period-err" msg={periodErr} />
             </div>
 
-            {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
             <button className="btn btn--grad btn--full btn--lg" type="button" onClick={submit} disabled={!planId || busy}>
               {busy ? t("processingShort") : t("planRequestSubmit")}
             </button>

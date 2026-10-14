@@ -3,7 +3,7 @@
 import { useId, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { contactBlockedOf } from "@/lib/http";
-import { errorText } from "@/lib/errorText";
+import { notify } from "@/lib/toast";
 import { humanize } from "@/lib/labels";
 import {
   COMPLAINT_CATEGORIES,
@@ -18,7 +18,6 @@ import {
   type WorkRef,
 } from "@/lib/services/complaints";
 import Select from "@/components/Select";
-import { Notice } from "@/components/admin/AdminBits";
 import ContactBlockedNote from "@/components/ContactBlockedNote";
 import { IconAlert, IconBell, IconRefresh, IconSend } from "@/components/icons";
 import { CategoryIcon } from "./bits";
@@ -90,7 +89,6 @@ export default function NewComplaintForm({
     problems.description === "required" ? t("descRequired") : problems.description === "short" ? t("v.descShort", { min: DESC_MIN }) : "";
   const target = works.status === "ready" ? findWorkRef(works.items, draft.related) : null;
   const blocked = err ? contactBlockedOf(err) : null;
-  const serverMsg = err && !blocked ? errorText(err, tc) : "";
   const workType = (type: string) => (type && tw.has(`type.${type}`) ? tw(`type.${type}`) : humanize(type));
   const set = (patch: Partial<ComplaintDraft>) => onDraft((cur) => ({ ...cur, ...patch }));
   const descDescribedBy = [ids.descHint, descMsg ? ids.descErr : "", ids.descCount].filter(Boolean).join(" ");
@@ -121,9 +119,15 @@ export default function NewComplaintForm({
         description: draft.description.trim(),
         relatedRef: target ? workRefValue(target) : "",
       });
+      notify.dismiss("complaint-new");
       onCreated(created);
     } catch (failure) {
-      setErr(failure);
+      if (contactBlockedOf(failure)) {
+        notify.dismiss("complaint-new");
+        setErr(failure);
+      } else {
+        notify.error(t("sendFailed"), { id: "complaint-new", error: failure });
+      }
       setBusy(false);
     }
   }
@@ -264,11 +268,6 @@ export default function NewComplaintForm({
       </div>
 
       {blocked ? <ContactBlockedNote error={err} /> : null}
-      {serverMsg ? (
-        <div role="alert">
-          <Notice ok={false} msg={serverMsg} />
-        </div>
-      ) : null}
 
       <p className="shkf__assure">
         <IconBell aria-hidden />

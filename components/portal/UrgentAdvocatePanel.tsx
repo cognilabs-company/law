@@ -27,7 +27,7 @@ import {
   type UrgentCreated,
 } from "@/lib/services/backend";
 import { subscribeUserEvents, onUserSocketResync, type UserEvent } from "@/lib/userSocket";
-import { asDict, asStr, contactBlockedOf, errDetail, logApiError } from "@/lib/http";
+import { asDict, asStr, errDetail, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { dateTimeFull } from "@/lib/date";
 import { statusLabel } from "@/lib/labels";
@@ -37,8 +37,9 @@ import CallRoom from "@/components/chat/CallRoom";
 import { useAiReveal } from "@/lib/guide/targets";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
+import { Skeleton, EmptyState, ErrorState } from "./DataState";
+import { notify } from "@/lib/toast";
 import { profileTabHref } from "@/lib/profileTabs";
-import { Skeleton, EmptyState } from "./DataState";
 // The five-point star the rating rows draw. It is not in components/icons.tsx
 // because it carries pathLength="360" for the dashed idle animation, and that
 // attribute belongs to the rating widgets rather than to every caller of a
@@ -53,7 +54,6 @@ import { RateStar } from "./DocRatingBox";
 // sees while an urgent request is out is the same mark they saw while a
 // document request was out.
 import NewDocumentOrder, { WaitClock } from "./NewDocumentOrder";
-import { Notice } from "@/components/admin/AdminBits";
 import {
   IconVideo,
   IconChat,
@@ -200,6 +200,7 @@ export default function UrgentAdvocatePanel() {
 
   const [cat, setCat] = useState<UrgentCatalog | null>(null);
   const [catState, setCatState] = useState<"loading" | "ready" | "error">("loading");
+  const [catKey, setCatKey] = useState(0);
   const [mine, setMine] = useState<UrgentRequest[]>([]);
   const [mineState, setMineState] = useState<"loading" | "ready" | "error">("loading");
   const [reload, setReload] = useState(0);
@@ -240,18 +241,12 @@ export default function UrgentAdvocatePanel() {
   const [dirs, setDirs] = useState<string[]>([]);
   const [need, setNeed] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   // Which required field blocked the last press, "" when none did. The send
   // is NOT disabled for these — see submit(). Cleared the moment the client
   // fixes what it names. Same shape as the consent gate in
   // components/portal/DocumentLawyerAssist.tsx, deliberately: one press must
   // not produce two different vocabularies for "fill this in".
   const [miss, setMiss] = useState<"" | "dirs" | "need">("");
-  // A failed POST, shown INSIDE the dialog. It used to go to the page-level
-  // banner, which would now be behind a dialog the client is still standing
-  // in — and closing the dialog to show it would throw away everything they
-  // typed just to say "try again".
-  const [formErr, setFormErr] = useState("");
   // The 402 second-opinion refusal, as its own modal rather than an inline
   // line — see the gate component below.
   const [gate, setGate] = useState("");
@@ -267,7 +262,7 @@ export default function UrgentAdvocatePanel() {
       .then((c) => { if (alive) { setCat(c); setCatState("ready"); } })
       .catch((e) => { if (alive) { logApiError("urgent catalog", e); setCatState("error"); } });
     return () => { alive = false; };
-  }, []);
+  }, [catKey]);
 
   useEffect(() => {
     let alive = true;
@@ -305,7 +300,7 @@ export default function UrgentAdvocatePanel() {
         setOpIds((cur) => (ids.every((id) => cur.includes(id)) ? cur : [...new Set([...cur, ...ids])]));
         if (assist) setFresh(ids[0]);
       }
-      if (assist) setNote({ ok: true, msg: t("opCreated") });
+      if (assist) notify.success(t("opCreated"), { id: "urgent-op-created", body: t("sentNext") });
       soon();
     });
     const offSync = onUserSocketResync(() => again.current());
@@ -381,10 +376,8 @@ export default function UrgentAdvocatePanel() {
   // that was meant to re-open the order was simply a dead press.
   function choose(s: UrgentService) {
     setPick(s.key);
-    setNote(null);
     setGate("");
     setMiss("");
-    setFormErr("");
     if (s.key === GROUP) setLawyers(Math.max(s.lawyerCountMin || 2, 3));
   }
 
@@ -427,9 +420,7 @@ export default function UrgentAdvocatePanel() {
     }
     setMiss("");
     setBusy(true);
-    setNote(null);
     setGate("");
-    setFormErr("");
     try {
       const created = await createUrgentRequest({
         serviceKind: sel.key,
@@ -449,6 +440,7 @@ export default function UrgentAdvocatePanel() {
       // commit that mounts CallRoom, rather than a call opening behind a
       // dialog that is still holding the page's scroll.
       setStep("");
+      notify.dismiss("urgent-order-failed");
       setFresh(created.request.id);
       setReload((k) => k + 1);
       if (created.immediateCall && created.call) {
@@ -473,13 +465,13 @@ export default function UrgentAdvocatePanel() {
         // this case in `message`; it is preferred over ours whenever it sent
         // one. (Reasoned, not observed: reaching it needs a POST with every
         // on-duty advocate busy, which a read-only probe cannot arrange.)
-        setNote({ ok: true, msg: created.message || t("noDutyLawyer") });
+        notify.warning(t("queuedTitle"), { id: "urgent-order", body: created.message || t("noDutyLawyer"), duration: 10000 });
         return;
       }
       // Only the immediate-call branch above prefers the backend's sentence:
       // the express MD names `message` for that one case, and an ordinary
       // queued order has a better Uzbek line of its own here.
-      setNote({ ok: true, msg: t("sent") });
+      notify.success(t("sent"), { id: "urgent-order", body: t("sentNext") });
     } catch (e) {
       if (isPriorPurchaseRequired(e)) {
         // The gate is a Modal of its own and its whole job is to send the
@@ -492,7 +484,7 @@ export default function UrgentAdvocatePanel() {
         return;
       }
       logApiError("urgent request", e);
-      setFormErr(errDetail(e) || t("sendError"));
+      notify.error(t("sendError"), { id: "urgent-order-failed", error: e });
     } finally {
       setBusy(false);
     }
@@ -598,24 +590,11 @@ export default function UrgentAdvocatePanel() {
         ) : null}
       </header>
 
-      {note ? (
-        <div className={`uadone${note.ok ? " uadone--ok" : " uadone--err"}`} role="status">
-          <span className="uadone__i" aria-hidden>{note.ok ? <IconCheck /> : <IconAlert />}</span>
-          <div>
-            <b>{note.msg}</b>
-            {note.ok ? <span>{t("sentNext")}</span> : null}
-          </div>
-          <button type="button" className="uadone__x" onClick={() => setNote(null)} aria-label={tcm("close")}>
-            <IconClose />
-          </button>
-        </div>
-      ) : null}
-
       {/* ── The four services ─────────────────────────────────────── */}
       {catState === "loading" ? (
         <Skeleton rows={4} />
       ) : catState === "error" ? (
-        <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
+        <ErrorState onRetry={() => { setCatState("loading"); setCatKey((k) => k + 1); }} />
       ) : (
         <div className="ua__grid" data-ai-target="section:urgent-services" data-ai-id="urgent_advokat.services" data-ai-type="section">
           {cards.map((card) => {
@@ -780,7 +759,7 @@ export default function UrgentAdvocatePanel() {
         {mineState === "loading" ? (
           <Skeleton rows={2} />
         ) : mineState === "error" ? (
-          <EmptyState icon={<IconAlert />} title={tcm("loadError")} text={tcm("loadErrorText")} />
+          <ErrorState onRetry={() => { setMineState("loading"); setReload((k) => k + 1); }} compact />
         ) : !mine.length ? (
           <EmptyState icon={<IconBolt />} title={t("mineEmpty")} text={t("mineEmptyText")} />
         ) : (
@@ -1177,10 +1156,6 @@ export default function UrgentAdvocatePanel() {
                 ) : null}
                 {sel.supportsFiles || sel.supportsVoice ? <p className="ua__next ua__next--muted"><IconChat />{t("filesInChat")}</p> : null}
               </div>
-
-              {/* A failed POST belongs in the dialog the client is standing
-                  in, beside the form that produced it. */}
-              {formErr ? <Notice ok={false} msg={formErr} /> : null}
             </div>
 
             {/* Pinned, because at 400×860 the filled fields measured 787.8px
@@ -1262,7 +1237,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   // Shared with the document rating window, which is why the five words for
   // one..five stars live in their own namespace instead of once per widget.
   const tr = useTranslations("portal.client.rate");
-  const tcb = useTranslations("common");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   // WHICH request is out, not merely that one is. The rating window and the
   // cancel confirmation can both be on screen at once (a completed request
@@ -1275,7 +1250,6 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   // together — two POSTs about one request must not race — but only the one
   // actually in flight wears the wait.
   const [busy, setBusy] = useState<"" | "rate" | "cancel">("");
-  const [err, setErr] = useState("");
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
   // The 15-minute rating window the backend opens on completion.
@@ -1296,7 +1270,6 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   // the 409 the backend answers ("Muddati o'tsa 409", FULL_DOCS §39) shows
   // the closed card below instead.
   const [rClosed, setRClosed] = useState(false);
-  const [rErr, setRErr] = useState("");
   // Ticks the countdown, from a timer callback — never from an effect body.
   const [now, setNow] = useState(() => Date.now());
 
@@ -1335,18 +1308,19 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   async function rate() {
     if (!stars || busy) return;
     setBusy("rate");
-    setRErr("");
+    const nid = `urgent-rate-${req.id}`;
     try {
       setRQc(await rateUrgentRequest(req.id, stars, rComment.trim(), rComplaint));
       setRDone(true);
+      notify.dismiss(nid);
     } catch (e) {
       // Already rated, or the window has closed — both are 409 and both are
       // an answer, not a failure. They are not the SAME answer, though, and
       // `rating.submitted` is what tells them apart: without a rating on the
       // record the 409 can only mean the fifteen minutes are up.
-      if (isRatingClosed(e)) { if (req.rating.submitted) setRDone(true); else setRClosed(true); return; }
+      if (isRatingClosed(e)) { notify.dismiss(nid); if (req.rating.submitted) setRDone(true); else setRClosed(true); return; }
       logApiError("urgent rating", e);
-      setRErr(contactBlockedOf(e) ? tcb("contactBlocked") : errDetail(e) || t("rateError"));
+      notify.error(t("rateError"), { id: nid, error: e, action: { label: tn("retry"), onClick: () => void rate() } });
     } finally {
       setBusy("");
     }
@@ -1355,13 +1329,15 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   async function cancel() {
     if (busy) return;
     setBusy("cancel");
-    setErr("");
+    const nid = `urgent-cancel-${req.id}`;
     try {
       await cancelUrgentRequest(req.id, reason.trim() || t("cancelDefaultReason"));
+      const kind = t.has(`kinds.${req.serviceKind}`) ? t(`kinds.${req.serviceKind}`) : req.serviceTitle || req.serviceKind;
+      notify.success(t("cancelledTitle"), { id: nid, body: [kind, req.workId].filter(Boolean).join(" · ") || undefined });
       onCancelled();
     } catch (e) {
       logApiError("urgent cancel", e);
-      setErr(errDetail(e) || t("cancelError"));
+      notify.error(t("cancelError"), { id: nid, error: e });
     } finally {
       setBusy("");
     }
@@ -1464,7 +1440,6 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
               <small>{tr("lowHint")}</small>
             </div>
           ) : null}
-          {rErr ? <Notice ok={false} msg={rErr} /> : null}
           <button type="button" className="btn btn--grad btn--sm" disabled={!stars || !!busy} aria-busy={busy === "rate" || undefined} onClick={() => void rate()} data-ai-id="urgent_advokat.rating.submit">
             {busy === "rate" ? <WaitClock /> : null}
             {busy === "rate" ? t("sending") : t("rateSubmit")}
@@ -1535,7 +1510,6 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
         </div>
       ) : null}
 
-      {err ? <Notice ok={false} msg={err} /> : null}
       {canCancel ? (
         asking ? (
           <div className="uamore__cancel">

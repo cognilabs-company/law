@@ -9,6 +9,7 @@ import { fmtRating } from "@/lib/date";
 import { getOwnerDashboard, type OrgWorkItem, type OwnerDashboard as Dash } from "@/lib/services/orgOwner";
 import { IconBolt, IconBriefcase, IconChevronLeft, IconList, IconRefresh, IconShieldCheck, IconTag, IconUsers } from "@/components/icons";
 import Select from "@/components/Select";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { useAiReveal } from "@/lib/guide/targets";
@@ -126,7 +127,7 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
         ) : !data.members.length ? (
           <p className="advmuted">{t("noMembers")}</p>
         ) : (
-          <div className="otable" role="table" data-ai-id="organization.dashboard.members.table" data-ai-type="table" data-ai-label={t("membersTitle")}>
+          <ScrollCue className="otable" role="table" data-ai-id="organization.dashboard.members.table" data-ai-type="table" data-ai-label={t("membersTitle")}>
             <div className="otable__r otable__r--h" role="row">
               {["name", "role", "sellerType", "region", "verification", "rating", "orders", "cases", "urgent"].map((c) => (
                 <span key={c} role="columnheader">
@@ -165,7 +166,7 @@ export default function OwnerDashboard({ orgId }: { orgId: string }) {
                 <span role="cell" data-l={t("col.urgent")} className="otable__n">{m.workload.urgentRequests}</span>
               </button>
             ))}
-          </div>
+          </ScrollCue>
         )}
       </section>
 

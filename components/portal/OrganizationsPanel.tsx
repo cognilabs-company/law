@@ -13,8 +13,9 @@ import {
 import { useResource } from "@/lib/useResource";
 import { useAuth } from "@/lib/auth";
 import { Link } from "@/i18n/navigation";
-import { Skeleton, EmptyState } from "./DataState";
-import { AdminForm, AdminItem, UserSelect, Notice, useReload } from "@/components/admin/AdminBits";
+import { Skeleton, EmptyState, ErrorState } from "./DataState";
+import { AdminForm, AdminItem, UserSelect, useReload } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
 import Modal from "@/components/admin/Modal";
 import { IconBriefcase, IconBuilding, IconChartBar, IconPlus, IconUsers } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
@@ -32,10 +33,11 @@ export default function OrganizationsPanel() {
   const [membersOrg, setMembersOrg] = useState<Organization | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [mLoading, setMLoading] = useState(false);
+  const [mErr, setMErr] = useState<unknown>(null);
+  const [mTry, setMTry] = useState(0);
   const [uid, setUid] = useState("");
   const [title, setTitle] = useState("");
   const [mBusy, setMBusy] = useState(false);
-  const [mNote, setMNote] = useState<{ ok: boolean; msg: string } | null>(null);
   useAiModal("organization.create-modal", () => setCreateOpen(true));
 
   // Reset the members form when another organization is opened (during render,
@@ -45,7 +47,7 @@ export default function OrganizationsPanel() {
     setPrevOrg(membersOrg);
     if (membersOrg) {
       setMLoading(true);
-      setMNote(null);
+      setMErr(null);
       setUid("");
       setTitle("");
     }
@@ -53,27 +55,40 @@ export default function OrganizationsPanel() {
 
   useEffect(() => {
     if (!membersOrg) return;
+    let alive = true;
     listOrgMembers(membersOrg.id)
-      .then(setMembers)
-      .catch(() => setMembers([]))
-      .finally(() => setMLoading(false));
-  }, [membersOrg]);
+      .then((rows) => { if (alive) setMembers(rows); })
+      .catch((e) => { if (alive) { setMembers([]); setMErr(e); } })
+      .finally(() => { if (alive) setMLoading(false); });
+    return () => { alive = false; };
+  }, [membersOrg, mTry]);
+
+  function retryMembers() {
+    setMLoading(true);
+    setMErr(null);
+    setMTry((n) => n + 1);
+  }
 
   async function addMember(e: React.FormEvent) {
     e.preventDefault();
     if (!membersOrg || !uid || mBusy) return;
     setMBusy(true);
-    setMNote(null);
+    const org = membersOrg;
+    const nid = `org-member-${org.id}`;
     try {
-      await addOrgMember(membersOrg.id, { user_id: uid, title: title.trim() });
-      const rows = await listOrgMembers(membersOrg.id);
-      setMembers(rows);
-      setUid("");
-      setTitle("");
-      setMNote({ ok: true, msg: t("memberAdded") });
+      await addOrgMember(org.id, { user_id: uid, title: title.trim() });
     } catch (err) {
-      const d = err && typeof err === "object" && "detail" in err ? String((err as { detail?: string }).detail) : "";
-      setMNote({ ok: false, msg: d || t("error") });
+      notify.error(t("memberAddFailed"), { id: nid, error: err });
+      setMBusy(false);
+      return;
+    }
+    setUid("");
+    setTitle("");
+    notify.success(t("memberAdded"), { id: nid, body: org.name || undefined });
+    try {
+      setMembers(await listOrgMembers(org.id));
+    } catch (err) {
+      setMErr(err);
     } finally {
       setMBusy(false);
     }
@@ -101,6 +116,8 @@ export default function OrganizationsPanel() {
 
       {orgs.status === "loading" ? (
         <Skeleton rows={3} />
+      ) : orgs.status === "error" ? (
+        <ErrorState error={orgs.error} onRetry={() => orgs.refresh()} />
       ) : !mine.length ? (
         <EmptyState icon={<IconBuilding />} title={t("empty")} text={t("emptyText")} />
       ) : (
@@ -174,6 +191,8 @@ export default function OrganizationsPanel() {
       <Modal open={!!membersOrg} onClose={() => setMembersOrg(null)} title={membersOrg?.name || t("members")}>
         {mLoading ? (
           <Skeleton rows={2} />
+        ) : mErr ? (
+          <ErrorState error={mErr} onRetry={retryMembers} compact />
         ) : (
           <div data-ai-id="organization.members-modal" data-ai-type="modal" data-ai-label={t("members")}>
             {members.length ? (
@@ -208,7 +227,6 @@ export default function OrganizationsPanel() {
                 <label>{t("memberTitle")}</label>
                 <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("memberTitlePh")} />
               </div>
-              {mNote ? <Notice ok={mNote.ok} msg={mNote.msg} /> : null}
               <button className="btn btn--pri" type="submit" disabled={!uid || mBusy}>
                 {mBusy ? t("saving") : t("addMember")}
               </button>

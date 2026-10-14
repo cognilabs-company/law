@@ -7,8 +7,8 @@ import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/servic
 import OrderMilestones, { CheckoutIntent } from "./OrderMilestones";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
-import { Skeleton } from "./DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { Skeleton, ErrorState } from "./DataState";
+import { notify } from "@/lib/toast";
 import { IconLock, IconCheck } from "@/components/icons";
 
 const som = (n: number) => (n ? fmtUzs(n) : "0");
@@ -31,8 +31,9 @@ export default function OrderPayment({
   const [pol, setPol] = useState<PaymentPolicy | null>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
+  const [loadTry, setLoadTry] = useState(0);
+  const nid = `order-pay-${orderId}`;
 
   // Back to loading when the order changes (during render, not in the effect).
   const [prevOrderId, setPrevOrderId] = useState(orderId);
@@ -50,7 +51,7 @@ export default function OrderPayment({
     return () => {
       alive = false;
     };
-  }, [orderId]);
+  }, [orderId, loadTry]);
 
   // Back from the checkout page may restore this page from the bfcache with the
   // button still busy (it stays busy while the browser navigates away).
@@ -65,7 +66,6 @@ export default function OrderPayment({
   async function pay() {
     if (paying) return;
     setPaying(true);
-    setErr(null);
     setIntent(null);
     let leaving = false; // stay busy while the browser opens the checkout
     try {
@@ -73,7 +73,7 @@ export default function OrderPayment({
         // What is still due for the advance, else the rest of the order.
         const due = pol ? (pol.contactUnlocked ? pol.totalAmount - pol.paidAmount : pol.remainingToUnlock || pol.advanceAmount) : 0;
         if (due <= 0) {
-          setErr(t("error"));
+          notify.error(t("error"), { id: nid });
           return;
         }
         setIntent(await createCheckout({ kind: "order", orderId, amount: due, payload: { purpose: "order_advance" } }));
@@ -93,14 +93,23 @@ export default function OrderPayment({
     } catch (e) {
       // 503 = Payme/Click not configured yet; 404 "Demo endpoint yopiq" = the
       // demo checkout is closed in production. Both: provider not connected.
-      setErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tcommon("paymentUnavailable") : t("error"));
+      const unavailable = isProviderUnavailable(e) || isDemoUnavailable(e);
+      notify.error(t("error"), { id: nid, body: unavailable ? tcommon("paymentUnavailable") : undefined, error: unavailable ? undefined : e });
     } finally {
       if (!leaving) setPaying(false);
     }
   }
 
   if (loading) return <Skeleton rows={3} />;
-  if (!pol) return <Notice ok={false} msg={t("error")} />;
+  if (!pol)
+    return (
+      <ErrorState
+        onRetry={() => {
+          setLoading(true);
+          setLoadTry((n) => n + 1);
+        }}
+      />
+    );
 
   const pct = pol.totalAmount ? Math.min(100, Math.round((pol.paidAmount / pol.totalAmount) * 100)) : 0;
   const advPct = pol.advancePercent || 10;
@@ -118,7 +127,6 @@ export default function OrderPayment({
       ) : (
         <p className="opay__note"><IconLock />{t("locked", { amount: `${som(pol.remainingToUnlock)} ${t("som")}` })}</p>
       )}
-      {err ? <Notice ok={false} msg={err} /> : null}
       {intent ? (
         <CheckoutIntent intent={intent} onCancel={() => setIntent(null)} />
       ) : pol.contactUnlocked ? (

@@ -13,7 +13,8 @@ import {
 } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import { preopenTab, showBlob, closeTab } from "@/lib/download";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import { IconChevronLeft, IconEye, IconSparkle } from "@/components/icons";
 
@@ -42,23 +43,25 @@ export default function DocumentAiAssist({
   const [generateUrl, setGenerateUrl] = useState(aiFlow.generateUrl);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+  const [needErr, setNeedErr] = useState("");
   const [result, setResult] = useState<DocumentRequest | null>(null);
   const [srcBusy, setSrcBusy] = useState(false);
-
-  const errMsg = (e: unknown) => (e instanceof ApiError && e.status === 422 ? t("aiNeedRequired") : t("error"));
 
   async function fetchQuestions() {
     if (busy || !need.trim()) return;
     setBusy(true);
-    setErr("");
+    setNeedErr("");
     try {
       const r = await getServiceDocumentAiQuestions(aiFlow.questionsUrl, need.trim(), locale);
       setQuestions(r.questions);
       if (r.generateUrl) setGenerateUrl(r.generateUrl);
       setStep("questions");
+      notify.dismiss("docai-questions");
     } catch (e) {
-      setErr(errMsg(e));
+      if (e instanceof ApiError && e.status === 422) {
+        setNeedErr(t("aiNeedRequired"));
+        notify.dismiss("docai-questions");
+      } else notify.error(t("aiQuestionsFailed"), { id: "docai-questions", error: e });
     } finally {
       setBusy(false);
     }
@@ -67,13 +70,13 @@ export default function DocumentAiAssist({
   async function generate() {
     if (busy) return;
     setBusy(true);
-    setErr("");
     try {
       const r = await generateServiceDocumentAi(generateUrl, { need: need.trim(), answers, language: locale });
+      notify.dismiss("docai-generate");
       setResult(r);
       setStep("result");
     } catch (e) {
-      setErr(errMsg(e));
+      notify.error(t("aiGenerateFailed"), { id: "docai-generate", error: e, map: { 422: t("aiNeedRequired") } });
     } finally {
       setBusy(false);
     }
@@ -132,8 +135,22 @@ export default function DocumentAiAssist({
       ) : null}
 
       <div>
-        <label>{t("aiNeedLabel")}</label>
-        <textarea rows={4} value={need} onChange={(e) => setNeed(e.target.value)} placeholder={t("aiNeedPlaceholder")} disabled={step === "questions"} />
+        <label htmlFor="ai-need">{t("aiNeedLabel")}</label>
+        <textarea
+          id="ai-need"
+          rows={4}
+          value={need}
+          onChange={(e) => {
+            setNeed(e.target.value);
+            if (needErr) setNeedErr("");
+          }}
+          placeholder={t("aiNeedPlaceholder")}
+          disabled={step === "questions"}
+          aria-invalid={needErr ? true : undefined}
+          aria-describedby={needErr ? "ai-need-err" : undefined}
+          className={needErr ? "is-bad" : undefined}
+        />
+        <FieldError id="ai-need-err" msg={needErr} />
       </div>
 
       {step === "questions"
@@ -161,8 +178,6 @@ export default function DocumentAiAssist({
             </div>
           ))
         : null}
-
-      {err ? <Notice ok={false} msg={err} /> : null}
 
       {step === "need" ? (
         <button className="btn btn--grad btn--full btn--lg" type="button" onClick={fetchQuestions} disabled={busy || !need.trim()}>

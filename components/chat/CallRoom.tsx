@@ -62,11 +62,13 @@ import SearchSelect from "@/components/SearchSelect";
 import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, primeCallAudio } from "@/lib/callSounds";
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
+import { useScrollEdges } from "@/lib/useScrollEdges";
 import { NO_BG, bgSupported, cameraProcessor, claimBgUnavailableNotice, getBgEffect, preloadBgAssets, serverBgEffect, setBgEffect, releaseBackgroundEngine, retainBackgroundEngine, setBgOwner, subscribeBgEffect, syncBackground, type BgEffect, type BgHooks } from "@/lib/callBackground";
 import CallBackgroundPicker from "./CallBackgroundPicker";
 import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson } from "../icons";
 import { regionLabel } from "@/lib/labels";
 import { CALLROOM_EVENT } from "@/lib/callEvents";
+import { notify, notifyStore, type NotifyOptions } from "@/lib/toast";
 
 type Props = {
   roomId: string;
@@ -108,6 +110,14 @@ type RecReq = { mode: RecordingMode; left: number };
 // inheriting the previous decision — `mine` is this side's press, `peer` is
 // what the other side said over the data channel.
 type ExtAnswer = { id: string; mine?: "yes" | "no"; peer?: "yes" | "no" };
+type SayTone = "success" | "info" | "warning" | "error";
+
+function say(tone: SayTone, text: string, opts: NotifyOptions = {}): void {
+  const at = text.indexOf(" — ");
+  const head = at > 0 ? text.slice(0, at).trim() : text;
+  const rest = at > 0 ? text.slice(at + 3).trim() : "";
+  notify[tone](head, rest ? { ...opts, body: rest.charAt(0).toLocaleUpperCase() + rest.slice(1) } : opts);
+}
 
 const MOBILE = () => typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
 const EMPTY_GRACE_SEC = 10;
@@ -299,12 +309,16 @@ export { CALLROOM_EVENT };
 export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, float, keepAlone: keepAloneProp, aiScope, onEnd }: Props) {
   const t = useTranslations("call");
   const te = useTranslations("enums");
+  const tn = useTranslations("common.notify");
   const { session } = useAuth();
   const roomRef = useRef<Room | null>(null);
   // The Room object is also kept in state so participants can be read during
   // render; a new one is created per call (see the connect effect).
   const [room, setRoom] = useState<Room | null>(null);
   const audioRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLElement>(null);
+  const again = useRef({ pause: () => {}, extend: () => {}, invite: () => {}, save: () => {} });
   // Connect/publish guards — the backend flags repeated connect/publish/
   // unpublish as a negotiation loop, so each must happen exactly once.
   const connectedRef = useRef(false);
@@ -384,7 +398,6 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // payment is waiting on a Telegram approve/reject.
   const [limits, setLimits] = useState<CallLimits | null>(null);
   const [extBusy, setExtBusy] = useState(false);
-  const [extErr, setExtErr] = useState("");
   const [extOpen, setExtOpen] = useState(false);
   const [extMinutes, setExtMinutes] = useState(10);
   // FULL_DOCS §23: "Mijozda payment confirm/cancel UI" and "5 minut o'tsa
@@ -565,9 +578,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const bgHooks = useRef<BgHooks>({});
   useEffect(() => {
     bgHooks.current = {
-      onError: () => toast(t("bg.failed"), "leave"),
+      onError: () => say("error", t("bg.failed"), { id: "call-bg" }),
       onSlow: () => {
-        toast(t("bg.slow"), "leave");
+        say("warning", t("bg.slow"), { id: "call-bg" });
         setBgEffect(NO_BG);
       },
     };
@@ -616,10 +629,10 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   useEffect(() => {
     if (!room || bgOk || !camOn) return;
     const id = setTimeout(() => {
-      if (claimBgUnavailableNotice()) toast(t("bg.unavailable"), "leave");
+      if (claimBgUnavailableNotice()) say("info", t("bg.unavailable"), { id: "call-bg" });
     }, 0);
     return () => clearTimeout(id);
-  }, [room, bgOk, camOn, toast, t]);
+  }, [room, bgOk, camOn, t]);
 
   useEffect(() => {
     let alive = true;
@@ -836,8 +849,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             if (!req) return;
             setRecReq(null);
             const who = nameOfRef.current(p);
-            if (msg.allowed) { toast(t("recAllowedBy", { name: who }), "join"); startRecRef.current(req.mode); }
-            else toast(t("recDeniedBy", { name: who }), "leave");
+            if (msg.allowed) { say("success", t("recAllowedBy", { name: who }), { id: "call-rec-ask" }); startRecRef.current(req.mode); }
+            else say("warning", t("recDeniedBy", { name: who }), { id: "call-rec-ask" });
             return;
           }
           // FULL_DOCS §23: the client's answer to a paid extension. It has no
@@ -848,7 +861,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
           if (msg.t === "extans" && p) {
             const ok = msg.allowed === true;
             setExtAns((cur) => ({ ...cur, id: pendExtIdRef.current || cur.id, peer: ok ? "yes" : "no" }));
-            toast(ok ? t("extPeerYes") : t("extPeerNo"), ok ? "join" : "leave");
+            say(ok ? "success" : "warning", ok ? t("extPeerYes") : t("extPeerNo"), { id: "call-ext-answer" });
             return;
           }
           if (msg.t === "chat" && msg.text) {
@@ -1048,12 +1061,12 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   useEffect(() => {
     if (!recReq) return;
     if (recReq.left <= 0) {
-      const tm = setTimeout(() => { setRecReq(null); toast(t("recNoAnswer"), "leave"); }, 0);
+      const tm = setTimeout(() => { setRecReq(null); say("warning", t("recNoAnswer"), { id: "call-rec-ask" }); }, 0);
       return () => clearTimeout(tm);
     }
     const tm = setTimeout(() => setRecReq((r) => (r ? { ...r, left: r.left - 1 } : r)), 1000);
     return () => clearTimeout(tm);
-  }, [recReq, toast, t]);
+  }, [recReq, t]);
   // Approver: a request nobody answered expires with the requester's timer.
   useEffect(() => {
     if (!recAsks.length) return;
@@ -1099,8 +1112,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         if (!req) return; // not my own pending request (or already given up)
         setRecReq(null);
         const byUid = String(d.recording_allowed_by_user_id ?? d.user_id ?? "");
-        if (allowed) { toast(t("recAllowedBy", { name: nameFor(byUid) }), "join"); startRecRef.current(req.mode); }
-        else toast(t("recDeniedBy", { name: nameFor(byUid) }), "leave");
+        if (allowed) { say("success", t("recAllowedBy", { name: nameFor(byUid) }), { id: "call-rec-ask" }); startRecRef.current(req.mode); }
+        else say("warning", t("recDeniedBy", { name: nameFor(byUid) }), { id: "call-rec-ask" });
         return;
       }
       if (e.event === "call.recording_started") {
@@ -1490,7 +1503,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         try { const cams = await Room.getLocalDevices("videoinput"); setCanSwitchCam(cams.length > 1); } catch { /* ignore */ }
       }
     } catch (e) {
-      toast(`${t("camError")} ${e instanceof Error && e.name === "NotAllowedError" ? t("camDenied") : ""}`.trim(), "leave");
+      notify.error(t("camError"), { id: "call-cam", body: e instanceof Error && e.name === "NotAllowedError" ? t("camDenied") : undefined });
       setCamOn(false);
     } finally {
       setCamBusy(false);
@@ -1587,19 +1600,19 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   async function extendFree() {
     if (extBusy) return;
     setExtBusy(true);
-    setExtErr("");
     try {
       const c = await freeExtendCall(roomId, callId, limits?.freeExtensionMaxMinutes || 3);
       setLimits(callLimitsOf(c));
       if (c.remainingSeconds > 0) setRemaining(c.remainingSeconds);
-      toast(t("extendedFree"), "info");
+      say("success", t("extendedFree"), { id: "call-ext" });
     } catch (e) {
       // Through the toast, not setExtErr: that message only ever renders
       // inside the paid dialog, which this button never opens. And only a
       // real 409 ("faqat 1 marta ishlaydi") means the free extension is
       // spent — a network blip must not take the button away.
       const used = e instanceof ApiError && e.status === 409;
-      toast(used ? t("extendFreeUsed") : t("extendError"), "leave");
+      if (used) say("warning", t("extendFreeUsed"), { id: "call-ext" });
+      else say("error", t("extendError"), { id: "call-ext", error: e, action: { label: tn("retry"), onClick: () => again.current.extend() } });
       if (used) setLimits((l) => (l ? { ...l, freeExtensionAvailable: false, freeExtensionUsed: true } : l));
     } finally {
       setExtBusy(false);
@@ -1608,13 +1621,13 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   async function extendPaid() {
     if (extBusy || extMinutes < 1) return;
     setExtBusy(true);
-    setExtErr("");
     try {
       const c = await requestCallExtensionPayment(roomId, callId, extMinutes);
       setLimits(callLimitsOf(c));
       setExtOpen(false);
-    } catch {
-      setExtErr(t("extendError"));
+      notify.dismiss("call-ext-paid");
+    } catch (e) {
+      notify.error(t("extendError"), { id: "call-ext-paid", error: e });
     } finally {
       setExtBusy(false);
     }
@@ -1650,7 +1663,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     roomRef.current?.localParticipant
       .publishData(enc({ t: "extans", allowed: ok, at: stamp() }), { reliable: true })
       .catch(() => {});
-    toast(ok ? t("extAnsYesToast") : t("extAnsNoToast"), ok ? "info" : "leave");
+    say(ok ? "success" : "info", ok ? t("extAnsYesToast") : t("extAnsNoToast"), { id: "call-ext-answer" });
   }
 
   // ── Holding the meeting ────────────────────────────────────────
@@ -1671,7 +1684,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       setLimits(callLimitsOf(c));
       const left = c.paused && c.pausedRemainingSeconds > 0 ? c.pausedRemainingSeconds : c.remainingSeconds;
       if (left > 0) setRemaining(left);
-      toast(t(resuming ? "resumedToast" : "pausedToast"), "info");
+      say("success", t(resuming ? "resumedToast" : "pausedToast"), { id: "call-pause" });
     } catch (e) {
       // Not deployed on this backend: take the button away instead of leaving
       // it in the bar to 404 again on the next press.
@@ -1679,7 +1692,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // Everything else goes through the room's own error affordance, the
       // same toast the free extension uses — there is no dialog to put an
       // inline message in, and .mtg__ext-err only renders inside one.
-      toast(t(resuming ? "resumeError" : "pauseError"), "leave");
+      say("error", t(resuming ? "resumeError" : "pauseError"), { id: "call-pause", error: e, action: { label: tn("retry"), onClick: () => again.current.pause() } });
     } finally {
       setPauseBusy(false);
     }
@@ -1722,10 +1735,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     if (inviteBusy || !invitePicks.length) return;
     setInviteBusy(true);
     try {
-      for (const uid of invitePicks) await inviteCallParticipant(roomId, callId, uid).catch(() => {});
-      setInvitePicks([]);
+      const failed: string[] = [];
+      for (const uid of invitePicks) {
+        try {
+          await inviteCallParticipant(roomId, callId, uid);
+        } catch {
+          failed.push(uid);
+        }
+      }
+      setInvitePicks(failed);
       setMetaTick((n) => n + 1);
-      toast(t("invited"), "info");
+      if (!failed.length) say("success", t("invited"), { id: "call-invite" });
+      else notify.error(failed.length === invitePicks.length ? t("inviteFailed") : t("inviteFailedN", { n: failed.length }), { id: "call-invite", action: { label: tn("retry"), onClick: () => again.current.invite() } });
     } finally {
       setInviteBusy(false);
     }
@@ -1766,11 +1787,11 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       // started-it field, and the call.recording_started broadcast to the
       // rest of the room) — best-effort, local capture doesn't wait on it.
       startCallRecordingServer(roomId, callId).catch(() => {});
-      toast(t("recStarted"), "join");
+      say("success", t("recStarted"), { id: "call-rec" });
     } catch (e) {
-      toast(`${t("recError")} ${e instanceof Error ? `(${e.message})` : ""}`.trim(), "leave");
+      notify.error(t("recError"), { id: "call-rec", body: e instanceof Error ? e.message : undefined });
     }
-  }, [roomId, callId, toast, t]);
+  }, [roomId, callId, t]);
   useEffect(() => { startRecRef.current = startRecording; }, [startRecording]);
   // Approver present in the LiveKit room: announced itself, is the backend
   // host, or the token metadata says staff/seller (anything but "client").
@@ -1787,15 +1808,15 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       if (!mode) { setRecPick(true); return; }
       setRecPick(false);
       if (iApprove) { startRecording(mode); return; }
-      if (!participants.some((p) => !p.isLocal && isApprover(p))) { toast(t("recNeedApprover"), "leave"); return; }
+      if (!participants.some((p) => !p.isLocal && isApprover(p))) { say("warning", t("recNeedApprover"), { id: "call-rec-ask" }); return; }
       const asked = await requestCallRecording(roomId, callId, mode).then(() => true).catch(() => false);
       const relayed = await r.localParticipant
         .publishData(enc({ t: "recask", mode, at: stamp() }), { reliable: true })
         .then(() => true)
         .catch(() => false);
-      if (!asked && !relayed) { toast(t("recError"), "leave"); return; }
+      if (!asked && !relayed) { notify.error(t("recError"), { id: "call-rec-ask" }); return; }
       setRecReq({ mode, left: REC_ASK_SEC });
-      toast(t("recAsking"), "info");
+      say("info", t("recAsking"), { id: "call-rec-ask" });
       return;
     }
     const rec = recorderRef.current;
@@ -1807,16 +1828,16 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     if (file) {
       setRecFile(file);
       try { setRecUrl(URL.createObjectURL(file.blob)); } catch { setRecUrl(""); }
-    } else toast(t("recError"), "leave");
+    } else notify.error(t("recError"), { id: "call-rec" });
   }
   async function saveRec() {
     if (!recFile) return;
     try {
       const how = await saveRecording(recFile, title || t("meetingTitle"));
-      toast(how === "opened" ? t("recOpened") : t("recSaved"), "join");
+      say(how === "opened" ? "info" : "success", how === "opened" ? t("recOpened") : t("recSaved"), { id: "call-rec-save" });
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return; // share sheet closed
-      toast(`${t("recSaveError")} ${e instanceof Error ? `(${e.message})` : ""}`.trim(), "leave");
+      notify.error(t("recSaveError"), { id: "call-rec-save", body: e instanceof Error ? e.message : undefined, action: { label: tn("retry"), onClick: () => again.current.save() } });
     }
   }
   async function hangUp() {
@@ -1830,6 +1851,52 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     roomRef.current?.disconnect();
     finish();
   }
+
+  useEffect(() => {
+    again.current = {
+      pause: () => void togglePause(),
+      extend: () => void extendFree(),
+      invite: () => void sendInvites(),
+      save: () => void saveRec(),
+    };
+  });
+
+  useEffect(() => {
+    const root = rootRef.current;
+    const top = topRef.current;
+    if (floating || !root || !top) return;
+    const html = document.documentElement;
+    const ntf = document.querySelector<HTMLElement>(".ntf");
+    const deck = ntf?.querySelector<HTMLElement>(".ntf__deck") ?? null;
+    let raf = 0;
+    const sync = () => {
+      raf = 0;
+      const bar = top.getBoundingClientRect().bottom;
+      const d = deck?.getBoundingClientRect();
+      const under = d && d.height > 1 ? Math.max(bar, d.bottom) : bar;
+      html.style.setProperty("--mtg-ntf-top", `${Math.round(bar + 8)}px`);
+      html.style.setProperty("--mtg-ntf-under", `${Math.round(under - root.getBoundingClientRect().top + 8)}px`);
+    };
+    const later = () => {
+      if (!raf) raf = requestAnimationFrame(sync);
+    };
+    sync();
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(later);
+    ro?.observe(top);
+    if (deck) ro?.observe(deck);
+    const off = notifyStore.subscribe(later);
+    ntf?.addEventListener("transitionend", later);
+    window.addEventListener("resize", later);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro?.disconnect();
+      off();
+      ntf?.removeEventListener("transitionend", later);
+      window.removeEventListener("resize", later);
+      html.style.removeProperty("--mtg-ntf-top");
+      html.style.removeProperty("--mtg-ntf-under");
+    };
+  }, [floating]);
 
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const participants: Participant[] = room ? [room.localParticipant, ...room.remoteParticipants.values()] : [];
@@ -1873,6 +1940,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const flipKey = `${strip.map((p) => p.identity).join("|")}:${view}:${stageIsShare ? 1 : 0}:${panel}`;
   const gridRef = useFlip<HTMLDivElement>(flipKey);
   const stripRef = useFlip<HTMLDivElement>(flipKey);
+  useScrollEdges(stripRef, { silent: true });
   // ── Meeting confidentiality ────────────────────────────────────
   // The watermark names the person in front of THIS screen — not the speaker —
   // so a leaked frame points at whoever leaked it. The phone is masked to its
@@ -1948,6 +2016,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
 
   return (
     <div
+      ref={rootRef}
       className={`mtg${panel ? " mtg--panel" : ""}${floating ? " mtg--float" : ""}${floating && fmin ? " mtg--fmin" : ""}`}
       data-tick={tick}
       data-layer-ignore=""
@@ -1969,6 +2038,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         />
       ) : null}
       <header
+        ref={topRef}
         className="mtg__top"
         onPointerDown={floating ? dragFloat : undefined}
         onPointerMove={floating ? moveFloat : undefined}
@@ -2058,7 +2128,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             <div className="mtg__speaker">
               <Tile key={`stage-${stageP.identity}-${stageIsShare ? "s" : "c"}`} p={stageP} name={nameOf(stageP)} you={t("you")} camOff={t("camOff")} share={stageIsShare} mirror={stageP.isLocal && !stageIsShare && mirror} rec={!stageIsShare && isRecording(stageP)} big />
               {stageIsShare ? <span className="mtg__sharing"><IconMonitor />{stageP.isLocal ? t("youShare") : t("sharing", { name: nameOf(stageP) })}</span> : null}
-              <div className="mtg__strip" ref={stripRef}>
+              <div className="mtg__strip scue-x" ref={stripRef}>
                 {strip.map((p) => (
                   <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} rec={isRecording(p)} recLabel={t("a11yRecording")} small onClick={() => { setPinned(p.identity); setView("speaker"); }} />
                 ))}
@@ -2193,7 +2263,6 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
                 ))}
               </div>
               <b className="mtg__ext-total">{t("extendTotal", { amount: fmtUzs(extMinutes * (limits?.paidExtensionPricePerMinute || 2000)) })}</b>
-              {extErr ? <span className="mtg__ext-err" role="alert">{extErr}</span> : null}
               <div className="mtg__recask-btns">
                 <button type="button" className="btn btn--pri btn--sm" onClick={() => void extendPaid()} disabled={extBusy}>
                   {extBusy ? t("extendSending") : t("extendAsk")}
@@ -2293,7 +2362,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             <button type="button" onClick={() => { setMore(false); openPanel("chat"); }}><IconChat />{t("chatTab")}{unread ? <i className="mtg__cb">{unread > 9 ? "9+" : unread}</i> : null}</button>
             <button type="button" onClick={() => { setMore(false); openPanel("people"); }}><IconUsers />{t("rosterTitle")} · {count}</button>
             {canExtend ? (
-              <button type="button" onClick={() => { setMore(false); setExtErr(""); setExtOpen(true); }} disabled={paused} data-ai-id={aiAt("extend")}><IconClock />{t("extendPaidShort")}</button>
+              <button type="button" onClick={() => { setMore(false); setExtOpen(true); }} disabled={paused} data-ai-id={aiAt("extend")}><IconClock />{t("extendPaidShort")}</button>
             ) : null}
             {canRecord() ? <button type="button" onClick={() => { setMore(false); void toggleRec(); }} data-ai-id={aiAt("record")}><IconRecord />{recOn ? t("recStop", { mode: t(recMode === "screen" ? "recModeScreen" : "recModeAudio") }) : recReq ? t("recWaitingShort") : t("recStart")}</button> : null}
             <button type="button" onClick={() => { setMore(false); setView(view === "grid" ? "speaker" : "grid"); }}>{view === "grid" ? <IconUser /> : <IconGrid />}{view === "grid" ? t("layoutSpeaker") : t("layoutGrid")}</button>
@@ -2342,7 +2411,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         ) : null}
         {/* NOT desktop-only while floating: .mtg--float hides .mtg__ctl--desktop,
             and the floating panel is exactly where the document meeting runs. */}
-        {canExtend ? <Ctl on={extOpen} label={t("extendPaidShort")} onClick={() => { setExtErr(""); setExtOpen((v) => !v); }} disabled={extBusy || paused} desktop={!floating} aiId={aiAt("extend")}><IconClock /></Ctl> : null}
+        {canExtend ? <Ctl on={extOpen} label={t("extendPaidShort")} onClick={() => setExtOpen((v) => !v)} disabled={extBusy || paused} desktop={!floating} aiId={aiAt("extend")}><IconClock /></Ctl> : null}
         {/* Hold the meeting. It sits with the extension controls because they
             are the same family — everything here manipulates the clock — and
             it is offered at EVERY width, including the phone bar and the

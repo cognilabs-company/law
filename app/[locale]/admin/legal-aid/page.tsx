@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { listLegalAid, getLegalAidRequestDetail, type LegalAidDetail } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import Modal from "@/components/admin/Modal";
-import { Notice } from "@/components/admin/AdminBits";
 import { IconScale, IconPhone, IconEye } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 import { humanize } from "@/lib/labels";
@@ -24,21 +23,22 @@ function LegalAidDetailModal({ id, onClose }: { id: string | null; onClose: () =
   const t = useTranslations("admin.legalAid");
   const locale = useLocale();
   const [d, setD] = useState<LegalAidDetail | null>(null);
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState<{ error: unknown } | null>(null);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     if (!id) return;
     let alive = true;
-    const h = setTimeout(() => { setD(null); setErr(false); }, 0);
-    getLegalAidRequestDetail(id).then((x) => alive && setD(x)).catch(() => alive && setErr(true));
+    const h = setTimeout(() => { setD(null); setErr(null); }, 0);
+    getLegalAidRequestDetail(id).then((x) => alive && setD(x)).catch((error: unknown) => alive && setErr({ error }));
     return () => { alive = false; clearTimeout(h); };
-  }, [id]);
+  }, [id, tick]);
   const row = (k: string, v?: string | number | null) => (v === undefined || v === null || v === "" ? null : (
     <div className="dkv__row" key={k}><span>{k}</span><b>{String(v)}</b></div>
   ));
 
   return (
     <Modal open={!!id} onClose={onClose} title={t("detailTitle")}>
-      {err ? <Notice ok={false} msg={t("detailError")} /> : !d ? <Skeleton rows={3} /> : (
+      {err ? <ErrorState title={t("detailError")} error={err.error} onRetry={() => setTick((n) => n + 1)} /> : !d ? <Skeleton rows={3} /> : (
         <div className="dkv">
           <div className="dkv__sect">
             <b>{t("detail.request")}</b>
@@ -82,6 +82,8 @@ export default function AdminLegalAid() {
 
       {res.status === "loading" ? (
         <Skeleton rows={3} />
+      ) : res.status === "error" ? (
+        <ErrorState error={res.error} onRetry={res.refresh} />
       ) : !res.data.length ? (
         <EmptyState icon={<IconScale />} title={t("empty")} text={t("emptyText")} />
       ) : (

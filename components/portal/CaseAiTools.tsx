@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { runCaseAiTool, type CaseAiTool } from "@/lib/services/backend";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
 import { IconSparkle, IconCheck } from "@/components/icons";
 
 const TOOLS: CaseAiTool[] = ["summary", "chronology", "missing_docs", "questions", "compare_versions"];
@@ -14,21 +14,22 @@ const DRAFT_KEY = (caseId: string, tool: string) => `lexgo_case_ai_${caseId}_${t
 // per case/tool in the browser after the seller approves it.
 export default function CaseAiTools({ caseId }: { caseId: string }) {
   const t = useTranslations("portal.caseAi");
+  const tn = useTranslations("common.notify");
   const [tool, setTool] = useState<CaseAiTool | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<CaseAiTool | null>(null);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const nid = `case-ai-${caseId}`;
 
   async function run(k: CaseAiTool) {
     if (busy) return;
     setBusy(k);
-    setNote(null);
     try {
       const r = await runCaseAiTool(caseId, k);
+      notify.dismiss(nid);
       setTool(k);
       setText(r.result);
-    } catch {
-      setNote({ ok: false, msg: t("error") });
+    } catch (e) {
+      notify.error(t("error"), { id: nid, error: e, action: { label: tn("retry"), onClick: () => void run(k) } });
     } finally {
       setBusy(null);
     }
@@ -36,7 +37,7 @@ export default function CaseAiTools({ caseId }: { caseId: string }) {
   function approve() {
     if (!tool) return;
     try { localStorage.setItem(DRAFT_KEY(caseId, tool), text); } catch { /* ignore */ }
-    setNote({ ok: true, msg: t("saved") });
+    notify.success(t("saved"), { id: nid, body: t(`tools.${tool}`) });
   }
 
   return (
@@ -58,7 +59,6 @@ export default function CaseAiTools({ caseId }: { caseId: string }) {
           <button type="button" className="btn btn--soft btn--sm" onClick={approve} style={{ justifySelf: "start" }}><IconCheck />{t("approve")}</button>
         </div>
       ) : null}
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
     </div>
   );
 }

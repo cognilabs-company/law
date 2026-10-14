@@ -4,12 +4,13 @@ import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { getLawyerClients, createLawyerClient, checkConflict, type ConflictResult } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
+import { notify } from "@/lib/toast";
+import InlineAlert from "@/components/ui/InlineAlert";
 import Modal from "@/components/admin/Modal";
 import ClientDetailModal from "@/components/portal/ClientDetailModal";
 import { initials } from "@/lib/lawyers";
-import { IconUsers, IconAlert, IconPlus, IconShieldCheck, IconCheck } from "@/components/icons";
+import { IconUsers, IconAlert, IconPlus, IconShieldCheck } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import { useAiModal } from "@/lib/ai/registry";
 
@@ -46,6 +47,8 @@ export default function ClientsPanel({ ns }: { ns: string }) {
 
         {res.status === "loading" ? (
           <Skeleton rows={3} />
+        ) : res.status === "error" ? (
+          <ErrorState error={res.error} onRetry={() => res.refresh()} />
         ) : !res.data.length ? (
           <EmptyState icon={<IconUsers />} title={t("empty")} text={t("emptyText")} />
         ) : (
@@ -90,7 +93,7 @@ export default function ClientsPanel({ ns }: { ns: string }) {
         )}
       </div>
 
-      <NewClientModal open={open} onClose={() => setOpen(false)} onSaved={() => { setOpen(false); setKey((k) => k + 1); }} />
+      <NewClientModal open={open} onClose={() => setOpen(false)} onSaved={() => setKey((k) => k + 1)} />
       <ConflictModal open={checkOpen} onClose={() => setCheckOpen(false)} />
       <ClientDetailModal id={detail} onClose={() => setDetail(null)} />
     </>
@@ -98,37 +101,45 @@ export default function ClientsPanel({ ns }: { ns: string }) {
 }
 
 const split = (s: string) => s.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
+const EMPTY_CLIENT = { name: "", phone: "", pinfl: "", company: "", opponents: "", representatives: "", notes: "" };
 
 function NewClientModal({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
   const tc = useTranslations("portal.clientsTools");
-  const [f, setF] = useState({ name: "", phone: "", pinfl: "", company: "", opponents: "", representatives: "", notes: "" });
+  const [f, setF] = useState(EMPTY_CLIENT);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [conflict, setConflict] = useState<ConflictResult | null>(null);
-  const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
+  const set = (k: keyof typeof f, v: string) => {
+    setF((x) => ({ ...x, [k]: v }));
+    setConflict(null);
+  };
+  const close = () => {
+    setConflict(null);
+    onClose();
+  };
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (busy || f.name.trim().length < 2) return;
     setBusy(true);
-    setNote(null);
+    const name = f.name.trim();
     try {
       // The check runs first so a match is shown before the record is saved (§1).
       const c = await checkConflict({ phone: f.phone, pinfl: f.pinfl, opponent: f.opponents ? split(f.opponents)[0] : undefined, representatives: split(f.representatives) }).catch(() => null);
       setConflict(c);
-      await createLawyerClient({ name: f.name.trim(), phone: f.phone.trim(), pinfl: f.pinfl.trim(), company: f.company.trim(), opponents: split(f.opponents), representatives: split(f.representatives), notes: f.notes.trim() });
-      setNote({ ok: true, msg: tc("saved") });
-      setF({ name: "", phone: "", pinfl: "", company: "", opponents: "", representatives: "", notes: "" });
-      setTimeout(onSaved, c?.status === "potential_conflict" ? 2500 : 800);
-    } catch {
-      setNote({ ok: false, msg: tc("saveError") });
+      await createLawyerClient({ name, phone: f.phone.trim(), pinfl: f.pinfl.trim(), company: f.company.trim(), opponents: split(f.opponents), representatives: split(f.representatives), notes: f.notes.trim() });
+      notify.success(tc("saved"), { id: "client-new", body: name });
+      setF(EMPTY_CLIENT);
+      onSaved();
+      if (c?.status !== "potential_conflict") close();
+    } catch (err) {
+      notify.error(tc("saveError"), { id: "client-new", error: err });
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={tc("addTitle")}>
+    <Modal open={open} onClose={close} title={tc("addTitle")}>
       <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} data-ai-id="advocate.clients.add-modal" data-ai-type="modal" data-ai-label={tc("addTitle")} data-ai-private>
         <p className="advmuted">{tc("addLead")}</p>
         <div className="cform__row2">
@@ -143,7 +154,6 @@ function NewClientModal({ open, onClose, onSaved }: { open: boolean; onClose: ()
         <div><label>{tc("representatives")}</label><input value={f.representatives} onChange={(e) => set("representatives", e.target.value)} placeholder={tc("listPh")} /></div>
         <div><label>{tc("notes")}</label><textarea rows={2} value={f.notes} onChange={(e) => set("notes", e.target.value)} /></div>
         {conflict ? <ConflictView r={conflict} /> : null}
-        {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
         <button className="btn btn--pri btn--full" type="submit" disabled={busy || f.name.trim().length < 2}>{busy ? tc("saving") : tc("save")}</button>
       </form>
     </Modal>
@@ -155,16 +165,20 @@ function ConflictModal({ open, onClose }: { open: boolean; onClose: () => void }
   const [f, setF] = useState({ phone: "", pinfl: "", opponent: "", representatives: "" });
   const [busy, setBusy] = useState(false);
   const [r, setR] = useState<ConflictResult | null>(null);
-  const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
   async function run(e: FormEvent) {
     e.preventDefault();
     if (busy || !(f.phone || f.pinfl || f.opponent || f.representatives)) return;
     setBusy(true);
-    setErr(null);
-    try { setR(await checkConflict({ phone: f.phone, pinfl: f.pinfl, opponent: f.opponent, representatives: split(f.representatives) })); }
-    catch { setErr(tc("checkError")); }
-    finally { setBusy(false); }
+    try {
+      setR(await checkConflict({ phone: f.phone, pinfl: f.pinfl, opponent: f.opponent, representatives: split(f.representatives) }));
+      notify.dismiss("client-conflict-check");
+    } catch (e) {
+      setR(null);
+      notify.error(tc("checkError"), { id: "client-conflict-check", error: e });
+    } finally {
+      setBusy(false);
+    }
   }
   return (
     <Modal open={open} onClose={onClose} title={tc("checkTitle")}>
@@ -177,7 +191,6 @@ function ConflictModal({ open, onClose }: { open: boolean; onClose: () => void }
         <div><label>{tc("opponent")}</label><input value={f.opponent} onChange={(e) => set("opponent", e.target.value)} /></div>
         <div><label>{tc("representatives")}</label><input value={f.representatives} onChange={(e) => set("representatives", e.target.value)} placeholder={tc("listPh")} /></div>
         {r ? <ConflictView r={r} /> : null}
-        {err ? <Notice ok={false} msg={err} /> : null}
         <button className="btn btn--pri btn--full" type="submit" disabled={busy}>{busy ? tc("checking") : tc("checkCta")}</button>
       </form>
     </Modal>
@@ -186,15 +199,14 @@ function ConflictModal({ open, onClose }: { open: boolean; onClose: () => void }
 
 export function ConflictView({ r }: { r: ConflictResult }) {
   const tc = useTranslations("portal.clientsTools");
-  if (r.status === "clear") return <div className="anote anote--ok"><IconCheck style={{ width: 14, height: 14 }} /> {tc("clear")}</div>;
+  if (r.status === "clear") return <InlineAlert tone="success" title={tc("clear")} compact />;
   return (
-    <div className="anote anote--err">
-      <b style={{ display: "flex", alignItems: "center", gap: 6 }}><IconAlert style={{ width: 14, height: 14 }} />{tc("potential")}</b>
-      <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: ".82rem" }}>
+    <InlineAlert tone="warn" title={tc("potential")}>
+      <ul className="cconf__list">
         {r.matches.slice(0, 8).map((m, i) => (
           <li key={i}>{m.title || m.caseNumber || "—"} — {tc.has(`reasons.${m.reason}`) ? tc(`reasons.${m.reason}`) : m.reason}</li>
         ))}
       </ul>
-    </div>
+    </InlineAlert>
   );
 }

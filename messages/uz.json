@@ -4065,6 +4065,9 @@
     }
   },
   "support": {
+    "claimFailed": "Chatni olib bo'lmadi",
+    "transferFailed": "Chatni o'tkazib bo'lmadi",
+    "closeFailed": "Chatni yakunlab bo'lmadi",
     "aiLabels": {
       "chat": "Operator bilan chat",
       "clientChat": "Mijoz bilan chat"
@@ -7192,6 +7195,7 @@
         "qrAlt": "Authenticator uchun QR-kod"
       },
       "telegram": {
+        "retryIn": "Qayta urinish mumkin: {time}",
         "title": "Telegram hisobi",
         "desc": "Hisobingizni LexGo Telegram botiga ulang — bildirishnomalar Telegramga ham keladi.",
         "connect": "Telegramni ulash",
@@ -7277,7 +7281,7 @@
         "calculating": "Hisoblanmoqda…",
         "error": "Hisoblab bo'lmadi. Sanani tekshiring.",
         "ical": "Kalendarga yuklab olish (.ics)",
-        "icalError": ".ics faylni yuklab bo'lmadi."
+        "icalError": ".ics faylni yuklab bo'lmadi"
       },
       "declineReasons": {
         "title": "Buyurtmani rad etish",
@@ -7299,6 +7303,9 @@
         "other": "Boshqa"
       },
       "calendar": {
+        "createFailed": "Voqea qo'shilmadi",
+        "deleted": "Voqea o'chirildi",
+        "deleteFailed": "Voqea o'chirilmadi",
         "view": "Ko'rinish",
         "month": "Oy",
         "list": "Ro'yxat",
@@ -7317,6 +7324,13 @@
       }
     },
     "tasks": {
+      "moveFailed": "Vazifa ko'chirilmadi",
+      "statusFailed": "Vazifa holati o'zgarmadi",
+      "saved": "Vazifa saqlandi",
+      "createFailed": "Vazifa qo'shilmadi",
+      "saveFailed": "Vazifa saqlanmadi",
+      "deleted": "Vazifa o'chirildi",
+      "deleteFailed": "Vazifa o'chirilmadi",
       "showOpen": "Faqat bajarilmaganlar",
       "showAll": "Barcha vazifalar",
       "showLabel": "Ko'rsatish",
@@ -7334,7 +7348,7 @@
       "priorityLabel": "Muhimlik",
       "save": "Saqlash",
       "saving": "Saqlanmoqda…",
-      "created": "Qo'shildi",
+      "created": "Vazifa qo'shildi",
       "errorCreate": "Xatolik. Qayta urining.",
       "stages": {
         "todo": "Bajarilishi kerak",
@@ -7350,7 +7364,7 @@
       "count": "{n} ta vazifa · {open} ta ochiq",
       "searchPh": "Vazifa, ish yoki tavsif bo'yicha qidirish",
       "hideDone": "Bajarilganlarni yashirish",
-      "loadError": "Vazifalarni yuklab bo'lmadi. Sahifani yangilang.",
+      "loadError": "Vazifalarni yuklab bo'lmadi",
       "forbidden": "Bu vazifani o'zgartirishga ruxsat yo'q.",
       "checklistCount": "Ro'yxat {done}/{total}",
       "blocked": "Bloklangan",
@@ -7736,7 +7750,7 @@
         "addTitle": "Yangi voqea",
         "save": "Saqlash",
         "saving": "Saqlanmoqda…",
-        "created": "Voqea qo‘shildi.",
+        "created": "Voqea qo'shildi",
         "error": "Xatolik yuz berdi.",
         "remove": "O‘chirish",
         "typeLabel": "Turi",
@@ -7975,6 +7989,7 @@
         "label": "Hujjat turi"
       },
       "urgent": {
+        "queuedTitle": "So'rov navbatga qo'yildi",
         "opCreated": "Operator siz uchun tezkor advokat so'rovi yaratdi",
         "byOperator": "Operator yaratgan",
         "backToKinds": "Boshqa turni tanlash",
@@ -8095,8 +8110,8 @@
         "nextGroup": "Navbatchi advokat advokatlar guruhini va uchrashuv vaqtini belgilaydi, so'ng sizga xabar beriladi.",
         "filesInChat": "Fayl va ovozli xabarlarni advokat so'rovni olgandan keyin chatda yuborasiz.",
         "submit": "So'rov yuborish",
-        "sent": "So'rov yuborildi. Advokat uni olgach xabar beramiz.",
-        "sendError": "So'rovni yuborib bo'lmadi. Qayta urinib ko'ring.",
+        "sent": "So'rov yuborildi",
+        "sendError": "So'rovni yuborib bo'lmadi",
         "mine": "Mening so'rovlarim",
         "mineEmpty": "So'rovlar yo'q",
         "mineEmptyText": "Yuqoridan xizmat tanlab, birinchi so'rovni yuboring.",
@@ -8513,6 +8528,7 @@
         }
       },
       "complaints": {
+        "sendFailed": "Shikoyat yuborilmadi",
         "detailTitle": "Shikoyat tafsilotlari",
         "process": "Jarayon",
         "ratingTitle": "Sizning bahoyingiz",
@@ -8821,6 +8837,7 @@
         "error": "Xatolik. Qayta urining."
       },
       "gifts": {
+        "createFailed": "Sovg'ani yaratib bo'lmadi",
         "statusMap": {
           "pending": "Kutilmoqda",
           "sent": "Yuborilgan",
@@ -9226,6 +9243,16 @@
         }
       },
       "documents": {
+        "answersFailed": "Javoblar saqlanmadi",
+        "payFailed": "To'lov boshlanmadi",
+        "statusFailed": "Holatni tekshirib bo'lmadi",
+        "reviewFailed": "Advokat tekshiruviga yuborilmadi",
+        "reviewSentTitle": "Advokat tekshiruviga yuborildi",
+        "aiQuestionsFailed": "Savollarni olib bo'lmadi",
+        "aiGenerateFailed": "Hujjat yaratilmadi",
+        "lawyerSendFailed": "So'rov yuborilmadi",
+        "startFailed": "Hujjatni boshlab bo'lmadi",
+        "callLimitTitle": "Qo'ng'iroq limiti tugadi",
         "gatePooledSub": "Navbatchi advokat ishni olishi bilan xabar beramiz.",
         "gatePooled": "To'lov tasdiqlandi — advokatlar navbatiga tushdi",
         "lawyerNeedRequired": "So'rov matnini yozing — advokat nimadan boshlashini bilishi kerak.",
@@ -9638,6 +9665,7 @@
         "manualDisabled": "Qo'lda to'ldirish paket talab qiladi"
       },
       "newDoc": {
+        "sendFailed": "So'rov yuborilmadi",
         "mainFileRequired": "Tekshiriladigan hujjatni yuklang.",
         "previewSeek": "Ovozli xabar bo‘ylab o‘tish",
         "previewNone": "Bu turdagi faylni shu yerda ko‘rib bo‘lmaydi",
@@ -9679,6 +9707,7 @@
         "error": "Xatolik yuz berdi. Qayta urining."
       },
       "documentRequests": {
+        "ctorFailed": "Konstruktor ochilmadi",
         "whyBlocked": "Nega advokatga yuborib bo'lmaydi?",
         "actSend": "Advokatga yuborish",
         "actChat": "Chat",
@@ -9995,7 +10024,7 @@
         "addTitle": "Yangi voqea",
         "save": "Saqlash",
         "saving": "Saqlanmoqda…",
-        "created": "Voqea qo‘shildi.",
+        "created": "Voqea qo'shildi",
         "error": "Xatolik yuz berdi.",
         "remove": "O‘chirish",
         "typeLabel": "Turi",
@@ -10093,6 +10122,7 @@
       }
     },
     "org": {
+      "memberAddFailed": "A'zo qo'shilmadi",
       "createFailed": "Tashkilot yaratilmadi",
       "memberServices": "Xizmatlar",
       "manage": "Boshqaruv paneli",
@@ -10121,7 +10151,7 @@
       "address": "Manzil",
       "save": "Saqlash",
       "saving": "Saqlanmoqda…",
-      "created": "Yaratildi.",
+      "created": "Tashkilot yaratildi",
       "error": "Xatolik yuz berdi.",
       "member": "Foydalanuvchi",
       "selectMember": "Foydalanuvchini tanlang",
@@ -10129,7 +10159,7 @@
       "memberTitlePh": "masalan, Katta yurist",
       "addMember": "A'zo qo'shish",
       "noMembers": "Hozircha a'zo yo'q",
-      "memberAdded": "A'zo qo'shildi."
+      "memberAdded": "A'zo qo'shildi"
     },
     "stats": {
       "activeCases": "Faol ishlar",
@@ -10332,7 +10362,7 @@
       "markShown": "Ko'rsatilganlarni o'qilgan",
       "noMatch": "Mos bildirishnoma topilmadi",
       "noMatchText": "Boshqa bo'limni tanlang yoki qidiruvni tozalang.",
-      "loadError": "Bildirishnomalarni yuklab bo'lmadi. Sahifani yangilang.",
+      "loadError": "Bildirishnomalarni yuklab bo'lmadi",
       "unreadN": "{n} ta o'qilmagan",
       "viaChannels": "{list} orqali",
       "paymentStatus": {
@@ -10455,6 +10485,7 @@
       "aria": "Bildirishnomalar"
     },
     "caseManage": {
+      "saveFailed": "Ish saqlanmadi",
       "title": "Ishni boshqarish",
       "status": "Holat",
       "stage": "Bosqich",
@@ -10463,7 +10494,7 @@
       "nextActionPh": "Keyingi ish",
       "save": "Saqlash",
       "saving": "Saqlanmoqda…",
-      "saved": "Ish yangilandi.",
+      "saved": "Ish yangilandi",
       "error": "Xatolik yuz berdi."
     },
     "workspace": {
@@ -10531,6 +10562,14 @@
       "openError": "Faylni ochib bo'lmadi. Qayta urining."
     },
     "files": {
+      "deleting": "O'chirilmoqda…",
+      "deleted": "O'chirildi",
+      "deleteFailed": "O'chirib bo'lmadi",
+      "starFailed": "Yulduzcha saqlanmadi",
+      "renameFailed": "Nomi o'zgartirilmadi",
+      "folderFailed": "Papka yaratilmadi",
+      "openFailed": "Fayl ochilmadi",
+      "downloadFailed": "Fayl yuklab olinmadi",
       "sectionLabel": "Bo'lim",
       "title": "Fayllar",
       "subtitle": "Fayllar va papkalaringizni boshqaring",
@@ -10730,13 +10769,13 @@
       "notes": "Izoh",
       "save": "Saqlash",
       "saving": "Saqlanmoqda…",
-      "saved": "Mijoz qo'shildi.",
-      "saveError": "Saqlab bo'lmadi.",
+      "saved": "Mijoz qo'shildi",
+      "saveError": "Mijoz saqlanmadi",
       "checkTitle": "Manfaatlar to'qnashuvi tekshiruvi",
       "checkLead": "Yangi buyurtma oldidan mijoz yoki qarshi tomon ma'lumotini kiriting — boshqa ishlaringiz bilan solishtiriladi.",
       "opponent": "Qarshi tomon",
       "checking": "Tekshirilmoqda…",
-      "checkError": "Tekshirib bo'lmadi.",
+      "checkError": "Tekshirib bo'lmadi",
       "clear": "To'qnashuv topilmadi.",
       "potential": "Manfaatlar to'qnashuvi ehtimoli — qabul qilishdan oldin tekshiring:",
       "reasons": {
@@ -10761,8 +10800,8 @@
       "running": "Tayyorlanmoqda…",
       "editHint": "Matnni tahrirlab, tasdiqlang — tasdiqlangan variant saqlanadi.",
       "approve": "Tasdiqlash",
-      "saved": "Xulosa saqlandi.",
-      "error": "AI natijasini olib bo'lmadi."
+      "saved": "Xulosa saqlandi",
+      "error": "AI natijasini olib bo'lmadi"
     },
     "clientDetail": {
       "title": "Mijoz",
@@ -13056,6 +13095,7 @@
       }
     },
     "plans": {
+      "notify": {"created":"Tarif yaratildi","saved":"Tarif saqlandi","createFailed":"Tarif yaratilmadi","saveFailed":"Tarif saqlanmadi","activated":"Tarif faollashtirildi","deactivated":"Tarif nofaol qilindi","toggleFailed":"Tarif holati o'zgarmadi","restoreFailed":"Tarif ro'yxatga qaytarilmadi","reset":"Admin o'zgarishlari olib tashlandi","resetFailed":"Admin o'zgarishlari olib tashlanmadi","deleted":"Tarif o'chirildi","deleteFailed":"Tarif o'chirilmadi"},
       "visibleChip": "Ko'rinadigan ({n})",
       "visibility": "Ko'rinish",
       "searchPh": "Nomi yoki slug…",
@@ -13181,6 +13221,9 @@
       }
     },
     "roles": {
+      "created": "Rol yaratildi",
+      "createFailed": "Rol yaratilmadi",
+      "assignFailed": "Rol biriktirilmadi",
       "sellerType": {
         "advokat": "Advokat",
         "yurist": "Yurist",
@@ -13205,6 +13248,13 @@
       "selectUser": "Foydalanuvchini tanlang"
     },
     "notifications": {
+      "broadcastAsk": "«{role}» rolidagi barcha foydalanuvchilarga yuborilsinmi?",
+      "broadcastAskText": "Xabar «{role}» rolidagi har bir foydalanuvchiga yetkaziladi. Yuborilgan xabarni qaytarib olib bo'lmaydi.",
+      "broadcastAskOk": "Hammasiga yuborish",
+      "broadcastSent": "«{role}» rolidagi foydalanuvchilarga yuborildi",
+      "broadcastFailed": "«{role}» roliga yuborilmadi",
+      "resultNone": "Hech kimga yuborilmadi",
+      "resultPartialBody": "Kimga yetmaganini «Natijalar» ro'yxatida ko'ring.",
       "roleLabel": "Rol",
       "title": "Bildirishnoma yuborish",
       "lead": "Foydalanuvchiga bildirishnoma yuboring. U ilova ichida, push, Telegram va email orqali yetkaziladi; SMS faqat muhim hodisalarda zaxira kanal.",
@@ -14105,6 +14155,7 @@
       "som": "so'm"
     },
     "retention": {
+      "winBackFailed": "{name} qaytarish navbatiga qo'shilmadi",
       "title": "Ushlab qolish va upsell",
       "atRisk": "Xavf ostida",
       "churned": "Bu oy ketgan",
@@ -14129,6 +14180,7 @@
       "price": "Narx"
     },
     "audit": {
+      "exportFailed": "CSV eksport qilinmadi",
       "ph": {
         "action": "masalan, login",
         "targetType": "masalan, user",
@@ -14526,6 +14578,7 @@
       }
     },
     "reviews": {
+      "notify": {"approved":"Sharh tasdiqlandi","rejected":"Sharh rad etildi","approveFailed":"Sharh tasdiqlanmadi","rejectFailed":"Sharh rad etilmadi"},
       "sellerKind": {
         "advokat": "Advokat",
         "yurist": "Yurist",
@@ -14569,6 +14622,8 @@
       }
     },
     "payouts": {
+      "markedPaid": "To'langan deb belgilandi",
+      "markFailed": "To'langan deb belgilanmadi",
       "title": "To'lovlarni yarashtirish",
       "gross": "Umumiy summa",
       "platformFee": "Platforma ulushi",
@@ -14871,6 +14926,8 @@
       "content_manager": "Kontent menejer"
     },
     "legal": {
+      "saveFailed": "Hujjat nashr qilinmadi",
+      "noWriteApiShort": "Server hujjat saqlashni hali qabul qilmayapti. Matn saqlanmadi.",
       "title": "Huquqiy hujjatlar va roziliklar",
       "readiness": "Tayyor: {n} / {total}",
       "lead": "10 ta majburiy hujjat (S-53). Matnlar shu yerdan kiritiladi — kodda emas. Har hujjat versiyalanadi; foydalanuvchi har biriga alohida rozilik beradi.",
@@ -14939,7 +14996,9 @@
       "user": "Foydalanuvchi"
     },
     "policies": {
+      "saveFailed": "Qoidalar saqlanmadi",
       "pricing": {
+        "notify": {"saved":"Narx qoidalari saqlandi","savedBody":"Yangi versiya yaratildi.","saveFailed":"Narx qoidalari saqlanmadi","loaded":"v{v} formaga yuklandi","loadedPlain":"Versiya formaga yuklandi","loadedBody":"Saqlasangiz, yangi versiya bo'ladi."},
         "soonLoad": "Narx qoidalari bo'limi tez orada yoqiladi. Backend tayyor bo'lgach, shu yerda o'zi paydo bo'ladi.",
         "title": "Marketplace narxlari",
         "lead": "Advokat va yuristlar xizmat narxini faqat shu qoidalar ichida qo'ya oladi. Tavsiya narx katalog narxidan hudud, tajriba va reytingga qarab hisoblanadi.",
@@ -15141,6 +15200,8 @@
       "historyTitle": "{section} — versiyalar tarixi",
       "historyEmpty": "Hali o'zgarishlar yo'q.",
       "unverified": {
+        "saved": "Katalog sozlamasi saqlandi",
+        "saveFailed": "Katalog sozlamasi saqlanmadi",
         "title": "Tasdiqlanmagan advokat va yuristlar",
         "lead": "Shaxsi (MyID) va hujjatlari tasdiqlanmagan ijrochilar katalogda qanday ko'rinsin (GM T0-10 §5). O'zgarish darhol kuchga kiradi.",
         "badge": "Katalogda «Tasdiqlanmagan» belgisi bilan ko'rinsin",
@@ -15150,6 +15211,10 @@
       }
     },
     "businessCalendar": {
+      "addFailed": "Bayram qo'shilmadi",
+      "removed": "Bayram kuni o'chirildi",
+      "removeFailed": "Bayram kuni o'chirilmadi",
+      "simFailed": "Muddatni hisoblab bo'lmadi",
       "title": "Ish vaqti kalendari (T0-20)",
       "lead": "Advokat javob muddati (30 daqiqa), navbatchi yurist SLA'si va mijoz avtotasdig'i faqat ish vaqtida hisoblanadi. Bayramlarni shu yerda boshqaring va istalgan vaqt uchun muddatni tekshiring.",
       "schedule": "Ish jadvali",
@@ -15328,6 +15393,10 @@
     }
   },
   "secureChat": {
+    "completedOk": "Chat yakunlandi",
+    "deleteAsk": "Chatni o'chirasizmi?",
+    "deleting": "O'chirilmoqda…",
+    "deleted": "Chat o'chirildi",
     "cancel": "Bekor qilish",
     "completing": "Yakunlanmoqda…",
     "completeSubmit": "Yakunlash",
@@ -15453,11 +15522,11 @@
       "request": "Ochishni so'rash",
       "approve": "Tasdiqlash",
       "working": "Yuborilmoqda…",
-      "requested": "So'rov yuborildi.",
-      "approved": "Tasdiqlandi — mazmun ochildi.",
+      "requested": "So'rov yuborildi",
+      "approved": "Tasdiqlandi — mazmun ochildi",
       "forbidden": "Bu amalga ruxsatingiz yo'q.",
       "conflict": "So'rovni o'zingiz tasdiqlay olmaysiz yoki holat allaqachon o'zgargan.",
-      "error": "Bajarib bo'lmadi."
+      "error": "Bajarib bo'lmadi"
     }
   },
   "academy": {
@@ -15531,6 +15600,8 @@
     }
   },
   "call": {
+    "inviteFailed": "Taklif yuborilmadi",
+    "inviteFailedN": "{n} ta taklif yuborilmadi",
     "role": {
       "client": "Mijoz",
       "advokat": "Advokat",

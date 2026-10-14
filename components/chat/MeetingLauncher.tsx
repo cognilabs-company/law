@@ -23,6 +23,7 @@ import ListPager, { usePaged } from "@/components/ui/ListPager";
 import Tabs, { tabDomId, useTabMemory } from "@/components/ui/Tabs";
 import IconButton from "@/components/ui/IconButton";
 import InlineAlert from "@/components/ui/InlineAlert";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { CountBadge, StatusBadge } from "@/components/ui/Badge";
 import MiniCalendar, { type MiniCalEvent } from "@/components/portal/MiniCalendar";
 import { IconVideo, IconClock, IconRefresh, IconUsers, IconUser, IconCalendar, IconPlus, IconMoreHorizontal, IconPhone, IconClipboardCheck, IconSearch, IconChevronRight, IconChevronDown } from "@/components/icons";
@@ -1222,7 +1223,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         {historyBody ??
           (effectiveHistory.length ? (
             <>
-              <div className="ptable__wrap">
+              <ScrollCue className="ptable__wrap">
                 <table className="ptable">
                   <thead>
                     <tr>
@@ -1240,7 +1241,7 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
                     {[...live, ...minePager.visible].map((c, i) => tableRow(c, i))}
                   </tbody>
                 </table>
-              </div>
+              </ScrollCue>
               {moreButton(minePager.rest, minePager.more)}
             </>
           ) : (

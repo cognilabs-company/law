@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { askAiAssistant } from "@/lib/services/backend";
 import { IconSparkle, IconSend } from "@/components/icons";
+import ScrollCue from "@/components/ui/ScrollCue";
 
 // Structured case-assistant suite (module 10): the seller pastes case materials,
 // then runs summarize / chronology / compare / contradictions / missing docs /
@@ -60,7 +61,7 @@ export default function AiAssistant() {
           data-ai-target="assistant:case-input"
           data-ai-label={t("caseLabel")}
         />
-        <div className="chiprow" style={{ marginTop: 10 }} data-ai-target="assistant:tools">
+        <ScrollCue arrows className="chiprow" style={{ marginTop: 10 }} data-ai-target="assistant:tools">
           {TOOLS.map((k) => (
             <button
               key={k}
@@ -73,7 +74,7 @@ export default function AiAssistant() {
               {t(`tools.${k}`)}
             </button>
           ))}
-        </div>
+        </ScrollCue>
         <button className="btn btn--pri btn--full" type="button" style={{ marginTop: 12 }} disabled={busy || !ready} onClick={() => run("free")} data-ai-target="button:assistant-run">
           <IconSend />
           {busy ? t("thinking") : t("run")}

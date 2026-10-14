@@ -26,6 +26,7 @@ import ReglamentGaps from "./ReglamentGaps";
 import ReglamentDrawer from "./ReglamentDrawer";
 import ReglamentEditor, { type EditorMode, type SavedInfo } from "./ReglamentEditor";
 import ReglamentUpload, { type UploadSeed, type UploadedInfo } from "./ReglamentUpload";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { IconAiAnswer, IconCircleCheck, IconClock, IconFileText, IconHelpCircle, IconPlus, IconRefresh, IconUpload } from "@/components/icons";
 
 type Tab = "list" | "gaps";
@@ -281,7 +282,7 @@ export default function AiReglamentsPage() {
         )}
       </section>
 
-      <div className="rgl-tabs" role="tablist" aria-label={t("tabsAria")} data-ai-id="admin.ai-reglaments.tabs" data-ai-target="ai-reglaments:tabs">
+      <ScrollCue className="rgl-tabs" role="tablist" aria-label={t("tabsAria")} data-ai-id="admin.ai-reglaments.tabs" data-ai-target="ai-reglaments:tabs">
         {TABS.map((k) => {
           const n = k === "list" ? (ready ? items.length : null) : gaps.phase === "ready" ? openGaps : null;
           return (
@@ -305,7 +306,7 @@ export default function AiReglamentsPage() {
             </button>
           );
         })}
-      </div>
+      </ScrollCue>
 
       <section className="ppanel rgl-panel" role="tabpanel" id="rgl-panel" aria-labelledby={`rgl-tab-${tab}`}>
         <div className="rgl-panel__h">

@@ -4065,6 +4065,9 @@
     }
   },
   "support": {
+    "claimFailed": "Couldn't claim the chat",
+    "transferFailed": "Couldn't transfer the chat",
+    "closeFailed": "Couldn't close the chat",
     "aiLabels": {
       "chat": "Chat with an operator",
       "clientChat": "Chat with the client"
@@ -7186,6 +7189,7 @@
         "qrAlt": "QR code for the Authenticator app"
       },
       "telegram": {
+        "retryIn": "You can try again in {time}",
         "title": "Telegram account",
         "desc": "Link your account to the LexGo Telegram bot to also receive notifications in Telegram.",
         "connect": "Connect Telegram",
@@ -7271,7 +7275,7 @@
         "calculating": "Calculating…",
         "error": "Could not calculate. Check the date.",
         "ical": "Download to calendar (.ics)",
-        "icalError": "Could not download the .ics file."
+        "icalError": "Could not download the .ics file"
       },
       "declineReasons": {
         "title": "Decline the order",
@@ -7293,6 +7297,9 @@
         "other": "Other"
       },
       "calendar": {
+        "createFailed": "Event not added",
+        "deleted": "Event deleted",
+        "deleteFailed": "Event not deleted",
         "view": "View",
         "month": "Month",
         "list": "List",
@@ -7311,6 +7318,13 @@
       }
     },
     "tasks": {
+      "moveFailed": "Task not moved",
+      "statusFailed": "Task status not changed",
+      "saved": "Task saved",
+      "createFailed": "Task not added",
+      "saveFailed": "Task not saved",
+      "deleted": "Task deleted",
+      "deleteFailed": "Task not deleted",
       "showOpen": "Unfinished only",
       "showAll": "All tasks",
       "showLabel": "Show",
@@ -7328,7 +7342,7 @@
       "priorityLabel": "Priority",
       "save": "Save",
       "saving": "Saving…",
-      "created": "Created",
+      "created": "Task added",
       "errorCreate": "Error. Please try again.",
       "stages": {
         "todo": "To do",
@@ -7344,7 +7358,7 @@
       "count": "{n, plural, one {# task} other {# tasks}} · {open} open",
       "searchPh": "Search by task, case or description",
       "hideDone": "Hide done",
-      "loadError": "Could not load tasks. Refresh the page.",
+      "loadError": "Could not load tasks",
       "forbidden": "You are not allowed to change this task.",
       "checklistCount": "Checklist {done}/{total}",
       "blocked": "Blocked",
@@ -7730,7 +7744,7 @@
         "addTitle": "New event",
         "save": "Save",
         "saving": "Saving…",
-        "created": "Event added.",
+        "created": "Event added",
         "error": "Something went wrong.",
         "remove": "Remove",
         "typeLabel": "Type",
@@ -7969,6 +7983,7 @@
         "label": "Kind of document"
       },
       "urgent": {
+        "queuedTitle": "Request queued",
         "opCreated": "An operator created an urgent advocate request for you",
         "byOperator": "Created by operator",
         "backToKinds": "Choose another type",
@@ -8089,8 +8104,8 @@
         "nextGroup": "The advocate on duty picks the panel and the meeting time, then you are notified.",
         "filesInChat": "Files and voice notes are sent in the chat once an advocate takes the request.",
         "submit": "Send request",
-        "sent": "Request sent. We will tell you when an advocate takes it.",
-        "sendError": "Could not send the request. Please try again.",
+        "sent": "Request sent",
+        "sendError": "Could not send the request",
         "mine": "My requests",
         "mineEmpty": "No requests",
         "mineEmptyText": "Pick a service above and send your first request.",
@@ -8507,6 +8522,7 @@
         }
       },
       "complaints": {
+        "sendFailed": "Complaint not sent",
         "detailTitle": "Complaint details",
         "process": "Process",
         "ratingTitle": "Your rating",
@@ -8815,6 +8831,7 @@
         "error": "Error. Please try again."
       },
       "gifts": {
+        "createFailed": "Couldn't create the gift",
         "statusMap": {
           "pending": "Pending",
           "sent": "Sent",
@@ -9220,6 +9237,16 @@
         }
       },
       "documents": {
+        "answersFailed": "Answers not saved",
+        "payFailed": "Payment didn't start",
+        "statusFailed": "Couldn't check the status",
+        "reviewFailed": "Not sent for a lawyer's review",
+        "reviewSentTitle": "Sent for a lawyer's review",
+        "aiQuestionsFailed": "Couldn't get the questions",
+        "aiGenerateFailed": "Document not generated",
+        "lawyerSendFailed": "Request not sent",
+        "startFailed": "Couldn't start the document",
+        "callLimitTitle": "Call limit reached",
         "gatePooledSub": "We'll tell you as soon as a duty advocate takes it.",
         "gatePooled": "Payment approved — now in the advocates' queue",
         "lawyerNeedRequired": "Write the request text — the advocate needs to know where to start.",
@@ -9632,6 +9659,7 @@
         "manualDisabled": "Manual filling requires a plan"
       },
       "newDoc": {
+        "sendFailed": "Request not sent",
         "mainFileRequired": "Upload the document to be checked.",
         "previewSeek": "Seek in the voice note",
         "previewNone": "This kind of file cannot be shown here",
@@ -9673,6 +9701,7 @@
         "error": "Something went wrong. Please try again."
       },
       "documentRequests": {
+        "ctorFailed": "Couldn't open the builder",
         "whyBlocked": "Why can't I send it to a lawyer?",
         "actSend": "Send to a lawyer",
         "actChat": "Chat",
@@ -9989,7 +10018,7 @@
         "addTitle": "New event",
         "save": "Save",
         "saving": "Saving…",
-        "created": "Event added.",
+        "created": "Event added",
         "error": "Something went wrong.",
         "remove": "Remove",
         "typeLabel": "Type",
@@ -10087,6 +10116,7 @@
       }
     },
     "org": {
+      "memberAddFailed": "Member not added",
       "createFailed": "Couldn't create the organization",
       "memberServices": "Services",
       "manage": "Dashboard",
@@ -10115,7 +10145,7 @@
       "address": "Address",
       "save": "Save",
       "saving": "Saving…",
-      "created": "Created.",
+      "created": "Organization created",
       "error": "Something went wrong.",
       "member": "User",
       "selectMember": "Select a user",
@@ -10123,7 +10153,7 @@
       "memberTitlePh": "e.g. Senior lawyer",
       "addMember": "Add member",
       "noMembers": "No members yet",
-      "memberAdded": "Member added."
+      "memberAdded": "Member added"
     },
     "stats": {
       "activeCases": "Active cases",
@@ -10326,7 +10356,7 @@
       "markShown": "Mark shown as read",
       "noMatch": "No matching notifications",
       "noMatchText": "Pick another section or clear the search.",
-      "loadError": "Could not load notifications. Refresh the page.",
+      "loadError": "Couldn't load notifications",
       "unreadN": "{n} unread",
       "viaChannels": "via {list}",
       "paymentStatus": {
@@ -10449,6 +10479,7 @@
       "aria": "Notifications"
     },
     "caseManage": {
+      "saveFailed": "Case not saved",
       "title": "Manage case",
       "status": "Status",
       "stage": "Stage",
@@ -10457,7 +10488,7 @@
       "nextActionPh": "What happens next",
       "save": "Save",
       "saving": "Saving…",
-      "saved": "Case updated.",
+      "saved": "Case updated",
       "error": "Something went wrong."
     },
     "workspace": {
@@ -10525,6 +10556,14 @@
       "openError": "Could not open the file. Try again."
     },
     "files": {
+      "deleting": "Deleting…",
+      "deleted": "Deleted",
+      "deleteFailed": "Couldn't delete",
+      "starFailed": "Couldn't update the star",
+      "renameFailed": "Couldn't rename",
+      "folderFailed": "Folder not created",
+      "openFailed": "Couldn't open the file",
+      "downloadFailed": "Couldn't download the file",
       "sectionLabel": "Section",
       "title": "Files",
       "subtitle": "Manage your files and folders",
@@ -10724,13 +10763,13 @@
       "notes": "Note",
       "save": "Save",
       "saving": "Saving…",
-      "saved": "Client added.",
-      "saveError": "Could not save.",
+      "saved": "Client added",
+      "saveError": "Client not saved",
       "checkTitle": "Conflict of interest check",
       "checkLead": "Before a new order, enter the client's or counterparty's details — they are compared with your other cases.",
       "opponent": "Counterparty",
       "checking": "Checking…",
-      "checkError": "Could not check.",
+      "checkError": "Could not run the check",
       "clear": "No conflict found.",
       "potential": "Possible conflict of interest — check before accepting:",
       "reasons": {
@@ -10755,8 +10794,8 @@
       "running": "Working…",
       "editHint": "Edit the text and approve — the approved version is kept.",
       "approve": "Approve",
-      "saved": "Summary saved.",
-      "error": "Could not get the AI result."
+      "saved": "Summary saved",
+      "error": "Could not get the AI result"
     },
     "clientDetail": {
       "title": "Client",
@@ -13050,6 +13089,7 @@
       }
     },
     "plans": {
+      "notify": {"created":"Plan created","saved":"Plan saved","createFailed":"Plan not created","saveFailed":"Plan not saved","activated":"Plan activated","deactivated":"Plan deactivated","toggleFailed":"Plan status not changed","restoreFailed":"Plan not restored to the list","reset":"Admin changes removed","resetFailed":"Couldn't remove admin changes","deleted":"Plan deleted","deleteFailed":"Plan not deleted"},
       "visibleChip": "Visible ({n})",
       "visibility": "Show",
       "searchPh": "Name or slug…",
@@ -13175,6 +13215,9 @@
       }
     },
     "roles": {
+      "created": "Role created",
+      "createFailed": "Role not created",
+      "assignFailed": "Role not assigned",
       "sellerType": {
         "advokat": "Advocate",
         "yurist": "Lawyer",
@@ -13199,6 +13242,13 @@
       "selectUser": "Select a user"
     },
     "notifications": {
+      "broadcastAsk": "Send to all users in the \"{role}\" role?",
+      "broadcastAskText": "Every user in the \"{role}\" role will receive this message. A sent message can't be recalled.",
+      "broadcastAskOk": "Send to all",
+      "broadcastSent": "Sent to users in the \"{role}\" role",
+      "broadcastFailed": "Couldn't send to the \"{role}\" role",
+      "resultNone": "Not sent to anyone",
+      "resultPartialBody": "See who didn't get it in the Results list below.",
       "roleLabel": "Role",
       "title": "Send notification",
       "lead": "Send a user a notification. It is delivered in-app, by push, Telegram and email; SMS is only a fallback for critical events.",
@@ -14099,6 +14149,7 @@
       "som": "UZS"
     },
     "retention": {
+      "winBackFailed": "{name} not added to the win-back queue",
       "title": "Retention & upsell",
       "atRisk": "At risk",
       "churned": "Churned this month",
@@ -14123,6 +14174,7 @@
       "price": "Price"
     },
     "audit": {
+      "exportFailed": "CSV export failed",
       "ph": {
         "action": "e.g. login",
         "targetType": "e.g. user",
@@ -14520,6 +14572,7 @@
       }
     },
     "reviews": {
+      "notify": {"approved":"Review approved","rejected":"Review rejected","approveFailed":"Review not approved","rejectFailed":"Review not rejected"},
       "sellerKind": {
         "advokat": "Advocate",
         "yurist": "Lawyer",
@@ -14563,6 +14616,8 @@
       }
     },
     "payouts": {
+      "markedPaid": "Marked as paid",
+      "markFailed": "Couldn't mark as paid",
       "title": "Payout reconciliation",
       "gross": "Gross amount",
       "platformFee": "Platform fee",
@@ -14865,6 +14920,8 @@
       "content_manager": "Content manager"
     },
     "legal": {
+      "saveFailed": "Document not published",
+      "noWriteApiShort": "The server can't save documents yet. The text was not saved.",
       "title": "Legal documents & consents",
       "readiness": "Ready: {n} / {total}",
       "lead": "The 10 required documents (S-53). Texts are entered here, never in code. Every document is versioned; users accept each one separately.",
@@ -14933,7 +14990,9 @@
       "user": "User"
     },
     "policies": {
+      "saveFailed": "Policies not saved",
       "pricing": {
+        "notify": {"saved":"Pricing rules saved","savedBody":"A new version was created.","saveFailed":"Pricing rules not saved","loaded":"v{v} loaded into the form","loadedPlain":"Version loaded into the form","loadedBody":"Saving creates a new version."},
         "soonLoad": "Pricing rules are coming soon. Once the backend is ready, they will appear here on their own.",
         "title": "Marketplace pricing",
         "lead": "Advocates and lawyers can only price services within these rules. The recommended price starts from the catalogue price and adjusts for region, experience and rating.",
@@ -15135,6 +15194,8 @@
       "historyTitle": "{section} — version history",
       "historyEmpty": "No changes yet.",
       "unverified": {
+        "saved": "Catalogue setting saved",
+        "saveFailed": "Catalogue setting not saved",
         "title": "Unverified advocates and lawyers",
         "lead": "How providers without identity (MyID) and document verification appear in the catalogue (GM T0-10 §5). Takes effect immediately.",
         "badge": "List them with an \"Unverified\" mark",
@@ -15144,6 +15205,10 @@
       }
     },
     "businessCalendar": {
+      "addFailed": "Holiday not added",
+      "removed": "Holiday removed",
+      "removeFailed": "Holiday not removed",
+      "simFailed": "Couldn't calculate the deadline",
       "title": "Working-hours calendar (T0-20)",
       "lead": "The advocate response window (30 min), duty-lawyer SLA and client auto-confirmation count working time only. Manage public holidays here and check the deadline for any moment.",
       "schedule": "Schedule",
@@ -15322,6 +15387,10 @@
     }
   },
   "secureChat": {
+    "completedOk": "Chat completed",
+    "deleteAsk": "Delete this chat?",
+    "deleting": "Deleting…",
+    "deleted": "Chat deleted",
     "cancel": "Cancel",
     "completing": "Completing…",
     "completeSubmit": "Complete",
@@ -15447,11 +15516,11 @@
       "request": "Request reveal",
       "approve": "Approve",
       "working": "Sending…",
-      "requested": "Request sent.",
-      "approved": "Approved — content revealed.",
+      "requested": "Request sent",
+      "approved": "Approved — content revealed",
       "forbidden": "You may not do this.",
       "conflict": "You cannot approve your own request, or the state has changed.",
-      "error": "Could not complete."
+      "error": "Could not complete"
     }
   },
   "academy": {
@@ -15525,6 +15594,8 @@
     }
   },
   "call": {
+    "inviteFailed": "Invite not sent",
+    "inviteFailedN": "{n, plural, one {# invite wasn't sent} other {# invites weren't sent}}",
     "role": {
       "client": "Client",
       "advokat": "Advocate",

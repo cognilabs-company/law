@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
 import { notify } from "@/lib/toast";
 import { isConflict, parseServerTime } from "@/lib/http";
@@ -790,14 +791,14 @@ function Workspace({
         ) : null}
       </div>
 
-      <div className="tpe-tabs" role="tablist" aria-label={t("tabs.label")}>
+      <ScrollCue className="tpe-tabs" role="tablist" aria-label={t("tabs.label")}>
         <button type="button" role="tab" aria-selected={pane === "nav"} className={pane === "nav" ? "on" : ""} onClick={() => setPane(pane === "nav" ? "" : "nav")}>
           {t("tabs.nav")}
         </button>
         <button type="button" role="tab" aria-selected={pane === "insp"} className={pane === "insp" ? "on" : ""} onClick={() => setPane(pane === "insp" ? "" : "insp")}>
           {selField ? t("tabs.field") : selSection ? t("tabs.section") : t("tabs.meta")}
         </button>
-      </div>
+      </ScrollCue>
 
       <div className="tpe-grid" data-pane={pane}>
         <aside className="tpe-pane tpe-pane--nav" aria-label={t("nav.title")}>

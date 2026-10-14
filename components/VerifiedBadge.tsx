@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { IconClose } from "@/components/icons";
+import Modal from "@/components/admin/Modal";
 
 const SRC = "/img/tasdiqlovchi-badge.webp";
 
@@ -108,50 +108,37 @@ function VerifiedModal({ name, subtitle, onClose }: { name?: string; subtitle?: 
   const t = useTranslations("verifiedBadge");
   const okRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    okRef.current?.focus({ preventScroll: true });
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
-
-  const stop = (e: MouseEvent) => e.stopPropagation();
-
-  return createPortal(
-    <div className="vmodal" onClick={onClose}>
-      <div className="vmodal__box" role="dialog" aria-modal="true" aria-labelledby="vmodal-title" onClick={stop}>
-        <button type="button" className="vmodal__x" aria-label={t("close")} onClick={onClose}>
-          <IconClose />
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={t("title")}
+      size="sm"
+      closeLabel={t("close")}
+      initialFocus={okRef}
+      footer={
+        <button ref={okRef} type="button" className="btn btn--pri vmodal__okbtn" onClick={onClose}>
+          {t("ok")}
         </button>
-        <div className="vmodal__hero">
-          <span className="vmodal__ring" aria-hidden="true" />
-          <span className="vmodal__seal">
-            <Image src={SRC} alt="" width={96} height={96} />
-          </span>
-          <span className="vmodal__kicker">{t("kicker")}</span>
-          <h2 id="vmodal-title">{t("title")}</h2>
-          {name ? (
-            <p className="vmodal__who">
-              <b>{name}</b>
-              {subtitle ? <span>{subtitle}</span> : null}
-            </p>
-          ) : null}
-        </div>
-        <p className="vmodal__desc">{t("description")}</p>
-        <div className="vmodal__foot">
-          <button ref={okRef} type="button" className="btn btn--pri vmodal__okbtn" onClick={onClose}>
-            {t("ok")}
-          </button>
-        </div>
+      }
+    >
+      <div className="vmodal__hero">
+        <span className="vmodal__ring" aria-hidden="true" />
+        <span className="vmodal__seal">
+          <Image src={SRC} alt="" width={96} height={96} />
+        </span>
+        <span className="vmodal__kicker">{t("kicker")}</span>
+        <p className="vmodal__name" aria-hidden="true">
+          {t("title")}
+        </p>
+        {name ? (
+          <p className="vmodal__who">
+            <b>{name}</b>
+            {subtitle ? <span>{subtitle}</span> : null}
+          </p>
+        ) : null}
       </div>
-    </div>,
-    document.body,
+      <p className="vmodal__desc">{t("description")}</p>
+    </Modal>
   );
 }

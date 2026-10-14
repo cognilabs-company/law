@@ -17,6 +17,7 @@ import {
 import ContractCard from "../ContractCard";
 import AgentAnswer from "./AgentAnswer";
 import AgentThinking from "./AgentThinking";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { IconSend, IconStar, IconClose, IconArrowRight } from "../icons";
 
 type Msg = {
@@ -228,13 +229,13 @@ export default function ChatWidget({
         {typing ? <AgentThinking compact /> : null}
       </div>
 
-      <div className="qr">
+      <ScrollCue arrows className="qr">
         {quick.map((q, i) => (
           <button key={i} type="button" onClick={() => ask(q)}>
             {q}
           </button>
         ))}
-      </div>
+      </ScrollCue>
 
       <div className="cbar">
         <input

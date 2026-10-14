@@ -10,17 +10,20 @@ import { fmtDate } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton } from "@/components/portal/DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { ApiError } from "@/lib/http";
+import { notify } from "@/lib/toast";
 import StatTile from "@/components/admin/StatTile";
 import StatDrillModal, { type Drill } from "@/components/admin/StatDrillModal";
 import DashFilterBar, { useDashFilter } from "@/components/admin/DashFilterBar";
 import { IconAlert, IconUsers, IconTrendingUp, IconCheck, IconInfo } from "@/components/icons";
 
+const transient = (e: unknown) => !(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 501);
 const EMPTY: RetentionData = { fetchedAt: "", atRisk: 0, atRiskLeads: 0, churnedThisMonth: 0, retainedPct: 0, periodDays: 30, previousPeriodActive: 0, currentPeriodActive: 0, retainedClients: 0, atRiskClients: [], upsell: [] };
 
 export default function AdminRetention() {
   const t = useTranslations("admin.retention");
   const td = useTranslations("admin.dash");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const { filter, setFilter, demoForced, setDemoForced } = useDashFilter();
   const fkey = `${filter.region}|${filter.from}|${filter.to}`;
@@ -30,21 +33,25 @@ export default function AdminRetention() {
   const d = useMemo(() => (demo ? demoRetention(todayIso()) : res.data ?? EMPTY), [demo, res.data]);
   const [drill, setDrill] = useState<Drill | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const reason = (k: string) => (t.has(`reason.${k}`) ? t(`reason.${k}`) : humanizeSlug(k));
   const lastPaid = (c: AtRiskClient) => (c.lastPaidAt ? t("lastPaid", { date: fmtDate(c.lastPaidAt, locale) }) : t("neverPaid"));
   const regionHint = filter.region ? td("hint.regionNa") : undefined;
 
   async function winBack(c: AtRiskClient) {
-    if (demo) { setNote({ ok: false, msg: t("demoAction") }); return; }
-    if (!c.id && !c.phone) { setNote({ ok: false, msg: t("noClientId") }); return; }
+    const nid = `winback-${c.id || c.phone || "demo"}`;
+    if (demo) { notify.info(t("demoAction"), { id: nid }); return; }
+    if (!c.id && !c.phone) { notify.warning(t("noClientId"), { id: nid }); return; }
     setBusy(c.id || c.phone);
-    setNote(null);
+    const name = c.name || c.phone;
     try {
       await addRetentionQueue({ client_user_id: c.id || undefined, phone: c.phone || undefined, note: c.reasons.join(", "), offer: "win_back" });
-      setNote({ ok: true, msg: t("winBackDone", { name: c.name || c.phone }) });
-    } catch {
-      setNote({ ok: false, msg: t("error") });
+      notify.success(t("winBackDone", { name }), { id: nid });
+    } catch (e) {
+      notify.error(t("winBackFailed", { name }), {
+        id: nid,
+        error: e,
+        action: transient(e) ? { label: tn("retry"), onClick: () => void winBack(c) } : undefined,
+      });
     } finally {
       setBusy(null);
     }
@@ -79,7 +86,6 @@ export default function AdminRetention() {
       <div className="pgrid2">
         <div className="ppanel" data-ai-target="retention:at-risk">
           <div className="ppanel__h"><b>{t("atRiskTitle")}</b></div>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           {!loaded ? <Skeleton rows={2} /> : !d.atRiskClients.length ? (
             <p className="advmuted">{t("noRisk")}</p>
           ) : (

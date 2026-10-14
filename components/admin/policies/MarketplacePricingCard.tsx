@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useId, useState, useSyncExternalStore, type ReactNode, type SVGProps } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode, type SVGProps } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
 import { Skeleton } from "@/components/portal/DataState";
 import {
   IconAlert,
@@ -231,6 +231,7 @@ export default function MarketplacePricingCard() {
   const t = useTranslations("admin.policies.pricing");
   const tm = useTranslations("marketPricing");
   const te = useTranslations("enums");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const uid = useId();
   const [tick, setTick] = useState(0);
@@ -241,8 +242,8 @@ export default function MarketplacePricingCard() {
   const [savedKeys, setSavedKeys] = useState<string[] | null>(null);
   const [kept, setKept] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const saveRef = useRef<() => Promise<void>>(async () => undefined);
   const saveMissing = useSyncExternalStore(subscribePricingGate, pricingSaveMissing, () => false);
 
   useEffect(() => {
@@ -295,7 +296,6 @@ export default function MarketplacePricingCard() {
 
   const patch = (fn: (d: Draft) => Draft) => {
     setDraft((d) => (d ? fn(d) : d));
-    setNote(null);
   };
 
   const fieldName = (path: string): string => {
@@ -352,20 +352,29 @@ export default function MarketplacePricingCard() {
   const save = async () => {
     if (!policy || !load.data || !canSave) return;
     setBusy(true);
-    setNote(null);
     setKept([]);
     try {
       await saveAdminPricing(policy, load.data.raw);
       setSavedKeys(policy.regions.map((r) => r.key));
-      setNote({ ok: true, msg: t("saved") });
+      notify.success(t("notify.saved"), { id: "mpp-save", body: t("notify.savedBody") });
       setTick((x) => x + 1);
     } catch (e) {
       const f = pricingSaveFailure(e);
-      if (f.kind !== "missing") setNote({ ok: false, msg: failText(f) });
+      if (f.kind !== "missing") {
+        notify.error(t("notify.saveFailed"), {
+          id: "mpp-save",
+          body: failText(f),
+          action: f.kind === "offline" || f.kind === "unknown" ? { label: tn("retry"), onClick: () => void saveRef.current() } : undefined,
+        });
+      }
     } finally {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    saveRef.current = save;
+  });
 
   const retry = () => {
     setLoad({ status: "loading", data: null });
@@ -376,7 +385,7 @@ export default function MarketplacePricingCard() {
     setDraft(toDraft(p));
     setKept([]);
     setHistoryOpen(false);
-    setNote({ ok: true, msg: v ? t("loaded", { v }) : t("loadedPlain") });
+    notify.info(v ? t("notify.loaded", { v }) : t("notify.loadedPlain"), { id: "mpp-load", body: t("notify.loadedBody") });
   };
 
   const head = (
@@ -690,7 +699,6 @@ export default function MarketplacePricingCard() {
           </button>
         </span>
       </div>
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {kept.length ? (
         <p className="mpp__info is-kept">
           <IconInfo aria-hidden="true" />

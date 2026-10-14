@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { updateCase, type BackendCase } from "@/lib/services/backend";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconUser } from "@/components/icons";
@@ -27,7 +27,6 @@ export default function CaseManageModal({
   const [stage, setStage] = useState(target?.stage || "");
   const [nextAction, setNextAction] = useState(target?.nextAction || "");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // Reset the form when a different case is opened (during render, not in an effect).
   const [prevTarget, setPrevTarget] = useState(target);
@@ -37,7 +36,6 @@ export default function CaseManageModal({
       setStatus(target.status || "active");
       setStage(target.stage || "");
       setNextAction(target.nextAction || "");
-      setNote(null);
     }
   }
 
@@ -45,18 +43,18 @@ export default function CaseManageModal({
     e.preventDefault();
     if (!target || busy) return;
     setBusy(true);
-    setNote(null);
+    const nid = `case-save-${target.id}`;
     try {
       await updateCase(target.id, {
         status,
         stage: stage.trim() || undefined,
         next_action: nextAction.trim() || undefined,
       });
-      setNote({ ok: true, msg: t("saved") });
+      notify.success(t("saved"), { id: nid, body: target.caseType || target.title || undefined });
       onSaved();
-      setTimeout(onClose, 900);
-    } catch {
-      setNote({ ok: false, msg: t("error") });
+      onClose();
+    } catch (err) {
+      notify.error(t("saveFailed"), { id: nid, error: err });
     } finally {
       setBusy(false);
     }
@@ -85,7 +83,6 @@ export default function CaseManageModal({
             <label>{t("nextAction")}</label>
             <input value={nextAction} onChange={(e) => setNextAction(e.target.value)} placeholder={t("nextActionPh")} />
           </div>
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <button className="btn btn--pri btn--full" type="submit" disabled={busy}>
             {busy ? t("saving") : t("save")}
           </button>

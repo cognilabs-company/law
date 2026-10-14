@@ -5,8 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
 import { usePaged, type Page } from "@/lib/usePaged";
 import { isAborted, isConflict, isRouteMissing } from "@/lib/http";
-import { errorText } from "@/lib/errorText";
-import { toast } from "@/lib/toast";
+import { notify } from "@/lib/toast";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
 import { useAiReveal } from "@/lib/guide/targets";
 import { aiId, aiSeg } from "@/lib/ai/ids";
@@ -31,6 +30,8 @@ import {
 import type { AssistCapabilities } from "@/lib/services/supportAssist";
 import { shortDateTime } from "@/lib/date";
 import Modal from "@/components/admin/Modal";
+import FieldError from "@/components/ui/FieldError";
+import { ErrorState } from "@/components/portal/DataState";
 import { IconChat, IconChevronLeft, IconClock, IconHeadset, IconInbox, IconLock, IconRefresh, IconSearch } from "@/components/icons";
 import SupportChat from "./SupportChat";
 import AssistPanel from "./assist/AssistPanel";
@@ -81,6 +82,7 @@ function belongs(tab: Tab, tk: SupportTicket, meId: string): boolean {
 export default function SupportQueue({ ticketId }: { ticketId?: string }) {
   const t = useTranslations("support");
   const tc = useTranslations("common");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const { session } = useAuth();
   const meId = session?.id ?? "";
@@ -100,6 +102,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
   const counted = useRef(new Set<string>());
   const acted = useRef({ ticketId: "", at: 0 });
   const claiming = useRef("");
+  const again = useRef<(tk: SupportTicket) => void>(() => undefined);
   const uid = useId();
 
   const fetcher = useCallback(
@@ -175,8 +178,8 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
     if (e.ticket) {
       const tk = e.ticket;
       if (e.ticketId === selectedId && current) {
-        if (e.kind === "claimed" && tk.operatorUserId && tk.operatorUserId !== meId && current.operatorUserId !== tk.operatorUserId) toast(t("claimTaken"));
-        if (e.kind === "transferred" && tk.operatorUserId !== meId && current.operatorUserId === meId) toast(t("transferredAway"));
+        if (e.kind === "claimed" && tk.operatorUserId && tk.operatorUserId !== meId && current.operatorUserId !== tk.operatorUserId) notify.warning(t("claimTaken"), { id: `sup-claim-${tk.id}` });
+        if (e.kind === "transferred" && tk.operatorUserId !== meId && current.operatorUserId === meId) notify.info(t("transferredAway"), { id: `sup-away-${tk.id}` });
       }
       place(tk, true);
       return;
@@ -302,17 +305,21 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
       const next = await claimSupportTicket(tk.id);
       const base = next.id ? next : tk;
       place({ ...base, operatorUserId: next.operatorUserId || meId, status: next.status || "claimed" }, false);
-      toast(t("claimedOk"), { tone: "ok" });
+      notify.success(t("claimedOk"), { id: `sup-claim-${tk.id}` });
     } catch (e) {
       if (isConflict(e)) {
-        toast(t("claimTaken"), { tone: "err" });
+        notify.error(t("claimTaken"), { id: `sup-claim-${tk.id}` });
         refresh();
-      } else toast(errorText(e, tc), { tone: "err" });
+      } else notify.error(t("claimFailed"), { id: `sup-claim-${tk.id}`, error: e, action: { label: tn("retry"), onClick: () => again.current(tk) } });
     } finally {
       claiming.current = "";
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    again.current = (tk) => void claim(tk);
+  });
 
   const markActed = (id: string) => {
     acted.current = { ticketId: id, at: Date.now() };
@@ -357,9 +364,9 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
       const base = next.id ? next : current;
       place({ ...base, status: next.status || "transferred", operatorUserId: next.operatorUserId || pick.id, operatorName: next.operatorName || pick.name }, false);
       setTransfer(null);
-      toast(t("transferOk", { name: pick.name || pick.lexgoId }), { tone: "ok" });
+      notify.success(t("transferOk", { name: pick.name || pick.lexgoId }), { id: `sup-transfer-${current.id}` });
     } catch (e) {
-      setTransfer((x) => (x ? { ...x, err: errorText(e, tc) } : x));
+      notify.error(t("transferFailed"), { id: `sup-transfer-${current.id}`, error: e });
       if (isConflict(e)) refresh();
     } finally {
       setBusy(false);
@@ -379,9 +386,9 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
       const base = next.id ? next : current;
       place({ ...base, status: next.status || "closed", resolution: next.resolution || resolution }, false);
       setClosing(null);
-      toast(t("closedOk"), { tone: "ok" });
+      notify.success(t("closedOk"), { id: `sup-close-${current.id}` });
     } catch (e) {
-      setClosing((x) => (x ? { ...x, err: errorText(e, tc) } : x));
+      notify.error(t("closeFailed"), { id: `sup-close-${current.id}`, error: e });
       if (isConflict(e)) refresh();
     } finally {
       setBusy(false);
@@ -440,13 +447,7 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
             {list.status === "loading" ? (
               [0, 1, 2].map((i) => <div key={i} className="supcard supcard--ghost" aria-hidden="true" />)
             ) : list.status === "error" ? (
-              <div className="sup__empty">
-                <p>{errorText(list.error, tc)}</p>
-                <button type="button" className="btn btn--line btn--sm" onClick={list.reload}>
-                  <IconRefresh />
-                  {tc("retry")}
-                </button>
-              </div>
+              <ErrorState compact error={list.error} onRetry={list.reload} />
             ) : !list.items.length ? (
               <div className="supempty supempty--sm">
                 <span className="supempty__ic" aria-hidden="true">
@@ -643,7 +644,32 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
         </section>
       </div>
 
-      <Modal open={!!transfer} onClose={() => setTransfer(null)} title={t("transfer")}>
+      <Modal
+        open={!!transfer}
+        onClose={() => setTransfer(null)}
+        title={t("transfer")}
+        busy={busy}
+        dirty={Boolean(transfer && (transfer.pick || transfer.reason.trim()))}
+        footer={
+          transfer ? (
+            <>
+              <button type="button" className="btn btn--line" onClick={() => setTransfer(null)} disabled={busy}>
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                className="btn btn--pri"
+                disabled={!transfer.pick || busy}
+                onClick={() => void doTransfer()}
+                data-ai-id={aiId("call_center.support.ticket", aiTicket, "transfer-modal", "confirm")}
+                data-ai-label={t("transferDo")}
+              >
+                {t("transferDo")}
+              </button>
+            </>
+          ) : null
+        }
+      >
         {transfer ? (
           <div className="supmodal" data-ai-id={aiId("call_center.support.ticket", aiTicket, "transfer-modal")} data-ai-type="modal" data-ai-label={t("transfer")} data-ai-private>
             <label className="supmodal__search">
@@ -690,49 +716,27 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                 onChange={(e) => setTransfer({ ...transfer, reason: e.target.value, err: "" })}
                 rows={3}
                 placeholder={t("reasonPh")}
+                aria-invalid={transfer.err ? true : undefined}
+                aria-describedby={transfer.err ? `${uid}-xfer-err` : undefined}
                 data-ai-id={aiId("call_center.support.ticket", aiTicket, "transfer-modal", "reason")}
                 data-ai-label={t("reason")}
               />
             </label>
-            {transfer.err ? <p className="supchat__err" role="alert">{transfer.err}</p> : null}
-            <div className="supmodal__acts">
-              <button type="button" className="btn btn--line" onClick={() => setTransfer(null)}>
-                {t("cancel")}
-              </button>
-              <button
-                type="button"
-                className="btn btn--pri"
-                disabled={!transfer.pick || busy}
-                onClick={() => void doTransfer()}
-                data-ai-id={aiId("call_center.support.ticket", aiTicket, "transfer-modal", "confirm")}
-                data-ai-label={t("transferDo")}
-              >
-                {t("transferDo")}
-              </button>
-            </div>
+            <FieldError id={`${uid}-xfer-err`} msg={transfer.err} />
           </div>
         ) : null}
       </Modal>
 
-      <Modal open={!!closing} onClose={() => setClosing(null)} title={t("close")}>
-        {closing ? (
-          <div className="supmodal" data-ai-id={aiId("call_center.support.ticket", aiTicket, "close-modal")} data-ai-type="modal" data-ai-label={t("close")} data-ai-private>
-            <p className="supmodal__note">{t("closeNote")}</p>
-            <label className="supmodal__field">
-              <span>{t("resolution")}</span>
-              <textarea
-                value={closing.resolution}
-                onChange={(e) => setClosing({ resolution: e.target.value, err: "" })}
-                rows={3}
-                placeholder={t("resolutionPh")}
-                autoFocus
-                data-ai-id={aiId("call_center.support.ticket", aiTicket, "close-modal", "resolution")}
-                data-ai-label={t("resolution")}
-              />
-            </label>
-            {closing.err ? <p className="supchat__err" role="alert">{closing.err}</p> : null}
-            <div className="supmodal__acts">
-              <button type="button" className="btn btn--line" onClick={() => setClosing(null)}>
+      <Modal
+        open={!!closing}
+        onClose={() => setClosing(null)}
+        title={t("close")}
+        busy={busy}
+        dirty={Boolean(closing?.resolution.trim())}
+        footer={
+          closing ? (
+            <>
+              <button type="button" className="btn btn--line" onClick={() => setClosing(null)} disabled={busy}>
                 {t("cancel")}
               </button>
               <button
@@ -745,7 +749,28 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
               >
                 {t("closeDo")}
               </button>
-            </div>
+            </>
+          ) : null
+        }
+      >
+        {closing ? (
+          <div className="supmodal" data-ai-id={aiId("call_center.support.ticket", aiTicket, "close-modal")} data-ai-type="modal" data-ai-label={t("close")} data-ai-private>
+            <p className="supmodal__note">{t("closeNote")}</p>
+            <label className="supmodal__field">
+              <span>{t("resolution")}</span>
+              <textarea
+                value={closing.resolution}
+                onChange={(e) => setClosing({ resolution: e.target.value, err: "" })}
+                rows={3}
+                placeholder={t("resolutionPh")}
+                autoFocus
+                aria-invalid={closing.err ? true : undefined}
+                aria-describedby={closing.err ? `${uid}-close-err` : undefined}
+                data-ai-id={aiId("call_center.support.ticket", aiTicket, "close-modal", "resolution")}
+                data-ai-label={t("resolution")}
+              />
+            </label>
+            <FieldError id={`${uid}-close-err`} msg={closing.err} />
           </div>
         ) : null}
       </Modal>

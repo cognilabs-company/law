@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getContract, startContractSignature, verifyContractSignature } from "@/lib/services/backend";
 import { ApiError, errDetail, isForbidden, isOffline, isOtpExpired, isProviderUnavailable, isRateLimited, retryAfterSec } from "@/lib/http";
-import { OTP_RESEND_SEC, useOtpTimer } from "@/lib/useOtpTimer";
+import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
 import { IconCheck, IconChevronLeft, IconExternal, IconShieldCheck } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
 
@@ -30,12 +31,14 @@ export default function ContractSign({ contractId }: { contractId: string }) {
   const tOtp = useTranslations("register.otp");
   const tc = useTranslations("common");
   const otp = useOtpTimer();
+  const uid = useId();
+  const nid = `contract-sign-${contractId}`;
   const [stage, setStage] = useState<"idle" | "code">("idle");
   const [vid, setVid] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [resending, setResending] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [codeErr, setCodeErr] = useState("");
   const [signed, setSigned] = useState<{ id: string; value: Signed | null } | null>(null);
   const current = signed?.id === contractId ? signed.value : null;
 
@@ -67,21 +70,22 @@ export default function ContractSign({ contractId }: { contractId: string }) {
     if (busy || resending || otp.resendIn > 0) return;
     if (resend) setResending(true);
     else setBusy(true);
-    setNote(null);
+    setCodeErr("");
     try {
       const c = await startContractSignature(contractId);
       if (!c.verificationId) {
-        setNote({ ok: false, msg: t("startError") });
+        notify.error(t("startError"), { id: nid });
         return;
       }
       setVid(c.verificationId);
       setCode("");
       otp.issue(c.expiresAt);
       setStage("code");
-      if (resend) setNote({ ok: true, msg: tOtp("resent") });
+      if (resend) notify.success(tOtp("resent"), { id: nid });
+      else notify.dismiss(nid);
     } catch (e) {
       if (isRateLimited(e)) otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
-      setNote({ ok: false, msg: startError(e) });
+      notify.error(startError(e), { id: nid });
     } finally {
       setBusy(false);
       setResending(false);
@@ -91,22 +95,24 @@ export default function ContractSign({ contractId }: { contractId: string }) {
   async function verify() {
     if (busy || resending || code.length !== 6 || otp.expired || otp.blockedIn > 0) return;
     setBusy(true);
-    setNote(null);
+    setCodeErr("");
     try {
       const r = await verifyContractSignature(contractId, vid, code);
+      notify.dismiss(nid);
       setSigned({ id: contractId, value: { at: r.signedAt, verifyUrl: r.verifyUrl } });
       setStage("idle");
       otp.clear();
     } catch (e) {
       if (isRateLimited(e)) {
         otp.block(retryAfterSec(e, LOCK_SEC));
-        setNote({ ok: false, msg: errDetail(e) || tc("rateLimited") });
+        setCodeErr(errDetail(e) || tc("rateLimited"));
       } else if (isOtpExpired(e)) {
         otp.expire();
       } else if (e instanceof ApiError && e.status >= 400 && e.status < 500) {
-        setNote({ ok: false, msg: isForbidden(e) ? t("forbidden") : tOtp("incorrect") });
+        if (isForbidden(e)) notify.error(t("forbidden"), { id: nid });
+        else setCodeErr(tOtp("incorrect"));
       } else {
-        setNote({ ok: false, msg: isOffline(e) ? tc("offline") : t("verifyError") });
+        notify.error(isOffline(e) ? tc("offline") : t("verifyError"), { id: nid });
       }
     } finally {
       setBusy(false);
@@ -141,17 +147,22 @@ export default function ContractSign({ contractId }: { contractId: string }) {
             <label>{t("codeLabel")}</label>
             <input
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(e) => {
+                setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                if (codeErr) setCodeErr("");
+              }}
               inputMode="numeric"
               autoComplete="one-time-code"
               placeholder="••••••"
               autoFocus
+              aria-invalid={codeErr ? true : undefined}
+              aria-describedby={codeErr ? `${uid}-code` : undefined}
             />
+            <FieldError id={`${uid}-code`} msg={codeErr} />
           </div>
           <OtpCountdown timer={otp} />
-          {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <button className="btn btn--line btn--sm" type="button" onClick={() => { setStage("idle"); setNote(null); otp.clear(); }}>
+            <button className="btn btn--line btn--sm" type="button" onClick={() => { setStage("idle"); setCodeErr(""); otp.clear(); }}>
               <IconChevronLeft />
               {t("back")}
             </button>
@@ -177,10 +188,9 @@ export default function ContractSign({ contractId }: { contractId: string }) {
         <b>{t("title")}</b>
         <span>{t("lead")}</span>
       </div>
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       <button className="btn btn--pri btn--sm" type="button" onClick={() => start(false)} disabled={busy || otp.resendIn > 0}>
         <IconShieldCheck />
-        {busy ? t("sending") : t("start")}
+        {busy ? t("sending") : otp.resendIn > 0 ? tOtp("resendIn", { time: fmtClock(otp.resendIn) }) : t("start")}
       </button>
     </div>
   );

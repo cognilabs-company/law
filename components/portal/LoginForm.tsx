@@ -10,7 +10,9 @@ import type { TwoFactorChallenge } from "@/lib/services/backend";
 import { OTP_RESEND_SEC, useOtpTimer } from "@/lib/useOtpTimer";
 import { Link, useRouter } from "@/i18n/navigation";
 import { formatUzSubscriber, isValidUzPhone, uzSubscriber } from "@/lib/phone";
-import { Notice } from "@/components/admin/AdminBits";
+import { notify } from "@/lib/toast";
+import FieldError from "@/components/ui/FieldError";
+import InlineAlert from "@/components/ui/InlineAlert";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import CodeSlots, { type CodeSlotsStatus } from "../CodeSlots";
 import { IconCheck, IconLogo } from "../icons";
@@ -31,6 +33,8 @@ const exitFor = (s: Session) => {
   const next = takeReturnTo();
   return next && s.role === "client" && !hasAdminAccess(s) ? next : homeFor(s);
 };
+const NID = "login";
+type FieldErrs = { phone?: string; pw?: string; code?: string; cred?: boolean };
 
 export default function LoginForm() {
   const t = useTranslations("portal.login");
@@ -73,14 +77,30 @@ export default function LoginForm() {
   const withRef = (path: string) => (refCode ? `${path}?ref=${encodeURIComponent(refCode)}` : path);
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [err, setErr] = useState<string | null>(null);
+  const [fe, setFe] = useState<FieldErrs>({});
   // Bumped with every error so the message node remounts and nudges again,
   // even when a second failed attempt repeats the same text.
   const [errN, setErrN] = useState(0);
-  const fail = (msg: string) => {
-    setErr(msg);
+  const fieldFail = (next: FieldErrs) => {
+    setFe(next);
     setErrN((n) => n + 1);
   };
+  const bannerFail = (title: string) => {
+    setFe({});
+    notify.error(title, { id: NID });
+  };
+  const pwInvalid = !!(fe.pw || fe.cred);
+  useEffect(() => {
+    const el = document.getElementById("l-pw");
+    if (!el) return;
+    if (pwInvalid) {
+      el.setAttribute("aria-invalid", "true");
+      el.setAttribute("aria-describedby", "l-pw-err");
+    } else {
+      el.removeAttribute("aria-invalid");
+      el.removeAttribute("aria-describedby");
+    }
+  }, [pwInvalid]);
   // Sign-in lock: the server answered 429 (OTP resend cooldown `retry_after`,
   // or the per-IP attempt limit via Retry-After) — count down from that value
   // and keep the button disabled, so the form stops hitting the server. A run
@@ -93,7 +113,7 @@ export default function LoginForm() {
     const tick = () => {
       const left = Math.max(0, Math.ceil((lockUntil - Date.now()) / 1000));
       setLockLeft(left);
-      if (left <= 0) { setLockUntil(0); setErr(null); }
+      if (left <= 0) { setLockUntil(0); setFe({}); notify.dismiss(NID); }
     };
     tick();
     const iv = setInterval(tick, 500);
@@ -107,7 +127,6 @@ export default function LoginForm() {
   // 2FA challenge (2FA enabled, or mandatory for the account's role).
   const [twoFa, setTwoFa] = useState<TwoFactorChallenge | null>(null);
   const [code, setCode] = useState("");
-  const [note, setNote] = useState<string | null>(null);
   // Bumped for every code the server refused (wrong, expired, or one attempt
   // too many): <CodeSlots> drains the slots and hands back an empty code, so
   // the step starts over instead of leaving the rejected digits sitting there.
@@ -136,14 +155,14 @@ export default function LoginForm() {
     if (!c.verificationId) {
       setTwoFa(null);
       otp.clear();
-      fail((locale === "uz" && c.message) || t("twoFaStartError"));
+      bannerFail((locale === "uz" && c.message) || t("twoFaStartError"));
       return false;
     }
     setSwapped(true);
     setTwoFa(c);
     setCode("");
     setBadCode(0);
-    setErr(null);
+    setFe({});
     // TOTP has no sent code: no invented timer, no resend.
     if (c.method === "totp" && !c.expiresAt) otp.clear();
     else otp.issue(c.expiresAt);
@@ -155,16 +174,17 @@ export default function LoginForm() {
     if (busy || lockUntil) return;
     const p = phone.trim();
     if (!p || !password) {
-      fail(t("required"));
+      fieldFail({ phone: p ? undefined : tc("required"), pw: password ? undefined : tc("required") });
       return;
     }
     // A short number can never sign in; say so instead of asking the server.
     if (!isValidUzPhone(p)) {
-      fail(tr("phone.invalid"));
+      fieldFail({ phone: tr("phone.invalid") });
       return;
     }
     clearAuthNotice();
-    setErr(null);
+    setFe({});
+    notify.dismiss(NID);
     if (parked) {
       const now = Date.now();
       if (parked.phone === phone && parked.c.expiresAt > now) {
@@ -174,7 +194,6 @@ export default function LoginForm() {
         setTotpExpired(false);
         setCode("");
         setBadCode(0);
-        setNote(null);
         otp.issue(parked.c.expiresAt);
         otp.cooldown((parked.resendAt - now) / 1000);
         if (parked.blockedUntil > now) otp.block((parked.blockedUntil - now) / 1000);
@@ -197,20 +216,20 @@ export default function LoginForm() {
       if (isRateLimited(e)) {
         // "Qayta yuborish uchun kuting" + retry_after, or the attempt limit.
         lock(retryAfterSec(e, 60));
-        fail(errDetail(e) || tc("rateLimited"));
+        bannerFail(errDetail(e) || tc("rateLimited"));
       } else if (channelDown(e)) {
-        fail(tc("otpChannelUnavailable"));
+        bannerFail(tc("otpChannelUnavailable"));
       } else if (unreachable(e)) {
-        fail(tc("offline"));
+        bannerFail(tc("offline"));
       } else if (serverFailed(e)) {
-        fail(tv("serverError"));
+        bannerFail(tv("serverError"));
       } else {
         // Wrong phone / password: from the 3rd miss in a row pause locally
         // (5, 10, 20, 40, 60 s) instead of letting the server's limit trip.
         const run = e instanceof ApiError && (e.status === 401 || e.status === 400 || e.status === 404) ? wrongRun + 1 : wrongRun;
         setWrongRun(run);
         if (run >= 3) lock(Math.min(60, 5 * 2 ** (run - 3)));
-        fail(t("failed"));
+        fieldFail({ pw: t("failed"), cred: true });
       }
       setBusy(false);
     }
@@ -220,8 +239,8 @@ export default function LoginForm() {
     e.preventDefault();
     if (busy || resending || !twoFa) return;
     if (otp.blockedIn > 0 || otp.expired || !/^\d{6}$/.test(code)) return;
-    setErr(null);
-    setNote(null);
+    setFe({});
+    notify.dismiss(NID);
     setBadCode(0);
     setBusy(true);
     try {
@@ -236,7 +255,7 @@ export default function LoginForm() {
         // Too many wrong codes → locked; count down the server's wait.
         otp.block(retryAfterSec(e, OTP_RESEND_SEC));
         setBadCode((n) => n + 1);
-        fail(errDetail(e) || tc("rateLimited"));
+        fieldFail({ code: errDetail(e) || tc("rateLimited") });
       } else if (isOtpExpired(e) && twoFa.method === "totp") {
         // The challenge itself is dead (410 / expiry-only wording) and there is
         // no code to resend: offer "Sign in again" instead of a retry.
@@ -246,10 +265,10 @@ export default function LoginForm() {
         otp.expire();
         setBadCode((n) => n + 1);
       } else if (unreachable(e)) {
-        fail(tc("offline"));
+        bannerFail(tc("offline"));
       } else {
         setBadCode((n) => n + 1);
-        fail(tOtp("incorrect"));
+        fieldFail({ code: tOtp("incorrect") });
       }
       setBusy(false);
     }
@@ -260,13 +279,12 @@ export default function LoginForm() {
   async function resend2fa() {
     if (busy || resending || !twoFa || otp.resendIn > 0) return;
     setResending(true);
-    setErr(null);
-    setNote(null);
+    setFe({});
     setBadCode(0);
     try {
       const s = await login(phone.trim(), password);
       if ("twoFactor" in s) {
-        if (applyChallenge(s.twoFactor)) setNote(tOtp("resent"));
+        if (applyChallenge(s.twoFactor)) notify.success(tOtp("resent"), { id: NID });
       } else {
         // 2FA was switched off meanwhile: signed in outright.
         leave(s);
@@ -274,9 +292,9 @@ export default function LoginForm() {
     } catch (e) {
       if (isRateLimited(e)) {
         otp.cooldown(retryAfterSec(e, OTP_RESEND_SEC));
-        fail(errDetail(e) || tc("rateLimited"));
+        bannerFail(errDetail(e) || tc("rateLimited"));
       } else {
-        fail(channelDown(e) ? tc("otpChannelUnavailable") : unreachable(e) ? tc("offline") : tOtp("resendError"));
+        bannerFail(channelDown(e) ? tc("otpChannelUnavailable") : unreachable(e) ? tc("offline") : tOtp("resendError"));
       }
     } finally {
       setResending(false);
@@ -336,8 +354,7 @@ export default function LoginForm() {
       setTotpExpired(false);
       setCode("");
       setBadCode(0);
-      setErr(null);
-      setNote(null);
+      setFe({});
       otp.clear();
     };
     // The slot row's own feedback: it drains a refused code away, and washes
@@ -376,23 +393,18 @@ export default function LoginForm() {
                       // hand-back of "" must not.
                       if (v) {
                         setBadCode(0);
-                        setErr(null);
-                        setNote(null);
+                        setFe((x) => (x.code ? {} : x));
                       }
                     }}
                     status={codeStatus}
                     statusKey={badCode}
                     disabled={busy || resending}
                     autoFocus
+                    describedBy={fe.code ? "l-2fa-err" : undefined}
                   />
+                  <FieldError key={errN} id="l-2fa-err" msg={fe.code} />
                 </div>
                 <OtpCountdown timer={otp} showExpiry={false} />
-                {err ? (
-                  <p key={errN} className="plogin__err" role="alert">
-                    {err}
-                  </p>
-                ) : null}
-                {note ? <p className="rf__otpmsg rf__otpmsg--ok">{note}</p> : null}
                 <button
                   className="btn btn--pri btn--full"
                   type="submit"
@@ -439,9 +451,9 @@ export default function LoginForm() {
 
         <div className="cform" style={{ maxWidth: "none", marginTop: 20 }}>
           {authNotice === "sessionExpired" ? (
-            <Notice ok={false} msg={t("sessionExpired")} />
+            <InlineAlert tone="warn" compact>{t("sessionExpired")}</InlineAlert>
           ) : authNotice === "loginRequired" ? (
-            <Notice ok msg={tr("verify.loginRequired")} />
+            <InlineAlert tone="success" compact>{tr("verify.loginRequired")}</InlineAlert>
           ) : null}
           <div>
             <label htmlFor="l-phone">{t("phone")}</label>
@@ -457,11 +469,15 @@ export default function LoginForm() {
                   const next = d ? "+998" + d : "";
                   if (next !== phone) setParked(null);
                   setPhone(next);
+                  if (fe.phone || fe.cred) setFe((x) => ({ ...x, phone: undefined, cred: undefined, pw: x.cred ? undefined : x.pw }));
                 }}
                 placeholder="90 123 45 67"
                 autoComplete="tel"
+                aria-invalid={fe.phone || fe.cred ? true : undefined}
+                aria-describedby={fe.phone ? "l-phone-err" : fe.cred ? "l-pw-err" : undefined}
               />
             </div>
+            <FieldError key={errN} id="l-phone-err" msg={fe.phone} />
           </div>
           <div>
             <label htmlFor="l-pw">{t("password")}</label>
@@ -471,22 +487,18 @@ export default function LoginForm() {
               onChange={(e) => {
                 setParked(null);
                 setPassword(e.target.value);
+                if (fe.pw || fe.cred) setFe((x) => ({ ...x, pw: undefined, cred: undefined }));
               }}
               placeholder={t("passwordPh")}
               autoComplete="current-password"
             />
+            <FieldError key={errN} id="l-pw-err" msg={fe.pw} />
           </div>
           <div style={{ textAlign: "right", marginTop: -6 }}>
             <Link href="/reset-password" className="plogin__link">
               {t("forgot")}
             </Link>
           </div>
-          {err ? (
-            <p key={errN} className="plogin__err" role="alert">
-              {err}
-              {lockLeft > 0 ? <b className="plogin__wait">{t("waitLeft", { s: lockLeft })}</b> : null}
-            </p>
-          ) : null}
           <button className="btn btn--pri btn--full" type="submit" disabled={busy || lockLeft > 0} aria-busy={busy || undefined}>
             {face(lockLeft > 0 ? t("retryIn", { s: lockLeft }) : t("submit"))}
           </button>

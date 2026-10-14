@@ -23,6 +23,7 @@ import {
   IconBolt,
 } from "@/components/icons";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { fmtRating } from "@/lib/date";
 
 type Tab = "lawyer" | "doc" | "ai";
@@ -146,7 +147,7 @@ export default function Finder() {
   return (
     <div className="finder">
       <div className="finder__c">
-        <div className="ftabs" role="tablist">
+        <ScrollCue className="ftabs" role="tablist">
           {TABS.map(({ key, Icon }) => (
             <button
               key={key}
@@ -163,7 +164,7 @@ export default function Finder() {
               {tf(`tabs.${key}`)}
             </button>
           ))}
-        </div>
+        </ScrollCue>
 
         {tab === "lawyer" ? (
           <div className="fform on">

@@ -5,6 +5,7 @@ import { listMyPayouts } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "./DataState";
+import ScrollCue from "@/components/ui/ScrollCue";
 import { IconCard, IconClock, IconCheck } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 
@@ -52,7 +53,7 @@ export default function SellerPayouts() {
           {!rows.length ? (
             <EmptyState icon={<IconCard />} title={t("empty")} text={t("emptyText")} />
           ) : (
-            <div style={{ overflowX: "auto", marginTop: 8 }}>
+            <ScrollCue style={{ overflowX: "auto", marginTop: 8 }}>
               <table className="ptable">
                 <thead><tr><th>{t("date")}</th><th>{t("period")}</th><th>{t("amount")}</th><th>{t("statusCol")}</th></tr></thead>
                 <tbody>
@@ -66,7 +67,7 @@ export default function SellerPayouts() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollCue>
           )}
         </>
       )}

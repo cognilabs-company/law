@@ -18,7 +18,7 @@ import {
   type CallParticipant,
   type LiveKitJoin,
 } from "@/lib/services/backend";
-import { ApiError, asDict, asStr, errDetail, http, isConflict, logApiError } from "@/lib/http";
+import { ApiError, asDict, asStr, http, isConflict, logApiError } from "@/lib/http";
 import { cleanDocTitle } from "@/lib/docTitle";
 import { fetchAndDeliver, extFromMime } from "@/lib/download";
 import { humanizeSlug, initials } from "@/lib/lawyers";
@@ -26,8 +26,9 @@ import { shortDateTime } from "@/lib/date";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useAiReveal } from "@/lib/guide/targets";
 import { aiId } from "@/lib/ai/ids";
-import { Skeleton } from "./DataState";
-import { Notice } from "@/components/admin/AdminBits";
+import { ErrorState, Skeleton } from "./DataState";
+import { notify } from "@/lib/toast";
+import InlineAlert from "@/components/ui/InlineAlert";
 import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
 // §14 option 1 ("Advokat o'zi file upload qiladi") is the upload the inbox
@@ -189,6 +190,7 @@ export default function DocumentEditorWorkspace({
   const t = useTranslations(ns);
   const tc = useTranslations("cta");
   const tf = useTranslations("portal.client.documents.fields");
+  const tn = useTranslations("common.notify");
   const locale = useLocale();
   const router = useRouter();
 
@@ -202,6 +204,7 @@ export default function DocumentEditorWorkspace({
   const [reqReloadKey, setReqReloadKey] = useState(0);
   const [req, setReq] = useState<LawyerDocumentRequest | null>(null);
   const [reqStatus, setReqStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [reqErr, setReqErr] = useState<unknown>(null);
   useEffect(() => {
     let alive = true;
     // Reload (reloadKey bump) fetches in the background without flashing
@@ -218,6 +221,7 @@ export default function DocumentEditorWorkspace({
       .catch((e) => {
         if (!alive) return;
         logApiError("document-request detail", e);
+        setReqErr(e);
         setReqStatus("error");
       });
     return () => {
@@ -238,10 +242,10 @@ export default function DocumentEditorWorkspace({
   // /call-center/document-requests/open and {"detail":"Hujjat so'rovi
   // topilmadi"} on an unknown record id (both measured 2026-09-29) — and
   // that sentence used to be dropped in favour of a generic status message.
-  const [editorErrDetail, setEditorErrDetail] = useState("");
+  const [editorErr, setEditorErr] = useState<unknown>(null);
   const [claimUrl, setClaimUrl] = useState("");
   const [claimBusy, setClaimBusy] = useState(false);
-  const [claimErr, setClaimErr] = useState<"" | "taken" | "generic">("");
+  const [claimErr, setClaimErr] = useState<"" | "taken">("");
   // §7-8: the source picker. Opened from the toolbar; picking one closes the
   // session on the backend, so the reload key is bumped and the editor is
   // re-fetched rather than left pointing at a session that no longer exists.
@@ -269,7 +273,7 @@ export default function DocumentEditorWorkspace({
         }
         logApiError("document-request editor", e);
         setEditorErrStatus(e instanceof ApiError ? e.status : 0);
-        setEditorErrDetail(errDetail(e));
+        setEditorErr(e);
         setEditorState("error");
       });
     return () => {
@@ -284,12 +288,16 @@ export default function DocumentEditorWorkspace({
     setClaimErr("");
     try {
       await claimDocumentRequest(claimUrl);
+      notify.dismiss(`deditor-claim:${recordId}`);
       setReloadKey((k) => k + 1);
     } catch (e) {
       // Someone else got there first: retrying can never succeed, so say so
       // instead of offering the same button again.
-      setClaimErr(isConflict(e) ? "taken" : "generic");
-      if (!isConflict(e)) logApiError("document-request claim", e);
+      if (isConflict(e)) setClaimErr("taken");
+      else {
+        logApiError("document-request claim", e);
+        notify.error(t("claimError"), { id: `deditor-claim:${recordId}`, error: e });
+      }
     } finally {
       setClaimBusy(false);
     }
@@ -512,17 +520,19 @@ export default function DocumentEditorWorkspace({
 
   // ── Files ────────────────────────────────────────────────────────
   const [preview, setPreview] = useState<"template" | "editorFile" | "final" | "">("");
-  const [fileErr, setFileErr] = useState(false);
+  function fileFailed(again: () => void) {
+    notify.error(t("templateError"), { id: `deditor-file:${recordId}`, action: { label: tn("retry"), onClick: again } });
+  }
   async function downloadTemplate() {
     const tpl = req?.templateFile;
     if (!tpl?.hasFile) return;
     const ok = await fetchAndDeliver(() => getServiceTemplateSourceFile(tpl.downloadUrl || tpl.inlineUrl), tpl.fileName || "shablon.docx", true);
-    if (!ok) setFileErr(true);
+    if (!ok) fileFailed(() => void downloadTemplate());
   }
   async function downloadEditorFile() {
     if (!editor?.editorFileDownloadUrl) return;
     const ok = await fetchAndDeliver(() => getServiceTemplateSourceFile(editor.editorFileDownloadUrl), req?.templateFile?.fileName || "loyiha.docx", true);
-    if (!ok) setFileErr(true);
+    if (!ok) fileFailed(() => void downloadEditorFile());
   }
 
   // ── Meeting ──────────────────────────────────────────────────────
@@ -531,7 +541,6 @@ export default function DocumentEditorWorkspace({
   // room has to stay addressable after the advocate steps out of it.
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [meetBusy, setMeetBusy] = useState(false);
-  const [meetErr, setMeetErr] = useState(false);
   // Shown once after a meeting finishes, so the tab explains why it is back to
   // "start a meeting" instead of silently resetting.
   const [meetEnded, setMeetEnded] = useState(false);
@@ -539,7 +548,6 @@ export default function DocumentEditorWorkspace({
   async function startMeeting() {
     if (!req?.meetingUrl || meetBusy || meeting) return;
     setMeetBusy(true);
-    setMeetErr(false);
     setMeetEnded(false);
     try {
       // No max_duration_minutes: LEXGO_MEETING_EXTENSION_FRONTEND_UPDATE.md
@@ -557,9 +565,10 @@ export default function DocumentEditorWorkspace({
         open: true,
         isCaller: true,
       });
+      notify.dismiss(`deditor-meeting:${recordId}`);
     } catch (e) {
       logApiError("document-request meeting", e);
-      setMeetErr(true);
+      notify.error(t("meetingError"), { id: `deditor-meeting:${recordId}`, error: e });
     } finally {
       setMeetBusy(false);
     }
@@ -567,10 +576,10 @@ export default function DocumentEditorWorkspace({
   async function rejoinMeeting() {
     if (!meeting || meetBusy) return;
     setMeetBusy(true);
-    setMeetErr(false);
     try {
       const lk = await joinCall(meeting.roomId, meeting.callId);
       setMeeting((m) => (m ? { ...m, lk, open: true, isCaller: false } : m));
+      notify.dismiss(`deditor-meeting:${recordId}`);
     } catch (e) {
       // 409 "Meeting status: ended" — someone ended it while this tab still
       // showed it as joinable (the other side hung up, or the backend closed
@@ -583,7 +592,7 @@ export default function DocumentEditorWorkspace({
         return;
       }
       logApiError("document-request meeting join", e);
-      setMeetErr(true);
+      notify.error(t("meetingError"), { id: `deditor-meeting:${recordId}`, error: e });
     } finally {
       setMeetBusy(false);
     }
@@ -694,41 +703,26 @@ export default function DocumentEditorWorkspace({
   // ── Finalize ─────────────────────────────────────────────────────
   const [finalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
   const [finalizeBusy, setFinalizeBusy] = useState(false);
-  const [finalizeErr, setFinalizeErr] = useState(false);
-  const [finalizeOk, setFinalizeOk] = useState(false);
   const [finalizeNotes, setFinalizeNotes] = useState("");
   const [finalizeResult, setFinalizeResult] = useState<FinalizeDocumentRequestResult | null>(null);
   async function doFinalize() {
     if (!editor || finalizeBusy) return;
     setFinalizeBusy(true);
-    setFinalizeErr(false);
     try {
       const r = await finalizeDocumentRequest(editor.finalizeUrl, finalizeNotes.trim() || t("finalizeNotesDefault"));
       setFinalizeResult(r);
       setFinalizeConfirmOpen(false);
-      setFinalizeOk(true);
+      notify.success(t("finalizeSent"), { id: `deditor-finalize:${recordId}` });
       // Record only: finalizeResult already carries the final file and the new
       // status that drive this screen, and the open document must stay open.
       setReqReloadKey((k) => k + 1);
     } catch (e) {
       logApiError("document-request finalize", e);
-      setFinalizeErr(true);
+      notify.error(t("finalizeError"), { id: `deditor-finalize:${recordId}`, error: e });
     } finally {
       setFinalizeBusy(false);
     }
   }
-
-  // Short-lived banners, not permanent ones wedged under the sticky bar:
-  // MD2's error guidance is "qisqa toast", and a stuck banner shrinks the
-  // editor for the rest of the session.
-  const clearLater = useCallback((fn: () => void) => {
-    const h = setTimeout(fn, 4500);
-    return () => clearTimeout(h);
-  }, []);
-  useEffect(() => (finalizeOk ? clearLater(() => setFinalizeOk(false)) : undefined), [finalizeOk, clearLater]);
-  useEffect(() => (finalizeErr ? clearLater(() => setFinalizeErr(false)) : undefined), [finalizeErr, clearLater]);
-  useEffect(() => (meetErr ? clearLater(() => setMeetErr(false)) : undefined), [meetErr, clearLater]);
-  useEffect(() => (fileErr ? clearLater(() => setFileErr(false)) : undefined), [fileErr, clearLater]);
 
   const cf = req?.request.contractFile;
   const finalFile = finalizeResult
@@ -743,7 +737,7 @@ export default function DocumentEditorWorkspace({
       `${req?.clientName || "hujjat"}.${finalFile.format || "docx"}`,
       true,
     );
-    if (!ok) setFileErr(true);
+    if (!ok) fileFailed(() => void downloadFinalFile());
   }
 
   // Optimistic: the finalize response already said completed/file_ready, so
@@ -762,10 +756,7 @@ export default function DocumentEditorWorkspace({
   const templateName = cleanDocTitle(req?.templateName || req?.templateFile?.fileName || "");
   const templateLabel = templateName && templateName !== cleanDocTitle(req?.serviceName || "") ? templateName : "";
   const chatRoomId = req?.secureChatRoomId || "";
-  // The server's own sentence first (errDetail translates the Uzbek-only
-  // wording into the UI locale via lib/apiMessage), the status map only as
-  // the fallback for a refusal that carried no detail at all.
-  const editorErrMsg = editorErrDetail || (editorErrStatus === 403 ? t("noAccess") : editorErrStatus === 404 ? t("notFound") : t("templateError"));
+  const editorErrTitle = editorErrStatus === 403 ? t("noAccess") : editorErrStatus === 404 ? t("notFound") : t("templateError");
   // The three §14 options, in the MD's own order. Exactly one of the two
   // editor options is live at a time, because the backend — not this screen
   // — decides which file the editor session holds (`editor_source`), and
@@ -897,13 +888,6 @@ export default function DocumentEditorWorkspace({
         </button>
       </div>
 
-      <div className="deditor__toasts" aria-live="polite">
-        {finalizeOk ? <Notice ok msg={t("finalizeSent")} /> : null}
-        {finalizeErr ? <Notice ok={false} msg={t("finalizeError")} /> : null}
-        {meetErr ? <Notice ok={false} msg={t("meetingError")} /> : null}
-        {fileErr ? <Notice ok={false} msg={t("templateError")} /> : null}
-      </div>
-
       <div
         ref={bodyRef}
         className={`deditor__body${leftOpen ? "" : " deditor__body--leftClosed"}${rightOpen ? "" : " deditor__body--rightClosed"}${sizingOn ? " deditor__body--sizing" : ""}`}
@@ -915,7 +899,7 @@ export default function DocumentEditorWorkspace({
           {reqStatus === "loading" ? (
             <Skeleton rows={5} />
           ) : !req ? (
-            <Notice ok={false} msg={t("templateError")} />
+            <ErrorState compact error={reqErr} onRetry={() => setReqReloadKey((k) => k + 1)} />
           ) : (
             <>
               {/* Who this is for. The phone is a real tel: link — the whole
@@ -1053,23 +1037,16 @@ export default function DocumentEditorWorkspace({
               <b>{t("needClaimTitle")}</b>
               <p className="advmuted">{t("needClaimLead")}</p>
               {claimErr === "taken" ? (
-                <Notice ok={false} msg={t("claimedByOther")} />
+                <InlineAlert tone="warn">{t("claimedByOther")}</InlineAlert>
               ) : (
-                <>
-                  {claimErr === "generic" ? <Notice ok={false} msg={t("claimError")} /> : null}
-                  <button className="btn btn--grad btn--lg" type="button" onClick={claimAndRetry} disabled={claimBusy} data-ai-id={`${ai}.claim`} data-ai-label={t("claim")}>
-                    {claimBusy ? t("claiming") : t("claim")}
-                  </button>
-                </>
+                <button className="btn btn--grad btn--lg" type="button" onClick={claimAndRetry} disabled={claimBusy} data-ai-id={`${ai}.claim`} data-ai-label={t("claim")}>
+                  {claimBusy ? t("claiming") : t("claim")}
+                </button>
               )}
             </div>
           ) : editorState === "error" ? (
             <div className="deditor__mainState">
-              <IconAlert />
-              <Notice ok={false} msg={editorErrMsg} />
-              <button className="btn btn--line" type="button" onClick={() => setReloadKey((k) => k + 1)}>
-                <IconRefresh /> {t("retryLater")}
-              </button>
+              <ErrorState title={editorErrTitle} error={editorErr} onRetry={() => setReloadKey((k) => k + 1)} />
             </div>
           ) : !started && !delivered ? (
             /* §14 L529: "Frontend advokat editor page ochilishidan oldin 3
@@ -1221,8 +1198,7 @@ export default function DocumentEditorWorkspace({
                     )}
                   </section>
                 ) : null}
-                {meetEnded && !meeting ? <Notice ok msg={t("meetingEndedNote")} /> : null}
-                {meetErr ? <Notice ok={false} msg={t("meetingError")} /> : null}
+                {meetEnded && !meeting ? <InlineAlert tone="info" compact>{t("meetingEndedNote")}</InlineAlert> : null}
               </div>
             ) : rightTab === "versions" ? (
               <div className="dpane">
@@ -1324,7 +1300,6 @@ export default function DocumentEditorWorkspace({
           <p className="advmuted">{t("finalizeConfirmText")}</p>
           <label htmlFor="finalize-notes">{t("finalizeNotes")}</label>
           <textarea id="finalize-notes" rows={2} value={finalizeNotes} onChange={(e) => setFinalizeNotes(e.target.value)} placeholder={t("finalizeNotesDefault")} />
-          {finalizeErr ? <Notice ok={false} msg={t("finalizeError")} /> : null}
           <button className="btn btn--grad btn--full btn--lg" type="button" onClick={doFinalize} disabled={finalizeBusy}>
             {finalizeBusy ? t("processingShort") : t("finalizeConfirmYes")}
           </button>
