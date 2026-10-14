@@ -19184,7 +19184,9 @@
     "sections": {
       "title": "Bo'limlar",
       "lead": "Ish maydonining barcha bo'limlari bir sahifada.",
-      "pages": "{n} ta sahifa"
+      "pages": "{n} ta sahifa",
+      "collapseAll": "Hammasini yig'ish",
+      "expandAll": "Hammasini ochish"
     },
     "ops": {
       "ready": {

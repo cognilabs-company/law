@@ -19178,7 +19178,9 @@
     "sections": {
       "title": "Sections",
       "lead": "Every area of the workspace on one page.",
-      "pages": "{n} pages"
+      "pages": "{n} pages",
+      "collapseAll": "Collapse all",
+      "expandAll": "Expand all"
     },
     "ops": {
       "ready": {

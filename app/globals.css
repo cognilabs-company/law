@@ -20338,9 +20338,9 @@ a.hn-app:hover{background:color-mix(in srgb,var(--b600) 7%,transparent)}
 .hrm-hbars li b{font-family:var(--fd);min-width:24px;text-align:right}
 .hrm-dash__sub{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .hrm-dash__sub small{display:block;margin-bottom:8px;font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gray2)}
-.hrm-sections{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:14px}
-.hrm-section-tile{display:grid;gap:10px;align-content:start;padding:18px;border-radius:20px;background:var(--mc-card,var(--dk-surface,#fff));box-shadow:var(--s1),inset 0 0 0 1px var(--mc-card-border,var(--line));backdrop-filter:var(--mc-glass)}
-.hrm-section-tile header{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:12px;align-items:center}
+.hrm-sections{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));align-items:start;gap:14px}
+.hrm-section-tile{display:grid;gap:0;align-content:start;padding:18px;border-radius:20px;background:var(--mc-card,var(--dk-surface,#fff));box-shadow:var(--s1),inset 0 0 0 1px var(--mc-card-border,var(--line));backdrop-filter:var(--mc-glass)}
+.hrm-section-tile header{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:12px;align-items:center}
 .hrm-section-tile__art{grid-row:1/3;width:56px;height:56px;object-fit:contain}
 .hrm-section-tile h3{margin:0;font-family:var(--fd);font-size:1rem}
 .hrm-section-tile header small{font-size:.74rem;color:var(--gray2)}
@@ -21045,3 +21045,23 @@ html:has(.portal--admin) .mtg__strip.scue-x:not([data-more]){-webkit-mask-image:
 /* On a phone the back button stands in for the app switcher, so the page title keeps its room. */
 @media (max-width:480px){.ptop__hrm span{display:none}.hn-back+.hn-pop{display:none}}
 @media (prefers-reduced-motion:reduce){.hn-back svg,.ptop__hrm{transition:none}}
+/* Sections: each area folds to its header */
+.hrm-section-tile h3,.hrm-section-tile header small{grid-column:2}
+.hrm-section-tile__tg{padding:0;border:0;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.hrm-section-tile__tg::after{content:"";position:absolute;inset:-6px;border-radius:14px}
+.hrm-section-tile__tg:focus-visible{outline:0}
+.hrm-section-tile__tg:focus-visible::after{box-shadow:0 0 0 2px var(--b400)}
+.hrm-section-tile__chev{grid-column:3;grid-row:1/3;display:grid;place-items:center;width:30px;height:30px;border-radius:10px;color:var(--gray);background:color-mix(in srgb,var(--b600) 6%,transparent);transform:rotate(-90deg);transition:transform .3s cubic-bezier(.22,.8,.26,1),color .15s,background .15s;pointer-events:none}
+.hrm-section-tile.is-open .hrm-section-tile__chev{transform:none}
+.hrm-section-tile__chev svg{width:16px;height:16px}
+.hrm-section-tile header:hover .hrm-section-tile__chev{color:var(--b700);background:color-mix(in srgb,var(--b600) 12%,transparent)}
+.hrm-section-tile__art{transition:transform .3s cubic-bezier(.22,.8,.26,1)}
+.hrm-section-tile:not(.is-open) .hrm-section-tile__art{transform:scale(.86)}
+.hrm-section-tile__body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s cubic-bezier(.22,.8,.26,1)}
+.hrm-section-tile.is-open .hrm-section-tile__body{grid-template-rows:1fr}
+.hrm-section-tile__body>ul{min-height:0;overflow:hidden;opacity:0;transform:translateY(-6px);transition:opacity .2s,transform .32s cubic-bezier(.22,.8,.26,1)}
+.hrm-section-tile.is-open .hrm-section-tile__body>ul{opacity:1;transform:none;transition-delay:.05s}
+.hrm-section-tile__body>ul>li:first-child{margin-top:10px}
+.hrm-sections__all{transition:transform .3s cubic-bezier(.22,.8,.26,1)}
+.hrm-sections__all.is-up{transform:rotate(180deg)}
+@media (prefers-reduced-motion:reduce){.hrm-section-tile__chev,.hrm-section-tile__art,.hrm-section-tile__body,.hrm-section-tile__body>ul,.hrm-sections__all{transition:none}}
