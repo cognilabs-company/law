@@ -1482,6 +1482,34 @@ export async function listStudioApprovals(q: { constructorCode?: string; status?
   return { items, total: totalOf(res, items.length) };
 }
 
+// What people did to Studio records (GET /admin/audit-trail, target_type
+// studio_object): create, save, submit, review, publish, archive, comment…
+// The monitoring answer says only how long a session lasted; these rows say
+// what happened in it. Dates are whole days on the server's calendar.
+export type StudioAuditEvent = { id: string; userId: string; action: string; targetId: string; title: string; at: number };
+export async function listStudioAudit(params: { userId?: string; dateFrom?: string; dateTo?: string } = {}, signal?: AbortSignal): Promise<StudioAuditEvent[]> {
+  const query = new URLSearchParams({ target_type: "studio_object" });
+  if (params.userId) query.set("user_id", params.userId);
+  if (params.dateFrom) query.set("date_from", params.dateFrom);
+  if (params.dateTo) query.set("date_to", params.dateTo);
+  const res = await http(`/admin/audit-trail?${query}`, { signal });
+  return listOf(res, ["items", "data", "results"])
+    .map(asDict)
+    .filter((d) => asStr(d.outcome || "success") === "success")
+    .map((d) => {
+      const raw = asStr(d.action).toLowerCase();
+      return {
+        id: asStr(d.id),
+        userId: asStr(d.user_id),
+        action: raw === "studio_comment_create" ? "comment" : raw.replace(/^studio_object_/, ""),
+        targetId: asStr(d.target_id),
+        title: asStr(d.detail),
+        at: parseServerTime(asStr(d.created_at)),
+      };
+    })
+    .filter((e) => e.userId && Number.isFinite(e.at));
+}
+
 export async function getStudioMonitoring(params: { constructorCode?: string; userId?: string; date?: string; dateFrom?: string; dateTo?: string } = {}): Promise<StudioMonitoring> {
   const query = new URLSearchParams();
   if (params.constructorCode) query.set("constructor_code", params.constructorCode);

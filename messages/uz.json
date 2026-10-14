@@ -235,6 +235,25 @@
         "create": "Yaratish",
         "upload": "Fayl yuklash",
         "heartbeat": "Faol"
+      },
+      "liveTitle": "Hozir ishlayapti",
+      "liveNone": "Hozir Studio'da hech kim ishlamayapti",
+      "liveLast": "Oxirgi: {name}, {ago} · {where}",
+      "since": "{t} dan beri",
+      "rhythmHint": "Chiziqdagi bo'laklar — kim qachondan qachongacha ishlagani. Ustiga olib boring.",
+      "dayMeta": "{n} ta seans · {time}",
+      "did": {
+        "create": "Yaratdi",
+        "save": "Saqladi",
+        "submit": "Tasdiqqa yubordi",
+        "review": "Ko'rib chiqdi",
+        "publish": "E'lon qildi",
+        "archive": "Arxivladi",
+        "comment": "Izoh yozdi",
+        "rollback": "Orqaga qaytardi",
+        "restore": "Tikladi",
+        "other": "Boshqa amal",
+        "none": "o'zgarish qilmadi"
       }
     },
     "generic": {

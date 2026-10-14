@@ -235,6 +235,25 @@
         "create": "Create",
         "upload": "File upload",
         "heartbeat": "Active"
+      },
+      "liveTitle": "Working right now",
+      "liveNone": "Nobody is working in Studio right now",
+      "liveLast": "Last: {name}, {ago} · {where}",
+      "since": "since {t}",
+      "rhythmHint": "Each block on the line is a stretch of work, from start to finish. Hover for details.",
+      "dayMeta": "{n} sessions · {time}",
+      "did": {
+        "create": "Created",
+        "save": "Saved",
+        "submit": "Sent for approval",
+        "review": "Reviewed",
+        "publish": "Published",
+        "archive": "Archived",
+        "comment": "Commented",
+        "rollback": "Rolled back",
+        "restore": "Restored",
+        "other": "Other action",
+        "none": "no changes made"
       }
     },
     "generic": {
